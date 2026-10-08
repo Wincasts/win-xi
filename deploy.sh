@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 # Moves addons between this project folder and the live Ashita install.
 #
-#   ./deploy.sh status            every addon here, and how it differs from live
-#   ./deploy.sh diff <addon>      the files that differ, and their changes line by line
-#   ./deploy.sh push <addon>      copy the project copy to live, after showing what will change
-#   ./deploy.sh rollback <addon>  put back the files the last push replaced
-#   ./deploy.sh pull <addon>      copy the live copy into the project folder
+#   ./deploy.sh [flags] status            every addon here, and how it differs from live
+#   ./deploy.sh [flags] diff <addon>      the files that differ, and their changes line by line
+#   ./deploy.sh [flags] push <addon>      copy the project copy to live, after showing what will change
+#   ./deploy.sh [flags] rollback <addon>  put back the files the last push replaced
+#   ./deploy.sh [flags] pull <addon>      copy the live copy into the project folder
+#
+# Flags go before the command:
+#   -y, --yes   skip the "y" question
+#   -a, --all   with push or diff: every addon and library that differs from live, in place of a name
+#
+#   ./deploy.sh -a push       push everything that has changed, after one question
+#   ./deploy.sh -y -a push    the same, without the question
 #
 # A shared library under addons/libs is named with its folder: ./deploy.sh push libs/winxi
-# Add -y (or --yes) to skip the "y" question: ./deploy.sh push mobdb -y
+# With -a, libraries are pushed before the addons that use them.
 #
 # push and rollback are the only commands that write to the live install. Both show what they are
 # about to do and wait for "y" (unless given -y), and both refuse to run unless a person is at the
@@ -20,7 +27,7 @@ set -euo pipefail
 
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIVE="${ASHITA_LIVE:-$HOME/Games/PhoenixXI}"
-BACKUPS="$PROJECT/deploy-backups"
+BACKUPS="${DEPLOY_BACKUPS:-$PROJECT/deploy-backups}"
 # Repository and build leftovers that have no business in a live addon folder
 EXCLUDES=(--exclude=.git/ --exclude=.github/ --exclude=.gitignore --exclude=__pycache__/ --exclude='*.pyc')
 
@@ -84,15 +91,34 @@ confirm() {
     [[ "$answer" == y || "$answer" == Y ]]
 }
 
+# The name of every folder under addons, and of every library under addons/libs (as libs/<name>).
+# Libraries first, so that when all are pushed they land before the addons that use them.
+all_names() {
+    local dir
+    for dir in "$PROJECT"/addons/libs/*/; do
+        [[ -d "$dir" ]] && echo "libs/$(basename "$dir")"
+    done
+    for dir in "$PROJECT"/addons/*/; do
+        [[ -d "$dir" && "$(basename "$dir")" != libs ]] && basename "$dir"
+    done
+    return 0
+}
+
+# The names, from all_names, of everything that a push would change
+changed_names() {
+    local name src
+    while read -r name; do
+        src="$(source_dir "$name")" || continue
+        [[ -n "$(pending "$src" "$(live_dir "$name")")" ]] && echo "$name"
+    done < <(all_names)
+    return 0
+}
+
 cmd_status() {
     [[ -d "$LIVE/addons" ]] || die "live install not found at $LIVE (set ASHITA_LIVE to change it)"
     printf '%-16s %s\n' ADDON STATE
-    local dir name src dst changes extra
-    for dir in "$PROJECT"/addons/*/ "$PROJECT"/addons/libs/*/; do
-        [[ -d "$dir" ]] || continue
-        name="$(basename "$dir")"
-        [[ "$dir" == "$PROJECT"/addons/libs/*/ ]] && name="libs/$name"
-        [[ "$name" == libs ]] && continue
+    local name src dst changes extra
+    while read -r name; do
         src="$(source_dir "$name")" || { printf '%-16s %s\n' "$name" "(no $name.lua here: not an addon, skipped)"; continue; }
         dst="$(live_dir "$name")"
         if [[ ! -d "$dst" ]]; then
@@ -108,7 +134,21 @@ cmd_status() {
         fi
         [[ "$extra" -gt 0 ]] && printf '  (%s file(s) only in live)' "$extra"
         printf '\n'
-    done
+    done < <(all_names)
+}
+
+# diff for everything that differs from live
+cmd_diff_all() {
+    local names name
+    names="$(changed_names)"
+    if [[ -z "$names" ]]; then
+        echo "Nothing differs from live."
+        return
+    fi
+    while read -r name; do
+        cmd_diff "$name"
+        echo
+    done <<< "$names"
 }
 
 cmd_diff() {
@@ -142,6 +182,24 @@ cmd_diff() {
     fi
 }
 
+# Copies one addon or library to live, keeping what it replaces. The asking is done by the caller.
+# $1 is its name and $2 the list from pending.
+do_push() {
+    local name="$1" list="$2" src dst stamp backup
+    src="$(source_dir "$name")"
+    dst="$(live_dir "$name")"
+
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    backup="$BACKUPS/$name/$stamp"
+    mkdir -p "$backup" "$dst"
+    rsync -rc --times --backup --backup-dir="$backup" "${EXCLUDES[@]}" "$src/" "$dst/"
+
+    # what was newly added, so that a rollback can say so
+    echo "$list" | awk '$1 == "new" { $1 = ""; print substr($0, 2) }' > "$backup/.added"
+
+    echo "Pushed $name. Replaced files are kept in deploy-backups/$name/$stamp"
+}
+
 cmd_push() {
     need_addon "$@"
     [[ -d "$LIVE/addons" ]] || die "live install not found at $LIVE (set ASHITA_LIVE to change it)"
@@ -157,17 +215,40 @@ cmd_push() {
     echo "$list" | sed 's/^/  /'
     confirm "Push these to live?" || { echo "Nothing was changed."; return; }
 
-    local stamp backup
-    stamp="$(date +%Y%m%d-%H%M%S)"
-    backup="$BACKUPS/$1/$stamp"
-    mkdir -p "$backup" "$DST"
-    rsync -rc --times --backup --backup-dir="$backup" "${EXCLUDES[@]}" "$SRC/" "$DST/"
-
-    # what was newly added, so that a rollback can say so
-    echo "$list" | awk '$1 == "new" { $1 = ""; print substr($0, 2) }' > "$backup/.added"
-
-    echo "Pushed. Replaced files are kept in deploy-backups/$1/$stamp"
+    do_push "$1" "$list"
     reload_hint "$1"
+}
+
+# push for everything that differs from live: all of it shown, then one question for the lot
+cmd_push_all() {
+    [[ -d "$LIVE/addons" ]] || die "live install not found at $LIVE (set ASHITA_LIVE to change it)"
+
+    local names name
+    names="$(changed_names)"
+    if [[ -z "$names" ]]; then
+        echo "Nothing to push: live already matches everything here."
+        return
+    fi
+
+    while read -r name; do
+        echo "$name: about to copy into $(live_dir "$name")"
+        pending "$(source_dir "$name")" "$(live_dir "$name")" | sed 's/^/  /'
+    done <<< "$names"
+    confirm "Push all of these to live?" || { echo "Nothing was changed."; return; }
+
+    local addons=()
+    while read -r name; do
+        do_push "$name" "$(pending "$(source_dir "$name")" "$(live_dir "$name")")"
+        [[ "$name" != libs/* ]] && addons+=("$name")
+    done <<< "$names"
+
+    echo
+    if [[ "$names" == *libs/* ]]; then
+        echo "A library changed: in game, reload every addon that uses it."
+    fi
+    for name in "${addons[@]+"${addons[@]}"}"; do
+        echo "In game: /addon reload $name"
+    done
 }
 
 cmd_rollback() {
@@ -214,22 +295,46 @@ cmd_pull() {
     echo "Pulled."
 }
 
-# -y or --yes, anywhere on the line, skips the confirmation question
-ASSUME_YES=0
-ARGS=()
-for arg in "$@"; do
-    case "$arg" in
-        -y|--yes) ASSUME_YES=1 ;;
-        *)        ARGS+=("$arg") ;;
-    esac
-done
-set -- "${ARGS[@]+"${ARGS[@]}"}"
+usage() { sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
-case "${1:-}" in
+# Flags come first, before the command: ./deploy.sh -y -a push
+ASSUME_YES=0
+ALL=0
+while [[ $# -gt 0 && "$1" == -* ]]; do
+    case "$1" in
+        -y|--yes) ASSUME_YES=1 ;;
+        -a|--all) ALL=1 ;;
+        -ya|-ay)  ASSUME_YES=1; ALL=1 ;;
+        -h|--help) usage; exit 0 ;;
+        *)        die "unknown flag '$1' (flags are -y and -a)" ;;
+    esac
+    shift
+done
+
+# anything flag-like after the command is a flag in the wrong place, not an addon's name
+for arg in "$@"; do
+    [[ "$arg" == -* ]] && die "flags go before the command: ./deploy.sh $arg ${1:-push} ..."
+done
+
+COMMAND="${1:-}"
+[[ $# -gt 0 ]] && shift
+
+if [[ "$ALL" -eq 1 ]]; then
+    [[ $# -eq 0 ]] || die "-a takes the place of a name: leave out '$1'"
+    case "$COMMAND" in
+        push)   cmd_push_all ;;
+        diff)   cmd_diff_all ;;
+        status) cmd_status ;;
+        *)      die "-a goes with push or diff" ;;
+    esac
+    exit 0
+fi
+
+case "$COMMAND" in
     status)   cmd_status ;;
-    diff)     shift; cmd_diff "$@" ;;
-    push)     shift; cmd_push "$@" ;;
-    rollback) shift; cmd_rollback "$@" ;;
-    pull)     shift; cmd_pull "$@" ;;
-    *)        sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
+    diff)     cmd_diff "$@" ;;
+    push)     cmd_push "$@" ;;
+    rollback) cmd_rollback "$@" ;;
+    pull)     cmd_pull "$@" ;;
+    *)        usage ;;
 esac
