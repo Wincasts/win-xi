@@ -389,8 +389,7 @@ function Menu:Draw(x, y)
         ImGuiWindowFlags_NoDecoration,
         ImGuiWindowFlags_AlwaysAutoResize,
         ImGuiWindowFlags_NoSavedSettings,
-        ImGuiWindowFlags_NoInputs,
-        ImGuiWindowFlags_NoFocusOnAppearing);
+        ImGuiWindowFlags_NoInputs);
 
     -- every addon draws in the one imgui, so the window is named for the addon it belongs to; one is
     -- enough, as a menu that opens another takes its place
@@ -398,6 +397,9 @@ function Menu:Draw(x, y)
 
     menuPos[1], menuPos[2] = x, y;
     imgui.SetNextWindowPos(menuPos, ImGuiCond_Always);
+    -- brought to the front every frame: a window that is clicked, or that appears after the menu was
+    -- first made, would otherwise be drawn over it
+    imgui.SetNextWindowFocus();
     menuOpen[1] = true;
     if imgui.Begin(menuName, menuOpen, menuFlags) then
         if self.title then
