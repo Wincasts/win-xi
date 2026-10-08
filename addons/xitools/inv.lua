@@ -730,6 +730,53 @@ local function DrawSubInventory(title, bagId, subId)
     imgui.NewLine()
 end
 
+-- The bags counted at the foot of each tab, with what each is called there. Temporary items are not
+-- counted: they have no slots of their own to fill.
+local countedBags = {
+    bag = { { 'inventory', 'inv' } },
+    satchel = { { 'mog satchel', 'satchel' }, { 'mog case', 'case' }, { 'mog sack', 'sack' } },
+    wardrobe = {
+        { 'wardrobe 1', 'wardrobe1' }, { 'wardrobe 2', 'wardrobe2' }, { 'wardrobe 3', 'wardrobe3' },
+        { 'wardrobe 4', 'wardrobe4' }, { 'wardrobe 5', 'wardrobe5' }, { 'wardrobe 6', 'wardrobe6' },
+        { 'wardrobe 7', 'wardrobe7' }, { 'wardrobe 8', 'wardrobe8' },
+    },
+    house = { { 'mog safe 1', 'mogSafe1' }, { 'mog safe 2', 'mogSafe2' }, { 'storage', 'storage' }, { 'mog locker', 'locker' } },
+}
+
+-- The section at the foot of a tab: how full each of its bags is, as 08/30. A tab with one bag shows
+-- the count alone; one with several names each. A full bag's count is red. Bags the player does not
+-- have are left out.
+local function DrawCounts(bagId)
+    local counted = countedBags[bagId]
+    local shown = 0
+    for _, bag in ipairs(counted) do
+        if (capacities[bagId][bag[2]] or 0) > 0 then
+            shown = shown + 1
+        end
+    end
+    if shown == 0 then
+        return
+    end
+
+    imgui.Separator()
+    for _, bag in ipairs(counted) do
+        local slots = capacities[bagId][bag[2]] or 0
+        if slots > 0 then
+            local used = #inventories[bagId][bag[2]]
+            local text = ('%02d/%02d'):format(used, slots)
+            if shown > 1 then
+                text = ('%s %s'):format(bag[1], text)
+            end
+
+            if used >= slots then
+                imgui.TextColored(ui.Colors.Red, text)
+            else
+                imgui.Text(text)
+            end
+        end
+    end
+end
+
 local function DrawInventory()
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingSome)
     imgui.Text(('%s G'):format(inventories.gil))
@@ -738,6 +785,7 @@ local function DrawInventory()
         if imgui.BeginTabItem('bag##xitools.inventories.all.1') then
             DrawSubInventory('inventory', 'bag', 'inv')
             DrawSubInventory('temp items', 'bag', 'temp')
+            DrawCounts('bag')
             imgui.EndTabItem()
         end
 
@@ -745,6 +793,7 @@ local function DrawInventory()
             DrawSubInventory('mog satchel', 'satchel', 'satchel')
             DrawSubInventory('mog case', 'satchel', 'case')
             DrawSubInventory('mog sack', 'satchel', 'sack')
+            DrawCounts('satchel')
             imgui.EndTabItem()
         end
 
@@ -757,6 +806,7 @@ local function DrawInventory()
             DrawSubInventory('wardrobe 6', 'wardrobe', 'wardrobe6')
             DrawSubInventory('wardrobe 7', 'wardrobe', 'wardrobe7')
             DrawSubInventory('wardrobe 8', 'wardrobe', 'wardrobe8')
+            DrawCounts('wardrobe')
             imgui.EndTabItem()
         end
 
@@ -765,6 +815,7 @@ local function DrawInventory()
             DrawSubInventory('mog safe 2', 'house', 'mogSafe2')
             DrawSubInventory('storage', 'house', 'storage')
             DrawSubInventory('mog locker', 'house', 'locker')
+            DrawCounts('house')
             imgui.EndTabItem()
         end
 
@@ -780,21 +831,25 @@ local function DrawInventoryUnified()
     if imgui.BeginTabBar('##xitools.inventories.unified', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
         if imgui.BeginTabItem('bag##xitools.inventories.unified.1') then
             DrawBag('bag', 'all')
+            DrawCounts('bag')
             imgui.EndTabItem()
         end
 
         if imgui.BeginTabItem('satchel##xitools.inventories.unified.2') then
             DrawBag('satchel', 'all')
+            DrawCounts('satchel')
             imgui.EndTabItem()
         end
 
         if imgui.BeginTabItem('ward##xitools.inventories.unified.3') then
             DrawBag('wardrobe', 'all')
+            DrawCounts('wardrobe')
             imgui.EndTabItem()
         end
 
         if imgui.BeginTabItem('house##xitools.inventories.unified.4') then
             DrawBag('house', 'all')
+            DrawCounts('house')
             imgui.EndTabItem()
         end
 
