@@ -104,7 +104,9 @@ has to save and load it with the rest of its settings.
 4. Give it an Appearance tab in three sections. `widgets.Appearance`, given both functions, draws the
    first two: **Theme** (the "Use shared theme" checkbox) and **Window** (colours, padding, drop
    shadow, and Reset Appearance, which asks first when it is the shared theme being reset). The addon
-   draws the third itself, under `widgets.Header('<Addon Name>')`, for its own appearance options.
+   draws the third itself, under `widgets.Header('Addon')`, for its own appearance options. Its
+   settings are named with `widgets.Label` (the name on the left, then a colon, in line with winxi's)
+   and its families of settings kept apart with `widgets.Gap`.
 5. Remove the addon's own colour, padding and shadow settings and the code that drew with them.
 
 ## Notes
