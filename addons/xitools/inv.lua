@@ -44,6 +44,13 @@ local inventories = T{
     },
 }
 
+-- How many slots each bag has, by group and bag as inventories is (and 'all' for a group's bags
+-- together). Filled in by UpdateInventories.
+local capacities = { bag = { }, satchel = { }, wardrobe = { }, house = { } }
+
+-- Whether a spot is drawn for each empty slot as well: the Show Empty Slots setting, as of this frame
+local showEmptySlots = false
+
 local itemTypes = {
     misc       = 1,
     weapon     = 4,
@@ -390,6 +397,36 @@ local function UpdateInventories()
         :extend(inventories.house.storage)
         :extend(inventories.house.locker)
         :sort(SortInventory)
+
+    -- How many slots each bag has, for showing the empty ones. Temporary items have no fixed slots
+    -- worth showing, and a bag the player cannot use has none.
+    local function Slots(bagId)
+        if bagId >= bags.wardrobe3 and bagId <= bags.wardrobe8 and not ffxi.HasBagAccess(bagId) then
+            return 0
+        end
+        return math.max(0, inv:GetContainerCountMax(bagId))
+    end
+
+    capacities.bag = { inv = Slots(bags.inventory), temp = 0 }
+    capacities.satchel = { satchel = Slots(bags.mogSatchel), case = Slots(bags.mogCase), sack = Slots(bags.mogSack) }
+    capacities.wardrobe = {
+        wardrobe1 = Slots(bags.wardrobe), wardrobe2 = Slots(bags.wardrobe2), wardrobe3 = Slots(bags.wardrobe3),
+        wardrobe4 = Slots(bags.wardrobe4), wardrobe5 = Slots(bags.wardrobe5), wardrobe6 = Slots(bags.wardrobe6),
+        wardrobe7 = Slots(bags.wardrobe7), wardrobe8 = Slots(bags.wardrobe8),
+    }
+    capacities.house = {
+        mogSafe1 = Slots(bags.mogSafe), mogSafe2 = Slots(bags.mogSafe2),
+        storage = Slots(bags.storage), locker = Slots(bags.mogLocker),
+    }
+
+    -- the unified view of a group has the slots of all its bags together
+    for _, group in pairs(capacities) do
+        local total = 0
+        for _, slots in pairs(group) do
+            total = total + slots
+        end
+        group.all = total
+    end
 end
 
 local function TryToUse(item)
@@ -629,20 +666,61 @@ local function DrawItem(item, addCtxMenu)
     end
 end
 
+-- An empty slot: a faint square the size of an item's icon. The tables are shared rather than made for
+-- each one: a bag can have eighty.
+local emptySize = { 32, 32 }
+local emptyFill = { 1.0, 1.0, 1.0, 0.04 }
+local emptyEdge = { 1.0, 1.0, 1.0, 0.18 }
+local emptyMin, emptyMax = { 0, 0 }, { 0, 0 }
+
+local function DrawEmptySlot(drawList, fill, edge)
+    local x, y = imgui.GetCursorScreenPos()
+    imgui.Dummy(emptySize)
+
+    emptyMin[1], emptyMin[2] = x, y
+    emptyMax[1], emptyMax[2] = x + emptySize[1], y + emptySize[2]
+    drawList:AddRectFilled(emptyMin, emptyMax, fill, 2)
+    drawList:AddRect(emptyMin, emptyMax, edge, 2)
+end
+
+-- How many empty slots a bag (or a group's bags together) has to show: none unless they are being shown
+local function EmptySlots(bagId, subId)
+    if not showEmptySlots then
+        return 0
+    end
+    return math.max(0, (capacities[bagId][subId] or 0) - #inventories[bagId][subId])
+end
+
 local tabsWidthIsh = imgui.CalcTextSize(' bag satchel ward house ')
 local rowLengthIsh = math.ceil(tabsWidthIsh / (32 + 8))
 local function DrawBag(bagId, subId)
-    for i, item in ipairs(inventories[bagId][subId]) do
+    local items = inventories[bagId][subId]
+    for i, item in ipairs(items) do
         if i % rowLengthIsh ~= 1 then
             imgui.SameLine()
         end
 
         DrawItem(item, contextMenus[bagId])
     end
+
+    -- the empty slots carry on from the last item, in the same rows
+    local empty = EmptySlots(bagId, subId)
+    if empty > 0 then
+        local drawList = imgui.GetWindowDrawList()
+        local fill, edge = imgui.GetColorU32(emptyFill), imgui.GetColorU32(emptyEdge)
+        for i = #items + 1, #items + empty do
+            if i % rowLengthIsh ~= 1 then
+                imgui.SameLine()
+            end
+
+            DrawEmptySlot(drawList, fill, edge)
+        end
+    end
 end
 
 local function DrawSubInventory(title, bagId, subId)
-    if #inventories[bagId][subId] == 0 then
+    -- a bag with nothing in it is left out, unless its empty slots are being shown
+    if #inventories[bagId][subId] == 0 and EmptySlots(bagId, subId) == 0 then
         return
     end
 
@@ -734,6 +812,7 @@ local inv = {
         isEnabled = T{ false },
         isVisible = T{ true },
         isUnified = T{ true },
+        showEmptySlots = T{ false },
         size = T{ 0, 0 },
         maxHeight = T{ 432 },
         pos = T{ 256, 256 },
@@ -771,6 +850,15 @@ local inv = {
             imgui.Checkbox('##inv.2', options.isVisible)
 
             ui.Gap()
+            -- Settings saved before this option existed have no value for it
+            if options.showEmptySlots == nil then
+                options.showEmptySlots = T{ false }
+            end
+            ui.Label('Show Empty Slots')
+            imgui.Checkbox('##inv.emptySlots', options.showEmptySlots)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Draws a spot for every slot of each bag, with the empty ones as faint squares after the items.')
+            end
             ui.Label('Draw Unified Bags')
             imgui.Checkbox('##inv.3', options.isUnified)
             ui.Label('Max Height')
@@ -787,6 +875,7 @@ local inv = {
     end,
     DrawMain = function(options, gOptions)
         options.flags = ui.StyledWindowFlags
+        showEmptySlots = options.showEmptySlots ~= nil and options.showEmptySlots[1] or false
 
         ui.DrawStyledWindow(options, gOptions, function()
             if options.isUnified[1] then
