@@ -89,7 +89,18 @@ local layout = controller.Layouts[1];
 function controller.SetLayout(key)
     for _, candidate in ipairs(controller.Layouts) do
         if candidate.key == key then
-            layout = candidate;
+            if candidate ~= layout then
+                layout = candidate;
+
+                -- what was held was held on the other kind of controller, whose releases will no
+                -- longer be heard: forget it, or a press taken there would repeat for ever
+                for button in pairs(held) do
+                    held[button] = nil;
+                end
+                for button in pairs(owner) do
+                    owner[button] = nil;
+                end
+            end
             break;
         end
     end
@@ -393,7 +404,9 @@ function Menu:Draw(x, y)
             imgui.TextDisabled(self.title);
         end
         for index, entry in ipairs(self.entries) do
-            imgui.Selectable(('%s##winxi.menu.%d'):format(entry.label, index), index == self.index);
+            -- the label with an id of its own, so that two choices may read the same: made once
+            entry.id = entry.id or ('%s##winxi.menu.%d'):format(entry.label, index);
+            imgui.Selectable(entry.id, index == self.index);
         end
     end
     imgui.End();
