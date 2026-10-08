@@ -1,4 +1,4 @@
--- xiui.window: a themed window in one call.
+-- winxi.window: a themed window in one call.
 --
 --   window.Plain(name, open, flags, draw, options)   for text, bars and icons
 --   window.Full(name, open, flags, draw, options)    for a window with tabs, tables, buttons or inputs
@@ -10,13 +10,13 @@
 -- options (all optional):
 --   padding     a number, in place of the theme's padding
 --   background  a colour, in place of the theme's background
---   alpha       0 to 1, for a window that fades (xiui.fade); at 0 the window is not drawn at all
+--   alpha       0 to 1, for a window that fades (winxi.fade); at 0 the window is not drawn at all
 --   shadow      false for a window that should not have the theme's drop shadow
---   growFrom    the corner that stays put as the content changes size (see xiui.anchor); with any
+--   growFrom    the corner that stays put as the content changes size (see winxi.anchor); with any
 --               corner but TopLeft, draw is called twice a frame, once to measure
-local style = require('xiui.style');
-local shadow = require('xiui.shadow');
-local anchor = require('xiui.anchor');
+local style = require('winxi.style');
+local shadow = require('winxi.shadow');
+local anchor = require('winxi.anchor');
 
 local window = {};
 

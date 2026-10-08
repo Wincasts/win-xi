@@ -1,4 +1,4 @@
--- xiui.style: puts the theme on imgui's style stack around a window.
+-- winxi.style: puts the theme on imgui's style stack around a window.
 --
 --   style.PushPlain()  the background, border and text colours and the padding. For a window that
 --                      holds only text, bars and icons: three colours, cheap enough for every frame.
@@ -8,7 +8,7 @@
 -- Call one before a window's Begin and style.Pop() after its End. Pushes may be nested.
 -- Both take an optional table: padding (a number, in place of the theme's), background (a colour, in
 -- place of the theme's), alpha (0 to 1, for a window that is fading).
-local theme = require('xiui.theme');
+local theme = require('winxi.theme');
 
 local style = {};
 
@@ -77,7 +77,7 @@ function style.Padding()
     return padding[1];
 end
 
--- Window flags for the two usual kinds of xiui window: no title bar, sized to its content; and no
+-- Window flags for the two usual kinds of winxi window: no title bar, sized to its content; and no
 -- title bar but resizable. Made on first use, when imgui's flags are certain to be defined.
 local titleless, resizable = nil, nil;
 

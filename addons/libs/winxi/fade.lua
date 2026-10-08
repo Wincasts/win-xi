@@ -1,4 +1,4 @@
--- xiui.fade: fades an addon's windows out once the player has been idle, and brings them back.
+-- winxi.fade: fades an addon's windows out once the player has been idle, and brings them back.
 --
 -- Idle means standing still. The settings say how long for, how long the fade takes, how visible a
 -- faded window stays, and what else counts as not being idle:
@@ -8,7 +8,7 @@
 -- the windows up while engaged, while anything is targeted, while below full HP, and while resting.
 --
 -- Call fade.Update(settings) once a frame, then give fade.Alpha() to each window that fades (as the
--- alpha option of xiui.window or xiui.style). A window at fade.Hidden() need not be drawn at all.
+-- alpha option of winxi.window or winxi.style). A window at fade.Hidden() need not be drawn at all.
 local fade = {};
 
 local fadeInTime = 0.2;      -- seconds to come back, however long the fade out takes

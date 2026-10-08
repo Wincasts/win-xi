@@ -1,4 +1,4 @@
--- xiui.anchor: "grow from". Which corner of a self-sizing window stays where it is as the window's
+-- winxi.anchor: "grow from". Which corner of a self-sizing window stays where it is as the window's
 -- content changes size.
 --
 -- ImGui's own behaviour is the top left: a window keeps its top left corner and grows to the right and
@@ -15,9 +15,9 @@
 --     anchor.Measure(key, mode, drawContent)   -- lays the content out off screen
 --     anchor.Place(key, mode)                  -- before Begin
 --     anchor.Track(key, mode)                  -- inside the window, once it has begun
--- xiui.window does this for a window given a growFrom option. While the window is dragged it is left
+-- winxi.window does this for a window given a growFrom option. While the window is dragged it is left
 -- alone, and its corner is taken from where it ends up.
-local style = require('xiui.style');
+local style = require('winxi.style');
 
 local anchor = {};
 
@@ -78,7 +78,7 @@ function anchor.Measure(key, mode, drawContent)
 
     local state = GetState(key);
     imgui.SetNextWindowPos(measurePos, ImGuiCond_Always);
-    if imgui.Begin('##xiui_measure_' .. key, measureOpen, measureFlags) then
+    if imgui.Begin('##winxi_measure_' .. key, measureOpen, measureFlags) then
         -- a group's size is that of everything drawn in it
         imgui.BeginGroup();
         drawContent();

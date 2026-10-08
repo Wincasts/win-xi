@@ -1,7 +1,7 @@
--- xiui.theme: the look shared by every addon that draws with xiui.
+-- winxi.theme: the look shared by every addon that draws with winxi.
 --
 -- There is one theme for the whole client: the background, border and text colours, the padding, and
--- the drop shadow. It is kept in config\addons\xiui\theme.lua. Each addon runs on its own, so they
+-- the drop shadow. It is kept in config\addons\winxi\theme.lua. Each addon runs on its own, so they
 -- cannot share the theme in memory; instead each loads the file, and whichever addon changes it saves
 -- the file and raises an event that tells the others to load it again.
 --
@@ -26,7 +26,7 @@ theme.Defaults = {
 local colorKeys = { 'BackgroundColor', 'BorderColor', 'TextColor' };
 local numberKeys = { Padding = { 0, theme.MaxPadding }, ShadowOffset = { 0, 20 }, ShadowBlur = { 0, 20 }, ShadowOpacity = { 0, 100 } };
 
-local eventName = 'xiui_theme_changed';
+local eventName = 'winxi_theme_changed';
 local current = {};
 local version = 0;
 
@@ -65,7 +65,7 @@ local function Apply(source)
 end
 
 local function Directory()
-    return string.format('%sconfig\\addons\\xiui\\', AshitaCore:GetInstallPath());
+    return string.format('%sconfig\\addons\\winxi\\', AshitaCore:GetInstallPath());
 end
 
 local function Path()
@@ -121,7 +121,7 @@ function theme.Load()
     return true;
 end
 
--- Writes the live theme to its file and tells every other addon using xiui to load it
+-- Writes the live theme to its file and tells every other addon using winxi to load it
 function theme.Save()
     local directory = Directory();
     for position = 1, #directory do
@@ -135,7 +135,7 @@ function theme.Save()
         return false;
     end
 
-    file:write('-- The look shared by every addon that draws with xiui. Written by xiui: edit it in game.\n');
+    file:write('-- The look shared by every addon that draws with winxi. Written by winxi: edit it in game.\n');
     file:write('return {\n');
     for _, key in ipairs(colorKeys) do
         local color = current[key];
@@ -223,7 +223,7 @@ end
 Apply(theme.Defaults);
 theme.Load();
 
-ashita.events.register('plugin_event', 'xiui_theme_plugin_event', function(e)
+ashita.events.register('plugin_event', 'winxi_theme_plugin_event', function(e)
     if e.name == eventName then
         theme.Load();
     end

@@ -1,12 +1,12 @@
--- xiui.widgets: ready-made controls for an addon's settings window.
+-- winxi.widgets: ready-made controls for an addon's settings window.
 --
 --   widgets.Appearance()             the shared theme: colours, padding and drop shadow
 --   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
 --
--- The theme controls change the theme for every addon using xiui. Changes show at once in the addon
+-- The theme controls change the theme for every addon using winxi. Changes show at once in the addon
 -- they are made in, and are saved (and so reach the others) when a control is let go.
-local theme = require('xiui.theme');
-local anchor = require('xiui.anchor');
+local theme = require('winxi.theme');
+local anchor = require('winxi.anchor');
 
 local widgets = {};
 
@@ -94,7 +94,7 @@ function widgets.GrowFrom(current)
         if index % 2 == 0 then
             imgui.SameLine(140);
         end
-        if imgui.RadioButton(anchor.Labels[mode] .. '##xiui.growfrom', current == mode) and current ~= mode then
+        if imgui.RadioButton(anchor.Labels[mode] .. '##winxi.growfrom', current == mode) and current ~= mode then
             chosen = mode;
         end
         Tooltip('The corner that stays where it is when the window\'s content changes size: it grows away from that corner.');

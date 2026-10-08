@@ -7,7 +7,7 @@
 #   ./deploy.sh rollback <addon>  put back the files the last push replaced
 #   ./deploy.sh pull <addon>      copy the live copy into the project folder
 #
-# A shared library under addons/libs is named with its folder: ./deploy.sh push libs/xiui
+# A shared library under addons/libs is named with its folder: ./deploy.sh push libs/winxi
 #
 # push and rollback are the only commands that write to the live install. Both show what they are
 # about to do and wait for "y", and both refuse to run unless a person is at the terminal.

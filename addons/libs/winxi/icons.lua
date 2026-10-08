@@ -1,4 +1,4 @@
--- xiui.icons: loading image files as textures, and drawing them cheaply.
+-- winxi.icons: loading image files as textures, and drawing them cheaply.
 --
 -- A loaded icon is { texture, handle }: the texture itself, which must be kept for as long as the icon
 -- is drawn, and the number imgui takes for it, worked out once rather than on every draw.
