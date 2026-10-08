@@ -794,6 +794,11 @@ controller.Bind({
 
 -- Starts a frame of drawing
 local function PadBeginFrame(options)
+    -- the kind of controller, from the settings (a key winxi does not know leaves it as it was)
+    if options.controllerType ~= nil and options.controllerType ~= controller.GetLayout() then
+        controller.SetLayout(options.controllerType)
+    end
+
     pad.options = options
     pad.drawn = os.clock()
     pad.active = PadIsActive()
@@ -1095,7 +1100,8 @@ local inv = {
         isVisible = T{ true },
         isUnified = T{ true },
         showEmptySlots = T{ false },
-        controller = T{ false }, -- experimental: work the window with an XInput controller
+        controller = T{ false }, -- experimental: work the window with a controller
+        controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
         size = T{ 0, 0 },
         maxHeight = T{ 432 },
         pos = T{ 256, 256 },
@@ -1148,7 +1154,24 @@ local inv = {
             ui.Label('Controller Navigation (Experimental)')
             imgui.Checkbox('##inv.controller', options.controller)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Work the inventory with an XInput controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
+                imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
+            end
+            if options.controller[1] then
+                ui.Label('Controller Type')
+                local current = controller.GetLayout()
+                local column = imgui.GetCursorPosX()
+                for index, layout in ipairs(controller.Layouts) do
+                    if index > 1 then
+                        -- one to a line, under the first
+                        imgui.SetCursorPosX(column)
+                    end
+                    if imgui.RadioButton(('%s##inv.controllerType'):format(layout.label), current == layout.key) then
+                        options.controllerType = layout.key
+                    end
+                end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('XInput is an Xbox controller, or one set to behave as one. DirectInput is anything else: pick the make whose buttons match.\nOn a DirectInput controller the buttons are read by position: the bottom face button is A, the right one B.')
+                end
             end
             ui.Label('Draw Unified Bags')
             imgui.Checkbox('##inv.3', options.isUnified)
