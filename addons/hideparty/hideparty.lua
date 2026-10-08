@@ -32,6 +32,9 @@ local chat = require 'chat';
 -- Addon Variables
 local hideparty = {
     show = 1,
+    -- Temporary, for finding which of the two visibility flags traps the party cursor in the alliance
+    -- when the party frame is hidden: 'both' (as always), 'a' (only the first), 'b' (only the second)
+    mode = 'both',
     ptrs = {
       target = 0,
       party0 = 0,
@@ -77,8 +80,9 @@ local function set_primitive_visibility(p, v)
     if (ptr ~= 0) then
         ptr = ashita.memory.read_uint32(ptr + 0x08);
         if (ptr ~= 0) then
-            ashita.memory.write_uint8(ptr + 0x69, v);
-            ashita.memory.write_uint8(ptr + 0x6A, v);
+            -- the flag a mode leaves alone is put back to showing
+            ashita.memory.write_uint8(ptr + 0x69, hideparty.mode ~= 'b' and v or 1);
+            ashita.memory.write_uint8(ptr + 0x6A, hideparty.mode ~= 'a' and v or 1);
         end
     end
 end
@@ -126,6 +130,13 @@ ashita.events.register('command', 'command_cb', function (e)
     -- Handle: /hideparty - Toggles the party frames visibility.
     if (#args == 1) then
         hideparty.show = not hideparty.show;
+        return;
+    end
+
+    -- Handle: /hideparty mode (both | a | b) - Temporary: which visibility flags are written.
+    if (#args == 3 and args[2]:any('mode') and args[3]:any('both', 'a', 'b')) then
+        hideparty.mode = args[3]:lower();
+        print(chat.header(addon.name):append(chat.message('Mode: ')):append(chat.success(hideparty.mode)));
         return;
     end
 
