@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Makes the plain sounds that come with winxi.sound: move, confirm, back and error.
+"""Makes the plain sounds that come with winxi.sound: move, tab, confirm, back and error.
 
 They are short tones, made here so that there is something to hear without borrowing the game's own
 files. Run it in this folder to make them again; put any wav of the same name in their place to change
@@ -33,6 +33,7 @@ def silence(seconds):
 
 SOUNDS = {
     'move': tone(1400, 1400, 0.035, 6),
+    'tab': tone(520, 1040, 0.07, 3),
     'confirm': tone(880, 880, 0.045, 3) + tone(1320, 1320, 0.09, 5),
     'back': tone(700, 470, 0.09, 4),
     'error': tone(200, 200, 0.06, 2) + silence(0.03) + tone(200, 200, 0.08, 3),

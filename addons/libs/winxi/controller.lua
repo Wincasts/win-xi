@@ -12,6 +12,9 @@
 --   controller.NewGrid()       a highlight that moves over things drawn in rows (items, icons, slots)
 --   controller.NewMenu(...)    a list of choices worked with up, down, confirm and back
 --
+-- controller.Highlight(binding), called while drawing a window, marks it as the one the controller is
+-- working, so that it can be told which window the buttons will act in.
+--
 -- The grid and the menu make the sounds of winxi.sound as they are worked, once an addon turns those on.
 --
 -- Binding buttons:
@@ -225,6 +228,59 @@ function controller.Bind(spec)
         ashita.events.register('d3d_present', 'winxi_controller_present', OnPresent);
     end
     return binding;
+end
+
+-- Whether a binding has the controller now
+function controller.IsActive(binding)
+    return binding ~= nil and binding.active() and true or false;
+end
+
+-- Marks the window being drawn as the one the controller is working: a bright line around its edge.
+-- Called between the window's Begin and End, and not from inside a child of it; it draws nothing
+-- unless the binding has the controller. winxi.window does this itself, given the binding as its
+-- controller option.
+controller.HighlightColor = { 0.23, 0.67, 0.91, 1.0 };
+
+local highlightGlow = { 0, 0, 0, 0 };
+local highlightMin, highlightMax = { 0, 0 }, { 0, 0 };
+local clipMin, clipMax = { 0, 0 }, { 0, 0 };
+
+local function WindowRounding()
+    return imgui.GetStyle().WindowRounding;
+end
+
+function controller.Highlight(binding)
+    if not controller.IsActive(binding) then
+        return false;
+    end
+
+    local x, y = imgui.GetWindowPos();
+    local w, h = imgui.GetWindowSize();
+    local ok, rounding = pcall(WindowRounding);
+    rounding = ok and type(rounding) == 'number' and rounding or 0;
+
+    -- the colours are worked out each time, as they take in the window's fade
+    local color = controller.HighlightColor;
+    highlightGlow[1], highlightGlow[2], highlightGlow[3] = color[1], color[2], color[3];
+    highlightGlow[4] = color[4] * 0.35;
+
+    -- the window's own list, so that the line sits with the window among the others, opened up to
+    -- take in its very edge and a little past it
+    local drawList = imgui.GetWindowDrawList();
+    clipMin[1], clipMin[2] = x - 3, y - 3;
+    clipMax[1], clipMax[2] = x + w + 3, y + h + 3;
+    drawList:PushClipRect(clipMin, clipMax, false);
+
+    highlightMin[1], highlightMin[2] = x - 2, y - 2;
+    highlightMax[1], highlightMax[2] = x + w + 2, y + h + 2;
+    drawList:AddRect(highlightMin, highlightMax, imgui.GetColorU32(highlightGlow), rounding + 2, 0, 2);
+
+    highlightMin[1], highlightMin[2] = x, y;
+    highlightMax[1], highlightMax[2] = x + w, y + h;
+    drawList:AddRect(highlightMin, highlightMax, imgui.GetColorU32(color), rounding, 0, 2);
+
+    drawList:PopClipRect();
+    return true;
 end
 
 function controller.Unbind(binding)

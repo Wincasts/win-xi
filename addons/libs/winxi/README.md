@@ -148,6 +148,18 @@ Only the buttons in `actions` are taken, and only while `active` says so: they a
 and the sticks and every other button still reach it. A button already down when the addon takes the
 controller is not counted as a press.
 
+To show which window the buttons will act in, mark it while its binding has the controller: a bright
+line is drawn around its edge. Keep what `controller.Bind` returns, and either give it to
+`winxi.window` as the `controller` option, or call it while drawing a window of the addon's own:
+
+```lua
+local binding = controller.Bind({ ... });
+
+window.Full(name, open, flags, draw, { controller = binding });
+-- or, between a window's Begin and End:
+controller.Highlight(binding);
+```
+
 Buttons are named as an Xbox controller's are. XInput is the default. For a DirectInput controller,
 the addon says which make it is, and its buttons are read as the Xbox buttons in the same positions:
 
@@ -162,7 +174,7 @@ controller.SetLayout(settings.ControllerType);    -- 'xinput', 'playstation', 's
 local sound = require('winxi.sound');
 
 sound.SetEnabled(settings.MenuSounds);    -- off until an addon turns it on
-sound.Play('move');                       -- 'move', 'confirm', 'back' or 'error'
+sound.Play('move');                       -- 'move', 'tab', 'confirm', 'back' or 'error'
 ```
 
 The controller's grid and menu play these by themselves as they are worked, so an addon using those
