@@ -429,35 +429,81 @@ local function UpdateInventories()
     end
 end
 
+-- What can be done with an item. Each is offered by the right-click menu, and by the controller's.
+local function UseItem(item)
+    local target = '<me>'
+
+    -- target determination courtesy of Thorny's thotbar
+    local targetsOthers = bit.band(item.targets, 0xFC) ~= 0
+    if targetsOthers then
+        target = '<t>'
+    end
+
+    AshitaCore:GetChatManager():QueueCommand(1, ('/item "%s" %s'):format(item.shortName, target))
+end
+
+local function TradeItem(item)
+    AshitaCore:GetChatManager():QueueCommand(1, ('/item "%s" <t>'):format(item.shortName))
+end
+
+local function EquipItem(item, slotName)
+    AshitaCore:GetChatManager():QueueCommand(1, ('/equip %s "%s"'):format(slotName, item.shortName))
+end
+
+local function MoveItem(item, bag)
+    AshitaCore:GetPacketManager():AddOutgoingPacket(
+        packets.outbound.inventoryMove:make(item.stackCur, item.bagId, bag.id, item.slotId))
+end
+
+local function DropItem(item)
+    AshitaCore:GetPacketManager():AddOutgoingPacket(
+        packets.outbound.inventoryDrop:make(item.stackCur, 0, item.slotId))
+end
+
+-- The names of the slots an item can be equipped to
+local function EquipSlots(item)
+    local names = { }
+    for i = 0, 16 do
+        local slot = bit.band(item.slots or 0, bit.lshift(1, i))
+        if slot > 0 and slots[slot] then
+            names[#names + 1] = slots[slot]
+        end
+    end
+    return names
+end
+
+-- Whether an item can be moved to a bag: one the player has, other than the one it is in, and not a
+-- gear-only bag unless it is gear
+local function CanMoveTo(item, bag)
+    return bag.hasAccess
+        and bag.id ~= item.bagId
+        and (not bag.isGearOnly or bag.isGearOnly and item.isEquippable)
+end
+
+local function DropLabel(item)
+    local itemName = item.longNameS
+    if item.stackCur > 1 then
+        itemName = item.longNameP
+    end
+    return ('Drop %i %s'):format(item.stackCur, itemName)
+end
+
 local function TryToUse(item)
     if imgui.Selectable('Use') then
-        local target = '<me>'
-
-        -- target determination courtesy of Thorny's thotbar
-        local targetsOthers = bit.band(item.targets, 0xFC) ~= 0
-        if targetsOthers then
-            target = '<t>'
-        end
-
-        AshitaCore:GetChatManager():QueueCommand(1, ('/item "%s" %s'):format(item.shortName, target))
+        UseItem(item)
     end
 end
 
 local function TryToTrade(item)
     if imgui.Selectable('Trade') then
-        AshitaCore:GetChatManager():QueueCommand(1, ('/item "%s" <t>'):format(item.shortName))
+        TradeItem(item)
     end
 end
 
 local function TryToEquip(item)
-    for i = 0, 16 do
-        local slot = bit.band(item.slots, bit.lshift(1, i))
-        if slot > 0 then
-            local target = slots[slot]
-            local action = ('Equip to %s'):format(target)
-            if imgui.Selectable(action) then
-                AshitaCore:GetChatManager():QueueCommand(1, ('/equip %s "%s"'):format(target, item.shortName))
-            end
+    for _, slotName in ipairs(EquipSlots(item)) do
+        if imgui.Selectable(('Equip to %s'):format(slotName)) then
+            EquipItem(item, slotName)
         end
     end
 end
@@ -465,15 +511,8 @@ end
 local function TryToMove(item)
     if imgui.BeginMenu('Move') then
         for _, bag in ipairs(moveableBags) do
-            local title = ('to %s'):format(bag.name)
-
-            local shouldShow = bag.hasAccess
-                and bag.id ~= item.bagId
-                and (not bag.isGearOnly or bag.isGearOnly and item.isEquippable)
-
-            if shouldShow and imgui.MenuItem(title) then
-                AshitaCore:GetPacketManager():AddOutgoingPacket(
-                    packets.outbound.inventoryMove:make(item.stackCur, item.bagId, bag.id, item.slotId))
+            if CanMoveTo(item, bag) and imgui.MenuItem(('to %s'):format(bag.name)) then
+                MoveItem(item, bag)
             end
         end
 
@@ -483,17 +522,10 @@ end
 
 local function TryToDrop(item)
     if imgui.BeginMenu('Drop') then
-        local itemName = item.longNameS
-        if item.stackCur > 1 then
-            itemName = item.longNameP
-        end
-
         -- TODO: add quantity picker
 
-        local title = ('Drop %i %s'):format(item.stackCur, itemName)
-        if imgui.MenuItem(title) then
-            AshitaCore:GetPacketManager():AddOutgoingPacket(
-                packets.outbound.inventoryDrop:make(item.stackCur, 0, item.slotId))
+        if imgui.MenuItem(DropLabel(item)) then
+            DropItem(item)
         end
 
         imgui.EndMenu()
@@ -645,7 +677,275 @@ local contextMenus = {
     house    = AddHouseCtxMenu,
 }
 
-local function DrawItem(item, addCtxMenu)
+-- Experimental: working the inventory with an XInput controller (the Controller Navigation setting).
+--
+-- While the window is showing, the d-pad moves a highlight over the items, the shoulder buttons change
+-- tab, A opens a menu of what can be done with the highlighted item and chooses from it, and B backs
+-- out of the menu or closes the window. Those buttons are kept from the game for as long as the window
+-- is showing; the sticks and every other button still reach it.
+local pad = {
+    active = false,   -- the window is showing with the setting on: the controller is the inventory's
+    cursor = 1,       -- which of the items drawn this frame is highlighted
+    count = 0,        -- how many items have been drawn this frame, and for each its place and bag:
+    items = { }, xs = { }, ys = { }, groups = { },
+    tab = 1,          -- the tab that is showing
+    wantTab = nil,    -- the tab to switch to on the next frame
+    moved = false,    -- the highlight has just moved: scroll it into view
+    menu = nil,       -- the menu that is open: { item, entries = { { label, run } }, index }
+    held = { },       -- button -> whether it is down
+    owned = { },      -- button -> true while a press the inventory took is still down
+    since = { },      -- button -> when a d-pad press began, and when it last repeated
+    repeated = { },
+}
+
+local padButtons = {
+    [0] = 'up', [1] = 'down', [2] = 'left', [3] = 'right',
+    [8] = 'previousTab', [9] = 'nextTab',
+    [12] = 'confirm', [13] = 'back',
+}
+local padTabs = 4
+local padRepeatDelay, padRepeatRate = 0.35, 0.08 -- seconds held before a d-pad press repeats, and between repeats
+local padColor = imgui.GetColorU32({ 1.0, 0.85, 0.3, 1.0 })
+
+-- Moves the highlight to the nearest item in the row above or below. The items' places are those they
+-- were last drawn at, so this works whatever the layout: rows of a bag, or several bags one under another.
+local function PadMoveRow(direction)
+    local x, y = pad.xs[pad.cursor], pad.ys[pad.cursor]
+    if x == nil then
+        return
+    end
+
+    -- the nearest row in that direction, then the item in it closest across
+    local rowY = nil
+    for i = 1, pad.count do
+        local dy = (pad.ys[i] - y) * direction
+        if dy > 1 and (rowY == nil or dy < (rowY - y) * direction) then
+            rowY = pad.ys[i]
+        end
+    end
+    if rowY == nil then
+        return
+    end
+
+    local best, bestDistance = nil, nil
+    for i = 1, pad.count do
+        if math.abs(pad.ys[i] - rowY) <= 1 then
+            local distance = math.abs(pad.xs[i] - x)
+            if bestDistance == nil or distance < bestDistance then
+                best, bestDistance = i, distance
+            end
+        end
+    end
+    if best ~= nil then
+        pad.cursor = best
+        pad.moved = true
+    end
+end
+
+local function PadMove(direction)
+    if direction == 'left' and pad.cursor > 1 then
+        pad.cursor = pad.cursor - 1
+        pad.moved = true
+    elseif direction == 'right' and pad.cursor < pad.count then
+        pad.cursor = pad.cursor + 1
+        pad.moved = true
+    elseif direction == 'up' then
+        PadMoveRow(-1)
+    elseif direction == 'down' then
+        PadMoveRow(1)
+    end
+end
+
+-- What can be done with an item from the given group of bags, as menu entries. The same choices, under
+-- the same rules, as the right-click menus. An entry's run may hand back another menu to open in its place.
+local function PadEntries(item, group)
+    local entries = { }
+    local function add(label, run)
+        entries[#entries + 1] = { label = label, run = run }
+    end
+
+    if group == 'house' then
+        return entries
+    end
+
+    local carried = (group == 'bag')
+    local worn = (group == 'wardrobe')
+
+    if (carried or worn) and item.isUsable then
+        add('Use', function() UseItem(item) end)
+    end
+    if carried and item.isTradeable then
+        add('Trade', function() TradeItem(item) end)
+    end
+    if (carried or worn) and item.isEquippable then
+        for _, slotName in ipairs(EquipSlots(item)) do
+            add(('Equip to %s'):format(slotName), function() EquipItem(item, slotName) end)
+        end
+    end
+    if item.isMoveable then
+        for _, bag in ipairs(moveableBags) do
+            if CanMoveTo(item, bag) then
+                add(('Move to %s'):format(bag.name), function() MoveItem(item, bag) end)
+            end
+        end
+    end
+    if not item.isLocked then
+        -- dropping is asked about first, with Cancel the choice that is highlighted
+        add('Drop...', function()
+            return { item = item, index = 1, entries = {
+                { label = 'Cancel' },
+                { label = DropLabel(item), run = function() DropItem(item) end },
+            } }
+        end)
+    end
+
+    return entries
+end
+
+-- A button has been pressed (or a held d-pad button has repeated) while the inventory has the controller
+local function PadPress(action, options)
+    local menu = pad.menu
+    if menu ~= nil then
+        if action == 'up' then
+            menu.index = (menu.index - 2) % #menu.entries + 1
+        elseif action == 'down' then
+            menu.index = menu.index % #menu.entries + 1
+        elseif action == 'confirm' then
+            local entry = menu.entries[menu.index]
+            pad.menu = entry.run and entry.run() or nil
+        elseif action == 'back' then
+            pad.menu = nil
+        end
+        return
+    end
+
+    if action == 'up' or action == 'down' or action == 'left' or action == 'right' then
+        PadMove(action)
+    elseif action == 'previousTab' then
+        pad.wantTab = (pad.tab - 2) % padTabs + 1
+    elseif action == 'nextTab' then
+        pad.wantTab = pad.tab % padTabs + 1
+    elseif action == 'confirm' then
+        local item = pad.items[pad.cursor]
+        if item ~= nil then
+            local entries = PadEntries(item, pad.groups[pad.cursor])
+            if #entries > 0 then
+                pad.menu = { item = item, entries = entries, index = 1 }
+            end
+        end
+    elseif action == 'back' then
+        options.isVisible[1] = false
+    end
+end
+
+-- Whether the inventory has the controller: the setting is on and the window is showing
+local function PadIsActive(options)
+    return options.controller ~= nil and options.controller[1] and options.isVisible[1] and true or false
+end
+
+-- A controller button has changed, or is being reported again. Every button's state is followed whether
+-- or not the inventory has the controller, so that one already down when the window opens (the button
+-- that opened it, say) is not taken for a new press. A press the inventory takes is kept from the game
+-- until the button is let go.
+local function PadHandleButton(e, options)
+    local button = e.button
+    local action = padButtons[button]
+    if action == nil then
+        return
+    end
+
+    local down = (e.state == 1)
+    local wasDown = pad.held[button]
+    pad.held[button] = down
+
+    if not PadIsActive(options) then
+        pad.owned[button] = nil
+        return
+    end
+
+    if down and not wasDown then
+        pad.owned[button] = true
+        pad.since[button] = os.clock()
+        pad.repeated[button] = nil
+        e.blocked = true
+        PadPress(action, options)
+    elseif pad.owned[button] then
+        e.blocked = true
+        if not down then
+            pad.owned[button] = nil
+        end
+    end
+end
+
+-- Starts a frame of drawing: nothing has been drawn yet, and a held d-pad button repeats
+local function PadBeginFrame(options)
+    pad.active = PadIsActive(options)
+    if not pad.active then
+        pad.count = 0
+        pad.menu = nil
+        return
+    end
+
+    -- before the count is cleared: moving the highlight goes by the items as they were last drawn
+    local now = os.clock()
+    for button = 0, 3 do
+        if pad.owned[button] and pad.held[button] then
+            local last = pad.repeated[button]
+            if (last == nil and now - pad.since[button] >= padRepeatDelay)
+            or (last ~= nil and now - last >= padRepeatRate) then
+                pad.repeated[button] = now
+                PadPress(padButtons[button], options)
+            end
+        end
+    end
+
+    pad.count = 0
+end
+
+local padMenuOpen = { true }
+local padMenuFlags = bit.bor(
+    ImGuiWindowFlags_NoDecoration,
+    ImGuiWindowFlags_AlwaysAutoResize,
+    ImGuiWindowFlags_NoSavedSettings,
+    ImGuiWindowFlags_NoInputs,
+    ImGuiWindowFlags_NoFocusOnAppearing)
+
+-- Ends a frame of drawing: keeps the highlight on an item, and draws the open menu beside its item
+local function PadEndFrame()
+    if not pad.active then
+        return
+    end
+
+    if pad.cursor > pad.count then
+        pad.cursor = math.max(1, pad.count)
+    end
+    pad.moved = false
+
+    local menu = pad.menu
+    if menu == nil then
+        return
+    end
+
+    -- the menu belongs to the item it was opened for: if that has gone (used up, moved), so does the menu
+    local item = pad.items[pad.cursor]
+    if item == nil or item.uniqueId ~= menu.item.uniqueId then
+        pad.menu = nil
+        return
+    end
+
+    imgui.SetNextWindowPos({ pad.xs[pad.cursor] + 40, pad.ys[pad.cursor] }, ImGuiCond_Always)
+    padMenuOpen[1] = true
+    if imgui.Begin('xitools.inv.padmenu', padMenuOpen, padMenuFlags) then
+        imgui.TextDisabled(menu.item.shortName)
+        for index, entry in ipairs(menu.entries) do
+            imgui.Selectable(('%s##pad%d'):format(entry.label, index), index == menu.index)
+        end
+    end
+    imgui.End()
+end
+
+-- group is the group of bags the item is being drawn in (bag, satchel, wardrobe or house)
+local function DrawItem(item, addCtxMenu, group)
     local iconSize = 32
     local curX, curY = imgui.GetCursorScreenPos()
     local drawList = imgui.GetWindowDrawList()
@@ -663,6 +963,22 @@ local function DrawItem(item, addCtxMenu)
 
     if addCtxMenu(item) then
         AddHighlight(curX, curY, iconSize, drawList)
+    end
+
+    -- With the controller: note where the item is, and mark the one the highlight is on
+    if pad.active then
+        pad.count = pad.count + 1
+        local index = pad.count
+        pad.items[index], pad.xs[index], pad.ys[index], pad.groups[index] = item, curX, curY, group
+
+        if index == pad.cursor then
+            -- two outlines, one inside the other, for a border two pixels thick
+            drawList:AddRect({ curX - 2, curY - 2 }, { curX + iconSize + 2, curY + iconSize + 2 }, padColor, 0.0)
+            drawList:AddRect({ curX - 3, curY - 3 }, { curX + iconSize + 3, curY + iconSize + 3 }, padColor, 0.0)
+            if pad.moved and imgui.SetScrollHereY ~= nil then
+                imgui.SetScrollHereY(0.5)
+            end
+        end
     end
 end
 
@@ -700,7 +1016,7 @@ local function DrawBag(bagId, subId)
             imgui.SameLine()
         end
 
-        DrawItem(item, contextMenus[bagId])
+        DrawItem(item, contextMenus[bagId], bagId)
     end
 
     -- the empty slots carry on from the last item, in the same rows
@@ -792,17 +1108,41 @@ local function DrawCounts(bagId)
     end
 end
 
+-- Begins one of the four tabs. With the controller it is also where a change of tab is asked for and
+-- where the tab that is showing is noted.
+local function BeginTab(index, label)
+    local showing
+    if pad.active and pad.wantTab == index then
+        showing = imgui.BeginTabItem(label, 0, ImGuiTabItemFlags_SetSelected)
+    else
+        showing = imgui.BeginTabItem(label)
+    end
+
+    if showing then
+        if pad.wantTab == index then
+            pad.wantTab = nil
+        end
+        if pad.tab ~= index then
+            -- a different tab's items: the highlight starts again from the first
+            pad.tab = index
+            pad.cursor = 1
+            pad.menu = nil
+        end
+    end
+    return showing
+end
+
 local function DrawInventory()
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingSome)
     if imgui.BeginTabBar('##xitools.inventories.all', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if imgui.BeginTabItem('bag##xitools.inventories.all.1') then
+        if BeginTab(1, 'bag##xitools.inventories.all.1') then
             DrawSubInventory('inventory', 'bag', 'inv')
             DrawSubInventory('temp items', 'bag', 'temp')
             DrawCounts('bag')
             imgui.EndTabItem()
         end
 
-        if imgui.BeginTabItem('satchel##xitools.inventories.all.2') then
+        if BeginTab(2, 'satchel##xitools.inventories.all.2') then
             DrawSubInventory('mog satchel', 'satchel', 'satchel')
             DrawSubInventory('mog case', 'satchel', 'case')
             DrawSubInventory('mog sack', 'satchel', 'sack')
@@ -810,7 +1150,7 @@ local function DrawInventory()
             imgui.EndTabItem()
         end
 
-        if imgui.BeginTabItem('ward##xitools.inventories.all.3') then
+        if BeginTab(3, 'ward##xitools.inventories.all.3') then
             DrawSubInventory('wardrobe 1', 'wardrobe', 'wardrobe1')
             DrawSubInventory('wardrobe 2', 'wardrobe', 'wardrobe2')
             DrawSubInventory('wardrobe 3', 'wardrobe', 'wardrobe3')
@@ -823,7 +1163,7 @@ local function DrawInventory()
             imgui.EndTabItem()
         end
 
-        if imgui.BeginTabItem('house##xitools.inventories.all.4') then
+        if BeginTab(4, 'house##xitools.inventories.all.4') then
             DrawSubInventory('mog safe 1', 'house', 'mogSafe1')
             DrawSubInventory('mog safe 2', 'house', 'mogSafe2')
             DrawSubInventory('storage', 'house', 'storage')
@@ -840,25 +1180,25 @@ end
 local function DrawInventoryUnified()
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingSome)
     if imgui.BeginTabBar('##xitools.inventories.unified', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if imgui.BeginTabItem('bag##xitools.inventories.unified.1') then
+        if BeginTab(1, 'bag##xitools.inventories.unified.1') then
             DrawBag('bag', 'all')
             DrawCounts('bag')
             imgui.EndTabItem()
         end
 
-        if imgui.BeginTabItem('satchel##xitools.inventories.unified.2') then
+        if BeginTab(2, 'satchel##xitools.inventories.unified.2') then
             DrawBag('satchel', 'all')
             DrawCounts('satchel')
             imgui.EndTabItem()
         end
 
-        if imgui.BeginTabItem('ward##xitools.inventories.unified.3') then
+        if BeginTab(3, 'ward##xitools.inventories.unified.3') then
             DrawBag('wardrobe', 'all')
             DrawCounts('wardrobe')
             imgui.EndTabItem()
         end
 
-        if imgui.BeginTabItem('house##xitools.inventories.unified.4') then
+        if BeginTab(4, 'house##xitools.inventories.unified.4') then
             DrawBag('house', 'all')
             DrawCounts('house')
             imgui.EndTabItem()
@@ -879,6 +1219,7 @@ local inv = {
         isVisible = T{ true },
         isUnified = T{ true },
         showEmptySlots = T{ false },
+        controller = T{ false }, -- experimental: work the window with an XInput controller
         size = T{ 0, 0 },
         maxHeight = T{ 432 },
         pos = T{ 256, 256 },
@@ -925,6 +1266,14 @@ local inv = {
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('Draws a spot for every slot of each bag, with the empty ones as faint squares after the items.')
             end
+            if options.controller == nil then
+                options.controller = T{ false }
+            end
+            ui.Label('Controller Navigation (Experimental)')
+            imgui.Checkbox('##inv.controller', options.controller)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Work the inventory with an XInput controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
+            end
             ui.Label('Draw Unified Bags')
             imgui.Checkbox('##inv.3', options.isUnified)
             ui.Label('Max Height')
@@ -943,6 +1292,7 @@ local inv = {
         options.flags = ui.StyledWindowFlags
         showEmptySlots = options.showEmptySlots ~= nil and options.showEmptySlots[1] or false
 
+        PadBeginFrame(options)
         ui.DrawStyledWindow(options, gOptions, function()
             if options.isUnified[1] then
                 DrawInventoryUnified()
@@ -950,6 +1300,10 @@ local inv = {
                 DrawInventory()
             end
         end)
+        PadEndFrame()
+    end,
+    HandleXInput = function(e, options)
+        PadHandleButton(e, options)
     end,
 }
 

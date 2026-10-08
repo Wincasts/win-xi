@@ -24,6 +24,7 @@ local winxiWidgets = require('winxi.widgets')
 ---@field HandlePacket    function?
 ---@field HandlePacketOut function?
 ---@field HandleCommand   function?
+---@field HandleXInput    function? called for each XInput controller button event, to act on it or keep it from the game
 ---@field DrawConfig      function
 ---@field DrawMain        function
 ---@field DrawSample      function? draws the tool's windows filled with sample data; only called while it is enabled
@@ -464,6 +465,15 @@ ashita.events.register('packet_in', 'packet_in_handler', function(e)
     for _, tool in ipairs(tools) do
         if options.tools[tool.Name].isEnabled[1] and tool.HandlePacket ~= nil then
             tool.HandlePacket(e, options.tools[tool.Name], options.globals)
+        end
+    end
+end)
+
+-- Controller buttons, for the tools that can be worked with one
+ashita.events.register('xinput_button', 'xinput_button_handler', function(e)
+    for _, tool in ipairs(tools) do
+        if options.tools[tool.Name].isEnabled[1] and tool.HandleXInput ~= nil then
+            tool.HandleXInput(e, options.tools[tool.Name], options.globals)
         end
     end
 end)
