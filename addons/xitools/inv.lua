@@ -746,6 +746,8 @@ local countedBags = {
 -- The section at the foot of a tab: how full each of its bags is, as 08/30. A tab with one bag shows
 -- the count alone; one with several names each. A full bag's count is red. Bags the player does not
 -- have are left out.
+local countBuffer = { 0, 3 } -- above and below the line
+
 local function DrawCounts(bagId)
     local counted = countedBags[bagId]
     local shown = 0
@@ -758,7 +760,11 @@ local function DrawCounts(bagId)
         return
     end
 
+    -- a little room either side of the line that sets the counts apart from the slots
+    imgui.Dummy(countBuffer)
     imgui.Separator()
+    imgui.Dummy(countBuffer)
+
     for _, bag in ipairs(counted) do
         local slots = capacities[bagId][bag[2]] or 0
         if slots > 0 then
@@ -767,6 +773,11 @@ local function DrawCounts(bagId)
             if shown > 1 then
                 text = ('%s %s'):format(bag[1], text)
             end
+
+            -- against the right edge, by hand: the text starts its own width short of it
+            local available = imgui.GetContentRegionAvail()
+            local width = imgui.CalcTextSize(text)
+            imgui.SetCursorPosX(imgui.GetCursorPosX() + math.max(0, available - width))
 
             if used >= slots then
                 imgui.TextColored(ui.Colors.Red, text)
