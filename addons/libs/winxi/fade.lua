@@ -3,8 +3,9 @@
 -- Idle means standing still. The settings say how long for, how long the fade takes, how visible a
 -- faded window stays, and what else counts as not being idle:
 --     { Enabled = false, Delay = 10, Duration = 1.5, Opacity = 0,
---       Combat = true, Target = true, MissingHp = false, Resting = false }
--- Delay and Duration are seconds, Opacity a percentage. Combat, Target, MissingHp and Resting each keep
+--       Combat = true, Target = true, MissingHp = false, Resting = false, Transition = 0.1 }
+-- Delay and Duration are seconds, Opacity a percentage. Transition is how many seconds a window takes
+-- to fade in as it appears, out as it goes, and back in when idling ends: one speed for every window. Combat, Target, MissingHp and Resting each keep
 -- the windows up while engaged, while anything is targeted, while below full HP, and while resting.
 --
 -- The settings are the addon's own, kept wherever it keeps the rest; fade.Complete(settings) fills in
@@ -26,6 +27,7 @@ fade.Defaults = {
     Target = true,
     MissingHp = false,
     Resting = false,
+    Transition = 0.1, -- seconds a window takes to fade in as it appears, out as it goes, and back from idling
 };
 
 -- Gives a settings table each setting it does not yet have, at its default. Returns the table.
@@ -38,10 +40,12 @@ function fade.Complete(settings)
     return settings;
 end
 
-local fadeInTime = 0.2;      -- seconds to come back, however long the fade out takes
 local moveThreshold = 0.05;  -- a change in position smaller than this is not movement
 local statusEngaged = 1;
 local statusResting = 33;    -- kneeling to recover HP and MP (/heal)
+
+-- Seconds to fade in, out, and back from idling. Set from the settings' Transition by fade.Update.
+fade.TransitionTime = fade.Defaults.Transition;
 
 local alpha = 1;
 local lastMove, lastFrame = os.clock(), os.clock();
@@ -53,6 +57,11 @@ function fade.Update(settings, suspended)
     local now = os.clock();
     local elapsed = math.min(now - lastFrame, 0.1);
     lastFrame = now;
+
+    -- the one speed for appearing, disappearing and coming back from idling
+    if settings ~= nil and type(settings.Transition) == 'number' then
+        fade.TransitionTime = math.max(0, settings.Transition);
+    end
 
     if settings == nil or not settings.Enabled or suspended then
         alpha = 1;
@@ -108,7 +117,11 @@ function fade.Update(settings, suspended)
             alpha = target;
         end
     elseif alpha < target then
-        alpha = math.min(target, alpha + range * elapsed / fadeInTime);
+        if fade.TransitionTime > 0 then
+            alpha = math.min(target, alpha + range * elapsed / fade.TransitionTime);
+        else
+            alpha = target;
+        end
     end
 end
 
@@ -122,7 +135,6 @@ end
 -- draw. A window whose addon simply stops asking about it when it is not wanted still fades in the next
 -- time it is: a gap in the asking counts as the window having been away. To fade such a window out, the
 -- addon has to go on drawing it, with wanted false, for as long as fade.Lingering(key) is true.
-fade.TransitionTime = 0.2;
 
 local presenceGap = 0.25; -- seconds without being asked about before a window counts as having been away
 local presence = {};      -- key -> { alpha, time = when it was last asked about }
