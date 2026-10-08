@@ -81,6 +81,9 @@ local defaultOptions = T{
         theme = T{ },
         hpBarColor = T{ 0.83, 0.33, 0.28, 1.0 },
         mpBarColor = T{ 0.82, 0.60, 0.27, 1.0 },
+        tpBarColor = T{ 1.00, 1.00, 1.00, 1.0 },       -- while TP is building
+        tpBarReadyColor = T{ 0.23, 0.67, 0.91, 1.0 },  -- once a weaponskill can be used
+        tpBarFlash = T{ false },                       -- experimental: pulse between the two when ready
         baseW = 7,
         baseH = 14,
         -- Fading while idle. The settings themselves are winxi's (see winxi.fade) and are filled in by
@@ -161,6 +164,15 @@ local function ApplyGlobals()
     if globals.mpBarColor == nil then
         globals.mpBarColor = T{ unpack(defaultOptions.globals.mpBarColor) }
     end
+    if globals.tpBarColor == nil then
+        globals.tpBarColor = T{ unpack(defaultOptions.globals.tpBarColor) }
+    end
+    if globals.tpBarReadyColor == nil then
+        globals.tpBarReadyColor = T{ unpack(defaultOptions.globals.tpBarReadyColor) }
+    end
+    if globals.tpBarFlash == nil then
+        globals.tpBarFlash = T{ false }
+    end
 
     if globals.links == nil then
         globals.links = T{ }
@@ -196,6 +208,9 @@ local function ApplyGlobals()
 
     ui.Colors.HpBar = globals.hpBarColor
     ui.Colors.MpBar = globals.mpBarColor
+    ui.Colors.TpBar = globals.tpBarColor
+    ui.Colors.TpBarActive = globals.tpBarReadyColor
+    ui.TpBarFlash = globals.tpBarFlash
     winxiOrganize.SetLinks(globals.links)
 end
 
@@ -254,6 +269,21 @@ local function DrawAppearance()
     imgui.ColorEdit4('##xitools.hpBarColor', options.globals.hpBarColor)
     winxiWidgets.Label('MP Bar Color')
     imgui.ColorEdit4('##xitools.mpBarColor', options.globals.mpBarColor)
+    winxiWidgets.Label('TP Bar Color')
+    imgui.ColorEdit4('##xitools.tpBarColor', options.globals.tpBarColor)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('The TP bar while TP is building.')
+    end
+    winxiWidgets.Label('TP Bar Ready Color')
+    imgui.ColorEdit4('##xitools.tpBarReadyColor', options.globals.tpBarReadyColor)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('The TP bar once a weaponskill can be used (1000 TP).')
+    end
+    winxiWidgets.Label('Flash TP Bar When Ready (Experimental)')
+    imgui.Checkbox('##xitools.tpBarFlash', options.globals.tpBarFlash)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Your own TP bar pulses once a weaponskill can be used, fading from the TP Bar Color to the TP Bar Ready Color and back.\nOther players\' and pets\' bars simply take the ready colour.')
+    end
 
     winxiWidgets.Gap()
     local fade = options.globals.fade

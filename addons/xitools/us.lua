@@ -309,7 +309,7 @@ local function DrawName(player, showDist)
         imgui.Text('>')
         imgui.SameLine()
     elseif player.isTarget then
-        imgui.PushStyleColor(ImGuiCol_Text, ui.Colors.TpBarActive)
+        imgui.PushStyleColor(ImGuiCol_Text, ui.Colors.Blue)
         imgui.Text('>>')
         imgui.SameLine()
     else
@@ -323,7 +323,7 @@ local function DrawName(player, showDist)
     local offsetX = 0
 
     if player.isAllianceLeader then
-        DrawDot({originX + offsetX + 3, originY + 6}, ui.Colors.TpBarActive)
+        DrawDot({originX + offsetX + 3, originY + 6}, ui.Colors.Blue)
         offsetX = offsetX + 6
     end
 
@@ -409,12 +409,8 @@ end
 ---@param player PartyMember
 local function DrawTp(player)
     local textColor = ui.Colors.White
-    local barColor = ui.Colors.TpBar
+    local barColor = ui.TpBarColor(player.tp, player.isPlayer)
     local overlay = string.format('%i', player.tp)
-
-    if player.tp >= 1000 then
-        barColor = ui.Colors.TpBarActive
-    end
 
     imgui.PushStyleColor(ImGuiCol_Text, textColor)
     imgui.PushStyleColor(ImGuiCol_PlotHistogram, barColor)

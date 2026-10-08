@@ -33,6 +33,10 @@ local ui = {
 
         HpBar          = { 0.83, 0.33, 0.28, 1.0 },
         MpBar          = { 0.82, 0.60, 0.27, 1.0 },
+        Blue           = { 0.23, 0.67, 0.91, 1.0 },
+
+        -- The TP bar while TP is building, and once a weaponskill can be used. Both are settings
+        -- (Appearance tab): xitools points these at the chosen colours when its settings are loaded.
         TpBar          = { 1.00, 1.00, 1.00, 1.0 },
         TpBarActive    = { 0.23, 0.67, 0.91, 1.0 },
         XpBar          = { 0.01, 0.67, 0.07, 1.0 },
@@ -84,6 +88,38 @@ function ui.PaddedWidth(width)
         return width + 2 * (ui.Styles.WindowPadding[1] - basePadding)
     end
     return width
+end
+
+-- TP at which a weaponskill can be used
+local tpReady = 1000
+
+-- Experimental, a setting (Appearance tab): the player's own TP bar pulses once a weaponskill can be
+-- used, fading from the building colour to the ready colour and back, once every tpFlashPeriod seconds.
+-- xitools points this at the setting's { true or false } when its settings are loaded.
+ui.TpBarFlash = { false }
+
+local tpFlashPeriod = 1.2
+local tpFlashColor = { 0, 0, 0, 0 } -- reused: the colour is handed to imgui and copied there at once
+
+-- The colour of a TP bar showing the given TP. isOwn is true for the player's own bar, which is the one
+-- that flashes when that is switched on; anyone else's simply takes the ready colour.
+function ui.TpBarColor(tp, isOwn)
+    if tp < tpReady then
+        return ui.Colors.TpBar
+    end
+    if not isOwn or not ui.TpBarFlash[1] then
+        return ui.Colors.TpBarActive
+    end
+
+    -- 0 at the building colour, 1 at the ready colour, moving smoothly from one to the other and back
+    local phase = (os.clock() % tpFlashPeriod) / tpFlashPeriod
+    local blend = 0.5 - 0.5 * math.cos(phase * 2 * math.pi)
+
+    local from, to, color = ui.Colors.TpBar, ui.Colors.TpBarActive, tpFlashColor
+    for channel = 1, 4 do
+        color[channel] = from[channel] + (to[channel] - from[channel]) * blend
+    end
+    return color
 end
 
 -- How full a bar is. A bar with no maximum (the MP of a job without any) is empty, not 0 / 0.

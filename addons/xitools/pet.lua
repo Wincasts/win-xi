@@ -83,10 +83,7 @@ end
 
 ---@param pet PetInfo
 local function DrawTp(pet)
-    local barColor = ui.Colors.TpBar
-    if pet.tp >= 1000 then
-        barColor = ui.Colors.TpBarActive
-    end
+    local barColor = ui.TpBarColor(pet.tp, false)
 
     imgui.PushStyleColor(ImGuiCol_Text, ui.Colors.White)
     imgui.PushStyleColor(ImGuiCol_PlotHistogram, barColor)

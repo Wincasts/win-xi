@@ -79,11 +79,10 @@ end
 local function DrawTp(cur, max)
     local title = string.format('TP %4i', cur)
     local textColor = ui.Colors.White
-    local barColor = ui.Colors.TpBar
+    local barColor = ui.TpBarColor(cur, true)
 
     if cur >= 1000 then
         textColor = ui.Colors.TpBarActive
-        barColor = ui.Colors.TpBarActive
     end
 
     imgui.PushStyleColor(ImGuiCol_Text, textColor)
