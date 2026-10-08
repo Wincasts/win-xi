@@ -90,27 +90,26 @@ function SettingsGui:RenderAppearance()
         };
     end
 
-    imgui.TextColored(self.Theme.Header, 'Theme');
+    -- The Theme and Window sections are winxi's; the last section is what is this addon's own
     widgets.Appearance(self.AppearanceHooks);
 
-    imgui.TextColored(self.Theme.Header, 'Draw Scale (Bar)');
+    widgets.Header('MobDB');
     local scale = { self.Parent.Scale };
-    if (imgui.SliderFloat('##BarScale', scale, 0.5, 3.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
+    if (imgui.SliderFloat('Bar Scale', scale, 0.5, 3.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
         if (scale[1] ~= self.Parent.Scale) then
             self.Parent.Scale = scale[1];
             self.Parent:Save(self.Parent.CharacterSpecific);
         end
     end
-    imgui.TextColored(self.Theme.Header, 'Draw Scale (Details)');
     scale = { self.Parent.DetailScale };
-    if (imgui.SliderFloat('##DetailScale', scale, 0.5, 3.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
+    if (imgui.SliderFloat('Detail Scale', scale, 0.5, 3.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
         if (scale[1] ~= self.Parent.DetailScale) then
             self.Parent.DetailScale = scale[1];
             self.Parent:Save(self.Parent.CharacterSpecific);
         end
     end
 
-    imgui.TextColored(self.Theme.Header, 'Grow From');
+    imgui.Text('Grow From');
     local chosen = widgets.GrowFrom(self.Parent.GrowFrom);
     if (chosen) then
         self.Parent.GrowFrom = chosen;

@@ -101,8 +101,10 @@ has to save and load it with the rest of its settings.
 1. Draw its windows with `winxi.window`, or `winxi.style` pushes around its own `Begin`.
 2. Add the `UseSharedTheme` flag and `Theme` table to its settings, saved and loaded with the rest.
 3. Call `theme.Configure` once a frame.
-4. Give it an Appearance tab with `widgets.Appearance` and both functions, so the "Use shared theme"
-   checkbox is there.
+4. Give it an Appearance tab in three sections. `widgets.Appearance`, given both functions, draws the
+   first two: **Theme** (the "Use shared theme" checkbox) and **Window** (colours, padding, drop
+   shadow, and Reset Appearance, which asks first when it is the shared theme being reset). The addon
+   draws the third itself, under `widgets.Header('<Addon Name>')`, for its own appearance options.
 5. Remove the addon's own colour, padding and shadow settings and the code that drew with them.
 
 ## Notes

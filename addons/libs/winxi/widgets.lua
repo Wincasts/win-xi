@@ -1,6 +1,7 @@
 -- winxi.widgets: ready-made controls for an addon's settings window.
 --
---   widgets.Appearance(hooks)        the theme: colours, padding and drop shadow
+--   widgets.Appearance(hooks)        the Theme and Window sections of an Appearance tab
+--   widgets.Header(text)             a section title, for the addon's own section after those
 --   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
 --   widgets.Fade(settings, onChanged) the controls for fading while idle (see winxi.fade)
 --
@@ -73,11 +74,60 @@ local function Slider(label, key, min, max, tooltip)
     AfterControl(changed);
 end
 
+-- The title of a section of a settings window. An addon's Appearance tab has three: Theme and Window,
+-- which widgets.Appearance draws, and one of the addon's own for whatever else it has to set.
+widgets.HeaderColor = { 1.0, 0.75, 0.55, 1.0 };
+
+function widgets.Header(text)
+    imgui.TextColored(widgets.HeaderColor, text);
+end
+
+local resetPopup = 'Reset the shared theme?##winxi.reset';
+local resetPopupOpen = { true };
+local resetPopupFlags = nil;
+
+-- Asks before the shared theme is reset, since that changes every addon using it. Returns true on the
+-- frame the reset is confirmed.
+local function ConfirmSharedReset()
+    local confirmed = false;
+
+    -- a modal where there is one; an ordinary popup otherwise
+    local begun;
+    if imgui.BeginPopupModal ~= nil then
+        resetPopupFlags = resetPopupFlags or ImGuiWindowFlags_AlwaysAutoResize;
+        resetPopupOpen[1] = true;
+        begun = imgui.BeginPopupModal(resetPopup, resetPopupOpen, resetPopupFlags);
+    else
+        begun = imgui.BeginPopup(resetPopup);
+    end
+
+    if begun then
+        imgui.Text('This puts the colours, padding and drop shadow back to their defaults');
+        imgui.Text('for every addon that uses the shared theme.');
+        imgui.Separator();
+
+        if imgui.Button('Reset##winxi.reset.confirm') then
+            confirmed = true;
+            imgui.CloseCurrentPopup();
+        end
+        imgui.SameLine();
+        if imgui.Button('Cancel##winxi.reset.cancel') then
+            imgui.CloseCurrentPopup();
+        end
+        imgui.EndPopup();
+    end
+
+    return confirmed;
+end
+
+-- The Theme section (whether this addon uses the shared theme) and the Window section (the colours,
+-- padding and drop shadow of whichever theme is in use). An addon follows it with a section of its own.
 function widgets.Appearance(appearanceHooks)
     hooks = appearanceHooks;
 
     -- Only an addon that can keep a theme of its own offers the choice
     if hooks and hooks.onUseShared then
+        widgets.Header('Theme');
         box[1] = theme.IsShared();
         if imgui.Checkbox('Use shared theme', box) then
             hooks.onUseShared(box[1] and true or false);
@@ -88,6 +138,7 @@ function widgets.Appearance(appearanceHooks)
     local current = theme.Get();
     local shared = theme.IsShared();
 
+    widgets.Header('Window');
     Color('Background Color', 'BackgroundColor', 'The background of every window.');
     Color('Border Color', 'BorderColor', 'The border of every window. Tabs, buttons, sliders and other controls are tinted from it.');
     Color('Text Color', 'TextColor');
@@ -107,12 +158,22 @@ function widgets.Appearance(appearanceHooks)
         Slider('Shadow opacity (%)', 'ShadowOpacity', 0, 100);
     end
 
-    if imgui.Button('Reset appearance') then
-        theme.Reset();
-        Commit();
+    -- An addon's own theme is reset at once. The shared one is everyone's, so that is confirmed first.
+    if imgui.Button('Reset Appearance') then
+        if shared then
+            imgui.OpenPopup(resetPopup);
+        else
+            theme.Reset();
+            Commit();
+        end
     end
     Tooltip(shared and 'Puts the colours, padding and shadow back as they started, for every addon using the shared theme.'
         or 'Puts this addon\'s own colours, padding and shadow back as they started.');
+
+    if ConfirmSharedReset() then
+        theme.Reset();
+        Commit();
+    end
 end
 
 -- The corner a window grows from, as four buttons laid out as the corners themselves are. current is
