@@ -247,7 +247,26 @@ end
 
 -- The corner a window grows from, as four buttons laid out as the corners themselves are. current is
 -- the present choice. Returns the newly chosen corner, or nil if it was not changed.
-local growFromColumn = 120; -- from the left of the first column of corners to the left of the second
+-- From the left of the first column of corners to the left of the second: the widest option in the
+-- first column (its button, which is about as wide as the text is tall, and its name), then a gap.
+-- Measured rather than fixed, so the two columns stay apart at any font size.
+local growFromGap = 24;
+local growFromColumn = nil;
+
+local function GrowFromColumn()
+    if growFromColumn == nil then
+        local widest, textHeight = 0, 14;
+        for index, mode in ipairs(anchor.Modes) do
+            if index % 2 == 1 then
+                local width, height = imgui.CalcTextSize(anchor.Labels[mode]);
+                widest = math.max(widest, width or 0);
+                textHeight = height or textHeight;
+            end
+        end
+        growFromColumn = widest + textHeight * 2 + growFromGap;
+    end
+    return growFromColumn;
+end
 
 function widgets.GrowFrom(current)
     if anchor.Labels[current] == nil then
@@ -260,7 +279,7 @@ function widgets.GrowFrom(current)
     local chosen = nil;
     for index, mode in ipairs(anchor.Modes) do
         if index % 2 == 0 then
-            imgui.SameLine(left + growFromColumn);
+            imgui.SameLine(left + GrowFromColumn());
         elseif index > 1 then
             imgui.SetCursorPosX(left);
         end
