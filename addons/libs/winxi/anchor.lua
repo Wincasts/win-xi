@@ -17,6 +17,8 @@
 --     anchor.Track(key, mode)                  -- inside the window, once it has begun
 -- winxi.window does this for a window given a growFrom option. While the window is dragged it is left
 -- alone, and its corner is taken from where it ends up.
+local bit = require('bit');
+local imgui = require('imgui');
 local style = require('winxi.style');
 
 local anchor = {};

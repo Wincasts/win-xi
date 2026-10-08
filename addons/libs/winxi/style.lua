@@ -8,6 +8,8 @@
 -- Call one before a window's Begin and style.Pop() after its End. Pushes may be nested.
 -- Both take an optional table: padding (a number, in place of the theme's), background (a colour, in
 -- place of the theme's), alpha (0 to 1, for a window that is fading).
+local bit = require('bit');
+local imgui = require('imgui');
 local theme = require('winxi.theme');
 
 local style = {};

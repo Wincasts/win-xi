@@ -14,6 +14,7 @@
 --   shadow      false for a window that should not have the theme's drop shadow
 --   growFrom    the corner that stays put as the content changes size (see winxi.anchor); with any
 --               corner but TopLeft, draw is called twice a frame, once to measure
+local imgui = require('imgui');
 local style = require('winxi.style');
 local shadow = require('winxi.shadow');
 local anchor = require('winxi.anchor');

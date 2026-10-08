@@ -5,6 +5,7 @@
 --
 -- The theme controls change the theme for every addon using winxi. Changes show at once in the addon
 -- they are made in, and are saved (and so reach the others) when a control is let go.
+local imgui = require('imgui');
 local theme = require('winxi.theme');
 local anchor = require('winxi.anchor');
 
