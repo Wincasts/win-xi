@@ -380,11 +380,16 @@ local crafty = {
     end,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('crafty') then
-            imgui.Checkbox('Enabled', options.isEnabled)
-            imgui.Checkbox('Visible', options.isVisible)
+            ui.BeginLabels('xitools.crafty')
+            ui.Label('Enabled')
+            imgui.Checkbox('##crafty.1', options.isEnabled)
+            ui.Label('Visible')
+            imgui.Checkbox('##crafty.2', options.isVisible)
 
+            ui.Gap()
             for id, skill in pairs(skillsMap) do
-                imgui.InputFloat(skill, options.skills[id], 0.1, 0.1, '%.1f')
+                ui.Label(skill)
+                imgui.InputFloat(('##crafty.skill.%d'):format(id), options.skills[id], 0.1, 0.1, '%.1f')
             end
 
             imgui.EndTabItem()

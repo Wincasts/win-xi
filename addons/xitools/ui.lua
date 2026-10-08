@@ -5,6 +5,7 @@ local imgui = require('imgui')
 -- addons, or this addon's own, as chosen in the Appearance tab
 local theme = require('winxi.theme')
 local shadow = require('winxi.shadow')
+local widgets = require('winxi.widgets')
 
 local txtW, txtH = imgui.CalcTextSize('HP 100%')
 
@@ -515,6 +516,13 @@ end
 -- The flags a tool's window takes for ui.DrawStyledWindow: no title bar, like the UI windows, but it
 -- still scrolls. Tools set these as they draw, since the flags saved with earlier settings were for a
 -- titled window. The second is for a window the player can resize.
+-- For the settings tabs, winxi's own: a setting's name to the left of its control and followed by a
+-- colon (ui.Label), the gap between one family of settings and the next (ui.Gap), and the start of a
+-- group of settings whose controls line up with each other (ui.BeginLabels, once per tab).
+ui.Label = widgets.Label
+ui.Gap = widgets.Gap
+ui.BeginLabels = widgets.BeginLabels
+
 ui.StyledWindowFlags = bit.bor(
     ImGuiWindowFlags_NoTitleBar,
     ImGuiWindowFlags_NoResize,

@@ -761,15 +761,24 @@ local inv = {
     end,
     DrawConfig = function(options)
         if imgui.BeginTabItem('inv') then
-            if imgui.Checkbox('Enabled', options.isEnabled) and options.isEnabled[1] then
+            ui.BeginLabels('xitools.inv')
+            ui.Label('Enabled')
+            if imgui.Checkbox('##inv.1', options.isEnabled) and options.isEnabled[1] then
                 UpdateInventories()
             end
 
-            imgui.Checkbox('Visible', options.isVisible)
-            imgui.Checkbox('Draw Unified Bags', options.isUnified)
-            imgui.InputInt('Max Height', options.maxHeight)
+            ui.Label('Visible')
+            imgui.Checkbox('##inv.2', options.isVisible)
 
-            if imgui.InputInt2('Position', options.pos) then
+            ui.Gap()
+            ui.Label('Draw Unified Bags')
+            imgui.Checkbox('##inv.3', options.isUnified)
+            ui.Label('Max Height')
+            imgui.InputInt('##inv.4', options.maxHeight)
+
+            ui.Gap()
+            ui.Label('Position')
+            if imgui.InputInt2('##inv.5', options.pos) then
                 imgui.SetWindowPos(options.name, options.pos)
             end
 

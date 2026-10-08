@@ -409,9 +409,15 @@ local fishe = {
     end,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('fishe') then
-            imgui.Checkbox('Enabled', options.isEnabled)
-            imgui.Checkbox('Visible', options.isVisible)
-            imgui.InputFloat('Fishe Level', options.skill, 0.1, 0.1, '%.1f')
+            ui.BeginLabels('xitools.fishe')
+            ui.Label('Enabled')
+            imgui.Checkbox('##fishe.1', options.isEnabled)
+            ui.Label('Visible')
+            imgui.Checkbox('##fishe.2', options.isVisible)
+
+            ui.Gap()
+            ui.Label('Fishe Level')
+            imgui.InputFloat('##fishe.3', options.skill, 0.1, 0.1, '%.1f')
 
             imgui.EndTabItem()
         end

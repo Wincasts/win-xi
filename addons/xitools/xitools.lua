@@ -205,31 +205,27 @@ local configMinWidth = 780
 -- squeeze the window it is in
 local configPadding = { 11, 11 }
 
+-- Each setting's name is to the left of its control and followed by a colon, with every word
+-- capitalised, and one family of settings is set a little apart from the next (see winxi.widgets)
 local function DrawGlobalSettings()
-    imgui.Checkbox('Hide while map open', options.globals.hideUnderMap)
-    imgui.Checkbox('Hide while chat open', options.globals.hideUnderChat)
-    imgui.Checkbox('Hide while loading', options.globals.hideWhileLoading)
-    imgui.Checkbox('Hide during events', options.globals.hideDuringEvent)
-    imgui.Checkbox('Hide with game interface', options.globals.hideWithInterface)
-end
+    ui.BeginLabels('xitools.global')
 
-local function DrawUiSettings()
-    imgui.Checkbox('Clickthrough', options.globals.isClickThru)
+    ui.Label('Hide While Map Open')
+    imgui.Checkbox('##xitools.hideUnderMap', options.globals.hideUnderMap)
+    ui.Label('Hide While Chat Open')
+    imgui.Checkbox('##xitools.hideUnderChat', options.globals.hideUnderChat)
+    ui.Label('Hide While Loading')
+    imgui.Checkbox('##xitools.hideWhileLoading', options.globals.hideWhileLoading)
+    ui.Label('Hide During Events')
+    imgui.Checkbox('##xitools.hideDuringEvent', options.globals.hideDuringEvent)
+    ui.Label('Hide With Game Interface')
+    imgui.Checkbox('##xitools.hideWithInterface', options.globals.hideWithInterface)
 
-    imgui.Separator()
-
-    -- winxi's own controls for the fade; which components it applies to is this addon's
-    local fade = options.globals.fade
-    winxiWidgets.Fade(fade)
-
-    if fade.Enabled then
-        imgui.Text('Components That Fade:')
-        for i, tool in ipairs(uiWindows) do
-            if i > 1 then
-                imgui.SameLine()
-            end
-            imgui.Checkbox(('%s##fade'):format(tool.Name), fade.tools[tool.Name])
-        end
+    ui.Gap()
+    ui.Label('Clickthrough')
+    imgui.Checkbox('##xitools.isClickThru', options.globals.isClickThru)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('The components let the mouse through to the game. Ignored while organizing, so they can be dragged.')
     end
 end
 
@@ -248,12 +244,27 @@ local appearanceHooks = {
 local function DrawAppearance()
     winxiWidgets.Appearance(appearanceHooks)
 
+    -- This addon's own: the bar colours, then fading while idle and which components it applies to
     winxiWidgets.Header('Addon')
     winxiWidgets.PushControlWidth()
     winxiWidgets.Label('HP Bar Color')
     imgui.ColorEdit4('##xitools.hpBarColor', options.globals.hpBarColor)
     winxiWidgets.Label('MP Bar Color')
     imgui.ColorEdit4('##xitools.mpBarColor', options.globals.mpBarColor)
+
+    winxiWidgets.Gap()
+    local fade = options.globals.fade
+    winxiWidgets.Fade(fade)
+
+    if fade.Enabled then
+        winxiWidgets.Label('Components That Fade')
+        for i, tool in ipairs(uiWindows) do
+            if i > 1 then
+                imgui.SameLine()
+            end
+            imgui.Checkbox(('%s##fade'):format(tool.Name), fade.tools[tool.Name])
+        end
+    end
     winxiWidgets.PopControlWidth()
 end
 
@@ -274,7 +285,7 @@ local function DrawFooter()
     imgui.Separator()
 
     if showSamples[1] then
-        imgui.Checkbox('Alignment grid', showGrid)
+        imgui.Checkbox('Alignment Grid', showGrid)
         if imgui.IsItemHovered() then
             imgui.SetTooltip('Draws a grid over the screen while the sample windows are showing, with bold lines through the centre.')
         end
@@ -320,11 +331,6 @@ local function DrawConfig()
         if imgui.BeginTabBar('##xitools.config', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
             if imgui.BeginTabItem('Global Settings') then
                 DrawGlobalSettings()
-                imgui.EndTabItem()
-            end
-
-            if imgui.BeginTabItem('UI Settings') then
-                DrawUiSettings()
                 imgui.EndTabItem()
             end
 

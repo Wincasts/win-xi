@@ -653,34 +653,44 @@ local us = {
     Load = UpdateAlliances,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('us') then
-            imgui.Checkbox('Enabled', options.isEnabled)
-            imgui.Checkbox('Hide when solo', options.hideWhenSolo)
+            ui.BeginLabels('xitools.us')
+            ui.Label('Enabled')
+            imgui.Checkbox('##us.1', options.isEnabled)
+
+            ui.Gap()
+            ui.Label('Hide When Solo')
+            imgui.Checkbox('##us.2', options.hideWhenSolo)
 
             -- Settings saved before this option existed have no value for it
             if options.sortByRole == nil then
                 options.sortByRole = T{ false }
             end
-            imgui.Checkbox('Sort by role', options.sortByRole)
+            ui.Label('Sort By Role')
+            imgui.Checkbox('##us.3', options.sortByRole)
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('Off lists members in the game\'s own party order.\nOn lists you first, then tanks (PLD, NIN, WAR, RUN), melee damage (MNK, SAM, DRK, DRG, THF, DNC, BLU, BST, PUP),\nranged damage (RNG), support (BRD, COR, GEO), mages (BLM, SMN, SCH) and healers (RDM, WHM).\nEach party of the alliance is sorted on its own.')
             end
-            imgui.Checkbox('Display cast bar', options.showCastbar)
+            ui.Label('Display Cast Bar')
+            imgui.Checkbox('##us.4', options.showCastbar)
 
-            if imgui.Checkbox('Compact alliance 1', options.alliance1.isCompact) then
+            ui.Label('Compact Alliance 1')
+            if imgui.Checkbox('##us.5', options.alliance1.isCompact) then
                 if options.alliance1.isCompact[1] then
                     options.alliance1.size = options.alliance1.compactSize
                 else
                     options.alliance1.size = options.alliance1.fullSize
                 end
             end
-            if imgui.Checkbox('Compact alliance 2', options.alliance2.isCompact) then
+            ui.Label('Compact Alliance 2')
+            if imgui.Checkbox('##us.6', options.alliance2.isCompact) then
                 if options.alliance2.isCompact[1] then
                     options.alliance2.size = options.alliance2.compactSize
                 else
                     options.alliance2.size = options.alliance2.fullSize
                 end
             end
-            if imgui.Checkbox('Compact alliance 3', options.alliance3.isCompact) then
+            ui.Label('Compact Alliance 3')
+            if imgui.Checkbox('##us.7', options.alliance3.isCompact) then
                 if options.alliance3.isCompact[1] then
                     options.alliance3.size = options.alliance3.compactSize
                 else
@@ -688,13 +698,17 @@ local us = {
                 end
             end
 
-            if imgui.InputInt2('Alliance 1', options.alliance1.pos) then
+            ui.Gap()
+            ui.Label('Alliance 1 Position')
+            if imgui.InputInt2('##us.8', options.alliance1.pos) then
                 imgui.SetWindowPos(options.alliance1.name, options.alliance1.pos)
             end
-            if imgui.InputInt2('Alliance 2', options.alliance2.pos) then
+            ui.Label('Alliance 2 Position')
+            if imgui.InputInt2('##us.9', options.alliance2.pos) then
                 imgui.SetWindowPos(options.alliance2.name, options.alliance2.pos)
             end
-            if imgui.InputInt2('Alliance 3', options.alliance3.pos) then
+            ui.Label('Alliance 3 Position')
+            if imgui.InputInt2('##us.10', options.alliance3.pos) then
                 imgui.SetWindowPos(options.alliance3.name, options.alliance3.pos)
             end
 

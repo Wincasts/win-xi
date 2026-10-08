@@ -842,27 +842,37 @@ local tgt = {
     end,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('tgt') then
-            imgui.Checkbox('Enabled', options.isEnabled)
+            ui.BeginLabels('xitools.tgt')
+            ui.Label('Enabled')
+            imgui.Checkbox('##tgt.1', options.isEnabled)
 
-            imgui.Checkbox('Show main target', options.showMain)
-            imgui.SameLine()
-            imgui.Checkbox('Show debuffs##mt', options.mainWindow.showStatus)
+            ui.Gap()
+            ui.Label('Show Target')
+            imgui.Checkbox('##tgt.2', options.showMain)
+            ui.Label('Target Debuffs')
+            imgui.Checkbox('##tgt.3', options.mainWindow.showStatus)
 
-            imgui.Checkbox('Show sub-target', options.showSub)
-            imgui.SameLine()
-            imgui.Checkbox('Show debuffs##st', options.subWindow.showStatus)
+            ui.Label('Show Sub-Target')
+            imgui.Checkbox('##tgt.4', options.showSub)
+            ui.Label('Sub-Target Debuffs')
+            imgui.Checkbox('##tgt.5', options.subWindow.showStatus)
 
-            imgui.Checkbox('Show target of target', options.showTot)
-            imgui.SameLine()
-            imgui.Checkbox('Show debuffs##tot', options.totWindow.showStatus)
+            ui.Label('Show Target Of Target')
+            imgui.Checkbox('##tgt.6', options.showTot)
+            ui.Label('Target Of Target Debuffs')
+            imgui.Checkbox('##tgt.7', options.totWindow.showStatus)
 
-            if imgui.InputInt2('Target position', options.mainWindow.pos) then
+            ui.Gap()
+            ui.Label('Target Position')
+            if imgui.InputInt2('##tgt.8', options.mainWindow.pos) then
                 imgui.SetWindowPos(options.mainWindow.name, options.mainWindow.pos)
             end
-            if imgui.InputInt2('Sub-target position', options.subWindow.pos) then
+            ui.Label('Sub-Target Position')
+            if imgui.InputInt2('##tgt.9', options.subWindow.pos) then
                 imgui.SetWindowPos(options.subWindow.name, options.subWindow.pos)
             end
-            if imgui.InputInt2('Target of target position', options.totWindow.pos) then
+            ui.Label('Target Of Target Position')
+            if imgui.InputInt2('##tgt.10', options.totWindow.pos) then
                 imgui.SetWindowPos(options.totWindow.name, options.totWindow.pos)
             end
             imgui.EndTabItem()

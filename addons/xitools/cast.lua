@@ -56,11 +56,19 @@ local cast = {
     end,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('cast') then
-            imgui.Checkbox('Enabled', options.isEnabled)
-            imgui.ColorEdit4('Bar Color', options.color)
-            imgui.InputInt2('Size', options.barSize)
+            ui.BeginLabels('xitools.cast')
+            ui.Label('Enabled')
+            imgui.Checkbox('##cast.1', options.isEnabled)
 
-            if imgui.InputInt2('Position', options.pos) then
+            ui.Gap()
+            ui.Label('Bar Color')
+            imgui.ColorEdit4('##cast.2', options.color)
+            ui.Label('Bar Size')
+            imgui.InputInt2('##cast.3', options.barSize)
+
+            ui.Gap()
+            ui.Label('Position')
+            if imgui.InputInt2('##cast.4', options.pos) then
                 imgui.SetWindowPos(options.name, options.pos)
             end
 

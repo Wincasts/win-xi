@@ -152,8 +152,13 @@ local me = {
     },
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('me') then
-            imgui.Checkbox('Enabled', options.isEnabled)
-            if imgui.InputInt2('Position', options.pos) then
+            ui.BeginLabels('xitools.me')
+            ui.Label('Enabled')
+            imgui.Checkbox('##me.1', options.isEnabled)
+
+            ui.Gap()
+            ui.Label('Position')
+            if imgui.InputInt2('##me.2', options.pos) then
                 imgui.SetWindowPos(options.name, options.pos)
             end
             imgui.EndTabItem()

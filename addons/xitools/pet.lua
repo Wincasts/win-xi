@@ -216,6 +216,7 @@ local pet = {
     end,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('pet') then
+            ui.BeginLabels('xitools.pet')
             -- Settings saved before these options existed have no value for them
             if options.exactAutomaton == nil then
                 options.exactAutomaton = T{ true }
@@ -224,16 +225,24 @@ local pet = {
                 options.showParty = T{ true }
             end
 
-            imgui.Checkbox('Enabled', options.isEnabled)
-            imgui.Checkbox('Show party members\' pets', options.showParty)
+            ui.Label('Enabled')
+            imgui.Checkbox('##pet.1', options.isEnabled)
+
+            ui.Gap()
+            ui.Label('Show Party Members\' Pets')
+            imgui.Checkbox('##pet.2', options.showParty)
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('Lists the pets of the other members of your party under your own, with their owner\'s name.\nOnly their HP is shown: a pet\'s MP and TP are sent to its owner alone.')
             end
-            imgui.Checkbox('Exact HP and MP (Puppetmaster)', options.exactAutomaton)
+            ui.Label('Exact HP And MP (Puppetmaster)')
+            imgui.Checkbox('##pet.3', options.exactAutomaton)
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('Shows your automaton\'s HP and MP as numbers rather than percentages.\nOnly applies while you are a puppetmaster; other pets always show percentages.')
             end
-            if imgui.InputInt2('Position', options.pos) then
+
+            ui.Gap()
+            ui.Label('Position')
+            if imgui.InputInt2('##pet.4', options.pos) then
                 imgui.SetWindowPos(options.name, options.pos)
             end
             imgui.EndTabItem()

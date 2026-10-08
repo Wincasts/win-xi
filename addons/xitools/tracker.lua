@@ -237,7 +237,7 @@ local function ConfigTrackers(title, trackers, getName)
             end
         end
 
-        if imgui.Button('\xef\x81\xa7 Track another') then
+        if imgui.Button('\xef\x81\xa7 Track Another') then
             trackers:append(T{
                 IsEnabled = { false },
                 Id = { 0 },
@@ -278,9 +278,13 @@ local tracker = {
     end,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('tracker') then
-            imgui.Checkbox('Enabled', options.isEnabled)
+            ui.BeginLabels('xitools.tracker')
+            ui.Label('Enabled')
+            imgui.Checkbox('##tracker.1', options.isEnabled)
 
-            if imgui.InputInt2('Position', options.pos) then
+            ui.Gap()
+            ui.Label('Position')
+            if imgui.InputInt2('##tracker.2', options.pos) then
                 imgui.SetWindowPos(options.name, options.pos)
             end
 

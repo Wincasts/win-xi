@@ -206,11 +206,19 @@ local treas = {
     end,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('treas') then
-            imgui.Checkbox('Enabled', options.isEnabled)
-            imgui.Checkbox('Visible', options.isVisible)
-            imgui.Checkbox('Show empty slots', options.showAllSlots)
+            ui.BeginLabels('xitools.treas')
+            ui.Label('Enabled')
+            imgui.Checkbox('##treas.1', options.isEnabled)
+            ui.Label('Visible')
+            imgui.Checkbox('##treas.2', options.isVisible)
 
-            if imgui.InputInt2('Position', options.pos) then
+            ui.Gap()
+            ui.Label('Show Empty Slots')
+            imgui.Checkbox('##treas.3', options.showAllSlots)
+
+            ui.Gap()
+            ui.Label('Position')
+            if imgui.InputInt2('##treas.4', options.pos) then
                 imgui.SetWindowPos(options.name, options.pos)
             end
 
