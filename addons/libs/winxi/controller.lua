@@ -12,6 +12,8 @@
 --   controller.NewGrid()       a highlight that moves over things drawn in rows (items, icons, slots)
 --   controller.NewMenu(...)    a list of choices worked with up, down, confirm and back
 --
+-- The grid and the menu make the sounds of winxi.sound as they are worked, once an addon turns those on.
+--
 -- Binding buttons:
 --
 --     local binding = controller.Bind({
@@ -31,6 +33,7 @@
 -- are read as the Xbox buttons in the same positions: the bottom face button is A, and so on.
 local bit = require('bit');
 local imgui = require('imgui');
+local sound = require('winxi.sound');
 
 local controller = {};
 
@@ -340,6 +343,7 @@ function Grid:Move(direction)
 
     if moved then
         self.pending = true;
+        sound.Play('move');
     end
     return moved;
 end
@@ -368,12 +372,16 @@ function Menu:Press(action)
     local count = #self.entries;
     if action == 'up' and count > 0 then
         self.index = (self.index - 2) % count + 1;
+        sound.Play('move');
     elseif action == 'down' and count > 0 then
         self.index = self.index % count + 1;
+        sound.Play('move');
     elseif action == 'confirm' then
         local entry = self.entries[self.index];
+        sound.Play('confirm');
         return entry and entry.run and entry.run() or nil;
     elseif action == 'back' then
+        sound.Play('back');
         return nil;
     end
     return self;

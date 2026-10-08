@@ -156,6 +156,26 @@ controller.SetLayout(settings.ControllerType);    -- 'xinput', 'playstation', 's
 -- controller.Layouts lists them, each with a key and a label, for a settings window to offer
 ```
 
+## Menu sounds
+
+```lua
+local sound = require('winxi.sound');
+
+sound.SetEnabled(settings.MenuSounds);    -- off until an addon turns it on
+sound.Play('move');                       -- 'move', 'confirm', 'back' or 'error'
+```
+
+The controller's grid and menu play these by themselves as they are worked, so an addon using those
+need only turn the sounds on. Anything else an addon does with a menu (changing tabs, refusing
+something) it plays itself.
+
+Each sound is a wav file called by its name. `sounds\move.wav` in the addon's own folder is used
+before the one in `libs\winxi\sounds`, so an addon may bring its own; `sound.Set(name, path)` gives a
+name any file, and `sound.Refresh()` looks for the files again. The ones that come with winxi are
+plain tones made by `sounds/generate.py`, not the game's.
+
+Ashita plays one sound at a time, at the volume of the file.
+
 ## Letting an addon keep its own theme
 
 Every addon that uses winxi gives its user the choice: follow the shared theme, or keep colours,
