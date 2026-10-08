@@ -12,12 +12,15 @@
 --   background  a colour, in place of the theme's background
 --   alpha       0 to 1, for a window that fades (winxi.fade); at 0 the window is not drawn at all
 --   shadow      false for a window that should not have the theme's drop shadow
+--   controller  a binding of winxi.controller: the window is marked while that binding has the
+--               controller (see controller.Highlight)
 --   growFrom    the corner that stays put as the content changes size (see winxi.anchor); with any
 --               corner but TopLeft, draw is called twice a frame, once to measure
 local imgui = require('imgui');
 local style = require('winxi.style');
 local shadow = require('winxi.shadow');
 local anchor = require('winxi.anchor');
+local controller = require('winxi.controller');
 
 local window = {};
 
@@ -48,6 +51,9 @@ local function Draw(full, name, open, flags, draw, options)
             shadow.Draw();
         end
         draw();
+        if options and options.controller then
+            controller.Highlight(options.controller);
+        end
     end
     imgui.End();
 

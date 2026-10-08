@@ -6,8 +6,8 @@
 --     sound.SetEnabled(settings.MenuSounds);
 --     sound.Play('move');
 --
--- The sounds are named for what happened: move (the highlight went somewhere), confirm, back and error
--- (what was asked for cannot be done). winxi.controller's grid and menu play them by themselves, so an
+-- The sounds are named for what happened: move (the highlight went somewhere), tab (to another tab or
+-- page), confirm, back and error (what was asked for cannot be done). winxi.controller's grid and menu play them by themselves, so an
 -- addon using those need only turn the sounds on; anything else it does with a menu it plays itself.
 --
 -- Each sound is a wav file called by its name, move.wav and so on. One in the addon's own sounds
@@ -18,7 +18,7 @@
 -- it, and there is nothing here to make one louder or quieter.
 local sound = {};
 
-sound.Names = { 'move', 'confirm', 'back', 'error' };
+sound.Names = { 'move', 'tab', 'confirm', 'back', 'error' };
 
 local enabled = false;
 local files = {};     -- name -> the file to play, or false where there is none: looked for once

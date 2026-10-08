@@ -770,10 +770,10 @@ local function PadPress(action)
         pad.grid:Move(action)
     elseif action == 'previous' then
         pad.wantTab = (pad.tab - 2) % padTabs + 1
-        sound.Play('move')
+        sound.Play('tab')
     elseif action == 'next' then
         pad.wantTab = pad.tab % padTabs + 1
-        sound.Play('move')
+        sound.Play('tab')
     elseif action == 'confirm' then
         local item = pad.items[pad.grid.cursor]
         local entries = item ~= nil and PadEntries(item, pad.groups[pad.grid.cursor]) or nil
@@ -791,7 +791,7 @@ local function PadPress(action)
     end
 end
 
-controller.Bind({
+pad.binding = controller.Bind({
     active = PadIsActive,
     actions = controller.StandardActions(),
     repeats = controller.StandardRepeats(),
@@ -1216,6 +1216,8 @@ local inv = {
             else
                 DrawInventory()
             end
+            -- marked as the window the controller is working, while it is
+            controller.Highlight(pad.binding)
         end)
         PadEndFrame()
     end,
