@@ -458,13 +458,26 @@ end
 
 ---@param player PartyMember
 local function DrawCompactPartyMember(player)
-    -- TODO: indicate targeted by stpt/stal
-    if player.isInZone then
+    -- There is no room for the full view's arrows, so the member the cursor is on has their name in
+    -- the arrows' colours instead: green under the party cursor or a sub-target, blue as the target
+    local color = nil
+    if player.isSubTarget or player.isPartyTarget then
+        color = ui.Colors.XpBar
+    elseif player.isTarget then
+        color = ui.Colors.Blue
+    end
+
+    if color ~= nil then
+        imgui.TextColored(color, player.name:slice(0, 3))
+    elseif player.isInZone then
         imgui.Text(player.name:slice(0, 3))
-        imgui.SameLine()
-        DrawHp(player)
     else
         imgui.TextDisabled(player.name:slice(0, 3))
+    end
+
+    if player.isInZone then
+        imgui.SameLine()
+        DrawHp(player)
     end
 end
 
@@ -555,14 +568,22 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole)
         local target = AshitaCore:GetMemoryManager():GetTarget()
         local party = AshitaCore:GetMemoryManager():GetParty()
         local stal = ffxi.GetStPartyIndex()
-        local showDist = stal ~= nil or IsSubTargetActive(target)
+        -- Distances are for choosing a sub-target. The party cursor on its own (stal) is also what the
+        -- game's menus move over the list, as when rearranging the party, and jobs stay up for that.
+        local showDist = IsSubTargetActive(target)
 
         local members = GetMembers(alliance, sample, sortByRole, target, party, stal)
 
         for _, person in ipairs(members) do
             -- The member list is kept between frames but an entity must not be: it is looked up
             -- afresh for each frame it is drawn in, in case it has gone since the list was read
-            person.entity = person.targetIndex and GetEntity(person.targetIndex) or nil
+            local entity = person.targetIndex and GetEntity(person.targetIndex) or nil
+            -- and it must be the member's own: one in another zone, or whose place has been taken, would
+            -- give the distance to whatever has that index here
+            if entity ~= nil and (not person.isInZone or entity.ServerId ~= person.serverId) then
+                entity = nil
+            end
+            person.entity = entity
 
             if alliance.isCompact[1] then
                 DrawCompactPartyMember(person)
