@@ -1,0 +1,8 @@
+# The server source: reference material, kept out of this repository
+/Phoenix-beta/
+
+# Copies of live files replaced by ./deploy.sh push
+/deploy-backups/
+
+__pycache__/
+*.pyc
