@@ -11,6 +11,7 @@ local settings = require('settings')
 local ui = require('ui')
 local migrations = require('migrations')
 local winxiFade = require('winxi.fade')
+local winxiTheme = require('winxi.theme')
 local winxiWidgets = require('winxi.widgets')
 
 ---@class xitool
@@ -67,20 +68,14 @@ local defaultOptions = T{
         hideDuringEvent = T{ true },
         hideWithInterface = T{ true },
         isClickThru = T{ false },
-        textColor = T{ 1.00, 1.00, 1.00, 1.0 },
-        backgroundColor = T{ 0.08, 0.08, 0.08, 0.8 },
-        borderColor = T{ 0.69, 0.68, 0.78, 1.0 },
-        padding = T{ 10 },
+        -- The look of every window (colours, padding, drop shadow) is winxi's theme. useSharedTheme says
+        -- whether that is the one shared with other addons; theme holds this addon's own for when it is not.
+        useSharedTheme = true,
+        theme = T{ },
         hpBarColor = T{ 0.83, 0.33, 0.28, 1.0 },
         mpBarColor = T{ 0.82, 0.60, 0.27, 1.0 },
         baseW = 7,
         baseH = 14,
-        shadow = T{
-            enabled = T{ false },
-            offset = T{ 4 },    -- pixels down and to the right
-            blur = T{ 6 },      -- pixels of soft edge
-            opacity = T{ 50 },  -- percent
-        },
         -- Fading while idle. The settings themselves are winxi's (see winxi.fade) and are filled in by
         -- ApplyGlobals; tools is this addon's: tool name -> whether its windows fade.
         fade = T{
@@ -124,9 +119,40 @@ local showGrid = T{ true }
 local function ApplyGlobals()
     local globals = options.globals
 
-    if globals.padding == nil then
-        globals.padding = T{ ui.GetPadding(globals) }
+    -- The window colours, padding and drop shadow were this addon's own settings before the theme moved
+    -- to winxi. What was saved then is kept as this addon's own theme, for use with "Use Shared Theme"
+    -- off, and the old settings are dropped.
+    if globals.useSharedTheme == nil then
+        globals.useSharedTheme = true
     end
+    if type(globals.theme) ~= 'table' then
+        globals.theme = T{ }
+    end
+    local own = globals.theme
+    for old, new in pairs({ backgroundColor = 'BackgroundColor', borderColor = 'BorderColor', textColor = 'TextColor' }) do
+        local color = globals[old]
+        if type(color) == 'table' then
+            if own[new] == nil and color[1] and color[2] and color[3] and color[4] then
+                own[new] = T{ color[1], color[2], color[3], color[4] }
+            end
+            globals[old] = nil
+        end
+    end
+    if type(globals.padding) == 'table' then
+        if own.Padding == nil then
+            own.Padding = tonumber(globals.padding[1])
+        end
+        globals.padding = nil
+    end
+    if type(globals.shadow) == 'table' then
+        for old, new in pairs({ enabled = 'ShadowEnabled', offset = 'ShadowOffset', blur = 'ShadowBlur', opacity = 'ShadowOpacity' }) do
+            if type(globals.shadow[old]) == 'table' and own[new] == nil then
+                own[new] = globals.shadow[old][1]
+            end
+        end
+        globals.shadow = nil
+    end
+
     if globals.hpBarColor == nil then
         globals.hpBarColor = T{ unpack(defaultOptions.globals.hpBarColor) }
     end
@@ -136,15 +162,6 @@ local function ApplyGlobals()
 
     if globals.links == nil then
         globals.links = T{ }
-    end
-
-    if globals.shadow == nil then
-        globals.shadow = T{ }
-    end
-    for _, key in ipairs({ 'enabled', 'offset', 'blur', 'opacity' }) do
-        if globals.shadow[key] == nil then
-            globals.shadow[key] = T{ defaultOptions.globals.shadow[key][1] }
-        end
     end
 
     if globals.fade == nil then
@@ -184,9 +201,9 @@ ApplyGlobals()
 -- The config window is never narrower than this, so it does not jump about as the tabs are switched
 local configMinWidth = 780
 
--- Extra space between the config window's border and its content, on top of the usual window padding
-local configExtraPadding = 3
-local defaultWindowPadding = 8
+-- The config window keeps a padding of its own, whatever the theme's: the padding slider must not
+-- squeeze the window it is in
+local configPadding = { 11, 11 }
 
 local function DrawGlobalSettings()
     imgui.Checkbox('Hide while map open', options.globals.hideUnderMap)
@@ -198,28 +215,6 @@ end
 
 local function DrawUiSettings()
     imgui.Checkbox('Clickthrough', options.globals.isClickThru)
-    imgui.ColorEdit4("Text Color", options.globals.textColor)
-    imgui.ColorEdit4("Background Color", options.globals.backgroundColor)
-    imgui.ColorEdit4("Border Color", options.globals.borderColor)
-    imgui.ColorEdit4("HP Bar Color", options.globals.hpBarColor)
-    imgui.ColorEdit4("MP Bar Color", options.globals.mpBarColor)
-    imgui.SliderInt('Padding', options.globals.padding, 0, ui.MaxPadding)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Space between a window\'s border and its content, the same on every side.')
-    end
-
-    imgui.Separator()
-
-    local shadow = options.globals.shadow
-    imgui.Checkbox('Drop shadow', shadow.enabled)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Draws a soft shadow behind each component, down and to the right of it.')
-    end
-    if shadow.enabled[1] then
-        imgui.SliderInt('Shadow offset', shadow.offset, 0, 20)
-        imgui.SliderInt('Shadow softness', shadow.blur, 0, 20)
-        imgui.SliderInt('Shadow opacity (%)', shadow.opacity, 0, 100)
-    end
 
     imgui.Separator()
 
@@ -236,6 +231,30 @@ local function DrawUiSettings()
             imgui.Checkbox(('%s##fade'):format(tool.Name), fade.tools[tool.Name])
         end
     end
+end
+
+-- What winxi's theme controls call: to keep the choice of theme, and to save this addon's own theme
+local appearanceHooks = {
+    onUseShared = function(useShared)
+        options.globals.useSharedTheme = useShared
+        settings.save()
+    end,
+    onOwnChanged = function()
+        settings.save()
+    end,
+}
+
+-- The Theme and Window sections are winxi's; the Addon section is what is this addon's own
+local function DrawAppearance()
+    winxiWidgets.Appearance(appearanceHooks)
+
+    winxiWidgets.Header('Addon')
+    winxiWidgets.PushControlWidth()
+    winxiWidgets.Label('HP Bar Color')
+    imgui.ColorEdit4('##xitools.hpBarColor', options.globals.hpBarColor)
+    winxiWidgets.Label('MP Bar Color')
+    imgui.ColorEdit4('##xitools.mpBarColor', options.globals.mpBarColor)
+    winxiWidgets.PopControlWidth()
 end
 
 -- One inner tab for each of the given tools, drawn by the tool itself
@@ -285,16 +304,6 @@ local function DrawFooter()
     end
 end
 
--- The window padding in use, from the style where the build exposes it
-local function GetWindowPadding()
-    local style = imgui.GetStyle ~= nil and imgui.GetStyle() or nil
-    local padding = style ~= nil and style.WindowPadding or nil
-    if padding ~= nil and padding.x ~= nil and padding.y ~= nil then
-        return padding.x, padding.y
-    end
-    return defaultWindowPadding, defaultWindowPadding
-end
-
 local function DrawConfig()
     -- only while the window is showing: the constraint goes to whichever window is drawn next
     if not options.tools.config.isVisible[1] then
@@ -303,8 +312,6 @@ local function DrawConfig()
 
     -- Styled like the tools' windows, but it keeps its title bar and close button, and its own padding
     -- rather than the one being chosen inside it
-    local paddingX, paddingY = GetWindowPadding()
-    local padding = { paddingX + configExtraPadding, paddingY + configExtraPadding }
     imgui.SetNextWindowSizeConstraints({ configMinWidth, 0 }, { 10000, 10000 })
 
     ui.DrawStyledWindow(options.tools.config, options.globals, function()
@@ -318,6 +325,11 @@ local function DrawConfig()
 
             if imgui.BeginTabItem('UI Settings') then
                 DrawUiSettings()
+                imgui.EndTabItem()
+            end
+
+            if imgui.BeginTabItem('Appearance') then
+                DrawAppearance()
                 imgui.EndTabItem()
             end
 
@@ -337,7 +349,7 @@ local function DrawConfig()
         DrawFooter()
 
         imgui.PopStyleVar()
-    end, padding)
+    end, configPadding)
 end
 
 settings.register('settings', 'settings_update', function (s)
@@ -376,6 +388,9 @@ ashita.events.register('d3d_present', 'd3d_present_handler', function()
     if options.globals.showDemo[1] then
         imgui.ShowDemoWindow(options.globals.showDemo)
     end
+
+    -- Every frame, cheaply: nothing happens unless the choice of theme or the settings table has changed
+    winxiTheme.Configure(options.globals.useSharedTheme, options.globals.theme)
 
     DrawConfig()
 

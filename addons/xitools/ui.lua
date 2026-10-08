@@ -1,11 +1,15 @@
 local bit = require('bit')
 local imgui = require('imgui')
 
+-- The look of every window (colours, padding, drop shadow) is winxi's theme: the one shared with other
+-- addons, or this addon's own, as chosen in the Appearance tab
+local theme = require('winxi.theme')
+local shadow = require('winxi.shadow')
+
 local txtW, txtH = imgui.CalcTextSize('HP 100%')
 
--- The window padding the fixed window widths were laid out for, and the most the setting allows
+-- The window padding the fixed window widths were laid out for
 local basePadding = 10
-local maxPadding = 40
 
 local ui = {
     Styles = {
@@ -48,8 +52,6 @@ local ui = {
         BorderShadow   = { 1.00, 0.00, 0.00, 1.0 },
     },
 }
-
-ui.MaxPadding = maxPadding
 
 -- Set by xitools while its sample windows are showing. Click-through is ignored then, so that the
 -- windows can be dragged into place.
@@ -146,10 +148,9 @@ function ui.DrawGrid()
     gridVisible[1] = true
 end
 
--- The padding chosen in the settings: the space between a UI window's border and its content, on every side
-function ui.GetPadding(gConfig)
-    local padding = gConfig.padding and tonumber(gConfig.padding[1]) or basePadding
-    return math.max(0, math.min(maxPadding, padding))
+-- The theme's padding: the space between a UI window's border and its content, on every side
+function ui.GetPadding()
+    return theme.GetPadding()
 end
 
 -- A fixed window width, widened or narrowed so the content keeps its size whatever the padding is.
@@ -511,48 +512,6 @@ function ui.DrawNormalWindow(config, gConfig, drawStuff)
     imgui.End()
 end
 
--- A soft drop shadow for the window being drawn: a dark copy of its outline, moved down and to the right,
--- drawn behind every window. The soft edge is several faint layers, each a little larger than the last.
--- Call after the window has begun. Fades along with the window.
-local shadowMaxLayers = 6
-local shadowColor = { 0, 0, 0, 0 }
-local shadowTopLeft = { 0, 0 }
-local shadowBottomRight = { 0, 0 }
-
-local function DrawShadow(gConfig)
-    local settings = gConfig.shadow
-    if settings == nil or not settings.enabled[1] or imgui.GetBackgroundDrawList == nil then
-        return
-    end
-
-    local opacity = math.max(0, math.min(1, settings.opacity[1] / 100))
-    if opacity <= 0 then
-        return
-    end
-
-    local x, y = imgui.GetWindowPos()
-    local w, h = imgui.GetWindowSize()
-    local offset = settings.offset[1]
-    local blur = math.max(0, settings.blur[1])
-
-    -- never more than a few layers however soft the edge: a wider edge spaces them further apart
-    local layers = math.max(1, math.min(shadowMaxLayers, blur))
-    local step = blur / layers
-
-    -- the colour is worked out each time, as it takes in the window's fade; the tables are reused
-    local drawList = imgui.GetBackgroundDrawList()
-    shadowColor[4] = opacity / layers
-    local color = imgui.GetColorU32(shadowColor)
-
-    local topLeft, bottomRight = shadowTopLeft, shadowBottomRight
-    for layer = 0, layers - 1 do
-        local grow = layer * step
-        topLeft[1], topLeft[2] = x + offset - grow, y + offset - grow
-        bottomRight[1], bottomRight[2] = x + w + offset + grow, y + h + offset + grow
-        drawList:AddRectFilled(topLeft, bottomRight, color, grow + 2)
-    end
-end
-
 -- The flags a tool's window takes for ui.DrawStyledWindow: no title bar, like the UI windows, but it
 -- still scrolls. Tools set these as they draw, since the flags saved with earlier settings were for a
 -- titled window. The second is for a window the player can resize.
@@ -565,69 +524,13 @@ ui.StyledResizableWindowFlags = bit.bor(
     ImGuiWindowFlags_NoTitleBar,
     ImGuiWindowFlags_NoCollapse)
 
--- The colours of the tabs, tables, buttons, separators, selected rows and scrollbar inside a styled window. All
--- are the border colour at one strength or another, so they follow it when it is changed. Each entry is
--- the colour's slot, how strong the border colour is there, and (for the few that are not the border
--- colour) a colour of its own. Slots this build of imgui does not have are left out.
-local styledPalette = {
-    { ImGuiCol_Tab,                0.18 },
-    { ImGuiCol_TabHovered,         0.55 },
-    { ImGuiCol_TabActive,          0.40 },
-    { ImGuiCol_TabUnfocused,       0.18 },
-    { ImGuiCol_TabUnfocusedActive, 0.40 },
-    { ImGuiCol_Separator,          0.50 },
-    { ImGuiCol_TableHeaderBg,      0.22 },
-    { ImGuiCol_TableBorderStrong,  0.60 },
-    { ImGuiCol_TableBorderLight,   0.30 },
-    { ImGuiCol_TableRowBg,         0.00 },
-    { ImGuiCol_TableRowBgAlt,      0.00, { 1.00, 1.00, 1.00, 0.04 } },
-    { ImGuiCol_Button,             0.25 },
-    { ImGuiCol_ButtonHovered,      0.45 },
-    { ImGuiCol_ButtonActive,       0.60 },
-    { ImGuiCol_FrameBg,            0.15 },
-    { ImGuiCol_FrameBgHovered,     0.30 },
-    { ImGuiCol_FrameBgActive,      0.42 },
-    { ImGuiCol_CheckMark,          1.00 },
-    { ImGuiCol_SliderGrab,         0.60 },
-    { ImGuiCol_SliderGrabActive,   0.90 },
-    { ImGuiCol_TitleBg,            0.20 },
-    { ImGuiCol_TitleBgActive,      0.32 },
-    { ImGuiCol_TitleBgCollapsed,   0.15 },
-    { ImGuiCol_TextSelectedBg,     0.35 },
-    { ImGuiCol_Header,             0.25 },
-    { ImGuiCol_HeaderHovered,      0.38 },
-    { ImGuiCol_HeaderActive,       0.50 },
-    { ImGuiCol_ScrollbarBg,        0.00 },
-    { ImGuiCol_ScrollbarGrab,      0.40 },
-    { ImGuiCol_ScrollbarGrabHovered, 0.60 },
-    { ImGuiCol_ScrollbarGrabActive,  0.80 },
-}
+-- A tool's own window given the look of the UI windows: the theme's background, border, text colour and
+-- padding, with its tabs, tables, buttons and other controls tinted from the border colour. Unlike a UI
+-- window it keeps its own flags and size, always takes the mouse, and is not linked, faded or shown
+-- while organizing.
+-- padding, if given, is used in place of the theme's: { x, y }.
+local styledPadding = { 0, 0 } -- reused for every styled window, every frame
 
--- The palette worked out for the border colour last seen; rebuilt only when that colour changes
-local styledColors = { r = nil, g = nil, b = nil, a = nil, list = { } }
-
-local function GetStyledColors(gConfig)
-    local border = gConfig.borderColor
-    local cache = styledColors
-    if cache.r == border[1] and cache.g == border[2] and cache.b == border[3] and cache.a == border[4] then
-        return cache.list
-    end
-
-    cache.r, cache.g, cache.b, cache.a = border[1], border[2], border[3], border[4]
-    cache.list = { }
-    for _, entry in ipairs(styledPalette) do
-        if entry[1] ~= nil then
-            local color = entry[3] or { border[1], border[2], border[3], border[4] * entry[2] }
-            table.insert(cache.list, { entry[1], color })
-        end
-    end
-    return cache.list
-end
-
--- A tool's own window given the look of the UI windows: their background, border, text colour, padding
--- and spacing. Unlike a UI window it keeps its own flags and size, always takes the mouse, and is not
--- linked, faded or shown while organizing.
--- padding, if given, is used in place of the padding chosen in the settings: { x, y }.
 ---@param config table
 ---@param drawStuff function
 ---@param padding number[]?
@@ -636,9 +539,10 @@ function ui.DrawStyledWindow(config, gConfig, drawStuff, padding)
         return
     end
 
+    local look = theme.Get()
     if padding == nil then
-        local chosen = ui.GetPadding(gConfig)
-        padding = { chosen, chosen }
+        styledPadding[1], styledPadding[2] = look.Padding, look.Padding
+        padding = styledPadding
     end
 
     imgui.SetNextWindowSize(config.size, ImGuiCond_FirstUseEver)
@@ -649,13 +553,13 @@ function ui.DrawStyledWindow(config, gConfig, drawStuff, padding)
     end
 
     -- kept until the window has ended: its scrollbar is drawn with these as well as its content
-    local colors = GetStyledColors(gConfig)
+    local colors = theme.Palette()
     for _, entry in ipairs(colors) do
         imgui.PushStyleColor(entry[1], entry[2])
     end
 
-    imgui.PushStyleColor(ImGuiCol_WindowBg, gConfig.backgroundColor)
-    imgui.PushStyleColor(ImGuiCol_Border, gConfig.borderColor)
+    imgui.PushStyleColor(ImGuiCol_WindowBg, look.BackgroundColor)
+    imgui.PushStyleColor(ImGuiCol_Border, look.BorderColor)
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, ui.Styles.ItemSpacing)
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, padding)
 
@@ -663,9 +567,9 @@ function ui.DrawStyledWindow(config, gConfig, drawStuff, padding)
     imgui.PopStyleColor(2)
 
     if isOpen then
-        DrawShadow(gConfig)
+        shadow.Draw()
 
-        imgui.PushStyleColor(ImGuiCol_Text, gConfig.textColor)
+        imgui.PushStyleColor(ImGuiCol_Text, look.TextColor)
         drawStuff()
         imgui.PopStyleColor()
 
@@ -700,7 +604,8 @@ function ui.DrawUiWindow(config, gConfig, drawStuff)
     end
 
     -- Kept in ui.Styles so the tools' own right-alignment sums see the padding in use
-    local padding = ui.GetPadding(gConfig)
+    local look = theme.Get()
+    local padding = look.Padding
     ui.Styles.WindowPadding[1] = padding
     ui.Styles.WindowPadding[2] = padding
 
@@ -709,8 +614,8 @@ function ui.DrawUiWindow(config, gConfig, drawStuff)
     PlaceWindow(config)
 
     imgui.PushStyleVar(ImGuiStyleVar_Alpha, alpha)
-    imgui.PushStyleColor(ImGuiCol_WindowBg, gConfig.backgroundColor)
-    imgui.PushStyleColor(ImGuiCol_Border, gConfig.borderColor)
+    imgui.PushStyleColor(ImGuiCol_WindowBg, look.BackgroundColor)
+    imgui.PushStyleColor(ImGuiCol_Border, look.BorderColor)
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, ui.Styles.ItemSpacing)
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, ui.Styles.WindowPadding)
 
@@ -718,9 +623,9 @@ function ui.DrawUiWindow(config, gConfig, drawStuff)
     imgui.PopStyleColor(2)
 
     if isOpen then
-        DrawShadow(gConfig)
+        shadow.Draw()
 
-        imgui.PushStyleColor(ImGuiCol_Text, gConfig.textColor)
+        imgui.PushStyleColor(ImGuiCol_Text, look.TextColor)
         imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingNone)
 
         if ui.IsSampleMode then
@@ -771,7 +676,7 @@ function ui.DrawInvisWindow(config, gConfig, drawStuff)
     imgui.PopStyleColor(2)
 
     if isOpen then
-        imgui.PushStyleColor(ImGuiCol_Text, gConfig.textColor)
+        imgui.PushStyleColor(ImGuiCol_Text, theme.Get().TextColor)
         imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingNone)
 
         if ui.IsSampleMode then
