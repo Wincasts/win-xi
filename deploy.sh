@@ -7,6 +7,8 @@
 #   ./deploy.sh rollback <addon>  put back the files the last push replaced
 #   ./deploy.sh pull <addon>      copy the live copy into the project folder
 #
+# A shared library under addons/libs is named with its folder: ./deploy.sh push libs/xiui
+#
 # push and rollback are the only commands that write to the live install. Both show what they are
 # about to do and wait for "y", and both refuse to run unless a person is at the terminal.
 # Every file a push replaces is first kept under deploy-backups/<addon>/<time>/.
@@ -26,7 +28,10 @@ die() { echo "deploy: $*" >&2; exit 1; }
 # kept a level down beside its other material. It is the one with <name>.lua in it.
 source_dir() {
     local name="$1"
-    if [[ -f "$PROJECT/addons/$name/$name.lua" ]]; then
+    # a shared library is its whole folder
+    if [[ "$name" == libs/?* && -d "$PROJECT/addons/$name" ]]; then
+        echo "$PROJECT/addons/$name"
+    elif [[ -f "$PROJECT/addons/$name/$name.lua" ]]; then
         echo "$PROJECT/addons/$name"
     elif [[ -f "$PROJECT/addons/$name/$name/$name.lua" ]]; then
         echo "$PROJECT/addons/$name/$name"
@@ -56,6 +61,15 @@ need_addon() {
     DST="$(live_dir "$1")"
 }
 
+# What to do in game for a change to take effect
+reload_hint() {
+    if [[ "$1" == libs/* ]]; then
+        echo "In game: reload each addon that uses ${1#libs/} (/addon reload <addon>)"
+    else
+        echo "In game: /addon reload $1"
+    fi
+}
+
 confirm() {
     [[ -t 0 ]] || die "this step needs a person at the terminal to confirm it"
     local answer
@@ -67,8 +81,11 @@ cmd_status() {
     [[ -d "$LIVE/addons" ]] || die "live install not found at $LIVE (set ASHITA_LIVE to change it)"
     printf '%-16s %s\n' ADDON STATE
     local dir name src dst changes extra
-    for dir in "$PROJECT"/addons/*/; do
+    for dir in "$PROJECT"/addons/*/ "$PROJECT"/addons/libs/*/; do
+        [[ -d "$dir" ]] || continue
         name="$(basename "$dir")"
+        [[ "$dir" == "$PROJECT"/addons/libs/*/ ]] && name="libs/$name"
+        [[ "$name" == libs ]] && continue
         src="$(source_dir "$name")" || { printf '%-16s %s\n' "$name" "(no $name.lua here: not an addon, skipped)"; continue; }
         dst="$(live_dir "$name")"
         if [[ ! -d "$dst" ]]; then
@@ -143,7 +160,7 @@ cmd_push() {
     echo "$list" | awk '$1 == "new" { $1 = ""; print substr($0, 2) }' > "$backup/.added"
 
     echo "Pushed. Replaced files are kept in deploy-backups/$1/$stamp"
-    echo "In game: /addon reload $1"
+    reload_hint "$1"
 }
 
 cmd_rollback() {
@@ -162,7 +179,8 @@ cmd_rollback() {
 
     rsync -r --times --exclude=.added "$latest/" "$DST/"
     mv "$latest" "$latest.restored"
-    echo "Restored. In game: /addon reload $1"
+    echo "Restored."
+    reload_hint "$1"
 }
 
 cmd_pull() {
@@ -195,5 +213,5 @@ case "${1:-}" in
     push)     shift; cmd_push "$@" ;;
     rollback) shift; cmd_rollback "$@" ;;
     pull)     shift; cmd_pull "$@" ;;
-    *)        sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
+    *)        sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
 esac
