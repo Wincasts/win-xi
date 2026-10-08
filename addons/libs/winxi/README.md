@@ -12,6 +12,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.shadow` | The drop shadow, drawn inside a window |
 | `winxi.fade` | Fading an addon's windows out while the player is idle, from settings the addon keeps (`widgets.Fade` draws their controls) |
 | `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
+| `winxi.controller` | Working an addon's windows with an XInput controller: taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
 | `winxi.icons` | Loading image files as textures and drawing them cheaply |
 | `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`) and a corner picker (`GrowFrom`) |
@@ -103,6 +104,49 @@ organize.Controls();                     -- the Organize button, in the settings
 While organizing, windows are labelled, a grid can be shown, and dropping one window onto another
 links them: the dropped one is held against the side it was dropped towards. Links are between the
 windows of one addon.
+
+## Controller input
+
+```lua
+local controller = require('winxi.controller');
+
+local grid = controller.NewGrid();
+local menu = nil;
+
+controller.Bind({
+    active  = function() return windowIsShowing end,    -- take the controller only while there is reason to
+    actions = controller.StandardActions(),             -- d-pad, A confirm, B back, LB previous, RB next
+    repeats = controller.StandardRepeats(),             -- the d-pad repeats while held
+    press   = function(action)
+        if menu then
+            menu = menu:Press(action);                  -- the menu to show next, or nil once closed
+        elseif action == 'confirm' then
+            menu = controller.NewMenu('Title', { { label = 'Use', run = Use }, { label = 'Cancel' } });
+        elseif action == 'back' then
+            windowIsShowing = false;
+        else
+            grid:Move(action);
+        end
+    end,
+});
+
+-- drawing
+grid:Begin();
+for _, thing in ipairs(things) do
+    local x, y = imgui.GetCursorScreenPos();
+    local index = grid:Add(x, y);
+    Draw(thing, grid:IsOn(index));                      -- highlighted when the grid is on it
+end
+grid:End();
+if menu then
+    local x, y = grid:Position();
+    menu:Draw(x + 40, y);
+end
+```
+
+Only the buttons in `actions` are taken, and only while `active` says so: they are kept from the game,
+and the sticks and every other button still reach it. A button already down when the addon takes the
+controller is not counted as a press. XInput controllers only.
 
 ## Letting an addon keep its own theme
 
