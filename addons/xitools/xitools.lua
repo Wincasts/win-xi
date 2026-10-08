@@ -228,7 +228,7 @@ local function DrawUiSettings()
     winxiWidgets.Fade(fade)
 
     if fade.Enabled then
-        imgui.Text('Components that fade:')
+        imgui.Text('Components That Fade:')
         for i, tool in ipairs(uiWindows) do
             if i > 1 then
                 imgui.SameLine()

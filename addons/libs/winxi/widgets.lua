@@ -17,12 +17,13 @@
 -- gives widgets.Appearance two functions:
 --     { onUseShared = function(useShared) ... end,   -- the checkbox was changed: keep and save the choice
 --       onOwnChanged = function() ... end }          -- the addon's own theme was changed: save it
--- Given those, a "Use shared theme" checkbox heads the controls. Without them there is no checkbox and
+-- Given those, a "Use Shared Theme" checkbox heads the controls. Without them there is no checkbox and
 -- the addon always follows the shared theme.
 local imgui = require('imgui');
 local theme = require('winxi.theme');
 local anchor = require('winxi.anchor');
 
+-- Every option's name has each word capitalised: "Shadow Opacity", not "Shadow opacity".
 local widgets = {};
 
 local dirty = false; -- the theme has been changed since it was last saved
@@ -139,7 +140,7 @@ function widgets.Header(text, first)
     imgui.TextColored(widgets.HeaderColor, text);
 end
 
-local resetPopup = 'Reset the shared theme?##winxi.reset';
+local resetPopup = 'Reset Shared Theme?##winxi.reset';
 local resetPopupOpen = { true };
 local resetPopupFlags = nil;
 
@@ -187,7 +188,7 @@ function widgets.Appearance(appearanceHooks)
     local offersChoice = hooks ~= nil and hooks.onUseShared ~= nil;
     if offersChoice then
         widgets.Header('Theme', true);
-        widgets.Label('Use shared theme');
+        widgets.Label('Use Shared Theme');
         box[1] = theme.IsShared();
         if imgui.Checkbox('##winxi.UseSharedTheme', box) then
             hooks.onUseShared(box[1] and true or false);
@@ -208,7 +209,7 @@ function widgets.Appearance(appearanceHooks)
     Slider('Padding', 'Padding', 0, theme.MaxPadding, 'Space between a window\'s border and its content, the same on every side.');
 
     widgets.Gap();
-    widgets.Label('Drop shadow');
+    widgets.Label('Drop Shadow');
     box[1] = current.ShadowEnabled;
     if imgui.Checkbox('##winxi.ShadowEnabled', box) then
         current.ShadowEnabled = box[1] and true or false;
@@ -218,9 +219,9 @@ function widgets.Appearance(appearanceHooks)
     Tooltip('Draws a soft shadow behind each window, down and to the right of it.');
 
     if current.ShadowEnabled then
-        Slider('Shadow offset', 'ShadowOffset', 0, 20);
-        Slider('Shadow softness', 'ShadowBlur', 0, 20);
-        Slider('Shadow opacity (%)', 'ShadowOpacity', 0, 100);
+        Slider('Shadow Offset', 'ShadowOffset', 0, 20);
+        Slider('Shadow Softness', 'ShadowBlur', 0, 20);
+        Slider('Shadow Opacity (%)', 'ShadowOpacity', 0, 100);
     end
 
     widgets.Gap();
@@ -309,18 +310,18 @@ function widgets.Fade(settings, onChanged)
         end
     end
 
-    Check('Fade when idle', 'Enabled', 'Fades the windows out once you have stood still for a while, and brings them back as soon as you move.');
+    Check('Fade When Idle', 'Enabled', 'Fades the windows out once you have stood still for a while, and brings them back as soon as you move.');
     if not settings.Enabled then
         return;
     end
 
-    Number('Idle time (seconds)', 'Delay', 1, 120, nil, 'How long you must stand still before the fade starts.');
-    Number('Fade time (seconds)', 'Duration', 0, 5, '%.1f');
-    Number('Faded opacity (%)', 'Opacity', 0, 100, nil, 'How visible a faded window stays. At 0 it disappears completely.');
-    Check('Stay visible while engaged', 'Combat', 'Standing still with your weapon drawn does not count as idle.');
-    Check('Stay visible while targeting', 'Target', 'Having anything targeted does not count as idle: the windows come back as soon as you target something.');
-    Check('Stay visible while missing HP', 'MissingHp', 'Standing still below full HP does not count as idle.');
-    Check('Stay visible while healing', 'Resting', 'Resting to recover HP and MP (/heal) does not count as idle.');
+    Number('Idle Time (Seconds)', 'Delay', 1, 120, nil, 'How long you must stand still before the fade starts.');
+    Number('Fade Time (Seconds)', 'Duration', 0, 5, '%.1f');
+    Number('Faded Opacity (%)', 'Opacity', 0, 100, nil, 'How visible a faded window stays. At 0 it disappears completely.');
+    Check('Stay Visible While Engaged', 'Combat', 'Standing still with your weapon drawn does not count as idle.');
+    Check('Stay Visible While Targeting', 'Target', 'Having anything targeted does not count as idle: the windows come back as soon as you target something.');
+    Check('Stay Visible While Missing HP', 'MissingHp', 'Standing still below full HP does not count as idle.');
+    Check('Stay Visible While Healing', 'Resting', 'Resting to recover HP and MP (/heal) does not count as idle.');
 end
 
 return widgets;
