@@ -8,9 +8,11 @@
 #   ./deploy.sh pull <addon>      copy the live copy into the project folder
 #
 # A shared library under addons/libs is named with its folder: ./deploy.sh push libs/winxi
+# Add -y (or --yes) to skip the "y" question: ./deploy.sh push mobdb -y
 #
 # push and rollback are the only commands that write to the live install. Both show what they are
-# about to do and wait for "y", and both refuse to run unless a person is at the terminal.
+# about to do and wait for "y" (unless given -y), and both refuse to run unless a person is at the
+# terminal, with or without -y.
 # Every file a push replaces is first kept under deploy-backups/<addon>/<time>/.
 # Nothing is ever deleted from live: a file that exists only there is listed, and left alone.
 
@@ -72,6 +74,11 @@ reload_hint() {
 
 confirm() {
     [[ -t 0 ]] || die "this step needs a person at the terminal to confirm it"
+    # -y answers the question, but the step is still only for a person at the terminal
+    if [[ "$ASSUME_YES" -eq 1 ]]; then
+        echo "$1 yes (-y)"
+        return 0
+    fi
     local answer
     read -r -p "$1 [y/N] " answer
     [[ "$answer" == y || "$answer" == Y ]]
@@ -207,11 +214,22 @@ cmd_pull() {
     echo "Pulled."
 }
 
+# -y or --yes, anywhere on the line, skips the confirmation question
+ASSUME_YES=0
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        -y|--yes) ASSUME_YES=1 ;;
+        *)        ARGS+=("$arg") ;;
+    esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
 case "${1:-}" in
     status)   cmd_status ;;
     diff)     shift; cmd_diff "$@" ;;
     push)     shift; cmd_push "$@" ;;
     rollback) shift; cmd_rollback "$@" ;;
     pull)     shift; cmd_pull "$@" ;;
-    *)        sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
+    *)        sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
 esac
