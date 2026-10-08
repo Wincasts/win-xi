@@ -1,5 +1,7 @@
 local tokens = require('tokens');
 local style = require('style');
+local anchor = require('anchor');
+local cache = require('cache');
 local details = {
     IsOpen = { true },
     Header = { 1.0, 0.75, 0.55, 1.0 },
@@ -7,6 +9,7 @@ local details = {
 local entMgr = AshitaCore:GetMemoryManager():GetEntity();
 local resMgr = AshitaCore:GetResourceManager();
 local errorPrinted = T{};
+local sideSpacing = { 8, 0 }; -- between the two columns of the detail view
 
 local function GetDirection(index)
     local myIndex = AshitaCore:GetMemoryManager():GetParty():GetMemberTargetIndex(0);
@@ -46,7 +49,7 @@ local function GetPosition(index)
 end
 
 local function GetSpeed(index)
-    local entity = AshitaCore:GetMemoryManager():GetEntity():GetRawEntity(index);
+    local entity = entMgr:GetRawEntity(index);
     if entity == nil then
         return 'Unknown';
     else
@@ -58,17 +61,9 @@ local function GetSpeed(index)
         end
 
         if (relative < 1) then
-            if (ashita.addons_version < 2.2) then
-                relative = string.format('-%.2d%%%%', math.floor((1 - relative) * 100));
-            else
-                relative = string.format('-%.2d%%', math.floor((1 - relative) * 100));
-            end
+            relative = string.format('-%.2d', math.floor((1 - relative) * 100)) .. cache.PercentSign;
         elseif (relative > 1) then
-            if (ashita.addons_version < 2.2) then
-                relative = string.format('+%.2d%%%%', math.floor((relative - 1) * 100));
-            else
-                relative = string.format('+%.2d%%', math.floor((relative - 1) * 100));
-            end
+            relative = string.format('+%.2d', math.floor((relative - 1) * 100)) .. cache.PercentSign;
         else
             relative = '+0%';
         end
@@ -78,123 +73,57 @@ local function GetSpeed(index)
 end
 
 local function DrawImage(file)
-    local texture = gTextures.Cache[file];
-    if (texture == nil) then
+    if not gTextures:Draw(file, 13 * gSettings.DetailScale) then
         if errorPrinted[file] == nil then
             print(chat.header('MobDB') .. chat.error('Texture not found: ' .. file));
             errorPrinted[file] = true;
         end
         return;
     end
-    imgui.Image(tonumber(ffi.cast("uint32_t", gTextures.Cache[file])), {13 * gSettings.DetailScale, 13 * gSettings.DetailScale }, { 0, 0 }, { 1, 1 }, { 1, 1, 1, 1 }, { 0, 0, 0, 0 });
     if imgui.IsItemHovered() then
         imgui.SetTooltip(file);
     end
 end
 
+-- A sorted modifier list from the cache, on one line: each icon, and the figure after the last of
+-- each strength
 local function PrintMods(mods)
     local first = true;
-    for index,mod in ipairs(mods) do
+    for _,mod in ipairs(mods) do
         if not first then
             imgui.SameLine();
         end
 
-        if (gTextures.Cache[mod.Type] ~= nil) then
+        if mod.HasIcon then
             DrawImage(mod.Type);
             first = false;
         end
 
-        if (index == #mods) or (mods[index+1].Potency ~= mod.Potency) then
-            local outstring = '';
-            if (mod.Potency > 1) then
-                if (ashita.addons_version < 2.2) then
-                    outstring = outstring .. '+' .. string.format('%.2f', ((mod.Potency - 1) * 100)):gsub('0+$', ''):gsub('%.$', '') .. '%%';
-                else
-                    outstring = outstring .. '+' .. string.format('%.2f', ((mod.Potency - 1) * 100)):gsub('0+$', ''):gsub('%.$', '') .. '%';
-                end
-            else
-                if (ashita.addons_version < 2.2) then
-                    outstring = outstring .. '-' .. string.format('%.2f', ((1 - mod.Potency) * 100)):gsub('0+$', ''):gsub('%.$', '') .. '%%';
-                else
-                    outstring = outstring .. '-' .. string.format('%.2f', ((1 - mod.Potency) * 100)):gsub('0+$', ''):gsub('%.$', '') .. '%';
-                end
-            end
-
-            local lastLine = (index == #mods);
-            if not lastLine then
-                outstring = outstring .. ' ';
-            end
+        if mod.Text then
             imgui.SameLine();
-            imgui.Text(outstring);
+            imgui.Text(mod.Text);
         end
     end
 end
 
+-- A mob's flag icons on one line: its aggro icon, then each flag it has
 local function PrintFlags(resource)
-    if (resource.Notorious) then
-        if (resource.Aggro) then
-            DrawImage('AggroHQ');
-        else
-            DrawImage('PassiveHQ');
-        end
-    else
-        if (resource.Aggro) then
-            DrawImage('AggroNQ');
-        else
-            DrawImage('PassiveNQ');
-        end
-    end
-
-    local flags = {
-        'Link',
-        'TrueSight',
-        'Sight',
-        'Sound',
-        'Scent',
-        'Magic',
-        'JA',
-        'Blood',
-    };
-
-    for _,flag in ipairs(flags) do
-        if (resource[flag] == true) and (gTextures.Cache[flag] ~= nil) then
+    for index,icon in ipairs(cache.Flags(resource)) do
+        if (index > 1) then
             imgui.SameLine();
-            DrawImage(flag);
         end
+        DrawImage(icon);
     end
 end
 
 local function PrintImmunities(resource)
-    local flags = {
-        { flag=0x01, icon='ImmuneSleep' },
-        { flag=0x02, icon='ImmuneGravity' },
-        { flag=0x04, icon='ImmuneBind' },
-        { flag=0x08, icon='ImmuneStun' },
-        { flag=0x10, icon='ImmuneSilence' },
-        { flag=0x20, icon='ImmuneParalyze' },
-        { flag=0x40, icon='ImmuneBlind' },
-        { flag=0x80, icon='ImmuneSlow' },
-        { flag=0x100, icon='ImmunePoison' },
-        { flag=0x200, icon='ImmuneElegy' },
-        { flag=0x400, icon='ImmuneRequiem' },
-        { flag=0x800, icon='ImmuneLightSleep' },
-        { flag=0x1000, icon='ImmuneDarkSleep' },
-        { flag=0x2000, icon='ImmunePetrify' }, 
-    }
-
-    local first = true;
-    for _,flag in ipairs(flags) do
-        if (bit.band(resource.Immunities, flag.flag) ~= 0) then
-            if (gTextures.Cache[flag.icon] ~= nil) then
-                if not first then
-                    imgui.SameLine();
-                else
-                    imgui.TextColored(details.Header, 'Status Immunities');
-                    first = false;
-                end
-                DrawImage(flag.icon);
-            end
+    for index,icon in ipairs(cache.Immunities(resource)) do
+        if (index > 1) then
+            imgui.SameLine();
+        else
+            imgui.TextColored(details.Header, 'Status Immunities');
         end
+        DrawImage(icon);
     end
 end
 
@@ -219,6 +148,143 @@ local function TimeToString(time)
     end
 end
 
+-- Everything the detail view shows. Kept apart from the window itself because, for a corner other
+-- than the top left, it is laid out twice: once off screen to be measured (see anchor).
+function details:RenderContent(index, resource)
+    imgui.PushFont(nil, 12 * gSettings.Scale);
+    imgui.BeginGroup();
+    imgui.TextColored(self.Header, 'Name:');
+    imgui.SameLine();
+    if resource and resource.Name then
+        imgui.Text(resource.Name);
+    else
+        local name = entMgr:GetName(index);
+        if (name ~= nil) then
+            imgui.Text(name);
+        else
+            imgui.Text('Unknown');
+        end
+    end
+
+    imgui.TextColored(self.Header, 'Index:');
+    imgui.SameLine();
+    imgui.Text(string.format('%u[0x%X]', index, index));
+    
+    imgui.TextColored(self.Header, 'Id:');
+    imgui.SameLine();
+    local id = entMgr:GetServerId(index);
+    imgui.Text(string.format('%u[0x%08X]', id, id));
+
+    imgui.TextColored(self.Header, 'Position:');
+    imgui.SameLine();
+    imgui.Text(GetPosition(index));
+        
+    imgui.TextColored(self.Header, 'Direction:');
+    imgui.SameLine();
+    imgui.Text(GetDirection(index));
+                    
+    imgui.TextColored(self.Header, 'Speed:');
+    imgui.SameLine();
+    imgui.Text(GetSpeed(index));
+
+    if (index > 0) and (index < 0x900) and (bit.band(entMgr:GetSpawnFlags(index), 0x10) ~= 0) then
+        imgui.TextColored(self.Header, 'Is Custom Mob:');
+        imgui.SameLine();
+        if ((index >= 0x700) and (index <= 0x900)) then
+            imgui.Text('Yes');
+        else
+            imgui.Text('No');
+        end
+    end
+
+    if resource then
+        if resource.Job > 0 then
+            imgui.TextColored(self.Header, 'Job:');
+            imgui.SameLine();
+            imgui.Text(cache.Job(resource));
+        end
+
+        imgui.TextColored(self.Header, 'Level:');
+        imgui.SameLine();
+        if (resource.Level) then
+            imgui.Text(resource.Level);                    
+        else
+            imgui.Text(string.format('%d-%d', resource.MinLevel, resource.MaxLevel));
+        end
+
+        if (resource.Respawn ~= nil) and (resource.Respawn > 0) then
+            imgui.TextColored(self.Header, 'Respawn Time:');
+            imgui.SameLine();
+            imgui.Text(TimeToString(resource.Respawn));
+        end
+        
+        imgui.TextColored(self.Header, 'Flags');
+        PrintFlags(resource);
+        
+        local mods = cache.Mods(resource, 'physical');
+        if (#mods > 0) then
+            imgui.TextColored(self.Header, 'Physical Modifiers');
+            PrintMods(mods);
+        end
+
+        mods = cache.Mods(resource, 'magical');
+        if (#mods > 0) then
+            imgui.TextColored(self.Header, 'Magical Modifiers');
+            PrintMods(mods);
+        end
+
+        PrintImmunities(resource);
+    end
+    imgui.EndGroup();
+
+    if (resource) then
+        local beganGroup = false;
+        local drops = (resource.Drops) and (resource.Drops[1]);
+        local spells = (resource.Spells) and (resource.Spells[1]);
+
+        if drops or spells then
+            imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, sideSpacing);
+            imgui.SameLine();
+            imgui.BeginGroup();
+        end
+        
+        if drops then
+            imgui.TextColored(self.Header, 'Drops');
+            for _,dropName in ipairs(cache.DropNames(resource)) do
+                imgui.Text(dropName);
+            end
+            if spells then
+                imgui.NewLine();
+            end
+        end
+
+        if spells then
+            imgui.TextColored(self.Header, 'Spells');
+            for _,spellName in ipairs(cache.SpellNames(resource)) do
+                imgui.Text(spellName);
+            end
+        end
+
+        if drops or spells then
+            imgui.EndGroup();
+            imgui.PopStyleVar();
+        end
+    end
+    imgui.PopFont();
+end
+
+-- Fixed for as long as the addon is loaded, so made once rather than on every frame
+local windowTitle = string.format('%s v%s##MobDB Detail View', addon.name, addon.version);
+local windowOpen = { true };
+local noSpacing = { 0, 0 };
+local resetPosition = { 10, 10 };
+
+-- What the measuring pass draws: the content for the target being rendered this frame
+local renderIndex, renderResource = 0, nil;
+local function drawContent()
+    details:RenderContent(renderIndex, renderResource);
+end
+
 function details:Render()
     local targetMgr = AshitaCore:GetMemoryManager():GetTarget();
     local index = targetMgr:GetTargetIndex(targetMgr:GetIsSubTargetActive());
@@ -226,176 +292,30 @@ function details:Render()
     if (index == 0) then
         return;
     end
-    
-    if (bit.band(AshitaCore:GetMemoryManager():GetEntity():GetSpawnFlags(index), 0x10) ~= 0) then
-        resource = gData.Indices[index];
-        if resource == nil then
-            resource = gData.Names[entMgr:GetName(index)];
-        end
-    end
 
+    if (bit.band(entMgr:GetSpawnFlags(index), 0x10) ~= 0) then
+        resource = cache.FindResource(index);
+    end
+    renderIndex, renderResource = index, resource;
+
+    style.PushPlain();
+    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, noSpacing);
+    anchor.Measure('details', drawContent);
     if self.ResetPosition then
-        imgui.SetNextWindowPos( { 10, 10 } );
+        imgui.SetNextWindowPos(resetPosition);
         self.ResetPosition = nil;
+        anchor.Reset('details');
+    else
+        anchor.Place('details');
     end
-    style.Push();
-    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 0 });
-    if (imgui.Begin(string.format('%s v%s##MobDB Detail View', addon.name, addon.version), { true }, style.WindowFlags())) then
-        imgui.PushFont(nil, 12 * gSettings.Scale);
-        imgui.BeginGroup();
-        imgui.TextColored(self.Header, 'Name:');
-        imgui.SameLine();
-        if resource and resource.Name then
-            imgui.Text(resource.Name);
-        else
-            local name = entMgr:GetName(index);
-            if (name ~= nil) then
-                imgui.Text(name);
-            else
-                imgui.Text('Unknown');
-            end
-        end
-
-        imgui.TextColored(self.Header, 'Index:');
-        imgui.SameLine();
-        imgui.Text(string.format('%u[0x%X]', index, index));
-        
-        imgui.TextColored(self.Header, 'Id:');
-        imgui.SameLine();
-        local id = entMgr:GetServerId(index);
-        imgui.Text(string.format('%u[0x%08X]', id, id));
-
-        imgui.TextColored(self.Header, 'Position:');
-        imgui.SameLine();
-        imgui.Text(GetPosition(index));
-            
-        imgui.TextColored(self.Header, 'Direction:');
-        imgui.SameLine();
-        imgui.Text(GetDirection(index));
-                        
-        imgui.TextColored(self.Header, 'Speed:');
-        imgui.SameLine();
-        imgui.Text(GetSpeed(index));
-
-        if (index > 0) and (index < 0x900) and (bit.band(entMgr:GetSpawnFlags(index), 0x10) ~= 0) then
-            imgui.TextColored(self.Header, 'Is Custom Mob:');
-            imgui.SameLine();
-            if ((index >= 0x700) and (index <= 0x900)) then
-                imgui.Text('Yes');
-            else
-                imgui.Text('No');
-            end
-        end
-
-        if resource then
-            if resource.Job > 0 then
-                imgui.TextColored(self.Header, 'Job:');
-                imgui.SameLine();
-                local output = resMgr:GetString(gCompatibility.Resource.Jobs, resource.Job);
-                if (resource.SubJob ~= nil) and (resource.SubJob > 0) then
-                    output = output .. '/' .. resMgr:GetString(gCompatibility.Resource.Jobs, resource.SubJob);                    
-                end
-                imgui.Text(output);
-            end
-
-            imgui.TextColored(self.Header, 'Level:');
-            imgui.SameLine();
-            if (resource.Level) then
-                imgui.Text(resource.Level);                    
-            else
-                imgui.Text(string.format('%d-%d', resource.MinLevel, resource.MaxLevel));
-            end
-
-            if (resource.Respawn ~= nil) and (resource.Respawn > 0) then
-                imgui.TextColored(self.Header, 'Respawn Time:');
-                imgui.SameLine();
-                imgui.Text(TimeToString(resource.Respawn));
-            end
-            
-            imgui.TextColored(self.Header, 'Flags');
-            PrintFlags(resource);
-            
-            local mods = T{};
-                for name,potency in pairs(resource.Modifiers) do
-                    if (potency ~= 1.0) and T{'H2H', 'Impact', 'Piercing', 'Slashing'}:contains(name) then
-                        mods:append({ Type=name, Potency=potency });
-                    end
-                    table.sort(mods, function(a,b)
-                        return (a.Potency > b.Potency);
-                    end);
-                end
-            if (#mods > 0) then
-                imgui.TextColored(self.Header, 'Physical Modifiers');
-                PrintMods(mods);
-            end
-        
-            mods = T{};
-            for name,potency in pairs(resource.Modifiers) do
-                if (potency ~= 1.0) and (T{'Fire', 'Ice', 'Wind', 'Earth', 'Lightning', 'Water', 'Light', 'Dark'}:contains(name)) then
-                    mods:append({ Type=name, Potency=potency });
-                end
-                table.sort(mods, function(a,b)
-                    return (a.Potency > b.Potency);
-                end);
-            end
-            if (#mods > 0) then
-                imgui.TextColored(self.Header, 'Magical Modifiers');
-                PrintMods(mods);
-            end
-            
-            PrintImmunities(resource);
-        end
-        imgui.EndGroup();
-
-        if (resource) then
-            local beganGroup = false;
-            local drops = (resource.Drops) and (resource.Drops[1]);
-            local spells = (resource.Spells) and (resource.Spells[1]);
-
-            if drops or spells then
-                imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8, 0 });
-                imgui.SameLine();
-                imgui.BeginGroup();
-            end
-            
-            if drops then
-                local dropNames = T{};
-                imgui.TextColored(self.Header, 'Drops');
-                for _,item in ipairs(resource.Drops) do
-                    dropNames:append(resMgr:GetItemById(item).Name[1]);
-                end
-                table.sort(dropNames);
-                for _,dropName in ipairs(dropNames) do
-                    imgui.Text(dropName);
-                end
-                if spells then
-                    imgui.NewLine();
-                end
-            end
-            
-            if spells then
-                local spellNames = T{};
-                imgui.TextColored(self.Header, 'Spells');
-                local outText = T{};
-                for _,spell in ipairs(resource.Spells) do
-                    spellNames:append(resMgr:GetSpellById(spell).Name[1]);
-                end
-                table.sort(spellNames);
-                for _,spellName in ipairs(spellNames) do
-                    imgui.Text(spellName);
-                end
-            end
-
-            if drops or spells then
-                imgui.EndGroup();
-                imgui.PopStyleVar();
-            end
-        end
-        imgui.PopFont();
+    windowOpen[1] = true;
+    if (imgui.Begin(windowTitle, windowOpen, style.WindowFlags())) then
+        anchor.Track('details');
+        self:RenderContent(index, resource);
     end
     imgui.End();
     imgui.PopStyleVar();
-    style.Pop();
+    style.PopPlain();
 end
 
 return details;

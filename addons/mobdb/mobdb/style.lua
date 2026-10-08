@@ -6,8 +6,17 @@ local style = {
     Background = { 0.08, 0.08, 0.08, 0.8 },
     Border     = { 0.69, 0.68, 0.78, 1.0 },
     Text       = { 1.00, 1.00, 1.00, 1.0 },
-    Padding    = { 10, 10 },
+    Padding    = { 10, 10 },   -- the padding of the window last pushed for; set by style.Push
+    DefaultPadding = 10,
+    MaxPadding = 40,
 };
+
+-- The padding chosen in the settings (Appearance tab): the space between a window's border and its
+-- content, the same on every side
+function style.GetPadding()
+    local chosen = gSettings and tonumber(gSettings.Padding) or style.DefaultPadding;
+    return math.max(0, math.min(style.MaxPadding, chosen));
+end
 
 local function IsColor(value)
     return type(value) == 'table' and value[1] and value[2] and value[3] and value[4];
@@ -86,8 +95,13 @@ function style.WindowFlags()
         ImGuiWindowFlags_AlwaysAutoResize);
 end
 
--- Call before a window's Begin, and style.Pop after its End
-function style.Push()
+-- Call before a window's Begin, and style.Pop after its End.
+-- The info bar and detail view take the padding chosen in the settings. The settings windows pass
+-- fixedPadding, and keep the default: the padding slider must not squeeze the window it is in.
+function style.Push(fixedPadding)
+    local padding = fixedPadding and style.DefaultPadding or style.GetPadding();
+    style.Padding[1], style.Padding[2] = padding, padding;
+
     local border = GetBorder();
     local was = paletteBorder;
     if palette == nil or was[1] ~= border[1] or was[2] ~= border[2] or was[3] ~= border[3] or was[4] ~= border[4] then
@@ -105,6 +119,24 @@ end
 function style.Pop()
     imgui.PopStyleVar();
     imgui.PopStyleColor(#palette + 1);
+end
+
+-- The same look for a window that holds only text and icons (the info bar and the detail view): just
+-- the background, border and text colours, and the padding chosen in the settings. None of the
+-- palette is needed there, and it is thirty-odd colours to push on every frame.
+function style.PushPlain()
+    local padding = style.GetPadding();
+    style.Padding[1], style.Padding[2] = padding, padding;
+
+    imgui.PushStyleColor(ImGuiCol_WindowBg, GetBackground());
+    imgui.PushStyleColor(ImGuiCol_Border, GetBorder());
+    imgui.PushStyleColor(ImGuiCol_Text, style.Text);
+    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, style.Padding);
+end
+
+function style.PopPlain()
+    imgui.PopStyleVar();
+    imgui.PopStyleColor(3);
 end
 
 return style;

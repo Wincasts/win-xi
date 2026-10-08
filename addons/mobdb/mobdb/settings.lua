@@ -44,6 +44,8 @@ local function SaveFunction(self, characterSpecific)
     if (self.Color) then
         file:write(string.format('    Color={%f,%f,%f,%f}\n,\n', self.Color[1], self.Color[2], self.Color[3], self.Color[4]));
     end
+    file:write(string.format('    Padding=%d,\n', math.floor(tonumber(self.Padding) or 10)));
+    file:write(string.format('    GrowFrom=\'%s\',\n', tostring(self.GrowFrom or 'TopLeft')));
     for _, key in ipairs({ 'BackgroundColor', 'BorderColor' }) do
         local color = self[key];
         if (type(color) == 'table') then
@@ -69,6 +71,8 @@ local defaultSettings = {
     Color = nil,
     BackgroundColor = { 0.08, 0.08, 0.08, 0.8 }, -- every window's background (Appearance tab)
     BorderColor = { 0.69, 0.68, 0.78, 1.0 },     -- every window's border, and the tint of its controls
+    Padding = 10, -- space between the border and the content of the bar and detail view (Appearance tab)
+    GrowFrom = 'TopLeft', -- the corner of the bar and detail view that stays put as they change size (Appearance tab)
     MobFormat = '$name$joblevel $aggro$LB$physmagic',
     PlayerFormat = '$name$joblevel Id:$id $position1',
     NPCFormat = '$name Index:$index Id:$id $position1',

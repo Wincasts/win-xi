@@ -2,6 +2,7 @@ require('common');
 
 local imgui = require('imgui');
 local style = require('style');
+local anchor = require('anchor');
 local ui = T{
     IsOpen = T{ false },
 }
@@ -93,6 +94,34 @@ function SettingsGui:ColorSetting(label, key, tooltip)
     end
 end
 
+-- The corner of the info bar and detail view that stays put as their content changes size, chosen from
+-- four buttons laid out as the corners themselves are
+local growFromLabels = {
+    TopLeft = 'Top Left', TopRight = 'Top Right', BottomLeft = 'Bottom Left', BottomRight = 'Bottom Right',
+};
+
+function SettingsGui:GrowFromSetting()
+    local current = self.Parent.GrowFrom;
+    if (growFromLabels[current] == nil) then
+        current = anchor.Default;
+    end
+
+    for index, mode in ipairs(anchor.Modes) do
+        -- two to a row: the top corners, then the bottom ones
+        if (index % 2 == 0) then
+            imgui.SameLine(140);
+        end
+        if (imgui.RadioButton(growFromLabels[mode] .. '##GrowFrom', current == mode) and current ~= mode) then
+            self.Parent.GrowFrom = mode;
+            self.Parent:Save(self.Parent.CharacterSpecific);
+        end
+    end
+
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('The corner of the info bar and detail view that stays where it is when their content changes size.\nTop Left grows right and down, Top Right left and down, Bottom Left right and up, Bottom Right left and up.');
+    end
+end
+
 function SettingsGui:RenderAppearance()
     imgui.TextColored(self.Theme.Header, 'Window Colors');
     self:ColorSetting('Background Color', 'BackgroundColor',
@@ -100,6 +129,29 @@ function SettingsGui:RenderAppearance()
     self:ColorSetting('Border Color', 'BorderColor',
         'The border of every MobDB window. Tabs, buttons, sliders and other controls are tinted from it.');
 
+    imgui.TextColored(self.Theme.Header, 'Padding');
+    local padding = { style.GetPadding() };
+    if (imgui.SliderInt('##Padding', padding, 0, style.MaxPadding)) then
+        self.Parent.Padding = padding[1];
+        self.paddingChanged = true;
+    end
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('Space between the border and the content of the info bar and detail view, the same on every side.');
+    end
+    -- saved when the slider is let go, or on every change in builds without that test
+    if (self.paddingChanged and (imgui.IsItemDeactivatedAfterEdit == nil or imgui.IsItemDeactivatedAfterEdit())) then
+        self.paddingChanged = false;
+        self.Parent:Save(self.Parent.CharacterSpecific);
+    end
+
+    imgui.TextColored(self.Theme.Header, 'Grow From');
+    self:GrowFromSetting();
+
+    if (imgui.Button('Reset Padding')) then
+        self.Parent.Padding = style.DefaultPadding;
+        self.Parent:Save(self.Parent.CharacterSpecific);
+    end
+    imgui.SameLine();
     if (imgui.Button('Reset Colors')) then
         local defaults = self.Parent.DefaultSettings;
         for _, key in ipairs({ 'BackgroundColor', 'BorderColor' }) do
@@ -117,7 +169,7 @@ function SettingsGui:Render()
     -- nothing is pushed on the frames (nearly all of them) when no settings window is open
     local anyOpen = self.IsOpen[1] or self.TokenEditor.IsOpen[1];
     if anyOpen then
-        style.Push();
+        style.Push(true);
     end
 
     self:RenderWindows();

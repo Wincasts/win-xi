@@ -37,7 +37,7 @@ database.Load = function(self, zone, subZone)
         local result, output = pcall(success);
         if not result then
             print(chat.header('MobDB') .. chat.error(string.format('Failed to call resource file: %s', path)));
-            print(chat.header('MobDB') .. chat.error(loadError));
+            print(chat.header('MobDB') .. chat.error(tostring(output)));
             return nil;
         end
     

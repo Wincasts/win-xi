@@ -1,5 +1,7 @@
 local tokens = require('tokens');
 local style = require('style');
+local anchor = require('anchor');
+local cache = require('cache');
 
 local MobFormat = '$name[$joblevel] $aggro$LB$physmagic';
 local PlayerFormat = 'PLAYER:';
@@ -83,66 +85,99 @@ bar.ParseFormats = function(self, format)
     end
 end
 
+-- Which format the target at an entity index takes, and its database entry if it is a mob. Kept until
+-- the target, or the entity at that index, changes: working it out takes several reads.
+local kindIndex, kindId, kindFormat = nil, nil, nil;
+
+local function GetFormat(entMgr, targetIndex)
+    if (targetIndex == 0) then
+        return 'NothingFormat';
+    end
+
+    local id = entMgr:GetServerId(targetIndex);
+    if (targetIndex ~= kindIndex) or (id ~= kindId) then
+        local format;
+        if (targetIndex >= 0x400) and (targetIndex < 0x700) then
+            format = 'PlayerFormat';
+        elseif (targetIndex >= 0x700) and (entMgr:GetTrustOwnerTargetIndex(targetIndex) ~= 0) then
+            format = 'PetFormat';
+        elseif (bit.band(entMgr:GetSpawnFlags(targetIndex), 0x10) ~= 0) then
+            format = 'MobFormat';
+        else
+            format = 'NPCFormat';
+        end
+        kindIndex, kindId, kindFormat = targetIndex, id, format;
+    end
+    return kindFormat;
+end
+
+-- Everything the bar shows this frame. Module-level rather than made each frame: for a corner other
+-- than the top left it is laid out twice, once off screen to be measured (see anchor).
+local renderTable, renderIndex, renderResource = nil, 0, nil;
+
+local function drawContent()
+    imgui.PushFont(nil, 12 * gSettings.Scale);
+    gTokenState.FirstElement = true;
+    gTokenState.LineBreak = false;
+    for index,currentObject in ipairs(renderTable) do
+        if (type(currentObject) == 'function') then
+            currentObject(renderIndex, renderResource);
+        elseif (type(currentObject) == 'string') then
+            if (currentObject == '$LB') then
+                gTokenState.LineBreak = true;
+            else
+                gTokenState:ProcessSameLines();
+                imgui.Text(currentObject);
+            end
+        end
+    end
+    imgui.PopFont();
+end
+
+local itemSpacing = { bar.Layout.ItemSpacing, bar.Layout.ItemSpacing };
+local resetPosition = { 10, 10 };
+local windowFlags = bit.bor(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_AlwaysAutoResize);
+
 bar.Render = function(self)
     local memMgr = AshitaCore:GetMemoryManager();
     local entMgr = memMgr:GetEntity();
     local targetMgr = memMgr:GetTarget();
     local targetIndex = targetMgr:GetTargetIndex(targetMgr:GetIsSubTargetActive());
-    local renderTable = self.Layout.NothingFormat;
+
+    local format = GetFormat(entMgr, targetIndex);
     local targetResource = nil;
-    if (targetIndex > 0) then
-        if (targetIndex >= 0x400) and (targetIndex < 0x700) then
-            renderTable = self.Layout.PlayerFormat;
-        elseif (targetIndex >= 0x700) and (entMgr:GetTrustOwnerTargetIndex(targetIndex) ~= 0) then
-            renderTable = self.Layout.PetFormat;
-        elseif (bit.band(AshitaCore:GetMemoryManager():GetEntity():GetSpawnFlags(targetIndex), 0x10) ~= 0) then
-            renderTable = self.Layout.MobFormat;
-            targetResource = gData.Indices[targetIndex];
-            if targetResource == nil then
-                targetResource = gData.Names[entMgr:GetName(targetIndex)];
-            end
-        else
-            renderTable = self.Layout.NPCFormat;
-        end
+    if (format == 'MobFormat') then
+        targetResource = cache.FindResource(targetIndex);
     end
+    renderTable, renderIndex, renderResource = self.Layout[format], targetIndex, targetResource;
 
     if (self.State.IsOpen[1]) and (#renderTable > 0) then
-        if self.ResetPosition then
-            imgui.SetNextWindowPos( { 10, 10 } );
-            self.ResetPosition = nil;
-        end
         -- The shared look first, so that a colour chosen in the settings, and the opacity, still apply over it
-        style.Push();
-        imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { self.Layout.ItemSpacing, self.Layout.ItemSpacing });
+        style.PushPlain();
+        imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
+        anchor.Measure('bar', drawContent);
+        if self.ResetPosition then
+            imgui.SetNextWindowPos(resetPosition);
+            self.ResetPosition = nil;
+            anchor.Reset('bar');
+        else
+            anchor.Place('bar');
+        end
         local pushColor = gSettings.Color;
         if pushColor then
             imgui.PushStyleColor(ImGuiCol_WindowBg, gSettings.Color);
         end
         imgui.SetNextWindowBgAlpha(gSettings.Alpha);
-        if imgui.Begin('mobdb_infobar', self.State.IsOpen, bit.bor(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_AlwaysAutoResize)) then
-            imgui.PushFont(nil, 12 * gSettings.Scale);
-            gTokenState.FirstElement = true;
-            gTokenState.LineBreak = false;
-            for index,currentObject in ipairs(renderTable) do
-                if (type(currentObject) == 'function') then
-                    currentObject(targetIndex, targetResource);
-                elseif (type(currentObject) == 'string') then
-                    if (currentObject == '$LB') then
-                        gTokenState.LineBreak = true;
-                    else
-                        gTokenState:ProcessSameLines();
-                        imgui.Text(currentObject);
-                    end
-                end
-            end
-            imgui.PopFont();
+        if imgui.Begin('mobdb_infobar', self.State.IsOpen, windowFlags) then
+            anchor.Track('bar');
+            drawContent();
         end
         imgui.End();
         if pushColor then
             imgui.PopStyleColor();
         end
         imgui.PopStyleVar();
-        style.Pop();
+        style.PopPlain();
     end
 end
 
