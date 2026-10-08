@@ -94,6 +94,7 @@ function SettingsGui:RenderAppearance()
     widgets.Appearance(self.AppearanceHooks);
 
     widgets.Header('Addon');
+    widgets.PushControlWidth();
     widgets.Label('Bar Scale');
     local scale = { self.Parent.Scale };
     if (imgui.SliderFloat('##BarScale', scale, 0.5, 3.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
@@ -118,6 +119,7 @@ function SettingsGui:RenderAppearance()
         self.Parent.GrowFrom = chosen;
         self.Parent:Save(self.Parent.CharacterSpecific);
     end
+    widgets.PopControlWidth();
 end
 
 -- The settings windows keep the default padding, whatever the theme's: the padding slider must not
