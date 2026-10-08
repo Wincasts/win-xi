@@ -220,6 +220,39 @@ function cache.DropText(resource)
     return entry.dropText;
 end
 
+-- What can be stolen, and what can be despoiled, from a mob: kept apart from what it drops
+function cache.StealNames(resource)
+    local entry = Entry(resource);
+    if entry.stealNames == nil then
+        entry.stealNames = SortedNames(resource.Steal, resMgr.GetItemById, 'Item %d');
+    end
+    return entry.stealNames;
+end
+
+function cache.StealText(resource)
+    local entry = Entry(resource);
+    if entry.stealText == nil then
+        entry.stealText = table.concat(cache.StealNames(resource), ',');
+    end
+    return entry.stealText;
+end
+
+function cache.DespoilNames(resource)
+    local entry = Entry(resource);
+    if entry.despoilNames == nil then
+        entry.despoilNames = SortedNames(resource.Despoil, resMgr.GetItemById, 'Item %d');
+    end
+    return entry.despoilNames;
+end
+
+function cache.DespoilText(resource)
+    local entry = Entry(resource);
+    if entry.despoilText == nil then
+        entry.despoilText = table.concat(cache.DespoilNames(resource), ',');
+    end
+    return entry.despoilText;
+end
+
 function cache.SpellNames(resource)
     local entry = Entry(resource);
     if entry.spellNames == nil then

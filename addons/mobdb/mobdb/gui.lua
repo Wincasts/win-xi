@@ -54,6 +54,8 @@ local TokenHelpData = {
     { Token='$direction', Explanation='Show the cardinal direction in which the target resides.' },
     { Token='$drops', Explanation='Show target drops as a comma-seperated line.' },
     { Token='$dropssplit', Explanation='Show target drops with each drop on a new line.' },
+    { Token='$steal', Explanation='Show what can be stolen from the target as a comma-seperated line.' },
+    { Token='$despoil', Explanation='Show what can be despoiled from the target as a comma-seperated line.' },
     { Token='$notes', Explanation='Any notes saved on the target in the database.  Multiple notes always take a new line.' }
 };
 

@@ -11,6 +11,7 @@ local entMgr = AshitaCore:GetMemoryManager():GetEntity();
 local resMgr = AshitaCore:GetResourceManager();
 local errorPrinted = T{};
 local sideSpacing = { 8, 0 }; -- between the two columns of the detail view
+local sideSections = { { }, { }, { }, { } }; -- the second column's headings and lists, refilled each frame
 
 local function GetDirection(index)
     local myIndex = AshitaCore:GetMemoryManager():GetParty():GetMemberTargetIndex(0);
@@ -239,34 +240,42 @@ function details:RenderContent(index, resource)
     imgui.EndGroup();
 
     if (resource) then
-        local beganGroup = false;
-        local drops = (resource.Drops) and (resource.Drops[1]);
-        local spells = (resource.Spells) and (resource.Spells[1]);
+        -- The second column: what the mob drops, what can be stolen and despoiled from it, and its
+        -- spells, each under its own heading, with a blank line between those that are there
+        local sections = sideSections;
+        local count = 0;
+        if (resource.Drops) and (resource.Drops[1]) then
+            count = count + 1;
+            sections[count][1], sections[count][2] = 'Drops', cache.DropNames(resource);
+        end
+        if (resource.Steal) and (resource.Steal[1]) then
+            count = count + 1;
+            sections[count][1], sections[count][2] = 'Steal', cache.StealNames(resource);
+        end
+        if (resource.Despoil) and (resource.Despoil[1]) then
+            count = count + 1;
+            sections[count][1], sections[count][2] = 'Despoil', cache.DespoilNames(resource);
+        end
+        if (resource.Spells) and (resource.Spells[1]) then
+            count = count + 1;
+            sections[count][1], sections[count][2] = 'Spells', cache.SpellNames(resource);
+        end
 
-        if drops or spells then
+        if (count > 0) then
             imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, sideSpacing);
             imgui.SameLine();
             imgui.BeginGroup();
-        end
-        
-        if drops then
-            imgui.TextColored(self.Header, 'Drops');
-            for _,dropName in ipairs(cache.DropNames(resource)) do
-                imgui.Text(dropName);
-            end
-            if spells then
-                imgui.NewLine();
-            end
-        end
 
-        if spells then
-            imgui.TextColored(self.Header, 'Spells');
-            for _,spellName in ipairs(cache.SpellNames(resource)) do
-                imgui.Text(spellName);
+            for index = 1, count do
+                if (index > 1) then
+                    imgui.NewLine();
+                end
+                imgui.TextColored(self.Header, sections[index][1]);
+                for _,name in ipairs(sections[index][2]) do
+                    imgui.Text(name);
+                end
             end
-        end
 
-        if drops or spells then
             imgui.EndGroup();
             imgui.PopStyleVar();
         end

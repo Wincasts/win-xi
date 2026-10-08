@@ -382,6 +382,16 @@ return {
             end
         end
     end,
+    ['$steal'] = function(mob, resource)
+        if resource and (resource.Steal) and (resource.Steal[1]) then
+            gTokenState:DrawText(cache.StealText(resource));
+        end
+    end,
+    ['$despoil'] = function(mob, resource)
+        if resource and (resource.Despoil) and (resource.Despoil[1]) then
+            gTokenState:DrawText(cache.DespoilText(resource));
+        end
+    end,
     ['$notes'] = function(mob, resource)
         if resource then
             if (resource.Notes) and (#resource.Notes > 0) then
