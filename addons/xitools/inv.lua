@@ -743,10 +743,10 @@ local countedBags = {
     house = { { 'mog safe 1', 'mogSafe1' }, { 'mog safe 2', 'mogSafe2' }, { 'storage', 'storage' }, { 'mog locker', 'locker' } },
 }
 
--- The section at the foot of a tab: how full each of its bags is, as 08/30. A tab with one bag shows
--- the count alone; one with several names each. A full bag's count is red. Bags the player does not
--- have are left out.
-local countBuffer = { 0, 3 } -- above and below the line
+-- The row at the foot of a tab: the gil on the left and, on the right, how full each of the tab's bags
+-- is, as 08/30. A tab with one bag shows the count alone; one with several names each, one to a row
+-- under the first. A full bag's count is red. Bags the player does not have are left out.
+local countBuffer = { 0, 3 } -- between the slots and the row
 
 local function DrawCounts(bagId)
     local counted = countedBags[bagId]
@@ -756,15 +756,14 @@ local function DrawCounts(bagId)
             shown = shown + 1
         end
     end
-    if shown == 0 then
-        return
-    end
 
-    -- a little room either side of the line that sets the counts apart from the slots
-    imgui.Dummy(countBuffer)
-    imgui.Separator()
+    -- a little room between the slots and this row
     imgui.Dummy(countBuffer)
 
+    -- the gil against the left edge, on the same row as the first (or only) count
+    imgui.Text(('%s G'):format(inventories.gil))
+
+    local first = true
     for _, bag in ipairs(counted) do
         local slots = capacities[bagId][bag[2]] or 0
         if slots > 0 then
@@ -772,6 +771,11 @@ local function DrawCounts(bagId)
             local text = ('%02d/%02d'):format(used, slots)
             if shown > 1 then
                 text = ('%s %s'):format(bag[1], text)
+            end
+
+            if first then
+                imgui.SameLine()
+                first = false
             end
 
             -- against the right edge, by hand: the text starts its own width short of it
@@ -790,8 +794,6 @@ end
 
 local function DrawInventory()
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingSome)
-    imgui.Text(('%s G'):format(inventories.gil))
-
     if imgui.BeginTabBar('##xitools.inventories.all', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
         if imgui.BeginTabItem('bag##xitools.inventories.all.1') then
             DrawSubInventory('inventory', 'bag', 'inv')
@@ -837,8 +839,6 @@ end
 
 local function DrawInventoryUnified()
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingSome)
-    imgui.Text(('%s G'):format(inventories.gil))
-
     if imgui.BeginTabBar('##xitools.inventories.unified', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
         if imgui.BeginTabItem('bag##xitools.inventories.unified.1') then
             DrawBag('bag', 'all')
