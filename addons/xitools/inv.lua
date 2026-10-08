@@ -786,8 +786,8 @@ local function PadPress(action)
             sound.Play('error')
         end
     elseif action == 'back' then
+        -- the sound of it closing is made as the window is seen to have gone, however it was closed
         pad.options.isVisible[1] = false
-        sound.Play('back')
     end
 end
 
@@ -807,6 +807,13 @@ local function PadBeginFrame(options)
 
     -- the grid and the menu make their own sounds once these are on
     sound.SetEnabled(options.controllerSounds ~= nil and options.controllerSounds[1])
+
+    -- the window closing, whether by the controller, /xit i or anything else, sounds as backing out does
+    local showing = options.controller ~= nil and options.controller[1] and options.isVisible[1] or false
+    if pad.showing and not showing then
+        sound.Play('back')
+    end
+    pad.showing = showing
 
     pad.options = options
     pad.drawn = os.clock()
