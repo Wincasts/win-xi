@@ -7,6 +7,7 @@ local debounce = require('utils/debounce')
 local packets = require('utils/packets')
 local imgui = require('imgui')
 local ui = require('ui')
+local controller = require('winxi.controller')
 
 local textures = { }
 local gfxDevice = d3d8.get_device()
@@ -678,86 +679,41 @@ local contextMenus = {
 }
 
 -- Experimental: working the inventory with an XInput controller (the Controller Navigation setting).
+-- The controller itself is winxi's: which buttons are taken and kept from the game, the highlight that
+-- moves over the items, and the menu. What is here is what the buttons do in this window.
 --
 -- While the window is showing, the d-pad moves a highlight over the items, the shoulder buttons change
 -- tab, A opens a menu of what can be done with the highlighted item and chooses from it, and B backs
--- out of the menu or closes the window. Those buttons are kept from the game for as long as the window
--- is showing; the sticks and every other button still reach it.
+-- out of the menu or closes the window.
 local pad = {
-    active = false,   -- the window is showing with the setting on: the controller is the inventory's
-    cursor = 1,       -- which of the items drawn this frame is highlighted
-    count = 0,        -- how many items have been drawn this frame, and for each its place and bag:
-    items = { }, xs = { }, ys = { }, groups = { },
-    tab = 1,          -- the tab that is showing
-    wantTab = nil,    -- the tab to switch to on the next frame
-    moved = false,    -- the highlight has just moved: scroll it into view
-    menu = nil,       -- the menu that is open: { item, entries = { { label, run } }, index }
-    held = { },       -- button -> whether it is down
-    owned = { },      -- button -> true while a press the inventory took is still down
-    since = { },      -- button -> when a d-pad press began, and when it last repeated
-    repeated = { },
+    options = nil,     -- the tool's settings, as of the frame last drawn
+    drawn = 0,         -- when the window was last drawn: the controller is only the inventory's while it is
+    active = false,    -- as of the frame being drawn
+    grid = controller.NewGrid(),
+    items = { },       -- the item at each place in the grid, and the group of bags it is in
+    groups = { },
+    tab = 1,           -- the tab that is showing
+    wantTab = nil,     -- the tab to switch to on the next frame
+    menu = nil,        -- the menu that is open, and the item it is for
+    menuItem = nil,
 }
 
-local padButtons = {
-    [0] = 'up', [1] = 'down', [2] = 'left', [3] = 'right',
-    [8] = 'previousTab', [9] = 'nextTab',
-    [12] = 'confirm', [13] = 'back',
-}
 local padTabs = 4
-local padRepeatDelay, padRepeatRate = 0.35, 0.08 -- seconds held before a d-pad press repeats, and between repeats
 local padColor = imgui.GetColorU32({ 1.0, 0.85, 0.3, 1.0 })
 
--- Moves the highlight to the nearest item in the row above or below. The items' places are those they
--- were last drawn at, so this works whatever the layout: rows of a bag, or several bags one under another.
-local function PadMoveRow(direction)
-    local x, y = pad.xs[pad.cursor], pad.ys[pad.cursor]
-    if x == nil then
-        return
-    end
-
-    -- the nearest row in that direction, then the item in it closest across
-    local rowY = nil
-    for i = 1, pad.count do
-        local dy = (pad.ys[i] - y) * direction
-        if dy > 1 and (rowY == nil or dy < (rowY - y) * direction) then
-            rowY = pad.ys[i]
-        end
-    end
-    if rowY == nil then
-        return
-    end
-
-    local best, bestDistance = nil, nil
-    for i = 1, pad.count do
-        if math.abs(pad.ys[i] - rowY) <= 1 then
-            local distance = math.abs(pad.xs[i] - x)
-            if bestDistance == nil or distance < bestDistance then
-                best, bestDistance = i, distance
-            end
-        end
-    end
-    if best ~= nil then
-        pad.cursor = best
-        pad.moved = true
-    end
-end
-
-local function PadMove(direction)
-    if direction == 'left' and pad.cursor > 1 then
-        pad.cursor = pad.cursor - 1
-        pad.moved = true
-    elseif direction == 'right' and pad.cursor < pad.count then
-        pad.cursor = pad.cursor + 1
-        pad.moved = true
-    elseif direction == 'up' then
-        PadMoveRow(-1)
-    elseif direction == 'down' then
-        PadMoveRow(1)
-    end
+-- Whether the inventory has the controller: the setting is on, and the window is showing and being
+-- drawn (it is not, while the tool is switched off or the whole UI is hidden)
+local function PadIsActive()
+    local options = pad.options
+    return options ~= nil
+        and options.controller ~= nil and options.controller[1]
+        and options.isVisible[1]
+        and os.clock() - pad.drawn < 0.25
+        or false
 end
 
 -- What can be done with an item from the given group of bags, as menu entries. The same choices, under
--- the same rules, as the right-click menus. An entry's run may hand back another menu to open in its place.
+-- the same rules, as the right-click menus.
 local function PadEntries(item, group)
     local entries = { }
     local function add(label, run)
@@ -792,156 +748,77 @@ local function PadEntries(item, group)
     if not item.isLocked then
         -- dropping is asked about first, with Cancel the choice that is highlighted
         add('Drop...', function()
-            return { item = item, index = 1, entries = {
+            return controller.NewMenu(item.shortName, {
                 { label = 'Cancel' },
                 { label = DropLabel(item), run = function() DropItem(item) end },
-            } }
+            })
         end)
     end
 
     return entries
 end
 
--- A button has been pressed (or a held d-pad button has repeated) while the inventory has the controller
-local function PadPress(action, options)
-    local menu = pad.menu
-    if menu ~= nil then
-        if action == 'up' then
-            menu.index = (menu.index - 2) % #menu.entries + 1
-        elseif action == 'down' then
-            menu.index = menu.index % #menu.entries + 1
-        elseif action == 'confirm' then
-            local entry = menu.entries[menu.index]
-            pad.menu = entry.run and entry.run() or nil
-        elseif action == 'back' then
-            pad.menu = nil
-        end
+-- One of the inventory's buttons has been pressed, or a held d-pad button has repeated
+local function PadPress(action)
+    if pad.menu ~= nil then
+        pad.menu = pad.menu:Press(action)
         return
     end
 
     if action == 'up' or action == 'down' or action == 'left' or action == 'right' then
-        PadMove(action)
-    elseif action == 'previousTab' then
+        pad.grid:Move(action)
+    elseif action == 'previous' then
         pad.wantTab = (pad.tab - 2) % padTabs + 1
-    elseif action == 'nextTab' then
+    elseif action == 'next' then
         pad.wantTab = pad.tab % padTabs + 1
     elseif action == 'confirm' then
-        local item = pad.items[pad.cursor]
+        local item = pad.items[pad.grid.cursor]
         if item ~= nil then
-            local entries = PadEntries(item, pad.groups[pad.cursor])
+            local entries = PadEntries(item, pad.groups[pad.grid.cursor])
             if #entries > 0 then
-                pad.menu = { item = item, entries = entries, index = 1 }
+                pad.menu = controller.NewMenu(item.shortName, entries)
+                pad.menuItem = item
             end
         end
     elseif action == 'back' then
-        options.isVisible[1] = false
+        pad.options.isVisible[1] = false
     end
 end
 
--- Whether the inventory has the controller: the setting is on and the window is showing
-local function PadIsActive(options)
-    return options.controller ~= nil and options.controller[1] and options.isVisible[1] and true or false
-end
+controller.Bind({
+    active = PadIsActive,
+    actions = controller.StandardActions(),
+    repeats = controller.StandardRepeats(),
+    press = PadPress,
+})
 
--- A controller button has changed, or is being reported again. Every button's state is followed whether
--- or not the inventory has the controller, so that one already down when the window opens (the button
--- that opened it, say) is not taken for a new press. A press the inventory takes is kept from the game
--- until the button is let go.
-local function PadHandleButton(e, options)
-    local button = e.button
-    local action = padButtons[button]
-    if action == nil then
-        return
-    end
-
-    local down = (e.state == 1)
-    local wasDown = pad.held[button]
-    pad.held[button] = down
-
-    if not PadIsActive(options) then
-        pad.owned[button] = nil
-        return
-    end
-
-    if down and not wasDown then
-        pad.owned[button] = true
-        pad.since[button] = os.clock()
-        pad.repeated[button] = nil
-        e.blocked = true
-        PadPress(action, options)
-    elseif pad.owned[button] then
-        e.blocked = true
-        if not down then
-            pad.owned[button] = nil
-        end
-    end
-end
-
--- Starts a frame of drawing: nothing has been drawn yet, and a held d-pad button repeats
+-- Starts a frame of drawing
 local function PadBeginFrame(options)
-    pad.active = PadIsActive(options)
+    pad.options = options
+    pad.drawn = os.clock()
+    pad.active = PadIsActive()
     if not pad.active then
-        pad.count = 0
         pad.menu = nil
-        return
     end
-
-    -- before the count is cleared: moving the highlight goes by the items as they were last drawn
-    local now = os.clock()
-    for button = 0, 3 do
-        if pad.owned[button] and pad.held[button] then
-            local last = pad.repeated[button]
-            if (last == nil and now - pad.since[button] >= padRepeatDelay)
-            or (last ~= nil and now - last >= padRepeatRate) then
-                pad.repeated[button] = now
-                PadPress(padButtons[button], options)
-            end
-        end
-    end
-
-    pad.count = 0
+    pad.grid:Begin()
 end
-
-local padMenuOpen = { true }
-local padMenuFlags = bit.bor(
-    ImGuiWindowFlags_NoDecoration,
-    ImGuiWindowFlags_AlwaysAutoResize,
-    ImGuiWindowFlags_NoSavedSettings,
-    ImGuiWindowFlags_NoInputs,
-    ImGuiWindowFlags_NoFocusOnAppearing)
 
 -- Ends a frame of drawing: keeps the highlight on an item, and draws the open menu beside its item
 local function PadEndFrame()
-    if not pad.active then
-        return
-    end
-
-    if pad.cursor > pad.count then
-        pad.cursor = math.max(1, pad.count)
-    end
-    pad.moved = false
-
-    local menu = pad.menu
-    if menu == nil then
+    pad.grid:End()
+    if not pad.active or pad.menu == nil then
         return
     end
 
     -- the menu belongs to the item it was opened for: if that has gone (used up, moved), so does the menu
-    local item = pad.items[pad.cursor]
-    if item == nil or item.uniqueId ~= menu.item.uniqueId then
+    local item = pad.items[pad.grid.cursor]
+    if item == nil or pad.menuItem == nil or item.uniqueId ~= pad.menuItem.uniqueId then
         pad.menu = nil
         return
     end
 
-    imgui.SetNextWindowPos({ pad.xs[pad.cursor] + 40, pad.ys[pad.cursor] }, ImGuiCond_Always)
-    padMenuOpen[1] = true
-    if imgui.Begin('xitools.inv.padmenu', padMenuOpen, padMenuFlags) then
-        imgui.TextDisabled(menu.item.shortName)
-        for index, entry in ipairs(menu.entries) do
-            imgui.Selectable(('%s##pad%d'):format(entry.label, index), index == menu.index)
-        end
-    end
-    imgui.End()
+    local x, y = pad.grid:Position()
+    pad.menu:Draw(x + 40, y)
 end
 
 -- group is the group of bags the item is being drawn in (bag, satchel, wardrobe or house)
@@ -967,15 +844,14 @@ local function DrawItem(item, addCtxMenu, group)
 
     -- With the controller: note where the item is, and mark the one the highlight is on
     if pad.active then
-        pad.count = pad.count + 1
-        local index = pad.count
-        pad.items[index], pad.xs[index], pad.ys[index], pad.groups[index] = item, curX, curY, group
+        local index = pad.grid:Add(curX, curY)
+        pad.items[index], pad.groups[index] = item, group
 
-        if index == pad.cursor then
+        if pad.grid:IsOn(index) then
             -- two outlines, one inside the other, for a border two pixels thick
             drawList:AddRect({ curX - 2, curY - 2 }, { curX + iconSize + 2, curY + iconSize + 2 }, padColor, 0.0)
             drawList:AddRect({ curX - 3, curY - 3 }, { curX + iconSize + 3, curY + iconSize + 3 }, padColor, 0.0)
-            if pad.moved and imgui.SetScrollHereY ~= nil then
+            if pad.grid.moved and imgui.SetScrollHereY ~= nil then
                 imgui.SetScrollHereY(0.5)
             end
         end
@@ -1125,7 +1001,7 @@ local function BeginTab(index, label)
         if pad.tab ~= index then
             -- a different tab's items: the highlight starts again from the first
             pad.tab = index
-            pad.cursor = 1
+            pad.grid:Reset()
             pad.menu = nil
         end
     end
@@ -1301,9 +1177,6 @@ local inv = {
             end
         end)
         PadEndFrame()
-    end,
-    HandleXInput = function(e, options)
-        PadHandleButton(e, options)
     end,
 }
 
