@@ -12,7 +12,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.shadow` | The drop shadow, drawn inside a window |
 | `winxi.fade` | Fading an addon's windows out while the player is idle, from settings the addon keeps (`widgets.Fade` draws their controls) |
 | `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
-| `winxi.controller` | Working an addon's windows with an XInput controller: taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
+| `winxi.controller` | Working an addon's windows with a controller (XInput, or DirectInput by make): taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
 | `winxi.icons` | Loading image files as textures and drawing them cheaply |
 | `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`) and a corner picker (`GrowFrom`) |
@@ -146,7 +146,15 @@ end
 
 Only the buttons in `actions` are taken, and only while `active` says so: they are kept from the game,
 and the sticks and every other button still reach it. A button already down when the addon takes the
-controller is not counted as a press. XInput controllers only.
+controller is not counted as a press.
+
+Buttons are named as an Xbox controller's are. XInput is the default. For a DirectInput controller,
+the addon says which make it is, and its buttons are read as the Xbox buttons in the same positions:
+
+```lua
+controller.SetLayout(settings.ControllerType);    -- 'xinput', 'playstation', 'switch' or 'stadia'
+-- controller.Layouts lists them, each with a key and a label, for a settings window to offer
+```
 
 ## Letting an addon keep its own theme
 

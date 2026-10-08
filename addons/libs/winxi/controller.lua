@@ -1,4 +1,4 @@
--- winxi.controller: working an addon's windows with an XInput controller.
+-- winxi.controller: working an addon's windows with a controller, XInput or DirectInput.
 --
 -- The game reads the controller too, so an addon takes it only while it has reason to (a window of its
 -- own is showing, say), and only the buttons it uses: those are kept from the game, and the sticks and
@@ -24,12 +24,17 @@
 -- The standard actions are up, down, left, right (the d-pad), confirm (A), back (B), previous (LB) and
 -- next (RB). Any table of controller.Button values to names will do in their place. Where several
 -- bindings want the same button, the one bound first that is active gets it.
+--
+-- The buttons are named as an Xbox controller's are, whatever the controller. XInput reports them that
+-- way. DirectInput numbers them differently on each make of controller, so for one of those the addon
+-- says which it is with controller.SetLayout (controller.Layouts lists the choices), and its buttons
+-- are read as the Xbox buttons in the same positions: the bottom face button is A, and so on.
 local bit = require('bit');
 local imgui = require('imgui');
 
 local controller = {};
 
--- The buttons, as XInput numbers them in Ashita's xinput_button event
+-- The buttons, by their Xbox names, as XInput numbers them in Ashita's xinput_button event
 controller.Button = {
     DpadUp = 0, DpadDown = 1, DpadLeft = 2, DpadRight = 3,
     Start = 4, Back = 5, L3 = 6, R3 = 7,
@@ -61,22 +66,54 @@ local since = {};     -- button -> when that press began
 local repeated = {};  -- button -> when it last repeated
 local listening = false;
 
--- A controller button has changed, or is being reported again. Every button's state is followed whether
--- or not anything wants the controller, so that one already down is not taken for a new press.
-local function OnButton(e)
-    local button = e.button;
-    local down = (e.state == 1);
+-- The kinds of controller. XInput is read as it comes. Each DirectInput layout says which of that
+-- controller's buttons (by the number DirectInput gives it) is which Xbox button, by position.
+local B = controller.Button;
+controller.Layouts = {
+    { key = 'xinput', label = 'XInput (Xbox)' },
+    { key = 'playstation', label = 'DirectInput (PlayStation)', buttons = {
+        [48] = B.X, [49] = B.A, [50] = B.B, [51] = B.Y,          -- square, cross, circle, triangle
+        [52] = B.LB, [53] = B.RB, [56] = B.Back, [57] = B.Start, [58] = B.L3, [59] = B.R3 } },
+    { key = 'switch', label = 'DirectInput (Switch Pro)', buttons = {
+        [48] = B.A, [49] = B.B, [50] = B.X, [51] = B.Y,          -- B, A, Y, X: bottom, right, left, top
+        [52] = B.LB, [53] = B.RB, [56] = B.Back, [57] = B.Start, [58] = B.L3, [59] = B.R3 } },
+    { key = 'stadia', label = 'DirectInput (Stadia)', buttons = {
+        [48] = B.A, [49] = B.B, [50] = B.X, [51] = B.Y,
+        [52] = B.LB, [53] = B.RB, [54] = B.L3, [55] = B.R3, [56] = B.Back, [57] = B.Start } },
+};
+
+local layout = controller.Layouts[1];
+
+-- Says which kind of controller is in use, by its key in controller.Layouts. Returns the key in use
+-- (the present one, if the key given is not one of them).
+function controller.SetLayout(key)
+    for _, candidate in ipairs(controller.Layouts) do
+        if candidate.key == key then
+            layout = candidate;
+            break;
+        end
+    end
+    return layout.key;
+end
+
+function controller.GetLayout()
+    return layout.key;
+end
+
+-- A button (by its Xbox name's number) is down or up, or is being reported again. Returns whether the
+-- event that said so should be kept from the game. Every button's state is followed whether or not
+-- anything wants the controller, so that one already down is not taken for a new press.
+local function Process(button, down)
     local wasDown = held[button];
     held[button] = down;
 
     -- a press that was taken is kept from the game until the button is let go, even if the binding
     -- has since stopped being active: the game never saw it go down
     if owner[button] ~= nil then
-        e.blocked = true;
         if not down then
             owner[button] = nil;
         end
-        return;
+        return true;
     end
 
     if down and not wasDown then
@@ -86,11 +123,57 @@ local function OnButton(e)
                 owner[button] = binding;
                 since[button] = os.clock();
                 repeated[button] = nil;
-                e.blocked = true;
                 binding.press(action);
-                return;
+                return true;
             end
         end
+    end
+    return false;
+end
+
+local function OnXInput(e)
+    if layout.buttons ~= nil then
+        return; -- a DirectInput controller is in use
+    end
+    -- the buttons proper: beyond them the event reports the triggers and sticks
+    if e.button <= 15 and Process(e.button, e.state == 1) then
+        e.blocked = true;
+    end
+end
+
+-- DirectInput reports the d-pad as one direction, in hundredths of a degree clockwise from up, or -1
+-- (anything else) for none. A diagonal is two of the buttons at once.
+local dpadOffset = 32;
+local dpadHas = {
+    [B.DpadUp]    = { [0] = true, [4500] = true, [31500] = true },
+    [B.DpadRight] = { [4500] = true, [9000] = true, [13500] = true },
+    [B.DpadDown]  = { [13500] = true, [18000] = true, [22500] = true },
+    [B.DpadLeft]  = { [22500] = true, [27000] = true, [31500] = true },
+};
+
+local function OnDirectInput(e)
+    local buttons = layout.buttons;
+    if buttons == nil then
+        return; -- an XInput controller is in use
+    end
+
+    if e.button == dpadOffset then
+        -- one event for the whole d-pad: it is kept from the game if any of its buttons is taken
+        local blocked = false;
+        for button, angles in pairs(dpadHas) do
+            if Process(button, angles[e.state] == true) then
+                blocked = true;
+            end
+        end
+        if blocked then
+            e.blocked = true;
+        end
+        return;
+    end
+
+    local button = buttons[e.button];
+    if button ~= nil and Process(button, e.state == 128) then
+        e.blocked = true;
     end
 end
 
@@ -123,7 +206,8 @@ function controller.Bind(spec)
 
     if not listening then
         listening = true;
-        ashita.events.register('xinput_button', 'winxi_controller_button', OnButton);
+        ashita.events.register('xinput_button', 'winxi_controller_xinput', OnXInput);
+        ashita.events.register('dinput_button', 'winxi_controller_dinput', OnDirectInput);
         ashita.events.register('d3d_present', 'winxi_controller_present', OnPresent);
     end
     return binding;
