@@ -11,6 +11,7 @@ local settings = require('settings')
 local ui = require('ui')
 local migrations = require('migrations')
 local winxiFade = require('winxi.fade')
+local winxiOrganize = require('winxi.organize')
 local winxiTheme = require('winxi.theme')
 local winxiWidgets = require('winxi.widgets')
 
@@ -107,11 +108,6 @@ local defaultOptions = T{
 
 local options = settings.load(defaultOptions)
 
--- The "Organize" button at the bottom of the config window. Not saved: it is for arranging
--- the windows, and switches itself off when the config window is closed.
-local showSamples = T{ false }
-local showGrid = T{ true }
-
 -- Settings saved before an option existed have no value for it: give those their defaults, then hand the
 -- bar colours to ui.Colors, which is where every tool reads its HP and MP bar colour from.
 -- Run when the settings are loaded or replaced, not every frame: everything it hands over is a table
@@ -193,7 +189,7 @@ local function ApplyGlobals()
 
     ui.Colors.HpBar = globals.hpBarColor
     ui.Colors.MpBar = globals.mpBarColor
-    ui.SetLinks(globals.links)
+    winxiOrganize.SetLinks(globals.links)
 end
 
 ApplyGlobals()
@@ -279,40 +275,11 @@ local function DrawToolTabs(id, toolList)
     end
 end
 
--- The strip along the bottom of the config window, below whichever tab is showing: the Organize
--- button against the right edge, with its grid option to the left while it is switched on.
+-- The strip along the bottom of the config window, below whichever tab is showing: winxi's Organize
+-- button against the right edge, with its grid option to the left while it is switched on
 local function DrawFooter()
     imgui.Separator()
-
-    if showSamples[1] then
-        imgui.Checkbox('Alignment Grid', showGrid)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Draws a grid over the screen while the sample windows are showing, with bold lines through the centre.')
-        end
-        imgui.SameLine()
-    end
-
-    -- right-aligned by hand: the button is as wide as its label and the frame padding either side of it
-    local label = 'Organize'
-    local width = imgui.CalcTextSize(label) + 2 * ui.Styles.FramePaddingSome[1]
-    local available = imgui.GetContentRegionAvail()
-    imgui.SetCursorPosX(imgui.GetCursorPosX() + math.max(0, available - width))
-
-    -- lit while it is switched on
-    local isOn = showSamples[1]
-    if isOn then
-        imgui.PushStyleColor(ImGuiCol_Button, ui.Colors.TpBarActive)
-    end
-    if imgui.Button(label) then
-        showSamples[1] = not showSamples[1]
-    end
-    if isOn then
-        imgui.PopStyleColor()
-    end
-
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Shows every enabled component filled with sample data, so they can be dragged into place and compared.\nEach window is labelled, and party windows show a full six members.\nDrop one window onto another to link them: it snaps against the side it was dropped towards and stays there. Unlink with the button beside it.\nPress again to finish. Switches off when this window is closed.')
-    end
+    winxiOrganize.Controls(ui.Styles.FramePaddingSome[1])
 end
 
 local function DrawConfig()
@@ -408,22 +375,20 @@ ashita.events.register('d3d_present', 'd3d_present_handler', function()
         return
     end
 
+    -- Organizing ends when the config window is closed. While it is on, each enabled component is
+    -- drawn filled with sample data, so that every window is there to be arranged.
     if not options.tools.config.isVisible[1] then
-        showSamples[1] = false
+        winxiOrganize.SetActive(false)
     end
-    ui.IsSampleMode = showSamples[1]
-    ui.BeginFrame()
+    local organizing = winxiOrganize.IsActive()
+    winxiOrganize.BeginFrame()
     ui.UpdateFade(options.globals)
-
-    if showSamples[1] and showGrid[1] then
-        ui.DrawGrid()
-    end
 
     for i, tool in ipairs(tools) do
         -- only the tools that are enabled, whether as themselves or filled with sample data
         -- and none that has faded right out: it would only be prepared and then not drawn
         if options.tools[tool.Name].isEnabled[1] and not ui.IsFadedOut(tool.Name, options.globals) then
-            if showSamples[1] and tool.DrawSample ~= nil then
+            if organizing and tool.DrawSample ~= nil then
                 tool.DrawSample(options.tools[tool.Name], options.globals)
             else
                 tool.DrawMain(options.tools[tool.Name], options.globals)
@@ -431,9 +396,7 @@ ashita.events.register('d3d_present', 'd3d_present_handler', function()
         end
     end
 
-    if showSamples[1] then
-        ui.DrawLinkButtons()
-    end
+    winxiOrganize.EndFrame()
 end)
 
 ashita.events.register('packet_out', 'packet_out_handler', function(e)

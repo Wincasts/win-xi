@@ -7,6 +7,10 @@ local theme = require('winxi.theme')
 local shadow = require('winxi.shadow')
 local widgets = require('winxi.widgets')
 
+-- Arranging the windows (the Organize button: sample data, labels, the grid, and linking one window to
+-- another) is winxi's too. Here its windows are the UI windows.
+local organize = require('winxi.organize')
+
 local txtW, txtH = imgui.CalcTextSize('HP 100%')
 
 -- The window padding the fixed window widths were laid out for
@@ -54,12 +58,8 @@ local ui = {
     },
 }
 
--- Set by xitools while its sample windows are showing. Click-through is ignored then, so that the
--- windows can be dragged into place.
-ui.IsSampleMode = false
-
--- What each UI window is called on its label while the sample windows are showing
-local sampleLabels = {
+-- What each UI window is called on its label while organizing
+organize.SetLabels({
     ['xitools.me'] = 'Me',
     ['xitools.us.1'] = 'Party',
     ['xitools.us.2'] = 'Alliance 2',
@@ -70,84 +70,7 @@ local sampleLabels = {
     ['xitools.pet'] = 'Pet',
     ['xitools.tracker'] = 'Tracker',
     ['xitools.cast'] = 'Cast Bar',
-}
-
--- Names the window being drawn while the sample windows are showing. The name goes just above the
--- window, outside it, so the window keeps its real size; below it when there is no room above.
-local function DrawSampleLabel(config)
-    local text = sampleLabels[config.name] or config.name
-
-    -- Older builds cannot draw outside a window: there the name becomes the window's first line
-    if imgui.GetForegroundDrawList == nil then
-        imgui.PushStyleColor(ImGuiCol_Text, ui.Colors.FfxiAmber)
-        imgui.Text(('[ %s ]'):format(text))
-        imgui.PopStyleColor()
-        return
-    end
-
-    local x, y = imgui.GetWindowPos()
-    local _, windowHeight = imgui.GetWindowSize()
-    local textWidth, textHeight = imgui.CalcTextSize(text)
-
-    local labelY = y - textHeight - 6
-    if labelY < 0 then
-        labelY = y + windowHeight + 2
-    end
-
-    local drawList = imgui.GetForegroundDrawList()
-    drawList:AddRectFilled({ x, labelY }, { x + textWidth + 8, labelY + textHeight + 4 }, imgui.GetColorU32(ui.Colors.FfxiGreyBg), 2)
-    drawList:AddText({ x + 4, labelY + 2 }, imgui.GetColorU32(ui.Colors.FfxiAmber), text)
-end
-
-local gridSpacing = 25
-local gridColor = { 1.0, 1.0, 1.0, 0.12 }
-local gridCenterColor = { 1.0, 1.0, 1.0, 0.45 }
-local gridVisible = { true }
-
--- A grid over the whole screen for lining windows up against, with bold lines through the centre.
--- The lines are spaced outwards from the centre, so the grid is the same on both sides of it.
--- Drawn in a see-through window of its own that takes no input and stays behind the others.
-function ui.DrawGrid()
-    local display = imgui.GetIO().DisplaySize
-    local width, height = display.x, display.y
-    local centerX, centerY = math.floor(width / 2), math.floor(height / 2)
-
-    local flags = bit.bor(
-        ImGuiWindowFlags_NoDecoration,
-        ImGuiWindowFlags_NoInputs,
-        ImGuiWindowFlags_NoSavedSettings,
-        ImGuiWindowFlags_NoBackground or 0,
-        ImGuiWindowFlags_NoBringToFrontOnFocus or 0,
-        ImGuiWindowFlags_NoFocusOnAppearing or 0)
-
-    imgui.SetNextWindowPos({ 0, 0 })
-    imgui.SetNextWindowSize({ width, height })
-    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 })
-
-    if imgui.Begin('xitools.grid', gridVisible, flags) then
-        local drawList = imgui.GetWindowDrawList()
-        local thin = imgui.GetColorU32(gridColor)
-        local bold = imgui.GetColorU32(gridCenterColor)
-
-        for offset = gridSpacing, math.max(centerX, centerY), gridSpacing do
-            if offset <= centerX then
-                drawList:AddLine({ centerX - offset, 0 }, { centerX - offset, height }, thin, 1)
-                drawList:AddLine({ centerX + offset, 0 }, { centerX + offset, height }, thin, 1)
-            end
-            if offset <= centerY then
-                drawList:AddLine({ 0, centerY - offset }, { width, centerY - offset }, thin, 1)
-                drawList:AddLine({ 0, centerY + offset }, { width, centerY + offset }, thin, 1)
-            end
-        end
-
-        drawList:AddLine({ centerX, 0 }, { centerX, height }, bold, 3)
-        drawList:AddLine({ 0, centerY }, { width, centerY }, bold, 3)
-    end
-
-    imgui.End()
-    imgui.PopStyleVar()
-    gridVisible[1] = true
-end
+})
 
 -- The theme's padding: the space between a UI window's border and its content, on every side
 function ui.GetPadding()
@@ -161,220 +84,6 @@ function ui.PaddedWidth(width)
         return width + 2 * (ui.Styles.WindowPadding[1] - basePadding)
     end
     return width
-end
-
--- Linked windows. A link holds one UI window (the child) against a side of another (the parent), a fixed
--- gap away, and keeps it there as the parent moves or changes size. Links are made by dropping one window
--- onto another while organizing, and are saved with the settings.
-local linkGap = 5
-local links = { }      -- { child = window name, parent = window name, side = 'below'|'above'|'right'|'left' }
-local rects = { }      -- window name -> where it was last drawn: { x, y, w, h, frame }
-local frame = 0
-local dragging = nil   -- the window the mouse went down on, and where it was then: { name, x, y }
-local unlinkVisible = { true }
-local linkedPos = { 0, 0 }
-
--- Hands over the saved list of links, which is then added to and removed from in place
-function ui.SetLinks(savedLinks)
-    links = savedLinks
-end
-
-local function FindLink(child)
-    for i, link in ipairs(links) do
-        if link.child == child then
-            return link, i
-        end
-    end
-    return nil
-end
-
--- True when ancestor is the parent of name, or its parent's parent, and so on
-local function IsLinkedUnder(name, ancestor)
-    local link = FindLink(name)
-    local steps = 0
-    while link ~= nil and steps < 32 do
-        if link.parent == ancestor then
-            return true
-        end
-        link = FindLink(link.parent)
-        steps = steps + 1
-    end
-    return false
-end
-
--- Where a linked window belongs, from where its parent was last drawn. Nothing when it has no link,
--- or when there is not yet enough to go on.
-local function LinkedPos(name)
-    local link = FindLink(name)
-    if link == nil then
-        return nil
-    end
-
-    local parent = rects[link.parent]
-    if parent == nil then
-        return nil
-    end
-
-    -- the same table is handed back each time, to be used at once: this runs for every window, every frame
-    local pos = linkedPos
-    if link.side == 'below' then
-        pos[1], pos[2] = parent.x, parent.y + parent.h + linkGap
-        return pos
-    elseif link.side == 'right' then
-        pos[1], pos[2] = parent.x + parent.w + linkGap, parent.y
-        return pos
-    end
-
-    -- above and to the left depend on the window's own size as well
-    local own = rects[name]
-    if own == nil then
-        return nil
-    end
-
-    if link.side == 'above' then
-        pos[1], pos[2] = parent.x, parent.y - linkGap - own.h
-    else
-        pos[1], pos[2] = parent.x - linkGap - own.w, parent.y
-    end
-    return pos
-end
-
--- Positions the window about to be drawn: against its parent if it is linked, unless it is the one
--- being dragged, otherwise wherever it was left
-local function PlaceWindow(config)
-    local pos = nil
-    if dragging == nil or dragging.name ~= config.name then
-        pos = LinkedPos(config.name)
-    end
-
-    if pos ~= nil then
-        config.pos[1] = pos[1]
-        config.pos[2] = pos[2]
-        imgui.SetNextWindowPos(pos, ImGuiCond_Always)
-    else
-        imgui.SetNextWindowPos(config.pos, ImGuiCond_FirstUseEver)
-    end
-end
-
--- Notes where the window being drawn is, and whether a drag has just started on it
-local function TrackWindow(config)
-    local x, y = imgui.GetWindowPos()
-    local w, h = imgui.GetWindowSize()
-
-    config.pos[1] = x
-    config.pos[2] = y
-
-    local rect = rects[config.name]
-    if rect == nil then
-        rect = { }
-        rects[config.name] = rect
-    end
-    rect.x, rect.y, rect.w, rect.h, rect.frame = x, y, w, h, frame
-
-    if ui.IsSampleMode and dragging == nil and imgui.IsWindowHovered() and imgui.IsMouseClicked(0) then
-        dragging = { name = config.name, x = x, y = y }
-    end
-end
-
--- A dragged window has been let go. If it was dropped overlapping another UI window it is linked to
--- that one (the one it overlaps most), on whichever side it was dropped towards.
-local function ResolveDrop(drag)
-    local own = rects[drag.name]
-    if own == nil then
-        return
-    end
-
-    -- a click, not a drag
-    if math.abs(own.x - drag.x) < 3 and math.abs(own.y - drag.y) < 3 then
-        return
-    end
-
-    local target, targetArea = nil, 0
-    for name, other in pairs(rects) do
-        -- only windows on screen now, and never one that is itself held against the dragged window
-        if name ~= drag.name and other.frame >= frame - 1 and not IsLinkedUnder(name, drag.name) then
-            local overlapW = math.min(own.x + own.w, other.x + other.w) - math.max(own.x, other.x)
-            local overlapH = math.min(own.y + own.h, other.y + other.h) - math.max(own.y, other.y)
-            if overlapW > 0 and overlapH > 0 and overlapW * overlapH > targetArea then
-                target, targetArea = name, overlapW * overlapH
-            end
-        end
-    end
-
-    if target == nil then
-        return
-    end
-
-    -- which side: compare the two centres, scaled so a wide window does not always win sideways
-    local other = rects[target]
-    local dx = ((own.x + own.w / 2) - (other.x + other.w / 2)) / ((own.w + other.w) / 2)
-    local dy = ((own.y + own.h / 2) - (other.y + other.h / 2)) / ((own.h + other.h) / 2)
-
-    local side
-    if math.abs(dy) >= math.abs(dx) then
-        side = dy >= 0 and 'below' or 'above'
-    else
-        side = dx >= 0 and 'right' or 'left'
-    end
-
-    local link = FindLink(drag.name)
-    if link ~= nil then
-        link.parent = target
-        link.side = side
-    else
-        table.insert(links, { child = drag.name, parent = target, side = side })
-    end
-end
-
--- Call once a frame, before any UI window is drawn
-function ui.BeginFrame()
-    frame = frame + 1
-
-    if dragging ~= nil and not imgui.IsMouseDown(0) then
-        if ui.IsSampleMode then
-            ResolveDrop(dragging)
-        end
-        dragging = nil
-    end
-end
-
--- A small floating Unlink button beside each linked window, for breaking its link. Call after the UI
--- windows have been drawn, while organizing.
-function ui.DrawLinkButtons()
-    local flags = bit.bor(
-        ImGuiWindowFlags_NoDecoration,
-        ImGuiWindowFlags_AlwaysAutoResize,
-        ImGuiWindowFlags_NoSavedSettings,
-        ImGuiWindowFlags_NoMove or 0,
-        ImGuiWindowFlags_NoFocusOnAppearing or 0)
-
-    for i = #links, 1, -1 do
-        local link = links[i]
-        local rect = rects[link.child]
-
-        if rect ~= nil and rect.frame == frame then
-            -- beside the window's top corner, on the side away from its parent
-            if link.side == 'left' then
-                imgui.SetNextWindowPos({ rect.x - 4, rect.y }, ImGuiCond_Always, { 1, 0 })
-            else
-                imgui.SetNextWindowPos({ rect.x + rect.w + 4, rect.y }, ImGuiCond_Always)
-            end
-
-            imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 4, 4 })
-            if imgui.Begin('xitools.unlink.' .. link.child, unlinkVisible, flags) then
-                if imgui.Button('Unlink') then
-                    table.remove(links, i)
-                end
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(('Stop holding %s against %s.'):format(
-                        sampleLabels[link.child] or link.child, sampleLabels[link.parent] or link.parent))
-                end
-            end
-            imgui.End()
-            imgui.PopStyleVar()
-            unlinkVisible[1] = true
-        end
-    end
 end
 
 -- How full a bar is. A bar with no maximum (the MP of a job without any) is empty, not 0 / 0.
@@ -391,7 +100,7 @@ local winxiFade = require('winxi.fade')
 
 -- Call once a frame, before any UI window is drawn
 function ui.UpdateFade(gConfig)
-    winxiFade.Update(gConfig.fade, ui.IsSampleMode)
+    winxiFade.Update(gConfig.fade, organize.IsActive())
 end
 
 -- How opaque the given tool's UI windows are this frame: faded if it is one that fades, otherwise fully so.
@@ -607,7 +316,7 @@ function ui.DrawUiWindow(config, gConfig, drawStuff)
     end
 
     local flags = config.flags
-    if gConfig.isClickThru[1] and not ui.IsSampleMode then
+    if gConfig.isClickThru[1] and not organize.IsActive() then
         flags = bit.bor(flags, ImGuiWindowFlags_NoInputs)
     end
 
@@ -619,7 +328,7 @@ function ui.DrawUiWindow(config, gConfig, drawStuff)
 
     windowSize[1], windowSize[2] = ui.PaddedWidth(config.size[1]), config.size[2]
     imgui.SetNextWindowSize(windowSize)
-    PlaceWindow(config)
+    organize.Place(config.name, config.pos)
 
     imgui.PushStyleVar(ImGuiStyleVar_Alpha, alpha)
     imgui.PushStyleColor(ImGuiCol_WindowBg, look.BackgroundColor)
@@ -636,13 +345,11 @@ function ui.DrawUiWindow(config, gConfig, drawStuff)
         imgui.PushStyleColor(ImGuiCol_Text, look.TextColor)
         imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingNone)
 
-        if ui.IsSampleMode then
-            DrawSampleLabel(config)
-        end
+        organize.Label(config.name)
 
         drawStuff()
 
-        TrackWindow(config)
+        organize.Track(config.name, config.pos)
 
         imgui.PopStyleVar()
         imgui.PopStyleColor()
@@ -667,12 +374,12 @@ function ui.DrawInvisWindow(config, gConfig, drawStuff)
     end
 
     local flags = config.flags
-    if gConfig.isClickThru[1] and not ui.IsSampleMode then
+    if gConfig.isClickThru[1] and not organize.IsActive() then
         flags = bit.bor(flags, ImGuiWindowFlags_NoInputs)
     end
 
     imgui.SetNextWindowSize(config.size)
-    PlaceWindow(config)
+    organize.Place(config.name, config.pos)
 
     imgui.PushStyleVar(ImGuiStyleVar_Alpha, alpha)
     imgui.PushStyleColor(ImGuiCol_WindowBg, { 0, 0, 0, 0 })
@@ -687,13 +394,11 @@ function ui.DrawInvisWindow(config, gConfig, drawStuff)
         imgui.PushStyleColor(ImGuiCol_Text, theme.Get().TextColor)
         imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingNone)
 
-        if ui.IsSampleMode then
-            DrawSampleLabel(config)
-        end
+        organize.Label(config.name)
 
         drawStuff()
 
-        TrackWindow(config)
+        organize.Track(config.name, config.pos)
 
         imgui.PopStyleVar()
         imgui.PopStyleColor()

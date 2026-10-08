@@ -11,6 +11,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.window` | A themed window in one call: `window.Plain` / `window.Full` |
 | `winxi.shadow` | The drop shadow, drawn inside a window |
 | `winxi.fade` | Fading an addon's windows out while the player is idle, from settings the addon keeps (`widgets.Fade` draws their controls) |
+| `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
 | `winxi.icons` | Loading image files as textures and drawing them cheaply |
 | `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`) and a corner picker (`GrowFrom`) |
@@ -65,6 +66,31 @@ widgets.Fade(settings.Fade, SaveSettings);   -- in the settings window
 
 The fade settings are each addon's own, not shared like the theme. An addon with several windows can
 give `fade.Alpha()` to only some of them.
+
+## Arranging windows
+
+```lua
+local organize = require('winxi.organize');
+
+organize.SetLinks(settings.Links);       -- once, after loading: a list the addon saves
+organize.SetLabels({ ['example'] = 'Example' });
+
+-- every frame
+organize.BeginFrame();
+organize.Place('example', settings.Pos);                -- before the window's Begin
+window.Plain('example', open, flags, function()
+    organize.Label('example');
+    DrawContent(organize.IsActive());                   -- sample data while organizing
+    organize.Track('example', settings.Pos);
+end);
+organize.EndFrame();
+
+organize.Controls();                     -- the Organize button, in the settings window
+```
+
+While organizing, windows are labelled, a grid can be shown, and dropping one window onto another
+links them: the dropped one is held against the side it was dropped towards. Links are between the
+windows of one addon.
 
 ## Letting an addon keep its own theme
 
