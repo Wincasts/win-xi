@@ -307,30 +307,36 @@ class Generator:
         fallback = template.get('display_name') or spawn.get('script') or template_name
         return str(fallback).replace('_', ' '), False
 
-    def drops(self, template_name, loot):
+    def item_ids(self, names):
+        """Item ids for a list of server item names, without repeats, in the order given."""
         found = []
-
-        def add(name):
+        for name in names:
             if name == 'nothing':
-                return
+                continue
             item = self.items.get(str(name))
             if item is None:
                 self.warnings['unknown item name: %s' % name] += 1
             elif item not in found:
                 found.append(item)
+        return found
 
+    def drops(self, loot):
+        """What a mob can drop when it dies."""
+        names = []
         for roll in loot.get('drops') or []:
             if 'item' in roll:
-                add(roll['item'])
-            for name in roll.get('one_of') or []:
-                add(name)
-        if self.args.include_steal:
-            steal = loot.get('steal') or []
-            for name in ([steal] if isinstance(steal, str) else steal):
-                add(name)
-            for name in loot.get('despoil') or {}:
-                add(name)
-        return found
+                names.append(roll['item'])
+            names.extend(roll.get('one_of') or [])
+        return self.item_ids(names)
+
+    def steals(self, loot):
+        """What can be stolen from a mob. Kept apart from its drops."""
+        steal = loot.get('steal') or []
+        return self.item_ids([steal] if isinstance(steal, str) else steal)
+
+    def despoils(self, loot):
+        """What can be despoiled from a mob. Kept apart from its drops."""
+        return self.item_ids(list(loot.get('despoil') or {}))
 
     def spell_ids(self, template, low, high):
         if template.get('spells'):
@@ -403,7 +409,9 @@ class Generator:
             'Magic': 'magic' in detects,
             'JA': 'ability' in detects,
             'Scent': 'scent' in detects,
-            'Drops': self.drops(None, template.get('loot') or {}),
+            'Drops': self.drops(template.get('loot') or {}),
+            'Steal': self.steals(template.get('loot') or {}),
+            'Despoil': self.despoils(template.get('loot') or {}),
             'Spells': self.spell_ids(template, low, high),
             'Modifiers': self.modifiers(resists),
         }
@@ -421,6 +429,10 @@ class Generator:
         for key in ('Sight', 'Sound', 'Blood', 'Magic', 'JA', 'Scent'):
             parts.append('%s=%s' % (key, lua_bool(entry[key])))
         parts.append('Drops={%s}' % ','.join(str(item) for item in entry['Drops']))
+        # only where there is something: most mobs have nothing to steal or despoil
+        for key in ('Steal', 'Despoil'):
+            if entry[key]:
+                parts.append('%s={%s}' % (key, ','.join(str(item) for item in entry[key])))
         parts.append('Spells={%s}' % ','.join(str(spell) for spell in entry['Spells']))
         modifiers = ', '.join('%s=%s' % (label, lua_number(entry['Modifiers'][label])) for label, _ in PHYSICAL + ELEMENTS)
         parts.append('Modifiers={%s}' % modifiers)
@@ -530,7 +542,9 @@ def main():
     parser.add_argument('--elements', choices=('rank', 'sdt'), default='rank',
                         help="How elemental modifiers are derived. 'rank' (default) turns each resistance rank into the "
                              "server's rank multiplier, on top of dmg_magic. 'sdt' uses dmg_magic alone, which most mobs leave unset.")
-    parser.add_argument('--include-steal', action='store_true', help='List steal and despoil items alongside drops.')
+    parser.add_argument('--include-steal', action='store_true',
+                        help='No longer needed: steal and despoil items are always written, as lists of their own '
+                             '(Steal and Despoil) beside Drops. Accepted so that older command lines still run.')
     args = parser.parse_args()
 
     if args.build_names:
