@@ -40,9 +40,11 @@ local function Commit()
     end
 end
 
--- Builds without the "let go" test save on every change instead
-local function Released()
-    return imgui.IsItemDeactivatedAfterEdit == nil or imgui.IsItemDeactivatedAfterEdit();
+-- A change is saved once the mouse is up: at once for a click or a typed value, and on letting go for a
+-- drag. Asking each control whether it had been let go missed changes made in a colour picker's popup,
+-- which is not the control that opened it.
+local function MouseIsUp()
+    return not imgui.IsMouseDown(0);
 end
 
 local function AfterControl(changed)
@@ -50,7 +52,11 @@ local function AfterControl(changed)
         theme.Touch();
         dirty = true;
     end
-    if dirty and Released() then
+end
+
+-- Call once the theme's controls have been drawn
+local function SaveIfChanged()
+    if dirty and MouseIsUp() then
         dirty = false;
         Commit();
     end
@@ -69,6 +75,7 @@ end
 -- controls across: widgets.BeginLabels(key) starts a group, and every widgets.Label after it belongs to
 -- that group until the next. widgets.Appearance starts one for the Appearance tab, which the addon's
 -- own section then carries on.
+local labelTexts = {};    -- name -> the name with its colon
 local labelWidths = {};
 local labelColumns = {};  -- group -> where its controls start, from the longest name seen in it
 local labelGroup = 'default';
@@ -81,10 +88,12 @@ end
 -- Draws a setting's name and leaves the cursor where its control goes. Give the control a label that
 -- shows nothing ('##something'). For an addon's own settings as well as winxi's, so that they line up.
 function widgets.Label(text)
+    local shown = labelTexts[text];
     local width = labelWidths[text];
-    if width == nil then
-        width = imgui.CalcTextSize(text .. ':');
-        labelWidths[text] = width;
+    if shown == nil then
+        shown = text .. ':';
+        width = imgui.CalcTextSize(shown);
+        labelTexts[text], labelWidths[text] = shown, width;
     end
 
     local startX = imgui.GetCursorPosX();
@@ -95,7 +104,7 @@ function widgets.Label(text)
     end
 
     imgui.AlignTextToFramePadding();
-    imgui.Text(text .. ':');
+    imgui.Text(shown);
     imgui.SameLine(column);
 end
 
@@ -121,9 +130,16 @@ function widgets.Gap()
     imgui.Dummy(familyGap);
 end
 
+-- A control's hidden label, by the setting it is for: made once per setting
+local controlIds = setmetatable({}, { __index = function(ids, key)
+    local id = '##winxi.' .. key;
+    ids[key] = id;
+    return id;
+end });
+
 local function Color(label, key, tooltip)
     widgets.Label(label);
-    local changed = imgui.ColorEdit4('##winxi.' .. key, theme.Get()[key]);
+    local changed = imgui.ColorEdit4(controlIds[key], theme.Get()[key]);
     Tooltip(tooltip);
     AfterControl(changed);
 end
@@ -132,7 +148,7 @@ local function Slider(label, key, min, max, tooltip)
     local current = theme.Get();
     widgets.Label(label);
     box[1] = current[key];
-    local changed = imgui.SliderInt('##winxi.' .. key, box, min, max);
+    local changed = imgui.SliderInt(controlIds[key], box, min, max);
     if changed then
         current[key] = box[1];
     end
@@ -256,6 +272,7 @@ function widgets.Appearance(appearanceHooks)
         Commit();
     end
 
+    SaveIfChanged();
     widgets.PopControlWidth();
 end
 
@@ -305,59 +322,56 @@ function widgets.GrowFrom(current)
     return chosen;
 end
 
-local fadeDirty = false; -- a fade slider has been moved since the addon was last told
+local fadeDirty = false; -- a fade setting has been changed since the addon was last told
+
+local function FadeCheck(settings, label, key, tooltip)
+    widgets.Label(label);
+    box[1] = settings[key];
+    if imgui.Checkbox(controlIds['fade.' .. key], box) then
+        settings[key] = box[1] and true or false;
+        fadeDirty = true;
+    end
+    Tooltip(tooltip);
+end
+
+local function FadeNumber(settings, label, key, min, max, format, tooltip)
+    widgets.Label(label);
+    box[1] = settings[key];
+    local changed;
+    if format then
+        changed = imgui.SliderFloat(controlIds['fade.' .. key], box, min, max, format);
+    else
+        changed = imgui.SliderInt(controlIds['fade.' .. key], box, min, max);
+    end
+    if changed then
+        settings[key] = box[1];
+        fadeDirty = true;
+    end
+    Tooltip(tooltip);
+end
 
 -- The controls for an addon's idle-fade settings (a table as winxi.fade describes). onChanged, if given,
--- is called when a change is final, for the addon to save its settings.
+-- is called when a change is final (the mouse is up), for the addon to save its settings.
 function widgets.Fade(settings, onChanged)
-    local function Check(label, key, tooltip)
-        widgets.Label(label);
-        box[1] = settings[key];
-        if imgui.Checkbox('##winxi.fade.' .. key, box) then
-            settings[key] = box[1] and true or false;
-            if onChanged then
-                onChanged();
-            end
-        end
-        Tooltip(tooltip);
+    FadeCheck(settings, 'Fade When Idle', 'Enabled', 'Fades the windows out once you have stood still for a while, and brings them back as soon as you move.');
+
+    if settings.Enabled then
+        FadeNumber(settings, 'Idle Time (Seconds)', 'Delay', 1, 120, nil, 'How long you must stand still before the fade starts.');
+        FadeNumber(settings, 'Idle Fade Time (Seconds)', 'Duration', 0, 5, '%.1f', 'How long the windows take to fade out once you are idle.');
+        FadeNumber(settings, 'Fade In/Out Time (Seconds)', 'Transition', 0, 1, '%.2f', 'How long a window takes to fade in as it appears, out as it goes, and back in when you stop being idle.\nOne speed for every window. At 0 they appear and go at once.');
+        FadeNumber(settings, 'Faded Opacity (%)', 'Opacity', 0, 100, nil, 'How visible a faded window stays. At 0 it disappears completely.');
+        FadeCheck(settings, 'Stay Visible While Engaged', 'Combat', 'Standing still with your weapon drawn does not count as idle.');
+        FadeCheck(settings, 'Stay Visible While Targeting', 'Target', 'Having anything targeted does not count as idle: the windows come back as soon as you target something.');
+        FadeCheck(settings, 'Stay Visible While Missing HP', 'MissingHp', 'Standing still below full HP does not count as idle.');
+        FadeCheck(settings, 'Stay Visible While Healing', 'Resting', 'Resting to recover HP and MP (/heal) does not count as idle.');
     end
 
-    -- sliders are saved when let go, not on every step of the drag
-    local function Number(label, key, min, max, format, tooltip)
-        widgets.Label(label);
-        box[1] = settings[key];
-        local changed;
-        if format then
-            changed = imgui.SliderFloat('##winxi.fade.' .. key, box, min, max, format);
-        else
-            changed = imgui.SliderInt('##winxi.fade.' .. key, box, min, max);
-        end
-        if changed then
-            settings[key] = box[1];
-            fadeDirty = true;
-        end
-        Tooltip(tooltip);
-        if fadeDirty and Released() then
-            fadeDirty = false;
-            if onChanged then
-                onChanged();
-            end
+    if fadeDirty and MouseIsUp() then
+        fadeDirty = false;
+        if onChanged then
+            onChanged();
         end
     end
-
-    Check('Fade When Idle', 'Enabled', 'Fades the windows out once you have stood still for a while, and brings them back as soon as you move.');
-    if not settings.Enabled then
-        return;
-    end
-
-    Number('Idle Time (Seconds)', 'Delay', 1, 120, nil, 'How long you must stand still before the fade starts.');
-    Number('Idle Fade Time (Seconds)', 'Duration', 0, 5, '%.1f', 'How long the windows take to fade out once you are idle.');
-    Number('Fade In/Out Time (Seconds)', 'Transition', 0, 1, '%.2f', 'How long a window takes to fade in as it appears, out as it goes, and back in when you stop being idle.\nOne speed for every window. At 0 they appear and go at once.');
-    Number('Faded Opacity (%)', 'Opacity', 0, 100, nil, 'How visible a faded window stays. At 0 it disappears completely.');
-    Check('Stay Visible While Engaged', 'Combat', 'Standing still with your weapon drawn does not count as idle.');
-    Check('Stay Visible While Targeting', 'Target', 'Having anything targeted does not count as idle: the windows come back as soon as you target something.');
-    Check('Stay Visible While Missing HP', 'MissingHp', 'Standing still below full HP does not count as idle.');
-    Check('Stay Visible While Healing', 'Resting', 'Resting to recover HP and MP (/heal) does not count as idle.');
 end
 
 return widgets;

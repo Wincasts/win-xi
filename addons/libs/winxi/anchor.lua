@@ -80,7 +80,8 @@ function anchor.Measure(key, mode, drawContent)
 
     local state = GetState(key);
     imgui.SetNextWindowPos(measurePos, ImGuiCond_Always);
-    if imgui.Begin('##winxi_measure_' .. key, measureOpen, measureFlags) then
+    state.measureName = state.measureName or ('##winxi_measure_' .. key);
+    if imgui.Begin(state.measureName, measureOpen, measureFlags) then
         -- a group's size is that of everything drawn in it
         imgui.BeginGroup();
         drawContent();
