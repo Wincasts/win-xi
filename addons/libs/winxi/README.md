@@ -13,7 +13,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.fade` | Fading an addon's windows out while the player is idle, from settings the addon keeps (`widgets.Fade` draws their controls) |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
 | `winxi.icons` | Loading image files as textures and drawing them cheaply |
-| `winxi.widgets` | Ready-made settings controls: the theme with its "Use shared theme" checkbox (`Appearance`) and a corner picker (`GrowFrom`) |
+| `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`) and a corner picker (`GrowFrom`) |
 
 ## A window
 
@@ -82,7 +82,7 @@ theme.Configure(settings.UseSharedTheme, settings.Theme);
 
 -- in the Appearance tab
 widgets.Appearance({
-    onUseShared = function(useShared)       -- the "Use shared theme" checkbox was changed
+    onUseShared = function(useShared)       -- the "Use Shared Theme" checkbox was changed
         settings.UseSharedTheme = useShared;
         SaveSettings();
     end,
@@ -102,12 +102,17 @@ has to save and load it with the rest of its settings.
 2. Add the `UseSharedTheme` flag and `Theme` table to its settings, saved and loaded with the rest.
 3. Call `theme.Configure` once a frame.
 4. Give it an Appearance tab in three sections. `widgets.Appearance`, given both functions, draws the
-   first two: **Theme** (the "Use shared theme" checkbox) and **Window** (colours, padding, drop
+   first two: **Theme** (the "Use Shared Theme" checkbox) and **Window** (colours, padding, drop
    shadow, and Reset Appearance, which asks first when it is the shared theme being reset). The addon
    draws the third itself, under `widgets.Header('Addon')`, for its own appearance options. Its
    settings are named with `widgets.Label` (the name on the left, then a colon, in line with winxi's)
    and its families of settings kept apart with `widgets.Gap`.
 5. Remove the addon's own colour, padding and shadow settings and the code that drew with them.
+
+## Naming options
+
+Every option's name has each word capitalised ("Shadow Opacity", "Fade When Idle"), in winxi and in
+every addon's own settings.
 
 ## Notes
 
