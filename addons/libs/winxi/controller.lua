@@ -15,7 +15,8 @@
 -- controller.Highlight(binding), called while drawing a window, marks it as the one the controller is
 -- working, so that it can be told which window the buttons will act in.
 --
--- The grid and the menu make the sounds of winxi.sound as they are worked, once an addon turns those on.
+-- The grid and the menu make the sounds of winxi.sound as they are worked, once an addon turns those on,
+-- and a binding makes the open sound as it takes the controller: as its window opens.
 --
 -- Binding buttons:
 --
@@ -195,8 +196,22 @@ local function OnDirectInput(e)
 end
 
 -- Once a frame: a held button whose action repeats does so
+-- How long after a binding is made before its taking the controller makes a sound: a window already
+-- showing as its addon loads has not just been opened
+local openGrace = 1.0;
+
 local function OnPresent()
     local now = os.clock();
+
+    -- a binding that has just taken the controller: its window has opened
+    for _, binding in ipairs(bindings) do
+        local active = binding.active() and true or false;
+        if active and not binding.wasActive and now - binding.bound >= openGrace then
+            sound.Play('open');
+        end
+        binding.wasActive = active;
+    end
+
     for button, binding in pairs(owner) do
         local action = binding.actions[button];
         if held[button] and action ~= nil and binding.repeats[action] and binding.active() then
@@ -218,6 +233,8 @@ function controller.Bind(spec)
         actions = spec.actions or controller.StandardActions(),
         repeats = spec.repeats or {},
         press = spec.press or function() end,
+        bound = os.clock(),   -- when it was made
+        wasActive = false,    -- whether it had the controller a frame ago
     };
     bindings[#bindings + 1] = binding;
 

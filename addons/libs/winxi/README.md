@@ -174,11 +174,12 @@ controller.SetLayout(settings.ControllerType);    -- 'xinput', 'playstation', 's
 local sound = require('winxi.sound');
 
 sound.SetEnabled(settings.MenuSounds);    -- off until an addon turns it on
-sound.Play('move');                       -- 'move', 'tab', 'confirm', 'back' or 'error'
+sound.Play('move');                       -- 'open', 'move', 'tab', 'confirm', 'back' or 'error'
 ```
 
-The controller's grid and menu play these by themselves as they are worked, so an addon using those
-need only turn the sounds on. Anything else an addon does with a menu (changing tabs, refusing
+The controller's grid and menu play these by themselves as they are worked, and a binding plays
+`open` as it takes the controller (as its window opens), so an addon using those need only turn the
+sounds on. Anything else an addon does with a menu (changing tabs, refusing
 something) it plays itself.
 
 Each sound is a wav file called by its name. `sounds\move.wav` in the addon's own folder is used

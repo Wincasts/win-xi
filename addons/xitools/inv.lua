@@ -1173,7 +1173,7 @@ local inv = {
                 ui.Label('Controller Sounds')
                 imgui.Checkbox('##inv.controllerSounds', options.controllerSounds)
                 if imgui.IsItemHovered() then
-                    imgui.SetTooltip('Plays a sound as the highlight moves, a menu opens, a choice is made or backed out of.\nThe sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.')
+                    imgui.SetTooltip('Plays a sound as the window opens, the highlight moves, a menu opens, a choice is made or backed out of.\nThe sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.')
                 end
                 ui.Label('Controller Type')
                 local current = controller.GetLayout()
