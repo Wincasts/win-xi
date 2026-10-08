@@ -4,6 +4,7 @@
 --   widgets.Header(text)             a section title, for the addon's own section after those
 --   widgets.Label(text)              a setting's name, to the left of its control, in line with winxi's
 --   widgets.Gap()                    the space between one family of settings and the next
+--   widgets.PushControlWidth() / PopControlWidth()   around an addon's own settings, to match winxi's
 --   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
 --   widgets.Fade(settings, onChanged) the controls for fading while idle (see winxi.fade)
 --
@@ -82,6 +83,21 @@ function widgets.Label(text)
     imgui.AlignTextToFramePadding();
     imgui.Text(text .. ':');
     imgui.SameLine(labelColumn);
+end
+
+-- How wide the controls are, in text heights. ImGui's own width in a self-sizing window is 16, which
+-- cuts the figures in a colour picker short; a self-sizing settings window grows to fit.
+widgets.ControlWidth = 20;
+
+-- Call before drawing settings and widgets.PopControlWidth after, for controls of the width above.
+-- widgets.Appearance does so for its own; an addon does for its section, so the two match.
+function widgets.PushControlWidth()
+    local _, textHeight = imgui.CalcTextSize('A');
+    imgui.PushItemWidth((textHeight or 14) * widgets.ControlWidth);
+end
+
+function widgets.PopControlWidth()
+    imgui.PopItemWidth();
 end
 
 -- The space between one family of settings and the next (the colours, the padding, the drop shadow)
@@ -165,6 +181,7 @@ end
 -- padding and drop shadow of whichever theme is in use). An addon follows it with a section of its own.
 function widgets.Appearance(appearanceHooks)
     hooks = appearanceHooks;
+    widgets.PushControlWidth();
 
     -- Only an addon that can keep a theme of its own offers the choice
     local offersChoice = hooks ~= nil and hooks.onUseShared ~= nil;
@@ -223,6 +240,8 @@ function widgets.Appearance(appearanceHooks)
         theme.Reset();
         Commit();
     end
+
+    widgets.PopControlWidth();
 end
 
 -- The corner a window grows from, as four buttons laid out as the corners themselves are. current is
