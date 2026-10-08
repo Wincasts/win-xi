@@ -5,9 +5,15 @@
 -- cannot share the theme in memory; instead each loads the file, and whichever addon changes it saves
 -- the file and raises an event that tells the others to load it again.
 --
--- theme.Get() hands back the live theme. Its colour tables are changed in place, never replaced, so they
--- can be given straight to imgui and to colour pickers. After changing anything in it call theme.Touch()
--- (so that what is worked out from it is worked out again) and theme.Save() when the change is final.
+-- An addon need not follow the shared theme. theme.Configure(useShared, own) says whether this addon
+-- does, and gives a table of the addon's own to hold its values when it does not: the same values as
+-- the shared theme, kept wherever the addon keeps its settings. Everything that draws asks theme.Get(),
+-- so it follows whichever is in use.
+--
+-- theme.Get() hands back the theme in use. Its colour tables are changed in place, never replaced, so
+-- they can be given straight to imgui and to colour pickers. After changing anything in it call
+-- theme.Touch() (so that what is worked out from it is worked out again); when the change is final,
+-- theme.Save() if it is the shared theme, or the addon's own save if it is the addon's.
 local theme = {};
 
 theme.MaxPadding = 40;
@@ -27,7 +33,10 @@ local colorKeys = { 'BackgroundColor', 'BorderColor', 'TextColor' };
 local numberKeys = { Padding = { 0, theme.MaxPadding }, ShadowOffset = { 0, 20 }, ShadowBlur = { 0, 20 }, ShadowOpacity = { 0, 100 } };
 
 local eventName = 'winxi_theme_changed';
-local current = {};
+local current = {};      -- the shared theme
+local own = nil;         -- this addon's own theme, if it has given one
+local useShared = true;
+local active = current;  -- whichever of the two is in use
 local version = 0;
 
 local function IsColor(value)
@@ -36,15 +45,15 @@ local function IsColor(value)
         and type(value[3]) == 'number' and type(value[4]) == 'number';
 end
 
--- Copies what is usable from source into the live theme, keeping its tables
-local function Apply(source)
+-- Copies what is usable from source into a theme, keeping that theme's tables
+local function Apply(target, source)
     for _, key in ipairs(colorKeys) do
         local from = IsColor(source[key]) and source[key] or nil;
         if from then
-            local to = current[key];
-            if to == nil then
+            local to = target[key];
+            if type(to) ~= 'table' then
                 to = {};
-                current[key] = to;
+                target[key] = to;
             end
             to[1], to[2], to[3], to[4] = from[1], from[2], from[3], from[4];
         end
@@ -53,15 +62,31 @@ local function Apply(source)
     for key, range in pairs(numberKeys) do
         local value = tonumber(source[key]);
         if value then
-            current[key] = math.max(range[1], math.min(range[2], value));
+            target[key] = math.max(range[1], math.min(range[2], value));
         end
     end
 
     if type(source.ShadowEnabled) == 'boolean' then
-        current.ShadowEnabled = source.ShadowEnabled;
+        target.ShadowEnabled = source.ShadowEnabled;
     end
 
     version = version + 1;
+end
+
+-- Makes a table an addon has handed over into a whole theme: whatever it already holds is kept (if it
+-- is usable), and the rest starts as the shared theme has it, so that leaving the shared theme does
+-- not change how anything looks until something is changed.
+local function Complete(target)
+    local held = {};
+    Apply(held, target);
+
+    for key in pairs(target) do
+        if theme.Defaults[key] ~= nil then
+            target[key] = nil;
+        end
+    end
+    Apply(target, current);
+    Apply(target, held);
 end
 
 local function Directory()
@@ -72,9 +97,37 @@ local function Path()
     return Directory() .. 'theme.lua';
 end
 
--- The live theme
+-- The theme in use: the shared one, or this addon's own
 function theme.Get()
-    return current;
+    return active;
+end
+
+-- Whether this addon follows the shared theme
+function theme.IsShared()
+    return useShared;
+end
+
+-- Says whether this addon follows the shared theme, and gives the table that holds its own values for
+-- when it does not. Cheap to call every frame: nothing happens unless one of the two has changed, which
+-- matters to an addon whose settings tables are replaced when its settings are loaded again.
+-- Without a table of its own an addon always follows the shared theme.
+function theme.Configure(shared, ownTheme)
+    if type(ownTheme) ~= 'table' then
+        ownTheme = nil;
+    end
+    shared = (shared ~= false) or (ownTheme == nil);
+
+    if shared == useShared and ownTheme == own then
+        return;
+    end
+
+    if ownTheme ~= nil and ownTheme ~= own then
+        Complete(ownTheme);
+    end
+
+    own, useShared = ownTheme, shared;
+    active = useShared and current or own;
+    version = version + 1;
 end
 
 -- Goes up whenever the theme changes; for knowing when something worked out from it is out of date
@@ -88,13 +141,13 @@ function theme.Touch()
 end
 
 function theme.GetPadding()
-    return current.Padding;
+    return active.Padding;
 end
 
--- Puts every value, or just the named ones, back to its default
+-- Puts every value of the theme in use, or just the named ones, back to its default
 function theme.Reset(keys)
     if keys == nil then
-        Apply(theme.Defaults);
+        Apply(active, theme.Defaults);
         return;
     end
 
@@ -102,10 +155,10 @@ function theme.Reset(keys)
     for _, key in ipairs(keys) do
         subset[key] = theme.Defaults[key];
     end
-    Apply(subset);
+    Apply(active, subset);
 end
 
--- Loads the theme file over the live theme. A missing or broken file leaves the theme as it is.
+-- Loads the theme file over the shared theme. A missing or broken file leaves the theme as it is.
 function theme.Load()
     local chunk = loadfile(Path());
     if not chunk then
@@ -117,11 +170,11 @@ function theme.Load()
         return false;
     end
 
-    Apply(saved);
+    Apply(current, saved);
     return true;
 end
 
--- Writes the live theme to its file and tells every other addon using winxi to load it
+-- Writes the shared theme to its file and tells every other addon using winxi to load it
 function theme.Save()
     local directory = Directory();
     for position = 1, #directory do
@@ -202,7 +255,7 @@ local function BuildPalette()
         end
     end
 
-    local border = current.BorderColor;
+    local border = active.BorderColor;
     local built = {};
     for _, slot in ipairs(paletteSlots) do
         built[#built + 1] = { slot[1], slot[3] or { border[1], border[2], border[3], border[4] * slot[2] } };
@@ -220,7 +273,7 @@ function theme.Palette()
 end
 
 -- Start from the defaults, then whatever has been saved, and listen for other addons' changes
-Apply(theme.Defaults);
+Apply(current, theme.Defaults);
 theme.Load();
 
 ashita.events.register('plugin_event', 'winxi_theme_plugin_event', function(e)
