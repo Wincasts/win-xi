@@ -153,7 +153,7 @@ bar.Render = function(self)
     renderTable, renderIndex, renderResource = self.Layout[format], targetIndex, targetResource;
 
     if (self.State.IsOpen[1]) and (#renderTable > 0) then
-        -- The shared theme first, so that a colour set in this addon's settings file, and the opacity, still apply over it
+        -- The theme first, so that a colour set in this addon's settings file still applies over it
         local growFrom = gSettings.GrowFrom;
         style.PushPlain();
         imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
@@ -169,7 +169,6 @@ bar.Render = function(self)
         if pushColor then
             imgui.PushStyleColor(ImGuiCol_WindowBg, gSettings.Color);
         end
-        imgui.SetNextWindowBgAlpha(gSettings.Alpha);
         if imgui.Begin('mobdb_infobar', self.State.IsOpen, windowFlags) then
             anchor.Track('bar', growFrom);
             shadow.Draw();

@@ -39,7 +39,6 @@ local function SaveFunction(self, characterSpecific)
     end
     file:write(string.format('    Scale=%f,\n', self.Scale));
     file:write(string.format('    DetailScale=%f,\n', self.DetailScale));
-    file:write(string.format('    Alpha=%f,\n', self.Alpha));
     file:write(string.format('    DetailView=%s,\n', self.DetailView and 'true' or 'false'));
     if (self.Color) then
         file:write(string.format('    Color={%f,%f,%f,%f}\n,\n', self.Color[1], self.Color[2], self.Color[3], self.Color[4]));
@@ -77,7 +76,6 @@ end
 local defaultSettings = {
     CharacterSpecific = true,
     Scale = 1.2,
-    Alpha = 0.8,
     DetailScale = 1,
     DetailView = false,
     Color = nil,

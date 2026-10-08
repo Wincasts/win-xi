@@ -74,8 +74,8 @@ end
 
 -- The look of every window is set with winxi's own controls. By default it is the theme shared with the
 -- other addons that draw with winxi, so a change here changes them all; with "Use shared theme" off it
--- is this addon's own, kept in its settings. Which corner the info bar and detail view grow from is
--- always this addon's own setting.
+-- is this addon's own, kept in its settings. The draw scales, and which corner the info bar and detail
+-- view grow from, are always this addon's own settings.
 function SettingsGui:RenderAppearance()
     -- What winxi's controls call: to keep the choice of theme, and to save this addon's own theme
     if (self.AppearanceHooks == nil) then
@@ -92,6 +92,23 @@ function SettingsGui:RenderAppearance()
 
     imgui.TextColored(self.Theme.Header, 'Theme');
     widgets.Appearance(self.AppearanceHooks);
+
+    imgui.TextColored(self.Theme.Header, 'Draw Scale (Bar)');
+    local scale = { self.Parent.Scale };
+    if (imgui.SliderFloat('##BarScale', scale, 0.5, 3.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
+        if (scale[1] ~= self.Parent.Scale) then
+            self.Parent.Scale = scale[1];
+            self.Parent:Save(self.Parent.CharacterSpecific);
+        end
+    end
+    imgui.TextColored(self.Theme.Header, 'Draw Scale (Details)');
+    scale = { self.Parent.DetailScale };
+    if (imgui.SliderFloat('##DetailScale', scale, 0.5, 3.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
+        if (scale[1] ~= self.Parent.DetailScale) then
+            self.Parent.DetailScale = scale[1];
+            self.Parent:Save(self.Parent.CharacterSpecific);
+        end
+    end
 
     imgui.TextColored(self.Theme.Header, 'Grow From');
     local chosen = widgets.GrowFrom(self.Parent.GrowFrom);
@@ -166,30 +183,6 @@ function SettingsGui:RenderWindows()
                         if (imgui.Checkbox('Enabled##MobDB Detailed View', details)) then
                             self.Parent.DetailView = details[1];
                             self.Parent:Save(self.Parent.CharacterSpecific);
-                        end
-                        imgui.TextColored(self.Theme.Header, 'Draw Scale (Bar)');
-                        local scale = { self.Parent.Scale };
-                        if (imgui.SliderFloat('##BarScale', scale, 0.5, 3.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
-                            if (scale[1] ~= self.Parent.Scale) then
-                                self.Parent.Scale = scale[1];
-                                self.Parent:Save(self.Parent.CharacterSpecific);
-                            end
-                        end
-                        imgui.TextColored(self.Theme.Header, 'Draw Scale (Details)');
-                        local scale = { self.Parent.DetailScale };
-                        if (imgui.SliderFloat('##DetailScale', scale, 0.5, 3.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
-                            if (scale[1] ~= self.Parent.DetailScale) then
-                                self.Parent.DetailScale = scale[1];
-                                self.Parent:Save(self.Parent.CharacterSpecific);
-                            end
-                        end
-                        imgui.TextColored(self.Theme.Header, 'Opacity');
-                        local alpha = { self.Parent.Alpha };
-                        if (imgui.SliderFloat('##Alpha', alpha, 0.1, 1.0, '%.2f', ImGuiSliderFlags_AlwaysClamp)) then
-                            if (alpha[1] ~= self.Parent.Alpha) then
-                                self.Parent.Alpha = alpha[1];
-                                self.Parent:Save(self.Parent.CharacterSpecific);
-                            end
                         end
                         if (imgui.Button('Edit Tokens')) then
                             self.TokenEditor.IsOpen[1] = true;
