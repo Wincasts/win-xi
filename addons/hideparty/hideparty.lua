@@ -32,9 +32,6 @@ local chat = require 'chat';
 -- Addon Variables
 local hideparty = {
     show = 1,
-    -- Temporary, for finding which of the two visibility flags traps the party cursor in the alliance
-    -- when the party frame is hidden: 'both' (as always), 'a' (only the first), 'b' (only the second)
-    mode = 'both',
     ptrs = {
       target = 0,
       party0 = 0,
@@ -80,11 +77,27 @@ local function set_primitive_visibility(p, v)
     if (ptr ~= 0) then
         ptr = ashita.memory.read_uint32(ptr + 0x08);
         if (ptr ~= 0) then
-            -- the flag a mode leaves alone is put back to showing
-            ashita.memory.write_uint8(ptr + 0x69, hideparty.mode ~= 'b' and v or 1);
-            ashita.memory.write_uint8(ptr + 0x6A, hideparty.mode ~= 'a' and v or 1);
+            ashita.memory.write_uint8(ptr + 0x69, v); -- the frame's background
+            ashita.memory.write_uint8(ptr + 0x6A, v); -- what is written in it
         end
     end
+end
+
+--[[
+* Returns whether the game's party cursor is on a member of another alliance party.
+*
+* The cursor is one number over the whole alliance: 0 to 5 are the player's own party, 6 to 17 the
+* other two.
+--]]
+local function is_cursor_in_alliance()
+    local ptr = AshitaCore:GetPointerManager():Get('party');
+    if (ptr == nil or ptr == 0) then return false; end
+    ptr = ashita.memory.read_uint32(ptr);
+    if (ptr == 0) then return false; end
+    ptr = ashita.memory.read_uint32(ptr);
+    if (ptr == 0) then return false; end
+    if (ashita.memory.read_uint32(ptr + 0x54) == 0) then return false; end
+    return ashita.memory.read_uint8(ptr + 0x50) >= 6;
 end
 
 --[[
@@ -133,13 +146,6 @@ ashita.events.register('command', 'command_cb', function (e)
         return;
     end
 
-    -- Handle: /hideparty mode (both | a | b) - Temporary: which visibility flags are written.
-    if (#args == 3 and args[2]:any('mode') and args[3]:any('both', 'a', 'b')) then
-        hideparty.mode = args[3]:lower();
-        print(chat.header(addon.name):append(chat.message('Mode: ')):append(chat.success(hideparty.mode)));
-        return;
-    end
-
     -- Handle: /hideparty help - Shows the addon help.
     if (#args == 2 and args[2]:any('help')) then
         print_help(false);
@@ -167,7 +173,12 @@ end);
 * desc : Event called when the Direct3D device is presenting a scene.
 --]]
 ashita.events.register('d3d_present', 'present_cb', function ()
-    set_primitive_visibility(hideparty.ptrs.party0, hideparty.show and 1 or 0);
+    -- The game will not move its cursor into a party frame that is hidden: with the main party's
+    -- hidden, a cursor that has gone to another alliance party can never come back. So that frame is
+    -- shown for as long as the cursor is out there, and hidden again once it is home or gone.
+    local party0 = hideparty.show or is_cursor_in_alliance();
+
+    set_primitive_visibility(hideparty.ptrs.party0, party0 and 1 or 0);
     set_primitive_visibility(hideparty.ptrs.party1, hideparty.show and 1 or 0);
     set_primitive_visibility(hideparty.ptrs.party2, hideparty.show and 1 or 0);
     set_primitive_visibility(hideparty.ptrs.target, hideparty.show and 1 or 0);
