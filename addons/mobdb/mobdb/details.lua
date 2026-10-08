@@ -1,6 +1,7 @@
 local tokens = require('tokens');
-local style = require('style');
-local anchor = require('anchor');
+local style = require('winxi.style');
+local anchor = require('winxi.anchor');
+local shadow = require('winxi.shadow');
 local cache = require('cache');
 local details = {
     IsOpen = { true },
@@ -298,24 +299,26 @@ function details:Render()
     end
     renderIndex, renderResource = index, resource;
 
+    local growFrom = gSettings.GrowFrom;
     style.PushPlain();
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, noSpacing);
-    anchor.Measure('details', drawContent);
+    anchor.Measure('details', growFrom, drawContent);
     if self.ResetPosition then
         imgui.SetNextWindowPos(resetPosition);
         self.ResetPosition = nil;
         anchor.Reset('details');
     else
-        anchor.Place('details');
+        anchor.Place('details', growFrom);
     end
     windowOpen[1] = true;
-    if (imgui.Begin(windowTitle, windowOpen, style.WindowFlags())) then
-        anchor.Track('details');
+    if (imgui.Begin(windowTitle, windowOpen, style.TitlelessFlags())) then
+        anchor.Track('details', growFrom);
+        shadow.Draw();
         self:RenderContent(index, resource);
     end
     imgui.End();
     imgui.PopStyleVar();
-    style.PopPlain();
+    style.Pop();
 end
 
 return details;

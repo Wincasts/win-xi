@@ -4,6 +4,7 @@
 -- soft edge is a few faint layers, each a little larger than the last. Call shadow.Draw() inside the
 -- window, once it has begun. It follows the theme's shadow settings and fades with the window; with
 -- the shadow switched off it costs one check.
+local imgui = require('imgui');
 local theme = require('winxi.theme');
 
 local shadow = {};

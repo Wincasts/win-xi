@@ -1,8 +1,9 @@
 require('common');
 
 local imgui = require('imgui');
-local style = require('style');
-local anchor = require('anchor');
+local style = require('winxi.style');
+local theme = require('winxi.theme');
+local widgets = require('winxi.widgets');
 local ui = T{
     IsOpen = T{ false },
 }
@@ -71,105 +72,31 @@ function SettingsGui:Initialize(parent)
     end
 end
 
--- A colour picker for one of the window colours. The colour is changed in place as it is dragged, so
--- every window follows it at once, and is saved when the picker is let go.
-function SettingsGui:ColorSetting(label, key, tooltip)
-    local color = self.Parent[key];
-    if (type(color) ~= 'table') then
-        return;
-    end
-
-    local changed = imgui.ColorEdit4(label, color);
-    if (tooltip and imgui.IsItemHovered()) then
-        imgui.SetTooltip(tooltip);
-    end
-
-    -- builds without the "let go" test save on every change instead
-    if (imgui.IsItemDeactivatedAfterEdit ~= nil) then
-        if (imgui.IsItemDeactivatedAfterEdit()) then
-            self.Parent:Save(self.Parent.CharacterSpecific);
-        end
-    elseif (changed) then
-        self.Parent:Save(self.Parent.CharacterSpecific);
-    end
-end
-
--- The corner of the info bar and detail view that stays put as their content changes size, chosen from
--- four buttons laid out as the corners themselves are
-local growFromLabels = {
-    TopLeft = 'Top Left', TopRight = 'Top Right', BottomLeft = 'Bottom Left', BottomRight = 'Bottom Right',
-};
-
-function SettingsGui:GrowFromSetting()
-    local current = self.Parent.GrowFrom;
-    if (growFromLabels[current] == nil) then
-        current = anchor.Default;
-    end
-
-    for index, mode in ipairs(anchor.Modes) do
-        -- two to a row: the top corners, then the bottom ones
-        if (index % 2 == 0) then
-            imgui.SameLine(140);
-        end
-        if (imgui.RadioButton(growFromLabels[mode] .. '##GrowFrom', current == mode) and current ~= mode) then
-            self.Parent.GrowFrom = mode;
-            self.Parent:Save(self.Parent.CharacterSpecific);
-        end
-    end
-
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('The corner of the info bar and detail view that stays where it is when their content changes size.\nTop Left grows right and down, Top Right left and down, Bottom Left right and up, Bottom Right left and up.');
-    end
-end
-
+-- The look of every window is the theme shared with the other addons that draw with winxi, and is set
+-- with winxi's own controls: a change here changes them all. Which corner the info bar and detail view
+-- grow from is this addon's own setting.
 function SettingsGui:RenderAppearance()
-    imgui.TextColored(self.Theme.Header, 'Window Colors');
-    self:ColorSetting('Background Color', 'BackgroundColor',
-        'The background of every MobDB window.\nThe info bar\'s own Opacity setting (General tab) replaces this colour\'s alpha on the bar.');
-    self:ColorSetting('Border Color', 'BorderColor',
-        'The border of every MobDB window. Tabs, buttons, sliders and other controls are tinted from it.');
-
-    imgui.TextColored(self.Theme.Header, 'Padding');
-    local padding = { style.GetPadding() };
-    if (imgui.SliderInt('##Padding', padding, 0, style.MaxPadding)) then
-        self.Parent.Padding = padding[1];
-        self.paddingChanged = true;
-    end
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('Space between the border and the content of the info bar and detail view, the same on every side.');
-    end
-    -- saved when the slider is let go, or on every change in builds without that test
-    if (self.paddingChanged and (imgui.IsItemDeactivatedAfterEdit == nil or imgui.IsItemDeactivatedAfterEdit())) then
-        self.paddingChanged = false;
-        self.Parent:Save(self.Parent.CharacterSpecific);
-    end
+    imgui.TextColored(self.Theme.Header, 'Shared Theme');
+    widgets.Appearance();
 
     imgui.TextColored(self.Theme.Header, 'Grow From');
-    self:GrowFromSetting();
-
-    if (imgui.Button('Reset Padding')) then
-        self.Parent.Padding = style.DefaultPadding;
-        self.Parent:Save(self.Parent.CharacterSpecific);
-    end
-    imgui.SameLine();
-    if (imgui.Button('Reset Colors')) then
-        local defaults = self.Parent.DefaultSettings;
-        for _, key in ipairs({ 'BackgroundColor', 'BorderColor' }) do
-            local color, default = self.Parent[key], defaults and defaults[key];
-            if (type(color) == 'table' and type(default) == 'table') then
-                color[1], color[2], color[3], color[4] = default[1], default[2], default[3], default[4];
-            end
-        end
+    local chosen = widgets.GrowFrom(self.Parent.GrowFrom);
+    if (chosen) then
+        self.Parent.GrowFrom = chosen;
         self.Parent:Save(self.Parent.CharacterSpecific);
     end
 end
 
--- The settings windows keep their title bars and close buttons, and take the shared colours
+-- The settings windows keep the default padding, whatever the theme's: the padding slider must not
+-- squeeze the window it is in
+local settingsStyle = { padding = theme.Defaults.Padding };
+
+-- The settings windows keep their title bars and close buttons, and take the shared theme
 function SettingsGui:Render()
     -- nothing is pushed on the frames (nearly all of them) when no settings window is open
     local anyOpen = self.IsOpen[1] or self.TokenEditor.IsOpen[1];
     if anyOpen then
-        style.Push(true);
+        style.PushFull(settingsStyle);
     end
 
     self:RenderWindows();

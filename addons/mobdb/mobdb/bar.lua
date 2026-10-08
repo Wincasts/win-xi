@@ -1,6 +1,7 @@
 local tokens = require('tokens');
-local style = require('style');
-local anchor = require('anchor');
+local style = require('winxi.style');
+local anchor = require('winxi.anchor');
+local shadow = require('winxi.shadow');
 local cache = require('cache');
 
 local MobFormat = '$name[$joblevel] $aggro$LB$physmagic';
@@ -152,16 +153,17 @@ bar.Render = function(self)
     renderTable, renderIndex, renderResource = self.Layout[format], targetIndex, targetResource;
 
     if (self.State.IsOpen[1]) and (#renderTable > 0) then
-        -- The shared look first, so that a colour chosen in the settings, and the opacity, still apply over it
+        -- The shared theme first, so that a colour set in this addon's settings file, and the opacity, still apply over it
+        local growFrom = gSettings.GrowFrom;
         style.PushPlain();
         imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
-        anchor.Measure('bar', drawContent);
+        anchor.Measure('bar', growFrom, drawContent);
         if self.ResetPosition then
             imgui.SetNextWindowPos(resetPosition);
             self.ResetPosition = nil;
             anchor.Reset('bar');
         else
-            anchor.Place('bar');
+            anchor.Place('bar', growFrom);
         end
         local pushColor = gSettings.Color;
         if pushColor then
@@ -169,7 +171,8 @@ bar.Render = function(self)
         end
         imgui.SetNextWindowBgAlpha(gSettings.Alpha);
         if imgui.Begin('mobdb_infobar', self.State.IsOpen, windowFlags) then
-            anchor.Track('bar');
+            anchor.Track('bar', growFrom);
+            shadow.Draw();
             drawContent();
         end
         imgui.End();
@@ -177,7 +180,7 @@ bar.Render = function(self)
             imgui.PopStyleColor();
         end
         imgui.PopStyleVar();
-        style.PopPlain();
+        style.Pop();
     end
 end
 

@@ -2,6 +2,7 @@
 --
 -- A loaded icon is { texture, handle }: the texture itself, which must be kept for as long as the icon
 -- is drawn, and the number imgui takes for it, worked out once rather than on every draw.
+local imgui = require('imgui');
 local ffi = require('ffi');
 local d3d8 = require('d3d8');
 
