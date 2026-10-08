@@ -383,94 +383,27 @@ local function BarFraction(cur, max)
     return 0
 end
 
--- Fading while idle. Once the player has stood still for the chosen time the UI windows of the chosen
--- tools fade down to the chosen opacity, and come back as soon as the player moves. The opacity is worked
--- out once a frame by ui.UpdateFade and applied by each UI window as it is drawn.
-local fadeInTime = 0.2      -- seconds to come back, however long the fade out takes
-local moveThreshold = 0.05  -- a change in position smaller than this is not movement
-local statusEngaged = 1
-local statusResting = 33    -- kneeling to recover HP and MP (/heal)
-local fade = { alpha = 1, lastMove = os.clock(), lastFrame = os.clock(), x = nil, y = nil, z = nil }
+-- Fading while idle is winxi's: it works out one opacity a frame from the fade settings, and here that
+-- is applied to the UI windows of the tools chosen to fade. Suspended while the windows are arranged.
+local winxiFade = require('winxi.fade')
 
 -- Call once a frame, before any UI window is drawn
 function ui.UpdateFade(gConfig)
-    local settings = gConfig.fade
-    local now = os.clock()
-    local elapsed = math.min(now - fade.lastFrame, 0.1)
-    fade.lastFrame = now
-
-    -- off, or arranging the windows: fully visible, and the wait starts over
-    if settings == nil or not settings.enabled[1] or ui.IsSampleMode then
-        fade.alpha = 1
-        fade.lastMove = now
-        return
-    end
-
-    local index = AshitaCore:GetMemoryManager():GetParty():GetMemberTargetIndex(0)
-    if index ~= 0 then
-        local entities = AshitaCore:GetMemoryManager():GetEntity()
-        local x = entities:GetLocalPositionX(index)
-        local y = entities:GetLocalPositionY(index)
-        local z = entities:GetLocalPositionZ(index)
-
-        local moved = fade.x == nil
-            or math.abs(x - fade.x) > moveThreshold
-            or math.abs(y - fade.y) > moveThreshold
-            or math.abs(z - fade.z) > moveThreshold
-        if moved then
-            fade.x, fade.y, fade.z = x, y, z
-        end
-
-        -- each of these keeps the windows up as movement does, where the player has chosen it
-        local status = entities:GetStatus(index)
-        local active = moved
-            or (settings.combat[1] and status == statusEngaged)
-            or (settings.resting ~= nil and settings.resting[1] and status == statusResting)
-
-        if not active and settings.missingHp ~= nil and settings.missingHp[1] then
-            local party = AshitaCore:GetMemoryManager():GetParty()
-            local maxHp = AshitaCore:GetMemoryManager():GetPlayer():GetHPMax()
-            active = maxHp > 0 and party:GetMemberHP(0) < maxHp
-        end
-
-        -- on unless switched off: settings saved before the option existed have no value for it
-        if not active and (settings.target == nil or settings.target[1]) then
-            local target = AshitaCore:GetMemoryManager():GetTarget()
-            active = target:GetIsActive(0) == 1 and target:GetTargetIndex(0) ~= 0
-        end
-
-        if active then
-            fade.lastMove = now
-        end
-    end
-
-    local idleAlpha = math.max(0, math.min(1, settings.opacity[1] / 100))
-    local target = (now - fade.lastMove >= settings.delay[1]) and idleAlpha or 1
-    local range = 1 - idleAlpha
-
-    if fade.alpha > target then
-        local duration = settings.duration[1]
-        if duration > 0 then
-            fade.alpha = math.max(target, fade.alpha - range * elapsed / duration)
-        else
-            fade.alpha = target
-        end
-    elseif fade.alpha < target then
-        fade.alpha = math.min(target, fade.alpha + range * elapsed / fadeInTime)
-    end
+    winxiFade.Update(gConfig.fade, ui.IsSampleMode)
 end
 
 -- How opaque the given tool's UI windows are this frame: faded if it is one that fades, otherwise fully so.
 -- Nothing is looked up unless a fade is actually under way.
 local function ToolAlpha(tool, gConfig)
-    if fade.alpha >= 1 then
+    local alpha = winxiFade.Alpha()
+    if alpha >= 1 then
         return 1
     end
 
     local settings = gConfig.fade
     local fades = tool ~= nil and settings ~= nil and settings.tools[tool] or nil
     if fades ~= nil and fades[1] then
-        return fade.alpha
+        return alpha
     end
     return 1
 end
@@ -479,7 +412,7 @@ end
 local windowTools = { }
 
 local function WindowAlpha(config, gConfig)
-    if fade.alpha >= 1 then
+    if winxiFade.Alpha() >= 1 then
         return 1
     end
 

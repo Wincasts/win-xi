@@ -10,6 +10,8 @@ local imgui = require('imgui')
 local settings = require('settings')
 local ui = require('ui')
 local migrations = require('migrations')
+local winxiFade = require('winxi.fade')
+local winxiWidgets = require('winxi.widgets')
 
 ---@class xitool
 ---@field Name            string
@@ -79,16 +81,10 @@ local defaultOptions = T{
             blur = T{ 6 },      -- pixels of soft edge
             opacity = T{ 50 },  -- percent
         },
+        -- Fading while idle. The settings themselves are winxi's (see winxi.fade) and are filled in by
+        -- ApplyGlobals; tools is this addon's: tool name -> whether its windows fade.
         fade = T{
-            enabled = T{ false },
-            delay = T{ 10 },      -- seconds of standing still before the fade starts
-            duration = T{ 1.5 },  -- seconds the fade takes
-            opacity = T{ 0 },     -- percent left once faded
-            combat = T{ true },   -- stay visible while engaged
-            target = T{ true },   -- stay visible while anything is targeted
-            missingHp = T{ false }, -- stay visible while below full HP
-            resting = T{ false },   -- stay visible while resting (/heal)
-            tools = T{ },         -- tool name -> whether its windows fade; filled in by ApplyGlobals
+            tools = T{ },
         },
     },
     tools = T{
@@ -155,11 +151,20 @@ local function ApplyGlobals()
         globals.fade = T{ }
     end
     local fade = globals.fade
-    for _, key in ipairs({ 'enabled', 'delay', 'duration', 'opacity', 'combat', 'target', 'missingHp', 'resting' }) do
-        if fade[key] == nil then
-            fade[key] = T{ defaultOptions.globals.fade[key][1] }
+
+    -- Settings saved before the fade moved to winxi hold each value in a table of its own, under a
+    -- lower-case name: carry those over to winxi's names, then let winxi fill in whatever is missing
+    for old, new in pairs({ enabled = 'Enabled', delay = 'Delay', duration = 'Duration', opacity = 'Opacity',
+                            combat = 'Combat', target = 'Target', missingHp = 'MissingHp', resting = 'Resting' }) do
+        if type(fade[old]) == 'table' then
+            if fade[new] == nil then
+                fade[new] = fade[old][1]
+            end
+            fade[old] = nil
         end
     end
+    winxiFade.Complete(fade)
+
     if fade.tools == nil then
         fade.tools = T{ }
     end
@@ -218,39 +223,11 @@ local function DrawUiSettings()
 
     imgui.Separator()
 
+    -- winxi's own controls for the fade; which components it applies to is this addon's
     local fade = options.globals.fade
-    imgui.Checkbox('Fade when idle', fade.enabled)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Fades the chosen components out once you have stood still for a while, and brings them back as soon as you move.\nNever applies while organizing.')
-    end
+    winxiWidgets.Fade(fade)
 
-    if fade.enabled[1] then
-        imgui.SliderInt('Idle time (seconds)', fade.delay, 1, 120)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('How long you must stand still before the fade starts.')
-        end
-        imgui.SliderFloat('Fade time (seconds)', fade.duration, 0, 5, '%.1f')
-        imgui.SliderInt('Faded opacity (%)', fade.opacity, 0, 100)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('How visible a faded component stays. At 0 it disappears completely.')
-        end
-        imgui.Checkbox('Stay visible while engaged', fade.combat)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Standing still with your weapon drawn does not count as idle.')
-        end
-        imgui.Checkbox('Stay visible while targeting', fade.target)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Having anything targeted does not count as idle: the components come back as soon as you target something.')
-        end
-        imgui.Checkbox('Stay visible while missing HP', fade.missingHp)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Standing still below full HP does not count as idle.')
-        end
-        imgui.Checkbox('Stay visible while healing', fade.resting)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Resting to recover HP and MP (/heal) does not count as idle.')
-        end
-
+    if fade.Enabled then
         imgui.Text('Components that fade:')
         for i, tool in ipairs(uiWindows) do
             if i > 1 then

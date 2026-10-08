@@ -7,9 +7,33 @@
 -- Delay and Duration are seconds, Opacity a percentage. Combat, Target, MissingHp and Resting each keep
 -- the windows up while engaged, while anything is targeted, while below full HP, and while resting.
 --
+-- The settings are the addon's own, kept wherever it keeps the rest; fade.Complete(settings) fills in
+-- whatever a table lacks, and winxi.widgets.Fade draws the controls for them.
+--
 -- Call fade.Update(settings) once a frame, then give fade.Alpha() to each window that fades (as the
 -- alpha option of winxi.window or winxi.style). A window at fade.Hidden() need not be drawn at all.
 local fade = {};
+
+fade.Defaults = {
+    Enabled = false,
+    Delay = 10,
+    Duration = 1.5,
+    Opacity = 0,
+    Combat = true,
+    Target = true,
+    MissingHp = false,
+    Resting = false,
+};
+
+-- Gives a settings table each setting it does not yet have, at its default. Returns the table.
+function fade.Complete(settings)
+    for key, value in pairs(fade.Defaults) do
+        if type(settings[key]) ~= type(value) then
+            settings[key] = value;
+        end
+    end
+    return settings;
+end
 
 local fadeInTime = 0.2;      -- seconds to come back, however long the fade out takes
 local moveThreshold = 0.05;  -- a change in position smaller than this is not movement

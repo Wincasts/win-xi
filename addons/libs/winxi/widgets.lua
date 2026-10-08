@@ -2,6 +2,7 @@
 --
 --   widgets.Appearance(hooks)        the theme: colours, padding and drop shadow
 --   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
+--   widgets.Fade(settings, onChanged) the controls for fading while idle (see winxi.fade)
 --
 -- With the shared theme in use, the theme controls change it for every addon using winxi. Changes show
 -- at once in the addon they are made in, and are saved (and so reach the others) when a control is let
@@ -133,6 +134,58 @@ function widgets.GrowFrom(current)
         Tooltip('The corner that stays where it is when the window\'s content changes size: it grows away from that corner.');
     end
     return chosen;
+end
+
+local fadeDirty = false; -- a fade slider has been moved since the addon was last told
+
+-- The controls for an addon's idle-fade settings (a table as winxi.fade describes). onChanged, if given,
+-- is called when a change is final, for the addon to save its settings.
+function widgets.Fade(settings, onChanged)
+    local function Check(label, key, tooltip)
+        box[1] = settings[key];
+        if imgui.Checkbox(label, box) then
+            settings[key] = box[1] and true or false;
+            if onChanged then
+                onChanged();
+            end
+        end
+        Tooltip(tooltip);
+    end
+
+    -- sliders are saved when let go, not on every step of the drag
+    local function Number(label, key, min, max, format, tooltip)
+        box[1] = settings[key];
+        local changed;
+        if format then
+            changed = imgui.SliderFloat(label, box, min, max, format);
+        else
+            changed = imgui.SliderInt(label, box, min, max);
+        end
+        if changed then
+            settings[key] = box[1];
+            fadeDirty = true;
+        end
+        Tooltip(tooltip);
+        if fadeDirty and Released() then
+            fadeDirty = false;
+            if onChanged then
+                onChanged();
+            end
+        end
+    end
+
+    Check('Fade when idle', 'Enabled', 'Fades the windows out once you have stood still for a while, and brings them back as soon as you move.');
+    if not settings.Enabled then
+        return;
+    end
+
+    Number('Idle time (seconds)', 'Delay', 1, 120, nil, 'How long you must stand still before the fade starts.');
+    Number('Fade time (seconds)', 'Duration', 0, 5, '%.1f');
+    Number('Faded opacity (%)', 'Opacity', 0, 100, nil, 'How visible a faded window stays. At 0 it disappears completely.');
+    Check('Stay visible while engaged', 'Combat', 'Standing still with your weapon drawn does not count as idle.');
+    Check('Stay visible while targeting', 'Target', 'Having anything targeted does not count as idle: the windows come back as soon as you target something.');
+    Check('Stay visible while missing HP', 'MissingHp', 'Standing still below full HP does not count as idle.');
+    Check('Stay visible while healing', 'Resting', 'Resting to recover HP and MP (/heal) does not count as idle.');
 end
 
 return widgets;
