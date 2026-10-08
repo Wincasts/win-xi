@@ -2,6 +2,8 @@
 --
 --   widgets.Appearance(hooks)        the Theme and Window sections of an Appearance tab
 --   widgets.Header(text)             a section title, for the addon's own section after those
+--   widgets.Label(text)              a setting's name, to the left of its control, in line with winxi's
+--   widgets.Gap()                    the space between one family of settings and the next
 --   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
 --   widgets.Fade(settings, onChanged) the controls for fading while idle (see winxi.fade)
 --
@@ -57,16 +59,50 @@ local function Tooltip(text)
     end
 end
 
+-- A setting's name goes to the left of its control, followed by a colon, and the controls line up in a
+-- column to the right of the longest name seen. The widths are measured once per name.
+local labelWidths = {};
+local labelColumn = 0;
+local labelGap = 10; -- between the longest name and the controls
+
+-- Draws a setting's name and leaves the cursor where its control goes. Give the control a label that
+-- shows nothing ('##something'). For an addon's own settings as well as winxi's, so that they line up.
+function widgets.Label(text)
+    local width = labelWidths[text];
+    if width == nil then
+        width = imgui.CalcTextSize(text .. ':');
+        labelWidths[text] = width;
+    end
+
+    local startX = imgui.GetCursorPosX();
+    if startX + width + labelGap > labelColumn then
+        labelColumn = startX + width + labelGap;
+    end
+
+    imgui.AlignTextToFramePadding();
+    imgui.Text(text .. ':');
+    imgui.SameLine(labelColumn);
+end
+
+-- The space between one family of settings and the next (the colours, the padding, the drop shadow)
+local familyGap = { 0, 5 };
+
+function widgets.Gap()
+    imgui.Dummy(familyGap);
+end
+
 local function Color(label, key, tooltip)
-    local changed = imgui.ColorEdit4(label, theme.Get()[key]);
+    widgets.Label(label);
+    local changed = imgui.ColorEdit4('##winxi.' .. key, theme.Get()[key]);
     Tooltip(tooltip);
     AfterControl(changed);
 end
 
 local function Slider(label, key, min, max, tooltip)
     local current = theme.Get();
+    widgets.Label(label);
     box[1] = current[key];
-    local changed = imgui.SliderInt(label, box, min, max);
+    local changed = imgui.SliderInt('##winxi.' .. key, box, min, max);
     if changed then
         current[key] = box[1];
     end
@@ -74,11 +110,16 @@ local function Slider(label, key, min, max, tooltip)
     AfterControl(changed);
 end
 
--- The title of a section of a settings window. An addon's Appearance tab has three: Theme and Window,
--- which widgets.Appearance draws, and one of the addon's own for whatever else it has to set.
+-- The title of a section of a settings window, with a blank line before it to set it apart from the
+-- section above (pass first for the section that heads the tab). An addon's Appearance tab has three:
+-- Theme and Window, which widgets.Appearance draws, and Addon, the addon's own, for whatever else it
+-- has to set.
 widgets.HeaderColor = { 1.0, 0.75, 0.55, 1.0 };
 
-function widgets.Header(text)
+function widgets.Header(text, first)
+    if not first then
+        imgui.NewLine();
+    end
     imgui.TextColored(widgets.HeaderColor, text);
 end
 
@@ -126,10 +167,12 @@ function widgets.Appearance(appearanceHooks)
     hooks = appearanceHooks;
 
     -- Only an addon that can keep a theme of its own offers the choice
-    if hooks and hooks.onUseShared then
-        widgets.Header('Theme');
+    local offersChoice = hooks ~= nil and hooks.onUseShared ~= nil;
+    if offersChoice then
+        widgets.Header('Theme', true);
+        widgets.Label('Use shared theme');
         box[1] = theme.IsShared();
-        if imgui.Checkbox('Use shared theme', box) then
+        if imgui.Checkbox('##winxi.UseSharedTheme', box) then
             hooks.onUseShared(box[1] and true or false);
         end
         Tooltip('On: this addon looks like every other addon that uses the shared theme, and changes made here change them all.\nOff: this addon keeps colours, padding and shadow of its own, starting from the shared ones.');
@@ -138,14 +181,19 @@ function widgets.Appearance(appearanceHooks)
     local current = theme.Get();
     local shared = theme.IsShared();
 
-    widgets.Header('Window');
+    -- Three families of settings, a little apart: the colours, the padding, the drop shadow
+    widgets.Header('Window', not offersChoice);
     Color('Background Color', 'BackgroundColor', 'The background of every window.');
     Color('Border Color', 'BorderColor', 'The border of every window. Tabs, buttons, sliders and other controls are tinted from it.');
     Color('Text Color', 'TextColor');
+
+    widgets.Gap();
     Slider('Padding', 'Padding', 0, theme.MaxPadding, 'Space between a window\'s border and its content, the same on every side.');
 
+    widgets.Gap();
+    widgets.Label('Drop shadow');
     box[1] = current.ShadowEnabled;
-    if imgui.Checkbox('Drop shadow', box) then
+    if imgui.Checkbox('##winxi.ShadowEnabled', box) then
         current.ShadowEnabled = box[1] and true or false;
         theme.Touch();
         Commit();
@@ -158,6 +206,7 @@ function widgets.Appearance(appearanceHooks)
         Slider('Shadow opacity (%)', 'ShadowOpacity', 0, 100);
     end
 
+    widgets.Gap();
     -- An addon's own theme is reset at once. The shared one is everyone's, so that is confirmed first.
     if imgui.Button('Reset Appearance') then
         if shared then
@@ -178,16 +227,22 @@ end
 
 -- The corner a window grows from, as four buttons laid out as the corners themselves are. current is
 -- the present choice. Returns the newly chosen corner, or nil if it was not changed.
+local growFromColumn = 120; -- from the left of the first column of corners to the left of the second
+
 function widgets.GrowFrom(current)
     if anchor.Labels[current] == nil then
         current = anchor.Default;
     end
 
+    -- two to a row, the top corners then the bottom ones, starting wherever the cursor is: after
+    -- widgets.Label, that is the column the other controls are in
+    local left = imgui.GetCursorPosX();
     local chosen = nil;
     for index, mode in ipairs(anchor.Modes) do
-        -- two to a row: the top corners, then the bottom ones
         if index % 2 == 0 then
-            imgui.SameLine(140);
+            imgui.SameLine(left + growFromColumn);
+        elseif index > 1 then
+            imgui.SetCursorPosX(left);
         end
         if imgui.RadioButton(anchor.Labels[mode] .. '##winxi.growfrom', current == mode) and current ~= mode then
             chosen = mode;
@@ -250,3 +305,4 @@ function widgets.Fade(settings, onChanged)
 end
 
 return widgets;
+
