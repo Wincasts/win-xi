@@ -50,6 +50,9 @@ local inventories = T{
 -- together). Filled in by UpdateInventories.
 local capacities = { bag = { }, satchel = { }, wardrobe = { }, house = { } }
 
+-- Puts together the row at the foot of each tab; defined with the row, further down
+local BuildCounts
+
 -- Whether a spot is drawn for each empty slot as well: the Show Empty Slots setting, as of this frame
 local showEmptySlots = false
 
@@ -319,6 +322,7 @@ local function UpdateInventory(inv, res, bagId)
 
             if coolItem.stackMax > 1 then
                 coolItem.stack = ('%i / %i'):format(coolItem.stackCur, coolItem.stackMax)
+                coolItem.stackText = tostring(coolItem.stackCur or 0) -- drawn over the icon
             end
 
             if coolItem.type == itemTypes.armor
@@ -429,6 +433,8 @@ local function UpdateInventories()
         end
         group.all = total
     end
+
+    BuildCounts()
 end
 
 -- What can be done with an item. Each is offered by the right-click menu, and by the controller's.
@@ -534,11 +540,17 @@ local function TryToDrop(item)
     end
 end
 
-local function AddStackSize(posX, posY, count)
-    local mainColor = imgui.GetColorU32({ 1, 1, 1, 1 })
-    local shadowColor = imgui.GetColorU32({ 0, 0, 0, 1 })
-    imgui.GetWindowDrawList():AddText({ posX + 1, posY + 1 }, shadowColor, tostring(count or 0))
-    imgui.GetWindowDrawList():AddText({ posX, posY }, mainColor, tostring(count or 0))
+-- The colours of a stack's size, worked out once a frame (they take in the window's fade) rather than
+-- for every item, and the tables for where it goes, used again for each
+local stackWhite, stackBlack = { 1, 1, 1, 1 }, { 0, 0, 0, 1 }
+local stackMain, stackShadow = 0, 0
+local stackPos, stackShadowPos = { 0, 0 }, { 0, 0 }
+
+local function AddStackSize(posX, posY, text, drawList)
+    stackShadowPos[1], stackShadowPos[2] = posX + 1, posY + 1
+    stackPos[1], stackPos[2] = posX, posY
+    drawList:AddText(stackShadowPos, stackShadow, text)
+    drawList:AddText(stackPos, stackMain, text)
 end
 
 local highlightColor = imgui.GetColorU32({ 0.23, 0.67, 0.91, 1.0 })
@@ -842,25 +854,48 @@ local function PadEndFrame()
     pad.menu:Draw(x + 40, y)
 end
 
+local iconSize = 32
+local iconSizes = { iconSize, iconSize }
+local padMin, padMax = { 0, 0 }, { 0, 0 }
+
+-- Whether the item about to be drawn is in view. One scrolled out of sight only has its room kept: a
+-- group of bags can hold hundreds, of which the window shows a few rows. Whether imgui can be asked is
+-- found out the first time; if not, everything is drawn as before.
+local canCull = nil
+
+local function IsInView()
+    if canCull then
+        return imgui.IsRectVisible(iconSizes)
+    elseif canCull == nil then
+        local ok, visible = pcall(imgui.IsRectVisible, iconSizes)
+        canCull = ok and type(visible) == 'boolean'
+        return not canCull or visible
+    end
+    return true
+end
+
 -- group is the group of bags the item is being drawn in (bag, satchel, wardrobe or house)
-local function DrawItem(item, addCtxMenu, group)
-    local iconSize = 32
+local function DrawItem(item, addCtxMenu, group, drawList)
     local curX, curY = imgui.GetCursorScreenPos()
-    local drawList = imgui.GetWindowDrawList()
+    local inView = IsInView()
 
-    imgui.Image(item.iconPtr, { iconSize, iconSize })
+    if inView then
+        imgui.Image(item.iconPtr, iconSizes)
 
-    if item.stackMax > 1 then
-        AddStackSize(curX, curY, item.stackCur)
-    end
+        if item.stackText then
+            AddStackSize(curX, curY, item.stackText, drawList)
+        end
 
-    if imgui.IsItemHovered() then
-        AddHighlight(curX, curY, iconSize, drawList)
-        AddTooltip(item)
-    end
+        if imgui.IsItemHovered() then
+            AddHighlight(curX, curY, iconSize, drawList)
+            AddTooltip(item)
+        end
 
-    if addCtxMenu(item) then
-        AddHighlight(curX, curY, iconSize, drawList)
+        if addCtxMenu(item) then
+            AddHighlight(curX, curY, iconSize, drawList)
+        end
+    else
+        imgui.Dummy(iconSizes)
     end
 
     -- With the controller: note where the item is, and mark the one the highlight is on
@@ -869,9 +904,15 @@ local function DrawItem(item, addCtxMenu, group)
         pad.items[index], pad.groups[index] = item, group
 
         if pad.grid:IsOn(index) then
-            -- two outlines, one inside the other, for a border two pixels thick
-            drawList:AddRect({ curX - 2, curY - 2 }, { curX + iconSize + 2, curY + iconSize + 2 }, padColor, 0.0)
-            drawList:AddRect({ curX - 3, curY - 3 }, { curX + iconSize + 3, curY + iconSize + 3 }, padColor, 0.0)
+            if inView then
+                -- two outlines, one inside the other, for a border two pixels thick
+                padMin[1], padMin[2] = curX - 2, curY - 2
+                padMax[1], padMax[2] = curX + iconSize + 2, curY + iconSize + 2
+                drawList:AddRect(padMin, padMax, padColor, 0.0)
+                padMin[1], padMin[2] = curX - 3, curY - 3
+                padMax[1], padMax[2] = curX + iconSize + 3, curY + iconSize + 3
+                drawList:AddRect(padMin, padMax, padColor, 0.0)
+            end
             if pad.grid.moved and imgui.SetScrollHereY ~= nil then
                 imgui.SetScrollHereY(0.5)
             end
@@ -908,18 +949,19 @@ local tabsWidthIsh = imgui.CalcTextSize(' bag satchel ward house ')
 local rowLengthIsh = math.ceil(tabsWidthIsh / (32 + 8))
 local function DrawBag(bagId, subId)
     local items = inventories[bagId][subId]
+    local drawList = imgui.GetWindowDrawList()
+    local addCtxMenu = contextMenus[bagId]
     for i, item in ipairs(items) do
         if i % rowLengthIsh ~= 1 then
             imgui.SameLine()
         end
 
-        DrawItem(item, contextMenus[bagId], bagId)
+        DrawItem(item, addCtxMenu, bagId, drawList)
     end
 
     -- the empty slots carry on from the last item, in the same rows
     local empty = EmptySlots(bagId, subId)
     if empty > 0 then
-        local drawList = imgui.GetWindowDrawList()
         local fill, edge = imgui.GetColorU32(emptyFill), imgui.GetColorU32(emptyEdge)
         for i = #items + 1, #items + empty do
             if i % rowLengthIsh ~= 1 then
@@ -959,48 +1001,61 @@ local countedBags = {
 -- The row at the foot of a tab: the gil on the left and, on the right, how full each of the tab's bags
 -- is, as 08/30. A tab with one bag shows the count alone; one with several names each, one to a row
 -- under the first. A full bag's count is red. Bags the player does not have are left out.
+--
+-- What the row says only changes when the bags do, so it is put together then (by UpdateInventories)
+-- and only drawn here.
 local countBuffer = { 0, 3 } -- between the slots and the row
+local countRows = { bag = { }, satchel = { }, wardrobe = { }, house = { } } -- each: { text, full }
+local gilText = '0 G'
+
+BuildCounts = function()
+    gilText = ('%s G'):format(inventories.gil)
+
+    for bagId, counted in pairs(countedBags) do
+        local shown = 0
+        for _, bag in ipairs(counted) do
+            if (capacities[bagId][bag[2]] or 0) > 0 then
+                shown = shown + 1
+            end
+        end
+
+        local rows = { }
+        for _, bag in ipairs(counted) do
+            local slots = capacities[bagId][bag[2]] or 0
+            if slots > 0 then
+                local used = #inventories[bagId][bag[2]]
+                local text = ('%02d/%02d'):format(used, slots)
+                if shown > 1 then
+                    text = ('%s %s'):format(bag[1], text)
+                end
+                rows[#rows + 1] = { text = text, full = used >= slots }
+            end
+        end
+        countRows[bagId] = rows
+    end
+end
 
 local function DrawCounts(bagId)
-    local counted = countedBags[bagId]
-    local shown = 0
-    for _, bag in ipairs(counted) do
-        if (capacities[bagId][bag[2]] or 0) > 0 then
-            shown = shown + 1
-        end
-    end
-
     -- a little room between the slots and this row
     imgui.Dummy(countBuffer)
 
     -- the gil against the left edge, on the same row as the first (or only) count
-    imgui.Text(('%s G'):format(inventories.gil))
+    imgui.Text(gilText)
 
-    local first = true
-    for _, bag in ipairs(counted) do
-        local slots = capacities[bagId][bag[2]] or 0
-        if slots > 0 then
-            local used = #inventories[bagId][bag[2]]
-            local text = ('%02d/%02d'):format(used, slots)
-            if shown > 1 then
-                text = ('%s %s'):format(bag[1], text)
-            end
+    for index, row in ipairs(countRows[bagId]) do
+        if index == 1 then
+            imgui.SameLine()
+        end
 
-            if first then
-                imgui.SameLine()
-                first = false
-            end
+        -- against the right edge, by hand: the text starts its own width short of it
+        local available = imgui.GetContentRegionAvail()
+        local width = imgui.CalcTextSize(row.text)
+        imgui.SetCursorPosX(imgui.GetCursorPosX() + math.max(0, available - width))
 
-            -- against the right edge, by hand: the text starts its own width short of it
-            local available = imgui.GetContentRegionAvail()
-            local width = imgui.CalcTextSize(text)
-            imgui.SetCursorPosX(imgui.GetCursorPosX() + math.max(0, available - width))
-
-            if used >= slots then
-                imgui.TextColored(ui.Colors.Red, text)
-            else
-                imgui.Text(text)
-            end
+        if row.full then
+            imgui.TextColored(ui.Colors.Red, row.text)
+        else
+            imgui.Text(row.text)
         end
     end
 end
@@ -1104,6 +1159,26 @@ local function DrawInventoryUnified()
         imgui.EndTabBar()
     end
     imgui.PopStyleVar()
+end
+
+-- What goes in the window. The settings are kept to one side for it, so that it need not be made
+-- afresh every frame.
+local drawOptions = nil
+
+local function DrawWindow()
+    -- once for the frame, inside the window: they take in its fade
+    stackMain, stackShadow = imgui.GetColorU32(stackWhite), imgui.GetColorU32(stackBlack)
+
+    if drawOptions.isUnified[1] then
+        DrawInventoryUnified()
+    else
+        DrawInventory()
+    end
+
+    -- marked as the window the controller is working, while it is
+    if pad.active then
+        controller.Highlight(pad.binding)
+    end
 end
 
 ---@type xitool
@@ -1217,15 +1292,8 @@ local inv = {
         showEmptySlots = options.showEmptySlots ~= nil and options.showEmptySlots[1] or false
 
         PadBeginFrame(options)
-        ui.DrawStyledWindow(options, gOptions, function()
-            if options.isUnified[1] then
-                DrawInventoryUnified()
-            else
-                DrawInventory()
-            end
-            -- marked as the window the controller is working, while it is
-            controller.Highlight(pad.binding)
-        end)
+        drawOptions = options
+        ui.DrawStyledWindow(options, gOptions, DrawWindow)
         PadEndFrame()
     end,
 }

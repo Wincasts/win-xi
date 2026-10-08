@@ -195,21 +195,30 @@ local function OnDirectInput(e)
     end
 end
 
--- Once a frame: a held button whose action repeats does so
 -- How long after a binding is made before its taking the controller makes a sound: a window already
 -- showing as its addon loads has not just been opened
 local openGrace = 1.0;
 
+-- Once a frame: a binding that has just taken the controller sounds, and a held button whose action
+-- repeats does so
 local function OnPresent()
     local now = os.clock();
 
     -- a binding that has just taken the controller: its window has opened
-    for _, binding in ipairs(bindings) do
+    for index = 1, #bindings do
+        local binding = bindings[index];
         local active = binding.active() and true or false;
-        if active and not binding.wasActive and now - binding.bound >= openGrace then
-            sound.Play('open');
+        if active ~= binding.wasActive then
+            if active and now - binding.bound >= openGrace then
+                sound.Play('open');
+            end
+            binding.wasActive = active;
         end
-        binding.wasActive = active;
+    end
+
+    -- nothing is held that a binding took: nothing to repeat
+    if next(owner) == nil then
+        return;
     end
 
     for button, binding in pairs(owner) do
@@ -262,8 +271,23 @@ local highlightGlow = { 0, 0, 0, 0 };
 local highlightMin, highlightMax = { 0, 0 }, { 0, 0 };
 local clipMin, clipMax = { 0, 0 }, { 0, 0 };
 
-local function WindowRounding()
+-- How round the corners of windows are. Whether imgui's style can be read is found out the first
+-- time; if it cannot, the corners are taken as square from then on.
+local canReadRounding = nil;
+
+local function ReadRounding()
     return imgui.GetStyle().WindowRounding;
+end
+
+local function WindowRounding()
+    if canReadRounding then
+        return ReadRounding();
+    elseif canReadRounding == nil then
+        local ok, rounding = pcall(ReadRounding);
+        canReadRounding = ok and type(rounding) == 'number';
+        return canReadRounding and rounding or 0;
+    end
+    return 0;
 end
 
 function controller.Highlight(binding)
@@ -273,8 +297,7 @@ function controller.Highlight(binding)
 
     local x, y = imgui.GetWindowPos();
     local w, h = imgui.GetWindowSize();
-    local ok, rounding = pcall(WindowRounding);
-    rounding = ok and type(rounding) == 'number' and rounding or 0;
+    local rounding = WindowRounding();
 
     -- the colours are worked out each time, as they take in the window's fade
     local color = controller.HighlightColor;
