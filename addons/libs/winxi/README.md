@@ -10,7 +10,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.style` | Puts the theme on imgui's style stack around a window: `PushPlain` (text and icons) or `PushFull` (controls), then `Pop` |
 | `winxi.window` | A themed window in one call: `window.Plain` / `window.Full` |
 | `winxi.shadow` | The drop shadow, drawn inside a window |
-| `winxi.fade` | Fading an addon's windows out while the player is idle |
+| `winxi.fade` | Fading an addon's windows out while the player is idle, from settings the addon keeps (`widgets.Fade` draws their controls) |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
 | `winxi.icons` | Loading image files as textures and drawing them cheaply |
 | `winxi.widgets` | Ready-made settings controls: the theme with its "Use shared theme" checkbox (`Appearance`) and a corner picker (`GrowFrom`) |
@@ -48,6 +48,23 @@ end
 A change made there shows at once in that addon, and reaches every other addon using winxi when the
 control is let go: the theme file is saved and a `winxi_theme_changed` plugin event tells the others to
 load it.
+
+## Fading while idle
+
+```lua
+local fade = require('winxi.fade');
+local widgets = require('winxi.widgets');
+
+fade.Complete(settings.Fade);            -- once, after loading: fills in whatever is missing
+
+fade.Update(settings.Fade);              -- once a frame
+window.Plain('example', open, flags, draw, { alpha = fade.Alpha() });
+
+widgets.Fade(settings.Fade, SaveSettings);   -- in the settings window
+```
+
+The fade settings are each addon's own, not shared like the theme. An addon with several windows can
+give `fade.Alpha()` to only some of them.
 
 ## Letting an addon keep its own theme
 
