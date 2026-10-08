@@ -152,33 +152,12 @@ ashita.events.register('command', 'command_cb', function (e)
 end);
 
 --[[
-* Applies the chosen visibility to the party and target frames.
---]]
-local function apply_visibility()
-    local v = hideparty.show and 1 or 0;
-    set_primitive_visibility(hideparty.ptrs.party0, v);
-    set_primitive_visibility(hideparty.ptrs.party1, v);
-    set_primitive_visibility(hideparty.ptrs.party2, v);
-    set_primitive_visibility(hideparty.ptrs.target, v);
-end
-
---[[
-* event: d3d_beginscene
-* desc : Event called when the Direct3D device is beginning a scene.
-*
-* The game marks a frame visible again whenever it brings one up (on taking a target, zoning, and so on) and
-* draws it in the same pass. Hiding the frames only when the scene is presented left that one drawn frame
-* on screen: a brief flash of the party or target frame. Hiding them here as well, after the game has
-* updated but before it draws its interface, is meant to catch them first.
---]]
-ashita.events.register('d3d_beginscene', 'beginscene_cb', function ()
-    apply_visibility();
-end);
-
---[[
 * event: d3d_present
 * desc : Event called when the Direct3D device is presenting a scene.
 --]]
 ashita.events.register('d3d_present', 'present_cb', function ()
-    apply_visibility();
+    set_primitive_visibility(hideparty.ptrs.party0, hideparty.show and 1 or 0);
+    set_primitive_visibility(hideparty.ptrs.party1, hideparty.show and 1 or 0);
+    set_primitive_visibility(hideparty.ptrs.party2, hideparty.show and 1 or 0);
+    set_primitive_visibility(hideparty.ptrs.target, hideparty.show and 1 or 0);
 end);
