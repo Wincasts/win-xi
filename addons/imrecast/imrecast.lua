@@ -87,6 +87,12 @@ local TwoHours = {
     [22] = 'Elemental Sforzo',
 }
 
+-- Recast timers that several abilities share, and what to call them. The game's resources would give the
+-- first ability on the timer, whichever was used: every puppetmaster maneuver showed as Fire Maneuver.
+local SharedTimers = {
+    [210] = 'Maneuver',
+}
+
 ---@param s RecastSettings?
 local function UpdateSettings(s)
     if (s ~= nil) then
@@ -319,6 +325,8 @@ local function OnPresent()
                 -- Update the name and timer..
                 name = ('Stratagems[%d]'):fmt(stratagems)
                 timer = math.fmod(timer, val * 60)
+            elseif (SharedTimers[id] ~= nil) then
+                name = SharedTimers[id]
             elseif (ability ~= nil) then
                 name = ability.Name[1]
             elseif (ability == nil) then
