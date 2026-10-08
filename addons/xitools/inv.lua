@@ -8,6 +8,7 @@ local packets = require('utils/packets')
 local imgui = require('imgui')
 local ui = require('ui')
 local controller = require('winxi.controller')
+local sound = require('winxi.sound')
 
 local textures = { }
 local gfxDevice = d3d8.get_device()
@@ -769,19 +770,24 @@ local function PadPress(action)
         pad.grid:Move(action)
     elseif action == 'previous' then
         pad.wantTab = (pad.tab - 2) % padTabs + 1
+        sound.Play('move')
     elseif action == 'next' then
         pad.wantTab = pad.tab % padTabs + 1
+        sound.Play('move')
     elseif action == 'confirm' then
         local item = pad.items[pad.grid.cursor]
-        if item ~= nil then
-            local entries = PadEntries(item, pad.groups[pad.grid.cursor])
-            if #entries > 0 then
-                pad.menu = controller.NewMenu(item.shortName, entries)
-                pad.menuItem = item
-            end
+        local entries = item ~= nil and PadEntries(item, pad.groups[pad.grid.cursor]) or nil
+        if entries ~= nil and #entries > 0 then
+            pad.menu = controller.NewMenu(item.shortName, entries)
+            pad.menuItem = item
+            sound.Play('confirm')
+        else
+            -- an empty slot, or an item with nothing to be done with it
+            sound.Play('error')
         end
     elseif action == 'back' then
         pad.options.isVisible[1] = false
+        sound.Play('back')
     end
 end
 
@@ -798,6 +804,9 @@ local function PadBeginFrame(options)
     if options.controllerType ~= nil and options.controllerType ~= controller.GetLayout() then
         controller.SetLayout(options.controllerType)
     end
+
+    -- the grid and the menu make their own sounds once these are on
+    sound.SetEnabled(options.controllerSounds ~= nil and options.controllerSounds[1])
 
     pad.options = options
     pad.drawn = os.clock()
@@ -1101,6 +1110,7 @@ local inv = {
         isUnified = T{ true },
         showEmptySlots = T{ false },
         controller = T{ false }, -- experimental: work the window with a controller
+        controllerSounds = T{ false }, -- sounds as the controller works the window
         controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
         size = T{ 0, 0 },
         maxHeight = T{ 432 },
@@ -1157,6 +1167,14 @@ local inv = {
                 imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
             end
             if options.controller[1] then
+                if options.controllerSounds == nil then
+                    options.controllerSounds = T{ false }
+                end
+                ui.Label('Controller Sounds')
+                imgui.Checkbox('##inv.controllerSounds', options.controllerSounds)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('Plays a sound as the highlight moves, a menu opens, a choice is made or backed out of.\nThe sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.')
+                end
                 ui.Label('Controller Type')
                 local current = controller.GetLayout()
                 local column = imgui.GetCursorPosX()
