@@ -351,7 +351,8 @@ function widgets.Fade(settings, onChanged)
     end
 
     Number('Idle Time (Seconds)', 'Delay', 1, 120, nil, 'How long you must stand still before the fade starts.');
-    Number('Fade Time (Seconds)', 'Duration', 0, 5, '%.1f');
+    Number('Idle Fade Time (Seconds)', 'Duration', 0, 5, '%.1f', 'How long the windows take to fade out once you are idle.');
+    Number('Fade In/Out Time (Seconds)', 'Transition', 0, 1, '%.2f', 'How long a window takes to fade in as it appears, out as it goes, and back in when you stop being idle.\nOne speed for every window. At 0 they appear and go at once.');
     Number('Faded Opacity (%)', 'Opacity', 0, 100, nil, 'How visible a faded window stays. At 0 it disappears completely.');
     Check('Stay Visible While Engaged', 'Combat', 'Standing still with your weapon drawn does not count as idle.');
     Check('Stay Visible While Targeting', 'Target', 'Having anything targeted does not count as idle: the windows come back as soon as you target something.');
