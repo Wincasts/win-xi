@@ -106,7 +106,11 @@ ashita.events.register('command', 'command_cb', function (e)
 end);
 
 
+local theme = require('winxi.theme');
+
 ashita.events.register('d3d_present', 'mobdb_main_render', function()
+    -- Every frame, cheaply: the settings tables are replaced whenever the settings are loaded again
+    theme.Configure(gSettings.UseSharedTheme, gSettings.Theme);
     if (gSettings.DetailView) then
         gDetails:Render();
     else

@@ -1,10 +1,19 @@
 -- winxi.widgets: ready-made controls for an addon's settings window.
 --
---   widgets.Appearance()             the shared theme: colours, padding and drop shadow
+--   widgets.Appearance(hooks)        the theme: colours, padding and drop shadow
 --   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
 --
--- The theme controls change the theme for every addon using winxi. Changes show at once in the addon
--- they are made in, and are saved (and so reach the others) when a control is let go.
+-- With the shared theme in use, the theme controls change it for every addon using winxi. Changes show
+-- at once in the addon they are made in, and are saved (and so reach the others) when a control is let
+-- go.
+--
+-- An addon should let its user leave the shared theme and set its own. For that it keeps two settings,
+-- whether it uses the shared theme and a table for its own values, hands both to theme.Configure, and
+-- gives widgets.Appearance two functions:
+--     { onUseShared = function(useShared) ... end,   -- the checkbox was changed: keep and save the choice
+--       onOwnChanged = function() ... end }          -- the addon's own theme was changed: save it
+-- Given those, a "Use shared theme" checkbox heads the controls. Without them there is no checkbox and
+-- the addon always follows the shared theme.
 local imgui = require('imgui');
 local theme = require('winxi.theme');
 local anchor = require('winxi.anchor');
@@ -13,6 +22,16 @@ local widgets = {};
 
 local dirty = false; -- the theme has been changed since it was last saved
 local box = { 0 };   -- a number on its way in and out of a slider
+local hooks = nil;   -- the functions given to the Appearance call being drawn
+
+-- Saves the theme in use: the shared one to its file, the addon's own through the addon
+local function Commit()
+    if theme.IsShared() then
+        theme.Save();
+    elseif hooks and hooks.onOwnChanged then
+        hooks.onOwnChanged();
+    end
+end
 
 -- Builds without the "let go" test save on every change instead
 local function Released()
@@ -26,7 +45,7 @@ local function AfterControl(changed)
     end
     if dirty and Released() then
         dirty = false;
-        theme.Save();
+        Commit();
     end
 end
 
@@ -53,8 +72,20 @@ local function Slider(label, key, min, max, tooltip)
     AfterControl(changed);
 end
 
-function widgets.Appearance()
+function widgets.Appearance(appearanceHooks)
+    hooks = appearanceHooks;
+
+    -- Only an addon that can keep a theme of its own offers the choice
+    if hooks and hooks.onUseShared then
+        box[1] = theme.IsShared();
+        if imgui.Checkbox('Use shared theme', box) then
+            hooks.onUseShared(box[1] and true or false);
+        end
+        Tooltip('On: this addon looks like every other addon that uses the shared theme, and changes made here change them all.\nOff: this addon keeps colours, padding and shadow of its own, starting from the shared ones.');
+    end
+
     local current = theme.Get();
+    local shared = theme.IsShared();
 
     Color('Background Color', 'BackgroundColor', 'The background of every window.');
     Color('Border Color', 'BorderColor', 'The border of every window. Tabs, buttons, sliders and other controls are tinted from it.');
@@ -65,7 +96,7 @@ function widgets.Appearance()
     if imgui.Checkbox('Drop shadow', box) then
         current.ShadowEnabled = box[1] and true or false;
         theme.Touch();
-        theme.Save();
+        Commit();
     end
     Tooltip('Draws a soft shadow behind each window, down and to the right of it.');
 
@@ -77,9 +108,10 @@ function widgets.Appearance()
 
     if imgui.Button('Reset appearance') then
         theme.Reset();
-        theme.Save();
+        Commit();
     end
-    Tooltip('Puts the colours, padding and shadow back as they started, for every addon.');
+    Tooltip(shared and 'Puts the colours, padding and shadow back as they started, for every addon using the shared theme.'
+        or 'Puts this addon\'s own colours, padding and shadow back as they started.');
 end
 
 -- The corner a window grows from, as four buttons laid out as the corners themselves are. current is

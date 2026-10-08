@@ -45,6 +45,25 @@ local function SaveFunction(self, characterSpecific)
         file:write(string.format('    Color={%f,%f,%f,%f}\n,\n', self.Color[1], self.Color[2], self.Color[3], self.Color[4]));
     end
     file:write(string.format('    GrowFrom=\'%s\',\n', tostring(self.GrowFrom or 'TopLeft')));
+    file:write(string.format('    UseSharedTheme=%s,\n', (self.UseSharedTheme ~= false) and 'true' or 'false'));
+    -- This addon's own look, for when the shared theme is switched off. Empty until that is first done.
+    local theme = (type(self.Theme) == 'table') and self.Theme or {};
+    file:write('    Theme={\n');
+    for _, key in ipairs({ 'BackgroundColor', 'BorderColor', 'TextColor' }) do
+        local color = theme[key];
+        if (type(color) == 'table') then
+            file:write(string.format('        %s={%f,%f,%f,%f},\n', key, color[1], color[2], color[3], color[4]));
+        end
+    end
+    for _, key in ipairs({ 'Padding', 'ShadowOffset', 'ShadowBlur', 'ShadowOpacity' }) do
+        if (type(theme[key]) == 'number') then
+            file:write(string.format('        %s=%d,\n', key, math.floor(theme[key] + 0.5)));
+        end
+    end
+    if (type(theme.ShadowEnabled) == 'boolean') then
+        file:write(string.format('        ShadowEnabled=%s,\n', tostring(theme.ShadowEnabled)));
+    end
+    file:write('    },\n');
     file:write(string.format('    MobFormat=\'%s\',\n', self.MobFormat:gsub('\'', '\\\'')));
     file:write(string.format('    PlayerFormat=\'%s\',\n', self.PlayerFormat:gsub('\'', '\\\'')));
     file:write(string.format('    NPCFormat=\'%s\',\n', self.NPCFormat:gsub('\'', '\\\'')));
@@ -62,6 +81,8 @@ local defaultSettings = {
     DetailScale = 1,
     DetailView = false,
     Color = nil,
+    UseSharedTheme = true, -- follow the theme shared with the other winxi addons (Appearance tab)
+    Theme = {},            -- this addon's own colours, padding and shadow, used when it does not
     GrowFrom = 'TopLeft', -- the corner of the bar and detail view that stays put as they change size (Appearance tab)
     MobFormat = '$name$joblevel $aggro$LB$physmagic',
     PlayerFormat = '$name$joblevel Id:$id $position1',

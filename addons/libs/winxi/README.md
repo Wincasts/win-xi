@@ -6,14 +6,14 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 
 | Module | What it gives |
 |---|---|
-| `winxi.theme` | The shared theme (background, border and text colours, padding, drop shadow), saved in `config\addons\winxi\theme.lua` and kept in step across addons |
+| `winxi.theme` | The shared theme (background, border and text colours, padding, drop shadow), saved in `config\addons\winxi\theme.lua` and kept in step across addons; or an addon's own |
 | `winxi.style` | Puts the theme on imgui's style stack around a window: `PushPlain` (text and icons) or `PushFull` (controls), then `Pop` |
 | `winxi.window` | A themed window in one call: `window.Plain` / `window.Full` |
 | `winxi.shadow` | The drop shadow, drawn inside a window |
 | `winxi.fade` | Fading an addon's windows out while the player is idle |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
 | `winxi.icons` | Loading image files as textures and drawing them cheaply |
-| `winxi.widgets` | Ready-made settings controls: the theme (`Appearance`) and a corner picker (`GrowFrom`) |
+| `winxi.widgets` | Ready-made settings controls: the theme with its "Use shared theme" checkbox (`Appearance`) and a corner picker (`GrowFrom`) |
 
 ## A window
 
@@ -48,6 +48,45 @@ end
 A change made there shows at once in that addon, and reaches every other addon using winxi when the
 control is let go: the theme file is saved and a `winxi_theme_changed` plugin event tells the others to
 load it.
+
+## Letting an addon keep its own theme
+
+Every addon that uses winxi gives its user the choice: follow the shared theme, or keep colours,
+padding and shadow of its own. That takes two settings of the addon's, a flag and a table:
+
+```lua
+local theme = require('winxi.theme');
+local widgets = require('winxi.widgets');
+
+-- in the addon's settings: UseSharedTheme = true, Theme = {}
+
+-- once a frame, before anything is drawn (cheap: nothing happens unless one of the two has changed)
+theme.Configure(settings.UseSharedTheme, settings.Theme);
+
+-- in the Appearance tab
+widgets.Appearance({
+    onUseShared = function(useShared)       -- the "Use shared theme" checkbox was changed
+        settings.UseSharedTheme = useShared;
+        SaveSettings();
+    end,
+    onOwnChanged = function()                -- the addon's own theme was changed
+        SaveSettings();
+    end,
+});
+```
+
+The table is filled in by winxi the first time it is handed over, starting from the shared theme's
+values, so switching the shared theme off changes nothing until something is changed. The addon only
+has to save and load it with the rest of its settings.
+
+## Converting an addon: checklist
+
+1. Draw its windows with `winxi.window`, or `winxi.style` pushes around its own `Begin`.
+2. Add the `UseSharedTheme` flag and `Theme` table to its settings, saved and loaded with the rest.
+3. Call `theme.Configure` once a frame.
+4. Give it an Appearance tab with `widgets.Appearance` and both functions, so the "Use shared theme"
+   checkbox is there.
+5. Remove the addon's own colour, padding and shadow settings and the code that drew with them.
 
 ## Notes
 

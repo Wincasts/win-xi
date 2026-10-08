@@ -72,12 +72,26 @@ function SettingsGui:Initialize(parent)
     end
 end
 
--- The look of every window is the theme shared with the other addons that draw with winxi, and is set
--- with winxi's own controls: a change here changes them all. Which corner the info bar and detail view
--- grow from is this addon's own setting.
+-- The look of every window is set with winxi's own controls. By default it is the theme shared with the
+-- other addons that draw with winxi, so a change here changes them all; with "Use shared theme" off it
+-- is this addon's own, kept in its settings. Which corner the info bar and detail view grow from is
+-- always this addon's own setting.
 function SettingsGui:RenderAppearance()
-    imgui.TextColored(self.Theme.Header, 'Shared Theme');
-    widgets.Appearance();
+    -- What winxi's controls call: to keep the choice of theme, and to save this addon's own theme
+    if (self.AppearanceHooks == nil) then
+        self.AppearanceHooks = {
+            onUseShared = function(useShared)
+                self.Parent.UseSharedTheme = useShared;
+                self.Parent:Save(self.Parent.CharacterSpecific);
+            end,
+            onOwnChanged = function()
+                self.Parent:Save(self.Parent.CharacterSpecific);
+            end,
+        };
+    end
+
+    imgui.TextColored(self.Theme.Header, 'Theme');
+    widgets.Appearance(self.AppearanceHooks);
 
     imgui.TextColored(self.Theme.Header, 'Grow From');
     local chosen = widgets.GrowFrom(self.Parent.GrowFrom);
@@ -96,6 +110,7 @@ function SettingsGui:Render()
     -- nothing is pushed on the frames (nearly all of them) when no settings window is open
     local anyOpen = self.IsOpen[1] or self.TokenEditor.IsOpen[1];
     if anyOpen then
+        theme.Configure(self.Parent.UseSharedTheme, self.Parent.Theme);
         style.PushFull(settingsStyle);
     end
 
