@@ -3,6 +3,7 @@
 --   widgets.Appearance(hooks)        the Theme and Window sections of an Appearance tab
 --   widgets.Header(text)             a section title, for the addon's own section after those
 --   widgets.Label(text)              a setting's name, to the left of its control, in line with winxi's
+--   widgets.BeginLabels(key)         starts a group of settings whose controls line up with each other
 --   widgets.Gap()                    the space between one family of settings and the next
 --   widgets.PushControlWidth() / PopControlWidth()   around an addon's own settings, to match winxi's
 --   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
@@ -62,10 +63,20 @@ local function Tooltip(text)
 end
 
 -- A setting's name goes to the left of its control, followed by a colon, and the controls line up in a
--- column to the right of the longest name seen. The widths are measured once per name.
+-- column to the right of the longest name. The widths are measured once per name.
+--
+-- The column is kept per group of settings, so that one tab's long names do not push another tab's
+-- controls across: widgets.BeginLabels(key) starts a group, and every widgets.Label after it belongs to
+-- that group until the next. widgets.Appearance starts one for the Appearance tab, which the addon's
+-- own section then carries on.
 local labelWidths = {};
-local labelColumn = 0;
-local labelGap = 10; -- between the longest name and the controls
+local labelColumns = {};  -- group -> where its controls start, from the longest name seen in it
+local labelGroup = 'default';
+local labelGap = 10;      -- between the longest name and the controls
+
+function widgets.BeginLabels(key)
+    labelGroup = key or 'default';
+end
 
 -- Draws a setting's name and leaves the cursor where its control goes. Give the control a label that
 -- shows nothing ('##something'). For an addon's own settings as well as winxi's, so that they line up.
@@ -77,13 +88,15 @@ function widgets.Label(text)
     end
 
     local startX = imgui.GetCursorPosX();
-    if startX + width + labelGap > labelColumn then
-        labelColumn = startX + width + labelGap;
+    local column = labelColumns[labelGroup] or 0;
+    if startX + width + labelGap > column then
+        column = startX + width + labelGap;
+        labelColumns[labelGroup] = column;
     end
 
     imgui.AlignTextToFramePadding();
     imgui.Text(text .. ':');
-    imgui.SameLine(labelColumn);
+    imgui.SameLine(column);
 end
 
 -- How wide the controls are, in text heights. ImGui's own width in a self-sizing window is 16, which
@@ -182,6 +195,7 @@ end
 -- padding and drop shadow of whichever theme is in use). An addon follows it with a section of its own.
 function widgets.Appearance(appearanceHooks)
     hooks = appearanceHooks;
+    widgets.BeginLabels('winxi.appearance');
     widgets.PushControlWidth();
 
     -- Only an addon that can keep a theme of its own offers the choice
@@ -297,8 +311,9 @@ local fadeDirty = false; -- a fade slider has been moved since the addon was las
 -- is called when a change is final, for the addon to save its settings.
 function widgets.Fade(settings, onChanged)
     local function Check(label, key, tooltip)
+        widgets.Label(label);
         box[1] = settings[key];
-        if imgui.Checkbox(label, box) then
+        if imgui.Checkbox('##winxi.fade.' .. key, box) then
             settings[key] = box[1] and true or false;
             if onChanged then
                 onChanged();
@@ -309,12 +324,13 @@ function widgets.Fade(settings, onChanged)
 
     -- sliders are saved when let go, not on every step of the drag
     local function Number(label, key, min, max, format, tooltip)
+        widgets.Label(label);
         box[1] = settings[key];
         local changed;
         if format then
-            changed = imgui.SliderFloat(label, box, min, max, format);
+            changed = imgui.SliderFloat('##winxi.fade.' .. key, box, min, max, format);
         else
-            changed = imgui.SliderInt(label, box, min, max);
+            changed = imgui.SliderInt('##winxi.fade.' .. key, box, min, max);
         end
         if changed then
             settings[key] = box[1];
