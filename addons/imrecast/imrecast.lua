@@ -28,39 +28,73 @@ addon.link      = 'https://ashitaxi.com/';
 require('common')
 local Settings = require('settings')
 local Ffxi = require('lin.ffxi')
-local Imgui = require('lin.imgui')
+local Imgui = require('imgui')
+
+-- The window's look (colours, padding, drop shadow) is winxi's theme: the one shared with other addons,
+-- or this addon's own, as chosen in the appearance window
+local Theme = require('winxi.theme')
+local Window = require('winxi.window')
+local Widgets = require('winxi.widgets')
 
 ---@class RecastSettings
 ---@field windowName string
 ---@field windowSize Vec2
 ---@field windowPos Vec2
----@field bgColor number[] background colour as red, green, blue, alpha from 0 to 1
----@field borderColor number[] border colour as red, green, blue, alpha from 0 to 1
----@field textColor number[] colour of a timer with plenty of time left, as red, green, blue, alpha from 0 to 1
----@field padding integer space between the border and the timers, the same on every side
+---@field useSharedTheme boolean whether the window follows the theme shared with other winxi addons
+---@field theme table this addon's own colours, padding and drop shadow, used when it does not
 
 ---@type RecastSettings
 local Defaults = {
     windowName = 'Recast',
     windowSize = { -1, -1 },
     windowPos = { 100, 100 },
-    bgColor = { 0.08, 0.08, 0.08, 0.8 },
-    borderColor = { 0.69, 0.68, 0.78, 1.0 },
-    textColor = { 1.00, 1.00, 1.00, 1.0 },
-    padding = 10,
+    useSharedTheme = true,
+    theme = { },
 }
-
-local MaxPadding = 40
 
 ---@type RecastSettings
 local Config = Settings.load(Defaults)
 
+-- The colours and padding were this addon's own settings before the theme moved to winxi. What was saved
+-- then is kept as this addon's own theme, for use with "Use Shared Theme" off, and the old settings are
+-- dropped.
+local function MigrateTheme()
+    if Config.useSharedTheme == nil then
+        Config.useSharedTheme = true
+    end
+    if type(Config.theme) ~= 'table' then
+        Config.theme = { }
+    end
+
+    local own = Config.theme
+    for old, new in pairs({ bgColor = 'BackgroundColor', borderColor = 'BorderColor', textColor = 'TextColor' }) do
+        local color = Config[old]
+        if type(color) == 'table' then
+            if own[new] == nil and color[1] and color[2] and color[3] then
+                own[new] = { color[1], color[2], color[3], color[4] or 1 }
+            end
+            Config[old] = nil
+        end
+    end
+    if Config.padding ~= nil then
+        if own.Padding == nil then
+            own.Padding = tonumber(Config.padding)
+        end
+        Config.padding = nil
+    end
+end
+
+MigrateTheme()
+
+-- A timer's text in its last 20 seconds, and in its last 5
+local Yellow = { 1.00, 1.00, 0.00, 1.0 }
+local Red = { 0.95, 0.20, 0.20, 1.0 }
+
 ---@type integer
 local SchJp = 0
 
--- The /imrecast appearance window: whether it is open, and whether a change is waiting to be saved
+-- The /imrecast appearance window: whether it is open
 local ShowConfig = { false }
-local ConfigUnsaved = false
 
 local TwoHours = {
     [ 1] = 'Mighty Strikes',
@@ -97,6 +131,7 @@ local SharedTimers = {
 local function UpdateSettings(s)
     if (s ~= nil) then
         Config = s
+        MigrateTheme()
     end
 
     Settings.save()
@@ -144,28 +179,23 @@ local function get_ability_fallback(id)
     return nil
 end
 
--- A colour setting as a fresh red, green, blue, alpha table, falling back to the default if it is missing
-local function GetColor(key)
-    local color = Config[key]
-    if type(color) ~= 'table' or not (color[1] and color[2] and color[3]) then
-        color = Defaults[key]
-    end
-    return { color[1], color[2], color[3], color[4] or 1 }
-end
-
 local function DrawTimer(timer)
-    -- The chosen text colour, turning yellow in the last 20 seconds and red in the last 5
-    if timer.timer >= 1200 then
-        Imgui.PushStyleColor(ImGuiCol_Text, GetColor('textColor'))
-    elseif timer.timer < 1200 and timer.timer > 300 then
-        Imgui.PushStyleColor(ImGuiCol_Text, Imgui.Lin.Colors.Yellow)
-    else
-        Imgui.PushStyleColor(ImGuiCol_Text, Imgui.Lin.Colors.Red)
+    -- The theme's text colour, turning yellow in the last 20 seconds and red in the last 5
+    local color = nil
+    if timer.timer <= 300 then
+        color = Red
+    elseif timer.timer < 1200 then
+        color = Yellow
     end
 
     local text = string.format('%s - %s', timer.name, format_timestamp(timer.timer))
-    Imgui.Text(text)
-    Imgui.PopStyleColor()
+    if color then
+        Imgui.PushStyleColor(ImGuiCol_Text, color)
+        Imgui.Text(text)
+        Imgui.PopStyleColor()
+    else
+        Imgui.Text(text)
+    end
 end
 
 local function DrawRecast(timers)
@@ -174,97 +204,66 @@ local function DrawRecast(timers)
     end
 end
 
-local function GetPadding()
-    return math.max(0, math.min(MaxPadding, tonumber(Config.padding) or Defaults.padding))
+local RecastOpen = { true }
+local ItemSpacing = { 8, 4 }
+local FramePadding = { 0, 0 }
+
+-- What the recast window shows this frame, for DrawRecastContent
+local CurrentTimers = nil
+
+local function DrawRecastContent()
+    Imgui.PushStyleVar(ImGuiStyleVar_FramePadding, FramePadding)
+    DrawRecast(CurrentTimers)
+    Imgui.PopStyleVar()
 end
 
--- The recast window. Drawn here rather than with Imgui.Lin.DrawWindow, which fixes the colours and padding.
-local function DrawRecastWindow(drawStuff)
-    local padding = GetPadding()
+-- The recast window, drawn with winxi's theme
+local function DrawRecastWindow(timers)
+    CurrentTimers = timers
 
     Imgui.SetNextWindowSize(Config.windowSize, ImGuiCond_Always)
     Imgui.SetNextWindowPos(Config.windowPos, ImGuiCond_FirstUseEver)
 
-    Imgui.PushStyleColor(ImGuiCol_WindowBg, GetColor('bgColor'))
-    Imgui.PushStyleColor(ImGuiCol_Border, GetColor('borderColor'))
-    Imgui.PushStyleColor(ImGuiCol_BorderShadow, Imgui.Lin.Colors.BorderShadow)
-    Imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, Imgui.Lin.Styles.ItemSpacing)
-    Imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { padding, padding })
-
-    if Imgui.Begin(Config.windowName, { true }, bit.bor(ImGuiWindowFlags_NoDecoration)) then
-        Imgui.PopStyleColor(3)
-        Imgui.PushStyleColor(ImGuiCol_Text, Imgui.Lin.Colors.White)
-        Imgui.PushStyleVar(ImGuiStyleVar_FramePadding, Imgui.Lin.Styles.FramePadding)
-
-        drawStuff()
-
-        Imgui.PopStyleVar()
-        Imgui.PopStyleColor()
-    else
-        Imgui.PopStyleColor(3)
-    end
-
-    Imgui.End()
-    Imgui.PopStyleVar(2)
+    Imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, ItemSpacing)
+    RecastOpen[1] = true
+    Window.Plain(Config.windowName, RecastOpen, ImGuiWindowFlags_NoDecoration, DrawRecastContent)
+    Imgui.PopStyleVar()
 end
 
--- The appearance window opened by /imrecast. Changes show at once and are saved when the mouse is released.
+-- What winxi's theme controls call: to keep the choice of theme, and to save this addon's own theme
+local AppearanceHooks = {
+    onUseShared = function(useShared)
+        Config.useSharedTheme = useShared
+        Settings.save()
+    end,
+    onOwnChanged = function()
+        Settings.save()
+    end,
+}
+
+-- The appearance window keeps the default padding, whatever the theme's: the padding slider must not
+-- squeeze the window it is in
+local ConfigStyle = { padding = Theme.Defaults.Padding }
+local ConfigFlags = bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings)
+
+-- winxi's Theme and Window sections. This addon has no appearance settings of its own to follow them.
+local function DrawConfigContent()
+    Widgets.Appearance(AppearanceHooks)
+end
+
+-- The appearance window opened by /imrecast
 local function DrawConfig()
     if not ShowConfig[1] then
         return
     end
 
-    if Imgui.Begin('Recast Appearance', ShowConfig, bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings)) then
-        local bgColor = GetColor('bgColor')
-        if Imgui.ColorEdit4('Background', bgColor, ImGuiColorEditFlags_AlphaBar or 0) then
-            Config.bgColor = bgColor
-            ConfigUnsaved = true
-        end
-        if Imgui.IsItemHovered() then
-            Imgui.SetTooltip('Colour behind the timers. The fourth value (A) is how solid it is: 0 is invisible.')
-        end
-
-        local borderColor = GetColor('borderColor')
-        if Imgui.ColorEdit4('Border', borderColor, ImGuiColorEditFlags_AlphaBar or 0) then
-            Config.borderColor = borderColor
-            ConfigUnsaved = true
-        end
-
-        local textColor = GetColor('textColor')
-        if Imgui.ColorEdit4('Text', textColor, ImGuiColorEditFlags_AlphaBar or 0) then
-            Config.textColor = textColor
-            ConfigUnsaved = true
-        end
-        if Imgui.IsItemHovered() then
-            Imgui.SetTooltip('Colour of a timer with more than 20 seconds left. Timers still turn yellow, then red, as they run out.')
-        end
-
-        local padding = { GetPadding() }
-        if Imgui.SliderInt('Padding', padding, 0, MaxPadding) then
-            Config.padding = padding[1]
-            ConfigUnsaved = true
-        end
-        if Imgui.IsItemHovered() then
-            Imgui.SetTooltip('Space between the border and the timers, the same on every side.')
-        end
-
-        if Imgui.Button('Reset') then
-            Config.bgColor = { Defaults.bgColor[1], Defaults.bgColor[2], Defaults.bgColor[3], Defaults.bgColor[4] }
-            Config.borderColor = { Defaults.borderColor[1], Defaults.borderColor[2], Defaults.borderColor[3], Defaults.borderColor[4] }
-            Config.textColor = { Defaults.textColor[1], Defaults.textColor[2], Defaults.textColor[3], Defaults.textColor[4] }
-            Config.padding = Defaults.padding
-            ConfigUnsaved = true
-        end
-    end
-    Imgui.End()
-
-    if ConfigUnsaved and not Imgui.IsMouseDown(0) then
-        ConfigUnsaved = false
-        Settings.save()
-    end
+    Window.Full('Recast Appearance', ShowConfig, ConfigFlags, DrawConfigContent, ConfigStyle)
 end
 
 local function OnPresent()
+    -- Every frame, cheaply: nothing happens unless the choice of theme or the settings table has changed
+    Theme.Configure(Config.useSharedTheme, Config.theme)
+
     DrawConfig()
 
     local resMgr    = AshitaCore:GetResourceManager()
@@ -378,9 +377,7 @@ local function OnPresent()
     end
 
     if #timers > 0 then
-        DrawRecastWindow(function()
-            DrawRecast(timers)
-        end)
+        DrawRecastWindow(timers)
     end
 end
 
