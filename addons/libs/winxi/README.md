@@ -67,6 +67,18 @@ widgets.Fade(settings.Fade, SaveSettings);   -- in the settings window
 The fade settings are each addon's own, not shared like the theme. An addon with several windows can
 give `fade.Alpha()` to only some of them.
 
+A window can also fade in as it appears and out as it goes:
+
+```lua
+local alpha = fade.Presence('example', wanted);     -- every frame the window might be drawn
+if alpha > 0 then
+    window.Plain('example', open, flags, draw, { alpha = alpha * fade.Alpha() });
+end
+```
+
+Fading in needs nothing more. Fading out means drawing the window a little longer than it is wanted:
+keep calling with `wanted` false, and keep drawing, while `fade.Lingering('example')` is true.
+
 ## Arranging windows
 
 ```lua
