@@ -84,6 +84,117 @@ local function set_primitive_visibility(p, v)
 end
 
 --[[
+* Diagnostic, switched with /hideparty diag. Temporary: for finding out what the game does to its frames
+* when a target is taken and dropped. It only reads memory, and writes what it finds to hidepartydiag.txt
+* in the addon's folder.
+*
+* For each frame it follows the same two pointers the addon does: the frame's window object, then that
+* window's primitive (the thing the addon hides). Whenever a target is taken or dropped, or either pointer
+* of any frame changes, it records every frame's pointers and visibility flags and the first bytes of both
+* objects, on that game frame and the three after it. It looks before the addon writes anything that
+* frame, so the flags are as the game left them.
+--]]
+local diag = {
+    on = false,
+    frame = 0,
+    follow = 0,       -- how many more game frames to record after a change
+    hadTarget = nil,
+    last = { },       -- frame name -> 'window:primitive' as last seen
+    names = { 'target', 'party0', 'party1', 'party2' },
+    bytes = 0x80,     -- how much of each object to record
+};
+
+local function diag_write(line)
+    local file = io.open(addon.path .. 'hidepartydiag.txt', 'a');
+    if (file) then
+        file:write(line .. '\n');
+        file:close();
+    end
+end
+
+local function diag_dump(label, address)
+    if (address == 0) then
+        diag_write(('    %s: none'):format(label));
+        return;
+    end
+
+    diag_write(('    %s at 0x%08X'):format(label, address));
+    for row = 0, diag.bytes - 1, 16 do
+        local hex = { };
+        for column = 0, 15 do
+            hex[#hex + 1] = ('%02X'):format(ashita.memory.read_uint8(address + row + column));
+        end
+        diag_write(('      +%02X  %s'):format(row, table.concat(hex, ' ')));
+    end
+end
+
+-- The window object and primitive of one frame, 0 for either that is not there
+local function diag_pointers(p)
+    local window = (p ~= 0) and ashita.memory.read_uint32(p) or 0;
+    local primitive = (window ~= 0) and ashita.memory.read_uint32(window + 0x08) or 0;
+    return window, primitive;
+end
+
+local function diag_record(reason)
+    diag_write(('game frame %d  clock %.3f  %s'):format(diag.frame, os.clock(), reason));
+    for _, name in ipairs(diag.names) do
+        local window, primitive = diag_pointers(hideparty.ptrs[name]);
+        local flags = 'no primitive';
+        if (primitive ~= 0) then
+            flags = ('visible flags %d %d'):format(ashita.memory.read_uint8(primitive + 0x69), ashita.memory.read_uint8(primitive + 0x6A));
+        end
+        diag_write(('  %s: window 0x%08X  primitive 0x%08X  %s'):format(name, window, primitive, flags));
+        diag_dump('window object', window);
+        diag_dump('primitive', primitive);
+    end
+end
+
+-- Called at the start of each presented frame, before the addon sets any visibility
+local function diag_update()
+    if (not diag.on) then
+        return;
+    end
+    diag.frame = diag.frame + 1;
+
+    local reasons = { };
+
+    local target = AshitaCore:GetMemoryManager():GetTarget();
+    local hasTarget = (target:GetTargetIndex(0) ~= 0);
+    if (diag.hadTarget ~= nil and hasTarget ~= diag.hadTarget) then
+        reasons[#reasons + 1] = hasTarget and 'TARGET TAKEN' or 'TARGET DROPPED';
+    end
+    diag.hadTarget = hasTarget;
+
+    for _, name in ipairs(diag.names) do
+        local window, primitive = diag_pointers(hideparty.ptrs[name]);
+        local now = ('%08X:%08X'):format(window, primitive);
+        if (diag.last[name] ~= nil and diag.last[name] ~= now) then
+            reasons[#reasons + 1] = ('%s pointers changed (%s -> %s)'):format(name, diag.last[name], now);
+        end
+        diag.last[name] = now;
+    end
+
+    if (#reasons > 0) then
+        diag.follow = 3;
+        diag_record(table.concat(reasons, '; '));
+    elseif (diag.follow > 0) then
+        diag.follow = diag.follow - 1;
+        diag_record('(following frame)');
+    end
+end
+
+local function diag_toggle()
+    diag.on = not diag.on;
+    if (diag.on) then
+        diag.frame, diag.follow, diag.hadTarget, diag.last = 0, 0, nil, { };
+        diag_write('');
+        diag_write(('===== %s  diagnostic started  (frames %s) ====='):format(os.date('%Y-%m-%d %H:%M:%S'), hideparty.show and 'shown' or 'hidden'));
+        diag_record('state when started');
+    end
+    print(chat.header(addon.name):append(chat.message('Diagnostic ' .. (diag.on and 'on: writing to hidepartydiag.txt' or 'off') .. '.')));
+end
+
+--[[
 * event: load
 * desc : Event called when the addon is being loaded.
 --]]
@@ -129,6 +240,12 @@ ashita.events.register('command', 'command_cb', function (e)
         return;
     end
 
+    -- Handle: /hideparty diag - Switches the diagnostic on or off.
+    if (#args == 2 and args[2]:any('diag')) then
+        diag_toggle();
+        return;
+    end
+
     -- Handle: /hideparty help - Shows the addon help.
     if (#args == 2 and args[2]:any('help')) then
         print_help(false);
@@ -156,6 +273,8 @@ end);
 * desc : Event called when the Direct3D device is presenting a scene.
 --]]
 ashita.events.register('d3d_present', 'present_cb', function ()
+    diag_update();
+
     set_primitive_visibility(hideparty.ptrs.party0, hideparty.show and 1 or 0);
     set_primitive_visibility(hideparty.ptrs.party1, hideparty.show and 1 or 0);
     set_primitive_visibility(hideparty.ptrs.party2, hideparty.show and 1 or 0);
