@@ -12,6 +12,9 @@
 --
 -- Call fade.Update(settings) once a frame, then give fade.Alpha() to each window that fades (as the
 -- alpha option of winxi.window or winxi.style). A window at fade.Hidden() need not be drawn at all.
+--
+-- Separately from idling, fade.Presence fades a window in when it appears and out when it goes (see
+-- below). Multiply the two for a window that does both.
 local fade = {};
 
 fade.Defaults = {
@@ -107,6 +110,52 @@ function fade.Update(settings, suspended)
     elseif alpha < target then
         alpha = math.min(target, alpha + range * elapsed / fadeInTime);
     end
+end
+
+-- Appearing and disappearing. A window that has just come to be shown fades in, and one that has just
+-- stopped being wanted fades out, each over fade.TransitionTime seconds.
+--
+--     local alpha = fade.Presence(key, wanted)
+--
+-- key names the window. Called on each frame the window might be drawn, it gives the opacity to draw it
+-- at, moving towards 1 while wanted is true and towards 0 while it is false; at 0 there is nothing to
+-- draw. A window whose addon simply stops asking about it when it is not wanted still fades in the next
+-- time it is: a gap in the asking counts as the window having been away. To fade such a window out, the
+-- addon has to go on drawing it, with wanted false, for as long as fade.Lingering(key) is true.
+fade.TransitionTime = 0.2;
+
+local presenceGap = 0.25; -- seconds without being asked about before a window counts as having been away
+local presence = {};      -- key -> { alpha, time = when it was last asked about }
+
+function fade.Presence(key, wanted)
+    local now = os.clock();
+    local state = presence[key];
+    if state == nil then
+        state = { alpha = 0, time = now };
+        presence[key] = state;
+    end
+
+    local elapsed = now - state.time;
+    state.time = now;
+    if elapsed > presenceGap then
+        -- not asked about for a while: it was not on screen, so it starts from nothing
+        state.alpha = 0;
+        elapsed = 0;
+    end
+
+    local step = (fade.TransitionTime > 0) and (elapsed / fade.TransitionTime) or 1;
+    if wanted then
+        state.alpha = math.min(1, state.alpha + step);
+    else
+        state.alpha = math.max(0, state.alpha - step);
+    end
+    return state.alpha;
+end
+
+-- True while a window that is no longer wanted has not yet finished fading out
+function fade.Lingering(key)
+    local state = presence[key];
+    return state ~= nil and state.alpha > 0.01 and os.clock() - state.time <= presenceGap;
 end
 
 -- How opaque a fading window is this frame, 0 to 1

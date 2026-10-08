@@ -787,6 +787,31 @@ local function DrawTgt(entity, options)
     end
 end
 
+-- The entity each window last showed, by window name
+local lastShown = { }
+
+-- Draws one of the target windows for the entity at index, if there is one (the client can hold an
+-- index for an entity it no longer knows about, so the entity is fetched and checked first). When there
+-- is none, the window goes on showing the entity it last showed for as long as it is fading out.
+local function DrawTargetWindow(window, gOptions, index)
+    local entity = index ~= 0 and GetEntity(index) or nil
+    local wanted = entity ~= nil
+
+    if wanted then
+        lastShown[window.name] = index
+    elseif lastShown[window.name] and ui.Lingers(window, gOptions) then
+        entity = GetEntity(lastShown[window.name])
+    end
+
+    if entity == nil then
+        return
+    end
+
+    ui.DrawUiWindow(window, gOptions, function()
+        DrawTgt(entity, window)
+    end, wanted)
+end
+
 ---@type xitool
 local tgt = {
     Name = 'tgt',
@@ -894,44 +919,18 @@ local tgt = {
 
         -- TODO: if no subtarget, check for stpt/stal
 
-        -- the client can hold a target index for an entity it no longer knows about,
-        -- so each entity is fetched and checked before its window is begun
-        if targetActive and targetId ~= 0 then
-            local entity = GetEntity(targetId)
-            if entity then
-                -- found here rather than as the window is drawn, so the target of target
-                -- still shows when the main target window is switched off
-                totId = entity.TargetedIndex or 0
-
-                if options.showMain[1] then
-                    ui.DrawUiWindow(options.mainWindow, gOptions, function()
-                        DrawTgt(entity, options.mainWindow)
-                    end)
-                end
-            end
+        -- the target of target comes from the main target itself, so that it still shows when the
+        -- main target window is switched off
+        local mainIndex = (targetActive and targetId ~= 0) and targetId or 0
+        local mainEntity = mainIndex ~= 0 and GetEntity(mainIndex) or nil
+        if mainEntity then
+            totId = mainEntity.TargetedIndex or 0
         end
 
-        if options.showSub[1] and subTargetActive and subTargetId ~= 0 then
-            local entity = GetEntity(subTargetId)
-            if entity then
-                ui.DrawUiWindow(options.subWindow, gOptions, function()
-                    DrawTgt(entity, options.subWindow)
-                end)
-            end
-        end
-
-        if options.showTot[1] and totId ~= 0 then
-            -- it's possible for your target to be targeting something that your
-            -- client does not know about (even if it has an id for it). ensure
-            -- that we actually have all the info before trying to draw anything
-            local entity = GetEntity(totId)
-            if entity then
-                ui.DrawUiWindow(options.totWindow, gOptions, function()
-                    -- TODO: compact tot display
-                    DrawTgt(entity, options.totWindow)
-                end)
-            end
-        end
+        -- TODO: compact tot display
+        DrawTargetWindow(options.mainWindow, gOptions, options.showMain[1] and mainIndex or 0)
+        DrawTargetWindow(options.subWindow, gOptions, (options.showSub[1] and subTargetActive) and subTargetId or 0)
+        DrawTargetWindow(options.totWindow, gOptions, options.showTot[1] and totId or 0)
     end,
     DrawSample = function(options, gOptions)
         -- each window only if it is one that is switched on

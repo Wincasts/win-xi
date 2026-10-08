@@ -103,41 +103,58 @@ function ui.UpdateFade(gConfig)
     winxiFade.Update(gConfig.fade, organize.IsActive())
 end
 
--- How opaque the given tool's UI windows are this frame: faded if it is one that fades, otherwise fully so.
--- Nothing is looked up unless a fade is actually under way.
-local function ToolAlpha(tool, gConfig)
-    local alpha = winxiFade.Alpha()
-    if alpha >= 1 then
-        return 1
+-- Whether the given tool is one whose windows fade: fading is switched on, and the tool is one of those
+-- chosen for it
+local function ToolFades(tool, gConfig)
+    local settings = gConfig.fade
+    if tool == nil or settings == nil or not settings.Enabled then
+        return false
     end
 
-    local settings = gConfig.fade
-    local fades = tool ~= nil and settings ~= nil and settings.tools[tool] or nil
-    if fades ~= nil and fades[1] then
-        return alpha
-    end
-    return 1
+    local chosen = settings.tools[tool]
+    return chosen ~= nil and chosen[1] and true or false
 end
 
--- The tool a UI window belongs to, from its name (xitools.us.1 belongs to us). Worked out once per window.
+-- The tool a window belongs to, from its name (xitools.us.1 belongs to us). Worked out once per window.
 local windowTools = { }
 
-local function WindowAlpha(config, gConfig)
-    if winxiFade.Alpha() >= 1 then
-        return 1
-    end
-
+local function WindowTool(config)
     local tool = windowTools[config.name]
     if tool == nil then
         tool = config.name:match('^xitools%.(%a+)') or false
         windowTools[config.name] = tool
     end
-    return ToolAlpha(tool or nil, gConfig)
+    return tool or nil
 end
 
--- True while the given tool is faded right out, so that it need not be drawn or even prepared
+-- How opaque a window is this frame. A window of a tool that fades fades in when it appears and out
+-- when it is no longer wanted, and (with idle set, for the UI windows) fades with the player's idling
+-- as well. Any other window is simply there or not. wanted is whether the window should be showing.
+local function WindowAlpha(config, gConfig, wanted, idle)
+    if organize.IsActive() or not ToolFades(WindowTool(config), gConfig) then
+        return wanted and 1 or 0
+    end
+
+    local alpha = winxiFade.Presence(config.name, wanted)
+    if idle then
+        alpha = alpha * winxiFade.Alpha()
+    end
+    return alpha
+end
+
+-- True while a window that is no longer wanted has not finished fading out. A tool that can still draw
+-- such a window's content goes on drawing it, passing wanted as false, until this is false.
+function ui.Lingers(config, gConfig)
+    if organize.IsActive() or not ToolFades(WindowTool(config), gConfig) then
+        return false
+    end
+    return winxiFade.Lingering(config.name)
+end
+
+-- True while the given tool's UI windows are faded right out by idling, so that it need not be drawn
+-- or even prepared
 function ui.IsFadedOut(tool, gConfig)
-    return ToolAlpha(tool, gConfig) <= 0.01
+    return ToolFades(tool, gConfig) and winxiFade.Alpha() <= 0.01
 end
 
 ---@param title   string
@@ -248,11 +265,16 @@ ui.StyledResizableWindowFlags = bit.bor(
 -- padding, if given, is used in place of the theme's: { x, y }.
 local styledPadding = { 0, 0 } -- reused for every styled window, every frame
 
+local lingeringOpen = { true } -- stands in for a window's own switch while it fades out after being hidden
+
 ---@param config table
 ---@param drawStuff function
 ---@param padding number[]?
 function ui.DrawStyledWindow(config, gConfig, drawStuff, padding)
-    if not config.isVisible[1] then
+    -- A hidden window of a tool that fades goes on being drawn until it has faded out
+    local wanted = config.isVisible[1]
+    local alpha = WindowAlpha(config, gConfig, wanted, false)
+    if alpha <= 0.01 then
         return
     end
 
@@ -275,12 +297,14 @@ function ui.DrawStyledWindow(config, gConfig, drawStuff, padding)
         imgui.PushStyleColor(entry[1], entry[2])
     end
 
+    imgui.PushStyleVar(ImGuiStyleVar_Alpha, alpha)
     imgui.PushStyleColor(ImGuiCol_WindowBg, look.BackgroundColor)
     imgui.PushStyleColor(ImGuiCol_Border, look.BorderColor)
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, ui.Styles.ItemSpacing)
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, padding)
 
-    local isOpen = imgui.Begin(config.name, config.isVisible, config.flags)
+    lingeringOpen[1] = true
+    local isOpen = imgui.Begin(config.name, wanted and config.isVisible or lingeringOpen, config.flags)
     imgui.PopStyleColor(2)
 
     if isOpen then
@@ -297,20 +321,23 @@ function ui.DrawStyledWindow(config, gConfig, drawStuff, padding)
 
     imgui.PopStyleVar(2)
     imgui.End()
+    imgui.PopStyleVar()
     imgui.PopStyleColor(#colors)
 end
 
 local windowSize = { 0, 0 } -- reused for every UI window, every frame
 
+-- wanted is false for a window that is being drawn only to fade out (see ui.Lingers); otherwise leave it out
 ---@param config table
 ---@param drawStuff function
-function ui.DrawUiWindow(config, gConfig, drawStuff)
+---@param wanted boolean?
+function ui.DrawUiWindow(config, gConfig, drawStuff, wanted)
     if not config.isVisible[1] then
         return
     end
 
     -- faded right out: nothing to draw
-    local alpha = WindowAlpha(config, gConfig)
+    local alpha = WindowAlpha(config, gConfig, wanted ~= false, true)
     if alpha <= 0.01 then
         return
     end
@@ -362,13 +389,14 @@ end
 
 ---@param config table
 ---@param drawStuff function
-function ui.DrawInvisWindow(config, gConfig, drawStuff)
+---@param wanted boolean?
+function ui.DrawInvisWindow(config, gConfig, drawStuff, wanted)
     if not config.isVisible[1] then
         return
     end
 
     -- faded right out: nothing to draw
-    local alpha = WindowAlpha(config, gConfig)
+    local alpha = WindowAlpha(config, gConfig, wanted ~= false, true)
     if alpha <= 0.01 then
         return
     end

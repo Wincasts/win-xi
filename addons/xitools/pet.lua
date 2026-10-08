@@ -181,7 +181,8 @@ end
 
 ---@param pets    PetInfo[]
 ---@param options table
-local function DrawWindow(pets, options, gOptions)
+-- wanted is false when the pets are only being drawn for the window to fade out
+local function DrawWindow(pets, options, gOptions, wanted)
     -- The width is fixed; one saved by an earlier version would not match the party windows
     options.size[1] = windowWidth
 
@@ -189,8 +190,11 @@ local function DrawWindow(pets, options, gOptions)
         for _, pet in ipairs(pets) do
             DrawPet(pet, options)
         end
-    end)
+    end, wanted)
 end
+
+-- The pets last shown, which the window goes on showing while it fades out after the last one has gone
+local lastPets = nil
 
 ---@type xitool
 local pet = {
@@ -262,8 +266,14 @@ local pet = {
             end
         end
 
-        if #pets == 0 then return end
+        if #pets == 0 then
+            if lastPets ~= nil and ui.Lingers(options, gOptions) then
+                DrawWindow(lastPets, options, gOptions, false)
+            end
+            return
+        end
 
+        lastPets = pets
         DrawWindow(pets, options, gOptions)
     end,
     -- Real pets where there are any, with made-up ones filling the rest: the player's own, and one

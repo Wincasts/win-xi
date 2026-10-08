@@ -79,7 +79,10 @@ local cast = {
         local castBar = AshitaCore:GetMemoryManager():GetCastBar()
         local progress = castBar:GetPercent()
 
-        if progress == LastProgress then return end
+        -- The bar shows while the cast is progressing. Once it stops, the bar stays as it was for as
+        -- long as it takes to fade out.
+        local casting = progress ~= LastProgress
+        if not casting and not ui.Lingers(options, gOptions) then return end
 
         ui.DrawInvisWindow(options, gOptions, function()
             imgui.PushStyleColor(ImGuiCol_FrameBg, { 0.08, 0.08, 0.08, 0.8 })
@@ -90,7 +93,7 @@ local cast = {
             imgui.PopStyleColor(3)
 
             LastProgress = progress
-        end)
+        end, casting)
     end,
     -- The cast bar part-way through a made-up spell; the real one only shows while casting
     DrawSample = function(options, gOptions)

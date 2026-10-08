@@ -59,6 +59,12 @@ local normalWindows = {
 
 local tools = T{}:extend(uiWindows):extend(normalWindows)
 
+-- The tools that are UI components: these alone fade with the player's idling
+local isComponent = { }
+for _, tool in ipairs(uiWindows) do
+    isComponent[tool.Name] = true
+end
+
 local defaultOptions = T{
     version = nil,
     globals = T{
@@ -181,7 +187,8 @@ local function ApplyGlobals()
     if fade.tools == nil then
         fade.tools = T{ }
     end
-    for _, tool in ipairs(uiWindows) do
+    -- every tool can fade in and out as it appears and goes; only the components also fade with idling
+    for _, tool in ipairs(tools) do
         if fade.tools[tool.Name] == nil then
             fade.tools[tool.Name] = T{ true }
         end
@@ -252,14 +259,27 @@ local function DrawAppearance()
     local fade = options.globals.fade
     winxiWidgets.Fade(fade)
 
+    -- A chosen component fades out while idle, and fades in and out as it appears and goes (the target
+    -- window as a target is taken and dropped). A chosen tool only does the second: it is never faded
+    -- by idling, but fades in and out as it is shown and hidden.
     if fade.Enabled then
-        winxiWidgets.Label('Components That Fade')
-        for i, tool in ipairs(uiWindows) do
-            if i > 1 then
-                imgui.SameLine()
+        local function Choices(label, toolList, tooltip)
+            winxiWidgets.Label(label)
+            for i, tool in ipairs(toolList) do
+                if i > 1 then
+                    imgui.SameLine()
+                end
+                imgui.Checkbox(('%s##fade'):format(tool.Name), fade.tools[tool.Name])
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(tooltip)
+                end
             end
-            imgui.Checkbox(('%s##fade'):format(tool.Name), fade.tools[tool.Name])
         end
+
+        Choices('Components That Fade', uiWindows,
+            'Fades out while you are idle, and fades in and out as it appears and goes.')
+        Choices('Tools That Fade', normalWindows,
+            'Fades in and out as it is shown and hidden. Tools are never faded by idling.')
     end
     winxiWidgets.PopControlWidth()
 end
@@ -387,7 +407,8 @@ ashita.events.register('d3d_present', 'd3d_present_handler', function()
     for i, tool in ipairs(tools) do
         -- only the tools that are enabled, whether as themselves or filled with sample data
         -- and none that has faded right out: it would only be prepared and then not drawn
-        if options.tools[tool.Name].isEnabled[1] and not ui.IsFadedOut(tool.Name, options.globals) then
+        if options.tools[tool.Name].isEnabled[1]
+        and not (isComponent[tool.Name] and ui.IsFadedOut(tool.Name, options.globals)) then
             if organizing and tool.DrawSample ~= nil then
                 tool.DrawSample(options.tools[tool.Name], options.globals)
             else
