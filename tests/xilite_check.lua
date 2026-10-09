@@ -59,11 +59,14 @@ H.print('/xilite kept from the game', H.command('/xilite'), '| settings showing'
 H.print('settings window drawn', (H.calls.Begin or 0) > before, '| tab bars', H.calls.BeginTabBar)
 H.print('/xil closes it', H.command('/xil') and o.showConfig[1] == false, '| /xilitex is left alone', H.command('/xilitex') == false)
 -- XivParty Style: the lists take up their own room and draw themselves into it
+o.tools.us.alliance1.isCompact[1] = false; H.frames(1) -- the full view again, held by no corner
 o.tools.us.xivParty[1] = true
 local rooms, drawn = H.calls.Dummy or 0, H.calls['draw.AddText'] or 0
 ok, problem = pcall(H.frames, 2)
 H.print('xivparty style: frames ran', ok, ok and '' or problem, '| lists given room', ((H.calls.Dummy or 0) - rooms) / 2,
     '| names and figures drawn', (H.calls['draw.AddText'] or 0) > drawn)
+H.print('xivparty style: the party list is held by its bottom left', o.tools.us.alliance1.corner ~= nil,
+    '| the second alliance is not', o.tools.us.alliance2.corner == nil)
 -- a line is a name and three figures; fewer with the MP and TP values switched off
 H.frames(1); local before = H.calls['draw.AddText']; H.frames(1); local all = H.calls['draw.AddText'] - before
 o.tools.us.xivShowMp[1] = false; H.frames(1); before = H.calls['draw.AddText']; H.frames(1); local noMp = H.calls['draw.AddText'] - before

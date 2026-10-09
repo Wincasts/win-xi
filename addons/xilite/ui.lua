@@ -303,8 +303,14 @@ function ui.DrawUiWindow(config, gConfig, drawStuff, wanted, growFrom, fitConten
     ui.Styles.WindowPadding[1] = padding
     ui.Styles.WindowPadding[2] = padding
 
+    -- held by a corner other than its top left, unless a link places it: its size is then measured
+    -- before it is drawn (below), and it is given exactly that
+    local held = growFrom ~= nil and not organize.IsLinked(config.name)
+
     if fitContent then
-        flags = bit.bor(flags, ImGuiWindowFlags_AlwaysAutoResize)
+        if not held then
+            flags = bit.bor(flags, ImGuiWindowFlags_AlwaysAutoResize)
+        end
         windowSize[1], windowSize[2] = -1, -1
     else
         windowSize[1], windowSize[2] = ui.PaddedWidth(config.size[1]), config.size[2]
@@ -318,7 +324,6 @@ function ui.DrawUiWindow(config, gConfig, drawStuff, wanted, growFrom, fitConten
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, ui.Styles.ItemSpacing)
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, ui.Styles.WindowPadding)
 
-    local held = growFrom ~= nil and not organize.IsLinked(config.name)
     if held then
         if not cornerGiven[config] then
             cornerGiven[config] = true

@@ -638,13 +638,13 @@ local function GetMembers(alliance, sample, sortByRole, target, party, stal)
     return members
 end
 
--- growsUp is set for the player's own party: its compact list keeps its bottom edge where it is and
--- grows upwards as members join, where every other list grows downwards
+-- growsUp is set for the player's own party: its compact list, and its list in XivParty Style, keeps
+-- its bottom edge where it is and grows upwards as members join, where every other list grows downwards
 local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
     sample = sample and true or false
     sortByRole = sortByRole and true or false
     local xivStyle = XivPartyStyle()
-    local growFrom = (growsUp and alliance.isCompact[1] and not xivStyle) and 'BottomLeft' or nil
+    local growFrom = (growsUp and (xivStyle or alliance.isCompact[1])) and 'BottomLeft' or nil
 
     ui.DrawUiWindow(alliance, gOptions, function()
         local target = AshitaCore:GetMemoryManager():GetTarget()
