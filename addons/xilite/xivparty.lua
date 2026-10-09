@@ -5,7 +5,8 @@
 -- border, padding and shadow, is the theme's.
 --
 -- A member is a line: the name, an HP bar and a smaller MP bar with their figures, and TP as a figure
--- alone. Each bar has a soft shadow under it, which XivParty's do not. The member targeted is marked as in the party window's own view: ">> " before the name, both
+-- alone. Each bar has a soft shadow under it, which XivParty's do not, and glows for a moment over
+-- what it has lost, but not as XivParty's do over what it has gained. The member targeted is marked as in the party window's own view: ">> " before the name, both
 -- in blue, and "> " in green for one a sub-target or the party cursor is on. A small mark sits under
 -- the name of the party's leader, and the buffs of a member of the player's own party run leftwards
 -- from the window.
@@ -19,7 +20,7 @@
 --     nameSize    a percentage for the size of the names alone
 --     buffSize    a percentage for the size of the buff icons alone
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
---     glow        false for bars that simply change, with no glow over what was gained or lost
+--     glow        false for bars that simply change, with no glow over what was lost
 --     outline     false to leave the dark edge off the names and the HP, MP and TP figures: winxi's
 --                 way of writing over bars (winxi.text), without which the figures are hard to read
 --     hpOffset, mpOffset, tpOffset   { x, y } to move that figure from its place in the layout, in the
@@ -50,7 +51,10 @@ local xivparty = { }
 local castRange = 20.79       -- beyond this a member's bars are dimmed, and beyond targetRange dimmed further
 local targetRange = 50
 local barAnimSpeed = 0.1      -- how much of the way a bar's glow closes every animFrame seconds
-local glowOpacity = 0.9       -- how strong the glow is, over a gain and over a loss alike
+local glowOpacity = 0.85      -- how strong the glow over what a bar has lost is
+-- XivParty's glow images fade out a long way above and below the bar, into the lines either side.
+-- Only this much of their height is drawn, from the top: the bar and half its height again each way.
+local glowTop, glowBottom = 0.375, 0.625
 local animFrame = 0.03
 local pointsToPixels = 4 / 3  -- XivParty's text sizes are in points
 local baseScale = 1.2         -- how much larger than XivParty's own sizes the lists are at a scale of 100
@@ -143,18 +147,21 @@ local uvA, uvB = { 0, 0 }, { 1, 1 }
 local tint = { 1, 1, 1, 1 }
 
 -- An image, by its file or the number of a texture, at a place in the layout's units. flipped draws it
--- mirrored left to right.
-local function Image(image, x, y, width, height, color, alpha, flipped)
+-- mirrored left to right. With top and bottom (0 to 1) only that much of its height is drawn, where
+-- it would have been.
+local function Image(image, x, y, width, height, color, alpha, flipped, top, bottom)
     local handle = type(image) == 'number' and image or Texture(image)
     if not handle or width == 0 then
         return
     end
 
+    top, bottom = top or 0, bottom or 1
     color = color or white
     tint[1], tint[2], tint[3], tint[4] = color[1], color[2], color[3], color[4] * (alpha or 1)
-    cornerA[1], cornerA[2] = itemX + x * scale, itemY + y * scale
-    cornerB[1], cornerB[2] = cornerA[1] + width * scale, cornerA[2] + height * scale
+    cornerA[1], cornerA[2] = itemX + x * scale, itemY + (y + height * top) * scale
+    cornerB[1], cornerB[2] = cornerA[1] + width * scale, itemY + (y + height * bottom) * scale
     uvA[1], uvB[1] = flipped and 1 or 0, flipped and 0 or 1
+    uvA[2], uvB[2] = top, bottom
     drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, imgui.GetColorU32(tint))
 end
 
@@ -254,12 +261,17 @@ local function DrawBar(place, member, state, opacity, showFigure)
     local x, y = place.x, place.y
     local images = place.images
     if images ~= nil then
-        -- the glow closes on the bar's value; while dimmed there is no glow and the bar itself moves
+        -- a loss is covered by a glow that closes on the bar's new value; a gain simply shows. While
+        -- dimmed there is no glow and the bar itself moves, down or up.
         local dimmed = opacity < 1
         local shown = state[kind] or fraction
-        shown = shown + (fraction - shown) * animStep
-        if math.abs(fraction - shown) < 0.001 then
+        if fraction > shown and not dimmed then
             shown = fraction
+        else
+            shown = shown + (fraction - shown) * animStep
+            if math.abs(fraction - shown) < 0.001 then
+                shown = fraction
+            end
         end
         state[kind] = shown
 
@@ -273,13 +285,13 @@ local function DrawBar(place, member, state, opacity, showFigure)
         Image(images.fill, x + images.fillX, y, images.fillWidth * (dimmed and shown or fraction), images.height, color, opacity)
         Image(images.front, x, y, images.width, images.height, color)
 
-        if barGlow and not dimmed and math.abs(fraction - shown) > 0.01 then
-            local glowX = x + images.fillX + images.fillWidth * math.min(fraction, shown)
-            local glowWidth = images.fillWidth * math.abs(fraction - shown)
+        if barGlow and not dimmed and shown - fraction > 0.01 then
+            local glowX = x + images.fillX + images.fillWidth * fraction
+            local glowWidth = images.fillWidth * (shown - fraction)
             local sides = images.glowSidesWidth
-            Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor, glowOpacity)
-            Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor, glowOpacity)
-            Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, glowOpacity, true)
+            Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
+            Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
+            Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, glowOpacity, true, glowTop, glowBottom)
         end
     end
 

@@ -815,7 +815,7 @@ local us = {
         xivMpOffset = T{ 0, 0 }, -- and the MP figure
         xivTpOffset = T{ 0, 0 }, -- and the TP figure
         xivOutline = T{ true }, -- whether the names and the HP, MP and TP figures have a dark edge
-        xivGlow = T{ true },    -- whether a bar glows for a moment over what it has gained or lost
+        xivGlow = T{ true },    -- whether a bar glows for a moment over what it has lost
         xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
         xivShowTp = T{ true }, -- whether TP is written
         alliance1 = T{
@@ -970,7 +970,7 @@ local us = {
                 ui.Label('Bar Glow')
                 imgui.Checkbox('##us.xivGlow', options.xivGlow)
                 if imgui.IsItemHovered() then
-                    imgui.SetTooltip('A bar glows for a moment over what it has just gained or lost. Off, the bars simply change.')
+                    imgui.SetTooltip('An HP or MP bar glows for a moment over what it has just lost. Off, the bars simply change.')
                 end
                 ui.Label('Show MP Values')
                 imgui.Checkbox('##us.xivShowMp', options.xivShowMp)
