@@ -63,14 +63,9 @@ package.preload['settings'] = function() return { logged_in = true, name = 'Test
     load = function(d) store = d return d end, save = function() saves = saves + 1 end,
     register = function(_, _, f) handlers.settings = f end } end
 
--- xitools' settings, and xilite's, for the addons that bring theirs over from them: a fixture stands in
--- for each file
+-- xitools' settings, for the addons that bring theirs over from it: the fixture stands in for the file
 local realLoadfile = loadfile
-loadfile = function(p)
-    if p:find('xitools') then return realLoadfile(root .. 'tests/fixtures/xitools_settings.lua') end
-    if p:find('addons\\xilite\\', 1, true) then return realLoadfile(root .. 'tests/fixtures/xilite_settings.lua') end
-    return realLoadfile(p)
-end
+loadfile = function(p) if p:find('xitools') then return realLoadfile(root .. 'tests/fixtures/xitools_settings.lua') end return realLoadfile(p) end
 
 local playing, pool, lots, sent, sounds, raised = false, 0, {}, {}, {}, {}
 function GetPlayerEntity() return playing and {} or nil end
