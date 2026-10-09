@@ -1,6 +1,7 @@
 require('common')
 local imgui = require('imgui')
 local ui = require('ui')
+local style = require('winxi.style')
 local packets = require('utils/packets')
 local vanatime = require('utils/vanatime')
 
@@ -331,7 +332,7 @@ local fishe = {
         name = 'xitools.fishe',
         size = T{ -1, -1 },
         pos = T{ 100, 100 },
-        flags = ui.StyledResizableWindowFlags,
+        flags = style.ResizableFlags(),
         skill = T{ 0.0 },
         history = T{},
     },
@@ -423,7 +424,7 @@ local fishe = {
         end
     end,
     DrawMain = function(options, gOptions)
-        options.flags = ui.StyledResizableWindowFlags
+        options.flags = style.ResizableFlags()
 
         ui.DrawStyledWindow(options, gOptions, function()
             imgui.Text(('%-13s %5.1f'):format('Fishe', options.skill[1]))

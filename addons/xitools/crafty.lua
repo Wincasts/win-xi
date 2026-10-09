@@ -5,6 +5,7 @@ local packets = require('utils/packets')
 local recipesByIngredients = require('data.recipesByIngredients')
 local recipesBySkill = require('data.recipesBySkill')
 local ui = require('ui')
+local style = require('winxi.style')
 
 local iconTimes = '\xef\x81\x97'
 local iconCheck = '\xef\x81\x98'
@@ -266,7 +267,7 @@ local crafty = {
         name = 'xitools.crafty',
         size = T{ -1, -1 },
         pos = T{ 100, 100 },
-        flags = ui.StyledWindowFlags,
+        flags = style.TitlelessFlags(),
         skills = T{
             [0] = T{ 0.0 },
             [1] = T{ 0.0 },
@@ -396,7 +397,7 @@ local crafty = {
         end
     end,
     DrawMain = function(options, gOptions)
-        options.flags = ui.StyledWindowFlags
+        options.flags = style.TitlelessFlags()
 
         ui.DrawStyledWindow(options, gOptions, function()
             DrawSkills(options.skills)

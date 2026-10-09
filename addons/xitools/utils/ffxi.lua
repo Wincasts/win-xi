@@ -1,4 +1,3 @@
-local bit = require('bit')
 local game = require('winxi.game')
 local ffxi = {}
 
@@ -39,61 +38,13 @@ function ffxi.GetEntityNameByServerId(id, default_name)
     end
 end
 
--- Determines if a particular entity (given as a server ID) belongs to the
--- player's alliance.
----@param id number
----@return boolean
-function ffxi.IsServerIdInParty(id)
-    local party = AshitaCore:GetDataManager():GetParty()
-
-    for i = 0, 17 do
-        if party:GetMemberActive(i) == 1
-        and party:GetMemberServerId(i) ~= 0 then
-            local party_mem = GetEntity(party:GetMemberTargetIndex(i))
-
-            if party_mem ~= nil and party_mem.ServerId == id then
-                return true
-            end
-        end
-    end
-
-    return false
-end
-
--- Determines if a particular pet (given as a server ID) belongs to the
--- player's alliance.
----@param id number
----@return boolean
-function ffxi.IsPetServerIdInParty(id)
-    local party = AshitaCore:GetDataManager():GetParty()
-
-    for i = 0, 17 do
-        if party:GetMemberActive(i) == 1
-        and party:GetMemberServerId(i) ~= 0 then
-            local party_mem = GetEntity(party:GetMemberTargetIndex(i))
-
-            if party_mem ~= nil and party_mem.PetTargetIndex ~= nil then
-                local party_pet = GetEntity(party_mem.PetTargetIndex)
-
-                if party_pet ~= nil and party_pet.ServerId == id then
-                    return true
-                end
-            end
-        end
-    end
-
-    return false
-end
-
--- What is asked of the game itself (the menu on top, whether the chat log is opened out, whether the
--- map is open, an event running, the interface hidden, and which bags the player has) is winxi's:
--- the places in memory are searched for once, there, for every addon's use.
+-- What is asked of the game itself (whether the chat log is opened out, the map is open, an event is
+-- running or the interface hidden) is winxi's: the places in memory are searched for once, there, for
+-- every addon's use.
 ffxi.IsChatExpanded = game.IsChatExpanded
-ffxi.GetMenuName = game.MenuName
 ffxi.IsMapOpen = game.IsMapOpen
 ffxi.IsEventHappening = game.IsEventHappening
 ffxi.IsInterfaceHidden = game.IsInterfaceHidden
-ffxi.HasBagAccess = game.HasBagAccess
 
 --- Fetches the party index of your <stpt> target, if it exists.
 ---@return integer?

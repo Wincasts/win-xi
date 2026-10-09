@@ -54,11 +54,7 @@ local ui = {
         StatusRed      = { 0.80, 0.22, 0.00, 1.0 },
         StatusCyan     = { 0.59, 0.80, 0.80, 1.0 },
 
-        FfxiGreyBg     = { 0.08, 0.08, 0.08, 0.8 },
-        FfxiGreyBorder = { 0.69, 0.68, 0.78, 1.0 },
         FfxiAmber      = { 0.81, 0.81, 0.50, 1.0 },
-
-        BorderShadow   = { 1.00, 0.00, 0.00, 1.0 },
     },
 }
 
@@ -75,11 +71,6 @@ organize.SetLabels({
     ['xitools.tracker'] = 'Tracker',
     ['xitools.cast'] = 'Cast Bar',
 })
-
--- The theme's padding: the space between a UI window's border and its content, on every side
-function ui.GetPadding()
-    return theme.GetPadding()
-end
 
 -- A fixed window width, widened or narrowed so the content keeps its size whatever the padding is.
 -- Automatic widths (-1) are left alone. Uses the padding of the UI window being drawn.
@@ -255,47 +246,12 @@ function ui.DrawBar3(cur, max, size, overlay)
     imgui.PopStyleColor(2)
 end
 
-function ui.DrawNormalWindow(config, gConfig, drawStuff)
-    if not config.isVisible[1] then
-        return
-    end
-
-    imgui.SetNextWindowSize(config.size, ImGuiCond_FirstUseEver)
-    imgui.SetNextWindowPos(config.pos, ImGuiCond_FirstUseEver)
-
-    if config.maxHeight then
-        imgui.SetNextWindowSizeConstraints({ -1, 0 }, { -1, config.maxHeight[1] })
-    end
-
-    if imgui.Begin(config.name, config.isVisible, config.flags) then
-        drawStuff()
-
-        local x, y = imgui.GetWindowPos()
-        config.pos[1] = x
-        config.pos[2] = y
-    end
-
-    imgui.End()
-end
-
--- The flags a tool's window takes for ui.DrawStyledWindow: no title bar, like the UI windows, but it
--- still scrolls. Tools set these as they draw, since the flags saved with earlier settings were for a
--- titled window. The second is for a window the player can resize.
 -- For the settings tabs, winxi's own: a setting's name to the left of its control and followed by a
 -- colon (ui.Label), the gap between one family of settings and the next (ui.Gap), and the start of a
 -- group of settings whose controls line up with each other (ui.BeginLabels, once per tab).
 ui.Label = widgets.Label
 ui.Gap = widgets.Gap
 ui.BeginLabels = widgets.BeginLabels
-
-ui.StyledWindowFlags = bit.bor(
-    ImGuiWindowFlags_NoTitleBar,
-    ImGuiWindowFlags_NoResize,
-    ImGuiWindowFlags_NoCollapse,
-    ImGuiWindowFlags_AlwaysAutoResize)
-ui.StyledResizableWindowFlags = bit.bor(
-    ImGuiWindowFlags_NoTitleBar,
-    ImGuiWindowFlags_NoCollapse)
 
 -- A tool's own window given the look of the UI windows: the theme's background, border, text colour and
 -- padding, with its tabs, tables, buttons and other controls tinted from the border colour. Unlike a UI

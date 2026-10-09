@@ -47,20 +47,6 @@ function vanatime.get_raw_timestamp()
 end
 
 ----------------------------------------------------------------------------------------------------
--- func: get_timestamp
--- desc: Returns the current formatted Vana'diel timestamp.
-----------------------------------------------------------------------------------------------------
-function vanatime.get_timestamp()
-    local timestamp = vanatime.get_raw_timestamp();
-    local ts = (timestamp + 92514960) * 25;
-    local h = (ts / 3600) % 24;
-    local m = (ts / 60) % 60;
-    local s = ((ts - (math.floor(ts / 60) * 60)));
-
-    return string.format('%02i:%02i:%02i', h, m, s);
-end
-
-----------------------------------------------------------------------------------------------------
 -- func: get_current_time
 -- desc: Returns a table with the hour, minutes, and seconds in Vana'diel time.
 ----------------------------------------------------------------------------------------------------
@@ -77,36 +63,6 @@ function vanatime.get_current_time()
     vana.s = s;
 
     return vana;
-end
-
-----------------------------------------------------------------------------------------------------
--- func: get_current_hour
--- desc: Returns the current Vana'diel hour.
-----------------------------------------------------------------------------------------------------
-function vanatime.get_current_hour()
-    local timestamp = vanatime.get_raw_timestamp();
-    local ts = (timestamp + 92514960) * 25;
-    return (ts / 3600) % 24;
-end
-
-----------------------------------------------------------------------------------------------------
--- func: get_current_minute
--- desc: Returns the current Vana'diel minute.
-----------------------------------------------------------------------------------------------------
-function vanatime.get_current_minute()
-    local timestamp = vanatime.get_raw_timestamp();
-    local ts = (timestamp + 92514960) * 25;
-    return (ts / 60) % 60;
-end
-
-----------------------------------------------------------------------------------------------------
--- func: get_current_second
--- desc: Returns the current Vana'diel second.
-----------------------------------------------------------------------------------------------------
-function vanatime.get_current_second()
-    local timestamp = vanatime.get_raw_timestamp();
-    local ts = (timestamp + 92514960) * 25;
-    return ((ts - (math.floor(ts / 60) * 60)));
 end
 
 ----------------------------------------------------------------------------------------------------

@@ -2,6 +2,7 @@ require('common')
 local bit = require('bit')
 local imgui = require('imgui')
 local ui = require('ui')
+local style = require('winxi.style')
 local packets = require('utils/packets')
 
 local IsListening = { false }
@@ -240,7 +241,7 @@ local week = {
         name = 'xitools.week',
         size = T{ -1, -1 },
         pos = T{ 100, 100 },
-        flags = ui.StyledWindowFlags,
+        flags = style.TitlelessFlags(),
         timers = T{ },
     },
     HandleCommand = function(args, options)
@@ -294,7 +295,7 @@ local week = {
         end
     end,
     DrawMain = function(options, gOptions)
-        options.flags = ui.StyledWindowFlags
+        options.flags = style.TitlelessFlags()
 
         ui.DrawStyledWindow(options, gOptions, function()
             DrawWeek(options.timers)

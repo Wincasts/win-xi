@@ -45,174 +45,6 @@ local outboundFishingAction = {
     },
 }
 
-local outboundInventoryDrop = {
-    id = 0x028,
-    name = 'Inventory Drop',
-    parse = nil,
-    make = function(this, quantity, container, slot)
-        return this.id, struct.pack('IIBB', 0, quantity, container, slot):totable()
-    end,
-}
-
-local outboundInventoryMove = {
-    id = 0x029,
-    name = 'Inventory Move',
-    parse = nil,
-    make = function(this, quantity, srcContainer, destContainer, srcIndex, tgtIndex)
-        if srcContainer ~= destContainer then
-            tgtIndex = 0x52
-        end
-
-        return this.id, struct.pack('IIBBBB', 0, quantity, srcContainer, destContainer, srcIndex, tgtIndex):totable()
-    end,
-}
-
-local outboundTreasureLot = {
-    id = 0x041,
-    name = 'Treasure Lot',
-    parse = nil,
-    make = function(this, slot)
-        return this.id, { 0x00, 0x00, 0x00, 0x00, slot }
-    end,
-}
-
-local outboundTreasurePass = {
-    id = 0x042,
-    name = 'Treasure Pass',
-    parse = nil,
-    make = function(this, slot)
-        return this.id, { 0x00, 0x00, 0x00, 0x00, slot }
-    end,
-}
-
-local inboundZoneIn = {
-    id = 0x00A,
-    name = 'Zone In',
-    ---@param packet string
-    parse = function(packet)
-        local zonein = {
-            player = struct.unpack('i4', packet, 0x04 + 1),
-            player_idx = struct.unpack('i2', packet, 0x08 + 1),
-            zone = struct.unpack('i2', packet, 0x30 + 1),
-        }
-
-        return zonein
-    end
-}
-
-local inboundPcUpdate = {
-    id = 0x00D,
-    name = 'PC Update',
-    ---@param packet userdata
-    parse = function(packet)
-        return {
-            player          = ashita.bits.unpack_be(packet,  32, 32),
-            playerIndex     = ashita.bits.unpack_be(packet,  64, 16),
-            updatedPosition = ashita.bits.unpack_be(packet,  80,  1) == 1,
-            updatedStatus   = ashita.bits.unpack_be(packet,  81,  1) == 1,
-            updatedVitals   = ashita.bits.unpack_be(packet,  82,  1) == 1,
-            updatedName     = ashita.bits.unpack_be(packet,  83,  1) == 1,
-            updatedModel    = ashita.bits.unpack_be(packet,  84,  1) == 1,
-            isDespawned     = ashita.bits.unpack_be(packet,  85,  1) == 1,
-            heading         = ashita.bits.unpack_be(packet,  88,  8),
-            -- TODO: finish
-            x               = ashita.bits.unpack_be(packet,  96, 32), -- float
-            y               = ashita.bits.unpack_be(packet, 128, 32), -- float
-            z               = ashita.bits.unpack_be(packet, 160, 32), -- float
-        }
-    end
-}
-
-local inboundChatMessage = {
-    id = 0x017,
-    name = 'Chat Message',
-    ---@param packet string
-    parse = function(packet)
-        local chatmessage = {
-            type    = struct.unpack('i1', packet, 0x04 + 1),
-            from_gm = struct.unpack('i1', packet, 0x05 + 1),
-            zone    = struct.unpack('i2', packet, 0x06 + 1),
-            sender  = struct.unpack('s',  packet, 0x08 + 1),
-            text    = struct.unpack('s',  packet, 0x18 + 1),
-        }
-
-        return chatmessage
-    end
-}
-
-local inboundInventorySize = {
-    id = 0x01C,
-    name = 'Inventory Size',
-    ---@param packet string
-    parse = function(packet)
-        local inventories = {}
-        for i = 0, 17 do
-            inventories[i] = {
-                size = struct.unpack('i1', packet, 0x04 + i + 1),
-                usable = struct.unpack('i1', packet, 0x24 + (2 * i) + 1),
-            }
-        end
-
-        return inventories
-    end
-}
-
-local inboundInventoryFinish = {
-    id = 0x01D,
-    name = 'Inventory Finish',
-    ---@param packet string
-    parse = function(packet)
-        return {
-            flag = struct.unpack('i1', packet, 0x04 + 1),
-            container = struct.unpack('i1', packet, 0x05 + 1),
-        }
-    end
-}
-
-local inboundInventoryModify = {
-    id = 0x01E,
-    name = 'Inventory Modify',
-    ---@param packet string
-    parse = function(packet)
-        return {
-            quantity = struct.unpack('i4', packet, 0x04 + 1),
-            container = struct.unpack('i1', packet, 0x08 + 1),
-            slot = struct.unpack('i1', packet, 0x09 + 1),
-        }
-    end
-}
-
-local inboundInventoryAssign = {
-    id = 0x01F,
-    name = 'Inventory Assign',
-    ---@param packet string
-    parse = function(packet)
-        return {
-            quantity = struct.unpack('i4', packet, 0x04 + 1),
-            item = struct.unpack('i2', packet, 0x08 + 1),
-            container = struct.unpack('i1', packet, 0x0a + 1),
-            slot = struct.unpack('i1', packet, 0x0b + 1),
-            flag = struct.unpack('i1', packet, 0x0c + 1),
-        }
-    end
-}
-
-local inboundInventoryItem = {
-    id = 0x020,
-    name = 'Inventory Item',
-    ---@param packet string
-    parse = function(packet)
-        return {
-            container = struct.unpack('i1', packet, 0x0e + 1),
-            slot = struct.unpack('i1', packet, 0x0f + 1),
-            quantity = struct.unpack('i4', packet, 0x04 + 1),
-            price = struct.unpack('i4', packet, 0x08 + 1),
-            item = struct.unpack('i2', packet, 0x0c + 1),
-            -- TODO: there's more stuff but i don't care
-        }
-    end
-}
-
 local inboundCaughtFish = {
     id = 0x027,
     name = 'Fish Catch',
@@ -378,25 +210,6 @@ local inboundSpecial = {
     end
 }
 
-local inboundDeath = {
-    id = 0x02D,
-    name = 'Death',
-    ---@param packet string
-    parse = function(packet)
-        local death = {
-            player     = struct.unpack('i4', packet, 0x04 + 1),
-            target     = struct.unpack('i4', packet, 0x08 + 1),
-            player_idx = struct.unpack('i2', packet, 0x0C + 1),
-            target_idx = struct.unpack('i2', packet, 0x0E + 1),
-            param1     = struct.unpack('i4', packet, 0x10 + 1),
-            param2     = struct.unpack('i4', packet, 0x14 + 1),
-            message    = struct.unpack('i2', packet, 0x18 + 1),
-        }
-
-        return death
-    end
-}
-
 local inboundSynthAnimation = {
     id = 0x030,
     name = 'Synth Animation',
@@ -451,106 +264,6 @@ local inboundKeyItems = {
         end
 
         return keyItems
-    end
-}
-
-local inboundCharStats = {
-    id = 0x061,
-    name = 'Character Stats',
-    ---@param packet string
-    parse = function(packet)
-        local charstats = {
-            max_hp      = struct.unpack('I4', packet, 0x04 + 1),
-            max_mp      = struct.unpack('I4', packet, 0x08 + 1),
-
-            main_job    = struct.unpack('I1', packet, 0x0C + 1),
-            main_level  = struct.unpack('I1', packet, 0x0D + 1),
-            sub_job     = struct.unpack('I1', packet, 0x0E + 1),
-            sub_level   = struct.unpack('I1', packet, 0x0F + 1),
-            current_exp = struct.unpack('I2', packet, 0x10 + 1),
-            needed_exp  = struct.unpack('I2', packet, 0x12 + 1),
-
-            base_str = struct.unpack('I2', packet, 0x14 + 1),
-            base_dex = struct.unpack('I2', packet, 0x16 + 1),
-            base_vit = struct.unpack('I2', packet, 0x18 + 1),
-            base_agi = struct.unpack('I2', packet, 0x1A + 1),
-            base_int = struct.unpack('I2', packet, 0x1C + 1),
-            base_mnd = struct.unpack('I2', packet, 0x1E + 1),
-            base_chr = struct.unpack('I2', packet, 0x20 + 1),
-
-            bonus_str = struct.unpack('i2', packet, 0x22 + 1),
-            bonus_dex = struct.unpack('i2', packet, 0x24 + 1),
-            bonus_vit = struct.unpack('i2', packet, 0x26 + 1),
-            bonus_agi = struct.unpack('i2', packet, 0x28 + 1),
-            bonus_int = struct.unpack('i2', packet, 0x2A + 1),
-            bonus_mnd = struct.unpack('i2', packet, 0x2C + 1),
-            bonus_chr = struct.unpack('i2', packet, 0x2E + 1),
-
-            atk = struct.unpack('I2', packet, 0x30 + 1),
-            def = struct.unpack('I2', packet, 0x32 + 1),
-
-            res_fire    = struct.unpack('i2', packet, 0x34 + 1),
-            res_ice     = struct.unpack('i2', packet, 0x36 + 1),
-            res_wind    = struct.unpack('i2', packet, 0x38 + 1),
-            res_earth   = struct.unpack('i2', packet, 0x3A + 1),
-            res_thunder = struct.unpack('i2', packet, 0x3C + 1),
-            res_water   = struct.unpack('i2', packet, 0x3E + 1),
-            res_light   = struct.unpack('i2', packet, 0x40 + 1),
-            res_dark    = struct.unpack('i2', packet, 0x42 + 1),
-
-            title = struct.unpack('I2', packet, 0x44 + 1),
-            rank = struct.unpack('I2', packet, 0x46 + 1),
-            rankpoints = struct.unpack('I2', packet, 0x48 + 1),
-            homepoint = struct.unpack('I1', packet, 0x4A + 1),
-            nation = struct.unpack('I1', packet, 0x50 + 1)
-        }
-
-        return charstats
-    end
-}
-
-local inboundCharSkills = {
-    id = 0x062,
-    name = 'Character Skills',
-    ---@param packet string
-    parse = function(packet)
-        local skillsUpdate = {
-            combatSkills = {},
-            craftSkills = {},
-        }
-
-        for i=0, 0x2F do
-            skillsUpdate.combatSkills[i] = {
-                level = bit.band(struct.unpack('H', packet, 0x80 + (i * 2) + 1), 0x7FFF),
-                isCapped = bit.band(struct.unpack('H', packet, 0x80 + (i * 2) + 1), 0x8000) == 0x8000,
-            }
-        end
-
-        for i=0, 0x09 do
-            skillsUpdate.craftSkills[i] = {
-                rank = bit.band(struct.unpack('H', packet, 0xE0 + (i * 2) + 1), 0x001F),
-                level = bit.rshift(bit.band(struct.unpack('H', packet, 0xE0 + (i * 2) + 1), 0x7FE0), 5),
-                isCapped = bit.band(struct.unpack('H', packet, 0xE0 + (i * 2) + 1), 0x8000) == 0x8000,
-            }
-        end
-
-        return skillsUpdate
-    end
-}
-
-local inboundMenuMerit = {
-    id = 0x063,
-    name = 'Menu Merit',
-    -- This is only for the first packet in the sequence (it's 3 packets total),
-    -- because it's the only one I care about for now.
-    ---@param packet string
-    parse = function(packet)
-        local menumerit = {
-            limit_points = struct.unpack('I2', packet, 0x08 + 1),
-            merit_points = struct.unpack('I1', packet, 0x0A + 1),
-        }
-
-        return menumerit
     end
 }
 
@@ -609,68 +322,6 @@ local inboundSynthResultPlayer = {
     end
 }
 
-local inboundSynthResultOther = {
-    id = 0x070,
-    name = 'Other Synth',
-    ---@param packet string
-    parse = function(packet)
-        local otherSynth = {
-            result = struct.unpack('B', packet, 0x04 + 1),
-            quality = struct.unpack('b', packet, 0x05 + 1),
-            count = struct.unpack('B', packet, 0x06 + 1),
-            item = struct.unpack('H', packet, 0x08 + 1),
-            lost = {
-                [1] = struct.unpack('H', packet, 0x0A + 1),
-                [2] = struct.unpack('H', packet, 0x0C + 1),
-                [3] = struct.unpack('H', packet, 0x0E + 1),
-                [4] = struct.unpack('H', packet, 0x10 + 1),
-                [5] = struct.unpack('H', packet, 0x12 + 1),
-                [6] = struct.unpack('H', packet, 0x14 + 1),
-                [7] = struct.unpack('H', packet, 0x16 + 1),
-                [8] = struct.unpack('H', packet, 0x18 + 1),
-            },
-            skill = {
-                {
-                    skillId = bit.band(struct.unpack('B', packet, 0x1A + 1), 63),
-                    isSkillupAllowed = bit.band(struct.unpack('B', packet, 0x1A + 1), 40) == 40,
-                    isDesynth = bit.band(struct.unpack('B', packet, 0x1A + 1), 80) == 80,
-                },
-                {
-                    skillId = bit.band(struct.unpack('B', packet, 0x1B + 1), 63),
-                    isSkillupAllowed = bit.band(struct.unpack('B', packet, 0x1B + 1), 40) == 40,
-                    isDesynth = bit.band(struct.unpack('B', packet, 0x1B + 1), 80) == 80,
-                },
-                {
-                    skillId = bit.band(struct.unpack('B', packet, 0x1C + 1), 63),
-                    isSkillupAllowed = bit.band(struct.unpack('B', packet, 0x1C + 1), 40) == 40,
-                    isDesynth = bit.band(struct.unpack('B', packet, 0x1C + 1), 80) == 80,
-                },
-                {
-                    skillId = bit.band(struct.unpack('B', packet, 0x1D + 1), 63),
-                    isSkillupAllowed = bit.band(struct.unpack('B', packet, 0x1D + 1), 40) == 40,
-                    isDesynth = bit.band(struct.unpack('B', packet, 0x1D + 1), 80) == 80,
-                },
-            },
-            playerName = struct.unpack('s', packet, 0x1E + 1),
-        }
-
-        return otherSynth
-    end
-}
-
-local inboundFishBiteInfo = {
-    id = 0x115,
-    name = 'Fishing Bite Info',
-    parse = function(packet)
-        local fishBite = {
-            biteId = struct.unpack('I', packet, 0x0A + 1),
-            catchKey = struct.unpack('I', packet, 0x14 + 1),
-        }
-
-        return fishBite
-    end,
-}
-
 -- The action in the packet being handled, parsed the first time a tool asks for it and then handed to
 -- every other tool that asks, rather than each parsing the same packet again. xitools calls reset as
 -- each packet arrives. The result is shared, so tools must only read from it.
@@ -693,34 +344,16 @@ local packets = {
     outbound = {
         startSynth = outboundStartSynth,
         fishingAction = outboundFishingAction,
-        inventoryDrop = outboundInventoryDrop,
-        inventoryMove = outboundInventoryMove,
-        treasureLot = outboundTreasureLot,
-        treasurePass = outboundTreasurePass,
     },
     inbound = {
-        zoneIn = inboundZoneIn,
-        pcUpdate = inboundPcUpdate,
-        chatMessage = inboundChatMessage,
-        inventorySize = inboundInventorySize,
-        inventoryFinish = inboundInventoryFinish,
-        inventoryModify = inboundInventoryModify,
-        inventoryAssign = inboundInventoryAssign,
-        inventoryItem = inboundInventoryItem,
         fishCatch = inboundCaughtFish,
         action = inboundAction,
         basic = inboundBasic,
         special = inboundSpecial,
-        death = inboundDeath,
         synthAnimation = inboundSynthAnimation,
         npcMessage = inboundNpcMessage,
         keyItems = inboundKeyItems,
-        charStats = inboundCharStats,
-        charSkills = inboundCharSkills,
-        menuMerit = inboundMenuMerit,
         synthResultPlayer = inboundSynthResultPlayer,
-        synthResultOther = inboundSynthResultOther,
-        fishBiteInfo = inboundFishBiteInfo,
     },
 }
 
