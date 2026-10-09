@@ -98,9 +98,9 @@ local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74, bottom 
     back = 'ffxi/AllyBarBgMP.png', fill = 'ffxi/AllyBarMP.png', front = 'ffxi/AllyBarFgMP.png', color = Hex('FFFF9C') }
 local barShadowReach = 2.5 -- how far below a bar its shadow goes
 
--- The bookends: a small silver cap at each end of a bar, as tall as the inside of the bar and standing
--- half on it, after the ones the bars of the game's own party list have
-local bookend = { width = 3 } -- how wide a cap is
+-- The bookends: a thin silver cap at each end of a bar, as tall as the whole bar, frame and all, and
+-- standing half on it, after the ones the bars of the game's own party list have
+local bookend = { width = 2, over = 1.5 } -- how wide a cap is, and how far past the bar's inside its frame goes, above and below
 local bookendSilver = { 0.78, 0.80, 0.84, 1 }
 local bookendShine = { 0.97, 0.97, 1.00, 1 }
 local bookendEdge = { 0.20, 0.21, 0.25, 1 }
@@ -345,10 +345,10 @@ local function Cap(centre, top, bottom)
     end
 end
 
--- the top and bottom of a cap are those of the bar's inside
+-- the top and bottom of a cap are those of the bar's frame
 local function Bookends(place)
     local body = place.images.body
-    local top, bottom = place.y + body[2], place.y + body[4]
+    local top, bottom = place.y + body[2] - bookend.over, place.y + body[4] + bookend.over
     Cap(place.x + body[1], top, bottom)
     Cap(place.x + body[3], top, bottom)
 end
