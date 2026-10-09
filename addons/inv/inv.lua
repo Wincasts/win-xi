@@ -1,5 +1,5 @@
 addon.name    = 'inv'
-addon.author  = 'lin, Win'
+addon.author  = 'lin, win (and claude)'
 addon.version = '1.0'
 addon.desc    = 'The bags in a window: what is in them, and what can be done with it, by mouse or controller.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'

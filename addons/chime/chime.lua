@@ -1,5 +1,5 @@
 addon.name    = 'chime'
-addon.author  = 'Win'
+addon.author  = 'win (and claude)'
 addon.version = '1.0'
 addon.desc    = 'Plays a sound when something happens: a tell, an invite, a skillchain, low HP and the like.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'

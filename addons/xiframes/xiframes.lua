@@ -1,5 +1,5 @@
 addon.name    = 'xiframes'
-addon.author  = 'lin, Win'
+addon.author  = 'lin, win (and claude)'
 addon.version = '0.2'
 addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
