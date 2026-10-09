@@ -31,7 +31,8 @@
 -- drawn beyond that room, beside the window. members are the party window's own (see us.lua). A scale
 -- of 100 is the size this style is meant to be seen at, a fifth larger than XivParty's own.
 -- StatusTexture(id) gives the texture for a status icon, or nil. A member may be anything with the
--- same fields: us.lua lists pets this way and tgt.lua draws a target, giving hpText, mpText and tpText
+-- same fields, and a member with noMp set (one whose most MP is none) has a grey, full MP bar and no
+-- MP figure: us.lua lists pets this way and tgt.lua draws a target, giving hpText, mpText and tpText
 -- for figures in words of their own, leaving mpp and tp out for a line with no MP bar or TP, and
 -- setting plainHp for an HP figure that keeps its colour however low the HP is.
 --
@@ -67,6 +68,7 @@ local hpYellow = Hex('F3F37C') -- an HP figure below 75%
 local hpOrange = Hex('F8BA80') -- below 50%
 local hpRed = Hex('FC8182')    -- below 25%
 local tpFull = Hex('50B4FA')   -- a TP figure at 1000 and over
+local noMpGrey = { 0.55, 0.55, 0.55, 1 } -- the MP bar of a member with no MP to have: grey, and full
 
 -- The images of a bar: a back, the fill that is as long as the bar is full (it starts fillX across
 -- and is fillWidth long when full), and a front. color tints all three.
@@ -279,19 +281,20 @@ local function ShadowFar(place)
     Image(images.back, place.x + 2, place.y + 2.5, images.width, images.height, black, 0.2)
 end
 
-local function Back(place)
+-- A line's bar is in the bar's own colour unless the line has another for it (bar.color)
+local function Back(place, bar)
     local images = place.images
-    Image(images.back, place.x, place.y, images.width, images.height, images.color)
+    Image(images.back, place.x, place.y, images.width, images.height, bar.color or images.color)
 end
 
 local function Fill(place, bar, opacity)
     local images = place.images
-    Image(images.fill, place.x + images.fillX, place.y, images.fillWidth * bar.fraction, images.height, images.color, opacity)
+    Image(images.fill, place.x + images.fillX, place.y, images.fillWidth * bar.fraction, images.height, bar.color or images.color, opacity)
 end
 
-local function Front(place)
+local function Front(place, bar)
     local images = place.images
-    Image(images.front, place.x, place.y, images.width, images.height, images.color)
+    Image(images.front, place.x, place.y, images.width, images.height, bar.color or images.color)
 end
 
 -- One layer of a bar, for every line that has the bar: every line in the area has an HP bar, and an
@@ -484,7 +487,12 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
             state.opacity = RangeOpacity(member)
             state.hp.fraction = math.max(0, math.min(1, (member.hpp or 0) / 100))
             if state.hasMp then
-                state.mp.fraction = math.max(0, math.min(1, (member.mpp or 0) / 100))
+                -- no MP to have is not an empty bar: it is a grey one, full
+                if member.noMp then
+                    state.mp.fraction, state.mp.color = 1, noMpGrey
+                else
+                    state.mp.fraction, state.mp.color = math.max(0, math.min(1, (member.mpp or 0) / 100)), nil
+                end
             end
         else
             anyElsewhere = true
@@ -530,7 +538,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
         if state.inZone then
             itemY = lineY[index]
             DrawFigure(layout.hp, member, state.hp, valueFont)
-            if state.hasMp and showMp then
+            if state.hasMp and showMp and not member.noMp then
                 DrawFigure(layout.mp, member, state.mp, valueFont)
             end
             if showTp and member.tp ~= nil then
