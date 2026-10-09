@@ -90,7 +90,7 @@ local memory = setmetatable({ GetParty = function() return party end, GetPlayer 
 function table.map(t, f) local mapped = T{} for i, v in ipairs(t) do mapped[i] = f(v) end return mapped end
 local blank = T{} for i = 1, 40 + 32 * 32 * 4 do blank[i] = 0 end
 local resources = setmetatable({ GetStatusIconByIndex = function() return { Bitmap = { totable = function() return blank end }, ImageSize = 4136 } end,
-    GetString = function(_, _, id) return ('Area %d'):format(id) end }, { __index = function() return function() return nil end end })
+    GetString = function(_, _, id) return id == 230 and 'SOUTHERN SAN DORIA' or ('Area %d'):format(id) end }, { __index = function() return function() return nil end end })
 AshitaCore = setmetatable({ GetMemoryManager = function() return memory end, GetResourceManager = function() return resources end }, { __index = core })
 
 -- a packet's bytes are read as the game's library reads them

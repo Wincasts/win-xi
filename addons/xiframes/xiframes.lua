@@ -1,370 +1,202 @@
 addon.name    = 'xiframes'
 addon.author  = 'lin, jbutt'
-addon.version = '0.1'
+addon.version = '0.2'
 addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
+-- The addon in outline:
+--   party, pets, target   read the game, and hand back lists of lines
+--   frames                draws a list of lines: the bars, names and figures
+--   notices               invitations and treasure waiting, and their icons
+--   debuffs               what is on each enemy, shown under a target
+--   windows               the windows the lists are drawn in
+--   options, config       the settings, and the window they are changed in
+-- This file puts them together: what goes in which window each frame, and which packets go where.
 require('common')
-local bit = require('bit')
 local imgui = require('imgui')
 local settings = require('settings')
-local ui = require('ui')
-local packets = require('utils/packets')
 local winxiFade = require('winxi.fade')
 local winxiGame = require('winxi.game')
-local winxiLegacy = require('winxi.legacy')
 local winxiOrganize = require('winxi.organize')
 local winxiTheme = require('winxi.theme')
-local winxiWidgets = require('winxi.widgets')
-local winxiWindow = require('winxi.window')
+local options = require('options')
+local config = require('config')
+local windows = require('windows')
+local frames = require('frames')
+local party = require('party')
+local pets = require('pets')
+local target = require('target')
+local notices = require('notices')
+local debuffs = require('debuffs')
+local packets = require('packets')
 
----@class xitool
----@field Name            string
----@field DefaultSettings table
----@field UpdateSettings  function?
----@field Load            function?
----@field HandlePacket    function?
----@field HandlePacketOut function?
----@field DrawConfig      function
----@field DrawMain        function
----@field DrawSample      function? draws the tool's windows filled with sample data; only called while it is enabled
+local saved = settings.load(options.Defaults())
 
-local us = require('us')
-local tgt = require('tgt')
-local pet = require('pet')
-
-local tools = T{ us, tgt, pet }
-
--- Those with windows of their own: the pets are listed in the party's
-local windowTools = T{ }
-for _, tool in ipairs(tools) do
-    if not tool.NoWindow then
-        windowTools:append(tool)
+-- Brings the settings up to date, and hands winxi what is its to fill in. Run when the settings are
+-- loaded or replaced, not every frame: everything handed over is a table that is then changed in place.
+local function UseSettings()
+    options.Complete(saved)
+    winxiGame.CompleteHide(saved.hide)
+    winxiFade.Complete(saved.fade)
+    for _, group in ipairs(windows.Groups) do
+        if type(saved.fade.windows[group.key]) ~= 'table' then
+            saved.fade.windows[group.key] = T{ true }
+        end
     end
+    windows.Use(saved)
+    party.Forget()
 end
 
-local defaultOptions = T{
-    -- whether xilite's settings have been brought over for this character
-    importedFromXilite = false,
-    showConfig = T{ false },
-    globals = T{
-        -- when the windows get out of the way: winxi.game's rules, filled in by ApplyGlobals
-        hide = T{ },
-        isClickThru = T{ false },
-        -- The look of every window (colours, padding, drop shadow) is winxi's theme. useSharedTheme says
-        -- whether that is the one shared with other addons; theme holds this addon's own for when it is not.
-        useSharedTheme = true,
-        theme = T{ },
-        -- Fading while idle. The settings themselves are winxi's (see winxi.fade) and are filled in by
-        -- ApplyGlobals; tools is this addon's: tool name -> whether its windows fade.
-        fade = T{
-            tools = T{ },
-        },
-        -- which window is held against which while organizing: winxi.organize's
-        links = T{ },
-    },
-    tools = T{
-        us = us.DefaultSettings,
-        tgt = tgt.DefaultSettings,
-        pet = pet.DefaultSettings,
-    },
-}
+UseSettings()
 
-local options = settings.load(defaultOptions)
+-- What a party's window holds, drawn by one function for whichever party is being drawn: which is
+-- said beforehand, so that no function need be made afresh for each window every frame
+local drawing = { list = 1, sample = false, pets = nil }
 
-local function Say(text)
-    print(('\30\81[%s]\30\01 %s'):format(addon.name, text))
-end
+local function DrawPartyContent()
+    local own = drawing.list == 1
+    local members = party.Members(drawing.list, drawing.sample, saved.party.sortByRole[1])
+    local petLines = drawing.pets
+    local hasPets = petLines ~= nil and #petLines > 0
 
--- Bringing a character's settings over from xilite, once: this addon is xilite's party, target and pet
--- frames in XivParty Style alone, so where each window is, what it shows and how it is drawn there
--- are what they are here too. Only what this addon has a setting for is taken, and a window's held
--- corner with it. Windows are named for the addon they belong to, so every name is changed on the way.
-local function Renamed(value)
-    if type(value) == 'string' then
-        return (value:gsub('^xilite%.', 'xiframes.'))
+    -- a list's last line is only as tall as what is on it: so the window ends where its content
+    -- does, and what follows a list is a known distance under it
+    local style = options.Style(saved)
+    style.trimLast = true
+    frames.Draw(members, own and 'party' or 'alliance', party.StatusTexture, style)
+
+    -- the pets, under a line, with as much room above the line and below it as there is between the
+    -- window's edge and its first member: the window's padding
+    if hasPets then
+        local room = windows.Padding() - windows.ItemSpacing[2] -- imgui puts the spacing in itself
+        imgui.SetCursorPosY(imgui.GetCursorPosY() + room)
+        imgui.Separator()
+        imgui.SetCursorPosY(imgui.GetCursorPosY() + room)
+        frames.Draw(petLines, 'pets', nil, style)
     end
-    return value
-end
 
-local function Copy(from)
-    local copy = T{ }
-    for key, value in pairs(from) do
-        copy[key] = type(value) == 'table' and Copy(value) or Renamed(value)
-    end
-    return copy
-end
-
--- Takes from over into, for the settings into already has and never changing the kind of a value
-local function Merge(into, from)
-    for key, value in pairs(from) do
-        local present = into[key]
-        if type(value) == 'table' then
-            if type(present) == 'table' then
-                Merge(present, value)
-            elseif key == 'corner' then
-                into[key] = Copy(value)
-            end
-        elseif present ~= nil and type(present) == type(value) then
-            into[key] = Renamed(value)
+    -- an invitation waiting for an answer, and anything in the treasure pool, have icons beside the
+    -- player's own party; both are shown while the windows are arranged, to see where they go
+    if own then
+        local invitation, treasure = nil, false
+        if saved.party.showInvites[1] then
+            invitation = notices.Invitation() or (drawing.sample and notices.SampleInvitation) or nil
+        end
+        if saved.party.showTreasure[1] then
+            treasure = drawing.sample or notices.TreasureWaiting()
+        end
+        if invitation ~= nil or treasure then
+            notices.DrawIcons(invitation, treasure, saved.party.iconCorner, saved.party.iconOffset, frames.Scale(style))
         end
     end
 end
 
-local sharedGlobals = { 'isClickThru', 'theme', 'hide' }
+-- The player's own party keeps its bottom edge where it is and grows upwards as members join, has
+-- its buffs beside it, and has the pets under it. The other two grow downwards.
+local partyWindows = { windows.List.party1, windows.List.party2, windows.List.party3 }
 
-local function ImportFromXilite()
-    local old = winxiLegacy.ReadSettings('xilite')
-    if old == nil or type(old.tools) ~= 'table' then
-        return false
+local function DrawParty(list, sample)
+    drawing.list, drawing.sample = list, sample
+    drawing.pets = nil
+    if list == 1 and saved.pets.enabled[1] then
+        drawing.pets = pets.Lines(sample, saved.pets)
     end
-
-    local found = false
-    local kept = { } -- the windows this addon has, by the names xilite gave them
-    for _, tool in ipairs(tools) do
-        local saved = old.tools[tool.Name]
-        if type(saved) == 'table' then
-            Merge(options.tools[tool.Name], saved)
-            found = true
-        end
-        if not tool.NoWindow then
-            kept[('xilite.%s'):format(tool.Name)] = true
-        end
-    end
-
-    local oldGlobals = old.globals
-    if type(oldGlobals) ~= 'table' then
-        return found
-    end
-
-    local globals = options.globals
-    if oldGlobals.useSharedTheme ~= nil then
-        globals.useSharedTheme = oldGlobals.useSharedTheme and true or false
-    end
-    for _, key in ipairs(sharedGlobals) do
-        if type(oldGlobals[key]) == 'table' then
-            globals[key] = Copy(oldGlobals[key])
-        end
-    end
-
-    -- the fade settings, and of the tools chosen to fade those there are here
-    if type(oldGlobals.fade) == 'table' then
-        for key, value in pairs(oldGlobals.fade) do
-            if type(value) ~= 'table' then
-                globals.fade[key] = value
-            end
-        end
-        if type(oldGlobals.fade.tools) == 'table' then
-            for _, tool in ipairs(windowTools) do
-                local chosen = oldGlobals.fade.tools[tool.Name]
-                if type(chosen) == 'table' then
-                    globals.fade.tools[tool.Name] = T{ chosen[1] and true or false }
-                end
-            end
-        end
-    end
-
-    -- a link is kept when both of its windows are
-    if type(oldGlobals.links) == 'table' then
-        local function IsKept(name)
-            return type(name) == 'string' and kept[name:match('^xilite%.%a+')] == true
-        end
-
-        globals.links = T{ }
-        for _, link in ipairs(oldGlobals.links) do
-            if type(link) == 'table' and IsKept(link.child) and IsKept(link.parent) then
-                globals.links:append(Copy(link))
-            end
-        end
-    end
-
-    return found
+    windows.Draw(partyWindows[list], DrawPartyContent, nil, list == 1 and 'BottomLeft' or nil)
 end
 
--- Settings saved before an option existed have no value for it: those are given their defaults.
--- Run when the settings are loaded or replaced, not every frame: everything it hands over is a table
--- that the config window then changes in place.
-local function ApplyGlobals()
-    local globals = options.globals
-
-    -- not before the character is known: the settings then are nobody's
-    if not options.importedFromXilite and settings.logged_in then
-        options.importedFromXilite = true
-        if ImportFromXilite() then
-            Say('Settings brought over from xilite.')
+local function DrawParties(sample)
+    if sample then
+        for list = 1, 3 do
+            DrawParty(list, true)
         end
-        settings.save()
-    end
-
-    if type(globals.hide) ~= 'table' then
-        globals.hide = T{ }
-    end
-    winxiGame.CompleteHide(globals.hide)
-
-    if type(globals.theme) ~= 'table' then
-        globals.theme = T{ }
-    end
-    if type(globals.links) ~= 'table' then
-        globals.links = T{ }
-    end
-
-    if type(globals.fade) ~= 'table' then
-        globals.fade = T{ }
-    end
-    local fade = globals.fade
-    winxiFade.Complete(fade)
-
-    if type(fade.tools) ~= 'table' then
-        fade.tools = T{ }
-    end
-    for _, tool in ipairs(windowTools) do
-        if fade.tools[tool.Name] == nil then
-            fade.tools[tool.Name] = T{ true }
-        end
-    end
-
-    winxiOrganize.SetLinks(globals.links)
-end
-
-ApplyGlobals()
-
-local function Save()
-    settings.save()
-end
-
--- Each setting's name is to the left of its control and followed by a colon, with every word
--- capitalised, and one family of settings is set a little apart from the next (see winxi.widgets)
-local function DrawGlobalSettings()
-    ui.BeginLabels('xiframes.global')
-    winxiWidgets.Hide(options.globals.hide, Save)
-
-    ui.Gap()
-    ui.Label('Clickthrough')
-    imgui.Checkbox('##xiframes.isClickThru', options.globals.isClickThru)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The windows let the mouse through to the game. Ignored while organizing, so they can be dragged.')
-    end
-end
-
--- What winxi's theme controls call: to keep the choice of theme, and to save this addon's own theme
-local appearanceHooks = {
-    onUseShared = function(useShared)
-        options.globals.useSharedTheme = useShared
-        settings.save()
-    end,
-    onOwnChanged = Save,
-}
-
--- The Theme and Window sections are winxi's; the Addon section is what is this addon's own
-local function DrawAppearance()
-    winxiWidgets.Appearance(appearanceHooks)
-
-    -- This addon's own: fading while idle, and which windows it applies to
-    winxiWidgets.Header('Addon')
-    winxiWidgets.PushControlWidth()
-    local fade = options.globals.fade
-    winxiWidgets.Fade(fade, Save)
-
-    -- A chosen window fades out while idle, and fades in and out as it appears and goes (the target
-    -- window as a target is taken and dropped)
-    if fade.Enabled then
-        winxiWidgets.Label('Windows That Fade')
-        for i, tool in ipairs(windowTools) do
-            if i > 1 then
-                imgui.SameLine()
-            end
-            imgui.Checkbox(('%s##fade'):format(tool.Name), fade.tools[tool.Name])
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('Fades out while you are idle, and fades in and out as it appears and goes.')
-            end
-        end
-    end
-    winxiWidgets.PopControlWidth()
-end
-
--- The config window is never narrower than this, so it does not jump about as the tabs are switched
-local configMinSize, configMaxSize = { 780, 0 }, { 10000, 10000 }
-
--- The config window keeps a padding of its own, whatever the theme's: the padding slider must not
--- squeeze the window it is in
-local configStyle = { padding = 11 }
-local configFlags = bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings)
-
-local function DrawConfigContent()
-    imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingSome)
-
-    if imgui.BeginTabBar('##xiframes.config', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if imgui.BeginTabItem('Global Settings') then
-            DrawGlobalSettings()
-            imgui.EndTabItem()
-        end
-
-        if imgui.BeginTabItem('Appearance') then
-            DrawAppearance()
-            imgui.EndTabItem()
-        end
-
-        -- one inner tab for each window, drawn by the tool itself
-        if imgui.BeginTabItem('Windows') then
-            if imgui.BeginTabBar('##xiframes.config.ui', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-                for _, tool in ipairs(tools) do
-                    tool.DrawConfig(options.tools[tool.Name], options.globals)
-                end
-                imgui.EndTabBar()
-            end
-            imgui.EndTabItem()
-        end
-
-        imgui.EndTabBar()
-    end
-
-    -- the strip along the bottom, below whichever tab is showing: winxi's Organize button against the
-    -- right edge, with its grid option to the left while it is switched on
-    imgui.Separator()
-    winxiOrganize.Controls(ui.Styles.FramePaddingSome[1])
-
-    imgui.PopStyleVar()
-end
-
-local function DrawConfig()
-    -- only while the window is showing: the constraint goes to whichever window is drawn next
-    if not options.showConfig[1] then
         return
     end
 
-    imgui.SetNextWindowSizeConstraints(configMinSize, configMaxSize)
-    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, ui.Styles.ItemSpacing)
-    winxiWindow.Full('xiframes Settings', options.showConfig, configFlags, DrawConfigContent, configStyle)
-    imgui.PopStyleVar()
-
-    if not options.showConfig[1] then
-        -- closed by its own button: what was set in it is kept
-        settings.save()
+    -- the player's own is hidden while solo if that is set, but not while there is an invitation to be seen
+    local count1, count2, count3 = party.Counts()
+    local waiting = notices.Invitation() ~= nil and saved.party.showInvites[1]
+    if (saved.party.hideWhenSolo[1] and (count1 > 1 or (waiting and count1 > 0)))
+    or (not saved.party.hideWhenSolo[1] and count1 > 0) then
+        DrawParty(1, false)
+    end
+    if count2 > 0 then
+        DrawParty(2, false)
+    end
+    if count3 > 0 then
+        DrawParty(3, false)
     end
 end
 
-local function UpdateTools()
-    for _, tool in ipairs(tools) do
-        if tool.UpdateSettings ~= nil then
-            tool.UpdateSettings(options.tools[tool.Name], options.globals)
+-- A target's window: its line, set as the party's are but for what is the line's own (more of the
+-- name, and the distance always, whatever is set for TP), and its debuffs under it if those are shown
+local targetKeys = { 'main', 'sub', 'tot' }
+local drawingKey, drawingEntity = nil, nil
+
+local function DrawTargetContent()
+    local showDebuffs = saved.target[drawingKey .. 'Debuffs'][1]
+    local style = options.Style(saved)
+    style.nameChars = target.NameChars
+    style.showTp = true
+    style.trimLast = not showDebuffs
+    frames.Draw(target.Line(drawingKey, drawingEntity), 'target', nil, style)
+
+    if showDebuffs then
+        debuffs.Draw(drawingEntity.ServerId)
+    end
+end
+
+-- Draws one of the target windows for the entity at index, if there is one (the client can hold an
+-- index for an entity it no longer knows about, so the entity is fetched and checked first). When there
+-- is none, the window goes on showing the entity it last showed for as long as it is fading out.
+local lastShown = { } -- key -> the index of the entity the window last showed
+
+local function DrawTarget(key, index)
+    local window = windows.List[key]
+    local entity = index ~= 0 and GetEntity(index) or nil
+    local wanted = entity ~= nil
+
+    if wanted then
+        lastShown[key] = index
+    elseif lastShown[key] and windows.Lingers(window) then
+        entity = GetEntity(lastShown[key])
+    end
+
+    if entity ~= nil then
+        drawingKey, drawingEntity = key, entity
+        windows.Draw(window, DrawTargetContent, wanted)
+    end
+end
+
+local function DrawTargets(sample)
+    -- filled with sample data, each window only if it is one that is switched on
+    if sample then
+        local shown = { main = saved.target.showMain[1], sub = saved.target.showSub[1], tot = saved.target.showTot[1] }
+        for _, key in ipairs(targetKeys) do
+            if shown[key] then
+                drawingKey, drawingEntity = key, target.Samples[key]
+                windows.Draw(windows.List[key], DrawTargetContent)
+            end
         end
+        return
     end
+
+    local main, sub, tot = target.Indexes(saved.target)
+    DrawTarget('main', main)
+    DrawTarget('sub', sub)
+    DrawTarget('tot', tot)
 end
 
-settings.register('settings', 'settings_update', function (s)
+-- Whether any target window shows debuffs: nothing is tracked unless one does
+local function ShowsDebuffs()
+    return saved.target.mainDebuffs[1] or saved.target.subDebuffs[1] or saved.target.totDebuffs[1]
+end
+
+-- another character's settings have been loaded, or these have been changed from outside
+settings.register('settings', 'settings_update', function(s)
     if s ~= nil then
-        options = s
+        saved = s
     end
-    ApplyGlobals()
+    UseSettings()
     settings.save()
-    UpdateTools()
-end)
-
-ashita.events.register('load', 'load_handler', function()
-    for _, tool in ipairs(tools) do
-        if tool.Load ~= nil then
-            tool.Load(options.tools[tool.Name], options.globals)
-        end
-    end
 end)
 
 ashita.events.register('unload', 'unload_handler', function()
@@ -373,34 +205,29 @@ end)
 
 ashita.events.register('d3d_present', 'd3d_present_handler', function()
     -- Every frame, cheaply: nothing happens unless the choice of theme or the settings table has changed
-    winxiTheme.Configure(options.globals.useSharedTheme, options.globals.theme)
+    winxiTheme.Configure(saved.useSharedTheme, saved.theme)
 
-    DrawConfig()
+    config.Draw(saved)
 
-    if winxiGame.IsHidden(options.globals.hide) then
+    if winxiGame.IsHidden(saved.hide) then
         return
     end
 
-    -- Organizing ends when the config window is closed. While it is on, each enabled window is drawn
-    -- filled with sample data, so that every one is there to be arranged.
-    if not options.showConfig[1] then
+    -- Organizing ends when the settings window is closed. While it is on, every window that is
+    -- switched on is drawn filled with sample data, so that each is there to be arranged.
+    if not saved.showConfig[1] then
         winxiOrganize.SetActive(false)
     end
     local organizing = winxiOrganize.IsActive()
     winxiOrganize.BeginFrame()
-    ui.UpdateFade(options.globals)
+    windows.UpdateFade()
 
-    for _, tool in ipairs(tools) do
-        -- only the tools that are enabled, whether as themselves or filled with sample data
-        -- and none that has faded right out: it would only be prepared and then not drawn
-        local toolOptions = options.tools[tool.Name]
-        if toolOptions.isEnabled[1] and not ui.IsFadedOut(tool.Name, options.globals) then
-            if organizing and tool.DrawSample ~= nil then
-                tool.DrawSample(toolOptions, options.globals)
-            else
-                tool.DrawMain(toolOptions, options.globals)
-            end
-        end
+    -- none that has faded right out: it would only be prepared and then not drawn
+    if saved.party.enabled[1] and not windows.IsFadedOut('party') then
+        DrawParties(organizing)
+    end
+    if saved.target.enabled[1] and not windows.IsFadedOut('target') then
+        DrawTargets(organizing)
     end
 
     winxiOrganize.EndFrame()
@@ -409,18 +236,20 @@ end)
 ashita.events.register('packet_in', 'packet_in_handler', function(e)
     packets.inbound.action.reset()
 
-    for _, tool in ipairs(tools) do
-        if tool.HandlePacket ~= nil and options.tools[tool.Name].isEnabled[1] then
-            tool.HandlePacket(e, options.tools[tool.Name], options.globals)
-        end
+    if saved.party.enabled[1] then
+        notices.HandlePacket(e)
+    end
+    if saved.target.enabled[1] and ShowsDebuffs() then
+        debuffs.HandlePacket(e)
+    end
+    if saved.pets.enabled[1] then
+        pets.HandlePacket(e)
     end
 end)
 
 ashita.events.register('packet_out', 'packet_out_handler', function(e)
-    for _, tool in ipairs(tools) do
-        if tool.HandlePacketOut ~= nil and options.tools[tool.Name].isEnabled[1] then
-            tool.HandlePacketOut(e, options.tools[tool.Name], options.globals)
-        end
+    if saved.party.enabled[1] then
+        notices.HandlePacketOut(e)
     end
 end)
 
@@ -435,5 +264,5 @@ ashita.events.register('command', 'command_handler', function(e)
     end
     e.blocked = true
 
-    options.showConfig[1] = not options.showConfig[1]
+    config.Toggle(saved)
 end)
