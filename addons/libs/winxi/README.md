@@ -14,8 +14,13 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
 | `winxi.controller` | Working an addon's windows with a controller (XInput, or DirectInput by make): taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
-| `winxi.icons` | Loading image files as textures and drawing them cheaply |
-| `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`) and a corner picker (`GrowFrom`) |
+| `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`), a corner picker (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`) |
+| `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
+| `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
+| `winxi.packets` | The packets addons send and read, set out once |
+| `winxi.debounce` | Running a function once things have gone quiet |
+| `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
+| `winxi.shell` | Everything an addon with one main window would otherwise write for itself: settings, the settings window, the command, the window's frame |
 
 ## A window
 
@@ -67,6 +72,12 @@ widgets.Fade(settings.Fade, SaveSettings);   -- in the settings window
 
 The fade settings are each addon's own, not shared like the theme. An addon with several windows can
 give `fade.Alpha()` to only some of them.
+
+Idle is standing still, unless the Moving setting is off: then moving about does not keep the windows
+up, and they fade on the move too once nothing else has kept them up. What else counts as not idle is
+each a setting: being engaged, having a target (a change of target brings the windows back as well),
+being below full HP, resting, and a change to the party list (someone joining, leaving or changing
+area).
 
 A window can also fade in as it appears and out as it goes:
 
@@ -265,7 +276,39 @@ The table is filled in by winxi the first time it is handed over, starting from 
 values, so switching the shared theme off changes nothing until something is changed. The addon only
 has to save and load it with the rest of its settings.
 
+## An addon in a few lines: the shell
+
+For an addon with one main window, `winxi.shell` does everything that is not the addon's own: the
+settings for each character, the theme, the rules for hiding, fading in and out, the window's place, a
+settings window with Settings and Appearance tabs, and the command.
+
+```lua
+local shell = require('winxi.shell');
+
+local app = shell.New({
+    defaults     = T{ isVisible = T{ true }, pos = T{ 100, 100 } },   -- the addon's own settings
+    window       = 'winxi.example',
+    configTitle  = 'Example Settings',
+    command      = '/example',                          -- alone: show or hide; 'config': the settings
+    help         = '/example shows or hides the window; /example config opens the settings.',
+    drawSettings = function(options) ... end,           -- the Settings tab, above the hiding rules
+});
+
+ashita.events.register('d3d_present', 'example_present', function()
+    if not app:BeginFrame() then return end             -- false while the windows should hide
+    app:Window(app.options.isVisible, Draw);            -- Draw(options) draws what the window holds
+end);
+```
+
+`app.options` is the settings table; read it from `app` each time, as it is another table after a change
+of character. Optional in the spec: `drawAppearance` (more for the Appearance tab's Addon section),
+`commands` (more verbs), `onSettings` (called when the settings are loaded or swapped) and `import` (a
+tool's settings to bring over from xitools, once). `shell.ControllerSettings(options, tooltip, between)`
+draws the controller settings an addon's Settings tab has. `inv` and `treas` are written this way.
+
 ## Converting an addon: checklist
+
+An addon with one main window can use `winxi.shell` (above), which does all of this. Otherwise:
 
 1. Draw its windows with `winxi.window`, or `winxi.style` pushes around its own `Begin`.
 2. Add the `UseSharedTheme` flag and `Theme` table to its settings, saved and loaded with the rest.
@@ -282,6 +325,13 @@ has to save and load it with the rest of its settings.
 
 Every option's name has each word capitalised ("Shadow Opacity", "Fade When Idle"), in winxi and in
 every addon's own settings.
+
+## Checks
+
+`tests/run.sh`, at the top of the project, loads `inv`, `treas` and parts of winxi against a stand-in for
+Ashita and prints what it finds: that they load, draw, answer their commands and take the controller as
+expected. It does not show that anything looks right or that the game agrees. Run it after changing
+winxi.
 
 ## Notes
 

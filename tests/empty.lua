@@ -1,0 +1,1 @@
+-- nothing to load: for checks that require what they test themselves

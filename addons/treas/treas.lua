@@ -14,14 +14,9 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 require('common')
 local bit = require('bit')
 local imgui = require('imgui')
-local settings = require('settings')
-local theme = require('winxi.theme')
 local style = require('winxi.style')
-local window = require('winxi.window')
 local widgets = require('winxi.widgets')
-local fade = require('winxi.fade')
-local game = require('winxi.game')
-local legacy = require('winxi.legacy')
+local shell = require('winxi.shell')
 local packets = require('winxi.packets')
 local controller = require('winxi.controller')
 local sound = require('winxi.sound')
@@ -30,8 +25,6 @@ local TextBaseWidth = imgui.CalcTextSize('A')
 local WeirdTimestamps = {}
 
 local gold = { 1.0, 215/255, 0.0, 1.0 }
-local itemSpacing = { 8, 4 }
-local framePadding = { 4, 2 }
 
 local function Say(text)
     print(('\30\81[treas]\30\01 %s'):format(text))
@@ -373,124 +366,21 @@ local function DrawTreasure(treasurePool)
     end
 end
 
--- The settings, kept for each character
+-- The settings, kept for each character. The shell adds its own: fading in and out, the rules for
+-- hiding, the theme.
 local defaults = T{
     isVisible = T{ true },
     showAllSlots = T{ false },
     pos = T{ 100, 100 },
-    fadeInOut = T{ true }, -- the window fades in as it is shown and out as it is hidden
     controller = T{ false }, -- experimental: work the window with a controller
     controllerSounds = T{ false }, -- sounds as the controller works the window
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
-    hide = T{ }, -- when the window gets out of the way: winxi.game's rules
-    useSharedTheme = true, -- whether the windows follow the theme shared with other winxi addons
-    theme = T{ }, -- this addon's own colours, padding and drop shadow, used when they do not
-    importedFromXitools = false, -- whether what xitools kept for its treas tool has been brought over
 }
 
-local options = settings.load(defaults)
-
--- The treasure pool was a tool of xitools, which kept its settings among its own. They are brought
--- over once for each character, the first time this addon is loaded with that character logged in.
-local importKeys = { 'isVisible', 'showAllSlots', 'pos' }
-
-local function ImportFromXitools()
-    -- not before the character is known: the settings then are nobody's
-    if options.importedFromXitools or not settings.logged_in then
-        return
-    end
-    options.importedFromXitools = true
-
-    if legacy.FromXitools('treas', options, importKeys) then
-        Say('Settings brought over from xitools.')
-    end
-    settings.save()
-end
-
--- Makes good whatever the settings lack, and brings xitools' over where that is still to do
-local function PrepareSettings()
-    if type(options.hide) ~= 'table' then
-        options.hide = T{ }
-    end
-    if type(options.theme) ~= 'table' then
-        options.theme = T{ }
-    end
-
-    ImportFromXitools()
-    game.CompleteHide(options.hide)
-
-    -- settings saved before the controller was added
-    for _, key in ipairs({ 'controller', 'controllerSounds' }) do
-        if type(options[key]) ~= 'table' then
-            options[key] = T{ false }
-        end
-    end
-end
-
-PrepareSettings()
-
--- The treasure window, drawn with winxi's theme. It is there only while there is treasure to show;
--- hidden by the player meanwhile, it goes on being drawn until it has faded out.
 local windowName = 'winxi.treas'
-local windowStyle = { alpha = 1 }
-local lingeringOpen = { true } -- stands in for the window's own switch while it fades out
-local currentPool = nil -- what the window shows this frame, for DrawWindow
+local controllerTooltip = 'Work the treasure pool with a controller.\nThe window does not take the controller by itself: /treas focus (from a macro) gives it the controller, and B gives it back.\nUp / down: move the highlight.  A: lot or pass on the highlighted item.  X (square): lot or pass on everything.\nOnly those buttons are kept from the game, and only while the window has the controller.'
 
-local function DrawWindow()
-    DrawTreasure(currentPool)
-
-    -- where the window is, kept in the settings
-    options.pos[1], options.pos[2] = imgui.GetWindowPos()
-end
-
-local function DrawTreasureWindow()
-    local treasurePool = GetTreasure(options)
-    if #treasurePool == 0 then
-        WeirdTimestamps = {}
-        -- nothing left to work: the controller goes back to the game
-        pad.focused = false
-        return
-    end
-
-    local wanted = options.isVisible[1]
-    local alpha = wanted and 1 or 0
-    if options.fadeInOut[1] then
-        alpha = fade.Presence(windowName, wanted)
-    end
-    if alpha <= 0.01 then
-        return
-    end
-
-    imgui.SetNextWindowPos(options.pos, ImGuiCond_FirstUseEver)
-
-    windowStyle.alpha = alpha
-    lingeringOpen[1] = true
-    currentPool = treasurePool
-
-    PadBeginFrame(options, treasurePool)
-    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing)
-    window.Full(windowName, wanted and options.isVisible or lingeringOpen, style.TitlelessFlags(), DrawWindow, windowStyle)
-    imgui.PopStyleVar()
-    PadEndFrame()
-end
-
--- The settings window, opened by /treas config
-local showConfig = { false }
-
-local function Save()
-    settings.save()
-end
-
-local appearanceHooks = {
-    onUseShared = function(useShared)
-        options.useSharedTheme = useShared
-        settings.save()
-    end,
-    onOwnChanged = Save,
-}
-
-local function DrawSettings()
-    widgets.BeginLabels('treas.settings')
+local function DrawSettings(options)
     widgets.Label('Visible')
     imgui.Checkbox('##treas.visible', options.isVisible)
     if imgui.IsItemHovered() then
@@ -509,133 +399,67 @@ local function DrawSettings()
     end
 
     widgets.Gap()
-    widgets.Label('Controller Navigation (Experimental)')
-    imgui.Checkbox('##treas.controller', options.controller)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Work the treasure pool with a controller.\nThe window does not take the controller by itself: /treas focus (from a macro) gives it the controller, and B gives it back.\nUp / down: move the highlight.  A: lot or pass on the highlighted item.  X (square): lot or pass on everything.\nOnly those buttons are kept from the game, and only while the window has the controller.')
-    end
-    if options.controller[1] then
-        widgets.Label('Controller Sounds')
-        imgui.Checkbox('##treas.controllerSounds', options.controllerSounds)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Plays a sound as the window takes the controller, the highlight moves, a menu opens, a choice is made or backed out of.')
-        end
+    shell.ControllerSettings(options, controllerTooltip)
+end
 
-        widgets.Label('Controller Type')
-        local current = controller.GetLayout()
-        local column = imgui.GetCursorPosX()
-        for index, layout in ipairs(controller.Layouts) do
-            if index > 1 then
-                -- one to a line, under the first
-                imgui.SetCursorPosX(column)
-            end
-            if imgui.RadioButton(('%s##treas.controllerType'):format(layout.label), current == layout.key) then
-                options.controllerType = layout.key
+-- The settings, the settings window, the command and the main window's frame are the shell's. The
+-- treasure pool was a tool of xitools, which kept its settings among its own: the shell brings them
+-- over once for each character, with xitools' theme and rules for hiding.
+local app = shell.New({
+    defaults = defaults,
+    window = windowName,
+    configTitle = 'Treasure Settings',
+    command = '/treas',
+    help = '/treas shows or hides the window; /treas config opens or closes the settings; /treas focus gives the window the controller.',
+    drawSettings = DrawSettings,
+    import = { tool = 'treas', keys = { 'isVisible', 'showAllSlots', 'pos' } },
+    onSettings = function(options)
+        -- settings saved before the controller was added
+        for _, key in ipairs({ 'controller', 'controllerSounds' }) do
+            if type(options[key]) ~= 'table' then
+                options[key] = T{ false }
             end
         end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('XInput is an Xbox controller, or one set to behave as one. DirectInput is anything else: pick the make whose buttons match.')
-        end
-    end
+    end,
+    commands = {
+        focus = function(options)
+            if not options.controller[1] then
+                Say('Controller Navigation is off: switch it on in /treas config.')
+            elseif pad.focused then
+                pad.focused = false
+            elseif os.clock() - pad.drawn > 0.25 or not options.isVisible[1] then
+                Say('There is no treasure window to work just now.')
+            else
+                pad.focused = true
+            end
+        end,
+    },
+})
 
-    widgets.Gap()
-    widgets.Hide(options.hide, Save)
+-- What the window shows this frame, for DrawWindow
+local currentPool = nil
+
+local function DrawWindow()
+    DrawTreasure(currentPool)
 end
-
--- The Theme and Window sections are winxi's; the Addon section is what is this addon's own
-local function DrawAppearance()
-    widgets.Appearance(appearanceHooks)
-
-    widgets.Header('Addon')
-    widgets.Label('Fade In And Out')
-    imgui.Checkbox('##treas.fadeInOut', options.fadeInOut)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once.')
-    end
-end
-
--- The settings window keeps the default padding, whatever the theme's: the padding slider must not
--- squeeze the window it is in
-local configStyle = { padding = theme.Defaults.Padding }
-local configFlags = bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings)
-
-local function DrawConfigContent()
-    imgui.PushStyleVar(ImGuiStyleVar_FramePadding, framePadding)
-    if imgui.BeginTabBar('##treas.config', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if imgui.BeginTabItem('Settings') then
-            DrawSettings()
-            imgui.EndTabItem()
-        end
-        if imgui.BeginTabItem('Appearance') then
-            DrawAppearance()
-            imgui.EndTabItem()
-        end
-        imgui.EndTabBar()
-    end
-    imgui.PopStyleVar()
-end
-
-local function DrawConfig()
-    if not showConfig[1] then
-        return
-    end
-
-    window.Full('Treasure Settings', showConfig, configFlags, DrawConfigContent, configStyle)
-    if not showConfig[1] then
-        -- closed by its own button: what was set in it is kept
-        settings.save()
-    end
-end
-
-ashita.events.register('unload', 'treas_unload', function()
-    settings.save()
-end)
-
--- Another character's settings have been loaded, or these have been changed from outside
-settings.register('settings', 'treas_settings_update', function(s)
-    if s ~= nil then
-        options = s
-    end
-    PrepareSettings()
-    settings.save()
-end)
-
-ashita.events.register('command', 'treas_command', function(e)
-    local args = e.command:args()
-    if #args == 0 or args[1]:lower() ~= '/treas' then
-        return
-    end
-    e.blocked = true
-
-    local verb = args[2] and args[2]:lower() or nil
-    if verb == nil then
-        options.isVisible[1] = not options.isVisible[1]
-    elseif verb == 'config' then
-        showConfig[1] = not showConfig[1]
-    elseif verb == 'focus' then
-        if not options.controller[1] then
-            Say('Controller Navigation is off: switch it on in /treas config.')
-        elseif pad.focused then
-            pad.focused = false
-        elseif os.clock() - pad.drawn > 0.25 or not options.isVisible[1] then
-            Say('There is no treasure window to work just now.')
-        else
-            pad.focused = true
-        end
-    else
-        Say('/treas shows or hides the window; /treas config opens or closes the settings; /treas focus gives the window the controller.')
-    end
-end)
 
 ashita.events.register('d3d_present', 'treas_present', function()
-    -- every frame, cheaply: nothing happens unless the choice of theme or the settings table has changed
-    theme.Configure(options.useSharedTheme, options.theme)
+    if not app:BeginFrame() then
+        return
+    end
+    local options = app.options
 
-    DrawConfig()
-
-    if game.IsHidden(options.hide) then
+    -- the window is there only while there is treasure to show
+    local treasurePool = GetTreasure(options)
+    if #treasurePool == 0 then
+        WeirdTimestamps = {}
+        -- nothing left to work: the controller goes back to the game
+        pad.focused = false
         return
     end
 
-    DrawTreasureWindow()
+    currentPool = treasurePool
+    PadBeginFrame(options, treasurePool)
+    app:Window(options.isVisible, DrawWindow)
+    PadEndFrame()
 end)

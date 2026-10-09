@@ -17,14 +17,9 @@ local bit = require('bit')
 local ffi = require('ffi')
 local d3d8 = require('d3d8')
 local imgui = require('imgui')
-local settings = require('settings')
-local theme = require('winxi.theme')
-local style = require('winxi.style')
-local window = require('winxi.window')
 local widgets = require('winxi.widgets')
-local fade = require('winxi.fade')
 local game = require('winxi.game')
-local legacy = require('winxi.legacy')
+local shell = require('winxi.shell')
 local packets = require('winxi.packets')
 local debounce = require('winxi.debounce')
 local controller = require('winxi.controller')
@@ -33,7 +28,6 @@ local sound = require('winxi.sound')
 -- Colours and spacing that were xitools' own
 local red = { 0.95, 0.20, 0.20, 1.0 }
 local yellow = { 1.00, 1.00, 0.00, 1.0 }
-local itemSpacing = { 8, 4 }
 local framePadding = { 4, 2 }
 
 local function Say(text)
@@ -1628,11 +1622,8 @@ local function DrawInventoryUnified()
     imgui.PopStyleVar()
 end
 
--- What goes in the window. The settings are kept to one side for it, so that it need not be made
--- afresh every frame.
-local drawOptions = nil
-
-local function DrawWindow()
+-- What goes in the window
+local function DrawWindow(drawOptions)
     -- once for the frame, inside the window: they take in its fade
     stackMain, stackShadow = imgui.GetColorU32(stackWhite), imgui.GetColorU32(stackBlack)
 
@@ -1642,11 +1633,10 @@ local function DrawWindow()
         DrawInventory()
     end
 
-    -- where the window is: kept in the settings, and for the box that goes under it
+    -- where the window is, for the box that goes under it
     local _, height = imgui.GetWindowSize()
     pad.windowX, pad.windowY = imgui.GetWindowPos()
     pad.windowHeight = height
-    drawOptions.pos[1], drawOptions.pos[2] = pad.windowX, pad.windowY
 
     -- what the buttons do while sorting by hand, at the foot of the window
     if pad.swap ~= nil then
@@ -1663,113 +1653,59 @@ local function DrawWindow()
     end
 end
 
--- The settings, kept for each character
+-- The settings, kept for each character. The shell adds its own: fading in and out, the rules for
+-- hiding, the theme.
 local defaults = T{
     isVisible = T{ true },
     isUnified = T{ true },
     showEmptySlots = T{ false },
     maxHeight = T{ 432 },
     pos = T{ 256, 256 },
-    fadeInOut = T{ true }, -- the window fades in as it is shown and out as it is hidden
     controller = T{ false }, -- experimental: work the window with a controller
     controllerSounds = T{ false }, -- sounds as the controller works the window
     controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
-    hide = T{ }, -- when the window gets out of the way: winxi.game's rules
-    useSharedTheme = true, -- whether the windows follow the theme shared with other winxi addons
-    theme = T{ }, -- this addon's own colours, padding and drop shadow, used when they do not
-    importedFromXitools = false, -- whether what xitools kept for its inv tool has been brought over
     -- manualOrder: the player's own order of items, once they have made one
 }
 
-local options = settings.load(defaults)
-
--- The inventory was a tool of xitools, which kept its settings among its own. They are brought over
--- once for each character, the first time this addon is loaded with that character logged in: what
--- the tool was set to, where its window was, the player's own order of items, and from xitools as a
--- whole its theme and its rules for hiding.
-local importKeys = {
-    'isVisible', 'isUnified', 'showEmptySlots', 'maxHeight', 'pos',
-    'controller', 'controllerSounds', 'controllerInfo', 'controllerInfoPlace', 'controllerType',
-    'manualOrder',
-}
-
-local function ImportFromXitools()
-    -- not before the character is known: the settings then are nobody's
-    if options.importedFromXitools or not settings.logged_in then
-        return
-    end
-    options.importedFromXitools = true
-
-    if legacy.FromXitools('inv', options, importKeys) then
-        Say('Settings brought over from xitools.')
-    end
-    settings.save()
-end
-
--- Makes good whatever the settings lack, and brings xitools' over where that is still to do
-local function PrepareSettings()
-    if type(options.hide) ~= 'table' then
-        options.hide = T{ }
-    end
-    if type(options.theme) ~= 'table' then
-        options.theme = T{ }
-    end
-
-    ImportFromXitools()
-    game.CompleteHide(options.hide)
-    manualOrders = options.manualOrder
-end
-
-PrepareSettings()
-
--- The inventory window, drawn with winxi's theme. Hidden, it goes on being drawn until it has faded out.
 local windowName = 'winxi.inv'
-local windowStyle = { alpha = 1 }
-local windowConstraintMin, windowConstraintMax = { -1, 0 }, { -1, 432 }
-local lingeringOpen = { true } -- stands in for the window's own switch while it fades out
+local controllerTooltip = 'Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv closes it, /inv focus gives it the controller again).\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv, from a macro.'
 
-local function DrawInventoryWindow()
-    local wanted = options.isVisible[1]
-    local alpha = wanted and 1 or 0
-    if options.fadeInOut[1] then
-        alpha = fade.Presence(windowName, wanted)
+-- The inventory's own controller settings, between the sounds and the kind of controller
+local function DrawControllerSettings(options)
+    widgets.Label('Controller Item Info')
+    local verbose = options.controllerInfo == 'verbose'
+    local infoColumn = imgui.GetCursorPosX()
+    if imgui.RadioButton('Simple##inv.controllerInfo', not verbose) then
+        options.controllerInfo = 'simple'
     end
-    if alpha <= 0.01 then
-        return
+    imgui.SetCursorPosX(infoColumn)
+    if imgui.RadioButton('Verbose##inv.controllerInfo', verbose) then
+        options.controllerInfo = 'verbose'
+    end
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('What is said of the highlighted item.\nSimple: its name, in a box under it.  Verbose: its name, stats and description; for gear, its slot, races, level and jobs as well.')
     end
 
-    imgui.SetNextWindowPos(options.pos, ImGuiCond_FirstUseEver)
-    windowConstraintMax[2] = options.maxHeight[1]
-    imgui.SetNextWindowSizeConstraints(windowConstraintMin, windowConstraintMax)
-
-    windowStyle.alpha = alpha
-    lingeringOpen[1] = true
-    drawOptions = options
-
-    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing)
-    window.Full(windowName, wanted and options.isVisible or lingeringOpen, style.TitlelessFlags(), DrawWindow, windowStyle)
-    imgui.PopStyleVar()
+    if verbose then
+        widgets.Label('Verbose Info Position')
+        local underItem = options.controllerInfoPlace == 'item'
+        local placeColumn = imgui.GetCursorPosX()
+        if imgui.RadioButton('Below Window##inv.controllerInfoPlace', not underItem) then
+            options.controllerInfoPlace = 'window'
+        end
+        imgui.SetCursorPosX(placeColumn)
+        if imgui.RadioButton('Under Item##inv.controllerInfoPlace', underItem) then
+            options.controllerInfoPlace = 'item'
+        end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('Where the verbose box goes: under the inventory window, in line with its left edge, or under the highlighted item.')
+        end
+    end
 end
 
--- The settings window, opened by /inv config
-local showConfig = { false }
-
-local function Save()
-    settings.save()
-end
-
-local appearanceHooks = {
-    onUseShared = function(useShared)
-        options.useSharedTheme = useShared
-        settings.save()
-    end,
-    onOwnChanged = Save,
-}
-
-local function DrawSettings()
-    widgets.BeginLabels('inv.settings')
+local function DrawSettings(options)
     widgets.Label('Visible')
     imgui.Checkbox('##inv.visible', options.isVisible)
     widgets.Label('Position')
@@ -1789,160 +1725,48 @@ local function DrawSettings()
     end
 
     widgets.Gap()
-    widgets.Label('Controller Navigation (Experimental)')
-    imgui.Checkbox('##inv.controller', options.controller)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv closes it, /inv focus gives it the controller again).\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv, from a macro.')
-    end
-    if options.controller[1] then
-        widgets.Label('Controller Sounds')
-        imgui.Checkbox('##inv.controllerSounds', options.controllerSounds)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Plays a sound as the window opens, the highlight moves, a menu opens, a choice is made or backed out of.\nThe sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.')
-        end
-
-        widgets.Label('Controller Item Info')
-        local verbose = options.controllerInfo == 'verbose'
-        local infoColumn = imgui.GetCursorPosX()
-        if imgui.RadioButton('Simple##inv.controllerInfo', not verbose) then
-            options.controllerInfo = 'simple'
-        end
-        imgui.SetCursorPosX(infoColumn)
-        if imgui.RadioButton('Verbose##inv.controllerInfo', verbose) then
-            options.controllerInfo = 'verbose'
-        end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('What is said of the highlighted item.\nSimple: its name, in a box under it.  Verbose: its name, stats and description; for gear, its slot, races, level and jobs as well.')
-        end
-
-        if verbose then
-            widgets.Label('Verbose Info Position')
-            local underItem = options.controllerInfoPlace == 'item'
-            local placeColumn = imgui.GetCursorPosX()
-            if imgui.RadioButton('Below Window##inv.controllerInfoPlace', not underItem) then
-                options.controllerInfoPlace = 'window'
-            end
-            imgui.SetCursorPosX(placeColumn)
-            if imgui.RadioButton('Under Item##inv.controllerInfoPlace', underItem) then
-                options.controllerInfoPlace = 'item'
-            end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('Where the verbose box goes: under the inventory window, in line with its left edge, or under the highlighted item.')
-            end
-        end
-
-        widgets.Label('Controller Type')
-        local current = controller.GetLayout()
-        local column = imgui.GetCursorPosX()
-        for index, layout in ipairs(controller.Layouts) do
-            if index > 1 then
-                -- one to a line, under the first
-                imgui.SetCursorPosX(column)
-            end
-            if imgui.RadioButton(('%s##inv.controllerType'):format(layout.label), current == layout.key) then
-                options.controllerType = layout.key
-            end
-        end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('XInput is an Xbox controller, or one set to behave as one. DirectInput is anything else: pick the make whose buttons match.\nOn a DirectInput controller the buttons are read by position: the bottom face button is A, the right one B.')
-        end
-    end
-
-    widgets.Gap()
-    widgets.Hide(options.hide, Save)
+    shell.ControllerSettings(options, controllerTooltip, DrawControllerSettings)
 end
 
--- The Theme and Window sections are winxi's; the Addon section is what is this addon's own
-local function DrawAppearance()
-    widgets.Appearance(appearanceHooks)
-
-    widgets.Header('Addon')
-    widgets.Label('Fade In And Out')
-    imgui.Checkbox('##inv.fadeInOut', options.fadeInOut)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once.')
-    end
-end
-
--- The settings window keeps the default padding, whatever the theme's: the padding slider must not
--- squeeze the window it is in
-local configStyle = { padding = theme.Defaults.Padding }
-local configFlags = bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings)
-
-local function DrawConfigContent()
-    imgui.PushStyleVar(ImGuiStyleVar_FramePadding, framePadding)
-    if imgui.BeginTabBar('##inv.config', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if imgui.BeginTabItem('Settings') then
-            DrawSettings()
-            imgui.EndTabItem()
+-- The settings, the settings window, the command and the main window's frame are the shell's. The
+-- inventory was a tool of xitools, which kept its settings among its own: the shell brings them over
+-- once for each character, with xitools' theme and rules for hiding.
+local app = shell.New({
+    defaults = defaults,
+    window = windowName,
+    configTitle = 'Inventory Settings',
+    command = '/inv',
+    help = '/inv shows or hides the window; /inv config opens or closes the settings; /inv focus gives the window the controller, or takes it away.',
+    drawSettings = DrawSettings,
+    import = {
+        tool = 'inv',
+        keys = {
+            'isVisible', 'isUnified', 'showEmptySlots', 'maxHeight', 'pos',
+            'controller', 'controllerSounds', 'controllerInfo', 'controllerInfoPlace', 'controllerType',
+            'manualOrder',
+        },
+    },
+    onSettings = function(options)
+        -- the player's own order is part of the settings, which may be another character's now
+        manualOrders = options.manualOrder
+        if GetPlayerEntity() ~= nil then
+            UpdateInventories()
         end
-        if imgui.BeginTabItem('Appearance') then
-            DrawAppearance()
-            imgui.EndTabItem()
-        end
-        imgui.EndTabBar()
-    end
-    imgui.PopStyleVar()
-end
+    end,
+    commands = {
+        focus = function(options)
+            if not options.controller[1] then
+                Say('Controller Navigation is off: switch it on in /inv config.')
+            elseif not options.isVisible[1] then
+                Say('The window is closed: /inv opens it.')
+            else
+                pad.focused = not pad.focused
+            end
+        end,
+    },
+})
 
-local function DrawConfig()
-    if not showConfig[1] then
-        return
-    end
-
-    window.Full('Inventory Settings', showConfig, configFlags, DrawConfigContent, configStyle)
-    if not showConfig[1] then
-        -- closed by its own button: what was set in it is kept
-        settings.save()
-    end
-end
-
-ashita.events.register('load', 'inv_load', function()
-    if GetPlayerEntity() ~= nil then
-        UpdateInventories()
-    end
-end)
-
-ashita.events.register('unload', 'inv_unload', function()
-    settings.save()
-end)
-
--- Another character's settings have been loaded, or these have been changed from outside
-settings.register('settings', 'inv_settings_update', function(s)
-    if s ~= nil then
-        options = s
-    end
-    PrepareSettings()
-    settings.save()
-    if GetPlayerEntity() ~= nil then
-        UpdateInventories()
-    end
-end)
-
-ashita.events.register('command', 'inv_command', function(e)
-    local args = e.command:args()
-    if #args == 0 or args[1]:lower() ~= '/inv' then
-        return
-    end
-    e.blocked = true
-
-    local verb = args[2] and args[2]:lower() or nil
-    if verb == nil then
-        options.isVisible[1] = not options.isVisible[1]
-    elseif verb == 'config' then
-        showConfig[1] = not showConfig[1]
-    elseif verb == 'focus' then
-        if not options.controller[1] then
-            Say('Controller Navigation is off: switch it on in /inv config.')
-        elseif not options.isVisible[1] then
-            Say('The window is closed: /inv opens it.')
-        else
-            pad.focused = not pad.focused
-        end
-    else
-        Say('/inv shows or hides the window; /inv config opens or closes the settings; /inv focus gives the window the controller, or takes it away.')
-    end
-end)
+local windowExtra = { constraints = { { -1, 0 }, { -1, 432 } } }
 
 -- What is in the bags has changed: the lists are made again, once the burst of packets is over
 ashita.events.register('packet_in', 'inv_packet_in', function(e)
@@ -1956,24 +1780,21 @@ ashita.events.register('packet_in', 'inv_packet_in', function(e)
 end)
 
 ashita.events.register('d3d_present', 'inv_present', function()
-    -- every frame, cheaply: nothing happens unless the choice of theme or the settings table has changed
-    theme.Configure(options.useSharedTheme, options.theme)
-
-    DrawConfig()
-
-    if game.IsHidden(options.hide) then
+    if not app:BeginFrame() then
         return
     end
+    local options = app.options
 
-    -- the player's own order is part of the settings, which can be swapped for another character's
+    -- the player's own order, changed by sorting by hand
     if options.manualOrder ~= manualOrders then
         manualOrders = options.manualOrder
         UpdateInventories()
     end
 
     showEmptySlots = options.showEmptySlots[1] and true or false
+    windowExtra.constraints[2][2] = options.maxHeight[1]
 
     PadBeginFrame(options)
-    DrawInventoryWindow()
+    app:Window(options.isVisible, DrawWindow, windowExtra)
     PadEndFrame()
 end)
