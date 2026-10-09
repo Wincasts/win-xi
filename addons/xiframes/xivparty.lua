@@ -5,7 +5,7 @@
 -- border, padding and shadow, is the theme's.
 --
 -- A member is a line: the name, an HP bar and a smaller MP bar with their figures, and TP as a figure
--- alone. Each bar has a soft shadow under it, which XivParty's do not, and simply shows its value:
+-- alone, which pulses in blue at 1000 and over. Each bar has a soft shadow under it, which XivParty's do not, and simply shows its value:
 -- XivParty's glow over a change is not here. The member targeted is marked as in the party window's own view: ">> " before the name, both
 -- in blue, and "> " in green for one a sub-target or the party cursor is on. A small mark sits under
 -- the name of the party's leader, and the buffs of a member of the player's own party run leftwards
@@ -69,7 +69,12 @@ local black = { 0, 0, 0, 1 }
 local hpYellow = Hex('F3F37C') -- an HP figure below 75%
 local hpOrange = Hex('F8BA80') -- below 50%
 local hpRed = Hex('FC8182')    -- below 25%
-local tpFull = Hex('50B4FA')   -- a TP figure at 1000 and over
+-- A TP figure at 1000 and over pulses between a light blue and a deeper one, so that TP that can be
+-- used is noticed: there and back once every tpPulsePeriod seconds
+local tpFull = Hex('50B4FA')
+local tpFullLight = Hex('C4E6FF')
+local tpPulsePeriod = 1.2
+local tpPulse = { 0, 0, 0, 1 } -- the colour it is this frame
 local noMpGrey = { 0.55, 0.55, 0.55, 1 } -- the MP bar of a member with no MP to have: grey, and full
 
 -- The images of a bar: a back, the fill that is as long as the bar is full (it starts fillX across
@@ -359,7 +364,7 @@ local function DrawFigure(place, member, kept, fontSize)
                 color = hpYellow
             end
         elseif kind == 'tp' and amount >= 1000 and not member.tpText then
-            color = tpFull
+            color = tpPulse
         end
     end
 
@@ -440,6 +445,14 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     nameChars = settings.nameChars
     local showMp, showTp = settings.showMp ~= false, settings.showTp ~= false
     textColor = theme.Get().TextColor
+
+    -- where the pulse of a TP figure at 1000 and over has got to: 0 at the light blue, 1 at the deeper
+    -- one, moving smoothly from one to the other and back
+    local phase = (os.clock() % tpPulsePeriod) / tpPulsePeriod
+    local blend = 0.5 - 0.5 * math.cos(phase * 2 * math.pi)
+    for channel = 1, 3 do
+        tpPulse[channel] = tpFullLight[channel] + (tpFull[channel] - tpFullLight[channel]) * blend
+    end
 
     -- once a frame, whichever list is drawn first: the others are drawn a moment later in the same one
     local now = os.clock()
