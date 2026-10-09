@@ -1,27 +1,35 @@
 # xiframes
-party, target and pet frames in the style of the Windower addon
-[XivParty](https://github.com/Tylas11/XivParty)'s compact layout, in winxi's themed windows. It is
-xilite with everything else taken out: there is no `me`, and no other way of drawing the frames.
+party, target and pet frames in winxi's themed windows, with bars and a layout after the Windower
+addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
 
-- `us` displays the party and the other two alliance parties: a line a member with the name, an HP
-  bar and a smaller MP bar with their values, and TP as a value. The member targeted has `>>` before
-  their name, in blue. Your own party's list grows upwards, and has its buffs running leftwards from
-  the window.
-  An envelope beside the window marks a party or alliance invite waiting for an answer, and a
-  chest marks anything in the treasure pool.
-- `tgt` displays your target, sub-target and target of target, each as a line of the same kind: the
-  name, the HP bar with its percentage, and the distance.
-- `pet` lists your pet, and your party members' pets, under your party below a line. It has no
-  window of its own.
-
-The size, the text sizes, where the values sit and the outline are set on the `us` tab,
-for all three.
+- **Party**: your party and the other two alliance parties. A member is a line: the name, an HP bar
+  and a smaller MP bar with their values, and TP as a value. The member targeted has `>>` before
+  their name, in blue; a leader has a circle before theirs. Your own party's list grows upwards, and
+  has its buffs running leftwards from the window. An envelope beside the window marks a party or
+  alliance invite waiting for an answer, and a chest marks anything in the treasure pool.
+- **Target**: your target, sub-target and target of target, each a line of the same kind: the name,
+  the HP bar, the distance and the HP percentage, with the enemy's debuffs under it if wanted.
+- **Pets**: your pet, and your party members' pets, listed under your party below a line.
 
 ## usage
-`/xiframes` (or `/xif`) will bring up the config menu
+`/xiframes` (or `/xif`) opens the settings. Its Style tab sets how every frame is drawn (sizes,
+where the values sit, the outline, the bookends); Party, Target and Pets have what is each one's
+own. Organize, at the foot of the window, fills the frames with sample data to drag into place.
 
-The first time a character loads it, their settings for these frames are brought over from xilite:
-where each window is, what it shows, how the lists are drawn, what is linked to what, and the
-theme, fading and hiding rules. After that the two keep their settings apart.
+## the code
+| file | what it does |
+|---|---|
+| `xiframes.lua` | puts the rest together: what goes in which window each frame, which packets go where |
+| `party.lua`, `pets.lua`, `target.lua` | read the game, and hand back lists of lines |
+| `frames.lua` | draws a list of lines: the bars, names and values |
+| `notices.lua` | invitations and treasure waiting, and their icons |
+| `debuffs.lua` | what is on each enemy, from the actions the server reports |
+| `windows.lua` | the windows the lists are drawn in: themed, arranged, fading, held by a corner |
+| `options.lua` | the settings, each an entry in a list: defaults and the settings tabs come from it |
+| `config.lua` | the settings window |
+| `draw.lua`, `colors.lua`, `game.lua`, `packets.lua` | drawing on a draw list, the colours that mean something, small things asked of the game, and the packets read |
+
+`tests/run.sh` loads the addon against a stand-in for Ashita, and compares what it draws, call for
+call, with a kept copy.
 
 The bar images are XivParty's, in `assets/xivparty` with its licence. Needs `libs/winxi`.

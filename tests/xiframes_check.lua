@@ -1,23 +1,24 @@
--- xiframes: loads, brings over from xilite what it has a setting for, draws its frames, answers its command
+-- xiframes: loads, brings old settings up to date, draws its frames, marks what is waiting, answers its command
 H.load()
 local o = H.options()
-local us, tgt, pet = o.tools.us, o.tools.tgt, o.tools.pet
-H.print('imported', o.importedFromXilite, '| said:', H.printed[#H.printed])
-H.print('party: scale', us.xivScale[1], 'name size', us.xivNameSize[1], 'TP values', us.xivShowTp[1], 'HP offset', us.xivHpOffset[1], us.xivHpOffset[2],
-    '| hide when solo', us.hideWhenSolo[1])
-H.print('party window: named', us.alliance1.name, 'at', us.alliance1.pos[1], us.alliance1.pos[2], 'corner', us.alliance1.corner[1], us.alliance1.corner[2])
-H.print('left behind: cast bar', us.showCastbar == nil, '| style switch', us.xivParty == nil, '| compact', us.alliance1.isCompact == nil and tgt.compact == nil,
-    '| me', o.tools.me == nil, '| pet window', pet.pos == nil and pet.name == nil)
-H.print('target: named', tgt.mainWindow.name, 'at', tgt.mainWindow.pos[1], 'debuffs', tgt.mainWindow.showStatus[1], '| pet: party pets', pet.showParty[1])
-H.print('globals: clickthrough', o.globals.isClickThru[1], '| own theme', o.globals.useSharedTheme == false, '| hide chat', o.globals.hide.UnderChat,
-    '| fade', o.globals.fade.Enabled, 'us fades', o.globals.fade.tools.us[1], '| no fade for pet or me', o.globals.fade.tools.pet == nil and o.globals.fade.tools.me == nil)
-H.print('links kept', #o.globals.links, o.globals.links[1].child, o.globals.links[1].side, o.globals.links[1].parent)
+H.print('settings by section', o.style ~= nil and o.party ~= nil and o.target ~= nil and o.pets ~= nil, '| nothing of the old layout', o.tools == nil and o.globals == nil,
+    '| scale', o.style.scale[1], '| party at', o.party.pos1[1], o.party.pos1[2], '| icons beside', o.party.iconCorner)
+
+-- a character's settings from before they were set out by section: what was set is carried over
+local options = require('options')
+local old = options.Complete(dofile('tests/fixtures/xiframes_v1_settings.lua'))
+H.print('old settings: scale', old.style.scale[1], 'name size', old.style.nameSize[1], 'value size', old.style.valueSize[1], 'buff size', old.style.buffSize[1],
+    '| HP offset', old.style.hpOffset[1], old.style.hpOffset[2], 'TP offset', old.style.tpOffset[1], old.style.tpOffset[2])
+H.print('old settings: party at', old.party.pos1[1], old.party.pos1[2], 'held at', old.party.corner1 and old.party.corner1[2], '| icon offset', old.party.iconOffset[1], old.party.iconOffset[2],
+    '| target at', old.target.mainPos[1], old.target.mainPos[2], '| links', #old.links, old.links[2].child, old.links[2].side, old.links[2].parent)
+H.print('old settings: fade', old.fade.Enabled, 'after', old.fade.Delay, '| party fades', old.fade.windows.party and old.fade.windows.party[1], '| hide under map', old.hide.UnderMap,
+    '| shared theme', old.useSharedTheme, '| the old tables gone', old.tools == nil and old.globals == nil and old.importedFromXilite == nil)
 
 H.frames(3); H.print('loading: windows begun', H.calls.Begin or 0)
 
 -- in game, everyone with a pet and something targeted: the memory here answers 1 to whatever it is asked
 local anything
-local managers = { GetParty = true, GetPlayer = true, GetEntity = true, GetTarget = true, GetRecast = true, GetCastBar = true, GetInventory = true }
+local managers = { GetParty = true, GetPlayer = true, GetEntity = true, GetTarget = true, GetRecast = true, GetCastBar = true }
 anything = setmetatable({}, { __index = function(_, k) return function()
     if managers[k] then return anything end
     if k:match('Name$') then return 'Tester' end
@@ -34,27 +35,11 @@ GetEntity = function(index)
     return { Name = 'Greater Colibri', Distance = 64, HPPercent = 75, ServerId = 7, PetTargetIndex = 99, TargetedIndex = 0 }
 end
 GetPlayerEntity = function() return { Name = 'Tester', HPPercent = 100, Distance = 0, ServerId = 1, TargetIndex = 1 } end
-us.hideWhenSolo[1] = false
+o.party.showTreasure[1] = false
 
 local ok, problem = pcall(function() H.packet(0x00A); H.frames(4) end)
 H.print('in game: frames ran', ok, ok and '' or problem, '| windows begun', H.calls.Begin or 0, '| lists given room', (H.calls.Dummy or 0) > 0,
-    '| a line over the pets', (H.calls.Separator or 0) > 0, '| progress bars', H.calls.ProgressBar or 0)
-
--- the last line in a window is only as tall as what is on it: the pets end the party's window, and the
--- last of them, another member's with an HP bar alone, does not fill a row
-local imgui = require('imgui')
-local rooms = {}
-local realDummy = imgui.Dummy
-rawset(imgui, 'Dummy', function(size) rooms[#rooms + 1] = size[2] return realDummy(size) end)
-H.frames(1)
-rawset(imgui, 'Dummy', nil)
-local row = 32 * 1.2 * us.xivScale[1] / 100
-local whole, short = 0, 0
-for _, height in ipairs(rooms) do
-    local over = height / row - math.floor(height / row + 0.001)
-    if over > 0.02 then short = short + 1 else whole = whole + 1 end
-end
-H.print('lists a frame', #rooms, '| ending in a short line', short, '| in whole rows', whole)
+    '| a line over the pets', (H.calls.Separator or 0) > 0)
 
 -- a leader has a circle in front of their name: here everyone leads their party and the alliance, so two each
 rawset(anything, 'GetMemberFlagMask', function() return 12 end)
@@ -63,33 +48,37 @@ ok, problem = pcall(H.frames, 5)
 H.print('leaders: frames ran', ok, ok and '' or problem, '| circles drawn', (H.calls['draw.AddCircleFilled'] or 0) > circles)
 rawset(anything, 'GetMemberFlagMask', nil)
 
--- an invitation: marked above the party's window until it is answered, and the window shows for it while solo
-local function invitation(kind) return ('\0'):rep(0x0B) .. string.char(kind) .. 'Inviter' .. ('\0'):rep(9) .. ('\0'):rep(4) end
+-- an invitation: marked beside the party's window until it is answered
+local function invitation(kind) return ('\0'):rep(0x0B) .. string.char(kind) .. ('\0'):rep(20) end
 local realUnpack = struct.unpack
 struct.unpack = function(format, data, at)
-    if format == 'c16' then return data:sub(at, at + 15) elseif format == 'B' and #data > 0x0B then return data:byte(at) end
+    if format == 'B' and #data > 0x0B then return data:byte(at) end
     return realUnpack(format, data, at)
 end
-us.showTreasure[1] = false -- the envelope alone, first
 local function drawn() local before = H.calls['draw.AddRectFilled'] or 0; H.frames(1); return (H.calls['draw.AddRectFilled'] or 0) > before end
+o.style.bookends[1] = false -- the bookends are drawn with the same call: without them, only an icon is
 H.print('no invitation: no mark', drawn() == false)
 H.packetData(0x0DC, invitation(0)); H.print('a party invite: marked', drawn())
 H.packetOut(0x074); H.print('answered: gone', drawn() == false)
 H.packetData(0x0DC, invitation(5)); H.print('an alliance invite: marked', drawn())
 H.packet(0x00A); H.print('a change of area: gone', drawn() == false)
 struct.unpack = realUnpack
+
 -- the treasure pool: a chest while there is something in it. It is looked at twice a second.
-us.showTreasure[1] = true
+o.party.showTreasure[1] = true
 H.frames(20); H.print('an empty pool: no chest', drawn() == false)
 H.pool(2); H.frames(20); H.print('two items in the pool: a chest', drawn())
 H.pool(0); H.frames(20); H.print('emptied: gone', drawn() == false)
+o.style.bookends[1] = true
 
 -- the settings, tab by tab: drawn directly, as the harness shows only a window's first tab
-for _, name in ipairs({ 'us', 'tgt', 'pet' }) do
-    require('imgui').BeginTabBar('check')
-    ok, problem = pcall(require(name).DrawConfig, o.tools[name], o.globals)
-    H.print(name, 'settings draw', ok, ok and '' or problem)
+local config = require('config')
+local sliders = H.calls.SliderInt or 0
+for _, tab in ipairs(config.Tabs) do
+    ok, problem = pcall(tab.draw, o)
+    H.print(tab.name, 'tab draws', ok, ok and '' or problem)
 end
+H.print('sliders in the tabs', (H.calls.SliderInt or 0) - sliders)
 
 local before = H.calls.Begin or 0
 H.print('/xiframes kept from the game', H.command('/xiframes'), '| settings showing', o.showConfig[1]); H.frames(1)

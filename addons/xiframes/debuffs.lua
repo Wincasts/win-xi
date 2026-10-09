@@ -1,12 +1,16 @@
+-- debuffs: which of the debuffs worth knowing about are on each enemy, worked out from the actions
+-- and messages the server sends, and a row of letters to show them under a target.
+--
+--     debuffs.HandlePacket(e)     every packet in goes by this while debuffs are shown anywhere
+--     debuffs.Draw(serverId)      the row for one enemy, in the window being drawn
+--
+-- What is kept is when each debuff runs out, by enemy. It is forgotten on a change of area.
 require('common')
-local bit = require('bit')
 local imgui = require('imgui')
-local ui = require('ui')
-local packets = require('utils/packets')
+local packets = require('packets')
+local colors = require('colors')
 
--- A target is a line as the party list's are, set as the party's is
-local xivparty = require('xivparty')
-local us = require('us')
+local debuffs = { }
 
 local StatusType = {
     -- standard fare
@@ -550,21 +554,21 @@ end
 
 local function GetThrenodyColor(element)
     if element == 'light' then
-        return ui.Colors.StatusWhite
+        return colors.StatusWhite
     elseif element == 'dark' then
-        return ui.Colors.StatusBlack
+        return colors.StatusBlack
     elseif element == 'fire' then
-        return ui.Colors.StatusRed
+        return colors.StatusRed
     elseif element == 'ice' then
-        return ui.Colors.StatusCyan
+        return colors.StatusCyan
     elseif element == 'wind' then
-        return ui.Colors.StatusGreen
+        return colors.StatusGreen
     elseif element == 'earth' then
-        return ui.Colors.StatusBrown
+        return colors.StatusBrown
     elseif element == 'lightning' then
-        return ui.Colors.StatusYellow
+        return colors.StatusYellow
     elseif element == 'water' then
-        return ui.Colors.StatusBlue
+        return colors.StatusBlue
     end
 end
 
@@ -669,15 +673,6 @@ local function HandleBasic(debuffs, basic)
     end
 end
 
--- The lowest bit of an entity's spawn flags is set for a player character, and for nothing else
-local spawnFlagPlayer = 0x01
-
----@param entity Entity
----@return boolean
-local function IsPlayer(entity)
-    return entity.SpawnFlags ~= nil and bit.band(entity.SpawnFlags, spawnFlagPlayer) ~= 0
-end
-
 local function DrawSeparator()
     imgui.PopStyleVar()
     imgui.Text('')
@@ -689,7 +684,7 @@ local function DrawStatusEntry(text, isActive, color)
     if isActive then
         imgui.PushStyleColor(ImGuiCol_Text, color)
     else
-        imgui.PushStyleColor(ImGuiCol_Text, ui.Colors.StatusGrey)
+        imgui.PushStyleColor(ImGuiCol_Text, colors.StatusGrey)
     end
 
     imgui.Text(text)
@@ -701,35 +696,35 @@ end
 local function DrawStatus(debuffs)
     local now = os.time()
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 0 })
-    DrawStatusEntry('D',  now < debuffs.dia, ui.Colors.StatusWhite)
-    DrawStatusEntry('B',  now < debuffs.bio, ui.Colors.StatusBlack)
+    DrawStatusEntry('D',  now < debuffs.dia, colors.StatusWhite)
+    DrawStatusEntry('B',  now < debuffs.bio, colors.StatusBlack)
     DrawSeparator()
     DrawSeparator()
-    DrawStatusEntry('P',  now < debuffs.para, ui.Colors.StatusWhite)
-    DrawStatusEntry('S',  now < debuffs.slow, ui.Colors.StatusWhite)
-    DrawStatusEntry('E',  now < debuffs.elegy, ui.Colors.StatusBrown)
-    DrawStatusEntry('G',  now < debuffs.grav, ui.Colors.StatusBlack)
-    DrawStatusEntry('B',  now < debuffs.blind, ui.Colors.StatusBlack)
-    DrawStatusEntry('F',  now < debuffs.flash, ui.Colors.StatusWhite)
+    DrawStatusEntry('P',  now < debuffs.para, colors.StatusWhite)
+    DrawStatusEntry('S',  now < debuffs.slow, colors.StatusWhite)
+    DrawStatusEntry('E',  now < debuffs.elegy, colors.StatusBrown)
+    DrawStatusEntry('G',  now < debuffs.grav, colors.StatusBlack)
+    DrawStatusEntry('B',  now < debuffs.blind, colors.StatusBlack)
+    DrawStatusEntry('F',  now < debuffs.flash, colors.StatusWhite)
     DrawSeparator()
     DrawSeparator()
-    DrawStatusEntry('Si', now < debuffs.silence, ui.Colors.StatusWhite)
+    DrawStatusEntry('Si', now < debuffs.silence, colors.StatusWhite)
     DrawSeparator()
-    DrawStatusEntry('Sl', now < debuffs.sleep, ui.Colors.StatusBlack)
+    DrawStatusEntry('Sl', now < debuffs.sleep, colors.StatusBlack)
     DrawSeparator()
-    DrawStatusEntry('Bi', now < debuffs.bind, ui.Colors.StatusBlack)
+    DrawStatusEntry('Bi', now < debuffs.bind, colors.StatusBlack)
     DrawSeparator()
-    DrawStatusEntry('Po', now < debuffs.poison, ui.Colors.StatusBlack)
+    DrawStatusEntry('Po', now < debuffs.poison, colors.StatusBlack)
     DrawSeparator()
-    DrawStatusEntry('Rq', now < debuffs.requiem, ui.Colors.StatusWhite)
+    DrawStatusEntry('Rq', now < debuffs.requiem, colors.StatusWhite)
     DrawSeparator()
     DrawSeparator()
-    DrawStatusEntry('S',  now < debuffs.shock, ui.Colors.StatusYellow)
-    DrawStatusEntry('R',  now < debuffs.rasp, ui.Colors.StatusBrown)
-    DrawStatusEntry('C',  now < debuffs.choke, ui.Colors.StatusGreen)
-    DrawStatusEntry('F',  now < debuffs.frost, ui.Colors.StatusCyan)
-    DrawStatusEntry('B',  now < debuffs.burn, ui.Colors.StatusRed)
-    DrawStatusEntry('D',  now < debuffs.drown, ui.Colors.StatusBlue)
+    DrawStatusEntry('S',  now < debuffs.shock, colors.StatusYellow)
+    DrawStatusEntry('R',  now < debuffs.rasp, colors.StatusBrown)
+    DrawStatusEntry('C',  now < debuffs.choke, colors.StatusGreen)
+    DrawStatusEntry('F',  now < debuffs.frost, colors.StatusCyan)
+    DrawStatusEntry('B',  now < debuffs.burn, colors.StatusRed)
+    DrawStatusEntry('D',  now < debuffs.drown, colors.StatusBlue)
 
     if debuffs.threnodyEle ~= nil and now < debuffs.threnody then
         imgui.NewLine()
@@ -743,217 +738,20 @@ local function DrawStatus(debuffs)
     imgui.PopStyleVar()
 end
 
--- A target: one line as the party list's are, with the name and the HP bar, and under them the
--- distance where a party member's TP is and the HP percentage at the bar's right end. The debuffs go
--- under it.
-local nameChars = 13 -- as much of a name as fits before the HP figure
-
--- Each window's line, kept: its figures are only made into words again when they change
-local targetLines = { } -- window name -> { the line }
-
----@param entity Entity
----@param options table
-local function DrawTarget(entity, options)
-    local lines = targetLines[options.name]
-    if lines == nil then
-        lines = { { isInZone = true, tp = 0 } }
-        targetLines[options.name] = lines
-    end
-
-    local line = lines[1]
-    line.name = entity.Name
-    line.serverId = -(entity.ServerId or 0) -- its own kept figures, apart from a party member's of the same id
-    line.plainHp = not IsPlayer(entity)
-    if line.hpp ~= entity.HPPercent then
-        line.hpp = entity.HPPercent
-        line.hpText = string.format('%d%%', entity.HPPercent)
-    end
-    -- the distance is written to a tenth
-    local tenths = math.floor(math.sqrt(entity.Distance) * 10 + 0.5)
-    if line.tenths ~= tenths then
-        line.tenths = tenths
-        line.tpText = string.format('%.1fm', tenths / 10)
-    end
-
-    -- set as the party's lists are, but for what is this line's own: more of the name, and the
-    -- distance always, whatever is set for TP
-    local settings = us.StyleSettings() or { }
-    settings.nameChars = nameChars
-    settings.showTp = true
-    settings.trimLast = not options.showStatus[1]
-    xivparty.Draw(lines, 'target', nil, settings)
-
-    if options.showStatus[1] then
-        DrawStatus(TrackedEnemies[entity.ServerId] or DefaultDebuffs)
+function debuffs.HandlePacket(e)
+    -- clear state on zone changes
+    -- TODO: clear mob state on death
+    if e.id == 0x00A then
+        TrackedEnemies = { }
+    elseif e.id == 0x028 then
+        HandleAction(TrackedEnemies, packets.inbound.action.shared(e))
+    elseif e.id == 0x029 then
+        HandleBasic(TrackedEnemies, packets.inbound.basic.parse(e.data))
     end
 end
 
--- What a target window holds, drawn by one function for whichever window is being drawn: which is
--- said beforehand, so that no function need be made afresh for each window every frame
-local drawingEntity, drawingWindow = nil, nil
-
-local function DrawTargetContent()
-    DrawTarget(drawingEntity, drawingWindow)
+function debuffs.Draw(serverId)
+    DrawStatus(TrackedEnemies[serverId] or DefaultDebuffs)
 end
 
--- The entity each window last showed, by window name
-local lastShown = { }
-
--- Draws one of the target windows for the entity at index, if there is one (the client can hold an
--- index for an entity it no longer knows about, so the entity is fetched and checked first). When there
--- is none, the window goes on showing the entity it last showed for as long as it is fading out.
-local function DrawTargetWindow(window, gOptions, index)
-    local entity = index ~= 0 and GetEntity(index) or nil
-    local wanted = entity ~= nil
-
-    if wanted then
-        lastShown[window.name] = index
-    elseif lastShown[window.name] and ui.Lingers(window, gOptions) then
-        entity = GetEntity(lastShown[window.name])
-    end
-
-    if entity == nil then
-        return
-    end
-
-    drawingEntity, drawingWindow = entity, window
-    ui.DrawUiWindow(window, gOptions, DrawTargetContent, wanted)
-end
-
----@type xitool
-local tgt = {
-    Name = 'tgt',
-    DefaultSettings = T{
-        isEnabled = T{ true },
-        isVisible = T{ true },
-        showMain = T{ true },
-        showSub = T{ false },
-        showTot = T{ false },
-        mainWindow = T{
-            isVisible = T{ true },
-            showStatus = T{ false },
-            name = 'xiframes.tgt.main',
-            size = T{ 276, -1 },
-            pos = T{ 100, 100 },
-            flags = bit.bor(ImGuiWindowFlags_NoDecoration),
-        },
-        subWindow = T{
-            isVisible = T{ true },
-            showStatus = T{ false },
-            name = 'xiframes.tgt.sub',
-            size = T{ 276, -1 },
-            pos = T{ 100, 200 },
-            flags = bit.bor(ImGuiWindowFlags_NoDecoration),
-        },
-        totWindow = T{
-            isVisible = T{ true },
-            showStatus = T{ false },
-            name = 'xiframes.tgt.tot',
-            size = T{ 276, -1 },
-            pos = T{ 386, 100 },
-            flags = bit.bor(ImGuiWindowFlags_NoDecoration),
-        },
-    },
-    HandlePacket = function(e, options)
-        -- don't track anything if we're not displaying it
-        local showStatus =
-            options.mainWindow.showStatus[1] or
-            options.subWindow.showStatus[1] or
-            options.totWindow.showStatus[1]
-
-        if not showStatus then return end
-
-        -- clear state on zone changes
-        -- TODO: clear mob state on death
-        if e.id == 0x00A then
-            TrackedEnemies = { }
-        elseif e.id == 0x028 then
-            HandleAction(TrackedEnemies, packets.inbound.action.shared(e))
-        elseif e.id == 0x029 then
-            HandleBasic(TrackedEnemies, packets.inbound.basic.parse(e.data))
-        end
-    end,
-    DrawConfig = function(options, gOptions)
-        if imgui.BeginTabItem('tgt') then
-            ui.BeginLabels('xiframes.tgt')
-            ui.Label('Enabled')
-            imgui.Checkbox('##tgt.1', options.isEnabled)
-
-            ui.Label('Show Target')
-            imgui.Checkbox('##tgt.2', options.showMain)
-            ui.Label('Target Debuffs')
-            imgui.Checkbox('##tgt.3', options.mainWindow.showStatus)
-
-            ui.Label('Show Sub-Target')
-            imgui.Checkbox('##tgt.4', options.showSub)
-            ui.Label('Sub-Target Debuffs')
-            imgui.Checkbox('##tgt.5', options.subWindow.showStatus)
-
-            ui.Label('Show Target Of Target')
-            imgui.Checkbox('##tgt.6', options.showTot)
-            ui.Label('Target Of Target Debuffs')
-            imgui.Checkbox('##tgt.7', options.totWindow.showStatus)
-
-            ui.Gap()
-            ui.Label('Target Position')
-            if imgui.InputInt2('##tgt.8', options.mainWindow.pos) then
-                imgui.SetWindowPos(options.mainWindow.name, options.mainWindow.pos)
-            end
-            ui.Label('Sub-Target Position')
-            if imgui.InputInt2('##tgt.9', options.subWindow.pos) then
-                imgui.SetWindowPos(options.subWindow.name, options.subWindow.pos)
-            end
-            ui.Label('Target Of Target Position')
-            if imgui.InputInt2('##tgt.10', options.totWindow.pos) then
-                imgui.SetWindowPos(options.totWindow.name, options.totWindow.pos)
-            end
-            imgui.EndTabItem()
-        end
-    end,
-    DrawMain = function(options, gOptions)
-        local tgt = AshitaCore:GetMemoryManager():GetTarget()
-        local targetId = tgt:GetTargetIndex(0)
-        local targetActive = tgt:GetIsActive(0) == 1
-        local subTargetId = tgt:GetTargetIndex(1)
-        local subTargetActive = tgt:GetIsSubTargetActive() == 1
-        local totId = 0
-
-        -- the target struct appears to be a stack, so when we have two targets
-        -- that means the subtarget is actually in [0] and main moves to [1]
-        if subTargetActive then
-            targetId, subTargetId = subTargetId, targetId
-        end
-
-        -- TODO: if no subtarget, check for stpt/stal
-
-        -- the target of target comes from the main target itself, so that it still shows when the
-        -- main target window is switched off
-        local mainIndex = (targetActive and targetId ~= 0) and targetId or 0
-        local mainEntity = mainIndex ~= 0 and GetEntity(mainIndex) or nil
-        if mainEntity then
-            totId = mainEntity.TargetedIndex or 0
-        end
-
-        -- TODO: compact tot display
-        DrawTargetWindow(options.mainWindow, gOptions, options.showMain[1] and mainIndex or 0)
-        DrawTargetWindow(options.subWindow, gOptions, (options.showSub[1] and subTargetActive) and subTargetId or 0)
-        DrawTargetWindow(options.totWindow, gOptions, options.showTot[1] and totId or 0)
-    end,
-    DrawSample = function(options, gOptions)
-        -- each window only if it is one that is switched on
-        local samples = {
-            { options.mainWindow, { Name = 'Sample Target', Distance = 8 * 8, HPPercent = 75, ServerId = 0 }, options.showMain[1] },
-            { options.subWindow, { Name = 'Sample Sub-target', Distance = 12 * 12, HPPercent = 100, ServerId = 0 }, options.showSub[1] },
-            { options.totWindow, { Name = 'Sample Target of Target', Distance = 3 * 3, HPPercent = 40, ServerId = 0 }, options.showTot[1] },
-        }
-
-        for _, sample in ipairs(samples) do
-            if sample[3] then
-                drawingEntity, drawingWindow = sample[2], sample[1]
-                ui.DrawUiWindow(sample[1], gOptions, DrawTargetContent)
-            end
-        end
-    end,
-}
-
-return tgt
+return debuffs

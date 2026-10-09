@@ -1,8 +1,10 @@
-local ffxi = {}
+-- Small things asked of the game that winxi.game does not answer: where the party cursor is, and
+-- what a job is called for short
+local game = {}
 
 --- Fetches the party index of your <stpt> target, if it exists.
 ---@return integer?
-function ffxi.GetStPartyIndex()
+function game.StPartyIndex()
     -- Courtesy of Thorny from the Ashita discord
     -- any step of the way can be empty before the game has made the party list (at the title screen)
     local ptr = AshitaCore:GetPointerManager():Get('party')
@@ -46,8 +48,8 @@ local jobs = {
 
 ---@param id integer
 ---@return 'WAR'|'MNK'|'WHM'|'BLM'|'RDM'|'THF'|'PLD'|'DRK'|'BST'|'BRD'|'RNG'|'SAM'|'NIN'|'DRG'|'SMN'|'BLU'|'COR'|'PUP'|'DNC'|'SCH'|'GEO'|'RUN'|nil
-function ffxi.GetJobAbbr(id)
+function game.JobAbbr(id)
     return jobs[id]
 end
 
-return ffxi
+return game
