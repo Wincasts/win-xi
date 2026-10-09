@@ -9,6 +9,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --
 --   /treas           shows or hides the window (it only appears while there is treasure)
 --   /treas config    opens or closes the settings
+--   /treas focus     gives the window the controller, or takes it away again
 
 require('common')
 local bit = require('bit')
@@ -22,6 +23,8 @@ local fade = require('winxi.fade')
 local game = require('winxi.game')
 local legacy = require('winxi.legacy')
 local packets = require('winxi.packets')
+local controller = require('winxi.controller')
+local sound = require('winxi.sound')
 
 local TextBaseWidth = imgui.CalcTextSize('A')
 local WeirdTimestamps = {}
@@ -83,7 +86,8 @@ local function GetTreasure(options)
 end
 
 local function Roll(treasure)
-    if treasure.current.hasRolled
+    if treasure.id == 0
+    or treasure.current.hasRolled
     or treasure.current.hasPassed then
         return
     end
@@ -92,11 +96,196 @@ local function Roll(treasure)
 end
 
 local function Pass(treasure)
-    if treasure.current.hasPassed then
+    if treasure.id == 0 or treasure.current.hasPassed then
         return
     end
 
     AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.treasurePass:make(treasure.slot))
+end
+
+-- Experimental: working the pool with a controller (the Controller Navigation setting).
+--
+-- The window is there whenever there is treasure, in the middle of a fight as much as after it, so it
+-- does not take the controller just by showing: /treas focus (from a macro) gives it the controller
+-- and B, or /treas focus again, gives it back. While it has it, up and down move a highlight over the
+-- items, A opens a menu for the highlighted one (lot, pass), and X one for all of them.
+local pad = {
+    options = nil,     -- the settings, as of the frame last drawn
+    focused = false,   -- whether the window has been given the controller
+    drawn = 0,         -- when the window was last drawn
+    active = false,    -- as of the frame being drawn
+    grid = controller.NewGrid(),
+    items = { },       -- the treasure at each place in the grid
+    menu = nil,        -- the menu that is open, and the pool slot it is for (none, for the menu for all)
+    menuSlot = nil,
+    pool = nil,        -- the pool as last drawn, for the menu for all
+    bottom = 0,        -- where the last row ends
+}
+
+local padColor = imgui.GetColorU32({ 1.0, 0.85, 0.3, 1.0 })
+
+-- Whether the window has the controller: the setting is on, it has been given it, and it is showing
+local function PadIsActive()
+    local options = pad.options
+    return options ~= nil
+        and options.controller[1]
+        and pad.focused
+        and options.isVisible[1]
+        and os.clock() - pad.drawn < 0.25
+        or false
+end
+
+-- What can be done with one item of the pool, as menu entries
+local function PadEntries(treasure)
+    local entries = { }
+    if treasure.id == 0 then
+        return entries
+    end
+    if not treasure.current.hasRolled and not treasure.current.hasPassed then
+        entries[#entries + 1] = { label = 'Lot', run = function() Roll(treasure) end }
+    end
+    if not treasure.current.hasPassed then
+        entries[#entries + 1] = { label = 'Pass', run = function() Pass(treasure) end }
+    end
+    if #entries > 0 then
+        entries[#entries + 1] = { label = 'Cancel' }
+    end
+    return entries
+end
+
+-- The menu for the whole pool. Passing on everything is asked about first, with Cancel highlighted.
+local function PadAllMenu()
+    return controller.NewMenu('All Items', {
+        { label = 'Lot All', run = function()
+            for _, treasure in ipairs(pad.pool or { }) do
+                Roll(treasure)
+            end
+        end },
+        { label = 'Pass All...', run = function()
+            return controller.NewMenu('Pass On Everything?', {
+                { label = 'Cancel' },
+                { label = 'Pass All', run = function()
+                    for _, treasure in ipairs(pad.pool or { }) do
+                        Pass(treasure)
+                    end
+                end },
+            })
+        end },
+        { label = 'Cancel' },
+    })
+end
+
+local function PadPress(action)
+    if pad.menu ~= nil then
+        pad.menu = pad.menu:Press(action)
+        return
+    end
+
+    if action == 'up' or action == 'down' then
+        pad.grid:Move(action)
+    elseif action == 'confirm' then
+        local treasure = pad.items[pad.grid.cursor]
+        local entries = treasure ~= nil and PadEntries(treasure) or nil
+        if entries ~= nil and #entries > 0 then
+            pad.menu = controller.NewMenu(treasure.name, entries)
+            pad.menuSlot = treasure.slot
+            sound.Play('confirm')
+        else
+            -- an empty place, or an item already passed on
+            sound.Play('error')
+        end
+    elseif action == 'sort' then
+        pad.menu = PadAllMenu()
+        pad.menuSlot = nil
+        sound.Play('confirm')
+    elseif action == 'back' then
+        -- the controller goes back to the game; the window stays
+        pad.focused = false
+        sound.Play('back')
+    end
+end
+
+-- Only the buttons the window has a use for are taken: left, right and the shoulder buttons still
+-- reach the game
+local padButtons = controller.Button
+pad.binding = controller.Bind({
+    active = PadIsActive,
+    actions = {
+        [padButtons.DpadUp] = 'up', [padButtons.DpadDown] = 'down',
+        [padButtons.A] = 'confirm', [padButtons.B] = 'back', [padButtons.X] = 'sort',
+    },
+    repeats = { up = true, down = true },
+    press = PadPress,
+})
+
+-- Starts a frame in which the window is drawn
+local function PadBeginFrame(options, treasurePool)
+    if options.controllerType ~= nil and options.controllerType ~= controller.GetLayout() then
+        controller.SetLayout(options.controllerType)
+    end
+    sound.SetEnabled(options.controllerSounds[1])
+
+    pad.options = options
+    pad.pool = treasurePool
+    pad.drawn = os.clock()
+    pad.active = PadIsActive()
+    if not pad.active then
+        pad.menu = nil
+    end
+    pad.grid:Begin()
+end
+
+local padMin, padMax = { 0, 0 }, { 0, 0 }
+
+-- Inside the window, once the rows are drawn: the highlight around the row the controller is on
+local function PadDrawHighlight()
+    pad.grid:End()
+    if not pad.active or pad.grid.count == 0 then
+        return
+    end
+
+    local cursor = pad.grid.cursor
+    local _, top = pad.grid:Position()
+    if top == nil then
+        return
+    end
+    local bottom = pad.grid.ys[cursor + 1]
+    if cursor >= pad.grid.count or bottom == nil then
+        bottom = pad.bottom
+    end
+
+    local x = imgui.GetWindowPos()
+    local width = imgui.GetWindowSize()
+    local inset = style.Padding() - 4
+    local drawList = imgui.GetWindowDrawList()
+    -- two outlines, one inside the other, for a border two pixels thick
+    for grow = 0, 1 do
+        padMin[1], padMin[2] = x + inset - grow, top - 2 - grow
+        padMax[1], padMax[2] = x + width - inset + grow, bottom - 2 + grow
+        drawList:AddRect(padMin, padMax, padColor, 0.0)
+    end
+
+    controller.Highlight(pad.binding)
+end
+
+-- After the window: the open menu, beside the row it is for
+local function PadEndFrame()
+    if not pad.active or pad.menu == nil then
+        return
+    end
+
+    -- an item's menu belongs to the item it was opened for: if that has gone, so does the menu
+    local treasure = pad.items[pad.grid.cursor]
+    if pad.menuSlot ~= nil and (treasure == nil or treasure.slot ~= pad.menuSlot) then
+        pad.menu = nil
+        return
+    end
+
+    local x, y = pad.grid:Position()
+    if x == nil then
+        x, y = pad.options.pos[1], pad.options.pos[2]
+    end
+    pad.menu:Draw(x + 60, y)
 end
 
 local function DrawTreasure(treasurePool)
@@ -134,6 +323,11 @@ local function DrawTreasure(treasurePool)
             end
 
             imgui.TableNextColumn()
+            -- with the controller: note where the row is, and which item it is
+            if pad.active then
+                local x, y = imgui.GetCursorScreenPos()
+                pad.items[pad.grid:Add(x, y)] = treasure
+            end
             imgui.AlignTextToFramePadding()
             Write(treasure.name)
 
@@ -171,6 +365,12 @@ local function DrawTreasure(treasurePool)
 
         imgui.EndTable()
     end
+
+    if pad.active then
+        local _, bottom = imgui.GetCursorScreenPos()
+        pad.bottom = bottom
+        PadDrawHighlight()
+    end
 end
 
 -- The settings, kept for each character
@@ -179,6 +379,9 @@ local defaults = T{
     showAllSlots = T{ false },
     pos = T{ 100, 100 },
     fadeInOut = T{ true }, -- the window fades in as it is shown and out as it is hidden
+    controller = T{ false }, -- experimental: work the window with a controller
+    controllerSounds = T{ false }, -- sounds as the controller works the window
+    controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
     hide = T{ }, -- when the window gets out of the way: winxi.game's rules
     useSharedTheme = true, -- whether the windows follow the theme shared with other winxi addons
     theme = T{ }, -- this addon's own colours, padding and drop shadow, used when they do not
@@ -215,6 +418,13 @@ local function PrepareSettings()
 
     ImportFromXitools()
     game.CompleteHide(options.hide)
+
+    -- settings saved before the controller was added
+    for _, key in ipairs({ 'controller', 'controllerSounds' }) do
+        if type(options[key]) ~= 'table' then
+            options[key] = T{ false }
+        end
+    end
 end
 
 PrepareSettings()
@@ -237,6 +447,8 @@ local function DrawTreasureWindow()
     local treasurePool = GetTreasure(options)
     if #treasurePool == 0 then
         WeirdTimestamps = {}
+        -- nothing left to work: the controller goes back to the game
+        pad.focused = false
         return
     end
 
@@ -255,9 +467,11 @@ local function DrawTreasureWindow()
     lingeringOpen[1] = true
     currentPool = treasurePool
 
+    PadBeginFrame(options, treasurePool)
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing)
     window.Full(windowName, wanted and options.isVisible or lingeringOpen, style.TitlelessFlags(), DrawWindow, windowStyle)
     imgui.PopStyleVar()
+    PadEndFrame()
 end
 
 -- The settings window, opened by /treas config
@@ -292,6 +506,36 @@ local function DrawSettings()
     imgui.Checkbox('##treas.emptySlots', options.showAllSlots)
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Lists all ten places in the pool, empty or not: the window is then always there.')
+    end
+
+    widgets.Gap()
+    widgets.Label('Controller Navigation (Experimental)')
+    imgui.Checkbox('##treas.controller', options.controller)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Work the treasure pool with a controller.\nThe window does not take the controller by itself: /treas focus (from a macro) gives it the controller, and B gives it back.\nUp / down: move the highlight.  A: lot or pass on the highlighted item.  X (square): lot or pass on everything.\nOnly those buttons are kept from the game, and only while the window has the controller.')
+    end
+    if options.controller[1] then
+        widgets.Label('Controller Sounds')
+        imgui.Checkbox('##treas.controllerSounds', options.controllerSounds)
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('Plays a sound as the window takes the controller, the highlight moves, a menu opens, a choice is made or backed out of.')
+        end
+
+        widgets.Label('Controller Type')
+        local current = controller.GetLayout()
+        local column = imgui.GetCursorPosX()
+        for index, layout in ipairs(controller.Layouts) do
+            if index > 1 then
+                -- one to a line, under the first
+                imgui.SetCursorPosX(column)
+            end
+            if imgui.RadioButton(('%s##treas.controllerType'):format(layout.label), current == layout.key) then
+                options.controllerType = layout.key
+            end
+        end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('XInput is an Xbox controller, or one set to behave as one. DirectInput is anything else: pick the make whose buttons match.')
+        end
     end
 
     widgets.Gap()
@@ -368,8 +612,18 @@ ashita.events.register('command', 'treas_command', function(e)
         options.isVisible[1] = not options.isVisible[1]
     elseif verb == 'config' then
         showConfig[1] = not showConfig[1]
+    elseif verb == 'focus' then
+        if not options.controller[1] then
+            Say('Controller Navigation is off: switch it on in /treas config.')
+        elseif pad.focused then
+            pad.focused = false
+        elseif os.clock() - pad.drawn > 0.25 or not options.isVisible[1] then
+            Say('There is no treasure window to work just now.')
+        else
+            pad.focused = true
+        end
     else
-        Say('/treas shows or hides the window; /treas config opens or closes the settings.')
+        Say('/treas shows or hides the window; /treas config opens or closes the settings; /treas focus gives the window the controller.')
     end
 end)
 
