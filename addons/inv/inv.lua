@@ -10,6 +10,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --
 --   /inv           shows or hides the window
 --   /inv config    opens or closes the settings
+--   /inv focus     gives the open window the controller, or takes it away again
 
 require('common')
 local bit = require('bit')
@@ -815,11 +816,14 @@ local contextMenus = {
 -- The controller itself is winxi's: which buttons are taken and kept from the game, the highlight that
 -- moves over the items, and the menu. What is here is what the buttons do in this window.
 --
--- While the window is showing, the d-pad moves a highlight over the items, the shoulder buttons change
--- tab, A opens a menu of what can be done with the highlighted item and chooses from it, B backs out
--- of the menu or closes the window, Y opens the sort menu, and X is the window cycle's.
+-- The window takes the controller as it is opened. While it has it, the d-pad moves a highlight over
+-- the items, the shoulder buttons change tab, A opens a menu of what can be done with the highlighted
+-- item and chooses from it, B backs out of the menu or gives the controller back to the game (the
+-- window stays open), Y opens the sort menu, and X is the window cycle's.
 local pad = {
     options = nil,     -- the tool's settings, as of the frame last drawn
+    focused = false,   -- whether the window has been given the controller: on being opened, or by the
+                       -- window cycle, and until B, the cycle moving on, or its being closed
     drawn = 0,         -- when the window was last drawn: the controller is only the inventory's while it is
     active = false,    -- as of the frame being drawn
     grid = controller.NewGrid(),
@@ -839,12 +843,13 @@ local padColor = imgui.GetColorU32({ 1.0, 0.85, 0.3, 1.0 })
 local swapColor = imgui.GetColorU32({ 0.3, 0.9, 0.4, 1.0 })
 local swapTextColor = { 0.3, 0.9, 0.4, 1.0 }
 
--- Whether the inventory has the controller: the setting is on, and the window is showing and being
--- drawn (it is not, while the tool is switched off or the whole UI is hidden)
+-- Whether the inventory has the controller: the setting is on, the window has been given it, and it
+-- is showing and being drawn (it is not, while the whole UI is hidden)
 local function PadIsActive()
     local options = pad.options
     return options ~= nil
         and options.controller ~= nil and options.controller[1]
+        and pad.focused
         and options.isVisible[1]
         and os.clock() - pad.drawn < 0.25
         or false
@@ -1212,8 +1217,9 @@ local function PadPress(action)
         pad.menuItem = nil
         sound.Play('confirm')
     elseif action == 'back' then
-        -- the sound of it closing is made as the window is seen to have gone, however it was closed
-        pad.options.isVisible[1] = false
+        -- the controller goes back to the game; the window stays, until /inv closes it
+        pad.focused = false
+        sound.Play('back')
     end
 end
 
@@ -1224,20 +1230,23 @@ pad.binding = controller.Bind({
     press = PadPress,
 })
 
--- The inventory is the first of the winxi windows in the window cycle: X (square), on the press that
--- would start the game's own round of windows again, opens it and gives it the controller, and X
--- again closes it and passes the controller on.
+-- The inventory is the first of the winxi windows in the window cycle, while it is open: X (square),
+-- on the press that would start the game's own round of windows again, gives it the controller, and
+-- X again passes the controller on. The cycle neither opens the window nor closes it.
 controller.Cycle({
     order = 1,
     available = function()
-        return pad.options ~= nil and pad.options.controller[1] and true or false
+        local options = pad.options
+        return options ~= nil and options.controller[1] and options.isVisible[1]
+            and os.clock() - pad.drawn < 0.25
+            or false
     end,
     focused = PadIsActive,
     focus = function()
-        pad.options.isVisible[1] = true
+        pad.focused = true
     end,
     unfocus = function()
-        pad.options.isVisible[1] = false
+        pad.focused = false
     end,
     busy = function()
         return pad.menu ~= nil or pad.swap ~= nil
@@ -1254,10 +1263,16 @@ local function PadBeginFrame(options)
     -- the grid and the menu make their own sounds once these are on
     sound.SetEnabled(options.controllerSounds ~= nil and options.controllerSounds[1])
 
-    -- the window closing, whether by the controller, /inv or anything else, sounds as backing out does
+    -- the window takes the controller as it is opened, and gives it up as it is closed (with the
+    -- sound of backing out, if it still had it)
     local showing = options.controller ~= nil and options.controller[1] and options.isVisible[1] or false
-    if pad.showing and not showing then
-        sound.Play('back')
+    if showing and not pad.showing then
+        pad.focused = true
+    elseif pad.showing and not showing then
+        if pad.focused then
+            sound.Play('back')
+        end
+        pad.focused = false
     end
     pad.showing = showing
 
@@ -1800,7 +1815,7 @@ local function DrawSettings()
     widgets.Label('Controller Navigation (Experimental)')
     imgui.Checkbox('##inv.controller', options.controller)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nY (triangle): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nX (square): on to the next window. The inventory comes after the game\'s own round of windows (the chat windows, then the status icons): X once more from the status icons opens it.\nThose buttons do not reach the game while the window is showing. /inv opens it as well.')
+        imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv closes it).\nY (triangle): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nX (square): on to the next open window. The inventory, while it is open, comes after the game\'s own round of windows (the chat windows, then the status icons): X once more from the status icons gives it the controller again.\nThe window takes the controller as /inv opens it. Those buttons do not reach the game while it has it.')
     end
     if options.controller[1] then
         widgets.Label('Controller Sounds')
@@ -1939,11 +1954,19 @@ ashita.events.register('command', 'inv_command', function(e)
         options.isVisible[1] = not options.isVisible[1]
     elseif verb == 'config' then
         showConfig[1] = not showConfig[1]
+    elseif verb == 'focus' then
+        if not options.controller[1] then
+            Say('Controller Navigation is off: switch it on in /inv config.')
+        elseif not options.isVisible[1] then
+            Say('The window is closed: /inv opens it.')
+        else
+            pad.focused = not pad.focused
+        end
     elseif verb == 'menu' then
         -- for finding out what the game calls its menus: the window cycle goes by the name
         Say(('The game menu on top is [%s].'):format(game.MenuName()))
     else
-        Say('/inv shows or hides the window; /inv config opens or closes the settings.')
+        Say('/inv shows or hides the window; /inv config opens or closes the settings; /inv focus gives the window the controller, or takes it away.')
     end
 end)
 
