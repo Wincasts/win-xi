@@ -743,8 +743,9 @@ local function DrawStatus(debuffs)
     imgui.PopStyleVar()
 end
 
--- A target: one line as the party list's are, with the name, the HP bar with its percentage, and the
--- distance under the name where a party member's TP is. The debuffs go under it.
+-- A target: one line as the party list's are, with the name and the HP bar, and under them the
+-- distance where a party member's TP is and the HP percentage at the bar's right end. The debuffs go
+-- under it.
 local nameChars = 13 -- as much of a name as fits before the HP figure
 
 -- Each window's line, kept: its figures are only made into words again when they change
@@ -779,7 +780,7 @@ local function DrawTarget(entity, options)
     local settings = us.StyleSettings() or { }
     settings.nameChars = nameChars
     settings.showTp = true
-    xivparty.Draw(lines, 'pets', nil, settings)
+    xivparty.Draw(lines, 'target', nil, settings)
 
     if options.showStatus[1] then
         DrawStatus(TrackedEnemies[entity.ServerId] or DefaultDebuffs)
