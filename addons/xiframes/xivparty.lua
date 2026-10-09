@@ -97,8 +97,9 @@ local layout = {
     hp = { value = 'hp', x = 6, y = -17, images = hpImages, figure = { x = 114, y = 21, alignRight = true } },
     mp = { value = 'mp', x = 32, y = -8, images = mpImages, figure = { x = 100, y = 23, alignRight = true } },
     -- a target's HP figure, in place of the one above: under the bar, level with the TP figure, its
-    -- right end at the bar's
-    targetHpFigure = { x = 115, y = 35, alignRight = true },
+    -- right end at the bar's. It goes up and down with the TP figure, wherever that has been moved to
+    -- (levelWithTp), and is not moved as the HP figure on a bar is.
+    targetHpFigure = { x = 115, y = 35, alignRight = true, levelWithTp = true },
     -- TP is a figure alone: to the left of the MP bar for the player's party, and for the others
     -- under the start of the name. XivParty writes it smaller than HP and MP; here the three are one
     -- size (valueSize), and TP is a little higher to stay level with the MP bar.
@@ -385,9 +386,14 @@ local function DrawFigure(place, member, kept, fontSize, figure)
 
     figure = figure or place.figure
     local x, y = place.x + figure.x, place.y + figure.y
-    local offset = valueOffsets[kind]
-    if offset ~= nil then
-        x, y = x + (tonumber(offset[1]) or 0), y + (tonumber(offset[2]) or 0)
+    if figure.levelWithTp then
+        local tpOffset = valueOffsets.tp
+        y = y + (tpOffset and tonumber(tpOffset[2]) or 0)
+    else
+        local offset = valueOffsets[kind]
+        if offset ~= nil then
+            x, y = x + (tonumber(offset[1]) or 0), y + (tonumber(offset[2]) or 0)
+        end
     end
 
     local width = nil
