@@ -323,6 +323,10 @@ of character. Optional in the spec: `drawAppearance` (more for the Appearance ta
 tool's settings to bring over from xitools, once). `shell.ControllerSettings(options, tooltip, between)`
 draws the controller settings an addon's Settings tab has. `inv` and `treas` are written this way.
 
+An addon with settings and no window of its own leaves `window` out of the spec: its command alone then
+opens or closes the settings, which say nothing of hiding or fading, and it calls `app:BeginFrame()`
+each frame for the settings window alone. `chime` is written this way.
+
 ## Converting an addon: checklist
 
 An addon with one main window can use `winxi.shell` (above), which does all of this. Otherwise:
