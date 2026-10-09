@@ -12,7 +12,7 @@ xilite with everything else taken out: there is no `me`, and no other way of dra
 - `pet` lists your pet, and your party members' pets, under your party below a line. It has no
   window of its own.
 
-The size, the text sizes, where the values sit, the outline and the bar glow are set on the `us` tab,
+The size, the text sizes, where the values sit and the outline are set on the `us` tab,
 for all three.
 
 ## usage

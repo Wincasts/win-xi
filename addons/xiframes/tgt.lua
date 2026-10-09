@@ -761,7 +761,7 @@ local function DrawTarget(entity, options)
 
     local line = lines[1]
     line.name = entity.Name
-    line.serverId = -(entity.ServerId or 0) -- its own glow, apart from a party member's of the same id
+    line.serverId = -(entity.ServerId or 0) -- its own kept figures, apart from a party member's of the same id
     line.plainHp = not IsPlayer(entity)
     if line.hpp ~= entity.HPPercent then
         line.hpp = entity.HPPercent
