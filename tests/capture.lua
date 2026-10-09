@@ -3,11 +3,16 @@
 --
 --     luajit tests/capture.lua <addon name> <addon file> <scene file> <saved settings> [variant]
 --
+-- With "measure" after the variant, nothing is printed of what is drawn: once the scene has run, the
+-- windows are put back as they are in play and two hundred frames are counted, for what one costs:
+-- calls on the draw lists, changes of image on them (each is a separate batch to the renderer),
+-- colours packed, fonts pushed, text measured, and memory made.
+--
 -- The scene file sets the game up and says which frames to keep (see tests/xiframes_scene.lua). The
 -- saved settings are a settings file as the addon wrote it, loaded in place of none: the scene may
 -- change them first, for a variant. Image files "load" here, so that what is drawn with which image
 -- is recorded too, and a colour is recorded as itself rather than as the harness's one number.
-local addonName, target, scene, savedPath, variant = arg[1], arg[2], arg[3], arg[4], arg[5]
+local addonName, target, scene, savedPath, variant, measuring = arg[1], arg[2], arg[3], arg[4], arg[5], arg[6] == 'measure'
 
 CAPTURE = { variant = variant or 'plain', tweak = nil }
 local recorded, recording = {}, false
@@ -34,6 +39,7 @@ end
 function CAPTURE.start() recorded, recording = {}, true end
 function CAPTURE.dump(label)
     recording = false
+    if measuring then return end
     realprint(('## %s (%s): %d calls'):format(label, CAPTURE.variant, #recorded))
     for _, line in ipairs(recorded) do realprint(line) end
 end
@@ -88,15 +94,37 @@ dofile = function(path)
             save = function() end, register = function(_, _, f) handlersOfSettings[#handlersOfSettings + 1] = f end } end
 
         local imgui = require('imgui')
+        -- the harness makes a function each time one of imgui's is asked for: when measuring, each is
+        -- made once, so that the memory counted is the addon's own
+        if measuring then
+            local meta = getmetatable(imgui)
+            local index = meta.__index
+            meta.__index = function(self, k) local f = index(self, k) rawset(self, k, f) return f end
+            local io = { DisplaySize = { x = 1920, y = 1080 } }
+            rawset(imgui, 'GetIO', function() return io end)
+        end
         local function pack(color)
             return ('#%02X%02X%02X%02X'):format(math.floor(color[1] * 255 + 0.5), math.floor(color[2] * 255 + 0.5), math.floor(color[3] * 255 + 0.5), math.floor(color[4] * 255 + 0.5))
         end
-        rawset(imgui, 'GetColorU32', pack)
+        if measuring then
+            COUNT = { calls = {}, changes = 0, last = nil }
+            local real = imgui.GetColorU32
+            rawset(imgui, 'GetColorU32', function() COUNT.calls.GetColorU32 = (COUNT.calls.GetColorU32 or 0) + 1 return 1 end)
+        else
+            rawset(imgui, 'GetColorU32', pack)
+        end
 
         local function list(tag)
             return setmetatable({}, { __index = function(t, k)
                 local f = function(_, a, ...)
-                    if k == 'AddImage' then note(tag, k, textureNames[a] or a, ...) else note(tag, k, a, ...) end
+                    if measuring then
+                        COUNT.calls[k] = (COUNT.calls[k] or 0) + 1
+                        -- text and shapes are drawn with the font's image, an image with its own
+                        if k:sub(1, 3) == 'Add' then
+                            local image = k == 'AddImage' and a or 'font'
+                            if COUNT.last ~= image then COUNT.changes, COUNT.last = COUNT.changes + 1, image end
+                        end
+                    elseif k == 'AddImage' then note(tag, k, textureNames[a] or a, ...) else note(tag, k, a, ...) end
                 end
                 rawset(t, k, f)
                 return f
@@ -109,8 +137,12 @@ dofile = function(path)
         for _, name in ipairs({ 'Dummy', 'PushFont', 'PopFont', 'Separator', 'Begin', 'End', 'SetCursorPosY', 'Text', 'TextColored', 'SameLine', 'NewLine' }) do
             local real = imgui[name]
             -- a window by its name alone: its flags are numbers the harness makes up as they are first asked for
-            rawset(imgui, name, name == 'Begin' and function(window, ...) note('imgui', name, window) return real(window, ...) end
-                or function(...) note('imgui', name, ...) return real(...) end)
+            if measuring then
+                rawset(imgui, name, function(...) COUNT.calls[name] = (COUNT.calls[name] or 0) + 1 return real(...) end)
+            else
+                rawset(imgui, name, name == 'Begin' and function(window, ...) note('imgui', name, window) return real(window, ...) end
+                    or function(...) note('imgui', name, ...) return real(...) end)
+            end
         end
     end
     if path == scene and CAPTURE.sceneLoaded then return end
@@ -122,3 +154,32 @@ CAPTURE.loading = true
 realdofile(scene)
 CAPTURE.loading = false
 harness()
+
+if measuring then
+    -- as in play: nothing being arranged, the settings shut
+    require('winxi.organize').SetActive(false)
+    if CAPTURE.options.showConfig[1] then H.command('/' .. addonName) end
+    H.frames(600) -- long enough that everything has been run often enough to be compiled
+
+    local imgui = require('imgui')
+    local realCalc = imgui.CalcTextSize
+    rawset(imgui, 'CalcTextSize', function(...) COUNT.calls.CalcTextSize = (COUNT.calls.CalcTextSize or 0) + 1 return realCalc(...) end)
+    COUNT.calls, COUNT.changes = {}, 0
+    local frameCount = 200
+    collectgarbage('collect')
+    local before = collectgarbage('count')
+    collectgarbage('stop')
+    H.frames(frameCount)
+    local made = (collectgarbage('count') - before) / frameCount
+    collectgarbage('restart')
+
+    local names = {}
+    for name in pairs(COUNT.calls) do names[#names + 1] = name end
+    table.sort(names)
+    realprint(('a frame of %s (%s):'):format(addonName, CAPTURE.variant))
+    for _, name in ipairs(names) do
+        if COUNT.calls[name] / frameCount >= 0.5 then realprint(('  %-16s %6.1f'):format(name, COUNT.calls[name] / frameCount)) end
+    end
+    realprint(('  %-16s %6.1f'):format('image changes', COUNT.changes / frameCount))
+    realprint(('  %-16s %6.2f KB'):format('memory made', made))
+end

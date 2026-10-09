@@ -78,8 +78,23 @@ local function GetPetEntity(ownerIndex)
     return pet
 end
 
+-- What is read of a pet is put in a table kept for its place in the list, and the list itself is
+-- kept: the pets are read ten times a second, and new tables each time are so many to throw away
+local found = { }  -- the list handed back, emptied and filled
+local infos = { }  -- place in the list -> the table for the pet there
+
+local function Info(place)
+    local info = infos[place]
+    if info == nil then
+        info = { }
+        infos[place] = info
+    end
+    info.name, info.owner, info.hpp, info.mpp, info.tp, info.hp, info.mp = nil, nil, nil, nil, nil, nil, nil
+    return info
+end
+
 ---@return PetInfo?
-local function GetOwnPet(settings)
+local function GetOwnPet(settings, place)
     local party = AshitaCore:GetMemoryManager():GetParty()
     local entity = GetPetEntity(party:GetMemberTargetIndex(0))
     if entity == nil then
@@ -87,12 +102,9 @@ local function GetOwnPet(settings)
     end
 
     local player = AshitaCore:GetMemoryManager():GetPlayer()
-    local pet = {
-        name = entity.Name,
-        hpp = entity.HPPercent,
-        mpp = player:GetPetMPPercent(),
-        tp = player:GetPetTP(),
-    }
+    local pet = Info(place)
+    pet.name, pet.hpp = entity.Name, entity.HPPercent
+    pet.mpp, pet.tp = player:GetPetMPPercent(), player:GetPetTP()
 
     -- Exact HP and MP are only known for a puppetmaster's automaton
     if settings.exactAutomaton[1] and IsPuppetmaster() then
@@ -110,7 +122,9 @@ local function AddPartyPets(list)
         if party:GetMemberIsActive(i) == 1 and party:GetMemberZone(i) == party:GetMemberZone(0) then
             local entity = GetPetEntity(party:GetMemberTargetIndex(i))
             if entity ~= nil then
-                list[#list + 1] = { name = entity.Name, owner = party:GetMemberName(i), hpp = entity.HPPercent }
+                local pet = Info(#list + 1)
+                pet.name, pet.owner, pet.hpp = entity.Name, party:GetMemberName(i), entity.HPPercent
+                list[#list + 1] = pet
             end
         end
     end
@@ -119,12 +133,15 @@ end
 -- The pets there are: the player's own, then the other party members' where those are listed
 ---@return PetInfo[]
 local function Gather(settings)
-    local list = { }
+    local list = found
+    for place = #list, 1, -1 do
+        list[place] = nil
+    end
     if GetPlayerEntity() == nil then
         return list
     end
 
-    local own = GetOwnPet(settings)
+    local own = GetOwnPet(settings, 1)
     if own ~= nil then
         list[#list + 1] = own
     end
@@ -142,7 +159,7 @@ local sampleCount = 2
 ---@return PetInfo[]
 local function GatherSample(settings)
     local list = { }
-    list[1] = GetPlayerEntity() and GetOwnPet(settings) or { name = 'Sample Pet', hpp = 80, mpp = 60, tp = 1200 }
+    list[1] = GetPlayerEntity() and GetOwnPet(settings, 1) or { name = 'Sample Pet', hpp = 80, mpp = 60, tp = 1200 }
 
     if settings.showParty[1] then
         if GetPlayerEntity() then

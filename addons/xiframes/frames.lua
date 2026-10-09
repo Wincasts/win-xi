@@ -63,7 +63,8 @@ local hpRed = Hex('FC8182')    -- below 25%
 local tpFull = Hex('50B4FA')
 local tpFullLight = Hex('C4E6FF')
 local tpPulsePeriod = 1.2
-local tpPulse = { 0, 0, 0, 1 } -- the colour it is this frame
+local tpPulse = { 0, 0, 0, 1 } -- the colour it is, for the list being drawn
+local tpPulseBlend = 1          -- how far from the light blue towards the deeper one the pulse is this frame
 local noMpGrey = { 0.55, 0.55, 0.55, 1 } -- the MP bar of a member with no MP to have: grey, and full
 
 local barShadowReach = 3 -- how far below a bar its shadow goes
@@ -278,6 +279,15 @@ end
 
 -- A bar's two bookends. Each is a silver cap, darker towards its top and bottom in two steps as the
 -- bars themselves are, with a dark edge and a line of shine down the left of its bright middle.
+-- A cap's five colours as the draw list takes them, packed once for the list being drawn: packed as
+-- they were wanted, each cap asked for seven, no two running the same
+local capSilver, capHalfShade, capShade, capEdge, capShine = 0, 0, 0, 0, 0
+
+local function PackCapColors()
+    capSilver, capHalfShade, capShade = draw.Packed(bookendSilver, 1), draw.Packed(bookendHalfShade, 1), draw.Packed(bookendShade, 1)
+    capEdge, capShine = draw.Packed(bookendEdge, 1), draw.Packed(bookendShine, 1)
+end
+
 local function Cap(centre, top, bottom)
     -- every cap is the same whole number of pixels wide, wherever its bar's end falls
     local width = math.max(2, math.floor(bookend.width * scale + 0.5))
@@ -285,18 +295,16 @@ local function Cap(centre, top, bottom)
     local right = left + width
     top, bottom = math.floor(itemY + top * scale + 0.5), math.floor(itemY + bottom * scale + 0.5)
 
-    draw.Rect(left, top, right, bottom, draw.Packed(bookendSilver, 1), 1)
-
-    -- the shading: a band at the top and one at the bottom, each darkest at the very end
+    -- the shading, darkest at the very top and bottom: the whole cap in the darkest, all but a band at
+    -- each end in the half shade over it, and the middle in silver over that
     local band = math.max(1, math.floor((bottom - top) * 0.14 + 0.5))
-    draw.Rect(left, top, right, top + 2 * band, draw.Packed(bookendHalfShade, 1), 0)
-    draw.Rect(left, top, right, top + band, draw.Packed(bookendShade, 1), 0)
-    draw.Rect(left, bottom - 2 * band, right, bottom, draw.Packed(bookendHalfShade, 1), 0)
-    draw.Rect(left, bottom - band, right, bottom, draw.Packed(bookendShade, 1), 0)
+    draw.Rect(left, top, right, bottom, capShade, 0)
+    draw.Rect(left, top + band, right, bottom - band, capHalfShade, 0)
+    draw.Rect(left, top + 2 * band, right, bottom - 2 * band, capSilver, 0)
 
-    draw.Outline(left, top, right, bottom, draw.Packed(bookendEdge, 1), 1)
+    draw.Outline(left, top, right, bottom, capEdge, 1)
     if bottom - 2 * band - 1 > top + 2 * band then
-        draw.Line(left + 1, top + 2 * band, left + 1, bottom - 2 * band - 1, draw.Packed(bookendShine, 1))
+        draw.Line(left + 1, top + 2 * band, left + 1, bottom - 2 * band - 1, capShine)
     end
 end
 
@@ -541,16 +549,6 @@ function frames.Draw(members, kind, StatusTexture, style)
     local showMp, showTp = style.showMp ~= false, style.showTp ~= false
     textColor = theme.Get().TextColor
 
-    -- where the pulse of a TP figure at 1000 and over has got to: 0 at the light blue, 1 at the deeper
-    -- one, moving smoothly from one to the other and back; or kept at the deeper one
-    local blend = 1
-    if style.tpFlash ~= false then
-        local phase = (os.clock() % tpPulsePeriod) / tpPulsePeriod
-        blend = 0.5 - 0.5 * math.cos(phase * 2 * math.pi)
-    end
-    for channel = 1, 3 do
-        tpPulse[channel] = tpFullLight[channel] + (tpFull[channel] - tpFullLight[channel]) * blend
-    end
 
     -- once a frame, whichever list is drawn first: the others are drawn a moment later in the same one
     local now = os.clock()
@@ -558,6 +556,17 @@ function frames.Draw(members, kind, StatusTexture, style)
         lastFrame = now
         local display = imgui.GetIO().DisplaySize
         displayWidth, displayHeight = display.x, display.y
+
+        -- where the pulse of a TP figure at 1000 and over has got to: 0 at the light blue, 1 at the
+        -- deeper one, moving smoothly from one to the other and back
+        local phase = (now % tpPulsePeriod) / tpPulsePeriod
+        tpPulseBlend = 0.5 - 0.5 * math.cos(phase * 2 * math.pi)
+    end
+
+    -- the colour of such a figure for this list: pulsing, or kept at the deeper blue
+    local blend = style.tpFlash ~= false and tpPulseBlend or 1
+    for channel = 1, 3 do
+        tpPulse[channel] = tpFullLight[channel] + (tpFull[channel] - tpFullLight[channel]) * blend
     end
 
     -- the room the list itself needs. The buffs go beyond it, beside the window.
@@ -583,6 +592,9 @@ function frames.Draw(members, kind, StatusTexture, style)
     draw.Use(drawList)
 
     outlineEdge = math.max(1, math.floor(scale + 0.5))
+    if bookends then
+        PackCapColors()
+    end
     if outlined then
         outlinePacked = imgui.GetColorU32(outlinedText.OutlineColor)
     end
