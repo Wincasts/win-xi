@@ -1230,9 +1230,9 @@ pad.binding = controller.Bind({
     press = PadPress,
 })
 
--- The inventory is the first of the winxi windows in the window cycle, while it is open: X (square),
--- on the press that would start the game's own round of windows again, gives it the controller, and
--- X again passes the controller on. The cycle neither opens the window nor closes it.
+-- The inventory is the first of the winxi windows in the window cycle, while it is open: X (square)
+-- moves the controller from one open window to the next and round again. The cycle neither opens the
+-- window nor closes it.
 controller.Cycle({
     order = 1,
     available = function()
@@ -1815,7 +1815,7 @@ local function DrawSettings()
     widgets.Label('Controller Navigation (Experimental)')
     imgui.Checkbox('##inv.controller', options.controller)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv closes it).\nY (triangle): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nX (square): on to the next open window. The inventory, while it is open, comes after the game\'s own round of windows (the chat windows, then the status icons): X once more from the status icons gives it the controller again.\nThe window takes the controller as /inv opens it. Those buttons do not reach the game while it has it.')
+        imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv closes it).\nY (triangle): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nX (square): moves the controller between the winxi windows that are open (this one, the treasure pool), round and round. It gives the controller back to this window after B, too.\nThe window takes the controller as /inv opens it. Those buttons do not reach the game while it has it; X does not while any winxi window is open, except in the game\'s own menus.')
     end
     if options.controller[1] then
         widgets.Label('Controller Sounds')
