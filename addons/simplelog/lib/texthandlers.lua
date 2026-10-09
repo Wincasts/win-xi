@@ -1,5 +1,64 @@
 local texthandlers = {}
 
+-- Timestamps, an option: the time in front of every line that goes into the chat log, the game's as
+-- well as this addon's own. This is what Ashita's timestamp addon (by atom0s) does, done here so that
+-- one addon need not be loaded for the other; with both loaded every line is stamped twice.
+local stampIgnored = {
+	[190] = true, -- NPC chat reinjections
+	[600] = true, [702] = true, [909] = true, [919] = true, -- synergy messages
+}
+
+local function Stamp(e)
+	local mex = bit.band(e.mode_modified, 0xFFFFFF00)
+	local mid = bit.band(e.mode_modified, 0x000000FF)
+	if stampIgnored[mid] then
+		return
+	end
+
+	-- NPC chat is not indented under its stamp
+	if mid == 150 then
+		e.mode_modified = bit.bor(mex, 151)
+	end
+
+	-- an indented line is indented by hand, after the stamp
+	local stamp = os.date(gProfileSettings.text.timestamp or '[%H:%M:%S]')
+	if e.indent then
+		e.indent_modified = false
+		stamp = stamp .. '  '
+	end
+
+	-- auto-translate tags are spelt out first, so that nothing in them is taken for a line break
+	local msg = AshitaCore:GetChatManager():ParseAutoTranslate(e.message_modified, true)
+
+	-- every line of the message gets the stamp: it is split at its line breaks, but for one that is
+	-- part of a colour code
+	local parts = {}
+	local start = 1
+	local pos = msg:find('[\x0A\x0D]', 1)
+	while pos do
+		local prev = msg:sub(pos - 1, pos - 1)
+		if prev ~= '\x1E' and prev ~= '\x1F' then
+			if pos > start then
+				parts[#parts + 1] = stamp .. ' ' .. msg:sub(start, pos - 1)
+			end
+			start = pos + 1
+		end
+		pos = msg:find('[\x0A\x0D]', pos + 1)
+	end
+	if start <= #msg then
+		parts[#parts + 1] = stamp .. ' ' .. msg:sub(start)
+	end
+	msg = table.concat(parts, '\n')
+
+	-- NPC chat breaks its lines with the bell character: those get the stamp too
+	local spacing = mid == 150 and '   ' or ' '
+	msg = msg:gsub('[^\x1E\x1F][\x07]', function (s)
+		return s:sub(1, 1) .. '\n' .. stamp .. spacing
+	end)
+
+	e.message_modified = msg
+end
+
 texthandlers.HandleIncomingText = function(e)
 	local redcol = e.mode%256
 	
@@ -43,6 +102,10 @@ texthandlers.HandleIncomingText = function(e)
 		end
 	end
 
+	-- whatever is left goes into the log, with the time in front of it if that is wanted
+	if gProfileSettings ~= nil and gProfileSettings.mode.timestamps then
+		Stamp(e)
+	end
 end
 
 function bm_message(original)

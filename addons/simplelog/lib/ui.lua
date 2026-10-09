@@ -440,6 +440,14 @@ ui.render_config = function(toggle)
                         imgui.SameLine()
                         imgui.TextColored(theme.header_text_col, 'Show Roll Info')
                         imgui.TextColored(theme.desc_text_col, 'Displays Corsair Roll info messages.')
+
+                        local timestamps_change = imgui.Checkbox('##timestamps', {gProfileSettings.mode.timestamps})
+                        if timestamps_change then
+                            gProfileSettings.mode.timestamps = not gProfileSettings.mode.timestamps
+                        end
+                        imgui.SameLine()
+                        imgui.TextColored(theme.header_text_col, 'Timestamps')
+                        imgui.TextColored(theme.desc_text_col, 'Puts the time in front of every line in the chat log, the game\'s as well as SimpleLog\'s.\nUnload the timestamp addon if you use this, or every line is stamped twice.')
                     end
                 elseif ui.state.tab == 1 then
                     imgui.TextColored(theme.desc_text_col, 'Profile: ')

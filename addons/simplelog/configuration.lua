@@ -20,6 +20,7 @@ local settings = T{
 		showguards = true,
 		showcritws = false,
 		showrollinfo = false,
+		timestamps = false,
 	},
 	text = T{
 		line_aoe		= 'AOE ${numb} '..string.char(129,168)..' ${target}',
@@ -33,6 +34,7 @@ local settings = T{
 		line_nonumber	= '[${actor}] ${abil} '..string.char(129,168)..' ${target}',
 		line_notarget	= '[${actor}] ${abil} '..string.char(129,168)..' ${number}',
 		line_roll		= '${actor} ${abil} '..string.char(129,168)..' ${target} '..string.char(129,170)..' ${number}',
+		timestamp		= '\30\81[%H:%M:%S]\30\01', -- what goes before each line with Timestamps on: os.date's format
 	},
 };
 
