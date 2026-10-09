@@ -291,6 +291,7 @@ local function StyleSettings()
     settings.nameSize = options.xivNameSize ~= nil and options.xivNameSize[1] or 100
     settings.buffSize = options.xivBuffSize ~= nil and options.xivBuffSize[1] or 100
     settings.buffDistance = options.xivBuffDistance ~= nil and options.xivBuffDistance[1] or 0
+    settings.buffSpacing = options.xivBuffSpacing ~= nil and options.xivBuffSpacing[1] or 0
     settings.hpOffset, settings.mpOffset, settings.tpOffset = options.xivHpOffset, options.xivMpOffset, options.xivTpOffset
     settings.nameChars = nil
     settings.trimLast = nil
@@ -742,6 +743,7 @@ local us = {
         xivNameSize = T{ 100 },  -- and of the names
         xivBuffSize = T{ 100 },  -- and of the buff icons
         xivBuffDistance = T{ 0 }, -- how much further from the party's window than usual the buffs start
+        xivBuffSpacing = T{ 0 },  -- the room between one buff icon and the next
         xivHpOffset = T{ 0, 0 }, -- how far the HP figure is moved from its place: right, down
         xivMpOffset = T{ 0, 0 }, -- and the MP figure
         xivTpOffset = T{ 0, 0 }, -- and the TP figure
@@ -853,6 +855,9 @@ local us = {
             if options.xivBuffDistance == nil then
                 options.xivBuffDistance = T{ 0 }
             end
+            if options.xivBuffSpacing == nil then
+                options.xivBuffSpacing = T{ 0 }
+            end
             for _, key in ipairs({ 'xivHpOffset', 'xivMpOffset', 'xivTpOffset' }) do
                 if type(options[key]) ~= 'table' then
                     options[key] = T{ 0, 0 }
@@ -880,6 +885,11 @@ local us = {
             imgui.SliderInt('##us.xivBuffSize', options.xivBuffSize, 50, 200, '%d%%')
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('How big the buff and debuff icons beside your party are drawn, apart from everything else.')
+            end
+            ui.Label('Buff Spacing')
+            imgui.SliderInt('##us.xivBuffSpacing', options.xivBuffSpacing, -5, 20)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('How much room there is between one buff icon and the next. At 0 they touch; less than 0 overlaps them.\nThe number is in the list\'s own units, so the spacing keeps its proportion as the scale changes.')
             end
             ui.Label('Buff Distance')
             imgui.SliderInt('##us.xivBuffDistance', options.xivBuffDistance, -60, 200)
