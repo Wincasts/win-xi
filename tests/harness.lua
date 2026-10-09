@@ -26,6 +26,7 @@ function table.sort(t, f) sort(t, f) return t end
 function table.join(t, sep) return table.concat(t, sep or '') end
 string.args = function(s) local a = T{} for w in s:gmatch('%S+') do a[#a + 1] = w end return a end
 string.replace = function(s, a, b) return (s:gsub(a:gsub('%p', '%%%0'), (b:gsub('%%', '%%%%')))) end
+string.slice = function(s, first, last) return s:sub(first + 1, last) end
 string.explode = function(s) local t = T{} for c in s:gmatch('.') do t[#t + 1] = c end return t end
 debug.setmetatable(function() end, { __index = { bindn = function(f, ...) local a, n = { ... }, select('#', ...) return function(...) local all = { unpack(a, 1, n) } for i = 1, select('#', ...) do all[n + i] = (select(i, ...)) end return f(unpack(all, 1, n + select('#', ...))) end end } })
 package.preload['common'] = function() return true end
