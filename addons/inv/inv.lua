@@ -817,7 +817,7 @@ local contextMenus = {
 --
 -- While the window is showing, the d-pad moves a highlight over the items, the shoulder buttons change
 -- tab, A opens a menu of what can be done with the highlighted item and chooses from it, B backs out
--- of the menu or closes the window, and X opens the sort menu.
+-- of the menu or closes the window, Y opens the sort menu, and X is the window cycle's.
 local pad = {
     options = nil,     -- the tool's settings, as of the frame last drawn
     drawn = 0,         -- when the window was last drawn: the controller is only the inventory's while it is
@@ -1222,6 +1222,26 @@ pad.binding = controller.Bind({
     actions = controller.StandardActions(),
     repeats = controller.StandardRepeats(),
     press = PadPress,
+})
+
+-- The inventory is the first of the winxi windows in the window cycle: X (square), on the press that
+-- would start the game's own round of windows again, opens it and gives it the controller, and X
+-- again closes it and passes the controller on.
+controller.Cycle({
+    order = 1,
+    available = function()
+        return pad.options ~= nil and pad.options.controller[1] and true or false
+    end,
+    focused = PadIsActive,
+    focus = function()
+        pad.options.isVisible[1] = true
+    end,
+    unfocus = function()
+        pad.options.isVisible[1] = false
+    end,
+    busy = function()
+        return pad.menu ~= nil or pad.swap ~= nil
+    end,
 })
 
 -- Starts a frame of drawing
@@ -1780,7 +1800,7 @@ local function DrawSettings()
     widgets.Label('Controller Navigation (Experimental)')
     imgui.Checkbox('##inv.controller', options.controller)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv, from a macro.')
+        imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nY (triangle): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nX (square): on to the next window. The inventory comes after the game\'s own round of windows (the chat windows, then the status icons): X once more from the status icons opens it.\nThose buttons do not reach the game while the window is showing. /inv opens it as well.')
     end
     if options.controller[1] then
         widgets.Label('Controller Sounds')
@@ -1919,6 +1939,9 @@ ashita.events.register('command', 'inv_command', function(e)
         options.isVisible[1] = not options.isVisible[1]
     elseif verb == 'config' then
         showConfig[1] = not showConfig[1]
+    elseif verb == 'menu' then
+        -- for finding out what the game calls its menus: the window cycle goes by the name
+        Say(('The game menu on top is [%s].'):format(game.MenuName()))
     else
         Say('/inv shows or hides the window; /inv config opens or closes the settings.')
     end

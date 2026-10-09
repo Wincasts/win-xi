@@ -115,7 +115,7 @@ local menu = nil;
 
 controller.Bind({
     active  = function() return windowIsShowing end,    -- take the controller only while there is reason to
-    actions = controller.StandardActions(),             -- d-pad, A confirm, B back, X sort, LB previous, RB next
+    actions = controller.StandardActions(),             -- d-pad, A confirm, B back, Y sort, LB previous, RB next
     repeats = controller.StandardRepeats(),             -- the d-pad repeats while held
     press   = function(action)
         if menu then
@@ -142,6 +142,21 @@ if menu then
     local x, y = grid:Position();
     menu:Draw(x + 40, y);
 end
+```
+
+X (square) is the window cycle's. The game's X steps through its own windows (the chat windows, then the
+status icons); `controller.Cycle` puts an addon's window after them, each in its `order`, and the
+addons agree among themselves whose turn it is:
+
+```lua
+controller.Cycle({
+    order     = 1,
+    available = function() return settings.Controller end,    -- could it take the controller now
+    focused   = function() return windowHasController end,
+    focus     = function() windowIsShowing = true end,
+    unfocus   = function() windowIsShowing = false end,
+    busy      = function() return menu ~= nil end,            -- optional: X does nothing meanwhile
+});
 ```
 
 `controller.Label(text, x, y, below)` draws a small floating box with a line of text, its bottom left
