@@ -5,7 +5,7 @@
 -- border, padding and shadow, is the theme's.
 --
 -- A member is a line: the name, an HP bar and a smaller MP bar with their figures, and TP as a figure
--- alone. The member targeted is marked as in the party window's own view: ">> " before the name, both
+-- alone. Each bar has a soft shadow under it, which XivParty's do not. The member targeted is marked as in the party window's own view: ">> " before the name, both
 -- in blue, and "> " in green for one a sub-target or the party cursor is on. A small mark sits under
 -- the name of the party's leader, and the buffs of a member of the player's own party run leftwards
 -- from the window.
@@ -57,6 +57,7 @@ local function Hex(code)
 end
 
 local white = { 1, 1, 1, 1 }
+local black = { 0, 0, 0, 1 }
 local hpYellow = Hex('F3F37C') -- an HP figure below 75%
 local hpOrange = Hex('F8BA80') -- below 50%
 local hpRed = Hex('FC8182')    -- below 25%
@@ -246,6 +247,11 @@ local function DrawBar(place, member, state, opacity, showFigure)
             shown = fraction
         end
         state[kind] = shown
+
+        -- a soft shadow under the bar, down and to the right, to lift it off the window: the bar's own
+        -- back in black, twice, the further one fainter
+        Image(images.back, x + 1, y + 1.5, images.width, images.height, black, 0.45)
+        Image(images.back, x + 2, y + 2.5, images.width, images.height, black, 0.2)
 
         local color = images.color
         Image(images.back, x, y, images.width, images.height, color)

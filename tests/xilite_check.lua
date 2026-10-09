@@ -67,6 +67,11 @@ H.print('xivparty style: frames ran', ok, ok and '' or problem, '| lists given r
     '| names and figures drawn', (H.calls['draw.AddText'] or 0) > drawn)
 H.print('xivparty style: the party list is held by its bottom left', o.tools.us.alliance1.corner ~= nil,
     '| the second alliance is not', o.tools.us.alliance2.corner == nil)
+-- its settings, on the party's own tab: drawn here directly, as the harness shows only a window's first tab
+local sliders = H.calls.SliderInt or 0
+require('imgui').BeginTabBar('check')
+ok, problem = pcall(require('us').DrawConfig, o.tools.us, o.globals)
+H.print('xivparty style: its settings draw', ok, ok and '' or problem, '| sliders', (H.calls.SliderInt or 0) - sliders)
 -- a line is a name and three figures; fewer with the MP and TP values switched off
 H.frames(1); local before = H.calls['draw.AddText']; H.frames(1); local all = H.calls['draw.AddText'] - before
 o.tools.us.xivShowMp[1] = false; H.frames(1); before = H.calls['draw.AddText']; H.frames(1); local noMp = H.calls['draw.AddText'] - before

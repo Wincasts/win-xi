@@ -782,6 +782,20 @@ local function UpdateAlliances(options)
     }
 end
 
+-- The sliders that move the HP, MP and TP values in XivParty Style: two for each, across and down
+local xivOffsetReach = 40        -- how far either way, in the list's own units
+local xivOffsetSliderWidth = 130
+local xivOffsetBox = { 0 }       -- a number on its way in and out of a slider
+local xivOffsetControls = { }
+for _, name in ipairs({ 'HP', 'MP', 'TP' }) do
+    table.insert(xivOffsetControls, {
+        key = ('xiv%s%sOffset'):format(name:sub(1, 1), name:sub(2):lower()),
+        label = ('%s Value Offset'):format(name),
+        ids = { ('##us.xiv%sOffsetX'):format(name), ('##us.xiv%sOffsetY'):format(name) },
+        tooltip = ('Moves the %s value from its usual place: X to the right, Y down. Less than 0 moves it left or up.\nThe numbers are in the list\'s own units, so the value keeps its place as the scale changes.'):format(name),
+    })
+end
+
 ---@type xitool
 local us = {
     Name = 'us',
@@ -921,21 +935,24 @@ local us = {
                 if imgui.IsItemHovered() then
                     imgui.SetTooltip('How big the HP, MP and TP values are written, apart from everything else.')
                 end
-                local offsetTooltip = 'Moves the %s value from its usual place: the first number to the right, the second down. Less than 0 moves it left or up.\nThe numbers are in the list\'s own units, so the value keeps its place as the scale changes.'
-                ui.Label('HP Value Offset')
-                imgui.InputInt2('##us.xivHpOffset', options.xivHpOffset)
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(offsetTooltip:format('HP'))
-                end
-                ui.Label('MP Value Offset')
-                imgui.InputInt2('##us.xivMpOffset', options.xivMpOffset)
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(offsetTooltip:format('MP'))
-                end
-                ui.Label('TP Value Offset')
-                imgui.InputInt2('##us.xivTpOffset', options.xivTpOffset)
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(offsetTooltip:format('TP'))
+                -- each value's place: a slider across and a slider down, side by side
+                for _, value in ipairs(xivOffsetControls) do
+                    local offset = options[value.key]
+                    ui.Label(value.label)
+                    for axis = 1, 2 do
+                        if axis == 2 then
+                            imgui.SameLine()
+                        end
+                        xivOffsetBox[1] = tonumber(offset[axis]) or 0
+                        imgui.PushItemWidth(xivOffsetSliderWidth)
+                        if imgui.SliderInt(value.ids[axis], xivOffsetBox, -xivOffsetReach, xivOffsetReach, axis == 1 and 'X %d' or 'Y %d') then
+                            offset[axis] = xivOffsetBox[1]
+                        end
+                        imgui.PopItemWidth()
+                        if imgui.IsItemHovered() then
+                            imgui.SetTooltip(value.tooltip)
+                        end
+                    end
                 end
                 ui.Label('Show MP Values')
                 imgui.Checkbox('##us.xivShowMp', options.xivShowMp)
