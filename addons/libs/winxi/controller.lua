@@ -16,6 +16,12 @@
 -- controller.Highlight(binding), called while drawing a window, marks it as the one the controller is
 -- working, so that it can be told which window the buttons will act in.
 --
+-- While a binding has the controller the triggers are kept from the game as well, whether or not the
+-- binding uses them (controller.BlockTriggers), and every other addon is told: a plugin event named
+-- controller.FocusEvent goes out, carrying the addon's name and whether it has the controller, when
+-- that changes and once a second while it has. An addon with a controller of its own listens for it
+-- and stands down; controller.OtherHasFocus() is the same asked of other winxi addons.
+--
 -- The grid and the menu make the sounds of winxi.sound as they are worked, once an addon turns those on,
 -- and a binding makes the open sound as it takes the controller: as its window opens.
 --
@@ -68,6 +74,14 @@ function controller.StandardRepeats()
     return { up = true, down = true, left = true, right = true };
 end
 
+-- The triggers are not buttons of the kind bindings take, but a window that has the controller does
+-- not want them working the game's macros behind it: they are kept from the game while it has
+controller.BlockTriggers = true;
+
+-- The plugin event that tells other addons this one has, or no longer has, the controller. Its data
+-- is the addon's name, a colon, and 1 or 0.
+controller.FocusEvent = 'winxi_controller_focus';
+
 local bindings = {};
 local held = {};      -- button -> whether it is down
 local owner = {};     -- button -> the binding that took its press, until it is let go
@@ -82,10 +96,12 @@ controller.Layouts = {
     { key = 'xinput', label = 'XInput (Xbox)' },
     { key = 'playstation', label = 'DirectInput (PlayStation)', buttons = {
         [48] = B.X, [49] = B.A, [50] = B.B, [51] = B.Y,          -- square, cross, circle, triangle
-        [52] = B.LB, [53] = B.RB, [56] = B.Back, [57] = B.Start, [58] = B.L3, [59] = B.R3 } },
+        [52] = B.LB, [53] = B.RB, [56] = B.Back, [57] = B.Start, [58] = B.L3, [59] = B.R3 },
+        triggers = { [54] = true, [55] = true } },                -- L2, R2
     { key = 'switch', label = 'DirectInput (Switch Pro)', buttons = {
         [48] = B.A, [49] = B.B, [50] = B.X, [51] = B.Y,          -- B, A, Y, X: bottom, right, left, top
-        [52] = B.LB, [53] = B.RB, [56] = B.Back, [57] = B.Start, [58] = B.L3, [59] = B.R3 } },
+        [52] = B.LB, [53] = B.RB, [56] = B.Back, [57] = B.Start, [58] = B.L3, [59] = B.R3 },
+        triggers = { [54] = true, [55] = true } },                -- ZL, ZR
     { key = 'stadia', label = 'DirectInput (Stadia)', buttons = {
         [48] = B.A, [49] = B.B, [50] = B.X, [51] = B.Y,
         [52] = B.LB, [53] = B.RB, [54] = B.L3, [55] = B.R3, [56] = B.Back, [57] = B.Start } },
@@ -151,13 +167,41 @@ local function Process(button, down)
     return false;
 end
 
+-- Whether any binding has the controller, as of the last frame
+local anyActive = false;
+
+-- A trigger is being reported (by whatever number the controller gives it). Kept from the game from
+-- when it is pulled while a binding has the controller until it is let go.
+local triggerHeld = {};
+
+local function ProcessTrigger(id, down)
+    if not down then
+        local was = triggerHeld[id];
+        triggerHeld[id] = nil;
+        return was == true;
+    end
+    if triggerHeld[id] == nil and anyActive and controller.BlockTriggers then
+        triggerHeld[id] = true;
+    end
+    return triggerHeld[id] == true;
+end
+
+-- XInput numbers the triggers after the buttons: 16 and 17, or 32 and 33 on an older Ashita
+local xinputTrigger = (ashita.interface_version ~= nil) and 16 or 32;
+
 local function OnXInput(e)
     if layout.buttons ~= nil then
         return; -- a DirectInput controller is in use
     end
     -- the buttons proper: beyond them the event reports the triggers and sticks
-    if e.button <= 15 and Process(e.button, e.state == 1) then
-        e.blocked = true;
+    if e.button <= 15 then
+        if Process(e.button, e.state == 1) then
+            e.blocked = true;
+        end
+    elseif e.button == xinputTrigger or e.button == xinputTrigger + 1 then
+        if ProcessTrigger(e.button, e.state > 0) then
+            e.blocked = true;
+        end
     end
 end
 
@@ -192,8 +236,14 @@ local function OnDirectInput(e)
     end
 
     local button = buttons[e.button];
-    if button ~= nil and Process(button, e.state == 128) then
-        e.blocked = true;
+    if button ~= nil then
+        if Process(button, e.state == 128) then
+            e.blocked = true;
+        end
+    elseif layout.triggers ~= nil and layout.triggers[e.button] then
+        if ProcessTrigger(e.button, e.state == 128) then
+            e.blocked = true;
+        end
     end
 end
 
@@ -201,12 +251,53 @@ end
 -- showing as its addon loads has not just been opened
 local openGrace = 1.0;
 
+-- Telling other addons whether this one has the controller, and hearing the same from them
+local focusTold = nil;       -- what was last told: true or false
+local focusToldAt = 0;
+local focusRepeat = 1.0;     -- told again this often while it has the controller
+local focusExpiry = 2.5;     -- an addon not heard from for this long is taken to have let go
+local othersFocused = {};    -- addon name -> when it last said it has the controller
+
+local function TellFocus(focused, now)
+    local text = ('%s:%d'):format(addon.name, focused and 1 or 0);
+    AshitaCore:GetPluginManager():RaiseEvent(controller.FocusEvent, { text:byte(1, -1) });
+    focusTold, focusToldAt = focused, now;
+end
+
+local function OnPluginEvent(e)
+    if e.name ~= controller.FocusEvent then
+        return;
+    end
+    local name, focused = tostring(e.data or ''):match('^([^:%z]+):([01])');
+    if name ~= nil and name ~= addon.name then
+        othersFocused[name] = (focused == '1') and os.clock() or nil;
+    end
+end
+
+-- Whether another addon's window has the controller
+function controller.OtherHasFocus()
+    local now = os.clock();
+    for name, heard in pairs(othersFocused) do
+        if now - heard < focusExpiry then
+            return true;
+        end
+        othersFocused[name] = nil;
+    end
+    return false;
+end
+
+-- Whether any binding of this addon has the controller
+function controller.HasFocus()
+    return anyActive;
+end
+
 -- Once a frame: a binding that has just taken the controller sounds, and a held button whose action
 -- repeats does so
 local function OnPresent()
     local now = os.clock();
 
     -- a binding that has just taken the controller: its window has opened
+    local any = false;
     for index = 1, #bindings do
         local binding = bindings[index];
         local active = binding.active() and true or false;
@@ -216,6 +307,12 @@ local function OnPresent()
             end
             binding.wasActive = active;
         end
+        any = any or active;
+    end
+
+    anyActive = any;
+    if any ~= (focusTold or false) or (any and now - focusToldAt >= focusRepeat) then
+        TellFocus(any, now);
     end
 
     -- nothing is held that a binding took: nothing to repeat
@@ -254,6 +351,13 @@ function controller.Bind(spec)
         ashita.events.register('xinput_button', 'winxi_controller_xinput', OnXInput);
         ashita.events.register('dinput_button', 'winxi_controller_dinput', OnDirectInput);
         ashita.events.register('d3d_present', 'winxi_controller_present', OnPresent);
+        ashita.events.register('plugin_event', 'winxi_controller_plugin_event', OnPluginEvent);
+        -- an addon unloaded with the controller in hand lets go of it
+        ashita.events.register('unload', 'winxi_controller_unload', function()
+            if focusTold then
+                TellFocus(false, os.clock());
+            end
+        end);
     end
     return binding;
 end
