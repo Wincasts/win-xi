@@ -11,6 +11,7 @@
 --   controller.Bind(spec)      takes button presses and hands them to the addon as named actions
 --   controller.NewGrid()       a highlight that moves over things drawn in rows (items, icons, slots)
 --   controller.NewMenu(...)    a list of choices worked with up, down, confirm and back
+--   controller.Label(...)      a floating box naming what the highlight is on
 --
 -- controller.Highlight(binding), called while drawing a window, marks it as the one the controller is
 -- working, so that it can be told which window the buttons will act in.
@@ -515,6 +516,45 @@ function Menu:Draw(x, y)
             entry.id = entry.id or ('%s##winxi.menu.%d'):format(entry.label, index);
             imgui.Selectable(entry.id, index == self.index);
         end
+    end
+    imgui.End();
+end
+
+-- A label: a small floating box with a line of text in it, in the manner of the menu, for saying
+-- what the highlight is on. Its bottom left corner is put at x, y, so that given the top left of the
+-- thing it names it sits just above it.
+--
+--     controller.Label(text, x, y)    -- each frame it should show
+local labelOpen = { true };
+local labelPos = { 0, 0 };
+local labelPivot = { 0, 1 };
+local labelName = nil;
+local labelText = nil;   -- what it last said
+local labelDrawn = 0;    -- when it was last drawn
+
+function controller.Label(text, x, y)
+    menuFlags = menuFlags or bit.bor(
+        ImGuiWindowFlags_NoDecoration,
+        ImGuiWindowFlags_AlwaysAutoResize,
+        ImGuiWindowFlags_NoSavedSettings,
+        ImGuiWindowFlags_NoInputs);
+    labelName = labelName or ('winxi.label.' .. addon.name);
+
+    -- brought to the front when it appears, moves or says something new, and not every frame as the
+    -- menu is: taking the focus closes any popup that is open, and unlike the menu the label is up
+    -- the whole time, over a window that may have a right-click menu of its own
+    local now = os.clock();
+    if text ~= labelText or x ~= labelPos[1] or y ~= labelPos[2] or now - labelDrawn > 0.25 then
+        imgui.SetNextWindowFocus();
+        labelText = text;
+    end
+    labelDrawn = now;
+
+    labelPos[1], labelPos[2] = x, y;
+    imgui.SetNextWindowPos(labelPos, ImGuiCond_Always, labelPivot);
+    labelOpen[1] = true;
+    if imgui.Begin(labelName, labelOpen, menuFlags) then
+        imgui.Text(text);
     end
     imgui.End();
 end

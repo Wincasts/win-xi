@@ -1035,7 +1035,22 @@ end
 -- Ends a frame of drawing: keeps the highlight on an item, and draws the open menu beside its item
 local function PadEndFrame()
     pad.grid:End()
-    if not pad.active or pad.menu == nil then
+    if not pad.active then
+        return
+    end
+
+    -- no menu open: the name of the item the highlight is on, in a box floating just above it (an
+    -- item's menu has the name at its head)
+    if pad.menu == nil then
+        local item = pad.grid.count > 0 and pad.items[pad.grid.cursor] or nil
+        local x, y = pad.grid:Position()
+        if item ~= nil and x ~= nil then
+            if item.label == nil then
+                -- made once for the item: it is made afresh whenever the bags change
+                item.label = item.stackCur > 1 and ('%s x%d'):format(item.shortName, item.stackCur) or item.shortName
+            end
+            controller.Label(item.label, x, y - 5)
+        end
         return
     end
 
@@ -1384,19 +1399,6 @@ local function DrawWindow()
         DrawInventoryUnified()
     else
         DrawInventory()
-    end
-
-    -- with the controller, the name of the item the highlight is on, at the foot of the window. The
-    -- line is there whether or not there is an item, so that the window does not change height.
-    if pad.active then
-        local item = pad.grid.count > 0 and pad.items[pad.grid.cursor] or nil
-        if item == nil then
-            imgui.TextDisabled('-')
-        elseif item.stackCur > 1 then
-            imgui.Text(('%s x%d'):format(item.shortName, item.stackCur))
-        else
-            imgui.Text(item.shortName)
-        end
     end
 
     -- what the buttons do while sorting by hand, at the foot of the window
