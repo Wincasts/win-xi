@@ -15,6 +15,51 @@ local lines = 0
 local maxLines = 6000   -- some of the bytes may never keep still
 local objectBytes = 0xC0
 
+-- The game's party frames, found as hideparty finds them: the main party's, the target's, and the two
+-- other alliance parties'. Each is a pointer to an object whose +0x08 is the frame itself, and hideparty
+-- hides a frame by writing its +0x69 and +0x6A.
+local frames = nil
+
+local function Frames()
+    if frames == nil then
+        frames = { }
+        local first = ashita.memory.find(0, 0, '66C78182000000????C7818C000000????????C781900000', 0, 0)
+        if first ~= 0 then
+            frames[#frames + 1] = { name = 'party0', at = ashita.memory.read_uint32(first + 0x19) }
+            frames[#frames + 1] = { name = 'target', at = ashita.memory.read_uint32(first + 0x23) }
+        end
+        local second = ashita.memory.find(0, 0, 'A1????????8B0D????????89442424A1????????33DB89', 0, 0)
+        if second ~= 0 then
+            frames[#frames + 1] = { name = 'party1', at = ashita.memory.read_uint32(second + 0x01) }
+            frames[#frames + 1] = { name = 'party2', at = ashita.memory.read_uint32(second + 0x07) }
+        end
+    end
+    return frames
+end
+
+local frameBytes = 0xA0
+
+local function AddFrames(parts)
+    for _, frame in ipairs(Frames()) do
+        local object = frame.at ~= 0 and ashita.memory.read_uint32(frame.at) or 0
+        local primitive = object ~= 0 and ashita.memory.read_uint32(object + 0x08) or 0
+        if primitive == 0 then
+            parts[#parts + 1] = ('%s: object=%08X frame=none'):format(frame.name, object)
+        else
+            parts[#parts + 1] = ('%s: object=%08X frame=%08X vis(+69)=%d vis(+6A)=%d'):format(
+                frame.name, object, primitive,
+                ashita.memory.read_uint8(primitive + 0x69), ashita.memory.read_uint8(primitive + 0x6A))
+            for row = 0, frameBytes - 1, 16 do
+                local bytes = { }
+                for column = 0, 15 do
+                    bytes[#bytes + 1] = ('%02X'):format(ashita.memory.read_uint8(primitive + row + column))
+                end
+                parts[#parts + 1] = ('%s+%02X: %s'):format(frame.name, row, table.concat(bytes, ' '))
+            end
+        end
+    end
+end
+
 local function Say(text)
     print(('\30\81[xitools]\30\01 %s'):format(text))
 end
@@ -75,6 +120,8 @@ local function Snapshot()
         end
         parts[#parts + 1] = ('+%02X: %s'):format(row, table.concat(bytes, ' '))
     end
+
+    AddFrames(parts)
 
     return table.concat(parts, '\n  ')
 end
