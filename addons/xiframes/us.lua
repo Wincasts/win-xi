@@ -296,6 +296,7 @@ local function StyleSettings()
     settings.nameChars = nil
     settings.trimLast = nil
     settings.outline = options.xivOutline == nil or options.xivOutline[1]
+    settings.bookends = options.xivBookends == nil or options.xivBookends[1]
     settings.showMp = options.xivShowMp == nil or options.xivShowMp[1]
     settings.showTp = options.xivShowTp == nil or options.xivShowTp[1]
     settings.tpFlash = options.xivTpFlash == nil or options.xivTpFlash[1]
@@ -752,6 +753,7 @@ local us = {
         xivMpOffset = T{ 0, 0 }, -- and the MP figure
         xivTpOffset = T{ 0, 0 }, -- and the TP figure
         xivOutline = T{ true }, -- whether the names and the HP, MP and TP figures have a dark edge
+        xivBookends = T{ true }, -- whether the HP and MP bars have a small silver cap at each end
         xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
         xivShowTp = T{ true }, -- whether TP is written
         xivTpFlash = T{ true }, -- whether TP at 1000 and over pulses between a light blue and a deeper one
@@ -847,6 +849,9 @@ local us = {
             if options.xivOutline == nil then
                 options.xivOutline = T{ true }
             end
+            if options.xivBookends == nil then
+                options.xivBookends = T{ true }
+            end
             if options.xivValueSize == nil then
                 options.xivValueSize = T{ 100 }
             end
@@ -913,6 +918,11 @@ local us = {
             imgui.Checkbox('##us.xivOutline', options.xivOutline)
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('Gives the names and the HP, MP and TP values a dark edge, so they can be read where they are written over a bar.')
+            end
+            ui.Label('Bar Bookends')
+            imgui.Checkbox('##us.xivBookends', options.xivBookends)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Puts a small silver cap at each end of the HP and MP bars, like the ones on the game\'s own party list.')
             end
             ui.Label('Show MP Values')
             imgui.Checkbox('##us.xivShowMp', options.xivShowMp)

@@ -25,6 +25,8 @@
 --     buffDistance  how much further from the window than usual the buffs start, in the layout's
 --                 units: less than nothing brings them closer, and over it
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
+--     bookends    false for bars without the small silver caps at their ends, which are after the ones
+--                 on the game's own party list and are not XivParty's
 --     trimLast    true for a list that is the last thing in its window: its last line is then only
 --                 as tall as what is on it, where every other is a full row. Without it the room
 --                 under a line that does not fill its row (a pet with an HP bar alone) shows as
@@ -88,11 +90,20 @@ local noMpGrey = { 0.55, 0.55, 0.55, 1 } -- the MP bar of a member with no MP to
 -- The images of a bar: a back, the fill that is as long as the bar is full (it starts fillX across
 -- and is fillWidth long when full), and a front. color tints all three. Each image is a good deal
 -- taller than the bar drawn in it: bottom is how far down the image the bar itself ends.
-local hpImages = { width = 128, height = 64, fillX = 13, fillWidth = 102, bottom = 36,
+-- body is where in the image the bar itself is, left, top, right and bottom: its ends are where the
+-- bookends go.
+local hpImages = { width = 128, height = 64, fillX = 13, fillWidth = 102, bottom = 36, body = { 12, 28, 116, 36 },
     back = 'ffxi/BarBG.png', fill = 'ffxi/Bar.png', front = 'ffxi/BarFG.png', color = Hex('FF9597') }
-local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74, bottom = 35,
+local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74, bottom = 35, body = { 26, 29, 102, 35 },
     back = 'ffxi/AllyBarBgMP.png', fill = 'ffxi/AllyBarMP.png', front = 'ffxi/AllyBarFgMP.png', color = Hex('FFFF9C') }
 local barShadowReach = 2.5 -- how far below a bar its shadow goes
+
+-- The bookends: a small silver cap at each end of a bar, a little taller than the bar and standing
+-- half on it, as the bars of the game's own party list have
+local bookend = { width = 3, over = 1.5 } -- how wide a cap is, and how far it stands above and below the bar
+local bookendSilver = { 0.78, 0.80, 0.84, 1 }
+local bookendShine = { 0.97, 0.97, 1.00, 1 }
+local bookendEdge = { 0.20, 0.21, 0.25, 1 }
 
 -- The layout, in XivParty's own numbers: places and sizes are in its units, from the top left of a
 -- member's line. A figure's place is from its bar's; with alignRight its right end goes there.
@@ -152,6 +163,7 @@ local valueScale = 1      -- how much larger or smaller than the layout's the HP
 local nameScale = 1       -- and the names
 local buffScale = 1       -- and the buff icons
 local buffSpacing = 0     -- the room between one buff icon and the next
+local bookends = true     -- whether the bars have their silver caps
 local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
 local outlined = true     -- whether the names and figures have winxi's dark edge
 local nameChars = nil     -- how much of a name is written, where it is not the layout's own
@@ -315,6 +327,29 @@ local function Front(place, bar)
     Image(images.front, place.x, place.y, images.width, images.height, bar.color or images.color)
 end
 
+-- A bar's two bookends. Each is a silver cap with a dark edge and a line of shine down its left side.
+local capMin, capMax = { 0, 0 }, { 0, 0 }
+
+local function Cap(centre, top, bottom)
+    local half = bookend.width * scale / 2
+    local left = math.floor(itemX + centre * scale - half)
+    local right = math.floor(itemX + centre * scale + half) + 1
+    top, bottom = math.floor(itemY + top * scale), math.floor(itemY + bottom * scale) + 1
+
+    capMin[1], capMin[2], capMax[1], capMax[2] = left, top, right, bottom
+    drawList:AddRectFilled(capMin, capMax, Packed(bookendSilver, 1), 1)
+    drawList:AddRect(capMin, capMax, Packed(bookendEdge, 1), 1, 0, 1)
+    capMin[1], capMin[2], capMax[1], capMax[2] = left + 1, top + 1, left + 1, bottom - 2
+    drawList:AddLine(capMin, capMax, Packed(bookendShine, 1), 1)
+end
+
+local function Bookends(place)
+    local body = place.images.body
+    local top, bottom = place.y + body[2] - bookend.over, place.y + body[4] + bookend.over
+    Cap(place.x + body[1], top, bottom)
+    Cap(place.x + body[3], top, bottom)
+end
+
 -- One layer of a bar, for every line that has the bar: every line in the area has an HP bar, and an
 -- MP bar unless it has no MP to show (another player's pet)
 local function Layer(count, kind, place, draw)
@@ -333,6 +368,9 @@ local function DrawBars(count, kind, place)
     Layer(count, kind, place, Back)
     Layer(count, kind, place, Fill)
     Layer(count, kind, place, Front)
+    if bookends then
+        Layer(count, kind, place, Bookends)
+    end
 end
 
 -- A leader's mark: a circle in front of the name, where the name's first letter would be, in the
@@ -535,6 +573,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     nameScale = Percent(settings.nameSize)
     buffScale = Percent(settings.buffSize)
     buffSpacing = tonumber(settings.buffSpacing) or 0
+    bookends = settings.bookends ~= false
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = settings.hpOffset, settings.mpOffset, settings.tpOffset
     outlined = settings.outline ~= false
     nameChars = settings.nameChars
