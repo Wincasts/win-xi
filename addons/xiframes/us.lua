@@ -47,6 +47,7 @@ local Alliances = { }
 ---@field mpp              integer
 ---@field hp               integer
 ---@field mp               integer
+---@field noMp             boolean  the most MP they can have is none
 ---@field tp               integer
 ---@field statusIds        integer[]
 
@@ -141,6 +142,31 @@ local function ReadOwnBuffs(buffs)
     end
 end
 
+-- Whether the most MP a member can have is none. The game tells the player their own, and for anyone
+-- else only how much they have now and what part of their most that is, which for a member at 0 MP
+-- says nothing: none of none and none of a thousand look alike. So for the others it is worked out:
+-- anyone seen with MP has MP for as long as they keep their jobs, and of those never seen with any,
+-- those whose job or sub job is one that has MP are taken to have run out, and the rest to have none.
+local mpJobs = { [3] = true, [4] = true, [5] = true, [7] = true, [8] = true, [15] = true, [16] = true, [20] = true, [21] = true, [22] = true } -- WHM BLM RDM PLD DRK SMN BLU SCH GEO RUN
+local seenWithMp = { } -- server id -> the jobs they had when last seen with MP: main * 100 + sub
+
+local function HasNoMp(place, party, serverId, mp, mpp)
+    if place == 0 then
+        return AshitaCore:GetMemoryManager():GetPlayer():GetMPMax() == 0
+    end
+
+    local main, sub = party:GetMemberMainJob(place), party:GetMemberSubJob(place)
+    local jobs = main * 100 + sub
+    if mp > 0 or mpp > 0 then
+        seenWithMp[serverId] = jobs
+        return false
+    end
+    if seenWithMp[serverId] == jobs then
+        return false
+    end
+    return not (mpJobs[main] or mpJobs[sub])
+end
+
 -- A member is read into a table kept for their place in the alliance (0 is the player, 1 to 5 the
 -- rest of their party, 6 to 17 the other two), the same table each time: members are read ten times
 -- a second, and a new table for each of eighteen every time is a good deal to throw away.
@@ -190,6 +216,7 @@ local function ReadMember(place, party, stal)
     member.hp = party:GetMemberHP(place)
     member.mp = party:GetMemberMP(place)
     member.tp = party:GetMemberTP(place)
+    member.noMp = HasNoMp(place, party, serverId, member.mp, member.mpp)
     member.entity = nil
 
     -- buffs are shown for the player's own party alone
@@ -227,6 +254,7 @@ local function GetSampleMember(slot)
         hp = 1400 - (slot - 1) * 210,
         mp = 800 - (slot - 1) * 96,
         tp = (slot - 1) * 500,
+        noMp = slot == 4, -- the thief: a grey MP bar
         statusIds = { 40, 41, 33 }, -- Protect, Shell, Haste
     }
 end
