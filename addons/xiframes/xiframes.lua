@@ -23,6 +23,7 @@ local winxiWindow = require('winxi.window')
 ---@field UpdateSettings  function?
 ---@field Load            function?
 ---@field HandlePacket    function?
+---@field HandlePacketOut function?
 ---@field DrawConfig      function
 ---@field DrawMain        function
 ---@field DrawSample      function? draws the tool's windows filled with sample data; only called while it is enabled
@@ -411,6 +412,14 @@ ashita.events.register('packet_in', 'packet_in_handler', function(e)
     for _, tool in ipairs(tools) do
         if tool.HandlePacket ~= nil and options.tools[tool.Name].isEnabled[1] then
             tool.HandlePacket(e, options.tools[tool.Name], options.globals)
+        end
+    end
+end)
+
+ashita.events.register('packet_out', 'packet_out_handler', function(e)
+    for _, tool in ipairs(tools) do
+        if tool.HandlePacketOut ~= nil and options.tools[tool.Name].isEnabled[1] then
+            tool.HandlePacketOut(e, options.tools[tool.Name], options.globals)
         end
     end
 end)
