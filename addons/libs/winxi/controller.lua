@@ -590,16 +590,25 @@ function Menu:Press(action)
 end
 
 local menuOpen = { true };
-local menuFlags = nil;
 local menuPos = { 0, 0 };
 local menuName = nil;
 
+-- The flags of a floating box, the menu's and the label's: made on first use, when imgui's are certain
+-- to be defined
+local floatFlags = nil;
+
+local function FloatFlags()
+    if floatFlags == nil then
+        floatFlags = bit.bor(
+            ImGuiWindowFlags_NoDecoration,
+            ImGuiWindowFlags_AlwaysAutoResize,
+            ImGuiWindowFlags_NoSavedSettings,
+            ImGuiWindowFlags_NoInputs);
+    end
+    return floatFlags;
+end
+
 function Menu:Draw(x, y)
-    menuFlags = menuFlags or bit.bor(
-        ImGuiWindowFlags_NoDecoration,
-        ImGuiWindowFlags_AlwaysAutoResize,
-        ImGuiWindowFlags_NoSavedSettings,
-        ImGuiWindowFlags_NoInputs);
 
     -- every addon draws in the one imgui, so the window is named for the addon it belongs to; one is
     -- enough, as a menu that opens another takes its place
@@ -611,7 +620,7 @@ function Menu:Draw(x, y)
     -- first made, would otherwise be drawn over it
     imgui.SetNextWindowFocus();
     menuOpen[1] = true;
-    if imgui.Begin(menuName, menuOpen, menuFlags) then
+    if imgui.Begin(menuName, menuOpen, FloatFlags()) then
         if self.title then
             imgui.TextDisabled(self.title);
         end
@@ -645,11 +654,6 @@ local labelDrawn = 0;    -- when it was last drawn
 
 function controller.Label(text, x, y, below, key)
     key = key or text;
-    menuFlags = menuFlags or bit.bor(
-        ImGuiWindowFlags_NoDecoration,
-        ImGuiWindowFlags_AlwaysAutoResize,
-        ImGuiWindowFlags_NoSavedSettings,
-        ImGuiWindowFlags_NoInputs);
     labelName = labelName or ('winxi.label.' .. addon.name);
 
     -- brought to the front when it appears, moves or says something new, and not every frame as the
@@ -665,7 +669,7 @@ function controller.Label(text, x, y, below, key)
     labelPos[1], labelPos[2] = x, y;
     imgui.SetNextWindowPos(labelPos, ImGuiCond_Always, below and labelBelow or labelAbove);
     labelOpen[1] = true;
-    if imgui.Begin(labelName, labelOpen, menuFlags) then
+    if imgui.Begin(labelName, labelOpen, FloatFlags()) then
         if type(text) == 'function' then
             text();
         else

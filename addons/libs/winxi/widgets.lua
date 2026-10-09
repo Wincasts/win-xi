@@ -131,11 +131,17 @@ function widgets.Gap()
 end
 
 -- A control's hidden label, by the setting it is for: made once per setting
-local controlIds = setmetatable({}, { __index = function(ids, key)
-    local id = '##winxi.' .. key;
-    ids[key] = id;
-    return id;
-end });
+local function Ids(prefix)
+    return setmetatable({}, { __index = function(ids, key)
+        local id = prefix .. key;
+        ids[key] = id;
+        return id;
+    end });
+end
+
+local controlIds = Ids('##winxi.');
+local fadeIds = Ids('##winxi.fade.');
+local hideIds = Ids('##winxi.hide.');
 
 local function Color(label, key, tooltip)
     widgets.Label(label);
@@ -283,6 +289,7 @@ end
 -- Measured rather than fixed, so the two columns stay apart at any font size.
 local growFromGap = 24;
 local growFromColumn = nil;
+local growFromIds = {}; -- corner -> its button's label: made once
 
 local function GrowFromColumn()
     if growFromColumn == nil then
@@ -314,7 +321,12 @@ function widgets.GrowFrom(current)
         elseif index > 1 then
             imgui.SetCursorPosX(left);
         end
-        if imgui.RadioButton(anchor.Labels[mode] .. '##winxi.growfrom', current == mode) and current ~= mode then
+        local id = growFromIds[mode];
+        if id == nil then
+            id = anchor.Labels[mode] .. '##winxi.growfrom';
+            growFromIds[mode] = id;
+        end
+        if imgui.RadioButton(id, current == mode) and current ~= mode then
             chosen = mode;
         end
         Tooltip('The corner that stays where it is when the window\'s content changes size: it grows away from that corner.');
@@ -327,7 +339,7 @@ local fadeDirty = false; -- a fade setting has been changed since the addon was 
 local function FadeCheck(settings, label, key, tooltip)
     widgets.Label(label);
     box[1] = settings[key];
-    if imgui.Checkbox(controlIds['fade.' .. key], box) then
+    if imgui.Checkbox(fadeIds[key], box) then
         settings[key] = box[1] and true or false;
         fadeDirty = true;
     end
@@ -339,9 +351,9 @@ local function FadeNumber(settings, label, key, min, max, format, tooltip)
     box[1] = settings[key];
     local changed;
     if format then
-        changed = imgui.SliderFloat(controlIds['fade.' .. key], box, min, max, format);
+        changed = imgui.SliderFloat(fadeIds[key], box, min, max, format);
     else
-        changed = imgui.SliderInt(controlIds['fade.' .. key], box, min, max);
+        changed = imgui.SliderInt(fadeIds[key], box, min, max);
     end
     if changed then
         settings[key] = box[1];
@@ -381,7 +393,7 @@ local hideDirty = false; -- a hide rule has been changed since the addon was las
 local function HideCheck(settings, label, key, tooltip)
     widgets.Label(label);
     box[1] = settings[key];
-    if imgui.Checkbox(controlIds['hide.' .. key], box) then
+    if imgui.Checkbox(hideIds[key], box) then
         settings[key] = box[1] and true or false;
         hideDirty = true;
     end

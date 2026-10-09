@@ -41,6 +41,9 @@ local linkGap = 5;     -- between a linked window and the one it is held against
 local labelText = { 0.81, 0.81, 0.50, 1.0 };
 local labelBackground = { 0.08, 0.08, 0.08, 0.8 };
 
+-- Two points, reused for whatever is drawn or placed next: imgui copies them as it is given them
+local from, to = { 0, 0 }, { 0, 0 };
+
 function organize.IsActive()
     return active;
 end
@@ -167,8 +170,11 @@ function organize.Label(name)
     end
 
     local drawList = imgui.GetForegroundDrawList();
-    drawList:AddRectFilled({ x, labelY }, { x + textWidth + 8, labelY + textHeight + 4 }, imgui.GetColorU32(labelBackground), 2);
-    drawList:AddText({ x + 4, labelY + 2 }, imgui.GetColorU32(labelText), text);
+    from[1], from[2] = x, labelY;
+    to[1], to[2] = x + textWidth + 8, labelY + textHeight + 4;
+    drawList:AddRectFilled(from, to, imgui.GetColorU32(labelBackground), 2);
+    from[1], from[2] = x + 4, labelY + 2;
+    drawList:AddText(from, imgui.GetColorU32(labelText), text);
 end
 
 -- Notes where the window being drawn is, and whether a drag has just started on it
@@ -245,6 +251,14 @@ local gridColor = { 1.0, 1.0, 1.0, 0.12 };
 local gridCenterColor = { 1.0, 1.0, 1.0, 0.45 };
 local gridVisible = { true };
 local gridFlags = nil;
+local gridName = nil;
+local noPadding = { 0, 0 };
+
+local function Line(drawList, x1, y1, x2, y2, color, thickness)
+    from[1], from[2] = x1, y1;
+    to[1], to[2] = x2, y2;
+    drawList:AddLine(from, to, color, thickness);
+end
 
 -- A grid over the whole screen for lining windows up against, with bold lines through the centre.
 -- The lines are spaced outwards from the centre, so the grid is the same on both sides of it.
@@ -262,29 +276,33 @@ local function DrawGrid()
         ImGuiWindowFlags_NoBringToFrontOnFocus or 0,
         ImGuiWindowFlags_NoFocusOnAppearing or 0);
 
-    imgui.SetNextWindowPos({ 0, 0 });
-    imgui.SetNextWindowSize({ width, height });
-    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
-
     -- every addon draws in the one imgui, so the window is named for the addon it belongs to
-    if imgui.Begin('winxi.grid.' .. addon.name, gridVisible, gridFlags) then
+    gridName = gridName or ('winxi.grid.' .. addon.name);
+
+    from[1], from[2] = 0, 0;
+    to[1], to[2] = width, height;
+    imgui.SetNextWindowPos(from);
+    imgui.SetNextWindowSize(to);
+    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, noPadding);
+
+    if imgui.Begin(gridName, gridVisible, gridFlags) then
         local drawList = imgui.GetWindowDrawList();
         local thin = imgui.GetColorU32(gridColor);
         local bold = imgui.GetColorU32(gridCenterColor);
 
         for offset = gridSpacing, math.max(centerX, centerY), gridSpacing do
             if offset <= centerX then
-                drawList:AddLine({ centerX - offset, 0 }, { centerX - offset, height }, thin, 1);
-                drawList:AddLine({ centerX + offset, 0 }, { centerX + offset, height }, thin, 1);
+                Line(drawList, centerX - offset, 0, centerX - offset, height, thin, 1);
+                Line(drawList, centerX + offset, 0, centerX + offset, height, thin, 1);
             end
             if offset <= centerY then
-                drawList:AddLine({ 0, centerY - offset }, { width, centerY - offset }, thin, 1);
-                drawList:AddLine({ 0, centerY + offset }, { width, centerY + offset }, thin, 1);
+                Line(drawList, 0, centerY - offset, width, centerY - offset, thin, 1);
+                Line(drawList, 0, centerY + offset, width, centerY + offset, thin, 1);
             end
         end
 
-        drawList:AddLine({ centerX, 0 }, { centerX, height }, bold, 3);
-        drawList:AddLine({ 0, centerY }, { width, centerY }, bold, 3);
+        Line(drawList, centerX, 0, centerX, height, bold, 3);
+        Line(drawList, 0, centerY, width, centerY, bold, 3);
     end
 
     imgui.End();
@@ -310,6 +328,9 @@ end
 
 local unlinkVisible = { true };
 local unlinkFlags = nil;
+local unlinkPadding = { 4, 4 };
+local unlinkPivot = { 1, 0 };  -- the button's top right corner goes at the point
+local unlinkNames = {};        -- window name -> its button's window: made once
 
 -- Call once a frame, after every window has been drawn. While organizing, puts a small floating Unlink
 -- button beside each linked window, for breaking its link.
@@ -332,13 +353,21 @@ function organize.EndFrame()
         if rect ~= nil and rect.frame == frame then
             -- beside the window's top corner, on the side away from its parent
             if link.side == 'left' then
-                imgui.SetNextWindowPos({ rect.x - 4, rect.y }, ImGuiCond_Always, { 1, 0 });
+                from[1], from[2] = rect.x - 4, rect.y;
+                imgui.SetNextWindowPos(from, ImGuiCond_Always, unlinkPivot);
             else
-                imgui.SetNextWindowPos({ rect.x + rect.w + 4, rect.y }, ImGuiCond_Always);
+                from[1], from[2] = rect.x + rect.w + 4, rect.y;
+                imgui.SetNextWindowPos(from, ImGuiCond_Always);
             end
 
-            imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 4, 4 });
-            if imgui.Begin('winxi.unlink.' .. link.child, unlinkVisible, unlinkFlags) then
+            local name = unlinkNames[link.child];
+            if name == nil then
+                name = 'winxi.unlink.' .. link.child;
+                unlinkNames[link.child] = name;
+            end
+
+            imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, unlinkPadding);
+            if imgui.Begin(name, unlinkVisible, unlinkFlags) then
                 if imgui.Button('Unlink') then
                     table.remove(links, index);
                 end

@@ -32,10 +32,12 @@ local function Push(options, withPalette)
 
     if withPalette then
         local palette = theme.Palette();
-        for _, entry in ipairs(palette) do
+        local count = #palette;
+        for index = 1, count do
+            local entry = palette[index];
             imgui.PushStyleColor(entry[1], entry[2]);
         end
-        colors = colors + #palette;
+        colors = colors + count;
     end
 
     imgui.PushStyleColor(ImGuiCol_WindowBg, options and options.background or current.BackgroundColor);
