@@ -157,8 +157,16 @@ controller.Cycle({
     focus     = function() windowHasController = true end,
     unfocus   = function() windowHasController = false end,   -- the window stays open
     busy      = function() return menu ~= nil end,            -- optional: X does nothing meanwhile
+    isOpen    = function() return windowIsShowing end,        -- optional, these three: for /winxi
+    open      = function() windowIsShowing = true end,
+    close     = function() windowIsShowing = false end,
 });
 ```
+
+With `isOpen`, `open` and `close` the window answers to `/winxi <addon>`, a command every winxi addon
+shares: it opens the window and gives it the controller; if the window is open already without the
+controller, gives it the controller; if it has it, closes it. `/winxi` alone moves the controller on, as
+X does. A window that takes the controller takes it from any other winxi window.
 
 `controller.Label(text, x, y, below)` draws a small floating box with a line of text, its bottom left
 corner at x, y: given the top left of the highlighted thing, it names it from just above. With `below`

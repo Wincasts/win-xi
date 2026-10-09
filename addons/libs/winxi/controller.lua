@@ -36,7 +36,18 @@
 --         focus     = function() ... end,          -- take it
 --         unfocus   = function() ... end,          -- let go of it (the window stays as it is)
 --         busy      = function() return ... end,   -- optional: true while X should do nothing (a menu is open)
+--         isOpen    = function() return ... end,   -- optional, with open and close: for the /winxi command
+--         open      = function() ... end,
+--         close     = function() ... end,
 --     });
+--
+-- With isOpen, open and close the window also answers to a command shared by every winxi addon:
+--
+--     /winxi <addon>    opens the addon's window and gives it the controller; if it is open already
+--                       without the controller, gives it the controller; if it has it, closes it
+--     /winxi            moves the controller to the next open window, as X does
+--
+-- A window that takes the controller, by whatever means, takes it from any other winxi window.
 --
 -- One window an addon. The windows are in different addons, which tell each other what they have by
 -- plugin event (controller.CycleEvent), so they agree whose turn it is.
@@ -428,7 +439,57 @@ end
 local function OnCycleEvent(e)
     local name, order, available, focused = tostring(e.data or ''):match('^([^:%z]+):(-?%d+):([01]):([01])');
     if name ~= nil and name ~= addon.name then
+        local before = cycleOthers[name];
+        local taking = focused == '1' and not (before ~= nil and before.focused);
         cycleOthers[name] = { order = tonumber(order), available = available == '1', focused = focused == '1', heard = os.clock() };
+
+        -- another addon's window has just taken the controller: this one's lets go of it
+        if taking and cycleEntry ~= nil and cycleFocused then
+            cycleEntry.unfocus();
+            cycleFocused = false;
+        end
+    end
+end
+
+-- /winxi, the command every winxi addon in the cycle answers to (see the top of this file)
+local function OnCommand(e)
+    local words = {};
+    for word in tostring(e.command):gmatch('%S+') do
+        words[#words + 1] = word:lower();
+    end
+    if words[1] ~= '/winxi' or cycleEntry == nil then
+        return;
+    end
+    e.blocked = true;
+
+    local entry = cycleEntry;
+    local wanted = words[2];
+    if wanted == nil or wanted == 'next' then
+        CyclePress();
+        return;
+    end
+
+    if wanted ~= (entry.name or addon.name):lower() then
+        -- another addon's window is being asked for: it will take the controller, or close
+        if cycleFocused then
+            entry.unfocus();
+            cycleFocused = false;
+        end
+        return;
+    end
+
+    if entry.isOpen == nil or entry.open == nil or entry.close == nil then
+        return;
+    end
+    if not entry.isOpen() then
+        entry.open();
+        entry.focus();
+    elseif entry.available() and not entry.focused() then
+        entry.focus();
+    else
+        -- it has the controller, or cannot take it (the addon's controller setting is off, say):
+        -- then the command simply opens and closes
+        entry.close();
     end
 end
 
@@ -533,6 +594,7 @@ StartListening = function()
         ashita.events.register('dinput_button', 'winxi_controller_dinput', OnDirectInput);
         ashita.events.register('d3d_present', 'winxi_controller_present', OnPresent);
         ashita.events.register('plugin_event', 'winxi_controller_plugin_event', OnPluginEvent);
+        ashita.events.register('command', 'winxi_controller_command', OnCommand);
         -- an addon unloaded with the controller in hand lets go of it
         ashita.events.register('unload', 'winxi_controller_unload', function()
             if focusTold then

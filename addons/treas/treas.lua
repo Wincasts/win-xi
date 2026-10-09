@@ -10,6 +10,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /treas           shows or hides the window (it only appears while there is treasure)
 --   /treas config    opens or closes the settings
 --   /treas focus     gives the window the controller, or takes it away again
+--   /winxi treas     shows it; showing already, gives it the controller; with the controller, hides it
 
 require('common')
 local bit = require('bit')
@@ -242,6 +243,20 @@ controller.Cycle({
     end,
     busy = function()
         return pad.menu ~= nil
+    end,
+    -- for /winxi treas. Open is the window being allowed to show: it is only there with treasure.
+    isOpen = function()
+        return pad.options ~= nil and pad.options.isVisible[1] and true or false
+    end,
+    open = function()
+        if pad.options ~= nil then
+            pad.options.isVisible[1] = true
+        end
+    end,
+    close = function()
+        if pad.options ~= nil then
+            pad.options.isVisible[1] = false
+        end
     end,
 })
 

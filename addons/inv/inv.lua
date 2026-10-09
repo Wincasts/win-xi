@@ -11,6 +11,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /inv           shows or hides the window
 --   /inv config    opens or closes the settings
 --   /inv focus     gives the open window the controller, or takes it away again
+--   /winxi inv     opens it; open already, gives it the controller; with the controller, closes it
 
 require('common')
 local bit = require('bit')
@@ -1250,6 +1251,20 @@ controller.Cycle({
     end,
     busy = function()
         return pad.menu ~= nil or pad.swap ~= nil
+    end,
+    -- for /winxi inv
+    isOpen = function()
+        return pad.options ~= nil and pad.options.isVisible[1] and true or false
+    end,
+    open = function()
+        if pad.options ~= nil then
+            pad.options.isVisible[1] = true
+        end
+    end,
+    close = function()
+        if pad.options ~= nil then
+            pad.options.isVisible[1] = false
+        end
     end,
 })
 

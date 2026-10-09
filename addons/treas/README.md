@@ -7,6 +7,8 @@ the `treas` tool of xitools and is now an addon of its own, needing only the `wi
 - `/treas` shows or hides the window (it only appears while there is treasure in the pool)
 - `/treas config` opens or closes the settings
 - `/treas focus` gives the window the controller, or takes it away again
+- `/winxi treas` shows the window; if it is showing already without the controller, gives it the
+  controller; if it has the controller, hides it
 
 With a controller (Controller Navigation, in the settings): the window is up whenever there is treasure,
 so it does not take the controller until `/treas focus` gives it (put that in a macro). Then up and down

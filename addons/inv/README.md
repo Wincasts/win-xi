@@ -6,6 +6,9 @@ The bags in a window: what is in them, and what can be done with it, by mouse or
 - `/inv` shows or hides the window
 - `/inv config` opens or closes the settings
 - `/inv focus` gives the open window the controller, or takes it away again
+- `/winxi inv` is the one for a macro: it opens the window; if it is open already without the controller,
+  gives it the controller; if it has the controller, closes it. `/winxi` alone moves the controller to the
+  next open winxi window, as X does.
 
 With the mouse, right-click an item for what can be done with it. With a controller (Controller
 Navigation, in the settings): the d-pad moves the highlight, LB / RB change tab, A opens the item's menu,
