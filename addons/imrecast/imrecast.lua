@@ -27,7 +27,7 @@ addon.link      = 'https://ashitaxi.com/';
 
 require('common')
 local Settings = require('settings')
-local Ffxi = require('lin.ffxi')
+local Game = require('winxi.game')
 local Imgui = require('imgui')
 
 -- The window's look (colours, padding, drop shadow) is winxi's theme: the one shared with other addons,
@@ -275,10 +275,10 @@ local function OnPresent()
 
     if playerJob == nil
     or playerJob == 0
-    or Ffxi.IsChatExpanded()
-    or Ffxi.IsMapOpen()
-    or Ffxi.IsEventHappening()
-    or Ffxi.IsInterfaceHidden() then
+    or Game.IsChatExpanded()
+    or Game.IsMapOpen()
+    or Game.IsEventHappening()
+    or Game.IsInterfaceHidden() then
         return
     end
 
