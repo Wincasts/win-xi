@@ -32,4 +32,5 @@ own. Organize, at the foot of the window, fills the frames with sample data to d
 `tests/run.sh` loads the addon against a stand-in for Ashita, and compares what it draws, call for
 call, with a kept copy.
 
-The bar images are XivParty's, in `assets/xivparty` with its licence. Needs `libs/winxi`.
+The bar images are XivParty's, cut down to the bars themselves, in `assets/bars` with its licence.
+Needs `libs/winxi`.

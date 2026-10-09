@@ -5,7 +5,7 @@
 --     notices.HandlePacket(e), notices.HandlePacketOut(e)     every packet in and out goes by these
 --     notices.Invitation()          the invitation waiting, { alliance = whether it is to an alliance }, or nil
 --     notices.TreasureWaiting()     whether there is anything in the pool
---     notices.DrawIcons(invitation, treasure, corner, offset, scale)     inside the party's window
+--     notices.DrawIcons(invitation, treasure, corner, offsetX, offsetY, scale)     inside the party's window
 --
 -- An invitation is over when the player answers it (a packet of the client's own), when the inviter
 -- withdraws it, or when the player changes area, which drops it: the server sends one packet to say
@@ -74,11 +74,11 @@ notices.Corners = {
 -- The icons are outside the window, above its top corners or below its bottom ones, so nothing in the
 -- list moves for them, and where there are both the chest is beside the envelope, further from the
 -- corner. They are drawn over every window, not among them, so that another window lying across them
--- does not hide them. Sizes are in the frames' own units.
-local envelope = { width = 13, height = 9 }
-local chest = { width = 12, height = 10 }
-local gap = 5       -- between the window and the icons
-local spacing = 4   -- between one icon and the next
+-- does not hide them. Sizes are in pixels at a scale of 100.
+local envelope = { width = 15.6, height = 10.8 }
+local chest = { width = 14.4, height = 12 }
+local gap = 6       -- between the window and the icons
+local spacing = 4.8 -- between one icon and the next
 local opacity = 0.85 -- neither is quite solid
 local edgeColor = { 0.05, 0.05, 0.05, 1 }
 local chestWood = { 0.62, 0.40, 0.18, 1 }
@@ -124,9 +124,9 @@ end
 
 -- Draws whichever icons there are to show, beside the window being drawn: shown is the invitation
 -- waiting, if any, and treasure whether there is something in the pool. corner is one of
--- notices.Corners' keys, offset { x, y } how far from there they are moved, and scale how many pixels
--- one of the frames' units is.
-function notices.DrawIcons(shown, treasure, corner, offset, scale)
+-- notices.Corners' keys, offsetX and offsetY how far from there they are moved, in pixels at a scale
+-- of 100, and scale how much larger or smaller than that everything is drawn.
+function notices.DrawIcons(shown, treasure, corner, offsetX, offsetY, scale)
     local windowX, windowY = imgui.GetWindowPos()
     local display = imgui.GetIO().DisplaySize
     -- a list laid out off screen to be measured has no icons
@@ -140,9 +140,9 @@ function notices.DrawIcons(shown, treasure, corner, offset, scale)
     local onRight = corner == 'TopRight' or corner == 'BottomRight'
     local below = corner == 'BottomRight' or corner == 'BottomLeft'
     local windowWidth, windowHeight = imgui.GetWindowSize()
-    local edge = (onRight and windowX + windowWidth or windowX) + (offset and tonumber(offset[1]) or 0) * scale
+    local edge = (onRight and windowX + windowWidth or windowX) + offsetX * scale
     local tallest = math.max(envelope.height, chest.height) * scale
-    local foot = (below and windowY + windowHeight + gap * scale + tallest or windowY - gap * scale) + (offset and tonumber(offset[2]) or 0) * scale
+    local foot = (below and windowY + windowHeight + gap * scale + tallest or windowY - gap * scale) + offsetY * scale
 
     -- over every window where that can be done, and otherwise in the party's own, opened up to the
     -- whole screen

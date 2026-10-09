@@ -89,7 +89,7 @@ function draw.Texture(file)
         local device = d3d8.get_device()
         if device ~= nil then
             local pointer = ffi.new('IDirect3DTexture8*[1]')
-            local path = string.format('%sassets/xivparty/%s', addon.path, file)
+            local path = string.format('%sassets/%s', addon.path, file)
             if ffi.C.D3DXCreateTextureFromFileA(device, path, pointer) == ffi.C.S_OK then
                 local texture = d3d8.gc_safe_release(ffi.cast('IDirect3DTexture8*', pointer[0]))
                 kept[#kept + 1] = texture
