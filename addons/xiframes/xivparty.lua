@@ -22,6 +22,7 @@
 --     buffDistance  how much further from the window than usual the buffs start, in the layout's
 --                 units: less than nothing brings them closer, and over it
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
+--     tpFlash     false for a TP figure at 1000 and over that is simply blue, and does not pulse
 --     nameChars   how many characters of a name are written before it is cut short, in place of the
 --                 nine a party member's is allowed
 --     outline     false to leave the dark edge off the names and the HP, MP and TP figures: winxi's
@@ -447,9 +448,12 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     textColor = theme.Get().TextColor
 
     -- where the pulse of a TP figure at 1000 and over has got to: 0 at the light blue, 1 at the deeper
-    -- one, moving smoothly from one to the other and back
-    local phase = (os.clock() % tpPulsePeriod) / tpPulsePeriod
-    local blend = 0.5 - 0.5 * math.cos(phase * 2 * math.pi)
+    -- one, moving smoothly from one to the other and back; or kept at the deeper one
+    local blend = 1
+    if settings.tpFlash ~= false then
+        local phase = (os.clock() % tpPulsePeriod) / tpPulsePeriod
+        blend = 0.5 - 0.5 * math.cos(phase * 2 * math.pi)
+    end
     for channel = 1, 3 do
         tpPulse[channel] = tpFullLight[channel] + (tpFull[channel] - tpFullLight[channel]) * blend
     end

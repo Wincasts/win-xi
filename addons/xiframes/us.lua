@@ -296,6 +296,7 @@ local function StyleSettings()
     settings.outline = options.xivOutline == nil or options.xivOutline[1]
     settings.showMp = options.xivShowMp == nil or options.xivShowMp[1]
     settings.showTp = options.xivShowTp == nil or options.xivShowTp[1]
+    settings.tpFlash = options.xivTpFlash == nil or options.xivTpFlash[1]
     return settings
 end
 
@@ -525,6 +526,7 @@ local us = {
         xivOutline = T{ true }, -- whether the names and the HP, MP and TP figures have a dark edge
         xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
         xivShowTp = T{ true }, -- whether TP is written
+        xivTpFlash = T{ true }, -- whether TP at 1000 and over pulses between a light blue and a deeper one
         alliance1 = T{
             isVisible = T{ true },
             name = 'xiframes.us.1',
@@ -595,6 +597,9 @@ local us = {
             if options.xivShowTp == nil then
                 options.xivShowTp = T{ true }
             end
+            if options.xivTpFlash == nil then
+                options.xivTpFlash = T{ true }
+            end
             usOptions = options
             ui.Gap()
             ui.Label('Scale (%)')
@@ -655,6 +660,11 @@ local us = {
             imgui.Checkbox('##us.xivShowTp', options.xivShowTp)
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('Writes each member\'s TP on their line. TP has no bar, so off leaves TP out altogether.')
+            end
+            ui.Label('Flash TP When Ready')
+            imgui.Checkbox('##us.xivTpFlash', options.xivTpFlash)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('A TP value of 1000 or over pulses between a light blue and a deeper one. Off, it is simply blue.')
             end
 
             ui.Gap()
