@@ -17,6 +17,10 @@
 --     anchor.Track(key, mode)                  -- inside the window, once it has begun
 -- winxi.window does this for a window given a growFrom option. While the window is dragged it is left
 -- alone, and its corner is taken from where it ends up.
+--
+-- Measure takes the window's padding as a fourth argument, for a window whose padding was not pushed
+-- by winxi.style. An addon that keeps its windows' places itself keeps the corner as well:
+-- anchor.Point(key) gives where it is, and anchor.Set(key, mode, x, y) puts it back another day.
 local bit = require('bit');
 local imgui = require('imgui');
 local style = require('winxi.style');
@@ -62,7 +66,22 @@ function anchor.Reset(key)
     states[key] = nil;
 end
 
-function anchor.Measure(key, mode, drawContent)
+-- Where the corner a window is held by is, on screen; nothing until one has been taken
+function anchor.Point(key)
+    local state = states[key];
+    if state ~= nil and state.x ~= nil then
+        return state.x, state.y;
+    end
+    return nil;
+end
+
+-- Gives a window the corner to be held by and where it is: one kept from an earlier session
+function anchor.Set(key, mode, x, y)
+    local state = GetState(key);
+    state.mode, state.x, state.y = Mode(mode), x, y;
+end
+
+function anchor.Measure(key, mode, drawContent, padding)
     mode = Mode(mode);
     if mode == anchor.Default then
         return;
@@ -88,7 +107,7 @@ function anchor.Measure(key, mode, drawContent)
         imgui.EndGroup();
 
         local w, h = imgui.GetItemRectSize();
-        local padding = style.Padding();
+        padding = padding or style.Padding();
         state.w, state.h = w + 2 * padding, h + 2 * padding;
     end
     imgui.End();

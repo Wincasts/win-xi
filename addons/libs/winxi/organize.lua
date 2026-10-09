@@ -22,6 +22,7 @@
 -- organize.IsActive() says whether the windows are being arranged, for the addon to draw sample data
 -- and to let the mouse reach windows that are otherwise click-through. organize.Controls() draws the
 -- Organize button, with the grid's checkbox beside it while organizing, for a settings window.
+-- organize.IsLinked(name) says whether a window is held against another, which decides where it is.
 local bit = require('bit');
 local imgui = require('imgui');
 
@@ -72,6 +73,11 @@ local function FindLink(child)
         end
     end
     return nil;
+end
+
+-- Whether a window is held against another, which then decides where it is
+function organize.IsLinked(name)
+    return FindLink(name) ~= nil;
 end
 
 -- True when ancestor is the parent of name, or its parent's parent, and so on
