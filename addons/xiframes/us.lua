@@ -293,6 +293,7 @@ local function StyleSettings()
     settings.buffDistance = options.xivBuffDistance ~= nil and options.xivBuffDistance[1] or 0
     settings.hpOffset, settings.mpOffset, settings.tpOffset = options.xivHpOffset, options.xivMpOffset, options.xivTpOffset
     settings.nameChars = nil
+    settings.trimLast = nil
     settings.outline = options.xivOutline == nil or options.xivOutline[1]
     settings.showMp = options.xivShowMp == nil or options.xivShowMp[1]
     settings.showTp = options.xivShowTp == nil or options.xivShowTp[1]
@@ -555,12 +556,17 @@ local function DrawAllianceContent()
         person.entity = entity
     end
 
-    xivparty.Draw(members, ownParty and 'party' or 'alliance', StatusTexture, StyleSettings())
+    -- whichever list is last in the window has its last line only as tall as what is on it
+    local hasPets = pets ~= nil and #pets > 0
+    local settings = StyleSettings()
+    settings.trimLast = not hasPets
+    xivparty.Draw(members, ownParty and 'party' or 'alliance', StatusTexture, settings)
 
     -- the pets, under a line
-    if pets ~= nil and #pets > 0 then
+    if hasPets then
         imgui.Separator()
-        xivparty.Draw(pets, 'pets', nil, StyleSettings())
+        settings.trimLast = true
+        xivparty.Draw(pets, 'pets', nil, settings)
     end
 
     -- an invitation waiting for an answer is marked above the player's own party; a made-up one while

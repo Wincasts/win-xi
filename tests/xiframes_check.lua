@@ -38,6 +38,22 @@ local ok, problem = pcall(function() H.packet(0x00A); H.frames(4) end)
 H.print('in game: frames ran', ok, ok and '' or problem, '| windows begun', H.calls.Begin or 0, '| lists given room', (H.calls.Dummy or 0) > 0,
     '| a line over the pets', (H.calls.Separator or 0) > 0, '| progress bars', H.calls.ProgressBar or 0)
 
+-- the last line in a window is only as tall as what is on it: the pets end the party's window, and the
+-- last of them, another member's with an HP bar alone, does not fill a row
+local imgui = require('imgui')
+local rooms = {}
+local realDummy = imgui.Dummy
+rawset(imgui, 'Dummy', function(size) rooms[#rooms + 1] = size[2] return realDummy(size) end)
+H.frames(1)
+rawset(imgui, 'Dummy', nil)
+local row = 32 * 1.2 * us.xivScale[1] / 100
+local whole, short = 0, 0
+for _, height in ipairs(rooms) do
+    local over = height / row - math.floor(height / row + 0.001)
+    if over > 0.02 then short = short + 1 else whole = whole + 1 end
+end
+H.print('lists a frame', #rooms, '| ending in a short line', short, '| in whole rows', whole)
+
 -- an invitation: marked above the party's window until it is answered, and the window shows for it while solo
 local function invitation(kind) return ('\0'):rep(0x0B) .. string.char(kind) .. 'Inviter' .. ('\0'):rep(9) .. ('\0'):rep(4) end
 local realUnpack = struct.unpack
