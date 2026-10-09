@@ -80,10 +80,11 @@ local layout = {
     hp = { value = 'hp', x = 6, y = -17, images = hpImages, figure = { x = 114, y = 21, size = 8, alignRight = true } },
     mp = { value = 'mp', x = 32, y = -8, images = mpImages, figure = { x = 100, y = 23, size = 8, alignRight = true } },
     -- TP is a figure alone: to the left of the MP bar for the player's party, and for the others
-    -- under the start of the name
+    -- under the start of the name. XivParty writes it smaller than HP and MP; here the three are one
+    -- size, and TP is a little higher to stay level with the MP bar.
     tp = {
-        party = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 20, size = 6, alignRight = true } },
-        alliance = { value = 'tp', x = 0, y = 0, figure = { x = 24, y = 20, size = 6 } },
+        party = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 18, size = 8, alignRight = true } },
+        alliance = { value = 'tp', x = 0, y = 0, figure = { x = 24, y = 18, size = 8 } },
     },
     leader = { x = 2, y = 21, width = 7, height = 5, file = 'ffxi/Leader.png',
                partyColor = Hex('E6E159'), allianceX = 7 },
