@@ -105,12 +105,20 @@ local chatTell = 3
 -- party and linkshell chat, with and without the speaker shown
 local chatAmongFriends = { [4] = true, [5] = true, [15] = true, [16] = true, [27] = true, [28] = true }
 
+-- The player's name in small letters, and the pattern that finds it as a word of its own, not as
+-- part of another: made again only when the name is another one
+local knownName, ownName, namePattern = nil, nil, nil
+
 local function OwnName()
     local name = AshitaCore:GetMemoryManager():GetParty():GetMemberName(0)
     if type(name) ~= 'string' or name == '' then
         return nil
     end
-    return name
+    if name ~= knownName then
+        knownName, ownName = name, name:lower()
+        namePattern = '%f[%a]' .. ownName:gsub('%p', '%%%0') .. '%f[%A]'
+    end
+    return ownName
 end
 
 -- A string of bytes that ends at its first zero
@@ -130,12 +138,10 @@ local function OnChat(data)
         if own == nil then
             return
         end
-        own = own:lower()
         if Text(data, 0x08 + 1, 0x08 + 15):lower() == own then
             return
         end
-        -- the name as a word of its own, not as part of another
-        if Text(data, 0x17 + 1, #data):lower():find('%f[%a]' .. own .. '%f[%A]') then
+        if Text(data, 0x17 + 1, #data):lower():find(namePattern) then
             Sound('mention')
         end
     end
@@ -174,9 +180,17 @@ local function TargetServerId()
     return entity ~= nil and entity.ServerId or nil
 end
 
--- The action packet: who acted, then each target, and for each target each result, some with an
--- additional effect, which is where a skillchain is told of. Only as much is read as finds one.
+-- The kinds of action that cannot make a skillchain, which are most of what is sent: a round of
+-- attacks, a shot, and the readying of a weapon skill, a spell, an item or a shot
+local neverSkillchain = { [1] = true, [2] = true, [7] = true, [8] = true, [9] = true, [12] = true }
+
+-- The action packet: who acted and what kind of action it was, then each target, and for each target
+-- each result, some with an additional effect, which is where a skillchain is told of. Only as much
+-- is read as finds one.
 local function OnAction(data)
+    if neverSkillchain[Bits(data, 82, 4)] then
+        return
+    end
     local actor = Bits(data, 40, 32)
     local targets = Bits(data, 72, 10)
     local allied = nil -- found out once, and only if there is a skillchain to ask about
@@ -317,6 +331,9 @@ local function Look()
 
     -- the others of the party: one who was standing and has no HP now. Someone in another area has
     -- none either, as far as the game here knows, so only those in this one are watched.
+    if not options.events.ko.enabled[1] then
+        return
+    end
     local zone = party:GetMemberZone(0)
     for place = 1, 5 do
         local memberHp = nil
@@ -360,6 +377,7 @@ for _, event in ipairs(events) do
         sound = ('##chime.%s.sound'):format(event.key),
         test = ('Test##chime.%s.test'):format(event.key),
         threshold = ('##chime.%s.threshold'):format(event.key),
+        thresholdLabel = event.label .. ' Threshold (%)',
     }
 end
 
@@ -395,7 +413,7 @@ local function DrawEvent(options, event)
     end
 
     if event.threshold ~= nil then
-        widgets.Label(event.label .. ' Threshold (%)')
+        widgets.Label(id.thresholdLabel)
         imgui.SetNextItemWidth(170)
         imgui.SliderInt(id.threshold, options[event.threshold], 5, 90, '%d%%')
     end

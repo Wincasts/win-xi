@@ -178,7 +178,8 @@ function App:BeginFrame()
         end
     end
 
-    return not game.IsHidden(options.hide);
+    -- with no window there is nothing to hide, and nothing of the game is asked
+    return self.spec.window == nil or not game.IsHidden(options.hide);
 end
 
 function App:ToggleConfig()

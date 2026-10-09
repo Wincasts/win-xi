@@ -1,5 +1,6 @@
-# The server source: reference material, kept out of this repository
+# The server source and other people's addons: reference material, kept out of this repository
 /Phoenix-beta/
+/references/
 
 # Copies of live files replaced by ./deploy.sh push
 /deploy-backups/

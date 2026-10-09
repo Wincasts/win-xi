@@ -1,12 +1,9 @@
--- Drawing on one of imgui's draw lists: images, shapes and text at places on screen, in pixels. What
+-- Drawing on one of imgui's draw lists: images, circles and text at places on screen, in pixels. What
 -- the frames and the icons beside them are both drawn with.
 --
 --     draw.Use(list)                         the draw list the calls after it draw on
 --     draw.Packed(color, alpha)              a colour as the list takes it, with the window's fade in it
 --     draw.Image(texture, x1, y1, x2, y2, packed, u1, v1, u2, v2)     the whole image, or the part of it given (0 to 1)
---     draw.Rect(x1, y1, x2, y2, packed, rounding)       filled
---     draw.Outline(x1, y1, x2, y2, packed, rounding)    a pixel thick
---     draw.Line(x1, y1, x2, y2, packed)                 a pixel thick
 --     draw.Circle(x, y, radius, packed, sides)          filled; of 12 sides unless told, enough for a small one
 --     draw.Ring(x, y, radius, packed, thick, sides)     a circle's line, thick pixels thick, about that radius
 --     draw.Text(x, y, packed, words, edge, dark)        with winxi's dark edge if edge is given
@@ -48,21 +45,6 @@ function draw.Image(texture, x1, y1, x2, y2, packed, u1, v1, u2, v2)
     pointA[1], pointA[2], pointB[1], pointB[2] = x1, y1, x2, y2
     uvA[1], uvA[2], uvB[1], uvB[2] = u1 or 0, v1 or 0, u2 or 1, v2 or 1
     list:AddImage(texture, pointA, pointB, uvA, uvB, packed)
-end
-
-function draw.Rect(x1, y1, x2, y2, packed, rounding)
-    pointA[1], pointA[2], pointB[1], pointB[2] = x1, y1, x2, y2
-    list:AddRectFilled(pointA, pointB, packed, rounding)
-end
-
-function draw.Outline(x1, y1, x2, y2, packed, rounding)
-    pointA[1], pointA[2], pointB[1], pointB[2] = x1, y1, x2, y2
-    list:AddRect(pointA, pointB, packed, rounding, 0, 1)
-end
-
-function draw.Line(x1, y1, x2, y2, packed)
-    pointA[1], pointA[2], pointB[1], pointB[2] = x1, y1, x2, y2
-    list:AddLine(pointA, pointB, packed, 1)
 end
 
 function draw.Circle(x, y, radius, packed, sides)

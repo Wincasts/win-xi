@@ -45,12 +45,12 @@ H.packetData(0x017, chat(4, 'Tester', 'Tester is me')); H.print('said by the pla
 H.packetData(0x0DC, ('\0'):rep(40)); H.print('an invitation:', heard())
 
 -- an action packet, packed a bit at a time as the game packs it: results is a list for each target
-local function action(actor, targets)
+local function action(actor, targets, category)
     local bits = {}
     local function put(offset, length, value)
         for i = 0, length - 1 do bits[offset + i] = math.floor(value / 2 ^ i) % 2 end
     end
-    put(40, 32, actor); put(72, 10, #targets)
+    put(40, 32, actor); put(72, 10, #targets); put(82, 4, category or 3)
     local offset = 150
     for _, target in ipairs(targets) do
         put(offset, 32, target.id); put(offset + 32, 4, #target.results); offset = offset + 36
@@ -74,6 +74,7 @@ H.packetData(0x028, action(2, { { id = 555, results = { { spikes = 33 }, { added
 H.packetData(0x028, action(77, { { id = 555, results = { { added = 289 } } } })); H.print('a stranger\'s, on something else: silence', heard() == '')
 H.packetData(0x028, action(77, { { id = 444, results = { { added = 161 } } }, { id = 900, results = { { added = 770 } } } })); H.print('a stranger\'s, on the target:', heard())
 H.packetData(0x028, action(2, { { id = 555, results = { { added = 163 } } } })); H.print('another additional effect: silence', heard() == '')
+H.packetData(0x028, action(2, { { id = 555, results = { { added = 288 } } } }, 1)); H.print('a round of attacks is not read: silence', heard() == '')
 
 -- TP, HP and MP
 me.tp = 990; H.frames(8); me.tp = 1200; H.frames(8); H.print('TP over 1000:', heard())
