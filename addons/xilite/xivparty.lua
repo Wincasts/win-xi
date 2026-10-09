@@ -16,7 +16,9 @@
 -- drawn beyond that room, beside the window. members are the party window's own (see us.lua). scale
 -- is a percentage: 100 is the size this style is meant to be seen at, a fifth larger than XivParty's
 -- own. StatusTexture(id) gives the texture for a status icon, or nil. showMp and showTp say whether
--- the MP and TP figures are written; the MP bar is drawn either way.
+-- the MP and TP figures are written; the MP bar is drawn either way. A member may be anything with the
+-- same fields: us.lua lists pets this way, giving hpText and mpText for figures in words of its own
+-- and leaving mpp and tp out for a line with no MP bar or TP.
 --
 -- What is XivParty's and is not here: its background, job icons and cursor, left out for the theme's
 -- window and this addon's own way of marking a target; the buffs are in the game's order, not sorted
@@ -266,7 +268,10 @@ local function DrawBar(place, member, state, opacity, showFigure)
             color = tpFull
         end
     end
-    Text(amount < 0 and '?' or tostring(amount), x + figure.x, y + figure.y, figure.size, color, figure.alignRight)
+    -- a line may give a figure in its own words: a pet's HP is known only as a percentage
+    local words = (kind == 'hp' and member.hpText) or (kind == 'mp' and member.mpText)
+        or (amount < 0 and '?' or tostring(amount))
+    Text(words, x + figure.x, y + figure.y, figure.size, color, figure.alignRight)
 end
 
 -- A member's buffs, running leftwards: the first has its right edge at x
@@ -296,8 +301,11 @@ local function DrawMember(member, kind, buffsX, StatusTexture, showMp, showTp)
 
     local opacity = RangeOpacity(member)
     DrawBar(layout.hp, member, state, opacity, true)
-    DrawBar(layout.mp, member, state, opacity, showMp)
-    if showTp then
+    -- a line with no MP or TP to show has neither: another player's pet
+    if member.mpp ~= nil then
+        DrawBar(layout.mp, member, state, opacity, showMp)
+    end
+    if showTp and member.tp ~= nil then
         DrawBar(layout.tp[kind] or layout.tp.party, member, state, opacity, true)
     end
 

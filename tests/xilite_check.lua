@@ -75,6 +75,30 @@ H.print('texts a frame: all', all, '| without MP values', noMp, '| without MP or
 o.tools.us.xivShowMp[1], o.tools.us.xivShowTp[1] = true, true
 o.tools.us.xivParty[1] = false
 
+-- the pets are listed under the party, and the pet tool's own window is then left out
+-- everyone here has a pet: whatever is looked up is an owner, but for the pet itself
+local noEntity = GetEntity
+GetEntity = function(index)
+    if index == 99 then return { Name = 'Carbuncle', Distance = 16, HPPercent = 80 } end
+    return { Name = 'Owner', Distance = 4, HPPercent = 100, ServerId = 0, PetTargetIndex = 99 }
+end
+local separators = H.calls.Separator or 0
+o.tools.us.showPets[1] = false; H.frames(2)
+local apart = (H.calls.Separator or 0) - separators
+o.tools.us.showPets[1] = true; begun = H.calls.Begin; H.frames(1); local together = H.calls.Begin - begun
+o.tools.us.showPets[1] = false; begun = H.calls.Begin; H.frames(1)
+H.print('pets under the party: no line while apart', apart == 0, '| one window fewer while together', (H.calls.Begin - begun) - together)
+o.tools.us.showPets[1] = true; separators = H.calls.Separator or 0
+for _, style in ipairs({ 'full', 'compact', 'xivparty' }) do
+    o.tools.us.alliance1.isCompact[1] = style == 'compact'
+    o.tools.us.xivParty[1] = style == 'xivparty'
+    ok, problem = pcall(H.frames, 2)
+    H.print('pets under the party,', style, ': frames ran', ok, ok and '' or problem, '| a line drawn', (H.calls.Separator or 0) > separators)
+    separators = H.calls.Separator or 0
+end
+o.tools.us.alliance1.isCompact[1], o.tools.us.xivParty[1] = false, false
+GetEntity = noEntity
+
 -- an experimental setting's name carries its tag, the word in a colour of its own
 local colored = H.calls.TextColored or 0
 require('winxi.widgets').Label('Compact Alliance 1', true)

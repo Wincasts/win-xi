@@ -3,7 +3,7 @@ the four windows of xitools that replace the game's own, and nothing else.
 - `me` displays information about the player
 - `us` displays information about the party
 - `tgt` displays information about your target or subtarget
-- `pet` displays information about your pet
+- `pet` displays information about your pet, under the party list unless `us` is told otherwise
 
 xitools' other tools (`tracker`, `cast`, `crafty`, `fishe`, `week`) are not here, nor is anything they
 need: load xitools for those, with its own `me`, `us`, `tgt` and `pet` switched off.

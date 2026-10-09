@@ -13,6 +13,9 @@ local zones = require('utils/zones')
 -- layout arranges them, with its bars, in this addon's own windows
 local xivparty = require('xivparty')
 
+-- The pets, listed under the player's party in place of the pet tool's own window
+local petTool = require('pet')
+
 local Textures = { }
 local Alliances = { }
 
@@ -471,6 +474,22 @@ local function XivPartyStyle()
     return usOptions ~= nil and usOptions.xivParty ~= nil and usOptions.xivParty[1] == true
 end
 
+-- Whether the pets are listed under the player's party: the setting is on, and so is the pet tool
+local function PetsInList()
+    return usOptions ~= nil and (usOptions.showPets == nil or usOptions.showPets[1]) and petTool.IsEnabled()
+end
+
+-- A pet as a line of XivParty Style: its HP as a percentage unless the figure itself is known, and
+-- MP and TP for the player's own alone
+local function PetLine(info)
+    return {
+        name = info.name, serverId = info.name, isInZone = true,
+        hp = info.hp, hpp = info.hpp, hpText = info.hp == nil and ('%d%%'):format(info.hpp) or nil,
+        mp = info.mp, mpp = info.mpp, mpText = (info.mpp ~= nil and info.mp == nil) and ('%d%%'):format(info.mpp) or nil,
+        tp = info.tp,
+    }
+end
+
 ---@param player PartyMember
 ---@param showDist boolean
 local function DrawPartyMember(player, showDist)
@@ -646,6 +665,13 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
     local xivStyle = XivPartyStyle()
     local growFrom = (growsUp and (xivStyle or alliance.isCompact[1])) and 'BottomLeft' or nil
 
+    -- the pets go under the player's own party, and the pet tool then leaves its own window out
+    local pets = nil
+    if growsUp and PetsInList() then
+        petTool.inPartyList = true
+        pets = petTool.List(sample)
+    end
+
     ui.DrawUiWindow(alliance, gOptions, function()
         local target = AshitaCore:GetMemoryManager():GetTarget()
         local party = AshitaCore:GetMemoryManager():GetParty()
@@ -677,11 +703,36 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
         end
 
         -- the player's own party has its buffs beside it
+        local scale, showMp, showTp
         if xivStyle then
-            local scale = usOptions.xivScale ~= nil and usOptions.xivScale[1] or 100
-            local showMp = usOptions.xivShowMp == nil or usOptions.xivShowMp[1]
-            local showTp = usOptions.xivShowTp == nil or usOptions.xivShowTp[1]
+            scale = usOptions.xivScale ~= nil and usOptions.xivScale[1] or 100
+            showMp = usOptions.xivShowMp == nil or usOptions.xivShowMp[1]
+            showTp = usOptions.xivShowTp == nil or usOptions.xivShowTp[1]
             xivparty.Draw(members, growsUp and 'party' or 'alliance', scale, StatusTexture, showMp, showTp)
+        end
+
+        -- the pets, under a line, each in the manner of the list above
+        if pets ~= nil and #pets > 0 then
+            imgui.Separator()
+            if xivStyle then
+                local lines = { }
+                for index, info in ipairs(pets) do
+                    lines[index] = PetLine(info)
+                end
+                xivparty.Draw(lines, 'alliance', scale, nil, showMp, showTp)
+            else
+                for _, info in ipairs(pets) do
+                    if alliance.isCompact[1] then
+                        local _, lineY = imgui.GetCursorScreenPos()
+                        petTool.DrawCompact(info)
+                        if info.tp ~= nil then
+                            DrawCompactTp(info, lineY)
+                        end
+                    else
+                        petTool.Draw(info, alliance)
+                    end
+                end
+            end
         end
     end, nil, growFrom, xivStyle)
 end
@@ -728,6 +779,7 @@ local us = {
         hideWhenSolo = T{ false },
         sortByRole = T{ false },
         showCastbar = T{ true },
+        showPets = T{ true },  -- list the pets under the party, in place of the pet tool's own window
         xivParty = T{ false }, -- experimental: arrange the lists as the Windower addon XivParty's compact layout does
         xivScale = T{ 100 },   -- their size, as a percentage
         xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
@@ -786,6 +838,16 @@ local us = {
             end
             ui.Label('Display Cast Bar')
             imgui.Checkbox('##us.4', options.showCastbar)
+
+            -- Settings saved before this option existed have no value for it
+            if options.showPets == nil then
+                options.showPets = T{ true }
+            end
+            ui.Label('Show Pets In Party List')
+            imgui.Checkbox('##us.showPets', options.showPets)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Lists the pets under your party, below a line, in place of the pet window.\nWhich pets are listed, and whether pets are shown at all, is still set on the pet tab.\nWhile the party window is not showing, the pet window shows as usual.')
+            end
 
             -- Settings saved before these options existed have no value for them
             if options.xivParty == nil then

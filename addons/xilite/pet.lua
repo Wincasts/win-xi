@@ -190,8 +190,52 @@ local function DrawWindow(pets, options, gOptions, wanted)
     end, wanted)
 end
 
+-- The pets to list: the player's own, then the other party members' where those are shown
+---@return PetInfo[]
+local function GatherPets(options)
+    local pets = { }
+    local own = GetOwnPet(options)
+    if own ~= nil then
+        table.insert(pets, own)
+    end
+    if ShowsPartyPets(options) then
+        for _, partyPet in ipairs(GetPartyPets()) do
+            table.insert(pets, partyPet)
+        end
+    end
+    return pets
+end
+
+-- Real pets where there are any, with made-up ones filling the rest: the player's own, and one
+-- for each other party member when party pets are shown
+---@return PetInfo[]
+local function GatherSamplePets(options)
+    local pets = { }
+    table.insert(pets, GetPlayerEntity() and GetOwnPet(options) or { name = 'Sample Pet', distance = 4, hpp = 80, mpp = 60, tp = 1200 })
+
+    if ShowsPartyPets(options) then
+        local partyPets = GetPlayerEntity() and GetPartyPets() or { }
+        for i = 1, partySize - 1 do
+            table.insert(pets, partyPets[i] or {
+                name = ('Sample Pet %d'):format(i + 1),
+                owner = ('Sample %d'):format(i + 1),
+                distance = 4 + i * 2,
+                hpp = 100 - i * 15,
+            })
+        end
+    end
+    return pets
+end
+
 -- The pets last shown, which the window goes on showing while it fades out after the last one has gone
 local lastPets = nil
+
+-- The tool's settings as last handed to it, for the party window, which can list the pets itself
+local settings = nil
+
+local function Remember(options)
+    settings = options
+end
 
 ---@type xitool
 local pet = {
@@ -206,6 +250,8 @@ local pet = {
         exactAutomaton = T{ true },
         showParty = T{ true },
     },
+    Load = Remember,
+    UpdateSettings = Remember,
     HandlePacket = function(e, options, gOptions)
         -- Extended job info for puppetmaster: the automaton's current and maximum HP and MP
         if e.id == 0x044 and struct.unpack('B', e.data, 0x04 + 1) == jobPup then
@@ -250,19 +296,10 @@ local pet = {
         end
     end,
     DrawMain = function(options, gOptions)
+        settings = options
         if GetPlayerEntity() == nil then return end
 
-        local pets = { }
-        local own = GetOwnPet(options)
-        if own ~= nil then
-            table.insert(pets, own)
-        end
-        if ShowsPartyPets(options) then
-            for _, partyPet in ipairs(GetPartyPets()) do
-                table.insert(pets, partyPet)
-            end
-        end
-
+        local pets = GatherPets(options)
         if #pets == 0 then
             if lastPets ~= nil and ui.Lingers(options, gOptions) then
                 DrawWindow(lastPets, options, gOptions, false)
@@ -273,26 +310,66 @@ local pet = {
         lastPets = pets
         DrawWindow(pets, options, gOptions)
     end,
-    -- Real pets where there are any, with made-up ones filling the rest: the player's own, and one
-    -- for each other party member when party pets are shown
     DrawSample = function(options, gOptions)
-        local pets = { }
-        table.insert(pets, GetPlayerEntity() and GetOwnPet(options) or { name = 'Sample Pet', distance = 4, hpp = 80, mpp = 60, tp = 1200 })
-
-        if ShowsPartyPets(options) then
-            local partyPets = GetPlayerEntity() and GetPartyPets() or { }
-            for i = 1, partySize - 1 do
-                table.insert(pets, partyPets[i] or {
-                    name = ('Sample Pet %d'):format(i + 1),
-                    owner = ('Sample %d'):format(i + 1),
-                    distance = 4 + i * 2,
-                    hpp = 100 - i * 15,
-                })
-            end
-        end
-
-        DrawWindow(pets, options, gOptions)
+        settings = options
+        DrawWindow(GatherSamplePets(options), options, gOptions)
     end,
 }
+
+-- For the party window (us), which can list the pets under the party in place of this tool's own
+-- window. It sets pet.inPartyList on each frame it does, and this tool then draws nothing that frame:
+-- the party window is drawn first.
+pet.inPartyList = false
+
+local drawMain, drawSample = pet.DrawMain, pet.DrawSample
+
+pet.DrawMain = function(options, gOptions)
+    settings = options
+    if pet.inPartyList then
+        pet.inPartyList = false
+        return
+    end
+    drawMain(options, gOptions)
+end
+
+pet.DrawSample = function(options, gOptions)
+    settings = options
+    if pet.inPartyList then
+        pet.inPartyList = false
+        return
+    end
+    drawSample(options, gOptions)
+end
+
+-- Whether the tool is switched on, as far as is known: its settings are seen when they are loaded
+function pet.IsEnabled()
+    return settings ~= nil and settings.isEnabled[1] == true
+end
+
+-- The pets the tool would show now; with sample set, as it shows them while its window is arranged
+---@return PetInfo[]
+function pet.List(sample)
+    if settings == nil then
+        return { }
+    end
+    if sample then
+        return GatherSamplePets(settings)
+    end
+    return GetPlayerEntity() ~= nil and GatherPets(settings) or { }
+end
+
+-- A pet as this tool's window shows one, in a window as wide as the party's: window is that window's settings
+pet.Draw = DrawPet
+
+-- A pet on one line, for the party window's compact view: the start of its name, its HP bar, and
+-- for the player's own its MP bar
+function pet.DrawCompact(info)
+    imgui.Text(info.name:slice(0, 3))
+    imgui.SameLine()
+    DrawHp(info)
+    if info.mpp ~= nil then
+        DrawMp(info)
+    end
+end
 
 return pet
