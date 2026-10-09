@@ -54,6 +54,13 @@ for _, height in ipairs(rooms) do
 end
 H.print('lists a frame', #rooms, '| ending in a short line', short, '| in whole rows', whole)
 
+-- a leader has a circle in front of their name: here everyone leads their party and the alliance, so two each
+rawset(anything, 'GetMemberFlagMask', function() return 12 end)
+local circles = H.calls['draw.AddCircleFilled'] or 0
+ok, problem = pcall(H.frames, 5)
+H.print('leaders: frames ran', ok, ok and '' or problem, '| circles drawn', (H.calls['draw.AddCircleFilled'] or 0) > circles)
+rawset(anything, 'GetMemberFlagMask', nil)
+
 -- an invitation: marked above the party's window until it is answered, and the window shows for it while solo
 local function invitation(kind) return ('\0'):rep(0x0B) .. string.char(kind) .. 'Inviter' .. ('\0'):rep(9) .. ('\0'):rep(4) end
 local realUnpack = struct.unpack
