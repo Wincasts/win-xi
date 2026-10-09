@@ -35,6 +35,12 @@ local begun = H.calls.Begin
 ok, problem = pcall(function() H.packet(0x00A); H.frames(5) end)
 H.print('with tgt on: frames ran', ok, ok and '' or problem, '| more windows begun', H.calls.Begin > begun)
 
+-- the party window in its compact form: a line a member, with their TP written beside the window
+o.tools.us.alliance1.isCompact[1] = true
+local bars, texts = H.calls.ProgressBar, H.calls['draw.AddText'] or 0
+ok, problem = pcall(H.frames, 1)
+H.print('compact party: frame ran', ok, ok and '' or problem, '| bars drawn', H.calls.ProgressBar - bars, '| TP figures drawn', (H.calls['draw.AddText'] or 0) > texts)
+
 local before = H.calls.Begin or 0
 H.print('/xilite kept from the game', H.command('/xilite'), '| settings showing', o.showConfig[1]); H.frames(1)
 H.print('settings window drawn', (H.calls.Begin or 0) > before, '| tab bars', H.calls.BeginTabBar)

@@ -456,8 +456,44 @@ local function DrawPartyMember(player, showDist)
     end
 end
 
+-- In the compact view TP is a figure, not a bar, and it goes outside the window: to the left of the
+-- member it belongs to, on their line, in the colour their TP bar would be. y is the top of that line
+-- on screen.
+local compactTpGap = 6 -- between the figure and the window's edge
+local compactTpShadow = { 0, 0, 0, 1 }
+local compactTpPos = { 0, 0 }
+local compactTpClipMin, compactTpClipMax = { 0, 0 }, { 0, 0 }
+
+---@param player PartyMember
+---@param y number
+local function DrawCompactTp(player, y)
+    local text = string.format('%i', player.tp)
+    local windowX = imgui.GetWindowPos()
+    local width, height = imgui.CalcTextSize(text)
+    local x = windowX - compactTpGap - width
+
+    -- the window's own list, so the figure sits with the window among the others and fades with it,
+    -- opened up to take in the space beside the window
+    local drawList = imgui.GetWindowDrawList()
+    compactTpClipMin[1], compactTpClipMin[2] = x - 1, y - 1
+    compactTpClipMax[1], compactTpClipMax[2] = windowX, y + height + 2
+    drawList:PushClipRect(compactTpClipMin, compactTpClipMax, false)
+
+    -- with nothing behind it but the game, a dark copy a pixel down and across keeps it readable
+    compactTpPos[1], compactTpPos[2] = x + 1, y + 1
+    drawList:AddText(compactTpPos, imgui.GetColorU32(compactTpShadow), text)
+    compactTpPos[1], compactTpPos[2] = x, y
+    drawList:AddText(compactTpPos, imgui.GetColorU32(ui.TpBarColor(player.tp, player.isPlayer)), text)
+
+    drawList:PopClipRect()
+end
+
+-- A member on one line: the start of their name, then their HP and MP bars, with their TP to the
+-- left of the window
 ---@param player PartyMember
 local function DrawCompactPartyMember(player)
+    local _, lineY = imgui.GetCursorScreenPos()
+
     -- There is no room for the full view's arrows, so the member the cursor is on has their name in
     -- the arrows' colours instead: green under the party cursor or a sub-target, blue as the target
     local color = nil
@@ -478,6 +514,8 @@ local function DrawCompactPartyMember(player)
     if player.isInZone then
         imgui.SameLine()
         DrawHp(player)
+        DrawMp(player)
+        DrawCompactTp(player, lineY)
     end
 end
 
