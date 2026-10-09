@@ -22,36 +22,6 @@
 -- that changes and once a second while it has. An addon with a controller of its own listens for it
 -- and stands down; controller.OtherHasFocus() is the same asked of other winxi addons.
 --
--- The window cycle. X (square) moves the controller between the winxi windows that are open, each an
--- addon's own, joined to the cycle with controller.Cycle: the first press gives it to the first of
--- them, the next to the one after, and after the last round to the first again. A window gives the
--- controller back to the game itself (on B, usually). The cycle is not for opening or closing
--- windows, and while any is open the game does not get X, except in a menu of its own: with none
--- open, or one of the game's menus up, X is the game's as ever.
---
---     controller.Cycle({
---         order     = 1,                          -- its place among winxi windows, lowest first
---         available = function() return ... end,   -- whether it could take the controller now
---         focused   = function() return ... end,   -- whether it has it
---         focus     = function() ... end,          -- take it
---         unfocus   = function() ... end,          -- let go of it (the window stays as it is)
---         busy      = function() return ... end,   -- optional: true while X should do nothing (a menu is open)
---         isOpen    = function() return ... end,   -- optional, with open and close: for the /winxi command
---         open      = function() ... end,
---         close     = function() ... end,
---     });
---
--- With isOpen, open and close the window also answers to a command shared by every winxi addon:
---
---     /winxi <addon>    opens the addon's window and gives it the controller; if it is open already
---                       without the controller, gives it the controller; if it has it, closes it
---     /winxi            moves the controller to the next open window, as X does
---
--- A window that takes the controller, by whatever means, takes it from any other winxi window.
---
--- One window an addon. The windows are in different addons, which tell each other what they have by
--- plugin event (controller.CycleEvent), so they agree whose turn it is.
---
 -- The grid and the menu make the sounds of winxi.sound as they are worked, once an addon turns those on,
 -- and a binding makes the open sound as it takes the controller: as its window opens.
 --
@@ -64,9 +34,9 @@
 --         press   = function(action) ... end,                 -- an action's button was pressed, or repeated
 --     });
 --
--- The standard actions are up, down, left, right (the d-pad), confirm (A), back (B), sort (Y, the
--- triangle on a PlayStation controller: for putting what the window shows in order), previous (LB) and
--- next (RB). X, the square, is left for the window cycle (see controller.Cycle). Any table of controller.Button values to names will do in their place. Where several
+-- The standard actions are up, down, left, right (the d-pad), confirm (A), back (B), sort (X, the
+-- square on a PlayStation controller: for putting what the window shows in order), previous (LB) and
+-- next (RB). Any table of controller.Button values to names will do in their place. Where several
 -- bindings want the same button, the one bound first that is active gets it.
 --
 -- The buttons are named as an Xbox controller's are, whatever the controller. XInput reports them that
@@ -76,7 +46,6 @@
 local bit = require('bit');
 local imgui = require('imgui');
 local sound = require('winxi.sound');
-local game = require('winxi.game');
 
 local controller = {};
 
@@ -96,7 +65,7 @@ function controller.StandardActions()
     local button = controller.Button;
     return {
         [button.DpadUp] = 'up', [button.DpadDown] = 'down', [button.DpadLeft] = 'left', [button.DpadRight] = 'right',
-        [button.A] = 'confirm', [button.B] = 'back', [button.Y] = 'sort',
+        [button.A] = 'confirm', [button.B] = 'back', [button.X] = 'sort',
         [button.LB] = 'previous', [button.RB] = 'next',
     };
 end
@@ -112,10 +81,6 @@ controller.BlockTriggers = true;
 -- The plugin event that tells other addons this one has, or no longer has, the controller. Its data
 -- is the addon's name, a colon, and 1 or 0.
 controller.FocusEvent = 'winxi_controller_focus';
-
--- The window cycle's button
-controller.CycleButton = controller.Button.X;
-controller.CycleEvent = 'winxi_controller_cycle';
 
 local bindings = {};
 local held = {};      -- button -> whether it is down
@@ -221,129 +186,6 @@ local function ProcessTrigger(id, down)
     return triggerHeld[id] == true;
 end
 
--- The window cycle (see the top of this file).
-local cycleEntry = nil;      -- this addon's window in the cycle
-local cycleFocused = false;  -- whether it had the controller, as of the last frame
-local cycleOthers = {};      -- addon name -> { order, available, focused, heard }
-local cycleExpiry = 2.0;     -- an addon not heard from for this long has gone
-local cycleDown = false;     -- whether the cycle's button is down
-local cycleBlocked = false;  -- whether its present press is being kept from the game
-
--- Of the other addons: the place in the order of whichever had the controller a frame ago (nil if
--- none had), and the places of those whose windows could take it, lowest first
-local cycleOrders = {};
-
-local function CycleOthers()
-    local now = os.clock();
-    local holder = nil;
-    for index = #cycleOrders, 1, -1 do
-        cycleOrders[index] = nil;
-    end
-    for name, other in pairs(cycleOthers) do
-        if now - other.heard > cycleExpiry then
-            cycleOthers[name] = nil;
-        else
-            if other.focused then
-                holder = other.order;
-            end
-            if other.available then
-                cycleOrders[#cycleOrders + 1] = other.order;
-            end
-        end
-    end
-    table.sort(cycleOrders);
-    return holder, cycleOrders;
-end
-
--- The window the controller goes to from the one at a place in the order: the next after it, or
--- round to the first; nil if there is no other. orders is every window that could take it but the
--- holder, lowest first.
-local function CycleNext(holder, orders)
-    for _, order in ipairs(orders) do
-        if order > holder then
-            return order;
-        end
-    end
-    return orders[1];
-end
-
--- The cycle's button has been pressed. Returns whether the press is kept from the game. Every addon
--- in the cycle works this out for itself from what was so a frame ago, and they come to the same.
-local function CyclePress()
-    local entry = cycleEntry;
-    local mine = entry.order;
-    local holder, orders = CycleOthers();
-
-    if cycleFocused then
-        -- this window has the controller: it goes to the next open window, if there is another
-        if not (entry.busy ~= nil and entry.busy()) and CycleNext(mine, orders) ~= nil then
-            entry.unfocus();
-            cycleFocused = false;
-        end
-        return true;
-    end
-
-    local available = entry.available();
-    if holder == nil then
-        -- nobody has it. The button is the game's own while one of its menus is open, and when no
-        -- winxi window is; otherwise the first open window takes the controller.
-        if game.MenuName() ~= '' then
-            return false;
-        end
-        if available and (orders[1] == nil or mine < orders[1]) then
-            entry.focus();
-            return true;
-        end
-        return orders[1] ~= nil;
-    end
-
-    -- another addon's window has it: it is this one's turn if, of the windows that could take it
-    -- (this one among them, the holder not), this is the next after the holder
-    if available then
-        for index = #orders, 1, -1 do
-            if orders[index] == holder then
-                table.remove(orders, index);
-            end
-        end
-        orders[#orders + 1] = mine;
-        table.sort(orders);
-        if CycleNext(holder, orders) == mine then
-            entry.focus();
-        end
-    end
-    return true;
-end
-
--- The cycle's button is down or up, or is being reported again. Returns whether to keep it from the game.
-local function CycleButton(down)
-    local was = cycleDown;
-    cycleDown = down;
-    if not down then
-        local blocked = cycleBlocked;
-        cycleBlocked = false;
-        return blocked;
-    end
-    if not was then
-        cycleBlocked = CyclePress();
-    end
-    return cycleBlocked;
-end
-
--- A button of the kind bindings take: the cycle's, where this addon is in the cycle, or a binding's
-local function TakeButton(button, down)
-    if cycleEntry ~= nil and button == controller.CycleButton then
-        return CycleButton(down);
-    end
-    return Process(button, down);
-end
-
-local StartListening;
-
-function controller.Cycle(entry)
-    cycleEntry = entry;
-    StartListening();
-end
-
 -- XInput numbers the triggers after the buttons: 16 and 17, or 32 and 33 on an older Ashita
 local xinputTrigger = (ashita.interface_version ~= nil) and 16 or 32;
 
@@ -353,7 +195,7 @@ local function OnXInput(e)
     end
     -- the buttons proper: beyond them the event reports the triggers and sticks
     if e.button <= 15 then
-        if TakeButton(e.button, e.state == 1) then
+        if Process(e.button, e.state == 1) then
             e.blocked = true;
         end
     elseif e.button == xinputTrigger or e.button == xinputTrigger + 1 then
@@ -395,7 +237,7 @@ local function OnDirectInput(e)
 
     local button = buttons[e.button];
     if button ~= nil then
-        if TakeButton(button, e.state == 128) then
+        if Process(button, e.state == 128) then
             e.blocked = true;
         end
     elseif layout.triggers ~= nil and layout.triggers[e.button] then
@@ -422,82 +264,7 @@ local function TellFocus(focused, now)
     focusTold, focusToldAt = focused, now;
 end
 
--- Telling the other addons in the cycle what this one's window could do and is doing
-local cycleTold, cycleToldAt = nil, 0;
-local cycleRepeat = 0.5;
-
-local function TellCycle(now)
-    local entry = cycleEntry;
-    cycleFocused = entry.focused() and true or false;
-    local text = ('%s:%d:%d:%d'):format(addon.name, entry.order, entry.available() and 1 or 0, cycleFocused and 1 or 0);
-    if text ~= cycleTold or now - cycleToldAt >= cycleRepeat then
-        AshitaCore:GetPluginManager():RaiseEvent(controller.CycleEvent, { text:byte(1, -1) });
-        cycleTold, cycleToldAt = text, now;
-    end
-end
-
-local function OnCycleEvent(e)
-    local name, order, available, focused = tostring(e.data or ''):match('^([^:%z]+):(-?%d+):([01]):([01])');
-    if name ~= nil and name ~= addon.name then
-        local before = cycleOthers[name];
-        local taking = focused == '1' and not (before ~= nil and before.focused);
-        cycleOthers[name] = { order = tonumber(order), available = available == '1', focused = focused == '1', heard = os.clock() };
-
-        -- another addon's window has just taken the controller: this one's lets go of it
-        if taking and cycleEntry ~= nil and cycleFocused then
-            cycleEntry.unfocus();
-            cycleFocused = false;
-        end
-    end
-end
-
--- /winxi, the command every winxi addon in the cycle answers to (see the top of this file)
-local function OnCommand(e)
-    local words = {};
-    for word in tostring(e.command):gmatch('%S+') do
-        words[#words + 1] = word:lower();
-    end
-    if words[1] ~= '/winxi' or cycleEntry == nil then
-        return;
-    end
-    e.blocked = true;
-
-    local entry = cycleEntry;
-    local wanted = words[2];
-    if wanted == nil or wanted == 'next' then
-        CyclePress();
-        return;
-    end
-
-    if wanted ~= (entry.name or addon.name):lower() then
-        -- another addon's window is being asked for: it will take the controller, or close
-        if cycleFocused then
-            entry.unfocus();
-            cycleFocused = false;
-        end
-        return;
-    end
-
-    if entry.isOpen == nil or entry.open == nil or entry.close == nil then
-        return;
-    end
-    if not entry.isOpen() then
-        entry.open();
-        entry.focus();
-    elseif entry.available() and not entry.focused() then
-        entry.focus();
-    else
-        -- it has the controller, or cannot take it (the addon's controller setting is off, say):
-        -- then the command simply opens and closes
-        entry.close();
-    end
-end
-
 local function OnPluginEvent(e)
-    if e.name == controller.CycleEvent then
-        OnCycleEvent(e);
-        return;
-    end
     if e.name ~= controller.FocusEvent then
         return;
     end
@@ -543,10 +310,6 @@ local function OnPresent()
         any = any or active;
     end
 
-    if cycleEntry ~= nil then
-        TellCycle(now);
-    end
-
     anyActive = any;
     if any ~= (focusTold or false) or (any and now - focusToldAt >= focusRepeat) then
         TellFocus(any, now);
@@ -583,18 +346,12 @@ function controller.Bind(spec)
     };
     bindings[#bindings + 1] = binding;
 
-    StartListening();
-    return binding;
-end
-
-StartListening = function()
     if not listening then
         listening = true;
         ashita.events.register('xinput_button', 'winxi_controller_xinput', OnXInput);
         ashita.events.register('dinput_button', 'winxi_controller_dinput', OnDirectInput);
         ashita.events.register('d3d_present', 'winxi_controller_present', OnPresent);
         ashita.events.register('plugin_event', 'winxi_controller_plugin_event', OnPluginEvent);
-        ashita.events.register('command', 'winxi_controller_command', OnCommand);
         -- an addon unloaded with the controller in hand lets go of it
         ashita.events.register('unload', 'winxi_controller_unload', function()
             if focusTold then
@@ -602,6 +359,7 @@ StartListening = function()
             end
         end);
     end
+    return binding;
 end
 
 -- Whether a binding has the controller now

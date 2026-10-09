@@ -10,7 +10,6 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /treas           shows or hides the window (it only appears while there is treasure)
 --   /treas config    opens or closes the settings
 --   /treas focus     gives the window the controller, or takes it away again
---   /winxi treas     shows it; showing already, gives it the controller; with the controller, hides it
 
 require('common')
 local bit = require('bit')
@@ -109,8 +108,7 @@ end
 -- The window is there whenever there is treasure, in the middle of a fight as much as after it, so it
 -- does not take the controller just by showing: /treas focus (from a macro) gives it the controller
 -- and B, or /treas focus again, gives it back. While it has it, up and down move a highlight over the
--- items, A opens a menu for the highlighted one (lot, pass), and Y one for all of them. X (square)
--- is the window cycle's: it gives the window the controller in its turn, and passes it on.
+-- items, A opens a menu for the highlighted one (lot, pass), and X one for all of them.
 local pad = {
     options = nil,     -- the settings, as of the frame last drawn
     focused = false,   -- whether the window has been given the controller
@@ -214,50 +212,10 @@ pad.binding = controller.Bind({
     active = PadIsActive,
     actions = {
         [padButtons.DpadUp] = 'up', [padButtons.DpadDown] = 'down',
-        [padButtons.A] = 'confirm', [padButtons.B] = 'back', [padButtons.Y] = 'sort',
-        -- kept from the game and nothing more: the window can have the controller while one of the
-        -- game's own menus is still open behind it
-        [padButtons.DpadLeft] = 'kept', [padButtons.DpadRight] = 'kept',
-        [padButtons.LB] = 'kept', [padButtons.RB] = 'kept',
+        [padButtons.A] = 'confirm', [padButtons.B] = 'back', [padButtons.X] = 'sort',
     },
     repeats = { up = true, down = true },
     press = PadPress,
-})
-
--- The treasure pool comes after the inventory in the window cycle: X (square) moves the controller
--- from one open winxi window to the next and round again
-controller.Cycle({
-    order = 2,
-    available = function()
-        local options = pad.options
-        return options ~= nil and options.controller[1] and options.isVisible[1]
-            and os.clock() - pad.drawn < 0.25
-            or false
-    end,
-    focused = PadIsActive,
-    focus = function()
-        pad.focused = true
-    end,
-    unfocus = function()
-        pad.focused = false
-    end,
-    busy = function()
-        return pad.menu ~= nil
-    end,
-    -- for /winxi treas. Open is the window being allowed to show: it is only there with treasure.
-    isOpen = function()
-        return pad.options ~= nil and pad.options.isVisible[1] and true or false
-    end,
-    open = function()
-        if pad.options ~= nil then
-            pad.options.isVisible[1] = true
-        end
-    end,
-    close = function()
-        if pad.options ~= nil then
-            pad.options.isVisible[1] = false
-        end
-    end,
 })
 
 -- Starts a frame in which the window is drawn
@@ -554,7 +512,7 @@ local function DrawSettings()
     widgets.Label('Controller Navigation (Experimental)')
     imgui.Checkbox('##treas.controller', options.controller)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Work the treasure pool with a controller.\nThe window does not take the controller by itself. X (square) moves the controller between the winxi windows that are open (the inventory, this one), round and round; /treas focus gives it to this one directly. B gives it back to the game.\nUp / down: move the highlight.  A: lot or pass on the highlighted item.  Y (triangle): lot or pass on everything.  X: on to the next window.')
+        imgui.SetTooltip('Work the treasure pool with a controller.\nThe window does not take the controller by itself: /treas focus (from a macro) gives it the controller, and B gives it back.\nUp / down: move the highlight.  A: lot or pass on the highlighted item.  X (square): lot or pass on everything.\nOnly those buttons are kept from the game, and only while the window has the controller.')
     end
     if options.controller[1] then
         widgets.Label('Controller Sounds')
