@@ -161,7 +161,7 @@ function App:BeginFrame()
     theme.Configure(options.useSharedTheme, options.theme);
 
     if self.showConfig[1] then
-        window.Full(self.spec.configTitle or (addon.name .. ' Settings'), self.showConfig, self.configFlags, self.drawConfig, self.configStyle);
+        window.Full(self.ids.config, self.showConfig, self.configFlags, self.drawConfig, self.configStyle);
         if not self.showConfig[1] then
             -- closed by its own button: what was set in it is kept
             settings.save();
@@ -177,14 +177,19 @@ end
 
 local function OnCommand(app, e)
     local spec = app.spec;
-    local args = {};
-    for word in tostring(e.command):gmatch('%S+') do
-        args[#args + 1] = word;
-    end
-    if #args == 0 or args[1]:lower() ~= spec.command then
+
+    -- every command typed or sent comes by here: only this addon's is taken apart
+    local command = tostring(e.command);
+    local first = command:match('%S+');
+    if first == nil or first:lower() ~= spec.command then
         return;
     end
     e.blocked = true;
+
+    local args = {};
+    for word in command:gmatch('%S+') do
+        args[#args + 1] = word;
+    end
 
     local options = app.options;
     local verb = args[2] and args[2]:lower() or nil;
@@ -203,9 +208,22 @@ end
 -- the buttons do as its tooltip, and under it, while it is on, the sounds and the kind of controller.
 -- between, if given, draws the addon's own controller settings after the sounds. The settings are
 -- controller and controllerSounds (tables holding true or false) and controllerType (a layout's key).
+local controllerIds = nil; -- the hidden labels of the controls below: made once
+
 function shell.ControllerSettings(options, tooltip, between)
     local controller = require('winxi.controller');
-    local id = addon.name;
+    local ids = controllerIds;
+    if ids == nil then
+        ids = {
+            controller = ('##%s.controller'):format(addon.name),
+            sounds = ('##%s.controllerSounds'):format(addon.name),
+            layouts = {},
+        };
+        for index, layout in ipairs(controller.Layouts) do
+            ids.layouts[index] = ('%s##%s.controllerType'):format(layout.label, addon.name);
+        end
+        controllerIds = ids;
+    end
 
     if type(options.controller) ~= 'table' then
         options.controller = T{ false };
@@ -215,7 +233,7 @@ function shell.ControllerSettings(options, tooltip, between)
     end
 
     widgets.Label('Controller Navigation (Experimental)');
-    imgui.Checkbox(('##%s.controller'):format(id), options.controller);
+    imgui.Checkbox(ids.controller, options.controller);
     if tooltip ~= nil and imgui.IsItemHovered() then
         imgui.SetTooltip(tooltip);
     end
@@ -224,7 +242,7 @@ function shell.ControllerSettings(options, tooltip, between)
     end
 
     widgets.Label('Controller Sounds');
-    imgui.Checkbox(('##%s.controllerSounds'):format(id), options.controllerSounds);
+    imgui.Checkbox(ids.sounds, options.controllerSounds);
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Plays a sound as the window takes the controller, the highlight moves, a menu opens, a choice is made or backed out of.\nThe sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.');
     end
@@ -241,7 +259,7 @@ function shell.ControllerSettings(options, tooltip, between)
             -- one to a line, under the first
             imgui.SetCursorPosX(column);
         end
-        if imgui.RadioButton(('%s##%s.controllerType'):format(layout.label, id), current == layout.key) then
+        if imgui.RadioButton(ids.layouts[index], current == layout.key) then
             options.controllerType = layout.key;
         end
     end
@@ -271,6 +289,7 @@ function shell.New(spec)
         configStyle = { padding = theme.Defaults.Padding },
         configFlags = bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings),
         ids = {
+            config = spec.configTitle or (addon.name .. ' Settings'),
             tabs = ('##%s.config'):format(addon.name),
             labels = ('%s.settings'):format(addon.name),
             fade = ('##%s.fadeInOut'):format(addon.name),

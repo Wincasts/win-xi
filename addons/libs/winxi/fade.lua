@@ -105,7 +105,8 @@ function fade.Update(settings, suspended)
     end
 
     local memory = AshitaCore:GetMemoryManager();
-    local index = memory:GetParty():GetMemberTargetIndex(0);
+    local party = memory:GetParty();
+    local index = party:GetMemberTargetIndex(0);
     if index ~= 0 then
         local entities = memory:GetEntity();
         local x = entities:GetLocalPositionX(index);
@@ -126,7 +127,7 @@ function fade.Update(settings, suspended)
 
         -- the party list is looked at whether or not anything else is going on, so that what it is
         -- compared with is never stale
-        if settings.Party and PartyChanged(memory:GetParty(), now) then
+        if settings.Party and PartyChanged(party, now) then
             active = true;
         end
 
@@ -148,7 +149,7 @@ function fade.Update(settings, suspended)
 
         if not active and settings.MissingHp then
             local maxHp = memory:GetPlayer():GetHPMax();
-            active = maxHp > 0 and memory:GetParty():GetMemberHP(0) < maxHp;
+            active = maxHp > 0 and party:GetMemberHP(0) < maxHp;
         end
 
         if active then

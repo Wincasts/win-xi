@@ -207,11 +207,12 @@ end
 
 -- The colours of everything inside a window that is tinted from the border colour: each slot, and how
 -- strong the border colour is there (or a colour of its own).
-local paletteSlots = nil;
-local palette, paletteVersion = nil, -1;
+local palette = nil;         -- { slot, colour } for each, made once and recoloured in place
+local paletteStrengths = {}; -- by place in the palette; false where the colour is the slot's own
+local paletteVersion = -1;
 
 local function BuildPalette()
-    if paletteSlots == nil then
+    if palette == nil then
         -- made here rather than as the file loads, by which point imgui's slots are certain to be defined;
         -- slots this build of imgui does not have are left out
         local slots = {
@@ -247,26 +248,31 @@ local function BuildPalette()
             { ImGuiCol_ScrollbarGrabHovered, 0.60 },
             { ImGuiCol_ScrollbarGrabActive,  0.80 },
         };
-        paletteSlots = {};
+        palette = {};
         for _, slot in ipairs(slots) do
             if slot[1] ~= nil then
-                paletteSlots[#paletteSlots + 1] = slot;
+                local index = #palette + 1;
+                palette[index] = { slot[1], slot[3] or { 0, 0, 0, 0 } };
+                paletteStrengths[index] = (slot[3] == nil) and slot[2];
             end
         end
     end
 
     local border = active.BorderColor;
-    local built = {};
-    for _, slot in ipairs(paletteSlots) do
-        built[#built + 1] = { slot[1], slot[3] or { border[1], border[2], border[3], border[4] * slot[2] } };
+    for index = 1, #palette do
+        local strength = paletteStrengths[index];
+        if strength then
+            local color = palette[index][2];
+            color[1], color[2], color[3], color[4] = border[1], border[2], border[3], border[4] * strength;
+        end
     end
-    return built;
 end
 
--- A list of { slot, colour } for imgui.PushStyleColor, rebuilt only when the theme has changed
+-- A list of { slot, colour } for imgui.PushStyleColor, worked out again only when the theme has changed.
+-- The same list and the same colour tables each time: they are recoloured, never replaced.
 function theme.Palette()
     if paletteVersion ~= version then
-        palette = BuildPalette();
+        BuildPalette();
         paletteVersion = version;
     end
     return palette;

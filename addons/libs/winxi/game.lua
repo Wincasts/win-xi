@@ -73,9 +73,12 @@ end
 
 function game.IsMapOpen()
     local name = game.MenuName();
-    return name:match('menu%s+map.*') ~= nil
-        or name:match('menu%s+scanlist.*') ~= nil
-        or name:match('menu%s+cnqframe') ~= nil;
+    if name == '' then
+        return false;
+    end
+    return name:find('menu%s+map') ~= nil
+        or name:find('menu%s+scanlist') ~= nil
+        or name:find('menu%s+cnqframe') ~= nil;
 end
 
 -- event system signature courtesy of Velyn
