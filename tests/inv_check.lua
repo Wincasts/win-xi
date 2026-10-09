@@ -8,6 +8,15 @@ H.frames(3); H.print('loading: windows begun', H.calls.Begin or 0)
 H.play(true); o.isVisible[1] = true; H.frames(8)
 H.print('in game: windows begun', H.calls.Begin, '| tab bars', H.calls.BeginTabBar)
 
+-- where a character is chosen there can be a player, but nobody is in the game: nothing is drawn
+do
+    local begun = H.calls.Begin
+    H.login(0); H.frames(8)
+    H.print('choosing a character: nothing drawn', H.calls.Begin == begun)
+    H.login(2); H.frames(8)
+    H.print('logged in again: drawn', H.calls.Begin > begun)
+end
+
 local before = H.calls.Begin
 H.print('/inv config kept from the game', H.command('/inv config')); H.frames(1)
 H.print('settings window drawn', H.calls.Begin - before == 2, '| checkboxes', H.calls.Checkbox > 0, '| radio buttons', H.calls.RadioButton > 0)

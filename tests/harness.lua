@@ -67,7 +67,7 @@ package.preload['settings'] = function() return { logged_in = true, name = 'Test
 local realLoadfile = loadfile
 loadfile = function(p) if p:find('xitools') then return realLoadfile(root .. 'tests/fixtures/xitools_settings.lua') end return realLoadfile(p) end
 
-local playing, pool, lots, sent, sounds, raised = false, 0, {}, {}, {}, {}
+local playing, loginStatus, pool, lots, sent, sounds, raised = false, 2, 0, {}, {}, {}, {}
 function GetPlayerEntity() return playing and {} or nil end
 ashita = { interface_version = 4,
     events = { register = function(e, _, f) handlers[e] = handlers[e] or {}; table.insert(handlers[e], f) end },
@@ -79,7 +79,7 @@ local inventory = { GetContainerItem = function() return nil end, GetContainerCo
     GetTreasurePoolItem = function(_, i) if i < pool then return { ItemId = 100 + i, DropTime = 5, WinningLot = 0, WinningEntityName = '', Lot = lots[i] or 0 } end end }
 AshitaCore = { GetInstallPath = function() return 'C:\\ashita' end,
     GetMemoryManager = function() return { GetInventory = function() return inventory end,
-        GetPlayer = function() return { GetMainJob = function() return 18 end } end,
+        GetPlayer = function() return { GetMainJob = function() return 18 end, GetLoginStatus = function() return loginStatus end } end,
         GetParty = function() return { GetMemberTargetIndex = function() return 0 end, GetMemberName = function() return 'Tester' end } end } end,
     GetResourceManager = function() return { GetItemById = function(_, id) return { Id = id, Name = { 'Item ' .. id } } end } end,
     GetPointerManager = function() return { Get = function() return 0 end } end,
@@ -97,6 +97,7 @@ H = {
     saves = function() return saves end,
     selected = function() return selected end,             -- the menu choice last drawn as highlighted
     play = function(v) playing = v end,                    -- whether there is a player (false: loading)
+    login = function(status) loginStatus = status end,     -- the game's login status: 2 in the world, less before
     pool = function(count) pool = count end,               -- how many items are in the treasure pool
     frames = function(count) for _ = 1, count or 1 do clock = clock + 0.03; fire('d3d_present') end end,
     command = function(text) return fire('command', { command = text, blocked = false }).blocked end,

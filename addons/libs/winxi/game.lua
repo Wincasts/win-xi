@@ -5,7 +5,7 @@
 --   game.IsMapOpen()           the map (or another full-screen list of its kind) is open
 --   game.IsEventHappening()    a cutscene or an NPC's dialogue is running
 --   game.IsInterfaceHidden()   the player has hidden the game's own interface
---   game.IsLoading()           there is no player yet: zoning, or not logged in
+--   game.IsLoading()           not in the game: zoning, or at the title screen or choosing a character
 --   game.HasBagAccess(bag)     the player can use the bag with that number
 --
 -- And the usual rules for when an addon's windows should get out of the way:
@@ -109,8 +109,17 @@ function game.IsInterfaceHidden()
     return ashita.memory.read_uint8(pointer + 0xB4) == 1;
 end
 
+-- Not in the game: there is no player while zoning, and before logging in the game says so itself.
+-- The second is asked as well because there can be a player's entity at the title screen and where
+-- characters are chosen: the one last played, or the one being looked at.
+local loggedIn = 2; -- the game's login status once a character is in the world
+
 function game.IsLoading()
-    return GetPlayerEntity() == nil;
+    if GetPlayerEntity() == nil then
+        return true;
+    end
+    local player = AshitaCore:GetMemoryManager():GetPlayer();
+    return player ~= nil and player:GetLoginStatus() ~= loggedIn;
 end
 
 -- Whether the player can use a bag, by the game's number for it. Code provided by atom0s.

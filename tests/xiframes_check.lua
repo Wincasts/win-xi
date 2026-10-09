@@ -35,6 +35,7 @@ anything = setmetatable({}, { __index = function(_, k) return function()
     if k:match('Name$') then return 'Tester' end
     if k:match('Buffs') or k:match('StatusIcons') then return {} end
     if k == 'GetIsZoning' then return 0 end
+    if k == 'GetLoginStatus' then return 2 end
     return 1
 end end })
 local core = AshitaCore
