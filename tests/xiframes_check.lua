@@ -27,6 +27,8 @@ anything = setmetatable({}, { __index = function(_, k) return function()
 end end })
 local core = AshitaCore
 AshitaCore = setmetatable({ GetMemoryManager = function() return anything end }, { __index = core })
+-- but the inventory is the harness's own, which has a treasure pool
+rawset(anything, 'GetInventory', function() return core.GetMemoryManager():GetInventory() end)
 GetEntity = function(index)
     if index == 99 then return { Name = 'Carbuncle', Distance = 16, HPPercent = 80 } end
     return { Name = 'Greater Colibri', Distance = 64, HPPercent = 75, ServerId = 7, PetTargetIndex = 99, TargetedIndex = 0 }
@@ -68,6 +70,7 @@ struct.unpack = function(format, data, at)
     if format == 'c16' then return data:sub(at, at + 15) elseif format == 'B' and #data > 0x0B then return data:byte(at) end
     return realUnpack(format, data, at)
 end
+us.showTreasure[1] = false -- the envelope alone, first
 local function drawn() local before = H.calls['draw.AddRectFilled'] or 0; H.frames(1); return (H.calls['draw.AddRectFilled'] or 0) > before end
 H.print('no invitation: no mark', drawn() == false)
 H.packetData(0x0DC, invitation(0)); H.print('a party invite: marked', drawn())
@@ -75,6 +78,11 @@ H.packetOut(0x074); H.print('answered: gone', drawn() == false)
 H.packetData(0x0DC, invitation(5)); H.print('an alliance invite: marked', drawn())
 H.packet(0x00A); H.print('a change of area: gone', drawn() == false)
 struct.unpack = realUnpack
+-- the treasure pool: a chest while there is something in it. It is looked at twice a second.
+us.showTreasure[1] = true
+H.frames(20); H.print('an empty pool: no chest', drawn() == false)
+H.pool(2); H.frames(20); H.print('two items in the pool: a chest', drawn())
+H.pool(0); H.frames(20); H.print('emptied: gone', drawn() == false)
 
 -- the settings, tab by tab: drawn directly, as the harness shows only a window's first tab
 for _, name in ipairs({ 'us', 'tgt', 'pet' }) do
