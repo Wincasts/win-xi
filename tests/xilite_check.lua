@@ -1,0 +1,42 @@
+-- xilite: loads, brings its four tools' settings over from xitools, draws its windows, answers its command
+H.load()
+local o = H.options()
+H.print('imported', o.importedFromXitools, '| me pos', o.tools.me.pos[1], o.tools.me.pos[2], '| me named', o.tools.me.name,
+    '| tgt named', o.tools.tgt.mainWindow.name, 'at', o.tools.tgt.mainWindow.pos[1], '| tgt enabled', o.tools.tgt.isEnabled[1])
+H.print('said:', H.printed[#H.printed])
+H.print('globals: clickthrough', o.globals.isClickThru[1], '| hide chat', o.globals.hide.UnderChat, 'map', o.globals.hide.UnderMap,
+    '| fade', o.globals.fade.Enabled, 'me fades', o.globals.fade.tools.me[1], 'pet fades', o.globals.fade.tools.pet[1])
+H.print('links kept', #o.globals.links, o.globals.links[1].child, 'under', o.globals.links[1].parent)
+H.print('what was kept untouched: us named', o.tools.us.alliance1.name, '| pet enabled', o.tools.pet.isEnabled[1])
+
+H.frames(3); H.print('loading: windows begun', H.calls.Begin or 0)
+
+-- in game, with a party of one and nothing targeted: the memory here answers 1 to whatever it is asked
+local anything
+local managers = { GetParty = true, GetPlayer = true, GetEntity = true, GetTarget = true, GetRecast = true, GetCastBar = true, GetInventory = true }
+anything = setmetatable({}, { __index = function(_, k) return function()
+    if managers[k] then return anything end
+    if k:match('Name$') then return 'Tester' end
+    if k:match('Buffs') or k:match('StatusIcons') then return {} end
+    if k == 'GetIsZoning' then return 0 end
+    return 1
+end end })
+local core = AshitaCore
+AshitaCore = setmetatable({ GetMemoryManager = function() return anything end }, { __index = core })
+GetEntity = function() return nil end
+GetPlayerEntity = function() return { Name = 'Tester', HPPercent = 100, Distance = 0, ServerId = 1, TargetIndex = 1 } end
+
+local ok, problem = pcall(H.frames, 5)
+H.print('in game: frames ran', ok, ok and '' or problem, '| windows begun', H.calls.Begin or 0)
+
+-- the target window too, and the packets it reads
+o.tools.tgt.isEnabled[1] = true
+local begun = H.calls.Begin
+ok, problem = pcall(function() H.packet(0x00A); H.frames(5) end)
+H.print('with tgt on: frames ran', ok, ok and '' or problem, '| more windows begun', H.calls.Begin > begun)
+
+local before = H.calls.Begin or 0
+H.print('/xilite kept from the game', H.command('/xilite'), '| settings showing', o.showConfig[1]); H.frames(1)
+H.print('settings window drawn', (H.calls.Begin or 0) > before, '| tab bars', H.calls.BeginTabBar)
+H.print('/xil closes it', H.command('/xil') and o.showConfig[1] == false, '| /xilitex is left alone', H.command('/xilitex') == false)
+H.unload(); H.print('unload ran; saves', H.saves() > 0)
