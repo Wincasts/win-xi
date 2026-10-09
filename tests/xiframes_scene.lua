@@ -77,7 +77,8 @@ GetPlayerEntity = function() return entities[100] end
 local zero = setmetatable({}, { __index = function(t, k) local f = function() return 0 end rawset(t, k, f) return f end })
 local buffs = { 40, 41, 0, 255 }
 local player = setmetatable({ GetBuffs = function() return buffs end, GetMPMax = function() return 800 end, GetHPMax = function() return 1280 end,
-    GetPetMPPercent = function() return 60 end, GetPetTP = function() return 1200 end, GetMainJob = function() return 5 end, GetSubJob = function() return 3 end },
+    GetPetMPPercent = function() return 60 end, GetPetTP = function() return 1200 end, GetMainJob = function() return 5 end, GetSubJob = function() return 3 end,
+    GetLoginStatus = function() return 2 end },
     { __index = zero })
 local targets = setmetatable({ GetTargetIndex = function(_, which) return which == 0 and 102 or 0 end, GetIsActive = function(_, which) return which == 0 and 1 or 0 end,
     GetIsSubTargetActive = function() return 0 end, GetServerId = function(_, which) return which == 0 and 1002 or 0 end, GetSubTargetFlags = function() return 0 end },
