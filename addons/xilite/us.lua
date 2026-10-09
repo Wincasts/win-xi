@@ -472,11 +472,21 @@ local function DrawCompactTp(player, y)
     local width, height = imgui.CalcTextSize(text)
     local x = windowX - compactTpGap - width
 
+    -- Only what is on screen is drawn, and the space opened for it never reaches past the screen's
+    -- edge. A list that grows upwards is first laid out far off screen to measure it, and a figure
+    -- drawn out there, in a space of its own making, came out huge in the middle of the screen.
+    local display = imgui.GetIO().DisplaySize
+    local left, top = math.max(0, x - 1), math.max(0, y - 1)
+    local right, bottom = math.min(display.x, windowX), math.min(display.y, y + height + 2)
+    if right <= left or bottom <= top then
+        return
+    end
+
     -- the window's own list, so the figure sits with the window among the others and fades with it,
     -- opened up to take in the space beside the window
     local drawList = imgui.GetWindowDrawList()
-    compactTpClipMin[1], compactTpClipMin[2] = x - 1, y - 1
-    compactTpClipMax[1], compactTpClipMax[2] = windowX, y + height + 2
+    compactTpClipMin[1], compactTpClipMin[2] = left, top
+    compactTpClipMax[1], compactTpClipMax[2] = right, bottom
     drawList:PushClipRect(compactTpClipMin, compactTpClipMax, false)
 
     -- with nothing behind it but the game, a dark copy a pixel down and across keeps it readable

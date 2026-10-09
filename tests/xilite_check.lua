@@ -47,6 +47,12 @@ H.print('compact party is held by its bottom left', corner ~= nil and corner[1] 
 o.tools.us.alliance1.isCompact[1] = false; H.frames(1)
 H.print('full again: the corner is forgotten', o.tools.us.alliance1.corner == nil)
 o.tools.us.alliance1.isCompact[1] = true
+-- a window off screen, as the one a list is measured in is, has no TP figures drawn beside it
+local pos, cursor = H.ret.GetWindowPos, H.ret.GetCursorScreenPos
+H.ret.GetWindowPos, H.ret.GetCursorScreenPos = { -20000, -20000 }, { -19990, -19990 }
+texts = H.calls['draw.AddText']; H.frames(1)
+H.print('off screen: no TP figures drawn', H.calls['draw.AddText'] == texts)
+H.ret.GetWindowPos, H.ret.GetCursorScreenPos = pos, cursor
 
 local before = H.calls.Begin or 0
 H.print('/xilite kept from the game', H.command('/xilite'), '| settings showing', o.showConfig[1]); H.frames(1)
