@@ -597,9 +597,9 @@ local function AddHighlight(posX, posY, size, drawList)
     drawList:AddRect(upperLeft, bottomRight, highlightColor, 0.0)
 end
 
-local function AddTooltip(item)
-    imgui.BeginTooltip()
-
+-- All there is to say of an item: its name, its description (where the game puts an item's stats and
+-- what it has to say of it), how many of how many, and for gear its level, slot and jobs
+local function DrawItemInfo(item)
     imgui.PushTextWrapPos(fontWidth * 64)
     imgui.Text(item.name)
     imgui.Text(item.desc)
@@ -617,7 +617,11 @@ local function AddTooltip(item)
         imgui.Text(item.jobs)
     end
     imgui.PopTextWrapPos()
+end
 
+local function AddTooltip(item)
+    imgui.BeginTooltip()
+    DrawItemInfo(item)
     imgui.EndTooltip()
 end
 
@@ -935,6 +939,14 @@ local function SortMenu()
     })
 end
 
+-- The verbose box for the highlighted item: the item is kept to one side for it, so that the
+-- function need not be made afresh every frame
+local infoItem = nil
+
+local function DrawInfoBox()
+    DrawItemInfo(infoItem)
+end
+
 -- One of the inventory's buttons has been pressed, or a held d-pad button has repeated
 local function PadPress(action)
     if pad.menu ~= nil then
@@ -1041,17 +1053,23 @@ local function PadEndFrame()
         return
     end
 
-    -- no menu open: the name of the item the highlight is on, in a box floating under it, a little
-    -- clear of the highlight's outline (an item's menu has the name at its head)
+    -- no menu open: the item the highlight is on, in a box floating under it, a little clear of the
+    -- highlight's outline (an item's menu has the name at its head). The simple view is the name; the
+    -- verbose one all that the mouse's tooltip says.
     if pad.menu == nil then
         local item = pad.grid.count > 0 and pad.items[pad.grid.cursor] or nil
         local x, y = pad.grid:Position()
         if item ~= nil and x ~= nil then
-            if item.label == nil then
-                -- made once for the item: it is made afresh whenever the bags change
-                item.label = item.stackCur > 1 and ('%s x%d'):format(item.shortName, item.stackCur) or item.shortName
+            if pad.options.controllerInfo == 'verbose' then
+                infoItem = item
+                controller.Label(DrawInfoBox, x, y + iconSize + 3 + labelGap, true, item.uniqueId)
+            else
+                if item.label == nil then
+                    -- made once for the item: it is made afresh whenever the bags change
+                    item.label = item.stackCur > 1 and ('%s x%d'):format(item.shortName, item.stackCur) or item.shortName
+                end
+                controller.Label(item.label, x, y + iconSize + 3 + labelGap, true)
             end
-            controller.Label(item.label, x, y + iconSize + 3 + labelGap, true)
         end
         return
     end
@@ -1429,6 +1447,7 @@ local inv = {
         showEmptySlots = T{ false },
         controller = T{ false }, -- experimental: work the window with a controller
         controllerSounds = T{ false }, -- sounds as the controller works the window
+        controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
         controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
         size = T{ 0, 0 },
         maxHeight = T{ 432 },
@@ -1493,6 +1512,19 @@ local inv = {
                 imgui.Checkbox('##inv.controllerSounds', options.controllerSounds)
                 if imgui.IsItemHovered() then
                     imgui.SetTooltip('Plays a sound as the window opens, the highlight moves, a menu opens, a choice is made or backed out of.\nThe sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.')
+                end
+                ui.Label('Controller Item Info')
+                local verbose = options.controllerInfo == 'verbose'
+                local infoColumn = imgui.GetCursorPosX()
+                if imgui.RadioButton('Simple##inv.controllerInfo', not verbose) then
+                    options.controllerInfo = 'simple'
+                end
+                imgui.SetCursorPosX(infoColumn)
+                if imgui.RadioButton('Verbose##inv.controllerInfo', verbose) then
+                    options.controllerInfo = 'verbose'
+                end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('What the box under the highlighted item says.\nSimple: its name.  Verbose: its name, stats and description, as the mouse\'s tooltip has them.')
                 end
                 ui.Label('Controller Type')
                 local current = controller.GetLayout()
