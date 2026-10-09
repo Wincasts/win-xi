@@ -147,14 +147,8 @@ packethandlers.HandleIncomingPacket = function(e)
 
         local actor = gActionHandlers.ActorParse(am.actor_id)
         local target = gActionHandlers.ActorParse(am.target_id)
-        local actor_article = ''
-        if gProfileSettings.lang.msg_text ~= 'jp' then
-            actor_article = common_nouns:contains(am.actor_id) and 'The ' or ''
-        end
-        local target_article = ''
-        if gProfileSettings.lang.msg_text ~= 'jp' then
-            target_article = common_nouns:contains(am.target_id) and 'The ' or ''
-        end
+        local actor_article = common_nouns:contains(am.actor_id) and 'The ' or ''
+        local target_article = common_nouns:contains(am.target_id) and 'The ' or ''
         targets_condensed = false
 
         -- Filter these messages
@@ -162,7 +156,7 @@ packethandlers.HandleIncomingPacket = function(e)
 
         if not actor or not target then -- If the actor or target table is nil, ignore the packet
         elseif am.message_id == 800 then -- Spirit bond message
-            local status = gFuncs.ColorIt(AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, gProfileSettings.lang.internal), gProfileColor.statuscol)
+            local status = gFuncs.ColorIt(AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, 2), gProfileColor.statuscol)
             local targ = gFuncs.ColorIt(target.name or '', gProfileColor[target.owner or target.type])
             local number = am.param_2
             local color = gActionHandlers.ColorFilt(res_actmsg[am.message_id].color, am.target_id==Self.ServerId)
@@ -173,19 +167,13 @@ packethandlers.HandleIncomingPacket = function(e)
                 :gsub('${numb}',number or '')
                 AshitaCore:GetChatManager():AddChatMessage(color, false, msg)
             else
-                local msg = nil
-                if gProfileSettings.lang.msg_text == 'jp' then
-                    msg = res_actmsg[am.message_id]['jp']
-                    msg = UTF8toSJIS:UTF8_to_SJIS_str_cnv(msg)
-                else
-                    msg = res_actmsg[am.message_id]['en']
-                    msg = gFuncs.GrammaticalNumberFix(msg, number, am.message_id)
-                    if plural_entities:contains(am.actor_id) then
-                        msg = gFuncs.PluralActor(msg, am.message_id)
-                    end
-                    if plural_entities:contains(am.target_id) then
-                        msg = gFuncs.PluralTarget(msg, am.message_id)
-                    end
+                local msg = res_actmsg[am.message_id].en
+                msg = gFuncs.GrammaticalNumberFix(msg, number, am.message_id)
+                if plural_entities:contains(am.actor_id) then
+                    msg = gFuncs.PluralActor(msg, am.message_id)
+                end
+                if plural_entities:contains(am.target_id) then
+                    msg = gFuncs.PluralTarget(msg, am.message_id)
                 end
                 local msg = gFuncs.CleanMsg(msg
                 :gsub('${status}',status or '')
@@ -198,11 +186,11 @@ packethandlers.HandleIncomingPacket = function(e)
             local status
 
             if enfeebling:contains(am.param_1) and AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1) then
-                status = gFuncs.ColorIt(AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, gProfileSettings.lang.internal), gProfileColor.enfeebcol)
+                status = gFuncs.ColorIt(AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, 2), gProfileColor.enfeebcol)
             elseif gProfileColor.statuscol == 0 then
-                status = gFuncs.ColorIt(AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, gProfileSettings.lang.internal), 0)
+                status = gFuncs.ColorIt(AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, 2), 0)
             else
-                status = gFuncs.ColorIt(AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, gProfileSettings.lang.internal), gProfileColor.statuscol)
+                status = gFuncs.ColorIt(AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, 2), gProfileColor.statuscol)
             end
 
             if not multi_actor[status] then multi_actor[status] = gActionHandlers.ActorParse(am.actor_id) end
@@ -224,18 +212,12 @@ packethandlers.HandleIncomingPacket = function(e)
             am.message_id = false
         elseif passed_messages:contains(am.message_id) then
             local item, status, spell, skill, number, number2
-            local outstr = nil
-            if gProfileSettings.lang.msg_text == 'jp' then
-                outstr = res_actmsg[am.message_id]['jp']
-                outstr = UTF8toSJIS:UTF8_to_SJIS_str_cnv(outstr)
-            else
-                outstr = res_actmsg[am.message_id][gProfileSettings.lang.msg_text]
-                if plural_entities:contains(am.actor_id) then
-                    outstr = gFuncs.PluralActor(outstr, am.message_id)
-                end
-                if plural_entities:contains(am.target_id) then
-                    outstr = gFuncs.PluralTarget(outstr, am.message_id)
-                end
+            local outstr = res_actmsg[am.message_id].en
+            if plural_entities:contains(am.actor_id) then
+                outstr = gFuncs.PluralActor(outstr, am.message_id)
+            end
+            if plural_entities:contains(am.target_id) then
+                outstr = gFuncs.PluralTarget(outstr, am.message_id)
             end
 
             local fields = gFuncs.SearchField(outstr)
@@ -249,7 +231,7 @@ packethandlers.HandleIncomingPacket = function(e)
                 if log_form_messages:contains(am.message_id) then
                     status =  AshitaCore:GetResourceManager():GetString('buffs.names_log', am.param_1, 2)
                 else
-                    status = AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, gProfileSettings.lang.internal)
+                    status = AshitaCore:GetResourceManager():GetString('buffs.names', am.param_1, 2)
                 end
                 if enfeebling:contains(am.param_1) then
                     status = gFuncs.ColorIt(status, gProfileColor.enfeebcol)
@@ -259,11 +241,11 @@ packethandlers.HandleIncomingPacket = function(e)
             end
 
             if fields.spell then
-                spell = get_spell[am.param_1].Name[gProfileSettings.lang.object]
+                spell = get_spell[am.param_1].Name[1]
             end
 
             if fields.item then
-                item = get_item[am.param_1].LogNameSingular[gProfileSettings.lang.object] and get_item[am.param_1].LogNameSingular[gProfileSettings.lang.object] or get_item[am.param_1].Name[gProfileSettings.lang.object]
+                item = get_item[am.param_1].LogNameSingular[1] and get_item[am.param_1].LogNameSingular[1] or get_item[am.param_1].Name[1]
             end
 
             if fields.number then
@@ -275,12 +257,7 @@ packethandlers.HandleIncomingPacket = function(e)
             end
 
             if fields.skill and res_skills[am.param_1] then
-                if gProfileSettings.lang.msg_text == 'jp' then
-                    skill = res_skills[am.param_1][gProfileSettings.lang.msg_text]
-                    skill = UTF8toSJIS:UTF8_to_SJIS_str_cnv(skill)
-                else
-                    skill = res_skills[am.param_1][gProfileSettings.lang.msg_text]:lower()
-                end
+                skill = res_skills[am.param_1].en:lower()
             end
 
             if am.message_id > 169 and am.message_id < 179 then
@@ -365,14 +342,8 @@ packethandlers.multi_packet = function(...)
         isDupe[id] = i
     end
     local targets = gActionHandlers.AssembleTargets(multi_actor[ind], multi_targs[ind], 0, multi_msg[ind])
-    local msg = nil
-    if gProfileSettings.lang.msg_text == 'jp' then
-        msg = res_actmsg[multi_msg[ind]]['jp']
-        msg = UTF8toSJIS:UTF8_to_SJIS_str_cnv(msg)
-    else
-        msg = res_actmsg[multi_msg[ind]]['en']
-    end
-    local outstr = targets_condensed and gProfileSettings.lang.msg_text ~= 'jp' and gFuncs.PluralTarget(msg, multi_msg[ind]) or msg
+    local msg = res_actmsg[multi_msg[ind]].en
+    local outstr = targets_condensed and gFuncs.PluralTarget(msg, multi_msg[ind]) or msg
     outstr = gFuncs.CleanMsg(outstr
     :gsub('${target}\'s',targets)
     :gsub('${target}',targets)

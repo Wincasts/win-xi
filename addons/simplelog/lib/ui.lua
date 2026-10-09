@@ -252,26 +252,6 @@ ui.render_config = function(toggle)
                 imgui.PopStyleColor()
                 imgui.PushTextWrapPos(0)
                 if ui.state.tab == 0 then
-                    local lang_choices = {'English', 'Japanese'}
-
-                    -- Language support yet not fully implemented
-                    imgui.TextColored(theme.desc_text_col, 'Language Option:\nSwitch between English or Japanese message outputs.')
-                    -- Temp Warning
-                    imgui.TextColored({1.0, 0.0, 0.0, 1.0}, 'EXPERIMENTAL')
-                    if imgui.BeginCombo('##lang', lang_choices[gProfileSettings.lang.object]) then
-                        if imgui.Selectable('English', gProfileSettings.lang.object == 1) then
-                            gProfileSettings.lang.object = 1
-                            gProfileSettings.lang.internal = 2
-                            gProfileSettings.lang.msg_text = 'en'
-                        end
-                        if imgui.Selectable('Japanese', gProfileSettings.lang.object == 2) then
-                            gProfileSettings.lang.object = 2
-                            gProfileSettings.lang.internal = 1
-                            gProfileSettings.lang.msg_text = 'jp'
-                        end
-                        imgui.EndCombo()
-                    end
-
                     imgui.TextColored(theme.desc_text_col, 'General Options:\nChange different modes of how the addon output messages.')
                     if imgui.TreeNodeEx('Condese Options', bit.bor(ImGuiTreeNodeFlags_Framed, ImGuiTreeNodeFlags_DefaultOpen, ImGuiTreeNodeFlags_NoTreePushOnOpen)) then
                         local simplify_change = imgui.Checkbox('##simplify', {gProfileSettings.mode.simplify})

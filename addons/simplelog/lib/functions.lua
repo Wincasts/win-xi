@@ -57,13 +57,10 @@ local PopulateSkills = function()
     index = 0x101
     for i = 1, 4116, 1 do
         local j_ability_en = AshitaCore:GetResourceManager():GetString('monsters.abilities', i, 2)
-        local j_ability_jp = AshitaCore:GetResourceManager():GetString('monsters.abilities', i, 1)
         if j_ability_en then
             -- These names come back with their terminator still on the end. Left in, it ends the chat
             -- line wherever the name is put, losing the rest: "uses Slapstick" and no damage after it.
-            t4[index] = {Name = {1, 2}}
-            t4[index].Name[1] = CleanName(j_ability_en)
-            t4[index].Name[2] = CleanName(j_ability_jp)
+            t4[index] = {Name = {CleanName(j_ability_en)}}
             index = index + 1
         else
             break
@@ -220,11 +217,7 @@ local Conjunctions = function (pre, post, target_count, current)
 		if gProfileSettings.mode.oxford and target_count > 2 then
 			pre = pre..','
 		end
-        if gProfileSettings.lang.msg_text == 'jp' then
-            pre = pre..' '..UTF8toSJIS:UTF8_to_SJIS_str_cnv('と')..' '
-        else
-            pre = pre..' and '
-        end
+        pre = pre..' and '
 	end
 	return pre..post
 end
@@ -512,7 +505,7 @@ end
 
 local AddItemArticle = function(item_id)
     local article = ''
-	local article_type = get_item[item_id] and get_item[item_id].LogNamePlural[gProfileSettings.lang.object] or nil
+	local article_type = get_item[item_id] and get_item[item_id].LogNamePlural[1] or nil
     if item_id and article_type ~= nil then
 		if string.find(article_type, 'pairs of ') then
 			article = 'pair of '

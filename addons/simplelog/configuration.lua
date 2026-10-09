@@ -1,10 +1,4 @@
 local settings = T{
-	-- TODO; Language support yet not implemented
-	lang = T{
-		object = 1, -- 0 = Default, 1 = English, 2 = Japanese
-		internal = 2, -- 0 = Default, 1 = Japanese, 2 = English
-		msg_text = 'en', -- 'en' = English, 'jp' = Japanese
-	},
 	mode = T{
 		condensedamage = true,
 		condensetargets = true,
