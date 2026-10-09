@@ -741,7 +741,7 @@ local us = {
             ui.Label('Display Cast Bar')
             imgui.Checkbox('##us.4', options.showCastbar)
 
-            ui.Label('Compact Alliance 1')
+            ui.Label('Compact Alliance 1', true)
             if imgui.Checkbox('##us.5', options.alliance1.isCompact) then
                 if options.alliance1.isCompact[1] then
                     options.alliance1.size = options.alliance1.compactSize
@@ -749,7 +749,7 @@ local us = {
                     options.alliance1.size = options.alliance1.fullSize
                 end
             end
-            ui.Label('Compact Alliance 2')
+            ui.Label('Compact Alliance 2', true)
             if imgui.Checkbox('##us.6', options.alliance2.isCompact) then
                 if options.alliance2.isCompact[1] then
                     options.alliance2.size = options.alliance2.compactSize
@@ -757,7 +757,7 @@ local us = {
                     options.alliance2.size = options.alliance2.fullSize
                 end
             end
-            ui.Label('Compact Alliance 3')
+            ui.Label('Compact Alliance 3', true)
             if imgui.Checkbox('##us.7', options.alliance3.isCompact) then
                 if options.alliance3.isCompact[1] then
                     options.alliance3.size = options.alliance3.compactSize
