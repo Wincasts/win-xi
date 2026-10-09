@@ -374,5 +374,34 @@ function widgets.Fade(settings, onChanged)
     end
 end
 
+local hideDirty = false; -- a hide rule has been changed since the addon was last told
+
+local function HideCheck(settings, label, key, tooltip)
+    widgets.Label(label);
+    box[1] = settings[key];
+    if imgui.Checkbox(controlIds['hide.' .. key], box) then
+        settings[key] = box[1] and true or false;
+        hideDirty = true;
+    end
+    Tooltip(tooltip);
+end
+
+-- The controls for an addon's rules for getting its windows out of the way (a table as winxi.game
+-- describes). onChanged, if given, is called when a change is final, for the addon to save its settings.
+function widgets.Hide(settings, onChanged)
+    HideCheck(settings, 'Hide While Map Open', 'UnderMap', 'The windows are not drawn while the map is open.');
+    HideCheck(settings, 'Hide While Chat Open', 'UnderChat', 'The windows are not drawn while the chat log is opened right out.');
+    HideCheck(settings, 'Hide While Loading', 'WhileLoading', 'The windows are not drawn while changing area.');
+    HideCheck(settings, 'Hide During Events', 'DuringEvent', 'The windows are not drawn during cutscenes and while talking to an NPC.');
+    HideCheck(settings, 'Hide With Game Interface', 'WithInterface', 'The windows are not drawn while the game\'s own interface is hidden.');
+
+    if hideDirty and MouseIsUp() then
+        hideDirty = false;
+        if onChanged then
+            onChanged();
+        end
+    end
+end
+
 return widgets;
 
