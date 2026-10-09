@@ -9,6 +9,8 @@
 local addonName, target, check = arg[1], arg[2], arg[3]
 local root = debug.getinfo(1, 'S').source:match('^@(.*)tests/harness%.lua$') or './'
 package.path = root .. 'addons/libs/?.lua;' .. package.path
+-- an addon of several files finds its own beside it, as it does in Ashita
+package.path = (target:match('^(.*)/[^/]*$') or '.') .. '/?.lua;' .. package.path
 
 local handlers, present, calls, printed, clock = {}, {}, {}, {}, 0
 os.clock = function() return clock end
@@ -25,7 +27,7 @@ function table.join(t, sep) return table.concat(t, sep or '') end
 string.args = function(s) local a = T{} for w in s:gmatch('%S+') do a[#a + 1] = w end return a end
 string.replace = function(s, a, b) return (s:gsub(a:gsub('%p', '%%%0'), (b:gsub('%%', '%%%%')))) end
 string.explode = function(s) local t = T{} for c in s:gmatch('.') do t[#t + 1] = c end return t end
-debug.setmetatable(function() end, { __index = { bindn = function(f, ...) local a = { ... } return function(...) return f(unpack(a), ...) end end } })
+debug.setmetatable(function() end, { __index = { bindn = function(f, ...) local a, n = { ... }, select('#', ...) return function(...) local all = { unpack(a, 1, n) } for i = 1, select('#', ...) do all[n + i] = (select(i, ...)) end return f(unpack(all, 1, n + select('#', ...))) end end } })
 package.preload['common'] = function() return true end
 
 addon = { name = addonName, path = 'C:\\ashita\\addons\\' .. addonName .. '\\' }
@@ -97,6 +99,7 @@ H = {
     frames = function(count) for _ = 1, count or 1 do clock = clock + 0.03; fire('d3d_present') end end,
     command = function(text) return fire('command', { command = text, blocked = false }).blocked end,
     packet = function(id) fire('packet_in', { id = id, data = '' }) end,
+    load = function() fire('load') end,                    -- Ashita's own, once the addon's file has run
     unload = function() fire('unload') end,
     -- an XInput button, pressed and let go, then a frame; returns whether the game was kept from the press
     tap = function(button)
