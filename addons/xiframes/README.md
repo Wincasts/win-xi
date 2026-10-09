@@ -5,8 +5,8 @@ addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
 - **Party**: your party and the other two alliance parties. A member is a line: the name, an HP bar
   and a smaller MP bar with their values, and TP as a value. The member targeted has `>>` before
   their name, in blue; a leader has a circle before theirs. Your own party's list grows upwards, and
-  has its buffs running leftwards from the window. An envelope beside the window marks a party or
-  alliance invite waiting for an answer, and a chest marks anything in the treasure pool.
+  has its buffs running leftwards from the window. A circle beside the window marks a party or
+  alliance invite waiting for an answer, and a brown one ringed in gold marks anything in the treasure pool.
 - **Target**: your target, sub-target and target of target, each a line of the same kind: the name,
   the HP bar, the distance and the HP percentage, with the enemy's debuffs under it if wanted.
 - **Pets**: your pet, and your party members' pets, listed under your party below a line.

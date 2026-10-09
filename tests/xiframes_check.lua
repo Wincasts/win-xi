@@ -66,8 +66,8 @@ struct.unpack = function(format, data, at)
     if format == 'B' and #data > 0x0B then return data:byte(at) end
     return realUnpack(format, data, at)
 end
-local function drawn() local before = H.calls['draw.AddRectFilled'] or 0; H.frames(1); return (H.calls['draw.AddRectFilled'] or 0) > before end
-o.style.bookends[1] = false -- the bookends are drawn with the same call: without them, only an icon is
+-- the icons are circles, as leaders' marks are: no one leads now, so only an icon is one
+local function drawn() local before = H.calls['draw.AddCircleFilled'] or 0; H.frames(1); return (H.calls['draw.AddCircleFilled'] or 0) > before end
 H.print('no invitation: no mark', drawn() == false)
 H.packetData(0x0DC, invitation(0)); H.print('a party invite: marked', drawn())
 H.packetOut(0x074); H.print('answered: gone', drawn() == false)
@@ -75,12 +75,11 @@ H.packetData(0x0DC, invitation(5)); H.print('an alliance invite: marked', drawn(
 H.packet(0x00A); H.print('a change of area: gone', drawn() == false)
 struct.unpack = realUnpack
 
--- the treasure pool: a chest while there is something in it. It is looked at twice a second.
+-- the treasure pool: an icon while there is something in it. It is looked at twice a second.
 o.party.showTreasure[1] = true
-H.frames(20); H.print('an empty pool: no chest', drawn() == false)
-H.pool(2); H.frames(20); H.print('two items in the pool: a chest', drawn())
+H.frames(20); H.print('an empty pool: no icon', drawn() == false)
+H.pool(2); H.frames(20); H.print('two items in the pool: an icon', drawn())
 H.pool(0); H.frames(20); H.print('emptied: gone', drawn() == false)
-o.style.bookends[1] = true
 
 -- the settings, tab by tab: drawn directly, as the harness shows only a window's first tab
 local config = require('config')
