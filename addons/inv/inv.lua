@@ -23,6 +23,7 @@ local window = require('winxi.window')
 local widgets = require('winxi.widgets')
 local fade = require('winxi.fade')
 local game = require('winxi.game')
+local legacy = require('winxi.legacy')
 local packets = require('winxi.packets')
 local debounce = require('winxi.debounce')
 local controller = require('winxi.controller')
@@ -1681,25 +1682,6 @@ local importKeys = {
     'controller', 'controllerSounds', 'controllerInfo', 'controllerInfoPlace', 'controllerType',
     'manualOrder',
 }
-local importHide = {
-    UnderMap = 'hideUnderMap', UnderChat = 'hideUnderChat', WhileLoading = 'hideWhileLoading',
-    DuringEvent = 'hideDuringEvent', WithInterface = 'hideWithInterface',
-}
-
-local function ReadXitoolsSettings()
-    local path = ('%s\\config\\addons\\xitools\\%s_%d\\settings.lua'):format(
-        AshitaCore:GetInstallPath(), settings.name, settings.server_id)
-    if not ashita.fs.exists(path) then
-        return nil
-    end
-
-    local chunk = loadfile(path)
-    if chunk == nil then
-        return nil
-    end
-    local ok, old = pcall(chunk)
-    return ok and type(old) == 'table' and old or nil
-end
 
 local function ImportFromXitools()
     -- not before the character is known: the settings then are nobody's
@@ -1708,39 +1690,9 @@ local function ImportFromXitools()
     end
     options.importedFromXitools = true
 
-    local old = ReadXitoolsSettings()
-    local tool = old and type(old.tools) == 'table' and old.tools.inv
-    if type(tool) == 'table' then
-        for _, key in ipairs(importKeys) do
-            if tool[key] ~= nil then
-                options[key] = tool[key]
-            end
-        end
-
-        local globals = old.globals
-        if type(globals) == 'table' then
-            if globals.useSharedTheme ~= nil then
-                options.useSharedTheme = globals.useSharedTheme and true or false
-            end
-            if type(globals.theme) == 'table' then
-                options.theme = globals.theme
-            end
-            for rule, key in pairs(importHide) do
-                if type(globals[key]) == 'table' then
-                    options.hide[rule] = globals[key][1] and true or false
-                end
-            end
-            -- the window faded in and out if xitools' fading was on and inv was one of the tools chosen
-            local fading = globals.fade
-            if type(fading) == 'table' then
-                local chosen = type(fading.tools) == 'table' and fading.tools.inv
-                options.fadeInOut[1] = (fading.Enabled and type(chosen) == 'table' and chosen[1]) and true or false
-            end
-        end
-
+    if legacy.FromXitools('inv', options, importKeys) then
         Say('Settings brought over from xitools.')
     end
-
     settings.save()
 end
 

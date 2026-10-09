@@ -216,7 +216,24 @@ AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.inventorySort:m
 debounce(Refresh);         -- Refresh runs once, a second after the last time it was asked for
 ```
 
-`winxi.packets` has only what an addon has needed so far (the bags); add to it as others are needed.
+`winxi.packets` has only what an addon has needed so far (the bags and the treasure pool); add to it as
+others are needed.
+
+For a tool of xitools that has become an addon of its own, `winxi.legacy` brings over what xitools kept
+for it, once for each character:
+
+```lua
+local legacy = require('winxi.legacy');
+
+if not options.importedFromXitools and settings.logged_in then
+    options.importedFromXitools = true;
+    legacy.FromXitools('inv', options, { 'isVisible', 'pos' });    -- the tool's settings to copy
+    settings.save();
+end
+```
+
+It also copies xitools' theme, its rules for hiding and whether the tool faded, where the addon's
+settings have `useSharedTheme`, `theme`, `hide` and `fadeInOut` to take them.
 
 ## Letting an addon keep its own theme
 

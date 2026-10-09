@@ -9,7 +9,7 @@
 --         local finish = packets.inbound.inventoryFinish.parse(e.data);
 --     end
 --
--- Only what an addon has needed so far is here: the bags.
+-- Only what an addon has needed so far is here: the bags and the treasure pool.
 local packets = { outbound = {}, inbound = {} };
 
 -- Throws an item away: so many of it, from a slot of a bag
@@ -39,6 +39,22 @@ packets.outbound.inventorySort = {
     id = 0x03A,
     make = function(this, container)
         return this.id, struct.pack('II', 0, container):totable();
+    end,
+};
+
+-- Casts a lot on an item in the treasure pool, by its place there
+packets.outbound.treasureLot = {
+    id = 0x041,
+    make = function(this, slot)
+        return this.id, { 0x00, 0x00, 0x00, 0x00, slot };
+    end,
+};
+
+-- Passes on an item in the treasure pool
+packets.outbound.treasurePass = {
+    id = 0x042,
+    make = function(this, slot)
+        return this.id, { 0x00, 0x00, 0x00, 0x00, slot };
     end,
 };
 

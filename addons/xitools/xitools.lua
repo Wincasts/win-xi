@@ -32,7 +32,6 @@ local me = require('me')
 local us = require('us')
 local tgt = require('tgt')
 local pet = require('pet')
-local treas = require('treas')
 local tracker = require('tracker')
 local cast = require('cast')
 local crafty = require('crafty')
@@ -49,7 +48,6 @@ local uiWindows = {
 }
 
 local normalWindows = {
-    treas,
     crafty,
     fishe,
     week,
@@ -103,7 +101,6 @@ local defaultOptions = T{
         us = us.DefaultSettings,
         tgt = tgt.DefaultSettings,
         pet = pet.DefaultSettings,
-        treas = treas.DefaultSettings,
         tracker = tracker.DefaultSettings,
         cast = cast.DefaultSettings,
         crafty = crafty.DefaultSettings,

@@ -5,13 +5,12 @@ a suite of UI replacement components.
 - `pet` displays information about your pet
 - `tgt` displays information about your target or subtarget
 - `tracker` displays configurable timers for spells and abilities
-- `treas` displays the current loot pool
 - `week` tracks your ENMs because remembering things is hard
 - `crafty` is a crafting skill tracker and recipe list
 - `fishe` is a fishing skill tracker and hook monitor
 - `log` is a dev tool that dumps packets to a log file, probably not useful
 
-The inventory window that was the `inv` tool is now an addon of its own, `inv` (`/inv`).
+The `inv` and `treas` tools are now addons of their own: `inv` (`/inv`) and `treas` (`/treas`).
 
 ![us](./img/us.png)
 ![several](./img/several.png)
@@ -19,7 +18,6 @@ The inventory window that was the `inv` tool is now an addon of its own, `inv` (
 
 ## usage
 `/xitools` (or `/xit`) will bring up the config menu
-`/xitools treas` (or `/xit t`) will open the `treas` window if it's enabled
 `/xitools week` (or `/xit w`, `/xit enm`, `/xit e`) will open the `week` window if it's enabled
 `/xitools crafty` (or `/xit c`) will open the `crafty` window if it's enabled
 `/xitools fishe` (or `/xit f`) will open the `fishe` window if it's enabled
