@@ -780,6 +780,7 @@ local function DrawTarget(entity, options)
     local settings = us.StyleSettings() or { }
     settings.nameChars = nameChars
     settings.showTp = true
+    settings.trimLast = not options.showStatus[1]
     xivparty.Draw(lines, 'target', nil, settings)
 
     if options.showStatus[1] then

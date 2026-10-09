@@ -23,6 +23,10 @@
 --     buffDistance  how much further from the window than usual the buffs start, in the layout's
 --                 units: less than nothing brings them closer, and over it
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
+--     trimLast    true for a list that is the last thing in its window: its last line is then only
+--                 as tall as what is on it, where every other is a full row. Without it the room
+--                 under a line that does not fill its row (a pet with an HP bar alone) shows as
+--                 padding at the foot of the window.
 --     tpFlash     false for a TP figure at 1000 and over that is simply blue, and does not pulse
 --     nameChars   how many characters of a name are written before it is cut short, in place of the
 --                 nine a party member's is allowed
@@ -80,11 +84,13 @@ local tpPulse = { 0, 0, 0, 1 } -- the colour it is this frame
 local noMpGrey = { 0.55, 0.55, 0.55, 1 } -- the MP bar of a member with no MP to have: grey, and full
 
 -- The images of a bar: a back, the fill that is as long as the bar is full (it starts fillX across
--- and is fillWidth long when full), and a front. color tints all three.
-local hpImages = { width = 128, height = 64, fillX = 13, fillWidth = 102,
+-- and is fillWidth long when full), and a front. color tints all three. Each image is a good deal
+-- taller than the bar drawn in it: bottom is how far down the image the bar itself ends.
+local hpImages = { width = 128, height = 64, fillX = 13, fillWidth = 102, bottom = 36,
     back = 'ffxi/BarBG.png', fill = 'ffxi/Bar.png', front = 'ffxi/BarFG.png', color = Hex('FF9597') }
-local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74,
+local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74, bottom = 35,
     back = 'ffxi/AllyBarBgMP.png', fill = 'ffxi/AllyBarMP.png', front = 'ffxi/AllyBarFgMP.png', color = Hex('FFFF9C') }
+local barShadowReach = 2.5 -- how far below a bar its shadow goes
 
 -- The layout, in XivParty's own numbers: places and sizes are in its units, from the top left of a
 -- member's line. A figure's place is from its bar's; with alignRight its right end goes there.
@@ -430,6 +436,48 @@ local function DrawBuffs(member, x, StatusTexture)
     end
 end
 
+-- How far down its row the lowest thing on a line is, in the layout's units: the line's height when
+-- it is the last in its window. Never more than a row.
+local function LineHeight(member, kind, showMp, showTp)
+    local name = layout.name
+    local bottom = name.y + name.size * pointsToPixels * textScale * nameScale
+
+    if not member.isInZone then
+        -- the area's name is all there is under the member's own
+        local zone = layout.zone
+        bottom = math.max(bottom, zone.y + zone.size * pointsToPixels * textScale)
+    else
+        local valueHeight = layout.valueSize * pointsToPixels * textScale * valueScale
+        local tpOffset = valueOffsets.tp
+        local tpOffsetY = tpOffset and tonumber(tpOffset[2]) or 0
+
+        local hp = layout.hp
+        bottom = math.max(bottom, hp.y + hp.images.bottom + barShadowReach)
+        if kind == 'target' then
+            bottom = math.max(bottom, hp.y + layout.targetHpFigure.y + tpOffsetY + valueHeight)
+        else
+            local offset = valueOffsets.hp
+            bottom = math.max(bottom, hp.y + hp.figure.y + (offset and tonumber(offset[2]) or 0) + valueHeight)
+        end
+
+        if member.mpp ~= nil then
+            local mp = layout.mp
+            bottom = math.max(bottom, mp.y + mp.images.bottom + barShadowReach)
+            if showMp and not member.noMp then
+                local offset = valueOffsets.mp
+                bottom = math.max(bottom, mp.y + mp.figure.y + (offset and tonumber(offset[2]) or 0) + valueHeight)
+            end
+        end
+
+        if showTp and member.tp ~= nil then
+            local tp = layout.tp[kind] or layout.tp.party
+            bottom = math.max(bottom, tp.y + tp.figure.y + tpOffsetY + valueHeight)
+        end
+    end
+
+    return math.min(layout.rowHeight, bottom + 1)
+end
+
 local room = { 0, 0 }
 local clipMin, clipMax = { 0, 0 }, { 0, 0 }
 
@@ -479,7 +527,11 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     -- the room the list itself needs. The buffs go beyond it, beside the window.
     local windowX, windowY = imgui.GetCursorScreenPos()
     room[1] = math.ceil(layout.width * scale)
-    room[2] = math.ceil(count * layout.rowHeight * scale)
+    local lastHeight = layout.rowHeight
+    if settings.trimLast then
+        lastHeight = LineHeight(members[count], kind, showMp, showTp)
+    end
+    room[2] = math.ceil(((count - 1) * layout.rowHeight + lastHeight) * scale)
     imgui.Dummy(room)
 
     -- a list laid out off screen to be measured needs its room and nothing else
