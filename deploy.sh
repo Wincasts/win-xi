@@ -22,6 +22,7 @@
 # terminal, with or without -y.
 # Every file a push replaces is first kept under deploy-backups/<addon>/<time>/.
 # Nothing is ever deleted from live: a file that exists only there is listed, and left alone.
+# addons/exclude holds old addons kept to look back on: nothing in it is listed, or can be pushed.
 
 set -euo pipefail
 
@@ -37,6 +38,7 @@ die() { echo "deploy: $*" >&2; exit 1; }
 # kept a level down beside its other material. It is the one with <name>.lua in it.
 source_dir() {
     local name="$1"
+    [[ "$name" == exclude || "$name" == exclude/* ]] && return 1
     # a shared library is its whole folder
     if [[ "$name" == libs/?* && -d "$PROJECT/addons/$name" ]]; then
         echo "$PROJECT/addons/$name"
@@ -99,7 +101,8 @@ all_names() {
         [[ -d "$dir" ]] && echo "libs/$(basename "$dir")"
     done
     for dir in "$PROJECT"/addons/*/; do
-        [[ -d "$dir" && "$(basename "$dir")" != libs ]] && basename "$dir"
+        case "$(basename "$dir")" in libs|exclude) continue ;; esac
+        [[ -d "$dir" ]] && basename "$dir"
     done
     return 0
 }
