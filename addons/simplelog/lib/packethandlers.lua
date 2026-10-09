@@ -145,6 +145,11 @@ packethandlers.HandleIncomingPacket = function(e)
         am.target_index = struct.unpack('H', e.data, 0x17)
         am.message_id = struct.unpack('H', e.data, 0x19)%2^15 -- Cut off the most significant bit
 
+        -- With Check Messages off, what /check answers is left exactly as the game sent it, neither
+        -- rewritten nor filtered, for another addon to deal with. Profiles saved before the setting
+        -- have none, which is on.
+        if gProfileSettings.mode.checks == false and check_messages:contains(am.message_id) then return end
+
         local actor = gActionHandlers.ActorParse(am.actor_id)
         local target = gActionHandlers.ActorParse(am.target_id)
         local actor_article = common_nouns:contains(am.actor_id) and 'The ' or ''

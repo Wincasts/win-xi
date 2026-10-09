@@ -21,6 +21,7 @@ local settings = T{
 		showcritws = false,
 		showrollinfo = false,
 		timestamps = false,
+		checks = true,
 	},
 	text = T{
 		line_aoe		= 'AOE ${numb} '..string.char(129,168)..' ${target}',

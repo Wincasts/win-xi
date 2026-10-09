@@ -448,6 +448,14 @@ ui.render_config = function(toggle)
                         imgui.SameLine()
                         imgui.TextColored(theme.header_text_col, 'Timestamps')
                         imgui.TextColored(theme.desc_text_col, 'Puts the time in front of every line in the chat log, the game\'s as well as SimpleLog\'s.\nUnload the timestamp addon if you use this, or every line is stamped twice.')
+
+                        local checks_change = imgui.Checkbox('##checks', {gProfileSettings.mode.checks ~= false})
+                        if checks_change then
+                            gProfileSettings.mode.checks = gProfileSettings.mode.checks == false
+                        end
+                        imgui.SameLine()
+                        imgui.TextColored(theme.header_text_col, 'Check Messages')
+                        imgui.TextColored(theme.desc_text_col, 'Rewrites what /check answers, with the mob\'s level. Switch this off if another addon handles /check:\nSimpleLog then leaves those messages exactly as the game sent them.')
                     end
                 elseif ui.state.tab == 1 then
                     imgui.TextColored(theme.desc_text_col, 'Profile: ')
