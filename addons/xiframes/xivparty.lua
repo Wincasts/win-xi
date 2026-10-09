@@ -355,8 +355,10 @@ local function DrawLeaderMarks(member)
     local top = math.floor(itemY + name.y * scale)
 
     if member.isAllianceLeader then
-        Circle(centre, top + nameFont * 0.30, radius, ui.Colors.Alliance)
-        Circle(centre, top + nameFont * 0.74, radius, ui.Colors.Party)
+        -- a little smaller than one alone, and a little apart
+        local small = nameFont * 0.17
+        Circle(centre, top + nameFont * 0.26, small, ui.Colors.Alliance)
+        Circle(centre, top + nameFont * 0.78, small, ui.Colors.Party)
     else
         Circle(centre, top + nameFont * 0.52, radius, ui.Colors.Party)
     end
