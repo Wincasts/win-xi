@@ -456,11 +456,11 @@ local function HandleInviteAnswer(e)
     end
 end
 
--- The mark for an invitation: an envelope beside a corner of the party's window, gold for a party's
--- and blue for an alliance's, pulsing gently. It is outside the window,
+-- The mark for an invitation: an envelope beside a corner of the party's window, green for a party's
+-- and gold for an alliance's, pulsing gently. It is outside the window,
 -- above its top corners or below its bottom ones, so nothing in the list moves for it; and it is drawn
 -- over every window, not among them, so that another window lying across it does not hide it.
-local inviteColors = { party = { 0.90, 0.88, 0.35, 1 }, alliance = { 0.31, 0.71, 0.98, 1 } }
+local inviteColors = { party = { 0.35, 0.85, 0.40, 1 }, alliance = { 0.90, 0.88, 0.35, 1 } }
 local inviteEnvelope = { width = 15, height = 10, gap = 5 } -- in the lists' own units
 local inviteTint = { 0, 0, 0, 1 }
 local inviteLine = { 0.05, 0.05, 0.05, 1 }
@@ -705,7 +705,7 @@ local us = {
             ui.Label('Show Invites')
             imgui.Checkbox('##us.showInvite', options.showInvite)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope beside your party\'s window: gold for a party invite, blue for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
+                imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope beside your party\'s window: green for a party invite, gold for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
             end
             if options.showInvite[1] then
                 if type(options.inviteOffset) ~= 'table' then
