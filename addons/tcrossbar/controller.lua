@@ -164,40 +164,8 @@ function controller:Tick()
     end
 end
 
--- winxi: while a winxi addon's window has the controller, this addon stands down. Such an addon says
--- so with a plugin event, when it takes or lets go of the controller and once a second while it has
--- it; one not heard from for a while is taken to have let go.
-local winxiFocus = {}; -- addon name -> when it last said it has the controller
-
-ashita.events.register('plugin_event', 'winxi_focus_cb', function (e)
-    if (e.name ~= 'winxi_controller_focus') then
-        return;
-    end
-    local name, focused = tostring(e.data or ''):match('^([^:%z]+):([01])');
-    if (name ~= nil) then
-        winxiFocus[name] = (focused == '1') and os.clock() or nil;
-    end
-end);
-
-local function WinxiHasFocus()
-    local now = os.clock();
-    for name, heard in pairs(winxiFocus) do
-        if (now - heard < 2.5) then
-            return true;
-        end
-        winxiFocus[name] = nil;
-    end
-    return false;
-end
-
 function controller:Trigger(button, pressed)
     local controls = gSettings.Controls[self.Layout.Name];
-
-    -- winxi: presses are not this addon's while a winxi window has the controller. Releases still are,
-    -- so that a trigger held as the window took it is let go of properly.
-    if (pressed == true) and WinxiHasFocus() then
-        return false;
-    end
 
     if (gSettings.AllowInventoryPassthrough == true) then
         if inventoryPassControls[button] == true and inventoryPassMenus[GetMenuName()] == true then
