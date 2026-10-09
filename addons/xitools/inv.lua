@@ -281,6 +281,38 @@ local function SortInventory(lhs, rhs)
     return lhs.sortId < rhs.sortId
 end
 
+-- The order the player has put items in themselves (the controller's Manual sort), where they have:
+-- the tool's manualOrder setting, group of bags -> item -> its place. Items are placed by kind, so
+-- every stack of an item sits together, and an item with no place of its own comes after those with
+-- one, in the usual order. A group without an order is in the usual order throughout.
+local manualOrders = nil
+local unplaced = math.huge
+
+local function OrderKey(itemId)
+    return ('i%d'):format(itemId) -- a name rather than a number, so that the settings keep it as it is
+end
+
+local function GroupSorter(group)
+    return function(lhs, rhs)
+        local order = manualOrders and manualOrders[group]
+        if order then
+            local left = order[OrderKey(lhs.id)] or unplaced
+            local right = order[OrderKey(rhs.id)] or unplaced
+            if left ~= right then
+                return left < right
+            end
+        end
+        return SortInventory(lhs, rhs)
+    end
+end
+
+local sorters = {
+    bag = GroupSorter('bag'),
+    satchel = GroupSorter('satchel'),
+    wardrobe = GroupSorter('wardrobe'),
+    house = GroupSorter('house'),
+}
+
 local function UpdateInventory(inv, res, bagId)
     local inventory = T{ }
     local itemCount = inv:GetContainerCountMax(bagId)
@@ -358,23 +390,23 @@ local function UpdateInventories()
     end
 
     inventories.gil = FormatGil(gil.Count)
-    inventories.bag.inv = UpdateInventory(inv, res, bags.inventory):sort(SortInventory)
-    inventories.bag.temp = UpdateInventory(inv, res, bags.tempItems):sort(SortInventory)
-    inventories.satchel.satchel = UpdateInventory(inv, res, bags.mogSatchel):sort(SortInventory)
-    inventories.satchel.case = UpdateInventory(inv, res, bags.mogCase):sort(SortInventory)
-    inventories.satchel.sack = UpdateInventory(inv, res, bags.mogSack):sort(SortInventory)
-    inventories.wardrobe.wardrobe1 = UpdateInventory(inv, res, bags.wardrobe):sort(SortInventory)
-    inventories.wardrobe.wardrobe2 = UpdateInventory(inv, res, bags.wardrobe2):sort(SortInventory)
-    inventories.wardrobe.wardrobe3 = UpdateInventory(inv, res, bags.wardrobe3):sort(SortInventory)
-    inventories.wardrobe.wardrobe4 = UpdateInventory(inv, res, bags.wardrobe4):sort(SortInventory)
-    inventories.wardrobe.wardrobe5 = UpdateInventory(inv, res, bags.wardrobe5):sort(SortInventory)
-    inventories.wardrobe.wardrobe6 = UpdateInventory(inv, res, bags.wardrobe6):sort(SortInventory)
-    inventories.wardrobe.wardrobe7 = UpdateInventory(inv, res, bags.wardrobe7):sort(SortInventory)
-    inventories.wardrobe.wardrobe8 = UpdateInventory(inv, res, bags.wardrobe8):sort(SortInventory)
-    inventories.house.mogSafe1 = UpdateInventory(inv, res, bags.mogSafe):sort(SortInventory)
-    inventories.house.mogSafe2 = UpdateInventory(inv, res, bags.mogSafe2):sort(SortInventory)
-    inventories.house.storage = UpdateInventory(inv, res, bags.storage):sort(SortInventory)
-    inventories.house.locker = UpdateInventory(inv, res, bags.mogLocker):sort(SortInventory)
+    inventories.bag.inv = UpdateInventory(inv, res, bags.inventory):sort(sorters.bag)
+    inventories.bag.temp = UpdateInventory(inv, res, bags.tempItems):sort(sorters.bag)
+    inventories.satchel.satchel = UpdateInventory(inv, res, bags.mogSatchel):sort(sorters.satchel)
+    inventories.satchel.case = UpdateInventory(inv, res, bags.mogCase):sort(sorters.satchel)
+    inventories.satchel.sack = UpdateInventory(inv, res, bags.mogSack):sort(sorters.satchel)
+    inventories.wardrobe.wardrobe1 = UpdateInventory(inv, res, bags.wardrobe):sort(sorters.wardrobe)
+    inventories.wardrobe.wardrobe2 = UpdateInventory(inv, res, bags.wardrobe2):sort(sorters.wardrobe)
+    inventories.wardrobe.wardrobe3 = UpdateInventory(inv, res, bags.wardrobe3):sort(sorters.wardrobe)
+    inventories.wardrobe.wardrobe4 = UpdateInventory(inv, res, bags.wardrobe4):sort(sorters.wardrobe)
+    inventories.wardrobe.wardrobe5 = UpdateInventory(inv, res, bags.wardrobe5):sort(sorters.wardrobe)
+    inventories.wardrobe.wardrobe6 = UpdateInventory(inv, res, bags.wardrobe6):sort(sorters.wardrobe)
+    inventories.wardrobe.wardrobe7 = UpdateInventory(inv, res, bags.wardrobe7):sort(sorters.wardrobe)
+    inventories.wardrobe.wardrobe8 = UpdateInventory(inv, res, bags.wardrobe8):sort(sorters.wardrobe)
+    inventories.house.mogSafe1 = UpdateInventory(inv, res, bags.mogSafe):sort(sorters.house)
+    inventories.house.mogSafe2 = UpdateInventory(inv, res, bags.mogSafe2):sort(sorters.house)
+    inventories.house.storage = UpdateInventory(inv, res, bags.storage):sort(sorters.house)
+    inventories.house.locker = UpdateInventory(inv, res, bags.mogLocker):sort(sorters.house)
     -- what has been dropped and can still be taken back: not drawn as a bag, but listed by the
     -- controller's sort menu
     inventories.recycleBin = UpdateInventory(inv, res, bags.recycleBin)
@@ -382,13 +414,13 @@ local function UpdateInventories()
     inventories.bag.all = T{}
         :extend(inventories.bag.inv)
         :extend(inventories.bag.temp)
-        :sort(SortInventory)
+        :sort(sorters.bag)
 
     inventories.satchel.all = T{}
         :extend(inventories.satchel.satchel)
         :extend(inventories.satchel.case)
         :extend(inventories.satchel.sack)
-        :sort(SortInventory)
+        :sort(sorters.satchel)
 
     inventories.wardrobe.all = T{}
         :extend(inventories.wardrobe.wardrobe1)
@@ -399,14 +431,14 @@ local function UpdateInventories()
         :extend(inventories.wardrobe.wardrobe6)
         :extend(inventories.wardrobe.wardrobe7)
         :extend(inventories.wardrobe.wardrobe8)
-        :sort(SortInventory)
+        :sort(sorters.wardrobe)
 
     inventories.house.all = T{}
         :extend(inventories.house.mogSafe1)
         :extend(inventories.house.mogSafe2)
         :extend(inventories.house.storage)
         :extend(inventories.house.locker)
-        :sort(SortInventory)
+        :sort(sorters.house)
 
     -- How many slots each bag has, for showing the empty ones. Temporary items have no fixed slots
     -- worth showing, and a bag the player cannot use has none.
@@ -711,12 +743,15 @@ local pad = {
     groups = { },
     tab = 1,           -- the tab that is showing
     wantTab = nil,     -- the tab to switch to on the next frame
+    swap = nil,        -- while sorting by hand: { first = the item picked to be swapped, once one is }
     menu = nil,        -- the menu that is open, and the item it is for (none, for the sort menu)
     menuItem = nil,
 }
 
 local padTabs = 4
 local padColor = imgui.GetColorU32({ 1.0, 0.85, 0.3, 1.0 })
+local swapColor = imgui.GetColorU32({ 0.3, 0.9, 0.4, 1.0 })
+local swapTextColor = { 0.3, 0.9, 0.4, 1.0 }
 
 -- Whether the inventory has the controller: the setting is on, and the window is showing and being
 -- drawn (it is not, while the tool is switched off or the whole UI is hidden)
@@ -816,6 +851,51 @@ local function SortTab()
     return #sorted > 0
 end
 
+local tabGroups = { 'bag', 'satchel', 'wardrobe', 'house' }
+
+-- Swaps the places of two items in the window, by the controller's Manual sort. The places of
+-- everything in the group are written down as they stand first, so that the two change and nothing
+-- else does. Returns whether anything changed: two stacks of the same item share a place.
+local function SwapPlaces(options, group, first, second)
+    if first.id == second.id then
+        return false
+    end
+
+    local order, place = T{ }, 0
+    for _, item in ipairs(inventories[group].all) do
+        local key = OrderKey(item.id)
+        if order[key] == nil then
+            place = place + 1
+            order[key] = place
+        end
+    end
+
+    local firstKey, secondKey = OrderKey(first.id), OrderKey(second.id)
+    if order[firstKey] == nil or order[secondKey] == nil then
+        return false
+    end
+    order[firstKey], order[secondKey] = order[secondKey], order[firstKey]
+
+    if options.manualOrder == nil then
+        options.manualOrder = T{ }
+    end
+    options.manualOrder[group] = order
+    manualOrders = options.manualOrder
+    UpdateInventories()
+    return true
+end
+
+-- Puts a group back in the usual order. Returns whether it had one of the player's own.
+local function ClearPlaces(options, group)
+    if options.manualOrder == nil or options.manualOrder[group] == nil then
+        return false
+    end
+    options.manualOrder[group] = nil
+    manualOrders = options.manualOrder
+    UpdateInventories()
+    return true
+end
+
 -- What is in the recycle bin, as a menu: choosing an item takes it back into the inventory
 local function RecycleBinMenu()
     local entries = { }
@@ -837,15 +917,17 @@ end
 local function SortMenu()
     return controller.NewMenu('Sort', {
         { label = 'Auto', run = function()
-            -- refused, with the error sound, while the bags were sorted too short a while ago
-            if not SortTab() then
+            -- back to the usual order, and the server puts part stacks together. Refused, with the
+            -- error sound, when there is no order to undo and the bags were sorted too short a while ago
+            local cleared = ClearPlaces(pad.options, tabGroups[pad.tab])
+            local sorted = SortTab()
+            if not (cleared or sorted) then
                 sound.Play('error')
             end
         end },
         { label = 'Manual', run = function()
-            -- the window lists items in an order of its own, whatever slots they are in
-            print('\30\81[xitools]\30\01 Manual sorting is not available: this window lists items in its own order.')
-            sound.Play('error')
+            -- A then picks an item, and A on another swaps the two, until B
+            pad.swap = { first = nil }
         end },
         { label = 'Recycle Bin', run = RecycleBinMenu },
     })
@@ -860,12 +942,41 @@ local function PadPress(action)
 
     if action == 'up' or action == 'down' or action == 'left' or action == 'right' then
         pad.grid:Move(action)
-    elseif action == 'previous' then
-        pad.wantTab = (pad.tab - 2) % padTabs + 1
+    elseif action == 'previous' or action == 'next' then
+        if action == 'previous' then
+            pad.wantTab = (pad.tab - 2) % padTabs + 1
+        else
+            pad.wantTab = pad.tab % padTabs + 1
+        end
+        -- an item picked for swapping is of the tab being left
+        if pad.swap ~= nil then
+            pad.swap.first = nil
+        end
         sound.Play('tab')
-    elseif action == 'next' then
-        pad.wantTab = pad.tab % padTabs + 1
-        sound.Play('tab')
+    elseif pad.swap ~= nil then
+        -- sorting by hand: A picks an item, A on another swaps them, B unpicks or finishes
+        local swap = pad.swap
+        if action == 'confirm' then
+            local item = pad.items[pad.grid.cursor]
+            if item == nil then
+                sound.Play('error')
+            elseif swap.first == nil then
+                swap.first = item
+                sound.Play('confirm')
+            elseif SwapPlaces(pad.options, tabGroups[pad.tab], swap.first, item) then
+                swap.first = nil
+                sound.Play('confirm')
+            else
+                sound.Play('error')
+            end
+        elseif action == 'back' then
+            if swap.first ~= nil then
+                swap.first = nil
+            else
+                pad.swap = nil
+            end
+            sound.Play('back')
+        end
     elseif action == 'confirm' then
         local item = pad.items[pad.grid.cursor]
         local entries = item ~= nil and PadEntries(item, pad.groups[pad.grid.cursor]) or nil
@@ -916,6 +1027,7 @@ local function PadBeginFrame(options)
     pad.active = PadIsActive()
     if not pad.active then
         pad.menu = nil
+        pad.swap = nil
     end
     pad.grid:Begin()
 end
@@ -991,6 +1103,16 @@ local function DrawItem(item, addCtxMenu, group, drawList)
     if pad.active then
         local index = pad.grid:Add(curX, curY)
         pad.items[index], pad.groups[index] = item, group
+
+        -- the item picked to be swapped keeps a mark of its own while the other is chosen
+        if inView and pad.swap ~= nil and pad.swap.first ~= nil and pad.swap.first.uniqueId == item.uniqueId then
+            padMin[1], padMin[2] = curX - 1, curY - 1
+            padMax[1], padMax[2] = curX + iconSize + 1, curY + iconSize + 1
+            drawList:AddRect(padMin, padMax, swapColor, 0.0)
+            padMin[1], padMin[2] = curX, curY
+            padMax[1], padMax[2] = curX + iconSize, curY + iconSize
+            drawList:AddRect(padMin, padMax, swapColor, 0.0)
+        end
 
         if pad.grid:IsOn(index) then
             if inView then
@@ -1264,6 +1386,15 @@ local function DrawWindow()
         DrawInventory()
     end
 
+    -- what the buttons do while sorting by hand, at the foot of the window
+    if pad.swap ~= nil then
+        if pad.swap.first ~= nil then
+            imgui.TextColored(swapTextColor, 'Swap with: A.  Unpick: B.')
+        else
+            imgui.TextColored(swapTextColor, 'Pick an item: A.  Finish: B.')
+        end
+    end
+
     -- marked as the window the controller is working, while it is
     if pad.active then
         controller.Highlight(pad.binding)
@@ -1288,7 +1419,8 @@ local inv = {
         pos = T{ 256, 256 },
         flags = ui.StyledWindowFlags,
     },
-    Load = function()
+    Load = function(options)
+        manualOrders = options and options.manualOrder
         if GetPlayerEntity() ~= nil then
             UpdateInventories()
         end
@@ -1335,7 +1467,7 @@ local inv = {
             ui.Label('Controller Navigation (Experimental)')
             imgui.Checkbox('##inv.controller', options.controller)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nX (square): the sort menu. Auto puts part stacks together in the bags of the tab showing; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
+                imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
             end
             if options.controller[1] then
                 if options.controllerSounds == nil then
@@ -1379,6 +1511,12 @@ local inv = {
     DrawMain = function(options, gOptions)
         options.flags = ui.StyledWindowFlags
         showEmptySlots = options.showEmptySlots ~= nil and options.showEmptySlots[1] or false
+
+        -- the player's own order is part of the settings, which can be swapped for another character's
+        if options.manualOrder ~= manualOrders then
+            manualOrders = options.manualOrder
+            UpdateInventories()
+        end
 
         PadBeginFrame(options)
         drawOptions = options
