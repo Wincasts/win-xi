@@ -40,6 +40,13 @@ o.tools.us.alliance1.isCompact[1] = true
 local bars, texts = H.calls.ProgressBar, H.calls['draw.AddText'] or 0
 ok, problem = pcall(H.frames, 1)
 H.print('compact party: frame ran', ok, ok and '' or problem, '| bars drawn', H.calls.ProgressBar - bars, '| TP figures drawn', (H.calls['draw.AddText'] or 0) > texts)
+-- and it grows upwards: held by its bottom left corner, which is kept with its settings; the other lists are not
+local corner = o.tools.us.alliance1.corner
+H.print('compact party is held by its bottom left', corner ~= nil and corner[1] == 100 and corner[2] == 200 + 150,
+    '| the second alliance is not', o.tools.us.alliance2.corner == nil)
+o.tools.us.alliance1.isCompact[1] = false; H.frames(1)
+H.print('full again: the corner is forgotten', o.tools.us.alliance1.corner == nil)
+o.tools.us.alliance1.isCompact[1] = true
 
 local before = H.calls.Begin or 0
 H.print('/xilite kept from the game', H.command('/xilite'), '| settings showing', o.showConfig[1]); H.frames(1)

@@ -11,6 +11,10 @@ local widgets = require('winxi.widgets')
 -- another) is winxi's too. Here its windows are the UI windows.
 local organize = require('winxi.organize')
 
+-- A window that grows from a corner other than its top left (the compact party list grows upwards) is
+-- held by that corner by winxi.anchor
+local anchor = require('winxi.anchor')
+
 local txtW, txtH = imgui.CalcTextSize('HP 100%')
 
 -- The window padding the fixed window widths were laid out for
@@ -253,11 +257,28 @@ ui.BeginLabels = widgets.BeginLabels
 
 local windowSize = { 0, 0 } -- reused for every UI window, every frame
 
+-- The windows whose saved corner has been handed to winxi.anchor: once for each settings table, so a
+-- character's own are used after a change of character
+local cornerGiven = setmetatable({ }, { __mode = 'k' })
+
+-- Forgets the corner a window is held by, so that it stays wherever it is put next: for a window that
+-- has been moved by other means than dragging it
+function ui.ForgetCorner(config)
+    anchor.Reset(config.name)
+    config.corner = nil
+    cornerGiven[config] = nil
+end
+
 -- wanted is false for a window that is being drawn only to fade out (see ui.Lingers); otherwise leave it out
+-- growFrom, if given, is the corner that stays where it is as the window's content changes size (one of
+-- winxi.anchor's: 'BottomLeft' for a window that grows upwards). The corner is kept in the window's
+-- settings as corner, beside pos. drawStuff is then called twice a frame, once to measure. A window
+-- linked to another while organizing is placed by its link instead.
 ---@param config table
 ---@param drawStuff function
 ---@param wanted boolean?
-function ui.DrawUiWindow(config, gConfig, drawStuff, wanted)
+---@param growFrom string?
+function ui.DrawUiWindow(config, gConfig, drawStuff, wanted, growFrom)
     if not config.isVisible[1] then
         return
     end
@@ -289,10 +310,43 @@ function ui.DrawUiWindow(config, gConfig, drawStuff, wanted)
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, ui.Styles.ItemSpacing)
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, ui.Styles.WindowPadding)
 
+    local held = growFrom ~= nil and not organize.IsLinked(config.name)
+    if held then
+        if not cornerGiven[config] then
+            cornerGiven[config] = true
+            local corner = config.corner
+            if type(corner) == 'table' and corner[1] ~= nil and corner[2] ~= nil then
+                anchor.Set(config.name, growFrom, corner[1], corner[2])
+            else
+                anchor.Reset(config.name)
+            end
+        end
+
+        -- laid out off screen first, as it will be drawn, so the window can be put where its new size
+        -- leaves the corner alone
+        imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingNone)
+        anchor.Measure(config.name, growFrom, drawStuff, padding)
+        imgui.PopStyleVar()
+        anchor.Place(config.name, growFrom)
+    elseif config.corner ~= nil then
+        ui.ForgetCorner(config)
+    end
+
     local isOpen = imgui.Begin(config.name, config.isVisible, flags)
     imgui.PopStyleColor(2)
 
     if isOpen then
+        if held then
+            anchor.Track(config.name, growFrom)
+            local x, y = anchor.Point(config.name)
+            if x ~= nil then
+                if type(config.corner) ~= 'table' then
+                    config.corner = T{ }
+                end
+                config.corner[1], config.corner[2] = x, y
+            end
+        end
+
         shadow.Draw()
 
         imgui.PushStyleColor(ImGuiCol_Text, look.TextColor)

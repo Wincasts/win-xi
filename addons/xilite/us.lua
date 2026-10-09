@@ -598,9 +598,12 @@ local function GetMembers(alliance, sample, sortByRole, target, party, stal)
     return members
 end
 
-local function DrawAlliance(alliance, gOptions, sample, sortByRole)
+-- growsUp is set for the player's own party: its compact list keeps its bottom edge where it is and
+-- grows upwards as members join, where every other list grows downwards
+local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
     sample = sample and true or false
     sortByRole = sortByRole and true or false
+    local growFrom = (growsUp and alliance.isCompact[1]) and 'BottomLeft' or nil
 
     ui.DrawUiWindow(alliance, gOptions, function()
         local target = AshitaCore:GetMemoryManager():GetTarget()
@@ -629,7 +632,7 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole)
                 DrawPartyMember(person, showDist and not sample)
             end
         end
-    end)
+    end, nil, growFrom)
 end
 
 local function SortsByRole(options)
@@ -757,6 +760,7 @@ local us = {
             ui.Label('Alliance 1 Position')
             if imgui.InputInt2('##us.8', options.alliance1.pos) then
                 imgui.SetWindowPos(options.alliance1.name, options.alliance1.pos)
+                ui.ForgetCorner(options.alliance1)
             end
             ui.Label('Alliance 2 Position')
             if imgui.InputInt2('##us.9', options.alliance2.pos) then
@@ -778,7 +782,7 @@ local us = {
 
         if (options.hideWhenSolo[1] and alliCount1 > 1)
         or (not options.hideWhenSolo[1] and alliCount1 > 0) then
-            DrawAlliance(options.alliance1, gOptions, false, SortsByRole(options))
+            DrawAlliance(options.alliance1, gOptions, false, SortsByRole(options), true)
         end
         if alliCount2 > 0 then
             DrawAlliance(options.alliance2, gOptions, false, SortsByRole(options))
@@ -788,7 +792,7 @@ local us = {
         end
     end,
     DrawSample = function(options, gOptions)
-        DrawAlliance(options.alliance1, gOptions, true, SortsByRole(options))
+        DrawAlliance(options.alliance1, gOptions, true, SortsByRole(options), true)
         DrawAlliance(options.alliance2, gOptions, true, SortsByRole(options))
         DrawAlliance(options.alliance3, gOptions, true, SortsByRole(options))
     end,
