@@ -19,7 +19,10 @@ and needs only the `winxi` library (`addons/libs/winxi`).
 
 Each event has its own switch, its own sound and a Test button. The sounds are the wav files in the
 addon's `sounds` folder: put your own there and they appear in every event's list. The ones that come
-with it are plain tones made by `sounds/generate.py`.
+with it are plain tones made by `sounds/generate.py`, which every event starts on, and a spoken one for
+each event, `voice-tell.wav` and so on ("Tell", "Mentioned", "Invite", "Skillchain", "TP ready",
+"Low HP", "Low MP", "Member down"), to choose in its place. The spoken ones were made with the Piper
+text-to-speech program and its voice en_US-amy-medium, by `sounds/generate_voices.sh`.
 
 Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it, and
 there is no volume setting. One event does not sound twice within a second. Nothing read from the
