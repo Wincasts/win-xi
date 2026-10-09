@@ -746,30 +746,52 @@ end
 -- A target: one line as the party list's are, with the name, the HP bar with its percentage, and the
 -- distance under the name where a party member's TP is. The debuffs go under it.
 local nameChars = 13 -- as much of a name as fits before the HP figure
-local targetLine = { isInZone = true, tp = 0 }
-local targetLines = { targetLine }
+
+-- Each window's line, kept: its figures are only made into words again when they change
+local targetLines = { } -- window name -> { the line }
 
 ---@param entity Entity
 ---@param options table
 local function DrawTarget(entity, options)
-    local line = targetLine
+    local lines = targetLines[options.name]
+    if lines == nil then
+        lines = { { isInZone = true, tp = 0 } }
+        targetLines[options.name] = lines
+    end
+
+    local line = lines[1]
     line.name = entity.Name
     line.serverId = -(entity.ServerId or 0) -- its own glow, apart from a party member's of the same id
-    line.hpp = entity.HPPercent
-    line.hpText = string.format('%d%%', entity.HPPercent)
-    line.tpText = string.format('%.1fm', math.sqrt(entity.Distance))
     line.plainHp = not IsPlayer(entity)
+    if line.hpp ~= entity.HPPercent then
+        line.hpp = entity.HPPercent
+        line.hpText = string.format('%d%%', entity.HPPercent)
+    end
+    -- the distance is written to a tenth
+    local tenths = math.floor(math.sqrt(entity.Distance) * 10 + 0.5)
+    if line.tenths ~= tenths then
+        line.tenths = tenths
+        line.tpText = string.format('%.1fm', tenths / 10)
+    end
 
     -- set as the party's lists are, but for what is this line's own: more of the name, and the
     -- distance always, whatever is set for TP
     local settings = us.StyleSettings() or { }
     settings.nameChars = nameChars
     settings.showTp = true
-    xivparty.Draw(targetLines, 'pets', nil, settings)
+    xivparty.Draw(lines, 'pets', nil, settings)
 
     if options.showStatus[1] then
         DrawStatus(TrackedEnemies[entity.ServerId] or DefaultDebuffs)
     end
+end
+
+-- What a target window holds, drawn by one function for whichever window is being drawn: which is
+-- said beforehand, so that no function need be made afresh for each window every frame
+local drawingEntity, drawingWindow = nil, nil
+
+local function DrawTargetContent()
+    DrawTarget(drawingEntity, drawingWindow)
 end
 
 -- The entity each window last showed, by window name
@@ -792,9 +814,8 @@ local function DrawTargetWindow(window, gOptions, index)
         return
     end
 
-    ui.DrawUiWindow(window, gOptions, function()
-        DrawTarget(entity, window)
-    end, wanted)
+    drawingEntity, drawingWindow = entity, window
+    ui.DrawUiWindow(window, gOptions, DrawTargetContent, wanted)
 end
 
 ---@type xitool
@@ -926,9 +947,8 @@ local tgt = {
 
         for _, sample in ipairs(samples) do
             if sample[3] then
-                ui.DrawUiWindow(sample[1], gOptions, function()
-                    DrawTarget(sample[2], sample[1])
-                end)
+                drawingEntity, drawingWindow = sample[2], sample[1]
+                ui.DrawUiWindow(sample[1], gOptions, DrawTargetContent)
             end
         end
     end,

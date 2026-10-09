@@ -503,9 +503,11 @@ end
 
 -- A pet as a line of XivParty Style: its HP as a percentage unless the figure itself is known, and
 -- MP and TP for the player's own alone
-local function PetLine(info)
+local function PetLine(info, index)
     return {
-        name = info.name, serverId = info.name, isInZone = true,
+        -- what is kept for a line between frames goes by its id: a pet's is its place in the list,
+        -- not its name, which two pets may share
+        name = info.name, serverId = -(1000 + index), isInZone = true,
         hp = info.hp, hpp = info.hpp, hpText = info.hp == nil and ('%d%%'):format(info.hpp) or nil,
         mp = info.mp, mpp = info.mpp, mpText = (info.mpp ~= nil and info.mp == nil) and ('%d%%'):format(info.mpp) or nil,
         tp = info.tp,
@@ -730,7 +732,7 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
             if xivStyle then
                 local lines = { }
                 for index, info in ipairs(pets) do
-                    lines[index] = PetLine(info)
+                    lines[index] = PetLine(info, index)
                 end
                 xivparty.Draw(lines, 'pets', nil, XivSettings())
             else
