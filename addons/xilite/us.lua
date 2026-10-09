@@ -484,6 +484,7 @@ local function XivSettings()
     settings.valueSize = options.xivValueSize ~= nil and options.xivValueSize[1] or 100
     settings.nameSize = options.xivNameSize ~= nil and options.xivNameSize[1] or 100
     settings.buffSize = options.xivBuffSize ~= nil and options.xivBuffSize[1] or 100
+    settings.hpOffset, settings.mpOffset, settings.tpOffset = options.xivHpOffset, options.xivMpOffset, options.xivTpOffset
     settings.showMp = options.xivShowMp == nil or options.xivShowMp[1]
     settings.showTp = options.xivShowTp == nil or options.xivShowTp[1]
     return settings
@@ -796,6 +797,9 @@ local us = {
         xivValueSize = T{ 100 }, -- the size of the HP, MP and TP figures, as a percentage
         xivNameSize = T{ 100 },  -- and of the names
         xivBuffSize = T{ 100 },  -- and of the buff icons
+        xivHpOffset = T{ 0, 0 }, -- how far the HP figure is moved from its place: right, down
+        xivMpOffset = T{ 0, 0 }, -- and the MP figure
+        xivTpOffset = T{ 0, 0 }, -- and the TP figure
         xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
         xivShowTp = T{ true }, -- whether TP is written
         alliance1 = T{
@@ -882,6 +886,11 @@ local us = {
             if options.xivBuffSize == nil then
                 options.xivBuffSize = T{ 100 }
             end
+            for _, key in ipairs({ 'xivHpOffset', 'xivMpOffset', 'xivTpOffset' }) do
+                if type(options[key]) ~= 'table' then
+                    options[key] = T{ 0, 0 }
+                end
+            end
             if options.xivShowTp == nil then
                 options.xivShowTp = T{ true }
             end
@@ -911,6 +920,22 @@ local us = {
                 imgui.SliderInt('##us.xivValueSize', options.xivValueSize, 50, 200, '%d%%')
                 if imgui.IsItemHovered() then
                     imgui.SetTooltip('How big the HP, MP and TP values are written, apart from everything else.')
+                end
+                local offsetTooltip = 'Moves the %s value from its usual place: the first number to the right, the second down. Less than 0 moves it left or up.\nThe numbers are in the list\'s own units, so the value keeps its place as the scale changes.'
+                ui.Label('HP Value Offset')
+                imgui.InputInt2('##us.xivHpOffset', options.xivHpOffset)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(offsetTooltip:format('HP'))
+                end
+                ui.Label('MP Value Offset')
+                imgui.InputInt2('##us.xivMpOffset', options.xivMpOffset)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(offsetTooltip:format('MP'))
+                end
+                ui.Label('TP Value Offset')
+                imgui.InputInt2('##us.xivTpOffset', options.xivTpOffset)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(offsetTooltip:format('TP'))
                 end
                 ui.Label('Show MP Values')
                 imgui.Checkbox('##us.xivShowMp', options.xivShowMp)

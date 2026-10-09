@@ -19,6 +19,8 @@
 --     nameSize    a percentage for the size of the names alone
 --     buffSize    a percentage for the size of the buff icons alone
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
+--     hpOffset, mpOffset, tpOffset   { x, y } to move that figure from its place in the layout, in the
+--                 layout's units: right and down, or left and up for less than nothing
 --
 -- is called inside the window. It takes up the room the list needs and draws into it; the buffs are
 -- drawn beyond that room, beside the window. members are the party window's own (see us.lua). A scale
@@ -126,6 +128,7 @@ local textColor = white   -- the theme's
 local valueScale = 1      -- how much larger or smaller than the layout's the HP, MP and TP figures are
 local nameScale = 1       -- and the names
 local buffScale = 1       -- and the buff icons
+local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
 
 local cornerA, cornerB = { 0, 0 }, { 0, 0 }
 local uvA, uvB = { 0, 0 }, { 1, 1 }
@@ -282,7 +285,12 @@ local function DrawBar(place, member, state, opacity, showFigure)
     -- a line may give a figure in its own words: a pet's HP is known only as a percentage
     local words = (kind == 'hp' and member.hpText) or (kind == 'mp' and member.mpText)
         or (amount < 0 and '?' or tostring(amount))
-    Text(words, x + figure.x, y + figure.y, figure.size * valueScale, color, figure.alignRight)
+    local offset = valueOffsets[kind]
+    local figureX, figureY = x + figure.x, y + figure.y
+    if offset ~= nil then
+        figureX, figureY = figureX + (tonumber(offset[1]) or 0), figureY + (tonumber(offset[2]) or 0)
+    end
+    Text(words, figureX, figureY, figure.size * valueScale, color, figure.alignRight)
 end
 
 -- A member's buffs, running leftwards: the first has its right edge at x
@@ -378,6 +386,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     valueScale = Percent(settings.valueSize)
     nameScale = Percent(settings.nameSize)
     buffScale = Percent(settings.buffSize)
+    valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = settings.hpOffset, settings.mpOffset, settings.tpOffset
     local showMp, showTp = settings.showMp ~= false, settings.showTp ~= false
     textColor = theme.Get().TextColor
 
