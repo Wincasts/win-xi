@@ -15,6 +15,9 @@ local xivparty = require('xivparty')
 -- The pets, listed under the player's party
 local petTool = require('pet')
 
+-- Anything written outside a window has winxi's dark edge
+local outlinedText = require('winxi.text')
+
 local Textures = { }
 local Alliances = { }
 
@@ -430,6 +433,90 @@ local function GetMembers(alliance, sample, sortByRole, target, party, stal)
     return members
 end
 
+-- An invitation waiting for an answer: to a party, or for the player's party to an alliance. The
+-- server sends one packet to say there is one, and nothing more until it is answered: it is over when
+-- the player answers it (a packet of the client's own), when the inviter withdraws it, or when the
+-- player changes area, which drops it.
+local invite = nil -- { alliance = whether it is to an alliance, from = who sent it }
+
+local packetInvite = 0x0DC          -- in: an invitation
+local packetInviteWithdrawn = 0x0DE -- in: the invitation is no more
+local packetZoneIn = 0x00A          -- in: the player has arrived in an area
+local packetInviteAnswer = 0x074    -- out: the player's answer
+local kindAlliance = 5              -- the kind of an invitation to an alliance; a party's is 0
+
+local function HandleInvitePacket(e)
+    if e.id == packetInvite then
+        local from = struct.unpack('c16', e.data, 0x0C + 1)
+        invite = {
+            alliance = struct.unpack('B', e.data, 0x0B + 1) == kindAlliance,
+            from = type(from) == 'string' and from:match('^[^%z]*') or '',
+        }
+    elseif e.id == packetInviteWithdrawn or e.id == packetZoneIn then
+        invite = nil
+    end
+end
+
+local function HandleInviteAnswer(e)
+    if e.id == packetInviteAnswer then
+        invite = nil
+    end
+end
+
+-- The mark for an invitation: an envelope above the top left corner of the party's window, gold for
+-- a party's and blue for an alliance's, pulsing gently, with who it is from beside it. It is outside
+-- the window, so nothing in the list moves for it.
+local inviteColors = { party = { 0.90, 0.88, 0.35, 1 }, alliance = { 0.31, 0.71, 0.98, 1 } }
+local inviteEnvelope = { width = 15, height = 10, gap = 5 } -- in the lists' own units
+local inviteTint = { 0, 0, 0, 1 }
+local inviteLine = { 0.05, 0.05, 0.05, 1 }
+local inviteMin, inviteMax, inviteMid = { 0, 0 }, { 0, 0 }, { 0, 0 }
+local inviteClipMin, inviteClipMax = { 0, 0 }, { 0, 0 }
+local sampleInvite = { alliance = false, from = 'Sample' }
+
+local function DrawInvite(shown)
+    local windowX, windowY = imgui.GetWindowPos()
+    local display = imgui.GetIO().DisplaySize
+    -- a list laid out off screen to be measured has no mark
+    if windowX < 0 or windowY < 0 or windowX > display.x or windowY > display.y then
+        return
+    end
+
+    local scale = 1.2 * (usOptions.xivScale ~= nil and usOptions.xivScale[1] or 100) / 100
+    local width, height = inviteEnvelope.width * scale, inviteEnvelope.height * scale
+    local left = math.floor(windowX)
+    local top = math.floor(windowY - height - inviteEnvelope.gap * scale)
+
+    -- the window's own list, opened up to the whole screen for what goes above the window
+    local drawList = imgui.GetWindowDrawList()
+    inviteClipMax[1], inviteClipMax[2] = display.x, display.y
+    drawList:PushClipRect(inviteClipMin, inviteClipMax, false)
+
+    -- between two thirds of its strength and all of it, once every second and a half
+    local color = shown.alliance and inviteColors.alliance or inviteColors.party
+    local pulse = 0.83 + 0.17 * math.cos(os.clock() / 1.5 * 2 * math.pi)
+    inviteTint[1], inviteTint[2], inviteTint[3], inviteTint[4] = color[1], color[2], color[3], pulse
+    local packed = imgui.GetColorU32(inviteTint)
+    local dark = imgui.GetColorU32(inviteLine)
+
+    -- the envelope: its body, its edge, and the two lines of its flap meeting in the middle
+    inviteMin[1], inviteMin[2] = left, top
+    inviteMax[1], inviteMax[2] = left + width, top + height
+    drawList:AddRectFilled(inviteMin, inviteMax, packed, 2)
+    drawList:AddRect(inviteMin, inviteMax, dark, 2, 0, 1)
+    inviteMid[1], inviteMid[2] = left + width / 2, top + height * 0.55
+    drawList:AddLine(inviteMin, inviteMid, dark, 1)
+    inviteMin[1] = left + width
+    drawList:AddLine(inviteMin, inviteMid, dark, 1)
+
+    local words = (shown.alliance and 'Alliance invite: %s' or 'Party invite: %s'):format(shown.from)
+    imgui.PushFont(nil, 8 * 4 / 3 * 1.15 * scale)
+    outlinedText.Draw(drawList, math.floor(left + width + 4 * scale), math.floor(top - 1 * scale), inviteTint, words)
+    imgui.PopFont()
+
+    drawList:PopClipRect()
+end
+
 -- What a list's window holds, drawn by one function for whichever list is being drawn: which is said
 -- beforehand, here, so that no function need be made afresh for each list every frame
 local drawing = { alliance = nil, sample = false, sortByRole = false, ownParty = false, pets = nil }
@@ -460,6 +547,15 @@ local function DrawAllianceContent()
     if pets ~= nil and #pets > 0 then
         imgui.Separator()
         xivparty.Draw(pets, 'pets', nil, StyleSettings())
+    end
+
+    -- an invitation waiting for an answer is marked above the player's own party; a made-up one while
+    -- the windows are arranged, to see where the mark goes
+    if ownParty and (usOptions.showInvite == nil or usOptions.showInvite[1]) then
+        local shown = invite or (drawing.sample and sampleInvite) or nil
+        if shown ~= nil then
+            DrawInvite(shown)
+        end
     end
 end
 
@@ -515,6 +611,7 @@ local us = {
         isVisible = T{ true },
         hideWhenSolo = T{ false },
         sortByRole = T{ false },
+        showInvite = T{ true }, -- mark an invitation that is waiting for an answer, above the party's window
         xivScale = T{ 100 },   -- the lists' size, as a percentage
         xivValueSize = T{ 100 }, -- the size of the HP, MP and TP figures, as a percentage
         xivNameSize = T{ 100 },  -- and of the names
@@ -548,6 +645,8 @@ local us = {
     },
     UpdateSettings = UpdateAlliances,
     Load = UpdateAlliances,
+    HandlePacket = HandleInvitePacket,
+    HandlePacketOut = HandleInviteAnswer,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('us') then
             ui.BeginLabels('xiframes.us')
@@ -561,6 +660,14 @@ local us = {
             -- Settings saved before this option existed have no value for it
             if options.sortByRole == nil then
                 options.sortByRole = T{ false }
+            end
+            if options.showInvite == nil then
+                options.showInvite = T{ true }
+            end
+            ui.Label('Show Invites')
+            imgui.Checkbox('##us.showInvite', options.showInvite)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope above your party\'s window and who it is from: gold for a party invite, blue for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
             end
             ui.Label('Sort By Role')
             imgui.Checkbox('##us.3', options.sortByRole)
@@ -691,7 +798,9 @@ local us = {
         local alliCount2 = party:GetAlliancePartyMemberCount2()
         local alliCount3 = party:GetAlliancePartyMemberCount3()
 
-        if (options.hideWhenSolo[1] and alliCount1 > 1)
+        -- hidden while solo if that is set, but not while there is an invitation to be seen
+        local waiting = invite ~= nil and (options.showInvite == nil or options.showInvite[1])
+        if (options.hideWhenSolo[1] and (alliCount1 > 1 or (waiting and alliCount1 > 0)))
         or (not options.hideWhenSolo[1] and alliCount1 > 0) then
             DrawAlliance(options.alliance1, gOptions, false, SortsByRole(options), true)
         end

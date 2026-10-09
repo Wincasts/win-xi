@@ -38,6 +38,21 @@ local ok, problem = pcall(function() H.packet(0x00A); H.frames(4) end)
 H.print('in game: frames ran', ok, ok and '' or problem, '| windows begun', H.calls.Begin or 0, '| lists given room', (H.calls.Dummy or 0) > 0,
     '| a line over the pets', (H.calls.Separator or 0) > 0, '| progress bars', H.calls.ProgressBar or 0)
 
+-- an invitation: marked above the party's window until it is answered, and the window shows for it while solo
+local function invitation(kind) return ('\0'):rep(0x0B) .. string.char(kind) .. 'Inviter' .. ('\0'):rep(9) .. ('\0'):rep(4) end
+local realUnpack = struct.unpack
+struct.unpack = function(format, data, at)
+    if format == 'c16' then return data:sub(at, at + 15) elseif format == 'B' and #data > 0x0B then return data:byte(at) end
+    return realUnpack(format, data, at)
+end
+local function drawn() local before = H.calls['draw.AddRectFilled'] or 0; H.frames(1); return (H.calls['draw.AddRectFilled'] or 0) > before end
+H.print('no invitation: no mark', drawn() == false)
+H.packetData(0x0DC, invitation(0)); H.print('a party invite: marked', drawn())
+H.packetOut(0x074); H.print('answered: gone', drawn() == false)
+H.packetData(0x0DC, invitation(5)); H.print('an alliance invite: marked', drawn())
+H.packet(0x00A); H.print('a change of area: gone', drawn() == false)
+struct.unpack = realUnpack
+
 -- the settings, tab by tab: drawn directly, as the harness shows only a window's first tab
 for _, name in ipairs({ 'us', 'tgt', 'pet' }) do
     require('imgui').BeginTabBar('check')

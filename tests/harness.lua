@@ -106,6 +106,8 @@ H = {
     frames = function(count) for _ = 1, count or 1 do clock = clock + 0.03; fire('d3d_present') end end,
     command = function(text) return fire('command', { command = text, blocked = false }).blocked end,
     packet = function(id) fire('packet_in', { id = id, data = '' }) end,
+    packetData = function(id, data) fire('packet_in', { id = id, data = data }) end, -- a packet with its bytes
+    packetOut = function(id) fire('packet_out', { id = id, data = '' }) end,
     load = function() fire('load') end,                    -- Ashita's own, once the addon's file has run
     unload = function() fire('unload') end,
     -- an XInput button, pressed and let go, then a frame; returns whether the game was kept from the press
