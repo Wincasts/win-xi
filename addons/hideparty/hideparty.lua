@@ -84,20 +84,17 @@ local function set_primitive_visibility(p, v)
 end
 
 --[[
-* Returns whether the game's party cursor is on a member of another alliance party.
-*
-* The cursor is one number over the whole alliance: 0 to 5 are the player's own party, 6 to 17 the
-* other two.
+* Returns whether the game's party cursor is out: a member is being picked from the party list, in the
+* party menu or as a sub-target.
 --]]
-local function is_cursor_in_alliance()
+local function is_cursor_active()
     local ptr = AshitaCore:GetPointerManager():Get('party');
     if (ptr == nil or ptr == 0) then return false; end
     ptr = ashita.memory.read_uint32(ptr);
     if (ptr == 0) then return false; end
     ptr = ashita.memory.read_uint32(ptr);
     if (ptr == 0) then return false; end
-    if (ashita.memory.read_uint32(ptr + 0x54) == 0) then return false; end
-    return ashita.memory.read_uint8(ptr + 0x50) >= 6;
+    return ashita.memory.read_uint32(ptr + 0x54) ~= 0;
 end
 
 --[[
@@ -173,13 +170,14 @@ end);
 * desc : Event called when the Direct3D device is presenting a scene.
 --]]
 ashita.events.register('d3d_present', 'present_cb', function ()
-    -- The game will not move its cursor into a party frame that is hidden: with the main party's
-    -- hidden, a cursor that has gone to another alliance party can never come back. So that frame is
-    -- shown for as long as the cursor is out there, and hidden again once it is home or gone.
-    local party0 = hideparty.show or is_cursor_in_alliance();
+    -- The game's cursor cannot move freely between party frames that are hidden: it is thrown out of
+    -- the one it enters and on to the next, so that it is trapped in the alliance or in the party.
+    -- Hiding and showing one frame at a time only moves the trap. So the party frames are all left
+    -- showing for as long as the cursor is out, and hidden again once it has gone.
+    local parties = hideparty.show or is_cursor_active();
 
-    set_primitive_visibility(hideparty.ptrs.party0, party0 and 1 or 0);
-    set_primitive_visibility(hideparty.ptrs.party1, hideparty.show and 1 or 0);
-    set_primitive_visibility(hideparty.ptrs.party2, hideparty.show and 1 or 0);
+    set_primitive_visibility(hideparty.ptrs.party0, parties and 1 or 0);
+    set_primitive_visibility(hideparty.ptrs.party1, parties and 1 or 0);
+    set_primitive_visibility(hideparty.ptrs.party2, parties and 1 or 0);
     set_primitive_visibility(hideparty.ptrs.target, hideparty.show and 1 or 0);
 end);

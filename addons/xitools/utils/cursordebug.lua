@@ -40,6 +40,9 @@ end
 local frameBytes = 0xA0
 
 local function AddFrames(parts)
+    if #Frames() == 0 then
+        parts[#parts + 1] = 'frames: not found'
+    end
     for _, frame in ipairs(Frames()) do
         local object = frame.at ~= 0 and ashita.memory.read_uint32(frame.at) or 0
         local primitive = object ~= 0 and ashita.memory.read_uint32(object + 0x08) or 0
@@ -147,7 +150,7 @@ function recorder.Toggle()
 
     file, last, lines = opened, nil, 0
     file:write(('started %s\n'):format(os.date('%Y-%m-%d %H:%M:%S')))
-    Say('Cursor recording started. /xit us debug again to stop.')
+    Say('Cursor recording started (with the party frames). /xit us debug again to stop.')
 end
 
 -- A note of the player's own, written between the entries: what they are about to do
