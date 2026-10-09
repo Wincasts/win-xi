@@ -206,19 +206,27 @@ local function GatherPets(options)
     return pets
 end
 
--- Real pets where there are any, with made-up ones filling the rest: the player's own, and one
--- for each other party member when party pets are shown
+-- How many pets there are to see while the windows are arranged, counting made-up ones: enough to
+-- show the player's own and how another member's looks, without a list of six
+local samplePetCount = 2
+
+-- Real pets where there are any, and made-up ones to make their number up: the player's own, and
+-- another member's when party pets are shown
 ---@return PetInfo[]
 local function GatherSamplePets(options)
     local pets = { }
     table.insert(pets, GetPlayerEntity() and GetOwnPet(options) or { name = 'Sample Pet', distance = 4, hpp = 80, mpp = 60, tp = 1200 })
 
     if ShowsPartyPets(options) then
-        local partyPets = GetPlayerEntity() and GetPartyPets() or { }
-        for i = 1, partySize - 1 do
-            table.insert(pets, partyPets[i] or {
-                name = ('Sample Pet %d'):format(i + 1),
-                owner = ('Sample %d'):format(i + 1),
+        if GetPlayerEntity() then
+            for _, partyPet in ipairs(GetPartyPets()) do
+                table.insert(pets, partyPet)
+            end
+        end
+        for i = #pets + 1, samplePetCount do
+            table.insert(pets, {
+                name = ('Sample Pet %d'):format(i),
+                owner = ('Sample %d'):format(i),
                 distance = 4 + i * 2,
                 hpp = 100 - i * 15,
             })

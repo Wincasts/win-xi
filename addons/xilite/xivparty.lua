@@ -49,6 +49,7 @@ local xivparty = { }
 local castRange = 20.79       -- beyond this a member's bars are dimmed, and beyond targetRange dimmed further
 local targetRange = 50
 local barAnimSpeed = 0.1      -- how much of the way a bar's glow closes every animFrame seconds
+local lossGlowOpacity = 0.35  -- how strong the glow is over what a bar has lost; over a gain it is at full strength
 local animFrame = 0.03
 local pointsToPixels = 4 / 3  -- XivParty's text sizes are in points
 local baseScale = 1.2         -- how much larger than XivParty's own sizes the lists are at a scale of 100
@@ -274,9 +275,11 @@ local function DrawBar(place, member, state, opacity, showFigure)
             local glowX = x + images.fillX + images.fillWidth * math.min(fraction, shown)
             local glowWidth = images.fillWidth * math.abs(fraction - shown)
             local sides = images.glowSidesWidth
-            Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor)
-            Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor)
-            Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, 1, true)
+            -- a loss leaves the glow where the bar was, bright against the empty back: it is toned down
+            local strength = fraction < shown and lossGlowOpacity or 1
+            Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor, strength)
+            Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor, strength)
+            Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, strength, true)
         end
     end
 
