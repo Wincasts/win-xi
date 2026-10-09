@@ -98,9 +98,9 @@ local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74, bottom 
     back = 'ffxi/AllyBarBgMP.png', fill = 'ffxi/AllyBarMP.png', front = 'ffxi/AllyBarFgMP.png', color = Hex('FFFF9C') }
 local barShadowReach = 2.5 -- how far below a bar its shadow goes
 
--- The bookends: a small silver cap at each end of a bar, a little shorter than the bar and standing
--- half on it, its outer side rounded, after the ones the bars of the game's own party list have
-local bookend = { width = 3, inset = 0.5 } -- how wide a cap is, and how far short of the bar's top and bottom it stops
+-- The bookends: a small silver cap at each end of a bar, as tall as the inside of the bar and standing
+-- half on it, after the ones the bars of the game's own party list have
+local bookend = { width = 3 } -- how wide a cap is
 local bookendSilver = { 0.78, 0.80, 0.84, 1 }
 local bookendShine = { 0.97, 0.97, 1.00, 1 }
 local bookendEdge = { 0.20, 0.21, 0.25, 1 }
@@ -327,33 +327,30 @@ local function Front(place, bar)
     Image(images.front, place.x, place.y, images.width, images.height, bar.color or images.color)
 end
 
--- A bar's two bookends. Each is a silver cap with a dark edge and a line of shine down it, rounded on
--- the side away from the bar and square on the side towards it.
+-- A bar's two bookends. Each is a silver cap with a dark edge and a line of shine down its left side.
 local capMin, capMax = { 0, 0 }, { 0, 0 }
 
-local function Cap(centre, top, bottom, corners)
+local function Cap(centre, top, bottom)
     local half = bookend.width * scale / 2
     local left = math.floor(itemX + centre * scale - half)
     local right = math.floor(itemX + centre * scale + half) + 1
     top, bottom = math.floor(itemY + top * scale + 0.5), math.floor(itemY + bottom * scale + 0.5)
-    local rounding = (right - left) * 0.6
 
     capMin[1], capMin[2], capMax[1], capMax[2] = left, top, right, bottom
-    drawList:AddRectFilled(capMin, capMax, Packed(bookendSilver, 1), rounding, corners)
-    drawList:AddRect(capMin, capMax, Packed(bookendEdge, 1), rounding, corners, 1)
-    -- the shine keeps clear of the rounded corners
-    local middle = math.floor((left + right) / 2)
-    capMin[1], capMin[2], capMax[1], capMax[2] = middle, top + 2, middle, bottom - 2
+    drawList:AddRectFilled(capMin, capMax, Packed(bookendSilver, 1), 1)
+    drawList:AddRect(capMin, capMax, Packed(bookendEdge, 1), 1, 0, 1)
+    capMin[1], capMin[2], capMax[1], capMax[2] = left + 1, top + 1, left + 1, bottom - 2
     if capMax[2] > capMin[2] then
         drawList:AddLine(capMin, capMax, Packed(bookendShine, 1), 1)
     end
 end
 
+-- the top and bottom of a cap are those of the bar's inside
 local function Bookends(place)
     local body = place.images.body
-    local top, bottom = place.y + body[2] + bookend.inset, place.y + body[4] - bookend.inset
-    Cap(place.x + body[1], top, bottom, ImDrawFlags_RoundCornersLeft or 0)
-    Cap(place.x + body[3], top, bottom, ImDrawFlags_RoundCornersRight or 0)
+    local top, bottom = place.y + body[2], place.y + body[4]
+    Cap(place.x + body[1], top, bottom)
+    Cap(place.x + body[3], top, bottom)
 end
 
 -- One layer of a bar, for every line that has the bar: every line in the area has an HP bar, and an
