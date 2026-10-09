@@ -31,7 +31,7 @@ options.Unit = 1.2
 -- The kinds of entry:
 --   check     a checkbox                        default true or false
 --   slider    a whole number between two        default, min, max, format
---   offset    two sliders, across and down      reach: how far either way
+--   offset    two sliders, across and down      default { x, y }, reach: how far either way
 --   choice    one of several, as radio buttons  default, choices: { key, label }, two to a line
 --   place     where a window is, as two numbers default { x, y }, window: its key in windows.List
 --   gap       a little room between two families of settings
@@ -40,21 +40,21 @@ options.Tabs = {
     { name = 'Style', entries = {
         { kind = 'slider', section = 'style', key = 'scale', label = 'Scale (%)', default = 100, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the party lists and the target windows are drawn: the bars, the text and the buffs together.' },
-        { kind = 'slider', section = 'style', key = 'nameSize', label = 'Name Text Size (%)', default = 100, min = 50, max = 200, format = '%d%%',
+        { kind = 'slider', section = 'style', key = 'nameSize', label = 'Name Text Size (%)', default = 105, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the names are written, apart from everything else.' },
-        { kind = 'slider', section = 'style', key = 'buffSize', label = 'Buff Icon Size (%)', default = 100, min = 50, max = 200, format = '%d%%',
+        { kind = 'slider', section = 'style', key = 'buffSize', label = 'Buff Icon Size (%)', default = 90, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the buff and debuff icons beside your party are drawn, apart from everything else.' },
-        { kind = 'slider', section = 'style', key = 'buffSpacing', label = 'Buff Spacing', default = 0, min = -5, max = 20,
+        { kind = 'slider', section = 'style', key = 'buffSpacing', label = 'Buff Spacing', default = 1, min = -5, max = 20,
           tooltip = 'How much room there is between one buff icon and the next. At 0 they touch; less than 0 overlaps them.' .. unitsNote },
-        { kind = 'slider', section = 'style', key = 'buffDistance', label = 'Buff Distance', default = 0, min = -60, max = 200,
+        { kind = 'slider', section = 'style', key = 'buffDistance', label = 'Buff Distance', default = 4, min = -60, max = 200,
           tooltip = 'How far from your party\'s window the buff icons start. 0 is just clear of its left edge; more moves them further left, and less than 0 brings them right, over the window.' .. unitsNote },
-        { kind = 'slider', section = 'style', key = 'valueSize', label = 'Value Text Size (%)', default = 100, min = 50, max = 200, format = '%d%%',
+        { kind = 'slider', section = 'style', key = 'valueSize', label = 'Value Text Size (%)', default = 124, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the HP, MP and TP values are written, apart from everything else.' },
-        { kind = 'offset', section = 'style', key = 'hpOffset', label = 'HP Value Offset', reach = 40,
+        { kind = 'offset', section = 'style', key = 'hpOffset', label = 'HP Value Offset', default = { -6, 0 }, reach = 40,
           tooltip = 'Moves the HP value from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
-        { kind = 'offset', section = 'style', key = 'mpOffset', label = 'MP Value Offset', reach = 40,
+        { kind = 'offset', section = 'style', key = 'mpOffset', label = 'MP Value Offset', default = { -2, 0 }, reach = 40,
           tooltip = 'Moves the MP value from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
-        { kind = 'offset', section = 'style', key = 'tpOffset', label = 'TP Value Offset', reach = 40,
+        { kind = 'offset', section = 'style', key = 'tpOffset', label = 'TP Value Offset', default = { -3, -2 }, reach = 40,
           tooltip = 'Moves the TP value from its usual place: X to the right, Y down. Less than 0 moves it left or up.\nA target\'s distance and HP percentage go up and down with it.' .. unitsNote },
         { kind = 'check', section = 'style', key = 'outline', label = 'Outline Text', default = true,
           tooltip = 'Gives the names and the HP, MP and TP values a dark edge, so they can be read where they are written over a bar.' },
@@ -78,15 +78,15 @@ options.Tabs = {
         { kind = 'choice', section = 'party', key = 'iconCorner', label = 'Icon Corner', default = 'TopRight', choices = notices.Corners,
           when = function(saved) return saved.party.showInvites[1] or saved.party.showTreasure[1] end,
           tooltip = 'The corner of your party\'s window the invite and treasure icons go beside: above a top corner, below a bottom one.' },
-        { kind = 'offset', section = 'party', key = 'iconOffset', label = 'Icon Offset', reach = 300,
+        { kind = 'offset', section = 'party', key = 'iconOffset', label = 'Icon Offset', default = { -5, 21 }, reach = 300,
           when = function(saved) return saved.party.showInvites[1] or saved.party.showTreasure[1] end,
           tooltip = 'Moves the invite and treasure icons from their corner: X to the right, Y down. Less than 0 moves them left or up.' .. unitsNote },
         { kind = 'check', section = 'party', key = 'sortByRole', label = 'Sort By Role', default = false,
           tooltip = 'Off lists members in the game\'s own party order.\nOn lists you first, then tanks (PLD, NIN, WAR, RUN), melee damage (MNK, SAM, DRK, DRG, THF, DNC, BLU, BST, PUP),\nranged damage (RNG), support (BRD, COR, GEO), mages (BLM, SMN, SCH) and healers (RDM, WHM).\nEach party of the alliance is sorted on its own.' },
         { kind = 'gap' },
-        { kind = 'place', section = 'party', key = 'pos1', label = 'Alliance 1 Position', default = { 392, 628 }, window = 'party1' },
-        { kind = 'place', section = 'party', key = 'pos2', label = 'Alliance 2 Position', default = { 107, 628 }, window = 'party2' },
-        { kind = 'place', section = 'party', key = 'pos3', label = 'Alliance 3 Position', default = { 0, 628 }, window = 'party3' },
+        { kind = 'place', section = 'party', key = 'pos1', label = 'Alliance 1 Position', default = { 2098, 1215 }, window = 'party1' },
+        { kind = 'place', section = 'party', key = 'pos2', label = 'Alliance 2 Position', default = { 2098, 333 }, window = 'party2' },
+        { kind = 'place', section = 'party', key = 'pos3', label = 'Alliance 3 Position', default = { 2098, 593 }, window = 'party3' },
     } },
     { name = 'Target', entries = {
         { kind = 'check', section = 'target', key = 'enabled', label = 'Enabled', default = true },
@@ -97,9 +97,9 @@ options.Tabs = {
         { kind = 'check', section = 'target', key = 'showTot', label = 'Show Target Of Target', default = false },
         { kind = 'check', section = 'target', key = 'totDebuffs', label = 'Target Of Target Debuffs', default = false },
         { kind = 'gap' },
-        { kind = 'place', section = 'target', key = 'mainPos', label = 'Target Position', default = { 100, 100 }, window = 'main' },
-        { kind = 'place', section = 'target', key = 'subPos', label = 'Sub-Target Position', default = { 100, 200 }, window = 'sub' },
-        { kind = 'place', section = 'target', key = 'totPos', label = 'Target Of Target Position', default = { 386, 100 }, window = 'tot' },
+        { kind = 'place', section = 'target', key = 'mainPos', label = 'Target Position', default = { 2098, 865 }, window = 'main' },
+        { kind = 'place', section = 'target', key = 'subPos', label = 'Sub-Target Position', default = { 34, 296 }, window = 'sub' },
+        { kind = 'place', section = 'target', key = 'totPos', label = 'Target Of Target Position', default = { 34, 223 }, window = 'tot' },
     } },
     { name = 'Pets', entries = {
         { kind = 'check', section = 'pets', key = 'enabled', label = 'Enabled', default = true,
@@ -116,9 +116,7 @@ options.Tabs = {
 local function Start(entry)
     if entry.kind == 'check' or entry.kind == 'slider' then
         return T{ entry.default }
-    elseif entry.kind == 'offset' then
-        return T{ 0, 0 }
-    elseif entry.kind == 'place' then
+    elseif entry.kind == 'offset' or entry.kind == 'place' then
         return T{ entry.default[1], entry.default[2] }
     elseif entry.kind == 'choice' then
         return entry.default
@@ -158,22 +156,45 @@ local function CompleteEntries(saved)
     end
 end
 
+-- What settings start as is how the addon's author has it set up, places on screen and all: those
+-- suit a screen 2560 by 1440, and want moving on any other.
+--
+-- Ashita gives saved settings whatever the defaults have that they lack, each time they are loaded.
+-- So what may be taken out again is not among the defaults, or it would come back: which window is
+-- held against which, and the corner the party's window is held by. Those are given once, to
+-- settings that are new (StartNew). Nor is the version: settings without one are new, or old.
 function options.Defaults()
     local defaults = T{
-        version = options.Version,
         showConfig = T{ false },
         -- for winxi: when the windows get out of the way, whether the mouse goes through them, the
-        -- theme (the shared one, or this addon's own), fading while idle and which groups of windows
-        -- it applies to, and which window is held against which
-        hide = T{ },
-        clickThrough = T{ false },
+        -- theme (the shared one, or this addon's own), and fading while idle and which groups of
+        -- windows it applies to
+        hide = T{ DuringEvent = true, UnderChat = true, UnderMap = true, WhileLoading = true, WithInterface = true },
+        clickThrough = T{ true },
         useSharedTheme = true,
-        theme = T{ },
-        fade = T{ windows = T{ } },
-        links = T{ },
+        theme = T{
+            BackgroundColor = T{ 0.152, 0.152, 0.262, 0.8 }, BorderColor = T{ 0.69, 0.68, 0.78, 1 }, TextColor = T{ 1, 1, 1, 1 },
+            Padding = 14, ShadowEnabled = true, ShadowOffset = 2, ShadowBlur = 4, ShadowOpacity = 17,
+        },
+        fade = T{
+            Enabled = true, Delay = 8, Duration = 1, Opacity = 0, Transition = 0.08,
+            Combat = true, MissingHp = true, Moving = true, Party = true, Resting = true, Target = true,
+            windows = T{ party = T{ true }, target = T{ true } },
+        },
     }
     CompleteEntries(defaults)
     return defaults
+end
+
+-- What new settings are given once: the party's window held by its bottom left corner, so that it
+-- grows upward from there, the target's window above it, and the alliance's second party over its third
+local function StartNew(saved)
+    saved.party.corner1 = T{ 2098, 1278 }
+    saved.links = T{
+        T{ child = 'xiframes.tgt.sub', parent = 'xiframes.tgt.tot', side = 'below' },
+        T{ child = 'xiframes.tgt.main', parent = 'xiframes.us.1', side = 'above' },
+        T{ child = 'xiframes.us.3', parent = 'xiframes.us.2', side = 'below' },
+    }
 end
 
 -- Settings from before they were set out by section had everything under tools (us, tgt and pet, from
@@ -260,6 +281,8 @@ function options.Complete(saved)
     end
     if saved.tools ~= nil or saved.globals ~= nil then
         FromTools(saved)
+    elseif saved.version == nil then
+        StartNew(saved)
     end
     saved.version = options.Version
 
