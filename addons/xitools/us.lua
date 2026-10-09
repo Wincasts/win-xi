@@ -8,7 +8,6 @@ local ui = require('ui')
 
 local ffxi = require('utils/ffxi')
 local zones = require('utils/zones')
-local cursorDebug = require('utils/cursordebug') -- temporary: /xit us debug
 
 local Textures = { }
 local Alliances = { }
@@ -669,15 +668,6 @@ local us = {
     },
     UpdateSettings = UpdateAlliances,
     Load = UpdateAlliances,
-    -- Temporary: /xit us debug starts and stops a recording of the game's party cursor, and
-    -- /xit us note <words> writes a line of the player's own into it
-    HandleCommand = function(args, options, gOptions)
-        if args[1] == 'debug' then
-            cursorDebug.Toggle()
-        elseif args[1] == 'note' then
-            cursorDebug.Note(table.concat(args, ' ', 2))
-        end
-    end,
     DrawConfig = function(options, gOptions)
         if imgui.BeginTabItem('us') then
             ui.BeginLabels('xitools.us')
@@ -743,8 +733,6 @@ local us = {
         end
     end,
     DrawMain = function(options, gOptions)
-        cursorDebug.Update()
-
         local party = AshitaCore:GetMemoryManager():GetParty()
         local alliCount1 = party:GetAlliancePartyMemberCount1()
         local alliCount2 = party:GetAlliancePartyMemberCount2()
