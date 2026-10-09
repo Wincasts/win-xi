@@ -463,9 +463,10 @@ local function HandleInviteAnswer(e)
     end
 end
 
--- The mark for an invitation: an envelope above the top left corner of the party's window, gold for
--- a party's and blue for an alliance's, pulsing gently, with who it is from beside it. It is outside
--- the window, so nothing in the list moves for it.
+-- The mark for an invitation: an envelope beside a corner of the party's window, gold for a party's
+-- and blue for an alliance's, pulsing gently, with who it is from beside it. It is outside the window,
+-- above its top corners or below its bottom ones, so nothing in the list moves for it; and it is drawn
+-- over every window, not among them, so that another window lying across it does not hide it.
 local inviteColors = { party = { 0.90, 0.88, 0.35, 1 }, alliance = { 0.31, 0.71, 0.98, 1 } }
 local inviteEnvelope = { width = 15, height = 10, gap = 5 } -- in the lists' own units
 local inviteTint = { 0, 0, 0, 1 }
@@ -473,6 +474,15 @@ local inviteLine = { 0.05, 0.05, 0.05, 1 }
 local inviteMin, inviteMax, inviteMid = { 0, 0 }, { 0, 0 }, { 0, 0 }
 local inviteClipMin, inviteClipMax = { 0, 0 }, { 0, 0 }
 local sampleInvite = { alliance = false, from = 'Sample' }
+
+-- The corners it can go beside, for the setting: the first is the one used when none is chosen
+local inviteCorners = {
+    { key = 'TopRight', label = 'Top Right' }, { key = 'TopLeft', label = 'Top Left' },
+    { key = 'BottomRight', label = 'Bottom Right' }, { key = 'BottomLeft', label = 'Bottom Left' },
+}
+for _, corner in ipairs(inviteCorners) do
+    corner.ids = ('%s##us.inviteCorner'):format(corner.label)
+end
 
 local function DrawInvite(shown)
     local windowX, windowY = imgui.GetWindowPos()
@@ -482,15 +492,29 @@ local function DrawInvite(shown)
         return
     end
 
-    local scale = 1.2 * (usOptions.xivScale ~= nil and usOptions.xivScale[1] or 100) / 100
+    local options = usOptions
+    local scale = 1.2 * (options.xivScale ~= nil and options.xivScale[1] or 100) / 100
     local width, height = inviteEnvelope.width * scale, inviteEnvelope.height * scale
-    local left = math.floor(windowX)
-    local top = math.floor(windowY - height - inviteEnvelope.gap * scale)
+    local gap = inviteEnvelope.gap * scale
 
-    -- the window's own list, opened up to the whole screen for what goes above the window
-    local drawList = imgui.GetWindowDrawList()
-    inviteClipMax[1], inviteClipMax[2] = display.x, display.y
-    drawList:PushClipRect(inviteClipMin, inviteClipMax, false)
+    -- beside the corner chosen, and from there as far as it has been moved
+    local corner = options.inviteCorner or inviteCorners[1].key
+    local onRight = corner == 'TopRight' or corner == 'BottomRight'
+    local below = corner == 'BottomRight' or corner == 'BottomLeft'
+    local windowWidth, windowHeight = imgui.GetWindowSize()
+    local offset = options.inviteOffset
+    local left = (onRight and windowX + windowWidth - width or windowX) + (offset and tonumber(offset[1]) or 0) * scale
+    local top = (below and windowY + windowHeight + gap or windowY - height - gap) + (offset and tonumber(offset[2]) or 0) * scale
+    left, top = math.floor(left), math.floor(top)
+
+    -- over every window where that can be done, and otherwise in the party's own, opened up to the
+    -- whole screen
+    local overAll = imgui.GetForegroundDrawList ~= nil
+    local drawList = overAll and imgui.GetForegroundDrawList() or imgui.GetWindowDrawList()
+    if not overAll then
+        inviteClipMax[1], inviteClipMax[2] = display.x, display.y
+        drawList:PushClipRect(inviteClipMin, inviteClipMax, false)
+    end
 
     -- between two thirds of its strength and all of it, once every second and a half
     local color = shown.alliance and inviteColors.alliance or inviteColors.party
@@ -509,12 +533,19 @@ local function DrawInvite(shown)
     inviteMin[1] = left + width
     drawList:AddLine(inviteMin, inviteMid, dark, 1)
 
+    -- who it is from: running away from the corner, so that it stays over the window's own width
     local words = (shown.alliance and 'Alliance invite: %s' or 'Party invite: %s'):format(shown.from)
     imgui.PushFont(nil, 8 * 4 / 3 * 1.15 * scale)
-    outlinedText.Draw(drawList, math.floor(left + width + 4 * scale), math.floor(top - 1 * scale), inviteTint, words)
+    local wordsX = left + width + 4 * scale
+    if onRight then
+        wordsX = left - 4 * scale - imgui.CalcTextSize(words)
+    end
+    outlinedText.Draw(drawList, math.floor(wordsX), math.floor(top - 1 * scale), inviteTint, words)
     imgui.PopFont()
 
-    drawList:PopClipRect()
+    if not overAll then
+        drawList:PopClipRect()
+    end
 end
 
 -- What a list's window holds, drawn by one function for whichever list is being drawn: which is said
@@ -603,6 +634,28 @@ for _, name in ipairs({ 'HP', 'MP', 'TP' }) do
     })
 end
 
+-- A place as two sliders side by side, across and down, under one name. offset is the { x, y } they set.
+local function OffsetSliders(label, ids, offset, reach, tooltip)
+    ui.Label(label)
+    for axis = 1, 2 do
+        if axis == 2 then
+            imgui.SameLine()
+        end
+        xivOffsetBox[1] = tonumber(offset[axis]) or 0
+        imgui.PushItemWidth(xivOffsetSliderWidth)
+        if imgui.SliderInt(ids[axis], xivOffsetBox, -reach, reach, axis == 1 and 'X %d' or 'Y %d') then
+            offset[axis] = xivOffsetBox[1]
+        end
+        imgui.PopItemWidth()
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip(tooltip)
+        end
+    end
+end
+
+local inviteOffsetIds = { '##us.inviteOffsetX', '##us.inviteOffsetY' }
+local inviteOffsetReach = 300
+
 ---@type xitool
 local us = {
     Name = 'us',
@@ -611,7 +664,9 @@ local us = {
         isVisible = T{ true },
         hideWhenSolo = T{ false },
         sortByRole = T{ false },
-        showInvite = T{ true }, -- mark an invitation that is waiting for an answer, above the party's window
+        showInvite = T{ true },      -- mark an invitation that is waiting for an answer, beside the party's window
+        inviteCorner = 'TopRight',   -- the corner of the window the mark goes beside
+        inviteOffset = T{ 0, 0 },    -- and how far from there it is moved: right, down
         xivScale = T{ 100 },   -- the lists' size, as a percentage
         xivValueSize = T{ 100 }, -- the size of the HP, MP and TP figures, as a percentage
         xivNameSize = T{ 100 },  -- and of the names
@@ -667,7 +722,31 @@ local us = {
             ui.Label('Show Invites')
             imgui.Checkbox('##us.showInvite', options.showInvite)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope above your party\'s window and who it is from: gold for a party invite, blue for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
+                imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope beside your party\'s window and who it is from: gold for a party invite, blue for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
+            end
+            if options.showInvite[1] then
+                if type(options.inviteOffset) ~= 'table' then
+                    options.inviteOffset = T{ 0, 0 }
+                end
+                -- the corners two to a line, the top ones then the bottom ones
+                ui.Label('Invite Corner')
+                local column = imgui.GetCursorPosX()
+                for index, corner in ipairs(inviteCorners) do
+                    if index % 2 == 0 then
+                        imgui.SameLine()
+                    elseif index > 1 then
+                        imgui.SetCursorPosX(column)
+                    end
+                    local chosen = options.inviteCorner == corner.key or (index == 1 and options.inviteCorner == nil)
+                    if imgui.RadioButton(corner.ids, chosen) then
+                        options.inviteCorner = corner.key
+                    end
+                    if imgui.IsItemHovered() then
+                        imgui.SetTooltip('The corner of your party\'s window the invite mark goes beside: above a top corner, below a bottom one.')
+                    end
+                end
+                OffsetSliders('Invite Offset', inviteOffsetIds, options.inviteOffset, inviteOffsetReach,
+                    'Moves the invite mark from its corner: X to the right, Y down. Less than 0 moves it left or up.\nThe numbers are in the list\'s own units, so the mark keeps its place as the scale changes.')
             end
             ui.Label('Sort By Role')
             imgui.Checkbox('##us.3', options.sortByRole)
@@ -736,22 +815,7 @@ local us = {
             end
             -- each value's place: a slider across and a slider down, side by side
             for _, value in ipairs(xivOffsetControls) do
-                local offset = options[value.key]
-                ui.Label(value.label)
-                for axis = 1, 2 do
-                    if axis == 2 then
-                        imgui.SameLine()
-                    end
-                    xivOffsetBox[1] = tonumber(offset[axis]) or 0
-                    imgui.PushItemWidth(xivOffsetSliderWidth)
-                    if imgui.SliderInt(value.ids[axis], xivOffsetBox, -xivOffsetReach, xivOffsetReach, axis == 1 and 'X %d' or 'Y %d') then
-                        offset[axis] = xivOffsetBox[1]
-                    end
-                    imgui.PopItemWidth()
-                    if imgui.IsItemHovered() then
-                        imgui.SetTooltip(value.tooltip)
-                    end
-                end
+                OffsetSliders(value.label, value.ids, options[value.key], xivOffsetReach, value.tooltip)
             end
             ui.Label('Outline Text')
             imgui.Checkbox('##us.xivOutline', options.xivOutline)
