@@ -20,7 +20,7 @@
 --]]
 
 addon.name      = 'recast';
-addon.author    = 'atom0s, Thorny, RZN, lin';
+addon.author    = 'atom0s, Thorny, RZN, lin, Win';
 addon.version   = '2.0';
 addon.desc      = 'Displays ability and spell recast times.';
 addon.link      = 'https://ashitaxi.com/';
