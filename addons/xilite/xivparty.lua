@@ -19,6 +19,7 @@
 --     nameSize    a percentage for the size of the names alone
 --     buffSize    a percentage for the size of the buff icons alone
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
+--     glow        false for bars that simply change, with no glow over what was gained or lost
 --     outline     false to leave the dark edge off the names and the HP, MP and TP figures: winxi's
 --                 way of writing over bars (winxi.text), without which the figures are hard to read
 --     hpOffset, mpOffset, tpOffset   { x, y } to move that figure from its place in the layout, in the
@@ -49,7 +50,7 @@ local xivparty = { }
 local castRange = 20.79       -- beyond this a member's bars are dimmed, and beyond targetRange dimmed further
 local targetRange = 50
 local barAnimSpeed = 0.1      -- how much of the way a bar's glow closes every animFrame seconds
-local lossGlowOpacity = 0.35  -- how strong the glow is over what a bar has lost; over a gain it is at full strength
+local glowOpacity = 0.9       -- how strong the glow is, over a gain and over a loss alike
 local animFrame = 0.03
 local pointsToPixels = 4 / 3  -- XivParty's text sizes are in points
 local baseScale = 1.2         -- how much larger than XivParty's own sizes the lists are at a scale of 100
@@ -135,6 +136,7 @@ local nameScale = 1       -- and the names
 local buffScale = 1       -- and the buff icons
 local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
 local outlined = true     -- whether the names and figures have winxi's dark edge
+local barGlow = true      -- whether a change to a bar is covered by a glow for a moment
 
 local cornerA, cornerB = { 0, 0 }, { 0, 0 }
 local uvA, uvB = { 0, 0 }, { 1, 1 }
@@ -271,15 +273,13 @@ local function DrawBar(place, member, state, opacity, showFigure)
         Image(images.fill, x + images.fillX, y, images.fillWidth * (dimmed and shown or fraction), images.height, color, opacity)
         Image(images.front, x, y, images.width, images.height, color)
 
-        if not dimmed and math.abs(fraction - shown) > 0.01 then
+        if barGlow and not dimmed and math.abs(fraction - shown) > 0.01 then
             local glowX = x + images.fillX + images.fillWidth * math.min(fraction, shown)
             local glowWidth = images.fillWidth * math.abs(fraction - shown)
             local sides = images.glowSidesWidth
-            -- a loss leaves the glow where the bar was, bright against the empty back: it is toned down
-            local strength = fraction < shown and lossGlowOpacity or 1
-            Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor, strength)
-            Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor, strength)
-            Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, strength, true)
+            Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor, glowOpacity)
+            Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor, glowOpacity)
+            Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, glowOpacity, true)
         end
     end
 
@@ -409,6 +409,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     buffScale = Percent(settings.buffSize)
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = settings.hpOffset, settings.mpOffset, settings.tpOffset
     outlined = settings.outline ~= false
+    barGlow = settings.glow ~= false
     local showMp, showTp = settings.showMp ~= false, settings.showTp ~= false
     textColor = theme.Get().TextColor
 
