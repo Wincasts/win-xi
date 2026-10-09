@@ -2,31 +2,31 @@
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (164,229)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,154.4) (172,231.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,155.6) (173.2,232.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (145.41,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (107.46,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (86.66,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (59.73,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,152.6) (155.2,229.4) (0,0) (1,1) #FF959780
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -97,30 +97,30 @@ window AddRectFilled (154,194) (158,198) #A6ABB8FF 0
 window AddRectFilled (154,196) (158,198) #858A99FF 0
 window AddRect (154,184) (158,198) #333640FF 1 0 1
 window AddLine (155,188) (155,193) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,165.2) (203.2,242) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,166.4) (204.4,243.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (151.84,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,48.4) (120.76,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,86.4) (169.6,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,163.4) (169.6,240.2) (0,0) (1,1) #FFFF9C80
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -315,16 +315,16 @@ imgui Separator
 imgui SetCursorPosY 11
 imgui Dummy (164,66)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (130.72,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (78.09,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (130.72,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (78.09,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -353,11 +353,11 @@ window AddRectFilled (154,79) (158,83) #A6ABB8FF 0
 window AddRectFilled (154,81) (158,83) #858A99FF 0
 window AddRect (154,69) (158,83) #333640FF 1 0 1
 window AddLine (155,73) (155,78) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (134.08,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (134.08,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -411,31 +411,31 @@ imgui End
 imgui Begin xiframes.us.1
 imgui Dummy (164,229)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,154.4) (172,231.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,155.6) (173.2,232.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (145.41,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (107.46,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (86.66,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (59.73,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,152.6) (155.2,229.4) (0,0) (1,1) #FF959780
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -506,30 +506,30 @@ window AddRectFilled (154,194) (158,198) #A6ABB8FF 0
 window AddRectFilled (154,196) (158,198) #858A99FF 0
 window AddRect (154,184) (158,198) #333640FF 1 0 1
 window AddLine (155,188) (155,193) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,165.2) (203.2,242) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,166.4) (204.4,243.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (151.84,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,48.4) (120.76,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,86.4) (169.6,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,163.4) (169.6,240.2) (0,0) (1,1) #FFFF9C80
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -724,16 +724,16 @@ imgui Separator
 imgui SetCursorPosY 11
 imgui Dummy (164,66)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (130.72,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (78.09,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (130.72,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (78.09,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -762,11 +762,11 @@ window AddRectFilled (154,79) (158,83) #A6ABB8FF 0
 window AddRectFilled (154,81) (158,83) #858A99FF 0
 window AddRect (154,69) (158,83) #333640FF 1 0 1
 window AddLine (155,73) (155,78) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (134.08,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (134.08,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -820,26 +820,26 @@ imgui End
 imgui Begin xiframes.us.2
 imgui Dummy (164,154)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (155.2,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (118.48,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (140.51,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (100.12,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (155.2,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (118.48,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (140.51,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (100.12,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -896,26 +896,26 @@ window AddRectFilled (154,156) (158,160) #A6ABB8FF 0
 window AddRectFilled (154,158) (158,160) #858A99FF 0
 window AddRect (154,146) (158,160) #333640FF 1 0 1
 window AddLine (155,150) (155,155) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (169.6,87.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,48.4) (165.16,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,86.4) (169.6,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,125.4) (168.71,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (169.6,56) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,79.6) (165.16,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,156.6) (168.71,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -1053,16 +1053,16 @@ imgui End
 imgui Begin xiframes.us.3
 imgui Dummy (164,77)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (125.82,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (70.74,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (125.82,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (70.74,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -1091,16 +1091,16 @@ window AddRectFilled (154,79) (158,83) #A6ABB8FF 0
 window AddRectFilled (154,81) (158,83) #858A99FF 0
 window AddRect (154,69) (158,83) #333640FF 1 0 1
 window AddLine (155,73) (155,78) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,10.4) (125.2,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,48.4) (169.6,125.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,41.6) (125.2,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,79.6) (169.6,94) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -1175,11 +1175,11 @@ imgui End
 imgui Begin xiframes.tgt.main
 imgui Dummy (164,39)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (86.66,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (86.66,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -1219,31 +1219,31 @@ imgui End
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (164,229)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,154.4) (172,231.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,155.6) (173.2,232.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (145.41,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (107.46,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (86.66,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (59.73,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,152.6) (155.2,229.4) (0,0) (1,1) #FF959780
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -1314,30 +1314,30 @@ window AddRectFilled (154,194) (158,198) #A6ABB8FF 0
 window AddRectFilled (154,196) (158,198) #858A99FF 0
 window AddRect (154,184) (158,198) #333640FF 1 0 1
 window AddLine (155,188) (155,193) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,165.2) (203.2,242) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,166.4) (204.4,243.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (151.84,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,48.4) (120.76,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,86.4) (169.6,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,163.4) (169.6,240.2) (0,0) (1,1) #FFFF9C80
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -1532,16 +1532,16 @@ imgui Separator
 imgui SetCursorPosY 11
 imgui Dummy (164,66)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (130.72,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (78.09,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (130.72,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (78.09,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -1570,11 +1570,11 @@ window AddRectFilled (154,79) (158,83) #A6ABB8FF 0
 window AddRectFilled (154,81) (158,83) #858A99FF 0
 window AddRect (154,69) (158,83) #333640FF 1 0 1
 window AddLine (155,73) (155,78) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (134.08,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (134.08,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -1637,31 +1637,31 @@ imgui End
 imgui Begin xiframes.us.1
 imgui Dummy (164,229)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,154.4) (172,231.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,155.6) (173.2,232.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (145.41,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (107.46,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (86.66,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (59.73,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,152.6) (155.2,229.4) (0,0) (1,1) #FF959780
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -1732,30 +1732,30 @@ window AddRectFilled (154,194) (158,198) #A6ABB8FF 0
 window AddRectFilled (154,196) (158,198) #858A99FF 0
 window AddRect (154,184) (158,198) #333640FF 1 0 1
 window AddLine (155,188) (155,193) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,165.2) (203.2,242) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,166.4) (204.4,243.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (151.84,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,48.4) (120.76,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,86.4) (169.6,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,163.4) (169.6,240.2) (0,0) (1,1) #FFFF9C80
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -1950,16 +1950,16 @@ imgui Separator
 imgui SetCursorPosY 11
 imgui Dummy (164,66)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (130.72,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (78.09,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (130.72,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (78.09,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -1988,11 +1988,11 @@ window AddRectFilled (154,79) (158,83) #A6ABB8FF 0
 window AddRectFilled (154,81) (158,83) #858A99FF 0
 window AddRect (154,69) (158,83) #333640FF 1 0 1
 window AddLine (155,73) (155,78) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (134.08,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (134.08,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -2055,26 +2055,26 @@ imgui End
 imgui Begin xiframes.us.2
 imgui Dummy (164,154)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (155.2,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (118.48,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (140.51,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (100.12,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (155.2,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (118.48,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (140.51,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (100.12,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -2131,26 +2131,26 @@ window AddRectFilled (154,156) (158,160) #A6ABB8FF 0
 window AddRectFilled (154,158) (158,160) #858A99FF 0
 window AddRect (154,146) (158,160) #333640FF 1 0 1
 window AddLine (155,150) (155,155) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (169.6,87.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,48.4) (165.16,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,86.4) (169.6,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,125.4) (168.71,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (169.6,56) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,79.6) (165.16,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,156.6) (168.71,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -2288,16 +2288,16 @@ imgui End
 imgui Begin xiframes.us.3
 imgui Dummy (164,77)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (125.82,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (70.74,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (125.82,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (70.74,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -2326,16 +2326,16 @@ window AddRectFilled (154,79) (158,83) #A6ABB8FF 0
 window AddRectFilled (154,81) (158,83) #858A99FF 0
 window AddRect (154,69) (158,83) #333640FF 1 0 1
 window AddLine (155,73) (155,78) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,10.4) (125.2,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,48.4) (169.6,125.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,41.6) (125.2,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,79.6) (169.6,94) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -2410,11 +2410,11 @@ imgui End
 imgui Begin xiframes.tgt.main
 imgui Dummy (164,39)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (86.66,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (86.66,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -2593,31 +2593,31 @@ imgui End
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (164,229)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,154.4) (172,231.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,155.6) (173.2,232.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (145.41,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (107.46,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (86.66,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (59.73,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,152.6) (155.2,229.4) (0,0) (1,1) #FF959780
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -2688,30 +2688,30 @@ window AddRectFilled (154,194) (158,198) #A6ABB8FF 0
 window AddRectFilled (154,196) (158,198) #858A99FF 0
 window AddRect (154,184) (158,198) #333640FF 1 0 1
 window AddLine (155,188) (155,193) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,165.2) (203.2,242) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,166.4) (204.4,243.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (151.84,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,48.4) (120.76,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,86.4) (169.6,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,163.4) (169.6,240.2) (0,0) (1,1) #FFFF9C80
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -2906,16 +2906,16 @@ imgui Separator
 imgui SetCursorPosY 11
 imgui Dummy (164,66)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (130.72,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (78.09,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (130.72,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (78.09,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -2944,11 +2944,11 @@ window AddRectFilled (154,79) (158,83) #A6ABB8FF 0
 window AddRectFilled (154,81) (158,83) #858A99FF 0
 window AddRect (154,69) (158,83) #333640FF 1 0 1
 window AddLine (155,73) (155,78) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (134.08,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (134.08,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -3013,31 +3013,31 @@ over AddRectFilled (100,180) (115,198) #141414CC 2
 over AddText (104,182) #CFCF80FF Party
 imgui Dummy (164,229)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,154.4) (172,231.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,155.6) (173.2,232.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (145.41,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (107.46,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (86.66,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (59.73,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,152.6) (155.2,229.4) (0,0) (1,1) #FF959780
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -3108,30 +3108,30 @@ window AddRectFilled (154,194) (158,198) #A6ABB8FF 0
 window AddRectFilled (154,196) (158,198) #858A99FF 0
 window AddRect (154,184) (158,198) #333640FF 1 0 1
 window AddLine (155,188) (155,193) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,165.2) (203.2,242) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,166.4) (204.4,243.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (151.84,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,48.4) (120.76,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,86.4) (169.6,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,163.4) (169.6,240.2) (0,0) (1,1) #FFFF9C80
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -3326,16 +3326,16 @@ imgui Separator
 imgui SetCursorPosY 11
 imgui Dummy (164,66)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (130.72,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (78.09,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (130.72,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (78.09,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -3364,11 +3364,11 @@ window AddRectFilled (154,79) (158,83) #A6ABB8FF 0
 window AddRectFilled (154,81) (158,83) #858A99FF 0
 window AddRect (154,69) (158,83) #333640FF 1 0 1
 window AddLine (155,73) (155,78) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (134.08,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (134.08,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -3433,36 +3433,36 @@ over AddRectFilled (100,180) (115,198) #141414CC 2
 over AddText (104,182) #CFCF80FF Alliance 2
 imgui Dummy (164,231)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,154.4) (172,231.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,193.4) (172,270.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,155.6) (173.2,232.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,194.6) (173.2,271.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,191.6) (170.8,268.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (155.2,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (118.48,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (140.51,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (100.12,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,152.6) (63.4,229.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,191.6) (63.4,268.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,191.6) (170.8,268.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,223.4) (161.2,240.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,224.6) (162.4,241.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,221.6) (160,238.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (155.2,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (118.48,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (140.51,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (100.12,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (63.4,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,221.6) (63.4,238.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,221.6) (160,238.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -3547,36 +3547,36 @@ window AddRectFilled (154,233) (158,237) #A6ABB8FF 0
 window AddRectFilled (154,235) (158,237) #858A99FF 0
 window AddRect (154,223) (158,237) #333640FF 1 0 1
 window AddLine (155,227) (155,232) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,165.2) (203.2,242) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,204.2) (203.2,281) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,166.4) (204.4,243.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,205.4) (204.4,282.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,202.4) (202,279.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (169.6,87.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,48.4) (165.16,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,86.4) (169.6,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,125.4) (168.71,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,163.4) (116.32,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,202.4) (116.32,279.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,202.4) (202,279.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,235.4) (175.6,249.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,236.6) (176.8,251) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,233.6) (174.4,248) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (169.6,56) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,79.6) (165.16,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,156.6) (168.71,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,194.6) (116.32,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,233.6) (116.32,248) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,233.6) (174.4,248) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -3784,36 +3784,36 @@ over AddRectFilled (100,180) (115,198) #141414CC 2
 over AddText (104,182) #CFCF80FF Alliance 3
 imgui Dummy (164,231)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,39.4) (172,116.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,77.4) (172,154.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,116.4) (172,193.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,154.4) (172,231.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (18.4,193.4) (172,270.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,40.6) (173.2,117.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,78.6) (173.2,155.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,117.6) (173.2,194.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,155.6) (173.2,232.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (19.6,194.6) (173.2,271.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage BarBG.png (17.2,191.6) (170.8,268.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (125.82,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,37.6) (70.74,114.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,75.6) (63.4,152.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,114.6) (63.4,191.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,152.6) (63.4,229.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,191.6) (63.4,268.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,37.6) (170.8,114.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,75.6) (170.8,152.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,114.6) (170.8,191.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,152.6) (170.8,229.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,191.6) (170.8,268.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (29.2,223.4) (161.2,240.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (30.4,224.6) (162.4,241.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (28,221.6) (160,238.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (125.82,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,67.6) (70.74,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (63.4,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (63.4,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (63.4,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,221.6) (63.4,238.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,221.6) (160,238.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0
@@ -3898,36 +3898,36 @@ window AddRectFilled (154,233) (158,237) #A6ABB8FF 0
 window AddRectFilled (154,235) (158,237) #858A99FF 0
 window AddRect (154,223) (158,237) #333640FF 1 0 1
 window AddLine (155,227) (155,232) #F7F7FFFF 1
-window AddImage AllyBarBgMP.png (49.6,12.2) (203.2,89) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,50.2) (203.2,127) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,88.2) (203.2,165) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,127.2) (203.2,204) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,165.2) (203.2,242) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (49.6,204.2) (203.2,281) (0,0) (1,1) #00000073
-window AddImage AllyBarBgMP.png (50.8,13.4) (204.4,90.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,51.4) (204.4,128.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,89.4) (204.4,166.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,128.4) (204.4,205.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,166.4) (204.4,243.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (50.8,205.4) (204.4,282.2) (0,0) (1,1) #00000033
-window AddImage AllyBarBgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarBgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarBgMP.png (48.4,202.4) (202,279.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,10.4) (125.2,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,48.4) (169.6,125.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarMP.png (80.8,86.4) (116.32,163.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,125.4) (116.32,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,163.4) (116.32,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarMP.png (80.8,202.4) (116.32,279.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,10.4) (202,87.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,48.4) (202,125.2) (0,0) (1,1) #8C8C8CFF
-window AddImage AllyBarFgMP.png (48.4,86.4) (202,163.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,125.4) (202,202.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,163.4) (202,240.2) (0,0) (1,1) #FFFF9CFF
-window AddImage AllyBarFgMP.png (48.4,202.4) (202,279.2) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (77.2,235.4) (175.6,249.8) (0,0) (1,1) #00000073
+window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
+window AddImage mp_back.png (78.4,236.6) (176.8,251) (0,0) (1,1) #00000033
+window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,233.6) (174.4,248) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,41.6) (125.2,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,79.6) (169.6,94) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,117.6) (116.32,132) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,156.6) (116.32,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,194.6) (116.32,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,233.6) (116.32,248) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (76,233.6) (174.4,248) (0,0) (1,1) #FFFF9CFF
 window AddRectFilled (78,43) (82,54) #C7CCD6FF 1
 window AddRectFilled (78,43) (82,47) #A6ABB8FF 0
 window AddRectFilled (78,43) (82,45) #858A99FF 0
@@ -4135,11 +4135,11 @@ over AddRectFilled (100,180) (115,198) #141414CC 2
 over AddText (104,182) #CFCF80FF Target
 imgui Dummy (164,39)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage BarBG.png (18.4,1.4) (172,78.2) (0,0) (1,1) #00000073
-window AddImage BarBG.png (19.6,2.6) (173.2,79.4) (0,0) (1,1) #00000033
-window AddImage BarBG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
-window AddImage Bar.png (32.8,-0.4) (124.6,76.4) (0,0) (1,1) #FF9597FF
-window AddImage BarFG.png (17.2,-0.4) (170.8,76.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
+window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
+window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,29.6) (124.6,46.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
 window AddRectFilled (30,31) (34,45) #C7CCD6FF 1
 window AddRectFilled (30,31) (34,35) #A6ABB8FF 0
 window AddRectFilled (30,31) (34,33) #858A99FF 0

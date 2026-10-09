@@ -2,7 +2,7 @@
 -- line is a name, an HP bar and a smaller MP bar with their figures, and TP as a figure alone, set out
 -- the way XivParty, a party list addon for Windower 4 by Tylas, sets out its compact layout
 -- (https://github.com/Tylas11/XivParty; its layouts/ffxi2.xml). The bars are that addon's images, in
--- assets with its licence. What is XivParty's and is not here: its background, job icons and cursor;
+-- assets/bars with its licence. What is XivParty's and is not here: its background, job icons and cursor;
 -- its glow over a bar that changes; buffs sorted debuffs first; a mark for the quartermaster; and
 -- anything happening on hovering or clicking a member. What is here and is not XivParty's: a soft
 -- shadow under each bar, silver bookends at its ends, and circles for leaders.
@@ -47,9 +47,6 @@ local frames = { }
 
 local castRange = 20.79       -- beyond this a member's bars are dimmed, and beyond targetRange dimmed further
 local targetRange = 50
-local pointsToPixels = 4 / 3  -- XivParty's text sizes are in points
-local baseScale = 1.2         -- how much larger than XivParty's own sizes the lists are at a scale of 100
-local textScale = 1.15        -- and how much larger again the text is, to be read more easily
 
 -- A colour as XivParty's layouts write it
 local function Hex(code)
@@ -69,49 +66,53 @@ local tpPulsePeriod = 1.2
 local tpPulse = { 0, 0, 0, 1 } -- the colour it is this frame
 local noMpGrey = { 0.55, 0.55, 0.55, 1 } -- the MP bar of a member with no MP to have: grey, and full
 
--- The images of a bar: a back, the fill that is as long as the bar is full (it starts fillX across
--- and is fillWidth long when full), and a front. color tints all three. Each image is a good deal
--- taller than the bar drawn in it: bottom is how far down the image the bar itself ends.
--- body is where in the image the bar itself is, left, top, right and bottom: its ends are where the
--- bookends go.
-local hpImages = { width = 128, height = 64, fillX = 13, fillWidth = 102, bottom = 36, body = { 12, 28, 116, 36 },
-    back = 'ffxi/BarBG.png', fill = 'ffxi/Bar.png', front = 'ffxi/BarFG.png', color = Hex('FF9597') }
-local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74, bottom = 35, body = { 26, 29, 102, 35 },
-    back = 'ffxi/AllyBarBgMP.png', fill = 'ffxi/AllyBarMP.png', front = 'ffxi/AllyBarFgMP.png', color = Hex('FFFF9C') }
-local barShadowReach = 2.5 -- how far below a bar its shadow goes
+local barShadowReach = 3 -- how far below a bar its shadow goes
+local hpColor, mpColor = Hex('FF9597'), Hex('FFFF9C') -- what the bars' images, which are grey, are tinted
 
 -- The bookends: a small silver cap at each end of a bar, as tall as the whole bar, frame and all, and
 -- standing half on it, after the ones the bars of the game's own party list have
-local bookend = { width = 3, over = 1.5 } -- how wide a cap is, and how far past the bar's inside its frame goes, above and below
+local bookend = { width = 3.6, over = 1.8 } -- how wide a cap is, and how far past the bar's inside its frame goes, above and below
 local bookendSilver = { 0.78, 0.80, 0.84, 1 }
 local bookendShade = { 0.52, 0.54, 0.60, 1 } -- towards its top and bottom, as a bar's frame darkens towards its own
 local bookendHalfShade = { 0.65, 0.67, 0.72, 1 } -- and between that and the silver
 local bookendShine = { 0.97, 0.97, 1.00, 1 }
 local bookendEdge = { 0.20, 0.21, 0.25, 1 }
 
--- The layout, in XivParty's own numbers: places and sizes are in its units, from the top left of a
--- member's line. A figure's place is from its bar's; with alignRight its right end goes there.
--- XivParty has a job icon and a cursor to the left of the name. Neither is drawn here, and everything
--- is that much further left: the name starts the line. The two figures are a unit further apart than
--- XivParty has them, for the larger text.
+-- The layout: where everything on a line is, from the line's top left, and how big, in pixels at a
+-- scale of 100. It began as XivParty's own numbers, a fifth larger, without the job icon and cursor
+-- that layout has to the left of the name: the name starts the line.
+--
+-- A bar is three images, a back, a fill and a front, tinted its colour. frame is where the back and
+-- the front go; the fill starts at fill.x, on the frame's top and of its height, and is fill.width
+-- long when the bar is full. body is the inside of the bar: its ends are where the bookends go, and
+-- its bottom is what a line's height is reckoned from. figure is where the bar's value is written:
+-- with alignRight its right end goes there.
 local layout = {
-    width = 136, rowHeight = 32,
-    valueSize = 8, -- the HP, MP and TP figures are written at one size
-    hp = { value = 'hp', x = 6, y = -17, images = hpImages, figure = { x = 114, y = 21, alignRight = true } },
-    mp = { value = 'mp', x = 32, y = -8, images = mpImages, figure = { x = 100, y = 23, alignRight = true } },
+    width = 163.2, rowHeight = 38.4,
+    valueSize = 14.72, -- the HP, MP and TP figures are written at one size, in pixels as the names' is
+    hp = { value = 'hp', color = hpColor,
+           back = 'bars/hp_back.png', fillImage = 'bars/hp_fill.png', front = 'bars/hp_front.png',
+           frame = { x = 18, y = 9.6, width = 132, height = 16.8 },
+           fill = { x = 22.8, width = 122.4 },
+           body = { left = 21.6, top = 13.2, right = 146.4, bottom = 22.8 },
+           figure = { x = 144, y = 4.8, alignRight = true } },
+    mp = { value = 'mp', color = mpColor,
+           back = 'bars/mp_back.png', fillImage = 'bars/mp_fill.png', front = 'bars/mp_front.png',
+           frame = { x = 66, y = 21.6, width = 98.4, height = 14.4 },
+           fill = { x = 70.8, width = 88.8 },
+           body = { left = 69.6, top = 25.2, right = 160.8, bottom = 32.4 },
+           figure = { x = 158.4, y = 18, alignRight = true } },
     -- a target's HP figure, in place of the one above: under the bar, level with the TP figure, its
     -- right end at the bar's. It goes up and down with the TP figure, wherever that has been moved to
     -- (levelWithTp), and is not moved as the HP figure on a bar is.
-    targetHpFigure = { x = 115, y = 35, alignRight = true, levelWithTp = true },
+    targetHpFigure = { x = 145.2, y = 21.6, alignRight = true, levelWithTp = true },
     -- TP is a figure alone, to the left of the MP bar: in the same place on every line, the player's
-    -- party, the other two and the pets alike. XivParty puts it elsewhere for the other parties, and
-    -- writes it smaller than HP and MP; here the three are one size (valueSize), and TP is a little
-    -- higher to stay level with the MP bar.
-    tp = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 18, alignRight = true } },
-    name = { x = 0, y = 0, size = 10, maxChars = 9 },
-    zone = { x = 136, y = 14, size = 10, maxChars = 16 }, -- its right end goes at x
-    -- the buffs run leftwards from the window's edge, sixteen at most
-    buffs = { y = 5, size = 20, gap = 4, most = 16 },
+    -- party, the other two and the pets alike, and level with the MP bar
+    tp = { value = 'tp', figure = { x = 67.2, y = 21.6, alignRight = true } },
+    name = { x = 0, y = 0, size = 18.4, maxChars = 9 },
+    zone = { x = 163.2, y = 16.8, size = 18.4, maxChars = 16 }, -- its right end goes at x
+    -- the buffs run leftwards from the window's edge, sixteen at most; gap is between the two, whatever the scale
+    buffs = { y = 6, size = 24, gap = 4, most = 16 },
 }
 
 -- What is being drawn: set by Draw and by each member's turn, and read by the helpers below
@@ -141,9 +142,9 @@ end
 local outlineEdge = 1     -- how thick winxi's dark edge is, for this list
 local outlinePacked = 0   -- and its colour
 
--- The size of font, in pixels, for text of a size in points
-local function FontSize(points)
-    return points * pointsToPixels * textScale * scale
+-- The size of font on screen for text of a size in the layout
+local function FontSize(size)
+    return size * scale
 end
 
 -- A line of text at a place in the layout's units, in the font in use: the font is pushed by whoever
@@ -250,29 +251,29 @@ local lineStates, lineY = { }, { }
 -- Under a bar goes a soft shadow, down and to the right, to lift it off the window: the bar's own back
 -- in black, twice, the further one fainter.
 local function ShadowNear(place)
-    local images = place.images
-    Image(images.back, place.x + 1, place.y + 1.5, images.width, images.height, black, 0.45)
+    local frame = place.frame
+    Image(place.back, frame.x + 1.2, frame.y + 1.8, frame.width, frame.height, black, 0.45)
 end
 
 local function ShadowFar(place)
-    local images = place.images
-    Image(images.back, place.x + 2, place.y + 2.5, images.width, images.height, black, 0.2)
+    local frame = place.frame
+    Image(place.back, frame.x + 2.4, frame.y + 3, frame.width, frame.height, black, 0.2)
 end
 
 -- A line's bar is in the bar's own colour unless the line has another for it (bar.color)
 local function Back(place, bar)
-    local images = place.images
-    Image(images.back, place.x, place.y, images.width, images.height, bar.color or images.color)
+    local frame = place.frame
+    Image(place.back, frame.x, frame.y, frame.width, frame.height, bar.color or place.color)
 end
 
 local function Fill(place, bar, opacity)
-    local images = place.images
-    Image(images.fill, place.x + images.fillX, place.y, images.fillWidth * bar.fraction, images.height, bar.color or images.color, opacity)
+    local frame, fill = place.frame, place.fill
+    Image(place.fillImage, fill.x, frame.y, fill.width * bar.fraction, frame.height, bar.color or place.color, opacity)
 end
 
 local function Front(place, bar)
-    local images = place.images
-    Image(images.front, place.x, place.y, images.width, images.height, bar.color or images.color)
+    local frame = place.frame
+    Image(place.front, frame.x, frame.y, frame.width, frame.height, bar.color or place.color)
 end
 
 -- A bar's two bookends. Each is a silver cap, darker towards its top and bottom in two steps as the
@@ -301,10 +302,10 @@ end
 
 -- the top and bottom of a cap are those of the bar's frame
 local function Bookends(place)
-    local body = place.images.body
-    local top, bottom = place.y + body[2] - bookend.over, place.y + body[4] + bookend.over
-    Cap(place.x + body[1], top, bottom)
-    Cap(place.x + body[3], top, bottom)
+    local body = place.body
+    local top, bottom = body.top - bookend.over, body.bottom + bookend.over
+    Cap(body.left, top, bottom)
+    Cap(body.right, top, bottom)
 end
 
 -- One layer of a bar, for every line that has the bar: every line in the area has an HP bar, and an
@@ -419,7 +420,7 @@ local function DrawFigure(place, member, kept, fontSize, figure)
     end
 
     figure = figure or place.figure
-    local x, y = place.x + figure.x, place.y + figure.y
+    local x, y = figure.x, figure.y
     if figure.levelWithTp then
         local tpOffset = valueOffsets.tp
         y = y + (tpOffset and tonumber(tpOffset[2]) or 0)
@@ -468,42 +469,42 @@ end
 -- it is the last in its window. Never more than a row.
 local function LineHeight(member, kind, showMp, showTp)
     local name = layout.name
-    local bottom = name.y + name.size * pointsToPixels * textScale * nameScale
+    local bottom = name.y + name.size * nameScale
 
     if not member.isInZone then
         -- the area's name is all there is under the member's own
         local zone = layout.zone
-        bottom = math.max(bottom, zone.y + zone.size * pointsToPixels * textScale)
+        bottom = math.max(bottom, zone.y + zone.size)
     else
-        local valueHeight = layout.valueSize * pointsToPixels * textScale * valueScale
+        local valueHeight = layout.valueSize * valueScale
         local tpOffset = valueOffsets.tp
         local tpOffsetY = tpOffset and tonumber(tpOffset[2]) or 0
 
         local hp = layout.hp
-        bottom = math.max(bottom, hp.y + hp.images.bottom + barShadowReach)
+        bottom = math.max(bottom, hp.body.bottom + barShadowReach)
         if kind == 'target' then
-            bottom = math.max(bottom, hp.y + layout.targetHpFigure.y + tpOffsetY + valueHeight)
+            bottom = math.max(bottom, layout.targetHpFigure.y + tpOffsetY + valueHeight)
         else
             local offset = valueOffsets.hp
-            bottom = math.max(bottom, hp.y + hp.figure.y + (offset and tonumber(offset[2]) or 0) + valueHeight)
+            bottom = math.max(bottom, hp.figure.y + (offset and tonumber(offset[2]) or 0) + valueHeight)
         end
 
         if member.mpp ~= nil then
             local mp = layout.mp
-            bottom = math.max(bottom, mp.y + mp.images.bottom + barShadowReach)
+            bottom = math.max(bottom, mp.body.bottom + barShadowReach)
             if showMp and not member.noMp then
                 local offset = valueOffsets.mp
-                bottom = math.max(bottom, mp.y + mp.figure.y + (offset and tonumber(offset[2]) or 0) + valueHeight)
+                bottom = math.max(bottom, mp.figure.y + (offset and tonumber(offset[2]) or 0) + valueHeight)
             end
         end
 
         if showTp and member.tp ~= nil then
             local tp = layout.tp
-            bottom = math.max(bottom, tp.y + tp.figure.y + tpOffsetY + valueHeight)
+            bottom = math.max(bottom, tp.figure.y + tpOffsetY + valueHeight)
         end
     end
 
-    return math.min(layout.rowHeight, bottom + 1)
+    return math.min(layout.rowHeight, bottom + 1.2)
 end
 
 local room = { 0, 0 }
@@ -516,9 +517,9 @@ end
 
 local usual = { }
 
--- How many pixels one of the layout's units is, for a style: for whatever else is drawn at the frames' size
+-- How much larger or smaller than the layout a style draws: for whatever else is drawn at the frames' size
 function frames.Scale(style)
-    return baseScale * Percent((style or usual).scale)
+    return Percent((style or usual).scale)
 end
 
 function frames.Draw(members, kind, StatusTexture, style)
@@ -528,7 +529,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     end
 
     style = style or usual
-    scale = baseScale * Percent(style.scale)
+    scale = Percent(style.scale)
     valueScale = Percent(style.valueSize)
     nameScale = Percent(style.nameSize)
     buffScale = Percent(style.buffSize)
@@ -581,7 +582,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     drawList:PushClipRect(clipMin, clipMax, false)
     draw.Use(drawList)
 
-    outlineEdge = math.max(1, math.floor(scale / baseScale + 0.5))
+    outlineEdge = math.max(1, math.floor(scale + 0.5))
     if outlined then
         outlinePacked = imgui.GetColorU32(outlinedText.OutlineColor)
     end

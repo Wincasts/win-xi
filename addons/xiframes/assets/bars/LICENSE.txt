@@ -1,6 +1,7 @@
 The images in this folder are from XivParty, a party list addon for Windower 4 by Tylas
-(https://github.com/Tylas11/XivParty), used unchanged. xilite's XivParty Style arranges the party lists
-as that addon's compact layout does, with them. They are distributed under XivParty's licence:
+(https://github.com/Tylas11/XivParty): the bars of its "ffxi" layouts, each cut down to the bar itself
+from the larger, mostly empty image it came in, and otherwise unchanged. They are distributed under
+XivParty's licence:
 
 Copyright © 2024, Tylas
 All rights reserved.

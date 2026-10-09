@@ -22,6 +22,12 @@ options.Version = 2
 
 local unitsNote = '\nThe number is in the frames\' own units, so it keeps its proportion as the scale changes.'
 
+-- A distance in the settings is in units of this many pixels at a scale of 100: what the frames were
+-- laid out in when the settings were first kept, so that what was set then still means what it did.
+-- Everything that draws works in pixels: options.Style, and whoever else reads a distance from the
+-- settings, turns units into them.
+options.Unit = 1.2
+
 -- The kinds of entry:
 --   check     a checkbox                        default true or false
 --   slider    a whole number between two        default, min, max, format
@@ -275,13 +281,19 @@ end
 -- How the frames are to be drawn, from the settings: one table, filled in afresh each time it is
 -- asked for, to be used at once. Whoever asks may set what is their own on it: nameChars and trimLast
 -- are left out here, and whether TP is shown may be overruled.
-local style = { }
+local style = { hpOffset = { 0, 0 }, mpOffset = { 0, 0 }, tpOffset = { 0, 0 } }
+
+local function Pixels(into, offset)
+    into[1], into[2] = (tonumber(offset[1]) or 0) * options.Unit, (tonumber(offset[2]) or 0) * options.Unit
+end
 
 function options.Style(saved)
     local kept = saved.style
     style.scale, style.nameSize, style.valueSize, style.buffSize = kept.scale[1], kept.nameSize[1], kept.valueSize[1], kept.buffSize[1]
-    style.buffSpacing, style.buffDistance = kept.buffSpacing[1], kept.buffDistance[1]
-    style.hpOffset, style.mpOffset, style.tpOffset = kept.hpOffset, kept.mpOffset, kept.tpOffset
+    style.buffSpacing, style.buffDistance = kept.buffSpacing[1] * options.Unit, kept.buffDistance[1] * options.Unit
+    Pixels(style.hpOffset, kept.hpOffset)
+    Pixels(style.mpOffset, kept.mpOffset)
+    Pixels(style.tpOffset, kept.tpOffset)
     style.outline, style.bookends, style.tpFlash = kept.outline[1], kept.bookends[1], kept.tpFlash[1]
     style.showMp, style.showTp = kept.showMp[1], kept.showTp[1]
     style.nameChars, style.trimLast = nil, nil

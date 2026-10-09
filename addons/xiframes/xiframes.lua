@@ -85,7 +85,8 @@ local function DrawPartyContent()
             treasure = drawing.sample or notices.TreasureWaiting()
         end
         if invitation ~= nil or treasure then
-            notices.DrawIcons(invitation, treasure, saved.party.iconCorner, saved.party.iconOffset, frames.Scale(style))
+            local offset = saved.party.iconOffset
+            notices.DrawIcons(invitation, treasure, saved.party.iconCorner, offset[1] * options.Unit, offset[2] * options.Unit, frames.Scale(style))
         end
     end
 end
