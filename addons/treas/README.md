@@ -10,8 +10,12 @@ the `treas` tool of xitools and is now an addon of its own, needing only the `wi
 
 With a controller (Controller Navigation, in the settings): the window is up whenever there is treasure,
 so it does not take the controller until `/treas focus` gives it (put that in a macro). Then up and down
-move the highlight, A lots or passes on the highlighted item, X (square) lots or passes on everything,
+move the highlight, A lots or passes on the highlighted item, Y (triangle) lots or passes on everything,
 and B gives the controller back to the game.
+
+X (square) is the window cycle, and another way in: after the game's own windows (the chat windows, then
+the status icons) and the inventory (the `inv` addon), X gives the treasure pool the controller, and X
+again gives it back to the game.
 
 The first time it is loaded for a character it brings over what xitools kept for the tool: its settings,
 the window's place, and xitools' theme and hiding rules.

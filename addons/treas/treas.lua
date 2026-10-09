@@ -108,7 +108,8 @@ end
 -- The window is there whenever there is treasure, in the middle of a fight as much as after it, so it
 -- does not take the controller just by showing: /treas focus (from a macro) gives it the controller
 -- and B, or /treas focus again, gives it back. While it has it, up and down move a highlight over the
--- items, A opens a menu for the highlighted one (lot, pass), and X one for all of them.
+-- items, A opens a menu for the highlighted one (lot, pass), and Y one for all of them. X (square)
+-- is the window cycle's: it gives the window the controller in its turn, and passes it on.
 local pad = {
     options = nil,     -- the settings, as of the frame last drawn
     focused = false,   -- whether the window has been given the controller
@@ -212,10 +213,37 @@ pad.binding = controller.Bind({
     active = PadIsActive,
     actions = {
         [padButtons.DpadUp] = 'up', [padButtons.DpadDown] = 'down',
-        [padButtons.A] = 'confirm', [padButtons.B] = 'back', [padButtons.X] = 'sort',
+        [padButtons.A] = 'confirm', [padButtons.B] = 'back', [padButtons.Y] = 'sort',
+        -- kept from the game and nothing more: the window can have the controller while one of the
+        -- game's own menus is still open behind it
+        [padButtons.DpadLeft] = 'kept', [padButtons.DpadRight] = 'kept',
+        [padButtons.LB] = 'kept', [padButtons.RB] = 'kept',
     },
     repeats = { up = true, down = true },
     press = PadPress,
+})
+
+-- The treasure pool comes after the inventory in the window cycle: X (square) from the inventory, or
+-- from the game's status icons where the inventory is not taking part, gives it the controller, and
+-- X again gives the controller back
+controller.Cycle({
+    order = 2,
+    available = function()
+        local options = pad.options
+        return options ~= nil and options.controller[1] and options.isVisible[1]
+            and os.clock() - pad.drawn < 0.25
+            or false
+    end,
+    focused = PadIsActive,
+    focus = function()
+        pad.focused = true
+    end,
+    unfocus = function()
+        pad.focused = false
+    end,
+    busy = function()
+        return pad.menu ~= nil
+    end,
 })
 
 -- Starts a frame in which the window is drawn
@@ -512,7 +540,7 @@ local function DrawSettings()
     widgets.Label('Controller Navigation (Experimental)')
     imgui.Checkbox('##treas.controller', options.controller)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Work the treasure pool with a controller.\nThe window does not take the controller by itself: /treas focus (from a macro) gives it the controller, and B gives it back.\nUp / down: move the highlight.  A: lot or pass on the highlighted item.  X (square): lot or pass on everything.\nOnly those buttons are kept from the game, and only while the window has the controller.')
+        imgui.SetTooltip('Work the treasure pool with a controller.\nThe window does not take the controller by itself. X (square) gives it the controller in its turn, after the game\'s own round of windows (the chat windows, then the status icons) and the inventory; so does /treas focus. B gives it back.\nUp / down: move the highlight.  A: lot or pass on the highlighted item.  Y (triangle): lot or pass on everything.  X: on to the next window.')
     end
     if options.controller[1] then
         widgets.Label('Controller Sounds')
