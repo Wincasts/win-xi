@@ -7,6 +7,7 @@ run inv        addons/inv/inv.lua       inv_check.lua
 run treas      addons/treas/treas.lua   treas_check.lua
 run controller tests/empty.lua          controller_check.lua
 run xiframes   addons/xiframes/xiframes.lua xiframes_check.lua
+run chime      addons/chime/chime.lua   chime_check.lua
 
 # What xiframes draws, call for call, against a kept copy: any difference is printed. After a change
 # that is meant to alter what is drawn, look the difference over and keep the new copy with

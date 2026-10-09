@@ -31,6 +31,10 @@
 -- time rather than keeping it.
 --
 -- The command with no verb shows or hides the window, and 'config' opens or closes the settings.
+--
+-- An addon with no window of its own, only settings, leaves window out: the command alone then opens
+-- or closes the settings, which have nothing in them about hiding or fading, and isVisible and pos
+-- are not looked for. It calls app:BeginFrame() each frame all the same, for the settings window.
 local bit = require('bit');
 local imgui = require('imgui');
 local settings = require('settings');
@@ -130,17 +134,23 @@ local function DrawConfigContent(app)
                 spec.drawSettings(options);
                 widgets.Gap();
             end
-            widgets.Hide(options.hide, app.save);
+            if spec.window ~= nil then
+                widgets.Hide(options.hide, app.save);
+            end
             imgui.EndTabItem();
         end
         if imgui.BeginTabItem('Appearance') then
             widgets.Appearance(app.appearanceHooks);
 
-            widgets.Header('Addon');
-            widgets.Label('Fade In And Out');
-            imgui.Checkbox(app.ids.fade, options.fadeInOut);
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once.');
+            if spec.window ~= nil or spec.drawAppearance ~= nil then
+                widgets.Header('Addon');
+            end
+            if spec.window ~= nil then
+                widgets.Label('Fade In And Out');
+                imgui.Checkbox(app.ids.fade, options.fadeInOut);
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once.');
+                end
             end
             if spec.drawAppearance ~= nil then
                 spec.drawAppearance(options);
@@ -193,7 +203,9 @@ local function OnCommand(app, e)
 
     local options = app.options;
     local verb = args[2] and args[2]:lower() or nil;
-    if verb == nil then
+    if verb == nil and spec.window == nil then
+        app:ToggleConfig();
+    elseif verb == nil then
         options.isVisible[1] = not options.isVisible[1];
     elseif verb == 'config' then
         app:ToggleConfig();
