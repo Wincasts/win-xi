@@ -19,6 +19,8 @@
 --     valueSize   a percentage for the size of the HP, MP and TP figures alone
 --     nameSize    a percentage for the size of the names alone
 --     buffSize    a percentage for the size of the buff icons alone
+--     buffDistance  how much further from the window than usual the buffs start, in the layout's
+--                 units: less than nothing brings them closer, and over it
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
 --     nameChars   how many characters of a name are written before it is cut short, in place of the
 --                 nine a party member's is allowed
@@ -565,7 +567,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
 
     -- only the player's own party shows buffs: they start a little clear of the window's left edge
     if kind == 'party' then
-        local buffsX = (imgui.GetWindowPos() - layout.buffs.gap - itemX) / scale
+        local buffsX = (imgui.GetWindowPos() - layout.buffs.gap - itemX) / scale - (tonumber(settings.buffDistance) or 0)
         for index = 1, count do
             if lineStates[index].inZone then
                 itemY = lineY[index]
