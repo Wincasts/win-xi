@@ -151,10 +151,10 @@ addons agree among themselves whose turn it is:
 ```lua
 controller.Cycle({
     order     = 1,
-    available = function() return settings.Controller end,    -- could it take the controller now
+    available = function() return windowIsShowing end,        -- could it take the controller now
     focused   = function() return windowHasController end,
-    focus     = function() windowIsShowing = true end,
-    unfocus   = function() windowIsShowing = false end,
+    focus     = function() windowHasController = true end,
+    unfocus   = function() windowHasController = false end,   -- the window stays open
     busy      = function() return menu ~= nil end,            -- optional: X does nothing meanwhile
 });
 ```

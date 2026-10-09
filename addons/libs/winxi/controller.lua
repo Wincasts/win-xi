@@ -24,15 +24,17 @@
 --
 -- The window cycle. The game's X (square) steps through its own windows: the chat windows, then the
 -- status icons, then round again. An addon's window joins the end of that with controller.Cycle: on
--- the press that would start the game's round again, the first winxi window takes the controller
--- instead, the next press gives it to the one after, and after the last the press goes to the game.
+-- the press that would start the game's round again, the first winxi window that is open takes the
+-- controller instead, the next press gives it to the one after, and after the last the press goes to
+-- the game. The cycle moves the controller between windows that are open: it is not for opening or
+-- closing them.
 --
 --     controller.Cycle({
 --         order     = 1,                          -- its place among winxi windows, lowest first
 --         available = function() return ... end,   -- whether it could take the controller now
 --         focused   = function() return ... end,   -- whether it has it
---         focus     = function() ... end,          -- take it (show the window)
---         unfocus   = function() ... end,          -- let go of it
+--         focus     = function() ... end,          -- take it
+--         unfocus   = function() ... end,          -- let go of it (the window stays as it is)
 --         busy      = function() return ... end,   -- optional: true while X should do nothing (a menu is open)
 --     });
 --
