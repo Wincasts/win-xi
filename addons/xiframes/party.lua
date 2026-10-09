@@ -155,12 +155,12 @@ end
 local mpJobs = { [3] = true, [4] = true, [5] = true, [7] = true, [8] = true, [15] = true, [16] = true, [20] = true, [21] = true, [22] = true } -- WHM BLM RDM PLD DRK SMN BLU SCH GEO RUN
 local seenWithMp = { } -- server id -> the jobs they had when last seen with MP: main * 100 + sub
 
-local function HasNoMp(place, party, serverId, mp, mpp)
+local function HasNoMp(place, party, serverId, mp, mpp, main)
     if place == 0 then
         return AshitaCore:GetMemoryManager():GetPlayer():GetMPMax() == 0
     end
 
-    local main, sub = party:GetMemberMainJob(place), party:GetMemberSubJob(place)
+    local sub = party:GetMemberSubJob(place)
     local jobs = main * 100 + sub
     if mp > 0 or mpp > 0 then
         seenWithMp[serverId] = jobs
@@ -214,14 +214,15 @@ local function ReadMember(place, party, stal)
         member.isSubTarget = false
     end
     member.isPartyTarget = stal ~= nil and stal == place
-    member.job = game.JobAbbr(party:GetMemberMainJob(place))
+    local main = party:GetMemberMainJob(place)
+    member.job = game.JobAbbr(main)
     member.zoneId = zone
     member.hpp = party:GetMemberHPPercent(place)
     member.mpp = party:GetMemberMPPercent(place)
     member.hp = party:GetMemberHP(place)
     member.mp = party:GetMemberMP(place)
     member.tp = party:GetMemberTP(place)
-    member.noMp = HasNoMp(place, party, serverId, member.mp, member.mpp)
+    member.noMp = HasNoMp(place, party, serverId, member.mp, member.mpp, main)
     member.entity = nil
 
     -- buffs are shown for the player's own party alone

@@ -18,6 +18,12 @@ scene() {
     else echo "xiframes drawn ($1): as kept	false"; head -20 /tmp/xiframes_scene_diff.$$; fi
     rm -f /tmp/xiframes_scene_diff.$$
 }
+# What a frame of xiframes costs, counted over the same scene:
+#   ./tests/run.sh measure
+if [[ "$1" == measure ]]; then
+    luajit tests/capture.lua xiframes addons/xiframes/xiframes.lua tests/xiframes_scene.lua tests/fixtures/xiframes_v1_settings.lua plain measure 2>&1
+    exit
+fi
 echo "== xiframes scene"
 scene plain "$1"
 scene bare "$1"
