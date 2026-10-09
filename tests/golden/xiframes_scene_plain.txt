@@ -747,7 +747,7 @@ window AddText (66,39) #FFFFFFFF 4.0m
 imgui PopFont
 window PopClipRect
 imgui End
-## with an alliance invite and treasure waiting (plain): 766 calls
+## with an alliance invite and treasure waiting (plain): 758 calls
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (164,229)
 window PushClipRect (0,0) (1920,1080) false
@@ -1000,15 +1000,11 @@ window AddText (140,63) #000000E6 37%
 window AddText (139,62) #FFFFFFFF 37%
 imgui PopFont
 window PopClipRect
-over AddRectFilled (378,208) (393.6,218.8) #E64038B6 2
-over AddRect (378,208) (393.6,218.8) #0D0D0DD9 2 0 1
-over AddLine (378,208) (385.8,213.94) #0D0D0DD9 1
-over AddLine (393.6,208) (385.8,213.94) #0D0D0DD9 1
-over AddRectFilled (359,207) (373,219) #9E662ED9 2
-over AddRectFilled (359,211) (373,213) #F2CC4DD9 0
-over AddRectFilled (364,210) (367,215) #F2CC4DD9 1
-over AddRect (364,210) (367,215) #0D0D0DD9 1 0 1
-over AddRect (359,207) (373,219) #0D0D0DD9 2 0 1
+over AddCircleFilled (388,213) 5.5 #E64038B6 24
+over AddCircle (388,213) 5.5 #0D0D0DD9 24 1
+over AddCircleFilled (371,213) 5.5 #9E662ED9 24
+over AddCircle (371,213) 4.1 #F2CC4DD9 24 1.8
+over AddCircle (371,213) 5.5 #0D0D0DD9 24 1
 imgui End
 imgui Begin xiframes.us.1
 imgui Dummy (164,229)
@@ -1262,15 +1258,11 @@ window AddText (140,63) #000000E6 37%
 window AddText (139,62) #FFFFFFFF 37%
 imgui PopFont
 window PopClipRect
-over AddRectFilled (378,208) (393.6,218.8) #E64038B6 2
-over AddRect (378,208) (393.6,218.8) #0D0D0DD9 2 0 1
-over AddLine (378,208) (385.8,213.94) #0D0D0DD9 1
-over AddLine (393.6,208) (385.8,213.94) #0D0D0DD9 1
-over AddRectFilled (359,207) (373,219) #9E662ED9 2
-over AddRectFilled (359,211) (373,213) #F2CC4DD9 0
-over AddRectFilled (364,210) (367,215) #F2CC4DD9 1
-over AddRect (364,210) (367,215) #0D0D0DD9 1 0 1
-over AddRect (359,207) (373,219) #0D0D0DD9 2 0 1
+over AddCircleFilled (388,213) 5.5 #E64038B6 24
+over AddCircle (388,213) 5.5 #0D0D0DD9 24 1
+over AddCircleFilled (371,213) 5.5 #9E662ED9 24
+over AddCircle (371,213) 4.1 #F2CC4DD9 24 1.8
+over AddCircle (371,213) 5.5 #0D0D0DD9 24 1
 imgui End
 imgui Begin xiframes.us.2
 imgui Dummy (164,154)
@@ -1514,7 +1506,7 @@ window AddText (66,39) #FFFFFFFF 4.0m
 imgui PopFont
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (plain): 1116 calls
+## filled with sample data, the settings open (plain): 1108 calls
 imgui Begin xiframes Settings
 imgui Text Hide While Map Open:
 imgui SameLine 22
@@ -1906,15 +1898,11 @@ window AddText (140,63) #000000E6 37%
 window AddText (139,62) #FFFFFFFF 37%
 imgui PopFont
 window PopClipRect
-over AddRectFilled (378,208) (393.6,218.8) #E6E059A0 2
-over AddRect (378,208) (393.6,218.8) #0D0D0DD9 2 0 1
-over AddLine (378,208) (385.8,213.94) #0D0D0DD9 1
-over AddLine (393.6,208) (385.8,213.94) #0D0D0DD9 1
-over AddRectFilled (359,207) (373,219) #9E662ED9 2
-over AddRectFilled (359,211) (373,213) #F2CC4DD9 0
-over AddRectFilled (364,210) (367,215) #F2CC4DD9 1
-over AddRect (364,210) (367,215) #0D0D0DD9 1 0 1
-over AddRect (359,207) (373,219) #0D0D0DD9 2 0 1
+over AddCircleFilled (388,213) 5.5 #E6E059A0 24
+over AddCircle (388,213) 5.5 #0D0D0DD9 24 1
+over AddCircleFilled (371,213) 5.5 #9E662ED9 24
+over AddCircle (371,213) 4.1 #F2CC4DD9 24 1.8
+over AddCircle (371,213) 5.5 #0D0D0DD9 24 1
 imgui End
 imgui Begin xiframes.us.1
 over AddRectFilled (100,180) (115,198) #141414CC 2
@@ -2170,15 +2158,11 @@ window AddText (140,63) #000000E6 37%
 window AddText (139,62) #FFFFFFFF 37%
 imgui PopFont
 window PopClipRect
-over AddRectFilled (378,208) (393.6,218.8) #E6E059A0 2
-over AddRect (378,208) (393.6,218.8) #0D0D0DD9 2 0 1
-over AddLine (378,208) (385.8,213.94) #0D0D0DD9 1
-over AddLine (393.6,208) (385.8,213.94) #0D0D0DD9 1
-over AddRectFilled (359,207) (373,219) #9E662ED9 2
-over AddRectFilled (359,211) (373,213) #F2CC4DD9 0
-over AddRectFilled (364,210) (367,215) #F2CC4DD9 1
-over AddRect (364,210) (367,215) #0D0D0DD9 1 0 1
-over AddRect (359,207) (373,219) #0D0D0DD9 2 0 1
+over AddCircleFilled (388,213) 5.5 #E6E059A0 24
+over AddCircle (388,213) 5.5 #0D0D0DD9 24 1
+over AddCircleFilled (371,213) 5.5 #9E662ED9 24
+over AddCircle (371,213) 4.1 #F2CC4DD9 24 1.8
+over AddCircle (371,213) 5.5 #0D0D0DD9 24 1
 imgui End
 imgui Begin xiframes.us.2
 over AddRectFilled (100,180) (115,198) #141414CC 2

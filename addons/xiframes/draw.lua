@@ -7,7 +7,8 @@
 --     draw.Rect(x1, y1, x2, y2, packed, rounding)       filled
 --     draw.Outline(x1, y1, x2, y2, packed, rounding)    a pixel thick
 --     draw.Line(x1, y1, x2, y2, packed)                 a pixel thick
---     draw.Circle(x, y, radius, packed)                 filled
+--     draw.Circle(x, y, radius, packed, sides)          filled; of 12 sides unless told, enough for a small one
+--     draw.Ring(x, y, radius, packed, thick, sides)     a circle's line, thick pixels thick, about that radius
 --     draw.Text(x, y, packed, words, edge, dark)        with winxi's dark edge if edge is given
 --     draw.Texture(file)                     an image of the addon's, loaded the first time it is asked for
 --
@@ -64,9 +65,14 @@ function draw.Line(x1, y1, x2, y2, packed)
     list:AddLine(pointA, pointB, packed, 1)
 end
 
-function draw.Circle(x, y, radius, packed)
+function draw.Circle(x, y, radius, packed, sides)
     pointA[1], pointA[2] = x, y
-    list:AddCircleFilled(pointA, radius, packed, 12)
+    list:AddCircleFilled(pointA, radius, packed, sides or 12)
+end
+
+function draw.Ring(x, y, radius, packed, thick, sides)
+    pointA[1], pointA[2] = x, y
+    list:AddCircle(pointA, radius, packed, sides or 12, thick)
 end
 
 function draw.Text(x, y, packed, words, edge, dark)
