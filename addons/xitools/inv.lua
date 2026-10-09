@@ -15,6 +15,7 @@ local gfxDevice = d3d8.get_device()
 local fontWidth = imgui.CalcTextSize('A')
 local inventories = T{
     gil = 0,
+    recycleBin = T{},
     bag = T{
         all  = T{},
         inv  = T{},
@@ -374,6 +375,9 @@ local function UpdateInventories()
     inventories.house.mogSafe2 = UpdateInventory(inv, res, bags.mogSafe2):sort(SortInventory)
     inventories.house.storage = UpdateInventory(inv, res, bags.storage):sort(SortInventory)
     inventories.house.locker = UpdateInventory(inv, res, bags.mogLocker):sort(SortInventory)
+    -- what has been dropped and can still be taken back: not drawn as a bag, but listed by the
+    -- controller's sort menu
+    inventories.recycleBin = UpdateInventory(inv, res, bags.recycleBin)
 
     inventories.bag.all = T{}
         :extend(inventories.bag.inv)
@@ -697,7 +701,7 @@ local contextMenus = {
 --
 -- While the window is showing, the d-pad moves a highlight over the items, the shoulder buttons change
 -- tab, A opens a menu of what can be done with the highlighted item and chooses from it, B backs out
--- of the menu or closes the window, and X sorts the bags of the tab that is showing.
+-- of the menu or closes the window, and X opens the sort menu.
 local pad = {
     options = nil,     -- the tool's settings, as of the frame last drawn
     drawn = 0,         -- when the window was last drawn: the controller is only the inventory's while it is
@@ -707,7 +711,7 @@ local pad = {
     groups = { },
     tab = 1,           -- the tab that is showing
     wantTab = nil,     -- the tab to switch to on the next frame
-    menu = nil,        -- the menu that is open, and the item it is for
+    menu = nil,        -- the menu that is open, and the item it is for (none, for the sort menu)
     menuItem = nil,
 }
 
@@ -812,6 +816,41 @@ local function SortTab()
     return #sorted > 0
 end
 
+-- What is in the recycle bin, as a menu: choosing an item takes it back into the inventory
+local function RecycleBinMenu()
+    local entries = { }
+    for _, item in ipairs(inventories.recycleBin) do
+        local label = item.shortName
+        if item.stackCur > 1 then
+            label = ('%s x%d'):format(label, item.stackCur)
+        end
+        entries[#entries + 1] = { label = label, run = function() MoveItem(item, moveableBags[1]) end }
+    end
+    if #entries == 0 then
+        entries[1] = { label = '(empty)' }
+    end
+    entries[#entries + 1] = { label = 'Cancel' }
+    return controller.NewMenu('Recycle Bin: take back', entries)
+end
+
+-- The menu the sort button opens, as the game's own does for its item list
+local function SortMenu()
+    return controller.NewMenu('Sort', {
+        { label = 'Auto', run = function()
+            -- refused, with the error sound, while the bags were sorted too short a while ago
+            if not SortTab() then
+                sound.Play('error')
+            end
+        end },
+        { label = 'Manual', run = function()
+            -- the window lists items in an order of its own, whatever slots they are in
+            print('\30\81[xitools]\30\01 Manual sorting is not available: this window lists items in its own order.')
+            sound.Play('error')
+        end },
+        { label = 'Recycle Bin', run = RecycleBinMenu },
+    })
+end
+
 -- One of the inventory's buttons has been pressed, or a held d-pad button has repeated
 local function PadPress(action)
     if pad.menu ~= nil then
@@ -839,8 +878,9 @@ local function PadPress(action)
             sound.Play('error')
         end
     elseif action == 'sort' then
-        -- refused, with the error sound, while the bags were sorted too short a while ago
-        sound.Play(SortTab() and 'confirm' or 'error')
+        pad.menu = SortMenu()
+        pad.menuItem = nil
+        sound.Play('confirm')
     elseif action == 'back' then
         -- the sound of it closing is made as the window is seen to have gone, however it was closed
         pad.options.isVisible[1] = false
@@ -887,14 +927,19 @@ local function PadEndFrame()
         return
     end
 
-    -- the menu belongs to the item it was opened for: if that has gone (used up, moved), so does the menu
+    -- an item's menu belongs to the item it was opened for: if that has gone (used up, moved), so does
+    -- the menu. The sort menu belongs to no item, and stays.
     local item = pad.items[pad.grid.cursor]
-    if item == nil or pad.menuItem == nil or item.uniqueId ~= pad.menuItem.uniqueId then
+    if pad.menuItem ~= nil and (item == nil or item.uniqueId ~= pad.menuItem.uniqueId) then
         pad.menu = nil
         return
     end
 
+    -- beside the highlighted item, or at the window's corner where the tab has none
     local x, y = pad.grid:Position()
+    if x == nil or pad.grid.count == 0 then
+        x, y = pad.options.pos[1], pad.options.pos[2]
+    end
     pad.menu:Draw(x + 40, y)
 end
 
@@ -1290,7 +1335,7 @@ local inv = {
             ui.Label('Controller Navigation (Experimental)')
             imgui.Checkbox('##inv.controller', options.controller)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nX (square): sort the bags of the tab showing, putting part stacks together.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
+                imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nX (square): the sort menu. Auto puts part stacks together in the bags of the tab showing; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
             end
             if options.controller[1] then
                 if options.controllerSounds == nil then
