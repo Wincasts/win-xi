@@ -144,6 +144,9 @@ if menu then
 end
 ```
 
+`controller.Label(text, x, y)` draws a small floating box with a line of text, its bottom left corner
+at x, y: given the top left of the highlighted thing, it names it from just above.
+
 Only the buttons in `actions` are taken, and only while `active` says so: they are kept from the game,
 and the sticks and every other button still reach it. A button already down when the addon takes the
 controller is not counted as a press.
