@@ -3,7 +3,7 @@
 --
 --     draw.Use(list)                         the draw list the calls after it draw on
 --     draw.Packed(color, alpha)              a colour as the list takes it, with the window's fade in it
---     draw.Image(texture, x1, y1, x2, y2, packed)
+--     draw.Image(texture, x1, y1, x2, y2, packed, u1, v1, u2, v2)     the whole image, or the part of it given (0 to 1)
 --     draw.Rect(x1, y1, x2, y2, packed, rounding)       filled
 --     draw.Outline(x1, y1, x2, y2, packed, rounding)    a pixel thick
 --     draw.Line(x1, y1, x2, y2, packed)                 a pixel thick
@@ -21,7 +21,7 @@ local draw = { }
 
 local list = nil
 local pointA, pointB = { 0, 0 }, { 0, 0 }
-local uvA, uvB = { 0, 0 }, { 1, 1 } -- the whole of an image
+local uvA, uvB = { 0, 0 }, { 1, 1 }
 local tint = { 1, 1, 1, 1 }
 
 -- The draw list in use. A colour packed for one is not kept for the next: the fade may differ, and a
@@ -43,8 +43,9 @@ function draw.Packed(color, alpha)
     return lastPacked
 end
 
-function draw.Image(texture, x1, y1, x2, y2, packed)
+function draw.Image(texture, x1, y1, x2, y2, packed, u1, v1, u2, v2)
     pointA[1], pointA[2], pointB[1], pointB[2] = x1, y1, x2, y2
+    uvA[1], uvA[2], uvB[1], uvB[2] = u1 or 0, v1 or 0, u2 or 1, v2 or 1
     list:AddImage(texture, pointA, pointB, uvA, uvB, packed)
 end
 

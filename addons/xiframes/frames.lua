@@ -71,13 +71,9 @@ local barShadowReach = 3 -- how far below a bar its shadow goes
 local hpColor, mpColor = Hex('FF9597'), Hex('FFFF9C') -- what the bars' images, which are grey, are tinted
 
 -- The bookends: a small silver cap at each end of a bar, as tall as the whole bar, frame and all, and
--- standing half on it, after the ones the bars of the game's own party list have
+-- standing half on it, after the ones the bars of the game's own party list have. A cap is an image:
+-- it shares the bar's front image, to the right of the front, so that the two are drawn as one batch.
 local bookend = { width = 3.6, over = 1.8 } -- how wide a cap is, and how far past the bar's inside its frame goes, above and below
-local bookendSilver = { 0.78, 0.80, 0.84, 1 }
-local bookendShade = { 0.52, 0.54, 0.60, 1 } -- towards its top and bottom, as a bar's frame darkens towards its own
-local bookendHalfShade = { 0.65, 0.67, 0.72, 1 } -- and between that and the silver
-local bookendShine = { 0.97, 0.97, 1.00, 1 }
-local bookendEdge = { 0.20, 0.21, 0.25, 1 }
 
 -- The layout: where everything on a line is, from the line's top left, and how big, in pixels at a
 -- scale of 100. It began as XivParty's own numbers, a fifth larger, without the job icon and cursor
@@ -87,19 +83,23 @@ local bookendEdge = { 0.20, 0.21, 0.25, 1 }
 -- the front go; the fill starts at fill.x, on the frame's top and of its height, and is fill.width
 -- long when the bar is full. body is the inside of the bar: its ends are where the bookends go, and
 -- its bottom is what a line's height is reckoned from. figure is where the bar's value is written:
--- with alignRight its right end goes there.
+-- with alignRight its right end goes there. The front's image has the bar's cap in it as well:
+-- frontPart is how far across the image the front itself goes, and cap the part that is the cap, as
+-- left, top, right and bottom, each from 0 to 1.
 local layout = {
     width = 163.2, rowHeight = 38.4,
     valueSize = 14.72, -- the HP, MP and TP figures are written at one size, in pixels as the names' is
     hp = { value = 'hp', color = hpColor,
            back = 'bars/hp_back.png', fillImage = 'bars/hp_fill.png', front = 'bars/hp_front.png',
            frame = { x = 18, y = 9.6, width = 132, height = 16.8 },
+           frontPart = 220 / 226, cap = { 222 / 226, 0, 1, 14 / 28 },
            fill = { x = 22.8, width = 122.4 },
            body = { left = 21.6, top = 13.2, right = 146.4, bottom = 22.8 },
            figure = { x = 144, y = 4.8, alignRight = true } },
     mp = { value = 'mp', color = mpColor,
            back = 'bars/mp_back.png', fillImage = 'bars/mp_fill.png', front = 'bars/mp_front.png',
            frame = { x = 66, y = 21.6, width = 98.4, height = 14.4 },
+           frontPart = 164 / 170, cap = { 166 / 170, 0, 1, 11 / 24 },
            fill = { x = 70.8, width = 88.8 },
            body = { left = 69.6, top = 25.2, right = 160.8, bottom = 32.4 },
            figure = { x = 158.4, y = 18, alignRight = true } },
@@ -129,15 +129,16 @@ local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is move
 local outlined = true     -- whether the names and figures have winxi's dark edge
 local nameChars = nil     -- how much of a name is written, where it is not the layout's own
 
--- An image, by its file or the number of a texture, at a place in the layout's units
-local function Image(image, x, y, width, height, color, alpha)
+-- An image, by its file or the number of a texture, at a place in the layout's units; u2, if given,
+-- is how far across the image the part to draw goes, from its left (0 to 1)
+local function Image(image, x, y, width, height, color, alpha, u2)
     local handle = type(image) == 'number' and image or draw.Texture(image)
     if not handle or width == 0 then
         return
     end
 
     local left, top = itemX + x * scale, itemY + y * scale
-    draw.Image(handle, left, top, left + width * scale, top + height * scale, draw.Packed(color or white, alpha or 1))
+    draw.Image(handle, left, top, left + width * scale, top + height * scale, draw.Packed(color or white, alpha or 1), 0, 0, u2, 1)
 end
 
 local outlineEdge = 1     -- how thick winxi's dark edge is, for this list
@@ -274,46 +275,29 @@ end
 
 local function Front(place, bar)
     local frame = place.frame
-    Image(place.front, frame.x, frame.y, frame.width, frame.height, bar.color or place.color)
+    Image(place.front, frame.x, frame.y, frame.width, frame.height, bar.color or place.color, 1, place.frontPart)
 end
 
--- A bar's two bookends. Each is a silver cap, darker towards its top and bottom in two steps as the
--- bars themselves are, with a dark edge and a line of shine down the left of its bright middle.
--- A cap's five colours as the draw list takes them, packed once for the list being drawn: packed as
--- they were wanted, each cap asked for seven, no two running the same
-local capSilver, capHalfShade, capShade, capEdge, capShine = 0, 0, 0, 0, 0
-
-local function PackCapColors()
-    capSilver, capHalfShade, capShade = draw.Packed(bookendSilver, 1), draw.Packed(bookendHalfShade, 1), draw.Packed(bookendShade, 1)
-    capEdge, capShine = draw.Packed(bookendEdge, 1), draw.Packed(bookendShine, 1)
-end
-
-local function Cap(centre, top, bottom)
-    -- every cap is the same whole number of pixels wide, wherever its bar's end falls
+-- A bar's two bookends. Each is the cap's image, put on whole pixels: at a scale of 100 that is the
+-- image's own size, so it is drawn as it is, pixel for pixel, and at any other it is stretched to fit.
+-- Every cap is the same whole number of pixels wide, wherever its bar's end falls.
+local function Cap(texture, part, centre, top, bottom)
     local width = math.max(2, math.floor(bookend.width * scale + 0.5))
     local left = math.floor(itemX + centre * scale - width / 2 + 0.5)
-    local right = left + width
     top, bottom = math.floor(itemY + top * scale + 0.5), math.floor(itemY + bottom * scale + 0.5)
-
-    -- the shading, darkest at the very top and bottom: the whole cap in the darkest, all but a band at
-    -- each end in the half shade over it, and the middle in silver over that
-    local band = math.max(1, math.floor((bottom - top) * 0.14 + 0.5))
-    draw.Rect(left, top, right, bottom, capShade, 0)
-    draw.Rect(left, top + band, right, bottom - band, capHalfShade, 0)
-    draw.Rect(left, top + 2 * band, right, bottom - 2 * band, capSilver, 0)
-
-    draw.Outline(left, top, right, bottom, capEdge, 1)
-    if bottom - 2 * band - 1 > top + 2 * band then
-        draw.Line(left + 1, top + 2 * band, left + 1, bottom - 2 * band - 1, capShine)
-    end
+    draw.Image(texture, left, top, left + width, bottom, draw.Packed(white, 1), part[1], part[2], part[3], part[4])
 end
 
 -- the top and bottom of a cap are those of the bar's frame
 local function Bookends(place)
+    local texture = draw.Texture(place.front)
+    if not texture then
+        return
+    end
     local body = place.body
     local top, bottom = body.top - bookend.over, body.bottom + bookend.over
-    Cap(body.left, top, bottom)
-    Cap(body.right, top, bottom)
+    Cap(texture, place.cap, body.left, top, bottom)
+    Cap(texture, place.cap, body.right, top, bottom)
 end
 
 -- One layer of a bar, for every line that has the bar: every line in the area has an HP bar, and an
@@ -592,9 +576,6 @@ function frames.Draw(members, kind, StatusTexture, style)
     draw.Use(drawList)
 
     outlineEdge = math.max(1, math.floor(scale + 0.5))
-    if bookends then
-        PackCapColors()
-    end
     if outlined then
         outlinePacked = imgui.GetColorU32(outlinedText.OutlineColor)
     end
