@@ -457,18 +457,45 @@ local function HandleInviteAnswer(e)
     end
 end
 
--- The mark for an invitation: an envelope beside a corner of the party's window, yellow for a party's
--- and red for an alliance's (the colours of their leaders' marks), pulsing gently. It is outside the window,
--- above its top corners or below its bottom ones, so nothing in the list moves for it; and it is drawn
--- over every window, not among them, so that another window lying across it does not hide it.
+-- Whether there is anything in the treasure pool, which has ten places. Looked at twice a second,
+-- not every frame.
+local treasureChecked, treasureWaiting = -1, false
+
+local function TreasureWaiting()
+    local now = os.clock()
+    if now - treasureChecked >= 0.5 then
+        treasureChecked, treasureWaiting = now, false
+        local inventory = AshitaCore:GetMemoryManager():GetInventory()
+        for place = 0, 9 do
+            local item = inventory:GetTreasurePoolItem(place)
+            if item ~= nil and item.ItemId > 0 then
+                treasureWaiting = true
+                break
+            end
+        end
+    end
+    return treasureWaiting
+end
+
+-- The icons beside a corner of the party's window: an envelope for an invitation, yellow for a
+-- party's and red for an alliance's (the colours of their leaders' marks), pulsing gently; and a
+-- chest while there is something in the treasure pool. They are outside the window, above its top
+-- corners or below its bottom ones, so nothing in the list moves for them, and where there are both
+-- the chest is beside the envelope, further from the corner. They are drawn over every window, not
+-- among them, so that another window lying across them does not hide them.
 local inviteEnvelope = { width = 13, height = 9, gap = 5 } -- in the lists' own units
+local treasureChest = { width = 12, height = 10 }
+local iconSpacing = 4 -- between one icon and the next
+local iconOpacity = 0.85 -- neither is quite solid
 local inviteTint = { 0, 0, 0, 1 }
 local inviteLine = { 0.05, 0.05, 0.05, 1 }
+local chestWood = { 0.62, 0.40, 0.18, 1 }
+local chestTrim = { 0.95, 0.80, 0.30, 1 }
 local inviteMin, inviteMax, inviteMid = { 0, 0 }, { 0, 0 }, { 0, 0 }
 local inviteClipMin, inviteClipMax = { 0, 0 }, { 0, 0 }
 local sampleInvite = { alliance = false }
 
--- The corners it can go beside, for the setting: the first is the one used when none is chosen
+-- The corners they can go beside, for the setting: the first is the one used when none is chosen
 local inviteCorners = {
     { key = 'TopRight', label = 'Top Right' }, { key = 'TopLeft', label = 'Top Left' },
     { key = 'BottomRight', label = 'Bottom Right' }, { key = 'BottomLeft', label = 'Bottom Left' },
@@ -477,28 +504,81 @@ for _, corner in ipairs(inviteCorners) do
     corner.ids = ('%s##us.inviteCorner'):format(corner.label)
 end
 
-local function DrawInvite(shown)
+-- The envelope: its body, its edge, and the two lines of its flap meeting in the middle. Between about
+-- two thirds of its strength and all of it, once every second and a half.
+local function DrawEnvelope(drawList, left, top, width, height, shown)
+    local color = shown.alliance and ui.Colors.Alliance or ui.Colors.Party
+    local pulse = 0.83 + 0.17 * math.cos(os.clock() / 1.5 * 2 * math.pi)
+    inviteTint[1], inviteTint[2], inviteTint[3], inviteTint[4] = color[1], color[2], color[3], pulse * iconOpacity
+    local packed = imgui.GetColorU32(inviteTint)
+    inviteTint[1], inviteTint[2], inviteTint[3], inviteTint[4] = inviteLine[1], inviteLine[2], inviteLine[3], iconOpacity
+    local dark = imgui.GetColorU32(inviteTint)
+
+    inviteMin[1], inviteMin[2] = left, top
+    inviteMax[1], inviteMax[2] = left + width, top + height
+    drawList:AddRectFilled(inviteMin, inviteMax, packed, 2)
+    drawList:AddRect(inviteMin, inviteMax, dark, 2, 0, 1)
+    inviteMid[1], inviteMid[2] = left + width / 2, top + height * 0.55
+    drawList:AddLine(inviteMin, inviteMid, dark, 1)
+    inviteMin[1] = left + width
+    drawList:AddLine(inviteMin, inviteMid, dark, 1)
+end
+
+-- The chest: a wooden box with a band of trim where its lid meets it, a clasp in the middle of the
+-- band, and an edge
+local function DrawChest(drawList, left, top, width, height)
+    inviteTint[4] = iconOpacity
+    inviteTint[1], inviteTint[2], inviteTint[3] = chestWood[1], chestWood[2], chestWood[3]
+    local wood = imgui.GetColorU32(inviteTint)
+    inviteTint[1], inviteTint[2], inviteTint[3] = chestTrim[1], chestTrim[2], chestTrim[3]
+    local trim = imgui.GetColorU32(inviteTint)
+    inviteTint[1], inviteTint[2], inviteTint[3] = inviteLine[1], inviteLine[2], inviteLine[3]
+    local dark = imgui.GetColorU32(inviteTint)
+
+    inviteMin[1], inviteMin[2] = left, top
+    inviteMax[1], inviteMax[2] = left + width, top + height
+    drawList:AddRectFilled(inviteMin, inviteMax, wood, 2)
+
+    -- the band, a little above the middle, and the clasp across it
+    local band = math.max(1, math.floor(height * 0.16 + 0.5))
+    local seam = math.floor(top + height * 0.38)
+    inviteMin[2], inviteMax[2] = seam, seam + band
+    drawList:AddRectFilled(inviteMin, inviteMax, trim, 0)
+    local clasp = math.max(2, math.floor(width * 0.22 + 0.5))
+    inviteMin[1], inviteMin[2] = math.floor(left + (width - clasp) / 2), seam - 1
+    inviteMax[1], inviteMax[2] = inviteMin[1] + clasp, seam + band + math.max(2, math.floor(height * 0.2))
+    drawList:AddRectFilled(inviteMin, inviteMax, trim, 1)
+    drawList:AddRect(inviteMin, inviteMax, dark, 1, 0, 1)
+
+    inviteMin[1], inviteMin[2] = left, top
+    inviteMax[1], inviteMax[2] = left + width, top + height
+    drawList:AddRect(inviteMin, inviteMax, dark, 2, 0, 1)
+end
+
+-- Draws whichever icons there are to show: invitation is the one waiting, if any, and treasure
+-- whether there is something in the pool
+local function DrawIcons(invitation, treasure)
     local windowX, windowY = imgui.GetWindowPos()
     local display = imgui.GetIO().DisplaySize
-    -- a list laid out off screen to be measured has no mark
+    -- a list laid out off screen to be measured has no icons
     if windowX < 0 or windowY < 0 or windowX > display.x or windowY > display.y then
         return
     end
 
     local options = usOptions
     local scale = 1.2 * (options.xivScale ~= nil and options.xivScale[1] or 100) / 100
-    local width, height = inviteEnvelope.width * scale, inviteEnvelope.height * scale
     local gap = inviteEnvelope.gap * scale
 
-    -- beside the corner chosen, and from there as far as it has been moved
+    -- beside the corner chosen, and from there as far as they have been moved: the first at the
+    -- corner, the next beyond it, their feet on one line
     local corner = options.inviteCorner or inviteCorners[1].key
     local onRight = corner == 'TopRight' or corner == 'BottomRight'
     local below = corner == 'BottomRight' or corner == 'BottomLeft'
     local windowWidth, windowHeight = imgui.GetWindowSize()
     local offset = options.inviteOffset
-    local left = (onRight and windowX + windowWidth - width or windowX) + (offset and tonumber(offset[1]) or 0) * scale
-    local top = (below and windowY + windowHeight + gap or windowY - height - gap) + (offset and tonumber(offset[2]) or 0) * scale
-    left, top = math.floor(left), math.floor(top)
+    local edge = (onRight and windowX + windowWidth or windowX) + (offset and tonumber(offset[1]) or 0) * scale
+    local tallest = math.max(inviteEnvelope.height, treasureChest.height) * scale
+    local foot = (below and windowY + windowHeight + gap + tallest or windowY - gap) + (offset and tonumber(offset[2]) or 0) * scale
 
     -- over every window where that can be done, and otherwise in the party's own, opened up to the
     -- whole screen
@@ -509,22 +589,17 @@ local function DrawInvite(shown)
         drawList:PushClipRect(inviteClipMin, inviteClipMax, false)
     end
 
-    -- between two thirds of its strength and all of it, once every second and a half
-    local color = shown.alliance and ui.Colors.Alliance or ui.Colors.Party
-    local pulse = 0.83 + 0.17 * math.cos(os.clock() / 1.5 * 2 * math.pi)
-    inviteTint[1], inviteTint[2], inviteTint[3], inviteTint[4] = color[1], color[2], color[3], pulse
-    local packed = imgui.GetColorU32(inviteTint)
-    local dark = imgui.GetColorU32(inviteLine)
-
-    -- the envelope: its body, its edge, and the two lines of its flap meeting in the middle
-    inviteMin[1], inviteMin[2] = left, top
-    inviteMax[1], inviteMax[2] = left + width, top + height
-    drawList:AddRectFilled(inviteMin, inviteMax, packed, 2)
-    drawList:AddRect(inviteMin, inviteMax, dark, 2, 0, 1)
-    inviteMid[1], inviteMid[2] = left + width / 2, top + height * 0.55
-    drawList:AddLine(inviteMin, inviteMid, dark, 1)
-    inviteMin[1] = left + width
-    drawList:AddLine(inviteMin, inviteMid, dark, 1)
+    if invitation ~= nil then
+        local width, height = inviteEnvelope.width * scale, inviteEnvelope.height * scale
+        local left = onRight and edge - width or edge
+        DrawEnvelope(drawList, math.floor(left), math.floor(foot - height), width, height, invitation)
+        edge = onRight and left - iconSpacing * scale or left + width + iconSpacing * scale
+    end
+    if treasure then
+        local width, height = treasureChest.width * scale, treasureChest.height * scale
+        local left = onRight and edge - width or edge
+        DrawChest(drawList, math.floor(left), math.floor(foot - height), math.floor(width), math.floor(height))
+    end
 
     if not overAll then
         drawList:PopClipRect()
@@ -568,12 +643,18 @@ local function DrawAllianceContent()
         xivparty.Draw(pets, 'pets', nil, settings)
     end
 
-    -- an invitation waiting for an answer is marked above the player's own party; a made-up one while
-    -- the windows are arranged, to see where the mark goes
-    if ownParty and (usOptions.showInvite == nil or usOptions.showInvite[1]) then
-        local shown = invite or (drawing.sample and sampleInvite) or nil
-        if shown ~= nil then
-            DrawInvite(shown)
+    -- an invitation waiting for an answer, and anything in the treasure pool, have icons beside the
+    -- player's own party; both are shown while the windows are arranged, to see where they go
+    if ownParty then
+        local invitation, treasure = nil, false
+        if usOptions.showInvite == nil or usOptions.showInvite[1] then
+            invitation = invite or (drawing.sample and sampleInvite) or nil
+        end
+        if usOptions.showTreasure == nil or usOptions.showTreasure[1] then
+            treasure = drawing.sample or TreasureWaiting()
+        end
+        if invitation ~= nil or treasure then
+            DrawIcons(invitation, treasure)
         end
     end
 end
@@ -652,9 +733,10 @@ local us = {
         isVisible = T{ true },
         hideWhenSolo = T{ false },
         sortByRole = T{ false },
-        showInvite = T{ true },      -- mark an invitation that is waiting for an answer, beside the party's window
-        inviteCorner = 'TopRight',   -- the corner of the window the mark goes beside
-        inviteOffset = T{ 0, 0 },    -- and how far from there it is moved: right, down
+        showInvite = T{ true },      -- an icon for an invitation that is waiting for an answer, beside the party's window
+        showTreasure = T{ true },    -- and one while there is something in the treasure pool
+        inviteCorner = 'TopRight',   -- the corner of the window the icons go beside
+        inviteOffset = T{ 0, 0 },    -- and how far from there they are moved: right, down
         xivScale = T{ 100 },   -- the lists' size, as a percentage
         xivValueSize = T{ 100 }, -- the size of the HP, MP and TP figures, as a percentage
         xivNameSize = T{ 100 },  -- and of the names
@@ -712,12 +794,20 @@ local us = {
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope beside your party\'s window: yellow for a party invite, red for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
             end
-            if options.showInvite[1] then
+            if options.showTreasure == nil then
+                options.showTreasure = T{ true }
+            end
+            ui.Label('Show Treasure Pool')
+            imgui.Checkbox('##us.showTreasure', options.showTreasure)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Shows a chest beside your party\'s window while there is anything in the treasure pool. With an invite waiting too, it goes beside the envelope.')
+            end
+            if options.showInvite[1] or options.showTreasure[1] then
                 if type(options.inviteOffset) ~= 'table' then
                     options.inviteOffset = T{ 0, 0 }
                 end
                 -- the corners two to a line, the top ones then the bottom ones
-                ui.Label('Invite Corner')
+                ui.Label('Icon Corner')
                 local column = imgui.GetCursorPosX()
                 for index, corner in ipairs(inviteCorners) do
                     if index % 2 == 0 then
@@ -730,11 +820,11 @@ local us = {
                         options.inviteCorner = corner.key
                     end
                     if imgui.IsItemHovered() then
-                        imgui.SetTooltip('The corner of your party\'s window the invite mark goes beside: above a top corner, below a bottom one.')
+                        imgui.SetTooltip('The corner of your party\'s window the invite and treasure icons go beside: above a top corner, below a bottom one.')
                     end
                 end
-                OffsetSliders('Invite Offset', inviteOffsetIds, options.inviteOffset, inviteOffsetReach,
-                    'Moves the invite mark from its corner: X to the right, Y down. Less than 0 moves it left or up.\nThe numbers are in the list\'s own units, so the mark keeps its place as the scale changes.')
+                OffsetSliders('Icon Offset', inviteOffsetIds, options.inviteOffset, inviteOffsetReach,
+                    'Moves the invite and treasure icons from their corner: X to the right, Y down. Less than 0 moves them left or up.\nThe numbers are in the list\'s own units, so the icons keep their place as the scale changes.')
             end
             ui.Label('Sort By Role')
             imgui.Checkbox('##us.3', options.sortByRole)

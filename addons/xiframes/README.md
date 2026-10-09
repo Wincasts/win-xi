@@ -7,6 +7,8 @@ xilite with everything else taken out: there is no `me`, and no other way of dra
   bar and a smaller MP bar with their values, and TP as a value. The member targeted has `>>` before
   their name, in blue. Your own party's list grows upwards, and has its buffs running leftwards from
   the window.
+  An envelope beside the window marks a party or alliance invite waiting for an answer, and a
+  chest marks anything in the treasure pool.
 - `tgt` displays your target, sub-target and target of target, each as a line of the same kind: the
   name, the HP bar with its percentage, and the distance.
 - `pet` lists your pet, and your party members' pets, under your party below a line. It has no
