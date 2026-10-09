@@ -146,7 +146,9 @@ end
 
 `controller.Label(text, x, y, below)` draws a small floating box with a line of text, its bottom left
 corner at x, y: given the top left of the highlighted thing, it names it from just above. With `below`
-set it is the box's top left corner that goes there, for a place under the thing.
+set it is the box's top left corner that goes there, for a place under the thing. A function may be
+given in place of the text, to draw more than a line, with a fifth argument that changes when what it
+draws does.
 
 Only the buttons in `actions` are taken, and only while `active` says so: they are kept from the game,
 and the sticks and every other button still reach it. A button already down when the addon takes the

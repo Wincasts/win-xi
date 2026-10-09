@@ -526,6 +526,12 @@ end
 -- the thing.
 --
 --     controller.Label(text, x, y, below)    -- each frame it should show
+--
+-- In place of the text may go a function that draws what the box holds, for more than a line. The
+-- box is brought forward when what it says changes, which for a function it cannot tell, so with one
+-- goes a key: anything that is different when the content is.
+--
+--     controller.Label(Draw, x, y, below, key)
 local labelOpen = { true };
 local labelPos = { 0, 0 };
 local labelAbove, labelBelow = { 0, 1 }, { 0, 0 }; -- which corner of the box goes at the point
@@ -533,7 +539,8 @@ local labelName = nil;
 local labelText = nil;   -- what it last said
 local labelDrawn = 0;    -- when it was last drawn
 
-function controller.Label(text, x, y, below)
+function controller.Label(text, x, y, below, key)
+    key = key or text;
     menuFlags = menuFlags or bit.bor(
         ImGuiWindowFlags_NoDecoration,
         ImGuiWindowFlags_AlwaysAutoResize,
@@ -545,9 +552,9 @@ function controller.Label(text, x, y, below)
     -- menu is: taking the focus closes any popup that is open, and unlike the menu the label is up
     -- the whole time, over a window that may have a right-click menu of its own
     local now = os.clock();
-    if text ~= labelText or x ~= labelPos[1] or y ~= labelPos[2] or now - labelDrawn > 0.25 then
+    if key ~= labelText or x ~= labelPos[1] or y ~= labelPos[2] or now - labelDrawn > 0.25 then
         imgui.SetNextWindowFocus();
-        labelText = text;
+        labelText = key;
     end
     labelDrawn = now;
 
@@ -555,7 +562,11 @@ function controller.Label(text, x, y, below)
     imgui.SetNextWindowPos(labelPos, ImGuiCond_Always, below and labelBelow or labelAbove);
     labelOpen[1] = true;
     if imgui.Begin(labelName, labelOpen, menuFlags) then
-        imgui.Text(text);
+        if type(text) == 'function' then
+            text();
+        else
+            imgui.Text(text);
+        end
     end
     imgui.End();
 end
