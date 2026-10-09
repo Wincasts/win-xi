@@ -8,3 +8,17 @@ run treas      addons/treas/treas.lua   treas_check.lua
 run controller tests/empty.lua          controller_check.lua
 run xilite     addons/xilite/xilite.lua xilite_check.lua
 run xiframes   addons/xiframes/xiframes.lua xiframes_check.lua
+
+# What xiframes draws, call for call, against a kept copy: any difference is printed. After a change
+# that is meant to alter what is drawn, look the difference over and keep the new copy with
+#   ./tests/run.sh keep
+scene() {
+    local out; out="$(luajit tests/capture.lua xiframes addons/xiframes/xiframes.lua tests/xiframes_scene.lua tests/fixtures/xiframes_v1_settings.lua "$1" 2>&1)"
+    if [[ "$2" == keep ]]; then echo "$out" > "tests/golden/xiframes_scene_$1.txt"; echo "xiframes drawn ($1): kept"; return; fi
+    if diff <(echo "$out") "tests/golden/xiframes_scene_$1.txt" > /tmp/xiframes_scene_diff.$$ 2>&1; then echo "xiframes drawn ($1): as kept	true"
+    else echo "xiframes drawn ($1): as kept	false"; head -20 /tmp/xiframes_scene_diff.$$; fi
+    rm -f /tmp/xiframes_scene_diff.$$
+}
+echo "== xiframes scene"
+scene plain "$1"
+scene bare "$1"
