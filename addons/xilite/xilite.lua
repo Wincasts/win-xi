@@ -285,7 +285,7 @@ local function DrawAppearance()
     if imgui.IsItemHovered() then
         imgui.SetTooltip('The TP bar once a weaponskill can be used (1000 TP).')
     end
-    winxiWidgets.Label('Flash TP Bar When Ready (Experimental)')
+    winxiWidgets.Label('Flash TP Bar When Ready', true)
     imgui.Checkbox('##xilite.tpBarFlash', options.globals.tpBarFlash)
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Your own TP bar pulses once a weaponskill can be used, fading from the TP Bar Color to the TP Bar Ready Color and back.\nOther players\' and pets\' bars simply take the ready colour.')

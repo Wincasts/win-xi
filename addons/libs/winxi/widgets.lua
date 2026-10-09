@@ -3,8 +3,8 @@
 --   widgets.Appearance(hooks)        the Theme and Window sections of an Appearance tab
 --   widgets.Header(text)             a section title, for the addon's own section after those
 --   widgets.Label(text)              a setting's name, to the left of its control, in line with winxi's
---   widgets.Label(text, true)        the same for an experimental setting: its name is followed by
---                                    [Experimental], the word in yellow
+--   widgets.Label(text, true)        the same for an experimental setting: [Experimental], in yellow,
+--                                    goes before its name
 --   widgets.BeginLabels(key)         starts a group of settings whose controls line up with each other
 --   widgets.Gap()                    the space between one family of settings and the next
 --   widgets.PushControlWidth() / PopControlWidth()   around an addon's own settings, to match winxi's
@@ -87,31 +87,35 @@ function widgets.BeginLabels(key)
     labelGroup = key or 'default';
 end
 
--- An experimental setting says so after its name: [Experimental], with the word in this colour
+-- An experimental setting says so before its name: [Experimental], in this colour, as every addon here
+-- marks one
 widgets.ExperimentalColor = { 1.0, 1.0, 0.0, 1.0 };
 
-local experimentalTexts = {};   -- name -> the name up to and including the tag's opening bracket
-local experimentalWidths = {};  -- name -> how wide the name is with its tag and colon
+local experimentalTag = '[Experimental]';
+local experimentalGap = 6;      -- between the tag and the name
+local experimentalTagWidth = nil;
+local experimentalWidths = {};  -- name -> how wide the tag, the name and its colon are together
 
 -- Draws a setting's name and leaves the cursor where its control goes. Give the control a label that
 -- shows nothing ('##something'). For an addon's own settings as well as winxi's, so that they line up.
 -- experimental: true for a setting that is experimental, which is then tagged as one.
 function widgets.Label(text, experimental)
-    local shown, width;
+    local shown = labelTexts[text];
+    local width = labelWidths[text];
+    if shown == nil then
+        shown = text .. ':';
+        width = imgui.CalcTextSize(shown);
+        labelTexts[text], labelWidths[text] = shown, width;
+    end
+
     if experimental then
-        shown, width = experimentalTexts[text], experimentalWidths[text];
-        if shown == nil then
-            shown = text .. ' [';
-            width = imgui.CalcTextSize(text .. ' [Experimental]:');
-            experimentalTexts[text], experimentalWidths[text] = shown, width;
+        local tagged = experimentalWidths[text];
+        if tagged == nil then
+            experimentalTagWidth = experimentalTagWidth or imgui.CalcTextSize(experimentalTag);
+            tagged = experimentalTagWidth + experimentalGap + width;
+            experimentalWidths[text] = tagged;
         end
-    else
-        shown, width = labelTexts[text], labelWidths[text];
-        if shown == nil then
-            shown = text .. ':';
-            width = imgui.CalcTextSize(shown);
-            labelTexts[text], labelWidths[text] = shown, width;
-        end
+        width = tagged;
     end
 
     local startX = imgui.GetCursorPosX();
@@ -122,14 +126,11 @@ function widgets.Label(text, experimental)
     end
 
     imgui.AlignTextToFramePadding();
-    imgui.Text(shown);
     if experimental then
-        -- the pieces of the tag follow one another with no space between
-        imgui.SameLine(0, 0);
-        imgui.TextColored(widgets.ExperimentalColor, 'Experimental');
-        imgui.SameLine(0, 0);
-        imgui.Text(']:');
+        imgui.TextColored(widgets.ExperimentalColor, experimentalTag);
+        imgui.SameLine(0, experimentalGap);
     end
+    imgui.Text(shown);
     imgui.SameLine(column);
 end
 

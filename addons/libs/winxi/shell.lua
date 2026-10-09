@@ -232,7 +232,7 @@ function shell.ControllerSettings(options, tooltip, between)
         options.controllerSounds = T{ false };
     end
 
-    widgets.Label('Controller Navigation (Experimental)');
+    widgets.Label('Controller Navigation', true);
     imgui.Checkbox(ids.controller, options.controller);
     if tooltip ~= nil and imgui.IsItemHovered() then
         imgui.SetTooltip(tooltip);
