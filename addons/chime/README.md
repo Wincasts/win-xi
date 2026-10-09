@@ -16,12 +16,13 @@ and needs only the `winxi` library (`addons/libs/winxi`).
 | Low HP | your HP falls to the threshold (25% unless changed); again only after it has been 5 points over |
 | Low MP | the same for MP (20%); never on a job with no MP |
 | Party Member KO | someone else in your party is knocked out, in your area |
+| Skill Up | one of your skills rises or reaches a new level, crafts included |
 
 Each event has its own switch, its own sound and a Test button. The sounds are the wav files in the
 addon's `sounds` folder: put your own there and they appear in every event's list. The ones that come
 with it are plain tones made by `sounds/generate.py`, which every event starts on, and a spoken one for
 each event, `voice-tell.wav` and so on ("Tell", "Mentioned", "Invite", "Skillchain", "TP ready",
-"Low HP", "Low MP", "Member down"), to choose in its place. The spoken ones were made with the Piper
+"Low HP", "Low MP", "Member down", "Skill up"), to choose in its place. The spoken ones were made with the Piper
 text-to-speech program and its voice en_US-amy-medium, by `sounds/generate_voices.sh`.
 
 Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it, and

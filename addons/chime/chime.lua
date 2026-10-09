@@ -10,7 +10,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /chime           opens or closes the settings
 --   /chime test      plays every event's sound in turn, to hear them
 --
--- What sets a sound off is read from packets (chat, invitations, actions) and from the party's
+-- What sets a sound off is read from packets (chat, invitations, actions, messages) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
@@ -39,6 +39,8 @@ local events = {
       tooltip = 'Your MP falls to the percentage below, or under it. It sounds once, and not again until your MP has been back over that.\nNothing sounds on a job with no MP.' },
     { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'ko.wav',
       tooltip = 'Someone else in your party is knocked out, in the area you are in.' },
+    { key = 'skillup', group = 'Combat', label = 'Skill Up', file = 'skillup.wav',
+      tooltip = 'One of your skills rises, or reaches a new level: a combat or magic skill, or a craft.' },
 }
 
 local defaults = T{
@@ -96,6 +98,7 @@ end
 
 local packetChat = 0x017
 local packetAction = 0x028
+local packetMessage = 0x029
 local packetInvite = 0x0DC
 
 local chatTell = 3
@@ -210,6 +213,20 @@ local function OnAction(data)
     end
 end
 
+-- The message packet: who it is about at 0x08, and which message at 0x18, in its low 15 bits. A skill
+-- rising and a skill reaching a level are two of them, and the player's own are the ones wanted.
+local messageSkillRises, messageSkillLevel = 38, 53
+
+local function OnMessage(data)
+    local message = struct.unpack('H', data, 0x18 + 1) % 0x8000
+    if message ~= messageSkillRises and message ~= messageSkillLevel then
+        return
+    end
+    if struct.unpack('I', data, 0x08 + 1) == AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
+        Sound('skillup')
+    end
+end
+
 ashita.events.register('packet_in', 'chime_packet_in', function(e)
     if app == nil or not app.options.enabled[1] then
         return
@@ -220,6 +237,8 @@ ashita.events.register('packet_in', 'chime_packet_in', function(e)
         Sound('invite')
     elseif e.id == packetAction and app.options.events.skillchain.enabled[1] then
         OnAction(e.data)
+    elseif e.id == packetMessage then
+        OnMessage(e.data)
     end
 end)
 
