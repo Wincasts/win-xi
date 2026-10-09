@@ -106,13 +106,11 @@ local layout = {
     -- right end at the bar's. It goes up and down with the TP figure, wherever that has been moved to
     -- (levelWithTp), and is not moved as the HP figure on a bar is.
     targetHpFigure = { x = 115, y = 35, alignRight = true, levelWithTp = true },
-    -- TP is a figure alone: to the left of the MP bar for the player's party, and for the others
-    -- under the start of the name. XivParty writes it smaller than HP and MP; here the three are one
-    -- size (valueSize), and TP is a little higher to stay level with the MP bar.
-    tp = {
-        party = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 18, alignRight = true } },
-        alliance = { value = 'tp', x = 0, y = 0, figure = { x = 24, y = 18 } },
-    },
+    -- TP is a figure alone, to the left of the MP bar: in the same place on every line, the player's
+    -- party, the other two and the pets alike. XivParty puts it elsewhere for the other parties, and
+    -- writes it smaller than HP and MP; here the three are one size (valueSize), and TP is a little
+    -- higher to stay level with the MP bar.
+    tp = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 18, alignRight = true } },
     leader = { x = 2, y = 21, width = 7, height = 5, file = 'ffxi/Leader.png',
                partyColor = Hex('E6E159'), allianceX = 7 },
     name = { x = 0, y = 0, size = 10, maxChars = 9 },
@@ -470,7 +468,7 @@ local function LineHeight(member, kind, showMp, showTp)
         end
 
         if showTp and member.tp ~= nil then
-            local tp = layout.tp[kind] or layout.tp.party
+            local tp = layout.tp
             bottom = math.max(bottom, tp.y + tp.figure.y + tpOffsetY + valueHeight)
         end
     end
@@ -612,7 +610,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     end
 
     local valueFont = FontSize(layout.valueSize * valueScale)
-    local tpPlace = layout.tp[kind] or layout.tp.party
+    local tpPlace = layout.tp
     local hpFigure = kind == 'target' and layout.targetHpFigure or nil
     imgui.PushFont(nil, valueFont)
     for index = 1, count do
