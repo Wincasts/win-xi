@@ -1,18 +1,22 @@
 -- XivParty Style: the party lists drawn the way XivParty, a party list addon for Windower 4 by Tylas,
--- draws them in its default layout (https://github.com/Tylas11/XivParty; its layouts/xiv.xml and
--- layouts/xiv_alliance.xml). The images are that addon's own, in assets/xivparty with its licence.
+-- draws them (https://github.com/Tylas11/XivParty). The images are that addon's own, in
+-- assets/xivparty with its licence. Two of its layouts are here:
 --
--- The player's party is a list of rows: a job icon, the job and sub job, the name, bars for HP, MP
--- and TP with their figures under them, the leader's mark, and the buffs to the right. Each of the
--- other two alliance parties is a grid of small cells, three across: a job icon, the name, and HP and
--- MP bars.
+--   compact  its ffxi2 layout, in the manner of the game's own party list: a line a member, with a
+--            small job icon, the name, an HP bar and a smaller MP bar with their figures, TP as a
+--            figure alone, and the buffs running leftwards from the list. The other two alliance
+--            parties are drawn the same way, without buffs.
+--   full     its default xiv layout: a taller row a member, with the job and sub job, bars for HP, MP
+--            and TP with their figures under them, and the buffs to the right. Each of the other two
+--            alliance parties is a grid of small cells, three across.
 --
---     xivparty.Draw(members, 'party' or 'alliance', scale, StatusTexture)
+--     xivparty.Draw(members, 'party' or 'alliance', scale, StatusTexture, 'compact' or 'full')
 --
 -- is called inside a window with no padding or background of its own. It takes up the room the list
--- needs and draws into it. members are the party window's own (see us.lua). scale is a percentage, or
--- 0 for XivParty's own choice: full size on a screen 1440 high, and in proportion on any other.
--- StatusTexture(id) gives the texture for a status icon, or nil.
+-- itself needs and draws into it; the buffs are drawn beyond that room, beside the list. members are
+-- the party window's own (see us.lua). scale is a percentage, or 0 for XivParty's own choice: full
+-- size on a screen 1440 high, and in proportion on any other. StatusTexture(id) gives the texture for
+-- a status icon, or nil.
 --
 -- What is XivParty's and is not here: the buffs are in the game's order, not sorted debuffs first; there
 -- is no mark for the quartermaster; and nothing happens on hovering or clicking a member.
@@ -52,58 +56,101 @@ local jobRoles = {
     COR = 'support', PUP = 'tank', DNC = 'dd', SCH = 'healer', GEO = 'support', RUN = 'tank',
 }
 
--- The two layouts, in XivParty's own numbers: places and sizes are in its units, from the top left of
--- a member's row or cell. margin is how far the list reaches left of and above the first member.
-local layouts = {
-    party = {
-        columns = 1, columnWidth = 410, rowHeight = 46,
-        margin = { 24, 21 },
-        background = { x = 0, y = -21, width = 377, topHeight = 21, bottomHeight = 21, alpha = 0.87,
-                       top = 'xiv/BgTop.png', mid = 'xiv/BgMid.png', bottom = 'xiv/BgBottom.png' },
-        cursor = { file = 'xiv/Cursor.png', x = 20, y = -8, width = 390, height = 60 },
+-- A colour as XivParty's layouts write it
+local function Hex(code)
+    return { tonumber(code:sub(1, 2), 16) / 255, tonumber(code:sub(3, 4), 16) / 255, tonumber(code:sub(5, 6), 16) / 255, 1 }
+end
+
+-- The images of a bar: a back, the fill that is as long as the bar is full (it starts fillX across
+-- and is fillWidth long when full), a front, and the glow that covers a change with its two ends.
+-- color tints the back, fill and front; glowColor the glow.
+local xivBar = { width = 128, height = 64, fillX = 13, fillWidth = 102, glowSidesWidth = 2,
+    back = 'xiv/BarBG.png', fill = 'xiv/Bar.png', front = 'xiv/BarFG.png', glow = 'xiv/BarGlow.png', glowSides = 'xiv/BarGlowSides.png' }
+local xivAllyHp = { width = 64, height = 64, fillX = 4, fillWidth = 56, glowSidesWidth = 3,
+    back = 'xiv/AllyBarBG.png', fill = 'xiv/AllyBarHP.png', front = 'xiv/AllyBarFG.png', glow = 'xiv/AllyBarGlowHP.png', glowSides = 'xiv/AllyBarGlowSidesHP.png' }
+local xivAllyMp = { width = 64, height = 64, fillX = 4, fillWidth = 56, glowSidesWidth = 3,
+    fill = 'xiv/AllyBarMP.png', front = 'xiv/AllyBarFG.png', glow = 'xiv/AllyBarGlowMP.png', glowSides = 'xiv/AllyBarGlowSidesMP.png' }
+local ffxiHp = { width = 128, height = 64, fillX = 13, fillWidth = 102, glowSidesWidth = 2,
+    back = 'ffxi/BarBG.png', fill = 'ffxi/Bar.png', front = 'ffxi/BarFG.png', glow = 'ffxi/BarGlow.png', glowSides = 'ffxi/BarGlowSides.png',
+    color = Hex('FF9597'), glowColor = Hex('FFF2F2') }
+local ffxiMp = { width = 128, height = 64, fillX = 27, fillWidth = 74, glowSidesWidth = 2,
+    back = 'ffxi/AllyBarBgMP.png', fill = 'ffxi/AllyBarMP.png', front = 'ffxi/AllyBarFgMP.png', glow = 'ffxi/AllyBarGlowMP.png', glowSides = 'ffxi/AllyBarGlowSidesMP.png',
+    color = Hex('FFFF9C'), glowColor = Hex('FFFFF2') }
+
+-- The compact list is the same for the player's party and the others, but for the buffs and where TP goes
+local function CompactList(buffs, tpFigure)
+    return {
+        columns = 1, columnWidth = 168, rowHeight = 32,
+        margin = { 24, 6 },
+        background = { x = 7, y = -6, width = 160, topHeight = 6, bottomHeight = 4, alpha = 1,
+                       top = 'ffxi/AllyBgTop.png', mid = 'ffxi/AllyBgMid.png', bottom = 'ffxi/AllyBgBottom.png' },
+        cursor = { file = 'ffxi/Cursor.png', x = -24, y = 7, width = 37 * 0.75, height = 24 * 0.75 },
         bars = {
-            { value = 'hp', x = 19, y = -7 },
-            { value = 'mp', x = 150, y = -7 },
-            { value = 'tp', x = 281, y = -7 },
+            { value = 'hp', x = 30, y = -17, images = ffxiHp, hideOutsideZone = true,
+              figure = { x = 114, y = 22, size = 8, alignRight = true } },
+            { value = 'mp', x = 56, y = -8, images = ffxiMp, hideOutsideZone = true,
+              figure = { x = 100, y = 22, size = 8, alignRight = true } },
+            { value = 'tp', x = 0, y = 0, hideOutsideZone = true, figure = tpFigure }, -- a figure alone
         },
-        bar = { -- the three are alike
-            width = 128, height = 64, fillX = 13, fillWidth = 102,
-            back = 'xiv/BarBG.png', front = 'xiv/BarFG.png', glowSidesWidth = 2,
-            fill = { hp = 'xiv/Bar.png', mp = 'xiv/Bar.png', tp = 'xiv/Bar.png' },
-            glow = { hp = 'xiv/BarGlow.png', mp = 'xiv/BarGlow.png', tp = 'xiv/BarGlow.png' },
-            glowSides = { hp = 'xiv/BarGlowSides.png', mp = 'xiv/BarGlowSides.png', tp = 'xiv/BarGlowSides.png' },
-            figure = { x = 120, y = 35, size = 11 }, -- its right end goes at x
-        },
-        jobIcon = { x = -11, y = -2, size = 36 },
-        leader = { x = -24, y = -8, size = 24 },
-        name = { x = 95, y = 1, size = 15, maxChars = 17 },
-        zone = { x = 292, y = 1, size = 13 },
-        job = { x = 30, y = 0, size = 8 },
-        sub = { x = 39, y = 9, size = 8 },
-        buffs = { x = 293, y = 0, size = 20, gap = 1, rows = { 19, 13 }, offsets = { 0, 6 } },
+        jobIcon = { x = -6, y = 2, size = 36 * 0.75 },
+        leader = { x = 26, y = 21, width = 7, height = 5,
+                   party = { file = 'ffxi/Leader.png', x = 0, y = 0, color = Hex('E6E159') },
+                   alliance = { file = 'ffxi/Leader.png', x = 7, y = 0 } },
+        name = { x = 24, y = 0, size = 10, maxChars = 9 },
+        zone = { x = 160, y = 14, size = 10, maxChars = 16, alignRight = true },
+        buffs = buffs,
+    }
+end
+
+-- The layouts, in XivParty's own numbers: places and sizes are in its units, from the top left of a
+-- member's row or cell. margin is how far the list itself reaches left of and above the first member.
+-- A figure's place is from its bar's; with alignRight its right end goes there.
+local layouts = {
+    compact = {
+        -- the buffs run leftwards from beside the cursor, sixteen at most
+        party = CompactList({ x = -25, y = 5, size = 20, gap = 1, rows = { 16 }, offsets = { 0 }, alignRight = true },
+                            { x = 80, y = 20, size = 6, alignRight = true }),
+        alliance = CompactList(nil, { x = 48, y = 20, size = 6 }),
     },
-    alliance = {
-        columns = 3, columnWidth = 105, rowHeight = 42,
-        margin = { 6, 12 },
-        background = { x = -6, y = -6, width = 327, topHeight = 5, bottomHeight = 5, alpha = 0.75,
-                       top = 'xiv/AllyBgTop.png', mid = 'xiv/AllyBgMid.png', bottom = 'xiv/AllyBgBottom.png' },
-        cursor = { file = 'xiv/AllyCursor.png', x = -6, y = -6, width = 116, height = 53 },
-        bars = { -- one over the other: each image has its bar at its own height
-            { value = 'hp', x = 37, y = -12 },
-            { value = 'mp', x = 37, y = -12, noBack = true },
+    full = {
+        party = {
+            columns = 1, columnWidth = 410, rowHeight = 46,
+            margin = { 24, 21 },
+            background = { x = 0, y = -21, width = 377, topHeight = 21, bottomHeight = 21, alpha = 0.87,
+                           top = 'xiv/BgTop.png', mid = 'xiv/BgMid.png', bottom = 'xiv/BgBottom.png' },
+            cursor = { file = 'xiv/Cursor.png', x = 20, y = -8, width = 390, height = 60 },
+            bars = {
+                { value = 'hp', x = 19, y = -7, images = xivBar, figure = { x = 120, y = 35, size = 11, alignRight = true } },
+                { value = 'mp', x = 150, y = -7, images = xivBar, figure = { x = 120, y = 35, size = 11, alignRight = true } },
+                { value = 'tp', x = 281, y = -7, images = xivBar, figure = { x = 120, y = 35, size = 11, alignRight = true } },
+            },
+            jobIcon = { x = -11, y = -2, size = 36 },
+            leader = { x = -24, y = -8, width = 24, height = 24,
+                       party = { file = 'xiv/Leader.png', x = 0, y = 0 },
+                       alliance = { file = 'xiv/AllianceLeader.png', x = 0, y = 12 } },
+            name = { x = 95, y = 1, size = 15, maxChars = 17 },
+            zone = { x = 292, y = 1, size = 13 },
+            job = { x = 30, y = 0, size = 8 },
+            sub = { x = 39, y = 9, size = 8 },
+            buffs = { x = 293, y = 0, size = 20, gap = 1, rows = { 19, 13 }, offsets = { 0, 6 } },
         },
-        bar = {
-            width = 64, height = 64, fillX = 4, fillWidth = 56,
-            back = 'xiv/AllyBarBG.png', front = 'xiv/AllyBarFG.png', glowSidesWidth = 3,
-            fill = { hp = 'xiv/AllyBarHP.png', mp = 'xiv/AllyBarMP.png' },
-            glow = { hp = 'xiv/AllyBarGlowHP.png', mp = 'xiv/AllyBarGlowMP.png' },
-            glowSides = { hp = 'xiv/AllyBarGlowSidesHP.png', mp = 'xiv/AllyBarGlowSidesMP.png' },
-            hideOutsideZone = true,
+        alliance = {
+            columns = 3, columnWidth = 105, rowHeight = 42,
+            margin = { 6, 6 },
+            background = { x = -6, y = -6, width = 327, topHeight = 5, bottomHeight = 5, alpha = 0.75,
+                           top = 'xiv/AllyBgTop.png', mid = 'xiv/AllyBgMid.png', bottom = 'xiv/AllyBgBottom.png' },
+            cursor = { file = 'xiv/AllyCursor.png', x = -6, y = -6, width = 116, height = 53 },
+            bars = { -- one over the other: each image has its bar at its own height
+                { value = 'hp', x = 37, y = -12, images = xivAllyHp, hideOutsideZone = true },
+                { value = 'mp', x = 37, y = -12, images = xivAllyMp, hideOutsideZone = true },
+            },
+            jobIcon = { x = 4, y = 4, size = 36 * 0.9 },
+            leader = { x = -6, y = 0, width = 24 * 0.8, height = 24 * 0.8,
+                       party = { file = 'xiv/Leader.png', x = 0, y = 0 },
+                       alliance = { file = 'xiv/AllianceLeader.png', x = 0, y = 12 * 0.8 } },
+            name = { x = 41, y = 1, size = 8, maxChars = 9 },
+            zone = { x = 8, y = 18, size = 9, maxChars = 14 },
         },
-        jobIcon = { x = 4, y = 4, size = 36 * 0.9 },
-        leader = { x = -6, y = 0, size = 24 * 0.8 },
-        name = { x = 41, y = 1, size = 8, maxChars = 9 },
-        zone = { x = 8, y = 18, size = 9, maxChars = 14 },
     },
 }
 
@@ -244,11 +291,10 @@ local function RangeOpacity(member)
     return 0.25
 end
 
-local function DrawBar(layout, place, member, state, opacity)
-    local bar = layout.bar
+local function DrawBar(place, member, state, opacity)
     local kind = place.value
     local known = member.isInZone
-    if not known and bar.hideOutsideZone then
+    if not known and place.hideOutsideZone then
         return
     end
 
@@ -265,31 +311,36 @@ local function DrawBar(layout, place, member, state, opacity)
     amount = amount or -1
     fraction = math.max(0, math.min(1, fraction))
 
-    -- the glow closes on the bar's value; while dimmed there is no glow and the bar itself moves
-    local dimmed = opacity < 1
-    local shown = state[kind] or fraction
-    shown = shown + (fraction - shown) * animStep
-    if math.abs(fraction - shown) < 0.001 then
-        shown = fraction
-    end
-    state[kind] = shown
-
     local x, y = place.x, place.y
-    if not place.noBack then
-        Image(bar.back, x, y, bar.width, bar.height)
-    end
-    Image(bar.fill[kind], x + bar.fillX, y, bar.fillWidth * (dimmed and shown or fraction), bar.height, white, opacity)
-    Image(bar.front, x, y, bar.width, bar.height)
+    local images = place.images
+    if images ~= nil then
+        -- the glow closes on the bar's value; while dimmed there is no glow and the bar itself moves
+        local dimmed = opacity < 1
+        local shown = state[kind] or fraction
+        shown = shown + (fraction - shown) * animStep
+        if math.abs(fraction - shown) < 0.001 then
+            shown = fraction
+        end
+        state[kind] = shown
 
-    if not dimmed and math.abs(fraction - shown) > 0.01 then
-        local glowX = x + bar.fillX + bar.fillWidth * math.min(fraction, shown)
-        local glowWidth = bar.fillWidth * math.abs(fraction - shown)
-        Image(bar.glow[kind], glowX, y, glowWidth, bar.height)
-        Image(bar.glowSides[kind], glowX - bar.glowSidesWidth, y, bar.glowSidesWidth, bar.height)
-        Image(bar.glowSides[kind], glowX + glowWidth, y, bar.glowSidesWidth, bar.height, white, 1, true)
+        local color = images.color
+        if images.back ~= nil then
+            Image(images.back, x, y, images.width, images.height, color)
+        end
+        Image(images.fill, x + images.fillX, y, images.fillWidth * (dimmed and shown or fraction), images.height, color, opacity)
+        Image(images.front, x, y, images.width, images.height, color)
+
+        if not dimmed and math.abs(fraction - shown) > 0.01 then
+            local glowX = x + images.fillX + images.fillWidth * math.min(fraction, shown)
+            local glowWidth = images.fillWidth * math.abs(fraction - shown)
+            local sides = images.glowSidesWidth
+            Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor)
+            Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor)
+            Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, 1, true)
+        end
     end
 
-    local figure = bar.figure
+    local figure = place.figure
     if figure ~= nil then
         local color = textColor
         if amount >= 0 then
@@ -306,10 +357,12 @@ local function DrawBar(layout, place, member, state, opacity)
                 color = tpFull
             end
         end
-        Text(amount < 0 and '?' or tostring(amount), x + figure.x, y + figure.y, figure.size, color, true)
+        Text(amount < 0 and '?' or tostring(amount), x + figure.x, y + figure.y, figure.size, color, figure.alignRight)
     end
 end
 
+-- The buffs in rows, each row so many and starting so many icons across. With alignRight they run
+-- leftwards, the first with its right edge at the buffs' place.
 local function DrawBuffs(buffs, member, StatusTexture)
     local ids = member.statusIds
     if ids == nil or StatusTexture == nil then
@@ -327,8 +380,9 @@ local function DrawBuffs(buffs, member, StatusTexture)
 
         local texture = StatusTexture(id)
         if texture ~= nil then
-            Image(texture, buffs.x + (buffs.offsets[row] + column) * buffs.size,
-                buffs.y + (row - 1) * (buffs.size + buffs.gap), buffs.size, buffs.size)
+            local across = (buffs.offsets[row] + column) * buffs.size
+            local x = buffs.alignRight and (buffs.x - across - buffs.size) or (buffs.x + across)
+            Image(texture, x, buffs.y + (row - 1) * (buffs.size + buffs.gap), buffs.size, buffs.size)
             column = column + 1
         end
     end
@@ -347,7 +401,7 @@ local function DrawMember(layout, member, StatusTexture)
 
     local opacity = RangeOpacity(member)
     for _, place in ipairs(layout.bars) do
-        DrawBar(layout, place, member, state, opacity)
+        DrawBar(place, member, state, opacity)
     end
 
     -- the job icon, front to back: frame, icon, gradient, a background in the colour of the job's role,
@@ -372,7 +426,7 @@ local function DrawMember(layout, member, StatusTexture)
         local zone = layout.zone
         local zoneName = zones[member.zoneId]
         if zoneName ~= nil then
-            Text(Trimmed(('(%s)'):format(zoneName), zone.maxChars), zone.x, zone.y, zone.size)
+            Text(Trimmed(('(%s)'):format(zoneName), zone.maxChars), zone.x, zone.y, zone.size, nil, zone.alignRight)
         end
     elseif layout.job ~= nil and job ~= nil then
         Text(('%s %d'):format(job, member.jobLevel or 0), layout.job.x, layout.job.y, layout.job.size)
@@ -381,13 +435,15 @@ local function DrawMember(layout, member, StatusTexture)
         end
     end
 
-    -- the leader's marks: the party's, and under it the alliance's
+    -- the leader's marks: the party's and the alliance's
     local leader = layout.leader
     if member.isPartyLeader then
-        Image('xiv/Leader.png', leader.x, leader.y, leader.size, leader.size)
+        local mark = leader.party
+        Image(mark.file, leader.x + mark.x, leader.y + mark.y, leader.width, leader.height, mark.color)
     end
     if member.isAllianceLeader then
-        Image('xiv/AllianceLeader.png', leader.x, leader.y + leader.size / 2, leader.size, leader.size)
+        local mark = leader.alliance
+        Image(mark.file, leader.x + mark.x, leader.y + mark.y, leader.width, leader.height, mark.color)
     end
 
     if inZone and layout.buffs ~= nil then
@@ -404,8 +460,14 @@ end
 
 local room = { 0, 0 }
 
-function xivparty.Draw(members, kind, scalePercent, StatusTexture)
-    local layout = layouts[kind] or layouts.party
+-- The layouts there are, for a setting to choose between: the first is the one used when none is given
+xivparty.Layouts = { { key = 'compact', label = 'Compact' }, { key = 'full', label = 'Full' } }
+
+local clipMin, clipMax = { 0, 0 }, { 0, 0 }
+
+function xivparty.Draw(members, kind, scalePercent, StatusTexture, layoutName)
+    local set = layouts[layoutName] or layouts.compact
+    local layout = set[kind] or set.party
     local count = #members
     if count == 0 then
         return
@@ -425,25 +487,9 @@ function xivparty.Draw(members, kind, scalePercent, StatusTexture)
     local contentHeight = rows * layout.rowHeight
     local background = layout.background
 
-    -- the room the list needs: its members, what reaches left of and above them, and for the party the
-    -- buffs of whoever has the most
+    -- the room the list itself needs: its members and what of the background reaches past them. The
+    -- buffs go beyond it, beside the list.
     local width = math.max(layout.columns * layout.columnWidth, background.x + background.width)
-    if layout.buffs ~= nil then
-        local buffs = layout.buffs
-        for _, member in ipairs(members) do
-            local shown = member.isInZone and member.statusIds and #member.statusIds or 0
-            if shown > 0 then
-                local reach
-                if shown > buffs.rows[1] then
-                    reach = buffs.offsets[2] + math.min(shown - buffs.rows[1], buffs.rows[2])
-                    reach = math.max(reach, buffs.rows[1])
-                else
-                    reach = shown
-                end
-                width = math.max(width, buffs.x + reach * buffs.size)
-            end
-        end
-    end
     local height = background.y + background.topHeight + contentHeight + background.bottomHeight
 
     local windowX, windowY = imgui.GetCursorScreenPos()
@@ -457,7 +503,12 @@ function xivparty.Draw(members, kind, scalePercent, StatusTexture)
         return
     end
 
+    -- the window's own list, so the list sits with the window among the others and fades with it,
+    -- opened up to the whole screen (and no further) for what goes beside the list
     drawList = imgui.GetWindowDrawList()
+    clipMax[1], clipMax[2] = display.x, display.y
+    drawList:PushClipRect(clipMin, clipMax, false)
+
     local originX = math.floor(windowX + layout.margin[1] * scale)
     local originY = math.floor(windowY + layout.margin[2] * scale)
 
@@ -475,6 +526,7 @@ function xivparty.Draw(members, kind, scalePercent, StatusTexture)
         DrawMember(layout, member, StatusTexture)
     end
 
+    drawList:PopClipRect()
     drawList = nil
 end
 

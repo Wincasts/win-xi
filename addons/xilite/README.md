@@ -10,9 +10,11 @@ need: load xitools for those, with its own `me`, `us`, `tgt` and `pet` switched 
 
 ## XivParty Style
 An experimental setting of `us`: the party lists drawn the way the Windower addon
-[XivParty](https://github.com/Tylas11/XivParty) draws them in its default layout. Your own party is
-a list of rows (job icon, job and sub job, name, HP, MP and TP bars with their figures, buffs), and
-each of the other two alliance parties a grid of small cells. The images are XivParty's, in
+[XivParty](https://github.com/Tylas11/XivParty) draws them, in one of two of its layouts. Compact
+(its `ffxi2`) is a line a member in the manner of the game's own list: a small job icon, the name,
+HP and MP bars with their figures, TP as a figure, and buffs running leftwards from the list. Full
+(its default, `xiv`) is a taller row a member with HP, MP and TP bars and buffs to the right, and a
+grid of small cells for each of the other two alliance parties. The images are XivParty's, in
 `assets/xivparty` with its licence.
 
 ## usage

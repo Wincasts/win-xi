@@ -678,7 +678,7 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
         -- the player's own party as a list of rows, the other two as grids of small cells
         if xivStyle then
             local scale = usOptions.xivScale ~= nil and usOptions.xivScale[1] or 0
-            xivparty.Draw(members, growsUp and 'party' or 'alliance', scale, StatusTexture)
+            xivparty.Draw(members, growsUp and 'party' or 'alliance', scale, StatusTexture, usOptions.xivLayout)
         end
     end, nil, growFrom, xivStyle)
 end
@@ -726,6 +726,7 @@ local us = {
         sortByRole = T{ false },
         showCastbar = T{ true },
         xivParty = T{ false }, -- experimental: draw the lists as the Windower addon XivParty does
+        xivLayout = 'compact', -- which of its layouts: 'compact' or 'full'
         xivScale = T{ 0 },     -- its size, as a percentage; 0 is XivParty's own choice for the screen
         alliance1 = T{
             isCompact = T{ false },
@@ -793,9 +794,23 @@ local us = {
             ui.Label('XivParty Style', true)
             imgui.Checkbox('##us.xivParty', options.xivParty)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Draws the party lists the way the Windower addon XivParty does: a job icon, name, and HP, MP and TP bars for each member of your party, with buffs beside them, and a grid of small cells for each of the other two alliance parties.\nThe theme, the compact options and the cast bar do not apply to lists drawn this way.')
+                imgui.SetTooltip('Draws the party lists the way the Windower addon XivParty does, with its images.\nThe theme, the compact options and the cast bar do not apply to lists drawn this way.')
             end
             if options.xivParty[1] then
+                ui.Label('XivParty Layout')
+                local column = imgui.GetCursorPosX()
+                for index, layout in ipairs(xivparty.Layouts) do
+                    if index > 1 then
+                        imgui.SameLine()
+                    end
+                    local chosen = options.xivLayout == layout.key or (index == 1 and options.xivLayout == nil)
+                    if imgui.RadioButton(('%s##us.xivLayout'):format(layout.label), chosen) then
+                        options.xivLayout = layout.key
+                    end
+                end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('Compact: a line a member in the manner of the game\'s own list, with HP and MP bars, TP as a figure, and buffs running leftwards from the list.\nFull: a taller row a member with HP, MP and TP bars and buffs to the right, and a grid of small cells for each of the other two alliance parties.')
+                end
                 ui.Label('XivParty Scale (%)')
                 imgui.SliderInt('##us.xivScale', options.xivScale, 0, 200, options.xivScale[1] == 0 and ('Auto (%d%%%%)'):format(xivparty.AutoScale() * 100 + 0.5) or '%d%%')
                 if imgui.IsItemHovered() then
