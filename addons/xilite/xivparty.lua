@@ -243,65 +243,69 @@ local function RangeOpacity(member)
     return 0.25
 end
 
--- A bar with its figure, or for one with no images its figure alone; without the figure where
--- showFigure is false. Nothing for a member in another area.
-local function DrawBar(place, member, state, opacity, showFigure)
+-- A bar's images: its shadow, back, fill and front, and the glow over what it has just lost. Its
+-- figure is written apart (DrawFigure), after the name, so that the figure is the one on top where
+-- the two meet. Nothing for a member in another area.
+local function DrawBar(place, member, state, opacity)
+    local images = place.images
+    if not member.isInZone or images == nil then
+        return
+    end
+
+    local kind = place.value
+    local percent = member.mpp
+    if kind == 'hp' then
+        percent = member.hpp
+    end
+    local fraction = (percent or 0) / 100
+    fraction = math.max(0, math.min(1, fraction))
+
+    local x, y = place.x, place.y
+
+    -- a loss is covered by a glow that closes on the bar's new value; a gain simply shows. While
+    -- dimmed there is no glow and the bar itself moves, down or up.
+    local dimmed = opacity < 1
+    local shown = state[kind] or fraction
+    if fraction > shown and not dimmed then
+        shown = fraction
+    else
+        shown = shown + (fraction - shown) * animStep
+        if math.abs(fraction - shown) < 0.001 then
+            shown = fraction
+        end
+    end
+    state[kind] = shown
+
+    -- a soft shadow under the bar, down and to the right, to lift it off the window: the bar's own
+    -- back in black, twice, the further one fainter
+    Image(images.back, x + 1, y + 1.5, images.width, images.height, black, 0.45)
+    Image(images.back, x + 2, y + 2.5, images.width, images.height, black, 0.2)
+
+    local color = images.color
+    Image(images.back, x, y, images.width, images.height, color)
+    Image(images.fill, x + images.fillX, y, images.fillWidth * (dimmed and shown or fraction), images.height, color, opacity)
+    Image(images.front, x, y, images.width, images.height, color)
+
+    if barGlow and not dimmed and shown - fraction > 0.01 then
+        local glowX = x + images.fillX + images.fillWidth * fraction
+        local glowWidth = images.fillWidth * (shown - fraction)
+        local sides = images.glowSidesWidth
+        Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
+        Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
+        Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, glowOpacity, true, glowTop, glowBottom)
+    end
+end
+
+-- A bar's figure, or for TP, which has no bar, the figure that is all there is of it. Nothing for a
+-- member in another area.
+local function DrawFigure(place, member)
     if not member.isInZone then
         return
     end
 
     local kind = place.value
-    local amount, fraction
-    if kind == 'hp' then
-        amount, fraction = member.hp, (member.hpp or 0) / 100
-    elseif kind == 'mp' then
-        amount, fraction = member.mp, (member.mpp or 0) / 100
-    else
-        amount, fraction = member.tp, 0
-    end
-    amount = amount or -1
-    fraction = math.max(0, math.min(1, fraction))
-
+    local amount = (kind == 'hp' and member.hp) or (kind == 'mp' and member.mp) or (kind == 'tp' and member.tp) or -1
     local x, y = place.x, place.y
-    local images = place.images
-    if images ~= nil then
-        -- a loss is covered by a glow that closes on the bar's new value; a gain simply shows. While
-        -- dimmed there is no glow and the bar itself moves, down or up.
-        local dimmed = opacity < 1
-        local shown = state[kind] or fraction
-        if fraction > shown and not dimmed then
-            shown = fraction
-        else
-            shown = shown + (fraction - shown) * animStep
-            if math.abs(fraction - shown) < 0.001 then
-                shown = fraction
-            end
-        end
-        state[kind] = shown
-
-        -- a soft shadow under the bar, down and to the right, to lift it off the window: the bar's own
-        -- back in black, twice, the further one fainter
-        Image(images.back, x + 1, y + 1.5, images.width, images.height, black, 0.45)
-        Image(images.back, x + 2, y + 2.5, images.width, images.height, black, 0.2)
-
-        local color = images.color
-        Image(images.back, x, y, images.width, images.height, color)
-        Image(images.fill, x + images.fillX, y, images.fillWidth * (dimmed and shown or fraction), images.height, color, opacity)
-        Image(images.front, x, y, images.width, images.height, color)
-
-        if barGlow and not dimmed and shown - fraction > 0.01 then
-            local glowX = x + images.fillX + images.fillWidth * fraction
-            local glowWidth = images.fillWidth * (shown - fraction)
-            local sides = images.glowSidesWidth
-            Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
-            Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
-            Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, glowOpacity, true, glowTop, glowBottom)
-        end
-    end
-
-    if not showFigure then
-        return
-    end
 
     local figure = place.figure
     local color = nil
@@ -358,14 +362,13 @@ local function DrawMember(member, kind, buffsX, StatusTexture, showMp, showTp)
     local inZone = member.isInZone
     local state = Animation(member)
 
+    -- from the bottom up: the bars, the name, and last the figures, which stay readable where a long
+    -- or large name runs into them. A line with no MP to show has no MP bar: another player's pet.
+    local hasMp = member.mpp ~= nil
     local opacity = RangeOpacity(member)
-    DrawBar(layout.hp, member, state, opacity, true)
-    -- a line with no MP or TP to show has neither: another player's pet
-    if member.mpp ~= nil then
-        DrawBar(layout.mp, member, state, opacity, showMp)
-    end
-    if showTp and member.tp ~= nil then
-        DrawBar(layout.tp[kind] or layout.tp.party, member, state, opacity, true)
+    DrawBar(layout.hp, member, state, opacity)
+    if hasMp then
+        DrawBar(layout.mp, member, state, opacity)
     end
 
     -- the name, marked as the party window's own view marks it: "> " in green on the member a
@@ -378,6 +381,14 @@ local function DrawMember(member, kind, buffsX, StatusTexture, showMp, showTp)
         Text('>> ' .. shown, name.x, name.y, name.size * nameScale, ui.Colors.Blue)
     else
         Text(shown, name.x, name.y, name.size * nameScale)
+    end
+
+    DrawFigure(layout.hp, member)
+    if hasMp and showMp then
+        DrawFigure(layout.mp, member)
+    end
+    if showTp and member.tp ~= nil then
+        DrawFigure(layout.tp[kind] or layout.tp.party, member)
     end
 
     if not inZone then

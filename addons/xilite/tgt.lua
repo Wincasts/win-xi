@@ -920,7 +920,7 @@ local tgt = {
             if options.compact == nil then
                 options.compact = T{ false }
             end
-            ui.Label('Compact')
+            ui.Label('Compact', true)
             imgui.Checkbox('##tgt.compact', options.compact)
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('Draws each target window as one line in the style of the party list\'s XivParty Style: the name, an HP bar with its percentage, and the distance.\nIts size, text sizes, outline and glow are the ones set for the party list on the us tab.')
