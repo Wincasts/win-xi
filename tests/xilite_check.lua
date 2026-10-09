@@ -62,12 +62,8 @@ H.print('/xil closes it', H.command('/xil') and o.showConfig[1] == false, '| /xi
 o.tools.us.xivParty[1] = true
 local rooms, drawn = H.calls.Dummy or 0, H.calls['draw.AddText'] or 0
 ok, problem = pcall(H.frames, 2)
-H.print('xivparty style, compact: frames ran', ok, ok and '' or problem, '| lists given room', ((H.calls.Dummy or 0) - rooms) / 2,
+H.print('xivparty style: frames ran', ok, ok and '' or problem, '| lists given room', ((H.calls.Dummy or 0) - rooms) / 2,
     '| names and figures drawn', (H.calls['draw.AddText'] or 0) > drawn)
-o.tools.us.xivLayout = 'full'; rooms = H.calls.Dummy
-ok, problem = pcall(H.frames, 2)
-H.print('xivparty style, full: frames ran', ok, ok and '' or problem, '| lists given room', (H.calls.Dummy - rooms) / 2)
-o.tools.us.xivLayout = 'compact'
 o.tools.us.xivParty[1] = false
 
 -- an experimental setting's name carries its tag, the word in a colour of its own

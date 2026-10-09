@@ -256,7 +256,6 @@ ui.Gap = widgets.Gap
 ui.BeginLabels = widgets.BeginLabels
 
 local windowSize = { 0, 0 } -- reused for every UI window, every frame
-local clearColor = { 0, 0, 0, 0 }
 
 -- The windows whose saved corner has been handed to winxi.anchor: once for each settings table, so a
 -- character's own are used after a change of character
@@ -275,14 +274,14 @@ end
 -- winxi.anchor's: 'BottomLeft' for a window that grows upwards). The corner is kept in the window's
 -- settings as corner, beside pos. drawStuff is then called twice a frame, once to measure. A window
 -- linked to another while organizing is placed by its link instead.
--- bare is set for a window that draws everything itself, its own background included (the party lists
--- in XivParty Style): it has no background, border, padding or shadow, and is as big as its content.
+-- fitContent is set for a window that is as big as what is drawn in it, whatever size its settings
+-- give (the party lists in XivParty Style).
 ---@param config table
 ---@param drawStuff function
 ---@param wanted boolean?
 ---@param growFrom string?
----@param bare boolean?
-function ui.DrawUiWindow(config, gConfig, drawStuff, wanted, growFrom, bare)
+---@param fitContent boolean?
+function ui.DrawUiWindow(config, gConfig, drawStuff, wanted, growFrom, fitContent)
     if not config.isVisible[1] then
         return
     end
@@ -304,10 +303,7 @@ function ui.DrawUiWindow(config, gConfig, drawStuff, wanted, growFrom, bare)
     ui.Styles.WindowPadding[1] = padding
     ui.Styles.WindowPadding[2] = padding
 
-    local background, border, windowPadding = look.BackgroundColor, look.BorderColor, ui.Styles.WindowPadding
-    if bare then
-        background, border, windowPadding = clearColor, clearColor, ui.Styles.FramePaddingNone
-        padding = 0
+    if fitContent then
         flags = bit.bor(flags, ImGuiWindowFlags_AlwaysAutoResize)
         windowSize[1], windowSize[2] = -1, -1
     else
@@ -317,10 +313,10 @@ function ui.DrawUiWindow(config, gConfig, drawStuff, wanted, growFrom, bare)
     organize.Place(config.name, config.pos)
 
     imgui.PushStyleVar(ImGuiStyleVar_Alpha, alpha)
-    imgui.PushStyleColor(ImGuiCol_WindowBg, background)
-    imgui.PushStyleColor(ImGuiCol_Border, border)
+    imgui.PushStyleColor(ImGuiCol_WindowBg, look.BackgroundColor)
+    imgui.PushStyleColor(ImGuiCol_Border, look.BorderColor)
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, ui.Styles.ItemSpacing)
-    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, windowPadding)
+    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, ui.Styles.WindowPadding)
 
     local held = growFrom ~= nil and not organize.IsLinked(config.name)
     if held then
@@ -359,9 +355,7 @@ function ui.DrawUiWindow(config, gConfig, drawStuff, wanted, growFrom, bare)
             end
         end
 
-        if not bare then
-            shadow.Draw()
-        end
+        shadow.Draw()
 
         imgui.PushStyleColor(ImGuiCol_Text, look.TextColor)
         imgui.PushStyleVar(ImGuiStyleVar_FramePadding, ui.Styles.FramePaddingNone)
