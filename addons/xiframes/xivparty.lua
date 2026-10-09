@@ -102,6 +102,8 @@ local barShadowReach = 2.5 -- how far below a bar its shadow goes
 -- standing half on it, after the ones the bars of the game's own party list have
 local bookend = { width = 2, over = 1.5 } -- how wide a cap is, and how far past the bar's inside its frame goes, above and below
 local bookendSilver = { 0.78, 0.80, 0.84, 1 }
+local bookendShade = { 0.52, 0.54, 0.60, 1 } -- towards its top and bottom, as a bar's frame darkens towards its own
+local bookendHalfShade = { 0.65, 0.67, 0.72, 1 } -- and between that and the silver
 local bookendShine = { 0.97, 0.97, 1.00, 1 }
 local bookendEdge = { 0.20, 0.21, 0.25, 1 }
 
@@ -327,7 +329,8 @@ local function Front(place, bar)
     Image(images.front, place.x, place.y, images.width, images.height, bar.color or images.color)
 end
 
--- A bar's two bookends. Each is a silver cap with a dark edge and a line of shine down its left side.
+-- A bar's two bookends. Each is a silver cap, darker towards its top and bottom in two steps as the
+-- bars themselves are, with a dark edge and a line of shine down the left of its bright middle.
 local capMin, capMax = { 0, 0 }, { 0, 0 }
 
 local function Cap(centre, top, bottom)
@@ -338,8 +341,21 @@ local function Cap(centre, top, bottom)
 
     capMin[1], capMin[2], capMax[1], capMax[2] = left, top, right, bottom
     drawList:AddRectFilled(capMin, capMax, Packed(bookendSilver, 1), 1)
+
+    -- the shading: a band at the top and one at the bottom, each darkest at the very end
+    local band = math.max(1, math.floor((bottom - top) * 0.14 + 0.5))
+    capMax[2] = top + 2 * band
+    drawList:AddRectFilled(capMin, capMax, Packed(bookendHalfShade, 1), 0)
+    capMax[2] = top + band
+    drawList:AddRectFilled(capMin, capMax, Packed(bookendShade, 1), 0)
+    capMin[2], capMax[2] = bottom - 2 * band, bottom
+    drawList:AddRectFilled(capMin, capMax, Packed(bookendHalfShade, 1), 0)
+    capMin[2] = bottom - band
+    drawList:AddRectFilled(capMin, capMax, Packed(bookendShade, 1), 0)
+
+    capMin[1], capMin[2], capMax[1], capMax[2] = left, top, right, bottom
     drawList:AddRect(capMin, capMax, Packed(bookendEdge, 1), 1, 0, 1)
-    capMin[1], capMin[2], capMax[1], capMax[2] = left + 1, top + 1, left + 1, bottom - 2
+    capMin[1], capMin[2], capMax[1], capMax[2] = left + 1, top + 2 * band, left + 1, bottom - 2 * band - 1
     if capMax[2] > capMin[2] then
         drawList:AddLine(capMin, capMax, Packed(bookendShine, 1), 1)
     end
