@@ -631,16 +631,20 @@ local function DrawAllianceContent()
         person.entity = entity
     end
 
-    -- whichever list is last in the window has its last line only as tall as what is on it
+    -- a list's last line is only as tall as what is on it: so the window ends where its content
+    -- does, and what follows a list is a known distance under it
     local hasPets = pets ~= nil and #pets > 0
     local settings = StyleSettings()
-    settings.trimLast = not hasPets
+    settings.trimLast = true
     xivparty.Draw(members, ownParty and 'party' or 'alliance', StatusTexture, settings)
 
-    -- the pets, under a line
+    -- the pets, under a line, with as much room above the line and below it as there is between the
+    -- window's edge and its first member: the window's padding
     if hasPets then
+        local room = ui.Styles.WindowPadding[2] - ui.Styles.ItemSpacing[2] -- imgui puts the spacing in itself
+        imgui.SetCursorPosY(imgui.GetCursorPosY() + room)
         imgui.Separator()
-        settings.trimLast = true
+        imgui.SetCursorPosY(imgui.GetCursorPosY() + room)
         xivparty.Draw(pets, 'pets', nil, settings)
     end
 
