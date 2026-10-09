@@ -223,9 +223,8 @@ pad.binding = controller.Bind({
     press = PadPress,
 })
 
--- The treasure pool comes after the inventory in the window cycle: X (square) from the inventory, or
--- from the game's status icons where the inventory is not taking part, gives it the controller, and
--- X again gives the controller back
+-- The treasure pool comes after the inventory in the window cycle: X (square) moves the controller
+-- from one open winxi window to the next and round again
 controller.Cycle({
     order = 2,
     available = function()
@@ -540,7 +539,7 @@ local function DrawSettings()
     widgets.Label('Controller Navigation (Experimental)')
     imgui.Checkbox('##treas.controller', options.controller)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Work the treasure pool with a controller.\nThe window does not take the controller by itself. X (square) gives it the controller in its turn, after the game\'s own round of windows (the chat windows, then the status icons) and the inventory; so does /treas focus. B gives it back.\nUp / down: move the highlight.  A: lot or pass on the highlighted item.  Y (triangle): lot or pass on everything.  X: on to the next window.')
+        imgui.SetTooltip('Work the treasure pool with a controller.\nThe window does not take the controller by itself. X (square) moves the controller between the winxi windows that are open (the inventory, this one), round and round; /treas focus gives it to this one directly. B gives it back to the game.\nUp / down: move the highlight.  A: lot or pass on the highlighted item.  Y (triangle): lot or pass on everything.  X: on to the next window.')
     end
     if options.controller[1] then
         widgets.Label('Controller Sounds')

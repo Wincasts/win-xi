@@ -144,9 +144,10 @@ if menu then
 end
 ```
 
-X (square) is the window cycle's. The game's X steps through its own windows (the chat windows, then the
-status icons); `controller.Cycle` puts an addon's window after them, each in its `order`, and the
-addons agree among themselves whose turn it is:
+X (square) is the window cycle's: it moves the controller between the winxi windows that are open, in
+their `order` and round again. `controller.Cycle` puts an addon's window in it, and the addons agree
+among themselves whose turn it is. While any is open the game does not get X, except in a menu of its
+own:
 
 ```lua
 controller.Cycle({

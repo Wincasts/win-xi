@@ -22,12 +22,12 @@
 -- that changes and once a second while it has. An addon with a controller of its own listens for it
 -- and stands down; controller.OtherHasFocus() is the same asked of other winxi addons.
 --
--- The window cycle. The game's X (square) steps through its own windows: the chat windows, then the
--- status icons, then round again. An addon's window joins the end of that with controller.Cycle: on
--- the press that would start the game's round again, the first winxi window that is open takes the
--- controller instead, the next press gives it to the one after, and after the last the press goes to
--- the game. The cycle moves the controller between windows that are open: it is not for opening or
--- closing them.
+-- The window cycle. X (square) moves the controller between the winxi windows that are open, each an
+-- addon's own, joined to the cycle with controller.Cycle: the first press gives it to the first of
+-- them, the next to the one after, and after the last round to the first again. A window gives the
+-- controller back to the game itself (on B, usually). The cycle is not for opening or closing
+-- windows, and while any is open the game does not get X, except in a menu of its own: with none
+-- open, or one of the game's menus up, X is the game's as ever.
 --
 --     controller.Cycle({
 --         order     = 1,                          -- its place among winxi windows, lowest first
@@ -102,9 +102,8 @@ controller.BlockTriggers = true;
 -- is the addon's name, a colon, and 1 or 0.
 controller.FocusEvent = 'winxi_controller_focus';
 
--- The window cycle's button, and the game menu that is the last stop of the game's own round
+-- The window cycle's button
 controller.CycleButton = controller.Button.X;
-controller.CycleAfterMenu = 'menu    buff    ';
 controller.CycleEvent = 'winxi_controller_cycle';
 
 local bindings = {};
@@ -219,11 +218,16 @@ local cycleExpiry = 2.0;     -- an addon not heard from for this long has gone
 local cycleDown = false;     -- whether the cycle's button is down
 local cycleBlocked = false;  -- whether its present press is being kept from the game
 
--- Whoever of the other addons had the controller a frame ago, and the first of those after a place
--- in the order that could take it: as their order, or nil
-local function CycleOthers(after)
+-- Of the other addons: the place in the order of whichever had the controller a frame ago (nil if
+-- none had), and the places of those whose windows could take it, lowest first
+local cycleOrders = {};
+
+local function CycleOthers()
     local now = os.clock();
-    local holder, nextOrder = nil, nil;
+    local holder = nil;
+    for index = #cycleOrders, 1, -1 do
+        cycleOrders[index] = nil;
+    end
     for name, other in pairs(cycleOthers) do
         if now - other.heard > cycleExpiry then
             cycleOthers[name] = nil;
@@ -231,12 +235,25 @@ local function CycleOthers(after)
             if other.focused then
                 holder = other.order;
             end
-            if other.available and other.order > after and (nextOrder == nil or other.order < nextOrder) then
-                nextOrder = other.order;
+            if other.available then
+                cycleOrders[#cycleOrders + 1] = other.order;
             end
         end
     end
-    return holder, nextOrder;
+    table.sort(cycleOrders);
+    return holder, cycleOrders;
+end
+
+-- The window the controller goes to from the one at a place in the order: the next after it, or
+-- round to the first; nil if there is no other. orders is every window that could take it but the
+-- holder, lowest first.
+local function CycleNext(holder, orders)
+    for _, order in ipairs(orders) do
+        if order > holder then
+            return order;
+        end
+    end
+    return orders[1];
 end
 
 -- The cycle's button has been pressed. Returns whether the press is kept from the game. Every addon
@@ -244,36 +261,46 @@ end
 local function CyclePress()
     local entry = cycleEntry;
     local mine = entry.order;
+    local holder, orders = CycleOthers();
 
     if cycleFocused then
-        -- this window has the controller: it lets go, and the press is the next window's if there is
-        -- one, the game's if not
-        if entry.busy ~= nil and entry.busy() then
-            return true;
+        -- this window has the controller: it goes to the next open window, if there is another
+        if not (entry.busy ~= nil and entry.busy()) and CycleNext(mine, orders) ~= nil then
+            entry.unfocus();
+            cycleFocused = false;
         end
-        local _, nextOrder = CycleOthers(mine);
-        entry.unfocus();
-        cycleFocused = false;
-        return nextOrder ~= nil;
-    end
-
-    local holder = CycleOthers(-math.huge);
-    if holder == nil then
-        -- nobody has it: the cycle begins where the game's own round ends
-        if game.MenuName() ~= controller.CycleAfterMenu then
-            return false;
-        end
-        holder = -math.huge;
-    end
-
-    -- the first window after the holder that could take it: this one, or another addon's
-    local _, nextOrder = CycleOthers(holder);
-    local available = mine > holder and entry.available();
-    if available and (nextOrder == nil or mine < nextOrder) then
-        entry.focus();
         return true;
     end
-    return nextOrder ~= nil;
+
+    local available = entry.available();
+    if holder == nil then
+        -- nobody has it. The button is the game's own while one of its menus is open, and when no
+        -- winxi window is; otherwise the first open window takes the controller.
+        if game.MenuName() ~= '' then
+            return false;
+        end
+        if available and (orders[1] == nil or mine < orders[1]) then
+            entry.focus();
+            return true;
+        end
+        return orders[1] ~= nil;
+    end
+
+    -- another addon's window has it: it is this one's turn if, of the windows that could take it
+    -- (this one among them, the holder not), this is the next after the holder
+    if available then
+        for index = #orders, 1, -1 do
+            if orders[index] == holder then
+                table.remove(orders, index);
+            end
+        end
+        orders[#orders + 1] = mine;
+        table.sort(orders);
+        if CycleNext(holder, orders) == mine then
+            entry.focus();
+        end
+    end
+    return true;
 end
 
 -- The cycle's button is down or up, or is being reported again. Returns whether to keep it from the game.

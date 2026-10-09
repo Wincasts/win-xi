@@ -13,9 +13,9 @@ so it does not take the controller until `/treas focus` gives it (put that in a 
 move the highlight, A lots or passes on the highlighted item, Y (triangle) lots or passes on everything,
 and B gives the controller back to the game.
 
-X (square) is the window cycle, and another way in: after the game's own windows (the chat windows, then
-the status icons) and the inventory (the `inv` addon), X gives the treasure pool the controller, and X
-again gives it back to the game.
+X (square) is the window cycle, and another way in: it moves the controller between whichever winxi
+windows are open, the inventory (the `inv` addon) first, then the treasure pool, and round again. While
+a winxi window is open the game does not get X, except in a menu of its own.
 
 The first time it is loaded for a character it brings over what xitools kept for the tool: its settings,
 the window's place, and xitools' theme and hiding rules.
