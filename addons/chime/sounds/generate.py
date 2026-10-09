@@ -57,6 +57,8 @@ SOUNDS = {
     'lowmp': tone(698, 698, 0.09, 3) + tone(523, 494, 0.2, 5),
     # a long low falling note: someone is down
     'ko': tone(392, 196, 0.5, 3),
+    # four quick steps up: a skill has risen
+    'skillup': tone(784, 784, 0.05, 2) + tone(988, 988, 0.05, 2) + tone(1175, 1175, 0.05, 2) + tone(1568, 1568, 0.18, 6),
 }
 
 here = os.path.dirname(os.path.abspath(__file__))

@@ -91,6 +91,24 @@ members[1].hp = 0; H.frames(8); H.print('a member knocked out:', heard())
 members[1].hp = 50; H.frames(8); members[1].zone = 20; members[1].hp = 0; H.frames(8); H.print('a member leaves the area: silence', heard() == '')
 members[1].zone = 10; members[1].hp = 70; H.frames(8)
 
+-- a message: who it is about at 0x08, which message at 0x18. struct is the harness's stand-in, so its
+-- unpack is given a real one for these two kinds of number.
+local function message(about, id)
+    local function le(value, bytes) local out = '' for _ = 1, bytes do out = out .. string.char(value % 256); value = math.floor(value / 256) end return out end
+    return ('\0'):rep(8) .. le(about, 4) .. ('\0'):rep(12) .. le(id, 2) .. ('\0'):rep(4)
+end
+local stubUnpack = struct.unpack
+struct.unpack = function(format, data, at)
+    local size, value = format == 'I' and 4 or 2, 0
+    for i = size - 1, 0, -1 do value = value * 256 + data:byte(at + i) end
+    return value
+end
+H.packetData(0x029, message(1, 38)); H.print('a skill of the player\'s rises:', heard())
+H.packetData(0x029, message(1, 53 + 0x8000)); H.print('and reaches a level:', heard())
+H.packetData(0x029, message(2, 38)); H.print('someone else\'s skill: silence', heard() == '')
+H.packetData(0x029, message(1, 206)); H.print('another message about the player: silence', heard() == '')
+struct.unpack = stubUnpack
+
 -- arriving somewhere: nothing is believed at first
 H.play(false); H.frames(8); me.tp = 0; H.play(true); H.frames(8); me.tp = 2000; me.hp = 5; H.frames(8)
 H.print('just arrived, numbers jumping: silence', heard() == ''); me.hp = 100; H.frames(150)
