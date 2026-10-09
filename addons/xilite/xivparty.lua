@@ -19,6 +19,8 @@
 --     nameSize    a percentage for the size of the names alone
 --     buffSize    a percentage for the size of the buff icons alone
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
+--     outline     false to leave the dark edge off the HP, MP and TP figures, which are written over
+--                 their bars and are hard to read against them without it
 --     hpOffset, mpOffset, tpOffset   { x, y } to move that figure from its place in the layout, in the
 --                 layout's units: right and down, or left and up for less than nothing
 --
@@ -130,6 +132,8 @@ local valueScale = 1      -- how much larger or smaller than the layout's the HP
 local nameScale = 1       -- and the names
 local buffScale = 1       -- and the buff icons
 local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
+local valueOutline = true -- whether the figures have a dark edge
+local outlineColor = { 0, 0, 0, 0.9 }
 
 local cornerA, cornerB = { 0, 0 }, { 0, 0 }
 local uvA, uvB = { 0, 0 }, { 1, 1 }
@@ -154,15 +158,30 @@ end
 local textPos = { 0, 0 }
 
 -- A line of text at a place in the layout's units. size is in points. With alignRight its right end
--- goes at x.
-local function Text(text, x, y, size, color, alignRight)
+-- goes at x. With outlined it has a dark edge all round.
+local function Text(text, x, y, size, color, alignRight, outlined)
     imgui.PushFont(nil, size * pointsToPixels * textScale * scale)
 
     local left = itemX + x * scale
     if alignRight then
         left = left - imgui.CalcTextSize(text)
     end
-    textPos[1], textPos[2] = math.floor(left), math.floor(itemY + y * scale)
+    left = math.floor(left)
+    local top = math.floor(itemY + y * scale)
+
+    -- the edge is the text again in the dark, behind itself, a pixel or so towards each corner
+    if outlined then
+        local edge = math.max(1, math.floor(scale / baseScale + 0.5))
+        local dark = imgui.GetColorU32(outlineColor)
+        for dx = -edge, edge, 2 * edge do
+            for dy = -edge, edge, 2 * edge do
+                textPos[1], textPos[2] = left + dx, top + dy
+                drawList:AddText(textPos, dark, text)
+            end
+        end
+    end
+
+    textPos[1], textPos[2] = left, top
     drawList:AddText(textPos, imgui.GetColorU32(color or textColor), text)
 
     imgui.PopFont()
@@ -296,7 +315,7 @@ local function DrawBar(place, member, state, opacity, showFigure)
     if offset ~= nil then
         figureX, figureY = figureX + (tonumber(offset[1]) or 0), figureY + (tonumber(offset[2]) or 0)
     end
-    Text(words, figureX, figureY, figure.size * valueScale, color, figure.alignRight)
+    Text(words, figureX, figureY, figure.size * valueScale, color, figure.alignRight, valueOutline)
 end
 
 -- A member's buffs, running leftwards: the first has its right edge at x
@@ -393,6 +412,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     nameScale = Percent(settings.nameSize)
     buffScale = Percent(settings.buffSize)
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = settings.hpOffset, settings.mpOffset, settings.tpOffset
+    valueOutline = settings.outline ~= false
     local showMp, showTp = settings.showMp ~= false, settings.showTp ~= false
     textColor = theme.Get().TextColor
 

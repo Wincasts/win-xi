@@ -77,6 +77,10 @@ H.frames(1); local before = H.calls['draw.AddText']; H.frames(1); local all = H.
 o.tools.us.xivShowMp[1] = false; H.frames(1); before = H.calls['draw.AddText']; H.frames(1); local noMp = H.calls['draw.AddText'] - before
 o.tools.us.xivShowTp[1] = false; H.frames(1); before = H.calls['draw.AddText']; H.frames(1); local neither = H.calls['draw.AddText'] - before
 H.print('texts a frame: all', all, '| without MP values', noMp, '| without MP or TP values', neither)
+-- the dark edge is four more for each value: here HP alone is left
+o.tools.us.xivOutline[1] = false; H.frames(1); before = H.calls['draw.AddText']; H.frames(1)
+H.print('texts a frame without the outline', H.calls['draw.AddText'] - before)
+o.tools.us.xivOutline[1] = true
 o.tools.us.xivShowMp[1], o.tools.us.xivShowTp[1] = true, true
 o.tools.us.xivParty[1] = false
 

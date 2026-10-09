@@ -485,6 +485,7 @@ local function XivSettings()
     settings.nameSize = options.xivNameSize ~= nil and options.xivNameSize[1] or 100
     settings.buffSize = options.xivBuffSize ~= nil and options.xivBuffSize[1] or 100
     settings.hpOffset, settings.mpOffset, settings.tpOffset = options.xivHpOffset, options.xivMpOffset, options.xivTpOffset
+    settings.outline = options.xivOutline == nil or options.xivOutline[1]
     settings.showMp = options.xivShowMp == nil or options.xivShowMp[1]
     settings.showTp = options.xivShowTp == nil or options.xivShowTp[1]
     return settings
@@ -814,6 +815,7 @@ local us = {
         xivHpOffset = T{ 0, 0 }, -- how far the HP figure is moved from its place: right, down
         xivMpOffset = T{ 0, 0 }, -- and the MP figure
         xivTpOffset = T{ 0, 0 }, -- and the TP figure
+        xivOutline = T{ true }, -- whether the HP, MP and TP figures have a dark edge
         xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
         xivShowTp = T{ true }, -- whether TP is written
         alliance1 = T{
@@ -891,6 +893,9 @@ local us = {
             if options.xivShowMp == nil then
                 options.xivShowMp = T{ true }
             end
+            if options.xivOutline == nil then
+                options.xivOutline = T{ true }
+            end
             if options.xivValueSize == nil then
                 options.xivValueSize = T{ 100 }
             end
@@ -953,6 +958,11 @@ local us = {
                             imgui.SetTooltip(value.tooltip)
                         end
                     end
+                end
+                ui.Label('Outline Values')
+                imgui.Checkbox('##us.xivOutline', options.xivOutline)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('Gives the HP, MP and TP values a dark edge, so they can be read where they are written over a bar.')
                 end
                 ui.Label('Show MP Values')
                 imgui.Checkbox('##us.xivShowMp', options.xivShowMp)
