@@ -792,7 +792,7 @@ local function DrawTgt(entity, options)
 end
 
 -- The compact view: one line in the party list's XivParty Style, with the name, the HP bar with its
--- percentage, and the distance under the name where a party member's TP is. The debuffs go under it.
+-- percentage, and the distance in the bottom right corner. The debuffs go under it.
 local compactNameChars = 13 -- as much of a name as fits before the HP figure
 local compactLine = { isInZone = true, tp = 0 }
 local compactLines = { compactLine }
@@ -813,7 +813,7 @@ local function DrawCompactTgt(entity, options)
     local settings = us.StyleSettings() or { }
     settings.nameChars = compactNameChars
     settings.showTp = true
-    xivparty.Draw(compactLines, 'pets', nil, settings)
+    xivparty.Draw(compactLines, 'target', nil, settings)
 
     if options.showStatus[1] then
         DrawStatus(TrackedEnemies[entity.ServerId] or DefaultDebuffs)
@@ -923,7 +923,7 @@ local tgt = {
             ui.Label('Compact', true)
             imgui.Checkbox('##tgt.compact', options.compact)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Draws each target window as one line in the style of the party list\'s XivParty Style: the name, an HP bar with its percentage, and the distance.\nIts size, text sizes, outline and glow are the ones set for the party list on the us tab.')
+                imgui.SetTooltip('Draws each target window as one line in the style of the party list\'s XivParty Style: the name, an HP bar with its percentage, and the distance in the bottom right corner.\nIts size, text sizes, outline and glow are the ones set for the party list on the us tab.')
             end
 
             ui.Gap()
