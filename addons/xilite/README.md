@@ -8,6 +8,13 @@ the four windows of xitools that replace the game's own, and nothing else.
 xitools' other tools (`tracker`, `cast`, `crafty`, `fishe`, `week`) are not here, nor is anything they
 need: load xitools for those, with its own `me`, `us`, `tgt` and `pet` switched off.
 
+## XivParty Style
+An experimental setting of `us`: the party lists drawn the way the Windower addon
+[XivParty](https://github.com/Tylas11/XivParty) draws them in its default layout. Your own party is
+a list of rows (job icon, job and sub job, name, HP, MP and TP bars with their figures, buffs), and
+each of the other two alliance parties a grid of small cells. The images are XivParty's, in
+`assets/xivparty` with its licence.
+
 ## usage
 `/xilite` (or `/xil`) will bring up the config menu
 

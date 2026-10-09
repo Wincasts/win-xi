@@ -58,6 +58,14 @@ local before = H.calls.Begin or 0
 H.print('/xilite kept from the game', H.command('/xilite'), '| settings showing', o.showConfig[1]); H.frames(1)
 H.print('settings window drawn', (H.calls.Begin or 0) > before, '| tab bars', H.calls.BeginTabBar)
 H.print('/xil closes it', H.command('/xil') and o.showConfig[1] == false, '| /xilitex is left alone', H.command('/xilitex') == false)
+-- XivParty Style: the lists take up their own room and draw themselves into it
+o.tools.us.xivParty[1] = true
+local rooms, drawn = H.calls.Dummy or 0, H.calls['draw.AddText'] or 0
+ok, problem = pcall(H.frames, 2)
+H.print('xivparty style: frames ran', ok, ok and '' or problem, '| lists given room', ((H.calls.Dummy or 0) - rooms) / 2,
+    '| names and figures drawn', (H.calls['draw.AddText'] or 0) > drawn)
+o.tools.us.xivParty[1] = false
+
 -- an experimental setting's name carries its tag, the word in a colour of its own
 local colored = H.calls.TextColored or 0
 require('winxi.widgets').Label('Compact Alliance 1', true)

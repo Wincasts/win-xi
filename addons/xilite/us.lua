@@ -9,6 +9,9 @@ local ui = require('ui')
 local ffxi = require('utils/ffxi')
 local zones = require('utils/zones')
 
+-- XivParty Style, an experimental setting: the lists drawn as the Windower addon XivParty draws them
+local xivparty = require('xivparty')
+
 local Textures = { }
 local Alliances = { }
 
@@ -441,6 +444,32 @@ local function DrawBuffs(player)
     imgui.PopStyleVar()
 end
 
+-- A status icon's texture as the number imgui takes, or nil where the game has no icon for it. For
+-- XivParty Style, which places the icons itself.
+local textureHandles = { }
+
+local function StatusTexture(buffId)
+    local handle = textureHandles[buffId]
+    if handle == nil then
+        if Textures[buffId] == nil then
+            local icon = AshitaCore:GetResourceManager():GetStatusIconByIndex(buffId)
+            Textures[buffId] = CreateTexture(buffId, icon)
+        end
+        local texture = Textures[buffId]
+        handle = texture ~= 'missing' and tonumber(ffi.cast("uint32_t", texture)) or false
+        textureHandles[buffId] = handle
+    end
+    return handle or nil
+end
+
+-- The settings of the party windows as a whole, kept when they are loaded: how the lists are drawn is
+-- asked for each list, every frame
+local usOptions = nil
+
+local function XivPartyStyle()
+    return usOptions ~= nil and usOptions.xivParty ~= nil and usOptions.xivParty[1] == true
+end
+
 ---@param player PartyMember
 ---@param showDist boolean
 local function DrawPartyMember(player, showDist)
@@ -613,7 +642,8 @@ end
 local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
     sample = sample and true or false
     sortByRole = sortByRole and true or false
-    local growFrom = (growsUp and alliance.isCompact[1]) and 'BottomLeft' or nil
+    local xivStyle = XivPartyStyle()
+    local growFrom = (growsUp and alliance.isCompact[1] and not xivStyle) and 'BottomLeft' or nil
 
     ui.DrawUiWindow(alliance, gOptions, function()
         local target = AshitaCore:GetMemoryManager():GetTarget()
@@ -636,13 +666,21 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
             end
             person.entity = entity
 
-            if alliance.isCompact[1] then
+            if xivStyle then
+                -- drawn together, below
+            elseif alliance.isCompact[1] then
                 DrawCompactPartyMember(person)
             else
                 DrawPartyMember(person, showDist and not sample)
             end
         end
-    end, nil, growFrom)
+
+        -- the player's own party as a list of rows, the other two as grids of small cells
+        if xivStyle then
+            local scale = usOptions.xivScale ~= nil and usOptions.xivScale[1] or 0
+            xivparty.Draw(members, growsUp and 'party' or 'alliance', scale, StatusTexture)
+        end
+    end, nil, growFrom, xivStyle)
 end
 
 local function SortsByRole(options)
@@ -650,6 +688,7 @@ local function SortsByRole(options)
 end
 
 local function UpdateAlliances(options)
+    usOptions = options
     memberCache = { }
     Alliances['xilite.us.1'] = {
         GetPlayer:bindn(options),
@@ -686,6 +725,8 @@ local us = {
         hideWhenSolo = T{ false },
         sortByRole = T{ false },
         showCastbar = T{ true },
+        xivParty = T{ false }, -- experimental: draw the lists as the Windower addon XivParty does
+        xivScale = T{ 0 },     -- its size, as a percentage; 0 is XivParty's own choice for the screen
         alliance1 = T{
             isCompact = T{ false },
             isVisible = T{ true },
@@ -740,6 +781,27 @@ local us = {
             end
             ui.Label('Display Cast Bar')
             imgui.Checkbox('##us.4', options.showCastbar)
+
+            -- Settings saved before these options existed have no value for them
+            if options.xivParty == nil then
+                options.xivParty = T{ false }
+            end
+            if options.xivScale == nil then
+                options.xivScale = T{ 0 }
+            end
+            usOptions = options
+            ui.Label('XivParty Style', true)
+            imgui.Checkbox('##us.xivParty', options.xivParty)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Draws the party lists the way the Windower addon XivParty does: a job icon, name, and HP, MP and TP bars for each member of your party, with buffs beside them, and a grid of small cells for each of the other two alliance parties.\nThe theme, the compact options and the cast bar do not apply to lists drawn this way.')
+            end
+            if options.xivParty[1] then
+                ui.Label('XivParty Scale (%)')
+                imgui.SliderInt('##us.xivScale', options.xivScale, 0, 200, options.xivScale[1] == 0 and ('Auto (%d%%%%)'):format(xivparty.AutoScale() * 100 + 0.5) or '%d%%')
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('How big the lists are drawn. At 0 the size follows the height of the screen, as XivParty does it: full size at 1440.')
+                end
+            end
 
             ui.Label('Compact Alliance 1', true)
             if imgui.Checkbox('##us.5', options.alliance1.isCompact) then
