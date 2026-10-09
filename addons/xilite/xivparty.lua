@@ -13,9 +13,8 @@
 --
 --     xivparty.Draw(members, kind, StatusTexture, settings)
 --
--- kind is 'party' for the player's own party, 'alliance' for another, 'pets' for lines set out as
--- the party's are but with no buffs, and 'target' for a line whose TP figure is in its bottom right
--- corner (tgt.lua writes a target's distance there). settings says how, each left out for the usual:
+-- kind is 'party' for the player's own party, 'alliance' for another, and 'pets' for lines set out as
+-- the party's are but with no buffs. settings says how, each left out for the usual:
 --     scale       a percentage for the whole list (see below)
 --     valueSize   a percentage for the size of the HP, MP and TP figures alone
 --     nameSize    a percentage for the size of the names alone
@@ -101,8 +100,6 @@ local layout = {
     tp = {
         party = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 18, size = 8, alignRight = true } },
         alliance = { value = 'tp', x = 0, y = 0, figure = { x = 24, y = 18, size = 8 } },
-        -- a target has its distance written here, not TP: in the line's bottom right corner
-        target = { value = 'tp', x = 0, y = 0, figure = { x = 136, y = 18, size = 8, alignRight = true } },
     },
     leader = { x = 2, y = 21, width = 7, height = 5, file = 'ffxi/Leader.png',
                partyColor = Hex('E6E159'), allianceX = 7 },
