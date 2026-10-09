@@ -67,16 +67,6 @@ local outboundInventoryMove = {
     end,
 }
 
--- Asks the server to tidy a bag: it puts together the part stacks of the same item
-local outboundInventorySort = {
-    id = 0x03A,
-    name = 'Inventory Sort',
-    parse = nil,
-    make = function(this, container)
-        return this.id, struct.pack('II', 0, container):totable()
-    end,
-}
-
 local outboundTreasureLot = {
     id = 0x041,
     name = 'Treasure Lot',
@@ -705,7 +695,6 @@ local packets = {
         fishingAction = outboundFishingAction,
         inventoryDrop = outboundInventoryDrop,
         inventoryMove = outboundInventoryMove,
-        inventorySort = outboundInventorySort,
         treasureLot = outboundTreasureLot,
         treasurePass = outboundTreasurePass,
     },

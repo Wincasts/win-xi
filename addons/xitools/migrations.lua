@@ -10,8 +10,11 @@ end
 local migrations = {
     ['unknown'] = UnknownVersion,
     ['0.19'] = function(options)
-        options.tools.inv.name = 'xitools.inv'
-        options.tools.inv.flags = ImGuiWindowFlags_NoResize
+        -- inv has since become an addon of its own: only settings that still have it need this
+        if options.tools.inv ~= nil then
+            options.tools.inv.name = 'xitools.inv'
+            options.tools.inv.flags = ImGuiWindowFlags_NoResize
+        end
 
         options.version = '0.20'
     end,

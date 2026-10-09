@@ -195,6 +195,29 @@ plain tones made by `sounds/generate.py`, not the game's.
 
 Ashita plays one sound at a time, at the volume of the file.
 
+## The game, packets and bursts
+
+Three small modules hold what an addon would otherwise copy from another:
+
+```lua
+local game = require('winxi.game');
+local packets = require('winxi.packets');
+local debounce = require('winxi.debounce');
+
+-- when the addon's windows should get out of the way (map open, chat opened out, loading, events,
+-- the game's interface hidden): rules kept in the addon's settings, with controls from widgets.Hide
+game.CompleteHide(settings.hide);
+if game.IsHidden(settings.hide) then return end
+
+game.HasBagAccess(bag);    -- also MenuName, IsMapOpen, IsChatExpanded, IsEventHappening, IsInterfaceHidden, IsLoading
+
+AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.inventorySort:make(bag));
+
+debounce(Refresh);         -- Refresh runs once, a second after the last time it was asked for
+```
+
+`winxi.packets` has only what an addon has needed so far (the bags); add to it as others are needed.
+
 ## Letting an addon keep its own theme
 
 Every addon that uses winxi gives its user the choice: follow the shared theme, or keep colours,
