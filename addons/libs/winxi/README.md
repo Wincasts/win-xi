@@ -115,7 +115,7 @@ local menu = nil;
 
 controller.Bind({
     active  = function() return windowIsShowing end,    -- take the controller only while there is reason to
-    actions = controller.StandardActions(),             -- d-pad, A confirm, B back, Y sort, LB previous, RB next
+    actions = controller.StandardActions(),             -- d-pad, A confirm, B back, X sort, LB previous, RB next
     repeats = controller.StandardRepeats(),             -- the d-pad repeats while held
     press   = function(action)
         if menu then
@@ -143,30 +143,6 @@ if menu then
     menu:Draw(x + 40, y);
 end
 ```
-
-X (square) is the window cycle's: it moves the controller between the winxi windows that are open, in
-their `order` and round again. `controller.Cycle` puts an addon's window in it, and the addons agree
-among themselves whose turn it is. While any is open the game does not get X, except in a menu of its
-own:
-
-```lua
-controller.Cycle({
-    order     = 1,
-    available = function() return windowIsShowing end,        -- could it take the controller now
-    focused   = function() return windowHasController end,
-    focus     = function() windowHasController = true end,
-    unfocus   = function() windowHasController = false end,   -- the window stays open
-    busy      = function() return menu ~= nil end,            -- optional: X does nothing meanwhile
-    isOpen    = function() return windowIsShowing end,        -- optional, these three: for /winxi
-    open      = function() windowIsShowing = true end,
-    close     = function() windowIsShowing = false end,
-});
-```
-
-With `isOpen`, `open` and `close` the window answers to `/winxi <addon>`, a command every winxi addon
-shares: it opens the window and gives it the controller; if the window is open already without the
-controller, gives it the controller; if it has it, closes it. `/winxi` alone moves the controller on, as
-X does. A window that takes the controller takes it from any other winxi window.
 
 `controller.Label(text, x, y, below)` draws a small floating box with a line of text, its bottom left
 corner at x, y: given the top left of the highlighted thing, it names it from just above. With `below`
