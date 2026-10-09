@@ -15,9 +15,6 @@ local xivparty = require('xivparty')
 -- The pets, listed under the player's party
 local petTool = require('pet')
 
--- Anything written outside a window has winxi's dark edge
-local outlinedText = require('winxi.text')
-
 local Textures = { }
 local Alliances = { }
 
@@ -437,7 +434,7 @@ end
 -- server sends one packet to say there is one, and nothing more until it is answered: it is over when
 -- the player answers it (a packet of the client's own), when the inviter withdraws it, or when the
 -- player changes area, which drops it.
-local invite = nil -- { alliance = whether it is to an alliance, from = who sent it }
+local invite = nil -- { alliance = whether it is to an alliance }
 
 local packetInvite = 0x0DC          -- in: an invitation
 local packetInviteWithdrawn = 0x0DE -- in: the invitation is no more
@@ -447,11 +444,7 @@ local kindAlliance = 5              -- the kind of an invitation to an alliance;
 
 local function HandleInvitePacket(e)
     if e.id == packetInvite then
-        local from = struct.unpack('c16', e.data, 0x0C + 1)
-        invite = {
-            alliance = struct.unpack('B', e.data, 0x0B + 1) == kindAlliance,
-            from = type(from) == 'string' and from:match('^[^%z]*') or '',
-        }
+        invite = { alliance = struct.unpack('B', e.data, 0x0B + 1) == kindAlliance }
     elseif e.id == packetInviteWithdrawn or e.id == packetZoneIn then
         invite = nil
     end
@@ -464,7 +457,7 @@ local function HandleInviteAnswer(e)
 end
 
 -- The mark for an invitation: an envelope beside a corner of the party's window, gold for a party's
--- and blue for an alliance's, pulsing gently, with who it is from beside it. It is outside the window,
+-- and blue for an alliance's, pulsing gently. It is outside the window,
 -- above its top corners or below its bottom ones, so nothing in the list moves for it; and it is drawn
 -- over every window, not among them, so that another window lying across it does not hide it.
 local inviteColors = { party = { 0.90, 0.88, 0.35, 1 }, alliance = { 0.31, 0.71, 0.98, 1 } }
@@ -473,7 +466,7 @@ local inviteTint = { 0, 0, 0, 1 }
 local inviteLine = { 0.05, 0.05, 0.05, 1 }
 local inviteMin, inviteMax, inviteMid = { 0, 0 }, { 0, 0 }, { 0, 0 }
 local inviteClipMin, inviteClipMax = { 0, 0 }, { 0, 0 }
-local sampleInvite = { alliance = false, from = 'Sample' }
+local sampleInvite = { alliance = false }
 
 -- The corners it can go beside, for the setting: the first is the one used when none is chosen
 local inviteCorners = {
@@ -532,16 +525,6 @@ local function DrawInvite(shown)
     drawList:AddLine(inviteMin, inviteMid, dark, 1)
     inviteMin[1] = left + width
     drawList:AddLine(inviteMin, inviteMid, dark, 1)
-
-    -- who it is from: running away from the corner, so that it stays over the window's own width
-    local words = (shown.alliance and 'Alliance invite: %s' or 'Party invite: %s'):format(shown.from)
-    imgui.PushFont(nil, 8 * 4 / 3 * 1.15 * scale)
-    local wordsX = left + width + 4 * scale
-    if onRight then
-        wordsX = left - 4 * scale - imgui.CalcTextSize(words)
-    end
-    outlinedText.Draw(drawList, math.floor(wordsX), math.floor(top - 1 * scale), inviteTint, words)
-    imgui.PopFont()
 
     if not overAll then
         drawList:PopClipRect()
@@ -722,7 +705,7 @@ local us = {
             ui.Label('Show Invites')
             imgui.Checkbox('##us.showInvite', options.showInvite)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope beside your party\'s window and who it is from: gold for a party invite, blue for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
+                imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope beside your party\'s window: gold for a party invite, blue for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
             end
             if options.showInvite[1] then
                 if type(options.inviteOffset) ~= 'table' then
