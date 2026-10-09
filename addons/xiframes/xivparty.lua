@@ -5,8 +5,8 @@
 -- border, padding and shadow, is the theme's.
 --
 -- A member is a line: the name, an HP bar and a smaller MP bar with their figures, and TP as a figure
--- alone. Each bar has a soft shadow under it, which XivParty's do not, and glows for a moment over
--- what it has lost, but not as XivParty's do over what it has gained. The member targeted is marked as in the party window's own view: ">> " before the name, both
+-- alone. Each bar has a soft shadow under it, which XivParty's do not, and simply shows its value:
+-- XivParty's glow over a change is not here. The member targeted is marked as in the party window's own view: ">> " before the name, both
 -- in blue, and "> " in green for one a sub-target or the party cursor is on. A small mark sits under
 -- the name of the party's leader, and the buffs of a member of the player's own party run leftwards
 -- from the window.
@@ -20,7 +20,6 @@
 --     nameSize    a percentage for the size of the names alone
 --     buffSize    a percentage for the size of the buff icons alone
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
---     glow        false for bars that simply change, with no glow over what was lost
 --     nameChars   how many characters of a name are written before it is cut short, in place of the
 --                 nine a party member's is allowed
 --     outline     false to leave the dark edge off the names and the HP, MP and TP figures: winxi's
@@ -53,12 +52,6 @@ local xivparty = { }
 
 local castRange = 20.79       -- beyond this a member's bars are dimmed, and beyond targetRange dimmed further
 local targetRange = 50
-local barAnimSpeed = 0.1      -- how much of the way a bar's glow closes every animFrame seconds
-local glowOpacity = 0.85      -- how strong the glow over what a bar has lost is
--- XivParty's glow images fade out a long way above and below the bar, into the lines either side.
--- Only this much of their height is drawn, from the top: the bar and half its height again each way.
-local glowTop, glowBottom = 0.375, 0.625
-local animFrame = 0.03
 local pointsToPixels = 4 / 3  -- XivParty's text sizes are in points
 local baseScale = 1.2         -- how much larger than XivParty's own sizes the lists are at a scale of 100
 local textScale = 1.15        -- and how much larger again the text is, to be read more easily
@@ -76,14 +69,11 @@ local hpRed = Hex('FC8182')    -- below 25%
 local tpFull = Hex('50B4FA')   -- a TP figure at 1000 and over
 
 -- The images of a bar: a back, the fill that is as long as the bar is full (it starts fillX across
--- and is fillWidth long when full), a front, and the glow that covers a change with its two ends.
--- color tints the back, fill and front; glowColor the glow.
-local hpImages = { width = 128, height = 64, fillX = 13, fillWidth = 102, glowSidesWidth = 2,
-    back = 'ffxi/BarBG.png', fill = 'ffxi/Bar.png', front = 'ffxi/BarFG.png', glow = 'ffxi/BarGlow.png', glowSides = 'ffxi/BarGlowSides.png',
-    color = Hex('FF9597'), glowColor = Hex('FFF2F2') }
-local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74, glowSidesWidth = 2,
-    back = 'ffxi/AllyBarBgMP.png', fill = 'ffxi/AllyBarMP.png', front = 'ffxi/AllyBarFgMP.png', glow = 'ffxi/AllyBarGlowMP.png', glowSides = 'ffxi/AllyBarGlowSidesMP.png',
-    color = Hex('FFFF9C'), glowColor = Hex('FFFFF2') }
+-- and is fillWidth long when full), and a front. color tints all three.
+local hpImages = { width = 128, height = 64, fillX = 13, fillWidth = 102,
+    back = 'ffxi/BarBG.png', fill = 'ffxi/Bar.png', front = 'ffxi/BarFG.png', color = Hex('FF9597') }
+local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74,
+    back = 'ffxi/AllyBarBgMP.png', fill = 'ffxi/AllyBarMP.png', front = 'ffxi/AllyBarFgMP.png', color = Hex('FFFF9C') }
 
 -- The layout, in XivParty's own numbers: places and sizes are in its units, from the top left of a
 -- member's line. A figure's place is from its bar's; with alignRight its right end goes there.
@@ -144,11 +134,10 @@ local nameScale = 1       -- and the names
 local buffScale = 1       -- and the buff icons
 local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
 local outlined = true     -- whether the names and figures have winxi's dark edge
-local barGlow = true      -- whether a change to a bar is covered by a glow for a moment
 local nameChars = nil     -- how much of a name is written, where it is not the layout's own
 
 local cornerA, cornerB = { 0, 0 }, { 0, 0 }
-local uvA, uvB = { 0, 0 }, { 1, 1 }
+local uvA, uvB = { 0, 0 }, { 1, 1 } -- the whole of an image
 local tint = { 1, 1, 1, 1 }
 
 -- A colour as imgui's draw lists take it, with the window's fade in it. A list is drawn a layer at a
@@ -165,20 +154,15 @@ local function Packed(color, alpha)
     return lastPacked
 end
 
--- An image, by its file or the number of a texture, at a place in the layout's units. flipped draws it
--- mirrored left to right. With top and bottom (0 to 1) only that much of its height is drawn, where
--- it would have been.
-local function Image(image, x, y, width, height, color, alpha, flipped, top, bottom)
+-- An image, by its file or the number of a texture, at a place in the layout's units
+local function Image(image, x, y, width, height, color, alpha)
     local handle = type(image) == 'number' and image or Texture(image)
     if not handle or width == 0 then
         return
     end
 
-    top, bottom = top or 0, bottom or 1
-    cornerA[1], cornerA[2] = itemX + x * scale, itemY + (y + height * top) * scale
-    cornerB[1], cornerB[2] = cornerA[1] + width * scale, itemY + (y + height * bottom) * scale
-    uvA[1], uvB[1] = flipped and 1 or 0, flipped and 0 or 1
-    uvA[2], uvB[2] = top, bottom
+    cornerA[1], cornerA[2] = itemX + x * scale, itemY + y * scale
+    cornerB[1], cornerB[2] = cornerA[1] + width * scale, cornerA[2] + height * scale
     drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, Packed(color or white, alpha or 1))
 end
 
@@ -236,13 +220,11 @@ end
 
 local zoneTexts = { } -- zone id -> its name as it is written, in brackets and cut short
 
--- What is kept for each line between frames, by member: where each bar's glow has got to (a bar jumps
--- to a new value at once, and a glow covers what it lost and closes over a moment), and each figure
--- as it was last written, so that it is only made into words and measured again when it changes
+-- What is kept for each line between frames, by member: each figure as it was last written, so that
+-- it is only made into words and measured again when it changes
 local animations = { }
 local animationCount = 0
-local lastFrame = os.clock()
-local animStep = 1 -- how much of the way a glow closes this frame
+local lastFrame = os.clock() -- when a list was last drawn in a frame of its own
 local displayWidth, displayHeight = nil, nil -- the screen's size, asked for once a frame
 
 local function Animation(member)
@@ -280,23 +262,6 @@ local function RangeOpacity(member)
     return 0.25
 end
 
--- Moves a bar on for this frame: how full it is, and where its glow has got to. A loss is covered by a
--- glow that closes on the bar's new value; a gain simply shows. While dimmed there is no glow and the
--- bar itself moves, down or up.
-local function Advance(bar, percent, opacity)
-    local fraction = math.max(0, math.min(1, (percent or 0) / 100))
-    local shown = bar.shown or fraction
-    if fraction > shown and opacity >= 1 then
-        shown = fraction
-    else
-        shown = shown + (fraction - shown) * animStep
-        if math.abs(fraction - shown) < 0.001 then
-            shown = fraction
-        end
-    end
-    bar.fraction, bar.shown = fraction, shown
-end
-
 -- The lines of the list being drawn: what is kept for each, and where each is on screen
 local lineStates, lineY = { }, { }
 
@@ -321,38 +286,12 @@ end
 
 local function Fill(place, bar, opacity)
     local images = place.images
-    local full = opacity < 1 and bar.shown or bar.fraction
-    Image(images.fill, place.x + images.fillX, place.y, images.fillWidth * full, images.height, images.color, opacity)
+    Image(images.fill, place.x + images.fillX, place.y, images.fillWidth * bar.fraction, images.height, images.color, opacity)
 end
 
 local function Front(place)
     local images = place.images
     Image(images.front, place.x, place.y, images.width, images.height, images.color)
-end
-
--- The glow over what a bar has just lost, and its two ends. Only the band about the bar is drawn of
--- each (see glowTop).
-local function Glows(bar, opacity)
-    return opacity >= 1 and bar.shown - bar.fraction > 0.01
-end
-
-local function Glow(place, bar, opacity)
-    if Glows(bar, opacity) then
-        local images = place.images
-        Image(images.glow, place.x + images.fillX + images.fillWidth * bar.fraction, place.y,
-            images.fillWidth * (bar.shown - bar.fraction), images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
-    end
-end
-
-local function GlowEnds(place, bar, opacity)
-    if Glows(bar, opacity) then
-        local images = place.images
-        local sides = images.glowSidesWidth
-        local left = place.x + images.fillX + images.fillWidth * bar.fraction
-        local right = place.x + images.fillX + images.fillWidth * bar.shown
-        Image(images.glowSides, left - sides, place.y, sides, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
-        Image(images.glowSides, right, place.y, sides, images.height, images.glowColor, glowOpacity, true, glowTop, glowBottom)
-    end
 end
 
 -- One layer of a bar, for every line that has the bar: every line in the area has an HP bar, and an
@@ -373,10 +312,6 @@ local function DrawBars(count, kind, place)
     Layer(count, kind, place, Back)
     Layer(count, kind, place, Fill)
     Layer(count, kind, place, Front)
-    if barGlow then
-        Layer(count, kind, place, Glow)
-        Layer(count, kind, place, GlowEnds)
-    end
 end
 
 -- A member's name, marked as the party window's own view marks it: "> " in green on the member a
@@ -497,17 +432,14 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     buffScale = Percent(settings.buffSize)
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = settings.hpOffset, settings.mpOffset, settings.tpOffset
     outlined = settings.outline ~= false
-    barGlow = settings.glow ~= false
     nameChars = settings.nameChars
     local showMp, showTp = settings.showMp ~= false, settings.showTp ~= false
     textColor = theme.Get().TextColor
 
     -- once a frame, whichever list is drawn first: the others are drawn a moment later in the same one
     local now = os.clock()
-    local elapsed = now - lastFrame
-    if elapsed >= 0.004 or displayWidth == nil then
+    if now - lastFrame >= 0.004 or displayWidth == nil then
         lastFrame = now
-        animStep = 1 - (1 - barAnimSpeed) ^ (math.max(0, math.min(elapsed, 0.25)) / animFrame)
         local display = imgui.GetIO().DisplaySize
         displayWidth, displayHeight = display.x, display.y
     end
@@ -538,7 +470,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     itemX = math.floor(windowX)
     local originY = math.floor(windowY)
 
-    -- each line: where it is, and its bars moved on for this frame
+    -- each line: where it is, and how full its bars are
     local anyElsewhere = false
     for index = 1, count do
         local member = members[index]
@@ -550,9 +482,9 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
         state.hasMp = member.mpp ~= nil
         if state.inZone then
             state.opacity = RangeOpacity(member)
-            Advance(state.hp, member.hpp, state.opacity)
+            state.hp.fraction = math.max(0, math.min(1, (member.hpp or 0) / 100))
             if state.hasMp then
-                Advance(state.mp, member.mpp, state.opacity)
+                state.mp.fraction = math.max(0, math.min(1, (member.mpp or 0) / 100))
             end
         else
             anyElsewhere = true
