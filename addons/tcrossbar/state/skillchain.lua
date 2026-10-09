@@ -449,6 +449,8 @@ local weaponskillResonationMap = T{
 
 local resonationMap = T{};
 
+local lastIndex = {}; -- fork: server id -> the index it was last found at
+
 local function GetIndexFromId(id)
     local entMgr = AshitaCore:GetMemoryManager():GetEntity();
     
@@ -464,12 +466,21 @@ local function GetIndexFromId(id)
         end
     end
 
+    -- fork: where an id was found last is tried first. Players are not found by the shortcut above,
+    -- and every action of theirs went through the whole list.
+    local last = lastIndex[id];
+    if (last ~= nil) and (entMgr:GetServerId(last) == id) then
+        return last;
+    end
+
     for i = 1,0x8FF do
         if entMgr:GetServerId(i) == id then
+            lastIndex[id] = i;
             return i;
         end
     end
 
+    lastIndex[id] = nil;
     return 0;
 
 end

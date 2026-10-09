@@ -40,6 +40,13 @@ function DoubleDisplay:Initialize(layout)
         end
     end
 
+    -- fork: the slots to draw for each state, listed once here rather than on every frame
+    self.DrawLeft, self.DrawRight, self.DrawNone = T{}, T{}, T{};
+    for i = 1,8 do
+        self.DrawLeft:append(self.Elements[i]);
+        self.DrawRight:append(self.Elements[i + 8]);
+    end
+
     if (self.Sprite == nil) then
         local sprite = ffi.new('ID3DXSprite*[1]');
         if (ffi.C.D3DXCreateSprite(d3d8.get_device(), sprite) == ffi.C.S_OK) then
@@ -92,16 +99,17 @@ function DoubleDisplay:Render(macroState, forceSingle)
         end
     end
 
-    local renderElements = T{};
-    if (macroState == 1) or (not forceSingle) then
-        for i = 1,8 do
-            renderElements:append(self.Elements[i]);
+    -- fork: one of the lists made in Initialize: all sixteen, or with forceSingle the eight of the
+    -- trigger that is held
+    local renderElements = self.Elements;
+    if (forceSingle) then
+        if (macroState == 1) then
+            renderElements = self.DrawLeft;
+        elseif (macroState == 2) then
+            renderElements = self.DrawRight;
+        else
+            renderElements = self.DrawNone;
         end
-    end
-    if (macroState == 2) or (not forceSingle) then
-        for i = 9,16 do
-            renderElements:append(self.Elements[i]);
-        end  
     end
 
     for _,element in ipairs(renderElements) do

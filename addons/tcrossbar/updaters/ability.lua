@@ -47,19 +47,21 @@ local function ChargeCost(updater, recastReady)
     return tostring(recastReady), (recastReady > 0);
 end
 
+-- fork: made once, where it was made on every call
+local moveMap = {
+    [381] = 1,
+    [382] = 2,
+    [383] = 3,
+    [384] = 4,
+    [385] = 5,
+    [588] = 6
+};
+
 local function FinishingMoveCost(updater, minimumMoves)
     local finishingMoves = 0;
 
     local player = AshitaCore:GetMemoryManager():GetPlayer()
     local buffs = player:GetBuffs();
-    local moveMap = {
-        [381] = 1,
-        [382] = 2,
-        [383] = 3,
-        [384] = 4,
-        [385] = 5,
-        [588] = 6
-    };
     for i=1,32 do
         local count = moveMap[buffs[i]];
         if count ~= nil then

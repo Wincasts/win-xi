@@ -96,6 +96,9 @@ function Element:HitTest(x, y)
 end
 
 local textOrder = T { 'Hotkey', 'Cost', 'Recast', 'Name' };
+-- fork: the name of each text's setting, made once rather than joined together for every text of
+-- every slot on every frame
+local showSetting = { Hotkey = 'ShowHotkey', Cost = 'ShowCost', Recast = 'ShowRecast', Name = 'ShowName' };
 local d3dwhite = d3d8.D3DCOLOR_ARGB(255, 255, 255, 255);
 local vec_position = ffi.new('D3DXVECTOR2', { 0, 0, });
 local vec_font_scale = ffi.new('D3DXVECTOR2', { 1.0, 1.0, });
@@ -146,6 +149,7 @@ function Element:UpdateBinding(binding)
 
     self.Updater = updater:New();
     self.Updater:Initialize(self, self.Binding);
+    self.NextTick = 0; -- fork: the new binding's state is worked out on the next frame
 
     if (self.Binding ~= nil) then
         local tx = gTextureCache:GetTexture(self.Binding.Image);
@@ -160,8 +164,17 @@ function Element:UpdateBinding(binding)
     end
 end
 
+-- fork: a slot's state (recast, cost, whether it can be used) was worked out afresh every frame it was
+-- drawn. Nothing in it changes that fast, so it is now worked out this often, and at once when the
+-- slot is given another binding.
+local tickInterval = 0.1;
+
 function Element:RenderIcon(sprite)
-    self.Updater:Tick();
+    local now = os.clock();
+    if (now >= (self.NextTick or 0)) then
+        self.NextTick = now + tickInterval;
+        self.Updater:Tick();
+    end
 
     local positionX = self.PositionX;
     local positionY = self.PositionY;
@@ -270,7 +283,7 @@ function Element:RenderText(sprite)
     
     --Draw text elements..
     for _,entry in ipairs(textOrder) do
-        local setting = 'Show' .. entry;
+        local setting = showSetting[entry];
         if (gSettings[setting]) and (self.Binding[setting]) then
             local obj = self.FontObjects[entry];
             if obj then

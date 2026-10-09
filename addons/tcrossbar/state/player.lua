@@ -274,10 +274,31 @@ function exports:KnowsSpell(spell)
     return (playerData.Spells[spell.Index] == true);
 end
 
+-- fork: this is called every frame. The list of set blue magic was read afresh each time, whatever
+-- the job: twenty spell lookups and two new tables a frame. It is now read only for a blue mage (main
+-- or sub), and then a few times a second.
+local bluInterval = 0.25;
+local bluNext = 0;
+
 function exports:UpdateBLUSpells()
-    if (playerData.Job ~= nil) then
-        UpdateBLUSpells();
+    local job = playerData.Job;
+    if (job == nil) then
+        return;
     end
+
+    if (job.MainJob ~= 16) and (job.SubJob ~= 16) then
+        if (#knownSpells > 0) then
+            knownSpells = T{};
+        end
+        return;
+    end
+
+    local now = os.clock();
+    if (now < bluNext) then
+        return;
+    end
+    bluNext = now + bluInterval;
+    UpdateBLUSpells();
 end
 
 return exports;
