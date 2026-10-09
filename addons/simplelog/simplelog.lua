@@ -20,7 +20,7 @@
 --]]
 
 addon.name      = 'simplelog';
-addon.author    = 'Created by Byrth, Ported by Spiken, Win (and Claude)';
+addon.author    = 'Created by Byrth, Ported by Spiken, win (and claude)';
 addon.version   = '0.10.1b';
 addon.desc      = 'Combat log Parser';
 addon.link      = 'https://github.com/Spike2D/SimpleLog';

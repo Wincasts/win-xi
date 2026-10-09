@@ -20,7 +20,7 @@
 --]]
 
 addon.name      = 'hideparty';
-addon.author    = 'atom0s, Win';
+addon.author    = 'atom0s, win (and claude)';
 addon.version   = '1.1';
 addon.desc      = 'Adds slash commands to hide, show, or toggle the games party frames.';
 addon.link      = 'https://ashitaxi.com/';
