@@ -12,9 +12,9 @@ need: load xitools for those, with its own `me`, `us`, `tgt` and `pet` switched 
 An experimental setting of `us`: the party lists arranged the way the compact layout of the Windower
 addon [XivParty](https://github.com/Tylas11/XivParty) arranges them, with its bars, inside this
 addon's own themed windows. A member is a line: the name, an HP bar and a smaller MP bar with their
-figures, and TP as a figure. The game's cursor points at the member targeted, and the buffs of your
-own party run leftwards from its window. The bar, cursor and leader images are XivParty's, in
-`assets/xivparty` with its licence.
+values, and TP as a value; the MP and TP values can each be switched off. The member targeted has
+`>>` before their name, in blue, and the buffs of your own party run leftwards from its window. The
+bar and leader images are XivParty's, in `assets/xivparty` with its licence.
 
 ## usage
 `/xilite` (or `/xil`) will bring up the config menu

@@ -679,7 +679,9 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
         -- the player's own party has its buffs beside it
         if xivStyle then
             local scale = usOptions.xivScale ~= nil and usOptions.xivScale[1] or 100
-            xivparty.Draw(members, growsUp and 'party' or 'alliance', scale, StatusTexture)
+            local showMp = usOptions.xivShowMp == nil or usOptions.xivShowMp[1]
+            local showTp = usOptions.xivShowTp == nil or usOptions.xivShowTp[1]
+            xivparty.Draw(members, growsUp and 'party' or 'alliance', scale, StatusTexture, showMp, showTp)
         end
     end, nil, growFrom, xivStyle)
 end
@@ -727,7 +729,9 @@ local us = {
         sortByRole = T{ false },
         showCastbar = T{ true },
         xivParty = T{ false }, -- experimental: arrange the lists as the Windower addon XivParty's compact layout does
-        xivScale = T{ 100 },   -- their size, as a percentage of XivParty's own
+        xivScale = T{ 100 },   -- their size, as a percentage
+        xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
+        xivShowTp = T{ true }, -- whether TP is written
         alliance1 = T{
             isCompact = T{ false },
             isVisible = T{ true },
@@ -790,17 +794,33 @@ local us = {
             if options.xivScale == nil or options.xivScale[1] < 50 then
                 options.xivScale = T{ 100 }
             end
+            if options.xivShowMp == nil then
+                options.xivShowMp = T{ true }
+            end
+            if options.xivShowTp == nil then
+                options.xivShowTp = T{ true }
+            end
             usOptions = options
             ui.Label('XivParty Style', true)
             imgui.Checkbox('##us.xivParty', options.xivParty)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Arranges the party lists the way the Windower addon XivParty\'s compact layout does, with its bars: a line a member with the name, an HP bar and a smaller MP bar with their figures, TP as a figure, and buffs running leftwards from your own party\'s window.\nThe window is the theme\'s. The compact options and the cast bar do not apply to lists drawn this way.')
+                imgui.SetTooltip('Arranges the party lists the way the Windower addon XivParty\'s compact layout does, with its bars: a line a member with the name, an HP bar and a smaller MP bar with their values, TP as a value, and buffs running leftwards from your own party\'s window.\nThe window is the theme\'s. The compact options and the cast bar do not apply to lists drawn this way.')
             end
             if options.xivParty[1] then
                 ui.Label('XivParty Scale (%)')
                 imgui.SliderInt('##us.xivScale', options.xivScale, 50, 200, '%d%%')
                 if imgui.IsItemHovered() then
                     imgui.SetTooltip('How big the lists are drawn: the bars, the text and the buffs together.')
+                end
+                ui.Label('Show MP Values')
+                imgui.Checkbox('##us.xivShowMp', options.xivShowMp)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('Writes each member\'s MP beside their MP bar. Off leaves the bar alone.')
+                end
+                ui.Label('Show TP Values')
+                imgui.Checkbox('##us.xivShowTp', options.xivShowTp)
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('Writes each member\'s TP on their line. TP has no bar in this style, so off leaves TP out altogether.')
                 end
             end
 

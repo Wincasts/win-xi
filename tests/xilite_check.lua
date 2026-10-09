@@ -64,6 +64,12 @@ local rooms, drawn = H.calls.Dummy or 0, H.calls['draw.AddText'] or 0
 ok, problem = pcall(H.frames, 2)
 H.print('xivparty style: frames ran', ok, ok and '' or problem, '| lists given room', ((H.calls.Dummy or 0) - rooms) / 2,
     '| names and figures drawn', (H.calls['draw.AddText'] or 0) > drawn)
+-- a line is a name and three figures; fewer with the MP and TP values switched off
+H.frames(1); local before = H.calls['draw.AddText']; H.frames(1); local all = H.calls['draw.AddText'] - before
+o.tools.us.xivShowMp[1] = false; H.frames(1); before = H.calls['draw.AddText']; H.frames(1); local noMp = H.calls['draw.AddText'] - before
+o.tools.us.xivShowTp[1] = false; H.frames(1); before = H.calls['draw.AddText']; H.frames(1); local neither = H.calls['draw.AddText'] - before
+H.print('texts a frame: all', all, '| without MP values', noMp, '| without MP or TP values', neither)
+o.tools.us.xivShowMp[1], o.tools.us.xivShowTp[1] = true, true
 o.tools.us.xivParty[1] = false
 
 -- an experimental setting's name carries its tag, the word in a colour of its own

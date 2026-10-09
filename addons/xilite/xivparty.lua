@@ -1,27 +1,33 @@
 -- XivParty Style: the party lists arranged the way XivParty, a party list addon for Windower 4 by
 -- Tylas, arranges them in its compact layout (https://github.com/Tylas11/XivParty; its
--- layouts/ffxi2.xml), inside one of this addon's own windows. The bars, the cursor and the leader's
--- mark are that addon's images, in assets/xivparty with its licence; the window around them, with its
--- background, border, padding and shadow, is the theme's.
+-- layouts/ffxi2.xml), inside one of this addon's own windows. The bars and the leader's mark are that
+-- addon's images, in assets/xivparty with its licence; the window around them, with its background,
+-- border, padding and shadow, is the theme's.
 --
 -- A member is a line: the name, an HP bar and a smaller MP bar with their figures, and TP as a figure
--- alone. The game's cursor points at the member targeted, a small mark sits under the name of the
--- party's leader, and the buffs of a member of the player's own party run leftwards from the window.
+-- alone. The member targeted is marked as in the party window's own view: ">> " before the name, both
+-- in blue, and "> " in green for one a sub-target or the party cursor is on. A small mark sits under
+-- the name of the party's leader, and the buffs of a member of the player's own party run leftwards
+-- from the window.
 --
---     xivparty.Draw(members, 'party' or 'alliance', scale, StatusTexture)
+--     xivparty.Draw(members, 'party' or 'alliance', scale, StatusTexture, showMp, showTp)
 --
 -- is called inside the window. It takes up the room the list needs and draws into it; the buffs are
 -- drawn beyond that room, beside the window. members are the party window's own (see us.lua). scale
--- is a percentage of XivParty's own sizes. StatusTexture(id) gives the texture for a status icon, or nil.
+-- is a percentage: 100 is the size this style is meant to be seen at, a fifth larger than XivParty's
+-- own. StatusTexture(id) gives the texture for a status icon, or nil. showMp and showTp say whether
+-- the MP and TP figures are written; the MP bar is drawn either way.
 --
--- What is XivParty's and is not here: its background and job icons, left out for the theme's window;
--- the buffs are in the game's order, not sorted debuffs first; there is no mark for the quartermaster;
--- and nothing happens on hovering or clicking a member.
+-- What is XivParty's and is not here: its background, job icons and cursor, left out for the theme's
+-- window and this addon's own way of marking a target; the buffs are in the game's order, not sorted
+-- debuffs first; there is no mark for the quartermaster; and nothing happens on hovering or clicking
+-- a member.
 require('common')
 local ffi = require('ffi')
 local d3d8 = require('d3d8')
 local imgui = require('imgui')
 local theme = require('winxi.theme')
+local ui = require('ui')
 local zones = require('utils/zones')
 
 local xivparty = { }
@@ -31,6 +37,8 @@ local targetRange = 50
 local barAnimSpeed = 0.1      -- how much of the way a bar's glow closes every animFrame seconds
 local animFrame = 0.03
 local pointsToPixels = 4 / 3  -- XivParty's text sizes are in points
+local baseScale = 1.2         -- how much larger than XivParty's own sizes the lists are at a scale of 100
+local textScale = 1.15        -- and how much larger again the text is, to be read more easily
 
 -- A colour as XivParty's layouts write it
 local function Hex(code)
@@ -55,23 +63,23 @@ local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74, glowSid
 
 -- The layout, in XivParty's own numbers: places and sizes are in its units, from the top left of a
 -- member's line. A figure's place is from its bar's; with alignRight its right end goes there.
--- XivParty has a job icon to the left of the name. It is not drawn here, and the cursor takes its place.
+-- XivParty has a job icon and a cursor to the left of the name. Neither is drawn here, and everything
+-- is that much further left: the name starts the line. The two figures are a unit further apart than
+-- XivParty has them, for the larger text.
 local layout = {
-    width = 160, rowHeight = 32,
-    marginLeft = 6, -- how far the cursor reaches left of a line
-    cursor = { file = 'ffxi/Cursor.png', x = -6, y = 7, width = 37 * 0.75, height = 24 * 0.75 },
-    hp = { value = 'hp', x = 30, y = -17, images = hpImages, figure = { x = 114, y = 22, size = 8, alignRight = true } },
-    mp = { value = 'mp', x = 56, y = -8, images = mpImages, figure = { x = 100, y = 22, size = 8, alignRight = true } },
+    width = 136, rowHeight = 32,
+    hp = { value = 'hp', x = 6, y = -17, images = hpImages, figure = { x = 114, y = 21, size = 8, alignRight = true } },
+    mp = { value = 'mp', x = 32, y = -8, images = mpImages, figure = { x = 100, y = 23, size = 8, alignRight = true } },
     -- TP is a figure alone: to the left of the MP bar for the player's party, and for the others
     -- under the start of the name
     tp = {
-        party = { value = 'tp', x = 0, y = 0, figure = { x = 80, y = 20, size = 6, alignRight = true } },
-        alliance = { value = 'tp', x = 0, y = 0, figure = { x = 48, y = 20, size = 6 } },
+        party = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 20, size = 6, alignRight = true } },
+        alliance = { value = 'tp', x = 0, y = 0, figure = { x = 24, y = 20, size = 6 } },
     },
-    leader = { x = 26, y = 21, width = 7, height = 5, file = 'ffxi/Leader.png',
+    leader = { x = 2, y = 21, width = 7, height = 5, file = 'ffxi/Leader.png',
                partyColor = Hex('E6E159'), allianceX = 7 },
-    name = { x = 24, y = 0, size = 10, maxChars = 9 },
-    zone = { x = 160, y = 14, size = 10, maxChars = 16 }, -- its right end goes at x
+    name = { x = 0, y = 0, size = 10, maxChars = 9 },
+    zone = { x = 136, y = 14, size = 10, maxChars = 16 }, -- its right end goes at x
     -- the buffs run leftwards from the window's edge, sixteen at most
     buffs = { y = 5, size = 20, gap = 4, most = 16 },
 }
@@ -131,7 +139,7 @@ local textPos = { 0, 0 }
 -- A line of text at a place in the layout's units. size is in points. With alignRight its right end
 -- goes at x.
 local function Text(text, x, y, size, color, alignRight)
-    imgui.PushFont(nil, size * pointsToPixels * scale)
+    imgui.PushFont(nil, size * pointsToPixels * textScale * scale)
 
     local left = itemX + x * scale
     if alignRight then
@@ -192,8 +200,9 @@ local function RangeOpacity(member)
     return 0.25
 end
 
--- A bar with its figure, or for one with no images its figure alone. Nothing for a member in another area.
-local function DrawBar(place, member, state, opacity)
+-- A bar with its figure, or for one with no images its figure alone; without the figure where
+-- showFigure is false. Nothing for a member in another area.
+local function DrawBar(place, member, state, opacity, showFigure)
     if not member.isInZone then
         return
     end
@@ -237,6 +246,10 @@ local function DrawBar(place, member, state, opacity)
         end
     end
 
+    if not showFigure then
+        return
+    end
+
     local figure = place.figure
     local color = nil
     if amount >= 0 then
@@ -277,23 +290,28 @@ local function DrawBuffs(member, x, StatusTexture)
     end
 end
 
-local function DrawMember(member, kind, buffsX, StatusTexture)
+local function DrawMember(member, kind, buffsX, StatusTexture, showMp, showTp)
     local inZone = member.isInZone
     local state = Animation(member)
 
-    -- the cursor: on the member targeted, and fainter on one a sub-target or the party cursor is on
-    if inZone and (member.isTarget or member.isSubTarget or member.isPartyTarget) then
-        local cursor = layout.cursor
-        Image(cursor.file, cursor.x, cursor.y, cursor.width, cursor.height, white, member.isTarget and 1 or 0.5)
+    local opacity = RangeOpacity(member)
+    DrawBar(layout.hp, member, state, opacity, true)
+    DrawBar(layout.mp, member, state, opacity, showMp)
+    if showTp then
+        DrawBar(layout.tp[kind] or layout.tp.party, member, state, opacity, true)
     end
 
-    local opacity = RangeOpacity(member)
-    DrawBar(layout.hp, member, state, opacity)
-    DrawBar(layout.mp, member, state, opacity)
-    DrawBar(layout.tp[kind] or layout.tp.party, member, state, opacity)
-
+    -- the name, marked as the party window's own view marks it: "> " in green on the member a
+    -- sub-target or the party cursor is on, ">> " in blue on the one targeted
     local name = layout.name
-    Text(Trimmed(member.name or '???', name.maxChars), name.x, name.y, name.size)
+    local shown = Trimmed(member.name or '???', name.maxChars)
+    if member.isSubTarget or member.isPartyTarget then
+        Text('> ' .. shown, name.x, name.y, name.size, ui.Colors.XpBar)
+    elseif member.isTarget then
+        Text('>> ' .. shown, name.x, name.y, name.size, ui.Colors.Blue)
+    else
+        Text(shown, name.x, name.y, name.size)
+    end
 
     if not inZone then
         local zone = layout.zone
@@ -320,13 +338,13 @@ end
 local room = { 0, 0 }
 local clipMin, clipMax = { 0, 0 }, { 0, 0 }
 
-function xivparty.Draw(members, kind, scalePercent, StatusTexture)
+function xivparty.Draw(members, kind, scalePercent, StatusTexture, showMp, showTp)
     local count = #members
     if count == 0 then
         return
     end
 
-    scale = (scalePercent ~= nil and scalePercent > 0) and scalePercent / 100 or 1
+    scale = baseScale * ((scalePercent ~= nil and scalePercent > 0) and scalePercent / 100 or 1)
     textColor = theme.Get().TextColor
 
     -- once a frame, whichever list is drawn first: the others are drawn a moment later in the same one
@@ -339,7 +357,7 @@ function xivparty.Draw(members, kind, scalePercent, StatusTexture)
 
     -- the room the list itself needs. The buffs go beyond it, beside the window.
     local windowX, windowY = imgui.GetCursorScreenPos()
-    room[1] = math.ceil((layout.marginLeft + layout.width) * scale)
+    room[1] = math.ceil(layout.width * scale)
     room[2] = math.ceil(count * layout.rowHeight * scale)
     imgui.Dummy(room)
 
@@ -355,7 +373,7 @@ function xivparty.Draw(members, kind, scalePercent, StatusTexture)
     clipMax[1], clipMax[2] = display.x, display.y
     drawList:PushClipRect(clipMin, clipMax, false)
 
-    local originX = math.floor(windowX + layout.marginLeft * scale)
+    local originX = math.floor(windowX)
     local originY = math.floor(windowY)
 
     -- only the player's own party shows buffs: they start a little clear of the window's left edge
@@ -367,7 +385,7 @@ function xivparty.Draw(members, kind, scalePercent, StatusTexture)
     itemX = originX
     for index, member in ipairs(members) do
         itemY = math.floor(originY + (index - 1) * layout.rowHeight * scale)
-        DrawMember(member, kind, buffsX, StatusTexture)
+        DrawMember(member, kind, buffsX, StatusTexture, showMp, showTp)
     end
 
     drawList:PopClipRect()
