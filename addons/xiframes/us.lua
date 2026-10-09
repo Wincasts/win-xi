@@ -290,6 +290,7 @@ local function StyleSettings()
     settings.valueSize = options.xivValueSize ~= nil and options.xivValueSize[1] or 100
     settings.nameSize = options.xivNameSize ~= nil and options.xivNameSize[1] or 100
     settings.buffSize = options.xivBuffSize ~= nil and options.xivBuffSize[1] or 100
+    settings.buffDistance = options.xivBuffDistance ~= nil and options.xivBuffDistance[1] or 0
     settings.hpOffset, settings.mpOffset, settings.tpOffset = options.xivHpOffset, options.xivMpOffset, options.xivTpOffset
     settings.nameChars = nil
     settings.outline = options.xivOutline == nil or options.xivOutline[1]
@@ -517,6 +518,7 @@ local us = {
         xivValueSize = T{ 100 }, -- the size of the HP, MP and TP figures, as a percentage
         xivNameSize = T{ 100 },  -- and of the names
         xivBuffSize = T{ 100 },  -- and of the buff icons
+        xivBuffDistance = T{ 0 }, -- how much further from the party's window than usual the buffs start
         xivHpOffset = T{ 0, 0 }, -- how far the HP figure is moved from its place: right, down
         xivMpOffset = T{ 0, 0 }, -- and the MP figure
         xivTpOffset = T{ 0, 0 }, -- and the TP figure
@@ -582,6 +584,9 @@ local us = {
             if options.xivBuffSize == nil then
                 options.xivBuffSize = T{ 100 }
             end
+            if options.xivBuffDistance == nil then
+                options.xivBuffDistance = T{ 0 }
+            end
             for _, key in ipairs({ 'xivHpOffset', 'xivMpOffset', 'xivTpOffset' }) do
                 if type(options[key]) ~= 'table' then
                     options[key] = T{ 0, 0 }
@@ -606,6 +611,11 @@ local us = {
             imgui.SliderInt('##us.xivBuffSize', options.xivBuffSize, 50, 200, '%d%%')
             if imgui.IsItemHovered() then
                 imgui.SetTooltip('How big the buff and debuff icons beside your party are drawn, apart from everything else.')
+            end
+            ui.Label('Buff Distance')
+            imgui.SliderInt('##us.xivBuffDistance', options.xivBuffDistance, -60, 200)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('How far from your party\'s window the buff icons start. 0 is just clear of its left edge; more moves them further left, and less than 0 brings them right, over the window.\nThe number is in the list\'s own units, so the distance keeps its proportion as the scale changes.')
             end
             ui.Label('Value Text Size (%)')
             imgui.SliderInt('##us.xivValueSize', options.xivValueSize, 50, 200, '%d%%')
