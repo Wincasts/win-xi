@@ -92,14 +92,15 @@ local mpImages = { width = 128, height = 64, fillX = 27, fillWidth = 74, glowSid
 -- XivParty has them, for the larger text.
 local layout = {
     width = 136, rowHeight = 32,
-    hp = { value = 'hp', x = 6, y = -17, images = hpImages, figure = { x = 114, y = 21, size = 8, alignRight = true } },
-    mp = { value = 'mp', x = 32, y = -8, images = mpImages, figure = { x = 100, y = 23, size = 8, alignRight = true } },
+    valueSize = 8, -- the HP, MP and TP figures are written at one size
+    hp = { value = 'hp', x = 6, y = -17, images = hpImages, figure = { x = 114, y = 21, alignRight = true } },
+    mp = { value = 'mp', x = 32, y = -8, images = mpImages, figure = { x = 100, y = 23, alignRight = true } },
     -- TP is a figure alone: to the left of the MP bar for the player's party, and for the others
     -- under the start of the name. XivParty writes it smaller than HP and MP; here the three are one
-    -- size, and TP is a little higher to stay level with the MP bar.
+    -- size (valueSize), and TP is a little higher to stay level with the MP bar.
     tp = {
-        party = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 18, size = 8, alignRight = true } },
-        alliance = { value = 'tp', x = 0, y = 0, figure = { x = 24, y = 18, size = 8 } },
+        party = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 18, alignRight = true } },
+        alliance = { value = 'tp', x = 0, y = 0, figure = { x = 24, y = 18 } },
     },
     leader = { x = 2, y = 21, width = 7, height = 5, file = 'ffxi/Leader.png',
                partyColor = Hex('E6E159'), allianceX = 7 },
@@ -150,6 +151,20 @@ local cornerA, cornerB = { 0, 0 }, { 0, 0 }
 local uvA, uvB = { 0, 0 }, { 1, 1 }
 local tint = { 1, 1, 1, 1 }
 
+-- A colour as imgui's draw lists take it, with the window's fade in it. A list is drawn a layer at a
+-- time, so one colour is asked for many times running: the last is kept. Forgotten for each list,
+-- as the fade may have changed and a colour table may have been changed in place.
+local lastColor, lastAlpha, lastPacked = nil, nil, nil
+
+local function Packed(color, alpha)
+    if color ~= lastColor or alpha ~= lastAlpha then
+        tint[1], tint[2], tint[3], tint[4] = color[1], color[2], color[3], color[4] * alpha
+        lastPacked = imgui.GetColorU32(tint)
+        lastColor, lastAlpha = color, alpha
+    end
+    return lastPacked
+end
+
 -- An image, by its file or the number of a texture, at a place in the layout's units. flipped draws it
 -- mirrored left to right. With top and bottom (0 to 1) only that much of its height is drawn, where
 -- it would have been.
@@ -160,53 +175,75 @@ local function Image(image, x, y, width, height, color, alpha, flipped, top, bot
     end
 
     top, bottom = top or 0, bottom or 1
-    color = color or white
-    tint[1], tint[2], tint[3], tint[4] = color[1], color[2], color[3], color[4] * (alpha or 1)
     cornerA[1], cornerA[2] = itemX + x * scale, itemY + (y + height * top) * scale
     cornerB[1], cornerB[2] = cornerA[1] + width * scale, itemY + (y + height * bottom) * scale
     uvA[1], uvB[1] = flipped and 1 or 0, flipped and 0 or 1
     uvA[2], uvB[2] = top, bottom
-    drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, imgui.GetColorU32(tint))
+    drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, Packed(color or white, alpha or 1))
 end
 
 local textPos = { 0, 0 }
+local outlineEdge = 1     -- how thick winxi's dark edge is, for this list
+local outlinePacked = 0   -- and its colour
 
--- A line of text at a place in the layout's units. size is in points. With alignRight its right end
--- goes at x.
-local function Text(text, x, y, size, color, alignRight)
-    imgui.PushFont(nil, size * pointsToPixels * textScale * scale)
+-- The size of font, in pixels, for text of a size in points
+local function FontSize(points)
+    return points * pointsToPixels * textScale * scale
+end
 
-    local left = itemX + x * scale
-    if alignRight then
-        left = left - imgui.CalcTextSize(text)
-    end
-    left = math.floor(left)
+-- A line of text at a place in the layout's units, in the font in use: the font is pushed by whoever
+-- writes a run of text of one size. With width, the text's own, its right end goes at x.
+local function Write(text, x, y, color, width)
+    local left = math.floor(itemX + x * scale - (width or 0))
     local top = math.floor(itemY + y * scale)
+    local packed = Packed(color or textColor, 1)
 
-    -- winxi's dark edge, a pixel or so thick: thicker as the lists are drawn larger
     if outlined then
-        outlinedText.Draw(drawList, left, top, color or textColor, text, math.max(1, math.floor(scale / baseScale + 0.5)))
+        outlinedText.Packed(drawList, left, top, packed, text, outlineEdge, outlinePacked)
     else
         textPos[1], textPos[2] = left, top
-        drawList:AddText(textPos, imgui.GetColorU32(color or textColor), text)
+        drawList:AddText(textPos, packed, text)
     end
-
-    imgui.PopFont()
 end
+
+-- Names cut short, kept: by how many characters, then by name
+local trimmed = { }
+local trimmedCount = 0
 
 local function Trimmed(text, maxChars)
-    if maxChars ~= nil and #text > maxChars then
-        return text:sub(1, math.max(1, maxChars - 1)) .. '...'
+    if maxChars == nil or #text <= maxChars then
+        return text
     end
-    return text
+
+    local byLength = trimmed[maxChars]
+    if byLength == nil then
+        byLength = { }
+        trimmed[maxChars] = byLength
+    end
+    local short = byLength[text]
+    if short == nil then
+        -- targets come and go: start afresh now and then rather than keep every name ever seen
+        if trimmedCount > 256 then
+            trimmed, trimmedCount = { [maxChars] = { } }, 0
+            byLength = trimmed[maxChars]
+        end
+        short = text:sub(1, math.max(1, maxChars - 1)) .. '...'
+        byLength[text] = short
+        trimmedCount = trimmedCount + 1
+    end
+    return short
 end
 
--- Where each bar's glow has got to, by member: a bar jumps to a new value at once, and a glow covers
--- the difference and closes over a moment
-local animations = { } -- server id -> { hp, mp = where the glow has got to (0 to 1) }
+local zoneTexts = { } -- zone id -> its name as it is written, in brackets and cut short
+
+-- What is kept for each line between frames, by member: where each bar's glow has got to (a bar jumps
+-- to a new value at once, and a glow covers what it lost and closes over a moment), and each figure
+-- as it was last written, so that it is only made into words and measured again when it changes
+local animations = { }
 local animationCount = 0
 local lastFrame = os.clock()
 local animStep = 1 -- how much of the way a glow closes this frame
+local displayWidth, displayHeight = nil, nil -- the screen's size, asked for once a frame
 
 local function Animation(member)
     local key = member.serverId or 0
@@ -216,7 +253,7 @@ local function Animation(member)
         if animationCount > 64 then
             animations, animationCount = { }, 0
         end
-        state = { }
+        state = { hp = { }, mp = { }, tp = { } }
         animations[key] = state
         animationCount = animationCount + 1
     end
@@ -243,30 +280,13 @@ local function RangeOpacity(member)
     return 0.25
 end
 
--- A bar's images: its shadow, back, fill and front, and the glow over what it has just lost. Its
--- figure is written apart (DrawFigure), after the name, so that the figure is the one on top where
--- the two meet. Nothing for a member in another area.
-local function DrawBar(place, member, state, opacity)
-    local images = place.images
-    if not member.isInZone or images == nil then
-        return
-    end
-
-    local kind = place.value
-    local percent = member.mpp
-    if kind == 'hp' then
-        percent = member.hpp
-    end
-    local fraction = (percent or 0) / 100
-    fraction = math.max(0, math.min(1, fraction))
-
-    local x, y = place.x, place.y
-
-    -- a loss is covered by a glow that closes on the bar's new value; a gain simply shows. While
-    -- dimmed there is no glow and the bar itself moves, down or up.
-    local dimmed = opacity < 1
-    local shown = state[kind] or fraction
-    if fraction > shown and not dimmed then
+-- Moves a bar on for this frame: how full it is, and where its glow has got to. A loss is covered by a
+-- glow that closes on the bar's new value; a gain simply shows. While dimmed there is no glow and the
+-- bar itself moves, down or up.
+local function Advance(bar, percent, opacity)
+    local fraction = math.max(0, math.min(1, (percent or 0) / 100))
+    local shown = bar.shown or fraction
+    if fraction > shown and opacity >= 1 then
         shown = fraction
     else
         shown = shown + (fraction - shown) * animStep
@@ -274,40 +294,119 @@ local function DrawBar(place, member, state, opacity)
             shown = fraction
         end
     end
-    state[kind] = shown
+    bar.fraction, bar.shown = fraction, shown
+end
 
-    -- a soft shadow under the bar, down and to the right, to lift it off the window: the bar's own
-    -- back in black, twice, the further one fainter
-    Image(images.back, x + 1, y + 1.5, images.width, images.height, black, 0.45)
-    Image(images.back, x + 2, y + 2.5, images.width, images.height, black, 0.2)
+-- The lines of the list being drawn: what is kept for each, and where each is on screen
+local lineStates, lineY = { }, { }
 
-    local color = images.color
-    Image(images.back, x, y, images.width, images.height, color)
-    Image(images.fill, x + images.fillX, y, images.fillWidth * (dimmed and shown or fraction), images.height, color, opacity)
-    Image(images.front, x, y, images.width, images.height, color)
+-- The layers of a bar, each drawn for every line before the next: a list is drawn a layer at a time
+-- and not a line at a time, so that what is drawn with one image, or in one font, is drawn together.
+-- Under a bar goes a soft shadow, down and to the right, to lift it off the window: the bar's own back
+-- in black, twice, the further one fainter.
+local function ShadowNear(place)
+    local images = place.images
+    Image(images.back, place.x + 1, place.y + 1.5, images.width, images.height, black, 0.45)
+end
 
-    if barGlow and not dimmed and shown - fraction > 0.01 then
-        local glowX = x + images.fillX + images.fillWidth * fraction
-        local glowWidth = images.fillWidth * (shown - fraction)
-        local sides = images.glowSidesWidth
-        Image(images.glow, glowX, y, glowWidth, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
-        Image(images.glowSides, glowX - sides, y, sides, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
-        Image(images.glowSides, glowX + glowWidth, y, sides, images.height, images.glowColor, glowOpacity, true, glowTop, glowBottom)
+local function ShadowFar(place)
+    local images = place.images
+    Image(images.back, place.x + 2, place.y + 2.5, images.width, images.height, black, 0.2)
+end
+
+local function Back(place)
+    local images = place.images
+    Image(images.back, place.x, place.y, images.width, images.height, images.color)
+end
+
+local function Fill(place, bar, opacity)
+    local images = place.images
+    local full = opacity < 1 and bar.shown or bar.fraction
+    Image(images.fill, place.x + images.fillX, place.y, images.fillWidth * full, images.height, images.color, opacity)
+end
+
+local function Front(place)
+    local images = place.images
+    Image(images.front, place.x, place.y, images.width, images.height, images.color)
+end
+
+-- The glow over what a bar has just lost, and its two ends. Only the band about the bar is drawn of
+-- each (see glowTop).
+local function Glows(bar, opacity)
+    return opacity >= 1 and bar.shown - bar.fraction > 0.01
+end
+
+local function Glow(place, bar, opacity)
+    if Glows(bar, opacity) then
+        local images = place.images
+        Image(images.glow, place.x + images.fillX + images.fillWidth * bar.fraction, place.y,
+            images.fillWidth * (bar.shown - bar.fraction), images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
     end
 end
 
--- A bar's figure, or for TP, which has no bar, the figure that is all there is of it. Nothing for a
--- member in another area.
-local function DrawFigure(place, member)
-    if not member.isInZone then
-        return
+local function GlowEnds(place, bar, opacity)
+    if Glows(bar, opacity) then
+        local images = place.images
+        local sides = images.glowSidesWidth
+        local left = place.x + images.fillX + images.fillWidth * bar.fraction
+        local right = place.x + images.fillX + images.fillWidth * bar.shown
+        Image(images.glowSides, left - sides, place.y, sides, images.height, images.glowColor, glowOpacity, false, glowTop, glowBottom)
+        Image(images.glowSides, right, place.y, sides, images.height, images.glowColor, glowOpacity, true, glowTop, glowBottom)
     end
+end
 
+-- One layer of a bar, for every line that has the bar: every line in the area has an HP bar, and an
+-- MP bar unless it has no MP to show (another player's pet)
+local function Layer(count, kind, place, draw)
+    for index = 1, count do
+        local state = lineStates[index]
+        if state.inZone and (kind == 'hp' or state.hasMp) then
+            itemY = lineY[index]
+            draw(place, state[kind], state.opacity)
+        end
+    end
+end
+
+local function DrawBars(count, kind, place)
+    Layer(count, kind, place, ShadowNear)
+    Layer(count, kind, place, ShadowFar)
+    Layer(count, kind, place, Back)
+    Layer(count, kind, place, Fill)
+    Layer(count, kind, place, Front)
+    if barGlow then
+        Layer(count, kind, place, Glow)
+        Layer(count, kind, place, GlowEnds)
+    end
+end
+
+-- A member's name, marked as the party window's own view marks it: "> " in green on the member a
+-- sub-target or the party cursor is on, ">> " in blue on the one targeted. The marked name is kept
+-- while the name and the mark stay as they are.
+local function DrawName(member, state)
+    local name = layout.name
+    local shown = Trimmed(member.name or '???', nameChars or name.maxChars)
+
+    local mark, color = nil, nil
+    if member.isSubTarget or member.isPartyTarget then
+        mark, color = '> ', ui.Colors.Green
+    elseif member.isTarget then
+        mark, color = '>> ', ui.Colors.Blue
+    end
+    if mark ~= nil then
+        if state.markedFrom ~= shown or state.mark ~= mark then
+            state.markedFrom, state.mark, state.marked = shown, mark, mark .. shown
+        end
+        shown = state.marked
+    end
+    Write(shown, name.x, name.y, color)
+end
+
+-- A bar's figure, or for TP, which has no bar, the figure that is all there is of it. fontSize is the
+-- size it is written at, which its width goes with.
+local function DrawFigure(place, member, kept, fontSize)
     local kind = place.value
     local amount = (kind == 'hp' and member.hp) or (kind == 'mp' and member.mp) or (kind == 'tp' and member.tp) or -1
-    local x, y = place.x, place.y
 
-    local figure = place.figure
     local color = nil
     if amount >= 0 then
         if kind == 'hp' and not member.plainHp then
@@ -323,15 +422,32 @@ local function DrawFigure(place, member)
             color = tpFull
         end
     end
+
     -- a line may give a figure in its own words: a pet's HP is known only as a percentage
     local words = (kind == 'hp' and member.hpText) or (kind == 'mp' and member.mpText) or (kind == 'tp' and member.tpText)
-        or (amount < 0 and '?' or tostring(amount))
-    local offset = valueOffsets[kind]
-    local figureX, figureY = x + figure.x, y + figure.y
-    if offset ~= nil then
-        figureX, figureY = figureX + (tonumber(offset[1]) or 0), figureY + (tonumber(offset[2]) or 0)
+    if not words then
+        if kept.amount ~= amount then
+            kept.amount = amount
+            kept.words = amount < 0 and '?' or tostring(amount)
+        end
+        words = kept.words
     end
-    Text(words, figureX, figureY, figure.size * valueScale, color, figure.alignRight)
+
+    local figure = place.figure
+    local x, y = place.x + figure.x, place.y + figure.y
+    local offset = valueOffsets[kind]
+    if offset ~= nil then
+        x, y = x + (tonumber(offset[1]) or 0), y + (tonumber(offset[2]) or 0)
+    end
+
+    local width = nil
+    if figure.alignRight then
+        if kept.measured ~= words or kept.fontSize ~= fontSize then
+            kept.measured, kept.fontSize, kept.width = words, fontSize, imgui.CalcTextSize(words)
+        end
+        width = kept.width
+    end
+    Write(words, x, y, color, width)
 end
 
 -- A member's buffs, running leftwards: the first has its right edge at x
@@ -355,61 +471,6 @@ local function DrawBuffs(member, x, StatusTexture)
             shown = shown + 1
             Image(texture, x - shown * size, y, size, size)
         end
-    end
-end
-
-local function DrawMember(member, kind, buffsX, StatusTexture, showMp, showTp)
-    local inZone = member.isInZone
-    local state = Animation(member)
-
-    -- from the bottom up: the bars, the name, and last the figures, which stay readable where a long
-    -- or large name runs into them. A line with no MP to show has no MP bar: another player's pet.
-    local hasMp = member.mpp ~= nil
-    local opacity = RangeOpacity(member)
-    DrawBar(layout.hp, member, state, opacity)
-    if hasMp then
-        DrawBar(layout.mp, member, state, opacity)
-    end
-
-    -- the name, marked as the party window's own view marks it: "> " in green on the member a
-    -- sub-target or the party cursor is on, ">> " in blue on the one targeted
-    local name = layout.name
-    local shown = Trimmed(member.name or '???', nameChars or name.maxChars)
-    if member.isSubTarget or member.isPartyTarget then
-        Text('> ' .. shown, name.x, name.y, name.size * nameScale, ui.Colors.Green)
-    elseif member.isTarget then
-        Text('>> ' .. shown, name.x, name.y, name.size * nameScale, ui.Colors.Blue)
-    else
-        Text(shown, name.x, name.y, name.size * nameScale)
-    end
-
-    DrawFigure(layout.hp, member)
-    if hasMp and showMp then
-        DrawFigure(layout.mp, member)
-    end
-    if showTp and member.tp ~= nil then
-        DrawFigure(layout.tp[kind] or layout.tp.party, member)
-    end
-
-    if not inZone then
-        local zone = layout.zone
-        local zoneName = zones[member.zoneId]
-        if zoneName ~= nil then
-            Text(Trimmed(('(%s)'):format(zoneName), zone.maxChars), zone.x, zone.y, zone.size, nil, true)
-        end
-    end
-
-    -- the leader's marks: the party's, and beside it the alliance's
-    local leader = layout.leader
-    if member.isPartyLeader then
-        Image(leader.file, leader.x, leader.y, leader.width, leader.height, leader.partyColor)
-    end
-    if member.isAllianceLeader then
-        Image(leader.file, leader.x + leader.allianceX, leader.y, leader.width, leader.height)
-    end
-
-    if inZone and buffsX ~= nil then
-        DrawBuffs(member, buffsX, StatusTexture)
     end
 end
 
@@ -444,9 +505,11 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     -- once a frame, whichever list is drawn first: the others are drawn a moment later in the same one
     local now = os.clock()
     local elapsed = now - lastFrame
-    if elapsed >= 0.004 then
+    if elapsed >= 0.004 or displayWidth == nil then
         lastFrame = now
-        animStep = 1 - (1 - barAnimSpeed) ^ (math.min(elapsed, 0.25) / animFrame)
+        animStep = 1 - (1 - barAnimSpeed) ^ (math.max(0, math.min(elapsed, 0.25)) / animFrame)
+        local display = imgui.GetIO().DisplaySize
+        displayWidth, displayHeight = display.x, display.y
     end
 
     -- the room the list itself needs. The buffs go beyond it, beside the window.
@@ -456,30 +519,119 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     imgui.Dummy(room)
 
     -- a list laid out off screen to be measured needs its room and nothing else
-    local display = imgui.GetIO().DisplaySize
-    if windowX + room[1] < 0 or windowY + room[2] < 0 or windowX > display.x or windowY > display.y then
+    if windowX + room[1] < 0 or windowY + room[2] < 0 or windowX > displayWidth or windowY > displayHeight then
         return
     end
 
     -- the window's own list, so the list sits with the window among the others and fades with it,
     -- opened up to the whole screen (and no further) for what goes beside the window
     drawList = imgui.GetWindowDrawList()
-    clipMax[1], clipMax[2] = display.x, display.y
+    clipMax[1], clipMax[2] = displayWidth, displayHeight
     drawList:PushClipRect(clipMin, clipMax, false)
 
-    local originX = math.floor(windowX)
-    local originY = math.floor(windowY)
-
-    -- only the player's own party shows buffs: they start a little clear of the window's left edge
-    local buffsX = nil
-    if kind == 'party' then
-        buffsX = (imgui.GetWindowPos() - layout.buffs.gap - originX) / scale
+    lastColor = nil
+    outlineEdge = math.max(1, math.floor(scale / baseScale + 0.5))
+    if outlined then
+        outlinePacked = imgui.GetColorU32(outlinedText.OutlineColor)
     end
 
-    itemX = originX
-    for index, member in ipairs(members) do
-        itemY = math.floor(originY + (index - 1) * layout.rowHeight * scale)
-        DrawMember(member, kind, buffsX, StatusTexture, showMp, showTp)
+    itemX = math.floor(windowX)
+    local originY = math.floor(windowY)
+
+    -- each line: where it is, and its bars moved on for this frame
+    local anyElsewhere = false
+    for index = 1, count do
+        local member = members[index]
+        local state = Animation(member)
+        lineStates[index] = state
+        lineY[index] = math.floor(originY + (index - 1) * layout.rowHeight * scale)
+
+        state.inZone = member.isInZone
+        state.hasMp = member.mpp ~= nil
+        if state.inZone then
+            state.opacity = RangeOpacity(member)
+            Advance(state.hp, member.hpp, state.opacity)
+            if state.hasMp then
+                Advance(state.mp, member.mpp, state.opacity)
+            end
+        else
+            anyElsewhere = true
+        end
+    end
+
+    -- from the bottom up: the bars, the names, and last the figures, which stay readable where a long
+    -- or large name runs into them
+    DrawBars(count, 'hp', layout.hp)
+    DrawBars(count, 'mp', layout.mp)
+
+    imgui.PushFont(nil, FontSize(layout.name.size * nameScale))
+    for index = 1, count do
+        itemY = lineY[index]
+        DrawName(members[index], lineStates[index])
+    end
+    imgui.PopFont()
+
+    -- a member in another area has that area's name where the bars would be
+    if anyElsewhere then
+        local zone = layout.zone
+        imgui.PushFont(nil, FontSize(zone.size))
+        for index = 1, count do
+            local member = members[index]
+            if not member.isInZone and zones[member.zoneId] ~= nil then
+                local text = zoneTexts[member.zoneId]
+                if text == nil then
+                    text = Trimmed(('(%s)'):format(zones[member.zoneId]), zone.maxChars)
+                    zoneTexts[member.zoneId] = text
+                end
+                itemY = lineY[index]
+                Write(text, zone.x, zone.y, nil, imgui.CalcTextSize(text))
+            end
+        end
+        imgui.PopFont()
+    end
+
+    local valueFont = FontSize(layout.valueSize * valueScale)
+    local tpPlace = layout.tp[kind] or layout.tp.party
+    imgui.PushFont(nil, valueFont)
+    for index = 1, count do
+        local member, state = members[index], lineStates[index]
+        if state.inZone then
+            itemY = lineY[index]
+            DrawFigure(layout.hp, member, state.hp, valueFont)
+            if state.hasMp and showMp then
+                DrawFigure(layout.mp, member, state.mp, valueFont)
+            end
+            if showTp and member.tp ~= nil then
+                DrawFigure(tpPlace, member, state.tp, valueFont)
+            end
+        end
+    end
+    imgui.PopFont()
+
+    -- the leader's marks: the party's, and beside it the alliance's
+    local leader = layout.leader
+    for index = 1, count do
+        local member = members[index]
+        if member.isPartyLeader or member.isAllianceLeader then
+            itemY = lineY[index]
+            if member.isPartyLeader then
+                Image(leader.file, leader.x, leader.y, leader.width, leader.height, leader.partyColor)
+            end
+            if member.isAllianceLeader then
+                Image(leader.file, leader.x + leader.allianceX, leader.y, leader.width, leader.height)
+            end
+        end
+    end
+
+    -- only the player's own party shows buffs: they start a little clear of the window's left edge
+    if kind == 'party' then
+        local buffsX = (imgui.GetWindowPos() - layout.buffs.gap - itemX) / scale
+        for index = 1, count do
+            if lineStates[index].inZone then
+                itemY = lineY[index]
+                DrawBuffs(members[index], buffsX, StatusTexture)
+            end
+        end
     end
 
     drawList:PopClipRect()

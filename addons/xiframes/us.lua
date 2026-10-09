@@ -31,29 +31,23 @@ local Alliances = { }
 ---@class PartyMember
 ---@field targetIndex      integer? entity index, from which entity is looked up each frame
 ---@field entity           table?
----@field name            string
+---@field name             string
+---@field isPlayer         boolean? the player themself
 ---@field serverId         integer
 ---@field isInZone         boolean
 ---@field isActive         boolean
 ---@field isPartyLeader    boolean
 ---@field isAllianceLeader boolean
----@field isSyncTarget     boolean
 ---@field isTarget         boolean
 ---@field isSubTarget      boolean
 ---@field isPartyTarget    boolean
 ---@field job              string
----@field sub              string?
----@field jobLevel         integer
----@field subLevel         integer
 ---@field zoneId           integer
 ---@field hpp              integer
 ---@field mpp              integer
 ---@field hp               integer
 ---@field mp               integer
 ---@field tp               integer
----@field windowName       string
----@field windowSize       integer[]
----@field windowPos        integer[]
 ---@field statusIds        integer[]
 
 local function setAlpha(bitmap)
@@ -100,15 +94,23 @@ local function CreateTexture(statusId, icon)
 end
 
 local ptrStatusIcons = AshitaCore:GetPointerManager():Get('party.statusicons')
-local function GetBuffs2(party, serverId)
+
+-- Empties a list, to be filled again
+local function Clear(list)
+    for index = #list, 1, -1 do
+        list[index] = nil
+    end
+end
+
+-- The buffs of another member of the player's own party, read into buffs. The game keeps them for
+-- the five other members of that party, and for nobody in the other two.
+local function ReadMemberBuffs(buffs, serverId)
     local ptrPartyBuffs = ashita.memory.read_uint32(ptrStatusIcons)
     for memberIndex = 0, 4 do
         local memberPtr = ptrPartyBuffs + (0x30 * memberIndex)
         local playerId = ashita.memory.read_uint32(memberPtr)
 
         if playerId == serverId then
-            local buffs = { }
-
             -- each byte of high bits serves four buffs, so it is read once for the four
             local highByte = 0
             for buffIndex = 0, 31 do
@@ -121,141 +123,92 @@ local function GetBuffs2(party, serverId)
                 local highBits = bit.lshift(bit.band(bit.rshift(highByte, fMod), 0x03), 8)
                 local buff = highBits + lowBits
 
-                if buff ~= 255 then
-                    table.insert(buffs, buff)
+                if buff ~= 255 and buff > 0 then
+                    buffs[#buffs + 1] = buff
                 end
             end
-            return buffs
+            return
         end
     end
-
-    return { }
 end
 
-local function GetBuffs(party, serverId)
-    -- courtesy of Thorny and Heals
-    for i = 0, 4 do
-        local sId = party:GetStatusIconsServerId(i)
-        if sId == serverId then
-            local icons_lo = party:GetStatusIcons(i)
-            local icons_hi = party:GetStatusIconsBitMask(i)
-            local effects = { }
-
-            for b = 0, 31 do
-                --[[ FIXME: lua doesn't handle 64bit return values properly..
-                --   FIXME: the next lines are a workaround by Thorny that cover most but not all cases..
-                --   FIXME: .. to try and retrieve the high bits of the buff id.
-                --   TODO:  revesit this once atom0s adjusted the API.
-                --]]
-                local high_bits
-                if b < 16 then
-                    high_bits = bit.lshift(bit.band(bit.rshift(icons_hi, 2 * b), 3), 8)
-                else
-                    local buffer = math.floor(icons_hi / 0xffffffff)
-                    high_bits = bit.lshift(bit.band(bit.rshift(buffer, 2 * (b - 16)), 3), 8)
-                end
-
-                local buff_id = icons_lo[b + 1] + high_bits
-                if buff_id ~= 255 then
-                    table.insert(effects, buff_id)
-                end
-             end
-
-             return effects
-        end
-    end
-
-    return { }
-end
-
-local function FilterBuffs(buffList)
-    local buffs = {}
-
-    for i, buff in ipairs(buffList) do
+-- The player's own buffs, read into buffs
+local function ReadOwnBuffs(buffs)
+    for _, buff in ipairs(AshitaCore:GetMemoryManager():GetPlayer():GetBuffs()) do
         if buff ~= nil and buff > 0 then
-            table.insert(buffs, buff)
+            buffs[#buffs + 1] = buff
         end
     end
-
-    return buffs
 end
 
-local function GetPlayer(options, target, party, stal)
-    local player = AshitaCore:GetMemoryManager():GetPlayer()
+-- A member is read into a table kept for their place in the alliance (0 is the player, 1 to 5 the
+-- rest of their party, 6 to 17 the other two), the same table each time: members are read ten times
+-- a second, and a new table for each of eighteen every time is a good deal to throw away.
+local places = { }
 
-    local serverId = party:GetMemberServerId(0)
-    local buffs = FilterBuffs(player:GetBuffs())
+-- What is the same for every member read in one go: who is targeted
+local targeted = { subActive = false, first = 0, second = 0 }
 
-    return {
-        targetIndex = party:GetMemberTargetIndex(0),
-        name = party:GetMemberName(0),
-        isPlayer = true,
-        serverId = serverId,
-        isInZone = true,
-        isActive = true,
-        isPartyLeader = bit.band(party:GetMemberFlagMask(0), 4) == 4,
-        isAllianceLeader = bit.band(party:GetMemberFlagMask(0), 8) == 8,
-        isSyncTarget = bit.band(party:GetMemberFlagMask(0), 256) == 256,
-        -- isQuartermaster = 144
-        isTarget = (target:GetIsSubTargetActive() == 0 and serverId == target:GetServerId(0)) or (target:GetIsSubTargetActive() == 1 and serverId == target:GetServerId(1)),
-        isSubTarget = target:GetIsSubTargetActive() == 1 and serverId == target:GetServerId(0),
-        isPartyTarget = stal ~= nil and stal == 0,
-        job = ffxi.GetJobAbbr(party:GetMemberMainJob(0)),
-        sub = ffxi.GetJobAbbr(party:GetMemberSubJob(0)),
-        jobLevel = party:GetMemberMainJobLevel(0),
-        subLevel = party:GetMemberSubJobLevel(0),
-        zoneId = party:GetMemberZone(0),
-        hpp = party:GetMemberHPPercent(0),
-        mpp = party:GetMemberMPPercent(0),
-        hp = party:GetMemberHP(0),
-        mp = party:GetMemberMP(0),
-        tp = party:GetMemberTP(0),
-        windowName = options.alliance1.name,
-        windowSize = options.alliance1.size,
-        windowPos = options.alliance1.pos,
-        statusIds = buffs
-    }
+local function ReadTargets(target)
+    targeted.subActive = target:GetIsSubTargetActive() == 1
+    targeted.first = target:GetServerId(0)
+    targeted.second = targeted.subActive and target:GetServerId(1) or 0
 end
 
 ---@return PartyMember
-local function GetMember(i, window, target, party, stal)
-    local serverId = party:GetMemberServerId(i)
-    local buffs = FilterBuffs(GetBuffs2(party, serverId))
+local function ReadMember(place, party, stal)
+    local member = places[place]
+    if member == nil then
+        member = { statusIds = { }, isPlayer = place == 0 }
+        places[place] = member
+    end
 
-    return {
-        targetIndex = party:GetMemberTargetIndex(i),
-        name = party:GetMemberName(i),
-        serverId = serverId,
-        isInZone = party:GetMemberZone(i) == party:GetMemberZone(0),
-        isActive = party:GetMemberIsActive(i) == 1,
-        isPartyLeader = bit.band(party:GetMemberFlagMask(i), 4) == 4,
-        isAllianceLeader = bit.band(party:GetMemberFlagMask(i), 8) == 8,
-        isSyncTarget = bit.band(party:GetMemberFlagMask(i), 256) == 256,
-        isTarget = (target:GetIsSubTargetActive() == 0 and serverId == target:GetServerId(0)) or (target:GetIsSubTargetActive() == 1 and serverId == target:GetServerId(1)),
-        isSubTarget = target:GetIsSubTargetActive() == 1 and serverId == target:GetServerId(0),
-        isPartyTarget = stal ~= nil and stal == i,
-        job = ffxi.GetJobAbbr(party:GetMemberMainJob(i)),
-        sub = ffxi.GetJobAbbr(party:GetMemberSubJob(i)),
-        jobLevel = party:GetMemberMainJobLevel(i),
-        subLevel = party:GetMemberSubJobLevel(i),
-        zoneId = party:GetMemberZone(i),
-        hpp = party:GetMemberHPPercent(i),
-        mpp = party:GetMemberMPPercent(i),
-        hp = party:GetMemberHP(i),
-        mp = party:GetMemberMP(i),
-        tp = party:GetMemberTP(i),
-        windowName = window.name,
-        windowSize = window.size,
-        windowPos = window.pos,
-        statusIds = buffs
-    }
+    local serverId = party:GetMemberServerId(place)
+    local zone = party:GetMemberZone(place)
+    local flags = party:GetMemberFlagMask(place)
+
+    member.targetIndex = party:GetMemberTargetIndex(place)
+    member.name = party:GetMemberName(place)
+    member.serverId = serverId
+    member.isInZone = place == 0 or zone == party:GetMemberZone(0)
+    member.isActive = place == 0 or party:GetMemberIsActive(place) == 1
+    member.isPartyLeader = bit.band(flags, 4) == 4
+    member.isAllianceLeader = bit.band(flags, 8) == 8
+    -- with a sub-target out, the game holds it first and the target second
+    if targeted.subActive then
+        member.isTarget = serverId == targeted.second
+        member.isSubTarget = serverId == targeted.first
+    else
+        member.isTarget = serverId == targeted.first
+        member.isSubTarget = false
+    end
+    member.isPartyTarget = stal ~= nil and stal == place
+    member.job = ffxi.GetJobAbbr(party:GetMemberMainJob(place))
+    member.zoneId = zone
+    member.hpp = party:GetMemberHPPercent(place)
+    member.mpp = party:GetMemberMPPercent(place)
+    member.hp = party:GetMemberHP(place)
+    member.mp = party:GetMemberMP(place)
+    member.tp = party:GetMemberTP(place)
+    member.entity = nil
+
+    -- buffs are shown for the player's own party alone
+    local buffs = member.statusIds
+    Clear(buffs)
+    if place == 0 then
+        ReadOwnBuffs(buffs)
+    elseif place <= 5 then
+        ReadMemberBuffs(buffs, serverId)
+    end
+
+    return member
 end
 
 local sampleJobs = { 'WAR', 'WHM', 'BLM', 'THF', 'RDM', 'BRD' }
 
 -- A made-up party member for the sample windows, standing in for an empty slot
 ---@return PartyMember
-local function GetSampleMember(slot, window)
+local function GetSampleMember(slot)
     return {
         targetIndex = nil,
         name = ('Sample %d'):format(slot),
@@ -264,23 +217,16 @@ local function GetSampleMember(slot, window)
         isActive = true,
         isPartyLeader = slot == 1,
         isAllianceLeader = false,
-        isSyncTarget = false,
         isTarget = false,
         isSubTarget = false,
         isPartyTarget = false,
         job = sampleJobs[slot] or 'WAR',
-        sub = 'NIN',
-        jobLevel = 75,
-        subLevel = 37,
         zoneId = 0,
         hpp = 100 - (slot - 1) * 15,
         mpp = 100 - (slot - 1) * 12,
         hp = 1400 - (slot - 1) * 210,
         mp = 800 - (slot - 1) * 96,
         tp = (slot - 1) * 500,
-        windowName = window.name,
-        windowSize = window.size,
-        windowPos = window.pos,
         statusIds = { 40, 41, 33 }, -- Protect, Shell, Haste
     }
 end
@@ -325,15 +271,54 @@ local function StyleSettings()
     return settings
 end
 
--- A pet as a line of the list: its HP as a percentage unless the figure itself is known, and
--- MP and TP for the player's own alone
-local function PetLine(info)
-    return {
-        name = info.name, serverId = info.name, isInZone = true,
-        hp = info.hp, hpp = info.hpp, hpText = info.hp == nil and ('%d%%'):format(info.hpp) or nil,
-        mp = info.mp, mpp = info.mpp, mpText = (info.mpp ~= nil and info.mp == nil) and ('%d%%'):format(info.mpp) or nil,
-        tp = info.tp,
-    }
+-- The pets as lines of the list: HP as a percentage unless the figure itself is known, and MP and TP
+-- for the player's own alone. They are read as the members are: at most so often, and the same lines
+-- drawn in between (see memberRefreshInterval, which this is). The lines are kept and filled in
+-- afresh, and a percentage is only made into words again when it changes.
+local petRefreshInterval = 0.1
+local petLines = { time = -1, sample = false, lines = { }, kept = { } }
+
+local function PetLines(sample)
+    local now = os.clock()
+    if petLines.sample == sample and now - petLines.time < petRefreshInterval then
+        return petLines.lines
+    end
+
+    local lines, kept = petLines.lines, petLines.kept
+    local pets = petTool.List(sample)
+    for index, info in ipairs(pets) do
+        local line = kept[index]
+        if line == nil then
+            line = { isInZone = true }
+            kept[index] = line
+        end
+        -- what is kept for a line between frames goes by its id: a pet's is its place in the list,
+        -- not its name, which two pets may share
+        line.name, line.serverId = info.name, -(1000 + index)
+        line.hp, line.mp, line.mpp, line.tp = info.hp, info.mp, info.mpp, info.tp
+
+        if line.hpp ~= info.hpp or line.hpWords == nil then
+            line.hpp = info.hpp
+            line.hpWords = ('%d%%'):format(info.hpp)
+        end
+        line.hpText = info.hp == nil and line.hpWords or nil
+
+        if info.mpp ~= nil and info.mp == nil then
+            if line.mpWordsFor ~= info.mpp then
+                line.mpWordsFor, line.mpWords = info.mpp, ('%d%%'):format(info.mpp)
+            end
+            line.mpText = line.mpWords
+        else
+            line.mpText = nil
+        end
+        lines[index] = line
+    end
+    for index = #lines, #pets + 1, -1 do
+        lines[index] = nil
+    end
+
+    petLines.time, petLines.sample = now, sample
+    return lines
 end
 
 -- The order members are listed in when sorting by role: tanks, then damage dealers (melee before
@@ -354,6 +339,13 @@ for rank, job in ipairs(roleOrder) do
 end
 local unknownRank = #roleOrder + 1
 
+local function ByRole(a, b)
+    if a.sortRank ~= b.sortRank then
+        return a.sortRank < b.sortRank
+    end
+    return a.sortOrder < b.sortOrder
+end
+
 -- Sorts members by role. Members with the same job keep their party order.
 ---@param members PartyMember[]
 local function SortByRole(members)
@@ -362,19 +354,14 @@ local function SortByRole(members)
         member.sortOrder = order
     end
 
-    table.sort(members, function(a, b)
-        if a.sortRank ~= b.sortRank then
-            return a.sortRank < b.sortRank
-        end
-        return a.sortOrder < b.sortOrder
-    end)
+    table.sort(members, ByRole)
 end
 
 -- Reading a member means a couple of dozen memory calls and a search for their buffs, so the members of
 -- each window are read at most this often and the same list is drawn in between. Fast enough that HP,
 -- buffs and the target marker do not visibly lag.
 local memberRefreshInterval = 0.1
-local memberCache = { } -- window name -> { time, sample, sortByRole, members }
+local memberCache = { } -- window name -> { time, sample, sortByRole, members }: the list is emptied and filled, not replaced
 
 -- The members to list in an alliance window, in the order to list them.
 -- With sample set, every empty slot is filled with a made-up member, so the window shows at its full size.
@@ -383,22 +370,26 @@ local memberCache = { } -- window name -> { time, sample, sortByRole, members }
 local function GetMembers(alliance, sample, sortByRole, target, party, stal)
     local now = os.clock()
     local cached = memberCache[alliance.name]
-    if cached ~= nil
-    and cached.sample == sample
+    if cached == nil then
+        cached = { time = -1, members = { } }
+        memberCache[alliance.name] = cached
+    elseif cached.sample == sample
     and cached.sortByRole == sortByRole
     and now - cached.time < memberRefreshInterval then
         return cached.members
     end
 
-    local members = { }
-    for slot, getMember in ipairs(Alliances[alliance.name]) do
-        local person = getMember(target, party, stal)
+    local members = cached.members
+    Clear(members)
+    ReadTargets(target)
+    for slot, place in ipairs(Alliances[alliance.name]) do
+        local person = ReadMember(place, party, stal)
         if sample and not (person.isActive and person.name ~= '') then
-            person = GetSampleMember(slot, alliance)
+            person = GetSampleMember(slot)
         end
 
         if person.isActive and person.name ~= '' then
-            table.insert(members, person)
+            members[#members + 1] = person
         end
     end
 
@@ -406,86 +397,71 @@ local function GetMembers(alliance, sample, sortByRole, target, party, stal)
         SortByRole(members)
     end
 
-    memberCache[alliance.name] = { time = now, sample = sample, sortByRole = sortByRole, members = members }
+    cached.time, cached.sample, cached.sortByRole = now, sample, sortByRole
     return members
+end
+
+-- What a list's window holds, drawn by one function for whichever list is being drawn: which is said
+-- beforehand, here, so that no function need be made afresh for each list every frame
+local drawing = { alliance = nil, sample = false, sortByRole = false, ownParty = false, pets = nil }
+
+local function DrawAllianceContent()
+    local alliance, ownParty, pets = drawing.alliance, drawing.ownParty, drawing.pets
+    local target = AshitaCore:GetMemoryManager():GetTarget()
+    local party = AshitaCore:GetMemoryManager():GetParty()
+    local stal = ffxi.GetStPartyIndex()
+
+    local members = GetMembers(alliance, drawing.sample, drawing.sortByRole, target, party, stal)
+
+    for _, person in ipairs(members) do
+        -- The member list is kept between frames but an entity must not be: it is looked up
+        -- afresh for each frame it is drawn in, in case it has gone since the list was read
+        local entity = person.targetIndex and GetEntity(person.targetIndex) or nil
+        -- and it must be the member's own: one in another zone, or whose place has been taken, would
+        -- give the distance to whatever has that index here
+        if entity ~= nil and (not person.isInZone or entity.ServerId ~= person.serverId) then
+            entity = nil
+        end
+        person.entity = entity
+    end
+
+    xivparty.Draw(members, ownParty and 'party' or 'alliance', StatusTexture, StyleSettings())
+
+    -- the pets, under a line
+    if pets ~= nil and #pets > 0 then
+        imgui.Separator()
+        xivparty.Draw(pets, 'pets', nil, StyleSettings())
+    end
 end
 
 -- ownParty is set for the player's own party: its list keeps its bottom edge where it is and grows
 -- upwards as members join, has its buffs beside it, and has the pets under it. The other two lists
 -- grow downwards.
 local function DrawAlliance(alliance, gOptions, sample, sortByRole, ownParty)
-    sample = sample and true or false
-    sortByRole = sortByRole and true or false
-
-    local pets = nil
+    drawing.alliance = alliance
+    drawing.sample = sample and true or false
+    drawing.sortByRole = sortByRole and true or false
+    drawing.ownParty = ownParty and true or false
+    drawing.pets = nil
     if ownParty and petTool.IsEnabled() then
-        pets = petTool.List(sample)
+        drawing.pets = PetLines(drawing.sample)
     end
 
-    ui.DrawUiWindow(alliance, gOptions, function()
-        local target = AshitaCore:GetMemoryManager():GetTarget()
-        local party = AshitaCore:GetMemoryManager():GetParty()
-        local stal = ffxi.GetStPartyIndex()
-
-        local members = GetMembers(alliance, sample, sortByRole, target, party, stal)
-
-        for _, person in ipairs(members) do
-            -- The member list is kept between frames but an entity must not be: it is looked up
-            -- afresh for each frame it is drawn in, in case it has gone since the list was read
-            local entity = person.targetIndex and GetEntity(person.targetIndex) or nil
-            -- and it must be the member's own: one in another zone, or whose place has been taken, would
-            -- give the distance to whatever has that index here
-            if entity ~= nil and (not person.isInZone or entity.ServerId ~= person.serverId) then
-                entity = nil
-            end
-            person.entity = entity
-        end
-
-        xivparty.Draw(members, ownParty and 'party' or 'alliance', StatusTexture, StyleSettings())
-
-        -- the pets, under a line
-        if pets ~= nil and #pets > 0 then
-            imgui.Separator()
-            local lines = { }
-            for index, info in ipairs(pets) do
-                lines[index] = PetLine(info)
-            end
-            xivparty.Draw(lines, 'pets', nil, StyleSettings())
-        end
-    end, nil, ownParty and 'BottomLeft' or nil)
+    ui.DrawUiWindow(alliance, gOptions, DrawAllianceContent, nil, ownParty and 'BottomLeft' or nil)
 end
 
 local function SortsByRole(options)
     return options.sortByRole ~= nil and options.sortByRole[1]
 end
 
+-- Each list's places in the alliance, in the game's order
+Alliances['xiframes.us.1'] = { 0, 1, 2, 3, 4, 5 }
+Alliances['xiframes.us.2'] = { 6, 7, 8, 9, 10, 11 }
+Alliances['xiframes.us.3'] = { 12, 13, 14, 15, 16, 17 }
+
 local function UpdateAlliances(options)
     usOptions = options
     memberCache = { }
-    Alliances['xiframes.us.1'] = {
-        GetPlayer:bindn(options),
-        GetMember:bindn(1, options.alliance1),
-        GetMember:bindn(2, options.alliance1),
-        GetMember:bindn(3, options.alliance1),
-        GetMember:bindn(4, options.alliance1),
-        GetMember:bindn(5, options.alliance1),
-    }
-    Alliances['xiframes.us.2'] = {
-        GetMember:bindn(6, options.alliance2),
-        GetMember:bindn(7, options.alliance2),
-        GetMember:bindn(8, options.alliance2),
-        GetMember:bindn(9, options.alliance2),
-        GetMember:bindn(10, options.alliance2),
-        GetMember:bindn(11, options.alliance2),
-    }
-    Alliances['xiframes.us.3'] = {
-        GetMember:bindn(12, options.alliance3),
-        GetMember:bindn(13, options.alliance3),
-        GetMember:bindn(14, options.alliance3),
-        GetMember:bindn(15, options.alliance3),
-        GetMember:bindn(16, options.alliance3),
-        GetMember:bindn(17, options.alliance3),
-    }
 end
 
 -- The sliders that move the HP, MP and TP values: two for each, across and down
