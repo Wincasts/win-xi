@@ -7,3 +7,4 @@ run inv        addons/inv/inv.lua       inv_check.lua
 run treas      addons/treas/treas.lua   treas_check.lua
 run controller tests/empty.lua          controller_check.lua
 run xilite     addons/xilite/xilite.lua xilite_check.lua
+run xiframes   addons/xiframes/xiframes.lua xiframes_check.lua
