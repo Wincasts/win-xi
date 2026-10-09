@@ -4,6 +4,17 @@ local o = H.options()
 H.print('settings by section', o.style ~= nil and o.party ~= nil and o.target ~= nil and o.pets ~= nil, '| nothing of the old layout', o.tools == nil and o.globals == nil,
     '| scale', o.style.scale[1], '| party at', o.party.pos1[1], o.party.pos1[2], '| icons beside', o.party.iconCorner)
 
+-- new settings start as the author's own; what may be taken out again (the links, the corner the
+-- party's window is held by) is given the once, and not put back when the settings are next loaded
+H.print('new settings: value size', o.style.valueSize[1], '| HP offset', o.style.hpOffset[1], '| click through', o.clickThrough[1], '| fade after', o.fade.Delay,
+    '| links', #o.links, '| held at', o.party.corner1 and o.party.corner1[2])
+do
+    local again = require('options').Defaults()
+    again.version, again.links = 2, T{ }
+    require('options').Complete(again)
+    H.print('loaded again: links left out stay out', #again.links == 0, '| no corner put back', again.party.corner1 == nil)
+end
+
 -- a character's settings from before they were set out by section: what was set is carried over
 local options = require('options')
 local old = options.Complete(dofile('tests/fixtures/xiframes_v1_settings.lua'))
