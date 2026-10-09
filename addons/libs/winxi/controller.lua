@@ -27,7 +27,8 @@
 --         press   = function(action) ... end,                 -- an action's button was pressed, or repeated
 --     });
 --
--- The standard actions are up, down, left, right (the d-pad), confirm (A), back (B), previous (LB) and
+-- The standard actions are up, down, left, right (the d-pad), confirm (A), back (B), sort (X, the
+-- square on a PlayStation controller: for putting what the window shows in order), previous (LB) and
 -- next (RB). Any table of controller.Button values to names will do in their place. Where several
 -- bindings want the same button, the one bound first that is active gets it.
 --
@@ -57,7 +58,7 @@ function controller.StandardActions()
     local button = controller.Button;
     return {
         [button.DpadUp] = 'up', [button.DpadDown] = 'down', [button.DpadLeft] = 'left', [button.DpadRight] = 'right',
-        [button.A] = 'confirm', [button.B] = 'back',
+        [button.A] = 'confirm', [button.B] = 'back', [button.X] = 'sort',
         [button.LB] = 'previous', [button.RB] = 'next',
     };
 end

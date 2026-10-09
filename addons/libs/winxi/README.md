@@ -115,7 +115,7 @@ local menu = nil;
 
 controller.Bind({
     active  = function() return windowIsShowing end,    -- take the controller only while there is reason to
-    actions = controller.StandardActions(),             -- d-pad, A confirm, B back, LB previous, RB next
+    actions = controller.StandardActions(),             -- d-pad, A confirm, B back, X sort, LB previous, RB next
     repeats = controller.StandardRepeats(),             -- the d-pad repeats while held
     press   = function(action)
         if menu then
