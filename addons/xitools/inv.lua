@@ -696,8 +696,8 @@ local contextMenus = {
 -- moves over the items, and the menu. What is here is what the buttons do in this window.
 --
 -- While the window is showing, the d-pad moves a highlight over the items, the shoulder buttons change
--- tab, A opens a menu of what can be done with the highlighted item and chooses from it, and B backs
--- out of the menu or closes the window.
+-- tab, A opens a menu of what can be done with the highlighted item and chooses from it, B backs out
+-- of the menu or closes the window, and X sorts the bags of the tab that is showing.
 local pad = {
     options = nil,     -- the tool's settings, as of the frame last drawn
     drawn = 0,         -- when the window was last drawn: the controller is only the inventory's while it is
@@ -771,6 +771,47 @@ local function PadEntries(item, group)
     return entries
 end
 
+-- The bags of each tab, by the game's number for them, with what each is called
+local tabBags = {
+    { { bags.inventory, 'inventory' } },
+    { { bags.mogSatchel, 'satchel' }, { bags.mogSack, 'sack' }, { bags.mogCase, 'case' } },
+    {
+        { bags.wardrobe, 'wardrobe 1' }, { bags.wardrobe2, 'wardrobe 2' }, { bags.wardrobe3, 'wardrobe 3' },
+        { bags.wardrobe4, 'wardrobe 4' }, { bags.wardrobe5, 'wardrobe 5' }, { bags.wardrobe6, 'wardrobe 6' },
+        { bags.wardrobe7, 'wardrobe 7' }, { bags.wardrobe8, 'wardrobe 8' },
+    },
+    { { bags.mogSafe, 'safe 1' }, { bags.mogSafe2, 'safe 2' }, { bags.storage, 'storage' }, { bags.mogLocker, 'locker' } },
+}
+
+-- The server takes sorting the same bag twice within a second for a cheating tool, and after a few
+-- of those removes the player. So a bag is never sorted again until this long after the last time.
+local sortCooldown = 3.0
+local sortedAt = { } -- bag -> when it was last sorted
+
+-- Sorts the bags of the tab that is showing: the server puts together the part stacks of the same
+-- item in each. Returns whether anything was asked of it.
+local function SortTab()
+    local inv = AshitaCore:GetMemoryManager():GetInventory()
+    local now = os.clock()
+    local sorted = { }
+
+    for _, bag in ipairs(tabBags[pad.tab] or { }) do
+        local id = bag[1]
+        local usable = inv:GetContainerCountMax(id) > 0
+            and (id < bags.wardrobe3 or id > bags.wardrobe8 or ffxi.HasBagAccess(id))
+        if usable and now - (sortedAt[id] or -sortCooldown) >= sortCooldown then
+            sortedAt[id] = now
+            AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.inventorySort:make(id))
+            sorted[#sorted + 1] = bag[2]
+        end
+    end
+
+    if #sorted > 0 then
+        print(('\30\81[xitools]\30\01 Sorted: %s.'):format(table.concat(sorted, ', ')))
+    end
+    return #sorted > 0
+end
+
 -- One of the inventory's buttons has been pressed, or a held d-pad button has repeated
 local function PadPress(action)
     if pad.menu ~= nil then
@@ -797,6 +838,9 @@ local function PadPress(action)
             -- an empty slot, or an item with nothing to be done with it
             sound.Play('error')
         end
+    elseif action == 'sort' then
+        -- refused, with the error sound, while the bags were sorted too short a while ago
+        sound.Play(SortTab() and 'confirm' or 'error')
     elseif action == 'back' then
         -- the sound of it closing is made as the window is seen to have gone, however it was closed
         pad.options.isVisible[1] = false
@@ -1246,7 +1290,7 @@ local inv = {
             ui.Label('Controller Navigation (Experimental)')
             imgui.Checkbox('##inv.controller', options.controller)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
+                imgui.SetTooltip('Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or close the window.\nX (square): sort the bags of the tab showing, putting part stacks together.\nThose buttons do not reach the game while the window is showing. Open it with /xit i, from a macro.')
             end
             if options.controller[1] then
                 if options.controllerSounds == nil then
