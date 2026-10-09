@@ -1386,6 +1386,19 @@ local function DrawWindow()
         DrawInventory()
     end
 
+    -- with the controller, the name of the item the highlight is on, at the foot of the window. The
+    -- line is there whether or not there is an item, so that the window does not change height.
+    if pad.active then
+        local item = pad.grid.count > 0 and pad.items[pad.grid.cursor] or nil
+        if item == nil then
+            imgui.TextDisabled('-')
+        elseif item.stackCur > 1 then
+            imgui.Text(('%s x%d'):format(item.shortName, item.stackCur))
+        else
+            imgui.Text(item.shortName)
+        end
+    end
+
     -- what the buttons do while sorting by hand, at the foot of the window
     if pad.swap ~= nil then
         if pad.swap.first ~= nil then
