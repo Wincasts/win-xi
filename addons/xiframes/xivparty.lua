@@ -21,6 +21,7 @@
 --     valueSize   a percentage for the size of the HP, MP and TP figures alone
 --     nameSize    a percentage for the size of the names alone
 --     buffSize    a percentage for the size of the buff icons alone
+--     buffSpacing how much room there is between one buff icon and the next, in the layout's units
 --     buffDistance  how much further from the window than usual the buffs start, in the layout's
 --                 units: less than nothing brings them closer, and over it
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
@@ -150,6 +151,7 @@ local textColor = white   -- the theme's
 local valueScale = 1      -- how much larger or smaller than the layout's the HP, MP and TP figures are
 local nameScale = 1       -- and the names
 local buffScale = 1       -- and the buff icons
+local buffSpacing = 0     -- the room between one buff icon and the next
 local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
 local outlined = true     -- whether the names and figures have winxi's dark edge
 local nameChars = nil     -- how much of a name is written, where it is not the layout's own
@@ -464,7 +466,7 @@ local function DrawBuffs(member, x, StatusTexture)
         local texture = StatusTexture(id)
         if texture ~= nil then
             shown = shown + 1
-            Image(texture, x - shown * size, y, size, size)
+            Image(texture, x - shown * size - (shown - 1) * buffSpacing, y, size, size)
         end
     end
 end
@@ -532,6 +534,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     valueScale = Percent(settings.valueSize)
     nameScale = Percent(settings.nameSize)
     buffScale = Percent(settings.buffSize)
+    buffSpacing = tonumber(settings.buffSpacing) or 0
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = settings.hpOffset, settings.mpOffset, settings.tpOffset
     outlined = settings.outline ~= false
     nameChars = settings.nameChars
