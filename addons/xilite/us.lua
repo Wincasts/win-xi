@@ -13,6 +13,9 @@ local zones = require('utils/zones')
 -- layout arranges them, with its bars, in this addon's own windows
 local xivparty = require('xivparty')
 
+-- Anything written over a bar or outside a window has winxi's dark edge
+local outlinedText = require('winxi.text')
+
 -- The pets, listed under the player's party in place of the pet tool's own window
 local petTool = require('pet')
 
@@ -526,8 +529,6 @@ end
 -- member it belongs to, on their line, in the colour their TP bar would be. y is the top of that line
 -- on screen.
 local compactTpGap = 6 -- between the figure and the window's edge
-local compactTpShadow = { 0, 0, 0, 1 }
-local compactTpPos = { 0, 0 }
 local compactTpClipMin, compactTpClipMax = { 0, 0 }, { 0, 0 }
 
 ---@param player PartyMember
@@ -542,7 +543,7 @@ local function DrawCompactTp(player, y)
     -- edge. A list that grows upwards is first laid out far off screen to measure it, and a figure
     -- drawn out there, in a space of its own making, came out huge in the middle of the screen.
     local display = imgui.GetIO().DisplaySize
-    local left, top = math.max(0, x - 1), math.max(0, y - 1)
+    local left, top = math.max(0, x - 2), math.max(0, y - 2)
     local right, bottom = math.min(display.x, windowX), math.min(display.y, y + height + 2)
     if right <= left or bottom <= top then
         return
@@ -555,11 +556,8 @@ local function DrawCompactTp(player, y)
     compactTpClipMax[1], compactTpClipMax[2] = right, bottom
     drawList:PushClipRect(compactTpClipMin, compactTpClipMax, false)
 
-    -- with nothing behind it but the game, a dark copy a pixel down and across keeps it readable
-    compactTpPos[1], compactTpPos[2] = x + 1, y + 1
-    drawList:AddText(compactTpPos, imgui.GetColorU32(compactTpShadow), text)
-    compactTpPos[1], compactTpPos[2] = x, y
-    drawList:AddText(compactTpPos, imgui.GetColorU32(ui.TpBarColor(player.tp, player.isPlayer)), text)
+    -- with nothing behind it but the game, it has winxi's dark edge
+    outlinedText.Draw(drawList, x, y, ui.TpBarColor(player.tp, player.isPlayer), text)
 
     drawList:PopClipRect()
 end
@@ -815,7 +813,7 @@ local us = {
         xivHpOffset = T{ 0, 0 }, -- how far the HP figure is moved from its place: right, down
         xivMpOffset = T{ 0, 0 }, -- and the MP figure
         xivTpOffset = T{ 0, 0 }, -- and the TP figure
-        xivOutline = T{ true }, -- whether the HP, MP and TP figures have a dark edge
+        xivOutline = T{ true }, -- whether the names and the HP, MP and TP figures have a dark edge
         xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
         xivShowTp = T{ true }, -- whether TP is written
         alliance1 = T{
@@ -959,10 +957,10 @@ local us = {
                         end
                     end
                 end
-                ui.Label('Outline Values')
+                ui.Label('Outline Text')
                 imgui.Checkbox('##us.xivOutline', options.xivOutline)
                 if imgui.IsItemHovered() then
-                    imgui.SetTooltip('Gives the HP, MP and TP values a dark edge, so they can be read where they are written over a bar.')
+                    imgui.SetTooltip('Gives the names and the HP, MP and TP values a dark edge, so they can be read where they are written over a bar.')
                 end
                 ui.Label('Show MP Values')
                 imgui.Checkbox('##us.xivShowMp', options.xivShowMp)

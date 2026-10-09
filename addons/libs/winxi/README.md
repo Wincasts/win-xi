@@ -10,6 +10,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.style` | Puts the theme on imgui's style stack around a window: `PushPlain` (text and icons) or `PushFull` (controls), then `Pop` |
 | `winxi.window` | A themed window in one call: `window.Plain` / `window.Full` |
 | `winxi.shadow` | The drop shadow, drawn inside a window |
+| `winxi.text` | Text with a dark edge all round it: how anything written over a bar, an image or the game itself is written |
 | `winxi.fade` | Fading an addon's windows out while the player is idle, from settings the addon keeps (`widgets.Fade` draws their controls) |
 | `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
 | `winxi.controller` | Working an addon's windows with a controller (XInput, or DirectInput by make): taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
@@ -40,6 +41,22 @@ end);
 Use `window.Full` for a window with tabs, tables, buttons or inputs: it also tints those from the
 border colour. Options (padding, background, alpha, shadow, growFrom) are described at the top of
 `window.lua`.
+
+## Text over bars and images
+
+Text written over a bar, an image or the game itself has a dark edge all round it, so it can be read
+whatever is behind it. That is the standard for winxi addons; plain text is for the plain background
+of a window.
+
+```lua
+local text = require('winxi.text');
+
+text.Outlined('1250');                              -- in a window, where imgui.Text would put it
+text.Draw(drawList, x, y, color, '1250', edge);     -- anywhere, on a draw list of the addon's choosing
+```
+
+`text.Outlined` uses the theme's text colour unless given one. `edge` is the edge's thickness in
+pixels, 1 unless given. The edge is `text.OutlineColor`.
 
 ## The theme in a settings window
 
