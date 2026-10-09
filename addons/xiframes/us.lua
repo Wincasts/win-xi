@@ -461,7 +461,7 @@ end
 -- and red for an alliance's (the colours of their leaders' marks), pulsing gently. It is outside the window,
 -- above its top corners or below its bottom ones, so nothing in the list moves for it; and it is drawn
 -- over every window, not among them, so that another window lying across it does not hide it.
-local inviteEnvelope = { width = 15, height = 10, gap = 5 } -- in the lists' own units
+local inviteEnvelope = { width = 13, height = 9, gap = 5 } -- in the lists' own units
 local inviteTint = { 0, 0, 0, 1 }
 local inviteLine = { 0.05, 0.05, 0.05, 1 }
 local inviteMin, inviteMax, inviteMid = { 0, 0 }, { 0, 0 }, { 0, 0 }
