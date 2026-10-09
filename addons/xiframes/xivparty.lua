@@ -13,8 +13,9 @@
 --
 --     xivparty.Draw(members, kind, StatusTexture, settings)
 --
--- kind is 'party' for the player's own party, 'alliance' for another, and 'pets' for lines set out as
--- the party's are but with no buffs. settings says how, each left out for the usual:
+-- kind is 'party' for the player's own party, 'alliance' for another, 'pets' for lines set out as
+-- the party's are but with no buffs, and 'target' for a line like a pet's whose HP figure is under
+-- its bar, level with the TP figure (tgt.lua writes a target's HP percentage and distance there). settings says how, each left out for the usual:
 --     scale       a percentage for the whole list (see below)
 --     valueSize   a percentage for the size of the HP, MP and TP figures alone
 --     nameSize    a percentage for the size of the names alone
@@ -95,6 +96,9 @@ local layout = {
     valueSize = 8, -- the HP, MP and TP figures are written at one size
     hp = { value = 'hp', x = 6, y = -17, images = hpImages, figure = { x = 114, y = 21, alignRight = true } },
     mp = { value = 'mp', x = 32, y = -8, images = mpImages, figure = { x = 100, y = 23, alignRight = true } },
+    -- a target's HP figure, in place of the one above: under the bar, level with the TP figure, its
+    -- right end at the bar's
+    targetHpFigure = { x = 115, y = 35, alignRight = true },
     -- TP is a figure alone: to the left of the MP bar for the player's party, and for the others
     -- under the start of the name. XivParty writes it smaller than HP and MP; here the three are one
     -- size (valueSize), and TP is a little higher to stay level with the MP bar.
@@ -348,8 +352,8 @@ local function DrawName(member, state)
 end
 
 -- A bar's figure, or for TP, which has no bar, the figure that is all there is of it. fontSize is the
--- size it is written at, which its width goes with.
-local function DrawFigure(place, member, kept, fontSize)
+-- size it is written at, which its width goes with. figure is where it goes, if not the bar's usual.
+local function DrawFigure(place, member, kept, fontSize, figure)
     local kind = place.value
     local amount = (kind == 'hp' and member.hp) or (kind == 'mp' and member.mp) or (kind == 'tp' and member.tp) or -1
 
@@ -379,7 +383,7 @@ local function DrawFigure(place, member, kept, fontSize)
         words = kept.words
     end
 
-    local figure = place.figure
+    figure = figure or place.figure
     local x, y = place.x + figure.x, place.y + figure.y
     local offset = valueOffsets[kind]
     if offset ~= nil then
@@ -551,12 +555,13 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
 
     local valueFont = FontSize(layout.valueSize * valueScale)
     local tpPlace = layout.tp[kind] or layout.tp.party
+    local hpFigure = kind == 'target' and layout.targetHpFigure or nil
     imgui.PushFont(nil, valueFont)
     for index = 1, count do
         local member, state = members[index], lineStates[index]
         if state.inZone then
             itemY = lineY[index]
-            DrawFigure(layout.hp, member, state.hp, valueFont)
+            DrawFigure(layout.hp, member, state.hp, valueFont, hpFigure)
             if state.hasMp and showMp and not member.noMp then
                 DrawFigure(layout.mp, member, state.mp, valueFont)
             end
