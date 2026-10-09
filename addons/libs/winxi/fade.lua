@@ -1,12 +1,16 @@
 -- winxi.fade: fades an addon's windows out once the player has been idle, and brings them back.
 --
--- Idle means standing still. The settings say how long for, how long the fade takes, how visible a
--- faded window stays, and what else counts as not being idle:
---     { Enabled = false, Delay = 10, Duration = 1.5, Opacity = 0,
+-- Idle means standing still, or with Moving off simply nothing happening, on the move or not. The
+-- settings say how long for, how long the fade takes, how visible a faded window stays, and what
+-- counts as not being idle:
+--     { Enabled = false, Delay = 10, Duration = 1.5, Opacity = 0, Moving = true, Party = true,
 --       Combat = true, Target = true, MissingHp = false, Resting = false, Transition = 0.1 }
 -- Delay and Duration are seconds, Opacity a percentage. Transition is how many seconds a window takes
--- to fade in as it appears, out as it goes, and back in when idling ends: one speed for every window. Combat, Target, MissingHp and Resting each keep
--- the windows up while engaged, while anything is targeted, while below full HP, and while resting.
+-- to fade in as it appears, out as it goes, and back in when idling ends: one speed for every window.
+-- Moving is whether moving about keeps the windows up. Party brings them back when the party list
+-- changes: someone joins, leaves or changes area. Combat, Target, MissingHp and Resting each keep the
+-- windows up while engaged, while anything is targeted (and bring them back when the target changes),
+-- while below full HP, and while resting.
 --
 -- The settings are the addon's own, kept wherever it keeps the rest; fade.Complete(settings) fills in
 -- whatever a table lacks, and winxi.widgets.Fade draws the controls for them.
@@ -23,6 +27,8 @@ fade.Defaults = {
     Delay = 10,
     Duration = 1.5,
     Opacity = 0,
+    Moving = true,    -- moving about counts as not being idle
+    Party = true,     -- a change to the party list brings the windows back
     Combat = true,
     Target = true,
     MissingHp = false,
@@ -50,6 +56,35 @@ fade.TransitionTime = fade.Defaults.Transition;
 local alpha = 1;
 local lastMove, lastFrame = os.clock(), os.clock();
 local lastX, lastY, lastZ = nil, nil, nil;
+local lastTarget = 0;        -- the index of what was targeted a frame ago, 0 for nothing
+
+-- Whether the party list has changed since it was last looked at: who is in each of its eighteen
+-- places, and which area they are in. Looked at a few times a second rather than every frame.
+local partyInterval = 0.25;
+local partyChecked = 0;
+local partyIds, partyZones = {}, {};
+
+local function PartyChanged(party, now)
+    if now - partyChecked < partyInterval then
+        return false;
+    end
+    partyChecked = now;
+
+    local changed = false;
+    for slot = 0, 17 do
+        local id, zone = 0, 0;
+        if party:GetMemberIsActive(slot) == 1 then
+            id = party:GetMemberServerId(slot);
+            zone = party:GetMemberZone(slot);
+        end
+        if partyIds[slot] ~= id or partyZones[slot] ~= zone then
+            -- the first look is not a change: there was nothing to compare it with
+            changed = changed or partyIds[slot] ~= nil;
+            partyIds[slot], partyZones[slot] = id, zone;
+        end
+    end
+    return changed;
+end
 
 -- suspended: true to hold the windows fully visible this frame whatever the settings say (while they
 -- are being arranged, for one)
@@ -77,12 +112,22 @@ function fade.Update(settings, suspended)
         local y = entities:GetLocalPositionY(index);
         local z = entities:GetLocalPositionZ(index);
 
-        local active = lastX == nil
+        local first = lastX == nil;
+        local moved = first
             or math.abs(x - lastX) > moveThreshold
             or math.abs(y - lastY) > moveThreshold
             or math.abs(z - lastZ) > moveThreshold;
-        if active then
+        if moved then
             lastX, lastY, lastZ = x, y, z;
+        end
+
+        -- moving about keeps the windows up unless the settings say it does not
+        local active = first or (moved and settings.Moving ~= false);
+
+        -- the party list is looked at whether or not anything else is going on, so that what it is
+        -- compared with is never stale
+        if settings.Party and PartyChanged(memory:GetParty(), now) then
+            active = true;
         end
 
         if not active and (settings.Combat or settings.Resting) then
@@ -90,9 +135,15 @@ function fade.Update(settings, suspended)
             active = (settings.Combat and status == statusEngaged) or (settings.Resting and status == statusResting);
         end
 
-        if not active and settings.Target then
+        if settings.Target then
+            -- anything targeted, or the target having just changed (to nothing, too)
             local target = memory:GetTarget();
-            active = target:GetIsActive(0) == 1 and target:GetTargetIndex(0) ~= 0;
+            local targeted = target:GetIsActive(0) == 1 and target:GetTargetIndex(0) or 0;
+            if targeted ~= lastTarget then
+                lastTarget = targeted;
+                active = true;
+            end
+            active = active or targeted ~= 0;
         end
 
         if not active and settings.MissingHp then
