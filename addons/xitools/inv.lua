@@ -247,9 +247,52 @@ local function EscapeString(str)
     return ''
 end
 
+-- A name as the game's log has it, all in small letters, with its first letter made a capital
+local function Capitalize(name)
+    if name == nil or name == '' then
+        return ''
+    end
+    return name:sub(1, 1):upper() .. name:sub(2)
+end
+
+-- The races that can wear a piece of gear, from the game's flags for them: a bit each for Hume men
+-- and women, Elvaan men and women, Tarutaru men and women, Mithra and Galka, from the second bit up
+local allRaces = 0x1FE
+local racePairs = {
+    { 'Hume', 0x02, 0x04 },
+    { 'Elvaan', 0x08, 0x10 },
+    { 'Tarutaru', 0x20, 0x40 },
+}
+
+local function GetRaces(bitfield)
+    if bitfield == nil or bitfield == 0 or bit.band(bitfield, allRaces) == allRaces then
+        return 'All Races'
+    end
+
+    local names = { }
+    for _, race in ipairs(racePairs) do
+        local men = bit.band(bitfield, race[2]) ~= 0
+        local women = bit.band(bitfield, race[3]) ~= 0
+        if men and women then
+            names[#names + 1] = race[1]
+        elseif men then
+            names[#names + 1] = race[1] .. ' (M)'
+        elseif women then
+            names[#names + 1] = race[1] .. ' (F)'
+        end
+    end
+    if bit.band(bitfield, 0x80) ~= 0 then
+        names[#names + 1] = 'Mithra'
+    end
+    if bit.band(bitfield, 0x100) ~= 0 then
+        names[#names + 1] = 'Galka'
+    end
+    return table.concat(names, ', ')
+end
+
 local function GetJobs(bitfield)
     if bitfield == 8388606 then
-        return T{ 'All jobs' }
+        return T{ 'All Jobs' }
     end
 
     local jobList = T{}
@@ -340,7 +383,9 @@ local function UpdateInventory(inv, res, bagId)
                 isTradeable = true,
                 isLocked = bit.band(1, invItem.Flags) == 1 or bagId > 0,
                 isEquippable = itemRes.Type == 4 or itemRes.Type == 5,
-                name = ('%s [%i]'):format(itemRes.LogNameSingular[1], invItem.Id),
+                name = ('%s [%i]'):format(Capitalize(itemRes.LogNameSingular[1]), invItem.Id),
+                properName = Capitalize(itemRes.LogNameSingular[1]),
+                rawDesc = itemRes.Description[1],
                 shortName = itemRes.Name[1],
                 longNameS = itemRes.LogNameSingular[1],
                 longNameP = itemRes.LogNamePlural[1],
@@ -365,6 +410,12 @@ local function UpdateInventory(inv, res, bagId)
                 coolItem.level = ('Lv %i %s'):format(itemRes.Level, itemSlots)
                 coolItem.jobs = itemJobs:join(', ')
                 coolItem.slots = itemRes.Slots
+                -- for the controller's verbose box, which sets gear out in lines of its own
+                coolItem.isGear = true
+                coolItem.levelText = ('Lv %i'):format(itemRes.Level)
+                coolItem.slotName = itemSlots
+                coolItem.jobList = itemJobs
+                coolItem.races = itemRes.Races
             end
 
             inventory:append(coolItem)
@@ -939,12 +990,137 @@ local function SortMenu()
     })
 end
 
--- The verbose box for the highlighted item: the item is kept to one side for it, so that the
--- function need not be made afresh every frame
+-- The controller's verbose box for the highlighted item.
+--
+-- The game writes the elements into an item's description as marks of its own (two bytes each),
+-- which no font here has. They are drawn as dots in the elements' colours instead: there are no
+-- pictures of the game's own marks to draw.
+local elementColors = {
+    [0x1F] = { 0.95, 0.30, 0.20, 1.0 }, -- fire
+    [0x20] = { 0.60, 0.90, 1.00, 1.0 }, -- ice
+    [0x21] = { 0.35, 0.85, 0.35, 1.0 }, -- wind
+    [0x22] = { 0.80, 0.65, 0.25, 1.0 }, -- earth
+    [0x23] = { 0.75, 0.45, 0.95, 1.0 }, -- lightning
+    [0x24] = { 0.30, 0.50, 1.00, 1.0 }, -- water
+    [0x25] = { 1.00, 1.00, 0.90, 1.0 }, -- light
+    [0x26] = { 0.40, 0.30, 0.50, 1.0 }, -- dark
+}
+local elementEdge = { 1.0, 1.0, 1.0, 0.7 }
+
+-- A description as lines, each a list of pieces: a string of text, or the number of an element
+local function ParseDescription(raw)
+    local lines = { }
+    if raw == nil then
+        return lines
+    end
+
+    raw = raw:gsub('\x81\x60', '~'):gsub('\r', '')
+    for line in (raw .. '\n'):gmatch('(.-)\n') do
+        local pieces = { }
+        local from = 1
+        while true do
+            local at = line:find('\xEF[\x1F-\x26]', from)
+            if at == nil then
+                break
+            end
+            if at > from then
+                pieces[#pieces + 1] = line:sub(from, at - 1)
+            end
+            pieces[#pieces + 1] = line:byte(at + 1)
+            from = at + 2
+        end
+        if from <= #line then
+            pieces[#pieces + 1] = line:sub(from)
+        end
+        if #pieces > 0 then
+            lines[#lines + 1] = pieces
+        end
+    end
+    return lines
+end
+
+local _, fontHeight = imgui.CalcTextSize('A')
+fontHeight = fontHeight or 14 -- should the size come back as its width alone
+local dotSize = { fontHeight, fontHeight }
+local dotCenter = { 0, 0 }
+
+local function DrawDescription(lines)
+    local drawList = imgui.GetWindowDrawList()
+    for _, pieces in ipairs(lines) do
+        for index, piece in ipairs(pieces) do
+            if index > 1 then
+                imgui.SameLine(0, 0)
+            end
+            if type(piece) == 'number' then
+                local x, y = imgui.GetCursorScreenPos()
+                imgui.Dummy(dotSize)
+                dotCenter[1], dotCenter[2] = x + fontHeight / 2, y + fontHeight / 2
+                drawList:AddCircleFilled(dotCenter, fontHeight * 0.34, imgui.GetColorU32(elementColors[piece]), 12)
+                drawList:AddCircle(dotCenter, fontHeight * 0.34, imgui.GetColorU32(elementEdge), 12)
+            else
+                imgui.Text(piece)
+            end
+        end
+    end
+end
+
+-- The jobs that can wear a piece of gear, after its level, across as many lines as they need, with
+-- the player's own job in yellow
+local jobsWidth = fontWidth * 44
+
+local function DrawLevelAndJobs(item)
+    imgui.Text(item.levelText)
+
+    local own = jobs[AshitaCore:GetMemoryManager():GetPlayer():GetMainJob()]
+    local spacing = fontWidth
+    local across = imgui.CalcTextSize(item.levelText)
+    for _, job in ipairs(item.jobList) do
+        local width = imgui.CalcTextSize(job)
+        if across + spacing + width <= jobsWidth then
+            imgui.SameLine(0, spacing)
+            across = across + spacing + width
+        else
+            across = width
+        end
+
+        if job == own then
+            imgui.TextColored(ui.Colors.Yellow, job)
+        else
+            imgui.Text(job)
+        end
+    end
+end
+
+-- Gear is set out in four parts: its name; its slot and the races that can wear it; its stats; its
+-- level and the jobs that can wear it. Anything else is its name, what the game says of it, and how
+-- many of how many for a stack.
+local function DrawVerbose(item)
+    if item.verbose == nil then
+        -- worked out once for the item: it is made afresh whenever the bags change
+        item.verbose = {
+            description = ParseDescription(item.rawDesc),
+            wearers = item.isGear and (item.slotName and ('[%s] %s'):format(item.slotName, GetRaces(item.races)) or GetRaces(item.races)) or nil,
+        }
+    end
+
+    imgui.Text(item.properName)
+    if item.isGear then
+        imgui.Text(item.verbose.wearers)
+        DrawDescription(item.verbose.description)
+        DrawLevelAndJobs(item)
+    else
+        DrawDescription(item.verbose.description)
+        if item.stack then
+            imgui.Text(item.stack)
+        end
+    end
+end
+
+-- The item is kept to one side for the box, so that the function need not be made afresh every frame
 local infoItem = nil
 
 local function DrawInfoBox()
-    DrawItemInfo(infoItem)
+    DrawVerbose(infoItem)
 end
 
 -- One of the inventory's buttons has been pressed, or a held d-pad button has repeated
@@ -1062,7 +1238,12 @@ local function PadEndFrame()
         if item ~= nil and x ~= nil then
             if pad.options.controllerInfo == 'verbose' then
                 infoItem = item
-                controller.Label(DrawInfoBox, x, y + iconSize + 3 + labelGap, true, item.uniqueId)
+                if pad.options.controllerInfoPlace == 'item' or pad.windowX == nil then
+                    controller.Label(DrawInfoBox, x, y + iconSize + 3 + labelGap, true, item.uniqueId)
+                else
+                    -- under the window, its left edge in line with the window's
+                    controller.Label(DrawInfoBox, pad.windowX, pad.windowY + pad.windowHeight + labelGap, true, item.uniqueId)
+                end
             else
                 if item.label == nil then
                     -- made once for the item: it is made afresh whenever the bags change
@@ -1420,6 +1601,13 @@ local function DrawWindow()
         DrawInventory()
     end
 
+    -- where the window is, for the box that goes under it
+    if pad.active then
+        local _, height = imgui.GetWindowSize()
+        pad.windowX, pad.windowY = imgui.GetWindowPos()
+        pad.windowHeight = height
+    end
+
     -- what the buttons do while sorting by hand, at the foot of the window
     if pad.swap ~= nil then
         if pad.swap.first ~= nil then
@@ -1448,6 +1636,7 @@ local inv = {
         controller = T{ false }, -- experimental: work the window with a controller
         controllerSounds = T{ false }, -- sounds as the controller works the window
         controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
+        controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
         controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
         size = T{ 0, 0 },
         maxHeight = T{ 432 },
@@ -1524,7 +1713,22 @@ local inv = {
                     options.controllerInfo = 'verbose'
                 end
                 if imgui.IsItemHovered() then
-                    imgui.SetTooltip('What the box under the highlighted item says.\nSimple: its name.  Verbose: its name, stats and description, as the mouse\'s tooltip has them.')
+                    imgui.SetTooltip('What is said of the highlighted item.\nSimple: its name, in a box under it.  Verbose: its name, stats and description; for gear, its slot, races, level and jobs as well.')
+                end
+                if verbose then
+                    ui.Label('Verbose Info Position')
+                    local underItem = options.controllerInfoPlace == 'item'
+                    local placeColumn = imgui.GetCursorPosX()
+                    if imgui.RadioButton('Below Window##inv.controllerInfoPlace', not underItem) then
+                        options.controllerInfoPlace = 'window'
+                    end
+                    imgui.SetCursorPosX(placeColumn)
+                    if imgui.RadioButton('Under Item##inv.controllerInfoPlace', underItem) then
+                        options.controllerInfoPlace = 'item'
+                    end
+                    if imgui.IsItemHovered() then
+                        imgui.SetTooltip('Where the verbose box goes: under the inventory window, in line with its left edge, or under the highlighted item.')
+                    end
                 end
                 ui.Label('Controller Type')
                 local current = controller.GetLayout()
