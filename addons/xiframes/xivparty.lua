@@ -102,8 +102,8 @@ local barShadowReach = 2.5 -- how far below a bar its shadow goes
 -- standing half on it, after the ones the bars of the game's own party list have
 local bookend = { width = 2, over = 1.5 } -- how wide a cap is, and how far past the bar's inside its frame goes, above and below
 local bookendSilver = { 0.78, 0.80, 0.84, 1 }
-local bookendShade = { 0.52, 0.54, 0.60, 1 } -- towards its top and bottom, as a bar's frame darkens towards its own
-local bookendHalfShade = { 0.65, 0.67, 0.72, 1 } -- and between that and the silver
+local bookendShade = { 0.38, 0.40, 0.46, 1 } -- towards its top and bottom, as a bar's frame darkens towards its own
+local bookendHalfShade = { 0.56, 0.58, 0.64, 1 } -- and between that and the silver
 local bookendShine = { 0.97, 0.97, 1.00, 1 }
 local bookendEdge = { 0.20, 0.21, 0.25, 1 }
 
@@ -334,9 +334,11 @@ end
 local capMin, capMax = { 0, 0 }, { 0, 0 }
 
 local function Cap(centre, top, bottom)
-    local half = bookend.width * scale / 2
-    local left = math.floor(itemX + centre * scale - half)
-    local right = math.floor(itemX + centre * scale + half) + 1
+    -- every cap is the same whole number of pixels wide, wherever its bar's end falls: worked out
+    -- from each side separately, one cap in four came out a pixel wider than the rest
+    local width = math.max(2, math.floor(bookend.width * scale + 0.5))
+    local left = math.floor(itemX + centre * scale - width / 2 + 0.5)
+    local right = left + width
     top, bottom = math.floor(itemY + top * scale + 0.5), math.floor(itemY + bottom * scale + 0.5)
 
     capMin[1], capMin[2], capMax[1], capMax[2] = left, top, right, bottom
