@@ -10,17 +10,20 @@
 -- the name of the party's leader, and the buffs of a member of the player's own party run leftwards
 -- from the window.
 --
---     xivparty.Draw(members, kind, scale, StatusTexture, showMp, showTp, valueSize)
+--     xivparty.Draw(members, kind, StatusTexture, settings)
 --
 -- kind is 'party' for the player's own party, 'alliance' for another, and 'pets' for lines set out as
--- the party's are but with no buffs. valueSize is a percentage for the size of the HP, MP and TP
--- figures alone, 100 if not given.
+-- the party's are but with no buffs. settings says how, each left out for the usual:
+--     scale       a percentage for the whole list (see below)
+--     valueSize   a percentage for the size of the HP, MP and TP figures alone
+--     nameSize    a percentage for the size of the names alone
+--     buffSize    a percentage for the size of the buff icons alone
+--     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
 --
 -- is called inside the window. It takes up the room the list needs and draws into it; the buffs are
--- drawn beyond that room, beside the window. members are the party window's own (see us.lua). scale
--- is a percentage: 100 is the size this style is meant to be seen at, a fifth larger than XivParty's
--- own. StatusTexture(id) gives the texture for a status icon, or nil. showMp and showTp say whether
--- the MP and TP figures are written; the MP bar is drawn either way. A member may be anything with the
+-- drawn beyond that room, beside the window. members are the party window's own (see us.lua). A scale
+-- of 100 is the size this style is meant to be seen at, a fifth larger than XivParty's own.
+-- StatusTexture(id) gives the texture for a status icon, or nil. A member may be anything with the
 -- same fields: us.lua lists pets this way, giving hpText and mpText for figures in words of its own
 -- and leaving mpp and tp out for a line with no MP bar or TP.
 --
@@ -120,6 +123,8 @@ local scale = 1
 local itemX, itemY = 0, 0 -- the top left of the member being drawn, on screen
 local textColor = white   -- the theme's
 local valueScale = 1      -- how much larger or smaller than the layout's the HP, MP and TP figures are
+local nameScale = 1       -- and the names
+local buffScale = 1       -- and the buff icons
 
 local cornerA, cornerB = { 0, 0 }, { 0, 0 }
 local uvA, uvB = { 0, 0 }, { 1, 1 }
@@ -286,7 +291,10 @@ local function DrawBuffs(member, x, StatusTexture)
         return
     end
 
+    -- whatever their size, the icons stay centred on the height they have in the layout
     local buffs = layout.buffs
+    local size = buffs.size * buffScale
+    local y = buffs.y + (buffs.size - size) / 2
     local shown = 0
     for _, id in ipairs(ids) do
         if shown >= buffs.most then
@@ -295,7 +303,7 @@ local function DrawBuffs(member, x, StatusTexture)
         local texture = StatusTexture(id)
         if texture ~= nil then
             shown = shown + 1
-            Image(texture, x - shown * buffs.size, buffs.y, buffs.size, buffs.size)
+            Image(texture, x - shown * size, y, size, size)
         end
     end
 end
@@ -319,11 +327,11 @@ local function DrawMember(member, kind, buffsX, StatusTexture, showMp, showTp)
     local name = layout.name
     local shown = Trimmed(member.name or '???', name.maxChars)
     if member.isSubTarget or member.isPartyTarget then
-        Text('> ' .. shown, name.x, name.y, name.size, ui.Colors.XpBar)
+        Text('> ' .. shown, name.x, name.y, name.size * nameScale, ui.Colors.XpBar)
     elseif member.isTarget then
-        Text('>> ' .. shown, name.x, name.y, name.size, ui.Colors.Blue)
+        Text('>> ' .. shown, name.x, name.y, name.size * nameScale, ui.Colors.Blue)
     else
-        Text(shown, name.x, name.y, name.size)
+        Text(shown, name.x, name.y, name.size * nameScale)
     end
 
     if not inZone then
@@ -351,15 +359,26 @@ end
 local room = { 0, 0 }
 local clipMin, clipMax = { 0, 0 }, { 0, 0 }
 
-function xivparty.Draw(members, kind, scalePercent, StatusTexture, showMp, showTp, valueSize)
+-- A percentage as a multiplier: 1 where there is none, or none that makes sense
+local function Percent(value)
+    return (type(value) == 'number' and value > 0) and value / 100 or 1
+end
+
+local noSettings = { }
+
+function xivparty.Draw(members, kind, StatusTexture, settings)
     local count = #members
     if count == 0 then
         return
     end
 
-    scale = baseScale * ((scalePercent ~= nil and scalePercent > 0) and scalePercent / 100 or 1)
+    settings = settings or noSettings
+    scale = baseScale * Percent(settings.scale)
+    valueScale = Percent(settings.valueSize)
+    nameScale = Percent(settings.nameSize)
+    buffScale = Percent(settings.buffSize)
+    local showMp, showTp = settings.showMp ~= false, settings.showTp ~= false
     textColor = theme.Get().TextColor
-    valueScale = (valueSize ~= nil and valueSize > 0) and valueSize / 100 or 1
 
     -- once a frame, whichever list is drawn first: the others are drawn a moment later in the same one
     local now = os.clock()

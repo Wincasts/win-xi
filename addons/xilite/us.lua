@@ -474,6 +474,21 @@ local function XivPartyStyle()
     return usOptions ~= nil and usOptions.xivParty ~= nil and usOptions.xivParty[1] == true
 end
 
+-- How XivParty Style is to draw, from the settings, as xivparty.Draw takes it: one table, filled in
+-- afresh for each list
+local xivSettings = { }
+
+local function XivSettings()
+    local options, settings = usOptions, xivSettings
+    settings.scale = options.xivScale ~= nil and options.xivScale[1] or 100
+    settings.valueSize = options.xivValueSize ~= nil and options.xivValueSize[1] or 100
+    settings.nameSize = options.xivNameSize ~= nil and options.xivNameSize[1] or 100
+    settings.buffSize = options.xivBuffSize ~= nil and options.xivBuffSize[1] or 100
+    settings.showMp = options.xivShowMp == nil or options.xivShowMp[1]
+    settings.showTp = options.xivShowTp == nil or options.xivShowTp[1]
+    return settings
+end
+
 -- Whether the pets are listed under the player's party: the setting is on, and so is the pet tool
 local function PetsInList()
     return usOptions ~= nil and (usOptions.showPets == nil or usOptions.showPets[1]) and petTool.IsEnabled()
@@ -703,13 +718,8 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
         end
 
         -- the player's own party has its buffs beside it
-        local scale, showMp, showTp, valueSize
         if xivStyle then
-            scale = usOptions.xivScale ~= nil and usOptions.xivScale[1] or 100
-            showMp = usOptions.xivShowMp == nil or usOptions.xivShowMp[1]
-            showTp = usOptions.xivShowTp == nil or usOptions.xivShowTp[1]
-            valueSize = usOptions.xivValueSize ~= nil and usOptions.xivValueSize[1] or 100
-            xivparty.Draw(members, growsUp and 'party' or 'alliance', scale, StatusTexture, showMp, showTp, valueSize)
+            xivparty.Draw(members, growsUp and 'party' or 'alliance', StatusTexture, XivSettings())
         end
 
         -- the pets, under a line, each in the manner of the list above
@@ -720,7 +730,7 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
                 for index, info in ipairs(pets) do
                     lines[index] = PetLine(info)
                 end
-                xivparty.Draw(lines, 'pets', scale, nil, showMp, showTp, valueSize)
+                xivparty.Draw(lines, 'pets', nil, XivSettings())
             else
                 for _, info in ipairs(pets) do
                     if alliance.isCompact[1] then
@@ -784,6 +794,8 @@ local us = {
         xivParty = T{ false }, -- experimental: arrange the lists as the Windower addon XivParty's compact layout does
         xivScale = T{ 100 },   -- their size, as a percentage
         xivValueSize = T{ 100 }, -- the size of the HP, MP and TP figures, as a percentage
+        xivNameSize = T{ 100 },  -- and of the names
+        xivBuffSize = T{ 100 },  -- and of the buff icons
         xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
         xivShowTp = T{ true }, -- whether TP is written
         alliance1 = T{
@@ -864,6 +876,12 @@ local us = {
             if options.xivValueSize == nil then
                 options.xivValueSize = T{ 100 }
             end
+            if options.xivNameSize == nil then
+                options.xivNameSize = T{ 100 }
+            end
+            if options.xivBuffSize == nil then
+                options.xivBuffSize = T{ 100 }
+            end
             if options.xivShowTp == nil then
                 options.xivShowTp = T{ true }
             end
@@ -878,6 +896,16 @@ local us = {
                 imgui.SliderInt('##us.xivScale', options.xivScale, 50, 200, '%d%%')
                 if imgui.IsItemHovered() then
                     imgui.SetTooltip('How big the lists are drawn: the bars, the text and the buffs together.')
+                end
+                ui.Label('Name Text Size (%)')
+                imgui.SliderInt('##us.xivNameSize', options.xivNameSize, 50, 200, '%d%%')
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('How big the names are written, apart from everything else.')
+                end
+                ui.Label('Buff Icon Size (%)')
+                imgui.SliderInt('##us.xivBuffSize', options.xivBuffSize, 50, 200, '%d%%')
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('How big the buff and debuff icons beside your party are drawn, apart from everything else.')
                 end
                 ui.Label('Value Text Size (%)')
                 imgui.SliderInt('##us.xivValueSize', options.xivValueSize, 50, 200, '%d%%')
