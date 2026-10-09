@@ -703,12 +703,13 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
         end
 
         -- the player's own party has its buffs beside it
-        local scale, showMp, showTp
+        local scale, showMp, showTp, valueSize
         if xivStyle then
             scale = usOptions.xivScale ~= nil and usOptions.xivScale[1] or 100
             showMp = usOptions.xivShowMp == nil or usOptions.xivShowMp[1]
             showTp = usOptions.xivShowTp == nil or usOptions.xivShowTp[1]
-            xivparty.Draw(members, growsUp and 'party' or 'alliance', scale, StatusTexture, showMp, showTp)
+            valueSize = usOptions.xivValueSize ~= nil and usOptions.xivValueSize[1] or 100
+            xivparty.Draw(members, growsUp and 'party' or 'alliance', scale, StatusTexture, showMp, showTp, valueSize)
         end
 
         -- the pets, under a line, each in the manner of the list above
@@ -719,7 +720,7 @@ local function DrawAlliance(alliance, gOptions, sample, sortByRole, growsUp)
                 for index, info in ipairs(pets) do
                     lines[index] = PetLine(info)
                 end
-                xivparty.Draw(lines, 'alliance', scale, nil, showMp, showTp)
+                xivparty.Draw(lines, 'pets', scale, nil, showMp, showTp, valueSize)
             else
                 for _, info in ipairs(pets) do
                     if alliance.isCompact[1] then
@@ -782,6 +783,7 @@ local us = {
         showPets = T{ true },  -- list the pets under the party, in place of the pet tool's own window
         xivParty = T{ false }, -- experimental: arrange the lists as the Windower addon XivParty's compact layout does
         xivScale = T{ 100 },   -- their size, as a percentage
+        xivValueSize = T{ 100 }, -- the size of the HP, MP and TP figures, as a percentage
         xivShowMp = T{ true }, -- whether the MP figure is written beside its bar
         xivShowTp = T{ true }, -- whether TP is written
         alliance1 = T{
@@ -859,6 +861,9 @@ local us = {
             if options.xivShowMp == nil then
                 options.xivShowMp = T{ true }
             end
+            if options.xivValueSize == nil then
+                options.xivValueSize = T{ 100 }
+            end
             if options.xivShowTp == nil then
                 options.xivShowTp = T{ true }
             end
@@ -873,6 +878,11 @@ local us = {
                 imgui.SliderInt('##us.xivScale', options.xivScale, 50, 200, '%d%%')
                 if imgui.IsItemHovered() then
                     imgui.SetTooltip('How big the lists are drawn: the bars, the text and the buffs together.')
+                end
+                ui.Label('Value Text Size (%)')
+                imgui.SliderInt('##us.xivValueSize', options.xivValueSize, 50, 200, '%d%%')
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('How big the HP, MP and TP values are written, apart from everything else.')
                 end
                 ui.Label('Show MP Values')
                 imgui.Checkbox('##us.xivShowMp', options.xivShowMp)

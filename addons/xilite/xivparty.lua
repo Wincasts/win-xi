@@ -10,7 +10,11 @@
 -- the name of the party's leader, and the buffs of a member of the player's own party run leftwards
 -- from the window.
 --
---     xivparty.Draw(members, 'party' or 'alliance', scale, StatusTexture, showMp, showTp)
+--     xivparty.Draw(members, kind, scale, StatusTexture, showMp, showTp, valueSize)
+--
+-- kind is 'party' for the player's own party, 'alliance' for another, and 'pets' for lines set out as
+-- the party's are but with no buffs. valueSize is a percentage for the size of the HP, MP and TP
+-- figures alone, 100 if not given.
 --
 -- is called inside the window. It takes up the room the list needs and draws into it; the buffs are
 -- drawn beyond that room, beside the window. members are the party window's own (see us.lua). scale
@@ -115,6 +119,7 @@ local drawList = nil
 local scale = 1
 local itemX, itemY = 0, 0 -- the top left of the member being drawn, on screen
 local textColor = white   -- the theme's
+local valueScale = 1      -- how much larger or smaller than the layout's the HP, MP and TP figures are
 
 local cornerA, cornerB = { 0, 0 }, { 0, 0 }
 local uvA, uvB = { 0, 0 }, { 1, 1 }
@@ -271,7 +276,7 @@ local function DrawBar(place, member, state, opacity, showFigure)
     -- a line may give a figure in its own words: a pet's HP is known only as a percentage
     local words = (kind == 'hp' and member.hpText) or (kind == 'mp' and member.mpText)
         or (amount < 0 and '?' or tostring(amount))
-    Text(words, x + figure.x, y + figure.y, figure.size, color, figure.alignRight)
+    Text(words, x + figure.x, y + figure.y, figure.size * valueScale, color, figure.alignRight)
 end
 
 -- A member's buffs, running leftwards: the first has its right edge at x
@@ -346,7 +351,7 @@ end
 local room = { 0, 0 }
 local clipMin, clipMax = { 0, 0 }, { 0, 0 }
 
-function xivparty.Draw(members, kind, scalePercent, StatusTexture, showMp, showTp)
+function xivparty.Draw(members, kind, scalePercent, StatusTexture, showMp, showTp, valueSize)
     local count = #members
     if count == 0 then
         return
@@ -354,6 +359,7 @@ function xivparty.Draw(members, kind, scalePercent, StatusTexture, showMp, showT
 
     scale = baseScale * ((scalePercent ~= nil and scalePercent > 0) and scalePercent / 100 or 1)
     textColor = theme.Get().TextColor
+    valueScale = (valueSize ~= nil and valueSize > 0) and valueSize / 100 or 1
 
     -- once a frame, whichever list is drawn first: the others are drawn a moment later in the same one
     local now = os.clock()
@@ -386,7 +392,7 @@ function xivparty.Draw(members, kind, scalePercent, StatusTexture, showMp, showT
 
     -- only the player's own party shows buffs: they start a little clear of the window's left edge
     local buffsX = nil
-    if kind ~= 'alliance' then
+    if kind == 'party' then
         buffsX = (imgui.GetWindowPos() - layout.buffs.gap - originX) / scale
     end
 
