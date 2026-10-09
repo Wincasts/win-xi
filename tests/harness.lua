@@ -34,7 +34,7 @@ package.preload['common'] = function() return true end
 addon = { name = addonName, path = 'C:\\ashita\\addons\\' .. addonName .. '\\' }
 
 -- imgui: every call is counted; those in ret answer with what is given there
-local ret = { GetCursorScreenPos = { 10, 20 }, GetCursorPosX = { 5 }, CalcTextSize = { 7, 14 }, GetWindowPos = { 100, 200 },
+local ret = { GetCursorScreenPos = { 10, 20 }, GetCursorPosX = { 5 }, GetCursorPosY = { 5 }, CalcTextSize = { 7, 14 }, GetWindowPos = { 100, 200 },
     GetWindowSize = { 300, 150 }, GetItemRectSize = { 280, 40 }, GetContentRegionAvail = { 200, 100 }, Begin = { true }, BeginTabBar = { true },
     BeginTable = { true }, GetColorU32 = { 1 }, IsMouseDown = { false }, IsItemHovered = { false }, IsRectVisible = { true },
     Checkbox = { false }, InputInt = { false }, InputInt2 = { false }, RadioButton = { false }, Button = { false }, Selectable = { false },
