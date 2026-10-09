@@ -4,6 +4,10 @@ local imgui = require('imgui')
 local ui = require('ui')
 local packets = require('utils/packets')
 
+-- The compact view is a line in the party list's XivParty Style, set as the party's is
+local xivparty = require('xivparty')
+local us = require('us')
+
 local StatusType = {
     -- standard fare
     Dia = 'dia',
@@ -787,6 +791,46 @@ local function DrawTgt(entity, options)
     end
 end
 
+-- The compact view: one line in the party list's XivParty Style, with the name, the HP bar with its
+-- percentage, and the distance under the name where a party member's TP is. The debuffs go under it.
+local compactNameChars = 13 -- as much of a name as fits before the HP figure
+local compactLine = { isInZone = true, tp = 0 }
+local compactLines = { compactLine }
+
+---@param entity Entity
+---@param options table
+local function DrawCompactTgt(entity, options)
+    local line = compactLine
+    line.name = entity.Name
+    line.serverId = -(entity.ServerId or 0) -- its own glow, apart from a party member's of the same id
+    line.hpp = entity.HPPercent
+    line.hpText = string.format('%d%%', entity.HPPercent)
+    line.tpText = string.format('%.1fm', math.sqrt(entity.Distance))
+    line.plainHp = not IsPlayer(entity)
+
+    -- set as the party's lists are, but for what is this line's own: more of the name, and the
+    -- distance always, whatever is set for TP
+    local settings = us.StyleSettings() or { }
+    settings.nameChars = compactNameChars
+    settings.showTp = true
+    xivparty.Draw(compactLines, 'pets', nil, settings)
+
+    if options.showStatus[1] then
+        DrawStatus(TrackedEnemies[entity.ServerId] or DefaultDebuffs)
+    end
+end
+
+-- A target window's content, in whichever view is set
+local compact = false
+
+local function DrawTarget(entity, window)
+    if compact then
+        DrawCompactTgt(entity, window)
+    else
+        DrawTgt(entity, window)
+    end
+end
+
 -- The entity each window last showed, by window name
 local lastShown = { }
 
@@ -808,8 +852,8 @@ local function DrawTargetWindow(window, gOptions, index)
     end
 
     ui.DrawUiWindow(window, gOptions, function()
-        DrawTgt(entity, window)
-    end, wanted)
+        DrawTarget(entity, window)
+    end, wanted, nil, compact)
 end
 
 ---@type xitool
@@ -818,6 +862,7 @@ local tgt = {
     DefaultSettings = T{
         isEnabled = T{ true },
         isVisible = T{ true },
+        compact = T{ false }, -- each window as one line in the party list's XivParty Style
         showMain = T{ true },
         showSub = T{ false },
         showTot = T{ false },
@@ -871,6 +916,16 @@ local tgt = {
             ui.Label('Enabled')
             imgui.Checkbox('##tgt.1', options.isEnabled)
 
+            -- Settings saved before this option existed have no value for it
+            if options.compact == nil then
+                options.compact = T{ false }
+            end
+            ui.Label('Compact')
+            imgui.Checkbox('##tgt.compact', options.compact)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Draws each target window as one line in the style of the party list\'s XivParty Style: the name, an HP bar with its percentage, and the distance.\nIts size, text sizes, outline and glow are the ones set for the party list on the us tab.')
+            end
+
             ui.Gap()
             ui.Label('Show Target')
             imgui.Checkbox('##tgt.2', options.showMain)
@@ -904,6 +959,7 @@ local tgt = {
         end
     end,
     DrawMain = function(options, gOptions)
+        compact = options.compact ~= nil and options.compact[1] == true
         local tgt = AshitaCore:GetMemoryManager():GetTarget()
         local targetId = tgt:GetTargetIndex(0)
         local targetActive = tgt:GetIsActive(0) == 1
@@ -933,6 +989,7 @@ local tgt = {
         DrawTargetWindow(options.totWindow, gOptions, options.showTot[1] and totId or 0)
     end,
     DrawSample = function(options, gOptions)
+        compact = options.compact ~= nil and options.compact[1] == true
         -- each window only if it is one that is switched on
         local samples = {
             { options.mainWindow, { Name = 'Sample Target', Distance = 8 * 8, HPPercent = 75, ServerId = 0 }, options.showMain[1] },
@@ -943,8 +1000,8 @@ local tgt = {
         for _, sample in ipairs(samples) do
             if sample[3] then
                 ui.DrawUiWindow(sample[1], gOptions, function()
-                    DrawTgt(sample[2], sample[1])
-                end)
+                    DrawTarget(sample[2], sample[1])
+                end, nil, nil, compact)
             end
         end
     end,

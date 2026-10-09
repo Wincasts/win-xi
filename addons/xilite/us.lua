@@ -488,6 +488,7 @@ local function XivSettings()
     settings.nameSize = options.xivNameSize ~= nil and options.xivNameSize[1] or 100
     settings.buffSize = options.xivBuffSize ~= nil and options.xivBuffSize[1] or 100
     settings.hpOffset, settings.mpOffset, settings.tpOffset = options.xivHpOffset, options.xivMpOffset, options.xivTpOffset
+    settings.nameChars = nil
     settings.outline = options.xivOutline == nil or options.xivOutline[1]
     settings.glow = options.xivGlow == nil or options.xivGlow[1]
     settings.showMp = options.xivShowMp == nil or options.xivShowMp[1]
@@ -1050,5 +1051,15 @@ local us = {
         DrawAlliance(options.alliance3, gOptions, true, SortsByRole(options))
     end,
 }
+
+-- How XivParty Style is set to draw, for another tool that draws in the same style (the target
+-- windows' compact view): the table xivparty.Draw takes, to be used at once, or nil before the
+-- party's settings are known
+function us.StyleSettings()
+    if usOptions == nil then
+        return nil
+    end
+    return XivSettings()
+end
 
 return us

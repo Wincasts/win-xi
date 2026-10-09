@@ -108,6 +108,15 @@ end
 o.tools.us.alliance1.isCompact[1], o.tools.us.xivParty[1] = false, false
 GetEntity = noEntity
 
+-- the target windows' compact view: a line in the party's style, in a window that fits it
+GetEntity = function() return { Name = 'Greater Colibri', Distance = 64, HPPercent = 75, ServerId = 7, TargetedIndex = 0 } end
+o.tools.tgt.compact[1] = true
+local rooms, texts = H.calls.Dummy or 0, H.calls['draw.AddText'] or 0
+ok, problem = pcall(H.frames, 2)
+H.print('compact target: frames ran', ok, ok and '' or problem, '| lines given room', (H.calls.Dummy or 0) > rooms, '| written', (H.calls['draw.AddText'] or 0) > texts)
+o.tools.tgt.compact[1] = false
+GetEntity = noEntity
+
 -- an experimental setting's name carries its tag, the word in a colour of its own
 local colored = H.calls.TextColored or 0
 require('winxi.widgets').Label('Compact Alliance 1', true)

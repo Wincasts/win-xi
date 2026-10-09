@@ -21,6 +21,8 @@
 --     buffSize    a percentage for the size of the buff icons alone
 --     showMp, showTp   false to leave the MP or the TP figure out; the MP bar is drawn either way
 --     glow        false for bars that simply change, with no glow over what was lost
+--     nameChars   how many characters of a name are written before it is cut short, in place of the
+--                 nine a party member's is allowed
 --     outline     false to leave the dark edge off the names and the HP, MP and TP figures: winxi's
 --                 way of writing over bars (winxi.text), without which the figures are hard to read
 --     hpOffset, mpOffset, tpOffset   { x, y } to move that figure from its place in the layout, in the
@@ -30,8 +32,9 @@
 -- drawn beyond that room, beside the window. members are the party window's own (see us.lua). A scale
 -- of 100 is the size this style is meant to be seen at, a fifth larger than XivParty's own.
 -- StatusTexture(id) gives the texture for a status icon, or nil. A member may be anything with the
--- same fields: us.lua lists pets this way, giving hpText and mpText for figures in words of its own
--- and leaving mpp and tp out for a line with no MP bar or TP.
+-- same fields: us.lua lists pets this way and tgt.lua draws a target, giving hpText, mpText and tpText
+-- for figures in words of their own, leaving mpp and tp out for a line with no MP bar or TP, and
+-- setting plainHp for an HP figure that keeps its colour however low the HP is.
 --
 -- What is XivParty's and is not here: its background, job icons and cursor, left out for the theme's
 -- window and this addon's own way of marking a target; the buffs are in the game's order, not sorted
@@ -141,6 +144,7 @@ local buffScale = 1       -- and the buff icons
 local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
 local outlined = true     -- whether the names and figures have winxi's dark edge
 local barGlow = true      -- whether a change to a bar is covered by a glow for a moment
+local nameChars = nil     -- how much of a name is written, where it is not the layout's own
 
 local cornerA, cornerB = { 0, 0 }, { 0, 0 }
 local uvA, uvB = { 0, 0 }, { 1, 1 }
@@ -302,7 +306,7 @@ local function DrawBar(place, member, state, opacity, showFigure)
     local figure = place.figure
     local color = nil
     if amount >= 0 then
-        if kind == 'hp' then
+        if kind == 'hp' and not member.plainHp then
             local percent = member.hpp or 0
             if percent < 25 then
                 color = hpRed
@@ -311,12 +315,12 @@ local function DrawBar(place, member, state, opacity, showFigure)
             elseif percent < 75 then
                 color = hpYellow
             end
-        elseif kind == 'tp' and amount >= 1000 then
+        elseif kind == 'tp' and amount >= 1000 and not member.tpText then
             color = tpFull
         end
     end
     -- a line may give a figure in its own words: a pet's HP is known only as a percentage
-    local words = (kind == 'hp' and member.hpText) or (kind == 'mp' and member.mpText)
+    local words = (kind == 'hp' and member.hpText) or (kind == 'mp' and member.mpText) or (kind == 'tp' and member.tpText)
         or (amount < 0 and '?' or tostring(amount))
     local offset = valueOffsets[kind]
     local figureX, figureY = x + figure.x, y + figure.y
@@ -367,7 +371,7 @@ local function DrawMember(member, kind, buffsX, StatusTexture, showMp, showTp)
     -- the name, marked as the party window's own view marks it: "> " in green on the member a
     -- sub-target or the party cursor is on, ">> " in blue on the one targeted
     local name = layout.name
-    local shown = Trimmed(member.name or '???', name.maxChars)
+    local shown = Trimmed(member.name or '???', nameChars or name.maxChars)
     if member.isSubTarget or member.isPartyTarget then
         Text('> ' .. shown, name.x, name.y, name.size * nameScale, ui.Colors.XpBar)
     elseif member.isTarget then
@@ -422,6 +426,7 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = settings.hpOffset, settings.mpOffset, settings.tpOffset
     outlined = settings.outline ~= false
     barGlow = settings.glow ~= false
+    nameChars = settings.nameChars
     local showMp, showTp = settings.showMp ~= false, settings.showTp ~= false
     textColor = theme.Get().TextColor
 
