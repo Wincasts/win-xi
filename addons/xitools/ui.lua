@@ -131,12 +131,15 @@ local function BarFraction(cur, max)
 end
 
 -- Fading while idle is winxi's: it works out one opacity a frame from the fade settings, and here that
--- is applied to the UI windows of the tools chosen to fade. Suspended while the windows are arranged.
+-- is applied to the UI windows of the tools chosen to fade. Suspended while the windows are arranged,
+-- and while the game's party cursor is out (a member is being picked from the party list, in the
+-- party menu or as a sub-target): the party windows are being read then, however still the player is.
 local winxiFade = require('winxi.fade')
+local ffxiUtils = require('utils/ffxi')
 
 -- Call once a frame, before any UI window is drawn
 function ui.UpdateFade(gConfig)
-    winxiFade.Update(gConfig.fade, organize.IsActive())
+    winxiFade.Update(gConfig.fade, organize.IsActive() or ffxiUtils.GetStPartyIndex() ~= nil)
 end
 
 -- Whether the given tool is one whose windows fade: fading is switched on, and the tool is one of those

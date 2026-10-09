@@ -107,9 +107,13 @@ end
 ---@return integer?
 function ffxi.GetStPartyIndex()
     -- Courtesy of Thorny from the Ashita discord
+    -- any step of the way can be empty before the game has made the party list (at the title screen)
     local ptr = AshitaCore:GetPointerManager():Get('party')
+    if ptr == nil or ptr == 0 then return nil end
     ptr = ashita.memory.read_uint32(ptr)
+    if ptr == 0 then return nil end
     ptr = ashita.memory.read_uint32(ptr)
+    if ptr == 0 then return nil end
     local isActive = (ashita.memory.read_uint32(ptr + 0x54) ~= 0)
     if isActive then
         return ashita.memory.read_uint8(ptr + 0x50)
