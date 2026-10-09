@@ -749,6 +749,8 @@ local pad = {
 }
 
 local padTabs = 4
+local iconSize = 32 -- an item's icon, square
+local labelGap = 6  -- between the highlight's outline and the box that names the item
 local padColor = imgui.GetColorU32({ 1.0, 0.85, 0.3, 1.0 })
 local swapColor = imgui.GetColorU32({ 0.3, 0.9, 0.4, 1.0 })
 local swapTextColor = { 0.3, 0.9, 0.4, 1.0 }
@@ -1039,8 +1041,8 @@ local function PadEndFrame()
         return
     end
 
-    -- no menu open: the name of the item the highlight is on, in a box floating just above it (an
-    -- item's menu has the name at its head)
+    -- no menu open: the name of the item the highlight is on, in a box floating under it, a little
+    -- clear of the highlight's outline (an item's menu has the name at its head)
     if pad.menu == nil then
         local item = pad.grid.count > 0 and pad.items[pad.grid.cursor] or nil
         local x, y = pad.grid:Position()
@@ -1049,7 +1051,7 @@ local function PadEndFrame()
                 -- made once for the item: it is made afresh whenever the bags change
                 item.label = item.stackCur > 1 and ('%s x%d'):format(item.shortName, item.stackCur) or item.shortName
             end
-            controller.Label(item.label, x, y - 5)
+            controller.Label(item.label, x, y + iconSize + 3 + labelGap, true)
         end
         return
     end
@@ -1070,7 +1072,6 @@ local function PadEndFrame()
     pad.menu:Draw(x + 40, y)
 end
 
-local iconSize = 32
 local iconSizes = { iconSize, iconSize }
 local padMin, padMax = { 0, 0 }, { 0, 0 }
 

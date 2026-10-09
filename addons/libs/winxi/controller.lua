@@ -522,17 +522,18 @@ end
 
 -- A label: a small floating box with a line of text in it, in the manner of the menu, for saying
 -- what the highlight is on. Its bottom left corner is put at x, y, so that given the top left of the
--- thing it names it sits just above it.
+-- thing it names it sits just above it; or, with below set, its top left corner is, for a place under
+-- the thing.
 --
---     controller.Label(text, x, y)    -- each frame it should show
+--     controller.Label(text, x, y, below)    -- each frame it should show
 local labelOpen = { true };
 local labelPos = { 0, 0 };
-local labelPivot = { 0, 1 };
+local labelAbove, labelBelow = { 0, 1 }, { 0, 0 }; -- which corner of the box goes at the point
 local labelName = nil;
 local labelText = nil;   -- what it last said
 local labelDrawn = 0;    -- when it was last drawn
 
-function controller.Label(text, x, y)
+function controller.Label(text, x, y, below)
     menuFlags = menuFlags or bit.bor(
         ImGuiWindowFlags_NoDecoration,
         ImGuiWindowFlags_AlwaysAutoResize,
@@ -551,7 +552,7 @@ function controller.Label(text, x, y)
     labelDrawn = now;
 
     labelPos[1], labelPos[2] = x, y;
-    imgui.SetNextWindowPos(labelPos, ImGuiCond_Always, labelPivot);
+    imgui.SetNextWindowPos(labelPos, ImGuiCond_Always, below and labelBelow or labelAbove);
     labelOpen[1] = true;
     if imgui.Begin(labelName, labelOpen, menuFlags) then
         imgui.Text(text);
