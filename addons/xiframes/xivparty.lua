@@ -1,15 +1,16 @@
 -- XivParty Style: the party lists arranged the way XivParty, a party list addon for Windower 4 by
 -- Tylas, arranges them in its compact layout (https://github.com/Tylas11/XivParty; its
--- layouts/ffxi2.xml), inside one of this addon's own windows. The bars and the leader's mark are that
--- addon's images, in assets/xivparty with its licence; the window around them, with its background,
--- border, padding and shadow, is the theme's.
+-- layouts/ffxi2.xml), inside one of this addon's own windows. The bars are that addon's images, in
+-- assets/xivparty with its licence; the window around them, with its background, border, padding and
+-- shadow, is the theme's.
 --
 -- A member is a line: the name, an HP bar and a smaller MP bar with their figures, and TP as a figure
--- alone, which pulses in blue at 1000 and over. Each bar has a soft shadow under it, which XivParty's do not, and simply shows its value:
--- XivParty's glow over a change is not here. The member targeted is marked as in the party window's own view: ">> " before the name, both
--- in blue, and "> " in green for one a sub-target or the party cursor is on. A small mark sits under
--- the name of the party's leader, and the buffs of a member of the player's own party run leftwards
--- from the window.
+-- alone, which pulses in blue at 1000 and over. Each bar has a soft shadow under it, which XivParty's
+-- do not, and simply shows its value: XivParty's glow over a change is not here. The member targeted
+-- is marked as in the party window's own view: ">> " before the name, both in blue, and "> " in green
+-- for one a sub-target or the party cursor is on. A leader has a circle in front of their name (two,
+-- one over the other, for an alliance's), and the buffs of a member of the player's own party run
+-- leftwards from the window.
 --
 --     xivparty.Draw(members, kind, StatusTexture, settings)
 --
@@ -111,8 +112,6 @@ local layout = {
     -- writes it smaller than HP and MP; here the three are one size (valueSize), and TP is a little
     -- higher to stay level with the MP bar.
     tp = { value = 'tp', x = 0, y = 0, figure = { x = 56, y = 18, alignRight = true } },
-    leader = { x = 2, y = 21, width = 7, height = 5, file = 'ffxi/Leader.png',
-               partyColor = Hex('E6E159'), allianceX = 7 },
     name = { x = 0, y = 0, size = 10, maxChars = 9 },
     zone = { x = 136, y = 14, size = 10, maxChars = 16 }, -- its right end goes at x
     -- the buffs run leftwards from the window's edge, sixteen at most
@@ -334,12 +333,46 @@ local function DrawBars(count, kind, place)
     Layer(count, kind, place, Front)
 end
 
--- A member's name, marked as the party window's own view marks it: "> " in green on the member a
--- sub-target or the party cursor is on, ">> " in blue on the one targeted. The marked name is kept
--- while the name and the mark stay as they are.
+-- A leader's mark: a circle in front of the name, where the name's first letter would be, in the
+-- party's colour for a party's leader. An alliance's leader has two, one over the other: the
+-- alliance's above and the party's below. Drawn in the names' font, whose size on screen is nameFont.
+-- Returns how much room it took, in the layout's units, for the name to start after it.
+local nameFont = 0
+local circleAt = { 0, 0 }
+
+local function Circle(x, y, radius, color)
+    circleAt[1], circleAt[2] = x, y
+    if outlined then
+        drawList:AddCircleFilled(circleAt, radius + outlineEdge, outlinePacked, 12)
+    end
+    drawList:AddCircleFilled(circleAt, radius, Packed(color, 1), 12)
+end
+
+local function DrawLeaderMarks(member)
+    local name = layout.name
+    local radius = nameFont * 0.19
+    local centre = math.floor(itemX + name.x * scale) + radius + 1
+    local top = math.floor(itemY + name.y * scale)
+
+    if member.isAllianceLeader then
+        Circle(centre, top + nameFont * 0.30, radius, ui.Colors.Alliance)
+        Circle(centre, top + nameFont * 0.74, radius, ui.Colors.Party)
+    else
+        Circle(centre, top + nameFont * 0.52, radius, ui.Colors.Party)
+    end
+    return (2 * radius + 1 + nameFont * 0.22) / scale
+end
+
+-- A member's name, after their leader's mark if they have one, and marked as the party window's own
+-- view marks it: "> " in green on the member a sub-target or the party cursor is on, ">> " in blue on
+-- the one targeted. The marked name is kept while the name and the mark stay as they are.
 local function DrawName(member, state)
     local name = layout.name
     local shown = Trimmed(member.name or '???', nameChars or name.maxChars)
+    local x = name.x
+    if member.isPartyLeader or member.isAllianceLeader then
+        x = x + DrawLeaderMarks(member)
+    end
 
     local mark, color = nil, nil
     if member.isSubTarget or member.isPartyTarget then
@@ -353,7 +386,7 @@ local function DrawName(member, state)
         end
         shown = state.marked
     end
-    Write(shown, name.x, name.y, color)
+    Write(shown, x, name.y, color)
 end
 
 -- A bar's figure, or for TP, which has no bar, the figure that is all there is of it. fontSize is the
@@ -583,7 +616,8 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
     DrawBars(count, 'hp', layout.hp)
     DrawBars(count, 'mp', layout.mp)
 
-    imgui.PushFont(nil, FontSize(layout.name.size * nameScale))
+    nameFont = FontSize(layout.name.size * nameScale)
+    imgui.PushFont(nil, nameFont)
     for index = 1, count do
         itemY = lineY[index]
         DrawName(members[index], lineStates[index])
@@ -627,21 +661,6 @@ function xivparty.Draw(members, kind, StatusTexture, settings)
         end
     end
     imgui.PopFont()
-
-    -- the leader's marks: the party's, and beside it the alliance's
-    local leader = layout.leader
-    for index = 1, count do
-        local member = members[index]
-        if member.isPartyLeader or member.isAllianceLeader then
-            itemY = lineY[index]
-            if member.isPartyLeader then
-                Image(leader.file, leader.x, leader.y, leader.width, leader.height, leader.partyColor)
-            end
-            if member.isAllianceLeader then
-                Image(leader.file, leader.x + leader.allianceX, leader.y, leader.width, leader.height)
-            end
-        end
-    end
 
     -- only the player's own party shows buffs: they start a little clear of the window's left edge
     if kind == 'party' then

@@ -235,7 +235,7 @@ local sampleJobs = { 'WAR', 'WHM', 'BLM', 'THF', 'RDM', 'BRD' }
 
 -- A made-up party member for the sample windows, standing in for an empty slot
 ---@return PartyMember
-local function GetSampleMember(slot)
+local function GetSampleMember(slot, place)
     return {
         targetIndex = nil,
         name = ('Sample %d'):format(slot),
@@ -243,7 +243,7 @@ local function GetSampleMember(slot)
         isInZone = true,
         isActive = true,
         isPartyLeader = slot == 1,
-        isAllianceLeader = false,
+        isAllianceLeader = place == 6, -- the second party's leader leads the alliance, to show the mark
         isTarget = false,
         isSubTarget = false,
         isPartyTarget = false,
@@ -415,7 +415,7 @@ local function GetMembers(alliance, sample, sortByRole, target, party, stal)
     for slot, place in ipairs(Alliances[alliance.name]) do
         local person = ReadMember(place, party, stal)
         if sample and not (person.isActive and person.name ~= '') then
-            person = GetSampleMember(slot)
+            person = GetSampleMember(slot, place)
         end
 
         if person.isActive and person.name ~= '' then
@@ -457,11 +457,10 @@ local function HandleInviteAnswer(e)
     end
 end
 
--- The mark for an invitation: an envelope beside a corner of the party's window, green for a party's
--- and gold for an alliance's, pulsing gently. It is outside the window,
+-- The mark for an invitation: an envelope beside a corner of the party's window, yellow for a party's
+-- and red for an alliance's (the colours of their leaders' marks), pulsing gently. It is outside the window,
 -- above its top corners or below its bottom ones, so nothing in the list moves for it; and it is drawn
 -- over every window, not among them, so that another window lying across it does not hide it.
-local inviteColors = { party = { 0.35, 0.85, 0.40, 1 }, alliance = { 0.90, 0.88, 0.35, 1 } }
 local inviteEnvelope = { width = 15, height = 10, gap = 5 } -- in the lists' own units
 local inviteTint = { 0, 0, 0, 1 }
 local inviteLine = { 0.05, 0.05, 0.05, 1 }
@@ -511,7 +510,7 @@ local function DrawInvite(shown)
     end
 
     -- between two thirds of its strength and all of it, once every second and a half
-    local color = shown.alliance and inviteColors.alliance or inviteColors.party
+    local color = shown.alliance and ui.Colors.Alliance or ui.Colors.Party
     local pulse = 0.83 + 0.17 * math.cos(os.clock() / 1.5 * 2 * math.pi)
     inviteTint[1], inviteTint[2], inviteTint[3], inviteTint[4] = color[1], color[2], color[3], pulse
     local packed = imgui.GetColorU32(inviteTint)
@@ -711,7 +710,7 @@ local us = {
             ui.Label('Show Invites')
             imgui.Checkbox('##us.showInvite', options.showInvite)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope beside your party\'s window: green for a party invite, gold for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
+                imgui.SetTooltip('Marks an invitation that is waiting for your answer with an envelope beside your party\'s window: yellow for a party invite, red for an alliance invite.\nWith Hide When Solo on, the window shows while an invitation is waiting.')
             end
             if options.showInvite[1] then
                 if type(options.inviteOffset) ~= 'table' then

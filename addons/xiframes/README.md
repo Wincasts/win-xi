@@ -22,4 +22,4 @@ The first time a character loads it, their settings for these frames are brought
 where each window is, what it shows, how the lists are drawn, what is linked to what, and the
 theme, fading and hiding rules. After that the two keep their settings apart.
 
-The bar and leader images are XivParty's, in `assets/xivparty` with its licence. Needs `libs/winxi`.
+The bar images are XivParty's, in `assets/xivparty` with its licence. Needs `libs/winxi`.

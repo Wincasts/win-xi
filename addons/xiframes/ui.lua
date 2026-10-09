@@ -24,6 +24,8 @@ local ui = {
     },
     Colors = {
         Blue           = { 0.23, 0.67, 0.91, 1.0 }, -- the member targeted
+        Party          = { 0.90, 0.88, 0.35, 1.0 }, -- a party's: its leader's mark, and an invitation to one
+        Alliance       = { 0.90, 0.25, 0.22, 1.0 }, -- an alliance's: the same two
         Green          = { 0.01, 0.67, 0.07, 1.0 }, -- the member a sub-target or the party cursor is on
 
         StatusGrey     = { 1.00, 1.00, 1.00, 0.5 },
