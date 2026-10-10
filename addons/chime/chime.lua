@@ -540,7 +540,8 @@ local function DrawEvent(options, event)
         Say(('There is no %s in the sounds folder.'):format(chosen.sound))
     end
 
-    if event.threshold ~= nil then
+    -- the threshold only while the event is switched on: off, there is nothing for it to set
+    if event.threshold ~= nil and chosen.enabled[1] then
         widgets.Label(id.thresholdLabel)
         imgui.SetNextItemWidth(170)
         imgui.SliderInt(id.threshold, options[event.threshold], 5, 90, '%d%%')
