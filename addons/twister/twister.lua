@@ -625,6 +625,53 @@ local function Files()
     return files
 end
 
+-- The sounds in two lists for whatever key names (an event, or 'trigger'): its own, which are the
+-- ones made for it (its voice, its tone and its second tone), and the rest. Put together once for
+-- each key, and again when the files have been looked for again.
+local sorted = { files = nil }
+
+local function Sorted(key)
+    local all = Files()
+    if sorted.files ~= all then
+        sorted = { files = all }
+    end
+    local lists = sorted[key]
+    if lists == nil then
+        lists = { own = { }, rest = { } }
+        local own = { ['voice-' .. key .. '.wav'] = 1, [key .. '.wav'] = 2, ['tone-' .. key .. '2.wav'] = 3 }
+        for _, file in ipairs(all) do
+            local list = own[file] and lists.own or lists.rest
+            list[#list + 1] = file
+        end
+        table.sort(lists.own, function(a, b) return own[a] < own[b] end)
+        sorted[key] = lists
+    end
+    return lists
+end
+
+-- A list of sounds to choose from, those made for key first and the rest under a line. Returns the
+-- file chosen, or nil.
+local function SoundCombo(id, current, key)
+    local picked = nil
+    imgui.SetNextItemWidth(170)
+    if imgui.BeginCombo(id, current) then
+        local lists = Sorted(key)
+        for _, list in ipairs({ lists.own, lists.rest }) do
+            for _, file in ipairs(list) do
+                if imgui.Selectable(file, file == current) then
+                    picked = file
+                    PlayFile(file)
+                end
+            end
+            if list == lists.own and #list > 0 and #lists.rest > 0 then
+                imgui.Separator()
+            end
+        end
+        imgui.EndCombo()
+    end
+    return picked
+end
+
 local ids = { } -- the hidden labels of the controls: made once
 for _, event in ipairs(events) do
     ids[event.key] = {
@@ -663,16 +710,10 @@ local function DrawEvent(options, event)
     imgui.Checkbox(id.enabled, chosen.enabled)
 
     imgui.SameLine()
-    imgui.SetNextItemWidth(170)
-    if imgui.BeginCombo(id.sound, chosen.sound) then
-        for _, file in ipairs(Files()) do
-            if imgui.Selectable(file, file == chosen.sound) then
-                chosen.sound = file
-                PlayFile(file)
-                app:Save()
-            end
-        end
-        imgui.EndCombo()
+    local picked = SoundCombo(id.sound, chosen.sound, event.key)
+    if picked ~= nil then
+        chosen.sound = picked
+        app:Save()
     end
 
     imgui.SameLine()
@@ -772,22 +813,6 @@ local function ZoneName(zone)
     return name
 end
 
--- A list of sounds to choose from. Returns the file chosen, or nil.
-local function SoundCombo(id, current)
-    local picked = nil
-    imgui.SetNextItemWidth(170)
-    if imgui.BeginCombo(id, current) then
-        for _, file in ipairs(Files()) do
-            if imgui.Selectable(file, file == current) then
-                picked = file
-                PlayFile(file)
-            end
-        end
-        imgui.EndCombo()
-    end
-    return picked
-end
-
 local function TestButton(file)
     if imgui.Button('Test') and not PlayFile(file) then
         Say(('There is no %s in the sounds folder.'):format(file))
@@ -871,7 +896,7 @@ local function DrawMaking(options)
     Mark('What a mob of the kind does that sets the sound off: everything its mobs do between them, wherever they are, so more than any one of them does.\nA spell or a weaponskill sounds as the mob begins it, not as it lands.\nAn ability is used at once, with nothing readied first, and sounds as it is used.', true)
 
     widgets.Label('Sound')
-    making.sound = SoundCombo('##twister.making.sound', making.sound) or making.sound
+    making.sound = SoundCombo('##twister.making.sound', making.sound, 'trigger') or making.sound
     imgui.SameLine()
     imgui.PushID('twister.making')
     TestButton(making.sound)
@@ -923,7 +948,7 @@ local function DrawTriggers(options)
         imgui.PushID(index)
         imgui.Checkbox('##enabled', trigger.enabled)
         imgui.SameLine()
-        local picked = SoundCombo('##sound', trigger.sound)
+        local picked = SoundCombo('##sound', trigger.sound, 'trigger')
         if picked ~= nil then
             trigger.sound = picked
             app:Save()
