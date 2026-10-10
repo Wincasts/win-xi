@@ -34,15 +34,22 @@ function GetEntity(index) return entities[index] end
 local memory = {
     GetPlayer = function() return { GetMainJob = function() return game.job end, GetLoginStatus = function() return 2 end,
         GetBuffs = function() return game.buffs end, GetPetMPPercent = function() return game.petMpp end } end,
-    GetParty = function() return { GetMemberTargetIndex = function() return 1 end, GetMemberName = function() return 'Tester' end } end,
+    GetParty = function() return { GetMemberTargetIndex = function() return 1 end, GetMemberName = function() return 'Tester' end, GetMemberServerId = function() return 1 end } end,
 }
 local core = AshitaCore
 AshitaCore = setmetatable({ GetMemoryManager = function() return memory end }, { __index = core })
 
 -- the bytes of a packet, read as the game packs them
 struct.unpack = function(format, data, at)
-    local low = data:byte(at) or 0
-    return format == 'H' and low + (data:byte(at + 1) or 0) * 256 or low
+    local value = 0
+    for i = ({ B = 1, H = 2, I = 4 })[format] - 1, 0, -1 do value = value * 256 + (data:byte(at + i) or 0) end
+    return value
+end
+-- the packet that keeps a pet and its master in step: the master at 0x08, and at 0x14 what the pet is
+-- attacking, or nothing
+local function number(value) return string.char(value % 256, math.floor(value / 256) % 256, math.floor(value / 65536) % 256, math.floor(value / 16777216) % 256) end
+local function fight(enemy, master)
+    H.packetData(0x068, ('\0'):rep(8) .. number(master or 1) .. ('\0'):rep(8) .. number(enemy) .. ('\0'):rep(20))
 end
 -- the server's account of the automaton: the job at 0x04, head at 0x08, frame at 0x09, and its melee,
 -- ranged and magic skill at 0x70, 0x74 and 0x78 (all three the same here)
@@ -63,8 +70,8 @@ local pet = entities[2]
 H.play(true); H.frames(3)
 describe(1, 0x20, 120)
 H.print('the automaton fighting nothing: nothing drawn', shown() == '')
-pet.TargetedIndex = 1; H.print('nor with its master for a target', shown() == '')
-pet.TargetedIndex = 7
+fight(900, 55); H.print('nor when it is someone else\'s pet that fights', shown() == '')
+fight(900)
 H.print('Harlequin, no maneuvers:', shown())
 game.buffs = { 306 }; H.print('Light:', shown())
 game.buffs = { 306, 307 }; H.print('Light and Dark:', shown())
@@ -72,8 +79,8 @@ game.buffs = { 305, 301, 255, 255 }; H.print('Water and Ice:', shown())
 game.buffs = {}; cast(230, 900); H.print('Bio is on it:', shown())
 cast(56, 900, 236); cast(220, 900, 236); H.print('and Slow and Poison:', shown())
 now = now + 400; H.print('all worn off:', shown())
-pet.TargetedIndex = 8; cast(23, 901); H.print('it fights another, with Dia on it:', shown())
-pet.TargetedIndex = 7
+fight(901); cast(23, 901); H.print('it fights another, with Dia on it:', shown())
+fight(900)
 describe(1, 0x20, 30); H.print('skill 30:', shown())
 describe(1, 0x20, 200); H.print('skill 200:', shown())
 game.buffs = { 304 }; H.print('Thunder:', shown())
@@ -89,12 +96,15 @@ describe(3, 0x22, 200); game.buffs = { 302 }; H.print('Sharpshot frame, Wind:', 
 describe(1, 0x20, 120, 4); H.print('another job\'s packet is not read', shown():find('Daze') ~= nil)
 
 describe(1, 0x20, 120); game.buffs = {}; shown()
-pet.TargetedIndex = 0; H.print('the fight is over: still there the frame after, as it was', atOnce())
+fight(0); H.print('the fight is over: still there the frame after, as it was', atOnce())
 H.print('and gone once faded', shown() == '')
-pet.TargetedIndex = 7; H.print('back with the next fight', shown() ~= '')
+fight(900); H.print('back with the next fight', shown() ~= '')
+entities[900] = { ServerId = 900, HPPercent = 0 }; H.print('the enemy has no HP left: gone', shown() == ''); entities[900] = nil
+fight(900); H.packet(0x00A); H.print('a change of area: gone', shown() == ''); fight(900); shown()
 entities[1].PetTargetIndex = 0; H.print('no automaton out: nothing drawn', shown() == '')
-entities[1].PetTargetIndex = 2; game.job = 4; H.print('another job: nothing drawn', shown() == '')
+entities[1].PetTargetIndex = 2; game.job = 4; fight(900); H.print('another job: nothing drawn', shown() == '')
 game.job = 18
+H.print('the automaton is kept in the settings: head', o.automaton.head, '| frame', o.automaton.frame, '| magic', o.automaton.magic)
 H.print('/puppet config kept from the game', H.command('/puppet config')); H.frames(1)
 H.command('/puppet'); H.print('/puppet hides it', o.isVisible[1] == false)
 H.unload(); H.print('unload ran; saves', H.saves() > 0)

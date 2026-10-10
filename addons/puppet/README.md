@@ -14,14 +14,17 @@ maneuver up moves the spells of its element to the front, and a spell is passed 
 lacks the magic skill for it or the target already has its effect. The weapon skill is the one of the frame's with the most maneuvers of its element up, and between two with
 as many, the one needing more skill.
 
-The window is there while the automaton is fighting an enemy, and fades out when it is not. A line with
+The window is there while the automaton is fighting an enemy, and fades out when it is not. What it is
+fighting is told to its master alone, in the packet that keeps the two in step. A line with
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
 What it cannot know:
 
-- **The automaton, until the server describes it.** The head, frame and skills arrive on a change
-  of area or job and when a part is changed. Loaded part way through a visit to an area, the window
-  stays away until one of those happens. Skill gained since is not counted until then either.
+- **The automaton, until the server has once described it.** The head, frame and skills arrive on a
+  change of area or job and when a part is changed, and are kept in the settings from then on, so only
+  the first time the addon is ever loaded for a character does the window stay away until one of those
+  happens. A part changed, or skill gained, while the addon was not loaded is not known of until then
+  either.
 - **When the spell comes.** Healing and nuking can come first, and every kind of spell waits on its own
   timer.
 - **Debuffs it did not see land**, and those from anything but a spell: see `winxi.debuffs`.

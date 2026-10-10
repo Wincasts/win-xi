@@ -24,7 +24,8 @@ local windowName = 'winxi.puppet'
 
 local jobPup = 18
 local extendedJobPacket = 0x044
-local spawnFlagMob = 0x10
+local petSyncPacket = 0x068
+local zonePacket = 0x00A
 local enfeeblesShown = 3
 
 -- The maneuvers, by the status each shows as on the player
@@ -39,9 +40,13 @@ local maneuverElements = {
     [307] = 'dark',
 }
 
--- The automaton as the server last described it. It does so on a change of area or job and when a
--- part is changed, so nothing is known when the addon is loaded part way through a visit to an area.
+local app -- made below, once the settings can be drawn
+
+-- The automaton as the server last described it: its head and frame, and its skills. The server does
+-- so on a change of area or job and when a part is changed, and not when the addon is loaded, so what
+-- it said is kept in the settings to start from the next time.
 local automaton = { head = nil, frame = nil, magic = nil, melee = nil, ranged = nil }
+local automatonKeys = { 'head', 'frame', 'melee', 'ranged', 'magic' }
 
 local function ReadAutomaton(e)
     if struct.unpack('B', e.data, 0x04 + 1) ~= jobPup then
@@ -52,6 +57,30 @@ local function ReadAutomaton(e)
     automaton.melee = struct.unpack('H', e.data, 0x70 + 1)
     automaton.ranged = struct.unpack('H', e.data, 0x74 + 1)
     automaton.magic = struct.unpack('H', e.data, 0x78 + 1)
+
+    local kept = app.options.automaton
+    local changed = false
+    for _, key in ipairs(automatonKeys) do
+        if kept[key] ~= automaton[key] then
+            kept[key] = automaton[key]
+            changed = true
+        end
+    end
+    if changed then
+        app:Save()
+    end
+end
+
+-- What the automaton is fighting, as the server's id for it, or 0. The game is not told what a pet
+-- has for a target as it is of a player's: the server says so only to the pet's master, in the packet
+-- that keeps the two in step, which gives the enemy while the pet is attacking and nothing otherwise.
+local fighting = 0
+
+local function ReadPetSync(e)
+    if struct.unpack('I', e.data, 0x08 + 1) ~= AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
+        return
+    end
+    fighting = struct.unpack('I', e.data, 0x14 + 1)
 end
 
 local function CountManeuvers()
@@ -78,27 +107,31 @@ local function GetAutomaton()
     return GetEntity(me.PetTargetIndex)
 end
 
-local function IsEnemy(entity)
-    return entity ~= nil and entity.SpawnFlags ~= nil and bit.band(entity.SpawnFlags, spawnFlagMob) ~= 0
-end
-
--- The enemy the automaton is fighting, or nil when it is fighting nothing
+-- The id of the enemy the automaton is fighting, or nil when it is fighting nothing. An enemy's place
+-- among the game's entities is the low twelve bits of its id: if it is there and has no HP left, the
+-- fight is over, whatever was last said.
 local function GetTarget(pet)
-    if pet == nil or pet.TargetedIndex == nil or pet.TargetedIndex == 0 then
+    if pet == nil then
+        fighting = 0
+    end
+    if fighting == 0 then
         return nil
     end
-    local fighting = GetEntity(pet.TargetedIndex)
-    return IsEnemy(fighting) and fighting or nil
+    local enemy = GetEntity(bit.band(fighting, 0xFFF))
+    if enemy ~= nil and enemy.ServerId == fighting and enemy.HPPercent == 0 then
+        fighting = 0
+        return nil
+    end
+    return fighting
 end
 
 -- What the window shows: the spells in order and the weapon skill, either nil when there is none to
 -- name. It is left as it was once the fight is over, for the window to fade out with.
 local showing = { enfeebles = nil, weaponskill = nil }
 
-local function Work(pet, target)
+local function Work(pet, id)
     local maneuvers = CountManeuvers()
 
-    local id = target.ServerId
     local queue = predict.Queue({
         head = automaton.head,
         frame = automaton.frame,
@@ -139,6 +172,7 @@ end
 local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 },
+    automaton = T{ }, -- the automaton as last described: see ReadAutomaton
 }
 
 local function DrawSettings(options)
@@ -154,19 +188,33 @@ local function DrawSettings(options)
 
 end
 
-local app = shell.New({
+app = shell.New({
     defaults = defaults,
     window = windowName,
     configTitle = 'Puppet Settings',
     command = '/puppet',
     help = '/puppet shows or hides the window; /puppet config opens or closes the settings.',
     drawSettings = DrawSettings,
+    onSettings = function(options)
+        -- the automaton as it was when last described, this character's
+        if type(options.automaton) ~= 'table' then
+            options.automaton = T{ }
+        end
+        for _, key in ipairs(automatonKeys) do
+            automaton[key] = type(options.automaton[key]) == 'number' and options.automaton[key] or nil
+        end
+        fighting = 0
+    end,
 })
 
 ashita.events.register('packet_in', 'puppet_packet_in', function(e)
     debuffs.HandlePacket(e)
     if e.id == extendedJobPacket then
         ReadAutomaton(e)
+    elseif e.id == petSyncPacket then
+        ReadPetSync(e)
+    elseif e.id == zonePacket then
+        fighting = 0
     end
 end)
 
