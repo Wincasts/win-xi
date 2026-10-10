@@ -407,6 +407,16 @@ end
 local beginsKinds = { [7] = 'skill', [8] = 'spell' }
 local doneKinds = { [3] = true, [11] = true }
 
+-- Whether a number is among a trigger's: a few at most
+local function Has(ids, id)
+    for index = 1, #ids do
+        if ids[index] == id then
+            return true
+        end
+    end
+    return false
+end
+
 local function OnAction(data)
     local triggers = app.options.triggers
     if #triggers == 0 then
@@ -432,7 +442,7 @@ local function OnAction(data)
     -- which kind of mob it is that acts: found out once, and only if a trigger is for this spell or move
     local actorKind = nil
     for _, trigger in ipairs(triggers) do
-        if trigger.id == id and trigger.kind == kind and trigger.enabled[1] then
+        if trigger.kind == kind and trigger.enabled[1] and Has(trigger.ids, id) then
             if actorKind == nil then
                 local actor = EntityName(Bits(data, 40, 32))
                 actorKind = actor ~= nil and Area(CurrentZone()).kindOf[actor] or false
@@ -717,17 +727,26 @@ local triggerSound = 'voice-trigger.wav' -- what a trigger starts with
 local making = { mob = nil, action = nil, sound = triggerSound }
 
 -- What a kind of mob can do, each with its name, in the order of their names: found out once for a
--- kind, and kept with what is known of it
+-- kind, and kept with what is known of it. The game has some things under more than one number (a
+-- weaponskill, and the same again for the mobs of Dynamis): what has one name is one thing to choose,
+-- with every number it goes by.
 local kindLabels = { spell = 'Spell', skill = 'Weaponskill', ability = 'Ability' }
 
 local function MobActions(known)
     local actions = known.actions
     if actions == nil then
         actions = { }
+        local named = { } -- kind and name -> the action
         local function Add(kind, id)
             local name = ActionName(kind, id)
-            actions[#actions + 1] = { kind = kind, id = id, name = name,
-                label = ('%s (%s)##%s%d'):format(name, kindLabels[kind], kind, id) }
+            local action = named[kind .. name]
+            if action == nil then
+                action = { kind = kind, ids = T{ }, name = name,
+                    label = ('%s (%s)##%s%d'):format(name, kindLabels[kind], kind, id) }
+                named[kind .. name] = action
+                actions[#actions + 1] = action
+            end
+            action.ids[#action.ids + 1] = id
         end
         for id in known.spells:gmatch('%d+') do
             Add('spell', tonumber(id))
@@ -777,7 +796,7 @@ end
 
 local function HasTrigger(triggers, mob, action)
     for _, trigger in ipairs(triggers) do
-        if trigger.mob == mob and trigger.kind == action.kind and trigger.id == action.id then
+        if trigger.mob == mob and trigger.kind == action.kind and trigger.name == action.name then
             return true
         end
     end
@@ -865,7 +884,7 @@ local function DrawMaking(options)
             Say(('There is a trigger for %s and %s already.'):format(making.mob, making.action.name))
         else
             options.triggers[#options.triggers + 1] = T{ mob = making.mob, kind = making.action.kind,
-                id = making.action.id, name = making.action.name, sound = making.sound, enabled = T{ true } }
+                ids = T{ unpack(making.action.ids) }, name = making.action.name, sound = making.sound, enabled = T{ true } }
             making.action = nil
             app:Save()
         end
@@ -927,7 +946,7 @@ end
 
 -- A trigger as the settings hold it, or nil if it is not one
 local function IsTrigger(trigger)
-    return type(trigger) == 'table' and type(trigger.id) == 'number'
+    return type(trigger) == 'table' and (type(trigger.id) == 'number' or type(trigger.ids) == 'table' and type(trigger.ids[1]) == 'number')
         and type(trigger.mob) == 'string' and kindLabels[trigger.kind] ~= nil
 end
 
@@ -956,7 +975,10 @@ local function Complete(options)
         if IsTrigger(trigger) then
             if type(trigger.enabled) ~= 'table' then trigger.enabled = T{ true } end
             if type(trigger.sound) ~= 'string' or trigger.sound == '' then trigger.sound = triggerSound end
-            if type(trigger.name) ~= 'string' then trigger.name = ActionName(trigger.kind, trigger.id) end
+            -- one made when a trigger was for a single number
+            if type(trigger.ids) ~= 'table' then trigger.ids = T{ trigger.id } end
+            trigger.id = nil
+            if type(trigger.name) ~= 'string' then trigger.name = ActionName(trigger.kind, trigger.ids[1]) end
             -- one made when a trigger was for an area, and at first for one mob of it: it is for that
             -- mob's kind now, or the kind it was for, everywhere
             if type(trigger.zone) == 'number' then
