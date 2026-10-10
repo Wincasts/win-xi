@@ -33,33 +33,35 @@ it, in capitals or not. Items already in the pool when you arrive in an area do 
 
 ## Triggers (experimental)
 
-The settings' Triggers tab makes sounds of your own: a kind of mob in the area you are in (Sheep, Crab,
-Quadav), something its mobs do, and a sound. What a mob does is a spell, a weaponskill or an ability:
+The settings' Triggers tab makes sounds of your own: a kind of mob (Sheep, Crab, Quadav), something its
+mobs do, and a sound. What a mob does is a spell, a weaponskill or an ability:
 
 - a spell or a weaponskill sounds as a mob of the kind begins it (starts casting, or readies it), and
   not when one is broken off;
 - an ability is what a mob uses at once, with nothing readied first (a job's special, such as Mighty
   Strikes, among them), and sounds as it is used.
 
-Kinds, and not mobs one by one, so that there is less to choose among: an area has a third as many.
-What a kind can do is everything its mobs in the area do between them, which is more than any one of
-them does. The `(?)` beside a kind once chosen names its mobs.
+A trigger is for every mob of the kind, in any area. The kinds are listed with those of the area you are
+in first, under its name, and the rest under Elsewhere; the `(?)` beside a kind once chosen names its
+mobs in the area. What a kind can do is everything its mobs do between them, wherever they are, which
+is more than any one of them does.
 
-A trigger is for every mob of the kind in the area it was made in, and keeps their names, which is how
-a mob is known for one of them. Each has a switch, its sound, a Test button and a Remove button; they
-are kept with the rest of the settings, for every area. A trigger starts on `voice-trigger.wav`
-("Heads up"), and `trigger.wav` is a tone for the same.
+Each trigger has a switch, its sound, a Test button and a Remove button; they are kept with the rest of
+the settings. A trigger starts on `voice-trigger.wav` ("Heads up"), and `trigger.wav` is a tone for the
+same.
 
-What each area's kinds of mob can do is in `mobs.lua`, with only the mobs that do something. It is made
-from a checkout of the server by `generate_mobs.py` (which uses MobDB's importer, from `addons/mobdb`,
-and says how the file is laid out), and wants making again when the server's mobs change; a trigger
-made before then keeps the mobs it had. A kind is the server's family for a mob. A mob's weaponskills
-and abilities are those of its skill list, those its own script names, and its main job's special where
-its script takes one and names none: what a mob is given some other way is not among them.
+What the kinds can do, and which kind each area's mobs are, is in `mobs.lua`, with only the mobs that do
+something. It is made from a checkout of the server by `generate_mobs.py` (which uses MobDB's importer,
+from `addons/mobdb`, and says how the file is laid out), and wants making again when the server's mobs
+change. A kind is the server's family for a mob. A mob's weaponskills and abilities are those of its
+skill list, those its own script names, and its main job's special where its script takes one and
+names none: what a mob is given some other way is not among them, and a mob the file does not have is
+not known for one of its kind.
 
-The file costs nothing until it is wanted. It is read when the Triggers tab is first drawn, an area is
-taken apart only when its mobs are listed, and all of it is let go of when the settings are closed. A
-trigger keeps what it needs, so hearing for one reads nothing.
+The file costs nothing until it is wanted, and is never kept. The Triggers tab reads it when first
+drawn and lets go of it when the settings are closed. Hearing for triggers reads it once in an area,
+the first time a mob there does what a trigger is for, to find out which kind each of the area's mobs
+is: that much is kept, a few dozen names, and the file let go of at once.
 
 Ashita plays one sound at a time, at the volume of the file, and there is no volume setting. A sound
 would cut short the one before it, so one asked for while another is playing waits for it to finish (and
