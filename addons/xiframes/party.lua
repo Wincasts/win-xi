@@ -19,6 +19,7 @@ local d3d8 = require('d3d8')
 local d3d8_device = d3d8.get_device()
 local game = require('game')
 local sharpen = require('sharpen')
+local draw = require('draw')
 
 local party = { }
 
@@ -277,14 +278,21 @@ local textureHandles = { }
 function party.StatusTexture(buffId)
     local handle = textureHandles[buffId]
     if handle == nil then
+        -- an icon drawn for xiframes, in assets/status, is shown in place of the game's
+        local drawn = ('status/%d.png'):format(buffId)
+        if ashita.fs.exists(addon.path .. 'assets/' .. drawn) then
+            handle = draw.Texture(drawn) or nil
+        end
+    end
+    if handle == nil then
         if Textures[buffId] == nil then
             local icon = AshitaCore:GetResourceManager():GetStatusIconByIndex(buffId)
             Textures[buffId] = CreateTexture(buffId, icon)
         end
         local texture = Textures[buffId]
         handle = texture ~= 'missing' and tonumber(ffi.cast("uint32_t", texture)) or false
-        textureHandles[buffId] = handle
     end
+    textureHandles[buffId] = handle
     return handle or nil
 end
 
