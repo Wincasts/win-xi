@@ -442,9 +442,13 @@ for _, event in ipairs(events) do
     }
 end
 
--- A mark at the end of a line that tells, when hovered, what the line is for
+-- A mark at the end of a line that tells, when hovered, what the line is for. Every line's is at the
+-- same place: a little past where an event's own line ends, at its Test button, which is the longest.
+local lineEnd = 0  -- where the event's line ends, measured as it is drawn
+local markGap = 8  -- between that and the mark
+
 local function Mark(text)
-    imgui.SameLine()
+    imgui.SameLine(lineEnd + markGap)
     imgui.TextDisabled('(?)')
     if imgui.IsItemHovered() then
         imgui.SetTooltip(text)
@@ -478,6 +482,8 @@ local function DrawEvent(options, event)
     if imgui.Button(id.test) and not PlayFile(chosen.sound) then
         Say(('There is no %s in the sounds folder.'):format(chosen.sound))
     end
+    imgui.SameLine(0, 0)
+    lineEnd = imgui.GetCursorPosX()
 
     -- what sets the event off
     Mark(event.tooltip)
@@ -492,8 +498,9 @@ local function DrawEvent(options, event)
 
     -- and so the names of the items listened for
     if event.items ~= nil and chosen.enabled[1] then
-        widgets.Label('Names')
-        imgui.SetNextItemWidth(300)
+        -- as long as the event's line over it
+        widgets.Label('Items')
+        imgui.SetNextItemWidth(math.max(lineEnd - imgui.GetCursorPosX(), 100))
         imgui.InputText(id.items, options[event.items], 1024)
         if imgui.IsItemDeactivatedAfterEdit() then
             app:Save()
