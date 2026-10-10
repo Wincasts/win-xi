@@ -10,7 +10,11 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /chime           opens or closes the settings
 --   /chime test      plays every event's sound in turn, to hear them
 --
--- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure) and from the party's
+-- Beside the events there are triggers, which are experimental: a sound of your choosing when a mob
+-- of your choosing begins a spell or a weaponskill of your choosing. They are made in the settings'
+-- Triggers tab, from what the files in the mobs folder say each area's mobs can do.
+--
+-- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure, actions) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
@@ -18,6 +22,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- for it to finish.
 
 require('common')
+local bit = require('bit')
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local shell = require('winxi.shell')
@@ -56,6 +61,7 @@ local defaults = T{
     lowHpPercent = T{ 25 },
     lowMpPercent = T{ 20 },
     dropItems = T{ '' },
+    triggers = T{ },
 }
 for _, event in ipairs(events) do
     defaults.events[event.key] = T{ enabled = T{ true }, sound = event.file }
@@ -134,22 +140,26 @@ local function PlayWaiting()
     end
 end
 
--- An event has happened: its sound, if it is switched on
-local function Sound(key)
-    local chosen = app.options.events[key]
-    if not chosen.enabled[1] then
-        return
-    end
-
+-- A sound is wanted, for whatever key stands for: an event's name, or a trigger. At once if nothing
+-- is playing, after what is if something is, and not at all if the same was wanted a moment ago.
+local function Ask(file, key)
     local now = os.clock()
     if lastPlayed[key] ~= nil and now - lastPlayed[key] < minimumGap then
         return
     end
     lastPlayed[key] = now
     if now >= playingUntil and #waiting == 0 then
-        PlayFile(chosen.sound)
+        PlayFile(file)
     else
-        waiting[#waiting + 1] = { file = chosen.sound, asked = now }
+        waiting[#waiting + 1] = { file = file, asked = now }
+    end
+end
+
+-- An event has happened: its sound, if it is switched on
+local function Sound(key)
+    local chosen = app.options.events[key]
+    if chosen.enabled[1] then
+        Ask(chosen.sound, key)
     end
 end
 
@@ -160,6 +170,7 @@ end
 local packetSystemMessage = 0x009
 local packetChat = 0x017
 local packetTrade = 0x021 -- someone asks to trade
+local packetAction = 0x028
 local packetMessage = 0x029
 local packetTreasure = 0x0D2 -- an item is in the treasure pool
 local packetInvite = 0x0DC
@@ -265,6 +276,144 @@ local function OnTreasure(data)
     end
 end
 
+---------------------------------------------------------------------------------------------------
+-- Triggers: a mob begins a spell or a weaponskill
+---------------------------------------------------------------------------------------------------
+
+-- What is known of an area's mobs, from the file of the mobs folder named for the area's number: each
+-- mob by name, with the numbers of the spells it casts and the weaponskills it readies. Read when
+-- first asked for. Nothing is known of an area with no file.
+local zoneMobs = { } -- area -> { mobs = name -> { spells, skills }, names = the names in order }, or false
+
+local function Load(file)
+    local chunk = loadfile(('%smobs/%s.lua'):format(addon.path, file))
+    if chunk == nil then
+        return nil
+    end
+    local ok, found = pcall(chunk)
+    return ok and type(found) == 'table' and found or nil
+end
+
+local function ZoneMobs(zone)
+    local known = zoneMobs[zone]
+    if known == nil then
+        known = false
+        local mobs = Load(('%d'):format(zone))
+        if mobs ~= nil then
+            local names = { }
+            for name in pairs(mobs) do
+                names[#names + 1] = name
+            end
+            table.sort(names)
+            known = { mobs = mobs, names = names }
+        end
+        zoneMobs[zone] = known
+    end
+    return known or nil
+end
+
+local function CurrentZone()
+    return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0)
+end
+
+-- A name out of the game's own files, or nil: some come with what ends them still on the end
+local function GameName(read, ...)
+    local ok, name = pcall(read, ...)
+    if not ok or type(name) ~= 'string' then
+        return nil
+    end
+    name = name:gsub('[%z\1-\31].*', '')
+    return name ~= '' and name or nil
+end
+
+-- What a spell or a weaponskill is called. A mob's weaponskills over 256 are named in the game's list
+-- of monsters' abilities, and those under it are the players' own. Where the game has no name, the
+-- server's is used, from the mobs folder.
+local serverSkillNames = nil
+local actionNames = { spell = { }, skill = { } }
+
+local function ActionName(kind, id)
+    local name = actionNames[kind][id]
+    if name ~= nil then
+        return name
+    end
+    local resources = AshitaCore:GetResourceManager()
+    if kind == 'spell' then
+        name = GameName(function() return resources:GetSpellById(id).Name[1] end)
+            or ('Spell %d'):format(id)
+    else
+        if id > 256 then
+            name = GameName(function() return resources:GetString('monsters.abilities', id - 256, 2) end)
+        else
+            name = GameName(function() return resources:GetAbilityById(id).Name[1] end)
+        end
+        if name == nil then
+            serverSkillNames = serverSkillNames or Load('skills') or { }
+            name = serverSkillNames[id] or ('Weaponskill %d'):format(id)
+        end
+    end
+    actionNames[kind][id] = name
+    return name
+end
+
+-- The name of whoever has a server id: a mob's place among the area's entities is in the low bits
+-- of its id
+local function EntityName(serverId)
+    local entity = GetEntity(bit.band(serverId, 0xFFF))
+    if entity ~= nil and entity.ServerId == serverId and type(entity.Name) == 'string' then
+        return entity.Name:lower()
+    end
+    return nil
+end
+
+-- Some bits of a packet, as a number: offset is counted in bits from the packet's start, the low bit
+-- of each byte first, which is how the action packet is packed. Up to 32 bits.
+local function Bits(data, offset, length)
+    local first = math.floor(offset / 8)
+    local value = 0
+    for index = 4, 0, -1 do
+        value = value * 256 + (data:byte(first + index + 1) or 0)
+    end
+    return math.floor(value / 2 ^ (offset % 8)) % 2 ^ length
+end
+
+-- The action packet: who acted at bit 40, how many targets at 72, the kind of action at 82, and from
+-- 150 each target (its id, how many results, then each result). Beginning a weaponskill and beginning
+-- a spell are two kinds, and which weaponskill or spell is the first result's number, 27 bits into it.
+-- One broken off is sent as the same kind: a weaponskill then has no number, and a spell no message
+-- (the ten bits after the number).
+local actionKinds = { [7] = 'skill', [8] = 'spell' }
+
+local function OnAction(data)
+    local triggers = app.options.triggers
+    if #triggers == 0 then
+        return
+    end
+    local kind = actionKinds[Bits(data, 82, 4)]
+    if kind == nil or Bits(data, 72, 6) == 0 or Bits(data, 182, 4) == 0 then
+        return
+    end
+    local id = Bits(data, 213, 17)
+    if id == 0 or (kind == 'spell' and Bits(data, 230, 10) == 0) then
+        return
+    end
+
+    local zone, actor = nil, nil -- found out once, and only if a trigger is for this spell or weaponskill
+    for _, trigger in ipairs(triggers) do
+        if trigger.id == id and trigger.kind == kind and trigger.enabled[1] then
+            if zone == nil then
+                zone, actor = CurrentZone(), EntityName(Bits(data, 40, 32))
+                if actor == nil then
+                    return
+                end
+            end
+            if trigger.zone == zone and trigger.mob:lower() == actor then
+                Ask(trigger.sound, trigger)
+            end
+        end
+    end
+end
+
 ashita.events.register('packet_in', 'chime_packet_in', function(e)
     if app == nil then
         return
@@ -281,6 +430,8 @@ ashita.events.register('packet_in', 'chime_packet_in', function(e)
         OnMessage(e.data)
     elseif e.id == packetTreasure then
         OnTreasure(e.data)
+    elseif e.id == packetAction then
+        OnAction(e.data)
     end
 end)
 
@@ -447,8 +598,9 @@ end
 local lineEnd = 0  -- where the event's line ends, measured as it is drawn
 local markGap = 8  -- between that and the mark
 
-local function Mark(text)
-    imgui.SameLine(lineEnd + markGap)
+-- beside: true for a mark straight after what is before it, where the lines are not events'
+local function Mark(text, beside)
+    imgui.SameLine(beside and 0 or lineEnd + markGap)
     imgui.TextDisabled('(?)')
     if imgui.IsItemHovered() then
         imgui.SetTooltip(text)
@@ -522,6 +674,197 @@ local function DrawSettings(options)
     end
 end
 
+---------------------------------------------------------------------------------------------------
+-- Settings: the Triggers tab
+---------------------------------------------------------------------------------------------------
+
+local triggerSound = 'voice-trigger.wav' -- what a trigger starts with
+
+-- The trigger being made: the mob and what it does are chosen from what is known of the area, so
+-- both are forgotten when the area is another one
+local making = { zone = nil, mob = nil, action = nil, sound = triggerSound }
+
+-- What a mob can do, each with its name, in the order of their names: found out once for a mob
+local mobActions = { } -- area -> mob -> { { kind, id, name, label } }
+
+local function MobActions(zone, mob, known)
+    mobActions[zone] = mobActions[zone] or { }
+    local actions = mobActions[zone][mob]
+    if actions == nil then
+        actions = { }
+        for kind, list in pairs({ spell = known.spells or { }, skill = known.skills or { } }) do
+            for _, id in ipairs(list) do
+                local name = ActionName(kind, id)
+                actions[#actions + 1] = { kind = kind, id = id, name = name,
+                    label = ('%s (%s)##%s%d'):format(name, kind == 'spell' and 'Spell' or 'Weaponskill', kind, id) }
+            end
+        end
+        table.sort(actions, function(a, b) return a.label < b.label end)
+        mobActions[zone][mob] = actions
+    end
+    return actions
+end
+
+local zoneNames = { }
+
+local function ZoneName(zone)
+    local name = zoneNames[zone]
+    if name == nil then
+        local resources = AshitaCore:GetResourceManager()
+        name = GameName(function() return resources:GetString('zones.names', zone) end) or ('Area %d'):format(zone)
+        zoneNames[zone] = name
+    end
+    return name
+end
+
+-- A list of sounds to choose from. Returns the file chosen, or nil.
+local function SoundCombo(id, current)
+    local picked = nil
+    imgui.SetNextItemWidth(170)
+    if imgui.BeginCombo(id, current) then
+        for _, file in ipairs(Files()) do
+            if imgui.Selectable(file, file == current) then
+                picked = file
+                PlayFile(file)
+            end
+        end
+        imgui.EndCombo()
+    end
+    return picked
+end
+
+local function TestButton(file)
+    if imgui.Button('Test') and not PlayFile(file) then
+        Say(('There is no %s in the sounds folder.'):format(file))
+    end
+end
+
+local function HasTrigger(triggers, zone, mob, action)
+    for _, trigger in ipairs(triggers) do
+        if trigger.zone == zone and trigger.mob == mob and trigger.kind == action.kind and trigger.id == action.id then
+            return true
+        end
+    end
+    return false
+end
+
+local function DrawMaking(options)
+    local zone = CurrentZone()
+    if zone ~= making.zone then
+        making.zone, making.mob, making.action = zone, nil, nil
+    end
+    local known = ZoneMobs(zone)
+    if known == nil then
+        imgui.TextDisabled(('Nothing is known of the mobs of %s.'):format(ZoneName(zone)))
+        return
+    end
+
+    widgets.Label('Mob')
+    imgui.SetNextItemWidth(260)
+    if imgui.BeginCombo('##chime.making.mob', making.mob or 'Choose A Mob') then
+        for _, name in ipairs(known.names) do
+            if imgui.Selectable(name, name == making.mob) and name ~= making.mob then
+                making.mob, making.action = name, nil
+            end
+        end
+        imgui.EndCombo()
+    end
+    Mark(('The mobs of %s that cast spells or ready weaponskills.'):format(ZoneName(zone)), true)
+
+    widgets.Label('Spell Or Weaponskill')
+    imgui.SetNextItemWidth(260)
+    if imgui.BeginCombo('##chime.making.action', making.action and making.action.label or 'Choose One') then
+        if making.mob ~= nil then
+            for _, action in ipairs(MobActions(zone, making.mob, known.mobs[making.mob])) do
+                if imgui.Selectable(action.label, action == making.action) then
+                    making.action = action
+                end
+            end
+        end
+        imgui.EndCombo()
+    end
+    Mark('What the mob does that sets the sound off: it sounds as the mob begins it, not as it lands.', true)
+
+    widgets.Label('Sound')
+    making.sound = SoundCombo('##chime.making.sound', making.sound) or making.sound
+    imgui.SameLine()
+    imgui.PushID('chime.making')
+    TestButton(making.sound)
+    imgui.PopID()
+
+    if imgui.Button('Add Trigger') then
+        if making.mob == nil or making.action == nil then
+            Say('Choose a mob and what it does first.')
+        elseif HasTrigger(options.triggers, zone, making.mob, making.action) then
+            Say(('There is a trigger for %s\'s %s already.'):format(making.mob, making.action.name))
+        else
+            options.triggers[#options.triggers + 1] = T{ zone = zone, mob = making.mob, kind = making.action.kind,
+                id = making.action.id, name = making.action.name, sound = making.sound, enabled = T{ true } }
+            making.action = nil
+            app:Save()
+        end
+    end
+end
+
+-- What a trigger is shown as: put together once for each
+local triggerTexts = setmetatable({ }, { __mode = 'k' })
+
+local function TriggerText(trigger)
+    local text = triggerTexts[trigger]
+    if text == nil then
+        text = ('%s: %s (%s)'):format(trigger.mob, trigger.name, ZoneName(trigger.zone))
+        triggerTexts[trigger] = text
+    end
+    return text
+end
+
+local function DrawTriggers(options)
+    -- [Experimental], as every addon here marks what is
+    imgui.TextColored(widgets.ExperimentalColor, '[Experimental]')
+    imgui.SameLine()
+    imgui.Text('A sound when a mob begins a spell or a weaponskill.')
+
+    widgets.Header('New Trigger')
+    DrawMaking(options)
+
+    widgets.Header('Triggers')
+    local triggers = options.triggers
+    if #triggers == 0 then
+        imgui.TextDisabled('None yet.')
+        return
+    end
+    local removed = nil
+    for index, trigger in ipairs(triggers) do
+        imgui.PushID(index)
+        imgui.Checkbox('##enabled', trigger.enabled)
+        imgui.SameLine()
+        local picked = SoundCombo('##sound', trigger.sound)
+        if picked ~= nil then
+            trigger.sound = picked
+            app:Save()
+        end
+        imgui.SameLine()
+        TestButton(trigger.sound)
+        imgui.SameLine()
+        if imgui.Button('Remove') then
+            removed = index
+        end
+        imgui.SameLine()
+        imgui.Text(TriggerText(trigger))
+        imgui.PopID()
+    end
+    if removed ~= nil then
+        table.remove(triggers, removed)
+        app:Save()
+    end
+end
+
+-- A trigger as the settings hold it, or nil if it is not one
+local function IsTrigger(trigger)
+    return type(trigger) == 'table' and type(trigger.zone) == 'number' and type(trigger.id) == 'number'
+        and type(trigger.mob) == 'string' and (trigger.kind == 'spell' or trigger.kind == 'skill')
+end
+
 -- Whatever saved settings lack, or have as the wrong kind of thing
 local function Complete(options)
     if type(options.events) ~= 'table' then options.events = T{ } end
@@ -540,6 +883,18 @@ local function Complete(options)
             options[event.items] = T{ '' }
         end
     end
+
+    -- the triggers: what is not one is dropped, and each is given what it is shown as
+    local triggers = T{ }
+    for _, trigger in ipairs(type(options.triggers) == 'table' and options.triggers or { }) do
+        if IsTrigger(trigger) then
+            if type(trigger.enabled) ~= 'table' then trigger.enabled = T{ true } end
+            if type(trigger.sound) ~= 'string' or trigger.sound == '' then trigger.sound = triggerSound end
+            if type(trigger.name) ~= 'string' then trigger.name = ActionName(trigger.kind, trigger.id) end
+            triggers[#triggers + 1] = trigger
+        end
+    end
+    options.triggers = triggers
 end
 
 -- The sounds of every event in turn, a second apart, whether switched on or not
@@ -559,6 +914,7 @@ app = shell.New({
     command = '/chime',
     help = '/chime opens or closes the settings; /chime test plays every event\'s sound in turn.',
     drawSettings = DrawSettings,
+    tabs = { { label = 'Triggers', draw = DrawTriggers } },
     onSettings = function(options)
         Complete(options)
         -- another character's numbers are not this one's

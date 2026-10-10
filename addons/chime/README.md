@@ -31,6 +31,19 @@ Item Drop listens for the items named in its settings, under its line: their nam
 one and the next (`Kindred's Seal, Beastmen's Seal`), each the whole of the item's name as the game shows
 it, in capitals or not. Items already in the pool when you arrive in an area do not sound.
 
+## Triggers (experimental)
+
+The settings' Triggers tab makes sounds of your own: a mob of the area you are in, a spell or a
+weaponskill of that mob's, and a sound. It sounds as a mob of that name begins it (starts casting, or
+readies the weaponskill), in that area, and not when one is broken off. Each trigger has a switch, its
+sound, a Test button and a Remove button; they are kept with the rest of the settings, for every area.
+A trigger starts on `voice-trigger.wav` ("Heads up"), and `trigger.wav` is a tone for the same.
+
+What each area's mobs can do is in the `mobs` folder, one file to an area, with only the mobs that cast
+or ready something. It is made from a checkout of the server by `mobs/generate.py` (which uses MobDB's
+importer, from `addons/mobdb`), and wants making again when the server's mobs change. A spell or a
+weaponskill the server gives a mob from a script, and not from its lists, is not among them.
+
 Ashita plays one sound at a time, at the volume of the file, and there is no volume setting. A sound
 would cut short the one before it, so one asked for while another is playing waits for it to finish (and
 is dropped if that takes more than three seconds). A sound played by another addon still cuts chime's

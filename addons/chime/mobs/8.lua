@@ -1,0 +1,21 @@
+-- Made by generate.py: boneyard_gully
+return {
+    ['Armored Hunter'] = { spells = {  }, skills = { 275, 276, 277, 279 } },
+    ['Bladmall'] = { spells = { 46, 133, 172, 200, 201, 214 }, skills = { 504, 506, 507, 508 } },
+    ['Cadaver Warrior'] = { spells = {  }, skills = { 478, 479, 484, 485 } },
+    ['Cadaver Witch'] = { spells = { 147, 152, 157, 162, 167, 172, 176, 181, 186, 196, 206, 210, 216, 226, 231, 245, 247, 250, 252, 253, 254, 258, 259, 274 }, skills = { 478, 479, 484, 485 } },
+    ['Erdgeist'] = { spells = { 144, 149, 154, 169, 189, 220, 230, 245, 254, 258 }, skills = { 472, 473, 474, 475, 476, 477 } },
+    ['Gwyn Ap Knudd'] = { spells = { 147, 152, 157, 162, 167, 172, 176, 181, 196, 201, 204, 206, 208, 210, 212, 214, 226, 231, 235, 236, 237, 238, 239, 240, 245, 247, 249, 252, 254, 258, 259, 274 }, skills = { 530, 531, 532, 533 } },
+    ['Nepionic Bladmall'] = { spells = { 4, 46, 51 }, skills = { 504, 506, 507, 508 } },
+    ['Nepionic Parata'] = { spells = {  }, skills = { 504, 506, 507, 508 } },
+    ['Parata'] = { spells = {  }, skills = { 504, 506, 507, 508 } },
+    ['Race Runner'] = { spells = { 53, 158, 186, 216 }, skills = { 515, 516, 517, 518, 519 } },
+    ['Shikaree X'] = { spells = { 320, 323, 326, 329, 332, 335, 339, 341, 344, 347, 350 }, skills = { 18, 23, 24, 25 } },
+    ['Shikaree X\'s Rabbit'] = { spells = {  }, skills = { 257, 258, 259 } },
+    ['Shikaree Y'] = { spells = { 145, 150, 155, 160, 165, 170, 220, 231, 245, 247, 266, 267, 268, 269, 270, 271, 272, 275 }, skills = { 101, 102, 104 } },
+    ['Shikaree Z'] = { spells = { 14, 15, 23, 28, 33, 38, 53, 55 }, skills = { 116, 118, 119, 120 } },
+    ['Shikaree Z\'s Wyvern'] = { spells = {  }, skills = { 900, 901, 902, 903, 904, 905 } },
+    ['Shrewd Hunter'] = { spells = {  }, skills = { 275, 276, 277, 279 } },
+    ['Swift Hunter'] = { spells = {  }, skills = { 275, 276, 277, 279 } },
+    ['Tuchulcha'] = { spells = {  }, skills = { 275, 276, 277, 279 } },
+}

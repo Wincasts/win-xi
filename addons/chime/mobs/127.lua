@@ -1,0 +1,21 @@
+-- Made by generate.py: behemoths_dominion
+return {
+    ['Ancient Weapon'] = { spells = {  }, skills = { 513, 514 } },
+    ['Behemoth'] = { spells = {  }, skills = { 628, 629, 630, 631, 632, 633 } },
+    ['Bhuta'] = { spells = { 150, 165, 185, 190, 200, 216, 221, 225, 231, 236, 245, 247, 250, 252, 253, 254, 258, 259, 273 }, skills = { 472, 473, 474, 475, 476, 477 } },
+    ['Demonic Weapon'] = { spells = {  }, skills = { 513, 514 } },
+    ['Doglix Muttsnout'] = { spells = { 4, 14, 15, 16, 17, 18, 19, 20, 21, 24, 29, 39, 45, 50, 53, 54, 55, 56, 57, 58, 59, 110, 112, 143 }, skills = { 590, 591, 592 } },
+    ['Greater Gayla'] = { spells = {  }, skills = { 392, 394 } },
+    ['Gudanna'] = { spells = {  }, skills = { 628, 629, 630, 631, 632, 633 } },
+    ['King Behemoth'] = { spells = {  }, skills = { 628, 629, 630, 631, 632, 633 } },
+    ['Legendary Weapon'] = { spells = { 389 }, skills = { 513, 514 } },
+    ['Lesser Gaylas'] = { spells = {  }, skills = { 393, 395 } },
+    ['Light Elemental'] = { spells = { 4, 21, 24, 29, 39, 45, 49, 110, 112 }, skills = {  } },
+    ['Lost Soul'] = { spells = { 145, 150, 165, 190, 200, 216, 221, 225, 231, 236, 245, 247, 250, 252, 253, 254, 258, 259, 273 }, skills = { 478, 479, 484, 485 } },
+    ['Master Coeurl'] = { spells = {  }, skills = { 652, 653 } },
+    ['Moxnix Nightgoggle'] = { spells = {  }, skills = { 590, 591, 592 } },
+    ['Picklix Longindex'] = { spells = {  }, skills = { 590, 591, 592 } },
+    ['Pil'] = { spells = { 147, 152, 157, 162, 167, 172, 181, 196, 201, 204, 206, 208, 210, 212, 214, 226, 231, 235, 236, 237, 238, 239, 240, 245, 247, 249, 252, 254, 258, 259, 274 }, skills = { 2566, 2567, 2568, 2569, 2570, 2571, 2572, 2573, 2634, 2635, 2637, 2692 } },
+    ['Sovereign Behemoth'] = { spells = { 218 }, skills = { 628, 629, 630, 631, 632, 633 } },
+    ['Thunder Elemental'] = { spells = { 104, 165, 194, 239, 251, 252 }, skills = {  } },
+}
