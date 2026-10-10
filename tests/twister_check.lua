@@ -189,14 +189,14 @@ H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; H.print('every T
 
 -- the Triggers tab: the area's mobs to choose from, and what the chosen one does
 H.tab(2); local combos, texts = H.calls.BeginCombo, H.calls.Text or 0; H.frames(1)
-H.print('Triggers drawn: combos', H.calls.BeginCombo - combos, '| a line for each trigger', (H.calls.Text or 0) - texts >= 4)
+H.print('Triggers drawn: combos', H.calls.BeginCombo - combos, '| a line for each trigger', (H.calls.Text or 0) - texts >= 3)
 -- every list open and everything in it chosen: the last kind of mob, of those not in the area, and the last thing it does are what is being made
 H.ret.BeginCombo = { true }; H.ret.Selectable = { true }; H.frames(2); H.ret.BeginCombo = { false }; H.ret.Selectable = { false }; heard()
--- every button pressed at once: Add Trigger makes one, and Remove, pressed on each, takes the last away again, which is that one
+-- every button pressed at once: Create Trigger makes one, and Remove, pressed on each, takes the last away again, which is that one
 local before, gone, realRemove = #o.triggers, nil, table.remove
 table.remove = function(list, at) if list == o.triggers then gone = list[at] end return realRemove(list, at) end
 H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; heard(); table.remove = realRemove
-H.print('Add Trigger made one:', gone.mob, gone.kind, table.concat(gone.ids, ' '), gone.sound, gone.enabled[1], '| for no one area', gone.zone == nil, '| and Remove took it away', #o.triggers == before)
+H.print('Create Trigger made one:', gone.mob, gone.kind, table.concat(gone.ids, ' '), gone.sound, gone.enabled[1], '| for no one area', gone.zone == nil, '| and Remove took it away', #o.triggers == before)
 -- what is known of the mobs is read for the tab and let go of with the settings: asked for again when they are next open
 reads = 0
 H.frames(3); H.print('with the settings open, not read again', reads == 0)
