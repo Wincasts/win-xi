@@ -16,7 +16,7 @@ local function shown()
 end
 
 -- the game: a puppetmaster (entity 1) with an automaton (2), and two enemies (7 and 8)
-local game = { job = 18, buffs = {}, petMpp = 100, targeted = 0, tp = 0 }
+local game = { job = 18, buffs = {}, petMpp = 100, targeted = 0 }
 local entities = {
     [1] = { ServerId = 1, PetTargetIndex = 2, SpawnFlags = 0x01 },
     [2] = { ServerId = 2, TargetedIndex = 0, HPPercent = 100, SpawnFlags = 0x100 },
@@ -27,7 +27,7 @@ function GetEntity(index) return entities[index] end
 local memory = {
     GetPlayer = function() return { GetMainJob = function() return game.job end, GetLoginStatus = function() return 2 end,
         GetBuffs = function() return game.buffs end, GetPetMPPercent = function() return game.petMpp end } end,
-    GetParty = function() return { GetMemberTargetIndex = function() return 1 end, GetMemberName = function() return 'Tester' end, GetMemberTP = function() return game.tp end } end,
+    GetParty = function() return { GetMemberTargetIndex = function() return 1 end, GetMemberName = function() return 'Tester' end } end,
     GetTarget = function() return { GetTargetIndex = function() return game.targeted end } end,
 }
 local core = AshitaCore
@@ -38,12 +38,12 @@ struct.unpack = function(format, data, at)
     local low = data:byte(at) or 0
     return format == 'H' and low + (data:byte(at + 1) or 0) * 256 or low
 end
--- the server's account of the automaton: the job at 0x04, head at 0x08, frame at 0x09, attachments
--- from 0x0A, and its melee, ranged and magic skill at 0x70, 0x74 and 0x78 (all three the same here)
-local function describe(head, frame, skill, job, attachment)
+-- the server's account of the automaton: the job at 0x04, head at 0x08, frame at 0x09, and its melee,
+-- ranged and magic skill at 0x70, 0x74 and 0x78 (all three the same here)
+local function describe(head, frame, skill, job)
     local bytes = {}
     for i = 0, 0x9B do bytes[i] = 0 end
-    bytes[0x04], bytes[0x08], bytes[0x09], bytes[0x0C] = job or 18, head, frame, attachment or 0
+    bytes[0x04], bytes[0x08], bytes[0x09] = job or 18, head, frame
     for _, at in ipairs({ 0x70, 0x74, 0x78 }) do bytes[at], bytes[at + 1] = skill % 256, math.floor(skill / 256) end
     local out = {}
     for i = 0, 0x9B do out[#out + 1] = string.char(bytes[i]) end
@@ -83,9 +83,7 @@ describe(2, 0x21, 200); game.buffs = {}; H.print('Valoredge frame:', shown())
 game.buffs = { 300 }; H.print('Fire:', shown())
 game.buffs = { 300, 304, 304 }; H.print('Fire and two Thunder:', shown())
 describe(3, 0x22, 200); game.buffs = { 302 }; H.print('Sharpshot frame, Wind:', shown())
-describe(2, 0x21, 200, 18, 3); game.buffs = {}; H.print('with an Inhibitor, the master without TP:', shown())
-game.tp = 1000; H.print('and with it:', shown())
-game.tp = 0; describe(1, 0x20, 120); game.targeted = 7
+describe(1, 0x20, 120); game.buffs = {}; game.targeted = 7
 entities[1].PetTargetIndex = 0; H.print('no automaton out: nothing drawn', shown() == '')
 entities[1].PetTargetIndex = 2; game.job = 4; H.print('another job: nothing drawn', shown() == '')
 game.job = 18

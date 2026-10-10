@@ -41,13 +41,7 @@ local maneuverElements = {
 
 -- The automaton as the server last described it. It does so on a change of area or job and when a
 -- part is changed, so nothing is known when the addon is loaded part way through a visit to an area.
-local automaton = { head = nil, frame = nil, magic = nil, melee = nil, ranged = nil, holdsTp = false }
-
--- The attachments that have an automaton keep its TP to close its master's skillchain, as the
--- server numbers them: Inhibitor and Inhibitor II, Speedloader and Speedloader II
-local tpHolders = { [3] = true, [11] = true, [14] = true, [15] = true }
-local attachmentSlots = 12
-local masterTpToHold = 900 -- with this much TP the master is waited on, to open the skillchain
+local automaton = { head = nil, frame = nil, magic = nil, melee = nil, ranged = nil }
 
 local function ReadAutomaton(e)
     if struct.unpack('B', e.data, 0x04 + 1) ~= jobPup then
@@ -58,13 +52,6 @@ local function ReadAutomaton(e)
     automaton.melee = struct.unpack('H', e.data, 0x70 + 1)
     automaton.ranged = struct.unpack('H', e.data, 0x74 + 1)
     automaton.magic = struct.unpack('H', e.data, 0x78 + 1)
-
-    automaton.holdsTp = false
-    for slot = 0, attachmentSlots - 1 do
-        if tpHolders[struct.unpack('B', e.data, 0x0A + slot + 1)] then
-            automaton.holdsTp = true
-        end
-    end
 end
 
 local function CountManeuvers()
@@ -143,10 +130,6 @@ local function Work(pet)
         maneuvers = maneuvers,
     })
     showing.weaponskill = reason or name or 'None.'
-    -- with the master's TP ready, an automaton that holds its own waits for the skillchain to be opened
-    if name and automaton.holdsTp and AshitaCore:GetMemoryManager():GetParty():GetMemberTP(0) >= masterTpToHold then
-        showing.weaponskill = name .. ' (waiting on your skillchain)'
-    end
 end
 
 local function DrawLine(label, value)
