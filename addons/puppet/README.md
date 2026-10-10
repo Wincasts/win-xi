@@ -6,7 +6,7 @@ use, in a small window. It needs only the `winxi` library (`addons/libs/winxi`).
     Next Enfeeble: Dia II, Poison, Silence
     Next Weaponskill: Slapstick
 
-- `/puppet` shows or hides the window (it only appears while the automaton is fighting)
+- `/puppet` shows or hides the window
 - `/puppet config` opens or closes the settings
 
 Both are worked out the way the Phoenix server chooses. Each head has a set order of spells, every
@@ -14,14 +14,15 @@ maneuver up moves the spells of its element to the front, and a spell is passed 
 lacks the magic skill for it or the target already has its effect. The weapon skill is the one of the frame's with the most maneuvers of its element up, and between two with
 as many, the one needing more skill.
 
-The window is there while the automaton is fighting an enemy, and fades out when it is not. What it is
+With Always Show off, the window is there while the automaton is fighting an enemy, and fades out when
+it is not. What it is
 fighting is told to its master alone, in the packet that keeps the two in step. A line with
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
-**Always Show**, in the settings, is for finding out what is wrong: the window is there whatever is
-happening, Visible or not, with what the addon knows under it (the automaton as described, whether a pet
-is out and what it is fighting, how many of the pet's packets have come, the maneuvers up). It starts on
-while the addon is being proved.
+In the settings: **Always Show** keeps the window there whether the automaton is fighting or not; outside
+a fight it shows what the automaton would open with on an enemy with nothing on it. It starts on. **Show Debug Information** is for finding out what is wrong: under the
+window's own lines, what the addon knows (the automaton as described, whether a pet is out and what it is
+fighting, how many of the pet's packets have come, the maneuvers up).
 
 What it cannot know:
 

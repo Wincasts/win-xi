@@ -9,7 +9,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- what it needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the
 -- target) and shows the answer.
 --
---   /puppet           shows or hides the window (it only appears while the automaton is fighting)
+--   /puppet           shows or hides the window
 --   /puppet config    opens or closes the settings
 
 require('common')
@@ -75,7 +75,7 @@ end
 -- has for a target as it is of a player's: the server says so only to the pet's master, in the packet
 -- that keeps the two in step, which gives the enemy while the pet is attacking and nothing otherwise.
 local fighting = 0
-local syncs = { seen = 0, own = 0, last = nil } -- for Always Show: how many of those packets have come
+local syncs = { seen = 0, own = 0, last = nil } -- for the debug information: how many of those packets have come
 
 local function ReadPetSync(e)
     syncs.seen = syncs.seen + 1
@@ -140,7 +140,8 @@ local function Work(pet, id)
         frame = automaton.frame,
         skill = automaton.magic,
         maneuvers = maneuvers,
-        has = function(kind) return debuffs.Get(id, kind) ~= nil end,
+        -- with no enemy yet, the spells are those for one with nothing on it
+        has = function(kind) return id ~= nil and debuffs.Get(id, kind) ~= nil end,
         hpp = pet.HPPercent,
         mpp = AshitaCore:GetMemoryManager():GetPlayer():GetPetMPPercent(),
     })
@@ -167,7 +168,7 @@ local function DrawLine(label, value)
     imgui.Text(value)
 end
 
--- What the addon knows, for Always Show: why the window says what it does, or nothing
+-- What the addon knows, shown as the debug information: why the window says what it does, or nothing
 local known = { pet = false, maneuvers = '' }
 
 local function DrawKnown()
@@ -187,10 +188,11 @@ end
 local function DrawWindow(options)
     DrawLine('Next Enfeeble:', showing.enfeebles)
     DrawLine('Next Weaponskill:', showing.weaponskill)
-    if options.alwaysShow[1] then
-        if showing.enfeebles == nil and showing.weaponskill == nil then
-            imgui.TextDisabled('Nothing to show.')
-        end
+    -- the window is there with nothing to name while it is always shown: it is not left empty
+    if showing.enfeebles == nil and showing.weaponskill == nil then
+        imgui.TextDisabled('Nothing to show.')
+    end
+    if options.showDebug[1] then
         DrawKnown()
     end
 end
@@ -199,14 +201,15 @@ local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 },
     automaton = T{ }, -- the automaton as last described: see ReadAutomaton
-    alwaysShow = T{ true }, -- for finding out what is wrong: the window whatever is happening, with what the addon knows
+    alwaysShow = T{ true }, -- the window whether the automaton is fighting or not
+    showDebug = T{ false }, -- under it, what the addon knows: for finding out what is wrong
 }
 
 local function DrawSettings(options)
     widgets.Label('Visible')
     imgui.Checkbox('##puppet.visible', options.isVisible)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Whether the window shows while the automaton is fighting. /puppet switches this.')
+        imgui.SetTooltip('Whether the window shows at all. /puppet switches this.')
     end
     widgets.Label('Position')
     if imgui.InputInt2('##puppet.position', options.pos) then
@@ -217,7 +220,12 @@ local function DrawSettings(options)
     widgets.Label('Always Show')
     imgui.Checkbox('##puppet.alwaysShow', options.alwaysShow)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('For finding out what is wrong: the window is there whatever is happening, Visible or not, with what the addon knows under it.')
+        imgui.SetTooltip('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.')
+    end
+    widgets.Label('Show Debug Information')
+    imgui.Checkbox('##puppet.showDebug', options.showDebug)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('For finding out what is wrong: what the addon knows, under the window\'s own lines.\nThe automaton as the server described it, whether it is out and what it is fighting,\nhow many of the pet\'s packets have come, and the maneuvers up.')
     end
 end
 
@@ -228,9 +236,9 @@ app = shell.New({
     command = '/puppet',
     help = '/puppet shows or hides the window; /puppet config opens or closes the settings.',
     drawSettings = DrawSettings,
-    -- the window is only there in a fight, so the command would otherwise seem to do nothing
+    -- with Always Show off the window is only there in a fight, and the command would seem to do nothing
     toggleSays = {
-        shown = 'The window is on: it appears while your automaton is fighting.',
+        shown = 'The window is on.',
         hidden = 'The window is off. /puppet turns it back on.',
     },
     onSettings = function(options)
@@ -240,6 +248,9 @@ app = shell.New({
         end
         if type(options.alwaysShow) ~= 'table' then
             options.alwaysShow = T{ true }
+        end
+        if type(options.showDebug) ~= 'table' then
+            options.showDebug = T{ false }
         end
         for _, key in ipairs(automatonKeys) do
             automaton[key] = type(options.automaton[key]) == 'number' and options.automaton[key] or nil
@@ -272,11 +283,12 @@ ashita.events.register('d3d_present', 'puppet_present', function()
     local options = app.options
     local pet = GetAutomaton()
     local target = GetTarget(pet)
-    if target ~= nil then
+    -- outside a fight, with the window always shown, it says what the automaton would open with
+    if target ~= nil or (pet ~= nil and options.alwaysShow[1]) then
         Work(pet, target)
     end
 
-    if options.alwaysShow[1] then
+    if options.showDebug[1] then
         known.pet = pet ~= nil
         local parts = {}
         for element, count in pairs(CountManeuvers()) do
@@ -286,7 +298,7 @@ ashita.events.register('d3d_present', 'puppet_present', function()
         known.maneuvers = table.concat(parts, ', ')
     end
 
-    wanted[1] = options.alwaysShow[1]
-        or (options.isVisible[1] and target ~= nil and (showing.enfeebles ~= nil or showing.weaponskill ~= nil))
+    wanted[1] = options.isVisible[1]
+        and (options.alwaysShow[1] or (target ~= nil and (showing.enfeebles ~= nil or showing.weaponskill ~= nil)))
     app:Window(wanted, DrawWindow)
 end)
