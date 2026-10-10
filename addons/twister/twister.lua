@@ -164,6 +164,11 @@ end
 -- Chat, invitations and messages: from packets
 ---------------------------------------------------------------------------------------------------
 
+-- Some bits of a packet, as a number, read where the packet lies without a copy being made of it:
+-- the offset is counted in bits from the packet's start, the low bit of each byte first, which is how
+-- the action packet is packed
+local Bits = ashita.bits.unpack_be
+
 local packetSystemMessage = 0x009
 local packetChat = 0x017
 local packetTrade = 0x021 -- someone asks to trade
@@ -199,13 +204,13 @@ local function Text(data, first, last)
     return zero and text:sub(1, zero - 1) or text
 end
 
--- What reads a packet is given the packet as the game hands it over, and asks for what is in it
--- (data, a copy of it made for the asking) only once it knows it wants it.
+-- What reads a packet is given the packet as the game hands it over. Numbers are read out of it
+-- where it lies (Bits, with the place counted in bits: eight to a byte). A copy of it (data) is asked
+-- for only by what has words to read, the chat, and only once the words are wanted.
 
 -- The chat packet: the kind of message at 0x04, who said it at 0x08 (15 bytes), what they said from 0x17
 local function OnChat(e)
-    local data = e.data
-    local kind = data:byte(0x04 + 1)
+    local kind = Bits(e.data_raw, 0x04 * 8, 8)
     if kind == chatTell then
         Sound('tell')
     elseif chatAmongFriends[kind] and app.options.events.mention.enabled[1] then
@@ -213,6 +218,7 @@ local function OnChat(e)
         if own == nil then
             return
         end
+        local data = e.data
         if Text(data, 0x08 + 1, 0x08 + 15):lower() == own then
             return
         end
@@ -230,12 +236,12 @@ local function OnMessage(e)
     if not app.options.events.skillup.enabled[1] then
         return
     end
-    local data = e.data
-    local message = struct.unpack('H', data, 0x18 + 1) % 0x8000
+    local raw = e.data_raw
+    local message = Bits(raw, 0x18 * 8, 15)
     if message ~= messageSkillRises and message ~= messageSkillLevel then
         return
     end
-    if struct.unpack('I', data, 0x08 + 1) == AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
+    if Bits(raw, 0x08 * 8, 32) == AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
         Sound('skillup')
     end
 end
@@ -245,7 +251,7 @@ end
 local systemMessageExamines = 89
 
 local function OnSystemMessage(e)
-    if app.options.events.examine.enabled[1] and struct.unpack('H', e.data, 0x0A + 1) == systemMessageExamines then
+    if app.options.events.examine.enabled[1] and Bits(e.data_raw, 0x0A * 8, 16) == systemMessageExamines then
         Sound('examine')
     end
 end
@@ -273,11 +279,11 @@ local function OnTreasure(e)
     if not app.options.events.drop.enabled[1] then
         return
     end
-    local data = e.data
-    if data:byte(0x15 + 1) ~= 0 then
+    local raw = e.data_raw
+    if Bits(raw, 0x15 * 8, 8) ~= 0 then
         return
     end
-    local id = struct.unpack('H', data, 0x10 + 1)
+    local id = Bits(raw, 0x10 * 8, 16)
     local item = id ~= 0 and AshitaCore:GetResourceManager():GetItemById(id) or nil
     local name = item ~= nil and item.Name ~= nil and item.Name[1] or nil
     if type(name) == 'string' and Wanted(app.options.dropItems[1])[name:lower()] then
@@ -314,8 +320,12 @@ local function MobData()
     return mobData or nil
 end
 
+local actionNames -- what spells and moves are called, as far as asked: below
+
 local function ForgetMobData()
     mobData = nil
+    -- the names were for the lists of the Triggers tab
+    actionNames.spell, actionNames.move = { }, { }
 end
 
 -- An area's mobs: which kind each is, and each kind's mobs. Nothing in either for an area nothing
@@ -354,7 +364,7 @@ end
 -- What a spell, a weaponskill or an ability is called. A mob's weaponskills and abilities over 256
 -- are named in the game's list of monsters' abilities, and those under it are the players' own. Where
 -- the game has no name, the server's is used, from mobs.lua.
-local actionNames = { spell = { }, move = { } }
+actionNames = { spell = { }, move = { } }
 
 local function ActionName(kind, id)
     local names = actionNames[kind == 'spell' and 'spell' or 'move']
@@ -391,11 +401,6 @@ local function EntityName(serverId)
     end
     return nil
 end
-
--- Some bits of a packet, as a number, read where the packet lies without a copy being made of it:
--- the offset is counted in bits from the packet's start, the low bit of each byte first, which is how
--- the action packet is packed
-local Bits = ashita.bits.unpack_be
 
 -- The action packet: who acted at bit 40, how many targets at 72, the kind of action at 82, what the
 -- action is at 86, and from 150 each target (its id, how many results, then each result).
