@@ -40,16 +40,16 @@ local ret = { GetCursorScreenPos = { 10, 20 }, GetCursorPosX = { 5 }, GetCursorP
     Checkbox = { false }, InputInt = { false }, InputInt2 = { false }, RadioButton = { false }, Button = { false }, Selectable = { false },
     ColorEdit4 = { false }, SliderInt = { false }, SliderFloat = { false }, BeginPopupContextItem = { false }, BeginPopupModal = { false }, BeginPopup = { false } }
 local drawList = setmetatable({}, { __index = function(_, k) return function() calls['draw.' .. k] = (calls['draw.' .. k] or 0) + 1 end end })
-local selected, tabsBegun = nil, 0
+local selected, tabsBegun, tabShown = nil, 0, 1
 local imgui = setmetatable({}, { __index = function(_, k) return function(...)
     calls[k] = (calls[k] or 0) + 1
     if k == 'GetWindowDrawList' or k == 'GetBackgroundDrawList' or k == 'GetForegroundDrawList' then return drawList end
     if k == 'GetStyle' then return { WindowRounding = 0 } end
     if k == 'GetIO' then return { DisplaySize = { x = 1920, y = 1080 } } end
     if k == 'Selectable' then local label, on = ... if on then selected = label:match('^[^#]+') end end
-    -- one tab of a tab bar is showing at a time: the first
+    -- one tab of a tab bar is showing at a time: the first, unless H.tab has chosen another
     if k == 'BeginTabBar' then tabsBegun = 0 end
-    if k == 'BeginTabItem' then tabsBegun = tabsBegun + 1 return tabsBegun == 1 end
+    if k == 'BeginTabItem' then tabsBegun = tabsBegun + 1 return tabsBegun == tabShown end
     local r = ret[k] if r then return unpack(r) end
 end end })
 package.preload['imgui'] = function() return imgui end
@@ -104,6 +104,7 @@ H = {
     print = realprint, calls = calls, ret = ret, printed = printed, sent = sent, sounds = sounds, raised = raised,
     options = function() return store end,
     saves = function() return saves end,
+    tab = function(number) tabShown = number or 1 end,     -- which tab of a tab bar is showing: the first, unless told
     selected = function() return selected end,             -- the menu choice last drawn as highlighted
     play = function(v) playing = v end,                    -- whether there is a player (false: loading)
     login = function(status) loginStatus = status end,     -- the game's login status: 2 in the world, less before
