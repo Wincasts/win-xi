@@ -197,4 +197,174 @@ function predict.Weaponskill(state)
     return best and best.name or nil, nil
 end
 
+---------------------------------------------------------------------------------------------------
+-- The order of everything
+---------------------------------------------------------------------------------------------------
+
+-- Every three seconds or so the automaton tries one thing after another and does the first it can:
+-- a shield bash, a spell, a weapon skill, a shot, then whatever its attachments do. Which spell it
+-- tries first is the head's to say, and the maneuvers'.
+--
+--     local rows = predict.Priority({
+--         head = 1, frame = 0x20, maneuvers = { light = 1 },
+--         enfeeble = 'Bio', weaponskill = 'Slapstick',      -- from Queue and Weaponskill: nil where there is none
+--         masterHpp = 82, hpp = 100, mpp = 60, tp = 640,   -- the master's HP, and the automaton's own
+--         since = function(kind) ... end,                   -- seconds since it last did a thing: tracker.Since
+--         attachments = { [33] = true },                    -- those fitted, by the server's number for each
+--     })
+--
+-- Each row is { name, detail, state, wait, ready }: state is 'ready', 'waiting' (on a timer, wait
+-- seconds of it left) or 'idle' (nothing for it to do as things stand), and ready marks the one row
+-- the automaton will act on next. The timers are Phoenix's for this era.
+--
+-- What is not known: whether the enemy is casting, for a shield bash; a Stormwaker's nuke to finish an
+-- enemy nearly dead; which ailments a Soulsoother would remove; and the three seconds between tries.
+
+local cooldowns = { -- by head: between any two spells, and between two of a kind
+    [1] = { magic = 30, heal = 20, enfeeble = 20 },
+    [2] = { magic = 45, heal = 30 },
+    [3] = { magic = 45, heal = 30, enfeeble = 30 },
+    [4] = { magic = 25, heal = 15, enfeeble = 30, elemental = 30 },
+    [5] = { magic = 25, heal = 15, enfeeble = 30, status = 15 },
+    [6] = { magic = 25, enfeeble = 45, elemental = 15 },
+}
+
+local rangedCooldown = { [1] = 25, [3] = 20 } -- by head, on a Sharpshot frame: 36 for any other
+local rangedLeast = { [3] = 5 }               -- and the least it can be brought down to: 10 for any other
+local bashCooldown = 180
+
+local attachmentManaBooster, attachmentDrumMagazine = 33, 69
+local attachmentDamageGauge, attachmentDamageGaugeII = 195, 207
+local attachmentBarrierModule, attachmentBarrierModuleII = 107, 104
+
+local healAt = { [0] = 30, [1] = 40, [2] = 50, [3] = 75 } -- the master's HP it heals at, by Light maneuvers
+local healSelfAt = 50
+
+function predict.Priority(state)
+    local rows = {}
+    if state.head == nil or state.frame == nil then
+        return rows
+    end
+
+    local maneuvers = state.maneuvers or {}
+    local fitted = state.attachments or {}
+    local function up(element)
+        return math.min(maneuvers[element] or 0, 3)
+    end
+    local function left(kind, cooldown)
+        local since = state.since(kind)
+        if since == nil or cooldown == nil then
+            return 0
+        end
+        return math.max(0, cooldown - since)
+    end
+    local function add(name, detail, needed, wait)
+        rows[#rows + 1] = { name = name, detail = detail or '', wait = wait or 0,
+            state = (not needed and 'idle') or ((wait or 0) > 0 and 'waiting') or 'ready' }
+    end
+
+    -- a shield bash, on a Valoredge frame: only when the enemy is doing something it would break
+    if state.frame == 0x21 then
+        local cooldown = bashCooldown
+        if fitted[attachmentBarrierModule] or fitted[attachmentBarrierModuleII] then
+            cooldown = cooldown - 5 * up('earth')
+        end
+        local wait = left('bash', cooldown)
+        add('Shield Bash', 'when the enemy casts', true, wait)
+    end
+
+    -- spells, on the frames that cast
+    local timers = cooldowns[state.head]
+    if castingFrames[state.frame] and timers ~= nil then
+        local magic = timers.magic
+        if fitted[attachmentManaBooster] then
+            magic = magic - 2 * (up('ice') + 1)
+        end
+        local magicLeft = left('magic', magic)
+
+        local healTimer = timers.heal
+        local threshold = healAt[up('light')]
+        if fitted[attachmentDamageGaugeII] then
+            threshold = threshold + 60 + 10 * up('light')
+        elseif fitted[attachmentDamageGauge] then
+            threshold = threshold + 50 + 10 * up('light')
+        end
+        if healTimer and (fitted[attachmentDamageGauge] or fitted[attachmentDamageGaugeII]) then
+            healTimer = healTimer - 3
+        end
+        threshold = math.max(30, math.min(90, threshold))
+
+        local function heal()
+            if healTimer == nil then return end
+            local needed = (state.masterHpp or 100) <= threshold or (state.hpp or 100) <= healSelfAt
+            add('Heal', ('you at %d%%'):format(threshold), needed, math.max(magicLeft, left('heal', healTimer)))
+        end
+        local function enfeeble()
+            if timers.enfeeble == nil then return end
+            add('Enfeeble', state.enfeeble or 'nothing to cast', state.enfeeble ~= nil, math.max(magicLeft, left('enfeeble', timers.enfeeble)))
+        end
+        local function nuke()
+            if timers.elemental == nil then return end
+            add('Nuke', '', (state.mpp or 100) > 0, math.max(magicLeft, left('elemental', timers.elemental)))
+        end
+        local function cleanse()
+            if timers.status == nil then return end
+            add('Status Removal', 'if you have an ailment', true, math.max(magicLeft, left('status', timers.status)))
+        end
+
+        local light, ice = up('light') > 0, up('ice') > 0
+        if state.head == predict.Heads.Valoredge then
+            heal()
+        elseif state.head == predict.Heads.Stormwaker then
+            if light then heal() end
+            if ice then nuke() end
+            enfeeble()
+            if not light then heal() end
+            if not ice then nuke() end
+        elseif state.head == predict.Heads.Soulsoother then
+            if light then heal() end
+            cleanse()
+            if not light then heal() end
+            enfeeble()
+        elseif state.head == predict.Heads.Spiritreaver then
+            if ice then nuke() end
+            enfeeble()
+            if not ice then nuke() end
+        else
+            if light then heal() end
+            enfeeble()
+            if not light then heal() end
+        end
+    end
+
+    -- a weapon skill, with the TP for it
+    if state.weaponskill ~= nil then
+        local tp = state.tp or 0
+        add('Weaponskill', state.weaponskill, tp >= 1000, 0)
+        if tp < 1000 then
+            rows[#rows].detail = ('%s (TP %d)'):format(state.weaponskill, tp)
+        end
+    end
+
+    -- a shot, on a Sharpshot frame
+    if state.frame == frameSharpshot then
+        local cooldown = rangedCooldown[state.head] or 36
+        if fitted[attachmentDrumMagazine] then
+            cooldown = cooldown - 2 * (up('wind') + 1)
+        end
+        cooldown = math.max(cooldown, rangedLeast[state.head] or 10)
+        add('Ranged Attack', '', true, left('ranged', cooldown))
+    end
+
+    -- the first with something to do and nothing to wait for is what comes next. A status removal
+    -- may have nothing to remove and a shield bash nothing to break, so neither is ever called next.
+    for _, row in ipairs(rows) do
+        if row.state == 'ready' and row.name ~= 'Status Removal' and row.name ~= 'Shield Bash' then
+            row.ready = true
+            break
+        end
+    end
+    return rows
+end
+
 return predict

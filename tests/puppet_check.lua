@@ -3,7 +3,8 @@
 local debuffs = require('winxi.debuffs')
 local imgui = require('imgui')
 local o = H.options()
-H.print('Always Show starts on', o.alwaysShow[1], '| debug information off', o.showDebug[1] == false); o.alwaysShow[1] = false
+H.print('Always Show starts on', o.alwaysShow[1], '| the priority list on', o.showPriority[1], '| debug information off', o.showDebug[1] == false)
+o.alwaysShow[1] = false; o.showPriority[1] = false -- each is looked at by itself further down
 H.print('settings: visible', o.isVisible[1])
 
 -- what the window says: every line of text drawn in a frame
@@ -24,7 +25,7 @@ local function atOnce()
 end
 
 -- the game: a puppetmaster (entity 1) with an automaton (2), and two enemies (7 and 8)
-local game = { job = 18, buffs = {}, petMpp = 100 }
+local game = { job = 18, buffs = {}, petMpp = 100, petTp = 0, hp = 100 }
 local entities = {
     [1] = { ServerId = 1, PetTargetIndex = 2, SpawnFlags = 0x01 },
     [2] = { ServerId = 2, TargetedIndex = 0, HPPercent = 100, SpawnFlags = 0x100 },
@@ -34,8 +35,9 @@ local entities = {
 function GetEntity(index) return entities[index] end
 local memory = {
     GetPlayer = function() return { GetMainJob = function() return game.job end, GetLoginStatus = function() return 2 end,
-        GetBuffs = function() return game.buffs end, GetPetMPPercent = function() return game.petMpp end } end,
-    GetParty = function() return { GetMemberTargetIndex = function() return 1 end, GetMemberName = function() return 'Tester' end, GetMemberServerId = function() return 1 end } end,
+        GetBuffs = function() return game.buffs end, GetPetMPPercent = function() return game.petMpp end, GetPetTP = function() return game.petTp end } end,
+    GetParty = function() return { GetMemberTargetIndex = function() return 1 end, GetMemberName = function() return 'Tester' end, GetMemberServerId = function() return 1 end,
+        GetMemberHPPercent = function() return game.hp end } end,
 }
 local core = AshitaCore
 AshitaCore = setmetatable({ GetMemoryManager = function() return memory end }, { __index = core })
@@ -110,6 +112,27 @@ o.alwaysShow[1] = true; entities[1].PetTargetIndex = 0; fight(0); H.print('Alway
 o.showDebug[1] = true; H.print('with the debug information:', shown()); o.showDebug[1] = false
 entities[1].PetTargetIndex = 2; cast(230, 900); game.buffs = { 306 }; H.print('the automaton out and idle: what it would open with, whatever was on the last enemy:', shown()); game.buffs = {}; entities[1].PetTargetIndex = 0
 o.isVisible[1] = false; H.print('Always Show, but not Visible: nothing drawn', shown() == ''); o.isVisible[1] = true; o.alwaysShow[1] = false
+-- the priority list: what the automaton might do, in its order, and how each stands
+local tracker = require('tracker')
+local function did(category, param, spell) tracker.Action({ actor_id = 2, category = category, param = param, targets = { { id = 900, actions = { { param = spell or 0 } } } } }, 2) end
+local function list() return (shown():gsub('%(Next Enfeeble:%).-%(Next Weaponskill:%) %a+ ?%a* ?', '', 1)) end
+o.showPriority[1] = true; entities[1].PetTargetIndex = 2; H.frames(2); fight(900); now = now + 400
+describe(1, 0x20, 120); H.print('Harlequin, fresh:', list())
+did(8, 24931, 231); cast(231, 900); H.print('it casts Bio II:', list())
+H.frames(400); H.print('twelve seconds on:', list())
+game.hp = 25; H.print('the master at 25%:', list())
+H.frames(700); H.print('the timers run out:', list()); game.hp = 100
+game.buffs = { 306 }; game.hp = 35; H.print('Light, the master at 35%: heal comes first:', list()); game.buffs = {}; game.hp = 100
+game.petTp = 1200; H.print('TP ready, a spell ready too:', list())
+did(8, 24931, 220); H.print('the spell just cast: the weapon skill is next:', list()); game.petTp = 300
+did(8, 28787, 0); did(8, 24931, 1); tracker.Action({ actor_id = 77, category = 8, param = 24931, targets = { { id = 900, actions = { { param = 23 } } } } }, 2)
+H.print('a casting broken off, and someone else\'s, change nothing; a cure starts the heal timer:', list())
+tracker.Clear(); describe(3, 0x22, 200); H.print('Sharpshot frame:', list()); did(11, 1949); H.print('it shoots:', list())
+describe(2, 0x21, 200); H.print('Valoredge frame:', list()); did(11, 1944); H.print('it bashes:', list())
+describe(4, 0x23, 120); game.buffs = { 301 }; tracker.Clear(); H.print('Stormwaker, Ice:', list()); game.buffs = {}
+describe(5, 0x23, 120); H.print('Soulsoother:', list())
+describe(6, 0x23, 120); H.print('Spiritreaver, no Dark:', list())
+describe(1, 0x20, 120); o.showPriority[1] = false; entities[1].PetTargetIndex = 0; fight(0); tracker.Clear(); shown()
 H.print('/puppet config kept from the game', H.command('/puppet config')); H.frames(1)
 H.command('/puppet'); H.print('/puppet hides it', o.isVisible[1] == false, '| and says so:', H.printed[#H.printed])
 H.command('/puppet'); H.print('and shows it again:', H.printed[#H.printed])

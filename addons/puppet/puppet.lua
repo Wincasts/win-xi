@@ -4,8 +4,8 @@ addon.version = '1.0'
 addon.desc    = 'The enfeebling spells and the weapon skill an automaton will use next, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 
--- A small window for a puppetmaster: the next three spells the automaton will enfeeble with, and the
--- weapon skill it will use. The choosing is predict.lua's, which follows the server's; this gathers
+-- A small window for a puppetmaster: the next three spells the automaton will enfeeble with, the
+-- weapon skill it will use, and the order of everything it might do next with how each stands. The choosing is predict.lua's, which follows the server's; this gathers
 -- what it needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the
 -- target) and shows the answer.
 --
@@ -18,7 +18,9 @@ local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local shell = require('winxi.shell')
 local debuffs = require('winxi.debuffs')
+local packets = require('winxi.packets')
 local predict = require('predict')
+local tracker = require('tracker')
 
 local windowName = 'winxi.puppet'
 
@@ -45,8 +47,9 @@ local app -- made below, once the settings can be drawn
 -- The automaton as the server last described it: its head and frame, and its skills. The server does
 -- so on a change of area or job and when a part is changed, and not when the addon is loaded, so what
 -- it said is kept in the settings to start from the next time.
-local automaton = { head = nil, frame = nil, magic = nil, melee = nil, ranged = nil }
+local automaton = { head = nil, frame = nil, magic = nil, melee = nil, ranged = nil, attachments = { } }
 local automatonKeys = { 'head', 'frame', 'melee', 'ranged', 'magic' }
+local attachmentSlots = 12
 
 local function ReadAutomaton(e)
     if struct.unpack('B', e.data, 0x04 + 1) ~= jobPup then
@@ -58,8 +61,20 @@ local function ReadAutomaton(e)
     automaton.ranged = struct.unpack('H', e.data, 0x74 + 1)
     automaton.magic = struct.unpack('H', e.data, 0x78 + 1)
 
+    -- the attachments fitted, by the server's number for each; kept as a list
+    automaton.attachments = { }
+    local fitted = T{ }
+    for slot = 0, attachmentSlots - 1 do
+        local attachment = struct.unpack('B', e.data, 0x0A + slot + 1)
+        if attachment ~= 0 then
+            automaton.attachments[attachment] = true
+            fitted[#fitted + 1] = attachment
+        end
+    end
+
     local kept = app.options.automaton
-    local changed = false
+    local changed = table.concat(fitted, ',') ~= table.concat(type(kept.attachments) == 'table' and kept.attachments or { }, ',')
+    kept.attachments = fitted
     for _, key in ipairs(automatonKeys) do
         if kept[key] ~= automaton[key] then
             kept[key] = automaton[key]
@@ -129,8 +144,9 @@ local function GetTarget(pet)
 end
 
 -- What the window shows: the spells in order and the weapon skill, either nil when there is none to
--- name. It is left as it was once the fight is over, for the window to fade out with.
-local showing = { enfeebles = nil, weaponskill = nil }
+-- name, and the rows of the priority list. It is left as it was once the fight is over, for the window
+-- to fade out with.
+local showing = { enfeebles = nil, weaponskill = nil, priority = { } }
 
 local function Work(pet, id)
     local maneuvers = CountManeuvers()
@@ -157,6 +173,45 @@ local function Work(pet, id)
         ranged = automaton.ranged,
         maneuvers = maneuvers,
     })
+
+    local memory = AshitaCore:GetMemoryManager()
+    showing.priority = predict.Priority({
+        head = automaton.head,
+        frame = automaton.frame,
+        maneuvers = maneuvers,
+        enfeeble = queue[1],
+        weaponskill = showing.weaponskill,
+        masterHpp = memory:GetParty():GetMemberHPPercent(0),
+        hpp = pet.HPPercent,
+        mpp = memory:GetPlayer():GetPetMPPercent(),
+        tp = memory:GetPlayer():GetPetTP(),
+        since = tracker.Since,
+        attachments = automaton.attachments,
+    })
+end
+
+-- The priority list: everything the automaton might do, in the order it tries them, and how each
+-- stands. The one it will do next is marked and in full colour; the rest are dimmed.
+local function DrawPriority()
+    if #showing.priority == 0 or not imgui.BeginTable('##puppet.priority', 3) then
+        return
+    end
+    for _, row in ipairs(showing.priority) do
+        local text = row.ready and imgui.Text or imgui.TextDisabled
+        local state = 'Ready'
+        if row.state == 'waiting' then
+            state = ('%ds'):format(math.ceil(row.wait))
+        elseif row.state == 'idle' then
+            state = '-'
+        elseif row.ready then
+            state = 'Next'
+        end
+        imgui.TableNextRow()
+        imgui.TableNextColumn(); text((row.ready and '> ' or '  ') .. row.name)
+        imgui.TableNextColumn(); text(row.detail)
+        imgui.TableNextColumn(); text(state)
+    end
+    imgui.EndTable()
 end
 
 local function DrawLine(label, value)
@@ -192,6 +247,9 @@ local function DrawWindow(options)
     if showing.enfeebles == nil and showing.weaponskill == nil then
         imgui.TextDisabled('Nothing to show.')
     end
+    if options.showPriority[1] then
+        DrawPriority()
+    end
     if options.showDebug[1] then
         DrawKnown()
     end
@@ -202,6 +260,7 @@ local defaults = T{
     pos = T{ 100, 100 },
     automaton = T{ }, -- the automaton as last described: see ReadAutomaton
     alwaysShow = T{ true }, -- the window whether the automaton is fighting or not
+    showPriority = T{ true }, -- everything the automaton might do next, in its order, and how each stands
     showDebug = T{ false }, -- under it, what the addon knows: for finding out what is wrong
 }
 
@@ -221,6 +280,11 @@ local function DrawSettings(options)
     imgui.Checkbox('##puppet.alwaysShow', options.alwaysShow)
     if imgui.IsItemHovered() then
         imgui.SetTooltip('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.')
+    end
+    widgets.Label('Show Priority List')
+    imgui.Checkbox('##puppet.showPriority', options.showPriority)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Everything the automaton might do next, in the order it tries them: shield bash, its spells, weapon skill, ranged attack.\nEach shows what it is waiting on: Ready, the seconds left of a timer, or - when there is nothing for it to do. The one marked > comes next.\nA timer is only known once the automaton has been seen to act.')
     end
     widgets.Label('Show Debug Information')
     imgui.Checkbox('##puppet.showDebug', options.showDebug)
@@ -252,6 +316,16 @@ app = shell.New({
         if type(options.showDebug) ~= 'table' then
             options.showDebug = T{ false }
         end
+        if type(options.showPriority) ~= 'table' then
+            options.showPriority = T{ true }
+        end
+        automaton.attachments = { }
+        if type(options.automaton.attachments) == 'table' then
+            for _, attachment in ipairs(options.automaton.attachments) do
+                automaton.attachments[attachment] = true
+            end
+        end
+        tracker.Clear()
         for _, key in ipairs(automatonKeys) do
             automaton[key] = type(options.automaton[key]) == 'number' and options.automaton[key] or nil
         end
@@ -259,7 +333,18 @@ app = shell.New({
     end,
 })
 
+-- The automaton's id, as last seen: its timers are another automaton's no longer
+local petId = nil
+
 ashita.events.register('packet_in', 'puppet_packet_in', function(e)
+    -- an action is parsed once, for the debuffs it leaves and for what the automaton did
+    if e.id == packets.inbound.action.id then
+        local action = packets.inbound.action.parse(e.data_raw)
+        debuffs.Action(action)
+        tracker.Action(action, petId)
+        return
+    end
+
     debuffs.HandlePacket(e)
     if e.id == extendedJobPacket then
         ReadAutomaton(e)
@@ -267,6 +352,7 @@ ashita.events.register('packet_in', 'puppet_packet_in', function(e)
         ReadPetSync(e)
     elseif e.id == zonePacket then
         fighting = 0
+        tracker.Clear()
     end
 end)
 
@@ -282,6 +368,11 @@ ashita.events.register('d3d_present', 'puppet_present', function()
     -- it; otherwise it fades out, showing what it last did
     local options = app.options
     local pet = GetAutomaton()
+    local id = pet ~= nil and pet.ServerId or nil
+    if id ~= petId then
+        petId = id
+        tracker.Clear()
+    end
     local target = GetTarget(pet)
     -- outside a fight, with the window always shown, it says what the automaton would open with
     if target ~= nil or (pet ~= nil and options.alwaysShow[1]) then
