@@ -72,16 +72,7 @@ function GetPlayerEntity() return playing and {} or nil end
 ashita = { interface_version = 4,
     events = { register = function(e, _, f) handlers[e] = handlers[e] or {}; table.insert(handlers[e], f) end },
     memory = { find = function() return 0 end, read_uint32 = function() return 0 end, read_uint8 = function() return 0 end },
-    fs = { exists = function(path)
-            -- a file of the addon's own is there if it is in the project; anything else is taken to be
-            local own = type(path) == 'string' and path:sub(1, #addon.path) == addon.path and path:sub(#addon.path + 1):gsub('\\', '/')
-            if own then
-                local found = io.open(('%saddons/%s/%s'):format(root, addonName, own), 'rb')
-                if found then found:close() end
-                return found ~= nil
-            end
-            return true
-        end, create_directory = function() end, get_directory = function() return {} end },
+    fs = { exists = function() return true end, create_directory = function() end, get_directory = function() return {} end },
     time = { qpf = function() return { q = 1 } end, qpc = function() return { q = 0 } end }, tasks = { once = function() end },
     misc = { play_sound = function(p) sounds[#sounds + 1] = p:match('([^\\]+)%.wav') end } }
 local inventory = { GetContainerItem = function() return nil end, GetContainerCountMax = function() return 0 end,
