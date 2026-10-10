@@ -206,6 +206,7 @@ H.tab(1)
 local imgui, listed = require('imgui'), {}
 ashita.fs.get_directory = function() return { 'zebra.wav', 'tone-tell2.wav', 'voice-ko.wav', 'tell.wav', 'voice-tell.wav', 'tone-ko2.wav' } end
 rawset(imgui, 'Selectable', function(label) listed[#listed + 1] = label return false end); rawset(imgui, 'Separator', function() listed[#listed + 1] = '|' end)
+H.frames(110) -- long enough for the files to be looked for again
 H.ret.BeginCombo = { true }; H.frames(1); H.ret.BeginCombo = { false }; rawset(imgui, 'Selectable', nil); rawset(imgui, 'Separator', nil)
 H.print('the first event\'s sounds:', table.concat(listed, ' ', 1, 7))
 H.command('/twister'); begun = H.calls.Begin; H.frames(2); H.print('/twister closes them', H.calls.Begin == begun)
