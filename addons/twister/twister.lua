@@ -30,29 +30,29 @@ local game = require('winxi.game')
 
 -- The events, in the order the settings list them. file is the sound an event starts with: its spoken one.
 local events = {
-    { key = 'tell', group = 'Chat', label = 'Tell Received', file = 'voice-tell.wav',
+    { key = 'tell', group = 'Chat', label = 'Tell Received', file = 'voicef-tell.wav',
       tooltip = 'Someone sends you a tell.' },
-    { key = 'mention', group = 'Chat', label = 'Name Mentioned', file = 'voice-mention.wav',
+    { key = 'mention', group = 'Chat', label = 'Name Mentioned', file = 'voicef-mention.wav',
       tooltip = 'Someone else says your character\'s name in party or linkshell chat.' },
-    { key = 'invite', group = 'Chat', label = 'Party Invite', file = 'voice-invite.wav',
+    { key = 'invite', group = 'Chat', label = 'Party Invite', file = 'voicef-invite.wav',
       tooltip = 'You are invited to a party or an alliance.' },
-    { key = 'trade', group = 'Chat', label = 'Trade Request', file = 'voice-trade.wav',
+    { key = 'trade', group = 'Chat', label = 'Trade Request', file = 'voicef-trade.wav',
       tooltip = 'Someone asks to trade with you.' },
-    { key = 'examine', group = 'Chat', label = 'Examined', file = 'voice-examine.wav',
+    { key = 'examine', group = 'Chat', label = 'Examined', file = 'voicef-examine.wav',
       tooltip = 'Someone examines you.' },
-    { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'voice-tp.wav',
+    { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'voicef-tp.wav',
       tooltip = 'Your TP reaches 1000.' },
-    { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'voice-lowhp.wav', threshold = 'lowHpPercent', thresholdLabel = 'HP Threshold',
+    { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'voicef-lowhp.wav', threshold = 'lowHpPercent', thresholdLabel = 'HP Threshold',
       thresholdTooltip = 'How low your HP has to fall for this to sound: to this percentage, or under it.',
       tooltip = 'Your HP falls to the percentage below, or under it. It sounds once, and not again until your HP has been back over that.' },
-    { key = 'lowmp', group = 'Combat', label = 'Low MP', file = 'voice-lowmp.wav', threshold = 'lowMpPercent', thresholdLabel = 'MP Threshold',
+    { key = 'lowmp', group = 'Combat', label = 'Low MP', file = 'voicef-lowmp.wav', threshold = 'lowMpPercent', thresholdLabel = 'MP Threshold',
       thresholdTooltip = 'How low your MP has to fall for this to sound: to this percentage, or under it.',
       tooltip = 'Your MP falls to the percentage below, or under it. It sounds once, and not again until your MP has been back over that.\nNothing sounds on a job with no MP.' },
-    { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'voice-ko.wav',
+    { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'voicef-ko.wav',
       tooltip = 'Someone else in your party is knocked out, in the area you are in.' },
-    { key = 'skillup', group = 'Other', label = 'Skill Up', file = 'voice-skillup.wav',
+    { key = 'skillup', group = 'Other', label = 'Skill Up', file = 'voicef-skillup.wav',
       tooltip = 'One of your skills rises, or reaches a new level: a combat or magic skill, or a craft.' },
-    { key = 'drop', group = 'Other', label = 'Item Drop', file = 'voice-drop.wav', items = 'dropItems',
+    { key = 'drop', group = 'Other', label = 'Item Drop', file = 'voicef-drop.wav', items = 'dropItems',
       tooltip = 'One of the items named below drops: it lands in the treasure pool, yours alone or the party\'s.' },
 }
 
@@ -638,7 +638,7 @@ local function Sorted(key)
     local lists = sorted[key]
     if lists == nil then
         lists = { own = { }, rest = { } }
-        local own = { ['voice-' .. key .. '.wav'] = 1, [key .. '.wav'] = 2, ['tone-' .. key .. '2.wav'] = 3 }
+        local own = { ['voicef-' .. key .. '.wav'] = 1, [key .. '.wav'] = 2, ['tone-' .. key .. '2.wav'] = 3 }
         for _, file in ipairs(all) do
             local list = own[file] and lists.own or lists.rest
             list[#list + 1] = file
@@ -762,7 +762,7 @@ end
 -- Settings: the Triggers tab
 ---------------------------------------------------------------------------------------------------
 
-local triggerSound = 'voice-trigger.wav' -- what a trigger starts with
+local triggerSound = 'voicef-trigger.wav' -- what a trigger starts with
 
 -- The trigger being made
 local making = { mob = nil, action = nil, sound = triggerSound }
@@ -975,6 +975,11 @@ local function IsTrigger(trigger)
         and type(trigger.mob) == 'string' and kindLabels[trigger.kind] ~= nil
 end
 
+-- A sound chosen when the spoken ones were named voice-: they are voicef- now
+local function Renamed(sound)
+    return (sound:gsub('^voice%-', 'voicef-'))
+end
+
 -- Whatever saved settings lack, or have as the wrong kind of thing
 local function Complete(options)
     if type(options.events) ~= 'table' then options.events = T{ } end
@@ -986,6 +991,7 @@ local function Complete(options)
         end
         if type(chosen.enabled) ~= 'table' then chosen.enabled = T{ true } end
         if type(chosen.sound) ~= 'string' or chosen.sound == '' then chosen.sound = event.file end
+        chosen.sound = Renamed(chosen.sound)
         if event.threshold ~= nil and (type(options[event.threshold]) ~= 'table' or type(options[event.threshold][1]) ~= 'number') then
             options[event.threshold] = T{ defaults[event.threshold][1] }
         end
@@ -1000,6 +1006,7 @@ local function Complete(options)
         if IsTrigger(trigger) then
             if type(trigger.enabled) ~= 'table' then trigger.enabled = T{ true } end
             if type(trigger.sound) ~= 'string' or trigger.sound == '' then trigger.sound = triggerSound end
+            trigger.sound = Renamed(trigger.sound)
             -- one made when a trigger was for a single number
             if type(trigger.ids) ~= 'table' then trigger.ids = T{ trigger.id } end
             trigger.id = nil

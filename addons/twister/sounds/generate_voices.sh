@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Makes the spoken sounds that come with twister, voice-<event>.wav, one for each event, and one for
+# Makes the spoken sounds that come with twister, voicef-<event>.wav, one for each event, and one for
 # triggers to start with.
 #
 # They are spoken by Piper (https://github.com/OHF-Voice/piper1-gpl), a text-to-speech program, with
@@ -25,7 +25,7 @@ say() {
     echo "$2" | "$PIPER" -m "$VOICE" -f "$raw/$1.wav" >/dev/null 2>&1
     ffmpeg -hide_banner -loglevel error -y -i "$raw/$1.wav" -af \
         "silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,loudnorm=I=-16:TP=-1.5:LRA=7,afade=t=in:d=0.005" \
-        -ar 22050 -ac 1 -c:a pcm_s16le "$here/voice-$1.wav"
+        -ar 22050 -ac 1 -c:a pcm_s16le "$here/voicef-$1.wav"
 }
 
 say tell       "Tell."

@@ -72,7 +72,7 @@ function GetEntity(index) return entities[index] end
 H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print('a weaponskill, no triggers: silence', heard() == '')
 -- a trigger is for a kind of mob, wherever it is: which kind a mob is, is read from mobs.lua for the area, once
 local reads = 0; local mapped = loadfile; loadfile = function(path) if path:find('mobs%.lua') then reads = reads + 1 end return mapped(path) end
-o.triggers[1] = { mob = 'Bat', kind = 'skill', ids = { 392, 1700 }, name = 'Ultrasonics', sound = 'voice-trigger.wav', enabled = { true } }
+o.triggers[1] = { mob = 'Bat', kind = 'skill', ids = { 392, 1700 }, name = 'Ultrasonics', sound = 'voicef-trigger.wav', enabled = { true } }
 o.triggers[2] = { mob = 'Elemental', kind = 'spell', ids = { 154 }, name = 'Aero', sound = 'trigger.wav', enabled = { true } }
 H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print('the mob readies the weaponskill:', heard())
 H.packetData(0x028, action(0x1066123, 7, 392, 0)); H.print('and one with no message:', heard())
@@ -102,7 +102,9 @@ members[0].zone = 5; H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print
 -- triggers as they were first made, for an area: for one mob of it, and then for a kind there
 o.triggers[4] = { zone = 107, mob = 'Rock Lizard', kind = 'skill', id = 366, sound = 'tp.wav', enabled = { true } }
 o.triggers[5] = { zone = 107, mob = 'Quadav', mobs = { 'amber quadav' }, kind = 'spell', id = 1, name = 'Cure', sound = 'tp.wav', enabled = { true } }
+o.events.tell.sound = 'voice-tell.wav'; o.triggers[1].sound = 'voice-trigger.wav'
 H.resettle(); o = H.options()
+H.print('a sound chosen under its old name: its new one', o.events.tell.sound, o.triggers[1].sound)
 H.print('made for one mob of an area: now for its kind, anywhere', o.triggers[4].mob, o.triggers[4].zone == nil, '| made for a kind there: for the kind', o.triggers[5].mob, o.triggers[5].mobs == nil, '| and for one number: kept as its numbers', o.triggers[4].ids[1], o.triggers[4].id == nil)
 table.remove(o.triggers); table.remove(o.triggers); H.frames(2)
 
@@ -204,7 +206,7 @@ H.tab(1)
 
 -- an event's list of sounds: the ones made for it first (its voice, its tone, its second tone), then a line, then the rest
 local imgui, listed = require('imgui'), {}
-ashita.fs.get_directory = function() return { 'zebra.wav', 'tone-tell2.wav', 'voice-ko.wav', 'tell.wav', 'voice-tell.wav', 'tone-ko2.wav' } end
+ashita.fs.get_directory = function() return { 'zebra.wav', 'tone-tell2.wav', 'voicef-ko.wav', 'tell.wav', 'voicef-tell.wav', 'tone-ko2.wav' } end
 rawset(imgui, 'Selectable', function(label) listed[#listed + 1] = label return false end); rawset(imgui, 'Separator', function() listed[#listed + 1] = '|' end)
 H.frames(110) -- long enough for the files to be looked for again
 H.ret.BeginCombo = { true }; H.frames(1); H.ret.BeginCombo = { false }; rawset(imgui, 'Selectable', nil); rawset(imgui, 'Separator', nil)
