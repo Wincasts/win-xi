@@ -37,10 +37,10 @@ local events = {
       tooltip = 'Someone examines you.' },
     { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'tp.wav',
       tooltip = 'Your TP reaches 1000.' },
-    { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'lowhp.wav', threshold = 'lowHpPercent', thresholdLabel = 'HP Threshold (%)',
+    { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'lowhp.wav', threshold = 'lowHpPercent', thresholdLabel = 'HP Threshold',
       thresholdTooltip = 'How low your HP has to fall for this to sound: to this percentage, or under it.',
       tooltip = 'Your HP falls to the percentage below, or under it. It sounds once, and not again until your HP has been back over that.' },
-    { key = 'lowmp', group = 'Combat', label = 'Low MP', file = 'lowmp.wav', threshold = 'lowMpPercent', thresholdLabel = 'MP Threshold (%)',
+    { key = 'lowmp', group = 'Combat', label = 'Low MP', file = 'lowmp.wav', threshold = 'lowMpPercent', thresholdLabel = 'MP Threshold',
       thresholdTooltip = 'How low your MP has to fall for this to sound: to this percentage, or under it.',
       tooltip = 'Your MP falls to the percentage below, or under it. It sounds once, and not again until your MP has been back over that.\nNothing sounds on a job with no MP.' },
     { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'ko.wav',
@@ -455,6 +455,11 @@ local function Mark(text)
     end
 end
 
+-- The width of a control under an event's line that ends where that line does
+local function ToLineEnd()
+    return math.max(lineEnd - imgui.GetCursorPosX(), 100)
+end
+
 local function DrawEvent(options, event)
     local chosen = options.events[event.key]
     local id = ids[event.key]
@@ -491,16 +496,15 @@ local function DrawEvent(options, event)
     -- the threshold only while the event is switched on: off, there is nothing for it to set
     if event.threshold ~= nil and chosen.enabled[1] then
         widgets.Label(event.thresholdLabel)
-        imgui.SetNextItemWidth(170)
+        imgui.SetNextItemWidth(ToLineEnd())
         imgui.SliderInt(id.threshold, options[event.threshold], 5, 90, '%d%%')
         Mark(event.thresholdTooltip)
     end
 
     -- and so the names of the items listened for
     if event.items ~= nil and chosen.enabled[1] then
-        -- as long as the event's line over it
         widgets.Label('Items')
-        imgui.SetNextItemWidth(math.max(lineEnd - imgui.GetCursorPosX(), 100))
+        imgui.SetNextItemWidth(ToLineEnd())
         imgui.InputText(id.items, options[event.items], 1024)
         if imgui.IsItemDeactivatedAfterEdit() then
             app:Save()
