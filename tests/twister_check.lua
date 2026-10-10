@@ -181,6 +181,8 @@ local lines = H.calls.NewLine or 0; H.frames(1)
 H.print('a blank line over each group but the first', (H.calls.NewLine or 0) - lines == 2)
 H.print('the items named can be written', (H.calls.InputText or 0) > 0)
 H.print('a mark for each event\'s description', (H.calls.TextDisabled or 0) > 0)
+H.ret.IsItemHovered = { true }; local tips = H.calls.BeginTooltip or 0; H.frames(1); H.ret.IsItemHovered = { false }
+H.print('hovered, a mark says its piece in a box no wider than a line', (H.calls.BeginTooltip or 0) > tips, H.calls.PushTextWrapPos == H.calls.PopTextWrapPos, H.calls.BeginTooltip == H.calls.EndTooltip)
 local sliders = H.calls.SliderInt
 o.events.lowhp.enabled[1] = false; H.frames(1); H.print('Low HP off: its threshold not drawn', H.calls.SliderInt - sliders == 1)
 sliders = H.calls.SliderInt
