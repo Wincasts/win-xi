@@ -13,7 +13,8 @@ is for its mobs everywhere. What a kind can do is then more than any one of its 
 What only a kind's notorious monsters do is kept apart from what its other mobs do, with the name,
 area and level of the monster that does it, so that a beetle is not said to cast what one notorious
 beetle casts. A monster that is in two areas is two monsters. What they do is one of the lists, which
-many share.
+many share. A notorious monster is one the server marks, or one with a name of its own; the mobs of
+Dynamis, which the server's Dynamis module marks one and all, are taken as they were before it.
 
 It is read from a checkout of the server (Phoenix, which keeps its mobs in data/zones/<zone>/mobs.yaml),
 by way of the reading MobDB's importer already does, so that addon's folder has to be beside this one:
@@ -168,6 +169,12 @@ class Mobs(mobdb.Generator):
         document = self.load_zone(zone)
         templates = document.get('templates') or {}
         here = {}  # kind -> the names of its mobs in this area
+        # In Dynamis the server's own module marks every mob notorious, the rank and file with the
+        # rest, which they are not for this: there, a mob is taken as the server's data had it
+        # before the module, where only the monsters with names are marked.
+        unmarked = None
+        if zone.startswith('dynamis'):
+            unmarked = mobdb.load_yaml(os.path.join(self.server, 'data', 'zones', zone, 'mobs.yaml')).get('templates') or {}
         for _, spawn in sorted((document.get('spawns') or {}).items()):
             spawn = spawn or {}
             template = templates.get(spawn.get('template'))
@@ -189,7 +196,8 @@ class Mobs(mobdb.Generator):
             attributes = mobdb.overlay(attributes, spawn.get('attributes') or {})
             named = int((attributes.get('render') or {}).get('name_prefix') or 0) & 32
             known = self.kinds.setdefault(kind, {'spells': set(), 'moves': set(), 'notorious': {}})
-            if named or 'notorious' in (template.get('type') or []):
+            marked = template if unmarked is None else unmarked.get(spawn.get('template')) or {}
+            if named or 'notorious' in (marked.get('type') or []):
                 # one in two areas is two monsters: they are not of a level, and need not do the same things
                 known = known['notorious'].setdefault((name, zone_id), {'spells': set(), 'moves': set(), 'levels': set()})
                 known['levels'].update(level for level in (low, high) if level)
