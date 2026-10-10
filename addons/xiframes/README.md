@@ -23,8 +23,6 @@ own. Organize, at the foot of the window, fills the frames with sample data to d
 | `party.lua`, `pets.lua`, `target.lua` | read the game, and hand back lists of lines |
 | `frames.lua` | draws a list of lines: the bars, names and values |
 | `notices.lua` | invitations and treasure waiting, and their icons |
-| `assets/status` | status icons made for xiframes: `<status>.png` there is shown in place of the game's icon for that status. `redraw.py` makes them from the game's own soft icons (the same shapes, in flatter, stronger colours with hard edges and a dark line round each), and `generate.py` draws Dia, as a shine |
-| `sharpen.lua` | makes the status icons firmer, once each as it is first shown: the game's own are sharpened (they are soft beside the ones an icon set such as XiView has redrawn), and every icon is given a dark line round its edge |
 | `debuffs.lua` | the row of letters for what is on an enemy, which `winxi.debuffs` keeps count of |
 | `windows.lua` | the windows the lists are drawn in: themed, arranged, fading, held by a corner |
 | `options.lua` | the settings, each an entry in a list: defaults and the settings tabs come from it |
