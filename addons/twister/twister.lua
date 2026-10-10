@@ -51,7 +51,7 @@ local events = {
     { key = 'skillup', group = 'Other', label = 'Skill Up', file = 'voicef-skillup.wav',
       tooltip = 'One of your skills rises.' },
     { key = 'drop', group = 'Other', label = 'Item Drop', file = 'voicef-drop.wav', items = 'dropItems',
-      tooltip = 'An item named below lands in the treasure pool or your inventory.' },
+      tooltip = 'An item named below lands in the treasure pool.' },
 }
 
 local defaults = T{
