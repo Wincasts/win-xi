@@ -21,7 +21,7 @@ window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF9597B3
 window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
@@ -55,7 +55,7 @@ window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9CB3
 window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #8C8C8CFF
@@ -274,7 +274,7 @@ window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF9597B3
 window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
@@ -308,7 +308,7 @@ window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9CB3
 window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #8C8C8CFF
@@ -770,7 +770,7 @@ window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF9597B3
 window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
@@ -804,7 +804,7 @@ window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9CB3
 window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #8C8C8CFF
@@ -1028,7 +1028,7 @@ window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF9597B3
 window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
@@ -1062,7 +1062,7 @@ window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9CB3
 window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #8C8C8CFF
@@ -1668,7 +1668,7 @@ window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF9597B3
 window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
@@ -1702,7 +1702,7 @@ window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9CB3
 window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #8C8C8CFF
@@ -1928,7 +1928,7 @@ window AddImage hp_fill.png (32.8,29.6) (145.41,46.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,67.6) (107.46,84.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,105.6) (86.66,122.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,144.6) (59.73,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF959780
+window AddImage hp_fill.png (32.8,182.6) (155.2,199.4) (0,0) (1,1) #FF9597B3
 window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
@@ -1962,7 +1962,7 @@ window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,41.6) (151.84,56) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,79.6) (120.76,94) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9C80
+window AddImage mp_fill.png (80.8,194.6) (169.6,209) (0,0) (1,1) #FFFF9CB3
 window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #8C8C8CFF
