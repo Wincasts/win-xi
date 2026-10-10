@@ -479,9 +479,6 @@ local function DrawEvent(options, event)
         end
         imgui.EndCombo()
     end
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The sound played: any wav file in the addon\'s sounds folder. Put your own there to use them.')
-    end
 
     imgui.SameLine()
     if imgui.Button(id.test) and not PlayFile(chosen.sound) then
