@@ -11,8 +11,8 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /chime test      plays every event's sound in turn, to hear them
 --
 -- Beside the events there are triggers, which are experimental: a sound of your choosing when a mob
--- of your choosing begins a spell or a weaponskill of your choosing. They are made in the settings'
--- Triggers tab, from what the files in the mobs folder say each area's mobs can do.
+-- of your choosing begins a spell or a weaponskill of your choosing, or uses an ability. They are made
+-- in the settings' Triggers tab, from what mobs.lua says each area's mobs can do.
 --
 -- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure, actions) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
@@ -277,39 +277,51 @@ local function OnTreasure(data)
 end
 
 ---------------------------------------------------------------------------------------------------
--- Triggers: a mob begins a spell or a weaponskill
+-- Triggers: a mob begins a spell or a weaponskill, or uses an ability
 ---------------------------------------------------------------------------------------------------
 
--- What is known of an area's mobs, from the file of the mobs folder named for the area's number: each
--- mob by name, with the numbers of the spells it casts and the weaponskills it readies. Read when
--- first asked for. Nothing is known of an area with no file.
-local zoneMobs = { } -- area -> { mobs = name -> { spells, skills }, names = the names in order }, or false
+-- What is known of each area's mobs is in mobs.lua, which generate_mobs.py makes and says the layout
+-- of: an area is one string, of its mobs' names with the places of a list of spells and a list of moves
+-- (weaponskills, and abilities, which are marked a). It is only wanted to make a trigger with, so it is
+-- read when the Triggers tab first asks, taken apart an area at a time, and let go of when the settings
+-- are closed. A trigger keeps what it needs of it.
+local mobData = nil   -- mobs.lua as it is, or false if it cannot be read
+local zoneMobs = nil  -- the one area taken apart: { zone, mobs = name -> { spells, moves }, names = in order }
 
-local function Load(file)
-    local chunk = loadfile(('%smobs/%s.lua'):format(addon.path, file))
-    if chunk == nil then
-        return nil
+local function MobData()
+    if mobData == nil then
+        mobData = false
+        local chunk = loadfile(addon.path .. 'mobs.lua')
+        if chunk ~= nil then
+            local ok, found = pcall(chunk)
+            if ok and type(found) == 'table' and type(found.zones) == 'table' then
+                mobData = found
+            end
+        end
     end
-    local ok, found = pcall(chunk)
-    return ok and type(found) == 'table' and found or nil
+    return mobData or nil
 end
 
+local function ForgetMobData()
+    mobData, zoneMobs = nil, nil
+end
+
+-- The area's mobs, or nil if nothing is known of it
 local function ZoneMobs(zone)
-    local known = zoneMobs[zone]
-    if known == nil then
-        known = false
-        local mobs = Load(('%d'):format(zone))
-        if mobs ~= nil then
-            local names = { }
-            for name in pairs(mobs) do
+    if zoneMobs == nil or zoneMobs.zone ~= zone then
+        local data = MobData()
+        zoneMobs = { zone = zone }
+        local written = data ~= nil and data.zones[zone] or nil
+        if written ~= nil then
+            local mobs, names = { }, { }
+            for name, spells, moves in written:gmatch('([^=;]+)=(%d*),(%d*);') do
+                mobs[name] = { spells = data.spells[tonumber(spells)], moves = data.moves[tonumber(moves)] }
                 names[#names + 1] = name
             end
-            table.sort(names)
-            known = { mobs = mobs, names = names }
+            zoneMobs.mobs, zoneMobs.names = mobs, names
         end
-        zoneMobs[zone] = known
     end
-    return known or nil
+    return zoneMobs.mobs ~= nil and zoneMobs or nil
 end
 
 local function CurrentZone()
@@ -326,14 +338,14 @@ local function GameName(read, ...)
     return name ~= '' and name or nil
 end
 
--- What a spell or a weaponskill is called. A mob's weaponskills over 256 are named in the game's list
--- of monsters' abilities, and those under it are the players' own. Where the game has no name, the
--- server's is used, from the mobs folder.
-local serverSkillNames = nil
-local actionNames = { spell = { }, skill = { } }
+-- What a spell, a weaponskill or an ability is called. A mob's weaponskills and abilities over 256
+-- are named in the game's list of monsters' abilities, and those under it are the players' own. Where
+-- the game has no name, the server's is used, from mobs.lua.
+local actionNames = { spell = { }, move = { } }
 
 local function ActionName(kind, id)
-    local name = actionNames[kind][id]
+    local names = actionNames[kind == 'spell' and 'spell' or 'move']
+    local name = names[id]
     if name ~= nil then
         return name
     end
@@ -348,11 +360,12 @@ local function ActionName(kind, id)
             name = GameName(function() return resources:GetAbilityById(id).Name[1] end)
         end
         if name == nil then
-            serverSkillNames = serverSkillNames or Load('skills') or { }
-            name = serverSkillNames[id] or ('Weaponskill %d'):format(id)
+            local data = MobData()
+            name = data ~= nil and type(data.names) == 'string' and data.names:match((';%d=([^;]*);'):format(id))
+                or ('%s %d'):format(kind == 'skill' and 'Weaponskill' or 'Ability', id)
         end
     end
-    actionNames[kind][id] = name
+    names[id] = name
     return name
 end
 
@@ -377,24 +390,38 @@ local function Bits(data, offset, length)
     return math.floor(value / 2 ^ (offset % 8)) % 2 ^ length
 end
 
--- The action packet: who acted at bit 40, how many targets at 72, the kind of action at 82, and from
--- 150 each target (its id, how many results, then each result). Beginning a weaponskill and beginning
--- a spell are two kinds, and which weaponskill or spell is the first result's number, 27 bits into it.
--- One broken off is sent as the same kind: a weaponskill then has no number, and a spell no message
--- (the ten bits after the number).
-local actionKinds = { [7] = 'skill', [8] = 'spell' }
+-- The action packet: who acted at bit 40, how many targets at 72, the kind of action at 82, what the
+-- action is at 86, and from 150 each target (its id, how many results, then each result).
+--
+-- Beginning a weaponskill and beginning a spell are two kinds, and which weaponskill or spell is the
+-- first result's number, 27 bits into it. One broken off is sent as the same kind: a weaponskill then
+-- has no number, and a spell no message (the ten bits after the number).
+--
+-- An ability is used at once, with no beginning sent, so it is heard as it is used: the kinds that
+-- say a mob's move is done (of a move numbered under 256, and of the others), which name the move as
+-- what the action is.
+local beginsKinds = { [7] = 'skill', [8] = 'spell' }
+local doneKinds = { [3] = true, [11] = true }
 
 local function OnAction(data)
     local triggers = app.options.triggers
     if #triggers == 0 then
         return
     end
-    local kind = actionKinds[Bits(data, 82, 4)]
-    if kind == nil or Bits(data, 72, 6) == 0 or Bits(data, 182, 4) == 0 then
-        return
+    local category = Bits(data, 82, 4)
+    local kind, id = beginsKinds[category], 0
+    if kind ~= nil then
+        if Bits(data, 72, 6) == 0 or Bits(data, 182, 4) == 0 then
+            return
+        end
+        id = Bits(data, 213, 17)
+        if kind == 'spell' and Bits(data, 230, 10) == 0 then
+            return
+        end
+    elseif doneKinds[category] then
+        kind, id = 'ability', Bits(data, 86, 32)
     end
-    local id = Bits(data, 213, 17)
-    if id == 0 or (kind == 'spell' and Bits(data, 230, 10) == 0) then
+    if id == 0 then
         return
     end
 
@@ -684,23 +711,27 @@ local triggerSound = 'voice-trigger.wav' -- what a trigger starts with
 -- both are forgotten when the area is another one
 local making = { zone = nil, mob = nil, action = nil, sound = triggerSound }
 
--- What a mob can do, each with its name, in the order of their names: found out once for a mob
-local mobActions = { } -- area -> mob -> { { kind, id, name, label } }
+-- What a mob can do, each with its name, in the order of their names: found out once for a mob, and
+-- kept with what is known of it
+local kindLabels = { spell = 'Spell', skill = 'Weaponskill', ability = 'Ability' }
 
-local function MobActions(zone, mob, known)
-    mobActions[zone] = mobActions[zone] or { }
-    local actions = mobActions[zone][mob]
+local function MobActions(known)
+    local actions = known.actions
     if actions == nil then
         actions = { }
-        for kind, list in pairs({ spell = known.spells or { }, skill = known.skills or { } }) do
-            for _, id in ipairs(list) do
-                local name = ActionName(kind, id)
-                actions[#actions + 1] = { kind = kind, id = id, name = name,
-                    label = ('%s (%s)##%s%d'):format(name, kind == 'spell' and 'Spell' or 'Weaponskill', kind, id) }
-            end
+        local function Add(kind, id)
+            local name = ActionName(kind, id)
+            actions[#actions + 1] = { kind = kind, id = id, name = name,
+                label = ('%s (%s)##%s%d'):format(name, kindLabels[kind], kind, id) }
+        end
+        for id in (known.spells or ''):gmatch('%d+') do
+            Add('spell', tonumber(id))
+        end
+        for ability, id in (known.moves or ''):gmatch('(a?)(%d+)') do
+            Add(ability == 'a' and 'ability' or 'skill', tonumber(id))
         end
         table.sort(actions, function(a, b) return a.label < b.label end)
-        mobActions[zone][mob] = actions
+        known.actions = actions
     end
     return actions
 end
@@ -769,21 +800,21 @@ local function DrawMaking(options)
         end
         imgui.EndCombo()
     end
-    Mark(('The mobs of %s that cast spells or ready weaponskills.'):format(ZoneName(zone)), true)
+    Mark(('The mobs of %s that cast spells, ready weaponskills or use abilities.'):format(ZoneName(zone)), true)
 
-    widgets.Label('Spell Or Weaponskill')
+    widgets.Label('Action')
     imgui.SetNextItemWidth(260)
     if imgui.BeginCombo('##chime.making.action', making.action and making.action.label or 'Choose One') then
         if making.mob ~= nil then
-            for _, action in ipairs(MobActions(zone, making.mob, known.mobs[making.mob])) do
-                if imgui.Selectable(action.label, action == making.action) then
+            for _, action in ipairs(MobActions(known.mobs[making.mob])) do
+                if imgui.Selectable(action.label, making.action ~= nil and action.label == making.action.label) then
                     making.action = action
                 end
             end
         end
         imgui.EndCombo()
     end
-    Mark('What the mob does that sets the sound off: it sounds as the mob begins it, not as it lands.', true)
+    Mark('What the mob does that sets the sound off.\nA spell or a weaponskill sounds as the mob begins it, not as it lands.\nAn ability is used at once, with nothing readied first, and sounds as it is used.', true)
 
     widgets.Label('Sound')
     making.sound = SoundCombo('##chime.making.sound', making.sound) or making.sound
@@ -822,7 +853,7 @@ local function DrawTriggers(options)
     -- [Experimental], as every addon here marks what is
     imgui.TextColored(widgets.ExperimentalColor, '[Experimental]')
     imgui.SameLine()
-    imgui.Text('A sound when a mob begins a spell or a weaponskill.')
+    imgui.Text('A sound when a mob begins a spell or a weaponskill, or uses an ability.')
 
     widgets.Header('New Trigger')
     DrawMaking(options)
@@ -862,7 +893,7 @@ end
 -- A trigger as the settings hold it, or nil if it is not one
 local function IsTrigger(trigger)
     return type(trigger) == 'table' and type(trigger.zone) == 'number' and type(trigger.id) == 'number'
-        and type(trigger.mob) == 'string' and (trigger.kind == 'spell' or trigger.kind == 'skill')
+        and type(trigger.mob) == 'string' and kindLabels[trigger.kind] ~= nil
 end
 
 -- Whatever saved settings lack, or have as the wrong kind of thing
@@ -926,5 +957,9 @@ app = shell.New({
 ashita.events.register('d3d_present', 'chime_present', function()
     app:BeginFrame()
     Look()
+    -- what is known of the mobs is for making triggers with: not kept once the settings are closed
+    if mobData ~= nil and not app.showConfig[1] then
+        ForgetMobData()
+    end
     PlayWaiting()
 end)
