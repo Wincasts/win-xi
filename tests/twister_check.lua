@@ -12,7 +12,12 @@ local party = { GetMemberName = function() return 'Tester' end,
     GetMemberIsActive = function(_, place) return members[place] and 1 or 0 end,
     GetMemberServerId = function(_, place) return members[place].id end,
     GetMemberZone = function(_, place) return members[place].zone end }
-local memory = { GetParty = function() return party end,
+-- the bags: bag -> place -> what is there
+local bags = { [0] = { }, [5] = { } }
+local nothing = { Id = 0, Count = 0 }
+local inventory = { GetContainerCountMax = function(_, bag) return bags[bag] and 80 or 0 end,
+    GetContainerItem = function(_, bag, place) return bags[bag] and bags[bag][place] or nothing end }
+local memory = { GetParty = function() return party end, GetInventory = function() return inventory end,
     GetPlayer = function() return { GetMPMax = function() return me.mpMax end, GetLoginStatus = function() return 2 end } end }
 local core = AshitaCore
 AshitaCore = setmetatable({ GetMemoryManager = function() return memory end }, { __index = core })
@@ -152,8 +157,8 @@ end
 H.packetData(0x009, systemMessage(89)); H.print('examined:', heard())
 H.packetData(0x009, systemMessage(88)); H.print('another system message: silence', heard() == '')
 -- treasure: which item at 0x10, and whether it was in the pool already at 0x15. The harness names item 500 'Item 500'.
-local function treasure(item, old)
-    return ('\0'):rep(16) .. string.char(item % 256, math.floor(item / 256)) .. ('\0'):rep(3) .. string.char(old and 1 or 0) .. ('\0'):rep(38)
+local function treasure(item, old, place)
+    return ('\0'):rep(16) .. string.char(item % 256, math.floor(item / 256)) .. ('\0'):rep(2) .. string.char(place or 0, old and 1 or 0) .. ('\0'):rep(38)
 end
 H.packetData(0x0D2, treasure(500)); H.print('a drop, no items named: silence', heard() == '')
 o.dropItems[1] = 'Other Thing,  item 500 ,'
@@ -162,6 +167,35 @@ H.packetData(0x0D2, treasure(501)); H.print('a drop of another item: silence', h
 H.packetData(0x0D2, treasure(500, true)); H.print('one in the pool already: silence', heard() == '')
 H.packetData(0x0D2, treasure(0)); H.print('an empty place in the pool: silence', heard() == '')
 o.events.drop.enabled[1] = false; H.packetData(0x0D2, treasure(500)); H.print('drops off: silence', heard() == ''); o.events.drop.enabled[1] = true
+
+-- the bags: an item that comes by no pool is known by there being more of it. The packets say what has
+-- changed before the game has taken them in, so each is sent first and the bags changed after.
+local function le(value, bytes) local out = '' for _ = 1, bytes do out = out .. string.char(value % 256); value = math.floor(value / 256) end return out end
+local function bagItem(item, bag, place) return ('\0'):rep(12) .. le(item, 2) .. string.char(bag, place) .. ('\0'):rep(28) end -- all of an item
+local function bagCount(bag, place) return ('\0'):rep(8) .. string.char(bag, place) .. ('\0'):rep(2) end                    -- how many are in a place
+local function poolDone(winner, place, ended) return ('\0'):rep(4) .. le(winner, 4) .. ('\0'):rep(12) .. string.char(place, ended) .. ('\0'):rep(38) end
+bags[0][3] = { Id = 500, Count = 2 }
+H.packetData(0x01D, ('\0'):rep(4) .. string.char(1) .. ('\0'):rep(7)); H.print('the bags are all sent, two of the item in them: silence', heard() == '')
+H.packetData(0x020, bagItem(500, 0, 4)); bags[0][4] = { Id = 500, Count = 1 }; H.print('another lands in the bags:', heard())
+H.packetData(0x01E, bagCount(0, 4)); bags[0][4].Count = 3; H.print('and more of it in the same place:', heard())
+H.packetData(0x020, bagItem(501, 0, 9)); bags[0][9] = { Id = 501, Count = 1 }; H.print('an item not listened for: silence', heard() == '')
+H.packetData(0x020, bagItem(0, 0, 4)); H.packetData(0x020, bagItem(500, 5, 1)); bags[5][1] = bags[0][4]; bags[0][4] = nil
+H.print('moved to another bag: silence', heard() == '')
+H.packetData(0x01E, bagCount(5, 1)); bags[5][1].Count = 2; H.print('one used: silence', heard() == '')
+H.packetData(0x01E, bagCount(5, 1)); bags[5][1].Count = 3; H.print('and one more after that:', heard())
+-- by the pool: it sounds as it lands there, and not again when it is won and lands in the bags
+H.frames(40) -- an event does not sound twice within a second, and the bags' sound came late in the last wait
+H.packetData(0x0D2, treasure(500, false, 2)); H.print('into the pool:', heard())
+H.packetData(0x0D3, poolDone(2, 2, 0)); H.packetData(0x0D3, poolDone(1, 2, 1)); H.packetData(0x01E, bagCount(0, 3)); bags[0][3].Count = 3
+H.print('lotted on, won, and in the bags: silence', heard() == '')
+H.packetData(0x0D2, treasure(500, false, 2)); heard(); H.packetData(0x0D3, poolDone(2, 2, 1))
+H.packetData(0x01E, bagCount(0, 3)); bags[0][3].Count = 4; H.print('won by someone else, and one come by another way:', heard())
+-- another area: what is in the bags on arriving was there already, however much it is
+H.play(false); H.frames(8); bags[0][3].Count = 9; H.play(true); H.frames(150)
+H.packetData(0x01E, bagCount(0, 3)); H.print('before the bags are sent, a change: silence', heard() == '')
+H.packetData(0x01D, ('\0'):rep(4) .. string.char(1) .. ('\0'):rep(7)); H.print('arrived with more: silence', heard() == '')
+H.packetData(0x01E, bagCount(0, 3)); bags[0][3].Count = 10; H.print('and one obtained there:', heard())
+o.events.drop.enabled[1] = false; H.packetData(0x01E, bagCount(0, 3)); bags[0][3].Count = 11; H.print('drops off: silence', heard() == ''); o.events.drop.enabled[1] = true; H.frames(8)
 struct.unpack = stubUnpack
 
 -- arriving somewhere: nothing is believed at first
