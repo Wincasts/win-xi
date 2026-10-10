@@ -14,7 +14,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- of a kind of your choosing begins a spell or a weaponskill of your choosing, or uses an ability,
 -- in any area. They are made in the settings' Triggers tab, from what mobs.lua says each kind can do.
 --
--- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure, the inventory, actions) and from the party's
+-- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure, actions) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
@@ -164,22 +164,12 @@ end
 -- Chat, invitations and messages: from packets
 ---------------------------------------------------------------------------------------------------
 
--- Some bits of a packet, as a number, read where the packet lies without a copy being made of it:
--- the offset is counted in bits from the packet's start, the low bit of each byte first, which is how
--- the action packet is packed
-local Bits = ashita.bits.unpack_be
-
 local packetSystemMessage = 0x009
 local packetChat = 0x017
-local packetBagsSent = 0x01D
-local packetBagCount = 0x01E
-local packetBagListed = 0x01F
-local packetBagItem = 0x020
 local packetTrade = 0x021 -- someone asks to trade
 local packetAction = 0x028
 local packetMessage = 0x029
 local packetTreasure = 0x0D2 -- an item is in the treasure pool
-local packetTreasureDone = 0x0D3 -- and what has become of one
 local packetInvite = 0x0DC
 
 local chatTell = 3
@@ -260,215 +250,37 @@ local function OnSystemMessage(e)
     end
 end
 
----------------------------------------------------------------------------------------------------
--- Item Drop: an item listened for lands in the treasure pool, or in the bags by another way
----------------------------------------------------------------------------------------------------
-
--- What a mob drops goes by the treasure pool, alone or in a party, and sounds as it lands there.
--- What comes another way (stolen, dug up, out of a chest, traded, made, bought) lands in the
--- inventory with nothing said of where from, so the inventory is counted: more of an item than there
--- were is one obtained. Only the inventory, the one bag things are obtained into, and only when a
--- packet says an item listened for has changed in it, and once on arriving in an area, to know what
--- was there to begin with.
-
 -- The items listened for, by name in small letters: read from what is written in the settings, names
 -- with commas between them, and read again only when that is something else
-local wantedText, wanted, anyWanted = nil, { }, false
-local wantedNames = { } -- item number -> its name in small letters if it is listened for, false if not
-local held = nil        -- name -> how many are in the inventory, as last counted; nil: not counted yet
+local wantedText, wanted = nil, { }
 
 local function Wanted(text)
     if text ~= wantedText then
-        -- other items: nothing found out for the old ones holds
-        wantedText, wanted, wantedNames, held = text, { }, { }, nil
+        wantedText, wanted = text, { }
         for name in text:gmatch('[^,]+') do
             name = name:match('^%s*(.-)%s*$'):lower()
             if name ~= '' then
                 wanted[name] = true
             end
         end
-        anyWanted = next(wanted) ~= nil
     end
     return wanted
 end
 
--- Whether items are being listened for at all: the event is switched on, and some are named
-local function Listening()
-    local options = app.options
-    if not options.events.drop.enabled[1] then
-        return false
-    end
-    Wanted(options.dropItems[1])
-    return anyWanted
-end
-
--- The name of an item if it is listened for, false if not: asked of the game once for each item
-local function WantedName(id)
-    local name = wantedNames[id]
-    if name == nil then
-        local item = AshitaCore:GetResourceManager():GetItemById(id)
-        name = item ~= nil and item.Name ~= nil and type(item.Name[1]) == 'string' and item.Name[1]:lower() or false
-        if name and not wanted[name] then
-            name = false
-        end
-        wantedNames[id] = name
-    end
-    return name
-end
-
--- What is in the pool that is listened for, and what of it has been won: what is won lands in the
--- inventory a moment later, and has sounded already
-local pooled = { }  -- place in the pool -> the item's name
-local won = { }     -- name -> how many have been won and not yet seen in the inventory
-local wonAt = 0     -- when one was last won
-local wonFor = 10   -- seconds a win is waited on to show in the inventory
-
--- The treasure packet: which item at 0x10, its place in the pool at 0x14, and at 0x15 whether it was
--- in the pool already, as every item in it is told of again on arriving in an area. A place in the
--- pool with nothing in it is item 0.
+-- The treasure packet: which item at 0x10, and at 0x15 whether it was in the pool already, as every
+-- item in it is told of again on arriving in an area. A place in the pool with nothing in it is item 0.
 local function OnTreasure(e)
-    if not Listening() then
+    if not app.options.events.drop.enabled[1] then
         return
     end
     local data = e.data
+    if data:byte(0x15 + 1) ~= 0 then
+        return
+    end
     local id = struct.unpack('H', data, 0x10 + 1)
-    local name = id ~= 0 and WantedName(id) or nil
-    pooled[data:byte(0x14 + 1)] = name or nil
-    if name and data:byte(0x15 + 1) == 0 then
-        Sound('drop')
-    end
-end
-
--- The packet that says what has become of an item in the pool: who has it at 0x04, its place in the
--- pool at 0x14, and how it ended at 0x15, which is nothing while lots are still being cast
-local poolWon = 1
-
-local function OnTreasureDone(e)
-    if next(pooled) == nil then
-        return
-    end
-    local data = e.data
-    local place, ended = data:byte(0x14 + 1), data:byte(0x15 + 1)
-    local name = pooled[place]
-    if name == nil or ended == 0 then
-        return
-    end
-    pooled[place] = nil
-    if ended == poolWon and struct.unpack('I', data, 0x04 + 1) == AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
-        won[name] = (won[name] or 0) + 1
-        wonAt = os.clock()
-    end
-end
-
-local theInventory = 0   -- the inventory's number among the bags
-local bagsLoaded = not game.IsLoading() -- whether the game has been sent all that is in the bags
-local bagsLoadedBy = 15  -- seconds after arriving by which they are taken to be, said or not
-local bagsChanged = nil  -- when a packet last said an item listened for had changed in the inventory
-local bagsQuietFor = 0.3 -- seconds without one before it is counted: a sort is a packet for every place moved
-
-local function CountHeld()
-    local inventory = AshitaCore:GetMemoryManager():GetInventory()
-    local counted = { }
-    for place = 0, inventory:GetContainerCountMax(theInventory) do
-        local item = inventory:GetContainerItem(theInventory, place)
-        local id = item ~= nil and item.Id or 0
-        if id ~= 0 and id ~= 65535 then
-            local name = WantedName(id)
-            if name then
-                counted[name] = (counted[name] or 0) + item.Count
-            end
-        end
-    end
-    return counted
-end
-
--- A packet says a place in the inventory has changed: which item is there now, or 0 for a place
--- emptied or for a packet that names only the place, when what the game still has there is the item.
--- Nothing is counted yet: the game has not taken the packet in.
-local function InventoryChanged(id, place)
-    if id == 0 then
-        local item = AshitaCore:GetMemoryManager():GetInventory():GetContainerItem(theInventory, place)
-        id = item ~= nil and item.Id or 0
-    end
-    if id ~= 0 and id ~= 65535 and WantedName(id) then
-        bagsChanged = os.clock()
-    end
-end
-
--- The three packets that say so: how many are in a place (the bag at 0x08, the place at 0x09), an
--- item of a list (the item at 0x08, then bag and place), and all of an item (the item at 0x0C, then
--- bag and place). Read where they lie: the bag first, and no more of one for another bag, and not
--- at all with nothing listened for or counted.
-local function OnBagCount(e)
-    if held ~= nil and Listening() then
-        local raw = e.data_raw
-        if Bits(raw, 64, 8) == theInventory then
-            InventoryChanged(0, Bits(raw, 72, 8))
-        end
-    end
-end
-
-local function OnBagListed(e)
-    if held ~= nil and Listening() then
-        local raw = e.data_raw
-        if Bits(raw, 80, 8) == theInventory then
-            InventoryChanged(Bits(raw, 64, 16), Bits(raw, 88, 8))
-        end
-    end
-end
-
-local function OnBagItem(e)
-    if held ~= nil and Listening() then
-        local raw = e.data_raw
-        if Bits(raw, 112, 8) == theInventory then
-            InventoryChanged(Bits(raw, 96, 16), Bits(raw, 120, 8))
-        end
-    end
-end
-
--- The packet that says the bags have all been sent, by a 1 at 0x04
-local function OnBagsSent(e)
-    if not bagsLoaded and Bits(e.data_raw, 32, 8) == 1 then
-        bagsLoaded = true
-    end
-end
-
--- Looked at with the game's numbers, a few times a second: the inventory counted for the first time
--- in an area, and again once a change to it has settled. More of an item than before, and not from
--- the pool, is one obtained.
-local function LookAtBags(now, arrived)
-    if not Listening() then
-        held = nil
-        return
-    end
-    if held == nil then
-        if bagsLoaded or now - arrived >= bagsLoadedBy then
-            held, bagsChanged = CountHeld(), nil
-        end
-        return
-    end
-    if bagsChanged == nil or now - bagsChanged < bagsQuietFor then
-        return
-    end
-    bagsChanged = nil
-
-    if now - wonAt > wonFor then
-        won = { }
-    end
-    local counted = CountHeld()
-    local obtained = false
-    for name, count in pairs(counted) do
-        local more = count - (held[name] or 0)
-        if more > 0 then
-            local fromPool = math.min(more, won[name] or 0)
-            if fromPool > 0 then
-                won[name] = won[name] - fromPool
-            end
-            obtained = obtained or more > fromPool
-        end
-    end
-    held = counted
-    if obtained then
+    local item = id ~= 0 and AshitaCore:GetResourceManager():GetItemById(id) or nil
+    local name = item ~= nil and item.Name ~= nil and item.Name[1] or nil
+    if type(name) == 'string' and Wanted(app.options.dropItems[1])[name:lower()] then
         Sound('drop')
     end
 end
@@ -580,6 +392,11 @@ local function EntityName(serverId)
     return nil
 end
 
+-- Some bits of a packet, as a number, read where the packet lies without a copy being made of it:
+-- the offset is counted in bits from the packet's start, the low bit of each byte first, which is how
+-- the action packet is packed
+local Bits = ashita.bits.unpack_be
+
 -- The action packet: who acted at bit 40, how many targets at 72, the kind of action at 82, what the
 -- action is at 86, and from 150 each target (its id, how many results, then each result).
 --
@@ -656,11 +473,6 @@ local packetReaders = {
     [packetSystemMessage] = OnSystemMessage,
     [packetMessage] = OnMessage,
     [packetTreasure] = OnTreasure,
-    [packetTreasureDone] = OnTreasureDone,
-    [packetBagsSent] = OnBagsSent,
-    [packetBagCount] = OnBagCount,
-    [packetBagListed] = OnBagListed,
-    [packetBagItem] = OnBagItem,
     [packetAction] = OnAction,
 }
 
@@ -699,7 +511,6 @@ end
 
 local function Forget()
     lastTp, lowHp, lowMp = nil, nil, nil
-    held = nil -- the inventory is counted afresh
     for place = 1, 5 do
         ForgetMember(place)
     end
@@ -718,10 +529,6 @@ local function Look(now)
     lastLook = now
 
     if game.IsLoading() then
-        -- leaving an area: the bags are sent again in the next
-        if arrived ~= nil then
-            bagsLoaded = false
-        end
         arrived = nil
         Forget()
         return
@@ -730,8 +537,6 @@ local function Look(now)
     if now - arrived < settleFor then
         return
     end
-
-    LookAtBags(now, arrived)
 
     local options = app.options
     local party = AshitaCore:GetMemoryManager():GetParty()
