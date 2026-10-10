@@ -96,9 +96,14 @@ me.mp = 15; H.frames(8); H.print('MP 15:', heard())
 me.mp = 100; H.frames(8); me.mpMax = 0; me.mp = 0; H.frames(8); H.print('a job with no MP: silence', heard() == ''); me.mpMax = 500; me.mp = 100; H.frames(8)
 
 -- the party
-members[1].hp = 0; H.frames(8); H.print('a member knocked out:', heard())
-members[1].hp = 50; H.frames(8); members[1].zone = 20; members[1].hp = 0; H.frames(8); H.print('a member leaves the area: silence', heard() == '')
-members[1].zone = 10; members[1].hp = 70; H.frames(8)
+H.frames(200) -- the members have been here long enough to be believed
+members[1].hp = 0; H.frames(8); H.print('a member has no HP: silence at first', #H.sounds == 0); H.print('and a second on, knocked out:', heard())
+members[1].hp = 50; H.frames(8); members[1].hp = 0; H.frames(8); members[1].hp = 50; H.print('no HP for a moment only: silence', heard() == '')
+members[1].hp = 0; H.frames(8); members[1].zone = 20; H.print('no HP, then gone from the area: silence', heard() == '')
+members[1].zone = 10; members[1].hp = 70; H.frames(8); members[1].hp = 0; H.frames(20); members[1].hp = 70
+H.print('arriving in the area, shown with no HP for a moment: silence', heard() == '')
+H.frames(200); members[1].hp = 0; H.print('but knocked out later:', heard()); members[1].hp = 70; H.frames(8)
+members[1].id = 9; H.frames(8); members[1].hp = 0; H.frames(40); members[1].hp = 70; H.print('someone new in their place, not yet believed: silence', heard() == ''); members[1].id = 2; H.frames(200)
 
 -- a message: who it is about at 0x08, which message at 0x18. struct is the harness's stand-in, so its
 -- unpack is given a real one for these two kinds of number.
