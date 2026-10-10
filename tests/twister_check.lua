@@ -192,19 +192,26 @@ H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; H.print('every T
 -- the Triggers tab: the area's mobs to choose from, and what the chosen one does
 H.tab(2); local combos, texts = H.calls.BeginCombo, H.calls.Text or 0; H.frames(1)
 H.print('Triggers drawn: combos', H.calls.BeginCombo - combos, '| a line for each trigger', (H.calls.Text or 0) - texts >= 3)
--- what a kind does: what its mobs do first, then what only its notorious monsters do, each list under the monster's name and level
-do
+-- what a kind does: what its mobs do first, then what only its notorious monsters do, each list under the monster's name
+-- and level: those of the area first, and a monster that is in two areas as two
+local function beetle()
     local imgui, seen = require('imgui'), {}
     rawset(imgui, 'Selectable', function(label) seen[#seen + 1] = label:match('^[^#]+') return label == 'Beetle' end)
     rawset(imgui, 'TextDisabled', function(text) seen[#seen + 1] = '[' .. text .. ']' end); rawset(imgui, 'Separator', function() seen[#seen + 1] = '|' end)
     H.ret.BeginCombo = { true }; H.frames(1); seen = {}; H.frames(1); H.ret.BeginCombo = { false }
     rawset(imgui, 'Selectable', nil); rawset(imgui, 'TextDisabled', nil); rawset(imgui, 'Separator', nil)
     local text = table.concat(seen, ' '); local actions = text:sub((text:find('Elsewhere', 1, true)))
-    local first = actions:match('%(%?%)%] (.-) | %[Panzer')
-    H.print('Beetle, what its mobs do:', first)
     local headers = {} for header in actions:gmatch('| %[([^%]]-%(Lv [^%]]+)%]') do headers[#headers + 1] = header end
+    return actions, headers
+end
+do
+    local actions, headers = beetle()
+    H.print('Beetle, what its mobs do:', actions:match('%(%?%)%] (.-) | %['))
     H.print('then its notorious monsters, lowest first:', table.concat(headers, ', '))
-    H.print('Tornado (spell 208) is Lancing Lamorak\'s, not every beetle\'s', actions:match('Lancing Lamorak.*Spell 208') ~= nil, first:find('Spell', 1, true) == nil)
+    H.print('Tornado (spell 208) is Lancing Lamorak\'s, not every beetle\'s', actions:match('Lancing Lamorak.*Spell 208') ~= nil, actions:match('%(%?%)%] (.-) | %['):find('Spell', 1, true) == nil)
+    -- West Ronfaure, where Lancing Lamorak is: its list is the first, and has all that is its own
+    members[0].zone = 100; local there, first = beetle(); members[0].zone = 102
+    H.print('in its own area a monster is first:', first[1], '| then', first[2], '| with more to its name than further down', select(2, there:match('Lancing Lamorak[^|]*'):gsub('Spell', '')) > select(2, actions:match('Lancing Lamorak[^|]*'):gsub('Spell', '')))
 end
 -- every list open and everything in it chosen: the last kind of mob, of those not in the area, and the last thing it does are what is being made
 H.ret.BeginCombo = { true }; H.ret.Selectable = { true }; H.frames(2); H.ret.BeginCombo = { false }; H.ret.Selectable = { false }; heard()

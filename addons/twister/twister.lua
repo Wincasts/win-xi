@@ -306,7 +306,7 @@ local function MobData()
         local chunk = loadfile(addon.path .. 'mobs.lua')
         if chunk ~= nil then
             local ok, found = pcall(chunk)
-            if ok and type(found) == 'table' and type(found.zones) == 'table' and type(found.kinds) == 'table' then
+            if ok and type(found) == 'table' and type(found.zones) == 'table' and type(found.kinds) == 'table' and type(found.lists) == 'table' then
                 mobData = found
             end
         end
@@ -787,12 +787,13 @@ local createSize = nil -- how big the button is: found out once
 -- with every number it goes by.
 --
 -- What only the kind's notorious monsters do comes after what its other mobs do, in lists of its
--- own, each under the monster's name and level.
+-- own, each under the monster's name and level: those of the area you are in first, then the rest,
+-- the lowest in level first as mobs.lua has them. A monster that is in two areas is two.
 local kindLabels = { spell = 'Spell', skill = 'Weaponskill', ability = 'Ability' }
 
-local function MobActions(known)
+local function MobActions(data, known, zone)
     local actions = known.actions
-    if actions == nil then
+    if actions == nil or actions.zone ~= zone then
         local named = { } -- kind and name -> the action
         local function Add(list, kind, id)
             local name = ActionName(kind, id)
@@ -805,12 +806,12 @@ local function MobActions(known)
             end
             action.ids[#action.ids + 1] = id
         end
-        local function List(does, who)
+        local function List(spells, moves, who)
             local list = { who = who }
-            for id in does.spells:gmatch('%d+') do
+            for id in (spells or ''):gmatch('%d+') do
                 Add(list, 'spell', tonumber(id))
             end
-            for ability, id in does.moves:gmatch('(a?)(%d+)') do
+            for ability, id in (moves or ''):gmatch('(a?)(%d+)') do
                 Add(list, ability == 'a' and 'ability' or 'skill', tonumber(id))
             end
             table.sort(list, function(a, b) return a.label < b.label end)
@@ -819,13 +820,19 @@ local function MobActions(known)
 
         -- actions is what the kind's mobs do, and actions.notorious the lists of what only its
         -- notorious monsters do. A thing is listed once: with what the others do if they do it under
-        -- any number, and else under the first monster that does, which is the lowest in level.
-        actions = List(known)
-        actions.notorious = { }
-        for _, monster in ipairs(known.notorious or { }) do
-            local list = List(monster, monster.who)
-            if #list > 0 then
-                actions.notorious[#actions.notorious + 1] = list
+        -- any number, and else under the first monster that does. So the monsters of the area, being
+        -- first, have all that is theirs, and one further down only what none before it does.
+        actions = List(known.spells, known.moves)
+        actions.zone, actions.notorious = zone, { }
+        for pass = 1, 2 do
+            for name, where, level, spells, moves in (known.notorious or ''):gmatch('([^=;]+)=(%d+),([^,;]*),(%d*),(%d*);') do
+                if (tonumber(where) == zone) == (pass == 1) then
+                    local list = List(data.lists[tonumber(spells)], data.lists[tonumber(moves)],
+                        level ~= '' and ('%s (Lv %s)'):format(name, level) or name)
+                    if #list > 0 then
+                        actions.notorious[#actions.notorious + 1] = list
+                    end
+                end
             end
         end
         known.actions = actions
@@ -863,7 +870,7 @@ end
 -- The kinds of mob to choose among, in two lists, each in the order of their names: those with mobs
 -- in the area, and the rest. Put together once for an area, and kept with what is known of the mobs.
 local function KindLists(data, zone)
-    local lists = data.lists
+    local lists = data.choices
     if lists == nil or lists.zone ~= zone then
         lists = { zone = zone, here = { }, elsewhere = { } }
         local among = Area(zone).among
@@ -873,7 +880,7 @@ local function KindLists(data, zone)
         end
         table.sort(lists.here)
         table.sort(lists.elsewhere)
-        data.lists = lists
+        data.choices = lists
     end
     return lists
 end
@@ -934,7 +941,7 @@ local function DrawMaking(options)
     imgui.SetNextItemWidth(260)
     if imgui.BeginCombo('##twister.making.action', making.action and making.action.label or 'Choose One') then
         if making.mob ~= nil and data.kinds[making.mob] ~= nil then
-            local actions = MobActions(data.kinds[making.mob])
+            local actions = MobActions(data, data.kinds[making.mob], zone)
             ActionChoices(actions)
             -- what only a notorious monster of the kind does: under its name and level
             for index, list in ipairs(actions.notorious) do
