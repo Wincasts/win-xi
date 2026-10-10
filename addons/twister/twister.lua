@@ -13,6 +13,8 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- Beside the events there are triggers, which are experimental: a sound of your choosing when a mob
 -- of a kind of your choosing begins a spell or a weaponskill of your choosing, or uses an ability,
 -- in any area. They are made in the settings' Triggers tab, from what mobs.lua says each kind can do.
+-- A trigger can be seen as well as heard: the indicator, a small window in the theme that says for a
+-- few seconds what the mob does, as the chat log does.
 --
 -- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure, actions) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
@@ -26,6 +28,7 @@ local bit = require('bit')
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local shell = require('winxi.shell')
+local window = require('winxi.window')
 local game = require('winxi.game')
 
 -- The events, in the order the settings list them. file is the sound an event starts with: its spoken one.
@@ -60,6 +63,9 @@ local defaults = T{
     lowMpPercent = T{ 20 },
     dropItems = T{ '' },
     triggers = T{ },
+    showIndicator = T{ false },
+    indicatorSeconds = T{ 5 },
+    indicatorPos = T{ 100, 300 },
 }
 for _, event in ipairs(events) do
     defaults.events[event.key] = T{ enabled = T{ true }, sound = event.file }
@@ -407,7 +413,7 @@ end
 local function EntityName(serverId)
     local entity = GetEntity(bit.band(serverId, 0xFFF))
     if entity ~= nil and entity.ServerId == serverId and type(entity.Name) == 'string' then
-        return entity.Name:lower()
+        return entity.Name
     end
     return nil
 end
@@ -438,6 +444,29 @@ local function Has(ids, id)
     return false
 end
 
+-- The indicator: what a trigger was for, in words on the screen for a few seconds, as the chat log
+-- says it. A line for each thing said, the first said at the top; what is said again while it is
+-- still up stays up longer, and is not said twice.
+local indicatorLines = { } -- { text, till }: what is up, and until when
+local indicatorVerbs = { skill = 'readies', spell = 'starts casting', ability = 'uses' }
+
+-- who: the mob by its own name, or nil for the trigger's kind of mob
+local function Indicate(trigger, who)
+    local options = app.options
+    if not options.showIndicator[1] then
+        return
+    end
+    local text = ('%s %s %s.'):format(who or trigger.mob, indicatorVerbs[trigger.kind], trigger.name)
+    local till = os.clock() + options.indicatorSeconds[1]
+    for _, line in ipairs(indicatorLines) do
+        if line.text == text then
+            line.till = till
+            return
+        end
+    end
+    indicatorLines[#indicatorLines + 1] = { text = text, till = till }
+end
+
 local function OnAction(e)
     local triggers = app.options.triggers
     if #triggers == 0 then
@@ -462,18 +491,19 @@ local function OnAction(e)
     end
 
     -- which kind of mob it is that acts: found out once, and only if a trigger is for this spell or move
-    local actorKind = nil
+    local actor, actorKind = nil, nil
     for _, trigger in ipairs(triggers) do
         if trigger.kind == kind and trigger.enabled[1] and Has(trigger.ids, id) then
             if actorKind == nil then
-                local actor = EntityName(Bits(data, 40, 32))
-                actorKind = actor ~= nil and Area(CurrentZone()).kindOf[actor] or false
+                actor = EntityName(Bits(data, 40, 32))
+                actorKind = actor ~= nil and Area(CurrentZone()).kindOf[actor:lower()] or false
                 if not actorKind then
                     return
                 end
             end
             if trigger.mob == actorKind then
                 Ask(trigger.sound, trigger)
+                Indicate(trigger, actor)
             end
         end
     end
@@ -899,9 +929,13 @@ local function ZoneName(zone)
     return name
 end
 
-local function TestButton(file)
-    if imgui.Button('Test') and not PlayFile(file) then
-        Say(('There is no %s in the sounds folder.'):format(file))
+-- A trigger's sound, and its words in the indicator if that is switched on
+local function TestButton(trigger)
+    if imgui.Button('Test') then
+        Indicate(trigger)
+        if not PlayFile(trigger.sound) then
+            Say(('There is no %s in the sounds folder.'):format(trigger.sound))
+        end
     end
 end
 
@@ -1036,9 +1070,31 @@ local function TriggerText(trigger)
     return text
 end
 
+-- Whether the Triggers tab was drawn this frame: the indicator is then shown with a line to see it
+-- by, so that it can be put where it is wanted
+local triggersTabDrawn = false
+
+local function DrawIndicatorSettings(options)
+    widgets.Label('Show Indicator')
+    imgui.Checkbox('##twister.indicator.enabled', options.showIndicator)
+    Mark('A small window that says what a trigger was for, as the chat log does, for a few seconds. It is shown while this tab is open: drag it to where you want it.', true)
+
+    -- how long only while it is switched on: off, there is nothing for it to set
+    if options.showIndicator[1] then
+        widgets.Label('Indicator Duration')
+        imgui.SetNextItemWidth(260)
+        imgui.SliderInt('##twister.indicator.seconds', options.indicatorSeconds, 1, 15, '%d s')
+    end
+end
+
 local function DrawTriggers(options)
+    triggersTabDrawn = true
+
     -- [Experimental], as every addon here marks what is
     imgui.TextColored(widgets.ExperimentalColor, '[Experimental]')
+
+    widgets.Header('Indicator')
+    DrawIndicatorSettings(options)
 
     widgets.Header('New Trigger')
     DrawMaking(options)
@@ -1060,7 +1116,7 @@ local function DrawTriggers(options)
             app:Save()
         end
         imgui.SameLine()
-        TestButton(trigger.sound)
+        TestButton(trigger)
         imgui.SameLine()
         if imgui.Button('Remove') then
             removed = index
@@ -1112,6 +1168,14 @@ local function Complete(options)
         end
     end
 
+    if type(options.showIndicator) ~= 'table' then options.showIndicator = T{ false } end
+    if type(options.indicatorSeconds) ~= 'table' or type(options.indicatorSeconds[1]) ~= 'number' then
+        options.indicatorSeconds = T{ defaults.indicatorSeconds[1] }
+    end
+    if type(options.indicatorPos) ~= 'table' or type(options.indicatorPos[1]) ~= 'number' or type(options.indicatorPos[2]) ~= 'number' then
+        options.indicatorPos = T{ defaults.indicatorPos[1], defaults.indicatorPos[2] }
+    end
+
     -- the triggers: what is not one is dropped, and each is given what it is shown as
     local triggers = T{ }
     for _, trigger in ipairs(type(options.triggers) == 'table' and options.triggers or { }) do
@@ -1161,7 +1225,58 @@ app = shell.New({
     commands = { test = TestAll },
 })
 
+---------------------------------------------------------------------------------------------------
+-- The indicator's window
+---------------------------------------------------------------------------------------------------
+
+-- A window as recast's is: the theme's, with nothing to it but its lines, as big as they are. It is
+-- moved by dragging it, and does not take the keyboard or the controller from the game as it appears.
+local indicatorName = 'twister.indicator'
+local indicatorOpen = { true }
+local indicatorFlags = bit.bor(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings,
+    ImGuiWindowFlags_NoFocusOnAppearing or 0, ImGuiWindowFlags_NoNav or 0)
+local indicatorSpacing = { 8, 4 }
+local indicatorPadding = { 0, 0 }
+local indicatorSample = { { text = 'Mad Sheep readies Sheep Song.' } } -- what is shown with the Triggers tab open and nothing to say
+
+local indicatorShown = nil -- the lines drawn this frame
+
+local function DrawIndicatorContent()
+    imgui.PushStyleVar(ImGuiStyleVar_FramePadding, indicatorPadding)
+    for _, line in ipairs(indicatorShown) do
+        imgui.Text(line.text)
+    end
+    imgui.PopStyleVar()
+    -- where the window is, kept in the settings
+    local pos = app.options.indicatorPos
+    pos[1], pos[2] = imgui.GetWindowPos()
+end
+
+local function DrawIndicator(now, sample)
+    for index = #indicatorLines, 1, -1 do
+        if now >= indicatorLines[index].till then
+            table.remove(indicatorLines, index)
+        end
+    end
+    if not app.options.showIndicator[1] then
+        return
+    end
+    indicatorShown = #indicatorLines > 0 and indicatorLines or sample and indicatorSample or nil
+    -- out of the way of what recast's window is: the chat log opened out, the map, an event, the
+    -- interface hidden
+    if indicatorShown == nil or game.IsChatExpanded() or game.IsMapOpen() or game.IsEventHappening() or game.IsInterfaceHidden() then
+        return
+    end
+
+    imgui.SetNextWindowPos(app.options.indicatorPos, ImGuiCond_FirstUseEver)
+    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, indicatorSpacing)
+    indicatorOpen[1] = true
+    window.Plain(indicatorName, indicatorOpen, indicatorFlags, DrawIndicatorContent)
+    imgui.PopStyleVar()
+end
+
 ashita.events.register('d3d_present', 'twister_present', function()
+    triggersTabDrawn = false
     app:BeginFrame()
     -- the game's numbers a few times a second, not every frame
     local now = os.clock()
@@ -1175,5 +1290,8 @@ ashita.events.register('d3d_present', 'twister_present', function()
     end
     if #waiting > 0 then
         PlayWaiting(now)
+    end
+    if #indicatorLines > 0 or triggersTabDrawn then
+        DrawIndicator(now, triggersTabDrawn)
     end
 end)

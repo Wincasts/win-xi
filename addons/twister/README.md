@@ -68,6 +68,13 @@ is with what their kind's other mobs do. The game has some things under more tha
 and the same again for the mobs of Dynamis): what has one name is listed once, and a trigger for it is
 for every number it goes by.
 
+The tab's Indicator section makes triggers seen as well as heard. With Show Indicator on, a small
+window in the theme, like recast's, says what the mob does as the chat log does (`Mad Sheep readies
+Sheep Song.`, `starts casting` for a spell, `uses` for an ability) for as long as Indicator Duration
+says, a line for each thing going on. It is shown with a sample line while the Triggers tab is open, to
+be dragged to where you want it, and like recast's window it is not drawn over the opened-out chat log,
+the map, an event or a hidden interface. A trigger's Test button shows its line too, under the kind's name.
+
 Each trigger has a switch, its sound, a Test button and a Remove button; they are kept with the rest of
 the settings. A trigger starts on `voicef-trigger.wav` ("Heads up"); `voicem-trigger.wav` is
 the same in the other voice, and `tone-trigger1.wav` and `tone-trigger2.wav` are tones for it.
