@@ -770,7 +770,7 @@ local triggerSound = 'voicef-trigger.wav' -- what a trigger starts with
 -- The trigger being made: its sound is chosen once it is made, in the list of triggers
 local making = { mob = nil, action = nil }
 
--- The button that makes it, at the right of its line
+-- The button that makes it, its right side under that of the list over it
 local createLabel = 'Create Trigger'
 local createSize = nil -- how big the button is: found out once
 
@@ -885,13 +885,13 @@ local function DrawMaking(options)
     end
     -- what the mark says of the kind chosen: put together when the kind or the area is another one
     if making.mob == nil then
-        Mark('The kinds of mob that cast spells, ready weaponskills or use abilities: those of the area you are in first.\nA trigger is for every mob of the kind, in any area.', true)
+        Mark('The kind of mob, in any area. Those of this area are listed first.', true)
     else
         if making.saidOf ~= making.mob or making.saidIn ~= zone then
             local here = Area(zone).among[making.mob]
             making.saidOf, making.saidIn = making.mob, zone
             making.said = here ~= nil and ('In %s: %s'):format(ZoneName(zone), (here:gsub('|', ', ')))
-                or ('There are none in %s.'):format(ZoneName(zone))
+                or ('None in %s.'):format(ZoneName(zone))
         end
         Mark(making.said, true)
     end
@@ -908,10 +908,13 @@ local function DrawMaking(options)
         end
         imgui.EndCombo()
     end
-    Mark('What a mob of the kind does that sets the sound off: everything its mobs do between them, wherever they are, so more than any one of them does.\nA spell or a weaponskill sounds as the mob begins it, not as it lands.\nAn ability is used at once, with nothing readied first, and sounds as it is used.', true)
+    -- where the list ends, which is where the button under it ends too
+    imgui.SameLine(0, 0)
+    local listEnd = imgui.GetCursorPosX()
+    Mark('What the mob does.\nA spell or weaponskill sounds as it begins, an ability as it is used.', true)
 
     createSize = createSize or { imgui.CalcTextSize(createLabel) + 20, 0 }
-    imgui.SetCursorPosX(imgui.GetCursorPosX() + math.max(imgui.GetContentRegionAvail() - createSize[1], 0))
+    imgui.SetCursorPosX(math.max(listEnd - createSize[1], imgui.GetCursorPosX()))
     if imgui.Button(createLabel, createSize) then
         if making.mob == nil or making.action == nil then
             Say('Choose a kind of mob and what it does first.')
