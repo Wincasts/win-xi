@@ -49,7 +49,7 @@ local events = {
     { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'voicef-ko.wav',
       tooltip = 'A party member in your area is knocked out.' },
     { key = 'skillup', group = 'Other', label = 'Skill Up', file = 'voicef-skillup.wav',
-      tooltip = 'One of your skills rises.' },
+      tooltip = 'One of your skills, or one of your pet\'s, rises.' },
     { key = 'drop', group = 'Other', label = 'Item Drop', file = 'voicef-drop.wav', items = 'dropItems',
       tooltip = 'An item named below lands in the treasure pool.' },
 }
@@ -228,8 +228,10 @@ local function OnChat(e)
     end
 end
 
--- The message packet: who it is about at 0x08, and which message at 0x18, in its low 15 bits. A skill
--- rising and a skill reaching a level are two of them, and the player's own are the ones wanted.
+-- The message packet: who it is about at 0x08, their place among the area's entities at 0x16, and
+-- which message at 0x18, in its low 15 bits. A skill rising and a skill reaching a level are two of
+-- them, and the player's own and their pet's are the ones wanted: an automaton's skills rise under
+-- its own name, not its master's.
 local messageSkillRises, messageSkillLevel = 38, 53
 
 local function OnMessage(e)
@@ -241,7 +243,15 @@ local function OnMessage(e)
     if message ~= messageSkillRises and message ~= messageSkillLevel then
         return
     end
-    if Bits(raw, 0x08 * 8, 32) == AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
+    local memory = AshitaCore:GetMemoryManager()
+    local party = memory:GetParty()
+    if Bits(raw, 0x08 * 8, 32) == party:GetMemberServerId(0) then
+        Sound('skillup')
+        return
+    end
+    local ownIndex = party:GetMemberTargetIndex(0)
+    local petIndex = ownIndex ~= 0 and memory:GetEntity():GetPetTargetIndex(ownIndex) or 0
+    if petIndex ~= 0 and Bits(raw, 0x16 * 8, 16) == petIndex then
         Sound('skillup')
     end
 end
