@@ -15,6 +15,7 @@
 --         help        = '/example shows or hides the window; /example config opens the settings.',
 --         drawSettings   = function(options) ... end,   -- the Settings tab, above the hiding rules
 --         drawAppearance = function(options) ... end,   -- optional: more for the Appearance tab's Addon section
+--         tabs        = { { label = 'More', draw = function(options) ... end } },   -- optional: tabs of the addon's own, between Settings and Appearance
 --         commands    = { focus = function(options, args) ... end },   -- optional: more verbs
 --         onSettings  = function(options) ... end,      -- optional: the settings have been loaded, or swapped for another character's
 --         toggleSays  = { shown = '...', hidden = '...' },   -- optional: said in the chat log as the command shows or hides the window
@@ -121,8 +122,11 @@ function App:Window(wanted, draw, extra)
     return drawn;
 end
 
--- The settings window: the addon's Settings tab with the hiding rules under it, and an Appearance tab
--- with winxi's Theme and Window sections and the addon's own under Addon
+local noTabs = { }; -- what an addon with no tabs of its own has
+
+-- The settings window: the addon's Settings tab with the hiding rules under it, whatever tabs the
+-- addon has of its own, and an Appearance tab with winxi's Theme and Window sections and the addon's
+-- own under Addon
 local function DrawConfigContent(app)
     local options = app.options;
     local spec = app.spec;
@@ -141,6 +145,16 @@ local function DrawConfigContent(app)
                 widgets.Hide(options.hide, app.save);
             end
             imgui.EndTabItem();
+        end
+        -- the addon's own tabs, each with its own column of names
+        for _, tab in ipairs(spec.tabs or noTabs) do
+            if imgui.BeginTabItem(tab.label) then
+                widgets.BeginLabels(tab.label);
+                widgets.Gap();
+                tab.draw(options);
+                widgets.Gap();
+                imgui.EndTabItem();
+            end
         end
         if imgui.BeginTabItem('Appearance') then
             widgets.Appearance(app.appearanceHooks);
