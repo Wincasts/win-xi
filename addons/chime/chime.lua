@@ -1,7 +1,7 @@
 addon.name    = 'chime'
 addon.author  = 'win (and claude)'
 addon.version = '1.0'
-addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, a skillchain, low HP and the like.'
+addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, a skillchain, low HP and the like.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 
 -- A sound for each of a few things worth hearing about. Each event has its own switch and its own
@@ -10,7 +10,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /chime           opens or closes the settings
 --   /chime test      plays every event's sound in turn, to hear them
 --
--- What sets a sound off is read from packets (chat, invitations, trades, actions, messages) and from the party's
+-- What sets a sound off is read from packets (chat, invitations, trades, being examined, actions, messages) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
@@ -33,6 +33,8 @@ local events = {
       tooltip = 'You are invited to a party or an alliance.' },
     { key = 'trade', group = 'Chat', label = 'Trade Request', file = 'voice-trade.wav',
       tooltip = 'Someone asks to trade with you.' },
+    { key = 'examine', group = 'Chat', label = 'Examined', file = 'voice-examine.wav',
+      tooltip = 'Someone examines you.' },
     { key = 'skillchain', group = 'Combat', label = 'Skillchain', file = 'skillchain.wav',
       tooltip = 'A skillchain is made by someone in your party or alliance or by one of their pets, or on whatever you have targeted.' },
     { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'tp.wav',
@@ -154,6 +156,7 @@ end
 -- Chat, invitations and skillchains: from packets
 ---------------------------------------------------------------------------------------------------
 
+local packetSystemMessage = 0x009
 local packetChat = 0x017
 local packetTrade = 0x021 -- someone asks to trade
 local packetAction = 0x028
@@ -319,6 +322,16 @@ local function OnMessage(data)
     end
 end
 
+-- The system message packet: which message at 0x0A. One of them says that someone examines you, and
+-- it is sent only to the one examined.
+local systemMessageExamines = 89
+
+local function OnSystemMessage(data)
+    if struct.unpack('H', data, 0x0A + 1) == systemMessageExamines then
+        Sound('examine')
+    end
+end
+
 ashita.events.register('packet_in', 'chime_packet_in', function(e)
     if app == nil or not app.options.enabled[1] then
         return
@@ -329,6 +342,8 @@ ashita.events.register('packet_in', 'chime_packet_in', function(e)
         Sound('invite')
     elseif e.id == packetTrade then
         Sound('trade')
+    elseif e.id == packetSystemMessage then
+        OnSystemMessage(e.data)
     elseif e.id == packetAction and app.options.events.skillchain.enabled[1] then
         OnAction(e.data)
     elseif e.id == packetMessage then

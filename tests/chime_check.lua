@@ -122,6 +122,12 @@ H.packetData(0x029, message(1, 38)); H.print('a skill of the player\'s rises:', 
 H.packetData(0x029, message(1, 53 + 0x8000)); H.print('and reaches a level:', heard())
 H.packetData(0x029, message(2, 38)); H.print('someone else\'s skill: silence', heard() == '')
 H.packetData(0x029, message(1, 206)); H.print('another message about the player: silence', heard() == '')
+-- a system message: who it is from at 0x04, which message at 0x0A
+local function systemMessage(id)
+    return ('\0'):rep(10) .. string.char(id % 256, math.floor(id / 256)) .. string.char(0x10) .. 'string2 Someone' .. ('\0'):rep(8)
+end
+H.packetData(0x009, systemMessage(89)); H.print('examined:', heard())
+H.packetData(0x009, systemMessage(88)); H.print('another system message: silence', heard() == '')
 struct.unpack = stubUnpack
 
 -- arriving somewhere: nothing is believed at first
