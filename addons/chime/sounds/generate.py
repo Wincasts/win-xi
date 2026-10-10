@@ -47,6 +47,8 @@ SOUNDS = {
     'mention': tone(1319, 1319, 0.05, 3) + tone(1319, 1319, 0.16, 6),
     # three rising notes: an invitation
     'invite': tone(659, 659, 0.08, 3) + tone(784, 784, 0.08, 3) + tone(988, 988, 0.25, 5),
+    # a note, the one above it, and the first again: something offered across
+    'trade': tone(880, 880, 0.08, 3) + tone(1109, 1109, 0.08, 3) + tone(880, 880, 0.22, 5),
     # a bright chord swept upward: burst now
     'skillchain': together(tone(880, 1760, 0.3, 4), tone(1109, 2217, 0.3, 4), tone(1319, 2637, 0.3, 4)),
     # a quick rise: TP is ready

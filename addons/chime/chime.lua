@@ -1,7 +1,7 @@
 addon.name    = 'chime'
 addon.author  = 'win (and claude)'
 addon.version = '1.0'
-addon.desc    = 'Plays a sound when something happens: a tell, an invite, a skillchain, low HP and the like.'
+addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, a skillchain, low HP and the like.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 
 -- A sound for each of a few things worth hearing about. Each event has its own switch and its own
@@ -10,7 +10,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /chime           opens or closes the settings
 --   /chime test      plays every event's sound in turn, to hear them
 --
--- What sets a sound off is read from packets (chat, invitations, actions, messages) and from the party's
+-- What sets a sound off is read from packets (chat, invitations, trades, actions, messages) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
@@ -31,6 +31,8 @@ local events = {
       tooltip = 'Someone else says your character\'s name in party or linkshell chat.' },
     { key = 'invite', group = 'Chat', label = 'Party Invite', file = 'invite.wav',
       tooltip = 'You are invited to a party or an alliance.' },
+    { key = 'trade', group = 'Chat', label = 'Trade Request', file = 'voice-trade.wav',
+      tooltip = 'Someone asks to trade with you.' },
     { key = 'skillchain', group = 'Combat', label = 'Skillchain', file = 'skillchain.wav',
       tooltip = 'A skillchain is made by someone in your party or alliance or by one of their pets, or on whatever you have targeted.' },
     { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'tp.wav',
@@ -153,6 +155,7 @@ end
 ---------------------------------------------------------------------------------------------------
 
 local packetChat = 0x017
+local packetTrade = 0x021 -- someone asks to trade
 local packetAction = 0x028
 local packetMessage = 0x029
 local packetInvite = 0x0DC
@@ -324,6 +327,8 @@ ashita.events.register('packet_in', 'chime_packet_in', function(e)
         OnChat(e.data)
     elseif e.id == packetInvite then
         Sound('invite')
+    elseif e.id == packetTrade then
+        Sound('trade')
     elseif e.id == packetAction and app.options.events.skillchain.enabled[1] then
         OnAction(e.data)
     elseif e.id == packetMessage then
