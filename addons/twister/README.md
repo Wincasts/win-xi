@@ -55,7 +55,9 @@ in first, under its name, and the rest under Elsewhere; the `(?)` beside a kind 
 mobs in the area. What a kind can do is everything its mobs do between them, wherever they are, which
 is more than any one of them does. What only a kind's notorious monsters do comes after that, in lists
 of its own, each under the monster's name and level, so that a beetle is not said to cast what one
-notorious beetle casts; a thing is listed once, under the lowest monster that does it. A notorious
+notorious beetle casts. The monsters of the area you are in come first, then the rest from the lowest
+level up; one that is in two areas, at two levels, is listed as two. A thing is listed once, under
+the first monster that does it. A notorious
 monster is one the server marks as one, or a mob with a name of its own. The game has some things under more than one number (a weaponskill,
 and the same again for the mobs of Dynamis): what has one name is listed once, and a trigger for it is
 for every number it goes by.

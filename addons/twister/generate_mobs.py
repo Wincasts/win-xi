@@ -10,9 +10,10 @@ kind, by the name the game shows, which is how a mob is known for one of a kind 
 By kind and not by mob, so that there is less to choose among, and so that a trigger made for a kind
 is for its mobs everywhere. What a kind can do is then more than any one of its mobs does.
 
-What only a kind's notorious monsters do is kept apart from what its other mobs do, under the name and
-level of the monster that does it, so that a beetle is not said to cast what one notorious beetle
-casts. Notorious monsters that do the same things are written together.
+What only a kind's notorious monsters do is kept apart from what its other mobs do, with the name,
+area and level of the monster that does it, so that a beetle is not said to cast what one notorious
+beetle casts. A monster that is in two areas is two monsters. What they do is one of the lists, which
+many share.
 
 It is read from a checkout of the server (Phoenix, which keeps its mobs in data/zones/<zone>/mobs.yaml),
 by way of the reading MobDB's importer already does, so that addon's folder has to be beside this one:
@@ -27,7 +28,8 @@ mobs.lua is written to be small and to cost nothing until it is wanted: what a k
 of numbers, and an area is one string, taken apart only when twister asks about that area.
 
     kinds = { ['Sheep'] = { spells = '53 59', moves = '260 261 a688',      a marks an ability
-                            notorious = { { who = 'Name (Lv 55)', spells = '', moves = '' } } } }
+                            notorious = 'Name=area,level,spells,moves;' } }   the level 55 or 25-26 or nothing,
+    lists = { '144 145', '265 a688' }                                        and each of the last two a list or nothing
     zones = { [area] = 'Sheep:Carnero|Ornery Sheep;Crab:Land Crab;' }
     names = ';260=Lamb Chop;'                                              the server's name for each move
 """
@@ -188,7 +190,8 @@ class Mobs(mobdb.Generator):
             named = int((attributes.get('render') or {}).get('name_prefix') or 0) & 32
             known = self.kinds.setdefault(kind, {'spells': set(), 'moves': set(), 'notorious': {}})
             if named or 'notorious' in (template.get('type') or []):
-                known = known['notorious'].setdefault(name, {'spells': set(), 'moves': set(), 'levels': set()})
+                # one in two areas is two monsters: they are not of a level, and need not do the same things
+                known = known['notorious'].setdefault((name, zone_id), {'spells': set(), 'moves': set(), 'levels': set()})
                 known['levels'].update(level for level in (low, high) if level)
             known['spells'].update(spells)
             known['moves'].update(moves)
@@ -205,31 +208,35 @@ class Mobs(mobdb.Generator):
 
     def run(self):
         super().run()
-        used, sections = set(), 0
+        used = set()
+        lists = {}  # a list of spells or of moves, as written -> its place among the lists
+
+        def place(written):
+            return str(lists.setdefault(written, len(lists) + 1)) if written else ''
+
+        monsters = 0
         with open(self.args.target, 'w', encoding='utf-8', newline='\n') as out:
             out.write('-- Made by generate_mobs.py, which says how this is laid out\nreturn {\n    kinds = {\n')
             for kind, known in sorted(self.kinds.items()):
                 used |= known['moves']
-                out.write("        [%s] = { spells = '%s', moves = '%s'" % ((mobdb.lua_string(kind),) + self.written(known['spells'], known['moves'])))
-
-                # what only its notorious monsters do: those that do the same things are written together
-                alike = collections.defaultdict(list)  # (spells, moves) -> [(lowest level, who)]
-                for name, mob in known['notorious'].items():
+                # what only its notorious monsters do, each with its area and level, the lowest first
+                # and those of no known level last
+                notorious = []
+                for (name, zone_id), mob in known['notorious'].items():
                     spells, moves = mob['spells'] - known['spells'], mob['moves'] - known['moves']
                     if spells or moves:
+                        if re.search(r'[=;,]', name):
+                            sys.exit('a name that cannot be written: %s' % name)
                         used |= moves
                         low, high = min(mob['levels'], default=0), max(mob['levels'], default=0)
-                        level = ' (Lv %d)' % low if low == high else ' (Lv %d-%d)' % (low, high)
-                        alike[self.written(spells, moves)].append((low, name + (level if low else '')))
-                if alike:
-                    out.write(', notorious = {\n')
-                    for does, mobs in sorted(alike.items(), key=lambda found: sorted(found[1])[0]):
-                        mobs = [who for _, who in sorted(mobs)]
-                        who = ', '.join(mobs[:3]) + (' +%d more' % (len(mobs) - 3) if len(mobs) > 3 else '')
-                        out.write("            { who = %s, spells = '%s', moves = '%s' },\n" % ((mobdb.lua_string(who),) + does))
-                        sections += 1
-                    out.write('        }')
-                out.write(' },\n')
+                        level = '' if not low else str(low) if low == high else '%d-%d' % (low, high)
+                        notorious.append((low or 999, name, zone_id, level) + tuple(map(place, self.written(spells, moves))))
+                out.write("        [%s] = { spells = '%s', moves = '%s', notorious = %s },\n" % (
+                    (mobdb.lua_string(kind),) + self.written(known['spells'], known['moves'])
+                    + (mobdb.lua_string(''.join('%s=%d,%s,%s,%s;' % found[1:] for found in sorted(notorious))),)))
+                monsters += len(notorious)
+            out.write('    },\n    lists = {\n')
+            out.writelines("        '%s',\n" % written for written in lists)
             out.write('    },\n    zones = {\n')
             for zone_id in sorted(self.zones):
                 entries = []
@@ -240,8 +247,8 @@ class Mobs(mobdb.Generator):
                 out.write('        [%d] = %s,\n' % (zone_id, mobdb.lua_string(''.join(entries))))
             out.write('    },\n    names = %s,\n}\n' % mobdb.lua_string(
                 ';' + ''.join('%d=%s;' % (move, spoken(self.skills[move][0])) for move in sorted(used))))
-        print('%8d  kinds of mob\n%8d  lists of what only notorious monsters do\n%8d  bytes: %s' % (
-            len(self.kinds), sections, os.path.getsize(self.args.target), self.args.target))
+        print('%8d  kinds of mob\n%8d  notorious monsters that do what the others of their kind do not\n%8d  lists of what they do\n%8d  bytes: %s' % (
+            len(self.kinds), monsters, len(lists), os.path.getsize(self.args.target), self.args.target))
 
 
 def main():
