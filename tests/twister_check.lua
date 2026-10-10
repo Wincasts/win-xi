@@ -179,17 +179,24 @@ H.packetData(0x01D, ('\0'):rep(4) .. string.char(1) .. ('\0'):rep(7)); H.print('
 H.packetData(0x020, bagItem(500, 0, 4)); bags[0][4] = { Id = 500, Count = 1 }; H.print('another lands in the bags:', heard())
 H.packetData(0x01E, bagCount(0, 4)); bags[0][4].Count = 3; H.print('and more of it in the same place:', heard())
 H.packetData(0x020, bagItem(501, 0, 9)); bags[0][9] = { Id = 501, Count = 1 }; H.print('an item not listened for: silence', heard() == '')
+-- only the inventory is counted: what happens in another bag is nothing to it
 H.packetData(0x020, bagItem(0, 0, 4)); H.packetData(0x020, bagItem(500, 5, 1)); bags[5][1] = bags[0][4]; bags[0][4] = nil
-H.print('moved to another bag: silence', heard() == '')
-H.packetData(0x01E, bagCount(5, 1)); bags[5][1].Count = 2; H.print('one used: silence', heard() == '')
-H.packetData(0x01E, bagCount(5, 1)); bags[5][1].Count = 3; H.print('and one more after that:', heard())
+H.print('moved out to another bag: silence', heard() == '')
+local looks = 0; local realItem = inventory.GetContainerItem; inventory.GetContainerItem = function(...) looks = looks + 1 return realItem(...) end
+H.packetData(0x01E, bagCount(5, 1)); bags[5][1].Count = 9; H.print('more of it in the other bag: silence', heard() == '', '| nothing looked at', looks == 0)
+H.packetData(0x020, bagItem(500, 0, 6)); bags[0][6] = { Id = 500, Count = 1 }; heard(); H.print('a count of the inventory looks at its 81 places and no other bag\'s:', looks)
+inventory.GetContainerItem = realItem
+-- a sort: the item leaves one place and lands in another, and there is no more of it
+H.packetData(0x020, bagItem(0, 0, 6)); H.packetData(0x020, bagItem(500, 0, 7)); bags[0][7] = bags[0][6]; bags[0][6] = nil; H.print('moved within the inventory: silence', heard() == '')
+H.packetData(0x01E, bagCount(0, 7)); bags[0][7].Count = 0; bags[0][7] = nil; H.print('one used: silence', heard() == '')
+H.packetData(0x01E, bagCount(0, 3)); bags[0][3].Count = 3; H.print('and one more after that:', heard())
 -- by the pool: it sounds as it lands there, and not again when it is won and lands in the bags
 H.frames(40) -- an event does not sound twice within a second, and the bags' sound came late in the last wait
 H.packetData(0x0D2, treasure(500, false, 2)); H.print('into the pool:', heard())
-H.packetData(0x0D3, poolDone(2, 2, 0)); H.packetData(0x0D3, poolDone(1, 2, 1)); H.packetData(0x01E, bagCount(0, 3)); bags[0][3].Count = 3
+H.packetData(0x0D3, poolDone(2, 2, 0)); H.packetData(0x0D3, poolDone(1, 2, 1)); H.packetData(0x01E, bagCount(0, 3)); bags[0][3].Count = 4
 H.print('lotted on, won, and in the bags: silence', heard() == '')
 H.packetData(0x0D2, treasure(500, false, 2)); heard(); H.packetData(0x0D3, poolDone(2, 2, 1))
-H.packetData(0x01E, bagCount(0, 3)); bags[0][3].Count = 4; H.print('won by someone else, and one come by another way:', heard())
+H.packetData(0x01E, bagCount(0, 3)); bags[0][3].Count = 5; H.print('won by someone else, and one come by another way:', heard())
 -- another area: what is in the bags on arriving was there already, however much it is
 H.play(false); H.frames(8); bags[0][3].Count = 9; H.play(true); H.frames(150)
 H.packetData(0x01E, bagCount(0, 3)); H.print('before the bags are sent, a change: silence', heard() == '')

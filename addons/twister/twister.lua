@@ -14,7 +14,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- of a kind of your choosing begins a spell or a weaponskill of your choosing, or uses an ability,
 -- in any area. They are made in the settings' Triggers tab, from what mobs.lua says each kind can do.
 --
--- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure, the bags, actions) and from the party's
+-- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure, the inventory, actions) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
@@ -265,16 +265,17 @@ end
 ---------------------------------------------------------------------------------------------------
 
 -- What a mob drops goes by the treasure pool, alone or in a party, and sounds as it lands there.
--- What comes another way (stolen, dug up, out of a chest, traded, made, bought) lands in the bags
--- with nothing said of where from, so the bags are counted: more of an item than there were is one
--- obtained. The bags are counted only when a packet says an item listened for has changed, and once
--- on arriving in an area, to know what was there to begin with.
+-- What comes another way (stolen, dug up, out of a chest, traded, made, bought) lands in the
+-- inventory with nothing said of where from, so the inventory is counted: more of an item than there
+-- were is one obtained. Only the inventory, the one bag things are obtained into, and only when a
+-- packet says an item listened for has changed in it, and once on arriving in an area, to know what
+-- was there to begin with.
 
 -- The items listened for, by name in small letters: read from what is written in the settings, names
 -- with commas between them, and read again only when that is something else
 local wantedText, wanted, anyWanted = nil, { }, false
 local wantedNames = { } -- item number -> its name in small letters if it is listened for, false if not
-local held = nil        -- name -> how many are in the bags, as last counted; nil: not counted yet
+local held = nil        -- name -> how many are in the inventory, as last counted; nil: not counted yet
 
 local function Wanted(text)
     if text ~= wantedText then
@@ -316,11 +317,11 @@ local function WantedName(id)
 end
 
 -- What is in the pool that is listened for, and what of it has been won: what is won lands in the
--- bags a moment later, and has sounded already
+-- inventory a moment later, and has sounded already
 local pooled = { }  -- place in the pool -> the item's name
-local won = { }     -- name -> how many have been won and not yet seen in the bags
+local won = { }     -- name -> how many have been won and not yet seen in the inventory
 local wonAt = 0     -- when one was last won
-local wonFor = 10   -- seconds a win is waited on to show in the bags
+local wonFor = 10   -- seconds a win is waited on to show in the inventory
 
 -- The treasure packet: which item at 0x10, its place in the pool at 0x14, and at 0x15 whether it was
 -- in the pool already, as every item in it is told of again on arriving in an area. A place in the
@@ -359,38 +360,34 @@ local function OnTreasureDone(e)
     end
 end
 
--- The bags: numbered from 0, the recycle bin last, so that what is thrown away and taken back is
--- neither lost nor gained
-local lastBag = 17
+local theInventory = 0   -- the inventory's number among the bags
 local bagsLoaded = not game.IsLoading() -- whether the game has been sent all that is in the bags
 local bagsLoadedBy = 15  -- seconds after arriving by which they are taken to be, said or not
-local bagsChanged = nil  -- when a packet last said an item listened for had changed
-local bagsQuietFor = 0.3 -- seconds without one before the bags are counted: a move from bag to bag is two
+local bagsChanged = nil  -- when a packet last said an item listened for had changed in the inventory
+local bagsQuietFor = 0.3 -- seconds without one before it is counted: a sort is a packet for every place moved
 
 local function CountHeld()
     local inventory = AshitaCore:GetMemoryManager():GetInventory()
     local counted = { }
-    for bag = 0, lastBag do
-        for place = 0, inventory:GetContainerCountMax(bag) do
-            local item = inventory:GetContainerItem(bag, place)
-            local id = item ~= nil and item.Id or 0
-            if id ~= 0 and id ~= 65535 then
-                local name = WantedName(id)
-                if name then
-                    counted[name] = (counted[name] or 0) + item.Count
-                end
+    for place = 0, inventory:GetContainerCountMax(theInventory) do
+        local item = inventory:GetContainerItem(theInventory, place)
+        local id = item ~= nil and item.Id or 0
+        if id ~= 0 and id ~= 65535 then
+            local name = WantedName(id)
+            if name then
+                counted[name] = (counted[name] or 0) + item.Count
             end
         end
     end
     return counted
 end
 
--- A packet says something in the bags has changed: which item, or 0 for a place emptied or for a
--- packet that names only the place, when what the game still has there is the item. Nothing is
--- counted yet: the game has not taken the packet in.
-local function BagChanged(id, bag, place)
+-- A packet says a place in the inventory has changed: which item is there now, or 0 for a place
+-- emptied or for a packet that names only the place, when what the game still has there is the item.
+-- Nothing is counted yet: the game has not taken the packet in.
+local function InventoryChanged(id, place)
     if id == 0 then
-        local item = AshitaCore:GetMemoryManager():GetInventory():GetContainerItem(bag, place)
+        local item = AshitaCore:GetMemoryManager():GetInventory():GetContainerItem(theInventory, place)
         id = item ~= nil and item.Id or 0
     end
     if id ~= 0 and id ~= 65535 and WantedName(id) then
@@ -400,25 +397,32 @@ end
 
 -- The three packets that say so: how many are in a place (the bag at 0x08, the place at 0x09), an
 -- item of a list (the item at 0x08, then bag and place), and all of an item (the item at 0x0C, then
--- bag and place). Read where they lie, and not at all with nothing listened for or counted.
+-- bag and place). Read where they lie: the bag first, and no more of one for another bag, and not
+-- at all with nothing listened for or counted.
 local function OnBagCount(e)
     if held ~= nil and Listening() then
         local raw = e.data_raw
-        BagChanged(0, Bits(raw, 64, 8), Bits(raw, 72, 8))
+        if Bits(raw, 64, 8) == theInventory then
+            InventoryChanged(0, Bits(raw, 72, 8))
+        end
     end
 end
 
 local function OnBagListed(e)
     if held ~= nil and Listening() then
         local raw = e.data_raw
-        BagChanged(Bits(raw, 64, 16), Bits(raw, 80, 8), Bits(raw, 88, 8))
+        if Bits(raw, 80, 8) == theInventory then
+            InventoryChanged(Bits(raw, 64, 16), Bits(raw, 88, 8))
+        end
     end
 end
 
 local function OnBagItem(e)
     if held ~= nil and Listening() then
         local raw = e.data_raw
-        BagChanged(Bits(raw, 96, 16), Bits(raw, 112, 8), Bits(raw, 120, 8))
+        if Bits(raw, 112, 8) == theInventory then
+            InventoryChanged(Bits(raw, 96, 16), Bits(raw, 120, 8))
+        end
     end
 end
 
@@ -429,9 +433,9 @@ local function OnBagsSent(e)
     end
 end
 
--- Looked at with the game's numbers, a few times a second: the bags counted for the first time in an
--- area, and again once a change to them has settled. More of an item than before, and not from the
--- pool, is one obtained.
+-- Looked at with the game's numbers, a few times a second: the inventory counted for the first time
+-- in an area, and again once a change to it has settled. More of an item than before, and not from
+-- the pool, is one obtained.
 local function LookAtBags(now, arrived)
     if not Listening() then
         held = nil
@@ -695,7 +699,7 @@ end
 
 local function Forget()
     lastTp, lowHp, lowMp = nil, nil, nil
-    held = nil -- the bags are counted afresh
+    held = nil -- the inventory is counted afresh
     for place = 1, 5 do
         ForgetMember(place)
     end
