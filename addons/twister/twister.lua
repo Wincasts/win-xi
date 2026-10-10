@@ -77,7 +77,7 @@ end
 
 local soundFolder = addon.path .. 'sounds\\'
 local minimumGap = 1.0 -- seconds between two soundings of one event: packets come in bursts, and twice over
-local lastPlayed = { } -- event key -> when
+local lastPlayed = setmetatable({ }, { __mode = 'k' }) -- event key, or trigger -> when: a trigger's goes with the trigger
 
 local app -- made below, once the settings can be drawn
 
@@ -130,8 +130,7 @@ local function PlayFile(file)
 end
 
 -- Starts whatever has been waiting, once the sound before it is over: looked at every frame
-local function PlayWaiting()
-    local now = os.clock()
+local function PlayWaiting(now)
     while #waiting > 0 and now >= playingUntil do
         local nextUp = table.remove(waiting, 1)
         if now - nextUp.asked <= waitAtMost then
@@ -226,6 +225,9 @@ end
 local messageSkillRises, messageSkillLevel = 38, 53
 
 local function OnMessage(data)
+    if not app.options.events.skillup.enabled[1] then
+        return
+    end
     local message = struct.unpack('H', data, 0x18 + 1) % 0x8000
     if message ~= messageSkillRises and message ~= messageSkillLevel then
         return
@@ -240,7 +242,7 @@ end
 local systemMessageExamines = 89
 
 local function OnSystemMessage(data)
-    if struct.unpack('H', data, 0x0A + 1) == systemMessageExamines then
+    if app.options.events.examine.enabled[1] and struct.unpack('H', data, 0x0A + 1) == systemMessageExamines then
         Sound('examine')
     end
 end
@@ -385,13 +387,16 @@ end
 
 -- Some bits of a packet, as a number: offset is counted in bits from the packet's start, the low bit
 -- of each byte first, which is how the action packet is packed. Up to 32 bits.
+local powers = { }
+for power = 0, 32 do
+    powers[power] = 2 ^ power
+end
+
 local function Bits(data, offset, length)
-    local first = math.floor(offset / 8)
-    local value = 0
-    for index = 4, 0, -1 do
-        value = value * 256 + (data:byte(first + index + 1) or 0)
-    end
-    return math.floor(value / 2 ^ (offset % 8)) % 2 ^ length
+    local first = bit.rshift(offset, 3)
+    local a, b, c, d, e = data:byte(first + 1, first + 5)
+    local value = (a or 0) + (b or 0) * 256 + (c or 0) * 65536 + (d or 0) * 16777216 + (e or 0) * 4294967296
+    return math.floor(value / powers[offset % 8]) % powers[length]
 end
 
 -- The action packet: who acted at bit 40, how many targets at 72, the kind of action at 82, what the
@@ -404,6 +409,9 @@ end
 -- An ability is used at once, with no beginning sent, so it is heard as it is used: the kinds that
 -- say a mob's move is done (of a move numbered under 256, and of the others), which name the move as
 -- what the action is.
+--
+-- Action packets come thick in a fight and most are rounds of attacks, so the kind is read first,
+-- from the one byte it is in, and the rest only for the kinds wanted.
 local beginsKinds = { [7] = 'skill', [8] = 'spell' }
 local doneKinds = { [3] = true, [11] = true }
 
@@ -422,10 +430,10 @@ local function OnAction(data)
     if #triggers == 0 then
         return
     end
-    local category = Bits(data, 82, 4)
+    local category = bit.band(bit.rshift(data:byte(11) or 0, 2), 0xF)
     local kind, id = beginsKinds[category], 0
     if kind ~= nil then
-        if Bits(data, 72, 6) == 0 or Bits(data, 182, 4) == 0 then
+        if bit.band(data:byte(10), 0x3F) == 0 or Bits(data, 182, 4) == 0 then
             return
         end
         id = Bits(data, 213, 17)
@@ -457,24 +465,22 @@ local function OnAction(data)
     end
 end
 
+-- What reads each packet twister has a use for. Every packet the game is sent comes by here, and
+-- nearly all of them are none of these: what a packet is, is asked once, and looked up.
+local packetReaders = {
+    [packetChat] = OnChat,
+    [packetInvite] = function() Sound('invite') end,
+    [packetTrade] = function() Sound('trade') end,
+    [packetSystemMessage] = OnSystemMessage,
+    [packetMessage] = OnMessage,
+    [packetTreasure] = OnTreasure,
+    [packetAction] = OnAction,
+}
+
 ashita.events.register('packet_in', 'twister_packet_in', function(e)
-    if app == nil then
-        return
-    end
-    if e.id == packetChat then
-        OnChat(e.data)
-    elseif e.id == packetInvite then
-        Sound('invite')
-    elseif e.id == packetTrade then
-        Sound('trade')
-    elseif e.id == packetSystemMessage then
-        OnSystemMessage(e.data)
-    elseif e.id == packetMessage then
-        OnMessage(e.data)
-    elseif e.id == packetTreasure then
-        OnTreasure(e.data)
-    elseif e.id == packetAction then
-        OnAction(e.data)
+    local read = packetReaders[e.id]
+    if read ~= nil and app ~= nil then
+        read(e.data)
     end
 end)
 
@@ -520,11 +526,7 @@ local function IsLow(percent, threshold, wasLow)
     return percent <= threshold
 end
 
-local function Look()
-    local now = os.clock()
-    if now - lastLook < lookEvery then
-        return
-    end
+local function Look(now)
     lastLook = now
 
     if game.IsLoading() then
@@ -876,10 +878,18 @@ local function DrawMaking(options)
         KindChoices(lists.elsewhere)
         imgui.EndCombo()
     end
-    local here = making.mob ~= nil and Area(zone).among[making.mob] or nil
-    Mark(making.mob == nil and 'The kinds of mob that cast spells, ready weaponskills or use abilities: those of the area you are in first.\nA trigger is for every mob of the kind, in any area.'
-        or here ~= nil and ('In %s: %s'):format(ZoneName(zone), (here:gsub('|', ', ')))
-        or ('There are none in %s.'):format(ZoneName(zone)), true)
+    -- what the mark says of the kind chosen: put together when the kind or the area is another one
+    if making.mob == nil then
+        Mark('The kinds of mob that cast spells, ready weaponskills or use abilities: those of the area you are in first.\nA trigger is for every mob of the kind, in any area.', true)
+    else
+        if making.saidOf ~= making.mob or making.saidIn ~= zone then
+            local here = Area(zone).among[making.mob]
+            making.saidOf, making.saidIn = making.mob, zone
+            making.said = here ~= nil and ('In %s: %s'):format(ZoneName(zone), (here:gsub('|', ', ')))
+                or ('There are none in %s.'):format(ZoneName(zone))
+        end
+        Mark(making.said, true)
+    end
 
     widgets.Label('Action')
     imgui.SetNextItemWidth(260)
@@ -1051,11 +1061,17 @@ app = shell.New({
 
 ashita.events.register('d3d_present', 'twister_present', function()
     app:BeginFrame()
-    Look()
+    -- the game's numbers a few times a second, not every frame
+    local now = os.clock()
+    if now - lastLook >= lookEvery then
+        Look(now)
+    end
     -- what is known of the mobs is not kept: let go of once the settings are closed, and the frame after
     -- it was read to find out an area's mobs
     if mobData ~= nil and not app.showConfig[1] then
         ForgetMobData()
     end
-    PlayWaiting()
+    if #waiting > 0 then
+        PlayWaiting(now)
+    end
 end)
