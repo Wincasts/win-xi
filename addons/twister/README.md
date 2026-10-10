@@ -1,10 +1,10 @@
-# chime
+# twister
 
 Plays a sound when something happens that is worth hearing about. It has no window, only settings,
 and needs only the `winxi` library (`addons/libs/winxi`).
 
-- `/chime` opens or closes the settings
-- `/chime test` plays every event's sound in turn
+- `/twister` opens or closes the settings
+- `/twister test` plays every event's sound in turn
 
 | Event | Sounds when |
 |---|---|
@@ -67,6 +67,6 @@ is: that much is kept, a few dozen names, and the file let go of at once.
 
 Ashita plays one sound at a time, at the volume of the file, and there is no volume setting. A sound
 would cut short the one before it, so one asked for while another is playing waits for it to finish (and
-is dropped if that takes more than three seconds). A sound played by another addon still cuts chime's
+is dropped if that takes more than three seconds). A sound played by another addon still cuts twister's
 short. One event does not sound twice within a second. Nothing read from the
 game's numbers (TP, HP, MP, the party) sounds for the first three seconds in an area.

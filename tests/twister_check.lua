@@ -1,4 +1,4 @@
--- chime: loads, and sounds for what it should and nothing else
+-- twister: loads, and sounds for what it should and nothing else
 local o = H.options()
 H.print('settings: events', o.events.tell.enabled[1], o.events.ko.sound, '| low HP at', o.lowHpPercent[1], '| low MP at', o.lowMpPercent[1])
 
@@ -66,7 +66,7 @@ local function action(actor, category, number, message, what)
 end
 -- mobs.lua is the project's; entity 0x123 is an Acro Bat, a bat, and 0x124 an Akbaba, a bird
 local realLoadfile = loadfile
-loadfile = function(path) local own = path:match('chime.(mobs%.lua)$') return realLoadfile(own and ('addons/chime/' .. own) or path) end
+loadfile = function(path) local own = path:match('twister.(mobs%.lua)$') return realLoadfile(own and ('addons/twister/' .. own) or path) end
 local entities = { [0x123] = { ServerId = 0x1066123, Name = 'Acro Bat' }, [0x124] = { ServerId = 0x1066124, Name = 'Akbaba' } }
 function GetEntity(index) return entities[index] end
 H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print('a weaponskill, no triggers: silence', heard() == '')
@@ -173,7 +173,7 @@ o.events.tell.sound = 'bell.wav'; H.packetData(0x017, chat(3, 'Someone', 'hello'
 
 -- the command opens the settings, there being no window
 local begun = H.calls.Begin or 0
-H.print('/chime kept from the game', H.command('/chime')); H.frames(2)
+H.print('/twister kept from the game', H.command('/twister')); H.frames(2)
 H.print('settings drawn', (H.calls.Begin or 0) > begun, '| checkboxes', (H.calls.Checkbox or 0) > 8, '| sliders', H.calls.SliderInt, '| combos', (H.calls.BeginCombo or 0) > 0)
 local lines = H.calls.NewLine or 0; H.frames(1)
 H.print('a blank line over each group but the first', (H.calls.NewLine or 0) - lines == 2)
@@ -199,7 +199,7 @@ H.print('Add Trigger made one:', gone.mob, gone.kind, table.concat(gone.ids, ' '
 reads = 0
 H.frames(3); H.print('with the settings open, not read again', reads == 0)
 members[0].zone = 5; H.frames(1); H.print('an area nothing is known of: drawn all the same', reads == 0); members[0].zone = 102
-H.command('/chime'); H.frames(2); H.command('/chime'); H.frames(3); H.print('closed and opened: read once more', reads == 1)
+H.command('/twister'); H.frames(2); H.command('/twister'); H.frames(3); H.print('closed and opened: read once more', reads == 1)
 H.tab(1)
-H.command('/chime'); begun = H.calls.Begin; H.frames(2); H.print('/chime closes them', H.calls.Begin == begun)
+H.command('/twister'); begun = H.calls.Begin; H.frames(2); H.print('/twister closes them', H.calls.Begin == begun)
 H.unload(); H.print('unload ran; saves', H.saves() > 0)

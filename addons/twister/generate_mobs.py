@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Makes mobs.lua, what chime knows of the game's mobs, for its triggers.
+"""Makes mobs.lua, what twister knows of the game's mobs, for its triggers.
 
 The kinds of mob there are (the server's families: sheep, crabs, quadav), and for each kind what its
 mobs can do between them, wherever they are, by the numbers the game sends when a mob does it: the
@@ -20,7 +20,7 @@ its script takes the job special mixin and names none, the special of its main j
 something are written. Run it again when the server's mobs change. Requires PyYAML.
 
 mobs.lua is written to be small and to cost nothing until it is wanted: what a kind does is two strings
-of numbers, and an area is one string, taken apart only when chime asks about that area.
+of numbers, and an area is one string, taken apart only when twister asks about that area.
 
     kinds = { ['Sheep'] = { spells = '53 59', moves = '260 261 a688' } }   a marks an ability
     zones = { [area] = 'Sheep:Carnero|Ornery Sheep;Crab:Land Crab;' }
