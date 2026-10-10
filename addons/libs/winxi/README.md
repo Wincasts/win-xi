@@ -354,7 +354,7 @@ draws the controller settings an addon's Settings tab has. `inv` and `treas` are
 
 An addon with settings and no window of its own leaves `window` out of the spec: its command alone then
 opens or closes the settings, which say nothing of hiding or fading, and it calls `app:BeginFrame()`
-each frame for the settings window alone. `chime` is written this way.
+each frame for the settings window alone. `twister` is written this way.
 
 ## Converting an addon: checklist
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Makes the sounds that come with chime, one for each event it knows.
+"""Makes the sounds that come with twister, one for each event it knows.
 
 They are short tones, made here so that there is something to hear without borrowing anyone's files.
 Run it in this folder to make them again. Any other wav put in this folder can be chosen for an event

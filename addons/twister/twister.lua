@@ -1,4 +1,4 @@
-addon.name    = 'chime'
+addon.name    = 'twister'
 addon.author  = 'win (and claude)'
 addon.version = '1.0'
 addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, an item you are after dropping, low HP and the like.'
@@ -7,8 +7,8 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- A sound for each of a few things worth hearing about. Each event has its own switch and its own
 -- sound, any wav in the addon's sounds folder. It needs only winxi.
 --
---   /chime           opens or closes the settings
---   /chime test      plays every event's sound in turn, to hear them
+--   /twister           opens or closes the settings
+--   /twister test      plays every event's sound in turn, to hear them
 --
 -- Beside the events there are triggers, which are experimental: a sound of your choosing when a mob
 -- of a kind of your choosing begins a spell or a weaponskill of your choosing, or uses an ability,
@@ -68,7 +68,7 @@ for _, event in ipairs(events) do
 end
 
 local function Say(text)
-    print(('\30\81[chime]\30\01 %s'):format(text))
+    print(('\30\81[twister]\30\01 %s'):format(text))
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -457,7 +457,7 @@ local function OnAction(data)
     end
 end
 
-ashita.events.register('packet_in', 'chime_packet_in', function(e)
+ashita.events.register('packet_in', 'twister_packet_in', function(e)
     if app == nil then
         return
     end
@@ -628,11 +628,11 @@ end
 local ids = { } -- the hidden labels of the controls: made once
 for _, event in ipairs(events) do
     ids[event.key] = {
-        enabled = ('##chime.%s.enabled'):format(event.key),
-        sound = ('##chime.%s.sound'):format(event.key),
-        test = ('Test##chime.%s.test'):format(event.key),
-        threshold = ('##chime.%s.threshold'):format(event.key),
-        items = ('##chime.%s.items'):format(event.key),
+        enabled = ('##twister.%s.enabled'):format(event.key),
+        sound = ('##twister.%s.sound'):format(event.key),
+        test = ('Test##twister.%s.test'):format(event.key),
+        threshold = ('##twister.%s.threshold'):format(event.key),
+        items = ('##twister.%s.items'):format(event.key),
     }
 end
 
@@ -840,7 +840,7 @@ local function DrawMaking(options)
 
     widgets.Label('Mob Type')
     imgui.SetNextItemWidth(260)
-    if imgui.BeginCombo('##chime.making.mob', making.mob or 'Choose One') then
+    if imgui.BeginCombo('##twister.making.mob', making.mob or 'Choose One') then
         -- the area's own first, under its name, then the rest
         if #lists.here > 0 then
             imgui.TextDisabled(ZoneName(zone))
@@ -858,7 +858,7 @@ local function DrawMaking(options)
 
     widgets.Label('Action')
     imgui.SetNextItemWidth(260)
-    if imgui.BeginCombo('##chime.making.action', making.action and making.action.label or 'Choose One') then
+    if imgui.BeginCombo('##twister.making.action', making.action and making.action.label or 'Choose One') then
         if making.mob ~= nil and data.kinds[making.mob] ~= nil then
             for _, action in ipairs(MobActions(data.kinds[making.mob])) do
                 if imgui.Selectable(action.label, making.action ~= nil and action.label == making.action.label) then
@@ -871,9 +871,9 @@ local function DrawMaking(options)
     Mark('What a mob of the kind does that sets the sound off: everything its mobs do between them, wherever they are, so more than any one of them does.\nA spell or a weaponskill sounds as the mob begins it, not as it lands.\nAn ability is used at once, with nothing readied first, and sounds as it is used.', true)
 
     widgets.Label('Sound')
-    making.sound = SoundCombo('##chime.making.sound', making.sound) or making.sound
+    making.sound = SoundCombo('##twister.making.sound', making.sound) or making.sound
     imgui.SameLine()
-    imgui.PushID('chime.making')
+    imgui.PushID('twister.making')
     TestButton(making.sound)
     imgui.PopID()
 
@@ -1004,9 +1004,9 @@ end
 
 app = shell.New({
     defaults = defaults,
-    configTitle = 'Chime Settings',
-    command = '/chime',
-    help = '/chime opens or closes the settings; /chime test plays every event\'s sound in turn.',
+    configTitle = 'Twister Settings',
+    command = '/twister',
+    help = '/twister opens or closes the settings; /twister test plays every event\'s sound in turn.',
     drawSettings = DrawSettings,
     tabs = { { label = 'Triggers', draw = DrawTriggers } },
     onSettings = function(options)
@@ -1017,7 +1017,7 @@ app = shell.New({
     commands = { test = TestAll },
 })
 
-ashita.events.register('d3d_present', 'chime_present', function()
+ashita.events.register('d3d_present', 'twister_present', function()
     app:BeginFrame()
     Look()
     -- what is known of the mobs is not kept: let go of once the settings are closed, and the frame after

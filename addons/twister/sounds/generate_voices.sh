@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Makes the spoken sounds that come with chime, voice-<event>.wav, one for each event, and one for
+# Makes the spoken sounds that come with twister, voice-<event>.wav, one for each event, and one for
 # triggers to start with.
 #
 # They are spoken by Piper (https://github.com/OHF-Voice/piper1-gpl), a text-to-speech program, with
