@@ -344,10 +344,23 @@ local lastTp = nil
 local lowHp, lowMp = nil, nil -- whether each was low when last looked at; nil: not looked at yet
 local lastHp = { }            -- party place (1 to 5) -> that member's HP percentage, or nil
 
+-- A member arriving in the area is shown with no HP for a moment before their own is known, and so
+-- may one who is leaving it. So a member is not believed until they have been here a while, and one
+-- with no HP is not taken for knocked out until they have had none for a second.
+local memberSettle = 5 -- seconds a member has to have been in the area before their HP is believed
+local downFor = 1      -- seconds without HP before it is a knockout
+local memberId = { }   -- party place -> who is in it
+local memberSince = { } -- party place -> when they were first seen in this area
+local downSince = { }  -- party place -> when their HP went from some to none
+
+local function ForgetMember(place)
+    lastHp[place], memberId[place], memberSince[place], downSince[place] = nil, nil, nil, nil
+end
+
 local function Forget()
     lastTp, lowHp, lowMp = nil, nil, nil
     for place = 1, 5 do
-        lastHp[place] = nil
+        ForgetMember(place)
     end
 end
 
@@ -409,20 +422,36 @@ local function Look()
     if not options.events.ko.enabled[1] then
         -- nothing is kept of them meanwhile: what was true before it was switched off may not be now
         for place = 1, 5 do
-            lastHp[place] = nil
+            ForgetMember(place)
         end
         return
     end
     local zone = party:GetMemberZone(0)
     for place = 1, 5 do
-        local memberHp = nil
         if party:GetMemberIsActive(place) == 1 and party:GetMemberZone(place) == zone then
-            memberHp = party:GetMemberHPPercent(place)
-            if memberHp == 0 and lastHp[place] ~= nil and lastHp[place] > 0 then
-                Sound('ko')
+            -- someone else in this place of the party is someone new
+            local id = party:GetMemberServerId(place)
+            if id ~= memberId[place] then
+                ForgetMember(place)
+                memberId[place], memberSince[place] = id, now
             end
+
+            if now - memberSince[place] >= memberSettle then
+                local memberHp = party:GetMemberHPPercent(place)
+                if memberHp > 0 then
+                    downSince[place] = nil
+                elseif lastHp[place] ~= nil and lastHp[place] > 0 then
+                    downSince[place] = now
+                end
+                if downSince[place] ~= nil and now - downSince[place] >= downFor then
+                    downSince[place] = nil
+                    Sound('ko')
+                end
+                lastHp[place] = memberHp
+            end
+        else
+            ForgetMember(place)
         end
-        lastHp[place] = memberHp
     end
 end
 
