@@ -43,7 +43,7 @@ local events = {
       tooltip = 'Your MP falls to the percentage below, or under it. It sounds once, and not again until your MP has been back over that.\nNothing sounds on a job with no MP.' },
     { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'ko.wav',
       tooltip = 'Someone else in your party is knocked out, in the area you are in.' },
-    { key = 'skillup', group = 'Combat', label = 'Skill Up', file = 'skillup.wav',
+    { key = 'skillup', group = 'Other', label = 'Skill Up', file = 'skillup.wav',
       tooltip = 'One of your skills rises, or reaches a new level: a combat or magic skill, or a craft.' },
 }
 
@@ -409,9 +409,6 @@ local function DrawEvent(options, event)
 
     widgets.Label(event.label)
     imgui.Checkbox(id.enabled, chosen.enabled)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip(event.tooltip)
-    end
 
     imgui.SameLine()
     imgui.SetNextItemWidth(170)
@@ -432,6 +429,13 @@ local function DrawEvent(options, event)
     imgui.SameLine()
     if imgui.Button(id.test) and not PlayFile(chosen.sound) then
         Say(('There is no %s in the sounds folder.'):format(chosen.sound))
+    end
+
+    -- what sets the event off, told by a mark at the end of its line
+    imgui.SameLine()
+    imgui.TextDisabled('(?)')
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip(event.tooltip)
     end
 
     -- the threshold only while the event is switched on: off, there is nothing for it to set
