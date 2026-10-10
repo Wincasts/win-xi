@@ -11,7 +11,7 @@ and needs only the `winxi` library (`addons/libs/winxi`).
 | Tell Received | someone sends you a tell |
 | Name Mentioned | someone else says your character's name in party or linkshell chat |
 | Party Invite | you are invited to a party or an alliance |
-| Skillchain | a skillchain is made by someone in your party or alliance, or on your target |
+| Skillchain | a skillchain is made by someone in your party or alliance or by one of their pets, or on your target |
 | TP Ready | your TP reaches 1000 |
 | Low HP | your HP falls to the threshold (25% unless changed); again only after it has been 5 points over |
 | Low MP | the same for MP (20%); never on a job with no MP |
@@ -25,6 +25,8 @@ each event, `voice-tell.wav` and so on ("Tell", "Mentioned", "Invite", "Skillcha
 "Low HP", "Low MP", "Member down", "Skill up"), to choose in its place. The spoken ones were made with the Piper
 text-to-speech program and its voice en_US-amy-medium, by `sounds/generate_voices.sh`.
 
-Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it, and
-there is no volume setting. One event does not sound twice within a second. Nothing read from the
+Ashita plays one sound at a time, at the volume of the file, and there is no volume setting. A sound
+would cut short the one before it, so one asked for while another is playing waits for it to finish (and
+is dropped if that takes more than three seconds). A sound played by another addon still cuts chime's
+short. One event does not sound twice within a second. Nothing read from the
 game's numbers (TP, HP, MP, the party) sounds for the first three seconds in an area.

@@ -11,13 +11,16 @@ local party = { GetMemberName = function() return 'Tester' end,
     GetMemberMPPercent = function() return me.mp end,
     GetMemberIsActive = function(_, place) return members[place] and 1 or 0 end,
     GetMemberServerId = function(_, place) return members[place].id end,
-    GetMemberZone = function(_, place) return members[place].zone end }
+    GetMemberZone = function(_, place) return members[place].zone end,
+    GetMemberTargetIndex = function(_, place) return members[place].index or 0 end }
 local memory = { GetParty = function() return party end,
     GetPlayer = function() return { GetMPMax = function() return me.mpMax end, GetLoginStatus = function() return 2 end } end,
     GetTarget = function() return { GetTargetIndex = function() return 7 end } end }
 local core = AshitaCore
 AshitaCore = setmetatable({ GetMemoryManager = function() return memory end }, { __index = core })
-function GetEntity(index) return index == 7 and { ServerId = 900 } or nil end
+-- entity 7 is what is targeted; 11 is the second member, whose pet is 12
+local entities = { [7] = { ServerId = 900 }, [11] = { ServerId = 2, PetTargetIndex = 12 }, [12] = { ServerId = 77 } }
+function GetEntity(index) return entities[index] end
 
 -- what has sounded since last asked, and time enough gone by for the same event to sound again
 local function heard()
@@ -43,6 +46,10 @@ H.packetData(0x017, chat(5, 'Someone', 'TESTER, you there?')); H.print('in links
 H.packetData(0x017, chat(4, 'Someone', 'the testers are here')); H.print('the name inside another word: silence', heard() == '')
 H.packetData(0x017, chat(4, 'Tester', 'Tester is me')); H.print('said by the player: silence', heard() == '')
 H.packetData(0x0DC, ('\0'):rep(40)); H.print('an invitation:', heard())
+-- two things at once: the second sound waits for the first to be over, and is not lost to it
+H.packetData(0x017, chat(3, 'Someone', 'hello')); H.packetData(0x0DC, ('\0'):rep(40))
+local atOnce = table.concat(H.sounds, ' '); H.frames(40)
+H.print('a tell and an invitation together: at once', atOnce, '| then', H.sounds[#H.sounds], '| both heard', #H.sounds == 2); heard()
 
 -- an action packet, packed a bit at a time as the game packs it: results is a list for each target
 local function action(actor, targets, category)
@@ -50,7 +57,7 @@ local function action(actor, targets, category)
     local function put(offset, length, value)
         for i = 0, length - 1 do bits[offset + i] = math.floor(value / 2 ^ i) % 2 end
     end
-    put(40, 32, actor); put(72, 10, #targets); put(82, 4, category or 3)
+    put(40, 32, actor); put(72, 6, #targets); put(82, 4, category or 3)
     local offset = 150
     for _, target in ipairs(targets) do
         put(offset, 32, target.id); put(offset + 32, 4, #target.results); offset = offset + 36
@@ -72,6 +79,7 @@ end
 H.packetData(0x028, action(2, { { id = 555, results = { { } } } })); H.print('a weapon skill, no skillchain: silence', heard() == '')
 H.packetData(0x028, action(2, { { id = 555, results = { { spikes = 33 }, { added = 288 } } } })); H.print('a party member\'s skillchain:', heard())
 H.packetData(0x028, action(77, { { id = 555, results = { { added = 289 } } } })); H.print('a stranger\'s, on something else: silence', heard() == '')
+members[1].index = 11; H.packetData(0x028, action(77, { { id = 555, results = { { added = 289 } } } })); H.print('a member\'s pet\'s, on something else:', heard()); members[1].index = nil
 H.packetData(0x028, action(77, { { id = 444, results = { { added = 161 } } }, { id = 900, results = { { added = 770 } } } })); H.print('a stranger\'s, on the target:', heard())
 H.packetData(0x028, action(2, { { id = 555, results = { { added = 163 } } } })); H.print('another additional effect: silence', heard() == '')
 H.packetData(0x028, action(2, { { id = 555, results = { { added = 288 } } } }, 1)); H.print('a round of attacks is not read: silence', heard() == '')
