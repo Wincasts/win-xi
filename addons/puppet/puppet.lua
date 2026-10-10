@@ -1,12 +1,13 @@
 addon.name    = 'puppet'
 addon.author  = 'win (and claude)'
 addon.version = '1.0'
-addon.desc    = 'The enfeebling spell an automaton will cast next, from the maneuvers up and what is on its target.'
+addon.desc    = 'The enfeebling spells and the weapon skill an automaton will use next, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 
--- A small window for a puppetmaster: the spell the automaton will enfeeble with next, and those after
--- it. The choosing is predict.lua's, which follows the server's; this gathers what it needs to know
--- (the head and frame, the maneuvers up, the debuffs on the target) and shows the answer.
+-- A small window for a puppetmaster: the next three spells the automaton will enfeeble with, and the
+-- weapon skill it will use. The choosing is predict.lua's, which follows the server's; this gathers
+-- what it needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the
+-- target) and shows the answer.
 --
 --   /puppet           shows or hides the window (it only appears while an automaton is out)
 --   /puppet config    opens or closes the settings
@@ -24,6 +25,7 @@ local windowName = 'winxi.puppet'
 local jobPup = 18
 local extendedJobPacket = 0x044
 local spawnFlagMob = 0x10
+local enfeeblesShown = 3
 
 -- The maneuvers, by the status each shows as on the player
 local maneuverElements = {
@@ -39,7 +41,13 @@ local maneuverElements = {
 
 -- The automaton as the server last described it. It does so on a change of area or job and when a
 -- part is changed, so nothing is known when the addon is loaded part way through a visit to an area.
-local automaton = { head = nil, frame = nil, skill = nil }
+local automaton = { head = nil, frame = nil, magic = nil, melee = nil, ranged = nil, holdsTp = false }
+
+-- The attachments that have an automaton keep its TP to close its master's skillchain, as the
+-- server numbers them: Inhibitor and Inhibitor II, Speedloader and Speedloader II
+local tpHolders = { [3] = true, [11] = true, [14] = true, [15] = true }
+local attachmentSlots = 12
+local masterTpToHold = 900 -- with this much TP the master is waited on, to open the skillchain
 
 local function ReadAutomaton(e)
     if struct.unpack('B', e.data, 0x04 + 1) ~= jobPup then
@@ -47,7 +55,16 @@ local function ReadAutomaton(e)
     end
     automaton.head = struct.unpack('B', e.data, 0x08 + 1)
     automaton.frame = struct.unpack('B', e.data, 0x09 + 1)
-    automaton.skill = struct.unpack('H', e.data, 0x78 + 1)
+    automaton.melee = struct.unpack('H', e.data, 0x70 + 1)
+    automaton.ranged = struct.unpack('H', e.data, 0x74 + 1)
+    automaton.magic = struct.unpack('H', e.data, 0x78 + 1)
+
+    automaton.holdsTp = false
+    for slot = 0, attachmentSlots - 1 do
+        if tpHolders[struct.unpack('B', e.data, 0x0A + slot + 1)] then
+            automaton.holdsTp = true
+        end
+    end
 end
 
 local function CountManeuvers()
@@ -92,60 +109,60 @@ local function GetTarget(pet)
     return nil
 end
 
--- What the window is to show this frame: the target's name, the spells in order, or why there are none
-local showing = { target = nil, queue = {}, reason = nil }
+-- What the window is to show this frame: the spells in order or why there are none, and the weapon skill
+local showing = { enfeebles = '', weaponskill = '' }
 
 local function Work(pet)
+    local maneuvers = CountManeuvers()
+
     local target = GetTarget(pet)
     if target == nil then
-        showing.target, showing.queue, showing.reason = nil, {}, 'No enemy targeted.'
-        return
+        showing.enfeebles = 'No enemy targeted.'
+    else
+        local id = target.ServerId
+        local queue, reason = predict.Queue({
+            head = automaton.head,
+            frame = automaton.frame,
+            skill = automaton.magic,
+            maneuvers = maneuvers,
+            has = function(kind) return debuffs.Get(id, kind) ~= nil end,
+            hpp = pet.HPPercent,
+            mpp = AshitaCore:GetMemoryManager():GetPlayer():GetPetMPPercent(),
+        })
+        local names = {}
+        for i = 1, math.min(#queue, enfeeblesShown) do
+            names[i] = queue[i]
+        end
+        showing.enfeebles = reason or table.concat(names, ', ')
     end
 
-    local id = target.ServerId
-    showing.target = target.Name
-    showing.queue, showing.reason = predict.Queue({
-        head = automaton.head,
+    local name, reason = predict.Weaponskill({
         frame = automaton.frame,
-        skill = automaton.skill,
-        maneuvers = CountManeuvers(),
-        has = function(kind) return debuffs.Get(id, kind) ~= nil end,
-        hpp = pet.HPPercent,
-        mpp = AshitaCore:GetMemoryManager():GetPlayer():GetPetMPPercent(),
+        melee = automaton.melee,
+        ranged = automaton.ranged,
+        maneuvers = maneuvers,
     })
+    showing.weaponskill = reason or name or 'None.'
+    -- with the master's TP ready, an automaton that holds its own waits for the skillchain to be opened
+    if name and automaton.holdsTp and AshitaCore:GetMemoryManager():GetParty():GetMemberTP(0) >= masterTpToHold then
+        showing.weaponskill = name .. ' (waiting on your skillchain)'
+    end
 end
 
-local function DrawWindow(options)
-    if options.showTarget[1] and showing.target then
-        imgui.TextDisabled(showing.target)
-    end
-
-    if #showing.queue == 0 then
-        imgui.Text(showing.reason or '')
-        return
-    end
-
-    imgui.TextDisabled('Next')
+local function DrawLine(label, value)
+    imgui.TextDisabled(label)
     imgui.SameLine()
-    imgui.Text(showing.queue[1])
+    imgui.Text(value)
+end
 
-    if options.showFollowing[1] and #showing.queue > 1 then
-        local following = {}
-        for i = 2, math.min(#showing.queue, 1 + options.followingCount[1]) do
-            following[#following + 1] = showing.queue[i]
-        end
-        imgui.TextDisabled('Then')
-        imgui.SameLine()
-        imgui.Text(table.concat(following, ', '))
-    end
+local function DrawWindow()
+    DrawLine('Next Enfeeble:', showing.enfeebles)
+    DrawLine('Next Weaponskill:', showing.weaponskill)
 end
 
 local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 },
-    showTarget = T{ true },
-    showFollowing = T{ true },
-    followingCount = T{ 3 },
 }
 
 local function DrawSettings(options)
@@ -159,21 +176,6 @@ local function DrawSettings(options)
         imgui.SetWindowPos(windowName, options.pos)
     end
 
-    widgets.Gap()
-    widgets.Label('Show Target Name')
-    imgui.Checkbox('##puppet.target', options.showTarget)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The enemy the spells are worked out for: the one the automaton is fighting, or else the one targeted.')
-    end
-    widgets.Label('Show What Follows')
-    imgui.Checkbox('##puppet.following', options.showFollowing)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The spells that come after the next, in the order they will be cast.')
-    end
-    widgets.Label('Spells To Follow')
-    if imgui.SliderInt('##puppet.followingCount', options.followingCount, 1, 8) then
-        options.followingCount[1] = math.max(1, math.min(8, options.followingCount[1]))
-    end
 end
 
 local app = shell.New({

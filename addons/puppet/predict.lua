@@ -1,4 +1,5 @@
--- predict: the enfeebling spells an automaton will cast, in the order it will cast them.
+-- predict: the enfeebling spells an automaton will cast, in the order it will cast them, and the
+-- weapon skill it will use.
 --
 --     local queue, reason = predict.Queue({
 --         head = 1, frame = 0x20,              -- as the server names them
@@ -17,6 +18,17 @@
 --
 -- It says nothing of when: healing and nuking can come first, each spell waits on its own timer, and
 -- an enemy immune to a spell is passed over without this knowing.
+--
+--     local name, reason = predict.Weaponskill({
+--         frame = 0x21,
+--         melee = 180, ranged = 0,             -- the automaton's skills
+--         maneuvers = { fire = 1 },
+--     })
+--
+-- The weapon skill is the one of the frame's with the most maneuvers of its element up; between two
+-- with as many, the one needing more skill. Bone Crusher, Armor Piercer and Magic Mortar are left
+-- out, as no automaton has them in this era. With an Inhibitor the automaton may instead close a
+-- skillchain that is open, which this does not see.
 local predict = {}
 
 predict.Heads = {
@@ -136,6 +148,53 @@ function predict.Queue(state)
         return queue, 'Nothing left to cast on this target.'
     end
     return queue, nil
+end
+
+local frameSharpshot = 0x22
+
+-- Each frame's weapon skills: the skill it needs (ranged for a Sharpshot, melee for the rest), the
+-- element whose maneuvers it answers to, and the server's number for it, which settles a tie
+local harlequinSkills = {
+    { name = 'Slapstick', skill =   0, element = 'thunder', id = 1943 },
+    { name = 'Knockout',  skill = 145, element = 'wind',    id = 2067 },
+}
+local weaponskills = {
+    [0x20] = harlequinSkills,
+    [0x21] = {
+        { name = 'Chimera Ripper',  skill =   0, element = 'fire',    id = 1940 },
+        { name = 'String Clipper',  skill =   0, element = 'thunder', id = 1941 },
+        { name = 'Cannibal Blade',  skill = 150, element = 'dark',    id = 2065 },
+        { name = 'String Shredder', skill = 324, element = 'thunder', id = 2743 },
+    },
+    [frameSharpshot] = {
+        { name = 'Arcuballista',    skill =   0, element = 'fire',    id = 1942 },
+        { name = 'Daze',            skill = 150, element = 'thunder', id = 2066 },
+        { name = 'Armor Shatterer', skill = 324, element = 'wind',    id = 2744 },
+    },
+    [0x23] = harlequinSkills, -- a Stormwaker has the Harlequin's
+}
+
+function predict.Weaponskill(state)
+    local skills = state.frame and weaponskills[state.frame]
+    if skills == nil then
+        return nil, 'Not told about the automaton yet. Change area or an attachment.'
+    end
+
+    local maneuvers = state.maneuvers or {}
+    local has = (state.frame == frameSharpshot and state.ranged or state.melee) or 0
+
+    local best, bestUp = nil, -1
+    for _, skill in ipairs(skills) do
+        if has >= skill.skill then
+            local up = maneuvers[skill.element] or 0
+            if up > bestUp
+                or (up == bestUp and skill.skill > best.skill)
+                or (up == bestUp and skill.skill == best.skill and skill.id > best.id) then
+                best, bestUp = skill, up
+            end
+        end
+    end
+    return best and best.name or nil, nil
 end
 
 return predict
