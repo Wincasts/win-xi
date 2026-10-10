@@ -788,7 +788,8 @@ local createSize = nil -- how big the button is: found out once
 --
 -- What only the kind's notorious monsters do comes after what its other mobs do, in lists of its
 -- own, each under the monster's name and level: those of the area you are in first, then the rest,
--- the lowest in level first as mobs.lua has them. A monster that is in two areas is two.
+-- the lowest in level first as mobs.lua has them. A monster that is in two areas is two where it is
+-- not the same in both.
 local kindLabels = { spell = 'Spell', skill = 'Weaponskill', ability = 'Ability' }
 
 -- The order of every list of things a mob does: its abilities, then its weaponskills, then its
@@ -847,9 +848,11 @@ local function MobActions(data, known, zone)
         -- so that a monster can be looked up, and everything of its own found under it
         actions = List(known.spells, known.moves)
         actions.zone, actions.notorious = zone, { }
+        local here = ('.%d.'):format(zone)
         for pass = 1, 2 do
-            for name, where, level, spells, moves in (known.notorious or ''):gmatch('([^=;]+)=(%d+),([^,;]*),(%d*),(%d*);') do
-                if (tonumber(where) == zone) == (pass == 1) then
+            for name, where, level, spells, moves in (known.notorious or ''):gmatch('([^=;]+)=([%d.]+),([^,;]*),(%d*),(%d*);') do
+                -- where is the areas it is in, with points between them
+                if (('.' .. where .. '.'):find(here, 1, true) ~= nil) == (pass == 1) then
                     local list = List(data.lists[tonumber(spells)], data.lists[tonumber(moves)],
                         level ~= '' and ('%s (Lv %s)'):format(name, level) or name, actions)
                     if #list > 0 then

@@ -56,7 +56,8 @@ mobs in the area. What a kind can do is everything its mobs do between them, whe
 is more than any one of them does. What only a kind's notorious monsters do comes after that, in lists
 of its own, each under the monster's name and level, so that a beetle is not said to cast what one
 notorious beetle casts. The monsters of the area you are in come first, then the rest from the lowest
-level up; one that is in two areas, at two levels, is listed as two. Each monster has everything it
+level up; one that is in two areas is listed as two where it is of another level there or does other
+things, and once where it is the same. Each monster has everything it
 does that the kind's other mobs do not, whether or not another monster does it too, so a monster can be
 looked up and all of its own found under it. A notorious
 monster is one the server marks as one, or a mob with a name of its own. The rank and file of Dynamis

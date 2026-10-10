@@ -12,8 +12,8 @@ is for its mobs everywhere. What a kind can do is then more than any one of its 
 
 What only a kind's notorious monsters do is kept apart from what its other mobs do, with the name,
 area and level of the monster that does it, so that a beetle is not said to cast what one notorious
-beetle casts. A monster that is in two areas is two monsters. What they do is one of the lists, which
-many share. A notorious monster is one the server marks, or one with a name of its own; the mobs of
+beetle casts. A monster that is in two areas is two monsters where it is of another level there or does
+other things, and one where it is the same. What they do is one of the lists, which many share. A notorious monster is one the server marks, or one with a name of its own; the mobs of
 Dynamis, which the server's Dynamis module marks one and all, are taken as they were before it.
 
 It is read from a checkout of the server (Phoenix, which keeps its mobs in data/zones/<zone>/mobs.yaml),
@@ -29,7 +29,7 @@ mobs.lua is written to be small and to cost nothing until it is wanted: what a k
 of numbers, and an area is one string, taken apart only when twister asks about that area.
 
     kinds = { ['Sheep'] = { spells = '53 59', moves = '260 261 a688',      a marks an ability
-                            notorious = 'Name=area,level,spells,moves;' } }   the level 55 or 25-26 or nothing,
+                            notorious = 'Name=area.area,level,spells,moves;' } }   the level 55 or 25-26 or nothing,
     lists = { '144 145', '265 a688' }                                        and each of the last two a list or nothing
     zones = { [area] = 'Sheep:Carnero|Ornery Sheep;Crab:Land Crab;' }
     names = ';260=Lamb Chop;'                                              the server's name for each move
@@ -229,7 +229,9 @@ class Mobs(mobdb.Generator):
                 used |= known['moves']
                 # what only its notorious monsters do, each with its area and level, the lowest first
                 # and those of no known level last
-                notorious = []
+                # one that is the same in several areas, in level and in what it does, is written once,
+                # with all of its areas
+                notorious = collections.defaultdict(list)  # (level it sorts by, name, level, spells, moves) -> its areas
                 for (name, zone_id), mob in known['notorious'].items():
                     spells, moves = mob['spells'] - known['spells'], mob['moves'] - known['moves']
                     if spells or moves:
@@ -238,10 +240,11 @@ class Mobs(mobdb.Generator):
                         used |= moves
                         low, high = min(mob['levels'], default=0), max(mob['levels'], default=0)
                         level = '' if not low else str(low) if low == high else '%d-%d' % (low, high)
-                        notorious.append((low or 999, name, zone_id, level) + tuple(map(place, self.written(spells, moves))))
+                        notorious[(low or 999, name, level) + tuple(map(place, self.written(spells, moves)))].append(zone_id)
                 out.write("        [%s] = { spells = '%s', moves = '%s', notorious = %s },\n" % (
                     (mobdb.lua_string(kind),) + self.written(known['spells'], known['moves'])
-                    + (mobdb.lua_string(''.join('%s=%d,%s,%s,%s;' % found[1:] for found in sorted(notorious))),)))
+                    + (mobdb.lua_string(''.join('%s=%s,%s,%s,%s;' % (
+                        (found[1], '.'.join(map(str, sorted(notorious[found])))) + found[2:]) for found in sorted(notorious))),)))
                 monsters += len(notorious)
             out.write('    },\n    lists = {\n')
             out.writelines("        '%s',\n" % written for written in lists)
