@@ -47,6 +47,8 @@ local frames = { }
 
 local castRange = 20.79       -- beyond this a member's bars are dimmed, and beyond targetRange dimmed further
 local targetRange = 50
+local beyondCastOpacity = 0.7    -- how much of a bar's colour is left beyond casting range
+local beyondTargetOpacity = 0.45 -- and beyond targeting range, or where the distance is not known
 
 -- A colour as XivParty's layouts write it
 local function Hex(code)
@@ -225,7 +227,8 @@ local function Animation(member)
     return state
 end
 
--- How far away a member is: 1 within casting range, 0.5 within targeting range, 0.25 beyond or unknown.
+-- How far away a member is, as how strongly their bars are drawn: 1 within casting range, less within
+-- targeting range, and less again beyond it or where the distance is not known.
 -- A member made up to fill the list while it is being arranged is taken to be beside the player.
 local function RangeOpacity(member)
     if member.isPlayer or (member.targetIndex == nil and member.isInZone) then
@@ -233,16 +236,16 @@ local function RangeOpacity(member)
     end
     local entity = member.entity
     if entity == nil or entity.Distance == nil then
-        return 0.25
+        return beyondTargetOpacity
     end
 
     local distance = math.sqrt(entity.Distance)
     if distance <= castRange then
         return 1
     elseif distance <= targetRange then
-        return 0.5
+        return beyondCastOpacity
     end
-    return 0.25
+    return beyondTargetOpacity
 end
 
 -- The lines of the list being drawn: what is kept for each, and where each is on screen
