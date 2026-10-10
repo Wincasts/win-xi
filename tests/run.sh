@@ -9,6 +9,7 @@ run controller tests/empty.lua          controller_check.lua
 run debuffs    tests/empty.lua          debuffs_check.lua
 run xiframes   addons/xiframes/xiframes.lua xiframes_check.lua
 run chime      addons/chime/chime.lua   chime_check.lua
+run puppet     addons/puppet/puppet.lua puppet_check.lua
 
 # What xiframes draws, call for call, against a kept copy: any difference is printed. After a change
 # that is meant to alter what is drawn, look the difference over and keep the new copy with
