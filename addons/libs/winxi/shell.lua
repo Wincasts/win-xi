@@ -17,6 +17,7 @@
 --         drawAppearance = function(options) ... end,   -- optional: more for the Appearance tab's Addon section
 --         commands    = { focus = function(options, args) ... end },   -- optional: more verbs
 --         onSettings  = function(options) ... end,      -- optional: the settings have been loaded, or swapped for another character's
+--         toggleSays  = { shown = '...', hidden = '...' },   -- optional: said in the chat log as the command shows or hides the window
 --         import      = { tool = 'example', keys = { 'isVisible', 'pos' } },   -- optional: bring these over from xitools, once
 --     });
 --
@@ -208,6 +209,10 @@ local function OnCommand(app, e)
         app:ToggleConfig();
     elseif verb == nil then
         options.isVisible[1] = not options.isVisible[1];
+        -- for a window that is not always there to be seen changing
+        if spec.toggleSays ~= nil then
+            app:Say(options.isVisible[1] and spec.toggleSays.shown or spec.toggleSays.hidden);
+        end
     elseif verb == 'config' then
         app:ToggleConfig();
     elseif spec.commands ~= nil and spec.commands[verb] ~= nil then
