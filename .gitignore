@@ -7,3 +7,6 @@
 
 __pycache__/
 *.pyc
+
+# The Ashita plugin SDK and the Microsoft C runtime and Windows SDK that plugins/*/build.sh build against
+/.toolchain/
