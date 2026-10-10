@@ -206,12 +206,13 @@ local function beetle()
 end
 do
     local actions, headers = beetle()
+    -- with what its mobs do is what three or more of its notorious monsters do: the few spells they have in common
     H.print('Beetle, what its mobs do:', actions:match('%(%?%)%] (.-) | %['))
     H.print('then its notorious monsters, lowest first:', table.concat(headers, ', '))
     -- every list in the same order: abilities, then weaponskills, then spells, each by name
     local lumber = actions:match('%[Lumber Jack %(Lv 55%)%] ([^|]*)')
     H.print('a list is abilities, weaponskills, spells:', lumber:find('%(Ability%)') < lumber:find('%(Spell%)'), '| Lumber Jack\'s begins', lumber:match('^.-%)'), '| and its spells are by name', lumber:match('%(Spell%) (.-) %(Spell%)') ~= nil)
-    H.print('Tornado (spell 208) is Lancing Lamorak\'s, not every beetle\'s', actions:match('Lancing Lamorak.*Spell 208') ~= nil, actions:match('%(%?%)%] (.-) | %['):find('Spell', 1, true) == nil)
+    H.print('Tornado (spell 208) is Lancing Lamorak\'s, not every beetle\'s', actions:match('Lancing Lamorak.*Spell 208') ~= nil, actions:match('%(%?%)%] (.-) | %['):find('Spell 208', 1, true) == nil)
     -- West Ronfaure, where Lancing Lamorak is: its list is the first, and has all that is its own
     members[0].zone = 100; local there, first = beetle(); members[0].zone = 102
     H.print('in its own area a monster is first:', first[1], '| then', first[2], '| with all that is its own, there as anywhere', select(2, there:match('Lancing Lamorak[^|]*'):gsub('Spell', '')) == select(2, actions:match('Lancing Lamorak[^|]*'):gsub('Spell', '')))

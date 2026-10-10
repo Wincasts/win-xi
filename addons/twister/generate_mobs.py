@@ -13,7 +13,9 @@ is for its mobs everywhere. What a kind can do is then more than any one of its 
 What only a kind's notorious monsters do is kept apart from what its other mobs do, with the name,
 area and level of the monster that does it, so that a beetle is not said to cast what one notorious
 beetle casts. A monster that is in two areas is two monsters where it is of another level there or does
-other things, and one where it is the same. What they do is one of the lists, which many share. A notorious monster is one the server marks, or one with a name of its own; the mobs of
+other things, and one where it is the same. What they do is one of the lists, which many share.
+What three or more of a kind's notorious monsters do is the kind's own, with what its other mobs do,
+so that fifty goblins are not each listed for the dice they all throw. A notorious monster is one the server marks, or one with a name of its own; the mobs of
 Dynamis, which the server's Dynamis module marks one and all, are taken as they were before it.
 
 It is read from a checkout of the server (Phoenix, which keeps its mobs in data/zones/<zone>/mobs.yaml),
@@ -45,6 +47,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOBDB = os.path.join(HERE, '..', 'mobdb', 'mobdb')
 sys.path.insert(0, MOBDB)
 import import_phoenix as mobdb  # noqa: E402
+
+
+SEVERAL = 3  # as many notorious monsters of a kind doing a thing as make it the kind's own
 
 
 def module_sql(server):
@@ -226,6 +231,14 @@ class Mobs(mobdb.Generator):
         with open(self.args.target, 'w', encoding='utf-8', newline='\n') as out:
             out.write('-- Made by generate_mobs.py, which says how this is laid out\nreturn {\n    kinds = {\n')
             for kind, known in sorted(self.kinds.items()):
+                # what several of its notorious monsters do is the kind's own, with what its other mobs
+                # do: it need not be said again under each of them
+                for does in ('spells', 'moves'):
+                    doers = collections.defaultdict(set)  # a spell or a move -> the monsters that do it, by name
+                    for (name, _), mob in known['notorious'].items():
+                        for done in mob[does] - known[does]:
+                            doers[done].add(name)
+                    known[does] |= {done for done, names in doers.items() if len(names) >= SEVERAL}
                 used |= known['moves']
                 # what only its notorious monsters do, each with its area and level, the lowest first
                 # and those of no known level last

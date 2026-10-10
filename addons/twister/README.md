@@ -59,7 +59,9 @@ notorious beetle casts. The monsters of the area you are in come first, then the
 level up; one that is in two areas is listed as two where it is of another level there or does other
 things, and once where it is the same. Each monster has everything it
 does that the kind's other mobs do not, whether or not another monster does it too, so a monster can be
-looked up and all of its own found under it. A notorious
+looked up and all of its own found under it. What three or more of a kind's notorious monsters do is
+counted as the kind's own, and listed with what its other mobs do, not under each of them: fifty goblins
+are not each listed for the dice they all throw. A notorious
 monster is one the server marks as one, or a mob with a name of its own. The rank and file of Dynamis
 (the Vanguards and the like), which the server's Dynamis module marks one and all, are not: what they do
 is with what their kind's other mobs do. The game has some things under more than one number (a weaponskill,
