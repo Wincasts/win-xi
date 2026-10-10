@@ -33,9 +33,9 @@ local events = {
     { key = 'tell', group = 'Chat', label = 'Tell Received', file = 'voicef-tell.wav',
       tooltip = 'Someone sends you a tell.' },
     { key = 'mention', group = 'Chat', label = 'Name Mentioned', file = 'voicef-mention.wav',
-      tooltip = 'Someone else says your character\'s name in party or linkshell chat.' },
+      tooltip = 'Your name is said in party or linkshell chat.' },
     { key = 'invite', group = 'Chat', label = 'Party Invite', file = 'voicef-invite.wav',
-      tooltip = 'You are invited to a party or an alliance.' },
+      tooltip = 'You are invited to a party or alliance.' },
     { key = 'trade', group = 'Chat', label = 'Trade Request', file = 'voicef-trade.wav',
       tooltip = 'Someone asks to trade with you.' },
     { key = 'examine', group = 'Chat', label = 'Examined', file = 'voicef-examine.wav',
@@ -43,17 +43,15 @@ local events = {
     { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'voicef-tp.wav',
       tooltip = 'Your TP reaches 1000.' },
     { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'voicef-lowhp.wav', threshold = 'lowHpPercent', thresholdLabel = 'HP Threshold',
-      thresholdTooltip = 'How low your HP has to fall for this to sound: to this percentage, or under it.',
-      tooltip = 'Your HP falls to the percentage below, or under it. It sounds once, and not again until your HP has been back over that.' },
+      tooltip = 'Your HP falls to the threshold. Sounds once until it recovers.' },
     { key = 'lowmp', group = 'Combat', label = 'Low MP', file = 'voicef-lowmp.wav', threshold = 'lowMpPercent', thresholdLabel = 'MP Threshold',
-      thresholdTooltip = 'How low your MP has to fall for this to sound: to this percentage, or under it.',
-      tooltip = 'Your MP falls to the percentage below, or under it. It sounds once, and not again until your MP has been back over that.\nNothing sounds on a job with no MP.' },
+      tooltip = 'Your MP falls to the threshold. Sounds once until it recovers.' },
     { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'voicef-ko.wav',
-      tooltip = 'Someone else in your party is knocked out, in the area you are in.' },
+      tooltip = 'A party member in your area is knocked out.' },
     { key = 'skillup', group = 'Other', label = 'Skill Up', file = 'voicef-skillup.wav',
-      tooltip = 'One of your skills rises, or reaches a new level: a combat or magic skill, or a craft.' },
+      tooltip = 'One of your skills rises.' },
     { key = 'drop', group = 'Other', label = 'Item Drop', file = 'voicef-drop.wav', items = 'dropItems',
-      tooltip = 'One of the items named below drops: it lands in the treasure pool, yours alone or the party\'s.' },
+      tooltip = 'An item named below lands in the treasure pool.' },
 }
 
 local defaults = T{
@@ -743,7 +741,6 @@ local function DrawEvent(options, event)
         widgets.Label(event.thresholdLabel)
         imgui.SetNextItemWidth(ToLineEnd())
         imgui.SliderInt(id.threshold, options[event.threshold], 5, 90, '%d%%')
-        Mark(event.thresholdTooltip)
     end
 
     -- and so the names of the items listened for
@@ -754,7 +751,7 @@ local function DrawEvent(options, event)
         if imgui.IsItemDeactivatedAfterEdit() then
             app:Save()
         end
-        Mark('The items to listen for, by name, with a comma between one and the next:\nKindred\'s Seal, Beastmen\'s Seal\nA name is the whole of the item\'s name as the game shows it, in capitals or not.')
+        Mark('Item names, separated by commas:\nKindred\'s Seal, Beastmen\'s Seal')
     end
 end
 
