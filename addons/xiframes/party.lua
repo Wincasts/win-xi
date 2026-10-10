@@ -18,6 +18,7 @@ local ffi = require('ffi')
 local d3d8 = require('d3d8')
 local d3d8_device = d3d8.get_device()
 local game = require('game')
+local sharpen = require('sharpen')
 
 local party = { }
 
@@ -76,6 +77,11 @@ local function setAlpha(bitmap)
             bytes[bmpStart + pixelStart + 1] = 0
             bytes[bmpStart + pixelStart + 2] = 0
         end
+    end
+
+    -- one of the game's own icons is soft beside one that has been drawn again: see sharpen.lua
+    if sharpen.IsGames(bytes, bmpStart) then
+        sharpen.Icon(bytes, bmpStart)
     end
 
     -- turn our bytes back into chars, and our chars into a string
