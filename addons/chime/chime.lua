@@ -1,7 +1,7 @@
 addon.name    = 'chime'
 addon.author  = 'win (and claude)'
 addon.version = '1.0'
-addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, a skillchain, low HP and the like.'
+addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, low HP and the like.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 
 -- A sound for each of a few things worth hearing about. Each event has its own switch and its own
@@ -10,7 +10,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /chime           opens or closes the settings
 --   /chime test      plays every event's sound in turn, to hear them
 --
--- What sets a sound off is read from packets (chat, invitations, trades, being examined, actions, messages) and from the party's
+-- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
@@ -35,8 +35,6 @@ local events = {
       tooltip = 'Someone asks to trade with you.' },
     { key = 'examine', group = 'Chat', label = 'Examined', file = 'voice-examine.wav',
       tooltip = 'Someone examines you.' },
-    { key = 'skillchain', group = 'Combat', label = 'Skillchain', file = 'skillchain.wav',
-      tooltip = 'A skillchain is made by someone in your party or alliance or by one of their pets, or on whatever you have targeted.' },
     { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'tp.wav',
       tooltip = 'Your TP reaches 1000.' },
     { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'lowhp.wav', threshold = 'lowHpPercent',
@@ -50,7 +48,6 @@ local events = {
 }
 
 local defaults = T{
-    enabled = T{ true },
     events = T{ },
     lowHpPercent = T{ 25 },
     lowMpPercent = T{ 20 },
@@ -134,9 +131,8 @@ end
 
 -- An event has happened: its sound, if it is switched on
 local function Sound(key)
-    local options = app.options
-    local chosen = options.events[key]
-    if not options.enabled[1] or not chosen.enabled[1] then
+    local chosen = app.options.events[key]
+    if not chosen.enabled[1] then
         return
     end
 
@@ -153,13 +149,12 @@ local function Sound(key)
 end
 
 ---------------------------------------------------------------------------------------------------
--- Chat, invitations and skillchains: from packets
+-- Chat, invitations and messages: from packets
 ---------------------------------------------------------------------------------------------------
 
 local packetSystemMessage = 0x009
 local packetChat = 0x017
 local packetTrade = 0x021 -- someone asks to trade
-local packetAction = 0x028
 local packetMessage = 0x029
 local packetInvite = 0x0DC
 
@@ -209,105 +204,6 @@ local function OnChat(data)
     end
 end
 
--- Some bits of a packet, as a number: offset is counted in bits from the packet's start, the low bit
--- of each byte first, which is how the action packet is packed. Up to 32 bits.
-local function Bits(data, offset, length)
-    local first = math.floor(offset / 8)
-    local value = 0
-    for index = 4, 0, -1 do
-        value = value * 256 + (data:byte(first + index + 1) or 0)
-    end
-    return math.floor(value / 2 ^ (offset % 8)) % 2 ^ length
-end
-
--- The messages that say a skillchain was made, as an action's additional effect
-local function IsSkillchain(message)
-    return (message >= 288 and message <= 302) or (message >= 385 and message <= 398) or (message >= 767 and message <= 770)
-end
-
--- Whether an id is someone in the party or alliance, the player among them
-local function IsInAlliance(serverId)
-    local party = AshitaCore:GetMemoryManager():GetParty()
-    for place = 0, 17 do
-        if party:GetMemberIsActive(place) == 1 and party:GetMemberServerId(place) == serverId then
-            return true
-        end
-    end
-    return false
-end
-
--- Whether an id is the pet of someone in the party or alliance: an automaton, an avatar, a wyvern,
--- whatever a beastmaster has charmed. Their skillchains are the party's as much as its members' are.
-local function IsAlliedPet(serverId)
-    local party = AshitaCore:GetMemoryManager():GetParty()
-    for place = 0, 17 do
-        if party:GetMemberIsActive(place) == 1 then
-            local member = GetEntity(party:GetMemberTargetIndex(place))
-            local petIndex = member ~= nil and member.PetTargetIndex or 0
-            if petIndex ~= nil and petIndex ~= 0 then
-                local pet = GetEntity(petIndex)
-                if pet ~= nil and pet.ServerId == serverId then
-                    return true
-                end
-            end
-        end
-    end
-    return false
-end
-
-local function TargetServerId()
-    local target = AshitaCore:GetMemoryManager():GetTarget()
-    local entity = GetEntity(target:GetTargetIndex(0))
-    return entity ~= nil and entity.ServerId or nil
-end
-
--- The kinds of action that cannot make a skillchain, which are most of what is sent: a round of
--- attacks, a shot, and the readying of a weapon skill, a spell, an item or a shot
-local neverSkillchain = { [1] = true, [2] = true, [7] = true, [8] = true, [9] = true, [12] = true }
-
--- The action packet: who acted and what kind of action it was, then each target, and for each target
--- each result, some with an additional effect, which is where a skillchain is told of. Only as much
--- is read as finds one.
-local function OnAction(data)
-    if neverSkillchain[Bits(data, 82, 4)] then
-        return
-    end
-    local actor = Bits(data, 40, 32)
-    local targets = Bits(data, 72, 6)
-    local allied = nil -- found out once, and only if there is a skillchain to ask about
-
-    local offset = 150
-    for _ = 1, targets do
-        local targetId = Bits(data, offset, 32)
-        local results = Bits(data, offset + 32, 4)
-        offset = offset + 36
-        for _ = 1, results do
-            local hasAdded = Bits(data, offset + 85, 1) == 1
-            offset = offset + 86
-            if hasAdded then
-                if IsSkillchain(Bits(data, offset + 27, 10)) then
-                    if allied == nil then
-                        allied = IsInAlliance(actor) or IsAlliedPet(actor)
-                    end
-                    if allied or targetId == TargetServerId() then
-                        Sound('skillchain')
-                        return
-                    end
-                end
-                offset = offset + 37
-            end
-            local hasSpikes = Bits(data, offset, 1) == 1
-            offset = offset + 1
-            if hasSpikes then
-                offset = offset + 34
-            end
-        end
-        if offset >= #data * 8 then
-            return
-        end
-    end
-end
-
 -- The message packet: who it is about at 0x08, and which message at 0x18, in its low 15 bits. A skill
 -- rising and a skill reaching a level are two of them, and the player's own are the ones wanted.
 local messageSkillRises, messageSkillLevel = 38, 53
@@ -333,7 +229,7 @@ local function OnSystemMessage(data)
 end
 
 ashita.events.register('packet_in', 'chime_packet_in', function(e)
-    if app == nil or not app.options.enabled[1] then
+    if app == nil then
         return
     end
     if e.id == packetChat then
@@ -344,8 +240,6 @@ ashita.events.register('packet_in', 'chime_packet_in', function(e)
         Sound('trade')
     elseif e.id == packetSystemMessage then
         OnSystemMessage(e.data)
-    elseif e.id == packetAction and app.options.events.skillchain.enabled[1] then
-        OnAction(e.data)
     elseif e.id == packetMessage then
         OnMessage(e.data)
     end
@@ -549,12 +443,6 @@ local function DrawEvent(options, event)
 end
 
 local function DrawSettings(options)
-    widgets.Label('Enabled')
-    imgui.Checkbox('##chime.enabled', options.enabled)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Off, nothing sounds, whatever is switched on below.')
-    end
-
     local group = nil
     for _, event in ipairs(events) do
         if event.group ~= group then
@@ -567,7 +455,6 @@ end
 
 -- Whatever saved settings lack, or have as the wrong kind of thing
 local function Complete(options)
-    if type(options.enabled) ~= 'table' then options.enabled = T{ true } end
     if type(options.events) ~= 'table' then options.events = T{ } end
     for _, event in ipairs(events) do
         local chosen = options.events[event.key]
@@ -610,8 +497,6 @@ app = shell.New({
 
 ashita.events.register('d3d_present', 'chime_present', function()
     app:BeginFrame()
-    if app.options.enabled[1] then
-        Look()
-    end
+    Look()
     PlayWaiting()
 end)
