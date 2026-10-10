@@ -246,6 +246,33 @@ local function Work(pet, id)
     })
 end
 
+-- Dummy data, for seeing how the window looks with every part of it filled: switched on in the
+-- settings, and not kept, so that it is off again the next time the addon is loaded. The rows show
+-- every state a row can be in, and the bars every colour a figure can be, and one not known.
+local dummy = { on = { false }, was = false }
+dummy.priority = {
+    { name = 'Shield Bash', detail = 'when the enemy casts', state = 'waiting', wait = 142 },
+    { name = 'Heal', detail = 'you at 40%', state = 'idle', wait = 0 },
+    { name = 'Enfeeble', detail = 'Dia II', state = 'ready', wait = 0, ready = true },
+    { name = 'Nuke', detail = '', state = 'waiting', wait = 12 },
+    { name = 'Status Removal', detail = 'if you have an ailment', state = 'ready', wait = 0 },
+    { name = 'Weaponskill', detail = 'Slapstick (TP 640)', state = 'idle', wait = 0 },
+    { name = 'Ranged Attack', detail = '', state = 'waiting', wait = 7 },
+}
+dummy.burden = { }
+for element, bar in ipairs({
+    { 0, figureSafe }, { 8, figureSafe }, { 22, figureRisk }, { 35, figureRisk },
+    { 51, figureHigh }, { 78, figureHigh }, { 100, figureHigh }, { nil, figureUnknown },
+}) do
+    dummy.burden[element] = { color = elementColors[element], fraction = (bar[1] or 0) / fullBurden,
+        figure = bar[1] and tostring(bar[1]) or '?', figureColor = bar[2] }
+end
+
+local function ShowDummy()
+    showing.enfeebles, showing.weaponskill = 'Dia II, Poison, Silence', 'Slapstick'
+    showing.priority, showing.burden = dummy.priority, dummy.burden
+end
+
 -- The priority list: everything the automaton might do, in the order it tries them, and how each
 -- stands. The one it will do next is marked and in full colour; the rest are dimmed.
 local function DrawPriority()
@@ -350,6 +377,11 @@ local function DrawSettings(options)
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
     if imgui.IsItemHovered() then
         imgui.SetTooltip('A small bar for the burden of each element: fire, ice, wind and earth, then thunder, water, light and dark.\nThe figure is the burden. It is yellow when one more maneuver of that element might overload, and red when it is likely to.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.')
+    end
+    widgets.Label('Show Dummy Data')
+    imgui.Checkbox('##puppet.showDummy', dummy.on)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('For seeing how the window looks: every part of it filled with made-up data, whether there is an automaton out or not.\nThe parts switched off above stay off. It is not kept: it is off again when the addon is next loaded.')
     end
     widgets.Label('Show Debug Information')
     imgui.Checkbox('##puppet.showDebug', options.showDebug)
@@ -459,6 +491,16 @@ ashita.events.register('d3d_present', 'puppet_present', function()
     else
         showing.burden = nil
     end
+    -- the dummy data goes over whatever was worked out, and is cleared away when it is switched off
+    if dummy.on[1] then
+        ShowDummy()
+    elseif dummy.was then
+        showing.enfeebles, showing.weaponskill, showing.priority = nil, nil, { }
+        if target ~= nil or (pet ~= nil and options.alwaysShow[1]) then
+            Work(pet, target)
+        end
+    end
+    dummy.was = dummy.on[1]
     local target = GetTarget(pet)
     -- outside a fight, with the window always shown, it says what the automaton would open with
     if target ~= nil or (pet ~= nil and options.alwaysShow[1]) then
@@ -476,6 +518,6 @@ ashita.events.register('d3d_present', 'puppet_present', function()
     end
 
     wanted[1] = options.isVisible[1]
-        and (options.alwaysShow[1] or (target ~= nil and (showing.enfeebles ~= nil or showing.weaponskill ~= nil)))
+        and (dummy.on[1] or options.alwaysShow[1] or (target ~= nil and (showing.enfeebles ~= nil or showing.weaponskill ~= nil)))
     app:Window(wanted, DrawWindow)
 end)

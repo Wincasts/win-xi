@@ -161,6 +161,12 @@ entities[1].PetTargetIndex = 0; dummies = 0; H.frames(1); H.print('nor with no a
 H.packet(0x00A); entities[1].PetTargetIndex = 2; entities[2].ServerId = 3; H.frames(1)
 H.print('an automaton brought into another area starts afresh', at(4, os.clock()))
 entities[2].ServerId = 2; entities[1].PetTargetIndex = 0; o.alwaysShow[1] = false; shown()
+-- the dummy data: every part filled, with no automaton out, and gone again when switched off
+local realCheckbox = imgui.Checkbox
+local function setDummy(on) imgui.Checkbox = function(id, value) if id == '##puppet.showDummy' then value[1] = on end return false end; H.command('/puppet config'); H.frames(1); H.command('/puppet config'); imgui.Checkbox = realCheckbox end
+o.showPriority[1] = true; setDummy(true); dummies = 0
+H.print('dummy data, no automaton out:', shown(), '| and the bars', dummies > 0)
+setDummy(false); H.print('switched off: gone', shown() == ''); o.showPriority[1] = false
 H.print('/puppet config kept from the game', H.command('/puppet config')); H.frames(1)
 H.command('/puppet'); H.print('/puppet hides it', o.isVisible[1] == false, '| and says so:', H.printed[#H.printed])
 H.command('/puppet'); H.print('and shows it again:', H.printed[#H.printed])
