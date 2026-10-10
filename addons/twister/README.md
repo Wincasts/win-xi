@@ -21,11 +21,17 @@ and needs only the `winxi` library (`addons/libs/winxi`).
 | Item Drop | an item you have named drops: it lands in the treasure pool, yours alone or the party's |
 
 Each event has its own switch, its own sound and a Test button. The sounds are the wav files in the
-addon's `sounds` folder: put your own there and they appear in every event's list. The ones that come
-with it are plain tones made by `sounds/generate.py`, which every event but Trade Request, Examined and Item Drop starts on, and a spoken one for
-each event, `voice-tell.wav` and so on ("Tell", "Mentioned", "Invite", "Trade", "Examined", "TP ready",
-"Low HP", "Low MP", "Member down", "Skill up", "Item drop"), to choose in its place. The spoken ones were made with the Piper
-text-to-speech program and its voice en_US-amy-medium, by `sounds/generate_voices.sh`.
+addon's `sounds` folder: put your own there and they appear in every event's list. Three come with it
+for each event:
+
+- a spoken one, `voice-tell.wav` and so on ("Tell", "Mentioned", "Invite", "Trade", "Examined", "TP
+  ready", "Low HP", "Low MP", "Member down", "Skill up", "Item drop"), which is what an event starts on.
+  They were made with the Piper text-to-speech program and its voice en_US-amy-medium, by
+  `sounds/generate_voices.sh`;
+- a tone of plain notes, `tell.wav` and so on;
+- a second tone, on bells, `tone-tell2.wav` and so on.
+
+Both tones are made by `sounds/generate.py`.
 
 Item Drop listens for the items named in its settings, under its line: their names with a comma between
 one and the next (`Kindred's Seal, Beastmen's Seal`), each the whole of the item's name as the game shows
@@ -49,8 +55,8 @@ and the same again for the mobs of Dynamis): what has one name is listed once, a
 for every number it goes by.
 
 Each trigger has a switch, its sound, a Test button and a Remove button; they are kept with the rest of
-the settings. A trigger starts on `voice-trigger.wav` ("Heads up"), and `trigger.wav` is a tone for the
-same.
+the settings. A trigger starts on `voice-trigger.wav` ("Heads up"); `trigger.wav` and
+`tone-trigger2.wav` are tones for the same.
 
 What the kinds can do, and which kind each area's mobs are, is in `mobs.lua`, with only the mobs that do
 something. It is made from a checkout of the server by `generate_mobs.py` (which uses MobDB's importer,

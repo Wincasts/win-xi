@@ -28,29 +28,29 @@ local widgets = require('winxi.widgets')
 local shell = require('winxi.shell')
 local game = require('winxi.game')
 
--- The events, in the order the settings list them. file is the sound an event starts with.
+-- The events, in the order the settings list them. file is the sound an event starts with: its spoken one.
 local events = {
-    { key = 'tell', group = 'Chat', label = 'Tell Received', file = 'tell.wav',
+    { key = 'tell', group = 'Chat', label = 'Tell Received', file = 'voice-tell.wav',
       tooltip = 'Someone sends you a tell.' },
-    { key = 'mention', group = 'Chat', label = 'Name Mentioned', file = 'mention.wav',
+    { key = 'mention', group = 'Chat', label = 'Name Mentioned', file = 'voice-mention.wav',
       tooltip = 'Someone else says your character\'s name in party or linkshell chat.' },
-    { key = 'invite', group = 'Chat', label = 'Party Invite', file = 'invite.wav',
+    { key = 'invite', group = 'Chat', label = 'Party Invite', file = 'voice-invite.wav',
       tooltip = 'You are invited to a party or an alliance.' },
     { key = 'trade', group = 'Chat', label = 'Trade Request', file = 'voice-trade.wav',
       tooltip = 'Someone asks to trade with you.' },
     { key = 'examine', group = 'Chat', label = 'Examined', file = 'voice-examine.wav',
       tooltip = 'Someone examines you.' },
-    { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'tp.wav',
+    { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'voice-tp.wav',
       tooltip = 'Your TP reaches 1000.' },
-    { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'lowhp.wav', threshold = 'lowHpPercent', thresholdLabel = 'HP Threshold',
+    { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'voice-lowhp.wav', threshold = 'lowHpPercent', thresholdLabel = 'HP Threshold',
       thresholdTooltip = 'How low your HP has to fall for this to sound: to this percentage, or under it.',
       tooltip = 'Your HP falls to the percentage below, or under it. It sounds once, and not again until your HP has been back over that.' },
-    { key = 'lowmp', group = 'Combat', label = 'Low MP', file = 'lowmp.wav', threshold = 'lowMpPercent', thresholdLabel = 'MP Threshold',
+    { key = 'lowmp', group = 'Combat', label = 'Low MP', file = 'voice-lowmp.wav', threshold = 'lowMpPercent', thresholdLabel = 'MP Threshold',
       thresholdTooltip = 'How low your MP has to fall for this to sound: to this percentage, or under it.',
       tooltip = 'Your MP falls to the percentage below, or under it. It sounds once, and not again until your MP has been back over that.\nNothing sounds on a job with no MP.' },
-    { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'ko.wav',
+    { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'voice-ko.wav',
       tooltip = 'Someone else in your party is knocked out, in the area you are in.' },
-    { key = 'skillup', group = 'Other', label = 'Skill Up', file = 'skillup.wav',
+    { key = 'skillup', group = 'Other', label = 'Skill Up', file = 'voice-skillup.wav',
       tooltip = 'One of your skills rises, or reaches a new level: a combat or magic skill, or a craft.' },
     { key = 'drop', group = 'Other', label = 'Item Drop', file = 'voice-drop.wav', items = 'dropItems',
       tooltip = 'One of the items named below drops: it lands in the treasure pool, yours alone or the party\'s.' },
