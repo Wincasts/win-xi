@@ -751,7 +751,7 @@ local function DrawEvent(options, event)
         if imgui.IsItemDeactivatedAfterEdit() then
             app:Save()
         end
-        Mark('Item names, separated by commas:\nKindred\'s Seal, Beastmen\'s Seal')
+        Mark('Item names, separated by commas.\nex: Kindred\'s Seal, Beastmen\'s Seal')
     end
 end
 
