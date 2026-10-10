@@ -791,6 +791,17 @@ local createSize = nil -- how big the button is: found out once
 -- the lowest in level first as mobs.lua has them. A monster that is in two areas is two.
 local kindLabels = { spell = 'Spell', skill = 'Weaponskill', ability = 'Ability' }
 
+-- The order of every list of things a mob does: its abilities, then its weaponskills, then its
+-- spells, and each of those in the order of their names
+local kindOrder = { ability = 1, skill = 2, spell = 3 }
+
+local function ActionsInOrder(a, b)
+    if a.kind ~= b.kind then
+        return kindOrder[a.kind] < kindOrder[b.kind]
+    end
+    return a.label < b.label
+end
+
 local function MobActions(data, known, zone)
     local actions = known.actions
     if actions == nil or actions.zone ~= zone then
@@ -826,7 +837,7 @@ local function MobActions(data, known, zone)
             for ability, id in (moves or ''):gmatch('(a?)(%d+)') do
                 Add(Action(ability == 'a' and 'ability' or 'skill', tonumber(id)))
             end
-            table.sort(list, function(a, b) return a.label < b.label end)
+            table.sort(list, ActionsInOrder)
             list.listed = listed
             return list
         end
