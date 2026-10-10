@@ -38,8 +38,10 @@ local events = {
     { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'tp.wav',
       tooltip = 'Your TP reaches 1000.' },
     { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'lowhp.wav', threshold = 'lowHpPercent',
+      thresholdTooltip = 'How low your HP has to fall for this to sound: to this percentage, or under it.',
       tooltip = 'Your HP falls to the percentage below, or under it. It sounds once, and not again until your HP has been back over that.' },
     { key = 'lowmp', group = 'Combat', label = 'Low MP', file = 'lowmp.wav', threshold = 'lowMpPercent',
+      thresholdTooltip = 'How low your MP has to fall for this to sound: to this percentage, or under it.',
       tooltip = 'Your MP falls to the percentage below, or under it. It sounds once, and not again until your MP has been back over that.\nNothing sounds on a job with no MP.' },
     { key = 'ko', group = 'Combat', label = 'Party Member KO', file = 'ko.wav',
       tooltip = 'Someone else in your party is knocked out, in the area you are in.' },
@@ -436,10 +438,27 @@ for _, event in ipairs(events) do
         sound = ('##chime.%s.sound'):format(event.key),
         test = ('Test##chime.%s.test'):format(event.key),
         threshold = ('##chime.%s.threshold'):format(event.key),
-        thresholdLabel = event.label .. ' Threshold (%)',
         items = ('##chime.%s.items'):format(event.key),
-        itemsLabel = event.label .. ' Names',
     }
+end
+
+-- A mark at the end of a line that tells, when hovered, what the line is for
+local function Mark(text)
+    imgui.SameLine()
+    imgui.TextDisabled('(?)')
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip(text)
+    end
+end
+
+-- The name of a setting that belongs to the event above it: set in a little, and with no need to
+-- say whose it is
+local subIndent = 16
+
+local function SubLabel(text)
+    imgui.Indent(subIndent)
+    widgets.Label(text)
+    imgui.Unindent(subIndent)
 end
 
 local function DrawEvent(options, event)
@@ -470,31 +489,26 @@ local function DrawEvent(options, event)
         Say(('There is no %s in the sounds folder.'):format(chosen.sound))
     end
 
-    -- what sets the event off, told by a mark at the end of its line
-    imgui.SameLine()
-    imgui.TextDisabled('(?)')
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip(event.tooltip)
-    end
+    -- what sets the event off
+    Mark(event.tooltip)
 
     -- the threshold only while the event is switched on: off, there is nothing for it to set
     if event.threshold ~= nil and chosen.enabled[1] then
-        widgets.Label(id.thresholdLabel)
+        SubLabel('Threshold')
         imgui.SetNextItemWidth(170)
         imgui.SliderInt(id.threshold, options[event.threshold], 5, 90, '%d%%')
+        Mark(event.thresholdTooltip)
     end
 
     -- and so the names of the items listened for
     if event.items ~= nil and chosen.enabled[1] then
-        widgets.Label(id.itemsLabel)
+        SubLabel('Names')
         imgui.SetNextItemWidth(300)
         imgui.InputText(id.items, options[event.items], 1024)
         if imgui.IsItemDeactivatedAfterEdit() then
             app:Save()
         end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('The items to listen for, by name, with a comma between one and the next:\nKindred\'s Seal, Beastmen\'s Seal\nA name is the whole of the item\'s name as the game shows it, in capitals or not.')
-        end
+        Mark('The items to listen for, by name, with a comma between one and the next:\nKindred\'s Seal, Beastmen\'s Seal\nA name is the whole of the item\'s name as the game shows it, in capitals or not.')
     end
 end
 
