@@ -922,7 +922,7 @@ local function DrawMaking(options)
     -- where the list ends, which is where the button under it ends too
     imgui.SameLine(0, 0)
     local listEnd = imgui.GetCursorPosX()
-    Mark('Choose the action you wish to create the trigger for. Spells and weaponskills trigger as soon as they begin casting or are readied and an ability is triggered immediately upon use.', true)
+    Mark('Choose the action for which you wish to create a new trigger. Spells and weaponskills trigger as soon as they begin casting or are readied and an ability is triggered immediately upon use.', true)
 
     createSize = createSize or { imgui.CalcTextSize(createLabel) + 20, 0 }
     imgui.SetCursorPosX(math.max(listEnd - createSize[1], imgui.GetCursorPosX()))
