@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Makes mobs.lua, what chime knows of each area's mobs, for its triggers.
+"""Makes mobs.lua, what chime knows of the game's mobs, for its triggers.
 
-For every area, the kinds of mob in it (the server's families: sheep, crabs, quadav), and for each kind
-what its mobs can do between them, by the numbers the game sends when a mob does it: the spells they
-cast, the weaponskills they ready, and their abilities, which are what a mob uses at once, with nothing
-readied first (a job's special among them). With each kind are its mobs in that area, by the name the
-game shows, which is how a mob is known for one of the kind when it does something.
+The kinds of mob there are (the server's families: sheep, crabs, quadav), and for each kind what its
+mobs can do between them, wherever they are, by the numbers the game sends when a mob does it: the
+spells they cast, the weaponskills they ready, and their abilities, which are what a mob uses at once,
+with nothing readied first (a job's special among them). And for every area, the mobs in it of each
+kind, by the name the game shows, which is how a mob is known for one of a kind when it does something.
 
-By kind and not by mob, so that there is less to choose among: an area has a third as many kinds as
-mobs. What a kind can do is then more than any one of its mobs does.
+By kind and not by mob, so that there is less to choose among, and so that a trigger made for a kind
+is for its mobs everywhere. What a kind can do is then more than any one of its mobs does.
 
 It is read from a checkout of the server (Phoenix, which keeps its mobs in data/zones/<zone>/mobs.yaml),
 by way of the reading MobDB's importer already does, so that addon's folder has to be beside this one:
@@ -16,17 +16,15 @@ by way of the reading MobDB's importer already does, so that addon's folder has 
     python3 generate_mobs.py --server /path/to/Phoenix
 
 A mob's weaponskills and abilities are those of its skill list, those its own script names, and, where
-its script takes the job special mixin and names none, the special of its main job. Run it again when
-the server's mobs change. Requires PyYAML.
+its script takes the job special mixin and names none, the special of its main job. Only mobs that do
+something are written. Run it again when the server's mobs change. Requires PyYAML.
 
-mobs.lua is written to be small and to cost nothing until it is wanted: an area is one string, a kind
-in it a name, two numbers and its mobs' names, and each number one of the lists of spells or of moves,
-which kinds share between areas. Nothing is taken apart until chime asks for an area's mobs.
+mobs.lua is written to be small and to cost nothing until it is wanted: what a kind does is two strings
+of numbers, and an area is one string, taken apart only when chime asks about that area.
 
-    zones  = { [area] = 'Kind=spells,moves:Mob|Mob;Kind=spells,moves:Mob;' }   either number may be missing
-    spells = { '53 59 102' }                                       a list of spells
-    moves  = { '392 394 a688' }                                    a list of moves: a marks an ability
-    names  = ';392=Ultrasonics;'                                   the server's name for each move
+    kinds = { ['Sheep'] = { spells = '53 59', moves = '260 261 a688' } }   a marks an ability
+    zones = { [area] = 'Sheep:Carnero|Ornery Sheep;Crab:Land Crab;' }
+    names = ';260=Lamb Chop;'                                              the server's name for each move
 """
 import argparse
 import collections
@@ -120,7 +118,7 @@ class Mobs(mobdb.Generator):
         self.script_folders = {mobdb.normalize(os.path.basename(path)): path
                                for path in glob.glob(os.path.join(self.server, 'scripts', 'zones', '*'))}
         self.scripts = {}  # path -> the skills a script names, and whether it takes the job special mixin
-        self.zones = {}    # area -> kind -> (spells, moves, names)
+        self.zones = {}    # area -> kind -> (spells, moves, names), of the mobs there
         # species -> the family it is of, which is the kind of mob
         self.families = {}
         ecosystems = mobdb.load_yaml(os.path.join(self.server, 'data', 'ecosystems.yaml'))['ecosystems']
@@ -187,36 +185,32 @@ class Mobs(mobdb.Generator):
 
     def run(self):
         super().run()
-        lists = {'spells': {}, 'moves': {}}  # what a list holds, as written -> its place among the lists
-
-        def place(kind, written):
-            if not written:
-                return ''
-            return str(lists[kind].setdefault(written, len(lists[kind]) + 1))
-
-        used, areas = set(), []
+        kinds = {}  # kind -> (spells, moves), wherever its mobs are
+        areas = []
         for zone_id in sorted(self.zones):
             entries = []
             for kind, (spells, moves, names) in sorted(self.zones[zone_id].items()):
-                if re.search(r'[=;:,|]', kind) or any(re.search(r'[;|]', name) for name in names):
+                if re.search(r'[;:|]', kind) or any(re.search(r'[;|]', name) for name in names):
                     sys.exit('a name that cannot be written: %s, or one of %s' % (kind, sorted(names)))
-                used |= moves
-                entries.append('%s=%s,%s:%s;' % (
-                    kind, place('spells', ' '.join(map(str, sorted(spells)))),
-                    place('moves', ' '.join(('a%d' if self.skills[move][1] else '%d') % move for move in sorted(moves))),
-                    '|'.join(sorted(names))))
+                everywhere = kinds.setdefault(kind, (set(), set()))
+                everywhere[0].update(spells)
+                everywhere[1].update(moves)
+                entries.append('%s:%s;' % (kind, '|'.join(sorted(names))))
             areas.append('        [%d] = %s,\n' % (zone_id, mobdb.lua_string(''.join(entries))))
 
+        used = set()
         with open(self.args.target, 'w', encoding='utf-8', newline='\n') as out:
-            out.write('-- Made by generate_mobs.py, which says how this is laid out\nreturn {\n    zones = {\n')
+            out.write('-- Made by generate_mobs.py, which says how this is laid out\nreturn {\n    kinds = {\n')
+            for kind, (spells, moves) in sorted(kinds.items()):
+                used |= moves
+                out.write("        [%s] = { spells = '%s', moves = '%s' },\n" % (
+                    mobdb.lua_string(kind), ' '.join(map(str, sorted(spells))),
+                    ' '.join(('a%d' if self.skills[move][1] else '%d') % move for move in sorted(moves))))
+            out.write('    },\n    zones = {\n')
             out.writelines(areas)
-            for kind in ('spells', 'moves'):
-                out.write('    },\n    %s = {\n' % kind)
-                out.writelines("        '%s',\n" % written for written in lists[kind])
             out.write('    },\n    names = %s,\n}\n' % mobdb.lua_string(
                 ';' + ''.join('%d=%s;' % (move, spoken(self.skills[move][0])) for move in sorted(used))))
-        print('%8d  lists of spells\n%8d  lists of moves\n%8d  bytes: %s' % (
-            len(lists['spells']), len(lists['moves']), os.path.getsize(self.args.target), self.args.target))
+        print('%8d  kinds of mob\n%8d  bytes: %s' % (len(kinds), os.path.getsize(self.args.target), self.args.target))
 
 
 def main():

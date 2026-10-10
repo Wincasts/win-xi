@@ -11,8 +11,8 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /chime test      plays every event's sound in turn, to hear them
 --
 -- Beside the events there are triggers, which are experimental: a sound of your choosing when a mob
--- of a kind of your choosing begins a spell or a weaponskill of your choosing, or uses an ability.
--- They are made in the settings' Triggers tab, from what mobs.lua says each area's kinds of mob can do.
+-- of a kind of your choosing begins a spell or a weaponskill of your choosing, or uses an ability,
+-- in any area. They are made in the settings' Triggers tab, from what mobs.lua says each kind can do.
 --
 -- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure, actions) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
@@ -280,14 +280,16 @@ end
 -- Triggers: a mob begins a spell or a weaponskill, or uses an ability
 ---------------------------------------------------------------------------------------------------
 
--- What is known of each area's mobs is in mobs.lua, which generate_mobs.py makes and says the layout
--- of: an area is one string, of its kinds of mob (sheep, crabs, quadav), each with the places of a
--- list of spells and a list of moves (weaponskills, and abilities, which are marked a) and the names
--- of its mobs in the area. It is only wanted to make a trigger with, so it is
--- read when the Triggers tab first asks, taken apart an area at a time, and let go of when the settings
--- are closed. A trigger keeps what it needs of it.
-local mobData = nil   -- mobs.lua as it is, or false if it cannot be read
-local zoneMobs = nil  -- the one area taken apart: { zone, mobs = kind -> { spells, moves, names }, names = the kinds in order }
+-- What is known of the game's mobs is in mobs.lua, which generate_mobs.py makes and says the layout
+-- of: the kinds of mob there are (sheep, crabs, quadav) with what each kind's mobs can do, and for
+-- every area the names of its mobs of each kind.
+--
+-- It is read when it is wanted and not kept: by the Triggers tab, to make a trigger with, which lets
+-- go of it when the settings are closed; and once in an area, the first time a mob there does what a
+-- trigger is for, to find out which kind each of the area's mobs is. That is kept for the one area,
+-- being small: a few dozen names.
+local mobData = nil -- mobs.lua as it is, or false if it cannot be read
+local area = nil    -- the one area: { zone, kindOf = a mob's name in small letters -> its kind, among = kind -> its mobs there, as written }
 
 local function MobData()
     if mobData == nil then
@@ -295,7 +297,7 @@ local function MobData()
         local chunk = loadfile(addon.path .. 'mobs.lua')
         if chunk ~= nil then
             local ok, found = pcall(chunk)
-            if ok and type(found) == 'table' and type(found.zones) == 'table' then
+            if ok and type(found) == 'table' and type(found.zones) == 'table' and type(found.kinds) == 'table' then
                 mobData = found
             end
         end
@@ -304,25 +306,26 @@ local function MobData()
 end
 
 local function ForgetMobData()
-    mobData, zoneMobs = nil, nil
+    mobData = nil
 end
 
--- The area's kinds of mob, or nil if nothing is known of it
-local function ZoneMobs(zone)
-    if zoneMobs == nil or zoneMobs.zone ~= zone then
+-- An area's mobs: which kind each is, and each kind's mobs. Nothing in either for an area nothing
+-- is known of.
+local function Area(zone)
+    if area == nil or area.zone ~= zone then
+        area = { zone = zone, kindOf = { }, among = { } }
         local data = MobData()
-        zoneMobs = { zone = zone }
         local written = data ~= nil and data.zones[zone] or nil
         if written ~= nil then
-            local mobs, names = { }, { }
-            for kind, spells, moves, among in written:gmatch('([^=;]+)=(%d*),(%d*):([^;]*);') do
-                mobs[kind] = { spells = data.spells[tonumber(spells)], moves = data.moves[tonumber(moves)], names = among }
-                names[#names + 1] = kind
+            for kind, names in written:gmatch('([^:;]+):([^;]*);') do
+                area.among[kind] = names
+                for name in names:gmatch('[^|]+') do
+                    area.kindOf[name:lower()] = kind
+                end
             end
-            zoneMobs.mobs, zoneMobs.names = mobs, names
         end
     end
-    return zoneMobs.mobs ~= nil and zoneMobs or nil
+    return area
 end
 
 local function CurrentZone()
@@ -402,21 +405,6 @@ end
 -- say a mob's move is done (of a move numbered under 256, and of the others), which name the move as
 -- what the action is.
 local beginsKinds = { [7] = 'skill', [8] = 'spell' }
-
--- The mobs a trigger is for, by name in small letters: put together once for each trigger
-local amongs = setmetatable({ }, { __mode = 'k' })
-
-local function Among(trigger)
-    local among = amongs[trigger]
-    if among == nil then
-        among = { }
-        for _, name in ipairs(trigger.mobs) do
-            among[name] = true
-        end
-        amongs[trigger] = among
-    end
-    return among
-end
 local doneKinds = { [3] = true, [11] = true }
 
 local function OnAction(data)
@@ -441,16 +429,18 @@ local function OnAction(data)
         return
     end
 
-    local zone, actor = nil, nil -- found out once, and only if a trigger is for this spell or weaponskill
+    -- which kind of mob it is that acts: found out once, and only if a trigger is for this spell or move
+    local actorKind = nil
     for _, trigger in ipairs(triggers) do
         if trigger.id == id and trigger.kind == kind and trigger.enabled[1] then
-            if zone == nil then
-                zone, actor = CurrentZone(), EntityName(Bits(data, 40, 32))
-                if actor == nil then
+            if actorKind == nil then
+                local actor = EntityName(Bits(data, 40, 32))
+                actorKind = actor ~= nil and Area(CurrentZone()).kindOf[actor] or false
+                if not actorKind then
                     return
                 end
             end
-            if trigger.zone == zone and Among(trigger)[actor] then
+            if trigger.mob == actorKind then
                 Ask(trigger.sound, trigger)
             end
         end
@@ -723,9 +713,8 @@ end
 
 local triggerSound = 'voice-trigger.wav' -- what a trigger starts with
 
--- The trigger being made: the kind of mob and what it does are chosen from what is known of the area, so
--- both are forgotten when the area is another one
-local making = { zone = nil, mob = nil, action = nil, sound = triggerSound }
+-- The trigger being made
+local making = { mob = nil, action = nil, sound = triggerSound }
 
 -- What a kind of mob can do, each with its name, in the order of their names: found out once for a
 -- kind, and kept with what is known of it
@@ -740,10 +729,10 @@ local function MobActions(known)
             actions[#actions + 1] = { kind = kind, id = id, name = name,
                 label = ('%s (%s)##%s%d'):format(name, kindLabels[kind], kind, id) }
         end
-        for id in (known.spells or ''):gmatch('%d+') do
+        for id in known.spells:gmatch('%d+') do
             Add('spell', tonumber(id))
         end
-        for ability, id in (known.moves or ''):gmatch('(a?)(%d+)') do
+        for ability, id in known.moves:gmatch('(a?)(%d+)') do
             Add(ability == 'a' and 'ability' or 'skill', tonumber(id))
         end
         table.sort(actions, function(a, b) return a.label < b.label end)
@@ -786,44 +775,73 @@ local function TestButton(file)
     end
 end
 
-local function HasTrigger(triggers, zone, mob, action)
+local function HasTrigger(triggers, mob, action)
     for _, trigger in ipairs(triggers) do
-        if trigger.zone == zone and trigger.mob == mob and trigger.kind == action.kind and trigger.id == action.id then
+        if trigger.mob == mob and trigger.kind == action.kind and trigger.id == action.id then
             return true
         end
     end
     return false
 end
 
-local function DrawMaking(options)
-    local zone = CurrentZone()
-    if zone ~= making.zone then
-        making.zone, making.mob, making.action = zone, nil, nil
+-- The kinds of mob to choose among, in two lists, each in the order of their names: those with mobs
+-- in the area, and the rest. Put together once for an area, and kept with what is known of the mobs.
+local function KindLists(data, zone)
+    local lists = data.lists
+    if lists == nil or lists.zone ~= zone then
+        lists = { zone = zone, here = { }, elsewhere = { } }
+        local among = Area(zone).among
+        for kind in pairs(data.kinds) do
+            local list = among[kind] ~= nil and lists.here or lists.elsewhere
+            list[#list + 1] = kind
+        end
+        table.sort(lists.here)
+        table.sort(lists.elsewhere)
+        data.lists = lists
     end
-    local known = ZoneMobs(zone)
-    if known == nil then
-        imgui.TextDisabled(('Nothing is known of the mobs of %s.'):format(ZoneName(zone)))
+    return lists
+end
+
+local function KindChoices(kinds)
+    for _, kind in ipairs(kinds) do
+        if imgui.Selectable(kind, kind == making.mob) and kind ~= making.mob then
+            making.mob, making.action = kind, nil
+        end
+    end
+end
+
+local function DrawMaking(options)
+    local data = MobData()
+    if data == nil then
+        imgui.TextDisabled('mobs.lua, which says what mobs can do, cannot be read.')
         return
     end
+    local zone = CurrentZone()
+    local lists = KindLists(data, zone)
 
     widgets.Label('Mob Type')
     imgui.SetNextItemWidth(260)
     if imgui.BeginCombo('##chime.making.mob', making.mob or 'Choose One') then
-        for _, name in ipairs(known.names) do
-            if imgui.Selectable(name, name == making.mob) and name ~= making.mob then
-                making.mob, making.action = name, nil
-            end
+        -- the area's own first, under its name, then the rest
+        if #lists.here > 0 then
+            imgui.TextDisabled(ZoneName(zone))
+            KindChoices(lists.here)
+            imgui.Separator()
+            imgui.TextDisabled('Elsewhere')
         end
+        KindChoices(lists.elsewhere)
         imgui.EndCombo()
     end
-    Mark(making.mob ~= nil and ('In %s: %s'):format(ZoneName(zone), (known.mobs[making.mob].names:gsub('|', ', ')))
-        or ('The kinds of mob in %s that cast spells, ready weaponskills or use abilities.\nA trigger is for every mob of the kind in the area.'):format(ZoneName(zone)), true)
+    local here = making.mob ~= nil and Area(zone).among[making.mob] or nil
+    Mark(making.mob == nil and 'The kinds of mob that cast spells, ready weaponskills or use abilities: those of the area you are in first.\nA trigger is for every mob of the kind, in any area.'
+        or here ~= nil and ('In %s: %s'):format(ZoneName(zone), (here:gsub('|', ', ')))
+        or ('There are none in %s.'):format(ZoneName(zone)), true)
 
     widgets.Label('Action')
     imgui.SetNextItemWidth(260)
     if imgui.BeginCombo('##chime.making.action', making.action and making.action.label or 'Choose One') then
-        if making.mob ~= nil then
-            for _, action in ipairs(MobActions(known.mobs[making.mob])) do
+        if making.mob ~= nil and data.kinds[making.mob] ~= nil then
+            for _, action in ipairs(MobActions(data.kinds[making.mob])) do
                 if imgui.Selectable(action.label, making.action ~= nil and action.label == making.action.label) then
                     making.action = action
                 end
@@ -831,7 +849,7 @@ local function DrawMaking(options)
         end
         imgui.EndCombo()
     end
-    Mark('What a mob of the kind does that sets the sound off: everything its mobs here do between them, so more than any one of them does.\nA spell or a weaponskill sounds as the mob begins it, not as it lands.\nAn ability is used at once, with nothing readied first, and sounds as it is used.', true)
+    Mark('What a mob of the kind does that sets the sound off: everything its mobs do between them, wherever they are, so more than any one of them does.\nA spell or a weaponskill sounds as the mob begins it, not as it lands.\nAn ability is used at once, with nothing readied first, and sounds as it is used.', true)
 
     widgets.Label('Sound')
     making.sound = SoundCombo('##chime.making.sound', making.sound) or making.sound
@@ -843,15 +861,10 @@ local function DrawMaking(options)
     if imgui.Button('Add Trigger') then
         if making.mob == nil or making.action == nil then
             Say('Choose a kind of mob and what it does first.')
-        elseif HasTrigger(options.triggers, zone, making.mob, making.action) then
-            Say(('There is a trigger for %s\'s %s already.'):format(making.mob, making.action.name))
+        elseif HasTrigger(options.triggers, making.mob, making.action) then
+            Say(('There is a trigger for %s and %s already.'):format(making.mob, making.action.name))
         else
-            -- the kind's mobs here are kept with the trigger, which is how one is known when it does something
-            local mobs = T{ }
-            for name in known.mobs[making.mob].names:gmatch('[^|]+') do
-                mobs[#mobs + 1] = name:lower()
-            end
-            options.triggers[#options.triggers + 1] = T{ zone = zone, mob = making.mob, mobs = mobs, kind = making.action.kind,
+            options.triggers[#options.triggers + 1] = T{ mob = making.mob, kind = making.action.kind,
                 id = making.action.id, name = making.action.name, sound = making.sound, enabled = T{ true } }
             making.action = nil
             app:Save()
@@ -865,7 +878,7 @@ local triggerTexts = setmetatable({ }, { __mode = 'k' })
 local function TriggerText(trigger)
     local text = triggerTexts[trigger]
     if text == nil then
-        text = ('%s: %s (%s)'):format(trigger.mob, trigger.name, ZoneName(trigger.zone))
+        text = ('%s: %s'):format(trigger.mob, trigger.name)
         triggerTexts[trigger] = text
     end
     return text
@@ -914,7 +927,7 @@ end
 
 -- A trigger as the settings hold it, or nil if it is not one
 local function IsTrigger(trigger)
-    return type(trigger) == 'table' and type(trigger.zone) == 'number' and type(trigger.id) == 'number'
+    return type(trigger) == 'table' and type(trigger.id) == 'number'
         and type(trigger.mob) == 'string' and kindLabels[trigger.kind] ~= nil
 end
 
@@ -944,8 +957,12 @@ local function Complete(options)
             if type(trigger.enabled) ~= 'table' then trigger.enabled = T{ true } end
             if type(trigger.sound) ~= 'string' or trigger.sound == '' then trigger.sound = triggerSound end
             if type(trigger.name) ~= 'string' then trigger.name = ActionName(trigger.kind, trigger.id) end
-            -- one made for a single mob, as they first were
-            if type(trigger.mobs) ~= 'table' then trigger.mobs = T{ trigger.mob:lower() } end
+            -- one made when a trigger was for an area, and at first for one mob of it: it is for that
+            -- mob's kind now, or the kind it was for, everywhere
+            if type(trigger.zone) == 'number' then
+                trigger.mob = Area(trigger.zone).kindOf[trigger.mob:lower()] or trigger.mob
+            end
+            trigger.zone, trigger.mobs = nil, nil
             triggers[#triggers + 1] = trigger
         end
     end
@@ -981,7 +998,8 @@ app = shell.New({
 ashita.events.register('d3d_present', 'chime_present', function()
     app:BeginFrame()
     Look()
-    -- what is known of the mobs is for making triggers with: not kept once the settings are closed
+    -- what is known of the mobs is not kept: let go of once the settings are closed, and the frame after
+    -- it was read to find out an area's mobs
     if mobData ~= nil and not app.showConfig[1] then
         ForgetMobData()
     end

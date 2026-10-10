@@ -104,6 +104,7 @@ H = {
     print = realprint, calls = calls, ret = ret, printed = printed, sent = sent, sounds = sounds, raised = raised,
     options = function() return store end,
     saves = function() return saves end,
+    resettle = function() handlers.settings(store) end,    -- the settings as they are, given to the addon again as if loaded afresh
     tab = function(number) tabShown = number or 1 end,     -- which tab of a tab bar is showing: the first, unless told
     selected = function() return selected end,             -- the menu choice last drawn as highlighted
     play = function(v) playing = v end,                    -- whether there is a player (false: loading)
