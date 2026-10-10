@@ -794,41 +794,53 @@ local kindLabels = { spell = 'Spell', skill = 'Weaponskill', ability = 'Ability'
 local function MobActions(data, known, zone)
     local actions = known.actions
     if actions == nil or actions.zone ~= zone then
-        local named = { } -- kind and name -> the action
-        local function Add(list, kind, id)
+        -- a thing by its kind and name, whoever does it and under whatever numbers: one trigger is for
+        -- them all
+        local named = { }
+        local function Action(kind, id)
             local name = ActionName(kind, id)
             local action = named[kind .. name]
             if action == nil then
-                action = { kind = kind, ids = T{ }, name = name,
+                action = { kind = kind, ids = T{ }, has = { }, name = name,
                     label = ('%s (%s)##%s%d'):format(name, kindLabels[kind], kind, id) }
                 named[kind .. name] = action
-                list[#list + 1] = action
             end
-            action.ids[#action.ids + 1] = id
+            if not action.has[id] then
+                action.has[id] = true
+                action.ids[#action.ids + 1] = id
+            end
+            return action
         end
-        local function List(spells, moves, who)
-            local list = { who = who }
+        -- A list of things: each once, and none that is in the list given as already said
+        local function List(spells, moves, who, said)
+            local list, listed = { who = who }, { }
+            local function Add(action)
+                if not listed[action] and not (said and said.listed[action]) then
+                    listed[action] = true
+                    list[#list + 1] = action
+                end
+            end
             for id in (spells or ''):gmatch('%d+') do
-                Add(list, 'spell', tonumber(id))
+                Add(Action('spell', tonumber(id)))
             end
             for ability, id in (moves or ''):gmatch('(a?)(%d+)') do
-                Add(list, ability == 'a' and 'ability' or 'skill', tonumber(id))
+                Add(Action(ability == 'a' and 'ability' or 'skill', tonumber(id)))
             end
             table.sort(list, function(a, b) return a.label < b.label end)
+            list.listed = listed
             return list
         end
 
-        -- actions is what the kind's mobs do, and actions.notorious the lists of what only its
-        -- notorious monsters do. A thing is listed once: with what the others do if they do it under
-        -- any number, and else under the first monster that does. So the monsters of the area, being
-        -- first, have all that is theirs, and one further down only what none before it does.
+        -- actions is what the kind's mobs do, and actions.notorious a list for each of its notorious
+        -- monsters, of all that it does and they do not, whether or not another monster does it too:
+        -- so that a monster can be looked up, and everything of its own found under it
         actions = List(known.spells, known.moves)
         actions.zone, actions.notorious = zone, { }
         for pass = 1, 2 do
             for name, where, level, spells, moves in (known.notorious or ''):gmatch('([^=;]+)=(%d+),([^,;]*),(%d*),(%d*);') do
                 if (tonumber(where) == zone) == (pass == 1) then
                     local list = List(data.lists[tonumber(spells)], data.lists[tonumber(moves)],
-                        level ~= '' and ('%s (Lv %s)'):format(name, level) or name)
+                        level ~= '' and ('%s (Lv %s)'):format(name, level) or name, actions)
                     if #list > 0 then
                         actions.notorious[#actions.notorious + 1] = list
                     end

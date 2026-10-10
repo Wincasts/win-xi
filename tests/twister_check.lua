@@ -211,7 +211,9 @@ do
     H.print('Tornado (spell 208) is Lancing Lamorak\'s, not every beetle\'s', actions:match('Lancing Lamorak.*Spell 208') ~= nil, actions:match('%(%?%)%] (.-) | %['):find('Spell', 1, true) == nil)
     -- West Ronfaure, where Lancing Lamorak is: its list is the first, and has all that is its own
     members[0].zone = 100; local there, first = beetle(); members[0].zone = 102
-    H.print('in its own area a monster is first:', first[1], '| then', first[2], '| with more to its name than further down', select(2, there:match('Lancing Lamorak[^|]*'):gsub('Spell', '')) > select(2, actions:match('Lancing Lamorak[^|]*'):gsub('Spell', '')))
+    H.print('in its own area a monster is first:', first[1], '| then', first[2], '| with all that is its own, there as anywhere', select(2, there:match('Lancing Lamorak[^|]*'):gsub('Spell', '')) == select(2, actions:match('Lancing Lamorak[^|]*'):gsub('Spell', '')))
+    -- every monster has all of its own, whoever else does it: Kettenkaefer and the higher Panzer Percival cast the same things
+    H.print('two monsters that do the same things each have them:', actions:match('%[Kettenkaefer %(Lv 80%)%] ([^|]*)') == actions:match('%[Panzer Percival %(Lv 75%-80%)%] ([^|]*)'), '| spells under Lancing Lamorak', select(2, actions:match('Lancing Lamorak[^|]*'):gsub('Spell', '')))
 end
 -- every list open and everything in it chosen: the last kind of mob, of those not in the area, and the last thing it does are what is being made
 H.ret.BeginCombo = { true }; H.ret.Selectable = { true }; H.frames(2); H.ret.BeginCombo = { false }; H.ret.Selectable = { false }; heard()
