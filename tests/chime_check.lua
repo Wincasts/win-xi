@@ -72,10 +72,11 @@ function GetEntity(index) return entities[index] end
 H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print('a weaponskill, no triggers: silence', heard() == '')
 -- a trigger is for a kind of mob, wherever it is: which kind a mob is, is read from mobs.lua for the area, once
 local reads = 0; local mapped = loadfile; loadfile = function(path) if path:find('mobs%.lua') then reads = reads + 1 end return mapped(path) end
-o.triggers[1] = { mob = 'Bat', kind = 'skill', id = 392, name = 'Ultrasonics', sound = 'voice-trigger.wav', enabled = { true } }
-o.triggers[2] = { mob = 'Elemental', kind = 'spell', id = 154, name = 'Aero', sound = 'trigger.wav', enabled = { true } }
+o.triggers[1] = { mob = 'Bat', kind = 'skill', ids = { 392, 1700 }, name = 'Ultrasonics', sound = 'voice-trigger.wav', enabled = { true } }
+o.triggers[2] = { mob = 'Elemental', kind = 'spell', ids = { 154 }, name = 'Aero', sound = 'trigger.wav', enabled = { true } }
 H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print('the mob readies the weaponskill:', heard())
 H.packetData(0x028, action(0x1066123, 7, 392, 0)); H.print('and one with no message:', heard())
+H.packetData(0x028, action(0x1066123, 7, 1700, 43)); H.print('the same weaponskill under its other number:', heard())
 H.packetData(0x028, action(0x1066123, 7, 394, 43)); H.print('another weaponskill of its: silence', heard() == '')
 H.packetData(0x028, action(0x1066124, 7, 392, 43)); H.print('the weaponskill, by a mob of another kind: silence', heard() == '')
 entities[0x127] = { ServerId = 0x1066127, Name = 'Poison Bat' }
@@ -88,7 +89,7 @@ H.packetData(0x028, action(0x1066125, 8, 154, 0)); H.print('the spell broken off
 o.triggers[2].enabled[1] = false; H.packetData(0x028, action(0x1066125, 8, 154, 327)); H.print('its trigger off: silence', heard() == ''); o.triggers[2].enabled[1] = true
 -- an ability is used at once: nothing says it is begun, and what says it is done names it as what the action is
 entities[0x126] = { ServerId = 0x1066126, Name = 'Bloodtear Baldurf' }
-o.triggers[3] = { mob = 'Ram', kind = 'ability', id = 688, name = 'Mighty Strikes', sound = 'tp.wav', enabled = { true } }
+o.triggers[3] = { mob = 'Ram', kind = 'ability', ids = { 688 }, name = 'Mighty Strikes', sound = 'tp.wav', enabled = { true } }
 H.packetData(0x028, action(0x1066126, 11, 0, 0, 688)); H.print('a mob uses the ability:', heard())
 H.packetData(0x028, action(0x1066126, 11, 0, 0, 265)); H.print('a weaponskill of its done: silence', heard() == '')
 H.packetData(0x028, action(0x1066123, 11, 0, 0, 688)); H.print('the ability, by a mob of another kind: silence', heard() == '')
@@ -102,7 +103,7 @@ members[0].zone = 5; H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print
 o.triggers[4] = { zone = 107, mob = 'Rock Lizard', kind = 'skill', id = 366, sound = 'tp.wav', enabled = { true } }
 o.triggers[5] = { zone = 107, mob = 'Quadav', mobs = { 'amber quadav' }, kind = 'spell', id = 1, name = 'Cure', sound = 'tp.wav', enabled = { true } }
 H.resettle(); o = H.options()
-H.print('made for one mob of an area: now for its kind, anywhere', o.triggers[4].mob, o.triggers[4].zone == nil, '| made for a kind there: for the kind', o.triggers[5].mob, o.triggers[5].mobs == nil)
+H.print('made for one mob of an area: now for its kind, anywhere', o.triggers[4].mob, o.triggers[4].zone == nil, '| made for a kind there: for the kind', o.triggers[5].mob, o.triggers[5].mobs == nil, '| and for one number: kept as its numbers', o.triggers[4].ids[1], o.triggers[4].id == nil)
 table.remove(o.triggers); table.remove(o.triggers); H.frames(2)
 
 -- TP, HP and MP
@@ -193,7 +194,7 @@ H.ret.BeginCombo = { true }; H.ret.Selectable = { true }; H.frames(2); H.ret.Beg
 local before, gone, realRemove = #o.triggers, nil, table.remove
 table.remove = function(list, at) if list == o.triggers then gone = list[at] end return realRemove(list, at) end
 H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; heard(); table.remove = realRemove
-H.print('Add Trigger made one:', gone.mob, gone.kind, gone.id, gone.sound, gone.enabled[1], '| for no one area', gone.zone == nil, '| and Remove took it away', #o.triggers == before)
+H.print('Add Trigger made one:', gone.mob, gone.kind, table.concat(gone.ids, ' '), gone.sound, gone.enabled[1], '| for no one area', gone.zone == nil, '| and Remove took it away', #o.triggers == before)
 -- what is known of the mobs is read for the tab and let go of with the settings: asked for again when they are next open
 reads = 0
 H.frames(3); H.print('with the settings open, not read again', reads == 0)
