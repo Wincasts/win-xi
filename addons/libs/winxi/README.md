@@ -19,6 +19,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
 | `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
 | `winxi.packets` | The packets addons send and read, set out once |
+| `winxi.debuffs` | Which debuffs are on each enemy and for how long yet, worked out from the spells seen to land |
 | `winxi.debounce` | Running a function once things have gone quiet |
 | `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
 | `winxi.shell` | Everything an addon with one main window would otherwise write for itself: settings, the settings window, the command, the window's frame |
@@ -244,8 +245,8 @@ AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.inventorySort:m
 debounce(Refresh);         -- Refresh runs once, a second after the last time it was asked for
 ```
 
-`winxi.packets` has only what an addon has needed so far (the bags and the treasure pool); add to it as
-others are needed.
+`winxi.packets` has only what an addon has needed so far (the bags, the treasure pool, and actions and
+the messages that follow them); add to it as others are needed.
 
 For a tool of xitools that has become an addon of its own, `winxi.legacy` brings over what xitools kept
 for it, once for each character:
@@ -262,6 +263,32 @@ end
 
 It also copies xitools' theme, its rules for hiding and whether the tool faded, where the addon's
 settings have `useSharedTheme`, `theme`, `hide` and `fadeInOut` to take them.
+
+## Debuffs on an enemy
+
+The server never says what is on an enemy, so `winxi.debuffs` keeps count from what it does say: the
+spells cast nearby and whether each took hold, effects wearing off, and enemies being defeated.
+
+```lua
+local debuffs = require('winxi.debuffs');
+
+ashita.events.register('packet_in', 'example_packet_in', function(e)
+    debuffs.HandlePacket(e);                          -- every packet in
+end);
+
+debuffs.Remaining(serverId, debuffs.Kinds.Dia);       -- seconds left, or nil when it is not on
+debuffs.Get(serverId, 'slow');                        -- { kind, name, expires, by, element }, or nil
+debuffs.Active(serverId);                             -- a list of those, the first to run out first
+```
+
+`name` is the spell that put it there and `by` the server id of who cast it. An enemy's server id is
+its entity's `ServerId`. An addon that parses actions itself hands the result to `debuffs.Action` in
+place of the packet, and likewise `debuffs.Message`.
+
+Each addon is its own Lua state: every addon that wants the count keeps its own, from the packets it
+hands over. It knows nothing of a debuff that landed out of range or before the area was entered, of
+one put there by anything but a spell, or of one cut short by a partial resist until the server says
+it has worn off. Everything is forgotten on a change of area.
 
 ## Letting an addon keep its own theme
 
