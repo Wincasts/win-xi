@@ -517,8 +517,9 @@ local function DrawSettings(options)
     local group = nil
     for _, event in ipairs(events) do
         if event.group ~= group then
+            -- the first heads the tab: no blank line over it
+            widgets.Header(event.group, group == nil)
             group = event.group
-            widgets.Header(group)
         end
         DrawEvent(options, event)
     end
