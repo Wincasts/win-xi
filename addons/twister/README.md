@@ -17,7 +17,7 @@ and needs only the `winxi` library (`addons/libs/winxi`).
 | Low HP | your HP falls to the threshold (25% unless changed); again only after it has been 5 points over |
 | Low MP | the same for MP (20%); never on a job with no MP |
 | Party Member KO | someone else in your party is knocked out, in your area: they have had no HP for a second, and had been in the area five seconds or more |
-| Skill Up | one of your skills rises or reaches a new level, crafts included |
+| Skill Up | one of your skills, or one of your pet's, rises or reaches a new level, crafts included |
 | Item Drop | an item you have named drops: it lands in the treasure pool, yours alone or the party's |
 
 Each event has its own switch, its own sound and a Test button. The sounds are the wav files in the
