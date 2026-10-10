@@ -105,6 +105,7 @@ o.events.tell.sound = 'bell.wav'; H.packetData(0x017, chat(3, 'Someone', 'hello'
 local begun = H.calls.Begin or 0
 H.print('/chime kept from the game', H.command('/chime')); H.frames(2)
 H.print('settings drawn', (H.calls.Begin or 0) > begun, '| checkboxes', (H.calls.Checkbox or 0) > 8, '| sliders', H.calls.SliderInt, '| combos', (H.calls.BeginCombo or 0) > 0)
+H.print('a mark for each event\'s description', (H.calls.TextDisabled or 0) > 0)
 local sliders = H.calls.SliderInt
 o.events.lowhp.enabled[1] = false; H.frames(1); H.print('Low HP off: its threshold not drawn', H.calls.SliderInt - sliders == 1)
 sliders = H.calls.SliderInt
