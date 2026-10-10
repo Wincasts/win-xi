@@ -83,6 +83,8 @@ local function setAlpha(bitmap)
     if sharpen.IsGames(bytes, bmpStart) then
         sharpen.Icon(bytes, bmpStart)
     end
+    -- and every icon has a dark line round it
+    sharpen.Outline(bytes, bmpStart)
 
     -- turn our bytes back into chars, and our chars into a string
     return bytes:map(string.char):join()
