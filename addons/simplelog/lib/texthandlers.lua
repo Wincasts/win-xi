@@ -61,6 +61,10 @@ local function Stamp(e, stamped)
 		msg = msg:gsub('[^\x1E\x1F][\x07]', function (s)
 			return s:sub(1, 1) .. '\n' .. stamp .. spacing
 		end)
+	else
+		-- and without a stamp, the space: the break is left as it is, for the game to make of it
+		-- what it did
+		msg = msg:gsub('([^\x1E\x1F][\x07])', '%1 ')
 	end
 
 	e.message_modified = msg
