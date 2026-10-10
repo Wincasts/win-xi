@@ -54,6 +54,8 @@ SOUNDS = {
     'skillup': tone(784, 784, 0.05, 2) + tone(988, 988, 0.05, 2) + tone(1175, 1175, 0.05, 2) + tone(1568, 1568, 0.18, 6),
     # three notes falling and a bright one after: something has dropped, and it is the one
     'drop': tone(1319, 1319, 0.06, 2) + tone(1047, 1047, 0.06, 2) + tone(784, 784, 0.06, 2) + tone(1568, 1568, 0.22, 5),
+    # three sharp beats on one high note: a trigger, something a mob has begun
+    'trigger': tone(1760, 1760, 0.06, 4) + silence(0.03) + tone(1760, 1760, 0.06, 4) + silence(0.03) + tone(1760, 1760, 0.14, 6),
 }
 
 here = os.path.dirname(os.path.abspath(__file__))

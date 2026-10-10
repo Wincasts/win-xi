@@ -4,7 +4,7 @@ H.print('settings: events', o.events.tell.enabled[1], o.events.ko.sound, '| low 
 
 -- the game: a party of three, the third in another area
 local me = { tp = 0, hp = 100, mp = 100, mpMax = 500 }
-local members = { [0] = { id = 1, zone = 10, hp = 100 }, [1] = { id = 2, zone = 10, hp = 80 }, [2] = { id = 3, zone = 20, hp = 0 } }
+local members = { [0] = { id = 1, zone = 102, hp = 100 }, [1] = { id = 2, zone = 102, hp = 80 }, [2] = { id = 3, zone = 20, hp = 0 } }
 local party = { GetMemberName = function() return 'Tester' end,
     GetMemberTP = function() return me.tp end,
     GetMemberHPPercent = function(_, place) return place == 0 and me.hp or members[place].hp end,
@@ -47,6 +47,43 @@ H.packetData(0x017, chat(3, 'Someone', 'hello')); H.packetData(0x0DC, ('\0'):rep
 local atOnce = table.concat(H.sounds, ' '); H.frames(40)
 H.print('a tell and an invitation together: at once', atOnce, '| then', H.sounds[#H.sounds], '| both heard', #H.sounds == 2); heard()
 
+-- triggers: an action packet, packed a bit at a time as the game packs it. Who acts, the kind of action,
+-- and the first result of the first target: its number and its message.
+local function action(actor, category, number, message)
+    local bits = {}
+    local function put(offset, length, value)
+        for i = 0, length - 1 do bits[offset + i] = math.floor(value / 2 ^ i) % 2 end
+    end
+    put(40, 32, actor); put(72, 6, 1); put(82, 4, category)
+    put(150, 32, 1); put(182, 4, 1); put(213, 17, number); put(230, 10, message)
+    local bytes = {}
+    for index = 0, 40 do
+        local byte = 0
+        for i = 0, 7 do byte = byte + (bits[index * 8 + i] or 0) * 2 ^ i end
+        bytes[#bytes + 1] = string.char(byte)
+    end
+    return table.concat(bytes)
+end
+-- the mobs folder is the project's; entity 0x123 is an Acro Bat, and 0x124 an Akbaba
+local realLoadfile = loadfile
+loadfile = function(path) local own = path:match('chime.(mobs/.+)$') return realLoadfile(own and ('addons/chime/' .. own) or path) end
+local entities = { [0x123] = { ServerId = 0x1066123, Name = 'Acro Bat' }, [0x124] = { ServerId = 0x1066124, Name = 'Akbaba' } }
+function GetEntity(index) return entities[index] end
+H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print('a weaponskill, no triggers: silence', heard() == '')
+o.triggers[1] = { zone = 102, mob = 'Acro Bat', kind = 'skill', id = 392, name = 'Ultrasonics', sound = 'voice-trigger.wav', enabled = { true } }
+o.triggers[2] = { zone = 102, mob = 'Air Elemental', kind = 'spell', id = 154, name = 'Aero', sound = 'trigger.wav', enabled = { true } }
+H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print('the mob readies the weaponskill:', heard())
+H.packetData(0x028, action(0x1066123, 7, 392, 0)); H.print('and one with no message:', heard())
+H.packetData(0x028, action(0x1066123, 7, 394, 43)); H.print('another weaponskill of its: silence', heard() == '')
+H.packetData(0x028, action(0x1066124, 7, 392, 43)); H.print('the weaponskill, by another mob: silence', heard() == '')
+H.packetData(0x028, action(0x1066123, 8, 392, 327)); H.print('a spell of the same number: silence', heard() == '')
+H.packetData(0x028, action(0x1066123, 3, 392, 185)); H.print('the weaponskill landing: silence', heard() == '')
+entities[0x125] = { ServerId = 0x1066125, Name = 'Air Elemental' }
+H.packetData(0x028, action(0x1066125, 8, 154, 327)); H.print('a mob begins the spell:', heard())
+H.packetData(0x028, action(0x1066125, 8, 154, 0)); H.print('the spell broken off: silence', heard() == '')
+o.triggers[2].enabled[1] = false; H.packetData(0x028, action(0x1066125, 8, 154, 327)); H.print('its trigger off: silence', heard() == ''); o.triggers[2].enabled[1] = true
+members[0].zone = 103; H.packetData(0x028, action(0x1066125, 8, 154, 327)); H.print('in another area: silence', heard() == ''); members[0].zone = 102
+
 -- TP, HP and MP
 me.tp = 990; H.frames(8); me.tp = 1200; H.frames(8); H.print('TP over 1000:', heard())
 me.tp = 1500; H.frames(8); H.print('more TP: silence', heard() == '')
@@ -63,7 +100,7 @@ H.frames(200) -- the members have been here long enough to be believed
 members[1].hp = 0; H.frames(8); H.print('a member has no HP: silence at first', #H.sounds == 0); H.print('and a second on, knocked out:', heard())
 members[1].hp = 50; H.frames(8); members[1].hp = 0; H.frames(8); members[1].hp = 50; H.print('no HP for a moment only: silence', heard() == '')
 members[1].hp = 0; H.frames(8); members[1].zone = 20; H.print('no HP, then gone from the area: silence', heard() == '')
-members[1].zone = 10; members[1].hp = 70; H.frames(8); members[1].hp = 0; H.frames(20); members[1].hp = 70
+members[1].zone = 102; members[1].hp = 70; H.frames(8); members[1].hp = 0; H.frames(20); members[1].hp = 70
 H.print('arriving in the area, shown with no HP for a moment: silence', heard() == '')
 H.frames(200); members[1].hp = 0; H.print('but knocked out later:', heard()); members[1].hp = 70; H.frames(8)
 members[1].id = 9; H.frames(8); members[1].hp = 0; H.frames(40); members[1].hp = 70; H.print('someone new in their place, not yet believed: silence', heard() == ''); members[1].id = 2; H.frames(200)
@@ -124,6 +161,19 @@ local sliders = H.calls.SliderInt
 o.events.lowhp.enabled[1] = false; H.frames(1); H.print('Low HP off: its threshold not drawn', H.calls.SliderInt - sliders == 1)
 sliders = H.calls.SliderInt
 o.events.lowhp.enabled[1] = true; H.frames(1); H.print('and on again: drawn', H.calls.SliderInt - sliders == 2)
-H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; H.print('every Test button:', #H.sounds, 'sounds')
+H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; H.print('every Test button:', #H.sounds, 'sounds'); heard()
+
+-- the Triggers tab: the area's mobs to choose from, and what the chosen one does
+H.tab(2); local combos, texts = H.calls.BeginCombo, H.calls.Text or 0; H.frames(1)
+H.print('Triggers drawn: combos', H.calls.BeginCombo - combos, '| a line for each trigger', (H.calls.Text or 0) - texts >= 3)
+-- every list open and everything in it chosen: the last mob and the last thing it does are what is being made
+H.ret.BeginCombo = { true }; H.ret.Selectable = { true }; H.frames(2); H.ret.BeginCombo = { false }; H.ret.Selectable = { false }; heard()
+-- every button pressed at once: Add Trigger makes one, and Remove, pressed on each, takes the last away again, which is that one
+local before, gone, realRemove = #o.triggers, nil, table.remove
+table.remove = function(list, at) if list == o.triggers then gone = list[at] end return realRemove(list, at) end
+H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; heard(); table.remove = realRemove
+H.print('Add Trigger made one:', gone.zone, gone.mob, gone.kind, gone.id, gone.sound, gone.enabled[1], '| and Remove took it away', #o.triggers == before)
+members[0].zone = 5; H.frames(1); H.print('an area nothing is known of: drawn all the same', true); members[0].zone = 102
+H.tab(1)
 H.command('/chime'); begun = H.calls.Begin; H.frames(2); H.print('/chime closes them', H.calls.Begin == begun)
 H.unload(); H.print('unload ran; saves', H.saves() > 0)
