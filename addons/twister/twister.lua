@@ -787,10 +787,12 @@ local createSize = nil -- how big the button is: found out once
 -- with every number it goes by.
 --
 -- What only the kind's notorious monsters do comes after what its other mobs do, in lists of its
--- own, each under the monster's name and level: those of the area you are in first, then the rest,
+-- own: what several of them do under one heading, then each monster's own under its name and level,
+-- those of the area you are in first, then the rest,
 -- the lowest in level first as mobs.lua has them. A monster that is in two areas is two where it is
 -- not the same in both.
 local kindLabels = { spell = 'Spell', skill = 'Weaponskill', ability = 'Ability' }
+local severalHeading = 'Notorious Monsters' -- over what several of a kind's notorious monsters do
 
 -- The order of every list of things a mob does: its abilities, then its weaponskills, then its
 -- spells, and each of those in the order of their names
@@ -823,11 +825,11 @@ local function MobActions(data, known, zone)
             end
             return action
         end
-        -- A list of things: each once, and none that is in the list given as already said
-        local function List(spells, moves, who, said)
+        -- A list of things: each once, and none that is in either of the lists given as already said
+        local function List(spells, moves, who, said, alsoSaid)
             local list, listed = { who = who }, { }
             local function Add(action)
-                if not listed[action] and not (said and said.listed[action]) then
+                if not listed[action] and not (said and said.listed[action]) and not (alsoSaid and alsoSaid.listed[action]) then
                     listed[action] = true
                     list[#list + 1] = action
                 end
@@ -843,18 +845,22 @@ local function MobActions(data, known, zone)
             return list
         end
 
-        -- actions is what the kind's mobs do, and actions.notorious a list for each of its notorious
-        -- monsters, of all that it does and they do not, whether or not another monster does it too:
-        -- so that a monster can be looked up, and everything of its own found under it
+        -- actions is what the kind's mobs do, and actions.notorious the lists that come after it:
+        -- first what several of its notorious monsters do, said once for them all, then a list for
+        -- each monster of what it does that neither the kind's other mobs nor several monsters do
         actions = List(known.spells, known.moves)
         actions.zone, actions.notorious = zone, { }
+        local several = List(known.several and known.several.spells, known.several and known.several.moves, severalHeading, actions)
+        if #several > 0 then
+            actions.notorious[1] = several
+        end
         local here = ('.%d.'):format(zone)
         for pass = 1, 2 do
             for name, where, level, spells, moves in (known.notorious or ''):gmatch('([^=;]+)=([%d.]+),([^,;]*),(%d*),(%d*);') do
                 -- where is the areas it is in, with points between them
                 if (('.' .. where .. '.'):find(here, 1, true) ~= nil) == (pass == 1) then
                     local list = List(data.lists[tonumber(spells)], data.lists[tonumber(moves)],
-                        level ~= '' and ('%s (Lv %s)'):format(name, level) or name, actions)
+                        level ~= '' and ('%s (Lv %s)'):format(name, level) or name, actions, several)
                     if #list > 0 then
                         actions.notorious[#actions.notorious + 1] = list
                     end
