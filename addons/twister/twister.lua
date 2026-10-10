@@ -691,12 +691,21 @@ end
 local lineEnd = 0  -- where the event's line ends, measured as it is drawn
 local markGap = 8  -- between that and the mark
 
+-- What a mark says is no wider than this sentence, and goes on to another line where it is longer
+local widestSaid = 'A spell or weaponskill sounds as it begins, an ability as it is used.'
+local saidWidth = nil -- how wide that is: measured once
+
 -- beside: true for a mark straight after what is before it, where the lines are not events'
 local function Mark(text, beside)
     imgui.SameLine(beside and 0 or lineEnd + markGap)
     imgui.TextDisabled('(?)')
     if imgui.IsItemHovered() then
-        imgui.SetTooltip(text)
+        saidWidth = saidWidth or imgui.CalcTextSize(widestSaid)
+        imgui.BeginTooltip()
+        imgui.PushTextWrapPos(saidWidth)
+        imgui.Text(text)
+        imgui.PopTextWrapPos()
+        imgui.EndTooltip()
     end
 end
 
@@ -772,6 +781,7 @@ local making = { mob = nil, action = nil }
 
 -- The button that makes it, its right side under that of the list over it
 local createLabel = 'Create Trigger'
+local typeSaid = 'Choose the mob type you wish to set a new trigger for. Mobs found in your area are displayed first when applicable.'
 local createSize = nil -- how big the button is: found out once
 
 -- What a kind of mob can do, each with its name, in the order of their names: found out once for a
@@ -883,15 +893,16 @@ local function DrawMaking(options)
         KindChoices(lists.elsewhere)
         imgui.EndCombo()
     end
-    -- what the mark says of the kind chosen: put together when the kind or the area is another one
+    -- what the mark says, and under it the mobs of the kind chosen that are in the area: put together
+    -- when the kind or the area is another one
     if making.mob == nil then
-        Mark('The kind of mob, in any area. Those of this area are listed first.', true)
+        Mark(typeSaid, true)
     else
         if making.saidOf ~= making.mob or making.saidIn ~= zone then
             local here = Area(zone).among[making.mob]
             making.saidOf, making.saidIn = making.mob, zone
-            making.said = here ~= nil and ('In %s: %s'):format(ZoneName(zone), (here:gsub('|', ', ')))
-                or ('None in %s.'):format(ZoneName(zone))
+            making.said = ('%s\n\n%s'):format(typeSaid, here ~= nil and ('In %s: %s'):format(ZoneName(zone), (here:gsub('|', ', ')))
+                or ('None in %s.'):format(ZoneName(zone)))
         end
         Mark(making.said, true)
     end
@@ -911,7 +922,7 @@ local function DrawMaking(options)
     -- where the list ends, which is where the button under it ends too
     imgui.SameLine(0, 0)
     local listEnd = imgui.GetCursorPosX()
-    Mark('What the mob does.\nA spell or weaponskill sounds as it begins, an ability as it is used.', true)
+    Mark('Choose the action you wish to create the trigger for. Spells and weaponskills trigger as soon as they begin casting or are readied and an ability is triggered immediately upon use.', true)
 
     createSize = createSize or { imgui.CalcTextSize(createLabel) + 20, 0 }
     imgui.SetCursorPosX(math.max(listEnd - createSize[1], imgui.GetCursorPosX()))
