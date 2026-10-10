@@ -31,15 +31,6 @@ def silence(seconds):
     return [0.0] * int(RATE * seconds)
 
 
-def together(*parts):
-    """Several sounds at once."""
-    out = [0.0] * max(len(p) for p in parts)
-    for part in parts:
-        for i, sample in enumerate(part):
-            out[i] += sample / len(parts)
-    return out
-
-
 SOUNDS = {
     # two soft rising notes: someone is speaking to you
     'tell': tone(784, 784, 0.09, 3) + tone(1047, 1047, 0.22, 5),
@@ -51,8 +42,6 @@ SOUNDS = {
     'trade': tone(880, 880, 0.08, 3) + tone(1109, 1109, 0.08, 3) + tone(880, 880, 0.22, 5),
     # a slide up and a slide back down: someone looking you over
     'examine': tone(660, 990, 0.12, 2) + tone(990, 660, 0.2, 4),
-    # a bright chord swept upward: burst now
-    'skillchain': together(tone(880, 1760, 0.3, 4), tone(1109, 2217, 0.3, 4), tone(1319, 2637, 0.3, 4)),
     # a quick rise: TP is ready
     'tp': tone(523, 1047, 0.08, 2) + tone(1047, 1047, 0.14, 6),
     # two low urgent beats: HP is low
