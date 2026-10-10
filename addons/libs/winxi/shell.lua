@@ -132,6 +132,8 @@ local function DrawConfigContent(app)
         if imgui.BeginTabItem('Settings') then
             widgets.BeginLabels(app.ids.labels);
             if spec.drawSettings ~= nil then
+                -- the addon's settings are set a little apart from the tabs over them, as from what is under them
+                widgets.Gap();
                 spec.drawSettings(options);
                 widgets.Gap();
             end
