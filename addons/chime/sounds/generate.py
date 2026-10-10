@@ -52,6 +52,8 @@ SOUNDS = {
     'ko': tone(392, 196, 0.5, 3),
     # four quick steps up: a skill has risen
     'skillup': tone(784, 784, 0.05, 2) + tone(988, 988, 0.05, 2) + tone(1175, 1175, 0.05, 2) + tone(1568, 1568, 0.18, 6),
+    # three notes falling and a bright one after: something has dropped, and it is the one
+    'drop': tone(1319, 1319, 0.06, 2) + tone(1047, 1047, 0.06, 2) + tone(784, 784, 0.06, 2) + tone(1568, 1568, 0.22, 5),
 }
 
 here = os.path.dirname(os.path.abspath(__file__))
