@@ -34,7 +34,19 @@ Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barri
 fitted. A timer is known only once the automaton has been seen to act, so a row may say Ready when the
 addon was loaded part way through a fight and it is not.
 
-In the settings: **Show Priority List** switches that list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
+Between the two lines and the list are the **burden bars**: a small bar for each element, in its
+colour, with the burden written over it. Fire, ice, wind and earth are the top row, thunder, water, light
+and dark the one under it. A bar is full at 100. The figure is white while one more maneuver of that
+element cannot overload, yellow when it might, and red when the chance is one in four or more.
+
+The burden is reckoned as the server reckons it: 35 of each element when the automaton is activated,
+one off each every three seconds (two with a Heatsink), and what each maneuver adds, which Cooldown
+halves. What a maneuver adds goes by the automaton's stats, which the game is not told, so it is taken
+for 20, the most it can be, until it has been seen. It is seen in the chance of overloading the server
+gives with every maneuver: that is the burden less 25, so whenever there is any chance at all the figure
+is the server's own, and with none the burden is known to be 25 or less.
+
+In the settings: **Show Burden** switches the bars off. **Show Priority List** switches that list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
 a fight it shows what the automaton would open with on an enemy with nothing on it. It starts on. **Show Debug Information** is for finding out what is wrong: under the
 window's own lines, what the addon knows (the automaton as described, whether a pet is out and what it is
 fighting, how many of the pet's packets have come, the maneuvers up).
@@ -46,6 +58,9 @@ What it cannot know:
   the first time the addon is ever loaded for a character does the window stay away until one of those
   happens. A part changed, or skill gained, while the addon was not loaded is not known of until then
   either.
+- **The burden of an automaton that was out before the addon was loaded.** Each bar says `?` until a
+  maneuver of its element is used. Gear that moves the point of overloading puts a figure taken from the
+  server's chance out by as much.
 - **When the spell comes.** Healing and nuking can come first, and every kind of spell waits on its own
   timer.
 - **Debuffs it did not see land**, and those from anything but a spell: see `winxi.debuffs`.
@@ -57,4 +72,5 @@ What it cannot know:
   that is open with whichever weapon skill does so. The window shows the usual choice all the same.
 
 `predict.lua` holds the choosing, apart from the game, `tracker.lua` when the automaton last did each
-kind of thing, and `tests/puppet_check.lua` works them through.
+kind of thing, `burden.lua` the burden, `bars.lua` the drawing of its bars (the images are XivParty's, in
+`assets/bars` with its licence), and `tests/puppet_check.lua` works them through.

@@ -133,6 +133,34 @@ describe(4, 0x23, 120); game.buffs = { 301 }; tracker.Clear(); H.print('Stormwak
 describe(5, 0x23, 120); H.print('Soulsoother:', list())
 describe(6, 0x23, 120); H.print('Spiritreaver, no Dark:', list())
 describe(1, 0x20, 120); o.showPriority[1] = false; entities[1].PetTargetIndex = 0; fight(0); tracker.Clear(); shown()
+-- the burden of each element: 35 of each to start, one off every three seconds, and what a maneuver adds
+local burden = require('burden')
+local harlequin, valoredge, heatsink = { frame = 0x20 }, { frame = 0x21 }, { frame = 0x20, attachments = { [162] = true } }
+local function maneuver(element, chance, state, at) burden.Action({ actor_id = 1, category = 6, param = 140 + element, targets = { { id = 1, actions = { { param = chance } } } } }, state or harlequin, at) end
+local function at(element, when, state) local value = burden.Get(element, state or harlequin, when) return value and math.floor(value + 0.5) or '?' end
+burden.Clear(); H.print('burden, the automaton out before the addon: not known', at(1, 0) == '?', '| and no chance said of it', burden.Chance(1, harlequin, 0) == 0)
+maneuver(1, 0, harlequin, 0); H.print('a maneuver with no chance of overloading: 25 at the most', at(1, 0))
+maneuver(2, 21, harlequin, 0); H.print('one with a chance of 21: 46', at(2, 0))
+burden.Action({ actor_id = 1, category = 6, param = 136, targets = {} }, harlequin, 0)
+H.print('Activate: 35 of each', at(1, 0), at(8, 0), '| half a minute on', at(1, 30), '| with a Heatsink', at(1, 30, heatsink), '| never below nothing', at(1, 600))
+H.print('one more maneuver, fresh: taken to add 20, a chance of', burden.Chance(1, harlequin, 0), '| once it is down to 10: none', burden.Chance(1, harlequin, 75) == 0, '| in Overdrive: none', burden.Chance(1, { frame = 0x20, overdrive = true }, 0) == 0)
+maneuver(1, 26, harlequin, 0); H.print('a Fire maneuver, the server says 26: the burden is 51', at(1, 0), '| so a maneuver adds 16: the next has a chance of', burden.Chance(1, harlequin, 0))
+maneuver(1, 0, harlequin, 150); H.print('once it is down to 1, another, with no chance said: 17', at(1, 150))
+maneuver(3, 0, harlequin, 60); H.print('Wind, never seen, from 15 with no chance said: 25 and not 35', at(3, 60))
+H.print('Dark adds 14, a chance of', burden.Chance(8, harlequin, 0), '| and 8 on a Valoredge frame', burden.Chance(8, valoredge, 0))
+maneuver(8, 0, { frame = 0x20, overdrive = true }, 0); H.print('a Dark maneuver in Overdrive, no chance said: 49 all the same', at(8, 0))
+burden.Action({ actor_id = 1, category = 6, param = 309, targets = {} }, harlequin, 0); H.print('Cooldown halves it', at(8, 0), at(2, 0))
+burden.Action({ actor_id = 1, category = 4, param = 141, targets = {} }, harlequin, 0); H.print('a spell with a maneuver\'s number changes nothing', at(8, 0))
+-- and in the addon: the bars are drawn with the automaton out, from what the master does
+local dummies = 0
+imgui.Dummy = function() dummies = dummies + 1 end
+burden.Clear(); entities[1].PetTargetIndex = 2; o.alwaysShow[1] = true; shown(); dummies = 0; H.frames(1)
+H.print('the bars are drawn with the automaton out', dummies == 1)
+o.showBurden[1] = false; dummies = 0; H.frames(1); H.print('not with Show Burden off', dummies == 0); o.showBurden[1] = true
+entities[1].PetTargetIndex = 0; dummies = 0; H.frames(1); H.print('nor with no automaton', dummies == 0)
+H.packet(0x00A); entities[1].PetTargetIndex = 2; entities[2].ServerId = 3; H.frames(1)
+H.print('an automaton brought into another area starts afresh', at(4, os.clock()))
+entities[2].ServerId = 2; entities[1].PetTargetIndex = 0; o.alwaysShow[1] = false; shown()
 H.print('/puppet config kept from the game', H.command('/puppet config')); H.frames(1)
 H.command('/puppet'); H.print('/puppet hides it', o.isVisible[1] == false, '| and says so:', H.printed[#H.printed])
 H.command('/puppet'); H.print('and shows it again:', H.printed[#H.printed])

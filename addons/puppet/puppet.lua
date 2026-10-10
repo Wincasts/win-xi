@@ -7,7 +7,8 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- A small window for a puppetmaster: the next three spells the automaton will enfeeble with, the
 -- weapon skill it will use, and the order of everything it might do next with how each stands. The choosing is predict.lua's, which follows the server's; this gathers
 -- what it needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the
--- target) and shows the answer.
+-- target) and shows the answer. Under those, a small bar for the burden of each element, which
+-- burden.lua reckons.
 --
 --   /puppet           shows or hides the window
 --   /puppet config    opens or closes the settings
@@ -21,6 +22,8 @@ local debuffs = require('winxi.debuffs')
 local packets = require('winxi.packets')
 local predict = require('predict')
 local tracker = require('tracker')
+local burden = require('burden')
+local bars = require('bars')
 
 local windowName = 'winxi.puppet'
 
@@ -29,6 +32,7 @@ local extendedJobPacket = 0x044
 local petSyncPacket = 0x068
 local zonePacket = 0x00A
 local enfeeblesShown = 3
+local statusOverdrive = 166
 
 -- The maneuvers, by the status each shows as on the player
 local maneuverElements = {
@@ -47,7 +51,7 @@ local app -- made below, once the settings can be drawn
 -- The automaton as the server last described it: its head and frame, and its skills. The server does
 -- so on a change of area or job and when a part is changed, and not when the addon is loaded, so what
 -- it said is kept in the settings to start from the next time.
-local automaton = { head = nil, frame = nil, magic = nil, melee = nil, ranged = nil, attachments = { } }
+local automaton = { head = nil, frame = nil, magic = nil, melee = nil, ranged = nil, attachments = { }, overdrive = false }
 local automatonKeys = { 'head', 'frame', 'melee', 'ranged', 'magic' }
 local attachmentSlots = 12
 
@@ -112,6 +116,17 @@ local function CountManeuvers()
     return up
 end
 
+-- The automaton as burden.lua takes it: its frame and attachments, and whether Overdrive is up
+local function BurdenState()
+    automaton.overdrive = false
+    for _, status in pairs(AshitaCore:GetMemoryManager():GetPlayer():GetBuffs() or {}) do
+        if status == statusOverdrive then
+            automaton.overdrive = true
+        end
+    end
+    return automaton
+end
+
 -- The player's automaton, or nil when there is none out
 local function GetAutomaton()
     local memory = AshitaCore:GetMemoryManager()
@@ -145,8 +160,49 @@ end
 
 -- What the window shows: the spells in order and the weapon skill, either nil when there is none to
 -- name, and the rows of the priority list. It is left as it was once the fight is over, for the window
--- to fade out with.
-local showing = { enfeebles = nil, weaponskill = nil, priority = { } }
+-- to fade out with. burden is the bars, as bars.lua takes them, or nil with no automaton out.
+local showing = { enfeebles = nil, weaponskill = nil, priority = { }, burden = nil }
+
+-- The burden bars: one for each element, in its colour. A bar is full at fullBurden; the figure over
+-- it is the burden, in the colour of what one more maneuver of that element would risk.
+local fullBurden = 100
+local riskHigh = 25 -- a chance in a hundred of overloading from which the figure is red
+local elementColors = {
+    { 1.00, 0.54, 0.48, 1 }, -- fire
+    { 0.65, 0.89, 1.00, 1 }, -- ice
+    { 0.66, 0.94, 0.63, 1 }, -- wind
+    { 0.91, 0.82, 0.48, 1 }, -- earth
+    { 0.85, 0.65, 1.00, 1 }, -- thunder
+    { 0.56, 0.71, 1.00, 1 }, -- water
+    { 1.00, 1.00, 1.00, 1 }, -- light
+    { 0.60, 0.56, 0.72, 1 }, -- dark
+}
+local figureSafe = { 1, 1, 1, 1 }          -- one more maneuver cannot overload
+local figureRisk = { 0.95, 0.95, 0.49, 1 } -- it might
+local figureHigh = { 0.99, 0.51, 0.51, 1 } -- it is likely to
+local figureUnknown = { 1, 1, 1, 0.5 }
+local burdenBars = { }
+for element = 1, #burden.Elements do
+    burdenBars[element] = { color = elementColors[element] }
+end
+local figures = { } -- a burden -> the words for it
+
+local function WorkBurden()
+    local state = BurdenState()
+    for element, item in ipairs(burdenBars) do
+        local value = burden.Get(element, state)
+        if value == nil then
+            item.fraction, item.figure, item.figureColor = 0, '?', figureUnknown
+        else
+            value = math.floor(value + 0.5)
+            local chance = burden.Chance(element, state)
+            figures[value] = figures[value] or tostring(value)
+            item.fraction, item.figure = value / fullBurden, figures[value]
+            item.figureColor = (chance >= riskHigh and figureHigh) or (chance > 0 and figureRisk) or figureSafe
+        end
+    end
+    showing.burden = burdenBars
+end
 
 local function Work(pet, id)
     local maneuvers = CountManeuvers()
@@ -247,6 +303,9 @@ local function DrawWindow(options)
     if showing.enfeebles == nil and showing.weaponskill == nil then
         imgui.TextDisabled('Nothing to show.')
     end
+    if options.showBurden[1] and showing.burden ~= nil then
+        bars.Draw(showing.burden, #showing.burden)
+    end
     if options.showPriority[1] then
         DrawPriority()
     end
@@ -261,6 +320,7 @@ local defaults = T{
     automaton = T{ }, -- the automaton as last described: see ReadAutomaton
     alwaysShow = T{ true }, -- the window whether the automaton is fighting or not
     showPriority = T{ true }, -- everything the automaton might do next, in its order, and how each stands
+    showBurden = T{ true }, -- a small bar for the burden of each element
     showDebug = T{ false }, -- under it, what the addon knows: for finding out what is wrong
 }
 
@@ -285,6 +345,11 @@ local function DrawSettings(options)
     imgui.Checkbox('##puppet.showPriority', options.showPriority)
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Everything the automaton might do next, in the order it tries them: shield bash, its spells, weapon skill, ranged attack.\nEach shows what it is waiting on: Ready, the seconds left of a timer, or - when there is nothing for it to do. The one marked > comes next.\nA timer is only known once the automaton has been seen to act.')
+    end
+    widgets.Label('Show Burden')
+    imgui.Checkbox('##puppet.showBurden', options.showBurden)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('A small bar for the burden of each element: fire, ice, wind and earth, then thunder, water, light and dark.\nThe figure is the burden. It is yellow when one more maneuver of that element might overload, and red when it is likely to.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.')
     end
     widgets.Label('Show Debug Information')
     imgui.Checkbox('##puppet.showDebug', options.showDebug)
@@ -319,6 +384,10 @@ app = shell.New({
         if type(options.showPriority) ~= 'table' then
             options.showPriority = T{ true }
         end
+        if type(options.showBurden) ~= 'table' then
+            options.showBurden = T{ true }
+        end
+        burden.Clear()
         automaton.attachments = { }
         if type(options.automaton.attachments) == 'table' then
             for _, attachment in ipairs(options.automaton.attachments) do
@@ -335,6 +404,9 @@ app = shell.New({
 
 -- The automaton's id, as last seen: its timers are another automaton's no longer
 local petId = nil
+-- An automaton brought into an area is a new one to the server, with a new one's burden: the next to
+-- be seen after a change of area is taken for that
+local newArea = false
 
 ashita.events.register('packet_in', 'puppet_packet_in', function(e)
     -- an action is parsed once, for the debuffs it leaves and for what the automaton did
@@ -342,6 +414,9 @@ ashita.events.register('packet_in', 'puppet_packet_in', function(e)
         local action = packets.inbound.action.parse(e.data_raw)
         debuffs.Action(action)
         tracker.Action(action, petId)
+        if action.actor_id == AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
+            burden.Action(action, BurdenState())
+        end
         return
     end
 
@@ -353,6 +428,8 @@ ashita.events.register('packet_in', 'puppet_packet_in', function(e)
     elseif e.id == zonePacket then
         fighting = 0
         tracker.Clear()
+        burden.Clear()
+        newArea = true
     end
 end)
 
@@ -372,6 +449,15 @@ ashita.events.register('d3d_present', 'puppet_present', function()
     if id ~= petId then
         petId = id
         tracker.Clear()
+        if id ~= nil and newArea then
+            burden.Spawned()
+            newArea = false
+        end
+    end
+    if pet ~= nil and options.showBurden[1] then
+        WorkBurden()
+    else
+        showing.burden = nil
     end
     local target = GetTarget(pet)
     -- outside a fight, with the window always shown, it says what the automaton would open with
