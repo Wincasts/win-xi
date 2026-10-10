@@ -18,7 +18,7 @@ and needs only the `winxi` library (`addons/libs/winxi`).
 | Low MP | the same for MP (20%); never on a job with no MP |
 | Party Member KO | someone else in your party is knocked out, in your area: they have had no HP for a second, and had been in the area five seconds or more |
 | Skill Up | one of your skills rises or reaches a new level, crafts included |
-| Item Drop | an item you have named drops: it lands in the treasure pool, yours alone or the party's |
+| Item Drop | an item you have named lands in the treasure pool, or in your bags by another way |
 
 Each event has its own switch, its own sound and a Test button. The sounds are the wav files in the
 addon's `sounds` folder: put your own there and they appear in every event's list. Four come with it
@@ -38,7 +38,14 @@ Both tones are made by `sounds/generate.py`.
 
 Item Drop listens for the items named in its settings, under its line: their names with a comma between
 one and the next (`Kindred's Seal, Beastmen's Seal`), each the whole of the item's name as the game shows
-it, in capitals or not. Items already in the pool when you arrive in an area do not sound.
+it, in capitals or not.
+
+- What a mob drops goes by the treasure pool, alone or in a party, and sounds as it lands there: not
+  again when it is won and reaches your bags, and not for what was in the pool already when you arrive.
+- What comes another way (stolen, dug up, fished, out of a chest, traded, a reward, made, bought) has no
+  pool, so the bags are counted: more of a named item than there were is one obtained. Moving it from
+  bag to bag is no more of it, and nor is what you had on arriving in an area. They are counted once in
+  each area, and again only when a packet says a named item has changed.
 
 ## Triggers (experimental)
 
