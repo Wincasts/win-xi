@@ -201,5 +201,12 @@ H.frames(3); H.print('with the settings open, not read again', reads == 0)
 members[0].zone = 5; H.frames(1); H.print('an area nothing is known of: drawn all the same', reads == 0); members[0].zone = 102
 H.command('/twister'); H.frames(2); H.command('/twister'); H.frames(3); H.print('closed and opened: read once more', reads == 1)
 H.tab(1)
+
+-- an event's list of sounds: the ones made for it first (its voice, its tone, its second tone), then a line, then the rest
+local imgui, listed = require('imgui'), {}
+ashita.fs.get_directory = function() return { 'zebra.wav', 'tone-tell2.wav', 'voice-ko.wav', 'tell.wav', 'voice-tell.wav', 'tone-ko2.wav' } end
+rawset(imgui, 'Selectable', function(label) listed[#listed + 1] = label return false end); rawset(imgui, 'Separator', function() listed[#listed + 1] = '|' end)
+H.ret.BeginCombo = { true }; H.frames(1); H.ret.BeginCombo = { false }; rawset(imgui, 'Selectable', nil); rawset(imgui, 'Separator', nil)
+H.print('the first event\'s sounds:', table.concat(listed, ' ', 1, 7))
 H.command('/twister'); begun = H.calls.Begin; H.frames(2); H.print('/twister closes them', H.calls.Begin == begun)
 H.unload(); H.print('unload ran; saves', H.saves() > 0)
