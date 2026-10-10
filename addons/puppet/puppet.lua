@@ -9,7 +9,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- what it needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the
 -- target) and shows the answer.
 --
---   /puppet           shows or hides the window (it only appears while an automaton is out)
+--   /puppet           shows or hides the window (it only appears while the automaton is fighting)
 --   /puppet config    opens or closes the settings
 
 require('common')
@@ -82,57 +82,50 @@ local function IsEnemy(entity)
     return entity ~= nil and entity.SpawnFlags ~= nil and bit.band(entity.SpawnFlags, spawnFlagMob) ~= 0
 end
 
--- What the automaton is fighting, or failing that the enemy the player has targeted (which is what
--- it would be sent against)
+-- The enemy the automaton is fighting, or nil when it is fighting nothing
 local function GetTarget(pet)
-    local fighting = pet.TargetedIndex ~= nil and pet.TargetedIndex ~= 0 and GetEntity(pet.TargetedIndex) or nil
-    if IsEnemy(fighting) then
-        return fighting
+    if pet == nil or pet.TargetedIndex == nil or pet.TargetedIndex == 0 then
+        return nil
     end
-    local targeted = GetEntity(AshitaCore:GetMemoryManager():GetTarget():GetTargetIndex(0))
-    if IsEnemy(targeted) then
-        return targeted
-    end
-    return nil
+    local fighting = GetEntity(pet.TargetedIndex)
+    return IsEnemy(fighting) and fighting or nil
 end
 
--- What the window is to show this frame: the spells in order or why there are none, and the weapon skill
-local showing = { enfeebles = '', weaponskill = '' }
+-- What the window shows: the spells in order and the weapon skill, either nil when there is none to
+-- name. It is left as it was once the fight is over, for the window to fade out with.
+local showing = { enfeebles = nil, weaponskill = nil }
 
-local function Work(pet)
+local function Work(pet, target)
     local maneuvers = CountManeuvers()
 
-    local target = GetTarget(pet)
-    if target == nil then
-        showing.enfeebles = 'No enemy targeted.'
-    else
-        local id = target.ServerId
-        local queue, reason = predict.Queue({
-            head = automaton.head,
-            frame = automaton.frame,
-            skill = automaton.magic,
-            maneuvers = maneuvers,
-            has = function(kind) return debuffs.Get(id, kind) ~= nil end,
-            hpp = pet.HPPercent,
-            mpp = AshitaCore:GetMemoryManager():GetPlayer():GetPetMPPercent(),
-        })
-        local names = {}
-        for i = 1, math.min(#queue, enfeeblesShown) do
-            names[i] = queue[i]
-        end
-        showing.enfeebles = reason or table.concat(names, ', ')
+    local id = target.ServerId
+    local queue = predict.Queue({
+        head = automaton.head,
+        frame = automaton.frame,
+        skill = automaton.magic,
+        maneuvers = maneuvers,
+        has = function(kind) return debuffs.Get(id, kind) ~= nil end,
+        hpp = pet.HPPercent,
+        mpp = AshitaCore:GetMemoryManager():GetPlayer():GetPetMPPercent(),
+    })
+    local names = {}
+    for i = 1, math.min(#queue, enfeeblesShown) do
+        names[i] = queue[i]
     end
+    showing.enfeebles = #names > 0 and table.concat(names, ', ') or nil
 
-    local name, reason = predict.Weaponskill({
+    showing.weaponskill = predict.Weaponskill({
         frame = automaton.frame,
         melee = automaton.melee,
         ranged = automaton.ranged,
         maneuvers = maneuvers,
     })
-    showing.weaponskill = reason or name or 'None.'
 end
 
 local function DrawLine(label, value)
+    if value == nil then
+        return
+    end
     imgui.TextDisabled(label)
     imgui.SameLine()
     imgui.Text(value)
@@ -152,7 +145,7 @@ local function DrawSettings(options)
     widgets.Label('Visible')
     imgui.Checkbox('##puppet.visible', options.isVisible)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Whether the window shows while an automaton is out. /puppet switches this.')
+        imgui.SetTooltip('Whether the window shows while the automaton is fighting. /puppet switches this.')
     end
     widgets.Label('Position')
     if imgui.InputInt2('##puppet.position', options.pos) then
@@ -177,17 +170,22 @@ ashita.events.register('packet_in', 'puppet_packet_in', function(e)
     end
 end)
 
+-- Whether the window is wanted this frame: a table, as the shell takes it
+local wanted = { false }
+
 ashita.events.register('d3d_present', 'puppet_present', function()
     if not app:BeginFrame() then
         return
     end
 
-    -- the window is there only while there is an automaton to speak for
+    -- the window is there while the automaton is fighting something and there is something to say of
+    -- it; otherwise it fades out, showing what it last did
     local pet = GetAutomaton()
-    if pet == nil then
-        return
+    local target = GetTarget(pet)
+    if target ~= nil then
+        Work(pet, target)
     end
 
-    Work(pet)
-    app:Window(app.options.isVisible, DrawWindow)
+    wanted[1] = app.options.isVisible[1] and target ~= nil and (showing.enfeebles ~= nil or showing.weaponskill ~= nil)
+    app:Window(wanted, DrawWindow)
 end)

@@ -10,13 +10,20 @@ local said = {}
 imgui.Text = function(text) said[#said + 1] = text end
 imgui.TextDisabled = function(text) said[#said + 1] = '(' .. text .. ')' end
 local function shown()
+    H.frames(10) -- time enough to have faded in, or out
+    for i = #said, 1, -1 do said[i] = nil end
+    H.frames(1)
+    return table.concat(said, ' ')
+end
+-- the same without the wait: what is there the frame after a change
+local function atOnce()
     for i = #said, 1, -1 do said[i] = nil end
     H.frames(1)
     return table.concat(said, ' ')
 end
 
 -- the game: a puppetmaster (entity 1) with an automaton (2), and two enemies (7 and 8)
-local game = { job = 18, buffs = {}, petMpp = 100, targeted = 0 }
+local game = { job = 18, buffs = {}, petMpp = 100 }
 local entities = {
     [1] = { ServerId = 1, PetTargetIndex = 2, SpawnFlags = 0x01 },
     [2] = { ServerId = 2, TargetedIndex = 0, HPPercent = 100, SpawnFlags = 0x100 },
@@ -28,7 +35,6 @@ local memory = {
     GetPlayer = function() return { GetMainJob = function() return game.job end, GetLoginStatus = function() return 2 end,
         GetBuffs = function() return game.buffs end, GetPetMPPercent = function() return game.petMpp end } end,
     GetParty = function() return { GetMemberTargetIndex = function() return 1 end, GetMemberName = function() return 'Tester' end } end,
-    GetTarget = function() return { GetTargetIndex = function() return game.targeted end } end,
 }
 local core = AshitaCore
 AshitaCore = setmetatable({ GetMemoryManager = function() return memory end }, { __index = core })
@@ -53,12 +59,12 @@ local function cast(spell, target, message) debuffs.Action({ actor_id = 2, categ
 local now = 1000
 os.time = function() return now end
 
+local pet = entities[2]
 H.play(true); H.frames(3)
-H.print('nothing targeted:', shown())
-game.targeted = 7
-H.print('not yet told of the automaton:', shown())
-describe(1, 0x20, 120, 4); H.print('another job\'s packet is not read', shown():find('Not told') ~= nil)
 describe(1, 0x20, 120)
+H.print('the automaton fighting nothing: nothing drawn', shown() == '')
+pet.TargetedIndex = 1; H.print('nor with its master for a target', shown() == '')
+pet.TargetedIndex = 7
 H.print('Harlequin, no maneuvers:', shown())
 game.buffs = { 306 }; H.print('Light:', shown())
 game.buffs = { 306, 307 }; H.print('Light and Dark:', shown())
@@ -66,24 +72,26 @@ game.buffs = { 305, 301, 255, 255 }; H.print('Water and Ice:', shown())
 game.buffs = {}; cast(230, 900); H.print('Bio is on it:', shown())
 cast(56, 900, 236); cast(220, 900, 236); H.print('and Slow and Poison:', shown())
 now = now + 400; H.print('all worn off:', shown())
-entities[2].TargetedIndex = 8; cast(23, 901); H.print('the automaton fights another, with Dia on it:', shown())
-entities[2].TargetedIndex = 0
+pet.TargetedIndex = 8; cast(23, 901); H.print('it fights another, with Dia on it:', shown())
+pet.TargetedIndex = 7
 describe(1, 0x20, 30); H.print('skill 30:', shown())
-describe(5, 0x23, 120); game.buffs = { 303 }; H.print('Soulsoother, Earth:', shown())
-describe(6, 0x23, 120); game.buffs = {}; H.print('Spiritreaver, no Dark:', shown())
-game.petMpp = 50; H.print('Spiritreaver, low on MP:', shown())
-game.petMpp = 100; game.buffs = { 307, 301, 301 }; H.print('Spiritreaver, Dark and two Ice:', shown())
-describe(2, 0x21, 120); H.print('Valoredge frame:', shown())
-describe(2, 0x20, 120); H.print('Valoredge head:', shown())
-game.targeted = 0; game.buffs = {}
-describe(1, 0x20, 120); H.print('Harlequin frame, skill 120:', shown())
 describe(1, 0x20, 200); H.print('skill 200:', shown())
 game.buffs = { 304 }; H.print('Thunder:', shown())
-describe(2, 0x21, 200); game.buffs = {}; H.print('Valoredge frame:', shown())
+describe(5, 0x23, 120); game.buffs = { 303 }; H.print('Soulsoother, Earth:', shown())
+describe(6, 0x23, 120); game.buffs = {}; H.print('Spiritreaver, no Dark: no spells named', shown())
+game.petMpp = 50; H.print('Spiritreaver, low on MP:', shown())
+game.petMpp = 100; game.buffs = { 307, 301, 301 }; H.print('Spiritreaver, Dark and two Ice:', shown())
+describe(2, 0x21, 200); game.buffs = {}; H.print('Valoredge frame: no spells named', shown())
 game.buffs = { 300 }; H.print('Fire:', shown())
 game.buffs = { 300, 304, 304 }; H.print('Fire and two Thunder:', shown())
+describe(2, 0x20, 120); game.buffs = {}; H.print('Valoredge head on a Harlequin frame: no spells named', shown())
 describe(3, 0x22, 200); game.buffs = { 302 }; H.print('Sharpshot frame, Wind:', shown())
-describe(1, 0x20, 120); game.buffs = {}; game.targeted = 7
+describe(1, 0x20, 120, 4); H.print('another job\'s packet is not read', shown():find('Daze') ~= nil)
+
+describe(1, 0x20, 120); game.buffs = {}; shown()
+pet.TargetedIndex = 0; H.print('the fight is over: still there the frame after, as it was', atOnce())
+H.print('and gone once faded', shown() == '')
+pet.TargetedIndex = 7; H.print('back with the next fight', shown() ~= '')
 entities[1].PetTargetIndex = 0; H.print('no automaton out: nothing drawn', shown() == '')
 entities[1].PetTargetIndex = 2; game.job = 4; H.print('another job: nothing drawn', shown() == '')
 game.job = 18
