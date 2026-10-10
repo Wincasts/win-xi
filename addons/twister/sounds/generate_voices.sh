@@ -40,3 +40,5 @@ say ko         "Member down."
 say skillup    "Skill up."
 say drop       "Item drop."
 say trigger    "Heads up."
+# and one that is no event's: the addon's own name
+say twister    "Twister."

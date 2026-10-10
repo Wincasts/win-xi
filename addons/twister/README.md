@@ -28,6 +28,7 @@ for each event:
   ready", "Low HP", "Low MP", "Member down", "Skill up", "Item drop"), which is what an event starts on.
   They were made with the Piper text-to-speech program and its voice en_US-amy-medium, by
   `sounds/generate_voices.sh`;
+  There is one more that is no event's, `voice-twister.wav` ("Twister"), to choose for whatever you like;
 - a tone of plain notes, `tell.wav` and so on;
 - a second tone, on bells, `tone-tell2.wav` and so on.
 
