@@ -46,6 +46,7 @@ H.packetData(0x017, chat(5, 'Someone', 'TESTER, you there?')); H.print('in links
 H.packetData(0x017, chat(4, 'Someone', 'the testers are here')); H.print('the name inside another word: silence', heard() == '')
 H.packetData(0x017, chat(4, 'Tester', 'Tester is me')); H.print('said by the player: silence', heard() == '')
 H.packetData(0x0DC, ('\0'):rep(40)); H.print('an invitation:', heard())
+H.packetData(0x021, ('\0'):rep(16)); H.print('asked to trade:', heard())
 -- two things at once: the second sound waits for the first to be over, and is not lost to it
 H.packetData(0x017, chat(3, 'Someone', 'hello')); H.packetData(0x0DC, ('\0'):rep(40))
 local atOnce = table.concat(H.sounds, ' '); H.frames(40)

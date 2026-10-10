@@ -30,6 +30,7 @@ say() {
 say tell       "Tell."
 say mention    "Mentioned."
 say invite     "Invite."
+say trade      "Trade."
 say skillchain "Skillchain."
 say tp         "T P ready."
 say lowhp      "Low H P."
