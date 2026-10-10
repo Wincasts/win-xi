@@ -83,7 +83,14 @@ ashita = { interface_version = 4,
             return true
         end, create_directory = function() end, get_directory = function() return {} end },
     time = { qpf = function() return { q = 1 } end, qpc = function() return { q = 0 } end }, tasks = { once = function() end },
-    misc = { play_sound = function(p) sounds[#sounds + 1] = p:match('([^\\]+)%.wav') end } }
+    misc = { play_sound = function(p) sounds[#sounds + 1] = p:match('([^\\]+)%.wav') end },
+    -- some bits of a packet where it lies, which here is the string H.packetData was given: counted from
+    -- its start, the low bit of each byte first
+    bits = { unpack_be = function(raw, offset, length)
+        local first, value = math.floor(offset / 8), 0
+        for index = 4, 0, -1 do value = value * 256 + (raw:byte(first + index + 1) or 0) end
+        return math.floor(value / 2 ^ (offset % 8)) % 2 ^ length
+    end } }
 local inventory = { GetContainerItem = function() return nil end, GetContainerCountMax = function() return 0 end,
     GetTreasurePoolItem = function(_, i) if i < pool then return { ItemId = 100 + i, DropTime = 5, WinningLot = 0, WinningEntityName = '', Lot = lots[i] or 0 } end end }
 AshitaCore = { GetInstallPath = function() return 'C:\\ashita' end,
@@ -113,7 +120,7 @@ H = {
     frames = function(count) for _ = 1, count or 1 do clock = clock + 0.03; fire('d3d_present') end end,
     command = function(text) return fire('command', { command = text, blocked = false }).blocked end,
     packet = function(id) fire('packet_in', { id = id, data = '' }) end,
-    packetData = function(id, data) fire('packet_in', { id = id, data = data }) end, -- a packet with its bytes
+    packetData = function(id, data) fire('packet_in', { id = id, data = data, data_raw = data }) end, -- a packet with its bytes
     packetOut = function(id) fire('packet_out', { id = id, data = '' }) end,
     load = function() fire('load') end,                    -- Ashita's own, once the addon's file has run
     unload = function() fire('unload') end,

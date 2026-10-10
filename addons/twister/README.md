@@ -31,7 +31,7 @@ for each event:
   The spoken ones were made with the Piper text-to-speech program and its voices en_US-amy-medium and
   en_US-ryan-high, by `sounds/generate_voices.sh`. There is one more of each that is no event's,
   `voicef-twister.wav` and `voicem-twister.wav` ("Twister"), to choose for whatever you like;
-- a tone of plain notes, `tell.wav` and so on;
+- a tone of plain notes, `tone-tell1.wav` and so on;
 - a second tone, on bells, `tone-tell2.wav` and so on.
 
 Both tones are made by `sounds/generate.py`.
@@ -59,7 +59,7 @@ for every number it goes by.
 
 Each trigger has a switch, its sound, a Test button and a Remove button; they are kept with the rest of
 the settings. A trigger starts on `voicef-trigger.wav` ("Heads up"); `voicem-trigger.wav` is
-the same in the other voice, and `trigger.wav` and `tone-trigger2.wav` are tones for it.
+the same in the other voice, and `tone-trigger1.wav` and `tone-trigger2.wav` are tones for it.
 
 What the kinds can do, and which kind each area's mobs are, is in `mobs.lua`, with only the mobs that do
 something. It is made from a checkout of the server by `generate_mobs.py` (which uses MobDB's importer,

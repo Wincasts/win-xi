@@ -2,7 +2,7 @@
 """Makes the tones that come with twister: two for each event it knows, and two for triggers.
 
 They are short tones, made here so that there is something to hear without borrowing anyone's files.
-The first of each, <event>.wav, is plain notes. The second, tone-<event>2.wav, is the same event said
+The first of each, tone-<event>1.wav, is plain notes. The second, tone-<event>2.wav, is the same event said
 another way, on bells: something else to choose where the first does not suit.
 Run it in this folder to make them again. Any other wav put in this folder can be chosen for an event
 in the settings.
@@ -128,7 +128,7 @@ def write(name, samples):
 
 here = os.path.dirname(os.path.abspath(__file__))
 for name, samples in SOUNDS.items():
-    write(name, samples)
+    write('tone-%s1' % name, samples)
 for name, samples in SECOND.items():
     # brought to one loudness: bells laid over each other come out quieter than bells one after another
     peak = max(abs(sample) for sample in samples)
