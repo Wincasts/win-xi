@@ -23,7 +23,7 @@ own. Organize, at the foot of the window, fills the frames with sample data to d
 | `party.lua`, `pets.lua`, `target.lua` | read the game, and hand back lists of lines |
 | `frames.lua` | draws a list of lines: the bars, names and values |
 | `notices.lua` | invitations and treasure waiting, and their icons |
-| `debuffs.lua` | what is on each enemy, from the actions the server reports |
+| `debuffs.lua` | the row of letters for what is on an enemy, which `winxi.debuffs` keeps count of |
 | `windows.lua` | the windows the lists are drawn in: themed, arranged, fading, held by a corner |
 | `options.lua` | the settings, each an entry in a list: defaults and the settings tabs come from it |
 | `config.lua` | the settings window |
