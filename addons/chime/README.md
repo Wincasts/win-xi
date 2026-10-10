@@ -33,16 +33,27 @@ it, in capitals or not. Items already in the pool when you arrive in an area do 
 
 ## Triggers (experimental)
 
-The settings' Triggers tab makes sounds of your own: a mob of the area you are in, a spell or a
-weaponskill of that mob's, and a sound. It sounds as a mob of that name begins it (starts casting, or
-readies the weaponskill), in that area, and not when one is broken off. Each trigger has a switch, its
-sound, a Test button and a Remove button; they are kept with the rest of the settings, for every area.
-A trigger starts on `voice-trigger.wav` ("Heads up"), and `trigger.wav` is a tone for the same.
+The settings' Triggers tab makes sounds of your own: a mob of the area you are in, something that mob
+does, and a sound. What a mob does is a spell, a weaponskill or an ability:
 
-What each area's mobs can do is in the `mobs` folder, one file to an area, with only the mobs that cast
-or ready something. It is made from a checkout of the server by `mobs/generate.py` (which uses MobDB's
-importer, from `addons/mobdb`), and wants making again when the server's mobs change. A spell or a
-weaponskill the server gives a mob from a script, and not from its lists, is not among them.
+- a spell or a weaponskill sounds as a mob of that name begins it (starts casting, or readies it), and
+  not when one is broken off;
+- an ability is what a mob uses at once, with nothing readied first (a job's special, such as Mighty
+  Strikes, among them), and sounds as it is used.
+
+A trigger is for the area it was made in. Each has a switch, its sound, a Test button and a Remove
+button; they are kept with the rest of the settings, for every area. A trigger starts on
+`voice-trigger.wav` ("Heads up"), and `trigger.wav` is a tone for the same.
+
+What each area's mobs can do is in `mobs.lua`, with only the mobs that do something. It is made from a
+checkout of the server by `generate_mobs.py` (which uses MobDB's importer, from `addons/mobdb`, and says
+how the file is laid out), and wants making again when the server's mobs change. A mob's weaponskills
+and abilities are those of its skill list, those its own script names, and its main job's special where
+its script takes one and names none: what a mob is given some other way is not among them.
+
+The file costs nothing until it is wanted. It is read when the Triggers tab is first drawn, an area is
+taken apart only when its mobs are listed, and all of it is let go of when the settings are closed. A
+trigger keeps what it needs, so hearing for one reads nothing.
 
 Ashita plays one sound at a time, at the volume of the file, and there is no volume setting. A sound
 would cut short the one before it, so one asked for while another is playing waits for it to finish (and

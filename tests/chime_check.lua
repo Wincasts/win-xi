@@ -49,12 +49,12 @@ H.print('a tell and an invitation together: at once', atOnce, '| then', H.sounds
 
 -- triggers: an action packet, packed a bit at a time as the game packs it. Who acts, the kind of action,
 -- and the first result of the first target: its number and its message.
-local function action(actor, category, number, message)
+local function action(actor, category, number, message, what)
     local bits = {}
     local function put(offset, length, value)
         for i = 0, length - 1 do bits[offset + i] = math.floor(value / 2 ^ i) % 2 end
     end
-    put(40, 32, actor); put(72, 6, 1); put(82, 4, category)
+    put(40, 32, actor); put(72, 6, 1); put(82, 4, category); put(86, 32, what or 0)
     put(150, 32, 1); put(182, 4, 1); put(213, 17, number); put(230, 10, message)
     local bytes = {}
     for index = 0, 40 do
@@ -64,9 +64,9 @@ local function action(actor, category, number, message)
     end
     return table.concat(bytes)
 end
--- the mobs folder is the project's; entity 0x123 is an Acro Bat, and 0x124 an Akbaba
+-- mobs.lua is the project's; entity 0x123 is an Acro Bat, and 0x124 an Akbaba
 local realLoadfile = loadfile
-loadfile = function(path) local own = path:match('chime.(mobs/.+)$') return realLoadfile(own and ('addons/chime/' .. own) or path) end
+loadfile = function(path) local own = path:match('chime.(mobs%.lua)$') return realLoadfile(own and ('addons/chime/' .. own) or path) end
 local entities = { [0x123] = { ServerId = 0x1066123, Name = 'Acro Bat' }, [0x124] = { ServerId = 0x1066124, Name = 'Akbaba' } }
 function GetEntity(index) return entities[index] end
 H.packetData(0x028, action(0x1066123, 7, 392, 43)); H.print('a weaponskill, no triggers: silence', heard() == '')
@@ -82,6 +82,12 @@ entities[0x125] = { ServerId = 0x1066125, Name = 'Air Elemental' }
 H.packetData(0x028, action(0x1066125, 8, 154, 327)); H.print('a mob begins the spell:', heard())
 H.packetData(0x028, action(0x1066125, 8, 154, 0)); H.print('the spell broken off: silence', heard() == '')
 o.triggers[2].enabled[1] = false; H.packetData(0x028, action(0x1066125, 8, 154, 327)); H.print('its trigger off: silence', heard() == ''); o.triggers[2].enabled[1] = true
+-- an ability is used at once: nothing says it is begun, and what says it is done names it as what the action is
+entities[0x126] = { ServerId = 0x1066126, Name = 'Bloodtear Baldurf' }
+o.triggers[3] = { zone = 102, mob = 'Bloodtear Baldurf', kind = 'ability', id = 688, name = 'Mighty Strikes', sound = 'tp.wav', enabled = { true } }
+H.packetData(0x028, action(0x1066126, 11, 0, 0, 688)); H.print('a mob uses the ability:', heard())
+H.packetData(0x028, action(0x1066126, 11, 0, 0, 265)); H.print('a weaponskill of its done: silence', heard() == '')
+H.packetData(0x028, action(0x1066123, 11, 0, 0, 688)); H.print('the ability, by another mob: silence', heard() == '')
 members[0].zone = 103; H.packetData(0x028, action(0x1066125, 8, 154, 327)); H.print('in another area: silence', heard() == ''); members[0].zone = 102
 
 -- TP, HP and MP
@@ -165,7 +171,7 @@ H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; H.print('every T
 
 -- the Triggers tab: the area's mobs to choose from, and what the chosen one does
 H.tab(2); local combos, texts = H.calls.BeginCombo, H.calls.Text or 0; H.frames(1)
-H.print('Triggers drawn: combos', H.calls.BeginCombo - combos, '| a line for each trigger', (H.calls.Text or 0) - texts >= 3)
+H.print('Triggers drawn: combos', H.calls.BeginCombo - combos, '| a line for each trigger', (H.calls.Text or 0) - texts >= 4)
 -- every list open and everything in it chosen: the last mob and the last thing it does are what is being made
 H.ret.BeginCombo = { true }; H.ret.Selectable = { true }; H.frames(2); H.ret.BeginCombo = { false }; H.ret.Selectable = { false }; heard()
 -- every button pressed at once: Add Trigger makes one, and Remove, pressed on each, takes the last away again, which is that one
@@ -173,7 +179,11 @@ local before, gone, realRemove = #o.triggers, nil, table.remove
 table.remove = function(list, at) if list == o.triggers then gone = list[at] end return realRemove(list, at) end
 H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; heard(); table.remove = realRemove
 H.print('Add Trigger made one:', gone.zone, gone.mob, gone.kind, gone.id, gone.sound, gone.enabled[1], '| and Remove took it away', #o.triggers == before)
-members[0].zone = 5; H.frames(1); H.print('an area nothing is known of: drawn all the same', true); members[0].zone = 102
+-- what is known of the mobs is read for the tab and let go of with the settings: asked for again when they are next open
+local reads = 0; local mapped = loadfile; loadfile = function(path) if path:find('mobs%.lua') then reads = reads + 1 end return mapped(path) end
+H.frames(3); H.print('with the settings open, not read again', reads == 0)
+members[0].zone = 5; H.frames(1); H.print('an area nothing is known of: drawn all the same', reads == 0); members[0].zone = 102
+H.command('/chime'); H.frames(2); H.command('/chime'); H.frames(3); H.print('closed and opened: read once more', reads == 1)
 H.tab(1)
 H.command('/chime'); begun = H.calls.Begin; H.frames(2); H.print('/chime closes them', H.calls.Begin == begun)
 H.unload(); H.print('unload ran; saves', H.saves() > 0)
