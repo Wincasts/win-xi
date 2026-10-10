@@ -42,8 +42,8 @@ it, in capitals or not. Items already in the pool when you arrive in an area do 
 
 ## Triggers (experimental)
 
-The settings' Triggers tab makes sounds of your own: a kind of mob (Sheep, Crab, Quadav), something its
-mobs do, and a sound. What a mob does is a spell, a weaponskill or an ability:
+The settings' Triggers tab makes sounds of your own: a kind of mob (Sheep, Crab, Quadav) and something
+its mobs do, made with Create Trigger, and then a sound, chosen in the list of triggers under it. What a mob does is a spell, a weaponskill or an ability:
 
 - a spell or a weaponskill sounds as a mob of the kind begins it (starts casting, or readies it), and
   not when one is broken off;

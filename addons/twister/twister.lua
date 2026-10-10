@@ -767,8 +767,12 @@ end
 
 local triggerSound = 'voicef-trigger.wav' -- what a trigger starts with
 
--- The trigger being made
-local making = { mob = nil, action = nil, sound = triggerSound }
+-- The trigger being made: its sound is chosen once it is made, in the list of triggers
+local making = { mob = nil, action = nil }
+
+-- The button that makes it, at the right of its line
+local createLabel = 'Create Trigger'
+local createSize = nil -- how big the button is: found out once
 
 -- What a kind of mob can do, each with its name, in the order of their names: found out once for a
 -- kind, and kept with what is known of it. The game has some things under more than one number (a
@@ -906,21 +910,16 @@ local function DrawMaking(options)
     end
     Mark('What a mob of the kind does that sets the sound off: everything its mobs do between them, wherever they are, so more than any one of them does.\nA spell or a weaponskill sounds as the mob begins it, not as it lands.\nAn ability is used at once, with nothing readied first, and sounds as it is used.', true)
 
-    widgets.Label('Sound')
-    making.sound = SoundCombo('##twister.making.sound', making.sound, 'trigger') or making.sound
-    imgui.SameLine()
-    imgui.PushID('twister.making')
-    TestButton(making.sound)
-    imgui.PopID()
-
-    if imgui.Button('Add Trigger') then
+    createSize = createSize or { imgui.CalcTextSize(createLabel) + 20, 0 }
+    imgui.SetCursorPosX(imgui.GetCursorPosX() + math.max(imgui.GetContentRegionAvail() - createSize[1], 0))
+    if imgui.Button(createLabel, createSize) then
         if making.mob == nil or making.action == nil then
             Say('Choose a kind of mob and what it does first.')
         elseif HasTrigger(options.triggers, making.mob, making.action) then
             Say(('There is a trigger for %s and %s already.'):format(making.mob, making.action.name))
         else
             options.triggers[#options.triggers + 1] = T{ mob = making.mob, kind = making.action.kind,
-                ids = T{ unpack(making.action.ids) }, name = making.action.name, sound = making.sound, enabled = T{ true } }
+                ids = T{ unpack(making.action.ids) }, name = making.action.name, sound = triggerSound, enabled = T{ true } }
             making.action = nil
             app:Save()
         end
@@ -942,8 +941,6 @@ end
 local function DrawTriggers(options)
     -- [Experimental], as every addon here marks what is
     imgui.TextColored(widgets.ExperimentalColor, '[Experimental]')
-    imgui.SameLine()
-    imgui.Text('A sound when a mob begins a spell or a weaponskill, or uses an ability.')
 
     widgets.Header('New Trigger')
     DrawMaking(options)
