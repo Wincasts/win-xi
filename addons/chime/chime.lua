@@ -1,7 +1,7 @@
 addon.name    = 'chime'
 addon.author  = 'win (and claude)'
 addon.version = '1.0'
-addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, low HP and the like.'
+addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, an item you are after dropping, low HP and the like.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 
 -- A sound for each of a few things worth hearing about. Each event has its own switch and its own
@@ -10,7 +10,7 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 --   /chime           opens or closes the settings
 --   /chime test      plays every event's sound in turn, to hear them
 --
--- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages) and from the party's
+-- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure) and from the party's
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
@@ -45,12 +45,15 @@ local events = {
       tooltip = 'Someone else in your party is knocked out, in the area you are in.' },
     { key = 'skillup', group = 'Other', label = 'Skill Up', file = 'skillup.wav',
       tooltip = 'One of your skills rises, or reaches a new level: a combat or magic skill, or a craft.' },
+    { key = 'drop', group = 'Other', label = 'Item Drop', file = 'voice-drop.wav', items = 'dropItems',
+      tooltip = 'One of the items named below drops: it lands in the treasure pool, yours alone or the party\'s.' },
 }
 
 local defaults = T{
     events = T{ },
     lowHpPercent = T{ 25 },
     lowMpPercent = T{ 20 },
+    dropItems = T{ '' },
 }
 for _, event in ipairs(events) do
     defaults.events[event.key] = T{ enabled = T{ true }, sound = event.file }
@@ -156,6 +159,7 @@ local packetSystemMessage = 0x009
 local packetChat = 0x017
 local packetTrade = 0x021 -- someone asks to trade
 local packetMessage = 0x029
+local packetTreasure = 0x0D2 -- an item is in the treasure pool
 local packetInvite = 0x0DC
 
 local chatTell = 3
@@ -228,6 +232,37 @@ local function OnSystemMessage(data)
     end
 end
 
+-- The items listened for, by name in small letters: read from what is written in the settings, names
+-- with commas between them, and read again only when that is something else
+local wantedText, wanted = nil, { }
+
+local function Wanted(text)
+    if text ~= wantedText then
+        wantedText, wanted = text, { }
+        for name in text:gmatch('[^,]+') do
+            name = name:match('^%s*(.-)%s*$'):lower()
+            if name ~= '' then
+                wanted[name] = true
+            end
+        end
+    end
+    return wanted
+end
+
+-- The treasure packet: which item at 0x10, and at 0x15 whether it was in the pool already, as every
+-- item in it is told of again on arriving in an area. A place in the pool with nothing in it is item 0.
+local function OnTreasure(data)
+    if not app.options.events.drop.enabled[1] or data:byte(0x15 + 1) ~= 0 then
+        return
+    end
+    local id = struct.unpack('H', data, 0x10 + 1)
+    local item = id ~= 0 and AshitaCore:GetResourceManager():GetItemById(id) or nil
+    local name = item ~= nil and item.Name ~= nil and item.Name[1] or nil
+    if type(name) == 'string' and Wanted(app.options.dropItems[1])[name:lower()] then
+        Sound('drop')
+    end
+end
+
 ashita.events.register('packet_in', 'chime_packet_in', function(e)
     if app == nil then
         return
@@ -242,6 +277,8 @@ ashita.events.register('packet_in', 'chime_packet_in', function(e)
         OnSystemMessage(e.data)
     elseif e.id == packetMessage then
         OnMessage(e.data)
+    elseif e.id == packetTreasure then
+        OnTreasure(e.data)
     end
 end)
 
@@ -400,6 +437,8 @@ for _, event in ipairs(events) do
         test = ('Test##chime.%s.test'):format(event.key),
         threshold = ('##chime.%s.threshold'):format(event.key),
         thresholdLabel = event.label .. ' Threshold (%)',
+        items = ('##chime.%s.items'):format(event.key),
+        itemsLabel = event.label .. ' Names',
     }
 end
 
@@ -444,6 +483,19 @@ local function DrawEvent(options, event)
         imgui.SetNextItemWidth(170)
         imgui.SliderInt(id.threshold, options[event.threshold], 5, 90, '%d%%')
     end
+
+    -- and so the names of the items listened for
+    if event.items ~= nil and chosen.enabled[1] then
+        widgets.Label(id.itemsLabel)
+        imgui.SetNextItemWidth(300)
+        imgui.InputText(id.items, options[event.items], 1024)
+        if imgui.IsItemDeactivatedAfterEdit() then
+            app:Save()
+        end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('The items to listen for, by name, with a comma between one and the next:\nKindred\'s Seal, Beastmen\'s Seal\nA name is the whole of the item\'s name as the game shows it, in capitals or not.')
+        end
+    end
 end
 
 local function DrawSettings(options)
@@ -470,6 +522,9 @@ local function Complete(options)
         if type(chosen.sound) ~= 'string' or chosen.sound == '' then chosen.sound = event.file end
         if event.threshold ~= nil and (type(options[event.threshold]) ~= 'table' or type(options[event.threshold][1]) ~= 'number') then
             options[event.threshold] = T{ defaults[event.threshold][1] }
+        end
+        if event.items ~= nil and (type(options[event.items]) ~= 'table' or type(options[event.items][1]) ~= 'string') then
+            options[event.items] = T{ '' }
         end
     end
 end

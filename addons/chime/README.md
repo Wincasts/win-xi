@@ -18,13 +18,18 @@ and needs only the `winxi` library (`addons/libs/winxi`).
 | Low MP | the same for MP (20%); never on a job with no MP |
 | Party Member KO | someone else in your party is knocked out, in your area: they have had no HP for a second, and had been in the area five seconds or more |
 | Skill Up | one of your skills rises or reaches a new level, crafts included |
+| Item Drop | an item you have named drops: it lands in the treasure pool, yours alone or the party's |
 
 Each event has its own switch, its own sound and a Test button. The sounds are the wav files in the
 addon's `sounds` folder: put your own there and they appear in every event's list. The ones that come
-with it are plain tones made by `sounds/generate.py`, which every event but Trade Request and Examined starts on, and a spoken one for
+with it are plain tones made by `sounds/generate.py`, which every event but Trade Request, Examined and Item Drop starts on, and a spoken one for
 each event, `voice-tell.wav` and so on ("Tell", "Mentioned", "Invite", "Trade", "Examined", "TP ready",
-"Low HP", "Low MP", "Member down", "Skill up"), to choose in its place. The spoken ones were made with the Piper
+"Low HP", "Low MP", "Member down", "Skill up", "Item drop"), to choose in its place. The spoken ones were made with the Piper
 text-to-speech program and its voice en_US-amy-medium, by `sounds/generate_voices.sh`.
+
+Item Drop listens for the items named in its settings, under its line: their names with a comma between
+one and the next (`Kindred's Seal, Beastmen's Seal`), each the whole of the item's name as the game shows
+it, in capitals or not. Items already in the pool when you arrive in an area do not sound.
 
 Ashita plays one sound at a time, at the volume of the file, and there is no volume setting. A sound
 would cut short the one before it, so one asked for while another is playing waits for it to finish (and

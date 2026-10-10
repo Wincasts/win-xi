@@ -90,6 +90,17 @@ local function systemMessage(id)
 end
 H.packetData(0x009, systemMessage(89)); H.print('examined:', heard())
 H.packetData(0x009, systemMessage(88)); H.print('another system message: silence', heard() == '')
+-- treasure: which item at 0x10, and whether it was in the pool already at 0x15. The harness names item 500 'Item 500'.
+local function treasure(item, old)
+    return ('\0'):rep(16) .. string.char(item % 256, math.floor(item / 256)) .. ('\0'):rep(3) .. string.char(old and 1 or 0) .. ('\0'):rep(38)
+end
+H.packetData(0x0D2, treasure(500)); H.print('a drop, no items named: silence', heard() == '')
+o.dropItems[1] = 'Other Thing,  item 500 ,'
+H.packetData(0x0D2, treasure(500)); H.print('a drop of an item named:', heard())
+H.packetData(0x0D2, treasure(501)); H.print('a drop of another item: silence', heard() == '')
+H.packetData(0x0D2, treasure(500, true)); H.print('one in the pool already: silence', heard() == '')
+H.packetData(0x0D2, treasure(0)); H.print('an empty place in the pool: silence', heard() == '')
+o.events.drop.enabled[1] = false; H.packetData(0x0D2, treasure(500)); H.print('drops off: silence', heard() == ''); o.events.drop.enabled[1] = true
 struct.unpack = stubUnpack
 
 -- arriving somewhere: nothing is believed at first
@@ -105,6 +116,7 @@ o.events.tell.sound = 'bell.wav'; H.packetData(0x017, chat(3, 'Someone', 'hello'
 local begun = H.calls.Begin or 0
 H.print('/chime kept from the game', H.command('/chime')); H.frames(2)
 H.print('settings drawn', (H.calls.Begin or 0) > begun, '| checkboxes', (H.calls.Checkbox or 0) > 8, '| sliders', H.calls.SliderInt, '| combos', (H.calls.BeginCombo or 0) > 0)
+H.print('the items named can be written', (H.calls.InputText or 0) > 0)
 H.print('a mark for each event\'s description', (H.calls.TextDisabled or 0) > 0)
 local sliders = H.calls.SliderInt
 o.events.lowhp.enabled[1] = false; H.frames(1); H.print('Low HP off: its threshold not drawn', H.calls.SliderInt - sliders == 1)
