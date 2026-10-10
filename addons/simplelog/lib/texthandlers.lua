@@ -3,28 +3,33 @@ local texthandlers = {}
 -- Timestamps, an option: the time in front of every line that goes into the chat log, the game's as
 -- well as this addon's own. This is what Ashita's timestamp addon (by atom0s) does, done here so that
 -- one addon need not be loaded for the other; with both loaded every line is stamped twice.
+-- With Timestamps off every line has a space in front of it in the stamp's place, to stand a little
+-- way in from the edge of the log.
 local stampIgnored = {
 	[190] = true, -- NPC chat reinjections
 	[600] = true, [702] = true, [909] = true, [919] = true, -- synergy messages
 }
 
-local function Stamp(e)
+local function Stamp(e, stamped)
 	local mex = bit.band(e.mode_modified, 0xFFFFFF00)
 	local mid = bit.band(e.mode_modified, 0x000000FF)
 	if stampIgnored[mid] then
 		return
 	end
 
-	-- NPC chat is not indented under its stamp
-	if mid == 150 then
-		e.mode_modified = bit.bor(mex, 151)
-	end
+	local stamp = ''
+	if stamped then
+		-- NPC chat is not indented under its stamp
+		if mid == 150 then
+			e.mode_modified = bit.bor(mex, 151)
+		end
 
-	-- an indented line is indented by hand, after the stamp
-	local stamp = os.date(gProfileSettings.text.timestamp or '[%H:%M:%S]')
-	if e.indent then
-		e.indent_modified = false
-		stamp = stamp .. '  '
+		-- an indented line is indented by hand, after the stamp
+		stamp = os.date(gProfileSettings.text.timestamp or '[%H:%M:%S]')
+		if e.indent then
+			e.indent_modified = false
+			stamp = stamp .. '  '
+		end
 	end
 
 	-- auto-translate tags are spelt out first, so that nothing in them is taken for a line break
@@ -51,10 +56,12 @@ local function Stamp(e)
 	msg = table.concat(parts, '\n')
 
 	-- NPC chat breaks its lines with the bell character: those get the stamp too
-	local spacing = mid == 150 and '   ' or ' '
-	msg = msg:gsub('[^\x1E\x1F][\x07]', function (s)
-		return s:sub(1, 1) .. '\n' .. stamp .. spacing
-	end)
+	if stamped then
+		local spacing = mid == 150 and '   ' or ' '
+		msg = msg:gsub('[^\x1E\x1F][\x07]', function (s)
+			return s:sub(1, 1) .. '\n' .. stamp .. spacing
+		end)
+	end
 
 	e.message_modified = msg
 end
@@ -102,9 +109,10 @@ texthandlers.HandleIncomingText = function(e)
 		end
 	end
 
-	-- whatever is left goes into the log, with the time in front of it if that is wanted
-	if gProfileSettings ~= nil and gProfileSettings.mode.timestamps then
-		Stamp(e)
+	-- whatever is left goes into the log, with the time in front of it if that is wanted, and a
+	-- space if it is not
+	if gProfileSettings ~= nil then
+		Stamp(e, gProfileSettings.mode.timestamps)
 	end
 end
 
