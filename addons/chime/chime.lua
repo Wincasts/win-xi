@@ -14,6 +14,8 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
+-- So that one event's sound is not lost to another's, a sound asked for while one is playing waits
+-- for it to finish.
 
 require('common')
 local imgui = require('imgui')
@@ -30,7 +32,7 @@ local events = {
     { key = 'invite', group = 'Chat', label = 'Party Invite', file = 'invite.wav',
       tooltip = 'You are invited to a party or an alliance.' },
     { key = 'skillchain', group = 'Combat', label = 'Skillchain', file = 'skillchain.wav',
-      tooltip = 'A skillchain is made by someone in your party or alliance, or on whatever you have targeted.' },
+      tooltip = 'A skillchain is made by someone in your party or alliance or by one of their pets, or on whatever you have targeted.' },
     { key = 'tp', group = 'Combat', label = 'TP Ready', file = 'tp.wav',
       tooltip = 'Your TP reaches 1000.' },
     { key = 'lowhp', group = 'Combat', label = 'Low HP', file = 'lowhp.wav', threshold = 'lowHpPercent',
@@ -67,13 +69,63 @@ local lastPlayed = { } -- event key -> when
 
 local app -- made below, once the settings can be drawn
 
+-- How long a sound lasts, in seconds, read from its file the first time it is wanted: the bytes it
+-- plays a second are in its 'fmt ' part, and how many bytes there are of it in its 'data' part
+local usualLength = 0.5 -- for a file that cannot be read
+local lengths = { }     -- file -> seconds
+
+local function Number(text, at)
+    local a, b, c, d = text:byte(at, at + 3)
+    if d == nil then
+        return nil
+    end
+    return a + b * 256 + c * 65536 + d * 16777216
+end
+
+local function Length(file)
+    local length = lengths[file]
+    if length == nil then
+        length = usualLength
+        local opened = io.open(soundFolder .. file, 'rb')
+        if opened ~= nil then
+            local head = opened:read(4096) or ''
+            opened:close()
+            local format = head:find('fmt ', 1, true)
+            local data = head:find('data', 1, true)
+            local rate = format and Number(head, format + 16)
+            local size = data and Number(head, data + 4)
+            if rate and size and rate > 0 then
+                length = size / rate
+            end
+        end
+        lengths[file] = length
+    end
+    return length
+end
+
+local playingUntil = 0 -- when the sound last started will have finished
+local waiting = { }    -- sounds asked for while one was playing, the first asked for first
+local waitAtMost = 3   -- seconds: a sound that has waited longer says nothing worth hearing any more
+
 local function PlayFile(file)
     local path = soundFolder .. file
     if not ashita.fs.exists(path) then
         return false
     end
     ashita.misc.play_sound(path)
+    playingUntil = os.clock() + Length(file)
     return true
+end
+
+-- Starts whatever has been waiting, once the sound before it is over: looked at every frame
+local function PlayWaiting()
+    local now = os.clock()
+    while #waiting > 0 and now >= playingUntil do
+        local nextUp = table.remove(waiting, 1)
+        if now - nextUp.asked <= waitAtMost then
+            PlayFile(nextUp.file)
+        end
+    end
 end
 
 -- An event has happened: its sound, if it is switched on
@@ -89,7 +141,11 @@ local function Sound(key)
         return
     end
     lastPlayed[key] = now
-    PlayFile(chosen.sound)
+    if now >= playingUntil and #waiting == 0 then
+        PlayFile(chosen.sound)
+    else
+        waiting[#waiting + 1] = { file = chosen.sound, asked = now }
+    end
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -174,6 +230,25 @@ local function IsInAlliance(serverId)
     return false
 end
 
+-- Whether an id is the pet of someone in the party or alliance: an automaton, an avatar, a wyvern,
+-- whatever a beastmaster has charmed. Their skillchains are the party's as much as its members' are.
+local function IsAlliedPet(serverId)
+    local party = AshitaCore:GetMemoryManager():GetParty()
+    for place = 0, 17 do
+        if party:GetMemberIsActive(place) == 1 then
+            local member = GetEntity(party:GetMemberTargetIndex(place))
+            local petIndex = member ~= nil and member.PetTargetIndex or 0
+            if petIndex ~= nil and petIndex ~= 0 then
+                local pet = GetEntity(petIndex)
+                if pet ~= nil and pet.ServerId == serverId then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 local function TargetServerId()
     local target = AshitaCore:GetMemoryManager():GetTarget()
     local entity = GetEntity(target:GetTargetIndex(0))
@@ -192,7 +267,7 @@ local function OnAction(data)
         return
     end
     local actor = Bits(data, 40, 32)
-    local targets = Bits(data, 72, 10)
+    local targets = Bits(data, 72, 6)
     local allied = nil -- found out once, and only if there is a skillchain to ask about
 
     local offset = 150
@@ -206,7 +281,7 @@ local function OnAction(data)
             if hasAdded then
                 if IsSkillchain(Bits(data, offset + 27, 10)) then
                     if allied == nil then
-                        allied = IsInAlliance(actor)
+                        allied = IsInAlliance(actor) or IsAlliedPet(actor)
                     end
                     if allied or targetId == TargetServerId() then
                         Sound('skillchain')
@@ -332,6 +407,10 @@ local function Look()
     -- the others of the party: one who was standing and has no HP now. Someone in another area has
     -- none either, as far as the game here knows, so only those in this one are watched.
     if not options.events.ko.enabled[1] then
+        -- nothing is kept of them meanwhile: what was true before it was switched off may not be now
+        for place = 1, 5 do
+            lastHp[place] = nil
+        end
         return
     end
     local zone = party:GetMemberZone(0)
@@ -484,4 +563,5 @@ ashita.events.register('d3d_present', 'chime_present', function()
     if app.options.enabled[1] then
         Look()
     end
+    PlayWaiting()
 end)
