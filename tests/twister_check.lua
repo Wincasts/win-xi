@@ -206,8 +206,10 @@ local function beetle()
 end
 do
     local actions, headers = beetle()
-    -- with what its mobs do is what three or more of its notorious monsters do: the few spells they have in common
     H.print('Beetle, what its mobs do:', actions:match('%(%?%)%] (.-) | %['))
+    -- what three or more of its notorious monsters do is said once, under one heading, and not under each
+    local several = actions:match('%[Notorious Monsters%] ([^|]*)')
+    H.print('then what several of its notorious monsters do:', several, '| and none of it under a monster', actions:match('Lancing Lamorak[^|]*'):find(several:match('^(.-%))'), 1, true) == nil)
     H.print('then its notorious monsters, lowest first:', table.concat(headers, ', '))
     -- every list in the same order: abilities, then weaponskills, then spells, each by name
     local lumber = actions:match('%[Lumber Jack %(Lv 55%)%] ([^|]*)')

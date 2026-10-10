@@ -14,8 +14,9 @@ What only a kind's notorious monsters do is kept apart from what its other mobs 
 area and level of the monster that does it, so that a beetle is not said to cast what one notorious
 beetle casts. A monster that is in two areas is two monsters where it is of another level there or does
 other things, and one where it is the same. What they do is one of the lists, which many share.
-What three or more of a kind's notorious monsters do is the kind's own, with what its other mobs do,
-so that fifty goblins are not each listed for the dice they all throw. A notorious monster is one the server marks, or one with a name of its own; the mobs of
+What three or more of a kind's notorious monsters do, and its other mobs do not, is written once for
+them all and left out of each one's own, so that fifty goblins are not each listed for the dice they
+all throw. A notorious monster is one the server marks, or one with a name of its own; the mobs of
 Dynamis, which the server's Dynamis module marks one and all, are taken as they were before it.
 
 It is read from a checkout of the server (Phoenix, which keeps its mobs in data/zones/<zone>/mobs.yaml),
@@ -31,6 +32,7 @@ mobs.lua is written to be small and to cost nothing until it is wanted: what a k
 of numbers, and an area is one string, taken apart only when twister asks about that area.
 
     kinds = { ['Sheep'] = { spells = '53 59', moves = '260 261 a688',      a marks an ability
+                            several = { spells = '', moves = '' },            what three or more of its notorious monsters do
                             notorious = 'Name=area.area,level,spells,moves;' } }   the level 55 or 25-26 or nothing,
     lists = { '144 145', '265 a688' }                                        and each of the last two a list or nothing
     zones = { [area] = 'Sheep:Carnero|Ornery Sheep;Crab:Land Crab;' }
@@ -49,7 +51,7 @@ sys.path.insert(0, MOBDB)
 import import_phoenix as mobdb  # noqa: E402
 
 
-SEVERAL = 3  # as many notorious monsters of a kind doing a thing as make it the kind's own
+SEVERAL = 3  # as many notorious monsters of a kind doing a thing as have it written once for them all
 
 
 def module_sql(server):
@@ -231,22 +233,24 @@ class Mobs(mobdb.Generator):
         with open(self.args.target, 'w', encoding='utf-8', newline='\n') as out:
             out.write('-- Made by generate_mobs.py, which says how this is laid out\nreturn {\n    kinds = {\n')
             for kind, known in sorted(self.kinds.items()):
-                # what several of its notorious monsters do is the kind's own, with what its other mobs
-                # do: it need not be said again under each of them
+                # what several of its notorious monsters do, and its other mobs do not, is written once
+                # for them all: it need not be said again under each of them
+                several = {}
                 for does in ('spells', 'moves'):
                     doers = collections.defaultdict(set)  # a spell or a move -> the monsters that do it, by name
                     for (name, _), mob in known['notorious'].items():
                         for done in mob[does] - known[does]:
                             doers[done].add(name)
-                    known[does] |= {done for done, names in doers.items() if len(names) >= SEVERAL}
-                used |= known['moves']
+                    several[does] = {done for done, names in doers.items() if len(names) >= SEVERAL}
+                used |= known['moves'] | several['moves']
                 # what only its notorious monsters do, each with its area and level, the lowest first
                 # and those of no known level last
                 # one that is the same in several areas, in level and in what it does, is written once,
                 # with all of its areas
                 notorious = collections.defaultdict(list)  # (level it sorts by, name, level, spells, moves) -> its areas
                 for (name, zone_id), mob in known['notorious'].items():
-                    spells, moves = mob['spells'] - known['spells'], mob['moves'] - known['moves']
+                    spells = mob['spells'] - known['spells'] - several['spells']
+                    moves = mob['moves'] - known['moves'] - several['moves']
                     if spells or moves:
                         if re.search(r'[=;,]', name):
                             sys.exit('a name that cannot be written: %s' % name)
@@ -254,8 +258,9 @@ class Mobs(mobdb.Generator):
                         low, high = min(mob['levels'], default=0), max(mob['levels'], default=0)
                         level = '' if not low else str(low) if low == high else '%d-%d' % (low, high)
                         notorious[(low or 999, name, level) + tuple(map(place, self.written(spells, moves)))].append(zone_id)
-                out.write("        [%s] = { spells = '%s', moves = '%s', notorious = %s },\n" % (
+                out.write("        [%s] = { spells = '%s', moves = '%s', several = { spells = '%s', moves = '%s' }, notorious = %s },\n" % (
                     (mobdb.lua_string(kind),) + self.written(known['spells'], known['moves'])
+                    + self.written(several['spells'], several['moves'])
                     + (mobdb.lua_string(''.join('%s=%s,%s,%s,%s;' % (
                         (found[1], '.'.join(map(str, sorted(notorious[found])))) + found[2:]) for found in sorted(notorious))),)))
                 monsters += len(notorious)
