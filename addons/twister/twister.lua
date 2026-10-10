@@ -785,31 +785,49 @@ local createSize = nil -- how big the button is: found out once
 -- kind, and kept with what is known of it. The game has some things under more than one number (a
 -- weaponskill, and the same again for the mobs of Dynamis): what has one name is one thing to choose,
 -- with every number it goes by.
+--
+-- What only the kind's notorious monsters do comes after what its other mobs do, in lists of its
+-- own, each under the monster's name and level.
 local kindLabels = { spell = 'Spell', skill = 'Weaponskill', ability = 'Ability' }
 
 local function MobActions(known)
     local actions = known.actions
     if actions == nil then
-        actions = { }
         local named = { } -- kind and name -> the action
-        local function Add(kind, id)
+        local function Add(list, kind, id)
             local name = ActionName(kind, id)
             local action = named[kind .. name]
             if action == nil then
                 action = { kind = kind, ids = T{ }, name = name,
                     label = ('%s (%s)##%s%d'):format(name, kindLabels[kind], kind, id) }
                 named[kind .. name] = action
-                actions[#actions + 1] = action
+                list[#list + 1] = action
             end
             action.ids[#action.ids + 1] = id
         end
-        for id in known.spells:gmatch('%d+') do
-            Add('spell', tonumber(id))
+        local function List(does, who)
+            local list = { who = who }
+            for id in does.spells:gmatch('%d+') do
+                Add(list, 'spell', tonumber(id))
+            end
+            for ability, id in does.moves:gmatch('(a?)(%d+)') do
+                Add(list, ability == 'a' and 'ability' or 'skill', tonumber(id))
+            end
+            table.sort(list, function(a, b) return a.label < b.label end)
+            return list
         end
-        for ability, id in known.moves:gmatch('(a?)(%d+)') do
-            Add(ability == 'a' and 'ability' or 'skill', tonumber(id))
+
+        -- actions is what the kind's mobs do, and actions.notorious the lists of what only its
+        -- notorious monsters do. A thing is listed once: with what the others do if they do it under
+        -- any number, and else under the first monster that does, which is the lowest in level.
+        actions = List(known)
+        actions.notorious = { }
+        for _, monster in ipairs(known.notorious or { }) do
+            local list = List(monster, monster.who)
+            if #list > 0 then
+                actions.notorious[#actions.notorious + 1] = list
+            end
         end
-        table.sort(actions, function(a, b) return a.label < b.label end)
         known.actions = actions
     end
     return actions
@@ -868,6 +886,14 @@ local function KindChoices(kinds)
     end
 end
 
+local function ActionChoices(actions)
+    for _, action in ipairs(actions) do
+        if imgui.Selectable(action.label, making.action ~= nil and action.label == making.action.label) then
+            making.action = action
+        end
+    end
+end
+
 local function DrawMaking(options)
     local data = MobData()
     if data == nil then
@@ -908,10 +934,17 @@ local function DrawMaking(options)
     imgui.SetNextItemWidth(260)
     if imgui.BeginCombo('##twister.making.action', making.action and making.action.label or 'Choose One') then
         if making.mob ~= nil and data.kinds[making.mob] ~= nil then
-            for _, action in ipairs(MobActions(data.kinds[making.mob])) do
-                if imgui.Selectable(action.label, making.action ~= nil and action.label == making.action.label) then
-                    making.action = action
+            local actions = MobActions(data.kinds[making.mob])
+            ActionChoices(actions)
+            -- what only a notorious monster of the kind does: under its name and level
+            for index, list in ipairs(actions.notorious) do
+                if index > 1 or #actions > 0 then
+                    imgui.Separator()
                 end
+                imgui.TextDisabled(list.who)
+                imgui.PushID(index)
+                ActionChoices(list)
+                imgui.PopID()
             end
         end
         imgui.EndCombo()

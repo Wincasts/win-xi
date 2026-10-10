@@ -192,6 +192,20 @@ H.ret.Button = { true }; H.frames(1); H.ret.Button = { false }; H.print('every T
 -- the Triggers tab: the area's mobs to choose from, and what the chosen one does
 H.tab(2); local combos, texts = H.calls.BeginCombo, H.calls.Text or 0; H.frames(1)
 H.print('Triggers drawn: combos', H.calls.BeginCombo - combos, '| a line for each trigger', (H.calls.Text or 0) - texts >= 3)
+-- what a kind does: what its mobs do first, then what only its notorious monsters do, each list under the monster's name and level
+do
+    local imgui, seen = require('imgui'), {}
+    rawset(imgui, 'Selectable', function(label) seen[#seen + 1] = label:match('^[^#]+') return label == 'Beetle' end)
+    rawset(imgui, 'TextDisabled', function(text) seen[#seen + 1] = '[' .. text .. ']' end); rawset(imgui, 'Separator', function() seen[#seen + 1] = '|' end)
+    H.ret.BeginCombo = { true }; H.frames(1); seen = {}; H.frames(1); H.ret.BeginCombo = { false }
+    rawset(imgui, 'Selectable', nil); rawset(imgui, 'TextDisabled', nil); rawset(imgui, 'Separator', nil)
+    local text = table.concat(seen, ' '); local actions = text:sub((text:find('Elsewhere', 1, true)))
+    local first = actions:match('%(%?%)%] (.-) | %[Panzer')
+    H.print('Beetle, what its mobs do:', first)
+    local headers = {} for header in actions:gmatch('| %[([^%]]-%(Lv [^%]]+)%]') do headers[#headers + 1] = header end
+    H.print('then its notorious monsters, lowest first:', table.concat(headers, ', '))
+    H.print('Tornado (spell 208) is Lancing Lamorak\'s, not every beetle\'s', actions:match('Lancing Lamorak.*Spell 208') ~= nil, first:find('Spell', 1, true) == nil)
+end
 -- every list open and everything in it chosen: the last kind of mob, of those not in the area, and the last thing it does are what is being made
 H.ret.BeginCombo = { true }; H.ret.Selectable = { true }; H.frames(2); H.ret.BeginCombo = { false }; H.ret.Selectable = { false }; heard()
 -- every button pressed at once: Create Trigger makes one, and Remove, pressed on each, takes the last away again, which is that one
