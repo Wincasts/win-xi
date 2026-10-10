@@ -201,8 +201,12 @@ local function Text(data, first, last)
     return zero and text:sub(1, zero - 1) or text
 end
 
+-- What reads a packet is given the packet as the game hands it over, and asks for what is in it
+-- (data, a copy of it made for the asking) only once it knows it wants it.
+
 -- The chat packet: the kind of message at 0x04, who said it at 0x08 (15 bytes), what they said from 0x17
-local function OnChat(data)
+local function OnChat(e)
+    local data = e.data
     local kind = data:byte(0x04 + 1)
     if kind == chatTell then
         Sound('tell')
@@ -224,10 +228,11 @@ end
 -- rising and a skill reaching a level are two of them, and the player's own are the ones wanted.
 local messageSkillRises, messageSkillLevel = 38, 53
 
-local function OnMessage(data)
+local function OnMessage(e)
     if not app.options.events.skillup.enabled[1] then
         return
     end
+    local data = e.data
     local message = struct.unpack('H', data, 0x18 + 1) % 0x8000
     if message ~= messageSkillRises and message ~= messageSkillLevel then
         return
@@ -241,8 +246,8 @@ end
 -- it is sent only to the one examined.
 local systemMessageExamines = 89
 
-local function OnSystemMessage(data)
-    if app.options.events.examine.enabled[1] and struct.unpack('H', data, 0x0A + 1) == systemMessageExamines then
+local function OnSystemMessage(e)
+    if app.options.events.examine.enabled[1] and struct.unpack('H', e.data, 0x0A + 1) == systemMessageExamines then
         Sound('examine')
     end
 end
@@ -266,8 +271,12 @@ end
 
 -- The treasure packet: which item at 0x10, and at 0x15 whether it was in the pool already, as every
 -- item in it is told of again on arriving in an area. A place in the pool with nothing in it is item 0.
-local function OnTreasure(data)
-    if not app.options.events.drop.enabled[1] or data:byte(0x15 + 1) ~= 0 then
+local function OnTreasure(e)
+    if not app.options.events.drop.enabled[1] then
+        return
+    end
+    local data = e.data
+    if data:byte(0x15 + 1) ~= 0 then
         return
     end
     local id = struct.unpack('H', data, 0x10 + 1)
@@ -385,19 +394,10 @@ local function EntityName(serverId)
     return nil
 end
 
--- Some bits of a packet, as a number: offset is counted in bits from the packet's start, the low bit
--- of each byte first, which is how the action packet is packed. Up to 32 bits.
-local powers = { }
-for power = 0, 32 do
-    powers[power] = 2 ^ power
-end
-
-local function Bits(data, offset, length)
-    local first = bit.rshift(offset, 3)
-    local a, b, c, d, e = data:byte(first + 1, first + 5)
-    local value = (a or 0) + (b or 0) * 256 + (c or 0) * 65536 + (d or 0) * 16777216 + (e or 0) * 4294967296
-    return math.floor(value / powers[offset % 8]) % powers[length]
-end
+-- Some bits of a packet, as a number, read where the packet lies without a copy being made of it:
+-- the offset is counted in bits from the packet's start, the low bit of each byte first, which is how
+-- the action packet is packed
+local Bits = ashita.bits.unpack_be
 
 -- The action packet: who acted at bit 40, how many targets at 72, the kind of action at 82, what the
 -- action is at 86, and from 150 each target (its id, how many results, then each result).
@@ -410,8 +410,8 @@ end
 -- say a mob's move is done (of a move numbered under 256, and of the others), which name the move as
 -- what the action is.
 --
--- Action packets come thick in a fight and most are rounds of attacks, so the kind is read first,
--- from the one byte it is in, and the rest only for the kinds wanted.
+-- Action packets come thick in a fight and most are rounds of attacks, so nothing is read with no
+-- triggers made, and then the kind first, and the rest only for the kinds wanted.
 local beginsKinds = { [7] = 'skill', [8] = 'spell' }
 local doneKinds = { [3] = true, [11] = true }
 
@@ -425,15 +425,16 @@ local function Has(ids, id)
     return false
 end
 
-local function OnAction(data)
+local function OnAction(e)
     local triggers = app.options.triggers
     if #triggers == 0 then
         return
     end
-    local category = bit.band(bit.rshift(data:byte(11) or 0, 2), 0xF)
+    local data = e.data_raw
+    local category = Bits(data, 82, 4)
     local kind, id = beginsKinds[category], 0
     if kind ~= nil then
-        if bit.band(data:byte(10), 0x3F) == 0 or Bits(data, 182, 4) == 0 then
+        if Bits(data, 72, 6) == 0 or Bits(data, 182, 4) == 0 then
             return
         end
         id = Bits(data, 213, 17)
@@ -480,7 +481,7 @@ local packetReaders = {
 ashita.events.register('packet_in', 'twister_packet_in', function(e)
     local read = packetReaders[e.id]
     if read ~= nil and app ~= nil then
-        read(e.data)
+        read(e)
     end
 end)
 
@@ -628,7 +629,7 @@ local function Files()
 end
 
 -- The sounds in two lists for whatever key names (an event, or 'trigger'): its own, which are the
--- ones made for it (its two voices, its tone and its second tone), and the rest. Put together once for
+-- ones made for it (its two voices and its two tones), and the rest. Put together once for
 -- each key, and again when the files have been looked for again.
 local sorted = { files = nil }
 
@@ -640,7 +641,7 @@ local function Sorted(key)
     local lists = sorted[key]
     if lists == nil then
         lists = { own = { }, rest = { } }
-        local own = { ['voicef-' .. key .. '.wav'] = 1, ['voicem-' .. key .. '.wav'] = 2, [key .. '.wav'] = 3, ['tone-' .. key .. '2.wav'] = 4 }
+        local own = { ['voicef-' .. key .. '.wav'] = 1, ['voicem-' .. key .. '.wav'] = 2, ['tone-' .. key .. '1.wav'] = 3, ['tone-' .. key .. '2.wav'] = 4 }
         for _, file in ipairs(all) do
             local list = own[file] and lists.own or lists.rest
             list[#list + 1] = file
@@ -985,9 +986,15 @@ local function IsTrigger(trigger)
         and type(trigger.mob) == 'string' and kindLabels[trigger.kind] ~= nil
 end
 
--- A sound chosen when the spoken ones were named voice-: they are voicef- now
+-- A sound chosen under a name it no longer has: the spoken ones were voice- and are voicef-, and
+-- the first tones had only the event's name, tell.wav, and are tone-tell1.wav
+local firstTones = { ['trigger.wav'] = 'tone-trigger1.wav' }
+for _, event in ipairs(events) do
+    firstTones[event.key .. '.wav'] = ('tone-%s1.wav'):format(event.key)
+end
+
 local function Renamed(sound)
-    return (sound:gsub('^voice%-', 'voicef-'))
+    return firstTones[sound] or (sound:gsub('^voice%-', 'voicef-'))
 end
 
 -- Whatever saved settings lack, or have as the wrong kind of thing
