@@ -195,6 +195,11 @@ app = shell.New({
     command = '/puppet',
     help = '/puppet shows or hides the window; /puppet config opens or closes the settings.',
     drawSettings = DrawSettings,
+    -- the window is only there in a fight, so the command would otherwise seem to do nothing
+    toggleSays = {
+        shown = 'The window is on: it appears while your automaton is fighting.',
+        hidden = 'The window is off. /puppet turns it back on.',
+    },
     onSettings = function(options)
         -- the automaton as it was when last described, this character's
         if type(options.automaton) ~= 'table' then

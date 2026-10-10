@@ -346,7 +346,9 @@ end);
 
 `app.options` is the settings table; read it from `app` each time, as it is another table after a change
 of character. Optional in the spec: `drawAppearance` (more for the Appearance tab's Addon section),
-`commands` (more verbs), `onSettings` (called when the settings are loaded or swapped) and `import` (a
+`commands` (more verbs), `onSettings` (called when the settings are loaded or swapped), `toggleSays`
+(`{ shown = '...', hidden = '...' }`, said in the chat log as the command shows or hides the window: for
+a window that is only there some of the time, where the change cannot otherwise be seen) and `import` (a
 tool's settings to bring over from xitools, once). `shell.ControllerSettings(options, tooltip, between)`
 draws the controller settings an addon's Settings tab has. `inv` and `treas` are written this way.
 

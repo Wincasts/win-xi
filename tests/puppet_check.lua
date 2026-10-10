@@ -106,5 +106,6 @@ entities[1].PetTargetIndex = 2; game.job = 4; fight(900); H.print('another job: 
 game.job = 18
 H.print('the automaton is kept in the settings: head', o.automaton.head, '| frame', o.automaton.frame, '| magic', o.automaton.magic)
 H.print('/puppet config kept from the game', H.command('/puppet config')); H.frames(1)
-H.command('/puppet'); H.print('/puppet hides it', o.isVisible[1] == false)
+H.command('/puppet'); H.print('/puppet hides it', o.isVisible[1] == false, '| and says so:', H.printed[#H.printed])
+H.command('/puppet'); H.print('and shows it again:', H.printed[#H.printed])
 H.unload(); H.print('unload ran; saves', H.saves() > 0)
