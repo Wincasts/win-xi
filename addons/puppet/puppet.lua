@@ -75,12 +75,15 @@ end
 -- has for a target as it is of a player's: the server says so only to the pet's master, in the packet
 -- that keeps the two in step, which gives the enemy while the pet is attacking and nothing otherwise.
 local fighting = 0
+local syncs = { seen = 0, own = 0, last = nil } -- for Always Show: how many of those packets have come
 
 local function ReadPetSync(e)
+    syncs.seen = syncs.seen + 1
     if struct.unpack('I', e.data, 0x08 + 1) ~= AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
         return
     end
     fighting = struct.unpack('I', e.data, 0x14 + 1)
+    syncs.own, syncs.last = syncs.own + 1, os.clock()
 end
 
 local function CountManeuvers()
@@ -164,15 +167,39 @@ local function DrawLine(label, value)
     imgui.Text(value)
 end
 
-local function DrawWindow()
+-- What the addon knows, for Always Show: why the window says what it does, or nothing
+local known = { pet = false, maneuvers = '' }
+
+local function DrawKnown()
+    imgui.Separator()
+    if automaton.head == nil then
+        imgui.TextDisabled('Automaton: not described yet')
+    else
+        imgui.TextDisabled(('Automaton: head %d, frame %d, melee %d, ranged %d, magic %d'):format(
+            automaton.head, automaton.frame or -1, automaton.melee or -1, automaton.ranged or -1, automaton.magic or -1))
+    end
+    imgui.TextDisabled(('Pet out: %s   Fighting: %s'):format(known.pet and 'yes' or 'no', fighting ~= 0 and tostring(fighting) or 'nothing'))
+    imgui.TextDisabled(('Pet packets: %d seen, %d mine, last %s'):format(
+        syncs.seen, syncs.own, syncs.last and ('%.0fs ago'):format(os.clock() - syncs.last) or 'never'))
+    imgui.TextDisabled('Maneuvers: ' .. (known.maneuvers ~= '' and known.maneuvers or 'none'))
+end
+
+local function DrawWindow(options)
     DrawLine('Next Enfeeble:', showing.enfeebles)
     DrawLine('Next Weaponskill:', showing.weaponskill)
+    if options.alwaysShow[1] then
+        if showing.enfeebles == nil and showing.weaponskill == nil then
+            imgui.TextDisabled('Nothing to show.')
+        end
+        DrawKnown()
+    end
 end
 
 local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 },
     automaton = T{ }, -- the automaton as last described: see ReadAutomaton
+    alwaysShow = T{ true }, -- for finding out what is wrong: the window whatever is happening, with what the addon knows
 }
 
 local function DrawSettings(options)
@@ -186,6 +213,12 @@ local function DrawSettings(options)
         imgui.SetWindowPos(windowName, options.pos)
     end
 
+    widgets.Gap()
+    widgets.Label('Always Show')
+    imgui.Checkbox('##puppet.alwaysShow', options.alwaysShow)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('For finding out what is wrong: the window is there whatever is happening, Visible or not, with what the addon knows under it.')
+    end
 end
 
 app = shell.New({
@@ -204,6 +237,9 @@ app = shell.New({
         -- the automaton as it was when last described, this character's
         if type(options.automaton) ~= 'table' then
             options.automaton = T{ }
+        end
+        if type(options.alwaysShow) ~= 'table' then
+            options.alwaysShow = T{ true }
         end
         for _, key in ipairs(automatonKeys) do
             automaton[key] = type(options.automaton[key]) == 'number' and options.automaton[key] or nil
@@ -233,12 +269,24 @@ ashita.events.register('d3d_present', 'puppet_present', function()
 
     -- the window is there while the automaton is fighting something and there is something to say of
     -- it; otherwise it fades out, showing what it last did
+    local options = app.options
     local pet = GetAutomaton()
     local target = GetTarget(pet)
     if target ~= nil then
         Work(pet, target)
     end
 
-    wanted[1] = app.options.isVisible[1] and target ~= nil and (showing.enfeebles ~= nil or showing.weaponskill ~= nil)
+    if options.alwaysShow[1] then
+        known.pet = pet ~= nil
+        local parts = {}
+        for element, count in pairs(CountManeuvers()) do
+            parts[#parts + 1] = element .. ' ' .. count
+        end
+        table.sort(parts)
+        known.maneuvers = table.concat(parts, ', ')
+    end
+
+    wanted[1] = options.alwaysShow[1]
+        or (options.isVisible[1] and target ~= nil and (showing.enfeebles ~= nil or showing.weaponskill ~= nil))
     app:Window(wanted, DrawWindow)
 end)

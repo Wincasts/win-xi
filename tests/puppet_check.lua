@@ -3,6 +3,7 @@
 local debuffs = require('winxi.debuffs')
 local imgui = require('imgui')
 local o = H.options()
+H.print('Always Show starts on, for now', o.alwaysShow[1]); o.alwaysShow[1] = false
 H.print('settings: visible', o.isVisible[1])
 
 -- what the window says: every line of text drawn in a frame
@@ -105,6 +106,7 @@ entities[1].PetTargetIndex = 0; H.print('no automaton out: nothing drawn', shown
 entities[1].PetTargetIndex = 2; game.job = 4; fight(900); H.print('another job: nothing drawn', shown() == '')
 game.job = 18
 H.print('the automaton is kept in the settings: head', o.automaton.head, '| frame', o.automaton.frame, '| magic', o.automaton.magic)
+o.alwaysShow[1] = true; entities[1].PetTargetIndex = 0; fight(0); H.print('Always Show, with nothing going on:', shown()); o.alwaysShow[1] = false
 H.print('/puppet config kept from the game', H.command('/puppet config')); H.frames(1)
 H.command('/puppet'); H.print('/puppet hides it', o.isVisible[1] == false, '| and says so:', H.printed[#H.printed])
 H.command('/puppet'); H.print('and shows it again:', H.printed[#H.printed])

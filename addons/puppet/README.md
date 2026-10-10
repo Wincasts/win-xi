@@ -18,6 +18,11 @@ The window is there while the automaton is fighting an enemy, and fades out when
 fighting is told to its master alone, in the packet that keeps the two in step. A line with
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
+**Always Show**, in the settings, is for finding out what is wrong: the window is there whatever is
+happening, Visible or not, with what the addon knows under it (the automaton as described, whether a pet
+is out and what it is fighting, how many of the pet's packets have come, the maneuvers up). It starts on
+while the addon is being proved.
+
 What it cannot know:
 
 - **The automaton, until the server has once described it.** The head, frame and skills arrive on a
