@@ -626,7 +626,7 @@ local function Files()
 end
 
 -- The sounds in two lists for whatever key names (an event, or 'trigger'): its own, which are the
--- ones made for it (its voice, its tone and its second tone), and the rest. Put together once for
+-- ones made for it (its two voices, its tone and its second tone), and the rest. Put together once for
 -- each key, and again when the files have been looked for again.
 local sorted = { files = nil }
 
@@ -638,7 +638,7 @@ local function Sorted(key)
     local lists = sorted[key]
     if lists == nil then
         lists = { own = { }, rest = { } }
-        local own = { ['voicef-' .. key .. '.wav'] = 1, [key .. '.wav'] = 2, ['tone-' .. key .. '2.wav'] = 3 }
+        local own = { ['voicef-' .. key .. '.wav'] = 1, ['voicem-' .. key .. '.wav'] = 2, [key .. '.wav'] = 3, ['tone-' .. key .. '2.wav'] = 4 }
         for _, file in ipairs(all) do
             local list = own[file] and lists.own or lists.rest
             list[#list + 1] = file
