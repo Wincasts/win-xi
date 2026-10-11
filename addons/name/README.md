@@ -58,6 +58,7 @@ namehook 1.10 or later.
 | Name Format | How every name but a monster's is written: see [How a name is written](#how-a-name-is-written) |
 | Monster Format | How a monster's name is written |
 | Targeted Monster Format | How the name of the monster you have targeted is written. Left empty, it is written as other monsters' are |
+| Checked Monster Format | How the name of a monster you have checked is written, until it dies or you leave the area. Left empty, checking a monster changes nothing of how its name is set out. For a monster that is both checked and targeted, this one is used |
 | Show Icons | The game's icons before a name |
 | Icon Size | An icon's side, as a percentage of the height of the names |
 | Icon Spacing | The space between a name's icons and the name itself, 0 to 24 pixels |
@@ -65,7 +66,7 @@ namehook 1.10 or later.
 
 ### How a name is written
 
-Each of the three formats is a line of text. In it `[name]` stands for the name, `[distance]` for how
+Each of the four formats is a line of text. In it `[name]` stands for the name, `[distance]` for how
 far the character is from you, in yalms to a tenth, as the game measures it, and `[level]` for the
 levels a monster can be. Everything else is written as you type it.
 

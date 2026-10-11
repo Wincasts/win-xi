@@ -62,11 +62,14 @@ local settings = {
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
     -- How a name is written: [name] for the name, [distance] for how far off it is, [level] for the
-    -- levels a monster can be, and the rest as it is typed (format.lua). One line for monsters, one for everything else, and one for the
-    -- monster that is the target, which if left empty is written as the other monsters are.
+    -- levels a monster can be, and the rest as it is typed (format.lua). One line for monsters, one
+    -- for everything else, one for the monster that is the target and one for a monster that has been
+    -- checked: either of the last two, left empty, changes nothing, and a monster that is both is
+    -- written as one checked.
     nameFormat    = function () return T{ '[name]' }; end,
     monsterFormat = function () return T{ '[name]' }; end,
     targetFormat  = function () return T{ '' }; end,
+    checkedFormat = function () return T{ '' }; end,
 };
 
 function custom.Defaults(defaults)
@@ -79,7 +82,7 @@ end
 -- Up to 1.10 a monster's distance was a setting of its own, and another said whether only the
 -- target's was written: they are made the lines that say the same, once.
 function custom.Settle(options)
-    for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'targetFormat' }) do
+    for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'targetFormat', 'checkedFormat' }) do
         if (type(options[key]) ~= 'table' or type(options[key][1]) ~= 'string') then
             options[key] = settings[key]();
         end
@@ -292,6 +295,7 @@ function custom.DrawSettings(options, save)
     line('Name Format', 'nameFormat', '##name.nameFormat', 'How every name but a monster\'s is written.\n' .. how);
     line('Monster Format', 'monsterFormat', '##name.monsterFormat', 'How a monster\'s name is written.\n' .. how);
     line('Targeted Monster Format', 'targetFormat', '##name.targetFormat', 'How the name of the monster you have targeted is written. Left empty, it is written as other monsters\' are.\n' .. how);
+    line('Checked Monster Format', 'checkedFormat', '##name.checkedFormat', 'How the name of a monster you have checked is written, until it dies or you leave the area; it comes before Targeted Monster Format for a monster that is both. Left empty, checking a monster changes nothing of how its name is set out.\n' .. how);
 
     widgets.Gap();
     widgets.Label('Show Icons');
@@ -523,7 +527,9 @@ function custom.Frame(options, hook)
     local nameFormat = format.Compile(options.nameFormat[1]);
     local monsterFormat = format.Compile(options.monsterFormat[1]);
     local targetFormat = options.targetFormat[1] ~= '' and format.Compile(options.targetFormat[1]) or monsterFormat;
-    local signsApart = font ~= nil and (nameFormat.checked or monsterFormat.checked or targetFormat.checked);
+    -- nil while its line is empty: a monster that has been checked is then written as any other
+    local checkedFormat = options.checkedFormat[1] ~= '' and format.Compile(options.checkedFormat[1]) or nil;
+    local signsApart = font ~= nil and (nameFormat.checked or monsterFormat.checked or targetFormat.checked or (checkedFormat ~= nil and checkedFormat.checked));
     for _ = 1, 2 do
         local sets = glyphSets;
         for rung = 1, rungs do
@@ -551,7 +557,7 @@ function custom.Frame(options, hook)
     -- how each kind of name is written, and the game, which is asked how far off a thing is only if
     -- some line has the distance in it
     local MONSTER = nameplates.Category.Monster;
-    local entities = (nameFormat.distance or monsterFormat.distance or targetFormat.distance) and AshitaCore:GetMemoryManager():GetEntity() or nil;
+    local entities = (nameFormat.distance or monsterFormat.distance or targetFormat.distance or (checkedFormat ~= nil and checkedFormat.distance)) and AshitaCore:GetMemoryManager():GetEntity() or nil;
 
     -- a monster that was checked and has died is forgotten before any level is written; what is
     -- written of a level is kept until what is known of levels changes
@@ -603,6 +609,19 @@ function custom.Frame(options, hook)
                         parts = bit.band(name.Flags, TARGET) ~= 0 and targetFormat or monsterFormat;
                     end
 
+                    -- its level if its player has checked it, or the levels it can be: looked for once
+                    -- for each character there is, and again when what is known of levels changes
+                    if ((parts.level or parts.checked or (checkedFormat ~= nil and name.Category == MONSTER))
+                            and (written.levelOf ~= name.ServerId or written.levelAt ~= levelsAt)) then
+                        written.levelOf, written.levelAt = name.ServerId, levelsAt;
+                        written.level = levels.Of(name.EntityIndex, ffi.string(name.Name), name.ServerId) or '';
+                        written.isChecked = levels.IsChecked(name.EntityIndex, name.ServerId);
+                    end
+                    -- one that has been checked has a line of its own, if its player has written one
+                    if (checkedFormat ~= nil and name.Category == MONSTER and written.isChecked) then
+                        parts = checkedFormat;
+                    end
+
                     -- how far off it is, to a tenth: written afresh only as that changes
                     if (parts.distance and entities ~= nil) then
                         -- the game keeps the distance squared
@@ -611,14 +630,6 @@ function custom.Frame(options, hook)
                             written.tenths = tenths;
                             written.far = ('%.1f'):format(tenths / 10);
                         end
-                    end
-
-                    -- its level if its player has checked it, or the levels it can be: looked for once
-                    -- for each character there is, and again when what is known of levels changes
-                    if ((parts.level or parts.checked) and (written.levelOf ~= name.ServerId or written.levelAt ~= levelsAt)) then
-                        written.levelOf, written.levelAt = name.ServerId, levelsAt;
-                        written.level = levels.Of(name.EntityIndex, ffi.string(name.Name), name.ServerId) or '';
-                        written.isChecked = levels.IsChecked(name.EntityIndex, name.ServerId);
                     end
 
                     -- the magnifying glass for one that has been checked, if the font has it
