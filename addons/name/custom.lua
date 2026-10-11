@@ -6,7 +6,7 @@
 --   custom.Frame(options, hook)   each frame: claims the names and draws them, while Custom Names is on;
 --                                 hook is the plugin's block, as nameplates.Hook gave it this frame
 --
--- The nameplatehook plugin lists the names the game was about to draw. While this draws, it claims
+-- The namehook plugin lists the names the game was about to draw. While this draws, it claims
 -- them all, so the game draws none; which names are wanted is still the plugin's to say, and only
 -- those are drawn.
 --
@@ -188,9 +188,9 @@ function custom.DrawSettings(options, save)
     end
 
     widgets.Label('Custom Names', true);
-    imgui.Checkbox('##nametoggle.customNames', options.customNames);
+    imgui.Checkbox('##name.customNames', options.customNames);
     if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('The names are drawn in winxi\'s outlined text, and not by the game: in the game\'s own picture, where a wall or a character in front of a name hides it.\nWhich names are shown is still set in the Settings tab. /nametoggle custom switches this.');
+        imgui.SetTooltip('The names are drawn in winxi\'s outlined text, and not by the game: in the game\'s own picture, where a wall or a character in front of a name hides it.\nWhich names are shown is still set in the Settings tab. /name custom switches this.');
     end
     if (not options.customNames[1]) then
         return;
@@ -198,7 +198,7 @@ function custom.DrawSettings(options, save)
 
     widgets.Gap();
     widgets.Label(options.shrink[1] and 'Maximum Font Size' or 'Font Size');
-    if (imgui.SliderInt('##nametoggle.fontSize', options.fontSize, SMALLEST, LARGEST, '%d px') and options.minSize[1] > options.fontSize[1]) then
+    if (imgui.SliderInt('##name.fontSize', options.fontSize, SMALLEST, LARGEST, '%d px') and options.minSize[1] > options.fontSize[1]) then
         options.minSize[1] = options.fontSize[1];
     end
     if (options.shrink[1] and imgui.IsItemHovered()) then
@@ -206,7 +206,7 @@ function custom.DrawSettings(options, save)
     end
     if (options.shrink[1]) then
         widgets.Label('Minimum Font Size');
-        if (imgui.SliderInt('##nametoggle.minSize', options.minSize, SMALLEST, LARGEST, '%d px') and options.fontSize[1] < options.minSize[1]) then
+        if (imgui.SliderInt('##name.minSize', options.minSize, SMALLEST, LARGEST, '%d px') and options.fontSize[1] < options.minSize[1]) then
             options.fontSize[1] = options.minSize[1];
         end
         if (imgui.IsItemHovered()) then
@@ -214,18 +214,18 @@ function custom.DrawSettings(options, save)
         end
     end
     widgets.Label('Shrink With Distance');
-    imgui.Checkbox('##nametoggle.shrink', options.shrink);
+    imgui.Checkbox('##name.shrink', options.shrink);
     if (imgui.IsItemHovered()) then
         imgui.SetTooltip('A name gets smaller as it nears the distance it is no longer drawn at, from the maximum size to the minimum. Off, names stay one size and fade out there.');
     end
     widgets.Label('Outline Thickness');
-    imgui.SliderInt('##nametoggle.outline', options.outline, 0, 4, '%d px');
+    imgui.SliderInt('##name.outline', options.outline, 0, 4, '%d px');
     if (imgui.IsItemHovered()) then
         imgui.SetTooltip('The dark edge round each name. At 0 the names are written plain.');
     end
 
     widgets.Label('Font', true);
-    if (imgui.BeginCombo('##nametoggle.font', options.font ~= '' and options.font or DEFAULT_FONT)) then
+    if (imgui.BeginCombo('##name.font', options.font ~= '' and options.font or DEFAULT_FONT)) then
         if (imgui.Selectable(DEFAULT_FONT, options.font == '') and options.font ~= '') then
             options.font = '';
             if (save ~= nil) then save(); end
@@ -244,7 +244,7 @@ function custom.DrawSettings(options, save)
 
     widgets.Gap();
     widgets.Label('Show Icons');
-    imgui.Checkbox('##nametoggle.showIcons', options.showIcons);
+    imgui.Checkbox('##name.showIcons', options.showIcons);
     if (imgui.IsItemHovered()) then
         imgui.SetTooltip(foundIcons
             and 'The game\'s icons before a name: the linkshell pearl, the party\'s flags, the bazaar\'s bag and the rest.'
@@ -252,15 +252,15 @@ function custom.DrawSettings(options, save)
     end
     if (options.showIcons[1] or options.showStars[1]) then
         widgets.Label('Icon Size');
-        imgui.SliderInt('##nametoggle.iconSize', options.iconSize, 50, 300, '%d%%');
+        imgui.SliderInt('##name.iconSize', options.iconSize, 50, 300, '%d%%');
         if (imgui.IsItemHovered()) then
             imgui.SetTooltip('An icon\'s side, as a percentage of the height of the names.');
         end
     end
     widgets.Label('Show Mastery Stars');
-    imgui.Checkbox('##nametoggle.showStars', options.showStars);
+    imgui.Checkbox('##name.showStars', options.showStars);
     if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('The three stars over the name of a player with a job mastered. The plugin\'s own /nameplatehook hidestars hides them too.');
+        imgui.SetTooltip('The three stars over the name of a player with a job mastered. The plugin\'s own /namehook hidestars hides them too.');
     end
 end
 

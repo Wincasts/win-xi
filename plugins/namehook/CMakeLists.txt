@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(Nameplate
-    VERSION 1.11
+    VERSION 1.20
     LANGUAGES CXX
     DESCRIPTION "Corrects defects in Final Fantasy XI nameplate rendering, and lists the names drawn for addons."
     HOMEPAGE_URL "https://www.github.com/Shirk/Nameplate"
@@ -34,7 +34,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS True)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/versioninfo.rc.in versioninfo.rc @ONLY)
 
-add_library(nameplatehook SHARED)
+add_library(namehook SHARED)
 
 set(NAMEPLATE_SOURCES
     src/Nameplate.cpp
@@ -45,23 +45,23 @@ set(NAMEPLATE_SOURCES
     src/exports_ashita.def
 )
 
-target_sources(nameplatehook PRIVATE
+target_sources(namehook PRIVATE
     ${NAMEPLATE_SOURCES}
     src/findsignature.h
 )
 
-target_include_directories(nameplatehook PRIVATE ${ASHITA_SDK_PATH})
-target_compile_definitions(nameplatehook PRIVATE WIN32_LEAN_AND_MEAN)
+target_include_directories(namehook PRIVATE ${ASHITA_SDK_PATH})
+target_compile_definitions(namehook PRIVATE WIN32_LEAN_AND_MEAN)
 
 # Interprocedural optimization is nice, but keep it opt-in friendly on older
 # local toolchains.  CMake will ignore this if the generator/toolchain cannot
 # support it cleanly.
-set_property(TARGET nameplatehook PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+set_property(TARGET namehook PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 if(MSVC)
-    target_compile_options(nameplatehook PRIVATE /EHa /W4 /permissive-)
+    target_compile_options(namehook PRIVATE /EHa /W4 /permissive-)
 else()
-    target_compile_options(nameplatehook PRIVATE
+    target_compile_options(namehook PRIVATE
         -m32
         -fno-rtti -march=nehalem -fomit-frame-pointer -ffast-math -mfpmath=sse -mtune=skylake
         -Wall -Wextra -Wpedantic -W
@@ -75,5 +75,5 @@ else()
         -Wno-tautological-unsigned-zero-compare -Wno-duplicate-enum -Wno-double-promotion
         -Wno-documentation-unknown-command -Wno-unused-function
         -Wno-c99-extensions -Wno-missing-braces)
-    target_link_options(nameplatehook PRIVATE -m32)
+    target_link_options(namehook PRIVATE -m32)
 endif()

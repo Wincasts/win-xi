@@ -1,10 +1,10 @@
-# nameplatehook
+# namehook
 
 An Ashita v4 plugin that gives addons a hold on the names the game draws over characters' heads: what each one is, where it is, and whether it is drawn.
 
 It is a fork of nameplatew, which is a fork of Nameplate-AshitaV4, a community fork of [`Shirk/Nameplate`](https://github.com/Shirk/Nameplate). It still does what Nameplate does (names and damage numbers that are not stretched or blurred on a wide screen, at a size you choose, with or without the Job Mastery stars), and keeps nameplatew's whitelist. Changes from nameplatew 0.60 were made in October 2026 and are listed in `CHANGELOG.md`. The license is unchanged: GNU GPL v3.0, in `LICENSE.md`.
 
-It is loaded with `/load nameplatehook`, in place of `/load nameplatew` or `/load nameplate`: the three patch the same client code, and only one can be loaded.
+It is loaded with `/load namehook`, in place of `/load nameplatew` or `/load nameplate`: the three patch the same client code, and only one can be loaded.
 
 - [Categories](#categories)
 - [Commands](#commands)
@@ -38,34 +38,34 @@ A name that is shown may still not be drawn by the game: an addon that draws nam
 
 ## Commands
 
-`/nph` is short for `/nameplatehook`.
+`/nh` is short for `/namehook`.
 
 | Command | What it does |
 |---|---|
-| `/nameplatehook show <category>...` | Shows the names of one category or more. `all` is every category. |
-| `/nameplatehook hide <category>...` | Hides them. |
-| `/nameplatehook toggle <category>...` | Shows those that are hidden and hides those that are shown. |
-| `/nameplatehook target on` / `off` | Always shows your target's name, whatever its category. Off by default. |
-| `/nameplatehook status` | Says which categories are shown and hidden, and how many names were listed last frame. |
-| `/nameplatehook whitelist add <name>...` | Always shows these players' names. `wl` is short for `whitelist`. Names are matched without regard to case, and the list is saved as it changes, to `config\nameplatehook\whitelist.txt`, one name to a line. |
-| `/nameplatehook whitelist remove <name>...` | Takes them off the whitelist. |
-| `/nameplatehook whitelist list` / `clear` | Says the names on the whitelist, or takes them all off. |
-| `/nameplatehook fontsize <number>` | The height of the names, 1 to 256 pixels. 22 by default. |
-| `/nameplatehook damagefontsize <number>` | The height of the damage numbers. |
-| `/nameplatehook hidestars` / `showstars` | Hides or shows the Job Mastery stars. |
-| `/nameplatehook save` | Saves the settings to `config\nameplatehook\defaults.ini`: the sizes, the stars, the hidden categories and the target setting. |
-| `/nameplatehook load` | Loads them again. |
-| `/nameplatehook help` | Lists the commands. |
+| `/namehook show <category>...` | Shows the names of one category or more. `all` is every category. |
+| `/namehook hide <category>...` | Hides them. |
+| `/namehook toggle <category>...` | Shows those that are hidden and hides those that are shown. |
+| `/namehook target on` / `off` | Always shows your target's name, whatever its category. Off by default. |
+| `/namehook status` | Says which categories are shown and hidden, and how many names were listed last frame. |
+| `/namehook whitelist add <name>...` | Always shows these players' names. `wl` is short for `whitelist`. Names are matched without regard to case, and the list is saved as it changes, to `config\namehook\whitelist.txt`, one name to a line. |
+| `/namehook whitelist remove <name>...` | Takes them off the whitelist. |
+| `/namehook whitelist list` / `clear` | Says the names on the whitelist, or takes them all off. |
+| `/namehook fontsize <number>` | The height of the names, 1 to 256 pixels. 22 by default. |
+| `/namehook damagefontsize <number>` | The height of the damage numbers. |
+| `/namehook hidestars` / `showstars` | Hides or shows the Job Mastery stars. |
+| `/namehook save` | Saves the settings to `config\namehook\defaults.ini`: the sizes, the stars, the hidden categories and the target setting. |
+| `/namehook load` | Loads them again. |
+| `/namehook help` | Lists the commands. |
 
-For example, to see only your party's names among players: `/nph hide players alliance`.
+For example, to see only your party's names among players: `/nh hide players alliance`.
 
-Settings changed by a command last until the plugin is unloaded, unless saved. Until `defaults.ini` exists the settings are read from nameplatew's, in `config\nameplatew`: its `mode` becomes the categories that mode hid, and its whitelist is read until this one's is first changed.
+Settings changed by a command last until the plugin is unloaded, unless saved. It was called nameplatehook up to 1.11, and until `defaults.ini` exists the settings and the whitelist it kept under that name, in `config\nameplatehook`, are read. Failing those the settings are read from nameplatew's, in `config\nameplatew`: its `mode` becomes the categories that mode hid, and its whitelist is read until this one's is first changed.
 
-The `nametoggle` addon, in `addons/nametoggle` of this project, is a settings window for the categories, which keeps them for each character.
+The `name` addon, in `addons/name` of this project, is a settings window for the categories, which keeps them for each character.
 
 ## For addons
 
-The plugin keeps one block in its own memory, `HookShared` in `src/Nameplate.h`. An addon finds it in `nameplatehook.dll` by its first 16 bytes, reads the names in it, and writes the settings in it.
+The plugin keeps one block in its own memory, `HookShared` in `src/Nameplate.h`. An addon finds it in `namehook.dll` by its first 16 bytes, reads the names in it, and writes the settings in it.
 
 In this project that is done by `addons/libs/winxi/nameplates.lua`, which needs nothing else of winxi:
 
@@ -81,7 +81,7 @@ ashita.events.register('d3d_present', 'example_present', function ()
     end
 end);
 
-nameplates.SetHidden(nameplates.Category.Player, true);   -- as /nameplatehook hide players
+nameplates.SetHidden(nameplates.Category.Player, true);   -- as /namehook hide players
 nameplates.Override(entityIndex, false);                  -- hide one entity's name; nil gives it back to its category
 ```
 
@@ -91,7 +91,7 @@ The head of that file lists everything it offers.
 
 | Field | Meaning |
 |---|---|
-| `Magic` | The 13 bytes `NAMEPLATEHOOK` and three 0s, by which the block is found |
+| `Magic` | The 8 bytes `NAMEHOOK` and eight 0s, by which the block is found |
 | `Version` | 2 |
 | `Size`, `NameSize` | The size in bytes of the block and of one name. An addon that has either otherwise does not read on. |
 | `Hooked` | 1 while the client's name drawing is in the plugin's hands; 0 on a client it does not recognise, where names are shown and hidden but none are listed |
@@ -165,7 +165,7 @@ What is set out goes in `HookDraw` (`src/Nameplate.h`), at the address in the bl
 | `Entities` | For each of the client's 0x900 entities, by index: `Frame` (as `HookDraw`'s when it was set out, or it is not drawn), `First` and `Count` (its quads, 256 at most), `Alpha` (0 to 1, how solid the whole name is), `Edge` (how thick a dark edge its edged quads are given, in pixels) and `EdgeColor` |
 | `Quads` | Each a rectangle: its corners `X0`, `Y0`, `X1`, `Y1` in pixels of the client's picture, measured from the point the client puts the name at; the same corners in its texture, `U0`, `V0`, `U1`, `V1`; `Color` as 0xAARRGGBB; `Texture`, which of the eight; and `Flags`, 1 if it is given the edge |
 
-The quads are in pixels of the client's picture, not of its window: an addon that wants a letter 15 pixels high on the screen makes it `15 * TargetWidth / Width` high. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/nametoggle/custom.lua` sets names out this way, from imgui's font.
+The quads are in pixels of the client's picture, not of its window: an addon that wants a letter 15 pixels high on the screen makes it `15 * TargetWidth / Width` high. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/name/custom.lua` sets names out this way, from imgui's font.
 
 The plugin draws a name when all of these hold: its category is claimed, it is wanted, and the addon set it out within the last 2 frames. It is then listed with the custom flag. A claimed name that was not set out is not drawn at all. What is set out in one frame is drawn in the next, where the client then puts the name: the name's place is never a frame behind, only what it looks like.
 
@@ -175,11 +175,11 @@ Each name is drawn twice: once blended into the picture and tested against its d
 
 The client decides, for each character, whether its name is drawn at all, and then calls two functions of its own to draw the name's two lines: the name, and the Job Mastery stars. Nameplate patched the first decision. This plugin lets every name through it and stands in the way of the two calls instead, where the client has already worked out the name's place, its colours and what it writes: there the name is sorted, listed, and drawn or not.
 
-The two calls are found beside Nameplate's patch, and taken only if both lead where they are expected to. On a client where they do not, `Hooked` stays 0, names are shown and hidden at the first decision as nameplatew did it, and `/nameplatehook status` says so. Everything is put back as it was when the plugin is unloaded.
+The two calls are found beside Nameplate's patch, and taken only if both lead where they are expected to. On a client where they do not, `Hooked` stays 0, names are shown and hidden at the first decision as nameplatew did it, and `/namehook status` says so. Everything is put back as it was when the plugin is unloaded.
 
 ## Building
 
-`./build.sh` builds `build/nameplatehook.dll` on Linux with clang-cl and lld-link, as a 32-bit Windows plugin, and `tests/run.sh` checks the categories, the list, the commands and the files under wine; the drawing itself is not checked there, having no client to draw on. Both say at the top what they need.
+`./build.sh` builds `build/namehook.dll` on Linux with clang-cl and lld-link, as a 32-bit Windows plugin, and `tests/run.sh` checks the categories, the list, the commands and the files under wine; the drawing itself is not checked there, having no client to draw on. Both say at the top what they need.
 
 On Windows, `CMakeLists.txt` builds it with Visual Studio 2022 and CMake 3.28 or newer, as Win32 and not x64:
 
@@ -188,7 +188,7 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32 -DASHITA_SDK_PATH="C:\Ga
 cmake --build build --config Release
 ```
 
-Copy `nameplatehook.dll` to `<Ashita>\plugins`.
+Copy `namehook.dll` to `<Ashita>\plugins`.
 
 ## Credits
 

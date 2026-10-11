@@ -1,7 +1,7 @@
-addon.name    = 'nametoggle';
+addon.name    = 'name';
 addon.author  = 'win (and claude)';
-addon.version = '1.5';
-addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the nameplatehook plugin.';
+addon.version = '1.6';
+addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 require('common');
 
@@ -24,7 +24,7 @@ local rows = {
     { key = 'showAlliance', category = Category.Alliance, label = 'Alliance Members', words = { 'alliance' },
       tooltip = 'The other parties of your alliance.' },
     { key = 'showPlayers',  category = Category.Player,   label = 'Other Players',    words = { 'players', 'player' },
-      tooltip = 'Every player who is not of your party or alliance. A player on the plugin\'s whitelist is shown all the same: /nameplatehook whitelist add <name>' },
+      tooltip = 'Every player who is not of your party or alliance. A player on the plugin\'s whitelist is shown all the same: /namehook whitelist add <name>' },
     { key = 'showMyPet',    category = Category.MyPet,    label = 'My Pet',           words = { 'mypet' }, gap = true,
       tooltip = 'Your own pet.' },
     { key = 'showPets',     category = Category.Pet,      label = 'Other Pets',       words = { 'pets', 'pet' },
@@ -40,7 +40,7 @@ local defaults = T{
 };
 for _, row in ipairs(rows) do
     defaults[row.key] = T{ true };
-    row.id = ('##nametoggle.%s'):format(row.key);
+    row.id = ('##name.%s'):format(row.key);
 end
 custom.Defaults(defaults);
 
@@ -116,7 +116,7 @@ local function DrawSettings(options)
 
     widgets.Gap();
     widgets.Label('Always Show Target');
-    if (imgui.Checkbox('##nametoggle.alwaysTarget', options.alwaysTarget)) then
+    if (imgui.Checkbox('##name.alwaysTarget', options.alwaysTarget)) then
         changed = true;
     end
     if (imgui.IsItemHovered()) then
@@ -189,9 +189,9 @@ end
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
     defaults     = defaults,
-    configTitle  = 'Name Toggle Settings',
-    command      = '/nametoggle',
-    help         = '/nametoggle opens or closes the settings; /nametoggle show, hide and toggle, each followed by self, party, alliance, players, mypet, pets, npcs, monsters or all, show and hide names; /nametoggle custom switches whether this addon draws the names or the game does.',
+    configTitle  = 'Name Settings',
+    command      = '/name',
+    help         = '/name opens or closes the settings; /name show, hide and toggle, each followed by self, party, alliance, players, mypet, pets, npcs, monsters or all, show and hide names; /name custom switches whether this addon draws the names or the game does.',
     drawSettings = DrawSettings,
     tabs         = { { label = 'Custom Names', draw = function (options) custom.DrawSettings(options, app.save); end } },
     commands     = {

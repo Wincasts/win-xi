@@ -235,7 +235,7 @@ static Nameplate* Instance = nullptr;
 
 // What addons read and write. The names in it are those of the last frame, whole: the frame being
 // drawn is gathered apart, in Filling, and copied here by Publish.
-static HookShared Shared = { "NAMEPLATEHOOK", HOOK_VERSION, sizeof(HookShared), sizeof(HookName), 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0, 0, 0.0f, 0.0f, {}, {} };
+static HookShared Shared = { "NAMEHOOK", HOOK_VERSION, sizeof(HookShared), sizeof(HookName), 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0, 0, 0.0f, 0.0f, {}, {} };
 
 static struct {
 	uint32_t Count;
@@ -649,10 +649,14 @@ static uint32_t HiddenFromNameMode(int nameMode, bool includeAlliance) {
 
 int NameplateSettings::Load(const wchar_t* basePath) {
 	wchar_t path[UNICODE_MAX_PATH];
-	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook\\defaults.ini", basePath);
+	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook\\defaults.ini", basePath);
 
-	// Before the first save, start from the settings of the plugin this one replaces
+	// Before the first save, start from the settings this plugin had under its old name, nameplatehook,
+	// and failing those from the settings of the plugin it replaces
 	uint32_t hidden = 0;
+	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
+		StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook\\defaults.ini", basePath);
+	}
 	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
 		StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatew\\defaults.ini", basePath);
 		hidden = HiddenFromNameMode(GetPrivateProfileIntW(L"Settings", L"NameMode", 0, path),
@@ -676,10 +680,10 @@ int NameplateSettings::Load(const wchar_t* basePath) {
 int NameplateSettings::Save(const wchar_t* basePath) {
 	wchar_t path[UNICODE_MAX_PATH];
 
-	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook", basePath);
+	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook", basePath);
 	CreateDirectoryW(path, NULL);
 
-	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook\\defaults.ini", basePath);
+	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook\\defaults.ini", basePath);
 
 	wchar_t buf[256];
 
@@ -775,9 +779,9 @@ static const struct {
 
 bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 	if (includesName) {
-		if (token_match_and_advance(cmd, "/nameplatehook", nameplate_strlen("/nameplatehook"))) {
+		if (token_match_and_advance(cmd, "/namehook", nameplate_strlen("/namehook"))) {
 			// skip
-		} else if (token_match_and_advance(cmd, "/nph", nameplate_strlen("/nph"))) {
+		} else if (token_match_and_advance(cmd, "/nh", nameplate_strlen("/nh"))) {
 			// skip
 		} else {
 			return false;
@@ -1112,8 +1116,9 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 	}
 }
 
-// One name to a line in config/nameplatehook/whitelist.txt. Before that file exists, nameplatew's is
-// read; with neither, the whitelist is empty.
+// One name to a line in config/namehook/whitelist.txt. Before that file exists, the one this plugin
+// had under its old name, nameplatehook, is read, and failing that nameplatew's; with none of them,
+// the whitelist is empty.
 int Nameplate::LoadWhitelist() {
 	wchar_t basePath[UNICODE_MAX_PATH];
 	if (!this->GetConfigPath(basePath)) {
@@ -1121,7 +1126,10 @@ int Nameplate::LoadWhitelist() {
 	}
 
 	wchar_t path[UNICODE_MAX_PATH];
-	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook\\whitelist.txt", basePath);
+	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook\\whitelist.txt", basePath);
+	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
+		StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook\\whitelist.txt", basePath);
+	}
 	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
 		StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatew\\whitelist.txt", basePath);
 	}
@@ -1155,10 +1163,10 @@ int Nameplate::SaveWhitelist() {
 	}
 
 	wchar_t path[UNICODE_MAX_PATH];
-	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook", basePath);
+	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook", basePath);
 	CreateDirectoryW(path, NULL);
 
-	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook\\whitelist.txt", basePath);
+	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook\\whitelist.txt", basePath);
 
 	FILE* file = _wfopen(path, L"w");
 	if (file == nullptr) {

@@ -1,4 +1,4 @@
--- winxi.nameplates: the names the game draws over characters' heads, by way of the nameplatehook
+-- winxi.nameplates: the names the game draws over characters' heads, by way of the namehook
 -- plugin: what each one is, where it is, and whether it is shown.
 --
 -- The plugin sorts every name into one category, shows or hides each category's names, and keeps a
@@ -74,7 +74,7 @@ ffi.cdef[[
         uint32_t IconColor;
         char     Name[28];
         char     Text[48];
-    } nameplatehook_name_t;
+    } namehook_name_t;
 
     typedef struct {
         char     Magic[16];
@@ -93,8 +93,8 @@ ffi.cdef[[
         uint32_t Draw;
         float    TargetWidth, TargetHeight;
         uint8_t  Override[0x900];
-        nameplatehook_name_t Names[256];
-    } nameplatehook_t;
+        namehook_name_t Names[256];
+    } namehook_t;
 
     typedef struct {
         float    X0, Y0, X1, Y1;
@@ -103,7 +103,7 @@ ffi.cdef[[
         uint32_t Texture;
         uint32_t Flags;
         uint32_t Reserved;
-    } nameplatehook_quad_t;
+    } namehook_quad_t;
 
     typedef struct {
         uint32_t Frame;
@@ -112,7 +112,7 @@ ffi.cdef[[
         float    Alpha;
         float    Edge;
         uint32_t EdgeColor;
-    } nameplatehook_drawing_t;
+    } namehook_drawing_t;
 
     typedef struct {
         uint32_t Frame;
@@ -120,14 +120,14 @@ ffi.cdef[[
         uint32_t QuadsMax;
         uint32_t Reserved;
         uint32_t Textures[8];
-        nameplatehook_drawing_t Entities[0x900];
-        nameplatehook_quad_t Quads[16384];
-    } nameplatehook_draw_t;
+        namehook_drawing_t Entities[0x900];
+        namehook_quad_t Quads[16384];
+    } namehook_draw_t;
 ]]
 
 local nameplates = {};
 
-nameplates.Plugin = 'nameplatehook';
+nameplates.Plugin = 'namehook';
 
 nameplates.Category = {
     Self     = 0x01, -- the player
@@ -156,7 +156,7 @@ nameplates.Flag = {
     Custom      = 0x100, -- drawn by the plugin, from what an addon drew for it
 };
 
-local MAGIC        = '4E414D45504C415445484F4F4B000000'; -- "NAMEPLATEHOOK" and the three 0s after it
+local MAGIC        = '4E414D45484F4F4B0000000000000000'; -- "NAMEHOOK" and the eight 0s after it
 local VERSION      = 2;
 local LOOK_EVERY   = 1; -- seconds between looks for the plugin's block while it is not found
 local ENTITIES     = 0x900;
@@ -168,10 +168,10 @@ local why = 'unloaded';    -- why there is none: 'unloaded', 'old' or 'mismatch'
 local lookedAt = -LOOK_EVERY;
 
 local problems = {
-    unloaded = 'The nameplatehook plugin is not loaded: /load nameplatehook',
-    old      = 'The nameplatehook plugin has nothing to read: it is not the plugin this addon was written for.',
-    mismatch = 'The nameplatehook plugin keeps its names another way than this addon reads: one of the two is older than the other.',
-    unhooked = 'The nameplatehook plugin did not recognise this client\'s name drawing: names are shown and hidden, but none are listed.',
+    unloaded = 'The namehook plugin is not loaded: /load namehook',
+    old      = 'The namehook plugin has nothing to read: it is not the plugin this addon was written for.',
+    mismatch = 'The namehook plugin keeps its names another way than this addon reads: one of the two is older than the other.',
+    unhooked = 'The namehook plugin did not recognise this client\'s name drawing: names are shown and hidden, but none are listed.',
 };
 
 -- The block lives in the plugin's DLL, so it is let go of the moment the plugin is no longer loaded.
@@ -198,8 +198,8 @@ function nameplates.Hook()
         return nil, why;
     end
 
-    local candidate = ffi.cast('nameplatehook_t*', found);
-    if (candidate.Version ~= VERSION or candidate.Size ~= ffi.sizeof('nameplatehook_t') or candidate.NameSize ~= ffi.sizeof('nameplatehook_name_t')) then
+    local candidate = ffi.cast('namehook_t*', found);
+    if (candidate.Version ~= VERSION or candidate.Size ~= ffi.sizeof('namehook_t') or candidate.NameSize ~= ffi.sizeof('namehook_name_t')) then
         why = 'mismatch';
         return nil, why;
     end
@@ -363,7 +363,7 @@ function nameplates.BeginDrawing(hook)
         return nil;
     end
 
-    draw = ffi.cast('nameplatehook_draw_t*', hook.Draw);
+    draw = ffi.cast('namehook_draw_t*', hook.Draw);
     draw.Frame = hook.Frame;
     draw.QuadCount = 0;
 

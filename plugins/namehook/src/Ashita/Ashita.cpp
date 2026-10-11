@@ -26,7 +26,7 @@ If not, see <https://www.gnu.org/licenses/>.
 #define LogLevel_Info ((uint32_t) Ashita::LogLevel::Info)
 #define LogLevel_Critcal ((uint32_t) Ashita::LogLevel::Critical)
 
-#define CHAT_HEADER "\x1e\x51[\x1e\x06nameplatehook\x1e\x51]\x1e\x01 "
+#define CHAT_HEADER "\x1e\x51[\x1e\x06namehook\x1e\x51]\x1e\x01 "
 
 // The client's entities by index: players are in the second of these ranges, and what comes and goes
 // with them (pets, trusts, fellows) in the third
@@ -135,7 +135,7 @@ AshitaNameplate::AshitaNameplate() : m_AshitaCore(nullptr), m_LogManager(nullptr
 }
 
 const char* AshitaNameplate::GetName(void) const {
-    return "nameplatehook";
+    return "namehook";
 }
 
 const char* AshitaNameplate::GetAuthor(void) const {
@@ -151,7 +151,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 1.11;
+    return 1.20;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -173,7 +173,7 @@ bool AshitaNameplate::Initialize(IAshitaCore* core, ILogManager* log, uint32_t i
 
     int ret = this->Init();
     if (ret < 0) {
-        m_LogManager->Logf(LogLevel_Critcal, "nameplatehook", "Plugin Load Error: \"%d\"", ret);
+        m_LogManager->Logf(LogLevel_Critcal, "namehook", "Plugin Load Error: \"%d\"", ret);
         ShowMessage(MESSAGE::PLUGIN_LOAD_ERROR, ret);
         return false;
     }
@@ -188,7 +188,7 @@ void AshitaNameplate::Release(void) {
 
     int ret = this->Deinit();
     if (ret < 0) {
-        m_LogManager->Logf(LogLevel_Critcal, "nameplatehook", "Plugin Unload Error: \"%d\"", ret);
+        m_LogManager->Logf(LogLevel_Critcal, "namehook", "Plugin Unload Error: \"%d\"", ret);
         ShowMessage(MESSAGE::PLUGIN_UNLOAD_ERROR, ret);
     }
 
@@ -620,37 +620,37 @@ void AshitaNameplate::PublishNames(bool frameDone) {
 }
 
 static void AshitaLongHelp(IChatManager* chat) {
-    chat->Write(0, false, "\x1e\x05nameplatehook v1.11, from Nameplate v0.51 by way of nameplatew v0.60");
+    chat->Write(0, false, "\x1e\x05namehook v1.20, from Nameplate v0.51 by way of nameplatew v0.60");
     chat->Write(0, false, "\x1e\x05https://www.github.com/Shirk/Nameplate");
-    chat->Write(0, false, "\x1e\x6aUsage (\x1e\x6a/nph\x1e\x6a is short for\x1e\x6a /nameplatehook\x1e\x6a):");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook help");
+    chat->Write(0, false, "\x1e\x6aUsage (\x1e\x6a/nh\x1e\x6a is short for\x1e\x6a /namehook\x1e\x6a):");
+    chat->Write(0, false, "\x1e\x6a/namehook help");
     chat->Write(0, true , "You're reading it!");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook show\x1e\x01 |\x1e\x6a hide\x1e\x01 |\x1e\x6a toggle <category>...");
+    chat->Write(0, false, "\x1e\x6a/namehook show\x1e\x01 |\x1e\x6a hide\x1e\x01 |\x1e\x6a toggle <category>...");
     chat->Write(0, true , "Show or hide the names of a category, or of several:\x1e\x6a self party alliance players mypet pets npcs monsters\x1e\x01, or\x1e\x6a all");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook target on\x1e\x01 |\x1e\x6a off");
+    chat->Write(0, false, "\x1e\x6a/namehook target on\x1e\x01 |\x1e\x6a off");
     chat->Write(0, true , "Always show your target's name, whatever its category");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook status");
+    chat->Write(0, false, "\x1e\x6a/namehook status");
     chat->Write(0, true , "Say which categories are shown and hidden, and how many names were listed for addons last frame");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook whitelist add\x1e\x6a <name>...");
-    chat->Write(0, true , "Always show these players' nameplates, though players are hidden; saved at once to\x1e\x6a config\\nameplatehook\\whitelist.txt");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook whitelist remove\x1e\x6a <name>...");
+    chat->Write(0, false, "\x1e\x6a/namehook whitelist add\x1e\x6a <name>...");
+    chat->Write(0, true , "Always show these players' nameplates, though players are hidden; saved at once to\x1e\x6a config\\namehook\\whitelist.txt");
+    chat->Write(0, false, "\x1e\x6a/namehook whitelist remove\x1e\x6a <name>...");
     chat->Write(0, true , "Take these players off the whitelist");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook whitelist list");
+    chat->Write(0, false, "\x1e\x6a/namehook whitelist list");
     chat->Write(0, true , "Show the names on the whitelist");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook whitelist clear");
+    chat->Write(0, false, "\x1e\x6a/namehook whitelist clear");
     chat->Write(0, true , "Take every name off the whitelist");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook fontsize\x1e\x6a <number>");
+    chat->Write(0, false, "\x1e\x6a/namehook fontsize\x1e\x6a <number>");
     chat->Write(0, true , "Set the nameplate font size to <number> pixels");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook damagefontsize\x1e\x6a <number>");
+    chat->Write(0, false, "\x1e\x6a/namehook damagefontsize\x1e\x6a <number>");
     chat->Write(0, true , "Set the damage font size to <number> pixels");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook hidestars");
+    chat->Write(0, false, "\x1e\x6a/namehook hidestars");
     chat->Write(0, true , "Hide all Job Mastery stars");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook showstars");
+    chat->Write(0, false, "\x1e\x6a/namehook showstars");
     chat->Write(0, true , "Re-enable displaying Job Mastery stars");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook load");
-    chat->Write(0, true , "Load configuration from\x1e\x6a config\\nameplatehook\\defaults.ini");
-    chat->Write(0, false, "\x1e\x6a/nameplatehook save");
-    chat->Write(0, true , "Save current configuration to\x1e\x6a config\\nameplatehook\\defaults.ini");
+    chat->Write(0, false, "\x1e\x6a/namehook load");
+    chat->Write(0, true , "Load configuration from\x1e\x6a config\\namehook\\defaults.ini");
+    chat->Write(0, false, "\x1e\x6a/namehook save");
+    chat->Write(0, true , "Save current configuration to\x1e\x6a config\\namehook\\defaults.ini");
 }
 
 void AshitaNameplate::ShowMessage(MESSAGE message, int param) {
@@ -664,16 +664,16 @@ void AshitaNameplate::ShowMessage(MESSAGE message, int param) {
             chat->Writef(0, false, CHAT_HEADER "\x1e\x44Plugin unload failed with error code \x1e\x05%d\x1e\x44!", param);
             break;
         case MESSAGE::SHORT_HELP:
-            chat->Write(0, false, CHAT_HEADER "\x1e\x44Unknown command, please consult \x1e\x6a/nameplatehook help\x1e\x44 for more information.");
+            chat->Write(0, false, CHAT_HEADER "\x1e\x44Unknown command, please consult \x1e\x6a/namehook help\x1e\x44 for more information.");
             break;
         case MESSAGE::LONG_HELP:
             AshitaLongHelp(chat);
             break;
         case MESSAGE::LOAD_ERROR:
-            chat->Writef(0, false, CHAT_HEADER "\x1e\x44Loading\x1e\x6a config\\nameplatehook\\defaults.ini\x1e\x44 failed with error code \x1e\x05%d\x1e\x44!", param);
+            chat->Writef(0, false, CHAT_HEADER "\x1e\x44Loading\x1e\x6a config\\namehook\\defaults.ini\x1e\x44 failed with error code \x1e\x05%d\x1e\x44!", param);
             break;
         case MESSAGE::SAVE_ERROR:
-            chat->Writef(0, false, CHAT_HEADER "\x1e\x44Saving\x1e\x6a config\\nameplatehook\\defaults.ini\x1e\x44 failed with error code \x1e\x05%d\x1e\x44!", param);
+            chat->Writef(0, false, CHAT_HEADER "\x1e\x44Saving\x1e\x6a config\\namehook\\defaults.ini\x1e\x44 failed with error code \x1e\x05%d\x1e\x44!", param);
             break;
         default:
             chat->Writef(0, false, "\x1e\x44Unknown message %u (%d)", (uint32_t) message, param);
@@ -682,7 +682,7 @@ void AshitaNameplate::ShowMessage(MESSAGE message, int param) {
 }
 
 void AshitaNameplate::CommandError(const char* command) {
-    m_AshitaCore->GetChatManager()->Writef(0, false, CHAT_HEADER "\x1e\x6a/nameplatehook %s\x1e\x44 command error, please consult \x1e\x6a/nameplatehook help\x1e\x44 for correct usage.", command);
+    m_AshitaCore->GetChatManager()->Writef(0, false, CHAT_HEADER "\x1e\x6a/namehook %s\x1e\x44 command error, please consult \x1e\x6a/namehook help\x1e\x44 for correct usage.", command);
 }
 
 DllExport IPlugin* __stdcall expCreatePlugin([[maybe_unused]] const char* args) {

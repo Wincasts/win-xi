@@ -1,4 +1,4 @@
--- nametoggle and winxi.nameplates: the addon's settings and the plugin's are kept the same, and the
+-- name and winxi.nameplates: the addon's settings and the plugin's are kept the same, and the
 -- plugin's names are read. The plugin here is a block of the same shape, made in this file.
 local ffi = require('ffi')
 local imgui = require('imgui')
@@ -7,20 +7,20 @@ local Category, Flag = nameplates.Category, nameplates.Flag
 local o = H.options()
 
 local loaded = false
-local block = ffi.new('nameplatehook_t')
-ffi.copy(block.Magic, 'NAMEPLATEHOOK')
-block.Version, block.Size, block.NameSize, block.Hooked = 2, ffi.sizeof('nameplatehook_t'), ffi.sizeof('nameplatehook_name_t'), 1
+local block = ffi.new('namehook_t')
+ffi.copy(block.Magic, 'NAMEHOOK')
+block.Version, block.Size, block.NameSize, block.Hooked = 2, ffi.sizeof('namehook_t'), ffi.sizeof('namehook_name_t'), 1
 block.Width, block.Height = 960, 540
 
 local manager = AshitaCore.GetPluginManager()
-manager.IsLoaded = function(_, name) return loaded and name == 'nameplatehook' end
+manager.IsLoaded = function(_, name) return loaded and name == 'namehook' end
 AshitaCore.GetPluginManager = function() return manager end
-ashita.memory.find = function(module) return module == 'nameplatehook.dll' and tonumber(ffi.cast('uintptr_t', ffi.cast('void*', block))) or 0 end
+ashita.memory.find = function(module) return module == 'namehook.dll' and tonumber(ffi.cast('uintptr_t', ffi.cast('void*', block))) or 0 end
 
-H.print('the block is laid out as the plugin has it', ffi.sizeof('nameplatehook_name_t') == 128, ffi.offsetof('nameplatehook_t', 'Sequence') == 64,
-    ffi.offsetof('nameplatehook_t', 'Draw') == 68, ffi.offsetof('nameplatehook_t', 'Override') == 80, ffi.offsetof('nameplatehook_t', 'Names') == 80 + 0x900)
-H.print('and so is what is drawn for it', ffi.sizeof('nameplatehook_quad_t') == 48, ffi.sizeof('nameplatehook_drawing_t') == 24,
-    ffi.offsetof('nameplatehook_draw_t', 'Entities') == 48, ffi.offsetof('nameplatehook_draw_t', 'Quads') == 48 + 24 * 0x900)
+H.print('the block is laid out as the plugin has it', ffi.sizeof('namehook_name_t') == 128, ffi.offsetof('namehook_t', 'Sequence') == 64,
+    ffi.offsetof('namehook_t', 'Draw') == 68, ffi.offsetof('namehook_t', 'Override') == 80, ffi.offsetof('namehook_t', 'Names') == 80 + 0x900)
+H.print('and so is what is drawn for it', ffi.sizeof('namehook_quad_t') == 48, ffi.sizeof('namehook_drawing_t') == 24,
+    ffi.offsetof('namehook_draw_t', 'Entities') == 48, ffi.offsetof('namehook_draw_t', 'Quads') == 48 + 24 * 0x900)
 
 -- without the plugin: nothing to read, nothing set, and the settings say so
 H.print('settings: everything shown', o.showSelf[1], o.showPlayers[1], o.showMonsters[1], '| always target off', o.alwaysTarget[1] == false)
@@ -43,27 +43,27 @@ H.frames(1)
 H.print('changed in the plugin: NPCs off', o.showNpcs[1] == false, '| players still off', o.showPlayers[1] == false, '| always target', o.alwaysTarget[1], '| saved', H.saves() > saves)
 
 -- the addon's command
-H.print('/nametoggle show kept from the game', H.command('/nametoggle show players npcs'))
+H.print('/name show kept from the game', H.command('/name show players npcs'))
 H.print('shown again', o.showPlayers[1] and o.showNpcs[1], '| hidden', block.Hidden)
-H.command('/nametoggle hide mobs self')
+H.command('/name hide mobs self')
 H.print('hide mobs self', block.Hidden == Category.Monster + Category.Self, o.showMonsters[1] == false)
-H.command('/nametoggle toggle all')
+H.command('/name toggle all')
 H.print('toggle all', block.Hidden == Category.All - Category.Monster - Category.Self)
-H.command('/nametoggle hide goblins')
+H.command('/name hide goblins')
 H.print('a word that is no category changes nothing', block.Hidden == Category.All - Category.Monster - Category.Self, '| said:', H.printed[#H.printed])
-H.command('/nametoggle show all')
+H.command('/name show all')
 H.print('/names is left alone', H.command('/names') == false)
 
 -- a checkbox in the settings window: the fourth, Other Players
 local before = H.calls.Begin or 0
-H.command('/nametoggle'); H.frames(1)
+H.command('/name'); H.frames(1)
 H.print('settings window drawn', (H.calls.Begin or 0) > before, '| checkboxes', H.calls.Checkbox)
 local realCheckbox = imgui.Checkbox
-imgui.Checkbox = function(id, value) if id == '##nametoggle.showPlayers' then value[1] = not value[1] return true end return false end
+imgui.Checkbox = function(id, value) if id == '##name.showPlayers' then value[1] = not value[1] return true end return false end
 H.frames(1)
 imgui.Checkbox = realCheckbox
 H.print('unticked: players hidden in the plugin', block.Hidden == Category.Player, o.showPlayers[1] == false)
-H.command('/nametoggle')
+H.command('/name')
 
 -- another character's settings are given to the plugin
 o.showPlayers[1] = true; o.showAlliance[1] = false; o.alwaysTarget[1] = false
@@ -112,8 +112,8 @@ H.print('claimed', block.Claimed == Category.Party + Category.Player, '| in fram
 -- The plugin gives its place for them as a 32-bit address, as every address in the game is: here it
 -- has to be asked for low enough in memory to be one
 ffi.cdef('void* mmap(void*, size_t, int, int, int, long);')
-local low = ffi.C.mmap(nil, ffi.sizeof('nameplatehook_draw_t'), 3, 0x62, -1, 0) -- read and write; private, anonymous, 32-bit
-local draw = ffi.cast('nameplatehook_draw_t*', low)
+local low = ffi.C.mmap(nil, ffi.sizeof('namehook_draw_t'), 3, 0x62, -1, 0) -- read and write; private, anonymous, 32-bit
+local draw = ffi.cast('namehook_draw_t*', low)
 draw.QuadsMax = 16384
 block.Draw = tonumber(ffi.cast('uintptr_t', low))
 block.TargetWidth, block.TargetHeight = 1440, 810 -- the game's picture, half as large again as its window
@@ -133,7 +133,7 @@ block.Count, block.Sequence = 2, block.Sequence + 1
 H.load()
 H.frames(1)
 H.print('custom off: nothing claimed', block.Claimed == 0, '| nothing set out', draw.QuadCount == 0)
-H.print('/nametoggle custom kept from the game', H.command('/nametoggle custom'), '| on', o.customNames[1], '| said:', H.printed[#H.printed])
+H.print('/name custom kept from the game', H.command('/name custom'), '| on', o.customNames[1], '| said:', H.printed[#H.printed])
 block.Frame = 78
 H.frames(1)
 local buddy = draw.Entities[0x401]
@@ -195,12 +195,12 @@ H.print('three names of one size: pushed', #pushed - pushes, '| the plugin asked
 ffi.copy(block.Names[1].Text, 'Other'); H.frames(1)
 H.print('another name for the same entity: quads', draw.Entities[0x403].Count)
 block.Count = 1
-H.tab(2); H.command('/nametoggle'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/nametoggle'); H.tab(1)
+H.tab(2); H.command('/name'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/name'); H.tab(1)
 H.print('its tab drawn: sliders', (H.calls.SliderInt or 0) - sliders)
 block.Hooked = 0; block.Claimed = 0; H.frames(1)
 H.print('a client not recognised: nothing claimed', block.Claimed == 0)
 block.Hooked = 1
-H.command('/nametoggle custom off'); block.Claimed = 0; H.frames(1)
+H.command('/name custom off'); block.Claimed = 0; H.frames(1)
 H.print('custom off again', o.customNames[1] == false, block.Claimed == 0)
 
 -- the library's own calls: a name that is not begun takes no quads, and one too long is cut off

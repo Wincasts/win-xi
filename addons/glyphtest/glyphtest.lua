@@ -19,7 +19,7 @@ local device = d3d.get_device();
 --     letter's place in it, and whether a letter of a size not yet used is there to be found
 --   draws the whole of the font's texture at the top left of the screen, 256 pixels square
 --   writes "glyphtest" under it from the font's letters, as Direct3D quads
---   with the nameplatehook plugin loaded, writes each name in view over its character the same way,
+--   with the namehook plugin loaded, writes each name in view over its character the same way,
 --     20 pixels above the game's, with the depth test on: it should be hidden by what is in front of it
 --   /glyphtest depth switches the depth test off and on
 --   /glyphtest claim stops the game drawing its own names, and writes these where they were

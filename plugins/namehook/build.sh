@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds build/nameplatehook.dll on Linux with clang-cl and lld-link, as a 32-bit Windows plugin.
+# Builds build/namehook.dll on Linux with clang-cl and lld-link, as a 32-bit Windows plugin.
 #
 #   ./build.sh
 #
@@ -52,8 +52,8 @@ mkdir -p "$OUT/lib"
 ln -sf "$MSVC/sdk/lib/um/x86/psapi.lib" "$OUT/lib/Psapi.lib"
 
 lld-link /nologo /dll /machine:x86 /opt:ref /opt:icf \
-    "/def:$HERE/src/exports_ashita.def" "/out:$OUT/nameplatehook.dll" \
+    "/def:$HERE/src/exports_ashita.def" "/out:$OUT/namehook.dll" \
     "/libpath:$MSVC/crt/lib/x86" "/libpath:$MSVC/sdk/lib/ucrt/x86" "/libpath:$MSVC/sdk/lib/um/x86" "/libpath:$OUT/lib" \
     "${objects[@]}" "$OUT/versioninfo.res"
 
-echo "built $OUT/nameplatehook.dll"
+echo "built $OUT/namehook.dll"
