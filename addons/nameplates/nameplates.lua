@@ -1,6 +1,6 @@
 addon.name    = 'nameplates';
 addon.author  = 'win (and claude)';
-addon.version = '0.2';
+addon.version = '0.3';
 addon.desc    = 'Draws the names over characters\' heads in place of the game, from what the nameplatew plugin hands over.';
 
 require('common');
@@ -9,8 +9,10 @@ local chat  = require('chat');
 local d3d   = require('d3d8');
 local ffi   = require('ffi');
 local imgui = require('imgui');
-local text  = require('winxi.text');
-local icons = require('icons');
+local shell   = require('winxi.shell');
+local text    = require('winxi.text');
+local widgets = require('winxi.widgets');
+local icons   = require('icons');
 
 local C = ffi.C;
 local d3d8dev = d3d.get_device();
@@ -25,7 +27,7 @@ ffi.cdef[[
         float    Scale;     // 1 near to, falling to 0 as the name nears the distance it is no longer drawn at
         uint32_t NameColor; // the game's colour for the name, as 0xAARRGGBB with 0x80 for full
         uint32_t IconColor; // its colour for the linkshell pearl, as 0xAABBGGRR with 0x80 for full
-        uint32_t Reserved;
+        uint32_t Stars;     // 1 if the game was about to draw the Job Mastery stars over the name
         char     Text[48];  // the name as the game writes it: its icons, a byte each, then the name
     } nameplatew_name_t;
 
@@ -49,12 +51,25 @@ local LOOK_EVERY   = 1; -- seconds between looks for the plugin's list while it 
 
 local PEARL         = 0x92; -- the linkshell pearl, the one icon that is given a colour
 local TWO_PART      = 0xAC; -- an icon the game draws with the next character of its font over it
-local ICON_SIZE     = 1.25; -- an icon's side, in heights of the text
+local STAR          = 0xAD; -- the star of the Job Mastery stars: a small one, a large one, a small one
 local ICON_GAP      = 2;    -- pixels between one icon and the next, and the name
 local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it fades out
 
+local FONT_FOLDER   = 'C:\\Windows\\Fonts\\';
+local DEFAULT_FONT  = 'Default';
+
+-- What can be set, in /nameplates. A setting changed by a control is a table of one, as imgui wants.
+local defaults = T{
+    enabled   = T{ true },
+    fontSize  = T{ 15 },   -- the height of the names, in pixels
+    outline   = T{ 1 },    -- how thick the dark edge round them is, in pixels
+    font      = '',        -- a file of FONT_FOLDER, or nothing for the font everything else is in
+    showIcons = T{ true },
+    iconSize  = T{ 125 },  -- an icon's side, as a percentage of the height of the names
+    showStars = T{ true },
+};
+
 local nameplates = {
-    show     = true,
     list     = nil,  -- the plugin's list, while the plugin is loaded
     lookedAt = -LOOK_EVERY,
     told     = nil,  -- the last thing said about the plugin, so that it is said once
@@ -107,6 +122,7 @@ local packed = {};
 local packedCount = 0;
 
 local rgba = { 0, 0, 0, 0 };
+local textAt = { 0, 0 };
 
 local function pack(key, red, green, blue, alpha)
     local found = packed[key];
@@ -151,6 +167,44 @@ end
 -- the name, width = of the words }. The same names come round every frame.
 local parsed = {};
 local parsedCount = 0;
+local parsedIn = ''; -- the font and size the widths were measured in
+
+-- Fonts loaded from files, by file: the font, or false for a file that would not load
+local fonts = {};
+
+local function getFont(file)
+    if (file == nil or file == '') then
+        return nil;
+    end
+
+    local found = fonts[file];
+    if (found == nil) then
+        local ok, made = pcall(imgui.AddFontFromFileTTF, FONT_FOLDER .. file, 16);
+        found = (ok and made ~= nil) and made or false;
+        fonts[file] = found;
+        if (found == false) then
+            print(chat.header(addon.name):append(chat.message(('The font %s could not be loaded: names are in the usual one.'):format(file))));
+        end
+    end
+    return found or nil;
+end
+
+-- The files there are to choose a font from, looked for once
+local fontFiles = nil;
+
+local function getFontFiles()
+    if (fontFiles == nil) then
+        fontFiles = {};
+        local ok, files = pcall(ashita.fs.get_directory, FONT_FOLDER, '.*\\.ttf');
+        if (ok and type(files) == 'table') then
+            for _, file in pairs(files) do
+                fontFiles[#fontFiles + 1] = file;
+            end
+            table.sort(fontFiles, function (a, b) return a:lower() < b:lower(); end);
+        end
+    end
+    return fontFiles;
+end
 
 local function parse(written)
     local found = parsed[written];
@@ -185,54 +239,75 @@ local function parse(written)
     return found;
 end
 
-local function print_help(isError)
-    if (isError) then
-        print(chat.header(addon.name):append(chat.error('Invalid command syntax for command: ')):append(chat.success('/' .. addon.name)));
-    else
-        print(chat.header(addon.name):append(chat.message('Available commands:')));
+local app;
+
+local function DrawSettings(options)
+    widgets.Label('Draw Names');
+    imgui.Checkbox('##nameplates.enabled', options.enabled);
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('Off, the game draws the names itself, as it does without this addon. /nameplates toggle switches this.');
     end
 
-    local cmds = T{
-        { '/nameplates', 'Toggles between this addon drawing the names and the game drawing them.' },
-        { '/nameplates help', 'Displays the addons help information.' },
-        { '/nameplates (on | off)', 'Sets which of the two draws the names.' },
-    };
+    widgets.Gap();
+    widgets.Label('Font Size');
+    imgui.SliderInt('##nameplates.fontSize', options.fontSize, 8, 48, '%d px');
+    widgets.Label('Outline Thickness');
+    imgui.SliderInt('##nameplates.outline', options.outline, 0, 4, '%d px');
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('The dark edge round each name. At 0 the names are written plain.');
+    end
 
-    cmds:ieach(function (v)
-        print(chat.header(addon.name):append(chat.error('Usage: ')):append(chat.message(v[1]):append(' - ')):append(chat.color1(6, v[2])));
-    end);
+    widgets.Label('Font', true);
+    if (imgui.BeginCombo('##nameplates.font', options.font ~= '' and options.font or DEFAULT_FONT)) then
+        if (imgui.Selectable(DEFAULT_FONT, options.font == '') and options.font ~= '') then
+            options.font = '';
+            app:Save();
+        end
+        for _, file in ipairs(getFontFiles()) do
+            if (imgui.Selectable(file, options.font == file) and options.font ~= file) then
+                options.font = file;
+                app:Save();
+            end
+        end
+        imgui.EndCombo();
+    end
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('A font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is the font everything else is written in.');
+    end
+
+    widgets.Gap();
+    widgets.Label('Show Icons');
+    imgui.Checkbox('##nameplates.showIcons', options.showIcons);
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('The game\'s icons before a name: the linkshell pearl, the party\'s flags, the bazaar\'s bag and the rest.');
+    end
+    if (options.showIcons[1] or options.showStars[1]) then
+        widgets.Label('Icon Size');
+        imgui.SliderInt('##nameplates.iconSize', options.iconSize, 50, 300, '%d%%');
+        if (imgui.IsItemHovered()) then
+            imgui.SetTooltip('An icon\'s side, as a percentage of the height of the names. The icons are sharp up to 32 pixels.');
+        end
+    end
+    widgets.Label('Show Mastery Stars');
+    imgui.Checkbox('##nameplates.showStars', options.showStars);
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('The three stars over the name of a player with a job mastered. The plugin\'s own /nameplatew hidestars hides them too.');
+    end
 end
 
-ashita.events.register('command', 'command_cb', function (e)
-    local args = e.command:args();
-    if (#args == 0 or not args[1]:any('/nameplates')) then
-        return;
-    end
-
-    e.blocked = true;
-
-    if (#args == 1) then
-        nameplates.show = not nameplates.show;
-        return;
-    end
-
-    if (#args == 2 and args[2]:any('help')) then
-        print_help(false);
-        return;
-    end
-
-    if (#args == 2 and args[2]:any('on')) then
-        nameplates.show = true;
-        return;
-    end
-
-    if (#args == 2 and args[2]:any('off')) then
-        nameplates.show = false;
-        return;
-    end
-
-    print_help(true);
-end);
+-- The settings, the settings window and the command are the shell's
+app = shell.New({
+    defaults     = defaults,
+    configTitle  = 'Nameplates Settings',
+    command      = '/nameplates',
+    help         = '/nameplates opens or closes the settings; /nameplates on, off and toggle set whether this addon draws the names or the game does.',
+    drawSettings = DrawSettings,
+    commands     = {
+        on     = function (options) options.enabled[1] = true; app:Save(); end,
+        off    = function (options) options.enabled[1] = false; app:Save(); end,
+        toggle = function (options) options.enabled[1] = not options.enabled[1]; app:Save(); end,
+    },
+});
 
 ashita.events.register('load', 'load_cb', function ()
     if (not icons.Find()) then
@@ -249,12 +324,16 @@ ashita.events.register('unload', 'unload_cb', function ()
 end);
 
 ashita.events.register('d3d_present', 'present_cb', function ()
+    -- the settings window, while it is open
+    app:BeginFrame();
+    local options = app.options;
+
     local list = getList();
     if (list == nil) then
         return;
     end
 
-    if (not nameplates.show) then
+    if (not options.enabled[1]) then
         if (list.Consumer ~= 0) then
             list.Consumer = 0;
             list.Count = 0;
@@ -302,8 +381,20 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
     local drawList = imgui.GetBackgroundDrawList and imgui.GetBackgroundDrawList() or imgui.GetForegroundDrawList();
 
+    -- the names' font, for measuring them and for writing them
+    local size = math.max(8, math.min(48, options.fontSize[1]));
+    imgui.PushFont(getFont(options.font), size);
+
+    local writtenIn = options.font .. size;
+    if (writtenIn ~= parsedIn) then
+        parsed, parsedCount, parsedIn = {}, 0, writtenIn;
+    end
+
     local _, height = imgui.CalcTextSize('A');
-    local iconSize = math.floor(height * ICON_SIZE + 0.5);
+    local edge = math.max(0, math.min(4, options.outline[1]));
+    local showIcons, showStars = options.showIcons[1], options.showStars[1];
+    local iconSize = math.floor(height * options.iconSize[1] / 100 + 0.5);
+    local smallStar = math.floor(iconSize * 0.5 + 0.5);
 
     icons.Begin();
 
@@ -315,6 +406,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         local w = x * m14 + y * m24 + z * m34 + m44;
         if (w > 0.01) then
             local written = parse(ffi.string(name.Text));
+            local iconCount = showIcons and #written.icons or 0;
 
             -- as solid as the game has it, which fades a name with its character; and fading out
             -- over the last of its distance, where the game draws it smaller and smaller
@@ -322,17 +414,29 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             local near = name.Scale / FADE_OVER;
             local alpha = math.floor(255 * math.max(0, math.min(1, solid, near)) + 0.5);
 
-            if (alpha > 0 and (written.words ~= '' or #written.icons > 0)) then
+            if (alpha > 0 and (written.words ~= '' or iconCount > 0)) then
                 local screenX = (1 + (x * m11 + y * m21 + z * m31 + m41) / w) * halfWidth;
                 local screenY = (1 - (x * m12 + y * m22 + z * m32 + m42) / w) * halfHeight;
 
                 -- icons, then the name, the middle of them all on the point the game gave
-                local iconsWidth = #written.icons * (iconSize + ICON_GAP);
+                local iconsWidth = iconCount * (iconSize + ICON_GAP);
                 local left = math.floor(screenX - (iconsWidth + written.width) * 0.5);
                 local top = math.floor(screenY - height * 0.5);
                 local iconTop = math.floor(screenY - iconSize * 0.5);
 
-                for _, byte in ipairs(written.icons) do
+                -- the stars over the middle of it: a small one, a large one, a small one
+                if (showStars and name.Stars ~= 0) then
+                    local color = plainColor(alpha);
+                    local starsLeft = math.floor(screenX - (smallStar * 2 + iconSize) * 0.5);
+                    local starsTop = math.min(top, iconTop) - iconSize - 1;
+                    local smallTop = starsTop + math.floor((iconSize - smallStar) * 0.5);
+                    icons.Draw(drawList, STAR, starsLeft, smallTop, smallStar, color);
+                    icons.Draw(drawList, STAR, starsLeft + smallStar, starsTop, iconSize, color);
+                    icons.Draw(drawList, STAR, starsLeft + smallStar + iconSize, smallTop, smallStar, color);
+                end
+
+                for index = 1, iconCount do
+                    local byte = written.icons[index];
                     local color = byte == PEARL and pearlColor(name.IconColor, alpha) or plainColor(alpha);
                     icons.Draw(drawList, byte, left, iconTop, iconSize, color);
                     if (byte == TWO_PART) then
@@ -342,9 +446,16 @@ ashita.events.register('d3d_present', 'present_cb', function ()
                 end
 
                 if (written.words ~= '') then
-                    text.Packed(drawList, left, top, nameColor(name.NameColor, alpha), written.words, 1, darkColor(alpha));
+                    if (edge > 0) then
+                        text.Packed(drawList, left, top, nameColor(name.NameColor, alpha), written.words, edge, darkColor(alpha));
+                    else
+                        textAt[1], textAt[2] = left, top;
+                        drawList:AddText(textAt, nameColor(name.NameColor, alpha), written.words);
+                    end
                 end
             end
         end
     end
+
+    imgui.PopFont();
 end);

@@ -8,6 +8,10 @@
 
 # Changelog
 
+## nameplatew 0.72 - 2026-10-11
+
+- A name handed to an addon says whether the client was about to draw the Job Mastery stars over it (`Stars`, where `Reserved` was; the list's `Version` is still 2). With `hidestars` it never does.
+
 ## nameplatew 0.71 - 2026-10-11
 
 - The names handed to an addon each carry the client's own colour for the name, its colour for the linkshell pearl, and the name as the client writes it, with its icons. The list's `Version` is 2; an addon written for 1 will not read it.

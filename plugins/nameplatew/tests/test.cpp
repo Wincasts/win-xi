@@ -212,7 +212,17 @@ int main() {
 	CHECK(lines == 2 && lines2 == 1 && Custom.Count == 1);
 	CHECK(Custom.Names[0].EntityIndex == 101 && Custom.Names[0].X == 1.5f && Custom.Names[0].Y == -2.5f && Custom.Names[0].Z == 3.5f);
 	CHECK(Custom.Names[0].Scale == 1.0f && Custom.Names[0].NameColor == 0x80406080 && Custom.Names[0].IconColor == 0x80102030);
-	CHECK(strcmp(Custom.Names[0].Text, "\x92\xAB Buddy") == 0);
+	CHECK(strcmp(Custom.Names[0].Text, "\x92\xAB Buddy") == 0 && Custom.Names[0].Stars == 0);
+
+	// the stars the client was about to draw over a name are noted with it, unless stars are hidden
+	Custom.Count = 0;
+	DrawNameLine(buddy, nullptr, where, "Buddy", one, 0, 0);
+	DrawNameLine2(buddy, nullptr, where, "\xD2", one);
+	plugin.ParseCommand("/nameplatew hidestars", true);
+	DrawNameLine(buddy, nullptr, where, "Buddy", one, 0, 0);
+	DrawNameLine2(buddy, nullptr, where, "\xD2", one);
+	plugin.ParseCommand("/nameplatew showstars", true);
+	CHECK(Custom.Count == 2 && Custom.Names[0].Stars == 1 && Custom.Names[1].Stars == 0 && lines2 == 1);
 
 	// a name too long for its place is cut short, and one that is missing is empty
 	Custom.Count = 0;

@@ -100,7 +100,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 0.71;
+    return 0.72;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -160,7 +160,7 @@ static void AshitaShortHelp(IChatManager* chat, [[maybe_unused]] MESSAGE message
 }
 
 static void AshitaLongHelp(IChatManager* chat, [[maybe_unused]] MESSAGE message, [[maybe_unused]] int param) {
-    chat->Write(0, false, "\x1e\x05nameplatew v0.71, from Nameplate v0.51");
+    chat->Write(0, false, "\x1e\x05nameplatew v0.72, from Nameplate v0.51");
     chat->Write(0, false, "\x1e\x05https://www.github.com/Shirk/Nameplate");
     chat->Write(0, false, "\x1e\x6aUsage:");
     chat->Write(0, false, "\x1e\x6a/nameplatew help");

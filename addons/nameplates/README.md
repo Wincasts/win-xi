@@ -3,7 +3,8 @@
 Draws the names over characters' heads in place of the game. Experimental, and basic: each name is
 written in winxi's outlined text, in the colour the game gives it, with the game's icons before it.
 
-It needs the `nameplatew` plugin, 0.71 or later, with its experimental setting on:
+It needs the `nameplatew` plugin, 0.71 or later (0.72 for the Job Mastery stars), with its experimental
+setting on:
 
 ```
 /load nameplatew
@@ -14,9 +15,22 @@ It needs the `nameplatew` plugin, 0.71 or later, with its experimental setting o
 `/nameplatew save` keeps the setting. Which names there are to draw is still the plugin's to decide:
 its `mode` and whitelist hide names as before, and this addon draws what is left.
 
-- `/nameplates`: toggles between this addon drawing the names and the game drawing them
-- `/nameplates on`, `/nameplates off`: sets which
-- `/nameplates help`: lists the commands
+- `/nameplates`: opens or closes the settings
+- `/nameplates on`, `/nameplates off`, `/nameplates toggle`: whether this addon draws the names or the game does
+
+## Settings
+
+Kept for each character, and saved when the settings window is closed.
+
+| Setting | What it does |
+|---|---|
+| Draw Names | Off, the game draws the names itself |
+| Font Size | The height of the names, 8 to 48 pixels |
+| Outline Thickness | The dark edge round each name, 0 to 4 pixels; at 0 the names are written plain |
+| Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`; Default is the font everything else is written in |
+| Show Icons | The game's icons before a name |
+| Icon Size | An icon's side, as a percentage of the height of the names |
+| Show Mastery Stars | The three stars over the name of a player with a job mastered |
 
 ## How it works
 
@@ -47,6 +61,8 @@ than they should be. If the game's font is not found at all, names are drawn wit
 If this addon is unloaded, or turned off, the game draws the names again. If the plugin is unloaded,
 or is too old, or does not recognise the client, this addon says so once and draws nothing.
 
-## Not yet
+## Job Mastery stars
 
-A choice of font and size, and the Job Mastery stars, which the game draws on a line of their own.
+The game draws them as a second line of the name. The plugin notes with each name whether that line
+was about to be drawn, and they are drawn here over the middle of the name as the game has them: a
+small star, a large one, a small one. `/nameplatew hidestars` hides them here as it does in the game.
