@@ -151,7 +151,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 1.20;
+    return 1.21;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -620,7 +620,7 @@ void AshitaNameplate::PublishNames(bool frameDone) {
 }
 
 static void AshitaLongHelp(IChatManager* chat) {
-    chat->Write(0, false, "\x1e\x05namehook v1.20, from Nameplate v0.51 by way of nameplatew v0.60");
+    chat->Write(0, false, "\x1e\x05namehook v1.21, from Nameplate v0.51 by way of nameplatew v0.60");
     chat->Write(0, false, "\x1e\x05https://www.github.com/Shirk/Nameplate");
     chat->Write(0, false, "\x1e\x6aUsage (\x1e\x6a/nh\x1e\x6a is short for\x1e\x6a /namehook\x1e\x6a):");
     chat->Write(0, false, "\x1e\x6a/namehook help");
@@ -628,7 +628,7 @@ static void AshitaLongHelp(IChatManager* chat) {
     chat->Write(0, false, "\x1e\x6a/namehook show\x1e\x01 |\x1e\x6a hide\x1e\x01 |\x1e\x6a toggle <category>...");
     chat->Write(0, true , "Show or hide the names of a category, or of several:\x1e\x6a self party alliance players mypet pets npcs monsters\x1e\x01, or\x1e\x6a all");
     chat->Write(0, false, "\x1e\x6a/namehook target on\x1e\x01 |\x1e\x6a off");
-    chat->Write(0, true , "Always show your target's name, whatever its category");
+    chat->Write(0, true , "Always show your target's name, whatever its category; your own stays hidden if own names are");
     chat->Write(0, false, "\x1e\x6a/namehook status");
     chat->Write(0, true , "Say which categories are shown and hidden, and how many names were listed for addons last frame");
     chat->Write(0, false, "\x1e\x6a/namehook whitelist add\x1e\x6a <name>...");

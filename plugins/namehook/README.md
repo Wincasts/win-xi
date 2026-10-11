@@ -31,7 +31,7 @@ Whether a name is shown is decided in this order, the first that applies:
 1. The game's own `/names` off hides every name.
 2. An addon's override for that one entity shows or hides it.
 3. A player on the whitelist is shown. The whitelist is of other players only: it does not show your own name, or a monster's.
-4. With `target on`, your target is shown.
+4. With `target on`, your target is shown, unless it is yourself: your own name goes by its category alone.
 5. Otherwise it is shown unless its category is hidden.
 
 A name that is shown may still not be drawn by the game: an addon that draws names itself [claims](#drawing-names-in-place-of-the-game) them.
@@ -45,7 +45,7 @@ A name that is shown may still not be drawn by the game: an addon that draws nam
 | `/namehook show <category>...` | Shows the names of one category or more. `all` is every category. |
 | `/namehook hide <category>...` | Hides them. |
 | `/namehook toggle <category>...` | Shows those that are hidden and hides those that are shown. |
-| `/namehook target on` / `off` | Always shows your target's name, whatever its category. Off by default. |
+| `/namehook target on` / `off` | Always shows your target's name, whatever its category. Your own name is the exception: hidden, it stays hidden while you have yourself targeted. Off by default. |
 | `/namehook status` | Says which categories are shown and hidden, and how many names were listed last frame. |
 | `/namehook whitelist add <name>...` | Always shows these players' names. `wl` is short for `whitelist`. Names are matched without regard to case, and the list is saved as it changes, to `config\namehook\whitelist.txt`, one name to a line. |
 | `/namehook whitelist remove <name>...` | Takes them off the whitelist. |
@@ -96,7 +96,7 @@ The head of that file lists everything it offers.
 | `Size`, `NameSize` | The size in bytes of the block and of one name. An addon that has either otherwise does not read on. |
 | `Hooked` | 1 while the client's name drawing is in the plugin's hands; 0 on a client it does not recognise, where names are shown and hidden but none are listed |
 | `Hidden` | The categories whose names are hidden, a bit each. Written by addons and by the commands. |
-| `Options` | Bit 0: the target's name is always shown. Written by addons and by the commands. |
+| `Options` | Bit 0: the target's name is always shown, unless it is the local player's own. Written by addons and by the commands. |
 | `Claimed`, `ClaimFrame` | The categories an addon draws itself, and the `Frame` that was last said in. Written by addons. |
 | `Frame` | Counts the frames drawn |
 | `Count` | How many names are listed |

@@ -180,6 +180,29 @@ fontTexture = 0; local frameBefore = draw.Frame; block.Frame = 90; block.ClaimFr
 H.print('no font texture: nothing set out', draw.Frame == frameBefore, '| nor claimed', block.ClaimFrame == 0)
 fontTexture = 0x5678; H.frames(1)
 H.print('another texture: taken up', draw.Textures[0] == 0x5678, draw.Frame == 90)
+-- two icons before a name: 2 pixels of the screen between them, and Icon Spacing between the last and the name
+local icons = require('icons')
+local realHas, realPlace, realTexture = icons.Has, icons.Place, icons.Texture
+icons.Has = function(byte) return byte == 0x92 or byte == 0x93 end
+icons.Place = function() return { 0, 0, 0.125, 0.125 } end
+icons.Texture = function() return 0x4321 end
+ffi.copy(block.Names[0].Text, '\146\147 Buddy'); H.frames(1)
+local function gapToName()
+    H.frames(1)
+    local q = draw.Quads
+    -- the three stars, the two icons, then the letters; a letter's own corner is 1 in from where it is put
+    local first = buddy.First + 3
+    return q[first + 1].X0 - q[first].X1, (q[first + 2].X0 - 1) - q[first + 1].X1
+end
+H.print('icons: quads', buddy.Count, '| between the icons, and before the name', gapToName())
+o.iconSpacing[1] = 10
+H.print('Icon Spacing 10: between the icons, and before the name', gapToName())
+o.iconSpacing[1] = 0
+H.print('Icon Spacing 0:', gapToName())
+o.iconSpacing[1] = 2
+icons.Has, icons.Place, icons.Texture = realHas, realPlace, realTexture
+ffi.copy(block.Names[0].Text, 'Buddy'); H.frames(1)
+
 -- a size is pushed on imgui once a frame however many names are of it, and the plugin is asked after
 -- once a frame whatever is done with it
 put(1, 0x403, Category.Player, Flag.Wanted, 'Stranger'); put(2, 0x404, Category.Player, Flag.Wanted, 'Friend')
