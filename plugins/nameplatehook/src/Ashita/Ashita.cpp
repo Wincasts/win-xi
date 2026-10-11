@@ -63,12 +63,14 @@ private:
     // For drawing names an addon has drawn. All of it is the frame's: made as the first name of a
     // frame is drawn, and the state blocks let go as the frame is presented.
     IDirect3DBaseTexture8* m_Textures[HOOK_TEXTURES]; // the addon's textures, held while they are drawn from
+    IDirect3DDevice8* m_Device; // the device, for the frame's names
     DWORD m_NameStates;   // the device's state as names are drawn with it
     DWORD m_SavedStates;  // the same states as the client had them, to put back
     D3DVIEWPORT8 m_Viewport;
     float m_ViewProjection[16];
     bool m_CanDraw;
 
+    bool MakeNameStates();
     void PublishNames(bool frameDone);
     void ReleaseNameStates();
     void ReleaseTextures();
@@ -92,7 +94,7 @@ public:
         m_AshitaCore->GetChatManager()->Writef(0, false, CHAT_HEADER "%s", text);
     }
 
-    virtual void GetFrameFacts(FrameFacts& facts) override;
+    virtual void GetFrameFacts(FrameFacts& facts, bool withPets) override;
     virtual void ProbeScene() override;
     virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) override;
     virtual void DrawCustom(const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
@@ -129,7 +131,7 @@ public:
 };
 
 AshitaNameplate::AshitaNameplate() : m_AshitaCore(nullptr), m_LogManager(nullptr), m_PluginId(0),
-        m_Textures{}, m_NameStates(0), m_SavedStates(0), m_Viewport{}, m_ViewProjection{}, m_CanDraw(false) {
+        m_Textures{}, m_Device(nullptr), m_NameStates(0), m_SavedStates(0), m_Viewport{}, m_ViewProjection{}, m_CanDraw(false) {
 }
 
 const char* AshitaNameplate::GetName(void) const {
@@ -149,7 +151,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 1.10;
+    return 1.11;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -193,7 +195,7 @@ void AshitaNameplate::Release(void) {
     IPlugin::Release();
 }
 
-void AshitaNameplate::GetFrameFacts(FrameFacts& facts) {
+void AshitaNameplate::GetFrameFacts(FrameFacts& facts, bool withPets) {
     IMemoryManager* memory = m_AshitaCore->GetMemoryManager();
     IParty* party = memory->GetParty();
     IEntity* entities = memory->GetEntity();
@@ -227,6 +229,18 @@ void AshitaNameplate::GetFrameFacts(FrameFacts& facts) {
         return;
     }
 
+    if (selfIndex != 0) {
+        const Ashita::FFXI::entity_t* self = entities->GetRawEntity(selfIndex);
+        if (self != nullptr) {
+            facts.PetIndex = self->PetTargetIndex;
+        }
+    }
+
+    // the rest is a look at every player there is, and is not done every frame
+    if (!withPets) {
+        return;
+    }
+
     auto mark = [&facts](uint32_t index) {
         if (index != 0 && index < HOOK_ENTITIES) {
             facts.Pets[index / 8] |= static_cast<uint8_t>(1 << (index % 8));
@@ -239,10 +253,6 @@ void AshitaNameplate::GetFrameFacts(FrameFacts& facts) {
         if (entity != nullptr) {
             mark(entity->PetTargetIndex);
             mark(entity->FellowTargetIndex);
-
-            if (i == selfIndex) {
-                facts.PetIndex = entity->PetTargetIndex;
-            }
         }
     }
 
@@ -312,7 +322,8 @@ bool AshitaNameplate::HandleCommand([[maybe_unused]] int32_t mode, const char* c
 // frame is presented: the names are made ready as the scene ends, and again, whichever of this
 // plugin and the addons is asked first, as the frame is presented, when the next frame's begin.
 void AshitaNameplate::Direct3DEndScene(bool isRenderingBackBuffer) {
-    if (isRenderingBackBuffer) {
+    // the client ends a scene a dozen times a frame: only the one the names were drawn in has any to make ready
+    if (isRenderingBackBuffer && WantsPublish(false)) {
         PublishNames(false);
     }
 }
@@ -334,6 +345,7 @@ void AshitaNameplate::ReleaseNameStates() {
     }
     m_NameStates = 0;
     m_SavedStates = 0;
+    m_Device = nullptr;
     m_CanDraw = false;
 }
 
@@ -441,22 +453,36 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
         }
     }
 
+    // the device's states for drawing are not made until there is a name to draw with them
+    m_Device = device;
+    m_CanDraw = true;
+}
+
+// The two records of the device's state that a name is drawn between, made for the frame's first
+// name and let go as the frame is presented
+bool AshitaNameplate::MakeNameStates() {
+    if (m_NameStates != 0 && m_SavedStates != 0) {
+        return true;
+    }
+
     if (m_NameStates == 0) {
-        device->BeginStateBlock();
-        SetNameStates(device);
-        if (FAILED(device->EndStateBlock(&m_NameStates))) {
+        m_Device->BeginStateBlock();
+        SetNameStates(m_Device);
+        if (FAILED(m_Device->EndStateBlock(&m_NameStates))) {
             m_NameStates = 0;
         }
     }
     if (m_SavedStates == 0) {
-        device->BeginStateBlock();
-        SetNameStates(device);
-        if (FAILED(device->EndStateBlock(&m_SavedStates))) {
+        m_Device->BeginStateBlock();
+        SetNameStates(m_Device);
+        if (FAILED(m_Device->EndStateBlock(&m_SavedStates))) {
             m_SavedStates = 0;
         }
     }
 
+    // without both, no name is drawn this frame, and they are not tried for again until the next
     m_CanDraw = m_NameStates != 0 && m_SavedStates != 0;
+    return m_CanDraw;
 }
 
 static DWORD FadeColor(uint32_t color, float alpha) {
@@ -467,11 +493,6 @@ static DWORD FadeColor(uint32_t color, float alpha) {
 
 void AshitaNameplate::DrawCustom(const HookDrawing& drawing, const HookQuad* quads, const float* position) {
     if (!m_CanDraw) {
-        return;
-    }
-
-    IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
-    if (device == nullptr) {
         return;
     }
 
@@ -550,15 +571,20 @@ void AshitaNameplate::DrawCustom(const HookDrawing& drawing, const HookQuad* qua
         add(quads[i], 0.0f, 0.0f, FadeColor(quads[i].Color, alpha));
     }
 
-    if (vertexCount == 0) {
+    if (vertexCount == 0 || !MakeNameStates()) {
         return;
     }
+
+    IDirect3DDevice8* device = m_Device;
 
     device->CaptureStateBlock(m_SavedStates);
     device->ApplyStateBlock(m_NameStates);
 
+    // most names are letters alone, from the one texture, which is then set once for both passes
     for (uint32_t i = 0; i < runCount; i++) {
-        device->SetTexture(0, m_Textures[Runs[i].texture]);
+        if (i == 0 || runCount > 1) {
+            device->SetTexture(0, m_Textures[Runs[i].texture]);
+        }
         device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
     }
 
@@ -568,7 +594,9 @@ void AshitaNameplate::DrawCustom(const HookDrawing& drawing, const HookQuad* qua
     device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
     device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
     for (uint32_t i = 0; i < runCount; i++) {
-        device->SetTexture(0, m_Textures[Runs[i].texture]);
+        if (runCount > 1) {
+            device->SetTexture(0, m_Textures[Runs[i].texture]);
+        }
         device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
     }
 
@@ -576,19 +604,23 @@ void AshitaNameplate::DrawCustom(const HookDrawing& drawing, const HookQuad* qua
 }
 
 void AshitaNameplate::PublishNames(bool frameDone) {
-    IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
+    // the camera is only asked after when there are names to place with it
+    if (WantsPublish(frameDone)) {
+        IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
 
-    D3DMATRIX view;
-    D3DMATRIX projection;
-    if (device != nullptr && SUCCEEDED(device->GetTransform(D3DTS_VIEW, &view)) && SUCCEEDED(device->GetTransform(D3DTS_PROJECTION, &projection))) {
-        Publish(&view.m[0][0], &projection.m[0][0], frameDone);
-    } else {
-        Publish(nullptr, nullptr, frameDone);
+        D3DMATRIX view;
+        D3DMATRIX projection;
+        if (device != nullptr && SUCCEEDED(device->GetTransform(D3DTS_VIEW, &view)) && SUCCEEDED(device->GetTransform(D3DTS_PROJECTION, &projection))) {
+            Publish(&view.m[0][0], &projection.m[0][0], frameDone);
+            return;
+        }
     }
+
+    Publish(nullptr, nullptr, frameDone);
 }
 
 static void AshitaLongHelp(IChatManager* chat) {
-    chat->Write(0, false, "\x1e\x05nameplatehook v1.10, from Nameplate v0.51 by way of nameplatew v0.60");
+    chat->Write(0, false, "\x1e\x05nameplatehook v1.11, from Nameplate v0.51 by way of nameplatew v0.60");
     chat->Write(0, false, "\x1e\x05https://www.github.com/Shirk/Nameplate");
     chat->Write(0, false, "\x1e\x6aUsage (\x1e\x6a/nph\x1e\x6a is short for\x1e\x6a /nameplatehook\x1e\x6a):");
     chat->Write(0, false, "\x1e\x6a/nameplatehook help");

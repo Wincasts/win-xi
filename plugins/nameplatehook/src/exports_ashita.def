@@ -1,5 +1,5 @@
 LIBRARY "nameplatehook"
-VERSION 1.10
+VERSION 1.11
 EXPORTS
     expCreatePlugin @1
     expDestroyPlugin @2

@@ -240,6 +240,9 @@ static HookShared Shared = { "NAMEPLATEHOOK", HOOK_VERSION, sizeof(HookShared), 
 static struct {
 	uint32_t Count;
 	HookName Names[HOOK_NAMES_MAX];
+
+	bool Changed;    // a name has been added, or touched, since the names were last made ready
+	bool Published;  // the names have been made ready this frame
 } Filling;
 
 // What an addon has drawn of the names, for the plugin to put in the picture. Kept apart from Shared,
@@ -262,15 +265,34 @@ static bool ProbeWanted = false;
 static struct {
 	size_t Count;
 	char Names[WHITELIST_MAX][WHITELIST_NAME_SIZE];
+	// a number made from each name, without regard to case: every player's name is looked for here
+	// every frame, and a name is only compared with those whose number is its own
+	uint32_t Hashes[WHITELIST_MAX];
 } Whitelist;
 
+static uint32_t HashName(const char* name) {
+	uint32_t hash = 2166136261u;
+	for (size_t i = 0; i < WHITELIST_NAME_SIZE && name[i] != '\0'; i++) {
+		hash = (hash ^ static_cast<uint32_t>(tolower(static_cast<unsigned char>(name[i])))) * 16777619u;
+	}
+	return hash;
+}
+
 static int FindWhitelisted(const char* name) {
+	const uint32_t hash = HashName(name);
 	for (size_t i = 0; i < Whitelist.Count; i++) {
-		if (_strnicmp(name, Whitelist.Names[i], WHITELIST_NAME_SIZE) == 0) {
+		if (Whitelist.Hashes[i] == hash && _strnicmp(name, Whitelist.Names[i], WHITELIST_NAME_SIZE) == 0) {
 			return static_cast<int>(i);
 		}
 	}
 	return -1;
+}
+
+// The name is in place before the count says it is there to be read
+static void AddWhitelisted(const char* name) {
+	StringCbCopyA(Whitelist.Names[Whitelist.Count], WHITELIST_NAME_SIZE, name);
+	Whitelist.Hashes[Whitelist.Count] = HashName(name);
+	Whitelist.Count++;
 }
 
 static bool IsAmong(uint32_t serverId, const uint32_t* ids, size_t count) {
@@ -419,6 +441,7 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 		if (pPosition != nullptr && Filling.Count < HOOK_NAMES_MAX) {
 			pName = &Filling.Names[Filling.Count];
 			Filling.Count++;
+			Filling.Changed = true;
 
 			ZeroMemory(pName, sizeof(HookName));
 			pName->EntityIndex = pEntity->EntityIndex;
@@ -460,6 +483,7 @@ static void __fastcall DrawNameLine2(const XiModel* pModel, [[maybe_unused]] voi
 		// The second line is the stars or nothing: the client writes them as this one character
 		if (Globals.pLineName != nullptr && text != nullptr && strchr(text, DRAWNAME_STARS) != nullptr && AsmSettings.HideStars == 0) {
 			Globals.pLineName->Flags |= NAME_STARS;
+			Filling.Changed = true;
 		}
 
 		drawn = Globals.LineDrawn;
@@ -1009,9 +1033,7 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 			} else if (Whitelist.Count >= WHITELIST_MAX) {
 				Sayf(this, "The whitelist is full (%d names); %s was not added.", WHITELIST_MAX, name);
 			} else {
-				// the name is in place before the count says it is there to be read
-				StringCbCopyA(Whitelist.Names[Whitelist.Count], WHITELIST_NAME_SIZE, name);
-				Whitelist.Count++;
+				AddWhitelisted(name);
 				changed = true;
 				Sayf(this, "Added %s to the whitelist.", name);
 			}
@@ -1037,6 +1059,7 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 				// close the gap, keeping the order the names were added in
 				for (size_t i = static_cast<size_t>(at); i + 1 < Whitelist.Count; i++) {
 					CopyMemory(Whitelist.Names[i], Whitelist.Names[i + 1], WHITELIST_NAME_SIZE);
+					Whitelist.Hashes[i] = Whitelist.Hashes[i + 1];
 				}
 				Whitelist.Count--;
 				changed = true;
@@ -1117,8 +1140,7 @@ int Nameplate::LoadWhitelist() {
 		bool tooLong = false;
 
 		if (next_name(cmd, name, tooLong) && FindWhitelisted(name) < 0 && Whitelist.Count < WHITELIST_MAX) {
-			StringCbCopyA(Whitelist.Names[Whitelist.Count], WHITELIST_NAME_SIZE, name);
-			Whitelist.Count++;
+			AddWhitelisted(name);
 		}
 	}
 
@@ -1377,54 +1399,78 @@ int Nameplate::Update() {
 	return 0;
 }
 
+bool Nameplate::WantsPublish(bool frameDone) const {
+	// as a frame ends with nothing made ready, there are last frame's names to take away
+	return Filling.Changed || (frameDone && !Filling.Published);
+}
+
 void Nameplate::Publish(const float* view, const float* projection, bool frameDone) {
-	const uint32_t count = Filling.Count;
+	if (WantsPublish(frameDone)) {
+		const uint32_t count = Filling.Count;
 
-	// the picture is the size of the client's window
-	const float width = (Globals.pWindowWidth != nullptr) ? static_cast<float>(*Globals.pWindowWidth) : 0.0f;
-	const float height = (Globals.pWindowHeight != nullptr) ? static_cast<float>(*Globals.pWindowHeight) : 0.0f;
+		// the picture is the size of the client's window
+		const float width = (Globals.pWindowWidth != nullptr) ? static_cast<float>(*Globals.pWindowWidth) : 0.0f;
+		const float height = (Globals.pWindowHeight != nullptr) ? static_cast<float>(*Globals.pWindowHeight) : 0.0f;
 
-	// A point in the world goes through the view and then the projection to where it is on screen
-	float m[16];
-	const bool placed = view != nullptr && projection != nullptr && width > 0.0f && height > 0.0f;
-	if (placed) {
-		for (int row = 0; row < 4; row++) {
-			for (int column = 0; column < 4; column++) {
-				m[row * 4 + column] = view[row * 4 + 0] * projection[0 * 4 + column]
-					+ view[row * 4 + 1] * projection[1 * 4 + column]
-					+ view[row * 4 + 2] * projection[2 * 4 + column]
-					+ view[row * 4 + 3] * projection[3 * 4 + column];
+		// A point in the world goes through the view and then the projection to where it is on screen
+		float m[16];
+		const bool placed = view != nullptr && projection != nullptr && width > 0.0f && height > 0.0f;
+		if (placed) {
+			for (int row = 0; row < 4; row++) {
+				for (int column = 0; column < 4; column++) {
+					m[row * 4 + column] = view[row * 4 + 0] * projection[0 * 4 + column]
+						+ view[row * 4 + 1] * projection[1 * 4 + column]
+						+ view[row * 4 + 2] * projection[2 * 4 + column]
+						+ view[row * 4 + 3] * projection[3 * 4 + column];
+				}
 			}
 		}
-	}
 
-	for (uint32_t i = 0; i < count; i++) {
-		HookName& name = Filling.Names[i];
+		const float halfWidth = width * 0.5f;
+		const float halfHeight = height * 0.5f;
 
-		const float depth = placed ? (name.X * m[3] + name.Y * m[7] + name.Z * m[11] + m[15]) : 0.0f;
-		name.Flags &= ~static_cast<uint32_t>(NAME_ON_SCREEN);
-		if (depth > 0.01f) {
-			name.Flags |= NAME_ON_SCREEN;
-			name.ScreenX = (1.0f + (name.X * m[0] + name.Y * m[4] + name.Z * m[8] + m[12]) / depth) * width * 0.5f;
-			name.ScreenY = (1.0f - (name.X * m[1] + name.Y * m[5] + name.Z * m[9] + m[13]) / depth) * height * 0.5f;
-			name.Depth = depth;
+		for (uint32_t i = 0; i < count; i++) {
+			HookName& name = Filling.Names[i];
+
+			const float depth = placed ? (name.X * m[3] + name.Y * m[7] + name.Z * m[11] + m[15]) : 0.0f;
+			name.Flags &= ~static_cast<uint32_t>(NAME_ON_SCREEN);
+			if (depth > 0.01f) {
+				const float inverse = 1.0f / depth;
+				name.Flags |= NAME_ON_SCREEN;
+				name.ScreenX = (1.0f + (name.X * m[0] + name.Y * m[4] + name.Z * m[8] + m[12]) * inverse) * halfWidth;
+				name.ScreenY = (1.0f - (name.X * m[1] + name.Y * m[5] + name.Z * m[9] + m[13]) * inverse) * halfHeight;
+				name.Depth = depth;
+			}
 		}
-	}
 
-	// the names are in place before the count says they are there to be read
-	Shared.Count = 0;
-	CopyMemory(&Shared.Names[0], &Filling.Names[0], count * sizeof(HookName));
-	Shared.Width = width;
-	Shared.Height = height;
-	Shared.Count = count;
-	Shared.Sequence++;
+		// the names are in place before the count says they are there to be read
+		Shared.Count = 0;
+		CopyMemory(&Shared.Names[0], &Filling.Names[0], count * sizeof(HookName));
+		Shared.Width = width;
+		Shared.Height = height;
+		Shared.Count = count;
+		Shared.Sequence++;
+
+		Filling.Changed = false;
+		Filling.Published = true;
+	}
 
 	if (frameDone) {
 		Filling.Count = 0;
+		Filling.Changed = false;
+		Filling.Published = false;
 		Shared.Frame++;
 
-		ZeroMemory(&Facts, sizeof(Facts));
-		GetFrameFacts(Facts);
+		// Everybody's pets are looked for now and then, and what was found kept in between
+		const bool withPets = (Shared.Frame % FACTS_PETS_EVERY) == 1;
+		ZeroMemory(&Facts.PartyIds, sizeof(Facts.PartyIds));
+		ZeroMemory(&Facts.AllianceIds, sizeof(Facts.AllianceIds));
+		Facts.TargetIndex = 0;
+		Facts.PetIndex = 0;
+		if (withPets) {
+			ZeroMemory(&Facts.Pets, sizeof(Facts.Pets));
+		}
+		GetFrameFacts(Facts, withPets);
 	}
 }
 

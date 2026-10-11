@@ -51,7 +51,11 @@ struct TestPlugin : public Nameplate {
 		StringCchCopyW(path, UNICODE_MAX_PATH, configPath);
 		return true;
 	}
-	void GetFrameFacts(FrameFacts& facts) override {
+	int petLooks = 0;
+	void GetFrameFacts(FrameFacts& facts, bool withPets) override {
+		if (withPets) {
+			petLooks++;
+		}
 		facts.PartyIds[0] = 0x1000;
 		facts.PartyIds[1] = 0x2000;
 		facts.PartyIds[2] = 0x01009999; // a trust
@@ -239,6 +243,20 @@ int main() {
 	plugin.ParseCommand("/nameplatehook whitelist list", true);
 	CHECK(plugin.said.size() == 2 && plugin.said[0] == "Whitelist (2):" && plugin.said[1] == "Friend, Someoneelse");
 
+	// a name is found among many, and one that is not there is not
+	for (int i = 0; i < 300; i++) {
+		char command[64];
+		StringCbPrintfA(command, sizeof(command), "/nph wl add Filler%c%c%c", 'a' + i % 26, 'a' + (i / 26) % 26, 'a' + i % 7);
+		plugin.ParseCommand(command, true);
+	}
+	plugin.ParseCommand("/nph wl add lastone", true);
+	CHECK(Whitelist.Count > 200 && FindWhitelisted("LASTONE") == static_cast<int>(Whitelist.Count) - 1 && FindWhitelisted("Lastonee") < 0 && FindWhitelisted("Friend") == 0);
+	plugin.ParseCommand("/nph wl remove Fillerbab", true);
+	CHECK(FindWhitelisted("lastone") == static_cast<int>(Whitelist.Count) - 1 && FindWhitelisted("Someoneelse") == 1 && FindWhitelisted("Fillerbab") < 0 && FindWhitelisted("Fillercac") > 1);
+	plugin.ParseCommand("/nph wl clear", true);
+	plugin.ParseCommand("/nameplatehook whitelist add fRIEND someoneelse", true);
+	plugin.said.clear();
+
 	// it is saved as it changes, and read back by a load
 	Whitelist.Count = 0;
 	CHECK(plugin.LoadWhitelist() == 0);
@@ -299,15 +317,31 @@ int main() {
 	CHECK(Shared.Names[2].Flags == (NAME_WANTED | NAME_DRAWN | NAME_WHITELISTED | NAME_ON_SCREEN));
 	CHECK(Shared.Names[3].Category == CATEGORY_MONSTER && Shared.Names[3].ServerId == 0x01001234);
 
-	// the names stay as the scene ends a second time, and go with the frame
+	// The client ends a scene many times a frame: the names are made ready once, in the one they were
+	// drawn in, and again only if more are drawn. They stay as the frame ends, and go with the next.
 	const uint32_t frame = Shared.Frame;
 	const uint32_t sequence = Shared.Sequence;
+	CHECK(!plugin.WantsPublish(false) && !plugin.WantsPublish(true));
 	plugin.Publish(view, projection, false);
-	CHECK(Shared.Count == 4 && Shared.Frame == frame && Shared.Sequence == sequence + 1);
+	plugin.Publish(nullptr, nullptr, false);
+	CHECK(Shared.Count == 4 && Shared.Frame == frame && Shared.Sequence == sequence && (Shared.Names[0].Flags & NAME_ON_SCREEN) != 0);
+	Drawn(mob, "Goblin");
+	CHECK(plugin.WantsPublish(false));
+	plugin.Publish(view, projection, false);
+	CHECK(Shared.Count == 5 && Shared.Sequence == sequence + 1);
 	plugin.Publish(view, projection, true);
-	CHECK(Shared.Count == 4 && Shared.Frame == frame + 1);
+	CHECK(Shared.Count == 5 && Shared.Frame == frame + 1 && Shared.Sequence == sequence + 1);
+	CHECK(!plugin.WantsPublish(false) && plugin.WantsPublish(true));
 	plugin.Publish(view, projection, true);
-	CHECK(Shared.Count == 0 && Shared.Frame == frame + 2);
+	CHECK(Shared.Count == 0 && Shared.Frame == frame + 2 && Shared.Sequence == sequence + 2);
+
+	// everybody's pets are looked for once in so many frames, and what was found is kept in between
+	const int petLooks = plugin.petLooks;
+	for (int i = 0; i < FACTS_PETS_EVERY * 3; i++) {
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(CategoryOf(pet) == CATEGORY_PET && CategoryOf(myPet) == CATEGORY_MY_PET && CategoryOf(buddy) == CATEGORY_PARTY);
+	}
+	CHECK(plugin.petLooks == petLooks + 3);
 	plugin.ParseCommand("/nameplatehook whitelist clear", true);
 
 	// what is behind the camera has no place on screen

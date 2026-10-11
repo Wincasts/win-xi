@@ -163,6 +163,8 @@ struct FrameFacts {
     uint8_t Pets[HOOK_ENTITIES / 8]; // a bit for each entity that is somebody's pet, trust or fellow
 };
 
+#define FACTS_PETS_EVERY 16     // frames between one look for everybody's pets and the next
+
 enum class MESSAGE : uint32_t {
     PLUGIN_LOAD_ERROR,
     PLUGIN_UNLOAD_ERROR,
@@ -216,8 +218,10 @@ class Nameplate {
         virtual void CommandError(const char* command) = 0;
         virtual bool GetConfigPath(wchar_t path[UNICODE_MAX_PATH]) = 0;
 
-        // The party, the target and the pets, asked for once a frame
-        virtual void GetFrameFacts([[maybe_unused]] FrameFacts& facts) {}
+        // The party, the target and the local player's pet, asked for once a frame. Pets, which is
+        // found by going through every player there is, is asked for with them only now and then:
+        // withPets says when, and it is otherwise to be left as it is.
+        virtual void GetFrameFacts([[maybe_unused]] FrameFacts& facts, [[maybe_unused]] bool withPets) {}
 
         // An entity's spawn flags (0x10 for what can be fought). Called from the client's name drawing
         // code, once per name that is not a player's.
@@ -251,6 +255,10 @@ class Nameplate {
         // worked out from the camera's view and projection (16 floats each, as Direct3D has them; null
         // for none). With frameDone the frame is over, and the next begins with no names.
         void Publish(const float* view, const float* projection, bool frameDone);
+
+        // Whether Publish has names to make ready, and so a use for the view and the projection: the
+        // client ends a scene many times a frame, and the names are drawn in one of them
+        bool WantsPublish(bool frameDone) const;
 
     private:
         int LoadWhitelist();
