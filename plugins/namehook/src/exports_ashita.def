@@ -1,5 +1,5 @@
 LIBRARY "namehook"
-VERSION 1.21
+VERSION 1.22
 EXPORTS
     expCreatePlugin @1
     expDestroyPlugin @2

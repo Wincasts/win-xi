@@ -44,6 +44,9 @@ local FONT_SLOT, ICON_SLOT, SENSE_SLOT = 0, 1, 2; -- the plugin's numbers for th
 local DETAIL_SIZE   = 0.75; -- how large it is beside the name
 local DETAIL_GAP    = 0.4;  -- the space between its parts, as a part of its own height
 local DETAIL_BELOW  = 2;    -- pixels between the name and it
+local DETAIL_IN     = 0.3;  -- seconds it takes to come
+local DETAIL_SHOWN  = 5;    -- seconds it is there
+local DETAIL_OUT    = 0.6;  -- seconds it takes to go
 
 -- The signs for what a monster does, in assets/senses.png: mobdb's own icons, sixteen to a sheet in
 -- four rows, each a quarter of it across and down
@@ -334,7 +337,7 @@ function custom.DrawSettings(options, save)
     widgets.Label('Show Check Details');
     imgui.Checkbox('##name.showCheckDetails', options.showCheckDetails);
     if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('Under the name of a monster you have checked, until it dies or you leave the area:\nhow hard a fight the game said it would be, whether it is aggressive and what it notices you by, and the family it links with.');
+        imgui.SetTooltip('Under the name of a monster you have just checked, for five seconds:\nhow hard a fight the game said it would be, whether it is aggressive and what it notices you by, and the family it links with.');
     end
     widgets.Label('Show Mastery Stars');
     imgui.Checkbox('##name.showStars', options.showStars);
@@ -644,6 +647,7 @@ function custom.Frame(options, hook)
     local edge = math.max(0, math.min(4, options.outline[1]));
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
     local showDetails = options.showCheckDetails[1];
+    local now = os.clock();
     local iconScale = options.iconSize[1] / 100;
     local iconGap = math.floor(ICON_GAP * scale + 0.5);
     local nameGap = math.floor(math.max(0, math.min(24, options.iconSpacing[1])) * scale + 0.5);
@@ -836,7 +840,24 @@ function custom.Frame(options, hook)
                     -- the name's: how hard a fight the game said it would be; then, if the tables
                     -- have the monster, whether it is aggressive and what it notices its prey by; and
                     -- if it links, the sign for that and the family it links with.
+                    -- It comes as the monster is checked, is there a few seconds, and goes: how solid
+                    -- it is, from how long ago that was.
+                    local showing = 0;
                     if (showDetails and written.isChecked and name.Category == MONSTER) then
+                        local since = now - written.found.at;
+                        if (since < DETAIL_IN) then
+                            showing = since / DETAIL_IN;
+                        elseif (since < DETAIL_IN + DETAIL_SHOWN) then
+                            showing = 1;
+                        elseif (since < DETAIL_IN + DETAIL_SHOWN + DETAIL_OUT) then
+                            showing = 1 - (since - DETAIL_IN - DETAIL_SHOWN) / DETAIL_OUT;
+                        end
+                    end
+                    if (showing > 0) then
+                        -- the colours of its parts, as solid as it now is
+                        local solidity = math.floor(showing * 255 + 0.5) * 0x1000000;
+                        local own = own % 0x1000000 + solidity;
+                        local WHITE = 0xFFFFFF + solidity;
                         local detail = fit * DETAIL_SIZE;
                         local detailHeight = math.floor(height * DETAIL_SIZE + 0.5);
                         local gap = math.floor(detailHeight * DETAIL_GAP + 0.5);

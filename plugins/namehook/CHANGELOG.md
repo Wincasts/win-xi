@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.22 - 2026-10-11
+
+- The edge round a quad of a name an addon has drawn is as solid as the quad itself is, where it was as solid as the whole name: a part of a name that is fading takes its edge with it.
+
 ## namehook 1.21 - 2026-10-11
 
 - `target on` no longer shows your own name: with own names hidden, your name stays hidden while you have yourself targeted.
