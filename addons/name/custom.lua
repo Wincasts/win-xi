@@ -26,6 +26,7 @@ local widgets    = require('winxi.widgets');
 local nameplates = require('winxi.nameplates');
 local icons = require('icons');
 local format = require('format');
+local levels = require('levels');
 
 local custom = {};
 
@@ -58,8 +59,8 @@ local settings = {
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
-    -- How a name is written: [name] for the name, [distance] for how far off it is, and the rest as
-    -- it is typed (format.lua). One line for monsters, one for everything else, and one for the
+    -- How a name is written: [name] for the name, [distance] for how far off it is, [level] for the
+    -- levels a monster can be, and the rest as it is typed (format.lua). One line for monsters, one for everything else, and one for the
     -- monster that is the target, which if left empty is written as the other monsters are.
     nameFormat    = function () return T{ '[name]' }; end,
     monsterFormat = function () return T{ '[name]' }; end,
@@ -282,7 +283,7 @@ function custom.DrawSettings(options, save)
             imgui.SetTooltip(tooltip);
         end
     end
-    local how = '[name] is the name and [distance] how far off it is; anything else is written as you type it.\nex: [name] ([distance])\n\n'
+    local how = '[name] is the name, [distance] how far off it is and [level] the levels a monster can be; anything else is written as you type it.\nex: [name] [level] ([distance])\n\n'
         .. 'A colour is #RRGGBB or a word: white, grey, red, green, blue, yellow, orange, purple, pink, cyan.\n'
         .. '[distance:yellow] or [name:#FF8000] colours that one thing; [yellow] colours everything after it, as far as [/].\n'
         .. 'With no colour, a thing is in the colour the game gives the name.';
@@ -585,10 +586,17 @@ function custom.Frame(options, hook)
                         end
                     end
 
+                    -- the levels it can be, looked for once for each character there is
+                    if (parts.level and written.levelOf ~= name.ServerId) then
+                        written.levelOf = name.ServerId;
+                        written.level = levels.Of(name.EntityIndex, ffi.string(name.Name)) or '';
+                    end
+
                     local width = 0;
                     for index = 1, #parts do
                         local part = parts[index];
-                        local words = part.kind == 'name' and written.words or (part.kind == 'distance' and (written.far or '') or part.text);
+                        local kind = part.kind;
+                        local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text;
                         for at = 1, #words do
                             local byte = words:byte(at);
                             local glyph = glyphs[byte];
@@ -644,7 +652,8 @@ function custom.Frame(options, hook)
                     local pen = left;
                     for index = 1, #parts do
                         local part = parts[index];
-                        local words = part.kind == 'name' and written.words or (part.kind == 'distance' and (written.far or '') or part.text);
+                        local kind = part.kind;
+                        local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text;
                         local color = part.color or own;
                         for at = 1, #words do
                             local glyph = glyphs[words:byte(at)];
