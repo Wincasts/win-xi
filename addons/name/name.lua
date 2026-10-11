@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win (and claude)';
-addon.version = '1.18';
+addon.version = '1.19';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 require('common');
@@ -198,6 +198,8 @@ app = shell.New({
         show   = function (options, args) SetByWords(options, args, true); end,
         hide   = function (options, args) SetByWords(options, args, false); end,
         toggle = function (options, args) SetByWords(options, args, nil); end,
+        -- not in the help: for finding out what the game does to the target's name
+        watch  = function () app:Say(custom.Watch() and 'Watching the target\'s name: what the plugin lists for it is said as it becomes the target.' or 'No longer watching.'); end,
         custom = function (options, args)
             local word = args[3] and args[3]:lower() or nil;
             if (word == 'on') then
