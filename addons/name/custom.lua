@@ -84,6 +84,7 @@ local settings = {
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
     showCheckDetails = function () return T{ true }; end, -- under a checked monster's name: how hard, what it does
+    checkDetailsInWords = function () return T{ false }; end, -- what it notices its prey by, and that it links, in words and not signs
     -- How a name is written: [name] for the name, [distance] for how far off it is, [level] for the
     -- levels a monster can be, and the rest as it is typed (format.lua). One line for monsters, one
     -- for everything else, one for the monster that is the target and one for a monster that has been
@@ -397,6 +398,13 @@ function custom.DrawSettings(options, save)
     if (imgui.IsItemHovered()) then
         imgui.SetTooltip('Under the name of a monster you have just checked, for five seconds:\nhow hard a fight the game said it would be, whether it is aggressive and what it notices you by, and the family it links with.');
     end
+    if (options.showCheckDetails[1]) then
+        widgets.Label('Check Details In Words');
+        imgui.Checkbox('##name.checkDetailsInWords', options.checkDetailsInWords);
+        if (imgui.IsItemHovered()) then
+            imgui.SetTooltip('What an aggressive monster notices you by is written out (Sight, Sound, Blood, Magic, JA, Scent; True Sight and True Sound for one that sees or hears truly) in place of a sign for each, and what it links with is written "Link: Goblin" in place of the link sign.');
+        end
+    end
     widgets.Label('Show Mastery Stars');
     imgui.Checkbox('##name.showStars', options.showStars);
     if (imgui.IsItemHovered()) then
@@ -533,6 +541,39 @@ local function temperOf(monster, found)
         end
     end
     return (monster.Aggro and TEMPERS or 0) + tier - 1;
+end
+
+-- The same in words, for one who would sooner read than know the signs: 'Sight, Sound, Blood', with
+-- sight and sound called true for a monster that sees or hears truly; and 'Link: Goblin' for what it
+-- links with. Kept on the monster. Nothing for one that is not aggressive, or does not link.
+local NOTICE_WORDS = { Sight = 'Sight', Sound = 'Sound', Blood = 'Blood', Magic = 'Magic', JA = 'JA', Scent = 'Scent' };
+local NOTICE_ORDER = { 'Sight', 'Sound', 'Blood', 'Magic', 'JA', 'Scent' };
+
+local function noticeWords(monster)
+    local words = monster.nameNotices;
+    if (words == nil) then
+        local list = {};
+        if (monster.Aggro) then
+            for _, notice in ipairs(NOTICE_ORDER) do
+                if (monster[notice]) then
+                    local truly = monster.TrueSight and (notice == 'Sight' or notice == 'Sound');
+                    list[#list + 1] = (truly and 'True ' or '') .. NOTICE_WORDS[notice];
+                end
+            end
+        end
+        words = table.concat(list, ', ');
+        monster.nameNotices = words;
+    end
+    return words;
+end
+
+local function linkWords(monster)
+    local words = monster.nameLink;
+    if (words == nil) then
+        words = monster.Link and ((monster.Family ~= nil and monster.Family ~= '') and ('Link: ' .. monster.Family) or 'Link') or '';
+        monster.nameLink = words;
+    end
+    return words;
 end
 
 -- The signs for what an aggressive monster notices its prey by, as the tables have it: kept on the monster
@@ -759,6 +800,7 @@ function custom.Frame(options, hook)
     local edge = math.max(0, math.min(4, options.outline[1]));
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
     local showDetails = options.showCheckDetails[1];
+    local detailsInWords = options.checkDetailsInWords[1];
     local now = os.clock();
     local iconScale = options.iconSize[1] / 100;
     local iconGap = math.floor(ICON_GAP * scale + 0.5);
@@ -994,20 +1036,29 @@ function custom.Frame(options, hook)
                         local gap = math.floor(detailHeight * DETAIL_GAP + 0.5);
                         local hard = written.found.hard or '';
                         local monster = written.monster;
-                        local sheet = sensesTexture();
-                        local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
                         -- whether it is aggressive, by the same sign as [aggro] draws
                         local mood = (monster ~= nil and temperTexture() ~= 0) and temperOf(monster, written.found) or nil;
+
+                        -- what it notices its prey by, and what it links with: as signs, or in words
+                        local sheet = (not detailsInWords) and sensesTexture() or 0;
+                        local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
+                        local notices = (detailsInWords and monster ~= nil) and noticeWords(monster) or '';
                         local links = monster ~= nil and monster.Link;
-                        local family = links and monster.Family or '';
+                        local linked = '';
+                        if (links) then
+                            linked = detailsInWords and linkWords(monster) or (monster.Family or '');
+                        end
 
                         local hardWidth = wordsWidth(set, hard, detail);
-                        local signsWidth = ((signs ~= nil and #signs or 0) + (mood ~= nil and 1 or 0)) * detailHeight;
+                        local moodWidth = mood ~= nil and detailHeight or 0;
+                        local noticesWidth = wordsWidth(set, notices, detail);
+                        local between = (moodWidth > 0 and noticesWidth > 0) and math.floor(gap * 0.5) or 0;
+                        local signsWidth = moodWidth + between + noticesWidth + (signs ~= nil and #signs or 0) * detailHeight;
                         local linkWidth = (links and sheet ~= 0) and detailHeight or 0;
-                        local familyWidth = wordsWidth(set, family, detail);
+                        local linkedWidth = wordsWidth(set, linked, detail);
 
                         local across, pieces = 0, 0;
-                        for _, piece in ipairs({ hardWidth, signsWidth, linkWidth + familyWidth + ((linkWidth > 0 and familyWidth > 0) and math.floor(gap * 0.5) or 0) }) do
+                        for _, piece in ipairs({ hardWidth, signsWidth, linkWidth + linkedWidth + ((linkWidth > 0 and linkedWidth > 0) and math.floor(gap * 0.5) or 0) }) do
                             if (piece > 0) then
                                 across, pieces = across + piece, pieces + 1;
                             end
@@ -1020,12 +1071,15 @@ function custom.Frame(options, hook)
                         if (hardWidth > 0) then
                             at = writeWords(set, hard, at, below, detail, own) + gap;
                         end
-                        if (mood ~= nil) then
-                            local u, v = (mood % 4) * 0.25, math.floor(mood / 4) * 0.25;
-                            nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, TEMPER_SLOT, false);
-                            at = at + detailHeight;
-                        end
                         if (signsWidth > 0) then
+                            if (mood ~= nil) then
+                                local u, v = (mood % 4) * 0.25, math.floor(mood / 4) * 0.25;
+                                nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, TEMPER_SLOT, false);
+                                at = at + detailHeight + between;
+                            end
+                            if (noticesWidth > 0) then
+                                at = writeWords(set, notices, at, below, detail, own);
+                            end
                             for index = 1, (signs ~= nil and #signs or 0) do
                                 local sign = signs[index];
                                 local u, v = (sign % 4) * 0.25, math.floor(sign / 4) * 0.25;
@@ -1037,10 +1091,10 @@ function custom.Frame(options, hook)
                         if (linkWidth > 0) then
                             local u, v = (SENSES.Link % 4) * 0.25, math.floor(SENSES.Link / 4) * 0.25;
                             nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, false);
-                            at = at + linkWidth + (familyWidth > 0 and math.floor(gap * 0.5) or 0);
+                            at = at + linkWidth + (linkedWidth > 0 and math.floor(gap * 0.5) or 0);
                         end
-                        if (familyWidth > 0) then
-                            writeWords(set, family, at, below, detail, own);
+                        if (linkedWidth > 0) then
+                            writeWords(set, linked, at, below, detail, own);
                         end
                     end
 

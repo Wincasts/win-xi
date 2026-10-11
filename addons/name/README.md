@@ -63,6 +63,7 @@ namehook 1.10 or later.
 | Icon Size | An icon's side, as a percentage of the height of the names |
 | Icon Spacing | The space between a name's icons and the name itself, 0 to 24 pixels |
 | Show Check Details | Under the name of a monster you have checked: how hard a fight it is, what it does, and what it links with. See [What a check shows](#what-a-check-shows) |
+| Check Details In Words | In that line, what an aggressive monster notices you by is written out, and what it links with is written `Link: Goblin`, in place of the signs for them. There while Show Check Details is on |
 | Show Mastery Stars | The three stars over the name of a player with a job mastered |
 
 ### How a name is written
@@ -150,6 +151,11 @@ the monster again brings it back.
   sign for each thing it notices you by: sight, true sight, sound, low health, magic, job abilities,
   scent.
 - If it links, the sign for that and the family it links with.
+
+With Check Details In Words on, the second and third are written and not drawn: after the sign for
+whether it is aggressive come the things it notices you by, as `Sight, Sound, Blood, Magic, JA,
+Scent`, with `True Sight` and `True Sound` for a monster that sees or hears truly; and what it links
+with is `Link: Goblin`.
 
 The first is from the game's answer to your check. The rest is from the tables in the `data` folder,
 and is what the server's own tables say of that kind of monster; for one the tables do not have, the
