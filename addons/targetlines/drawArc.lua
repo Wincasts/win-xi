@@ -60,9 +60,16 @@ local lineOpacity = 0.9; -- 1 is solid; 0.9 leaves the lines 10% transparent. Se
 local baseOrbRadius = 8; -- half the on-screen size of the orb at the arc's tip, in pixels, at 100% scale
 local orbRadius = baseOrbRadius; -- set each frame from the settings
 
+-- Whether the lines are hidden where something in the game's picture is in front of them, and what
+-- the game had the depth test set to before the lines were drawn, to be put back after
+local depthTest = false;
+local keptZEnable, keptZFunc = nil, nil;
+
 -- Call once per frame before drawing arcs. opacity (0-1, optional) is how solid the lines are drawn;
--- orbScale (optional) multiplies the size of the orb, 1 being its normal size.
-local function beginFrame(opacity, orbScale)
+-- orbScale (optional) multiplies the size of the orb, 1 being its normal size. occlude is whether the
+-- lines are hidden behind what is in front of them.
+local function beginFrame(opacity, orbScale, occlude)
+    depthTest = occlude and true or false;
     if (opacity) then
         lineOpacity = math.max(0, math.min(1, opacity));
     end
@@ -178,6 +185,19 @@ local function flush()
                 end
                 d3d8dev:DrawPrimitive(C.D3DPT_TRIANGLESTRIP, orbStart, 2);
             end
+        end
+
+        -- The depth test is left as the game had it: only the lines were to be drawn with this one.
+        -- Should more be drawn this frame, the states are set again for it.
+        if (keptZEnable ~= nil or keptZFunc ~= nil) then
+            if (keptZEnable ~= nil) then
+                d3d8dev:SetRenderState(C.D3DRS_ZENABLE, keptZEnable);
+            end
+            if (keptZFunc ~= nil) then
+                d3d8dev:SetRenderState(C.D3DRS_ZFUNC, keptZFunc);
+            end
+            keptZEnable, keptZFunc = nil, nil;
+            statesApplied = false;
         end
     end
 
@@ -382,7 +402,18 @@ applyStates = function()
         d3d8dev:SetTextureStageState(0, C.D3DTSS_ALPHAARG1, C.D3DTA_TEXTURE);
         d3d8dev:SetTextureStageState(0, C.D3DTSS_ALPHAARG2, C.D3DTA_DIFFUSE);
 
-        d3d8dev:SetRenderState(C.D3DRS_ZENABLE, 0);
+        if (depthTest) then
+            -- Every point of a line carries how deep in the picture it is. With the test on, the
+            -- graphics card leaves out each pixel of a line that the game has already drawn something
+            -- nearer over: a wall, the ground, a character.
+            local _, zEnable = d3d8dev:GetRenderState(C.D3DRS_ZENABLE);
+            local _, zFunc = d3d8dev:GetRenderState(C.D3DRS_ZFUNC);
+            keptZEnable, keptZFunc = zEnable, zFunc;
+            d3d8dev:SetRenderState(C.D3DRS_ZENABLE, 1);
+            d3d8dev:SetRenderState(C.D3DRS_ZFUNC, C.D3DCMP_LESSEQUAL);
+        else
+            d3d8dev:SetRenderState(C.D3DRS_ZENABLE, 0);
+        end
         d3d8dev:SetRenderState(C.D3DRS_ALPHABLENDENABLE, 1);
         d3d8dev:SetRenderState(C.D3DRS_SRCBLEND, C.D3DBLEND_SRCALPHA);
         d3d8dev:SetRenderState(C.D3DRS_DESTBLEND, C.D3DBLEND_INVSRCALPHA);

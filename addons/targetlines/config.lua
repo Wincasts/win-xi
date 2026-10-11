@@ -20,6 +20,7 @@ local defaultSettings = T {
     nameplateAnchor = false, -- /targetlines nameplate on: lines start and end above mid-body, towards the nameplates, and stop short of each end
     nameplateOffset = 10, -- /targetlines anchorheight 10: how far above mid-body a line starts and ends, in tenths of a yalm
     nameplateInset = 5, -- /targetlines anchorgap 5: how far short of each anchor a line starts and ends, in tenths of a yalm
+    occlude = false, -- /targetlines occlude on: lines are hidden where a wall, the ground or a character is in front of them
     petLine = true, -- /targetlines petenmity on: draw a line from your pet to what it is attacking
     aggroSound = true -- /targetlines alertsound on: play assets/aggro.wav when a mob line or someone else's green line is drawn to you or your pet
 };
@@ -278,6 +279,22 @@ config.drawWindow = function()
                     end
                 end
 
+                -- "[Experimental] Hide Behind Objects", with the tag in yellow, so the label is drawn in pieces
+                local occlude = { shown('occlude') and true or false };
+                if (imgui.Checkbox('##occlude', occlude)) then
+                    stage('occlude', occlude[1]);
+                end
+                local occludeHovered = imgui.IsItemHovered();
+                imgui.SameLine();
+                imgui.TextColored({ 1, 1, 0, 1 }, '[Experimental]');
+                occludeHovered = occludeHovered or imgui.IsItemHovered();
+                imgui.SameLine();
+                imgui.Text('Hide Behind Objects');
+                occludeHovered = occludeHovered or imgui.IsItemHovered();
+                if (occludeHovered) then
+                    imgui.SetTooltip('Hides each part of a line that has a wall, the ground or a character in front of it, as if the line were in the game world.\n/targetlines occlude|oc [on|off]');
+                end
+
                 -- One colour swatch per kind of line. Click a swatch to pick a colour.
                 local savedColors = type(s.colors) == 'table' and s.colors or {};
                 local colorFlags = bit.bor(ImGuiColorEditFlags_NoAlpha or 0, ImGuiColorEditFlags_NoInputs or 0);
@@ -325,6 +342,7 @@ local function printHelp()
     line('/targetlines enmitymode|em [on|off]', 'On draws mob lines to whoever the mob is judged to be on while it stays engaged. Off draws them only when the mob takes an action. No option toggles.');
     line('/targetlines petenmity|p [on|off]', 'Draw a line from your pet to whatever it is attacking. No option toggles.');
     line('/targetlines nameplate|n [on|off]', 'Raise both ends of each line from the middle of the body towards the nameplates, and stop the line a little short of each end. No option toggles.');
+    line('/targetlines occlude|oc [on|off]', 'Hide each part of a line that has a wall, the ground or a character in front of it. No option toggles.');
     line('/targetlines anchorheight|ah <' .. minNameplateOffset .. '-' .. maxNameplateOffset .. '>', 'With nameplate anchoring on, how far above the middle of the body each line starts and ends, in tenths of a yalm. No option shows the current value.');
     line('/targetlines anchorgap|ag <' .. minNameplateInset .. '-' .. maxNameplateInset .. '>', 'With nameplate anchoring on, how far short of each anchor a line starts and ends, in tenths of a yalm. No option shows the current value.');
     line('/targetlines opacity|o <10-100>', 'How solid the lines are, as a percentage. 100 is fully solid. No option shows the current value.');
@@ -448,6 +466,20 @@ ashita.events.register('command', 'command_cb', function(e)
             end
             commit('petLine');
             print(chat.header(addon.name) .. chat.message('Show Pet Enmity: ') .. chat.success(s.petLine and 'on' or 'off'));
+        elseif (command == 'occlude' or command == 'oc') then
+            if (option == 'on') then
+                s.occlude = true;
+            elseif (option == 'off') then
+                s.occlude = false;
+            elseif (option == nil) then
+                s.occlude = not s.occlude;
+            else
+                print(chat.header(addon.name) .. chat.error('Unknown option. Use: /targetlines occlude|oc [on|off]'));
+                e.blocked = true;
+                return;
+            end
+            commit('occlude');
+            print(chat.header(addon.name) .. chat.message('Experimental Hide Behind Objects: ') .. chat.success(s.occlude and 'on' or 'off'));
         elseif (command == 'nameplate' or command == 'n') then
             if (option == 'on') then
                 s.nameplateAnchor = true;

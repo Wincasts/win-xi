@@ -1,6 +1,6 @@
 addon.name    = 'targetlines';
 addon.author  = 'Jyouya, win (and claude)';
-addon.version = '1.2';
+addon.version = '1.3';
 addon.desc    = 'FFXII style target lines';
 
 require('common');
@@ -220,7 +220,7 @@ ashita.events.register('load', 'load_cb', function()
 
         frameNumber = frameNumber + 1;
 
-        arcRenderer.beginFrame(1 - (tonumber(s.transparency) or 10) / 100, (tonumber(s.orbScale) or 100) / 100);
+        arcRenderer.beginFrame(1 - (tonumber(s.transparency) or 10) / 100, (tonumber(s.orbScale) or 100) / 100, s.occlude);
 
         for lineType in pairs(defaultColor) do
             lineColors[lineType] = getLineColor(s, lineType);
