@@ -54,6 +54,8 @@ local SENSES = { AggroNQ = 0, AggroHQ = 1, PassiveNQ = 2, PassiveHQ = 3, Sight =
 -- what an aggressive monster notices its prey by, in the order they are drawn
 local NOTICES = { 'Sight', 'TrueSight', 'Sound', 'Blood', 'Magic', 'JA', 'Scent' };
 local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
+local SIZE_JUMP     = 0.15; -- a change in the game's size for a name, from one frame to the next, that is no step of a walk
+local SIZE_HOLD     = 4;    -- frames such a change has to last to be believed
 local STEADY_AFTER  = 4;    -- frames a name's colour has to stay the same to be taken as its own at once
 local STEADY_STRETCH = 45;  -- frames over which the strongest of a pulsing name's colours is looked for
 local SIGN_SIZE     = 0.7;  -- how large the magnifying glass is beside the letters it is written among
@@ -613,6 +615,29 @@ local function steadyColor(name)
     return known.nowScore >= known.wasScore and known.now or known.was;
 end
 
+-- The game's size for a name, less its starts: as a character becomes the target the game gives its
+-- name its full size for a frame, whatever distance it is at, and then the size it had. A name whose
+-- size leaps between one frame and the next keeps the size it had until the new one has lasted; one
+-- that changes as a walk changes it is followed at once. known is what is kept of the name's entity.
+local function steadySize(known, name)
+    local size = math.max(0, math.min(1, name.Scale));
+
+    if (known.sizeOf ~= name.ServerId or known.sizeSeen ~= frame - 1 or math.abs(size - known.size) <= SIZE_JUMP) then
+        -- another character's, or one not listed last frame, or a step: as the game has it
+        known.sizeOf, known.size, known.sizeRun = name.ServerId, size, 0;
+    elseif (known.sizeRun > 0 and math.abs(size - known.sizeLeap) <= SIZE_JUMP) then
+        known.sizeRun = known.sizeRun + 1;
+        if (known.sizeRun >= SIZE_HOLD) then
+            known.size, known.sizeRun = size, 0;
+        end
+    else
+        known.sizeLeap, known.sizeRun = size, 1;
+    end
+
+    known.sizeSeen = frame;
+    return known.size;
+end
+
 local iconsSeen = nil; -- the icons' texture when names were last taken apart
 
 function custom.Frame(options, hook)
@@ -730,7 +755,7 @@ function custom.Frame(options, hook)
             -- its furthest it is nothing: Scale is 1 and then falls to 0. Here it shrinks over the
             -- same distance, from its largest to its smallest and not to nothing, or keeps its size;
             -- and either way fades out over the last of it.
-            local nearness = math.max(0, math.min(1, name.Scale));
+            local nearness = steadySize(written, name);
             local size = shrink and (leastSize + (fullSize - leastSize) * nearness) or fullSize;
 
             -- as solid as the game has it, which fades a name with its character; but for the target,
