@@ -245,6 +245,9 @@ static struct {
 // The party, the target and the pets, as they were when the frame began
 static FrameFacts Facts;
 
+// Set by the probe command: the next name drawn has the plugin's host say what it is drawn on
+static bool ProbeWanted = false;
+
 // Players whose names are drawn in every mode that hides players.
 #define WHITELIST_MAX 512
 #define WHITELIST_NAME_SIZE 24
@@ -355,6 +358,11 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 	Globals.pLineModel = nullptr;
 	Globals.pLineName = nullptr;
 	Globals.LineDrawn = true;
+
+	if (ProbeWanted && Instance != nullptr) {
+		ProbeWanted = false;
+		Instance->ProbeScene();
+	}
 
 	if (pModel != nullptr && pModel->pEntity != nullptr) {
 		const Entity* pEntity = pModel->pEntity;
@@ -824,6 +832,13 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 			}
 		} else {
 			CommandError("target");
+		}
+	} else if (eat_space_token_match_and_advance(cmd, "probe", nameplate_strlen("probe"))) {
+		// not in the help: for finding out how the client draws
+		if (Shared.Hooked != 0) {
+			ProbeWanted = true;
+		} else {
+			Debug("This client's name drawing was not recognised: there is nothing to look at.");
 		}
 	} else if (eat_space_token_match_and_advance(cmd, "status", nameplate_strlen("status"))) {
 		if (eat_space_and_is_end(cmd)) {
