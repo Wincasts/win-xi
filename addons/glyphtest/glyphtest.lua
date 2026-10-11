@@ -26,6 +26,8 @@ local device = d3d.get_device();
 --   /glyphtest plane <name> draws a see-through pink sheet over the whole screen, as deep in the picture as
 --     that name: it should cover what is further off than the name and be hidden by what is nearer.
 --     /glyphtest plane off takes it away
+--   /glyphtest sheet endscene|beginscene|present draws the sheet at another point in the frame
+--   /glyphtest surfaces says what is being drawn on, and with what depth buffer, at each of those points
 --   /glyphtest numbers says how deep each name was worked out to be, and what the camera's numbers are
 --   /glyphtest big writes them at 30 pixels, and says what a letter of that size is found to be
 
@@ -45,6 +47,10 @@ local big = false;     -- the names are written at 30 pixels, a size nothing els
 local bigSaid = false;
 local plane = nil;     -- a name, or the start of one: a sheet is drawn over the screen as deep as that name is
 local numbers = false; -- the next frame says what each name's depth was worked out to be
+local sheetAt = 'present'; -- when in the frame the sheet is drawn: 'present', 'endscene' or 'beginscene'
+local sheetDepth = nil;    -- how deep the sheet is, as last worked out
+local surfaces = {};       -- event -> true while what is being drawn on then is still to be said
+local fired = { beginscene = 0, endscene = 0 }; -- how often each has come round since the last frame
 local reported = false;
 local failed = {}; -- what has gone wrong while drawing, said once each
 
@@ -189,6 +195,66 @@ local function flush(texture, depth)
     used = 0;
 end
 
+local function drawSheet(depth)
+    local display = imgui.GetIO().DisplaySize;
+    used = 0;
+    quad(0, 0, display.x, display.y, depth, 1, 0x70FF40C0, 0, 0, 0, 0);
+    local _, zEnable = device:GetRenderState(C.D3DRS_ZENABLE);
+    local _, zFunc = device:GetRenderState(C.D3DRS_ZFUNC);
+    local _, zWrite = device:GetRenderState(C.D3DRS_ZWRITEENABLE);
+    device:SetTexture(0, nil);
+    device:SetTextureStageState(0, C.D3DTSS_COLOROP, C.D3DTOP_SELECTARG2);
+    device:SetTextureStageState(0, C.D3DTSS_COLORARG2, C.D3DTA_DIFFUSE);
+    device:SetTextureStageState(0, C.D3DTSS_ALPHAOP, C.D3DTOP_SELECTARG2);
+    device:SetTextureStageState(0, C.D3DTSS_ALPHAARG2, C.D3DTA_DIFFUSE);
+    device:SetRenderState(C.D3DRS_ZENABLE, 1);
+    device:SetRenderState(C.D3DRS_ZFUNC, C.D3DCMP_LESSEQUAL);
+    device:SetRenderState(C.D3DRS_ZWRITEENABLE, 0);
+    device:SetRenderState(C.D3DRS_ALPHABLENDENABLE, 1);
+    device:SetRenderState(C.D3DRS_SRCBLEND, C.D3DBLEND_SRCALPHA);
+    device:SetRenderState(C.D3DRS_DESTBLEND, C.D3DBLEND_INVSRCALPHA);
+    device:SetVertexShader(FVF);
+    device:DrawPrimitiveUP(C.D3DPT_TRIANGLELIST, 2, vertices, stride);
+    device:SetRenderState(C.D3DRS_ZENABLE, zEnable or 0);
+    device:SetRenderState(C.D3DRS_ZFUNC, zFunc or C.D3DCMP_LESSEQUAL);
+    device:SetRenderState(C.D3DRS_ZWRITEENABLE, zWrite or 1);
+    used = 0;
+end
+
+-- What is being drawn on, and the depth buffer that goes with it
+local function saySurfaces(event, arg)
+    local function describe(what, get)
+        return try(what, function ()
+            local _, surface = get(device);
+            if (surface == nil) then
+                return what .. ' none';
+            end
+            local _, desc = surface:GetDesc();
+            local said = ('%s %s %dx%d format %d multisample %d'):format(what, tostring(ffi.cast('void*', surface)), desc.Width, desc.Height, tonumber(desc.Format), tonumber(desc.MultiSampleType));
+            surface:Release();
+            return said;
+        end);
+    end
+    say(('at %s (given %s; begun %d, ended %d times since the last frame):'):format(event, tostring(arg), fired.beginscene, fired.endscene));
+    say('  ', describe('target', device.GetRenderTarget));
+    say('  ', describe('depth', device.GetDepthStencilSurface));
+end
+
+local function atScene(event, e)
+    fired[event] = fired[event] + 1;
+    if (surfaces[event]) then
+        surfaces[event] = nil;
+        saySurfaces(event, type(e) == 'table' and 'a table' or e);
+    end
+    if (sheetAt == event and sheetDepth ~= nil) then
+        local ok, problem = pcall(drawSheet, sheetDepth);
+        if (not ok and not failed[tostring(problem)]) then
+            failed[tostring(problem)] = true;
+            say('the sheet FAILED at', event, ':', tostring(problem));
+        end
+    end
+end
+
 local function draw()
     local baked = imgui.GetFontBaked();
     local texture = fontTexture();
@@ -276,29 +342,12 @@ local function draw()
     numbers = false;
 
     -- the sheet, before the names so that they are written over it
+    sheetDepth = planeDepth;
     if (planeDepth ~= nil) then
-        quad(0, 0, display.x, display.y, planeDepth, 1, 0x70FF40C0, 0, 0, 0, 0);
-        local _, zEnable = device:GetRenderState(C.D3DRS_ZENABLE);
-        local _, zFunc = device:GetRenderState(C.D3DRS_ZFUNC);
-        local _, zWrite = device:GetRenderState(C.D3DRS_ZWRITEENABLE);
-        device:SetTexture(0, nil);
-        device:SetTextureStageState(0, C.D3DTSS_COLOROP, C.D3DTOP_SELECTARG2);
-        device:SetTextureStageState(0, C.D3DTSS_COLORARG2, C.D3DTA_DIFFUSE);
-        device:SetTextureStageState(0, C.D3DTSS_ALPHAOP, C.D3DTOP_SELECTARG2);
-        device:SetTextureStageState(0, C.D3DTSS_ALPHAARG2, C.D3DTA_DIFFUSE);
-        device:SetRenderState(C.D3DRS_ZENABLE, 1);
-        device:SetRenderState(C.D3DRS_ZFUNC, C.D3DCMP_LESSEQUAL);
-        device:SetRenderState(C.D3DRS_ZWRITEENABLE, 0);
-        device:SetRenderState(C.D3DRS_ALPHABLENDENABLE, 1);
-        device:SetRenderState(C.D3DRS_SRCBLEND, C.D3DBLEND_SRCALPHA);
-        device:SetRenderState(C.D3DRS_DESTBLEND, C.D3DBLEND_INVSRCALPHA);
-        device:SetVertexShader(FVF);
-        device:DrawPrimitiveUP(C.D3DPT_TRIANGLELIST, 2, vertices, stride);
-        device:SetRenderState(C.D3DRS_ZENABLE, zEnable or 0);
-        device:SetRenderState(C.D3DRS_ZFUNC, zFunc or C.D3DCMP_LESSEQUAL);
-        device:SetRenderState(C.D3DRS_ZWRITEENABLE, zWrite or 1);
-        used = 0;
-        write(baked, ('sheet as deep as %s: %.6f'):format(planeName, planeDepth), 20, 410, 0, 1, 0xFFFF80E0);
+        if (sheetAt == 'present') then
+            drawSheet(planeDepth);
+        end
+        write(baked, ('sheet as deep as %s: %.6f, drawn at %s'):format(planeName, planeDepth, sheetAt), 20, 410, 0, 1, 0xFFFF80E0);
         flush(texture, false);
     end
 
@@ -338,6 +387,14 @@ ashita.events.register('command', 'command_cb', function (e)
         local word = args[3] and args[3]:lower() or 'off';
         plane = word ~= 'off' and word or nil;
         say('sheet', plane and ('as deep as the first name beginning ' .. plane) or 'off');
+    elseif (args[2] ~= nil and args[2]:lower() == 'sheet') then
+        local word = args[3] and args[3]:lower() or 'present';
+        if (word == 'endscene' or word == 'beginscene' or word == 'present') then
+            sheetAt = word;
+        end
+        say('the sheet is drawn at', sheetAt);
+    elseif (args[2] ~= nil and args[2]:lower() == 'surfaces') then
+        surfaces = { beginscene = true, endscene = true, present = true };
     elseif (args[2] ~= nil and args[2]:lower() == 'numbers') then
         numbers = true;
     elseif (args[2] ~= nil and args[2]:lower() == 'big') then
@@ -349,7 +406,21 @@ ashita.events.register('command', 'command_cb', function (e)
     end
 end);
 
+ashita.events.register('d3d_beginscene', 'beginscene_cb', function (e)
+    atScene('beginscene', e);
+end);
+
+ashita.events.register('d3d_endscene', 'endscene_cb', function (e)
+    atScene('endscene', e);
+end);
+
 ashita.events.register('d3d_present', 'present_cb', function ()
+    if (surfaces.present) then
+        surfaces.present = nil;
+        saySurfaces('present', nil);
+    end
+    fired.beginscene, fired.endscene = 0, 0;
+
     if (not reported) then
         reported = true;
         report();
