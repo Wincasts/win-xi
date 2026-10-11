@@ -49,7 +49,8 @@ local DETAIL_SHOWN  = 5;    -- seconds it is there
 local DETAIL_OUT    = 0.6;  -- seconds it takes to go
 
 -- The signs for what a monster does, in assets/senses.png: mobdb's own icons, sixteen to a sheet in
--- four rows, each a quarter of it across and down
+-- four rows, each a quarter of it across and down. The first four, for whether it is aggressive, are
+-- no longer drawn from: assets/aggro.png has taken their place.
 local SENSES = { AggroNQ = 0, AggroHQ = 1, PassiveNQ = 2, PassiveHQ = 3, Sight = 4, TrueSight = 5, Sound = 6, Blood = 7, Magic = 8, JA = 9, Scent = 10, Link = 11 };
 -- what an aggressive monster notices its prey by, in the order they are drawn
 local NOTICES = { 'Sight', 'TrueSight', 'Sound', 'Blood', 'Magic', 'JA', 'Scent' };
