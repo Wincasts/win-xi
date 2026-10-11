@@ -65,9 +65,9 @@ namehook 1.10 or later.
 
 ### How a name is written
 
-Each of the three formats is a line of text. In it `[name]` stands for the name and `[distance]` for
-how far the character is from you, in yalms to a tenth, as the game measures it. Everything else is
-written as you type it.
+Each of the three formats is a line of text. In it `[name]` stands for the name, `[distance]` for how
+far the character is from you, in yalms to a tenth, as the game measures it, and `[level]` for the
+levels a monster can be. Everything else is written as you type it.
 
 | Format | Written |
 |---|---|
@@ -75,6 +75,7 @@ written as you type it.
 | `[name] [distance]` | `Goblin 12.3` |
 | `[name] ([distance]y)` | `Goblin (12.3y)` |
 | `[distance] - [name]` | `12.3 - Goblin` |
+| `[name] Lv[level]` | `Goblin Lv8-10` |
 
 A thing is in the colour the game gives the name unless you give it another. A colour is `#RRGGBB`,
 `#RGB`, or one of `white`, `black`, `grey`, `red`, `green`, `blue`, `yellow`, `orange`, `purple`,
@@ -88,6 +89,13 @@ A thing is in the colour the game gives the name unless you give it another. A c
 
 Square brackets round anything else are written as they are, so a format such as `[NM] [name]` writes
 `[NM] Goblin`. Only the letters, figures and signs of plain English can be written.
+
+`[level]` is not the level of the one monster, which the game does not tell: it is the levels that
+monster can be, as `5-6`, or as `8` where it can only be the one. They are from the tables in this
+addon's `data` folder, one for each area, which are mobdb's, made from the server's own, and copied
+here so that mobdb need not be installed. To bring them up to date, copy mobdb's `data` folder over
+this one. For what the tables do not have (a player, an NPC, a monster the server makes as it goes)
+`[level]` writes nothing, and what was typed round it is still written.
 
 To write a distance after the name of the monster you have targeted and no other, leave Monster Format
 as `[name]` and set Targeted Monster Format to `[name] [distance]`. The Show Monster Distance and

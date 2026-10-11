@@ -1,10 +1,11 @@
 -- How a name is written, as its player sets it out: a line of text in which [name] stands for the
--- name and [distance] for how far off it is, and everything else is written as it is.
+-- name, [distance] for how far off it is and [level] for the levels a monster can be, and everything
+-- else is written as it is.
 --
 --   format.Compile(text)   the line taken apart, kept by the line: a list of parts, each
---                          { kind = 'text', 'name' or 'distance', text = what a 'text' part says,
---                            color = 0xAARRGGBB, or nil for the name's own }
---                          with .distance set if any part is the distance
+--                          { kind = 'text', 'name', 'distance' or 'level', text = what a 'text'
+--                            part says, color = 0xAARRGGBB, or nil for the name's own }
+--                          with .distance set if any part is the distance, and .level if the level
 --
 -- A colour is #RRGGBB, #RGB or one of the names below.
 --   [name:#FF8000]  [distance:yellow]   that one thing in that colour
@@ -21,7 +22,7 @@ format.Colors = {
     orange = 0xFF9030, purple = 0xC070FF, pink   = 0xFF80C0, cyan   = 0x60E0E0,
 };
 
-format.Things = { name = true, distance = true };
+format.Things = { name = true, distance = true, level = true };
 
 -- A colour as it is typed, as 0xFFRRGGBB, or nil if it is not one
 local function color(typed)
@@ -49,7 +50,7 @@ function format.Compile(text)
         return found;
     end
 
-    found = { distance = false };
+    found = { distance = false, level = false };
     local current = nil; -- the colour of what follows
     local plain = '';
 
@@ -75,6 +76,7 @@ function format.Compile(text)
                 flush();
                 found[#found + 1] = { kind = thing, color = tint and color(tint) or current };
                 found.distance = found.distance or thing == 'distance';
+                found.level = found.level or thing == 'level';
             elseif (color(typed) ~= nil) then
                 flush();
                 current = color(typed);

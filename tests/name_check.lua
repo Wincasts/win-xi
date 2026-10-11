@@ -250,6 +250,28 @@ H.print('a player with a distance before the name: quads', buddy.Count)
 o.nameFormat[1] = '[name]'
 block.Count = 1
 
+-- [level]: the levels a monster can be, from the area's tables: by its index, or failing that its name
+local levels = require('levels')
+H.print('[level] is a thing:', parts('[name] Lv[level:grey]'), '| wanted', format.Compile('[level]').level)
+local zone = dofile('addons/name/data/100.lua') -- West Ronfaure, as copied from mobdb
+H.print('the copied tables read: by index, a Forest Hare', zone.Indices[60].Name, zone.Indices[60].MinLevel, zone.Indices[60].MaxLevel)
+levels.Set(zone)
+H.print('by index', levels.Of(60, 'Whatever'), '| by name', levels.Of(9999, 'Bomb'), '| not in them', levels.Of(9999, 'Nobody') == nil)
+levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 8 } }, Names = { Goblin = { MinLevel = 1, MaxLevel = 99 } } })
+put(1, 300, Category.Monster, Flag.Wanted, 'Goblin')
+block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080
+block.Count, block.Sequence = 2, block.Sequence + 1
+-- "Goblin L8": the index's one level, not the name's range
+o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
+H.print('a monster of one level: quads', draw.Entities[300].Count)
+-- a monster the tables do not have: "Wolf L", the level writing nothing
+put(1, 301, Category.Monster, Flag.Wanted, 'Wolf'); block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080; H.frames(1)
+H.print('one not in the tables: quads', draw.Entities[301].Count)
+levels.Set(nil); block.Names[1].ServerId = 9; H.frames(1)
+H.print('no tables for the area: quads', draw.Entities[301].Count)
+o.monsterFormat[1] = '[name]'
+block.Count = 1
+
 -- the settings of 1.10 are made the lines that say the same
 o.showDistance, o.distanceTargetOnly = T{ true }, T{ true }
 H.resettle()
