@@ -183,6 +183,10 @@ class Nameplate {
             return 0;
         }
 
+        // A look at what the client is drawing on at the moment it draws a name, said in the chat log.
+        // Asked for by the probe command, and called from the client's name drawing code, once.
+        virtual void ProbeScene() {}
+
         int Init();
         int Deinit();
 

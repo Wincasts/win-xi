@@ -61,6 +61,7 @@ public:
     }
 
     virtual void GetFrameFacts(FrameFacts& facts) override;
+    virtual void ProbeScene() override;
 
     virtual uint32_t GetSpawnFlags(uint32_t entityIndex) override {
         IEntity* entities = m_AshitaCore->GetMemoryManager()->GetEntity();
@@ -213,6 +214,55 @@ void AshitaNameplate::GetFrameFacts(FrameFacts& facts) {
         if (entity != nullptr && entity->TrustOwnerTargetIndex != 0) {
             mark(i);
         }
+    }
+}
+
+static void DescribeSurface(IChatManager* chat, const char* what, IDirect3DSurface8* surface) {
+    if (surface == nullptr) {
+        chat->Writef(0, false, CHAT_HEADER "  %s: none", what);
+        return;
+    }
+
+    D3DSURFACE_DESC desc;
+    if (SUCCEEDED(surface->GetDesc(&desc))) {
+        chat->Writef(0, false, CHAT_HEADER "  %s: %p %ux%u format %d multisample %d usage %lu", what, static_cast<void*>(surface),
+            desc.Width, desc.Height, static_cast<int>(desc.Format), static_cast<int>(desc.MultiSampleType), desc.Usage);
+    }
+    surface->Release();
+}
+
+void AshitaNameplate::ProbeScene() {
+    IChatManager* chat = m_AshitaCore->GetChatManager();
+    IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
+    if (device == nullptr) {
+        return;
+    }
+
+    chat->Write(0, false, CHAT_HEADER "As the client draws a name:");
+
+    IDirect3DSurface8* surface = nullptr;
+    DescribeSurface(chat, "target", SUCCEEDED(device->GetRenderTarget(&surface)) ? surface : nullptr);
+    surface = nullptr;
+    DescribeSurface(chat, "depth", SUCCEEDED(device->GetDepthStencilSurface(&surface)) ? surface : nullptr);
+    surface = nullptr;
+    DescribeSurface(chat, "back buffer", SUCCEEDED(device->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &surface)) ? surface : nullptr);
+
+    D3DVIEWPORT8 viewport;
+    if (SUCCEEDED(device->GetViewport(&viewport))) {
+        chat->Writef(0, false, CHAT_HEADER "  viewport: %lu,%lu %lux%lu MinZ %.4f MaxZ %.4f", viewport.X, viewport.Y, viewport.Width, viewport.Height, viewport.MinZ, viewport.MaxZ);
+    }
+
+    DWORD zEnable = 0, zFunc = 0, zWrite = 0, alphaTest = 0, alphaRef = 0;
+    device->GetRenderState(D3DRS_ZENABLE, &zEnable);
+    device->GetRenderState(D3DRS_ZFUNC, &zFunc);
+    device->GetRenderState(D3DRS_ZWRITEENABLE, &zWrite);
+    device->GetRenderState(D3DRS_ALPHATESTENABLE, &alphaTest);
+    device->GetRenderState(D3DRS_ALPHAREF, &alphaRef);
+    chat->Writef(0, false, CHAT_HEADER "  ZENABLE %lu ZFUNC %lu ZWRITEENABLE %lu ALPHATESTENABLE %lu ALPHAREF %lu", zEnable, zFunc, zWrite, alphaTest, alphaRef);
+
+    D3DMATRIX projection;
+    if (SUCCEEDED(device->GetTransform(D3DTS_PROJECTION, &projection))) {
+        chat->Writef(0, false, CHAT_HEADER "  projection: _11 %.4f _22 %.4f _33 %.6f _43 %.6f _34 %.2f", projection._11, projection._22, projection._33, projection._43, projection._34);
     }
 }
 
