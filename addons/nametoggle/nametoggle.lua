@@ -1,7 +1,7 @@
 addon.name    = 'nametoggle';
 addon.author  = 'win (and claude)';
-addon.version = '1.0';
-addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, through the nameplatehook plugin.';
+addon.version = '1.1';
+addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the nameplatehook plugin.';
 
 require('common');
 
@@ -10,6 +10,7 @@ local imgui      = require('imgui');
 local shell      = require('winxi.shell');
 local widgets    = require('winxi.widgets');
 local nameplates = require('winxi.nameplates');
+local custom     = require('custom');
 
 local Category = nameplates.Category;
 
@@ -41,6 +42,7 @@ for _, row in ipairs(rows) do
     defaults[row.key] = T{ true };
     row.id = ('##nametoggle.%s'):format(row.key);
 end
+custom.Defaults(defaults);
 
 -- The settings are this addon's, kept for each character; what the plugin does with names is the
 -- plugin's, and can be changed there by its own command or by another addon. The two are kept the
@@ -180,16 +182,33 @@ app = shell.New({
     defaults     = defaults,
     configTitle  = 'Name Toggle Settings',
     command      = '/nametoggle',
-    help         = '/nametoggle opens or closes the settings; /nametoggle show, hide and toggle, each followed by self, party, alliance, players, mypet, pets, npcs, monsters or all, show and hide names.',
+    help         = '/nametoggle opens or closes the settings; /nametoggle show, hide and toggle, each followed by self, party, alliance, players, mypet, pets, npcs, monsters or all, show and hide names; /nametoggle custom switches whether this addon draws the names or the game does.',
     drawSettings = DrawSettings,
+    tabs         = { { label = 'Custom Names', draw = function (options) custom.DrawSettings(options, app.save); end } },
     commands     = {
         show   = function (options, args) SetByWords(options, args, true); end,
         hide   = function (options, args) SetByWords(options, args, false); end,
         toggle = function (options, args) SetByWords(options, args, nil); end,
+        custom = function (options, args)
+            local word = args[3] and args[3]:lower() or nil;
+            if (word == 'on') then
+                options.customNames[1] = true;
+            elseif (word == 'off') then
+                options.customNames[1] = false;
+            else
+                options.customNames[1] = not options.customNames[1];
+            end
+            app:Save();
+            app:Say(options.customNames[1] and 'Names are drawn by this addon.' or 'Names are drawn by the game.');
+        end,
     },
     -- another character's settings are given to the plugin afresh
     onSettings   = function () connected = false; end,
 });
+
+ashita.events.register('load', 'load_cb', function ()
+    custom.Find();
+end);
 
 ashita.events.register('d3d_present', 'present_cb', function ()
     -- the settings window, while it is open
@@ -207,4 +226,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     elseif (Pull(options)) then
         app:Save();
     end
+
+    custom.Frame(options);
 end);

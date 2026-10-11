@@ -105,6 +105,35 @@ block.Frame = 77
 nameplates.Claim(Category.Party + Category.Player)
 H.print('claimed', block.Claimed == Category.Party + Category.Player, '| in frame', block.ClaimFrame)
 
+-- custom names: off, nothing is claimed or drawn; on, every name is claimed and the wanted ones written
+local identity = { _11 = 1, _12 = 0, _13 = 0, _14 = 0, _21 = 0, _22 = 1, _23 = 0, _24 = 0, _31 = 0, _32 = 0, _33 = 1, _34 = 0, _41 = 0, _42 = 0, _43 = 0, _44 = 1 }
+local forward = { _11 = 1, _12 = 0, _13 = 0, _14 = 0, _21 = 0, _22 = 1, _23 = 0, _24 = 0, _31 = 0, _32 = 0, _33 = 1, _34 = 1, _41 = 0, _42 = 0, _43 = 0, _44 = 0 }
+require('d3d8').get_device = function() return { GetTransform = function(_, which) return 0, which == 2 and identity or forward end } end
+block.Claimed, block.ClaimFrame = 0, 0
+put(0, 0x401, Category.Party, Flag.Wanted + Flag.Stars, 'Buddy', '\146 Buddy')
+put(1, 0x402, Category.Alliance, 0, 'Ally')
+block.Names[0].Z, block.Names[0].Scale, block.Names[0].NameColor = 5, 1, 0x80808080
+block.Names[1].Z, block.Names[1].Scale, block.Names[1].NameColor = 5, 1, 0x80808080
+block.Count, block.Sequence = 2, block.Sequence + 1
+H.load()
+local written = H.calls['draw.AddText'] or 0
+H.frames(1)
+H.print('custom off: nothing claimed', block.Claimed == 0, '| nothing written', (H.calls['draw.AddText'] or 0) == written)
+H.print('/nametoggle custom kept from the game', H.command('/nametoggle custom'), '| on', o.customNames[1], '| said:', H.printed[#H.printed])
+H.frames(1)
+-- one wanted name, outlined: itself and its four dark copies; the hidden one is not written
+H.print('custom on: all claimed', block.Claimed == Category.All, '| in frame', block.ClaimFrame, '| written', (H.calls['draw.AddText'] or 0) - written)
+o.outline[1] = 0; written = H.calls['draw.AddText']
+H.frames(1)
+H.print('no outline: written once', H.calls['draw.AddText'] - written)
+H.tab(2); H.command('/nametoggle'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/nametoggle'); H.tab(1)
+H.print('its tab drawn: sliders', (H.calls.SliderInt or 0) - sliders)
+block.Hooked = 0; block.Claimed = 0; H.frames(1)
+H.print('a client not recognised: nothing claimed', block.Claimed == 0)
+block.Hooked = 1
+H.command('/nametoggle custom off'); block.Claimed = 0; H.frames(1)
+H.print('custom off again', o.customNames[1] == false, block.Claimed == 0)
+
 block.Hooked = 0
 H.print('a client not recognised:', nameplates.Problem())
 block.Hooked = 1
