@@ -124,13 +124,13 @@ int main() {
 	static_assert(sizeof(HookQuad) == 48 && sizeof(HookDrawing) == 24 && offsetof(HookDraw, Textures) == 16);
 	static_assert(offsetof(HookDraw, Entities) == 48 && offsetof(HookDraw, Quads) == 48 + 24 * HOOK_ENTITIES);
 	static_assert(offsetof(HookShared, Override) == 80 && offsetof(HookShared, Names) == 80 + HOOK_ENTITIES);
-	CHECK(memcmp(Shared.Magic, "NAMEPLATEHOOK\0\0\0", 16) == 0 && Shared.Version == 2);
+	CHECK(memcmp(Shared.Magic, "NAMEHOOK\0\0\0\0\0\0\0", 16) == 0 && Shared.Version == 2);
 	CHECK(Shared.Size == sizeof(HookShared) && Shared.NameSize == sizeof(HookName));
 
 	TestPlugin plugin;
 	wchar_t temp[MAX_PATH];
 	GetTempPathW(MAX_PATH, temp);
-	StringCchPrintfW(plugin.configPath, MAX_PATH, L"%snameplatehook-test-%lu", temp, GetCurrentProcessId());
+	StringCchPrintfW(plugin.configPath, MAX_PATH, L"%snamehook-test-%lu", temp, GetCurrentProcessId());
 	CreateDirectoryW(plugin.configPath, NULL);
 
 	static bool namesOff = false;
@@ -179,46 +179,46 @@ int main() {
 	}
 	for (size_t i = 0; i < CATEGORY_COUNT; i++) {
 		char command[64];
-		StringCbPrintfA(command, sizeof(command), "/nameplatehook hide %s", CategoryWords[i].Word);
+		StringCbPrintfA(command, sizeof(command), "/namehook hide %s", CategoryWords[i].Word);
 		CHECK(plugin.ParseCommand(command, true));
 		CHECK(Shared.Hidden == CategoryWords[i].Category);
 		for (const XiModel* model : everyone) {
 			CHECK(Drawn(model) == (CategoryOf(model) != CategoryWords[i].Category));
 		}
-		StringCbPrintfA(command, sizeof(command), "/nph show %s", CategoryWords[i].Word);
+		StringCbPrintfA(command, sizeof(command), "/nh show %s", CategoryWords[i].Word);
 		plugin.ParseCommand(command, true);
 		CHECK(Shared.Hidden == 0);
 	}
 
 	// several at once, toggled, and all
-	plugin.ParseCommand("/nameplatehook hide players alliance  mobs", true);
+	plugin.ParseCommand("/namehook hide players alliance  mobs", true);
 	CHECK(Shared.Hidden == (CATEGORY_PLAYER | CATEGORY_ALLIANCE | CATEGORY_MONSTER));
 	CHECK(!Drawn(stranger) && !Drawn(ally) && !Drawn(mob) && !Drawn(charmed) && Drawn(buddy) && Drawn(trust) && Drawn(self));
-	plugin.ParseCommand("/nameplatehook toggle players party", true);
+	plugin.ParseCommand("/namehook toggle players party", true);
 	CHECK(Shared.Hidden == (CATEGORY_PARTY | CATEGORY_ALLIANCE | CATEGORY_MONSTER));
-	plugin.ParseCommand("/nameplatehook hide all", true);
+	plugin.ParseCommand("/namehook hide all", true);
 	CHECK(Shared.Hidden == CATEGORY_ALL && !Drawn(self) && !Drawn(npc));
-	plugin.ParseCommand("/nameplatehook show all", true);
+	plugin.ParseCommand("/namehook show all", true);
 	CHECK(Shared.Hidden == 0);
 
 	// a command that is wrong says so and changes nothing
-	plugin.ParseCommand("/nameplatehook hide", true);
-	plugin.ParseCommand("/nameplatehook hide party goblins", true);
-	plugin.ParseCommand("/nameplatehook target maybe", true);
+	plugin.ParseCommand("/namehook hide", true);
+	plugin.ParseCommand("/namehook hide party goblins", true);
+	plugin.ParseCommand("/namehook target maybe", true);
 	CHECK(Shared.Hidden == 0 && Shared.Options == 0 && plugin.errors.size() == 3);
 	CHECK(plugin.errors[0] == "hide" && plugin.errors[2] == "target");
 	plugin.errors.clear();
 
 	// where the client's calls were not taken, the name is decided on before it is drawn; where they
 	// were, it is let through to be listed
-	plugin.ParseCommand("/nameplatehook hide players", true);
+	plugin.ParseCommand("/namehook hide players", true);
 	CHECK(!ShouldDrawNameplate(stranger) && ShouldDrawNameplate(buddy));
 	Shared.Hooked = 1;
 	CHECK(ShouldDrawNameplate(stranger) && !Drawn(stranger));
 	Shared.Hooked = 0;
 
 	// the whitelist, typed in any case, shows a player whose category is hidden
-	plugin.ParseCommand("/nameplatehook whitelist add fRIEND someoneelse", true);
+	plugin.ParseCommand("/namehook whitelist add fRIEND someoneelse", true);
 	CHECK(Whitelist.Count == 2 && strcmp(Whitelist.Names[0], "Friend") == 0 && strcmp(Whitelist.Names[1], "Someoneelse") == 0);
 	CHECK(Drawn(friendly) && !Drawn(stranger));
 
@@ -229,54 +229,54 @@ int main() {
 	CHECK(!Drawn(friendlier));
 
 	// the whitelist is of players: it does not show the player's own name, or a monster of that name
-	plugin.ParseCommand("/nameplatehook wl add me goblin", true);
-	plugin.ParseCommand("/nameplatehook hide self monsters", true);
+	plugin.ParseCommand("/namehook wl add me goblin", true);
+	plugin.ParseCommand("/namehook hide self monsters", true);
 	CHECK(!Drawn(self) && !Drawn(mob));
-	plugin.ParseCommand("/nameplatehook wl remove me goblin", true);
-	plugin.ParseCommand("/nameplatehook show self monsters", true);
+	plugin.ParseCommand("/namehook wl remove me goblin", true);
+	plugin.ParseCommand("/namehook show self monsters", true);
 
 	// a second add changes nothing; the list is said back
 	plugin.said.clear();
-	plugin.ParseCommand("/nameplatehook whitelist add Friend", true);
+	plugin.ParseCommand("/namehook whitelist add Friend", true);
 	CHECK(Whitelist.Count == 2 && plugin.said.size() == 1 && plugin.said[0] == "Friend is already on the whitelist.");
 	plugin.said.clear();
-	plugin.ParseCommand("/nameplatehook whitelist list", true);
+	plugin.ParseCommand("/namehook whitelist list", true);
 	CHECK(plugin.said.size() == 2 && plugin.said[0] == "Whitelist (2):" && plugin.said[1] == "Friend, Someoneelse");
 
 	// a name is found among many, and one that is not there is not
 	for (int i = 0; i < 300; i++) {
 		char command[64];
-		StringCbPrintfA(command, sizeof(command), "/nph wl add Filler%c%c%c", 'a' + i % 26, 'a' + (i / 26) % 26, 'a' + i % 7);
+		StringCbPrintfA(command, sizeof(command), "/nh wl add Filler%c%c%c", 'a' + i % 26, 'a' + (i / 26) % 26, 'a' + i % 7);
 		plugin.ParseCommand(command, true);
 	}
-	plugin.ParseCommand("/nph wl add lastone", true);
+	plugin.ParseCommand("/nh wl add lastone", true);
 	CHECK(Whitelist.Count > 200 && FindWhitelisted("LASTONE") == static_cast<int>(Whitelist.Count) - 1 && FindWhitelisted("Lastonee") < 0 && FindWhitelisted("Friend") == 0);
-	plugin.ParseCommand("/nph wl remove Fillerbab", true);
+	plugin.ParseCommand("/nh wl remove Fillerbab", true);
 	CHECK(FindWhitelisted("lastone") == static_cast<int>(Whitelist.Count) - 1 && FindWhitelisted("Someoneelse") == 1 && FindWhitelisted("Fillerbab") < 0 && FindWhitelisted("Fillercac") > 1);
-	plugin.ParseCommand("/nph wl clear", true);
-	plugin.ParseCommand("/nameplatehook whitelist add fRIEND someoneelse", true);
+	plugin.ParseCommand("/nh wl clear", true);
+	plugin.ParseCommand("/namehook whitelist add fRIEND someoneelse", true);
 	plugin.said.clear();
 
 	// it is saved as it changes, and read back by a load
 	Whitelist.Count = 0;
 	CHECK(plugin.LoadWhitelist() == 0);
 	CHECK(Whitelist.Count == 2 && strcmp(Whitelist.Names[1], "Someoneelse") == 0);
-	plugin.ParseCommand("/nameplatehook whitelist remove friend nobody", true);
+	plugin.ParseCommand("/namehook whitelist remove friend nobody", true);
 	CHECK(Whitelist.Count == 1 && !Drawn(friendly));
-	plugin.ParseCommand("/nameplatehook whitelist frobnicate", true);
-	plugin.ParseCommand("/nameplatehook whitelist add Anamethatisfartoolongtobeaname", true);
+	plugin.ParseCommand("/namehook whitelist frobnicate", true);
+	plugin.ParseCommand("/namehook whitelist add Anamethatisfartoolongtobeaname", true);
 	CHECK(plugin.errors.size() == 2 && plugin.errors[0] == "whitelist" && Whitelist.Count == 1);
 	plugin.errors.clear();
-	plugin.ParseCommand("/nameplatehook whitelist clear", true);
+	plugin.ParseCommand("/namehook whitelist clear", true);
 	CHECK(Whitelist.Count == 0);
 
 	// the target's name is shown whatever its category, when that is asked for
 	plugin.target = 0x403;
 	plugin.Publish(nullptr, nullptr, true);
 	CHECK(!Drawn(stranger));
-	plugin.ParseCommand("/nameplatehook target on", true);
+	plugin.ParseCommand("/namehook target on", true);
 	CHECK(Shared.Options == OPTION_ALWAYS_TARGET && Drawn(stranger) && !Drawn(friendly));
-	plugin.ParseCommand("/nameplatehook target off", true);
+	plugin.ParseCommand("/namehook target off", true);
 	CHECK(Shared.Options == 0 && !Drawn(stranger));
 
 	// an addon's word on one entity comes before its category, the whitelist and the target
@@ -291,7 +291,7 @@ int main() {
 	plugin.Publish(nullptr, nullptr, true);
 	plugin.Publish(nullptr, nullptr, true);
 	CHECK(Shared.Count == 0);
-	plugin.ParseCommand("/nameplatehook whitelist add friend", true);
+	plugin.ParseCommand("/namehook whitelist add friend", true);
 	Drawn(buddy, "\x92\xAB Buddy", "\xD2");
 	Drawn(stranger, "Stranger");
 	Drawn(friendly, "Friend");
@@ -342,7 +342,7 @@ int main() {
 		CHECK(CategoryOf(pet) == CATEGORY_PET && CategoryOf(myPet) == CATEGORY_MY_PET && CategoryOf(buddy) == CATEGORY_PARTY);
 	}
 	CHECK(plugin.petLooks == petLooks + 3);
-	plugin.ParseCommand("/nameplatehook whitelist clear", true);
+	plugin.ParseCommand("/namehook whitelist clear", true);
 
 	// what is behind the camera has no place on screen
 	const float behind[3] = { 0.0f, 0.0f, -4.0f };
@@ -351,9 +351,9 @@ int main() {
 	CHECK(Shared.Count == 1 && (Shared.Names[0].Flags & NAME_ON_SCREEN) == 0);
 
 	// with the stars hidden, none are noted
-	plugin.ParseCommand("/nameplatehook hidestars", true);
+	plugin.ParseCommand("/namehook hidestars", true);
 	Drawn(buddy, "Buddy", "\xD2");
-	plugin.ParseCommand("/nameplatehook showstars", true);
+	plugin.ParseCommand("/namehook showstars", true);
 	plugin.Publish(nullptr, nullptr, true);
 	CHECK(Shared.Count == 1 && Shared.Names[0].Flags == (NAME_WANTED | NAME_DRAWN));
 
@@ -442,26 +442,26 @@ int main() {
 	plugin.Publish(nullptr, nullptr, true);
 
 	// what is hidden goes to the ini with the rest and comes back
-	plugin.ParseCommand("/nameplatehook hide players npcs", true);
-	plugin.ParseCommand("/nameplatehook target on", true);
-	plugin.ParseCommand("/nameplatehook fontsize 30", true);
-	plugin.ParseCommand("/nameplatehook save", true);
-	plugin.ParseCommand("/nameplatehook show all", true);
-	plugin.ParseCommand("/nameplatehook target off", true);
-	plugin.ParseCommand("/nameplatehook fontsize 12", true);
-	plugin.ParseCommand("/nameplatehook load", true);
+	plugin.ParseCommand("/namehook hide players npcs", true);
+	plugin.ParseCommand("/namehook target on", true);
+	plugin.ParseCommand("/namehook fontsize 30", true);
+	plugin.ParseCommand("/namehook save", true);
+	plugin.ParseCommand("/namehook show all", true);
+	plugin.ParseCommand("/namehook target off", true);
+	plugin.ParseCommand("/namehook fontsize 12", true);
+	plugin.ParseCommand("/namehook load", true);
 	CHECK(Shared.Hidden == (CATEGORY_PLAYER | CATEGORY_NPC) && Shared.Options == OPTION_ALWAYS_TARGET && AsmSettings.FontSize == 30);
 
 	// what is shown and hidden is said back
 	plugin.said.clear();
-	plugin.ParseCommand("/nameplatehook status", true);
+	plugin.ParseCommand("/namehook status", true);
 	CHECK(plugin.said.size() == 4 && plugin.said[0] == "Shown: self, party, alliance, mypet, pets, monsters" && plugin.said[1] == "Hidden: players, npcs");
 
 	// before its own settings are first saved, it starts from nameplatew's: its mode, and its whitelist
 	wchar_t path[MAX_PATH];
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatehook\\defaults.ini", plugin.configPath);
+	StringCchPrintfW(path, MAX_PATH, L"%s\\namehook\\defaults.ini", plugin.configPath);
 	DeleteFileW(path);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatehook\\whitelist.txt", plugin.configPath);
+	StringCchPrintfW(path, MAX_PATH, L"%s\\namehook\\whitelist.txt", plugin.configPath);
 	DeleteFileW(path);
 	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatew", plugin.configPath);
 	CreateDirectoryW(path, NULL);
@@ -472,25 +472,50 @@ int main() {
 	FILE* file = _wfopen(path, L"w");
 	fprintf(file, "Oldfriend\n");
 	fclose(file);
-	plugin.ParseCommand("/nameplatehook load", true);
+	plugin.ParseCommand("/namehook load", true);
 	CHECK(Shared.Hidden == (CATEGORY_SELF | CATEGORY_ALLIANCE | CATEGORY_PLAYER) && Shared.Options == 0 && AsmSettings.FontSize == 17);
 	CHECK(Whitelist.Count == 1 && strcmp(Whitelist.Names[0], "Oldfriend") == 0);
 	CHECK(HiddenFromNameMode(7, true) == CATEGORY_PLAYER && HiddenFromNameMode(1, false) == CATEGORY_ALL && HiddenFromNameMode(0, false) == 0);
 	CHECK(HiddenFromNameMode(3, false) == (CATEGORY_SELF | CATEGORY_PARTY | CATEGORY_ALLIANCE | CATEGORY_PLAYER));
 	CHECK(HiddenFromNameMode(5, false) == (CATEGORY_MY_PET | CATEGORY_PET | CATEGORY_NPC | CATEGORY_MONSTER));
 
+	// under the name it had before, nameplatehook, its settings are found too, and come before nameplatew's
+	plugin.ParseCommand("/namehook wl clear", true);
+	StringCchPrintfW(path, MAX_PATH, L"%s\\namehook\\defaults.ini", plugin.configPath);
+	DeleteFileW(path);
+	StringCchPrintfW(path, MAX_PATH, L"%s\\namehook\\whitelist.txt", plugin.configPath);
+	DeleteFileW(path);
+	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatehook", plugin.configPath);
+	CreateDirectoryW(path, NULL);
+	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatehook\\defaults.ini", plugin.configPath);
+	WritePrivateProfileStringW(L"Settings", L"Hidden", L"130", path);
+	WritePrivateProfileStringW(L"Settings", L"AlwaysTarget", L"1", path);
+	WritePrivateProfileStringW(L"Settings", L"FontSizeInPx", L"19", path);
+	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatehook\\whitelist.txt", plugin.configPath);
+	file = _wfopen(path, L"w");
+	fprintf(file, "Newerfriend\n");
+	fclose(file);
+	plugin.ParseCommand("/namehook load", true);
+	CHECK(Shared.Hidden == (CATEGORY_PARTY | CATEGORY_MONSTER) && Shared.Options == OPTION_ALWAYS_TARGET && AsmSettings.FontSize == 19);
+	CHECK(Whitelist.Count == 1 && strcmp(Whitelist.Names[0], "Newerfriend") == 0);
+	plugin.ParseCommand("/namehook target off", true);
+	plugin.ParseCommand("/namehook hide self alliance players", true);
+	plugin.ParseCommand("/namehook show party monsters", true);
+	plugin.ParseCommand("/namehook save", true);
+	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatew\\whitelist.txt", plugin.configPath);
+
 	// that load saved them as its own, which are read from then on
 	WritePrivateProfileStringW(L"Settings", L"NameMode", L"1", path);
 	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatew\\defaults.ini", plugin.configPath);
 	WritePrivateProfileStringW(L"Settings", L"NameMode", L"1", path);
-	plugin.ParseCommand("/nameplatehook load", true);
+	plugin.ParseCommand("/namehook load", true);
 	CHECK(Shared.Hidden == (CATEGORY_SELF | CATEGORY_ALLIANCE | CATEGORY_PLAYER));
-	plugin.ParseCommand("/nameplatehook show all", true);
+	plugin.ParseCommand("/namehook show all", true);
 
 	// other plugins' commands are not this one's
 	CHECK(plugin.messages.empty() && plugin.errors.empty());
-	CHECK(!plugin.ParseCommand("/nameplatew hide all", true) && !plugin.ParseCommand("/nphx hide all", true) && Shared.Hidden == 0);
-	plugin.ParseCommand("/nameplatehook mode all", true);
+	CHECK(!plugin.ParseCommand("/nameplatew hide all", true) && !plugin.ParseCommand("/nhx hide all", true) && !plugin.ParseCommand("/nameplatehook hide all", true) && Shared.Hidden == 0);
+	plugin.ParseCommand("/namehook mode all", true);
 	CHECK(plugin.messages.size() == 1 && plugin.messages[0] == MESSAGE::SHORT_HELP);
 
 	// a call is read and pointed elsewhere; only a function shaped like the model's two is taken

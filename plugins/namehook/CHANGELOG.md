@@ -1,5 +1,11 @@
 # Changelog
 
+## namehook 1.20 - 2026-10-11
+
+- Renamed from nameplatehook to `namehook`: the DLL, the `/namehook` command and the `config\namehook` folder all carry the new name, and `/nh` is short for the command where `/nph` was.
+- Until `config\namehook\defaults.ini` exists, the settings and the whitelist kept in `config\nameplatehook` are read, and failing those nameplatew's as before.
+- The block is found by `NAMEHOOK` and eight 0s, where it was `NAMEPLATEHOOK` and three: an addon written for nameplatehook does not find it.
+
 ## nameplatehook 1.11 - 2026-10-11
 
 Does what 1.10 does, with less work each frame:
