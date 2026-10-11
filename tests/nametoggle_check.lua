@@ -153,12 +153,26 @@ H.print('half way: letters at', pushed[#pushed], '| solid', buddy.Alpha)
 block.Names[0].Scale = 0.075; H.frames(1)
 H.print('nearly gone: letters at', pushed[#pushed], '| half solid', buddy.Alpha)
 block.Names[0].Scale = 1
--- a colour that changes every frame, as the game pulses the target's, is not followed; one that stays is
+-- a pulse towards white and back, as the game gives the target's name, is not followed: the name
+-- keeps the colour the pulse starts from
 H.frames(8)
-for i = 1, 5 do block.Names[0].NameColor = 0x80408020 + i * 0x010101; H.frames(1) end
-H.print(('pulsing: still drawn %08X'):format(draw.Quads[buddy.First].Color))
-block.Names[0].NameColor = 0x80101010; H.frames(10)
-H.print(('a colour that stays: taken up %08X'):format(draw.Quads[buddy.First].Color))
+local function pulse(base, frames)
+    for i = 1, frames do
+        local toWhite = (i % 10) * 12
+        local r, g, b = math.floor(base / 0x10000) % 0x100, math.floor(base / 0x100) % 0x100, base % 0x100
+        block.Names[0].NameColor = 0x80000000 + math.min(0x80, r + toWhite) * 0x10000 + math.min(0x80, g + toWhite) * 0x100 + math.min(0x80, b + toWhite)
+        H.frames(1)
+    end
+    return draw.Quads[buddy.First].Color
+end
+H.print(('pulsing: still drawn %08X'):format(pulse(0x408020, 120)))
+-- the name goes red as the fight begins, pulsing all the while: taken up within a pulse
+H.print(('pulsing in another colour: drawn %08X'):format(pulse(0x800000, 12)))
+H.print(('and kept %08X'):format(pulse(0x800000, 120)))
+-- and back to a weaker colour: taken up once the stronger has not been seen for a while
+H.print(('pulsing in a weaker colour: drawn %08X'):format(pulse(0x606020, 120)))
+block.Names[0].NameColor = 0x80101010; H.frames(5)
+H.print(('a colour that stays: taken up at once %08X'):format(draw.Quads[buddy.First].Color))
 o.outline[1] = 0; H.frames(1)
 H.print('no outline: no edge', buddy.Edge)
 -- while the font has no texture nothing is set out, and what was is left to go stale

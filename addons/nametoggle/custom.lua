@@ -35,7 +35,8 @@ local FADE_SHRUNK   = 0.15; -- and if it does, having by then shrunk to its smal
 local SMALLEST      = 6;    -- pixels: the smallest a name can be set to be
 local LARGEST       = 48;   -- and the largest
 local FONT_SLOT, ICON_SLOT = 0, 1; -- the plugin's numbers for the two textures the names are drawn from
-local STEADY_AFTER  = 8;    -- frames a name's colour has to stay the same to be taken as its own
+local STEADY_AFTER  = 4;    -- frames a name's colour has to stay the same to be taken as its own at once
+local STEADY_STRETCH = 45;  -- frames over which the strongest of a pulsing name's colours is looked for
 local PROBE         = 65;   -- the letter looked at each frame to see that the font's letters are where they were
 
 local FONT_FOLDER   = 'C:\\Windows\\Fonts\\';
@@ -313,27 +314,55 @@ local function glyphSet(key)
 end
 
 -- The game makes some names pulse, the target's for one, by changing their colour from frame to
--- frame. Here a name keeps the colour it last held still: by entity, { id = whose it is, color = that
--- colour, last = the colour last frame, run = how many frames it has been that }.
+-- frame: towards white or towards dark and back. Here a name is drawn in the colour the pulse starts
+-- from, which of all the colours it passes through is the one with most colour in it, and of those
+-- the brightest. So of the colours a name has had over the last while, the best by that measure is
+-- the one drawn; a change of colour that is no pulse (a monster's name going red as it is fought)
+-- is taken up at once if it is to a stronger colour or holds still, and within the while if not.
+--
+-- By entity: { id = whose it is, last = the colour last frame, run = how many frames it has been
+-- that, now and nowScore = the best of this stretch of frames, was and wasScore = of the stretch
+-- before, age = how far through this stretch }
 local steady = {};
+
+local function score(color)
+    local red, green, blue = part(bit.band(bit.rshift(color, 16), 0xFF)), part(bit.band(bit.rshift(color, 8), 0xFF)), part(bit.band(color, 0xFF));
+    local most, least = math.max(red, green, blue), math.min(red, green, blue);
+    return (most - least) * 0x10000 + most * 0x100 + bit.rshift(color, 24);
+end
 
 local function steadyColor(name)
     local color = name.NameColor;
+    local scored = score(color);
+
     local known = steady[name.EntityIndex];
     if (known == nil or known.id ~= name.ServerId) then
-        known = { id = name.ServerId, color = nil, last = color, run = 0 };
+        known = { id = name.ServerId, last = color, run = 0, now = color, nowScore = scored, was = color, wasScore = scored, age = 0 };
         steady[name.EntityIndex] = known;
-    elseif (color == known.last) then
+        return color;
+    end
+
+    if (color == known.last) then
         known.run = known.run + 1;
     else
         known.last, known.run = color, 0;
     end
 
+    -- a colour that holds still is the name's own, whatever it was before
     if (known.run >= STEADY_AFTER) then
-        known.color = color;
+        known.now, known.nowScore, known.was, known.wasScore, known.age = color, scored, color, scored, 0;
+        return color;
     end
-    -- one that has not yet held still is drawn as it is
-    return known.color or color;
+
+    known.age = known.age + 1;
+    if (known.age > STEADY_STRETCH) then
+        known.was, known.wasScore = known.now, known.nowScore;
+        known.now, known.nowScore, known.age = color, scored, 0;
+    elseif (scored > known.nowScore) then
+        known.now, known.nowScore = color, scored;
+    end
+
+    return known.nowScore >= known.wasScore and known.now or known.was;
 end
 
 function custom.Frame(options)
