@@ -555,6 +555,54 @@ int main() {
 	CHECK(IsDrawNameLine(pCode, DRAWNAME_LINE_RET_OFFSET, 0x14));
 	CHECK(!IsDrawNameLine(pCode, DRAWNAME_LINE2_RET_OFFSET, 0x0C) && !IsDrawNameLine(0, DRAWNAME_LINE_RET_OFFSET, 0x14));
 
+	// every call to a function is found in a stretch of code, and nothing that only looks like one
+	static uint8_t stretch[64];
+	ZeroMemory(stretch, sizeof(stretch));
+	uintptr_t pStretch = reinterpret_cast<uintptr_t> (&stretch[0]);
+	const uintptr_t callee = pStretch + 0x1000;
+	stretch[3] = 0xE8;
+	SetCallTarget(pStretch + 3, callee);
+	stretch[20] = 0xE8;
+	SetCallTarget(pStretch + 20, callee);
+	stretch[40] = 0xE8;
+	SetCallTarget(pStretch + 40, callee + 1);
+	stretch[50] = 0xE9;
+	SetCallTarget(pStretch + 50, callee);
+	uintptr_t sites[4] = {};
+	CHECK(FindCallsIn(stretch, sizeof(stretch), callee, sites, 4) == 2 && sites[0] == pStretch + 3 && sites[1] == pStretch + 20);
+	CHECK(FindCallsIn(stretch, sizeof(stretch), callee, sites, 1) == 2 && FindCallsIn(stretch, 4, callee, sites, 4) == 0);
+
+	// the other calls are pointed at the plugin and back by the command, and the setting is kept
+	Globals.DrawNameLineCalls[0] = 0;
+	Globals.DrawNameLineCalls[1] = pStretch + 3;
+	Globals.DrawNameLineCallCount = 2;
+	Globals.DrawNameLine2CallCount = 0;
+	Shared.Hooked = 1;
+	plugin.ParseCommand("/namehook othercalls on", true);
+	CHECK(CallTarget(pStretch + 3) == 0 && Globals.OtherCallsTaken && OtherCalls == 1);
+	plugin.ParseCommand("/namehook othercalls off", true);
+	CHECK(Globals.OtherCallsTaken == false && OtherCalls == 0);
+	int32_t back;
+	memcpy(&back, &stretch[4], sizeof(back));
+	CHECK(pStretch + 3 + 5 + static_cast<uintptr_t>(back) == reinterpret_cast<uintptr_t> (Globals.DrawNameLineOrig));
+	plugin.ParseCommand("/namehook save", true);
+	OtherCalls = 1;
+	plugin.ParseCommand("/namehook load", true);
+	CHECK(OtherCalls == 0);
+	plugin.ParseCommand("/namehook othercalls sometimes", true);
+	CHECK(plugin.errors.size() == 1 && plugin.errors[0] == "othercalls");
+	plugin.errors.clear();
+	Globals.DrawNameLineCallCount = 0;
+	Shared.Hooked = 0;
+	OtherCalls = 1;
+
+	// a line that is nobody's is the client's to draw, and is counted
+	plugin.Publish(nullptr, nullptr, true);
+	lines = 0;
+	DrawNameLine(nullptr, nullptr, where, "Nobody", one, 0, 0);
+	plugin.Publish(nullptr, nullptr, true);
+	CHECK(lines == 1 && Globals.UnownedLast == 1);
+
 	// the game's own "names off" still wins
 	namesOff = true;
 	CHECK(!ShouldDrawNameplate(mob) && !ShouldDrawNameplate(buddy));

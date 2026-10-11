@@ -1,5 +1,10 @@
 # Changelog
 
+## namehook 1.23 - 2026-10-11
+
+- Every call in the client to its two functions that draw a name's lines is found and taken, not only the two in the function that draws all the names: a name the client draws by another way is then shown, hidden, listed and drawn for an addon like any other. `/namehook othercalls off` goes back to taking only the two, and `on` to taking them all; the setting is kept in `defaults.ini` as `OtherCalls`.
+- `/namehook status` says how many such calls there are, and how many lines drawn last frame were nobody's.
+
 ## namehook 1.22 - 2026-10-11
 
 - The edge round a quad of a name an addon has drawn is as solid as the quad itself is, where it was as solid as the whole name: a part of a name that is fading takes its edge with it.

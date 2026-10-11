@@ -46,7 +46,8 @@ A name that is shown may still not be drawn by the game: an addon that draws nam
 | `/namehook hide <category>...` | Hides them. |
 | `/namehook toggle <category>...` | Shows those that are hidden and hides those that are shown. |
 | `/namehook target on` / `off` | Always shows your target's name, whatever its category. Your own name is the exception: hidden, it stays hidden while you have yourself targeted. Off by default. |
-| `/namehook status` | Says which categories are shown and hidden, and how many names were listed last frame. |
+| `/namehook status` | Says which categories are shown and hidden, how many names were listed last frame, and from how many places the client draws names. |
+| `/namehook othercalls on` / `off` | Whether every place the client draws a name from is taken, or only the one that draws all the names. On by default; turn it off if something that is no name over a head goes missing. |
 | `/namehook whitelist add <name>...` | Always shows these players' names. `wl` is short for `whitelist`. Names are matched without regard to case, and the list is saved as it changes, to `config\namehook\whitelist.txt`, one name to a line. |
 | `/namehook whitelist remove <name>...` | Takes them off the whitelist. |
 | `/namehook whitelist list` / `clear` | Says the names on the whitelist, or takes them all off. |
@@ -175,7 +176,7 @@ Each name is drawn twice: once blended into the picture and tested against its d
 
 The client decides, for each character, whether its name is drawn at all, and then calls two functions of its own to draw the name's two lines: the name, and the Job Mastery stars. Nameplate patched the first decision. This plugin lets every name through it and stands in the way of the two calls instead, where the client has already worked out the name's place, its colours and what it writes: there the name is sorted, listed, and drawn or not.
 
-The two calls are found beside Nameplate's patch, and taken only if both lead where they are expected to. On a client where they do not, `Hooked` stays 0, names are shown and hidden at the first decision as nameplatew did it, and `/namehook status` says so. Everything is put back as it was when the plugin is unloaded.
+The two calls are found beside Nameplate's patch, and taken only if both lead where they are expected to. The client calls the same two functions from other places as well, and those calls are found by going through its code for every call that goes to either: they are taken too, unless `othercalls` is off. On a client where they do not, `Hooked` stays 0, names are shown and hidden at the first decision as nameplatew did it, and `/namehook status` says so. Everything is put back as it was when the plugin is unloaded.
 
 ## Building
 
