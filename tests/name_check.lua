@@ -379,6 +379,12 @@ H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(20)
 H.print('checked again: back', lineAlpha() == 255)
 o.showCheckDetails[1] = false; H.frames(1)
 H.print('Show Check Details off: the name alone, quads', goblin.Count)
+-- [aggro]: the sign that it is aggressive, before its name, whether or not it has been checked
+o.monsterFormat[1] = '[aggro][name]'; H.frames(1)
+local first = draw.Quads[goblin.First]
+H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0),
+    '| the name after it', draw.Quads[goblin.First + 1].X0 >= first.X1)
+o.monsterFormat[1] = '[name]'; H.frames(1)
 o.showCheckDetails[1] = true
 -- one that does not link, and is not aggressive: the passive sign alone after the words
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = false, Sight = true, Link = false, Family = 'Goblin' } }, Names = {} })

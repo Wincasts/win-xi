@@ -355,7 +355,7 @@ function custom.DrawSettings(options, save)
             imgui.SetTooltip(tooltip);
         end
     end
-    local how = '[name] is the name, [distance] how far off it is, [level] the levels a monster can be, and [checked] a magnifying glass on a monster you have checked; anything else is written as you type it.\nex: [name] [level][checked] ([distance])\n\n'
+    local how = '[name] is the name, [distance] how far off it is, [level] the levels a monster can be, [checked] a magnifying glass on a monster you have checked, and [aggro] the sign that a monster is aggressive or is not; anything else is written as you type it.\nex: [aggro][name] [level][checked] ([distance])\n\n'
         .. 'A colour is #RRGGBB or a word: white, grey, red, green, blue, yellow, orange, purple, pink, cyan.\n'
         .. '[distance:yellow] or [name:#FF8000] colours that one thing; [yellow] colours everything after it, as far as [/].\n'
         .. 'With no colour, a thing is in the colour the game gives the name.';
@@ -791,14 +791,14 @@ function custom.Frame(options, hook)
 
                     -- its level if its player has checked it, or the levels it can be: looked for once
                     -- for each character there is, and again when what is known of levels changes
-                    if ((parts.level or parts.checked or ((checkedFormat ~= nil or showDetails) and name.Category == MONSTER))
+                    if ((parts.level or parts.checked or parts.aggro or ((checkedFormat ~= nil or showDetails) and name.Category == MONSTER))
                             and (written.levelOf ~= name.ServerId or written.levelAt ~= levelsAt)) then
                         written.levelOf, written.levelAt = name.ServerId, levelsAt;
                         local plain = ffi.string(name.Name);
                         written.level = levels.Of(name.EntityIndex, plain, name.ServerId) or '';
                         written.found = levels.Checked(name.EntityIndex, name.ServerId);
                         written.isChecked = written.found ~= nil;
-                        written.monster = written.isChecked and levels.Monster(name.EntityIndex, plain) or nil;
+                        written.monster = levels.Monster(name.EntityIndex, plain);
                     end
                     -- one that has been checked has a line of its own, if its player has written one
                     if (checkedFormat ~= nil and name.Category == MONSTER and written.isChecked) then
@@ -828,10 +828,22 @@ function custom.Frame(options, hook)
                         end
                     end
 
+                    -- the sign that it is aggressive or is not, for a monster the tables have: as high
+                    -- as the name, from the sheet of signs
+                    local temper, temperSize = nil, math.floor(height + 0.5);
+                    if (parts.aggro and written.monster ~= nil and name.Category == MONSTER and sensesTexture() ~= 0) then
+                        local monster = written.monster;
+                        temper = monster.Aggro and (monster.Notorious and SENSES.AggroHQ or SENSES.AggroNQ)
+                            or (monster.Notorious and SENSES.PassiveHQ or SENSES.PassiveNQ);
+                    end
+
                     local width = 0;
                     for index = 1, #parts do
                         local part = parts[index];
                         local kind = part.kind;
+                        if (kind == 'aggro' and temper ~= nil) then
+                            width = width + temperSize;
+                        end
                         if (kind == 'checked') then
                             width = width + (sign and sign[9] * fit * SIGN_SIZE or 0);
                         end
@@ -894,6 +906,11 @@ function custom.Frame(options, hook)
                         local kind = part.kind;
                         local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text or '';
                         local color = part.color or own;
+                        if (kind == 'aggro' and temper ~= nil) then
+                            local u, v = (temper % 4) * 0.25, math.floor(temper / 4) * 0.25;
+                            nameplates.Quad(pen, top, pen + temperSize, top + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, SENSE_SLOT, false);
+                            pen = pen + temperSize;
+                        end
                         if (kind == 'checked' and sign) then
                             -- smaller than the letters by a set part, whatever size they are, and
                             -- made smaller about the middle of the line so that it stays level with them
