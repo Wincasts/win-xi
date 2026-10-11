@@ -50,6 +50,7 @@ local defaults = T{
     showIndicator = T{ false },
     indicatorSeconds = T{ 5 },
     indicatorPos = T{ 100, 300 },
+    indicatorGrow = 'Left',
 }
 for _, event in ipairs(events) do
     defaults.events[event.key] = T{ enabled = T{ true }, sound = event.file }
@@ -145,6 +146,12 @@ local function Complete(options)
     if type(options.indicatorPos) ~= 'table' or type(options.indicatorPos[1]) ~= 'number' or type(options.indicatorPos[2]) ~= 'number' then
         options.indicatorPos = T{ defaults.indicatorPos[1], defaults.indicatorPos[2] }
     end
+    local grows = false
+    for _, grow in ipairs(indicator.Grows) do
+        grows = grows or options.indicatorGrow == grow
+    end
+    if not grows then options.indicatorGrow = indicator.DefaultGrow end
+    indicator.Reset()
 
     triggers.Complete(options)
 end
