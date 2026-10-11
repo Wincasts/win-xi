@@ -110,6 +110,7 @@ static constexpr uint8_t DrawName_Patch1[DRAWNAME_PATCH1_SIZE] = {
 #define DRAWNAME_LINE_RET_OFFSET 0x2B   // RET 0x14
 #define DRAWNAME_LINE2_CALL_OFFSET 0x137
 #define DRAWNAME_LINE2_RET_OFFSET 0x21  // RET 0x0C
+#define DRAWNAME_STARS '\xD2'           // what the second line holds for a player with a job mastered
 
 static constexpr uint8_t DrawName3_Patch[DRAWNAME3_PATCH_SIZE] = {
   0x89, 0xf1, 0xb8, 0x78, 0x56, 0x34, 0x12, 0xff, 0xd0, 0x84, 0xc0, 0x75,
@@ -216,8 +217,10 @@ static struct {
 	DrawNameLineFn DrawNameLineOrig;
 	DrawNameLine2Fn DrawNameLine2Orig;
 
-	// The model whose first line was last handed to an addon, so that its second is not drawn either
+	// The model whose first line was last handed to an addon, so that its second is not drawn either,
+	// and where in the list that name was put
 	const XiModel* pCustomModel;
+	struct CustomName* pCustomName;
 } Globals;
 
 static struct {
@@ -246,7 +249,7 @@ struct CustomName {
 	float Scale;        // the client's own size for the name, 1 unless it is drawn larger or smaller
 	uint32_t NameColor; // the client's colour for the name, as 0xAARRGGBB with 0x80 for full
 	uint32_t IconColor; // its colour for the linkshell pearl, as 0xAABBGGRR with 0x80 for full
-	uint32_t Reserved;
+	uint32_t Stars;     // 1 if the client was about to draw the Job Mastery stars over the name
 
 	// The name as the client writes it: its icons first, each a single byte of 0x8E or more in the
 	// client's font, then a space if there were any, then the name. Cut short if it does not fit.
@@ -319,7 +322,7 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 		memcpy(&name.Scale, &scale, sizeof(name.Scale));
 		name.NameColor = nameColor;
 		name.IconColor = iconColor;
-		name.Reserved = 0;
+		name.Stars = 0;
 
 		size_t length = 0;
 		if (text != nullptr) {
@@ -333,6 +336,7 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 		Custom.Count++;
 
 		Globals.pCustomModel = pModel;
+		Globals.pCustomName = &name;
 		return;
 	}
 
@@ -344,7 +348,13 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 // Called in place of the client's function for a name's second line, which follows the first at once.
 static void __fastcall DrawNameLine2(const XiModel* pModel, [[maybe_unused]] void* unused, const float* pPosition, const char* text, uint32_t scale) {
 	if (Globals.pCustomModel != nullptr && Globals.pCustomModel == pModel) {
+		// The second line is the stars or nothing: the client writes them as this one character
+		if (text != nullptr && strchr(text, DRAWNAME_STARS) != nullptr && AsmSettings.HideStars == 0 && Globals.pCustomName != nullptr) {
+			Globals.pCustomName->Stars = 1;
+		}
+
 		Globals.pCustomModel = nullptr;
+		Globals.pCustomName = nullptr;
 		return;
 	}
 

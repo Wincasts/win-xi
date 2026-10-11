@@ -25,7 +25,7 @@ Experimental. The plugin keeps a list in its own memory, `CustomNames` in `src/N
 | `Enabled` | The `custom` setting |
 | `Consumer` | Set by the addon while it is drawing names, cleared when it stops |
 | `Count` | Names added since the addon last set this to 0 |
-| `Names` | Up to 256 of them: the entity's index, the point in the world where the client puts the name (above the head), the client's scale and colour for it, its colour for the linkshell pearl, and the name as the client writes it: its icons first, a byte each in the client's font, then the name |
+| `Names` | Up to 256 of them: the entity's index, the point in the world where the client puts the name (above the head), the client's scale and colour for it, its colour for the linkshell pearl, and the name as the client writes it: its icons first, a byte each in the client's font, then the name; and whether the client was about to draw the Job Mastery stars over it |
 
 While `Enabled` and `Consumer` are both set, each name the client is about to draw is added to the list and not drawn, and nor are its Job Mastery stars. Only names that would have been drawn are listed: the mode and the whitelist have had their say, and so has the client, which leaves out what is too far away or off screen. The addon reads the list once a frame and sets `Count` to 0.
 
