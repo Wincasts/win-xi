@@ -434,14 +434,28 @@ end
 local beginsKinds = { [7] = 'skill', [8] = 'spell' }
 local doneKinds = { [3] = true, [11] = true }
 
--- Whether a number is among a trigger's: a few at most
-local function Has(ids, id)
-    for index = 1, #ids do
-        if ids[index] == id then
-            return true
+-- The triggers by what they are for: the kind of thing done -> its number -> the triggers for it,
+-- switched on or not. Put together again when a trigger is made or removed, and when the settings
+-- are loaded.
+local triggersFor = { }
+
+local function IndexTriggers(triggers)
+    triggersFor = { }
+    for _, trigger in ipairs(triggers) do
+        local byId = triggersFor[trigger.kind]
+        if byId == nil then
+            byId = { }
+            triggersFor[trigger.kind] = byId
+        end
+        for _, id in ipairs(trigger.ids) do
+            local found = byId[id]
+            if found == nil then
+                found = { }
+                byId[id] = found
+            end
+            found[#found + 1] = trigger
         end
     end
-    return false
 end
 
 -- The indicator: what a trigger was for, in words on the screen for a few seconds, as the chat log
@@ -468,8 +482,7 @@ local function Indicate(trigger, who)
 end
 
 local function OnAction(e)
-    local triggers = app.options.triggers
-    if #triggers == 0 then
+    if #app.options.triggers == 0 then
         return
     end
     local data = e.data_raw
@@ -490,21 +503,22 @@ local function OnAction(e)
         return
     end
 
-    -- which kind of mob it is that acts: found out once, and only if a trigger is for this spell or move
-    local actor, actorKind = nil, nil
-    for _, trigger in ipairs(triggers) do
-        if trigger.kind == kind and trigger.enabled[1] and Has(trigger.ids, id) then
-            if actorKind == nil then
-                actor = EntityName(Bits(data, 40, 32))
-                actorKind = actor ~= nil and Area(CurrentZone()).kindOf[actor:lower()] or false
-                if not actorKind then
-                    return
-                end
-            end
-            if trigger.mob == actorKind then
-                Ask(trigger.sound, trigger)
-                Indicate(trigger, actor)
-            end
+    local byId = triggersFor[kind]
+    local found = byId and byId[id]
+    if found == nil then
+        return
+    end
+
+    -- which kind of mob it is that acts: asked only now that a trigger is for this spell or move
+    local actor = EntityName(Bits(data, 40, 32))
+    local actorKind = actor ~= nil and Area(CurrentZone()).kindOf[actor:lower()]
+    if not actorKind then
+        return
+    end
+    for _, trigger in ipairs(found) do
+        if trigger.mob == actorKind and trigger.enabled[1] then
+            Ask(trigger.sound, trigger)
+            Indicate(trigger, actor)
         end
     end
 end
@@ -1059,6 +1073,7 @@ local function DrawMaking(options)
             options.triggers[#options.triggers + 1] = T{ mob = making.mob, kind = making.action.kind,
                 ids = T{ unpack(making.action.ids) }, name = making.action.name, sound = triggerSound, enabled = T{ true } }
             making.action = nil
+            IndexTriggers(options.triggers)
             app:Save()
         end
     end
@@ -1133,6 +1148,7 @@ local function DrawTriggers(options)
     end
     if removed ~= nil then
         table.remove(triggers, removed)
+        IndexTriggers(triggers)
         app:Save()
     end
 end
@@ -1203,6 +1219,7 @@ local function Complete(options)
         end
     end
     options.triggers = triggers
+    IndexTriggers(triggers)
 end
 
 -- The sounds of every event in turn, a second apart, whether switched on or not
