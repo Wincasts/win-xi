@@ -101,7 +101,7 @@ The head of that file lists everything it offers.
 | `Frame` | Counts the frames drawn |
 | `Count` | How many names are listed |
 | `Width`, `Height` | The size of the picture the names' places on screen are in: the client's window |
-| `Sequence` | Goes up each time the list is made ready, which is more than once a frame |
+| `Sequence` | Goes up each time the list is made ready: once a frame as a rule, and more if names are drawn in more than one scene |
 | `Draw` | The address of the `HookDraw`, for an addon that has the plugin [draw names for it](#having-the-plugin-draw-the-names) |
 | `TargetWidth`, `TargetHeight` | The size of the picture the client draws the world on, which is larger than its window when the background resolution is. 0 until a name has been drawn. |
 | `Override` | A byte for each of the client's 0x900 entities, by index: 0 by its category, 1 shown, 2 hidden. Written by addons. |
@@ -140,7 +140,7 @@ The categories' bits are, from bit 0: self, party, alliance, player, my pet, pet
 
 Those the client was about to draw in the last frame: so not one that is too far away or off screen, which the client leaves out itself, and none at all with the game's `/names` off. A name the plugin hides is listed like any other, without the wanted flag, so that an addon can tell a name that is hidden from one that is not there.
 
-The client draws its names during the scene and addons draw as the frame is presented. The list is made ready as the scene ends and again as the frame is presented, so an addon reading it in `d3d_present` has the names of the frame it is drawing over.
+The client draws its names during a scene and addons draw as the frame is presented. The list is made ready as that scene ends, or failing that as the frame is presented, so an addon reading it in `d3d_present` has the names of the frame it is drawing over.
 
 Entities are known by index, and an index belongs to another entity after a change of area. `Override` is not cleared by the plugin: an addon that sets it clears it then.
 
