@@ -16,8 +16,9 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- A trigger can be seen as well as heard: the indicator, a small window in the theme that says for a
 -- few seconds what the mob does, as the chat log does.
 --
--- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages, treasure, actions) and from the party's
--- numbers as the game keeps them (TP, HP and MP), looked at a few times a second.
+-- What sets a sound off is read from packets (chat, invitations, trades, being examined, messages,
+-- treasure, actions) and from the party's numbers as the game keeps them (TP, HP and MP), looked at
+-- a few times a second.
 --
 -- Ashita plays one sound at a time, at the volume of the file: a sound cuts short the one before it.
 -- So that one event's sound is not lost to another's, a sound asked for while one is playing waits
@@ -30,6 +31,7 @@ local widgets = require('winxi.widgets')
 local shell = require('winxi.shell')
 local window = require('winxi.window')
 local game = require('winxi.game')
+local packets = require('winxi.packets')
 
 -- The events, in the order the settings list them. file is the sound an event starts with: its spoken one.
 local events = {
@@ -69,10 +71,6 @@ local defaults = T{
 }
 for _, event in ipairs(events) do
     defaults.events[event.key] = T{ enabled = T{ true }, sound = event.file }
-end
-
-local function Say(text)
-    print(('\30\81[twister]\30\01 %s'):format(text))
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -158,6 +156,13 @@ local function Ask(file, key)
     end
 end
 
+-- A sound played to hear it, or word that its file is not there
+local function Try(file)
+    if not PlayFile(file) then
+        app:Say(('There is no %s in the sounds folder.'):format(file))
+    end
+end
+
 -- An event has happened: its sound, if it is switched on
 local function Sound(key)
     local chosen = app.options.events[key]
@@ -178,8 +183,8 @@ local Bits = ashita.bits.unpack_be
 local packetSystemMessage = 0x009
 local packetChat = 0x017
 local packetTrade = 0x021 -- someone asks to trade
-local packetAction = 0x028
-local packetMessage = 0x029
+local packetAction = packets.inbound.action.id
+local packetMessage = packets.inbound.message.id
 local packetTreasure = 0x0D2 -- an item is in the treasure pool
 local packetInvite = 0x0DC
 
@@ -431,8 +436,19 @@ end
 --
 -- Action packets come thick in a fight and most are rounds of attacks, so nothing is read with no
 -- triggers made, and then the kind first, and the rest only for the kinds wanted.
-local beginsKinds = { [7] = 'skill', [8] = 'spell' }
-local doneKinds = { [3] = true, [11] = true }
+local categories = packets.inbound.action.categories
+local beginsKinds = { [categories.WeaponskillStart] = 'skill', [categories.SpellStart] = 'spell' }
+local doneKinds = { [categories.WeaponskillFinish] = true, [categories.MobSkillFinish] = true }
+
+-- Where each of those is in the packet, counted in bits
+local actionActor = 40                               -- 32 bits
+local actionTargets = 72                             -- 6 bits
+local actionCategory = 82                            -- 4 bits
+local actionParam = 86                               -- 32 bits
+local actionFirstTarget = 150                        -- its id (32 bits), how many results (4), then each result
+local actionResults = actionFirstTarget + 32         -- how many results the first target has
+local actionResultParam = actionFirstTarget + 36 + 27 -- the first result's number: 17 bits
+local actionResultMessage = actionResultParam + 17   -- and its message: 10 bits
 
 -- The triggers by what they are for: the kind of thing done -> its number -> the triggers for it,
 -- switched on or not. Put together again when a trigger is made or removed, and when the settings
@@ -486,18 +502,18 @@ local function OnAction(e)
         return
     end
     local data = e.data_raw
-    local category = Bits(data, 82, 4)
+    local category = Bits(data, actionCategory, 4)
     local kind, id = beginsKinds[category], 0
     if kind ~= nil then
-        if Bits(data, 72, 6) == 0 or Bits(data, 182, 4) == 0 then
+        if Bits(data, actionTargets, 6) == 0 or Bits(data, actionResults, 4) == 0 then
             return
         end
-        id = Bits(data, 213, 17)
-        if kind == 'spell' and Bits(data, 230, 10) == 0 then
+        id = Bits(data, actionResultParam, 17)
+        if kind == 'spell' and Bits(data, actionResultMessage, 10) == 0 then
             return
         end
     elseif doneKinds[category] then
-        kind, id = 'ability', Bits(data, 86, 32)
+        kind, id = 'ability', Bits(data, actionParam, 32)
     end
     if id == 0 then
         return
@@ -510,7 +526,7 @@ local function OnAction(e)
     end
 
     -- which kind of mob it is that acts: asked only now that a trigger is for this spell or move
-    local actor = EntityName(Bits(data, 40, 32))
+    local actor = EntityName(Bits(data, actionActor, 32))
     local actorKind = actor ~= nil and Area(CurrentZone()).kindOf[actor:lower()]
     if not actorKind then
         return
@@ -553,26 +569,26 @@ local rearmOver = 5    -- how far over its threshold HP or MP has to climb befor
 local lastLook, arrived = 0, nil
 local lastTp = nil
 local lowHp, lowMp = nil, nil -- whether each was low when last looked at; nil: not looked at yet
-local lastHp = { }            -- party place (1 to 5) -> that member's HP percentage, or nil
 
 -- A member arriving in the area is shown with no HP for a moment before their own is known, and so
 -- may one who is leaving it. So a member is not believed until they have been here a while, and one
 -- with no HP is not taken for knocked out until they have had none for a second.
 local memberSettle = 5 -- seconds a member has to have been in the area before their HP is believed
 local downFor = 1      -- seconds without HP before it is a knockout
-local memberId = { }   -- party place -> who is in it
-local memberSince = { } -- party place -> when they were first seen in this area
-local downSince = { }  -- party place -> when their HP went from some to none
 
-local function ForgetMember(place)
-    lastHp[place], memberId[place], memberSince[place], downSince[place] = nil, nil, nil, nil
+-- party place (1 to 5) -> { id = who is in it, since = when they were first seen in this area,
+-- hp = their HP percentage when last looked at, downSince = when it went from some to none }
+local members = { }
+
+local function ForgetMembers()
+    for place = 1, 5 do
+        members[place] = nil
+    end
 end
 
 local function Forget()
     lastTp, lowHp, lowMp = nil, nil, nil
-    for place = 1, 5 do
-        ForgetMember(place)
-    end
+    ForgetMembers()
 end
 
 -- Low is at or under the threshold; once low, not low again until over it by a margin, so that a
@@ -598,7 +614,8 @@ local function Look(now)
     end
 
     local options = app.options
-    local party = AshitaCore:GetMemoryManager():GetParty()
+    local memory = AshitaCore:GetMemoryManager()
+    local party = memory:GetParty()
     local zone = party:GetMemberZone(0)
 
     -- which kind each of the area's mobs is, for the triggers: found out here, once for the area,
@@ -621,7 +638,7 @@ local function Look(now)
     end
     lowHp = hpLow
 
-    if AshitaCore:GetMemoryManager():GetPlayer():GetMPMax() > 0 then
+    if memory:GetPlayer():GetMPMax() > 0 then
         local mpLow = hp > 0 and IsLow(party:GetMemberMPPercent(0), options.lowMpPercent[1], lowMp)
         if mpLow and lowMp == false then
             Sound('lowmp')
@@ -635,35 +652,34 @@ local function Look(now)
     -- none either, as far as the game here knows, so only those in this one are watched.
     if not options.events.ko.enabled[1] then
         -- nothing is kept of them meanwhile: what was true before it was switched off may not be now
-        for place = 1, 5 do
-            ForgetMember(place)
-        end
+        ForgetMembers()
         return
     end
     for place = 1, 5 do
         if party:GetMemberIsActive(place) == 1 and party:GetMemberZone(place) == zone then
             -- someone else in this place of the party is someone new
             local id = party:GetMemberServerId(place)
-            if id ~= memberId[place] then
-                ForgetMember(place)
-                memberId[place], memberSince[place] = id, now
+            local member = members[place]
+            if member == nil or member.id ~= id then
+                member = { id = id, since = now }
+                members[place] = member
             end
 
-            if now - memberSince[place] >= memberSettle then
+            if now - member.since >= memberSettle then
                 local memberHp = party:GetMemberHPPercent(place)
                 if memberHp > 0 then
-                    downSince[place] = nil
-                elseif lastHp[place] ~= nil and lastHp[place] > 0 then
-                    downSince[place] = now
+                    member.downSince = nil
+                elseif member.hp ~= nil and member.hp > 0 then
+                    member.downSince = now
                 end
-                if downSince[place] ~= nil and now - downSince[place] >= downFor then
-                    downSince[place] = nil
+                if member.downSince ~= nil and now - member.downSince >= downFor then
+                    member.downSince = nil
                     Sound('ko')
                 end
-                lastHp[place] = memberHp
+                member.hp = memberHp
             end
         else
-            ForgetMember(place)
+            members[place] = nil
         end
     end
 end
@@ -715,17 +731,17 @@ local function Sorted(key)
     return lists
 end
 
--- A list of sounds to choose from, those made for key first and the rest under a line. Returns the
--- file chosen, or nil.
-local function SoundCombo(id, current, key)
-    local picked = nil
+-- A list of sounds to choose from, those made for key first and the rest under a line. The one
+-- chosen is played, and kept as the sound of chosen: an event's settings, or a trigger.
+local function SoundCombo(id, chosen, key)
     imgui.SetNextItemWidth(170)
-    if imgui.BeginCombo(id, current) then
+    if imgui.BeginCombo(id, chosen.sound) then
         local lists = Sorted(key)
         for _, list in ipairs({ lists.own, lists.rest }) do
             for _, file in ipairs(list) do
-                if imgui.Selectable(file, file == current) then
-                    picked = file
+                if imgui.Selectable(file, file == chosen.sound) then
+                    chosen.sound = file
+                    app:Save()
                     PlayFile(file)
                 end
             end
@@ -735,7 +751,6 @@ local function SoundCombo(id, current, key)
         end
         imgui.EndCombo()
     end
-    return picked
 end
 
 local ids = { } -- the hidden labels of the controls: made once
@@ -785,15 +800,11 @@ local function DrawEvent(options, event)
     imgui.Checkbox(id.enabled, chosen.enabled)
 
     imgui.SameLine()
-    local picked = SoundCombo(id.sound, chosen.sound, event.key)
-    if picked ~= nil then
-        chosen.sound = picked
-        app:Save()
-    end
+    SoundCombo(id.sound, chosen, event.key)
 
     imgui.SameLine()
-    if imgui.Button(id.test) and not PlayFile(chosen.sound) then
-        Say(('There is no %s in the sounds folder.'):format(chosen.sound))
+    if imgui.Button(id.test) then
+        Try(chosen.sound)
     end
     imgui.SameLine(0, 0)
     lineEnd = imgui.GetCursorPosX()
@@ -839,7 +850,8 @@ end
 local triggerSound = 'voicef-trigger.wav' -- what a trigger starts with
 
 -- The trigger being made: its sound is chosen once it is made, in the list of triggers
-local making = { mob = nil, action = nil }
+-- said is what the mark beside the kind says, put together for a kind (saidOf) in an area (saidIn)
+local making = { mob = nil, action = nil, said = nil, saidOf = nil, saidIn = nil }
 
 -- The button that makes it, its right side under that of the list over it
 local createLabel = 'Create Trigger'
@@ -870,70 +882,73 @@ local function ActionsInOrder(a, b)
     return a.label < b.label
 end
 
-local function MobActions(data, known, zone)
-    local actions = known.actions
-    if actions == nil or actions.zone ~= zone then
-        -- a thing by its kind and name, whoever does it and under whatever numbers: one trigger is for
-        -- them all
-        local named = { }
-        local function Action(kind, id)
-            local name = ActionName(kind, id)
-            local action = named[kind .. name]
-            if action == nil then
-                action = { kind = kind, ids = T{ }, has = { }, name = name,
-                    label = ('%s (%s)##%s%d'):format(name, kindLabels[kind], kind, id) }
-                named[kind .. name] = action
-            end
-            if not action.has[id] then
-                action.has[id] = true
-                action.ids[#action.ids + 1] = id
-            end
-            return action
-        end
-        -- A list of things: each once, and none that is in either of the lists given as already said
-        local function List(spells, moves, who, said, alsoSaid)
-            local list, listed = { who = who }, { }
-            local function Add(action)
-                if not listed[action] and not (said and said.listed[action]) and not (alsoSaid and alsoSaid.listed[action]) then
-                    listed[action] = true
-                    list[#list + 1] = action
-                end
-            end
-            for id in (spells or ''):gmatch('%d+') do
-                Add(Action('spell', tonumber(id)))
-            end
-            for ability, id in (moves or ''):gmatch('(a?)(%d+)') do
-                Add(Action(ability == 'a' and 'ability' or 'skill', tonumber(id)))
-            end
-            table.sort(list, ActionsInOrder)
-            list.listed = listed
-            return list
-        end
-
-        -- actions is what the kind's mobs do, and actions.notorious the lists that come after it:
-        -- first what several of its notorious monsters do, said once for them all, then a list for
-        -- each monster of what it does that neither the kind's other mobs nor several monsters do
-        actions = List(known.spells, known.moves)
-        actions.zone, actions.notorious = zone, { }
-        local several = List(known.several and known.several.spells, known.several and known.several.moves, severalHeading, actions)
-        if #several > 0 then
-            actions.notorious[1] = several
-        end
-        local here = ('.%d.'):format(zone)
-        for pass = 1, 2 do
-            for name, where, level, spells, moves in (known.notorious or ''):gmatch('([^=;]+)=([%d.]+),([^,;]*),(%d*),(%d*);') do
-                -- where is the areas it is in, with points between them
-                if (('.' .. where .. '.'):find(here, 1, true) ~= nil) == (pass == 1) then
-                    local list = List(data.lists[tonumber(spells)], data.lists[tonumber(moves)],
-                        level ~= '' and ('%s (Lv %s)'):format(name, level) or name, actions, several)
-                    if #list > 0 then
-                        actions.notorious[#actions.notorious + 1] = list
-                    end
-                end
-            end
-        end
-        known.actions = actions
+-- A thing a mob does, by its kind and name, whoever does it and under whatever numbers: one trigger
+-- is for them all. named is the things found so far for the one kind of mob.
+local function NamedAction(named, kind, id)
+    local name = ActionName(kind, id)
+    local action = named[kind .. name]
+    if action == nil then
+        action = { kind = kind, ids = T{ }, has = { }, name = name,
+            label = ('%s (%s)##%s%d'):format(name, kindLabels[kind], kind, id) }
+        named[kind .. name] = action
     end
+    if not action.has[id] then
+        action.has[id] = true
+        action.ids[#action.ids + 1] = id
+    end
+    return action
+end
+
+-- A thing into a list, unless it is there, or in either of the lists given as already said
+local function AddAction(list, action, said, alsoSaid)
+    if not list.listed[action] and not (said and said.listed[action]) and not (alsoSaid and alsoSaid.listed[action]) then
+        list.listed[action] = true
+        list[#list + 1] = action
+    end
+end
+
+-- A list of things, in order, from the spells and the moves as mobs.lua writes them, under who does them
+local function ActionList(named, spells, moves, who, said, alsoSaid)
+    local list = { who = who, listed = { } }
+    for id in (spells or ''):gmatch('%d+') do
+        AddAction(list, NamedAction(named, 'spell', tonumber(id)), said, alsoSaid)
+    end
+    for ability, id in (moves or ''):gmatch('(a?)(%d+)') do
+        AddAction(list, NamedAction(named, ability == 'a' and 'ability' or 'skill', tonumber(id)), said, alsoSaid)
+    end
+    table.sort(list, ActionsInOrder)
+    return list
+end
+
+-- What the kind's mobs do, and in notorious the lists that come after it: first what several of
+-- its notorious monsters do, said once for them all, then a list for each monster of what it does
+-- that neither the kind's other mobs nor several monsters do
+local function MobActions(data, known, zone)
+    if known.actions ~= nil and known.actions.zone == zone then
+        return known.actions
+    end
+    local named = { }
+    local actions = ActionList(named, known.spells, known.moves)
+    actions.zone, actions.notorious = zone, { }
+    local several = known.several or { }
+    several = ActionList(named, several.spells, several.moves, severalHeading, actions)
+    if #several > 0 then
+        actions.notorious[1] = several
+    end
+    local here = ('.%d.'):format(zone)
+    for pass = 1, 2 do
+        for name, where, level, spells, moves in (known.notorious or ''):gmatch('([^=;]+)=([%d.]+),([^,;]*),(%d*),(%d*);') do
+            -- where is the areas it is in, with points between them
+            if (('.' .. where .. '.'):find(here, 1, true) ~= nil) == (pass == 1) then
+                local list = ActionList(named, data.lists[tonumber(spells)], data.lists[tonumber(moves)],
+                    level ~= '' and ('%s (Lv %s)'):format(name, level) or name, actions, several)
+                if #list > 0 then
+                    actions.notorious[#actions.notorious + 1] = list
+                end
+            end
+        end
+    end
+    known.actions = actions
     return actions
 end
 
@@ -953,9 +968,7 @@ end
 local function TestButton(trigger)
     if imgui.Button('Test') then
         Indicate(trigger)
-        if not PlayFile(trigger.sound) then
-            Say(('There is no %s in the sounds folder.'):format(trigger.sound))
-        end
+        Try(trigger.sound)
     end
 end
 
@@ -1066,9 +1079,9 @@ local function DrawMaking(options)
     imgui.SetCursorPosX(math.max(listEnd - createSize[1], imgui.GetCursorPosX()))
     if imgui.Button(createLabel, createSize) then
         if making.mob == nil or making.action == nil then
-            Say('Choose a kind of mob and what it does first.')
+            app:Say('Choose a kind of mob and what it does first.')
         elseif HasTrigger(options.triggers, making.mob, making.action) then
-            Say(('There is a trigger for %s and %s already.'):format(making.mob, making.action.name))
+            app:Say(('There is a trigger for %s and %s already.'):format(making.mob, making.action.name))
         else
             options.triggers[#options.triggers + 1] = T{ mob = making.mob, kind = making.action.kind,
                 ids = T{ unpack(making.action.ids) }, name = making.action.name, sound = triggerSound, enabled = T{ true } }
@@ -1131,11 +1144,7 @@ local function DrawTriggers(options)
         imgui.PushID(index)
         imgui.Checkbox('##enabled', trigger.enabled)
         imgui.SameLine()
-        local picked = SoundCombo('##sound', trigger.sound, 'trigger')
-        if picked ~= nil then
-            trigger.sound = picked
-            app:Save()
-        end
+        SoundCombo('##sound', trigger, 'trigger')
         imgui.SameLine()
         TestButton(trigger)
         imgui.SameLine()
@@ -1153,7 +1162,7 @@ local function DrawTriggers(options)
     end
 end
 
--- A trigger as the settings hold it, or nil if it is not one
+-- Whether something is a trigger as the settings hold one, now or as they once did
 local function IsTrigger(trigger)
     return type(trigger) == 'table' and (type(trigger.id) == 'number' or type(trigger.ids) == 'table' and type(trigger.ids[1]) == 'number')
         and type(trigger.mob) == 'string' and kindLabels[trigger.kind] ~= nil
@@ -1170,6 +1179,15 @@ local function Renamed(sound)
     return firstTones[sound] or (sound:gsub('^voice%-', 'voicef-'))
 end
 
+-- A setting kept in a table of one, for imgui to change: made good where it is not there, or holds
+-- the wrong kind of thing
+local function Boxed(options, key, kind, default)
+    local box = options[key]
+    if type(box) ~= 'table' or type(box[1]) ~= kind then
+        options[key] = T{ default }
+    end
+end
+
 -- Whatever saved settings lack, or have as the wrong kind of thing
 local function Complete(options)
     if type(options.events) ~= 'table' then options.events = T{ } end
@@ -1179,30 +1197,28 @@ local function Complete(options)
             chosen = T{ }
             options.events[event.key] = chosen
         end
-        if type(chosen.enabled) ~= 'table' then chosen.enabled = T{ true } end
+        Boxed(chosen, 'enabled', 'boolean', true)
         if type(chosen.sound) ~= 'string' or chosen.sound == '' then chosen.sound = event.file end
         chosen.sound = Renamed(chosen.sound)
-        if event.threshold ~= nil and (type(options[event.threshold]) ~= 'table' or type(options[event.threshold][1]) ~= 'number') then
-            options[event.threshold] = T{ defaults[event.threshold][1] }
+        if event.threshold ~= nil then
+            Boxed(options, event.threshold, 'number', defaults[event.threshold][1])
         end
-        if event.items ~= nil and (type(options[event.items]) ~= 'table' or type(options[event.items][1]) ~= 'string') then
-            options[event.items] = T{ '' }
+        if event.items ~= nil then
+            Boxed(options, event.items, 'string', '')
         end
     end
 
-    if type(options.showIndicator) ~= 'table' then options.showIndicator = T{ false } end
-    if type(options.indicatorSeconds) ~= 'table' or type(options.indicatorSeconds[1]) ~= 'number' then
-        options.indicatorSeconds = T{ defaults.indicatorSeconds[1] }
-    end
+    Boxed(options, 'showIndicator', 'boolean', false)
+    Boxed(options, 'indicatorSeconds', 'number', defaults.indicatorSeconds[1])
     if type(options.indicatorPos) ~= 'table' or type(options.indicatorPos[1]) ~= 'number' or type(options.indicatorPos[2]) ~= 'number' then
         options.indicatorPos = T{ defaults.indicatorPos[1], defaults.indicatorPos[2] }
     end
 
-    -- the triggers: what is not one is dropped, and each is given what it is shown as
+    -- the triggers: what is not one is dropped, and one made as triggers once were is made over
     local triggers = T{ }
     for _, trigger in ipairs(type(options.triggers) == 'table' and options.triggers or { }) do
         if IsTrigger(trigger) then
-            if type(trigger.enabled) ~= 'table' then trigger.enabled = T{ true } end
+            Boxed(trigger, 'enabled', 'boolean', true)
             if type(trigger.sound) ~= 'string' or trigger.sound == '' then trigger.sound = triggerSound end
             trigger.sound = Renamed(trigger.sound)
             -- one made when a trigger was for a single number
@@ -1227,7 +1243,7 @@ local function TestAll()
     for index, event in ipairs(events) do
         local file = app.options.events[event.key].sound
         ashita.tasks.once((index - 1) * 1.0, function()
-            Say(('%s: %s'):format(event.label, file))
+            app:Say(('%s: %s'):format(event.label, file))
             PlayFile(file)
         end)
     end
