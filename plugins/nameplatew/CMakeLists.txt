@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(Nameplate
-    VERSION 0.70
+    VERSION 0.71
     LANGUAGES CXX
     DESCRIPTION "Corrects defects in Final Fantasy XI nameplate rendering."
     HOMEPAGE_URL "https://www.github.com/Shirk/Nameplate"

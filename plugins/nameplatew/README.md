@@ -20,12 +20,12 @@ Experimental. The plugin keeps a list in its own memory, `CustomNames` in `src/N
 | Field | Meaning |
 |---|---|
 | `Magic` | The 16 bytes `NAMEPLATEW-LIST` and a 0, by which an addon finds the list in `nameplatew.dll` |
-| `Version` | 1 |
+| `Version` | 2 |
 | `Hooked` | 1 while the client's name drawing is in the plugin's hands; 0 on a client it does not recognise |
 | `Enabled` | The `custom` setting |
 | `Consumer` | Set by the addon while it is drawing names, cleared when it stops |
 | `Count` | Names added since the addon last set this to 0 |
-| `Names` | Up to 256 of them: the entity's index, the point in the world where the client puts the name (above the head), the client's scale for it, and the model's colour |
+| `Names` | Up to 256 of them: the entity's index, the point in the world where the client puts the name (above the head), the client's scale and colour for it, its colour for the linkshell pearl, and the name as the client writes it: its icons first, a byte each in the client's font, then the name |
 
 While `Enabled` and `Consumer` are both set, each name the client is about to draw is added to the list and not drawn, and nor are its Job Mastery stars. Only names that would have been drawn are listed: the mode and the whitelist have had their say, and so has the client, which leaves out what is too far away or off screen. The addon reads the list once a frame and sets `Count` to 0.
 
