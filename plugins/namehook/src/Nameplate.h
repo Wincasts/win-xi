@@ -35,7 +35,7 @@ enum : uint32_t {
 };
 
 enum : uint32_t {
-    OPTION_ALWAYS_TARGET = 1 << 0, // the target's name is shown whatever its category
+    OPTION_ALWAYS_TARGET = 1 << 0, // the target's name is shown whatever its category, unless it is the local player's own
 
     OPTION_ALL           = OPTION_ALWAYS_TARGET,
 };

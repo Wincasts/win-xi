@@ -276,6 +276,16 @@ int main() {
 	CHECK(!Drawn(stranger));
 	plugin.ParseCommand("/namehook target on", true);
 	CHECK(Shared.Options == OPTION_ALWAYS_TARGET && Drawn(stranger) && !Drawn(friendly));
+	// but not the player's own name, hidden: with themselves targeted it stays hidden
+	plugin.target = 0x400;
+	plugin.Publish(nullptr, nullptr, true);
+	CHECK(Drawn(self));
+	plugin.ParseCommand("/namehook hide self", true);
+	CHECK(!Drawn(self));
+	plugin.ParseCommand("/namehook show self", true);
+	plugin.target = 0x403;
+	plugin.Publish(nullptr, nullptr, true);
+	plugin.Publish(nullptr, nullptr, true);
 	plugin.ParseCommand("/namehook target off", true);
 	CHECK(Shared.Options == 0 && !Drawn(stranger));
 

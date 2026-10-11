@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.21 - 2026-10-11
+
+- `target on` no longer shows your own name: with own names hidden, your name stays hidden while you have yourself targeted.
+
 ## namehook 1.20 - 2026-10-11
 
 - Renamed from nameplatehook to `namehook`: the DLL, the `/namehook` command and the `config\namehook` folder all carry the new name, and `/nh` is short for the command where `/nph` was.

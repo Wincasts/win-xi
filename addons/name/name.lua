@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win (and claude)';
-addon.version = '1.6';
+addon.version = '1.7';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 require('common');
@@ -120,7 +120,7 @@ local function DrawSettings(options)
         changed = true;
     end
     if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('Your target\'s name is shown though names like it are hidden.');
+        imgui.SetTooltip('Your target\'s name is shown though names like it are hidden. Your own is not: with Own Name off it stays hidden while you have yourself targeted.');
     end
 
     if (changed) then

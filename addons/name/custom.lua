@@ -30,7 +30,7 @@ local custom = {};
 local PEARL         = 0x92; -- the linkshell pearl, the one icon that is given a colour
 local TWO_PART      = 0xAC; -- an icon the game draws with the next character of its font over it
 local STAR          = 0xAD; -- the star of the Job Mastery stars: a small one, a large one, a small one
-local ICON_GAP      = 2;    -- pixels between one icon and the next, and the name
+local ICON_GAP      = 2;    -- pixels between one icon and the next
 local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it fades out, if it does not shrink
 local FADE_SHRUNK   = 0.15; -- and if it does, having by then shrunk to its smallest
 local SMALLEST      = 6;    -- pixels: the smallest a name can be set to be
@@ -53,6 +53,7 @@ local settings = {
     font        = function () return ''; end,         -- a file of FONT_FOLDER, or nothing for the font everything else is in
     showIcons   = function () return T{ true }; end,
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
+    iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
 };
 
@@ -257,6 +258,13 @@ function custom.DrawSettings(options, save)
             imgui.SetTooltip('An icon\'s side, as a percentage of the height of the names.');
         end
     end
+    if (options.showIcons[1]) then
+        widgets.Label('Icon Spacing');
+        imgui.SliderInt('##name.iconSpacing', options.iconSpacing, 0, 24, '%d px');
+        if (imgui.IsItemHovered()) then
+            imgui.SetTooltip('The space between a name\'s icons and the name itself.');
+        end
+    end
     widgets.Label('Show Mastery Stars');
     imgui.Checkbox('##name.showStars', options.showStars);
     if (imgui.IsItemHovered()) then
@@ -441,6 +449,7 @@ function custom.Frame(options, hook)
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
     local iconScale = options.iconSize[1] / 100;
     local iconGap = math.floor(ICON_GAP * scale + 0.5);
+    local nameGap = math.floor(math.max(0, math.min(24, options.iconSpacing[1])) * scale + 0.5);
     local dark = darkColor();
 
     local WANTED, STARS, TARGET = nameplates.Flag.Wanted, nameplates.Flag.Stars, nameplates.Flag.Target;
@@ -494,7 +503,7 @@ function custom.Frame(options, hook)
 
                     -- icons, then the name, hung from the point the game gave as the game hangs its
                     -- own: the middle of them on it from side to side, and the top of the letters at it
-                    local iconsWidth = iconCount * (iconSize + iconGap);
+                    local iconsWidth = iconCount > 0 and (iconCount * iconSize + (iconCount - 1) * iconGap + nameGap) or 0;
                     local left = math.floor(-(iconsWidth + width) * 0.5);
                     local top = 0;
                     local iconTop = math.floor((height - iconSize) * 0.5);
@@ -523,7 +532,7 @@ function custom.Frame(options, hook)
                                 nameplates.Quad(left, iconTop, left + iconSize, iconTop + iconSize, at[1], at[2], at[3], at[4], color, ICON_SLOT, false);
                             end
                         end
-                        left = left + iconSize + iconGap;
+                        left = left + iconSize + (index < iconCount and iconGap or nameGap);
                     end
 
                     local color = nameColor(held);

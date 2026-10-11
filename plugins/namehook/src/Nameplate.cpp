@@ -368,7 +368,9 @@ static bool IsWanted(const Entity* pEntity, uint32_t category, uint32_t& flags) 
 		return true;
 	}
 
-	if ((flags & NAME_TARGET) != 0 && (Shared.Options & OPTION_ALWAYS_TARGET) != 0) {
+	// the target is shown whatever it is, but for the local player: a name hidden as their own stays
+	// hidden while they have themselves targeted
+	if ((flags & NAME_TARGET) != 0 && (Shared.Options & OPTION_ALWAYS_TARGET) != 0 && category != CATEGORY_SELF) {
 		return true;
 	}
 
