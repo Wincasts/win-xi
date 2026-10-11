@@ -147,13 +147,13 @@ the monster again brings it back.
 - How hard a fight the game said it would be, in the game's words: Too Weak, Incredibly Easy Prey,
   Easy Prey, Decent Challenge, Even Match, Tough, Very Tough or Incredibly Tough; or Impossible To
   Gauge, for a notorious monster.
-- The sign `[aggro]` draws, for whether it is aggressive and how strong, and for an aggressive one a
-  sign for each thing it notices you by: sight, true sight, sound, low health, magic, job abilities,
-  scent.
+- For an aggressive monster, a sign for each thing it notices you by: sight, true sight, sound, low
+  health, magic, job abilities, scent. Whether it is aggressive at all is not shown here: put
+  `[aggro]` in the name's format for that.
 - If it links, the sign for that and the family it links with.
 
-With Check Details In Words on, the second and third are written and not drawn: after the sign for
-whether it is aggressive come the things it notices you by, as `Sight, Sound, Blood, Magic, JA,
+With Check Details In Words on, the second and third are written and not drawn: the things it notices
+you by, as `Sight, Sound, Blood, Magic, JA,
 Scent`, with `True Sight` and `True Sound` for a monster that sees or hears truly; and what it links
 with is `Link: Goblin`.
 
