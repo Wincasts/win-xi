@@ -36,6 +36,7 @@ local FADE_SHRUNK   = 0.15; -- and if it does, having by then shrunk to its smal
 local SMALLEST      = 6;    -- pixels: the smallest a name can be set to be
 local LARGEST       = 48;   -- and the largest
 local FONT_SLOT, ICON_SLOT = 0, 1; -- the plugin's numbers for the two textures the names are drawn from
+local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
 local STEADY_AFTER  = 4;    -- frames a name's colour has to stay the same to be taken as its own at once
 local STEADY_STRETCH = 45;  -- frames over which the strongest of a pulsing name's colours is looked for
 local PROBE         = 65;   -- the letter looked at each frame to see that the font's letters are where they were
@@ -444,6 +445,27 @@ function custom.Frame(options, hook)
     local font = getFont(options.font);
     local fullSize = math.max(SMALLEST, math.min(LARGEST, options.fontSize[1]));
     local leastSize = math.max(SMALLEST, math.min(fullSize, options.minSize[1]));
+
+    -- A name is not given letters of exactly its own size. imgui makes the letters of a size the
+    -- first time they are asked for, and makes room for them in its texture by moving the others
+    -- about: with names of every size from the smallest to the largest coming and going as the
+    -- player moves, that was done over and over, and for a frame each time the names were drawn from
+    -- where their letters no longer were. So letters are kept at a few sizes only, the rungs, and a
+    -- name is drawn from the smallest of them that is no smaller than it, scaled down to fit. Every
+    -- rung is asked after every frame, in use or not, which keeps imgui from letting it go; and all
+    -- of them before any name is set out, so that if the letters have been moved it is known first.
+    local fullHeight = math.max(1, math.floor(fullSize * scale + 0.5));
+    local rungs = options.shrink[1] and #RUNGS or 1;
+    for _ = 1, 2 do
+        local sets = glyphSets;
+        for rung = 1, rungs do
+            glyphSet(font, math.max(1, math.floor(fullHeight * RUNGS[rung] + 0.5)));
+        end
+        -- moved while they were being looked at: once more, and they are all as they now are
+        if (sets == glyphSets) then
+            break;
+        end
+    end
     local shrink = options.shrink[1];
     local edge = math.max(0, math.min(4, options.outline[1]));
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
@@ -466,7 +488,7 @@ function custom.Frame(options, hook)
             -- same distance, from its largest to its smallest and not to nothing, or keeps its size;
             -- and either way fades out over the last of it.
             local nearness = math.max(0, math.min(1, name.Scale));
-            local size = shrink and math.floor(leastSize + (fullSize - leastSize) * nearness + 0.5) or fullSize;
+            local size = shrink and (leastSize + (fullSize - leastSize) * nearness) or fullSize;
 
             -- as solid as the game has it, which fades a name with its character; but for the target,
             -- whose name the game pulses, as solid as it last held still
@@ -476,11 +498,21 @@ function custom.Frame(options, hook)
             local alpha = math.max(0, math.min(1, solid, near));
 
             if (alpha > 0 and (written.words ~= '' or iconCount > 0)) then
-                -- the name's font at its size in the game's picture, for its letters
-                local height = math.max(1, math.floor(size * scale + 0.5));
-                local set = glyphSet(font, height);
+                -- its height in the game's picture, the rung its letters are taken from, and how much
+                -- smaller than the rung it is: at the largest size it is the rung itself, letter for letter
+                local height = size >= fullSize and fullHeight or math.max(1, size * scale);
+                local rungHeight = fullHeight;
+                for rung = 2, rungs do
+                    local smaller = math.max(1, math.floor(fullHeight * RUNGS[rung] + 0.5));
+                    if (smaller < height) then
+                        break;
+                    end
+                    rungHeight = smaller;
+                end
+                local fit = math.min(1, height / rungHeight);
+                local set = glyphSet(font, rungHeight);
 
-                local nameEdge = math.min(edge, math.max(1, math.floor(size / 8))) * scale;
+                local nameEdge = math.min(edge, math.max(1, math.floor(size / 8 + 0.5))) * scale;
                 if (set ~= nil and nameplates.BeginName(name.EntityIndex, alpha, edge > 0 and nameEdge or 0, dark)) then
                     local glyphs, baked = set.glyphs, set.baked;
                     local words = written.words;
@@ -494,7 +526,7 @@ function custom.Frame(options, hook)
                             glyphs[byte] = glyph;
                         end
                         if (glyph) then
-                            width = width + glyph[9];
+                            width = width + glyph[9] * fit;
                         end
                     end
 
@@ -506,6 +538,7 @@ function custom.Frame(options, hook)
                     local iconsWidth = iconCount > 0 and (iconCount * iconSize + (iconCount - 1) * iconGap + nameGap) or 0;
                     local left = math.floor(-(iconsWidth + width) * 0.5);
                     local top = 0;
+                    height = math.floor(height + 0.5);
                     local iconTop = math.floor((height - iconSize) * 0.5);
 
                     -- the stars over the middle of it: a small one, a large one, a small one
@@ -541,9 +574,9 @@ function custom.Frame(options, hook)
                         local glyph = glyphs[words:byte(at)];
                         if (glyph) then
                             if (glyph[10]) then
-                                nameplates.Quad(pen + glyph[1], top + glyph[2], pen + glyph[3], top + glyph[4], glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
+                                nameplates.Quad(pen + glyph[1] * fit, top + glyph[2] * fit, pen + glyph[3] * fit, top + glyph[4] * fit, glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
                             end
-                            pen = pen + glyph[9];
+                            pen = pen + glyph[9] * fit;
                         end
                     end
 

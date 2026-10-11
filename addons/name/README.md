@@ -67,9 +67,12 @@ left with the plugin, which draws them in the game's own picture at the moment t
 drawn the name, as deep in the picture as the name is. A wall, the ground or a character in front of
 a name hides it, or the part of it that it covers, as it hides the game's.
 
-The letters are those of imgui's font, at the size asked for, and where the game's picture is larger
-than its window (a background resolution above the window's) they are made larger to match, so that
-they are as sharp as the rest of the picture. What is set out in one frame is drawn in the next.
+The letters are those of imgui's font, and where the game's picture is larger than its window (a
+background resolution above the window's) they are made larger to match, so that they are as sharp as
+the rest of the picture. They are kept at three sizes only: the largest a name can be, three quarters
+of it and half of it. A name at its largest is drawn letter for letter; a smaller one is drawn from
+the next size up, scaled down to fit, so that names shrink smoothly with distance and imgui is not
+asked for letters of a new size at every step. What is set out in one frame is drawn in the next.
 
 A name is drawn exactly when the game would have drawn it, and fades with its character as the game's
 does. The game shrinks a name to nothing over the last of its distance; here it shrinks from the
