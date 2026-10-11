@@ -4,12 +4,21 @@ local bit = require('bit')
 local imgui = require('imgui')
 local window = require('winxi.window')
 local fade = require('winxi.fade')
+local anchor = require('winxi.anchor')
 local game = require('winxi.game')
 local shared = require('shared')
 
 -- sample: switched on by the Triggers tab each frame it is drawn. The indicator is then shown with a
 -- line to see it by, so that it can be put where it is wanted.
 local indicator = { sample = false }
+
+-- The side the window grows from, which stays where it is as what is said gets longer or shorter:
+-- the choices there are, what winxi.anchor calls each, and how far along the window that side is.
+-- The lines are set to that side too.
+indicator.Grows = { 'Left', 'Center', 'Right' }
+indicator.DefaultGrow = 'Left'
+local growModes = { Left = 'TopLeft', Center = 'TopCenter', Right = 'TopRight' }
+local growShare = { Left = 0, Center = 0.5, Right = 1 }
 
 -- The indicator: what a trigger was for, in words on the screen for a few seconds, as the chat log
 -- says it. A line for each thing said, the first said at the top; what is said again while it is
@@ -55,14 +64,22 @@ local function ForgetLines()
 end
 
 local function DrawIndicatorContent()
+    -- each line to the side the window grows from: as far in as it is shorter than the longest
+    local share = growShare[shared.app.options.indicatorGrow] or 0
+    local left, widest = imgui.GetCursorPosX(), 0
+    if share > 0 then
+        for _, line in ipairs(indicatorShown) do
+            widest = math.max(widest, (imgui.CalcTextSize(line.text)))
+        end
+    end
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, indicatorPadding)
     for _, line in ipairs(indicatorShown) do
+        if share > 0 then
+            imgui.SetCursorPosX(left + (widest - imgui.CalcTextSize(line.text)) * share)
+        end
         imgui.Text(line.text)
     end
     imgui.PopStyleVar()
-    -- where the window is, kept in the settings
-    local pos = shared.app.options.indicatorPos
-    pos[1], pos[2] = imgui.GetWindowPos()
 end
 
 local function DrawIndicator(now, sample)
@@ -110,12 +127,32 @@ local function DrawIndicator(now, sample)
         return
     end
 
-    imgui.SetNextWindowPos(shared.app.options.indicatorPos, ImGuiCond_FirstUseEver)
+    -- where it is, kept in the settings, is where the side it grows from is: the left, the middle
+    -- or the right of its top edge. winxi.anchor holds it there, told of it the first time.
+    local options = shared.app.options
+    local pos = options.indicatorPos
+    local mode = growModes[options.indicatorGrow] or growModes[indicator.DefaultGrow]
+    if anchor.Point(indicatorName) == nil then
+        anchor.Set(indicatorName, mode, pos[1], pos[2])
+    end
+
+    imgui.SetNextWindowPos(pos, ImGuiCond_FirstUseEver)
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, indicatorSpacing)
     indicatorOpen[1] = true
-    indicatorStyle.alpha = alpha
+    indicatorStyle.alpha, indicatorStyle.growFrom = alpha, mode
     window.Plain(indicatorName, indicatorOpen, indicatorFlags, DrawIndicatorContent, indicatorStyle)
     imgui.PopStyleVar()
+
+    -- dragged, or grown from another side now, it is somewhere else
+    local x, y = anchor.Point(indicatorName)
+    if x ~= nil then
+        pos[1], pos[2] = x, y
+    end
+end
+
+-- Other settings have been loaded: where the indicator is, is asked of them again
+function indicator.Reset()
+    anchor.Reset(indicatorName)
 end
 
 -- Once a frame, after the settings have been drawn

@@ -259,6 +259,11 @@ local function TriggerText(trigger)
     return text
 end
 
+local growIds = { } -- a side the indicator grows from -> its button's label
+for _, grow in ipairs(indicator.Grows) do
+    growIds[grow] = grow .. '##twister.indicator.grow'
+end
+
 local function DrawIndicatorSettings(options)
     widgets.Label('Show Indicator')
     imgui.Checkbox('##twister.indicator.enabled', options.showIndicator)
@@ -269,6 +274,18 @@ local function DrawIndicatorSettings(options)
         widgets.Label('Indicator Duration')
         imgui.SetNextItemWidth(260)
         imgui.SliderInt('##twister.indicator.seconds', options.indicatorSeconds, 1, 15, '%d s')
+
+        widgets.Label('Grow From')
+        for index, grow in ipairs(indicator.Grows) do
+            if index > 1 then
+                imgui.SameLine()
+            end
+            if imgui.RadioButton(growIds[grow], options.indicatorGrow == grow) and options.indicatorGrow ~= grow then
+                options.indicatorGrow = grow
+                shared.app:Save()
+            end
+        end
+        Mark('The side of the indicator that stays where it is as what it says gets longer or shorter. Its lines are set to that side too.', true)
     end
 end
 

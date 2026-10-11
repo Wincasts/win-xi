@@ -71,7 +71,8 @@ for every number it goes by.
 The tab's Indicator section makes triggers seen as well as heard. With Show Indicator on, a small
 window in the theme, like recast's, says what the mob does as the chat log does (`Mad Sheep readies
 Sheep Song.`, `starts casting` for a spell, `uses` for an ability) for as long as Indicator Duration
-says, a line for each thing going on, fading in as it appears and out as it goes. It is shown with a sample line while the Triggers tab is open, to
+says, a line for each thing going on, fading in as it appears and out as it goes. Grow From is the
+side of it that stays where it is as what it says gets longer or shorter: Left, Center or Right. It is shown with a sample line while the Triggers tab is open, to
 be dragged to where you want it, and like recast's window it is not drawn over the opened-out chat log,
 the map, an event or a hidden interface. A trigger's Test button shows its line too, under the kind's name.
 
