@@ -102,6 +102,15 @@ static constexpr uint8_t DrawName_Patch1[DRAWNAME_PATCH1_SIZE] = {
 // No custom assembly here-- just patching a jnz to a jmp
 #define DRAWNAME2_PATCH_ADDRESS_LOCATION 8
 
+// Past the end of the DrawName3 V2 patch, in the same function, are the two calls that draw a name:
+// its first line, the name itself, and its second, the Job Mastery stars. Each goes through a small
+// function of the model that begins as DRAWNAME2_PATCH_LOCATION does and passes its arguments on.
+// No custom assembly here either: the two calls are pointed at functions of this plugin.
+#define DRAWNAME_LINE_CALL_OFFSET 0x104
+#define DRAWNAME_LINE_RET_OFFSET 0x2B   // RET 0x14
+#define DRAWNAME_LINE2_CALL_OFFSET 0x137
+#define DRAWNAME_LINE2_RET_OFFSET 0x21  // RET 0x0C
+
 static constexpr uint8_t DrawName3_Patch[DRAWNAME3_PATCH_SIZE] = {
   0x89, 0xf1, 0xb8, 0x78, 0x56, 0x34, 0x12, 0xff, 0xd0, 0x84, 0xc0, 0x75,
   0x5a, 0x74, 0x19, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
@@ -171,6 +180,11 @@ typedef struct XiModel {
 	// etc.
 } XiModel;
 
+// The model's two functions for drawing a line of its name. They are __thiscall, written here as
+// __fastcall with a second argument that goes unused: the same registers, the same stack.
+typedef void (__fastcall *DrawNameLineFn)(const XiModel* pModel, void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t param, uint32_t color);
+typedef void (__fastcall *DrawNameLine2Fn)(const XiModel* pModel, void* unused, const float* pPosition, const char* text, uint32_t scale);
+
 static struct {
 	CGame** pgGame;
 	uint32_t* pWindowWidth;
@@ -195,6 +209,15 @@ static struct {
 
 	uintptr_t DrawDamagePatchAddr;
 	uint8_t DrawDamagePatchOrig[DRAWDAMAGE_PATCH_SIZE];
+
+	// The two calls that draw a name's lines, and the client's functions they called before
+	uintptr_t DrawNameLineCallAddr;
+	uintptr_t DrawNameLine2CallAddr;
+	DrawNameLineFn DrawNameLineOrig;
+	DrawNameLine2Fn DrawNameLine2Orig;
+
+	// The model whose first line was last handed to an addon, so that its second is not drawn either
+	const XiModel* pCustomModel;
 } Globals;
 
 static struct {
@@ -202,8 +225,39 @@ static struct {
 	int DamageFontSize;
 	int HideStars;
 	int IncludeAlliance;
+	int Custom;
 	NAME_MODE NameMode;
 } AsmSettings;
+
+// [Experimental] Names handed to an addon to draw, in place of the client drawing them.
+//
+// With the Custom setting on and an addon asking, every name the client is about to draw (so one the
+// mode has not hidden, and that the client itself finds near enough and on screen) is added to this
+// list and not drawn. The addon finds the list in this DLL by its first 16 bytes, sets Consumer while
+// it is drawing, and each frame reads the names and sets Count back to 0. Should the list fill, no
+// addon is emptying it: names are drawn by the client again until one does.
+#define CUSTOM_NAMES_MAX 256
+#define CUSTOM_NAMES_VERSION 1
+
+struct CustomName {
+	uint32_t EntityIndex;
+	float X, Y, Z;      // where the client puts the name, in the world: the point above the head
+	float Scale;        // the client's own size for the name, 1 unless it is drawn larger or smaller
+	float Param;        // the client's fourth argument, not yet understood
+	uint32_t Color;     // the model's own colour, 0x80 in each part when it is plain; not the name's
+	uint32_t Reserved;
+};
+
+static struct CustomNames {
+	char Magic[16];
+	uint32_t Version;
+	uint32_t Hooked;    // 1 while the client's two calls are in this plugin's hands
+	uint32_t Enabled;   // the Custom setting
+	uint32_t Consumer;  // set by the addon while it draws the names, and cleared when it stops
+	uint32_t Count;     // names added since the addon last set this to 0
+	uint32_t Reserved[3];
+	CustomName Names[CUSTOM_NAMES_MAX];
+} Custom = { "NAMEPLATEW-LIST", CUSTOM_NAMES_VERSION, 0, 0, 0, 0, {}, {} };
 
 // The plugin whose party is asked about while names are drawn; set while the patches are in place.
 static Nameplate* Instance = nullptr;
@@ -243,6 +297,83 @@ static bool ShouldDrawPlayer(const Entity* pEntity, bool party) {
 	}
 
 	return false;
+}
+
+static float FloatFromBits(uint32_t bits) {
+	float value;
+	memcpy(&value, &bits, sizeof(value));
+	return value;
+}
+
+// Called in place of the client's function for a name's first line: the name is handed to the addon,
+// or drawn as it always was.
+static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t param, uint32_t color) {
+	Globals.pCustomModel = nullptr;
+
+	if (Custom.Enabled != 0 && Custom.Consumer != 0 && Custom.Count < CUSTOM_NAMES_MAX
+			&& pModel != nullptr && pModel->pEntity != nullptr && pPosition != nullptr) {
+		CustomName& name = Custom.Names[Custom.Count];
+		name.EntityIndex = pModel->pEntity->EntityIndex;
+		name.X = pPosition[0];
+		name.Y = pPosition[1];
+		name.Z = pPosition[2];
+		name.Scale = FloatFromBits(scale);
+		name.Param = FloatFromBits(param);
+		name.Color = color;
+		name.Reserved = 0;
+		Custom.Count++;
+
+		Globals.pCustomModel = pModel;
+		return;
+	}
+
+	if (Globals.DrawNameLineOrig != nullptr) {
+		Globals.DrawNameLineOrig(pModel, nullptr, pPosition, text, scale, param, color);
+	}
+}
+
+// Called in place of the client's function for a name's second line, which follows the first at once.
+static void __fastcall DrawNameLine2(const XiModel* pModel, [[maybe_unused]] void* unused, const float* pPosition, const char* text, uint32_t scale) {
+	if (Globals.pCustomModel != nullptr && Globals.pCustomModel == pModel) {
+		Globals.pCustomModel = nullptr;
+		return;
+	}
+
+	if (Globals.DrawNameLine2Orig != nullptr) {
+		Globals.DrawNameLine2Orig(pModel, nullptr, pPosition, text, scale);
+	}
+}
+
+// Where a CALL rel32 at this address goes, or 0 if that is not what is there, or it goes far off.
+static uintptr_t CallTarget(uintptr_t pCall) {
+	const uint8_t* pLoc = reinterpret_cast<const uint8_t*> (pCall);
+	if (pLoc[0] != 0xE8) {
+		return 0;
+	}
+
+	int32_t rel;
+	memcpy(&rel, pLoc + 1, sizeof(rel));
+	if (rel < -0x10000 || rel > 0x10000) {
+		return 0;
+	}
+
+	return pCall + 5 + rel;
+}
+
+static void SetCallTarget(uintptr_t pCall, uintptr_t target) {
+	int32_t rel = static_cast<int32_t>(target - (pCall + 5));
+	memcpy(reinterpret_cast<uint8_t*> (pCall) + 1, &rel, sizeof(rel));
+}
+
+// Whether the function here is one of the model's two for drawing a line of its name: it begins as
+// both do, and gives back the stack that one of them does.
+static bool IsDrawNameLine(uintptr_t pFunction, size_t retOffset, uint8_t retBytes) {
+	static const uint8_t begins[] = { 0x66, 0x83, 0xB9, 0xB2, 0x00, 0x00, 0x00, 0x00 };
+	const uint8_t* pLoc = reinterpret_cast<const uint8_t*> (pFunction);
+
+	return pFunction != 0
+		&& memcmp(pLoc, begins, sizeof(begins)) == 0
+		&& pLoc[retOffset] == 0xC2 && pLoc[retOffset + 1] == retBytes && pLoc[retOffset + 2] == 0x00;
 }
 
 static void __fastcall GetNameplateScale(float* wh, const float* pS) {
@@ -364,7 +495,10 @@ void NameplateSettings::Flush() {
 	AsmSettings.DamageFontSize = DamageFontSize;
 	AsmSettings.HideStars = HideStars;
 	AsmSettings.IncludeAlliance = IncludeAlliance;
+	AsmSettings.Custom = Custom;
 	AsmSettings.NameMode = NameMode;
+
+	::Custom.Enabled = (Custom != 0) ? 1 : 0;
 }
 
 void NameplateSettings::Normalize() {
@@ -384,6 +518,7 @@ void NameplateSettings::Normalize() {
 
 	HideStars = (HideStars != 0) ? 1 : 0;
 	IncludeAlliance = (IncludeAlliance != 0) ? 1 : 0;
+	Custom = (Custom != 0) ? 1 : 0;
 
 	if (NameMode < NAME_MODE::MIN) {
 		NameMode = NAME_MODE::ALL;
@@ -399,6 +534,7 @@ int NameplateSettings::Init() {
 	DamageFontSize = 22;
 	HideStars = 0;
 	IncludeAlliance = 0;
+	Custom = 0;
 	NameMode = NAME_MODE::ALL;
 
 	return 0;
@@ -417,6 +553,7 @@ int NameplateSettings::Load(const wchar_t* basePath) {
 	DamageFontSize = GetPrivateProfileIntW(L"Settings", L"DamageFontSizeInPx", 22, path);
 	HideStars = GetPrivateProfileIntW(L"Settings", L"HideStars", 0, path);
 	IncludeAlliance = GetPrivateProfileIntW(L"Settings", L"IncludeAlliance", 0, path);
+	Custom = GetPrivateProfileIntW(L"Settings", L"Custom", 0, path);
 	NameMode = static_cast<NAME_MODE>(GetPrivateProfileIntW(L"Settings", L"NameMode", static_cast<int>(NAME_MODE::ALL), path));
 
 	Normalize();
@@ -446,6 +583,9 @@ int NameplateSettings::Save(const wchar_t* basePath) {
 
 	StringCbPrintfW(buf, sizeof(buf), L"%d", IncludeAlliance);
 	WritePrivateProfileStringW(L"Settings", L"IncludeAlliance", buf, path);
+
+	StringCbPrintfW(buf, sizeof(buf), L"%d", Custom);
+	WritePrivateProfileStringW(L"Settings", L"Custom", buf, path);
 
 	StringCbPrintfW(buf, sizeof(buf), L"%d", static_cast<int>(NameMode));
 	WritePrivateProfileStringW(L"Settings", L"NameMode", buf, path);
@@ -524,6 +664,7 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 	// mode hidepc
 	// mode hidepcparty
 	// alliance on|off
+	// custom on|off
 	// whitelist add|remove <name>...
 	// whitelist list|clear
 
@@ -650,6 +791,26 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 			// update not necessary in this path
 		} else {
 			ShowMessage(MESSAGE::ALLIANCE_COMMAND_ERROR);
+		}
+	} else if (eat_space_token_match_and_advance(cmd, "custom", nameplate_strlen("custom"))) {
+		int custom = -1;
+
+		if (eat_space_token_match_and_advance(cmd, "on", nameplate_strlen("on"))) {
+			custom = 1;
+		} else if (eat_space_token_match_and_advance(cmd, "off", nameplate_strlen("off"))) {
+			custom = 0;
+		}
+
+		if (custom >= 0 && eat_space_and_is_end(cmd)) {
+			Settings.SetCustom(custom);
+			Settings.Flush();
+			// update not necessary in this path
+
+			if (custom != 0 && Custom.Hooked == 0) {
+				Debug("Custom names are on, but this client's name drawing was not recognised: names are drawn as before.");
+			}
+		} else {
+			ShowMessage(MESSAGE::CUSTOM_COMMAND_ERROR);
 		}
 	} else if (eat_space_token_match_and_advance(cmd, "whitelist", nameplate_strlen("whitelist"))
 			|| eat_space_token_match_and_advance(cmd, "wl", nameplate_strlen("wl"))) {
@@ -1035,6 +1196,29 @@ int Nameplate::Init() {
 	Globals.DrawName3V2PatchAddr = pDrawName3V2Patch;
 	Globals.DrawDamagePatchAddr = pDrawDamagePatch;
 
+	// The calls that draw a name's two lines, for handing names to an addon. They are only known in
+	// the V2 function, and only taken if both go where they are expected to; without them everything
+	// else works as it did, and names are always drawn by the client.
+	if (pDrawName3V2Patch != 0) {
+		uintptr_t pLineCall = pDrawName3V2Patch + DRAWNAME_LINE_CALL_OFFSET;
+		uintptr_t pLine2Call = pDrawName3V2Patch + DRAWNAME_LINE2_CALL_OFFSET;
+		uintptr_t pLine = CallTarget(pLineCall);
+		uintptr_t pLine2 = CallTarget(pLine2Call);
+
+		if (IsDrawNameLine(pLine, DRAWNAME_LINE_RET_OFFSET, 0x14) && IsDrawNameLine(pLine2, DRAWNAME_LINE2_RET_OFFSET, 0x0C)) {
+			Globals.DrawNameLineOrig = reinterpret_cast<DrawNameLineFn> (pLine);
+			Globals.DrawNameLine2Orig = reinterpret_cast<DrawNameLine2Fn> (pLine2);
+			Globals.DrawNameLineCallAddr = pLineCall;
+			Globals.DrawNameLine2CallAddr = pLine2Call;
+
+			SetCallTarget(pLineCall, reinterpret_cast<uintptr_t> (&DrawNameLine));
+			SetCallTarget(pLine2Call, reinterpret_cast<uintptr_t> (&DrawNameLine2));
+
+			Custom.Count = 0;
+			Custom.Hooked = 1;
+		}
+	}
+
 	Instance = this;
 
 	return 0;
@@ -1102,6 +1286,18 @@ int Nameplate::SaveSettings() {
 int Nameplate::Deinit() {
 
 	Instance = nullptr;
+
+	Custom.Hooked = 0;
+	Custom.Consumer = 0;
+	Custom.Count = 0;
+
+	if (Globals.DrawNameLine2CallAddr != 0) {
+		SetCallTarget(Globals.DrawNameLine2CallAddr, reinterpret_cast<uintptr_t> (Globals.DrawNameLine2Orig));
+	}
+
+	if (Globals.DrawNameLineCallAddr != 0) {
+		SetCallTarget(Globals.DrawNameLineCallAddr, reinterpret_cast<uintptr_t> (Globals.DrawNameLineOrig));
+	}
 
 	if (Globals.DrawDamagePatchAddr != 0) {
 		CopyMemory(reinterpret_cast<void*> (Globals.DrawDamagePatchAddr), &Globals.DrawDamagePatchOrig[0], DRAWDAMAGE_PATCH_SIZE);

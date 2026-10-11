@@ -1,4 +1,5 @@
-// Checks which names are drawn in each mode, and the whitelist commands and file, without the game:
+// Checks which names are drawn in each mode, the whitelist commands and file, and the handing of names
+// to an addon, without the game:
 // the plugin's own source is compiled into this program, the client's patches are never applied, and
 // the party is a made-up one. Built and run under wine by tests/run.sh.
 
@@ -35,6 +36,18 @@ struct TestPlugin : public Nameplate {
 		return serverId == 0x1000 || serverId == 0x2000 || (alliance && serverId == 0x3000);
 	}
 };
+
+// Stand-ins for the client's two functions that draw a line of a name
+static int lines = 0;
+static int lines2 = 0;
+
+static void __fastcall FakeLine(const XiModel*, void*, const float*, const char*, uint32_t, uint32_t, uint32_t) {
+	lines++;
+}
+
+static void __fastcall FakeLine2(const XiModel*, void*, const float*, const char*, uint32_t) {
+	lines2++;
+}
 
 static XiModel models[8];
 static Entity entities[8];
@@ -173,6 +186,83 @@ int main() {
 	CHECK(plugin.messages.size() == 5 && Whitelist.Count == 0);
 	CHECK(plugin.messages[0] == MESSAGE::WHITELIST_COMMAND_ERROR && plugin.messages[3] == MESSAGE::ALLIANCE_COMMAND_ERROR && plugin.messages[4] == MESSAGE::MODE_COMMAND_ERROR);
 	CHECK(AsmSettings.NameMode == NAME_MODE::HIDE_PCPARTY);
+
+	// custom names: with the setting on and an addon asking, a name is listed and not drawn, and its
+	// second line is not drawn either; otherwise both lines go to the client as before
+	Globals.DrawNameLineOrig = &FakeLine;
+	Globals.DrawNameLine2Orig = &FakeLine2;
+	const float where[3] = { 1.5f, -2.5f, 3.5f };
+	const uint32_t one = 0x3F800000;
+
+	CHECK(Custom.Enabled == 0 && Custom.Consumer == 0 && Custom.Count == 0);
+	DrawNameLine(buddy, nullptr, where, "Buddy", one, 0, 0x80FFFFFF);
+	DrawNameLine2(buddy, nullptr, where, "", one);
+	CHECK(lines == 1 && lines2 == 1 && Custom.Count == 0);
+
+	// turning it on where the client's calls were not taken (as here) says so
+	plugin.said.clear();
+	plugin.ParseCommand("/nameplatew custom on", true);
+	CHECK(Custom.Enabled == 1 && plugin.said.size() == 1);
+	DrawNameLine(buddy, nullptr, where, "Buddy", one, 0, 0x80FFFFFF);
+	CHECK(lines == 2 && Custom.Count == 0);
+
+	Custom.Consumer = 1;
+	DrawNameLine(buddy, nullptr, where, "Buddy", one, 0, 0x80FFFFFF);
+	DrawNameLine2(buddy, nullptr, where, "", one);
+	CHECK(lines == 2 && lines2 == 1 && Custom.Count == 1);
+	CHECK(Custom.Names[0].EntityIndex == 101 && Custom.Names[0].X == 1.5f && Custom.Names[0].Y == -2.5f && Custom.Names[0].Z == 3.5f);
+	CHECK(Custom.Names[0].Scale == 1.0f && Custom.Names[0].Color == 0x80FFFFFF);
+
+	// a second line that does not follow a listed first line is drawn
+	DrawNameLine2(buddy, nullptr, where, "", one);
+	DrawNameLine2(mob, nullptr, where, "", one);
+	CHECK(lines2 == 3);
+
+	// a list no addon is emptying fills, and names are drawn by the client again until it is emptied
+	for (int i = 0; i < CUSTOM_NAMES_MAX + 5; i++) {
+		DrawNameLine(mob, nullptr, where, "Goblin", one, 0, 0);
+	}
+	CHECK(Custom.Count == CUSTOM_NAMES_MAX && lines == 2 + 6);
+	Custom.Count = 0;
+	DrawNameLine(mob, nullptr, where, "Goblin", one, 0, 0);
+	CHECK(Custom.Count == 1 && lines == 2 + 6 && Custom.Names[0].EntityIndex == 300);
+
+	// the setting is saved and loaded with the rest, and off stops it at once
+	plugin.ParseCommand("/nameplatew save", true);
+	plugin.ParseCommand("/nameplatew custom off", true);
+	CHECK(Custom.Enabled == 0);
+	DrawNameLine(mob, nullptr, where, "Goblin", one, 0, 0);
+	CHECK(Custom.Count == 1 && lines == 2 + 7);
+	plugin.ParseCommand("/nameplatew load", true);
+	CHECK(Custom.Enabled == 1 && AsmSettings.Custom == 1);
+	plugin.ParseCommand("/nameplatew custom off", true);
+	plugin.ParseCommand("/nameplatew custom sometimes", true);
+	CHECK(Custom.Enabled == 0 && plugin.messages.size() == 6 && plugin.messages[5] == MESSAGE::CUSTOM_COMMAND_ERROR);
+	Custom.Consumer = 0;
+	Custom.Count = 0;
+
+	// what an addon reads is laid out as it expects, and found by its first bytes
+	static_assert(sizeof(CustomName) == 32);
+	static_assert(offsetof(CustomNames, Version) == 16 && offsetof(CustomNames, Count) == 32 && offsetof(CustomNames, Names) == 48);
+	CHECK(memcmp(Custom.Magic, "NAMEPLATEW-LIST\0", 16) == 0 && Custom.Version == 1);
+
+	// a call is read and pointed elsewhere; only a function shaped like the model's two is taken
+	static uint8_t code[64];
+	ZeroMemory(code, sizeof(code));
+	code[0] = 0xE8;
+	code[1] = 0x10;
+	uintptr_t pCode = reinterpret_cast<uintptr_t> (&code[0]);
+	CHECK(CallTarget(pCode) == pCode + 5 + 0x10);
+	SetCallTarget(pCode, pCode + 5 - 0x20);
+	CHECK(CallTarget(pCode) == pCode + 5 - 0x20);
+	code[0] = 0xE9;
+	CHECK(CallTarget(pCode) == 0);
+	static const uint8_t line[] = { 0x66, 0x83, 0xB9, 0xB2, 0x00, 0x00, 0x00, 0x00, 0x75 };
+	CopyMemory(code, line, sizeof(line));
+	code[DRAWNAME_LINE_RET_OFFSET] = 0xC2;
+	code[DRAWNAME_LINE_RET_OFFSET + 1] = 0x14;
+	CHECK(IsDrawNameLine(pCode, DRAWNAME_LINE_RET_OFFSET, 0x14));
+	CHECK(!IsDrawNameLine(pCode, DRAWNAME_LINE2_RET_OFFSET, 0x0C) && !IsDrawNameLine(0, DRAWNAME_LINE_RET_OFFSET, 0x14));
 
 	// the old plugin's command is not this one's
 	CHECK(!plugin.ParseCommand("/nameplate mode all", true));

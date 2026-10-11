@@ -7,9 +7,33 @@ A fork of [Nameplate-AshitaV4](#nameplate-ashitav4), below, for Ashita v4. It do
 - `/nameplatew alliance on|off` counts the other parties of your alliance as your party in those two modes. Off by default.
 - `/nameplatew whitelist add <name>...`, `remove <name>...`, `list` and `clear` manage a list of players whose nameplates are shown in every mode that hides players (`hidepc`, `hidepcself`, `hidepcparty`, `hidepcpartyself`). `wl` is short for `whitelist`. Names are matched without regard to case, and the list is saved as it changes, to `config\nameplatew\whitelist.txt`, one name to a line.
 
+- `/nameplatew custom on|off` is **experimental**. With it on, and an addon asking, the names the client is about to draw are handed to that addon to draw in its own way, and the client does not draw them. Off by default; with no such addon loaded it changes nothing. See [Handing names to an addon](#handing-names-to-an-addon), below.
+
 It is loaded with `/load nameplatew` in place of `/load nameplate`: the two patch the same client code and cannot be loaded together. Its settings are kept in `config\nameplatew\defaults.ini`; until that file exists they are read from Nameplate's `config\nameplate\defaults.ini`.
 
 `./build.sh` builds `build/nameplatew.dll` on Linux with clang-cl and lld-link, and `tests/run.sh` checks the name modes and the whitelist under wine; both say at the top what they need.
+
+## Handing names to an addon
+
+Experimental. The plugin keeps a list in its own memory, `CustomNames` in `src/Nameplate.cpp`:
+
+| Field | Meaning |
+|---|---|
+| `Magic` | The 16 bytes `NAMEPLATEW-LIST` and a 0, by which an addon finds the list in `nameplatew.dll` |
+| `Version` | 1 |
+| `Hooked` | 1 while the client's name drawing is in the plugin's hands; 0 on a client it does not recognise |
+| `Enabled` | The `custom` setting |
+| `Consumer` | Set by the addon while it is drawing names, cleared when it stops |
+| `Count` | Names added since the addon last set this to 0 |
+| `Names` | Up to 256 of them: the entity's index, the point in the world where the client puts the name (above the head), the client's scale for it, and the model's colour |
+
+While `Enabled` and `Consumer` are both set, each name the client is about to draw is added to the list and not drawn, and nor are its Job Mastery stars. Only names that would have been drawn are listed: the mode and the whitelist have had their say, and so has the client, which leaves out what is too far away or off screen. The addon reads the list once a frame and sets `Count` to 0.
+
+If the list fills, no addon is emptying it, and the client draws names again until one does. So an addon that stops without clearing `Consumer` costs a few frames without names, and no more.
+
+The client's two calls that draw a name are found beside the `mode` patch, and taken only if both lead where they are expected to. On a client where they do not, `Hooked` stays 0, `custom on` says so, and everything else works as before.
+
+`addons/nameplates` in this project is a basic addon that draws the names this way.
 
 Changes from Nameplate-AshitaV4 0.1.0 were made in October 2026 and are listed in `CHANGELOG.md`. The license is unchanged: GNU GPL v3.0.
 
@@ -166,6 +190,7 @@ Reload saved settings:
 | `/nameplatew mode hidepcparty` | Hides player nameplates, except your party's, your own, and when charmed. |
 | `/nameplatew mode hidepcpartyself` | Hides player nameplates, except your party's and when charmed, and also always hides your own nameplate. |
 | `/nameplatew alliance on` / `off` | Counts the other parties of your alliance as your party in the `hidepcparty` modes. |
+| `/nameplatew custom on` / `off` | Experimental. Hands the names that would be drawn to an addon that asks for them, in place of drawing them. |
 | `/nameplatew whitelist add <name>...` | Always shows these players' nameplates in the modes that hide players. Saved at once. |
 | `/nameplatew whitelist remove <name>...` | Takes these players off the whitelist. |
 | `/nameplatew whitelist list` | Shows the names on the whitelist. |
