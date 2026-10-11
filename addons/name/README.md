@@ -103,7 +103,8 @@ each monster's family: tables made before that have none, and no family is then 
 When you `/check` a monster, the game's answer has its level in it, and from then on `[level]` writes
 that one level for that monster in place of the range. It is forgotten when the monster dies, when it
 is no longer there to be seen, and when you leave the area, since the monster that next has its place
-is another. Nothing is sent to the game for this: the addon only reads the answers to checks you make
+is another. It is also forgotten five minutes after the check, so that a long stay in one place does
+not leave more and more kept: check again for it. Nothing is sent to the game for this: the addon only reads the answers to checks you make
 yourself. A notorious monster, whose strength is impossible to gauge, gives no level.
 
 `[checked]` writes a magnifying glass for a monster whose level is known that way, and nothing for any
@@ -117,8 +118,9 @@ Distance For Target Only settings of 1.9 and 1.10 are made into these lines when
 
 ### What a check shows
 
-With Show Check Details on, a monster you have checked has a second line under its name, smaller,
-with its middle under the name's, until it dies, is no longer there to be seen, or you leave the area:
+With Show Check Details on, a monster you check has a second line under its name, smaller, with its
+middle under the name's. It fades in as you check, is there for five seconds, and fades out; checking
+the monster again brings it back.
 
 - How hard a fight the game said it would be, in the game's words: Too Weak, Incredibly Easy Prey,
   Easy Prey, Decent Challenge, Even Match, Tough, Very Tough or Incredibly Tough; or Impossible To

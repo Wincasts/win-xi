@@ -151,7 +151,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 1.21;
+    return 1.22;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -556,13 +556,13 @@ void AshitaNameplate::DrawCustom(const HookDrawing& drawing, const HookQuad* qua
     // the edge is the quads again in the dark, behind themselves, towards each corner
     if (drawing.Edge > 0.0f) {
         const float edge = (drawing.Edge > 8.0f) ? 8.0f : drawing.Edge;
-        const DWORD dark = FadeColor(drawing.EdgeColor, alpha);
         for (int corner = 0; corner < 4; corner++) {
             const float dx = (corner & 1) ? edge : -edge;
             const float dy = (corner & 2) ? edge : -edge;
             for (uint32_t i = 0; i < drawing.Count; i++) {
                 if ((quads[i].Flags & 1) != 0) {
-                    add(quads[i], dx, dy, dark);
+                    // as solid as the quad it is the edge of: a part of a name that is fading takes its edge with it
+                    add(quads[i], dx, dy, FadeColor(drawing.EdgeColor, alpha * (static_cast<float>(quads[i].Color >> 24) / 255.0f)));
                 }
             }
         }
@@ -620,7 +620,7 @@ void AshitaNameplate::PublishNames(bool frameDone) {
 }
 
 static void AshitaLongHelp(IChatManager* chat) {
-    chat->Write(0, false, "\x1e\x05namehook v1.21, from Nameplate v0.51 by way of nameplatew v0.60");
+    chat->Write(0, false, "\x1e\x05namehook v1.22, from Nameplate v0.51 by way of nameplatew v0.60");
     chat->Write(0, false, "\x1e\x05https://www.github.com/Shirk/Nameplate");
     chat->Write(0, false, "\x1e\x6aUsage (\x1e\x6a/nh\x1e\x6a is short for\x1e\x6a /namehook\x1e\x6a):");
     chat->Write(0, false, "\x1e\x6a/namehook help");

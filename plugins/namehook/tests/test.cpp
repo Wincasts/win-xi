@@ -133,6 +133,15 @@ int main() {
 	StringCchPrintfW(plugin.configPath, MAX_PATH, L"%snamehook-test-%lu", temp, GetCurrentProcessId());
 	CreateDirectoryW(plugin.configPath, NULL);
 
+	// wine gives one run the process number of another: what an earlier run left in the folder is taken away
+	for (const wchar_t* folder : { L"namehook", L"nameplatehook", L"nameplatew" }) {
+		for (const wchar_t* file : { L"defaults.ini", L"whitelist.txt" }) {
+			wchar_t left[MAX_PATH];
+			StringCchPrintfW(left, MAX_PATH, L"%s\\%s\\%s", plugin.configPath, folder, file);
+			DeleteFileW(left);
+		}
+	}
+
 	static bool namesOff = false;
 	static uint16_t selfIndex = 0x400;
 	static uint32_t windowWidth = 800;

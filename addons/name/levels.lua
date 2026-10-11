@@ -5,7 +5,8 @@
 --                            can be, '5-6', or '8' where it can only be the one; or nil if neither is known
 --   levels.IsChecked(index, id)  whether its player has checked it
 --   levels.Checked(index, id)    what the check found: { text = its level, or nil for one whose strength
---                            is impossible to gauge, hard = how hard a fight it was said to be }, or nil
+--                            is impossible to gauge, hard = how hard a fight it was said to be, at =
+--                            when, by os.clock }, or nil
 --   levels.Monster(index, name)  what the tables say of it, as mobdb has it (Aggro, Link, Sight, Sound,
 --                            Blood, Magic, JA, Scent, TrueSight, Notorious, Family), or nil
 --   levels.Generation()      a number that changes whenever what levels.Of would say may have
@@ -22,7 +23,8 @@
 -- The one time the game does tell a monster's level is in its answer to /check. When the player
 -- checks a monster the level in the answer is kept for it, and written in place of what the tables
 -- say, until it dies or the player leaves the area: the monster that next has its place is another,
--- of a level of its own. Nothing is asked of the game for this: only its answers are read.
+-- of a level of its own. It is kept five minutes at most, so that a long evening of checking in one
+-- place does not leave more and more kept. Nothing is asked of the game for this: only its answers are read.
 local levels = {};
 
 local data = nil;      -- the area's tables: { Indices = { [index] = monster }, Names = { [name] = monster } }
@@ -41,6 +43,7 @@ local MESSAGE_INDEX    = 0x16; -- the target's index
 local MESSAGE_NUMBER   = 0x18;
 local CHECK_FIRST, CHECK_LAST = 170, 178; -- the nine answers, by the monster's defence and evasion
 local HARD_FIRST, HARD_LAST   = 0x40, 0x47;
+local KEPT_FOR                = 300;      -- seconds a check is kept
 local NO_GAUGE                = 249;      -- the answer for a monster whose strength is impossible to gauge
 
 -- How hard a fight the answer says it is, from HARD_FIRST on, in the game's words
@@ -113,8 +116,9 @@ function levels.Tidy()
     if (entities == nil) then
         return;
     end
+    local now = os.clock();
     for index, known in pairs(checked) do
-        if (entities:GetServerId(index) ~= known.id or entities:GetHPPercent(index) == 0) then
+        if (now - known.at > KEPT_FOR or entities:GetServerId(index) ~= known.id or entities:GetHPPercent(index) == 0) then
             forget(index);
         end
     end
@@ -199,7 +203,7 @@ ashita.events.register('packet_in', 'name_levels_packet', function (e)
             if (checked[index] == nil) then
                 checkedCount = checkedCount + 1;
             end
-            checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = tostring(level), hard = HARD[hard - HARD_FIRST + 1] };
+            checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = tostring(level), hard = HARD[hard - HARD_FIRST + 1], at = os.clock() };
             generation = generation + 1;
         end
     elseif (number == NO_GAUGE and index > 0) then
@@ -207,7 +211,7 @@ ashita.events.register('packet_in', 'name_levels_packet', function (e)
         if (checked[index] == nil) then
             checkedCount = checkedCount + 1;
         end
-        checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = nil, hard = HARD_NO_GAUGE };
+        checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = nil, hard = HARD_NO_GAUGE, at = os.clock() };
         generation = generation + 1;
     end
 end);

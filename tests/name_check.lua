@@ -349,6 +349,19 @@ local signs = {}
 for _, q in ipairs(quads) do if q.Texture == 2 then signs[#signs + 1] = ('%.2f,%.2f'):format(q.U0, q.V0) end end
 -- aggressive (first of the sheet), sight and sound (the second row's first and third), and link (the last row's last)
 H.print('the signs, by where they are in the sheet:', table.concat(signs, ' '))
+-- it fades in as the monster is checked, is there five seconds, and fades out; a frame here is 0.03s
+local function lineAlpha() return goblin.Count > 6 and math.floor(draw.Quads[goblin.First + 6].Color / 0x1000000) or 0 end
+H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(1)
+local coming = lineAlpha()
+H.frames(4); local halfIn = lineAlpha()
+H.frames(10); local there = lineAlpha()
+H.print('just checked: faint', coming > 0 and coming < 64, '| coming', halfIn > coming and halfIn < 255, '| there', there == 255, '| the name as solid as ever', math.floor(draw.Quads[goblin.First].Color / 0x1000000) == 255)
+H.frames(150); local still = lineAlpha()
+H.frames(15); local going = lineAlpha()
+H.frames(25); local gone = lineAlpha()
+H.print('after 4.9s: still there', still == 255, '| after 5.4: going', going > 0 and going < 255, '| after 6.1: gone, the name alone, quads', gone == 0 and goblin.Count == 6, '| still known as checked', levels.IsChecked(300, 0x1000 + 300))
+H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(20)
+H.print('checked again: back', lineAlpha() == 255)
 o.showCheckDetails[1] = false; H.frames(1)
 H.print('Show Check Details off: the name alone, quads', goblin.Count)
 o.showCheckDetails[1] = true
@@ -362,6 +375,10 @@ H.print('a passive one, said to be', levels.Checked(300, 0x1000 + 300).hard, '| 
 levels.Set(nil)
 H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 249)); H.frames(1)
 H.print('not in the tables, and impossible to gauge:', levels.Checked(300, 0x1000 + 300).hard, '| no level', levels.Of(300, 'Goblin', 0x1000 + 300) == nil, '| quads', goblin.Count)
+-- five minutes after it was checked it is forgotten, alive or not
+H.frames(9990); H.print('after 4m59s: still known', levels.IsChecked(300, 0x1000 + 300))
+H.frames(20); H.print('after 5m: forgotten', levels.IsChecked(300, 0x1000 + 300) == false)
+H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 249)); H.frames(1)
 alive[300].hp = 0; H.frames(1)
 H.print('dead: the name alone again, quads', goblin.Count)
 alive[300].hp = 100

@@ -162,7 +162,7 @@ What is set out goes in `HookDraw` (`src/Nameplate.h`), at the address in the bl
 | `QuadCount` | How many of `Quads` are in use. Set to 0 by the addon each frame, and raised as it adds them. |
 | `QuadsMax` | 16384 |
 | `Textures` | Eight Direct3D textures (`IDirect3DTexture8*`), or 0. The plugin holds each while it draws from it. |
-| `Entities` | For each of the client's 0x900 entities, by index: `Frame` (as `HookDraw`'s when it was set out, or it is not drawn), `First` and `Count` (its quads, 256 at most), `Alpha` (0 to 1, how solid the whole name is), `Edge` (how thick a dark edge its edged quads are given, in pixels) and `EdgeColor` |
+| `Entities` | For each of the client's 0x900 entities, by index: `Frame` (as `HookDraw`'s when it was set out, or it is not drawn), `First` and `Count` (its quads, 256 at most), `Alpha` (0 to 1, how solid the whole name is), `Edge` (how thick a dark edge its edged quads are given, in pixels) and `EdgeColor`. A quad's edge is as solid as the quad's own colour is |
 | `Quads` | Each a rectangle: its corners `X0`, `Y0`, `X1`, `Y1` in pixels of the client's picture, measured from the point the client puts the name at; the same corners in its texture, `U0`, `V0`, `U1`, `V1`; `Color` as 0xAARRGGBB; `Texture`, which of the eight; and `Flags`, 1 if it is given the edge |
 
 The quads are in pixels of the client's picture, not of its window: an addon that wants a letter 15 pixels high on the screen makes it `15 * TargetWidth / Width` high. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/name/custom.lua` sets names out this way, from imgui's font.
