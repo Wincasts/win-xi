@@ -157,6 +157,8 @@ static constexpr uint8_t DrawDamage_Patch[DRAWDAMAGE_PATCH_SIZE] = {
 #define DRAWDAMAGE_PATCH_COLOR_ADDRESS_LOCATION 0x11
 #define DRAWDAMAGE_PATCH_OLD_COLOR_ADDRESS_LOCATION 0x3E
 
+#define LINE_CALLS_MAX 8
+
 // "CGame" - various application-level rendering-related things.
 typedef struct CGame {
 	uint8_t unknown0[0x18];
@@ -211,11 +213,20 @@ static struct {
 	uintptr_t DrawDamagePatchAddr;
 	uint8_t DrawDamagePatchOrig[DRAWDAMAGE_PATCH_SIZE];
 
-	// The two calls that draw a name's lines, and the client's functions they called before
-	uintptr_t DrawNameLineCallAddr;
-	uintptr_t DrawNameLine2CallAddr;
+	// The calls that draw a name's lines, and the client's functions they called before. The first of
+	// each is the one in the function that draws every name; the rest are whatever else in the client
+	// calls the same functions, which draws a name by another way (the one under the cursor, for one).
+	uintptr_t DrawNameLineCalls[LINE_CALLS_MAX];
+	uintptr_t DrawNameLine2Calls[LINE_CALLS_MAX];
+	size_t DrawNameLineCallCount;
+	size_t DrawNameLine2CallCount;
+	bool OtherCallsTaken;
 	DrawNameLineFn DrawNameLineOrig;
 	DrawNameLine2Fn DrawNameLine2Orig;
+
+	// Lines drawn this frame that were nobody's, and so the client's to draw as it would: and last frame
+	uint32_t Unowned;
+	uint32_t UnownedLast;
 
 	// The model whose first line was last seen, where in the list its name was put (if it was), and
 	// whether the client drew it: its second line follows at once, and goes the same way
@@ -257,6 +268,10 @@ static FrameFacts Facts;
 
 // Set by the probe command: the next name drawn has the plugin's host say what it is drawn on
 static bool ProbeWanted = false;
+
+// Whether every call of the client's to its name drawing is taken, or only the one that draws all the
+// names: kept with the settings
+static int OtherCalls = 1;
 
 // Players whose names are drawn in every mode that hides players.
 #define WHITELIST_MAX 512
@@ -470,6 +485,8 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 		Globals.pLineModel = pModel;
 		Globals.pLineName = pName;
 		Globals.LineDrawn = (flags & NAME_DRAWN) != 0;
+	} else {
+		Globals.Unowned++;
 	}
 
 	if (Globals.LineDrawn && Globals.DrawNameLineOrig != nullptr) {
@@ -517,6 +534,83 @@ static uintptr_t CallTarget(uintptr_t pCall) {
 static void SetCallTarget(uintptr_t pCall, uintptr_t target) {
 	int32_t rel = static_cast<int32_t>(target - (pCall + 5));
 	memcpy(reinterpret_cast<uint8_t*> (pCall) + 1, &rel, sizeof(rel));
+}
+
+// Every CALL rel32 in a stretch of code that goes to this function: where each is, up to max of them.
+// Returns how many there were.
+static size_t FindCallsIn(const uint8_t* begin, size_t length, uintptr_t target, uintptr_t* sites, size_t max) {
+	size_t found = 0;
+	if (length < 5) {
+		return 0;
+	}
+
+	for (size_t i = 0; i + 5 <= length; i++) {
+		if (begin[i] == 0xE8) {
+			int32_t rel;
+			memcpy(&rel, begin + i + 1, sizeof(rel));
+			const uintptr_t at = reinterpret_cast<uintptr_t> (begin + i);
+			if (at + 5 + static_cast<uintptr_t>(rel) == target) {
+				if (found < max) {
+					sites[found] = at;
+				}
+				found++;
+			}
+		}
+	}
+	return found;
+}
+
+// The same through all of the client's own code. first, which is known to be one of them, is put
+// first. Returns how many of sites are filled.
+static size_t FindCalls(uintptr_t target, uintptr_t first, uintptr_t* sites, size_t max) {
+	size_t count = 0;
+	sites[count++] = first;
+
+	HMODULE module = GetModuleHandleA("FFXiMain.dll");
+	if (module == nullptr) {
+		return count;
+	}
+
+	const uint8_t* base = reinterpret_cast<const uint8_t*> (module);
+	const IMAGE_DOS_HEADER* dos = reinterpret_cast<const IMAGE_DOS_HEADER*> (base);
+	if (dos->e_magic != IMAGE_DOS_SIGNATURE) {
+		return count;
+	}
+	const IMAGE_NT_HEADERS* nt = reinterpret_cast<const IMAGE_NT_HEADERS*> (base + dos->e_lfanew);
+	if (nt->Signature != IMAGE_NT_SIGNATURE) {
+		return count;
+	}
+
+	const IMAGE_SECTION_HEADER* section = IMAGE_FIRST_SECTION(nt);
+	for (unsigned i = 0; i < nt->FileHeader.NumberOfSections; i++, section++) {
+		if ((section->Characteristics & IMAGE_SCN_MEM_EXECUTE) == 0) {
+			continue;
+		}
+
+		uintptr_t found[LINE_CALLS_MAX * 2];
+		size_t n = FindCallsIn(base + section->VirtualAddress, section->Misc.VirtualSize, target, found, LINE_CALLS_MAX * 2);
+		// more than there is room for is more than was looked for: something else is being found
+		if (n > LINE_CALLS_MAX * 2) {
+			return 1;
+		}
+		for (size_t j = 0; j < n && count < max; j++) {
+			if (found[j] != first) {
+				sites[count++] = found[j];
+			}
+		}
+	}
+	return count;
+}
+
+// Points every call but the first of each kind at this plugin, or back at the client
+static void TakeOtherCalls(bool take) {
+	for (size_t i = 1; i < Globals.DrawNameLineCallCount; i++) {
+		SetCallTarget(Globals.DrawNameLineCalls[i], take ? reinterpret_cast<uintptr_t> (&DrawNameLine) : reinterpret_cast<uintptr_t> (Globals.DrawNameLineOrig));
+	}
+	for (size_t i = 1; i < Globals.DrawNameLine2CallCount; i++) {
+		SetCallTarget(Globals.DrawNameLine2Calls[i], take ? reinterpret_cast<uintptr_t> (&DrawNameLine2) : reinterpret_cast<uintptr_t> (Globals.DrawNameLine2Orig));
+	}
+	Globals.OtherCallsTaken = take;
 }
 
 // Whether the function here is one of the model's two for drawing a line of its name: it begins as
@@ -672,6 +766,7 @@ int NameplateSettings::Load(const wchar_t* basePath) {
 	// Which names are hidden is kept where addons can change it
 	Shared.Hidden = GetPrivateProfileIntW(L"Settings", L"Hidden", static_cast<int>(hidden), path) & CATEGORY_ALL;
 	Shared.Options = (GetPrivateProfileIntW(L"Settings", L"AlwaysTarget", 0, path) != 0) ? OPTION_ALWAYS_TARGET : 0;
+	OtherCalls = (GetPrivateProfileIntW(L"Settings", L"OtherCalls", 1, path) != 0) ? 1 : 0;
 
 	Normalize();
 	Flush();
@@ -703,6 +798,9 @@ int NameplateSettings::Save(const wchar_t* basePath) {
 
 	StringCbPrintfW(buf, sizeof(buf), L"%d", (Shared.Options & OPTION_ALWAYS_TARGET) != 0 ? 1 : 0);
 	WritePrivateProfileStringW(L"Settings", L"AlwaysTarget", buf, path);
+
+	StringCbPrintfW(buf, sizeof(buf), L"%d", OtherCalls);
+	WritePrivateProfileStringW(L"Settings", L"OtherCalls", buf, path);
 
 	return 0;
 }
@@ -909,6 +1007,23 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		} else {
 			Debug("This client's name drawing was not recognised: there is nothing to look at.");
 		}
+	} else if (eat_space_token_match_and_advance(cmd, "othercalls", nameplate_strlen("othercalls"))) {
+		int otherCalls = -1;
+
+		if (eat_space_token_match_and_advance(cmd, "on", nameplate_strlen("on"))) {
+			otherCalls = 1;
+		} else if (eat_space_token_match_and_advance(cmd, "off", nameplate_strlen("off"))) {
+			otherCalls = 0;
+		}
+
+		if (otherCalls >= 0 && eat_space_and_is_end(cmd)) {
+			OtherCalls = otherCalls;
+			if (Shared.Hooked != 0) {
+				TakeOtherCalls(otherCalls != 0);
+			}
+		} else {
+			CommandError("othercalls");
+		}
 	} else if (eat_space_token_match_and_advance(cmd, "status", nameplate_strlen("status"))) {
 		if (eat_space_and_is_end(cmd)) {
 			SayStatus();
@@ -981,6 +1096,14 @@ void Nameplate::SayStatus() {
 		Sayf(this, "%u names last frame. An addon is drawing some in place of the client.", static_cast<unsigned>(Shared.Count));
 	} else {
 		Sayf(this, "%u names last frame.", static_cast<unsigned>(Shared.Count));
+	}
+
+	if (Shared.Hooked != 0) {
+		Sayf(this, "The client draws names from %u places (%u for the second line); %s. %u lines last frame were nobody's.",
+			static_cast<unsigned>(Globals.DrawNameLineCallCount), static_cast<unsigned>(Globals.DrawNameLine2CallCount),
+			(Globals.DrawNameLineCallCount <= 1 && Globals.DrawNameLine2CallCount <= 1) ? "there are no others to take"
+				: (Globals.OtherCallsTaken ? "all are taken" : "only the first is taken (othercalls off)"),
+			static_cast<unsigned>(Globals.UnownedLast));
 	}
 }
 
@@ -1376,11 +1499,14 @@ int Nameplate::Init() {
 		if (IsDrawNameLine(pLine, DRAWNAME_LINE_RET_OFFSET, 0x14) && IsDrawNameLine(pLine2, DRAWNAME_LINE2_RET_OFFSET, 0x0C)) {
 			Globals.DrawNameLineOrig = reinterpret_cast<DrawNameLineFn> (pLine);
 			Globals.DrawNameLine2Orig = reinterpret_cast<DrawNameLine2Fn> (pLine2);
-			Globals.DrawNameLineCallAddr = pLineCall;
-			Globals.DrawNameLine2CallAddr = pLine2Call;
+			// The client draws a name by these two functions from other places too: every call to
+			// either is found while they still go to the client
+			Globals.DrawNameLineCallCount = FindCalls(pLine, pLineCall, Globals.DrawNameLineCalls, LINE_CALLS_MAX);
+			Globals.DrawNameLine2CallCount = FindCalls(pLine2, pLine2Call, Globals.DrawNameLine2Calls, LINE_CALLS_MAX);
 
 			SetCallTarget(pLineCall, reinterpret_cast<uintptr_t> (&DrawNameLine));
 			SetCallTarget(pLine2Call, reinterpret_cast<uintptr_t> (&DrawNameLine2));
+			TakeOtherCalls(OtherCalls != 0);
 
 			Shared.Hooked = 1;
 		}
@@ -1466,6 +1592,8 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 	}
 
 	if (frameDone) {
+		Globals.UnownedLast = Globals.Unowned;
+		Globals.Unowned = 0;
 		Filling.Count = 0;
 		Filling.Changed = false;
 		Filling.Published = false;
@@ -1538,12 +1666,10 @@ int Nameplate::Deinit() {
 	Shared.Draw = 0;
 	Filling.Count = 0;
 
-	if (Globals.DrawNameLine2CallAddr != 0) {
-		SetCallTarget(Globals.DrawNameLine2CallAddr, reinterpret_cast<uintptr_t> (Globals.DrawNameLine2Orig));
-	}
-
-	if (Globals.DrawNameLineCallAddr != 0) {
-		SetCallTarget(Globals.DrawNameLineCallAddr, reinterpret_cast<uintptr_t> (Globals.DrawNameLineOrig));
+	if (Globals.DrawNameLineCallCount != 0) {
+		TakeOtherCalls(false);
+		SetCallTarget(Globals.DrawNameLine2Calls[0], reinterpret_cast<uintptr_t> (Globals.DrawNameLine2Orig));
+		SetCallTarget(Globals.DrawNameLineCalls[0], reinterpret_cast<uintptr_t> (Globals.DrawNameLineOrig));
 	}
 
 	if (Globals.DrawDamagePatchAddr != 0) {
