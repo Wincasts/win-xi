@@ -1,6 +1,6 @@
 addon.name    = 'nameplates';
 addon.author  = 'win (and claude)';
-addon.version = '0.5';
+addon.version = '0.6';
 addon.desc    = 'Draws the names over characters\' heads in place of the game, from what the nameplatew plugin hands over.';
 
 require('common');
@@ -55,7 +55,9 @@ local TWO_PART      = 0xAC; -- an icon the game draws with the next character of
 local STAR          = 0xAD; -- the star of the Job Mastery stars: a small one, a large one, a small one
 local ICON_GAP      = 2;    -- pixels between one icon and the next, and the name
 local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it fades out, if it does not shrink
-local SMALLEST      = 6;    -- pixels: a name that has shrunk below this height is not drawn
+local FADE_SHRUNK   = 0.15; -- and if it does, having by then shrunk to its smallest
+local SMALLEST      = 6;    -- pixels: the smallest a name can be set to be
+local LARGEST       = 48;   -- and the largest
 local LOOK_AFTER    = 4;    -- frames between one look and the next at whether a name is behind something
 local SIGHT_FADE    = 0.15; -- seconds for a name to go as it passes behind something, and to come back
 
@@ -65,8 +67,9 @@ local DEFAULT_FONT  = 'Default';
 -- What can be set, in /nameplates. A setting changed by a control is a table of one, as imgui wants.
 local defaults = T{
     enabled   = T{ true },
-    fontSize  = T{ 15 },   -- the height of the names, in pixels
+    fontSize  = T{ 15 },   -- the height of the names near to, in pixels: the largest they are
     shrink    = T{ true }, -- names get smaller towards the distance they are no longer drawn at, as the game's do
+    minSize   = T{ 10 },   -- the height they have shrunk to by that distance: the smallest they are
     outline   = T{ 1 },    -- how thick the dark edge round them is, in pixels
     font      = '',        -- a file of FONT_FOLDER, or nothing for the font everything else is in
     showIcons = T{ true },
@@ -259,12 +262,26 @@ local function DrawSettings(options)
     end
 
     widgets.Gap();
-    widgets.Label('Font Size');
-    imgui.SliderInt('##nameplates.fontSize', options.fontSize, 8, 48, '%d px');
+    widgets.Label(options.shrink[1] and 'Maximum Font Size' or 'Font Size');
+    if (imgui.SliderInt('##nameplates.fontSize', options.fontSize, SMALLEST, LARGEST, '%d px') and options.minSize[1] > options.fontSize[1]) then
+        options.minSize[1] = options.fontSize[1];
+    end
+    if (options.shrink[1] and imgui.IsItemHovered()) then
+        imgui.SetTooltip('The height of a name near to, where it is at its largest.');
+    end
+    if (options.shrink[1]) then
+        widgets.Label('Minimum Font Size');
+        if (imgui.SliderInt('##nameplates.minSize', options.minSize, SMALLEST, LARGEST, '%d px') and options.fontSize[1] < options.minSize[1]) then
+            options.fontSize[1] = options.minSize[1];
+        end
+        if (imgui.IsItemHovered()) then
+            imgui.SetTooltip('The height of a name at the distance it is no longer drawn at, where it is at its smallest. It fades out as it gets there.');
+        end
+    end
     widgets.Label('Shrink With Distance');
     imgui.Checkbox('##nameplates.shrink', options.shrink);
     if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('A name gets smaller as it nears the distance it is no longer drawn at, as the game\'s own does. Off, names stay one size and fade out there.');
+        imgui.SetTooltip('A name gets smaller as it nears the distance it is no longer drawn at, from the maximum size to the minimum. Off, names stay one size and fade out there.');
     end
     widgets.Label('Outline Thickness');
     imgui.SliderInt('##nameplates.outline', options.outline, 0, 4, '%d px');
@@ -407,7 +424,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     local drawList = imgui.GetBackgroundDrawList and imgui.GetBackgroundDrawList() or imgui.GetForegroundDrawList();
 
     local font = getFont(options.font);
-    local fullSize = math.max(8, math.min(48, options.fontSize[1]));
+    local fullSize = math.max(SMALLEST, math.min(LARGEST, options.fontSize[1]));
+    local leastSize = math.max(SMALLEST, math.min(fullSize, options.minSize[1]));
     local shrink = options.shrink[1];
     local edge = math.max(0, math.min(4, options.outline[1]));
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
@@ -437,14 +455,15 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             local iconCount = showIcons and #written.icons or 0;
 
             -- The game draws a name at one size out to a distance, then smaller and smaller until at
-            -- its furthest it is nothing: Scale is 1 and then falls to 0. Here it shrinks the same
-            -- way, or keeps its size and fades out over the last of that.
+            -- its furthest it is nothing: Scale is 1 and then falls to 0. Here it shrinks over the
+            -- same distance, from its largest to its smallest and not to nothing, or keeps its size;
+            -- and either way fades out over the last of it.
             local scale = math.max(0, math.min(1, name.Scale));
-            local size = shrink and math.floor(fullSize * scale + 0.5) or fullSize;
+            local size = shrink and math.floor(leastSize + (fullSize - leastSize) * scale + 0.5) or fullSize;
 
             -- as solid as the game has it, which fades a name with its character
             local solid = bit.rshift(name.NameColor, 24) / 0x80;
-            local near = shrink and 1 or scale / FADE_OVER;
+            local near = scale / (shrink and FADE_SHRUNK or FADE_OVER);
             -- and going while it is behind something. Each name is looked at every few frames, not all
             -- in the same one; a name new this frame is looked at straight away, and starts as it is found.
             local inSight = 1;
@@ -473,7 +492,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
             local alpha = math.floor(255 * math.max(0, math.min(1, solid, near)) * inSight + 0.5);
 
-            if (alpha > 0 and size >= SMALLEST and (written.words ~= '' or iconCount > 0)) then
+            if (alpha > 0 and (written.words ~= '' or iconCount > 0)) then
                 -- the name's font at its size, for measuring it and for writing it
                 imgui.PushFont(font, size);
                 local width, height = imgui.CalcTextSize(written.words);
