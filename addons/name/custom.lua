@@ -396,7 +396,7 @@ function custom.DrawSettings(options, save)
     widgets.Label('Show Check Details');
     imgui.Checkbox('##name.showCheckDetails', options.showCheckDetails);
     if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('Under the name of a monster you have just checked, for five seconds:\nhow hard a fight the game said it would be, whether it is aggressive and what it notices you by, and the family it links with.');
+        imgui.SetTooltip('Under the name of a monster you have just checked, for five seconds:\nhow hard a fight the game said it would be, what an aggressive one notices you by, and the family it links with.');
     end
     if (options.showCheckDetails[1]) then
         widgets.Label('Check Details In Words');
@@ -1011,8 +1011,9 @@ function custom.Frame(options, hook)
 
                     -- Under the name of a monster its player has checked, and with its middle under
                     -- the name's: how hard a fight the game said it would be; then, if the tables
-                    -- have the monster, whether it is aggressive and what it notices its prey by; and
-                    -- if it links, the sign for that and the family it links with.
+                    -- have the monster and it is aggressive, what it notices its prey by; and if it
+                    -- links, the sign for that and the family it links with. Whether it is aggressive
+                    -- at all is not said here: [aggro] in the name's own line says it.
                     -- It comes as the monster is checked, is there a few seconds, and goes: how solid
                     -- it is, from how long ago that was.
                     local showing = 0;
@@ -1036,9 +1037,6 @@ function custom.Frame(options, hook)
                         local gap = math.floor(detailHeight * DETAIL_GAP + 0.5);
                         local hard = written.found.hard or '';
                         local monster = written.monster;
-                        -- whether it is aggressive, by the same sign as [aggro] draws
-                        local mood = (monster ~= nil and temperTexture() ~= 0) and temperOf(monster, written.found) or nil;
-
                         -- what it notices its prey by, and what it links with: as signs, or in words
                         local sheet = (not detailsInWords) and sensesTexture() or 0;
                         local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
@@ -1050,10 +1048,8 @@ function custom.Frame(options, hook)
                         end
 
                         local hardWidth = wordsWidth(set, hard, detail);
-                        local moodWidth = mood ~= nil and detailHeight or 0;
                         local noticesWidth = wordsWidth(set, notices, detail);
-                        local between = (moodWidth > 0 and noticesWidth > 0) and math.floor(gap * 0.5) or 0;
-                        local signsWidth = moodWidth + between + noticesWidth + (signs ~= nil and #signs or 0) * detailHeight;
+                        local signsWidth = noticesWidth + (signs ~= nil and #signs or 0) * detailHeight;
                         local linkWidth = (links and sheet ~= 0) and detailHeight or 0;
                         local linkedWidth = wordsWidth(set, linked, detail);
 
@@ -1072,11 +1068,6 @@ function custom.Frame(options, hook)
                             at = writeWords(set, hard, at, below, detail, own) + gap;
                         end
                         if (signsWidth > 0) then
-                            if (mood ~= nil) then
-                                local u, v = (mood % 4) * 0.25, math.floor(mood / 4) * 0.25;
-                                nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, TEMPER_SLOT, false);
-                                at = at + detailHeight + between;
-                            end
                             if (noticesWidth > 0) then
                                 at = writeWords(set, notices, at, below, detail, own);
                             end

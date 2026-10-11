@@ -354,7 +354,7 @@ H.frames(1)
 H.print('not checked: the name alone, quads', goblin.Count)
 H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(2)
 H.print('checked, said to be', levels.Checked(300, 0x1000 + 300).hard, '| the name and its line, quads', goblin.Count, '| the two sheets of signs given to the plugin', draw.Textures[2] == 0x7777, draw.Textures[3] == 0x8888)
--- "Goblin" (6), then "Very Tough" (10 with its space), aggressive, sight, sound (3 signs), the link sign, "Goblin" (6)
+-- "Goblin" (6), then "Very Tough" (10 with its space), sight and sound (2 signs), the link sign, "Goblin" (6)
 local quads = {}
 for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; quads[#quads + 1] = q end
 local nameLeft, nameRight = quads[1].X0, quads[6].X1
@@ -362,11 +362,9 @@ local lineLeft, lineRight = quads[7].X0, quads[#quads].X1
 H.print('its middle under the name\'s', math.abs((nameLeft + nameRight) / 2 - (lineLeft + lineRight) / 2) < 1.6, '| below it', quads[7].Y0 > quads[1].Y1, '| smaller', (quads[7].Y1 - quads[7].Y0) < (quads[1].Y1 - quads[1].Y0))
 local signs = {}
 for _, q in ipairs(quads) do if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
--- from the aggro sheet, an aggressive monster of level 9 (the seventh sign: the second row's third); then
--- from the other, sight and sound (the second row's first and third) and link (the last row's last)
+-- sight and sound (the second row's first and third) and link (the last row's last); none from the aggro sheet
 H.print('the signs, by sheet and where they are in it:', table.concat(signs, ' '))
--- in words: after "Very Tough" (10) and the aggro sign, "Sight, Sound" (12), then "Link: Goblin" (12); the
--- one sign left is the aggro sheet's
+-- in words: after "Very Tough" (10), "Sight, Sound" (12), then "Link: Goblin" (12), and no sign at all
 o.checkDetailsInWords[1] = true; H.frames(1)
 signs = {}
 for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
@@ -420,7 +418,7 @@ H.print('said by the tables to be 30 to 40 and found by a check to be 30:', sign
 alive[300].hp = 0; H.frames(1); alive[300].hp = 100
 o.monsterFormat[1] = '[name]'; H.frames(1)
 o.showCheckDetails[1] = true
--- one that does not link, and is not aggressive: the passive sign alone after the words
+-- one that does not link, and is not aggressive: the words alone
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = false, Sight = true, Link = false, Family = 'Goblin' } }, Names = {} })
 H.packetData(0x029, message(0x1000 + 300, 9, 0x40, 300, 174)); H.frames(1)
 signs = {}
