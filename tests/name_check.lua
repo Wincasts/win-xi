@@ -140,18 +140,25 @@ local buddy = draw.Entities[0x401]
 H.print('custom on: all claimed', block.Claimed == Category.All, '| set out in frame', draw.Frame, '| font texture', draw.Textures[0] == 0x1234)
 -- five letters; the hidden name is not set out
 H.print('the wanted name: quads', buddy.Count, '| of this frame', buddy.Frame == draw.Frame, '| the hidden one: none', draw.Entities[0x402].Frame ~= draw.Frame, '| in all', draw.QuadCount)
--- 15 pixels on the screen is 23 of the game's picture; the edge 1 pixel of the screen
-H.print('letters at', pushed[#pushed], 'pixels | edge', buddy.Edge, '| solid', buddy.Alpha, ('| edge colour %08X'):format(buddy.EdgeColor))
+-- 15 pixels on the screen is 23 of the game's picture, the largest of the three sizes letters are kept
+-- at; the edge 1 pixel of the screen
+table.sort(pushed)
+H.print('letters kept at', pushed[#pushed], pushed[#pushed - 1], pushed[1], 'pixels | edge', buddy.Edge, '| solid', buddy.Alpha, ('| edge colour %08X'):format(buddy.EdgeColor))
 local first = draw.Quads[buddy.First]
 -- 50 wide, so it starts 25 left of the middle; the letter's own corner is 1, 2 from there, the line's top on the point
 H.print('first letter: corner', first.X0, first.Y0, first.X1, first.Y1, ('| colour %08X'):format(first.Color), '| edged', first.Flags == 1, '| texture', first.Texture)
 local last = draw.Quads[buddy.First + 4]
 H.print('last letter: 40 further on', last.X0 - first.X0, '| where in the texture', first.U0, first.V1)
--- a name half way to the distance it is no longer drawn at is smaller, and one nearly there fainter
+-- a name half way to the distance it is no longer drawn at is smaller, and one nearly there fainter:
+-- its letters are the next size up's, made smaller to fit, and no size of its own is asked of imgui
+local function letterHeight() local q = draw.Quads[buddy.First] return math.floor((q.Y1 - q.Y0) * 100 + 0.5) / 100 end
+H.print('at its largest: a letter as it is kept, high', letterHeight())
+local sizes = #pushed
 block.Names[0].Scale = 0.5; H.frames(1)
-H.print('half way: letters at', pushed[#pushed], '| solid', buddy.Alpha)
+H.print('half way: a letter high', letterHeight(), '| solid', buddy.Alpha)
 block.Names[0].Scale = 0.075; H.frames(1)
-H.print('nearly gone: letters at', pushed[#pushed], '| half solid', buddy.Alpha)
+H.print('nearly gone: a letter high', letterHeight(), '| half solid', buddy.Alpha)
+for i = sizes + 1, #pushed do if pushed[i] ~= 23 and pushed[i] ~= 17 and pushed[i] ~= 12 then H.print('another size asked for', pushed[i], false) end end
 block.Names[0].Scale = 1
 -- a pulse towards white and back, as the game gives the target's name, is not followed: the name
 -- keeps the colour the pulse starts from
@@ -213,7 +220,7 @@ local realIsLoaded = manager.IsLoaded
 manager.IsLoaded = function(...) asked = asked + 1 return realIsLoaded(...) end
 H.frames(1)
 manager.IsLoaded = realIsLoaded
-H.print('three names of one size: pushed', #pushed - pushes, '| the plugin asked after', asked, '| all set out', draw.Entities[0x403].Count, draw.Entities[0x404].Count)
+H.print('three names: sizes pushed', #pushed - pushes, '| the plugin asked after', asked, '| all set out', draw.Entities[0x403].Count, draw.Entities[0x404].Count)
 -- a name written otherwise is taken apart again
 ffi.copy(block.Names[1].Text, 'Other'); H.frames(1)
 H.print('another name for the same entity: quads', draw.Entities[0x403].Count)
