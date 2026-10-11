@@ -115,6 +115,56 @@ end
 
 local foundIcons = false;
 
+-- For finding out what the game does to a name as it becomes the target: while this is on, the name
+-- of whatever is newly the target is said in the chat log for the frames that follow, as the plugin
+-- lists it, with what it was the frame before.
+local watching = false;
+local watched = { index = nil, frames = 0, count = 0 };
+local seenScale = {};   -- entity -> the game's size for its name, the last frame it was listed
+local seenFrame = {};
+
+function custom.Watch()
+    watching = not watching;
+    watched.index, watched.frames = nil, 0;
+    return watching;
+end
+
+local function watch(hook, scale)
+    local said = watched.frames > 0;
+    local entries, target = 0, nil;
+    for i = 0, hook.Count - 1 do
+        local name = hook.Names[i];
+        if (bit.band(name.Flags, nameplates.Flag.Target) ~= 0) then
+            target = target or name.EntityIndex;
+            if (name.EntityIndex == target) then
+                entries = entries + 1;
+            end
+        end
+    end
+
+    if (target ~= watched.index) then
+        watched.index = target;
+        if (target ~= nil) then
+            watched.frames, watched.count = 10, 0;
+            local before = seenScale[target];
+            print(('\30\81[name]\30\01 watch: target is now entity %d; the frame before its size was %s%s'):format(target,
+                before and ('%.3f'):format(before) or 'not listed', (before and seenFrame[target] ~= hook.Frame - 1) and ' (some frames ago)' or ''));
+        end
+    end
+
+    for i = 0, hook.Count - 1 do
+        local name = hook.Names[i];
+        if (watched.frames > 0 and name.EntityIndex == watched.index) then
+            print(('\30\81[name]\30\01 watch %d: %s | listed %d times | size %.3f | flags %03X | colour %08X | at %.0f,%.0f | picture %.0fx%.0f, %.2f to the screen | names %d'):format(
+                watched.count, ffi.string(name.Name), entries, name.Scale, name.Flags, name.NameColor, name.ScreenX, name.ScreenY, hook.TargetWidth, hook.TargetHeight, scale, hook.Count));
+        end
+        seenScale[name.EntityIndex], seenFrame[name.EntityIndex] = name.Scale, hook.Frame;
+    end
+    if (watched.frames > 0) then
+        watched.frames, watched.count = watched.frames - 1, watched.count + 1;
+    end
+end
+
 function custom.Find()
     foundIcons = icons.Find();
 end
@@ -664,6 +714,10 @@ function custom.Frame(options, hook)
     -- written of a level is kept until what is known of levels changes
     levels.Tidy();
     local levelsAt = levels.Generation();
+
+    if (watching) then
+        watch(hook, scale);
+    end
 
     for i = 0, hook.Count - 1 do
         local name = hook.Names[i];
