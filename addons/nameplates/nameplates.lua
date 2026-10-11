@@ -1,6 +1,6 @@
 addon.name    = 'nameplates';
 addon.author  = 'win (and claude)';
-addon.version = '0.4';
+addon.version = '0.5';
 addon.desc    = 'Draws the names over characters\' heads in place of the game, from what the nameplatew plugin hands over.';
 
 require('common');
@@ -13,6 +13,7 @@ local shell   = require('winxi.shell');
 local text    = require('winxi.text');
 local widgets = require('winxi.widgets');
 local icons   = require('icons');
+local sight   = require('sight');
 
 local C = ffi.C;
 local d3d8dev = d3d.get_device();
@@ -55,6 +56,8 @@ local STAR          = 0xAD; -- the star of the Job Mastery stars: a small one, a
 local ICON_GAP      = 2;    -- pixels between one icon and the next, and the name
 local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it fades out, if it does not shrink
 local SMALLEST      = 6;    -- pixels: a name that has shrunk below this height is not drawn
+local LOOK_AFTER    = 4;    -- frames between one look and the next at whether a name is behind something
+local SIGHT_FADE    = 0.15; -- seconds for a name to go as it passes behind something, and to come back
 
 local FONT_FOLDER   = 'C:\\Windows\\Fonts\\';
 local DEFAULT_FONT  = 'Default';
@@ -69,7 +72,14 @@ local defaults = T{
     showIcons = T{ true },
     iconSize  = T{ 125 },  -- an icon's side, as a percentage of the height of the names
     showStars = T{ true },
+    hideBehind = T{ false }, -- names of those behind a wall, or the ground, are not drawn
 };
+
+-- Whether each name is behind something, by its entity: { hidden = whether it was at the last look,
+-- shown = 0 to 1, how far it has come back into view, seen = the frame it was last drawn in }
+local sights = {};
+local frame = 0;
+local lastClock = os.clock();
 
 local nameplates = {
     list     = nil,  -- the plugin's list, while the plugin is loaded
@@ -281,6 +291,13 @@ local function DrawSettings(options)
     end
 
     widgets.Gap();
+    widgets.Label('Hide Behind Walls', true);
+    imgui.Checkbox('##nameplates.hideBehind', options.hideBehind);
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('A name is not drawn while a wall, the ground or a closed door is between the camera and it, as the game\'s own is hidden then. Characters in the way do not hide it.');
+    end
+
+    widgets.Gap();
     widgets.Label('Show Icons');
     imgui.Checkbox('##nameplates.showIcons', options.showIcons);
     if (imgui.IsItemHovered()) then
@@ -315,6 +332,9 @@ app = shell.New({
 });
 
 ashita.events.register('load', 'load_cb', function ()
+    if (not sight.Find()) then
+        print(chat.header(addon.name):append(chat.message('The game\'s test of what is in the way was not found in this client: Hide Behind Walls does nothing.')));
+    end
     if (not icons.Find()) then
         print(chat.header(addon.name):append(chat.message('The game\'s icons were not found in this client: names are drawn without them.')));
     end
@@ -393,6 +413,17 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
     local iconScale = options.iconSize[1] / 100;
 
+    -- Where the camera is, out of the view: the look for what is in the way starts there
+    local hideBehind = options.hideBehind[1] and sight.Found();
+    local eyeX = -(v._41 * v._11 + v._42 * v._12 + v._43 * v._13);
+    local eyeY = -(v._41 * v._21 + v._42 * v._22 + v._43 * v._23);
+    local eyeZ = -(v._41 * v._31 + v._42 * v._32 + v._43 * v._33);
+
+    frame = frame + 1;
+    local now = os.clock();
+    local step = math.min(1, (now - lastClock) / SIGHT_FADE);
+    lastClock = now;
+
     icons.Begin();
 
     for i = 0, count - 1 do
@@ -414,7 +445,33 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             -- as solid as the game has it, which fades a name with its character
             local solid = bit.rshift(name.NameColor, 24) / 0x80;
             local near = shrink and 1 or scale / FADE_OVER;
-            local alpha = math.floor(255 * math.max(0, math.min(1, solid, near)) + 0.5);
+            -- and going while it is behind something. Each name is looked at every few frames, not all
+            -- in the same one; a name new this frame is looked at straight away, and starts as it is found.
+            local inSight = 1;
+            if (hideBehind) then
+                local index = name.EntityIndex;
+                local known = sights[index];
+                if (known == nil) then
+                    known = { hidden = false, shown = 1, seen = 0 };
+                    sights[index] = known;
+                end
+
+                local isNew = known.seen ~= frame - 1;
+                if (isNew or (frame + index) % LOOK_AFTER == 0) then
+                    known.hidden = sight.Blocked(eyeX, eyeY, eyeZ, x, y, z);
+                end
+                if (isNew) then
+                    known.shown = known.hidden and 0 or 1;
+                elseif (known.hidden) then
+                    known.shown = math.max(0, known.shown - step);
+                else
+                    known.shown = math.min(1, known.shown + step);
+                end
+                known.seen = frame;
+                inSight = known.shown;
+            end
+
+            local alpha = math.floor(255 * math.max(0, math.min(1, solid, near)) * inSight + 0.5);
 
             if (alpha > 0 and size >= SMALLEST and (written.words ~= '' or iconCount > 0)) then
                 -- the name's font at its size, for measuring it and for writing it
@@ -467,4 +524,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             end
         end
     end
+
+    sight.Done();
 end);

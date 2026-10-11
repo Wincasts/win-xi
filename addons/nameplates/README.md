@@ -29,6 +29,7 @@ Kept for each character, and saved when the settings window is closed.
 | Shrink With Distance | A name gets smaller as it nears the distance it is no longer drawn at, as the game's own does; off, names stay one size and fade out there |
 | Outline Thickness | The dark edge round each name, 0 to 4 pixels; at 0 the names are written plain |
 | Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`; Default is the font everything else is written in |
+| Hide Behind Walls (experimental) | A name is not drawn while a wall, the ground or a closed door is between the camera and it |
 | Show Icons | The game's icons before a name |
 | Icon Size | An icon's side, as a percentage of the height of the names |
 | Show Mastery Stars | The three stars over the name of a player with a job mastered |
@@ -47,8 +48,19 @@ and so on), and fades with its character as the game's does. The game draws a na
 to a distance, and then smaller and smaller until, at its furthest, it is nothing; names shrink the
 same way here, or with Shrink With Distance off keep their size and fade out over the last third.
 
-What is not the game's: a name here is written over the finished picture, so it is not hidden by a
-wall or a character standing in front of it, as the game's is.
+## Behind walls
+
+A name here is written over the finished picture, so nothing in the picture hides it, as a wall or a
+character in front hides the game's. With Hide Behind Walls on, the addon asks the game instead
+(`sight.lua`): the game keeps its camera out of walls by testing whether a line through the world runs
+into the map, and the same test is asked of the line from the camera to each name. A name that is
+behind something fades out, and comes back when it is not.
+
+It is the map that is tested (walls, the ground, and things that stand in the way as they do, such as
+a closed door), so a character standing in front of a name does not hide it, and a name is hidden
+whole or not at all, where the game's can be half behind a corner. Each name is looked at every few
+frames, the names taking turns. The test leaves a note in the game of what it last ran into; what was
+there is put back each frame.
 
 ## Icons
 
