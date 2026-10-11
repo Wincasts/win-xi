@@ -364,15 +364,20 @@ local signs = {}
 for _, q in ipairs(quads) do if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
 -- sight and sound (the second row's first and third) and link (the last row's last); none from the aggro sheet
 H.print('the signs, by sheet and where they are in it:', table.concat(signs, ' '))
--- in words: after "Very Tough" (10), "Sight, Sound" (12), then "Link: Goblin" (12), and no sign at all
+-- in words, one sentence and no sign at all: "Very Tough, Sight/Sound Aggro, Link: Goblin" (43)
 o.checkDetailsInWords[1] = true; H.frames(1)
 signs = {}
 for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
 H.print('in words: quads', goblin.Count, '| signs', table.concat(signs, ' '))
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true, TrueSight = true, Sight = true, Sound = true, Blood = true, Link = true } }, Names = {} })
 H.frames(1)
--- "True Sight, True Sound, Blood" (29) and "Link" (4) for one of no family
+-- "Very Tough, True Sight/True Sound/Blood Aggro, Link" (51) for one of no family
 H.print('one that sees and hears truly, and links with a family the tables do not name: quads', goblin.Count)
+-- one that is not aggressive and does not link: "Very Tough" alone (10); aggressive with nothing said of how: "Very Tough, Aggro" (17)
+levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = false, Sight = true } }, Names = {} }); H.frames(1)
+local passive = goblin.Count
+levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true } }, Names = {} }); H.frames(1)
+H.print('not aggressive: the words for how hard alone, quads', passive, '| aggressive and no more known: quads', goblin.Count)
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true, Notorious = false, Sight = true, Sound = true, Link = true, Family = 'Goblin' } }, Names = {} })
 o.checkDetailsInWords[1] = false; H.frames(1)
 -- it fades in as the monster is checked, is there five seconds, and fades out; a frame here is 0.03s

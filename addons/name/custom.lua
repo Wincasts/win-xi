@@ -402,7 +402,7 @@ function custom.DrawSettings(options, save)
         widgets.Label('Check Details In Words');
         imgui.Checkbox('##name.checkDetailsInWords', options.checkDetailsInWords);
         if (imgui.IsItemHovered()) then
-            imgui.SetTooltip('What an aggressive monster notices you by is written out (Sight, Sound, Blood, Magic, JA, Scent; True Sight and True Sound for one that sees or hears truly) in place of a sign for each, and what it links with is written "Link: Goblin" in place of the link sign.');
+            imgui.SetTooltip('The line is written as a sentence, with no signs in it.\nex: Too Weak, Sight Aggro, Link: Goblin\nWhat an aggressive monster notices you by is Sight, Sound, Blood, Magic, JA or Scent, with a stroke between them if there are several, and True Sight and True Sound for one that sees or hears truly. Link is the family it links with.');
         end
     end
     widgets.Label('Show Mastery Stars');
@@ -543,9 +543,9 @@ local function temperOf(monster, found)
     return (monster.Aggro and TEMPERS or 0) + tier - 1;
 end
 
--- The same in words, for one who would sooner read than know the signs: 'Sight, Sound, Blood', with
--- sight and sound called true for a monster that sees or hears truly; and 'Link: Goblin' for what it
--- links with. Kept on the monster. Nothing for one that is not aggressive, or does not link.
+-- The same in words, for one who would sooner read than know the signs: 'Sight/Sound/Blood Aggro',
+-- with sight and sound called true for a monster that sees or hears truly; and 'Link: Goblin' for what
+-- it links with. Kept on the monster. Nothing for one that is not aggressive, or does not link.
 local NOTICE_WORDS = { Sight = 'Sight', Sound = 'Sound', Blood = 'Blood', Magic = 'Magic', JA = 'JA', Scent = 'Scent' };
 local NOTICE_ORDER = { 'Sight', 'Sound', 'Blood', 'Magic', 'JA', 'Scent' };
 
@@ -561,7 +561,7 @@ local function noticeWords(monster)
                 end
             end
         end
-        words = table.concat(list, ', ');
+        words = monster.Aggro and ((#list > 0 and (table.concat(list, '/') .. ' ') or '') .. 'Aggro') or '';
         monster.nameNotices = words;
     end
     return words;
@@ -1037,15 +1037,29 @@ function custom.Frame(options, hook)
                         local gap = math.floor(detailHeight * DETAIL_GAP + 0.5);
                         local hard = written.found.hard or '';
                         local monster = written.monster;
-                        -- what it notices its prey by, and what it links with: as signs, or in words
-                        local sheet = (not detailsInWords) and sensesTexture() or 0;
-                        local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
-                        local notices = (detailsInWords and monster ~= nil) and noticeWords(monster) or '';
-                        local links = monster ~= nil and monster.Link;
-                        local linked = '';
-                        if (links) then
-                            linked = detailsInWords and linkWords(monster) or (monster.Family or '');
+
+                        -- In words it is the one sentence, its parts with commas between them: "Too
+                        -- Weak, Sight Aggro, Link: Goblin". Put together once for each check.
+                        if (detailsInWords) then
+                            if (written.sentenceOf ~= written.found or written.sentenceFor ~= monster) then
+                                written.sentenceOf, written.sentenceFor = written.found, monster;
+                                local said = { hard ~= '' and hard or nil };
+                                if (monster ~= nil) then
+                                    local notices, linked = noticeWords(monster), linkWords(monster);
+                                    if (notices ~= '') then said[#said + 1] = notices; end
+                                    if (linked ~= '') then said[#said + 1] = linked; end
+                                end
+                                written.sentence = table.concat(said, ', ');
+                            end
+                            hard, monster = written.sentence, nil;
                         end
+
+                        -- what it notices its prey by, and what it links with: as signs, or in words
+                        local sheet = (monster ~= nil) and sensesTexture() or 0;
+                        local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
+                        local notices = '';
+                        local links = monster ~= nil and monster.Link;
+                        local linked = links and (monster.Family or '') or '';
 
                         local hardWidth = wordsWidth(set, hard, detail);
                         local noticesWidth = wordsWidth(set, notices, detail);
