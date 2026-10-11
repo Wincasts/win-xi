@@ -81,6 +81,11 @@ public:
 
     bool HandleCommand(int32_t mode, const char* command, bool injected) override;
 
+    // Ashita asks this of a plugin that uses Direct3D, and does not load one that says no
+    bool Direct3DInitialize([[maybe_unused]] IDirect3DDevice8* device) override {
+        return true;
+    }
+
     void Direct3DEndScene(bool isRenderingBackBuffer) override;
     void Direct3DPresent(const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion) override;
 
