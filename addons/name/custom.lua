@@ -38,7 +38,18 @@ local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it
 local FADE_SHRUNK   = 0.15; -- and if it does, having by then shrunk to its smallest
 local SMALLEST      = 6;    -- pixels: the smallest a name can be set to be
 local LARGEST       = 48;   -- and the largest
-local FONT_SLOT, ICON_SLOT = 0, 1; -- the plugin's numbers for the two textures the names are drawn from
+local FONT_SLOT, ICON_SLOT, SENSE_SLOT = 0, 1, 2; -- the plugin's numbers for the textures the names are drawn from
+
+-- What is written under the name of a monster its player has checked: see the frame, below
+local DETAIL_SIZE   = 0.75; -- how large it is beside the name
+local DETAIL_GAP    = 0.4;  -- the space between its parts, as a part of its own height
+local DETAIL_BELOW  = 2;    -- pixels between the name and it
+
+-- The signs for what a monster does, in assets/senses.png: mobdb's own icons, sixteen to a sheet in
+-- four rows, each a quarter of it across and down
+local SENSES = { AggroNQ = 0, AggroHQ = 1, PassiveNQ = 2, PassiveHQ = 3, Sight = 4, TrueSight = 5, Sound = 6, Blood = 7, Magic = 8, JA = 9, Scent = 10, Link = 11 };
+-- what an aggressive monster notices its prey by, in the order they are drawn
+local NOTICES = { 'Sight', 'TrueSight', 'Sound', 'Blood', 'Magic', 'JA', 'Scent' };
 local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
 local STEADY_AFTER  = 4;    -- frames a name's colour has to stay the same to be taken as its own at once
 local STEADY_STRETCH = 45;  -- frames over which the strongest of a pulsing name's colours is looked for
@@ -61,6 +72,7 @@ local settings = {
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
+    showCheckDetails = function () return T{ true }; end, -- under a checked monster's name: how hard, what it does
     -- How a name is written: [name] for the name, [distance] for how far off it is, [level] for the
     -- levels a monster can be, and the rest as it is typed (format.lua). One line for monsters, one
     -- for everything else, one for the monster that is the target and one for a monster that has been
@@ -319,6 +331,11 @@ function custom.DrawSettings(options, save)
             imgui.SetTooltip('The space between a name\'s icons and the name itself.');
         end
     end
+    widgets.Label('Show Check Details');
+    imgui.Checkbox('##name.showCheckDetails', options.showCheckDetails);
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('Under the name of a monster you have checked, until it dies or you leave the area:\nhow hard a fight the game said it would be, whether it is aggressive and what it notices you by, and the family it links with.');
+    end
     widgets.Label('Show Mastery Stars');
     imgui.Checkbox('##name.showStars', options.showStars);
     if (imgui.IsItemHovered()) then
@@ -364,6 +381,84 @@ local function readGlyph(baked, byte)
     end
     return { glyph.X0, glyph.Y0, glyph.X1, glyph.Y1, glyph.U0, glyph.V0, glyph.U1, glyph.V1, glyph.AdvanceX,
         glyph.Visible ~= 0 and glyph.Visible ~= false };
+end
+
+-- How wide some words are in these letters, and the words written with their top left at a place
+local function wordsWidth(set, words, fit)
+    local glyphs, width = set.glyphs, 0;
+    for at = 1, #words do
+        local byte = words:byte(at);
+        local glyph = glyphs[byte];
+        if (glyph == nil) then
+            glyph = readGlyph(set.baked, byte);
+            glyphs[byte] = glyph;
+        end
+        if (glyph) then
+            width = width + glyph[9] * fit;
+        end
+    end
+    return width;
+end
+
+local function writeWords(set, words, pen, top, fit, color)
+    local glyphs = set.glyphs;
+    for at = 1, #words do
+        local glyph = glyphs[words:byte(at)];
+        if (glyph) then
+            if (glyph[10]) then
+                nameplates.Quad(pen + glyph[1] * fit, top + glyph[2] * fit, pen + glyph[3] * fit, top + glyph[4] * fit, glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
+            end
+            pen = pen + glyph[9] * fit;
+        end
+    end
+    return pen;
+end
+
+-- The sheet of signs, loaded the first time one is to be drawn: its address for the plugin, or 0
+local senses = nil;      -- the texture, kept so that it is not let go
+local sensesAt = nil;    -- its address, or 0 if it would not load
+
+local function sensesTexture()
+    if (sensesAt == nil) then
+        sensesAt = 0;
+        local ok = pcall(function ()
+            local d3d = require('d3d8');
+            local made = ffi.new('IDirect3DTexture8*[1]');
+            if (ffi.C.D3DXCreateTextureFromFileA(d3d.get_device(), addon.path .. 'assets/senses.png', made) == ffi.C.S_OK) then
+                senses = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', made[0]));
+                sensesAt = tonumber(ffi.cast('uint32_t', senses));
+            end
+        end);
+        if (not ok) then
+            sensesAt = 0;
+        end
+    end
+    return sensesAt;
+end
+
+-- For whoever has the sheet some other way
+function custom.SetSenses(address)
+    sensesAt = address;
+end
+
+-- The signs to draw for a monster, by what the tables say of it: kept on the monster
+local function signsOf(monster)
+    local signs = monster.nameSigns;
+    if (signs == nil) then
+        signs = {};
+        if (monster.Aggro) then
+            signs[#signs + 1] = monster.Notorious and SENSES.AggroHQ or SENSES.AggroNQ;
+            for _, notice in ipairs(NOTICES) do
+                if (monster[notice]) then
+                    signs[#signs + 1] = SENSES[notice];
+                end
+            end
+        else
+            signs[#signs + 1] = monster.Notorious and SENSES.PassiveHQ or SENSES.PassiveNQ;
+        end
+        monster.nameSigns = signs;
+    end
+    return signs;
 end
 
 -- A sign of the font's that is no letter, and may not be there: false if it is not
@@ -504,6 +599,7 @@ function custom.Frame(options, hook)
     end
     nameplates.SetTexture(FONT_SLOT, texture);
     nameplates.SetTexture(ICON_SLOT, iconTexture);
+    nameplates.SetTexture(SENSE_SLOT, sensesAt or 0);
 
     frame = frame + 1;
 
@@ -547,6 +643,7 @@ function custom.Frame(options, hook)
     local shrink = options.shrink[1];
     local edge = math.max(0, math.min(4, options.outline[1]));
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
+    local showDetails = options.showCheckDetails[1];
     local iconScale = options.iconSize[1] / 100;
     local iconGap = math.floor(ICON_GAP * scale + 0.5);
     local nameGap = math.floor(math.max(0, math.min(24, options.iconSpacing[1])) * scale + 0.5);
@@ -611,11 +708,14 @@ function custom.Frame(options, hook)
 
                     -- its level if its player has checked it, or the levels it can be: looked for once
                     -- for each character there is, and again when what is known of levels changes
-                    if ((parts.level or parts.checked or (checkedFormat ~= nil and name.Category == MONSTER))
+                    if ((parts.level or parts.checked or ((checkedFormat ~= nil or showDetails) and name.Category == MONSTER))
                             and (written.levelOf ~= name.ServerId or written.levelAt ~= levelsAt)) then
                         written.levelOf, written.levelAt = name.ServerId, levelsAt;
-                        written.level = levels.Of(name.EntityIndex, ffi.string(name.Name), name.ServerId) or '';
-                        written.isChecked = levels.IsChecked(name.EntityIndex, name.ServerId);
+                        local plain = ffi.string(name.Name);
+                        written.level = levels.Of(name.EntityIndex, plain, name.ServerId) or '';
+                        written.found = levels.Checked(name.EntityIndex, name.ServerId);
+                        written.isChecked = written.found ~= nil;
+                        written.monster = written.isChecked and levels.Monster(name.EntityIndex, plain) or nil;
                     end
                     -- one that has been checked has a line of its own, if its player has written one
                     if (checkedFormat ~= nil and name.Category == MONSTER and written.isChecked) then
@@ -729,6 +829,59 @@ function custom.Frame(options, hook)
                                 end
                                 pen = pen + glyph[9] * fit;
                             end
+                        end
+                    end
+
+                    -- Under the name of a monster its player has checked, and with its middle under
+                    -- the name's: how hard a fight the game said it would be; then, if the tables
+                    -- have the monster, whether it is aggressive and what it notices its prey by; and
+                    -- if it links, the sign for that and the family it links with.
+                    if (showDetails and written.isChecked and name.Category == MONSTER) then
+                        local detail = fit * DETAIL_SIZE;
+                        local detailHeight = math.floor(height * DETAIL_SIZE + 0.5);
+                        local gap = math.floor(detailHeight * DETAIL_GAP + 0.5);
+                        local hard = written.found.hard or '';
+                        local monster = written.monster;
+                        local sheet = sensesTexture();
+                        local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
+                        local links = monster ~= nil and monster.Link;
+                        local family = links and monster.Family or '';
+
+                        local hardWidth = wordsWidth(set, hard, detail);
+                        local signsWidth = signs ~= nil and #signs * detailHeight or 0;
+                        local linkWidth = (links and sheet ~= 0) and detailHeight or 0;
+                        local familyWidth = wordsWidth(set, family, detail);
+
+                        local across, pieces = 0, 0;
+                        for _, piece in ipairs({ hardWidth, signsWidth, linkWidth + familyWidth + ((linkWidth > 0 and familyWidth > 0) and math.floor(gap * 0.5) or 0) }) do
+                            if (piece > 0) then
+                                across, pieces = across + piece, pieces + 1;
+                            end
+                        end
+                        across = across + math.max(0, pieces - 1) * gap;
+
+                        local at = math.floor(-across * 0.5);
+                        local below = top + height + math.floor(DETAIL_BELOW * scale + 0.5);
+
+                        if (hardWidth > 0) then
+                            at = writeWords(set, hard, at, below, detail, own) + gap;
+                        end
+                        if (signsWidth > 0) then
+                            for index = 1, #signs do
+                                local sign = signs[index];
+                                local u, v = (sign % 4) * 0.25, math.floor(sign / 4) * 0.25;
+                                nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, false);
+                                at = at + detailHeight;
+                            end
+                            at = at + gap;
+                        end
+                        if (linkWidth > 0) then
+                            local u, v = (SENSES.Link % 4) * 0.25, math.floor(SENSES.Link / 4) * 0.25;
+                            nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, false);
+                            at = at + linkWidth + (familyWidth > 0 and math.floor(gap * 0.5) or 0);
+                        end
+                        if (familyWidth > 0) then
+                            writeWords(set, family, at, below, detail, own);
                         end
                     end
 

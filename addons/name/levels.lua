@@ -3,7 +3,11 @@
 --   levels.Of(index, name, id)   what to write for the entity with this index, name and server id:
 --                            the level it was found to be when its player checked it; or the levels it
 --                            can be, '5-6', or '8' where it can only be the one; or nil if neither is known
---   levels.IsChecked(index, id)  whether the level it would write is one found by a check
+--   levels.IsChecked(index, id)  whether its player has checked it
+--   levels.Checked(index, id)    what the check found: { text = its level, or nil for one whose strength
+--                            is impossible to gauge, hard = how hard a fight it was said to be }, or nil
+--   levels.Monster(index, name)  what the tables say of it, as mobdb has it (Aggro, Link, Sight, Sound,
+--                            Blood, Magic, JA, Scent, TrueSight, Notorious, Family), or nil
 --   levels.Generation()      a number that changes whenever what levels.Of would say may have
 --   levels.Tidy()            each frame: what was checked and has since died is forgotten
 --   levels.Set(data)         the tables to look in, for whoever has them some other way
@@ -37,6 +41,11 @@ local MESSAGE_INDEX    = 0x16; -- the target's index
 local MESSAGE_NUMBER   = 0x18;
 local CHECK_FIRST, CHECK_LAST = 170, 178; -- the nine answers, by the monster's defence and evasion
 local HARD_FIRST, HARD_LAST   = 0x40, 0x47;
+local NO_GAUGE                = 249;      -- the answer for a monster whose strength is impossible to gauge
+
+-- How hard a fight the answer says it is, from HARD_FIRST on, in the game's words
+local HARD = { 'Too Weak', 'Incredibly Easy Prey', 'Easy Prey', 'Decent Challenge', 'Even Match', 'Tough', 'Very Tough', 'Incredibly Tough' };
+local HARD_NO_GAUGE = 'Impossible To Gauge';
 local DEFEATED, FALLS         = 6, 20;    -- the messages that say a target has died
 
 local function forget(index)
@@ -111,27 +120,41 @@ function levels.Tidy()
     end
 end
 
-function levels.IsChecked(index, id)
-    local known = checked[index];
-    return known ~= nil and (id == nil or known.id == id);
-end
-
-function levels.Of(index, name, id)
+function levels.Checked(index, id)
     local known = checked[index];
     if (known ~= nil and (id == nil or known.id == id)) then
-        return known.text;
+        return known;
     end
+    return nil;
+end
 
+function levels.IsChecked(index, id)
+    return levels.Checked(index, id) ~= nil;
+end
+
+function levels.Monster(index, name)
     -- loaded after the area was entered: the area is asked of the game, the once
     if (not zoneKnown) then
-        local party = AshitaCore:GetMemoryManager():GetParty();
-        load(party ~= nil and party:GetMemberZone(0) or 0, nil);
+        local ok, zone = pcall(function ()
+            return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0);
+        end);
+        load(ok and zone or 0, nil);
     end
     if (data == nil) then
         return nil;
     end
 
-    local monster = (data.Indices ~= nil and data.Indices[index]) or (data.Names ~= nil and name ~= nil and data.Names[name]) or nil;
+    return (data.Indices ~= nil and data.Indices[index]) or (data.Names ~= nil and name ~= nil and data.Names[name]) or nil;
+end
+
+function levels.Of(index, name, id)
+    -- one checked and found impossible to gauge has no level of its own
+    local known = levels.Checked(index, id);
+    if (known ~= nil and known.text ~= nil) then
+        return known.text;
+    end
+
+    local monster = levels.Monster(index, name);
     if (monster == nil) then
         return nil;
     end
@@ -176,9 +199,16 @@ ashita.events.register('packet_in', 'name_levels_packet', function (e)
             if (checked[index] == nil) then
                 checkedCount = checkedCount + 1;
             end
-            checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = tostring(level) };
+            checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = tostring(level), hard = HARD[hard - HARD_FIRST + 1] };
             generation = generation + 1;
         end
+    elseif (number == NO_GAUGE and index > 0) then
+        -- checked all the same, though nothing is learnt of its level
+        if (checked[index] == nil) then
+            checkedCount = checkedCount + 1;
+        end
+        checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = nil, hard = HARD_NO_GAUGE };
+        generation = generation + 1;
     end
 end);
 

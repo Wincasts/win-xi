@@ -201,13 +201,22 @@ def load_species(server, top_modules):
             document = merge_patch(document, load_yaml(path))
 
     species = {}
+    families = {}
     for ecosystem in (document.get('ecosystems') or {}).values():
         ecosystem_attributes = ecosystem.get('attributes') or {}
-        for family in (ecosystem.get('families') or {}).values():
+        for family_name, family in (ecosystem.get('families') or {}).items():
             family_attributes = overlay(ecosystem_attributes, family.get('attributes') or {})
             for name, entry in (family.get('species') or {}).items():
                 species[name] = overlay(family_attributes, entry.get('attributes') or {})
-    return species
+                families[name] = str(family_name)
+    return species, families
+
+
+def family_label(name):
+    """A family as the server names it (sea_monk) as it is shown (Sea Monk). Mobs link with their own family."""
+    if not name or name == 'unclassified':
+        return ''
+    return ' '.join(word.capitalize() for word in name.split('_'))
 
 
 def build_client_names(stock_dir):
@@ -271,7 +280,7 @@ class Generator:
         if skipped:
             self.warnings['module mob_spell_lists statements not understood'] += skipped
         self.rank_multiplier = load_rank_multipliers(self.server)
-        self.species = load_species(self.server, top_modules)
+        self.species, self.families = load_species(self.server, top_modules)
         self.zone_ids = load_yaml(os.path.join(self.server, 'data', 'enums', 'zone.yaml'))['values']
         self.jobs = load_yaml(os.path.join(self.server, 'data', 'enums', 'job.yaml'))['values']
 
@@ -397,6 +406,7 @@ class Generator:
             'Aggro': bool(behaviors.get('aggressive')),
             'Link': bool(behaviors.get('links')),
             'TrueSight': bool(behaviors.get('true_detection')),
+            'Family': family_label(self.families.get(str(template.get('species')), '')),
             'Job': main_job,
             'SubJob': sub_job if sub_job != main_job else 0,
             'MinLevel': low,
@@ -421,6 +431,9 @@ class Generator:
         parts = ['Name=%s' % lua_string(name)]
         for key in ('Notorious', 'Aggro', 'Link', 'TrueSight'):
             parts.append('%s=%s' % (key, lua_bool(entry[key])))
+        # only where the server gives it one: what a mob that links, links with
+        if entry.get('Family'):
+            parts.append('Family=%s' % lua_string(entry['Family']))
         parts.append('Job=%d' % entry['Job'])
         if entry['SubJob']:
             parts.append('SubJob=%d' % entry['SubJob'])

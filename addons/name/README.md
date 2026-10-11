@@ -62,6 +62,7 @@ namehook 1.10 or later.
 | Show Icons | The game's icons before a name |
 | Icon Size | An icon's side, as a percentage of the height of the names |
 | Icon Spacing | The space between a name's icons and the name itself, 0 to 24 pixels |
+| Show Check Details | Under the name of a monster you have checked: how hard a fight it is, what it does, and what it links with. See [What a check shows](#what-a-check-shows) |
 | Show Mastery Stars | The three stars over the name of a player with a job mastered |
 
 ### How a name is written
@@ -95,7 +96,8 @@ Square brackets round anything else are written as they are, so a format such as
 monster can be, as `5-6`, or as `8` where it can only be the one. They are from the tables in this
 addon's `data` folder, one for each area, which are mobdb's, made from the server's own, and copied
 here so that mobdb need not be installed. To bring them up to date, copy mobdb's `data` folder over
-this one. For what the tables do not have (a player, an NPC, a monster the server makes as it goes)
+this one. They are made by mobdb's `import_phoenix.py`, which since this addon's 1.17 also writes
+each monster's family: tables made before that have none, and no family is then written. For what the tables do not have (a player, an NPC, a monster the server makes as it goes)
 `[level]` writes nothing, and what was typed round it is still written.
 
 When you `/check` a monster, the game's answer has its level in it, and from then on `[level]` writes
@@ -112,6 +114,22 @@ chosen for the names does not have it, and it is then drawn from Ashita's beside
 To write a distance after the name of the monster you have targeted and no other, leave Monster Format
 as `[name]` and set Targeted Monster Format to `[name] [distance]`. The Show Monster Distance and
 Distance For Target Only settings of 1.9 and 1.10 are made into these lines when the addon is loaded.
+
+### What a check shows
+
+With Show Check Details on, a monster you have checked has a second line under its name, smaller,
+with its middle under the name's, until it dies, is no longer there to be seen, or you leave the area:
+
+- How hard a fight the game said it would be, in the game's words: Too Weak, Incredibly Easy Prey,
+  Easy Prey, Decent Challenge, Even Match, Tough, Very Tough or Incredibly Tough; or Impossible To
+  Gauge, for a notorious monster.
+- A sign for whether it is aggressive or not, and for an aggressive one a sign for each thing it
+  notices you by: sight, true sight, sound, low health, magic, job abilities, scent.
+- If it links, the sign for that and the family it links with.
+
+The first is from the game's answer to your check. The rest is from the tables in the `data` folder,
+and is what the server's own tables say of that kind of monster; for one the tables do not have, the
+first is all there is. The signs are mobdb's icons, gathered into `assets/senses.png`.
 
 The names are not drawn on the screen by this addon, as its windows are. An addon draws on the finished
 picture, where nothing of the world can hide what it draws, and a name drawn there shows through
