@@ -1,6 +1,6 @@
 1 VERSIONINFO
- FILEVERSION 1,0,0,0
- PRODUCTVERSION 1,0,0,0
+ FILEVERSION 1,1,0,0
+ PRODUCTVERSION 1,1,0,0
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0
  FILEOS 4
@@ -13,12 +13,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "BunnyBox Productions"
             VALUE "FileDescription", "https://www.github.com/Shirk/Nameplate - Corrects defects in nameplate rendering; nameplatehook shows and hides names by category and lists them for addons"
-            VALUE "FileVersion","1.0.0.0\0"
+            VALUE "FileVersion","1.1.0.0\0"
             VALUE "InternalName", "nameplatehook"
             VALUE "LegalCopyright", "Copyright (c) 2024 BunnyBox Productions"
             VALUE "OriginalFilename", "nameplatehook.dll"
             VALUE "ProductName", "nameplatehook"
-            VALUE "ProductVersion","1.0.0\0"
+            VALUE "ProductVersion","1.1.0\0"
         END
     END
     BLOCK "VarFileInfo"

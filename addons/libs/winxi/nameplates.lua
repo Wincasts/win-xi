@@ -36,6 +36,20 @@
 --   nameplates.Claim(categories)      these categories' names are listed as wanted, and not drawn by the game
 -- A claim not made again lapses in half a second, and the game draws the names as before.
 --
+-- Or it has the plugin draw them for it, in the game's own picture, where what is in front of a name
+-- hides it as it hides the game's. Every frame:
+--   local scale = nameplates.BeginDrawing()       nil if the plugin cannot; else how many pixels of the
+--                                                 game's picture there are to one of the screen's
+--   nameplates.SetTexture(slot, texture)          slot 0 to 7; texture a Direct3D texture's address
+--   nameplates.BeginName(entityIndex, alpha, edge, edgeColor)   false if there is no room for it
+--   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged)
+--   nameplates.EndName()
+-- A quad is a rectangle of a texture: its corners are in pixels of the game's picture, measured from
+-- the point the game puts the name at, and its colour is 0xAARRGGBB. alpha, 0 to 1, fades the whole
+-- name; edge is how thick a dark edge the edged quads are given, and edgeColor its colour. Names are
+-- claimed with nameplates.Claim as before: the plugin draws the wanted ones the addon has drawn, a
+-- frame after it drew them, and draws nothing for the others.
+--
 -- Entities are known by index, which another entity has after a change of area: an addon that
 -- overrides names clears them then.
 local bit = require('bit');
@@ -71,10 +85,39 @@ ffi.cdef[[
         uint32_t Count;
         float    Width, Height;
         uint32_t Sequence;
-        uint32_t Reserved[3];
+        uint32_t Draw;
+        float    TargetWidth, TargetHeight;
         uint8_t  Override[0x900];
         nameplatehook_name_t Names[256];
     } nameplatehook_t;
+
+    typedef struct {
+        float    X0, Y0, X1, Y1;
+        float    U0, V0, U1, V1;
+        uint32_t Color;
+        uint32_t Texture;
+        uint32_t Flags;
+        uint32_t Reserved;
+    } nameplatehook_quad_t;
+
+    typedef struct {
+        uint32_t Frame;
+        uint32_t First;
+        uint32_t Count;
+        float    Alpha;
+        float    Edge;
+        uint32_t EdgeColor;
+    } nameplatehook_drawing_t;
+
+    typedef struct {
+        uint32_t Frame;
+        uint32_t QuadCount;
+        uint32_t QuadsMax;
+        uint32_t Reserved;
+        uint32_t Textures[8];
+        nameplatehook_drawing_t Entities[0x900];
+        nameplatehook_quad_t Quads[16384];
+    } nameplatehook_draw_t;
 ]]
 
 local nameplates = {};
@@ -105,10 +148,11 @@ nameplates.Flag = {
     Whitelisted = 0x20, -- a player on the plugin's whitelist
     OnScreen    = 0x40, -- in front of the camera
     Overridden  = 0x80, -- shown or hidden by nameplates.Override, and not by its category
+    Custom      = 0x100, -- drawn by the plugin, from what an addon drew for it
 };
 
 local MAGIC        = '4E414D45504C415445484F4F4B000000'; -- "NAMEPLATEHOOK" and the three 0s after it
-local VERSION      = 1;
+local VERSION      = 2;
 local LOOK_EVERY   = 1; -- seconds between looks for the plugin's block while it is not found
 local ENTITIES     = 0x900;
 local ALWAYS_TARGET = 0x01;
@@ -297,6 +341,74 @@ function nameplates.Claim(categories)
     if (hook ~= nil) then
         hook.Claimed = bit.band(categories or nameplates.Category.All, nameplates.Category.All);
         hook.ClaimFrame = hook.Frame;
+    end
+end
+
+-- Names drawn for the plugin to put in the picture
+local draw = nil;      -- the plugin's place for them, between BeginDrawing and the frame's end
+local drawing = nil;   -- the name being drawn
+local QUADS_PER_NAME = 256;
+local TEXTURES = 8;
+
+function nameplates.BeginDrawing()
+    draw, drawing = nil, nil;
+
+    local hook = nameplates.Hook();
+    if (hook == nil or hook.Hooked == 0 or hook.Draw == 0) then
+        return nil;
+    end
+
+    draw = ffi.cast('nameplatehook_draw_t*', hook.Draw);
+    draw.Frame = hook.Frame;
+    draw.QuadCount = 0;
+
+    -- until the plugin has seen a name drawn it does not know the size of the game's picture
+    if (hook.TargetWidth <= 0 or hook.Width <= 0) then
+        return 1;
+    end
+    return hook.TargetWidth / hook.Width;
+end
+
+function nameplates.SetTexture(slot, texture)
+    if (draw ~= nil and slot >= 0 and slot < TEXTURES) then
+        draw.Textures[slot] = texture or 0;
+    end
+end
+
+function nameplates.BeginName(entityIndex, alpha, edge, edgeColor)
+    drawing = nil;
+    if (draw == nil or entityIndex < 0 or entityIndex >= ENTITIES or draw.QuadCount + QUADS_PER_NAME > draw.QuadsMax) then
+        return false;
+    end
+
+    drawing = draw.Entities[entityIndex];
+    drawing.Frame = draw.Frame;
+    drawing.First = draw.QuadCount;
+    drawing.Count = 0;
+    drawing.Alpha = alpha or 1;
+    drawing.Edge = edge or 0;
+    drawing.EdgeColor = edgeColor or 0;
+    return true;
+end
+
+function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged)
+    if (drawing == nil or drawing.Count >= QUADS_PER_NAME) then
+        return;
+    end
+
+    local quad = draw.Quads[drawing.First + drawing.Count];
+    quad.X0, quad.Y0, quad.X1, quad.Y1 = x0, y0, x1, y1;
+    quad.U0, quad.V0, quad.U1, quad.V1 = u0, v0, u1, v1;
+    quad.Color = color;
+    quad.Texture = slot or 0;
+    quad.Flags = edged and 1 or 0;
+    drawing.Count = drawing.Count + 1;
+end
+
+function nameplates.EndName()
+    if (drawing ~= nil) then
+        draw.QuadCount = drawing.First + drawing.Count;
+        drawing = nil;
     end
 end
 
