@@ -3,7 +3,8 @@
 --   custom.Defaults(defaults)     adds the settings below to an addon's own
 --   custom.Find()                 once, on loading: the game's icons
 --   custom.DrawSettings(options)  the settings tab
---   custom.Frame(options)         each frame: claims the names and draws them, while Custom Names is on
+--   custom.Frame(options, hook)   each frame: claims the names and draws them, while Custom Names is on;
+--                                 hook is the plugin's block, as nameplates.Hook gave it this frame
 --
 -- The nameplatehook plugin lists the names the game was about to draw. While this draws, it claims
 -- them all, so the game draws none; which names are wanted is still the plugin's to say, and only
@@ -90,20 +91,30 @@ local function darkColor()
     return math.floor(dark[4] * 255 + 0.5) * 0x1000000 + math.floor(dark[1] * 255 + 0.5) * 0x10000 + math.floor(dark[2] * 255 + 0.5) * 0x100 + math.floor(dark[3] * 255 + 0.5);
 end
 
--- The game's writing of a name taken apart, kept by that writing: { icons = { byte, ... }, words =
--- the name }. The same names come round every frame.
-local parsed = {};
-local parsedCount = 0;
+ffi.cdef('int memcmp(const void*, const void*, size_t);');
 
-local function parse(written)
-    local found = parsed[written];
-    if (found ~= nil) then
-        return found;
+local TEXT_SIZE = 48; -- of a name as the plugin lists it
+
+-- The game's writing of a name taken apart: { icons = { byte, ... }, words = the name }. Kept by
+-- entity, with the writing it was taken from: the same names come round every frame, and to see that
+-- one is as it was its bytes are compared where they lie, without a string being made of them.
+local parsed = {};
+
+local function parse(name)
+    local known = parsed[name.EntityIndex];
+    if (known == nil) then
+        known = { text = ffi.new('char[?]', TEXT_SIZE), icons = {}, words = '', fresh = true };
+        parsed[name.EntityIndex] = known;
+    elseif (not known.fresh and ffi.C.memcmp(known.text, name.Text, TEXT_SIZE) == 0) then
+        return known;
     end
 
-    found = { icons = {}, words = '' };
+    ffi.copy(known.text, name.Text, TEXT_SIZE);
+    known.fresh = false;
+    local written = ffi.string(name.Text);
 
     -- the icons lead; the name is what follows them, less the space between
+    known.icons = {};
     local at = 1;
     while (at <= #written) do
         local byte = written:byte(at);
@@ -111,20 +122,22 @@ local function parse(written)
             break;
         end
         if (icons.Has(byte)) then
-            found.icons[#found.icons + 1] = byte;
+            known.icons[#known.icons + 1] = byte;
         end
         at = at + 1;
     end
 
     -- a character of the font that is not a letter cannot be written in this one
-    found.words = written:sub(at):gsub('[%z\1-\31\127-\255]', ''):gsub('^ +', '');
+    known.words = written:sub(at):gsub('[%z\1-\31\127-\255]', ''):gsub('^ +', '');
+    return known;
+end
 
-    if (parsedCount > 1024) then
-        parsed, parsedCount = {}, 0;
+-- The icons are found a moment after the names are first seen: what was taken apart without them is
+-- taken apart again
+local function forgetParsed()
+    for _, known in pairs(parsed) do
+        known.fresh = true;
     end
-    parsed[written] = found;
-    parsedCount = parsedCount + 1;
-    return found;
 end
 
 -- Fonts loaded from files, by file: the font, or false for a file that would not load
@@ -253,25 +266,32 @@ end
 
 -- The font's texture as Direct3D has it, or nil while it has none: for a moment after letters of a
 -- new size have been put in it
+local function askFontTexture()
+    local atlas = imgui.GetFont().ContainerAtlas;
+    local id = atlas.TexRef:GetTexID();
+    if (id == nil or id == 0) then
+        id = atlas.TexData:GetTexID();
+    end
+    return id;
+end
+
 local function fontTexture()
-    local ok, id = pcall(function ()
-        local atlas = imgui.GetFont().ContainerAtlas;
-        local id = atlas.TexRef:GetTexID();
-        if (id == nil or id == 0) then
-            id = atlas.TexData:GetTexID();
-        end
-        return id;
-    end);
+    local ok, id = pcall(askFontTexture);
     if (ok and type(id) == 'number' and id ~= 0) then
         return id;
     end
     return nil;
 end
 
--- The font's letters, by font and size and then by letter: { x0, y0, x1, y1, u0, v0, u1, v1, advance,
--- visible }. Where a letter is in the texture changes when the texture is made again, so the texture
--- is watched, and one letter of each size looked at afresh each frame.
-local glyphSets = {};
+-- The font's letters, by size and then by letter: { x0, y0, x1, y1, u0, v0, u1, v1, advance,
+-- visible }, for the font now chosen. Where a letter is in the texture changes when the texture is
+-- made again, so the texture is watched, and one letter of each size looked at afresh each frame.
+--
+-- A size is pushed on imgui once a frame, the first time a name of that size comes up, which also
+-- keeps imgui from letting its letters go; every other name of the size is set out from what is
+-- kept, with nothing asked of imgui at all.
+local glyphSets = {};   -- height -> { checked = the frame it was last looked at, glyphs, baked }
+local glyphFont = nil;  -- the font they are of
 local glyphTexture = nil;
 local frame = 0;
 
@@ -284,33 +304,39 @@ local function readGlyph(baked, byte)
         glyph.Visible ~= 0 and glyph.Visible ~= false };
 end
 
--- The letters of the font and size now pushed
-local function glyphSet(key)
+-- The letters of the font at this height, or nil if imgui has none
+local function glyphSet(font, height)
+    local set = glyphSets[height];
+    if (set ~= nil and set.checked == frame) then
+        return set;
+    end
+
+    imgui.PushFont(font, height);
     local baked = imgui.GetFontBaked();
     if (baked == nil) then
-        return nil, nil;
+        imgui.PopFont();
+        return nil;
     end
 
-    local set = glyphSets[key];
     if (set == nil) then
-        set = { checked = 0, glyphs = {} };
-        glyphSets[key] = set;
+        set = { glyphs = {} };
+        glyphSets[height] = set;
     end
 
-    if (set.checked ~= frame) then
-        set.checked = frame;
-        local now = readGlyph(baked, PROBE);
-        local was = set.glyphs[PROBE];
-        if (was and now and (was[5] ~= now[5] or was[6] ~= now[6] or was[7] ~= now[7] or was[8] ~= now[8])) then
-            -- the letters have been moved: every size's are read again
-            glyphSets = {};
-            set = { checked = frame, glyphs = {} };
-            glyphSets[key] = set;
-        end
-        set.glyphs[PROBE] = now;
+    local now = readGlyph(baked, PROBE);
+    local was = set.glyphs[PROBE];
+    if (was and now and (was[5] ~= now[5] or was[6] ~= now[6] or was[7] ~= now[7] or was[8] ~= now[8])) then
+        -- the letters have been moved: every size's are read again
+        glyphSets = {};
+        set = { glyphs = {} };
+        glyphSets[height] = set;
     end
+    set.glyphs[PROBE] = now;
+    set.baked = baked;
+    set.checked = frame;
 
-    return set.glyphs, baked;
+    imgui.PopFont();
+    return set;
 end
 
 -- The game makes some names pulse, the target's for one, by changing their colour from frame to
@@ -365,13 +391,14 @@ local function steadyColor(name)
     return known.nowScore >= known.wasScore and known.now or known.was;
 end
 
-function custom.Frame(options)
+local iconsSeen = nil; -- the icons' texture when names were last taken apart
+
+function custom.Frame(options, hook)
     if (not options.customNames[1]) then
         return;
     end
 
     -- without the plugin's list there is nothing to draw from, and the game draws the names
-    local hook = nameplates.Hook();
     if (hook == nil or hook.Hooked == 0) then
         return;
     end
@@ -380,24 +407,29 @@ function custom.Frame(options)
     if (texture == nil) then
         return;
     end
-    if (texture ~= glyphTexture) then
-        glyphTexture = texture;
+    if (texture ~= glyphTexture or options.font ~= glyphFont) then
+        glyphTexture, glyphFont = texture, options.font;
         glyphSets = {};
     end
 
     -- how many pixels of the game's picture there are to one of the screen's: the names are set out
     -- in the game's, at the size that makes them the size asked for on the screen
-    local scale = nameplates.BeginDrawing();
+    local scale = nameplates.BeginDrawing(hook);
     if (scale == nil) then
         return;
     end
 
     -- every frame: the game draws none of the names while this does
-    nameplates.Claim(nameplates.Category.All);
+    nameplates.Claim(nameplates.Category.All, hook);
 
     icons.Begin();
+    local iconTexture = icons.Texture() or 0;
+    if (iconTexture ~= iconsSeen) then
+        iconsSeen = iconTexture;
+        forgetParsed();
+    end
     nameplates.SetTexture(FONT_SLOT, texture);
-    nameplates.SetTexture(ICON_SLOT, icons.Texture() or 0);
+    nameplates.SetTexture(ICON_SLOT, iconTexture);
 
     frame = frame + 1;
 
@@ -417,7 +449,7 @@ function custom.Frame(options)
         local name = hook.Names[i];
 
         if (bit.band(name.Flags, WANTED) ~= 0) then
-            local written = parse(ffi.string(name.Text));
+            local written = parse(name);
             local iconCount = showIcons and #written.icons or 0;
 
             -- The game draws a name at one size out to a distance, then smaller and smaller until at
@@ -437,11 +469,11 @@ function custom.Frame(options)
             if (alpha > 0 and (written.words ~= '' or iconCount > 0)) then
                 -- the name's font at its size in the game's picture, for its letters
                 local height = math.max(1, math.floor(size * scale + 0.5));
-                imgui.PushFont(font, height);
-                local glyphs, baked = glyphSet(options.font .. ':' .. height);
+                local set = glyphSet(font, height);
 
                 local nameEdge = math.min(edge, math.max(1, math.floor(size / 8))) * scale;
-                if (glyphs ~= nil and nameplates.BeginName(name.EntityIndex, alpha, edge > 0 and nameEdge or 0, dark)) then
+                if (set ~= nil and nameplates.BeginName(name.EntityIndex, alpha, edge > 0 and nameEdge or 0, dark)) then
+                    local glyphs, baked = set.glyphs, set.baked;
                     local words = written.words;
 
                     local width = 0;
@@ -508,8 +540,6 @@ function custom.Frame(options)
 
                     nameplates.EndName();
                 end
-
-                imgui.PopFont();
             end
         end
     end

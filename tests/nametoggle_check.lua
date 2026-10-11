@@ -180,6 +180,21 @@ fontTexture = 0; local frameBefore = draw.Frame; block.Frame = 90; block.ClaimFr
 H.print('no font texture: nothing set out', draw.Frame == frameBefore, '| nor claimed', block.ClaimFrame == 0)
 fontTexture = 0x5678; H.frames(1)
 H.print('another texture: taken up', draw.Textures[0] == 0x5678, draw.Frame == 90)
+-- a size is pushed on imgui once a frame however many names are of it, and the plugin is asked after
+-- once a frame whatever is done with it
+put(1, 0x403, Category.Player, Flag.Wanted, 'Stranger'); put(2, 0x404, Category.Player, Flag.Wanted, 'Friend')
+for i = 1, 2 do block.Names[i].Scale, block.Names[i].NameColor = 1, 0x80808080 end
+block.Count, block.Sequence = 3, block.Sequence + 1
+local pushes, asked = #pushed, 0
+local realIsLoaded = manager.IsLoaded
+manager.IsLoaded = function(...) asked = asked + 1 return realIsLoaded(...) end
+H.frames(1)
+manager.IsLoaded = realIsLoaded
+H.print('three names of one size: pushed', #pushed - pushes, '| the plugin asked after', asked, '| all set out', draw.Entities[0x403].Count, draw.Entities[0x404].Count)
+-- a name written otherwise is taken apart again
+ffi.copy(block.Names[1].Text, 'Other'); H.frames(1)
+H.print('another name for the same entity: quads', draw.Entities[0x403].Count)
+block.Count = 1
 H.tab(2); H.command('/nametoggle'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/nametoggle'); H.tab(1)
 H.print('its tab drawn: sliders', (H.calls.SliderInt or 0) - sliders)
 block.Hooked = 0; block.Claimed = 0; H.frames(1)

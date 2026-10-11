@@ -1,6 +1,6 @@
 addon.name    = 'nametoggle';
 addon.author  = 'win (and claude)';
-addon.version = '1.4';
+addon.version = '1.5';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the nameplatehook plugin.';
 
 require('common');
@@ -50,6 +50,9 @@ custom.Defaults(defaults);
 -- and a change made there is taken into the settings.
 local connected = false;
 
+-- What the plugin was last seen to have, so that the settings are only gone through when it changes
+local seenHidden, seenOptions = nil, nil;
+
 local function Push(options)
     local hidden = 0;
     for _, row in ipairs(rows) do
@@ -59,10 +62,16 @@ local function Push(options)
     end
     nameplates.SetAllHidden(hidden);
     nameplates.SetAlwaysTarget(options.alwaysTarget[1]);
+    seenHidden, seenOptions = nil, nil;
 end
 
 -- Returns whether anything was different
-local function Pull(options)
+local function Pull(options, hook)
+    if (hook.Hidden == seenHidden and hook.Options == seenOptions) then
+        return false;
+    end
+    seenHidden, seenOptions = hook.Hidden, hook.Options;
+
     local changed = false;
     for _, row in ipairs(rows) do
         local shown = not nameplates.IsHidden(row.category);
@@ -215,7 +224,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     app:BeginFrame();
     local options = app.options;
 
-    if (nameplates.Hook() == nil) then
+    -- the one ask of the plugin this frame: what it gives is handed on
+    local hook = nameplates.Hook();
+    if (hook == nil) then
         connected = false;
         return;
     end
@@ -223,9 +234,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     if (not connected) then
         connected = true;
         Push(options);
-    elseif (Pull(options)) then
+    elseif (Pull(options, hook)) then
         app:Save();
     end
 
-    custom.Frame(options);
+    custom.Frame(options, hook);
 end);
