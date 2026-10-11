@@ -223,6 +223,12 @@ H.print('distance off: the monster, quads', draw.Entities[300].Count, '| nothing
 o.showDistance[1] = true; H.frames(1)
 -- "Goblin 12.3": eleven characters, the space among them a letter here
 H.print('distance on: the monster, quads', draw.Entities[300].Count, '| the player as before', buddy.Count, '| asked once', asked == 1)
+-- for the target only: a monster that is not the target has its name alone, and the target its distance
+o.distanceTargetOnly[1] = true; H.frames(1)
+H.print('target only, not the target: quads', draw.Entities[300].Count)
+block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
+H.print('target only, the target: quads', draw.Entities[300].Count)
+o.distanceTargetOnly[1] = false
 o.showDistance[1] = false
 block.Count = 1
 
