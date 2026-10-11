@@ -59,6 +59,7 @@ namehook 1.10 or later.
 | Icon Size | An icon's side, as a percentage of the height of the names |
 | Icon Spacing | The space between a name's icons and the name itself, 0 to 24 pixels |
 | Show Monster Distance | A monster's name is followed by how far it is from you, to a tenth, as the game measures it |
+| Distance For Target Only | Only the monster you have targeted has its distance after its name. There while Show Monster Distance is on |
 | Show Mastery Stars | The three stars over the name of a player with a job mastered |
 
 The names are not drawn on the screen by this addon, as its windows are. An addon draws on the finished
