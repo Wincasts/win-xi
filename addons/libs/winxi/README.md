@@ -20,6 +20,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
 | `winxi.packets` | The packets addons send and read, set out once |
 | `winxi.debuffs` | Which debuffs are on each enemy and for how long yet, worked out from the spells seen to land |
+| `winxi.nameplates` | The names the game draws over characters' heads, from the `nameplatehook` plugin: what each is over, where it is on screen, and showing and hiding them by category or one by one |
 | `winxi.debounce` | Running a function once things have gone quiet |
 | `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
 | `winxi.shell` | Everything an addon with one main window would otherwise write for itself: settings, the settings window, the command, the window's frame |
