@@ -23,6 +23,10 @@ local device = d3d.get_device();
 --     20 pixels above the game's, with the depth test on: it should be hidden by what is in front of it
 --   /glyphtest depth switches the depth test off and on
 --   /glyphtest claim stops the game drawing its own names, and writes these where they were
+--   /glyphtest plane <name> draws a see-through pink sheet over the whole screen, as deep in the picture as
+--     that name: it should cover what is further off than the name and be hidden by what is nearer.
+--     /glyphtest plane off takes it away
+--   /glyphtest numbers says how deep each name was worked out to be, and what the camera's numbers are
 --   /glyphtest big writes them at 30 pixels, and says what a letter of that size is found to be
 
 ffi.cdef[[
@@ -39,6 +43,8 @@ local depthTest = true;
 local claim = false;   -- the game draws no names, and these are written where its own would be
 local big = false;     -- the names are written at 30 pixels, a size nothing else is written in
 local bigSaid = false;
+local plane = nil;     -- a name, or the start of one: a sheet is drawn over the screen as deep as that name is
+local numbers = false; -- the next frame says what each name's depth was worked out to be
 local reported = false;
 local failed = {}; -- what has gone wrong while drawing, said once each
 
@@ -238,6 +244,64 @@ local function draw()
     local raise = claim and height * 0.5 or 20 + height;
 
     local display = imgui.GetIO().DisplaySize;
+
+    if (numbers) then
+        say(('projection: _33 %.6f _43 %.6f _34 %.3f _44 %.3f | near %.4f far %.1f'):format(p._33, p._43, p._34, p._44, -p._43 / p._33, -p._43 / (p._33 - 1)));
+        try('viewport', function ()
+            local _, port = device:GetViewport();
+            say(('viewport: %d,%d %dx%d | MinZ %.4f MaxZ %.4f | display %dx%d'):format(port.X, port.Y, port.Width, port.Height, port.MinZ, port.MaxZ, display.x, display.y));
+        end);
+        local _, zEnable = device:GetRenderState(C.D3DRS_ZENABLE);
+        local _, zFunc = device:GetRenderState(C.D3DRS_ZFUNC);
+        local _, zWrite = device:GetRenderState(C.D3DRS_ZWRITEENABLE);
+        say('as the game left it: ZENABLE', zEnable, '| ZFUNC', zFunc, '| ZWRITEENABLE', zWrite);
+    end
+
+    local planeDepth, planeName = nil, nil;
+    local said = 0;
+    for _, name in nameplates.Each() do
+        local w = name.X * m14 + name.Y * m24 + name.Z * m34 + m44;
+        if (w > 0.01) then
+            local depth = (name.X * m13 + name.Y * m23 + name.Z * m33 + m43) / w;
+            local words = nameplates.Name(name);
+            if (numbers and said < 14) then
+                said = said + 1;
+                say(('%s: distance %.2f | depth %.6f'):format(words, w, depth));
+            end
+            if (plane ~= nil and planeDepth == nil and words:lower():sub(1, #plane) == plane) then
+                planeDepth, planeName = depth, words;
+            end
+        end
+    end
+    numbers = false;
+
+    -- the sheet, before the names so that they are written over it
+    if (planeDepth ~= nil) then
+        quad(0, 0, display.x, display.y, planeDepth, 1, 0x70FF40C0, 0, 0, 0, 0);
+        local _, zEnable = device:GetRenderState(C.D3DRS_ZENABLE);
+        local _, zFunc = device:GetRenderState(C.D3DRS_ZFUNC);
+        local _, zWrite = device:GetRenderState(C.D3DRS_ZWRITEENABLE);
+        device:SetTexture(0, nil);
+        device:SetTextureStageState(0, C.D3DTSS_COLOROP, C.D3DTOP_SELECTARG2);
+        device:SetTextureStageState(0, C.D3DTSS_COLORARG2, C.D3DTA_DIFFUSE);
+        device:SetTextureStageState(0, C.D3DTSS_ALPHAOP, C.D3DTOP_SELECTARG2);
+        device:SetTextureStageState(0, C.D3DTSS_ALPHAARG2, C.D3DTA_DIFFUSE);
+        device:SetRenderState(C.D3DRS_ZENABLE, 1);
+        device:SetRenderState(C.D3DRS_ZFUNC, C.D3DCMP_LESSEQUAL);
+        device:SetRenderState(C.D3DRS_ZWRITEENABLE, 0);
+        device:SetRenderState(C.D3DRS_ALPHABLENDENABLE, 1);
+        device:SetRenderState(C.D3DRS_SRCBLEND, C.D3DBLEND_SRCALPHA);
+        device:SetRenderState(C.D3DRS_DESTBLEND, C.D3DBLEND_INVSRCALPHA);
+        device:SetVertexShader(FVF);
+        device:DrawPrimitiveUP(C.D3DPT_TRIANGLELIST, 2, vertices, stride);
+        device:SetRenderState(C.D3DRS_ZENABLE, zEnable or 0);
+        device:SetRenderState(C.D3DRS_ZFUNC, zFunc or C.D3DCMP_LESSEQUAL);
+        device:SetRenderState(C.D3DRS_ZWRITEENABLE, zWrite or 1);
+        used = 0;
+        write(baked, ('sheet as deep as %s: %.6f'):format(planeName, planeDepth), 20, 410, 0, 1, 0xFFFF80E0);
+        flush(texture, false);
+    end
+
     for _, name in nameplates.Each() do
         local x, y, z = name.X, name.Y, name.Z;
         local w = x * m14 + y * m24 + z * m34 + m44;
@@ -270,6 +334,12 @@ ashita.events.register('command', 'command_cb', function (e)
     elseif (args[2] ~= nil and args[2]:lower() == 'claim') then
         claim = not claim;
         say('the game\'s names', claim and 'claimed: only these are drawn' or 'left to the game');
+    elseif (args[2] ~= nil and args[2]:lower() == 'plane') then
+        local word = args[3] and args[3]:lower() or 'off';
+        plane = word ~= 'off' and word or nil;
+        say('sheet', plane and ('as deep as the first name beginning ' .. plane) or 'off');
+    elseif (args[2] ~= nil and args[2]:lower() == 'numbers') then
+        numbers = true;
     elseif (args[2] ~= nil and args[2]:lower() == 'big') then
         big = not big;
         bigSaid = false;
