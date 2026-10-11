@@ -1,7 +1,9 @@
--- The indicator: a small window in the theme that says for a few seconds what a trigger was for.
+-- The indicator: a small window in the theme that says for a few seconds what a trigger was for. It
+-- fades in as it appears and out as it goes, as winxi's windows do.
 local bit = require('bit')
 local imgui = require('imgui')
 local window = require('winxi.window')
+local fade = require('winxi.fade')
 local game = require('winxi.game')
 local shared = require('shared')
 
@@ -11,7 +13,8 @@ local indicator = { sample = false }
 
 -- The indicator: what a trigger was for, in words on the screen for a few seconds, as the chat log
 -- says it. A line for each thing said, the first said at the top; what is said again while it is
--- still up stays up longer, and is not said twice.
+-- still up stays up longer, and is not said twice. The last lines up stay in the list after their
+-- time, for the window to fade out with: they go once it has.
 local indicatorLines = { } -- { text, till }: what is up, and until when
 local indicatorVerbs = { skill = 'readies', spell = 'starts casting', ability = 'uses' }
 
@@ -42,7 +45,14 @@ local indicatorSpacing = { 8, 4 }
 local indicatorPadding = { 0, 0 }
 local indicatorSample = { { text = 'Mad Sheep readies Sheep Song.' } } -- what is shown with the Triggers tab open and nothing to say
 
-local indicatorShown = nil -- the lines drawn this frame
+local indicatorShown = nil -- the lines drawn this frame, and what it fades out with after
+local indicatorStyle = { alpha = 1 }
+
+local function ForgetLines()
+    for index = #indicatorLines, 1, -1 do
+        indicatorLines[index] = nil
+    end
+end
 
 local function DrawIndicatorContent()
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, indicatorPadding)
@@ -56,31 +66,61 @@ local function DrawIndicatorContent()
 end
 
 local function DrawIndicator(now, sample)
-    for index = #indicatorLines, 1, -1 do
-        if now >= indicatorLines[index].till then
-            table.remove(indicatorLines, index)
+    -- a line whose time is up goes, unless every line's is: those stay, to fade out
+    local live = 0
+    for _, line in ipairs(indicatorLines) do
+        if now < line.till then
+            live = live + 1
         end
     end
+    if live > 0 then
+        for index = #indicatorLines, 1, -1 do
+            if now >= indicatorLines[index].till then
+                table.remove(indicatorLines, index)
+            end
+        end
+    elseif sample then
+        -- the sample is what is shown with nothing to say
+        ForgetLines()
+    end
     if not shared.app.options.showIndicator[1] then
+        ForgetLines()
+        indicatorShown = nil
         return
     end
-    indicatorShown = #indicatorLines > 0 and indicatorLines or sample and indicatorSample or nil
+    if #indicatorLines > 0 then
+        indicatorShown = indicatorLines
+    elseif sample then
+        indicatorShown = indicatorSample
+    end
     -- out of the way of what recast's window is: the chat log opened out, the map, an event, the
     -- interface hidden
     if indicatorShown == nil or game.IsChatExpanded() or game.IsMapOpen() or game.IsEventHappening() or game.IsInterfaceHidden() then
         return
     end
 
+    -- wanted while there is something to say: after that it is drawn until it has faded out
+    local wanted = live > 0 or sample
+    local alpha = fade.Presence(indicatorName, wanted)
+    if alpha <= 0.01 then
+        if not wanted then
+            ForgetLines()
+            indicatorShown = nil
+        end
+        return
+    end
+
     imgui.SetNextWindowPos(shared.app.options.indicatorPos, ImGuiCond_FirstUseEver)
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, indicatorSpacing)
     indicatorOpen[1] = true
-    window.Plain(indicatorName, indicatorOpen, indicatorFlags, DrawIndicatorContent)
+    indicatorStyle.alpha = alpha
+    window.Plain(indicatorName, indicatorOpen, indicatorFlags, DrawIndicatorContent, indicatorStyle)
     imgui.PopStyleVar()
 end
 
 -- Once a frame, after the settings have been drawn
 function indicator.Frame(now)
-    if #indicatorLines > 0 or indicator.sample then
+    if #indicatorLines > 0 or indicator.sample or indicatorShown ~= nil then
         DrawIndicator(now, indicator.sample)
     end
     indicator.sample = false
