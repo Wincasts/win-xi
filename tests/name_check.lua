@@ -348,12 +348,12 @@ alive[300].hp = 0; H.frames(1)
 -- under a checked monster's name: how hard it was said to be, what it does, and what it links with
 o.checkedFormat[1] = ''; o.monsterFormat[1] = '[name]'; o.showCheckDetails[1] = true
 alive[300] = { id = 0x1000 + 300, hp = 100 }
-local custom = require('custom'); custom.SetSenses(0x7777)
+local custom = require('custom'); custom.SetSheets(0x7777, 0x8888)
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true, Notorious = false, Sight = true, Sound = true, Link = true, Family = 'Goblin' } }, Names = {} })
 H.frames(1)
 H.print('not checked: the name alone, quads', goblin.Count)
 H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(2)
-H.print('checked, said to be', levels.Checked(300, 0x1000 + 300).hard, '| the name and its line, quads', goblin.Count, '| the sheet of signs given to the plugin', draw.Textures[2] == 0x7777)
+H.print('checked, said to be', levels.Checked(300, 0x1000 + 300).hard, '| the name and its line, quads', goblin.Count, '| the two sheets of signs given to the plugin', draw.Textures[2] == 0x7777, draw.Textures[3] == 0x8888)
 -- "Goblin" (6), then "Very Tough" (10 with its space), aggressive, sight, sound (3 signs), the link sign, "Goblin" (6)
 local quads = {}
 for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; quads[#quads + 1] = q end
@@ -361,9 +361,10 @@ local nameLeft, nameRight = quads[1].X0, quads[6].X1
 local lineLeft, lineRight = quads[7].X0, quads[#quads].X1
 H.print('its middle under the name\'s', math.abs((nameLeft + nameRight) / 2 - (lineLeft + lineRight) / 2) < 1.6, '| below it', quads[7].Y0 > quads[1].Y1, '| smaller', (quads[7].Y1 - quads[7].Y0) < (quads[1].Y1 - quads[1].Y0))
 local signs = {}
-for _, q in ipairs(quads) do if q.Texture == 2 then signs[#signs + 1] = ('%.2f,%.2f'):format(q.U0, q.V0) end end
--- aggressive (first of the sheet), sight and sound (the second row's first and third), and link (the last row's last)
-H.print('the signs, by where they are in the sheet:', table.concat(signs, ' '))
+for _, q in ipairs(quads) do if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
+-- from the aggro sheet, an aggressive monster of level 9 (the seventh sign: the second row's third); then
+-- from the other, sight and sound (the second row's first and third) and link (the last row's last)
+H.print('the signs, by sheet and where they are in it:', table.concat(signs, ' '))
 -- it fades in as the monster is checked, is there five seconds, and fades out; a frame here is 0.03s
 local function lineAlpha() return goblin.Count > 6 and math.floor(draw.Quads[goblin.First + 6].Color / 0x1000000) or 0 end
 H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(1)
@@ -384,13 +385,34 @@ o.monsterFormat[1] = '[aggro][name]'; H.frames(1)
 local first = draw.Quads[goblin.First]
 H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0),
     '| the name after it', draw.Quads[goblin.First + 1].X0 >= first.X1)
+-- which of the twelve signs: six for one that is not aggressive and six for one that is, the first
+-- five of each by level and the sixth a notorious monster's
+local function sign(monster, checkedAs)
+    levels.Set({ Indices = { [300] = monster }, Names = {} })
+    if checkedAs then H.packetData(0x029, checkedAs) end
+    H.frames(1)
+    local q = draw.Quads[goblin.First]
+    return math.floor(q.V0 * 4 + 0.5) * 4 + math.floor(q.U0 * 4 + 0.5) + 1
+end
+alive[300].hp = 0; H.frames(1); alive[300].hp = 100 -- what the last check found is forgotten
+local byLevel = {}
+for _, level in ipairs({ 1, 19, 20, 37, 38, 56, 57, 74, 75, 99 }) do
+    byLevel[#byLevel + 1] = level .. ':' .. sign({ MinLevel = 1, MaxLevel = level, Aggro = false })
+end
+H.print('not aggressive, by the highest level it can be:', table.concat(byLevel, ' '))
+H.print('aggressive: level 10', sign({ MinLevel = 8, MaxLevel = 10, Aggro = true }), '| level 80', sign({ MinLevel = 78, MaxLevel = 80, Aggro = true }),
+    '| notorious, whatever its level', sign({ MinLevel = 5, MaxLevel = 6, Aggro = true, Notorious = true }), sign({ MinLevel = 5, MaxLevel = 6, Aggro = false, Notorious = true }))
+-- the level a check finds comes before the tables', and one impossible to gauge is as a notorious monster
+H.print('said by the tables to be 30 to 40 and found by a check to be 30:', sign({ MinLevel = 30, MaxLevel = 40, Aggro = true }, message(0x1000 + 300, 30, 0x44, 300, 174)),
+    '| found impossible to gauge:', sign({ MinLevel = 30, MaxLevel = 40, Aggro = true }, message(0x1000 + 300, 0, 0, 300, 249)))
+alive[300].hp = 0; H.frames(1); alive[300].hp = 100
 o.monsterFormat[1] = '[name]'; H.frames(1)
 o.showCheckDetails[1] = true
 -- one that does not link, and is not aggressive: the passive sign alone after the words
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = false, Sight = true, Link = false, Family = 'Goblin' } }, Names = {} })
 H.packetData(0x029, message(0x1000 + 300, 9, 0x40, 300, 174)); H.frames(1)
 signs = {}
-for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; if q.Texture == 2 then signs[#signs + 1] = ('%.2f,%.2f'):format(q.U0, q.V0) end end
+for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
 H.print('a passive one, said to be', levels.Checked(300, 0x1000 + 300).hard, '| signs', table.concat(signs, ' '), '| quads', goblin.Count)
 -- one the tables do not have: the words alone; and one impossible to gauge
 levels.Set(nil)

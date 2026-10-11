@@ -116,11 +116,26 @@ To write a distance after the name of the monster you have targeted and no other
 as `[name]` and set Targeted Monster Format to `[name] [distance]`. The Show Monster Distance and
 Distance For Target Only settings of 1.9 and 1.10 are made into these lines when the addon is loaded.
 
-`[aggro]` draws the sign that a monster is aggressive, or the sign that it is not, as high as the
-name: the same two signs as in the line under a checked monster's name, and like them from the
-`data` folder's tables, so it is there whether or not the monster has been checked. For what the
-tables do not have it draws nothing. `[aggro][name]` puts it before the name. A colour given to it
-tints it.
+`[aggro]` draws a sign for whether a monster is aggressive and how strong it is, as high as the name.
+It is from the `data` folder's tables, so it is there whether or not the monster has been checked;
+for what the tables do not have it draws nothing. `[aggro][name]` puts it before the name. A colour
+given to it tints it.
+
+There are twelve signs, six for a monster that is not aggressive and six for one that is:
+
+| Sign | Whose |
+|---|---|
+| First | Level 1 to 19 |
+| Second | Level 20 to 37 |
+| Third | Level 38 to 56 |
+| Fourth | Level 57 to 74 |
+| Fifth | Level 75 and above |
+| Sixth | A notorious monster, whatever its level, and one your check found impossible to gauge |
+
+The level is the one your check found, if you have checked the monster, and otherwise the highest
+the tables say it can be. The signs are the twelve pictures in `assets/aggro`, `Mob2_Icon.png` to
+`Mob13_Icon.png` in that order, which are gathered into the one sheet the addon draws from,
+`assets/aggro.png`, by `assets/make_aggro_sheet.py`: run it after changing any of them.
 
 ### What a check shows
 
@@ -131,13 +146,15 @@ the monster again brings it back.
 - How hard a fight the game said it would be, in the game's words: Too Weak, Incredibly Easy Prey,
   Easy Prey, Decent Challenge, Even Match, Tough, Very Tough or Incredibly Tough; or Impossible To
   Gauge, for a notorious monster.
-- A sign for whether it is aggressive or not, and for an aggressive one a sign for each thing it
-  notices you by: sight, true sight, sound, low health, magic, job abilities, scent.
+- The sign `[aggro]` draws, for whether it is aggressive and how strong, and for an aggressive one a
+  sign for each thing it notices you by: sight, true sight, sound, low health, magic, job abilities,
+  scent.
 - If it links, the sign for that and the family it links with.
 
 The first is from the game's answer to your check. The rest is from the tables in the `data` folder,
 and is what the server's own tables say of that kind of monster; for one the tables do not have, the
-first is all there is. The signs are mobdb's icons, gathered into `assets/senses.png`.
+first is all there is. The signs for what it notices you by, and for linking, are mobdb's icons,
+gathered into `assets/senses.png`.
 
 The names are not drawn on the screen by this addon, as its windows are. An addon draws on the finished
 picture, where nothing of the world can hide what it draws, and a name drawn there shows through
