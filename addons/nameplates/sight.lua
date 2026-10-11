@@ -24,13 +24,15 @@ local CALL_OFFSET   = 23; -- the call, whose four bytes after the first say how 
 -- into is, and what it noted of it. The function itself works 0x178 into that object.
 local WORKS_AT      = 0x178;
 local NOTE_POINTER  = WORKS_AT + 0x1807C;
-local NOTE          = WORKS_AT + 0x34148;
-local NOTE_SIZE     = 0x18;
+local NOTE          = WORKS_AT + 0x3413C; -- which way the thing faced, then what kind of thing it was
+local NOTE_SIZE     = 0x24;
 
 local mapPointer = 0;   -- where the game keeps its pointer to the map's collision
 local test       = nil; -- the game's function
 
-local from, to, hit = ffi.new('float[3]'), ffi.new('float[3]'), ffi.new('float[3]');
+-- Where the line was stopped is written to the last of these: three numbers by the function's own
+-- reckoning, with room for more should what it calls for a door or the like write a longer one
+local from, to, hit = ffi.new('float[4]'), ffi.new('float[4]'), ffi.new('float[16]');
 
 local kept        = ffi.new('uint8_t[?]', NOTE_SIZE);
 local keptPointer = 0;

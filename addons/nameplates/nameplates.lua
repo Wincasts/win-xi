@@ -1,6 +1,6 @@
 addon.name    = 'nameplates';
 addon.author  = 'win (and claude)';
-addon.version = '0.6';
+addon.version = '0.7';
 addon.desc    = 'Draws the names over characters\' heads in place of the game, from what the nameplatew plugin hands over.';
 
 require('common');
@@ -10,6 +10,7 @@ local d3d   = require('d3d8');
 local ffi   = require('ffi');
 local imgui = require('imgui');
 local shell   = require('winxi.shell');
+local game    = require('winxi.game');
 local text    = require('winxi.text');
 local widgets = require('winxi.widgets');
 local icons   = require('icons');
@@ -432,7 +433,8 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     local iconScale = options.iconSize[1] / 100;
 
     -- Where the camera is, out of the view: the look for what is in the way starts there
-    local hideBehind = options.hideBehind[1] and sight.Found();
+    -- (never while the game is between zones, when the map that would be asked may be going or gone)
+    local hideBehind = options.hideBehind[1] and sight.Found() and not game.IsLoading();
     local eyeX = -(v._41 * v._11 + v._42 * v._12 + v._43 * v._13);
     local eyeY = -(v._41 * v._21 + v._42 * v._22 + v._43 * v._23);
     local eyeZ = -(v._41 * v._31 + v._42 * v._32 + v._43 * v._33);
