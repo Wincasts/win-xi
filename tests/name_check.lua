@@ -313,11 +313,24 @@ H.print(('a name half way off: the glass high %.2f beside a letter high %.2f, st
 block.Names[1].Scale = 1; H.frames(1)
 o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
 H.print('without it: quads', goblin.Count)
+-- a line of its own for a monster that has been checked: empty, nothing is different; set, it is
+-- written by that line, and by it before the target's
+o.monsterFormat[1] = '[name]'; H.frames(1)
+H.print('Checked Monster Format empty: the monster as any other, quads', goblin.Count)
+o.checkedFormat[1] = '[name] [level]!'; H.frames(1)
+H.print('set: "Goblin 9!", quads', goblin.Count)
+o.targetFormat[1] = '<[name]>'; block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
+H.print('checked and the target: still by the checked line, quads', goblin.Count)
+o.checkedFormat[1] = ''; H.frames(1)
+H.print('emptied again: by the target\'s line, quads', goblin.Count)
+o.targetFormat[1] = ''; block.Names[1].Flags = Flag.Wanted
+o.checkedFormat[1] = '[name] [level]!'; o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
 -- a message of the same number that is no check, and one about damage, change nothing
 H.packetData(0x029, message(0x1000 + 300, 50, 7, 300, 173)); H.packetData(0x029, message(0x1000 + 300, 120, 0, 300, 1))
 H.print('other messages: still', levels.Of(300, 'Goblin', 0x1000 + 300), '| another with its index is not it', levels.Of(300, 'Goblin', 0x2000))
 alive[300].hp = 0; H.frames(1)
 H.print('dead: the range again, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
+o.checkedFormat[1] = ''
 alive[300].hp = 100
 H.packetData(0x029, message(0x1000 + 300, 10, 0x44, 300, 174))
 H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 6))
