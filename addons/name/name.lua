@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win (and claude)';
-addon.version = '1.10';
+addon.version = '1.11';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 require('common');
@@ -74,14 +74,14 @@ local function Pull(options, hook)
 
     local changed = false;
     for _, row in ipairs(rows) do
-        local shown = not nameplates.IsHidden(row.category);
+        local shown = bit.band(seenHidden, row.category) == 0;
         if (options[row.key][1] ~= shown) then
             options[row.key][1] = shown;
             changed = true;
         end
     end
 
-    local alwaysTarget = nameplates.AlwaysTarget();
+    local alwaysTarget = bit.band(seenOptions, 1) ~= 0;
     if (options.alwaysTarget[1] ~= alwaysTarget) then
         options.alwaysTarget[1] = alwaysTarget;
         changed = true;
@@ -212,7 +212,7 @@ app = shell.New({
         end,
     },
     -- another character's settings are given to the plugin afresh
-    onSettings   = function () connected = false; end,
+    onSettings   = function (options) connected = false; custom.Settle(options); end,
 });
 
 ashita.events.register('load', 'load_cb', function ()
