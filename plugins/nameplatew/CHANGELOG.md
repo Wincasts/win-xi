@@ -8,6 +8,12 @@
 
 # Changelog
 
+## nameplatew 0.70 - 2026-10-11
+
+- Added `Custom` and `/nameplatew custom on|off`, experimental: the names the client is about to draw are handed to an addon that asks for them, and not drawn by the client. The list, and how an addon reads it, is described in `README.md`.
+- The client's two calls that draw a name's lines are pointed at the plugin, when both are found where they are expected; they are put back on unload.
+- `tests/` checks the handing over of names, the full list, and the reading and pointing of a call.
+
 ## nameplatew 0.60 - 2026-10-10
 
 Forked from Nameplate-AshitaV4 0.1.0 as `nameplatew`: the DLL, the `/nameplatew` command and the `config\nameplatew` folder all carry the new name.
