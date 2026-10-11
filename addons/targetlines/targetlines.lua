@@ -1,6 +1,6 @@
 addon.name    = 'targetlines';
 addon.author  = 'Jyouya, win (and claude)';
-addon.version = '1.3';
+addon.version = '1.4';
 addon.desc    = 'FFXII style target lines';
 
 require('common');
@@ -185,12 +185,44 @@ local function getAnchor(entity, index, nameplate)
     return x, anchorY[index], anchorZ[index];
 end
 
+-- Where a line between two entities starts and ends, or nothing if either is not there to be read.
+-- nameplate and nameplateInset are as getAnchor and the nameplate mode have them.
+local function getLineEnds(entity, src, dst, nameplate, nameplateInset)
+    local x1, y1, z1 = getAnchor(entity, src, nameplate);
+    local x2, y2, z2 = getAnchor(entity, dst, nameplate);
+    if (not (x1 and x2)) then
+        return nil;
+    end
+
+    if (nameplate) then
+        -- Pull both ends in along the line so it stops short of the nameplates
+        local dx, dy, dz = x2 - x1, y2 - y1, z2 - z1;
+        local length = math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (length > 0) then
+            local inset = math.min(nameplateInset, length * nameplateMaxInset) / length;
+            x1, y1, z1 = x1 + dx * inset, y1 + dy * inset, z1 + dz * inset;
+            x2, y2, z2 = x2 - dx * inset, y2 - dy * inset, z2 - dz * inset;
+        end
+    end
+
+    return x1, y1, z1, x2, y2, z2;
+end
+
+-- The test line draws in as a new line does, stays, and starts again this many seconds after it began
+local testEvery = 3;
+
 ashita.events.register('load', 'load_cb', function()
     ashita.events.register('d3d_present', 'present_cb', function()
         -- Fetched each frame: the settings table is replaced when the character changes
         local s = settings.get();
         if (not s) then
             return;
+        end
+
+        -- With the test line on, everything is drawn as the config window has it, saved or not
+        local testing = config.isTesting();
+        if (testing) then
+            s = config.preview();
         end
 
         -- Expire lines here, for every line, so ones the filter hides do not pile up
@@ -203,7 +235,7 @@ ashita.events.register('load', 'load_cb', function()
         end
 
         -- No lines at all: nothing to filter or draw
-        if (next(arcs) == nil) then
+        if (next(arcs) == nil and not testing) then
             return;
         end
 
@@ -213,14 +245,15 @@ ashita.events.register('load', 'load_cb', function()
             sources = getPartySources(s.filter == 'Alliance', now);
 
             -- Nothing to draw: skip the camera and colour setup entirely
-            if (next(sources) == nil) then
+            if (next(sources) == nil and not testing) then
                 return;
             end
         end
 
         frameNumber = frameNumber + 1;
 
-        arcRenderer.beginFrame(1 - (tonumber(s.transparency) or 10) / 100, (tonumber(s.orbScale) or 100) / 100, s.occlude);
+        arcRenderer.beginFrame(1 - (tonumber(s.transparency) or 10) / 100, (tonumber(s.orbScale) or 100) / 100, s.occlude,
+            (tonumber(s.curve) or 100) / 100);
 
         for lineType in pairs(defaultColor) do
             lineColors[lineType] = getLineColor(s, lineType);
@@ -270,22 +303,26 @@ ashita.events.register('load', 'load_cb', function()
             end
 
             if (alpha > 0) then
-                local x1, y1, z1 = getAnchor(entity, src, nameplate);
-                local x2, y2, z2 = getAnchor(entity, v.dst, nameplate);
-
-                if (x1 and x2 and nameplate) then
-                    -- Pull both ends in along the line so it stops short of the nameplates
-                    local dx, dy, dz = x2 - x1, y2 - y1, z2 - z1;
-                    local length = math.sqrt(dx * dx + dy * dy + dz * dz);
-                    if (length > 0) then
-                        local inset = math.min(nameplateInset, length * nameplateMaxInset) / length;
-                        x1, y1, z1 = x1 + dx * inset, y1 + dy * inset, z1 + dz * inset;
-                        x2, y2, z2 = x2 - dx * inset, y2 - dy * inset, z2 - dz * inset;
-                    end
-                end
-
-                if (x1 and x2) then
+                local x1, y1, z1, x2, y2, z2 = getLineEnds(entity, src, v.dst, nameplate, nameplateInset);
+                if (x1) then
                     drawArc(x1, y1, z1, x2, y2, z2, lineColors[v.color], progress, true, alpha);
+                end
+            end
+        end
+
+        -- The test line: from the player to whatever the player has targeted, whoever or whatever it
+        -- is, in a player's colour. No filter hides it.
+        if (testing) then
+            local memory = AshitaCore:GetMemoryManager();
+            local myIndex = memory:GetParty():GetMemberTargetIndex(0);
+            local target = memory:GetTarget();
+            local targetIndex = target:GetTargetIndex(target:GetIsSubTargetActive());
+
+            if (myIndex ~= 0 and targetIndex ~= 0 and targetIndex ~= myIndex) then
+                local x1, y1, z1, x2, y2, z2 = getLineEnds(entity, myIndex, targetIndex, nameplate, nameplateInset);
+                if (x1) then
+                    local progress = math.min((now % testEvery) / 0.5, 1);
+                    drawArc(x1, y1, z1, x2, y2, z2, lineColors.player, progress, true, 1);
                 end
             end
         end

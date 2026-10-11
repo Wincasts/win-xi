@@ -15,6 +15,7 @@ local defaultSettings = T {
         enemyFriendly = { 1, 0.533, 0, 1 },
         pet = { 0.98, 0.502, 0.447, 1 } -- salmon
     },
+    curve = 100, -- /targetlines curve 100: how far a line bows out from the straight way between its ends, as a percentage
     orbScale = 100, -- /targetlines orbsize 100: size of the orb at the tip of a line as it draws in, as a percentage
     transparency = 10, -- /targetlines opacity 90: stored as how see-through the lines are, 0-90 percent
     nameplateAnchor = false, -- /targetlines nameplate on: lines start and end above mid-body, towards the nameplates, and stop short of each end
@@ -96,6 +97,28 @@ local function commit(key)
 end
 
 local minOrbScale, maxOrbScale = 25, 300;
+local minCurve, maxCurve = 10, 300;
+
+-- The test line: one drawn from the player to the player's target, over and over, for as long as this
+-- is on, so that how the lines look can be set with a line to look at. It is not a setting and is
+-- not saved. While it is on, the lines are drawn as the config window has them, saved or not.
+local testLine = { false };
+
+-- The settings as the config window shows them: what is pending where there is any, and what is
+-- saved where there is not
+local previewColors = setmetatable({}, {
+    __index = function(_, key)
+        return pendingColors[key] or (type(s.colors) == 'table' and s.colors[key]) or nil;
+    end
+});
+local preview = setmetatable({}, {
+    __index = function(_, key)
+        if (key == 'colors') then
+            return previewColors;
+        end
+        return shown(key);
+    end
+});
 local minNameplateOffset, maxNameplateOffset = 0, 100;
 local minNameplateInset, maxNameplateInset = 0, 50;
 
@@ -117,6 +140,15 @@ local function leftLabel(text)
     end
     imgui.Text(text);
     imgui.SameLine();
+end
+
+-- Whether the test line is on, and the settings to draw by while it is
+config.isTesting = function()
+    return testLine[1];
+end
+
+config.preview = function()
+    return preview;
 end
 
 config.drawWindow = function()
@@ -211,6 +243,14 @@ config.drawWindow = function()
             end
 
             if (imgui.CollapsingHeader('Appearance', ImGuiTreeNodeFlags_DefaultOpen)) then
+                local showTest = { testLine[1] };
+                if (imgui.Checkbox('Show Test Line', showTest)) then
+                    testLine[1] = showTest[1];
+                end
+                if (imgui.IsItemHovered()) then
+                    imgui.SetTooltip('Draws a line from you to your target, over and over, to set the look of the lines by. While it is on, every line is drawn as this window has it, before saving.\nIt is not saved, and goes off when the addon is reloaded.\n/targetlines test|t [on|off]');
+                end
+
                 -- Shown as opacity (90% by default); stored as its complement, transparency
                 local opacity = { 100 - (tonumber(shown('transparency')) or 10) };
                 leftLabel('Opacity');
@@ -222,6 +262,18 @@ config.drawWindow = function()
                 end
                 if (imgui.IsItemHovered()) then
                     imgui.SetTooltip('How solid the lines are. 100%% is fully solid.\n/targetlines opacity|o <10-100>');
+                end
+
+                local curve = { tonumber(shown('curve')) or 100 };
+                leftLabel('Curve');
+                imgui.PushItemWidth(-1);
+                local curveChanged = imgui.SliderInt('##curve', curve, minCurve, maxCurve, '%d%%');
+                imgui.PopItemWidth();
+                if (curveChanged) then
+                    stage('curve', curve[1]);
+                end
+                if (imgui.IsItemHovered()) then
+                    imgui.SetTooltip('How far each line bows out from the straight way between its ends. 100%% is the normal curve; less is flatter, more is rounder.\n/targetlines curve|c <' .. minCurve .. '-' .. maxCurve .. '>');
                 end
 
                 local orbScale = { tonumber(shown('orbScale')) or 100 };
@@ -346,6 +398,8 @@ local function printHelp()
     line('/targetlines anchorheight|ah <' .. minNameplateOffset .. '-' .. maxNameplateOffset .. '>', 'With nameplate anchoring on, how far above the middle of the body each line starts and ends, in tenths of a yalm. No option shows the current value.');
     line('/targetlines anchorgap|ag <' .. minNameplateInset .. '-' .. maxNameplateInset .. '>', 'With nameplate anchoring on, how far short of each anchor a line starts and ends, in tenths of a yalm. No option shows the current value.');
     line('/targetlines opacity|o <10-100>', 'How solid the lines are, as a percentage. 100 is fully solid. No option shows the current value.');
+    line('/targetlines curve|c <' .. minCurve .. '-' .. maxCurve .. '>', 'How far each line bows out from the straight way between its ends, as a percentage. 100 is the normal curve. No option shows the current value.');
+    line('/targetlines test|t [on|off]', 'Draw a line from you to your target, over and over, to set the look of the lines by. Not saved. No option toggles.');
     line('/targetlines orbsize|os <' .. minOrbScale .. '-' .. maxOrbScale .. '>', 'Size of the orb at the tip of a line while it draws in, as a percentage. 100 is the normal size. No option shows the current value.');
     line('/targetlines alertsound|as [on|off]', 'Play a sound when a mob turns on you or your pet, or someone else newly switches to you or your pet with a green line (a heal or buff). At most once a second. No option toggles.');
     line('/targetlines save', 'Apply and save the changes made in the config window, the same as its Save Settings button.');
@@ -438,6 +492,33 @@ ashita.events.register('command', 'command_cb', function(e)
                 commit('transparency');
                 print(chat.header(addon.name) .. chat.message('Line opacity: ') .. chat.success(tostring(100 - s.transparency) .. ' percent'));
             end
+        elseif (command == 'curve' or command == 'c') then
+            if (option == nil) then
+                print(chat.header(addon.name) .. chat.message('Curve: ') .. chat.success(tostring(tonumber(s.curve) or 100) .. ' percent'));
+            else
+                local value = tonumber(option);
+                if (not value or value < minCurve or value > maxCurve) then
+                    print(chat.header(addon.name) .. chat.error('Unknown option. Use: /targetlines curve|c <' .. minCurve .. '-' .. maxCurve .. '>'));
+                    e.blocked = true;
+                    return;
+                end
+                s.curve = math.floor(value);
+                commit('curve');
+                print(chat.header(addon.name) .. chat.message('Curve: ') .. chat.success(tostring(s.curve) .. ' percent'));
+            end
+        elseif (command == 'test' or command == 't') then
+            if (option == 'on') then
+                testLine[1] = true;
+            elseif (option == 'off') then
+                testLine[1] = false;
+            elseif (option == nil) then
+                testLine[1] = not testLine[1];
+            else
+                print(chat.header(addon.name) .. chat.error('Unknown option. Use: /targetlines test|t [on|off]'));
+                e.blocked = true;
+                return;
+            end
+            print(chat.header(addon.name) .. chat.message('Test line: ') .. chat.success(testLine[1] and 'on (from you to your target)' or 'off'));
         elseif (command == 'orbsize' or command == 'os') then
             if (option == nil) then
                 print(chat.header(addon.name) .. chat.message('Orb size: ') .. chat.success(tostring(tonumber(s.orbScale) or 100) .. ' percent'));

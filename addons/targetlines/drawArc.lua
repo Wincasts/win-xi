@@ -65,11 +65,16 @@ local orbRadius = baseOrbRadius; -- set each frame from the settings
 local depthTest = false;
 local keptZEnable, keptZFunc = nil, nil;
 
+-- How far a line bows out from the straight way between its ends: 1 is as it has always been drawn,
+-- less is flatter, more is rounder
+local arcCurve = 1;
+
 -- Call once per frame before drawing arcs. opacity (0-1, optional) is how solid the lines are drawn;
 -- orbScale (optional) multiplies the size of the orb, 1 being its normal size. occlude is whether the
--- lines are hidden behind what is in front of them.
-local function beginFrame(opacity, orbScale, occlude)
+-- lines are hidden behind what is in front of them. curve (optional) multiplies how far they bow.
+local function beginFrame(opacity, orbScale, occlude, curve)
     depthTest = occlude and true or false;
+    arcCurve = curve and math.max(0.1, curve) or 1;
     if (opacity) then
         lineOpacity = math.max(0, math.min(1, opacity));
     end
@@ -255,7 +260,7 @@ local function drawArc(x1, y1, z1, x2, y2, z2, color, progress, orb, alpha)
     local separation = math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2 + (z2 - z1) ^ 2);
     local arcScale = math.max(math.min(separation / arcFullDistance, 1), arcMinScale);
     local midY = (z1 + z2) / 2;
-    P1y = midY + (P1y - midY) * arcScale;
+    P1y = midY + (P1y - midY) * arcScale * arcCurve;
 
     -- Rotate the control point (relative to the first end) about the unit vector along the line
     do
