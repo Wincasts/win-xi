@@ -531,6 +531,11 @@ function custom.Frame(options, hook)
     local targetFormat = options.targetFormat[1] ~= '' and format.Compile(options.targetFormat[1]) or monsterFormat;
     local entities = (nameFormat.distance or monsterFormat.distance or targetFormat.distance) and AshitaCore:GetMemoryManager():GetEntity() or nil;
 
+    -- a monster that was checked and has died is forgotten before any level is written; what is
+    -- written of a level is kept until what is known of levels changes
+    levels.Tidy();
+    local levelsAt = levels.Generation();
+
     for i = 0, hook.Count - 1 do
         local name = hook.Names[i];
 
@@ -586,10 +591,11 @@ function custom.Frame(options, hook)
                         end
                     end
 
-                    -- the levels it can be, looked for once for each character there is
-                    if (parts.level and written.levelOf ~= name.ServerId) then
-                        written.levelOf = name.ServerId;
-                        written.level = levels.Of(name.EntityIndex, ffi.string(name.Name)) or '';
+                    -- its level if its player has checked it, or the levels it can be: looked for once
+                    -- for each character there is, and again when what is known of levels changes
+                    if (parts.level and (written.levelOf ~= name.ServerId or written.levelAt ~= levelsAt)) then
+                        written.levelOf, written.levelAt = name.ServerId, levelsAt;
+                        written.level = levels.Of(name.EntityIndex, ffi.string(name.Name), name.ServerId) or '';
                     end
 
                     local width = 0;
