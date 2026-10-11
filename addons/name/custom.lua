@@ -57,6 +57,7 @@ local NOTICES = { 'Sight', 'TrueSight', 'Sound', 'Blood', 'Magic', 'JA', 'Scent'
 -- The sign that a monster is aggressive or is not, in assets/aggro.png: six for one that is not and
 -- then six for one that is, four to a row. Of each six the first five are by how strong the monster
 -- is, and the last is a notorious monster's, or one whose strength is impossible to gauge.
+local TEMPER_SIZE   = 1.25; -- how large it is drawn beside the name's letters
 local TEMPERS       = 6;
 local TEMPER_TOP    = 75;   -- the level from which an ordinary monster has the fifth
 local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
@@ -909,7 +910,7 @@ function custom.Frame(options, hook)
 
                     -- the sign that it is aggressive or is not, for a monster the tables have: as high
                     -- as the name, from the sheet of signs
-                    local temper, temperSize = nil, math.floor(height + 0.5);
+                    local temper, temperSize = nil, math.floor(height * TEMPER_SIZE + 0.5);
                     if (parts.aggro and written.monster ~= nil and name.Category == MONSTER and temperTexture() ~= 0) then
                         temper = temperOf(written.monster, written.found);
                     end
@@ -985,7 +986,10 @@ function custom.Frame(options, hook)
                         local color = part.color or own;
                         if (kind == 'aggro' and temper ~= nil) then
                             local u, v = (temper % 4) * 0.25, math.floor(temper / 4) * 0.25;
-                            nameplates.Quad(pen, top, pen + temperSize, top + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, TEMPER_SLOT, false);
+                            -- a little larger than the letters, its middle level with theirs, and
+                            -- with the dark edge they have
+                            local temperTop = top + math.floor((height - temperSize) * 0.5);
+                            nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, TEMPER_SLOT, true);
                             pen = pen + temperSize;
                         end
                         if (kind == 'checked' and sign) then
@@ -1088,14 +1092,14 @@ function custom.Frame(options, hook)
                             for index = 1, (signs ~= nil and #signs or 0) do
                                 local sign = signs[index];
                                 local u, v = (sign % 4) * 0.25, math.floor(sign / 4) * 0.25;
-                                nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, false);
+                                nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, true);
                                 at = at + detailHeight;
                             end
                             at = at + gap;
                         end
                         if (linkWidth > 0) then
                             local u, v = (SENSES.Link % 4) * 0.25, math.floor(SENSES.Link / 4) * 0.25;
-                            nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, false);
+                            nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, true);
                             at = at + linkWidth + (linkedWidth > 0 and math.floor(gap * 0.5) or 0);
                         end
                         if (linkedWidth > 0) then

@@ -117,7 +117,8 @@ To write a distance after the name of the monster you have targeted and no other
 as `[name]` and set Targeted Monster Format to `[name] [distance]`. The Show Monster Distance and
 Distance For Target Only settings of 1.9 and 1.10 are made into these lines when the addon is loaded.
 
-`[aggro]` draws a sign for whether a monster is aggressive and how strong it is, as high as the name.
+`[aggro]` draws a sign for whether a monster is aggressive and how strong it is, a quarter as high
+again as the name's letters and with the dark edge they have.
 It is from the `data` folder's tables, so it is there whether or not the monster has been checked;
 for what the tables do not have it draws nothing. `[aggro][name]` puts it before the name. A colour
 given to it tints it.
