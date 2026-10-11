@@ -120,7 +120,9 @@ block.TargetWidth, block.TargetHeight = 1440, 810 -- the game's picture, half as
 local glyph = { X0 = 1, Y0 = 2, X1 = 9, Y1 = 14, U0 = 0.25, V0 = 0.5, U1 = 0.3, V1 = 0.6, AdvanceX = 10, Visible = 1 }
 local pushed = {}
 imgui.PushFont = function(_, size) pushed[#pushed + 1] = size end
-imgui.GetFontBaked = function() return { FindGlyph = function() return glyph end } end
+local signGlyph = { X0 = 0, Y0 = 1, X1 = 12, Y1 = 13, U0 = 0.7, V0 = 0.7, U1 = 0.8, V1 = 0.8, AdvanceX = 14, Visible = 1 }
+local hasSign = true
+imgui.GetFontBaked = function() return { FindGlyph = function() return glyph end, FindGlyphNoFallback = function(_, code) return hasSign and code == 0xF002 and signGlyph or nil end } end
 local fontTexture = 0x1234
 imgui.GetFont = function() return { ContainerAtlas = { TexRef = { GetTexID = function() return fontTexture end }, TexData = { GetTexID = function() return 0 end } } } end
 
@@ -293,8 +295,16 @@ put(1, 300, Category.Monster, Flag.Wanted, 'Goblin'); block.Names[1].Scale, bloc
 H.frames(1)
 -- "Goblin L8-10", then checked and found to be 9: "Goblin L9"
 H.print('before it is checked: the range, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
+o.monsterFormat[1] = '[name] L[level][checked:yellow]'; H.frames(1)
+H.print('[checked] is a thing:', parts('[checked:yellow]'), '| not yet checked: nothing more written, quads', draw.Entities[300].Count)
 H.packetData(0x029, message(0x1000 + 300, 9, 0x43, 300, 173)); H.frames(1)
-H.print('checked: its level, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
+local goblin = draw.Entities[300]
+local glass = draw.Quads[goblin.First + goblin.Count - 1]
+-- "Goblin L9" and the magnifying glass after it, in yellow, from where the font keeps it
+H.print('checked: its level and the glass, quads', goblin.Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300), '| is checked', levels.IsChecked(300, 0x1000 + 300))
+H.print(('the glass: wide %d | colour %08X | where in the texture %.1f'):format(glass.X1 - glass.X0, glass.Color, glass.U0))
+o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
+H.print('without it: quads', goblin.Count)
 -- a message of the same number that is no check, and one about damage, change nothing
 H.packetData(0x029, message(0x1000 + 300, 50, 7, 300, 173)); H.packetData(0x029, message(0x1000 + 300, 120, 0, 300, 1))
 H.print('other messages: still', levels.Of(300, 'Goblin', 0x1000 + 300), '| another with its index is not it', levels.Of(300, 'Goblin', 0x2000))

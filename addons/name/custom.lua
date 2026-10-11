@@ -42,6 +42,7 @@ local FONT_SLOT, ICON_SLOT = 0, 1; -- the plugin's numbers for the two textures 
 local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
 local STEADY_AFTER  = 4;    -- frames a name's colour has to stay the same to be taken as its own at once
 local STEADY_STRETCH = 45;  -- frames over which the strongest of a pulsing name's colours is looked for
+local MAGNIFIER     = 0xF002; -- the magnifying glass, among the icons Ashita's own font has with its letters
 local PROBE         = 65;   -- the letter looked at each frame to see that the font's letters are where they were
 
 local FONT_FOLDER   = 'C:\\Windows\\Fonts\\';
@@ -283,7 +284,7 @@ function custom.DrawSettings(options, save)
             imgui.SetTooltip(tooltip);
         end
     end
-    local how = '[name] is the name, [distance] how far off it is and [level] the levels a monster can be; anything else is written as you type it.\nex: [name] [level] ([distance])\n\n'
+    local how = '[name] is the name, [distance] how far off it is, [level] the levels a monster can be, and [checked] a magnifying glass on a monster you have checked; anything else is written as you type it.\nex: [name] [level][checked] ([distance])\n\n'
         .. 'A colour is #RRGGBB or a word: white, grey, red, green, blue, yellow, orange, purple, pink, cyan.\n'
         .. '[distance:yellow] or [name:#FF8000] colours that one thing; [yellow] colours everything after it, as far as [/].\n'
         .. 'With no colour, a thing is in the colour the game gives the name.';
@@ -360,9 +361,21 @@ local function readGlyph(baked, byte)
         glyph.Visible ~= 0 and glyph.Visible ~= false };
 end
 
--- The letters of the font at this height, or nil if imgui has none
-local function glyphSet(font, height)
-    local set = glyphSets[height];
+-- A sign of the font's that is no letter, and may not be there: false if it is not
+local function readSign(baked, code)
+    local ok, glyph = pcall(baked.FindGlyphNoFallback, baked, code);
+    if (not ok or glyph == nil) then
+        return false;
+    end
+    return { glyph.X0, glyph.Y0, glyph.X1, glyph.Y1, glyph.U0, glyph.V0, glyph.U1, glyph.V1, glyph.AdvanceX, true };
+end
+
+-- The letters of the font at this height, or nil if imgui has none. key is what they are kept under:
+-- the height, or for the font everything else is written in, kept beside a font of the player's
+-- choosing for the signs that one does not have, the height below nothing.
+local function glyphSet(font, height, key)
+    key = key or height;
+    local set = glyphSets[key];
     if (set ~= nil and set.checked == frame) then
         return set;
     end
@@ -376,7 +389,7 @@ local function glyphSet(font, height)
 
     if (set == nil) then
         set = { glyphs = {} };
-        glyphSets[height] = set;
+        glyphSets[key] = set;
     end
 
     local now = readGlyph(baked, PROBE);
@@ -385,7 +398,7 @@ local function glyphSet(font, height)
         -- the letters have been moved: every size's are read again
         glyphSets = {};
         set = { glyphs = {} };
-        glyphSets[height] = set;
+        glyphSets[key] = set;
     end
     set.glyphs[PROBE] = now;
     set.baked = baked;
@@ -503,10 +516,21 @@ function custom.Frame(options, hook)
     -- of them before any name is set out, so that if the letters have been moved it is known first.
     local fullHeight = math.max(1, math.floor(fullSize * scale + 0.5));
     local rungs = options.shrink[1] and #RUNGS or 1;
+
+    -- the magnifying glass is in the font everything else is written in: with a font of the player's
+    -- choosing for the names, that one's letters are kept as well, for it
+    local nameFormat = format.Compile(options.nameFormat[1]);
+    local monsterFormat = format.Compile(options.monsterFormat[1]);
+    local targetFormat = options.targetFormat[1] ~= '' and format.Compile(options.targetFormat[1]) or monsterFormat;
+    local signsApart = font ~= nil and (nameFormat.checked or monsterFormat.checked or targetFormat.checked);
     for _ = 1, 2 do
         local sets = glyphSets;
         for rung = 1, rungs do
-            glyphSet(font, math.max(1, math.floor(fullHeight * RUNGS[rung] + 0.5)));
+            local rungHeight = math.max(1, math.floor(fullHeight * RUNGS[rung] + 0.5));
+            glyphSet(font, rungHeight);
+            if (signsApart) then
+                glyphSet(nil, rungHeight, -rungHeight);
+            end
         end
         -- moved while they were being looked at: once more, and they are all as they now are
         if (sets == glyphSets) then
@@ -526,9 +550,6 @@ function custom.Frame(options, hook)
     -- how each kind of name is written, and the game, which is asked how far off a thing is only if
     -- some line has the distance in it
     local MONSTER = nameplates.Category.Monster;
-    local nameFormat = format.Compile(options.nameFormat[1]);
-    local monsterFormat = format.Compile(options.monsterFormat[1]);
-    local targetFormat = options.targetFormat[1] ~= '' and format.Compile(options.targetFormat[1]) or monsterFormat;
     local entities = (nameFormat.distance or monsterFormat.distance or targetFormat.distance) and AshitaCore:GetMemoryManager():GetEntity() or nil;
 
     -- a monster that was checked and has died is forgotten before any level is written; what is
@@ -593,16 +614,33 @@ function custom.Frame(options, hook)
 
                     -- its level if its player has checked it, or the levels it can be: looked for once
                     -- for each character there is, and again when what is known of levels changes
-                    if (parts.level and (written.levelOf ~= name.ServerId or written.levelAt ~= levelsAt)) then
+                    if ((parts.level or parts.checked) and (written.levelOf ~= name.ServerId or written.levelAt ~= levelsAt)) then
                         written.levelOf, written.levelAt = name.ServerId, levelsAt;
                         written.level = levels.Of(name.EntityIndex, ffi.string(name.Name), name.ServerId) or '';
+                        written.isChecked = levels.IsChecked(name.EntityIndex, name.ServerId);
+                    end
+
+                    -- the magnifying glass for one that has been checked, if the font has it
+                    local sign = false;
+                    if (parts.checked and written.isChecked) then
+                        local signs = signsApart and glyphSet(nil, rungHeight, -rungHeight) or set;
+                        if (signs ~= nil) then
+                            sign = signs.glyphs[MAGNIFIER];
+                            if (sign == nil) then
+                                sign = readSign(signs.baked, MAGNIFIER);
+                                signs.glyphs[MAGNIFIER] = sign;
+                            end
+                        end
                     end
 
                     local width = 0;
                     for index = 1, #parts do
                         local part = parts[index];
                         local kind = part.kind;
-                        local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text;
+                        if (kind == 'checked') then
+                            width = width + (sign and sign[9] * fit or 0);
+                        end
+                        local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text or '';
                         for at = 1, #words do
                             local byte = words:byte(at);
                             local glyph = glyphs[byte];
@@ -659,8 +697,12 @@ function custom.Frame(options, hook)
                     for index = 1, #parts do
                         local part = parts[index];
                         local kind = part.kind;
-                        local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text;
+                        local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text or '';
                         local color = part.color or own;
+                        if (kind == 'checked' and sign) then
+                            nameplates.Quad(pen + sign[1] * fit, top + sign[2] * fit, pen + sign[3] * fit, top + sign[4] * fit, sign[5], sign[6], sign[7], sign[8], color, FONT_SLOT, true);
+                            pen = pen + sign[9] * fit;
+                        end
                         for at = 1, #words do
                             local glyph = glyphs[words:byte(at)];
                             if (glyph) then
