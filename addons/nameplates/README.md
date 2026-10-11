@@ -26,6 +26,7 @@ Kept for each character, and saved when the settings window is closed.
 |---|---|
 | Draw Names | Off, the game draws the names itself |
 | Font Size | The height of the names, 8 to 48 pixels |
+| Shrink With Distance | A name gets smaller as it nears the distance it is no longer drawn at, as the game's own does; off, names stay one size and fade out there |
 | Outline Thickness | The dark edge round each name, 0 to 4 pixels; at 0 the names are written plain |
 | Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`; Default is the font everything else is written in |
 | Show Icons | The game's icons before a name |
@@ -42,8 +43,12 @@ screen each point falls from the camera's view and projection, and writes the na
 
 So nothing is guessed about which names should show, or how: a name is drawn here exactly when the
 game would have drawn it, in the game's colour for it (white, a party member's blue, an NPC's green
-and so on), and fades with its character as the game's does. Where the game draws a name smaller and
-smaller as it nears the distance it stops at, it is faded out here over the last third of that.
+and so on), and fades with its character as the game's does. The game draws a name at one size out
+to a distance, and then smaller and smaller until, at its furthest, it is nothing; names shrink the
+same way here, or with Shrink With Distance off keep their size and fade out over the last third.
+
+What is not the game's: a name here is written over the finished picture, so it is not hidden by a
+wall or a character standing in front of it, as the game's is.
 
 ## Icons
 

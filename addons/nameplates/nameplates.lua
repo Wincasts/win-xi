@@ -1,6 +1,6 @@
 addon.name    = 'nameplates';
 addon.author  = 'win (and claude)';
-addon.version = '0.3';
+addon.version = '0.4';
 addon.desc    = 'Draws the names over characters\' heads in place of the game, from what the nameplatew plugin hands over.';
 
 require('common');
@@ -53,7 +53,8 @@ local PEARL         = 0x92; -- the linkshell pearl, the one icon that is given a
 local TWO_PART      = 0xAC; -- an icon the game draws with the next character of its font over it
 local STAR          = 0xAD; -- the star of the Job Mastery stars: a small one, a large one, a small one
 local ICON_GAP      = 2;    -- pixels between one icon and the next, and the name
-local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it fades out
+local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it fades out, if it does not shrink
+local SMALLEST      = 6;    -- pixels: a name that has shrunk below this height is not drawn
 
 local FONT_FOLDER   = 'C:\\Windows\\Fonts\\';
 local DEFAULT_FONT  = 'Default';
@@ -62,6 +63,7 @@ local DEFAULT_FONT  = 'Default';
 local defaults = T{
     enabled   = T{ true },
     fontSize  = T{ 15 },   -- the height of the names, in pixels
+    shrink    = T{ true }, -- names get smaller towards the distance they are no longer drawn at, as the game's do
     outline   = T{ 1 },    -- how thick the dark edge round them is, in pixels
     font      = '',        -- a file of FONT_FOLDER, or nothing for the font everything else is in
     showIcons = T{ true },
@@ -164,10 +166,9 @@ local function darkColor(alpha)
 end
 
 -- The game's writing of a name taken apart, kept by that writing: { icons = { byte, ... }, words =
--- the name, width = of the words }. The same names come round every frame.
+-- the name }. The same names come round every frame.
 local parsed = {};
 local parsedCount = 0;
-local parsedIn = ''; -- the font and size the widths were measured in
 
 -- Fonts loaded from files, by file: the font, or false for a file that would not load
 local fonts = {};
@@ -212,7 +213,7 @@ local function parse(written)
         return found;
     end
 
-    found = { icons = {}, words = '', width = 0 };
+    found = { icons = {}, words = '' };
 
     -- the icons lead; the name is what follows them, less the space between
     local at = 1;
@@ -229,7 +230,6 @@ local function parse(written)
 
     -- a character of the font that is not a letter cannot be written in this one
     found.words = written:sub(at):gsub('[%z\1-\31\127-\255]', ''):gsub('^ +', '');
-    found.width = imgui.CalcTextSize(found.words);
 
     if (parsedCount > 1024) then
         parsed, parsedCount = {}, 0;
@@ -251,6 +251,11 @@ local function DrawSettings(options)
     widgets.Gap();
     widgets.Label('Font Size');
     imgui.SliderInt('##nameplates.fontSize', options.fontSize, 8, 48, '%d px');
+    widgets.Label('Shrink With Distance');
+    imgui.Checkbox('##nameplates.shrink', options.shrink);
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('A name gets smaller as it nears the distance it is no longer drawn at, as the game\'s own does. Off, names stay one size and fade out there.');
+    end
     widgets.Label('Outline Thickness');
     imgui.SliderInt('##nameplates.outline', options.outline, 0, 4, '%d px');
     if (imgui.IsItemHovered()) then
@@ -381,20 +386,12 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
     local drawList = imgui.GetBackgroundDrawList and imgui.GetBackgroundDrawList() or imgui.GetForegroundDrawList();
 
-    -- the names' font, for measuring them and for writing them
-    local size = math.max(8, math.min(48, options.fontSize[1]));
-    imgui.PushFont(getFont(options.font), size);
-
-    local writtenIn = options.font .. size;
-    if (writtenIn ~= parsedIn) then
-        parsed, parsedCount, parsedIn = {}, 0, writtenIn;
-    end
-
-    local _, height = imgui.CalcTextSize('A');
+    local font = getFont(options.font);
+    local fullSize = math.max(8, math.min(48, options.fontSize[1]));
+    local shrink = options.shrink[1];
     local edge = math.max(0, math.min(4, options.outline[1]));
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
-    local iconSize = math.floor(height * options.iconSize[1] / 100 + 0.5);
-    local smallStar = math.floor(iconSize * 0.5 + 0.5);
+    local iconScale = options.iconSize[1] / 100;
 
     icons.Begin();
 
@@ -408,19 +405,31 @@ ashita.events.register('d3d_present', 'present_cb', function ()
             local written = parse(ffi.string(name.Text));
             local iconCount = showIcons and #written.icons or 0;
 
-            -- as solid as the game has it, which fades a name with its character; and fading out
-            -- over the last of its distance, where the game draws it smaller and smaller
+            -- The game draws a name at one size out to a distance, then smaller and smaller until at
+            -- its furthest it is nothing: Scale is 1 and then falls to 0. Here it shrinks the same
+            -- way, or keeps its size and fades out over the last of that.
+            local scale = math.max(0, math.min(1, name.Scale));
+            local size = shrink and math.floor(fullSize * scale + 0.5) or fullSize;
+
+            -- as solid as the game has it, which fades a name with its character
             local solid = bit.rshift(name.NameColor, 24) / 0x80;
-            local near = name.Scale / FADE_OVER;
+            local near = shrink and 1 or scale / FADE_OVER;
             local alpha = math.floor(255 * math.max(0, math.min(1, solid, near)) + 0.5);
 
-            if (alpha > 0 and (written.words ~= '' or iconCount > 0)) then
+            if (alpha > 0 and size >= SMALLEST and (written.words ~= '' or iconCount > 0)) then
+                -- the name's font at its size, for measuring it and for writing it
+                imgui.PushFont(font, size);
+                local width, height = imgui.CalcTextSize(written.words);
+                local iconSize = math.floor(height * iconScale + 0.5);
+                local smallStar = math.floor(iconSize * 0.5 + 0.5);
+                local nameEdge = math.min(edge, math.max(1, math.floor(size / 8)));
+
                 local screenX = (1 + (x * m11 + y * m21 + z * m31 + m41) / w) * halfWidth;
                 local screenY = (1 - (x * m12 + y * m22 + z * m32 + m42) / w) * halfHeight;
 
                 -- icons, then the name, the middle of them all on the point the game gave
                 local iconsWidth = iconCount * (iconSize + ICON_GAP);
-                local left = math.floor(screenX - (iconsWidth + written.width) * 0.5);
+                local left = math.floor(screenX - (iconsWidth + width) * 0.5);
                 local top = math.floor(screenY - height * 0.5);
                 local iconTop = math.floor(screenY - iconSize * 0.5);
 
@@ -447,15 +456,15 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
                 if (written.words ~= '') then
                     if (edge > 0) then
-                        text.Packed(drawList, left, top, nameColor(name.NameColor, alpha), written.words, edge, darkColor(alpha));
+                        text.Packed(drawList, left, top, nameColor(name.NameColor, alpha), written.words, nameEdge, darkColor(alpha));
                     else
                         textAt[1], textAt[2] = left, top;
                         drawList:AddText(textAt, nameColor(name.NameColor, alpha), written.words);
                     end
                 end
+
+                imgui.PopFont();
             end
         end
     end
-
-    imgui.PopFont();
 end);
