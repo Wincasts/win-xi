@@ -316,9 +316,9 @@ end
 -- every area the names of its mobs of each kind.
 --
 -- It is read when it is wanted and not kept: by the Triggers tab, to make a trigger with, which lets
--- go of it when the settings are closed; and once in an area, the first time a mob there does what a
--- trigger is for, to find out which kind each of the area's mobs is. That is kept for the one area,
--- being small: a few dozen names.
+-- go of it when the settings are closed; and once in an area, on arriving there with a trigger made,
+-- to find out which kind each of the area's mobs is, so that it is not read in the middle of a fight.
+-- That is kept for the one area, being small: a few dozen names.
 local mobData = nil -- mobs.lua as it is, or false if it cannot be read
 local area = nil    -- the one area: { zone, kindOf = a mob's name in small letters -> its kind, among = kind -> its mobs there, as written }
 
@@ -585,6 +585,13 @@ local function Look(now)
 
     local options = app.options
     local party = AshitaCore:GetMemoryManager():GetParty()
+    local zone = party:GetMemberZone(0)
+
+    -- which kind each of the area's mobs is, for the triggers: found out here, once for the area,
+    -- and not as a mob of it acts
+    if #options.triggers > 0 then
+        Area(zone)
+    end
 
     local tp = party:GetMemberTP(0)
     if lastTp ~= nil and lastTp < 1000 and tp >= 1000 then
@@ -619,7 +626,6 @@ local function Look(now)
         end
         return
     end
-    local zone = party:GetMemberZone(0)
     for place = 1, 5 do
         if party:GetMemberIsActive(place) == 1 and party:GetMemberZone(place) == zone then
             -- someone else in this place of the party is someone new
