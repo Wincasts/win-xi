@@ -365,6 +365,18 @@ for _, q in ipairs(quads) do if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2
 -- from the aggro sheet, an aggressive monster of level 9 (the seventh sign: the second row's third); then
 -- from the other, sight and sound (the second row's first and third) and link (the last row's last)
 H.print('the signs, by sheet and where they are in it:', table.concat(signs, ' '))
+-- in words: after "Very Tough" (10) and the aggro sign, "Sight, Sound" (12), then "Link: Goblin" (12); the
+-- one sign left is the aggro sheet's
+o.checkDetailsInWords[1] = true; H.frames(1)
+signs = {}
+for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
+H.print('in words: quads', goblin.Count, '| signs', table.concat(signs, ' '))
+levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true, TrueSight = true, Sight = true, Sound = true, Blood = true, Link = true } }, Names = {} })
+H.frames(1)
+-- "True Sight, True Sound, Blood" (29) and "Link" (4) for one of no family
+H.print('one that sees and hears truly, and links with a family the tables do not name: quads', goblin.Count)
+levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true, Notorious = false, Sight = true, Sound = true, Link = true, Family = 'Goblin' } }, Names = {} })
+o.checkDetailsInWords[1] = false; H.frames(1)
 -- it fades in as the monster is checked, is there five seconds, and fades out; a frame here is 0.03s
 local function lineAlpha() return goblin.Count > 6 and math.floor(draw.Quads[goblin.First + 6].Color / 0x1000000) or 0 end
 H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(1)
