@@ -398,7 +398,8 @@ H.print('Show Check Details off: the name alone, quads', goblin.Count)
 -- [aggro]: the sign that it is aggressive, before its name, whether or not it has been checked
 o.monsterFormat[1] = '[aggro][name]'; H.frames(1)
 local first = draw.Quads[goblin.First]
-H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0),
+-- letters 23 high: the sign 29 square, three above the line's top and three below its foot, with the edge letters have
+H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square, from %d down'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0, first.Y0), '| edged', first.Flags == 1,
     '| the name after it', draw.Quads[goblin.First + 1].X0 >= first.X1)
 -- which of the twelve signs: six for one that is not aggressive and six for one that is, the first
 -- five of each by level and the sixth a notorious monster's
