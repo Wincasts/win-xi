@@ -103,6 +103,11 @@ is no longer there to be seen, and when you leave the area, since the monster th
 is another. Nothing is sent to the game for this: the addon only reads the answers to checks you make
 yourself. A notorious monster, whose strength is impossible to gauge, gives no level.
 
+`[checked]` writes a magnifying glass for a monster whose level is known that way, and nothing for any
+other, so `[name] Lv[level][checked]` marks the levels that are a monster's own and not a range. It
+takes a colour as the others do. The magnifying glass is one of the icons Ashita's own font has; a font
+chosen for the names does not have it, and it is then drawn from Ashita's beside that font's letters.
+
 To write a distance after the name of the monster you have targeted and no other, leave Monster Format
 as `[name]` and set Targeted Monster Format to `[name] [distance]`. The Show Monster Distance and
 Distance For Target Only settings of 1.9 and 1.10 are made into these lines when the addon is loaded.

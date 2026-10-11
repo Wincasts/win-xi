@@ -1,11 +1,11 @@
 -- How a name is written, as its player sets it out: a line of text in which [name] stands for the
--- name, [distance] for how far off it is and [level] for the levels a monster can be, and everything
--- else is written as it is.
+-- name, [distance] for how far off it is, [level] for the levels a monster can be and [checked] for a
+-- magnifying glass on a monster its player has checked, and everything else is written as it is.
 --
 --   format.Compile(text)   the line taken apart, kept by the line: a list of parts, each
---                          { kind = 'text', 'name', 'distance' or 'level', text = what a 'text'
---                            part says, color = 0xAARRGGBB, or nil for the name's own }
---                          with .distance set if any part is the distance, and .level if the level
+--                          { kind = 'text', 'name', 'distance', 'level' or 'checked', text = what a
+--                            'text' part says, color = 0xAARRGGBB, or nil for the name's own }
+--                          with .distance, .level and .checked set if any part is that thing
 --
 -- A colour is #RRGGBB, #RGB or one of the names below.
 --   [name:#FF8000]  [distance:yellow]   that one thing in that colour
@@ -22,7 +22,7 @@ format.Colors = {
     orange = 0xFF9030, purple = 0xC070FF, pink   = 0xFF80C0, cyan   = 0x60E0E0,
 };
 
-format.Things = { name = true, distance = true, level = true };
+format.Things = { name = true, distance = true, level = true, checked = true };
 
 -- A colour as it is typed, as 0xFFRRGGBB, or nil if it is not one
 local function color(typed)
@@ -50,7 +50,7 @@ function format.Compile(text)
         return found;
     end
 
-    found = { distance = false, level = false };
+    found = { distance = false, level = false, checked = false };
     local current = nil; -- the colour of what follows
     local plain = '';
 
@@ -77,6 +77,7 @@ function format.Compile(text)
                 found[#found + 1] = { kind = thing, color = tint and color(tint) or current };
                 found.distance = found.distance or thing == 'distance';
                 found.level = found.level or thing == 'level';
+                found.checked = found.checked or thing == 'checked';
             elseif (color(typed) ~= nil) then
                 flush();
                 current = color(typed);

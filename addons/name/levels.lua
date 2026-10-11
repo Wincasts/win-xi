@@ -3,6 +3,7 @@
 --   levels.Of(index, name, id)   what to write for the entity with this index, name and server id:
 --                            the level it was found to be when its player checked it; or the levels it
 --                            can be, '5-6', or '8' where it can only be the one; or nil if neither is known
+--   levels.IsChecked(index, id)  whether the level it would write is one found by a check
 --   levels.Generation()      a number that changes whenever what levels.Of would say may have
 --   levels.Tidy()            each frame: what was checked and has since died is forgotten
 --   levels.Set(data)         the tables to look in, for whoever has them some other way
@@ -108,6 +109,11 @@ function levels.Tidy()
             forget(index);
         end
     end
+end
+
+function levels.IsChecked(index, id)
+    local known = checked[index];
+    return known ~= nil and (id == nil or known.id == id);
 end
 
 function levels.Of(index, name, id)
