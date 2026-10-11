@@ -210,6 +210,22 @@ o.iconSpacing[1] = 2
 icons.Has, icons.Place, icons.Texture = realHas, realPlace, realTexture
 ffi.copy(block.Names[0].Text, 'Buddy'); H.frames(1)
 
+-- a monster's name is followed by how far off it is, when that is asked for; a player's is not
+local memory = AshitaCore.GetMemoryManager()
+local asked = 0
+memory.GetEntity = function() return { GetDistance = function(_, index) asked = asked + 1 return index == 300 and 151.29 or 4 end } end
+AshitaCore.GetMemoryManager = function() return memory end
+put(1, 300, Category.Monster, Flag.Wanted, 'Goblin')
+block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080
+block.Count, block.Sequence = 2, block.Sequence + 1
+H.frames(1)
+H.print('distance off: the monster, quads', draw.Entities[300].Count, '| nothing asked of the game', asked == 0)
+o.showDistance[1] = true; H.frames(1)
+-- "Goblin 12.3": eleven characters, the space among them a letter here
+H.print('distance on: the monster, quads', draw.Entities[300].Count, '| the player as before', buddy.Count, '| asked once', asked == 1)
+o.showDistance[1] = false
+block.Count = 1
+
 -- a size is pushed on imgui once a frame however many names are of it, and the plugin is asked after
 -- once a frame whatever is done with it
 put(1, 0x403, Category.Player, Flag.Wanted, 'Stranger'); put(2, 0x404, Category.Player, Flag.Wanted, 'Friend')
