@@ -56,6 +56,7 @@ local settings = {
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
+    showDistance = function () return T{ false }; end, -- a monster's name is followed by how far off it is
 };
 
 function custom.Defaults(defaults)
@@ -265,6 +266,11 @@ function custom.DrawSettings(options, save)
         if (imgui.IsItemHovered()) then
             imgui.SetTooltip('The space between a name\'s icons and the name itself.');
         end
+    end
+    widgets.Label('Show Monster Distance');
+    imgui.Checkbox('##name.showDistance', options.showDistance);
+    if (imgui.IsItemHovered()) then
+        imgui.SetTooltip('A monster\'s name is followed by how far it is from you, as the game measures it.');
     end
     widgets.Label('Show Mastery Stars');
     imgui.Checkbox('##name.showStars', options.showStars);
@@ -476,6 +482,10 @@ function custom.Frame(options, hook)
 
     local WANTED, STARS, TARGET = nameplates.Flag.Wanted, nameplates.Flag.Stars, nameplates.Flag.Target;
 
+    -- how far off each monster is, asked of the game only while it is to be written
+    local MONSTER = nameplates.Category.Monster;
+    local entities = options.showDistance[1] and AshitaCore:GetMemoryManager():GetEntity() or nil;
+
     for i = 0, hook.Count - 1 do
         local name = hook.Names[i];
 
@@ -516,6 +526,18 @@ function custom.Frame(options, hook)
                 if (set ~= nil and nameplates.BeginName(name.EntityIndex, alpha, edge > 0 and nameEdge or 0, dark)) then
                     local glyphs, baked = set.glyphs, set.baked;
                     local words = written.words;
+
+                    -- a monster's name with its distance after it, to a tenth: written afresh only
+                    -- as that changes
+                    if (entities ~= nil and name.Category == MONSTER and words ~= '') then
+                        -- the game keeps the distance squared
+                        local tenths = math.floor(math.sqrt(entities:GetDistance(name.EntityIndex)) * 10 + 0.5);
+                        if (written.tenths ~= tenths or written.farOf ~= words) then
+                            written.tenths, written.farOf = tenths, words;
+                            written.far = ('%s %.1f'):format(words, tenths / 10);
+                        end
+                        words = written.far;
+                    end
 
                     local width = 0;
                     for at = 1, #words do
