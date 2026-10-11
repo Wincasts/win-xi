@@ -156,12 +156,27 @@ H.print('last letter: 40 further on', last.X0 - first.X0, '| where in the textur
 local function letterHeight() local q = draw.Quads[buddy.First] return math.floor((q.Y1 - q.Y0) * 100 + 0.5) / 100 end
 H.print('at its largest: a letter as it is kept, high', letterHeight())
 local sizes = #pushed
-block.Names[0].Scale = 0.5; H.frames(1)
+block.Names[0].Scale = 0.5; H.frames(5)
 H.print('half way: a letter high', letterHeight(), '| solid', buddy.Alpha)
-block.Names[0].Scale = 0.075; H.frames(1)
+block.Names[0].Scale = 0.075; H.frames(5)
 H.print('nearly gone: a letter high', letterHeight(), '| half solid', buddy.Alpha)
 for i = sizes + 1, #pushed do if pushed[i] ~= 23 and pushed[i] ~= 17 and pushed[i] ~= 12 then H.print('another size asked for', pushed[i], false) end end
 block.Names[0].Scale = 1
+-- As a character becomes the target the game gives its name its full size for a frame: not followed.
+-- A size that leaps and stays is, a few frames on; and a walk's steps are, at once.
+block.Names[0].Scale = 0.425; H.frames(6)
+local far = letterHeight()
+block.Names[0].Scale = 1; H.frames(1)
+local leapt = letterHeight()
+block.Names[0].Scale = 0.425; H.frames(1)
+H.print('at a distance: a letter high', far, '| full size for one frame: unchanged', leapt == far, '| and after', letterHeight() == far)
+block.Names[0].Scale = 1; H.frames(3)
+local waiting = letterHeight()
+H.frames(2)
+H.print('full size that lasts: not yet at three frames', waiting == far, '| taken up by five', letterHeight() == 12)
+block.Names[0].Scale = 0.9; H.frames(1)
+H.print('a step of a walk: followed at once', letterHeight() < 12 and letterHeight() > far)
+block.Names[0].Scale = 1; H.frames(1)
 -- a pulse towards white and back, as the game gives the target's name, is not followed: the name
 -- keeps the colour the pulse starts from
 H.frames(8)
@@ -306,12 +321,12 @@ H.print('checked: its level and the glass, quads', goblin.Count, '|', levels.Of(
 -- as the font has it the glass is 12 wide and 12 high, from 1 to 13 of a line of 23: drawn at seven
 -- tenths of that, about the middle of the line
 H.print(('the glass: wide %.1f, high %.1f, from %.2f down | colour %08X | where in the texture %.1f'):format(glass.X1 - glass.X0, glass.Y1 - glass.Y0, glass.Y0, glass.Color, glass.U0))
-block.Names[1].Scale = 0.5; H.frames(1)
+block.Names[1].Scale = 0.5; H.frames(5)
 glass = draw.Quads[goblin.First + goblin.Count - 1]
 local letter = draw.Quads[goblin.First]
 H.print(('a name half way off: the glass high %.2f beside a letter high %.2f, still seven tenths as large'):format(glass.Y1 - glass.Y0, letter.Y1 - letter.Y0),
     math.abs((glass.Y1 - glass.Y0) / (letter.Y1 - letter.Y0) - 0.7) < 0.001)
-block.Names[1].Scale = 1; H.frames(1)
+block.Names[1].Scale = 1; H.frames(5)
 o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
 H.print('without it: quads', goblin.Count)
 -- a line of its own for a monster that has been checked: empty, nothing is different; set, it is
