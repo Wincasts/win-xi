@@ -8,6 +8,10 @@
 
 # Changelog
 
+## nameplatew 0.71 - 2026-10-11
+
+- The names handed to an addon each carry the client's own colour for the name, its colour for the linkshell pearl, and the name as the client writes it, with its icons. The list's `Version` is 2; an addon written for 1 will not read it.
+
 ## nameplatew 0.70 - 2026-10-11
 
 - Added `Custom` and `/nameplatew custom on|off`, experimental: the names the client is about to draw are handed to an addon that asks for them, and not drawn by the client. The list, and how an addon reads it, is described in `README.md`.

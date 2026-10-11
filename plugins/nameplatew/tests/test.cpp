@@ -207,11 +207,21 @@ int main() {
 	CHECK(lines == 2 && Custom.Count == 0);
 
 	Custom.Consumer = 1;
-	DrawNameLine(buddy, nullptr, where, "Buddy", one, 0, 0x80FFFFFF);
+	DrawNameLine(buddy, nullptr, where, "\x92\xAB Buddy", one, 0x80406080, 0x80102030);
 	DrawNameLine2(buddy, nullptr, where, "", one);
 	CHECK(lines == 2 && lines2 == 1 && Custom.Count == 1);
 	CHECK(Custom.Names[0].EntityIndex == 101 && Custom.Names[0].X == 1.5f && Custom.Names[0].Y == -2.5f && Custom.Names[0].Z == 3.5f);
-	CHECK(Custom.Names[0].Scale == 1.0f && Custom.Names[0].Color == 0x80FFFFFF);
+	CHECK(Custom.Names[0].Scale == 1.0f && Custom.Names[0].NameColor == 0x80406080 && Custom.Names[0].IconColor == 0x80102030);
+	CHECK(strcmp(Custom.Names[0].Text, "\x92\xAB Buddy") == 0);
+
+	// a name too long for its place is cut short, and one that is missing is empty
+	Custom.Count = 0;
+	DrawNameLine(buddy, nullptr, where, "0123456789012345678901234567890123456789012345678901234567890123456789", one, 0, 0);
+	DrawNameLine(buddy, nullptr, where, nullptr, one, 0, 0);
+	DrawNameLine2(buddy, nullptr, where, "", one);
+	CHECK(Custom.Count == 2 && strlen(Custom.Names[0].Text) == CUSTOM_NAME_TEXT_SIZE - 1 && Custom.Names[1].Text[0] == '\0');
+	CHECK(lines == 2 && lines2 == 1);
+	Custom.Count = 1;
 
 	// a second line that does not follow a listed first line is drawn
 	DrawNameLine2(buddy, nullptr, where, "", one);
@@ -242,9 +252,9 @@ int main() {
 	Custom.Count = 0;
 
 	// what an addon reads is laid out as it expects, and found by its first bytes
-	static_assert(sizeof(CustomName) == 32);
+	static_assert(sizeof(CustomName) == 80 && offsetof(CustomName, Text) == 32);
 	static_assert(offsetof(CustomNames, Version) == 16 && offsetof(CustomNames, Count) == 32 && offsetof(CustomNames, Names) == 48);
-	CHECK(memcmp(Custom.Magic, "NAMEPLATEW-LIST\0", 16) == 0 && Custom.Version == 1);
+	CHECK(memcmp(Custom.Magic, "NAMEPLATEW-LIST\0", 16) == 0 && Custom.Version == 2);
 
 	// a call is read and pointed elsewhere; only a function shaped like the model's two is taken
 	static uint8_t code[64];

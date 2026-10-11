@@ -182,7 +182,7 @@ typedef struct XiModel {
 
 // The model's two functions for drawing a line of its name. They are __thiscall, written here as
 // __fastcall with a second argument that goes unused: the same registers, the same stack.
-typedef void (__fastcall *DrawNameLineFn)(const XiModel* pModel, void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t param, uint32_t color);
+typedef void (__fastcall *DrawNameLineFn)(const XiModel* pModel, void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t nameColor, uint32_t iconColor);
 typedef void (__fastcall *DrawNameLine2Fn)(const XiModel* pModel, void* unused, const float* pPosition, const char* text, uint32_t scale);
 
 static struct {
@@ -237,15 +237,20 @@ static struct {
 // it is drawing, and each frame reads the names and sets Count back to 0. Should the list fill, no
 // addon is emptying it: names are drawn by the client again until one does.
 #define CUSTOM_NAMES_MAX 256
-#define CUSTOM_NAMES_VERSION 1
+#define CUSTOM_NAMES_VERSION 2
+#define CUSTOM_NAME_TEXT_SIZE 48
 
 struct CustomName {
 	uint32_t EntityIndex;
 	float X, Y, Z;      // where the client puts the name, in the world: the point above the head
 	float Scale;        // the client's own size for the name, 1 unless it is drawn larger or smaller
-	float Param;        // the client's fourth argument, not yet understood
-	uint32_t Color;     // the model's own colour, 0x80 in each part when it is plain; not the name's
+	uint32_t NameColor; // the client's colour for the name, as 0xAARRGGBB with 0x80 for full
+	uint32_t IconColor; // its colour for the linkshell pearl, as 0xAABBGGRR with 0x80 for full
 	uint32_t Reserved;
+
+	// The name as the client writes it: its icons first, each a single byte of 0x8E or more in the
+	// client's font, then a space if there were any, then the name. Cut short if it does not fit.
+	char Text[CUSTOM_NAME_TEXT_SIZE];
 };
 
 static struct CustomNames {
@@ -299,15 +304,9 @@ static bool ShouldDrawPlayer(const Entity* pEntity, bool party) {
 	return false;
 }
 
-static float FloatFromBits(uint32_t bits) {
-	float value;
-	memcpy(&value, &bits, sizeof(value));
-	return value;
-}
-
 // Called in place of the client's function for a name's first line: the name is handed to the addon,
 // or drawn as it always was.
-static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t param, uint32_t color) {
+static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t nameColor, uint32_t iconColor) {
 	Globals.pCustomModel = nullptr;
 
 	if (Custom.Enabled != 0 && Custom.Consumer != 0 && Custom.Count < CUSTOM_NAMES_MAX
@@ -317,10 +316,20 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 		name.X = pPosition[0];
 		name.Y = pPosition[1];
 		name.Z = pPosition[2];
-		name.Scale = FloatFromBits(scale);
-		name.Param = FloatFromBits(param);
-		name.Color = color;
+		memcpy(&name.Scale, &scale, sizeof(name.Scale));
+		name.NameColor = nameColor;
+		name.IconColor = iconColor;
 		name.Reserved = 0;
+
+		size_t length = 0;
+		if (text != nullptr) {
+			while (length < CUSTOM_NAME_TEXT_SIZE - 1 && text[length] != '\0') {
+				name.Text[length] = text[length];
+				length++;
+			}
+		}
+		name.Text[length] = '\0';
+
 		Custom.Count++;
 
 		Globals.pCustomModel = pModel;
@@ -328,7 +337,7 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 	}
 
 	if (Globals.DrawNameLineOrig != nullptr) {
-		Globals.DrawNameLineOrig(pModel, nullptr, pPosition, text, scale, param, color);
+		Globals.DrawNameLineOrig(pModel, nullptr, pPosition, text, scale, nameColor, iconColor);
 	}
 }
 
