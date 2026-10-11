@@ -302,7 +302,15 @@ local goblin = draw.Entities[300]
 local glass = draw.Quads[goblin.First + goblin.Count - 1]
 -- "Goblin L9" and the magnifying glass after it, in yellow, from where the font keeps it
 H.print('checked: its level and the glass, quads', goblin.Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300), '| is checked', levels.IsChecked(300, 0x1000 + 300))
-H.print(('the glass: wide %d | colour %08X | where in the texture %.1f'):format(glass.X1 - glass.X0, glass.Color, glass.U0))
+-- as the font has it the glass is 12 wide and 12 high, from 1 to 13 of a line of 23: drawn at seven
+-- tenths of that, about the middle of the line
+H.print(('the glass: wide %.1f, high %.1f, from %.2f down | colour %08X | where in the texture %.1f'):format(glass.X1 - glass.X0, glass.Y1 - glass.Y0, glass.Y0, glass.Color, glass.U0))
+block.Names[1].Scale = 0.5; H.frames(1)
+glass = draw.Quads[goblin.First + goblin.Count - 1]
+local letter = draw.Quads[goblin.First]
+H.print(('a name half way off: the glass high %.2f beside a letter high %.2f, still seven tenths as large'):format(glass.Y1 - glass.Y0, letter.Y1 - letter.Y0),
+    math.abs((glass.Y1 - glass.Y0) / (letter.Y1 - letter.Y0) - 0.7) < 0.001)
+block.Names[1].Scale = 1; H.frames(1)
 o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
 H.print('without it: quads', goblin.Count)
 -- a message of the same number that is no check, and one about damage, change nothing
