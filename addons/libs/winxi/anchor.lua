@@ -5,6 +5,10 @@
 -- downwards. The other three hold a different corner still, so the window grows away from it:
 -- TopRight grows left and down, BottomLeft right and up, BottomRight left and up.
 --
+-- TopCenter holds the middle of the top edge still: the window grows to both sides alike, and down.
+-- It is a mode like the corners, for a window of a line or two of text, but is not among Modes and
+-- Labels, which are the four corners winxi.widgets.GrowFrom offers.
+--
 -- To place a corner other than the top left the window's size has to be known before it is drawn, and
 -- ImGui only learns a self-sizing window's size by drawing it: left to itself the window would be drawn
 -- once at its old size, in the wrong place, every time its content changed. So for those corners the
@@ -34,6 +38,7 @@ anchor.Default = 'TopLeft';
 -- Where each corner lies within the window: 0 is its left or top edge, 1 its right or bottom
 local pivots = {
     TopLeft     = { 0, 0 },
+    TopCenter   = { 0.5, 0 },
     TopRight    = { 1, 0 },
     BottomLeft  = { 0, 1 },
     BottomRight = { 1, 1 },
