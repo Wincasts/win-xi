@@ -1,6 +1,6 @@
 1 VERSIONINFO
- FILEVERSION 0,7,2,0
- PRODUCTVERSION 0,7,2,0
+ FILEVERSION 0,6,0,0
+ PRODUCTVERSION 0,6,0,0
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0
  FILEOS 4
@@ -13,12 +13,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "BunnyBox Productions"
             VALUE "FileDescription", "https://www.github.com/Shirk/Nameplate - Corrects defects in nameplate rendering; nameplatew adds party and whitelist name modes"
-            VALUE "FileVersion","0.7.2.0\0"
+            VALUE "FileVersion","0.6.0.0\0"
             VALUE "InternalName", "nameplatew"
             VALUE "LegalCopyright", "Copyright (c) 2024 BunnyBox Productions"
             VALUE "OriginalFilename", "nameplatew.dll"
             VALUE "ProductName", "nameplatew"
-            VALUE "ProductVersion","0.7.2\0"
+            VALUE "ProductVersion","0.6.0\0"
         END
     END
     BLOCK "VarFileInfo"

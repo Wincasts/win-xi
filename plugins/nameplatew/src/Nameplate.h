@@ -49,7 +49,6 @@ enum class MESSAGE : uint32_t {
     HIDE_STARS_COMMAND_ERROR,
     MODE_COMMAND_ERROR,
     ALLIANCE_COMMAND_ERROR,
-    CUSTOM_COMMAND_ERROR,
     WHITELIST_COMMAND_ERROR,
 
     MESSAGE_MAX,
@@ -63,7 +62,6 @@ class NameplateSettings {
             DamageFontSize(0),
             HideStars(0),
             IncludeAlliance(0),
-            Custom(0),
             NameMode(NAME_MODE::ALL) {}
 
         int Init();
@@ -82,9 +80,6 @@ class NameplateSettings {
         void SetIncludeAlliance(int includeAlliance) {
             IncludeAlliance = includeAlliance;
         }
-        void SetCustom(int custom) {
-            Custom = custom;
-        }
         void SetNameMode(NAME_MODE nameMode) {
             NameMode = nameMode;
         }
@@ -97,7 +92,6 @@ class NameplateSettings {
         int DamageFontSize;
         int HideStars;
         int IncludeAlliance;
-        int Custom;
         NAME_MODE NameMode;
 };
 

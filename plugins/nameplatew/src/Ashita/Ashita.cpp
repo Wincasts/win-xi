@@ -92,7 +92,7 @@ const char* AshitaNameplate::GetAuthor(void) const {
 }
 
 const char* AshitaNameplate::GetDescription(void) const {
-    return "Corrects defects in nameplate rendering, hides names by party and whitelist, and hands names to an addon to draw.";
+    return "Corrects defects in nameplate rendering, and hides names by party and whitelist.";
 }
 
 const char* AshitaNameplate::GetLink(void) const {
@@ -100,7 +100,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 0.72;
+    return 0.60;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -160,7 +160,7 @@ static void AshitaShortHelp(IChatManager* chat, [[maybe_unused]] MESSAGE message
 }
 
 static void AshitaLongHelp(IChatManager* chat, [[maybe_unused]] MESSAGE message, [[maybe_unused]] int param) {
-    chat->Write(0, false, "\x1e\x05nameplatew v0.72, from Nameplate v0.51");
+    chat->Write(0, false, "\x1e\x05nameplatew v0.60, from Nameplate v0.51");
     chat->Write(0, false, "\x1e\x05https://www.github.com/Shirk/Nameplate");
     chat->Write(0, false, "\x1e\x6aUsage:");
     chat->Write(0, false, "\x1e\x6a/nameplatew help");
@@ -197,8 +197,6 @@ static void AshitaLongHelp(IChatManager* chat, [[maybe_unused]] MESSAGE message,
     chat->Write(0, true , "Hide all player nameplates, except your party's and when charmed, but also keep yours always hidden");
     chat->Write(0, false, "\x1e\x6a/nameplatew alliance on\x1e\x01 |\x1e\x6a off");
     chat->Write(0, true , "Count the other parties of your alliance as your party in the hidepcparty modes");
-    chat->Write(0, false, "\x1e\x68[Experimental]\x1e\x6a /nameplatew custom on\x1e\x01 |\x1e\x6a off");
-    chat->Write(0, true , "Hand the names that would be drawn to an addon that asks for them, to draw in its own way; with no such addon loaded, nothing changes");
     chat->Write(0, false, "\x1e\x6a/nameplatew whitelist add\x1e\x6a <name>...");
     chat->Write(0, true , "Always show these players' nameplates in the modes that hide players; saved at once to\x1e\x6a config\\nameplatew\\whitelist.txt");
     chat->Write(0, false, "\x1e\x6a/nameplatew whitelist remove\x1e\x6a <name>...");
@@ -249,10 +247,6 @@ static void AshitaAllianceCommandError(IChatManager* chat, [[maybe_unused]] MESS
     chat->Write(0, false, "\x1e\x51[\x1e\x06nameplatew\x1e\x51]\x1e\x01 \x1e\x6a/nameplatew alliance\x1e\x44 command error, please consult \x1e\x6a/nameplatew help\x1e\x44 for correct usage.");
 }
 
-static void AshitaCustomCommandError(IChatManager* chat, [[maybe_unused]] MESSAGE message, [[maybe_unused]] int param) {
-    chat->Write(0, false, "\x1e\x51[\x1e\x06nameplatew\x1e\x51]\x1e\x01 \x1e\x6a/nameplatew custom\x1e\x44 command error, please consult \x1e\x6a/nameplatew help\x1e\x44 for correct usage.");
-}
-
 static void AshitaWhitelistCommandError(IChatManager* chat, [[maybe_unused]] MESSAGE message, [[maybe_unused]] int param) {
     chat->Write(0, false, "\x1e\x51[\x1e\x06nameplatew\x1e\x51]\x1e\x01 \x1e\x6a/nameplatew whitelist\x1e\x44 command error, please consult \x1e\x6a/nameplatew help\x1e\x44 for correct usage.");
 }
@@ -272,7 +266,6 @@ static constexpr ShowMessageCallback AshitaMessages[/*MESSAGE::MESSAGE_MAX*/] = 
     /*[MESSAGE::HIDE_STARS_COMMAND_ERROR]       = */ AshitaHideStarsCommandError,
     /*[MESSAGE::MODE_COMMAND_ERROR]             = */ AshitaModeCommandError,
     /*[MESSAGE::ALLIANCE_COMMAND_ERROR]         = */ AshitaAllianceCommandError,
-    /*[MESSAGE::CUSTOM_COMMAND_ERROR]           = */ AshitaCustomCommandError,
     /*[MESSAGE::WHITELIST_COMMAND_ERROR]        = */ AshitaWhitelistCommandError,
 };
 
