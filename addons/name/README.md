@@ -55,12 +55,43 @@ namehook 1.10 or later.
 | Shrink With Distance | A name gets smaller as it nears the distance it is no longer drawn at, from the maximum size to the minimum; off, names stay one size |
 | Outline Thickness | The dark edge round each name, 0 to 4 pixels; at 0 the names are written plain |
 | Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`; Default is the font everything else is written in |
+| Name Format | How every name but a monster's is written: see [How a name is written](#how-a-name-is-written) |
+| Monster Format | How a monster's name is written |
+| Targeted Monster Format | How the name of the monster you have targeted is written. Left empty, it is written as other monsters' are |
 | Show Icons | The game's icons before a name |
 | Icon Size | An icon's side, as a percentage of the height of the names |
 | Icon Spacing | The space between a name's icons and the name itself, 0 to 24 pixels |
-| Show Monster Distance | A monster's name is followed by how far it is from you, to a tenth, as the game measures it |
-| Distance For Target Only | Only the monster you have targeted has its distance after its name. There while Show Monster Distance is on |
 | Show Mastery Stars | The three stars over the name of a player with a job mastered |
+
+### How a name is written
+
+Each of the three formats is a line of text. In it `[name]` stands for the name and `[distance]` for
+how far the character is from you, in yalms to a tenth, as the game measures it. Everything else is
+written as you type it.
+
+| Format | Written |
+|---|---|
+| `[name]` | `Goblin` |
+| `[name] [distance]` | `Goblin 12.3` |
+| `[name] ([distance]y)` | `Goblin (12.3y)` |
+| `[distance] - [name]` | `12.3 - Goblin` |
+
+A thing is in the colour the game gives the name unless you give it another. A colour is `#RRGGBB`,
+`#RGB`, or one of `white`, `black`, `grey`, `red`, `green`, `blue`, `yellow`, `orange`, `purple`,
+`pink`, `cyan`.
+
+| Format | What is coloured |
+|---|---|
+| `[name] [distance:yellow]` | The distance |
+| `[name:#FF8000] [distance]` | The name |
+| `[name] [grey]([distance]y)[/]` | Everything from `[grey]` to `[/]`, or to the end of the line if there is no `[/]` |
+
+Square brackets round anything else are written as they are, so a format such as `[NM] [name]` writes
+`[NM] Goblin`. Only the letters, figures and signs of plain English can be written.
+
+To write a distance after the name of the monster you have targeted and no other, leave Monster Format
+as `[name]` and set Targeted Monster Format to `[name] [distance]`. The Show Monster Distance and
+Distance For Target Only settings of 1.9 and 1.10 are made into these lines when the addon is loaded.
 
 The names are not drawn on the screen by this addon, as its windows are. An addon draws on the finished
 picture, where nothing of the world can hide what it draws, and a name drawn there shows through

@@ -1,6 +1,7 @@
 -- The names drawn in winxi's style, in place of the game's own.
 --
 --   custom.Defaults(defaults)     adds the settings below to an addon's own
+--   custom.Settle(options)        the settings have been loaded: what an older version kept is brought over
 --   custom.Find()                 once, on loading: the game's icons
 --   custom.DrawSettings(options)  the settings tab
 --   custom.Frame(options, hook)   each frame: claims the names and draws them, while Custom Names is on;
@@ -24,6 +25,7 @@ local text       = require('winxi.text');
 local widgets    = require('winxi.widgets');
 local nameplates = require('winxi.nameplates');
 local icons = require('icons');
+local format = require('format');
 
 local custom = {};
 
@@ -56,8 +58,12 @@ local settings = {
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
-    showDistance = function () return T{ false }; end, -- a monster's name is followed by how far off it is
-    distanceTargetOnly = function () return T{ false }; end, -- and only the target's is
+    -- How a name is written: [name] for the name, [distance] for how far off it is, and the rest as
+    -- it is typed (format.lua). One line for monsters, one for everything else, and one for the
+    -- monster that is the target, which if left empty is written as the other monsters are.
+    nameFormat    = function () return T{ '[name]' }; end,
+    monsterFormat = function () return T{ '[name]' }; end,
+    targetFormat  = function () return T{ '' }; end,
 };
 
 function custom.Defaults(defaults)
@@ -65,6 +71,25 @@ function custom.Defaults(defaults)
         defaults[key] = make();
     end
     return defaults;
+end
+
+-- Up to 1.10 a monster's distance was a setting of its own, and another said whether only the
+-- target's was written: they are made the lines that say the same, once.
+function custom.Settle(options)
+    for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'targetFormat' }) do
+        if (type(options[key]) ~= 'table' or type(options[key][1]) ~= 'string') then
+            options[key] = settings[key]();
+        end
+    end
+
+    local was = options.showDistance;
+    if (type(was) == 'table') then
+        if (was[1]) then
+            local targetOnly = type(options.distanceTargetOnly) == 'table' and options.distanceTargetOnly[1];
+            options[targetOnly and 'targetFormat' or 'monsterFormat'][1] = '[name] [distance]';
+        end
+        options.showDistance, options.distanceTargetOnly = nil, nil;
+    end
 end
 
 local foundIcons = false;
@@ -247,6 +272,25 @@ function custom.DrawSettings(options, save)
     end
 
     widgets.Gap();
+    local function line(label, key, id, tooltip)
+        widgets.Label(label);
+        imgui.InputText(id, options[key], 256);
+        if (imgui.IsItemDeactivatedAfterEdit() and save ~= nil) then
+            save();
+        end
+        if (imgui.IsItemHovered()) then
+            imgui.SetTooltip(tooltip);
+        end
+    end
+    local how = '[name] is the name and [distance] how far off it is; anything else is written as you type it.\nex: [name] ([distance])\n\n'
+        .. 'A colour is #RRGGBB or a word: white, grey, red, green, blue, yellow, orange, purple, pink, cyan.\n'
+        .. '[distance:yellow] or [name:#FF8000] colours that one thing; [yellow] colours everything after it, as far as [/].\n'
+        .. 'With no colour, a thing is in the colour the game gives the name.';
+    line('Name Format', 'nameFormat', '##name.nameFormat', 'How every name but a monster\'s is written.\n' .. how);
+    line('Monster Format', 'monsterFormat', '##name.monsterFormat', 'How a monster\'s name is written.\n' .. how);
+    line('Targeted Monster Format', 'targetFormat', '##name.targetFormat', 'How the name of the monster you have targeted is written. Left empty, it is written as other monsters\' are.\n' .. how);
+
+    widgets.Gap();
     widgets.Label('Show Icons');
     imgui.Checkbox('##name.showIcons', options.showIcons);
     if (imgui.IsItemHovered()) then
@@ -266,18 +310,6 @@ function custom.DrawSettings(options, save)
         imgui.SliderInt('##name.iconSpacing', options.iconSpacing, 0, 24, '%d px');
         if (imgui.IsItemHovered()) then
             imgui.SetTooltip('The space between a name\'s icons and the name itself.');
-        end
-    end
-    widgets.Label('Show Monster Distance');
-    imgui.Checkbox('##name.showDistance', options.showDistance);
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('A monster\'s name is followed by how far it is from you, as the game measures it.');
-    end
-    if (options.showDistance[1]) then
-        widgets.Label('Distance For Target Only');
-        imgui.Checkbox('##name.distanceTargetOnly', options.distanceTargetOnly);
-        if (imgui.IsItemHovered()) then
-            imgui.SetTooltip('Only the monster you have targeted has its distance after its name.');
         end
     end
     widgets.Label('Show Mastery Stars');
@@ -490,10 +522,13 @@ function custom.Frame(options, hook)
 
     local WANTED, STARS, TARGET = nameplates.Flag.Wanted, nameplates.Flag.Stars, nameplates.Flag.Target;
 
-    -- how far off each monster is, asked of the game only while it is to be written
+    -- how each kind of name is written, and the game, which is asked how far off a thing is only if
+    -- some line has the distance in it
     local MONSTER = nameplates.Category.Monster;
-    local entities = options.showDistance[1] and AshitaCore:GetMemoryManager():GetEntity() or nil;
-    local targetOnly = options.distanceTargetOnly[1];
+    local nameFormat = format.Compile(options.nameFormat[1]);
+    local monsterFormat = format.Compile(options.monsterFormat[1]);
+    local targetFormat = options.targetFormat[1] ~= '' and format.Compile(options.targetFormat[1]) or monsterFormat;
+    local entities = (nameFormat.distance or monsterFormat.distance or targetFormat.distance) and AshitaCore:GetMemoryManager():GetEntity() or nil;
 
     for i = 0, hook.Count - 1 do
         local name = hook.Names[i];
@@ -534,31 +569,36 @@ function custom.Frame(options, hook)
                 local nameEdge = math.min(edge, math.max(1, math.floor(size / 8 + 0.5))) * scale;
                 if (set ~= nil and nameplates.BeginName(name.EntityIndex, alpha, edge > 0 and nameEdge or 0, dark)) then
                     local glyphs, baked = set.glyphs, set.baked;
-                    local words = written.words;
+                    -- what is written, part by part, as its line has it
+                    local parts = nameFormat;
+                    if (name.Category == MONSTER) then
+                        parts = bit.band(name.Flags, TARGET) ~= 0 and targetFormat or monsterFormat;
+                    end
 
-                    -- a monster's name with its distance after it, to a tenth: written afresh only
-                    -- as that changes
-                    if (entities ~= nil and name.Category == MONSTER and words ~= ''
-                            and (not targetOnly or bit.band(name.Flags, TARGET) ~= 0)) then
+                    -- how far off it is, to a tenth: written afresh only as that changes
+                    if (parts.distance and entities ~= nil) then
                         -- the game keeps the distance squared
                         local tenths = math.floor(math.sqrt(entities:GetDistance(name.EntityIndex)) * 10 + 0.5);
-                        if (written.tenths ~= tenths or written.farOf ~= words) then
-                            written.tenths, written.farOf = tenths, words;
-                            written.far = ('%s %.1f'):format(words, tenths / 10);
+                        if (written.tenths ~= tenths) then
+                            written.tenths = tenths;
+                            written.far = ('%.1f'):format(tenths / 10);
                         end
-                        words = written.far;
                     end
 
                     local width = 0;
-                    for at = 1, #words do
-                        local byte = words:byte(at);
-                        local glyph = glyphs[byte];
-                        if (glyph == nil) then
-                            glyph = readGlyph(baked, byte);
-                            glyphs[byte] = glyph;
-                        end
-                        if (glyph) then
-                            width = width + glyph[9] * fit;
+                    for index = 1, #parts do
+                        local part = parts[index];
+                        local words = part.kind == 'name' and written.words or (part.kind == 'distance' and (written.far or '') or part.text);
+                        for at = 1, #words do
+                            local byte = words:byte(at);
+                            local glyph = glyphs[byte];
+                            if (glyph == nil) then
+                                glyph = readGlyph(baked, byte);
+                                glyphs[byte] = glyph;
+                            end
+                            if (glyph) then
+                                width = width + glyph[9] * fit;
+                            end
                         end
                     end
 
@@ -600,15 +640,20 @@ function custom.Frame(options, hook)
                         left = left + iconSize + (index < iconCount and iconGap or nameGap);
                     end
 
-                    local color = nameColor(held);
+                    local own = nameColor(held);
                     local pen = left;
-                    for at = 1, #words do
-                        local glyph = glyphs[words:byte(at)];
-                        if (glyph) then
-                            if (glyph[10]) then
-                                nameplates.Quad(pen + glyph[1] * fit, top + glyph[2] * fit, pen + glyph[3] * fit, top + glyph[4] * fit, glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
+                    for index = 1, #parts do
+                        local part = parts[index];
+                        local words = part.kind == 'name' and written.words or (part.kind == 'distance' and (written.far or '') or part.text);
+                        local color = part.color or own;
+                        for at = 1, #words do
+                            local glyph = glyphs[words:byte(at)];
+                            if (glyph) then
+                                if (glyph[10]) then
+                                    nameplates.Quad(pen + glyph[1] * fit, top + glyph[2] * fit, pen + glyph[3] * fit, top + glyph[4] * fit, glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
+                                end
+                                pen = pen + glyph[9] * fit;
                             end
-                            pen = pen + glyph[9] * fit;
                         end
                     end
 

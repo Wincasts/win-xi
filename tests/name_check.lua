@@ -210,7 +210,19 @@ o.iconSpacing[1] = 2
 icons.Has, icons.Place, icons.Texture = realHas, realPlace, realTexture
 ffi.copy(block.Names[0].Text, 'Buddy'); H.frames(1)
 
--- a monster's name is followed by how far off it is, when that is asked for; a player's is not
+-- how a name is written is a line of its player's: [name], [distance], and the rest as typed
+local format = require('format')
+local function parts(text)
+    local out = {}
+    for _, part in ipairs(format.Compile(text)) do
+        out[#out + 1] = (part.kind == 'text' and ('"' .. part.text .. '"') or part.kind) .. (part.color and (':%08X'):format(part.color) or '')
+    end
+    return table.concat(out, ' ')
+end
+H.print('a line taken apart:', parts('[name] ([distance])'))
+H.print('one thing in a colour, and a stretch of them:', parts('[Name:#F80] <[yellow][ distance ]y[/]> [distance:#102030]'))
+H.print('what is not known is written as it is:', parts('[lvl] [name:nocolour] [open'), '| distance wanted', format.Compile('[lvl]').distance, format.Compile('x[distance]').distance)
+
 local memory = AshitaCore.GetMemoryManager()
 local asked = 0
 memory.GetEntity = function() return { GetDistance = function(_, index) asked = asked + 1 return index == 300 and 151.29 or 4 end } end
@@ -219,18 +231,30 @@ put(1, 300, Category.Monster, Flag.Wanted, 'Goblin')
 block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080
 block.Count, block.Sequence = 2, block.Sequence + 1
 H.frames(1)
-H.print('distance off: the monster, quads', draw.Entities[300].Count, '| nothing asked of the game', asked == 0)
-o.showDistance[1] = true; H.frames(1)
--- "Goblin 12.3": eleven characters, the space among them a letter here
-H.print('distance on: the monster, quads', draw.Entities[300].Count, '| the player as before', buddy.Count, '| asked once', asked == 1)
--- for the target only: a monster that is not the target has its name alone, and the target its distance
-o.distanceTargetOnly[1] = true; H.frames(1)
-H.print('target only, not the target: quads', draw.Entities[300].Count)
+H.print('as it starts, the name alone: the monster, quads', draw.Entities[300].Count, '| nothing asked of the game', asked == 0)
+-- "Goblin 12.3y": twelve characters, the space among them a letter here
+o.monsterFormat[1] = '[name] [distance:yellow]y'; H.frames(1)
+local goblin = draw.Entities[300]
+H.print('with its distance: the monster, quads', goblin.Count, '| the player as before', buddy.Count, '| asked once', asked == 1)
+H.print(('the name in its own colour %08X, the distance in yellow %08X, what follows in its own %08X'):format(
+    draw.Quads[goblin.First].Color, draw.Quads[goblin.First + 7].Color, draw.Quads[goblin.First + 11].Color))
+-- for the target only: another line for the monster that is the target
+o.monsterFormat[1] = '[name]'; o.targetFormat[1] = '<[name]> [distance]'; H.frames(1)
+H.print('a line for the target, not the target: quads', goblin.Count)
 block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
-H.print('target only, the target: quads', draw.Entities[300].Count)
-o.distanceTargetOnly[1] = false
-o.showDistance[1] = false
+H.print('and the target: quads', goblin.Count)
+o.targetFormat[1] = ''
+-- a player's line: the distance there too, if asked for
+o.nameFormat[1] = '[distance] [name]'; H.frames(1)
+H.print('a player with a distance before the name: quads', buddy.Count)
+o.nameFormat[1] = '[name]'
 block.Count = 1
+
+-- the settings of 1.10 are made the lines that say the same
+o.showDistance, o.distanceTargetOnly = T{ true }, T{ true }
+H.resettle()
+H.print('distance for the target only, brought over:', o.monsterFormat[1], '|', o.targetFormat[1], '| the old settings gone', o.showDistance == nil)
+o.targetFormat[1] = ''; H.frames(1)
 
 -- a size is pushed on imgui once a frame however many names are of it, and the plugin is asked after
 -- once a frame whatever is done with it
