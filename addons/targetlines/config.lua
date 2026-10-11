@@ -18,8 +18,8 @@ local defaultSettings = T {
     curve = 100, -- /targetlines curve 100: how far a line bows out from the straight way between its ends, as a percentage
     orbScale = 100, -- /targetlines orbsize 100: size of the orb at the tip of a line as it draws in, as a percentage
     transparency = 10, -- /targetlines opacity 90: stored as how see-through the lines are, 0-90 percent
-    nameplateAnchor = false, -- /targetlines nameplate on: lines start and end above mid-body, towards the nameplates, and stop short of each end
-    nameplateOffset = 10, -- /targetlines anchorheight 10: how far above mid-body a line starts and ends, in tenths of a yalm
+    nameplateAnchor = false, -- /targetlines nameplate on: lines start and end where the game puts each name, and stop short of each end
+    nameplateRaise = 0, -- /targetlines anchorheight 0: how far above (or, below 0, under) the name a line starts and ends, in tenths of a yalm
     nameplateInset = 5, -- /targetlines anchorgap 5: how far short of each anchor a line starts and ends, in tenths of a yalm
     occlude = false, -- /targetlines occlude on: lines are hidden where a wall, the ground or a character is in front of them
     petLine = true, -- /targetlines petenmity on: draw a line from your pet to what it is attacking
@@ -119,7 +119,7 @@ local preview = setmetatable({}, {
         return shown(key);
     end
 });
-local minNameplateOffset, maxNameplateOffset = 0, 100;
+local minNameplateRaise, maxNameplateRaise = -30, 30;
 local minNameplateInset, maxNameplateInset = 0, 50;
 
 -- The kinds of line the addon draws, in the order they are listed in the config window
@@ -301,21 +301,21 @@ config.drawWindow = function()
                 imgui.Text('Anchor To Nameplate');
                 nameplateHovered = nameplateHovered or imgui.IsItemHovered();
                 if (nameplateHovered) then
-                    imgui.SetTooltip('Raises both ends of each line from the middle of the body towards the nameplates, and stops the line a little short of each end.\nTicking it shows the Anchor Height and Anchor Gap options.\n/targetlines nameplate|n [on|off]');
+                    imgui.SetTooltip('Starts and ends each line where the game puts the name of the character at that end, in place of the middle of the body, and stops the line a little short of each end.\nTicking it shows the Anchor Height and Anchor Gap options.\n/targetlines nameplate|n [on|off]');
                 end
 
                 -- Only offered while the nameplate anchor is ticked, saved or not
                 if (shown('nameplateAnchor')) then
-                    local nameplateOffset = { tonumber(shown('nameplateOffset')) or 10 };
+                    local nameplateRaise = { tonumber(shown('nameplateRaise')) or 0 };
                     leftLabel('Anchor Height');
                     imgui.PushItemWidth(-1);
-                    local nameplateOffsetChanged = imgui.SliderInt('##nameplateoffset', nameplateOffset, minNameplateOffset, maxNameplateOffset, '%d');
+                    local nameplateRaiseChanged = imgui.SliderInt('##nameplateraise', nameplateRaise, minNameplateRaise, maxNameplateRaise, '%d');
                     imgui.PopItemWidth();
-                    if (nameplateOffsetChanged) then
-                        stage('nameplateOffset', nameplateOffset[1]);
+                    if (nameplateRaiseChanged) then
+                        stage('nameplateRaise', nameplateRaise[1]);
                     end
                     if (imgui.IsItemHovered()) then
-                        imgui.SetTooltip('How far above the middle of the body each line starts and ends. Each step is a tenth of a yalm.\n0 is the middle of the body. Raise it until lines reach the nameplates.\n/targetlines anchorheight|ah <' .. minNameplateOffset .. '-' .. maxNameplateOffset .. '>');
+                        imgui.SetTooltip('How far above the name each line starts and ends, or below it for less than 0. Each step is a tenth of a yalm.\n0 is where the game puts the name, whatever the size of the character.\n/targetlines anchorheight|ah <' .. minNameplateRaise .. ' to ' .. maxNameplateRaise .. '>');
                     end
 
                     local nameplateInset = { tonumber(shown('nameplateInset')) or 5 };
@@ -393,9 +393,9 @@ local function printHelp()
     line('/targetlines persistentenemy|pe [on|off]', 'On keeps a mob\'s line up for as long as it applies. Off shows it for a few seconds when the mob changes target, like player lines. No option toggles.');
     line('/targetlines enmitymode|em [on|off]', 'On draws mob lines to whoever the mob is judged to be on while it stays engaged. Off draws them only when the mob takes an action. No option toggles.');
     line('/targetlines petenmity|p [on|off]', 'Draw a line from your pet to whatever it is attacking. No option toggles.');
-    line('/targetlines nameplate|n [on|off]', 'Raise both ends of each line from the middle of the body towards the nameplates, and stop the line a little short of each end. No option toggles.');
+    line('/targetlines nameplate|n [on|off]', 'Start and end each line where the game puts the name of the character at that end, in place of the middle of the body, and stop the line a little short of each end. No option toggles.');
     line('/targetlines occlude|oc [on|off]', 'Hide each part of a line that has a wall, the ground or a character in front of it. No option toggles.');
-    line('/targetlines anchorheight|ah <' .. minNameplateOffset .. '-' .. maxNameplateOffset .. '>', 'With nameplate anchoring on, how far above the middle of the body each line starts and ends, in tenths of a yalm. No option shows the current value.');
+    line('/targetlines anchorheight|ah <' .. minNameplateRaise .. ' to ' .. maxNameplateRaise .. '>', 'With nameplate anchoring on, how far above the name each line starts and ends, or below it for less than 0, in tenths of a yalm. No option shows the current value.');
     line('/targetlines anchorgap|ag <' .. minNameplateInset .. '-' .. maxNameplateInset .. '>', 'With nameplate anchoring on, how far short of each anchor a line starts and ends, in tenths of a yalm. No option shows the current value.');
     line('/targetlines opacity|o <10-100>', 'How solid the lines are, as a percentage. 100 is fully solid. No option shows the current value.');
     line('/targetlines curve|c <' .. minCurve .. '-' .. maxCurve .. '>', 'How far each line bows out from the straight way between its ends, as a percentage. 100 is the normal curve. No option shows the current value.');
@@ -577,17 +577,17 @@ ashita.events.register('command', 'command_cb', function(e)
             print(chat.header(addon.name) .. chat.message('Experimental Anchor To Nameplate: ') .. chat.success(s.nameplateAnchor and 'on' or 'off'));
         elseif (command == 'anchorheight' or command == 'ah') then
             if (option == nil) then
-                print(chat.header(addon.name) .. chat.message('Anchor height: ') .. chat.success(tostring(tonumber(s.nameplateOffset) or 10)));
+                print(chat.header(addon.name) .. chat.message('Anchor height: ') .. chat.success(tostring(tonumber(s.nameplateRaise) or 0)));
             else
                 local value = tonumber(option);
-                if (not value or value < minNameplateOffset or value > maxNameplateOffset) then
-                    print(chat.header(addon.name) .. chat.error('Unknown option. Use: /targetlines anchorheight|ah <' .. minNameplateOffset .. '-' .. maxNameplateOffset .. '>'));
+                if (not value or value < minNameplateRaise or value > maxNameplateRaise) then
+                    print(chat.header(addon.name) .. chat.error('Unknown option. Use: /targetlines anchorheight|ah <' .. minNameplateRaise .. ' to ' .. maxNameplateRaise .. '>'));
                     e.blocked = true;
                     return;
                 end
-                s.nameplateOffset = math.floor(value);
-                commit('nameplateOffset');
-                print(chat.header(addon.name) .. chat.message('Anchor height: ') .. chat.success(tostring(s.nameplateOffset)));
+                s.nameplateRaise = math.floor(value);
+                commit('nameplateRaise');
+                print(chat.header(addon.name) .. chat.message('Anchor height: ') .. chat.success(tostring(s.nameplateRaise)));
             end
         elseif (command == 'anchorgap' or command == 'ag') then
             if (option == nil) then

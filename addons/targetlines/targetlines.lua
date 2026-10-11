@@ -1,6 +1,6 @@
 addon.name    = 'targetlines';
 addon.author  = 'Jyouya, win (and claude)';
-addon.version = '1.4';
+addon.version = '1.5';
 addon.desc    = 'FFXII style target lines';
 
 require('common');
@@ -146,9 +146,16 @@ local timeouts = T {
 -- close entities is not cut away
 local nameplateMaxInset = 0.10;
 
--- Where a line attaches to an entity: midway between its feet and a bone near its head, or, with
--- nameplate set, that many world units above that point, towards where the entity's name is drawn.
--- The client's own nameplate position is not read.
+-- Where the game puts an entity's name, as its model has it: the name hangs from one of the model's
+-- points of reference, the one numbered here, and is moved up or down from it by the height here
+local nameBoneOffset   = 0x8A7; -- a byte
+local nameHeightOffset = 0x8C0; -- a float, added to the height as it is: less is higher
+local bodyBone         = 2;     -- the point every model sampled has its name at; half way to it is mid-body
+local highestBone      = 63;    -- a number above this is not a point of reference: the usual one is used
+
+-- Where a line attaches to an entity: midway between its feet and the point near its head that its
+-- name hangs from, or, with nameplate set, where the game draws its name and that many world units
+-- above (below, if less than 0).
 -- Returns nothing when the entity is not loaded.
 local function readAnchor(entity, index, nameplate)
     local pointer = entity:GetActorPointer(index);
@@ -156,12 +163,19 @@ local function readAnchor(entity, index, nameplate)
         return nil;
     end
 
-    local x, y, z, feet = helpers.getBone(pointer, 2);
-    local up = z < feet and -1 or 1; -- whichever way the head lies from the feet
-    z = (feet + z) / 2;
-    if (nameplate) then
-        z = z + up * nameplate;
+    if (not nameplate) then
+        local x, y, z, feet = helpers.getBone(pointer, bodyBone);
+        return x, y, (feet + z) / 2;
     end
+
+    local bone = ashita.memory.read_uint8(pointer + nameBoneOffset);
+    if (bone > highestBone) then
+        bone = bodyBone;
+    end
+
+    local x, y, z, feet = helpers.getBone(pointer, bone);
+    local up = z < feet and -1 or 1; -- whichever way the head lies from the feet
+    z = z + ashita.memory.read_float(pointer + nameHeightOffset) + up * nameplate;
 
     return x, y, z;
 end
@@ -262,7 +276,7 @@ ashita.events.register('load', 'load_cb', function()
         local entity = AshitaCore:GetMemoryManager():GetEntity();
 
         -- Stored as a whole number of tenths of a world unit
-        local nameplate = s.nameplateAnchor and (tonumber(s.nameplateOffset) or 10) / 10 or nil;
+        local nameplate = s.nameplateAnchor and (tonumber(s.nameplateRaise) or 0) / 10 or nil;
 
         -- In nameplate mode a line starts and ends this far short of its two anchors, in world units
         -- (stored in tenths), and never by more than nameplateMaxInset of its length at each end
