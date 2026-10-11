@@ -8,20 +8,6 @@
 
 # Changelog
 
-## nameplatew 0.72 - 2026-10-11
-
-- A name handed to an addon says whether the client was about to draw the Job Mastery stars over it (`Stars`, where `Reserved` was; the list's `Version` is still 2). With `hidestars` it never does.
-
-## nameplatew 0.71 - 2026-10-11
-
-- The names handed to an addon each carry the client's own colour for the name, its colour for the linkshell pearl, and the name as the client writes it, with its icons. The list's `Version` is 2; an addon written for 1 will not read it.
-
-## nameplatew 0.70 - 2026-10-11
-
-- Added `Custom` and `/nameplatew custom on|off`, experimental: the names the client is about to draw are handed to an addon that asks for them, and not drawn by the client. The list, and how an addon reads it, is described in `README.md`.
-- The client's two calls that draw a name's lines are pointed at the plugin, when both are found where they are expected; they are put back on unload.
-- `tests/` checks the handing over of names, the full list, and the reading and pointing of a call.
-
 ## nameplatew 0.60 - 2026-10-10
 
 Forked from Nameplate-AshitaV4 0.1.0 as `nameplatew`: the DLL, the `/nameplatew` command and the `config\nameplatew` folder all carry the new name.
