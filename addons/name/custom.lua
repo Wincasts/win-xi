@@ -38,7 +38,7 @@ local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it
 local FADE_SHRUNK   = 0.15; -- and if it does, having by then shrunk to its smallest
 local SMALLEST      = 6;    -- pixels: the smallest a name can be set to be
 local LARGEST       = 48;   -- and the largest
-local FONT_SLOT, ICON_SLOT, SENSE_SLOT = 0, 1, 2; -- the plugin's numbers for the textures the names are drawn from
+local FONT_SLOT, ICON_SLOT, SENSE_SLOT, TEMPER_SLOT = 0, 1, 2, 3; -- the plugin's numbers for the textures the names are drawn from
 
 -- What is written under the name of a monster its player has checked: see the frame, below
 local DETAIL_SIZE   = 0.75; -- how large it is beside the name
@@ -53,6 +53,12 @@ local DETAIL_OUT    = 0.6;  -- seconds it takes to go
 local SENSES = { AggroNQ = 0, AggroHQ = 1, PassiveNQ = 2, PassiveHQ = 3, Sight = 4, TrueSight = 5, Sound = 6, Blood = 7, Magic = 8, JA = 9, Scent = 10, Link = 11 };
 -- what an aggressive monster notices its prey by, in the order they are drawn
 local NOTICES = { 'Sight', 'TrueSight', 'Sound', 'Blood', 'Magic', 'JA', 'Scent' };
+
+-- The sign that a monster is aggressive or is not, in assets/aggro.png: six for one that is not and
+-- then six for one that is, four to a row. Of each six the first five are by how strong the monster
+-- is, and the last is a notorious monster's, or one whose strength is impossible to gauge.
+local TEMPERS       = 6;
+local TEMPER_TOP    = 75;   -- the level from which an ordinary monster has the fifth
 local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
 local SIZE_JUMP     = 0.15; -- a change in the game's size for a name, from one frame to the next, that is no step of a walk
 local SIZE_HOLD     = 4;    -- frames such a change has to last to be believed
@@ -469,47 +475,77 @@ local function writeWords(set, words, pen, top, fit, color)
     return pen;
 end
 
--- The sheet of signs, loaded the first time one is to be drawn: its address for the plugin, or 0
-local senses = nil;      -- the texture, kept so that it is not let go
-local sensesAt = nil;    -- its address, or 0 if it would not load
+-- A sheet of signs from the assets folder, loaded the first time one of its signs is to be drawn:
+-- its address for the plugin, or 0 if it would not load
+local sheets = {};   -- file -> { texture = kept so that it is not let go, at = its address }
 
-local function sensesTexture()
-    if (sensesAt == nil) then
-        sensesAt = 0;
-        local ok = pcall(function ()
+local function sheet(file)
+    local known = sheets[file];
+    if (known == nil) then
+        known = { at = 0 };
+        sheets[file] = known;
+        pcall(function ()
             local d3d = require('d3d8');
             local made = ffi.new('IDirect3DTexture8*[1]');
-            if (ffi.C.D3DXCreateTextureFromFileA(d3d.get_device(), addon.path .. 'assets/senses.png', made) == ffi.C.S_OK) then
-                senses = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', made[0]));
-                sensesAt = tonumber(ffi.cast('uint32_t', senses));
+            if (ffi.C.D3DXCreateTextureFromFileA(d3d.get_device(), addon.path .. 'assets/' .. file, made) == ffi.C.S_OK) then
+                known.texture = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', made[0]));
+                known.at = tonumber(ffi.cast('uint32_t', known.texture));
             end
         end);
-        if (not ok) then
-            sensesAt = 0;
+    end
+    return known.at;
+end
+
+local function sensesTexture()
+    return sheet('senses.png');
+end
+
+local function temperTexture()
+    return sheet('aggro.png');
+end
+
+-- For whoever has the sheets some other way
+function custom.SetSheets(senses, tempers)
+    sheets['senses.png'] = { at = senses };
+    sheets['aggro.png'] = { at = tempers };
+end
+
+-- Which sign of the aggro sheet is a monster's: by whether it is aggressive, and how strong. found is
+-- what its player's check of it found, if it has been checked.
+--
+-- An ordinary monster's is by its level, the first four signs sharing the levels up to TEMPER_TOP
+-- evenly among them and the fifth for all from there up: the level a check found, or failing that the
+-- highest the tables say it can be. A notorious monster, and one a check found impossible to gauge,
+-- has the sixth.
+local function temperOf(monster, found)
+    local tier;
+    if (monster.Notorious or (found ~= nil and found.text == nil)) then
+        tier = TEMPERS;
+    else
+        local level = (found ~= nil and tonumber(found.text)) or tonumber(monster.MaxLevel) or 0;
+        if (level <= 0) then
+            level = tonumber(monster.MinLevel) or 1;
+        end
+        if (level >= TEMPER_TOP) then
+            tier = TEMPERS - 1;
+        else
+            tier = math.floor((math.max(1, level) - 1) * (TEMPERS - 2) / (TEMPER_TOP - 1)) + 1;
         end
     end
-    return sensesAt;
+    return (monster.Aggro and TEMPERS or 0) + tier - 1;
 end
 
--- For whoever has the sheet some other way
-function custom.SetSenses(address)
-    sensesAt = address;
-end
-
--- The signs to draw for a monster, by what the tables say of it: kept on the monster
+-- The signs for what an aggressive monster notices its prey by, as the tables have it: kept on the monster
 local function signsOf(monster)
     local signs = monster.nameSigns;
     if (signs == nil) then
         signs = {};
         if (monster.Aggro) then
-            signs[#signs + 1] = monster.Notorious and SENSES.AggroHQ or SENSES.AggroNQ;
             for _, notice in ipairs(NOTICES) do
                 if (monster[notice]) then
                     signs[#signs + 1] = SENSES[notice];
                 end
             end
-        else
-            signs[#signs + 1] = monster.Notorious and SENSES.PassiveHQ or SENSES.PassiveNQ;
         end
         monster.nameSigns = signs;
     end
@@ -677,7 +713,8 @@ function custom.Frame(options, hook)
     end
     nameplates.SetTexture(FONT_SLOT, texture);
     nameplates.SetTexture(ICON_SLOT, iconTexture);
-    nameplates.SetTexture(SENSE_SLOT, sensesAt or 0);
+    nameplates.SetTexture(SENSE_SLOT, sheets['senses.png'] and sheets['senses.png'].at or 0);
+    nameplates.SetTexture(TEMPER_SLOT, sheets['aggro.png'] and sheets['aggro.png'].at or 0);
 
     frame = frame + 1;
 
@@ -831,10 +868,8 @@ function custom.Frame(options, hook)
                     -- the sign that it is aggressive or is not, for a monster the tables have: as high
                     -- as the name, from the sheet of signs
                     local temper, temperSize = nil, math.floor(height + 0.5);
-                    if (parts.aggro and written.monster ~= nil and name.Category == MONSTER and sensesTexture() ~= 0) then
-                        local monster = written.monster;
-                        temper = monster.Aggro and (monster.Notorious and SENSES.AggroHQ or SENSES.AggroNQ)
-                            or (monster.Notorious and SENSES.PassiveHQ or SENSES.PassiveNQ);
+                    if (parts.aggro and written.monster ~= nil and name.Category == MONSTER and temperTexture() ~= 0) then
+                        temper = temperOf(written.monster, written.found);
                     end
 
                     local width = 0;
@@ -908,7 +943,7 @@ function custom.Frame(options, hook)
                         local color = part.color or own;
                         if (kind == 'aggro' and temper ~= nil) then
                             local u, v = (temper % 4) * 0.25, math.floor(temper / 4) * 0.25;
-                            nameplates.Quad(pen, top, pen + temperSize, top + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, SENSE_SLOT, false);
+                            nameplates.Quad(pen, top, pen + temperSize, top + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, TEMPER_SLOT, false);
                             pen = pen + temperSize;
                         end
                         if (kind == 'checked' and sign) then
@@ -961,11 +996,13 @@ function custom.Frame(options, hook)
                         local monster = written.monster;
                         local sheet = sensesTexture();
                         local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
+                        -- whether it is aggressive, by the same sign as [aggro] draws
+                        local mood = (monster ~= nil and temperTexture() ~= 0) and temperOf(monster, written.found) or nil;
                         local links = monster ~= nil and monster.Link;
                         local family = links and monster.Family or '';
 
                         local hardWidth = wordsWidth(set, hard, detail);
-                        local signsWidth = signs ~= nil and #signs * detailHeight or 0;
+                        local signsWidth = ((signs ~= nil and #signs or 0) + (mood ~= nil and 1 or 0)) * detailHeight;
                         local linkWidth = (links and sheet ~= 0) and detailHeight or 0;
                         local familyWidth = wordsWidth(set, family, detail);
 
@@ -983,8 +1020,13 @@ function custom.Frame(options, hook)
                         if (hardWidth > 0) then
                             at = writeWords(set, hard, at, below, detail, own) + gap;
                         end
+                        if (mood ~= nil) then
+                            local u, v = (mood % 4) * 0.25, math.floor(mood / 4) * 0.25;
+                            nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, TEMPER_SLOT, false);
+                            at = at + detailHeight;
+                        end
                         if (signsWidth > 0) then
-                            for index = 1, #signs do
+                            for index = 1, (signs ~= nil and #signs or 0) do
                                 local sign = signs[index];
                                 local u, v = (sign % 4) * 0.25, math.floor(sign / 4) * 0.25;
                                 nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, false);
