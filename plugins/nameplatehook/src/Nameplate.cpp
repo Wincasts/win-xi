@@ -235,12 +235,19 @@ static Nameplate* Instance = nullptr;
 
 // What addons read and write. The names in it are those of the last frame, whole: the frame being
 // drawn is gathered apart, in Filling, and copied here by Publish.
-static HookShared Shared = { "NAMEPLATEHOOK", HOOK_VERSION, sizeof(HookShared), sizeof(HookName), 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0, {}, {}, {} };
+static HookShared Shared = { "NAMEPLATEHOOK", HOOK_VERSION, sizeof(HookShared), sizeof(HookName), 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0, 0, 0.0f, 0.0f, {}, {} };
 
 static struct {
 	uint32_t Count;
 	HookName Names[HOOK_NAMES_MAX];
 } Filling;
+
+// What an addon has drawn of the names, for the plugin to put in the picture. Kept apart from Shared,
+// which is in the DLL's file: this is large, and empty until an addon fills it.
+static HookDraw Draw;
+
+// The frame whose first name has been seen, so that what is done once a frame is done then
+static uint32_t NamesFrame = 0xFFFFFFFF;
 
 // The party, the target and the pets, as they were when the frame began
 static FrameFacts Facts;
@@ -352,12 +359,37 @@ static bool IsClaimed(uint32_t category) {
 	return (Shared.Claimed & category) != 0 && Shared.Frame - Shared.ClaimFrame <= HOOK_CLAIM_FRAMES;
 }
 
+// Whether an addon has drawn names lately enough for them to be the ones to draw
+static bool IsDrawFresh() {
+	return Shared.Frame - Draw.Frame <= HOOK_DRAW_FRAMES;
+}
+
+// What an addon has drawn for this entity's name this frame, or null
+static const HookDrawing* FindDrawing(uint32_t entityIndex) {
+	if (entityIndex >= HOOK_ENTITIES || !IsDrawFresh() || Draw.QuadCount > HOOK_QUADS_MAX) {
+		return nullptr;
+	}
+
+	const HookDrawing& drawing = Draw.Entities[entityIndex];
+	if (drawing.Frame != Draw.Frame || drawing.Count == 0 || drawing.Count > HOOK_QUADS_PER_NAME
+			|| drawing.First > Draw.QuadCount || drawing.Count > Draw.QuadCount - drawing.First) {
+		return nullptr;
+	}
+
+	return &drawing;
+}
+
 // Called in place of the client's function for a name's first line. The name is put on the list for
 // addons, hidden or not, and drawn by the client if it is wanted and no addon has claimed it.
 static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t nameColor, uint32_t iconColor) {
 	Globals.pLineModel = nullptr;
 	Globals.pLineName = nullptr;
 	Globals.LineDrawn = true;
+
+	if (NamesFrame != Shared.Frame && Instance != nullptr) {
+		NamesFrame = Shared.Frame;
+		Instance->BeginNames(Draw, IsDrawFresh(), Shared.TargetWidth, Shared.TargetHeight);
+	}
 
 	if (ProbeWanted && Instance != nullptr) {
 		ProbeWanted = false;
@@ -373,6 +405,13 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 			flags |= NAME_WANTED;
 			if (!IsClaimed(category)) {
 				flags |= NAME_DRAWN;
+			} else if (pPosition != nullptr && Instance != nullptr) {
+				// claimed by an addon: if it has drawn the name, that is put where the client's would be
+				const HookDrawing* pDrawing = FindDrawing(pEntity->EntityIndex);
+				if (pDrawing != nullptr) {
+					Instance->DrawCustom(*pDrawing, &Draw.Quads[pDrawing->First], pPosition);
+					flags |= NAME_CUSTOM;
+				}
 			}
 		}
 
@@ -1315,6 +1354,10 @@ int Nameplate::Init() {
 		}
 	}
 
+	Draw.QuadsMax = HOOK_QUADS_MAX;
+	Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1); // nothing drawn yet
+	Shared.Draw = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (&Draw));
+
 	Instance = this;
 
 	return 0;
@@ -1436,6 +1479,7 @@ int Nameplate::Deinit() {
 
 	Shared.Hooked = 0;
 	Shared.Count = 0;
+	Shared.Draw = 0;
 	Filling.Count = 0;
 
 	if (Globals.DrawNameLine2CallAddr != 0) {

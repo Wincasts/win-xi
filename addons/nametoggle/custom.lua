@@ -1,28 +1,30 @@
--- The names drawn here, in winxi's outlined text, in place of the game drawing them.
+-- The names drawn in winxi's style, in place of the game's own.
 --
 --   custom.Defaults(defaults)     adds the settings below to an addon's own
---   custom.Find()                 once, on loading: the game's icons and its test of what is in the way
+--   custom.Find()                 once, on loading: the game's icons
 --   custom.DrawSettings(options)  the settings tab
 --   custom.Frame(options)         each frame: claims the names and draws them, while Custom Names is on
 --
 -- The nameplatehook plugin lists the names the game was about to draw. While this draws, it claims
 -- them all, so the game draws none; which names are wanted is still the plugin's to say, and only
--- those are drawn. A claim lapses by itself: with Custom Names off, or the addon unloaded, the game
--- draws the names again.
+-- those are drawn.
+--
+-- They are not drawn on the screen from here. Each name is set out as rectangles, one for each letter
+-- and icon, and left with the plugin, which puts them in the game's own picture at the moment the game
+-- would have drawn the name, as deep in the picture as the name is: a wall or a character in front of
+-- a name hides it, or the part of it that it covers, as it hides the game's. What is set out one frame
+-- is drawn in the next.
+--
+-- A claim lapses by itself: with Custom Names off, or the addon unloaded, the game draws the names again.
 local bit   = require('bit');
-local d3d   = require('d3d8');
 local ffi   = require('ffi');
 local imgui = require('imgui');
-local game       = require('winxi.game');
 local text       = require('winxi.text');
 local widgets    = require('winxi.widgets');
 local nameplates = require('winxi.nameplates');
 local icons = require('icons');
-local sight = require('sight');
 
 local custom = {};
-
-local D3DTS_VIEW, D3DTS_PROJECTION = 2, 3;
 
 local PEARL         = 0x92; -- the linkshell pearl, the one icon that is given a colour
 local TWO_PART      = 0xAC; -- an icon the game draws with the next character of its font over it
@@ -32,8 +34,8 @@ local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it
 local FADE_SHRUNK   = 0.15; -- and if it does, having by then shrunk to its smallest
 local SMALLEST      = 6;    -- pixels: the smallest a name can be set to be
 local LARGEST       = 48;   -- and the largest
-local LOOK_AFTER    = 4;    -- frames between one look and the next at whether a name is behind something
-local SIGHT_FADE    = 0.15; -- seconds for a name to go as it passes behind something, and to come back
+local FONT_SLOT, ICON_SLOT = 0, 1; -- the plugin's numbers for the two textures the names are drawn from
+local PROBE         = 65;   -- the letter looked at each frame to see that the font's letters are where they were
 
 local FONT_FOLDER   = 'C:\\Windows\\Fonts\\';
 local DEFAULT_FONT  = 'Default';
@@ -49,7 +51,6 @@ local settings = {
     showIcons   = function () return T{ true }; end,
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
     showStars   = function () return T{ true }; end,
-    hideBehind  = function () return T{ false }; end, -- names of those behind a wall, or the ground, are not drawn
 };
 
 function custom.Defaults(defaults)
@@ -59,63 +60,32 @@ function custom.Defaults(defaults)
     return defaults;
 end
 
-local foundIcons, foundSight = false, false;
+local foundIcons = false;
 
 function custom.Find()
-    foundSight = sight.Find();
     foundIcons = icons.Find();
 end
 
--- Whether each name is behind something, by its entity: { hidden = whether it was at the last look,
--- shown = 0 to 1, how far it has come back into view, seen = the frame it was last drawn in }
-local sights = {};
-local frame = 0;
-local lastClock = os.clock();
-
--- Colours as imgui packs them, kept by colour and by how solid: the same few are asked for every frame
-local packed = {};
-local packedCount = 0;
-
-local rgba = { 0, 0, 0, 0 };
-local textAt = { 0, 0 };
-
-local function pack(key, red, green, blue, alpha)
-    local found = packed[key];
-    if (found == nil) then
-        if (packedCount > 4096) then
-            packed, packedCount = {}, 0;
-        end
-        rgba[1], rgba[2], rgba[3], rgba[4] = red, green, blue, alpha;
-        found = imgui.GetColorU32(rgba);
-        packed[key] = found;
-        packedCount = packedCount + 1;
-    end
-    return found;
-end
-
+-- Colours as the plugin takes them, 0xAARRGGBB, all of them solid: a name's fading is told apart.
 -- One part of a game colour, where 0x80 is full and more than that is no brighter
 local function part(value)
-    return value >= 0x80 and 1 or value / 0x80;
+    return value >= 0x80 and 255 or value * 2;
 end
 
--- alpha here and below is 0 to 255
-local function nameColor(color, alpha)
-    return pack(color % 0x1000000 * 256 + alpha,
-        part(bit.band(bit.rshift(color, 16), 0xFF)), part(bit.band(bit.rshift(color, 8), 0xFF)), part(bit.band(color, 0xFF)), alpha / 255);
+local WHITE = 0xFFFFFFFF;
+
+local function nameColor(color)
+    return 0xFF000000 + part(bit.band(bit.rshift(color, 16), 0xFF)) * 0x10000 + part(bit.band(bit.rshift(color, 8), 0xFF)) * 0x100 + part(bit.band(color, 0xFF));
 end
 
-local function pearlColor(color, alpha)
-    return pack(0x100000000 + color % 0x1000000 * 256 + alpha,
-        part(bit.band(color, 0xFF)), part(bit.band(bit.rshift(color, 8), 0xFF)), part(bit.band(bit.rshift(color, 16), 0xFF)), alpha / 255);
+-- the game keeps the pearl's colour the other way about
+local function pearlColor(color)
+    return 0xFF000000 + part(bit.band(color, 0xFF)) * 0x10000 + part(bit.band(bit.rshift(color, 8), 0xFF)) * 0x100 + part(bit.band(bit.rshift(color, 16), 0xFF));
 end
 
-local function plainColor(alpha)
-    return pack(0x200000000 + alpha, 1, 1, 1, alpha / 255);
-end
-
-local function darkColor(alpha)
+local function darkColor()
     local dark = text.OutlineColor;
-    return pack(0x300000000 + alpha, dark[1], dark[2], dark[3], dark[4] * alpha / 255);
+    return math.floor(dark[4] * 255 + 0.5) * 0x1000000 + math.floor(dark[1] * 255 + 0.5) * 0x10000 + math.floor(dark[2] * 255 + 0.5) * 0x100 + math.floor(dark[3] * 255 + 0.5);
 end
 
 -- The game's writing of a name taken apart, kept by that writing: { icons = { byte, ... }, words =
@@ -205,7 +175,7 @@ function custom.DrawSettings(options, save)
     widgets.Label('Custom Names', true);
     imgui.Checkbox('##nametoggle.customNames', options.customNames);
     if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('The names are drawn by this addon, in winxi\'s outlined text, and not by the game. Which names are shown is still set in the Settings tab.\n/nametoggle custom switches this.');
+        imgui.SetTooltip('The names are drawn in winxi\'s outlined text, and not by the game: in the game\'s own picture, where a wall or a character in front of a name hides it.\nWhich names are shown is still set in the Settings tab. /nametoggle custom switches this.');
     end
     if (not options.customNames[1]) then
         return;
@@ -258,15 +228,6 @@ function custom.DrawSettings(options, save)
     end
 
     widgets.Gap();
-    widgets.Label('Hide Behind Walls', true);
-    imgui.Checkbox('##nametoggle.hideBehind', options.hideBehind);
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip(foundSight
-            and 'A name is not drawn while a wall, the ground or a closed door is between the camera and it, as the game\'s own is hidden then. Characters in the way do not hide it.'
-            or 'The game\'s test of what is in the way was not found in this client: this does nothing.');
-    end
-
-    widgets.Gap();
     widgets.Label('Show Icons');
     imgui.Checkbox('##nametoggle.showIcons', options.showIcons);
     if (imgui.IsItemHovered()) then
@@ -278,7 +239,7 @@ function custom.DrawSettings(options, save)
         widgets.Label('Icon Size');
         imgui.SliderInt('##nametoggle.iconSize', options.iconSize, 50, 300, '%d%%');
         if (imgui.IsItemHovered()) then
-            imgui.SetTooltip('An icon\'s side, as a percentage of the height of the names. The icons are sharp up to 32 pixels.');
+            imgui.SetTooltip('An icon\'s side, as a percentage of the height of the names.');
         end
     end
     widgets.Label('Show Mastery Stars');
@@ -288,7 +249,67 @@ function custom.DrawSettings(options, save)
     end
 end
 
-local device = nil;
+-- The font's texture as Direct3D has it, or nil while it has none: for a moment after letters of a
+-- new size have been put in it
+local function fontTexture()
+    local ok, id = pcall(function ()
+        local atlas = imgui.GetFont().ContainerAtlas;
+        local id = atlas.TexRef:GetTexID();
+        if (id == nil or id == 0) then
+            id = atlas.TexData:GetTexID();
+        end
+        return id;
+    end);
+    if (ok and type(id) == 'number' and id ~= 0) then
+        return id;
+    end
+    return nil;
+end
+
+-- The font's letters, by font and size and then by letter: { x0, y0, x1, y1, u0, v0, u1, v1, advance,
+-- visible }. Where a letter is in the texture changes when the texture is made again, so the texture
+-- is watched, and one letter of each size looked at afresh each frame.
+local glyphSets = {};
+local glyphTexture = nil;
+local frame = 0;
+
+local function readGlyph(baked, byte)
+    local glyph = baked:FindGlyph(byte);
+    if (glyph == nil) then
+        return false;
+    end
+    return { glyph.X0, glyph.Y0, glyph.X1, glyph.Y1, glyph.U0, glyph.V0, glyph.U1, glyph.V1, glyph.AdvanceX,
+        glyph.Visible ~= 0 and glyph.Visible ~= false };
+end
+
+-- The letters of the font and size now pushed
+local function glyphSet(key)
+    local baked = imgui.GetFontBaked();
+    if (baked == nil) then
+        return nil, nil;
+    end
+
+    local set = glyphSets[key];
+    if (set == nil) then
+        set = { checked = 0, glyphs = {} };
+        glyphSets[key] = set;
+    end
+
+    if (set.checked ~= frame) then
+        set.checked = frame;
+        local now = readGlyph(baked, PROBE);
+        local was = set.glyphs[PROBE];
+        if (was and now and (was[5] ~= now[5] or was[6] ~= now[6] or was[7] ~= now[7] or was[8] ~= now[8])) then
+            -- the letters have been moved: every size's are read again
+            glyphSets = {};
+            set = { checked = frame, glyphs = {} };
+            glyphSets[key] = set;
+        end
+        set.glyphs[PROBE] = now;
+    end
+
+    return set.glyphs, baked;
+end
 
 function custom.Frame(options)
     if (not options.customNames[1]) then
@@ -301,39 +322,30 @@ function custom.Frame(options)
         return;
     end
 
-    device = device or d3d.get_device();
-    if (device == nil) then
+    local texture = fontTexture();
+    if (texture == nil) then
+        return;
+    end
+    if (texture ~= glyphTexture) then
+        glyphTexture = texture;
+        glyphSets = {};
+    end
+
+    -- how many pixels of the game's picture there are to one of the screen's: the names are set out
+    -- in the game's, at the size that makes them the size asked for on the screen
+    local scale = nameplates.BeginDrawing();
+    if (scale == nil) then
         return;
     end
 
     -- every frame: the game draws none of the names while this does
     nameplates.Claim(nameplates.Category.All);
 
-    if (hook.Count == 0) then
-        return;
-    end
+    icons.Begin();
+    nameplates.SetTexture(FONT_SLOT, texture);
+    nameplates.SetTexture(ICON_SLOT, icons.Texture() or 0);
 
-    -- A point in the world goes through the view and then the projection to where it is on screen
-    local _, v = device:GetTransform(D3DTS_VIEW);
-    local _, p = device:GetTransform(D3DTS_PROJECTION);
-
-    local m11 = v._11 * p._11 + v._12 * p._21 + v._13 * p._31 + v._14 * p._41;
-    local m12 = v._11 * p._12 + v._12 * p._22 + v._13 * p._32 + v._14 * p._42;
-    local m14 = v._11 * p._14 + v._12 * p._24 + v._13 * p._34 + v._14 * p._44;
-    local m21 = v._21 * p._11 + v._22 * p._21 + v._23 * p._31 + v._24 * p._41;
-    local m22 = v._21 * p._12 + v._22 * p._22 + v._23 * p._32 + v._24 * p._42;
-    local m24 = v._21 * p._14 + v._22 * p._24 + v._23 * p._34 + v._24 * p._44;
-    local m31 = v._31 * p._11 + v._32 * p._21 + v._33 * p._31 + v._34 * p._41;
-    local m32 = v._31 * p._12 + v._32 * p._22 + v._33 * p._32 + v._34 * p._42;
-    local m34 = v._31 * p._14 + v._32 * p._24 + v._33 * p._34 + v._34 * p._44;
-    local m41 = v._41 * p._11 + v._42 * p._21 + v._43 * p._31 + v._44 * p._41;
-    local m42 = v._41 * p._12 + v._42 * p._22 + v._43 * p._32 + v._44 * p._42;
-    local m44 = v._41 * p._14 + v._42 * p._24 + v._43 * p._34 + v._44 * p._44;
-
-    local display = imgui.GetIO().DisplaySize;
-    local halfWidth, halfHeight = display.x * 0.5, display.y * 0.5;
-
-    local drawList = imgui.GetBackgroundDrawList and imgui.GetBackgroundDrawList() or imgui.GetForegroundDrawList();
+    frame = frame + 1;
 
     local font = getFont(options.font);
     local fullSize = math.max(SMALLEST, math.min(LARGEST, options.fontSize[1]));
@@ -342,30 +354,15 @@ function custom.Frame(options)
     local edge = math.max(0, math.min(4, options.outline[1]));
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
     local iconScale = options.iconSize[1] / 100;
-
-    -- Where the camera is, out of the view: the look for what is in the way starts there
-    -- (never while the game is between zones, when the map that would be asked may be going or gone)
-    local hideBehind = options.hideBehind[1] and sight.Found() and not game.IsLoading();
-    local eyeX = -(v._41 * v._11 + v._42 * v._12 + v._43 * v._13);
-    local eyeY = -(v._41 * v._21 + v._42 * v._22 + v._43 * v._23);
-    local eyeZ = -(v._41 * v._31 + v._42 * v._32 + v._43 * v._33);
-
-    frame = frame + 1;
-    local now = os.clock();
-    local step = math.min(1, (now - lastClock) / SIGHT_FADE);
-    lastClock = now;
+    local iconGap = math.floor(ICON_GAP * scale + 0.5);
+    local dark = darkColor();
 
     local WANTED, STARS = nameplates.Flag.Wanted, nameplates.Flag.Stars;
 
-    icons.Begin();
-
     for i = 0, hook.Count - 1 do
         local name = hook.Names[i];
-        local x, y, z = name.X, name.Y, name.Z;
 
-        -- wanted, and in front of the camera, or it is not to be seen
-        local w = x * m14 + y * m24 + z * m34 + m44;
-        if (bit.band(name.Flags, WANTED) ~= 0 and w > 0.01) then
+        if (bit.band(name.Flags, WANTED) ~= 0) then
             local written = parse(ffi.string(name.Text));
             local iconCount = showIcons and #written.icons or 0;
 
@@ -373,93 +370,92 @@ function custom.Frame(options)
             -- its furthest it is nothing: Scale is 1 and then falls to 0. Here it shrinks over the
             -- same distance, from its largest to its smallest and not to nothing, or keeps its size;
             -- and either way fades out over the last of it.
-            local scale = math.max(0, math.min(1, name.Scale));
-            local size = shrink and math.floor(leastSize + (fullSize - leastSize) * scale + 0.5) or fullSize;
+            local nearness = math.max(0, math.min(1, name.Scale));
+            local size = shrink and math.floor(leastSize + (fullSize - leastSize) * nearness + 0.5) or fullSize;
 
             -- as solid as the game has it, which fades a name with its character
             local solid = bit.rshift(name.NameColor, 24) / 0x80;
-            local near = scale / (shrink and FADE_SHRUNK or FADE_OVER);
-            -- and going while it is behind something. Each name is looked at every few frames, not all
-            -- in the same one; a name new this frame is looked at straight away, and starts as it is found.
-            local inSight = 1;
-            if (hideBehind) then
-                local index = name.EntityIndex;
-                local known = sights[index];
-                if (known == nil) then
-                    known = { hidden = false, shown = 1, seen = 0 };
-                    sights[index] = known;
-                end
-
-                local isNew = known.seen ~= frame - 1;
-                if (isNew or (frame + index) % LOOK_AFTER == 0) then
-                    known.hidden = sight.Blocked(eyeX, eyeY, eyeZ, x, y, z);
-                end
-                if (isNew) then
-                    known.shown = known.hidden and 0 or 1;
-                elseif (known.hidden) then
-                    known.shown = math.max(0, known.shown - step);
-                else
-                    known.shown = math.min(1, known.shown + step);
-                end
-                known.seen = frame;
-                inSight = known.shown;
-            end
-
-            local alpha = math.floor(255 * math.max(0, math.min(1, solid, near)) * inSight + 0.5);
+            local near = nearness / (shrink and FADE_SHRUNK or FADE_OVER);
+            local alpha = math.max(0, math.min(1, solid, near));
 
             if (alpha > 0 and (written.words ~= '' or iconCount > 0)) then
-                -- the name's font at its size, for measuring it and for writing it
-                imgui.PushFont(font, size);
-                local width, height = imgui.CalcTextSize(written.words);
-                local iconSize = math.floor(height * iconScale + 0.5);
-                local smallStar = math.floor(iconSize * 0.5 + 0.5);
-                local nameEdge = math.min(edge, math.max(1, math.floor(size / 8)));
+                -- the name's font at its size in the game's picture, for its letters
+                local height = math.max(1, math.floor(size * scale + 0.5));
+                imgui.PushFont(font, height);
+                local glyphs, baked = glyphSet(options.font .. ':' .. height);
 
-                local screenX = (1 + (x * m11 + y * m21 + z * m31 + m41) / w) * halfWidth;
-                local screenY = (1 - (x * m12 + y * m22 + z * m32 + m42) / w) * halfHeight;
+                local nameEdge = math.min(edge, math.max(1, math.floor(size / 8))) * scale;
+                if (glyphs ~= nil and nameplates.BeginName(name.EntityIndex, alpha, edge > 0 and nameEdge or 0, dark)) then
+                    local words = written.words;
 
-                -- icons, then the name, the middle of them all on the point the game gave
-                local iconsWidth = iconCount * (iconSize + ICON_GAP);
-                local left = math.floor(screenX - (iconsWidth + width) * 0.5);
-                local top = math.floor(screenY - height * 0.5);
-                local iconTop = math.floor(screenY - iconSize * 0.5);
-
-                -- the stars over the middle of it: a small one, a large one, a small one
-                if (showStars and bit.band(name.Flags, STARS) ~= 0) then
-                    local color = plainColor(alpha);
-                    local starsLeft = math.floor(screenX - (smallStar * 2 + iconSize) * 0.5);
-                    local starsTop = math.min(top, iconTop) - iconSize - 1;
-                    local smallTop = starsTop + math.floor((iconSize - smallStar) * 0.5);
-                    icons.Draw(drawList, STAR, starsLeft, smallTop, smallStar, color);
-                    icons.Draw(drawList, STAR, starsLeft + smallStar, starsTop, iconSize, color);
-                    icons.Draw(drawList, STAR, starsLeft + smallStar + iconSize, smallTop, smallStar, color);
-                end
-
-                for index = 1, iconCount do
-                    local byte = written.icons[index];
-                    local color = byte == PEARL and pearlColor(name.IconColor, alpha) or plainColor(alpha);
-                    icons.Draw(drawList, byte, left, iconTop, iconSize, color);
-                    if (byte == TWO_PART) then
-                        icons.Draw(drawList, byte + 1, left, iconTop, iconSize, color);
+                    local width = 0;
+                    for at = 1, #words do
+                        local byte = words:byte(at);
+                        local glyph = glyphs[byte];
+                        if (glyph == nil) then
+                            glyph = readGlyph(baked, byte);
+                            glyphs[byte] = glyph;
+                        end
+                        if (glyph) then
+                            width = width + glyph[9];
+                        end
                     end
-                    left = left + iconSize + ICON_GAP;
-                end
 
-                if (written.words ~= '') then
-                    if (edge > 0) then
-                        text.Packed(drawList, left, top, nameColor(name.NameColor, alpha), written.words, nameEdge, darkColor(alpha));
-                    else
-                        textAt[1], textAt[2] = left, top;
-                        drawList:AddText(textAt, nameColor(name.NameColor, alpha), written.words);
+                    local iconSize = math.floor(height * iconScale + 0.5);
+                    local smallStar = math.floor(iconSize * 0.5 + 0.5);
+
+                    -- icons, then the name, the middle of them all on the point the game gave
+                    local iconsWidth = iconCount * (iconSize + iconGap);
+                    local left = math.floor(-(iconsWidth + width) * 0.5);
+                    local top = math.floor(-height * 0.5);
+                    local iconTop = math.floor(-iconSize * 0.5);
+
+                    -- the stars over the middle of it: a small one, a large one, a small one
+                    local star = showStars and bit.band(name.Flags, STARS) ~= 0 and icons.Place(STAR);
+                    if (star) then
+                        local starsLeft = math.floor(-(smallStar * 2 + iconSize) * 0.5);
+                        local starsTop = math.min(top, iconTop) - iconSize - 1;
+                        local smallTop = starsTop + math.floor((iconSize - smallStar) * 0.5);
+                        nameplates.Quad(starsLeft, smallTop, starsLeft + smallStar, smallTop + smallStar, star[1], star[2], star[3], star[4], WHITE, ICON_SLOT, false);
+                        nameplates.Quad(starsLeft + smallStar, starsTop, starsLeft + smallStar + iconSize, starsTop + iconSize, star[1], star[2], star[3], star[4], WHITE, ICON_SLOT, false);
+                        nameplates.Quad(starsLeft + smallStar + iconSize, smallTop, starsLeft + smallStar * 2 + iconSize, smallTop + smallStar, star[1], star[2], star[3], star[4], WHITE, ICON_SLOT, false);
                     end
+
+                    for index = 1, iconCount do
+                        local byte = written.icons[index];
+                        local color = byte == PEARL and pearlColor(name.IconColor) or WHITE;
+                        local at = icons.Place(byte);
+                        if (at) then
+                            nameplates.Quad(left, iconTop, left + iconSize, iconTop + iconSize, at[1], at[2], at[3], at[4], color, ICON_SLOT, false);
+                        end
+                        if (byte == TWO_PART) then
+                            at = icons.Place(byte + 1);
+                            if (at) then
+                                nameplates.Quad(left, iconTop, left + iconSize, iconTop + iconSize, at[1], at[2], at[3], at[4], color, ICON_SLOT, false);
+                            end
+                        end
+                        left = left + iconSize + iconGap;
+                    end
+
+                    local color = nameColor(name.NameColor);
+                    local pen = left;
+                    for at = 1, #words do
+                        local glyph = glyphs[words:byte(at)];
+                        if (glyph) then
+                            if (glyph[10]) then
+                                nameplates.Quad(pen + glyph[1], top + glyph[2], pen + glyph[3], top + glyph[4], glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
+                            end
+                            pen = pen + glyph[9];
+                        end
+                    end
+
+                    nameplates.EndName();
                 end
 
                 imgui.PopFont();
             end
         end
     end
-
-    sight.Done();
 end
 
 return custom;

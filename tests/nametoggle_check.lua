@@ -9,7 +9,7 @@ local o = H.options()
 local loaded = false
 local block = ffi.new('nameplatehook_t')
 ffi.copy(block.Magic, 'NAMEPLATEHOOK')
-block.Version, block.Size, block.NameSize, block.Hooked = 1, ffi.sizeof('nameplatehook_t'), ffi.sizeof('nameplatehook_name_t'), 1
+block.Version, block.Size, block.NameSize, block.Hooked = 2, ffi.sizeof('nameplatehook_t'), ffi.sizeof('nameplatehook_name_t'), 1
 block.Width, block.Height = 960, 540
 
 local manager = AshitaCore.GetPluginManager()
@@ -18,7 +18,9 @@ AshitaCore.GetPluginManager = function() return manager end
 ashita.memory.find = function(module) return module == 'nameplatehook.dll' and tonumber(ffi.cast('uintptr_t', ffi.cast('void*', block))) or 0 end
 
 H.print('the block is laid out as the plugin has it', ffi.sizeof('nameplatehook_name_t') == 128, ffi.offsetof('nameplatehook_t', 'Sequence') == 64,
-    ffi.offsetof('nameplatehook_t', 'Override') == 80, ffi.offsetof('nameplatehook_t', 'Names') == 80 + 0x900)
+    ffi.offsetof('nameplatehook_t', 'Draw') == 68, ffi.offsetof('nameplatehook_t', 'Override') == 80, ffi.offsetof('nameplatehook_t', 'Names') == 80 + 0x900)
+H.print('and so is what is drawn for it', ffi.sizeof('nameplatehook_quad_t') == 48, ffi.sizeof('nameplatehook_drawing_t') == 24,
+    ffi.offsetof('nameplatehook_draw_t', 'Entities') == 48, ffi.offsetof('nameplatehook_draw_t', 'Quads') == 48 + 24 * 0x900)
 
 -- without the plugin: nothing to read, nothing set, and the settings say so
 H.print('settings: everything shown', o.showSelf[1], o.showPlayers[1], o.showMonsters[1], '| always target off', o.alwaysTarget[1] == false)
@@ -105,27 +107,59 @@ block.Frame = 77
 nameplates.Claim(Category.Party + Category.Player)
 H.print('claimed', block.Claimed == Category.Party + Category.Player, '| in frame', block.ClaimFrame)
 
--- custom names: off, nothing is claimed or drawn; on, every name is claimed and the wanted ones written
-local identity = { _11 = 1, _12 = 0, _13 = 0, _14 = 0, _21 = 0, _22 = 1, _23 = 0, _24 = 0, _31 = 0, _32 = 0, _33 = 1, _34 = 0, _41 = 0, _42 = 0, _43 = 0, _44 = 1 }
-local forward = { _11 = 1, _12 = 0, _13 = 0, _14 = 0, _21 = 0, _22 = 1, _23 = 0, _24 = 0, _31 = 0, _32 = 0, _33 = 1, _34 = 1, _41 = 0, _42 = 0, _43 = 0, _44 = 0 }
-require('d3d8').get_device = function() return { GetTransform = function(_, which) return 0, which == 2 and identity or forward end } end
+-- custom names: off, nothing is claimed or drawn; on, every name is claimed and the wanted ones set
+-- out for the plugin, a quad to a letter
+-- The plugin gives its place for them as a 32-bit address, as every address in the game is: here it
+-- has to be asked for low enough in memory to be one
+ffi.cdef('void* mmap(void*, size_t, int, int, int, long);')
+local low = ffi.C.mmap(nil, ffi.sizeof('nameplatehook_draw_t'), 3, 0x62, -1, 0) -- read and write; private, anonymous, 32-bit
+local draw = ffi.cast('nameplatehook_draw_t*', low)
+draw.QuadsMax = 16384
+block.Draw = tonumber(ffi.cast('uintptr_t', low))
+block.TargetWidth, block.TargetHeight = 1440, 810 -- the game's picture, half as large again as its window
+local glyph = { X0 = 1, Y0 = 2, X1 = 9, Y1 = 14, U0 = 0.25, V0 = 0.5, U1 = 0.3, V1 = 0.6, AdvanceX = 10, Visible = 1 }
+local pushed = {}
+imgui.PushFont = function(_, size) pushed[#pushed + 1] = size end
+imgui.GetFontBaked = function() return { FindGlyph = function() return glyph end } end
+local fontTexture = 0x1234
+imgui.GetFont = function() return { ContainerAtlas = { TexRef = { GetTexID = function() return fontTexture end }, TexData = { GetTexID = function() return 0 end } } } end
+
 block.Claimed, block.ClaimFrame = 0, 0
 put(0, 0x401, Category.Party, Flag.Wanted + Flag.Stars, 'Buddy', '\146 Buddy')
 put(1, 0x402, Category.Alliance, 0, 'Ally')
-block.Names[0].Z, block.Names[0].Scale, block.Names[0].NameColor = 5, 1, 0x80808080
-block.Names[1].Z, block.Names[1].Scale, block.Names[1].NameColor = 5, 1, 0x80808080
+block.Names[0].Scale, block.Names[0].NameColor = 1, 0x80408020
+block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080
 block.Count, block.Sequence = 2, block.Sequence + 1
 H.load()
-local written = H.calls['draw.AddText'] or 0
 H.frames(1)
-H.print('custom off: nothing claimed', block.Claimed == 0, '| nothing written', (H.calls['draw.AddText'] or 0) == written)
+H.print('custom off: nothing claimed', block.Claimed == 0, '| nothing set out', draw.QuadCount == 0)
 H.print('/nametoggle custom kept from the game', H.command('/nametoggle custom'), '| on', o.customNames[1], '| said:', H.printed[#H.printed])
+block.Frame = 78
 H.frames(1)
--- one wanted name, outlined: itself and its four dark copies; the hidden one is not written
-H.print('custom on: all claimed', block.Claimed == Category.All, '| in frame', block.ClaimFrame, '| written', (H.calls['draw.AddText'] or 0) - written)
-o.outline[1] = 0; written = H.calls['draw.AddText']
-H.frames(1)
-H.print('no outline: written once', H.calls['draw.AddText'] - written)
+local buddy = draw.Entities[0x401]
+H.print('custom on: all claimed', block.Claimed == Category.All, '| set out in frame', draw.Frame, '| font texture', draw.Textures[0] == 0x1234)
+-- five letters; the hidden name is not set out
+H.print('the wanted name: quads', buddy.Count, '| of this frame', buddy.Frame == draw.Frame, '| the hidden one: none', draw.Entities[0x402].Frame ~= draw.Frame, '| in all', draw.QuadCount)
+-- 15 pixels on the screen is 23 of the game's picture; the edge 1 pixel of the screen
+H.print('letters at', pushed[#pushed], 'pixels | edge', buddy.Edge, '| solid', buddy.Alpha, ('| edge colour %08X'):format(buddy.EdgeColor))
+local first = draw.Quads[buddy.First]
+-- 50 wide, so it starts 25 left of the middle; the letter's own corner is 1, 2 from there, and the line 12 above
+H.print('first letter: corner', first.X0, first.Y0, first.X1, first.Y1, ('| colour %08X'):format(first.Color), '| edged', first.Flags == 1, '| texture', first.Texture)
+local last = draw.Quads[buddy.First + 4]
+H.print('last letter: 40 further on', last.X0 - first.X0, '| where in the texture', first.U0, first.V1)
+-- a name half way to the distance it is no longer drawn at is smaller, and one nearly there fainter
+block.Names[0].Scale = 0.5; H.frames(1)
+H.print('half way: letters at', pushed[#pushed], '| solid', buddy.Alpha)
+block.Names[0].Scale = 0.075; H.frames(1)
+H.print('nearly gone: letters at', pushed[#pushed], '| half solid', buddy.Alpha)
+block.Names[0].Scale = 1
+o.outline[1] = 0; H.frames(1)
+H.print('no outline: no edge', buddy.Edge)
+-- while the font has no texture nothing is set out, and what was is left to go stale
+fontTexture = 0; local frameBefore = draw.Frame; block.Frame = 90; block.ClaimFrame = 0; H.frames(1)
+H.print('no font texture: nothing set out', draw.Frame == frameBefore, '| nor claimed', block.ClaimFrame == 0)
+fontTexture = 0x5678; H.frames(1)
+H.print('another texture: taken up', draw.Textures[0] == 0x5678, draw.Frame == 90)
 H.tab(2); H.command('/nametoggle'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/nametoggle'); H.tab(1)
 H.print('its tab drawn: sliders', (H.calls.SliderInt or 0) - sliders)
 block.Hooked = 0; block.Claimed = 0; H.frames(1)
@@ -134,10 +168,22 @@ block.Hooked = 1
 H.command('/nametoggle custom off'); block.Claimed = 0; H.frames(1)
 H.print('custom off again', o.customNames[1] == false, block.Claimed == 0)
 
+-- the library's own calls: a name that is not begun takes no quads, and one too long is cut off
+block.Frame = 95
+H.print('drawing begun: scale', nameplates.BeginDrawing())
+nameplates.Quad(0, 0, 1, 1, 0, 0, 1, 1, 0xFFFFFFFF, 0, false)
+H.print('no name begun: no quad', draw.QuadCount == 0, '| a name out of range refused', nameplates.BeginName(0x900, 1, 0, 0) == false)
+nameplates.BeginName(5, 0.5, 2, 0xFF000000)
+for _ = 1, 300 do nameplates.Quad(0, 0, 1, 1, 0, 0, 1, 1, 0xFFFFFFFF, 1, false) end
+nameplates.EndName()
+H.print('a long name: quads', draw.Entities[5].Count, '| in all', draw.QuadCount, '| texture slot', draw.Quads[0].Texture)
+nameplates.SetTexture(9, 1); nameplates.SetTexture(7, 77)
+H.print('texture slots', draw.Textures[7])
+
 block.Hooked = 0
 H.print('a client not recognised:', nameplates.Problem())
 block.Hooked = 1
-block.Version = 2
+block.Version = 1
 loaded = false; H.frames(1); loaded = true
 H.print('a plugin of another version: no hook', nameplates.Hook() == nil, '|', nameplates.Problem())
 loaded = false

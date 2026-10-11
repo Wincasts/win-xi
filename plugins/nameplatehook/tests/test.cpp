@@ -22,6 +22,21 @@ struct TestPlugin : public Nameplate {
 	std::vector<MESSAGE> messages;
 	wchar_t configPath[MAX_PATH];
 	uint32_t target = 0;
+	int begun = 0;
+	int custom = 0;
+	const HookQuad* lastQuads = nullptr;
+	uint32_t lastCount = 0;
+
+	void BeginNames(const HookDraw&, bool, float& targetWidth, float& targetHeight) override {
+		begun++;
+		targetWidth = 1200.0f;
+		targetHeight = 900.0f;
+	}
+	void DrawCustom(const HookDrawing& drawing, const HookQuad* quads, const float*) override {
+		custom++;
+		lastQuads = quads;
+		lastCount = drawing.Count;
+	}
 
 	void Debug(const char* text) override {
 		said.push_back(text);
@@ -101,8 +116,11 @@ int main() {
 	// what an addon reads is laid out as it expects, and found by its first bytes
 	static_assert(sizeof(HookName) == 128 && offsetof(HookName, Name) == 52 && offsetof(HookName, Text) == 80);
 	static_assert(offsetof(HookShared, Version) == 16 && offsetof(HookShared, Hidden) == 32 && offsetof(HookShared, Frame) == 48 && offsetof(HookShared, Sequence) == 64);
+	static_assert(offsetof(HookShared, Draw) == 68 && offsetof(HookShared, TargetWidth) == 72);
+	static_assert(sizeof(HookQuad) == 48 && sizeof(HookDrawing) == 24 && offsetof(HookDraw, Textures) == 16);
+	static_assert(offsetof(HookDraw, Entities) == 48 && offsetof(HookDraw, Quads) == 48 + 24 * HOOK_ENTITIES);
 	static_assert(offsetof(HookShared, Override) == 80 && offsetof(HookShared, Names) == 80 + HOOK_ENTITIES);
-	CHECK(memcmp(Shared.Magic, "NAMEPLATEHOOK\0\0\0", 16) == 0 && Shared.Version == 1);
+	CHECK(memcmp(Shared.Magic, "NAMEPLATEHOOK\0\0\0", 16) == 0 && Shared.Version == 2);
 	CHECK(Shared.Size == sizeof(HookShared) && Shared.NameSize == sizeof(HookName));
 
 	TestPlugin plugin;
@@ -319,6 +337,51 @@ int main() {
 	plugin.Publish(nullptr, nullptr, true);
 	CHECK(Drawn(buddy));
 	Shared.Claimed = 0;
+	plugin.Publish(nullptr, nullptr, true);
+
+	// an addon that has drawn a claimed name has the plugin put it in the picture, in place of the
+	// client's: only a name that is wanted, only while what was drawn is of this frame or the last two
+	Draw.Frame = 0 - 10;
+	Shared.Claimed = CATEGORY_PARTY | CATEGORY_PLAYER;
+	Shared.ClaimFrame = Shared.Frame;
+	CHECK(!Drawn(buddy) && plugin.custom == 0 && plugin.begun > 0 && Shared.TargetWidth == 1200.0f && Shared.TargetHeight == 900.0f);
+	Draw.Frame = Shared.Frame;
+	Draw.QuadCount = 12;
+	Draw.Entities[0x401] = { Draw.Frame, 3, 5, 1.0f, 1.0f, 0xE6000000 };
+	Draw.Entities[0x403] = { Draw.Frame, 8, 4, 1.0f, 1.0f, 0xE6000000 }; // the stranger, who is hidden
+	Draw.Entities[300] = { Draw.Frame, 0, 3, 1.0f, 0.0f, 0 };           // the monster, which is not claimed
+	CHECK(!Drawn(buddy) && plugin.custom == 1 && plugin.lastQuads == &Draw.Quads[3] && plugin.lastCount == 5);
+	CHECK(!Drawn(stranger) && Drawn(mob) && plugin.custom == 1);
+	plugin.Publish(nullptr, nullptr, true);
+	// the first of these was the name before anything had been drawn for it
+	CHECK(Shared.Count == 4 && Shared.Names[0].Flags == NAME_WANTED && Shared.Names[1].Flags == (NAME_WANTED | NAME_CUSTOM) && Shared.Names[2].Flags == NAME_TARGET && Shared.Names[3].Flags == (NAME_WANTED | NAME_DRAWN));
+	// what does not hold together is not drawn
+	Draw.Entities[0x401].First = 10;
+	CHECK(!Drawn(buddy) && plugin.custom == 1);
+	Draw.Entities[0x401] = { Draw.Frame, 0, HOOK_QUADS_PER_NAME + 1, 1.0f, 0.0f, 0 };
+	Draw.QuadCount = HOOK_QUADS_MAX;
+	CHECK(!Drawn(buddy) && plugin.custom == 1);
+	Draw.Entities[0x401] = { Draw.Frame - 1, 0, 4, 1.0f, 0.0f, 0 };
+	CHECK(!Drawn(buddy) && plugin.custom == 1);
+	Draw.Entities[0x401] = { Draw.Frame, 0, 4, 1.0f, 0.0f, 0 };
+	CHECK(!Drawn(buddy) && plugin.custom == 2);
+	// nor what was drawn too long ago: the addon has stopped
+	plugin.Publish(nullptr, nullptr, true);
+	Shared.ClaimFrame = Shared.Frame;
+	CHECK(!Drawn(buddy) && plugin.custom == 3);
+	plugin.Publish(nullptr, nullptr, true);
+	Shared.ClaimFrame = Shared.Frame;
+	CHECK(!Drawn(buddy) && plugin.custom == 3);
+	// the first name of each frame, and no other, begins the frame's names
+	int begun = plugin.begun;
+	Drawn(buddy);
+	Drawn(mob);
+	CHECK(plugin.begun == begun);
+	plugin.Publish(nullptr, nullptr, true);
+	Drawn(mob);
+	CHECK(plugin.begun == begun + 1);
+	Shared.Claimed = 0;
+	plugin.Publish(nullptr, nullptr, true);
 	plugin.Publish(nullptr, nullptr, true);
 
 	// a second line that does not follow its first is the client's to draw

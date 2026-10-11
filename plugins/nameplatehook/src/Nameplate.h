@@ -50,6 +50,7 @@ enum : uint32_t {
     NAME_WHITELISTED = 1 << 5, // a player on the whitelist
     NAME_ON_SCREEN   = 1 << 6, // in front of the camera: ScreenX, ScreenY and Depth are filled in
     NAME_OVERRIDDEN  = 1 << 7, // shown or hidden by HookShared::Override, and not by its category
+    NAME_CUSTOM      = 1 << 8, // drawn by the plugin, from what an addon left for it in HookDraw
 };
 
 enum : uint8_t {
@@ -58,12 +59,16 @@ enum : uint8_t {
     OVERRIDE_HIDE = 2,
 };
 
-#define HOOK_VERSION 1
+#define HOOK_VERSION 2
 #define HOOK_NAMES_MAX 256
 #define HOOK_ENTITIES 0x900     // the client's entities, by index
 #define HOOK_CLAIM_FRAMES 30    // how long a claim lasts without being made again
 #define HOOK_NAME_SIZE 28
 #define HOOK_TEXT_SIZE 48
+#define HOOK_QUADS_MAX 16384    // the quads of every name an addon has drawn, together
+#define HOOK_QUADS_PER_NAME 256 // and of one
+#define HOOK_TEXTURES 8
+#define HOOK_DRAW_FRAMES 2      // how long what an addon has drawn is good for
 
 // One name the client was about to draw last frame.
 struct HookName {
@@ -105,10 +110,47 @@ struct HookShared {
     float Width;         // the size of the picture ScreenX and ScreenY are places in: the client's window
     float Height;
     uint32_t Sequence;   // goes up each time the names are made ready, which is more than once a frame
-    uint32_t Reserved[3];
+    uint32_t Draw;       // where the HookDraw is, for an addon that has the plugin draw names for it
+    float TargetWidth;   // the size of the picture the client draws the world on, which may be larger
+    float TargetHeight;  // than its window: 0 until a name has been drawn
 
     uint8_t Override[HOOK_ENTITIES]; // OVERRIDE_* for each entity, by index; written by addons
     HookName Names[HOOK_NAMES_MAX];
+};
+
+// One rectangle of a name an addon has drawn: a letter, or an icon.
+struct HookQuad {
+    float X0, Y0, X1, Y1; // its corners, in pixels of the client's picture, from where the client puts the name
+    float U0, V0, U1, V1; // and the same corners in its texture
+    uint32_t Color;       // as 0xAARRGGBB
+    uint32_t Texture;     // which of HookDraw::Textures
+    uint32_t Flags;       // 1: it is given the name's edge
+    uint32_t Reserved;
+};
+
+// What an addon has drawn for one entity's name.
+struct HookDrawing {
+    uint32_t Frame;     // HookDraw::Frame as it was drawn: one from before is not this frame's
+    uint32_t First;     // its quads, in HookDraw::Quads
+    uint32_t Count;
+    float Alpha;        // 0 to 1: how solid the whole of it is
+    float Edge;         // how thick the edge is round the quads that have one, in pixels; 0 for none
+    uint32_t EdgeColor; // as 0xAARRGGBB
+};
+
+// Names drawn by an addon for the plugin to put in the picture: found through HookShared::Draw.
+// Every frame the addon sets Frame to HookShared::Frame, QuadCount to 0, and then for each name it
+// draws adds its quads and fills in its entity's drawing. While the addon claims the name's category,
+// the plugin draws those quads where the client was about to draw the name, as deep in the picture
+// as the name is, so that whatever is in front of it hides it.
+struct HookDraw {
+    uint32_t Frame;
+    uint32_t QuadCount;
+    uint32_t QuadsMax;  // HOOK_QUADS_MAX
+    uint32_t Reserved;
+    uint32_t Textures[HOOK_TEXTURES]; // each an IDirect3DTexture8*, or 0
+    HookDrawing Entities[HOOK_ENTITIES];
+    HookQuad Quads[HOOK_QUADS_MAX];
 };
 
 // What the plugin asks of its host once a frame, for sorting names into categories. An id or index of
@@ -182,6 +224,15 @@ class Nameplate {
         virtual uint32_t GetSpawnFlags([[maybe_unused]] uint32_t entityIndex) {
             return 0;
         }
+
+        // Called from the client's name drawing code before the first name of each frame. fresh is
+        // whether an addon has drawn names for this frame. Gives back the size of the picture the
+        // client is drawing on.
+        virtual void BeginNames([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh, [[maybe_unused]] float& targetWidth, [[maybe_unused]] float& targetHeight) {}
+
+        // Puts an addon's drawing of a name in the picture, at this point of the world (three floats).
+        // Called from the client's name drawing code, in place of the client drawing the name.
+        virtual void DrawCustom([[maybe_unused]] const HookDrawing& drawing, [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
 
         // A look at what the client is drawing on at the moment it draws a name, said in the chat log.
         // Asked for by the probe command, and called from the client's name drawing code, once.

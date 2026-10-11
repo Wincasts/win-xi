@@ -5,6 +5,8 @@
 --   icons.Begin()                              each frame before any are drawn
 --   icons.Has(byte)                            whether this byte of a name is an icon
 --   icons.Draw(drawList, byte, x, y, size, color)   one icon, in a square of size pixels
+--   icons.Texture()                            the Direct3D texture the icons are in, as a number, or nil
+--   icons.Place(byte)                          where in it an icon is: { u1, v1, u2, v2 }, or false
 --
 -- In the game's font an icon is a single character, of code 0x8E or more. Its letters and its icons
 -- are in two pictures; the icons' is 256 pixels square with each icon in a cell of 32, though the game
@@ -186,6 +188,14 @@ local function place(byte)
 
     places[byte] = found;
     return found;
+end
+
+function icons.Texture()
+    return handle;
+end
+
+function icons.Place(byte)
+    return handle ~= nil and place(byte);
 end
 
 function icons.Has(byte)

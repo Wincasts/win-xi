@@ -14,6 +14,7 @@ If not, see <https://www.gnu.org/licenses/>.
 
 #include <windows.h>
 #include <strsafe.h>
+#include <math.h>
 
 #include "Ashita.h"
 
@@ -32,6 +33,26 @@ If not, see <https://www.gnu.org/licenses/>.
 #define PLAYERS_BEGIN 0x400
 #define DYNAMIC_BEGIN 0x700
 
+// A corner of a quad of a name drawn for an addon: a place in the picture, not in the world
+struct NameVertex {
+    float x, y, z, rhw;
+    DWORD color;
+    float u, v;
+};
+#define NAME_FVF (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1)
+
+// One name's quads, each with its four dark copies for the edge
+#define NAME_VERTICES (HOOK_QUADS_PER_NAME * 5 * 6)
+static NameVertex Vertices[NAME_VERTICES];
+
+// Vertices that follow one another and are drawn from the same texture
+struct NameRun {
+    uint32_t texture;
+    uint32_t first;
+    uint32_t count;
+};
+static NameRun Runs[HOOK_QUADS_PER_NAME * 2];
+
 
 class AshitaNameplate : public IPlugin, private Nameplate {
 private:
@@ -39,7 +60,18 @@ private:
     ILogManager* m_LogManager;
     uint32_t m_PluginId;
 
+    // For drawing names an addon has drawn. All of it is the frame's: made as the first name of a
+    // frame is drawn, and the state blocks let go as the frame is presented.
+    IDirect3DBaseTexture8* m_Textures[HOOK_TEXTURES]; // the addon's textures, held while they are drawn from
+    DWORD m_NameStates;   // the device's state as names are drawn with it
+    DWORD m_SavedStates;  // the same states as the client had them, to put back
+    D3DVIEWPORT8 m_Viewport;
+    float m_ViewProjection[16];
+    bool m_CanDraw;
+
     void PublishNames(bool frameDone);
+    void ReleaseNameStates();
+    void ReleaseTextures();
 
 public:
 	AshitaNameplate();
@@ -62,6 +94,8 @@ public:
 
     virtual void GetFrameFacts(FrameFacts& facts) override;
     virtual void ProbeScene() override;
+    virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) override;
+    virtual void DrawCustom(const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
 
     virtual uint32_t GetSpawnFlags(uint32_t entityIndex) override {
         IEntity* entities = m_AshitaCore->GetMemoryManager()->GetEntity();
@@ -94,7 +128,8 @@ public:
     virtual void CommandError(const char* command) override;
 };
 
-AshitaNameplate::AshitaNameplate() : m_AshitaCore(nullptr), m_LogManager(nullptr), m_PluginId(0) {
+AshitaNameplate::AshitaNameplate() : m_AshitaCore(nullptr), m_LogManager(nullptr), m_PluginId(0),
+        m_Textures{}, m_NameStates(0), m_SavedStates(0), m_Viewport{}, m_ViewProjection{}, m_CanDraw(false) {
 }
 
 const char* AshitaNameplate::GetName(void) const {
@@ -114,7 +149,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 1.00;
+    return 1.10;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -145,6 +180,9 @@ bool AshitaNameplate::Initialize(IAshitaCore* core, ILogManager* log, uint32_t i
 }
 
 void AshitaNameplate::Release(void) {
+
+    ReleaseNameStates();
+    ReleaseTextures();
 
     int ret = this->Deinit();
     if (ret < 0) {
@@ -280,7 +318,261 @@ void AshitaNameplate::Direct3DEndScene(bool isRenderingBackBuffer) {
 }
 
 void AshitaNameplate::Direct3DPresent([[maybe_unused]] const RECT* pSourceRect, [[maybe_unused]] const RECT* pDestRect, [[maybe_unused]] HWND hDestWindowOverride, [[maybe_unused]] const RGNDATA* pDirtyRegion) {
+    ReleaseNameStates();
     PublishNames(true);
+}
+
+void AshitaNameplate::ReleaseNameStates() {
+    IDirect3DDevice8* device = (m_AshitaCore != nullptr) ? m_AshitaCore->GetDirect3DDevice() : nullptr;
+    if (device != nullptr) {
+        if (m_NameStates != 0) {
+            device->DeleteStateBlock(m_NameStates);
+        }
+        if (m_SavedStates != 0) {
+            device->DeleteStateBlock(m_SavedStates);
+        }
+    }
+    m_NameStates = 0;
+    m_SavedStates = 0;
+    m_CanDraw = false;
+}
+
+void AshitaNameplate::ReleaseTextures() {
+    for (auto& texture : m_Textures) {
+        if (texture != nullptr) {
+            texture->Release();
+            texture = nullptr;
+        }
+    }
+}
+
+// Everything of the device's state that drawing a name changes. Recorded twice over: once to be
+// put on the device, and once to be filled with what the client had, and put back.
+static void SetNameStates(IDirect3DDevice8* device) {
+    // tested against the picture's depth, and not written to it: that is a second pass
+    device->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
+    device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+    device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+    device->SetRenderState(D3DRS_ALPHAREF, 0x80);
+    device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATEREQUAL);
+    device->SetRenderState(D3DRS_COLORWRITEENABLE, 0x0F);
+    device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    device->SetRenderState(D3DRS_LIGHTING, FALSE);
+    device->SetRenderState(D3DRS_FOGENABLE, FALSE);
+    device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+    device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
+
+    // the texture's colour and how solid it is, each scaled by the vertex's
+    device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+    device->SetTextureStageState(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+    device->SetTextureStageState(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+    device->SetTextureStageState(0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+    device->SetTextureStageState(0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
+    device->SetTextureStageState(0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+    device->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
+    device->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+    device->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+    device->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+    device->SetTexture(0, nullptr);
+    device->SetVertexShader(NAME_FVF);
+    device->SetPixelShader(0);
+    // drawing from vertices in memory leaves the device with no vertex buffer: the client's is put back
+    device->SetStreamSource(0, nullptr, 0);
+}
+
+void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) {
+    m_CanDraw = false;
+
+    IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
+    if (device == nullptr) {
+        return;
+    }
+
+    // the picture the client draws the world on, which an addon sizes its letters for
+    if (FAILED(device->GetViewport(&m_Viewport))) {
+        return;
+    }
+    targetWidth = static_cast<float>(m_Viewport.Width);
+    targetHeight = static_cast<float>(m_Viewport.Height);
+
+    // with no addon drawing names, nothing of its is kept
+    if (!fresh) {
+        ReleaseTextures();
+        return;
+    }
+
+    // The addon's textures are held from here on, so that one it lets go of while its drawing is
+    // still being used is not drawn from after it is gone
+    for (size_t i = 0; i < HOOK_TEXTURES; i++) {
+        IDirect3DBaseTexture8* texture = reinterpret_cast<IDirect3DBaseTexture8*> (static_cast<uintptr_t>(draw.Textures[i]));
+        if (texture != m_Textures[i]) {
+            if (texture != nullptr) {
+                texture->AddRef();
+            }
+            if (m_Textures[i] != nullptr) {
+                m_Textures[i]->Release();
+            }
+            m_Textures[i] = texture;
+        }
+    }
+
+    // A point in the world goes through the view and then the projection to where it is in the picture
+    D3DMATRIX view;
+    D3DMATRIX projection;
+    if (FAILED(device->GetTransform(D3DTS_VIEW, &view)) || FAILED(device->GetTransform(D3DTS_PROJECTION, &projection))) {
+        return;
+    }
+    for (int row = 0; row < 4; row++) {
+        for (int column = 0; column < 4; column++) {
+            m_ViewProjection[row * 4 + column] = view.m[row][0] * projection.m[0][column]
+                + view.m[row][1] * projection.m[1][column]
+                + view.m[row][2] * projection.m[2][column]
+                + view.m[row][3] * projection.m[3][column];
+        }
+    }
+
+    if (m_NameStates == 0) {
+        device->BeginStateBlock();
+        SetNameStates(device);
+        if (FAILED(device->EndStateBlock(&m_NameStates))) {
+            m_NameStates = 0;
+        }
+    }
+    if (m_SavedStates == 0) {
+        device->BeginStateBlock();
+        SetNameStates(device);
+        if (FAILED(device->EndStateBlock(&m_SavedStates))) {
+            m_SavedStates = 0;
+        }
+    }
+
+    m_CanDraw = m_NameStates != 0 && m_SavedStates != 0;
+}
+
+static DWORD FadeColor(uint32_t color, float alpha) {
+    const float solid = static_cast<float>(color >> 24) * alpha;
+    const DWORD faded = (solid <= 0.0f) ? 0 : ((solid >= 255.0f) ? 255 : static_cast<DWORD>(solid + 0.5f));
+    return (faded << 24) | (color & 0x00FFFFFF);
+}
+
+void AshitaNameplate::DrawCustom(const HookDrawing& drawing, const HookQuad* quads, const float* position) {
+    if (!m_CanDraw) {
+        return;
+    }
+
+    IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
+    if (device == nullptr) {
+        return;
+    }
+
+    // where the point is in the picture, and how deep
+    const float* m = m_ViewProjection;
+    const float x = position[0];
+    const float y = position[1];
+    const float z = position[2];
+    const float w = x * m[3] + y * m[7] + z * m[11] + m[15];
+    if (w <= 0.01f) {
+        return;
+    }
+
+    const float depth = (x * m[2] + y * m[6] + z * m[10] + m[14]) / w;
+    if (depth < 0.0f || depth > 1.0f) {
+        return;
+    }
+
+    const float rhw = 1.0f / w;
+    // on a whole pixel, so that letters drawn at their own size stay sharp
+    const float left = floorf(static_cast<float>(m_Viewport.X) + (1.0f + (x * m[0] + y * m[4] + z * m[8] + m[12]) / w) * 0.5f * static_cast<float>(m_Viewport.Width)) - 0.5f;
+    const float top = floorf(static_cast<float>(m_Viewport.Y) + (1.0f - (x * m[1] + y * m[5] + z * m[9] + m[13]) / w) * 0.5f * static_cast<float>(m_Viewport.Height)) - 0.5f;
+    const float deep = m_Viewport.MinZ + depth * (m_Viewport.MaxZ - m_Viewport.MinZ);
+
+    const float alpha = (drawing.Alpha <= 0.0f) ? 0.0f : ((drawing.Alpha >= 1.0f) ? 1.0f : drawing.Alpha);
+    if (alpha <= 0.0f) {
+        return;
+    }
+
+    uint32_t vertexCount = 0;
+    uint32_t runCount = 0;
+
+    auto add = [&](const HookQuad& quad, float dx, float dy, DWORD color) {
+        if (quad.Texture >= HOOK_TEXTURES || m_Textures[quad.Texture] == nullptr || vertexCount + 6 > NAME_VERTICES) {
+            return;
+        }
+
+        if (runCount == 0 || Runs[runCount - 1].texture != quad.Texture) {
+            Runs[runCount].texture = quad.Texture;
+            Runs[runCount].first = vertexCount;
+            Runs[runCount].count = 0;
+            runCount++;
+        }
+        Runs[runCount - 1].count += 6;
+
+        const float x0 = left + quad.X0 + dx;
+        const float y0 = top + quad.Y0 + dy;
+        const float x1 = left + quad.X1 + dx;
+        const float y1 = top + quad.Y1 + dy;
+
+        NameVertex* v = &Vertices[vertexCount];
+        v[0] = { x0, y0, deep, rhw, color, quad.U0, quad.V0 };
+        v[1] = { x1, y0, deep, rhw, color, quad.U1, quad.V0 };
+        v[2] = { x0, y1, deep, rhw, color, quad.U0, quad.V1 };
+        v[3] = { x1, y0, deep, rhw, color, quad.U1, quad.V0 };
+        v[4] = { x1, y1, deep, rhw, color, quad.U1, quad.V1 };
+        v[5] = { x0, y1, deep, rhw, color, quad.U0, quad.V1 };
+        vertexCount += 6;
+    };
+
+    // the edge is the quads again in the dark, behind themselves, towards each corner
+    if (drawing.Edge > 0.0f) {
+        const float edge = (drawing.Edge > 8.0f) ? 8.0f : drawing.Edge;
+        const DWORD dark = FadeColor(drawing.EdgeColor, alpha);
+        for (int corner = 0; corner < 4; corner++) {
+            const float dx = (corner & 1) ? edge : -edge;
+            const float dy = (corner & 2) ? edge : -edge;
+            for (uint32_t i = 0; i < drawing.Count; i++) {
+                if ((quads[i].Flags & 1) != 0) {
+                    add(quads[i], dx, dy, dark);
+                }
+            }
+        }
+    }
+    for (uint32_t i = 0; i < drawing.Count; i++) {
+        add(quads[i], 0.0f, 0.0f, FadeColor(quads[i].Color, alpha));
+    }
+
+    if (vertexCount == 0) {
+        return;
+    }
+
+    device->CaptureStateBlock(m_SavedStates);
+    device->ApplyStateBlock(m_NameStates);
+
+    for (uint32_t i = 0; i < runCount; i++) {
+        device->SetTexture(0, m_Textures[Runs[i].texture]);
+        device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
+    }
+
+    // Again for the picture's depth alone, where the name is solid: what the client draws after it,
+    // and behind it, is then not drawn over it
+    device->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
+    device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
+    device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+    for (uint32_t i = 0; i < runCount; i++) {
+        device->SetTexture(0, m_Textures[Runs[i].texture]);
+        device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
+    }
+
+    device->ApplyStateBlock(m_SavedStates);
 }
 
 void AshitaNameplate::PublishNames(bool frameDone) {
@@ -296,7 +588,7 @@ void AshitaNameplate::PublishNames(bool frameDone) {
 }
 
 static void AshitaLongHelp(IChatManager* chat) {
-    chat->Write(0, false, "\x1e\x05nameplatehook v1.00, from Nameplate v0.51 by way of nameplatew v0.60");
+    chat->Write(0, false, "\x1e\x05nameplatehook v1.10, from Nameplate v0.51 by way of nameplatew v0.60");
     chat->Write(0, false, "\x1e\x05https://www.github.com/Shirk/Nameplate");
     chat->Write(0, false, "\x1e\x6aUsage (\x1e\x6a/nph\x1e\x6a is short for\x1e\x6a /nameplatehook\x1e\x6a):");
     chat->Write(0, false, "\x1e\x6a/nameplatehook help");

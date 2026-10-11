@@ -1,6 +1,6 @@
 addon.name    = 'nametoggle';
 addon.author  = 'win (and claude)';
-addon.version = '1.1';
+addon.version = '1.2';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the nameplatehook plugin.';
 
 require('common');

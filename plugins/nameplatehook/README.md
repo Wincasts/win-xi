@@ -92,7 +92,7 @@ The head of that file lists everything it offers.
 | Field | Meaning |
 |---|---|
 | `Magic` | The 13 bytes `NAMEPLATEHOOK` and three 0s, by which the block is found |
-| `Version` | 1 |
+| `Version` | 2 |
 | `Size`, `NameSize` | The size in bytes of the block and of one name. An addon that has either otherwise does not read on. |
 | `Hooked` | 1 while the client's name drawing is in the plugin's hands; 0 on a client it does not recognise, where names are shown and hidden but none are listed |
 | `Hidden` | The categories whose names are hidden, a bit each. Written by addons and by the commands. |
@@ -102,6 +102,8 @@ The head of that file lists everything it offers.
 | `Count` | How many names are listed |
 | `Width`, `Height` | The size of the picture the names' places on screen are in: the client's window |
 | `Sequence` | Goes up each time the list is made ready, which is more than once a frame |
+| `Draw` | The address of the `HookDraw`, for an addon that has the plugin [draw names for it](#having-the-plugin-draw-the-names) |
+| `TargetWidth`, `TargetHeight` | The size of the picture the client draws the world on, which is larger than its window when the background resolution is. 0 until a name has been drawn. |
 | `Override` | A byte for each of the client's 0x900 entities, by index: 0 by its category, 1 shown, 2 hidden. Written by addons. |
 | `Names` | Up to 256 names |
 
@@ -132,6 +134,7 @@ The categories' bits are, from bit 0: self, party, alliance, player, my pet, pet
 | Whitelisted | 0x20 | A player on the whitelist |
 | On screen | 0x40 | In front of the camera |
 | Overridden | 0x80 | Shown or hidden by `Override` |
+| Custom | 0x100 | Drawn by the plugin, from what an addon set out for it |
 
 ### Which names are listed
 
@@ -147,6 +150,27 @@ An addon that draws names itself sets `Claimed` to the categories it draws and `
 
 A claim that is not made again lapses 30 frames later, and the client draws the names as before. So an addon that stops, or is unloaded, need do nothing.
 
+### Having the plugin draw the names
+
+An addon draws as the frame is presented, on the finished picture, where nothing of the world can hide what it draws: the client has by then put away the depth of the world it drew, which was on a picture of its own. So an addon that wants its names hidden by what is in front of them, as the client's are, does not draw them. It sets each one out and leaves it with the plugin, which draws it in the client's picture at the moment the client would have drawn the name.
+
+What is set out goes in `HookDraw` (`src/Nameplate.h`), at the address in the block's `Draw`:
+
+| Field | Meaning |
+|---|---|
+| `Frame` | Set by the addon to the block's `Frame` each time it sets names out. What was set out more than 2 frames ago is not drawn. |
+| `QuadCount` | How many of `Quads` are in use. Set to 0 by the addon each frame, and raised as it adds them. |
+| `QuadsMax` | 16384 |
+| `Textures` | Eight Direct3D textures (`IDirect3DTexture8*`), or 0. The plugin holds each while it draws from it. |
+| `Entities` | For each of the client's 0x900 entities, by index: `Frame` (as `HookDraw`'s when it was set out, or it is not drawn), `First` and `Count` (its quads, 256 at most), `Alpha` (0 to 1, how solid the whole name is), `Edge` (how thick a dark edge its edged quads are given, in pixels) and `EdgeColor` |
+| `Quads` | Each a rectangle: its corners `X0`, `Y0`, `X1`, `Y1` in pixels of the client's picture, measured from the point the client puts the name at; the same corners in its texture, `U0`, `V0`, `U1`, `V1`; `Color` as 0xAARRGGBB; `Texture`, which of the eight; and `Flags`, 1 if it is given the edge |
+
+The quads are in pixels of the client's picture, not of its window: an addon that wants a letter 15 pixels high on the screen makes it `15 * TargetWidth / Width` high. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/nametoggle/custom.lua` sets names out this way, from imgui's font.
+
+The plugin draws a name when all of these hold: its category is claimed, it is wanted, and the addon set it out within the last 2 frames. It is then listed with the custom flag. A claimed name that was not set out is not drawn at all. What is set out in one frame is drawn in the next, where the client then puts the name: the name's place is never a frame behind, only what it looks like.
+
+Each name is drawn twice: once blended into the picture and tested against its depth, and once more to the depth alone where the name is solid, so that what the client draws afterwards, and behind the name, is not drawn over it. Everything of the device's state that this changes is put back before the client goes on.
+
 ### How it works
 
 The client decides, for each character, whether its name is drawn at all, and then calls two functions of its own to draw the name's two lines: the name, and the Job Mastery stars. Nameplate patched the first decision. This plugin lets every name through it and stands in the way of the two calls instead, where the client has already worked out the name's place, its colours and what it writes: there the name is sorted, listed, and drawn or not.
@@ -155,7 +179,7 @@ The two calls are found beside Nameplate's patch, and taken only if both lead wh
 
 ## Building
 
-`./build.sh` builds `build/nameplatehook.dll` on Linux with clang-cl and lld-link, as a 32-bit Windows plugin, and `tests/run.sh` checks the categories, the list, the commands and the files under wine. Both say at the top what they need.
+`./build.sh` builds `build/nameplatehook.dll` on Linux with clang-cl and lld-link, as a 32-bit Windows plugin, and `tests/run.sh` checks the categories, the list, the commands and the files under wine; the drawing itself is not checked there, having no client to draw on. Both say at the top what they need.
 
 On Windows, `CMakeLists.txt` builds it with Visual Studio 2022 and CMake 3.28 or newer, as Win32 and not x64:
 
