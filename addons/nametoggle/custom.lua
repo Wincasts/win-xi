@@ -35,6 +35,7 @@ local FADE_SHRUNK   = 0.15; -- and if it does, having by then shrunk to its smal
 local SMALLEST      = 6;    -- pixels: the smallest a name can be set to be
 local LARGEST       = 48;   -- and the largest
 local FONT_SLOT, ICON_SLOT = 0, 1; -- the plugin's numbers for the two textures the names are drawn from
+local STEADY_AFTER  = 8;    -- frames a name's colour has to stay the same to be taken as its own
 local PROBE         = 65;   -- the letter looked at each frame to see that the font's letters are where they were
 
 local FONT_FOLDER   = 'C:\\Windows\\Fonts\\';
@@ -311,6 +312,30 @@ local function glyphSet(key)
     return set.glyphs, baked;
 end
 
+-- The game makes some names pulse, the target's for one, by changing their colour from frame to
+-- frame. Here a name keeps the colour it last held still: by entity, { id = whose it is, color = that
+-- colour, last = the colour last frame, run = how many frames it has been that }.
+local steady = {};
+
+local function steadyColor(name)
+    local color = name.NameColor;
+    local known = steady[name.EntityIndex];
+    if (known == nil or known.id ~= name.ServerId) then
+        known = { id = name.ServerId, color = nil, last = color, run = 0 };
+        steady[name.EntityIndex] = known;
+    elseif (color == known.last) then
+        known.run = known.run + 1;
+    else
+        known.last, known.run = color, 0;
+    end
+
+    if (known.run >= STEADY_AFTER) then
+        known.color = color;
+    end
+    -- one that has not yet held still is drawn as it is
+    return known.color or color;
+end
+
 function custom.Frame(options)
     if (not options.customNames[1]) then
         return;
@@ -357,7 +382,7 @@ function custom.Frame(options)
     local iconGap = math.floor(ICON_GAP * scale + 0.5);
     local dark = darkColor();
 
-    local WANTED, STARS = nameplates.Flag.Wanted, nameplates.Flag.Stars;
+    local WANTED, STARS, TARGET = nameplates.Flag.Wanted, nameplates.Flag.Stars, nameplates.Flag.Target;
 
     for i = 0, hook.Count - 1 do
         local name = hook.Names[i];
@@ -373,8 +398,10 @@ function custom.Frame(options)
             local nearness = math.max(0, math.min(1, name.Scale));
             local size = shrink and math.floor(leastSize + (fullSize - leastSize) * nearness + 0.5) or fullSize;
 
-            -- as solid as the game has it, which fades a name with its character
-            local solid = bit.rshift(name.NameColor, 24) / 0x80;
+            -- as solid as the game has it, which fades a name with its character; but for the target,
+            -- whose name the game pulses, as solid as it last held still
+            local held = steadyColor(name);
+            local solid = bit.rshift(bit.band(name.Flags, TARGET) ~= 0 and held or name.NameColor, 24) / 0x80;
             local near = nearness / (shrink and FADE_SHRUNK or FADE_OVER);
             local alpha = math.max(0, math.min(1, solid, near));
 
@@ -404,11 +431,12 @@ function custom.Frame(options)
                     local iconSize = math.floor(height * iconScale + 0.5);
                     local smallStar = math.floor(iconSize * 0.5 + 0.5);
 
-                    -- icons, then the name, the middle of them all on the point the game gave
+                    -- icons, then the name, hung from the point the game gave as the game hangs its
+                    -- own: the middle of them on it from side to side, and the top of the letters at it
                     local iconsWidth = iconCount * (iconSize + iconGap);
                     local left = math.floor(-(iconsWidth + width) * 0.5);
-                    local top = math.floor(-height * 0.5);
-                    local iconTop = math.floor(-iconSize * 0.5);
+                    local top = 0;
+                    local iconTop = math.floor((height - iconSize) * 0.5);
 
                     -- the stars over the middle of it: a small one, a large one, a small one
                     local star = showStars and bit.band(name.Flags, STARS) ~= 0 and icons.Place(STAR);
@@ -437,7 +465,7 @@ function custom.Frame(options)
                         left = left + iconSize + iconGap;
                     end
 
-                    local color = nameColor(name.NameColor);
+                    local color = nameColor(held);
                     local pen = left;
                     for at = 1, #words do
                         local glyph = glyphs[words:byte(at)];

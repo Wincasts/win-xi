@@ -143,7 +143,7 @@ H.print('the wanted name: quads', buddy.Count, '| of this frame', buddy.Frame ==
 -- 15 pixels on the screen is 23 of the game's picture; the edge 1 pixel of the screen
 H.print('letters at', pushed[#pushed], 'pixels | edge', buddy.Edge, '| solid', buddy.Alpha, ('| edge colour %08X'):format(buddy.EdgeColor))
 local first = draw.Quads[buddy.First]
--- 50 wide, so it starts 25 left of the middle; the letter's own corner is 1, 2 from there, and the line 12 above
+-- 50 wide, so it starts 25 left of the middle; the letter's own corner is 1, 2 from there, the line's top on the point
 H.print('first letter: corner', first.X0, first.Y0, first.X1, first.Y1, ('| colour %08X'):format(first.Color), '| edged', first.Flags == 1, '| texture', first.Texture)
 local last = draw.Quads[buddy.First + 4]
 H.print('last letter: 40 further on', last.X0 - first.X0, '| where in the texture', first.U0, first.V1)
@@ -153,6 +153,12 @@ H.print('half way: letters at', pushed[#pushed], '| solid', buddy.Alpha)
 block.Names[0].Scale = 0.075; H.frames(1)
 H.print('nearly gone: letters at', pushed[#pushed], '| half solid', buddy.Alpha)
 block.Names[0].Scale = 1
+-- a colour that changes every frame, as the game pulses the target's, is not followed; one that stays is
+H.frames(8)
+for i = 1, 5 do block.Names[0].NameColor = 0x80408020 + i * 0x010101; H.frames(1) end
+H.print(('pulsing: still drawn %08X'):format(draw.Quads[buddy.First].Color))
+block.Names[0].NameColor = 0x80101010; H.frames(10)
+H.print(('a colour that stays: taken up %08X'):format(draw.Quads[buddy.First].Color))
 o.outline[1] = 0; H.frames(1)
 H.print('no outline: no edge', buddy.Edge)
 -- while the font has no texture nothing is set out, and what was is left to go stale
