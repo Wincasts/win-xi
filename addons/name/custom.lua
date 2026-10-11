@@ -42,6 +42,7 @@ local FONT_SLOT, ICON_SLOT = 0, 1; -- the plugin's numbers for the two textures 
 local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
 local STEADY_AFTER  = 4;    -- frames a name's colour has to stay the same to be taken as its own at once
 local STEADY_STRETCH = 45;  -- frames over which the strongest of a pulsing name's colours is looked for
+local SIGN_SIZE     = 0.7;  -- how large the magnifying glass is beside the letters it is written among
 local MAGNIFIER     = 0xF002; -- the magnifying glass, among the icons Ashita's own font has with its letters
 local PROBE         = 65;   -- the letter looked at each frame to see that the font's letters are where they were
 
@@ -638,7 +639,7 @@ function custom.Frame(options, hook)
                         local part = parts[index];
                         local kind = part.kind;
                         if (kind == 'checked') then
-                            width = width + (sign and sign[9] * fit or 0);
+                            width = width + (sign and sign[9] * fit * SIGN_SIZE or 0);
                         end
                         local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text or '';
                         for at = 1, #words do
@@ -700,8 +701,14 @@ function custom.Frame(options, hook)
                         local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text or '';
                         local color = part.color or own;
                         if (kind == 'checked' and sign) then
-                            nameplates.Quad(pen + sign[1] * fit, top + sign[2] * fit, pen + sign[3] * fit, top + sign[4] * fit, sign[5], sign[6], sign[7], sign[8], color, FONT_SLOT, true);
-                            pen = pen + sign[9] * fit;
+                            -- smaller than the letters by a set part, whatever size they are, and
+                            -- made smaller about the middle of the line so that it stays level with them
+                            local small = fit * SIGN_SIZE;
+                            local middle = rungHeight * 0.5;
+                            nameplates.Quad(pen + sign[1] * small, top + (middle + (sign[2] - middle) * SIGN_SIZE) * fit,
+                                pen + sign[3] * small, top + (middle + (sign[4] - middle) * SIGN_SIZE) * fit,
+                                sign[5], sign[6], sign[7], sign[8], color, FONT_SLOT, true);
+                            pen = pen + sign[9] * small;
                         end
                         for at = 1, #words do
                             local glyph = glyphs[words:byte(at)];
