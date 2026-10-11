@@ -22,6 +22,8 @@ local device = d3d.get_device();
 --   with the nameplatehook plugin loaded, writes each name in view over its character the same way,
 --     20 pixels above the game's, with the depth test on: it should be hidden by what is in front of it
 --   /glyphtest depth switches the depth test off and on
+--   /glyphtest claim stops the game drawing its own names, and writes these where they were
+--   /glyphtest big writes them at 30 pixels, and says what a letter of that size is found to be
 
 ffi.cdef[[
     #pragma pack(1)
@@ -34,6 +36,9 @@ local stride = ffi.sizeof('struct glyphtest_vertex_t');
 local used = 0;
 
 local depthTest = true;
+local claim = false;   -- the game draws no names, and these are written where its own would be
+local big = false;     -- the names are written at 30 pixels, a size nothing else is written in
+local bigSaid = false;
 local reported = false;
 local failed = {}; -- what has gone wrong while drawing, said once each
 
@@ -214,6 +219,24 @@ local function draw()
     local m43 = v._41 * p._13 + v._42 * p._23 + v._43 * p._33 + v._44 * p._43;
     local m44 = v._41 * p._14 + v._42 * p._24 + v._43 * p._34 + v._44 * p._44;
 
+    if (claim) then
+        nameplates.Claim(nameplates.Category.All);
+    end
+
+    -- a size of its own is the font's while it is pushed
+    if (big) then
+        imgui.PushFont(nil, 30);
+        baked = imgui.GetFontBaked();
+        if (not bigSaid) then
+            bigSaid = true;
+            local glyph = baked:FindGlyph(65);
+            say(('at 30: baked Size %s | glyph A: X0 %.2f Y0 %.2f X1 %.2f Y1 %.2f | U0 %.5f V0 %.5f U1 %.5f V1 %.5f | AdvanceX %.2f | texture %s'):format(
+                tostring(baked.Size), glyph.X0, glyph.Y0, glyph.X1, glyph.Y1, glyph.U0, glyph.V0, glyph.U1, glyph.V1, glyph.AdvanceX, tostring(fontTexture())));
+        end
+    end
+    local height = imgui.GetFontSize();
+    local raise = claim and height * 0.5 or 20 + height;
+
     local display = imgui.GetIO().DisplaySize;
     for _, name in nameplates.Each() do
         local x, y, z = name.X, name.Y, name.Z;
@@ -223,8 +246,13 @@ local function draw()
             local screenX = (1 + (x * m11 + y * m21 + z * m31 + m41) / w) * display.x * 0.5;
             local screenY = (1 - (x * m12 + y * m22 + z * m32 + m42) / w) * display.y * 0.5;
             local depth = (x * m13 + y * m23 + z * m33 + m43) / w;
-            write(baked, words, screenX - measure(baked, words) * 0.5, screenY - 20 - imgui.GetFontSize(), depth, 1 / w, 0xFF80FFFF);
+            write(baked, words, screenX - measure(baked, words) * 0.5, screenY - raise, depth, 1 / w, 0xFF80FFFF);
         end
+    end
+    if (big) then
+        imgui.PopFont();
+        -- the texture may be another once letters of a new size have been put in it
+        texture = fontTexture();
     end
     flush(texture, depthTest);
 end
@@ -239,6 +267,13 @@ ashita.events.register('command', 'command_cb', function (e)
     if (args[2] ~= nil and args[2]:lower() == 'depth') then
         depthTest = not depthTest;
         say('depth test', depthTest and 'on' or 'off');
+    elseif (args[2] ~= nil and args[2]:lower() == 'claim') then
+        claim = not claim;
+        say('the game\'s names', claim and 'claimed: only these are drawn' or 'left to the game');
+    elseif (args[2] ~= nil and args[2]:lower() == 'big') then
+        big = not big;
+        bigSaid = false;
+        say('names at', big and '30 pixels' or 'the usual size');
     else
         report();
     end
