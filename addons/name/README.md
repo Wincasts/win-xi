@@ -97,6 +97,12 @@ here so that mobdb need not be installed. To bring them up to date, copy mobdb's
 this one. For what the tables do not have (a player, an NPC, a monster the server makes as it goes)
 `[level]` writes nothing, and what was typed round it is still written.
 
+When you `/check` a monster, the game's answer has its level in it, and from then on `[level]` writes
+that one level for that monster in place of the range. It is forgotten when the monster dies, when it
+is no longer there to be seen, and when you leave the area, since the monster that next has its place
+is another. Nothing is sent to the game for this: the addon only reads the answers to checks you make
+yourself. A notorious monster, whose strength is impossible to gauge, gives no level.
+
 To write a distance after the name of the monster you have targeted and no other, leave Monster Format
 as `[name]` and set Targeted Monster Format to `[name] [distance]`. The Show Monster Distance and
 Distance For Target Only settings of 1.9 and 1.10 are made into these lines when the addon is loaded.

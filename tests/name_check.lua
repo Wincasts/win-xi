@@ -269,6 +269,49 @@ put(1, 301, Category.Monster, Flag.Wanted, 'Wolf'); block.Names[1].Scale, block.
 H.print('one not in the tables: quads', draw.Entities[301].Count)
 levels.Set(nil); block.Names[1].ServerId = 9; H.frames(1)
 H.print('no tables for the area: quads', draw.Entities[301].Count)
+
+-- a monster its player checks is written with the level the game's answer gives, until it dies or the
+-- area is left
+struct.unpack = function(kind, raw, at)
+    local value = 0
+    for i = (kind == 'I' and 3 or 1), 0, -1 do value = value * 256 + (raw:byte(at + i) or 0) end
+    return value
+end
+local function u16(n) return string.char(n % 256, math.floor(n / 256) % 256) end
+local function u32(n) return u16(n % 65536) .. u16(math.floor(n / 65536)) end
+-- the game's message about a target: who, the target, two values, their indexes, which message
+local function message(targetId, value, value2, targetIndex, number)
+    return u32(0) .. u32(1) .. u32(targetId) .. u32(value) .. u32(value2) .. u16(0x400) .. u16(targetIndex) .. u16(number) .. u16(0)
+end
+local alive = { [300] = { id = 0x1000 + 300, hp = 100 } }
+memory.GetEntity = function() return {
+    GetDistance = function() return 4 end,
+    GetServerId = function(_, index) return alive[index] and alive[index].id or 0 end,
+    GetHPPercent = function(_, index) return alive[index] and alive[index].hp or 0 end } end
+levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10 } }, Names = {} })
+put(1, 300, Category.Monster, Flag.Wanted, 'Goblin'); block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080
+H.frames(1)
+-- "Goblin L8-10", then checked and found to be 9: "Goblin L9"
+H.print('before it is checked: the range, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
+H.packetData(0x029, message(0x1000 + 300, 9, 0x43, 300, 173)); H.frames(1)
+H.print('checked: its level, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
+-- a message of the same number that is no check, and one about damage, change nothing
+H.packetData(0x029, message(0x1000 + 300, 50, 7, 300, 173)); H.packetData(0x029, message(0x1000 + 300, 120, 0, 300, 1))
+H.print('other messages: still', levels.Of(300, 'Goblin', 0x1000 + 300), '| another with its index is not it', levels.Of(300, 'Goblin', 0x2000))
+alive[300].hp = 0; H.frames(1)
+H.print('dead: the range again, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
+alive[300].hp = 100
+H.packetData(0x029, message(0x1000 + 300, 10, 0x44, 300, 174))
+H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 6))
+H.print('checked again, then said to be defeated:', levels.Of(300, 'Goblin', 0x1000 + 300))
+H.packetData(0x029, message(0x1000 + 300, 10, 0x44, 300, 174))
+alive[300] = nil; H.frames(1)
+H.print('checked again, then gone from sight:', levels.Of(300, 'Goblin', 0x1000 + 300))
+H.packetData(0x029, message(0x1000 + 300, 10, 0x44, 300, 174))
+local before = levels.Of(300, 'Goblin', 0x1000 + 300)
+H.packetData(0x00A, string.rep('\0', 0x100))
+H.print('checked again:', before, '| then the area left: forgotten', levels.Of(300, 'Goblin', 0x1000 + 300) == nil)
+levels.Set(nil)
 o.monsterFormat[1] = '[name]'
 block.Count = 1
 
