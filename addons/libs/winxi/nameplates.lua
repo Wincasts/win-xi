@@ -50,6 +50,11 @@
 -- claimed with nameplates.Claim as before: the plugin draws the wanted ones the addon has drawn, a
 -- frame after it drew them, and draws nothing for the others.
 --
+-- nameplates.Hook asks Ashita whether the plugin is still loaded, which is not free. An addon that
+-- has just asked can hand what it was given to nameplates.Claim(categories, hook) and
+-- nameplates.BeginDrawing(hook), and read hook.Hidden, hook.Options and hook.Names itself: within
+-- one frame the plugin cannot have gone.
+--
 -- Entities are known by index, which another entity has after a change of area: an addon that
 -- overrides names clears them then.
 local bit = require('bit');
@@ -336,8 +341,8 @@ function nameplates.ClearOverrides()
     end
 end
 
-function nameplates.Claim(categories)
-    local hook = nameplates.Hook();
+function nameplates.Claim(categories, hook)
+    hook = hook or nameplates.Hook();
     if (hook ~= nil) then
         hook.Claimed = bit.band(categories or nameplates.Category.All, nameplates.Category.All);
         hook.ClaimFrame = hook.Frame;
@@ -350,10 +355,10 @@ local drawing = nil;   -- the name being drawn
 local QUADS_PER_NAME = 256;
 local TEXTURES = 8;
 
-function nameplates.BeginDrawing()
+function nameplates.BeginDrawing(hook)
     draw, drawing = nil, nil;
 
-    local hook = nameplates.Hook();
+    hook = hook or nameplates.Hook();
     if (hook == nil or hook.Hooked == 0 or hook.Draw == 0) then
         return nil;
     end
