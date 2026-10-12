@@ -11,6 +11,12 @@ run xiframes   addons/xiframes/xiframes.lua xiframes_check.lua
 run twister    addons/twister/twister.lua twister_check.lua
 run puppet     addons/puppet/puppet.lua puppet_check.lua
 run name addons/name/name.lua name_check.lua
+run name-menus addons/name/name.lua name_menu_check.lua
+echo '== name GDI atlas'
+luajit tests/name_gdi_check.lua
+luajit tests/name_gdi_texture_check.lua
+luajit tests/name_gdi_families_check.lua
+echo
 
 # What xiframes draws, call for call, against a kept copy: any difference is printed. After a change
 # that is meant to alter what is drawn, look the difference over and keep the new copy with

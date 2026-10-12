@@ -6,7 +6,7 @@
 --   levels.IsChecked(index, id)  whether its player has checked it
 --   levels.Checked(index, id)    what the check found: { text = its level, or nil for one whose strength
 --                            is impossible to gauge, hard = how hard a fight it was said to be, at =
---                            when, by os.clock }, or nil
+--                            when, by os.clock, hardShort = difficulty abbreviation (or '???') }, or nil
 --   levels.Monster(index, name)  what the tables say of it, as mobdb has it (Aggro, Link, Sight, Sound,
 --                            Blood, Magic, JA, Scent, TrueSight, Notorious, Family), or nil
 --   levels.Generation()      a number that changes whenever what levels.Of would say may have
@@ -48,6 +48,7 @@ local NO_GAUGE                = 249;      -- the answer for a monster whose stre
 
 -- How hard a fight the answer says it is, from HARD_FIRST on, in the game's words
 local HARD = { 'Too Weak', 'Incredibly Easy Prey', 'Easy Prey', 'Decent Challenge', 'Even Match', 'Tough', 'Very Tough', 'Incredibly Tough' };
+local HARD_SHORT = { 'TW', 'IEP', 'EP', 'DC', 'EM', 'T', 'VT', 'IT' };
 local HARD_NO_GAUGE = 'Impossible To Gauge';
 local DEFEATED, FALLS         = 6, 20;    -- the messages that say a target has died
 
@@ -203,7 +204,7 @@ ashita.events.register('packet_in', 'name_levels_packet', function (e)
             if (checked[index] == nil) then
                 checkedCount = checkedCount + 1;
             end
-            checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = tostring(level), hard = HARD[hard - HARD_FIRST + 1], at = os.clock() };
+            checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = tostring(level), hard = HARD[hard - HARD_FIRST + 1], hardShort = HARD_SHORT[hard - HARD_FIRST + 1], at = os.clock() };
             generation = generation + 1;
         end
     elseif (number == NO_GAUGE and index > 0) then
@@ -211,7 +212,7 @@ ashita.events.register('packet_in', 'name_levels_packet', function (e)
         if (checked[index] == nil) then
             checkedCount = checkedCount + 1;
         end
-        checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = nil, hard = HARD_NO_GAUGE, at = os.clock() };
+        checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = nil, hard = HARD_NO_GAUGE, hardShort = '???', at = os.clock() };
         generation = generation + 1;
     end
 end);

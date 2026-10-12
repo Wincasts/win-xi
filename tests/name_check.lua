@@ -4,7 +4,21 @@ local ffi = require('ffi')
 local imgui = require('imgui')
 local nameplates = require('winxi.nameplates')
 local Category, Flag = nameplates.Category, nameplates.Flag
+local renderer = require('custom')
+local frameForTests = renderer.Frame
+local suppliedFormats
+-- Exercise arbitrary renderer formats as fixtures; production supplies the locked profile.
+renderer.Frame = function(options, hook, formats)
+    suppliedFormats = formats
+    return frameForTests(options, hook)
+end
 local o = H.options()
+H.print('preferred live defaults loaded', o.font == 'corbeli.ttf', o.fontSize[1] == 28, o.fontBold[1], o.checkSize[1] == 75,
+    not o.showSelf[1], not o.showPlayers[1], not o.showPets[1], o.alwaysTarget[1], not o.gdiFonts[1])
+-- Use a deterministic rendering fixture independent of preferred user defaults.
+require('custom').Defaults(o)
+for _, key in ipairs({ 'showSelf', 'showParty', 'showAlliance', 'showPlayers', 'showMyPet', 'showPets', 'showNpcs', 'showMonsters' }) do o[key][1] = true end
+o.alwaysTarget[1] = false
 
 local loaded = false
 local block = ffi.new('namehook_t')
@@ -33,6 +47,9 @@ H.print('nothing is written', block.Hidden == 0)
 -- the plugin loaded: found, and given the settings
 loaded = true
 H.frames(1)
+H.print('production supplies locked saved formats', suppliedFormats ~= nil and suppliedFormats.nameFormat[1] == '[name]',
+    suppliedFormats ~= nil and suppliedFormats.monsterFormat[1] == '[aggro] Lv [level]. [name]',
+    suppliedFormats ~= nil and suppliedFormats.targetFormat[1] == suppliedFormats.checkedFormat[1])
 H.print('plugin loaded: hook', nameplates.Hook() ~= nil, '| no problem', nameplates.Problem() == nil, '| hidden is players', block.Hidden == Category.Player)
 
 -- a change in the plugin, as by its own command, is taken into the settings and saved
@@ -42,19 +59,15 @@ block.Options = 1
 H.frames(1)
 H.print('changed in the plugin: NPCs off', o.showNpcs[1] == false, '| players still off', o.showPlayers[1] == false, '| always target', o.alwaysTarget[1], '| saved', H.saves() > saves)
 
--- the addon's command
-H.print('/name show kept from the game', H.command('/name show players npcs'))
-H.print('shown again', o.showPlayers[1] and o.showNpcs[1], '| hidden', block.Hidden)
-H.command('/name hide mobs self')
-H.print('hide mobs self', block.Hidden == Category.Monster + Category.Self, o.showMonsters[1] == false)
-H.command('/name toggle all')
-H.print('toggle all', block.Hidden == Category.All - Category.Monster - Category.Self)
-H.command('/name hide goblins')
-H.print('a word that is no category changes nothing', block.Hidden == Category.All - Category.Monster - Category.Self, '| said:', H.printed[#H.printed])
-H.command('/name show all')
+-- Text controls are disabled in this ImGui-only test build.
+H.command('/name show players npcs'); H.command('/name hide mobs self'); H.command('/name toggle all')
+H.print('text controls consumed without changing filters', block.Hidden == Category.Player + Category.Npc, not o.showPlayers[1], o.showMonsters[1])
+for _, key in ipairs({ 'showSelf', 'showParty', 'showAlliance', 'showPlayers', 'showMyPet', 'showPets', 'showNpcs', 'showMonsters' }) do o[key][1] = true end
+H.resettle(); H.frames(1)
 H.print('/names is left alone', H.command('/names') == false)
 
--- a checkbox in the settings window: the fourth, Other Players
+-- a checkbox in Filters (the second tab): the fourth, Other Players
+H.tab(2)
 local before = H.calls.Begin or 0
 H.command('/name'); H.frames(1)
 H.print('settings window drawn', (H.calls.Begin or 0) > before, '| checkboxes', H.calls.Checkbox)
@@ -134,8 +147,8 @@ block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080
 block.Count, block.Sequence = 2, block.Sequence + 1
 H.load()
 H.frames(1)
-H.print('custom off: nothing claimed', block.Claimed == 0, '| nothing set out', draw.QuadCount == 0)
-H.print('/name custom kept from the game', H.command('/name custom'), '| on', o.customNames[1], '| said:', H.printed[#H.printed])
+H.print('rendering on by default', block.Claimed ~= 0, '| retired setting absent', o.customNames == nil)
+H.print('/name custom compatibility command kept from the game', H.command('/name custom'), '| said:', H.printed[#H.printed])
 block.Frame = 78
 H.frames(1)
 local buddy = draw.Entities[0x401]
@@ -143,14 +156,33 @@ H.print('custom on: all claimed', block.Claimed == Category.All, '| set out in f
 -- five letters; the hidden name is not set out
 H.print('the wanted name: quads', buddy.Count, '| of this frame', buddy.Frame == draw.Frame, '| the hidden one: none', draw.Entities[0x402].Frame ~= draw.Frame, '| in all', draw.QuadCount)
 -- 15 pixels on the screen is 23 of the game's picture, the largest of the three sizes letters are kept
--- at; the edge 1 pixel of the screen
+-- at; the edge is snapped after conversion to render-target pixels
 table.sort(pushed)
 H.print('letters kept at', pushed[#pushed], pushed[#pushed - 1], pushed[1], 'pixels | edge', buddy.Edge, '| solid', buddy.Alpha, ('| edge colour %08X'):format(buddy.EdgeColor))
+H.print('outline at 1.5x: rounded down to one render-target pixel', buddy.Edge == 1)
+local originalTargetWidth = block.TargetWidth
+block.TargetWidth = block.Width * 1.25; H.frames(1)
+H.print('outline at 1.25x: snapped to one render-target pixel', buddy.Edge == 1)
+o.outline[1] = 2
+block.TargetWidth = originalTargetWidth; H.frames(1)
+H.print('thicker outline setting remains available', buddy.Edge == 3)
+o.outline[1] = 1
+block.TargetWidth = block.Width * 0.25; H.frames(1)
+H.print('enabled outline never thinner than one render-target pixel', buddy.Edge == 1)
+block.TargetWidth = originalTargetWidth; H.frames(1)
+local nearbyOutlineColor = buddy.EdgeColor
 local first = draw.Quads[buddy.First]
 -- 50 wide, so it starts 25 left of the middle; the letter's own corner is 1, 2 from there, the line's top on the point
 H.print('first letter: corner', first.X0, first.Y0, first.X1, first.Y1, ('| colour %08X'):format(first.Color), '| edged', first.Flags == 1, '| texture', first.Texture)
 local last = draw.Quads[buddy.First + 4]
 H.print('last letter: 40 further on', last.X0 - first.X0, '| where in the texture', first.U0, first.V1)
+local normalCount, normalEdge, normalSpacing = buddy.Count, buddy.Edge, last.X0 - first.X0
+o.fontBold[1] = true; H.frames(1)
+local boldFirst, boldCopy = draw.Quads[buddy.First], draw.Quads[buddy.First + 1]
+H.print('bold default font: extra fill stroke, same outline thickness', buddy.Count == normalCount * 2, boldCopy.X0 - boldFirst.X0 == 1, buddy.Edge == normalEdge)
+H.print('bold copy retains texture and colour', boldFirst.U0 == boldCopy.U0, boldFirst.Color == boldCopy.Color, boldFirst.Texture == boldCopy.Texture)
+o.fontBold[1] = false; H.frames(1)
+H.print('bold off restores count and spacing', buddy.Count == normalCount, last.X0 - first.X0 == normalSpacing)
 -- a name half way to the distance it is no longer drawn at is smaller, and one nearly there fainter:
 -- its letters are the next size up's, made smaller to fit, and no size of its own is asked of imgui
 local function letterHeight() local q = draw.Quads[buddy.First] return math.floor((q.Y1 - q.Y0) * 100 + 0.5) / 100 end
@@ -160,6 +192,11 @@ block.Names[0].Scale = 0.5; H.frames(5)
 H.print('half way: a letter high', letterHeight(), '| solid', buddy.Alpha)
 block.Names[0].Scale = 0.075; H.frames(5)
 H.print('nearly gone: a letter high', letterHeight(), '| half solid', buddy.Alpha)
+H.print('distant outline: stays thin, pixel-snapped and less opaque', buddy.Edge == 1, buddy.Edge == math.floor(buddy.Edge),
+    math.floor(buddy.EdgeColor / 0x1000000) < math.floor(nearbyOutlineColor / 0x1000000), buddy.EdgeColor % 0x1000000 == nearbyOutlineColor % 0x1000000)
+o.shrink = { false }; H.frames(1)
+H.print('old shrink opt-out no longer affects automatic shrinking', buddy.Edge == 1, buddy.EdgeColor ~= nearbyOutlineColor)
+o.shrink = nil; H.frames(1)
 for i = sizes + 1, #pushed do if pushed[i] ~= 23 and pushed[i] ~= 17 and pushed[i] ~= 12 then H.print('another size asked for', pushed[i], false) end end
 block.Names[0].Scale = 1
 -- As a character becomes the target the game gives its name its full size for a frame: not followed.
@@ -198,7 +235,7 @@ H.print(('pulsing in a weaker colour: drawn %08X'):format(pulse(0x606020, 120)))
 block.Names[0].NameColor = 0x80101010; H.frames(5)
 H.print(('a colour that stays: taken up at once %08X'):format(draw.Quads[buddy.First].Color))
 o.outline[1] = 0; H.frames(1)
-H.print('no outline: no edge', buddy.Edge)
+H.print('no outline: no edge', buddy.Edge, '| remains disabled', buddy.Edge == 0)
 -- while the font has no texture nothing is set out, and what was is left to go stale
 fontTexture = 0; local frameBefore = draw.Frame; block.Frame = 90; block.ClaimFrame = 0; H.frames(1)
 H.print('no font texture: nothing set out', draw.Frame == frameBefore, '| nor claimed', block.ClaimFrame == 0)
@@ -219,11 +256,23 @@ local function gapToName()
     return q[first + 1].X0 - q[first].X1, (q[first + 2].X0 - 1) - q[first + 1].X1
 end
 H.print('icons: quads', buddy.Count, '| between the icons, and before the name', gapToName())
+do
+    local pearl, flag = draw.Quads[buddy.First + 3], draw.Quads[buddy.First + 4]
+    H.print('player icons receive softened outlines; stars unchanged', pearl.Flags == 3, flag.Flags == 3,
+        pearl.Reserved == 191, flag.Reserved == 191, draw.Quads[buddy.First].Flags == 0)
+    local edge = o.outline[1]
+    o.outline[1] = 0; H.frames(1)
+    H.print('outline zero disables player icon edges too', buddy.Edge == 0)
+    o.outline[1] = edge; H.frames(1)
+end
 o.iconSpacing[1] = 10
 H.print('Icon Spacing 10: between the icons, and before the name', gapToName())
 o.iconSpacing[1] = 0
 H.print('Icon Spacing 0:', gapToName())
 o.iconSpacing[1] = 2
+icons.Has = function(byte) return byte == 0xAC end
+ffi.copy(block.Names[0].Text, '\172 Buddy'); H.frames(1)
+H.print('both halves of two-part player icon outlined', draw.Quads[buddy.First + 3].Flags == 3, draw.Quads[buddy.First + 4].Flags == 3)
 icons.Has, icons.Place, icons.Texture = realHas, realPlace, realTexture
 ffi.copy(block.Names[0].Text, 'Buddy'); H.frames(1)
 
@@ -354,21 +403,46 @@ H.frames(1)
 H.print('not checked: the name alone, quads', goblin.Count)
 H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(2)
 H.print('checked, said to be', levels.Checked(300, 0x1000 + 300).hard, '| the name and its line, quads', goblin.Count, '| the two sheets of signs given to the plugin', draw.Textures[2] == 0x7777, draw.Textures[3] == 0x8888)
--- "Goblin" (6), then "Very Tough" (10 with its space), sight and sound (2 signs), the link sign, "Goblin" (6)
+-- "Goblin" (6), then "VT" (2), sight and sound (2 signs),
+-- the link sign, "Goblin (Sight/Hearing)" (22).
+H.print('compact difficulty default with link senses in icon mode', o.abbreviateDifficulty[1], levels.Checked(300, 0x1000 + 300).hardShort == 'VT', goblin.Count == 34)
 local quads = {}
 for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; quads[#quads + 1] = q end
 local nameLeft, nameRight = quads[1].X0, quads[6].X1
 local lineLeft, lineRight = quads[7].X0, quads[#quads].X1
 H.print('its middle under the name\'s', math.abs((nameLeft + nameRight) / 2 - (lineLeft + lineRight) / 2) < 1.6, '| below it', quads[7].Y0 > quads[1].Y1, '| smaller', (quads[7].Y1 - quads[7].Y0) < (quads[1].Y1 - quads[1].Y0))
+H.print('check text now 90 percent of name height', math.abs((quads[8].Y1 - quads[8].Y0) / (quads[1].Y1 - quads[1].Y0) - 0.90) < 0.001)
+do
+    o.checkSize[1] = 110; H.frames(1)
+    local detailQuad, nameQuad = draw.Quads[goblin.First + 7], draw.Quads[goblin.First]
+    H.print('check-size slider scales rendered text', math.abs((detailQuad.Y1 - detailQuad.Y0) / (nameQuad.Y1 - nameQuad.Y0) - 1.10) < 0.001)
+    o.checkSize[1] = 90; H.frames(1)
+end
+local softIconEdges = true
+for _, q in ipairs(quads) do
+    if q.Texture >= 2 then softIconEdges = softIconEdges and q.Flags == 3 and q.Reserved == 191 and q.Color % 0x1000000 == 0xFFFFFF and math.floor(q.Color / 0x1000000) == math.floor(quads[7].Color / 0x1000000) end
+end
+H.print('detail icon edges softened; fill and text edges unchanged', softIconEdges, quads[8].Flags == 1, quads[8].Reserved == 0)
+H.print('magnifier leads check line, not name', quads[7].Texture == 4, quads[7].Y0 > quads[1].Y1, quads[7].X0 < quads[8].X0)
 local signs = {}
 for _, q in ipairs(quads) do if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
 -- sight and sound (the second row's first and third) and link (the last row's last); none from the aggro sheet
 H.print('the signs, by sheet and where they are in it:', table.concat(signs, ' '))
--- in words, one sentence and no sign at all: "Very Tough, Sight/Sound Aggro, Link: Goblin" (43)
+o.abbreviateDifficulty[1] = false; H.frames(1)
+H.print('full difficulty remains available in icon mode', goblin.Count == 42)
+o.abbreviateDifficulty[1] = true; H.frames(1)
+-- In words, compact difficulty followed by aggro and link information.
 o.checkDetailsInWords[1] = true; H.frames(1)
 signs = {}
 for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
 H.print('in words: quads', goblin.Count, '| signs', table.concat(signs, ' '))
+do
+    local abbreviatedCount = goblin.Count
+    o.abbreviateDifficulty[1] = false; H.frames(1)
+    H.print('words-mode sentence cache updates when abbreviations change', goblin.Count == abbreviatedCount + 8)
+    o.abbreviateDifficulty[1] = true; H.frames(1)
+    H.print('words-mode abbreviation restored', goblin.Count == abbreviatedCount)
+end
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true, TrueSight = true, Sight = true, Sound = true, Blood = true, Link = true } }, Names = {} })
 H.frames(1)
 -- "Very Tough, True Sight/True Sound/Blood Aggro, Link" (51) for one of no family
@@ -378,6 +452,7 @@ levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = false, S
 local passive = goblin.Count
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true } }, Names = {} }); H.frames(1)
 H.print('not aggressive: the words for how hard alone, quads', passive, '| aggressive and no more known: quads', goblin.Count)
+H.print('difficulty-only words layout uses full Very Tough', passive == 16)
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true, Notorious = false, Sight = true, Sound = true, Link = true, Family = 'Goblin' } }, Names = {} })
 o.checkDetailsInWords[1] = false; H.frames(1)
 -- it fades in as the monster is checked, is there five seconds, and fades out; a frame here is 0.03s
@@ -399,7 +474,7 @@ H.print('Show Check Details off: the name alone, quads', goblin.Count)
 o.monsterFormat[1] = '[aggro][name]'; H.frames(1)
 local first = draw.Quads[goblin.First]
 -- letters 23 high: the sign 29 square, three above the line's top and three below its foot, with the edge letters have
-H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square, from %d down'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0, first.Y0), '| edged', first.Flags == 1,
+H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square, from %d down'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0, first.Y0), '| softer edge', first.Flags == 3 and first.Reserved == 191,
     '| the name after it', draw.Quads[goblin.First + 1].X0 >= first.X1)
 -- which of the twelve signs: six for one that is not aggressive and six for one that is, the first
 -- five of each by level and the sixth a notorious monster's
@@ -430,10 +505,24 @@ H.packetData(0x029, message(0x1000 + 300, 9, 0x40, 300, 174)); H.frames(1)
 signs = {}
 for i = 0, goblin.Count - 1 do local q = draw.Quads[goblin.First + i]; if q.Texture >= 2 then signs[#signs + 1] = ('%d:%.2f,%.2f'):format(q.Texture, q.U0, q.V0) end end
 H.print('a passive one, said to be', levels.Checked(300, 0x1000 + 300).hard, '| signs', table.concat(signs, ' '), '| quads', goblin.Count)
+H.print('difficulty-only icon layout uses full Too Weak', goblin.Count == 15)
+do
+    local correct = true
+    for _, difficulty in ipairs({ { 0x42, 'Easy Prey' }, { 0x45, 'Tough' }, { 0x46, 'Very Tough' } }) do
+        for _, words in ipairs({ false, true }) do
+            o.checkDetailsInWords[1] = words
+            H.packetData(0x029, message(0x1000 + 300, 9, difficulty[1], 300, 174)); H.frames(1)
+            correct = correct and goblin.Count == (words and 6 or 7) + #difficulty[2]
+        end
+    end
+    H.print('EP, T and VT alone use full words in both layouts', correct)
+    o.checkDetailsInWords[1] = false
+end
 -- one the tables do not have: the words alone; and one impossible to gauge
 levels.Set(nil)
 H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 249)); H.frames(1)
 H.print('not in the tables, and impossible to gauge:', levels.Checked(300, 0x1000 + 300).hard, '| no level', levels.Of(300, 'Goblin', 0x1000 + 300) == nil, '| quads', goblin.Count)
+H.print('impossible to gauge defaults to ???', levels.Checked(300, 0x1000 + 300).hardShort == '???', goblin.Count == 10)
 -- five minutes after it was checked it is forgotten, alive or not
 H.frames(9990); H.print('after 4m59s: still known', levels.IsChecked(300, 0x1000 + 300))
 H.frames(20); H.print('after 5m: forgotten', levels.IsChecked(300, 0x1000 + 300) == false)
@@ -483,14 +572,191 @@ H.print('three names: sizes pushed', #pushed - pushes, '| the plugin asked after
 -- a name written otherwise is taken apart again
 ffi.copy(block.Names[1].Text, 'Other'); H.frames(1)
 H.print('another name for the same entity: quads', draw.Entities[0x403].Count)
+
+-- Duplicate call sites use the last wanted representation but consume geometry
+-- and stabilization work only once per entity.
+block.Names[3] = block.Names[1]
+ffi.fill(block.Names[3].Text, 48)
+ffi.copy(block.Names[3].Text, 'Latest')
+block.Count = 4
+H.frames(1)
+local used = draw.Entities[0x401].Count + draw.Entities[0x403].Count + draw.Entities[0x404].Count
+H.print('duplicate entity: last text wins, no orphaned quads', draw.Entities[0x403].Count == 6, draw.QuadCount == used)
+local heightBeforeDuplicate = draw.Quads[draw.Entities[0x403].First].Y1
+block.Names[1].Scale = 0.1
+H.frames(1)
+H.print('duplicate entry does not reset size stabilization', draw.Quads[draw.Entities[0x403].First].Y1 == heightBeforeDuplicate)
+
+-- A warmed frame must not decode text bytes again just to measure/draw names.
+local originalByte, decoded = string.byte, 0
+string.byte = function(...) decoded = decoded + 1; return originalByte(...) end
+H.frames(1)
+string.byte = originalByte
+H.print('cached glyph runs: warm frame decodes no text bytes', decoded == 0)
+
+local function upvalue(fn, wanted)
+    for index = 1, 100 do
+        local name, value = debug.getupvalue(fn, index)
+        if name == nil then break end
+        if name == wanted then return value end
+    end
+    error('missing test upvalue: ' .. wanted)
+end
+local linkLabel = upvalue(frameForTests, 'linkWords')
+local sightLink = { Link = true, Sight = true, Family = 'Goblin', Aggro = false }
+local hearingLink = { Link = true, Sound = true, TrueSight = true, Family = 'Funguar' }
+local bothLink = { Link = true, Sight = true, Sound = true, Family = 'Goblin' }
+H.print('link senses: sight, hearing and both', linkLabel(sightLink) == 'Link: Goblin (Sight)',
+    linkLabel(hearingLink) == 'Link: Funguar (Hearing)', linkLabel(bothLink) == 'Link: Goblin (Sight/Hearing)')
+H.print('link icon labels retain family and senses', linkLabel(bothLink, true) == 'Goblin (Sight/Hearing)',
+    linkLabel({ Link = true, Sound = true }, true) == 'Hearing')
+H.print('unknown link sense remains unspecified; nonlinking stays empty',
+    linkLabel({ Link = true, TrueSight = true, Family = 'Goblin' }) == 'Link: Goblin',
+    linkLabel({ Link = true }) == 'Link', linkLabel({ Link = false, Sight = true }) == '')
+local measure = upvalue(frameForTests, 'wordsWidth')
+local runSet = { glyphs = {}, baked = { FindGlyph = function() return glyph end } }
+local firstWidth = measure(runSet, 'AAA', 1)
+H.print('glyph-run cache scales without duplicating entries', measure(runSet, 'AAA', 0.5) == firstWidth * 0.5, runSet.runCount == 1)
+H.print('empty text skips glyph-run allocation', measure(runSet, '', 1) == 0, runSet.runCount == 1)
+runSet.syntheticBold = true
+H.print('bold change invalidates cached advances', measure(runSet, 'AAA', 1) == firstWidth + 3, runSet.runCount == 1)
+runSet.syntheticBold = false
+H.print('regular advances restored after bold', measure(runSet, 'AAA', 1) == firstWidth)
+local getRungs = upvalue(frameForTests, 'fontRungs')
+local rungSizes = getRungs(23, true)
+H.print('font rungs reused across names and frames', rungSizes == getRungs(23, true), rungSizes[1] == 23, rungSizes[2] == 17, rungSizes[3] == 12)
+local noShrink = getRungs(23, false)
+local resized = getRungs(24, true)
+H.print('font rungs invalidate on shrink or size changes', #noShrink == 1, #resized == 3, resized[2] == 18, resized ~= rungSizes)
+for index = 1, 600 do measure(runSet, tostring(index), 1) end
+H.print('glyph-run cache remains bounded', runSet.runCount <= 512)
+local replacementGlyph = {}
+for key, value in pairs(glyph) do replacementGlyph[key] = value end
+replacementGlyph.AdvanceX = glyph.AdvanceX * 2
+local replacementSet = { glyphs = {}, baked = { FindGlyph = function() return replacementGlyph end } }
+H.print('replacement font set never reuses stale glyph runs', measure(replacementSet, 'AAA', 1) == firstWidth * 2)
 block.Count = 1
-H.tab(2); H.command('/name'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/name'); H.tab(1)
+H.tab(1); H.command('/name'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/name'); H.tab(2)
 H.print('its tab drawn: sliders', (H.calls.SliderInt or 0) - sliders)
+
+-- Experimental backend: injected atlas keeps these checks independent of Windows/GDI.
+local prepared, cleanup = 0, false
+local failGdi = false
+package.loaded.gdi_font = {
+    Prepare = function(_, heights)
+        prepared = prepared + 1
+        if failGdi then error('test rasterization failure') end
+        local sets = {}
+        for _, h in ipairs(heights) do
+            local glyphs = {}
+            for b = 32, 126 do glyphs[b] = { 0, 0, 6, h, 0, 0, 1, 1, 6, b ~= 32 } end
+            sets[h] = { glyphs = glyphs, baked = { FindGlyph = function() return nil end } }
+        end
+        return { address = 0x9876, sets = sets }
+    end,
+    Shutdown = function() cleanup = true end,
+}
+H.command('/name gdi on'); H.frames(1)
+H.print('GDI command disabled; production remains ImGui', not o.gdiFonts[1], draw.Textures[0] == fontTexture)
+do
+    local requests = prepared
+    H.frames(3)
+    H.print('GDI warm frames skip backend preparation', prepared == requests)
+    o.fontBold[1] = true; H.frames(1)
+    H.print('bold does not activate GDI in test build', prepared == requests)
+    o.fontBold[1] = false; H.frames(1)
+    requests = prepared
+    o.checkSize[1] = 100; H.frames(1)
+    H.print('check-size change does not regenerate GDI atlas', prepared == requests)
+    o.checkSize[1] = 90
+    local size = o.fontSize[1]
+    o.fontSize[1] = size + 1; H.frames(1)
+    H.print('font size does not activate GDI in test build', prepared == requests)
+    o.fontSize[1] = size; H.frames(1)
+end
+H.print('ImGui signs retain their own texture', draw.Textures[4] == fontTexture)
+local savedMonsterFormat, savedTargetFormat, savedCheckedFormat = o.monsterFormat[1], o.targetFormat[1], o.checkedFormat[1]
+local savedSignName = ffi.new(ffi.typeof(block.Names[1]), block.Names[1])
+local savedSignAlive, savedSignCount = alive[300], block.Count
+block.Count = 2
+alive[300] = { id = 0x1000 + 300, hp = 100 }
+put(1, 300, Category.Monster, Flag.Wanted, 'Goblin')
+block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080
+o.monsterFormat[1], o.targetFormat[1], o.checkedFormat[1] = '[checked][name]', '[checked][name]', '[checked][name]'
+H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(2)
+local softMagnifier = false
+for i = 0, goblin.Count - 1 do
+    local q = draw.Quads[goblin.First + i]
+    if q.Texture == 4 then softMagnifier = q.Flags == 3 and q.Reserved == 191 end
+end
+H.print('magnifier edge softened too', softMagnifier)
+block.Count = savedSignCount
+block.Names[1] = savedSignName
+alive[300] = savedSignAlive
+o.monsterFormat[1], o.targetFormat[1], o.checkedFormat[1] = savedMonsterFormat, savedTargetFormat, savedCheckedFormat
+H.command('/name gdi off'); H.frames(1)
+H.print('GDI off restores original font texture', not o.gdiFonts[1], draw.Textures[0] == fontTexture)
+failGdi = true
+H.command('/name gdi on'); H.frames(1)
+local attempts = prepared
+H.frames(2)
+H.print('failed GDI falls back without retrying each frame', draw.Textures[0] == fontTexture, prepared == attempts)
+H.command('/name gdi off'); H.frames(1)
+failGdi = false
+H.command('/name gdi on'); H.frames(1)
+H.print('backend commands cannot activate GDI', draw.Textures[0] == fontTexture, prepared == attempts)
+H.command('/name gdi off'); H.frames(1)
+require('custom').Shutdown()
+H.print('hidden backend never instantiated native resources', prepared == 0, not cleanup)
+
+package.loaded.gdi_families = { List = function() return { 'Arial', 'Tahoma', 'Verdana' } end }
+local realBeginCombo, realSelectable = imgui.BeginCombo, imgui.Selectable
+local oldFamily = o.gdiFamily[1]
+local selectionSaves = 0
+imgui.BeginCombo = function(id) return id == '##name.gdiFamily' end
+imgui.Selectable = function(label) return label == 'Tahoma' end
+o.gdiFonts[1] = true
+require('custom').DrawExperimental(o, function() selectionSaves = selectionSaves + 1 end)
+require('custom').DrawExperimental(o, function() selectionSaves = selectionSaves + 1 end)
+H.print('installed GDI family dropdown selects and saves only on change', o.gdiFamily[1] == 'Tahoma', selectionSaves == 1)
+local stableHasGdi = false
+local experimentalHasGdi = false
+local checkboxBefore = imgui.Checkbox
+imgui.Checkbox = function(id)
+    if id == '##name.gdiFonts' then stableHasGdi = true end
+    return false
+end
+require('custom').DrawSettings(o)
+imgui.Checkbox = function(id)
+    if id == '##name.gdiFonts' then experimentalHasGdi = true end
+    return false
+end
+o.gdiFonts[1], o.gdiFamily[1] = false, oldFamily
+require('custom').DrawExperimental(o)
+H.print('GDI isolated in Experimental; family editable while disabled', not stableHasGdi, experimentalHasGdi, o.gdiFamily[1] == 'Tahoma', not o.gdiFonts[1])
+imgui.Checkbox = checkboxBefore
+o.gdiFamily[1] = oldFamily
+imgui.BeginCombo, imgui.Selectable = realBeginCombo, realSelectable
+-- A saved experimental selection cannot crash the next load/character change.
+o.gdiFonts[1], o.gdiFamily[1] = true, 'Cambria Math'
+require('custom').Settle(o)
+H.print('saved GDI enabled: settings reload starts with safe ImGui backend', not o.gdiFonts[1], o.gdiFamily[1] == 'Cambria Math')
+o.gdiFamily[1] = oldFamily
+
+do
+    local expected = { 'TW', 'IEP', 'EP', 'DC', 'EM', 'T', 'VT', 'IT' }
+    local correct = true
+    for index, abbreviation in ipairs(expected) do
+        H.packetData(0x029, message(0x1000 + 300, 9, 0x3F + index, 300, 174))
+        correct = correct and levels.Checked(300, 0x1000 + 300).hardShort == abbreviation
+    end
+    H.print('all eight difficulty abbreviations mapped correctly', correct)
+end
 block.Hooked = 0; block.Claimed = 0; H.frames(1)
 H.print('a client not recognised: nothing claimed', block.Claimed == 0)
 block.Hooked = 1
 H.command('/name custom off'); block.Claimed = 0; H.frames(1)
-H.print('custom off again', o.customNames[1] == false, block.Claimed == 0)
+H.print('legacy custom off no longer disables rendering', o.customNames == nil, block.Claimed ~= 0)
 
 -- the library's own calls: a name that is not begun takes no quads, and one too long is cut off
 block.Frame = 95
@@ -503,6 +769,18 @@ nameplates.EndName()
 H.print('a long name: quads', draw.Entities[5].Count, '| in all', draw.QuadCount, '| texture slot', draw.Quads[0].Texture)
 nameplates.SetTexture(9, 1); nameplates.SetTexture(7, 77)
 H.print('texture slots', draw.Textures[7])
+
+-- Do not reserve 256 slots for a short name: fill every remaining slot safely.
+nameplates.BeginDrawing(block)
+draw.QuadsMax = 3
+nameplates.BeginName(5, 1, 0, 0)
+nameplates.Quad(0, 0, 1, 1, 0, 0, 1, 1, 0xFFFFFFFF, 0, false)
+nameplates.EndName()
+local lastName = nameplates.BeginName(6, 1, 0, 0)
+for _ = 1, 5 do nameplates.Quad(0, 0, 1, 1, 0, 0, 1, 1, 0xFFFFFFFF, 0, false) end
+nameplates.EndName()
+H.print('small final name uses remaining capacity without overflow', lastName, draw.Entities[6].Count == 2, draw.QuadCount == 3, not nameplates.BeginName(7, 1, 0, 0))
+draw.QuadsMax = 16384
 
 block.Hooked = 0
 H.print('a client not recognised:', nameplates.Problem())

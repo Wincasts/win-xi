@@ -1,0 +1,17 @@
+Name Appearance
+"Font:" [dropdown] tooltip: Choose the font from the list of found installed fonts on your system. This is the font that will be used for everythingin the nameplate.
+"Bold:" [Checkbox] tooltip: Render nameplates in a bold version of your selected font.
+"Max Font Size:" [textbox] tooltip: The maximum size a nameplate will be. Nameplates closer to the camera will approach this size.
+"Min Font Size:" [textbox] tooltip: The minimum size a nameplate wil be. Nameplates further from the camera will never get smaller than this size.
+"Outline thickness: " [radio buttons, 0-3] tooltip: Choose the thickness of the outline effect on nameplate fonts. 0 is no outline.
+
+Player Icons
+"Show Icons:" [check box] tooldtip: Checked shows icons next to player names. These include icons like linkshells, levelsync and lfp.
+"Scale:" [percentage slider] tooltip: Set the scale of all icons in player nameplates.
+"Padding:" [textbox] tooldtip: Defines the gap between the icon and player name.
+
+Check
+"Show Check:" [check box] tooltip: When enabled performing a /check on a mob will display check information on the nameplate.
+"Check Scale:" [slider] tooltip: Set the scale of the /check info.
+"Brief Difficulty:" [checkbox] tooltip: When enabled mob difficulties such as Easy Prey or Incredibly Tough will appear in a shortened form such as EP or IT.
+"Text Only" [checkbox] tooltip: When enabled check details will not include icons. The default is disabled so icons will be shown.

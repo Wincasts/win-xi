@@ -276,6 +276,7 @@ static int OtherCalls = 1;
 // Players whose names are drawn in every mode that hides players.
 #define WHITELIST_MAX 512
 #define WHITELIST_NAME_SIZE 24
+#define WHITELIST_SLOTS (WHITELIST_MAX * 2) // at most half full; power of two
 
 static struct {
 	size_t Count;
@@ -283,6 +284,10 @@ static struct {
 	// a number made from each name, without regard to case: every player's name is looked for here
 	// every frame, and a name is only compared with those whose number is its own
 	uint32_t Hashes[WHITELIST_MAX];
+	// Lookup slots hold the original list index + 1, preserving display/save order.
+	uint32_t Slots[WHITELIST_SLOTS];
+	size_t IndexedCount;
+	bool IndexDirty;
 } Whitelist;
 
 static uint32_t HashName(const char* name) {
@@ -293,21 +298,49 @@ static uint32_t HashName(const char* name) {
 	return hash;
 }
 
+static void IndexWhitelistName(size_t index) {
+	size_t slot = Whitelist.Hashes[index] & (WHITELIST_SLOTS - 1);
+	while (Whitelist.Slots[slot] != 0) {
+		slot = (slot + 1) & (WHITELIST_SLOTS - 1);
+	}
+	Whitelist.Slots[slot] = static_cast<uint32_t>(index + 1);
+}
+
+static void EnsureWhitelistIndex() {
+	if (!Whitelist.IndexDirty && Whitelist.IndexedCount == Whitelist.Count) { return; }
+	ZeroMemory(Whitelist.Slots, sizeof(Whitelist.Slots));
+	for (size_t i = 0; i < Whitelist.Count; i++) { IndexWhitelistName(i); }
+	Whitelist.IndexedCount = Whitelist.Count;
+	Whitelist.IndexDirty = false;
+}
+
 static int FindWhitelisted(const char* name) {
+	if (Whitelist.Count == 0) { return -1; }
+	EnsureWhitelistIndex();
 	const uint32_t hash = HashName(name);
-	for (size_t i = 0; i < Whitelist.Count; i++) {
-		if (Whitelist.Hashes[i] == hash && _strnicmp(name, Whitelist.Names[i], WHITELIST_NAME_SIZE) == 0) {
-			return static_cast<int>(i);
+	size_t slot = hash & (WHITELIST_SLOTS - 1);
+	for (size_t probes = 0; probes < WHITELIST_SLOTS; probes++) {
+		if (Whitelist.Slots[slot] == 0) { return -1; }
+		const size_t index = Whitelist.Slots[slot] - 1;
+		if (Whitelist.Hashes[index] == hash && _strnicmp(name, Whitelist.Names[index], WHITELIST_NAME_SIZE) == 0) {
+			return static_cast<int>(index);
 		}
+		slot = (slot + 1) & (WHITELIST_SLOTS - 1);
 	}
 	return -1;
 }
 
-// The name is in place before the count says it is there to be read
+// The name is in place before the count says it is there to be read.
+// Insertion updates the index directly; loading a list is not repeatedly rehashed.
 static void AddWhitelisted(const char* name) {
-	StringCbCopyA(Whitelist.Names[Whitelist.Count], WHITELIST_NAME_SIZE, name);
-	Whitelist.Hashes[Whitelist.Count] = HashName(name);
+	if (Whitelist.Count >= WHITELIST_MAX) { return; }
+	EnsureWhitelistIndex();
+	const size_t index = Whitelist.Count;
+	StringCbCopyA(Whitelist.Names[index], WHITELIST_NAME_SIZE, name);
+	Whitelist.Hashes[index] = HashName(Whitelist.Names[index]);
 	Whitelist.Count++;
+	IndexWhitelistName(index);
+	Whitelist.IndexedCount = Whitelist.Count;
 }
 
 static bool IsAmong(uint32_t serverId, const uint32_t* ids, size_t count) {
@@ -448,7 +481,7 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 				// claimed by an addon: if it has drawn the name, that is put where the client's would be
 				const HookDrawing* pDrawing = FindDrawing(pEntity->EntityIndex);
 				if (pDrawing != nullptr) {
-					Instance->DrawCustom(*pDrawing, &Draw.Quads[pDrawing->First], pPosition);
+					Instance->DrawCustom(pEntity->EntityIndex, *pDrawing, &Draw.Quads[pDrawing->First], pPosition);
 					flags |= NAME_CUSTOM;
 				}
 			}
@@ -624,46 +657,59 @@ static bool IsDrawNameLine(uintptr_t pFunction, size_t retOffset, uint8_t retByt
 		&& pLoc[retOffset] == 0xC2 && pLoc[retOffset + 1] == retBytes && pLoc[retOffset + 2] == 0x00;
 }
 
+// Resolution ratios and font-size divisions need only change with the settings
+// or dimensions, not on every name/star/damage call. Keep double precision to
+// preserve the original arithmetic before the final float conversion.
+static struct {
+	uint32_t BackgroundWidth, BackgroundHeight, WindowWidth, WindowHeight;
+	int FontSize, DamageFontSize;
+	double NameWidth, NameHeight, DamageWidth, DamageHeight;
+	bool Valid;
+} ScaleFactors;
+
+static bool UpdateScaleFactors() {
+	if (Globals.pgGame == nullptr || *Globals.pgGame == nullptr
+			|| Globals.pWindowWidth == nullptr || Globals.pWindowHeight == nullptr) {
+		return false;
+	}
+	const CGame* game = *Globals.pgGame;
+	const uint32_t winW = *Globals.pWindowWidth, winH = *Globals.pWindowHeight;
+	if (winW == 0 || winH == 0) { return false; }
+	if (!ScaleFactors.Valid || ScaleFactors.BackgroundWidth != game->BackgroundWidth
+			|| ScaleFactors.BackgroundHeight != game->BackgroundHeight
+			|| ScaleFactors.WindowWidth != winW || ScaleFactors.WindowHeight != winH
+			|| ScaleFactors.FontSize != AsmSettings.FontSize
+			|| ScaleFactors.DamageFontSize != AsmSettings.DamageFontSize) {
+		ScaleFactors.BackgroundWidth = game->BackgroundWidth;
+		ScaleFactors.BackgroundHeight = game->BackgroundHeight;
+		ScaleFactors.WindowWidth = winW;
+		ScaleFactors.WindowHeight = winH;
+		ScaleFactors.FontSize = AsmSettings.FontSize;
+		ScaleFactors.DamageFontSize = AsmSettings.DamageFontSize;
+		const double wRatio = static_cast<double>(game->BackgroundWidth) / winW;
+		const double hRatio = static_cast<double>(game->BackgroundHeight) / winH;
+		const double name = static_cast<double>(AsmSettings.FontSize) / 11.0;
+		const double damage = static_cast<double>(AsmSettings.DamageFontSize) / 11.0;
+		ScaleFactors.NameWidth = name * wRatio;
+		ScaleFactors.NameHeight = name * hRatio;
+		ScaleFactors.DamageWidth = damage * wRatio;
+		ScaleFactors.DamageHeight = damage * hRatio;
+		ScaleFactors.Valid = true;
+	}
+	return true;
+}
+
 static void __fastcall GetNameplateScale(float* wh, const float* pS) {
-	if (Globals.pgGame != nullptr) {
-		auto gGame = *Globals.pgGame;
-
-		double bkgW = gGame->BackgroundWidth;
-		double bkgH = gGame->BackgroundHeight;
-		double winW = *Globals.pWindowWidth;
-		double winH = *Globals.pWindowHeight;
-
-		double wRatio = bkgW / winW;
-		double hRatio = bkgH / winH;
-
-		double s = *pS;
-
-		double FontScale = (double) AsmSettings.FontSize / 11.0;
-
-		wh[0] = static_cast<float>(FontScale * wRatio * s);
-		wh[1] = static_cast<float>(FontScale * hRatio * s);
+	if (UpdateScaleFactors()) {
+		wh[0] = static_cast<float>(ScaleFactors.NameWidth * *pS);
+		wh[1] = static_cast<float>(ScaleFactors.NameHeight * *pS);
 	}
 }
 
 static void __fastcall GetDamageNumberScale(float* wh, const float* pS) {
-	if (Globals.pgGame != nullptr) {
-		auto gGame = *Globals.pgGame;
-
-		double bkgW = gGame->BackgroundWidth;
-		double bkgH = gGame->BackgroundHeight;
-		double winW = *Globals.pWindowWidth;
-		double winH = *Globals.pWindowHeight;
-
-		double wRatio = bkgW / winW;
-		double hRatio = bkgH / winH;
-
-		double s = *pS;
-
-		// Using the same scale factor seems to look correct.
-		double FontScale = (double) AsmSettings.DamageFontSize / 11.0;
-
-		wh[0] = static_cast<float>(FontScale * wRatio * s);
-		wh[1] = static_cast<float>(FontScale * hRatio * s);
+	if (UpdateScaleFactors()) {
+		wh[0] = static_cast<float>(ScaleFactors.DamageWidth * *pS);
+		wh[1] = static_cast<float>(ScaleFactors.DamageHeight * *pS);
 	}
 }
 
@@ -1191,6 +1237,7 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 					Whitelist.Hashes[i] = Whitelist.Hashes[i + 1];
 				}
 				Whitelist.Count--;
+				Whitelist.IndexDirty = true; // compaction changes every later list index
 				changed = true;
 				Sayf(this, "Removed %s from the whitelist.", name);
 			}
@@ -1206,6 +1253,7 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 		if (eat_space_and_is_end(cmd)) {
 			size_t count = Whitelist.Count;
 			Whitelist.Count = 0;
+			Whitelist.IndexDirty = true;
 			if (SaveWhitelist() < 0) {
 				Sayf(this, "The whitelist could not be saved.");
 			} else {
@@ -1260,6 +1308,7 @@ int Nameplate::LoadWhitelist() {
 	}
 
 	Whitelist.Count = 0;
+	Whitelist.IndexDirty = true;
 
 	FILE* file = _wfopen(path, L"r");
 	if (file == nullptr) {

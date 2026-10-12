@@ -12,18 +12,39 @@ Shows and hides the names over characters' heads, by what they are over. A setti
 ```
 
 - `/name`: opens or closes the settings
-- `/name show <kind>...`, `/name hide <kind>...`, `/name toggle <kind>...`: shows or
-  hides names of one kind or more: `self`, `party`, `alliance`, `players`, `mypet`, `pets`, `npcs`,
-  `monsters`, or `all`
-
-- `/name custom`, `/name custom on`, `/name custom off`: whether this addon draws
-  the names or the game does
-
-For example, `/name hide players alliance` leaves your party's the only players' names.
+This ImGui testing build exposes only the menu command. Text-control verbs,
+including show/hide/toggle, custom, watch and GDI, are disabled. Use Filters to
+choose which names appear; unload Name to restore the game's names.
 
 ## Settings
 
+The preferred baseline is captured in `name_defaults.lua` from the live Win_4458
+profile. It uses **corbeli.ttf**, **bold**, maximum/minimum font sizes **28/10**,
+**75% check size**, **93% icon size**, **2 px icon spacing**, and **1 px outline**.
+Difficulty abbreviations and check details are enabled, mastery stars and words
+mode are off. Own Name, Other Players, and Other Pets are hidden; Always Show
+Target is on. Appearance/hide preferences are captured too. GDI remains off.
+Existing character settings take precedence over this baseline.
+
 Kept for each character. Each is on for names that are shown.
+
+The menus follow Twister's layout: named sections, aligned controls, and visible
+`(?)` help marks with wrapped explanations.
+
+Public tabs are **Nameplates → Filters**. Experimental and Appearance are hidden;
+GDI is forced off so testers exercise the ImGui renderer.
+
+- **Nameplates:** follows `guis/name.menu`: Name Appearance, Player Icons, and
+  Check. Options boxes measure the longest option row and share a width fitted
+  to that row plus its help marker and padding. Every `(?)` sits in the same
+  right-aligned column. Measurements exclude help and window width, preventing
+  auto-size feedback; widths can shrink when content becomes shorter. Font sizes and icon padding use numeric
+  inputs; outline thickness uses radio buttons 0–3. Font selection comes first.
+  Format controls are hidden; drawing uses the saved `name_defaults.lua` formats:
+  `[name]` for general names and `[aggro] Lv [level]. [name]` for monsters,
+  targeted monsters and checked monsters.
+- **Filters:** Players, Pets, NPCs And Monsters, Target, and Status, using the
+  same bordered sections, content-fitted widths, and aligned help column.
 
 | Setting | Whose names |
 |---|---|
@@ -42,18 +63,18 @@ are hidden.
 
 ## Custom names
 
-Experimental. With Custom Names on, in the settings' Custom Names tab, the names are drawn in winxi's
+Rendering is always enabled while Name and its compatible plugin are loaded.
+In the first tab, Names, configure how the names are drawn in winxi's
 outlined text and not by the game: each in the colour the game gives it, with the game's icons before
-it. Which names are shown is still set in the Settings tab; only how they look changes. It needs
+it. Which names are shown is still set in the Filters tab; only how they look changes. It needs
 namehook 1.10 or later.
 
 | Setting | What it does |
 |---|---|
-| Custom Names (experimental) | On, the names are drawn in winxi's style; off, the game draws them, and the rest of the tab is put away |
-| Maximum Font Size | The height of a name near to, 6 to 48 pixels. Called Font Size while names do not shrink |
+| Bold | Makes names and check-detail text heavier. The normal renderer uses simulated bold; experimental GDI uses the family's native bold style. On in the preferred defaults; icons and stars are unchanged |
+| Maximum Font Size | The height of a nearby name, 6 to 48 pixels. Names automatically shrink with distance |
 | Minimum Font Size | The height of a name at the distance it is no longer drawn at; never more than the maximum |
-| Shrink With Distance | A name gets smaller as it nears the distance it is no longer drawn at, from the maximum size to the minimum; off, names stay one size |
-| Outline Thickness | The dark edge round each name, 0 to 4 pixels; at 0 the names are written plain |
+| Outline Thickness | The dark edge round each name, 0 to 4 pixels; rounded down to whole render-target pixels to keep nearby names thinner. As letters shrink, it becomes thinner and slightly less opaque so distant names stay readable. Nearby names retain the original outline. At 0 the names are written plain |
 | Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`; Default is the font everything else is written in |
 | Name Format | How every name but a monster's is written: see [How a name is written](#how-a-name-is-written) |
 | Monster Format | How a monster's name is written |
@@ -63,8 +84,79 @@ namehook 1.10 or later.
 | Icon Size | An icon's side, as a percentage of the height of the names |
 | Icon Spacing | The space between a name's icons and the name itself, 0 to 24 pixels |
 | Show Check Details | Under the name of a monster you have checked: how hard a fight it is, what it does, and what it links with. See [What a check shows](#what-a-check-shows) |
-| Check Details In Words | That line as a sentence with no signs in it, such as `Too Weak, Sight Aggro, Link: Goblin`. There while Show Check Details is on |
+| Check Size | Scale check-detail text and icons from 50% to 125% of the name size; 75% in the preferred defaults. Applies to either layout |
+| Abbreviate Difficulty | On by default: TW, IEP, EP, DC, EM, T, VT and IT alongside aggro/link information. Difficulty alone uses full words; Impossible to Gauge stays ???. Off restores full difficulty names in either layout |
+| Check Details In Words | A leading magnifying glass followed by a sentence without aggro/link signs, such as `TW, Sight Aggro, Link: Goblin (Sight)`. There while Show Check Details is on |
 | Show Mastery Stars | The three stars over the name of a player with a job mastered |
+
+### Rendering optimizations
+
+Text layout is cached by string and font-size set, including glyph advances and
+positions. The Bold switch also invalidates cached advances when its value changes.
+Simulated bold adds a shifted copy per visible text glyph, with spacing adjusted to
+match. It uses more quads when enabled, but does not increase outline thickness or
+modify the shared ImGui font. Select a bold font file directly instead if you prefer
+its designed bold face over simulated bold. Each set keeps at most 512 runs; a font/atlas replacement creates new
+sets, so stale texture coordinates are not reused. Distance text still updates to
+a tenth, but unchanged text does not need decoding and measuring every frame.
+
+If the client lists an entity more than once through different drawing call sites,
+only its last wanted entry is laid out each frame. This preserves the final text
+selection while avoiding unused quads and repeated size/colour stabilization.
+The plugin still draws the resulting geometry at each original call site.
+
+The shared drawing buffer checks capacity per quad instead of reserving 256 slots
+for every name, allowing short names to use the last available slots safely.
+Font-size rungs are also cached until maximum height changes;
+empty format parts avoid run-cache work and check-detail layout uses no temporary
+width table.
+
+The updated plugin caches complete name bounds and skips vertex expansion and draw
+submission for names fully outside the viewport. A name with an off-screen anchor
+is still drawn if any of its text, icons, stars, outline or details can be visible.
+This does not change the ordering or depth passes of visible names.
+
+Inline aggro and magnifying-glass icons, and the check line's sense/link icons,
+use approximately 25% less outline opacity than text. Their fill stays unchanged;
+player-name icons use the same softened outline, including both halves of two-part
+icons. Mastery stars remain unoutlined. Outline Thickness 0 disables all of these
+outlines. This per-quad effect requires the
+updated plugin as well as `libs/winxi`.
+
+### Retained experimental GDI implementation
+
+GDI code and standalone tests remain for reversible development, but the current
+public build hides its tab, disables its commands and forces ImGui in the frame
+callback. It is not a selectable testing backend. Native crashes with some font
+families remain unresolved; passing stub tests does not establish native safety.
+The implementation notes below describe the retained backend, not public controls.
+
+GDI rasterizes plain ASCII glyphs into one cached atlas at the current size rungs.
+Each capture surrounds its character with visible sentinels, then crops them away
+in Lua, avoiding the reference DLL's unsafe standalone-punctuation cropping path.
+The plugin still handles world-depth occlusion, outlines, colours and fading;
+distance changes do not rasterize new text. Unchanged frames reuse the prepared
+request without allocating another height list, building a key string, or calling
+the backend again; failed requests are cached too. Check Size only changes layout
+and does not regenerate the atlas. Changing Bold rebuilds the atlas with
+the family's native regular/bold style; it does not add simulated strokes to GDI glyphs. The magnifying glass still uses
+Ashita's ImGui font in a separate texture slot. This first version deliberately
+keeps the plugin's existing outline style rather than baking GDI outlines.
+
+The first frame after enabling GDI or changing the family, bold style, font size,
+or render-resolution scale may pause while the atlas is generated.
+Unavailable fonts or Lua-level generation errors produce one warning and fall back to
+ImGui; change the settings or toggle GDI off and on to retry. Native access violations
+cannot be safely caught by that fallback. While building an atlas, the experimental
+backend writes `gdi-diagnostic.txt` in the addon folder, recording the last native
+operation attempted; cached frames do no diagnostic file I/O. Check spacing,
+centering, crowded areas, shrinking, check details and alt-tab in-game before
+keeping this backend enabled. GDI rendering itself is not covered by the stub tests.
+
+The vendored GdiFonts library and DLL are from
+`references/crispy-chainsaw/gdifonts` (Thorny's MIT-licensed library); atlas/image
+helpers are adapted from that reference's `ui` directory. The DLL's upstream
+source is https://github.com/ThornyFFXI/gdifonttexture.
 
 ### How a name is written
 
@@ -141,27 +233,38 @@ the tables say it can be. The signs are the twelve pictures in `assets/aggro`, `
 
 ### What a check shows
 
-With Show Check Details on, a monster you check has a second line under its name, smaller, with its
+With Show Check Details on, a monster you check has a second line under its name,
+at the configured Check Size (75% in the preferred defaults), with its
 middle under the name's. It fades in as you check, is there for five seconds, and fades out; checking
-the monster again brings it back.
+the monster again brings it back. The magnifying glass leads this line in icon mode, scales with
+Check Scale, and fades with the details. When Show Check Details is enabled, an
+explicit `[checked]` in the name format no longer repeats it beside the name.
 
-- How hard a fight the game said it would be, in the game's words: Too Weak, Incredibly Easy Prey,
-  Easy Prey, Decent Challenge, Even Match, Tough, Very Tough or Incredibly Tough; or Impossible To
-  Gauge, for a notorious monster.
+- Difficulty is abbreviated by default: **TW** (Too Weak), **IEP** (Incredibly
+  Easy Prey), **EP** (Easy Prey), **DC** (Decent Challenge), **EM** (Even Match),
+  **T** (Tough), **VT** (Very Tough), **IT** (Incredibly Tough), and **???**
+  (Impossible to Gauge). Turn off **Abbreviate Difficulty** under Names → Check
+  Details to restore the full names. In abbreviated mode, a difficulty shown
+  without any aggro/link information is still spelled out (for example, Very Tough).
+  Impossible to Gauge remains ???. This applies to both icon and words layouts.
 - For an aggressive monster, a sign for each thing it notices you by: sight, true sight, sound, low
   health, magic, job abilities, scent. Whether it is aggressive at all is not shown here: put
   `[aggro]` in the name's format for that.
-- If it links, the sign for that and the family it links with.
+- If it links, the link sign and family, followed by Sight, Hearing, or
+  Sight/Hearing when those detection flags are present. For example:
+  `Goblin (Sight/Hearing)`. These methods are inferred from detection flags;
+  the copied tables do not contain separate linking-method fields. If neither
+  flag is present, the method remains unspecified.
 
-With Check Details In Words on, the line is a sentence with no signs in it, its parts with commas
-between them:
+With Text Only on, the line contains no icons, including no magnifying glass.
+Its sentence has parts separated with commas:
 
-    Too Weak, Sight Aggro, Link: Goblin
+    TW, Sight Aggro, Link: Goblin (Sight)
 
 The second part is there for an aggressive monster: what it notices you by (`Sight`, `Sound`, `Blood`,
 `Magic`, `JA`, `Scent`, with a stroke between them if there are several, and `True Sight` and `True
 Sound` for one that sees or hears truly) and then `Aggro`. The third is there for one that links, and
-names the family it links with.
+names the family it links with and the inferred Sight/Hearing method, when available.
 
 The first is from the game's answer to your check. The rest is from the tables in the `data` folder,
 and is what the server's own tables say of that kind of monster; for one the tables do not have, the
@@ -189,7 +292,7 @@ maximum size to the minimum and fades out, or keeps its size and fades out over 
 The icons are drawn from the game's own picture of them, found in its memory (`icons.lua`); the
 linkshell pearl is given its linkshell's colour.
 
-With Custom Names off, the addon unloaded, or the plugin not recognising the client, the game draws
+With the addon unloaded, or the plugin not recognising the client, the game draws
 the names as before.
 
 ## The addon and the plugin

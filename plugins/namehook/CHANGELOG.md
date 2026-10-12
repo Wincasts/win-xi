@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — rendering optimizations
+
+- Support optional per-quad outline opacity, allowing small Name icons to use a softer edge without changing their fill or the text edge. The existing quad layout is unchanged: flag bit 1 enables an opacity byte in `Reserved`; ordinary and older quads retain full opacity.
+- Use a fixed-capacity hash index for whitelist lookups, preserving case-insensitive matching and original list/save order. Adds update the index directly; removals and reloads invalidate it.
+- Cache complete custom-name bounds per entity/drawing batch and skip vertex expansion and Direct3D submission when the entire drawing is outside the viewport. Bounds include outlines, stars, icons and check-detail lines; off-screen anchors alone are not culled.
+- Cache name and damage scale factors until resolution or font settings change, instead of repeating divisions for each draw call.
+- Calculate each outlined quad's faded outline colour once, reusing it for all four corners.
+- Size the texture-run array for every expanded quad, including all four outline copies; alternating textures could previously exceed its capacity.
+- Add `tests/benchmark.sh`, a CPU-only comparison of old linear whitelist lookup and the new index. It is not a rendering/FPS benchmark.
+- Keep state-block lifetime unchanged: the SDK has no pre-reset callback to safely release retained client-resource references. Cross-frame state-block reuse and dynamic vertex buffers remain deferred pending reset handling and in-game measurements.
+
 ## namehook 1.23 - 2026-10-11
 
 - Every call in the client to its two functions that draw a name's lines is found and taken, not only the two in the function that draws all the names: a name the client draws by another way is then shown, hidden, listed and drawn for an addon like any other. `/namehook othercalls off` goes back to taking only the two, and `on` to taking them all; the setting is kept in `defaults.ini` as `OtherCalls`.

@@ -8,6 +8,7 @@
 #undef private
 
 #include "../src/Nameplate.cpp"
+#include "../src/NameBounds.h"
 
 #include <string>
 #include <vector>
@@ -32,7 +33,7 @@ struct TestPlugin : public Nameplate {
 		targetWidth = 1200.0f;
 		targetHeight = 900.0f;
 	}
-	void DrawCustom(const HookDrawing& drawing, const HookQuad* quads, const float*) override {
+	void DrawCustom(uint32_t, const HookDrawing& drawing, const HookQuad* quads, const float*) override {
 		custom++;
 		lastQuads = quads;
 		lastCount = drawing.Count;
@@ -126,6 +127,93 @@ int main() {
 	static_assert(offsetof(HookShared, Override) == 80 && offsetof(HookShared, Names) == 80 + HOOK_ENTITIES);
 	CHECK(memcmp(Shared.Magic, "NAMEHOOK\0\0\0\0\0\0\0", 16) == 0 && Shared.Version == 2);
 	CHECK(Shared.Size == sizeof(HookShared) && Shared.NameSize == sizeof(HookName));
+
+	// Native scale factors are reused, but dimensions/settings invalidate them.
+	{
+		CGame game{};
+		game.BackgroundWidth = 1440;
+		game.BackgroundHeight = 1080;
+		CGame* currentGame = &game;
+		uint32_t width = 960, height = 540;
+		Globals.pgGame = &currentGame;
+		Globals.pWindowWidth = &width;
+		Globals.pWindowHeight = &height;
+		AsmSettings.FontSize = 22;
+		AsmSettings.DamageFontSize = 11;
+		const float half = 0.5f;
+		float result[2] = {};
+		GetNameplateScale(result, &half);
+		CHECK(result[0] == 1.5f && result[1] == 2.0f && ScaleFactors.Valid);
+		GetDamageNumberScale(result, &half);
+		CHECK(result[0] == 0.75f && result[1] == 1.0f);
+		game.BackgroundWidth = 720;
+		GetNameplateScale(result, &half);
+		CHECK(result[0] == 0.75f && result[1] == 2.0f);
+		AsmSettings.FontSize = 44;
+		GetNameplateScale(result, &half);
+		CHECK(result[0] == 1.5f && result[1] == 4.0f);
+		width = 480;
+		GetNameplateScale(result, &half);
+		CHECK(result[0] == 3.0f && result[1] == 4.0f);
+		width = 0;
+		CHECK(!UpdateScaleFactors());
+		currentGame = nullptr;
+		CHECK(!UpdateScaleFactors());
+		Globals.pgGame = nullptr;
+		Globals.pWindowWidth = Globals.pWindowHeight = nullptr;
+	}
+
+	// Whole-drawing culling is conservative: visible text with an off-screen
+	// anchor, outlines, stars and checked detail lines must all survive.
+	{
+		HookQuad quad{};
+		quad.Flags = QUAD_EDGED;
+		quad.Reserved = 191; // legacy/ordinary quads ignore this byte
+		CHECK(quad.EdgeOpacity() == 1.0f);
+		quad.Flags |= QUAD_EDGE_OPACITY;
+		CHECK(quad.EdgeOpacity() == 191.0f / 255.0f);
+		quad.Reserved = 0;
+		CHECK(quad.EdgeOpacity() == 0.0f);
+		quad.Reserved = 255;
+		CHECK(quad.EdgeOpacity() == 1.0f);
+	}
+	{
+		HookDrawing drawing{};
+		drawing.Frame = 1;
+		drawing.Count = 3;
+		drawing.Edge = 2.0f;
+		HookQuad quads[3]{};
+		quads[0].X0 = -30; quads[0].X1 = 30;
+		quads[0].Y0 = 0; quads[0].Y1 = 12; quads[0].Flags = 1;
+		quads[1].X0 = -5; quads[1].X1 = 5;
+		quads[1].Y0 = -20; quads[1].Y1 = -10; // stars, without an outline
+		quads[2].X0 = -50; quads[2].X1 = 50;
+		quads[2].Y0 = 16; quads[2].Y1 = 28; quads[2].Flags = 1; // detail line
+		NameBoundsCache cache;
+		const NameBounds first = cache.Get(drawing, quads);
+		CHECK(first.Left == -52 && first.Right == 52 && first.Top == -20 && first.Bottom == 30);
+		CHECK(first.Intersects(-10, 10, 0, 0, 100, 100)); // anchor off screen, letters visible
+		CHECK(first.Intersects(-40, 10, 0, 0, 100, 100)); // only the detail line reaches in
+		CHECK(first.Intersects(50, 115, 0, 0, 100, 100)); // only the stars reach in
+		CHECK(first.Intersects(-51, 10, 0, 0, 100, 100)); // outline reaches in
+		CHECK(!first.Intersects(-53, 10, 0, 0, 100, 100));
+		CHECK(!first.Intersects(153, 10, 0, 0, 100, 100));
+		CHECK(!first.Intersects(50, -31, 0, 0, 100, 100));
+		CHECK(!first.Intersects(50, 121, 0, 0, 100, 100));
+		CHECK(first.Intersects(-52, 10, 0, 0, 100, 100)); // touching boundary is retained
+		CHECK(first.Intersects(200, 200, 200, 200, 100, 100)); // viewport has an offset
+		quads[2].X1 = 80;
+		CHECK(cache.Get(drawing, quads).Right == 52); // geometry is cached for this batch
+		drawing.Frame++;
+		CHECK(cache.Get(drawing, quads).Right == 82);
+		drawing.Edge = 20; // expansion is capped at eight, as in the renderer
+		CHECK(cache.Get(drawing, quads).Right == 88);
+		drawing.Count = 1;
+		CHECK(cache.Get(drawing, quads).Right == 38);
+		quads[0].X1 = 40;
+		drawing.First++;
+		CHECK(cache.Get(drawing, quads).Right == 48);
+	}
 
 	TestPlugin plugin;
 	wchar_t temp[MAX_PATH];
@@ -278,6 +366,43 @@ int main() {
 	plugin.errors.clear();
 	plugin.ParseCommand("/namehook whitelist clear", true);
 	CHECK(Whitelist.Count == 0);
+
+	// Indexed lookup preserves original ordering at maximum capacity, including
+	// colliding buckets, case-insensitive matches and removal compaction.
+	{
+		const auto saved = Whitelist;
+		Whitelist.Count = 0;
+		Whitelist.IndexDirty = true;
+		AddWhitelisted("Bucketfirst");
+		const uint32_t bucket = HashName("Bucketfirst") & (WHITELIST_SLOTS - 1);
+		char collision[WHITELIST_NAME_SIZE] = {};
+		for (int i = 0; i < 100000; i++) {
+			StringCbPrintfA(collision, sizeof(collision), "Collision%d", i);
+			if ((HashName(collision) & (WHITELIST_SLOTS - 1)) == bucket) { break; }
+		}
+		CHECK((HashName(collision) & (WHITELIST_SLOTS - 1)) == bucket);
+		AddWhitelisted(collision);
+		CHECK(FindWhitelisted("BUCKETFIRST") == 0 && FindWhitelisted(collision) == 1);
+		for (int i = 0; Whitelist.Count < WHITELIST_MAX; i++) {
+			char name[WHITELIST_NAME_SIZE];
+			StringCbPrintfA(name, sizeof(name), "Probe%d", i);
+			AddWhitelisted(name);
+		}
+		CHECK(Whitelist.Count == WHITELIST_MAX && Whitelist.IndexedCount == WHITELIST_MAX);
+		AddWhitelisted("Overflow");
+		CHECK(Whitelist.Count == WHITELIST_MAX && FindWhitelisted("Overflow") < 0);
+		for (size_t i = 0; i < Whitelist.Count; i++) {
+			CHECK(FindWhitelisted(Whitelist.Names[i]) == static_cast<int>(i));
+		}
+		CHECK(FindWhitelisted("Absent") < 0);
+		plugin.ParseCommand("/nh wl remove Probe100", true);
+		CHECK(FindWhitelisted("Probe100") < 0);
+		for (size_t i = 0; i < Whitelist.Count; i++) {
+			CHECK(FindWhitelisted(Whitelist.Names[i]) == static_cast<int>(i));
+		}
+		Whitelist = saved;
+		CHECK(plugin.SaveWhitelist() == 0);
+	}
 
 	// the target's name is shown whatever its category, when that is asked for
 	plugin.target = 0x403;
