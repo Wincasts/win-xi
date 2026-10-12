@@ -15,6 +15,10 @@
 --         help        = '/example shows or hides the window; /example config opens the settings.',
 --         drawSettings   = function(options) ... end,   -- the Settings tab, above the hiding rules
 --         drawAppearance = function(options) ... end,   -- optional: more for the Appearance tab's Addon section
+--         hideAppearance = true,                 -- optional: omit the Appearance tab
+--         menuOnlyCommands = true,               -- optional: only the bare command opens the menu
+--         settingsLabel = 'Settings',             -- optional: label of the main settings tab
+--         leadingTabs = { { label = 'Names', draw = function(options) ... end } }, -- optional: tabs before the main settings tab
 --         tabs        = { { label = 'More', draw = function(options) ... end } },   -- optional: tabs of the addon's own, between Settings and Appearance
 --         commands    = { focus = function(options, args) ... end },   -- optional: more verbs
 --         onSettings  = function(options) ... end,      -- optional: the settings have been loaded, or swapped for another character's
@@ -124,6 +128,18 @@ end
 
 local noTabs = { }; -- what an addon with no tabs of its own has
 
+local function DrawTabs(tabs, options)
+    for _, tab in ipairs(tabs or noTabs) do
+        if imgui.BeginTabItem(tab.label) then
+            widgets.BeginLabels(tab.label);
+            widgets.Gap();
+            tab.draw(options);
+            widgets.Gap();
+            imgui.EndTabItem();
+        end
+    end
+end
+
 -- The settings window: the addon's Settings tab with the hiding rules under it, whatever tabs the
 -- addon has of its own, and an Appearance tab with winxi's Theme and Window sections and the addon's
 -- own under Addon
@@ -133,7 +149,8 @@ local function DrawConfigContent(app)
 
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, framePadding);
     if imgui.BeginTabBar(app.ids.tabs, ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if imgui.BeginTabItem('Settings') then
+        DrawTabs(spec.leadingTabs, options);
+        if imgui.BeginTabItem(spec.settingsLabel or 'Settings') then
             widgets.BeginLabels(app.ids.labels);
             if spec.drawSettings ~= nil then
                 -- the addon's settings are set a little apart from the tabs over them, as from what is under them
@@ -147,16 +164,8 @@ local function DrawConfigContent(app)
             imgui.EndTabItem();
         end
         -- the addon's own tabs, each with its own column of names
-        for _, tab in ipairs(spec.tabs or noTabs) do
-            if imgui.BeginTabItem(tab.label) then
-                widgets.BeginLabels(tab.label);
-                widgets.Gap();
-                tab.draw(options);
-                widgets.Gap();
-                imgui.EndTabItem();
-            end
-        end
-        if imgui.BeginTabItem('Appearance') then
+        DrawTabs(spec.tabs, options);
+        if spec.hideAppearance ~= true and imgui.BeginTabItem('Appearance') then
             widgets.Appearance(app.appearanceHooks);
 
             if spec.window ~= nil or spec.drawAppearance ~= nil then
@@ -229,6 +238,8 @@ local function OnCommand(app, e)
         if spec.toggleSays ~= nil then
             app:Say(options.isVisible[1] and spec.toggleSays.shown or spec.toggleSays.hidden);
         end
+    elseif spec.menuOnlyCommands then
+        app:Say(spec.help or 'Use the settings menu.');
     elseif verb == 'config' then
         app:ToggleConfig();
     elseif spec.commands ~= nil and spec.commands[verb] ~= nil then

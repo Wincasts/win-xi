@@ -19,6 +19,7 @@ If not, see <https://www.gnu.org/licenses/>.
 #include "Ashita.h"
 
 #include "../Nameplate.h"
+#include "../NameBounds.h"
 
 #include "exports.h"
 
@@ -51,7 +52,10 @@ struct NameRun {
     uint32_t first;
     uint32_t count;
 };
-static NameRun Runs[HOOK_QUADS_PER_NAME * 2];
+// Every expanded quad can start another texture run, including four outline
+// copies. Capacity must match the worst case, not just the foreground quads.
+static NameRun Runs[NAME_VERTICES / 6];
+static DWORD EdgeColors[HOOK_QUADS_PER_NAME];
 
 
 class AshitaNameplate : public IPlugin, private Nameplate {
@@ -69,6 +73,7 @@ private:
     D3DVIEWPORT8 m_Viewport;
     float m_ViewProjection[16];
     bool m_CanDraw;
+    NameBoundsCache m_NameBounds[HOOK_ENTITIES]; // CPU-only; no device-reset resources
 
     bool MakeNameStates();
     void PublishNames(bool frameDone);
@@ -97,7 +102,7 @@ public:
     virtual void GetFrameFacts(FrameFacts& facts, bool withPets) override;
     virtual void ProbeScene() override;
     virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) override;
-    virtual void DrawCustom(const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
+    virtual void DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
 
     virtual uint32_t GetSpawnFlags(uint32_t entityIndex) override {
         IEntity* entities = m_AshitaCore->GetMemoryManager()->GetEntity();
@@ -491,8 +496,8 @@ static DWORD FadeColor(uint32_t color, float alpha) {
     return (faded << 24) | (color & 0x00FFFFFF);
 }
 
-void AshitaNameplate::DrawCustom(const HookDrawing& drawing, const HookQuad* quads, const float* position) {
-    if (!m_CanDraw) {
+void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) {
+    if (!m_CanDraw || entityIndex >= HOOK_ENTITIES || drawing.Count == 0 || drawing.Count > HOOK_QUADS_PER_NAME) {
         return;
     }
 
@@ -520,6 +525,12 @@ void AshitaNameplate::DrawCustom(const HookDrawing& drawing, const HookQuad* qua
     const float alpha = (drawing.Alpha <= 0.0f) ? 0.0f : ((drawing.Alpha >= 1.0f) ? 1.0f : drawing.Alpha);
     if (alpha <= 0.0f) {
         return;
+    }
+
+    const NameBounds& bounds = m_NameBounds[entityIndex].Get(drawing, quads);
+    if (!bounds.Intersects(left, top, static_cast<float>(m_Viewport.X), static_cast<float>(m_Viewport.Y),
+            static_cast<float>(m_Viewport.Width), static_cast<float>(m_Viewport.Height))) {
+        return; // no vertex expansion, state capture or draw submission for invisible names
     }
 
     uint32_t vertexCount = 0;
@@ -560,9 +571,12 @@ void AshitaNameplate::DrawCustom(const HookDrawing& drawing, const HookQuad* qua
             const float dx = (corner & 1) ? edge : -edge;
             const float dy = (corner & 2) ? edge : -edge;
             for (uint32_t i = 0; i < drawing.Count; i++) {
-                if ((quads[i].Flags & 1) != 0) {
-                    // as solid as the quad it is the edge of: a part of a name that is fading takes its edge with it
-                    add(quads[i], dx, dy, FadeColor(drawing.EdgeColor, alpha * (static_cast<float>(quads[i].Color >> 24) / 255.0f)));
+                if ((quads[i].Flags & QUAD_EDGED) != 0) {
+                    // Fade with the fill, then apply an optional weaker edge (e.g. small icons).
+                    if (corner == 0) {
+                        EdgeColors[i] = FadeColor(drawing.EdgeColor, alpha * (static_cast<float>(quads[i].Color >> 24) / 255.0f) * quads[i].EdgeOpacity());
+                    }
+                    add(quads[i], dx, dy, EdgeColors[i]);
                 }
             }
         }

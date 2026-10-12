@@ -4,7 +4,7 @@
 --   custom.Settle(options)        the settings have been loaded: what an older version kept is brought over
 --   custom.Find()                 once, on loading: the game's icons
 --   custom.DrawSettings(options)  the settings tab
---   custom.Frame(options, hook)   each frame: claims the names and draws them, while Custom Names is on;
+--   custom.Frame(options, hook)   each frame: claims the names and draws them;
 --                                 hook is the plugin's block, as nameplates.Hook gave it this frame
 --
 -- The namehook plugin lists the names the game was about to draw. While this draws, it claims
@@ -17,12 +17,13 @@
 -- a name hides it, or the part of it that it covers, as it hides the game's. What is set out one frame
 -- is drawn in the next.
 --
--- A claim lapses by itself: with Custom Names off, or the addon unloaded, the game draws the names again.
+-- A claim lapses by itself: when the addon is unloaded, the game draws the names again.
 local bit   = require('bit');
 local ffi   = require('ffi');
 local imgui = require('imgui');
 local text       = require('winxi.text');
 local widgets    = require('winxi.widgets');
+local controls   = require('controls');
 local nameplates = require('winxi.nameplates');
 local icons = require('icons');
 local format = require('format');
@@ -34,14 +35,12 @@ local PEARL         = 0x92; -- the linkshell pearl, the one icon that is given a
 local TWO_PART      = 0xAC; -- an icon the game draws with the next character of its font over it
 local STAR          = 0xAD; -- the star of the Job Mastery stars: a small one, a large one, a small one
 local ICON_GAP      = 2;    -- pixels between one icon and the next
-local FADE_OVER     = 1 / 3; -- the last part of a name's distance over which it fades out, if it does not shrink
-local FADE_SHRUNK   = 0.15; -- and if it does, having by then shrunk to its smallest
+local FADE_SHRUNK   = 0.15; -- the last part of a name's distance over which it fades out
 local SMALLEST      = 6;    -- pixels: the smallest a name can be set to be
 local LARGEST       = 48;   -- and the largest
-local FONT_SLOT, ICON_SLOT, SENSE_SLOT, TEMPER_SLOT = 0, 1, 2, 3; -- the plugin's numbers for the textures the names are drawn from
+local FONT_SLOT, ICON_SLOT, SENSE_SLOT, TEMPER_SLOT, SIGN_SLOT = 0, 1, 2, 3, 4; -- the plugin's numbers for the textures the names are drawn from
 
 -- What is written under the name of a monster its player has checked: see the frame, below
-local DETAIL_SIZE   = 0.75; -- how large it is beside the name
 local DETAIL_GAP    = 0.4;  -- the space between its parts, as a part of its own height
 local DETAIL_BELOW  = 2;    -- pixels between the name and it
 local DETAIL_IN     = 0.3;  -- seconds it takes to come
@@ -75,16 +74,19 @@ local DEFAULT_FONT  = 'Default';
 
 -- What can be set. A setting changed by a control is a table of one, as imgui wants.
 local settings = {
-    customNames = function () return T{ false }; end, -- the names are drawn here, and not by the game
+    fontBold    = function () return T{ false }; end, -- simulated for ImGui; native style for GDI
     fontSize    = function () return T{ 15 }; end,    -- the height of the names near to, in pixels: the largest they are
-    shrink      = function () return T{ true }; end,  -- names get smaller towards the distance they are no longer drawn at, as the game's do
     minSize     = function () return T{ 10 }; end,    -- the height they have shrunk to by that distance: the smallest they are
     outline     = function () return T{ 1 }; end,     -- how thick the dark edge round them is, in pixels
+    gdiFonts    = function () return T{ false }; end, -- opt-in; the ImGui backend stays available
+    gdiFamily   = function () return T{ 'Arial' }; end,
     font        = function () return ''; end,         -- a file of FONT_FOLDER, or nothing for the font everything else is in
     showIcons   = function () return T{ true }; end,
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
+    checkSize = function () return T{ 90 }; end, -- percent of the name's size
+    abbreviateDifficulty = function () return T{ true }; end, -- compact difficulty by default
     showCheckDetails = function () return T{ true }; end, -- under a checked monster's name: how hard, what it does
     checkDetailsInWords = function () return T{ false }; end, -- what it notices its prey by, and that it links, in words and not signs
     -- How a name is written: [name] for the name, [distance] for how far off it is, [level] for the
@@ -108,6 +110,24 @@ end
 -- Up to 1.10 a monster's distance was a setting of its own, and another said whether only the
 -- target's was written: they are made the lines that say the same, once.
 function custom.Settle(options)
+    options.customNames = nil; -- retire the old opt-in; rendering is now always enabled
+    options.shrink = nil; -- automatic distance shrinking is no longer optional
+    if (type(options.checkSize) ~= 'table' or type(options.checkSize[1]) ~= 'number' or options.checkSize[1] ~= options.checkSize[1]) then
+        options.checkSize = settings.checkSize();
+    end
+    options.checkSize[1] = math.max(50, math.min(125, math.floor(options.checkSize[1])));
+    -- Native GDI faults bypass Lua's fallback. Never restore the experimental
+    -- backend automatically from disk: every load/character switch starts safe.
+    options.gdiFonts = settings.gdiFonts();
+    if (type(options.abbreviateDifficulty) ~= 'table' or type(options.abbreviateDifficulty[1]) ~= 'boolean') then
+        options.abbreviateDifficulty = settings.abbreviateDifficulty();
+    end
+    if (type(options.fontBold) ~= 'table' or type(options.fontBold[1]) ~= 'boolean') then
+        options.fontBold = settings.fontBold();
+    end
+    if (type(options.gdiFamily) ~= 'table' or type(options.gdiFamily[1]) ~= 'string') then
+        options.gdiFamily = settings.gdiFamily();
+    end
     for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'targetFormat', 'checkedFormat' }) do
         if (type(options[key]) ~= 'table' or type(options[key][1]) ~= 'string') then
             options[key] = settings[key]();
@@ -290,6 +310,39 @@ end
 
 local warning = { 1.0, 0.6, 0.4, 1.0 };
 
+-- Native GDI testing is deliberately separate from the regular name controls.
+function custom.DrawExperimental(options, save)
+    imgui.TextColored(widgets.ExperimentalColor, '[Experimental]');
+    widgets.Header('GDI Fonts');
+    imgui.TextColored(warning, 'Known native crashes. Use at your own risk.');
+    controls.Mark('Some installed font families crash the native renderer. Lua fallback cannot catch an access violation. GDI starts disabled on every addon load or character settings reload. /name gdi off restores the original ImGui backend.');
+
+    if (controls.Checkbox('Enabled', '##name.gdiFonts', options.gdiFonts,
+            'Uses a cached GDI glyph atlas; namehook still draws names in the world. Off restores ImGui. Always starts off on addon load for crash recovery.') and save ~= nil) then save(); end
+
+    -- Select a family while the backend is off, without invoking rasterization.
+    widgets.Label('Font Family');
+    controls.Width();
+    if (imgui.BeginCombo('##name.gdiFamily', options.gdiFamily[1])) then
+        local families, problem = require('gdi_families').List();
+        for _, family in ipairs(families) do
+            if (imgui.Selectable(family, options.gdiFamily[1] == family) and options.gdiFamily[1] ~= family) then
+                options.gdiFamily[1] = family;
+                if (save ~= nil) then save(); end
+            end
+        end
+        if (problem ~= nil) then
+            imgui.TextColored(warning, 'Could not enumerate installed fonts; keeping the current family.');
+        end
+        imgui.EndCombo();
+    end
+    controls.Mark('Installed Windows font families. Being installed does not guarantee compatibility with the experimental renderer. Choose a family while disabled to avoid rasterizing it. Changing the family while GDI is enabled rebuilds the atlas and may pause or crash.');
+
+    widgets.Header('Recovery');
+    imgui.TextDisabled('Starts disabled on every addon load.');
+    imgui.Text('/name gdi off restores ImGui fonts.');
+end
+
 -- save, if given, is called for the one setting that is not saved as the window closes
 function custom.DrawSettings(options, save)
     local problem = nameplates.Problem();
@@ -298,44 +351,10 @@ function custom.DrawSettings(options, save)
         widgets.Gap();
     end
 
-    widgets.Label('Custom Names', true);
-    imgui.Checkbox('##name.customNames', options.customNames);
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('The names are drawn in winxi\'s outlined text, and not by the game: in the game\'s own picture, where a wall or a character in front of a name hides it.\nWhich names are shown is still set in the Settings tab. /name custom switches this.');
-    end
-    if (not options.customNames[1]) then
-        return;
-    end
-
-    widgets.Gap();
-    widgets.Label(options.shrink[1] and 'Maximum Font Size' or 'Font Size');
-    if (imgui.SliderInt('##name.fontSize', options.fontSize, SMALLEST, LARGEST, '%d px') and options.minSize[1] > options.fontSize[1]) then
-        options.minSize[1] = options.fontSize[1];
-    end
-    if (options.shrink[1] and imgui.IsItemHovered()) then
-        imgui.SetTooltip('The height of a name near to, where it is at its largest.');
-    end
-    if (options.shrink[1]) then
-        widgets.Label('Minimum Font Size');
-        if (imgui.SliderInt('##name.minSize', options.minSize, SMALLEST, LARGEST, '%d px') and options.fontSize[1] < options.minSize[1]) then
-            options.fontSize[1] = options.minSize[1];
-        end
-        if (imgui.IsItemHovered()) then
-            imgui.SetTooltip('The height of a name at the distance it is no longer drawn at, where it is at its smallest. It fades out as it gets there.');
-        end
-    end
-    widgets.Label('Shrink With Distance');
-    imgui.Checkbox('##name.shrink', options.shrink);
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('A name gets smaller as it nears the distance it is no longer drawn at, from the maximum size to the minimum. Off, names stay one size and fade out there.');
-    end
-    widgets.Label('Outline Thickness');
-    imgui.SliderInt('##name.outline', options.outline, 0, 4, '%d px');
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('The dark edge round each name. At 0 the names are written plain.');
-    end
-
-    widgets.Label('Font', true);
+    controls.BeginLayout('nameplates', 360, 'Outline Thickness');
+    controls.Section('Name Appearance', '##name.appearanceOptions', true);
+    widgets.Label('Font');
+    controls.Width();
     if (imgui.BeginCombo('##name.font', options.font ~= '' and options.font or DEFAULT_FONT)) then
         if (imgui.Selectable(DEFAULT_FONT, options.font == '') and options.font ~= '') then
             options.font = '';
@@ -349,69 +368,47 @@ function custom.DrawSettings(options, save)
         end
         imgui.EndCombo();
     end
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('A font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is the font everything else is written in.');
+    controls.Mark('A font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is the font everything else is written in.');
+    controls.Checkbox('Bold', '##name.fontBold', options.fontBold,
+        'Makes names and check-detail text heavier. ImGui uses simulated bold; experimental GDI uses the font family\'s native bold style. Icons, stars and outline thickness are unchanged. Simulated bold generates extra text quads.');
+    if (controls.Input('Max Font Size', '##name.fontSize', options.fontSize, SMALLEST, LARGEST,
+            'The height of a nearby name. Names automatically shrink with distance.') and options.minSize[1] > options.fontSize[1]) then
+        options.minSize[1] = options.fontSize[1];
     end
+    if (controls.Input('Min Font Size', '##name.minSize', options.minSize, SMALLEST, LARGEST,
+            'The smallest height of a distant name. It fades out as it gets there.') and options.fontSize[1] < options.minSize[1]) then
+        options.fontSize[1] = options.minSize[1];
+    end
+    controls.Outline(options.outline);
+    controls.EndSection();
 
-    widgets.Gap();
-    local function line(label, key, id, tooltip)
-        widgets.Label(label);
-        imgui.InputText(id, options[key], 256);
-        if (imgui.IsItemDeactivatedAfterEdit() and save ~= nil) then
-            save();
-        end
-        if (imgui.IsItemHovered()) then
-            imgui.SetTooltip(tooltip);
-        end
-    end
-    local how = '[name] is the name, [distance] how far off it is, [level] the levels a monster can be, [checked] a magnifying glass on a monster you have checked, and [aggro] the sign that a monster is aggressive or is not; anything else is written as you type it.\nex: [aggro][name] [level][checked] ([distance])\n\n'
-        .. 'A colour is #RRGGBB or a word: white, grey, red, green, blue, yellow, orange, purple, pink, cyan.\n'
-        .. '[distance:yellow] or [name:#FF8000] colours that one thing; [yellow] colours everything after it, as far as [/].\n'
-        .. 'With no colour, a thing is in the colour the game gives the name.';
-    line('Name Format', 'nameFormat', '##name.nameFormat', 'How every name but a monster\'s is written.\n' .. how);
-    line('Monster Format', 'monsterFormat', '##name.monsterFormat', 'How a monster\'s name is written.\n' .. how);
-    line('Targeted Monster Format', 'targetFormat', '##name.targetFormat', 'How the name of the monster you have targeted is written. Left empty, it is written as other monsters\' are.\n' .. how);
-    line('Checked Monster Format', 'checkedFormat', '##name.checkedFormat', 'How the name of a monster you have checked is written, until it dies or you leave the area; it comes before Targeted Monster Format for a monster that is both. Left empty, checking a monster changes nothing of how its name is set out.\n' .. how);
-
-    widgets.Gap();
-    widgets.Label('Show Icons');
-    imgui.Checkbox('##name.showIcons', options.showIcons);
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip(foundIcons
-            and 'The game\'s icons before a name: the linkshell pearl, the party\'s flags, the bazaar\'s bag and the rest.'
-            or 'The game\'s icons were not found in this client: names are drawn without them.');
-    end
+    controls.Section('Player Icons', '##name.playerOptions');
+    controls.Checkbox('Show Icons', '##name.showIcons', options.showIcons, foundIcons
+        and 'The game\'s icons before a name: the linkshell pearl, the party\'s flags, the bazaar\'s bag and the rest.'
+        or 'The game\'s icons were not found in this client: names are drawn without them.');
     if (options.showIcons[1] or options.showStars[1]) then
-        widgets.Label('Icon Size');
-        imgui.SliderInt('##name.iconSize', options.iconSize, 50, 300, '%d%%');
-        if (imgui.IsItemHovered()) then
-            imgui.SetTooltip('An icon\'s side, as a percentage of the height of the names.');
-        end
+        controls.Slider('Scale', '##name.iconSize', options.iconSize, 50, 300, '%d%%',
+            'An icon\'s side, as a percentage of the height of the names.');
     end
     if (options.showIcons[1]) then
-        widgets.Label('Icon Spacing');
-        imgui.SliderInt('##name.iconSpacing', options.iconSpacing, 0, 24, '%d px');
-        if (imgui.IsItemHovered()) then
-            imgui.SetTooltip('The space between a name\'s icons and the name itself.');
-        end
+        controls.Input('Padding', '##name.iconSpacing', options.iconSpacing, 0, 24,
+            'The space between a name\'s icons and the name itself.');
     end
-    widgets.Label('Show Check Details');
-    imgui.Checkbox('##name.showCheckDetails', options.showCheckDetails);
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('Under the name of a monster you have just checked, for five seconds:\nhow hard a fight the game said it would be, what an aggressive one notices you by, and the family it links with.');
-    end
+
+    controls.EndSection();
+    controls.Section('Check', '##name.checkOptions');
+    controls.Checkbox('Show Check', '##name.showCheckDetails', options.showCheckDetails,
+        'Under the name of a monster you have just checked, for five seconds:\nhow hard a fight the game said it would be, what an aggressive one notices you by, and the family it links with. Link labels include Sight/Hearing inferred from the table\'s detection flags when available.');
     if (options.showCheckDetails[1]) then
-        widgets.Label('Check Details In Words');
-        imgui.Checkbox('##name.checkDetailsInWords', options.checkDetailsInWords);
-        if (imgui.IsItemHovered()) then
-            imgui.SetTooltip('The line is written as a sentence, with no signs in it.\nex: Too Weak, Sight Aggro, Link: Goblin\nWhat an aggressive monster notices you by is Sight, Sound, Blood, Magic, JA or Scent, with a stroke between them if there are several, and True Sight and True Sound for one that sees or hears truly. Link is the family it links with.');
-        end
+        controls.Slider('Check Scale', '##name.checkSize', options.checkSize, 50, 125, '%d%%',
+            'Scale check-detail text and its icons relative to the name: 75% in the preferred defaults. Applies to both icon and words layouts.');
+        controls.Checkbox('Brief Difficulty', '##name.abbreviateDifficulty', options.abbreviateDifficulty,
+            'Use TW, IEP, EP, DC, EM, T, VT and IT beside aggro/link information. When difficulty is the only information shown, use full words. Impossible to Gauge stays ???. Applies to both layouts; on by default.');
+        controls.Checkbox('Text Only', '##name.checkDetailsInWords', options.checkDetailsInWords,
+            'Check details are shown as text only, without magnifying-glass, aggro or link icons.\nex: TW, Sight Aggro, Link: Goblin (Sight)\nWhat an aggressive monster notices you by is Sight, Sound, Blood, Magic, JA or Scent, with a stroke between them if there are several, and True Sight and True Sound for one that sees or hears truly. Link names its family and, when known, Sight/Hearing inferred from its detection flags.');
     end
-    widgets.Label('Show Mastery Stars');
-    imgui.Checkbox('##name.showStars', options.showStars);
-    if (imgui.IsItemHovered()) then
-        imgui.SetTooltip('The three stars over the name of a player with a job mastered. The plugin\'s own /namehook hidestars hides them too.');
-    end
+    controls.EndSection();
+    controls.EndLayout();
 end
 
 -- The font's texture as Direct3D has it, or nil while it has none: for a moment after letters of a
@@ -454,9 +451,20 @@ local function readGlyph(baked, byte)
         glyph.Visible ~= 0 and glyph.Visible ~= false };
 end
 
--- How wide some words are in these letters, and the words written with their top left at a place
-local function wordsWidth(set, words, fit)
-    local glyphs, width = set.glyphs, 0;
+-- Glyph runs belong to their set, so replacing a font/atlas also invalidates
+-- all runs. Bound each cache: changing distances must not accumulate forever.
+local function textRun(set, words)
+    local stroke = set.syntheticBold and 1 or 0;
+    if (set.runStroke ~= stroke) then
+        set.runs, set.runCount, set.runStroke = nil, 0, stroke;
+    end
+    local runs = set.runs;
+    if (runs == nil) then runs = {}; set.runs, set.runCount = runs, 0; end
+    local run = runs[words];
+    if (run ~= nil) then return run; end
+    if (set.runCount >= 512) then runs = {}; set.runs, set.runCount = runs, 0; end
+    run = { glyphs = {}, offsets = {}, width = 0, stroke = stroke };
+    local glyphs = set.glyphs;
     for at = 1, #words do
         local byte = words:byte(at);
         local glyph = glyphs[byte];
@@ -465,24 +473,38 @@ local function wordsWidth(set, words, fit)
             glyphs[byte] = glyph;
         end
         if (glyph) then
-            width = width + glyph[9] * fit;
+            local index = #run.glyphs + 1;
+            run.glyphs[index], run.offsets[index] = glyph, run.width;
+            run.width = run.width + glyph[9] + (glyph[10] and stroke or 0);
         end
     end
-    return width;
+    runs[words], set.runCount = run, set.runCount + 1;
+    return run;
+end
+
+local function wordsWidth(set, words, fit)
+    if (words == '') then return 0; end
+    return textRun(set, words).width * fit;
 end
 
 local function writeWords(set, words, pen, top, fit, color)
-    local glyphs = set.glyphs;
-    for at = 1, #words do
-        local glyph = glyphs[words:byte(at)];
-        if (glyph) then
-            if (glyph[10]) then
-                nameplates.Quad(pen + glyph[1] * fit, top + glyph[2] * fit, pen + glyph[3] * fit, top + glyph[4] * fit, glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
+    if (words == '') then return pen; end
+    local run = textRun(set, words);
+    local quad = nameplates.Quad;
+    for index = 1, #run.glyphs do
+        local glyph = run.glyphs[index];
+        if (glyph[10]) then
+            local at = pen + run.offsets[index] * fit;
+            local x0, y0 = at + glyph[1] * fit, top + glyph[2] * fit;
+            local x1, y1 = at + glyph[3] * fit, top + glyph[4] * fit;
+            quad(x0, y0, x1, y1, glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
+            if (run.stroke > 0) then
+                local shift = run.stroke * fit;
+                quad(x0 + shift, y0, x1 + shift, y1, glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
             end
-            pen = pen + glyph[9] * fit;
         end
     end
-    return pen;
+    return pen + run.width * fit;
 end
 
 -- A sheet of signs from the assets folder, loaded the first time one of its signs is to be drawn:
@@ -569,13 +591,20 @@ local function noticeWords(monster)
     return words;
 end
 
-local function linkWords(monster)
-    local words = monster.nameLink;
-    if (words == nil) then
-        words = monster.Link and ((monster.Family ~= nil and monster.Family ~= '') and ('Link: ' .. monster.Family) or 'Link') or '';
-        monster.nameLink = words;
+local function linkWords(monster, besideIcon)
+    if (monster.nameLink == nil) then
+        local family = monster.Family or '';
+        -- The copied tables expose detection senses, not separate link senses.
+        -- Infer only from Sight/Sound, not TrueSight (which can accompany Sound).
+        local sense = monster.Sight and (monster.Sound and 'Sight/Hearing' or 'Sight') or (monster.Sound and 'Hearing' or '');
+        local label = family;
+        if (sense ~= '') then
+            label = family ~= '' and (family .. ' (' .. sense .. ')') or sense;
+        end
+        monster.nameLinkLabel = monster.Link and label or '';
+        monster.nameLink = monster.Link and ((family ~= '' and ('Link: ' .. family) or 'Link') .. (sense ~= '' and (' (' .. sense .. ')') or '')) or '';
     end
-    return words;
+    return besideIcon and monster.nameLinkLabel or monster.nameLink;
 end
 
 -- The signs for what an aggressive monster notices its prey by, as the tables have it: kept on the monster
@@ -717,13 +746,62 @@ local function steadySize(known, name)
     return known.size;
 end
 
+local gdiBackend, gdiRequest;
+
+function custom.Shutdown()
+    gdiRequest = nil;
+    if (gdiBackend ~= nil) then gdiBackend.Shutdown(); end
+end
+
+-- These sizes are shared by every name. Recompute only when the maximum
+-- render-target height or shrink setting changes, not inside each name's loop.
+local cachedRungs;
+local function fontRungs(height, shrink)
+    local count = shrink and #RUNGS or 1;
+    if (cachedRungs == nil or cachedRungs.height ~= height or #cachedRungs ~= count) then
+        cachedRungs = { height = height };
+        for rung = 1, count do
+            cachedRungs[rung] = math.max(1, math.floor(height * RUNGS[rung] + 0.5));
+        end
+    end
+    return cachedRungs;
+end
+
+local function prepareGdi(options, heights)
+    if (not options.gdiFonts[1]) then gdiRequest = nil; return nil; end
+    local family, bold = options.gdiFamily[1], options.fontBold[1];
+    if (gdiRequest ~= nil and gdiRequest.family == family and gdiRequest.bold == bold and gdiRequest.heights == heights) then
+        return gdiRequest.atlas; -- includes failed requests, without allocating or retrying
+    end
+    gdiRequest = { family = family, bold = bold, heights = heights };
+    local ok, result = pcall(function ()
+        gdiBackend = gdiBackend or require('gdi_font');
+        return gdiBackend.Prepare(family, heights, bold);
+    end);
+    if (ok) then gdiRequest.atlas = result; return result; end
+    print(('\30\81[name]\30\01 GDI fonts unavailable; using ImGui. %s'):format(tostring(result)));
+    return nil;
+end
+
+-- Multiple native call sites may list the same entity. Keep the last wanted
+-- entry (matching the old final drawing), but lay it out and stabilize it once.
+local representatives = {};
+local function selectNames(hook)
+    for index in pairs(representatives) do representatives[index] = nil; end
+    for i = 0, hook.Count - 1 do
+        local name = hook.Names[i];
+        if (bit.band(name.Flags, nameplates.Flag.Wanted) ~= 0) then
+            representatives[name.EntityIndex] = i;
+        end
+    end
+    return representatives;
+end
+
 local iconsSeen = nil; -- the icons' texture when names were last taken apart
 
-function custom.Frame(options, hook)
-    if (not options.customNames[1]) then
-        return;
-    end
-
+function custom.Frame(options, hook, formats)
+    formats = formats or options; -- testable renderer; app supplies the saved, locked formats
+    local ICON_EDGE_OPACITY = 0.75; -- soften small inline/detail icons without fading their fill
     -- without the plugin's list there is nothing to draw from, and the game draws the names
     if (hook == nil or hook.Hooked == 0) then
         return;
@@ -774,21 +852,32 @@ function custom.Frame(options, hook)
     -- rung is asked after every frame, in use or not, which keeps imgui from letting it go; and all
     -- of them before any name is set out, so that if the letters have been moved it is known first.
     local fullHeight = math.max(1, math.floor(fullSize * scale + 0.5));
-    local rungs = options.shrink[1] and #RUNGS or 1;
+    local heights = fontRungs(fullHeight, true);
+    local rungs = #heights;
+    local gdiAtlas = prepareGdi(options, heights);
+    local function nameSet(height)
+        local set = gdiAtlas ~= nil and gdiAtlas.sets[height] or glyphSet(font, height);
+        if (set ~= nil) then set.syntheticBold = gdiAtlas == nil and options.fontBold[1]; end
+        return set;
+    end
+    if (gdiAtlas ~= nil) then nameplates.SetTexture(FONT_SLOT, gdiAtlas.address); end
+    nameplates.SetTexture(SIGN_SLOT, texture);
 
     -- the magnifying glass is in the font everything else is written in: with a font of the player's
     -- choosing for the names, that one's letters are kept as well, for it
-    local nameFormat = format.Compile(options.nameFormat[1]);
-    local monsterFormat = format.Compile(options.monsterFormat[1]);
-    local targetFormat = options.targetFormat[1] ~= '' and format.Compile(options.targetFormat[1]) or monsterFormat;
+    local nameFormat = format.Compile(formats.nameFormat[1]);
+    local monsterFormat = format.Compile(formats.monsterFormat[1]);
+    local targetFormat = formats.targetFormat[1] ~= '' and format.Compile(formats.targetFormat[1]) or monsterFormat;
     -- nil while its line is empty: a monster that has been checked is then written as any other
-    local checkedFormat = options.checkedFormat[1] ~= '' and format.Compile(options.checkedFormat[1]) or nil;
-    local signsApart = font ~= nil and (nameFormat.checked or monsterFormat.checked or targetFormat.checked or (checkedFormat ~= nil and checkedFormat.checked));
+    local checkedFormat = formats.checkedFormat[1] ~= '' and format.Compile(formats.checkedFormat[1]) or nil;
+    local wantsSign = options.showCheckDetails[1] and not options.checkDetailsInWords[1]
+        or (not options.showCheckDetails[1] and (nameFormat.checked or monsterFormat.checked or targetFormat.checked or (checkedFormat ~= nil and checkedFormat.checked)));
+    local signsApart = (font ~= nil or gdiAtlas ~= nil) and wantsSign;
     for _ = 1, 2 do
         local sets = glyphSets;
         for rung = 1, rungs do
-            local rungHeight = math.max(1, math.floor(fullHeight * RUNGS[rung] + 0.5));
-            glyphSet(font, rungHeight);
+            local rungHeight = heights[rung];
+            nameSet(rungHeight);
             if (signsApart) then
                 glyphSet(nil, rungHeight, -rungHeight);
             end
@@ -798,7 +887,6 @@ function custom.Frame(options, hook)
             break;
         end
     end
-    local shrink = options.shrink[1];
     local edge = math.max(0, math.min(4, options.outline[1]));
     local showIcons, showStars = options.showIcons[1], options.showStars[1];
     local showDetails = options.showCheckDetails[1];
@@ -825,25 +913,26 @@ function custom.Frame(options, hook)
         watch(hook, scale);
     end
 
+    local selected = selectNames(hook);
     for i = 0, hook.Count - 1 do
         local name = hook.Names[i];
 
-        if (bit.band(name.Flags, WANTED) ~= 0) then
+        if (selected[name.EntityIndex] == i and bit.band(name.Flags, WANTED) ~= 0) then
             local written = parse(name);
             local iconCount = showIcons and #written.icons or 0;
 
             -- The game draws a name at one size out to a distance, then smaller and smaller until at
             -- its furthest it is nothing: Scale is 1 and then falls to 0. Here it shrinks over the
-            -- same distance, from its largest to its smallest and not to nothing, or keeps its size;
-            -- and either way fades out over the last of it.
+            -- same distance, from its largest to its smallest rather than to nothing,
+            -- and fades out over the last of it.
             local nearness = steadySize(written, name);
-            local size = shrink and (leastSize + (fullSize - leastSize) * nearness) or fullSize;
+            local size = leastSize + (fullSize - leastSize) * nearness;
 
             -- as solid as the game has it, which fades a name with its character; but for the target,
             -- whose name the game pulses, as solid as it last held still
             local held = steadyColor(name);
             local solid = bit.rshift(bit.band(name.Flags, TARGET) ~= 0 and held or name.NameColor, 24) / 0x80;
-            local near = nearness / (shrink and FADE_SHRUNK or FADE_OVER);
+            local near = nearness / FADE_SHRUNK;
             local alpha = math.max(0, math.min(1, solid, near));
 
             if (alpha > 0 and (written.words ~= '' or iconCount > 0)) then
@@ -852,18 +941,30 @@ function custom.Frame(options, hook)
                 local height = size >= fullSize and fullHeight or math.max(1, size * scale);
                 local rungHeight = fullHeight;
                 for rung = 2, rungs do
-                    local smaller = math.max(1, math.floor(fullHeight * RUNGS[rung] + 0.5));
+                    local smaller = heights[rung];
                     if (smaller < height) then
                         break;
                     end
                     rungHeight = smaller;
                 end
                 local fit = math.min(1, height / rungHeight);
-                local set = glyphSet(font, rungHeight);
+                local set = nameSet(rungHeight);
 
-                local nameEdge = math.min(edge, math.max(1, math.floor(size / 8 + 0.5))) * scale;
-                if (set ~= nil and nameplates.BeginName(name.EntityIndex, alpha, edge > 0 and nameEdge or 0, dark)) then
-                    local glyphs, baked = set.glyphs, set.baked;
+                -- Round the base edge down to whole render-target pixels so
+                -- resolution scaling does not make nearby names unnecessarily bold.
+                -- Shrink the integer edge with the letters, still without fractional
+                -- offsets or a thickness jump as soon as shrinking starts.
+                local outlineFit = size / fullSize;
+                local nameEdge = edge > 0 and math.max(1, math.floor(math.min(edge, math.max(1, math.floor(size / 8 + 0.5))) * scale)) or 0;
+                local nameDark = dark;
+                if (nameEdge > 0 and outlineFit < 1) then
+                    nameEdge = math.max(1, math.floor(nameEdge * outlineFit + 0.5));
+                    -- At one pixel it cannot get thinner, but a slightly less
+                    -- opaque border keeps it from swallowing small letters.
+                    local edgeAlpha = math.floor(bit.rshift(dark, 24) * (0.5 + 0.5 * outlineFit) + 0.5);
+                    nameDark = dark % 0x1000000 + edgeAlpha * 0x1000000;
+                end
+                if (set ~= nil and nameplates.BeginName(name.EntityIndex, alpha, nameEdge, nameDark)) then
                     -- what is written, part by part, as its line has it
                     local parts = nameFormat;
                     if (name.Category == MONSTER) then
@@ -898,7 +999,7 @@ function custom.Frame(options, hook)
 
                     -- the magnifying glass for one that has been checked, if the font has it
                     local sign = false;
-                    if (parts.checked and written.isChecked) then
+                    if (((parts.checked and not showDetails) or (showDetails and not detailsInWords)) and written.isChecked) then
                         local signs = signsApart and glyphSet(nil, rungHeight, -rungHeight) or set;
                         if (signs ~= nil) then
                             sign = signs.glyphs[MAGNIFIER];
@@ -923,21 +1024,11 @@ function custom.Frame(options, hook)
                         if (kind == 'aggro' and temper ~= nil) then
                             width = width + temperSize;
                         end
-                        if (kind == 'checked') then
+                        if (kind == 'checked' and not showDetails) then
                             width = width + (sign and sign[9] * fit * SIGN_SIZE or 0);
                         end
                         local words = kind == 'name' and written.words or (kind == 'distance' and (written.far or '')) or (kind == 'level' and (written.level or '')) or part.text or '';
-                        for at = 1, #words do
-                            local byte = words:byte(at);
-                            local glyph = glyphs[byte];
-                            if (glyph == nil) then
-                                glyph = readGlyph(baked, byte);
-                                glyphs[byte] = glyph;
-                            end
-                            if (glyph) then
-                                width = width + glyph[9] * fit;
-                            end
-                        end
+                        width = width + wordsWidth(set, words, fit);
                     end
 
                     local iconSize = math.floor(height * iconScale + 0.5);
@@ -967,12 +1058,12 @@ function custom.Frame(options, hook)
                         local color = byte == PEARL and pearlColor(name.IconColor) or WHITE;
                         local at = icons.Place(byte);
                         if (at) then
-                            nameplates.Quad(left, iconTop, left + iconSize, iconTop + iconSize, at[1], at[2], at[3], at[4], color, ICON_SLOT, false);
+                            nameplates.Quad(left, iconTop, left + iconSize, iconTop + iconSize, at[1], at[2], at[3], at[4], color, ICON_SLOT, true, ICON_EDGE_OPACITY);
                         end
                         if (byte == TWO_PART) then
                             at = icons.Place(byte + 1);
                             if (at) then
-                                nameplates.Quad(left, iconTop, left + iconSize, iconTop + iconSize, at[1], at[2], at[3], at[4], color, ICON_SLOT, false);
+                                nameplates.Quad(left, iconTop, left + iconSize, iconTop + iconSize, at[1], at[2], at[3], at[4], color, ICON_SLOT, true, ICON_EDGE_OPACITY);
                             end
                         end
                         left = left + iconSize + (index < iconCount and iconGap or nameGap);
@@ -990,28 +1081,20 @@ function custom.Frame(options, hook)
                             -- a little larger than the letters, its middle level with theirs, and
                             -- with the dark edge they have
                             local temperTop = top + math.floor((height - temperSize) * 0.5);
-                            nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, TEMPER_SLOT, true);
+                            nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, TEMPER_SLOT, true, ICON_EDGE_OPACITY);
                             pen = pen + temperSize;
                         end
-                        if (kind == 'checked' and sign) then
+                        if (kind == 'checked' and sign and not showDetails) then
                             -- smaller than the letters by a set part, whatever size they are, and
                             -- made smaller about the middle of the line so that it stays level with them
                             local small = fit * SIGN_SIZE;
                             local middle = rungHeight * 0.5;
                             nameplates.Quad(pen + sign[1] * small, top + (middle + (sign[2] - middle) * SIGN_SIZE) * fit,
                                 pen + sign[3] * small, top + (middle + (sign[4] - middle) * SIGN_SIZE) * fit,
-                                sign[5], sign[6], sign[7], sign[8], color, FONT_SLOT, true);
+                                sign[5], sign[6], sign[7], sign[8], color, SIGN_SLOT, true, ICON_EDGE_OPACITY);
                             pen = pen + sign[9] * small;
                         end
-                        for at = 1, #words do
-                            local glyph = glyphs[words:byte(at)];
-                            if (glyph) then
-                                if (glyph[10]) then
-                                    nameplates.Quad(pen + glyph[1] * fit, top + glyph[2] * fit, pen + glyph[3] * fit, top + glyph[4] * fit, glyph[5], glyph[6], glyph[7], glyph[8], color, FONT_SLOT, true);
-                                end
-                                pen = pen + glyph[9] * fit;
-                            end
-                        end
+                        pen = writeWords(set, words, pen, top, fit, color);
                     end
 
                     -- Under the name of a monster its player has checked, and with its middle under
@@ -1037,17 +1120,29 @@ function custom.Frame(options, hook)
                         local solidity = math.floor(showing * 255 + 0.5) * 0x1000000;
                         local own = own % 0x1000000 + solidity;
                         local WHITE = 0xFFFFFF + solidity;
-                        local detail = fit * DETAIL_SIZE;
-                        local detailHeight = math.floor(height * DETAIL_SIZE + 0.5);
+                        local detailScale = options.checkSize[1] / 100;
+                        local detail = fit * detailScale;
+                        local detailHeight = math.floor(height * detailScale + 0.5);
                         local gap = math.floor(detailHeight * DETAIL_GAP + 0.5);
-                        local hard = written.found.hard or '';
                         local monster = written.monster;
+                        local sheet = (not detailsInWords and monster ~= nil) and sensesTexture() or 0;
+                        local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
+                        local links = not detailsInWords and monster ~= nil and monster.Link;
+                        local linked = links and linkWords(monster, true) or '';
+                        local extra = (signs ~= nil and #signs > 0) or (links and sheet ~= 0) or linked ~= '';
+                        if (detailsInWords and monster ~= nil) then
+                            extra = noticeWords(monster) ~= '' or linkWords(monster) ~= '';
+                        end
+                        -- A lone difficulty is more useful spelled out. Keep ???
+                        -- compact even when no aggro/link information is available.
+                        local short = options.abbreviateDifficulty[1] and (extra or written.found.hardShort == '???');
+                        local hard = (short and written.found.hardShort or written.found.hard) or '';
 
                         -- In words it is the one sentence, its parts with commas between them: "Too
                         -- Weak, Sight Aggro, Link: Goblin". Put together once for each check.
                         if (detailsInWords) then
-                            if (written.sentenceOf ~= written.found or written.sentenceFor ~= monster) then
-                                written.sentenceOf, written.sentenceFor = written.found, monster;
+                            if (written.sentenceOf ~= written.found or written.sentenceFor ~= monster or written.sentenceHard ~= hard) then
+                                written.sentenceOf, written.sentenceFor, written.sentenceHard = written.found, monster, hard;
                                 local said = { hard ~= '' and hard or nil };
                                 if (monster ~= nil) then
                                     local notices, linked = noticeWords(monster), linkWords(monster);
@@ -1056,51 +1151,50 @@ function custom.Frame(options, hook)
                                 end
                                 written.sentence = table.concat(said, ', ');
                             end
-                            hard, monster = written.sentence, nil;
+                            hard = written.sentence;
                         end
 
                         -- what it notices its prey by, and what it links with: as signs, or in words
-                        local sheet = (monster ~= nil) and sensesTexture() or 0;
-                        local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
-                        local notices = '';
-                        local links = monster ~= nil and monster.Link;
-                        local linked = links and (monster.Family or '') or '';
-
                         local hardWidth = wordsWidth(set, hard, detail);
-                        local noticesWidth = wordsWidth(set, notices, detail);
-                        local signsWidth = noticesWidth + (signs ~= nil and #signs or 0) * detailHeight;
+                        local signsWidth = (signs ~= nil and #signs or 0) * detailHeight;
                         local linkWidth = (links and sheet ~= 0) and detailHeight or 0;
                         local linkedWidth = wordsWidth(set, linked, detail);
 
-                        local across, pieces = 0, 0;
-                        for _, piece in ipairs({ hardWidth, signsWidth, linkWidth + linkedWidth + ((linkWidth > 0 and linkedWidth > 0) and math.floor(gap * 0.5) or 0) }) do
-                            if (piece > 0) then
-                                across, pieces = across + piece, pieces + 1;
-                            end
-                        end
+                        local glassFit = detail * SIGN_SIZE;
+                        local glassWidth = not detailsInWords and sign and sign[9] * glassFit or 0;
+                        local across, pieces = glassWidth, glassWidth > 0 and 1 or 0;
+                        local linkAcross = linkWidth + linkedWidth + ((linkWidth > 0 and linkedWidth > 0) and math.floor(gap * 0.5) or 0);
+                        if (hardWidth > 0) then across, pieces = across + hardWidth, pieces + 1; end
+                        if (signsWidth > 0) then across, pieces = across + signsWidth, pieces + 1; end
+                        if (linkAcross > 0) then across, pieces = across + linkAcross, pieces + 1; end
                         across = across + math.max(0, pieces - 1) * gap;
 
                         local at = math.floor(-across * 0.5);
                         local below = top + height + math.floor(DETAIL_BELOW * scale + 0.5);
 
+                        if (glassWidth > 0) then
+                            local middle = rungHeight * 0.5;
+                            local glassTop = below + middle * detail;
+                            nameplates.Quad(at + sign[1] * glassFit, glassTop + (sign[2] - middle) * glassFit,
+                                at + sign[3] * glassFit, glassTop + (sign[4] - middle) * glassFit,
+                                sign[5], sign[6], sign[7], sign[8], WHITE, SIGN_SLOT, true, ICON_EDGE_OPACITY);
+                            at = at + glassWidth + gap;
+                        end
                         if (hardWidth > 0) then
                             at = writeWords(set, hard, at, below, detail, own) + gap;
                         end
                         if (signsWidth > 0) then
-                            if (noticesWidth > 0) then
-                                at = writeWords(set, notices, at, below, detail, own);
-                            end
                             for index = 1, (signs ~= nil and #signs or 0) do
                                 local sign = signs[index];
                                 local u, v = (sign % 4) * 0.25, math.floor(sign / 4) * 0.25;
-                                nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, true);
+                                nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, true, ICON_EDGE_OPACITY);
                                 at = at + detailHeight;
                             end
                             at = at + gap;
                         end
                         if (linkWidth > 0) then
                             local u, v = (SENSES.Link % 4) * 0.25, math.floor(SENSES.Link / 4) * 0.25;
-                            nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, true);
+                            nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SENSE_SLOT, true, ICON_EDGE_OPACITY);
                             at = at + linkWidth + (linkedWidth > 0 and math.floor(gap * 0.5) or 0);
                         end
                         if (linkedWidth > 0) then

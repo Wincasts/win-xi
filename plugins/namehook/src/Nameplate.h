@@ -118,14 +118,23 @@ struct HookShared {
     HookName Names[HOOK_NAMES_MAX];
 };
 
+enum : uint32_t {
+    QUAD_EDGED = 1 << 0,
+    QUAD_EDGE_OPACITY = 1 << 1, // Reserved's low byte holds edge opacity, 0 to 255
+};
+
 // One rectangle of a name an addon has drawn: a letter, or an icon.
 struct HookQuad {
     float X0, Y0, X1, Y1; // its corners, in pixels of the client's picture, from where the client puts the name
     float U0, V0, U1, V1; // and the same corners in its texture
     uint32_t Color;       // as 0xAARRGGBB
     uint32_t Texture;     // which of HookDraw::Textures
-    uint32_t Flags;       // 1: it is given the name's edge
-    uint32_t Reserved;
+    uint32_t Flags;       // QUAD_*; explicit edge opacity requires both bits
+    uint32_t Reserved;    // low byte: edge opacity when QUAD_EDGE_OPACITY is set
+
+    float EdgeOpacity() const {
+        return (Flags & QUAD_EDGE_OPACITY) != 0 ? static_cast<float>(Reserved & 0xFF) / 255.0f : 1.0f;
+    }
 };
 
 // What an addon has drawn for one entity's name.
@@ -236,7 +245,7 @@ class Nameplate {
 
         // Puts an addon's drawing of a name in the picture, at this point of the world (three floats).
         // Called from the client's name drawing code, in place of the client drawing the name.
-        virtual void DrawCustom([[maybe_unused]] const HookDrawing& drawing, [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
+        virtual void DrawCustom([[maybe_unused]] uint32_t entityIndex, [[maybe_unused]] const HookDrawing& drawing, [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
 
         // A look at what the client is drawing on at the moment it draws a name, said in the chat log.
         // Asked for by the probe command, and called from the client's name drawing code, once.

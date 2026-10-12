@@ -42,11 +42,13 @@
 --                                                 game's picture there are to one of the screen's
 --   nameplates.SetTexture(slot, texture)          slot 0 to 7; texture a Direct3D texture's address
 --   nameplates.BeginName(entityIndex, alpha, edge, edgeColor)   false if there is no room for it
---   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged)
+--   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity)
 --   nameplates.EndName()
 -- A quad is a rectangle of a texture: its corners are in pixels of the game's picture, measured from
 -- the point the game puts the name at, and its colour is 0xAARRGGBB. alpha, 0 to 1, fades the whole
--- name; edge is how thick a dark edge the edged quads are given, and edgeColor its colour. Names are
+-- name; edge is how thick a dark edge the edged quads are given, and edgeColor its colour.
+-- Quad's optional edgeOpacity (0 to 1, default 1) softens just that quad's edge;
+-- its fill is unchanged. Older plugins ignore this optional per-quad effect. Names are
 -- claimed with nameplates.Claim as before: the plugin draws the wanted ones the addon has drawn, a
 -- frame after it drew them, and draws nothing for the others.
 --
@@ -353,6 +355,7 @@ end
 local draw = nil;      -- the plugin's place for them, between BeginDrawing and the frame's end
 local drawing = nil;   -- the name being drawn
 local QUADS_PER_NAME = 256;
+local QUADS_MAX = 16384;
 local TEXTURES = 8;
 
 function nameplates.BeginDrawing(hook)
@@ -382,7 +385,7 @@ end
 
 function nameplates.BeginName(entityIndex, alpha, edge, edgeColor)
     drawing = nil;
-    if (draw == nil or entityIndex < 0 or entityIndex >= ENTITIES or draw.QuadCount + QUADS_PER_NAME > draw.QuadsMax) then
+    if (draw == nil or entityIndex < 0 or entityIndex >= ENTITIES or draw.QuadCount >= math.min(draw.QuadsMax, QUADS_MAX)) then
         return false;
     end
 
@@ -396,8 +399,9 @@ function nameplates.BeginName(entityIndex, alpha, edge, edgeColor)
     return true;
 end
 
-function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged)
-    if (drawing == nil or drawing.Count >= QUADS_PER_NAME) then
+function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity)
+    if (drawing == nil or drawing.Count >= QUADS_PER_NAME
+            or drawing.First + drawing.Count >= math.min(draw.QuadsMax, QUADS_MAX)) then
         return;
     end
 
@@ -407,6 +411,11 @@ function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged)
     quad.Color = color;
     quad.Texture = slot or 0;
     quad.Flags = edged and 1 or 0;
+    quad.Reserved = 0;
+    if (edged and edgeOpacity ~= nil) then
+        quad.Flags = 3; -- edged, with explicit edge opacity in Reserved's low byte
+        quad.Reserved = math.floor(math.max(0, math.min(1, edgeOpacity)) * 255 + 0.5);
+    end
     drawing.Count = drawing.Count + 1;
 end
 
