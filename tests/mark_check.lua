@@ -72,11 +72,15 @@ mapsReadable = true; frames(200)
 H.print('the square of the map', wrote('Anywhere within about 120 yalms of D-11 (-341, -233)'), exactly('D-11 (-341, -233)'))
 H.print('squares: the middle is H-8, the corner A-1', maps.Square(256, 256) == 'H-8', maps.Square(20, 20) == 'A-1', maps.Square(47, 48) == 'A-2', maps.Square(48, 47) == 'B-1')
 
-o.markZone, o.markName = 100, 'Jaggedy-Eared Jack'
-frames(); H.print('the mark heads the window, out of range', wrote('Mark:'), wrote('Not In Range'))
+-- the header and the tabs
+H.print('a header, and two tabs with Look Up the first', exactly('Mark'), H.calls.BeginTabBar ~= nil, H.calls.BeginTabItem ~= nil, wrote('How It Appears'))
+H.tab(2); frames(); H.print('the Marks tab, with nothing in it yet', wrote('No marks, and no times of death.'), wrote('How It Appears') == false)
+o.marks[1] = { zone = 100, name = 'Jaggedy-Eared Jack' }
+frames(); H.print('a mark is listed there, out of range', exactly('Jaggedy-Eared Jack'), exactly('West Ronfaure'), wrote('Not In Range'), wrote('No time of death'))
 
 entities[295] = { x = 30, y = 30, hp = 100, far = 42.4 }
 frames(); H.print('up: said', H.printed[#H.printed], '| sound', H.sounds[#H.sounds], '| shown', wrote('Up, 42 yalms NE'))
+H.tab(1)
 local said = #H.printed; frames(); H.print('said once', #H.printed == said)
 
 -- the placeholder: in range, dead and timed from then, up again
@@ -120,19 +124,35 @@ local clock = os.date('%H:%M', os.time() - 7200)
 H.command('/mark tod ' .. clock); H.print('/mark tod by the clock: two hours ago', #o.tods == 1 and math.abs(os.time() - 7200 - o.tods[1].at) < 61)
 H.command('/mark tod clear')
 H.ret.Button = { true }; frames(1); H.ret.Button = { false }
-H.print('Clear Mark, Show Map and Report TOD clicked', o.markName == '', o.showMap[1], #o.tods == 1 and o.tods[1].name)
-o.showMap[1] = false
+H.print('Clear Mark, Show Map and Report TOD clicked', #o.marks == 0, o.showMap[1], #o.tods == 1 and o.tods[1].name)
+H.print('and the header\'s button, which closes the window', o.isVisible[1] == false)
+o.showMap[1], o.isVisible[1] = false, true
 
-H.command('/mark compact'); o.markZone, o.markName = 100, 'Jaggedy-Eared Jack'; entities[294].hp = 0; frames()
-H.print('compact: the mark, its window and its placeholder\'s respawn, and no more', o.compact[1], wrote('The lottery opens in'), wrote('Forest Hare'), wrote('Respawns in'), wrote('Drops') == false)
+-- the Marks tab: a monster with a time of death and no mark on it, and its buttons
+H.tab(2); frames()
+H.print('a time of death alone puts a monster in the list', exactly('Jaggedy-Eared Jack'), wrote('The lottery opens in'), wrote('Forest Hare') == false)
+o.viewName = 'Bomb King'
+H.ret.SmallButton = { true }; frames(1); H.ret.SmallButton = nil
+H.print('its buttons: looked up, its time forgotten, made a mark', o.viewName, #o.tods == 0, #o.marks == 1 and o.marks[1].name)
+frames(2); H.print('Look Up turns to the first tab', H.calls.BeginTabItem ~= nil)
+entities[294] = { x = -10, y = 0, hp = 100, far = 10 }; frames()
+H.print('a mark of this zone has its placeholders under it', wrote('Forest Hare (126)'), wrote('Up, 10 yalms W'))
+o.marks[2] = { zone = 127, name = 'King Behemoth' }; frames()
+H.print('a second mark, of another zone', exactly('King Behemoth'), wrote('Not In Zone'))
+table.remove(o.marks, 2); H.tab(1)
+
+H.command('/mark tod'); H.command('/mark compact'); entities[294].hp = 0; frames()
+H.print('compact: the mark, its window and its placeholder\'s respawn, and no more', o.compact[1], wrote('The lottery opens in'), wrote('Forest Hare'), wrote('Respawns in'), wrote('Drops') == false, exactly('Mark') == false)
 zone = 107; frames(); H.print('in another zone: where the mark is', wrote('West Ronfaure'), wrote('Forest Hare') == false)
 H.command('/mark compact')
 
-H.command('/mark set lizz'); H.print('/mark set, by a part of a name:', H.printed[#H.printed], '|', o.markZone, o.viewName)
+H.command('/mark set lizz'); H.print('/mark set, by a part of a name:', H.printed[#H.printed], '|', #o.marks == 2 and o.marks[2].zone, o.viewName)
 frames(); H.print('a monster of two spawns, a lottery from a module', wrote('closed for 1 hr'), wrote('Rock Lizard'))
-H.print('the other monster\'s time is listed, with how its window stands', wrote('Jaggedy-Eared Jack'), wrote('The lottery opens in'))
+H.tab(2); frames(); H.print('both marks are listed, the first with how its window stands', exactly('Jaggedy-Eared Jack'), exactly(o.marks[2].name), wrote('The lottery opens in')); H.tab(1)
 H.command('/mark set nobody at all'); H.print('no such monster:', H.printed[#H.printed])
-H.command('/mark clear'); H.print('/mark clear:', H.printed[#H.printed], '|', o.markName == '')
+H.command('/mark clear lizz'); H.print('/mark clear <name>:', H.printed[#H.printed], '|', #o.marks == 1 and o.marks[1].name)
+H.command('/mark clear nobody'); H.print('/mark clear, of no mark:', H.printed[#H.printed])
+H.command('/mark clear'); H.print('/mark clear:', H.printed[#H.printed], '|', #o.marks == 0)
 
 o.viewZone, o.viewName = 127, 'King Behemoth'; frames()
 H.print('a trade to a ???', wrote('Forced: trade Item 3342 to the ??? at (-269, 74).'), '| a roll of several', wrote('One Of'), wrote('   Item 1334'))
@@ -170,6 +190,8 @@ H.print('scripted spawns are left out until asked for', (function()
 end)())
 
 o.tods[1] = 'nonsense'; H.resettle(); H.print('a time of death with a part missing is dropped', #o.tods == 1 and o.tods[1].name)
+o.marks[1] = 'nonsense'; o.markZone, o.markName = 100, 'Jaggedy-Eared Jack'; H.resettle()
+H.print('a mark with a part missing is dropped, and the one mark of an older file is brought over', #o.marks == 1 and o.marks[1].name, o.markName == nil)
 H.print('/mark config kept from the game', H.command('/mark config')); frames(1)
 H.command('/mark'); H.print('/mark hides it', o.isVisible[1] == false, '| /marker is left alone', H.command('/marker x') == false)
 H.unload(); H.print('unload ran; saves', H.saves() > 0)

@@ -1,6 +1,6 @@
 addon.name    = 'mark';
 addon.author  = 'win (and claude)';
-addon.version = '1.2';
+addon.version = '1.3';
 addon.desc    = 'Pick a notorious monster, make it your mark, and see how it appears, its placeholders and their respawns, where it spawns on the map, when its window opens and what it drops.';
 addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 
@@ -10,18 +10,23 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 -- drop with its chance at each level of Treasure Hunter. A second window is the zone's map, with where
 -- the monster and its placeholders can spawn laid over it.
 --
--- Set As Mark makes the monster the mark: the window then says whether it and its placeholders are in
--- range and which way, times each placeholder's respawn from when it is seen dead, says in the chat
--- log as the mark appears, and keeps time from its death. A time of death can be given by hand for
--- any monster, and every one kept is listed with how its window stands.
+-- The window has a header, with a button that closes it, and two tabs. Look Up is the dropdowns and
+-- the monster chosen. Marks lists every monster made a mark and every other a time of death is kept
+-- for, each with whether it is in range and how its window stands.
+--
+-- Set As Mark makes the monster a mark, one of as many as are wanted: the Marks tab then says whether
+-- it and its placeholders are in range and which way, each placeholder's respawn is timed from when it
+-- is seen dead, the chat log says as the mark appears, and time is kept from its death. A time of
+-- death can be given by hand for any monster.
 --
 --   /mark                 shows or hides the window
 --   /mark config          opens or closes the settings
---   /mark compact         switches between the whole window and the mark's few lines
+--   /mark compact         switches between the whole window and the marks' few lines
 --   /mark map             shows or hides the map
---   /mark set <name>      makes a monster the mark, by its name or a part of it
---   /mark clear           there is no mark any more
---   /mark tod             the mark (or, with no mark, the monster on show) died just now
+--   /mark set <name>      makes a monster a mark, by its name or a part of it
+--   /mark clear           there are no marks any more (/mark clear <name>: that one is a mark no more)
+--   /mark tod             the mark (the one of the zone you are in, or the only one; failing that, the
+--                         monster on show) died just now
 --   /mark tod 15          ... fifteen minutes ago
 --   /mark tod 14:35       ... at that time by the computer's clock
 --   /mark tod clear       its time of death is forgotten
@@ -165,8 +170,24 @@ local function ParseWhen(text)
 end
 
 ----------------------------------------------------------------------------------------------------
+-- The marks: kept in the settings as a list of { zone, name }
+----------------------------------------------------------------------------------------------------
+local function Key(zone, name)
+    return ('%d:%s'):format(zone, name);
+end
+
+local function IsMark(options, zone, name)
+    for place, mark in ipairs(options.marks) do
+        if mark.zone == zone and mark.name == name then
+            return place;
+        end
+    end
+    return nil;
+end
+
+----------------------------------------------------------------------------------------------------
 -- The game, looked at four times a second: the zone, where the player is, and whether each monster
--- being watched (the mark and its placeholders, and those of the monster on show) is in range
+-- being watched (the marks and their placeholders, and those of the monster on show) is in range
 ----------------------------------------------------------------------------------------------------
 local live = {
     checked = 0,
@@ -178,12 +199,12 @@ local live = {
     deaths = {},               -- placeholder's entity index -> when it was seen dead (os.time)
     counted = {},              -- placeholder's entity index -> true while the corpse seen is one already timed
     spawns = {},               -- placeholder's entity index -> when it was seen to come back (os.time)
-    markUp = false,            -- whether the mark was up when last looked for
-    markDead = false,          -- whether its corpse has been counted
+    marks = {},                -- a mark's key -> { up, dead }: whether it was up when last looked for, and whether its corpse has been counted
     nearest = nil,             -- how far the monster on show's nearest spawn point is, in words
-    markTimer = nil,           -- how the mark's window stands, in words
-    viewTimer = nil,           -- and the monster on show's
-    timers = {},               -- and every other kept: a line to each of options.tods
+    viewTimer = nil,           -- how the monster on show's window stands, in words
+    timers = {},               -- and every one kept: a line to each of options.tods
+    timerOf = {},              -- the same, by the monster's key
+    rows = {},                 -- the Marks tab's list: every mark, then every other monster a time of death is kept for
 };
 
 local watching = nil; -- the settings, for what is said as the game is looked at
@@ -263,7 +284,7 @@ local function WatchPlaceholder(entities, placeholder)
     end
 end
 
-local function Watch(entities, record)
+local function Watch(entities, record, placeholdersToo)
     local up, dead = false, false;
     for _, index in ipairs(record.indices) do
         local sight = Look(entities, index);
@@ -273,7 +294,7 @@ local function Watch(entities, record)
             dead = dead or not sight.up;
         end
     end
-    for _, placeholder in ipairs(record.placeholders or {}) do
+    for _, placeholder in ipairs(placeholdersToo and record.placeholders or {}) do
         WatchPlaceholder(entities, placeholder);
     end
     return up, dead;
@@ -304,11 +325,45 @@ local function Nearest(record)
     return ('Nearest is %d yalms %s of you.'):format(math.floor(best + 0.5), hunts.Compass(east, north));
 end
 
-local function Mark(options)
-    if options.markName == '' then
-        return nil;
+local function AddMark(options, zone, name)
+    if IsMark(options, zone, name) == nil then
+        options.marks[#options.marks + 1] = T{ zone = zone, name = name };
     end
-    return hunts.Monster(options.markZone, options.markName);
+    live.marks[Key(zone, name)] = nil;
+    live.checked = 0;
+    app:Save();
+end
+
+local function RemoveMark(options, zone, name)
+    local place = IsMark(options, zone, name);
+    if place ~= nil then
+        table.remove(options.marks, place);
+    end
+    live.marks[Key(zone, name)] = nil;
+    live.checked = 0;
+    app:Save();
+end
+
+-- A line of the Marks tab's list: what does not change is put into words once
+local function Row(place, zone, name, isMark)
+    local row = live.rows[place] or {};
+    live.rows[place] = row;
+    if row.zone ~= zone or row.name ~= name then
+        row.zone, row.name, row.zoneName = zone, name, hunts.ZoneName(zone);
+        row.record = hunts.Monster(zone, name);
+        row.placeholders = {};
+        for each, placeholder in ipairs(row.record and row.record.placeholders or {}) do
+            row.placeholders[each] = { index = placeholder.index, label = ('   %s (%03X)'):format(placeholder.name, placeholder.index) };
+        end
+    end
+    row.mark, row.here, row.timer, row.index = isMark, zone == live.zone, live.timerOf[Key(zone, name)], nil;
+    -- whichever of its spawns is in range, one that is up before one that is dead
+    for _, index in ipairs(row.here and row.record and row.record.indices or {}) do
+        local sight = live.sights[index];
+        if sight ~= nil and (row.index == nil or sight.up) then
+            row.index = index;
+        end
+    end
 end
 
 local function Update(options)
@@ -339,46 +394,57 @@ local function Update(options)
         live.sights[index] = nil;
     end
 
+    local watched = {}; -- a monster whose placeholders have been looked at this time round
     local shown = options.viewName ~= '' and hunts.Monster(options.viewZone, options.viewName) or nil;
     live.nearest = nil;
     if shown ~= nil and live.zone == options.viewZone then
-        Watch(entities, shown);
+        Watch(entities, shown, true);
+        watched[shown] = true;
         live.nearest = Nearest(shown);
     end
 
-    local mark = Mark(options);
-    if mark == nil or live.zone ~= options.markZone then
-        live.markUp, live.markDead = false, false;
-    else
-        local up, dead = Watch(entities, mark);
-        if up and not live.markUp then
-            -- it is back: what was known of its last death is of no more use
-            if Tod(options, options.markZone, options.markName) ~= nil then
-                SetTod(options, options.markZone, options.markName, nil);
-            end
-            if options.announce[1] then
-                local sight = nil;
-                for _, index in ipairs(mark.indices) do
-                    if live.sights[index] ~= nil and live.sights[index].up then
-                        sight = live.sights[index];
-                    end
+    for _, mark in ipairs(options.marks) do
+        local key = Key(mark.zone, mark.name);
+        local state = live.marks[key] or { up = false, dead = false };
+        live.marks[key] = state;
+        local record = hunts.Monster(mark.zone, mark.name);
+        if record == nil or live.zone ~= mark.zone then
+            state.up, state.dead = false, false;
+        else
+            local up, dead = Watch(entities, record, not watched[record]);
+            watched[record] = true;
+            if up and not state.up then
+                -- it is back: what was known of its last death is of no more use
+                if Tod(options, mark.zone, mark.name) ~= nil then
+                    SetTod(options, mark.zone, mark.name, nil);
                 end
-                Say(('%s: %s.'):format(options.markName, sight.text));
+                if options.announce[1] then
+                    local sight = nil;
+                    for _, index in ipairs(record.indices) do
+                        if live.sights[index] ~= nil and live.sights[index].up then
+                            sight = live.sights[index];
+                        end
+                    end
+                    Say(('%s: %s.'):format(mark.name, sight.text));
+                end
+                sound.SetEnabled(options.sound[1]);
+                sound.Play('open');
             end
-            sound.SetEnabled(options.sound[1]);
-            sound.Play('open');
-        end
-        if dead and not up and not live.markDead then
-            SetTod(options, options.markZone, options.markName, os.time());
-            if options.announce[1] then
-                Say(('%s is dead. The time is kept from now.'):format(options.markName));
+            if dead and not up and not state.dead then
+                SetTod(options, mark.zone, mark.name, os.time());
+                if options.announce[1] then
+                    Say(('%s is dead. The time is kept from now.'):format(mark.name));
+                end
             end
+            state.up, state.dead = up, dead and not up;
         end
-        live.markUp, live.markDead = up, dead and not up;
     end
 
     -- how each window stands
-    live.markTimer, live.viewTimer = nil, nil;
+    live.viewTimer = nil;
+    for key in pairs(live.timerOf) do
+        live.timerOf[key] = nil;
+    end
     for place, tod in ipairs(options.tods) do
         local record = hunts.Monster(tod.zone, tod.name);
         local timer = live.timers[place] or {};
@@ -387,15 +453,29 @@ local function Update(options)
         if record ~= nil then
             timer.text, timer.open = Standing(record, tod.at);
         end
-        if tod.zone == options.markZone and tod.name == options.markName then
-            live.markTimer = timer;
-        end
+        live.timerOf[Key(tod.zone, tod.name)] = timer;
         if tod.zone == options.viewZone and tod.name == options.viewName then
             live.viewTimer = timer;
         end
     end
     for place = #options.tods + 1, #live.timers do
         live.timers[place] = nil;
+    end
+
+    -- the Marks tab's list
+    local count = 0;
+    for _, mark in ipairs(options.marks) do
+        count = count + 1;
+        Row(count, mark.zone, mark.name, true);
+    end
+    for _, tod in ipairs(options.tods) do
+        if IsMark(options, tod.zone, tod.name) == nil then
+            count = count + 1;
+            Row(count, tod.zone, tod.name, false);
+        end
+    end
+    for place = count + 1, #live.rows do
+        live.rows[place] = nil;
     end
 end
 
@@ -529,12 +609,6 @@ end
 local function Show(options, zone, name)
     options.viewZone, options.viewName = zone, name or '';
     live.checked = 0; -- looked at again at once
-end
-
-local function SetMark(options, zone, name)
-    options.markZone, options.markName = zone, name;
-    live.markUp, live.markDead, live.checked = false, false, 0;
-    app:Save();
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -836,72 +910,118 @@ local function Timer(timer)
     end
 end
 
--- The mark, where it is and what is known of its return: what the compact window is made of, and
--- what heads the whole one
-local function DrawMark(options, withPlaceholders)
-    local mark = Mark(options);
-    if mark == nil then
-        return false;
-    end
-    imgui.TextColored(gold, 'Mark:');
-    imgui.SameLine();
-    imgui.Text(options.markName);
-    imgui.SameLine();
-    if live.zone ~= options.markZone then
-        imgui.TextDisabled(hunts.ZoneName(options.markZone));
+-- Whether a monster of the list is in range, or that it is in another zone
+local function Presence(row)
+    if not row.here then
+        imgui.TextDisabled('Not In Zone');
     else
-        local seen = false;
-        for _, index in ipairs(mark.indices) do
-            if live.sights[index] ~= nil then
-                Sight(index);
-                seen = true;
-                break;
-            end
-        end
-        if not seen then
-            imgui.TextDisabled('Not In Range');
-        end
+        Sight(row.index);
     end
-    if live.markTimer ~= nil then
-        Timer(live.markTimer);
-    end
-    if withPlaceholders and live.zone == options.markZone then
-        for _, placeholder in ipairs(mark.placeholders or {}) do
-            imgui.Text(placeholder.name);
-            imgui.SameLine();
-            Status(placeholder.index);
-        end
-    end
-    return true;
 end
 
--- Every other time of death kept, with how its window stands and a button to forget it
-local function DrawTimers(options)
+-- The marks, where each is and what is known of its return: what the compact window is made of
+local function DrawCompact()
     local drawn = false;
-    for place, tod in ipairs(options.tods) do
-        local timer = live.timers[place];
-        if timer ~= nil and not (tod.zone == options.markZone and tod.name == options.markName) then
-            imgui.PushID(place);
-            if imgui.SmallButton('x') then
-                SetTod(options, tod.zone, tod.name, nil);
-                live.checked = 0;
-                imgui.PopID();
-                return true;
+    for _, row in ipairs(live.rows) do
+        if row.mark then
+            imgui.TextColored(gold, row.name);
+            imgui.SameLine();
+            if row.here then
+                Sight(row.index);
+            else
+                imgui.TextDisabled(row.zoneName);
             end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('Forget this time of death.');
+            if row.timer ~= nil then
+                Timer(row.timer);
             end
-            imgui.PopID();
-            imgui.SameLine();
-            imgui.TextColored(widgets.HeaderColor, tod.name);
-            imgui.SameLine();
-            imgui.TextDisabled(hunts.ZoneName(tod.zone));
-            imgui.SameLine();
-            Timer(timer);
+            for _, placeholder in ipairs(row.here and row.placeholders or {}) do
+                imgui.Text(placeholder.label);
+                imgui.SameLine();
+                Status(placeholder.index);
+            end
             drawn = true;
         end
     end
     return drawn;
+end
+
+local wantTab = nil; -- a tab to be turned to: 1 for Look Up
+
+-- The Marks tab: every mark, and every other monster a time of death is kept for
+local function DrawMarks(options)
+    if #live.rows == 0 then
+        imgui.TextDisabled('No marks, and no times of death.');
+        imgui.TextDisabled('Set As Mark or Report TOD, on the Look Up tab, puts a monster here.');
+        return;
+    end
+    if not imgui.BeginTable('mark.marks', 5, ImGuiTableFlags_SizingFixedFit) then
+        return;
+    end
+    imgui.TableSetupColumn('Monster', ImGuiTableColumnFlags_WidthFixed);
+    imgui.TableSetupColumn('Zone', ImGuiTableColumnFlags_WidthFixed);
+    imgui.TableSetupColumn('Now', ImGuiTableColumnFlags_WidthFixed);
+    imgui.TableSetupColumn('Window', ImGuiTableColumnFlags_WidthFixed);
+    imgui.TableSetupColumn('##mark.marksButtons', ImGuiTableColumnFlags_WidthFixed);
+    imgui.TableHeadersRow();
+    for place, row in ipairs(live.rows) do
+        imgui.PushID(place);
+        imgui.TableNextRow();
+        imgui.TableNextColumn();
+        imgui.AlignTextToFramePadding();
+        imgui.TextColored(row.mark and gold or widgets.HeaderColor, row.name);
+        if not row.mark and imgui.IsItemHovered() then
+            imgui.SetTooltip('Not a mark: here for its time of death.');
+        end
+        imgui.TableNextColumn();
+        imgui.Text(row.zoneName);
+        imgui.TableNextColumn();
+        Presence(row);
+        imgui.TableNextColumn();
+        if row.timer ~= nil then
+            Timer(row.timer);
+        else
+            imgui.TextDisabled('No time of death');
+        end
+        imgui.TableNextColumn();
+        if imgui.SmallButton('Look Up') then
+            Show(options, row.zone, row.name);
+            wantTab = 1;
+        end
+        imgui.SameLine();
+        if imgui.SmallButton('TOD') then
+            SetTod(options, row.zone, row.name, os.time());
+            live.checked = 0;
+        end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('It died just now: its window is counted from here. For a death some time ago, Report TOD on the Look Up tab, or /mark tod.');
+        end
+        if row.timer ~= nil then
+            imgui.SameLine();
+            if imgui.SmallButton('Clear TOD') then
+                SetTod(options, row.zone, row.name, nil);
+                live.checked = 0;
+            end
+        end
+        imgui.SameLine();
+        if row.mark then
+            if imgui.SmallButton('Clear Mark') then
+                RemoveMark(options, row.zone, row.name);
+            end
+        elseif imgui.SmallButton('Set As Mark') then
+            AddMark(options, row.zone, row.name);
+        end
+        -- a mark of the zone the player is in: its placeholders under it
+        for _, placeholder in ipairs(row.mark and row.here and row.placeholders or {}) do
+            imgui.TableNextRow();
+            imgui.TableNextColumn();
+            imgui.TextDisabled(placeholder.label);
+            imgui.TableNextColumn();
+            imgui.TableNextColumn();
+            Status(placeholder.index);
+        end
+        imgui.PopID();
+    end
+    imgui.EndTable();
 end
 
 local function DrawPicker(options)
@@ -963,17 +1083,17 @@ local dropFlags = bit.bor(ImGuiTableFlags_SizingFixedFit, ImGuiTableFlags_NoHost
 
 local function DrawMonster(options)
     local record = view.record;
-    local isMark = options.markName == options.viewName and options.markZone == options.viewZone;
+    local isMark = IsMark(options, options.viewZone, options.viewName) ~= nil;
 
     imgui.AlignTextToFramePadding();
     imgui.TextColored(isMark and gold or widgets.HeaderColor, options.viewName);
     imgui.SameLine();
     if isMark then
         if imgui.Button('Clear Mark##mark.clear') then
-            SetMark(options, 0, '');
+            RemoveMark(options, options.viewZone, options.viewName);
         end
     elseif imgui.Button('Set As Mark##mark.set') then
-        SetMark(options, options.viewZone, options.viewName);
+        AddMark(options, options.viewZone, options.viewName);
     end
     imgui.SameLine();
     if imgui.Button(options.showMap[1] and 'Hide Map##mark.map' or 'Show Map##mark.map') then
@@ -1001,9 +1121,7 @@ local function DrawMonster(options)
             SetTod(options, options.viewZone, options.viewName, nil);
             live.checked = 0;
         end
-        if not isMark and live.viewTimer ~= nil then
-            Timer(live.viewTimer);
-        end
+        Timer(live.viewTimer);
     end
 
     -- the sentences keep to the width of the tables under them
@@ -1127,30 +1245,7 @@ local function DrawMonster(options)
     imgui.PopTextWrapPos();
 end
 
-local function Draw(options)
-    if options.compact[1] then
-        if not DrawMark(options, true) then
-            imgui.Text('No mark is set.');
-            imgui.TextDisabled('/mark compact brings the whole window back.');
-        end
-        return;
-    end
-
-    local headed = false;
-    if DrawMark(options, false) then
-        if options.markName ~= options.viewName or options.markZone ~= options.viewZone then
-            imgui.SameLine();
-            if imgui.SmallButton('Show##mark.show') then
-                Show(options, options.markZone, options.markName);
-            end
-        end
-        headed = true;
-    end
-    headed = DrawTimers(options) or headed;
-    if headed then
-        imgui.Separator();
-    end
-
+local function DrawLookUp(options)
     DrawPicker(options);
     imgui.Separator();
     if view.record ~= nil then
@@ -1162,14 +1257,63 @@ local function Draw(options)
     end
 end
 
+-- The header: the addon's name, and at the far end of the line a button that closes the window. How
+-- far that is, is what is under the header was wide the frame before: the button is not to be what
+-- holds the window to its width.
+local header = { body = 0, button = TextBaseWidth * 3 };
+
+local function DrawHeader(options)
+    local left = imgui.GetCursorPosX();
+    imgui.AlignTextToFramePadding();
+    imgui.TextColored(widgets.HeaderColor, 'Mark');
+    imgui.SameLine();
+    local nextTo = imgui.GetCursorPosX();
+    imgui.SameLine(math.max(nextTo, left + header.body - header.button));
+    if imgui.Button('x##mark.close') then
+        options.isVisible[1] = false;
+        app:Save();
+    end
+    header.button = imgui.GetItemRectSize() or header.button;
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Closes the window. /mark brings it back; the marks are watched meanwhile.');
+    end
+end
+
+local function Draw(options)
+    if options.compact[1] then
+        if not DrawCompact() then
+            imgui.Text('No mark is set.');
+            imgui.TextDisabled('/mark compact brings the whole window back.');
+        end
+        return;
+    end
+
+    DrawHeader(options);
+    local turnTo = wantTab;
+    wantTab = nil;
+    imgui.BeginGroup();
+    if imgui.BeginTabBar('##mark.tabs', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
+        if imgui.BeginTabItem('Look Up##mark.lookUp', 0, turnTo == 1 and ImGuiTabItemFlags_SetSelected or 0) then
+            DrawLookUp(options);
+            imgui.EndTabItem();
+        end
+        if imgui.BeginTabItem('Marks##mark.marksTab') then
+            DrawMarks(options);
+            imgui.EndTabItem();
+        end
+        imgui.EndTabBar();
+    end
+    imgui.EndGroup();
+    header.body = imgui.GetItemRectSize() or header.body;
+end
+
 ----------------------------------------------------------------------------------------------------
 -- The settings, the settings window, the command and the main window's frame are the shell's
 ----------------------------------------------------------------------------------------------------
 local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 },
-    markZone = 0,                -- the mark: its zone and its name, or none
-    markName = '',
+    marks = T{ },                -- the marks: each { zone, name }
     tods = T{ },                 -- times of death kept: each { zone, name, at (os.time) }
     viewZone = 0,                -- the monster on show
     viewName = '',
@@ -1198,7 +1342,7 @@ local function DrawSettings(options)
     widgets.Label('Compact Window');
     imgui.Checkbox('##mark.compact', options.compact);
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Only the mark: whether it and its placeholders are in range, and what is known of its return. /mark compact switches this.');
+        imgui.SetTooltip('Only the marks, with no header and no tabs: whether each and its placeholders are in range, and what is known of its return. /mark compact switches this.');
     end
 
     widgets.Gap();
@@ -1248,15 +1392,27 @@ app = shell.New({
     window = windowName,
     configTitle = 'Mark Settings',
     command = '/mark',
-    help = '/mark shows or hides the window; /mark config opens or closes the settings; /mark compact switches to the mark\'s few lines and back; /mark map shows or hides the map; /mark set <name> makes a monster the mark; /mark clear leaves none; /mark tod [minutes ago | hours:minutes | clear] keeps its time of death.',
+    help = '/mark shows or hides the window; /mark config opens or closes the settings; /mark compact switches to the marks\' few lines and back; /mark map shows or hides the map; /mark set <name> makes a monster a mark; /mark clear [name] leaves none, or one fewer; /mark tod [minutes ago | hours:minutes | clear] keeps a mark\'s time of death; /mark ph <ID> [minutes ago | clear] times a placeholder.',
     drawSettings = DrawSettings,
     onSettings = function(options)
         -- anything a saved file has in another shape than it should
-        for _, key in ipairs({ 'compact', 'announce', 'sound', 'announcePlaceholders', 'showScripted', 'maxTh', 'showMap', 'mapSize', 'tods' }) do
+        for _, key in ipairs({ 'compact', 'announce', 'sound', 'announcePlaceholders', 'showScripted', 'maxTh', 'showMap', 'mapSize', 'tods', 'marks' }) do
             if type(options[key]) ~= 'table' then
                 options[key] = defaults[key];
             end
         end
+        for place = #options.marks, 1, -1 do
+            local mark = options.marks[place];
+            if type(mark) ~= 'table' or type(mark.zone) ~= 'number' or type(mark.name) ~= 'string' then
+                table.remove(options.marks, place);
+            end
+        end
+        -- the one mark of a file saved when there could be no more
+        if type(options.markName) == 'string' and options.markName ~= '' and type(options.markZone) == 'number'
+            and IsMark(options, options.markZone, options.markName) == nil then
+            options.marks[#options.marks + 1] = T{ zone = options.markZone, name = options.markName };
+        end
+        options.markZone, options.markName = nil, nil;
         -- a time of death with a part missing is of no use
         for place = #options.tods, 1, -1 do
             local tod = options.tods[place];
@@ -1273,16 +1429,20 @@ app = shell.New({
             options.showMap[1] = not options.showMap[1];
         end,
         ph = function(options, args)
-            -- a placeholder of the mark's or of the monster on show's, in the zone the player is in, by its ID
+            -- a placeholder of a mark's or of the monster on show's, in the zone the player is in, by its ID
             local index = args[3] ~= nil and tonumber(args[3], 16) or nil;
             local found = nil;
-            for _, record in ipairs({ live.zone == options.markZone and Mark(options) or false,
-                live.zone == options.viewZone and options.viewName ~= '' and hunts.Monster(options.viewZone, options.viewName) or false }) do
+            local function Among(zone, name)
+                local record = zone == live.zone and name ~= '' and hunts.Monster(zone, name) or nil;
                 for _, placeholder in ipairs(record and record.placeholders or {}) do
                     if placeholder.index == index then
                         found = placeholder;
                     end
                 end
+            end
+            Among(options.viewZone, options.viewName);
+            for _, mark in ipairs(options.marks) do
+                Among(mark.zone, mark.name);
             end
             if found == nil then
                 Say('/mark ph <ID> [minutes ago | clear]: the ID of a placeholder of the mark\'s, in the zone you are in, as the window shows it.');
@@ -1303,10 +1463,19 @@ app = shell.New({
             Say(('%s (%03X) is timed from %s.'):format(found.name, index, os.date('%H:%M:%S', live.deaths[index])));
         end,
         tod = function(options, args)
-            -- the mark's, or with no mark the monster on show's
-            local zone, name = options.markZone, options.markName;
-            if name == '' then
-                zone, name = options.viewZone, options.viewName;
+            -- the mark's: the one of the zone the player is in, or the only one there is. Failing
+            -- that, the monster on show's.
+            local zone, name = options.viewZone, options.viewName;
+            local here, only = nil, 0;
+            for _, mark in ipairs(options.marks) do
+                if mark.zone == live.zone then
+                    here, only = mark, only + 1;
+                end
+            end
+            if only == 1 then
+                zone, name = here.zone, here.name;
+            elseif #options.marks == 1 then
+                zone, name = options.marks[1].zone, options.marks[1].name;
             end
             if name == '' or hunts.Monster(zone, name) == nil then
                 Say('There is no mark, and no monster on show, to keep a time of death for.');
@@ -1326,11 +1495,21 @@ app = shell.New({
             SetTod(options, zone, name, at);
             Say(('%s: died at %s. %s'):format(name, os.date('%H:%M', at), (Standing(hunts.Monster(zone, name), at)):gsub('^Died .- ago%.%s*', '')));
         end,
-        clear = function(options)
-            if options.markName ~= '' then
-                Say(('%s is no longer the mark.'):format(options.markName));
+        clear = function(options, args)
+            -- every mark, or the one named
+            local words = table.concat(args, ' ', 3):lower();
+            local cleared = 0;
+            for place = #options.marks, 1, -1 do
+                local mark = options.marks[place];
+                if words == '' or mark.name:lower():find(words, 1, true) ~= nil then
+                    Say(('%s is no longer a mark.'):format(mark.name));
+                    RemoveMark(options, mark.zone, mark.name);
+                    cleared = cleared + 1;
+                end
             end
-            SetMark(options, 0, '');
+            if cleared == 0 and words ~= '' then
+                Say(('No mark has "%s" in its name.'):format(words));
+            end
         end,
         set = function(options, args)
             local words = table.concat(args, ' ', 3);
@@ -1352,9 +1531,9 @@ app = shell.New({
                 Say(('No notorious monster has "%s" in its name.'):format(words));
                 return;
             end
-            SetMark(options, best.zone, best.name);
+            AddMark(options, best.zone, best.name);
             Show(options, best.zone, best.name);
-            Say(('%s is the mark.'):format(best.label));
+            Say(('%s is a mark.'):format(best.label));
         end,
     },
 });
@@ -1366,7 +1545,7 @@ local function drawMapWindow()
 end
 
 ashita.events.register('d3d_present', 'mark_present', function()
-    -- the mark is watched whether or not the window is there to be seen
+    -- the marks are watched whether or not the window is there to be seen
     local shown = app:BeginFrame();
     local options = app.options;
     Update(options);

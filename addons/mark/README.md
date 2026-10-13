@@ -1,25 +1,30 @@
 # mark
 
-Pick a notorious monster from a dropdown, make it your mark, and see what the server's own data says of
+Pick a notorious monster from a dropdown, make it a mark, and see what the server's own data says of
 it: how it comes to be there, its placeholders, where it and they spawn, and what it drops with the
-chance of each drop at each level of Treasure Hunter. It times the mark's placeholders and its window,
-and shows where it can spawn on the zone's map. Needs the `winxi` library (`addons/libs/winxi`), and
+chance of each drop at each level of Treasure Hunter. It times each mark's placeholders and its window,
+lists every mark and every time of death kept, and shows where a monster can spawn on the zone's map. Needs the `winxi` library (`addons/libs/winxi`), and
 `zoneinfo` installed beside it for the maps' pictures.
 
 - `/mark` shows or hides the window
 - `/mark config` opens or closes the settings
-- `/mark compact` switches between the whole window and the mark's few lines
+- `/mark compact` switches between the whole window and the marks' few lines
 - `/mark map` shows or hides the map
-- `/mark set <name>` makes a monster the mark, by its name or a part of it (one of the zone you are in
+- `/mark set <name>` makes a monster a mark, by its name or a part of it (one of the zone you are in
   before any other)
-- `/mark clear` leaves no mark
-- `/mark tod` keeps a time of death for the mark (or, with no mark, the monster on show): now, or
-  `/mark tod 15` for fifteen minutes ago, or `/mark tod 14:35` for a time by the computer's clock;
-  `/mark tod clear` forgets it
+- `/mark clear` leaves no marks, and `/mark clear <name>` takes away the one with that in its name
+- `/mark tod` keeps a time of death for the mark: the one of the zone you are in, or the only one
+  there is; failing that, the monster on show. Now, or `/mark tod 15` for fifteen minutes ago, or
+  `/mark tod 14:35` for a time by the computer's clock; `/mark tod clear` forgets it
 - `/mark ph 126` says the placeholder of that ID died just now, `/mark ph 126 2` two minutes ago, and
   `/mark ph 126 clear` stops timing it
 
 ## The window
+
+A header with the addon's name and, at its far end, an `x` that closes the window (`/mark` brings it
+back; the marks are watched meanwhile). Under it, two tabs: **Look Up** and **Marks**.
+
+## Look Up
 
 Two dropdowns, a zone's and a monster's; the first time, they open on the zone you are in. **Find**
 takes a part of a name: the monsters dropdown then lists every monster with it, in any zone. Under them,
@@ -41,14 +46,21 @@ for the monster chosen:
   count (`Slime Oil x3`); a roll that gives one of several items is a row `One Of` with each item's own
   chance under it. What can be stolen and despoiled follows.
 
-**Set As Mark** makes the monster the mark, and **Clear Mark** undoes it. **Show Map** opens the map.
+**Set As Mark** makes the monster a mark, and **Clear Mark** undoes it. **Show Map** opens the map.
 **Report TOD** keeps a time of death for the monster on show, now or as many minutes ago as the box
 beside it says, and **Clear TOD** forgets it.
 
-## The mark
+## Marks
 
-The mark heads the window, with whether it is in range and which way. It is watched whether or not the
-window is showing:
+A line for every monster made a mark (its name in gold), and after them one for every other monster a
+time of death is kept for. Each has its zone, whether it is in range and which way (`Not In Zone` when
+you are somewhere else), and how its window stands, in green once it is open. Its buttons: **Look Up**
+turns to the first tab with that monster on show, **TOD** says it died just now, **Clear TOD** forgets
+its time of death, and **Clear Mark** or **Set As Mark** takes it off the marks or puts it on them. A
+monster that is no mark and has no time of death leaves the list. Under a mark of the zone you are in
+are its placeholders, each with whether it is in range or when it respawns.
+
+There can be as many marks as are wanted. Each is watched whether or not the window is showing:
 
 - as it comes into range the chat log says so, with how far and which way, and a sound plays (Announce
   Mark, Sound When Up);
@@ -62,14 +74,14 @@ window is showing:
   Placeholders). These are kept only while the addon is loaded and you stay in the zone. The monster
   on show has its placeholders timed the same way, mark or not.
 
-**Compact Window** (or `/mark compact`) leaves only the mark's lines: the mark, how its window stands,
-and each placeholder with whether it is in range or when it respawns.
+**Compact Window** (or `/mark compact`) leaves only the marks' lines, with no header and no tabs: each
+mark, how its window stands, and each placeholder with whether it is in range or when it respawns.
 
 ## Times of death
 
 A death you did not see can be given by hand, for any monster: **Report TOD** in the window, or
-`/mark tod` for the mark. Every time kept is listed at the head of the window with how the monster's
-window stands, in green once it is open, and an `x` to forget it. They are saved with the settings.
+`/mark tod` for the mark. Every time kept is listed on the Marks tab with how the monster's window
+stands. They are saved with the settings.
 
 ## The map
 
@@ -104,7 +116,7 @@ memory and asks the server nothing.
 | Setting | |
 |---|---|
 | Visible, Position | The window. |
-| Compact Window | Only the mark's lines. |
+| Compact Window | Only the marks' lines. |
 | Show Map, Map Size | The map window, and how many pixels across it is drawn (the pictures are 512). |
 | Show Scripted Spawns | Lists as well the monsters the data knows only as brought by a script (a quest, a battlefield, an event): their drops are there, and nothing of how they are brought. Off, about a quarter of the monsters are listed. |
 | Highest Treasure Hunter | The drops are worked out up to this level, 0 to 14. The server takes up to 4 from a job that is not a thief's and up to 8 from a thief; more comes only as a thief's blows raise it in the fight. |
