@@ -4,7 +4,7 @@ An Ashita v4 plugin that gives addons a hold on the names the game draws over ch
 
 It is a fork of nameplatew, which is a fork of Nameplate-AshitaV4, a community fork of [`Shirk/Nameplate`](https://github.com/Shirk/Nameplate). It still does what Nameplate does (names and damage numbers that are not stretched or blurred on a wide screen, at a size you choose, with or without the Job Mastery stars), and keeps nameplatew's whitelist. Changes from nameplatew 0.60 were made in October 2026 and are listed in `CHANGELOG.md`. The license is unchanged: GNU GPL v3.0, in `LICENSE.md`.
 
-It is loaded with `/load namehook`, in place of `/load nameplatew` or `/load nameplate`: the three patch the same client code, and only one can be loaded.
+It is loaded with `/load namehook`, in place of `/load nameplatew` or `/load nameplate`: the three patch the same client code, and only one can be loaded. Loading while `nameplate`, `nameplatew`, or the older `nameplatehook` is running is rejected before patching, with a chat/log message naming the conflict and the `/unload` command needed. Missing rendering signatures also report a possible competing patch or unsupported client version (rather than assuming every signature failure is a conflict).
 
 - [Categories](#categories)
 - [Commands](#commands)
@@ -162,11 +162,12 @@ What is set out goes in `HookDraw` (`src/Nameplate.h`), at the address in the bl
 | `Frame` | Set by the addon to the block's `Frame` each time it sets names out. What was set out more than 2 frames ago is not drawn. |
 | `QuadCount` | How many of `Quads` are in use. Set to 0 by the addon each frame, and raised as it adds them. |
 | `QuadsMax` | 16384 |
+| `Reserved` | Optional unsigned 16.16 horizontal outline ratio. 0 preserves legacy equal X/Y target-pixel offsets; otherwise X offsets are multiplied by `Reserved / 65536`. Older plugins ignore it. The shared layout/version is unchanged. |
 | `Textures` | Eight Direct3D textures (`IDirect3DTexture8*`), or 0. The plugin holds each while it draws from it. |
 | `Entities` | For each of the client's 0x900 entities, by index: `Frame` (as `HookDraw`'s when it was set out, or it is not drawn), `First` and `Count` (its quads, 256 at most), `Alpha` (0 to 1, how solid the whole name is), `Edge` (how thick a dark edge its edged quads are given, in pixels) and `EdgeColor`. A quad's edge is as solid as the quad's own colour is |
 | `Quads` | Each a rectangle: its corners `X0`, `Y0`, `X1`, `Y1` in pixels of the client's picture, measured from the point the client puts the name at; the same corners in its texture, `U0`, `V0`, `U1`, `V1`; `Color` as 0xAARRGGBB; `Texture`, which of the eight; and `Flags`, 1 if it is given the edge |
 
-The quads are in pixels of the client's picture, not of its window: an addon that wants a letter 15 pixels high on the screen makes it `15 * TargetWidth / Width` high. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/name/custom.lua` sets names out this way, from imgui's font.
+The quads are in pixels of the client's picture, not of its window. `BeginDrawing(hook, true)` returns `TargetHeight / DisplaySize.y` for uniform vertical layout; `Quad` separately fits X coordinates by `(TargetWidth / DisplaySize.x) / (TargetHeight / DisplaySize.y)`. It also publishes that ratio for native outline offsets and bounds. This keeps text, icons, spacing and outlines proportional on nonuniform background targets, independently of menu resolution. The corrected outlines require the updated plugin; older plugins still draw corrected quads but ignore the outline ratio. Calls without the opt-in retain the legacy horizontal scale and unmodified target coordinates. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/name/custom.lua` sets names out this way, from imgui's font.
 
 The plugin draws a name when all of these hold: its category is claimed, it is wanted, and the addon set it out within the last 2 frames. It is then listed with the custom flag. A claimed name that was not set out is not drawn at all. What is set out in one frame is drawn in the next, where the client then puts the name: the name's place is never a frame behind, only what it looks like.
 

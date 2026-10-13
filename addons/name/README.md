@@ -31,18 +31,21 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Twister's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-Public tabs are **Nameplates → Filters**. Experimental and Appearance are hidden;
+Public tabs are **Nameplates → Filters → NM Tracking**. Experimental and Appearance are hidden;
 GDI is forced off so testers exercise the ImGui renderer.
 
-- **Nameplates:** follows `guis/name.menu`: Name Appearance, Player Icons, and
-  Check. Options boxes measure the longest option row and share a width fitted
+- **Nameplates:** follows `guis/name.menu`: Name Appearance, Player Icons,
+  Mob Nameplates, and Check. Options boxes measure the longest option row and share a width fitted
   to that row plus its help marker and padding. Every `(?)` sits in the same
   right-aligned column. Measurements exclude help and window width, preventing
   auto-size feedback; widths can shrink when content becomes shorter. Font sizes and icon padding use numeric
   inputs; outline thickness uses radio buttons 0–3. Font selection comes first.
-  Format controls are hidden; drawing uses the saved `name_defaults.lua` formats:
-  `[name]` for general names and `[aggro] Lv [level]. [name]` for monsters,
-  targeted monsters and checked monsters.
+  **Mob Nameplates** exposes Show Level / Range, Show Aggro Icons, experimental Mob Letters,
+  and Mob Format.
+  Target Format and Checked Format controls are hidden. Mob strings are saved per character;
+  the baseline is `[aggro] Lv [level]. [name]`. Mob Format applies to ordinary,
+  targeted, and checked mobs alike. Legacy target/checked overrides are ignored.
+  The general player-name format remains fixed at `[name]`.
 - **Filters:** Players, Pets, NPCs And Monsters, Target, and Status, using the
   same bordered sections, content-fitted widths, and aligned help column.
 
@@ -111,6 +114,22 @@ Font-size rungs are also cached until maximum height changes;
 empty format parts avoid run-cache work and check-detail layout uses no temporary
 width table.
 
+Letter badges keep their A–Z definitions on the close-up font set. Warm frames only
+probe the font for atlas movement; they do not reread all 26 glyphs or serialize the
+badge cache key. Font-set replacement invalidates these immutable definitions,
+while the stable-frame delay and bounded texture retries remain in place.
+
+Run the Linux synthetic CPU/allocation check with:
+
+```sh
+luajit tests/harness.lua name addons/name/name.lua tests/name_performance_check.lua
+```
+
+It tests 0, 32, 128 and the plugin maximum of 256 names with letters off/on, checks that warm frames perform no
+badge texture readback/upload, and reports time and allocations per frame. These
+are mocked addon-side measurements, not in-client GPU timings. Set
+`NAME_BENCH_FRAMES` to change the timing sample count (default 500).
+
 The updated plugin caches complete name bounds and skips vertex expansion and draw
 submission for names fully outside the viewport. A name with an off-screen anchor
 is still drawn if any of its text, icons, stars, outline or details can be visible.
@@ -160,7 +179,109 @@ source is https://github.com/ThornyFFXI/gdifonttexture.
 
 ### How a name is written
 
-Each of the four formats is a line of text. In it `[name]` stands for the name, `[distance]` for how
+Edit **Mob Format** in Nameplates → Mob Nameplates. It applies to every mob nameplate,
+including targeted and checked mobs. The target and checked controls are hidden, and legacy
+saved `targetFormat` and `checkedFormat` strings are ignored. Checking a mob still updates
+its known level and check-detail line; targeting still applies the usual targeting behaviour.
+
+**Show Level / Range** suppresses `[level]` in the mob format, including the standard
+`Lv ` prefix and following dot. **Show Aggro Icons** suppresses inline `[aggro]` icons.
+Both default to on, and neither rewrites the saved strings. Other custom literal labels or
+punctuation remain as typed. These toggles do not change player icons or detection/link icons
+in the check-detail line (use Check → Text Only for those).
+
+### Experimental: tracked notorious monster
+
+This feature is experimental and has a tab of its own, **NM Tracking**. **Tracked NM** there lists
+the notorious monsters of the area you are in
+(and None). The one chosen, and each of its placeholders, has `assets/special/hunt.png` drawn in place
+of its `[aggro]` icon, so it needs `[aggro]` in Mob Format and Show Aggro Icons on. The choice is kept by name when you leave the
+area and does nothing elsewhere.
+
+**Hunt Target Scale** (100–200%, shown while a monster is tracked) enlarges the tracked monster's
+whole nameplate at every distance; its placeholders stay the usual size. Above 100% the letters are
+the largest size's drawn larger, so they are slightly softer.
+
+When the tracked monster has placeholders, **Label Placeholders** appears (on by default): each
+placeholder's `[name]` is written as `Placeholder`. The rest of its nameplate, its level and letter
+included, is unchanged. Placeholders are the spawn slots the server's scripts list in the
+monster's `phList`, bundled per area in `placeholders/<zone>.lua` and regenerated with:
+
+```sh
+python tools/build_name_placeholders.py
+```
+
+Requires PyYAML and luajit; defaults to `references/Phoenix`. A monster that appears by some other
+means than a placeholder (timed, forced, or scripted spawns) has none listed.
+
+### Experimental mob letters
+
+Enable **Mob Letters** in Nameplates → Mob Nameplates (off by default). It adds a compact rounded letter
+badge after the mob nameplate, or uses an explicit `[letter]` token wherever you put it:
+
+```text
+[aggro] Lv [level]. [name] [letter:yellow]
+[letter:cyan] - [name]
+```
+
+The badge is a filled square with subtly rounded, antialiased corners and an **uppercase,
+transparent letter cutout**. Indicators always use **Arial Bold** (`arialbd.ttf`), independently
+of the nameplate font, Bold setting or experimental GDI backend, matching the clean sans-serif
+style in `references/letter_example.png`. The box is about 78% of the nameplate font height, with a subtle corner radius of about 8% of its side.
+All distances use the same close-up badge artwork, scaled down smoothly rather than switching
+to separately rasterized smaller letters. This keeps the letter shape consistent as you approach.
+The game scene shows through the letter. The fill uses the nameplate colour, or the explicit
+token colour; the entire badge scales and fades with the nameplate. The badge uses the same
+outline effect as the nameplate, including its thickness and colour. This outlines both the
+outside edge and the letter cutout; the cutout's centre remains transparent where the outline
+leaves room. Size/indicator-atlas changes rebuild the cached badge atlas; unchanged frames reuse
+it. If texture preparation fails, an uppercase letter in the same fixed indicator font is used
+and preparation is retried once per second. If Windows' Arial file cannot be loaded, the regular
+ImGui default font is the recovery fallback. No updated plugin DLL is required.
+
+Turning the toggle off hides the token without changing the saved string. Player, pet and NPC
+nameplates are unaffected. All mobs, including targeted and checked mobs, use the same format.
+
+**Consistency across users:** the addon reads the game's own list of the area's names from the client's
+files as the area is entered (`zone_names.lua`), groups it by exact name, sorts each group by stable
+entity index, and labels those spawn slots `a` through `z`, then wraps to `a`. The first slot is `a`,
+including for a name with only one known slot. It includes slots you have not encountered or cannot
+currently see. Entering from a different side, different draw/encounter order, checking, deaths, addon
+reloads and respawns in the same slot therefore do not renumber mobs. No addon communication is needed,
+and nothing is bundled or exported from a server: two clients with the same game files have the same
+letters whatever server they are on and whatever version of the addon they have.
+
+Each area has one such file, numbered `6720 + zone` among the game's (`86491 + zone - 256` for areas
+past 255): 32-byte records, a 28-byte name and the 4-byte server id. It is where the game takes the name
+it writes over a monster, so no name is guessed. Ashita is asked for the file's path
+(`GetResourceManager():GetFilePath`), and it is opened with `fopen_s` so that pivot turns the read
+towards its overlays: Phoenix keeps its own lists in the launcher's `EraDATs` overlay, and they differ
+from the game's own files in 48 areas.
+
+The list is of every slot the game knows, including slots the server leaves empty and the area's
+people. So letters can have gaps (`a`, `b`, `e`) where a server does not use the slots between, and
+a name with many unused slots wraps past `z` sooner.
+
+**Differences are reported, not repaired.** When one of the zone's own monsters stands in a slot the
+list lacks, or under a different name than the list's, the addon says so once in the chat log for that
+zone visit and shows the same warning under Mob Letters in the settings: the server has renamed it, or
+the files read are not the ones the game uses. Such a slot has no letter. Letters are never renumbered
+from what a client has met: no client sees a whole zone, so that would differ between players. Where
+the file cannot be read at all there are no letters in that area, and the settings say why.
+
+**Double Letters** (shown under Mob Letters while it is on, off by default) goes on past `z` in place
+of starting again: the twenty-seventh slot of a name is `aa`, then `ab`, and so on to `zz`, drawn as one
+wider badge with both letters cut out of it. The first 26 are unchanged. Only as many double badges
+are made as the area's most numerous name needs. Two players comparing letters need the same choice.
+
+These are labels for spawn slots, not unique identities across deaths or separate instances. After 26
+same-name slots, letters repeat and are not unique unless Double Letters is on (then after 702). Dynamic spawns and names that do not match their
+slot are left unlabelled: there is no encounter-order fallback. Clients whose game files differ can
+rank differently.
+
+### Format tokens
+
+Each format is a line of text. In it `[name]` stands for the name, `[distance]` for how
 far the character is from you, in yalms to a tenth, as the game measures it, and `[level]` for the
 levels a monster can be. Everything else is written as you type it.
 
@@ -280,17 +401,49 @@ a name hides it, or the part of it that it covers, as it hides the game's.
 
 The letters are those of imgui's font, and where the game's picture is larger than its window (a
 background resolution above the window's) they are made larger to match, so that they are as sharp as
-the rest of the picture. They are kept at three sizes only: the largest a name can be, three quarters
+the rest of the picture. Every frame, Name reads the plugin's world render-target size and ImGui's
+live output size. Horizontal and vertical ratios are applied independently, so fonts, icons and
+spacing do not stretch when the background aspect ratio differs or the client's menu resolution
+is different from the output resolution. The updated `namehook.dll` also applies the horizontal
+ratio to outline offsets and off-screen bounds; update the plugin together with the addon/library. Font sizes are measured in output pixels, not menu pixels. They are kept at three sizes only: the largest a name can be, three quarters
 of it and half of it. A name at its largest is drawn letter for letter; a smaller one is drawn from
 the next size up, scaled down to fit, so that names shrink smoothly with distance and imgui is not
 asked for letters of a new size at every step. What is set out in one frame is drawn in the next.
+
+Resolution regression check:
+
+```sh
+luajit tests/harness.lua name addons/name/name.lua tests/name_resolution_check.lua
+plugins/namehook/tests/run.sh
+```
+
+The Lua check covers the Cartesian product of 11 window, menu and background sizes (4:3, 16:9,
+16:10, ultrawide, portrait and square, through 8K), plus unknown dimensions, output fallback,
+resize transitions and legacy callers. It verifies square geometry, centring, independent spacing
+and outline proportions. Native tests verify aspect-aware bounds and cache invalidation. These
+are CPU/geometry tests, not an in-game GPU certification: check live resizing, depth occlusion,
+font-atlas changes and device resets in the client before treating a configuration as verified.
 
 A name is drawn exactly when the game would have drawn it, and fades with its character as the game's
 does. The game shrinks a name to nothing over the last of its distance; here it shrinks from the
 maximum size to the minimum and fades out, or keeps its size and fades out over the last third.
 
-The icons are drawn from the game's own picture of them, found in its memory (`icons.lua`); the
-linkshell pearl is given its linkshell's colour.
+Player icons and mastery stars use the bundled `assets/player-icons.png`, loaded through the same
+owned Direct3D file-texture cache as the mob icon sheets. `assets/player-icons.lua` contains the fixed
+character-to-pixel mapping; `icons.lua` no longer scans or reads the game's font memory. The linkshell
+pearl retains its linkshell's colour, and two-part icons retain their overlay. Failed sheet loads retry
+once per second; successful textures remain cached for the addon lifetime.
+
+The atlas and mapping were exported from the installed client's high-resolution `ustatshd` and
+`fontshp` resources in `ROM/119/51.DAT`, with icon alpha doubled to match the game's rendering.
+To regenerate from a local install (Python with Pillow):
+
+```sh
+python tools/export_name_icons.py '/path/to/FINAL FANTASY XI/ROM/119/51.DAT'
+```
+
+The addon needs only the bundled PNG and mapping at runtime. Custom game icon/font DAT replacements
+are not automatically reflected; replace/regenerate the bundled atlas if desired.
 
 With the addon unloaded, or the plugin not recognising the client, the game draws
 the names as before.

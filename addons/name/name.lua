@@ -199,11 +199,14 @@ app = shell.New({
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
-    help         = 'Use /name to open the Nameplates and Filters menu. This test build uses ImGui fonts only.',
+    help         = 'Use /name to open the Nameplates, Filters and NM Tracking menu. This test build uses ImGui fonts only.',
     drawSettings = DrawSettings,
     settingsLabel = 'Filters',
     leadingTabs  = {
         { label = 'Nameplates', draw = function (options) custom.DrawSettings(options, app.save); end },
+    },
+    tabs         = {
+        { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end },
     },
 
     commands     = {

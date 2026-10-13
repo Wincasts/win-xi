@@ -42,6 +42,9 @@ struct NameVertex {
 };
 #define NAME_FVF (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1)
 
+// How solid a name has to be, of 255, to be written to the picture's depth
+#define NAME_SOLID 0x80
+
 // One name's quads, each with its four dark copies for the edge
 #define NAME_VERTICES (HOOK_QUADS_PER_NAME * 5 * 6)
 static NameVertex Vertices[NAME_VERTICES];
@@ -73,6 +76,7 @@ private:
     D3DVIEWPORT8 m_Viewport;
     float m_ViewProjection[16];
     bool m_CanDraw;
+    float m_HorizontalFit = 1.0f;
     NameBoundsCache m_NameBounds[HOOK_ENTITIES]; // CPU-only; no device-reset resources
 
     bool MakeNameStates();
@@ -175,6 +179,15 @@ bool AshitaNameplate::Initialize(IAshitaCore* core, ILogManager* log, uint32_t i
     m_AshitaCore = core;
     m_LogManager = log;
     m_PluginId = id;
+
+    // These plugins patch the same instructions. Check before Init writes anything.
+    for (const char* conflict : { "nameplate", "nameplatew", "nameplatehook" }) {
+        if (core->GetPluginManager()->IsLoaded(conflict)) {
+            log->Logf(LogLevel_Critcal, "namehook", "Cannot load while %s is running. Unload it first with /unload %s, then /load namehook.", conflict, conflict);
+            core->GetChatManager()->Writef(0, false, CHAT_HEADER "Cannot load while %s is running. Use /unload %s, then /load namehook. Only one nameplate plugin can run at a time.", conflict, conflict);
+            return false;
+        }
+    }
 
     int ret = this->Init();
     if (ret < 0) {
@@ -374,7 +387,7 @@ static void SetNameStates(IDirect3DDevice8* device) {
     device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
     device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
     device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-    device->SetRenderState(D3DRS_ALPHAREF, 0x80);
+    device->SetRenderState(D3DRS_ALPHAREF, NAME_SOLID);
     device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATEREQUAL);
     device->SetRenderState(D3DRS_COLORWRITEENABLE, 0x0F);
     device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
@@ -409,6 +422,7 @@ static void SetNameStates(IDirect3DDevice8* device) {
 
 void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) {
     m_CanDraw = false;
+    m_HorizontalFit = draw.HorizontalFit();
 
     IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
     if (device == nullptr) {
@@ -527,7 +541,7 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
         return;
     }
 
-    const NameBounds& bounds = m_NameBounds[entityIndex].Get(drawing, quads);
+    const NameBounds& bounds = m_NameBounds[entityIndex].Get(drawing, quads, m_HorizontalFit);
     if (!bounds.Intersects(left, top, static_cast<float>(m_Viewport.X), static_cast<float>(m_Viewport.Y),
             static_cast<float>(m_Viewport.Width), static_cast<float>(m_Viewport.Height))) {
         return; // no vertex expansion, state capture or draw submission for invisible names
@@ -535,6 +549,7 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
 
     uint32_t vertexCount = 0;
     uint32_t runCount = 0;
+    DWORD mostSolid = 0; // of the colours of what is drawn
 
     auto add = [&](const HookQuad& quad, float dx, float dy, DWORD color) {
         if (quad.Texture >= HOOK_TEXTURES || m_Textures[quad.Texture] == nullptr || vertexCount + 6 > NAME_VERTICES) {
@@ -548,6 +563,9 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
             runCount++;
         }
         Runs[runCount - 1].count += 6;
+        if ((color >> 24) > mostSolid) {
+            mostSolid = color >> 24;
+        }
 
         const float x0 = left + quad.X0 + dx;
         const float y0 = top + quad.Y0 + dy;
@@ -568,7 +586,7 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
     if (drawing.Edge > 0.0f) {
         const float edge = (drawing.Edge > 8.0f) ? 8.0f : drawing.Edge;
         for (int corner = 0; corner < 4; corner++) {
-            const float dx = (corner & 1) ? edge : -edge;
+            const float dx = ((corner & 1) ? edge : -edge) * m_HorizontalFit;
             const float dy = (corner & 2) ? edge : -edge;
             for (uint32_t i = 0; i < drawing.Count; i++) {
                 if ((quads[i].Flags & QUAD_EDGED) != 0) {
@@ -603,15 +621,18 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
     }
 
     // Again for the picture's depth alone, where the name is solid: what the client draws after it,
-    // and behind it, is then not drawn over it
-    device->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
-    device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-    device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-    for (uint32_t i = 0; i < runCount; i++) {
-        if (runCount > 1) {
-            device->SetTexture(0, m_Textures[Runs[i].texture]);
+    // and behind it, is then not drawn over it. A name faded past half is solid nowhere, the texture
+    // making it no more so, and has nothing to draw here.
+    if (mostSolid >= NAME_SOLID) {
+        device->SetRenderState(D3DRS_COLORWRITEENABLE, 0);
+        device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
+        device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+        for (uint32_t i = 0; i < runCount; i++) {
+            if (runCount > 1) {
+                device->SetTexture(0, m_Textures[Runs[i].texture]);
+            }
+            device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
         }
-        device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
     }
 
     device->ApplyStateBlock(m_SavedStates);
@@ -673,6 +694,9 @@ void AshitaNameplate::ShowMessage(MESSAGE message, int param) {
     switch (message) {
         case MESSAGE::PLUGIN_LOAD_ERROR:
             chat->Writef(0, false, CHAT_HEADER "\x1e\x44Plugin load failed with error code \x1e\x05%d\x1e\x44!", param);
+            if (param == -9 || param == -10 || param == -11 || param == -14 || param == -18) {
+                chat->Write(0, false, CHAT_HEADER "Required client rendering code was not found. Another nameplate plugin or patch may already own it; unload nameplate/nameplatew/nameplatehook before loading namehook. An unsupported client version can also cause this error.");
+            }
             break;
         case MESSAGE::PLUGIN_UNLOAD_ERROR:
             chat->Writef(0, false, CHAT_HEADER "\x1e\x44Plugin unload failed with error code \x1e\x05%d\x1e\x44!", param);

@@ -7,7 +7,7 @@ local Category, Flag = nameplates.Category, nameplates.Flag
 local renderer = require('custom')
 local frameForTests = renderer.Frame
 local suppliedFormats
--- Exercise arbitrary renderer formats as fixtures; production supplies the locked profile.
+-- Exercise arbitrary renderer formats as fixtures; production fixes only the player-name baseline.
 renderer.Frame = function(options, hook, formats)
     suppliedFormats = formats
     return frameForTests(options, hook)
@@ -47,7 +47,7 @@ H.print('nothing is written', block.Hidden == 0)
 -- the plugin loaded: found, and given the settings
 loaded = true
 H.frames(1)
-H.print('production supplies locked saved formats', suppliedFormats ~= nil and suppliedFormats.nameFormat[1] == '[name]',
+H.print('production supplies preferred baseline formats', suppliedFormats ~= nil and suppliedFormats.nameFormat[1] == '[name]',
     suppliedFormats ~= nil and suppliedFormats.monsterFormat[1] == '[aggro] Lv [level]. [name]',
     suppliedFormats ~= nil and suppliedFormats.targetFormat[1] == suppliedFormats.checkedFormat[1])
 H.print('plugin loaded: hook', nameplates.Hook() ~= nil, '| no problem', nameplates.Problem() == nil, '| hidden is players', block.Hidden == Category.Player)
@@ -130,6 +130,9 @@ local draw = ffi.cast('namehook_draw_t*', low)
 draw.QuadsMax = 16384
 block.Draw = tonumber(ffi.cast('uintptr_t', low))
 block.TargetWidth, block.TargetHeight = 1440, 810 -- the game's picture, half as large again as its window
+-- The rendering fixture's actual output matches its window; menu coordinates alone
+-- no longer determine font scaling. Screen() above separately tests a larger display.
+imgui.GetIO = function() return { DisplaySize = { x = 960, y = 540 } } end
 local glyph = { X0 = 1, Y0 = 2, X1 = 9, Y1 = 14, U0 = 0.25, V0 = 0.5, U1 = 0.3, V1 = 0.6, AdvanceX = 10, Visible = 1 }
 local pushed = {}
 imgui.PushFont = function(_, size) pushed[#pushed + 1] = size end
@@ -244,10 +247,17 @@ H.print('another texture: taken up', draw.Textures[0] == 0x5678, draw.Frame == 9
 -- two icons before a name: 2 pixels of the screen between them, and Icon Spacing between the last and the name
 local icons = require('icons')
 local realHas, realPlace, realTexture = icons.Has, icons.Place, icons.Texture
-icons.Has = function(byte) return byte == 0x92 or byte == 0x93 end
-icons.Place = function() return { 0, 0, 0.125, 0.125 } end
+icons.Has = function() return false end
+icons.Place = function() return false end
 icons.Texture = function() return 0x4321 end
 ffi.copy(block.Names[0].Text, '\146\147 Buddy'); H.frames(1)
+local withoutIcons = buddy.Count
+icons.Has = function(byte) return byte == 0x92 or byte == 0x93 end
+icons.Place = function() return { 0, 0, 0.125, 0.125 } end
+H.frames(1)
+-- Neither the text nor texture changed: parsing must not permanently discard unavailable icons.
+assert(buddy.Count == withoutIcons + 5, 'delayed player icons and mastery stars must recover')
+H.print('unchanged names recover delayed player icons and stars', buddy.Count == withoutIcons + 5)
 local function gapToName()
     H.frames(1)
     local q = draw.Quads
@@ -304,11 +314,13 @@ local goblin = draw.Entities[300]
 H.print('with its distance: the monster, quads', goblin.Count, '| the player as before', buddy.Count, '| asked once', asked == 1)
 H.print(('the name in its own colour %08X, the distance in yellow %08X, what follows in its own %08X'):format(
     draw.Quads[goblin.First].Color, draw.Quads[goblin.First + 7].Color, draw.Quads[goblin.First + 11].Color))
--- for the target only: another line for the monster that is the target
+-- Legacy target overrides must not affect ordinary or targeted mob nameplates.
 o.monsterFormat[1] = '[name]'; o.targetFormat[1] = '<[name]> [distance]'; H.frames(1)
-H.print('a line for the target, not the target: quads', goblin.Count)
+assert(goblin.Count == 6)
+H.print('legacy target format ignored for ordinary mobs', true)
 block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
-H.print('and the target: quads', goblin.Count)
+assert(goblin.Count == 6)
+H.print('targeted mobs use the same mob format', true)
 o.targetFormat[1] = ''
 -- a player's line: the distance there too, if asked for
 o.nameFormat[1] = '[distance] [name]'; H.frames(1)
@@ -378,16 +390,21 @@ H.print(('a name half way off: the glass high %.2f beside a letter high %.2f, st
 block.Names[1].Scale = 1; H.frames(5)
 o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
 H.print('without it: quads', goblin.Count)
--- a line of its own for a monster that has been checked: empty, nothing is different; set, it is
--- written by that line, and by it before the target's
+-- Legacy checked/targeted overrides must be ignored, even when both apply.
 o.monsterFormat[1] = '[name]'; H.frames(1)
 H.print('Checked Monster Format empty: the monster as any other, quads', goblin.Count)
 o.checkedFormat[1] = '[name] [level]!'; H.frames(1)
-H.print('set: "Goblin 9!", quads', goblin.Count)
+assert(goblin.Count == 6)
+H.print('saved checked override ignored', true)
 o.targetFormat[1] = '<[name]>'; block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
-H.print('checked and the target: still by the checked line, quads', goblin.Count)
+assert(goblin.Count == 6)
+H.print('checked and targeted mobs still use Mob Format', true)
+o.monsterFormat[1] = '<[name]>'; H.frames(1)
+assert(goblin.Count == 8, 'editing Mob Format must update checked and targeted mobs too')
+o.monsterFormat[1] = '[name]'
 o.checkedFormat[1] = ''; H.frames(1)
-H.print('emptied again: by the target\'s line, quads', goblin.Count)
+assert(goblin.Count == 6)
+H.print('clearing checked override does not activate target override', true)
 o.targetFormat[1] = ''; block.Names[1].Flags = Flag.Wanted
 o.checkedFormat[1] = '[name] [level]!'; o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
 -- a message of the same number that is no check, and one about damage, change nothing
@@ -476,6 +493,22 @@ local first = draw.Quads[goblin.First]
 -- letters 23 high: the sign 29 square, three above the line's top and three below its foot, with the edge letters have
 H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square, from %d down'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0, first.Y0), '| softer edge', first.Flags == 3 and first.Reserved == 191,
     '| the name after it', draw.Quads[goblin.First + 1].X0 >= first.X1)
+-- Exercise the production path (fixed player profile supplied), not just the fixture wrapper.
+frameForTests(o, block, suppliedFormats)
+assert(goblin.Count == 7, 'editable mob format must override the fixed profile')
+o.showAggroIcons[1] = false
+frameForTests(o, block, suppliedFormats)
+assert(goblin.Count == 6, 'aggro toggle must remove the inline icon')
+o.monsterFormat[1] = '[aggro] Lv [level]. [name]'
+o.showMobLevel[1] = false
+frameForTests(o, block, suppliedFormats)
+assert(goblin.Count == 6, 'level toggle must remove the level and standard Lv punctuation')
+assert(o.monsterFormat[1] == '[aggro] Lv [level]. [name]', 'toggles must not rewrite saved formats')
+o.showMobLevel[1], o.showAggroIcons[1] = true, true
+o.monsterFormat[1] = '[aggro][name]'
+H.frames(1)
+assert(goblin.Count == 7, 're-enabling aggro must restore the icon')
+H.print('production mob format is editable; level and aggro toggles preserve saved strings', true)
 -- which of the twelve signs: six for one that is not aggressive and six for one that is, the first
 -- five of each by level and the sixth a notorious monster's
 local function sign(monster, checkedAs)
@@ -602,7 +635,8 @@ local function upvalue(fn, wanted)
     end
     error('missing test upvalue: ' .. wanted)
 end
-local linkLabel = upvalue(frameForTests, 'linkWords')
+-- what is written under a checked monster's name is a function of its own, which the frame's calls
+local linkLabel = upvalue(upvalue(frameForTests, 'writeDetails'), 'linkWords')
 local sightLink = { Link = true, Sight = true, Family = 'Goblin', Aggro = false }
 local hearingLink = { Link = true, Sound = true, TrueSight = true, Family = 'Funguar' }
 local bothLink = { Link = true, Sight = true, Sound = true, Family = 'Goblin' }
@@ -781,6 +815,133 @@ for _ = 1, 5 do nameplates.Quad(0, 0, 1, 1, 0, 0, 1, 1, 0xFFFFFFFF, 0, false) en
 nameplates.EndName()
 H.print('small final name uses remaining capacity without overflow', lastName, draw.Entities[6].Count == 2, draw.QuadCount == 3, not nameplates.BeginName(7, 1, 0, 0))
 draw.QuadsMax = 16384
+
+-- Experimental letters use the complete zone table, not the visible list.
+-- Mock only GPU preparation; exercise actual token measurement / badge quad submission.
+local badges = require('letter_badges')
+local originalBadgePrepare = badges.Prepare
+local badgeMasterHeight, pairsWanted;
+badges.Prepare = function(_, definitions)
+    pairsWanted = definitions[1].pairs
+    assert(#definitions == 1, 'all distances must share one close-up badge master')
+    if badgeMasterHeight then
+        assert(definitions[1].height == badgeMasterHeight, 'distance must not change the badge master size')
+    end
+    badgeMasterHeight = definitions[1].height
+    local regions = {}
+    for _, definition in ipairs(definitions) do
+        assert(definition.glyphs.B, 'badge glyphs must come from the indicator font in uppercase')
+        assert(badges.Font == 'arialbd.ttf', 'indicators must always use Arial Bold')
+        assert(definition.bold == false, 'native bold indicators must not add synthetic bold')
+        regions[definition.height] = { B = { top = 0, uv = {
+            w = definition.height, h = definition.height, u0 = 0, v0 = 0, u1 = 1, v1 = 1 } } }
+        if (definition.pairs or 0) > 0 then
+            regions[definition.height].AA = { top = 0, uv = {
+                w = definition.height * 1.5, h = definition.height, u0 = 0, v0 = 0, u1 = 1, v1 = 1 } }
+        end
+    end
+    return { address = 0x5555, regions = regions }
+end
+local preparedBadges = badges.Prepare
+custom.Defaults(o)
+o.showCheckDetails[1], o.showIcons[1], o.showStars[1] = false, false, false
+o.outline[1] = 0
+levels.Set({ Indices = { [299] = { Name = 'Goblin' }, [300] = { Name = 'Goblin' } }, Names = {} })
+put(0, 300, Category.Monster, Flag.Wanted + Flag.Target, 'Goblin')
+block.Count = 1
+o.monsterFormat[1] = '[name][letter:yellow]'
+o.showMobLetter[1] = true
+frameForTests(o, block, suppliedFormats)
+local labelled = draw.Entities[300]
+assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'b')
+assert(labelled.Count == 7, 'explicit letter token must draw one letter without automatic duplication')
+local badgeQuad = draw.Quads[labelled.First + 6]
+assert(badgeQuad.Color == 0xFFFFE040, 'letter token colour must tint the box')
+assert(badgeQuad.Texture == 5 and draw.Textures[5] == 0x5555, 'letter must use the font-derived badge atlas')
+assert(badgeQuad.Flags == 1, 'badge must opt into the nameplate outline effect')
+assert(badgeQuad.X1 - badgeQuad.X0 == badgeQuad.Y1 - badgeQuad.Y0, 'badge must be square')
+assert(math.abs(badgeQuad.Y1 - draw.Quads[labelled.First].Y1) < 0.001,
+    'box bottom must align with the name font lowercase baseline')
+assert(math.abs(badgeQuad.X1 + draw.Quads[labelled.First].X0) <= 1,
+    'measured badge width must keep the complete nameplate centred')
+local closeBadgeHeight = badgeQuad.Y1 - badgeQuad.Y0
+local closeU, closeV = badgeQuad.U0, badgeQuad.V0
+block.Names[0].Scale = 0.2
+block.Names[0].ServerId = block.Names[0].ServerId + 1 -- reset distance stabilization for this fixture
+frameForTests(o, block, suppliedFormats)
+local farBadge = draw.Quads[labelled.First + 6]
+assert(farBadge.Y1 - farBadge.Y0 < closeBadgeHeight, 'same close-up artwork must scale down at distance')
+assert(math.abs(farBadge.Y1 - draw.Quads[labelled.First].Y1) < 0.001,
+    'box bottom must stay aligned when distance changes the font rung')
+assert(farBadge.U0 == closeU and farBadge.V0 == closeV,
+    'distance must retain the master badge UVs')
+block.Names[0].Scale = 1
+block.Names[0].ServerId = block.Names[0].ServerId + 1
+badges.Prepare = function() return nil end
+frameForTests(o, block, suppliedFormats)
+assert(labelled.Count == 7 and draw.Quads[labelled.First + 6].Texture == 4,
+    'failed badge preparation must fall back to the fixed indicator font on the ImGui texture')
+badges.Prepare = originalBadgePrepare
+o.showMobLetter[1] = false
+frameForTests(o, block, suppliedFormats)
+assert(labelled.Count == 6, 'toggle off must suppress explicit letter tokens')
+o.showMobLetter[1], o.monsterFormat[1] = true, '[name]'
+frameForTests(o, block, suppliedFormats)
+assert(labelled.Count == 8, 'toggle on must append a spaced letter without editing Mob Format')
+levels.Set({ Indices = { [300] = { Name = 'Goblin' } }, Names = {} })
+assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'a', 'new zone/table must reset letter ranks')
+-- Double Letters: the twenty-seventh of a name is AA in one wider badge, and A again with it off
+local crowd = {}
+badges.Prepare = preparedBadges
+for index = 274, 300 do crowd[index] = { Name = 'Goblin' } end
+levels.Set({ Indices = crowd, Names = {} })
+o.monsterFormat[1] = '[name][letter]'
+frameForTests(o, block, suppliedFormats)
+assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'a' and pairsWanted == 0, 'off: a again, and no double badges made')
+o.doubleMobLetters[1] = true
+frameForTests(o, block, suppliedFormats)
+assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'aa' and pairsWanted == 1, 'on: as many double badges as the area needs')
+local doubleQuad = draw.Quads[labelled.First + 6]
+assert(labelled.Count == 7 and doubleQuad.Texture == 5, 'a double letter is one badge')
+assert(math.abs((doubleQuad.X1 - doubleQuad.X0) - 1.5 * (doubleQuad.Y1 - doubleQuad.Y0)) < 0.001, 'half as wide again as it is tall')
+assert(math.abs(doubleQuad.X1 + draw.Quads[labelled.First].X0) <= 1, 'and the nameplate still centred')
+o.doubleMobLetters[1] = false
+frameForTests(o, block, suppliedFormats)
+assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'a' and pairsWanted == 0, 'off again: as it was')
+badges.Prepare = originalBadgePrepare
+levels.Set(nil)
+frameForTests(o, block, suppliedFormats)
+assert(labelled.Count == 6, 'missing zone catalogue must not invent an encounter-based letter')
+o.showMobLetter[1] = false
+H.print('experimental mob letters: square cutout badge, centring, tint, fallback, suffix, toggle, double letters and zone-table reset', true)
+
+-- Exercise the actual shared file loader: bounded startup retries, then success caching.
+pcall(ffi.cdef, 'typedef struct IDirect3DTexture8 IDirect3DTexture8;')
+local originalC, originalClock = ffi.C, os.clock
+local now, attempts, ready = 1000, 0, false
+os.clock = function() return now end
+ffi.C = setmetatable({
+    S_OK = 0,
+    D3DXCreateTextureFromFileA = function(_, path, made)
+        assert(path == addon.path .. 'assets/player-icons.png')
+        attempts = attempts + 1
+        if not ready then return -1 end
+        made[0] = ffi.cast('IDirect3DTexture8*', 0x4321)
+        return 0
+    end,
+}, { __index = originalC })
+block.Hooked, block.Count = 1, 0
+custom.Frame(o, block)
+custom.Frame(o, block)
+assert(attempts == 1 and draw.Textures[1] == 0, 'failed sheet loads must be throttled')
+ready, now = true, now + 1
+custom.Frame(o, block)
+assert(attempts == 2 and draw.Textures[1] == 0x4321, 'player sheet must recover after startup failure')
+now = now + 2
+custom.Frame(o, block)
+assert(attempts == 2, 'successful sheet must remain cached')
+ffi.C, os.clock = originalC, originalClock
+H.print('bundled player sheet: shared file loading, bounded retries and success caching', true)
 
 block.Hooked = 0
 H.print('a client not recognised:', nameplates.Problem())

@@ -40,6 +40,9 @@
 -- hides it as it hides the game's. Every frame:
 --   local scale = nameplates.BeginDrawing()       nil if the plugin cannot; else how many pixels of the
 --                                                 game's picture there are to one of the screen's
+--   BeginDrawing(hook, true) uses the live output's vertical ratio and converts Quad X coordinates
+--   by the horizontal/vertical ratio, for uniformly laid out fonts on nonuniform render targets.
+--   Without that opt-in, coordinates and the returned horizontal ratio retain their legacy meaning.
 --   nameplates.SetTexture(slot, texture)          slot 0 to 7; texture a Direct3D texture's address
 --   nameplates.BeginName(entityIndex, alpha, edge, edgeColor)   false if there is no room for it
 --   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity)
@@ -354,12 +357,14 @@ end
 -- Names drawn for the plugin to put in the picture
 local draw = nil;      -- the plugin's place for them, between BeginDrawing and the frame's end
 local drawing = nil;   -- the name being drawn
+local horizontalFit = 1; -- opt-in correction from vertical layout pixels to target X pixels
 local QUADS_PER_NAME = 256;
 local QUADS_MAX = 16384;
 local TEXTURES = 8;
 
-function nameplates.BeginDrawing(hook)
+function nameplates.BeginDrawing(hook, correctAspect)
     draw, drawing = nil, nil;
+    horizontalFit = 1;
 
     hook = hook or nameplates.Hook();
     if (hook == nil or hook.Hooked == 0 or hook.Draw == 0) then
@@ -369,6 +374,25 @@ function nameplates.BeginDrawing(hook)
     draw = ffi.cast('namehook_draw_t*', hook.Draw);
     draw.Frame = hook.Frame;
     draw.QuadCount = 0;
+    draw.Reserved = 0; -- legacy outlines: equal target-pixel X/Y offsets
+
+    -- Name's layouts are uniform in vertical target pixels. Convert their X coordinates
+    -- separately when submitting quads. The live display is the final output, not the
+    -- client's potentially differently-sized menu coordinate system. Legacy callers
+    -- retain the original target-pixel API unless they opt in.
+    if (correctAspect) then
+        local display = require('imgui').GetIO().DisplaySize;
+        local width = display.x > 0 and display.x or hook.Width;
+        local height = display.y > 0 and display.y or hook.Height;
+        if (hook.TargetWidth > 0 and hook.TargetHeight > 0 and width > 0 and height > 0) then
+            local scaleX, scaleY = hook.TargetWidth / width, hook.TargetHeight / height;
+            horizontalFit = scaleX / scaleY;
+            -- Optional 16.16 X/Y outline ratio; older plugins safely ignore it.
+            draw.Reserved = math.max(1, math.min(0xFFFFFFFF, math.floor(horizontalFit * 65536 + 0.5)));
+            return scaleY;
+        end
+        return 1;
+    end
 
     -- until the plugin has seen a name drawn it does not know the size of the game's picture
     if (hook.TargetWidth <= 0 or hook.Width <= 0) then
@@ -406,7 +430,7 @@ function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edg
     end
 
     local quad = draw.Quads[drawing.First + drawing.Count];
-    quad.X0, quad.Y0, quad.X1, quad.Y1 = x0, y0, x1, y1;
+    quad.X0, quad.Y0, quad.X1, quad.Y1 = x0 * horizontalFit, y0, x1 * horizontalFit, y1;
     quad.U0, quad.V0, quad.U1, quad.V1 = u0, v0, u1, v1;
     quad.Color = color;
     quad.Texture = slot or 0;
