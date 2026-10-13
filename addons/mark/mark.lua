@@ -1,6 +1,6 @@
 addon.name    = 'mark';
 addon.author  = 'win (and claude)';
-addon.version = '1.3';
+addon.version = '1.4';
 addon.desc    = 'Pick a notorious monster, make it your mark, and see how it appears, its placeholders and their respawns, where it spawns on the map, when its window opens and what it drops.';
 addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 
@@ -120,7 +120,8 @@ local function SetTod(options, zone, name, at)
     app:Save();
 end
 
--- How a monster's window stands, from when it died
+-- How a monster's window stands, from when it died: in a sentence, whether it is open, and in the
+-- few words the Next Spawn column has room for (nil where nothing follows from its death)
 local function Standing(record, at)
     local age = os.time() - at;
     local said = ('Died %s ago.'):format(hunts.Duration(age));
@@ -128,17 +129,18 @@ local function Standing(record, at)
     if lottery ~= nil and lottery.cooldown ~= nil then
         local wait = (lottery.cooldownMost or lottery.cooldown) - age;
         if wait > 0 then
-            return ('%s The lottery opens in %s%s.'):format(said, lottery.cooldownMost and 'at most ' or '', Clock(wait)), false;
+            return ('%s The lottery opens in %s%s.'):format(said, lottery.cooldownMost and 'at most ' or '', Clock(wait)), false,
+                ('Window in %s%s'):format(lottery.cooldownMost and 'at most ' or '', Clock(wait));
         end
-        return said .. ' The lottery is open.', true;
+        return said .. ' The lottery is open.', true, 'Window open';
     elseif record.respawn ~= nil then
         local least, most = record.respawn[1] - age, record.respawn[2] - age;
         if least > 0 then
-            return ('%s Its window opens in %s.'):format(said, Clock(least)), false;
+            return ('%s Its window opens in %s.'):format(said, Clock(least)), false, ('Window in %s'):format(Clock(least));
         elseif most > 0 then
-            return ('%s Its window is open, for %s more.'):format(said, Clock(most)), true;
+            return ('%s Its window is open, for %s more.'):format(said, Clock(most)), true, ('Window open, %s more'):format(Clock(most));
         end
-        return said .. ' It is due.', true;
+        return said .. ' It is due.', true, 'Due';
     end
     return said, false;
 end
@@ -195,7 +197,7 @@ local live = {
     x = nil, y = nil, z = nil, -- the player: east-west, height and north-south, as the server's data has them
     floor = nil,               -- the map the player is on, where that can be told
     sights = {},               -- entity index -> { up, text, x, z } for those in range
-    status = {},               -- placeholder's entity index -> { text, tone }: in range, or how its respawn stands
+    status = {},               -- placeholder's entity index -> { text, tone, next }: in range, or how its respawn stands; next is the Next Spawn column's words for it, nil where nothing is known
     deaths = {},               -- placeholder's entity index -> when it was seen dead (os.time)
     counted = {},              -- placeholder's entity index -> true while the corpse seen is one already timed
     spawns = {},               -- placeholder's entity index -> when it was seen to come back (os.time)
@@ -260,17 +262,18 @@ local function WatchPlaceholder(entities, placeholder)
     if sight ~= nil and sight.up then
         local spawned = live.spawns[index];
         status.text = spawned and ('%s, for %s'):format(sight.text, Clock(os.time() - spawned)) or sight.text;
-        status.tone = 'up';
+        status.tone, status.next = 'up', status.text;
     elseif died == nil then
-        status.text, status.tone = 'Not In Range', nil;
+        status.text, status.tone, status.next = 'Not In Range', nil, nil;
     elseif placeholder.respawn == nil then
-        status.text, status.tone = ('Died %s ago'):format(Clock(os.time() - died)), 'wait';
+        status.text, status.tone, status.next = ('Died %s ago'):format(Clock(os.time() - died)), 'wait', nil;
     else
         local wait = placeholder.respawn - (os.time() - died);
         if wait > 0 then
-            status.text, status.tone = ('Respawns in %s'):format(Clock(wait)), 'wait';
+            status.text, status.tone, status.next = ('Respawns in %s'):format(Clock(wait)), 'wait', ('In %s'):format(Clock(wait));
         elseif wait > -1800 then
             status.text, status.tone = ('Due %s ago'):format(Clock(-wait)), 'due';
+            status.next = status.text;
             -- said once, as it falls due
             status.told = true;
             if not told and watching ~= nil and watching.announcePlaceholders[1] then
@@ -279,7 +282,7 @@ local function WatchPlaceholder(entities, placeholder)
         else
             -- long past: it has come and gone unseen
             live.deaths[index] = nil;
-            status.text, status.tone = 'Not In Range', nil;
+            status.text, status.tone, status.next = 'Not In Range', nil, nil;
         end
     end
 end
@@ -449,9 +452,9 @@ local function Update(options)
         local record = hunts.Monster(tod.zone, tod.name);
         local timer = live.timers[place] or {};
         live.timers[place] = timer;
-        timer.text, timer.open = '', false;
+        timer.text, timer.open, timer.short = '', false, nil;
         if record ~= nil then
-            timer.text, timer.open = Standing(record, tod.at);
+            timer.text, timer.open, timer.short = Standing(record, tod.at);
         end
         live.timerOf[Key(tod.zone, tod.name)] = timer;
         if tod.zone == options.viewZone and tod.name == options.viewName then
@@ -509,13 +512,6 @@ local function Summary(record)
         parts[#parts + 1] = 'Detects ' .. table.concat(record.detects, ', ');
     end
     return table.concat(parts, '  |  ');
-end
-
-local function Level(level)
-    if level[1] == level[2] then
-        return tostring(level[1]);
-    end
-    return ('%d-%d'):format(level[1], level[2]);
 end
 
 local function Names(ids)
@@ -576,7 +572,6 @@ local function BuildView(options)
             index = placeholder.index,
             name = placeholder.name,
             id = ('%03X'):format(placeholder.index),
-            level = Level(placeholder.level),
             respawn = placeholder.respawn and hunts.Duration(placeholder.respawn) or '',
             where = hunts.Spot(placeholder.points, placeholder.areas, Square),
             walks = placeholder.routes ~= nil,
@@ -902,6 +897,19 @@ local function Status(index)
     end
 end
 
+-- A placeholder's next spawn: the time to it where its death was seen or told, that it is up, or that
+-- nothing is known. Only of the zone the player is in is anything known.
+local function NextSpawn(index, here)
+    local status = here and live.status[index] or nil;
+    if status == nil or status.next == nil then
+        imgui.TextDisabled('Unknown');
+    elseif status.tone == 'up' then
+        imgui.TextColored(green, status.next);
+    else
+        imgui.TextColored(status.tone == 'due' and gold or amber, status.next);
+    end
+end
+
 local function Timer(timer)
     if timer.open then
         imgui.TextColored(green, timer.text);
@@ -910,12 +918,24 @@ local function Timer(timer)
     end
 end
 
--- Whether a monster of the list is in range, or that it is in another zone
+-- A monster of the list's next spawn: that it is up and where, the time to its window where its death
+-- is known, or that nothing is known
 local function Presence(row)
-    if not row.here then
-        imgui.TextDisabled('Not In Zone');
+    local sight = row.here and live.sights[row.index or 0] or nil;
+    local timer = row.timer;
+    if sight ~= nil and sight.up then
+        imgui.TextColored(green, sight.text);
+    elseif timer ~= nil and timer.short ~= nil then
+        if timer.open then
+            imgui.TextColored(green, timer.short);
+        else
+            imgui.TextColored(amber, timer.short);
+        end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip(timer.text);
+        end
     else
-        Sight(row.index);
+        imgui.TextDisabled('Unknown');
     end
 end
 
@@ -954,13 +974,12 @@ local function DrawMarks(options)
         imgui.TextDisabled('Set As Mark or Report TOD, on the Look Up tab, puts a monster here.');
         return;
     end
-    if not imgui.BeginTable('mark.marks', 5, ImGuiTableFlags_SizingFixedFit) then
+    if not imgui.BeginTable('mark.marks', 4, ImGuiTableFlags_SizingFixedFit) then
         return;
     end
     imgui.TableSetupColumn('Monster', ImGuiTableColumnFlags_WidthFixed);
     imgui.TableSetupColumn('Zone', ImGuiTableColumnFlags_WidthFixed);
-    imgui.TableSetupColumn('Now', ImGuiTableColumnFlags_WidthFixed);
-    imgui.TableSetupColumn('Window', ImGuiTableColumnFlags_WidthFixed);
+    imgui.TableSetupColumn('Next Spawn', ImGuiTableColumnFlags_WidthFixed);
     imgui.TableSetupColumn('##mark.marksButtons', ImGuiTableColumnFlags_WidthFixed);
     imgui.TableHeadersRow();
     for place, row in ipairs(live.rows) do
@@ -976,12 +995,6 @@ local function DrawMarks(options)
         imgui.Text(row.zoneName);
         imgui.TableNextColumn();
         Presence(row);
-        imgui.TableNextColumn();
-        if row.timer ~= nil then
-            Timer(row.timer);
-        else
-            imgui.TextDisabled('No time of death');
-        end
         imgui.TableNextColumn();
         if imgui.SmallButton('Look Up') then
             Show(options, row.zone, row.name);
@@ -1017,7 +1030,7 @@ local function DrawMarks(options)
             imgui.TextDisabled(placeholder.label);
             imgui.TableNextColumn();
             imgui.TableNextColumn();
-            Status(placeholder.index);
+            NextSpawn(placeholder.index, true);
         end
         imgui.PopID();
     end
@@ -1133,15 +1146,12 @@ local function DrawMonster(options)
     if #view.placeholders > 0 then
         local here = live.zone == options.viewZone;
         widgets.Header('Placeholders');
-        if imgui.BeginTable('mark.placeholders', here and 7 or 6, ImGuiTableFlags_SizingFixedFit) then
+        if imgui.BeginTable('mark.placeholders', 6, ImGuiTableFlags_SizingFixedFit) then
             imgui.TableSetupColumn('Placeholder', ImGuiTableColumnFlags_WidthFixed);
             imgui.TableSetupColumn('ID', ImGuiTableColumnFlags_WidthFixed);
-            imgui.TableSetupColumn('Lv', ImGuiTableColumnFlags_WidthFixed);
             imgui.TableSetupColumn('Respawn', ImGuiTableColumnFlags_WidthFixed);
             imgui.TableSetupColumn('Where', ImGuiTableColumnFlags_WidthFixed);
-            if here then
-                imgui.TableSetupColumn('Now', ImGuiTableColumnFlags_WidthFixed, TextBaseWidth * 26);
-            end
+            imgui.TableSetupColumn('Next Spawn', ImGuiTableColumnFlags_WidthFixed);
             imgui.TableSetupColumn('##mark.phButtons', ImGuiTableColumnFlags_WidthFixed);
             imgui.TableHeadersRow();
             for _, placeholder in ipairs(view.placeholders) do
@@ -1152,15 +1162,11 @@ local function DrawMonster(options)
                 imgui.TableNextColumn();
                 imgui.Text(placeholder.id);
                 imgui.TableNextColumn();
-                imgui.Text(placeholder.level);
-                imgui.TableNextColumn();
                 imgui.Text(placeholder.respawn);
                 imgui.TableNextColumn();
                 imgui.Text(placeholder.where);
-                if here then
-                    imgui.TableNextColumn();
-                    Status(placeholder.index);
-                end
+                imgui.TableNextColumn();
+                NextSpawn(placeholder.index, here);
                 imgui.TableNextColumn();
                 if imgui.SmallButton(placeholder.mapId) then
                     chart.focus = placeholder.place;

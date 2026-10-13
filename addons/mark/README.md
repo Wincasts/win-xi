@@ -34,8 +34,9 @@ for the monster chosen:
   is closed after the monster dies), a timed respawn (the window), a trade to a ??? (what, and where
   the ??? is), with whatever else the data says: day or night only, weather, fog.
 - **Placeholders**: each one's name, its ID (the last three figures of its id, as other tools show
-  them), level, respawn time and spawn point (the middle of the ground it can be put down on, where
-  that is a region); and, in its zone, whether it is in range now or when it respawns. **Map** on its
+  them), respawn time and spawn point (the middle of the ground it can be put down on, where that is
+  a region); and under **Next Spawn** the time to its respawn where its death was seen or told, that
+  it is up, or `Unknown`. **Map** on its
   row opens the map with that placeholder alone beside the monster, for all the ground it covers;
   **TOD** says it died just now.
 - **Spawn Locations**: its spawn points, or the stretch of ground it can be put down on, each as a
@@ -53,12 +54,12 @@ beside it says, and **Clear TOD** forgets it.
 ## Marks
 
 A line for every monster made a mark (its name in gold), and after them one for every other monster a
-time of death is kept for. Each has its zone, whether it is in range and which way (`Not In Zone` when
-you are somewhere else), and how its window stands, in green once it is open. Its buttons: **Look Up**
+time of death is kept for. Each has its zone and, under **Next Spawn**, that it is up and which way, or the time to its window
+where its death is known (in green once it is open; the whole of it is in the tooltip), or `Unknown`. Its buttons: **Look Up**
 turns to the first tab with that monster on show, **TOD** says it died just now, **Clear TOD** forgets
 its time of death, and **Clear Mark** or **Set As Mark** takes it off the marks or puts it on them. A
 monster that is no mark and has no time of death leaves the list. Under a mark of the zone you are in
-are its placeholders, each with whether it is in range or when it respawns.
+are its placeholders, each with its own next spawn.
 
 There can be as many marks as are wanted. Each is watched whether or not the window is showing:
 

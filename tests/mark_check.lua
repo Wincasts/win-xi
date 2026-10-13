@@ -76,7 +76,7 @@ H.print('squares: the middle is H-8, the corner A-1', maps.Square(256, 256) == '
 H.print('a header, and two tabs with Look Up the first', exactly('Mark'), H.calls.BeginTabBar ~= nil, H.calls.BeginTabItem ~= nil, wrote('How It Appears'))
 H.tab(2); frames(); H.print('the Marks tab, with nothing in it yet', wrote('No marks, and no times of death.'), wrote('How It Appears') == false)
 o.marks[1] = { zone = 100, name = 'Jaggedy-Eared Jack' }
-frames(); H.print('a mark is listed there, out of range', exactly('Jaggedy-Eared Jack'), exactly('West Ronfaure'), wrote('Not In Range'), wrote('No time of death'))
+frames(); H.print('a mark is listed there, out of range', exactly('Jaggedy-Eared Jack'), exactly('West Ronfaure'), exactly('Unknown'), wrote('Next Spawn'))
 
 entities[295] = { x = 30, y = 30, hp = 100, far = 42.4 }
 frames(); H.print('up: said', H.printed[#H.printed], '| sound', H.sounds[#H.sounds], '| shown', wrote('Up, 42 yalms NE'))
@@ -87,23 +87,23 @@ local said = #H.printed; frames(); H.print('said once', #H.printed == said)
 entities[294] = { x = -10, y = 0, hp = 100, far = 10 }
 frames(); H.print('its placeholder in range', wrote('Up, 10 yalms W'))
 entities[294].hp = 0
-frames(); H.print('its placeholder dead: timed from its respawn of three minutes', wrote('Respawns in 3:00') or wrote('Respawns in 2:59'))
+frames(); H.print('its placeholder dead: timed from its respawn of three minutes', exactly('In 3:00') or exactly('In 2:59'), '| no level, and Next Spawn for Now', exactly('Lv') == false, exactly('Now') == false, exactly('Next Spawn'))
 entities[294] = nil
-frames(); H.print('out of range: still timed', wrote('Respawns in 2:5') or wrote('Respawns in 3:00'))
+frames(); H.print('out of range: still timed', wrote('In 2:5') or wrote('In 3:00'))
 entities[294] = { x = -10, y = 0, hp = 100, far = 10 }
-frames(); frames(1); H.print('up again: no longer timed', wrote('Up, 10 yalms W'), wrote('Respawns in') == false)
+frames(); frames(1); H.print('up again: no longer timed', wrote('Up, 10 yalms W'), wrote('In 2:5') == false)
 
 H.print('said as it came up', H.printed[#H.printed])
 
 -- a placeholder's death given by hand, and said as it falls due
 H.command('/mark ph 126 2'); H.print('/mark ph 126 2:', (H.printed[#H.printed]:gsub('%d%d:%d%d:%d%d', 'HH:MM:SS')))
-entities[294] = nil; frames(); frames(1); H.print('timed from two minutes ago', wrote('Respawns in 1:00') or wrote('Respawns in 0:59'))
+entities[294] = nil; frames(); frames(1); H.print('timed from two minutes ago', exactly('In 1:00') or exactly('In 0:59'))
 H.command('/mark ph 126 4'); frames(); frames(1); H.print('past due: shown and said', wrote('Due 1:0'), H.printed[#H.printed])
 said = #H.printed; frames(); H.print('said once', #H.printed == said)
 H.command('/mark ph 126 clear'); H.print('/mark ph 126 clear:', H.printed[#H.printed])
 H.command('/mark ph 999'); H.print('an ID that is no placeholder\'s:', H.printed[#H.printed]:sub(1, 28))
 H.ret.SmallButton = { true }; frames(1); H.ret.SmallButton = nil; frames(); frames(1)
-H.print('the row\'s buttons: the map opened, and its death timed then forgotten', o.showMap[1], wrote('Respawns in') == false)
+H.print('the row\'s buttons: the map opened, and its death timed then forgotten', o.showMap[1], exactly('Unknown'))
 o.showMap[1] = false
 entities[294] = { x = -10, y = 0, hp = 100, far = 10 }; frames()
 
@@ -130,7 +130,7 @@ o.showMap[1], o.isVisible[1] = false, true
 
 -- the Marks tab: a monster with a time of death and no mark on it, and its buttons
 H.tab(2); frames()
-H.print('a time of death alone puts a monster in the list', exactly('Jaggedy-Eared Jack'), wrote('The lottery opens in'), wrote('Forest Hare') == false)
+H.print('a time of death alone puts a monster in the list', exactly('Jaggedy-Eared Jack'), wrote('Window in '), wrote('Forest Hare') == false)
 o.viewName = 'Bomb King'
 H.ret.SmallButton = { true }; frames(1); H.ret.SmallButton = nil
 H.print('its buttons: looked up, its time forgotten, made a mark', o.viewName, #o.tods == 0, #o.marks == 1 and o.marks[1].name)
@@ -138,7 +138,7 @@ frames(2); H.print('Look Up turns to the first tab', H.calls.BeginTabItem ~= nil
 entities[294] = { x = -10, y = 0, hp = 100, far = 10 }; frames()
 H.print('a mark of this zone has its placeholders under it', wrote('Forest Hare (126)'), wrote('Up, 10 yalms W'))
 o.marks[2] = { zone = 127, name = 'King Behemoth' }; frames()
-H.print('a second mark, of another zone', exactly('King Behemoth'), wrote('Not In Zone'))
+H.print('a second mark, of another zone', exactly('King Behemoth'), exactly('Unknown'))
 table.remove(o.marks, 2); H.tab(1)
 
 H.command('/mark tod'); H.command('/mark compact'); entities[294].hp = 0; frames()
@@ -148,7 +148,7 @@ H.command('/mark compact')
 
 H.command('/mark set lizz'); H.print('/mark set, by a part of a name:', H.printed[#H.printed], '|', #o.marks == 2 and o.marks[2].zone, o.viewName)
 frames(); H.print('a monster of two spawns, a lottery from a module', wrote('closed for 1 hr'), wrote('Rock Lizard'))
-H.tab(2); frames(); H.print('both marks are listed, the first with how its window stands', exactly('Jaggedy-Eared Jack'), exactly(o.marks[2].name), wrote('The lottery opens in')); H.tab(1)
+H.tab(2); frames(); H.print('both marks are listed, the first with how its window stands', exactly('Jaggedy-Eared Jack'), exactly(o.marks[2].name), wrote('Window in ')); H.tab(1)
 H.command('/mark set nobody at all'); H.print('no such monster:', H.printed[#H.printed])
 H.command('/mark clear lizz'); H.print('/mark clear <name>:', H.printed[#H.printed], '|', #o.marks == 1 and o.marks[1].name)
 H.command('/mark clear nobody'); H.print('/mark clear, of no mark:', H.printed[#H.printed])
