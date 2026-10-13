@@ -213,6 +213,16 @@ int main() {
 		quads[0].X1 = 40;
 		drawing.First++;
 		CHECK(cache.Get(drawing, quads).Right == 48);
+		CHECK(cache.Get(drawing, quads, 2.0f).Right == 56);
+		CHECK(cache.Get(drawing, quads, 0.5f).Right == 44);
+		CHECK(cache.Get(drawing, quads, 0.5f).Top == -8);
+		CHECK(cache.Get(drawing, quads, 1.0f).Right == 48);
+		static HookDraw aspectDraw{};
+		CHECK(aspectDraw.HorizontalFit() == 1.0f);
+		aspectDraw.Reserved = 2 * 65536;
+		CHECK(aspectDraw.HorizontalFit() == 2.0f);
+		aspectDraw.Reserved = 65536 / 2;
+		CHECK(aspectDraw.HorizontalFit() == 0.5f);
 	}
 
 	TestPlugin plugin;

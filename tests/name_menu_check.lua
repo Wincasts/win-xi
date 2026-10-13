@@ -27,16 +27,23 @@ imgui.GetContentRegionAvail = function() error('Auto-size must not feed back int
 H.tab(1); H.command('/name'); H.frames(1)
 headers, tabs, boxes, marks = {}, {}, {}, {}
 H.frames(1); H.command('/name')
-H.print('public tabs: Nameplates and Filters only', table.concat(tabs, '|') == 'Nameplates|Filters')
-H.print('mockup sections', table.concat(headers, '|') == 'Name Appearance|Player Icons|Check')
-local equal = #boxes == 3
+H.print('public tabs: Nameplates, Filters and NM Tracking', table.concat(tabs, '|') == 'Nameplates|Filters|NM Tracking')
+H.print('mockup sections', table.concat(headers, '|') == 'Name Appearance|Player Icons|Mob Nameplates|Check')
+local equal = #boxes == 4
 for _, box in ipairs(boxes) do equal = equal and box.width == 440 end
 H.print('equal options boxes sized to longest content row plus help', equal)
-local aligned = #marks == 12
+local aligned = #marks == 16
 for _, position in ipairs(marks) do aligned = aligned and position == 408 end
 H.print('all tooltip markers right-aligned inside boxes', aligned)
 H.print('font selector, bold, numeric sizes and four outline choices', ids['##name.font'], ids['##name.fontBold'], ids['##name.fontSize'], ids['##name.minSize'], ids['0##name.outline0'], ids['3##name.outline3'])
-H.print('saved formats hidden', ids['##name.nameFormat'] == nil, ids['##name.monsterFormat'] == nil, ids['##name.targetFormat'] == nil, ids['##name.checkedFormat'] == nil)
+assert(ids['##name.showMobLevel'] and ids['##name.showAggroIcons'] and ids['##name.showMobLetter'])
+assert(not options.showMobLetter[1], 'experimental letters must start disabled')
+assert(ids['##name.doubleMobLetters'] == nil and not options.doubleMobLetters[1], 'Double Letters is hidden while Mob Letters is off, and starts off')
+assert(ids['##name.monsterFormat'])
+assert(ids['##name.trackedNm'] == nil, 'NM tracking has a tab of its own')
+assert(ids['##name.targetFormat'] == nil and ids['##name.checkedFormat'] == nil)
+H.print('mob toggles and format exposed; player, target and checked formats hidden', ids['##name.nameFormat'] == nil,
+    ids['##name.showMobLevel'], ids['##name.showAggroIcons'], ids['##name.monsterFormat'], ids['##name.targetFormat'] == nil, ids['##name.checkedFormat'] == nil)
 H.print('experimental controls hidden', ids['##name.gdiFonts'] == nil, ids['##name.gdiFamily'] == nil)
 H.print('preferred baseline retained', options.font == 'corbeli.ttf', options.fontBold[1], options.checkSize[1] == 75)
 local oldPlayers = options.showPlayers[1]
@@ -55,10 +62,27 @@ contentRight = 320
 custom.DrawSettings(options)
 boxes, marks = {}, {}
 for frame = 1, 10 do custom.DrawSettings(options) end
-local compact = #boxes == 30
+local compact = #boxes == 40
 for _, box in ipairs(boxes) do compact = compact and box.width == 360 end
 for _, position in ipairs(marks) do compact = compact and position == 328 end
 H.print('content can shrink; repeated frames do not expand window', compact)
+local realCheckbox, realInputText = imgui.Checkbox, imgui.InputText
+imgui.Checkbox = function(id, value)
+    if id == '##name.showMobLevel' or id == '##name.showAggroIcons' then value[1] = false; return true end
+    return realCheckbox(id, value)
+end
+imgui.InputText = function(id, value)
+    if id == '##name.monsterFormat' then value[1] = '[name] ([distance]y)'; return true end
+    return realInputText(id, value)
+end
+custom.DrawSettings(options)
+assert(not options.showMobLevel[1] and not options.showAggroIcons[1])
+assert(options.monsterFormat[1] == '[name] ([distance]y)', 'format editor must update character settings')
+custom.Settle(options)
+assert(not options.showMobLevel[1] and not options.showAggroIcons[1], 'saved false toggles must survive settling')
+assert(options.monsterFormat[1] == '[name] ([distance]y)')
+imgui.Checkbox, imgui.InputText = realCheckbox, realInputText
+H.print('mob controls edit saved settings; off toggles and custom strings survive reload settling', true)
 ids, widths = {}, {}
 options.showIcons[1], options.showStars[1], options.showCheckDetails[1] = false, false, false
 custom.DrawSettings(options)
@@ -69,3 +93,11 @@ local wraps = H.calls.PushTextWrapPos or 0
 imgui.IsItemHovered = function() return true end
 controls.Mark('Wrapped help')
 H.print('tooltips stay wrapped', (H.calls.PushTextWrapPos or 0) == wraps + 1)
+imgui.IsItemHovered = function() return false end
+local tagged, realLabel = {}, widgets.Label
+widgets.Label = function(text, experimental) tagged[text] = experimental == true; return realLabel(text, experimental) end
+headers, boxes, ids = {}, {}, {}
+H.tab(3); H.command('/name'); H.frames(1); H.command('/name')
+widgets.Label = realLabel
+H.print('NM Tracking tab: one box, the dropdown, marked experimental', table.concat(headers, '|') == 'Tracked Monster', #boxes == 1,
+    ids['##name.trackedNm'], tagged['Tracked NM'], ids['##name.huntScale'] == nil, ids['##name.labelPlaceholders'] == nil)

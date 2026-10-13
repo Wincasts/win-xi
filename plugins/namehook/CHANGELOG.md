@@ -8,6 +8,7 @@
 - Cache name and damage scale factors until resolution or font settings change, instead of repeating divisions for each draw call.
 - Calculate each outlined quad's faded outline colour once, reusing it for all four corners.
 - Size the texture-run array for every expanded quad, including all four outline copies; alternating textures could previously exceed its capacity.
+- Skip the depth-only pass for a name none of whose quads is at least half solid: that pass tests alpha against 0x80, which such a name cannot pass anywhere, so nothing drawn changes. Names fading in or out are then one pass and not two.
 - Add `tests/benchmark.sh`, a CPU-only comparison of old linear whitelist lookup and the new index. It is not a rendering/FPS benchmark.
 - Keep state-block lifetime unchanged: the SDK has no pre-reset callback to safely release retained client-resource references. Cross-frame state-block reuse and dynamic vertex buffers remain deferred pending reset handling and in-game measurements.
 

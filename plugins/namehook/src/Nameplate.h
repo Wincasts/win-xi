@@ -156,10 +156,14 @@ struct HookDraw {
     uint32_t Frame;
     uint32_t QuadCount;
     uint32_t QuadsMax;  // HOOK_QUADS_MAX
-    uint32_t Reserved;
+    uint32_t Reserved; // optional 16.16 horizontal outline fit; 0 means legacy 1:1
     uint32_t Textures[HOOK_TEXTURES]; // each an IDirect3DTexture8*, or 0
     HookDrawing Entities[HOOK_ENTITIES];
     HookQuad Quads[HOOK_QUADS_MAX];
+
+    float HorizontalFit() const {
+        return Reserved != 0 ? static_cast<float>(Reserved) / 65536.0f : 1.0f;
+    }
 };
 
 // What the plugin asks of its host once a frame, for sorting names into categories. An id or index of

@@ -7,14 +7,14 @@
 struct NameBounds {
     float Left = 0, Top = 0, Right = 0, Bottom = 0;
 
-    static NameBounds Measure(const HookDrawing& drawing, const HookQuad* quads) {
+    static NameBounds Measure(const HookDrawing& drawing, const HookQuad* quads, float horizontalFit = 1.0f) {
         NameBounds bounds;
         const float edge = drawing.Edge > 0.0f ? (drawing.Edge > 8.0f ? 8.0f : drawing.Edge) : 0.0f;
         for (uint32_t i = 0; i < drawing.Count; i++) {
             const HookQuad& quad = quads[i];
             const float pad = (quad.Flags & 1) != 0 ? edge : 0.0f;
-            const float left = (quad.X0 < quad.X1 ? quad.X0 : quad.X1) - pad;
-            const float right = (quad.X0 > quad.X1 ? quad.X0 : quad.X1) + pad;
+            const float left = (quad.X0 < quad.X1 ? quad.X0 : quad.X1) - pad * horizontalFit;
+            const float right = (quad.X0 > quad.X1 ? quad.X0 : quad.X1) + pad * horizontalFit;
             const float top = (quad.Y0 < quad.Y1 ? quad.Y0 : quad.Y1) - pad;
             const float bottom = (quad.Y0 > quad.Y1 ? quad.Y0 : quad.Y1) + pad;
             if (i == 0 || left < bounds.Left) { bounds.Left = left; }
@@ -36,17 +36,18 @@ struct NameBounds {
 struct NameBoundsCache {
     bool Valid = false;
     uint32_t Frame = 0, First = 0, Count = 0;
-    float Edge = 0;
+    float Edge = 0, HorizontalFit = 1;
     NameBounds Bounds;
 
-    const NameBounds& Get(const HookDrawing& drawing, const HookQuad* quads) {
+    const NameBounds& Get(const HookDrawing& drawing, const HookQuad* quads, float horizontalFit = 1.0f) {
         if (!Valid || Frame != drawing.Frame || First != drawing.First
-                || Count != drawing.Count || Edge != drawing.Edge) {
-            Bounds = NameBounds::Measure(drawing, quads);
+                || Count != drawing.Count || Edge != drawing.Edge || HorizontalFit != horizontalFit) {
+            Bounds = NameBounds::Measure(drawing, quads, horizontalFit);
             Frame = drawing.Frame;
             First = drawing.First;
             Count = drawing.Count;
             Edge = drawing.Edge;
+            HorizontalFit = horizontalFit;
             Valid = true;
         }
         return Bounds;

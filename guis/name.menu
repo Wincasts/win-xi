@@ -10,8 +10,21 @@ Player Icons
 "Scale:" [percentage slider] tooltip: Set the scale of all icons in player nameplates.
 "Padding:" [textbox] tooldtip: Defines the gap between the icon and player name.
 
+Mob Nameplates
+"Show Level / Range:" [checkbox] tooltip: Show the checked level or known level range. Off hides [level] and the standard Lv prefix without changing saved formats.
+"Show Aggro Icons:" [checkbox] tooltip: Show inline [aggro] icons beside mob names. Check-detail detection/link icons are controlled separately by Text Only.
+"Mob Letters:" [experimental checkbox] tooltip: Label zone spawn slots a-z, wrapping after 26; deterministic by exact mob name and entity-index order in the bundled zone table, not encounter order. Off by default. Requires matching zone tables across users. Unknown/renamed slots are unlabelled. Adds a suffix unless [letter] is placed explicitly.
+"Double Letters:" [checkbox, shown while Mob Letters is on] tooltip: Where an area has more than 26 slots of one name, go on from Z to AA, AB and so on, in one wider badge, in place of starting again at A. Off by default.
+"Mob Format:" [textbox] tooltip: Custom mob nameplate string. Tokens: [name], [level], [aggro], [distance], [checked], [letter]. Default: [aggro] Lv [level]. [name].
+
 Check
 "Show Check:" [check box] tooltip: When enabled performing a /check on a mob will display check information on the nameplate.
 "Check Scale:" [slider] tooltip: Set the scale of the /check info.
 "Brief Difficulty:" [checkbox] tooltip: When enabled mob difficulties such as Easy Prey or Incredibly Tough will appear in a shortened form such as EP or IT.
 "Text Only" [checkbox] tooltip: When enabled check details will not include icons. The default is disabled so icons will be shown.
+
+NM Tracking (a tab of its own, after Filters)
+Tracked Monster
+"Tracked NM:" [experimental dropdown] tooltip: Choose a notorious monster of the current area to hunt, or None. Its nameplate and its placeholders' show the hunt icon (assets/special/hunt.png) in place of the [aggro] icon. The choice is kept when leaving the area.
+"Hunt Target Scale:" [percentage slider, 100-200, shown only while an NM is tracked] tooltip: Enlarge the tracked monster's nameplate. 100% is the size of every other name. Placeholders are not enlarged.
+"Label Placeholders:" [checkbox, shown only when the tracked NM has placeholders] tooltip: Name the tracked monster's placeholders "Placeholder" in place of their own name. On by default.

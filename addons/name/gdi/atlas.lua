@@ -127,7 +127,7 @@ end
 ---reads an A8R8G8B8 texture back into an image (for debug dumps).
 ---@return table|nil image
 ---@return string|nil error
-function atlas.read(tex)
+function atlas.read(tex, maxSize)
     local d3d8 = require('d3d8');
     local C = ffi.C;
 
@@ -144,7 +144,8 @@ function atlas.read(tex)
     if (format ~= C.D3DFMT_A8R8G8B8) then
         return nil, ('unsupported texture format %d'):format(format);
     end
-    if (w < 1 or h < 1 or w > MAX_SIZE or h > MAX_SIZE) then
+    local limit = maxSize or MAX_SIZE;
+    if (w < 1 or h < 1 or w > limit or h > limit) then
         return nil, ('invalid texture dimensions %dx%d'):format(w, h);
     end
     local pitch, src = atlas.lock(tex, nil, 0x10); -- D3DLOCK_READONLY

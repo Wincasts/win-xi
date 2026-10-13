@@ -12,6 +12,13 @@
 --   levels.Generation()      a number that changes whenever what levels.Of would say may have
 --   levels.Tidy()            each frame: what was checked and has since died is forgotten
 --   levels.Set(data)         the tables to look in, for whoever has them some other way
+--   levels.Notorious()       the names of the area's notorious monsters, in order
+--   levels.Placeholders(name)  the monsters a notorious monster is drawn by lot from, as a set of their
+--                            indices, { [index] = true }, or nil if the server's scripts list none
+--   levels.DoubleLetters(on)  whether a name with more than 26 slots goes on to aa, ab and on
+--   levels.LetterPairs()     how many of those double letters the area needs, aa being the first
+--   levels.RosterProblem()   what to tell the user while the area's names could not be read from the game's
+--                            files, or differ from what the game shows, or nil
 --
 -- The game does not tell the client a monster's level. The tables in the data folder say what levels
 -- each of an area's monsters can be: they are mobdb's, made from the server's own, and are a copy,
@@ -26,9 +33,14 @@
 -- of a level of its own. It is kept five minutes at most, so that a long evening of checking in one
 -- place does not leave more and more kept. Nothing is asked of the game for this: only its answers are read.
 local levels = {};
+local mobLetters = require('mob_letters');
+local zoneNames = require('zone_names');
 
 local data = nil;      -- the area's tables: { Indices = { [index] = monster }, Names = { [name] = monster } }
 local zoneKnown = false;
+local unread = nil;    -- why the area's names could not be read from the game's files, where they could not
+local placeholders = {}; -- notorious monster's name -> { [index] = true }, from the placeholders folder
+local notorious = nil;   -- their names in order, made when first asked for
 local written = {};    -- monster -> what is written for it
 local checked = {};    -- index -> { id = the monster's server id, text = its level }, for those checked
 local checkedCount = 0;
@@ -71,8 +83,19 @@ function levels.Generation()
     return generation;
 end
 
-function levels.Set(tables)
+function levels.Set(tables, spawnNames, zone, lots)
     data = tables;
+    placeholders, notorious = {}, nil;
+    for name, indices in pairs(lots or {}) do
+        local set = {};
+        for _, index in ipairs(indices) do set[index] = true; end
+        placeholders[name] = set;
+    end
+    -- Production supplies the game's own list of the area's names. Indices in level data are
+    -- sparse stat exceptions, not a spawn catalogue. The fallback is for explicit test/injected tables.
+    -- zone, if given, lets the list be checked against the zone's own monsters as they are met.
+    unread = nil;
+    mobLetters.Set(spawnNames ~= nil and spawnNames or (tables ~= nil and tables.Indices or nil), zone);
     written = {};
     zoneKnown = true;
     generation = generation + 1;
@@ -82,8 +105,8 @@ end
 local function load(zone, subZone)
     local tables = nil;
 
-    local function read(number)
-        local path = ('%sdata/%u.lua'):format(addon.path, number);
+    local function read(number, folder)
+        local path = ('%s%s/%u.lua'):format(addon.path, folder or 'data', number);
         if (not ashita.fs.exists(path)) then
             return nil;
         end
@@ -103,7 +126,16 @@ local function load(zone, subZone)
         tables = read(zone);
     end
 
-    levels.Set(tables);
+    -- The game's own list, read from its files. One that cannot be read must never silently fall
+    -- back to sparse exception indices: there are then no letters, and the reason is kept to be told.
+    local spawnNames, why = nil, nil;
+    if (zone ~= nil and zone ~= 0) then
+        spawnNames, why = zoneNames.Read(zone);
+    end
+    levels.Set(tables, spawnNames or {}, zone, (zone ~= nil and zone ~= 0) and read(zone, 'placeholders') or nil);
+    if (spawnNames == nil and why ~= nil and zone ~= nil and zone ~= 0) then
+        unread = ('Mob Letters: this area\'s names could not be read from the game\'s files (%s). There are no letters here.'):format(why);
+    end
 end
 
 -- A monster that was checked is forgotten the moment it is dead or gone, however that is learnt:
@@ -137,19 +169,76 @@ function levels.IsChecked(index, id)
     return levels.Checked(index, id) ~= nil;
 end
 
-function levels.Monster(index, name)
-    -- loaded after the area was entered: the area is asked of the game, the once
+-- loaded after the area was entered: the area is asked of the game, the once
+local function ensure()
     if (not zoneKnown) then
         local ok, zone = pcall(function ()
             return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0);
         end);
         load(ok and zone or 0, nil);
     end
+end
+
+function levels.Notorious()
+    ensure();
+    if (notorious == nil) then
+        local seen = {};
+        notorious = {};
+        local function add(name)
+            if (type(name) == 'string' and name ~= '' and not seen[name]) then
+                seen[name] = true;
+                notorious[#notorious + 1] = name;
+            end
+        end
+        for _, part in ipairs({ 'Names', 'Indices' }) do
+            for key, monster in pairs(data ~= nil and data[part] or {}) do
+                if (type(monster) == 'table' and monster.Notorious) then
+                    add(monster.Name or (type(key) == 'string' and key or nil));
+                end
+            end
+        end
+        -- one the server draws by lot is to be found though its table does not call it notorious
+        for name in pairs(placeholders) do add(name); end
+        table.sort(notorious, function (a, b) return a:lower() < b:lower(); end);
+    end
+    return notorious;
+end
+
+function levels.Placeholders(name)
+    ensure();
+    return placeholders[name];
+end
+
+function levels.Monster(index, name)
+    ensure();
     if (data == nil) then
         return nil;
     end
 
     return (data.Indices ~= nil and data.Indices[index]) or (data.Names ~= nil and name ~= nil and data.Names[name]) or nil;
+end
+
+-- Uses the full zone catalogue, including spawn slots no client has seen yet.
+-- Checking, death, draw order and respawning do not renumber those slots.
+function levels.Letter(index, name, id)
+    levels.Monster(index, name); -- ensure the current zone tables have been loaded
+    return mobLetters.Of(index, name, id);
+end
+
+-- What levels.Letter says changes with this, so the generation does too
+function levels.DoubleLetters(on)
+    if (mobLetters.Double(on)) then
+        generation = generation + 1;
+    end
+end
+
+function levels.LetterPairs()
+    return mobLetters.Pairs();
+end
+
+-- A sentence for the user while the area's names are not to be had, or are not what the game shows, or nil
+function levels.RosterProblem()
+    return mobLetters.Problem() or unread;
 end
 
 function levels.Of(index, name, id)
