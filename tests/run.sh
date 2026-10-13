@@ -5,6 +5,9 @@ cd "$(dirname "$0")/.." || exit 1
 run() { echo "== $1"; luajit tests/harness.lua "$1" "$2" "tests/$3" 2>&1; echo; }
 run inv        addons/inv/inv.lua       inv_check.lua
 run treas      addons/treas/treas.lua   treas_check.lua
+run mark       addons/mark/mark.lua     mark_check.lua
+luajit tests/mark_data_check.lua
+echo
 run controller tests/empty.lua          controller_check.lua
 run debuffs    tests/empty.lua          debuffs_check.lua
 run xiframes   addons/xiframes/xiframes.lua xiframes_check.lua
