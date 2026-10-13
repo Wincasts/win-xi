@@ -10,7 +10,7 @@ return {
         detects = { 'Sight' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { 90, 0.1, 61, 13 } },
+        areas = { { at = { 90, 0.1, 61 }, reach = 13, poly = { 77, 59, 77, 61, 89, 61, 91, 67, 103, 67, 103, 60, 97, 55, 95, 57, 81, 57, 81, 59 } } },
         drops = { { rate = 1000, items = { { 2683, 10000 } } }, { rate = 100, items = { { 18500, 10000 } } }, { rate = 100, items = { { 19219, 10000 } } } },
     },
     ['All-seeing Onyx Eye'] = {
@@ -23,7 +23,7 @@ return {
         detects = { 'Sight', 'Sound' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { 180, 2.8, -375, 9 } },
+        areas = { { at = { 180, 2.8, -375 }, reach = 9, poly = { 171, -383, 174, -383, 173, -379, 178, -372, 185, -373, 185, -382, 188, -383, 189, -369, 179, -367, 171, -375 } } },
         drops = { { rate = 1000, items = { { 2681, 10000 } } }, { rate = 100, items = { { 18449, 10000 } } }, { rate = 100, items = { { 11473, 10000 } } } },
     },
     ['Allied Armored Belfry'] = {
@@ -60,7 +60,7 @@ return {
         detects = { 'Sight' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { 140, -0.2, -177, 9 } },
+        areas = { { at = { 140, -0.2, -177 }, reach = 9, poly = { 131, -183, 143, -185, 148, -183, 149, -176, 143, -169, 139, -169 } } },
         drops = { { rate = 1000, items = { { 2682, 10000 } } }, { rate = 100, items = { { 11390, 10000 } } }, { rate = 100, items = { { 19218, 10000 } } } },
     },
     ['Coinbiter Cjaknokk'] = {
@@ -87,7 +87,7 @@ return {
         truesight = true,
         detects = { 'Sight', 'Scent' },
         kinds = 's',
-        areas = { { 284, 3.8, -232, 13 } },
+        areas = { { at = { 284, 3.8, -232 }, reach = 13, poly = { 271, -239, 271, -219, 273, -223, 279, -221, 283, -231, 293, -229, 297, -223, 295, -235, 283, -245, 275, -245 } } },
         drops = {},
     },
     ['Draketrader Zlodgodd'] = {
@@ -126,7 +126,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { -218, 0, -93, 10 } },
+        areas = { { at = { -218, 0, -93 }, reach = 10, poly = { -227, -99, -227, -89, -221, -83, -217, -83, -209, -93, -211, -103 } } },
         drops = { { rate = 1000, items = { { 2684, 10000 } } }, { rate = 100, items = { { 17963, 10000 } } }, { rate = 100, items = { { 18761, 10000 } } } },
     },
     ['Feeblescheme Bhogbigg'] = {
@@ -165,7 +165,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { 358.7, -0.5, -181.4 } },
-        placeholders = { { index = 55, name = 'Orcish Bowshooter', level = { 76, 79 }, respawn = 300, areas = { { 377, 0.2, -180, 8 } } } },
+        placeholders = { { index = 55, name = 'Orcish Bowshooter', level = { 76, 79 }, respawn = 300, areas = { { at = { 377, 0.2, -180 }, reach = 8, poly = { 369, -185, 371, -173, 385, -173, 379, -187 } } } } },
         drops = { { rate = 100, items = { { 19208, 10000 } } } },
     },
     ['Jagidbod of Clan Reaper'] = {
@@ -233,7 +233,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 14400, 14400 },
         kinds = 't',
-        areas = { { 20, 0.1, -265, 9 } },
+        areas = { { at = { 20, 0.1, -265 }, reach = 9, poly = { 11, -269, 13, -259, 22, -259, 27, -261, 27, -265, 29, -265, 29, -269, 23, -269, 23, -271, 21, -269, 19, -271 } } },
         drops = { { rate = 1000, items = { { 2685, 10000 } } }, { rate = 100, items = { { 15033, 10000 } } }, { rate = 100, items = { { 18951, 10000 } } } },
     },
     ['Shatterskull Mippdapp'] = {

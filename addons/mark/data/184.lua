@@ -35,8 +35,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 1 },
         kinds = 'l',
-        areas = { { 460, -0.1, 18.8, 44.2 } },
-        placeholders = { { index = 2, name = 'Giant Gatekeeper', level = { 28, 30 }, respawn = 720, areas = { { 460, -0.1, 18.8, 44.2 } } } },
+        areas = { { at = { 460, -0.1, 18.8 }, reach = 44, poly = { 417, 13, 432, -8, 462, -26, 475, -13, 493, -5, 497, 11, 503, 13, 500, 16, 503, 29, 495, 33, 489, 51, 475, 55, 467, 63, 453, 63, 449, 57, 427, 47, 423, 32, 417, 27 } } },
+        placeholders = { { index = 2, name = 'Giant Gatekeeper', level = { 28, 30 }, respawn = 720, areas = { { at = { 460, -0.1, 18.8 }, reach = 44, poly = { 417, 13, 432, -8, 462, -26, 475, -13, 493, -5, 497, 11, 503, 13, 500, 16, 503, 29, 495, 33, 489, 51, 475, 55, 467, 63, 453, 63, 449, 57, 427, 47, 423, 32, 417, 27 } } } } },
         drops = { { rate = 1000, items = { { 497, 10000 } } }, { rate = 150, items = { { 499, 10000 } } }, { rate = 100, items = { { 14018, 10000 } } }, { rate = 240, items = { { 12290, 10000 } } } },
     },
     ['Eurymedon'] = {
@@ -49,8 +49,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 1 },
         kinds = 'l',
-        areas = { { 402, -31.1, -36, 9 } },
-        placeholders = { { index = 238, name = 'Giant Sentry', level = { 28, 30 }, respawn = 720, areas = { { 402, -31.1, -36, 9 } } } },
+        areas = { { at = { 402, -31.1, -36 }, reach = 9, poly = { 393, -31, 395, -27, 407, -29, 411, -37, 409, -45 } } },
+        placeholders = { { index = 238, name = 'Giant Sentry', level = { 28, 30 }, respawn = 720, areas = { { at = { 402, -31.1, -36 }, reach = 9, poly = { 393, -31, 395, -27, 407, -29, 411, -37, 409, -45 } } } } },
         drops = { { rate = 1000, items = { { 497, 10000 } } }, { rate = 150, items = { { 499, 10000 } } }, { rate = 100, items = { { 14018, 10000 } } }, { rate = 240, items = { { 12290, 10000 } } } },
     },
     ['Fomorian Spear'] = {
@@ -74,8 +74,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 1 },
         kinds = 'l',
-        areas = { { 340, -15.8, 19, 12 } },
-        placeholders = { { index = 121, name = 'Giant Guard', level = { 28, 30 }, respawn = 720, areas = { { 340, -15.8, 19, 12 } } } },
+        areas = { { at = { 340, -15.8, 19 }, reach = 12, poly = { 329, 13, 335, 7, 349, 9, 351, 25, 343, 31, 333, 29, 329, 25 } } },
+        placeholders = { { index = 121, name = 'Giant Guard', level = { 28, 30 }, respawn = 720, areas = { { at = { 340, -15.8, 19 }, reach = 12, poly = { 329, 13, 335, 7, 349, 9, 351, 25, 343, 31, 333, 29, 329, 25 } } } } },
         drops = { { rate = 1000, items = { { 497, 10000 } } }, { rate = 150, items = { { 499, 10000 } } }, { rate = 100, items = { { 14018, 10000 } } }, { rate = 240, items = { { 12290, 10000 } } } },
     },
     ['Orna'] = {
@@ -99,7 +99,7 @@ return {
         detects = { 'Magic' },
         respawn = { 5400, 5400 },
         kinds = 't',
-        areas = { { 539, 0.2, 19, 12 } },
+        areas = { { at = { 539, 0.2, 19 }, reach = 12, poly = { 527, 15, 535, 7, 547, 9, 551, 23, 543, 31, 533, 31, 527, 25 } } },
         drops = { { rate = 100, items = { { 2845, 10000 } } } },
     },
 };

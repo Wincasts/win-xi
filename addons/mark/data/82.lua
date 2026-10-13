@@ -18,7 +18,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 5400, 7200 },
         kinds = 't',
-        areas = { { 440, -0.8, -160, 11 } },
+        areas = { { at = { 440, -0.8, -160 }, reach = 11, poly = { 429, -167, 433, -149, 451, -153, 449, -171 } } },
         drops = { { rate = 50, items = { { 15852, 10000 } } } },
     },
     ['Capricornus'] = {
@@ -62,7 +62,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { 204.9, 0.9, -347.8 } },
-        placeholders = { { index = 292, name = 'Orcish Veteran', level = { 76, 79 }, respawn = 300, areas = { { 202, 1, -342, 13 } } } },
+        placeholders = { { index = 292, name = 'Orcish Veteran', level = { 76, 79 }, respawn = 300, areas = { { at = { 202, 1, -342 }, reach = 13, poly = { 189, -345, 189, -339, 205, -331, 215, -331, 211, -353, 201, -353 } } } } },
         drops = { { rate = 100, items = { { 2822, 10000 } } }, { rate = 100, items = { { 2820, 10000 } } } },
     },
     ['Greater Gnole'] = {
@@ -195,7 +195,7 @@ return {
         lottery = {},
         kinds = 'l',
         points = { { -197.8, -0.3, -119.8 } },
-        placeholders = { { index = 86, name = 'Decrepit Gnole', level = { 73, 75 }, respawn = 300, areas = { { -196, 0.2, -114, 15 } } } },
+        placeholders = { { index = 86, name = 'Decrepit Gnole', level = { 73, 75 }, respawn = 300, areas = { { at = { -196, 0.2, -114 }, reach = 15, poly = { -209, -117, -207, -105, -195, -99, -183, -115, -183, -125, -203, -129 } } } } },
         drops = { { rate = 100, items = { { 18771, 10000 } } } },
     },
     ['Vulkodlac'] = {

@@ -28,7 +28,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { -442.5, -48, -314.3 } },
-        placeholders = { { index = 163, name = 'Ignis Djinn', level = { 70, 72 }, respawn = 300, areas = { { -442, -47.3, -327, 18 } } }, { index = 164, name = 'Ignis Djinn', level = { 70, 72 }, respawn = 300, areas = { { -442, -47.3, -327, 18 } } } },
+        placeholders = { { index = 163, name = 'Ignis Djinn', level = { 70, 72 }, respawn = 300, areas = { { at = { -442, -47.3, -327 }, reach = 18, poly = { -453, -329, -449, -327, -449, -345, -431, -343, -437, -309, -451, -309 } } } }, { index = 164, name = 'Ignis Djinn', level = { 70, 72 }, respawn = 300, areas = { { at = { -442, -47.3, -327 }, reach = 18, poly = { -453, -329, -449, -327, -449, -345, -431, -343, -437, -309, -451, -309 } } } } },
         drops = { { rate = 100, items = { { 2814, 10000 } } } },
     },
     ['Edonus'] = {
@@ -98,7 +98,7 @@ return {
         detects = { 'Sound' },
         respawn = { 9000, 9000 },
         kinds = 't',
-        areas = { { -240, -39.7, -702, 21 } },
+        areas = { { at = { -240, -39.7, -702 }, reach = 21, poly = { -257, -723, -257, -687, -239, -687, -227, -681, -223, -687, -239, -723 } } },
         drops = { { rate = 100, items = { { 19124, 10000 } } } },
     },
     ['Kaiser Behemoth'] = {
@@ -156,7 +156,7 @@ return {
         lottery = {},
         kinds = 'l',
         points = { { 366.8, -31.4, 419.8 } },
-        placeholders = { { index = 57, name = 'Gigas Helmsman', level = { 78, 82 }, respawn = 300, areas = { { 403, -31.5, 430, 11 } } }, { index = 62, name = 'Gigas Helmsman', level = { 78, 82 }, respawn = 300, areas = { { 304, -44, 326, 15 } } } },
+        placeholders = { { index = 57, name = 'Gigas Helmsman', level = { 78, 82 }, respawn = 300, areas = { { at = { 403, -31.5, 430 }, reach = 11, poly = { 393, 419, 407, 419, 411, 423, 413, 435, 409, 441, 393, 429 } } } }, { index = 62, name = 'Gigas Helmsman', level = { 78, 82 }, respawn = 300, areas = { { at = { 304, -44, 326 }, reach = 15, poly = { 301, 311, 301, 327, 303, 327, 303, 341, 305, 341, 305, 337, 307, 337, 307, 329, 305, 329, 305, 313, 303, 313, 303, 311 } } } } },
         drops = { { rate = 150, items = { { 16173, 10000 } } }, { rate = 10, items = { { 14021, 10000 } } } },
     },
     ['Procrustes'] = {
@@ -181,7 +181,7 @@ return {
         truesight = true,
         detects = { 'Sight', 'Scent' },
         kinds = 's',
-        areas = { { -159, -39.7, -279, 38 } },
+        areas = { { at = { -159, -39.7, -279 }, reach = 38, poly = { -197, -275, -193, -277, -193, -287, -189, -287, -193, -293, -182, -282, -130, -282, -127, -289, -135, -287, -135, -297, -127, -297, -121, -283, -125, -261, -127, -265, -135, -263, -135, -273, -129, -275, -131, -281, -177, -281, -193, -273 } } },
         drops = {},
     },
     ['Warabouc'] = {

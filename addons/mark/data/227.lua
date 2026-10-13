@@ -9,7 +9,7 @@ return {
         aggro = true,
         detects = { 'Sound', 'Low HP' },
         kinds = 's',
-        areas = { { 0.3, -7.2, 12.5, 10.9 } },
+        areas = { { at = { 0.3, -7.2, 12.5 }, reach = 11, poly = { -7, 5, -7, 20, -3, 23, 4, 23, 8, 20, 8, 2, -7, 2 } } },
         drops = { { rate = 150, items = { { 880, 10000 } } }, { rate = 150, items = { { 18396, 10000 } } } },
         steal = { 880 },
     },
@@ -21,7 +21,7 @@ return {
         aggro = true,
         detects = { 'Sound', 'Low HP' },
         kinds = 's',
-        areas = { { 0.3, -7.2, 12.5, 10.9 } },
+        areas = { { at = { 0.3, -7.2, 12.5 }, reach = 11, poly = { -7, 5, -7, 20, -3, 23, 4, 23, 8, 20, 8, 2, -7, 2 } } },
         drops = {},
     },
 };

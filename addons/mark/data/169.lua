@@ -9,7 +9,7 @@ return {
         detects = { 'Sound', 'Low HP' },
         respawn = { 28800, 28800 },
         kinds = 't',
-        areas = { { 159, 8.7, -122, 24 } },
+        areas = { { at = { 159, 8.7, -122 }, reach = 24, poly = { 135, -129, 151, -145, 167, -145, 183, -129, 183, -111, 169, -99, 172, -106, 162, -115, 153, -113, 155, -122, 146, -132, 139, -129, 137, -117 } } },
         drops = { { rate = 150, items = { { 16303, 10000 } } } },
     },
     ['Canal Moocher'] = {
@@ -21,8 +21,8 @@ return {
         detects = { 'Sound' },
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -139.9, 21.9, 21.5, 10.6 } },
-        placeholders = { { index = 135, name = 'Bouncing Ball', level = { 64, 67 }, respawn = 960, areas = { { -139.9, 21.9, 21.5, 10.6 } } } },
+        areas = { { at = { -139.9, 21.9, 21.5 }, reach = 11, poly = { -150, 18, -143, 11, -136, 11, -130, 23, -141, 32, -149, 25 } } },
+        placeholders = { { index = 135, name = 'Bouncing Ball', level = { 64, 67 }, respawn = 960, areas = { { at = { -139.9, 21.9, 21.5 }, reach = 11, poly = { -150, 18, -143, 11, -136, 11, -130, 23, -141, 32, -149, 25 } } } } },
         drops = { { rate = 100, items = { { 2817, 10000 } } }, { rate = 100, items = { { 2820, 10000 } } } },
     },
     ['Konjac'] = {
@@ -34,8 +34,8 @@ return {
         detects = { 'Sound', 'Scent' },
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
-        areas = { { 60.4, 21.8, 138.6, 10.9 } },
-        placeholders = { { index = 189, name = 'Mousse', level = { 63, 65 }, respawn = 960, areas = { { 60.4, 21.8, 138.6, 10.9 } } } },
+        areas = { { at = { 60.4, 21.8, 138.6 }, reach = 11, poly = { 50, 144, 51, 136, 60, 128, 70, 137, 70, 144, 64, 149, 56, 149 } } },
+        placeholders = { { index = 189, name = 'Mousse', level = { 63, 65 }, respawn = 960, areas = { { at = { 60.4, 21.8, 138.6 }, reach = 11, poly = { 50, 144, 51, 136, 60, 128, 70, 137, 70, 144, 64, 149, 56, 149 } } } } },
         drops = { { rate = 150, items = { { 2812, 10000 } } }, { rate = 150, items = { { 2813, 10000 } } } },
     },
     ['Magic Sludge'] = {
@@ -66,7 +66,7 @@ return {
         detects = { 'Sound', 'Low HP' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { -379.6, 22.1, -20, 10.7 } },
+        areas = { { at = { -379.6, 22.1, -20 }, reach = 11, poly = { -390, -24, -386, -26, -389, -24, -386, -22, -386, -27, -381, -28, -384, -30, -376, -29, -369, -17, -383, -10, -390, -16 } } },
         drops = { { rate = 1000, items = { { 849, 10000 } } }, { rate = 240, items = { { 849, 10000 } } }, { rate = 240, items = { { 849, 10000 } } }, { rate = 150, items = { { 16969, 10000 } } }, { rate = 10, items = { { 940, 10000 } } } },
     },
 };

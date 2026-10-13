@@ -55,7 +55,7 @@ return {
         detects = { 'Sound' },
         respawn = { 172800, 259200 },
         kinds = 't',
-        areas = { { 307.7, -24.1, -71.3, 25.4 } },
+        areas = { { at = { 307.7, -24.1, -71.3 }, reach = 25, poly = { 282, -86, 288, -93, 298, -88, 329, -92, 333, -89, 332, -69, 324, -58, 302, -50, 284, -71 } } },
         drops = { { rate = 1000, items = { { 2168, 10000 } } }, { rate = 1000, items = { { 2169, 10000 } } }, { rate = 1000, items = { { 5565, 10000 } } }, { rate = 1000, items = { { 2168, 10000 } } }, { rate = 240, items = { { 18385, 10000 } } } },
     },
     ['Chary Apkallu'] = {
@@ -66,7 +66,7 @@ return {
         detects = { 'Sight', 'Sound' },
         respawn = { 7200, 7200 },
         kinds = 't',
-        areas = { { 638, -13.5, -48, 17 } },
+        areas = { { at = { 638, -13.5, -48 }, reach = 17, poly = { 621, -49, 639, -65, 652, -63, 655, -57, 655, -49, 631, -31, 623, -31 } } },
         drops = { { rate = 100, items = { { 2815, 10000 } } }, { rate = 100, items = { { 2818, 10000 } } } },
     },
     ['Claret'] = {
@@ -99,8 +99,8 @@ return {
         detects = { 'Sound', 'Scent' },
         lottery = { chance = 10, cooldown = 86400 },
         kinds = 'l',
-        areas = { { 183.2, -13.8, -182.5, 30.9 } },
-        placeholders = { { index = 74, name = 'Magmatic Eruca', level = { 73, 75 }, respawn = 300, areas = { { 182, -13.9, -175, 11 } } } },
+        areas = { { at = { 183.2, -13.8, -182.5 }, reach = 31, poly = { 152, -178, 159, -196, 182, -210, 204, -200, 214, -172, 203, -157, 179, -155, 155, -166 } } },
+        placeholders = { { index = 74, name = 'Magmatic Eruca', level = { 73, 75 }, respawn = 300, areas = { { at = { 182, -13.9, -175 }, reach = 11, poly = { 171, -185, 193, -183, 191, -171, 185, -165, 175, -165, 171, -169 } } } } },
         drops = { { rate = 150, items = { { 18584, 10000 } } }, { rate = 100, items = { { 14947, 10000 } } } },
     },
     ['Fahrafahr the Bloodied'] = {
@@ -112,7 +112,7 @@ return {
         detects = { 'Sight' },
         lottery = {},
         kinds = 'l',
-        areas = { { 30.5, -14.2, 116.6, 18.5 } },
+        areas = { { at = { 30.5, -14.2, 116.6 }, reach = 18, poly = { 12, 110, 18, 103, 41, 107, 47, 109, 49, 121, 41, 121, 37, 129, 25, 129 } } },
         drops = { { rate = 100, items = { { 18872, 10000 } } } },
     },
     ['Garfurlar the Rabid'] = {
@@ -165,7 +165,7 @@ return {
         lottery = { chance = 10, cooldown = 7200 },
         kinds = 'l',
         points = { { -557.2, -14, 278.2 } },
-        placeholders = { { index = 350, name = 'Wamoura', level = { 80, 82 }, respawn = 300, areas = { { -565, -14.6, 263, 36 } } } },
+        placeholders = { { index = 350, name = 'Wamoura', level = { 80, 82 }, respawn = 300, areas = { { at = { -565, -14.6, 263 }, reach = 36, poly = { -601, 247, -571, 237, -553, 239, -529, 277, -543, 289, -583, 283, -601, 263 } } } } },
         drops = { { rate = 100, items = { { 19232, 10000 } } } },
     },
     ['Khromasoul Bhurborlor'] = {

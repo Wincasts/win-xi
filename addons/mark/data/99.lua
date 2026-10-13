@@ -13,7 +13,7 @@ return {
         lottery = { chance = 10, cooldown = 7200 },
         kinds = 'l',
         points = { { 50, -0.7, -148 } },
-        placeholders = { { index = 118, name = 'Yagudo Sentinel', level = { 76, 79 }, respawn = 960, areas = { { 62, -0.2, -143.3, 51.7 } } } },
+        placeholders = { { index = 118, name = 'Yagudo Sentinel', level = { 76, 79 }, respawn = 960, areas = { { at = { 62, -0.2, -143.3 }, reach = 52, poly = { 15, -140, 19, -165, 16, -173, 26, -182, 45, -182, 57, -195, 101, -193, 109, -187, 109, -179, 103, -176, 107, -153, 101, -152, 105, -145, 105, -119, 97, -99, 79, -93, 67, -96, 63, -92, 54, -96, 48, -93, 27, -97, 17, -111 } } } } },
         drops = { { rate = 150, items = { { 18856, 10000 } } } },
     },
     ['Allied Armored Belfry'] = {
@@ -35,7 +35,7 @@ return {
         detects = { 'Sight' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { -21, -15.9, 20, 8 } },
+        areas = { { at = { -21, -15.9, 20 }, reach = 8, poly = { -29, 17, -25, 13, -15, 13, -13, 25, -23, 27, -29, 23 } } },
         drops = { { rate = 1000, items = { { 2700, 10000 } } }, { rate = 100, items = { { 18499, 10000 } } }, { rate = 100, items = { { 16355, 10000 } } } },
     },
     ['Dee Zelko the Esoteric'] = {
@@ -49,7 +49,7 @@ return {
         detects = { 'Sight' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { -80, -39.8, -81, 28 } },
+        areas = { { at = { -80, -39.8, -81 }, reach = 28, poly = { -107, -103, -105, -53, -55, -55, -57, -107, -97, -109 } } },
         drops = { { rate = 1000, items = { { 2694, 10000 } } }, { rate = 100, items = { { 15923, 10000 } } }, { rate = 100, items = { { 18861, 10000 } } } },
     },
     ['Duu Masa the Onecut'] = {
@@ -99,7 +99,7 @@ return {
         detects = { 'Sight' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { 180, -15.9, -140, 7 } },
+        areas = { { at = { 180, -15.9, -140 }, reach = 7, poly = { 173, -145, 173, -137, 177, -133, 183, -133, 187, -137, 185, -147 } } },
         drops = { { rate = 1000, items = { { 2697, 10000 } } }, { rate = 100, items = { { 16247, 10000 } } }, { rate = 100, items = { { 19217, 10000 } } } },
     },
     ['Kaiser Behemoth'] = {
@@ -124,7 +124,7 @@ return {
         detects = { 'Sight' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { 6, -16.3, -189, 7 } },
+        areas = { { at = { 6, -16.3, -189 }, reach = 7, poly = { -1, -191, -1, -187, 3, -183, 13, -183, 11, -193, 1, -195 } } },
         drops = { { rate = 1000, items = { { 2696, 10000 } } }, { rate = 100, items = { { 18450, 10000 } } }, { rate = 100, items = { { 15829, 10000 } } } },
     },
     ['Maa Illmu the Bestower'] = {
@@ -138,7 +138,7 @@ return {
         detects = { 'Sight' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { -20, -15.9, -21, 7 } },
+        areas = { { at = { -20, -15.9, -21 }, reach = 7, poly = { -27, -25, -27, -17, -25, -15, -15, -15, -13, -17, -13, -25, -15, -27, -25, -27 } } },
         drops = { { rate = 1000, items = { { 2699, 10000 } } }, { rate = 100, items = { { 18862, 10000 } } }, { rate = 100, items = { { 19155, 10000 } } } },
     },
     ['Maat'] = {
@@ -161,7 +161,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 18000, 21600 },
         kinds = 't',
-        areas = { { -342, -16.1, 139, 8 } },
+        areas = { { at = { -342, -16.1, 139 }, reach = 8, poly = { -349, 135, -349, 143, -345, 147, -335, 145, -335, 133, -345, 131 } } },
         drops = { { rate = 1000, items = { { 2695, 10000 } } }, { rate = 100, items = { { 18952, 10000 } } }, { rate = 100, items = { { 19040, 10000 } } } },
     },
     ['Moo Ouzi the Swiftblade'] = {
@@ -195,7 +195,7 @@ return {
         detects = { 'Sight' },
         respawn = { 14400, 18000 },
         kinds = 't',
-        areas = { { -224, -0.3, 136, 49 } },
+        areas = { { at = { -224, -0.3, 136 }, reach = 49, poly = { -273, 97, -263, 87, -217, 87, -210, 96, -199, 93, -197, 97, -183, 99, -175, 113, -179, 177, -187, 183, -212, 181, -213, 185, -255, 181, -263, 173, -263, 129, -273, 111 } } },
         drops = { { rate = 1000, items = { { 2701, 10000 } } }, { rate = 100, items = { { 19111, 10000 } } }, { rate = 100, items = { { 19216, 10000 } } } },
     },
     ['Tzee Xicu the Manifest'] = {
@@ -259,7 +259,7 @@ return {
         lottery = { chance = 10, cooldown = 7200 },
         kinds = 'l',
         points = { { -103.2, -0.2, -159.5 } },
-        placeholders = { { index = 92, name = 'Yagudo Sentinel', level = { 76, 79 }, respawn = 960, areas = { { -60, 0.2, -145, 45 } } } },
+        placeholders = { { index = 92, name = 'Yagudo Sentinel', level = { 76, 79 }, respawn = 960, areas = { { at = { -60, 0.2, -145 }, reach = 45, poly = { -105, -179, -103, -185, -88, -187, -67, -187, -56, -182, -51, -186, -15, -187, -15, -175, -96, -175, -93, -127, -97, -103, -103, -103, -105, -133, -98, -142, -103, -139, -105, -145 } } } } },
         drops = { { rate = 100, items = { { 16319, 10000 } } }, { rate = 50, items = { { 2520, 10000 } } } },
     },
 };

@@ -35,7 +35,7 @@ return {
         detects = { 'Sight', 'Sound', 'Low HP' },
         respawn = { 7200, 14400 },
         kinds = 't',
-        areas = { { -549, -5.1, 53, 16 } },
+        areas = { { at = { -549, -5.1, 53 }, reach = 16, poly = { -565, 41, -561, 67, -539, 69, -535, 65, -533, 37 } } },
         drops = { { rate = 100, items = { { 19123, 10000 } } } },
     },
     ['Brekekekex'] = {
@@ -213,8 +213,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 3600 },
         kinds = 'l',
-        areas = { { 282, -13, -403, 19 } },
-        placeholders = { { index = 73, name = 'Wild Karakul', level = { 68, 70 }, respawn = 300, areas = { { 282, -13, -403, 19 } } } },
+        areas = { { at = { 282, -13, -403 }, reach = 19, poly = { 263, -403, 265, -389, 295, -387, 301, -399, 299, -419, 271, -413 } } },
+        placeholders = { { index = 73, name = 'Wild Karakul', level = { 68, 70 }, respawn = 300, areas = { { at = { 282, -13, -403 }, reach = 19, poly = { 263, -403, 265, -389, 295, -387, 301, -399, 299, -419, 271, -413 } } } } },
         drops = { { rate = 150, items = { { 878, 10000 } } }, { rate = 100, items = { { 5571, 10000 } } } },
     },
     ['Ravin Raven'] = {

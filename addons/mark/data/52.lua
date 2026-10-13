@@ -66,8 +66,8 @@ return {
         detects = { 'Sound' },
         lottery = { chance = 5, cooldown = 7200 },
         kinds = 'l',
-        areas = { { 80, -33.4, 636, 13 } },
-        placeholders = { { index = 166, name = 'Olden Treant', level = { 72, 74 }, respawn = 300, areas = { { 80, -33.4, 636, 13 } } } },
+        areas = { { at = { 80, -33.4, 636 }, reach = 13, poly = { 67, 627, 67, 641, 73, 645, 93, 643, 91, 631 } } },
+        placeholders = { { index = 166, name = 'Olden Treant', level = { 72, 74 }, respawn = 300, areas = { { at = { 80, -33.4, 636 }, reach = 13, poly = { 67, 627, 67, 641, 73, 645, 93, 643, 91, 631 } } } } },
         drops = { { rate = 150, items = { { 18386, 10000 } } }, { rate = 100, items = { { 15701, 10000 } } } },
     },
     ['Harvestman'] = {
@@ -79,7 +79,7 @@ return {
         detects = { 'Sound' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { 391.8, -10, 181.2, 26.1 } },
+        areas = { { at = { 391.8, -10, 181.2 }, reach = 26, poly = { 366, 182, 396, 183, 409, 182, 418, 183, 417, 181, 410, 180, 390, 181, 366, 180 } } },
         drops = { { rate = 100, items = { { 2814, 10000 } } }, { rate = 100, items = { { 2811, 10000 } } } },
     },
     ['Ikatere'] = {
@@ -125,8 +125,8 @@ return {
         detects = { 'Sight', 'Scent' },
         lottery = { chance = 15, cooldown = 10800 },
         kinds = 'l',
-        areas = { { 209.7, -18.6, 370.3, 21.6 } },
-        placeholders = { { index = 97, name = 'Marid', level = { 77, 78 }, respawn = 300, areas = { { 163.6, -17.7, 334, 33.5 } } } },
+        areas = { { at = { 209.7, -18.6, 370.3 }, reach = 22, poly = { 188, 361, 202, 371, 197, 389, 225, 386, 231, 380, 226, 354, 216, 350, 200, 355, 190, 351 } } },
+        placeholders = { { index = 97, name = 'Marid', level = { 77, 78 }, respawn = 300, areas = { { at = { 163.6, -17.7, 334 }, reach = 33, poly = { 132, 333, 134, 346, 145, 354, 151, 368, 195, 350, 179, 306, 168, 301 } } } } },
         drops = { { rate = 100, items = { { 19235, 10000 } } } },
     },
     ['Medusa'] = {
@@ -151,8 +151,8 @@ return {
         detects = { 'Sight', 'Sound' },
         lottery = { chance = 5, cooldown = 43200 },
         kinds = 'l',
-        areas = { { -165, -16.2, -599, 18 } },
-        placeholders = { { index = 190, name = 'Sea Puk', level = { 77, 78 }, respawn = 300, areas = { { -165, -16.2, -599, 18 } } } },
+        areas = { { at = { -165, -16.2, -599 }, reach = 18, poly = { -183, -603, -163, -615, -155, -615, -147, -607, -147, -599, -158, -596, -169, -583, -179, -587 } } },
+        placeholders = { { index = 190, name = 'Sea Puk', level = { 77, 78 }, respawn = 300, areas = { { at = { -165, -16.2, -599 }, reach = 18, poly = { -183, -603, -163, -615, -155, -615, -147, -607, -147, -599, -158, -596, -169, -583, -179, -587 } } } } },
         drops = { { rate = 100, items = { { 15946, 10000 } } } },
     },
     ['Plague Chigoe'] = {

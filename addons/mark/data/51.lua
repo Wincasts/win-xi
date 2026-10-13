@@ -50,7 +50,7 @@ return {
         aggro = true,
         detects = { 'Sight', 'Sound' },
         kinds = 's',
-        areas = { { 380, -21.6, -10, 37 } },
+        areas = { { at = { 380, -21.6, -10 }, reach = 37, poly = { 343, -37, 347, -43, 365, -43, 407, -31, 407, -9, 417, -1, 415, 23, 389, 19, 381, -9, 345, -15 } } },
         drops = { { rate = 100, items = { { 2815, 10000 } } }, { rate = 100, items = { { 2816, 10000 } } } },
     },
     ['Chigoe\'s Nit'] = {
@@ -128,7 +128,7 @@ return {
         detects = { 'Sight', 'Sound', 'Scent' },
         respawn = { 7203, 7800 },
         kinds = 't',
-        areas = { { -528, -9.3, 44, 19 } },
+        areas = { { at = { -528, -9.3, 44 }, reach = 19, poly = { -541, 45, -541, 59, -527, 63, -517, 47, -515, 29, -523, 25 } } },
         drops = { { rate = 100, items = { { 17971, 10000 } } } },
     },
     ['Gotoh Zha the Redolent'] = {
@@ -180,7 +180,7 @@ return {
         detects = { 'Sound' },
         respawn = { 172800, 259200 },
         kinds = 't',
-        areas = { { -277.2, -23.8, -7.8, 6 } },
+        areas = { { at = { -277.2, -23.8, -7.8 }, reach = 6, poly = { -283, -10, -280, -13, -275, -14, -271, -10, -271, -4, -274, -2, -280, -2 } } },
         drops = { { rate = 1000, items = { { 2172, 10000 } } }, { rate = 150, items = { { 2172, 10000 } } }, { rate = 1000, items = { { 5564, 10000 } } }, { rate = 1000, items = { { 2158, 10000 } } }, { rate = 1000, items = { { 5564, 10000 } } }, { rate = 150, items = { { 2158, 10000 } } }, { rate = 150, items = { { 15530, 10000 } } }, { rate = 150, items = { { 17952, 10000 } } } },
     },
     ['Iriz Ima'] = {
@@ -202,8 +202,8 @@ return {
         detects = { 'Sound' },
         lottery = { chance = 10, cooldown = 7200 },
         kinds = 'l',
-        areas = { { -583, -9.5, -338, 24 } },
-        placeholders = { { index = 265, name = 'Great Ameretat', level = { 73, 74 }, respawn = 300, areas = { { -583, -9.5, -338, 24 } } } },
+        areas = { { at = { -583, -9.5, -338 }, reach = 24, poly = { -607, -325, -605, -317, -565, -315, -559, -329, -561, -355, -571, -361, -583, -359, -589, -345 } } },
+        placeholders = { { index = 265, name = 'Great Ameretat', level = { 73, 74 }, respawn = 300, areas = { { at = { -583, -9.5, -338 }, reach = 24, poly = { -607, -325, -605, -317, -565, -315, -559, -329, -561, -355, -571, -361, -583, -359, -589, -345 } } } } },
         drops = { { rate = 150, items = { { 18741, 10000 } } }, { rate = 100, items = { { 15613, 10000 } } }, { rate = 100, items = { { 2307, 10000 } } } },
     },
     ['Ravenous Colibri'] = {
@@ -283,8 +283,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 15, cooldown = 1800 },
         kinds = 'l',
-        areas = { { 198, -19.1, -81, 26 } },
-        placeholders = { { index = 84, name = 'Lesser Colibri', level = { 63, 65 }, respawn = 300, areas = { { 198, -19.1, -81, 26 } } } },
+        areas = { { at = { 198, -19.1, -81 }, reach = 26, poly = { 173, -89, 173, -65, 187, -55, 213, -57, 223, -71, 221, -97, 211, -107, 189, -107 } } },
+        placeholders = { { index = 84, name = 'Lesser Colibri', level = { 63, 65 }, respawn = 300, areas = { { at = { 198, -19.1, -81 }, reach = 26, poly = { 173, -89, 173, -65, 187, -55, 213, -57, 223, -71, 221, -97, 211, -107, 189, -107 } } } } },
         drops = { { rate = 150, items = { { 15979, 10000 } } }, { rate = 150, items = { { 17953, 10000 } } } },
         steal = { 2150 },
     },

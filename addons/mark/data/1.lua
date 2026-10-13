@@ -32,7 +32,7 @@ return {
         aggro = true,
         detects = { 'Sound', 'Low HP' },
         kinds = 's',
-        areas = { { -0.1, -2.4, 8, 8.2 } },
+        areas = { { at = { -0.1, -2.4, 8 }, reach = 8, poly = { -8, 6, -8, 12, -4, 12, -4, 16, 4, 15, 4, 12, 8, 12, 7, 0, -8, 0 } } },
         drops = { { rate = 150, items = { { 14335, 10000 } } }, { rate = 100, items = { { 15368, 10000 } } } },
     },
 };

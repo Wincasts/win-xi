@@ -36,7 +36,7 @@ return {
         detects = { 'Sound', 'Magic' },
         respawn = { 7200, 9000 },
         kinds = 't',
-        areas = { { 101, -0.1, 142, 15 } },
+        areas = { { at = { 101, -0.1, 142 }, reach = 15, poly = { 87, 127, 87, 155, 113, 157, 115, 127 } } },
         drops = { { rate = 100, items = { { 16375, 10000 } } } },
     },
     ['Cheese Hoarder Gigiroon'] = {
@@ -62,7 +62,7 @@ return {
         lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
         points = { { -105, -8, 94 } },
-        placeholders = { { index = 14, name = 'Qiqirn Goldsmith', level = { 76, 78 }, respawn = 960, areas = { { -102, -8, 100, 15 } } }, { index = 20, name = 'Qiqirn Goldsmith', level = { 76, 78 }, respawn = 960, areas = { { -102, -8, 100, 15 } } } },
+        placeholders = { { index = 14, name = 'Qiqirn Goldsmith', level = { 76, 78 }, respawn = 960, areas = { { at = { -102, -8, 100 }, reach = 15, poly = { -117, 95, -115, 115, -87, 113, -89, 85, -115, 85 } } } }, { index = 20, name = 'Qiqirn Goldsmith', level = { 76, 78 }, respawn = 960, areas = { { at = { -102, -8, 100 }, reach = 15, poly = { -117, 95, -115, 115, -87, 113, -89, 85, -115, 85 } } } } },
         drops = { { rate = 100, items = { { 19233, 10000 } } } },
     },
     ['Nepionic Soulflayer'] = {
@@ -100,7 +100,7 @@ return {
         detects = { 'Sight', 'Sound', 'Low HP' },
         respawn = { 14400, 18000 },
         kinds = 't',
-        areas = { { 100, -0.1, -98, 15 } },
+        areas = { { at = { 100, -0.1, -98 }, reach = 15, poly = { 85, -111, 87, -83, 115, -85, 113, -113 } } },
         drops = { { rate = 1000, items = { { 2810, 10000 } } }, { rate = 240, items = { { 2825, 10000 } } }, { rate = 150, items = { { 2825, 10000 } } }, { rate = 100, items = { { 2825, 10000 } } }, { rate = 240, items = { { 646, 10000 } } }, { rate = 150, items = { { 739, 10000 } } }, { rate = 100, items = { { 739, 10000 } } }, { rate = 100, items = { { 739, 10000 } } }, { rate = 50, items = { { 2810, 10000 } } }, { rate = 100, items = { { 19280, 10000 } } } },
     },
     ['Panaiveriyamman'] = {

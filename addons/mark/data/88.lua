@@ -18,7 +18,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { 678.6, -10.2, 532.8 } },
-        placeholders = { { index = 37, name = 'Huge Spider', level = { 35, 38 }, respawn = 300, areas = { { 663, -10.6, 519, 44 } } } },
+        placeholders = { { index = 37, name = 'Huge Spider', level = { 35, 38 }, respawn = 300, areas = { { at = { 663, -10.6, 519 }, reach = 44, poly = { 619, 515, 619, 521, 651, 525, 669, 539, 685, 539, 707, 523, 705, 511, 677, 509, 647, 499, 631, 501 } } } } },
         drops = { { rate = 100, items = { { 19277, 10000 } } } },
     },
     ['Bi\'Gho Headtaker'] = {
@@ -105,7 +105,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { 49.6, 1.7, 630.4 } },
-        placeholders = { { index = 156, name = 'Coppercap', level = { 41, 50 }, respawn = 300, areas = { { -8, -0.1, 616, 37 } } } },
+        placeholders = { { index = 156, name = 'Coppercap', level = { 41, 50 }, respawn = 300, areas = { { at = { -8, -0.1, 616 }, reach = 37, poly = { -45, 617, -33, 623, -29, 631, -13, 635, 25, 637, 29, 633, 29, 613, 3, 597, -39, 595 } } } } },
         drops = { { rate = 100, items = { { 17959, 10000 } } }, { rate = 10, items = { { 5680, 10000 } } } },
         steal = { 4373 },
     },
@@ -191,7 +191,7 @@ return {
         job = 4,
         detects = { 'Sight' },
         kinds = 's',
-        areas = { { -432, 47.8, 18, 29 } },
+        areas = { { at = { -432, 47.8, 18 }, reach = 29, poly = { -461, 5, -445, -3, -413, -3, -403, 7, -403, 29, -421, 39, -449, 37, -461, 23 } } },
         drops = { { rate = 100, items = { { 2808, 10000 } } }, { rate = 100, items = { { 2809, 10000 } } } },
     },
     ['Pixie Impaler'] = {

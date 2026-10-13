@@ -27,7 +27,7 @@ return {
         lottery = { chance = 5, cooldown = 3600 },
         kinds = 'l',
         points = { { -51.7, -28.5, 686.5 } },
-        placeholders = { { index = 133, name = 'Dragonfly', level = { 55, 60 }, respawn = 960, areas = { { -61, -32.1, 737, 36 } } } },
+        placeholders = { { index = 133, name = 'Dragonfly', level = { 55, 60 }, respawn = 960, areas = { { at = { -61, -32.1, 737 }, reach = 36, poly = { -97, 731, -89, 717, -53, 709, -29, 732, -27, 729, -25, 737, -28, 736, -35, 747, -35, 761, -79, 765 } } } } },
         drops = { { rate = 100, items = { { 2814, 10000 } } } },
     },
     ['Emela-ntouka'] = {
@@ -40,7 +40,7 @@ return {
         detects = { 'Sound' },
         respawn = { 10800, 14400 },
         kinds = 't',
-        areas = { { 12, -27.8, 491, 33 } },
+        areas = { { at = { 12, -27.8, 491 }, reach = 33, poly = { -21, 513, -17, 507, -12, 507, -16, 501, -9, 491, 5, 487, 9, 477, 29, 471, 43, 459, 45, 469, 39, 481, 43, 491, 35, 499, 30, 498, 31, 509, 21, 519, -15, 523, -21, 519 } } },
         drops = { { rate = 100, items = { { 19120, 10000 } } } },
     },
     ['Eurytos'] = {
@@ -96,7 +96,7 @@ return {
         detects = { 'Sound' },
         lottery = { chance = 5, cooldown = 3600 },
         kinds = 'l',
-        areas = { { 180, -52.8, -187, 96 } },
+        areas = { { at = { 180, -52.8, -187 }, reach = 96, poly = { 115, -283, 119, -283, 119, -275, 125, -281, 127, -267, 135, -263, 135, -255, 149, -251, 157, -237, 205, -241, 207, -221, 201, -167, 211, -139, 245, -123, 243, -97, 234, -98, 234, -95, 216, -91, 201, -93, 186, -110, 177, -109, 161, -117, 159, -165, 141, -189, 129, -193, 121, -209, 115, -237, 119, -259 } } },
         placeholders = { { index = 66, name = 'Rafflesia', level = { 59, 62 }, respawn = 960, points = { { 186.3, -55.8, -199.2 } } } },
         drops = { { rate = 150, items = { { 18428, 10000 } } }, { rate = 100, items = { { 2513, 10000 } } }, { rate = 50, items = { { 2514, 10000 } } } },
     },
@@ -132,7 +132,7 @@ return {
         lottery = { chance = 10, cooldown = 5400 },
         kinds = 'l',
         points = { { 24.5, -70.1, -220.6 } },
-        placeholders = { { index = 40, name = 'Vorpal Bunny', level = { 27, 30 }, respawn = 720, areas = { { 16, -68.1, -234, 29 } } } },
+        placeholders = { { index = 40, name = 'Vorpal Bunny', level = { 27, 30 }, respawn = 720, areas = { { at = { 16, -68.1, -234 }, reach = 29, poly = { -11, -257, -9, -263, 15, -259, 31, -245, 43, -219, 41, -205, 35, -205, 19, -231, 1, -241 } } } } },
         drops = { { rate = 100, items = { { 2837, 10000 } } } },
     },
     ['Tartalo'] = {

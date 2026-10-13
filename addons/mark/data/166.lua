@@ -9,8 +9,8 @@ return {
         detects = { 'Sight', 'Sound' },
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -141, -5.3, -81, 32 } },
-        placeholders = { { index = 48, name = 'Seeker Bats', level = { 25, 28 }, respawn = 600, areas = { { -141, -5.3, -81, 32 } } } },
+        areas = { { at = { -141, -5.3, -81 }, reach = 32, poly = { -173, -82, -171, -73, -161, -67, -117, -69, -109, -77, -111, -87, -127, -95, -163, -93, -171, -89 } } },
+        placeholders = { { index = 48, name = 'Seeker Bats', level = { 25, 28 }, respawn = 600, areas = { { at = { -141, -5.3, -81 }, reach = 32, poly = { -173, -82, -171, -73, -161, -67, -117, -69, -109, -77, -111, -87, -127, -95, -163, -93, -171, -89 } } } } },
         drops = { { rate = 150, items = { { 16300, 10000 } } } },
     },
     ['Harnessed Smilodon'] = {
@@ -32,8 +32,8 @@ return {
         detects = { 'Sound' },
         lottery = { chance = 20, cooldown = 3600 },
         kinds = 'l',
-        areas = { { 137, 3, -60, 32 } },
-        placeholders = { { index = 77, name = 'Hecteyes', level = { 31, 34 }, respawn = 720, areas = { { 137, 3, -60, 32 } } } },
+        areas = { { at = { 137, 3, -60 }, reach = 32, poly = { 105, -71, 112, -70, 112, -68, 114, -71, 125, -71, 129, -67, 163, -71, 169, -67, 166, -61, 169, -55, 162, -49, 118, -49, 107, -59 } } },
+        placeholders = { { index = 77, name = 'Hecteyes', level = { 31, 34 }, respawn = 720, areas = { { at = { 137, 3, -60 }, reach = 32, poly = { 105, -71, 112, -70, 112, -68, 114, -71, 125, -71, 129, -67, 163, -71, 169, -67, 166, -61, 169, -55, 162, -49, 118, -49, 107, -59 } } } } },
         drops = {},
     },
     ['Mucoid Mass'] = {
@@ -45,7 +45,7 @@ return {
         detects = { 'Sound', 'Scent' },
         respawn = { 5403, 6000 },
         kinds = 't',
-        areas = { { 140, 26.7, -201, 14 } },
+        areas = { { at = { 140, 26.7, -201 }, reach = 14, poly = { 133, -191, 133, -187, 143, -189, 143, -193, 145, -193, 143, -205, 147, -209, 147, -215, 137, -211, 139, -199 } } },
         drops = { { rate = 150, items = { { 16186, 10000 } } } },
     },
     ['Taisaijin'] = {
@@ -56,7 +56,7 @@ return {
         aggro = true,
         detects = { 'Sound' },
         kinds = 's',
-        areas = { { -108, -56.4, 212, 35 } },
+        areas = { { at = { -108, -56.4, 212 }, reach = 35, poly = { -143, 197, -135, 199, -135, 207, -126, 216, -75, 215, -73, 223, -92, 220, -97, 227, -125, 223, -137, 217 } } },
         drops = { { rate = 150, items = { { 914, 10000 } } }, { rate = 150, items = { { 939, 10000 } } }, { rate = 50, items = { { 15222, 10000 } } }, { rate = 240, items = { { 4717, 10000 } } } },
     },
     ['Tros'] = {

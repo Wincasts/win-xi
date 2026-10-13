@@ -10,8 +10,8 @@ return {
         detects = { 'Sound' },
         lottery = { chance = 5, cooldown = 5400 },
         kinds = 'l',
-        areas = { { -57.1, 1.1, -40.6, 11.6 } },
-        placeholders = { { index = 178, name = 'Clipper', level = { 29, 32 }, respawn = 720, areas = { { -31, 1.5, -32.3, 3 } } }, { index = 180, name = 'Clipper', level = { 29, 32 }, respawn = 720, areas = { { -92.2, 1.4, -34.5, 4.7 } } } },
+        areas = { { at = { -57.1, 1.1, -40.6 }, reach = 12, poly = { -69, -35, -66, -51, -62, -42, -53, -44, -51, -51, -45, -46, -52, -43, -50, -31, -54, -31, -54, -39, -58, -40, -66, -38, -66, -31 } } },
+        placeholders = { { index = 178, name = 'Clipper', level = { 29, 32 }, respawn = 720, areas = { { at = { -31, 1.5, -32.3 }, reach = 3, poly = { -34, -31, -30, -29, -28, -34, -30, -35, -34, -33 } } } }, { index = 180, name = 'Clipper', level = { 29, 32 }, respawn = 720, areas = { { at = { -92.2, 1.4, -34.5 }, reach = 5, poly = { -97, -33, -96, -35, -89, -37, -88, -33, -90, -32 } } } } },
         drops = { { rate = 1000, items = { { 4400, 10000 } } }, { rate = 1000, items = { { 4400, 10000 } } }, { rate = 240, items = { { 881, 10000 } } }, { rate = 240, items = { { 881, 10000 } } }, { rate = 100, items = { { 17650, 10000 } } } },
     },
     ['Dame Blanche'] = {
@@ -23,8 +23,8 @@ return {
         detects = { 'Sound', 'Low HP' },
         lottery = { chance = 5, cooldown = 7200 },
         kinds = 'l',
-        areas = { { -354, 0.5, 121, 23 } },
-        placeholders = { { index = 304, name = 'Bogy', level = { 30, 33 }, respawn = 720, areas = { { -354, 0.5, 121, 23 } } } },
+        areas = { { at = { -354, 0.5, 121 }, reach = 23, poly = { -377, 115, -362, 111, -362, 107, -333, 111, -331, 127, -333, 131, -363, 135, -367, 129, -375, 131 } } },
+        placeholders = { { index = 304, name = 'Bogy', level = { 30, 33 }, respawn = 720, areas = { { at = { -354, 0.5, 121 }, reach = 23, poly = { -377, 115, -362, 111, -362, 107, -333, 111, -331, 127, -333, 131, -363, 135, -367, 129, -375, 131 } } } } },
         drops = { { rate = 1000, items = { { 1280, 10000 } } }, { rate = 240, items = { { 1280, 10000 } } }, { rate = 150, items = { { 1280, 10000 } } }, { rate = 150, items = { { 1280, 10000 } } } },
     },
     ['Dazbog'] = {
@@ -46,8 +46,8 @@ return {
         detects = { 'Sound' },
         lottery = { chance = 5, cooldown = 7200 },
         kinds = 'l',
-        areas = { { -36.6, -5.6, 146.1, 18.3 } },
-        placeholders = { { index = 206, name = 'Huge Spider', level = { 28, 31 }, respawn = 720, areas = { { -60.9, -4.3, 139.1, 4.7 } } }, { index = 211, name = 'Huge Spider', level = { 28, 31 }, respawn = 720, areas = { { -129.6, -5.6, 138.8, 13.5 } } } },
+        areas = { { at = { -36.6, -5.6, 146.1 }, reach = 18, poly = { -55, 136, -26, 139, -18, 156, -33, 142, -55, 145 } } },
+        placeholders = { { index = 206, name = 'Huge Spider', level = { 28, 31 }, respawn = 720, areas = { { at = { -60.9, -4.3, 139.1 }, reach = 5, poly = { -66, 139, -65, 140, -56, 140, -56, 138 } } } }, { index = 211, name = 'Huge Spider', level = { 28, 31 }, respawn = 720, areas = { { at = { -129.6, -5.6, 138.8 }, reach = 14, poly = { -143, 136, -131, 136, -128, 139, -119, 137, -116, 140, -120, 141, -123, 140, -130, 142, -130, 140, -132, 141, -134, 139, -142, 140 } } } } },
         drops = { { rate = 240, items = { { 838, 10000 } } }, { rate = 240, items = { { 838, 10000 } } }, { rate = 240, items = { { 838, 10000 } } }, { rate = 150, items = { { 18040, 10000 } } } },
     },
     ['Gloom Phantom'] = {
@@ -71,7 +71,7 @@ return {
         detects = { 'Sound' },
         respawn = { 600, 1800 },
         kinds = 't',
-        areas = { { -112.1, 1.5, -102.6, 2.7 }, { -100.6, 1.5, -109.5, 3.8 }, { -89, 1.5, -105.1, 2.6 } },
+        areas = { { at = { -112.1, 1.5, -102.6 }, reach = 3, poly = { -113, -105, -112, -100, -111, -100, -111, -105 } }, { at = { -100.6, 1.5, -109.5 }, reach = 4, poly = { -104, -110, -103, -108, -97, -109, -97, -111 } }, { at = { -89, 1.5, -105.1 }, reach = 3, poly = { -91, -107, -89, -108, -87, -104, -89, -102 } } },
         drops = {},
     },
     ['Korroloka Leech'] = {
@@ -119,7 +119,7 @@ return {
         detects = { 'Sight' },
         respawn = { 3600, 3600 },
         kinds = 't',
-        areas = { { 139.4, 1, 79.7, 19.9 } },
+        areas = { { at = { 139.4, 1, 79.7 }, reach = 20, poly = { 119, 82, 132, 74, 143, 77, 154, 74, 159, 77, 159, 85, 143, 85, 143, 82, 139, 84, 138, 81, 131, 80, 127, 82 } } },
         drops = { { rate = 100, items = { { 16024, 10000 } } } },
     },
 };

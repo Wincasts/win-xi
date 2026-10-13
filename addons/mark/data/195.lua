@@ -10,8 +10,8 @@ return {
         detects = { 'Sound', 'Low HP' },
         lottery = { chance = 15, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -400, -0.2, 394, 25 } },
-        placeholders = { { index = 117, name = 'Tomb Wolf', level = { 53, 55 }, respawn = 960, areas = { { -400, -0.2, 394, 25 } } } },
+        areas = { { at = { -400, -0.2, 394 }, reach = 25, poly = { -425, 383, -415, 378, -392, 378, -381, 373, -375, 382, -381, 413, -385, 415, -381, 398, -387, 385, -417, 381, -425, 389 } } },
+        placeholders = { { index = 117, name = 'Tomb Wolf', level = { 53, 55 }, respawn = 960, areas = { { at = { -400, -0.2, 394 }, reach = 25, poly = { -425, 383, -415, 378, -392, 378, -381, 373, -375, 382, -381, 413, -385, 415, -381, 398, -387, 385, -417, 381, -425, 389 } } } } },
         drops = { { rate = 240, items = { { 17709, 10000 } } } },
     },
     ['Dog Guardian'] = {

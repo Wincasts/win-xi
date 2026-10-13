@@ -19,7 +19,7 @@ return {
         detects = { 'Sound', 'Low HP' },
         respawn = { 14400, 14400 },
         kinds = 't',
-        areas = { { 122, 6.4, -127, 13 } },
+        areas = { { at = { 122, 6.4, -127 }, reach = 13, poly = { 109, -137, 119, -137, 127, -131, 135, -133, 135, -119, 112, -118 } } },
         drops = { { rate = 1000, items = { { 2858, 10000 } } }, { rate = 150, items = { { 2858, 10000 } } }, { rate = 150, items = { { 2275, 10000 } } }, { rate = 50, items = { { 747, 10000 } } }, { rate = 150, items = { { 2858, 10000 } } }, { rate = 240, items = { { 2859, 10000 } } }, { rate = 150, items = { { 19307, 10000 } } }, { rate = 100, items = { { 11411, 10000 } } } },
     },
     ['Citadel Pipistrelles'] = {
@@ -32,7 +32,7 @@ return {
         truesight = true,
         detects = { 'Sound' },
         kinds = 's',
-        areas = { { 11, 7, 61, 10 } },
+        areas = { { at = { 11, 7, 61 }, reach = 10, poly = { 1, 59, 3, 59, 3, 55, 11, 55, 21, 67, 17, 67, 11, 61, 5, 63 } } },
         drops = { { rate = 100, items = { { 2818, 10000 } } }, { rate = 100, items = { { 2814, 10000 } } } },
     },
     ['Elatha'] = {

@@ -9,7 +9,7 @@ return {
         detects = { 'Sound' },
         respawn = { 260100, 432000 },
         kinds = 't',
-        areas = { { -274, 40.2, 121, 17 } },
+        areas = { { at = { -274, 40.2, 121 }, reach = 17, poly = { -291, 119, -283, 115, -279, 105, -271, 105, -267, 114, -257, 117, -257, 130, -261, 137, -287, 133 } } },
         drops = { { rate = 1000, items = { { 903, 10000 } } }, { rate = 150, items = { { 867, 10000 } } }, { rate = 50, items = { { 1133, 10000 } } }, { rate = 50, items = { { 4486, 10000 } } }, { rate = 10, items = { { 16961, 10000 } } } },
     },
     ['Bomb Bastard'] = {
@@ -76,8 +76,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -92, 3.8, 168, 11 } },
-        placeholders = { { index = 159, name = 'Goblin Alchemist', level = { 66, 69 }, respawn = 960, areas = { { -92, 3.8, 168, 11 } } }, { index = 160, name = 'Goblin Alchemist', level = { 66, 69 }, respawn = 960, areas = { { -92, 3.8, 168, 11 } } }, { index = 170, name = 'Goblin Alchemist', level = { 66, 69 }, respawn = 960, areas = { { -92, 3.8, 168, 11 } } }, { index = 173, name = 'Goblin Alchemist', level = { 66, 69 }, respawn = 960, areas = { { -92, 3.8, 168, 11 } } } },
+        areas = { { at = { -92, 3.8, 168 }, reach = 11, poly = { -103, 167, -99, 177, -81, 175, -81, 165, -89, 159, -95, 159 } } },
+        placeholders = { { index = 159, name = 'Goblin Alchemist', level = { 66, 69 }, respawn = 960, areas = { { at = { -92, 3.8, 168 }, reach = 11, poly = { -103, 167, -99, 177, -81, 175, -81, 165, -89, 159, -95, 159 } } } }, { index = 160, name = 'Goblin Alchemist', level = { 66, 69 }, respawn = 960, areas = { { at = { -92, 3.8, 168 }, reach = 11, poly = { -103, 167, -99, 177, -81, 175, -81, 165, -89, 159, -95, 159 } } } }, { index = 170, name = 'Goblin Alchemist', level = { 66, 69 }, respawn = 960, areas = { { at = { -92, 3.8, 168 }, reach = 11, poly = { -103, 167, -99, 177, -81, 175, -81, 165, -89, 159, -95, 159 } } } }, { index = 173, name = 'Goblin Alchemist', level = { 66, 69 }, respawn = 960, areas = { { at = { -92, 3.8, 168 }, reach = 11, poly = { -103, 167, -99, 177, -81, 175, -81, 165, -89, 159, -95, 159 } } } } },
         drops = { { rate = 150, items = { { 17563, 10000 } } }, { rate = 1000, items = { { 511, 10000 } } }, { rate = 1000, items = { { 510, 10000 } } }, { rate = 100, items = { { 4719, 10000 } } }, { rate = 100, items = { { 4613, 10000 } } }, { rate = 50, items = { { 4618, 10000 } } }, { rate = 150, items = { { 4741, 10000 } } } },
     },
     ['Hraun Dragon'] = {
@@ -111,8 +111,8 @@ return {
         detects = { 'Sound', 'Scent' },
         lottery = { chance = 5, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -260.2, 3.7, -119.8, 54.2 } },
-        placeholders = { { index = 112, name = 'Eotyrannus', level = { 70, 73 }, respawn = 960, areas = { { -260, 3.6, -157, 35 } } }, { index = 116, name = 'Eotyrannus', level = { 70, 73 }, respawn = 960, areas = { { -260, 3.6, -125, 35 } } } },
+        areas = { { at = { -260.2, 3.7, -119.8 }, reach = 54, poly = { -295, -81, -287, -96, -294, -121, -290, -142, -294, -157, -291, -174, -271, -173, -263, -168, -247, -172, -228, -170, -226, -164, -232, -137, -229, -133, -229, -110, -253, -109, -259, -104, -268, -94, -269, -68, -289, -67 } } },
+        placeholders = { { index = 112, name = 'Eotyrannus', level = { 70, 73 }, respawn = 960, areas = { { at = { -260, 3.6, -157 }, reach = 35, poly = { -295, -164, -289, -175, -275, -175, -267, -169, -256, -168, -251, -173, -231, -173, -225, -169, -227, -151, -237, -139, -243, -141, -243, -149, -251, -155, -265, -151, -263, -141, -287, -141, -293, -145 } } } }, { index = 116, name = 'Eotyrannus', level = { 70, 73 }, respawn = 960, areas = { { at = { -260, 3.6, -125 }, reach = 35, poly = { -295, -126, -291, -143, -275, -139, -260, -123, -255, -135, -231, -141, -225, -115, -231, -107, -253, -107, -284, -124, -295, -123 } } } } },
         drops = { { rate = 1000, items = { { 1277, 10000 } } }, { rate = 100, items = { { 1277, 10000 } } }, { rate = 100, items = { { 17983, 10000 } } }, { rate = 100, items = { { 853, 10000 } } } },
     },
     ['Magma'] = {
@@ -165,8 +165,8 @@ return {
         detects = { 'Sound', 'Scent' },
         lottery = { chance = 5, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -120.8, 20, -99, 33.3 } },
-        placeholders = { { index = 100, name = 'Sulfur Scorpion', level = { 70, 73 }, respawn = 960, areas = { { -118, 19.8, -78, 13 } } }, { index = 105, name = 'Sulfur Scorpion', level = { 70, 73 }, respawn = 960, areas = { { -118, 19.8, -78, 13 } } } },
+        areas = { { at = { -120.8, 20, -99 }, reach = 33, poly = { -135, -119, -121, -110, -124, -90, -131, -80, -128, -70, -117, -66, -107, -79, -120, -88, -109, -121, -114, -131, -122, -132 } } },
+        placeholders = { { index = 100, name = 'Sulfur Scorpion', level = { 70, 73 }, respawn = 960, areas = { { at = { -118, 19.8, -78 }, reach = 13, poly = { -129, -85, -125, -91, -115, -89, -107, -83, -107, -75, -113, -67, -125, -65, -129, -69 } } } }, { index = 105, name = 'Sulfur Scorpion', level = { 70, 73 }, respawn = 960, areas = { { at = { -118, 19.8, -78 }, reach = 13, poly = { -129, -85, -125, -91, -115, -89, -107, -83, -107, -75, -113, -67, -125, -65, -129, -69 } } } } },
         drops = { { rate = 1000, items = { { 17927, 10000 } } }, { rate = 1000, items = { { 897, 10000 } } }, { rate = 1000, items = { { 896, 10000 } } }, { rate = 10, items = { { 901, 10000 } } } },
     },
     ['Vouivre'] = {
@@ -177,8 +177,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 7200 },
         kinds = 'l',
-        areas = { { -18.9, 3.7, 259.8, 34.6 } },
-        placeholders = { { index = 222, name = 'Hurricane Wyvern', level = { 75, 78 }, respawn = 960, areas = { { -33, 3.5, 277, 22 } } }, { index = 226, name = 'Hurricane Wyvern', level = { 75, 78 }, respawn = 960, areas = { { -33, 3.5, 277, 22 } } } },
+        areas = { { at = { -18.9, 3.7, 259.8 }, reach = 35, poly = { -54, 280, -41, 294, -36, 283, -28, 282, 6, 293, 7, 283, 15, 283, 16, 278, 4, 268, 8, 263, 12, 269, 16, 262, 15, 241, 2, 227, -20, 232, -37, 225, -45, 229, -52, 244, -51, 255, -45, 258 } } },
+        placeholders = { { index = 222, name = 'Hurricane Wyvern', level = { 75, 78 }, respawn = 960, areas = { { at = { -33, 3.5, 277 }, reach = 22, poly = { -55, 279, -47, 259, -31, 268, -23, 261, -11, 265, -25, 267, -25, 276, -21, 277, -36, 282, -39, 295 } } } }, { index = 226, name = 'Hurricane Wyvern', level = { 75, 78 }, respawn = 960, areas = { { at = { -33, 3.5, 277 }, reach = 22, poly = { -55, 279, -47, 259, -31, 268, -23, 261, -11, 265, -25, 267, -25, 276, -21, 277, -36, 282, -39, 295 } } } } },
         drops = { { rate = 1000, items = { { 16885, 10000 } } }, { rate = 1000, items = { { 1124, 10000 } } }, { rate = 240, items = { { 1124, 10000 } } }, { rate = 240, items = { { 1122, 10000 } } }, { rate = 1000, items = { { 866, 10000 } } } },
     },
 };

@@ -102,7 +102,7 @@ return {
         lottery = {},
         kinds = 'l',
         points = { { -515.4, -23.8, -453.5 } },
-        placeholders = { { index = 327, name = 'Ochu', level = { 64, 67 }, respawn = 300, areas = { { -484, -23.4, -482, 41 } } } },
+        placeholders = { { index = 327, name = 'Ochu', level = { 64, 67 }, respawn = 300, areas = { { at = { -484, -23.4, -482 }, reach = 41, poly = { -517, -469, -513, -487, -497, -491, -483, -517, -471, -523, -451, -517, -451, -503, -471, -485, -475, -469, -497, -455, -504, -456, -511, -441, -517, -445 } } } } },
         drops = { { rate = 100, items = { { 11406, 10000 } } } },
     },
     ['Deorc'] = {
@@ -136,7 +136,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { 176.1, -31.9, -204.1 } },
-        placeholders = { { index = 94, name = 'Scabrous Slug', level = { 56, 62 }, respawn = 300, areas = { { 188, -31.8, -190, 35 } } } },
+        placeholders = { { index = 94, name = 'Scabrous Slug', level = { 56, 62 }, respawn = 300, areas = { { at = { 188, -31.8, -190 }, reach = 35, poly = { 153, -195, 157, -183, 153, -163, 181, -161, 211, -173, 213, -183, 223, -193, 223, -207, 211, -213, 211, -217, 183, -219, 167, -215 } } } } },
         drops = { { rate = 150, items = { { 15759, 10000 } } }, { rate = 10, items = { { 2509, 10000 } } } },
     },
     ['Eorthe'] = {
@@ -159,7 +159,7 @@ return {
         lottery = { chance = 10, cooldown = 5400 },
         kinds = 'l',
         points = { { -298.5, 3.6, 54.6 } },
-        placeholders = { { index = 123, name = 'Death Jacket', level = { 38, 48 }, respawn = 300, areas = { { -318, 2.3, 44, 65 } } } },
+        placeholders = { { index = 123, name = 'Death Jacket', level = { 38, 48 }, respawn = 300, areas = { { at = { -318, 2.3, 44 }, reach = 65, poly = { -349, -5, -349, 15, -333, 21, -313, 39, -313, 107, -289, 109, -287, 25, -291, 17, -309, 1, -313, -15, -323, -21, -339, -21 } } } } },
         drops = { { rate = 100, items = { { 19122, 10000 } } } },
     },
     ['Eurytos'] = {

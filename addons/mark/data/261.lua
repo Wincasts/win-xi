@@ -56,7 +56,7 @@ return {
         truesight = true,
         detects = { 'Sight', 'Scent' },
         kinds = 's',
-        areas = { { -361, 0.1, -82, 9 } },
+        areas = { { at = { -361, 0.1, -82 }, reach = 9, poly = { -369, -91, -353, -91, -353, -81, -357, -75, -369, -73 } } },
         drops = {},
     },
     ['Supernal Chapuli'] = {

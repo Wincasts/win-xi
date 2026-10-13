@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 #   PH <placeholder id> <NM id>                 every phList entry
 #   SP <script> <mob id or 0> <x> <y> <z>       every spawnPoints entry (0: for whichever mob has the script)
 #   RT <script> <least> <most>                  the respawn times its onMobDespawn sets, over many runs
+#   PA <script> <x,y,z;x,y,z;...>               each route a handler of it walks the monster over (pathThrough)
 READER = r'''
 local zoneDir, idsFile = arg[1], arg[2]
 local ids = dofile(idsFile)
@@ -103,6 +104,40 @@ for file in io.lines() do
                 end
             end
         end
+        -- the routes it is walked over: what its handlers hand to pathThrough, as points or as bare numbers
+        local routes, written = {}, {}
+        local walker = stand()
+        rawset(walker, 'pathThrough', function(_, points)
+            local found = {}
+            if type(points) == 'table' and getmetatable(points) ~= inert then
+                if type(rawget(points, 1)) == 'number' then
+                    for i = 1, #points - 2, 3 do
+                        if type(points[i]) == 'number' and type(points[i + 1]) == 'number' and type(points[i + 2]) == 'number' then
+                            found[#found + 1] = ('%.1f,%.1f,%.1f'):format(points[i], points[i + 1], points[i + 2])
+                        end
+                    end
+                else
+                    for _, p in ipairs(points) do
+                        if type(p) == 'table' and type(rawget(p, 'x')) == 'number' and type(rawget(p, 'y')) == 'number' and type(rawget(p, 'z')) == 'number' then
+                            found[#found + 1] = ('%.1f,%.1f,%.1f'):format(p.x, p.y, p.z)
+                        end
+                    end
+                end
+            end
+            local line = table.concat(found, ';')
+            if #found > 1 and not written[line] then written[line] = true; routes[#routes + 1] = line end
+        end)
+        for _, handler in ipairs({ 'onMobInitialize', 'onMobSpawn', 'onMobRoam', 'onPath' }) do
+            local run = rawget(entity, handler)
+            if type(run) == 'function' then
+                for _ = 1, 20 do
+                    debug.sethook(function() error('too long') end, '', 200000)
+                    pcall(run, walker)
+                    debug.sethook()
+                end
+            end
+        end
+        for _, line in ipairs(routes) do print(('PA\t%s\t%s'):format(script, line)) end
         local despawn = rawget(entity, 'onMobDespawn')
         if type(despawn) == 'function' then
             local least, most
@@ -176,6 +211,29 @@ def seconds(text):
         return None
 
 
+def simplify(points, tolerance):
+    """An outline with the points left out that lie within tolerance of the line between their neighbours (Douglas-Peucker)."""
+    if len(points) < 4:
+        return points
+
+    def reduce(run):
+        (ax, ay), (bx, by) = run[0], run[-1]
+        length = ((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5
+        worst, at = 0.0, 0
+        for place in range(1, len(run) - 1):
+            px, py = run[place]
+            off = (abs((bx - ax) * (ay - py) - (ax - px) * (by - ay)) / length) if length else ((px - ax) ** 2 + (py - ay) ** 2) ** 0.5
+            if off > worst:
+                worst, at = off, place
+        if worst <= tolerance:
+            return [run[0], run[-1]]
+        return reduce(run[:at + 1])[:-1] + reduce(run[at:])
+
+    # a ring: cut at the point furthest from the first, and reduce each half
+    far = max(range(len(points)), key=lambda place: (points[place][0] - points[0][0]) ** 2 + (points[place][1] - points[0][1]) ** 2)
+    return reduce(points[:far + 1])[:-1] + reduce(points[far:] + [points[0]])[:-1]
+
+
 def strip_comments(text):
     return re.sub(r'--[^\n]*', '', text)
 
@@ -235,7 +293,7 @@ class Builder:
         templates = document.get('templates') or {}
         info = SimpleNamespace(zone=zone, id=zone_id, folder=self.scripts.get(squash(zone)), templates=templates,
                                spawns={}, shown={}, by_script={}, script_of={}, regions={}, npcs={},
-                               constants={}, ph={}, points={}, respawns={})
+                               constants={}, ph={}, points={}, respawns={}, paths={})
         for mob_id, spawn in sorted((document.get('spawns') or {}).items()):
             spawn = spawn or {}
             template = templates.get(spawn.get('template'))
@@ -255,8 +313,14 @@ class Builder:
                 if poly:
                     xs, ys, zs = [p[0] for p in poly], [p[1] for p in poly], [p[2] for p in poly]
                     # the middle of what the region covers, and how far it reaches from there
-                    info.regions[name] = ((min(xs) + max(xs)) / 2, sum(ys) / len(ys), (min(zs) + max(zs)) / 2,
-                                          max(max(xs) - min(xs), max(zs) - min(zs)) / 2)
+                    # to within three yalms, or less for a region too narrow to stand it
+                    ring = [(p[0], p[2]) for p in poly]
+                    outline = simplify(ring, min(3.0, min(max(xs) - min(xs), max(zs) - min(zs)) / 8))
+                    if len(outline) < 3:
+                        outline = ring
+                    info.regions[name] = {'at': [round((min(xs) + max(xs)) / 2, 1), round(sum(ys) / len(ys), 1), round((min(zs) + max(zs)) / 2, 1)],
+                                          'reach': round(max(max(xs) - min(xs), max(zs) - min(zs)) / 2),
+                                          'poly': [round(n) for point in outline for n in point]}
         npcs = self.server / 'data/zones' / zone / 'npcs.yaml'
         if npcs.exists():
             for npc_id, npc in sorted(((importer.load_yaml(str(npcs)) or {}).get('npcs') or {}).items()):
@@ -270,7 +334,7 @@ class Builder:
             return
 
         files = sorted(str(file) for file in (info.folder / 'mobs').glob('*.lua')
-                       if re.search(r'phList|spawnPoints|setRespawnTime', file.read_text(errors='replace')))
+                       if re.search(r'phList|spawnPoints|setRespawnTime|pathThrough', file.read_text(errors='replace')))
         ids = Path(scratch) / 'ids.lua'
         ids.write_text('return {\n' + ''.join(
             f'    [{importer.lua_string(name)}] = {{ {", ".join(map(str, found))} }},\n' for name, found in info.by_script.items()) + '}\n')
@@ -290,6 +354,10 @@ class Builder:
                 targets = [int(rest[1])] if int(rest[1]) else info.by_script.get(rest[0], [])
                 for mob_id in targets:
                     info.points.setdefault(mob_id, []).append(point)
+            elif kind == 'PA':
+                route = [[float(n) for n in point.split(',')] for point in rest[1].split(';')]
+                for mob_id in info.by_script.get(rest[0], []):
+                    info.paths.setdefault(mob_id, []).append(route)
             elif kind == 'RT':
                 for mob_id in info.by_script.get(rest[0], []):
                     least, most = int(rest[1]), int(rest[2])
@@ -444,15 +512,19 @@ class Builder:
             at = [round(float(n), 1) for n in spawn['at'][:3]]
             return ([at] if at != [1, 1, 1] else []), []
         names = spawn.get('region') or []
-        areas = [[round(n, 1) for n in info.regions[name]] for name in ([names] if isinstance(names, str) else names)
-                 if name in info.regions]
+        areas = [info.regions[name] for name in ([names] if isinstance(names, str) else names) if name in info.regions]
         return [], areas
 
-    def route(self, spawn):
+    def routes(self, info, mob_id):
+        """The routes a spawn walks: its own in the zone's data, and those its script walks it over."""
+        spawn = info.spawns.get(mob_id) or {}
+        found = []
         for key in ('path', 'circuit'):
             if spawn.get(key):
-                return {'loop': key == 'circuit', 'points': [[round(float(n), 1) for n in point[:3]] for point in spawn[key]]}
-        return None
+                found.append({'loop': key == 'circuit', 'points': [[round(float(n), 1) for n in point[:3]] for point in spawn[key]]})
+        for route in info.paths.get(mob_id, []):
+            found.append({'loop': False, 'points': [[round(n, 1) for n in point] for point in route]})
+        return found
 
     def rolls(self, loot):
         """Each roll made as the monster dies: its chance in tenths of a percent, and what it gives (item id, share of 10000)."""
@@ -534,9 +606,7 @@ class Builder:
             found_points, found_areas = self.place(info, mob_id)
             points += [point for point in found_points if point not in points]
             areas += [area for area in found_areas if area not in areas]
-            route = self.route(info.spawns[mob_id])
-            if route and route not in routes:
-                routes.append(route)
+            routes += [route for route in self.routes(info, mob_id) if route not in routes]
         if points:
             out['points'] = points
         if areas:
@@ -560,9 +630,9 @@ class Builder:
                     found['points'] = ph_points
                 if ph_areas:
                     found['areas'] = ph_areas
-                route = self.route(spawn)
-                if route:
-                    found['route'] = route
+                ph_routes = self.routes(info, ph)
+                if ph_routes:
+                    found['routes'] = ph_routes
                 out['placeholders'].append(found)
 
         loot = template.get('loot') or {}
@@ -604,7 +674,27 @@ class Builder:
             lines.append(f'    {{ id = {zone_id}, name = {lua(name)}, {listed} }},')
         lines.append('};\n')
         (self.output / 'index.lua').write_text('\n'.join(lines))
+        self.write_maps({zone_id for _, zone_id, _ in index})
         return total, len(index)
+
+    def write_maps(self, zones):
+        """Each zone's maps, a floor to each: where it is in the client's table of maps, and its picture among zoneinfo's."""
+        source = ROOT / 'addons/zoneinfo/data/all_maps.lua'
+        if not source.exists():
+            print('  no addons/zoneinfo/data/all_maps.lua: data/maps.lua not written')
+            return
+        floors = {}
+        for zone_id, floor, index, image in re.findall(
+                r'zone_id = (\d+), name = "[^"]*", floor_id = (\d+), table_index = (\d+),.*?image = "maps/all/([^"]+)"', source.read_text()):
+            if int(zone_id) in zones:
+                floors.setdefault(int(zone_id), {}).setdefault(int(floor), (int(index), image))
+        lines = ['-- Generated by tools/build_mark_data.py from addons/zoneinfo/data/all_maps.lua',
+                 '-- Zone -> its maps: the floor\'s id, its place in the client\'s table of maps, and its picture', 'return {']
+        for zone_id, found in sorted(floors.items()):
+            listed = ', '.join(f'{{ floor = {floor}, index = {index}, image = {lua(image)} }}' for floor, (index, image) in sorted(found.items()))
+            lines.append(f'    [{zone_id}] = {{ {listed} }},')
+        lines.append('};\n')
+        (self.output / 'maps.lua').write_text('\n'.join(lines))
 
     def run(self):
         with tempfile.TemporaryDirectory() as scratch:

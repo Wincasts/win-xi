@@ -21,8 +21,8 @@ return {
         detects = { 'Sight', 'Scent' },
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -10, -28.1, -56, 17 } },
-        placeholders = { { index = 73, name = 'Orcish Grappler', level = { 8, 10 }, respawn = 480, areas = { { -10, -28.1, -56, 17 } } } },
+        areas = { { at = { -10, -28.1, -56 }, reach = 17, poly = { -27, -61, -25, -65, 5, -65, 7, -57, -1, -47, -17, -47, -27, -53 } } },
+        placeholders = { { index = 73, name = 'Orcish Grappler', level = { 8, 10 }, respawn = 480, areas = { { at = { -10, -28.1, -56 }, reach = 17, poly = { -27, -61, -25, -65, 5, -65, 7, -57, -1, -47, -17, -47, -27, -53 } } } } },
         drops = { { rate = 1000, items = { { 13051, 9000 }, { 17412, 1000 } } } },
         steal = { 656 },
     },
@@ -35,7 +35,7 @@ return {
         detects = { 'Sight' },
         respawn = { 3600, 3600 },
         kinds = 't',
-        areas = { { 39, -44, -123, 30 } },
+        areas = { { at = { 39, -44, -123 }, reach = 30, poly = { 9, -123, 16, -129, 19, -143, 61, -143, 69, -119, 57, -116, 45, -103, 28, -103, 11, -109 } } },
         drops = { { rate = 150, items = { { 11529, 10000 } } } },
     },
     ['Orcish Panzer'] = {
@@ -47,7 +47,7 @@ return {
         detects = { 'Sight' },
         respawn = { 3600, 4200 },
         kinds = 't',
-        areas = { { 20, -48, 20, 31 } },
+        areas = { { at = { 20, -48, 20 }, reach = 31, poly = { -1, 37, 3, 19, 1, -3, 9, -11, 21, -9, 21, 1, 31, 11, 41, 13, 41, 35, 34, 37, 35, 43, 15, 51, 7, 51 } } },
         drops = {},
     },
 };

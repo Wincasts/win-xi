@@ -23,7 +23,7 @@ return {
         detects = { 'Sight' },
         respawn = { 259200, 259200 },
         kinds = 't',
-        areas = { { 41, 17.7, -398, 11 } },
+        areas = { { at = { 41, 17.7, -398 }, reach = 11, poly = { 31, -399, 39, -409, 45, -409, 49, -407, 51, -395, 41, -387, 33, -387 } } },
         drops = { { rate = 150, items = { { 15898, 10000 } } }, { rate = 50, items = { { 2227, 10000 } } } },
     },
     ['Devout Radol Ja'] = {
@@ -51,7 +51,7 @@ return {
         detects = { 'Sight' },
         respawn = { 101100, 258600 },
         kinds = 't',
-        areas = { { -280, 14.7, -77.2, 17 } },
+        areas = { { at = { -280, 14.7, -77.2 }, reach = 17, poly = { -297, -81, -285, -93, -263, -85, -263, -77, -273, -61, -283, -63, -288, -73, -297, -75 } } },
         drops = { { rate = 100, items = { { 14958, 10000 } } }, { rate = 50, items = { { 2162, 10000 } } } },
     },
     ['Firedance Magmaal Ja'] = {
@@ -62,7 +62,7 @@ return {
         lottery = { chance = 5, cooldown = 3600 },
         kinds = 'l',
         points = { { -209, 19, -388 } },
-        placeholders = { { index = 314, name = 'Watch Wyvern', level = { 81, 83 }, respawn = 960, areas = { { -122, 17.8, -363, 16 } } }, { index = 317, name = 'Watch Wyvern', level = { 81, 83 }, respawn = 960, areas = { { -122, 17.8, -363, 16 } } } },
+        placeholders = { { index = 314, name = 'Watch Wyvern', level = { 81, 83 }, respawn = 960, areas = { { at = { -122, 17.8, -363 }, reach = 16, poly = { -135, -363, -121, -377, -113, -379, -114, -369, -109, -367, -113, -347, -123, -347 } } } }, { index = 317, name = 'Watch Wyvern', level = { 81, 83 }, respawn = 960, areas = { { at = { -122, 17.8, -363 }, reach = 16, poly = { -135, -363, -121, -377, -113, -379, -114, -369, -109, -367, -113, -347, -123, -347 } } } } },
         drops = { { rate = 100, items = { { 19234, 10000 } } } },
     },
     ['Gulool Ja Ja'] = {
@@ -184,7 +184,7 @@ return {
         aggro = true,
         detects = { 'Sound', 'Scent' },
         kinds = 's',
-        areas = { { 319, -3.3, -240, 16 } },
+        areas = { { at = { 319, -3.3, -240 }, reach = 16, poly = { 303, -245, 311, -246, 313, -255, 325, -255, 335, -237, 329, -225, 321, -225, 312, -229, 314, -233, 303, -233 } } },
         drops = {},
     },
     ['Zizzy Zillah'] = {
@@ -195,8 +195,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 3600 },
         kinds = 'l',
-        areas = { { 76, 15, -211, 30 } },
-        placeholders = { { index = 97, name = 'Ziz', level = { 76, 77 }, respawn = 960, areas = { { 120, 14.9, -201, 17 } } } },
+        areas = { { at = { 76, 15, -211 }, reach = 30, poly = { 65, -199, 73, -211, 67, -241, 79, -241, 85, -231, 81, -203, 87, -191, 73, -181 } } },
+        placeholders = { { index = 97, name = 'Ziz', level = { 76, 77 }, respawn = 960, areas = { { at = { 120, 14.9, -201 }, reach = 17, poly = { 103, -202, 111, -211, 127, -215, 137, -197, 119, -187, 111, -199 } } } } },
         drops = { { rate = 100, items = { { 18437, 10000 } } }, { rate = 150, items = { { 14945, 10000 } } } },
     },
 };

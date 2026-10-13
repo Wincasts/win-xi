@@ -22,7 +22,7 @@ return {
         detects = { 'Magic' },
         respawn = { 1800, 10800 },
         kinds = 't',
-        areas = { { -274, -175.6, 77, 26 } },
+        areas = { { at = { -274, -175.6, 77 }, reach = 26, poly = { -297, 67, -278, 58, -280, 53, -270, 51, -274, 55, -272, 57, -261, 51, -261, 81, -251, 93, -251, 101, -265, 103, -269, 97, -289, 91 } } },
         drops = { { rate = 150, items = { { 18507, 10000 } } } },
     },
     ['Enkelados'] = {
@@ -35,8 +35,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 1 },
         kinds = 'l',
-        areas = { { -379, -143.8, 21, 12 }, { -221, -143.8, 22, 12 } },
-        placeholders = { { index = 4, name = 'Gigas Bonecutter', level = { 34, 35 }, respawn = 720, areas = { { -379, -143.8, 21, 12 } } }, { index = 42, name = 'Gigas Bonecutter', level = { 34, 35 }, respawn = 720, areas = { { -221, -143.8, 22, 12 } } } },
+        areas = { { at = { -379, -143.8, 21 }, reach = 12, poly = { -391, 17, -391, 25, -383, 33, -375, 33, -367, 25, -371, 11, -381, 9 } }, { at = { -221, -143.8, 22 }, reach = 12, poly = { -233, 19, -229, 31, -217, 33, -209, 27, -209, 15, -215, 11, -227, 11 } } },
+        placeholders = { { index = 4, name = 'Gigas Bonecutter', level = { 34, 35 }, respawn = 720, areas = { { at = { -379, -143.8, 21 }, reach = 12, poly = { -391, 17, -391, 25, -383, 33, -375, 33, -367, 25, -371, 11, -381, 9 } } } }, { index = 42, name = 'Gigas Bonecutter', level = { 34, 35 }, respawn = 720, areas = { { at = { -221, -143.8, 22 }, reach = 12, poly = { -233, 19, -229, 31, -217, 33, -209, 27, -209, 15, -215, 11, -227, 11 } } } } },
         drops = { { rate = 1000, items = { { 497, 10000 } } }, { rate = 240, items = { { 12292, 10000 } } }, { rate = 150, items = { { 499, 10000 } } }, { rate = 100, items = { { 14020, 10000 } } } },
     },
     ['Ixtab'] = {
@@ -49,8 +49,8 @@ return {
         detects = { 'Sound', 'Low HP' },
         lottery = { chance = 5, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -360, -160, 79, 13 }, { -359, -175.8, 80, 13 } },
-        placeholders = { { index = 90, name = 'Phasma', level = { 67, 69 }, respawn = 960, areas = { { -359, -175.8, 80, 13 } } }, { index = 127, name = 'Phasma', level = { 67, 69 }, respawn = 960, areas = { { -359, -175.8, 80, 13 } } } },
+        areas = { { at = { -360, -160, 79 }, reach = 13, poly = { -373, 75, -365, 67, -353, 67, -347, 83, -355, 91, -365, 91, -373, 83 } }, { at = { -359, -175.8, 80 }, reach = 13, poly = { -371, 73, -371, 85, -363, 93, -349, 89, -347, 75, -353, 67, -365, 67 } } },
+        placeholders = { { index = 90, name = 'Phasma', level = { 67, 69 }, respawn = 960, areas = { { at = { -359, -175.8, 80 }, reach = 13, poly = { -371, 73, -371, 85, -363, 93, -349, 89, -347, 75, -353, 67, -365, 67 } } } }, { index = 127, name = 'Phasma', level = { 67, 69 }, respawn = 960, areas = { { at = { -359, -175.8, 80 }, reach = 13, poly = { -371, 73, -371, 85, -363, 93, -349, 89, -347, 75, -353, 67, -365, 67 } } } } },
         drops = { { rate = 100, items = { { 940, 10000 } } }, { rate = 100, items = { { 1281, 10000 } } } },
     },
     ['Mimas'] = {
@@ -63,7 +63,7 @@ return {
         detects = { 'Sight' },
         respawn = { 900, 900 },
         kinds = 't',
-        areas = { { -294.4, -144, 55.4, 5.4 } },
+        areas = { { at = { -294.4, -144, 55.4 }, reach = 5, poly = { -300, 56, -298, 60, -293, 61, -289, 58, -296, 50 } } },
         drops = { { rate = 50, items = { { 16721, 10000 } } } },
     },
     ['Pallas'] = {
@@ -89,7 +89,7 @@ return {
         detects = { 'Sight' },
         respawn = { 600, 600 },
         kinds = 't',
-        areas = { { -288, -143.5, 13, 14 } },
+        areas = { { at = { -288, -143.5, 13 }, reach = 14, poly = { -301, 13, -301, 23, -291, 27, -281, 25, -275, 17, -277, 5, -283, -1, -295, 1 } } },
         drops = { { rate = 1000, items = { { 549, 10000 } } }, { rate = 1000, items = { { 549, 10000 } } }, { rate = 1000, items = { { 549, 10000 } } }, { rate = 1000, items = { { 549, 10000 } } }, { rate = 1000, items = { { 549, 10000 } } }, { rate = 1000, items = { { 549, 10000 } } } },
     },
 };

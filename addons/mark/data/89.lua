@@ -135,7 +135,7 @@ return {
         lottery = { chance = 5, cooldown = 10800 },
         kinds = 'l',
         points = { { -23.9, -24.1, 327.7 } },
-        placeholders = { { index = 198, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { 29, -29.8, 308, 39 } } }, { index = 199, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { 29, -29.8, 308, 39 } } }, { index = 200, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { 29, -29.8, 308, 39 } } }, { index = 203, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { 15, -17.3, 378, 19 } } }, { index = 204, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { 15, -17.3, 378, 19 } } }, { index = 205, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { -44, -28.1, 310, 41 } } }, { index = 206, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { -44, -28.1, 310, 41 } } }, { index = 207, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { -44, -28.1, 310, 41 } } } },
+        placeholders = { { index = 198, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { at = { 29, -29.8, 308 }, reach = 39, poly = { -7, 275, -3, 271, 37, 269, 43, 279, 55, 285, 65, 317, 55, 325, 40, 322, 31, 347, 11, 343, 7, 329, 3, 331, -5, 319, -7, 295, -3, 295, -3, 283 } } } }, { index = 199, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { at = { 29, -29.8, 308 }, reach = 39, poly = { -7, 275, -3, 271, 37, 269, 43, 279, 55, 285, 65, 317, 55, 325, 40, 322, 31, 347, 11, 343, 7, 329, 3, 331, -5, 319, -7, 295, -3, 295, -3, 283 } } } }, { index = 200, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { at = { 29, -29.8, 308 }, reach = 39, poly = { -7, 275, -3, 271, 37, 269, 43, 279, 55, 285, 65, 317, 55, 325, 40, 322, 31, 347, 11, 343, 7, 329, 3, 331, -5, 319, -7, 295, -3, 295, -3, 283 } } } }, { index = 203, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { at = { 15, -17.3, 378 }, reach = 19, poly = { -3, 359, 19, 359, 27, 367, 33, 383, 23, 397, 13, 388, 1, 385, 7, 379, -3, 379 } } } }, { index = 204, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { at = { 15, -17.3, 378 }, reach = 19, poly = { -3, 359, 19, 359, 27, 367, 33, 383, 23, 397, 13, 388, 1, 385, 7, 379, -3, 379 } } } }, { index = 205, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { at = { -44, -28.1, 310 }, reach = 41, poly = { -83, 291, -83, 301, -61, 305, -53, 311, -59, 326, -47, 329, -29, 351, -13, 347, -17, 307, -5, 301, -5, 297, -19, 281, -55, 269, -79, 269, -79, 287 } } } }, { index = 206, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { at = { -44, -28.1, 310 }, reach = 41, poly = { -83, 291, -83, 301, -61, 305, -53, 311, -59, 326, -47, 329, -29, 351, -13, 347, -17, 307, -5, 301, -5, 297, -19, 281, -55, 269, -79, 269, -79, 287 } } } }, { index = 207, name = 'Grauberg Hippogryph', level = { 73, 75 }, respawn = 300, areas = { { at = { -44, -28.1, 310 }, reach = 41, poly = { -83, 291, -83, 301, -61, 305, -53, 311, -59, 326, -47, 329, -29, 351, -13, 347, -17, 307, -5, 301, -5, 297, -19, 281, -55, 269, -79, 269, -79, 287 } } } } },
         drops = { { rate = 100, items = { { 17854, 10000 } } } },
     },
     ['Maat'] = {
@@ -202,7 +202,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { -140.4, -92.1, 39.5 } },
-        placeholders = { { index = 218, name = 'Ajattara', level = { 79, 83 }, respawn = 300, areas = { { -171, -94.4, 17, 52 } } } },
+        placeholders = { { index = 218, name = 'Ajattara', level = { 79, 83 }, respawn = 300, areas = { { at = { -171, -94.4, 17 }, reach = 52, poly = { -223, 27, -197, 7, -193, -5, -181, -7, -173, -17, -121, -15, -119, 51, -151, 49, -163, 31, -187, 33, -211, 43, -212, 34, -217, 36, -216, 41, -221, 39 } } } } },
         drops = { { rate = 150, items = { { 16150, 10000 } } }, { rate = 50, items = { { 1124, 10000 } } }, { rate = 100, items = { { 1122, 10000 } } } },
     },
     ['Time Bomb'] = {
@@ -222,7 +222,7 @@ return {
         lottery = { chance = 10, cooldown = 5400 },
         kinds = 'l',
         points = { { 276.1, 25.3, -453.5 } },
-        placeholders = { { index = 58, name = 'Wivre', level = { 68, 74 }, respawn = 300, points = { { 196.9, 23.9, -625.9 } } }, { index = 122, name = 'Wivre', level = { 68, 74 }, respawn = 300, areas = { { 300, 31.5, -457, 59 } } } },
+        placeholders = { { index = 58, name = 'Wivre', level = { 68, 74 }, respawn = 300, points = { { 196.9, 23.9, -625.9 } } }, { index = 122, name = 'Wivre', level = { 68, 74 }, respawn = 300, areas = { { at = { 300, 31.5, -457 }, reach = 59, poly = { 241, -479, 255, -481, 270, -474, 327, -485, 357, -477, 359, -467, 346, -446, 327, -441, 315, -429, 307, -429, 275, -439, 257, -437, 241, -461 } } } } },
         drops = { { rate = 100, items = { { 18508, 10000 } } } },
     },
 };

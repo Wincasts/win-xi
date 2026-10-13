@@ -39,7 +39,7 @@ return {
         lottery = { chance = 10, cooldown = 10800 },
         kinds = 'l',
         points = { { -152, -9.2, 464 } },
-        placeholders = { { index = 118, name = 'Goblin Blastmaster', level = { 62, 64 }, respawn = 300, areas = { { -157, -7.1, 471, 16 } } } },
+        placeholders = { { index = 118, name = 'Goblin Blastmaster', level = { 62, 64 }, respawn = 300, areas = { { at = { -157, -7.1, 471 }, reach = 16, poly = { -167, 455, -155, 455, -149, 461, -147, 471, -152, 483, -147, 483, -147, 487, -157, 487, -165, 479 } } } } },
         drops = { { rate = 100, items = { { 15854, 10000 } } } },
     },
     ['Chaneque'] = {
@@ -50,7 +50,7 @@ return {
         detects = { 'Sound' },
         respawn = { 5400, 7200 },
         kinds = 't',
-        areas = { { 71, -5.4, -236, 25 } },
+        areas = { { at = { 71, -5.4, -236 }, reach = 25, poly = { 47, -231, 51, -255, 63, -261, 79, -261, 85, -257, 85, -243, 93, -231, 93, -211, 67, -211, 51, -217 } } },
         drops = { { rate = 100, items = { { 18767, 10000 } } } },
     },
     ['Dark Ixion'] = {
@@ -116,7 +116,7 @@ return {
         lottery = { chance = 10, cooldown = 5400 },
         kinds = 'l',
         points = { { 137, 8.5, -472 } },
-        placeholders = { { index = 322, name = 'Ba', level = { 33, 37 }, respawn = 300, areas = { { 122, 7.8, -459, 39 } } } },
+        placeholders = { { index = 322, name = 'Ba', level = { 33, 37 }, respawn = 300, areas = { { at = { 122, 7.8, -459 }, reach = 39, poly = { 83, -451, 83, -443, 95, -433, 121, -429, 135, -437, 139, -447, 161, -465, 161, -471, 141, -487, 125, -489, 113, -485, 99, -463 } } } } },
         drops = { { rate = 100, items = { { 11405, 10000 } } } },
     },
     ['Jagidbod of Clan Reaper'] = {
@@ -151,7 +151,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { -153.1, -10.4, 15.4 } },
-        placeholders = { { index = 274, name = 'Smilodon', level = { 46, 48 }, respawn = 300, areas = { { -277, -19, -38, 42 } } } },
+        placeholders = { { index = 274, name = 'Smilodon', level = { 46, 48 }, respawn = 300, areas = { { at = { -277, -19, -38 }, reach = 42, poly = { -319, -65, -301, -79, -279, -73, -271, -53, -243, -51, -235, -37, -245, -37, -247, -17, -239, -9, -245, 3, -275, 3, -297, -9, -305, -19, -309, -45 } } } } },
         drops = { { rate = 150, items = { { 18445, 10000 } } } },
     },
     ['Lacus'] = {

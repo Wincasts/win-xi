@@ -20,7 +20,7 @@ return {
         lottery = { chance = 10, cooldown = 7200 },
         kinds = 'l',
         points = { { -93.1, -3.5, 179.6 } },
-        placeholders = { { index = 99, name = 'Adaman Quadav', level = { 77, 79 }, respawn = 960, areas = { { -51, -3.1, 160, 24 } } } },
+        placeholders = { { index = 99, name = 'Adaman Quadav', level = { 77, 79 }, respawn = 960, areas = { { at = { -51, -3.1, 160 }, reach = 24, poly = { -75, 159, -75, 171, -61, 175, -27, 171, -29, 145, -47, 147 } } } } },
         drops = { { rate = 100, items = { { 18947, 10000 } } }, { rate = 50, items = { { 2504, 10000 } } }, { rate = 50, items = { { 2505, 10000 } } } },
     },
     ['Bi\'Gho Headtaker'] = {
@@ -58,7 +58,7 @@ return {
         link = true,
         detects = { 'Sound', 'Scent' },
         kinds = 's',
-        areas = { { -168, 0.1, -96, 43 } },
+        areas = { { at = { -168, 0.1, -96 }, reach = 43, poly = { -211, -89, -181, -59, -133, -65, -125, -73, -129, -101, -139, -111, -143, -129, -151, -133, -179, -133, -203, -125, -209, -109, -203, -109, -193, -97 } } },
         drops = {},
     },
     ['Bres'] = {
@@ -71,7 +71,7 @@ return {
         detects = { 'Sound', 'Low HP' },
         respawn = { 36000, 36000 },
         kinds = 't',
-        areas = { { 179, 40, 17, 10 } },
+        areas = { { at = { 179, 40, 17 }, reach = 10, poly = { 169, 13, 173, 7, 182, 7, 189, 13, 189, 21, 183, 27, 171, 25 } } },
         drops = { { rate = 1000, items = { { 2687, 10000 } } }, { rate = 100, items = { { 11391, 10000 } } }, { rate = 100, items = { { 18760, 10000 } } } },
     },
     ['Da\'Dha Hundredmask'] = {
@@ -85,7 +85,7 @@ return {
         lottery = { chance = 12, cooldown = 7200 },
         kinds = 'l',
         points = { { -89.9, 0.2, -160 } },
-        placeholders = { { index = 148, name = 'Gold Quadav', level = { 76, 79 }, respawn = 960, areas = { { -49, -1.6, -188, 31 } } } },
+        placeholders = { { index = 148, name = 'Gold Quadav', level = { 76, 79 }, respawn = 960, areas = { { at = { -49, -1.6, -188 }, reach = 31, poly = { -69, -215, -67, -219, -35, -215, -29, -209, -29, -187, -37, -181, -39, -165, -49, -157, -67, -157, -67, -180, -60, -186, -67, -184, -69, -189 } } } } },
         drops = { { rate = 100, items = { { 15014, 10000 } } } },
     },
     ['De\'Vyu Headhunter'] = {
@@ -109,7 +109,7 @@ return {
         link = true,
         detects = { 'Sound', 'Scent' },
         kinds = 's',
-        areas = { { -168, 0.1, -96, 43 } },
+        areas = { { at = { -168, 0.1, -96 }, reach = 43, poly = { -211, -89, -181, -59, -133, -65, -125, -73, -129, -101, -139, -111, -143, -129, -151, -133, -179, -133, -203, -125, -209, -109, -203, -109, -193, -97 } } },
         drops = {},
     },
     ['Di\'Zho Spongeshell'] = {
@@ -123,7 +123,7 @@ return {
         detects = { 'Sound', 'Scent' },
         respawn = { 18000, 18000 },
         kinds = 't',
-        areas = { { -286, -3.1, -143, 30 } },
+        areas = { { at = { -286, -3.1, -143 }, reach = 30, poly = { -301, -135, -295, -125, -281, -133, -281, -141, -291, -149, -293, -157, -293, -171, -281, -173, -277, -141, -271, -131, -273, -115, -287, -113, -299, -125 } } },
         drops = { { rate = 1000, items = { { 2688, 10000 } } }, { rate = 100, items = { { 19156, 10000 } } }, { rate = 100, items = { { 15830, 10000 } } } },
     },
     ['Ea\'Tho Cruelheart'] = {
@@ -137,7 +137,7 @@ return {
         lottery = { chance = 10, cooldown = 7200 },
         kinds = 'l',
         points = { { -191.8, 0.5, -59.7 } },
-        placeholders = { { index = 20, name = 'Adaman Quadav', level = { 77, 79 }, respawn = 960, areas = { { -153, 1, -80, 22 } } } },
+        placeholders = { { index = 20, name = 'Adaman Quadav', level = { 77, 79 }, respawn = 960, areas = { { at = { -153, 1, -80 }, reach = 22, poly = { -175, -81, -160, -87, -148, -84, -137, -95, -131, -93, -131, -75, -137, -69, -169, -65, -175, -69 } } } } },
         drops = { { rate = 100, items = { { 15818, 10000 } } }, { rate = 50, items = { { 2504, 10000 } } }, { rate = 50, items = { { 2505, 10000 } } } },
     },
     ['Eurytos'] = {
@@ -162,7 +162,7 @@ return {
         detects = { 'Sound', 'Scent' },
         respawn = { 18000, 18000 },
         kinds = 't',
-        areas = { { 201, -3, -46, 22 } },
+        areas = { { at = { 201, -3, -46 }, reach = 22, poly = { 179, -41, 183, -35, 202, -39, 215, -35, 223, -37, 223, -49, 217, -57, 202, -53, 187, -55 } } },
         drops = { { rate = 1000, items = { { 2686, 10000 } } }, { rate = 100, items = { { 17756, 10000 } } }, { rate = 100, items = { { 16181, 10000 } } } },
     },
     ['Gi\'Ghi Rockchopper'] = {
@@ -184,7 +184,7 @@ return {
         link = true,
         detects = { 'Sound', 'Scent' },
         kinds = 's',
-        areas = { { -168, 0.1, -96, 43 } },
+        areas = { { at = { -168, 0.1, -96 }, reach = 43, poly = { -211, -89, -181, -59, -133, -65, -125, -73, -129, -101, -139, -111, -143, -129, -151, -133, -179, -133, -203, -125, -209, -109, -203, -109, -193, -97 } } },
         drops = {},
     },
     ['Gu\'Dho Staggershell'] = {
@@ -266,7 +266,7 @@ return {
         detects = { 'Sound', 'Scent' },
         respawn = { 18000, 18000 },
         kinds = 't',
-        areas = { { -32, -3, -66, 27 } },
+        areas = { { at = { -32, -3, -66 }, reach = 27, poly = { -49, -85, -45, -61, -23, -39, -15, -65, -25, -89, -37, -93 } } },
         drops = { { rate = 1000, items = { { 2693, 10000 } } }, { rate = 100, items = { { 17962, 10000 } } }, { rate = 100, items = { { 11474, 10000 } } } },
     },
     ['Va\'Gho Bloodbasked'] = {
@@ -278,7 +278,7 @@ return {
         detects = { 'Sound', 'Scent' },
         respawn = { 18000, 18000 },
         kinds = 't',
-        areas = { { 41, -3, 56, 25 } },
+        areas = { { at = { 41, -3, 56 }, reach = 25, poly = { 29, 55, 42, 48, 37, 33, 49, 31, 53, 53, 49, 81, 29, 67 } } },
         drops = { { rate = 1000, items = { { 2692, 10000 } } }, { rate = 100, items = { { 19271, 10000 } } }, { rate = 100, items = { { 16354, 10000 } } } },
     },
     ['Za\'Dha Adamantking'] = {

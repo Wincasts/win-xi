@@ -57,8 +57,8 @@ return {
         detects = { 'Sight', 'Scent' },
         lottery = { chance = 20, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -198, 3.8, 79, 19 } },
-        placeholders = { { index = 31, name = 'Hoarder Hare', level = { 6, 8 }, respawn = 480, areas = { { -198, 3.8, 79, 19 } } } },
+        areas = { { at = { -198, 3.8, 79 }, reach = 19, poly = { -217, 87, -207, 65, -179, 61, -186, 74, -183, 97, -208, 97, -209, 90, -217, 91 } } },
+        placeholders = { { index = 31, name = 'Hoarder Hare', level = { 6, 8 }, respawn = 480, areas = { { at = { -198, 3.8, 79 }, reach = 19, poly = { -217, 87, -207, 65, -179, 61, -186, 74, -183, 97, -208, 97, -209, 90, -217, 91 } } } } },
         drops = { { rate = 240, items = { { 19045, 10000 } } } },
     },
 };

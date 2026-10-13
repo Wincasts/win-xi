@@ -65,7 +65,7 @@ return {
         detects = { 'Sound' },
         respawn = { 6000, 6000 },
         kinds = 't',
-        areas = { { -99, -21, 147, 24 } },
+        areas = { { at = { -99, -21, 147 }, reach = 24, poly = { -123, 135, -107, 127, -93, 127, -81, 133, -75, 139, -79, 163, -97, 163, -97, 167, -121, 165 } } },
         drops = { { rate = 100, items = { { 15943, 10000 } } } },
     },
     ['Dark Ixion'] = {
@@ -119,7 +119,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { 114.7, -1, -288.3 } },
-        placeholders = { { index = 206, name = 'Tiny Lycopodium', level = { 10, 12 }, respawn = 300, areas = { { 114, -1.1, -318, 43 } } } },
+        placeholders = { { index = 206, name = 'Tiny Lycopodium', level = { 10, 12 }, respawn = 300, areas = { { at = { 114, -1.1, -318 }, reach = 43, poly = { 89, -313, 99, -357, 103, -361, 119, -361, 125, -345, 139, -337, 139, -299, 128, -291, 127, -277, 117, -275, 113, -281, 101, -283, 95, -289 } } } } },
         drops = { { rate = 150, items = { { 17750, 10000 } } }, { rate = 50, items = { { 2507, 10000 } } } },
     },
     ['Jyeshtha'] = {
@@ -196,7 +196,7 @@ return {
         lottery = { chance = 20, cooldown = 5400 },
         kinds = 'l',
         points = { { 93.7, -1.1, -204.7 } },
-        placeholders = { { index = 365, name = 'Toad', level = { 51, 54 }, respawn = 300, areas = { { 94, -1, -201, 22 } } } },
+        placeholders = { { index = 365, name = 'Toad', level = { 51, 54 }, respawn = 300, areas = { { at = { 94, -1, -201 }, reach = 22, poly = { 83, -215, 85, -183, 87, -179, 97, -179, 103, -187, 105, -217, 87, -223 } } } } },
         drops = { { rate = 100, items = { { 15942, 10000 } } } },
     },
     ['Rummager Beetle'] = {
@@ -228,7 +228,7 @@ return {
         detects = { 'Sight' },
         respawn = { 7200, 8400 },
         kinds = 't',
-        areas = { { -213, -24.6, 540, 32 } },
+        areas = { { at = { -213, -24.6, 540 }, reach = 32, poly = { -245, 517, -237, 513, -205, 517, -191, 533, -181, 565, -209, 565, -209, 553, -217, 547, -220, 536, -241, 535 } } },
         drops = { { rate = 100, items = { { 2808, 10000 } } }, { rate = 100, items = { { 2809, 10000 } } } },
     },
     ['Vuu Puqu the Beguiler'] = {
@@ -240,7 +240,7 @@ return {
         link = true,
         detects = { 'Sight' },
         kinds = 's',
-        areas = { { -8, -13.6, 313, 33 } },
+        areas = { { at = { -8, -13.6, 313 }, reach = 33, poly = { -41, 313, -33, 329, -15, 331, -9, 339, 3, 341, 7, 333, 21, 327, 25, 297, 21, 289, 11, 285, -13, 291, -19, 285, -27, 285 } } },
         drops = {},
     },
     ['Yilbegan'] = {

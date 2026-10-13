@@ -30,6 +30,15 @@ for _, zone in ipairs(zones) do
                     problems[#problems + 1] = ('%s: a placeholder of %s out of bounds'):format(zone.name, name)
                 end
             end
+            local places = { record }
+            for _, placeholder in ipairs(record.placeholders or {}) do places[#places + 1] = placeholder end
+            for _, place in ipairs(places) do
+                for _, area in ipairs(place.areas or {}) do
+                    if #area.at ~= 3 or #area.poly < 6 or #area.poly % 2 ~= 0 or area.reach <= 0 then
+                        problems[#problems + 1] = ('%s: a region of %s out of shape'):format(zone.name, name)
+                    end
+                end
+            end
             -- put into words without error, whatever it holds
             local ok, why = pcall(function()
                 hunts.Appears(record, tostring); hunts.Drops(record, tostring); hunts.Places(record.points, record.areas)
@@ -41,6 +50,29 @@ end
 print('zones', #zones, '| monsters', monsters, '| lotteries', lotteries, '| of unknown chance', unknown)
 print('every record sound', #problems == 0)
 for place = 1, math.min(#problems, 10) do print('  ' .. problems[place]) end
+
+-- the maps: every zone listed is one with monsters, and no two of its maps are of one floor
+local maps = require('maps')
+local mapped, sheets, sound = 0, 0, true
+for _, zone in ipairs(zones) do
+    local floors = maps.Floors(zone.id)
+    if floors ~= nil then
+        mapped = mapped + 1
+        local seen = {}
+        for _, floor in ipairs(floors) do
+            sheets = sheets + 1
+            sound = sound and not seen[floor.floor] and floor.index >= 0 and floor.image:match('%.jpg$') ~= nil
+            seen[floor.floor] = true
+        end
+    end
+end
+print('zones with a map', mapped, '| maps', sheets, '| sound', sound)
+print('on the map and back', (function()
+    local entry = { scale = 0.4, x = -256, y = -256 }
+    local px, py = maps.ToMap(entry, -341, -233)
+    local x, z = maps.ToWorld(entry, px, py)
+    return math.abs(x + 341) < 0.001 and math.abs(z + 233) < 0.001 and maps.Square(px, py) == 'D-11'
+end)())
 
 print('percentages', hunts.Percent(2400) == '24%', hunts.Percent(50) == '0.5%', hunts.Percent(6666) == '66.66%', hunts.Percent(10000) == '100%')
 print('waits', hunts.Duration(45) == '45 sec', hunts.Duration(2400) == '40 min', hunts.Duration(5400) == '1 hr 30 min',

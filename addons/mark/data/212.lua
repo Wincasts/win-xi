@@ -9,8 +9,8 @@ return {
         detects = { 'Sound', 'Scent' },
         lottery = { chance = 5, cooldown = 25200 },
         kinds = 'l',
-        areas = { { -232.7, 0.1, 139.1, 29.8 } },
-        placeholders = { { index = 200, name = 'Antares', level = { 77, 79 }, respawn = 960, areas = { { -232.7, 0.1, 139.1, 29.8 } } }, { index = 204, name = 'Antares', level = { 77, 79 }, respawn = 960, areas = { { -204, -0.1, 161, 17 } } } },
+        areas = { { at = { -232.7, 0.1, 139.1 }, reach = 30, poly = { -251, 117, -242, 167, -222, 169, -217, 163, -219, 155, -214, 152, -215, 139, -242, 109 } } },
+        placeholders = { { index = 200, name = 'Antares', level = { 77, 79 }, respawn = 960, areas = { { at = { -232.7, 0.1, 139.1 }, reach = 30, poly = { -251, 117, -242, 167, -222, 169, -217, 163, -219, 155, -214, 152, -215, 139, -242, 109 } } } }, { index = 204, name = 'Antares', level = { 77, 79 }, respawn = 960, areas = { { at = { -204, -0.1, 161 }, reach = 17, poly = { -221, 153, -201, 147, -197, 155, -187, 157, -187, 165, -203, 175, -219, 163 } } } } },
         drops = { { rate = 1000, items = { { 897, 10000 } } }, { rate = 1000, items = { { 896, 10000 } } }, { rate = 1000, items = { { 16968, 10000 } } }, { rate = 10, items = { { 901, 10000 } } } },
     },
     ['Baobhan Sith'] = {
@@ -23,7 +23,7 @@ return {
         lottery = { chance = 5, cooldown = 14400 },
         kinds = 'l',
         points = { { 121.9, 1, 173.2 }, { 110.3, 0.4, 169.1 }, { 116.2, 0.2, 185.6 }, { 132.4, -1.6, 177.9 }, { 121.2, 0.4, 190.1 }, { 111.1, 0, 187.9 }, { 102, -0.2, 181.3 }, { 99, 0.3, 194 }, { 92.6, 0.8, 198.5 } },
-        placeholders = { { index = 150, name = 'Erlik', level = { 75, 78 }, respawn = 960, areas = { { 169, 10.2, 73, 20 } } } },
+        placeholders = { { index = 150, name = 'Erlik', level = { 75, 78 }, respawn = 960, areas = { { at = { 169, 10.2, 73 }, reach = 20, poly = { 149, 69, 157, 85, 167, 91, 179, 87, 189, 73, 183, 55 } } } } },
         drops = { { rate = 1000, items = { { 1281, 10000 } } }, { rate = 240, items = { { 1281, 10000 } } }, { rate = 150, items = { { 1281, 10000 } } }, { rate = 150, items = { { 1281, 10000 } } } },
     },
     ['Baronial Bat'] = {
@@ -59,7 +59,7 @@ return {
         detects = { 'Sight' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { -79, -10.5, -179, 34 } },
+        areas = { { at = { -79, -10.5, -179 }, reach = 34, poly = { -95, -199, -83, -213, -65, -199, -63, -169, -65, -153, -71, -147, -87, -147, -95, -157, -88, -178, -93, -181 } } },
         drops = { { rate = 50, items = { { 866, 10000 } } }, { rate = 240, items = { { 1122, 10000 } } }, { rate = 240, items = { { 1122, 10000 } } }, { rate = 240, items = { { 1122, 10000 } } }, { rate = 240, items = { { 1122, 10000 } } }, { rate = 150, items = { { 1124, 10000 } } }, { rate = 150, items = { { 1124, 10000 } } }, { rate = 150, items = { { 1124, 10000 } } }, { rate = 50, items = { { 16605, 10000 } } } },
     },
     ['Gigaplasm'] = {
@@ -82,8 +82,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 10800 },
         kinds = 'l',
-        areas = { { 137.8, -9.9, -45.3, 31.7 } },
-        placeholders = { { index = 37, name = 'Goblin Reaper', level = { 46, 49 }, respawn = 840, areas = { { 159, -9.8, -76, 13 } } } },
+        areas = { { at = { 137.8, -9.9, -45.3 }, reach = 32, poly = { 106, -38, 117, -29, 130, -35, 164, -30, 169, -34, 169, -51, 163, -61, 144, -46, 113, -54 } } },
+        placeholders = { { index = 37, name = 'Goblin Reaper', level = { 46, 49 }, respawn = 840, areas = { { at = { 159, -9.8, -76 }, reach = 13, poly = { 149, -79, 151, -63, 167, -67, 169, -83, 163, -89, 155, -89 } } } } },
         drops = { { rate = 1000, items = { { 507, 10000 } } }, { rate = 1000, items = { { 508, 10000 } } }, { rate = 1000, items = { { 748, 10000 } } }, { rate = 150, items = { { 16727, 10000 } } } },
     },
     ['Gorattz'] = {
@@ -148,8 +148,8 @@ return {
         detects = { 'Sound', 'Low HP' },
         lottery = { chance = 5, cooldown = 7200 },
         kinds = 'l',
-        areas = { { -145, 0, 59.5, 38.1 } },
-        placeholders = { { index = 170, name = 'Doom Warlock', level = { 76, 78 }, respawn = 960, areas = { { -132, 0.3, 46, 19 } } } },
+        areas = { { at = { -145, 0, 59.5 }, reach = 38, poly = { -183, 48, -182, 55, -171, 56, -151, 47, -125, 91, -107, 87, -109, 75, -117, 70, -123, 55, -112, 43, -120, 36, -146, 34, -153, 28, -177, 28 } } },
+        placeholders = { { index = 170, name = 'Doom Warlock', level = { 76, 78 }, respawn = 960, areas = { { at = { -132, 0.3, 46 }, reach = 19, poly = { -151, 41, -149, 55, -143, 59, -131, 59, -113, 49, -113, 39, -121, 33, -145, 33 } } } } },
         drops = { { rate = 1000, items = { { 880, 10000 } } }, { rate = 1000, items = { { 880, 10000 } } }, { rate = 150, items = { { 17564, 10000 } } }, { rate = 1000, items = { { 4788, 2500 }, { 4789, 2500 }, { 4759, 2500 }, { 4760, 1250 }, { 4814, 1250 } } } },
     },
     ['Ungur'] = {
@@ -161,8 +161,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 5, cooldown = 7200 },
         kinds = 'l',
-        areas = { { -300.3, -9.8, -18, 31.7 } },
-        placeholders = { { index = 186, name = 'Typhoon Wyvern', level = { 78, 80 }, respawn = 960, areas = { { -316, -10, -5, 17 } } }, { index = 216, name = 'Typhoon Wyvern', level = { 78, 80 }, respawn = 960, areas = { { -316, -10, -5, 17 } } } },
+        areas = { { at = { -300.3, -9.8, -18 }, reach = 32, poly = { -332, 0, -318, 7, -301, 8, -299, 1, -285, 12, -280, 11, -269, -4, -281, -24, -270, -29, -270, -41, -283, -48, -288, -46, -294, -29, -332, -4 } } },
+        placeholders = { { index = 186, name = 'Typhoon Wyvern', level = { 78, 80 }, respawn = 960, areas = { { at = { -316, -10, -5 }, reach = 17, poly = { -333, -5, -325, -7, -325, -13, -305, -19, -299, -13, -304, -8, -301, 5, -311, 9, -331, 5 } } } }, { index = 216, name = 'Typhoon Wyvern', level = { 78, 80 }, respawn = 960, areas = { { at = { -316, -10, -5 }, reach = 17, poly = { -333, -5, -325, -7, -325, -13, -305, -19, -299, -13, -304, -8, -301, 5, -311, 9, -331, 5 } } } } },
         drops = { { rate = 1000, items = { { 18141, 10000 } } }, { rate = 240, items = { { 1124, 10000 } } }, { rate = 150, items = { { 1124, 10000 } } }, { rate = 240, items = { { 1122, 10000 } } }, { rate = 150, items = { { 1122, 10000 } } }, { rate = 100, items = { { 1122, 10000 } } }, { rate = 50, items = { { 1122, 10000 } } }, { rate = 1000, items = { { 866, 10000 } } } },
     },
     ['Wyvernhunter Bambrox'] = {
@@ -187,8 +187,8 @@ return {
         detects = { 'Sight' },
         lottery = { chance = 10, cooldown = 7200 },
         kinds = 'l',
-        areas = { { -79, 0.5, -50, 26 } },
-        placeholders = { { index = 65, name = 'Goblin Mercenary', level = { 65, 68 }, respawn = 960, areas = { { -79, 0.5, -50, 26 } } } },
+        areas = { { at = { -79, 0.5, -50 }, reach = 26, poly = { -105, -47, -101, -57, -83, -67, -67, -65, -53, -51, -53, -36, -65, -33, -66, -56, -89, -53, -97, -39, -103, -39 } } },
+        placeholders = { { index = 65, name = 'Goblin Mercenary', level = { 65, 68 }, respawn = 960, areas = { { at = { -79, 0.5, -50 }, reach = 26, poly = { -105, -47, -101, -57, -83, -67, -67, -65, -53, -51, -53, -36, -65, -33, -66, -56, -89, -53, -97, -39, -103, -39 } } } } },
         drops = { { rate = 1000, items = { { 510, 10000 } } }, { rate = 1000, items = { { 511, 10000 } } }, { rate = 1000, items = { { 748, 10000 } } }, { rate = 150, items = { { 17244, 10000 } } } },
     },
 };

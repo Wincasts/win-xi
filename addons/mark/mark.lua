@@ -1,36 +1,50 @@
 addon.name    = 'mark';
 addon.author  = 'win (and claude)';
-addon.version = '1.0';
-addon.desc    = 'Pick a notorious monster, make it your mark, and see how it appears, its placeholders, where it spawns and what it drops.';
+addon.version = '1.1';
+addon.desc    = 'Pick a notorious monster, make it your mark, and see how it appears, its placeholders and their respawns, where it spawns on the map, when its window opens and what it drops.';
 addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 
 -- A notorious monster looked up, and one of them hunted. The window has two dropdowns, a zone's and a
 -- monster's, and under them what the server's own data says of the monster chosen: how it comes to be
--- there, its placeholders, where it and they spawn, and each drop with its chance at each level of
--- Treasure Hunter. Set As Mark makes it the mark: the window then says whether it and its placeholders
--- are in range and which way, says so in the chat log as it appears, and keeps time from its death.
+-- there, its placeholders, where it and they spawn (as a square of the map and as a point), and each
+-- drop with its chance at each level of Treasure Hunter. A second window is the zone's map, with where
+-- the monster and its placeholders can spawn laid over it.
 --
---   /mark              shows or hides the window
---   /mark config       opens or closes the settings
---   /mark compact      switches between the whole window and the mark's few lines
---   /mark set <name>   makes a monster the mark, by its name or a part of it
---   /mark clear        there is no mark any more
+-- Set As Mark makes the monster the mark: the window then says whether it and its placeholders are in
+-- range and which way, times each placeholder's respawn from when it is seen dead, says in the chat
+-- log as the mark appears, and keeps time from its death. A time of death can be given by hand for
+-- any monster, and every one kept is listed with how its window stands.
+--
+--   /mark                 shows or hides the window
+--   /mark config          opens or closes the settings
+--   /mark compact         switches between the whole window and the mark's few lines
+--   /mark map             shows or hides the map
+--   /mark set <name>      makes a monster the mark, by its name or a part of it
+--   /mark clear           there is no mark any more
+--   /mark tod             the mark (or, with no mark, the monster on show) died just now
+--   /mark tod 15          ... fifteen minutes ago
+--   /mark tod 14:35       ... at that time by the computer's clock
+--   /mark tod clear       its time of death is forgotten
 --
 -- The data is in data/, written by tools/build_mark_data.py from the server's source. hunts.lua reads
--- it and puts it into words; this file draws it and watches the game for the mark.
+-- it and puts it into words, maps.lua knows the maps, and this file draws and watches the game.
 
 require('common');
 local bit = require('bit');
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
+local window = require('winxi.window');
+local style = require('winxi.style');
 local shell = require('winxi.shell');
 local sound = require('winxi.sound');
 local hunts = require('hunts');
+local maps = require('maps');
 
 local TextBaseWidth = imgui.CalcTextSize('A');
 
 local gold = { 1.0, 215 / 255, 0.0, 1.0 };
 local green = { 0.55, 1.0, 0.55, 1.0 };
+local amber = { 1.0, 0.8, 0.4, 1.0 };
 
 local jobs = { 'WAR', 'MNK', 'WHM', 'BLM', 'RDM', 'THF', 'PLD', 'DRK', 'BST', 'BRD', 'RNG', 'SAM', 'NIN', 'DRG', 'SMN',
     'BLU', 'COR', 'PUP', 'DNC', 'SCH', 'GEO', 'RUN' };
@@ -50,6 +64,92 @@ local function ItemName(id)
     return name;
 end
 
+-- A wait as a clock counts it down: 3:20, 1:04:09
+local function Clock(seconds)
+    seconds = math.max(0, math.floor(seconds));
+    if seconds >= 3600 then
+        return ('%d:%02d:%02d'):format(seconds / 3600, seconds % 3600 / 60, seconds % 60);
+    end
+    return ('%d:%02d'):format(seconds / 60, seconds % 60);
+end
+
+----------------------------------------------------------------------------------------------------
+-- Times of death: one kept for each monster it is known of, the mark's or any other's, given by hand
+-- or taken as the mark is seen dead. Kept in the settings as a list of { zone, name, at }.
+----------------------------------------------------------------------------------------------------
+local function Tod(options, zone, name)
+    for place, tod in ipairs(options.tods) do
+        if tod.zone == zone and tod.name == name then
+            return tod, place;
+        end
+    end
+    return nil;
+end
+
+-- at: when it died (os.time), or nil to forget
+local function SetTod(options, zone, name, at)
+    local tod, place = Tod(options, zone, name);
+    if at == nil then
+        if place ~= nil then
+            table.remove(options.tods, place);
+        end
+    elseif tod ~= nil then
+        tod.at = at;
+    else
+        options.tods[#options.tods + 1] = T{ zone = zone, name = name, at = at };
+    end
+    app:Save();
+end
+
+-- How a monster's window stands, from when it died
+local function Standing(record, at)
+    local age = os.time() - at;
+    local said = ('Died %s ago.'):format(hunts.Duration(age));
+    local lottery = record.lottery;
+    if lottery ~= nil and lottery.cooldown ~= nil then
+        local wait = (lottery.cooldownMost or lottery.cooldown) - age;
+        if wait > 0 then
+            return ('%s The lottery opens in %s%s.'):format(said, lottery.cooldownMost and 'at most ' or '', Clock(wait)), false;
+        end
+        return said .. ' The lottery is open.', true;
+    elseif record.respawn ~= nil then
+        local least, most = record.respawn[1] - age, record.respawn[2] - age;
+        if least > 0 then
+            return ('%s Its window opens in %s.'):format(said, Clock(least)), false;
+        elseif most > 0 then
+            return ('%s Its window is open, for %s more.'):format(said, Clock(most)), true;
+        end
+        return said .. ' It is due.', true;
+    end
+    return said, false;
+end
+
+-- When, from what is typed after /mark tod: nothing is now, a number is that many minutes ago, and
+-- hours:minutes is that time by the computer's clock, today's or (were that yet to come) yesterday's
+local function ParseWhen(text)
+    if text == nil or text == '' then
+        return os.time();
+    end
+    local hours, minutes = text:match('^(%d%d?):(%d%d)$');
+    if hours ~= nil then
+        local now = os.date('*t');
+        now.hour, now.min, now.sec = tonumber(hours), tonumber(minutes), 0;
+        if now.hour > 23 or now.min > 59 then
+            return nil;
+        end
+        local at = os.time(now);
+        if at > os.time() then
+            at = at - 86400;
+        end
+        return at;
+    end
+    local ago = tonumber(text);
+    if ago ~= nil and ago >= 0 then
+        return os.time() - math.floor(ago * 60);
+    end
+    return nil;
+end
+
 ----------------------------------------------------------------------------------------------------
 -- The game, looked at four times a second: the zone, where the player is, and whether each monster
 -- being watched (the mark and its placeholders, and those of the monster on show) is in range
@@ -57,12 +157,18 @@ end
 local live = {
     checked = 0,
     zone = 0,
-    x = nil, z = nil,     -- the player: east-west and north-south, as the server's data has them
-    sights = {},          -- entity index -> { text, up } for those in range
-    markUp = false,       -- whether the mark was up when last looked for
-    markDead = false,     -- whether its corpse has been counted
-    nearest = nil,        -- how far the monster on show's nearest spawn point is, in words
-    timer = nil,          -- what is known of the mark's return, in words
+    x = nil, y = nil, z = nil, -- the player: east-west, height and north-south, as the server's data has them
+    floor = nil,               -- the map the player is on, where that can be told
+    sights = {},               -- entity index -> { up, text, x, z } for those in range
+    status = {},               -- placeholder's entity index -> { text, tone }: in range, or how its respawn stands
+    deaths = {},               -- placeholder's entity index -> when it was seen dead (os.time)
+    counted = {},              -- placeholder's entity index -> true while the corpse seen is one already timed
+    markUp = false,            -- whether the mark was up when last looked for
+    markDead = false,          -- whether its corpse has been counted
+    nearest = nil,             -- how far the monster on show's nearest spawn point is, in words
+    markTimer = nil,           -- how the mark's window stands, in words
+    viewTimer = nil,           -- and the monster on show's
+    timers = {},               -- and every other kept: a line to each of options.tods
 };
 
 local SPAWNED = 0x200; -- the render flag of an entity the client is showing
@@ -74,12 +180,53 @@ local function Look(entities, index)
     end
     local distance = math.sqrt(entities:GetDistance(index));
     local up = entities:GetHPPercent(index) > 0;
+    -- the game's own names for the two level directions are X and Y; the server's are x and z
+    local x, z = entities:GetLocalPositionX(index), entities:GetLocalPositionY(index);
     local way = '';
     if live.x ~= nil then
-        -- the game's own names for the two level directions are X and Y; the server's are x and z
-        way = ' ' .. hunts.Compass(entities:GetLocalPositionX(index) - live.x, entities:GetLocalPositionY(index) - live.z);
+        way = ' ' .. hunts.Compass(x - live.x, z - live.z);
     end
-    return { up = up, text = ('%s, %d yalms%s'):format(up and 'Up' or 'Dead', math.floor(distance + 0.5), way) };
+    return { up = up, x = x, z = z, text = ('%s, %d yalms%s'):format(up and 'Up' or 'Dead', math.floor(distance + 0.5), way) };
+end
+
+-- A placeholder: in range or not, and its respawn timed from when it was seen dead
+local function WatchPlaceholder(entities, placeholder)
+    local index = placeholder.index;
+    local sight = Look(entities, index);
+    live.sights[index] = sight;
+    if sight ~= nil and not sight.up then
+        if not live.counted[index] then
+            live.counted[index] = true;
+            live.deaths[index] = os.time();
+        end
+    else
+        live.counted[index] = nil;
+        if sight ~= nil then
+            live.deaths[index] = nil; -- up again
+        end
+    end
+
+    local status = live.status[index] or {};
+    live.status[index] = status;
+    local died = live.deaths[index];
+    if sight ~= nil and sight.up then
+        status.text, status.tone = sight.text, 'up';
+    elseif died == nil then
+        status.text, status.tone = 'Not In Range', nil;
+    elseif placeholder.respawn == nil then
+        status.text, status.tone = ('Died %s ago'):format(Clock(os.time() - died)), 'wait';
+    else
+        local wait = placeholder.respawn - (os.time() - died);
+        if wait > 0 then
+            status.text, status.tone = ('Respawns in %s'):format(Clock(wait)), 'wait';
+        elseif wait > -1800 then
+            status.text, status.tone = ('Due %s ago'):format(Clock(-wait)), 'due';
+        else
+            -- long past: it has come and gone unseen
+            live.deaths[index] = nil;
+            status.text, status.tone = 'Not In Range', nil;
+        end
+    end
 end
 
 local function Watch(entities, record)
@@ -93,7 +240,7 @@ local function Watch(entities, record)
         end
     end
     for _, placeholder in ipairs(record.placeholders or {}) do
-        live.sights[placeholder.index] = Look(entities, placeholder.index);
+        WatchPlaceholder(entities, placeholder);
     end
     return up, dead;
 end
@@ -104,45 +251,23 @@ local function Nearest(record)
         return nil;
     end
     local best, east, north = nil, 0, 0;
-    for _, list in ipairs({ record.points or {}, record.areas or {} }) do
-        for _, point in ipairs(list) do
-            local dx, dz = point[1] - live.x, point[3] - live.z;
-            local distance = math.sqrt(dx * dx + dz * dz);
-            if best == nil or distance < best then
-                best, east, north = distance, dx, dz;
-            end
+    local function Try(point)
+        local dx, dz = point[1] - live.x, point[3] - live.z;
+        local distance = math.sqrt(dx * dx + dz * dz);
+        if best == nil or distance < best then
+            best, east, north = distance, dx, dz;
         end
+    end
+    for _, point in ipairs(record.points or {}) do
+        Try(point);
+    end
+    for _, area in ipairs(record.areas or {}) do
+        Try(area.at);
     end
     if best == nil then
         return nil;
     end
     return ('Nearest is %d yalms %s of you.'):format(math.floor(best + 0.5), hunts.Compass(east, north));
-end
-
--- What is known of the mark's return from when it was last seen dead
-local function Timer(options, record)
-    if options.killedAt == 0 then
-        return nil;
-    end
-    local age = os.time() - options.killedAt;
-    local said = ('Seen dead %s ago.'):format(hunts.Duration(age));
-    local lottery = record.lottery;
-    if lottery ~= nil and lottery.cooldown ~= nil then
-        local wait = (lottery.cooldownMost or lottery.cooldown) - age;
-        if wait > 0 then
-            return ('%s The lottery opens in %s%s.'):format(said, lottery.cooldownMost and 'at most ' or '', hunts.Duration(wait));
-        end
-        return said .. ' The lottery is open.';
-    elseif record.respawn ~= nil then
-        local least, most = record.respawn[1] - age, record.respawn[2] - age;
-        if least > 0 then
-            return ('%s Its window opens in %s.'):format(said, hunts.Duration(least));
-        elseif most > 0 then
-            return ('%s Its window is open, for %s more.'):format(said, hunts.Duration(most));
-        end
-        return said .. ' It is due.';
-    end
-    return said;
 end
 
 local function Mark(options)
@@ -162,12 +287,18 @@ local function Update(options)
     local memory = AshitaCore:GetMemoryManager();
     local party = memory:GetParty();
     local entities = memory:GetEntity();
-    live.zone = party:GetMemberZone(0);
+    local zone = party:GetMemberZone(0);
+    if zone ~= live.zone then
+        -- entity indices are a zone's own: what was timed in the last one is nothing here
+        live.deaths, live.counted, live.status = {}, {}, {};
+    end
+    live.zone = zone;
     local me = party:GetMemberTargetIndex(0);
     if me ~= 0 then
-        live.x, live.z = entities:GetLocalPositionX(me), entities:GetLocalPositionY(me);
+        live.x, live.y, live.z = entities:GetLocalPositionX(me), entities:GetLocalPositionZ(me), entities:GetLocalPositionY(me);
+        live.floor = maps.FloorAt(zone, zone, live.x, live.y, live.z);
     else
-        live.x, live.z = nil, nil;
+        live.x, live.y, live.z, live.floor = nil, nil, nil, nil;
     end
     for index in pairs(live.sights) do
         live.sights[index] = nil;
@@ -187,7 +318,9 @@ local function Update(options)
         local up, dead = Watch(entities, mark);
         if up and not live.markUp then
             -- it is back: what was known of its last death is of no more use
-            options.killedAt = 0;
+            if Tod(options, options.markZone, options.markName) ~= nil then
+                SetTod(options, options.markZone, options.markName, nil);
+            end
             if options.announce[1] then
                 local sight = nil;
                 for _, index in ipairs(mark.indices) do
@@ -201,21 +334,40 @@ local function Update(options)
             sound.Play('open');
         end
         if dead and not up and not live.markDead then
-            options.killedAt = os.time();
-            app:Save();
+            SetTod(options, options.markZone, options.markName, os.time());
             if options.announce[1] then
                 Say(('%s is dead. The time is kept from now.'):format(options.markName));
             end
         end
         live.markUp, live.markDead = up, dead and not up;
     end
-    live.timer = mark ~= nil and Timer(options, mark) or nil;
+
+    -- how each window stands
+    live.markTimer, live.viewTimer = nil, nil;
+    for place, tod in ipairs(options.tods) do
+        local record = hunts.Monster(tod.zone, tod.name);
+        local timer = live.timers[place] or {};
+        live.timers[place] = timer;
+        timer.text, timer.open = '', false;
+        if record ~= nil then
+            timer.text, timer.open = Standing(record, tod.at);
+        end
+        if tod.zone == options.markZone and tod.name == options.markName then
+            live.markTimer = timer;
+        end
+        if tod.zone == options.viewZone and tod.name == options.viewName then
+            live.viewTimer = timer;
+        end
+    end
+    for place = #options.tods + 1, #live.timers do
+        live.timers[place] = nil;
+    end
 end
 
 ----------------------------------------------------------------------------------------------------
 -- The monster on show: its record put into words once, when it is chosen
 ----------------------------------------------------------------------------------------------------
-local view = { zone = nil, name = nil, th = nil, record = nil };
+local view = { zone = nil, name = nil, th = nil, here = nil, record = nil, missing = false, built = 0 };
 
 local function Summary(record)
     local parts = {};
@@ -259,12 +411,39 @@ local function Names(ids)
     return table.concat(names, ', ');
 end
 
+-- The square of the map's grid a point of the zone on show is in, or nil where it cannot be told: no
+-- map, a zone of several maps the player is not in, or a scale the game has not given up yet
+local function Square(point)
+    local floor = maps.FloorAt(view.zone, live.zone, point[1], point[2], point[3]);
+    if floor == nil then
+        return nil;
+    end
+    local entry = maps.Entry(view.zone, floor);
+    if entry == nil then
+        view.missing = true; -- to be tried again
+        return nil;
+    end
+    return maps.Square(maps.ToMap(entry, point[1], point[3]));
+end
+
+local function Routes(lines, routes)
+    for _, route in ipairs(routes or {}) do
+        local first, last = route.points[1], route.points[#route.points];
+        local from, to = Square(first), Square(last);
+        lines[#lines + 1] = ('%s %d points from %s%s to %s%s'):format(route.loop and 'Circles' or 'Walks', #route.points,
+            from and (from .. ' ') or '', hunts.Point(first), to and (to .. ' ') or '', hunts.Point(last));
+    end
+end
+
 local function BuildView(options)
     local th = math.max(0, math.min(hunts.MaxTreasureHunter, options.maxTh[1]));
-    if view.zone == options.viewZone and view.name == options.viewName and view.th == th then
+    local here = live.zone == options.viewZone;
+    if view.zone == options.viewZone and view.name == options.viewName and view.th == th and view.here == here
+        and not (view.missing and os.clock() - view.built > 5) then
         return;
     end
-    view.zone, view.name, view.th = options.viewZone, options.viewName, th;
+    view.zone, view.name, view.th, view.here = options.viewZone, options.viewName, th, here;
+    view.missing, view.built = false, os.clock();
     local record = options.viewName ~= '' and hunts.Monster(options.viewZone, options.viewName) or nil;
     view.record = record;
     if record == nil then
@@ -273,19 +452,13 @@ local function BuildView(options)
 
     view.summary = Summary(record);
     view.appears = hunts.Appears(record, ItemName);
-    view.places = hunts.Places(record.points, record.areas);
-    for _, route in ipairs(record.routes or {}) do
-        view.places[#view.places + 1] = ('%s %d points from %s to %s'):format(route.loop and 'Circles' or 'Walks out and back over',
-            #route.points, hunts.Point(route.points[1]), hunts.Point(route.points[#route.points]));
-    end
+    view.places = hunts.Places(record.points, record.areas, Square);
+    Routes(view.places, record.routes);
 
     view.placeholders = {};
     for place, placeholder in ipairs(record.placeholders or {}) do
-        local where = hunts.Places(placeholder.points, placeholder.areas);
-        if placeholder.route ~= nil then
-            where[#where + 1] = ('%s %d points from %s'):format(placeholder.route.loop and 'Circles' or 'Walks',
-                #placeholder.route.points, hunts.Point(placeholder.route.points[1]));
-        end
+        local where = hunts.Places(placeholder.points, placeholder.areas, Square);
+        Routes(where, placeholder.routes);
         view.placeholders[place] = {
             index = placeholder.index,
             name = placeholder.name,
@@ -319,15 +492,264 @@ local function Show(options, zone, name)
 end
 
 local function SetMark(options, zone, name)
-    options.markZone, options.markName, options.killedAt = zone, name, 0;
+    options.markZone, options.markName = zone, name;
     live.markUp, live.markDead, live.checked = false, false, 0;
     app:Save();
 end
 
 ----------------------------------------------------------------------------------------------------
+-- The map: the zone's picture with where the monster on show and its placeholders can spawn laid
+-- over it. A region is filled, a spawn point is a spot, and each is so thin that where several lie
+-- over one another the colour deepens: the more that can spawn in a place, the hotter it shows.
+----------------------------------------------------------------------------------------------------
+local heat = {
+    monster = imgui.GetColorU32({ 1.0, 0.25, 0.15, 0.30 }),
+    monsterSpot = imgui.GetColorU32({ 1.0, 0.3, 0.2, 0.45 }),
+    placeholder = imgui.GetColorU32({ 0.2, 0.6, 1.0, 0.22 }),
+    placeholderSpot = imgui.GetColorU32({ 0.3, 0.7, 1.0, 0.40 }),
+    route = imgui.GetColorU32({ 1.0, 0.9, 0.3, 0.9 }),
+    edge = imgui.GetColorU32({ 0.0, 0.0, 0.0, 0.9 }),
+    player = imgui.GetColorU32({ 1.0, 1.0, 1.0, 1.0 }),
+    up = imgui.GetColorU32({ 0.4, 1.0, 0.4, 1.0 }),
+    dead = imgui.GetColorU32({ 0.6, 0.6, 0.6, 1.0 }),
+    blank = imgui.GetColorU32({ 0.08, 0.08, 0.1, 0.9 }),
+    white = imgui.GetColorU32({ 1.0, 1.0, 1.0, 1.0 }),
+};
+local monsterLegend, placeholderLegend = { 1.0, 0.45, 0.35, 1.0 }, { 0.45, 0.75, 1.0, 1.0 };
+
+-- zone, name, floor, size and here are what the shapes were made for; choice is the floor chosen by
+-- hand, which lasts until another monster is shown
+local chart = { zone = nil, name = nil, floor = nil, size = nil, here = nil, entry = nil, choice = nil,
+    rects = {}, spots = {}, lines = {}, labels = {} };
+
+-- A region's outline, filled a few pixels at a time: the stretches of each row that lie inside it
+local function Fill(entry, scale, poly, color)
+    local xs, ys, count = {}, {}, #poly / 2;
+    local top, bottom = math.huge, -math.huge;
+    for place = 1, count do
+        local px, py = maps.ToMap(entry, poly[place * 2 - 1], poly[place * 2]);
+        xs[place], ys[place] = px * scale, py * scale;
+        top, bottom = math.min(top, ys[place]), math.max(bottom, ys[place]);
+    end
+    local step = 3;
+    local crossings = {};
+    for row = math.floor(top), math.ceil(bottom), step do
+        local y = row + step / 2;
+        local found = 0;
+        for place = 1, count do
+            local nextPlace = place % count + 1;
+            local y1, y2 = ys[place], ys[nextPlace];
+            if (y1 <= y and y2 > y) or (y2 <= y and y1 > y) then
+                found = found + 1;
+                crossings[found] = xs[place] + (y - y1) / (y2 - y1) * (xs[nextPlace] - xs[place]);
+            end
+        end
+        for place = found + 1, #crossings do
+            crossings[place] = nil;
+        end
+        table.sort(crossings);
+        for place = 1, found - 1, 2 do
+            chart.rects[#chart.rects + 1] = { crossings[place], row, crossings[place + 1], row + step, color };
+        end
+    end
+end
+
+-- Whether a place is to be drawn on the map chosen: it is unless it is known to be on another
+local function OnFloor(point, floor, floors)
+    if #floors == 1 or not chart.here then
+        return true;
+    end
+    local found = maps.FloorAt(chart.zone, live.zone, point[1], point[2], point[3]);
+    return found == nil or found == floor;
+end
+
+local function Chart(record, floor, floors, entry, size)
+    chart.rects, chart.spots, chart.lines = {}, {}, {};
+    local scale = size / maps.Size;
+    local function Lay(points, areas, routes, fill, spot)
+        for _, area in ipairs(areas or {}) do
+            if OnFloor(area.at, floor, floors) then
+                Fill(entry, scale, area.poly, fill);
+            end
+        end
+        for _, point in ipairs(points or {}) do
+            if OnFloor(point, floor, floors) then
+                local px, py = maps.ToMap(entry, point[1], point[3]);
+                chart.spots[#chart.spots + 1] = { px * scale, py * scale, spot };
+            end
+        end
+        for _, route in ipairs(routes or {}) do
+            for place = 1, #route.points - (route.loop and 0 or 1) do
+                local a, b = route.points[place], route.points[place % #route.points + 1];
+                if OnFloor(a, floor, floors) then
+                    local ax, ay = maps.ToMap(entry, a[1], a[3]);
+                    local bx, by = maps.ToMap(entry, b[1], b[3]);
+                    chart.lines[#chart.lines + 1] = { ax * scale, ay * scale, bx * scale, by * scale };
+                end
+            end
+        end
+    end
+    -- the placeholders under, the monster's own over them
+    for _, placeholder in ipairs(record.placeholders or {}) do
+        Lay(placeholder.points, placeholder.areas, placeholder.routes, heat.placeholder, heat.placeholderSpot);
+    end
+    Lay(record.points, record.areas, record.routes, heat.monster, heat.monsterSpot);
+end
+
+-- The map of the zone's that most of the monster's places are on, where that can be told
+local function BestFloor(record, floors)
+    if #floors == 1 or live.zone ~= view.zone then
+        return floors[1];
+    end
+    local counts, best = {}, floors[1];
+    local function Count(point)
+        local floor = maps.FloorAt(view.zone, live.zone, point[1], point[2], point[3]);
+        if floor ~= nil then
+            counts[floor] = (counts[floor] or 0) + 1;
+            if counts[floor] > (counts[best] or 0) then
+                best = floor;
+            end
+        end
+    end
+    for _, point in ipairs(record.points or {}) do Count(point); end
+    for _, area in ipairs(record.areas or {}) do Count(area.at); end
+    for _, placeholder in ipairs(record.placeholders or {}) do
+        for _, point in ipairs(placeholder.points or {}) do Count(point); end
+        for _, area in ipairs(placeholder.areas or {}) do Count(area.at); end
+    end
+    return best;
+end
+
+local cornerA, cornerB, uvA, uvB = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 1, 1 };
+local canvas = { 0, 0 };
+
+local function Spot(drawList, x, y, color, radius)
+    cornerA[1], cornerA[2] = x, y;
+    drawList:AddCircleFilled(cornerA, radius, color, 16);
+end
+
+local function DrawMap(options)
+    local record = view.record;
+    if record == nil then
+        imgui.TextDisabled('Choose a notorious monster to see its map.');
+        return;
+    end
+    imgui.TextColored(widgets.HeaderColor, view.name);
+    imgui.SameLine();
+    imgui.TextDisabled(hunts.ZoneName(view.zone));
+
+    local floors = maps.Floors(view.zone);
+    if floors == nil then
+        imgui.Text('There is no map of this zone.');
+        return;
+    end
+    if chart.zone ~= view.zone or chart.name ~= view.name then
+        chart.choice = nil;
+    end
+    -- asked of the client once for each monster shown, not every frame
+    if chart.best == nil or chart.bestZone ~= view.zone or chart.bestName ~= view.name or chart.bestHere ~= view.here then
+        chart.best, chart.bestZone, chart.bestName, chart.bestHere = BestFloor(record, floors), view.zone, view.name, view.here;
+    end
+    local floor = chart.choice or chart.best;
+    if #floors > 1 then
+        for place, each in ipairs(floors) do
+            chart.labels[place] = chart.labels[place] or ('Map %d##mark.floor%d'):format(place, place);
+            if place > 1 then
+                imgui.SameLine();
+            end
+            if imgui.RadioButton(chart.labels[place], each == floor) then
+                chart.choice, floor = each, each;
+            end
+        end
+        if not view.here then
+            imgui.PushTextWrapPos(imgui.GetCursorPosX() + options.mapSize[1]);
+            imgui.TextWrapped('This zone has several maps, and which one a place is on can be told only in the zone: until then everything is drawn on the map chosen, and what belongs to another will look out of place.');
+            imgui.PopTextWrapPos();
+        end
+    end
+
+    local entry = maps.Entry(view.zone, floor);
+    if entry == nil then
+        imgui.Text('The map\'s scale could not be read from the game.');
+        return;
+    end
+    local size = math.max(256, math.min(1024, options.mapSize[1]));
+    if chart.zone ~= view.zone or chart.name ~= view.name or chart.floor ~= floor or chart.size ~= size or chart.here ~= view.here then
+        chart.zone, chart.name, chart.floor, chart.size, chart.here, chart.entry = view.zone, view.name, floor, size, view.here, entry;
+        Chart(record, floor, floors, entry, size);
+    end
+
+    local left, top = imgui.GetCursorScreenPos();
+    canvas[1], canvas[2] = size, size;
+    imgui.Dummy(canvas);
+    local hovered = imgui.IsItemHovered();
+    local drawList = imgui.GetWindowDrawList();
+    cornerA[1], cornerA[2], cornerB[1], cornerB[2] = left, top, left + size, top + size;
+    local picture = maps.Texture(floor);
+    if picture ~= nil then
+        drawList:AddImage(picture, cornerA, cornerB, uvA, uvB, heat.white);
+    else
+        drawList:AddRectFilled(cornerA, cornerB, heat.blank, 0);
+    end
+
+    for _, rect in ipairs(chart.rects) do
+        cornerA[1], cornerA[2], cornerB[1], cornerB[2] = left + rect[1], top + rect[2], left + rect[3], top + rect[4];
+        drawList:AddRectFilled(cornerA, cornerB, rect[5], 0);
+    end
+    for _, line in ipairs(chart.lines) do
+        cornerA[1], cornerA[2], cornerB[1], cornerB[2] = left + line[1], top + line[2], left + line[3], top + line[4];
+        drawList:AddLine(cornerA, cornerB, heat.route, 2);
+    end
+    -- a spot is hottest at its middle
+    for _, spot in ipairs(chart.spots) do
+        Spot(drawList, left + spot[1], top + spot[2], spot[3], 9);
+        Spot(drawList, left + spot[1], top + spot[2], spot[3], 5);
+        Spot(drawList, left + spot[1], top + spot[2], spot[3], 2.5);
+    end
+
+    -- what is there now: those in range, and the player
+    local scale = size / maps.Size;
+    if view.here then
+        for _, sight in pairs(live.sights) do
+            local px, py = maps.ToMap(entry, sight.x, sight.z);
+            Spot(drawList, left + px * scale, top + py * scale, heat.edge, 5);
+            Spot(drawList, left + px * scale, top + py * scale, sight.up and heat.up or heat.dead, 3.5);
+        end
+        if live.x ~= nil and (#floors == 1 or live.floor == nil or live.floor == floor) then
+            local px, py = maps.ToMap(entry, live.x, live.z);
+            Spot(drawList, left + px * scale, top + py * scale, heat.edge, 5);
+            Spot(drawList, left + px * scale, top + py * scale, heat.player, 3.5);
+        end
+    end
+
+    if hovered then
+        local mouseX, mouseY = imgui.GetMousePos();
+        if mouseX ~= nil and mouseY ~= nil then
+            local px, py = (mouseX - left) / scale, (mouseY - top) / scale;
+            local x, z = maps.ToWorld(entry, px, py);
+            imgui.SetTooltip(('%s (%d, %d)'):format(maps.Square(px, py), x, z));
+        end
+    end
+
+    if picture == nil then
+        imgui.TextDisabled('The map\'s picture was not found: they are zoneinfo\'s, in addons\\zoneinfo\\assets\\maps\\all.');
+    end
+    imgui.TextColored(monsterLegend, 'Monster');
+    imgui.SameLine();
+    imgui.TextColored(placeholderLegend, 'Placeholders');
+    if view.here then
+        imgui.SameLine();
+        imgui.TextColored(green, 'In Range');
+        imgui.SameLine();
+        imgui.Text('You');
+    end
+end
+
+----------------------------------------------------------------------------------------------------
 -- The window
 ----------------------------------------------------------------------------------------------------
-local find = { '' }; -- what is typed to look a monster up by name, in any zone
+local find = { '' };      -- what is typed to look a monster up by name, in any zone
+local minutesAgo = { 0 }; -- how long ago the death being reported was
 
 local function Sight(index)
     local sight = live.sights[index];
@@ -337,6 +759,28 @@ local function Sight(index)
         imgui.TextColored(green, sight.text);
     else
         imgui.TextDisabled(sight.text);
+    end
+end
+
+-- A placeholder: in range, or how its respawn stands
+local function Status(index)
+    local status = live.status[index];
+    if status == nil or status.tone == nil then
+        imgui.TextDisabled('Not In Range');
+    elseif status.tone == 'up' then
+        imgui.TextColored(green, status.text);
+    elseif status.tone == 'due' then
+        imgui.TextColored(gold, status.text);
+    else
+        imgui.TextColored(amber, status.text);
+    end
+end
+
+local function Timer(timer)
+    if timer.open then
+        imgui.TextColored(green, timer.text);
+    else
+        imgui.Text(timer.text);
     end
 end
 
@@ -366,17 +810,46 @@ local function DrawMark(options, withPlaceholders)
             imgui.TextDisabled('Not In Range');
         end
     end
-    if live.timer ~= nil then
-        imgui.Text(live.timer);
+    if live.markTimer ~= nil then
+        Timer(live.markTimer);
     end
     if withPlaceholders and live.zone == options.markZone then
         for _, placeholder in ipairs(mark.placeholders or {}) do
             imgui.Text(placeholder.name);
             imgui.SameLine();
-            Sight(placeholder.index);
+            Status(placeholder.index);
         end
     end
     return true;
+end
+
+-- Every other time of death kept, with how its window stands and a button to forget it
+local function DrawTimers(options)
+    local drawn = false;
+    for place, tod in ipairs(options.tods) do
+        local timer = live.timers[place];
+        if timer ~= nil and not (tod.zone == options.markZone and tod.name == options.markName) then
+            imgui.PushID(place);
+            if imgui.SmallButton('x') then
+                SetTod(options, tod.zone, tod.name, nil);
+                live.checked = 0;
+                imgui.PopID();
+                return true;
+            end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Forget this time of death.');
+            end
+            imgui.PopID();
+            imgui.SameLine();
+            imgui.TextColored(widgets.HeaderColor, tod.name);
+            imgui.SameLine();
+            imgui.TextDisabled(hunts.ZoneName(tod.zone));
+            imgui.SameLine();
+            Timer(timer);
+            drawn = true;
+        end
+    end
+    return drawn;
 end
 
 local function DrawPicker(options)
@@ -447,8 +920,35 @@ local function DrawMonster(options)
     elseif imgui.Button('Set As Mark##mark.set') then
         SetMark(options, options.viewZone, options.viewName);
     end
+    imgui.SameLine();
+    if imgui.Button(options.showMap[1] and 'Hide Map##mark.map' or 'Show Map##mark.map') then
+        options.showMap[1] = not options.showMap[1];
+    end
     if view.summary ~= '' then
         imgui.Text(view.summary);
+    end
+
+    -- its time of death: given here, and what follows from it
+    if imgui.Button('Report TOD##mark.tod') then
+        SetTod(options, options.viewZone, options.viewName, os.time() - math.max(0, minutesAgo[1]) * 60);
+        minutesAgo[1] = 0;
+        live.checked = 0;
+    end
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Keeps a time of death for this monster, from which its window is counted: now, or as many minutes ago as the box says.\n/mark tod does the same for the mark.');
+    end
+    imgui.SameLine();
+    imgui.SetNextItemWidth(TextBaseWidth * 12);
+    imgui.InputInt('Minutes Ago##mark.todAgo', minutesAgo);
+    if live.viewTimer ~= nil then
+        imgui.SameLine();
+        if imgui.Button('Clear TOD##mark.todClear') then
+            SetTod(options, options.viewZone, options.viewName, nil);
+            live.checked = 0;
+        end
+        if not isMark and live.viewTimer ~= nil then
+            Timer(live.viewTimer);
+        end
     end
 
     -- the sentences keep to the width of the tables under them
@@ -465,7 +965,7 @@ local function DrawMonster(options)
             imgui.TableSetupColumn('ID', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 4);
             imgui.TableSetupColumn('Lv', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 6);
             imgui.TableSetupColumn('Respawn', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 9);
-            imgui.TableSetupColumn('Where', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 44);
+            imgui.TableSetupColumn('Where', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 48);
             if here then
                 imgui.TableSetupColumn('Now', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 20);
             end
@@ -484,7 +984,7 @@ local function DrawMonster(options)
                 imgui.Text(placeholder.where);
                 if here then
                     imgui.TableNextColumn();
-                    Sight(placeholder.index);
+                    Status(placeholder.index);
                 end
             end
             imgui.EndTable();
@@ -542,6 +1042,7 @@ local function Draw(options)
         return;
     end
 
+    local headed = false;
     if DrawMark(options, false) then
         if options.markName ~= options.viewName or options.markZone ~= options.viewZone then
             imgui.SameLine();
@@ -549,11 +1050,14 @@ local function Draw(options)
                 Show(options, options.markZone, options.markName);
             end
         end
+        headed = true;
+    end
+    headed = DrawTimers(options) or headed;
+    if headed then
         imgui.Separator();
     end
 
     DrawPicker(options);
-    BuildView(options);
     if view.record ~= nil then
         DrawMonster(options);
     elseif options.viewName ~= '' then
@@ -571,7 +1075,7 @@ local defaults = T{
     pos = T{ 100, 100 },
     markZone = 0,                -- the mark: its zone and its name, or none
     markName = '',
-    killedAt = 0,                -- when the mark was last seen dead (os.time), or 0
+    tods = T{ },                 -- times of death kept: each { zone, name, at (os.time) }
     viewZone = 0,                -- the monster on show
     viewName = '',
     compact = T{ false },        -- only the mark's few lines
@@ -579,6 +1083,8 @@ local defaults = T{
     sound = T{ true },           -- and sounds as it comes up
     showScripted = T{ false },   -- lists the monsters the data knows only as brought by a script
     maxTh = T{ 4 },              -- the highest Treasure Hunter the drops are worked out for
+    showMap = T{ false },        -- the map window
+    mapSize = T{ 512 },          -- how many pixels across the map is drawn
 };
 
 local windowName = 'winxi.mark';
@@ -597,6 +1103,18 @@ local function DrawSettings(options)
     imgui.Checkbox('##mark.compact', options.compact);
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Only the mark: whether it and its placeholders are in range, and what is known of its return. /mark compact switches this.');
+    end
+
+    widgets.Gap();
+    widgets.Label('Show Map');
+    imgui.Checkbox('##mark.showMap', options.showMap);
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('The zone\'s map in a window of its own, with where the monster on show (red) and its placeholders (blue) can spawn laid over it: the deeper the colour, the more can spawn there. /mark map switches this.');
+    end
+    widgets.Label('Map Size');
+    imgui.SliderInt('##mark.mapSize', options.mapSize, 256, 1024);
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('How many pixels across the map is drawn. The pictures are 512 across: larger is softer.');
     end
 
     widgets.Gap();
@@ -629,19 +1147,53 @@ app = shell.New({
     window = windowName,
     configTitle = 'Mark Settings',
     command = '/mark',
-    help = '/mark shows or hides the window; /mark config opens or closes the settings; /mark compact switches to the mark\'s few lines and back; /mark set <name> makes a monster the mark; /mark clear leaves none.',
+    help = '/mark shows or hides the window; /mark config opens or closes the settings; /mark compact switches to the mark\'s few lines and back; /mark map shows or hides the map; /mark set <name> makes a monster the mark; /mark clear leaves none; /mark tod [minutes ago | hours:minutes | clear] keeps its time of death.',
     drawSettings = DrawSettings,
     onSettings = function(options)
         -- anything a saved file has in another shape than it should
-        for _, key in ipairs({ 'compact', 'announce', 'sound', 'showScripted', 'maxTh' }) do
+        for _, key in ipairs({ 'compact', 'announce', 'sound', 'showScripted', 'maxTh', 'showMap', 'mapSize', 'tods' }) do
             if type(options[key]) ~= 'table' then
                 options[key] = defaults[key];
+            end
+        end
+        -- a time of death with a part missing is of no use
+        for place = #options.tods, 1, -1 do
+            local tod = options.tods[place];
+            if type(tod) ~= 'table' or type(tod.zone) ~= 'number' or type(tod.name) ~= 'string' or type(tod.at) ~= 'number' then
+                table.remove(options.tods, place);
             end
         end
     end,
     commands = {
         compact = function(options)
             options.compact[1] = not options.compact[1];
+        end,
+        map = function(options)
+            options.showMap[1] = not options.showMap[1];
+        end,
+        tod = function(options, args)
+            -- the mark's, or with no mark the monster on show's
+            local zone, name = options.markZone, options.markName;
+            if name == '' then
+                zone, name = options.viewZone, options.viewName;
+            end
+            if name == '' or hunts.Monster(zone, name) == nil then
+                Say('There is no mark, and no monster on show, to keep a time of death for.');
+                return;
+            end
+            live.checked = 0;
+            if args[3] ~= nil and args[3]:lower() == 'clear' then
+                SetTod(options, zone, name, nil);
+                Say(('%s: its time of death is forgotten.'):format(name));
+                return;
+            end
+            local at = ParseWhen(args[3]);
+            if at == nil then
+                Say('/mark tod, alone for now; or with how many minutes ago (/mark tod 15), a time by the clock (/mark tod 14:35), or clear.');
+                return;
+            end
+            SetTod(options, zone, name, at);
+            Say(('%s: died at %s. %s'):format(name, os.date('%H:%M', at), (Standing(hunts.Monster(zone, name), at)):gsub('^Died .- ago%.%s*', '')));
         end,
         clear = function(options)
             if options.markName ~= '' then
@@ -676,6 +1228,12 @@ app = shell.New({
     },
 });
 
+local mapWindowName = 'winxi.mark.map';
+local mapPos = { 0, 0 };
+local function drawMapWindow()
+    DrawMap(app.options);
+end
+
 ashita.events.register('d3d_present', 'mark_present', function()
     -- the mark is watched whether or not the window is there to be seen
     local shown = app:BeginFrame();
@@ -693,5 +1251,11 @@ ashita.events.register('d3d_present', 'mark_present', function()
             end
         end
     end
+    BuildView(options);
     app:Window(options.isVisible, Draw);
+    if options.showMap[1] and options.isVisible[1] then
+        mapPos[1], mapPos[2] = options.pos[1] + 60, options.pos[2] + 60;
+        imgui.SetNextWindowPos(mapPos, ImGuiCond_FirstUseEver);
+        window.Plain(mapWindowName, options.showMap, style.TitlelessFlags(), drawMapWindow);
+    end
 end);

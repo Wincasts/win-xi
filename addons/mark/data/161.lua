@@ -22,7 +22,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { -89, -4, 47, 14 } },
+        areas = { { at = { -89, -4, 47 }, reach = 14, poly = { -103, 35, -101, 59, -75, 61, -75, 33 } } },
         drops = { { rate = 240, items = { { 902, 10000 } } }, { rate = 240, items = { { 16786, 10000 } } }, { rate = 240, items = { { 4875, 10000 } } }, { rate = 150, items = { { 886, 10000 } } } },
     },
     ['Grand Duke Batym'] = {
@@ -35,7 +35,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { -87, -4, -9, 14 } },
+        areas = { { at = { -87, -4, -9 }, reach = 14, poly = { -101, -21, -101, 5, -73, 5, -73, -23 } } },
         drops = { { rate = 240, items = { { 902, 10000 } } }, { rate = 150, items = { { 16787, 10000 } } }, { rate = 150, items = { { 886, 10000 } } } },
     },
     ['Likho'] = {
@@ -48,7 +48,7 @@ return {
         detects = { 'Sight', 'Sound' },
         respawn = { 3600, 4200 },
         kinds = 't',
-        areas = { { 139, -24.1, 61, 8 } },
+        areas = { { at = { 139, -24.1, 61 }, reach = 8, poly = { 131, 57, 135, 53, 145, 53, 147, 65, 143, 69, 135, 69, 136, 66, 131, 63 } } },
         drops = { { rate = 150, items = { { 2849, 10000 } } } },
     },
     ['Marquis Allocen'] = {
@@ -60,7 +60,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { -33, -4, 49, 14 } },
+        areas = { { at = { -33, -4, 49 }, reach = 14, poly = { -47, 35, -47, 63, -23, 63, -19, 59, -19, 35 } } },
         drops = { { rate = 240, items = { { 902, 10000 } } }, { rate = 240, items = { { 16757, 10000 } } }, { rate = 150, items = { { 886, 10000 } } } },
     },
     ['Marquis Amon'] = {
@@ -73,7 +73,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { -33, -4, -9, 14 } },
+        areas = { { at = { -33, -4, -9 }, reach = 14, poly = { -47, -23, -47, 5, -19, 5, -19, -23 } } },
         drops = { { rate = 240, items = { { 902, 10000 } } }, { rate = 240, items = { { 17232, 10000 } } }, { rate = 100, items = { { 4754, 10000 } } }, { rate = 150, items = { { 886, 10000 } } }, { rate = 50, items = { { 4784, 10000 } } }, { rate = 50, items = { { 4755, 10000 } } }, { rate = 10, items = { { 4812, 10000 } } } },
     },
     ['Marquis Andrealphus'] = {
@@ -98,7 +98,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 3600, 7200 },
         kinds = 't',
-        areas = { { 91, -8, 161, 22 } },
+        areas = { { at = { 91, -8, 161 }, reach = 22, poly = { 81, 141, 101, 139, 101, 183, 81, 183, 81, 173, 90, 170, 89, 161, 83, 157 } } },
         drops = { { rate = 150, items = { { 2831, 10000 } } } },
     },
     ['Marquis Sabnock'] = {
@@ -110,8 +110,8 @@ return {
         detects = { 'Sight', 'Scent' },
         lottery = { chance = 10, cooldown = 7200 },
         kinds = 'l',
-        areas = { { 79.1, -8, -120.7, 22.6 } },
-        placeholders = { { index = 206, name = 'Doom Demon', level = { 64, 66 }, respawn = 960, areas = { { 66, -8, -119, 22 } } }, { index = 207, name = 'Abyssal Demon', level = { 64, 66 }, respawn = 960, areas = { { 66, -8, -119, 22 } } } },
+        areas = { { at = { 79.1, -8, -120.7 }, reach = 23, poly = { 56, -99, 57, -143, 101, -143, 102, -99 } } },
+        placeholders = { { index = 206, name = 'Doom Demon', level = { 64, 66 }, respawn = 960, areas = { { at = { 66, -8, -119 }, reach = 22, poly = { 57, -141, 57, -99, 75, -97, 75, -109, 67, -115, 67, -123, 71, -129, 75, -129, 75, -141 } } } }, { index = 207, name = 'Abyssal Demon', level = { 64, 66 }, respawn = 960, areas = { { at = { 66, -8, -119 }, reach = 22, poly = { 57, -141, 57, -99, 75, -97, 75, -109, 67, -115, 67, -123, 71, -129, 75, -129, 75, -141 } } } } },
         drops = { { rate = 150, items = { { 19239, 10000 } } } },
     },
     ['Mimic'] = {

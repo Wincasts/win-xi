@@ -32,7 +32,7 @@ return {
         lottery = { chance = 5, cooldown = 75600 },
         kinds = 'l',
         points = { { 136, -6, 476 } },
-        placeholders = { { index = 254, name = 'Draugar Servant', level = { 79, 81 }, respawn = 960, areas = { { 131, -4.5, 466, 17 } } } },
+        placeholders = { { index = 254, name = 'Draugar Servant', level = { 79, 81 }, respawn = 960, areas = { { at = { 131, -4.5, 466 }, reach = 17, poly = { 115, 457, 115, 467, 139, 473, 133, 483, 145, 477, 147, 458, 141, 451, 131, 449 } } } } },
         drops = { { rate = 100, items = { { 15529, 10000 } } }, { rate = 100, items = { { 18066, 10000 } } } },
     },
     ['Bukki'] = {
@@ -66,7 +66,7 @@ return {
         detects = { 'Sight' },
         respawn = { 7200, 7200 },
         kinds = 't',
-        areas = { { 469, -6.5, 395, 20 } },
+        areas = { { at = { 469, -6.5, 395 }, reach = 20, poly = { 453, 409, 469, 377, 485, 377, 479, 389, 470, 390, 465, 409, 456, 415 } } },
         drops = { { rate = 50, items = { { 19125, 10000 } } } },
     },
     ['Lamia No.19'] = {
@@ -80,7 +80,7 @@ return {
         detects = { 'Sight' },
         respawn = { 3600, 10800 },
         kinds = 't',
-        areas = { { -141.5, -7.7, 132.1, 7.4 } },
+        areas = { { at = { -141.5, -7.7, 132.1 }, reach = 7, poly = { -149, 131, -143, 128, -139, 128, -135, 130, -134, 134, -140, 136, -147, 134 } } },
         drops = { { rate = 100, items = { { 15614, 10000 } } }, { rate = 100, items = { { 18841, 10000 } } } },
     },
     ['Lamie No.7'] = {
@@ -94,7 +94,7 @@ return {
         detects = { 'Sight' },
         respawn = { 259200, 259200 },
         kinds = 't',
-        areas = { { -143.1, -4.1, 185.8, 8.4 } },
+        areas = { { at = { -143.1, -4.1, 185.8 }, reach = 8, poly = { -151, 183, -145, 180, -140, 184, -135, 184, -136, 188, -144, 192 } } },
         drops = { { rate = 150, items = { { 17737, 10000 } } }, { rate = 100, items = { { 1869, 10000 } } }, { rate = 50, items = { { 2229, 10000 } } }, { rate = 10, items = { { 2167, 10000 } } } },
     },
     ['Lamie No.8'] = {
@@ -107,7 +107,7 @@ return {
         truesight = true,
         detects = { 'Sight' },
         kinds = 's',
-        areas = { { 145.8, -1.3, 137.9, 10.9 } },
+        areas = { { at = { 145.8, -1.3, 137.9 }, reach = 11, poly = { 137, 140, 146, 149, 152, 149, 154, 140, 150, 130, 146, 127, 139, 132 } } },
         drops = { { rate = 150, items = { { 16083, 10000 } } }, { rate = 100, items = { { 1869, 10000 } } }, { rate = 50, items = { { 2229, 10000 } } }, { rate = 10, items = { { 2167, 10000 } } } },
     },
     ['Lamie No.9'] = {
@@ -146,7 +146,7 @@ return {
         detects = { 'Sight' },
         respawn = { 259200, 259200 },
         kinds = 't',
-        areas = { { -459.6, -20.7, 458.4, 7.3 } },
+        areas = { { at = { -459.6, -20.7, 458.4 }, reach = 7, poly = { -467, 454, -464, 451, -452, 463, -460, 466 } } },
         drops = { { rate = 240, items = { { 2357, 10000 } } }, { rate = 150, items = { { 14959, 10000 } } } },
     },
     ['Merrow No.5'] = {
@@ -160,7 +160,7 @@ return {
         detects = { 'Sight' },
         respawn = { 259200, 259200 },
         kinds = 't',
-        areas = { { -92, -5.2, 511, 18 } },
+        areas = { { at = { -92, -5.2, 511 }, reach = 18, poly = { -107, 505, -97, 493, -84, 493, -81, 498, -88, 502, -77, 499, -79, 505, -91, 511, -91, 525, -97, 529, -105, 529 } } },
         drops = { { rate = 150, items = { { 15710, 10000 } } }, { rate = 100, items = { { 2146, 10000 } } }, { rate = 50, items = { { 2229, 10000 } } } },
     },
     ['Nuhn'] = {

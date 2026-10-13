@@ -22,8 +22,8 @@ return {
         detects = { 'Sound', 'Scent' },
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
-        areas = { { 260, -31.8, -63, 10 } },
-        placeholders = { { index = 312, name = 'Old Quadav', level = { 21, 23 }, respawn = 600, areas = { { 260, -31.8, -63, 10 } } }, { index = 313, name = 'Copper Quadav', level = { 21, 23 }, respawn = 600, areas = { { 260, -31.8, -63, 10 } } } },
+        areas = { { at = { 260, -31.8, -63 }, reach = 10, poly = { 251, -69, 257, -73, 267, -71, 267, -55, 254, -54 } } },
+        placeholders = { { index = 312, name = 'Old Quadav', level = { 21, 23 }, respawn = 600, areas = { { at = { 260, -31.8, -63 }, reach = 10, poly = { 251, -69, 257, -73, 267, -71, 267, -55, 254, -54 } } } }, { index = 313, name = 'Copper Quadav', level = { 21, 23 }, respawn = 600, areas = { { at = { 260, -31.8, -63 }, reach = 10, poly = { 251, -69, 257, -73, 267, -71, 267, -55, 254, -54 } } } } },
         drops = { { rate = 150, items = { { 2841, 10000 } } } },
     },
     ['Bu\'Ghi Howlblade'] = {
@@ -35,8 +35,8 @@ return {
         detects = { 'Sound', 'Scent' },
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
-        areas = { { 202, -29.8, 166.7, 19 } },
-        placeholders = { { index = 236, name = 'Copper Beetle', level = { 9, 12 }, respawn = 480, areas = { { 174.7, -16.2, 162.8, 26 } } } },
+        areas = { { at = { 202, -29.8, 166.7 }, reach = 19, poly = { 183, 165, 191, 179, 203, 179, 213, 173, 217, 150, 221, 150, 219, 171, 209, 181, 192, 182, 185, 177 } } },
+        placeholders = { { index = 236, name = 'Copper Beetle', level = { 9, 12 }, respawn = 480, areas = { { at = { 174.7, -16.2, 162.8 }, reach = 26, poly = { 164, 155, 167, 137, 175, 179, 181, 183, 186, 177, 185, 189, 169, 187 } } } } },
         drops = { { rate = 1000, items = { { 12340, 9500 }, { 13071, 500 } } } },
     },
     ['Incensed Pineapple'] = {
@@ -83,7 +83,7 @@ return {
         detects = { 'Sound', 'Scent' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { 22, -31.7, -99, 8 } },
+        areas = { { at = { 22, -31.7, -99 }, reach = 8, poly = { 15, -101, 21, -107, 27, -107, 29, -96, 27, -91, 17, -93 } } },
         drops = { { rate = 1000, items = { { 13837, 9000 }, { 17414, 1000 } } } },
     },
     ['Qu\'Vho Deathhurler'] = {
@@ -96,7 +96,7 @@ return {
         detects = { 'Sound', 'Scent' },
         respawn = { 3601, 4197 },
         kinds = 't',
-        areas = { { 146, -15.6, 241, 17 } },
+        areas = { { at = { 146, -15.6, 241 }, reach = 17, poly = { 129, 239, 134, 238, 135, 231, 149, 225, 161, 233, 163, 245, 158, 246, 151, 257, 138, 252, 129, 255 } } },
         drops = { { rate = 150, items = { { 15052, 10000 } } } },
     },
     ['Zi\'Ghi Boneeater'] = {
@@ -109,8 +109,8 @@ return {
         detects = { 'Sound', 'Scent' },
         lottery = { chance = 20, cooldown = 3600 },
         kinds = 'l',
-        areas = { { 131.2, -32, 82, 19 } },
-        placeholders = { { index = 261, name = 'Veteran Quadav', level = { 12, 15 }, respawn = 480, areas = { { 131.2, -32, 82, 19 } } } },
+        areas = { { at = { 131.2, -32, 82 }, reach = 19, poly = { 122, 80, 126, 77, 127, 63, 133, 63, 141, 71, 141, 91, 131, 101, 127, 101, 126, 84 } } },
+        placeholders = { { index = 261, name = 'Veteran Quadav', level = { 12, 15 }, respawn = 480, areas = { { at = { 131.2, -32, 82 }, reach = 19, poly = { 122, 80, 126, 77, 127, 63, 133, 63, 141, 71, 141, 91, 131, 101, 127, 101, 126, 84 } } } } },
         drops = { { rate = 1000, items = { { 12797, 9000 }, { 16934, 1000 } } } },
     },
 };

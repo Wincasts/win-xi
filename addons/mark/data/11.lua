@@ -23,7 +23,7 @@ return {
         detects = { 'Sight' },
         respawn = { 5700, 5700 },
         kinds = 't',
-        areas = { { -217.9, 8, -20.9, 12.8 } },
+        areas = { { at = { -217.9, 8, -20.9 }, reach = 13, poly = { -231, -28, -217, -31, -205, -21, -217, -10, -229, -19 } } },
         drops = { { rate = 100, items = { { 2827, 10000 } } } },
     },
     ['Bugbear Porterman'] = {

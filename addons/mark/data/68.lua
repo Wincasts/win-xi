@@ -22,7 +22,7 @@ return {
         lottery = { chance = 10, cooldown = 7200 },
         kinds = 'l',
         points = { { -219.2, 13.5, -340.3 } },
-        placeholders = { { index = 211, name = 'Qiqirn Archaeologist', level = { 73, 75 }, respawn = 960, areas = { { -127.8, 8.6, -315.9, 19.8 } } } },
+        placeholders = { { index = 211, name = 'Qiqirn Archaeologist', level = { 73, 75 }, respawn = 960, areas = { { at = { -127.8, 8.6, -315.9 }, reach = 20, poly = { -142, -336, -136, -304, -114, -296, -137, -299 } } } } },
         drops = { { rate = 100, items = { { 15531, 10000 } } }, { rate = 100, items = { { 18706, 10000 } } } },
         steal = { 2153 },
     },
@@ -57,7 +57,7 @@ return {
         detects = { 'Sound' },
         respawn = { 7203, 7800 },
         kinds = 't',
-        areas = { { 280, 1.3, 410, 17 } },
+        areas = { { at = { 280, 1.3, 410 }, reach = 17, poly = { 263, 401, 295, 401, 297, 409, 293, 415, 272, 419, 265, 415 } } },
         drops = { { rate = 50, items = { { 11496, 10000 } } } },
     },
     ['Missabikong'] = {

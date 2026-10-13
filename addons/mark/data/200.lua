@@ -19,7 +19,7 @@ return {
         detects = { 'Sound', 'Low HP' },
         respawn = { 7200, 7200 },
         kinds = 't',
-        areas = { { 21, 6.7, 15.7, 11.3 } },
+        areas = { { at = { 21, 6.7, 15.7 }, reach = 11, poly = { 11, 11, 14, 4, 30, 16, 31, 23, 27, 27, 21, 25, 21, 15 } } },
         drops = { { rate = 150, items = { { 15944, 10000 } } } },
     },
     ['Guardian Statue'] = {
@@ -41,8 +41,8 @@ return {
         detects = { 'Sight', 'Magic' },
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
-        areas = { { -1, 7, 201, 12 } },
-        placeholders = { { index = 99, name = 'Explosure', level = { 52, 53 }, respawn = 960, areas = { { -1, 7, 201, 12 } } } },
+        areas = { { at = { -1, 7, 201 }, reach = 12, poly = { -13, 193, -13, 209, 9, 209, 11, 193 } } },
+        placeholders = { { index = 99, name = 'Explosure', level = { 52, 53 }, respawn = 960, areas = { { at = { -1, 7, 201 }, reach = 12, poly = { -13, 193, -13, 209, 9, 209, 11, 193 } } } } },
         drops = { { rate = 150, items = { { 11404, 10000 } } } },
     },
     ['Hovering Hotpot'] = {
@@ -54,8 +54,8 @@ return {
         detects = { 'Magic' },
         lottery = { chance = 20, cooldown = 5400 },
         kinds = 'l',
-        areas = { { 174.8, 0, 26, 22.2 } },
-        placeholders = { { index = 208, name = 'Fallen Major', level = { 60, 62 }, respawn = 960, areas = { { 174.8, 0, 26, 22.2 } } }, { index = 210, name = 'Fallen Mage', level = { 59, 62 }, respawn = 960, areas = { { 174.8, 0, 26, 22.2 } } } },
+        areas = { { at = { 174.8, 0, 26 }, reach = 22, poly = { 152, 18, 179, 20, 197, 17, 197, 23, 185, 23, 185, 35, 173, 35, 174, 23, 156, 23, 152, 22 } } },
+        placeholders = { { index = 208, name = 'Fallen Major', level = { 60, 62 }, respawn = 960, areas = { { at = { 174.8, 0, 26 }, reach = 22, poly = { 152, 18, 179, 20, 197, 17, 197, 23, 185, 23, 185, 35, 173, 35, 174, 23, 156, 23, 152, 22 } } } }, { index = 210, name = 'Fallen Mage', level = { 59, 62 }, respawn = 960, areas = { { at = { 174.8, 0, 26 }, reach = 22, poly = { 152, 18, 179, 20, 197, 17, 197, 23, 185, 23, 185, 35, 173, 35, 174, 23, 156, 23, 152, 22 } } } } },
         drops = { { rate = 100, items = { { 19121, 10000 } } } },
     },
     ['Light Elemental'] = {
@@ -98,7 +98,7 @@ return {
         detects = { 'Sound' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { -140, 0, 220, 43 } },
+        areas = { { at = { -140, 0, 220 }, reach = 43, poly = { -183, 187, -179, 177, -99, 177, -99, 259, -105, 263, -171, 263, -177, 259, -183, 251 } } },
         drops = { { rate = 1000, items = { { 924, 10000 } } }, { rate = 240, items = { { 13598, 10000 } } } },
     },
     ['Roly-Poly'] = {
@@ -131,7 +131,7 @@ return {
         detects = { 'Sight' },
         respawn = { 75600, 86400 },
         kinds = 't',
-        areas = { { -140, 0, 220, 43 } },
+        areas = { { at = { -140, 0, 220 }, reach = 43, poly = { -183, 187, -179, 177, -99, 177, -99, 259, -105, 263, -171, 263, -177, 259, -183, 251 } } },
         drops = { { rate = 1000, items = { { 854, 10000 } } }, { rate = 150, items = { { 16857, 10000 } } }, { rate = 240, items = { { 854, 10000 } } }, { rate = 240, items = { { 854, 10000 } } } },
         steal = { 842 },
     },

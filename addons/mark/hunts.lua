@@ -10,6 +10,7 @@
 --   hunts.Chance(th, rate)           what a roll of that rate comes to with that much Treasure Hunter
 --   hunts.Appears(record, itemName)  how the monster comes to be there, a line to each thing said
 --   hunts.Drops(record, itemName)    its drops as rows for a table, the same rolls gathered together
+--   hunts.Places(points, areas, square)  where a spawn is, a line to each thing said
 local hunts = {};
 
 local index = nil;      -- data/index.lua, once read
@@ -265,26 +266,43 @@ function hunts.Appears(record, itemName)
 end
 
 -- Where a spawn is: its points written out while they are few, or the stretch they cover; and for
--- one put down anywhere in a region, the middle of the region and how far it reaches
-function hunts.Places(points, areas)
+-- one put down anywhere in a region, the middle of the region and how far it reaches. square, if
+-- given, says which square of the map's grid a point is in ('H-7'), or nil where that cannot be told:
+-- the square then goes before the point.
+function hunts.Places(points, areas, square)
     local lines = {};
     points = points or {};
+    local function Written(point)
+        local grid = square ~= nil and square(point) or nil;
+        if grid ~= nil then
+            return ('%s %s'):format(grid, hunts.Point(point));
+        end
+        return hunts.Point(point);
+    end
     if #points > 0 and #points <= 6 then
         local written = {};
         for place, point in ipairs(points) do
-            written[place] = hunts.Point(point);
+            written[place] = Written(point);
         end
-        lines[#lines + 1] = table.concat(written, '  ');
+        lines[#lines + 1] = table.concat(written, '   ');
     elseif #points > 6 then
         local west, east, south, north = points[1][1], points[1][1], points[1][3], points[1][3];
+        local grids, listed = {}, {};
         for _, point in ipairs(points) do
             west, east = math.min(west, point[1]), math.max(east, point[1]);
             south, north = math.min(south, point[3]), math.max(north, point[3]);
+            local grid = square ~= nil and square(point) or nil;
+            if grid ~= nil and not listed[grid] then
+                listed[grid] = true;
+                grids[#grids + 1] = grid;
+            end
         end
-        lines[#lines + 1] = ('%d points, from %s to %s'):format(#points, hunts.Point({ west, 0, south }), hunts.Point({ east, 0, north }));
+        table.sort(grids);
+        lines[#lines + 1] = ('%d points%s, from %s to %s'):format(#points, #grids > 0 and (' in ' .. table.concat(grids, ', ')) or '',
+            hunts.Point({ west, 0, south }), hunts.Point({ east, 0, north }));
     end
     for _, area in ipairs(areas or {}) do
-        lines[#lines + 1] = ('Anywhere within about %d yalms of %s'):format(math.floor(area[4] + 0.5), hunts.Point(area));
+        lines[#lines + 1] = ('Anywhere within about %d yalms of %s'):format(area.reach, Written(area.at));
     end
     return lines;
 end

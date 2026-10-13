@@ -65,7 +65,7 @@ return {
         lottery = { chance = 10, cooldown = 3600 },
         kinds = 'l',
         points = { { 133.8, 22.2, -208.7 } },
-        placeholders = { { index = 180, name = 'Mountain Scolopendrid', level = { 78, 81 }, respawn = 300, areas = { { 129, 22.9, -209, 18 } } } },
+        placeholders = { { index = 180, name = 'Mountain Scolopendrid', level = { 78, 81 }, respawn = 300, areas = { { at = { 129, 22.9, -209 }, reach = 18, poly = { 111, -213, 111, -211, 123, -211, 123, -209, 133, -209, 133, -207, 143, -207, 143, -205, 147, -205, 145, -209, 137, -209, 137, -211, 131, -211, 131, -213 } } } } },
         drops = { { rate = 100, items = { { 17970, 10000 } } } },
     },
     ['Eurytos'] = {
@@ -153,7 +153,7 @@ return {
         detects = { 'Sight', 'Scent' },
         respawn = { 5400, 5400 },
         kinds = 't',
-        areas = { { 644, -23.4, 657, 41 } },
+        areas = { { at = { 644, -23.4, 657 }, reach = 41, poly = { 603, 645, 603, 673, 609, 677, 683, 675, 685, 645, 681, 639, 623, 637 } } },
         drops = { { rate = 100, items = { { 2819, 10000 } } }, { rate = 100, items = { { 2821, 10000 } } } },
     },
     ['Orcus'] = {

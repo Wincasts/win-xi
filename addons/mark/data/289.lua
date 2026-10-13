@@ -616,7 +616,7 @@ return {
         truesight = true,
         detects = { 'Sound' },
         kinds = 's',
-        areas = { { 373, -40.1, 257, 16 } },
+        areas = { { at = { 373, -40.1, 257 }, reach = 16, poly = { 363, 257, 367, 271, 377, 273, 373, 261, 377, 251, 383, 247, 383, 241, 379, 241, 373, 255, 367, 251, 371, 261 } } },
         drops = {},
     },
     ['Warder of Temperance'] = {

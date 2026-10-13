@@ -10,7 +10,7 @@ return {
         lottery = { chance = 20, cooldown = 1 },
         kinds = 'l',
         points = { { -0.3, -7.3, 5.8 } },
-        placeholders = { { index = 10, name = 'Sea Monk', level = { 21, 29 }, respawn = 300, areas = { { 0.5, -7.1, 12, 10.9 } } } },
+        placeholders = { { index = 10, name = 'Sea Monk', level = { 21, 29 }, respawn = 300, areas = { { at = { 0.5, -7.1, 12 }, reach = 11, poly = { -7, 20, -2, 23, 8, 19, 8, 1, -7, 1 } } } } },
         drops = { { rate = 240, items = { { 4484, 10000 } } }, { rate = 240, items = { { 4484, 10000 } } }, { rate = 240, items = { { 4484, 10000 } } }, { rate = 50, items = { { 14122, 10000 } } } },
     },
 };
