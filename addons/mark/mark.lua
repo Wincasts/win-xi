@@ -1,6 +1,6 @@
 addon.name    = 'mark';
 addon.author  = 'win (and claude)';
-addon.version = '1.1';
+addon.version = '1.2';
 addon.desc    = 'Pick a notorious monster, make it your mark, and see how it appears, its placeholders and their respawns, where it spawns on the map, when its window opens and what it drops.';
 addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 
@@ -25,6 +25,8 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 --   /mark tod 15          ... fifteen minutes ago
 --   /mark tod 14:35       ... at that time by the computer's clock
 --   /mark tod clear       its time of death is forgotten
+--   /mark ph 126          the placeholder of that ID died just now (/mark ph 126 2: two minutes ago;
+--                         /mark ph 126 clear: it is no longer timed)
 --
 -- The data is in data/, written by tools/build_mark_data.py from the server's source. hunts.lua reads
 -- it and puts it into words, maps.lua knows the maps, and this file draws and watches the game.
@@ -45,9 +47,21 @@ local TextBaseWidth = imgui.CalcTextSize('A');
 local gold = { 1.0, 215 / 255, 0.0, 1.0 };
 local green = { 0.55, 1.0, 0.55, 1.0 };
 local amber = { 1.0, 0.8, 0.4, 1.0 };
+local dim = { 0.6, 0.6, 0.6, 1.0 };
 
 local jobs = { 'WAR', 'MNK', 'WHM', 'BLM', 'RDM', 'THF', 'PLD', 'DRK', 'BST', 'BRD', 'RNG', 'SAM', 'NIN', 'DRG', 'SMN',
     'BLU', 'COR', 'PUP', 'DNC', 'SCH', 'GEO', 'RUN' };
+
+-- Text as it is: imgui.Text and TextWrapped take theirs as a format, and make something else of a
+-- percent sign with a letter after it. Wrapped where a wrap has been set.
+local hasUnformatted = imgui.TextUnformatted ~= nil;
+local function Plain(text)
+    if hasUnformatted then
+        imgui.TextUnformatted(text);
+    else
+        imgui.Text(text);
+    end
+end
 
 local app = nil; -- the shell's: made once the settings' defaults are set out, below
 
@@ -163,6 +177,7 @@ local live = {
     status = {},               -- placeholder's entity index -> { text, tone }: in range, or how its respawn stands
     deaths = {},               -- placeholder's entity index -> when it was seen dead (os.time)
     counted = {},              -- placeholder's entity index -> true while the corpse seen is one already timed
+    spawns = {},               -- placeholder's entity index -> when it was seen to come back (os.time)
     markUp = false,            -- whether the mark was up when last looked for
     markDead = false,          -- whether its corpse has been counted
     nearest = nil,             -- how far the monster on show's nearest spawn point is, in words
@@ -170,6 +185,8 @@ local live = {
     viewTimer = nil,           -- and the monster on show's
     timers = {},               -- and every other kept: a line to each of options.tods
 };
+
+local watching = nil; -- the settings, for what is said as the game is looked at
 
 local SPAWNED = 0x200; -- the render flag of an entity the client is showing
 
@@ -186,31 +203,43 @@ local function Look(entities, index)
     if live.x ~= nil then
         way = ' ' .. hunts.Compass(x - live.x, z - live.z);
     end
-    return { up = up, x = x, z = z, text = ('%s, %d yalms%s'):format(up and 'Up' or 'Dead', math.floor(distance + 0.5), way) };
+    local where = ('%d yalms%s'):format(math.floor(distance + 0.5), way);
+    return { up = up, x = x, z = z, where = where, text = ('%s, %s'):format(up and 'Up' or 'Dead', where) };
 end
 
--- A placeholder: in range or not, and its respawn timed from when it was seen dead
+-- A placeholder: in range or not, its respawn timed from when it died (seen dead, or said to have
+-- died), and how long it has been up since it was seen to come back
 local function WatchPlaceholder(entities, placeholder)
     local index = placeholder.index;
     local sight = Look(entities, index);
     live.sights[index] = sight;
+    local status = live.status[index] or {};
+    live.status[index] = status;
     if sight ~= nil and not sight.up then
         if not live.counted[index] then
             live.counted[index] = true;
             live.deaths[index] = os.time();
         end
+        live.spawns[index] = nil;
     else
         live.counted[index] = nil;
-        if sight ~= nil then
-            live.deaths[index] = nil; -- up again
+        if sight ~= nil and live.deaths[index] ~= nil then
+            -- up again: its spawn is timed from now
+            live.deaths[index] = nil;
+            live.spawns[index] = os.time();
+            if watching ~= nil and watching.announcePlaceholders[1] then
+                Say(('%s (%03X) has respawned, %s.'):format(placeholder.name, index, sight.where));
+            end
         end
     end
 
-    local status = live.status[index] or {};
-    live.status[index] = status;
     local died = live.deaths[index];
+    local told = status.told;
+    status.told = nil;
     if sight ~= nil and sight.up then
-        status.text, status.tone = sight.text, 'up';
+        local spawned = live.spawns[index];
+        status.text = spawned and ('%s, for %s'):format(sight.text, Clock(os.time() - spawned)) or sight.text;
+        status.tone = 'up';
     elseif died == nil then
         status.text, status.tone = 'Not In Range', nil;
     elseif placeholder.respawn == nil then
@@ -221,6 +250,11 @@ local function WatchPlaceholder(entities, placeholder)
             status.text, status.tone = ('Respawns in %s'):format(Clock(wait)), 'wait';
         elseif wait > -1800 then
             status.text, status.tone = ('Due %s ago'):format(Clock(-wait)), 'due';
+            -- said once, as it falls due
+            status.told = true;
+            if not told and watching ~= nil and watching.announcePlaceholders[1] then
+                Say(('%s (%03X) is due to respawn.'):format(placeholder.name, index));
+            end
         else
             -- long past: it has come and gone unseen
             live.deaths[index] = nil;
@@ -283,6 +317,7 @@ local function Update(options)
         return;
     end
     live.checked = now;
+    watching = options;
 
     local memory = AshitaCore:GetMemoryManager();
     local party = memory:GetParty();
@@ -290,7 +325,7 @@ local function Update(options)
     local zone = party:GetMemberZone(0);
     if zone ~= live.zone then
         -- entity indices are a zone's own: what was timed in the last one is nothing here
-        live.deaths, live.counted, live.status = {}, {}, {};
+        live.deaths, live.counted, live.status, live.spawns = {}, {}, {}, {};
     end
     live.zone = zone;
     local me = party:GetMemberTargetIndex(0);
@@ -457,15 +492,18 @@ local function BuildView(options)
 
     view.placeholders = {};
     for place, placeholder in ipairs(record.placeholders or {}) do
-        local where = hunts.Places(placeholder.points, placeholder.areas, Square);
-        Routes(where, placeholder.routes);
         view.placeholders[place] = {
             index = placeholder.index,
             name = placeholder.name,
             id = ('%03X'):format(placeholder.index),
             level = Level(placeholder.level),
             respawn = placeholder.respawn and hunts.Duration(placeholder.respawn) or '',
-            where = table.concat(where, '; '),
+            where = hunts.Spot(placeholder.points, placeholder.areas, Square),
+            walks = placeholder.routes ~= nil,
+            mapId = ('Map##mark.phMap%d'):format(place),
+            todId = ('TOD##mark.phTod%d'):format(place),
+            clearId = ('x##mark.phClear%d'):format(place),
+            place = place,
         };
     end
 
@@ -484,6 +522,8 @@ local function BuildView(options)
     end
     view.steal = record.steal and Names(record.steal) or nil;
     view.despoil = record.despoil and Names(record.despoil) or nil;
+    view.stealLine = view.steal and ('Steal: ' .. view.steal) or nil;
+    view.despoilLine = view.despoil and ('Despoil: ' .. view.despoil) or nil;
 end
 
 local function Show(options, zone, name)
@@ -590,8 +630,10 @@ local function Chart(record, floor, floors, entry, size)
         end
     end
     -- the placeholders under, the monster's own over them
-    for _, placeholder in ipairs(record.placeholders or {}) do
-        Lay(placeholder.points, placeholder.areas, placeholder.routes, heat.placeholder, heat.placeholderSpot);
+    for place, placeholder in ipairs(record.placeholders or {}) do
+        if chart.focus == nil or chart.focus == place then
+            Lay(placeholder.points, placeholder.areas, placeholder.routes, heat.placeholder, heat.placeholderSpot);
+        end
     end
     Lay(record.points, record.areas, record.routes, heat.monster, heat.monsterSpot);
 end
@@ -644,7 +686,15 @@ local function DrawMap(options)
         return;
     end
     if chart.zone ~= view.zone or chart.name ~= view.name then
-        chart.choice = nil;
+        chart.choice, chart.focus = nil, nil;
+    end
+    local focused = chart.focus and record.placeholders and record.placeholders[chart.focus] or nil;
+    if focused ~= nil then
+        imgui.TextColored(placeholderLegend, ('%s (%03X)'):format(focused.name, focused.index));
+        imgui.SameLine();
+        if imgui.SmallButton('Show All##mark.mapAll') then
+            chart.focus = nil;
+        end
     end
     -- asked of the client once for each monster shown, not every frame
     if chart.best == nil or chart.bestZone ~= view.zone or chart.bestName ~= view.name or chart.bestHere ~= view.here then
@@ -674,8 +724,10 @@ local function DrawMap(options)
         return;
     end
     local size = math.max(256, math.min(1024, options.mapSize[1]));
-    if chart.zone ~= view.zone or chart.name ~= view.name or chart.floor ~= floor or chart.size ~= size or chart.here ~= view.here then
+    if chart.zone ~= view.zone or chart.name ~= view.name or chart.floor ~= floor or chart.size ~= size or chart.here ~= view.here
+        or chart.laid ~= (chart.focus or 0) then
         chart.zone, chart.name, chart.floor, chart.size, chart.here, chart.entry = view.zone, view.name, floor, size, view.here, entry;
+        chart.laid = chart.focus or 0;
         Chart(record, floor, floors, entry, size);
     end
 
@@ -780,7 +832,7 @@ local function Timer(timer)
     if timer.open then
         imgui.TextColored(green, timer.text);
     else
-        imgui.Text(timer.text);
+        Plain(timer.text);
     end
 end
 
@@ -902,9 +954,12 @@ end
 
 local function Lines(lines)
     for _, line in ipairs(lines) do
-        imgui.TextWrapped(line);
+        Plain(line);
     end
 end
+
+local tightCells = { 6, 1 };
+local dropFlags = bit.bor(ImGuiTableFlags_SizingFixedFit, ImGuiTableFlags_NoHostExtendX, ImGuiTableFlags_RowBg, ImGuiTableFlags_BordersInnerV);
 
 local function DrawMonster(options)
     local record = view.record;
@@ -960,19 +1015,21 @@ local function DrawMonster(options)
     if #view.placeholders > 0 then
         local here = live.zone == options.viewZone;
         widgets.Header('Placeholders');
-        if imgui.BeginTable('mark.placeholders', here and 6 or 5, ImGuiTableFlags_SizingFixedFit) then
-            imgui.TableSetupColumn('Placeholder', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 22);
-            imgui.TableSetupColumn('ID', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 4);
-            imgui.TableSetupColumn('Lv', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 6);
-            imgui.TableSetupColumn('Respawn', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 9);
-            imgui.TableSetupColumn('Where', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 48);
+        if imgui.BeginTable('mark.placeholders', here and 7 or 6, ImGuiTableFlags_SizingFixedFit) then
+            imgui.TableSetupColumn('Placeholder', ImGuiTableColumnFlags_WidthFixed);
+            imgui.TableSetupColumn('ID', ImGuiTableColumnFlags_WidthFixed);
+            imgui.TableSetupColumn('Lv', ImGuiTableColumnFlags_WidthFixed);
+            imgui.TableSetupColumn('Respawn', ImGuiTableColumnFlags_WidthFixed);
+            imgui.TableSetupColumn('Where', ImGuiTableColumnFlags_WidthFixed);
             if here then
-                imgui.TableSetupColumn('Now', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 20);
+                imgui.TableSetupColumn('Now', ImGuiTableColumnFlags_WidthFixed, TextBaseWidth * 26);
             end
+            imgui.TableSetupColumn('##mark.phButtons', ImGuiTableColumnFlags_WidthFixed);
             imgui.TableHeadersRow();
             for _, placeholder in ipairs(view.placeholders) do
                 imgui.TableNextRow();
                 imgui.TableNextColumn();
+                imgui.AlignTextToFramePadding();
                 imgui.Text(placeholder.name);
                 imgui.TableNextColumn();
                 imgui.Text(placeholder.id);
@@ -985,6 +1042,31 @@ local function DrawMonster(options)
                 if here then
                     imgui.TableNextColumn();
                     Status(placeholder.index);
+                end
+                imgui.TableNextColumn();
+                if imgui.SmallButton(placeholder.mapId) then
+                    chart.focus = placeholder.place;
+                    options.showMap[1] = true;
+                end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip('The map, with this placeholder alone beside the monster: all the ground it can spawn on, and its route if it walks one.');
+                end
+                if here then
+                    imgui.SameLine();
+                    if imgui.SmallButton(placeholder.todId) then
+                        live.deaths[placeholder.index], live.spawns[placeholder.index] = os.time(), nil;
+                        live.checked = 0;
+                    end
+                    if imgui.IsItemHovered() then
+                        imgui.SetTooltip('This placeholder died just now: its respawn is timed from here. One seen dead is timed without being told.\n/mark ph <ID> does the same, and /mark ph <ID> 2 says it died two minutes ago.');
+                    end
+                    if live.deaths[placeholder.index] ~= nil then
+                        imgui.SameLine();
+                        if imgui.SmallButton(placeholder.clearId) then
+                            live.deaths[placeholder.index] = nil;
+                            live.checked = 0;
+                        end
+                    end
                 end
             end
             imgui.EndTable();
@@ -1005,29 +1087,41 @@ local function DrawMonster(options)
     widgets.Header('Drops');
     if #view.drops == 0 then
         imgui.Text('Nothing, by the server\'s data.');
-    elseif imgui.BeginTable('mark.drops', #view.headings + 1, ImGuiTableFlags_SizingFixedFit) then
-        imgui.TableSetupColumn('Item', ImGuiTableColumnFlags_NoHide, TextBaseWidth * 30);
+    else
+        -- each column as wide as what is in it and no wider, and the rows close together
+        imgui.PushStyleVar(ImGuiStyleVar_CellPadding, tightCells);
+        local begun = imgui.BeginTable('mark.drops', #view.headings + 1, dropFlags);
+        if begun then
+        imgui.TableSetupColumn('Item', ImGuiTableColumnFlags_WidthFixed);
         for _, heading in ipairs(view.headings) do
-            imgui.TableSetupColumn(heading, ImGuiTableColumnFlags_NoHide, TextBaseWidth * 7);
+            imgui.TableSetupColumn(heading, ImGuiTableColumnFlags_WidthFixed);
         end
         imgui.TableHeadersRow();
         for _, row in ipairs(view.drops) do
             imgui.TableNextRow();
             imgui.TableNextColumn();
-            local Write = row.group and imgui.TextDisabled or imgui.Text;
-            Write(row.label);
+            -- a roll of several is told from the items under it by its colour
+            if row.group then
+                imgui.PushStyleColor(ImGuiCol_Text, dim);
+            end
+            Plain(row.label);
             for _, cell in ipairs(row.cells) do
                 imgui.TableNextColumn();
-                Write(cell);
+                Plain(cell);
+            end
+            if row.group then
+                imgui.PopStyleColor();
             end
         end
         imgui.EndTable();
+        end
+        imgui.PopStyleVar();
     end
     if view.steal ~= nil then
-        imgui.TextWrapped('Steal: ' .. view.steal);
+        Plain(view.stealLine);
     end
     if view.despoil ~= nil then
-        imgui.TextWrapped('Despoil: ' .. view.despoil);
+        Plain(view.despoilLine);
     end
 
     imgui.PopTextWrapPos();
@@ -1058,6 +1152,7 @@ local function Draw(options)
     end
 
     DrawPicker(options);
+    imgui.Separator();
     if view.record ~= nil then
         DrawMonster(options);
     elseif options.viewName ~= '' then
@@ -1081,6 +1176,7 @@ local defaults = T{
     compact = T{ false },        -- only the mark's few lines
     announce = T{ true },        -- says in the chat log that the mark is up, or dead
     sound = T{ true },           -- and sounds as it comes up
+    announcePlaceholders = T{ true }, -- says in the chat log that a timed placeholder is due, and that it is up
     showScripted = T{ false },   -- lists the monsters the data knows only as brought by a script
     maxTh = T{ 4 },              -- the highest Treasure Hunter the drops are worked out for
     showMap = T{ false },        -- the map window
@@ -1135,6 +1231,11 @@ local function DrawSettings(options)
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Says in the chat log that the mark has come into range, how far and which way, and that it has been seen dead.');
     end
+    widgets.Label('Announce Placeholders');
+    imgui.Checkbox('##mark.announcePh', options.announcePlaceholders);
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Says in the chat log that a placeholder being timed is due to respawn, and that it has been seen up again.');
+    end
     widgets.Label('Sound When Up');
     imgui.Checkbox('##mark.sound', options.sound);
     if imgui.IsItemHovered() then
@@ -1151,7 +1252,7 @@ app = shell.New({
     drawSettings = DrawSettings,
     onSettings = function(options)
         -- anything a saved file has in another shape than it should
-        for _, key in ipairs({ 'compact', 'announce', 'sound', 'showScripted', 'maxTh', 'showMap', 'mapSize', 'tods' }) do
+        for _, key in ipairs({ 'compact', 'announce', 'sound', 'announcePlaceholders', 'showScripted', 'maxTh', 'showMap', 'mapSize', 'tods' }) do
             if type(options[key]) ~= 'table' then
                 options[key] = defaults[key];
             end
@@ -1170,6 +1271,36 @@ app = shell.New({
         end,
         map = function(options)
             options.showMap[1] = not options.showMap[1];
+        end,
+        ph = function(options, args)
+            -- a placeholder of the mark's or of the monster on show's, in the zone the player is in, by its ID
+            local index = args[3] ~= nil and tonumber(args[3], 16) or nil;
+            local found = nil;
+            for _, record in ipairs({ live.zone == options.markZone and Mark(options) or false,
+                live.zone == options.viewZone and options.viewName ~= '' and hunts.Monster(options.viewZone, options.viewName) or false }) do
+                for _, placeholder in ipairs(record and record.placeholders or {}) do
+                    if placeholder.index == index then
+                        found = placeholder;
+                    end
+                end
+            end
+            if found == nil then
+                Say('/mark ph <ID> [minutes ago | clear]: the ID of a placeholder of the mark\'s, in the zone you are in, as the window shows it.');
+                return;
+            end
+            live.checked = 0;
+            if args[4] ~= nil and args[4]:lower() == 'clear' then
+                live.deaths[index] = nil;
+                Say(('%s (%03X) is no longer timed.'):format(found.name, index));
+                return;
+            end
+            local ago = args[4] == nil and 0 or tonumber(args[4]);
+            if ago == nil or ago < 0 then
+                Say('/mark ph <ID> [minutes ago | clear]');
+                return;
+            end
+            live.deaths[index], live.spawns[index] = os.time() - math.floor(ago * 60), nil;
+            Say(('%s (%03X) is timed from %s.'):format(found.name, index, os.date('%H:%M:%S', live.deaths[index])));
         end,
         tod = function(options, args)
             -- the mark's, or with no mark the monster on show's

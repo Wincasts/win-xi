@@ -307,6 +307,27 @@ function hunts.Places(points, areas, square)
     return lines;
 end
 
+-- Where a spawn is, as briefly as can be said: its spawn point (the middle of the region, for one
+-- put down anywhere in a region), and how many more there are if there are several
+function hunts.Spot(points, areas, square)
+    local first, count = nil, 0;
+    for _, point in ipairs(points or {}) do
+        first, count = first or point, count + 1;
+    end
+    for _, area in ipairs(areas or {}) do
+        first, count = first or area.at, count + 1;
+    end
+    if first == nil then
+        return '';
+    end
+    local grid = square ~= nil and square(first) or nil;
+    local written = grid ~= nil and ('%s %s'):format(grid, hunts.Point(first)) or hunts.Point(first);
+    if count > 1 then
+        written = ('%s (+%d)'):format(written, count - 1);
+    end
+    return written;
+end
+
 -- The drops as rows for a table. Rolls that are the same are gathered into one row with a count. A
 -- roll that gives one of several items is a heading row (group = true) with a row to each item under
 -- it (indent = true), whose rate is the roll's and whose share is its part of the roll out of 10000.

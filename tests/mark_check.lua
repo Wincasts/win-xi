@@ -39,12 +39,16 @@ maps.ClientFloor = function(_, y) return y < 0 and 2 or 1 end -- below ground is
 -- everything written in a window, to look through
 local texts = {}
 local imgui = require('imgui')
-for _, name in ipairs({ 'Text', 'TextWrapped', 'TextDisabled', 'TableSetupColumn', 'SetTooltip' }) do
+for _, name in ipairs({ 'Text', 'TextUnformatted', 'TextWrapped', 'TextDisabled', 'TableSetupColumn', 'SetTooltip' }) do
     rawset(imgui, name, function(text) texts[#texts + 1] = text end)
 end
 rawset(imgui, 'TextColored', function(_, text) texts[#texts + 1] = text end)
 local function wrote(part)
     for _, text in ipairs(texts) do if tostring(text):find(part, 1, true) then return true end end
+    return false
+end
+local function exactly(whole)
+    for _, text in ipairs(texts) do if text == whole then return true end end
     return false
 end
 local function frames(count) texts = {}; H.frames(count or 9) end
@@ -56,7 +60,8 @@ H.print('nothing chosen: the first monster of the zone the player is in', o.view
 
 o.viewName = 'Jaggedy-Eared Jack'; frames()
 H.print('how it appears', wrote('Lottery: a 9% chance'), wrote('closed for 40 min'))
-H.print('its placeholder and where, with no map to be read', wrote('Forest Hare'), wrote('Anywhere within about 120 yalms of (-341, -233)'))
+H.print('a percent sign is written as it is, not as a format', H.calls.TextWrapped == nil)
+H.print('its placeholder and where, with no map to be read', wrote('Forest Hare'), wrote('Anywhere within about 120 yalms of (-341, -233)'), '| the placeholder\'s is the point alone', exactly('(-341, -233)'))
 H.print('its drops at each level', wrote('Item 13112'), wrote('No TH'), wrote('TH4'), wrote('TH5') == false, wrote('2.5%'))
 H.print('what can be stolen', wrote('Steal: Item 4389'))
 H.print('nearest spawn point from where the player stands', wrote('Nearest is 413 yalms SW of you.'))
@@ -64,7 +69,7 @@ o.maxTh[1] = 8; frames(); H.print('more Treasure Hunter asked for', wrote('TH8')
 
 -- the map can be read: the square goes before the point (the first reading is tried again in five seconds)
 mapsReadable = true; frames(200)
-H.print('the square of the map', wrote('Anywhere within about 120 yalms of D-11 (-341, -233)'))
+H.print('the square of the map', wrote('Anywhere within about 120 yalms of D-11 (-341, -233)'), exactly('D-11 (-341, -233)'))
 H.print('squares: the middle is H-8, the corner A-1', maps.Square(256, 256) == 'H-8', maps.Square(20, 20) == 'A-1', maps.Square(47, 48) == 'A-2', maps.Square(48, 47) == 'B-1')
 
 o.markZone, o.markName = 100, 'Jaggedy-Eared Jack'
@@ -83,6 +88,20 @@ entities[294] = nil
 frames(); H.print('out of range: still timed', wrote('Respawns in 2:5') or wrote('Respawns in 3:00'))
 entities[294] = { x = -10, y = 0, hp = 100, far = 10 }
 frames(); frames(1); H.print('up again: no longer timed', wrote('Up, 10 yalms W'), wrote('Respawns in') == false)
+
+H.print('said as it came up', H.printed[#H.printed])
+
+-- a placeholder's death given by hand, and said as it falls due
+H.command('/mark ph 126 2'); H.print('/mark ph 126 2:', (H.printed[#H.printed]:gsub('%d%d:%d%d:%d%d', 'HH:MM:SS')))
+entities[294] = nil; frames(); frames(1); H.print('timed from two minutes ago', wrote('Respawns in 1:00') or wrote('Respawns in 0:59'))
+H.command('/mark ph 126 4'); frames(); frames(1); H.print('past due: shown and said', wrote('Due 1:0'), H.printed[#H.printed])
+said = #H.printed; frames(); H.print('said once', #H.printed == said)
+H.command('/mark ph 126 clear'); H.print('/mark ph 126 clear:', H.printed[#H.printed])
+H.command('/mark ph 999'); H.print('an ID that is no placeholder\'s:', H.printed[#H.printed]:sub(1, 28))
+H.ret.SmallButton = { true }; frames(1); H.ret.SmallButton = nil; frames(); frames(1)
+H.print('the row\'s buttons: the map opened, and its death timed then forgotten', o.showMap[1], wrote('Respawns in') == false)
+o.showMap[1] = false
+entities[294] = { x = -10, y = 0, hp = 100, far = 10 }; frames()
 
 -- the mark's death, seen
 entities[295].hp = 0

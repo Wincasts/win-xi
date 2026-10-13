@@ -16,6 +16,8 @@ and shows where it can spawn on the zone's map. Needs the `winxi` library (`addo
 - `/mark tod` keeps a time of death for the mark (or, with no mark, the monster on show): now, or
   `/mark tod 15` for fifteen minutes ago, or `/mark tod 14:35` for a time by the computer's clock;
   `/mark tod clear` forgets it
+- `/mark ph 126` says the placeholder of that ID died just now, `/mark ph 126 2` two minutes ago, and
+  `/mark ph 126 clear` stops timing it
 
 ## The window
 
@@ -27,7 +29,10 @@ for the monster chosen:
   is closed after the monster dies), a timed respawn (the window), a trade to a ??? (what, and where
   the ??? is), with whatever else the data says: day or night only, weather, fog.
 - **Placeholders**: each one's name, its ID (the last three figures of its id, as other tools show
-  them), level, respawn time and where it is put down; and, in its zone, whether it is in range now.
+  them), level, respawn time and spawn point (the middle of the ground it can be put down on, where
+  that is a region); and, in its zone, whether it is in range now or when it respawns. **Map** on its
+  row opens the map with that placeholder alone beside the monster, for all the ground it covers;
+  **TOD** says it died just now.
 - **Spawn Locations**: its spawn points, or the stretch of ground it can be put down on, each as a
   square of the map and as `/pos` has it (`H-7 (-341, -233)`: east-west, north-south); and how far and
   which way the nearest is from you. The placeholders' places are written the same way.
@@ -51,8 +56,11 @@ window is showing:
   or when a timed monster's window opens and closes. The time is saved with the settings, and let go
   when the monster is seen up again;
 - each of its placeholders seen dead is timed from then by its respawn time: `Respawns in 3:20`, then
-  `Due 0:40 ago` until it is seen up. These are kept only while the addon is loaded and you stay in
-  the zone. The monster on show has its placeholders timed the same way, mark or not.
+  `Due 0:40 ago` until it is seen up, and then `Up, 10 yalms W, for 1:20`, counting from when it was
+  seen to come back. A death you did not see is given with **TOD** on its row or `/mark ph <ID>`. The
+  chat log says when a timed placeholder falls due and when it has respawned (Announce
+  Placeholders). These are kept only while the addon is loaded and you stay in the zone. The monster
+  on show has its placeholders timed the same way, mark or not.
 
 **Compact Window** (or `/mark compact`) leaves only the mark's lines: the mark, how its window stands,
 and each placeholder with whether it is in range or when it respawns.
@@ -70,7 +78,9 @@ Where the monster can spawn is laid over it in red and where its placeholders ca
 can be put down anywhere in is filled, a spawn point is a spot, and a route it walks is a yellow line.
 Each is thin enough that the colour deepens where several lie over one another, so the more that can
 spawn in a place the hotter it shows. In the zone, you are the white spot and whatever of them is in
-range is green (grey if dead). The square and the point under the mouse are in the tooltip.
+range is green (grey if dead). The square and the point under the mouse are in the tooltip. Opened
+from a placeholder's **Map** button it shows that placeholder alone beside the monster, until **Show
+All** over the map is pressed.
 
 What to know of the maps:
 
@@ -98,7 +108,8 @@ memory and asks the server nothing.
 | Show Map, Map Size | The map window, and how many pixels across it is drawn (the pictures are 512). |
 | Show Scripted Spawns | Lists as well the monsters the data knows only as brought by a script (a quest, a battlefield, an event): their drops are there, and nothing of how they are brought. Off, about a quarter of the monsters are listed. |
 | Highest Treasure Hunter | The drops are worked out up to this level, 0 to 14. The server takes up to 4 from a job that is not a thief's and up to 8 from a thief; more comes only as a thief's blows raise it in the fight. |
-| Announce Mark | The chat log lines. |
+| Announce Mark | The chat log lines for the mark. |
+| Announce Placeholders | The chat log lines for a timed placeholder: due, and respawned. |
 | Sound When Up | `open.wav` of `libs\winxi\sounds`. |
 
 ## Where the data comes from
