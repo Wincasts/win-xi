@@ -1622,10 +1622,14 @@ local function DrawInventoryUnified()
     imgui.PopStyleVar()
 end
 
+local topPadding = 6 -- more room above the tabs, below the title on the top edge, in pixels
+
 -- What goes in the window
 local function DrawWindow(drawOptions)
     -- once for the frame, inside the window: they take in its fade
     stackMain, stackShadow = imgui.GetColorU32(stackWhite), imgui.GetColorU32(stackBlack)
+
+    imgui.SetCursorPosY(imgui.GetCursorPosY() + topPadding)
 
     if drawOptions.isUnified[1] then
         DrawInventoryUnified()
