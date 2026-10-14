@@ -93,15 +93,25 @@ function hunts.Monster(zone, name)
     return zoneFiles[zone] and zoneFiles[zone][name] or nil;
 end
 
+-- Keep the current search only: an open dropdown asks for it every frame. The catalog is immutable;
+-- callers treat the returned list and its rows as read-only.
+local search = {};
+
 -- The monsters whose name has the words in it, whichever zone they are in: no more than limit of them
 function hunts.Find(words, showScripted, limit)
-    local found = {};
     words = words:lower();
+    showScripted = showScripted and true or false;
+    limit = limit or 40;
+    if search.words == words and search.scripted == showScripted and search.limit == limit then
+        return search.found;
+    end
+    local found = {};
+    search.words, search.scripted, search.limit, search.found = words, showScripted, limit, found;
     for _, zone in ipairs(hunts.Zones(showScripted)) do
         for _, name in ipairs(zone.monsters) do
             if name:lower():find(words, 1, true) then
                 found[#found + 1] = { zone = zone.id, name = name, label = ('%s (%s)'):format(name, zone.name) };
-                if #found >= (limit or 40) then
+                if #found >= limit then
                     return found;
                 end
             end

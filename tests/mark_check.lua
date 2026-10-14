@@ -73,7 +73,7 @@ H.print('the square of the map', wrote('Anywhere within about 120 yalms of D-11 
 H.print('squares: the middle is H-8, the corner A-1', maps.Square(256, 256) == 'H-8', maps.Square(20, 20) == 'A-1', maps.Square(47, 48) == 'A-2', maps.Square(48, 47) == 'B-1')
 
 -- the header and the tabs
-H.print('a header, and two tabs with Look Up the first', exactly('Mark'), H.calls.BeginTabBar ~= nil, H.calls.BeginTabItem ~= nil, wrote('How It Appears'))
+H.print('a header, and three tabs with Database the first', exactly('Mark'), H.calls.BeginTabBar ~= nil, H.calls.BeginTabItem ~= nil, wrote('How It Appears'))
 H.tab(2); frames(); H.print('the Marks tab, with nothing in it yet', wrote('No marks, and no times of death.'), wrote('How It Appears') == false)
 o.marks[1] = { zone = 100, name = 'Jaggedy-Eared Jack' }
 frames(); H.print('a mark is listed there, out of range', exactly('Jaggedy-Eared Jack'), exactly('West Ronfaure'), exactly('Unknown'), wrote('Next Spawn'))
@@ -134,7 +134,7 @@ H.print('a time of death alone puts a monster in the list', exactly('Jaggedy-Ear
 o.viewName = 'Bomb King'
 H.ret.SmallButton = { true }; frames(1); H.ret.SmallButton = nil
 H.print('its buttons: looked up, its time forgotten, made a mark', o.viewName, #o.tods == 0, #o.marks == 1 and o.marks[1].name)
-frames(2); H.print('Look Up turns to the first tab', H.calls.BeginTabItem ~= nil)
+frames(2); H.print('Database turns to the first tab', H.calls.BeginTabItem ~= nil)
 entities[294] = { x = -10, y = 0, hp = 100, far = 10 }; frames()
 H.print('a mark of this zone has its placeholders under it', wrote('Forest Hare (126)'), wrote('Up, 10 yalms W'))
 o.marks[2] = { zone = 127, name = 'King Behemoth' }; frames()

@@ -5,7 +5,7 @@ For every notorious monster of every zone: how it comes to be there (a lottery o
 placeholders, a timed respawn, a trade to a ???, or a script the data says no more
 of), its placeholders and where they stand, its own spawn points, and what it drops
 with the chance of each roll. Read from the server's zone data and scripts; names
-are resolved exactly as tools/build_name_spawn_rosters.py resolves them.
+are resolved by the MobDB importer (addons/mobdb/mobdb/import_phoenix.py).
 
 The mob scripts are run in LuaJIT against stand-ins for the server's globals (as
 tools/build_name_placeholders.py runs them), for their placeholder lists, spawn

@@ -4,8 +4,8 @@
 -- the map's place in the client's own table of maps and its picture. The scale and offsets that turn
 -- a place in the world into a place on the map are read from that table in the client's memory, as
 -- zoneinfo and boussole read them; which floor a place is on is asked of the client, which can only
--- say for the zone it has loaded. The pictures are zoneinfo's (addons\zoneinfo\assets\maps\all),
--- unless mark has its own in assets\maps.
+-- say for the zone it has loaded. Native-resolution pictures exported by tools/build_mark_maps.py
+-- live in assets\maps; zoneinfo's 512-pixel previews (addons\zoneinfo\assets\maps\all) are a fallback.
 --
 --   maps.Floors(zone)                  the zone's maps, each { floor, index, image }, or nil
 --   maps.FloorAt(zone, here, x, y, z)  the map a place is on: here is the zone the player is in

@@ -1,6 +1,6 @@
 addon.name    = 'mark';
 addon.author  = 'win (and claude)';
-addon.version = '1.4';
+addon.version = '1.8';
 addon.desc    = 'Pick a notorious monster, make it your mark, and see how it appears, its placeholders and their respawns, where it spawns on the map, when its window opens and what it drops.';
 addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 
@@ -10,9 +10,9 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 -- drop with its chance at each level of Treasure Hunter. A second window is the zone's map, with where
 -- the monster and its placeholders can spawn laid over it.
 --
--- The window has a header, with a button that closes it, and two tabs. Look Up is the dropdowns and
--- the monster chosen. Marks lists every monster made a mark and every other a time of death is kept
--- for, each with whether it is in range and how its window stands.
+-- The window has a header, with a button that closes it, and three tabs. Database shows the selected
+-- monster above a separate search footer. Marks lists every mark and other monster with a time of death. Stats keeps
+-- observed PH/NM kills, hunting durations and source-attributed loot in a per-character database.
 --
 -- Set As Mark makes the monster a mark, one of as many as are wanted: the Marks tab then says whether
 -- it and its placeholders are in range and which way, each placeholder's respawn is timed from when it
@@ -21,8 +21,10 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 --
 --   /mark                 shows or hides the window
 --   /mark config          opens or closes the settings
+--   /mark stats           opens the hunting statistics tab
 --   /mark compact         switches between the whole window and the marks' few lines
 --   /mark map             shows or hides the map
+--   /mark pin             pins or unpins the map (pinning also opens it)
 --   /mark set <name>      makes a monster a mark, by its name or a part of it
 --   /mark clear           there are no marks any more (/mark clear <name>: that one is a mark no more)
 --   /mark tod             the mark (the one of the zone you are in, or the only one; failing that, the
@@ -44,8 +46,12 @@ local window = require('winxi.window');
 local style = require('winxi.style');
 local shell = require('winxi.shell');
 local sound = require('winxi.sound');
+local game = require('winxi.game');
+local settings = require('settings');
 local hunts = require('hunts');
 local maps = require('maps');
+local mapView = require('map_view');
+local stats = require('stats');
 
 local TextBaseWidth = imgui.CalcTextSize('A');
 
@@ -53,9 +59,6 @@ local gold = { 1.0, 215 / 255, 0.0, 1.0 };
 local green = { 0.55, 1.0, 0.55, 1.0 };
 local amber = { 1.0, 0.8, 0.4, 1.0 };
 local dim = { 0.6, 0.6, 0.6, 1.0 };
-
-local jobs = { 'WAR', 'MNK', 'WHM', 'BLM', 'RDM', 'THF', 'PLD', 'DRK', 'BST', 'BRD', 'RNG', 'SAM', 'NIN', 'DRG', 'SMN',
-    'BLU', 'COR', 'PUP', 'DNC', 'SCH', 'GEO', 'RUN' };
 
 -- Text as it is: imgui.Text and TextWrapped take theirs as a format, and make something else of a
 -- percent sign with a letter after it. Wrapped where a wrap has been set.
@@ -69,6 +72,8 @@ local function Plain(text)
 end
 
 local app = nil; -- the shell's: made once the settings' defaults are set out, below
+local tracker = nil; -- persistent aggregate database, with session-only observations
+local statsRows, statsDetails, chosenStats = nil, nil, nil;
 
 local function Say(text)
     print(('\30\81[mark]\30\01 %s'):format(text));
@@ -106,7 +111,7 @@ local function Tod(options, zone, name)
 end
 
 -- at: when it died (os.time), or nil to forget
-local function SetTod(options, zone, name, at)
+local function SetTod(options, zone, name, at, deferSave)
     local tod, place = Tod(options, zone, name);
     if at == nil then
         if place ~= nil then
@@ -117,7 +122,9 @@ local function SetTod(options, zone, name, at)
     else
         options.tods[#options.tods + 1] = T{ zone = zone, name = name, at = at };
     end
-    app:Save();
+    if not deferSave then
+        app:Save();
+    end
 end
 
 -- How a monster's window stands, from when it died: in a sentence, whether it is open, and in the
@@ -196,6 +203,8 @@ local live = {
     zone = 0,
     x = nil, y = nil, z = nil, -- the player: east-west, height and north-south, as the server's data has them
     floor = nil,               -- the map the player is on, where that can be told
+    looked = {},               -- entity indices already read this poll, including those out of range
+    watchedPlaceholders = {},  -- placeholder indices already processed this poll
     sights = {},               -- entity index -> { up, text, x, z } for those in range
     status = {},               -- placeholder's entity index -> { text, tone, next }: in range, or how its respawn stands; next is the Next Spawn column's words for it, nil where nothing is known
     deaths = {},               -- placeholder's entity index -> when it was seen dead (os.time)
@@ -210,11 +219,74 @@ local live = {
 };
 
 local watching = nil; -- the settings, for what is said as the game is looked at
+local placeholderSaveNeeded = false;
+
+-- Observations belong to a session and a character. Only saved death times survive a reset.
+local function ResetLive()
+    if tracker then tracker:Reset(); end
+    live.checked, live.zone = 0, 0;
+    live.x, live.y, live.z, live.floor = nil, nil, nil, nil;
+    live.sights, live.looked, live.watchedPlaceholders = {}, {}, {};
+    live.deaths, live.counted, live.status, live.spawns, live.marks = {}, {}, {}, {}, {};
+    live.nearest, live.viewTimer = nil, nil;
+    live.timers, live.timerOf, live.rows = {}, {}, {};
+    watching, placeholderSaveNeeded = nil, false;
+end
+
+local function RestorePlaceholders(options, zone)
+    live.deaths, live.counted, live.status, live.spawns = {}, {}, {}, {};
+    for _, tod in ipairs(options.phTods) do
+        if tod.zone == zone then
+            live.deaths[tod.index] = tod.at;
+            -- Seeing the same corpse after a reload must not move its death time to now.
+            live.counted[tod.index] = true;
+        end
+    end
+end
+
+-- Entity indices are zone-local. Persist transitions, not countdown ticks; a poll saves once.
+local function SetPlaceholderTod(options, index, at, deferSave)
+    local found, place = nil, nil;
+    for each, tod in ipairs(options.phTods) do
+        if tod.zone == live.zone and tod.index == index then
+            found, place = tod, each;
+            break;
+        end
+    end
+    local changed = false;
+    if at == nil then
+        if place ~= nil then
+            table.remove(options.phTods, place);
+            changed = true;
+        end
+    elseif found ~= nil then
+        changed = found.at ~= at;
+        found.at = at;
+    else
+        options.phTods[#options.phTods + 1] = T{ zone = live.zone, index = index, at = at };
+        changed = true;
+    end
+    live.deaths[index], live.spawns[index] = at, nil;
+    if at ~= nil then
+        live.counted[index] = true;
+    end
+    if changed then
+        if deferSave then
+            placeholderSaveNeeded = true;
+        else
+            app:Save();
+        end
+    end
+end
 
 local SPAWNED = 0x200; -- the render flag of an entity the client is showing
 
 -- An entity in range: how far and which way, and whether it lives
 local function Look(entities, index)
+    if live.looked[index] then
+        return live.sights[index];
+    end
+    live.looked[index] = true;
     if bit.band(entities:GetRenderFlags0(index), SPAWNED) == 0 then
         return nil;
     end
@@ -227,28 +299,33 @@ local function Look(entities, index)
         way = ' ' .. hunts.Compass(x - live.x, z - live.z);
     end
     local where = ('%d yalms%s'):format(math.floor(distance + 0.5), way);
-    return { up = up, x = x, z = z, where = where, text = ('%s, %s'):format(up and 'Up' or 'Dead', where) };
+    local sight = { up = up, x = x, z = z, where = where, text = ('%s, %s'):format(up and 'Up' or 'Dead', where) };
+    live.sights[index] = sight;
+    return sight;
 end
 
 -- A placeholder: in range or not, its respawn timed from when it died (seen dead, or said to have
 -- died), and how long it has been up since it was seen to come back
 local function WatchPlaceholder(entities, placeholder)
     local index = placeholder.index;
+    if live.watchedPlaceholders[index] then
+        return;
+    end
+    live.watchedPlaceholders[index] = true;
     local sight = Look(entities, index);
-    live.sights[index] = sight;
     local status = live.status[index] or {};
     live.status[index] = status;
     if sight ~= nil and not sight.up then
         if not live.counted[index] then
             live.counted[index] = true;
-            live.deaths[index] = os.time();
+            SetPlaceholderTod(watching, index, os.time(), true);
         end
         live.spawns[index] = nil;
     else
         live.counted[index] = nil;
         if sight ~= nil and live.deaths[index] ~= nil then
             -- up again: its spawn is timed from now
-            live.deaths[index] = nil;
+            SetPlaceholderTod(watching, index, nil, true);
             live.spawns[index] = os.time();
             if watching ~= nil and watching.announcePlaceholders[1] then
                 Say(('%s (%03X) has respawned, %s.'):format(placeholder.name, index, sight.where));
@@ -281,23 +358,22 @@ local function WatchPlaceholder(entities, placeholder)
             end
         else
             -- long past: it has come and gone unseen
-            live.deaths[index] = nil;
+            SetPlaceholderTod(watching, index, nil, true);
             status.text, status.tone, status.next = 'Not In Range', nil, nil;
         end
     end
 end
 
-local function Watch(entities, record, placeholdersToo)
+local function Watch(entities, record)
     local up, dead = false, false;
     for _, index in ipairs(record.indices) do
         local sight = Look(entities, index);
-        live.sights[index] = sight;
         if sight ~= nil then
             up = up or sight.up;
             dead = dead or not sight.up;
         end
     end
-    for _, placeholder in ipairs(placeholdersToo and record.placeholders or {}) do
+    for _, placeholder in ipairs(record.placeholders or {}) do
         WatchPlaceholder(entities, placeholder);
     end
     return up, dead;
@@ -369,21 +445,43 @@ local function Row(place, zone, name, isMark)
     end
 end
 
+local function StatsTargets(options, zone)
+    local targets, seen = {}, {};
+    local function Add(z, name)
+        if z == zone and name ~= '' and not seen[name] then
+            seen[name] = true;
+            local record = hunts.Monster(z, name);
+            if record then targets[#targets + 1] = { zone = z, name = name, record = record }; end
+        end
+    end
+    Add(options.viewZone, options.viewName);
+    for _, mark in ipairs(options.marks) do Add(mark.zone, mark.name); end
+    return targets;
+end
+
 local function Update(options)
+    -- The client can retain the last character's entities on the login screen. Do not time them.
+    if not settings.logged_in or game.IsLoading() then
+        if live.zone ~= 0 then
+            ResetLive();
+        end
+        return;
+    end
     local now = os.clock();
     if now - live.checked < 0.25 then
         return;
     end
     live.checked = now;
     watching = options;
+    placeholderSaveNeeded = false;
 
     local memory = AshitaCore:GetMemoryManager();
     local party = memory:GetParty();
     local entities = memory:GetEntity();
     local zone = party:GetMemberZone(0);
     if zone ~= live.zone then
-        -- entity indices are a zone's own: what was timed in the last one is nothing here
-        live.deaths, live.counted, live.status, live.spawns = {}, {}, {}, {};
+        -- Restore only this zone's saved times; identical indices in other zones are unrelated.
+        RestorePlaceholders(options, zone);
     end
     live.zone = zone;
     local me = party:GetMemberTargetIndex(0);
@@ -397,29 +495,36 @@ local function Update(options)
         live.sights[index] = nil;
     end
 
-    local watched = {}; -- a monster whose placeholders have been looked at this time round
+    for index in pairs(live.looked) do
+        live.looked[index] = nil;
+    end
+    for index in pairs(live.watchedPlaceholders) do
+        live.watchedPlaceholders[index] = nil;
+    end
+    local marked = {}; -- membership for the rows: no scan of every mark for every time of death
+    local saveNeeded = false;
     local shown = options.viewName ~= '' and hunts.Monster(options.viewZone, options.viewName) or nil;
     live.nearest = nil;
     if shown ~= nil and live.zone == options.viewZone then
-        Watch(entities, shown, true);
-        watched[shown] = true;
+        Watch(entities, shown);
         live.nearest = Nearest(shown);
     end
 
     for _, mark in ipairs(options.marks) do
         local key = Key(mark.zone, mark.name);
+        marked[key] = true;
         local state = live.marks[key] or { up = false, dead = false };
         live.marks[key] = state;
         local record = hunts.Monster(mark.zone, mark.name);
         if record == nil or live.zone ~= mark.zone then
             state.up, state.dead = false, false;
         else
-            local up, dead = Watch(entities, record, not watched[record]);
-            watched[record] = true;
+            local up, dead = Watch(entities, record);
             if up and not state.up then
                 -- it is back: what was known of its last death is of no more use
                 if Tod(options, mark.zone, mark.name) ~= nil then
-                    SetTod(options, mark.zone, mark.name, nil);
+                    SetTod(options, mark.zone, mark.name, nil, true);
+                    saveNeeded = true;
                 end
                 if options.announce[1] then
                     local sight = nil;
@@ -434,13 +539,22 @@ local function Update(options)
                 sound.Play('open');
             end
             if dead and not up and not state.dead then
-                SetTod(options, mark.zone, mark.name, os.time());
+                SetTod(options, mark.zone, mark.name, os.time(), true);
+                saveNeeded = true;
                 if options.announce[1] then
                     Say(('%s is dead. The time is kept from now.'):format(mark.name));
                 end
             end
             state.up, state.dead = up, dead and not up;
         end
+    end
+
+    tracker:Watch(zone, StatsTargets(options, zone));
+    tracker:Observe(live.sights, os.time());
+    if saveNeeded or placeholderSaveNeeded or tracker.changed then
+        if tracker.changed then statsRows, statsDetails = nil, nil; end
+        tracker.changed = false;
+        app:Save();
     end
 
     -- how each window stands
@@ -472,7 +586,7 @@ local function Update(options)
         Row(count, mark.zone, mark.name, true);
     end
     for _, tod in ipairs(options.tods) do
-        if IsMark(options, tod.zone, tod.name) == nil then
+        if not marked[Key(tod.zone, tod.name)] then
             count = count + 1;
             Row(count, tod.zone, tod.name, false);
         end
@@ -486,33 +600,6 @@ end
 -- The monster on show: its record put into words once, when it is chosen
 ----------------------------------------------------------------------------------------------------
 local view = { zone = nil, name = nil, th = nil, here = nil, record = nil, missing = false, built = 0 };
-
-local function Summary(record)
-    local parts = {};
-    local low, high = record.level[1], record.level[2];
-    if high > 0 then
-        parts[#parts + 1] = low == high and ('Lv %d'):format(low) or ('Lv %d-%d'):format(low, high);
-    end
-    if record.family ~= nil then
-        parts[#parts + 1] = record.family;
-    end
-    if record.job ~= nil and jobs[record.job] ~= nil then
-        parts[#parts + 1] = jobs[record.job];
-    end
-    if record.aggro then
-        parts[#parts + 1] = 'Aggressive';
-    end
-    if record.link then
-        parts[#parts + 1] = 'Links';
-    end
-    if record.truesight then
-        parts[#parts + 1] = 'True Sight';
-    end
-    if record.detects ~= nil then
-        parts[#parts + 1] = 'Detects ' .. table.concat(record.detects, ', ');
-    end
-    return table.concat(parts, '  |  ');
-end
 
 local function Names(ids)
     local names = {};
@@ -561,7 +648,6 @@ local function BuildView(options)
         return;
     end
 
-    view.summary = Summary(record);
     view.appears = hunts.Appears(record, ItemName);
     view.places = hunts.Places(record.points, record.areas, Square);
     Routes(view.places, record.routes);
@@ -630,6 +716,8 @@ local monsterLegend, placeholderLegend = { 1.0, 0.45, 0.35, 1.0 }, { 0.45, 0.75,
 -- hand, which lasts until another monster is shown
 local chart = { zone = nil, name = nil, floor = nil, size = nil, here = nil, entry = nil, choice = nil,
     rects = {}, spots = {}, lines = {}, labels = {} };
+local mapState = mapView.New();
+local mapPlaced, mapMoved = false, false;
 
 -- A region's outline, filled a few pixels at a time: the stretches of each row that lie inside it
 local function Fill(entry, scale, poly, color)
@@ -740,6 +828,17 @@ local function Spot(drawList, x, y, color, radius)
 end
 
 local function DrawMap(options)
+    if imgui.Checkbox('Pin Map##mark.mapPin', options.pinMap) then
+        app:Save();
+    end
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Keeps this map open when Mark\'s main window is closed. Drag outside the map canvas to move the window.');
+    end
+    imgui.SameLine();
+    if imgui.Button('x##mark.mapClose') then
+        options.showMap[1] = false;
+        app:Save();
+    end
     local record = view.record;
     if record == nil then
         imgui.TextDisabled('Choose a notorious monster to see its map.');
@@ -792,6 +891,25 @@ local function DrawMap(options)
         imgui.Text('The map\'s scale could not be read from the game.');
         return;
     end
+    if mapState.zone ~= view.zone or mapState.name ~= view.name or mapState.floor ~= floor then
+        mapView.Reset(mapState);
+        mapState.zone, mapState.name, mapState.floor = view.zone, view.name, floor;
+    end
+    if imgui.SmallButton('-##mark.mapZoomOut') then
+        mapView.Zoom(mapState, mapState.zoom / 1.25, 256, 256);
+    end
+    imgui.SameLine();
+    Plain(('%.1fx'):format(mapState.zoom));
+    imgui.SameLine();
+    if imgui.SmallButton('+##mark.mapZoomIn') then
+        mapView.Zoom(mapState, mapState.zoom * 1.25, 256, 256);
+    end
+    imgui.SameLine();
+    if imgui.SmallButton('Reset View##mark.mapReset') then
+        mapView.Reset(mapState);
+    end
+    imgui.TextDisabled('Drag to pan; mouse wheel to zoom.');
+
     local size = math.max(256, math.min(1024, options.mapSize[1]));
     if chart.zone ~= view.zone or chart.name ~= view.name or chart.floor ~= floor or chart.size ~= size or chart.here ~= view.here
         or chart.laid ~= (chart.focus or 0) then
@@ -802,10 +920,31 @@ local function DrawMap(options)
 
     local left, top = imgui.GetCursorScreenPos();
     canvas[1], canvas[2] = size, size;
-    imgui.Dummy(canvas);
-    local hovered = imgui.IsItemHovered();
+    imgui.InvisibleButton('##mark.mapCanvas', canvas);
+    local hovered, active = imgui.IsItemHovered(), imgui.IsItemActive();
+    local mouseX, mouseY = imgui.GetMousePos();
+    local baseScale = size / maps.Size;
+    if hovered and mouseX ~= nil and mouseY ~= nil then
+        local wheel = imgui.GetIO().MouseWheel or 0;
+        if wheel ~= 0 then
+            mapView.Zoom(mapState, mapState.zoom * 1.25 ^ wheel, (mouseX - left) / baseScale, (mouseY - top) / baseScale);
+        end
+    end
+    if active and imgui.IsMouseDown(0) and mouseX ~= nil and mouseY ~= nil then
+        if mapState.mouseX ~= nil then
+            mapView.Pan(mapState, (mouseX - mapState.mouseX) / baseScale, (mouseY - mapState.mouseY) / baseScale);
+        end
+        mapState.mouseX, mapState.mouseY = mouseX, mouseY;
+    else
+        mapState.mouseX, mapState.mouseY = nil, nil;
+    end
+    local originX, originY = left + mapState.x * baseScale, top + mapState.y * baseScale;
+    local zoom = mapState.zoom;
     local drawList = imgui.GetWindowDrawList();
     cornerA[1], cornerA[2], cornerB[1], cornerB[2] = left, top, left + size, top + size;
+    drawList:PushClipRect(cornerA, cornerB, true);
+    local extent = size * zoom;
+    cornerA[1], cornerA[2], cornerB[1], cornerB[2] = originX, originY, originX + extent, originY + extent;
     local picture = maps.Texture(floor);
     if picture ~= nil then
         drawList:AddImage(picture, cornerA, cornerB, uvA, uvB, heat.white);
@@ -814,46 +953,50 @@ local function DrawMap(options)
     end
 
     for _, rect in ipairs(chart.rects) do
-        cornerA[1], cornerA[2], cornerB[1], cornerB[2] = left + rect[1], top + rect[2], left + rect[3], top + rect[4];
+        cornerA[1], cornerA[2], cornerB[1], cornerB[2] = originX + rect[1] * zoom, originY + rect[2] * zoom,
+            originX + rect[3] * zoom, originY + rect[4] * zoom;
         drawList:AddRectFilled(cornerA, cornerB, rect[5], 0);
     end
     for _, line in ipairs(chart.lines) do
-        cornerA[1], cornerA[2], cornerB[1], cornerB[2] = left + line[1], top + line[2], left + line[3], top + line[4];
+        cornerA[1], cornerA[2], cornerB[1], cornerB[2] = originX + line[1] * zoom, originY + line[2] * zoom,
+            originX + line[3] * zoom, originY + line[4] * zoom;
         drawList:AddLine(cornerA, cornerB, heat.route, 2);
     end
     -- a spot is hottest at its middle
     for _, spot in ipairs(chart.spots) do
-        Spot(drawList, left + spot[1], top + spot[2], spot[3], 9);
-        Spot(drawList, left + spot[1], top + spot[2], spot[3], 5);
-        Spot(drawList, left + spot[1], top + spot[2], spot[3], 2.5);
+        local x, y = originX + spot[1] * zoom, originY + spot[2] * zoom;
+        Spot(drawList, x, y, spot[3], 9);
+        Spot(drawList, x, y, spot[3], 5);
+        Spot(drawList, x, y, spot[3], 2.5);
     end
 
     -- what is there now: those in range, and the player
-    local scale = size / maps.Size;
+    local scale = baseScale * zoom;
     if view.here then
         for _, sight in pairs(live.sights) do
             local px, py = maps.ToMap(entry, sight.x, sight.z);
-            Spot(drawList, left + px * scale, top + py * scale, heat.edge, 5);
-            Spot(drawList, left + px * scale, top + py * scale, sight.up and heat.up or heat.dead, 3.5);
+            Spot(drawList, originX + px * scale, originY + py * scale, heat.edge, 5);
+            Spot(drawList, originX + px * scale, originY + py * scale, sight.up and heat.up or heat.dead, 3.5);
         end
         if live.x ~= nil and (#floors == 1 or live.floor == nil or live.floor == floor) then
             local px, py = maps.ToMap(entry, live.x, live.z);
-            Spot(drawList, left + px * scale, top + py * scale, heat.edge, 5);
-            Spot(drawList, left + px * scale, top + py * scale, heat.player, 3.5);
+            Spot(drawList, originX + px * scale, originY + py * scale, heat.edge, 5);
+            Spot(drawList, originX + px * scale, originY + py * scale, heat.player, 3.5);
         end
     end
 
+    drawList:PopClipRect();
+
     if hovered then
-        local mouseX, mouseY = imgui.GetMousePos();
         if mouseX ~= nil and mouseY ~= nil then
-            local px, py = (mouseX - left) / scale, (mouseY - top) / scale;
+            local px, py = (mouseX - originX) / scale, (mouseY - originY) / scale;
             local x, z = maps.ToWorld(entry, px, py);
             imgui.SetTooltip(('%s (%d, %d)'):format(maps.Square(px, py), x, z));
         end
     end
 
     if picture == nil then
-        imgui.TextDisabled('The map\'s picture was not found: they are zoneinfo\'s, in addons\\zoneinfo\\assets\\maps\\all.');
+        imgui.TextDisabled('The map\'s picture was not found: install Mark\'s assets\\maps, or Zoneinfo\'s assets\\maps\\all fallback.');
     end
     imgui.TextColored(monsterLegend, 'Monster');
     imgui.SameLine();
@@ -965,13 +1108,13 @@ local function DrawCompact()
     return drawn;
 end
 
-local wantTab = nil; -- a tab to be turned to: 1 for Look Up
+local wantTab = nil; -- a tab to be turned to: 1 for Database
 
 -- The Marks tab: every mark, and every other monster a time of death is kept for
 local function DrawMarks(options)
     if #live.rows == 0 then
         imgui.TextDisabled('No marks, and no times of death.');
-        imgui.TextDisabled('Set As Mark or Report TOD, on the Look Up tab, puts a monster here.');
+        imgui.TextDisabled('Set As Mark or Report TOD, on the Database tab, puts a monster here.');
         return;
     end
     if not imgui.BeginTable('mark.marks', 4, ImGuiTableFlags_SizingFixedFit) then
@@ -996,7 +1139,7 @@ local function DrawMarks(options)
         imgui.TableNextColumn();
         Presence(row);
         imgui.TableNextColumn();
-        if imgui.SmallButton('Look Up') then
+        if imgui.SmallButton('Database') then
             Show(options, row.zone, row.name);
             wantTab = 1;
         end
@@ -1006,7 +1149,7 @@ local function DrawMarks(options)
             live.checked = 0;
         end
         if imgui.IsItemHovered() then
-            imgui.SetTooltip('It died just now: its window is counted from here. For a death some time ago, Report TOD on the Look Up tab, or /mark tod.');
+            imgui.SetTooltip('It died just now: its window is counted from here. For a death some time ago, Report TOD on the Database tab, or /mark tod.');
         end
         if row.timer ~= nil then
             imgui.SameLine();
@@ -1037,10 +1180,105 @@ local function DrawMarks(options)
     imgui.EndTable();
 end
 
-local function DrawPicker(options)
-    local zones = hunts.Zones(options.showScripted[1]);
+local function DrawStats(options)
+    imgui.TextDisabled('Observed kills, not party/claim credit. Manual TOD entries do not count as kills.');
+    imgui.TextDisabled('Pop times: first PH kill to next NM sighting, without logout, zoning or stopping tracking.');
+    if statsRows == nil then
+        statsRows = {};
+        for key, row in pairs(options.hunting.monsters) do
+            statsRows[#statsRows + 1] = { key = key, data = row, zoneName = hunts.ZoneName(row.zone) };
+        end
+        table.sort(statsRows, function(a, b)
+            if a.zoneName ~= b.zoneName then return a.zoneName < b.zoneName; end
+            return a.data.name < b.data.name;
+        end);
+    end
+    if #statsRows == 0 then
+        imgui.TextDisabled('No hunting observations yet. Watch a mark or a monster on Database.');
+        return;
+    end
+    if chosenStats == nil then
+        local lookup = Key(options.viewZone, options.viewName);
+        chosenStats = options.hunting.monsters[lookup] and lookup or statsRows[1].key;
+    end
+    if imgui.BeginTable('mark.stats', 8, ImGuiTableFlags_SizingFixedFit) then
+        for _, name in ipairs({ 'Monster', 'Zone', 'PH Kills', 'NM Kills', 'Sightings', 'Pop Samples', 'Avg To Pop', 'Avg PH / Pop' }) do
+            imgui.TableSetupColumn(name, ImGuiTableColumnFlags_WidthFixed);
+        end
+        imgui.TableHeadersRow();
+        for _, entry in ipairs(statsRows) do
+            local row, pop = entry.data, entry.data.pops;
+            imgui.PushID(entry.key);
+            imgui.TableNextRow(); imgui.TableNextColumn();
+            if imgui.Selectable(row.name, chosenStats == entry.key) then
+                chosenStats, statsDetails = entry.key, nil;
+            end
+            imgui.TableNextColumn(); Plain(entry.zoneName);
+            imgui.TableNextColumn(); Plain(tostring(row.phKills));
+            imgui.TableNextColumn(); Plain(tostring(row.nmKills));
+            imgui.TableNextColumn(); Plain(tostring(row.sightings));
+            imgui.TableNextColumn(); Plain(tostring(pop.count));
+            imgui.TableNextColumn(); Plain(pop.count > 0 and Clock(pop.total / pop.count) or 'Unknown');
+            imgui.TableNextColumn(); Plain(pop.count > 0 and ('%.1f'):format(pop.phTotal / pop.count) or 'Unknown');
+            imgui.PopID();
+        end
+        imgui.EndTable();
+    end
+    local row = options.hunting.monsters[chosenStats];
+    if not row then return; end
+    if not widgets.Header(row.name .. ' — Hunting Record') then return; end
+    if row.lastKill then Plain('Last observed kill: ' .. os.date('%Y-%m-%d %H:%M', row.lastKill)); end
+    if row.lastSeen then Plain('Last sighting: ' .. os.date('%Y-%m-%d %H:%M', row.lastSeen)); end
+    if row.pops.count > 0 then
+        Plain(('Fastest / slowest observed pop: %s / %s'):format(Clock(row.pops.min), Clock(row.pops.max)));
+    end
+    if row.returns.count > 0 then
+        Plain(('Observed return after NM kill: average %s; fastest %s; slowest %s (%d samples)'):format(
+            Clock(row.returns.total / row.returns.count), Clock(row.returns.min), Clock(row.returns.max), row.returns.count));
+    end
+    Plain(('Kills with loot seen: %d / %d observed NM kills'):format(row.lootKills, row.nmKills));
+    imgui.TextDisabled('Drops are items found, not items won. Missing loot/TH/other hunters bias these observations.');
+    if statsDetails == nil then
+        statsDetails = { items = {}, placeholders = {} };
+        local ids = {};
+        local record = hunts.Monster(row.zone, row.name);
+        for _, roll in ipairs(record and record.drops or {}) do
+            for _, item in ipairs(roll.items) do ids[tostring(item[1])] = true; end
+        end
+        for id in pairs(row.items) do ids[id] = true; end
+        for id in pairs(ids) do
+            statsDetails.items[#statsDetails.items + 1] = { id = id, name = ItemName(tonumber(id)) };
+        end
+        table.sort(statsDetails.items, function(a, b) return a.name < b.name; end);
+        for index, kills in pairs(row.placeholders) do
+            statsDetails.placeholders[#statsDetails.placeholders + 1] = { index = tonumber(index), kills = kills };
+        end
+        table.sort(statsDetails.placeholders, function(a, b) return a.index < b.index; end);
+    end
+    for _, ph in ipairs(statsDetails.placeholders) do
+        Plain(('PH %03X: %d observed kills'):format(ph.index, ph.kills));
+    end
+    if imgui.BeginTable('mark.statsDrops', 4, ImGuiTableFlags_SizingFixedFit) then
+        for _, label in ipairs({ 'Item', 'Quantity Seen', 'Kills With Item', '% Observed Kills' }) do
+            imgui.TableSetupColumn(label, ImGuiTableColumnFlags_WidthFixed);
+        end
+        imgui.TableHeadersRow();
+        for _, item in ipairs(statsDetails.items) do
+            local drop = row.items[item.id] or { quantity = 0, kills = 0 };
+            imgui.TableNextRow(); imgui.TableNextColumn(); Plain(item.name);
+            imgui.TableNextColumn(); Plain(tostring(drop.quantity));
+            imgui.TableNextColumn(); Plain(tostring(drop.kills));
+            imgui.TableNextColumn(); Plain(row.nmKills > 0 and ('%.1f%%'):format(100 * drop.kills / row.nmKills) or 'Unknown');
+        end
+        imgui.EndTable();
+    end
+end
 
-    imgui.SetNextItemWidth(TextBaseWidth * 30);
+local function DrawPicker(options, width)
+    local zones = hunts.Zones(options.showScripted[1]);
+    local scale = math.max(0.25, math.min(1, (width - 100) / (TextBaseWidth * 80)));
+
+    imgui.SetNextItemWidth(TextBaseWidth * 30 * scale);
     if imgui.BeginCombo('##mark.zone', options.viewZone ~= 0 and hunts.ZoneName(options.viewZone) or 'Zone') then
         for _, zone in ipairs(zones) do
             if imgui.Selectable(zone.label, zone.id == options.viewZone) and zone.id ~= options.viewZone then
@@ -1051,7 +1289,7 @@ local function DrawPicker(options)
     end
 
     imgui.SameLine();
-    imgui.SetNextItemWidth(TextBaseWidth * 34);
+    imgui.SetNextItemWidth(TextBaseWidth * 34 * scale);
     if imgui.BeginCombo('##mark.monster', options.viewName ~= '' and options.viewName or 'Notorious Monster') then
         if find[1] ~= '' then
             -- looked up by name: whichever zone they are in
@@ -1078,7 +1316,7 @@ local function DrawPicker(options)
     imgui.AlignTextToFramePadding();
     imgui.Text('Find:');
     imgui.SameLine();
-    imgui.SetNextItemWidth(TextBaseWidth * 16);
+    imgui.SetNextItemWidth(TextBaseWidth * 16 * scale);
     imgui.InputText('##mark.find', find, 64);
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Type a part of a name: the monsters dropdown then lists every monster with it, in any zone.');
@@ -1112,10 +1350,6 @@ local function DrawMonster(options)
     if imgui.Button(options.showMap[1] and 'Hide Map##mark.map' or 'Show Map##mark.map') then
         options.showMap[1] = not options.showMap[1];
     end
-    if view.summary ~= '' then
-        imgui.Text(view.summary);
-    end
-
     -- its time of death: given here, and what follows from it
     if imgui.Button('Report TOD##mark.tod') then
         SetTod(options, options.viewZone, options.viewName, os.time() - math.max(0, minutesAgo[1]) * 60);
@@ -1140,127 +1374,154 @@ local function DrawMonster(options)
     -- the sentences keep to the width of the tables under them
     imgui.PushTextWrapPos(imgui.GetCursorPosX() + TextBaseWidth * 96);
 
-    widgets.Header('How It Appears');
-    Lines(view.appears);
+    if widgets.Header('How It Appears') then
+        Lines(view.appears);
+    end
 
     if #view.placeholders > 0 then
         local here = live.zone == options.viewZone;
-        widgets.Header('Placeholders');
-        if imgui.BeginTable('mark.placeholders', 6, ImGuiTableFlags_SizingFixedFit) then
-            imgui.TableSetupColumn('Placeholder', ImGuiTableColumnFlags_WidthFixed);
-            imgui.TableSetupColumn('ID', ImGuiTableColumnFlags_WidthFixed);
-            imgui.TableSetupColumn('Respawn', ImGuiTableColumnFlags_WidthFixed);
-            imgui.TableSetupColumn('Where', ImGuiTableColumnFlags_WidthFixed);
-            imgui.TableSetupColumn('Next Spawn', ImGuiTableColumnFlags_WidthFixed);
-            imgui.TableSetupColumn('##mark.phButtons', ImGuiTableColumnFlags_WidthFixed);
-            imgui.TableHeadersRow();
-            for _, placeholder in ipairs(view.placeholders) do
-                imgui.TableNextRow();
-                imgui.TableNextColumn();
-                imgui.AlignTextToFramePadding();
-                imgui.Text(placeholder.name);
-                imgui.TableNextColumn();
-                imgui.Text(placeholder.id);
-                imgui.TableNextColumn();
-                imgui.Text(placeholder.respawn);
-                imgui.TableNextColumn();
-                imgui.Text(placeholder.where);
-                imgui.TableNextColumn();
-                NextSpawn(placeholder.index, here);
-                imgui.TableNextColumn();
-                if imgui.SmallButton(placeholder.mapId) then
-                    chart.focus = placeholder.place;
-                    options.showMap[1] = true;
-                end
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip('The map, with this placeholder alone beside the monster: all the ground it can spawn on, and its route if it walks one.');
-                end
-                if here then
-                    imgui.SameLine();
-                    if imgui.SmallButton(placeholder.todId) then
-                        live.deaths[placeholder.index], live.spawns[placeholder.index] = os.time(), nil;
-                        live.checked = 0;
+        if widgets.Header('Placeholders') then
+            if imgui.BeginTable('mark.placeholders', 6, ImGuiTableFlags_SizingFixedFit) then
+                imgui.TableSetupColumn('Placeholder', ImGuiTableColumnFlags_WidthFixed);
+                imgui.TableSetupColumn('ID', ImGuiTableColumnFlags_WidthFixed);
+                imgui.TableSetupColumn('Respawn', ImGuiTableColumnFlags_WidthFixed);
+                imgui.TableSetupColumn('Where', ImGuiTableColumnFlags_WidthFixed);
+                imgui.TableSetupColumn('Next Spawn', ImGuiTableColumnFlags_WidthFixed);
+                imgui.TableSetupColumn('##mark.phButtons', ImGuiTableColumnFlags_WidthFixed);
+                imgui.TableHeadersRow();
+                for _, placeholder in ipairs(view.placeholders) do
+                    imgui.TableNextRow();
+                    imgui.TableNextColumn();
+                    imgui.AlignTextToFramePadding();
+                    imgui.Text(placeholder.name);
+                    imgui.TableNextColumn();
+                    imgui.Text(placeholder.id);
+                    imgui.TableNextColumn();
+                    imgui.Text(placeholder.respawn);
+                    imgui.TableNextColumn();
+                    imgui.Text(placeholder.where);
+                    imgui.TableNextColumn();
+                    NextSpawn(placeholder.index, here);
+                    imgui.TableNextColumn();
+                    if imgui.SmallButton(placeholder.mapId) then
+                        chart.focus = placeholder.place;
+                        options.showMap[1] = true;
                     end
                     if imgui.IsItemHovered() then
-                        imgui.SetTooltip('This placeholder died just now: its respawn is timed from here. One seen dead is timed without being told.\n/mark ph <ID> does the same, and /mark ph <ID> 2 says it died two minutes ago.');
+                        imgui.SetTooltip('The map, with this placeholder alone beside the monster: all the ground it can spawn on, and its route if it walks one.');
                     end
-                    if live.deaths[placeholder.index] ~= nil then
+                    if here then
                         imgui.SameLine();
-                        if imgui.SmallButton(placeholder.clearId) then
-                            live.deaths[placeholder.index] = nil;
+                        if imgui.SmallButton(placeholder.todId) then
+                            SetPlaceholderTod(options, placeholder.index, os.time());
                             live.checked = 0;
+                        end
+                        if imgui.IsItemHovered() then
+                            imgui.SetTooltip('This placeholder died just now: its respawn is timed from here. One seen dead is timed without being told.\n/mark ph <ID> does the same, and /mark ph <ID> 2 says it died two minutes ago.');
+                        end
+                        if live.deaths[placeholder.index] ~= nil then
+                            imgui.SameLine();
+                            if imgui.SmallButton(placeholder.clearId) then
+                                SetPlaceholderTod(options, placeholder.index, nil);
+                                live.checked = 0;
+                            end
                         end
                     end
                 end
+                imgui.EndTable();
+            end
+        end
+    end
+
+    if widgets.Header('Spawn Locations') then
+        if #view.places == 0 then
+            imgui.TextWrapped(#view.placeholders > 0 and 'The server\'s data gives it no place of its own: it stands where its placeholder would have.'
+                or 'The server\'s data gives it no place of its own.');
+        else
+            Lines(view.places);
+            if live.nearest ~= nil then
+                imgui.Text(live.nearest);
+            end
+        end
+    end
+
+    if widgets.Header('Drops') then
+        if #view.drops == 0 then
+            imgui.Text('Nothing, by the server\'s data.');
+        else
+            -- each column as wide as what is in it and no wider, and the rows close together
+            imgui.PushStyleVar(ImGuiStyleVar_CellPadding, tightCells);
+            local begun = imgui.BeginTable('mark.drops', #view.headings + 1, dropFlags);
+            if begun then
+            imgui.TableSetupColumn('Item', ImGuiTableColumnFlags_WidthFixed);
+            for _, heading in ipairs(view.headings) do
+                imgui.TableSetupColumn(heading, ImGuiTableColumnFlags_WidthFixed);
+            end
+            imgui.TableHeadersRow();
+            for _, row in ipairs(view.drops) do
+                imgui.TableNextRow();
+                imgui.TableNextColumn();
+                -- a roll of several is told from the items under it by its colour
+                if row.group then
+                    imgui.PushStyleColor(ImGuiCol_Text, dim);
+                end
+                Plain(row.label);
+                for _, cell in ipairs(row.cells) do
+                    imgui.TableNextColumn();
+                    Plain(cell);
+                end
+                if row.group then
+                    imgui.PopStyleColor();
+                end
             end
             imgui.EndTable();
-        end
-    end
-
-    widgets.Header('Spawn Locations');
-    if #view.places == 0 then
-        imgui.TextWrapped(#view.placeholders > 0 and 'The server\'s data gives it no place of its own: it stands where its placeholder would have.'
-            or 'The server\'s data gives it no place of its own.');
-    else
-        Lines(view.places);
-        if live.nearest ~= nil then
-            imgui.Text(live.nearest);
-        end
-    end
-
-    widgets.Header('Drops');
-    if #view.drops == 0 then
-        imgui.Text('Nothing, by the server\'s data.');
-    else
-        -- each column as wide as what is in it and no wider, and the rows close together
-        imgui.PushStyleVar(ImGuiStyleVar_CellPadding, tightCells);
-        local begun = imgui.BeginTable('mark.drops', #view.headings + 1, dropFlags);
-        if begun then
-        imgui.TableSetupColumn('Item', ImGuiTableColumnFlags_WidthFixed);
-        for _, heading in ipairs(view.headings) do
-            imgui.TableSetupColumn(heading, ImGuiTableColumnFlags_WidthFixed);
-        end
-        imgui.TableHeadersRow();
-        for _, row in ipairs(view.drops) do
-            imgui.TableNextRow();
-            imgui.TableNextColumn();
-            -- a roll of several is told from the items under it by its colour
-            if row.group then
-                imgui.PushStyleColor(ImGuiCol_Text, dim);
             end
-            Plain(row.label);
-            for _, cell in ipairs(row.cells) do
-                imgui.TableNextColumn();
-                Plain(cell);
-            end
-            if row.group then
-                imgui.PopStyleColor();
-            end
+            imgui.PopStyleVar();
         end
-        imgui.EndTable();
+        if view.steal ~= nil then
+            Plain(view.stealLine);
         end
-        imgui.PopStyleVar();
-    end
-    if view.steal ~= nil then
-        Plain(view.stealLine);
-    end
-    if view.despoil ~= nil then
-        Plain(view.despoilLine);
+        if view.despoil ~= nil then
+            Plain(view.despoilLine);
+        end
     end
 
     imgui.PopTextWrapPos();
 end
 
-local function DrawLookUp(options)
-    DrawPicker(options);
-    imgui.Separator();
+local databaseChild = { zone = nil, name = nil };
+local databaseSize = { 0, 0 };
+local function DrawDatabaseDetails(options)
+    if databaseChild.zone ~= options.viewZone or databaseChild.name ~= options.viewName then
+        imgui.SetScrollX(0);
+        imgui.SetScrollY(0);
+        databaseChild.zone, databaseChild.name = options.viewZone, options.viewName;
+    end
     if view.record ~= nil then
         DrawMonster(options);
     elseif options.viewName ~= '' then
-        imgui.Text('There is no data for ' .. options.viewName .. '.');
+        Plain('There is no data for ' .. options.viewName .. '.');
     else
-        imgui.TextDisabled('Choose a zone and a notorious monster.');
+        imgui.TextDisabled('Choose a zone and a notorious monster below.');
     end
+end
+
+local function DrawDatabase(options)
+    -- A bounded details pane keeps the search footer reachable even for long drop/PH lists.
+    -- Horizontal scrolling preserves wide Treasure Hunter tables rather than clipping columns.
+    local display = imgui.GetIO().DisplaySize;
+    local width, height = display.x or display[1], display.y or display[2];
+    databaseSize[1] = math.min(TextBaseWidth * 104, math.max(320, width - 80));
+    databaseSize[2] = math.max(180, math.min(600, height - 260));
+    local shown = imgui.BeginChild('##mark.databaseDetails', databaseSize, ImGuiChildFlags_None or 0, ImGuiWindowFlags_HorizontalScrollbar);
+    local ok, err = true, nil;
+    if shown ~= false then
+        ok, err = pcall(DrawDatabaseDetails, options);
+    end
+    imgui.EndChild(); -- required when clipped, and before propagating a draw failure
+    if not ok then error(err, 0); end
+    imgui.Separator();
+    DrawPicker(options, databaseSize[1]);
 end
 
 -- The header: the addon's name, and at the far end of the line a button that closes the window. How
@@ -1299,12 +1560,16 @@ local function Draw(options)
     wantTab = nil;
     imgui.BeginGroup();
     if imgui.BeginTabBar('##mark.tabs', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if imgui.BeginTabItem('Look Up##mark.lookUp', 0, turnTo == 1 and ImGuiTabItemFlags_SetSelected or 0) then
-            DrawLookUp(options);
+        if imgui.BeginTabItem('Database##mark.database', 0, turnTo == 1 and ImGuiTabItemFlags_SetSelected or 0) then
+            DrawDatabase(options);
             imgui.EndTabItem();
         end
         if imgui.BeginTabItem('Marks##mark.marksTab') then
             DrawMarks(options);
+            imgui.EndTabItem();
+        end
+        if imgui.BeginTabItem('Stats##mark.statsTab', 0, turnTo == 3 and ImGuiTabItemFlags_SetSelected or 0) then
+            DrawStats(options);
             imgui.EndTabItem();
         end
         imgui.EndTabBar();
@@ -1321,6 +1586,8 @@ local defaults = T{
     pos = T{ 100, 100 },
     marks = T{ },                -- the marks: each { zone, name }
     tods = T{ },                 -- times of death kept: each { zone, name, at (os.time) }
+    phTods = T{ },               -- placeholder deaths: each { zone, index, at (os.time) }
+    hunting = T{ version = 1, monsters = T{ } }, -- aggregate hunting database, per character
     viewZone = 0,                -- the monster on show
     viewName = '',
     compact = T{ false },        -- only the mark's few lines
@@ -1330,6 +1597,8 @@ local defaults = T{
     showScripted = T{ false },   -- lists the monsters the data knows only as brought by a script
     maxTh = T{ 4 },              -- the highest Treasure Hunter the drops are worked out for
     showMap = T{ false },        -- the map window
+    pinMap = T{ false },         -- keep the map open when the main window is closed
+    mapPos = T{ 160, 160 },      -- independent map window position
     mapSize = T{ 512 },          -- how many pixels across the map is drawn
 };
 
@@ -1357,10 +1626,15 @@ local function DrawSettings(options)
     if imgui.IsItemHovered() then
         imgui.SetTooltip('The zone\'s map in a window of its own, with where the monster on show (red) and its placeholders (blue) can spawn laid over it: the deeper the colour, the more can spawn there. /mark map switches this.');
     end
+    widgets.Label('Pin Map');
+    imgui.Checkbox('##mark.pinMap', options.pinMap);
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Keeps the map open when Mark\'s main window is closed; the usual loading and cutscene hiding rules still apply.');
+    end
     widgets.Label('Map Size');
     imgui.SliderInt('##mark.mapSize', options.mapSize, 256, 1024);
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('How many pixels across the map is drawn. The pictures are 512 across: larger is softer.');
+        imgui.SetTooltip('The viewport size in pixels, independent of zoom. Native-resolution map pictures preserve more detail when enlarged; some source maps are only 512 pixels.');
     end
 
     widgets.Gap();
@@ -1398,9 +1672,25 @@ app = shell.New({
     window = windowName,
     configTitle = 'Mark Settings',
     command = '/mark',
-    help = '/mark shows or hides the window; /mark config opens or closes the settings; /mark compact switches to the marks\' few lines and back; /mark map shows or hides the map; /mark set <name> makes a monster a mark; /mark clear [name] leaves none, or one fewer; /mark tod [minutes ago | hours:minutes | clear] keeps a mark\'s time of death; /mark ph <ID> [minutes ago | clear] times a placeholder.',
+    help = '/mark shows or hides the window; /mark config opens or closes the settings; /mark stats opens hunting statistics; /mark compact switches to the marks\' few lines and back; /mark map shows or hides the map; /mark pin keeps the map open independently; /mark set <name> makes a monster a mark; /mark clear [name] leaves none, or one fewer; /mark tod [minutes ago | hours:minutes | clear] keeps a mark\'s time of death; /mark ph <ID> [minutes ago | clear] times a placeholder.',
     drawSettings = DrawSettings,
     onSettings = function(options)
+        ResetLive(); -- reloaded settings or a different character: no observations carry over
+        options.hunting = stats.Prepare(options.hunting);
+        tracker = stats.New(options.hunting);
+        databaseChild.zone, databaseChild.name = nil, nil;
+        statsRows, statsDetails, chosenStats = nil, nil, nil;
+        mapView.Reset(mapState);
+        mapState.zone, mapState.name, mapState.floor = nil, nil, nil;
+        mapPlaced, mapMoved = false, false;
+        if type(options.pinMap) ~= 'table' or type(options.pinMap[1]) ~= 'boolean' then
+            options.pinMap = T{ false };
+        end
+        if type(options.mapPos) ~= 'table' or type(options.mapPos[1]) ~= 'number' or type(options.mapPos[2]) ~= 'number'
+            or options.mapPos[1] ~= options.mapPos[1] or options.mapPos[2] ~= options.mapPos[2]
+            or math.abs(options.mapPos[1]) == math.huge or math.abs(options.mapPos[2]) == math.huge then
+            options.mapPos = T{ options.pos[1] + 60, options.pos[2] + 60 };
+        end
         -- anything a saved file has in another shape than it should
         for _, key in ipairs({ 'compact', 'announce', 'sound', 'announcePlaceholders', 'showScripted', 'maxTh', 'showMap', 'mapSize', 'tods', 'marks' }) do
             if type(options[key]) ~= 'table' then
@@ -1426,15 +1716,48 @@ app = shell.New({
                 table.remove(options.tods, place);
             end
         end
+        if type(options.phTods) ~= 'table' then
+            options.phTods = T{ };
+        end
+        local seen = {};
+        for place = #options.phTods, 1, -1 do
+            local tod = options.phTods[place];
+            local valid = type(tod) == 'table' and type(tod.zone) == 'number' and tod.zone > 0
+                and tod.zone < math.huge and tod.zone % 1 == 0
+                and type(tod.index) == 'number' and tod.index >= 1 and tod.index <= 0xFFF and tod.index % 1 == 0
+                and type(tod.at) == 'number' and tod.at > 0 and tod.at < math.huge;
+            local key = valid and Key(tod.zone, tostring(tod.index)) or nil;
+            if not valid or seen[key] then
+                table.remove(options.phTods, place);
+            else
+                seen[key] = true;
+            end
+        end
     end,
     commands = {
+        stats = function(options)
+            options.isVisible[1], options.compact[1] = true, false;
+            wantTab = 3;
+        end,
         compact = function(options)
             options.compact[1] = not options.compact[1];
         end,
         map = function(options)
             options.showMap[1] = not options.showMap[1];
+            app:Save();
+        end,
+        pin = function(options)
+            options.pinMap[1] = not options.pinMap[1];
+            if options.pinMap[1] then
+                options.showMap[1] = true;
+            end
+            app:Save();
         end,
         ph = function(options, args)
+            if not settings.logged_in or game.IsLoading() then
+                Say('Log in before reporting a placeholder death.');
+                return;
+            end
             -- a placeholder of a mark's or of the monster on show's, in the zone the player is in, by its ID
             local index = args[3] ~= nil and tonumber(args[3], 16) or nil;
             local found = nil;
@@ -1456,7 +1779,7 @@ app = shell.New({
             end
             live.checked = 0;
             if args[4] ~= nil and args[4]:lower() == 'clear' then
-                live.deaths[index] = nil;
+                SetPlaceholderTod(options, index, nil);
                 Say(('%s (%03X) is no longer timed.'):format(found.name, index));
                 return;
             end
@@ -1465,7 +1788,7 @@ app = shell.New({
                 Say('/mark ph <ID> [minutes ago | clear]');
                 return;
             end
-            live.deaths[index], live.spawns[index] = os.time() - math.floor(ago * 60), nil;
+            SetPlaceholderTod(options, index, os.time() - math.floor(ago * 60));
             Say(('%s (%03X) is timed from %s.'):format(found.name, index, os.date('%H:%M:%S', live.deaths[index])));
         end,
         tod = function(options, args)
@@ -1509,9 +1832,14 @@ app = shell.New({
                 local mark = options.marks[place];
                 if words == '' or mark.name:lower():find(words, 1, true) ~= nil then
                     Say(('%s is no longer a mark.'):format(mark.name));
-                    RemoveMark(options, mark.zone, mark.name);
+                    table.remove(options.marks, place);
+                    live.marks[Key(mark.zone, mark.name)] = nil;
                     cleared = cleared + 1;
                 end
+            end
+            if cleared > 0 then
+                live.checked = 0;
+                app:Save();
             end
             if cleared == 0 and words ~= '' then
                 Say(('No mark has "%s" in its name.'):format(words));
@@ -1525,12 +1853,12 @@ app = shell.New({
             end
             -- one of the zone the player is in before any other, and a whole name before a part of one
             local found = hunts.Find(words, true, 200);
-            local best = nil;
+            local best, bestScore = nil, nil;
+            local lower = words:lower();
             for _, monster in ipairs(found) do
-                local score = (monster.name:lower() == words:lower() and 2 or 0) + (monster.zone == live.zone and 1 or 0);
-                if best == nil or score > best.score then
-                    best = monster;
-                    best.score = score;
+                local score = (monster.name:lower() == lower and 2 or 0) + (monster.zone == live.zone and 1 or 0);
+                if best == nil or score > bestScore then
+                    best, bestScore = monster, score;
                 end
             end
             if best == nil then
@@ -1545,10 +1873,37 @@ app = shell.New({
 });
 
 local mapWindowName = 'winxi.mark.map';
-local mapPos = { 0, 0 };
 local function drawMapWindow()
-    DrawMap(app.options);
+    local options = app.options;
+    DrawMap(options);
+    local x, y = imgui.GetWindowPos();
+    if x ~= options.mapPos[1] or y ~= options.mapPos[2] then
+        options.mapPos[1], options.mapPos[2] = x, y;
+        mapMoved = true;
+    end
 end
+
+ashita.events.register('packet_in', 'mark_hunting_packets', function(e)
+    if e.id ~= 0x029 and e.id ~= 0x0D2 then return; end
+    if e.blocked or e.injected or not settings.logged_in or game.IsLoading() then return; end
+    local event = stats.Packet(e.id, e.data_raw or e.data);
+    if event == nil or event.index == nil or event.source == nil or event.source == 0
+        or bit.band(event.source, 0xFFF) ~= event.index then return; end
+    local zone = AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0);
+    -- Monster server IDs include the zone as well as the local entity index.
+    if bit.band(bit.rshift(event.source, 12), 0xFFF) ~= zone then return; end
+    tracker:Watch(zone, StatsTargets(app.options, zone));
+    if event.kind == 'death' then
+        tracker:Death(event.index, os.time(), true);
+    else
+        tracker:Drop(event.index, event.item, event.quantity, event.token, os.time());
+    end
+    if tracker.changed then
+        statsRows, statsDetails = nil, nil;
+        tracker.changed = false;
+        app:Save();
+    end
+end);
 
 ashita.events.register('d3d_present', 'mark_present', function()
     -- the marks are watched whether or not the window is there to be seen
@@ -1556,6 +1911,7 @@ ashita.events.register('d3d_present', 'mark_present', function()
     local options = app.options;
     Update(options);
     if not shown then
+        mapState.mouseX, mapState.mouseY = nil, nil;
         return;
     end
 
@@ -1569,9 +1925,20 @@ ashita.events.register('d3d_present', 'mark_present', function()
     end
     BuildView(options);
     app:Window(options.isVisible, Draw);
-    if options.showMap[1] and options.isVisible[1] then
-        mapPos[1], mapPos[2] = options.pos[1] + 60, options.pos[2] + 60;
-        imgui.SetNextWindowPos(mapPos, ImGuiCond_FirstUseEver);
-        window.Plain(mapWindowName, options.showMap, style.TitlelessFlags(), drawMapWindow);
+    if options.showMap[1] and (options.isVisible[1] or options.pinMap[1]) then
+        if not mapPlaced then
+            imgui.SetNextWindowPos(options.mapPos, ImGuiCond_Always);
+            mapPlaced = true;
+        end
+        local flags = bit.bor(style.TitlelessFlags(), ImGuiWindowFlags_NoScrollWithMouse, ImGuiWindowFlags_NoScrollbar);
+        if not window.Full(mapWindowName, options.showMap, flags, drawMapWindow) then
+            mapState.mouseX, mapState.mouseY = nil, nil;
+        end
+        if mapMoved and not imgui.IsMouseDown(0) then
+            mapMoved = false;
+            app:Save();
+        end
+    else
+        mapState.mouseX, mapState.mouseY = nil, nil;
     end
 end);
