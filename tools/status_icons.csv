@@ -1,0 +1,625 @@
+ffxi_id,ffxi_name,ffxiv_icon,ffxiv_name
+0,KO,,
+1,weakness,215010,Weakness
+2,sleep,215013,Sleep
+3,poison,215007,Poison
+4,paralysis,215006,Paralysis
+5,blindness,215012,Blind
+6,silence,215005,Silence
+7,petrification,215001,Petrification
+8,disease,215014,Disease
+9,curse,215587,Cursed Voice
+10,stun,215004,Stun
+11,bind,215003,Bind
+12,weight,215002,Heavy
+13,slow,215009,Slow
+14,charm,215552,Seduced
+15,doom,215503,Doom
+16,amnesia,215015,Amnesia
+17,charm,215552,Seduced
+18,gradual petrification,215895,Gradual Petrification
+19,sleep,215013,Sleep
+20,curse,215587,Cursed Voice
+21,addle,213917,Addle
+22,intimidate,215810,Craven
+23,Kaustra,210506,Miasma
+24,ST24,,
+25,ST25,,
+26,ST26,,
+27,ST27,,
+28,terror,215516,Terror
+29,mute,216580,Silenced
+30,bane,214126,Greatest Curse
+31,plague,215014,Plagued
+32,Flee,210101,Sprint
+33,Haste,215008,Haste
+34,Blaze Spikes,215508,Blaze Spikes
+35,Ice Spikes,215501,Ice Spikes
+36,Blink,229978,Occult Blink
+37,Stoneskin,210401,Stoneskin
+38,Shock Spikes,215502,Shock Spikes
+39,Aquaveil,212638,Aquaveil
+40,Protect,210405,Protect
+41,Shell,216677,Lost Shell
+42,Regen,212626,Regen
+43,Refresh,210408,Refresh
+44,Mighty Strikes,214258,Mighty Strikes
+45,Boost,215507,Boost
+46,Hundred Fists,215008,Hundred Fists
+47,Manafont,216675,Lost Font of Magic
+48,Chainspell,216623,Lost Chainspell
+49,Perfect Dodge,210605,Shade Shift
+50,Invincible,212504,Hallowed Ground
+51,Blood Weapon,217926,Blood Weapon
+52,Soul Voice,212601,Battle Voice
+53,Eagle Eye Shot,214759,PvP Role Action: Eagle Eye Shot
+54,Meikyo Shisui,214955,Meikyo Shisui
+55,Astral Flow,215950,Astral Essence
+56,Berserk,210253,Berserk
+57,Defender,212551,Defiance
+58,Aggressor,210351,Hawk's Eye
+59,Focus,210204,Internal Release
+60,Dodge,210201,Featherfoot
+61,Counterstance,229906,Counterstance
+62,Sentinel,210151,Sentinel
+63,Souleater,213106,Darkside
+64,Last Resort,210304,Blood for Blood
+65,Sneak Attack,212902,Kassatsu
+66,Copy Image,219681,Bunshin#1
+67,Third Eye,213307,Third Eye
+68,Warcry,229904,Rage
+69,Invisible,215642,Invisible
+70,Deodorize,216703,Bracing Suds
+71,Sneak,216015,Sneak
+72,Sharpshot,210361,Straight Shot
+73,Barrage,210356,Barrage
+74,Holy Circle,212508,Divine Veil
+75,Arcane Circle,212936,Arcane Circle
+76,Hide,210607,Hidden
+77,Camouflage,213602,Camouflage
+78,Divine Seal,210407,Divine Seal
+79,Elemental Seal,212655,Sharpcast
+80,STR Boost,229034,Liquid Strength
+81,DEX Boost,216763,Precision
+82,VIT Boost,229038,Liquid Constitution
+83,AGI Boost,229037,Liquid Evasion
+84,INT Boost,229036,Liquid Intensity
+85,MND Boost,229035,Liquid Magic
+86,CHR Boost,214139,Honeyed Charms
+87,Trick Attack,214857,Trick Attack
+88,Max HP Boost,215075,HP Boost
+89,Max MP Boost,215077,MP Boost
+90,Accuracy Boost,215060,Accuracy Up
+91,Attack Boost,215050,Attack Up
+92,Evasion Boost,215062,Evasion Up
+93,Defense Boost,215052,Defense Up
+94,Enfire,215509,Enfire
+95,Enblizzard,215510,Enblizzard
+96,Enaero,215511,Enaero
+97,Enstone,215512,Enstone
+98,Enthunder,215513,Enthunder
+99,Enwater,215514,Enwater
+100,Barfire,215028,Fire Resistance Up
+101,Barblizzard,215029,Ice Resistance Up
+102,Baraero,215030,Wind Resistance Up
+103,Barstone,215031,Earth Resistance Up
+104,Barthunder,215032,Lightning Resistance Up
+105,Barwater,215033,Water Resistance Up
+106,Barsleep,214834,Sleep Resistance Up
+107,Barpoison,215648,Poison Resistance Up
+108,Barparalyze,229046,Paralysis Resistance Up
+109,Barblind,229048,Blind Resistance Up
+110,Barsilence,215567,Silence Resistance
+111,Barpetrify,229047,Petrification Resistance Up
+112,Barvirus,210515,Antibody
+113,Reraise,216695,Reraise
+114,Cover,212501,Cover
+115,Unlimited Shot,215864,Unlimited
+116,Phalanx,214982,Phalanx
+117,Warding Circle,212938,Bloodsown Circle
+118,Ancient Circle,215770,Ancient Circle
+119,STR Boost,229034,Liquid Strength
+120,DEX Boost,216763,Precision
+121,VIT Boost,229038,Liquid Constitution
+122,AGI Boost,229037,Liquid Evasion
+123,INT Boost,229036,Liquid Intensity
+124,MND Boost,229035,Liquid Magic
+125,CHR Boost,214139,Honeyed Charms
+126,Spirit Surge,214935,Life of the Dragon
+127,Costume,216214,In Costume
+128,Burn,215524,Burns
+129,Frost,215525,Frostbite
+130,Choke,215526,Windburn
+131,Rasp,214265,Stonepack
+132,Shock,215528,Electrocution
+133,Drown,215529,Dropsy
+134,Dia,212635,Dia
+135,Bio,210504,Bio
+136,STR Down,215080,Strength Down
+137,DEX Down,215723,Off-balance
+138,VIT Down,215082,Vitality Down
+139,AGI Down,215518,Leaden
+140,INT Down,215405,Featherbrained
+141,MND Down,215843,Apathetic
+142,CHR Down,213502,Malodorous
+143,Level Restriction,216211,Minimum
+144,Max HP Down,215076,HP Penalty
+145,Max MP Down,215078,MP Penalty
+146,Accuracy Down,215061,Accuracy Down
+147,Attack Down,215051,Attack Down
+148,Evasion Down,215063,Evasion Down
+149,Defense Down,215053,Defense Down
+150,Physical Shield,215052,Physical Vulnerability Down
+151,Arrow Shield,215681,Ranged Resistance
+152,Magic Shield,215056,Magic Vulnerability Down
+153,Damage Spikes,213411,Thorned Flourish
+154,Shining Ruby,212750,Ruby's Glimmer
+155,medicine,216203,Medicated
+156,Flash,215446,Skyblind
+157,SJ Restriction,216822,Item Penalty
+158,Provoke,215862,Threatened
+159,penalty,216825,EP Penalty
+160,preparations,216121,Initial Preparations
+161,Sprint,210101,Sprint
+162,enchantment,215863,Magic Infusion
+163,Azure Lore,213505,Waxing Nocturne
+164,Chain Affinity,213521,Harmonized
+165,Burst Affinity,216648,Magic Burst
+166,Overdrive,213012,Hypercharge
+167,Magic Def. Down,215057,Magic Defense Down
+168,Inhibit TP,215025,TP Bleed
+169,Potency,212613,Critical Up
+170,Regain,216203,Regain
+171,Pax,215017,Pacification
+172,Intension,214815,Concentrate
+173,Dread Spikes,213112,Shadowskin
+174,Magic Acc. Down,215055,Attack Magic Potency Down
+175,Magic Atk. Down,215055,Magic Damage Down
+176,quickening,210101,Movement Speed Up
+177,encumbrance,216246,Load-bearing
+178,Firestorm,215791,Aspected to Fire
+179,Hailstorm,215792,Aspected to Ice
+180,Windstorm,215417,Wind-aspected
+181,Sandstorm,215415,Earth-aspected
+182,Thunderstorm,215793,Aspected to Lightning
+183,Rainstorm,229916,Blessed Rain
+184,Aurorastorm,214414,Light Vision
+185,Voidstorm,229948,Dark Defenses
+186,Helix,212812,Biolysis
+187,Sublimation: Activated,213909,Lucid Dreaming
+188,Sublimation: Complete,215958,Aetherially Primed
+189,Max TP Down,215025,TP Bleed
+190,Magic Atk. Boost,215054,Magic Damage Up
+191,Magic Def. Boost,215056,Magic Defense Up
+192,Requiem,212606,Foe Requiem
+193,Lullaby,215013,The Narwhal's Lullaby
+194,Elegy,229913,Hero's Lament
+195,Paeon,212605,Army's Paeon
+196,Ballad,212603,Mage's Ballad
+197,Minne,212618,Nature's Minne
+198,Minuet,212610,The Wanderer's Minuet
+199,Madrigal,212619,Army's Muse
+200,Prelude,212620,Army's Ethos
+201,Mambo,210358,Swiftsong
+202,Aubade,214834,Wide Awake
+203,Pastoral,229025,Antipoison
+204,Hum,215157,Sibling Revelry
+205,Fantasia,214914,Final Fantasia
+206,Operetta,229955,Romeo's Ballad
+207,Capriccio,212612,Troubadour's Ballad
+208,Serenade,212614,Troubadour's Paeon
+209,Round,213259,Harmony of Spirit
+210,Gavotte,229969,Tempted to Tango
+211,Fugue,215551,Relentless March
+212,Rhapsody,213077,Radiant Encore Ready
+213,Aria,229911,Offensive Aria
+214,March,229910,Mighty March
+215,Etude,212602,Frontline March
+216,Carol,215888,Elemental Harmony
+217,Threnody,215431,Elemental Resistance Down
+218,Hymnus,214915,Heroes' Fantasia
+219,Mazurka,213908,Peloton
+220,Sirvente,212618,Warden's Grace
+221,Dirge,212611,The Warden's Paean
+222,Scherzo,212622,Radiant Finale
+223,Nocturne,213512,Waning Nocturne
+224,ST224,,
+225,ST225,,
+226,ST226,,
+227,Store TP,213306,Meditate
+228,Embrava,216683,Bravery
+229,Manawell,215845,Mana Charge
+230,Spontaneity,210454,Swiftcast
+231,Marcato,210354,Raging Strikes
+232,(N/A),,
+233,Auto-Regen,212626,Choco Regen
+234,Auto-Refresh,216647,Refresh L
+235,Fishing Imagery,211101,Fisher's Intuition
+236,Woodworking Imagery,216106,Crafter's Grace
+237,Smithing Imagery,211551,Steady Hand
+238,Goldsmithing Imagery,216105,Great Strides
+239,Clothcraft Imagery,211652,Innovation
+240,Leathercraft Imagery,211552,Ingenuity
+241,Bonecraft Imagery,211701,Waste Not
+242,Alchemy Imagery,211653,Maker's Mark
+243,Cooking Imagery,216508,Meat and Mead
+249,Dedication,216222,EXP Bonus
+250,EF Badge,216255,Star Contributor
+251,Food,216202,Well Fed
+252,Mounted,215821,Mounted
+253,Signet,216518,Priority Seal Allowance
+254,Battlefield,214400,Gauntlet Thrown
+256,Sanction,216206,Sanction
+257,Besieged,216241,FATE Participant
+258,Illusion,216209,Transparent
+259,encumbrance,216246,Load-bearing
+260,Obliviscence,215893,Memory Loss
+261,impairment,213222,Disabled
+262,Omerta,216580,Silenced
+263,debilitation,215517,Enfeebled
+264,Pathos,215531,Infirmity
+265,Flurry,213003,Rapid Fire
+266,Concentration,214815,Concentration
+267,Allied Tags,216515,Squadron Survival Manual
+268,Sigil,216223,Squadron Enlistment Manual
+269,Level Sync,216211,Minimum
+270,Aftermath: Lv.1,214877,Battle High I
+271,Aftermath: Lv.2,214878,Battle High II
+272,Aftermath: Lv.3,214879,Battle High III
+273,Aftermath,216215,Battle High
+274,Enlight,215548,Blessing of Light
+275,Auspice,215868,Auspicious
+276,Confrontation,214821,Monomachy
+277,Enfire II,215509,Enfire
+278,Enblizzard II,215510,Enblizzard
+279,Enaero II,215511,Enaero
+280,Enstone II,215512,Enstone
+281,Enthunder II,215513,Enthunder
+282,Enwater II,215514,Enwater
+283,Perfect Defense,214391,Perfect Defense
+284,Egg,214357,Hard-boiled
+285,Visitant,215980,Phantasmal
+286,Baramnesia,215382,Unforgotten
+287,Atma,229014,Soul Kinship
+288,Endark,216306,Dark Force
+289,Enmity Boost,216722,Enmity Up
+290,Subtle Blow Plus,212908,Shadewalker
+291,Enmity Down,213914,Diversion
+292,Pennant,216690,Banner of Noble Ends
+293,Negate Petrify,229028,Antipetrification
+294,Negate Terror,215948,Fearless
+295,Negate Amnesia,215382,Unforgotten
+296,Negate Doom,229999,Zombie-proof
+297,Negate Poison,229025,Antipoison
+298,critical hit evasion down,213504,Off-guard
+299,Overload,215528,Overload
+300,Fire Maneuver,229039,Through Fire
+301,Ice Maneuver,229044,Through Ice
+302,Wind Maneuver,229043,Through Wind
+303,Earth Maneuver,229041,Through Earth
+304,Thunder Maneuver,229042,Through Thunder
+305,Water Maneuver,229040,Through Water
+306,Light Maneuver,215882,Veil of Light
+307,Dark Maneuver,214240,Veil of Darkness
+308,Double-Up Chance,214175,On a Roll
+309,Bust,229950,Buyer's Remorse
+310,Fighter's Roll,216873,Phantom Berserker
+311,Monk's Roll,216874,Phantom Monk
+312,Healer's Roll,216888,Phantom White Mage
+313,Wizard's Roll,216889,Phantom Black Mage
+314,Warlock's Roll,216893,Phantom Red Mage
+315,Rogue's Roll,216883,Phantom Thief
+316,Gallant's Roll,216872,Phantom Knight
+317,Chaos Roll,216894,Phantom Necromancer
+318,Beast Roll,229008,Beast Kinship
+319,Choral Roll,216877,Phantom Bard
+320,Hunter's Roll,216875,Phantom Ranger
+321,Samurai Roll,216876,Phantom Samurai
+322,Ninja Roll,216887,Phantom Ninja
+323,Drachen Roll,216890,Phantom Dragoon
+324,Evoker's Roll,216891,Phantom Summoner
+325,Magus's Roll,216892,Phantom Blue Mage
+326,Corsair's Roll,216880,Phantom Cannoneer
+327,Puppet Roll,215669,Strings of the Marionette
+328,Dancer's Roll,216886,Phantom Dancer
+329,Scholar's Roll,216882,Phantom Oracle
+330,Bolter's Roll,210101,Movement Speed Up
+331,Caster's Roll,215554,Spell Speed Up
+332,Courser's Roll,210362,Quicker Nock
+333,Blitzer's Roll,215553,Skill Speed Up
+334,Tactician's Roll,213906,Tactician
+335,Allies' Roll,215362,Stronger Together
+336,Miser's Roll,216508,Rationing
+337,Companion's Roll,214030,Companion Healing Potency Up
+338,Avenger's Roll,210256,Vengeance
+339,Naturalist's Roll,216878,Phantom Geomancer
+340,Warrior's Charge,212553,Inner Beast
+341,Formless Strikes,212535,Formless Fist
+342,Assassin's Charge,212913,Assassinate Ready
+343,Feint,213904,Feint
+344,Fealty,212506,Shield Oath
+345,Dark Seal,213114,Dark Mind
+346,Diabolic Eye,216207,Darksight
+347,Nightingale,212627,Presence of Mind
+348,Troubadour,212615,Troubadour
+349,Killer Instinct,213774,Hunter's Instinct
+350,Stealth Shot,229907,Phantom Aim
+351,Flashy Shot,213005,Hot Shot
+352,Sange,212911,Ten Chi Jin
+353,Hasso,213305,Kaiten
+354,Seigan,213316,Tengentsu
+355,Convergence,215788,Fire Convergence
+356,Diffusion,215641,Expanded Attack
+357,Snake Eye,214994,Snake's Bane
+358,Light Arts,212837,Fey Light
+359,Dark Arts,213107,Dark Arts
+360,Penury,212631,Thin Air
+361,Parsimony,210466,Umbral Ice
+362,Celerity,213220,Lightspeed
+363,Alacrity,213406,Dualcast
+364,Rapture,215058,Healing Potency Up
+365,Ebullience,210463,Astral Fire
+366,Accession,212828,Fey Illumination
+367,Manifestation,210514,Shadow Flare
+368,Drain Samba,215504,Drainstrikes
+369,Aspir Samba,215505,Aspirstrikes
+370,Haste Samba,213715,Shield Samba
+371,Velocity Shot,214900,Hypervelocity
+375,Building Flourish,213722,Flourishing Finish
+376,Trance,213714,Devilment
+377,Tabula Rasa,212813,Recitation
+378,Drain Daze,215778,Life Drain
+379,Aspir Daze,215055,Mana Modulation
+380,Haste Daze,215003,Daze
+381,Finishing Move 1,217061,Damage Up#1
+382,Finishing Move 2,217062,Damage Up#2
+383,Finishing Move 3,217063,Damage Up#3
+384,Finishing Move 4,217064,Damage Up#4
+385,Finishing Move 5,217065,Damage Up#5
+386,Lethargic Daze 1,217361,Slow+#1
+387,Lethargic Daze 2,217362,Slow+#2
+388,Lethargic Daze 3,217363,Slow+#3
+389,Lethargic Daze 4,217364,Slow+#4
+390,Lethargic Daze 5,217365,Slow+#5
+391,Sluggish Daze 1,218132,Heavy#1
+392,Sluggish Daze 2,218133,Heavy#2
+393,Sluggish Daze 3,218134,Heavy#3
+394,Sluggish Daze 4,218135,Heavy#4
+395,Sluggish Daze 5,218136,Heavy#5
+396,Weakened Daze 1,218441,Damage Down#1
+397,Weakened Daze 2,218442,Damage Down#2
+398,Weakened Daze 3,218443,Damage Down#3
+399,Weakened Daze 4,218444,Damage Down#4
+400,Weakened Daze 5,218445,Damage Down#5
+401,Addendum: White,214977,White Shift
+402,Addendum: Black,214978,Black Shift
+403,Reprisal,213103,Reprisal
+404,Magic Evasion Down,215057,Magic Vulnerability Up
+405,Retaliation,214817,Retaliation
+406,Footwork,212526,Fists of Wind
+407,Klimaform,212653,Ley Lines
+408,Sekkanoki,212529,Meditative Brotherhood
+409,Pianissimo,214732,Solo Step
+410,Saber Dance,214859,Saber Dance
+411,Fan Dance,214861,Fan Dance
+412,Altruism,213223,Synastry
+413,Focalization,214813,Focalization
+414,Tranquility,210408,Shroud of Saints
+415,Equanimity,210452,Surecast
+416,Enlightenment,216019,Eureka Moment
+417,Afflatus Solace,214865,Afflatus Solace
+418,Afflatus Misery,212637,Confession
+419,Composure,213407,Manafication
+420,Yonin,214826,Kakuremi
+421,Innin,212906,Suiton
+422,Carbuncle's Favor,215803,Shining Moonstone
+423,Ifrit's Favor,212696,Ifrit's Favor
+424,Shiva's Favor,215310,Junction Shiva
+425,Garuda's Favor,212697,Garuda's Favor
+426,Titan's Favor,212698,Titan's Favor
+427,Ramuh's Favor,212660,Thunderhead
+428,Leviathan's Favor,212651,Veil of the Whorl
+429,Fenrir's Favor,215878,Full Moon
+430,Diabolos's Favor,215881,Veil of Shadow
+431,Avatar's Favor,212681,Devotion
+432,Multi Strikes,210216,Twin Snakes
+433,Double Shot,215645,Double
+434,Transcendency,215273,Transcendent
+435,Restraint,215946,Sheer Will
+436,Perfect Counter,215036,Counter
+437,Mana Wall,212651,Manawall
+438,Divine Emblem,212521,Divine Might
+439,Nether Void,213118,Blackest Night
+440,Sengikori,212921,Higi
+441,Futae,212901,Mudra
+442,Presto,229972,Quickstep
+443,Climactic Flourish,213724,Flourishing Starfall
+444,Copy Image (2),219682,Bunshin#2
+445,Copy Image (3),219683,Bunshin#3
+446,Copy Image (4+),219684,Bunshin#4
+447,Multi Shots,215384,Quadruple
+448,Bewildered Daze 1,217101,Vulnerability Up#1
+449,Bewildered Daze 2,217102,Vulnerability Up#2
+450,Bewildered Daze 3,217103,Vulnerability Up#3
+451,Bewildered Daze 4,217104,Vulnerability Up#4
+452,Bewildered Daze 5,217105,Vulnerability Up#5
+453,Divine Caress,212641,Divine Caress
+454,Saboteur,213405,Acceleration
+455,Tenuto,214188,Uninterrupted
+456,Spur,212679,Spur
+457,Efflux,214860,En Avant
+458,Earthen Armor,212701,Earthen Ward
+459,Divine Caress,212641,Divine Caress
+460,Blood Rage,212562,Bloodwhetting
+461,Impetus,212528,Riddle of Fire
+462,Conspirator,212532,Brotherhood
+463,Sepulcher,212524,Sepulchre Ready
+464,Arcane Crest,215897,Arcane Bulwark
+465,Hamanoha,229909,Shirahadori
+466,Dragon Breaker,215732,Heart of Dragon
+467,Triple Shot,215646,Triple
+468,Striking Flourish,213701,Flourishing Cascade
+469,Perpetuance,212815,Protraction
+470,Immanence,212814,Catalyze
+471,Migawari,215869,Guardian Spirit
+472,Ternary Flourish,213707,Threefold Fan Dance
+473,muddle,215603,Confused
+474,Prowess,216513,The Heat of Battle
+475,Voidwatcher,215753,Blessing of the Void
+476,Ensphere,212513,Enshielded
+477,Sacrosanctity,212802,Sacred Soil
+478,Palisade,213905,Palisade
+479,Scarlet Delirium,216702,Blood Rush
+480,Scarlet Delirium,216702,Blood Rush
+481,Abdhaljs Seal,214416,Seal of the Blade
+482,Decoy Shot,214858,Repelling Shot
+483,Hagakure,213318,Zanshin Ready
+484,Issekigan,213918,Eye for an Eye
+485,Unbridled Learning,215802,Unbridled
+486,Counter Boost,215690,Unrelenting Counter
+487,Endrain,229987,Drain Touch
+488,Enaspir,215429,Aethersucker
+489,Afterglow,213605,Aurora
+490,Brazen Rush,214904,Relentless Rush
+491,Inner Strength,212556,Inner Strength
+492,Asylum,212629,Asylum
+493,Subtle Sorcery,215673,Concealed
+494,Stymie,214969,Enchanted Riposte
+495,Macro Test,,
+496,Intervene,212511,Intervention
+497,Soul Enslavement,212940,Soul Reaver
+498,Unleash,213117,Enhanced Unleash
+499,Clarion Call,214418,Seal of the Harp
+500,Overkill,213022,Hypercharged
+501,Yaegasumi,214820,Chiten
+502,Mikage,212917,Phantom Kamaitachi Ready
+503,Fly High,214845,Flying High
+504,Astral Conduit,212699,Searing Light
+505,Unbridled Wisdom,215897,Sage's Wisdom
+506,Grace,212640,Divine Grace
+507,Grand Pas,213729,Dance of the Dawn
+508,Widened Compass,212654,Circle of Power
+509,Odyllic Subterfuge,215409,Whispered Incantation
+510,Ergon Might,213242,Giant Dominance
+511,Reive Mark,216517,Mark Up
+512,Ionis,216016,The Twelve's Bounty
+513,Bolster,215318,Boosted
+515,Lasting Emanation,213221,Luminiferous Aether
+516,Ecliptic Attrition,229050,Umbral Ascendancy
+517,Collimated Fervor,213227,Fixed Sign
+518,Dematerialize,216250,Incorporeal
+519,Theurgic Focus,214816,Attunement
+522,Elemental Sforzo,215021,Elemental Blessing
+523,Ignis,215396,Fire Alchemy
+524,Gelus,215397,Ice Alchemy
+525,Flabra,215437,Might of the Vortex
+526,Tellus,215438,Might of Crags
+527,Sulpor,215398,Thunder Alchemy
+528,Unda,211114,Truth of Oceans
+529,Lux,215658,Draconian Light
+530,Tenebrae,213122,Dark Missionary
+531,Vallation,213408,Magick Barrier
+532,Swordplay,217016,Imbued Saber
+533,Pflug,214891,Resilience
+534,Embolden,213409,Embolden
+535,Valiance,212691,Radiant Aegis
+536,Gambit,215729,Brand of the Fallen
+537,Liement,215258,Aetherial Aegis
+538,One for All,212512,Passage of Arms
+539,Regen,212626,Regen
+540,poison,215007,Poison
+541,Refresh,210408,Refresh
+542,STR Boost,229034,Liquid Strength
+543,DEX Boost,216763,Precision
+544,VIT Boost,229038,Liquid Constitution
+545,AGI Boost,229037,Liquid Evasion
+546,INT Boost,229036,Liquid Intensity
+547,MND Boost,229035,Liquid Magic
+548,CHR Boost,214139,Honeyed Charms
+549,Attack Boost,215050,Attack Up
+550,Defense Boost,215052,Defense Up
+551,Magic Atk. Boost,215054,Magic Damage Up
+552,Magic Def. Boost,215056,Magic Defense Up
+553,Accuracy Boost,215060,Accuracy Up
+554,Evasion Boost,215062,Evasion Up
+555,Magic Acc. Boost,215054,Attack Magic Potency Up
+556,Magic Evasion Boost,215682,Magic Resistance
+557,Attack Down,215051,Attack Down
+558,Defense Down,215053,Defense Down
+559,Magic Atk. Down,215055,Magic Damage Down
+560,Magic Def. Down,215057,Magic Defense Down
+561,Accuracy Down,215061,Accuracy Down
+562,Evasion Down,215063,Evasion Down
+563,Magic Acc. Down,215055,Attack Magic Potency Down
+564,Magic Evasion Down,215057,Magic Vulnerability Up
+565,slow,215009,Slow
+566,paralysis,215006,Paralysis
+567,weight,215002,Heavy
+568,Foil,214937,Elusive Jump
+569,Blaze of Glory,212694,Undying Flame
+570,Battuta,215046,Directional Parry
+571,Rayke,215431,Elemental Resistance Down
+572,Avoidance Down,214887,Unguarded
+573,Deluge Spikes,215542,Mantle of the Whorl
+574,Fast Cast,216641,Rapid Recast
+575,gestation,215971,Full-grown
+576,Doubt,214168,Delusions
+577,Cait Sith's Favor,214194,Nine Lives
+578,Fishy Intuition,211103,Fish Eyes
+579,Commitment,214313,Hard Worker
+580,Haste,215008,Haste
+581,Flurry,213003,Rapid Fire
+582,Contradance,213712,Closed Position
+583,Apogee,216308,Limit Breaker
+584,Entrust,216516,Helping Hand
+585,Costume,216214,In Costume
+586,Curing Conduit,214985,Cure III Ready
+587,TP Bonus,210303,Power Surge
+588,Finishing Move (6+),217066,Damage Up#6
+589,Firestorm,215791,Aspected to Fire
+590,Hailstorm,215792,Aspected to Ice
+591,Windstorm,215417,Wind-aspected
+592,Sandstorm,215415,Earth-aspected
+593,Thunderstorm,215793,Aspected to Lightning
+594,Rainstorm,229916,Blessed Rain
+595,Aurorastorm,214414,Light Vision
+596,Voidstorm,229948,Dark Defenses
+597,Inundation,215814,Drenched
+598,Cascade,213702,Flourishing Fountain
+599,Consume Mana,210456,Manaward
+600,Runeist's Roll,216884,Phantom Mystic Knight
+601,Crooked Cards,213225,Wheel of Fortune
+602,Vorseal,215766,Vril
+603,Elvorseal,216306,Tural's Embrace
+604,Mighty Guard,213506,Mighty Guard
+605,Gale Spikes,215674,Windwall
+606,Clod Spikes,212703,Stone Wall
+607,Glint Spikes,212711,Radiant Shield
+608,Negate Virus,210515,Antibody
+609,Negate Curse,214310,Pure
+610,Negate Charm,215973,Unfooled
+611,Magic Evasion Boost,215682,Magic Resistance
+612,Colure Active,215056,Electromagnetic Field
+613,Mumor's Radiance,213806,Starstruck
+614,Ullegore's Gloom,215012,Gloam
+615,Boost,215507,Boost
+616,Artisanal Knowledge,216118,Crafter's Soul
+617,Sacrifice,215503,Sacrifice
+618,Emporox's Gift,229031,Token Benefits
+619,Spirit Bond,212810,Fey Union
+620,Awaken,215863,Woken
+621,Majesty,212514,Requiescat
+622,Guarding Rate Boost,210156,Bulwark
+623,Rampart,210152,Rampart
+624,Wind's Blessing,212807,Fey Wind
+625,Siren's Favor,216248,Gullstorm
+626,Negate Sleep,229029,Antisleep
+627,Mobilization,216697,Marching Orders
+628,Hover Shot,215683,Hover
+629,Moogle Amplifier,214705,Pom Muse
+630,taint,215527,Filthy
+631,haunt,215883,Haunt
+632,Black Sanctus,216764,Infernal Shroud
+633,animated,213776,Reawakened
+634,Serpent's Guile,214991,Slither
+635,resolved,214131,Dawn's Resolve
