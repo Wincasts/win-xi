@@ -3,6 +3,7 @@ local imgui = require('imgui');
 local catalog = require('map_catalog');
 local geometry = require('area_geometry');
 local winxi_style = require('winxi.style');
+local mapdat = require('winxi.mapdat');
 local browser = require('map_browser').new(catalog);
 local zoom = { 1.0 };
 local reset_scroll, center_vertex = true, nil;
@@ -17,19 +18,12 @@ local function touch_texture(file)
     for i, cached in ipairs(order) do if cached == file then table.remove(order, i); break; end end
     order[#order + 1] = file;
 end
+-- A map's picture, from the game's files through pivot (XICombinedMaps' where it is installed); a few kept
 local function texture(file)
     if handles[file] then touch_texture(file); return handles[file]; end
     if os.clock() < (retry_at[file] or 0) then return nil; end
     retry_at[file] = os.clock() + 5;
-    local ok, handle, kept = pcall(function()
-        local ffi, d3d8 = require('ffi'), require('d3d8');
-        local device = d3d8.get_device();
-        if device == nil then return nil; end
-        local pointer = ffi.new('IDirect3DTexture8*[1]');
-        if ffi.C.D3DXCreateTextureFromFileA(device, addon.path .. 'assets/' .. file, pointer) ~= ffi.C.S_OK then return nil; end
-        local image = d3d8.gc_safe_release(ffi.cast('IDirect3DTexture8*', pointer[0]));
-        return tonumber(ffi.cast('uint32_t', image)), image;
-    end);
+    local ok, kept, handle = pcall(mapdat.Load, file);
     if ok and handle then
         handles[file], textures[file] = handle, kept;
         touch_texture(file);
@@ -245,7 +239,7 @@ function M.draw(state, editor)
                     else editor:finish(); end
                 end
             else imgui.Dummy({ canvas_size, canvas_size }); end
-            local handle = texture(definition.image);
+            local handle = texture(definition.dat);
             if handle then draw:AddImage(handle, origin, { ox + canvas_size, oy + canvas_size }, { 0, 0 }, { 1, 1 }, palette.white);
             else draw:AddRectFilled(origin, { ox + canvas_size, oy + canvas_size }, palette.background); end
             for _, area in ipairs(definition.areas) do

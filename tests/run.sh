@@ -25,6 +25,7 @@ run party      addons/party/party.lua winxi_fonts_check.lua
 run party      addons/party/party.lua winxi_settings_window_check.lua
 run party      addons/party/party.lua winxi_backgrounds_check.lua
 luajit tests/winxi_mapdat_check.lua
+luajit tests/map_files_check.lua
 echo
 run winxisettings addons/winxisettings/winxisettings.lua winxisettings_check.lua
 run trigger    addons/trigger/trigger.lua trigger_check.lua

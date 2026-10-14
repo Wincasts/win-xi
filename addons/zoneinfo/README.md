@@ -8,9 +8,14 @@ vertices.
 ## Coverage and what is guessed
 
 All **494 unique zone-map rasters across 204 zones** in the supplied
-`XICombinedMaps-2048` pack have previews and independently editable area data.
+`XICombinedMaps-2048` pack have independently editable area data.
 Duplicate copies of the same raster are represented once; different raster
 variants and floors have separate save identities.
+
+The browser draws each map from the game's own files, read by `winxi.mapdat`
+the way pivot turns towards its overlays: with XICombinedMaps-2048 installed as
+an overlay they are its pictures, and without it the game's own. 22 of the 494
+are other pictures of a map that only the pack has; without it they are blank.
 
 The dataset contains **833 polygons**:
 
@@ -326,7 +331,7 @@ The map, polygons, approach outlines and player marker scale together. Vertex
 handles keep a fixed screen size. Dragging converts screen movement back to
 512-reference coordinates, including scrolling, so zoom allows finer fractional
 pixel adjustments. Changing zoom cancels an unfinished drag rather than moving
-its vertex accidentally. Zoom enlarges the supplied preview; it does not add
+its vertex accidentally. Zoom enlarges the map's picture; it does not add
 new raster detail.
 
 ### Feature boundary versus approach boundary
@@ -468,11 +473,12 @@ zone/region/weather banners remain available independently.
 - `research/building_seeds.json`: where each city building is, for the tracer.
 - `presentation.lua`, `banner_layout.lua`: winxi display settings, text layout
   and timed fades, independent of geometry/editor persistence.
-- `map_browser.lua`, `debug_view.lua`: independent browsing, previews and editing.
+- `map_browser.lua`, `debug_view.lua`: independent browsing, maps and editing.
 - `boundary_editor.lua`: validation, undo, names/flags and v1/v2 persistence.
 - `map_position.lua`, `area_tracking.lua`, `area_geometry.lua`: live mapping and
   membership logic.
-- `assets/maps/all/manifest.json`: preview source DATs, hashes and coverage.
+- `assets/maps/all/manifest.json`: source DATs, hashes and coverage of the
+  previews `tools/build_zoneinfo_maps.py` exported; the browser no longer draws them.
 - `research/map_subregions.md`: reviewed-name provenance and research limits.
 - `research/performance_audit.md`: optimization findings, offline measurements
   and remaining native/client validation needs.
