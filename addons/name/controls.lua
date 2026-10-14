@@ -105,6 +105,43 @@ function controls.Checkbox(label, id, value, help, experimental)
     return changed;
 end
 
+-- One of choices ({ key =, label = } each) as a dropdown, value[1] holding the chosen key
+local choiceIds = {};
+
+function controls.Choice(label, id, value, choices, help)
+    widgets.Label(label);
+    controls.Width();
+    local chosen = choices[1];
+    for _, choice in ipairs(choices) do
+        if (choice.key == value[1]) then
+            chosen = choice;
+            break;
+        end
+    end
+    local changed = false;
+    if (imgui.BeginCombo(id, chosen.label)) then
+        local ids = choiceIds[id];
+        if (ids == nil) then
+            ids = {};
+            choiceIds[id] = ids;
+        end
+        for index, choice in ipairs(choices) do
+            ids[index] = ids[index] or (choice.label .. id .. '.' .. index);
+            local selected = choice.key == chosen.key;
+            if (imgui.Selectable(ids[index], selected) and not selected) then
+                value[1] = choice.key;
+                changed = true;
+            end
+            if (selected) then
+                imgui.SetItemDefaultFocus();
+            end
+        end
+        imgui.EndCombo();
+    end
+    if (help ~= nil) then controls.Mark(help); end
+    return changed;
+end
+
 function controls.Slider(label, id, value, minimum, maximum, format, help)
     widgets.Label(label);
     controls.Width();

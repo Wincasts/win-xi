@@ -1,11 +1,12 @@
--- The statuses over a name: a row of icons above it, for the statuses its player has chosen to see.
+-- The statuses over a name: a row of icons above it or below it, for the statuses its player has chosen to see.
 --
 --   statuses.Defaults(defaults)       adds the settings below to an addon's own
 --   statuses.HandlePacket(e)          every packet in goes by this: what lands on an enemy is kept count of
 --   statuses.Begin(options)           each frame, before any name is set out: whether there is anything
 --                                     to draw this frame, the sheet of icons given to the plugin
---   statuses.Write(name, above, height, scale)   between the plugin's BeginName and EndName: the row,
---                                     its foot at above, for a name whose letters are height high
+--   statuses.Write(name, left, right, above, below, height, scale)   between the plugin's BeginName
+--                                     and EndName: the row, for a name whose letters are height high,
+--                                     drawn from left to right, with nothing yet above above or below below
 --   statuses.DrawSettings(options, save)         the settings tab
 --
 -- What is known of who is under what is not the same for everyone. The game keeps the player's own
@@ -50,6 +51,8 @@ local settings = {
     showStatuses = function () return T{ true }; end,
     statusSize   = function () return T{ 125 }; end, -- an icon's height, as a percentage of the height of the names
     statusFfxivIcons = function () return T{ true }; end, -- Custom Icons: the set chosen in the theme; off, the game's
+    statusPlace  = function () return T{ 'above' }; end,  -- the row above the name or below it
+    statusAlign  = function () return T{ 'center' }; end, -- and level with its left, its middle or its right
     statusList   = function ()
         return T{ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 128, 129, 130, 131, 132, 133, 134, 135, 156, 192, 194, 217 };
     end,
@@ -165,6 +168,8 @@ local placeOf = statusicons.SheetPlace; -- where a status's icon is in it
 local aspect = statusicons.OwnAspect;   -- how wide an icon is, for how tall
 local shownWith = nil; -- the settings of this frame
 local size = 1.25;    -- an icon's height, as a part of the name's
+local below = false;  -- the row under the name, not over it
+local align = 'center';
 local SELF = nameplates.Category.Self;
 
 -- Whether any name can have a row this frame
@@ -184,6 +189,8 @@ function statuses.Begin(options)
         return false;
     end
     size = math.max(50, math.min(300, options.statusSize[1])) / 100;
+    below = options.statusPlace ~= nil and options.statusPlace[1] == 'below';
+    align = options.statusAlign ~= nil and options.statusAlign[1] or 'center';
     shownWith = options;
     ReadOwn(AshitaCore:GetMemoryManager());
     ReadParty();
@@ -268,7 +275,7 @@ local function Gather(name, options)
     TakeTracked(serverId);
 end
 
-function statuses.Write(name, above, height, scale)
+function statuses.Write(name, nameLeft, nameRight, above, under, height, scale)
     if (sheet == 0) then
         return;
     end
@@ -280,12 +287,21 @@ function statuses.Write(name, above, height, scale)
     local tall = math.max(1, math.floor(height * size + 0.5));
     local wide = math.max(1, math.floor(tall * aspect + 0.5));
     local gap = math.floor(GAP * scale + 0.5);
-    local left = math.floor(-(rowCount * wide + (rowCount - 1) * gap) * 0.5);
-    local foot = above - math.floor(RISE * scale + 0.5);
+    local across = rowCount * wide + (rowCount - 1) * gap;
+    local left;
+    if (align == 'left') then
+        left = nameLeft;
+    elseif (align == 'right') then
+        left = nameRight - across;
+    else
+        left = math.floor((nameLeft + nameRight - across) * 0.5);
+    end
+    local rise = math.floor(RISE * scale + 0.5);
+    local top = below and (under + rise) or (above - rise - tall);
     for index = 1, rowCount do
         local place = row[index];
         -- the icons have an edge of their own: none is drawn round them
-        nameplates.Quad(left, foot - tall, left + wide, foot, place[1], place[2], place[3], place[4], WHITE, statuses.Slot, false);
+        nameplates.Quad(left, top, left + wide, top + tall, place[1], place[2], place[3], place[4], WHITE, statuses.Slot, false);
         left = left + wide + gap;
     end
 end
@@ -323,6 +339,9 @@ local function Known(useOwn)
     return known;
 end
 
+local PLACES = { { key = 'above', label = 'Above' }, { key = 'below', label = 'Below' } };
+local ALIGNMENTS = { { key = 'left', label = 'Left' }, { key = 'center', label = 'Center' }, { key = 'right', label = 'Right' } };
+
 function statuses.DrawSettings(options, save)
     Chosen(options);
     local changed = false;
@@ -336,6 +355,14 @@ function statuses.DrawSettings(options, save)
         if (options.showStatuses[1]) then
             if (controls.Slider('Scale', '##name.statusSize', options.statusSize, 50, 300, '%d%%',
                     'An icon\'s height, as a percentage of the height of the names. With custom icons, each is as wide as the set\'s icons are for that height; the game\'s are square.')) then
+                changed = true;
+            end
+            if (controls.Choice('Position', '##name.statusPlace', options.statusPlace, PLACES,
+                    'Above the name, over the mastery stars where it has them, or below it, under the line a checked monster\'s details are written on while they are shown.')) then
+                changed = true;
+            end
+            if (controls.Choice('Alignment', '##name.statusAlign', options.statusAlign, ALIGNMENTS,
+                    'Which side of the name the row is level with: its left, where its icons begin, its middle, or its right.')) then
                 changed = true;
             end
             if (controls.Checkbox('Custom Icons', '##name.statusFfxivIcons', options.statusFfxivIcons,
