@@ -25,6 +25,7 @@
 -- organize.IsLinked(name) says whether a window is held against another, which decides where it is.
 local bit = require('bit');
 local imgui = require('imgui');
+local tooltip = require('winxi.tooltip');
 
 local organize = {};
 
@@ -378,7 +379,7 @@ function organize.EndFrame()
                     table.remove(links, index);
                 end
                 if imgui.IsItemHovered() then
-                    imgui.SetTooltip(('Stop holding %s against %s.'):format(LabelFor(link.child), LabelFor(link.parent)));
+                    tooltip.Show(('Stop holding %s against %s.'):format(LabelFor(link.child), LabelFor(link.parent)));
                 end
             end
             imgui.End();
@@ -397,7 +398,7 @@ function organize.Controls(framePadding)
     if active then
         imgui.Checkbox('Alignment Grid', gridOn);
         if imgui.IsItemHovered() then
-            imgui.SetTooltip('Draws a grid over the screen while organizing, with bold lines through the centre.');
+            tooltip.Show('Draws a grid over the screen while organizing, with bold lines through the centre.');
         end
         imgui.SameLine();
     end
@@ -421,7 +422,7 @@ function organize.Controls(framePadding)
     end
 
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Shows the windows filled with sample data, so they can be dragged into place and compared.\nEach is labelled.\nDrop one window onto another to link them: it snaps against the side it was dropped towards and stays there. Unlink with the button beside it.\nPress again to finish.');
+        tooltip.Show('Shows the windows filled with sample data, so they can be dragged into place and compared.\nEach is labelled.\nDrop one window onto another to link them: it snaps against the side it was dropped towards and stays there. Unlink with the button beside it.\nPress again to finish.');
     end
 end
 

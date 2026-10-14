@@ -6,7 +6,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 
 | Module | What it gives |
 |---|---|
-| `winxi.theme` | The shared theme (background, border and text colours, padding, drop shadow), saved in `config\addons\winxi\theme.lua` and kept in step across addons; or an addon's own |
+| `winxi.theme` | The shared theme (background, border, text, chosen-tab highlight and Winxi Theme tab colours, padding, drop shadow, the base font and its size, and the styles: window border art and its opacity, window background, bar texture, bar bookends, custom status icons), saved in `config\addons\winxi\theme.lua` and kept in step across addons; or an addon's own |
 | `winxi.style` | Puts the theme on imgui's style stack around a window: `PushPlain` (text and icons) or `PushFull` (controls), then `Pop` |
 | `winxi.window` | A themed window in one call: `window.Plain` / `window.Full` |
 | `winxi.shadow` | The drop shadow, drawn inside a window |
@@ -15,13 +15,18 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
 | `winxi.controller` | Working an addon's windows with a controller (XInput, or DirectInput by make): taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
-| `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`), a corner picker (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`) |
+| `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`), the Winxi Theme tab that holds it (`BeginThemeTab`), a corner picker (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`) |
 | `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
 | `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
 | `winxi.packets` | The packets addons send and read, set out once |
 | `winxi.debuffs` | Which statuses are on each enemy (or anyone) and for how long yet, worked out from what the server says took hold and wore off; durations from `winxi.debuff_durations`, made by `tools/build_debuff_durations.py` from the server's scripts |
 | `winxi.nameplates` | The names the game draws over characters' heads, from the `namehook` plugin: what each is over, where it is on screen, and showing and hiding them by category or one by one |
-| `winxi.statusicons` | A status's icon to draw: FFXIV's, from the `statusicons` folder (made by `tools/build_status_icons.py`), or the game's own where there is none. All of FFXIV's are in one picture as well, `sheet.png`, for what draws from few pictures: `Sheet()` and `SheetPlace(id)`; and the game's own, made into one at run time a few a frame: `GameSheet()` and `GameSheetPlace(id)` |
+| `winxi.fonts` | The theme's font: a `.ttf` of `C:\Windows\Fonts` (or imgui's own) and a size (or the base size), pushed around every window `winxi.window` draws. An addon drawing its own windows calls `Push()` before `Begin` and `Pop(pushed)` after `End`. A font or size an addon pushes inside its window overrides it: `imgui.PushFont(nil, size)` keeps the theme's font at the addon's size. A settings window (`kind = window.Settings`, or `Push(true)`) has the font at the base size, so the Font Size slider does not resize it |
+| `winxi.borders` | The theme's window border art, from `assets\borders`: nine-slice images drawn in place of a window's own border, on windows of the game kind. `winxi.window` draws it on its own; an addon drawing its own windows asks `Texture(style)` before `Begin`, `Push` around `Begin`, and `Draw` after its content |
+| `winxi.titles` | A window's title across its top edge, at the right, as the theme has it: Frame Titles, Title Style (Outlined Text, Break In Border, Break With Shadow, Plate), Title Color, Title Font, Title Size, Title Position X and Y, Title Shadow, Title All Caps. `winxi.window` draws it for a game window given `options.title`; an addon drawing its own windows passes `titles.Breaks(words)` to `borders.Push`, `titles.Gap(words)` to `borders.Draw`, then calls `titles.Draw(words)` |
+| `winxi.backgrounds` | The theme's window background style, on windows of the game kind: a gradient, the FFXI-inspired gradient with a fine line every other row, or a greyscale tile of `assets\backgrounds` drawn side by side at its own size, all in the background colour. `winxi.window` (through `winxi.style`, which leaves the window's own background clear under it) draws it on its own; an addon drawing its own windows asks `For(nil)` before `Begin`, pushes a clear `WindowBg` where that is not nil, and calls `Draw(chosen, color)` before its content. Tiles are made by `tools/generate_winxi_backgrounds.py` |
+| `winxi.statusicons` | A status's icon to draw: the chosen set of custom icons' (a folder of `statusicons`; `ffxiv`, made by `tools/build_status_icons.py`, to start), or the game's own where the set has none. `Sets()` lists the folders. A set is in one picture as well, for what draws from few pictures: `Sheet()` and `SheetPlace(id)`, ffxiv's `sheet.png` or, for any other set, made at run time a few a frame; and the game's own, made into one at run time a few a frame: `GameSheet()` and `GameSheetPlace(id)` |
+| `winxi.tooltip` | Tooltips in winxi's look: `Hover(text)` after a control, `Show(text)`, or `Begin()` / `End()` around anything else. Whether they show, their delay, colours, padding, text size and width are the shared theme's Tooltip values, set in winxisettings' Tooltips tab, whether or not the addon follows the shared theme |
 | `winxi.debounce` | Running a function once things have gone quiet |
 | `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
 | `winxi.shell` | Everything an addon with one main window would otherwise write for itself: settings, the settings window, the command, the window's frame |
@@ -42,8 +47,33 @@ end);
 ```
 
 Use `window.Full` for a window with tabs, tables, buttons or inputs: it also tints those from the
-border colour. Options (padding, background, alpha, shadow, growFrom) are described at the top of
-`window.lua`.
+border colour. Options (padding, background, alpha, shadow, growFrom, kind) are described at the top
+of `window.lua`.
+
+Every window is one of two kinds, given as `kind` in its options:
+
+| kind | for | border | font |
+|---|---|---|---|
+| `window.Game` (the default) | what is drawn on the screen as the game is played | the theme's Window Border art, colours, padding and shadow | the theme's Font at its Font Size |
+| `window.Settings` | settings windows, and anything else for changing how things are set | the plain border; the theme's settings window colours and padding; no shadow | the theme's Settings Font at its Settings Font Size |
+
+```lua
+window.Full('Example Settings', showConfig, flags, DrawSettings, { kind = window.Settings });
+```
+
+The theme keeps the two apart: a settings window's colours, padding, font and font size are values of
+its own (`theme.SettingsKeys`: `SettingsBackgroundColor` for `BackgroundColor`, and so on, with
+`ThemeTabColor` a settings window's alone), and `theme.For(key, settingsKind)` gives either. So what is
+chosen for the game's windows does not change the window it is chosen in. `widgets.Appearance` sets the
+game's windows, `widgets.SettingsAppearance` the settings windows; the `winxisettings` addon has both,
+a tab each. A theme saved before the two were apart gives its colours and font to both. `winxi.shell`'s settings window is one already.
+
+A settings window can always be resized, whatever flags it is given (`AlwaysAutoResize` and
+`NoResize` are taken off). It fits its content as it changes, until a grip or an edge is taken hold
+of; from then it keeps the size it is given, never bigger than the screen, with `widgets.PushControlWidth`
+controls narrowed to fit and anything still too big scrolling. A double-click on a grip or an edge
+fits it to its content again. `window.IsResized()` says, while its content is drawn, whether it has
+been resized.
 
 ## Text over bars and images
 
@@ -66,11 +96,15 @@ pixels, 1 unless given. The edge is `text.OutlineColor`.
 ```lua
 local widgets = require('winxi.widgets');
 
-if imgui.BeginTabItem('Appearance') then
+if widgets.BeginThemeTab() then
     widgets.Appearance();
-    imgui.EndTabItem();
+    widgets.EndThemeTab();
 end
 ```
+
+`BeginThemeTab` names the tab "Winxi Theme", colours it apart from the addon's own tabs in the theme's Theme Tab Color, and holds it
+against the right edge of the tab bar, so it is the last tab whatever order the tabs are begun in. Any other tab, when chosen, and the line
+imgui draws under the tab bar are in the theme's Highlight Color.
 
 A change made there shows at once in that addon, and reaches every other addon using winxi when the
 control is let go: the theme file is saved and a `winxi_theme_changed` plugin event tells the others to
@@ -325,7 +359,7 @@ local widgets = require('winxi.widgets');
 -- once a frame, before anything is drawn (cheap: nothing happens unless one of the two has changed)
 theme.Configure(settings.UseSharedTheme, settings.Theme);
 
--- in the Appearance tab
+-- in the Winxi Theme tab
 widgets.Appearance({
     onUseShared = function(useShared)       -- the "Use Shared Theme" checkbox was changed
         settings.UseSharedTheme = useShared;
@@ -345,7 +379,7 @@ has to save and load it with the rest of its settings.
 
 For an addon with one main window, `winxi.shell` does everything that is not the addon's own: the
 settings for each character, the theme, the rules for hiding, fading in and out, the window's place, a
-settings window with Settings and Appearance tabs, and the command.
+settings window with Settings and Winxi Theme tabs, and the command.
 
 ```lua
 local shell = require('winxi.shell');
@@ -366,7 +400,7 @@ end);
 ```
 
 `app.options` is the settings table; read it from `app` each time, as it is another table after a change
-of character. Optional in the spec: `drawAppearance` (more for the Appearance tab's Addon section),
+of character. Optional in the spec: `drawAppearance` (more for the Winxi Theme tab's Addon section),
 `commands` (more verbs), `onSettings` (called when the settings are loaded or swapped), `toggleSays`
 (`{ shown = '...', hidden = '...' }`, said in the chat log as the command shows or hides the window: for
 a window that is only there some of the time, where the change cannot otherwise be seen) and `import` (a
@@ -375,7 +409,25 @@ draws the controller settings an addon's Settings tab has. `inv` and `treas` are
 
 An addon with settings and no window of its own leaves `window` out of the spec: its command alone then
 opens or closes the settings, which say nothing of hiding or fading, and it calls `app:BeginFrame()`
-each frame for the settings window alone. `twister` is written this way.
+each frame for the settings window alone. `trigger` is written this way (its optional indicator uses `winxi.window` as well).
+
+## Tooltips
+
+```lua
+local tooltip = require('winxi.tooltip');
+
+imgui.Button('Go');
+tooltip.Hover('Goes.');                      -- in place of: if imgui.IsItemHovered() then imgui.SetTooltip('Goes.') end
+
+if imgui.IsItemHovered() and tooltip.Begin() then
+    imgui.Image(icon, size);                 -- anything, in a tooltip of winxi's look
+    tooltip.End();
+end
+```
+
+Words go on to another line at the Max Width. `Begin` returns false while tooltips are off or the
+mouse has not rested for the Delay yet; `End` is called only when it returned true. winxi's own
+tooltips (`winxi.widgets`, `winxi.shell`, `winxi.organize`) all go through it.
 
 ## Converting an addon: checklist
 
@@ -384,13 +436,52 @@ An addon with one main window can use `winxi.shell` (above), which does all of t
 1. Draw its windows with `winxi.window`, or `winxi.style` pushes around its own `Begin`.
 2. Add the `UseSharedTheme` flag and `Theme` table to its settings, saved and loaded with the rest.
 3. Call `theme.Configure` once a frame.
-4. Give it an Appearance tab in three sections. `widgets.Appearance`, given both functions, draws the
-   first two: **Theme** (the "Use Shared Theme" checkbox) and **Window** (colours, padding, drop
-   shadow, and Reset Appearance, which asks first when it is the shared theme being reset). The addon
-   draws the third itself, under `widgets.Header('Addon')`, for its own appearance options. Its
+4. Give it a Winxi Theme tab (`widgets.BeginThemeTab`) in five sections. `widgets.Appearance`, given
+   both functions, draws the first four: **Theme** (the "Use Shared Theme" checkbox), **Window**
+   (colours, padding, drop shadow), **Font** (the base font and size) and **Styles** (window border, frame titles, bar texture, bar bookends and their
+   style, Custom Icons), then Reset Appearance, which asks first when it is the shared theme
+   being reset. An addon that draws HP and MP bars or statuses reads the styles from `theme.Get()`:
+   `BarTexture`, `Bookends`, `BookendStyle`, `StatusIcons` (whether custom icons are drawn) and `StatusIconSet` (which set). The addon draws the last section itself, under `widgets.Header('Addon')`, for its own appearance options. Its
    settings are named with `widgets.Label` (the name on the left, then a colon, in line with winxi's)
    and its families of settings kept apart with `widgets.Gap`.
 5. Remove the addon's own colour, padding and shadow settings and the code that drew with them.
+
+## Custom icons
+
+A status's icon can be the game's own or one of a set of custom icons, chosen under **Custom Icons**
+(winxisettings' Icons tab, under HQ Icons; Styles in an addon's own Winxi Theme tab): **None** for the
+game's own, or a set. A set is a folder of `libs\winxi\statusicons` holding `<status number>.png`
+for each status it has an icon for (`1.png` for Poison, `33.png` for Haste, and so on); a status the
+set has no file for keeps the game's icon. **FFXIV**, the `ffxiv` folder, is the set winxi comes with.
+
+To add a set, make a folder beside `ffxiv` (a name with no dot in it), put the icons in it, and open
+the list again: it is found then, no reload needed. The icons are drawn whole, as wide for how tall as
+the pictures are, so square ones stay square; keep every icon in a set the same size. A folder may
+also hold a `set.lua` to give the set a name in the list, or to say that each icon takes only part of
+its picture's width, as ffxiv's do (48 by 64 in the middle of a square of 64):
+
+```lua
+return { name = 'FFXIV', left = 8 / 64, right = 56 / 64 };
+```
+
+For the name addon, which draws statuses from a single picture, a set is put on one sheet a few icons
+a frame the first time it is wanted; ffxiv's comes ready made, as `sheet.png`.
+
+## Sections collapse
+
+Every section of a menu is a `widgets.Header`, and every one can be collapsed: its title starts `[-]`
+while open and `[+]` while collapsed, and a click on the title changes which. `widgets.Header`
+returns whether it is open, and the section is drawn only then:
+
+```lua
+if widgets.Header('Window') then
+    -- the section's settings
+end
+```
+
+A header whose return is not used still shows `[-]`, but collapsing it hides nothing: always draw a
+section inside its `if`. Which sections are collapsed is kept while the addon is loaded. The titles are
+in the theme's `SettingsHeaderColor`, Sub-Category Color on winxisettings' Settings Windows tab.
 
 ## Naming options
 

@@ -2,7 +2,7 @@
 --
 -- The addon keeps what is its own (its settings, what goes in its window, what its buttons do), and
 -- the shell does the rest: loading and saving the settings for each character, the theme, the rules
--- for hiding, fading in and out, the window's place, a settings window with an Appearance tab, and
+-- for hiding, fading in and out, the window's place, a settings window with a Winxi Theme tab, and
 -- the addon's command.
 --
 --     local shell = require('winxi.shell');
@@ -12,14 +12,15 @@
 --         window      = 'winxi.example',          -- the main window's name
 --         configTitle = 'Example Settings',
 --         command     = '/example',
+--         aliases     = { '/ex' },                -- optional: other commands that do the same
 --         help        = '/example shows or hides the window; /example config opens the settings.',
 --         drawSettings   = function(options) ... end,   -- the Settings tab, above the hiding rules
---         drawAppearance = function(options) ... end,   -- optional: more for the Appearance tab's Addon section
---         hideAppearance = true,                 -- optional: omit the Appearance tab
+--         drawAppearance = function(options) ... end,   -- optional: more for the Winxi Theme tab's Addon section
+--         hideAppearance = true,                 -- optional: omit the Winxi Theme tab
 --         menuOnlyCommands = true,               -- optional: only the bare command opens the menu
 --         settingsLabel = 'Settings',             -- optional: label of the main settings tab
 --         leadingTabs = { { label = 'Names', draw = function(options) ... end } }, -- optional: tabs before the main settings tab
---         tabs        = { { label = 'More', draw = function(options) ... end } },   -- optional: tabs of the addon's own, between Settings and Appearance
+--         tabs        = { { label = 'More', draw = function(options) ... end } },   -- optional: tabs of the addon's own, between Settings and Winxi Theme
 --         commands    = { focus = function(options, args) ... end },   -- optional: more verbs
 --         onSettings  = function(options) ... end,      -- optional: the settings have been loaded, or swapped for another character's
 --         toggleSays  = { shown = '...', hidden = '...' },   -- optional: said in the chat log as the command shows or hides the window
@@ -41,7 +42,6 @@
 -- An addon with no window of its own, only settings, leaves window out: the command alone then opens
 -- or closes the settings, which have nothing in them about hiding or fading, and isVisible and pos
 -- are not looked for. It calls app:BeginFrame() each frame all the same, for the settings window.
-local bit = require('bit');
 local imgui = require('imgui');
 local settings = require('settings');
 local theme = require('winxi.theme');
@@ -51,6 +51,7 @@ local widgets = require('winxi.widgets');
 local fade = require('winxi.fade');
 local game = require('winxi.game');
 local legacy = require('winxi.legacy');
+local tips = require('winxi.tooltip');
 
 local shell = {};
 
@@ -141,7 +142,7 @@ local function DrawTabs(tabs, options)
 end
 
 -- The settings window: the addon's Settings tab with the hiding rules under it, whatever tabs the
--- addon has of its own, and an Appearance tab with winxi's Theme and Window sections and the addon's
+-- addon has of its own, and the Winxi Theme tab with winxi's Theme, Window and Styles sections and the addon's
 -- own under Addon
 local function DrawConfigContent(app)
     local options = app.options;
@@ -165,23 +166,22 @@ local function DrawConfigContent(app)
         end
         -- the addon's own tabs, each with its own column of names
         DrawTabs(spec.tabs, options);
-        if spec.hideAppearance ~= true and imgui.BeginTabItem('Appearance') then
+        if spec.hideAppearance ~= true and widgets.BeginThemeTab() then
             widgets.Appearance(app.appearanceHooks);
 
-            if spec.window ~= nil or spec.drawAppearance ~= nil then
-                widgets.Header('Addon');
-            end
-            if spec.window ~= nil then
-                widgets.Label('Fade In And Out');
-                imgui.Checkbox(app.ids.fade, options.fadeInOut);
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once.');
+            if (spec.window ~= nil or spec.drawAppearance ~= nil) and widgets.Header('Addon') then
+                if spec.window ~= nil then
+                    widgets.Label('Fade In And Out');
+                    imgui.Checkbox(app.ids.fade, options.fadeInOut);
+                    if imgui.IsItemHovered() then
+                        tips.Show('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once.');
+                    end
+                end
+                if spec.drawAppearance ~= nil then
+                    spec.drawAppearance(options);
                 end
             end
-            if spec.drawAppearance ~= nil then
-                spec.drawAppearance(options);
-            end
-            imgui.EndTabItem();
+            widgets.EndThemeTab();
         end
         imgui.EndTabBar();
     end
@@ -218,7 +218,7 @@ local function OnCommand(app, e)
     -- every command typed or sent comes by here: only this addon's is taken apart
     local command = tostring(e.command);
     local first = command:match('%S+');
-    if first == nil or first:lower() ~= spec.command then
+    if first == nil or not app.commandNames[first:lower()] then
         return;
     end
     e.blocked = true;
@@ -280,7 +280,7 @@ function shell.ControllerSettings(options, tooltip, between)
     widgets.Label('Controller Navigation', true);
     imgui.Checkbox(ids.controller, options.controller);
     if tooltip ~= nil and imgui.IsItemHovered() then
-        imgui.SetTooltip(tooltip);
+        tips.Show(tooltip);
     end
     if not options.controller[1] then
         return;
@@ -289,7 +289,7 @@ function shell.ControllerSettings(options, tooltip, between)
     widgets.Label('Controller Sounds');
     imgui.Checkbox(ids.sounds, options.controllerSounds);
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Plays a sound as the window takes the controller, the highlight moves, a menu opens, a choice is made or backed out of.\nThe sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.');
+        tips.Show('Plays a sound as the window takes the controller, the highlight moves, a menu opens, a choice is made or backed out of.\nThe sounds are the wav files in libs\\winxi\\sounds: put others of the same names there to change them.');
     end
 
     if between ~= nil then
@@ -309,7 +309,7 @@ function shell.ControllerSettings(options, tooltip, between)
         end
     end
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('XInput is an Xbox controller, or one set to behave as one. DirectInput is anything else: pick the make whose buttons match.\nOn a DirectInput controller the buttons are read by position: the bottom face button is A, the right one B.');
+        tips.Show('XInput is an Xbox controller, or one set to behave as one. DirectInput is anything else: pick the make whose buttons match.\nOn a DirectInput controller the buttons are read by position: the bottom face button is A, the right one B.');
     end
 end
 
@@ -329,10 +329,9 @@ function shell.New(spec)
         windowStyle = { alpha = 1 },
         lingering = { true }, -- stands in for the window's own switch while it fades out
         draw = nil,           -- what the main window holds this frame
-        -- the settings window keeps the default padding, whatever the theme's: the padding slider must
-        -- not squeeze the window it is in
-        configStyle = { padding = theme.Defaults.Padding },
-        configFlags = bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings),
+        -- the settings window has the theme's settings window values, apart from the game windows'
+        configStyle = { kind = window.Settings },
+        configFlags = ImGuiWindowFlags_NoSavedSettings, -- a settings window: winxi.window sizes it
         ids = {
             config = spec.configTitle or (addon.name .. ' Settings'),
             tabs = ('##%s.config'):format(addon.name),
@@ -379,6 +378,10 @@ function shell.New(spec)
 
     if spec.command ~= nil then
         spec.command = spec.command:lower();
+        app.commandNames = { [spec.command] = true };
+        for _, alias in ipairs(spec.aliases or {}) do
+            app.commandNames[alias:lower()] = true;
+        end
         ashita.events.register('command', addon.name .. '_shell_command', function(e)
             OnCommand(app, e);
         end);

@@ -1,67 +1,229 @@
 -- winxi.statusicons: a status's icon, as something imgui can draw.
 --
---   statusicons.Get(id, useOwn)   the icon's handle, and whether it is one of winxi's own
---   statusicons.Own(id)           winxi's own icon for the status, or nil where it has none
+--   statusicons.Get(id, useOwn)   the icon's handle, and whether it is one of the set's (a custom icon)
+--   statusicons.Own(id)           the chosen set's icon for the status, or nil where it has none
+--   statusicons.Has(id)           whether the chosen set has an icon for the status
+--   statusicons.Set()             the chosen set, by its folder's name
 --   statusicons.Game(id)          the game's icon for it, or nil
 --
--- winxi's own are the files of libs\winxi\statusicons, <status number>.png: FFXIV's icons, put there
--- by tools/build_status_icons.py from the table of which stands for which FFXI status. A status with
--- no file there has only the game's icon. An icon of winxi's own is 48 by 64 in the middle of a square
--- of 64, so that the card has no need to stretch it: it is drawn from OwnLeft to OwnRight of the
--- square's width, OwnAspect as wide as it is tall. The game's icons are square.
+-- Custom icons come in sets, each a folder of libs\winxi\statusicons holding <status number>.png for
+-- the statuses it has an icon for; a status it has none for keeps the game's icon. The theme's
+-- StatusIconSet says which folder is used (statusicons.Default, ffxiv, where it is not there), and its
+-- StatusIcons whether any is. statusicons.Sets() lists the folders, to choose from; anyone can add
+-- one, and it is found the next time the list is opened.
 --
--- For what can draw from only a few pictures at once, the same tool puts winxi's own in one,
--- sheet.png, each 48 by 64 in the place its number gives it:
+-- A set's icons are drawn whole, as wide for how tall as its pictures are, unless the folder has a
+-- set.lua saying otherwise:
+--     return { name = 'FFXIV', left = 8 / 64, right = 56 / 64, sheet = 'sheet.png' };
+-- name is what the set is called where it is chosen (the folder's name where none is given). left
+-- and right are how much of a picture's width the icon takes, from its left edge: ffxiv's are 48 by
+-- 64 in the middle of a square of 64. The icon is drawn from statusicons.OwnLeft to OwnRight of the
+-- picture, statusicons.OwnAspect as wide as it is tall: those change with the set, so they are read
+-- as the icon is drawn, not kept.
+--
+-- For what can draw from only a few pictures at once, a set is put in one picture, a sheet:
 --   statusicons.Sheet()           the sheet's handle, or nil while it will not load
 --   statusicons.SheetPlace(id)    where the status's icon is in it, { u0, v0, u1, v1 }, or nil where
---                                 winxi has no icon for the status
+--                                 the set has no icon for it, or it is not on the sheet yet
+-- ffxiv's sheet is made with its icons by tools/build_status_icons.py (set.lua's sheet), each 48 by 64
+-- in the place its number gives it. Any other set's is made here, from the icons, a few a frame from
+-- the first time it is asked for.
 --
--- and the game's own icons are put in one the same way, made here from the game's resources, for
+-- The game's own icons are put in one the same way, made here from the game's resources, for
 -- whoever prefers them: 32 by 32 each, 32 to a row, in the place the status's number gives it. It
 -- is made a few icons a frame, from the first time it is asked for: an icon not yet in it has no place.
 --   statusicons.GameSheet()        the sheet's handle, or nil while it cannot be made
 --   statusicons.GameSheetPlace(id) where the game's icon for the status is in it, or nil
 local ffi = require('ffi');
 local d3d = require('d3d8');
+local theme = require('winxi.theme');
 
 local statusicons = {};
 
+statusicons.Default = 'ffxiv';
+local FFXIV = { left = 8 / 64, right = 56 / 64, aspect = 48 / 64, sheet = 'sheet.png' };
 statusicons.OwnLeft, statusicons.OwnRight = 8 / 64, 56 / 64;
 statusicons.OwnAspect = 48 / 64;
 
-local folder = nil; -- where winxi's own icons are: worked out once
-local own = {};     -- status -> its handle, or false where the folder has none
+local root = nil;   -- libs\winxi\statusicons\: worked out once
+local setKey = nil; -- the set in use: the theme's StatusIconSet, as it was when last looked at
+local folder = nil; -- where its icons are
+local present = {}; -- status -> whether the set has an icon for it, looked for once
+local own = {};     -- status -> its handle, or false where the set has none
 local games = {};   -- the same, for the game's icons
 local kept = {};    -- the textures themselves, held so that they are not let go
+local ownKept = {}; -- the same, for the set's: let go when another set is chosen
+local retired, retiredAt = {}, nil; -- a set's textures no longer used: let go a while later, not while a frame may still draw them
+local RETIRE = 5;   -- seconds
 
--- sheet.png as tools/build_status_icons.py lays it out
+-- The set's sheet: a file of the tool's (SHEET, as tools/build_status_icons.py lays it out), or made
+-- here (BUILT: cells as tall as BUILT.Cell and as wide as the icons are for that)
 local SHEET = { Width = 2048, Height = 1024, Columns = 42, IconWidth = 48, IconHeight = 64, Retry = 1 };
-local sheet = nil;       -- its handle, once it has loaded
+local BUILT = { Width = 2048, Height = 1024, Cell = 48, MostWidth = 64, Last = 671, PerFrame = 32, Filter = 4 }; -- D3DX_FILTER_TRIANGLE
+local sheetFile = nil;   -- the set's sheet file, or nil to make one
+local sheet = nil;       -- its handle, once it has loaded or been begun
 local sheetTried = nil;  -- when it was last tried for
-local places = {};       -- status -> { u0, v0, u1, v1 }, or false where the folder has no icon for it
+local places = {};       -- status -> { u0, v0, u1, v1 }, or false where the set has no icon for it
+local building = nil;    -- while a sheet is being made: { surface, ids, next, width, columns }
 
-local function Folder()
-    folder = folder or ('%s\\addons\\libs\\winxi\\statusicons\\'):format(AshitaCore:GetInstallPath());
-    return folder;
+local function Root()
+    root = root or ('%s\\addons\\libs\\winxi\\statusicons\\'):format(AshitaCore:GetInstallPath());
+    return root;
 end
 
-local function Keep(pointer)
+local function Keep(pointer, list)
     local texture = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', pointer[0]));
-    kept[#kept + 1] = texture;
+    list = list or kept;
+    list[#list + 1] = texture;
     return tonumber(ffi.cast('uint32_t', texture));
 end
 
+-- A set's set.lua, or an empty table
+local function About(path)
+    local ok, about = pcall(function () return loadfile(path .. 'set.lua')(); end);
+    return ok and type(about) == 'table' and about or {};
+end
+
+-- Whether the set has an icon for a status: its file is looked for the first time it is asked
+local function Present(id)
+    local found = present[id];
+    if found == nil then
+        found = type(id) == 'number' and ashita.fs.exists(('%s%d.png'):format(folder, id)) or false;
+        present[id] = found;
+    end
+    return found;
+end
+
+-- The status number of one of a folder's icons, or nil
+local function AnyIcon(path)
+    local ok, files = pcall(ashita.fs.get_directory, path, '.*\\.png');
+    for _, file in ipairs(ok and type(files) == 'table' and files or {}) do
+        local id = tonumber(tostring(file):match('^(%d+)%.png$'));
+        if id ~= nil then
+            return id;
+        end
+    end
+    return nil;
+end
+
+-- The width and height of a picture, or nil
+local function Size(path)
+    local ok, width, height = pcall(function ()
+        local info = ffi.new('D3DXIMAGE_INFO[1]');
+        if ffi.C.D3DXGetImageInfoFromFileA(path, info) ~= ffi.C.S_OK then
+            return nil;
+        end
+        return tonumber(info[0].Width), tonumber(info[0].Height);
+    end);
+    if ok and width ~= nil and height ~= nil and width > 0 and height > 0 then
+        return width, height;
+    end
+    return nil;
+end
+
+local function StopBuilding()
+    if building ~= nil then
+        pcall(function () building.surface.lpVtbl.Release(building.surface); end);
+        building = nil;
+    end
+end
+
+-- Takes up the set the theme names: what was loaded of the last is let go (a while later)
+local function Use(wanted)
+    for _, texture in ipairs(ownKept) do
+        retired[#retired + 1] = texture;
+    end
+    retiredAt = os.clock();
+    StopBuilding();
+    ownKept, own, places, sheet, sheetTried = {}, {}, {}, nil, nil;
+
+    setKey = wanted;
+    local name = type(wanted) == 'string' and wanted ~= '' and not wanted:find('[\\/]') and wanted or statusicons.Default;
+    folder = Root() .. name .. '\\';
+    if not ashita.fs.exists(folder) then
+        folder = Root() .. statusicons.Default .. '\\';
+    end
+    present = {};
+
+    -- the set winxi comes with is known without its set.lua
+    local about = About(folder);
+    if folder == Root() .. statusicons.Default .. '\\' then
+        about.left, about.right = about.left or FFXIV.left, about.right or FFXIV.right;
+        about.sheet, about.aspect = about.sheet or FFXIV.sheet, FFXIV.aspect;
+    end
+    local left = math.max(0, math.min(1, tonumber(about.left) or 0));
+    local right = math.max(left + 0.01, math.min(1, tonumber(about.right) or 1));
+    local aspect = about.aspect;
+    if aspect == nil then
+        -- as wide for how tall as the part of its pictures the icon takes
+        local any = AnyIcon(folder);
+        local width, height = nil, nil;
+        if any ~= nil then
+            width, height = Size(('%s%d.png'):format(folder, any));
+        end
+        aspect = (right - left) * (width ~= nil and width / height or 1);
+    end
+    statusicons.OwnLeft, statusicons.OwnRight, statusicons.OwnAspect = left, right, aspect;
+    sheetFile = type(about.sheet) == 'string' and not about.sheet:find('[\\/]') and about.sheet or nil;
+end
+
+-- Whether the theme has since named another set; and what an old set left is let go once it is safe to
+local function Current()
+    local look = theme.Get();
+    local wanted = look ~= nil and look.StatusIconSet or statusicons.Default;
+    if wanted ~= setKey or folder == nil then
+        Use(wanted);
+    elseif retiredAt ~= nil and os.clock() - retiredAt >= RETIRE then
+        retired, retiredAt = {}, nil;
+    end
+end
+
+-- The sets there are to choose from, by folder, as { key, label }: looked for afresh each time
+function statusicons.Sets()
+    local sets = {};
+    local ok, entries = pcall(ashita.fs.get_directory, Root());
+    for _, entry in ipairs(ok and type(entries) == 'table' and entries or {}) do
+        entry = tostring(entry);
+        -- folders alone: a name with no extension, that is a folder
+        if not entry:find('%.%w+$') and ashita.fs.exists(Root() .. entry .. '\\') then
+            local about = About(Root() .. entry .. '\\');
+            sets[#sets + 1] = { key = entry, label = type(about.name) == 'string' and about.name or entry };
+        end
+    end
+    table.sort(sets, function (a, b)
+        if (a.key == statusicons.Default) ~= (b.key == statusicons.Default) then
+            return a.key == statusicons.Default; -- the one winxi comes with first
+        end
+        return a.label:lower() < b.label:lower();
+    end);
+    return sets;
+end
+
+-- The set in use, as the theme names it
+function statusicons.Set()
+    Current();
+    return setKey;
+end
+
+function statusicons.Has(id)
+    Current();
+    return Present(id);
+end
+
 local function LoadOwn(id)
-    local path = ('%s%d.png'):format(Folder(), id);
+    if not Present(id) then
+        return false;
+    end
+    local path = ('%s%d.png'):format(folder, id);
     local device = d3d.get_device();
-    if device == nil or not ashita.fs.exists(path) then
+    if device == nil then
         return false;
     end
     local pointer = ffi.new('IDirect3DTexture8*[1]');
     if ffi.C.D3DXCreateTextureFromFileA(device, path, pointer) ~= ffi.C.S_OK then
         return false;
     end
-    return Keep(pointer);
+    return Keep(pointer, ownKept);
 end
 
 local function LoadGame(id)
@@ -90,6 +252,7 @@ local function From(cache, load, id)
 end
 
 function statusicons.Own(id)
+    Current();
     return From(own, LoadOwn, id);
 end
 
@@ -100,18 +263,89 @@ end
 local function LoadSheet()
     local device = d3d.get_device();
     local pointer = ffi.new('IDirect3DTexture8*[1]');
-    if device ~= nil and ffi.C.D3DXCreateTextureFromFileA(device, Folder() .. 'sheet.png', pointer) == ffi.C.S_OK then
-        sheet = Keep(pointer);
+    if device ~= nil and ffi.C.D3DXCreateTextureFromFileA(device, folder .. sheetFile, pointer) == ffi.C.S_OK then
+        sheet = Keep(pointer, ownKept);
+    end
+end
+
+-- A sheet made from the set's icons: an empty picture to begin, which they are put on a few a frame
+local function StartBuilt()
+    local device = d3d.get_device();
+    if device == nil then
+        return;
+    end
+    local result, texture = device:CreateTexture(BUILT.Width, BUILT.Height, 1, 0, ffi.C.D3DFMT_A8R8G8B8, ffi.C.D3DPOOL_MANAGED);
+    if result ~= ffi.C.S_OK or texture == nil then
+        return;
+    end
+    local surface = ffi.new('IDirect3DSurface8*[1]');
+    if texture.lpVtbl.GetSurfaceLevel(texture, 0, surface) ~= ffi.C.S_OK then
+        texture:Release();
+        return;
+    end
+    local pitch = ffi.new('D3DLOCKED_RECT[1]');
+    if texture.lpVtbl.LockRect(texture, 0, pitch, nil, 0) == ffi.C.S_OK then
+        ffi.fill(pitch[0].pBits, pitch[0].Pitch * BUILT.Height);
+        texture.lpVtbl.UnlockRect(texture, 0);
+    end
+    ownKept[#ownKept + 1] = d3d.gc_safe_release(texture);
+    sheet = tonumber(ffi.cast('uint32_t', ownKept[#ownKept]));
+
+    -- every status number there is room for: those the set has no icon for are passed over
+    local ids = {};
+    for id = 0, BUILT.Last do
+        ids[#ids + 1] = id;
+    end
+    -- as wide as the icons are for the cell's height, but no wider than MostWidth
+    local width = math.max(1, math.min(BUILT.MostWidth, math.floor(BUILT.Cell * statusicons.OwnAspect + 0.5)));
+    building = { surface = surface[0], ids = ids, next = 1, width = width, columns = math.floor(BUILT.Width / width) };
+end
+
+local function FillBuilt()
+    local rect, from = ffi.new('RECT'), ffi.new('RECT');
+    local last = math.min(#building.ids, building.next + BUILT.PerFrame - 1);
+    for index = building.next, last do
+        local id = building.ids[index];
+        local path = ('%s%d.png'):format(folder, id);
+        local width, height = nil, nil;
+        if Present(id) then
+            width, height = Size(path);
+        end
+        local cell = id; -- each in the place its number gives it, as on ffxiv's sheet
+        local x, y = cell % building.columns * building.width, math.floor(cell / building.columns) * BUILT.Cell;
+        if width ~= nil and y + BUILT.Cell <= BUILT.Height then
+            rect.left, rect.top, rect.right, rect.bottom = x, y, x + building.width, y + BUILT.Cell;
+            -- only the part of the picture the icon is in
+            from.left, from.top = math.floor(width * statusicons.OwnLeft + 0.5), 0;
+            from.right, from.bottom = math.floor(width * statusicons.OwnRight + 0.5), height;
+            if ffi.C.D3DXLoadSurfaceFromFileA(building.surface, nil, rect, path, from, BUILT.Filter, 0, nil) == ffi.C.S_OK then
+                places[id] = { (x + 0.5) / BUILT.Width, (y + 0.5) / BUILT.Height,
+                    (x + building.width - 0.5) / BUILT.Width, (y + BUILT.Cell - 0.5) / BUILT.Height };
+            end
+        end
+    end
+    building.next = last + 1;
+    if building.next > #building.ids then
+        StopBuilding();
     end
 end
 
 -- A device or a file may not be ready as an addon loads: tried again, but not every frame
 function statusicons.Sheet()
+    Current();
     if sheet == nil then
         local now = os.clock();
         if sheetTried == nil or now - sheetTried >= SHEET.Retry then
             sheetTried = now;
-            pcall(LoadSheet);
+            pcall(sheetFile ~= nil and LoadSheet or StartBuilt);
+        end
+    end
+    if building ~= nil then
+        if not pcall(FillBuilt) then
+            building.next = building.next + BUILT.PerFrame; -- past what would not go on, so that the rest still can
+            if building.next > #building.ids then
+                StopBuilding();
+            end
         end
     end
     return sheet;
@@ -197,13 +431,18 @@ function statusicons.GameSheetPlace(id)
     return gamePlaces[id];
 end
 
--- A status is in the sheet if it has a file of its own: the tool makes the two together. The edges
--- are taken half a pixel in, so that nothing of the icon beside it is drawn.
+-- On a sheet of the tool's, a status is there if it has a file of its own: the tool makes the two
+-- together. The edges are taken half a pixel in, so that nothing of the icon beside it is drawn. On
+-- a sheet made here, it is there once it has been put on.
 function statusicons.SheetPlace(id)
+    Current();
+    if sheetFile == nil then
+        return places[id] or nil;
+    end
     local place = places[id];
     if place == nil then
         place = false;
-        if id >= 0 and id < SHEET.Columns * math.floor(SHEET.Height / SHEET.IconHeight) and ashita.fs.exists(('%s%d.png'):format(Folder(), id)) then
+        if id >= 0 and id < SHEET.Columns * math.floor(SHEET.Height / SHEET.IconHeight) and Present(id) then
             local x, y = id % SHEET.Columns * SHEET.IconWidth, math.floor(id / SHEET.Columns) * SHEET.IconHeight;
             place = { (x + 0.5) / SHEET.Width, (y + 0.5) / SHEET.Height,
                 (x + SHEET.IconWidth - 0.5) / SHEET.Width, (y + SHEET.IconHeight - 0.5) / SHEET.Height };
