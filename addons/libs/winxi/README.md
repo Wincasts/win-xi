@@ -21,7 +21,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.packets` | The packets addons send and read, set out once |
 | `winxi.debuffs` | Which debuffs are on each enemy and for how long yet, worked out from the spells seen to land |
 | `winxi.nameplates` | The names the game draws over characters' heads, from the `namehook` plugin: what each is over, where it is on screen, and showing and hiding them by category or one by one |
-| `winxi.statusicons` | A status's icon to draw: FFXIV's, from the `statusicons` folder (made by `tools/build_status_icons.py`), or the game's own where there is none |
+| `winxi.statusicons` | A status's icon to draw: FFXIV's, from the `statusicons` folder (made by `tools/build_status_icons.py`), or the game's own where there is none. All of FFXIV's are in one picture as well, `sheet.png`, for what draws from few pictures: `Sheet()` and `SheetPlace(id)` |
 | `winxi.debounce` | Running a function once things have gone quiet |
 | `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
 | `winxi.shell` | Everything an addon with one main window would otherwise write for itself: settings, the settings window, the command, the window's frame |
@@ -281,7 +281,12 @@ end);
 debuffs.Remaining(serverId, debuffs.Kinds.Dia);       -- seconds left, or nil when it is not on
 debuffs.Get(serverId, 'slow');                        -- { kind, name, expires, by, element }, or nil
 debuffs.Active(serverId);                             -- a list of those, the first to run out first
+debuffs.On(serverId);                                 -- kind -> entry as kept, or nil: nothing made or sorted
+debuffs.StatusIds[kind];                              -- the game's number for the status, for its icon
 ```
+
+`debuffs.On` is for an addon that asks about many enemies every frame. An entry in it may have run
+out: `os.time() < entry.expires` says whether it is still on.
 
 `name` is the spell that put it there and `by` the server id of who cast it. An enemy's server id is
 its entity's `ServerId`. An addon that parses actions itself hands the result to `debuffs.Action` in

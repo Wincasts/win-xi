@@ -31,7 +31,7 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Twister's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-Public tabs are **Nameplates → Filters → NM Tracking**. Experimental and Appearance are hidden;
+Public tabs are **Nameplates → Filters → NM Tracking → Statuses**. Experimental and Appearance are hidden;
 GDI is forced off so testers exercise the ImGui renderer.
 
 - **Nameplates:** follows `guis/name.menu`: Name Appearance, Player Icons,
@@ -213,6 +213,33 @@ python tools/build_name_placeholders.py
 
 Requires PyYAML and luajit; defaults to `references/Phoenix`. A monster that appears by some other
 means than a placeholder (timed, forced, or scripted spawns) has none listed.
+
+### Statuses over a name
+
+The **Statuses** tab puts a row of status icons above a name, for the statuses ticked there and no
+others. The icons are winxi's FFXIV-style ones (`libs\winxi\statusicons`), so `libs/winxi` has to be
+deployed with its `statusicons` folder; a status with no icon there is not listed and not drawn.
+
+| Setting | What it does |
+|---|---|
+| Show Statuses | The row of icons, for names that are shown |
+| Scale | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is three quarters as wide as it is tall, and shrinks with its name |
+| Search | Narrows the list under it by part of a status's name, or its number |
+| Chosen Only | Lists only the ticked statuses |
+| The list | Every status that has an icon, by name with its number. Hovering one shows its icon. Ticked to begin with: what ails a character, and what can be told of an enemy |
+
+A name has at most twelve icons, each status once, and the row sits above the mastery stars when a
+name has them. How much is known depends on whose name it is:
+
+| Whose | What is shown |
+|---|---|
+| Your own | Everything you are under, as the game has it |
+| The five others of your party | Everything they are under, as the game has it, while they are in your area |
+| Enemies | What was seen to land on them from a spell, each lasting its usual time: `winxi.debuffs` keeps count. Not known: what landed out of sight or before you entered the area, what came from a weapon skill or ability, and a debuff cut short by a partial resist until the server says it wore off |
+| Anyone else | Other players, the other parties of an alliance and NPCs: only what was seen cast on them the same way |
+
+The plugin draws names from eight pictures and the names' own use seven, so the icons are all drawn
+from one, `statusicons\sheet.png`, which `tools/build_status_icons.py` makes with the icons.
 
 ### Experimental mob letters
 

@@ -27,7 +27,7 @@ imgui.GetContentRegionAvail = function() error('Auto-size must not feed back int
 H.tab(1); H.command('/name'); H.frames(1)
 headers, tabs, boxes, marks = {}, {}, {}, {}
 H.frames(1); H.command('/name')
-H.print('public tabs: Nameplates, Filters and NM Tracking', table.concat(tabs, '|') == 'Nameplates|Filters|NM Tracking')
+H.print('public tabs: Nameplates, Filters, NM Tracking and Statuses', table.concat(tabs, '|') == 'Nameplates|Filters|NM Tracking|Statuses')
 H.print('mockup sections', table.concat(headers, '|') == 'Name Appearance|Player Icons|Mob Nameplates|Check')
 local equal = #boxes == 4
 for _, box in ipairs(boxes) do equal = equal and box.width == 440 end

@@ -95,7 +95,8 @@ local inventory = { GetContainerItem = function() return nil end, GetContainerCo
     GetTreasurePoolItem = function(_, i) if i < pool then return { ItemId = 100 + i, DropTime = 5, WinningLot = 0, WinningEntityName = '', Lot = lots[i] or 0 } end end }
 AshitaCore = { GetInstallPath = function() return 'C:\\ashita' end,
     GetMemoryManager = function() return { GetInventory = function() return inventory end,
-        GetPlayer = function() return { GetMainJob = function() return 18 end, GetLoginStatus = function() return loginStatus end } end,
+        GetPlayer = function() return { GetMainJob = function() return 18 end, GetLoginStatus = function() return loginStatus end,
+            GetIsZoning = function() return 0 end, GetStatusIcons = function() return {} end } end,
         GetParty = function() return { GetMemberTargetIndex = function() return 0 end, GetMemberName = function() return 'Tester' end } end } end,
     GetResourceManager = function() return { GetItemById = function(_, id) return { Id = id, Name = { 'Item ' .. id } } end } end,
     GetPointerManager = function() return { Get = function() return 0 end } end,

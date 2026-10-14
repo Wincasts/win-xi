@@ -10,7 +10,10 @@
 --     debuffs.Remaining(serverId, debuffs.Kinds.Dia)   -- seconds left of it, or nil when it is not on
 --     debuffs.Get(serverId, 'slow')                    -- { kind, name, expires, by, element }, or nil
 --     debuffs.Active(serverId)                         -- a list of those, the first to run out first
+--     debuffs.On(serverId)                             -- kind -> entry as kept, or nil: see below
 --     debuffs.Clear()                                  -- forget everything
+--
+--     debuffs.StatusIds[kind]                          -- the game's number for the status of that kind
 --
 -- name is the spell that put it there, by the server id of who cast it, element the element of a
 -- threnody. An addon that has parsed the packet already hands the result over in place of the packet:
@@ -515,6 +518,13 @@ local ActionMap = {
 
 debuffs.Kinds = StatusType;
 
+-- The game's number for the status each kind is, for its icon
+debuffs.StatusIds = {
+    sleep = 2, poison = 3, para = 4, blind = 5, silence = 6, virus = 8, curse = 9, stun = 10, bind = 11,
+    grav = 12, slow = 13, burn = 128, frost = 129, choke = 130, rasp = 131, shock = 132, drown = 133,
+    dia = 134, bio = 135, flash = 156, requiem = 192, elegy = 194, threnody = 217,
+};
+
 -- Wearing off: the effect the server names in the message, to the kind kept here
 local WearsOff = {
     [2] = 'sleep', [19] = 'sleep',
@@ -649,6 +659,12 @@ function debuffs.Active(serverId)
         return a.kind < b.kind;
     end);
     return active;
+end
+
+-- What is kept for an enemy, as it is kept: nothing is made or put in order, for whoever asks about
+-- many enemies every frame. One that has run out may still be in it: os.time() < entry.expires says.
+function debuffs.On(serverId)
+    return tracked[serverId];
 end
 
 function debuffs.Clear()
