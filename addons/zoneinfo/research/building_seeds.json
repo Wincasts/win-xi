@@ -1,0 +1,219 @@
+{"fills": {"234_m_234_00_5aa34d8c3081": [205, 250], "235_m_235_00_a8bb3ad355f9": [150, 262], "236_m_236_00_a098e657c88f": [250, 160], "237_m_237_00_c60ef77347dd": [275, 229], "231_m_231_00_baf5ca54ed7c": [411.6, 233.6], "232_m_232_00_a92c0e7abb83": [253, 189], "239_m_239_00_4cfb2e150772": [253, 190], "240_m_240_00_67ee90f15b72": [148, 220], "241_m_241_00_aafc34a488d5": [251.6, 301], "238_m_238_01_6bfbf3d1e893": [194.8, 240.2], "238_m_238_00_060f4e6914de": [194.8, 240.2], "238_m_238_02_98d8fce447ac": [235.3, 234.8], "243_m_243_00_ee2f0b374c45": [192.7, 261.5], "244_m_244_00_0b8969aab698": [251.3, 298.5], "245_m_245_00_7f38def02d48": [261, 216], "246_m_246_00_9a675ef2fc63": [246.9, 219.4], "248_m_248_00_5338d43f0020": [268, 292], "249_m_249_00_65c28535166f": [289.5, 289], "250_m_250_00_aa82ed296908": [284.7, 234.2], "256_m_256_00_215370bd1a75": [166.25, 253.5], "257_m_257_00_c06d0ed65286": [197, 236]},
+ "tolerances": {"234_m_234_00_5aa34d8c3081": 32, "248_m_248_00_5338d43f0020": 60},
+ "maps": {
+  "234_m_234_00_5aa34d8c3081": [
+   {"name": "Depot", "polygon": [[189, 221], [222, 221], [224, 232], [224, 278], [215, 287], [196, 287], [189, 278]]},
+   {"name": "South Auction House", "polygon": [[254, 229], [290, 229], [294, 246], [286, 261], [258, 261], [250, 246]]},
+   {"name": "Chocobo Stables", "polygon": [[290, 297], [298, 288], [312, 288], [322, 296], [322, 307], [290, 307]]},
+   {"name": "Bat's Lair Inn", "polygon": [[238, 162], [300, 162], [300, 176], [238, 176]]},
+   {"name": "Deegis's Armour", "polygon": [[239, 190], [262, 190], [262, 206], [239, 206]]},
+   {"name": "Boytz's Knickknacks", "polygon": [[239, 206], [262, 206], [262, 224], [239, 224]]},
+   {"name": "Alchemists' Guild", "polygon": [[348, 193], [369, 193], [369, 232], [335, 232], [335, 216], [348, 216]]}
+  ],
+  "235_m_235_00_a8bb3ad355f9": [
+   {"name": "West Auction House", "box": [134, 234, 181, 292]},
+   {"name": "Sororo - Scribe and Notary", "box": [234, 156, 268, 177]},
+   {"name": "Goldsmiths' Guild", "box": [245, 247, 281, 267]},
+   {"name": "Carmelide's Jewelry", "box": [288, 253, 322, 279]},
+   {"name": "Harmodio's Music Shop", "box": [342, 303, 379, 324]},
+   {"name": "Dragon's Claws Weaponry Store", "polygon": [[190, 312], [203, 312], [203, 326], [190, 326]]},
+   {"name": "Brunhilde the Armourer", "polygon": [[177, 326], [190, 326], [190, 340], [177, 340]]},
+   {"name": "Mjoll's General Goods", "polygon": [[163, 339], [176, 339], [176, 352], [163, 352]]}
+  ],
+  "236_m_236_00_a098e657c88f": [
+   {"name": "Air Travel Agency", "box": [190, 198, 232, 232]},
+   {"name": "Steaming Sheep Restaurant", "box": [130, 184, 166, 220]},
+   {"name": "Galvin's Travel Gear", "box": [152, 212, 178, 236]},
+   {"name": "Warehouse 1", "box": [199, 172, 215, 196]},
+   {"name": "Warehouse 2", "box": [184, 172, 199, 196]}
+  ],
+  "237_m_237_00_c60ef77347dd": [
+   {"name": "Consulate of Windurst", "box": [264, 218, 287, 241]},
+   {"name": "Consulate of Jeuno", "box": [290, 218, 313, 241]},
+   {"name": "Consulate of San d'Oria", "box": [264, 271, 287, 294]},
+   {"name": "Presidential Aide's Office", "box": [290, 271, 313, 294]},
+   {"name": "President's Office", "box": [314, 234, 358, 278]},
+   {"name": "Cannonry", "box": [355, 219, 372, 235]},
+   {"name": "Cannonry", "id": "cannonry_south", "box": [355, 277, 372, 293]},
+   {"name": "Blacksmiths' Guild", "polygon": [[161, 229], [178, 229], [178, 242], [161, 242]]},
+   {"name": "Craftsmen's Eatery", "polygon": [[231, 269], [246, 269], [246, 283], [231, 283]]},
+   {"name": "Gunpowder Room", "id": "gunpowder_room", "polygon": [[230, 224], [248, 224], [248, 246], [230, 246]]},
+   {"name": "Cermet Refinery", "id": "cermet_refinery", "polygon": [[203, 224], [222, 224], [222, 239], [203, 239]]},
+   {"name": "Cid's Lab", "id": "cid_s_lab", "polygon": [[158, 236], [196, 236], [196, 276], [158, 276]]},
+   {"name": "Darksteel Forge", "id": "darksteel_forge", "polygon": [[203, 272], [222, 272], [222, 286], [203, 286]]}
+  ],
+  "230_m_230_00_be00e3daf9c3": [
+   {"name": "Count Caffaule's Manor", "polygon": [[56, 176], [81, 176], [81, 215], [56, 215]]},
+   {"name": "Raimbroy's Grocery", "polygon": [[147, 218], [170, 218], [170, 233], [147, 233]]},
+   {"name": "Tanners' Guild", "polygon": [[124, 243], [131, 237], [151, 257], [143, 275], [131, 264]]},
+   {"name": "Taumila's Sundries", "polygon": [[167, 266], [183, 266], [183, 282], [167, 282]]},
+   {"name": "Rosel's Armour Shop", "polygon": [[334, 230], [359, 230], [359, 248], [334, 248]]},
+   {"name": "Helbort's Blades", "polygon": [[338, 217], [359, 217], [359, 228], [338, 228]]},
+   {"name": "Lion Springs Tavern", "polygon": [[348, 177], [358, 167], [369, 178], [359, 188]]},
+   {"name": "South Auction House", "polygon": [[258.6, 304.6], [322.2, 304.6], [322.2, 317], [310.7, 328.4], [263.5, 328.4], [258.6, 317]]}
+  ],
+  "231_m_231_00_baf5ca54ed7c": [
+   {"name": "Cathedral", "box": [364, 178, 438, 252]},
+   {"name": "Carpenters' Guild", "polygon": [[153.8, 79.3], [167.4, 67.6], [185, 85.2], [171.3, 96.9]]},
+   {"name": "Royal Armoury", "polygon": [[153, 125], [173, 125], [173, 144], [153, 144]]},
+   {"name": "Blacksmiths' Guild", "polygon": [[144, 167], [161.6, 167], [161.6, 188.7], [144, 188.7]]},
+   {"name": "Phoenix Perch Inn", "polygon": [[176.4, 263], [185.8, 251], [194.8, 261], [185, 274.6]]},
+   {"name": "Justi's Furniture", "polygon": [[218, 261], [230, 261], [230, 276.5], [218, 276.5]]},
+   {"name": "Consulate of Windurst", "polygon": [[243.6, 270], [265, 270], [265, 281], [243.6, 281]]},
+   {"name": "Consulate of Jeuno", "polygon": [[259.2, 311], [271, 300], [282.7, 311], [271, 322.7]]},
+   {"name": "Consulate of Bastok", "polygon": [[329.5, 311], [340.5, 300], [351, 311], [340.5, 322.7]]}
+  ],
+  "232_m_232_00_a92c0e7abb83": [
+   {"name": "Air Travel Agency", "box": [240, 178, 266, 200]},
+   {"name": "Anchor Pub", "polygon": [[213, 230], [226, 230], [226, 243], [213, 243]]},
+   {"name": "Regine's Magicmart", "polygon": [[322.4, 263], [332.7, 263], [332.7, 274], [322.4, 274]]},
+   {"name": "North Auction House", "polygon": [[240.3, 310], [295, 310], [295, 336], [240.3, 336]]},
+   {"name": "Cargo Room A", "id": "cargo_room_a", "polygon": [[268, 280], [290, 280], [290, 300], [268, 300]]},
+   {"name": "Cargo Room B", "id": "cargo_room_b", "polygon": [[250, 280], [267, 280], [267, 300], [250, 300]]}
+  ],
+  "239_m_239_00_4cfb2e150772": [
+   {"name": "House of the Hero", "box": [224, 82, 246, 113]},
+   {"name": "Yoran-Oran's Manor", "box": [156, 143, 184, 171]},
+   {"name": "Zonpa-Zippa's Manor", "box": [329, 141, 359, 170]},
+   {"name": "Shantotto's Manor", "box": [340, 219, 369, 243]},
+   {"name": "Koru-Moru's Manor", "box": [149, 208, 178, 234]},
+   {"name": "Heavens Tower", "box": [232, 167, 280, 215]},
+   {"name": "Consulate of Jeuno", "box": [349, 183, 372, 213]}
+  ],
+  "240_m_240_00_67ee90f15b72": [
+   {"name": "Consulate of Bastok", "box": [155, 158, 185, 188]},
+   {"name": "Warehouse 1", "box": [207, 157, 223, 181]},
+   {"name": "Warehouse 2", "box": [223, 157, 239, 181]},
+   {"name": "Orastery", "box": [136, 198, 165, 242]},
+   {"name": "Fishermen's Guild", "box": [98, 238, 111, 268]},
+   {"name": "Kususu's Hoodoos", "box": [242, 232, 274, 246]},
+   {"name": "Hohbiba-Mubiba's Wands of Wonder", "box": [242, 264, 274, 278]},
+   {"name": "Guruna-Maguruna Tailoring", "box": [235, 300, 266, 314]},
+   {"name": "Air Travel Agency", "box": [386, 198, 438, 246]}
+  ],
+  "241_m_241_00_aafc34a488d5": [
+   {"name": "Manustery", "polygon": [[237.6, 273], [268, 273], [268, 316], [237.6, 316]]},
+   {"name": "Consulate of San d'Oria", "box": [194, 303, 224, 332]},
+   {"name": "Chocobo Stables", "box": [355, 362, 384, 407]},
+   {"name": "Vashai's Residence", "polygon": [[346.5, 207], [355.5, 207], [355.5, 217.5], [346.5, 217.5]]},
+   {"name": "Weavers' Guild", "box": [185, 375, 206, 402]},
+   {"name": "Weavers' Guild", "id": "weavers_guild_east", "box": [216, 371, 236, 398]},
+   {"name": "Boneworkers' Guild", "box": [245, 383, 258, 413]},
+   {"name": "Nchaa's Good Goods", "box": [264, 401, 278, 431]},
+   {"name": "South Auction House", "polygon": [[304, 370], [330, 370], [330, 408], [304, 408]]}
+  ],
+  "238_m_238_01_6bfbf3d1e893": [
+   {"name": "Optistery", "polygon": [[184, 226], [229, 226], [229, 256], [184, 256]]},
+   {"name": "Aurastery", "polygon": [[337.5, 183.5], [380, 183.5], [380, 212.5], [337.5, 212.5]]},
+   {"name": "Acolyte Hostel", "polygon": [[350, 129], [380.5, 129], [380.5, 156], [350, 156]]},
+   {"name": "Ensasa's Catalyst Shop", "box": [246, 266, 266, 282]},
+   {"name": "Culinarians' Guild", "box": [149, 259, 166, 281]},
+   {"name": "Culinarians' Guild", "id": "culinarians_guild_west", "box": [134, 265, 151, 287]},
+   {"name": "Timbre Timbers Tavern", "box": [176, 297, 206, 321]},
+   {"name": "Rarab Tail Hostelry", "box": [166, 319, 195, 341]}
+  ],
+  "238_m_238_02_98d8fce447ac": [
+   {"name": "Baren-Moren - Hatter", "box": [242, 225, 260, 248]},
+   {"name": "Federal Magic Reserve", "box": [227, 223, 243, 246]},
+   {"name": "Rhinostery", "polygon": [[306.5, 243], [335.5, 243], [335.5, 288.5], [306.5, 288.5]]}
+  ],
+  "243_m_243_00_ee2f0b374c45": [
+   {"name": "Grand Duke Palace", "polygon": [[218, 136], [296, 136], [296, 232], [218, 232]]},
+   {"name": "Upper Auction House", "box": [186, 246, 199, 278]},
+   {"name": "Embassy of Windurst", "polygon": [[259.6, 277], [274.7, 277], [274.7, 289.6], [259.6, 289.6]]},
+   {"name": "Embassy of San d'Oria", "polygon": [[237.6, 298.6], [255.6, 298.6], [255.6, 309.8], [237.6, 309.8]]},
+   {"name": "Embassy of Bastok", "polygon": [[262, 298.6], [276, 298.6], [276, 309.8], [262, 309.8]]}
+  ],
+  "244_m_244_00_0b8969aab698": [
+   {"name": "M & P's Market", "box": [229, 185, 250, 207]},
+   {"name": "Chocobo Stables", "box": [246, 209, 266, 229]},
+   {"name": "Viette's Finest Weapons", "box": [236, 221, 292, 264]},
+   {"name": "Durable Shields", "box": [259, 248, 303, 286]},
+   {"name": "Infirmary Monberaux", "box": [210, 296, 238, 323]},
+   {"name": "Temple of the Goddess", "box": [235, 281, 269, 317]},
+   {"name": "Marble Bridge Eatery", "box": [180, 225, 197, 242]}
+  ],
+  "245_m_245_00_7f38def02d48": [
+   {"name": "Chamber of Commerce and Industry", "box": [247, 203, 276, 229]},
+   {"name": "Lower Auction House", "polygon": [[266, 229], [286, 229], [282, 243], [262, 243]]},
+   {"name": "Neptune's Spire Inn", "polygon": [[305.4, 207.7], [321, 207.7], [321, 220.5], [305.4, 220.5]]},
+   {"name": "Merry Minstrel Meadhouse", "polygon": [[272.8, 251.6], [282.8, 251.6], [282.8, 264.3], [272.8, 264.3]]},
+   {"name": "Othon's Garments and Waag-Deeg's Magic Shop", "polygon": [[264.3, 275.7], [280, 275.7], [280, 291.2], [264.3, 291.2]]},
+   {"name": "Gems by Kshama", "polygon": [[251.6, 295.5], [266.3, 295.5], [266.3, 314], [251.6, 314]]},
+   {"name": "Chocobo Stables", "polygon": [[210, 360], [238, 360], [238, 386], [210, 386]]}
+  ],
+  "246_m_246_00_9a675ef2fc63": [
+   {"name": "Air Travel Agency (San d'Oria)", "box": [236, 203, 262, 248]},
+   {"name": "Air Travel Agency (Kazham)", "box": [286, 203, 314, 248]},
+   {"name": "Air Travel Agency (Bastok)", "box": [236, 264, 262, 310]},
+   {"name": "Air Travel Agency (Windurst)", "box": [286, 264, 314, 310]},
+   {"name": "Chocobo Stables", "polygon": [[292, 249], [312.5, 249], [312.5, 263], [292, 263]]},
+   {"name": "Duty-Free Shop", "polygon": [[247, 253.8], [258, 253.8], [258, 263], [247, 263]]}
+  ],
+  "248_m_248_00_5338d43f0020": [
+   {"name": "Weaver's Guild Salesroom", "polygon": [[263, 274.5], [274.5, 274.5], [274.5, 302.5], [263, 302.5]]},
+   {"name": "Fishermen's Guild Salesroom", "polygon": [[239, 274.5], [250.5, 274.5], [250.5, 302.5], [239, 302.5]]},
+   {"name": "Mayor's Residence", "polygon": [[196.8, 290.4], [205.6, 283.2], [220, 300.8], [214.4, 306.4]]},
+   {"name": "Shepherd's Muster", "polygon": [[284.8, 261.6], [309.6, 261.6], [309.6, 284], [284.8, 284]]},
+   {"name": "Sea Travel Agency", "polygon": [[274.4, 310.4], [280.8, 310.4], [280.8, 316.8], [274.4, 316.8]]}
+  ],
+  "249_m_249_00_65c28535166f": [
+   {"name": "Sea Travel Agency", "box": [282, 284, 297, 295]},
+   {"name": "Warehouse", "id": "warehouse", "polygon": [[198, 282], [218, 282], [218, 302], [198, 302]]}
+  ],
+  "250_m_250_00_aa82ed296908": [
+   {"name": "Celodehki's Bed and Breakfast", "box": [273, 227, 297, 241.5]},
+   {"name": "M & P's Market", "box": [273, 241.5, 297, 256]},
+   {"name": "Posbei's Combat Gear", "box": [235, 280, 251, 305]},
+   {"name": "Ryuhkowa's Mercenary Merchandise", "box": [256, 280, 272, 305]},
+   {"name": "Wahcondalo's Residence", "box": [304, 289, 329, 306]},
+   {"name": "Mihgo's Residence", "box": [258, 332, 274, 357]},
+   {"name": "Pakhroib's Residence", "box": [278, 332, 295, 357]},
+   {"name": "Auction Huts", "polygon": [[139, 219], [162, 219], [162, 254], [139, 254]]},
+   {"name": "Air Travel Agency", "polygon": [[216, 206], [243, 206], [243, 239], [216, 239]]}
+  ],
+  "050_m_050_01_193d228a6b3c": [
+   {"name": "Walahra Temple", "polygon": [[328, 225], [347, 225], [347, 249], [328, 249]]},
+   {"name": "Chamber of Passage", "polygon": [[362, 209], [384, 209], [384, 247.5], [362, 247.5]]},
+   {"name": "Auction House", "polygon": [[158, 196.5], [175, 196.5], [175, 222], [158, 222]]},
+   {"name": "Alchemists' Guild", "polygon": [[196.5, 158], [222, 158], [222, 175], [196.5, 175]]},
+   {"name": "Shararat Teahouse", "polygon": [[325, 371], [350, 371], [350, 387], [325, 387]]}
+  ],
+  "048_m_048_00_43af87523473": [
+   {"name": "Hall of Binding", "polygon": [[365, 162], [394, 162], [394, 191], [365, 191]]}
+  ],
+  "256_m_256_00_215370bd1a75": [
+   {"name": "Pioneers' Coalition", "box": [158, 240, 176, 268]},
+   {"name": "Couriers' Coalition", "box": [208, 222, 234, 250]},
+   {"name": "Inventors' Coalition", "box": [298, 302, 328, 330]},
+   {"name": "Mummers' Coalition", "box": [202, 322, 230, 347]},
+   {"name": "Western Auction House", "box": [161, 302, 191, 332]}
+  ],
+  "257_m_257_00_c06d0ed65286": [
+   {"name": "Peacekeepers' Coalition", "box": [183, 224, 212, 246]},
+   {"name": "Scouts' Coalition", "box": [183, 279, 212, 301]},
+   {"name": "Celennia Memorial Library", "box": [178, 306, 212, 342]},
+   {"name": "Eastern Auction House", "box": [226, 341, 243, 376]}
+  ],
+  "233_m_233_00_f5fafce83bf2": [
+   {"name": "Central Garden", "id": "central_garden", "polygon": [[232, 236], [254, 236], [254, 256], [232, 256]]},
+   {"name": "Audience Chamber", "id": "audience_chamber", "polygon": [[262, 230], [281, 230], [281, 258], [262, 258]]},
+   {"name": "Great Hall", "id": "great_hall", "polygon": [[262, 260], [281, 260], [281, 300], [262, 300]]},
+   {"name": "Royal Knights' Quarters", "id": "royal_knights_quarters", "polygon": [[238, 282], [262, 282], [262, 301], [238, 301]]},
+   {"name": "Temple Knights' Quarters", "id": "temple_knights_quarters", "polygon": [[281, 282], [307, 282], [307, 301], [281, 301]]},
+   {"name": "Prince Royal Trion I D'Oraguille's Room", "id": "prince_royal_trion_i_d_oraguille_s_room", "polygon": [[234, 213], [251, 213], [251, 232], [234, 232]]},
+   {"name": "Prince Regent Pieuje I D'Oraguille's Room", "id": "prince_regent_pieuje_i_d_oraguille_s_room", "polygon": [[232, 262], [250, 262], [250, 280], [232, 280]]}
+  ],
+  "252_m_252_00_18eb1dd74c3b": [
+   {"name": "Vault", "id": "vault", "polygon": [[200, 172], [238, 172], [238, 218], [200, 218]]},
+   {"name": "Buccaneer's Quarters", "id": "buccaneer_s_quarters", "polygon": [[301, 236], [315, 236], [315, 254], [301, 254]]},
+   {"name": "Captain's Chamber", "id": "captain_s_chamber", "polygon": [[353, 258], [374, 258], [374, 272], [353, 272]]}
+  ],
+  "050_m_050_00_0e5d018d9155": [
+   {"name": "Walahra Temple", "polygon": [[328, 225], [347, 225], [347, 249], [328, 249]]},
+   {"name": "Chamber of Passage", "polygon": [[362, 209], [384, 209], [384, 247.5], [362, 247.5]]},
+   {"name": "Auction House", "polygon": [[158, 196.5], [175, 196.5], [175, 222], [158, 222]]},
+   {"name": "Alchemists' Guild", "polygon": [[196.5, 158], [222, 158], [222, 175], [196.5, 175]]},
+   {"name": "Shararat Teahouse", "polygon": [[325, 371], [350, 371], [350, 387], [325, 387]]}
+  ]
+ }}

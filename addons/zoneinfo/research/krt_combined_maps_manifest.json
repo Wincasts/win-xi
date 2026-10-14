@@ -1,0 +1,38 @@
+{
+  "zone_id": 190,
+  "scanned": 583,
+  "maps": [
+    {
+      "dat": "ROM/18/11.DAT",
+      "texture": "m_190_01",
+      "sha256": "c47ebc23aacc7f11017390f96cd71d6e35c1de68136529e866d8c8fcc83b963a",
+      "image": "ROM_18_11.png",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "dat": "ROM/18/12.DAT",
+      "texture": "m_190_02",
+      "sha256": "152254b065460d5987d46bf7ae74b37d1ff8f60bf390be4bc756b364de40f6b6",
+      "image": "ROM_18_12.png",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "dat": "ROM/18/13.DAT",
+      "texture": "m_190_01",
+      "sha256": "c47ebc23aacc7f11017390f96cd71d6e35c1de68136529e866d8c8fcc83b963a",
+      "image": "ROM_18_13.png",
+      "width": 2048,
+      "height": 2048
+    },
+    {
+      "dat": "ROM/18/8.DAT",
+      "texture": "m_190_14",
+      "sha256": "c6d867c8ae3c4ff2541642025e65a2e285d13b7af800a1a5885e3e10afbd89d3",
+      "image": "ROM_18_8.png",
+      "width": 2048,
+      "height": 2048
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+# Local player-authored boundaries; share deliberately rather than committing by accident.
+data/boundary_overrides.txt
+data/boundary_overrides.txt.tmp
+data/boundary_overrides.txt.bak
+# Native experimental renderer checkpoints.
+gdi-diagnostic.txt
