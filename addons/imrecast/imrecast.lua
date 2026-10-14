@@ -243,8 +243,8 @@ local AppearanceHooks = {
 
 -- The appearance window keeps the default padding, whatever the theme's: the padding slider must not
 -- squeeze the window it is in
-local ConfigStyle = { padding = Theme.Defaults.Padding }
-local ConfigFlags = bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings)
+local ConfigStyle = { padding = Theme.Defaults.Padding, kind = Window.Settings }
+local ConfigFlags = ImGuiWindowFlags_NoSavedSettings -- a settings window: winxi.window sizes it
 
 -- winxi's Theme and Window sections. This addon has no appearance settings of its own to follow them.
 local function DrawConfigContent()
