@@ -21,6 +21,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.packets` | The packets addons send and read, set out once |
 | `winxi.debuffs` | Which debuffs are on each enemy and for how long yet, worked out from the spells seen to land |
 | `winxi.nameplates` | The names the game draws over characters' heads, from the `namehook` plugin: what each is over, where it is on screen, and showing and hiding them by category or one by one |
+| `winxi.statusicons` | A status's icon to draw: FFXIV's, from the `statusicons` folder (made by `tools/build_status_icons.py`), or the game's own where there is none |
 | `winxi.debounce` | Running a function once things have gone quiet |
 | `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
 | `winxi.shell` | Everything an addon with one main window would otherwise write for itself: settings, the settings window, the command, the window's frame |
