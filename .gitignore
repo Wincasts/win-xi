@@ -10,3 +10,11 @@ __pycache__/
 
 # The Ashita plugin SDK and the Microsoft C runtime and Windows SDK that plugins/*/build.sh build against
 /.toolchain/
+
+# Plugin build output, and the release zips tools/ makes from it
+/plugins/*/build/
+/plugins/exclude/*/build/
+/dist/
+
+# In-game screenshots taken while working, which can show character names
+/screenshots/
