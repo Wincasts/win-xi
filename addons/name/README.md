@@ -224,6 +224,7 @@ deployed with its `statusicons` folder; a status with no icon there is not liste
 |---|---|
 | Show Statuses | The row of icons, for names that are shown |
 | Scale | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is three quarters as wide as it is tall, and shrinks with its name |
+| Preview | Puts the first four ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: off again when the addon is loaded |
 | Search | Narrows the list under it by part of a status's name, or its number |
 | Chosen Only | Lists only the ticked statuses |
 | The list | Every status that has an icon, by name with its number. Hovering one shows its icon. Ticked to begin with: what ails a character, and what can be told of an enemy |

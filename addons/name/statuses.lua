@@ -37,6 +37,11 @@ local SLOTS        = 32;   -- statuses the game keeps for each
 local MEMBER_SIZE  = 0x30; -- one member of the party's statuses, as the game keeps them
 local LAST_STATUS  = 671;  -- the highest number the sheet has a place for
 local LIST_ROWS    = 14;   -- rows of the settings' list to be seen at once
+local PREVIEW_MOST = 4;    -- icons over each name while previewing
+
+-- Preview: every shown name has a few of the chosen statuses over it, whatever it is under, to see
+-- how the row looks. Not kept: it is off again when the addon is loaded.
+local preview = T{ false };
 
 -- What can be set. The statuses to show are kept as a list of their numbers: to begin with, what
 -- ails a character and what winxi.debuffs can tell of an enemy.
@@ -154,6 +159,7 @@ local function ReadParty()
 end
 
 local sheet = 0;      -- the sheet's address this frame, or 0
+local shownWith = nil; -- the settings of this frame
 local size = 1.25;    -- an icon's height, as a part of the name's
 local SELF = nameplates.Category.Self;
 
@@ -170,6 +176,7 @@ function statuses.Begin(options)
         return false;
     end
     size = math.max(50, math.min(300, options.statusSize[1])) / 100;
+    shownWith = options;
     ReadOwn(AshitaCore:GetMemoryManager());
     ReadParty();
     return true;
@@ -223,8 +230,23 @@ local function TakeTracked(serverId)
     end
 end
 
-local function Gather(name)
+-- The first few chosen statuses, for a preview, the same few over every name
+local function TakePreview(options)
+    local list = options.statusList;
+    for index = 1, #list do
+        if (rowCount >= PREVIEW_MOST) then
+            return;
+        end
+        Take(list[index]);
+    end
+end
+
+local function Gather(name, options)
     rowCount, mark = 0, mark + 1;
+    if (preview[1]) then
+        TakePreview(options);
+        return;
+    end
     if (name.Category == SELF) then
         TakeAll(own);
         return;
@@ -243,7 +265,7 @@ function statuses.Write(name, above, height, scale)
     if (sheet == 0) then
         return;
     end
-    Gather(name);
+    Gather(name, shownWith);
     if (rowCount == 0) then
         return;
     end
@@ -306,6 +328,8 @@ function statuses.DrawSettings(options, save)
                 'An icon\'s height, as a percentage of the height of the names. The icons are three quarters as wide as they are tall.')) then
             changed = true;
         end
+        controls.Checkbox('Preview', '##name.statusPreview', preview,
+            'Puts the first few ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: it is off again when the addon is loaded.');
     end
     controls.EndSection();
 
