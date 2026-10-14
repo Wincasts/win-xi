@@ -5,8 +5,7 @@ addon.desc    = 'The statuses you are under, with FFXIV\'s icons and the time ea
 addon.link    = 'https://github.com/Wincasts/ffxi-addons';
 
 -- The player's own statuses in a window, in place of the game's row of icons: each with an icon
--- from the icons folder (FFXIV's, by tools/build_status_icons.py) or the game's own where the folder
--- has none, and the time it has left under it. After the statustimers addon (heals), which showed
+-- of winxi's (FFXIV's: see winxi.statusicons) or the game's own where winxi has none, and the time it has left under it. After the statustimers addon (heals), which showed
 -- how the times are read and how the game's own icons are switched off.
 --
 --   /buffs           shows or hides the window (it only appears while there is a status to show)
@@ -18,7 +17,7 @@ local widgets = require('winxi.widgets');
 local shell = require('winxi.shell');
 local theme = require('winxi.theme');
 local text = require('winxi.text');
-local icons = require('icons');
+local icons = require('winxi.statusicons');
 local native = require('native');
 local statuses = require('statuses');
 
@@ -34,7 +33,7 @@ local defaults = T{
     iconSize = T{ 40 },       -- an icon's height
     perRow = T{ 16 },         -- how many icons before a new row
     showTimers = T{ true },
-    ffxivIcons = T{ true },   -- the icons folder's, where it has one
+    ffxivIcons = T{ true },   -- winxi's icons, where it has one
     hideGameIcons = T{ true },
 };
 
@@ -170,7 +169,7 @@ local function DrawSettings(options)
     widgets.Label('FFXIV Icons');
     imgui.Checkbox('##buffs.ffxivIcons', options.ffxivIcons);
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Uses the icons in the addon\'s icons folder, which are FFXIV\'s, for every status that has one there.\nOff, every status has the game\'s own icon.');
+        imgui.SetTooltip('Uses FFXIV\'s icons (the files of libs\\winxi\\statusicons) for every status that has one there.\nOff, every status has the game\'s own icon.');
     end
     widgets.Label('Icon Size');
     widgets.PushControlWidth();

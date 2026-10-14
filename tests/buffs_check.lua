@@ -29,9 +29,10 @@ H.play(true); H.frames(3)
 H.print('window begun', (H.calls.Begin or 0) > 0, '| an item for each status a frame', H.calls.Dummy % 3 == 0, '| on a row', (H.calls.SameLine or 0) > 0)
 H.print('no device: no icon drawn', (H.calls['draw.AddImage'] or 0) == 0)
 
--- the icons folder has what the build tool made
-local icons = require('icons')
-H.print('an icon made for Haste', ashita.fs.exists(addon.path .. 'icons\\33.png'), '| none for KO', not ashita.fs.exists(addon.path .. 'icons\\0.png'))
+-- winxi's folder has what the build tool made
+local icons = require('winxi.statusicons')
+local function made(id) local f = io.open('addons/libs/winxi/statusicons/' .. id .. '.png', 'rb') if f then f:close() end return f ~= nil end
+H.print('an icon made for Haste', made(33), '| none for KO', not made(0))
 H.print('icon shape', icons.OwnAspect, icons.OwnLeft, icons.OwnRight)
 
 -- a right click on each status: only the one that can be removed is

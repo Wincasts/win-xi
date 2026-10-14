@@ -15,7 +15,7 @@ not.
 
 ## Settings
 
-- **FFXIV Icons**: the icons of the `icons` folder, for every status that has one there. Off, every
+- **FFXIV Icons**: winxi's status icons, which are FFXIV's, for every status that has one. Off, every
   status has the game's own icon.
 - **Icon Size**: an icon's height in pixels. The icons are 64 tall as made, so 64 and 32 are sharpest.
 - **Icons Per Row**: how many before a new row starts.
@@ -25,7 +25,8 @@ not.
 
 ## The icons
 
-`icons/<status number>.png` is the icon for an FFXI status: FFXIV's, 48 by 64 in the middle of a square
+The icons are winxi's, shared with xiframes: `libs/winxi/statusicons/<status number>.png` is the icon
+for an FFXI status: FFXIV's, 48 by 64 in the middle of a square
 of 64. A status with no file there has the game's own icon. Any 64 by 64 PNG of that shape can be put
 in its place.
 
