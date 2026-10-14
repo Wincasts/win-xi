@@ -218,12 +218,14 @@ means than a placeholder (timed, forced, or scripted spawns) has none listed.
 
 The **Statuses** tab puts a row of status icons above a name, for the statuses ticked there and no
 others. The icons are winxi's FFXIV-style ones (`libs\winxi\statusicons`), so `libs/winxi` has to be
-deployed with its `statusicons` folder; a status with no icon there is not listed and not drawn.
+deployed with its `statusicons` folder; a status with no icon there is not listed and not drawn. FFXIV
+Status Icons off draws the game's own instead.
 
 | Setting | What it does |
 |---|---|
 | Show Statuses | The row of icons, for names that are shown |
 | Scale | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is three quarters as wide as it is tall, and shrinks with its name |
+| FFXIV Status Icons | On by default: winxi's FFXIV-style icons. Off, the game's own square icons, which every status has, so the list has more statuses in it. The game's are put together into one sheet a few a frame the first time they are wanted |
 | Preview | Puts the first four ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: off again when the addon is loaded |
 | Search | Narrows the list under it by part of a status's name, or its number |
 | Chosen Only | Lists only the ticked statuses |

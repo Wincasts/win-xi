@@ -14,8 +14,9 @@
 -- took hold on them, by spell, ability, weapon skill, monster's move or additional effect, for as long
 -- as the server's scripts say it usually lasts, or until the server says it wore off.
 --
--- The icons are winxi's own (winxi.statusicons), all from the one sheet: the plugin draws from eight
--- pictures and no more, and the others are taken. A status winxi has no icon for is not drawn.
+-- The icons are winxi's own (winxi.statusicons), or the game's for whoever prefers them, all from the
+-- one sheet: the plugin draws from eight pictures and no more, and the others are taken. A status
+-- with no icon of the kind chosen is not drawn.
 local bit         = require('bit');
 local imgui       = require('imgui');
 local widgets     = require('winxi.widgets');
@@ -48,6 +49,7 @@ local preview = T{ false };
 local settings = {
     showStatuses = function () return T{ true }; end,
     statusSize   = function () return T{ 125 }; end, -- an icon's height, as a percentage of the height of the names
+    statusFfxivIcons = function () return T{ true }; end, -- FFXIV's icons, winxi's own; off, the game's
     statusList   = function ()
         return T{ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 128, 129, 130, 131, 132, 133, 134, 135, 156, 192, 194, 217 };
     end,
@@ -159,6 +161,8 @@ local function ReadParty()
 end
 
 local sheet = 0;      -- the sheet's address this frame, or 0
+local placeOf = statusicons.SheetPlace; -- where a status's icon is in it
+local aspect = statusicons.OwnAspect;   -- how wide an icon is, for how tall
 local shownWith = nil; -- the settings of this frame
 local size = 1.25;    -- an icon's height, as a part of the name's
 local SELF = nameplates.Category.Self;
@@ -170,7 +174,11 @@ function statuses.Begin(options)
         nameplates.SetTexture(statuses.Slot, 0);
         return false;
     end
-    sheet = statusicons.Sheet() or 0;
+    if (options.statusFfxivIcons == nil or options.statusFfxivIcons[1]) then
+        sheet, placeOf, aspect = statusicons.Sheet() or 0, statusicons.SheetPlace, statusicons.OwnAspect;
+    else
+        sheet, placeOf, aspect = statusicons.GameSheet() or 0, statusicons.GameSheetPlace, 1;
+    end
     nameplates.SetTexture(statuses.Slot, sheet);
     if (sheet == 0) then
         return false;
@@ -188,7 +196,7 @@ local taken, mark = {}, 0;
 
 local function Take(id)
     if (chosen[id] and taken[id] ~= mark and rowCount < MOST) then
-        local place = statusicons.SheetPlace(id);
+        local place = placeOf(id);
         if (place ~= nil) then
             taken[id] = mark;
             rowCount = rowCount + 1;
@@ -270,7 +278,7 @@ function statuses.Write(name, above, height, scale)
     end
 
     local tall = math.max(1, math.floor(height * size + 0.5));
-    local wide = math.max(1, math.floor(tall * statusicons.OwnAspect + 0.5));
+    local wide = math.max(1, math.floor(tall * aspect + 0.5));
     local gap = math.floor(GAP * scale + 0.5);
     local left = math.floor(-(rowCount * wide + (rowCount - 1) * gap) * 0.5);
     local foot = above - math.floor(RISE * scale + 0.5);
@@ -284,20 +292,22 @@ end
 
 -- The settings' list: every status winxi has an icon for, by name
 local known = nil;
+local knownOwn = nil; -- whether it is of the statuses winxi has icons for, or of all the game names
 local search = T{ '' };
 local chosenOnly = T{ false };
 local tick = { false };
 local listSize = { 0, 0 };
 local previewSize, previewA, previewB = { 36, 48 }, { statusicons.OwnLeft, 0 }, { statusicons.OwnRight, 1 };
+local gameSize, gameA, gameB = { 48, 48 }, { 0, 0 }, { 1, 1 };
 
-local function Known()
-    if (known ~= nil) then
+local function Known(useOwn)
+    if (known ~= nil and knownOwn == useOwn) then
         return known;
     end
-    known = {};
+    known, knownOwn = {}, useOwn;
     local resources = AshitaCore:GetResourceManager();
     for id = 1, LAST_STATUS do
-        local name = statusicons.SheetPlace(id) ~= nil and resources:GetString('buffs.names', id) or nil;
+        local name = (not useOwn or statusicons.SheetPlace(id) ~= nil) and resources:GetString('buffs.names', id) or nil;
         if (type(name) == 'string' and name ~= '') then
             name = name:sub(1, 1):upper() .. name:sub(2);
             known[#known + 1] = { id = id, lower = name:lower(), label = ('%s (%d)##name.status.%d'):format(name, id, id) };
@@ -316,7 +326,7 @@ function statuses.DrawSettings(options, save)
     Chosen(options);
     local changed = false;
 
-    controls.BeginLayout('statuses', 360, 'Show Statuses');
+    controls.BeginLayout('statuses', 360, 'FFXIV Status Icons');
     controls.Section('Status Icons', '##name.statusOptions', true);
     if (controls.Checkbox('Show Statuses', '##name.showStatuses', options.showStatuses,
             'A row of icons above a name, for the statuses ticked below.\nYour own and your party\'s are as the game has them. Anyone else\'s are worked out from what the server is seen to say took hold on them, by spell, ability, weapon skill, monster\'s move or additional effect, each lasting its usual time unless the server says it wore off. One that landed out of sight, or before you entered the area, is not known.')) then
@@ -325,6 +335,10 @@ function statuses.DrawSettings(options, save)
     if (options.showStatuses[1]) then
         if (controls.Slider('Scale', '##name.statusSize', options.statusSize, 50, 300, '%d%%',
                 'An icon\'s height, as a percentage of the height of the names. The icons are three quarters as wide as they are tall.')) then
+            changed = true;
+        end
+        if (controls.Checkbox('FFXIV Status Icons', '##name.statusFfxivIcons', options.statusFfxivIcons,
+                'FFXIV-style icons (the files of libs\\winxi\\statusicons). Off, the game\'s own square icons, which every status has, so the list below has more statuses in it. The game\'s are put together a few a frame the first time they are wanted.')) then
             changed = true;
         end
         controls.Checkbox('Preview', '##name.statusPreview', preview,
@@ -336,13 +350,14 @@ function statuses.DrawSettings(options, save)
     widgets.Label('Search');
     controls.Width();
     imgui.InputText('##name.statusSearch', search, 64);
-    controls.Mark('Part of a status\'s name, or its number. Only a ticked status is drawn over a name; a status with no FFXIV icon is not listed.');
+    controls.Mark('Part of a status\'s name, or its number. Only a ticked status is drawn over a name. With FFXIV Status Icons on, a status with no FFXIV icon is not listed.');
     controls.Checkbox('Chosen Only', '##name.statusChosenOnly', chosenOnly, 'Lists only the statuses that are ticked.');
 
     local wanted = search[1]:lower();
     listSize[2] = imgui.GetFrameHeightWithSpacing() * LIST_ROWS;
     imgui.BeginChild('##name.statusList', listSize, ImGuiChildFlags_Borders or 1);
-    for _, status in ipairs(Known()) do
+    local useOwn = options.statusFfxivIcons[1];
+    for _, status in ipairs(Known(useOwn)) do
         local on = chosen[status.id] == true;
         if ((on or not chosenOnly[1]) and (wanted == '' or status.lower:find(wanted, 1, true) ~= nil or tostring(status.id) == wanted)) then
             tick[1] = on;
@@ -351,10 +366,14 @@ function statuses.DrawSettings(options, save)
                 changed = true;
             end
             if (imgui.IsItemHovered()) then
-                local icon = statusicons.Own(status.id);
+                local icon, own = statusicons.Get(status.id, useOwn);
                 if (icon ~= nil) then
                     imgui.BeginTooltip();
-                    imgui.Image(icon, previewSize, previewA, previewB);
+                    if (own) then
+                        imgui.Image(icon, previewSize, previewA, previewB);
+                    else
+                        imgui.Image(icon, gameSize, gameA, gameB);
+                    end
                     imgui.EndTooltip();
                 end
             end
