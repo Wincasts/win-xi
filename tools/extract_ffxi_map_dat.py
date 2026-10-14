@@ -3,7 +3,8 @@ import os, struct, sys
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = Path('/home/jbutt/Games/PhoenixXI/SquareEnix/FINAL FANTASY XI')
+# The game's own folder, the one holding FTABLE.DAT and the ROM folders; FFXI_DIR to read another
+ROOT = Path(os.environ.get('FFXI_DIR') or Path.home() / 'Games/PhoenixXI/SquareEnix/FINAL FANTASY XI')
 IMAGE_AT = 0x41
 
 def load_tables(root=ROOT):
