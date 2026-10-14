@@ -16,12 +16,15 @@ references folder is there to pick from) and run this again.
 Each icon, 48 by 64 with its own transparency, is put in the middle of a square of 64
 (a size a graphics card takes without stretching it) and written to
 addons/buffs/icons/<ffxi_id>.png, and the numbers found for names are written back to
-the csv. --sheet <file> also draws every status beside its icon, to look the choices over.
+the csv. --sheet <file> also draws every status beside its icon, to look the choices over,
+and --page writes mapping.html beside the FFXIV icons: each status's FFXI icon (XivParty's
+copy, where the references have it), the FFXIV icon given it and the status that is from.
 
 Requires Pillow.
 """
 import argparse
 import csv
+import html
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -69,12 +72,38 @@ def draw_sheet(rows, source, path):
     sheet.save(path)
 
 
+PAGE = '''<!doctype html><meta charset="utf-8"><title>FFXI to FFXIV status icons</title>
+<style>body{background:#1b1d22;color:#ddd;font:13px sans-serif;margin:16px}
+input{background:#2a2d34;color:#eee;border:1px solid #444;padding:6px;font-size:14px}
+#g{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:6px;margin-top:12px}
+.c{background:#262930;padding:6px 8px;border-radius:4px;display:flex;align-items:center;gap:8px}
+.o{width:32px;height:32px;flex:none}.n{height:64px;flex:none}.a{color:#777}.none{color:#888;width:48px;text-align:center}small{color:#999}</style>
+<input id="q" placeholder="Filter by FFXI or FFXIV name, or status id" size="44" autofocus> <span id="t"></span>
+<div id="g">%s</div>
+<script>const q=document.getElementById('q'),c=[...document.querySelectorAll('.c')],t=document.getElementById('t');
+function f(){const s=q.value.toLowerCase();let n=0;for(const e of c){const m=e.dataset.s.includes(s);e.style.display=m?'':'none';n+=m}t.textContent=n+' statuses'}q.oninput=f;f()</script>'''
+
+
+def write_page(rows, source):
+    cards = []
+    for row in rows:
+        ffxi_id, name, taken = row['ffxi_id'], row['ffxi_name'], row['ffxiv_name']
+        old = source.parent / 'XivParty/assets/buffIcons' / f'{ffxi_id}.png'
+        old = f'<img class="o" src="../XivParty/assets/buffIcons/{ffxi_id}.png">' if old.exists() else '<span class="o"></span>'
+        new = f'<img class="n" src="icons/{int(row["ffxiv_icon"]):06d}.png">' if row['ffxiv_icon'] else '<span class="none">game icon</span>'
+        search = html.escape(f'{ffxi_id} {name} {taken}'.lower())
+        cards.append(f'<div class="c" data-s="{search}">{old}<span class="a">&rarr;</span>{new}'
+                     f'<div><b>{ffxi_id} {html.escape(name)}</b><br><small>{html.escape(taken) or "&mdash;"}</small></div></div>')
+    (source / 'mapping.html').write_text(PAGE % '\n'.join(cards))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--map', type=Path, default=ROOT / 'tools/status_icons.csv')
     parser.add_argument('--source', type=Path, default=ROOT / 'references/ffxiv-status-icons')
     parser.add_argument('--out', type=Path, default=ROOT / 'addons/buffs/icons')
     parser.add_argument('--sheet', type=Path)
+    parser.add_argument('--page', action='store_true')
     args = parser.parse_args()
 
     names = load_names(args.source)
@@ -115,6 +144,8 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
 
+    if args.page:
+        write_page(rows, args.source)
     if args.sheet:
         draw_sheet(made, args.source, args.sheet)
     print(f'{len(made)} of {len(rows)} statuses given an icon, in {args.out}')
