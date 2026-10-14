@@ -336,65 +336,70 @@ local warning = { 1.0, 0.6, 0.4, 1.0 };
 -- Native GDI testing is deliberately separate from the regular name controls.
 function custom.DrawExperimental(options, save)
     imgui.TextColored(widgets.ExperimentalColor, '[Experimental]');
-    widgets.Header('GDI Fonts');
-    imgui.TextColored(warning, 'Known native crashes. Use at your own risk.');
-    controls.Mark('Some installed font families crash the native renderer. Lua fallback cannot catch an access violation. GDI starts disabled on every addon load or character settings reload. /name gdi off restores the original ImGui backend.');
+    if (widgets.Header('GDI Fonts')) then
+        imgui.TextColored(warning, 'Known native crashes. Use at your own risk.');
+        controls.Mark('Some installed font families crash the native renderer. Lua fallback cannot catch an access violation. GDI starts disabled on every addon load or character settings reload. /name gdi off restores the original ImGui backend.');
 
-    if (controls.Checkbox('Enabled', '##name.gdiFonts', options.gdiFonts,
-            'Uses a cached GDI glyph atlas; namehook still draws names in the world. Off restores ImGui. Always starts off on addon load for crash recovery.') and save ~= nil) then save(); end
+        if (controls.Checkbox('Enabled', '##name.gdiFonts', options.gdiFonts,
+                'Uses a cached GDI glyph atlas; namehook still draws names in the world. Off restores ImGui. Always starts off on addon load for crash recovery.') and save ~= nil) then save(); end
 
-    -- Select a family while the backend is off, without invoking rasterization.
-    widgets.Label('Font Family');
-    controls.Width();
-    if (imgui.BeginCombo('##name.gdiFamily', options.gdiFamily[1])) then
-        local families, problem = require('gdi_families').List();
-        for _, family in ipairs(families) do
-            if (imgui.Selectable(family, options.gdiFamily[1] == family) and options.gdiFamily[1] ~= family) then
-                options.gdiFamily[1] = family;
-                if (save ~= nil) then save(); end
+        -- Select a family while the backend is off, without invoking rasterization.
+        widgets.Label('Font Family');
+        controls.Width();
+        if (imgui.BeginCombo('##name.gdiFamily', options.gdiFamily[1])) then
+            local families, problem = require('gdi_families').List();
+            for _, family in ipairs(families) do
+                if (imgui.Selectable(family, options.gdiFamily[1] == family) and options.gdiFamily[1] ~= family) then
+                    options.gdiFamily[1] = family;
+                    if (save ~= nil) then save(); end
+                end
             end
+            if (problem ~= nil) then
+                imgui.TextColored(warning, 'Could not enumerate installed fonts; keeping the current family.');
+            end
+            imgui.EndCombo();
         end
-        if (problem ~= nil) then
-            imgui.TextColored(warning, 'Could not enumerate installed fonts; keeping the current family.');
-        end
-        imgui.EndCombo();
+        controls.Mark('Installed Windows font families. Being installed does not guarantee compatibility with the experimental renderer. Choose a family while disabled to avoid rasterizing it. Changing the family while GDI is enabled rebuilds the atlas and may pause or crash.');
     end
-    controls.Mark('Installed Windows font families. Being installed does not guarantee compatibility with the experimental renderer. Choose a family while disabled to avoid rasterizing it. Changing the family while GDI is enabled rebuilds the atlas and may pause or crash.');
 
-    widgets.Header('Recovery');
-    imgui.TextDisabled('Starts disabled on every addon load.');
-    imgui.Text('/name gdi off restores ImGui fonts.');
+    if (widgets.Header('Recovery')) then
+        imgui.TextDisabled('Starts disabled on every addon load.');
+        imgui.Text('/name gdi off restores ImGui fonts.');
+    end
 end
 
 -- The notorious monster being hunted: a tab of its own
 function custom.DrawTracking(options, save)
+    imgui.TextWrapped('Disclaimer: NM tracking could be considered cheating. Enable at your own risk.');
+    widgets.Gap();
     controls.BeginLayout('tracking', 360, 'Label Placeholders');
-    controls.Section('Tracked Monster', '##name.trackOptions', true);
-    -- the one notorious monster being hunted, of those the area has
-    local tracked = options.trackedNm[1];
-    widgets.Label('Tracked NM', true);
-    controls.Width();
-    if (imgui.BeginCombo('##name.trackedNm', tracked ~= '' and tracked or 'None')) then
-        if (imgui.Selectable('None', tracked == '') and tracked ~= '') then
-            options.trackedNm[1] = '';
-            if (save ~= nil) then save(); end
-        end
-        for _, monster in ipairs(levels.Notorious()) do
-            if (imgui.Selectable(monster, tracked == monster) and tracked ~= monster) then
-                options.trackedNm[1] = monster;
+    if (controls.Section('Tracked Monster', '##name.trackOptions', true)) then
+        -- the one notorious monster being hunted, of those the area has
+        local tracked = options.trackedNm[1];
+        widgets.Label('Tracked NM', true);
+        controls.Width();
+        if (imgui.BeginCombo('##name.trackedNm', tracked ~= '' and tracked or 'None')) then
+            if (imgui.Selectable('None', tracked == '') and tracked ~= '') then
+                options.trackedNm[1] = '';
                 if (save ~= nil) then save(); end
             end
+            for _, monster in ipairs(levels.Notorious()) do
+                if (imgui.Selectable(monster, tracked == monster) and tracked ~= monster) then
+                    options.trackedNm[1] = monster;
+                    if (save ~= nil) then save(); end
+                end
+            end
+            imgui.EndCombo();
         end
-        imgui.EndCombo();
-    end
-    controls.Mark('A notorious monster of the area you are in to hunt. EXPERIMENTAL: its nameplate and its placeholders\' have the hunt icon in place of the [aggro] icon, so they need [aggro] in Mob Format and Show Aggro Icons on. The choice is kept when you leave the area.');
-    if (options.trackedNm[1] ~= '') then
-        controls.Slider('Hunt Target Scale', '##name.huntScale', options.huntScale, 100, 200, '%d%%',
-            'Enlarges the tracked monster\'s nameplate, icons and check details with it, at every distance. 100% is the size of every other name. Its placeholders are not enlarged. Above 100% its letters are the largest size\'s stretched, and a little softer.');
-    end
-    if (options.trackedNm[1] ~= '' and levels.Placeholders(options.trackedNm[1]) ~= nil) then
-        controls.Checkbox('Label Placeholders', '##name.labelPlaceholders', options.labelPlaceholders,
-            'The tracked monster\'s placeholders are named "Placeholder" in place of their own name: the monsters whose death can make it appear, as the server\'s scripts list them. The rest of the nameplate is unchanged.');
+        controls.Mark('A notorious monster of the area you are in to hunt. EXPERIMENTAL: its nameplate and its placeholders\' have the hunt icon in place of the [aggro] icon, so they need [aggro] in Mob Format and Show Aggro Icons on. The choice is kept when you leave the area.');
+        if (options.trackedNm[1] ~= '') then
+            controls.Slider('Hunt Target Scale', '##name.huntScale', options.huntScale, 100, 200, '%d%%',
+                'Enlarges the tracked monster\'s nameplate, icons and check details with it, at every distance. 100% is the size of every other name. Its placeholders are not enlarged. Above 100% its letters are the largest size\'s stretched, and a little softer.');
+        end
+        if (options.trackedNm[1] ~= '' and levels.Placeholders(options.trackedNm[1]) ~= nil) then
+            controls.Checkbox('Label Placeholders', '##name.labelPlaceholders', options.labelPlaceholders,
+                'The tracked monster\'s placeholders are named "Placeholder" in place of their own name: the monsters whose death can make it appear, as the server\'s scripts list them. The rest of the nameplate is unchanged.');
+        end
     end
     controls.EndSection();
     controls.EndLayout();
@@ -409,83 +414,87 @@ function custom.DrawSettings(options, save)
     end
 
     controls.BeginLayout('nameplates', 360, 'Outline Thickness');
-    controls.Section('Name Appearance', '##name.appearanceOptions', true);
-    widgets.Label('Font');
-    controls.Width();
-    if (imgui.BeginCombo('##name.font', options.font ~= '' and options.font or DEFAULT_FONT)) then
-        if (imgui.Selectable(DEFAULT_FONT, options.font == '') and options.font ~= '') then
-            options.font = '';
-            if (save ~= nil) then save(); end
-        end
-        for _, file in ipairs(getFontFiles()) do
-            if (imgui.Selectable(file, options.font == file) and options.font ~= file) then
-                options.font = file;
+    if (controls.Section('Name Appearance', '##name.appearanceOptions', true)) then
+        widgets.Label('Font');
+        controls.Width();
+        if (imgui.BeginCombo('##name.font', options.font ~= '' and options.font or DEFAULT_FONT)) then
+            if (imgui.Selectable(DEFAULT_FONT, options.font == '') and options.font ~= '') then
+                options.font = '';
                 if (save ~= nil) then save(); end
             end
+            for _, file in ipairs(getFontFiles()) do
+                if (imgui.Selectable(file, options.font == file) and options.font ~= file) then
+                    options.font = file;
+                    if (save ~= nil) then save(); end
+                end
+            end
+            imgui.EndCombo();
         end
-        imgui.EndCombo();
+        controls.Mark('A font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is the font everything else is written in.');
+        controls.Checkbox('Bold', '##name.fontBold', options.fontBold,
+            'Makes names and check-detail text heavier. ImGui uses simulated bold; experimental GDI uses the font family\'s native bold style. Icons, stars and outline thickness are unchanged. Simulated bold generates extra text quads.');
+        if (controls.Input('Max Font Size', '##name.fontSize', options.fontSize, SMALLEST, LARGEST,
+                'The height of a nearby name. Names automatically shrink with distance.') and options.minSize[1] > options.fontSize[1]) then
+            options.minSize[1] = options.fontSize[1];
+        end
+        if (controls.Input('Min Font Size', '##name.minSize', options.minSize, SMALLEST, LARGEST,
+                'The smallest height of a distant name. It fades out as it gets there.') and options.fontSize[1] < options.minSize[1]) then
+            options.fontSize[1] = options.minSize[1];
+        end
+        controls.Outline(options.outline);
     end
-    controls.Mark('A font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is the font everything else is written in.');
-    controls.Checkbox('Bold', '##name.fontBold', options.fontBold,
-        'Makes names and check-detail text heavier. ImGui uses simulated bold; experimental GDI uses the font family\'s native bold style. Icons, stars and outline thickness are unchanged. Simulated bold generates extra text quads.');
-    if (controls.Input('Max Font Size', '##name.fontSize', options.fontSize, SMALLEST, LARGEST,
-            'The height of a nearby name. Names automatically shrink with distance.') and options.minSize[1] > options.fontSize[1]) then
-        options.minSize[1] = options.fontSize[1];
-    end
-    if (controls.Input('Min Font Size', '##name.minSize', options.minSize, SMALLEST, LARGEST,
-            'The smallest height of a distant name. It fades out as it gets there.') and options.fontSize[1] < options.minSize[1]) then
-        options.fontSize[1] = options.minSize[1];
-    end
-    controls.Outline(options.outline);
     controls.EndSection();
 
-    controls.Section('Player Icons', '##name.playerOptions');
-    controls.Checkbox('Show Icons', '##name.showIcons', options.showIcons,
-        'Player icons from the bundled sheet: the linkshell pearl, the party\'s flags, the bazaar\'s bag and the rest. Independent of the game\'s font loading.');
-    if (options.showIcons[1] or options.showStars[1]) then
-        controls.Slider('Scale', '##name.iconSize', options.iconSize, 50, 300, '%d%%',
-            'An icon\'s side, as a percentage of the height of the names.');
-    end
-    if (options.showIcons[1]) then
-        controls.Input('Padding', '##name.iconSpacing', options.iconSpacing, 0, 24,
-            'The space between a name\'s icons and the name itself.');
-    end
+    if (controls.Section('Player Icons', '##name.playerOptions')) then
+        controls.Checkbox('Show Icons', '##name.showIcons', options.showIcons,
+            'Player icons from the bundled sheet: the linkshell pearl, the party\'s flags, the bazaar\'s bag and the rest. Independent of the game\'s font loading.');
+        if (options.showIcons[1] or options.showStars[1]) then
+            controls.Slider('Scale', '##name.iconSize', options.iconSize, 50, 300, '%d%%',
+                'An icon\'s side, as a percentage of the height of the names.');
+        end
+        if (options.showIcons[1]) then
+            controls.Input('Padding', '##name.iconSpacing', options.iconSpacing, 0, 24,
+                'The space between a name\'s icons and the name itself.');
+        end
 
-    controls.EndSection();
-    controls.Section('Mob Nameplates', '##name.mobOptions');
-    controls.Checkbox('Show Level / Range', '##name.showMobLevel', options.showMobLevel,
-        'Show [level]: the known level after checking, or the mob\'s level range. Turning this off also removes the standard Lv prefix and following dot without changing your saved format.');
-    controls.Checkbox('Show Aggro Icons', '##name.showAggroIcons', options.showAggroIcons,
-        'Show the inline [aggro] icon beside mob names. This does not change player icons or the detection/link information in check details.');
-    controls.Checkbox('Mob Letters', '##name.showMobLetter', options.showMobLetter,
-        'EXPERIMENTAL: label same-name zone spawn slots a-z, wrapping after 26. Sorted by stable entity index in the game\'s own list of the area\'s names, not encounter order. Users need the same game files. Unknown/renamed mobs are unlabelled. Adds a suffix unless you place [letter] in Mob Format; off hides the token.', true);
-    local rosterProblem = options.showMobLetter[1] and levels.RosterProblem() or nil;
-    if (rosterProblem ~= nil) then
-        imgui.TextColored(warning, rosterProblem);
-    end
-    if (options.showMobLetter[1]) then
-        controls.Checkbox('Double Letters', '##name.doubleMobLetters', options.doubleMobLetters,
-            'Where an area has more than 26 slots of one name, go on from Z to AA, AB and so on, in one wider badge, in place of starting again at A. Off, letters repeat after Z. Users comparing letters need the same choice.');
-    end
-    for _, row in ipairs({
-        { 'Mob Format', 'monsterFormat', 'The custom mob nameplate string.' },
-    }) do
-        widgets.Label(row[1]);
-        controls.Width();
-        imgui.InputText('##name.' .. row[2], options[row[2]], 256);
-        controls.Mark(row[3] .. '\nTokens: [name], [level], [aggro], [distance], [checked], [letter]. Example: [aggro] Lv [level]. [name]\nColours: [name:yellow] or [#FF8000]text[/]. This format and the level/aggro toggles apply to all mobs, including targeted and checked mobs.');
     end
     controls.EndSection();
-    controls.Section('Check', '##name.checkOptions');
-    controls.Checkbox('Show Check', '##name.showCheckDetails', options.showCheckDetails,
-        'Under the name of a monster you have just checked, for five seconds:\nhow hard a fight the game said it would be, what an aggressive one notices you by, and the family it links with. Link labels include Sight/Hearing inferred from the table\'s detection flags when available.');
-    if (options.showCheckDetails[1]) then
-        controls.Slider('Check Scale', '##name.checkSize', options.checkSize, 50, 125, '%d%%',
-            'Scale check-detail text and its icons relative to the name: 75% in the preferred defaults. Applies to both icon and words layouts.');
-        controls.Checkbox('Brief Difficulty', '##name.abbreviateDifficulty', options.abbreviateDifficulty,
-            'Use TW, IEP, EP, DC, EM, T, VT and IT beside aggro/link information. When difficulty is the only information shown, use full words. Impossible to Gauge stays ???. Applies to both layouts; on by default.');
-        controls.Checkbox('Text Only', '##name.checkDetailsInWords', options.checkDetailsInWords,
-            'Check details are shown as text only, without magnifying-glass, aggro or link icons.\nex: TW, Sight Aggro, Link: Goblin (Sight)\nWhat an aggressive monster notices you by is Sight, Sound, Blood, Magic, JA or Scent, with a stroke between them if there are several, and True Sight and True Sound for one that sees or hears truly. Link names its family and, when known, Sight/Hearing inferred from its detection flags.');
+    if (controls.Section('Mob Nameplates', '##name.mobOptions')) then
+        controls.Checkbox('Show Level / Range', '##name.showMobLevel', options.showMobLevel,
+            'Show [level]: the known level after checking, or the mob\'s level range. Turning this off also removes the standard Lv prefix and following dot without changing your saved format.');
+        controls.Checkbox('Show Aggro Icons', '##name.showAggroIcons', options.showAggroIcons,
+            'Show the inline [aggro] icon beside mob names. This does not change player icons or the detection/link information in check details.');
+        controls.Checkbox('Mob Letters', '##name.showMobLetter', options.showMobLetter,
+            'EXPERIMENTAL: label same-name zone spawn slots a-z, wrapping after 26. Sorted by stable entity index in the game\'s own list of the area\'s names, not encounter order. Users need the same game files. Unknown/renamed mobs are unlabelled. Adds a suffix unless you place [letter] in Mob Format; off hides the token.', true);
+        local rosterProblem = options.showMobLetter[1] and levels.RosterProblem() or nil;
+        if (rosterProblem ~= nil) then
+            imgui.TextColored(warning, rosterProblem);
+        end
+        if (options.showMobLetter[1]) then
+            controls.Checkbox('Double Letters', '##name.doubleMobLetters', options.doubleMobLetters,
+                'Where an area has more than 26 slots of one name, go on from Z to AA, AB and so on, in one wider badge, in place of starting again at A. Off, letters repeat after Z. Users comparing letters need the same choice.');
+        end
+        for _, row in ipairs({
+            { 'Mob Format', 'monsterFormat', 'The custom mob nameplate string.' },
+        }) do
+            widgets.Label(row[1]);
+            controls.Width();
+            imgui.InputText('##name.' .. row[2], options[row[2]], 256);
+            controls.Mark(row[3] .. '\nTokens: [name], [level], [aggro], [distance], [checked], [letter]. Example: [aggro] Lv [level]. [name]\nColours: [name:yellow] or [#FF8000]text[/]. This format and the level/aggro toggles apply to all mobs, including targeted and checked mobs.');
+        end
+    end
+    controls.EndSection();
+    if (controls.Section('Check', '##name.checkOptions')) then
+        controls.Checkbox('Show Check', '##name.showCheckDetails', options.showCheckDetails,
+            'Under the name of a monster you have just checked, for five seconds:\nhow hard a fight the game said it would be, what an aggressive one notices you by, and the family it links with. Link labels include Sight/Hearing inferred from the table\'s detection flags when available.');
+        if (options.showCheckDetails[1]) then
+            controls.Slider('Check Scale', '##name.checkSize', options.checkSize, 50, 125, '%d%%',
+                'Scale check-detail text and its icons relative to the name: 75% in the preferred defaults. Applies to both icon and words layouts.');
+            controls.Checkbox('Brief Difficulty', '##name.abbreviateDifficulty', options.abbreviateDifficulty,
+                'Use TW, IEP, EP, DC, EM, T, VT and IT beside aggro/link information. When difficulty is the only information shown, use full words. Impossible to Gauge stays ???. Applies to both layouts; on by default.');
+            controls.Checkbox('Text Only', '##name.checkDetailsInWords', options.checkDetailsInWords,
+                'Check details are shown as text only, without magnifying-glass, aggro or link icons.\nex: TW, Sight Aggro, Link: Goblin (Sight)\nWhat an aggressive monster notices you by is Sight, Sound, Blood, Magic, JA or Scent, with a stroke between them if there are several, and True Sight and True Sound for one that sees or hears truly. Link names its family and, when known, Sight/Hearing inferred from its detection flags.');
+        end
     end
     controls.EndSection();
     controls.EndLayout();

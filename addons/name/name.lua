@@ -17,7 +17,7 @@ local controls   = require('controls');
 local Category = nameplates.Category;
 
 -- The categories as they are set out in the settings: the setting each is kept in, its name there,
--- the words a command knows it by, and what it covers. Group headings match Twister's menus.
+-- the words a command knows it by, and what it covers. Group headings match Trigger's menus.
 local rows = {
     { key = 'showSelf',     category = Category.Self,     label = 'Own Name',         words = { 'self' }, group = 'Players',
       tooltip = 'The name over your own head.' },
@@ -108,27 +108,30 @@ local function DrawSettings(options)
     end
 
     controls.BeginLayout('filters', nil, 'Always Show Target');
-    local changed, first = false, true;
+    local changed, first, open = false, true, true;
     for _, row in ipairs(rows) do
         if (row.group ~= nil) then
             if (not first) then controls.EndSection(); end
-            controls.Section(row.group, '##name.filter.' .. row.group, first);
+            open = controls.Section(row.group, '##name.filter.' .. row.group, first);
             first = false;
         end
-        widgets.Label(row.label);
-        if (imgui.Checkbox(row.id, options[row.key])) then
-            changed = true;
+        if (open) then
+            widgets.Label(row.label);
+            if (imgui.Checkbox(row.id, options[row.key])) then
+                changed = true;
+            end
+            controls.Mark(row.tooltip);
         end
-        controls.Mark(row.tooltip);
     end
 
     controls.EndSection();
-    controls.Section('Target', '##name.filter.target');
-    widgets.Label('Always Show Target');
-    if (imgui.Checkbox('##name.alwaysTarget', options.alwaysTarget)) then
-        changed = true;
+    if (controls.Section('Target', '##name.filter.target')) then
+        widgets.Label('Always Show Target');
+        if (imgui.Checkbox('##name.alwaysTarget', options.alwaysTarget)) then
+            changed = true;
+        end
+        controls.Mark('Your target\'s name is shown though names like it are hidden. Your own is not: with Own Name off it stays hidden while you have yourself targeted.');
     end
-    controls.Mark('Your target\'s name is shown though names like it are hidden. Your own is not: with Own Name off it stays hidden while you have yourself targeted.');
 
     if (changed) then
         Push(options);
@@ -147,10 +150,11 @@ local function DrawSettings(options)
         end
 
         controls.EndSection();
-        controls.Section('Status', '##name.filter.status');
-        widgets.Label('Names In View');
-        imgui.Text(('%d shown, %d hidden'):format(shown, hidden));
-        controls.Mark('The names the game had to draw last frame: near enough, and on screen.');
+        if (controls.Section('Status', '##name.filter.status')) then
+            widgets.Label('Names In View');
+            imgui.Text(('%d shown, %d hidden'):format(shown, hidden));
+            controls.Mark('The names the game had to draw last frame: near enough, and on screen.');
+        end
     end
     controls.EndSection();
     controls.EndLayout();
@@ -201,15 +205,15 @@ app = shell.New({
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
-    help         = 'Use /name to open the Nameplates, Filters, NM Tracking and Statuses menu. This test build uses ImGui fonts only.',
+    help         = 'Use /name to open the Nameplates, Filters, Statuses and NM Tracking menu. This test build uses ImGui fonts only.',
     drawSettings = DrawSettings,
     settingsLabel = 'Filters',
     leadingTabs  = {
         { label = 'Nameplates', draw = function (options) custom.DrawSettings(options, app.save); end },
     },
     tabs         = {
-        { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end },
         { label = 'Statuses', draw = function (options) statuses.DrawSettings(options, app.save); end },
+        { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end },
     },
 
     commands     = {

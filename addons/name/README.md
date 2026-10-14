@@ -28,7 +28,7 @@ Existing character settings take precedence over this baseline.
 
 Kept for each character. Each is on for names that are shown.
 
-The menus follow Twister's layout: named sections, aligned controls, and visible
+The menus follow Trigger's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
 Public tabs are **Nameplates → Filters → NM Tracking → Statuses**. Experimental and Appearance are hidden;
@@ -217,15 +217,16 @@ means than a placeholder (timed, forced, or scripted spawns) has none listed.
 ### Statuses over a name
 
 The **Statuses** tab puts a row of status icons above a name, for the statuses ticked there and no
-others. The icons are winxi's FFXIV-style ones (`libs\winxi\statusicons`), so `libs/winxi` has to be
-deployed with its `statusicons` folder; a status with no icon there is not listed and not drawn. FFXIV
-Status Icons off draws the game's own instead.
+others. The icons are winxi's custom ones, the set chosen under Custom Icons in winxisettings (FFXIV,
+`libs\winxi\statusicons\ffxiv`, to start), so `libs/winxi` has to be deployed with its `statusicons`
+folder; a status with no icon in the set is not listed and not drawn. Custom Icons off draws the
+game's own instead.
 
 | Setting | What it does |
 |---|---|
 | Show Statuses | The row of icons, for names that are shown |
-| Scale | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is three quarters as wide as it is tall, and shrinks with its name |
-| FFXIV Status Icons | On by default: winxi's FFXIV-style icons. Off, the game's own square icons, which every status has, so the list has more statuses in it. The game's are put together into one sheet a few a frame the first time they are wanted |
+| Scale | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is as wide as the set's icons are for that height (three quarters for FFXIV's), and shrinks with its name |
+| Custom Icons | On by default: the set of custom icons chosen in winxisettings. Off, the game's own square icons, which every status has, so the list has more statuses in it. The game's are put together into one sheet a few a frame the first time they are wanted |
 | Preview | Puts the first four ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: off again when the addon is loaded |
 | Search | Narrows the list under it by part of a status's name, or its number |
 | Chosen Only | Lists only the ticked statuses |
@@ -241,7 +242,8 @@ name has them. How much is known depends on whose name it is:
 | Everyone else | Enemies, other players, the other parties of an alliance and NPCs: any status the server was seen to say took hold on them, by spell, ability, weapon skill, monster's move or additional effect. `winxi.debuffs` keeps count, each lasting the server's base duration for what put it there (or 180 seconds where nothing says), until the server says it wore off or was dispelled. Not known: what landed out of sight or before you entered the area, and how gear, merits or a partial resist changed a duration |
 
 The plugin draws names from eight pictures and the names' own use seven, so the icons are all drawn
-from one, `statusicons\sheet.png`, which `tools/build_status_icons.py` makes with the icons.
+from one: `statusicons\ffxiv\sheet.png`, which `tools/build_status_icons.py` makes with the icons, or
+for another set one put together from its icons a few a frame.
 
 ### Experimental mob letters
 

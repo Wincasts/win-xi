@@ -1,4 +1,4 @@
--- Settings controls in the same style as Twister: consistent widths and a
+-- Settings controls in the same style as Trigger: consistent widths and a
 -- visible help mark beside each control, with wrapped explanations.
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
@@ -39,16 +39,22 @@ function controls.EndLayout()
     layout, uniformWidth, helpX = nil, nil, nil;
 end
 
+-- Returns whether the section is open (winxi's [-] / [+]): its settings are drawn only then.
+-- controls.EndSection follows either way.
+local sectionOpen = false;
+
 function controls.Section(label, id, first)
-    widgets.Header(label, first);
+    sectionOpen = widgets.Header(label, first);
+    if (not sectionOpen) then return false; end
     helpX = layout.right + 8;
-    local width = helpX + layout.iconWidth + 12;
-    imgui.BeginChild(id, { width, 0 }, (ImGuiChildFlags_Borders or 1) + (ImGuiChildFlags_AutoResizeY or 64));
+    imgui.BeginGroup();
     widgets.BeginLabels(layout.key .. '.options');
+    return true;
 end
 
 function controls.EndSection()
-    imgui.EndChild();
+    if (sectionOpen) then imgui.EndGroup(); end
+    sectionOpen = false;
     helpX = nil;
 end
 
