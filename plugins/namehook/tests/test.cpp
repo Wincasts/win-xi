@@ -27,14 +27,16 @@ struct TestPlugin : public Nameplate {
 	int custom = 0;
 	const HookQuad* lastQuads = nullptr;
 	uint32_t lastCount = 0;
+	float lastX = 0.0f;
 
 	void BeginNames(const HookDraw&, bool, float& targetWidth, float& targetHeight) override {
 		begun++;
 		targetWidth = 1200.0f;
 		targetHeight = 900.0f;
 	}
-	void DrawCustom(uint32_t, const HookDrawing& drawing, const HookQuad* quads, const float*) override {
+	void DrawCustom(uint32_t, const HookDrawing& drawing, const HookQuad* quads, const float* position) override {
 		custom++;
+		lastX = position[0];
 		lastQuads = quads;
 		lastCount = drawing.Count;
 	}
@@ -107,6 +109,12 @@ static bool Drawn(const XiModel* model, const char* text = "", const char* secon
 	DrawNameLine2(model, nullptr, where, second, one);
 	CHECK((lines - before) == (lines2 - before2));
 	return lines != before;
+}
+
+// Forgets which names have been drawn this frame, so that one drawn again is taken as if in a frame of
+// its own: a name drawn twice in a frame is otherwise listed, and drawn for an addon, once
+static void Fresh() {
+	ZeroMemory(&Seen, sizeof(Seen));
 }
 
 static uint32_t CategoryOf(const XiModel* model) {
@@ -479,6 +487,7 @@ int main() {
 	plugin.Publish(view, projection, false);
 	plugin.Publish(nullptr, nullptr, false);
 	CHECK(Shared.Count == 4 && Shared.Frame == frame && Shared.Sequence == sequence && (Shared.Names[0].Flags & NAME_ON_SCREEN) != 0);
+	Fresh();
 	Drawn(mob, "Goblin");
 	CHECK(plugin.WantsPublish(false));
 	plugin.Publish(view, projection, false);
@@ -538,6 +547,7 @@ int main() {
 	Draw.Entities[0x401] = { Draw.Frame, 3, 5, 1.0f, 1.0f, 0xE6000000 };
 	Draw.Entities[0x403] = { Draw.Frame, 8, 4, 1.0f, 1.0f, 0xE6000000 }; // the stranger, who is hidden
 	Draw.Entities[300] = { Draw.Frame, 0, 3, 1.0f, 0.0f, 0 };           // the monster, which is not claimed
+	Fresh();
 	CHECK(!Drawn(buddy) && plugin.custom == 1 && plugin.lastQuads == &Draw.Quads[3] && plugin.lastCount == 5);
 	CHECK(!Drawn(stranger) && Drawn(mob) && plugin.custom == 1);
 	plugin.Publish(nullptr, nullptr, true);
@@ -545,13 +555,17 @@ int main() {
 	CHECK(Shared.Count == 4 && Shared.Names[0].Flags == NAME_WANTED && Shared.Names[1].Flags == (NAME_WANTED | NAME_CUSTOM) && Shared.Names[2].Flags == NAME_TARGET && Shared.Names[3].Flags == (NAME_WANTED | NAME_DRAWN));
 	// what does not hold together is not drawn
 	Draw.Entities[0x401].First = 10;
+	Fresh();
 	CHECK(!Drawn(buddy) && plugin.custom == 1);
 	Draw.Entities[0x401] = { Draw.Frame, 0, HOOK_QUADS_PER_NAME + 1, 1.0f, 0.0f, 0 };
 	Draw.QuadCount = HOOK_QUADS_MAX;
+	Fresh();
 	CHECK(!Drawn(buddy) && plugin.custom == 1);
 	Draw.Entities[0x401] = { Draw.Frame - 1, 0, 4, 1.0f, 0.0f, 0 };
+	Fresh();
 	CHECK(!Drawn(buddy) && plugin.custom == 1);
 	Draw.Entities[0x401] = { Draw.Frame, 0, 4, 1.0f, 0.0f, 0 };
+	Fresh();
 	CHECK(!Drawn(buddy) && plugin.custom == 2);
 	// nor what was drawn too long ago: the addon has stopped
 	plugin.Publish(nullptr, nullptr, true);
@@ -572,6 +586,78 @@ int main() {
 	plugin.Publish(nullptr, nullptr, true);
 	plugin.Publish(nullptr, nullptr, true);
 
+	// A name the client draws more than once in a frame, as it does a player's who is fishing, is
+	// listed and drawn for an addon once: the first time the call that draws all the names draws it,
+	// and otherwise the first time at all
+	{
+		const uintptr_t mainSite = 0x1000, otherSite = 0x2000;
+		const float there[3] = { 9.5f, 0.0f, 4.0f };
+		const uintptr_t mainWas = Globals.DrawNameLineCalls[0];
+		Globals.DrawNameLineCalls[0] = mainSite;
+		Fresh();
+		Shared.Claimed = CATEGORY_PARTY;
+		auto setOut = [&]() {
+			Shared.ClaimFrame = Shared.Frame;
+			Draw.Frame = Shared.Frame;
+			Draw.QuadCount = 12;
+			Draw.Entities[0x401] = { Draw.Frame, 0, 4, 1.0f, 0.0f, 0 };
+		};
+		plugin.Publish(nullptr, nullptr, true);
+		setOut();
+
+		// twice by the call that draws all the names: the first stands
+		int custom = plugin.custom;
+		lines = 0;
+		DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
+		DrawNameLineFrom(mainSite, buddy, there, "Buddy", one, 0, 0);
+		CHECK(plugin.custom == custom + 1 && plugin.lastX == where[0] && lines == 0);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Shared.Count == 1 && Shared.Names[0].X == where[0] && Shared.Names[0].Flags == (NAME_WANTED | NAME_CUSTOM));
+		CHECK(Globals.RepeatsLast == 1 && Globals.RepeatsMainLast == 1);
+
+		// by another call and then by that one: that one's takes the other's place on the list
+		Fresh();
+		setOut();
+		custom = plugin.custom;
+		DrawNameLineFrom(otherSite, buddy, there, "Buddy", one, 0, 0);
+		DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
+		CHECK(plugin.custom == custom + 2 && plugin.lastX == where[0]);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Shared.Count == 1 && Shared.Names[0].X == where[0] && Globals.RepeatsLast == 0);
+
+		// and from the next frame on, the other is passed over whichever comes first
+		setOut();
+		custom = plugin.custom;
+		DrawNameLineFrom(otherSite, buddy, there, "Buddy", one, 0, 0);
+		DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
+		CHECK(plugin.custom == custom + 1 && plugin.lastX == where[0]);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Shared.Count == 1 && Shared.Names[0].X == where[0] && Globals.RepeatsLast == 1 && Globals.RepeatsMainLast == 0);
+
+		// a name by another call alone, that call's own, is listed and drawn as ever
+		Fresh();
+		setOut();
+		custom = plugin.custom;
+		DrawNameLineFrom(otherSite, buddy, there, "Buddy", one, 0, 0);
+		CHECK(plugin.custom == custom + 1 && plugin.lastX == there[0]);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Shared.Count == 1 && Shared.Names[0].X == there[0]);
+
+		// unclaimed, the client draws the name each time, as it would, and it is listed once
+		Shared.Claimed = 0;
+		Fresh();
+		lines = 0;
+		DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
+		DrawNameLineFrom(mainSite, buddy, there, "Buddy", one, 0, 0);
+		CHECK(lines == 2);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Shared.Count == 1 && Shared.Names[0].Flags == (NAME_WANTED | NAME_DRAWN));
+
+		Globals.DrawNameLineCalls[0] = mainWas;
+		Fresh();
+		plugin.Publish(nullptr, nullptr, true);
+	}
+
 	// a second line that does not follow its first is the client's to draw
 	lines2 = 0;
 	DrawNameLine(stranger, nullptr, where, "Stranger", one, 0, 0);
@@ -584,9 +670,11 @@ int main() {
 	// full takes no more, though names are shown and hidden as before
 	plugin.Publish(nullptr, nullptr, true);
 	DrawNameLine(mob, nullptr, where, "0123456789012345678901234567890123456789012345678901234567890123456789", one, 0, 0);
+	Fresh();
 	DrawNameLine(mob, nullptr, where, nullptr, one, 0, 0);
 	lines = 0;
 	for (int i = 0; i < HOOK_NAMES_MAX + 5; i++) {
+		Fresh();
 		DrawNameLine(mob, nullptr, where, "Goblin", one, 0, 0);
 		DrawNameLine(stranger, nullptr, where, "Stranger", one, 0, 0);
 	}

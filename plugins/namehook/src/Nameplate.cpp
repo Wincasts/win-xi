@@ -20,6 +20,7 @@ If not, see <https://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <intrin.h>
 
 #include "Nameplate.h"
 
@@ -228,6 +229,14 @@ static struct {
 	uint32_t Unowned;
 	uint32_t UnownedLast;
 
+	// First lines this frame of a name already drawn this frame, which are not listed again or drawn
+	// for an addon again: all of them, and those of them from the call that draws all the names; and
+	// the same of last frame
+	uint32_t Repeats;
+	uint32_t RepeatsMain;
+	uint32_t RepeatsLast;
+	uint32_t RepeatsMainLast;
+
 	// The model whose first line was last seen, where in the list its name was put (if it was), and
 	// whether the client drew it: its second line follows at once, and goes the same way
 	const XiModel* pLineModel;
@@ -262,6 +271,18 @@ static HookDraw Draw;
 
 // The frame whose first name has been seen, so that what is done once a frame is done then
 static uint32_t NamesFrame = 0xFFFFFFFF;
+
+// The client can draw one entity's name more than once in a frame: from the call that draws all the
+// names and from one of its others, or from the first twice over (a player fishing is one). The name
+// is listed, and drawn for an addon, once: the first time the call that draws all the names draws it,
+// and otherwise the first time at all. Frames are kept as Shared.Frame + 1, so that 0 is never.
+#define SEEN_NONE 0xFFFF
+static struct {
+	uint32_t Frame;     // the frame its name was first drawn in
+	uint32_t MainFrame; // and drawn by the call that draws all the names in
+	uint16_t Slot;      // where it is in Filling, or SEEN_NONE
+	bool Main;          // whether that was by the call that draws all the names
+} Seen[HOOK_ENTITIES];
 
 // The party, the target and the pets, as they were when the frame began
 static FrameFacts Facts;
@@ -451,9 +472,11 @@ static const HookDrawing* FindDrawing(uint32_t entityIndex) {
 	return &drawing;
 }
 
-// Called in place of the client's function for a name's first line. The name is put on the list for
-// addons, hidden or not, and drawn by the client if it is wanted and no addon has claimed it.
-static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t nameColor, uint32_t iconColor) {
+// A name's first line, from the call at site. The name is put on the list for addons, hidden or not,
+// and drawn by the client if it is wanted and no addon has claimed it. A name drawn again in the same
+// frame is drawn by the client as it would be, if it is the client's to draw, and is otherwise passed
+// over: see Seen.
+static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float* pPosition, const char* text, uint32_t scale, uint32_t nameColor, uint32_t iconColor) {
 	Globals.pLineModel = nullptr;
 	Globals.pLineName = nullptr;
 	Globals.LineDrawn = true;
@@ -471,13 +494,46 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 	if (pModel != nullptr && pModel->pEntity != nullptr) {
 		const Entity* pEntity = pModel->pEntity;
 
+		// whether this entity's name has been drawn already this frame, or is drawn by the call that
+		// draws all the names and so is to be taken from there: that call drew it last frame
+		const uint32_t index = pEntity->EntityIndex;
+		const uint32_t now = Shared.Frame + 1;
+		const bool main = site != 0 && site == Globals.DrawNameLineCalls[0];
+		bool repeat = false;
+		bool replace = false;
+		if (index < HOOK_ENTITIES) {
+			auto& seen = Seen[index];
+			if (seen.Frame == now) {
+				// the call that draws all the names takes the place of another's, once
+				replace = main && !seen.Main;
+				repeat = !replace;
+			} else if (!main && (seen.MainFrame == now || seen.MainFrame == now - 1)) {
+				repeat = true;
+			}
+			if (repeat) {
+				Globals.Repeats++;
+				if (main) {
+					Globals.RepeatsMain++;
+				}
+			} else {
+				if (!replace) {
+					seen.Slot = SEEN_NONE;
+				}
+				seen.Frame = now;
+				seen.Main = main;
+				if (main) {
+					seen.MainFrame = now;
+				}
+			}
+		}
+
 		uint32_t flags = 0;
 		const uint32_t category = Classify(pEntity, flags);
 		if (IsWanted(pEntity, category, flags)) {
 			flags |= NAME_WANTED;
 			if (!IsClaimed(category)) {
 				flags |= NAME_DRAWN;
-			} else if (pPosition != nullptr && Instance != nullptr) {
+			} else if (!repeat && pPosition != nullptr && Instance != nullptr) {
 				// claimed by an addon: if it has drawn the name, that is put where the client's would be
 				const HookDrawing* pDrawing = FindDrawing(pEntity->EntityIndex);
 				if (pDrawing != nullptr) {
@@ -488,11 +544,21 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 		}
 
 		HookName* pName = nullptr;
-		if (pPosition != nullptr && Filling.Count < HOOK_NAMES_MAX) {
+		if (repeat) {
+			// not listed again
+		} else if (replace && Seen[index].Slot != SEEN_NONE && pPosition != nullptr) {
+			pName = &Filling.Names[Seen[index].Slot];
+			Filling.Changed = true;
+		} else if (pPosition != nullptr && Filling.Count < HOOK_NAMES_MAX) {
+			if (index < HOOK_ENTITIES) {
+				Seen[index].Slot = static_cast<uint16_t>(Filling.Count);
+			}
 			pName = &Filling.Names[Filling.Count];
 			Filling.Count++;
 			Filling.Changed = true;
+		}
 
+		if (pName != nullptr) {
 			ZeroMemory(pName, sizeof(HookName));
 			pName->EntityIndex = pEntity->EntityIndex;
 			pName->ServerId = pEntity->EntityId;
@@ -525,6 +591,13 @@ static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void
 	if (Globals.LineDrawn && Globals.DrawNameLineOrig != nullptr) {
 		Globals.DrawNameLineOrig(pModel, nullptr, pPosition, text, scale, nameColor, iconColor);
 	}
+}
+
+// Called in place of the client's function for a name's first line, from any of the calls to it
+static void __fastcall DrawNameLine(const XiModel* pModel, [[maybe_unused]] void* unused, const float* pPosition, const char* text, uint32_t scale, uint32_t nameColor, uint32_t iconColor) {
+	// the call is the 5 bytes before where it comes back to
+	const uintptr_t site = reinterpret_cast<uintptr_t> (_ReturnAddress()) - 5;
+	DrawNameLineFrom(site, pModel, pPosition, text, scale, nameColor, iconColor);
 }
 
 // Called in place of the client's function for a name's second line, which follows the first at once.
@@ -1150,6 +1223,8 @@ void Nameplate::SayStatus() {
 			(Globals.DrawNameLineCallCount <= 1 && Globals.DrawNameLine2CallCount <= 1) ? "there are no others to take"
 				: (Globals.OtherCallsTaken ? "all are taken" : "only the first is taken (othercalls off)"),
 			static_cast<unsigned>(Globals.UnownedLast));
+		Sayf(this, "%u names last frame were drawn again after their first time (%u of those by the call that draws all the names), and were listed and drawn for an addon once.",
+			static_cast<unsigned>(Globals.RepeatsLast), static_cast<unsigned>(Globals.RepeatsMainLast));
 	}
 }
 
@@ -1363,6 +1438,7 @@ void Nameplate::Debug(const wchar_t* text) {
 
 int Nameplate::Init() {
 	ZeroMemory(&Globals, sizeof(Globals));
+	ZeroMemory(&Seen, sizeof(Seen));
 
 	// Configuration setup
 	Settings.Init();
@@ -1643,6 +1719,10 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 	if (frameDone) {
 		Globals.UnownedLast = Globals.Unowned;
 		Globals.Unowned = 0;
+		Globals.RepeatsLast = Globals.Repeats;
+		Globals.RepeatsMainLast = Globals.RepeatsMain;
+		Globals.Repeats = 0;
+		Globals.RepeatsMain = 0;
 		Filling.Count = 0;
 		Filling.Changed = false;
 		Filling.Published = false;
