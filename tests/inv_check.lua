@@ -33,6 +33,7 @@ do
     H.tap(H.Button.B)
     local function Begun(frames) local b = H.calls.Begin H.frames(frames or 1) return H.calls.Begin - b end
     H.pool(0); H.print('pool: empty, one window a frame', Begun() == 1)
+    o.treasureShowEmpty[1] = true; H.print('Show When Empty: two', Begun() == 2); o.treasureShowEmpty[1] = false
     H.pool(3); H.print('three items: two windows a frame', Begun() == 2, '| on by default', o.treasurePool[1], '| attached', not o.treasureDetached[1])
     local sent = #H.sent
     H.ret.SmallButton = { true }; H.frames(1); H.ret.SmallButton = nil
