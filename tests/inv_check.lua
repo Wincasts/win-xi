@@ -28,6 +28,25 @@ H.command('/inv focus'); H.frames(1); H.print('/inv focus: A is the window\'s ag
 H.print('X opens the sort menu, on', (H.tap(H.Button.X) and H.selected()))
 H.tap(H.Button.B)
 
+-- the treasure pool, under the window: there only while there is treasure, and only while the window is
+do
+    H.tap(H.Button.B)
+    local function Begun(frames) local b = H.calls.Begin H.frames(frames or 1) return H.calls.Begin - b end
+    H.pool(0); H.print('pool: empty, one window a frame', Begun() == 1)
+    H.pool(3); H.print('three items: two windows a frame', Begun() == 2, '| on by default', o.treasurePool[1], '| attached', not o.treasureDetached[1])
+    local sent = #H.sent
+    H.ret.SmallButton = { true }; H.frames(1); H.ret.SmallButton = nil
+    H.print('the buttons lot and pass', #H.sent > sent, H.sent[#H.sent])
+    H.command('/inv'); H.frames(8)
+    H.print('attached, it goes with the window', Begun() == 0)
+    o.treasureDetached[1] = true
+    H.print('detached, it stays', Begun() == 1)
+    o.treasurePool[1] = false
+    H.print('switched off, it is gone', Begun() == 0)
+    o.treasurePool[1], o.treasureDetached[1] = true, false
+    H.command('/inv'); H.pool(0); H.frames(8)
+end
+
 H.command('/inv'); H.frames(8); H.print('/inv closes it', o.isVisible[1] == false, '| A is the game\'s', H.tap(H.Button.A) == false)
 H.print('/invite is left alone', H.command('/invite Someone') == false)
 H.packet(0x01D); H.packet(0x01E); H.unload(); H.print('packets and unload ran; saves', H.saves() > 0)

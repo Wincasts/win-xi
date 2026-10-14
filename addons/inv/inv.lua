@@ -24,6 +24,7 @@ local packets = require('winxi.packets')
 local debounce = require('winxi.debounce')
 local controller = require('winxi.controller')
 local sound = require('winxi.sound')
+local pool = require('pool')
 
 -- Colours and spacing that were xitools' own
 local red = { 0.95, 0.20, 0.20, 1.0 }
@@ -1276,8 +1277,9 @@ local function PadEndFrame()
                 if pad.options.controllerInfoPlace == 'item' or pad.windowX == nil then
                     controller.Label(DrawInfoBox, x, y + iconSize + 3 + labelGap, true, item.uniqueId)
                 else
-                    -- under the window, its left edge in line with the window's
-                    controller.Label(DrawInfoBox, pad.windowX, pad.windowY + pad.windowHeight + labelGap, true, item.uniqueId)
+                    -- under the window (and the treasure pool under it), its left edge in line with the window's
+                    local under = pool.Bottom() or pad.windowY + pad.windowHeight
+                    controller.Label(DrawInfoBox, pad.windowX, under + labelGap, true, item.uniqueId)
                 end
             else
                 if item.label == nil then
@@ -1680,10 +1682,10 @@ local function DrawWindow(drawOptions)
         DrawInventory()
     end
 
-    -- where the window is, for the box that goes under it
-    local _, height = imgui.GetWindowSize()
+    -- where the window is, for the box and the treasure pool that go under it
+    local width, height = imgui.GetWindowSize()
     pad.windowX, pad.windowY = imgui.GetWindowPos()
-    pad.windowHeight = height
+    pad.windowWidth, pad.windowHeight = width, height
 
     -- what the buttons do while sorting by hand, at the foot of the window
     if pad.swap ~= nil then
@@ -1713,6 +1715,10 @@ local defaults = T{
     controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
+    treasurePool = T{ true }, -- the treasure pool, under the window
+    treasureDetached = T{ false }, -- the treasure pool as a window of its own
+    treasurePos = T{ 256, 100 }, -- where it is, detached
+    treasureWidth = T{ 300 }, -- how wide it is, detached
     -- manualOrder: the player's own order of items, once they have made one
 }
 
@@ -1773,6 +1779,8 @@ local function DrawSettings(options)
 
     widgets.Gap()
     shell.ControllerSettings(options, controllerTooltip, DrawControllerSettings)
+
+    pool.DrawSettings(options)
 end
 
 -- The settings, the settings window, the command and the main window's frame are the shell's. The
@@ -1815,6 +1823,7 @@ local app = shell.New({
 })
 
 local windowExtra = { constraints = { { -1, 0 }, { -1, 432 } } }
+local invFrame = { x = 0, y = 0, width = 0, height = 0 } -- where the window is, for the treasure pool
 
 -- What is in the bags has changed: the lists are made again, once the burst of packets is over
 ashita.events.register('packet_in', 'inv_packet_in', function(e)
@@ -1844,5 +1853,12 @@ ashita.events.register('d3d_present', 'inv_present', function()
 
     PadBeginFrame(options)
     app:Window(options.isVisible, DrawWindow, windowExtra)
+    if pad.windowX ~= nil then
+        invFrame.x, invFrame.y = pad.windowX, pad.windowY
+        invFrame.width, invFrame.height = pad.windowWidth, pad.windowHeight
+        pool.Draw(options, invFrame, options.isVisible[1])
+    else
+        pool.Draw(options, nil, options.isVisible[1])
+    end
     PadEndFrame()
 end)
