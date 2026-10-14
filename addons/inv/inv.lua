@@ -1734,6 +1734,7 @@ end
 local app = shell.New({
     defaults = defaults,
     window = windowName,
+    title = 'Inventory',
     configTitle = 'Inventory Settings',
     command = '/inv',
     help = '/inv shows or hides the window; /inv config opens or closes the settings; /inv focus gives the window the controller, or takes it away.',

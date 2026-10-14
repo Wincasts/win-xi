@@ -10,6 +10,7 @@
 --     local app = shell.New({
 --         defaults    = T{ isVisible = T{ true }, pos = T{ 100, 100 }, ... },   -- the addon's own settings
 --         window      = 'winxi.example',          -- the main window's name
+--         title       = 'Example',                -- optional: the words on the main window's top edge (winxi.titles)
 --         configTitle = 'Example Settings',
 --         command     = '/example',
 --         aliases     = { '/ex' },                -- optional: other commands that do the same
@@ -326,7 +327,7 @@ function shell.New(spec)
         spec = spec,
         options = settings.load(defaults),
         showConfig = { false },
-        windowStyle = { alpha = 1 },
+        windowStyle = { alpha = 1, title = spec.title },
         lingering = { true }, -- stands in for the window's own switch while it fades out
         draw = nil,           -- what the main window holds this frame
         -- the settings window has the theme's settings window values, apart from the game windows'
