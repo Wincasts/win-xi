@@ -26,6 +26,8 @@
 --         onSettings  = function(options) ... end,      -- optional: the settings have been loaded, or swapped for another character's
 --         toggleSays  = { shown = '...', hidden = '...' },   -- optional: said in the chat log as the command shows or hides the window
 --         import      = { tool = 'example', keys = { 'isVisible', 'pos' } },   -- optional: bring these over from xitools, once
+--         formerName  = 'ex',                    -- optional: the addon's name before it was renamed: its settings
+--                                                --   under that name are brought over, once for each character
 --     });
 --
 --     ashita.events.register('d3d_present', 'example_present', function()
@@ -83,7 +85,23 @@ local function Prepare(app)
         options.fadeInOut = T{ true };
     end
 
-    -- not before the character is known: the settings then are nobody's
+    -- not before the character is known: the settings then are nobody's. An addon that has been renamed
+    -- takes what it saved under its old name first, which says whether xitools' have been brought over.
+    local former = app.spec.formerName;
+    if former ~= nil and not options.importedFromFormer and settings.logged_in then
+        options.importedFromFormer = true;
+        local saved = legacy.ReadSettings(former);
+        if saved ~= nil then
+            for key, value in pairs(saved) do
+                if key ~= 'importedFromFormer' then
+                    options[key] = value;
+                end
+            end
+            app:Say(('Settings brought over from %s.'):format(former));
+        end
+        settings.save();
+    end
+
     local import = app.spec.import;
     if import ~= nil and not options.importedFromXitools and settings.logged_in then
         options.importedFromXitools = true;
@@ -322,6 +340,7 @@ function shell.New(spec)
     if defaults.useSharedTheme == nil then defaults.useSharedTheme = true; end
     if defaults.theme == nil then defaults.theme = T{ }; end               -- the addon's own theme, used when it leaves the shared one
     if defaults.importedFromXitools == nil then defaults.importedFromXitools = false; end
+    if spec.formerName ~= nil and defaults.importedFromFormer == nil then defaults.importedFromFormer = false; end
 
     local app = setmetatable({
         spec = spec,

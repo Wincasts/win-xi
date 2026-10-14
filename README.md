@@ -32,7 +32,7 @@ Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first.
 
 ## What else is here
 
-- `addons/` also holds addons built on other people's work (simplelog, targetlines, inv, party,
+- `addons/` also holds addons built on other people's work (simplelog, targetlines, inventory, party,
   treas), and `forks/addons` copies of other people's addons with changes of ours (cbind, hideparty,
   imrecast, mobdb, tcrossbar). Both are under their authors' terms, not the license below.
 - `plugins/exclude` is retired work, kept to look back on.

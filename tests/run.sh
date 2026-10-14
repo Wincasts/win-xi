@@ -3,7 +3,7 @@
 # what it finds. Read the output: a line ending in false, or an error, is something to look at.
 cd "$(dirname "$0")/.." || exit 1
 run() { echo "== $1"; luajit tests/harness.lua "$1" "$2" "tests/$3" 2>&1; echo; }
-run inv        addons/inv/inv.lua       inv_check.lua
+run inventory  addons/inventory/inventory.lua inventory_check.lua
 run treas      addons/treas/treas.lua   treas_check.lua
 run mark       addons/mark/mark.lua     mark_check.lua
 run mark       addons/mark/mark.lua     mark_performance_check.lua

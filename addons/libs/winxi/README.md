@@ -405,8 +405,9 @@ of character. Optional in the spec: `drawAppearance` (more for the Winxi Theme t
 `commands` (more verbs), `onSettings` (called when the settings are loaded or swapped), `toggleSays`
 (`{ shown = '...', hidden = '...' }`, said in the chat log as the command shows or hides the window: for
 a window that is only there some of the time, where the change cannot otherwise be seen) and `import` (a
-tool's settings to bring over from xitools, once). `shell.ControllerSettings(options, tooltip, between)`
-draws the controller settings an addon's Settings tab has. `inv` and `treas` are written this way.
+tool's settings to bring over from xitools, once) and `formerName` (an addon's name before it was renamed:
+what it saved under that name is brought over, once for each character). `shell.ControllerSettings(options, tooltip, between)`
+draws the controller settings an addon's Settings tab has. `inventory` and `treas` are written this way.
 
 An addon with settings and no window of its own leaves `window` out of the spec: its command alone then
 opens or closes the settings, which say nothing of hiding or fading, and it calls `app:BeginFrame()`
@@ -491,7 +492,7 @@ every addon's own settings.
 
 ## Checks
 
-`tests/run.sh`, at the top of the project, loads `inv`, `treas` and parts of winxi against a stand-in for
+`tests/run.sh`, at the top of the project, loads `inventory`, `treas` and parts of winxi against a stand-in for
 Ashita and prints what it finds: that they load, draw, answer their commands and take the controller as
 expected. It does not show that anything looks right or that the game agrees. Run it after changing
 winxi.

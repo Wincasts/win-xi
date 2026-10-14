@@ -1,4 +1,4 @@
-addon.name    = 'inv'
+addon.name    = 'inventory'
 addon.author  = 'lin, win'
 addon.version = '1.0'
 addon.desc    = 'The bags in a window: what is in them, and what can be done with it, by mouse or controller.'
@@ -8,9 +8,11 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- look of its windows, the controller, the sounds, the packets and what is asked of the game are
 -- all the library's.
 --
---   /inv           shows or hides the window
---   /inv config    opens or closes the settings
---   /inv focus     gives the open window the controller, or takes it away again
+--   /inventory           shows or hides the window (/inv does the same, as do the verbs after it)
+--   /inventory config    opens or closes the settings
+--   /inventory focus     gives the open window the controller, or takes it away again
+--
+-- It was called inv: the settings it kept under that name are brought over once for each character.
 
 require('common')
 local bit = require('bit')
@@ -30,7 +32,7 @@ local yellow = { 1.00, 1.00, 0.00, 1.0 }
 local framePadding = { 4, 2 }
 
 local function Say(text)
-    print(('\30\81[inv]\30\01 %s'):format(text))
+    print(('\30\81[inventory]\30\01 %s'):format(text))
 end
 
 local fontWidth = imgui.CalcTextSize('A')
@@ -1806,7 +1808,7 @@ local defaults = T{
     -- manualOrder: the player's own order of items, once they have made one
 }
 
-local windowName = 'winxi.inv'
+local windowName = 'winxi.inventory'
 local controllerTooltip = 'Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv closes it, /inv focus gives it the controller again).\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv, from a macro.'
 
 -- The inventory's own controller settings, between the sounds and the kind of controller
@@ -1875,8 +1877,10 @@ local app = shell.New({
     window = windowName,
     title = 'Inventory',
     configTitle = 'Inventory Settings',
-    command = '/inv',
-    help = '/inv shows or hides the window; /inv config opens or closes the settings; /inv focus gives the window the controller, or takes it away.',
+    command = '/inventory',
+    aliases = { '/inv' },
+    formerName = 'inv',
+    help = '/inventory (or /inv) shows or hides the window; /inv config opens or closes the settings; /inv focus gives the window the controller, or takes it away.',
     drawSettings = DrawSettings,
     import = {
         tool = 'inv',

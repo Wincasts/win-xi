@@ -1,4 +1,4 @@
--- inv: loads, brings its settings over from xitools, draws, answers its command, takes the controller
+-- inventory: loads, brings its settings over from xitools, draws, answers its command, takes the controller
 local o = H.options()
 H.print('imported', o.importedFromXitools, '| pos', o.pos[1], o.pos[2], '| maxHeight', o.maxHeight[1], '| info', o.controllerInfo,
     '| manualOrder', type(o.manualOrder), '| fadeInOut', o.fadeInOut[1], '| hide chat', o.hide.UnderChat, 'map', o.hide.UnderMap)
@@ -95,3 +95,21 @@ end
 H.command('/inv'); H.frames(8); H.print('/inv closes it', o.isVisible[1] == false, '| A is the game\'s', H.tap(H.Button.A) == false)
 H.print('/invite is left alone', H.command('/invite Someone') == false)
 H.packet(0x01D); H.packet(0x01E); H.unload(); H.print('packets and unload ran; saves', H.saves() > 0)
+
+-- renamed from inv: what it saved under that name is brought over, once for each character
+do
+    local o = H.options()
+    local before = loadfile
+    loadfile = function(p)
+        if p:find('\\addons\\inv\\', 1, true) then
+            return function() return { maxHeight = { 321 }, isUnified = { false }, importedFromXitools = true } end
+        end
+        return before(p)
+    end
+    o.importedFromFormer = false
+    H.resettle()
+    H.print('from inv: brought over', o.maxHeight[1] == 321 and o.isUnified[1] == false, '| once', o.importedFromFormer, '|', H.printed[#H.printed])
+    o.maxHeight[1] = 400; H.resettle()
+    H.print('and not again', o.maxHeight[1] == 400)
+    loadfile = before
+end
