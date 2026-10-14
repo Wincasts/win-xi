@@ -46,7 +46,7 @@ A name that is shown may still not be drawn by the game: an addon that draws nam
 | `/namehook hide <category>...` | Hides them. |
 | `/namehook toggle <category>...` | Shows those that are hidden and hides those that are shown. |
 | `/namehook target on` / `off` | Always shows your target's name, whatever its category. Your own name is the exception: hidden, it stays hidden while you have yourself targeted. Off by default. |
-| `/namehook status` | Says which categories are shown and hidden, how many names were listed last frame, and from how many places the client draws names. |
+| `/namehook status` | Says which categories are shown and hidden, how many names were listed last frame, from how many places the client draws names, and how many names it drew more than once. |
 | `/namehook othercalls on` / `off` | Whether every place the client draws a name from is taken, or only the one that draws all the names. On by default; turn it off if something that is no name over a head goes missing. |
 | `/namehook whitelist add <name>...` | Always shows these players' names. `wl` is short for `whitelist`. Names are matched without regard to case, and the list is saved as it changes, to `config\namehook\whitelist.txt`, one name to a line. |
 | `/namehook whitelist remove <name>...` | Takes them off the whitelist. |
@@ -139,7 +139,7 @@ The categories' bits are, from bit 0: self, party, alliance, player, my pet, pet
 
 ### Which names are listed
 
-Those the client was about to draw in the last frame: so not one that is too far away or off screen, which the client leaves out itself, and none at all with the game's `/names` off. A name the plugin hides is listed like any other, without the wanted flag, so that an addon can tell a name that is hidden from one that is not there.
+Those the client was about to draw in the last frame: so not one that is too far away or off screen, which the client leaves out itself, and none at all with the game's `/names` off. Each entity is listed once: a name the client draws more than once in a frame, as it does for a player who is fishing, is listed, and drawn for an addon, as the call that draws all the names first drew it, or failing that as it was first drawn. A name the plugin hides is listed like any other, without the wanted flag, so that an addon can tell a name that is hidden from one that is not there.
 
 The client draws its names during a scene and addons draw as the frame is presented. The list is made ready as that scene ends, or failing that as the frame is presented, so an addon reading it in `d3d_present` has the names of the frame it is drawing over.
 
