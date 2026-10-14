@@ -95,7 +95,7 @@ function SettingsGui:RenderAppearance()
     -- The Theme and Window sections are winxi's; the last section is what is this addon's own
     widgets.Appearance(self.AppearanceHooks);
 
-    widgets.Header('Addon');
+    if (not widgets.Header('Addon')) then return; end
     widgets.PushControlWidth();
     widgets.Label('Bar Scale');
     local scale = { self.Parent.Scale };
@@ -124,9 +124,8 @@ function SettingsGui:RenderAppearance()
     widgets.PopControlWidth();
 end
 
--- The settings windows keep the default padding, whatever the theme's: the padding slider must not
--- squeeze the window it is in
-local settingsStyle = { padding = theme.Defaults.Padding };
+-- The settings windows have the theme's settings window values, apart from the game windows'
+local settingsStyle = { kind = 'settings' };
 
 -- The settings windows keep their title bars and close buttons, and take the shared theme
 function SettingsGui:Render()
@@ -196,9 +195,9 @@ function SettingsGui:RenderWindows()
                         imgui.EndTabItem();
                     end
 
-                    if imgui.BeginTabItem('Appearance') then
+                    if widgets.BeginThemeTab() then
                         self:RenderAppearance();
-                        imgui.EndTabItem();
+                        widgets.EndThemeTab();
                     end
 
                     imgui.EndTabBar();

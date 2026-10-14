@@ -1,4 +1,4 @@
--- bars: small bars in a window, a few to a row, drawn as xiframes draws its own: XivParty's images
+-- bars: small bars in a window, a few to a row, drawn as the party addon draws its own: XivParty's images
 -- (assets/bars, with its licence), a back, a fill and a front tinted the bar's colour, a soft shadow
 -- under them, a silver bookend at each end, and the figure over the bar with winxi's dark edge.
 --
@@ -14,9 +14,9 @@ local outlinedText = require('winxi.text')
 
 local bars = {}
 
--- A bar, in xiframes' own numbers for its MP bar, from the top left of the bar's frame: see the
--- layout in xiframes' frames.lua for what each is
-local size = 0.75 -- how large it is drawn, against xiframes at a scale of 100
+-- A bar, in the party addon's own numbers for its MP bar, from the top left of the bar's frame: see the
+-- layout in party's frames.lua for what each is
+local size = 0.75 -- how large it is drawn, against the party addon at a scale of 100
 local bar = {
     back = 'bars/mp_back.png', fillImage = 'bars/mp_fill.png', front = 'bars/mp_front.png',
     width = 98.4, height = 14.4,
