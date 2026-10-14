@@ -14,16 +14,14 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 
 require('common')
 local bit = require('bit')
-local ffi = require('ffi')
-local d3d8 = require('d3d8')
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local game = require('winxi.game')
 local shell = require('winxi.shell')
 local packets = require('winxi.packets')
-local debounce = require('winxi.debounce')
 local controller = require('winxi.controller')
 local sound = require('winxi.sound')
+local itemicons = require('winxi.itemicons')
 local pool = require('pool')
 
 -- Colours and spacing that were xitools' own
@@ -35,8 +33,6 @@ local function Say(text)
     print(('\30\81[inv]\30\01 %s'):format(text))
 end
 
-local textures = { }
-local gfxDevice = d3d8.get_device()
 local fontWidth = imgui.CalcTextSize('A')
 local inventories = T{
     gil = 0,
@@ -68,12 +64,12 @@ local inventories = T{
         mogSafe1 = T{},
         mogSafe2 = T{},
         storage = T{},
-        mogLocker = T{},
+        locker = T{},
     },
 }
 
 -- How many slots each bag has, by group and bag as inventories is (and 'all' for a group's bags
--- together). Filled in by UpdateInventories.
+-- together). Filled in as the bags are read.
 local capacities = { bag = { }, satchel = { }, wardrobe = { }, house = { } }
 
 -- Puts together the row at the foot of each tab; defined with the row, further down
@@ -219,40 +215,6 @@ local function FormatGil(number)
     return strTbl:join('')
 end
 
-local function CreateTexture(bitmap, size)
-    local c = ffi.C
-    local texturePtr = ffi.new('IDirect3DTexture8*[1]')
-
-    local width = 0xFFFFFFFF
-    local height = 0xFFFFFFFF
-    local mipLevels = 1
-    local usage = 0
-    local colorKey = 0xFF000000
-
-    local textureSuccess = c.D3DXCreateTextureFromFileInMemoryEx(
-        gfxDevice,
-        bitmap,
-        size,
-        width,
-        height,
-        mipLevels,
-        usage,
-        c.D3DFMT_A8R8G8B8,
-        c.D3DPOOL_MANAGED,
-        c.D3DX_DEFAULT,
-        c.D3DX_DEFAULT,
-        colorKey,
-        nil,
-        nil,
-        texturePtr)
-
-    if textureSuccess == c.S_OK then
-        return d3d8.gc_safe_release(ffi.cast('IDirect3DTexture8*', texturePtr[0]))
-    else
-        return nil
-    end
-end
-
 local function EscapeString(str)
     -- shamelessly stolen from Shinzaku's GearFinder
     if str then
@@ -381,82 +343,146 @@ local sorters = {
     house = GroupSorter('house'),
 }
 
-local function UpdateInventory(inv, res, bagId)
-    local inventory = T{ }
-    local itemCount = inv:GetContainerCountMax(bagId)
+-- What is known of an item whatever bag it is in and however many there are: read from the game's
+-- resources the first time the item is met, and kept. Each item in the bags looks here for anything it
+-- does not have itself (it has this as its metatable), so reading a bag again makes only small tables.
+-- false for an item the game does not know.
+local infos = { }
 
-    for i = 0, itemCount do
+local function Info(res, id)
+    local info = infos[id]
+    if info ~= nil then
+        return info
+    end
+
+    local itemRes = res:GetItemById(id)
+    if itemRes == nil then
+        infos[id] = false
+        return false
+    end
+
+    info = {
+        id = id,
+        sortId = itemRes.ResourceId,
+        type = itemRes.Type,
+        flags = itemRes.Flags,
+        targets = itemRes.Targets,
+        isUsable = bit.band(1, bit.rshift(itemRes.Flags, 10)) == 1,
+        isMoveable = true,
+        isTradeable = true,
+        isEquippable = itemRes.Type == 4 or itemRes.Type == 5,
+        name = ('%s [%i]'):format(Capitalize(itemRes.LogNameSingular[1]), id),
+        properName = Capitalize(itemRes.LogNameSingular[1]),
+        rawDesc = itemRes.Description[1],
+        shortName = itemRes.Name[1],
+        longNameS = itemRes.LogNameSingular[1],
+        longNameP = itemRes.LogNamePlural[1],
+        desc = EscapeString(itemRes.Description[1]),
+        stackMax = itemRes.StackSize,
+    }
+
+    if info.type == itemTypes.armor
+    or info.type == itemTypes.weapon then
+        local itemSlots = GetSlots(itemRes.Slots, itemRes.Skill)
+        local itemJobs = GetJobs(itemRes.Jobs)
+        info.level = ('Lv %i %s'):format(itemRes.Level, itemSlots)
+        info.jobs = itemJobs:join(', ')
+        info.slots = itemRes.Slots
+        -- for the controller's verbose box, which sets gear out in lines of its own
+        info.isGear = true
+        info.levelText = ('Lv %i'):format(itemRes.Level)
+        info.slotName = itemSlots
+        info.jobList = itemJobs
+        info.races = itemRes.Races
+    end
+
+    info.__index = info
+    infos[id] = info
+    return info
+end
+
+-- Where each bag is shown: its group (the tab) and its name within it. The recycle bin is not shown as
+-- a bag: the controller's sort menu lists it.
+local bagPlaces = {
+    [bags.inventory] = { 'bag', 'inv' },
+    [bags.tempItems] = { 'bag', 'temp' },
+    [bags.mogSatchel] = { 'satchel', 'satchel' },
+    [bags.mogCase] = { 'satchel', 'case' },
+    [bags.mogSack] = { 'satchel', 'sack' },
+    [bags.wardrobe] = { 'wardrobe', 'wardrobe1' },
+    [bags.wardrobe2] = { 'wardrobe', 'wardrobe2' },
+    [bags.wardrobe3] = { 'wardrobe', 'wardrobe3' },
+    [bags.wardrobe4] = { 'wardrobe', 'wardrobe4' },
+    [bags.wardrobe5] = { 'wardrobe', 'wardrobe5' },
+    [bags.wardrobe6] = { 'wardrobe', 'wardrobe6' },
+    [bags.wardrobe7] = { 'wardrobe', 'wardrobe7' },
+    [bags.wardrobe8] = { 'wardrobe', 'wardrobe8' },
+    [bags.mogSafe] = { 'house', 'mogSafe1' },
+    [bags.mogSafe2] = { 'house', 'mogSafe2' },
+    [bags.storage] = { 'house', 'storage' },
+    [bags.mogLocker] = { 'house', 'locker' },
+}
+
+-- The bags of each group, in the order they are put together before sorting
+local groupBags = {
+    bag = { bags.inventory, bags.tempItems },
+    satchel = { bags.mogSatchel, bags.mogCase, bags.mogSack },
+    wardrobe = { bags.wardrobe, bags.wardrobe2, bags.wardrobe3, bags.wardrobe4, bags.wardrobe5, bags.wardrobe6, bags.wardrobe7, bags.wardrobe8 },
+    house = { bags.mogSafe, bags.mogSafe2, bags.storage, bags.mogLocker },
+}
+
+-- Reads one bag from the game's memory. The items that were in it are marked as gone, for a menu still
+-- open on one of them.
+local function ReadBag(inv, res, bagId)
+    local place = bagPlaces[bagId]
+    local old = place and inventories[place[1]][place[2]] or inventories.recycleBin
+    for _, item in ipairs(old) do
+        item.gone = true
+    end
+
+    local list = T{ }
+    for i = 0, inv:GetContainerCountMax(bagId) do
         local invItem = inv:GetContainerItem(bagId, i)
-        local itemRes = res:GetItemById(invItem.Id)
-
-        if itemRes ~= nil and invItem.Id ~= 65535 then
-            if textures[invItem.Id] == nil then
-                textures[invItem.Id] = CreateTexture(itemRes.Bitmap, itemRes.ImageSize)
-            end
-
-            local coolItem = {
-                id = invItem.Id,
+        local id = invItem ~= nil and invItem.Id or 0
+        local info = id ~= 0 and id ~= 65535 and Info(res, id)
+        if info then
+            local item = setmetatable({
                 bagId = bagId,
-                sortId = itemRes.ResourceId,
                 slotId = invItem.Index,
-                uniqueId = ('%i.%i.%s'):format(bagId, invItem.Index, itemRes.Name[1]),
-                type = itemRes.Type,
-                flags = itemRes.Flags,
-                targets = itemRes.Targets,
-                isUsable = bit.band(1, bit.rshift(itemRes.Flags, 10)) == 1,
-                isMoveable = true,
-                isTradeable = true,
+                uniqueId = ('%i.%i.%s'):format(bagId, invItem.Index, info.shortName),
                 isLocked = bit.band(1, invItem.Flags) == 1 or bagId > 0,
-                isEquippable = itemRes.Type == 4 or itemRes.Type == 5,
-                name = ('%s [%i]'):format(Capitalize(itemRes.LogNameSingular[1]), invItem.Id),
-                properName = Capitalize(itemRes.LogNameSingular[1]),
-                rawDesc = itemRes.Description[1],
-                shortName = itemRes.Name[1],
-                longNameS = itemRes.LogNameSingular[1],
-                longNameP = itemRes.LogNamePlural[1],
-                desc = EscapeString(itemRes.Description[1]),
-                stack = nil,
                 stackCur = invItem.Count,
-                stackMax = itemRes.StackSize,
-                level = nil,
-                jobs = nil,
-                iconPtr = tonumber(ffi.cast('uint32_t', textures[invItem.Id]))
-            }
-
-            if coolItem.stackMax > 1 then
-                coolItem.stack = ('%i / %i'):format(coolItem.stackCur, coolItem.stackMax)
-                coolItem.stackText = tostring(coolItem.stackCur or 0) -- drawn over the icon
+            }, info)
+            if info.stackMax > 1 then
+                item.stack = ('%i / %i'):format(item.stackCur, info.stackMax)
+                item.stackText = tostring(item.stackCur or 0) -- drawn over the icon
             end
-
-            if coolItem.type == itemTypes.armor
-            or coolItem.type == itemTypes.weapon then
-                local itemSlots = GetSlots(itemRes.Slots, itemRes.Skill)
-                local itemJobs = GetJobs(itemRes.Jobs)
-                coolItem.level = ('Lv %i %s'):format(itemRes.Level, itemSlots)
-                coolItem.jobs = itemJobs:join(', ')
-                coolItem.slots = itemRes.Slots
-                -- for the controller's verbose box, which sets gear out in lines of its own
-                coolItem.isGear = true
-                coolItem.levelText = ('Lv %i'):format(itemRes.Level)
-                coolItem.slotName = itemSlots
-                coolItem.jobList = itemJobs
-                coolItem.races = itemRes.Races
-            end
-
-            inventory:append(coolItem)
+            list[#list + 1] = item
         end
     end
 
-    return inventory
+    if place then
+        inventories[place[1]][place[2]] = list
+    else
+        inventories.recycleBin = list
+    end
 end
 
-local function UpdateInventories()
-    local inv = AshitaCore:GetMemoryManager():GetInventory()
-    local res = AshitaCore:GetResourceManager()
-    local gil = inv:GetContainerItem(0, 0)
-    local invSize = inv:GetContainerCountMax(0)
-    if gil == nil or invSize == 0 then return end
+-- Sorts a group's bags, each and all together, in the usual order or the player's own
+local function Regroup(group)
+    local sorter = sorters[group]
+    local all = T{ }
+    for _, bagId in ipairs(groupBags[group]) do
+        local list = inventories[group][bagPlaces[bagId][2]]
+        list:sort(sorter)
+        all:extend(list)
+    end
+    inventories[group].all = all:sort(sorter)
+end
 
+-- How many slots each bag has, which bags can be used, the gil, and the row at the foot of each tab:
+-- cheap, and done whenever any bag is read
+local function UpdateCounts(inv)
     for _, bag in ipairs(moveableBags) do
         if bag.id > 10 then
             bag.hasAccess = game.HasBagAccess(bag.id)
@@ -465,56 +491,7 @@ local function UpdateInventories()
         end
     end
 
-    inventories.gil = FormatGil(gil.Count)
-    inventories.bag.inv = UpdateInventory(inv, res, bags.inventory):sort(sorters.bag)
-    inventories.bag.temp = UpdateInventory(inv, res, bags.tempItems):sort(sorters.bag)
-    inventories.satchel.satchel = UpdateInventory(inv, res, bags.mogSatchel):sort(sorters.satchel)
-    inventories.satchel.case = UpdateInventory(inv, res, bags.mogCase):sort(sorters.satchel)
-    inventories.satchel.sack = UpdateInventory(inv, res, bags.mogSack):sort(sorters.satchel)
-    inventories.wardrobe.wardrobe1 = UpdateInventory(inv, res, bags.wardrobe):sort(sorters.wardrobe)
-    inventories.wardrobe.wardrobe2 = UpdateInventory(inv, res, bags.wardrobe2):sort(sorters.wardrobe)
-    inventories.wardrobe.wardrobe3 = UpdateInventory(inv, res, bags.wardrobe3):sort(sorters.wardrobe)
-    inventories.wardrobe.wardrobe4 = UpdateInventory(inv, res, bags.wardrobe4):sort(sorters.wardrobe)
-    inventories.wardrobe.wardrobe5 = UpdateInventory(inv, res, bags.wardrobe5):sort(sorters.wardrobe)
-    inventories.wardrobe.wardrobe6 = UpdateInventory(inv, res, bags.wardrobe6):sort(sorters.wardrobe)
-    inventories.wardrobe.wardrobe7 = UpdateInventory(inv, res, bags.wardrobe7):sort(sorters.wardrobe)
-    inventories.wardrobe.wardrobe8 = UpdateInventory(inv, res, bags.wardrobe8):sort(sorters.wardrobe)
-    inventories.house.mogSafe1 = UpdateInventory(inv, res, bags.mogSafe):sort(sorters.house)
-    inventories.house.mogSafe2 = UpdateInventory(inv, res, bags.mogSafe2):sort(sorters.house)
-    inventories.house.storage = UpdateInventory(inv, res, bags.storage):sort(sorters.house)
-    inventories.house.locker = UpdateInventory(inv, res, bags.mogLocker):sort(sorters.house)
-    -- what has been dropped and can still be taken back: not drawn as a bag, but listed by the
-    -- controller's sort menu
-    inventories.recycleBin = UpdateInventory(inv, res, bags.recycleBin)
-
-    inventories.bag.all = T{}
-        :extend(inventories.bag.inv)
-        :extend(inventories.bag.temp)
-        :sort(sorters.bag)
-
-    inventories.satchel.all = T{}
-        :extend(inventories.satchel.satchel)
-        :extend(inventories.satchel.case)
-        :extend(inventories.satchel.sack)
-        :sort(sorters.satchel)
-
-    inventories.wardrobe.all = T{}
-        :extend(inventories.wardrobe.wardrobe1)
-        :extend(inventories.wardrobe.wardrobe2)
-        :extend(inventories.wardrobe.wardrobe3)
-        :extend(inventories.wardrobe.wardrobe4)
-        :extend(inventories.wardrobe.wardrobe5)
-        :extend(inventories.wardrobe.wardrobe6)
-        :extend(inventories.wardrobe.wardrobe7)
-        :extend(inventories.wardrobe.wardrobe8)
-        :sort(sorters.wardrobe)
-
-    inventories.house.all = T{}
-        :extend(inventories.house.mogSafe1)
-        :extend(inventories.house.mogSafe2)
-        :extend(inventories.house.storage)
-        :extend(inventories.house.locker)
-        :sort(sorters.house)
+    inventories.gil = FormatGil(inv:GetContainerItem(0, 0).Count)
 
     -- How many slots each bag has, for showing the empty ones. Temporary items have no fixed slots
     -- worth showing, and a bag the player cannot use has none.
@@ -547,6 +524,66 @@ local function UpdateInventories()
     end
 
     BuildCounts()
+end
+
+-- Which bags are to be read again, and when the last packet came that said so. The game is told of a
+-- change by packets that come in bursts, and an addon sees each before the game has made the change:
+-- the bags are read once the burst has been quiet for a moment.
+local settle = 0.15 -- seconds
+local stale = { }
+local staleAt = nil
+
+local function MarkStale(bagId)
+    if bagId == nil then
+        for id = 0, bags.recycleBin do
+            stale[id] = true
+        end
+    elseif bagId >= 0 and bagId <= bags.recycleBin then
+        stale[bagId] = true
+    end
+    staleAt = os.clock()
+end
+MarkStale(nil)
+staleAt = 0
+
+-- Reads the bags marked as changed, once they have settled (or at once, with now). Returns whether
+-- anything was read. Until the game has the bags (as the character is loading) they stay marked.
+local function RefreshInventories(now)
+    if staleAt == nil or (not now and os.clock() - staleAt < settle) then
+        return false
+    end
+    local inv = AshitaCore:GetMemoryManager():GetInventory()
+    local gil = inv:GetContainerItem(0, 0)
+    if gil == nil or inv:GetContainerCountMax(0) == 0 then
+        return false
+    end
+
+    local res = AshitaCore:GetResourceManager()
+    local changed = { }
+    for id = 0, bags.recycleBin do
+        if stale[id] then
+            stale[id] = nil
+            ReadBag(inv, res, id)
+            local place = bagPlaces[id]
+            if place then
+                changed[place[1]] = true
+            end
+        end
+    end
+    staleAt = nil
+
+    for group in pairs(changed) do
+        Regroup(group)
+    end
+    UpdateCounts(inv)
+    return true
+end
+
+-- The player's own order has changed: every group is sorted again, with nothing read
+local function Resort()
+    for group in pairs(groupBags) do
+        Regroup(group)
+    end
 end
 
 -- What can be done with an item. Each is offered by the right-click menu, and by the controller's.
@@ -666,11 +703,12 @@ local function AddStackSize(posX, posY, text, drawList)
 end
 
 local highlightColor = imgui.GetColorU32({ 0.23, 0.67, 0.91, 1.0 })
+local highlightMin, highlightMax = { 0, 0 }, { 0, 0 }
 local function AddHighlight(posX, posY, size, drawList)
     local pad = 2
-    local upperLeft = { posX - pad, posY - pad }
-    local bottomRight = { posX + size + pad, posY + size + pad }
-    drawList:AddRect(upperLeft, bottomRight, highlightColor, 0.0)
+    highlightMin[1], highlightMin[2] = posX - pad, posY - pad
+    highlightMax[1], highlightMax[2] = posX + size + pad, posY + size + pad
+    drawList:AddRect(highlightMin, highlightMax, highlightColor, 0.0)
 end
 
 -- All there is to say of an item: its name, its description (where the game puts an item's stats and
@@ -701,111 +739,106 @@ local function AddTooltip(item)
     imgui.EndTooltip()
 end
 
-local function AddFullCtxMenu(item)
-    local menuOpened = false
-    local menuOpenable = item.isUsable or item.isMoveable or item.isEquippable or not item.isLocked
-
-    if menuOpenable and imgui.BeginPopupContextItem(item.uniqueId) then
-        menuOpened = true
-
-        if item.isUsable then
-            TryToUse(item)
-        end
-
-        if item.isTradeable then
-            TryToTrade(item)
-        end
-
-        if item.isEquippable then
-            TryToEquip(item)
-        end
-
-        if item.isMoveable then
-            TryToMove(item)
-        end
-
-        if not item.isLocked then
-            TryToDrop(item)
-        end
-
-        if imgui.Selectable('Cancel') then
-            imgui.CloseCurrentPopup()
-        end
-
-        imgui.EndPopup()
+-- The right-click menu. There is one for the whole window, opened on the item under the mouse; what it
+-- offers depends on the group of bags the item is in.
+local function FullMenu(item)
+    if item.isUsable then
+        TryToUse(item)
     end
-
-    return menuOpened
+    if item.isTradeable then
+        TryToTrade(item)
+    end
+    if item.isEquippable then
+        TryToEquip(item)
+    end
+    if item.isMoveable then
+        TryToMove(item)
+    end
+    if not item.isLocked then
+        TryToDrop(item)
+    end
 end
 
-local function AddWardrobeCtxMenu(item)
-    local menuOpened = false
-    local menuOpenable = item.isUsable or item.isMoveable or item.isEquippable or not item.isLocked
-
-    if menuOpenable and imgui.BeginPopupContextItem(item.uniqueId) then
-        menuOpened = true
-
-        if item.isUsable then
-            TryToUse(item)
-        end
-
-        if item.isEquippable then
-            TryToEquip(item)
-        end
-
-        if item.isMoveable then
-            TryToMove(item)
-        end
-
-        if not item.isLocked then
-            TryToDrop(item)
-        end
-
-        if imgui.Selectable('Cancel') then
-            imgui.CloseCurrentPopup()
-        end
-
-        imgui.EndPopup()
+local function WardrobeMenu(item)
+    if item.isUsable then
+        TryToUse(item)
     end
-
-    return menuOpened
+    if item.isEquippable then
+        TryToEquip(item)
+    end
+    if item.isMoveable then
+        TryToMove(item)
+    end
+    if not item.isLocked then
+        TryToDrop(item)
+    end
 end
 
-local function AddSatchelCtxMenu(item)
-    local menuOpened = false
-    local menuOpenable = item.isMoveable or not item.isLocked
-
-    if menuOpenable and imgui.BeginPopupContextItem(item.uniqueId) then
-        menuOpened = true
-
-        if item.isMoveable then
-            TryToMove(item)
-        end
-
-        if not item.isLocked then
-            TryToDrop(item)
-        end
-
-        if imgui.Selectable('Cancel') then
-            imgui.CloseCurrentPopup()
-        end
-
-        imgui.EndPopup()
+local function SatchelMenu(item)
+    if item.isMoveable then
+        TryToMove(item)
     end
-
-    return menuOpened
+    if not item.isLocked then
+        TryToDrop(item)
+    end
 end
 
-local function AddHouseCtxMenu(item)
+local itemMenus = { bag = FullMenu, satchel = SatchelMenu, wardrobe = WardrobeMenu }
+
+-- Whether an item has anything in its menu, in the given group of bags
+local function HasMenu(item, group)
+    if group == 'bag' or group == 'wardrobe' then
+        return item.isUsable or item.isMoveable or item.isEquippable or not item.isLocked
+    elseif group == 'satchel' then
+        return item.isMoveable or not item.isLocked
+    end
     return false
 end
 
-local contextMenus = {
-    bag      = AddFullCtxMenu,
-    satchel  = AddSatchelCtxMenu,
-    wardrobe = AddWardrobeCtxMenu,
-    house    = AddHouseCtxMenu,
-}
+local menuName = '##inv.itemMenu'
+local itemMenu = { item = nil, group = nil, open = false }
+
+-- The item a menu was opened on, as the bags are now: the same slot of the same bag, with the same
+-- item in it. A bag is read again whenever anything in it changes, and its items with it.
+local function FindAgain(item, group)
+    for _, other in ipairs(inventories[group].all) do
+        if other.uniqueId == item.uniqueId then
+            return other
+        end
+    end
+    return nil
+end
+
+-- Opens the menu on an item, from the right-click
+local function OpenItemMenu(item, group)
+    itemMenu.item, itemMenu.group = item, group
+    imgui.OpenPopup(menuName)
+end
+
+-- The open menu, once a frame, in the tab it was opened in. It closes if its item has gone.
+local function DrawItemMenu()
+    itemMenu.open = false
+    if itemMenu.item == nil then
+        return
+    end
+    if itemMenu.item.gone then
+        itemMenu.item = FindAgain(itemMenu.item, itemMenu.group)
+    end
+    if imgui.BeginPopup(menuName) then
+        itemMenu.open = true
+        if itemMenu.item == nil then
+            imgui.CloseCurrentPopup()
+        else
+            itemMenus[itemMenu.group](itemMenu.item)
+            if imgui.Selectable('Cancel') then
+                imgui.CloseCurrentPopup()
+            end
+        end
+        imgui.EndPopup()
+    else
+        itemMenu.item = nil
+    end
+end
 
 -- Experimental: working the inventory with an XInput controller (the Controller Navigation setting).
 -- The controller itself is winxi's: which buttons are taken and kept from the game, the highlight that
@@ -967,7 +1000,7 @@ local function SwapPlaces(options, group, first, second)
     end
     options.manualOrder[group] = order
     manualOrders = options.manualOrder
-    UpdateInventories()
+    Resort()
     return true
 end
 
@@ -978,7 +1011,7 @@ local function ClearPlaces(options, group)
     end
     options.manualOrder[group] = nil
     manualOrders = options.manualOrder
-    UpdateInventories()
+    Resort()
     return true
 end
 
@@ -1307,97 +1340,18 @@ local function PadEndFrame()
     pad.menu:Draw(x + 40, y)
 end
 
-local iconSizes = { iconSize, iconSize }
 local padMin, padMax = { 0, 0 }, { 0, 0 }
 
--- Whether the item about to be drawn is in view. One scrolled out of sight only has its room kept: a
--- group of bags can hold hundreds, of which the window shows a few rows. Whether imgui can be asked is
--- found out the first time; if not, everything is drawn as before.
-local canCull = nil
+-- Drawn each frame: the sheet the icons are on (winxi.itemicons), their tint (white, with the window's
+-- fade), and the item under the mouse, for its tooltip
+local iconSheet = nil
+local iconWhite = { 1, 1, 1, 1 }
+local iconTint = 0
+local hoveredItem = nil
 
-local function IsInView()
-    if canCull then
-        return imgui.IsRectVisible(iconSizes)
-    elseif canCull == nil then
-        local ok, visible = pcall(imgui.IsRectVisible, iconSizes)
-        canCull = ok and type(visible) == 'boolean'
-        return not canCull or visible
-    end
-    return true
-end
-
--- group is the group of bags the item is being drawn in (bag, satchel, wardrobe or house)
-local function DrawItem(item, addCtxMenu, group, drawList)
-    local curX, curY = imgui.GetCursorScreenPos()
-    local inView = IsInView()
-
-    if inView then
-        imgui.Image(item.iconPtr, iconSizes)
-
-        if item.stackText then
-            AddStackSize(curX, curY, item.stackText, drawList)
-        end
-
-        if imgui.IsItemHovered() then
-            AddHighlight(curX, curY, iconSize, drawList)
-            AddTooltip(item)
-        end
-
-        if addCtxMenu(item) then
-            AddHighlight(curX, curY, iconSize, drawList)
-        end
-    else
-        imgui.Dummy(iconSizes)
-    end
-
-    -- With the controller: note where the item is, and mark the one the highlight is on
-    if pad.active then
-        local index = pad.grid:Add(curX, curY)
-        pad.items[index], pad.groups[index] = item, group
-
-        -- the item picked to be swapped keeps a mark of its own while the other is chosen
-        if inView and pad.swap ~= nil and pad.swap.first ~= nil and pad.swap.first.uniqueId == item.uniqueId then
-            padMin[1], padMin[2] = curX - 1, curY - 1
-            padMax[1], padMax[2] = curX + iconSize + 1, curY + iconSize + 1
-            drawList:AddRect(padMin, padMax, swapColor, 0.0)
-            padMin[1], padMin[2] = curX, curY
-            padMax[1], padMax[2] = curX + iconSize, curY + iconSize
-            drawList:AddRect(padMin, padMax, swapColor, 0.0)
-        end
-
-        if pad.grid:IsOn(index) then
-            if inView then
-                -- two outlines, one inside the other, for a border two pixels thick
-                padMin[1], padMin[2] = curX - 2, curY - 2
-                padMax[1], padMax[2] = curX + iconSize + 2, curY + iconSize + 2
-                drawList:AddRect(padMin, padMax, padColor, 0.0)
-                padMin[1], padMin[2] = curX - 3, curY - 3
-                padMax[1], padMax[2] = curX + iconSize + 3, curY + iconSize + 3
-                drawList:AddRect(padMin, padMax, padColor, 0.0)
-            end
-            if pad.grid.moved and imgui.SetScrollHereY ~= nil then
-                imgui.SetScrollHereY(0.5)
-            end
-        end
-    end
-end
-
--- An empty slot: a faint square the size of an item's icon. The tables are shared rather than made for
--- each one: a bag can have eighty.
-local emptySize = { 32, 32 }
+-- An empty slot: a faint square the size of an item's icon
 local emptyFill = { 1.0, 1.0, 1.0, 0.04 }
 local emptyEdge = { 1.0, 1.0, 1.0, 0.18 }
-local emptyMin, emptyMax = { 0, 0 }, { 0, 0 }
-
-local function DrawEmptySlot(drawList, fill, edge)
-    local x, y = imgui.GetCursorScreenPos()
-    imgui.Dummy(emptySize)
-
-    emptyMin[1], emptyMin[2] = x, y
-    emptyMax[1], emptyMax[2] = x + emptySize[1], y + emptySize[2]
-    drawList:AddRectFilled(emptyMin, emptyMax, fill, 2)
-    drawList:AddRect(emptyMin, emptyMax, edge, 2)
-end
 
 -- How many empty slots a bag (or a group's bags together) has to show: none unless they are being shown
 local function EmptySlots(bagId, subId)
@@ -1407,31 +1361,148 @@ local function EmptySlots(bagId, subId)
     return math.max(0, (capacities[bagId][subId] or 0) - #inventories[bagId][subId])
 end
 
+-- A bag's items are laid out here rather than by imgui, a grid of them in rows: the room for the whole
+-- grid is kept in one go, and the item under the mouse is worked out from where it is. Only what is in
+-- view is drawn, the icons all together and then the stack sizes over them, so that imgui draws the
+-- icons in one go (they share winxi.itemicons' sheet) and the text in another.
 local tabsWidthIsh = imgui.CalcTextSize(' bag satchel ward house ')
-local rowLengthIsh = math.ceil(tabsWidthIsh / (32 + 8))
-local function DrawBag(bagId, subId)
-    local items = inventories[bagId][subId]
-    local drawList = imgui.GetWindowDrawList()
-    local addCtxMenu = contextMenus[bagId]
+local rowLengthIsh = math.max(1, math.ceil(tabsWidthIsh / (32 + 8)))
+local itemGap = { 8, 4 } -- between items, across and down: the shell's spacing for its windows
+local stepX, stepY = iconSize + itemGap[1], iconSize + itemGap[2]
+local gridSize = { 0, 0 }
+local iconMin, iconMax, uvMin, uvMax = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
+local firstShown, lastShown = 0, -1 -- the items of the bag being drawn that are in view
+
+-- Where the i-th place of a grid at left, top is
+local function Spot(left, top, i)
+    local index = i - 1
+    return left + index % rowLengthIsh * stepX, top + math.floor(index / rowLengthIsh) * stepY
+end
+
+-- With the controller: notes where each item is, marks the one picked for swapping and the one the
+-- highlight is on, and scrolls that into view as it moves
+local function PadItems(items, group, left, top, drawList, windowY)
     for i, item in ipairs(items) do
-        if i % rowLengthIsh ~= 1 then
-            imgui.SameLine()
+        local x, y = Spot(left, top, i)
+        local inView = i >= firstShown and i <= lastShown
+        local index = pad.grid:Add(x, y)
+        pad.items[index], pad.groups[index] = item, group
+
+        -- the item picked to be swapped keeps a mark of its own while the other is chosen
+        if inView and pad.swap ~= nil and pad.swap.first ~= nil and pad.swap.first.uniqueId == item.uniqueId then
+            padMin[1], padMin[2] = x - 1, y - 1
+            padMax[1], padMax[2] = x + iconSize + 1, y + iconSize + 1
+            drawList:AddRect(padMin, padMax, swapColor, 0.0)
+            padMin[1], padMin[2] = x, y
+            padMax[1], padMax[2] = x + iconSize, y + iconSize
+            drawList:AddRect(padMin, padMax, swapColor, 0.0)
         end
 
-        DrawItem(item, addCtxMenu, bagId, drawList)
+        if pad.grid:IsOn(index) then
+            if inView then
+                -- two outlines, one inside the other, for a border two pixels thick
+                padMin[1], padMin[2] = x - 2, y - 2
+                padMax[1], padMax[2] = x + iconSize + 2, y + iconSize + 2
+                drawList:AddRect(padMin, padMax, padColor, 0.0)
+                padMin[1], padMin[2] = x - 3, y - 3
+                padMax[1], padMax[2] = x + iconSize + 3, y + iconSize + 3
+                drawList:AddRect(padMin, padMax, padColor, 0.0)
+            end
+            if pad.grid.moved then
+                if imgui.SetScrollFromPosY ~= nil then
+                    imgui.SetScrollFromPosY(y - windowY + iconSize / 2, 0.5)
+                elseif imgui.SetScrollHereY ~= nil then
+                    -- the cursor taken to the item for a moment, and back
+                    local cursorX, cursorY = imgui.GetCursorScreenPos()
+                    padMin[1], padMin[2] = x, y
+                    imgui.SetCursorScreenPos(padMin)
+                    imgui.SetScrollHereY(0.5)
+                    padMin[1], padMin[2] = cursorX, cursorY
+                    imgui.SetCursorScreenPos(padMin)
+                end
+            end
+        end
+    end
+end
+
+local function DrawBag(bagId, subId)
+    local items = inventories[bagId][subId]
+    local count = #items
+    local total = count + EmptySlots(bagId, subId)
+    if total == 0 then
+        return
+    end
+
+    local left, top = imgui.GetCursorScreenPos()
+    gridSize[1] = math.min(total, rowLengthIsh) * stepX - itemGap[1]
+    gridSize[2] = math.ceil(total / rowLengthIsh) * stepY - itemGap[2]
+    imgui.Dummy(gridSize)
+
+    -- the rows in view: the window's, less what is scrolled out of sight
+    local _, windowY = imgui.GetWindowPos()
+    local _, windowHeight = imgui.GetWindowSize()
+    local firstRow = math.max(0, math.floor((windowY - top - iconSize) / stepY) + 1)
+    local lastRow = math.floor((windowY + windowHeight - top) / stepY)
+    firstShown, lastShown = firstRow * rowLengthIsh + 1, (lastRow + 1) * rowLengthIsh
+    local drawList = imgui.GetWindowDrawList()
+
+    -- the item under the mouse, from where the mouse is
+    local hovered = nil
+    if imgui.IsWindowHovered() then
+        local mx, my = imgui.GetMousePos()
+        if mx ~= nil and mx >= left and my >= top then
+            local column, row = math.floor((mx - left) / stepX), math.floor((my - top) / stepY)
+            local i = row * rowLengthIsh + column + 1
+            if column < rowLengthIsh and mx - left - column * stepX < iconSize and my - top - row * stepY < iconSize and i <= count then
+                hovered = items[i]
+            end
+        end
+    end
+    if hovered ~= nil then
+        hoveredItem = hovered
+        if imgui.IsMouseClicked(1) and HasMenu(hovered, bagId) then
+            OpenItemMenu(hovered, bagId)
+        end
+    end
+
+    -- the icons, then the stack sizes over them, then the marks
+    local last = math.min(count, lastShown)
+    if iconSheet ~= nil then
+        for i = firstShown, last do
+            local place = itemicons.Place(items[i].id)
+            if place ~= nil then
+                local x, y = Spot(left, top, i)
+                iconMin[1], iconMin[2], iconMax[1], iconMax[2] = x, y, x + iconSize, y + iconSize
+                uvMin[1], uvMin[2], uvMax[1], uvMax[2] = place[1], place[2], place[3], place[4]
+                drawList:AddImage(iconSheet, iconMin, iconMax, uvMin, uvMax, iconTint)
+            end
+        end
+    end
+    for i = firstShown, last do
+        local item = items[i]
+        if item.stackText then
+            local x, y = Spot(left, top, i)
+            AddStackSize(x, y, item.stackText, drawList)
+        end
+        if item == hovered or (itemMenu.open and item == itemMenu.item) then
+            local x, y = Spot(left, top, i)
+            AddHighlight(x, y, iconSize, drawList)
+        end
     end
 
     -- the empty slots carry on from the last item, in the same rows
-    local empty = EmptySlots(bagId, subId)
-    if empty > 0 then
+    if total > count then
         local fill, edge = imgui.GetColorU32(emptyFill), imgui.GetColorU32(emptyEdge)
-        for i = #items + 1, #items + empty do
-            if i % rowLengthIsh ~= 1 then
-                imgui.SameLine()
-            end
-
-            DrawEmptySlot(drawList, fill, edge)
+        for i = math.max(count + 1, firstShown), math.min(total, lastShown) do
+            local x, y = Spot(left, top, i)
+            iconMin[1], iconMin[2], iconMax[1], iconMax[2] = x, y, x + iconSize, y + iconSize
+            drawList:AddRectFilled(iconMin, iconMax, fill, 2)
+            drawList:AddRect(iconMin, iconMax, edge, 2)
         end
+    end
+
+    if pad.active then
+        PadItems(items, bagId, left, top, drawList, windowY)
     end
 end
 
@@ -1464,7 +1535,7 @@ local countedBags = {
 -- is, as 08/30. A tab with one bag shows the count alone; one with several names each, one to a row
 -- under the first. A full bag's count is red. Bags the player does not have are left out.
 --
--- What the row says only changes when the bags do, so it is put together then (by UpdateInventories)
+-- What the row says only changes when the bags do, so it is put together then (as they are read)
 -- and only drawn here.
 local countBuffer = { 0, 3 } -- between the slots and the row
 local countRows = { bag = { }, satchel = { }, wardrobe = { }, house = { } } -- each: { text, full }
@@ -1497,7 +1568,7 @@ BuildCounts = function()
     end
 end
 
-local function DrawCounts(bagId)
+local function DrawCountsRow(bagId)
     -- a little room between the slots and this row
     imgui.Dummy(countBuffer)
 
@@ -1520,6 +1591,16 @@ local function DrawCounts(bagId)
             imgui.Text(row.text)
         end
     end
+end
+
+-- The end of a tab: the tooltip of the item under the mouse, the menu if it is open, and the row of
+-- counts at the foot
+local function FinishTab(group)
+    if hoveredItem ~= nil and not itemMenu.open then
+        AddTooltip(hoveredItem)
+    end
+    DrawItemMenu()
+    DrawCountsRow(group)
 end
 
 -- The sheen over each tab: light at its top, fading out by the middle, then darkening to its foot
@@ -1595,7 +1676,7 @@ local function DrawInventory()
         if BeginTab(1, 'bag##inv.bags.all.1') then
             DrawSubInventory('inventory', 'bag', 'inv')
             DrawSubInventory('temp items', 'bag', 'temp')
-            DrawCounts('bag')
+            FinishTab('bag')
             imgui.EndTabItem()
         end
 
@@ -1603,7 +1684,7 @@ local function DrawInventory()
             DrawSubInventory('mog satchel', 'satchel', 'satchel')
             DrawSubInventory('mog case', 'satchel', 'case')
             DrawSubInventory('mog sack', 'satchel', 'sack')
-            DrawCounts('satchel')
+            FinishTab('satchel')
             imgui.EndTabItem()
         end
 
@@ -1616,7 +1697,7 @@ local function DrawInventory()
             DrawSubInventory('wardrobe 6', 'wardrobe', 'wardrobe6')
             DrawSubInventory('wardrobe 7', 'wardrobe', 'wardrobe7')
             DrawSubInventory('wardrobe 8', 'wardrobe', 'wardrobe8')
-            DrawCounts('wardrobe')
+            FinishTab('wardrobe')
             imgui.EndTabItem()
         end
 
@@ -1625,7 +1706,7 @@ local function DrawInventory()
             DrawSubInventory('mog safe 2', 'house', 'mogSafe2')
             DrawSubInventory('storage', 'house', 'storage')
             DrawSubInventory('mog locker', 'house', 'locker')
-            DrawCounts('house')
+            FinishTab('house')
             imgui.EndTabItem()
         end
 
@@ -1639,25 +1720,25 @@ local function DrawInventoryUnified()
     if imgui.BeginTabBar('##inv.bags.unified', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
         if BeginTab(1, 'bag##inv.bags.unified.1') then
             DrawBag('bag', 'all')
-            DrawCounts('bag')
+            FinishTab('bag')
             imgui.EndTabItem()
         end
 
         if BeginTab(2, 'satchel##inv.bags.unified.2') then
             DrawBag('satchel', 'all')
-            DrawCounts('satchel')
+            FinishTab('satchel')
             imgui.EndTabItem()
         end
 
         if BeginTab(3, 'ward##inv.bags.unified.3') then
             DrawBag('wardrobe', 'all')
-            DrawCounts('wardrobe')
+            FinishTab('wardrobe')
             imgui.EndTabItem()
         end
 
         if BeginTab(4, 'house##inv.bags.unified.4') then
             DrawBag('house', 'all')
-            DrawCounts('house')
+            FinishTab('house')
             imgui.EndTabItem()
         end
 
@@ -1672,6 +1753,9 @@ local topPadding = 6 -- more room above the tabs, below the title on the top edg
 local function DrawWindow(drawOptions)
     -- once for the frame, inside the window: they take in its fade
     stackMain, stackShadow = imgui.GetColorU32(stackWhite), imgui.GetColorU32(stackBlack)
+    iconTint = imgui.GetColorU32(iconWhite)
+    iconSheet = itemicons.Frame()
+    hoveredItem = nil
 
     imgui.SetCursorPosY(imgui.GetCursorPosY() + topPadding)
 
@@ -1805,8 +1889,9 @@ local app = shell.New({
     onSettings = function(options)
         -- the player's own order is part of the settings, which may be another character's now
         manualOrders = options.manualOrder
+        MarkStale(nil)
         if GetPlayerEntity() ~= nil then
-            UpdateInventories()
+            RefreshInventories(true)
         end
     end,
     commands = {
@@ -1825,14 +1910,33 @@ local app = shell.New({
 local windowExtra = { constraints = { { -1, 0 }, { -1, 432 } } }
 local invFrame = { x = 0, y = 0, width = 0, height = 0 } -- where the window is, for the treasure pool
 
--- What is in the bags has changed: the lists are made again, once the burst of packets is over
+-- The packets that change what is in the bags, and where in each the bag's number is: true for those
+-- that change every bag. An item used up, dropped or traded away to the last of it comes as 0x020
+-- alone; a move as 0x020 for each bag, then 0x01D.
+local bagPackets = {
+    [0x00A] = true, -- in a new area
+    [0x01C] = true, -- the bags' sizes
+    [0x01E] = 0x08, -- how many of an item are in a slot
+    [0x01F] = 0x0A, -- an item put in a slot
+    [0x020] = 0x0E, -- an item in a slot, with all there is to it
+}
+
+-- What is in the bags has changed: the bags named are read again, once the burst of packets is over
 ashita.events.register('packet_in', 'inv_packet_in', function(e)
-    if e.id == packets.inbound.inventoryFinish.id then
-        if packets.inbound.inventoryFinish.parse(e.data).flag == 1 then
-            debounce(UpdateInventories)
+    local at = bagPackets[e.id]
+    if at == true then
+        MarkStale(nil)
+    elseif at ~= nil then
+        MarkStale(struct.unpack('B', e.data, at + 1))
+    elseif e.id == packets.inbound.inventoryFinish.id then
+        -- a bag finished loading names the bag; the end of a change names none, and is all that says
+        -- so when nothing else has
+        local finish = packets.inbound.inventoryFinish.parse(e.data)
+        if finish.container >= 0 and finish.container <= bags.recycleBin then
+            MarkStale(finish.container)
+        elseif staleAt == nil then
+            MarkStale(nil)
         end
-    elseif e.id == packets.inbound.inventoryModify.id then
-        debounce(UpdateInventories)
     end
 end)
 
@@ -1845,8 +1949,10 @@ ashita.events.register('d3d_present', 'inv_present', function()
     -- the player's own order, changed by sorting by hand
     if options.manualOrder ~= manualOrders then
         manualOrders = options.manualOrder
-        UpdateInventories()
+        Resort()
     end
+
+    RefreshInventories()
 
     showEmptySlots = options.showEmptySlots[1] and true or false
     windowExtra.constraints[2][2] = options.maxHeight[1]
