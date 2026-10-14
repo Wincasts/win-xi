@@ -15,6 +15,12 @@
 --   statusicons.Sheet()           the sheet's handle, or nil while it will not load
 --   statusicons.SheetPlace(id)    where the status's icon is in it, { u0, v0, u1, v1 }, or nil where
 --                                 winxi has no icon for the status
+--
+-- and the game's own icons are put in one the same way, made here from the game's resources, for
+-- whoever prefers them: 32 by 32 each, 32 to a row, in the place the status's number gives it. It
+-- is made a few icons a frame, from the first time it is asked for: an icon not yet in it has no place.
+--   statusicons.GameSheet()        the sheet's handle, or nil while it cannot be made
+--   statusicons.GameSheetPlace(id) where the game's icon for the status is in it, or nil
 local ffi = require('ffi');
 local d3d = require('d3d8');
 
@@ -109,6 +115,86 @@ function statusicons.Sheet()
         end
     end
     return sheet;
+end
+
+-- The sheet of the game's icons: made a few at a time, so that no frame waits on all of them
+local GAME = { Side = 1024, Icon = 32, Columns = 32, PerFrame = 64, Black = 0xFF000000, NoFilter = 1 };
+local gameSheet = nil;    -- its handle, once made
+local gameSurface = nil;  -- what its icons are put on, while some are still to come
+local gameNext = 1;       -- the next status to put on it
+local gameTried = nil;
+local gamePlaces = {};    -- status -> { u0, v0, u1, v1 }, for those on it
+
+local function StartGameSheet()
+    local device = d3d.get_device();
+    if device == nil then
+        return;
+    end
+    local result, texture = device:CreateTexture(GAME.Side, GAME.Side, 1, 0, ffi.C.D3DFMT_A8R8G8B8, ffi.C.D3DPOOL_MANAGED);
+    if result ~= ffi.C.S_OK or texture == nil then
+        return;
+    end
+    local surface = ffi.new('IDirect3DSurface8*[1]');
+    if texture.lpVtbl.GetSurfaceLevel(texture, 0, surface) ~= ffi.C.S_OK then
+        texture:Release();
+        return;
+    end
+    -- what is not given an icon stays clear
+    local pitch = ffi.new('D3DLOCKED_RECT[1]');
+    if texture.lpVtbl.LockRect(texture, 0, pitch, nil, 0) == ffi.C.S_OK then
+        ffi.fill(pitch[0].pBits, pitch[0].Pitch * GAME.Side);
+        texture.lpVtbl.UnlockRect(texture, 0);
+    end
+    gameSurface = surface[0];
+    kept[#kept + 1] = d3d.gc_safe_release(texture);
+    gameSheet = tonumber(ffi.cast('uint32_t', kept[#kept]));
+end
+
+local function FillGameSheet()
+    local resources = AshitaCore:GetResourceManager();
+    local rect = ffi.new('RECT');
+    local last = math.min(GAME.Columns * GAME.Columns - 1, gameNext + GAME.PerFrame - 1);
+    for id = gameNext, last do
+        local icon = resources:GetStatusIconByIndex(id);
+        if icon ~= nil and icon.ImageSize > 0 then
+            local x, y = id % GAME.Columns * GAME.Icon, math.floor(id / GAME.Columns) * GAME.Icon;
+            rect.left, rect.top, rect.right, rect.bottom = x, y, x + GAME.Icon, y + GAME.Icon;
+            -- the game's icons are bitmaps with black where nothing is
+            if ffi.C.D3DXLoadSurfaceFromFileInMemory(gameSurface, nil, rect, icon.Bitmap, icon.ImageSize, nil, GAME.NoFilter, GAME.Black, nil) == ffi.C.S_OK then
+                gamePlaces[id] = { (x + 0.5) / GAME.Side, (y + 0.5) / GAME.Side, (x + GAME.Icon - 0.5) / GAME.Side, (y + GAME.Icon - 0.5) / GAME.Side };
+            end
+        end
+    end
+    gameNext = last + 1;
+    if gameNext >= GAME.Columns * GAME.Columns then
+        gameSurface.lpVtbl.Release(gameSurface);
+        gameSurface = nil;
+    end
+end
+
+function statusicons.GameSheet()
+    if gameSheet == nil then
+        local now = os.clock();
+        if gameTried == nil or now - gameTried >= SHEET.Retry then
+            gameTried = now;
+            pcall(StartGameSheet);
+        end
+    end
+    if gameSurface ~= nil then
+        local ok = pcall(FillGameSheet);
+        if not ok then
+            gameNext = gameNext + GAME.PerFrame; -- past what would not go on, so that the rest still can
+            if gameNext >= GAME.Columns * GAME.Columns then
+                pcall(function () gameSurface.lpVtbl.Release(gameSurface); end);
+                gameSurface = nil;
+            end
+        end
+    end
+    return gameSheet;
+end
+
+function statusicons.GameSheetPlace(id)
+    return gamePlaces[id];
 end
 
 -- A status is in the sheet if it has a file of its own: the tool makes the two together. The edges

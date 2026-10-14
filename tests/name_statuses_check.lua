@@ -148,6 +148,19 @@ H.print('preview: the same four over every name', listed(0x400), '|', listed(300
 previewBox[1] = false; block.Frame = 31; H.frames(1)
 H.print('preview off: as they really are', listed(0x400), '| a stranger', listed(0x402) == '')
 
+-- the game's own icons, for whoever prefers them: square, from the sheet made of them
+local gameSheet = nil
+statusicons.GameSheet = function() return gameSheet end
+statusicons.GameSheetPlace = function(id) return gameSheet and id ~= 13 and { id / 1024, 0, (id + 1) / 1024, 1 / 32 } or nil end
+o.statusFfxivIcons[1] = false; block.Frame = 40; H.frames(1)
+H.print('game icons, their sheet not made yet: none', #icons(0x400) == 0, draw.Textures[7] == 0)
+gameSheet = 0x6666; block.Frame = 41; H.frames(1)
+local square = icons(0x400)
+H.print('game icons: from their sheet', draw.Textures[7] == 0x6666, '| square', square[1].X1 - square[1].X0 == square[1].Y1 - square[1].Y0,
+    '| one the game has no icon for is left out', #square == 1)
+o.statusFfxivIcons[1] = true; block.Frame = 42; H.frames(1)
+H.print('FFXIV icons again', draw.Textures[7] == 0x7777, #icons(0x400) == 2)
+
 -- more than a row holds
 own = {}; for id = 1, 32 do own[id] = id + 1 end
 o.statusList = T{}; for id = 2, 33 do o.statusList[#o.statusList + 1] = id end
