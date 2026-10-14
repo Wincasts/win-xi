@@ -29,6 +29,14 @@
 -- in the place its number gives it. Any other set's is made here, from the icons, a few a frame from
 -- the first time it is asked for.
 --
+-- As party and buff draw them, the set's icon where it has one and the game's where it has not, in
+-- one sheet, for what can draw from only a few pictures (name). Made here a few a frame from the first
+-- time it is asked for, from the set's sheet or its icons and the game's resources:
+--   statusicons.MixedSheet()       the sheet's handle, or nil while it cannot be made
+--   statusicons.MixedPlace(id)     where the status's icon is in it, { u0, v0, u1, v1 }, and whether
+--                                  it is the set's (statusicons.OwnAspect as wide as it is tall) or
+--                                  the game's (square); nil where it has none, or none yet
+--
 -- The game's own icons are put in one the same way, made here from the game's resources, for
 -- whoever prefers them: 32 by 32 each, 32 to a row, in the place the status's number gives it. It
 -- is made a few icons a frame, from the first time it is asked for: an icon not yet in it has no place.
@@ -65,6 +73,13 @@ local sheet = nil;       -- its handle, once it has loaded or been begun
 local sheetTried = nil;  -- when it was last tried for
 local places = {};       -- status -> { u0, v0, u1, v1 }, or false where the set has no icon for it
 local building = nil;    -- while a sheet is being made: { surface, ids, next, width, columns }
+-- The mixed sheet: cells as tall as MIXED.Cell, as wide as the set's icons are for that, in the
+-- place each status's number gives it; the game's icons in the corner of theirs, at their own size
+local MIXED = { Width = 2048, Cell = 64, Game = 32, PerFrame = 32, Filter = 4, NoFilter = 1, Black = 0xFF000000 };
+local mixed = nil;       -- its handle, once begun
+local mixedTried = nil;
+local mixedPlaces = {};  -- status -> { u0, v0, u1, v1 }, own = whether the set's
+local mixing = nil;      -- while it is being made: { surface, next, width, columns, height, copied }
 
 local function Root()
     root = root or ('%s\\addons\\libs\\winxi\\statusicons\\'):format(AshitaCore:GetInstallPath());
@@ -128,6 +143,13 @@ local function StopBuilding()
     end
 end
 
+local function StopMixing()
+    if mixing ~= nil then
+        pcall(function () mixing.surface.lpVtbl.Release(mixing.surface); end);
+        mixing = nil;
+    end
+end
+
 -- Takes up the set the theme names: what was loaded of the last is let go (a while later)
 local function Use(wanted)
     for _, texture in ipairs(ownKept) do
@@ -135,7 +157,9 @@ local function Use(wanted)
     end
     retiredAt = os.clock();
     StopBuilding();
+    StopMixing();
     ownKept, own, places, sheet, sheetTried = {}, {}, {}, nil, nil;
+    mixed, mixedTried, mixedPlaces = nil, nil, {};
 
     setKey = wanted;
     local name = type(wanted) == 'string' and wanted ~= '' and not wanted:find('[\\/]') and wanted or statusicons.Default;
@@ -429,6 +453,116 @@ end
 
 function statusicons.GameSheetPlace(id)
     return gamePlaces[id];
+end
+
+local function StartMixed()
+    local device = d3d.get_device();
+    if device == nil then
+        return;
+    end
+    local width = math.max(MIXED.Game, math.min(MIXED.Cell, math.floor(MIXED.Cell * statusicons.OwnAspect + 0.5)));
+    local columns = math.floor(MIXED.Width / width);
+    local rows = math.ceil((BUILT.Last + 1) / columns);
+    local height = 1;
+    while height < rows * MIXED.Cell do
+        height = height * 2;
+    end
+    local result, texture = device:CreateTexture(MIXED.Width, height, 1, 0, ffi.C.D3DFMT_A8R8G8B8, ffi.C.D3DPOOL_MANAGED);
+    if result ~= ffi.C.S_OK or texture == nil then
+        return;
+    end
+    local surface = ffi.new('IDirect3DSurface8*[1]');
+    if texture.lpVtbl.GetSurfaceLevel(texture, 0, surface) ~= ffi.C.S_OK then
+        texture:Release();
+        return;
+    end
+    local pitch = ffi.new('D3DLOCKED_RECT[1]');
+    if texture.lpVtbl.LockRect(texture, 0, pitch, nil, 0) == ffi.C.S_OK then
+        ffi.fill(pitch[0].pBits, pitch[0].Pitch * height);
+        texture.lpVtbl.UnlockRect(texture, 0);
+    end
+    ownKept[#ownKept + 1] = d3d.gc_safe_release(texture);
+    mixed = tonumber(ffi.cast('uint32_t', ownKept[#ownKept]));
+    mixing = { surface = surface[0], next = 0, width = width, columns = columns, height = height, copied = false };
+
+    -- a sheet of the tool's laid out as this one is goes on whole, in one
+    if sheetFile ~= nil and width == SHEET.IconWidth and columns == SHEET.Columns and MIXED.Cell == SHEET.IconHeight then
+        local rect = ffi.new('RECT');
+        rect.left, rect.top, rect.right, rect.bottom = 0, 0, SHEET.Width, SHEET.Height;
+        mixing.copied = ffi.C.D3DXLoadSurfaceFromFileA(mixing.surface, nil, rect, folder .. sheetFile, nil, MIXED.NoFilter, 0, nil) == ffi.C.S_OK;
+    end
+end
+
+local function FillMixed()
+    local resources = AshitaCore:GetResourceManager();
+    local rect, from = ffi.new('RECT'), ffi.new('RECT');
+    local last = math.min(BUILT.Last, mixing.next + MIXED.PerFrame - 1);
+    local width, side, tall = mixing.width, MIXED.Width, mixing.height;
+    for id = mixing.next, last do
+        local x, y = id % mixing.columns * width, math.floor(id / mixing.columns) * MIXED.Cell;
+        local placed = false;
+        if Present(id) then
+            if mixing.copied then
+                placed = true;
+            else
+                local path = ('%s%d.png'):format(folder, id);
+                local w, h = Size(path);
+                if w ~= nil then
+                    rect.left, rect.top, rect.right, rect.bottom = x, y, x + width, y + MIXED.Cell;
+                    -- only the part of the picture the icon is in
+                    from.left, from.top = math.floor(w * statusicons.OwnLeft + 0.5), 0;
+                    from.right, from.bottom = math.floor(w * statusicons.OwnRight + 0.5), h;
+                    placed = ffi.C.D3DXLoadSurfaceFromFileA(mixing.surface, nil, rect, path, from, MIXED.Filter, 0, nil) == ffi.C.S_OK;
+                end
+            end
+            if placed then
+                mixedPlaces[id] = { (x + 0.5) / side, (y + 0.5) / tall, (x + width - 0.5) / side, (y + MIXED.Cell - 0.5) / tall, own = true };
+            end
+        end
+        if not placed then
+            local icon = resources:GetStatusIconByIndex(id);
+            if icon ~= nil and icon.ImageSize > 0 then
+                rect.left, rect.top, rect.right, rect.bottom = x, y, x + MIXED.Game, y + MIXED.Game;
+                -- the game's icons are bitmaps with black where nothing is
+                if ffi.C.D3DXLoadSurfaceFromFileInMemory(mixing.surface, nil, rect, icon.Bitmap, icon.ImageSize, nil, MIXED.NoFilter, MIXED.Black, nil) == ffi.C.S_OK then
+                    mixedPlaces[id] = { (x + 0.5) / side, (y + 0.5) / tall, (x + MIXED.Game - 0.5) / side, (y + MIXED.Game - 0.5) / tall, own = false };
+                end
+            end
+        end
+    end
+    mixing.next = last + 1;
+    if mixing.next > BUILT.Last then
+        StopMixing();
+    end
+end
+
+function statusicons.MixedSheet()
+    Current();
+    if mixed == nil then
+        local now = os.clock();
+        if mixedTried == nil or now - mixedTried >= SHEET.Retry then
+            mixedTried = now;
+            pcall(StartMixed);
+        end
+    end
+    if mixing ~= nil then
+        if not pcall(FillMixed) then
+            mixing.next = mixing.next + MIXED.PerFrame; -- past what would not go on, so that the rest still can
+            if mixing.next > BUILT.Last then
+                StopMixing();
+            end
+        end
+    end
+    return mixed;
+end
+
+function statusicons.MixedPlace(id)
+    Current();
+    local place = mixedPlaces[id];
+    if place == nil then
+        return nil, false;
+    end
+    return place, place.own;
 end
 
 -- On a sheet of the tool's, a status is there if it has a file of its own: the tool makes the two

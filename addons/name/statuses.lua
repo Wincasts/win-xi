@@ -15,15 +15,16 @@
 -- took hold on them, by spell, ability, weapon skill, monster's move or additional effect, for as long
 -- as the server's scripts say it usually lasts, or until the server says it wore off.
 --
--- The icons are winxi's own (winxi.statusicons), or the game's for whoever prefers them, all from the
--- one sheet: the plugin draws from eight pictures and no more, and the others are taken. A status
--- with no icon of the kind chosen is not drawn.
+-- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in winxisettings,
+-- the chosen set's where it has one and the game's where it has not; off, the game's. All are from
+-- the one sheet: the plugin draws from eight pictures and no more, and the others are taken.
 local bit         = require('bit');
 local imgui       = require('imgui');
 local widgets     = require('winxi.widgets');
 local nameplates  = require('winxi.nameplates');
 local statusicons = require('winxi.statusicons');
 local debuffs     = require('winxi.debuffs');
+local theme       = require('winxi.theme');
 local controls    = require('controls');
 
 local statuses = {};
@@ -50,7 +51,6 @@ local preview = T{ false };
 local settings = {
     showStatuses = function () return T{ true }; end,
     statusSize   = function () return T{ 125 }; end, -- an icon's height, as a percentage of the height of the names
-    statusFfxivIcons = function () return T{ true }; end, -- Custom Icons: the set chosen in the theme; off, the game's
     statusPlace  = function () return T{ 'above' }; end,  -- the row above the name or below it
     statusAlign  = function () return T{ 'center' }; end, -- and level with its left, its middle or its right
     statusList   = function ()
@@ -164,8 +164,8 @@ local function ReadParty()
 end
 
 local sheet = 0;      -- the sheet's address this frame, or 0
-local placeOf = statusicons.SheetPlace; -- where a status's icon is in it
-local aspect = statusicons.OwnAspect;   -- how wide an icon is, for how tall
+local placeOf = statusicons.MixedPlace; -- where a status's icon is in it, and whether it is the set's
+local aspect = statusicons.OwnAspect;    -- how wide one of the set's is, for how tall: the game's are square
 local shownWith = nil; -- the settings of this frame
 local size = 1.25;    -- an icon's height, as a part of the name's
 local below = false;  -- the row under the name, not over it
@@ -179,8 +179,8 @@ function statuses.Begin(options)
         nameplates.SetTexture(statuses.Slot, 0);
         return false;
     end
-    if (options.statusFfxivIcons == nil or options.statusFfxivIcons[1]) then
-        sheet, placeOf, aspect = statusicons.Sheet() or 0, statusicons.SheetPlace, statusicons.OwnAspect;
+    if (theme.Get().StatusIcons) then
+        sheet, placeOf, aspect = statusicons.MixedSheet() or 0, statusicons.MixedPlace, statusicons.OwnAspect;
     else
         sheet, placeOf, aspect = statusicons.GameSheet() or 0, statusicons.GameSheetPlace, 1;
     end
@@ -197,17 +197,18 @@ function statuses.Begin(options)
     return true;
 end
 
--- The row for one name: what it is under that is chosen, each status once
-local row, rowCount = {}, 0;
+-- The row for one name: what it is under that is chosen, each status once, and whether each icon is
+-- one of the set's
+local row, rowOwn, rowCount = {}, {}, 0;
 local taken, mark = {}, 0;
 
 local function Take(id)
     if (chosen[id] and taken[id] ~= mark and rowCount < MOST) then
-        local place = placeOf(id);
+        local place, own = placeOf(id);
         if (place ~= nil) then
             taken[id] = mark;
             rowCount = rowCount + 1;
-            row[rowCount] = place;
+            row[rowCount], rowOwn[rowCount] = place, own == true;
         end
     end
 end
@@ -287,7 +288,10 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale)
     local tall = math.max(1, math.floor(height * size + 0.5));
     local wide = math.max(1, math.floor(tall * aspect + 0.5));
     local gap = math.floor(GAP * scale + 0.5);
-    local across = rowCount * wide + (rowCount - 1) * gap;
+    local across = (rowCount - 1) * gap;
+    for index = 1, rowCount do
+        across = across + (rowOwn[index] and wide or tall);
+    end
     local left;
     if (align == 'left') then
         left = nameLeft;
@@ -300,15 +304,16 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale)
     local top = below and (under + rise) or (above - rise - tall);
     for index = 1, rowCount do
         local place = row[index];
+        -- the set's icons are narrower than the game's, which are square, as party draws them
+        local width = rowOwn[index] and wide or tall;
         -- the icons have an edge of their own: none is drawn round them
-        nameplates.Quad(left, top, left + wide, top + tall, place[1], place[2], place[3], place[4], WHITE, statuses.Slot, false);
-        left = left + wide + gap;
+        nameplates.Quad(left, top, left + width, top + tall, place[1], place[2], place[3], place[4], WHITE, statuses.Slot, false);
+        left = left + width + gap;
     end
 end
 
--- The settings' list: every status winxi has an icon for, by name
+-- The settings' list: every status the game has a name for
 local known = nil;
-local knownOwn = nil; -- the set of custom icons it is of the statuses of, or false for all the game names
 local search = T{ '' };
 local chosenOnly = T{ false };
 local tick = { false };
@@ -316,15 +321,14 @@ local listSize = { 0, 0 };
 local previewSize, previewA, previewB = { 36, 48 }, { 0, 0 }, { 1, 1 }; -- filled in from the set as it is drawn
 local gameSize, gameA, gameB = { 48, 48 }, { 0, 0 }, { 1, 1 };
 
-local function Known(useOwn)
-    local of = useOwn and statusicons.Set() or false;
-    if (known ~= nil and knownOwn == of) then
+local function Known()
+    if (known ~= nil) then
         return known;
     end
-    known, knownOwn = {}, of;
+    known = {};
     local resources = AshitaCore:GetResourceManager();
     for id = 1, LAST_STATUS do
-        local name = (not useOwn or statusicons.Has(id)) and resources:GetString('buffs.names', id) or nil;
+        local name = resources:GetString('buffs.names', id);
         if (type(name) == 'string' and name ~= '') then
             name = name:sub(1, 1):upper() .. name:sub(2);
             known[#known + 1] = { id = id, lower = name:lower(), label = ('%s (%d)##name.status.%d'):format(name, id, id) };
@@ -346,10 +350,10 @@ function statuses.DrawSettings(options, save)
     Chosen(options);
     local changed = false;
 
-    controls.BeginLayout('statuses', 360, 'Custom Icons');
+    controls.BeginLayout('statuses', 360, 'Show Statuses');
     if (controls.Section('Status Icons', '##name.statusOptions', true)) then
         if (controls.Checkbox('Show Statuses', '##name.showStatuses', options.showStatuses,
-                'A row of icons above a name, for the statuses ticked below.\nYour own and your party\'s are as the game has them. Anyone else\'s are worked out from what the server is seen to say took hold on them, by spell, ability, weapon skill, monster\'s move or additional effect, each lasting its usual time unless the server says it wore off. One that landed out of sight, or before you entered the area, is not known.')) then
+                'A row of icons above a name, for the statuses ticked below.\nYour own and your party\'s are as the game has them. Anyone else\'s are worked out from what the server is seen to say took hold on them, by spell, ability, weapon skill, monster\'s move or additional effect, each lasting its usual time unless the server says it wore off. One that landed out of sight, or before you entered the area, is not known.\nThe icons are as the party and buff addons draw them: with Custom Icons on in winxisettings (/wxi), the chosen set\'s where it has one and the game\'s where it has not; off, the game\'s.')) then
             changed = true;
         end
         if (options.showStatuses[1]) then
@@ -365,10 +369,6 @@ function statuses.DrawSettings(options, save)
                     'Which side of the name the row is level with: its left, where its icons begin, its middle, or its right.')) then
                 changed = true;
             end
-            if (controls.Checkbox('Custom Icons', '##name.statusFfxivIcons', options.statusFfxivIcons,
-                    'The set of custom icons chosen under Custom Icons in winxisettings (/wxi, Icons tab), FFXIV to start. Off, the game\'s own square icons, which every status has, so the list below has more statuses in it. Either is put together a few icons a frame the first time it is wanted.')) then
-                changed = true;
-            end
             controls.Checkbox('Preview', '##name.statusPreview', preview,
                 'Puts the first few ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: it is off again when the addon is loaded.');
         end
@@ -379,14 +379,14 @@ function statuses.DrawSettings(options, save)
         widgets.Label('Search');
         controls.Width();
         imgui.InputText('##name.statusSearch', search, 64);
-        controls.Mark('Part of a status\'s name, or its number. Only a ticked status is drawn over a name. With Custom Icons on, a status the set has no icon for is not listed.');
+        controls.Mark('Part of a status\'s name, or its number. Only a ticked status is drawn over a name.');
         controls.Checkbox('Chosen Only', '##name.statusChosenOnly', chosenOnly, 'Lists only the statuses that are ticked.');
 
         local wanted = search[1]:lower();
         listSize[2] = imgui.GetFrameHeightWithSpacing() * LIST_ROWS;
         imgui.BeginChild('##name.statusList', listSize, ImGuiChildFlags_Borders or 1);
-        local useOwn = options.statusFfxivIcons[1];
-        for _, status in ipairs(Known(useOwn)) do
+        local useOwn = theme.Get().StatusIcons;
+        for _, status in ipairs(Known()) do
             local on = chosen[status.id] == true;
             if ((on or not chosenOnly[1]) and (wanted == '' or status.lower:find(wanted, 1, true) ~= nil or tostring(status.id) == wanted)) then
                 tick[1] = on;

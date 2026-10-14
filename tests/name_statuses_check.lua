@@ -85,7 +85,18 @@ end
 H.load(); block.Frame = 1; H.frames(1)
 H.print('no sheet: no row', listed(0x400) == '', '| the name still set out', draw.Entities[0x400].Count, '| nothing given to the plugin', draw.Textures[7] == 0)
 
-statusicons.Sheet = function() return 0x7777 end
+-- the set's icon where it has one, and the game's where it has not, from the one sheet; until the
+-- set lacks one, every icon is the set's
+local setLacks = {}
+local realPlace = statusicons.SheetPlace
+statusicons.MixedSheet = function() return 0x7777 end
+statusicons.MixedPlace = function(id)
+    if setLacks[id] then return { 0.9, 0.9, 0.95, 0.95 }, false end
+    local place = realPlace(id)
+    return place, place ~= nil
+end
+local look = require('winxi.theme').Get()
+H.print('icons as party and buff draw them: Custom Icons on in winxisettings', look.StatusIcons == true)
 block.Frame = 2; H.frames(1)
 H.print('the sheet is the plugin\'s eighth picture', draw.Textures[7] == 0x7777)
 H.print('own: what is chosen, each once, in the game\'s order:', listed(0x400), '| Protect is not chosen')
@@ -181,14 +192,19 @@ H.print('preview off: as they really are', listed(0x400), '| a stranger', listed
 local gameSheet = nil
 statusicons.GameSheet = function() return gameSheet end
 statusicons.GameSheetPlace = function(id) return gameSheet and id ~= 13 and { id / 1024, 0, (id + 1) / 1024, 1 / 32 } or nil end
-o.statusFfxivIcons[1] = false; block.Frame = 40; H.frames(1)
+look.StatusIcons = false; block.Frame = 40; H.frames(1)
 H.print('game icons, their sheet not made yet: none', #icons(0x400) == 0, draw.Textures[7] == 0)
 gameSheet = 0x6666; block.Frame = 41; H.frames(1)
 local square = icons(0x400)
 H.print('game icons: from their sheet', draw.Textures[7] == 0x6666, '| square', square[1].X1 - square[1].X0 == square[1].Y1 - square[1].Y0,
     '| one the game has no icon for is left out', #square == 1)
-o.statusFfxivIcons[1] = true; block.Frame = 42; H.frames(1)
-H.print('FFXIV icons again', draw.Textures[7] == 0x7777, #icons(0x400) == 2)
+look.StatusIcons = true; block.Frame = 42; H.frames(1)
+H.print('custom icons again', draw.Textures[7] == 0x7777, #icons(0x400) == 2)
+setLacks[13] = true; block.Frame = 43; H.frames(1)
+local mixedRow = icons(0x400)
+H.print('a status the set has no icon for: the game\'s, square', #mixedRow == 2, math.abs(mixedRow[2].U0 - 0.9) < 1e-4 and mixedRow[2].X1 - mixedRow[2].X0 == mixedRow[2].Y1 - mixedRow[2].Y0,
+    '| beside the set\'s, narrower', mixedRow[1].X1 - mixedRow[1].X0 < mixedRow[1].Y1 - mixedRow[1].Y0, '| a pixel between them', mixedRow[2].X0 - mixedRow[1].X1)
+setLacks[13] = nil
 
 -- more than a row holds
 own = {}; for id = 1, 32 do own[id] = id + 1 end
@@ -204,8 +220,9 @@ imgui.Checkbox = function(id, value) boxes[#boxes + 1] = id return false end
 imgui.GetFrameHeightWithSpacing = function() return 20 end
 H.tab(3); H.command('/name'); H.frames(1)
 local named = 0
-for _, id in ipairs(boxes) do if id:find('##name.status.', 1, true) then named = named + 1 end end
-H.print('settings: Show Statuses first', boxes[1] == '##name.showStatuses', '| statuses listed', named, '| by name, with the number', boxes[3])
+local firstStatus = nil
+for _, id in ipairs(boxes) do if id:find('##name.status.', 1, true) then named = named + 1; firstStatus = firstStatus or id end end
+H.print('settings: Show Statuses first', boxes[1] == '##name.showStatuses', '| statuses listed', named, '| by name, with the number', firstStatus)
 imgui.Checkbox = function(id, value)
     if id:find('##name.status.41', 1, true) and id:match('%.41$') then value[1] = not value[1] return true end
     return false
