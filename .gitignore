@@ -18,3 +18,7 @@ __pycache__/
 
 # In-game screenshots taken while working, which can show character names
 /screenshots/
+
+# Map pictures exported from XICombinedMaps before mark and zoneinfo read the game's files (winxi.mapdat)
+/addons/mark/assets/maps/
+/addons/zoneinfo/assets/maps/
