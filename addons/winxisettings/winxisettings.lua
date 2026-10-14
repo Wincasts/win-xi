@@ -1,5 +1,5 @@
 addon.name    = 'winxisettings'
-addon.author  = 'win (and claude)'
+addon.author  = 'win'
 addon.version = '1.0'
 addon.desc    = 'The look shared by every winxi addon, in one settings window of its own.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'

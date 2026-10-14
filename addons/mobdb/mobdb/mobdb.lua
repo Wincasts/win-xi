@@ -1,5 +1,5 @@
 addon.name      = 'mobdb'
-addon.author    = 'Thorny, win (and claude)';
+addon.author    = 'Thorny, win';
 addon.version   = '1.26';
 addon.desc      = 'Displays various information about monsters.';
 addon.link      = 'https://ashitaxi.com/';

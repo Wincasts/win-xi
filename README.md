@@ -47,4 +47,4 @@ licensed: see [LICENSE](LICENSE). `plugins/namehook` is a fork of a GPL v3 plugi
 Folders with a LICENSE of their own, and the other people's addons listed above, keep their own terms.
 Final Fantasy XI and its art belong to Square Enix.
 
-Author: win (and claude).
+Author: win.

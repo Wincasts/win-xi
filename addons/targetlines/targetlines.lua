@@ -1,5 +1,5 @@
 addon.name    = 'targetlines';
-addon.author  = 'Jyouya, win (and claude)';
+addon.author  = 'Jyouya, win';
 addon.version = '1.5';
 addon.desc    = 'FFXII style target lines';
 

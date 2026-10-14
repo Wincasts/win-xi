@@ -1,5 +1,5 @@
 addon.name    = 'zoneinfo';
-addon.author  = 'win (and claude)';
+addon.author  = 'win';
 addon.version = '2.5.0';
 addon.desc    = 'Zone, region, sub-zone and weather banners, a location line, and an all-map experimental boundary editor.';
 

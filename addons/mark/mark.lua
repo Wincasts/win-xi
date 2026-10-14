@@ -1,5 +1,5 @@
 addon.name    = 'mark';
-addon.author  = 'win (and claude)';
+addon.author  = 'win';
 addon.version = '1.8';
 addon.desc    = 'Pick a notorious monster, make it your mark, and see how it appears, its placeholders and their respawns, where it spawns on the map, when its window opens and what it drops.';
 addon.link    = 'https://github.com/Wincasts/ffxi-addons';

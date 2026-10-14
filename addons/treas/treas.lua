@@ -1,5 +1,5 @@
 addon.name    = 'treas'
-addon.author  = 'lin, win (and claude)'
+addon.author  = 'lin, win'
 addon.version = '1.0'
 addon.desc    = 'The treasure pool in a window, with buttons to cast lots and pass.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'

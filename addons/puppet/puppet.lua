@@ -1,5 +1,5 @@
 addon.name    = 'puppet'
-addon.author  = 'win (and claude)'
+addon.author  = 'win'
 addon.version = '1.0'
 addon.desc    = 'The enfeebling spells and the weapon skill an automaton will use next, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'
