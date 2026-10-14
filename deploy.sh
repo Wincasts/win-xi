@@ -11,18 +11,18 @@
 #   -y, --yes   skip the "y" question
 #   -a, --all   with push or diff: every addon and library that differs from live, in place of a name
 #
-#   ./deploy.sh -a push       push everything that has changed, after one question
-#   ./deploy.sh -y -a push    the same, without the question
+#   ./deploy.sh -a push       push everything that has changed: listed, then pushed, with no question
 #
 # A shared library under addons/libs is named with its folder: ./deploy.sh push libs/winxi
 # With -a, libraries are pushed before the addons that use them.
 #
+# Addons are looked for in addons/, then in forks/addons/ (other people's addons with changes of ours).
+#
 # push and rollback are the only commands that write to the live install. Both show what they are
-# about to do and wait for "y" (unless given -y), and both refuse to run unless a person is at the
-# terminal, with or without -y.
+# about to do; push of one addon and rollback wait for "y" (unless given -y). Both refuse to
+# run unless a person is at the terminal, -a push and -y included.
 # Every file a push replaces is first kept under deploy-backups/<addon>/<time>/.
 # Nothing is ever deleted from live: a file that exists only there is listed, and left alone.
-# addons/exclude holds old addons kept to look back on: nothing in it is listed, or can be pushed.
 
 set -euo pipefail
 
@@ -34,21 +34,28 @@ EXCLUDES=(--exclude=.git/ --exclude=.github/ --exclude=.gitignore --exclude=__py
 
 die() { echo "deploy: $*" >&2; exit 1; }
 
-# The folder holding an addon's files in the project: addons/<name>, or addons/<name>/<name> for one
+# Where addons are kept in the project: our own first, then the forks of other people's
+ADDON_ROOTS=("$PROJECT/addons" "$PROJECT/forks/addons")
+
+# The folder holding an addon's files in the project: <root>/<name>, or <root>/<name>/<name> for one
 # kept a level down beside its other material. It is the one with <name>.lua in it.
 source_dir() {
-    local name="$1"
-    [[ "$name" == exclude || "$name" == exclude/* ]] && return 1
+    local name="$1" root
     # a shared library is its whole folder
     if [[ "$name" == libs/?* && -d "$PROJECT/addons/$name" ]]; then
         echo "$PROJECT/addons/$name"
-    elif [[ -f "$PROJECT/addons/$name/$name.lua" ]]; then
-        echo "$PROJECT/addons/$name"
-    elif [[ -f "$PROJECT/addons/$name/$name/$name.lua" ]]; then
-        echo "$PROJECT/addons/$name/$name"
-    else
-        return 1
+        return 0
     fi
+    for root in "${ADDON_ROOTS[@]}"; do
+        if [[ -f "$root/$name/$name.lua" ]]; then
+            echo "$root/$name"
+            return 0
+        elif [[ -f "$root/$name/$name/$name.lua" ]]; then
+            echo "$root/$name/$name"
+            return 0
+        fi
+    done
+    return 1
 }
 
 live_dir() { echo "$LIVE/addons/$1"; }
@@ -68,7 +75,7 @@ only_in() {
 
 need_addon() {
     [[ $# -ge 1 && -n "$1" ]] || die "which addon? (see: ./deploy.sh status)"
-    SRC="$(source_dir "$1")" || die "no addon '$1' in $PROJECT/addons (looked for $1.lua)"
+    SRC="$(source_dir "$1")" || die "no addon '$1' in addons/ or forks/addons/ (looked for $1.lua)"
     DST="$(live_dir "$1")"
 }
 
@@ -81,8 +88,12 @@ reload_hint() {
     fi
 }
 
+need_person() {
+    [[ -t 0 ]] || die "this step needs a person at the terminal"
+}
+
 confirm() {
-    [[ -t 0 ]] || die "this step needs a person at the terminal to confirm it"
+    need_person
     # -y answers the question, but the step is still only for a person at the terminal
     if [[ "$ASSUME_YES" -eq 1 ]]; then
         echo "$1 yes (-y)"
@@ -93,17 +104,17 @@ confirm() {
     [[ "$answer" == y || "$answer" == Y ]]
 }
 
-# The name of every folder under addons, and of every library under addons/libs (as libs/<name>).
-# Libraries first, so that when all are pushed they land before the addons that use them.
+# The name of every folder under addons and forks/addons, and of every library under addons/libs (as
+# libs/<name>). Libraries first, so that when all are pushed they land before the addons that use them.
 all_names() {
     local dir
     for dir in "$PROJECT"/addons/libs/*/; do
         [[ -d "$dir" ]] && echo "libs/$(basename "$dir")"
     done
-    for dir in "$PROJECT"/addons/*/; do
-        case "$(basename "$dir")" in libs|exclude) continue ;; esac
+    for dir in "$PROJECT"/addons/*/ "$PROJECT"/forks/addons/*/; do
+        [[ "$(basename "$dir")" == libs ]] && continue
         [[ -d "$dir" ]] && basename "$dir"
-    done
+    done | awk '!seen[$0]++'
     return 0
 }
 
@@ -222,9 +233,10 @@ cmd_push() {
     reload_hint "$1"
 }
 
-# push for everything that differs from live: all of it shown, then one question for the lot
+# push for everything that differs from live: all of it shown, then pushed, with no question
 cmd_push_all() {
     [[ -d "$LIVE/addons" ]] || die "live install not found at $LIVE (set ASHITA_LIVE to change it)"
+    need_person
 
     local names name
     names="$(changed_names)"
@@ -237,7 +249,7 @@ cmd_push_all() {
         echo "$name: about to copy into $(live_dir "$name")"
         pending "$(source_dir "$name")" "$(live_dir "$name")" | sed 's/^/  /'
     done <<< "$names"
-    confirm "Push all of these to live?" || { echo "Nothing was changed."; return; }
+    echo
 
     local addons=()
     while read -r name; do
@@ -298,7 +310,7 @@ cmd_pull() {
     echo "Pulled."
 }
 
-usage() { sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 # Flags come first, before the command: ./deploy.sh -y -a push
 ASSUME_YES=0
