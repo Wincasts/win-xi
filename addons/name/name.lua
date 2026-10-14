@@ -163,7 +163,7 @@ end
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
     defaults     = defaults,
-    configTitle  = 'Nameplate Settings',
+    configTitle  = 'Name Settings',
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
