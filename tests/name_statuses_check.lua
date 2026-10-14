@@ -7,6 +7,7 @@ local statusicons = require('winxi.statusicons')
 local debuffs = require('winxi.debuffs')
 local Category, Flag = nameplates.Category, nameplates.Flag
 local o = H.options()
+imgui.GetFrameHeightWithSpacing = function() return 20 end
 require('custom').Defaults(o)
 for _, key in ipairs({ 'showSelf', 'showParty', 'showAlliance', 'showPlayers', 'showMyPet', 'showPets', 'showNpcs', 'showMonsters' }) do o[key][1] = true end
 o.showStars[1], o.showIcons[1], o.fontSize[1], o.monsterFormat[1] = true, false, 16, '[name]'
@@ -135,6 +136,17 @@ o.statusList = list
 o.showStatuses[1] = false; block.Frame = 11; H.frames(1)
 H.print('switched off: no rows', listed(0x400) == '', draw.Textures[7] == 0)
 o.showStatuses[1] = true
+
+-- preview: the first four chosen over every name, whatever it is under
+local previewBox
+local realBox = imgui.Checkbox
+imgui.Checkbox = function(id, value) if id == '##name.statusPreview' then previewBox = value end return false end
+H.tab(4); H.command('/name'); H.frames(1); H.command('/name')
+imgui.Checkbox = realBox
+previewBox[1] = true; block.Frame = 30; H.frames(1)
+H.print('preview: the same four over every name', listed(0x400), '|', listed(300) == listed(0x400), listed(0x402) == listed(0x400))
+previewBox[1] = false; block.Frame = 31; H.frames(1)
+H.print('preview off: as they really are', listed(0x400), '| a stranger', listed(0x402) == '')
 
 -- more than a row holds
 own = {}; for id = 1, 32 do own[id] = id + 1 end
