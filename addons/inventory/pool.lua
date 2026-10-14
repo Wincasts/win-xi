@@ -23,7 +23,7 @@ local packets = require('winxi.packets')
 
 local pool = {}
 
-local windowName = 'winxi.inv.pool'
+local windowName = 'winxi.inventory.pool'
 local title = 'Treasure'
 local gold = { 1.0, 215/255, 0.0, 1.0 }
 local red = { 0.95, 0.20, 0.20, 1.0 }

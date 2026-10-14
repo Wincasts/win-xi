@@ -1,11 +1,13 @@
-# inv
+# inventory
 
 The bags in a window: what is in them, and what can be done with it, by mouse or controller. It was the
 `inv` tool of xitools and is now an addon of its own, needing only the `winxi` library (`addons/libs/winxi`).
 
-- `/inv` shows or hides the window
-- `/inv config` opens or closes the settings
-- `/inv focus` gives the open window the controller, or takes it away again
+- `/inventory` shows or hides the window
+- `/inventory config` opens or closes the settings
+- `/inventory focus` gives the open window the controller, or takes it away again
+
+`/inv` is the same command, shorter: `/inv`, `/inv config` and `/inv focus` all work.
 
 With the mouse, right-click an item for what can be done with it. With a controller (Controller
 Navigation, in the settings): the d-pad moves the highlight, LB / RB change tab, A opens the item's menu,
@@ -20,5 +22,6 @@ there whenever there is treasure. Show When Empty fills an empty pool with sampl
 it looks; its buttons do nothing. It is worked with the mouse only, where the `treas` addon can be
 worked with a controller.
 
-The first time it is loaded for a character it brings over what xitools kept for the tool: its settings,
+The addon was called `inv`; the first time it is loaded for a character it brings over the settings it
+kept under that name. If there are none, it brings over what xitools kept for the tool: its settings,
 the window's place, the order items were put in by hand, and xitools' theme and hiding rules.
