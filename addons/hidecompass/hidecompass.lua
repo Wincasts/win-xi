@@ -1,5 +1,5 @@
 addon.name    = 'hidecompass';
-addon.author  = 'win (and claude)';
+addon.author  = 'win';
 addon.version = '1.0';
 addon.desc    = 'Hides the game\'s compass.';
 

@@ -1,5 +1,5 @@
 addon.name    = 'name';
-addon.author  = 'win (and claude)';
+addon.author  = 'win';
 addon.version = '1.27';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 

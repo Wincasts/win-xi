@@ -1,5 +1,5 @@
 addon.name    = 'trigger'
-addon.author  = 'win (and claude)'
+addon.author  = 'win'
 addon.version = '1.0'
 addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, an item you are after dropping, low HP and the like.'
 addon.link    = 'https://github.com/Wincasts/ffxi-addons'

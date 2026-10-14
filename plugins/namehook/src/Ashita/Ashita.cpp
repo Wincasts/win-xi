@@ -148,7 +148,7 @@ const char* AshitaNameplate::GetName(void) const {
 }
 
 const char* AshitaNameplate::GetAuthor(void) const {
-    return "BunnyBox Productions, win (and claude)";
+    return "BunnyBox Productions, win";
 }
 
 const char* AshitaNameplate::GetDescription(void) const {
