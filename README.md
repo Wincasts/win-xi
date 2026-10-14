@@ -32,10 +32,10 @@ Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first.
 
 ## What else is here
 
-- `addons/` also holds working copies of other people's addons with changes of ours (imrecast, mobdb,
-  tcrossbar, simplelog, targetlines, hideparty, inv, party, treas) and cbind, kept as they are for
-  now. They are under their authors' terms, not the license below.
-- `addons/exclude` and `plugins/exclude` are retired work, kept to look back on.
+- `addons/` also holds addons built on other people's work (simplelog, targetlines, inv, party,
+  treas), and `forks/addons` copies of other people's addons with changes of ours (cbind, hideparty,
+  imrecast, mobdb, tcrossbar). Both are under their authors' terms, not the license below.
+- `plugins/exclude` is retired work, kept to look back on.
 - `tests/` runs addons against a stand-in for Ashita: `tests/run.sh`.
 - `tools/` builds data and art the addons use.
 - `deploy.sh` copies addons between this folder and a live install, for development.
@@ -44,7 +44,7 @@ Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first.
 
 The addons and library written here (the eight above, `winxi`, the tests and the tools) are MIT
 licensed: see [LICENSE](LICENSE). `plugins/namehook` is a fork of a GPL v3 plugin and stays GPL v3.
-Folders with a LICENSE of their own, and the other people's addons listed above, keep their own terms.
+Folders with a LICENSE of their own, and the other people's addons and forks listed above, keep their own terms.
 Final Fantasy XI and its art belong to Square Enix.
 
 Author: win.
