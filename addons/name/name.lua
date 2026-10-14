@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win (and claude)';
-addon.version = '1.26';
+addon.version = '1.27';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 require('common');
@@ -11,6 +11,7 @@ local shell      = require('winxi.shell');
 local widgets    = require('winxi.widgets');
 local nameplates = require('winxi.nameplates');
 local custom     = require('custom');
+local statuses   = require('statuses');
 local controls   = require('controls');
 
 local Category = nameplates.Category;
@@ -44,6 +45,7 @@ for _, row in ipairs(rows) do
     row.id = ('##name.%s'):format(row.key);
 end
 custom.Defaults(defaults);
+statuses.Defaults(defaults);
 -- Preferred baseline captured from the live profile; settings.load still gives
 -- existing character settings precedence over these defaults.
 local preferredDefaults = require('name_defaults');
@@ -199,7 +201,7 @@ app = shell.New({
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
-    help         = 'Use /name to open the Nameplates, Filters and NM Tracking menu. This test build uses ImGui fonts only.',
+    help         = 'Use /name to open the Nameplates, Filters, NM Tracking and Statuses menu. This test build uses ImGui fonts only.',
     drawSettings = DrawSettings,
     settingsLabel = 'Filters',
     leadingTabs  = {
@@ -207,6 +209,7 @@ app = shell.New({
     },
     tabs         = {
         { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end },
+        { label = 'Statuses', draw = function (options) statuses.DrawSettings(options, app.save); end },
     },
 
     commands     = {
@@ -242,6 +245,13 @@ end);
 
 ashita.events.register('unload', 'name_gdi_cleanup', function ()
     custom.Shutdown();
+end);
+
+-- what lands on an enemy is kept count of only while statuses are shown over names
+ashita.events.register('packet_in', 'name_statuses_packet', function (e)
+    if (app.options.showStatuses[1]) then
+        statuses.HandlePacket(e);
+    end
 end);
 
 ashita.events.register('d3d_present', 'present_cb', function ()

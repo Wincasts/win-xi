@@ -29,6 +29,7 @@ local icons = require('icons');
 local format = require('format');
 local levels = require('levels');
 local letterBadges = require('letter_badges');
+local statuses = require('statuses');
 
 local custom = {};
 
@@ -47,6 +48,7 @@ local ICON_EDGE_OPACITY = 0.75; -- soften small inline/detail icons without fadi
 -- sign it has in place of [aggro]'s, and what is written for the name of a monster it is drawn by lot
 -- from. One table: the frame's function has no room for more names than it has.
 local HUNT = { Slot = 6, Sheet = 'special/hunt.png', Placeholder = 'Placeholder' };
+-- statuses.lua has 7, the last, for the sheet of status icons.
 
 -- What is written under the name of a monster its player has checked: see the frame, below
 local DETAIL = {
@@ -1058,6 +1060,8 @@ function custom.Frame(options, hook, formats)
     local huntTexture = trackedName ~= '' and sheet(HUNT.Sheet) or 0;
     local huntScale = options.huntScale ~= nil and math.max(100, math.min(200, options.huntScale[1])) / 100 or 1;
     nameplates.SetTexture(HUNT.Slot, huntTexture);
+    -- the statuses its player has chosen to see over a name: read once, here, for all of them
+    local statusRows = statuses.Begin(options);
 
     frame = frame + 1;
 
@@ -1345,13 +1349,20 @@ function custom.Frame(options, hook, formats)
 
                     -- the stars over the middle of it: a small one, a large one, a small one
                     local star = showStars and bit.band(name.Flags, STARS) ~= 0 and icons.Place(STAR);
+                    local clear = iconCount > 0 and math.min(top, iconTop) or top; -- above this nothing is drawn yet
                     if (star) then
                         local starsLeft = math.floor(-(smallStar * 2 + iconSize) * 0.5);
                         local starsTop = math.min(top, iconTop) - iconSize - 1;
+                        clear = starsTop;
                         local smallTop = starsTop + math.floor((iconSize - smallStar) * 0.5);
                         nameplates.Quad(starsLeft, smallTop, starsLeft + smallStar, smallTop + smallStar, star[1], star[2], star[3], star[4], WHITE, ICON_SLOT, false);
                         nameplates.Quad(starsLeft + smallStar, starsTop, starsLeft + smallStar + iconSize, starsTop + iconSize, star[1], star[2], star[3], star[4], WHITE, ICON_SLOT, false);
                         nameplates.Quad(starsLeft + smallStar + iconSize, smallTop, starsLeft + smallStar * 2 + iconSize, smallTop + smallStar, star[1], star[2], star[3], star[4], WHITE, ICON_SLOT, false);
+                    end
+
+                    -- the row of statuses over all of it
+                    if (statusRows) then
+                        statuses.Write(name, clear, height, scale);
                     end
 
                     for index = 1, iconCount do

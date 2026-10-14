@@ -9,6 +9,12 @@
 -- no file there has only the game's icon. An icon of winxi's own is 48 by 64 in the middle of a square
 -- of 64, so that the card has no need to stretch it: it is drawn from OwnLeft to OwnRight of the
 -- square's width, OwnAspect as wide as it is tall. The game's icons are square.
+--
+-- For what can draw from only a few pictures at once, the same tool puts winxi's own in one,
+-- sheet.png, each 48 by 64 in the place its number gives it:
+--   statusicons.Sheet()           the sheet's handle, or nil while it will not load
+--   statusicons.SheetPlace(id)    where the status's icon is in it, { u0, v0, u1, v1 }, or nil where
+--                                 winxi has no icon for the status
 local ffi = require('ffi');
 local d3d = require('d3d8');
 
@@ -22,6 +28,17 @@ local own = {};     -- status -> its handle, or false where the folder has none
 local games = {};   -- the same, for the game's icons
 local kept = {};    -- the textures themselves, held so that they are not let go
 
+-- sheet.png as tools/build_status_icons.py lays it out
+local SHEET = { Width = 2048, Height = 1024, Columns = 42, IconWidth = 48, IconHeight = 64, Retry = 1 };
+local sheet = nil;       -- its handle, once it has loaded
+local sheetTried = nil;  -- when it was last tried for
+local places = {};       -- status -> { u0, v0, u1, v1 }, or false where the folder has no icon for it
+
+local function Folder()
+    folder = folder or ('%s\\addons\\libs\\winxi\\statusicons\\'):format(AshitaCore:GetInstallPath());
+    return folder;
+end
+
 local function Keep(pointer)
     local texture = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', pointer[0]));
     kept[#kept + 1] = texture;
@@ -29,8 +46,7 @@ local function Keep(pointer)
 end
 
 local function LoadOwn(id)
-    folder = folder or ('%s\\addons\\libs\\winxi\\statusicons\\'):format(AshitaCore:GetInstallPath());
-    local path = ('%s%d.png'):format(folder, id);
+    local path = ('%s%d.png'):format(Folder(), id);
     local device = d3d.get_device();
     if device == nil or not ashita.fs.exists(path) then
         return false;
@@ -73,6 +89,42 @@ end
 
 function statusicons.Game(id)
     return From(games, LoadGame, id);
+end
+
+local function LoadSheet()
+    local device = d3d.get_device();
+    local pointer = ffi.new('IDirect3DTexture8*[1]');
+    if device ~= nil and ffi.C.D3DXCreateTextureFromFileA(device, Folder() .. 'sheet.png', pointer) == ffi.C.S_OK then
+        sheet = Keep(pointer);
+    end
+end
+
+-- A device or a file may not be ready as an addon loads: tried again, but not every frame
+function statusicons.Sheet()
+    if sheet == nil then
+        local now = os.clock();
+        if sheetTried == nil or now - sheetTried >= SHEET.Retry then
+            sheetTried = now;
+            pcall(LoadSheet);
+        end
+    end
+    return sheet;
+end
+
+-- A status is in the sheet if it has a file of its own: the tool makes the two together. The edges
+-- are taken half a pixel in, so that nothing of the icon beside it is drawn.
+function statusicons.SheetPlace(id)
+    local place = places[id];
+    if place == nil then
+        place = false;
+        if id >= 0 and id < SHEET.Columns * math.floor(SHEET.Height / SHEET.IconHeight) and ashita.fs.exists(('%s%d.png'):format(Folder(), id)) then
+            local x, y = id % SHEET.Columns * SHEET.IconWidth, math.floor(id / SHEET.Columns) * SHEET.IconHeight;
+            place = { (x + 0.5) / SHEET.Width, (y + 0.5) / SHEET.Height,
+                (x + SHEET.IconWidth - 0.5) / SHEET.Width, (y + SHEET.IconHeight - 0.5) / SHEET.Height };
+        end
+        places[id] = place;
+    end
+    return place or nil;
 end
 
 -- The icon for a status: its handle, and whether it is one of winxi's own (and so of that shape).

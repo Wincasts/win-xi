@@ -20,7 +20,10 @@ references folder is there to pick from) and run this again.
 Each icon, 48 by 64 with its own transparency, is put in the middle of a square of 64
 (a size a graphics card takes without stretching it) and written to
 addons/libs/winxi/statusicons/<ffxi_id>.png, and the numbers found for names are written back to
-the csv. --sheet <file> also draws every status beside its icon, to look the choices over,
+the csv. They are all put in one picture as well, sheet.png beside them, for what can draw from
+only a few pictures at once (the name addon, through the namehook plugin): each as it is, 48 by 64,
+in the place its number gives it, SHEET_COLUMNS to a row, which winxi.statusicons knows the same
+way. --sheet <file> also draws every status beside its icon, to look the choices over,
 and --page writes mapping.html beside the FFXIV icons: each status's FFXI icon (XivParty's
 copy, where the references have it), the FFXIV icon given it and the status that is from.
 
@@ -37,6 +40,8 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 SQUARE = 64  # the side of an icon as the addon is given it
+# sheet.png: sizes a graphics card takes as they are, with a place for every status number under 672
+SHEET_WIDTH, SHEET_HEIGHT, SHEET_COLUMNS = 2048, 1024, 42
 
 
 def load_names(source):
@@ -175,11 +180,18 @@ def main():
         for old in args.out.glob('*.png'):
             old.unlink()
     args.out.mkdir(parents=True, exist_ok=True)
+    together = Image.new('RGBA', (SHEET_WIDTH, SHEET_HEIGHT), (0, 0, 0, 0))
     for ffxi_id, _, icon, tint in made:
         image = load_icon(args.source, icon, tint)
         square = Image.new('RGBA', (SQUARE, SQUARE), (0, 0, 0, 0))
         square.paste(image, ((SQUARE - image.width) // 2, (SQUARE - image.height) // 2))
         square.save(args.out / f'{ffxi_id}.png', optimize=True)
+        place = (ffxi_id % SHEET_COLUMNS * image.width, ffxi_id // SHEET_COLUMNS * image.height)
+        if place[1] + image.height > SHEET_HEIGHT:
+            unfound.append(f'{ffxi_id}: no place in sheet.png for a number that high')
+            continue
+        together.paste(image, place)
+    together.save(args.out / 'sheet.png', optimize=True)
 
     with open(args.map, 'w', newline='') as handle:
         writer = csv.DictWriter(handle, fieldnames=['ffxi_id', 'ffxi_name', 'ffxiv_icon', 'ffxiv_name', 'tint'], lineterminator='\n')
