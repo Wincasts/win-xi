@@ -299,6 +299,29 @@ static struct {
 // The party, the target and the pets, as they were when the frame began
 static FrameFacts Facts;
 
+// /namehook trace, not in the help: for finding out how the client draws one entity's name, frame by
+// frame. Every first line drawn for the target is kept for TRACE_FRAMES frames, with what was done
+// with it, and then written to config\namehook\trace.txt: nothing is written as names are drawn.
+#define TRACE_FRAMES 120
+#define TRACE_MAX 2048
+struct TraceLine {
+	uint32_t Frame;      // from the trace's first
+	uint32_t Site;       // which of the calls: 0 the one that draws all the names
+	float X, Y, Z;
+	float Scale;
+	uint32_t NameColor;
+	uint16_t CountLast;  // that call's lines for it the frame before
+	float Height, Middle; // how high this one is, and halfway up last frame's
+	char What;           // T taken, R taken in another call's place, A already taken, L lower and left, O another call's, passed over
+};
+static struct {
+	bool On;
+	uint32_t Index;      // the entity, the target as the trace began
+	uint32_t First;      // the frame it began in
+	uint32_t Count;
+	TraceLine Lines[TRACE_MAX];
+} Trace;
+
 // Set by the probe command: the next name drawn has the plugin's host say what it is drawn on
 static bool ProbeWanted = false;
 
@@ -513,6 +536,7 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 		const bool main = site != 0 && site == Globals.DrawNameLineCalls[0];
 		bool repeat = false;
 		bool replace = false;
+		char what = 'T';
 		if (index < HOOK_ENTITIES) {
 			auto& seen = Seen[index];
 			if (main) {
@@ -532,14 +556,38 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 
 				if (seen.Frame == now && seen.Main) {
 					repeat = true; // taken already
+					what = 'A';
 				} else if (seen.MainCountLast > 1 && height < seen.Middle && seen.MainCount < seen.MainCountLast) {
 					repeat = true; // a lower one, while a higher is to come
+					what = 'L';
 				} else {
 					// it takes the place of another call's, if that came first
 					replace = seen.Frame == now;
+					what = replace ? 'R' : 'T';
 				}
 			} else if (seen.Frame == now || seen.MainFrame == now || seen.MainFrame == now - 1) {
 				repeat = true;
+				what = 'O';
+			}
+
+			if (Trace.On && index == Trace.Index && Trace.Count < TRACE_MAX) {
+				TraceLine& line = Trace.Lines[Trace.Count++];
+				line.Frame = Shared.Frame - Trace.First;
+				line.Site = 0;
+				for (size_t i = 0; i < Globals.DrawNameLineCallCount; i++) {
+					if (Globals.DrawNameLineCalls[i] == site) {
+						line.Site = static_cast<uint32_t>(i);
+					}
+				}
+				line.X = (pPosition != nullptr) ? pPosition[0] : 0.0f;
+				line.Y = (pPosition != nullptr) ? pPosition[1] : 0.0f;
+				line.Z = (pPosition != nullptr) ? pPosition[2] : 0.0f;
+				memcpy(&line.Scale, &scale, sizeof(line.Scale));
+				line.NameColor = nameColor;
+				line.CountLast = seen.MainCountLast;
+				line.Height = (pPosition != nullptr) ? pPosition[1] * Globals.WorldUp : 0.0f;
+				line.Middle = seen.Middle;
+				line.What = what;
 			}
 			if (repeat) {
 				Globals.Repeats++;
@@ -1154,6 +1202,17 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		} else {
 			Debug("This client's name drawing was not recognised: there is nothing to look at.");
 		}
+	} else if (eat_space_token_match_and_advance(cmd, "trace", nameplate_strlen("trace"))) {
+		// not in the help: for finding out how the client draws the target's name
+		if (Facts.TargetIndex == 0) {
+			Debug("Target the one whose name is to be traced first.");
+		} else {
+			Trace.On = true;
+			Trace.Index = Facts.TargetIndex;
+			Trace.First = Shared.Frame;
+			Trace.Count = 0;
+			Debug("Tracing the target's name for 120 frames.");
+		}
 	} else if (eat_space_token_match_and_advance(cmd, "othercalls", nameplate_strlen("othercalls"))) {
 		int otherCalls = -1;
 
@@ -1458,6 +1517,36 @@ int Nameplate::SaveWhitelist() {
 	return 0;
 }
 
+void Nameplate::SaveTrace() {
+	wchar_t basePath[UNICODE_MAX_PATH];
+	if (!this->GetConfigPath(basePath)) {
+		return;
+	}
+
+	wchar_t path[UNICODE_MAX_PATH];
+	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook", basePath);
+	CreateDirectoryW(path, NULL);
+	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook\\trace.txt", basePath);
+
+	FILE* file = _wfopen(path, L"w");
+	if (file == nullptr) {
+		Debug("The trace could not be written.");
+		return;
+	}
+
+	fprintf(file, "entity %u, %u lines over %u frames; calls %u, up %.0f\n", static_cast<unsigned>(Trace.Index), static_cast<unsigned>(Trace.Count),
+		static_cast<unsigned>(TRACE_FRAMES), static_cast<unsigned>(Globals.DrawNameLineCallCount), static_cast<double>(Globals.WorldUp));
+	fprintf(file, "frame site what x y z scale color countLast height middle\n");
+	for (uint32_t i = 0; i < Trace.Count; i++) {
+		const TraceLine& line = Trace.Lines[i];
+		fprintf(file, "%u %u %c %.3f %.3f %.3f %.3f %08X %u %.3f %.3f\n", static_cast<unsigned>(line.Frame), static_cast<unsigned>(line.Site), line.What,
+			static_cast<double>(line.X), static_cast<double>(line.Y), static_cast<double>(line.Z), static_cast<double>(line.Scale),
+			static_cast<unsigned>(line.NameColor), static_cast<unsigned>(line.CountLast), static_cast<double>(line.Height), static_cast<double>(line.Middle));
+	}
+	fclose(file);
+	Debug("Trace written to config\\namehook\\trace.txt.");
+}
+
 void Nameplate::Debug(const wchar_t* text) {
 	char buf[1024];
 	StringCbPrintfA(buf, sizeof(buf), "%ls", text);
@@ -1747,6 +1836,11 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 
 		Filling.Changed = false;
 		Filling.Published = true;
+	}
+
+	if (frameDone && Trace.On && Shared.Frame - Trace.First >= TRACE_FRAMES) {
+		Trace.On = false;
+		SaveTrace();
 	}
 
 	if (frameDone) {
