@@ -10,9 +10,9 @@
 --
 -- What is known of who is under what is not the same for everyone. The game keeps the player's own
 -- statuses and those of the five others of the player's own party, and they are read as they are. Of
--- anyone else it is told nothing: winxi.debuffs keeps count of the spells seen to land on them, so an
--- enemy has what was cast on it within sight, for as long as such a spell usually lasts. Other
--- players, other parties of an alliance and NPCs have only what was seen cast on them that way.
+-- anyone else it is told nothing: winxi.debuffs keeps count of every status the server is seen to say
+-- took hold on them, by spell, ability, weapon skill, monster's move or additional effect, for as long
+-- as the server's scripts say it usually lasts, or until the server says it wore off.
 --
 -- The icons are winxi's own (winxi.statusicons), all from the one sheet: the plugin draws from eight
 -- pictures and no more, and the others are taken. A status winxi has no icon for is not drawn.
@@ -207,14 +207,13 @@ end
 local tracked = {};
 
 local function TakeTracked(serverId)
-    local on = debuffs.On(serverId);
+    local on = debuffs.Statuses(serverId);
     if (on == nil) then
         return;
     end
     local now, count = os.time(), 0;
-    for kind, entry in pairs(on) do
-        local id = debuffs.StatusIds[kind];
-        if (id ~= nil and now < entry.expires) then
+    for id, entry in pairs(on) do
+        if (now < entry.expires) then
             count = count + 1;
             tracked[count] = id;
         end
@@ -320,7 +319,7 @@ function statuses.DrawSettings(options, save)
     controls.BeginLayout('statuses', 360, 'Show Statuses');
     controls.Section('Status Icons', '##name.statusOptions', true);
     if (controls.Checkbox('Show Statuses', '##name.showStatuses', options.showStatuses,
-            'A row of icons above a name, for the statuses ticked below.\nYour own and your party\'s are as the game has them. An enemy\'s are worked out from the spells seen to land on it, each lasting its usual time: one that landed out of sight, or came from anything but a spell, is not known. Other players have only what was seen cast on them the same way.')) then
+            'A row of icons above a name, for the statuses ticked below.\nYour own and your party\'s are as the game has them. Anyone else\'s are worked out from what the server is seen to say took hold on them, by spell, ability, weapon skill, monster\'s move or additional effect, each lasting its usual time unless the server says it wore off. One that landed out of sight, or before you entered the area, is not known.')) then
         changed = true;
     end
     if (options.showStatuses[1]) then

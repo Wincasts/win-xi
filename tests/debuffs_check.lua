@@ -35,3 +35,29 @@ H.print('one enemy is defeated: forgotten', names(900) == '', '| the other kept'
 cast(3, 454, { [901] = 237 }); H.print('a threnody has its element:', debuffs.Get(901, 'threnody') and debuffs.Get(901, 'threnody').element)
 debuffs.HandlePacket({ id = 0x00A }); H.print('a change of area: all forgotten', names(901) == '')
 cast(1, 23, { [900] = 2 }); debuffs.Clear(); H.print('cleared', names(900) == '')
+
+-- any status by its number: whatever put it there, for as long as the server's scripts say
+local function statuses(id)
+    local list = {}
+    for status, entry in pairs(debuffs.Statuses(id) or {}) do
+        if now < entry.expires then list[#list + 1] = status .. ':' .. (entry.expires - now) end
+    end
+    table.sort(list)
+    return table.concat(list, ' ')
+end
+debuffs.Clear()
+cast(1, 58, { [900] = 236 }); H.print('Paralyze by its number, for its base 120 s:', statuses(900))
+cast(1, 23, { [900] = 2 }); H.print('Dia, which says only its damage, kept by number too:', statuses(900))
+cast(1, 230, { [900] = 2 }); H.print('Bio takes its place:', statuses(900))
+debuffs.Action({ actor_id = 5, category = 11, param = 999, targets = { { id = 901, actions = { { message = 242, param = 7 } } } } })
+H.print('a monster\'s move nothing is known of: Petrification for its usual time', statuses(901))
+debuffs.Action({ actor_id = 5, category = 3, param = 1, targets = { { id = 901, actions = { { message = 1, param = 300, proc_message = 160, proc_param = 6 } } } } })
+H.print('a weapon skill\'s additional effect: Silence', statuses(901))
+debuffs.Action({ actor_id = 5, category = 6, param = 1, targets = { { id = 902, actions = { { message = 127, param = 600 } } } } })
+H.print('an ability, a status with no known length: the default', statuses(902) == '600:180')
+debuffs.Action({ actor_id = 5, category = 4, param = 260, targets = { { id = 901, actions = { { message = 341, param = 7 } } } } })
+H.print('dispelled: gone', statuses(901))
+debuffs.Message({ target = 901, message = 206, param = 6 }); H.print('wears off: gone', statuses(901) == '')
+debuffs.Message({ target = 900, message = 6, param = 0 }); H.print('defeated: forgotten', statuses(900) == '', debuffs.StatusRemaining(900, 4) == nil)
+cast(1, 58, { [900] = 236 }); now = now + 30; H.print('remaining', debuffs.StatusRemaining(900, 4))
+debuffs.HandlePacket({ id = 0x00A }); H.print('a change of area: all forgotten', statuses(900) == '', statuses(902) == '')

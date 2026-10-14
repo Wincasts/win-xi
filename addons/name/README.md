@@ -236,8 +236,7 @@ name has them. How much is known depends on whose name it is:
 |---|---|
 | Your own | Everything you are under, as the game has it |
 | The five others of your party | Everything they are under, as the game has it, while they are in your area |
-| Enemies | What was seen to land on them from a spell, each lasting its usual time: `winxi.debuffs` keeps count. Not known: what landed out of sight or before you entered the area, what came from a weapon skill or ability, and a debuff cut short by a partial resist until the server says it wore off |
-| Anyone else | Other players, the other parties of an alliance and NPCs: only what was seen cast on them the same way |
+| Everyone else | Enemies, other players, the other parties of an alliance and NPCs: any status the server was seen to say took hold on them, by spell, ability, weapon skill, monster's move or additional effect. `winxi.debuffs` keeps count, each lasting the server's base duration for what put it there (or 180 seconds where nothing says), until the server says it wore off or was dispelled. Not known: what landed out of sight or before you entered the area, and how gear, merits or a partial resist changed a duration |
 
 The plugin draws names from eight pictures and the names' own use seven, so the icons are all drawn
 from one, `statusicons\sheet.png`, which `tools/build_status_icons.py` makes with the icons.
