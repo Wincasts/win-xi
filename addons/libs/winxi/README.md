@@ -19,7 +19,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
 | `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
 | `winxi.packets` | The packets addons send and read, set out once |
-| `winxi.debuffs` | Which debuffs are on each enemy and for how long yet, worked out from the spells seen to land |
+| `winxi.debuffs` | Which statuses are on each enemy (or anyone) and for how long yet, worked out from what the server says took hold and wore off; durations from `winxi.debuff_durations`, made by `tools/build_debuff_durations.py` from the server's scripts |
 | `winxi.nameplates` | The names the game draws over characters' heads, from the `namehook` plugin: what each is over, where it is on screen, and showing and hiding them by category or one by one |
 | `winxi.statusicons` | A status's icon to draw: FFXIV's, from the `statusicons` folder (made by `tools/build_status_icons.py`), or the game's own where there is none. All of FFXIV's are in one picture as well, `sheet.png`, for what draws from few pictures: `Sheet()` and `SheetPlace(id)` |
 | `winxi.debounce` | Running a function once things have gone quiet |
@@ -284,6 +284,20 @@ debuffs.Active(serverId);                             -- a list of those, the fi
 debuffs.On(serverId);                                 -- kind -> entry as kept, or nil: nothing made or sorted
 debuffs.StatusIds[kind];                              -- the game's number for the status, for its icon
 ```
+
+Apart from those kinds, any status the server says took hold on anyone, by spell, ability, weapon
+skill, monster's move or additional effect, is kept by its number, and taken off when the server says
+it wore off, was dispelled or erased, or its owner was defeated:
+
+```lua
+debuffs.Statuses(serverId);                           -- status -> { id, expires, by, category, param }, as kept
+debuffs.StatusRemaining(serverId, status);            -- seconds left, or nil when it is not on
+```
+
+How long each lasts is the server's base duration for the spell or monster's move that put it there,
+or the usual one for the status, from `winxi.debuff_durations` (`tools/build_debuff_durations.py`
+makes it from `references/Phoenix`), or 180 seconds where nothing says. Merits, gear and partial
+resists are not known.
 
 `debuffs.On` is for an addon that asks about many enemies every frame. An entry in it may have run
 out: `os.time() < entry.expires` says whether it is still on.

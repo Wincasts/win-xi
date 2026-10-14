@@ -15,6 +15,18 @@
 --
 --     debuffs.StatusIds[kind]                          -- the game's number for the status of that kind
 --
+-- Those are the kinds above, from the spells of a table of this file's own. Apart from them, any status
+-- the server says took hold on anyone is kept by its number, whatever put it there:
+--
+--     debuffs.Statuses(serverId)                       -- status -> { id, expires, by, category, param },
+--                                                      -- as kept: one that has run out may be in it
+--     debuffs.StatusRemaining(serverId, status)        -- seconds left of it, or nil when it is not on
+--
+-- category and param are the action's that put it there (4 and the spell's number for a spell). How long
+-- it lasts is the server's base duration for that spell or monster's move, or failing that the usual
+-- one for the status (winxi.debuff_durations, made from the server's scripts), or failing that
+-- DEFAULT_SECONDS; the server saying it wore off, or was taken off, ends it before that.
+--
 -- name is the spell that put it there, by the server id of who cast it, element the element of a
 -- threnody. An addon that has parsed the packet already hands the result over in place of the packet:
 -- debuffs.Action(action) and debuffs.Message(message), as winxi.packets parses them.
@@ -22,10 +34,18 @@
 -- Each addon is its own Lua state, so each that wants this keeps its own count from the packets it is
 -- handed: nothing is shared between addons but the code.
 --
--- What it cannot know: a debuff that landed out of range or before the area was entered, one put
--- there by anything but a spell, and how long one really lasts when it was partly resisted. Each
--- lasts its usual time unless the server says it wore off first. All is forgotten on a change of area.
+-- What it cannot know: a status that landed out of range or before the area was entered, and how
+-- long one really lasts when it was partly resisted or lengthened by gear. Each lasts its usual time
+-- unless the server says it wore off first. All is forgotten on a change of area. The kinds come
+-- from spells alone.
 local packets = require('winxi.packets');
+local found, durations = pcall(require, 'winxi.debuff_durations');
+if not found or type(durations) ~= 'table' then
+    durations = {};
+end
+durations.spells = durations.spells or {};
+durations.mobskills = durations.mobskills or {};
+durations.statuses = durations.statuses or {};
 
 local debuffs = {};
 
@@ -568,6 +588,50 @@ local zonePacket = 0x00A;
 -- enemy's server id -> kind -> { kind, name, expires, by, element }
 local tracked = {};
 
+-- anyone's server id -> status -> { id, expires, by, category, param }
+local statuses = {};
+
+local DEFAULT_SECONDS = 180; -- a status nothing says the length of
+local SPELL, MOVE = 4, 11;   -- the action categories durations are known for: a spell, a monster's move
+
+-- The messages of an action's result that say a status took hold, the status being param: "<target> is
+-- <status>", "<target> receives the effect of <status>", "<target> gains the effect of <status>", as
+-- each kind of action words it
+local Lands = {
+    [127] = true, [203] = true, [236] = true, [237] = true, [242] = true, [243] = true, [267] = true,
+    [268] = true, [271] = true, [277] = true,
+    [186] = true, [205] = true, [230] = true, [319] = true, [320] = true, [375] = true,
+};
+-- and the same said of an additional effect, the status being its param
+local ProcLands = { [160] = true, [164] = true };
+-- the messages that say a status is gone from its target, of an action's result or by themselves
+local Removes = { [83] = true, [123] = true, [159] = true, [204] = true, [206] = true, [321] = true, [341] = true, [378] = true };
+local ProcRemoves = { [168] = true };
+
+local function Seconds(category, param, status)
+    local by = (category == SPELL and durations.spells[param]) or (category == MOVE and durations.mobskills[param]) or nil;
+    return (by and by[status]) or durations.statuses[status] or DEFAULT_SECONDS;
+end
+
+local function Put(target, status, seconds, actor, category, param)
+    if status == nil or status <= 0 or status >= 0x400 then
+        return;
+    end
+    local on = statuses[target];
+    if on == nil then
+        on = {};
+        statuses[target] = on;
+    end
+    on[status] = { id = status, expires = os.time() + seconds, by = actor, category = category, param = param };
+end
+
+local function Take(target, status)
+    local on = statuses[target];
+    if on ~= nil then
+        on[status] = nil;
+    end
+end
+
 local function Landed(messages, message)
     for _, landed in ipairs(messages) do
         if landed == message then
@@ -578,7 +642,29 @@ local function Landed(messages, message)
 end
 
 -- A spell has gone off: whichever of its targets it took hold on has the debuff from now
+local function Statuses(action)
+    for _, target in pairs(action.targets) do
+        for _, result in pairs(target.actions) do
+            local message = result.message;
+            if Lands[message] then
+                Put(target.id, result.param, Seconds(action.category, action.param, result.param), action.actor_id, action.category, action.param);
+            elseif Removes[message] then
+                Take(target.id, result.param);
+            end
+            local proc = result.proc_message;
+            if proc ~= nil then
+                if ProcLands[proc] then
+                    Put(target.id, result.proc_param, Seconds(nil, nil, result.proc_param), action.actor_id, action.category, action.param);
+                elseif ProcRemoves[proc] then
+                    Take(target.id, result.proc_param);
+                end
+            end
+        end
+    end
+end
+
 function debuffs.Action(action)
+    Statuses(action);
     local spells = ActionMap[action.category];
     local spell = spells and spells[action.param];
     if spell == nil then
@@ -595,8 +681,11 @@ function debuffs.Action(action)
                     tracked[target.id] = on;
                 end
                 on[spell.type] = { kind = spell.type, name = spell.name, expires = expires, by = action.actor_id, element = spell.ele };
+                -- by its number as well: Dia and Bio say only the damage they do as they land
+                Put(target.id, debuffs.StatusIds[spell.type], spell.dur, action.actor_id, action.category, action.param);
                 if spell.over then
                     on[spell.over] = nil;
+                    Take(target.id, debuffs.StatusIds[spell.over]);
                 end
             end
         end
@@ -605,6 +694,12 @@ end
 
 -- An effect has worn off an enemy, or the enemy is no more
 function debuffs.Message(message)
+    if DeathMessages[message.message] then
+        statuses[message.target] = nil;
+    elseif Removes[message.message] then
+        Take(message.target, message.param);
+    end
+
     local on = tracked[message.target];
     if on == nil then
         return;
@@ -622,7 +717,7 @@ end
 
 function debuffs.HandlePacket(e)
     if e.id == zonePacket then
-        tracked = {};
+        tracked, statuses = {}, {};
     elseif e.id == packets.inbound.action.id then
         debuffs.Action(packets.inbound.action.parse(e.data_raw));
     elseif e.id == packets.inbound.message.id then
@@ -667,8 +762,22 @@ function debuffs.On(serverId)
     return tracked[serverId];
 end
 
+function debuffs.Statuses(serverId)
+    return statuses[serverId];
+end
+
+function debuffs.StatusRemaining(serverId, status)
+    local on = statuses[serverId];
+    local entry = on and on[status];
+    local now = os.time();
+    if entry and now < entry.expires then
+        return entry.expires - now;
+    end
+    return nil;
+end
+
 function debuffs.Clear()
-    tracked = {};
+    tracked, statuses = {}, {};
 end
 
 return debuffs;
