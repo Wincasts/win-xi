@@ -276,7 +276,6 @@ class Nameplate {
     private:
         int LoadWhitelist();
         int SaveWhitelist();
-        void SaveTrace();
         void ParseWhitelistCommand(const char* cmd);
         void ParseCategoryCommand(const char* cmd, int show);
         void SayStatus();
