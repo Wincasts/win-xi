@@ -17,7 +17,7 @@ To add one: a `<name>_check.lua` that works the addon through the table `H` (see
 ## What is drawn, and what it costs
 
 `capture.lua` runs an addon on the harness and records every call it makes on a draw list. `run.sh`
-does so for xiframes, over a scene (`xiframes_scene.lua`: a full alliance, pets, a target, an
+does so for party, over a scene (`party_scene.lua`: a full alliance, pets, a target, an
 invite and treasure, from a character's saved settings) and compares the record with the copy kept
 in `golden/`: a change to the code that is not meant to change what is drawn should leave it as kept.
 

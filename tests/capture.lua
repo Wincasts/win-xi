@@ -8,7 +8,7 @@
 -- calls on the draw lists, changes of image on them (each is a separate batch to the renderer),
 -- colours packed, fonts pushed, text measured, and memory made.
 --
--- The scene file sets the game up and says which frames to keep (see tests/xiframes_scene.lua). The
+-- The scene file sets the game up and says which frames to keep (see tests/party_scene.lua). The
 -- saved settings are a settings file as the addon wrote it, loaded in place of none: the scene may
 -- change them first, for a variant. Image files "load" here, so that what is drawn with which image
 -- is recorded too, and a colour is recorded as itself rather than as the harness's one number.
