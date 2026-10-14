@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Make winxi's status icons (winxi.statusicons, which buffs and xiframes draw) from FFXIV's.
+"""Make winxi's status icons (winxi.statusicons, which buff and party draw) from FFXIV's.
 
 tools/status_icons.csv says which FFXIV icon stands for each FFXI status, a status to
 a line:
@@ -19,7 +19,7 @@ references folder is there to pick from) and run this again.
 
 Each icon, 48 by 64 with its own transparency, is put in the middle of a square of 64
 (a size a graphics card takes without stretching it) and written to
-addons/libs/winxi/statusicons/<ffxi_id>.png, and the numbers found for names are written back to
+addons/libs/winxi/statusicons/ffxiv/<ffxi_id>.png, and the numbers found for names are written back to
 the csv. They are all put in one picture as well, sheet.png beside them, for what can draw from
 only a few pictures at once (the name addon, through the namehook plugin): each as it is, 48 by 64,
 in the place its number gives it, SHEET_COLUMNS to a row, which winxi.statusicons knows the same
@@ -148,7 +148,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--map', type=Path, default=ROOT / 'tools/status_icons.csv')
     parser.add_argument('--source', type=Path, default=ROOT / 'references/ffxiv-status-icons')
-    parser.add_argument('--out', type=Path, default=ROOT / 'addons/libs/winxi/statusicons')
+    parser.add_argument('--out', type=Path, default=ROOT / 'addons/libs/winxi/statusicons/ffxiv')
     parser.add_argument('--sheet', type=Path)
     parser.add_argument('--page', action='store_true')
     args = parser.parse_args()

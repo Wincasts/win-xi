@@ -7,22 +7,125 @@
 -- window was drawn. Anything imgui needs set for the next window (its size, constraints, or a first
 -- position) is set by the caller beforehand, as usual.
 --
+-- Every window is one of two kinds, which the addon says with options.kind:
+--   window.Game      'game', what is drawn on the screen as the game is played: the theme's window
+--                    background (winxi.backgrounds) and border art (winxi.borders), if it has any, in place of imgui's own border, and
+--                    the theme's font at the theme's size (winxi.fonts). The kind of a window that
+--                    does not say.
+--   window.Settings  'settings', a settings window and anything else for changing how things are set:
+--                    the theme's values for settings windows (winxi.theme's Settings keys): their own
+--                    colours, padding, font and font size, a plain border and no shadow, so that what
+--                    is set for the game's windows does not change the window it is set in.
+-- A settings window can be resized, whatever flags it is given. It fits its content, as it changes,
+-- until it is resized by a grip or an edge; from then it keeps the size it was given, its controls
+-- narrowing to fit it (winxi.widgets) and its content scrolling where it is still too big. A
+-- double-click on a grip or an edge fits it to its content again. Fitted or not, it is never bigger
+-- than the screen. window.IsResized() says, while a window's content is drawn, whether it is a
+-- settings window that has been resized.
+--
+-- Either way the font is pushed around the window, so it is what the window is written in unless draw
+-- pushes a font or size of its own.
+--
 -- options (all optional):
 --   padding     a number, in place of the theme's padding
 --   background  a colour, in place of the theme's background
 --   alpha       0 to 1, for a window that fades (winxi.fade); at 0 the window is not drawn at all
 --   shadow      false for a window that should not have the theme's drop shadow
+--   kind        window.Game (the default) or window.Settings, as above
 --   controller  a binding of winxi.controller: the window is marked while that binding has the
 --               controller (see controller.Highlight)
+--   title       words for the top edge of a window of the game kind (winxi.titles), as the theme draws
+--               them; a settings window has imgui's own title
 --   growFrom    the corner that stays put as the content changes size (see winxi.anchor); with any
 --               corner but TopLeft, draw is called twice a frame, once to measure
+local bit = require('bit');
 local imgui = require('imgui');
 local style = require('winxi.style');
 local shadow = require('winxi.shadow');
 local anchor = require('winxi.anchor');
 local controller = require('winxi.controller');
+local theme = require('winxi.theme');
+local borders = require('winxi.borders');
+local fonts = require('winxi.fonts');
+local backgrounds = require('winxi.backgrounds');
+local titles = require('winxi.titles');
 
 local window = {};
+
+window.Game = 'game';
+window.Settings = 'settings';
+
+-- Whether a window's options make it a settings window
+function window.IsSettings(options)
+    return options ~= nil and options.kind == window.Settings;
+end
+
+-- Each settings window's last place and size, and whether it has been resized: by its name
+local settingsState = {};
+local resized = false; -- the window being drawn is a settings window that has been resized
+local fitSize = { 0, 0 };  -- a size of 0 fits the window to its content, on each side
+local screenSize = { 0, 0 };
+local edgeReach = 4;       -- how far either side of an edge it can be taken hold of, as imgui has it
+
+function window.IsResized()
+    return resized;
+end
+
+-- Whether the mouse is where the window's edges or its bottom corners' grips can be taken hold of,
+-- as it was last drawn
+local function OnEdge(state)
+    if state.w == nil then
+        return false;
+    end
+    local mx, my = imgui.GetMousePos();
+    if mx == nil or my == nil then
+        return false;
+    end
+    local left, top, right, bottom = state.x, state.y, state.x + state.w, state.y + state.h;
+    if mx < left - edgeReach or mx > right + edgeReach or my < top - edgeReach or my > bottom + edgeReach then
+        return false;
+    end
+    if mx <= left + edgeReach or mx >= right - edgeReach or my <= top + edgeReach or my >= bottom - edgeReach then
+        return true;
+    end
+    local grip = math.max((imgui.GetFontSize() or 13) * 1.35, 12);
+    return my >= bottom - grip and (mx >= right - grip or mx <= left + grip);
+end
+
+local fixedFlags = nil; -- what a settings window may not have: sizing itself, or not being resized
+
+-- Before a settings window's Begin: its flags, and its size if it is fitting its content
+local function BeginSettings(name, flags)
+    local state = settingsState[name];
+    if state == nil then
+        state = { resized = false };
+        settingsState[name] = state;
+    end
+    if imgui.IsMouseDoubleClicked(0) and OnEdge(state) then
+        state.resized = false;
+    elseif imgui.IsMouseClicked(0) and OnEdge(state) then
+        state.resized = true;
+    end
+
+    if not state.resized then
+        imgui.SetNextWindowSize(fitSize, ImGuiCond_Always);
+    else
+        -- resized, but no bigger than the screen
+        local io = imgui.GetIO();
+        local display = io and io.DisplaySize;
+        if display and state.w and (state.w > display.x or state.h > display.y) then
+            screenSize[1], screenSize[2] = math.min(state.w, display.x), math.min(state.h, display.y);
+            imgui.SetNextWindowSize(screenSize, ImGuiCond_Always);
+        end
+    end
+
+    fixedFlags = fixedFlags or bit.bor(ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoResize);
+    flags = bit.band(flags or 0, bit.bnot(fixedFlags));
+    if state.resized then
+        flags = bit.bor(flags, ImGuiWindowFlags_HorizontalScrollbar);
+    end
+    return flags, state;
+end
 
 local function Draw(full, name, open, flags, draw, options)
     local alpha = options and options.alpha;
@@ -35,29 +138,55 @@ local function Draw(full, name, open, flags, draw, options)
     else
         style.PushPlain(options);
     end
+    local background = style.Background();
 
-    local growFrom = options and options.growFrom;
-    if growFrom then
-        anchor.Measure(name, growFrom, draw);
-        anchor.Place(name, growFrom);
+    local settingsKind = window.IsSettings(options);
+    local state = nil;
+    if settingsKind then
+        flags, state = BeginSettings(name, flags);
     end
-
-    local drawn = imgui.Begin(name, open, flags);
-    if drawn then
+    local font = fonts.Push(settingsKind);
+    local border = not settingsKind and borders.Texture(theme.Get().BorderStyle) or nil;
+    local title = not settingsKind and options and options.title or nil;
+    local begun, drawn, bordered = false, false, 0;
+    local ok, err = pcall(function()
+        local growFrom = options and options.growFrom;
         if growFrom then
-            anchor.Track(name, growFrom);
+            anchor.Measure(name, growFrom, draw);
+            anchor.Place(name, growFrom);
         end
-        if not (options and options.shadow == false) then
-            shadow.Draw();
-        end
-        draw();
-        if options and options.controller then
-            controller.Highlight(options.controller);
-        end
-    end
-    imgui.End();
 
+        bordered = borders.Push(border, titles.Breaks(title));
+        drawn = imgui.Begin(name, open, flags);
+        begun = true;
+        imgui.PopStyleVar(bordered);
+        bordered = 0;
+        if drawn then
+            if growFrom then anchor.Track(name, growFrom); end
+            if not settingsKind and not (options and options.shadow == false) then shadow.Draw(); end
+            backgrounds.Draw(background, options and options.background or theme.Get().BackgroundColor);
+            if state ~= nil then
+                state.x, state.y = imgui.GetWindowPos();
+                state.w, state.h = imgui.GetWindowSize();
+                resized = state.resized;
+            end
+            draw();
+            resized = false;
+            borders.Draw(border, titles.Gap(title));
+            titles.Draw(title);
+            if options and options.controller then controller.Highlight(options.controller); end
+        end
+    end);
+    -- A failed draw must not leave a window or fading Alpha on the shared ImGui context.
+    -- Callers still own any font/style stacks they push inside their callbacks.
+    if bordered > 0 then imgui.PopStyleVar(bordered); end
+    local ended, end_error = true, nil;
+    if begun then ended, end_error = pcall(imgui.End); end
+    resized = false;
+    fonts.Pop(font);
     style.Pop();
+    if not ok then error(err, 0); end
+    if not ended then error(end_error, 0); end
     return drawn;
 end
 
