@@ -1,5 +1,5 @@
 -- mark's data and its Treasure Hunter sums. Run from the top of the project: luajit tests/mark_data_check.lua
-package.path = 'addons/mark/?.lua;' .. package.path
+package.path = 'addons/mark/?.lua;addons/libs/?.lua;' .. package.path
 addon = { path = 'addons/mark/' }
 ashita = { fs = { exists = function(path) local file = io.open(path, 'rb') if file then file:close() end return file ~= nil end } }
 AshitaCore = nil -- no game: the zones go by the data's own names
@@ -61,7 +61,7 @@ for _, zone in ipairs(zones) do
         local seen = {}
         for _, floor in ipairs(floors) do
             sheets = sheets + 1
-            sound = sound and not seen[floor.floor] and floor.index >= 0 and floor.image:match('%.jpg$') ~= nil
+            sound = sound and not seen[floor.floor] and floor.index >= 0 and floor.dat:match('^ROM%d*/%d+/%d+%.DAT$') ~= nil
             seen[floor.floor] = true
         end
     end

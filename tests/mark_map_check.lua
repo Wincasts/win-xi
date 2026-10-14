@@ -10,7 +10,7 @@ local record = {
 }
 hunts.Monster = function() return record end
 hunts.ZoneName = function() return 'Test Zone' end
-local floor = { floor = 0, index = 0, image = 'test.jpg' }
+local floor = { floor = 0, index = 0, dat = 'ROM/1/1.DAT' }
 maps.Floors = function() return { floor } end
 maps.Entry = function() return { scale = 1, x = -256, y = -256 } end
 maps.Texture = function() return 1 end
@@ -132,7 +132,7 @@ check('zoom-out button works', near(image[3] - image[1], 320))
 o.viewName = 'Another NM'
 frame()
 check('new monster resets pan and zoom', image[1] == 10 and image[3] == 266)
-local floor2 = { floor = 1, index = 1, image = 'second.jpg' }
+local floor2 = { floor = 1, index = 1, dat = 'ROM/1/2.DAT' }
 maps.Floors = function() return { floor, floor2 } end
 maps.ClientFloor = function() return 0 end
 wheel = 1; frame(); wheel = 0

@@ -4,16 +4,17 @@
 -- the map's place in the client's own table of maps and its picture. The scale and offsets that turn
 -- a place in the world into a place on the map are read from that table in the client's memory, as
 -- zoneinfo and boussole read them; which floor a place is on is asked of the client, which can only
--- say for the zone it has loaded. Native-resolution pictures exported by tools/build_mark_maps.py
--- live in assets\maps; zoneinfo's 512-pixel previews (addons\zoneinfo\assets\maps\all) are a fallback.
+-- say for the zone it has loaded. The pictures are the game's own files, read by winxi.mapdat through
+-- pivot: XICombinedMaps' where it is installed, the game's own maps where it is not.
 --
---   maps.Floors(zone)                  the zone's maps, each { floor, index, image }, or nil
+--   maps.Floors(zone)                  the zone's maps, each { floor, index, dat }, or nil
 --   maps.FloorAt(zone, here, x, y, z)  the map a place is on: here is the zone the player is in
 --   maps.Entry(zone, floor)            a map's { scale, x, y }, or nil while it cannot be read
 --   maps.ToMap(entry, x, z)            a place in the world as a place on the map, 0 to 512 each way
 --   maps.ToWorld(entry, px, py)        and back
 --   maps.Square(px, py)                the grid square of a place on the map: 'H-7'
 --   maps.Texture(floor)                the map's picture as a texture handle, or nil
+local mapdat = require('winxi.mapdat');
 local maps = {};
 
 maps.Size = 512; -- a map is this many units across, whatever size its picture is drawn at
@@ -168,34 +169,16 @@ end
 ----------------------------------------------------------------------------------------------------
 -- The pictures: one kept at a time
 ----------------------------------------------------------------------------------------------------
-local held = { image = nil, texture = nil, handle = nil };
-
-local function Load(image)
-    local own = ('%sassets\\maps\\%s'):format(addon.path, image);
-    local shared = ('%s\\addons\\zoneinfo\\assets\\maps\\all\\%s'):format(AshitaCore:GetInstallPath(), image);
-    local path = ashita.fs.exists(own) and own or (ashita.fs.exists(shared) and shared or nil);
-    if path == nil then
-        return nil;
-    end
-    local ffi, d3d = require('ffi'), require('d3d8');
-    local device = d3d.get_device();
-    if device == nil then
-        return nil;
-    end
-    local pointer = ffi.new('IDirect3DTexture8*[1]');
-    if ffi.C.D3DXCreateTextureFromFileA(device, path, pointer) ~= ffi.C.S_OK then
-        return nil;
-    end
-    local texture = d3d.gc_safe_release(ffi.cast('IDirect3DTexture8*', pointer[0]));
-    return texture, tonumber(ffi.cast('uint32_t', texture));
-end
+local held = { dat = nil, texture = nil, handle = nil, retryAt = 0 };
 
 function maps.Texture(floor)
-    if held.image ~= floor.image then
-        held.image, held.texture, held.handle = floor.image, nil, nil;
-        local ok, texture, handle = pcall(Load, floor.image);
+    if held.dat ~= floor.dat or (held.handle == nil and os.clock() >= held.retryAt) then
+        held.dat, held.texture, held.handle = floor.dat, nil, nil;
+        local ok, texture, handle = pcall(mapdat.Load, floor.dat);
         if ok and texture ~= nil then
             held.texture, held.handle = texture, handle;
+        else
+            held.retryAt = os.clock() + 5; -- not tried again for a while: a file not there is not there
         end
     end
     return held.handle;

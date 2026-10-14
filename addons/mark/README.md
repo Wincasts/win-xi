@@ -4,8 +4,9 @@ Pick a notorious monster from a dropdown, make it a mark, and see what the serve
 it: how it comes to be there, its placeholders, where it and they spawn, and what it drops with the
 chance of each drop at each level of Treasure Hunter. It times each mark's placeholders and its window,
 lists every mark and every time of death kept, and shows where a monster can spawn on the zone's map.
-Needs the `winxi` library (`addons/libs/winxi`). The bundled maps are exported from XICombinedMaps;
-without them, `zoneinfo` installed beside Mark can supply lower-resolution fallback pictures.
+Needs the `winxi` library (`addons/libs/winxi`). The maps are the game's own: with
+XICombinedMaps installed through pivot they are its sharper pictures, and
+without it the game's.
 
 - `/mark` shows or hides the window
 - `/mark config` opens or closes the settings
@@ -188,13 +189,12 @@ What to know of the maps:
 - **A zone of several maps** (most dungeons): which map a place is on is asked of the client, which can
   only say for the zone you are in. Outside the zone the places have no squares, and the map draws
   everything on whichever map is chosen with the buttons over it.
-- **The pictures retain their native resolution**, exported from `references/XICombinedMaps-2048`
-  into Mark's `assets\maps`: 258 of the 403 selected images are 2048×2048; the other 145 are only
-  512×512 in the source pack. No images are artificially upscaled. Mark prefers these over Zoneinfo's
-  512×512 previews in `addons\zoneinfo\assets\maps\all`. Without either set the overlay is drawn on
-  a blank square. 172 of the 230 zones with notorious monsters have a map; the rest are battlefields
-  and the like. Higher-resolution pictures improve zoom clarity, but cannot stay pixel-sharp beyond
-  their native detail (roughly 4x at the default 512-pixel viewport for a 2048-pixel image).
+- **The pictures are read from the game's files** by `winxi.mapdat`, opened the way pivot turns
+  towards its overlays. With XICombinedMaps-2048 installed as an overlay, 258 of the 403 maps are
+  2048×2048 and the rest 512×512; without it, every map is the game's own 512×512. Either lines up
+  the same, as where things fall is the client's table of maps, not the picture. Only the map on show
+  is held. 172 of the 230 zones with notorious monsters have a map; the rest are battlefields and the
+  like. A 2048-pixel picture stays sharp to about 4x zoom at the default 512-pixel view.
 - **Routes**: the server's zone data has none for any monster, and only two monsters' scripts walk
   them over one, so the yellow lines are rare.
 
@@ -230,18 +230,8 @@ placeholder lists, spawn points, routes and respawn windows, and reads the lotte
 and the trades to a ???, off the scripts' text. `data/maps.lua`, the list of each zone's maps, is taken
 from `addons/zoneinfo/data/all_maps.lua`.
 
-Rebuild the native-resolution map pictures after changing that catalog:
-
-```sh
-python3 tools/build_mark_maps.py
-```
-
-Requires Pillow and the local `references/XICombinedMaps-2048` pack. The exporter uses Zoneinfo's
-`assets/maps/all/manifest.json` to match DATs to the existing catalog filenames, verifies every source
-DAT's SHA-256, and saves the complete native image without resizing, cropping or changing alignment.
-It writes a provenance and dimensions manifest to `addons/mark/assets/maps/manifest.json`. JPEGs use
-quality 95 without chroma subsampling. The generated map set occupies about 510 MiB on disk; Mark
-continues to hold only the current map texture, not the entire set. Zoneinfo's previews are unchanged.
+`tools/build_mark_maps.py` exported the pictures to `assets\maps` before Mark read them from the
+game's files; Mark no longer uses that folder.
 
 What to know of it:
 
