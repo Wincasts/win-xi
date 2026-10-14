@@ -21,13 +21,14 @@
 
 addon.name      = 'hideparty';
 addon.author    = 'atom0s, win';
-addon.version   = '1.1';
-addon.desc      = 'Adds slash commands to hide, show, or toggle the games party frames.';
+addon.version   = '1.2';
+addon.desc      = 'Adds slash commands to hide, show, or toggle the games party frames, drawing the target cursor they take with them.';
 addon.link      = 'https://ashitaxi.com/';
 
 require 'common';
 
 local chat = require 'chat';
+local targetcursor = require 'targetcursor';
 
 -- Addon Variables
 local hideparty = {
@@ -180,4 +181,9 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     set_primitive_visibility(hideparty.ptrs.party1, parties and 1 or 0);
     set_primitive_visibility(hideparty.ptrs.party2, parties and 1 or 0);
     set_primitive_visibility(hideparty.ptrs.target, hideparty.show and 1 or 0);
+
+    -- The game's target cursor is part of the target frame, so it goes when the frame does: draw it.
+    if (not hideparty.show) then
+        targetcursor.Draw();
+    end
 end);
