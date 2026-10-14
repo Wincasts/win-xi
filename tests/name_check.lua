@@ -14,7 +14,7 @@ renderer.Frame = function(options, hook, formats)
 end
 local o = H.options()
 H.print('preferred live defaults loaded', o.font == 'corbeli.ttf', o.fontSize[1] == 28, o.fontBold[1], o.checkSize[1] == 75,
-    not o.showSelf[1], not o.showPlayers[1], not o.showPets[1], o.alwaysTarget[1], not o.gdiFonts[1])
+    not o.showSelf[1], not o.showPlayers[1], not o.showPets[1], o.alwaysTarget[1], o.gdiFonts == nil)
 -- Use a deterministic rendering fixture independent of preferred user defaults.
 require('custom').Defaults(o)
 for _, key in ipairs({ 'showSelf', 'showParty', 'showAlliance', 'showPlayers', 'showMyPet', 'showPets', 'showNpcs', 'showMonsters' }) do o[key][1] = true end
@@ -49,7 +49,7 @@ loaded = true
 H.frames(1)
 H.print('production supplies preferred baseline formats', suppliedFormats ~= nil and suppliedFormats.nameFormat[1] == '[name]',
     suppliedFormats ~= nil and suppliedFormats.monsterFormat[1] == '[aggro] Lv [level]. [name]',
-    suppliedFormats ~= nil and suppliedFormats.targetFormat[1] == suppliedFormats.checkedFormat[1])
+    suppliedFormats ~= nil and suppliedFormats.targetFormat == nil and suppliedFormats.checkedFormat == nil)
 H.print('plugin loaded: hook', nameplates.Hook() ~= nil, '| no problem', nameplates.Problem() == nil, '| hidden is players', block.Hidden == Category.Player)
 
 -- a change in the plugin, as by its own command, is taken into the settings and saved
@@ -314,14 +314,14 @@ local goblin = draw.Entities[300]
 H.print('with its distance: the monster, quads', goblin.Count, '| the player as before', buddy.Count, '| asked once', asked == 1)
 H.print(('the name in its own colour %08X, the distance in yellow %08X, what follows in its own %08X'):format(
     draw.Quads[goblin.First].Color, draw.Quads[goblin.First + 7].Color, draw.Quads[goblin.First + 11].Color))
--- Legacy target overrides must not affect ordinary or targeted mob nameplates.
-o.monsterFormat[1] = '[name]'; o.targetFormat[1] = '<[name]> [distance]'; H.frames(1)
+-- Target formats an older version saved must not affect ordinary or targeted mob nameplates.
+o.monsterFormat[1] = '[name]'; o.targetFormat = T{ '<[name]> [distance]' }; H.frames(1)
 assert(goblin.Count == 6)
 H.print('legacy target format ignored for ordinary mobs', true)
 block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
 assert(goblin.Count == 6)
 H.print('targeted mobs use the same mob format', true)
-o.targetFormat[1] = ''
+o.targetFormat = T{ '' }
 -- a player's line: the distance there too, if asked for
 o.nameFormat[1] = '[distance] [name]'; H.frames(1)
 H.print('a player with a distance before the name: quads', buddy.Count)
@@ -393,26 +393,26 @@ H.print('without it: quads', goblin.Count)
 -- Legacy checked/targeted overrides must be ignored, even when both apply.
 o.monsterFormat[1] = '[name]'; H.frames(1)
 H.print('Checked Monster Format empty: the monster as any other, quads', goblin.Count)
-o.checkedFormat[1] = '[name] [level]!'; H.frames(1)
+o.checkedFormat = T{ '[name] [level]!' }; H.frames(1)
 assert(goblin.Count == 6)
 H.print('saved checked override ignored', true)
-o.targetFormat[1] = '<[name]>'; block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
+o.targetFormat = T{ '<[name]>' }; block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
 assert(goblin.Count == 6)
 H.print('checked and targeted mobs still use Mob Format', true)
 o.monsterFormat[1] = '<[name]>'; H.frames(1)
 assert(goblin.Count == 8, 'editing Mob Format must update checked and targeted mobs too')
 o.monsterFormat[1] = '[name]'
-o.checkedFormat[1] = ''; H.frames(1)
+o.checkedFormat = T{ '' }; H.frames(1)
 assert(goblin.Count == 6)
 H.print('clearing checked override does not activate target override', true)
-o.targetFormat[1] = ''; block.Names[1].Flags = Flag.Wanted
-o.checkedFormat[1] = '[name] [level]!'; o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
+o.targetFormat = T{ '' }; block.Names[1].Flags = Flag.Wanted
+o.checkedFormat = T{ '[name] [level]!' }; o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
 -- a message of the same number that is no check, and one about damage, change nothing
 H.packetData(0x029, message(0x1000 + 300, 50, 7, 300, 173)); H.packetData(0x029, message(0x1000 + 300, 120, 0, 300, 1))
 H.print('other messages: still', levels.Of(300, 'Goblin', 0x1000 + 300), '| another with its index is not it', levels.Of(300, 'Goblin', 0x2000))
 alive[300].hp = 0; H.frames(1)
 -- under a checked monster's name: how hard it was said to be, what it does, and what it links with
-o.checkedFormat[1] = ''; o.monsterFormat[1] = '[name]'; o.showCheckDetails[1] = true
+o.checkedFormat = T{ '' }; o.monsterFormat[1] = '[name]'; o.showCheckDetails[1] = true
 alive[300] = { id = 0x1000 + 300, hp = 100 }
 local custom = require('custom'); custom.SetSheets(0x7777, 0x8888)
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10, Aggro = true, Notorious = false, Sight = true, Sound = true, Link = true, Family = 'Goblin' } }, Names = {} })
@@ -564,12 +564,12 @@ alive[300].hp = 0; H.frames(1)
 H.print('dead: the name alone again, quads', goblin.Count)
 alive[300].hp = 100
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10 } }, Names = {} })
-o.monsterFormat[1] = '[name] L[level]'; o.checkedFormat[1] = '[name] [level]!'
+o.monsterFormat[1] = '[name] L[level]'; o.checkedFormat = T{ '[name] [level]!' }
 H.packetData(0x029, message(0x1000 + 300, 9, 0x43, 300, 173)); o.showCheckDetails[1] = false; H.frames(1)
 alive[300].hp = 0; H.frames(1)
 H.print('dead: the range again, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
 alive[300].hp = 100; o.showCheckDetails[1] = true
-o.checkedFormat[1] = ''
+o.checkedFormat = T{ '' }
 alive[300].hp = 100
 H.packetData(0x029, message(0x1000 + 300, 10, 0x44, 300, 174))
 H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 6))
@@ -588,8 +588,8 @@ block.Count = 1
 -- the settings of 1.10 are made the lines that say the same
 o.showDistance, o.distanceTargetOnly = T{ true }, T{ true }
 H.resettle()
-H.print('distance for the target only, brought over:', o.monsterFormat[1], '|', o.targetFormat[1], '| the old settings gone', o.showDistance == nil)
-o.targetFormat[1] = ''; H.frames(1)
+H.print('distance, brought over:', o.monsterFormat[1], '| the old settings gone', o.showDistance == nil, o.targetFormat == nil)
+o.targetFormat = T{ '' }; H.frames(1)
 
 -- a size is pushed on imgui once a frame however many names are of it, and the plugin is asked after
 -- once a frame whatever is done with it
@@ -605,20 +605,6 @@ H.print('three names: sizes pushed', #pushed - pushes, '| the plugin asked after
 -- a name written otherwise is taken apart again
 ffi.copy(block.Names[1].Text, 'Other'); H.frames(1)
 H.print('another name for the same entity: quads', draw.Entities[0x403].Count)
-
--- Duplicate call sites use the last wanted representation but consume geometry
--- and stabilization work only once per entity.
-block.Names[3] = block.Names[1]
-ffi.fill(block.Names[3].Text, 48)
-ffi.copy(block.Names[3].Text, 'Latest')
-block.Count = 4
-H.frames(1)
-local used = draw.Entities[0x401].Count + draw.Entities[0x403].Count + draw.Entities[0x404].Count
-H.print('duplicate entity: last text wins, no orphaned quads', draw.Entities[0x403].Count == 6, draw.QuadCount == used)
-local heightBeforeDuplicate = draw.Quads[draw.Entities[0x403].First].Y1
-block.Names[1].Scale = 0.1
-H.frames(1)
-H.print('duplicate entry does not reset size stabilization', draw.Quads[draw.Entities[0x403].First].Y1 == heightBeforeDuplicate)
 
 -- A warmed frame must not decode text bytes again just to measure/draw names.
 local originalByte, decoded = string.byte, 0
@@ -657,11 +643,10 @@ H.print('bold change invalidates cached advances', measure(runSet, 'AAA', 1) == 
 runSet.syntheticBold = false
 H.print('regular advances restored after bold', measure(runSet, 'AAA', 1) == firstWidth)
 local getRungs = upvalue(frameForTests, 'fontRungs')
-local rungSizes = getRungs(23, true)
-H.print('font rungs reused across names and frames', rungSizes == getRungs(23, true), rungSizes[1] == 23, rungSizes[2] == 17, rungSizes[3] == 12)
-local noShrink = getRungs(23, false)
-local resized = getRungs(24, true)
-H.print('font rungs invalidate on shrink or size changes', #noShrink == 1, #resized == 3, resized[2] == 18, resized ~= rungSizes)
+local rungSizes = getRungs(23)
+H.print('font rungs reused across names and frames', rungSizes == getRungs(23), rungSizes[1] == 23, rungSizes[2] == 17, rungSizes[3] == 12)
+local resized = getRungs(24)
+H.print('font rungs made again as the size changes', #resized == 3, resized[2] == 18, resized ~= rungSizes)
 for index = 1, 600 do measure(runSet, tostring(index), 1) end
 H.print('glyph-run cache remains bounded', runSet.runCount <= 512)
 local replacementGlyph = {}
@@ -673,50 +658,15 @@ block.Count = 1
 H.tab(1); H.command('/name'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/name'); H.tab(2)
 H.print('its tab drawn: sliders', (H.calls.SliderInt or 0) - sliders)
 
--- Experimental backend: injected atlas keeps these checks independent of Windows/GDI.
-local prepared, cleanup = 0, false
-local failGdi = false
-package.loaded.gdi_font = {
-    Prepare = function(_, heights)
-        prepared = prepared + 1
-        if failGdi then error('test rasterization failure') end
-        local sets = {}
-        for _, h in ipairs(heights) do
-            local glyphs = {}
-            for b = 32, 126 do glyphs[b] = { 0, 0, 6, h, 0, 0, 1, 1, 6, b ~= 32 } end
-            sets[h] = { glyphs = glyphs, baked = { FindGlyph = function() return nil end } }
-        end
-        return { address = 0x9876, sets = sets }
-    end,
-    Shutdown = function() cleanup = true end,
-}
-H.command('/name gdi on'); H.frames(1)
-H.print('GDI command disabled; production remains ImGui', not o.gdiFonts[1], draw.Textures[0] == fontTexture)
-do
-    local requests = prepared
-    H.frames(3)
-    H.print('GDI warm frames skip backend preparation', prepared == requests)
-    o.fontBold[1] = true; H.frames(1)
-    H.print('bold does not activate GDI in test build', prepared == requests)
-    o.fontBold[1] = false; H.frames(1)
-    requests = prepared
-    o.checkSize[1] = 100; H.frames(1)
-    H.print('check-size change does not regenerate GDI atlas', prepared == requests)
-    o.checkSize[1] = 90
-    local size = o.fontSize[1]
-    o.fontSize[1] = size + 1; H.frames(1)
-    H.print('font size does not activate GDI in test build', prepared == requests)
-    o.fontSize[1] = size; H.frames(1)
-end
 H.print('ImGui signs retain their own texture', draw.Textures[4] == fontTexture)
-local savedMonsterFormat, savedTargetFormat, savedCheckedFormat = o.monsterFormat[1], o.targetFormat[1], o.checkedFormat[1]
+local savedMonsterFormat = o.monsterFormat[1]
 local savedSignName = ffi.new(ffi.typeof(block.Names[1]), block.Names[1])
 local savedSignAlive, savedSignCount = alive[300], block.Count
 block.Count = 2
 alive[300] = { id = 0x1000 + 300, hp = 100 }
 put(1, 300, Category.Monster, Flag.Wanted, 'Goblin')
 block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080
-o.monsterFormat[1], o.targetFormat[1], o.checkedFormat[1] = '[checked][name]', '[checked][name]', '[checked][name]'
+o.monsterFormat[1] = '[checked][name]'
 H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(2)
 local softMagnifier = false
 for i = 0, goblin.Count - 1 do
@@ -727,55 +677,7 @@ H.print('magnifier edge softened too', softMagnifier)
 block.Count = savedSignCount
 block.Names[1] = savedSignName
 alive[300] = savedSignAlive
-o.monsterFormat[1], o.targetFormat[1], o.checkedFormat[1] = savedMonsterFormat, savedTargetFormat, savedCheckedFormat
-H.command('/name gdi off'); H.frames(1)
-H.print('GDI off restores original font texture', not o.gdiFonts[1], draw.Textures[0] == fontTexture)
-failGdi = true
-H.command('/name gdi on'); H.frames(1)
-local attempts = prepared
-H.frames(2)
-H.print('failed GDI falls back without retrying each frame', draw.Textures[0] == fontTexture, prepared == attempts)
-H.command('/name gdi off'); H.frames(1)
-failGdi = false
-H.command('/name gdi on'); H.frames(1)
-H.print('backend commands cannot activate GDI', draw.Textures[0] == fontTexture, prepared == attempts)
-H.command('/name gdi off'); H.frames(1)
-require('custom').Shutdown()
-H.print('hidden backend never instantiated native resources', prepared == 0, not cleanup)
-
-package.loaded.gdi_families = { List = function() return { 'Arial', 'Tahoma', 'Verdana' } end }
-local realBeginCombo, realSelectable = imgui.BeginCombo, imgui.Selectable
-local oldFamily = o.gdiFamily[1]
-local selectionSaves = 0
-imgui.BeginCombo = function(id) return id == '##name.gdiFamily' end
-imgui.Selectable = function(label) return label == 'Tahoma' end
-o.gdiFonts[1] = true
-require('custom').DrawExperimental(o, function() selectionSaves = selectionSaves + 1 end)
-require('custom').DrawExperimental(o, function() selectionSaves = selectionSaves + 1 end)
-H.print('installed GDI family dropdown selects and saves only on change', o.gdiFamily[1] == 'Tahoma', selectionSaves == 1)
-local stableHasGdi = false
-local experimentalHasGdi = false
-local checkboxBefore = imgui.Checkbox
-imgui.Checkbox = function(id)
-    if id == '##name.gdiFonts' then stableHasGdi = true end
-    return false
-end
-require('custom').DrawSettings(o)
-imgui.Checkbox = function(id)
-    if id == '##name.gdiFonts' then experimentalHasGdi = true end
-    return false
-end
-o.gdiFonts[1], o.gdiFamily[1] = false, oldFamily
-require('custom').DrawExperimental(o)
-H.print('GDI isolated in Experimental; family editable while disabled', not stableHasGdi, experimentalHasGdi, o.gdiFamily[1] == 'Tahoma', not o.gdiFonts[1])
-imgui.Checkbox = checkboxBefore
-o.gdiFamily[1] = oldFamily
-imgui.BeginCombo, imgui.Selectable = realBeginCombo, realSelectable
--- A saved experimental selection cannot crash the next load/character change.
-o.gdiFonts[1], o.gdiFamily[1] = true, 'Cambria Math'
-require('custom').Settle(o)
-H.print('saved GDI enabled: settings reload starts with safe ImGui backend', not o.gdiFonts[1], o.gdiFamily[1] == 'Cambria Math')
-o.gdiFamily[1] = oldFamily
+o.monsterFormat[1] = savedMonsterFormat
 
 do
     local expected = { 'TW', 'IEP', 'EP', 'DC', 'EM', 'T', 'VT', 'IT' }

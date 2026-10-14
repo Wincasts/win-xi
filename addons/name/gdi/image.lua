@@ -1,7 +1,7 @@
 --[[
 * CPU-side ARGB image buffer.
 *
-* every texture source (generators, files) produces one of these; the atlas
+* the letter badges are drawn into these; the atlas
 * packer composes them into a single buffer before uploading to the gpu.
 * pure lua/ffi with no d3d dependency, so it can be exercised outside the game.
 --]]
@@ -54,15 +54,6 @@ function image:blit(src, dx, dy)
     for y = 0, src.h - 1 do
         ffi.copy(self.px + (dy + y) * self.w + dx, src.px + y * sw, sw * 4);
     end
-end
-
----returns a copy of the w x h region at (x, y).
-function image:sub(x, y, w, h)
-    local out = image.new(w, h);
-    for row = 0, h - 1 do
-        ffi.copy(out.px + row * w, self.px + (y + row) * self.w + x, w * 4);
-    end
-    return out;
 end
 
 ---fills every pixel by evaluating fn(px, py) -> coverage at pixel centres.

@@ -9,10 +9,6 @@ local helpX;
 local layouts = {};
 local layout;
 
-function controls.UniformWidth(width)
-    uniformWidth = width;
-end
-
 function controls.Width(width)
     -- Auto-sized windows must be measured from their contents, not their current
     -- available width: feeding that width back into controls can grow indefinitely.

@@ -165,42 +165,4 @@ function atlas.read(tex, maxSize)
     return img;
 end
 
----loads an image file (png/tga/bmp/dds/...) into an image via d3dx.
----@return table|nil image
----@return string|nil error
-function atlas.load_file(path)
-    local d3d8 = require('d3d8');
-    local C = ffi.C;
-    local device = d3d8.get_device();
-
-    local info = ffi.new('D3DXIMAGE_INFO[1]');
-    if (C.D3DXGetImageInfoFromFileA(path, info) ~= C.S_OK) then
-        return nil, 'unreadable image';
-    end
-    local w, h = info[0].Width, info[0].Height;
-
-    -- exact size, no filtering (D3DX_FILTER_NONE = 1) so pixels come through untouched.
-    local ptr = ffi.new('IDirect3DTexture8*[1]');
-    local res = C.D3DXCreateTextureFromFileExA(device, path, w, h, 1, 0, C.D3DFMT_A8R8G8B8,
-        C.D3DPOOL_SYSTEMMEM, 1, 1, 0, nil, nil, ptr);
-    if (res ~= C.S_OK) then
-        return nil, d3d8.get_error(res);
-    end
-
-    local tex = ffi.cast('IDirect3DTexture8*', ptr[0]);
-    local pitch, src = atlas.lock(tex, nil, 0x10); -- D3DLOCK_READONLY
-    if (pitch == nil) then
-        tex:Release();
-        return nil, d3d8.get_error(src);
-    end
-
-    local img = image.new(w, h);
-    for y = 0, h - 1 do
-        ffi.copy(img.px + y * w, src + y * pitch, w * 4);
-    end
-    tex:UnlockRect(0);
-    tex:Release();
-    return img;
-end
-
 return atlas;

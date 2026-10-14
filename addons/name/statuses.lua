@@ -171,6 +171,10 @@ local size = 1.25;    -- an icon's height, as a part of the name's
 local below = false;  -- the row under the name, not over it
 local align = 'center';
 local SELF = nameplates.Category.Self;
+-- The player's and the party's statuses are read the first time a name this frame wants them, and
+-- not at all in a frame with no name that does; and the time, for what is tracked, once a frame
+local ownRead, partyRead = false, false;
+local seconds = 0;
 
 -- Whether any name can have a row this frame
 function statuses.Begin(options)
@@ -192,8 +196,7 @@ function statuses.Begin(options)
     below = options.statusPlace ~= nil and options.statusPlace[1] == 'below';
     align = options.statusAlign ~= nil and options.statusAlign[1] or 'center';
     shownWith = options;
-    ReadOwn(AshitaCore:GetMemoryManager());
-    ReadParty();
+    ownRead, partyRead, seconds = false, false, os.time();
     return true;
 end
 
@@ -227,9 +230,9 @@ local function TakeTracked(serverId)
     if (on == nil) then
         return;
     end
-    local now, count = os.time(), 0;
+    local count = 0;
     for id, entry in pairs(on) do
-        if (now < entry.expires) then
+        if (seconds < entry.expires) then
             count = count + 1;
             tracked[count] = id;
         end
@@ -263,8 +266,16 @@ local function Gather(name, options)
         return;
     end
     if (name.Category == SELF) then
+        if (not ownRead) then
+            ownRead = true;
+            ReadOwn(AshitaCore:GetMemoryManager());
+        end
         TakeAll(own);
         return;
+    end
+    if (not partyRead) then
+        partyRead = true;
+        ReadParty();
     end
     local serverId = name.ServerId;
     for member = 1, PARTY_OTHERS do

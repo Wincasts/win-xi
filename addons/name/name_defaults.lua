@@ -1,5 +1,5 @@
 -- Preferred Name defaults, captured from the live Win_4458 profile.
--- Existing character settings take precedence. Keep GDI disabled by default.
+-- Existing character settings take precedence.
 require('common');
 
 return T{
@@ -22,8 +22,6 @@ return T{
     checkDetailsInWords = T{ false },
     nameFormat = T{ '[name]' },
     monsterFormat = T{ '[aggro] Lv [level]. [name]' },
-    targetFormat = T{ '' }, -- legacy compatibility only; Mob Format applies to all mobs
-    checkedFormat = T{ '' },
     showSelf = T{ false },
     showParty = T{ true },
     showAlliance = T{ true },
@@ -33,8 +31,6 @@ return T{
     showNpcs = T{ true },
     showMonsters = T{ true },
     alwaysTarget = T{ true },
-    gdiFonts = T{ false },
-    gdiFamily = T{ 'Arial' },
     fadeInOut = T{ true },
     useSharedTheme = true,
     hide = T{
