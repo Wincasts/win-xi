@@ -1,0 +1,44 @@
+-- Simulated ImGui mouse input verifies screen/map conversion and drag capture.
+local imgui = require('imgui');
+local definitions = require('data.poc_areas');
+local view = require('debug_view');
+local geometry = require('area_geometry');
+local path = os.tmpname(); os.remove(path);
+local e = require('boundary_editor').new(definitions, path);
+e.edit_mode[1] = true;
+local mouse = { x = 236, y = 351, clicked = true, down = true, hovered = true, button = nil };
+imgui.GetMousePos = function() return mouse.x, mouse.y; end;
+imgui.IsMouseClicked = function() return mouse.clicked; end;
+imgui.IsMouseDown = function() return mouse.down; end;
+imgui.IsItemHovered = function() return mouse.hovered; end;
+imgui.Button = function(label) return label == mouse.button; end;
+local s = { debug = true, enabled = true, zone = 100, approach_yalms = 30, approach_pixels = 30 };
+local checks = 0;
+local function check(label, ok) H.print(label, ok); assert(ok, label); checks = checks + 1; end
+local calls, outline = 0, geometry.approach_outline;
+geometry.approach_outline = function(...) calls = calls + 1; return outline(...); end;
+view.draw(s, e);
+check('click captures nearest displayed vertex', e.dragging and e.dragging.index == 1 and s.editing);
+check('vertex handles and labels rendered', (H.calls['draw.AddText'] or 0) >= 7);
+mouse.clicked, mouse.hovered = false, false; -- capture persists outside item hover
+mouse.x, mouse.y = 221, 341;
+view.draw(s, e);
+check('drag maps screen coordinates to 512 image space', e.selected.polygon[1][1] == 211 and e.selected.polygon[1][2] == 321);
+check('approach outline regenerated while dragging', calls == 2);
+mouse.down = false;
+view.draw(s, e);
+check('release commits one undo record and resumes detection', e.revision == 1 and not e.dragging and not s.editing and #e.history[e.selected] == 1);
+mouse.button = 'Save Boundaries'; view.draw(s, e); mouse.button = nil;
+check('save button persists override', not e:dirty());
+local loaded = require('boundary_editor').new(definitions, path);
+check('saved UI adjustment reloads', loaded:load() and definitions[100].areas[1].polygon[1][1] == 211);
+mouse.button = 'Undo'; view.draw(s, e); mouse.button = nil;
+check('undo button restores full drag', e.selected.polygon[1][1] == 226 and e:dirty());
+e:begin(1); e:move(215, 320);
+s.zone = 103; view.draw(s, e);
+check('zone change cancels an unfinished drag', not e.dragging and definitions[100].areas[1].polygon[1][1] == 226 and e.selected.id == 'secret_sands');
+e:begin(1); e:move(30, 200); s.debug = false; view.draw(s, e);
+check('closing debug cancels unfinished drag', not e.dragging and not s.editing and e.selected.polygon[1][1] == 42);
+geometry.approach_outline = outline;
+view.clear(); os.remove(path); os.remove(path .. '.tmp'); os.remove(path .. '.bak');
+print(('zoneinfo boundary editor UI: %d assertions passed'):format(checks));

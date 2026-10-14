@@ -1,0 +1,1755 @@
+{
+  "source_pack": "XICombinedMaps-2048",
+  "method": "Visual transcription from decoded rasters, assisted by OCR",
+  "scope": "Selected geography, streets, squares, rooms and named landmarks; excludes shops, mobs, quest text and zone destinations. Review status is per raster, not an exhaustive zone review.",
+  "coordinate_space": "Optional anchors in map_image_512; no world calibration or verified area boundaries.",
+  "maps": [
+    {
+      "dat": "ROM/17/24.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Knightwell",
+          "kind": "pond",
+          "map_x": 238,
+          "map_y": 336
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/25.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Cheval River",
+          "kind": "river",
+          "map_x": 283,
+          "map_y": 272
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/26.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "The Ephemere",
+          "kind": "pond",
+          "map_x": 260,
+          "map_y": 227
+        },
+        {
+          "name": "Crag of Holla",
+          "kind": "crag",
+          "map_x": 339,
+          "map_y": 251
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/27.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Secret Sands",
+          "kind": "beach",
+          "map_x": 57,
+          "map_y": 225
+        },
+        {
+          "name": "Whitebone Sands",
+          "kind": "beach",
+          "map_x": 164,
+          "map_y": 296
+        },
+        {
+          "name": "Siren Sands",
+          "kind": "beach",
+          "map_x": 279,
+          "map_y": 308
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/28.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Lake Mechieume",
+          "kind": "lake",
+          "map_x": 256,
+          "map_y": 166
+        },
+        {
+          "name": "Maiden's Spring",
+          "kind": "spring",
+          "map_x": 183,
+          "map_y": 204
+        },
+        {
+          "name": "Spore Hollow",
+          "kind": "hollow",
+          "map_x": 362,
+          "map_y": 207
+        },
+        {
+          "name": "Tisaret River",
+          "kind": "river",
+          "map_x": 306,
+          "map_y": 328
+        },
+        {
+          "name": "Vadout Brook",
+          "kind": "brook",
+          "map_x": 257,
+          "map_y": 328
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/30.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Drachenfall",
+          "kind": "waterfall",
+          "map_x": 218,
+          "map_y": 234
+        },
+        {
+          "name": "Zeikt Creek",
+          "kind": "creek",
+          "map_x": 148,
+          "map_y": 246
+        },
+        {
+          "name": "Zegham Hill",
+          "kind": "hill",
+          "map_x": 300,
+          "map_y": 224
+        },
+        {
+          "name": "Obere Creek",
+          "kind": "creek",
+          "map_x": 310,
+          "map_y": 280
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/31.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "The Fumaroles",
+          "kind": "geothermal_area",
+          "map_x": 150,
+          "map_y": 267
+        },
+        {
+          "name": "Vomp Hill",
+          "kind": "hill",
+          "map_x": 293,
+          "map_y": 268
+        },
+        {
+          "name": "Morhen Lighthouse",
+          "kind": "lighthouse",
+          "map_x": 403,
+          "map_y": 310
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/32.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Crag of Dem",
+          "kind": "crag",
+          "map_x": 299,
+          "map_y": 216
+        },
+        {
+          "name": "Aulgung Pass",
+          "kind": "pass",
+          "map_x": 272,
+          "map_y": 298
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/33.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Hoaxmarsh",
+          "kind": "marsh",
+          "map_x": 147,
+          "map_y": 160
+        },
+        {
+          "name": "Aughtmarsh",
+          "kind": "marsh",
+          "map_x": 348,
+          "map_y": 194
+        },
+        {
+          "name": "Luremarsh",
+          "kind": "marsh",
+          "map_x": 305,
+          "map_y": 236
+        },
+        {
+          "name": "Rotmarsh",
+          "kind": "marsh",
+          "map_x": 165,
+          "map_y": 300
+        },
+        {
+          "name": "Hexmarsh",
+          "kind": "marsh",
+          "map_x": 303,
+          "map_y": 338
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/34.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Lord Bolicevre Bridge",
+          "kind": "bridge",
+          "map_x": 275,
+          "map_y": 134
+        },
+        {
+          "name": "Market Bridge",
+          "kind": "bridge",
+          "map_x": 357,
+          "map_y": 126
+        },
+        {
+          "name": "Great Jeuno Bridge",
+          "kind": "bridge",
+          "map_x": 386,
+          "map_y": 150
+        },
+        {
+          "name": "Fountain of Promises",
+          "kind": "pond",
+          "map_x": 145,
+          "map_y": 299
+        },
+        {
+          "name": "Fountain of Partings",
+          "kind": "pond",
+          "map_x": 135,
+          "map_y": 347
+        },
+        {
+          "name": "Brutus's Field",
+          "kind": "field",
+          "map_x": 285,
+          "map_y": 306
+        },
+        {
+          "name": "Dietmund's Field",
+          "kind": "field",
+          "map_x": 216,
+          "map_y": 367
+        }
+      ]
+    },
+    {
+      "dat": "ROM/284/0.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Central Landing",
+          "kind": "geography"
+        },
+        {
+          "name": "Newtpool",
+          "kind": "geography"
+        },
+        {
+          "name": "Emfea Waterway",
+          "kind": "geography"
+        },
+        {
+          "name": "South Landing",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/283/76.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Sunset Docks",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/283/78.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Thousandfall Ridge",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/283/79.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Parradamo Tor",
+          "kind": "geography"
+        },
+        {
+          "name": "Kabhukka's Claws",
+          "kind": "geography"
+        },
+        {
+          "name": "Cradle of Rebirth",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/283/105.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Blueblade Fell",
+          "kind": "geography"
+        },
+        {
+          "name": "Leremieu Lagoon",
+          "kind": "geography"
+        },
+        {
+          "name": "Rafeloux River",
+          "kind": "geography"
+        },
+        {
+          "name": "Oceaneade",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/283/106.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Cascade Edellaine",
+          "kind": "geography"
+        },
+        {
+          "name": "Rafeloux River",
+          "kind": "geography"
+        },
+        {
+          "name": "Snowmint Point",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/284/19.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Zfeeh Rise",
+          "kind": "geography"
+        },
+        {
+          "name": "Hazkiah Islet",
+          "kind": "geography"
+        },
+        {
+          "name": "Giwahb Watchtower",
+          "kind": "landmark"
+        },
+        {
+          "name": "Ghuluf Watchtower",
+          "kind": "landmark"
+        },
+        {
+          "name": "Judenah Signal Tower",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/284/20.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Cape Mazklan",
+          "kind": "geography"
+        },
+        {
+          "name": "Ulhaba Signal Tower",
+          "kind": "landmark"
+        },
+        {
+          "name": "Ahmibi Signal Tower",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/284/48.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Vozold Island",
+          "kind": "geography"
+        },
+        {
+          "name": "Halvung Staging Point",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/284/115.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Dvucca Isle",
+          "kind": "geography"
+        },
+        {
+          "name": "Dvucca Isle Staging Point",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/29.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Coveffe Barrows",
+          "kind": "geography"
+        },
+        {
+          "name": "Aged Arbor",
+          "kind": "landmark"
+        },
+        {
+          "name": "Artisan Bridge",
+          "kind": "landmark"
+        },
+        {
+          "name": "Lord Bolicevre Bridge",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/39.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Starfall Hillock",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/40.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Zanbibi River",
+          "kind": "geography"
+        },
+        {
+          "name": "Nompipi River",
+          "kind": "geography"
+        },
+        {
+          "name": "Lake Tepokalipuka",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/41.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Ahopahgo Pass",
+          "kind": "geography"
+        },
+        {
+          "name": "Crag of Mea",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/42.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Mighoya Dunes",
+          "kind": "geography"
+        },
+        {
+          "name": "Khoont Dunes",
+          "kind": "geography"
+        },
+        {
+          "name": "Kibubu Lighthouse",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/43.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Drogaroga's Spine",
+          "kind": "geography"
+        },
+        {
+          "name": "Galesmouth",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/44.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Gausebit Mountains",
+          "kind": "geography"
+        },
+        {
+          "name": "Harbor Bridge",
+          "kind": "landmark"
+        },
+        {
+          "name": "Great Jeuno Bridge",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM2/16/86.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Gemini Falls",
+          "kind": "geography"
+        },
+        {
+          "name": "Hidden Valley",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/282/126.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Bloodlet Spring",
+          "kind": "geography"
+        },
+        {
+          "name": "Teardrop Spring",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/282/127.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Revelation Rock",
+          "kind": "geography"
+        },
+        {
+          "name": "Scorchvale",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/59.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Giddeus Spring",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/17/66.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Groaning Pond",
+          "kind": "geography"
+        },
+        {
+          "name": "Screaming Pond",
+          "kind": "geography"
+        },
+        {
+          "name": "Wailing Pond",
+          "kind": "geography"
+        },
+        {
+          "name": "Howling Pond",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/59.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Pikeman's Way",
+          "kind": "city_area"
+        },
+        {
+          "name": "Watchdog Alley",
+          "kind": "city_area"
+        },
+        {
+          "name": "Victory Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Lion Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Squire Alley",
+          "kind": "city_area"
+        },
+        {
+          "name": "Cavalry Way",
+          "kind": "city_area"
+        },
+        {
+          "name": "Westgate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Eastgate",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/60.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Laborman's Way",
+          "kind": "city_area"
+        },
+        {
+          "name": "Ranperre Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Parade Ground",
+          "kind": "city_area"
+        },
+        {
+          "name": "Drawbridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "Moat",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/61.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Airship Docks",
+          "kind": "city_area"
+        },
+        {
+          "name": "Cargo Room A",
+          "kind": "city_area"
+        },
+        {
+          "name": "Cargo Room B",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/62.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Central Garden",
+          "kind": "city_area"
+        },
+        {
+          "name": "Audience Chamber",
+          "kind": "city_area"
+        },
+        {
+          "name": "Great Hall",
+          "kind": "city_area"
+        },
+        {
+          "name": "Royal Knights' Quarters",
+          "kind": "city_area"
+        },
+        {
+          "name": "Temple Knights' Quarters",
+          "kind": "city_area"
+        },
+        {
+          "name": "Prince Royal Trion I D'Oraguille's Room",
+          "kind": "city_area"
+        },
+        {
+          "name": "Prince Regent Pieuje I D'Oraguille's Room",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/64.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Ore Street",
+          "kind": "city_area"
+        },
+        {
+          "name": "Depot",
+          "kind": "city_area"
+        },
+        {
+          "name": "South Gate",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/65.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Firewater Circle",
+          "kind": "city_area"
+        },
+        {
+          "name": "Gold Street",
+          "kind": "city_area"
+        },
+        {
+          "name": "Kulatz Bridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "Galkan Bridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "West Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Blackash River",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/66.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Harbor Way",
+          "kind": "city_area"
+        },
+        {
+          "name": "Beligen Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Rye Bridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "Drawbridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "North Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Warehouse 1",
+          "kind": "city_area"
+        },
+        {
+          "name": "Warehouse 2",
+          "kind": "city_area"
+        },
+        {
+          "name": "Dalha River",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/67.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Gunpowder Room",
+          "kind": "city_area"
+        },
+        {
+          "name": "Cermet Refinery",
+          "kind": "city_area"
+        },
+        {
+          "name": "Cid's Lab",
+          "kind": "city_area"
+        },
+        {
+          "name": "Darksteel Forge",
+          "kind": "city_area"
+        },
+        {
+          "name": "President's Office",
+          "kind": "city_area"
+        },
+        {
+          "name": "Presidential Aide's Office",
+          "kind": "city_area"
+        },
+        {
+          "name": "Cannonry",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/69.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Odin's Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Huntsman's Court",
+          "kind": "city_area"
+        },
+        {
+          "name": "Acolyte Hostel",
+          "kind": "city_area"
+        },
+        {
+          "name": "Aurastery",
+          "kind": "city_area"
+        },
+        {
+          "name": "Optistery",
+          "kind": "city_area"
+        },
+        {
+          "name": "Blacktea River",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/70.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "House of the Hero",
+          "kind": "city_area"
+        },
+        {
+          "name": "Yoran-Oran's Manor",
+          "kind": "city_area"
+        },
+        {
+          "name": "Zonpa-Zippa's Manor",
+          "kind": "city_area"
+        },
+        {
+          "name": "Koru-Moru's Manor",
+          "kind": "city_area"
+        },
+        {
+          "name": "Shantotto's Manor",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/71.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Shiva's Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Fishmonger Landing",
+          "kind": "city_area"
+        },
+        {
+          "name": "Orastery",
+          "kind": "city_area"
+        },
+        {
+          "name": "Warehouse 1",
+          "kind": "city_area"
+        },
+        {
+          "name": "Warehouse 2",
+          "kind": "city_area"
+        },
+        {
+          "name": "Lighthouse",
+          "kind": "city_area"
+        },
+        {
+          "name": "Blacktea River",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/72.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Mithra Groves",
+          "kind": "city_area"
+        },
+        {
+          "name": "Dhalmel Farm",
+          "kind": "city_area"
+        },
+        {
+          "name": "Vashai's Residence",
+          "kind": "city_area"
+        },
+        {
+          "name": "Manustery",
+          "kind": "city_area"
+        },
+        {
+          "name": "Bomingo Round",
+          "kind": "city_area"
+        },
+        {
+          "name": "Leviathan's Gate",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/75.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Grand Duke Palace",
+          "kind": "city_area"
+        },
+        {
+          "name": "Quadrangle",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/76.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Artisan Bridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "Temple of the Goddess",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/77.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Holy Owen's Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Market Bridge",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/78.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Harbor Bridge",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/283/68.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Rabao Spring",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/80.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Main Gate",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/18/81.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Main Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Warehouse",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/283/69.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Village Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Wahcondalo's Residence",
+          "kind": "city_area"
+        },
+        {
+          "name": "Pakhroib's Residence",
+          "kind": "city_area"
+        },
+        {
+          "name": "Mihgo's Residence",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/283/70.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/283/71.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Quay",
+          "kind": "city_area"
+        },
+        {
+          "name": "Vault",
+          "kind": "city_area"
+        },
+        {
+          "name": "Buccaneer's Quarters",
+          "kind": "city_area"
+        },
+        {
+          "name": "Captain's Chamber",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/258/126.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Thousandfall Ridge",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/258/127.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Witchfire Glen",
+          "kind": "geography"
+        },
+        {
+          "name": "Skyrend",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/292/108.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Platea Triumphus",
+          "kind": "city_area"
+        },
+        {
+          "name": "Jorius Yett",
+          "kind": "city_area"
+        },
+        {
+          "name": "Big Bridge",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/292/109.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Coronal Esplanade",
+          "kind": "city_area"
+        },
+        {
+          "name": "Big Bridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "Celennia Memorial Library",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/292/110.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/292/126.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/292/127.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Colkhab's Hive",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/293/0.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Zoldeff River",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/302/66.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Yumcax's Grove",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/293/1.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Achuka's Cauldron",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/302/78.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Hurkan's Roost",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/307/19.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Kumhau's Den",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/293/2.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/293/4.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/293/6.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/302/80.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/307/20.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/311/108.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/318/102.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/333/8.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/337/37.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/342/69.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/284/17.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Flameserpent Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Galeserpent Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Springserpent Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Ulthalam Parade",
+          "kind": "city_area"
+        },
+        {
+          "name": "Bastion",
+          "kind": "city_area"
+        },
+        {
+          "name": "Moat",
+          "kind": "city_area"
+        },
+        {
+          "name": "Chocobo Alley",
+          "kind": "city_area"
+        },
+        {
+          "name": "North Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "West Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Victory Gate",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/169/9.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Port Ephramad",
+          "kind": "city_area"
+        },
+        {
+          "name": "Philosopher's Alley",
+          "kind": "city_area"
+        },
+        {
+          "name": "Barahn Way",
+          "kind": "city_area"
+        },
+        {
+          "name": "Serpentking Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Way of the Devout",
+          "kind": "city_area"
+        },
+        {
+          "name": "Stoneserpent Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Gladiator's Alley",
+          "kind": "city_area"
+        },
+        {
+          "name": "Port Al Zahbi",
+          "kind": "city_area"
+        },
+        {
+          "name": "Imperial Whitegate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Victory Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Walahra Temple",
+          "kind": "landmark"
+        },
+        {
+          "name": "Chamber of Passage",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/284/22.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/284/49.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/284/52.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/284/61.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/284/64.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/285/32.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Pikeman's Way",
+          "kind": "city_area"
+        },
+        {
+          "name": "Watchdog Alley",
+          "kind": "city_area"
+        },
+        {
+          "name": "Victory Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Lion Square",
+          "kind": "city_area"
+        },
+        {
+          "name": "Squire Alley",
+          "kind": "city_area"
+        },
+        {
+          "name": "Cavalry Way",
+          "kind": "city_area"
+        },
+        {
+          "name": "Westgate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Eastgate",
+          "kind": "city_area"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/33.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Cheval River",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/34.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Lake Mechieume",
+          "kind": "geography"
+        },
+        {
+          "name": "Maiden's Spring",
+          "kind": "geography"
+        },
+        {
+          "name": "Spore Hollow",
+          "kind": "geography"
+        },
+        {
+          "name": "Tisaret River",
+          "kind": "geography"
+        },
+        {
+          "name": "Vadout Brook",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/35.DAT",
+      "review_status": "uncertain_labels_need_review",
+      "labels": [],
+      "note": "Geographical names are visible, but several spellings remain too blurred to transcribe safely."
+    },
+    {
+      "dat": "ROM/285/36.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Coveffe Barrows",
+          "kind": "geography"
+        },
+        {
+          "name": "Aged Arbor",
+          "kind": "landmark"
+        },
+        {
+          "name": "Artisan Bridge",
+          "kind": "landmark"
+        },
+        {
+          "name": "Lord Bolicevre Bridge",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/39.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Rye Bridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "Firewater Circle",
+          "kind": "city_area"
+        },
+        {
+          "name": "Gold Street",
+          "kind": "city_area"
+        },
+        {
+          "name": "Kulatz Bridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "Galkan Bridge",
+          "kind": "city_area"
+        },
+        {
+          "name": "West Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Blackash River",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/40.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Drachenfall",
+          "kind": "geography"
+        },
+        {
+          "name": "Zeikt Creek",
+          "kind": "geography"
+        },
+        {
+          "name": "Zegham Hill",
+          "kind": "geography"
+        },
+        {
+          "name": "Obere Creek",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/41.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Witchfire Glen",
+          "kind": "geography"
+        },
+        {
+          "name": "Skyrend",
+          "kind": "geography"
+        },
+        {
+          "name": "Fay Spring",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/42.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Hoaxmarsh",
+          "kind": "geography"
+        },
+        {
+          "name": "Aughtmarsh",
+          "kind": "geography"
+        },
+        {
+          "name": "Luremarsh",
+          "kind": "geography"
+        },
+        {
+          "name": "Rotmarsh",
+          "kind": "geography"
+        },
+        {
+          "name": "Hexmarsh",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/43.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Fountain of Promises",
+          "kind": "geography"
+        },
+        {
+          "name": "Fountain of Partings",
+          "kind": "geography"
+        },
+        {
+          "name": "Brutus's Field",
+          "kind": "geography"
+        },
+        {
+          "name": "Dietmund's Field",
+          "kind": "geography"
+        },
+        {
+          "name": "Lord Bolicevre Bridge",
+          "kind": "landmark"
+        },
+        {
+          "name": "Market Bridge",
+          "kind": "landmark"
+        },
+        {
+          "name": "Great Jeuno Bridge",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/44.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/285/48.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Odin's Gate",
+          "kind": "city_area"
+        },
+        {
+          "name": "Huntsman's Court",
+          "kind": "city_area"
+        },
+        {
+          "name": "Acolyte Hostel",
+          "kind": "city_area"
+        },
+        {
+          "name": "Aurastery",
+          "kind": "city_area"
+        },
+        {
+          "name": "Optistery",
+          "kind": "city_area"
+        },
+        {
+          "name": "Blacktea River",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/50.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Starfall Hillock",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/51.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/285/53.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Drogaroga's Spine",
+          "kind": "geography"
+        },
+        {
+          "name": "Galesmouth",
+          "kind": "geography"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/54.DAT",
+      "review_status": "selected_labels_reviewed",
+      "labels": [
+        {
+          "name": "Gausebit Mountains",
+          "kind": "geography"
+        },
+        {
+          "name": "Harbor Bridge",
+          "kind": "landmark"
+        },
+        {
+          "name": "Great Jeuno Bridge",
+          "kind": "landmark"
+        }
+      ]
+    },
+    {
+      "dat": "ROM/285/55.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/285/63.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    },
+    {
+      "dat": "ROM/285/64.DAT",
+      "review_status": "no_selected_names_seen_on_this_raster",
+      "labels": []
+    }
+  ]
+}
