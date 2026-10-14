@@ -55,7 +55,9 @@ end end })
 package.preload['imgui'] = function() return imgui end
 package.preload['d3d8'] = function() return { get_device = function() return nil end, gc_safe_release = function(x) return x end } end
 local flags = 0
-setmetatable(_G, { __index = function(_, k) if type(k) == 'string' and k:match('^ImGui') then flags = flags + 1 rawset(_G, k, flags) return flags end end })
+-- the names imgui gave up before Ashita's 1.92 are not there, as they are not in the game
+local retired = { ImGuiCol_TabActive = true, ImGuiCol_TabUnfocused = true, ImGuiCol_TabUnfocusedActive = true }
+setmetatable(_G, { __index = function(_, k) if type(k) == 'string' and k:match('^ImGui') and not retired[k] then flags = flags + 1 rawset(_G, k, flags) return flags end end })
 
 -- the settings library: one character, logged in; whatever is loaded is kept to look at
 local saves, store = 0, nil
@@ -66,6 +68,19 @@ package.preload['settings'] = function() return { logged_in = true, name = 'Test
 -- xitools' settings, for the addons that bring theirs over from it: the fixture stands in for the file
 local realLoadfile = loadfile
 loadfile = function(p) if p:find('xitools') then return realLoadfile(root .. 'tests/fixtures/xitools_settings.lua') end return realLoadfile(p) end
+
+-- winxi's shared theme file: kept here, in memory, so that no check reads what another saved, and none
+-- leaves a file named after the Ashita folder in the project
+local winxiThemeFile = 'config\\addons\\winxi\\theme.lua'
+local themeLoadfile, realOpen = loadfile, io.open
+loadfile = function(p) if p:find(winxiThemeFile, 1, true) then return nil end return themeLoadfile(p) end
+io.open = function(p, mode)
+    if type(p) == 'string' and p:find(winxiThemeFile, 1, true) then
+        if mode ~= nil and mode:find('[wa]') then return { write = function() end, close = function() end } end
+        return nil
+    end
+    return realOpen(p, mode)
+end
 
 local playing, loginStatus, pool, lots, sent, sounds, raised = false, 2, 0, {}, {}, {}, {}
 function GetPlayerEntity() return playing and {} or nil end
