@@ -916,6 +916,7 @@ end
 -- written: set is the letters the name was written in, sign the magnifying glass among them or
 -- false, own the name's colour, fit, height, rungHeight and top as the name had them, scale the
 -- pixels of the game's picture to one of the screen's.
+-- Gives back the foot of the line, or nil when nothing of it is drawn
 local function writeDetails(options, written, set, sign, own, fit, height, rungHeight, top, scale, now)
     local since = now - written.found.at;
     local showing = 0;
@@ -986,6 +987,7 @@ local function writeDetails(options, written, set, sign, own, fit, height, rungH
 
     local at = math.floor(-across * 0.5);
     local below = top + height + math.floor(DETAIL.Below * scale + 0.5);
+    local bottom = below + detailHeight;
 
     if (glassWidth > 0) then
         local middle = rungHeight * 0.5;
@@ -1015,6 +1017,7 @@ local function writeDetails(options, written, set, sign, own, fit, height, rungH
     if (linkedWidth > 0) then
         writeWords(set, linked, at, below, detail, own);
     end
+    return bottom;
 end
 
 -- Multiple native call sites may list the same entity. Keep the last wanted
@@ -1352,6 +1355,7 @@ function custom.Frame(options, hook, formats)
                     -- own: the middle of them on it from side to side, and the top of the letters at it
                     local iconsWidth = iconCount > 0 and (iconCount * iconSize + (iconCount - 1) * iconGap + nameGap) or 0;
                     local left = math.floor(-(iconsWidth + width) * 0.5);
+                    local nameLeft = left;
                     local top = 0;
                     height = math.floor(height + 0.5);
                     local iconTop = math.floor((height - iconSize) * 0.5);
@@ -1367,11 +1371,6 @@ function custom.Frame(options, hook, formats)
                         nameplates.Quad(starsLeft, smallTop, starsLeft + smallStar, smallTop + smallStar, star[1], star[2], star[3], star[4], WHITE, ICON_SLOT, false);
                         nameplates.Quad(starsLeft + smallStar, starsTop, starsLeft + smallStar + iconSize, starsTop + iconSize, star[1], star[2], star[3], star[4], WHITE, ICON_SLOT, false);
                         nameplates.Quad(starsLeft + smallStar + iconSize, smallTop, starsLeft + smallStar * 2 + iconSize, smallTop + smallStar, star[1], star[2], star[3], star[4], WHITE, ICON_SLOT, false);
-                    end
-
-                    -- the row of statuses over all of it
-                    if (statusRows) then
-                        statuses.Write(name, clear, height, scale);
                     end
 
                     for index = 1, iconCount do
@@ -1428,8 +1427,14 @@ function custom.Frame(options, hook, formats)
                     end
 
                     -- what its player's check found, under the name for a few seconds
+                    local under = top + height; -- below this nothing is drawn yet
                     if (showDetails and written.isChecked and name.Category == MONSTER) then
-                        writeDetails(options, written, set, sign, own, fit, height, rungHeight, top, scale, now);
+                        under = writeDetails(options, written, set, sign, own, fit, height, rungHeight, top, scale, now) or under;
+                    end
+
+                    -- the row of statuses over all of it, or under it
+                    if (statusRows) then
+                        statuses.Write(name, nameLeft, nameLeft + iconsWidth + width, clear, under, height, scale);
                     end
 
                     nameplates.EndName();
