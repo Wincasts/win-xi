@@ -47,13 +47,10 @@ end
 local compiled = {};
 local compiledCount = 0;
 
-function format.Compile(text)
-    local found = compiled[text];
-    if (found ~= nil) then
-        return found;
-    end
-
-    found = { distance = false, level = false, checked = false, aggro = false, letter = false };
+-- Apart from format.Compile, which is asked every frame: a function with another made inside it is
+-- one LuaJIT will not compile, nor anything that calls it.
+local function parse(text)
+    local found = { distance = false, level = false, checked = false, aggro = false, letter = false };
     local current = nil; -- the colour of what follows
     local plain = '';
 
@@ -104,7 +101,16 @@ function format.Compile(text)
             part.text = part.text:gsub('[^\32-\126]', '');
         end
     end
+    return found;
+end
 
+function format.Compile(text)
+    local found = compiled[text];
+    if (found ~= nil) then
+        return found;
+    end
+
+    found = parse(text);
     if (compiledCount > 64) then
         compiled, compiledCount = {}, 0;
     end
@@ -118,7 +124,10 @@ end
 function format.Mob(text, showLevel, showAggro, showLetter)
     local base = format.Compile(text);
     -- The toggle works without editing a format; an explicit token controls its position/colour.
-    if (showLetter and not base.letter) then base = format.Compile(text .. ' [letter]'); end
+    if (showLetter and not base.letter) then
+        base.withLetter = base.withLetter or format.Compile(text .. ' [letter]');
+        base = base.withLetter;
+    end
     if (showLevel and showAggro and (showLetter or not base.letter)) then return base; end
     local key = (showLevel and 1 or 0) + (showAggro and 2 or 0) + (showLetter and 4 or 0);
     base.mobVariants = base.mobVariants or {};

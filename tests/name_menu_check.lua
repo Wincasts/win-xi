@@ -1,4 +1,4 @@
--- Public ImGui-only testing menu, following guis/name.menu.
+-- The settings menu, following guis/name.menu.
 local imgui, widgets = require('imgui'), require('winxi.widgets')
 local custom, controls = require('custom'), require('controls')
 local options = H.options()
@@ -8,8 +8,8 @@ local inside, lastOffset = false, nil
 local originalHeader, originalTab = widgets.Header, imgui.BeginTabItem
 widgets.Header = function(text, first) headers[#headers + 1] = text; return originalHeader(text, first) end
 imgui.BeginTabItem = function(label, ...) tabs[#tabs + 1] = label; return originalTab(label, ...) end
-imgui.BeginChild = function(id, size) boxes[#boxes + 1] = { id = id, width = size[1] }; inside = true; return true end
-imgui.EndChild = function() inside = false end
+imgui.BeginGroup = function() boxes[#boxes + 1] = true; inside = true end
+imgui.EndGroup = function() inside = false end
 imgui.Checkbox = function(id) ids[id] = true; return false end
 imgui.InputInt = function(id) ids[id] = true; return false end
 imgui.SliderInt = function(id) ids[id] = true; return false end
@@ -27,14 +27,12 @@ imgui.GetContentRegionAvail = function() error('Auto-size must not feed back int
 H.tab(1); H.command('/name'); H.frames(1)
 headers, tabs, boxes, marks = {}, {}, {}, {}
 H.frames(1); H.command('/name')
-H.print('public tabs: Nameplates, Filters, NM Tracking and Statuses', table.concat(tabs, '|') == 'Nameplates|Filters|NM Tracking|Statuses')
+H.print('public tabs: Nameplates, Filters, Statuses and NM Tracking', table.concat(tabs, '|') == 'Nameplates|Filters|Statuses|NM Tracking')
 H.print('mockup sections', table.concat(headers, '|') == 'Name Appearance|Player Icons|Mob Nameplates|Check')
-local equal = #boxes == 4
-for _, box in ipairs(boxes) do equal = equal and box.width == 440 end
-H.print('equal options boxes sized to longest content row plus help', equal)
+H.print('each section open, its settings in a group', #boxes == 4)
 local aligned = #marks == 16
-for _, position in ipairs(marks) do aligned = aligned and position == 408 end
-H.print('all tooltip markers right-aligned inside boxes', aligned)
+for _, position in ipairs(marks) do aligned = aligned and position == marks[1] end
+H.print('all tooltip markers in one column, past the widest option', aligned, (marks[1] or 0) > contentRight)
 H.print('font selector, bold, numeric sizes and four outline choices', ids['##name.font'], ids['##name.fontBold'], ids['##name.fontSize'], ids['##name.minSize'], ids['0##name.outline0'], ids['3##name.outline3'])
 assert(ids['##name.showMobLevel'] and ids['##name.showAggroIcons'] and ids['##name.showMobLetter'])
 assert(not options.showMobLetter[1], 'experimental letters must start disabled')
@@ -44,26 +42,23 @@ assert(ids['##name.trackedNm'] == nil, 'NM tracking has a tab of its own')
 assert(ids['##name.targetFormat'] == nil and ids['##name.checkedFormat'] == nil)
 H.print('mob toggles and format exposed; player, target and checked formats hidden', ids['##name.nameFormat'] == nil,
     ids['##name.showMobLevel'], ids['##name.showAggroIcons'], ids['##name.monsterFormat'], ids['##name.targetFormat'] == nil, ids['##name.checkedFormat'] == nil)
-H.print('experimental controls hidden', ids['##name.gdiFonts'] == nil, ids['##name.gdiFamily'] == nil)
 H.print('preferred baseline retained', options.font == 'corbeli.ttf', options.fontBold[1], options.checkSize[1] == 75)
 local oldPlayers = options.showPlayers[1]
-H.command('/name gdi on'); H.command('/name custom off'); H.command('/name show all')
-H.print('text controls disabled and GDI remains off', not options.gdiFonts[1], options.showPlayers[1] == oldPlayers)
+H.command('/name custom off'); H.command('/name show all')
+H.print('verbs only say the help', options.showPlayers[1] == oldPlayers)
 headers, tabs = {}, {}
 H.tab(2); H.command('/name'); H.frames(1)
 headers, boxes, marks = {}, {}, {}
 H.frames(1); H.command('/name')
 H.print('Filters retained', table.concat(headers, '|') == 'Players|Pets|NPCs And Monsters|Target')
 local filterAligned = #boxes == 4 and #marks == 9
-for _, box in ipairs(boxes) do filterAligned = filterAligned and box.width == 440 end
-for _, position in ipairs(marks) do filterAligned = filterAligned and position == 408 end
-H.print('Filters use matching boxes and aligned help column', filterAligned)
+for _, position in ipairs(marks) do filterAligned = filterAligned and position == marks[1] end
+H.print('Filters use groups and one help column', filterAligned)
 contentRight = 320
 custom.DrawSettings(options)
 boxes, marks = {}, {}
 for frame = 1, 10 do custom.DrawSettings(options) end
 local compact = #boxes == 40
-for _, box in ipairs(boxes) do compact = compact and box.width == 360 end
 for _, position in ipairs(marks) do compact = compact and position == 328 end
 H.print('content can shrink; repeated frames do not expand window', compact)
 local realCheckbox, realInputText = imgui.Checkbox, imgui.InputText
@@ -97,7 +92,7 @@ imgui.IsItemHovered = function() return false end
 local tagged, realLabel = {}, widgets.Label
 widgets.Label = function(text, experimental) tagged[text] = experimental == true; return realLabel(text, experimental) end
 headers, boxes, ids = {}, {}, {}
-H.tab(3); H.command('/name'); H.frames(1); H.command('/name')
+H.tab(4); H.command('/name'); H.frames(1); H.command('/name')
 widgets.Label = realLabel
 H.print('NM Tracking tab: one box, the dropdown, marked experimental', table.concat(headers, '|') == 'Tracked Monster', #boxes == 1,
     ids['##name.trackedNm'], tagged['Tracked NM'], ids['##name.huntScale'] == nil, ids['##name.labelPlaceholders'] == nil)

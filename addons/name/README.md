@@ -11,10 +11,8 @@ Shows and hides the names over characters' heads, by what they are over. A setti
 /addon load name
 ```
 
-- `/name`: opens or closes the settings
-This ImGui testing build exposes only the menu command. Text-control verbs,
-including show/hide/toggle, custom, watch and GDI, are disabled. Use Filters to
-choose which names appear; unload Name to restore the game's names.
+- `/name`: opens or closes the settings. It is the only command: anything after it only brings up
+  this help. Use Filters to choose which names appear; unload Name to restore the game's names.
 
 ## Settings
 
@@ -23,7 +21,7 @@ profile. It uses **corbeli.ttf**, **bold**, maximum/minimum font sizes **28/10**
 **75% check size**, **93% icon size**, **2 px icon spacing**, and **1 px outline**.
 Difficulty abbreviations and check details are enabled, mastery stars and words
 mode are off. Own Name, Other Players, and Other Pets are hidden; Always Show
-Target is on. Appearance/hide preferences are captured too. GDI remains off.
+Target is on. Appearance/hide preferences are captured too.
 Existing character settings take precedence over this baseline.
 
 Kept for each character. Each is on for names that are shown.
@@ -31,8 +29,7 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Trigger's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-Public tabs are **Nameplates → Filters → NM Tracking → Statuses**. Experimental and Appearance are hidden;
-GDI is forced off so testers exercise the ImGui renderer.
+The tabs are **Nameplates → Filters → Statuses → NM Tracking**.
 
 - **Nameplates:** follows `guis/name.menu`: Name Appearance, Player Icons,
   Mob Nameplates, and Check. Options boxes measure the longest option row and share a width fitted
@@ -44,7 +41,7 @@ GDI is forced off so testers exercise the ImGui renderer.
   and Mob Format.
   Target Format and Checked Format controls are hidden. Mob strings are saved per character;
   the baseline is `[aggro] Lv [level]. [name]`. Mob Format applies to ordinary,
-  targeted, and checked mobs alike. Legacy target/checked overrides are ignored.
+  targeted, and checked mobs alike. Target and checked formats saved by earlier versions are dropped as the settings load.
   The general player-name format remains fixed at `[name]`.
 - **Filters:** Players, Pets, NPCs And Monsters, Target, and Status, using the
   same bordered sections, content-fitted widths, and aligned help column.
@@ -74,15 +71,13 @@ namehook 1.10 or later.
 
 | Setting | What it does |
 |---|---|
-| Bold | Makes names and check-detail text heavier. The normal renderer uses simulated bold; experimental GDI uses the family's native bold style. On in the preferred defaults; icons and stars are unchanged |
+| Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars are unchanged |
 | Maximum Font Size | The height of a nearby name, 6 to 48 pixels. Names automatically shrink with distance |
 | Minimum Font Size | The height of a name at the distance it is no longer drawn at; never more than the maximum |
 | Outline Thickness | The dark edge round each name, 0 to 4 pixels; rounded down to whole render-target pixels to keep nearby names thinner. As letters shrink, it becomes thinner and slightly less opaque so distant names stay readable. Nearby names retain the original outline. At 0 the names are written plain |
 | Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`; Default is the font everything else is written in |
 | Name Format | How every name but a monster's is written: see [How a name is written](#how-a-name-is-written) |
 | Monster Format | How a monster's name is written |
-| Targeted Monster Format | How the name of the monster you have targeted is written. Left empty, it is written as other monsters' are |
-| Checked Monster Format | How the name of a monster you have checked is written, until it dies or you leave the area. Left empty, checking a monster changes nothing of how its name is set out. For a monster that is both checked and targeted, this one is used |
 | Show Icons | The game's icons before a name |
 | Icon Size | An icon's side, as a percentage of the height of the names |
 | Icon Spacing | The space between a name's icons and the name itself, 0 to 24 pixels |
@@ -103,16 +98,20 @@ its designed bold face over simulated bold. Each set keeps at most 512 runs; a f
 sets, so stale texture coordinates are not reused. Distance text still updates to
 a tenth, but unchanged text does not need decoding and measuring every frame.
 
-If the client lists an entity more than once through different drawing call sites,
-only its last wanted entry is laid out each frame. This preserves the final text
-selection while avoiding unused quads and repeated size/colour stabilization.
-The plugin still draws the resulting geometry at each original call site.
+Each entity is listed once by namehook, even where the client draws its name more than once in a
+frame (a player who is fishing): the addon lays out every listed name it is given and no other.
 
 The shared drawing buffer checks capacity per quad instead of reserving 256 slots
 for every name, allowing short names to use the last available slots safely.
-Font-size rungs are also cached until maximum height changes;
-empty format parts avoid run-cache work and check-detail layout uses no temporary
+Font-size rungs are also cached until maximum height changes, with the size setting or the window;
+the letters kept for the old heights are let go then, so dragging a window's edge does not leave a
+set behind for every height it passed through. Empty format parts avoid run-cache work and check-detail layout uses no temporary
 width table.
+
+Nothing asked every frame (the frame itself, a format's lookup, the letter badges' lookup) makes a
+function inside itself, which LuaJIT cannot compile: what does is kept apart and called only when
+something has changed. Statuses read the player's and the party's status icons only in a frame in
+which a name needs them.
 
 Letter badges keep their A–Z definitions on the close-up font set. Warm frames only
 probe the font for atlas movement; they do not reread all 26 glyphs or serialize the
@@ -142,46 +141,10 @@ icons. Mastery stars remain unoutlined. Outline Thickness 0 disables all of thes
 outlines. This per-quad effect requires the
 updated plugin as well as `libs/winxi`.
 
-### Retained experimental GDI implementation
-
-GDI code and standalone tests remain for reversible development, but the current
-public build hides its tab, disables its commands and forces ImGui in the frame
-callback. It is not a selectable testing backend. Native crashes with some font
-families remain unresolved; passing stub tests does not establish native safety.
-The implementation notes below describe the retained backend, not public controls.
-
-GDI rasterizes plain ASCII glyphs into one cached atlas at the current size rungs.
-Each capture surrounds its character with visible sentinels, then crops them away
-in Lua, avoiding the reference DLL's unsafe standalone-punctuation cropping path.
-The plugin still handles world-depth occlusion, outlines, colours and fading;
-distance changes do not rasterize new text. Unchanged frames reuse the prepared
-request without allocating another height list, building a key string, or calling
-the backend again; failed requests are cached too. Check Size only changes layout
-and does not regenerate the atlas. Changing Bold rebuilds the atlas with
-the family's native regular/bold style; it does not add simulated strokes to GDI glyphs. The magnifying glass still uses
-Ashita's ImGui font in a separate texture slot. This first version deliberately
-keeps the plugin's existing outline style rather than baking GDI outlines.
-
-The first frame after enabling GDI or changing the family, bold style, font size,
-or render-resolution scale may pause while the atlas is generated.
-Unavailable fonts or Lua-level generation errors produce one warning and fall back to
-ImGui; change the settings or toggle GDI off and on to retry. Native access violations
-cannot be safely caught by that fallback. While building an atlas, the experimental
-backend writes `gdi-diagnostic.txt` in the addon folder, recording the last native
-operation attempted; cached frames do no diagnostic file I/O. Check spacing,
-centering, crowded areas, shrinking, check details and alt-tab in-game before
-keeping this backend enabled. GDI rendering itself is not covered by the stub tests.
-
-The vendored GdiFonts library and DLL are from
-`references/crispy-chainsaw/gdifonts` (Thorny's MIT-licensed library); atlas/image
-helpers are adapted from that reference's `ui` directory. The DLL's upstream
-source is https://github.com/ThornyFFXI/gdifonttexture.
-
 ### How a name is written
 
 Edit **Mob Format** in Nameplates → Mob Nameplates. It applies to every mob nameplate,
-including targeted and checked mobs. The target and checked controls are hidden, and legacy
-saved `targetFormat` and `checkedFormat` strings are ignored. Checking a mob still updates
+including targeted and checked mobs. Checking a mob still updates
 its known level and check-detail line; targeting still applies the usual targeting behaviour.
 
 **Show Level / Range** suppresses `[level]` in the mob format, including the standard
@@ -259,7 +222,7 @@ badge after the mob nameplate, or uses an explicit `[letter]` token wherever you
 
 The badge is a filled square with subtly rounded, antialiased corners and an **uppercase,
 transparent letter cutout**. Indicators always use **Arial Bold** (`arialbd.ttf`), independently
-of the nameplate font, Bold setting or experimental GDI backend, matching the clean sans-serif
+of the nameplate font or Bold setting, matching the clean sans-serif
 style in `references/letter_example.png`. The box is about 78% of the nameplate font height, with a subtle corner radius of about 8% of its side.
 All distances use the same close-up badge artwork, scaled down smoothly rather than switching
 to separately rasterized smaller letters. This keeps the letter shape consistent as you approach.
@@ -359,9 +322,8 @@ other, so `[name] Lv[level][checked]` marks the levels that are a monster's own 
 takes a colour as the others do. The magnifying glass is one of the icons Ashita's own font has; a font
 chosen for the names does not have it, and it is then drawn from Ashita's beside that font's letters.
 
-To write a distance after the name of the monster you have targeted and no other, leave Monster Format
-as `[name]` and set Targeted Monster Format to `[name] [distance]`. The Show Monster Distance and
-Distance For Target Only settings of 1.9 and 1.10 are made into these lines when the addon is loaded.
+The Show Monster Distance setting of 1.9 and 1.10 is made into `[distance]` in Mob Format when the
+addon is loaded.
 
 `[aggro]` draws a sign for whether a monster is aggressive and how strong it is, a quarter as high
 again as the name's letters and with the dark edge they have.

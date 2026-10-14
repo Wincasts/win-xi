@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.29';
+addon.version = '1.30';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 require('common');
@@ -17,23 +17,23 @@ local controls   = require('controls');
 local Category = nameplates.Category;
 
 -- The categories as they are set out in the settings: the setting each is kept in, its name there,
--- the words a command knows it by, and what it covers. Group headings match Trigger's menus.
+-- and what it covers. Group headings match Trigger's menus.
 local rows = {
-    { key = 'showSelf',     category = Category.Self,     label = 'Own Name',         words = { 'self' }, group = 'Players',
+    { key = 'showSelf',     category = Category.Self,     label = 'Own Name',         group = 'Players',
       tooltip = 'The name over your own head.' },
-    { key = 'showParty',    category = Category.Party,    label = 'Party Members',    words = { 'party' },
+    { key = 'showParty',    category = Category.Party,    label = 'Party Members',
       tooltip = 'The others of your party, trusts among them.' },
-    { key = 'showAlliance', category = Category.Alliance, label = 'Alliance Members', words = { 'alliance' },
+    { key = 'showAlliance', category = Category.Alliance, label = 'Alliance Members',
       tooltip = 'The other parties of your alliance.' },
-    { key = 'showPlayers',  category = Category.Player,   label = 'Other Players',    words = { 'players', 'player' },
+    { key = 'showPlayers',  category = Category.Player,   label = 'Other Players',
       tooltip = 'Every player who is not of your party or alliance. A player on the plugin\'s whitelist is shown all the same: /namehook whitelist add <name>' },
-    { key = 'showMyPet',    category = Category.MyPet,    label = 'My Pet',           words = { 'mypet' }, group = 'Pets',
+    { key = 'showMyPet',    category = Category.MyPet,    label = 'My Pet',           group = 'Pets',
       tooltip = 'Your own pet.' },
-    { key = 'showPets',     category = Category.Pet,      label = 'Other Pets',       words = { 'pets', 'pet' },
+    { key = 'showPets',     category = Category.Pet,      label = 'Other Pets',
       tooltip = 'Anyone else\'s pet, trust or adventuring fellow.' },
-    { key = 'showNpcs',     category = Category.Npc,      label = 'NPCs',             words = { 'npcs', 'npc' }, group = 'NPCs And Monsters',
+    { key = 'showNpcs',     category = Category.Npc,      label = 'NPCs',             group = 'NPCs And Monsters',
       tooltip = 'What cannot be fought: townspeople, doors, and the rest.' },
-    { key = 'showMonsters', category = Category.Monster,  label = 'Monsters',         words = { 'monsters', 'monster', 'mobs', 'mob' },
+    { key = 'showMonsters', category = Category.Monster,  label = 'Monsters',
       tooltip = 'What can be fought, charmed players among them.' },
 };
 
@@ -160,44 +160,6 @@ local function DrawSettings(options)
     controls.EndLayout();
 end
 
--- show, hide or toggle, then the categories by their words, or all
-local function SetByWords(options, args, show)
-    local chosen = {};
-    for i = 3, #args do
-        local word = args[i]:lower();
-        local found = false;
-        for _, row in ipairs(rows) do
-            local named = word == 'all';
-            for _, known in ipairs(row.words) do
-                named = named or word == known;
-            end
-            if (named) then
-                chosen[row] = true;
-                found = true;
-            end
-        end
-        if (not found) then
-            app:Say(('"%s" is not a kind of name. They are: self, party, alliance, players, mypet, pets, npcs, monsters, and all.'):format(args[i]));
-            return;
-        end
-    end
-
-    if (next(chosen) == nil) then
-        app:Say(app.spec.help);
-        return;
-    end
-
-    for row in pairs(chosen) do
-        if (show == nil) then
-            options[row.key][1] = not options[row.key][1];
-        else
-            options[row.key][1] = show;
-        end
-    end
-    Push(options);
-    app:Save();
-end
-
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
     defaults     = defaults,
@@ -205,7 +167,7 @@ app = shell.New({
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
-    help         = 'Use /name to open the Nameplates, Filters, Statuses and NM Tracking menu. This test build uses ImGui fonts only.',
+    help         = 'Use /name to open the Nameplates, Filters, Statuses and NM Tracking menu.',
     drawSettings = DrawSettings,
     settingsLabel = 'Filters',
     leadingTabs  = {
@@ -216,39 +178,12 @@ app = shell.New({
         { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end },
     },
 
-    commands     = {
-        show   = function (options, args) SetByWords(options, args, true); end,
-        hide   = function (options, args) SetByWords(options, args, false); end,
-        toggle = function (options, args) SetByWords(options, args, nil); end,
-        -- not in the help: for finding out what the game does to the target's name
-        watch  = function () app:Say(custom.Watch() and 'Watching the target\'s name: what the plugin lists for it is said as it becomes the target.' or 'No longer watching.'); end,
-        gdi = function (options, args)
-            local word = args[3] and args[3]:lower() or nil;
-            if (word == 'on') then
-                options.gdiFonts[1] = true;
-            elseif (word == 'off') then
-                options.gdiFonts[1] = false;
-            else
-                options.gdiFonts[1] = not options.gdiFonts[1];
-            end
-            app:Save();
-            app:Say(options.gdiFonts[1] and 'EXPERIMENTAL GDI fonts enabled: some font families cause native crashes. Starts disabled on addon load.' or 'Original ImGui font backend selected.');
-        end,
-        -- Keep old commands consumed, but do not reintroduce the retired toggle.
-        custom = function ()
-            app:Say('Name rendering is always enabled. Unload Name to restore the game\'s names.');
-        end,
-    },
     -- another character's settings are given to the plugin afresh
     onSettings   = function (options) connected = false; custom.Settle(options); end,
 });
 
 ashita.events.register('load', 'load_cb', function ()
     custom.Find();
-end);
-
-ashita.events.register('unload', 'name_gdi_cleanup', function ()
-    custom.Shutdown();
 end);
 
 -- what lands on an enemy is kept count of only while statuses are shown over names
@@ -277,6 +212,5 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         app:Save();
     end
 
-    options.gdiFonts[1] = false; -- testers always exercise the ImGui backend
     custom.Frame(options, hook, preferredDefaults);
 end);

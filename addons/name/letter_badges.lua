@@ -77,6 +77,50 @@ function badges.PairAt(place)
     return string.char(65 + math.floor(place / 26), 65 + place % 26);
 end
 
+-- The badges drawn and put in a texture of their own. Apart from badges.Prepare, which is asked
+-- every frame: a function with another made inside it is one LuaJIT will not compile.
+local function build(texture, definitions, key)
+    local d3d = require('d3d8'); -- defines the native texture type before the cast
+    -- ImGui's font atlas can exceed the 2048px UI asset packing limit.
+    local source, reason = atlas.read(ffi.cast('IDirect3DTexture8*', texture), 8192);
+    assert(source, reason);
+    local entries, offsets = {}, {};
+    for _, definition in ipairs(definitions) do
+        offsets[definition.height] = {};
+        for byte = 65, 90 do
+            local letter = string.char(byte);
+            local glyph = definition.glyphs[letter];
+            if glyph and glyph[10] then
+                local entry = #entries + 1;
+                local badge = badges.Raster(source, glyph, definition.height, definition.bold);
+                entries[entry] = { name = entry, img = badge };
+                offsets[definition.height][letter] = { entry = entry,
+                    top = (glyph[2] + glyph[4] - badge.h) * 0.5 };
+            end
+        end
+        for place = 0, (definition.pairs or 0) - 1 do
+            local pair = badges.PairAt(place);
+            local first, second = pair and definition.glyphs[pair:sub(1, 1)], pair and definition.glyphs[pair:sub(2, 2)];
+            if first and second and first[10] and second[10] then
+                local entry = #entries + 1;
+                local badge = badges.Raster(source, { first, second }, definition.height, definition.bold);
+                entries[entry] = { name = entry, img = badge };
+                offsets[definition.height][pair] = { entry = entry,
+                    top = (first[2] + first[4] - badge.h) * 0.5 };
+            end
+        end
+    end
+    assert(#entries > 0, 'font has no badge glyphs');
+    local sheet, regions = atlas.pack(entries);
+    local owned = d3d.gc_safe_release(atlas.upload(sheet));
+    for _, letters in pairs(offsets) do
+        for _, region in pairs(letters) do
+            region.uv = regions[region.entry];
+        end
+    end
+    return { key = key, texture = owned, address = tonumber(ffi.cast('uint32_t', owned)), regions = offsets };
+end
+
 -- Definitions contain { height, glyphs = { A = glyph, ... }, bold, pairs }: pairs is how
 -- many double letters are wanted as well, AA being the first, or nil for none.
 -- immutable opts into an identity-key shortcut. Callers must replace definitions
@@ -110,47 +154,7 @@ function badges.Prepare(texture, definitions, fontKey, immutable)
     -- this frame. Wait one stable frame before reading, or we'd permanently
     -- cache cutouts sampled from the old pixels at the new UV coordinates.
     if pendingKey ~= key then pendingKey = key; return nil end
-    local ok, result = pcall(function()
-        local d3d = require('d3d8'); -- defines the native texture type before the cast
-        -- ImGui's font atlas can exceed the 2048px UI asset packing limit.
-        local source, reason = atlas.read(ffi.cast('IDirect3DTexture8*', texture), 8192);
-        assert(source, reason);
-        local entries, offsets = {}, {};
-        for _, definition in ipairs(definitions) do
-            offsets[definition.height] = {};
-            for byte = 65, 90 do
-                local letter = string.char(byte);
-                local glyph = definition.glyphs[letter];
-                if glyph and glyph[10] then
-                    local entry = #entries + 1;
-                    local badge = badges.Raster(source, glyph, definition.height, definition.bold);
-                    entries[entry] = { name = entry, img = badge };
-                    offsets[definition.height][letter] = { entry = entry,
-                        top = (glyph[2] + glyph[4] - badge.h) * 0.5 };
-                end
-            end
-            for place = 0, (definition.pairs or 0) - 1 do
-                local pair = badges.PairAt(place);
-                local first, second = pair and definition.glyphs[pair:sub(1, 1)], pair and definition.glyphs[pair:sub(2, 2)];
-                if first and second and first[10] and second[10] then
-                    local entry = #entries + 1;
-                    local badge = badges.Raster(source, { first, second }, definition.height, definition.bold);
-                    entries[entry] = { name = entry, img = badge };
-                    offsets[definition.height][pair] = { entry = entry,
-                        top = (first[2] + first[4] - badge.h) * 0.5 };
-                end
-            end
-        end
-        assert(#entries > 0, 'font has no badge glyphs');
-        local sheet, regions = atlas.pack(entries);
-        local owned = d3d.gc_safe_release(atlas.upload(sheet));
-        for _, letters in pairs(offsets) do
-            for _, region in pairs(letters) do
-                region.uv = regions[region.entry];
-            end
-        end
-        return { key = key, texture = owned, address = tonumber(ffi.cast('uint32_t', owned)), regions = offsets };
-    end);
+    local ok, result = pcall(build, texture, definitions, key);
     if not ok then
         failedKey, nextRetry = key, os.clock() + 1;
         if not warned then

@@ -70,10 +70,8 @@ luajit tests/name_icons_check.lua
 luajit tests/name_format_check.lua
 luajit tests/name_letters_check.lua
 luajit tests/name_badges_check.lua
-echo '== name GDI atlas'
-luajit tests/name_gdi_check.lua
+echo '== name badge atlas'
 luajit tests/name_gdi_texture_check.lua
-luajit tests/name_gdi_families_check.lua
 echo
 
 # What party draws, call for call, against a kept copy: any difference is printed. After a change

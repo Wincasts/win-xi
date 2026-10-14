@@ -86,12 +86,10 @@ local DEFAULT_FONT  = 'Default';
 
 -- What can be set. A setting changed by a control is a table of one, as imgui wants.
 local settings = {
-    fontBold    = function () return T{ false }; end, -- simulated for ImGui; native style for GDI
+    fontBold    = function () return T{ false }; end, -- simulated: each letter drawn twice, a pixel apart
     fontSize    = function () return T{ 15 }; end,    -- the height of the names near to, in pixels: the largest they are
     minSize     = function () return T{ 10 }; end,    -- the height they have shrunk to by that distance: the smallest they are
     outline     = function () return T{ 1 }; end,     -- how thick the dark edge round them is, in pixels
-    gdiFonts    = function () return T{ false }; end, -- opt-in; the ImGui backend stays available
-    gdiFamily   = function () return T{ 'Arial' }; end,
     font        = function () return ''; end,         -- a file of FONT_FOLDER, or nothing for the font everything else is in
     showIcons   = function () return T{ true }; end,
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
@@ -110,11 +108,9 @@ local settings = {
     checkDetailsInWords = function () return T{ false }; end, -- what it notices its prey by, and that it links, in words and not signs
     -- How a name is written: [name] for the name, [distance] for how far off it is, [level] for the
     -- levels a monster can be, and the rest as it is typed (format.lua). One line for all monsters
-    -- and one for everything else. Legacy target/checked strings are retained only for compatibility.
+    -- and one for everything else.
     nameFormat    = function () return T{ '[name]' }; end,
     monsterFormat = function () return T{ '[name]' }; end,
-    targetFormat  = function () return T{ '' }; end,
-    checkedFormat = function () return T{ '' }; end,
 };
 
 function custom.Defaults(defaults)
@@ -127,15 +123,13 @@ end
 -- Up to 1.10 a monster's distance was a setting of its own, and another said whether only the
 -- target's was written: they are made the lines that say the same, once.
 function custom.Settle(options)
-    options.customNames = nil; -- retire the old opt-in; rendering is now always enabled
-    options.shrink = nil; -- automatic distance shrinking is no longer optional
+    -- settings of earlier versions that are no longer kept
+    options.customNames, options.shrink, options.gdiFonts, options.gdiFamily = nil, nil, nil, nil;
+    options.targetFormat, options.checkedFormat = nil, nil;
     if (type(options.checkSize) ~= 'table' or type(options.checkSize[1]) ~= 'number' or options.checkSize[1] ~= options.checkSize[1]) then
         options.checkSize = settings.checkSize();
     end
     options.checkSize[1] = math.max(50, math.min(125, math.floor(options.checkSize[1])));
-    -- Native GDI faults bypass Lua's fallback. Never restore the experimental
-    -- backend automatically from disk: every load/character switch starts safe.
-    options.gdiFonts = settings.gdiFonts();
     for _, key in ipairs({ 'showMobLevel', 'showAggroIcons', 'showMobLetter', 'doubleMobLetters' }) do
         if (type(options[key]) ~= 'table' or type(options[key][1]) ~= 'boolean') then
             options[key] = settings[key]();
@@ -157,10 +151,7 @@ function custom.Settle(options)
     if (type(options.fontBold) ~= 'table' or type(options.fontBold[1]) ~= 'boolean') then
         options.fontBold = settings.fontBold();
     end
-    if (type(options.gdiFamily) ~= 'table' or type(options.gdiFamily[1]) ~= 'string') then
-        options.gdiFamily = settings.gdiFamily();
-    end
-    for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'targetFormat', 'checkedFormat' }) do
+    for _, key in ipairs({ 'nameFormat', 'monsterFormat' }) do
         if (type(options[key]) ~= 'table' or type(options[key][1]) ~= 'string') then
             options[key] = settings[key]();
         end
@@ -172,56 +163,6 @@ function custom.Settle(options)
             options.monsterFormat[1] = '[name] [distance]';
         end
         options.showDistance, options.distanceTargetOnly = nil, nil;
-    end
-end
-
--- For finding out what the game does to a name as it becomes the target: while this is on, the name
--- of whatever is newly the target is said in the chat log for the frames that follow, as the plugin
--- lists it, with what it was the frame before.
-local watching = false;
-local watched = { index = nil, frames = 0, count = 0 };
-local seenScale = {};   -- entity -> the game's size for its name, the last frame it was listed
-local seenFrame = {};
-
-function custom.Watch()
-    watching = not watching;
-    watched.index, watched.frames = nil, 0;
-    return watching;
-end
-
-local function watch(hook, scale)
-    local said = watched.frames > 0;
-    local entries, target = 0, nil;
-    for i = 0, hook.Count - 1 do
-        local name = hook.Names[i];
-        if (bit.band(name.Flags, nameplates.Flag.Target) ~= 0) then
-            target = target or name.EntityIndex;
-            if (name.EntityIndex == target) then
-                entries = entries + 1;
-            end
-        end
-    end
-
-    if (target ~= watched.index) then
-        watched.index = target;
-        if (target ~= nil) then
-            watched.frames, watched.count = 10, 0;
-            local before = seenScale[target];
-            print(('\30\81[name]\30\01 watch: target is now entity %d; the frame before its size was %s%s'):format(target,
-                before and ('%.3f'):format(before) or 'not listed', (before and seenFrame[target] ~= hook.Frame - 1) and ' (some frames ago)' or ''));
-        end
-    end
-
-    for i = 0, hook.Count - 1 do
-        local name = hook.Names[i];
-        if (watched.frames > 0 and name.EntityIndex == watched.index) then
-            print(('\30\81[name]\30\01 watch %d: %s | listed %d times | size %.3f | flags %03X | colour %08X | at %.0f,%.0f | picture %.0fx%.0f, %.2f to the screen | names %d'):format(
-                watched.count, ffi.string(name.Name), entries, name.Scale, name.Flags, name.NameColor, name.ScreenX, name.ScreenY, hook.TargetWidth, hook.TargetHeight, scale, hook.Count));
-        end
-        seenScale[name.EntityIndex], seenFrame[name.EntityIndex] = name.Scale, hook.Frame;
-    end
-    if (watched.frames > 0) then
-        watched.frames, watched.count = watched.frames - 1, watched.count + 1;
     end
 end
 
@@ -333,41 +274,6 @@ end
 
 local warning = { 1.0, 0.6, 0.4, 1.0 };
 
--- Native GDI testing is deliberately separate from the regular name controls.
-function custom.DrawExperimental(options, save)
-    imgui.TextColored(widgets.ExperimentalColor, '[Experimental]');
-    if (widgets.Header('GDI Fonts')) then
-        imgui.TextColored(warning, 'Known native crashes. Use at your own risk.');
-        controls.Mark('Some installed font families crash the native renderer. Lua fallback cannot catch an access violation. GDI starts disabled on every addon load or character settings reload. /name gdi off restores the original ImGui backend.');
-
-        if (controls.Checkbox('Enabled', '##name.gdiFonts', options.gdiFonts,
-                'Uses a cached GDI glyph atlas; namehook still draws names in the world. Off restores ImGui. Always starts off on addon load for crash recovery.') and save ~= nil) then save(); end
-
-        -- Select a family while the backend is off, without invoking rasterization.
-        widgets.Label('Font Family');
-        controls.Width();
-        if (imgui.BeginCombo('##name.gdiFamily', options.gdiFamily[1])) then
-            local families, problem = require('gdi_families').List();
-            for _, family in ipairs(families) do
-                if (imgui.Selectable(family, options.gdiFamily[1] == family) and options.gdiFamily[1] ~= family) then
-                    options.gdiFamily[1] = family;
-                    if (save ~= nil) then save(); end
-                end
-            end
-            if (problem ~= nil) then
-                imgui.TextColored(warning, 'Could not enumerate installed fonts; keeping the current family.');
-            end
-            imgui.EndCombo();
-        end
-        controls.Mark('Installed Windows font families. Being installed does not guarantee compatibility with the experimental renderer. Choose a family while disabled to avoid rasterizing it. Changing the family while GDI is enabled rebuilds the atlas and may pause or crash.');
-    end
-
-    if (widgets.Header('Recovery')) then
-        imgui.TextDisabled('Starts disabled on every addon load.');
-        imgui.Text('/name gdi off restores ImGui fonts.');
-    end
-end
-
 -- The notorious monster being hunted: a tab of its own
 function custom.DrawTracking(options, save)
     imgui.TextWrapped('Disclaimer: NM tracking could be considered cheating. Enable at your own risk.');
@@ -432,7 +338,7 @@ function custom.DrawSettings(options, save)
         end
         controls.Mark('A font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is the font everything else is written in.');
         controls.Checkbox('Bold', '##name.fontBold', options.fontBold,
-            'Makes names and check-detail text heavier. ImGui uses simulated bold; experimental GDI uses the font family\'s native bold style. Icons, stars and outline thickness are unchanged. Simulated bold generates extra text quads.');
+            'Makes names and check-detail text heavier, by drawing each letter twice, a pixel apart. Icons, stars and outline thickness are unchanged.');
         if (controls.Input('Max Font Size', '##name.fontSize', options.fontSize, SMALLEST, LARGEST,
                 'The height of a nearby name. Names automatically shrink with distance.') and options.minSize[1] > options.fontSize[1]) then
             options.minSize[1] = options.fontSize[1];
@@ -656,7 +562,7 @@ local function sensesTexture()
     return sheet('senses.png');
 end
 
--- For whoever has the sheets some other way
+-- The sheets' addresses given and not loaded: for the tests, which have no Direct3D
 function custom.SetSheets(senses, tempers, hunt)
     sheets['senses.png'] = { at = senses };
     sheets['aggro.png'] = { at = tempers };
@@ -867,41 +773,26 @@ local function steadySize(known, name)
     return known.size;
 end
 
-local gdiBackend, gdiRequest;
-
-function custom.Shutdown()
-    gdiRequest = nil;
-    if (gdiBackend ~= nil) then gdiBackend.Shutdown(); end
-end
-
--- These sizes are shared by every name. Recompute only when the maximum
--- render-target height or shrink setting changes, not inside each name's loop.
+-- The rungs' heights, shared by every name, and made again only as the largest changes: with the
+-- size setting, or the window's. The letters kept for the heights before are let go then, so that
+-- dragging a window's edge does not leave a set behind for every height it passed through.
 local cachedRungs;
-local function fontRungs(height, shrink)
-    local count = shrink and #RUNGS or 1;
-    if (cachedRungs == nil or cachedRungs.height ~= height or #cachedRungs ~= count) then
-        cachedRungs = { height = height };
-        for rung = 1, count do
+local function fontRungs(height)
+    if (cachedRungs == nil or cachedRungs.height ~= height) then
+        cachedRungs = { height = height, badge = 'badge:' .. height };
+        for rung = 1, #RUNGS do
             cachedRungs[rung] = math.max(1, math.floor(height * RUNGS[rung] + 0.5));
         end
+        glyphSets = {};
     end
     return cachedRungs;
 end
 
-local function prepareGdi(options, heights)
-    if (not options.gdiFonts[1]) then gdiRequest = nil; return nil; end
-    local family, bold = options.gdiFamily[1], options.fontBold[1];
-    if (gdiRequest ~= nil and gdiRequest.family == family and gdiRequest.bold == bold and gdiRequest.heights == heights) then
-        return gdiRequest.atlas; -- includes failed requests, without allocating or retrying
-    end
-    gdiRequest = { family = family, bold = bold, heights = heights };
-    local ok, result = pcall(function ()
-        gdiBackend = gdiBackend or require('gdi_font');
-        return gdiBackend.Prepare(family, heights, bold);
-    end);
-    if (ok) then gdiRequest.atlas = result; return result; end
-    print(('\30\81[name]\30\01 GDI fonts unavailable; using ImGui. %s'):format(tostring(result)));
-    return nil;
+-- A name's letters at a rung's height: the set, with whether it is to be drawn bold
+local function nameSet(font, height, bold)
+    local set = glyphSet(font, height);
+    if (set ~= nil) then set.syntheticBold = bold; end
+    return set;
 end
 
 -- Under the name of a monster its player has checked, and with its middle under
@@ -1020,20 +911,6 @@ local function writeDetails(options, written, set, sign, own, fit, height, rungH
     return bottom;
 end
 
--- Multiple native call sites may list the same entity. Keep the last wanted
--- entry (matching the old final drawing), but lay it out and stabilize it once.
-local representatives = {};
-local function selectNames(hook)
-    for index in pairs(representatives) do representatives[index] = nil; end
-    for i = 0, hook.Count - 1 do
-        local name = hook.Names[i];
-        if (bit.band(name.Flags, nameplates.Flag.Wanted) ~= 0) then
-            representatives[name.EntityIndex] = i;
-        end
-    end
-    return representatives;
-end
-
 function custom.Frame(options, hook, formats)
     formats = formats or options; -- the player-name baseline stays fixed; mob formats are editable
     local FONT_SLOT, ICON_SLOT, SENSE_SLOT, TEMPER_SLOT, SIGN_SLOT = SLOT.Font, SLOT.Icon, SLOT.Sense, SLOT.Temper, SLOT.Sign;
@@ -1092,15 +969,9 @@ function custom.Frame(options, hook, formats)
     -- rung is asked after every frame, in use or not, which keeps imgui from letting it go; and all
     -- of them before any name is set out, so that if the letters have been moved it is known first.
     local fullHeight = math.max(1, math.floor(fullSize * scale + 0.5));
-    local heights = fontRungs(fullHeight, true);
+    local heights = fontRungs(fullHeight);
     local rungs = #heights;
-    local gdiAtlas = prepareGdi(options, heights);
-    local function nameSet(height)
-        local set = gdiAtlas ~= nil and gdiAtlas.sets[height] or glyphSet(font, height);
-        if (set ~= nil) then set.syntheticBold = gdiAtlas == nil and options.fontBold[1]; end
-        return set;
-    end
-    if (gdiAtlas ~= nil) then nameplates.SetTexture(FONT_SLOT, gdiAtlas.address); end
+    local bold = options.fontBold[1];
     nameplates.SetTexture(SIGN_SLOT, texture);
 
     -- the magnifying glass is in the font everything else is written in: with a font of the player's
@@ -1116,11 +987,11 @@ function custom.Frame(options, hook, formats)
     -- targetFormat/checkedFormat values are retained on disk but never used here.
     local wantsSign = options.showCheckDetails[1] and not options.checkDetailsInWords[1]
         or (not options.showCheckDetails[1] and (nameFormat.checked or monsterFormat.checked));
-    local signsApart = (font ~= nil or gdiAtlas ~= nil) and wantsSign;
+    local signsApart = font ~= nil and wantsSign;
     for _ = 1, 2 do
         local sets = glyphSets;
         if (monsterFormat.letter) then
-            local indicator = glyphSet(badgeFont, fullHeight, 'badge:' .. fullHeight);
+            local indicator = glyphSet(badgeFont, fullHeight, heights.badge);
             if (indicator ~= nil) then
                 indicator.syntheticBold = false; -- Arial Bold is already natively bold
                 textRun(indicator, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
@@ -1128,7 +999,7 @@ function custom.Frame(options, hook, formats)
         end
         for rung = 1, rungs do
             local rungHeight = heights[rung];
-            nameSet(rungHeight);
+            nameSet(font, rungHeight, bold);
             if (signsApart) then
                 glyphSet(nil, rungHeight, -rungHeight);
             end
@@ -1141,7 +1012,7 @@ function custom.Frame(options, hook, formats)
     -- One close-up master for every distance: never switch the indicator to a
     -- separately hinted/rasterized smaller glyph when the name changes rung.
     local badgeDefinitions;
-    local indicator = monsterFormat.letter and glyphSet(badgeFont, fullHeight, 'badge:' .. fullHeight) or nil;
+    local indicator = monsterFormat.letter and glyphSet(badgeFont, fullHeight, heights.badge) or nil;
     if indicator ~= nil then
         -- A set is replaced whenever its font/texture/UVs change. Keep immutable
         -- definitions on that set, rather than rereading A-Z and allocating per frame.
@@ -1157,7 +1028,7 @@ function custom.Frame(options, hook, formats)
         badgeDefinitions = indicator.badgeDefinitions;
     end
     for rung = 1, rungs do
-        local set = nameSet(heights[rung]);
+        local set = nameSet(font, heights[rung], bold);
         if set ~= nil then
             set.badges, set.badgeFont = nil, indicator;
             set.badgeFit = indicator ~= nil and heights[rung] / fullHeight or 1;
@@ -1168,7 +1039,7 @@ function custom.Frame(options, hook, formats)
     nameplates.SetTexture(letterBadges.Slot, badgeAtlas and badgeAtlas.address or 0);
     if badgeAtlas then
         for rung = 1, rungs do
-            local set = nameSet(heights[rung]);
+            local set = nameSet(font, heights[rung], bold);
             if set then set.badges = badgeAtlas.regions[fullHeight]; end
         end
     end
@@ -1194,15 +1065,11 @@ function custom.Frame(options, hook, formats)
     levels.Tidy();
     local levelsAt = levels.Generation();
 
-    if (watching) then
-        watch(hook, scale);
-    end
-
-    local selected = selectNames(hook);
+    -- each entity is listed once: the plugin takes one of the times the game draws a name in a frame
     for i = 0, hook.Count - 1 do
         local name = hook.Names[i];
 
-        if (selected[name.EntityIndex] == i and bit.band(name.Flags, WANTED) ~= 0) then
+        if (bit.band(name.Flags, WANTED) ~= 0) then
             local written = parse(name);
             local iconCount = showIcons and #written.icons or 0;
 
@@ -1254,7 +1121,7 @@ function custom.Frame(options, hook, formats)
                 end
                 -- an enlarged name is the largest rung's letters drawn larger: there are none of its own size
                 local fit = size > fullSize and height / rungHeight or math.min(1, height / rungHeight);
-                local set = nameSet(rungHeight);
+                local set = nameSet(font, rungHeight, bold);
 
                 -- Round the base edge down to whole render-target pixels so
                 -- resolution scaling does not make nearby names unnecessarily bold.
