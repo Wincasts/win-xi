@@ -247,9 +247,9 @@ ffxi_id,ffxi_name,ffxiv_icon,ffxiv_name
 250,EF Badge,216255,Star Contributor
 251,Food,216202,Well Fed
 252,Mounted,216514,A Man's Best Friend
-253,Signet,216518,Priority Seal Allowance
+253,Signet,215942,Shieldbearer
 254,Battlefield,214400,Gauntlet Thrown
-256,Sanction,216206,Sanction
+256,Sanction,215316,Shield-bearer
 257,Besieged,216241,FATE Participant
 258,Illusion,216209,Transparent
 259,encumbrance,216246,Load-bearing
@@ -261,7 +261,7 @@ ffxi_id,ffxi_name,ffxiv_icon,ffxiv_name
 265,Flurry,213003,Rapid Fire
 266,Concentration,214815,Concentration
 267,Allied Tags,216515,Squadron Survival Manual
-268,Sigil,216223,Squadron Enlistment Manual
+268,Sigil,216692,Banner of Unyielding Defense
 269,Level Sync,216211,Minimum
 270,Aftermath: Lv.1,214877,Battle High I
 271,Aftermath: Lv.2,214878,Battle High II
