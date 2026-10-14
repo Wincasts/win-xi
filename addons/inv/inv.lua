@@ -1716,6 +1716,7 @@ local defaults = T{
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
     treasurePool = T{ true }, -- the treasure pool, under the window
+    treasureShowEmpty = T{ false }, -- the treasure pool up with nothing in it
     treasureDetached = T{ false }, -- the treasure pool as a window of its own
     treasurePos = T{ 256, 100 }, -- where it is, detached
     treasureWidth = T{ 300 }, -- how wide it is, detached

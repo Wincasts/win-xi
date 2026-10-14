@@ -8,6 +8,8 @@
 --   pool.Bottom()               where the pool's window ends, this frame, while it is attached; or nil
 --   pool.DrawSettings(options)  its section of the settings
 --
+-- With Show When Empty it stays up with nothing in it, saying so.
+--
 -- Each line: the item, the best lot so far, the time left, and the player's own lot or a button to lot,
 -- then a button to pass. The winner's name is in the line's tooltip. Above them, Lot All and Pass All.
 local bit = require('bit')
@@ -179,6 +181,9 @@ local function DrawContent()
         end
         imgui.EndTable()
     end
+    if count == 0 then
+        imgui.TextDisabled('No treasure.')
+    end
     imgui.PopStyleVar()
 end
 
@@ -230,12 +235,13 @@ function pool.Draw(drawOptions, frame, invWanted)
     if not detached and frame == nil then
         return
     end
-    local wanted = count > 0 and (detached or invWanted)
+    local shown = count > 0 or options.treasureShowEmpty[1]
+    local wanted = shown and (detached or invWanted)
     local alpha = wanted and 1 or 0
     if options.fadeInOut[1] then
         alpha = fade.Presence(windowName, wanted)
     end
-    if alpha <= 0.01 or count == 0 then
+    if alpha <= 0.01 or not shown then
         return
     end
     windowStyle.alpha = alpha
@@ -273,6 +279,12 @@ function pool.DrawSettings(drawOptions)
     end
     if not drawOptions.treasurePool[1] then
         return
+    end
+
+    widgets.Label('Show When Empty')
+    imgui.Checkbox('##inv.pool.showEmpty', drawOptions.treasureShowEmpty)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Keeps the pool up with nothing in it, to see where it sits and how it looks.')
     end
 
     widgets.Label('Detach From Inventory')
