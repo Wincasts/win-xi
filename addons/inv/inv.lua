@@ -1521,6 +1521,48 @@ local function DrawCounts(bagId)
     end
 end
 
+-- The sheen over each tab: light at its top, fading out by the middle, then darkening to its foot
+local tabLight, tabDark = 0.22, 0.28 -- the most white at the top, and black at the foot, 0 to 1
+local sheenColor = { 1, 1, 1, 0 }
+local sheenFrom, sheenTo = { 0, 0 }, { 0, 0 }
+
+-- Drawn over the tab just begun, a row of pixels at a time, so that it keeps to the tab's rounded
+-- top corners
+local function DrawTabSheen()
+    local left, top = imgui.GetItemRectMin()
+    local right, bottom = imgui.GetItemRectMax()
+    local height = bottom - top
+    if height < 2 then
+        return
+    end
+    local radius = math.min(imgui.GetStyle().TabRounding or 0, height / 2, (right - left) / 2)
+    local drawList = imgui.GetWindowDrawList()
+    local middle = height / 2
+    for row = 0, height - 1 do
+        local at = row + 0.5
+        local amount
+        if at < middle then
+            sheenColor[1], sheenColor[2], sheenColor[3] = 1, 1, 1
+            amount = tabLight * (1 - at / middle)
+        else
+            sheenColor[1], sheenColor[2], sheenColor[3] = 0, 0, 0
+            amount = tabDark * (at - middle) / middle
+        end
+        if amount > 0.005 then
+            local inset = 0
+            if at < radius then
+                local dy = radius - at
+                inset = radius - math.sqrt(radius * radius - dy * dy)
+            end
+            sheenColor[4] = amount
+            sheenFrom[1], sheenFrom[2] = left + inset, top + row
+            sheenTo[1], sheenTo[2] = right - inset, top + row + 1
+            -- GetColorU32 takes in the window's fade
+            drawList:AddRectFilled(sheenFrom, sheenTo, imgui.GetColorU32(sheenColor))
+        end
+    end
+end
+
 -- Begins one of the four tabs. With the controller it is also where a change of tab is asked for and
 -- where the tab that is showing is noted.
 local function BeginTab(index, label)
@@ -1530,6 +1572,7 @@ local function BeginTab(index, label)
     else
         showing = imgui.BeginTabItem(label)
     end
+    DrawTabSheen()
 
     if showing then
         if pad.wantTab == index then
