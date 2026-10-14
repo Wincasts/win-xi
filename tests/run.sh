@@ -18,6 +18,7 @@ luajit tests/mark_data_check.lua
 echo
 run controller tests/empty.lua          controller_check.lua
 run debuffs    tests/empty.lua          debuffs_check.lua
+run statusicons tests/empty.lua         winxi_statusicons_mixed_check.lua
 run party      addons/party/party.lua party_check.lua
 run party      addons/party/party.lua party_borders_check.lua
 run party      addons/party/party.lua party_dropdowns_check.lua
