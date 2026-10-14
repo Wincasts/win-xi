@@ -32,7 +32,9 @@ in its place.
 They are made by `tools/build_status_icons.py` from `tools/status_icons.csv`, which says which FFXIV
 icon stands for each FFXI status. To change one, put another FFXIV status name or icon number on its
 line (`references/ffxiv-status-icons/index.html` is there to pick from) and run the tool again;
-`--sheet sheet.png` draws every status beside its icon to look the choices over. Statuses of the same
+`--sheet sheet.png` draws every status beside its icon to look the choices over. A line's `tint` is a
+colour the icon is turned to: a bard's songs, a corsair's rolls and a puppetmaster's maneuvers each share
+one FFXIV icon, in the colours FFXI gives them. Statuses of the same
 name exactly are matched as they are; the rest are a first choice by what the status does, and many
 could be bettered.
 
