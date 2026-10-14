@@ -615,6 +615,30 @@ int main() {
 		CHECK(Shared.Count == 1 && Shared.Names[0].X == where[0] && Shared.Names[0].Flags == (NAME_WANTED | NAME_CUSTOM));
 		CHECK(Globals.RepeatsLast == 1 && Globals.RepeatsMainLast == 1);
 
+		// twice by that call in the frames after, in either order: the higher stands, there being
+		// above where with the view that has the world's second axis up
+		Globals.WorldUp = 1.0f;
+		for (int order = 0; order < 4; order++) {
+			const float* firstAt = (order & 1) ? there : where;
+			const float* secondAt = (order & 1) ? where : there;
+			setOut();
+			custom = plugin.custom;
+			DrawNameLineFrom(mainSite, buddy, firstAt, "Buddy", one, 0, 0);
+			DrawNameLineFrom(mainSite, buddy, secondAt, "Buddy", one, 0, 0);
+			CHECK(plugin.custom == custom + 1 && plugin.lastX == there[0]);
+			plugin.Publish(nullptr, nullptr, true);
+			CHECK(Shared.Count == 1 && Shared.Names[0].X == there[0] && Globals.RepeatsMainLast == 1);
+		}
+		// and with only a lower one, that is drawn: it is the last
+		setOut();
+		custom = plugin.custom;
+		DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
+		CHECK(plugin.custom == custom);
+		DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
+		CHECK(plugin.custom == custom + 1 && plugin.lastX == where[0]);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Shared.Count == 1 && Shared.Names[0].X == where[0]);
+
 		// by another call and then by that one: that one's takes the other's place on the list
 		Fresh();
 		setOut();

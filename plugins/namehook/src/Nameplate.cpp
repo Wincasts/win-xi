@@ -237,6 +237,9 @@ static struct {
 	uint32_t RepeatsLast;
 	uint32_t RepeatsMainLast;
 
+	// Which way up is along the world's second axis, 1 or -1, as the view last had it: 0 until known
+	float WorldUp;
+
 	// The model whose first line was last seen, where in the list its name was put (if it was), and
 	// whether the client drew it: its second line follows at once, and goes the same way
 	const XiModel* pLineModel;
@@ -273,15 +276,24 @@ static HookDraw Draw;
 static uint32_t NamesFrame = 0xFFFFFFFF;
 
 // The client can draw one entity's name more than once in a frame: from the call that draws all the
-// names and from one of its others, or from the first twice over (a player fishing is one). The name
-// is listed, and drawn for an addon, once: the first time the call that draws all the names draws it,
-// and otherwise the first time at all. Frames are kept as Shared.Frame + 1, so that 0 is never.
+// names and from one of its others, or from the first twice over (a player fishing is one, over the
+// head and lower down). The name is listed, and drawn for an addon, once: from the call that draws all
+// the names where it draws it, and otherwise the first time at all. Where that call draws it more than
+// once, it is the highest of them that is taken, and not the first: the client draws them in an order
+// that changes as the camera moves. A name is drawn for an addon as the client draws it, before the
+// rest are known, so which is highest is told from last frame's: one at least halfway up from the
+// lowest to the highest of those is taken, or failing that the last. Frames are kept as
+// Shared.Frame + 1, so that 0 is never.
 #define SEEN_NONE 0xFFFF
 static struct {
 	uint32_t Frame;     // the frame its name was first drawn in
 	uint32_t MainFrame; // and drawn by the call that draws all the names in
 	uint16_t Slot;      // where it is in Filling, or SEEN_NONE
 	bool Main;          // whether that was by the call that draws all the names
+	uint16_t MainCount; // how many times that call drew it in MainFrame
+	uint16_t MainCountLast; // and in the frame before, if it drew it then
+	float Low, High;    // how high the lowest and the highest of those were in MainFrame
+	float Middle;       // halfway between them in the frame before
 } Seen[HOOK_ENTITIES];
 
 // The party, the target and the pets, as they were when the frame began
@@ -503,11 +515,30 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 		bool replace = false;
 		if (index < HOOK_ENTITIES) {
 			auto& seen = Seen[index];
-			if (seen.Frame == now) {
-				// the call that draws all the names takes the place of another's, once
-				replace = main && !seen.Main;
-				repeat = !replace;
-			} else if (!main && (seen.MainFrame == now || seen.MainFrame == now - 1)) {
+			if (main) {
+				const float height = (pPosition != nullptr) ? pPosition[1] * Globals.WorldUp : 0.0f;
+				if (seen.MainFrame != now) {
+					const bool last = seen.MainFrame == now - 1;
+					seen.MainCountLast = last ? seen.MainCount : 0;
+					seen.Middle = last ? (seen.Low + seen.High) * 0.5f : 0.0f;
+					seen.MainCount = 0;
+					seen.Low = height;
+					seen.High = height;
+					seen.MainFrame = now;
+				}
+				seen.MainCount++;
+				seen.Low = (height < seen.Low) ? height : seen.Low;
+				seen.High = (height > seen.High) ? height : seen.High;
+
+				if (seen.Frame == now && seen.Main) {
+					repeat = true; // taken already
+				} else if (seen.MainCountLast > 1 && height < seen.Middle && seen.MainCount < seen.MainCountLast) {
+					repeat = true; // a lower one, while a higher is to come
+				} else {
+					// it takes the place of another call's, if that came first
+					replace = seen.Frame == now;
+				}
+			} else if (seen.Frame == now || seen.MainFrame == now || seen.MainFrame == now - 1) {
 				repeat = true;
 			}
 			if (repeat) {
@@ -521,9 +552,6 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 				}
 				seen.Frame = now;
 				seen.Main = main;
-				if (main) {
-					seen.MainFrame = now;
-				}
 			}
 		}
 
@@ -1676,6 +1704,11 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 		// A point in the world goes through the view and then the projection to where it is on screen
 		float m[16];
 		const bool placed = view != nullptr && projection != nullptr && width > 0.0f && height > 0.0f;
+		if (view != nullptr) {
+			// the camera never turns past straight up or down, so the world's second axis is up on
+			// screen when the view raises it
+			Globals.WorldUp = (view[5] < 0.0f) ? -1.0f : 1.0f;
+		}
 		if (placed) {
 			for (int row = 0; row < 4; row++) {
 				for (int column = 0; column < 4; column++) {
