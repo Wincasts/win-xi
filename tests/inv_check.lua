@@ -28,6 +28,47 @@ H.command('/inv focus'); H.frames(1); H.print('/inv focus: A is the window\'s ag
 H.print('X opens the sort menu, on', (H.tap(H.Button.X) and H.selected()))
 H.tap(H.Button.B)
 
+-- the bags: read once the game has them, then only the bag a packet names, once the packets have
+-- been quiet for a moment; hovering and right-clicking found from where the mouse is
+do
+    H.tap(H.Button.B)
+    H.ret.GetWindowPos, H.ret.GetWindowSize = { 0, 0 }, { 300, 1000 } -- everything in view
+    local function Packet(at, bag) return string.rep('\0', at) .. string.char(bag) .. string.rep('\0', 8) end
+    local function Calls() local n = 0 for k, v in pairs(H.calls) do if not k:find('^draw%.') then n = n + v end end return n end
+
+    H.gil(5000); H.bag(0, 30, { { 1, 5 }, { 20001 }, { 2, 3 } }); H.bag(5, 30, { { 3 } }); H.reads()
+    H.frames(1); local r = H.reads()
+    H.print('bags: read as the game has them', (r[0] or 0) > 0 and (r[5] or 0) > 0)
+
+    H.packetData(0x020, Packet(0x0E, 5)); H.frames(1); r = H.reads()
+    H.print('a change to the satchel: not read at once', r[5] == nil)
+    H.frames(5); r = H.reads()
+    H.print('read once settled', (r[5] or 0) > 0, '| the satchel alone (the gil looked at, not the inventory)', (r[0] or 0) <= 2 and r[8] == nil)
+
+    -- the stand-in's text is 7 pixels wide, which makes rows of one item: the third is two rows down
+    H.ret.IsWindowHovered, H.ret.GetMousePos = { true }, { 15, 20 + 2 * 36 + 5 }
+    local tips = H.calls.BeginTooltip or 0; H.frames(1)
+    H.print('hovering the third item: its tooltip', (H.calls.BeginTooltip or 0) > tips)
+    local opened = H.calls.OpenPopup or 0
+    H.ret.IsMouseClicked = { true }; H.frames(1); H.ret.IsMouseClicked = nil
+    H.print('right-click: its menu', (H.calls.OpenPopup or 0) > opened)
+
+    -- the last of an item used up: the game says so with 0x020 alone
+    H.bag(0, 30, { { 1, 5 }, { 20001 } }); H.packetData(0x020, Packet(0x0E, 0)); H.frames(6)
+    tips = H.calls.BeginTooltip or 0; H.frames(1)
+    H.print('the last of it used up: gone', (H.calls.BeginTooltip or 0) == tips)
+
+    -- what a frame asks of imgui does not grow with the items
+    H.ret.IsWindowHovered, H.ret.GetMousePos = nil, nil
+    local before = Calls(); H.frames(1); local few = Calls() - before
+    local many = {} for i = 1, 60 do many[i] = { i, 2 } end
+    H.bag(0, 80, many); H.packetData(0x020, Packet(0x0E, 0)); H.frames(6)
+    before = Calls(); H.frames(1); local lots = Calls() - before
+    H.print('imgui calls a frame, 2 items then 60:', few, lots, lots == few)
+
+    H.ret.GetWindowPos, H.ret.GetWindowSize = { 100, 200 }, { 300, 150 }
+end
+
 -- the treasure pool, under the window: there only while there is treasure, and only while the window is
 do
     H.tap(H.Button.B)

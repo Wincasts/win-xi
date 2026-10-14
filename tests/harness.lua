@@ -106,19 +106,37 @@ ashita = { interface_version = 4,
         for index = 4, 0, -1 do value = value * 256 + (raw:byte(first + index + 1) or 0) end
         return math.floor(value / 2 ^ (offset % 8)) % 2 ^ length
     end } }
-local inventory = { GetContainerItem = function() return nil end, GetContainerCountMax = function() return 0 end,
+-- the bags: what H.bag has put in each (bag -> slot -> { Id, Count, Index, Flags }) and how big each is,
+-- the gil H.gil has set, and how many times each bag's slots have been read
+local contents, sizes, gil, reads = {}, {}, nil, {}
+local inventory = {
+    GetContainerItem = function(_, bag, slot)
+        reads[bag] = (reads[bag] or 0) + 1
+        if bag == 0 and slot == 0 and gil ~= nil then return { Id = 65535, Count = gil, Index = 0, Flags = 0 } end
+        return contents[bag] and contents[bag][slot] or nil
+    end,
+    GetContainerCountMax = function(_, bag) return sizes[bag] or 0 end,
     GetTreasurePoolItem = function(_, i) if i < pool then return { ItemId = 100 + i, DropTime = 5, WinningLot = 0, WinningEntityName = '', Lot = lots[i] or 0 } end end }
 AshitaCore = { GetInstallPath = function() return 'C:\\ashita' end,
     GetMemoryManager = function() return { GetInventory = function() return inventory end,
         GetPlayer = function() return { GetMainJob = function() return 18 end, GetLoginStatus = function() return loginStatus end,
             GetIsZoning = function() return 0 end, GetStatusIcons = function() return {} end } end,
         GetParty = function() return { GetMemberTargetIndex = function() return 0 end, GetMemberName = function() return 'Tester' end } end } end,
-    GetResourceManager = function() return { GetItemById = function(_, id) return { Id = id, Name = { 'Item ' .. id } } end } end,
+    GetResourceManager = function() return { GetItemById = function(_, id) return { Id = id, Name = { 'Item ' .. id },
+        ResourceId = id, Type = id >= 20000 and 5 or 1, Flags = 0, Targets = 0, StackSize = id < 1000 and 12 or 1,
+        LogNameSingular = { 'item ' .. id }, LogNamePlural = { 'items ' .. id }, Description = { 'About item ' .. id },
+        Slots = 16, Skill = 0, Level = 1, Jobs = 2, Races = 0, Bitmap = '', ImageSize = 0 } end } end,
     GetPointerManager = function() return { Get = function() return 0 end } end,
     GetPluginManager = function() return { RaiseEvent = function(_, name, data) raised[#raised + 1] = name .. ' ' .. string.char(unpack(data)) end } end,
     GetChatManager = function() return { QueueCommand = function() end } end,
     GetPacketManager = function() return { AddOutgoingPacket = function(_, id, data) sent[#sent + 1] = ('%X:%s'):format(id, tostring(data and data[5])) end } end }
-struct = { pack = function() return { totable = function() return {} end } end, unpack = function() return 1 end }
+-- a byte of a packet's data, where the data has it ('B', or 'i1' signed); anything else is 1
+struct = { pack = function() return { totable = function() return {} end } end, unpack = function(format, data, at)
+    local byte = type(data) == 'string' and data:byte(at or 1) or nil
+    if byte ~= nil and format == 'B' then return byte end
+    if byte ~= nil and format == 'i1' then return byte >= 128 and byte - 256 or byte end
+    return 1
+end }
 
 local function fire(event, e) for _, f in ipairs(handlers[event] or {}) do f(e) end return e end
 
@@ -133,6 +151,13 @@ H = {
     play = function(v) playing = v end,                    -- whether there is a player (false: loading)
     login = function(status) loginStatus = status end,     -- the game's login status: 2 in the world, less before
     pool = function(count) pool = count end,               -- how many items are in the treasure pool
+    -- a bag of size slots, with { id, count } in its first slots; and the gil (with which the bags are loaded)
+    bag = function(bag, size, items)
+        sizes[bag], contents[bag] = size, {}
+        for i, item in ipairs(items or {}) do contents[bag][i] = { Id = item[1], Count = item[2] or 1, Index = i, Flags = 0 } end
+    end,
+    gil = function(count) gil = count; sizes[0] = sizes[0] or 30 end,
+    reads = function() local r = reads reads = {} return r end,  -- how many slots of each bag were read, since last asked
     frames = function(count) for _ = 1, count or 1 do clock = clock + 0.03; fire('d3d_present') end end,
     command = function(text) return fire('command', { command = text, blocked = false }).blocked end,
     packet = function(id) fire('packet_in', { id = id, data = '' }) end,
