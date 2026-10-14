@@ -1277,9 +1277,8 @@ local function PadEndFrame()
                 if pad.options.controllerInfoPlace == 'item' or pad.windowX == nil then
                     controller.Label(DrawInfoBox, x, y + iconSize + 3 + labelGap, true, item.uniqueId)
                 else
-                    -- under the window (and the treasure pool under it), its left edge in line with the window's
-                    local under = pool.Bottom() or pad.windowY + pad.windowHeight
-                    controller.Label(DrawInfoBox, pad.windowX, under + labelGap, true, item.uniqueId)
+                    -- under the window, its left edge in line with the window's
+                    controller.Label(DrawInfoBox, pad.windowX, pad.windowY + pad.windowHeight + labelGap, true, item.uniqueId)
                 end
             else
                 if item.label == nil then
@@ -1682,7 +1681,7 @@ local function DrawWindow(drawOptions)
         DrawInventory()
     end
 
-    -- where the window is, for the box and the treasure pool that go under it
+    -- where the window is, for the box that goes under it and the treasure pool beside it
     local width, height = imgui.GetWindowSize()
     pad.windowX, pad.windowY = imgui.GetWindowPos()
     pad.windowWidth, pad.windowHeight = width, height
@@ -1715,11 +1714,11 @@ local defaults = T{
     controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
-    treasurePool = T{ true }, -- the treasure pool, under the window
-    treasureShowEmpty = T{ false }, -- the treasure pool up with nothing in it
+    treasurePool = T{ true }, -- the treasure pool, beside the window
+    treasureShowEmpty = T{ false }, -- sample treasure in an empty pool, to see it
     treasureDetached = T{ false }, -- the treasure pool as a window of its own
     treasurePos = T{ 256, 100 }, -- where it is, detached
-    treasureWidth = T{ 300 }, -- how wide it is, detached
+    treasureWidth = T{ 300 }, -- how wide it is
     -- manualOrder: the player's own order of items, once they have made one
 }
 

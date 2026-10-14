@@ -1,14 +1,15 @@
--- The treasure pool, small, under the inventory window: what the treas addon shows, in a line for each
--- item. It sits against the foot of the inventory window, as wide as it, and comes and goes with it;
--- or, detached in the settings, it is a window of its own that is there whenever there is treasure.
+-- The treasure pool, small, beside the inventory window: what the treas addon shows, in a line for
+-- each item. It sits against the right of the inventory window, its top in line with the window's, and
+-- comes and goes with it; or, detached in the settings, it is a window of its own that is there
+-- whenever there is treasure.
 --
 --   pool.Draw(options, frame, invWanted)   once a frame, after the inventory window: frame is where
 --                               that window is ({ x, y, width, height }, or nil before it is first
 --                               drawn), and invWanted whether it is switched on
---   pool.Bottom()               where the pool's window ends, this frame, while it is attached; or nil
 --   pool.DrawSettings(options)  its section of the settings
 --
--- With Show When Empty it stays up with nothing in it, saying so.
+-- With Show When Empty an empty pool is filled with sample treasure, in each of the states an item can
+-- be in, to see how it looks. Its buttons do nothing.
 --
 -- Each line: the item, the best lot so far, the time left, and the player's own lot or a button to lot,
 -- then a button to pass. The winner's name is in the line's tooltip. Above them, Lot All and Pass All.
@@ -17,7 +18,6 @@ local imgui = require('imgui')
 local style = require('winxi.style')
 local window = require('winxi.window')
 local fade = require('winxi.fade')
-local theme = require('winxi.theme')
 local widgets = require('winxi.widgets')
 local packets = require('winxi.packets')
 
@@ -29,6 +29,19 @@ local gold = { 1.0, 215/255, 0.0, 1.0 }
 local red = { 0.95, 0.20, 0.20, 1.0 }
 local framePadding = { 4, 1 }
 local poolTime = 300 -- seconds an item stays in the pool
+local sideGap = 6     -- between the inventory window and the pool beside it
+
+-- The sample treasure: one the player is winning, one lotted and losing, one others have lotted, one
+-- nobody has, one passed on. left is how many seconds it starts with.
+local samples = {
+    { name = 'Ridill', winnerLot = 874, lot = 874, left = 285 },
+    { name = 'Behemoth Hide', winner = 'Ayame', winnerLot = 912, lot = 403, left = 172 },
+    { name = 'Dragon Heart', winner = 'Zeid', winnerLot = 655, left = 96 },
+    { name = 'Kraken Club', left = 41 },
+    { name = 'Fire Crystal', winner = 'Lion', winnerLot = 120, passed = true, left = 230 },
+}
+local sampleStart = nil -- when the sample treasure was first shown
+local options = nil     -- the settings, as of the frame being drawn
 
 -- When each item will leave the pool, by the time it dropped: the game's drop times are not the clock's
 local leaves = {}
@@ -40,14 +53,14 @@ for i = 1, 10 do
 end
 
 local function Lot(item)
-    if item.lotted or item.passed then
+    if item.sample or item.lotted or item.passed then
         return
     end
     AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.treasureLot:make(item.slot))
 end
 
 local function Pass(item)
-    if item.passed then
+    if item.sample or item.passed then
         return
     end
     AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.treasurePass:make(item.slot))
@@ -78,6 +91,7 @@ local function Read()
 
             count = count + 1
             local item = items[count]
+            item.sample = false
             item.slot = slot
             item.name = info ~= nil and info.Name[1] or '?'
             item.winner = treasure.WinningLot > 0 and treasure.WinningEntityName or nil
@@ -96,6 +110,32 @@ local function Read()
     if count == 0 then
         leaves = {}
     end
+    if count > 0 or not options.treasureShowEmpty[1] then
+        sampleStart = nil
+        return
+    end
+
+    -- nothing in the pool, and Show When Empty: the sample treasure, its times counting down and
+    -- starting again
+    sampleStart = sampleStart or now
+    for i, sample in ipairs(samples) do
+        local item = items[i]
+        item.sample = true
+        item.slot = i - 1
+        item.name = sample.name
+        item.winner = sample.winner or (sample.winnerLot and player) or nil
+        item.winning = item.winner ~= nil and item.winner == player
+        item.lotted = sample.lot ~= nil
+        item.passed = sample.passed == true
+        Number(item, 'lot', 'lotText', sample.lot or 0, '%d')
+        Number(item, 'winnerLot', 'winnerLotText', sample.winnerLot or 0, '%d')
+        local left = (sample.left - (now - sampleStart)) % poolTime
+        if item.left ~= left then
+            item.left = left
+            item.timeText = ('%d:%02d'):format(math.floor(left / 60), left % 60)
+        end
+    end
+    count = #samples
 end
 
 local function Write(item, text)
@@ -181,9 +221,6 @@ local function DrawContent()
         end
         imgui.EndTable()
     end
-    if count == 0 then
-        imgui.TextDisabled('No treasure.')
-    end
     imgui.PopStyleVar()
 end
 
@@ -192,40 +229,15 @@ local open = { true }
 local sizeMin, sizeMax = { 0, 0 }, { 0, 0 }
 local placed = { 0, 0 }
 local attachedFlags, detachedFlags = nil, nil
-local bottom = nil
-local options = nil
-
 local function DrawWindow()
     DrawContent()
-    local x, y = imgui.GetWindowPos()
-    local _, height = imgui.GetWindowSize()
     if options.treasureDetached[1] then
-        options.treasurePos[1], options.treasurePos[2] = x, y
-    else
-        bottom = y + height
+        options.treasurePos[1], options.treasurePos[2] = imgui.GetWindowPos()
     end
-end
-
--- The room the pool's title needs above it, half of which stands out over the window's top edge
-local function TitleRoom()
-    local current = theme.Get()
-    if not current.FrameTitles then
-        return 4
-    end
-    local size = tonumber(current.TitleSize) or 0
-    if size <= 0 then
-        size = imgui.GetFontSize()
-    end
-    return math.ceil(size / 2) + 4 - math.min(0, tonumber(current.TitleOffsetY) or 0)
-end
-
-function pool.Bottom()
-    return bottom
 end
 
 function pool.Draw(drawOptions, frame, invWanted)
     options = drawOptions
-    bottom = nil
     if not options.treasurePool[1] then
         return
     end
@@ -235,7 +247,7 @@ function pool.Draw(drawOptions, frame, invWanted)
     if not detached and frame == nil then
         return
     end
-    local shown = count > 0 or options.treasureShowEmpty[1]
+    local shown = count > 0
     local wanted = shown and (detached or invWanted)
     local alpha = wanted and 1 or 0
     if options.fadeInOut[1] then
@@ -254,14 +266,13 @@ function pool.Draw(drawOptions, frame, invWanted)
     local flags
     if detached then
         imgui.SetNextWindowPos(options.treasurePos, ImGuiCond_FirstUseEver)
-        sizeMin[1], sizeMax[1] = options.treasureWidth[1], options.treasureWidth[1]
         flags = detachedFlags
     else
-        placed[1], placed[2] = frame.x, frame.y + frame.height + TitleRoom()
+        placed[1], placed[2] = frame.x + frame.width + sideGap, frame.y
         imgui.SetNextWindowPos(placed, ImGuiCond_Always)
-        sizeMin[1], sizeMax[1] = frame.width, frame.width
         flags = attachedFlags
     end
+    sizeMin[1], sizeMax[1] = options.treasureWidth[1], options.treasureWidth[1]
     sizeMin[2], sizeMax[2] = 0, 10000
     imgui.SetNextWindowSizeConstraints(sizeMin, sizeMax)
 
@@ -284,22 +295,22 @@ function pool.DrawSettings(drawOptions)
     widgets.Label('Show When Empty')
     imgui.Checkbox('##inv.pool.showEmpty', drawOptions.treasureShowEmpty)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Keeps the pool up with nothing in it, to see where it sits and how it looks.')
+        imgui.SetTooltip('Fills an empty pool with sample treasure, to see where it sits and how it looks. Its buttons do nothing.')
     end
 
     widgets.Label('Detach From Inventory')
     imgui.Checkbox('##inv.pool.detached', drawOptions.treasureDetached)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Attached, the pool sits under the inventory window, as wide as it, and shows only while the inventory does.\nDetached, it is a window of its own that can be moved, and shows whenever there is treasure.')
+        imgui.SetTooltip('Attached, the pool sits to the right of the inventory window and shows only while the inventory does.\nDetached, it is a window of its own that can be moved, and shows whenever there is treasure.')
     end
     if drawOptions.treasureDetached[1] then
         widgets.Label('Treasure Position')
         if imgui.InputInt2('##inv.pool.position', drawOptions.treasurePos) then
             imgui.SetWindowPos(windowName, drawOptions.treasurePos)
         end
-        widgets.Label('Treasure Width')
-        imgui.SliderInt('##inv.pool.width', drawOptions.treasureWidth, 200, 600)
     end
+    widgets.Label('Treasure Width')
+    imgui.SliderInt('##inv.pool.width', drawOptions.treasureWidth, 200, 600)
 end
 
 return pool
