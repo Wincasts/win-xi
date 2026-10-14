@@ -139,7 +139,7 @@ The categories' bits are, from bit 0: self, party, alliance, player, my pet, pet
 
 ### Which names are listed
 
-Those the client was about to draw in the last frame: so not one that is too far away or off screen, which the client leaves out itself, and none at all with the game's `/names` off. Each entity is listed once: a name the client draws more than once in a frame, as it does for a player who is fishing, is listed, and drawn for an addon, as the call that draws all the names first drew it, or failing that as it was first drawn. A name the plugin hides is listed like any other, without the wanted flag, so that an addon can tell a name that is hidden from one that is not there.
+Those the client was about to draw in the last frame: so not one that is too far away or off screen, which the client leaves out itself, and none at all with the game's `/names` off. Each entity is listed once: a name the client draws more than once in a frame, as it does for a player who is fishing, is listed, and drawn for an addon, as the call that draws all the names drew it highest, or failing that as it was first drawn. A name the plugin hides is listed like any other, without the wanted flag, so that an addon can tell a name that is hidden from one that is not there.
 
 The client draws its names during a scene and addons draw as the frame is presented. The list is made ready as that scene ends, or failing that as the frame is presented, so an addon reading it in `d3d_present` has the names of the frame it is drawing over.
 
