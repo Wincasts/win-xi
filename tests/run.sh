@@ -68,6 +68,7 @@ run name-performance addons/name/name.lua name_performance_check.lua
 run name-menus addons/name/name.lua name_menu_check.lua
 run name-tracking addons/name/name.lua name_track_check.lua
 run name-statuses addons/name/name.lua name_statuses_check.lua
+run name-diag  addons/name/name.lua name_diag_check.lua
 echo '== name bundled player icons'
 luajit tests/name_icons_check.lua
 luajit tests/name_format_check.lua

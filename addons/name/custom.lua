@@ -5,7 +5,8 @@
 --   custom.Find()                 once, on loading: the bundled player-icon mapping
 --   custom.DrawSettings(options)  the settings tab
 --   custom.Frame(options, hook)   each frame: claims the names and draws them;
---                                 hook is the plugin's block, as nameplates.Hook gave it this frame
+--                                 hook is the plugin's block, as nameplates.Hook gave it this frame.
+--                                 Returns nil, or why nothing was claimed: a key of diag.Reasons
 --
 -- The namehook plugin lists the names the game was about to draw. While this draws, it claims
 -- them all, so the game draws none; which names are wanted is still the plugin's to say, and only
@@ -30,6 +31,7 @@ local format = require('format');
 local levels = require('levels');
 local letterBadges = require('letter_badges');
 local statuses = require('statuses');
+local diag = require('diag');
 
 local custom = {};
 
@@ -250,6 +252,7 @@ local function getFont(file)
         fonts[file] = found;
         if (found == false) then
             print(('\30\81[%s]\30\01 The font %s could not be loaded: names are in the usual one.'):format(addon.name, file));
+            diag.Note('Font %s not loaded: %s', file, tostring(made));
         end
     end
     return found or nil;
@@ -916,12 +919,12 @@ function custom.Frame(options, hook, formats)
     local FONT_SLOT, ICON_SLOT, SENSE_SLOT, TEMPER_SLOT, SIGN_SLOT = SLOT.Font, SLOT.Icon, SLOT.Sense, SLOT.Temper, SLOT.Sign;
     -- without the plugin's list there is nothing to draw from, and the game draws the names
     if (hook == nil or hook.Hooked == 0) then
-        return;
+        return 'unhooked';
     end
 
     local texture = fontTexture();
     if (texture == nil) then
-        return;
+        return 'texture';
     end
     if (texture ~= glyphTexture or options.font ~= glyphFont) then
         glyphTexture, glyphFont = texture, options.font;
@@ -932,7 +935,7 @@ function custom.Frame(options, hook, formats)
     -- in the game's, at the size that makes them the size asked for on the screen
     local scale = nameplates.BeginDrawing(hook, true);
     if (scale == nil) then
-        return;
+        return 'draw';
     end
 
     -- every frame: the game draws none of the names while this does

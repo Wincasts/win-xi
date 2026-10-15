@@ -453,3 +453,32 @@ change; and a change made in the plugin is taken into them, and saved.
 If this addon is unloaded, names stay as they were last set, until the plugin is unloaded.
 `/namehook show all` shows them all again. If the plugin is not loaded, the settings window says
 so, and what is set is given to the plugin when it is.
+
+## Diagnostics
+
+Filters → Status shows whether Name is drawing the names (**Custom Names**). It is always shown,
+whether or not the plugin is loaded. When Name stops claiming the names for more than 30 frames,
+about half a second, the game draws its own names again. The reason is said once in the chat log and a log
+is written, once a session for each reason. The reasons:
+
+| Reason | What it means |
+|---|---|
+| `unloaded`, `old`, `mismatch` | The namehook plugin is not loaded, or is not the version this addon reads. No log is written for `unloaded` |
+| `unhooked` | The plugin did not recognise this client's name drawing |
+| `texture` | imgui's font texture had no Direct3D texture (its id was 0) |
+| `draw` | The plugin had no drawing buffer |
+| `error` | A Lua error in the frame. It is still raised as before, and kept once in the log with its traceback and a count |
+
+**Write Log** in the same section writes a log on demand. Logs are small text files in
+`config\addons\name\logs`, named `name-<date>-<time>.txt`. Each holds:
+
+- The plugin's state: whether it is hooked, the frame and the last claim, what is claimed and
+  hidden, and the names of the last frame and who drew them.
+- The font atlas texture and the display size.
+- Pauses since loading, short and seen.
+- Lua errors.
+- The last 300 events: zone-ins, settings given to or taken from the plugin, stops and resumes, and
+  fonts or letter badges that would not load.
+- The settings.
+
+Testers can send the file with a report.
