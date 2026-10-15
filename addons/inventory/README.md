@@ -23,7 +23,8 @@ bag content (including empty bag slots when Show Empty Slots is enabled), up to 
 limit. Increasing or decreasing either dimension resizes the window to fit. Extra items scroll only
 when they exceed the chosen row limit; otherwise no scrollbar is shown. A scrollbar fits inside the
 same window width by slightly tightening horizontal slot spacing; icon size and column count stay
-unchanged, and normal spacing returns when scrolling is no longer needed. Tabs and slot counts remain visible. The grid has no separate
+unchanged, and normal spacing returns when scrolling is no longer needed. Tabs and slot counts remain visible. Every slot, full or
+empty, sits on a faint square of its own, under the item's icon; around them the grid has no separate
 background, so the base Winxi window shows through. These controls replace Max Height. **Show Bag/Satchel/Wardrobe/House Tab** toggles each group on or off;
 controller tab navigation skips hidden groups. Hiding a tab does not change its items or prevent
 moving items to those bags. The controls apply to both unified and separate-bag views.
