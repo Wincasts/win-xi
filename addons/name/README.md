@@ -191,6 +191,7 @@ with its `statusicons` folder. The set's icons are as narrow as the set has them
 | Scale | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is as wide as the set's icons are for that height (three quarters for FFXIV's), and shrinks with its name |
 | Position | Above, to begin with: over the name, and over the mastery stars where it has them. Below: under the name, and under the line a checked monster's details are written on while they are shown |
 | Alignment | Center, to begin with: the row's middle on the name's. Left: level with the name's left, where its icons begin. Right: level with its right |
+| [Experimental] Timers | Off to begin with. Writes under each icon how long the status has left, in the names' letters: seconds, then minutes (m), then hours (h), as the buff addon does. The row is raised to make room above a name. Your own are to the second, as the game keeps them, and what the game writes no time for has none; your party's are not known and have none; everyone else's are the server's base duration from when it was seen to land, so a guess (see below) |
 | Preview | Puts the first four ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: off again when the addon is loaded |
 | Search | Narrows the list under it by part of a status's name, or its number |
 | Chosen Only | Lists only the ticked statuses |

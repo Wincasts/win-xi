@@ -267,3 +267,59 @@ do
     H.print('below a checked monster: its line is lower than the name', checkedFoot > plainFoot, '| the row under the line', #row > 0 and row[1].Y0 > checkedFoot, '| lower than without it', #row > 0 and row[1].Y0 > plainTop)
     o.statusPlace[1], struct.unpack = 'above', unpack
 end
+
+-- the time left, written under each icon: off to begin with, then on
+do
+    -- the letters under a name's icons: of the font, their top at or below the icons' foot, by place across
+    local function times(index)
+        local row, entity, found = icons(index), draw.Entities[index], {}
+        if #row == 0 then return '' end
+        local foot, top = row[1].Y1, row[1].Y0
+        for i = 0, entity.Count - 1 do
+            local q = draw.Quads[entity.First + i]
+            if q.Texture == 0 and q.Y0 >= foot and q.Y1 < (o.statusPlace[1] == 'above' and 0 or math.huge) then
+                found[#found + 1] = q
+            end
+        end
+        return #found, found
+    end
+    local GLYPHS = 1 -- the stand-in's letters are all the one glyph, a quad each
+    local resources = AshitaCore.GetResourceManager()
+    AshitaCore.GetResourceManager = function() return {
+        GetString = resources.GetString,
+        GetStatusIconByIndex = function(_, id) return { HideTimer = id == 13 and 1 or 0 } end } end
+    -- the game's count of time: the player's Paralysis has 90 s left, Slow none it would say
+    local EPOCH, STAMP = 0x3C307D70, 0x3C307D70 + 5000
+    memory[0x9000], memory[0x9100], memory[0x9200 + 0x0C] = 0x9100, 0x9200, STAMP
+    local realFind = ashita.memory.find
+    ashita.memory.find = function(module, ...) if module == 'FFXiMain.dll' then return 0x9000 end return realFind(module, ...) end
+    own = { 4, 13 }
+    local player = manager.GetPlayer()
+    manager.GetPlayer = function() return { GetIsZoning = player.GetIsZoning, GetStatusIcons = function() return own end,
+        GetStatusTimers = function() return { (STAMP - EPOCH) * 60 + 90 * 60, (STAMP - EPOCH) * 60 + 30 * 60 } end,
+        GetMainJob = player.GetMainJob, GetLoginStatus = player.GetLoginStatus } end
+    debuffs.Clear(); cast(58, { [0x1000 + 300] = 236 })
+
+    H.print('settings: Timers off to begin with', o.statusTimers[1] == false)
+    block.Frame = 70; H.frames(1)
+    local plainFoot = icons(0x400)[1].Y1
+    H.print('off: nothing under the icons', times(0x400) == 0, times(300) == 0)
+    o.statusTimers[1] = true; block.Frame = 71; H.frames(1)
+    local ownCount, ownQuads = times(0x400)
+    H.print('own: Paralysis 1m, two letters; none under Slow, which the game writes no time for', ownCount == 2 * GLYPHS)
+    local row = icons(0x400)
+    H.print('the time\'s middle under its icon', math.abs((ownQuads[1].X0 + ownQuads[#ownQuads].X1) * 0.5 - (row[1].X0 + row[1].X1) * 0.5) <= 2)
+    H.print('outlined, as the names\' letters are', ownQuads[1].Flags ~= 0, ('| colour %08X'):format(ownQuads[1].Color))
+    H.print('above: the row raised to make room', row[1].Y1 < plainFoot)
+    local enemyCount = times(300)
+    H.print('an enemy: Paralyze, 2m by the server\'s 120 s', enemyCount == 2 * GLYPHS)
+    now = now + 75; block.Frame = 72; H.frames(1)
+    H.print('75 s on: 45, still two letters', times(300) == 2 * GLYPHS)
+    now = now + 40; block.Frame = 73; H.frames(1)
+    H.print('115 s on: 5, one letter', times(300) == 1 * GLYPHS)
+    H.print('a party member, whose times are not known: none', times(0x401) == 0, '| the row not raised', icons(0x401)[1].Y1 == plainFoot)
+    o.statusPlace[1] = 'below'; block.Frame = 74; H.frames(1)
+    H.print('below: the time under the icons still', times(0x400) == 2 * GLYPHS)
+    o.statusPlace[1] = 'above'; o.statusTimers[1] = false
+    AshitaCore.GetResourceManager, ashita.memory.find, manager.GetPlayer = function() return resources end, realFind, function() return player end
+end
