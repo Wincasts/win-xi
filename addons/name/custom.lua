@@ -529,6 +529,9 @@ local function writeWords(set, words, pen, top, fit, color, slot)
     return pen + run.width * fit;
 end
 
+-- the time left under a status's icon is written in the name's letters
+statuses.SetWords(wordsWidth, writeWords);
+
 -- A sheet of signs from the assets folder, loaded the first time one of its signs is to be drawn:
 -- its address for the plugin, or 0 if it would not load
 local sheets = {};   -- file -> { texture = kept so that it is not let go, at = its address }
@@ -1304,7 +1307,7 @@ function custom.Frame(options, hook, formats)
 
                     -- the row of statuses over all of it, or under it
                     if (statusRows) then
-                        statuses.Write(name, nameLeft, nameLeft + iconsWidth + width, clear, under, height, scale);
+                        statuses.Write(name, nameLeft, nameLeft + iconsWidth + width, clear, under, height, scale, set, fit);
                     end
 
                     nameplates.EndName();
