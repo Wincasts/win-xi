@@ -1279,10 +1279,11 @@ local slotFillColor, slotEdgeColor = 0, 0 -- packed once a frame, in the window
 -- dropped on another tab's name at the top, it is moved to that group's bag with room (the one chosen
 -- under the grid, if any, first). The item picked up, its group and where the mouse was, and whether
 -- it has moved far enough to be a drag rather than a click.
-local drag = { item = nil, group = nil, x = 0, y = 0, moving = false }
-local dragStart = 4 -- pixels the mouse moves before a press on an item is a drag
-local dragWhite = { 1, 1, 1, 0.75 }
-local dragMin, dragMax = { 0, 0 }, { 0, 0 }
+local drag = {
+    item = nil, group = nil, x = 0, y = 0, moving = false,
+    start = 4, -- pixels the mouse moves before a press on an item is a drag
+    white = { 1, 1, 1, 0.75 }, min = { 0, 0 }, max = { 0, 0 },
+}
 local tabRects = { } -- each main tab's name, where it was drawn this frame: { left, top, right, bottom }
 for index = 1, #tabGroups do
     tabRects[index] = { shown = false, 0, 0, 0, 0 }
@@ -1307,10 +1308,11 @@ local itemGap = { 8, 4 } -- between items, across and down: the shell's spacing 
 local stepX, stepY = iconSize + itemGap[1], iconSize + itemGap[2]
 local gridSize = { 0, 0 }
 local viewportSize = { 0, 0 }
--- Room around the grid inside its scrolling region, for the outlines drawn just outside a slot (the
--- mouse's 2 pixels out, the controller's 3), which would be cut off at the region's edge. imgui
--- clips a region's sides half its padding in, so the sides need twice the outline's room.
-local gridPadding = { 6, 4 }
+-- The grid's scrolling region is as wide as its slots, so the window, and the tabs above and the row
+-- below, are as wide as the slots too. The outlines drawn just outside a slot (the mouse's 2 pixels
+-- out, the controller's 3) would be cut off at the region's edge: they are drawn with the region's
+-- clip widened by this much.
+local outline = { room = 3, min = { 0, 0 }, max = { 0, 0 } }
 local viewportMin, viewportMax = { 0, 1 }, { 0, 0 }
 local iconMin, iconMax, uvMin, uvMax = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
 local firstShown, lastShown = 0, -1 -- the items of the bag being drawn that are in view
@@ -1381,12 +1383,14 @@ local function DrawBag(group, key)
     imgui.Dummy(gridSize)
 
     -- the rows in view: the window's, less what is scrolled out of sight
-    local _, windowY = imgui.GetWindowPos()
-    local _, windowHeight = imgui.GetWindowSize()
+    local windowX, windowY = imgui.GetWindowPos()
+    local windowWidth, windowHeight = imgui.GetWindowSize()
     local firstRow = math.max(0, math.floor((windowY - top - iconSize) / stepY) + 1)
     local lastRow = math.floor((windowY + windowHeight - top) / stepY)
     firstShown, lastShown = firstRow * rowLengthIsh + 1, (lastRow + 1) * rowLengthIsh
     local drawList = imgui.GetWindowDrawList()
+    outline.min[1], outline.min[2] = windowX - outline.room, windowY - outline.room
+    outline.max[1], outline.max[2] = windowX + windowWidth + outline.room, windowY + windowHeight + outline.room
 
     -- the item under the mouse, from where the mouse is
     local hovered = nil
@@ -1442,12 +1446,16 @@ local function DrawBag(group, key)
         end
         if item == hovered or (itemMenu.open and item == itemMenu.item) or (drag.moving and item == drag.item) then
             local x, y = Spot(left, top, i)
+            drawList:PushClipRect(outline.min, outline.max, false)
             AddHighlight(x, y, iconSize, drawList)
+            drawList:PopClipRect()
         end
     end
 
     if pad.active then
+        drawList:PushClipRect(outline.min, outline.max, false)
         PadItems(items, group, left, top, drawList, windowY)
+        drawList:PopClipRect()
     end
 end
 
@@ -1518,7 +1526,7 @@ end
 local function DrawCountsRow(group, unified)
     -- Align to the requested grid width, not the previous frame's window width: using
     -- GetContentRegionAvail here creates a feedback loop that prevents shrinking.
-    local countsRight = imgui.GetCursorPosX() + viewportSize[1] - gridPadding[1]
+    local countsRight = imgui.GetCursorPosX() + viewportSize[1]
     -- a little room between the slots and this row
     imgui.Dummy(countBuffer)
 
@@ -1551,8 +1559,18 @@ end
 -- chosen here is drawn from the next frame on.
 local allTabIds = { }
 for _, group in ipairs(tabGroups) do
-    allTabIds[group] = { bar = '##inv.bags.sub.' .. group, all = 'all##inv.bags.sub.all.' .. group }
+    allTabIds[group] = {
+        region = '##inv.bags.sub.region.' .. group,
+        bar = '##inv.bags.sub.' .. group,
+        all = 'all##inv.bags.sub.all.' .. group,
+    }
 end
+local bagTabsRow = {
+    size = { 0, 0 },
+    line = 4, -- room under the tabs for the line the theme draws along a bar's foot
+    flags = bit.bor(ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse),
+    barFlags = bit.bor(ImGuiTabBarFlags_NoCloseWithMiddleMouseButton, ImGuiTabBarFlags_FittingPolicyShrink),
+}
 
 local function DrawBagTabs(group)
     local withTabs = bagTabs[group]
@@ -1561,7 +1579,13 @@ local function DrawBagTabs(group)
     end
     local ids = allTabIds[group]
     local chosen = shownBag[group]
-    if tabs.BeginBar(ids.bar, ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
+    -- in a region as wide as the grid: imgui widens a window to a tab bar's tabs at their full
+    -- width, and the house's would be wider than a few columns of slots; here they shrink to fit
+    local row = bagTabsRow
+    local frame = imgui.GetFrameHeight() or (imgui.GetFontSize() + 2 * framePadding[2])
+    row.size[1], row.size[2] = viewportSize[1], frame + row.line
+    imgui.BeginChild(ids.region, row.size, 0, row.flags)
+    if tabs.BeginBar(ids.bar, row.barFlags) then
         if tabs.Begin(ids.all) then
             chosen = nil
             imgui.EndTabItem()
@@ -1574,6 +1598,7 @@ local function DrawBagTabs(group)
         end
         imgui.EndTabBar()
     end
+    imgui.EndChild()
     if chosen ~= shownBag[group] then
         -- other items: the highlight starts again from the first
         shownBag[group] = chosen
@@ -1584,12 +1609,10 @@ end
 
 -- The end of a tab: the tooltip of the item under the mouse, the menu if it is open, the row of
 -- counts, and in the unified view the tabs of the group's bags, at the foot
--- The grid's scroll bar, slim, in its right margin, where it takes no room from the slots: how far
--- down the grid is scrolled, and how much of it is in view. Drawn only while it scrolls. It is
--- measured in the grid and drawn in the window around it, which does not clip the grid's margin.
-local scrollWidth = 2
-local scrollWhite = { 1, 1, 1, 0.35 }
-local scrollMin, scrollMax = { 0, 0 }, { 0, 0 }
+-- The grid's scroll bar, slim, just outside its right edge in the window's padding, where it takes no
+-- room from the slots: how far down the grid is scrolled, and how much of it is in view. Drawn only
+-- while it scrolls. It is measured in the grid and drawn in the window around it.
+local scrollBar = { width = 2, gap = 2, white = { 1, 1, 1, 0.35 }, min = { 0, 0 }, max = { 0, 0 } }
 
 -- in the grid, before it ends: whether it scrolls, and where the bar goes
 local function MeasureScrollBar()
@@ -1602,8 +1625,9 @@ local function MeasureScrollBar()
     local width, height = imgui.GetWindowSize()
     local length = math.max(8, height * height / (height + most))
     local right = x + width
-    scrollMin[1], scrollMin[2] = right - scrollWidth, y + (height - length) * scrolled / most
-    scrollMax[1], scrollMax[2] = right, scrollMin[2] + length
+    local bar = scrollBar
+    bar.min[1], bar.min[2] = right + bar.gap, y + (height - length) * scrolled / most
+    bar.max[1], bar.max[2] = right + bar.gap + bar.width, bar.min[2] + length
     return true
 end
 
@@ -1611,7 +1635,7 @@ local function FinishTab(group, unified)
     local scrolls = MeasureScrollBar()
     imgui.EndChild()
     if scrolls then
-        imgui.GetWindowDrawList():AddRectFilled(scrollMin, scrollMax, imgui.GetColorU32(scrollWhite), 1)
+        imgui.GetWindowDrawList():AddRectFilled(scrollBar.min, scrollBar.max, imgui.GetColorU32(scrollBar.white), 1)
     end
     if hoveredItem ~= nil and not itemMenu.open and not drag.moving then
         AddTooltip(hoveredItem)
@@ -1628,7 +1652,6 @@ for index = 1, #tabGroups do
     gridIds[index] = '##inv.grid.' .. index
 end
 local gridFlags = bit.bor(ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar)
-local gridChildFlags = bit.bor(ImGuiChildFlags_AutoResizeY, ImGuiChildFlags_AlwaysUseWindowPadding)
 
 -- Begins one of the four tabs. With the controller it is also where a change of tab is asked for and
 -- where the tab that is showing is noted.
@@ -1665,15 +1688,11 @@ local function BeginTab(index, label)
         viewportMin[1], viewportMax[1] = viewportSize[1], viewportSize[1]
         viewportMin[2] = previewGrid and viewportMax[2] or 1
         imgui.SetNextWindowSizeConstraints(viewportMin, viewportMax)
-        -- The parent already supplies Winxi padding; the child's own is only the room for the
-        -- outlines (gridPadding), which imgui gives a child without a border only when asked
-        -- (AlwaysUseWindowPadding): without it the slots sit against the left of the child and
-        -- all of its extra width is on the right. It has no scrollbar of its own, which would take room from the
-        -- slots' right and look like padding there (the theme's track is clear): the wheel still
-        -- scrolls it, and FinishTab draws a slim bar in the right margin in its place.
-        imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, gridPadding)
-        local shown = imgui.BeginChild(gridIds[index], viewportSize, gridChildFlags, gridFlags)
-        imgui.PopStyleVar()
+        -- The parent supplies Winxi padding; the child, with no border, has none of its own, and is
+        -- exactly as wide as the slots. It has no scrollbar of its own, which would take room from
+        -- the slots and look like padding (the theme's track is clear): the wheel still scrolls it,
+        -- and FinishTab draws a slim bar just outside its right edge in its place.
+        local shown = imgui.BeginChild(gridIds[index], viewportSize, ImGuiChildFlags_AutoResizeY, gridFlags)
         if not shown then
             imgui.EndChild()
             imgui.EndTabItem()
@@ -1746,16 +1765,16 @@ local function DrawDrag()
     end
     local mx, my = imgui.GetMousePos()
     if imgui.IsMouseDown(0) then
-        if not drag.moving and mx ~= nil and math.abs(mx - drag.x) + math.abs(my - drag.y) >= dragStart then
+        if not drag.moving and mx ~= nil and math.abs(mx - drag.x) + math.abs(my - drag.y) >= drag.start then
             drag.moving = true
         end
         local place = drag.moving and iconSheet ~= nil and itemicons.Place(drag.item.id) or nil
         if place ~= nil then
-            dragMin[1], dragMin[2] = mx - iconSize / 2, my - iconSize / 2
-            dragMax[1], dragMax[2] = dragMin[1] + iconSize, dragMin[2] + iconSize
+            drag.min[1], drag.min[2] = mx - iconSize / 2, my - iconSize / 2
+            drag.max[1], drag.max[2] = drag.min[1] + iconSize, drag.min[2] + iconSize
             uvMin[1], uvMin[2], uvMax[1], uvMax[2] = place[1], place[2], place[3], place[4]
-            imgui.GetForegroundDrawList():AddImage(iconSheet, dragMin, dragMax, uvMin, uvMax,
-                imgui.GetColorU32(dragWhite))
+            imgui.GetForegroundDrawList():AddImage(iconSheet, drag.min, drag.max, uvMin, uvMax,
+                imgui.GetColorU32(drag.white))
         end
         return
     end
@@ -2066,10 +2085,10 @@ ashita.events.register('d3d_present', 'inv_present', function()
     options.gridRows[1] = math.max(5, math.min(30, math.floor(options.gridRows[1])))
     rowLengthIsh = options.gridColumns[1]
     local rows = options.gridRows[1]
-    viewportSize[1] = rowLengthIsh * (iconSize + itemGap[1]) - itemGap[1] + 2 * gridPadding[1]
+    viewportSize[1] = rowLengthIsh * (iconSize + itemGap[1]) - itemGap[1]
     previewSlots = rows * rowLengthIsh
     viewportSize[2] = 0 -- AutoResizeY fits actual content, bounded by the selected rows
-    viewportMax[2] = rows * stepY - itemGap[2] + 2 * gridPadding[2]
+    viewportMax[2] = rows * stepY - itemGap[2]
 
     PadBeginFrame(options)
     windowExtra.flags = options.lockMovement[1] and ImGuiWindowFlags_NoMove or 0

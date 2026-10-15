@@ -9,8 +9,10 @@ local function check(label, ok)
 end
 local o = H.options()
 local bars, images, texts = {}, 0, {}
-local beginBar = tabs.BeginBar
-tabs.BeginBar = function(id, ...) bars[id] = true; return beginBar(id, ...) end
+local beginBar, barFlags = tabs.BeginBar, {}
+tabs.BeginBar = function(id, flags, ...) bars[id], barFlags[id] = true, flags; return beginBar(id, flags, ...) end
+local regions, beginChild = {}, imgui.BeginChild
+imgui.BeginChild = function(id, size, ...) regions[id] = { size[1], size[2] }; return beginChild(id, size, ...) end
 icons.Frame = function() return 123 end
 icons.Place = function() return { 0, 0, 1, 1 } end
 local draw = imgui.GetWindowDrawList()
@@ -39,6 +41,11 @@ check('a group of one bag has no tabs under its grid', bars['##inv.bags.sub.bag'
 H.tab(3); H.tabIn(sub, 1); frame()
 check('wardrobes: all of them together to begin with, counted as one', bars[sub] and images == 5
     and wrote('05/60') and not wrote('wardrobe 1 03/30') and not wrote('wardrobe 2 02/30'))
+-- six columns of slots 40 apart: 232 across, as the grid is
+local region = regions['##inv.bags.sub.region.wardrobe']
+check('the tabs under the grid are in a region as wide as the grid, and shrink to fit it', region ~= nil
+    and region[1] == 232 and regions['##inv.grid.3'][1] == 232
+    and bit.band(barFlags[sub], ImGuiTabBarFlags_FittingPolicyShrink) ~= 0)
 H.tabIn(sub, 2); frame()
 check('wardrobe 1 alone, with its count alone', images == 3 and wrote('03/30') and not wrote('05/60'))
 H.tabIn(sub, 3); frame()
