@@ -9,6 +9,17 @@ local tabs = require('winxi.tabs')
 local beginChild, beginTab = imgui.BeginChild, tabs.Begin
 local constraints, dummy = imgui.SetNextWindowSizeConstraints, imgui.Dummy
 local bounds, spots = nil, {}
+local contentWidth, scrollbarWidth = 232, 0
+local contentAvailable = imgui.GetContentRegionAvail
+imgui.GetContentRegionAvail = function()
+    if debug.getinfo(2, 'n').name == 'BeginTab' then return contentWidth, 1000 end
+    return contentAvailable()
+end
+local cursorX, countX = imgui.SetCursorPosX, nil
+imgui.SetCursorPosX = function(x)
+    if debug.getinfo(2, 'n').name == 'DrawCountsRow' then countX = x end
+    return cursorX(x)
+end
 imgui.SetNextWindowSizeConstraints = function(minimum, maximum)
     bounds = { minimum[2], maximum[2] }
     return constraints(minimum, maximum)
@@ -22,7 +33,7 @@ local emptyRects = {}
 local drawList = imgui.GetWindowDrawList()
 local rect = drawList.AddRectFilled
 function drawList:AddRectFilled(minimum, maximum, ...)
-    if maximum[1] - minimum[1] == 32 and maximum[2] - minimum[2] == 32 then
+    if math.abs(maximum[1] - minimum[1] - 32) < 0.001 and maximum[2] - minimum[2] == 32 then
         emptyRects[#emptyRects + 1] = { minimum[1], minimum[2] }
     end
     return rect(self, minimum, maximum, ...)
@@ -31,8 +42,9 @@ imgui.BeginChild = function(id, size, childFlags, windowFlags)
     assert(type(childFlags) == 'number' and type(windowFlags) == 'number',
         'BeginChild requires numeric child and window flags in the current ImGui binding')
     assert(childFlags == ImGuiChildFlags_AutoResizeY, 'grid should collapse to its contents')
-    assert(windowFlags == require('bit').bor(ImGuiWindowFlags_NoBackground,
-        ImGuiWindowFlags_AlwaysVerticalScrollbar), 'grid should be transparent with reserved scrollbar space')
+    assert(windowFlags == ImGuiWindowFlags_NoBackground,
+        'grid should be transparent without forcing a scrollbar')
+    contentWidth = size[1] - scrollbarWidth
     children[#children + 1] = { id, size[1], bounds[2], bounds[1] }
     return beginChild(id, size, childFlags, windowFlags)
 end
@@ -50,23 +62,25 @@ H.gil(5000)
 o.isVisible[1], o.fadeInOut[1], o.treasurePool[1], o.controller[1] = true, false, false, false
 o.showEmptySlots[1] = false
 H.bag(0, 80, { { 1 }, { 2 }, { 3 } })
-o.gridRows[1], o.gridColumns[1] = 3, 4
+o.gridRows[1], o.gridColumns[1] = 5, 6
 frame()
 check('four tabs enabled by default', table.concat(labels, ',') == 'bag,satchel,ward,house')
-check('grid viewport follows rows and columns', #children == 1 and children[1][2] == 166 and children[1][3] == 104)
+check('grid viewport follows rows and columns', #children == 1 and children[1][2] == 232 and children[1][3] == 176)
 o.maxHeight[1] = 100
 frame()
-check('legacy max height no longer limits the grid', children[1][3] == 104)
+check('legacy max height no longer limits the grid', children[1][3] == 176)
 o.gridRows[1], o.gridColumns[1] = 0, 100
 frame()
-check('out-of-range grid settings clamped for drawing', children[1][2] == 1206 and children[1][3] == 32)
-o.gridRows[1], o.gridColumns[1] = 3, 4
+check('out-of-range settings clamped', children[1][2] == 1192 and children[1][3] == 176)
+o.gridRows[1], o.gridColumns[1] = 0, 0
+frame()
+check('minimum columns and rows enforced in saved settings', o.gridColumns[1] == 6 and o.gridRows[1] == 5)
 for _, unified in ipairs({ true, false }) do
     o.isUnified[1] = unified
     o.bagTabs.satchel[1], o.bagTabs.wardrobe[1] = false, false
     frame()
     check('hidden groups omitted (' .. tostring(unified) .. ')', table.concat(labels, ',') == 'bag,house')
-    check('same viewport in both bag layouts', #children == 1 and children[1][3] == 104)
+    check('same viewport in both bag layouts', #children == 1 and children[1][3] == 176)
 end
 
 o.controller[1] = true
@@ -96,7 +110,7 @@ frame()
 check('closed settings allow grid to collapse', children[1][4] == 1)
 local function hasGrid(width, height)
     for _, spot in ipairs(spots) do
-        if spot[1] == width and spot[2] == height then return true end
+        if math.abs(spot[1] - width) < 0.001 and spot[2] == height then return true end
     end
     return false
 end
@@ -104,16 +118,33 @@ check('closed settings only reserve actual items', hasGrid(112, 32))
 H.ret.GetWindowPos, H.ret.GetWindowSize = { 0, 0 }, { 1000, 1000 }
 H.command('/inv config'); frame()
 check('settings preview reserves chosen rows', children[1][4] == children[1][3])
-check('settings preview draws all chosen slots', hasGrid(152, 104))
-check('four-column preview positions last column and wraps next row', #emptyRects == 9
-    and emptyRects[1][1] == 130 and emptyRects[1][2] == 20
-    and emptyRects[2][1] == 10 and emptyRects[2][2] == 56)
-o.gridRows[1], o.gridColumns[1] = 2, 5
+check('settings preview draws all chosen slots', hasGrid(232, 176))
+check('six-column preview fills final column then wraps', #emptyRects == 27
+    and emptyRects[3][1] == 210 and emptyRects[3][2] == 20
+    and emptyRects[4][1] == 10 and emptyRects[4][2] == 56)
+o.gridRows[1], o.gridColumns[1] = 7, 8
 frame()
-check('changing dimensions immediately redraws preview', hasGrid(192, 68))
-check('five-column preview moves slots into fifth column before wrapping', #emptyRects == 7
-    and emptyRects[2][1] == 170 and emptyRects[2][2] == 20
-    and emptyRects[3][1] == 10 and emptyRects[3][2] == 56)
+check('increasing dimensions expands preview', hasGrid(312, 248)
+    and children[1][2] == 312 and children[1][3] == 248)
+check('eight-column preview fills eighth column then wraps', #emptyRects == 53
+    and emptyRects[5][1] == 290 and emptyRects[5][2] == 20
+    and emptyRects[6][1] == 10 and emptyRects[6][2] == 56)
+o.gridRows[1], o.gridColumns[1] = 5, 6
+H.ret.GetContentRegionAvail = { 5000, 1000 } -- simulate a previously much wider window
+frame()
+check('decreasing dimensions shrinks preview', hasGrid(232, 176)
+    and children[1][2] == 232 and children[1][3] == 176)
+check('footer does not hold window at previous width', countX == 230)
+scrollbarWidth = 14 -- emulate ImGui subtracting a visible scrollbar from content width
+frame()
+check('scrollbar does not enlarge the window', children[1][2] == 232)
+check('scrollbar tightens gaps while retaining six full-sized columns', hasGrid(218, 176)
+    and math.abs(emptyRects[3][1] - 196) < 0.001
+    and emptyRects[3][2] == 20 and emptyRects[4][1] == 10 and emptyRects[4][2] == 56)
+scrollbarWidth = 0
+frame()
+check('normal spacing restored when scrollbar disappears', hasGrid(232, 176)
+    and emptyRects[3][1] == 210)
 H.command('/inv config'); frame()
 check('closing settings removes preview slots', hasGrid(112, 32) and children[1][4] == 1)
 

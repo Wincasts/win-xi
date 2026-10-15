@@ -5,6 +5,10 @@ cd "$(dirname "$0")/.." || exit 1
 run() { echo "== $1"; luajit tests/harness.lua "$1" "$2" "tests/$3" 2>&1; echo; }
 run inventory  addons/inventory/inventory.lua inventory_check.lua
 run inventory  addons/inventory/inventory.lua inventory_grid_check.lua
+run inventory  addons/inventory/inventory.lua inventory_settings_check.lua
+run inventory  addons/inventory/inventory.lua inventory_equipment_check.lua
+run inventory  addons/inventory/inventory.lua inventory_equipment_decorations_check.lua
+run inventory  addons/inventory/inventory.lua inventory_equipment_performance_check.lua
 run inventory  addons/inventory/inventory.lua inventory_performance_check.lua
 run treas      addons/treas/treas.lua   treas_check.lua
 run mark       addons/mark/mark.lua     mark_check.lua
