@@ -43,6 +43,7 @@ run party      addons/party/party.lua party_rearrange_check.lua
 run party      addons/party/party.lua party_cursor_check.lua
 run party      addons/party/party.lua party_dropdowns_check.lua
 run party      addons/party/party.lua winxi_fonts_check.lua
+run screen     tests/empty.lua          winxi_screen_check.lua
 run party      addons/party/party.lua winxi_settings_window_check.lua
 run party      addons/party/party.lua winxi_backgrounds_check.lua
 run inventory  addons/inventory/inventory.lua winxi_tabs_check.lua

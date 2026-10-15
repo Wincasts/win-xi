@@ -2,6 +2,7 @@
 local imgui = require('imgui');
 local settings = require('settings');
 local modes = require('modes');
+local screen = require('winxi.screen');
 local M = { open = { false } };
 local function defaults()
     local channels = T{};
@@ -66,6 +67,7 @@ ashita.events.register('unload', 'chatbubbles_save', M.Save);
 function M.Draw()
     if (not M.open[1]) then return; end
     if (imgui.Begin('Chat Bubbles Settings', M.open)) then
+        screen.Keep('Chat Bubbles Settings');
         if (imgui.Checkbox('Enable bubbles', M.options.enabled)) then M.Save(); end
         if (imgui.BeginTabBar('##chatbubbles.settings')) then
             if (imgui.BeginTabItem('Appearance')) then
