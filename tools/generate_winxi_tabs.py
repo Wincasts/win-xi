@@ -145,6 +145,28 @@ def tab(texture, w, h, color):
     return out
 
 
+def bar_line(out, left, right, y, chosen_left, chosen_right, styled, color):
+    """the line under the tabs as tabs.lua draws it, or imgui's own for Plain"""
+    d = ImageDraw.Draw(out)
+    if not styled:
+        d.line((left, y - 1, right - 1, y - 1), fill=color)
+        return
+    over = Image.new('RGBA', out.size)
+    od = ImageDraw.Draw(over)
+    width, fade = right - left, (right - left) * 0.25
+    rgb = color[:3]
+    for x in range(left, right):
+        at = x - left
+        amount = min(1, at / fade, (width - at) / fade)
+        od.line((x, y - 1, x, y), fill=rgb + (round(255 * amount),))
+        if fade <= at <= width - fade:
+            od.point((x, y + 1), fill=(0, 0, 0, 76))
+            od.point((x, y + 2), fill=(0, 0, 0, 38))
+    od.rectangle((chosen_left, y - 1, chosen_right - 1, y), fill=tuple(min(255, round(c * 1.25)) for c in rgb) + (255,))
+    od.line((chosen_left, y - 1, chosen_right - 1, y - 1), fill=(255, 255, 255, 110))
+    out.alpha_composite(Image.alpha_composite(Image.new('RGBA', out.size), over))
+
+
 def preview(textures):
     names = ['plain', 'sheen', *TEXTURES]
     columns, w, h = 4, 230, 70
@@ -164,7 +186,7 @@ def preview(textures):
             left, tw = x + 8 + t * 72, 66
             out.alpha_composite(tab(texture, tw, 24, color), (left, y + 12))
             d.text((left + 10, y + 15), label, font=small, fill='#ffffff')
-        d.line((x + 8, y + 36, x + w - 9, y + 36), fill=chosen)
+        bar_line(out, x + 8, x + w - 8, y + 36, x + 8, x + 74, name != 'plain', chosen)
     out.convert('RGB').save(ROOT / 'preview.png')
 
 

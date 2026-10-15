@@ -1,6 +1,6 @@
 -- The theme's tab style: nothing for Plain, the sheen kept inside the tab's rounded top, an image's
 -- edges and repeated middle across the whole tab and stretched only down it, an image that will not
--- load drawing nothing, a tab narrower than its edges, and tabs.Begin
+-- load drawing nothing, a tab narrower than its edges, tabs.Begin, and the line under a bar's tabs
 H.load()
 local imgui = require('imgui')
 local theme = require('winxi.theme')
@@ -18,13 +18,13 @@ end
 assert(look.TabStyle == 'sheen', 'Sheen to start with, as inventory had')
 
 local list, counts, rects, images = {}, {}, {}, {}
-for _, name in ipairs({ 'AddRectFilled', 'AddImage' }) do
+for _, name in ipairs({ 'AddRectFilled', 'AddImage', 'AddRectFilledMultiColor' }) do
     list[name] = function(_, ...)
         counts[name] = (counts[name] or 0) + 1
         if name == 'AddImage' then
             local _, a, b, uvA, uvB = ...
             images[#images + 1] = { a[1], a[2], b[1], b[2], uvA[1], uvA[2], uvB[1], uvB[2] }
-        else
+        elseif name == 'AddRectFilled' then
             local a, b = ...
             rects[#rects + 1] = { a[1], a[2], b[1], b[2] }
         end
@@ -88,6 +88,38 @@ look.TabStyle = 'bevel'; Reset()
 assert(tabs.Begin('bag', 7) == true and begun[1] == 'bag' and begun[2] == 0 and begun[3] == 7 and counts.AddImage ~= nil)
 imgui.BeginTabItem = beginTab
 
+-- the line under a bar's tabs: imgui's own left alone for Plain; otherwise none of imgui's, and this one
+-- drawn once, with the bar's first tab, across the bar under the tabs, and the chosen tab's part brighter
+ImGuiStyleVar_TabBarBorderSize = ImGuiStyleVar_TabBarBorderSize or 1001
+local pushes, getCursor, getAvail = {}, imgui.GetCursorScreenPos, imgui.GetContentRegionAvail
+local pushVar, popVar, beginBar = imgui.PushStyleVar, imgui.PopStyleVar, imgui.BeginTabBar
+imgui.PushStyleVar = function(var, value) pushes[#pushes + 1] = { var, value } end
+imgui.PopStyleVar = function() end
+imgui.BeginTabBar = function() return true end
+imgui.GetCursorScreenPos = function() return 10, 0 end
+imgui.GetContentRegionAvail = function() return 300, 100 end
+local lines = {}
+list.AddRectFilledMultiColor = function(_, a, b) counts.AddRectFilledMultiColor = (counts.AddRectFilledMultiColor or 0) + 1; lines[#lines + 1] = { a[1], a[2], b[1], b[2] } end
+
+look.TabStyle = 'plain'; Reset(); lines = {}
+assert(tabs.BeginBar('bar', 0) == true and #pushes == 0)
+tabs.Draw(true)
+assert(next(counts) == nil, 'plain: imgui\'s line')
+
+look.TabStyle = 'sheen'; Reset(); lines = {}
+assert(tabs.BeginBar('bar', 0) == true and #pushes == 1 and pushes[1][1] == ImGuiStyleVar_TabBarBorderSize and pushes[1][2] == 0)
+tabs.Draw(false)
+assert(counts.AddRectFilledMultiColor == 4, 'the line in three and the shade under it')
+assert(lines[1][1] == 10 and lines[3][3] == 310 and lines[1][2] == 39 and lines[1][4] == 41, 'across the bar, under the tabs')
+Reset(); lines = {}
+tabs.Draw(true)
+assert(counts.AddRectFilledMultiColor == nil, 'drawn once a bar')
+local chosen = rects[#rects - 1]
+assert(chosen[1] == 10 and chosen[3] == 160 and chosen[2] == 39 and chosen[4] == 41, 'the chosen tab\'s part of the line')
+
+imgui.PushStyleVar, imgui.PopStyleVar, imgui.BeginTabBar = pushVar, popVar, beginBar
+imgui.GetCursorScreenPos, imgui.GetContentRegionAvail = getCursor, getAvail
+
 look.TabStyle, tabs.Load = 'sheen', load
 imgui.GetWindowDrawList, imgui.GetStyle, imgui.GetItemRectMin, imgui.GetItemRectMax = getList, getStyle, rectMin, rectMax
-H.print('tabs: plain draws nothing, sheen inside the rounded top, images edge to edge and only stretched down, missing image, narrow tab, Begin', true)
+H.print('tabs: plain draws nothing, sheen inside the rounded top, images edge to edge and only stretched down, missing image, narrow tab, Begin, the line under the tabs', true)

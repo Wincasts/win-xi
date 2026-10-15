@@ -2,8 +2,10 @@
 --
 --   tabs.Begin(label, flags)   in place of imgui.BeginTabItem(label, 0, flags): the tab, with the style
 --                              over it. Returns what BeginTabItem does.
---   tabs.Draw()                straight after an imgui.BeginTabItem of the addon's own: the style over
---                              the tab just begun
+--   tabs.Draw(chosen)          straight after an imgui.BeginTabItem of the addon's own: the style over
+--                              the tab just begun. chosen: what BeginTabItem returned
+--   tabs.BeginBar(id, flags)   in place of imgui.BeginTabBar: the bar, with the line under its tabs in
+--                              the style. Returns what BeginTabBar does; EndTabBar as ever.
 --
 -- Only for a window of the game kind (winxi.window's kinds): a settings window's tabs are left plain.
 --
@@ -14,6 +16,10 @@
 -- tools/generate_winxi_tabs.py: the first and last 4 columns are the tab's edges, the 56 between them
 -- repeated across it, and every row stretched to its height. Both keep to the tab's rounded top
 -- corners, and fade with the window.
+--
+-- With any style but 'plain', the line imgui draws under a bar's tabs is drawn here in its place: in
+-- the Highlight Color, two pixels deep, solid under the middle of the bar and fading out toward both
+-- ends, brighter under the chosen tab with a fine light edge along its top, and a soft shade below it.
 local ffi = require('ffi');
 local d3d = require('d3d8');
 local imgui = require('imgui');
@@ -152,7 +158,82 @@ local function DrawImage(list, texture, left, top, right, height, radius)
     Band(list, texture, tint, left, right, left, right, top + rounded, top + height, rounded / height, 1);
 end
 
-function tabs.Draw()
+-- The line under a bar's tabs: where the bar runs across, set by BeginBar and drawn with its first tab
+local pendingLeft, pendingRight = nil, nil;
+local lineColor, clearColor = { 0, 0, 0, 0 }, { 0, 0, 0, 0 };
+local edgeLight, shadeDark, shadeClear = { 1, 1, 1, 0.30 }, { 0, 0, 0, 0.30 }, { 0, 0, 0, 0 };
+local lineFade = 0.25;    -- how much of the bar, at each end, the line takes to fade out
+local lineStrength = 1.6; -- how much more solid than the Highlight Color the line is, and the chosen tab's part
+local chosenStrength = 2.4;
+
+local function LineColor(into, strength)
+    local highlight = theme.Get().HighlightColor;
+    into[1], into[2], into[3] = highlight[1], highlight[2], highlight[3];
+    into[4] = math.min(1, highlight[4] * strength);
+    return into;
+end
+
+local function Fill(list, left, top, right, bottom, leftColor, rightColor, topToBottom)
+    from[1], from[2], to[1], to[2] = left, top, right, bottom;
+    if topToBottom then
+        -- leftColor at the top, rightColor at the foot
+        list:AddRectFilledMultiColor(from, to, leftColor, leftColor, rightColor, rightColor);
+    else
+        list:AddRectFilledMultiColor(from, to, leftColor, rightColor, rightColor, leftColor);
+    end
+end
+
+local function DrawLine(list, left, right, y)
+    local width = right - left;
+    if width < 4 then
+        return;
+    end
+    -- GetColorU32 takes in the window's Alpha, and so a fading window's fade
+    local solid = imgui.GetColorU32(LineColor(lineColor, lineStrength));
+    clearColor[1], clearColor[2], clearColor[3], clearColor[4] = lineColor[1], lineColor[2], lineColor[3], 0;
+    local clear = imgui.GetColorU32(clearColor);
+    local fade = width * lineFade;
+    Fill(list, left, y - 1, left + fade, y + 1, clear, solid);
+    Fill(list, left + fade, y - 1, right - fade, y + 1, solid, solid);
+    Fill(list, right - fade, y - 1, right, y + 1, solid, clear);
+    -- the shade under it, fading as the line does
+    local dark, none = imgui.GetColorU32(shadeDark), imgui.GetColorU32(shadeClear);
+    Fill(list, left + fade, y + 1, right - fade, y + 3, dark, none, true);
+end
+
+-- Under the chosen tab: the line brighter, with a fine light edge along its top
+local function DrawChosen(list, left, right, y)
+    local packed = imgui.GetColorU32(LineColor(lineColor, chosenStrength));
+    from[1], from[2], to[1], to[2] = left, y - 1, right, y + 1;
+    list:AddRectFilled(from, to, packed);
+    from[2], to[2] = y - 1, y;
+    list:AddRectFilled(from, to, imgui.GetColorU32(edgeLight));
+end
+
+function tabs.BeginBar(id, flags)
+    local style = theme.Get().TabStyle;
+    local styled = style == 'sheen' or files[style];
+    local pushed = styled and ImGuiStyleVar_TabBarBorderSize ~= nil;
+    if styled then
+        -- the bar runs across what is left of the window's width, from where it starts
+        local x = imgui.GetCursorScreenPos();
+        local width = imgui.GetContentRegionAvail();
+        pendingLeft, pendingRight = x, x + width;
+    else
+        pendingLeft, pendingRight = nil, nil;
+    end
+    -- imgui draws its own line as the bar begins: none, where this one takes its place
+    if pushed then
+        imgui.PushStyleVar(ImGuiStyleVar_TabBarBorderSize, 0);
+    end
+    local open = imgui.BeginTabBar(id, flags or 0);
+    if pushed then
+        imgui.PopStyleVar();
+    end
+    return open;
+end
+
+function tabs.Draw(chosen)
     local style = theme.Get().TabStyle;
     if style ~= 'sheen' and not files[style] then
         return;
@@ -163,22 +244,30 @@ function tabs.Draw()
     if height < 2 or right - left < 2 then
         return;
     end
+    local list = imgui.GetWindowDrawList();
     local imguiStyle = imgui.GetStyle();
     local radius = math.floor(math.min(imguiStyle.TabRounding or 0, height / 2, (right - left) / 2));
-    local list = imgui.GetWindowDrawList();
     if style == 'sheen' then
         DrawSheen(list, left, top, right, height, radius, imguiStyle.Alpha or 1);
-        return;
+    else
+        local texture = Texture(style);
+        if texture ~= nil then
+            DrawImage(list, texture, left, top, right, height, radius);
+        end
     end
-    local texture = Texture(style);
-    if texture ~= nil then
-        DrawImage(list, texture, left, top, right, height, radius);
+    -- the line after the tab, so that the tab's foot does not shade it
+    if pendingLeft ~= nil then
+        DrawLine(list, pendingLeft, pendingRight, bottom);
+        pendingLeft, pendingRight = nil, nil;
+    end
+    if chosen then
+        DrawChosen(list, left, right, bottom);
     end
 end
 
 function tabs.Begin(label, flags)
     local open = imgui.BeginTabItem(label, 0, flags or 0);
-    tabs.Draw();
+    tabs.Draw(open);
     return open;
 end
 
