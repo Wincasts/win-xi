@@ -1,15 +1,16 @@
 -- The inventory's own tabs of the settings: General (the window, the controller; the shell adds
--- Visibility after them) and Bags (the grid, and which tabs it has). Treasure and Equipment are
+-- Visibility after them) and Inventory (the grid, which tabs it has, and the currencies under it). Treasure and Equipment are
 -- pool.DrawSettings and equipment.DrawSettings, laid out the same way: what turns them on, whether they
 -- are attached to the inventory window, their pin, where they are, then how they look.
 --
 --   config.General(options)   the General tab
---   config.Bags(options)      the Bags tab
+--   config.Inventory(options) the Inventory tab
 --   config.tabGroups, config.tabNames   the inventory's main tabs, set by inventory.lua
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
+local currency = require('currency')
 
 local config = { tabGroups = { }, tabNames = { } }
 local windowName = 'winxi.inventory'
@@ -77,7 +78,31 @@ local function Count(label, id, value, low, high, tip)
     value[1] = math.max(low, math.min(high, value[1]))
 end
 
-function config.Bags(options)
+-- One of the two currencies on the row under the gil: none, or any of the game's
+local currencyIds = { currency1 = '##inv.currency1', currency2 = '##inv.currency2' }
+local noneId = 'None##inv.currency.none'
+local currencyItemIds = {}
+for _, entry in ipairs(currency.list) do
+    currencyItemIds[entry.key] = entry.name .. '##inv.currency.' .. entry.key
+end
+local function CurrencyChoice(options, key, label)
+    widgets.Label(label)
+    local chosen = options[key]
+    if imgui.BeginCombo(currencyIds[key], currency.Name(chosen) or 'None') then
+        if imgui.Selectable(noneId, currency.Name(chosen) == nil) then
+            options[key] = ''
+        end
+        for _, entry in ipairs(currency.list) do
+            if imgui.Selectable(currencyItemIds[entry.key], entry.key == chosen) then
+                options[key] = entry.key
+            end
+        end
+        imgui.EndCombo()
+    end
+    tooltip.Hover('A currency to show on a row under the gil, as many as the game\'s Currencies menu says you have. Its count is asked of the server as the inventory window is shown, and every minute while it stays.')
+end
+
+function config.Inventory(options)
     if widgets.Header('Grid', true) then
         Count('Rows', '##inv.gridRows', options.gridRows, 5, 30,
             'How many rows of slots the grid shows before it scrolls, from 5 to 30.')
@@ -97,6 +122,11 @@ function config.Bags(options)
             widgets.Label('Show ' .. name .. ' Tab')
             imgui.Checkbox('##inv.tab.' .. key, options.bagTabs[key])
         end
+    end
+
+    if widgets.Header('Currencies') then
+        CurrencyChoice(options, 'currency1', 'Currency 1')
+        CurrencyChoice(options, 'currency2', 'Currency 2')
     end
 end
 
