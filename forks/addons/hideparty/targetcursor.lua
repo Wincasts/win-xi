@@ -83,13 +83,17 @@ cursorTransform._33, cursorTransform._44 = 1, 1
 -- GetSubTargetFlags reads 0xFFFFFFFF when nothing is being selected.
 local SUBTARGET_NONE = 0xFFFFFFFF
 
--- Made on the first frame drawn, when the device is certain to be there.
+-- Made on the first frame drawn, when the device is certain to be there. The device's own view,
+-- projection and viewport are read into these each frame through its vtable, as the d3d8 wrapper's
+-- would allocate a new one on every call.
 local d3d8dev
 local sprite
+local viewOut, projectionOut, viewportOut
 local width, height = 0, 0
 local warned = false
+local textures = {} -- texture handle -> the pointer DrawTransform takes, cast once
 
--- Scratch matrix, reused every call to avoid allocating one per frame.
+-- view * projection for this frame, worked out once however many cursors are drawn.
 local viewProj = ffi.new('D3DXMATRIX')
 
 -- view * projection, written INTO `out` rather than returned.
@@ -115,10 +119,8 @@ local function matrixMultiply(out, m1, m2)
     out._44 = m1._41 * m2._14 + m1._42 * m2._24 + m1._43 * m2._34 + m1._44 * m2._44
 end
 
--- Row-vector convention: v * (view * projection), then NDC -> raster.
-local function worldToScreen(x, y, z, view, projection)
-    matrixMultiply(viewProj, view, projection)
-
+-- Row-vector convention: v * viewProj, then NDC -> raster.
+local function worldToScreen(x, y, z)
     local rhw = 1 / (viewProj._14 * x + viewProj._24 * y + viewProj._34 * z + viewProj._44)
 
     local ndcX = (viewProj._11 * x + viewProj._21 * y + viewProj._31 * z + viewProj._41) * rhw
@@ -339,11 +341,7 @@ local function getPos(targetIndex, slot)
         end
     end
 
-    -- Get the transformation matrices for the scene
-    local _, view = d3d8dev:GetTransform(C.D3DTS_VIEW)
-    local _, projection = d3d8dev:GetTransform(C.D3DTS_PROJECTION)
-
-    return worldToScreen(tx, tz, ty, view, projection)
+    return worldToScreen(tx, tz, ty)
 end
 
 -- One frame of the sprite, its cell taken from the atlas and its corners laid around the tip at x, y:
@@ -358,7 +356,12 @@ local function drawFrame(handle, frame, x, y, color)
     cursorTransform._22 = s * (c[6] - c[2]) / h
     cursorTransform._41 = x + s * c[1]
     cursorTransform._42 = y + s * c[2]
-    sprite:DrawTransform(ffi.cast('IDirect3DTexture8*', handle), cursorRect, cursorTransform, color)
+    local texture = textures[handle]
+    if (texture == nil) then
+        texture = ffi.cast('IDirect3DTexture8*', handle)
+        textures[handle] = texture
+    end
+    sprite:DrawTransform(texture, cursorRect, cursorTransform, color)
 end
 
 -- The game's cursor as it is, or the grey copy multiplied by tint; nil when neither has loaded.
@@ -380,7 +383,35 @@ local function drawCursor(x, y, opacity, tint)
     end
 end
 
+-- The sub cursor's color carries range, so colorInRange owns it whenever
+-- there is no action target to measure.
+local function drawSub(idx, x, y)
+    drawCursor(x, y, subCursorOpacity, rangeColorFor(idx) or colorInRange)
+end
+
+-- The sprite, the scratch the device is read into and both textures, made before there is anything to
+-- draw: the DAT is read once, when the frame is first hidden, not on the frame something is targeted.
+local function prepare()
+    d3d8dev = d3d.get_device()
+    local sprite_ptr = ffi.new('ID3DXSprite*[1]')
+    if (d3d8dev == nil or C.D3DXCreateSprite(d3d8dev, sprite_ptr) ~= C.S_OK) then
+        return false
+    end
+    sprite = d3d.gc_safe_release(ffi.cast('ID3DXSprite*', sprite_ptr[0]))
+    viewOut, projectionOut = ffi.new('D3DMATRIX[1]'), ffi.new('D3DMATRIX[1]')
+    viewportOut = ffi.new('D3DVIEWPORT8[1]')
+    cursor.Get(false, 'anc_l')
+    if (colorMainCursor ~= nil or rangeColors) then
+        cursor.Get(false, 'anc_l', true)
+    end
+    return true
+end
+
 function targetcursor.Draw()
+    if (sprite == nil and not prepare()) then
+        return
+    end
+
     -- Save the target manager for ease of use
     local target = AshitaCore:GetMemoryManager():GetTarget()
 
@@ -395,28 +426,20 @@ function targetcursor.Draw()
         return
     end
 
-    if (sprite == nil) then
-        d3d8dev = d3d.get_device()
-        local sprite_ptr = ffi.new('ID3DXSprite*[1]')
-        if (d3d8dev == nil or C.D3DXCreateSprite(d3d8dev, sprite_ptr) ~= C.S_OK) then
-            return
-        end
-        sprite = d3d.gc_safe_release(ffi.cast('ID3DXSprite*', sprite_ptr[0]))
+    local device = d3d8dev.lpVtbl
+    if (device.GetViewport(d3d8dev, viewportOut) ~= C.S_OK
+        or device.GetTransform(d3d8dev, C.D3DTS_VIEW, viewOut) ~= C.S_OK
+        or device.GetTransform(d3d8dev, C.D3DTS_PROJECTION, projectionOut) ~= C.S_OK) then
+        return
     end
-    local _, viewport = d3d8dev:GetViewport()
-    width, height = viewport.Width, viewport.Height
+    width, height = tonumber(viewportOut[0].Width), tonumber(viewportOut[0].Height)
+    matrixMultiply(viewProj, viewOut[0], projectionOut[0])
 
     -- Get the index of your current target or subtarget (if any)
     local targetIndex = target:GetTargetIndex(isSubTargetActive)
     local targetIndexSub = nil
     if (isSubTargetActive == 1) then
         targetIndexSub = target:GetTargetIndex(0)
-    end
-
-    -- The sub cursor's color carries range, so colorInRange owns it whenever
-    -- there is no action target to measure.
-    local function drawSub(idx, x, y)
-        drawCursor(x, y, subCursorOpacity, rangeColorFor(idx) or colorInRange)
     end
 
     -- getPos returns nil, nil, nil when it cannot place this target at all - no

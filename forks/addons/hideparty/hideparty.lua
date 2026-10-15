@@ -88,9 +88,14 @@ end
 * Returns whether the game's party cursor is out: a member is being picked from the party list, in the
 * party menu or as a sub-target.
 --]]
+local party_pointer = 0;
 local function is_cursor_active()
-    local ptr = AshitaCore:GetPointerManager():Get('party');
-    if (ptr == nil or ptr == 0) then return false; end
+    -- Ashita finds the pointer once, at boot: kept here rather than looked up by name every frame.
+    if (party_pointer == 0) then
+        party_pointer = AshitaCore:GetPointerManager():Get('party') or 0;
+        if (party_pointer == 0) then return false; end
+    end
+    local ptr = party_pointer;
     ptr = ashita.memory.read_uint32(ptr);
     if (ptr == 0) then return false; end
     ptr = ashita.memory.read_uint32(ptr);

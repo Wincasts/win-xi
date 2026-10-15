@@ -9,6 +9,8 @@ realffi.cdef[[
     typedef struct ID3DXSprite ID3DXSprite;
     typedef struct { long left, top, right, bottom; } RECT;
     typedef struct { float _11, _12, _13, _14, _21, _22, _23, _24, _31, _32, _33, _34, _41, _42, _43, _44; } D3DXMATRIX;
+    typedef D3DXMATRIX D3DMATRIX;
+    typedef struct { unsigned long X, Y, Width, Height; float MinZ, MaxZ; } D3DVIEWPORT8;
 ]]
 package.loaded['ffi'] = setmetatable({ C = { S_OK = 0, D3DTS_VIEW = 2, D3DTS_PROJECTION = 3,
     D3DXCreateSprite = function() return 0 end } }, { __index = realffi })
@@ -27,11 +29,16 @@ package.preload['chat'] = function() return setmetatable({}, { __index = functio
 local printed = {}
 print, H_print = function(...) printed[#printed + 1] = table.concat({ ... }, ' ') end, print
 
--- the device: identity transforms, so a point's screen place is plain to work out
-local identity = { _11 = 1, _12 = 0, _13 = 0, _14 = 0, _21 = 0, _22 = 1, _23 = 0, _24 = 0,
-                   _31 = 0, _32 = 0, _33 = 1, _34 = 0, _41 = 0, _42 = 0, _43 = 0, _44 = 1 }
-local device = { GetViewport = function() return 0, { Width = 1920, Height = 1080 } end,
-                 GetTransform = function() return 0, identity end }
+-- the device: identity transforms, so a point's screen place is plain to work out; read through its
+-- vtable into what the caller gives, and counted
+local reads = 0
+local device = { lpVtbl = {
+    GetViewport = function(_, out) reads = reads + 1 out[0].Width, out[0].Height = 1920, 1080 return 0 end,
+    GetTransform = function(_, _, out)
+        reads = reads + 1
+        out[0]._11, out[0]._22, out[0]._33, out[0]._44 = 1, 1, 1, 1
+        return 0
+    end } }
 local drawn = {}
 local sprite = { DrawTransform = function(_, texture, rect, m, color)
     local function at(u, v) return u * m._11 + v * m._21 + m._41, u * m._12 + v * m._22 + m._42 end
@@ -71,13 +78,19 @@ addon = { name = 'hideparty' }
 
 dofile('forks/addons/hideparty/hideparty.lua')
 handlers.load()
-local function frame() drawn, asked = {}, {} handlers.d3d_present() end
+local function frame() drawn, asked, reads = {}, {}, 0 handlers.d3d_present() end
 local function command(text) handlers.command({ command = text, blocked = false }) end
 
 frame()
 check('shown: the game draws its own, nothing drawn', #drawn == 0, #asked == 0, written[0x4000 + 0x69] == 1)
 
+local idle = target.GetIsActive
+target.GetIsActive = function() return 0 end
 command('/hideparty hide')
+frame()
+check('hidden, nothing targeted: both textures made already, the device not read', #drawn == 0,
+    #asked == 2 and asked[1].group == 'anc_l' and not asked[1].neutral and asked[2].neutral, reads == 0)
+target.GetIsActive = idle
 frame()
 local d = drawn[1]
 check('hidden: target frame hidden and one cursor drawn', written[0x4000 + 0x69] == 0, #drawn == 1)
@@ -94,6 +107,7 @@ check('selecting: the sub cursor, grey copy tinted in-range blue', asked[1].neut
 flags, sub = 0xFFFFFFFF, 1
 frame()
 check('sub-targeting: the target and a sub cursor ten pixels up', #drawn == 2, drawn[2].bottom == 530)
+check('the device read once a frame however many cursors', reads == 3)
 sub = 0
 
 failing = 'DAT read: could not open ROM/119/51.DAT'
