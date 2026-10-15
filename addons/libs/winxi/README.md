@@ -34,6 +34,15 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
 | `winxi.shell` | Everything an addon with one main window would otherwise write for itself: settings, the settings window, the command, the window's frame |
 
+## Style rule: transparent child regions
+
+Child regions must show the base Winxi window underneath, never a separate child background.
+`winxi.style.PushPlain` and `PushFull` enforce a transparent `ImGuiCol_ChildBg` for both game and
+settings windows, after applying the theme palette. This is a shared style rule, not an addon setting.
+Do not override `ChildBg` or paint a separate background behind a child region. For child-specific
+window flags, `ImGuiWindowFlags_NoBackground` may also be used. Inputs, buttons and other controls
+keep their normal themed backgrounds.
+
 ## A window
 
 ```lua

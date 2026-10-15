@@ -275,6 +275,7 @@ static struct {
 // What an addon has drawn of the names, for the plugin to put in the picture. Kept apart from Shared,
 // which is in the DLL's file: this is large, and empty until an addon fills it.
 static HookDraw Draw;
+static HookBubbles Bubbles = { "NAMEBUBBLES", 1, sizeof(HookBubbles), sizeof(HookDraw), {}, {} };
 
 // The frame whose first name has been seen, so that what is done once a frame is done then
 static uint32_t NamesFrame = 0xFFFFFFFF;
@@ -482,14 +483,14 @@ static bool IsDrawFresh() {
 }
 
 // What an addon has drawn for this entity's name this frame, or null
-static const HookDrawing* FindDrawing(uint32_t entityIndex) {
-	if (entityIndex >= HOOK_ENTITIES || !IsDrawFresh() || Draw.QuadCount > HOOK_QUADS_MAX) {
+static const HookDrawing* FindDrawing(uint32_t entityIndex, const HookDraw& draw = Draw) {
+	if (entityIndex >= HOOK_ENTITIES || Shared.Frame - draw.Frame > HOOK_DRAW_FRAMES || draw.QuadCount > HOOK_QUADS_MAX) {
 		return nullptr;
 	}
 
-	const HookDrawing& drawing = Draw.Entities[entityIndex];
-	if (drawing.Frame != Draw.Frame || drawing.Count == 0 || drawing.Count > HOOK_QUADS_PER_NAME
-			|| drawing.First > Draw.QuadCount || drawing.Count > Draw.QuadCount - drawing.First) {
+	const HookDrawing& drawing = draw.Entities[entityIndex];
+	if (drawing.Frame != draw.Frame || drawing.Count == 0 || drawing.Count > HOOK_QUADS_PER_NAME
+			|| drawing.First > draw.QuadCount || drawing.Count > draw.QuadCount - drawing.First) {
 		return nullptr;
 	}
 
@@ -507,6 +508,8 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 
 	if (NamesFrame != Shared.Frame && Instance != nullptr) {
 		NamesFrame = Shared.Frame;
+		Instance->BeginBubbles(Bubbles.Draw, Bubbles.Draw.QuadCount > 0 && Bubbles.Draw.QuadCount <= HOOK_QUADS_MAX
+			&& Shared.Frame - Bubbles.Draw.Frame <= HOOK_DRAW_FRAMES);
 		Instance->BeginNames(Draw, IsDrawFresh(), Shared.TargetWidth, Shared.TargetHeight);
 	}
 
@@ -610,6 +613,15 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 					Instance->DrawCustom(pEntity->EntityIndex, *pDrawing, &Draw.Quads[pDrawing->First], at);
 					flags |= NAME_CUSTOM;
 				}
+			}
+		}
+
+		// Additive layer, independent of visibility and claims of the underlying name.
+		if (!repeat && at != nullptr && Instance != nullptr && index < HOOK_ENTITIES
+				&& Bubbles.ServerIds[index] == pEntity->EntityId) {
+			const HookDrawing* bubble = FindDrawing(index, Bubbles.Draw);
+			if (bubble != nullptr) {
+				Instance->DrawBubble(index, *bubble, &Bubbles.Draw.Quads[bubble->First], at);
 			}
 		}
 
@@ -1707,6 +1719,10 @@ int Nameplate::Init() {
 		}
 	}
 
+	ZeroMemory(&Bubbles.Draw, sizeof(Bubbles.Draw));
+	ZeroMemory(Bubbles.ServerIds, sizeof(Bubbles.ServerIds));
+	Bubbles.Draw.QuadsMax = HOOK_QUADS_MAX;
+	Bubbles.Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1);
 	Draw.QuadsMax = HOOK_QUADS_MAX;
 	Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1); // nothing drawn yet
 	Shared.Draw = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (&Draw));

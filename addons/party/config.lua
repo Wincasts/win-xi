@@ -158,10 +158,14 @@ end
 
 local function DrawEntries(tab, saved)
     widgets.BeginLabels(tab.labels)
+    local open, first = true, true
     for _, entry in ipairs(tab.entries) do
-        if entry.kind == 'gap' then
-            widgets.Gap()
-        elseif entry.when == nil or entry.when(saved) then
+        if entry.kind == 'header' then
+            open = widgets.Header(entry.label, first)
+            first = false
+        elseif entry.kind == 'gap' then
+            if open then widgets.Gap() end
+        elseif open and (entry.when == nil or entry.when(saved)) then
             local section = saved[entry.section]
             widgets.Label(entry.label, entry.experimental)
             controls[entry.kind](entry, section[entry.key], section)
@@ -172,58 +176,50 @@ end
 -- When the windows get out of the way, and whether the mouse goes through them
 local function DrawGlobal(saved)
     widgets.BeginLabels('xiframes.global')
-    widgets.Hide(saved.hide, Save)
+    if widgets.Header('Mouse Interaction', true) then
+        widgets.Label('Clickthrough')
+        imgui.Checkbox('##xiframes.clickThrough', saved.clickThrough)
+        Tooltip('The windows let the mouse through to the game. Ignored while organizing, so they can be dragged.')
+        imgui.TextDisabled('Coming soon: Clickable frames')
+    end
 
-    widgets.Gap()
-    widgets.Label('Clickthrough')
-    imgui.Checkbox('##xiframes.clickThrough', saved.clickThrough)
-    Tooltip('The windows let the mouse through to the game. Ignored while organizing, so they can be dragged.')
-end
+    if widgets.Header('Positioning') then
+        widgets.Label('Automatic Positioning')
+        if imgui.Checkbox('##party.automaticPositioning', saved.automaticPositioning) then Save() end
+        Tooltip('Main party: 15px from the right and bottom. Target: 5px above the main party.\nAlliance 2: right edge, with room reserved for full parties and a 35px gap above the fully expanded Target. Alliance 3 stays linked 5px below Alliance 2.\nSub-target and target of target are unchanged. Manual positions are preserved; disable to use them.\nDoes not resize frames. If the full layout cannot fit, windows are clamped to the screen and gaps may be smaller.')
+    end
 
--- The Theme, Window and Styles sections are winxi's; the Addon section is what is this addon's own: fading
--- while idle, and which windows it applies to
-local hookedTo = nil
-local appearanceHooks = {
-    onUseShared = function(useShared)
-        hookedTo.useSharedTheme = useShared
-        settings.save()
-    end,
-    onOwnChanged = Save,
-}
+    if widgets.Header('Visibility') then
+        widgets.Hide(saved.hide, Save)
+    end
 
-local function DrawAppearance(saved)
-    hookedTo = saved
-    widgets.Appearance(appearanceHooks)
-
-    if not widgets.Header('Addon') then return end
+    if not widgets.Header('Fading') then return end
+    imgui.Indent()
     widgets.PushControlWidth()
     local fade = saved.fade
-    widgets.Fade(fade, Save)
+    widgets.Fade(fade, Save, true)
 
     -- A chosen window fades out while idle, and fades in and out as it appears and goes (the target
     -- window as a target is taken and dropped)
-    if fade.Enabled then
-        widgets.Label('Windows That Fade')
-        for index, group in ipairs(windows.Groups) do
-            if index > 1 then
-                imgui.SameLine()
-            end
-            group.id = group.id or ('%s##xiframes.fade'):format(group.label)
-            imgui.Checkbox(group.id, fade.windows[group.key])
+    if fade.Enabled and widgets.Header('Affected Windows') then
+        for _, group in ipairs(windows.Groups) do
+            widgets.Label(group.label)
+            group.id = group.id or ('##xiframes.fade.%s'):format(group.key)
+            if imgui.Checkbox(group.id, fade.windows[group.key]) then Save() end
             Tooltip('Fades out while you are idle, and fades in and out as it appears and goes.')
         end
     end
     widgets.PopControlWidth()
+    imgui.Unindent()
 end
 
 config.Tabs = {
-    { name = 'Global Settings', draw = DrawGlobal },
+    { name = 'Behavior', draw = DrawGlobal },
 }
 for _, tab in ipairs(options.Tabs) do
     tab.labels = ('xiframes.%s'):format(tab.name:lower())
     table.insert(config.Tabs, { name = tab.name, draw = function(saved) DrawEntries(tab, saved) end })
 end
-table.insert(config.Tabs, { name = widgets.ThemeTabLabel, draw = DrawAppearance, theme = true })
 
 -- The window is never narrower than this, so it does not jump about as the tabs are switched. It has
 -- the theme's settings window values, apart from the game windows' that are set in it.
@@ -238,12 +234,7 @@ local function DrawContent()
 
     if imgui.BeginTabBar('##xiframes.config', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
         for _, tab in ipairs(config.Tabs) do
-            if tab.theme then
-                if widgets.BeginThemeTab() then
-                    tab.draw(drawing)
-                    widgets.EndThemeTab()
-                end
-            elseif imgui.BeginTabItem(tab.name) then
+            if imgui.BeginTabItem(tab.name) then
                 tab.draw(drawing)
                 imgui.EndTabItem()
             end

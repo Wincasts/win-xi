@@ -24,7 +24,7 @@
 --     noMp                     the most MP they can have is none: a grey, full MP bar and no MP figure
 --     plainHp                  an HP figure that keeps its colour however low the HP is
 --     isPartyLeader, isAllianceLeader          a circle before the name, or two
---     isTarget, isSubTarget, isPartyTarget     ">> " before the name in blue, or "> " in green
+--     isTarget, isSubTarget, isPartyTarget     native DAT cursor before the name; text markers on load failure
 --     isPlayer, targetIndex, entity            for how far away they are: bars dim with distance
 --     statusIds                their buffs
 --
@@ -48,6 +48,7 @@ local outlinedText = require('winxi.text')
 local draw = require('draw')
 local colors = require('colors')
 local statusicons = require('winxi.statusicons')
+local cursor = require('winxi.cursor')
 
 local frames = { }
 
@@ -397,9 +398,8 @@ local function DrawLeaderMarks(member)
     return (2 * radius + 1 + nameFont * 0.22) / scale
 end
 
--- A member's name, after their leader's mark if they have one, and marked as the party window's own
--- view marks it: "> " in green on the member a sub-target or the party cursor is on, ">> " in blue on
--- the one targeted. The marked name is kept while the name and the mark stay as they are.
+-- A member's name after their leader's mark and the game's animated DAT cursor when selected.
+-- Names retain blue/green selection colours. Text markers are the fallback if the DAT cannot load.
 local function DrawName(member, state)
     local name = layout.name
     local full = Trimmed(member.name or '???', nameChars)
@@ -415,23 +415,31 @@ local function DrawName(member, state)
         mark, color = '>> ', colors.Blue
     end
 
+    if mark then
+        local handle, uv = cursor.Get()
+        if handle then
+            -- Use the horizontal anc_s sprite, preserving the DAT's colours and aspect ratio.
+            local height = nameFont
+            local width = height * uv[5] / uv[6]
+            local left = math.floor(itemX + x * scale - width - 3 * scale)
+            local top = math.floor(itemY + name.y * scale)
+            draw.Image(handle, left, top, left + width, top + height, draw.Packed(white, 1),
+                uv[1], uv[2], uv[3], uv[4])
+        else
+            -- Text fallback overlays in the same place; selection never shifts the name.
+            Write(mark, x, name.y, color, imgui.CalcTextSize(mark))
+        end
+    end
+
     -- as much of the name as fits between where it starts and the right end of the HP bar, worked out
     -- again only when the name, its room, its mark or its font has changed
     local hpFrame = layout.hp.frame
     local room = math.floor((hpFrame.x + hpFrame.width - x) * scale + 0.5)
-    if state.fitFrom ~= full or state.fitRoom ~= room or state.fitMark ~= mark or state.fitFont ~= nameFont or state.fitFace ~= nameFontFile then
-        local markWidth = mark and imgui.CalcTextSize(mark) or 0
-        state.fitFrom, state.fitRoom, state.fitMark, state.fitFont, state.fitFace = full, room, mark, nameFont, nameFontFile
-        state.fitted = Fitted(full, room - markWidth)
+    if state.fitFrom ~= full or state.fitRoom ~= room or state.fitFont ~= nameFont or state.fitFace ~= nameFontFile then
+        state.fitFrom, state.fitRoom, state.fitFont, state.fitFace = full, room, nameFont, nameFontFile
+        state.fitted = Fitted(full, room)
     end
-    local shown = state.fitted
-    if mark ~= nil then
-        if state.markedFrom ~= shown or state.mark ~= mark then
-            state.markedFrom, state.mark, state.marked = shown, mark, mark .. shown
-        end
-        shown = state.marked
-    end
-    Write(shown, x, name.y, color)
+    Write(state.fitted, x, name.y, color)
 end
 
 -- A bar's figure, or for TP, which has no bar, the figure that is all there is of it. fontSize is the
@@ -576,6 +584,25 @@ local usual = { }
 -- How much larger or smaller than the layout a style draws: for whatever else is drawn at the frames' size
 function frames.Scale(style)
     return Percent((style or usual).scale)
+end
+
+-- Maximum configured line geometry for a fully populated list, independent of current membership.
+-- Used to reserve a stable alliance block above the fully expanded main party.
+function frames.FullSize(count, kind, style)
+    style = style or usual
+    nameScale, valueScale = Percent(style.nameSize), Percent(style.valueSize)
+    valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = style.hpOffset, style.mpOffset, style.tpOffset
+    local full = { isInZone = true, mpp = 100, tp = 1000 }
+    -- The owner's pet is first; other members' pets have HP only and are always in-zone.
+    if kind == 'pets' and count > 1 then full.mpp, full.tp = nil, nil end
+    local last = LineHeight(full, kind, style.showMp ~= false, style.showTp ~= false)
+    if kind ~= 'pets' then
+        full.isInZone = false
+        last = math.max(last, LineHeight(full, kind, style.showMp ~= false, style.showTp ~= false))
+    end
+    if style.trimLast == false then last = layout.rowHeight end
+    local factor = Percent(style.scale)
+    return math.ceil(layout.width * factor), math.ceil(((count - 1) * layout.rowHeight + last) * factor)
 end
 
 function frames.Draw(members, kind, StatusTexture, style)
@@ -738,9 +765,21 @@ function frames.Draw(members, kind, StatusTexture, style)
     end
     imgui.PopFont()
 
-    -- only the player's own party shows buffs, and a target its debuffs where they are shown as icons:
-    -- they start a little clear of the window's left edge
-    if kind == 'party' or kind == 'target' then
+    -- Native party-order rearrangement replaces the buff area with job information,
+    -- including alliance members and members in another zone. Always outline these labels.
+    if style.showJobs and (kind == 'party' or kind == 'alliance') then
+        local right = imgui.GetWindowPos() - layout.buffs.gap - (tonumber(style.buffDistance) or 0) * scale
+        local dark = imgui.GetColorU32(outlinedText.OutlineColor)
+        imgui.PushFont(nameFace, nameFont)
+        for index, member in ipairs(members) do
+            local words = member.jobText or '[---/---]'
+            local width = imgui.CalcTextSize(words)
+            draw.Text(math.floor(right - width), math.floor(lineY[index] + layout.buffs.y * scale),
+                draw.Packed(textColor, 1), words, outlineEdge, dark)
+        end
+        imgui.PopFont()
+    -- Otherwise only the player's own party shows buffs, and targets their debuff icons.
+    elseif kind == 'party' or kind == 'target' then
         local buffsX = (imgui.GetWindowPos() - layout.buffs.gap - itemX) / scale - (tonumber(style.buffDistance) or 0)
         for index = 1, count do
             if lineStates[index].inZone then

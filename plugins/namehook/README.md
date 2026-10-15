@@ -173,6 +173,27 @@ The plugin draws a name when all of these hold: its category is claimed, it is w
 
 Each name is drawn twice: once blended into the picture and tested against its depth, and once more to the depth alone where the name is solid, so that what the client draws afterwards, and behind the name, is not drawn over it. Everything of the device's state that this changes is put back before the client goes on.
 
+### Additive world-space speech bubbles (1.24+)
+
+`addons/chatbubbles` uses a second independent shared block, `HookBubbles` in
+`src/Nameplate.h`, found by `NAMEBUBBLES` followed by five zero bytes. Its header
+contains `Version` (1), `Size` (`sizeof(HookBubbles)`) and `DrawSize`
+(`sizeof(HookDraw)`), followed by a server-ID array for the 0x900 entity indices
+and a complete `HookDraw`. See `addons/chatbubbles/world.lua` for the writer.
+
+This layer uses the same quad layout and two-frame freshness checks as custom
+names, but never claims or replaces a name. It is drawn during the nameplate
+pass even when the name is hidden by category/override, provided the client
+supplies that entity's name draw. Server IDs must match the current entity.
+The layer has independent retained textures, aspect correction and bounds
+caches. It is depth-tested and writes solid pixels to depth like custom names.
+`HookShared` v2 and the normal custom-name buffer are unchanged, so existing
+addons do not need to change. Only one producer should own the bubble buffer.
+
+The game's `/names off` and other client name-pass culling still apply. Bubbles
+are billboards at nameplate depth, not physical meshes; their layout is prepared
+at present and drawn at the next frame's current world anchor.
+
 ### How it works
 
 The client decides, for each character, whether its name is drawn at all, and then calls two functions of its own to draw the name's two lines: the name, and the Job Mastery stars. Nameplate patched the first decision. This plugin lets every name through it and stands in the way of the two calls instead, where the client has already worked out the name's place, its colours and what it writes: there the name is sorted, listed, and drawn or not.

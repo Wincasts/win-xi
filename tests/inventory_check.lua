@@ -45,7 +45,8 @@ do
     H.frames(5); r = H.reads()
     H.print('read once settled', (r[5] or 0) > 0, '| the satchel alone (the gil looked at, not the inventory)', (r[0] or 0) <= 2 and r[8] == nil)
 
-    -- the stand-in's text is 7 pixels wide, which makes rows of one item: the third is two rows down
+    -- Choose one column: the third item is two rows down.
+    o.gridColumns[1] = 1
     H.ret.IsWindowHovered, H.ret.GetMousePos = { true }, { 15, 20 + 2 * 36 + 5 }
     local tips = H.calls.BeginTooltip or 0; H.frames(1)
     H.print('hovering the third item: its tooltip', (H.calls.BeginTooltip or 0) > tips)
@@ -66,6 +67,7 @@ do
     before = Calls(); H.frames(1); local lots = Calls() - before
     H.print('imgui calls a frame, 2 items then 60:', few, lots, lots == few)
 
+    o.gridColumns[1] = 6
     H.ret.GetWindowPos, H.ret.GetWindowSize = { 100, 200 }, { 300, 150 }
 end
 
@@ -82,17 +84,17 @@ do
     local sent = #H.sent
     H.ret.SmallButton = { true }; H.frames(1); H.ret.SmallButton = nil
     H.print('the buttons lot and pass', #H.sent > sent, H.sent[#H.sent])
-    H.command('/inv'); H.frames(8)
+    H.command('/inv toggle'); H.frames(8)
     H.print('attached, it goes with the window', Begun() == 0)
     o.treasureDetached[1] = true
     H.print('detached, it stays', Begun() == 1)
     o.treasurePool[1] = false
     H.print('switched off, it is gone', Begun() == 0)
     o.treasurePool[1], o.treasureDetached[1] = true, false
-    H.command('/inv'); H.pool(0); H.frames(8)
+    H.command('/inv toggle'); H.pool(0); H.frames(8)
 end
 
-H.command('/inv'); H.frames(8); H.print('/inv closes it', o.isVisible[1] == false, '| A is the game\'s', H.tap(H.Button.A) == false)
+H.command('/inv toggle'); H.frames(8); H.print('/inv toggle closes it', o.isVisible[1] == false, '| A is the game\'s', H.tap(H.Button.A) == false)
 H.print('/invite is left alone', H.command('/invite Someone') == false)
 H.packet(0x01D); H.packet(0x01E); H.unload(); H.print('packets and unload ran; saves', H.saves() > 0)
 

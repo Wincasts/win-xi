@@ -80,7 +80,7 @@ text/size edits rebuild only their line. Presentation checks: 44 assertions;
 GDI checks: 18 assertions. These are operation-count improvements, not measured
 in-game FPS gains. The five-pass ImGui outline and native renderer are unchanged.
 
-The legacy `tests/zoneinfo_check.lua` still expects the obsolete default-off POC
+The legacy `tests/zone_check.lua` still expects the obsolete default-off POC
 behavior; it is not green. The current default-on behavior is covered by the
 passing sub-zone integration checks. This follow-up does not change detection
 settings or update that legacy test.
@@ -116,7 +116,7 @@ matched all 59,280 sampled map positions.
 Reproduce the current benchmark:
 
 ```sh
-luajit tools/benchmark_zoneinfo.lua
+luajit tools/benchmark_zone.lua
 ```
 
 An optional first argument loads a prior `area_geometry.lua` snapshot for

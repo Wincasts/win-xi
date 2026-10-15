@@ -1,5 +1,5 @@
 -- Loads zoneinfo with a synthetic client-map table for the shared Ashita harness.
-package.path = 'addons/zoneinfo/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;' .. package.path;
 package.preload['chat'] = function()
     return {
         header = function(name) return { append = function(_, text) return '[' .. name .. '] ' .. text; end }; end,
@@ -38,4 +38,4 @@ ashita.memory.read_uint8 = function(address)
     local _, offset = at(address);
     return offset == 5 and 5 or 0;
 end;
-dofile('addons/zoneinfo/zoneinfo.lua');
+dofile('addons/zone/zone.lua');

@@ -1,4 +1,13 @@
-# Zoneinfo: all-map boundary editor
+# Zone: all-map boundary editor
+
+## Renamed from zoneinfo
+
+Unload `zoneinfo` before installing this addon as `addons/zone`, then load it with
+`/addon load zone`. Use `/zone` to open settings and `/zone test` to preview the zone banner.
+While both addons are unloaded, copy your character settings and boundary overrides from
+`config/addons/zoneinfo/` to `config/addons/zone/` to preserve them. Copy any custom
+background images into `addons/zone/assets/backgrounds/` as well. The saved boundary
+file format is unchanged; do not run both addons together.
 
 Ashita v4 winxi-styled zone/region/weather banners with nation flags, a popup
 when the weather changes, an always-on location line, experimental same-zone
@@ -53,7 +62,7 @@ cannot be displayed from this pack; this is not a claim of complete FFXI map or
 named-sub-region coverage.
 
 **Sub-zone popups are enabled by default; debugging starts OFF.** Use
-`/zoneinfo config` to adjust sub-zone popup settings. The POC command is retained
+`/zone` to adjust sub-zone popup settings. The POC command is retained
 for compatibility.
 
 ## City buildings
@@ -91,30 +100,30 @@ Approach)** switches any area between the two kinds.
 From a terminal, if needed:
 
 ```sh
-./deploy.sh push zoneinfo
+./deploy.sh push zone
 ```
 
 In Ashita:
 
 ```text
-/addon load zoneinfo
-/zoneinfo debug on
+/addon load zone
+/zone debug on
 ```
 
-Use `/addon reload zoneinfo` if already loaded. This update includes about 41 MB
+Use `/addon reload zone` if already loaded. This update includes about 41 MB
 of new preview assets; deploy the entire addon, not just the Lua entrypoint.
 
 ## Display settings (winxi)
 
 ```text
-/zoneinfo config
-/zoneinfo test
-/zoneinfo reload
+/zone
+/zone test
+/zone reload
 ```
 
 The presentation is inspired by `references/Zonename`, but uses the shared
 **winxi** ImGui renderer/theme instead of a separate GDI font engine or font DLL.
-The normal `/zoneinfo` command still shows the current zone immediately;
+The `/zone test` command shows the current zone immediately;
 `config` / `settings` opens or closes the settings window, and `reload` / `rl`
 reloads character settings and shows the current zone again.
 
@@ -126,7 +135,7 @@ popups show the area's name as the title, without a separate category label.
 
 **Approach Distance** (under Sub-zone Popup) is how near a feature is announced,
 0 to 100 yalms from its outline. It is saved per character, as is the map chosen
-for live detection in each zone; `/zoneinfo approach` and `/zoneinfo livemap`
+for live detection in each zone; `/zone approach` and `/zone livemap`
 change the same settings.
 
 ### Weather popup
@@ -198,7 +207,7 @@ is hard to read over one. The PNGs were made from the `.webp` files in
 
 ### Optional background image
 
-Place a PNG, JPG/JPEG or BMP in `addons/zoneinfo/assets/backgrounds/` (or the
+Place a PNG, JPG/JPEG or BMP in `addons/zone/assets/backgrounds/` (or the
 same folder in the deployed addon). Open **Appearance → Background Image**,
 enable **Show Background Image** and enter its filename, such as `banner.png`.
 Absolute paths and subdirectories are not accepted. Only the flags above are bundled.
@@ -230,7 +239,7 @@ behavior. **Preview Sub-zone Once** previews the current sub-zone or an example
 name. Preview never enables area detection or changes map selection.
 
 Display settings are saved by Ashita's per-character `settings` library under
-`config/addons/zoneinfo/`, separately from polygon overrides. Display changes
+`config/addons/zone/`, separately from polygon overrides. Display changes
 save on completed interaction/config close/unload. Approach distance and each
 zone's live map are saved with them. The debug toggle, manual transforms and
 editor browsing remain session-only. The map editor window also
@@ -242,7 +251,7 @@ offline tests only exercise mocked renderer behavior.
 
 ## Experimental GDI banner renderer
 
-Open `/zoneinfo config`, select **Appearance → Text Renderer → GDI Fonts
+Open `/zone`, select **Appearance → Text Renderer → GDI Fonts
 (Experimental)**, then use **Preview Zone Once** or **Preview Sub-zone Once**.
 ImGui remains the default; select **ImGui (Default)** to switch back.
 
@@ -264,7 +273,7 @@ applied by the sprite without rebuilding textures.
 The addon includes its own `gdifonts/` Lua files, `gdifonttexture.dll` and MIT
 license. It uses a private manager and explicit rendering instead of sharing
 `name`'s GDI module or an automatic render tick. The texture-pointer lifetime fix
-from `name` is retained. Deploy the **whole zoneinfo addon**, not just the Lua
+from `name` is retained. Deploy the **whole zone addon**, not just the Lua
 entrypoint, and reload it before testing.
 
 **Experimental native code:** the DLL requires Windows/Ashita's Direct3D 8
@@ -275,7 +284,7 @@ validation. `gdi-diagnostic.txt` records initialization and texture-build
 checkpoints to help investigate a native failure; cached frames do not log.
 
 Thorny's MIT license is in [`gdifonts/LICENSE`](gdifonts/LICENSE). The reference
-implementation is `references/Zonename`; zoneinfo's private library disables
+implementation is `references/Zonename`; zone's private library disables
 automatic rendering, uses a unique event ID, reports manager/sprite creation
 failures and ends sprite rendering before propagating a Lua drawing error.
 
@@ -342,8 +351,8 @@ outlines show the approach envelope; purple marks disabled drafts. Cyan marks
 the player **only on the live map**.
 
 ```text
-/zoneinfo approach 45
-/zoneinfo approach 0
+/zone approach 45
+/zone approach 0
 ```
 
 The first widens the buffer; the second makes the draggable polygon the exact
@@ -413,7 +422,7 @@ Merely choosing a map in the dropdown never sets a live override.
 Before trusting any new map's detection:
 
 1. Check the cyan marker at several separated landmarks.
-2. Run `/zoneinfo sample` at each checkpoint to record world position, raster
+2. Run `/zone sample` at each checkpoint to record world position, raster
    key, client transform, floor and map pixels.
 3. Correct draft vertices and unlocalized names, then Save.
 4. Enable POC detection, start outside the **expanded** boundary, wait briefly
@@ -434,18 +443,18 @@ applied to position before testing polygons.
 
 | Command | Effect |
 | --- | --- |
-| `/zoneinfo` or `test` | Show zone/region/weather now |
-| `/zoneinfo config` or `settings` | Open/close display settings and Appearance tab |
-| `/zoneinfo reload` or `rl` | Reload character display settings and show current zone |
-| `/zoneinfo poc [on\|off]` | Toggle experimental area announcements |
-| `/zoneinfo debug [on\|off]` | Open/close the all-map browser/editor |
-| `/zoneinfo approach <0..100>` | Approach buffer in yalms (default 30), saved |
-| `/zoneinfo sample` or `status` | Print live coordinate/map report |
-| `/zoneinfo livemap auto` | Remove this zone's saved live-map choice |
-| `/zoneinfo livemap <map-key>` | Use a raster in the current zone, saved for that zone |
-| `/zoneinfo transform <scale> <offset_x> <offset_y>` | Session-only transform for the current live raster |
-| `/zoneinfo transform reset` | Clear that raster override and retry client metadata |
-| `/zoneinfo help` | Command syntax |
+| `/zone` | Open/close display settings and Appearance tab |
+| `/zone test` | Show zone/region/weather now |
+| `/zone reload` or `rl` | Reload character display settings and show current zone |
+| `/zone poc [on\|off]` | Toggle experimental area announcements |
+| `/zone debug [on\|off]` | Open/close the all-map browser/editor |
+| `/zone approach <0..100>` | Approach buffer in yalms (default 30), saved |
+| `/zone sample` or `status` | Print live coordinate/map report |
+| `/zone livemap auto` | Remove this zone's saved live-map choice |
+| `/zone livemap <map-key>` | Use a raster in the current zone, saved for that zone |
+| `/zone transform <scale> <offset_x> <offset_y>` | Session-only transform for the current live raster |
+| `/zone transform reset` | Clear that raster override and retry client metadata |
+| `/zone help` | Command syntax |
 
 Polling is every 0.25 seconds while debug or detection is active. A transition
 must remain stable for one second. Current membership has three map pixels of
@@ -477,8 +486,8 @@ zone/region/weather banners remain available independently.
 - `boundary_editor.lua`: validation, undo, names/flags and v1/v2 persistence.
 - `map_position.lua`, `area_tracking.lua`, `area_geometry.lua`: live mapping and
   membership logic.
-- `assets/maps/all/manifest.json`: source DATs, hashes and coverage of the
-  previews `tools/build_zoneinfo_maps.py` exported; the browser no longer draws them.
+- Exported map previews in `assets/maps/` are obsolete and no longer bundled.
+  The browser reads map textures directly from the game's DAT files.
 - `research/map_subregions.md`: reviewed-name provenance and research limits.
 - `research/performance_audit.md`: optimization findings, offline measurements
   and remaining native/client validation needs.
@@ -497,25 +506,25 @@ additional ownership or licensing claim is made here.
 Focused offline checks, also included in `tests/run.sh`:
 
 ```sh
-luajit tests/zoneinfo_math_check.lua
-luajit tests/zoneinfo_banner_check.lua
-luajit tests/zoneinfo_editor_check.lua
-luajit tests/zoneinfo_catalog_check.lua
-luajit tests/zoneinfo_geometry_regression_check.lua
-luajit tests/harness.lua zoneinfo tests/zoneinfo_fixture.lua tests/zoneinfo_check.lua
-luajit tests/harness.lua zoneinfo-presentation tests/zoneinfo_fixture.lua tests/zoneinfo_presentation_ui_check.lua
-luajit tests/harness.lua zoneinfo-subzone tests/zoneinfo_fixture.lua tests/zoneinfo_subzone_check.lua
-luajit tests/harness.lua zoneinfo-gdi tests/zoneinfo_fixture.lua tests/zoneinfo_gdi_check.lua
-luajit tests/harness.lua zoneinfo-background tests/zoneinfo_background_fixture.lua tests/zoneinfo_background_check.lua
-luajit tests/zoneinfo_gdi_families_check.lua
-luajit tests/zoneinfo_height_check.lua
-luajit tests/zoneinfo_exact_check.lua
-luajit tests/harness.lua zoneinfo-features tests/zoneinfo_background_fixture.lua tests/zoneinfo_features_check.lua
-luajit tests/harness.lua zoneinfo-editor tests/zoneinfo_fixture.lua tests/zoneinfo_editor_ui_check.lua
-luajit tests/harness.lua zoneinfo-browser tests/zoneinfo_fixture.lua tests/zoneinfo_browser_ui_check.lua
-luajit tests/harness.lua zoneinfo-zoom tests/zoneinfo_fixture.lua tests/zoneinfo_zoom_ui_check.lua
-luajit tests/harness.lua zoneinfo-performance tests/zoneinfo_fixture.lua tests/zoneinfo_performance_ui_check.lua
-luajit tools/benchmark_zoneinfo.lua
+luajit tests/zone_math_check.lua
+luajit tests/zone_banner_check.lua
+luajit tests/zone_editor_check.lua
+luajit tests/zone_catalog_check.lua
+luajit tests/zone_geometry_regression_check.lua
+luajit tests/harness.lua zone tests/zone_fixture.lua tests/zone_check.lua
+luajit tests/harness.lua zone-presentation tests/zone_fixture.lua tests/zone_presentation_ui_check.lua
+luajit tests/harness.lua zone-subzone tests/zone_fixture.lua tests/zone_subzone_check.lua
+luajit tests/harness.lua zone-gdi tests/zone_fixture.lua tests/zone_gdi_check.lua
+luajit tests/harness.lua zone-background tests/zone_background_fixture.lua tests/zone_background_check.lua
+luajit tests/zone_gdi_families_check.lua
+luajit tests/zone_height_check.lua
+luajit tests/zone_exact_check.lua
+luajit tests/harness.lua zone-features tests/zone_background_fixture.lua tests/zone_features_check.lua
+luajit tests/harness.lua zone-editor tests/zone_fixture.lua tests/zone_editor_ui_check.lua
+luajit tests/harness.lua zone-browser tests/zone_fixture.lua tests/zone_browser_ui_check.lua
+luajit tests/harness.lua zone-zoom tests/zone_fixture.lua tests/zone_zoom_ui_check.lua
+luajit tests/harness.lua zone-performance tests/zone_fixture.lua tests/zone_performance_ui_check.lua
+luajit tools/benchmark_zone.lua
 python3 -m unittest discover -s tools -p 'test_*.py'
 ```
 

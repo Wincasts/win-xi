@@ -33,7 +33,8 @@ local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 }, -- kept separately for free-position mode
     anchorToDefault = T{ true },
-    hideWithMenus = T{ true },
+    hideWithMenus = T{ true }, -- anchored native menus only; retain the saved setting key
+    hide = T{ UnderMap = true },
     -- Separate from obsolete anchorOffset: old absolute (6,6) must not shift this anchor.
     anchorAdjustment = T{ 0, 0 },
     iconSize = T{ 40 },       -- an icon's height
@@ -183,6 +184,12 @@ end
 local hideFailed = false; -- said once, if the game's icons cannot be switched off
 
 local function ApplyGameIcons(options)
+    -- Restore map hiding once, including settings migrated by the previous version.
+    -- Subsequent manual changes to the shared hiding rules remain respected.
+    if not options.anchoredInventoryHideUpdated then
+        options.hide.UnderMap = true;
+        options.anchoredInventoryHideUpdated = true;
+    end
     if not native.Set(options.hideGameIcons[1]) and not hideFailed then
         hideFailed = true;
         print(('\30\81[%s]\30\01 %s'):format(addon.name, 'The game\'s own status icons could not be hidden: another addon may have hidden them already.'));
@@ -195,10 +202,10 @@ local function DrawSettings(options)
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Whether the window shows while you are under a status. /buff switches this.');
     end
-    widgets.Label('Hide While Menus Open');
+    widgets.Label('Hide Anchored Buffs With Menus');
     imgui.Checkbox('##buff.hideWithMenus', options.hideWithMenus);
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Immediately hides the whole bar while a native menu is open, except the buff selector.\nA workaround for rendering above native menus, not exact overlap clipping. Applies in both positioning modes.');
+        imgui.SetTooltip('Immediately hides the anchored bar while any native menu or macro palette is open, except the buff selector and normal chat input.\nDoes not apply in draggable mode. Expanded chat and draggable map hiding use the rules below.');
     end
     widgets.Label('Anchor To Default Location');
     imgui.Checkbox('##buff.anchorToDefault', options.anchorToDefault);
@@ -285,7 +292,7 @@ ashita.events.register('d3d_present', 'buff_present', function()
     if not app:BeginFrame() then
         return;
     end
-    -- Menu hiding is an explicit addon preference, independent of anchor/free positioning.
+    -- Native menu/palette hiding is an explicit preference for anchored positioning only.
     if anchoring.HideForMenu(app.options) then return; end
     -- the window is there only while there is a status to show
     if not app.options.isVisible[1] and not app.options.fadeInOut[1] then return; end

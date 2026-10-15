@@ -17,16 +17,19 @@ local position = { 0, 0 };
 local spacing = { 8, 4 };
 local appearance = { padding = 0, background = { 0, 0, 0, 0 }, alpha = 1 };
 
--- Optional whole-bar workaround, not native menu clipping. Keep the native buff selector visible.
+-- Optional anchored-only whole-bar workaround, not native menu clipping.
+-- Cover all native menu panels and submenus, including mcr1pall/mcr2pall macro palettes.
+-- Ordinary inline chat and the buff selector remain usable without hiding the bar.
 function anchoring.HideForMenu(options)
-    if not options.hideWithMenus or not options.hideWithMenus[1] then return false; end
-    local name = game.MenuName();
-    return name ~= '' and name:match('^menu%s+buff%s*$') == nil;
+    if not options.anchorToDefault or not options.anchorToDefault[1]
+        or not options.hideWithMenus or not options.hideWithMenus[1] then return false; end
+    local name = game.MenuName():match('^menu%s+(%S+)%s*$');
+    return name ~= nil and name ~= 'buff' and name ~= 'inline';
 end
 
 function anchoring.IsHidden()
     -- Actual HUD visibility, not menu occlusion. The shell separately applies configured hiding
-    -- rules (including expanded chat and maps); those rules are not native draw-order inheritance.
+    -- rules (including expanded chat); those rules are not native draw-order inheritance.
     return game.IsLoading() or game.IsInterfaceHidden() or game.IsEventHappening();
 end
 

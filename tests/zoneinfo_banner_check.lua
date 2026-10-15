@@ -1,4 +1,4 @@
-package.path = 'addons/zoneinfo/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;' .. package.path;
 local model = require('banner_layout');
 local checks = 0;
 local function check(label, ok) assert(ok, label); checks = checks + 1; end

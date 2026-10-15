@@ -28,6 +28,7 @@ struct TestPlugin : public Nameplate {
 	const HookQuad* lastQuads = nullptr;
 	uint32_t lastCount = 0;
 	float lastX = 0.0f;
+	int bubbles = 0;
 
 	void BeginNames(const HookDraw&, bool, float& targetWidth, float& targetHeight) override {
 		begun++;
@@ -39,6 +40,11 @@ struct TestPlugin : public Nameplate {
 		lastX = position[0];
 		lastQuads = quads;
 		lastCount = drawing.Count;
+	}
+
+	void DrawBubble(uint32_t, const HookDrawing& drawing, const HookQuad* quads, const float*) override {
+		bubbles++;
+		CHECK(drawing.Count == 1 && quads == &Bubbles.Draw.Quads[0]);
 	}
 
 	void Debug(const char* text) override {
@@ -585,6 +591,52 @@ int main() {
 	Shared.Claimed = 0;
 	plugin.Publish(nullptr, nullptr, true);
 	plugin.Publish(nullptr, nullptr, true);
+
+	// World-space speech bubbles: their own block and their own drawing, beside the names and
+	// independent of whether a name is shown or claimed
+	{
+		CHECK(strcmp(Bubbles.Magic, "NAMEBUBBLES") == 0 && Bubbles.Version == 1);
+		CHECK(Bubbles.Size == sizeof(HookBubbles) && Bubbles.DrawSize == sizeof(HookDraw));
+		const uint32_t hidden = Shared.Hidden;
+		const uint32_t index = buddy->pEntity->EntityIndex;
+		Bubbles.Draw.Frame = Shared.Frame;
+		Bubbles.Draw.QuadCount = 1;
+		Bubbles.Draw.Entities[index] = { Shared.Frame, 0, 1, 1.0f, 0, 0 };
+		Bubbles.ServerIds[index] = buddy->pEntity->EntityId;
+		Shared.Hidden |= CATEGORY_PARTY;
+		Fresh();
+		CHECK(!Drawn(buddy) && plugin.bubbles == 1); // hidden name, visible speech
+		Drawn(buddy);
+		CHECK(plugin.bubbles == 1); // no repeat
+		Shared.Hidden = hidden;
+		Fresh();
+		CHECK(Drawn(buddy) && plugin.bubbles == 2); // stock name and speech coexist
+		Bubbles.ServerIds[index]++;
+		Fresh(); Drawn(buddy);
+		CHECK(plugin.bubbles == 2); // index reused by another server ID
+		Bubbles.ServerIds[index] = buddy->pEntity->EntityId;
+		Bubbles.Draw.Entities[index].First = 1;
+		Fresh(); Drawn(buddy);
+		CHECK(plugin.bubbles == 2); // out of bounds
+		Bubbles.Draw.Entities[index].First = 0;
+		Bubbles.Draw.Frame = Shared.Frame - HOOK_DRAW_FRAMES - 1;
+		Bubbles.Draw.Entities[index].Frame = Bubbles.Draw.Frame;
+		Fresh(); Drawn(buddy);
+		CHECK(plugin.bubbles == 2); // expired drawing
+		Bubbles.Draw.Frame = Shared.Frame;
+		Bubbles.Draw.Entities[index].Frame = Shared.Frame;
+		Shared.Claimed = CATEGORY_PARTY;
+		Shared.ClaimFrame = Shared.Frame;
+		Draw.Frame = Shared.Frame;
+		Draw.QuadCount = 1;
+		Draw.Entities[index] = { Shared.Frame, 0, 1, 1.0f, 0, 0 };
+		const int custom = plugin.custom;
+		Fresh();
+		CHECK(!Drawn(buddy) && plugin.custom == custom + 1 && plugin.bubbles == 3);
+		Bubbles.Draw.QuadCount = 0;
+		Shared.Claimed = 0;
+		plugin.Publish(nullptr, nullptr, true);
+	}
 
 	// A name the client draws more than once in a frame, as it does a player's who is fishing, is
 	// listed and drawn for an addon once: the first time the call that draws all the names draws it,

@@ -238,9 +238,9 @@ def trace_box(image, box, fill, tolerance=60, join=4):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('pack', type=Path)
-    parser.add_argument('--seeds', type=Path, default=Path('addons/zoneinfo/research/building_seeds.json'))
-    parser.add_argument('--refinements', type=Path, default=Path('addons/zoneinfo/research/boundary_refinements.json'))
-    parser.add_argument('--manifest', type=Path, default=Path('addons/zoneinfo/assets/maps/all/manifest.json'))
+    parser.add_argument('--seeds', type=Path, default=Path('addons/zone/research/building_seeds.json'))
+    parser.add_argument('--refinements', type=Path, default=Path('addons/zone/research/boundary_refinements.json'))
+    parser.add_argument('--manifest', type=Path, default=Path('addons/zone/assets/maps/all/manifest.json'))
     parser.add_argument('--preview', type=Path, help='Write each map with its traced buildings drawn on it')
     parser.add_argument('--only', help='Trace this map key alone (others keep what they had)')
     parser.add_argument('--dry-run', action='store_true')

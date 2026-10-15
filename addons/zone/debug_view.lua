@@ -55,7 +55,7 @@ function M.draw(state, editor)
     if not state.debug then if editor then editor:cancel(); end; state.editing = false; return; end
     imgui.SetNextWindowSize({ 570, 900 }, rawget(_G, 'ImGuiCond_FirstUseEver') or 0);
     winxi_style.PushFull();
-    local visible = imgui.Begin('Zoneinfo - experimental area debug');
+    local visible = imgui.Begin('Zone - experimental area debug');
     if visible then
         browser:sync(state.zone, state.map_key);
         imgui.Text('EXPERIMENTAL: boundaries include generated guesses; verify them manually.');
@@ -134,11 +134,11 @@ function M.draw(state, editor)
                     imgui.Checkbox(side.label, editor[side.on]);
                     imgui.SameLine();
                     imgui.PushItemWidth(90);
-                    imgui.InputFloat('##zoneinfo.' .. side.field, editor[side.field], 0, 0, '%.2f');
+                    imgui.InputFloat('##zone.' .. side.field, editor[side.field], 0, 0, '%.2f');
                     imgui.PopItemWidth();
                     if state.position then
                         imgui.SameLine();
-                        if imgui.Button('My Height##zoneinfo.' .. side.field) then
+                        if imgui.Button('My Height##zone.' .. side.field) then
                             editor[side.on][1], editor[side.field][1] = true, state.position.z;
                         end
                     end
@@ -165,7 +165,7 @@ function M.draw(state, editor)
                 imgui.Text(('Selected vertex: %d / %d (click a handle to select it)'):format(editor.vertex or 1, #editor.selected.polygon));
                 imgui.Text(editor.selected.provenance or 'Manual feature boundary');
                 if editor.selected.enabled == false then imgui.Text('EDITOR-ONLY DRAFT: rename/localize it, then enable Announce this area and Apply.'); end
-                imgui.Text('Drag yellow feature vertices; approach buffer is separate (/zoneinfo approach 0 for exact polygon).');
+                imgui.Text('Drag yellow feature vertices; approach buffer is separate (/zone approach 0 for exact polygon).');
             end
             if imgui.Button('Save Boundaries') then editor:save(); end
             imgui.Text(editor:dirty() and 'UNSAVED boundary/name/detection changes' or 'Boundaries saved / unchanged');
@@ -190,7 +190,7 @@ function M.draw(state, editor)
             if zoom[1] ~= previous_zoom and editor then editor:cancel(); end
             imgui.Text('Zoom 1x-6x; use map scrollbars / mouse wheel to reach other vertices.');
             local scale, canvas_size = zoom[1], SIZE * zoom[1];
-            local shown = imgui.BeginChild('##zoneinfo_zoom_canvas', { SIZE + 20, SIZE + 20 }, 0,
+            local shown = imgui.BeginChild('##zone_zoom_canvas', { SIZE + 20, SIZE + 20 }, 0,
                 rawget(_G, 'ImGuiWindowFlags_HorizontalScrollbar') or 2048); -- ImGui's stable 1 << 11 flag.
             if shown ~= false then
             if reset_scroll then imgui.SetScrollX(0); imgui.SetScrollY(0); reset_scroll = false; end
@@ -221,7 +221,7 @@ function M.draw(state, editor)
                 end
             end
             if editor and editor.edit_mode[1] then
-                imgui.InvisibleButton('##zoneinfo_boundary_canvas', { canvas_size, canvas_size });
+                imgui.InvisibleButton('##zone_boundary_canvas', { canvas_size, canvas_size });
                 local mx, my = imgui.GetMousePos();
                 if imgui.IsItemHovered() and imgui.IsMouseClicked(0) and editor.selected then
                     local nearest, distance = nil, 100;
@@ -280,7 +280,7 @@ function M.draw(state, editor)
             imgui.EndChild();
             imgui.Text('Yellow: vertices | Cyan: live player | Purple: disabled draft | Orange/green: approach');
         end
-        imgui.Text('/zoneinfo sample prints live coordinates; /zoneinfo debug off closes this window.');
+        imgui.Text('/zone sample prints live coordinates; /zone debug off closes this window.');
     elseif editor then editor:cancel(); end
     state.editing = editor and editor.dragging ~= nil and browser:is_live(state) or false;
     imgui.End();

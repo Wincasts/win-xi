@@ -58,7 +58,7 @@ class RefinementTests(unittest.TestCase):
             apply_refinements(self.setup_maps(), {'areas': [patch]})
 
     def test_checked_source_counts_by_method(self):
-        source = load_refinements(Path(__file__).resolve().parent.parent / 'addons/zoneinfo/research/boundary_refinements.json')
+        source = load_refinements(Path(__file__).resolve().parent.parent / 'addons/zone/research/boundary_refinements.json')
         self.assertEqual(sum(a['method'] == 'player_authored_example' for a in source['areas']), 27)
         self.assertEqual(sum(a['method'] == 'visually_traced_player_style_draft' for a in source['areas']), 152)
         self.assertEqual(sum(a['method'] == 'building_footprint_traced_from_map_fill' for a in source['areas']), 163)

@@ -78,6 +78,12 @@ private:
     bool m_CanDraw;
     float m_HorizontalFit = 1.0f;
     NameBoundsCache m_NameBounds[HOOK_ENTITIES]; // CPU-only; no device-reset resources
+    IDirect3DBaseTexture8* m_BubbleTextures[HOOK_TEXTURES]{};
+    NameBoundsCache m_BubbleBounds[HOOK_ENTITIES];
+    float m_BubbleFit = 1.0f;
+    bool m_BubblesFresh = false;
+
+    void RenderCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position, bool bubble);
 
     bool MakeNameStates();
     void PublishNames(bool frameDone);
@@ -107,6 +113,8 @@ public:
     virtual void ProbeScene() override;
     virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) override;
     virtual void DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
+    virtual void BeginBubbles(const HookDraw& draw, bool fresh) override;
+    virtual void DrawBubble(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
 
     virtual uint32_t GetSpawnFlags(uint32_t entityIndex) override {
         IEntity* entities = m_AshitaCore->GetMemoryManager()->GetEntity();
@@ -160,7 +168,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 1.23;
+    return 1.24;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -367,13 +375,27 @@ void AshitaNameplate::ReleaseNameStates() {
     m_CanDraw = false;
 }
 
-void AshitaNameplate::ReleaseTextures() {
-    for (auto& texture : m_Textures) {
-        if (texture != nullptr) {
-            texture->Release();
-            texture = nullptr;
+static void RetainTextures(IDirect3DBaseTexture8** textures, const HookDraw* draw) {
+    for (size_t i = 0; i < HOOK_TEXTURES; i++) {
+        auto* texture = draw != nullptr ? reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(draw->Textures[i])) : nullptr;
+        if (texture != textures[i]) {
+            if (texture != nullptr) texture->AddRef();
+            if (textures[i] != nullptr) textures[i]->Release();
+            textures[i] = texture;
         }
     }
+}
+
+void AshitaNameplate::ReleaseTextures() {
+    RetainTextures(m_Textures, nullptr);
+    RetainTextures(m_BubbleTextures, nullptr);
+    m_BubblesFresh = false;
+}
+
+void AshitaNameplate::BeginBubbles(const HookDraw& draw, bool fresh) {
+    m_BubblesFresh = fresh;
+    m_BubbleFit = draw.HorizontalFit();
+    RetainTextures(m_BubbleTextures, fresh ? &draw : nullptr);
 }
 
 // Everything of the device's state that drawing a name changes. Recorded twice over: once to be
@@ -436,26 +458,9 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
     targetWidth = static_cast<float>(m_Viewport.Width);
     targetHeight = static_cast<float>(m_Viewport.Height);
 
-    // with no addon drawing names, nothing of its is kept
-    if (!fresh) {
-        ReleaseTextures();
-        return;
-    }
-
-    // The addon's textures are held from here on, so that one it lets go of while its drawing is
-    // still being used is not drawn from after it is gone
-    for (size_t i = 0; i < HOOK_TEXTURES; i++) {
-        IDirect3DBaseTexture8* texture = reinterpret_cast<IDirect3DBaseTexture8*> (static_cast<uintptr_t>(draw.Textures[i]));
-        if (texture != m_Textures[i]) {
-            if (texture != nullptr) {
-                texture->AddRef();
-            }
-            if (m_Textures[i] != nullptr) {
-                m_Textures[i]->Release();
-            }
-            m_Textures[i] = texture;
-        }
-    }
+    // Each layer owns its textures; bubbles work even without an addon drawing names.
+    RetainTextures(m_Textures, fresh ? &draw : nullptr);
+    if (!fresh && !m_BubblesFresh) return;
 
     // A point in the world goes through the view and then the projection to where it is in the picture
     D3DMATRIX view;
@@ -511,6 +516,17 @@ static DWORD FadeColor(uint32_t color, float alpha) {
 }
 
 void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) {
+    RenderCustom(entityIndex, drawing, quads, position, false);
+}
+
+void AshitaNameplate::DrawBubble(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) {
+    RenderCustom(entityIndex, drawing, quads, position, true);
+}
+
+void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position, bool bubble) {
+    auto** textures = bubble ? m_BubbleTextures : m_Textures;
+    auto* boundsCache = bubble ? m_BubbleBounds : m_NameBounds;
+    const float horizontalFit = bubble ? m_BubbleFit : m_HorizontalFit;
     if (!m_CanDraw || entityIndex >= HOOK_ENTITIES || drawing.Count == 0 || drawing.Count > HOOK_QUADS_PER_NAME) {
         return;
     }
@@ -541,7 +557,7 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
         return;
     }
 
-    const NameBounds& bounds = m_NameBounds[entityIndex].Get(drawing, quads, m_HorizontalFit);
+    const NameBounds& bounds = boundsCache[entityIndex].Get(drawing, quads, horizontalFit);
     if (!bounds.Intersects(left, top, static_cast<float>(m_Viewport.X), static_cast<float>(m_Viewport.Y),
             static_cast<float>(m_Viewport.Width), static_cast<float>(m_Viewport.Height))) {
         return; // no vertex expansion, state capture or draw submission for invisible names
@@ -552,7 +568,7 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
     DWORD mostSolid = 0; // of the colours of what is drawn
 
     auto add = [&](const HookQuad& quad, float dx, float dy, DWORD color) {
-        if (quad.Texture >= HOOK_TEXTURES || m_Textures[quad.Texture] == nullptr || vertexCount + 6 > NAME_VERTICES) {
+        if (quad.Texture >= HOOK_TEXTURES || textures[quad.Texture] == nullptr || vertexCount + 6 > NAME_VERTICES) {
             return;
         }
 
@@ -586,7 +602,7 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
     if (drawing.Edge > 0.0f) {
         const float edge = (drawing.Edge > 8.0f) ? 8.0f : drawing.Edge;
         for (int corner = 0; corner < 4; corner++) {
-            const float dx = ((corner & 1) ? edge : -edge) * m_HorizontalFit;
+            const float dx = ((corner & 1) ? edge : -edge) * horizontalFit;
             const float dy = (corner & 2) ? edge : -edge;
             for (uint32_t i = 0; i < drawing.Count; i++) {
                 if ((quads[i].Flags & QUAD_EDGED) != 0) {
@@ -615,7 +631,7 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
     // most names are letters alone, from the one texture, which is then set once for both passes
     for (uint32_t i = 0; i < runCount; i++) {
         if (i == 0 || runCount > 1) {
-            device->SetTexture(0, m_Textures[Runs[i].texture]);
+            device->SetTexture(0, textures[Runs[i].texture]);
         }
         device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
     }
@@ -629,7 +645,7 @@ void AshitaNameplate::DrawCustom(uint32_t entityIndex, const HookDrawing& drawin
         device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
         for (uint32_t i = 0; i < runCount; i++) {
             if (runCount > 1) {
-                device->SetTexture(0, m_Textures[Runs[i].texture]);
+                device->SetTexture(0, textures[Runs[i].texture]);
             }
             device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
         }
@@ -655,7 +671,7 @@ void AshitaNameplate::PublishNames(bool frameDone) {
 }
 
 static void AshitaLongHelp(IChatManager* chat) {
-    chat->Write(0, false, "\x1e\x05namehook v1.23, from Nameplate v0.51 by way of nameplatew v0.60");
+    chat->Write(0, false, "\x1e\x05namehook v1.24, from Nameplate v0.51 by way of nameplatew v0.60");
     chat->Write(0, false, "\x1e\x05https://www.github.com/Shirk/Nameplate");
     chat->Write(0, false, "\x1e\x6aUsage (\x1e\x6a/nh\x1e\x6a is short for\x1e\x6a /namehook\x1e\x6a):");
     chat->Write(0, false, "\x1e\x6a/namehook help");

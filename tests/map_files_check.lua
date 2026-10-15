@@ -73,8 +73,8 @@ check('mark: every map read, none the pack\'s alone', read == #markDats, onlyPac
 -- zoneinfo: every map in the browser; those the pack alone has are its own other pictures of a map,
 -- blank in the browser without it
 local zoneDats = {};
-for _, map in ipairs(dofile('addons/zoneinfo/data/all_maps.lua')) do zoneDats[#zoneDats + 1] = map.dat; end
-local poc = dofile('addons/zoneinfo/data/poc_areas.lua');
+for _, map in ipairs(dofile('addons/zone/data/all_maps.lua')) do zoneDats[#zoneDats + 1] = map.dat; end
+local poc = dofile('addons/zone/data/poc_areas.lua');
 for _, map in pairs(poc) do if type(map) == 'table' and map.dat then zoneDats[#zoneDats + 1] = map.dat; end end
 read, onlyPack, bad = Survey('zoneinfo', zoneDats);
 check('zoneinfo: every map read; the few the pack alone has read only with it', bad == 0,

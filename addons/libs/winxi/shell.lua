@@ -18,8 +18,11 @@
 --         drawSettings   = function(options) ... end,   -- the Settings tab, above the hiding rules
 --         drawAppearance = function(options) ... end,   -- optional: more for the Winxi Theme tab's Addon section
 --         hideAppearance = true,                 -- optional: omit the Winxi Theme tab
+--         hideHeader  = 'Visibility',             -- optional: put the hiding rules under a section of this title
 --         menuOnlyCommands = true,               -- optional: only the bare command opens the menu; other
 --                                                --   verbs say the help, but for those in commands
+--         bareOpensConfig = true,                -- optional: the bare command opens or closes the settings,
+--                                                --   and 'toggle' shows or hides the window
 --         settingsLabel = 'Settings',             -- optional: label of the main settings tab
 --         leadingTabs = { { label = 'Names', draw = function(options) ... end } }, -- optional: tabs before the main settings tab
 --         tabs        = { { label = 'More', draw = function(options) ... end } },   -- optional: tabs of the addon's own, between Settings and Winxi Theme
@@ -41,11 +44,13 @@
 -- and pos among them. It is a different table after a change of character: read it from app each
 -- time rather than keeping it.
 --
--- The command with no verb shows or hides the window, and 'config' opens or closes the settings.
+-- The command with no verb shows or hides the window, and 'config' opens or closes the settings;
+-- with bareOpensConfig, the command with no verb opens the settings and 'toggle' the window.
 --
 -- An addon with no window of its own, only settings, leaves window out: the command alone then opens
 -- or closes the settings, which have nothing in them about hiding or fading, and isVisible and pos
 -- are not looked for. It calls app:BeginFrame() each frame all the same, for the settings window.
+local bit = require('bit');
 local imgui = require('imgui');
 local settings = require('settings');
 local theme = require('winxi.theme');
@@ -120,7 +125,8 @@ end
 
 -- The main window, drawn with the theme. wanted is the window's own switch (a table holding true or
 -- false): switched off, the window goes on being drawn until it has faded out. draw draws its content.
--- extra, if given: constraints = { min, max } for imgui's size constraints.
+-- extra, if given: constraints = { min, max } for imgui's size constraints,
+-- flags = additional ImGui window flags (for example, NoMove).
 function App:Window(wanted, draw, extra)
     local options = self.options;
     local isWanted = wanted[1] and true or false;
@@ -142,7 +148,8 @@ function App:Window(wanted, draw, extra)
     self.draw = draw;
 
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
-    local drawn = window.Full(self.spec.window, isWanted and wanted or self.lingering, style.TitlelessFlags(), self.drawWindow, self.windowStyle);
+    local flags = bit.bor(style.TitlelessFlags(), extra ~= nil and extra.flags or 0);
+    local drawn = window.Full(self.spec.window, isWanted and wanted or self.lingering, flags, self.drawWindow, self.windowStyle);
     imgui.PopStyleVar();
     return drawn;
 end
@@ -177,9 +184,11 @@ local function DrawConfigContent(app)
                 -- the addon's settings are set a little apart from the tabs over them, as from what is under them
                 widgets.Gap();
                 spec.drawSettings(options);
-                widgets.Gap();
+                if spec.hideHeader == nil then
+                    widgets.Gap();
+                end
             end
-            if spec.window ~= nil then
+            if spec.window ~= nil and (spec.hideHeader == nil or widgets.Header(spec.hideHeader)) then
                 widgets.Hide(options.hide, app.save);
             end
             imgui.EndTabItem();
@@ -250,9 +259,9 @@ local function OnCommand(app, e)
 
     local options = app.options;
     local verb = args[2] and args[2]:lower() or nil;
-    if verb == nil and spec.window == nil then
+    if verb == nil and (spec.window == nil or spec.bareOpensConfig) then
         app:ToggleConfig();
-    elseif verb == nil then
+    elseif verb == nil or (verb == 'toggle' and spec.bareOpensConfig) then
         options.isVisible[1] = not options.isVisible[1];
         -- for a window that is not always there to be seen changing
         if spec.toggleSays ~= nil then

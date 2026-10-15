@@ -1,6 +1,7 @@
 -- buff: loads, shows the player's statuses with their icons and times, removes one on a right click,
 -- and switches the game's own icons off and on again
 local o = H.options()
+assert(o.hide.UnderMap == true and o.hide.UnderChat == true)
 H.print('defaults: size', o.iconSize[1], '| per row', o.perRow[1], '| timers', o.showTimers[1], '| status icons', require('winxi.theme').Get().StatusIcons)
 H.print('nowhere to hide the game\'s icons, said once:', H.printed[#H.printed])
 
@@ -98,7 +99,14 @@ assert(not anchoring.IsHidden())
 menu = 'menu    buff    '; assert(not anchoring.IsHidden())
 menu = 'menu    item    '; assert(not anchoring.IsHidden())
 assert(o.hideWithMenus[1] and anchoring.HideForMenu(o))
-menu = 'menu    buff    '; assert(not anchoring.HideForMenu(o))
+for _, name in ipairs({ '', 'menu    buff    ', 'menu    inline  ' }) do
+    menu = name; assert(not anchoring.HideForMenu(o), name .. ' should leave buffs visible')
+end
+for _, name in ipairs({ 'menu item', 'menu    inventor', 'menu    bank    ', 'menu    equip   ', 'menu    status  ',
+    'menu    magic   ', 'menu    ability ', 'menu    trade   ', 'menu    map     ',
+    'menu    mcr1pall', 'menu    mcr2pall', 'menu    submenu ' }) do
+    menu = name; assert(anchoring.HideForMenu(o), name .. ' should hide anchored buffs')
+end
 menu = 'menu    item    '; o.hideWithMenus[1] = false
 assert(not anchoring.HideForMenu(o))
 menu = ''; for key in pairs(original) do
@@ -129,14 +137,42 @@ assert(H.calls.Begin == begins + 1 and drawn == 2)
 o.hideWithMenus[1] = true
 assert(not anchoring.Draw('buffs.anchor.test', o, draw))
 assert(H.calls.Begin == begins + 1 and drawn == 2, 'menu hides without drawing or interaction')
--- The same preference suppresses free-window drawing too.
-under(1, 40); o.anchorToDefault[1] = false
-H.frames(1); assert(H.calls.Begin == begins + 1)
+-- Native menus and macro palettes only suppress anchored drawing; chat/maps use shared rules.
+under(1, 40)
+local oldChat = game.IsChatExpanded
+local chat = false
+game.IsChatExpanded = function() return chat end
+for _, anchored in ipairs({ false, true }) do
+    o.anchorToDefault[1] = anchored
+    local before
+    for _, name in ipairs({ 'menu    item    ', 'menu    inventor', 'menu    bank    ', 'menu    equip   ',
+        'menu    status  ', 'menu    magic   ', 'menu    ability ', 'menu    trade   ',
+        'menu    mcr1pall', 'menu    mcr2pall', 'menu    submenu ' }) do
+        menu = name
+        before = H.calls.Begin
+        H.frames(1)
+        assert(H.calls.Begin == before + (anchored and 0 or 1), 'menus and palettes hide anchored mode only')
+    end
+    for _, name in ipairs({ 'menu    inline  ', 'menu    buff    ' }) do
+        menu = name
+        before = H.calls.Begin
+        H.frames(1); assert(H.calls.Begin == before + 1, 'other menus stay visible')
+    end
+    menu = 'menu    map     '
+    before = H.calls.Begin
+    H.frames(1); assert(H.calls.Begin == before, 'maps hide both modes')
+    menu = ''; chat = true
+    before = H.calls.Begin
+    H.frames(1); assert(H.calls.Begin == before, 'expanded chat hides both modes')
+    chat = false
+end
+game.IsChatExpanded = oldChat
+begins = H.calls.Begin
 o.anchorToDefault[1] = true
 menu = ''
 state.IsInterfaceHidden = true
 assert(not anchoring.Draw('buffs.anchor.test', o, draw))
-assert(H.calls.Begin == begins + 1 and drawn == 2)
+assert(H.calls.Begin == begins and drawn == 2)
 state.IsInterfaceHidden = false
 menu = ''; o.fadeInOut[1] = false; o.isVisible[1] = false
 assert(not anchoring.Draw('buffs.anchor.test', o, draw))

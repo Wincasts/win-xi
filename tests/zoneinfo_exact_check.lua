@@ -1,5 +1,5 @@
 -- Exact areas (buildings): announced on stepping inside, with no approach distance; kept in the save file.
-package.path = 'addons/zoneinfo/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;' .. package.path;
 local g = require('area_geometry');
 local editor_module = require('boundary_editor');
 local catalog = require('map_catalog');

@@ -17,7 +17,7 @@ MAPS = {100: 'ROM/17/24.DAT', 103: 'ROM/17/27.DAT', 107: 'ROM/17/31.DAT'}
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('pack', type=Path)
-    parser.add_argument('--output', type=Path, default=Path('addons/zoneinfo/assets/maps'))
+    parser.add_argument('--output', type=Path, default=Path('addons/zone/assets/maps'))
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     records = []

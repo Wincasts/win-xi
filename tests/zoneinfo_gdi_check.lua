@@ -47,17 +47,17 @@ imgui.BeginCombo = function(id)
     return false;
 end;
 imgui.Selectable = function(label)
-    if active_combo == '##zoneinfo.zoneTitleGdiFamily' and label == 'Calibri' then selections = selections + 1; return true; end
+    if active_combo == '##zone.zoneTitleGdiFamily' and label == 'Calibri' then selections = selections + 1; return true; end
     return false;
 end;
 d.renderer = 'gdi';
-H.command('/zoneinfo config'); H.tab(2);
+H.command('/zone'); H.tab(2);
 local textboxes = H.calls.InputText or 0;
 H.frames(1);
 local combo_count = 0; for _ in pairs(combos) do combo_count = combo_count + 1; end
 check('four family dropdowns and only the background filename textbox', combo_count == 4 and (H.calls.InputText or 0) == textboxes + 1);
 check('dropdown selection updates saved family', selections == 1 and d.zoneTitleGdiFamily[1] == 'Calibri' and H.saves() > 0);
-H.command('/zoneinfo config');
+H.command('/zone');
 imgui.BeginCombo, imgui.Selectable = original_combo, original_selectable;
 d.renderer, d.centered[1], d.position[1], d.position[2], d.alignment = 'gdi', false, 400, 200, 'right';
 d.zoneTitleGdiFamily[1] = 'Missing Font';

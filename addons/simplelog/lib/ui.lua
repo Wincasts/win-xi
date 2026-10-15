@@ -1,18 +1,13 @@
 local ui = {}
 local imgui = require('imgui')
 
-local theme = T{
-    window_bg = { 0.101, 0.098, 0.098, 0.9 },
-    child_bg = { 0.0, 0.0, 0.0, 0.50 },
-    header_text_col = { 0.462, 0.647, 0.756, 1.0 },
-    desc_text_col = { 0.450, 0.498, 0.529, 1.0 },
-    button_create_filt = { 0.094, 0.447, 0.094, 0.9 },
-    button_test_colors = { 0.894, 0.525, 0.525, 0.9 },
-    button_tab_act_col = { 0.152, 0.298, 0.427, 0.9 },
-    button_tab_dis_col = { 0.2, 0.2, 0.2, 0.9 },
-    button_hov_col = { 0.2, 0.2, 0.3, 0.9 },
-    button_act_col = { 0.3, 0.2, 0.3, 0.9 },
-}
+local window = require('winxi.window')
+local winxiTheme = require('winxi.theme')
+local widgets = require('winxi.widgets')
+local tooltip = require('winxi.tooltip')
+
+-- Text roles follow the settings theme, never the game-window palette.
+local theme = {}
 
 local filter_info = {
     filter_order = {
@@ -194,66 +189,25 @@ ui.render_config = function(toggle)
         return
     end
 
-    imgui.SetNextWindowContentSize({ 330, 430 })
-    imgui.SetNextWindowSizeConstraints({ 330, 470 }, { 430, 650 })
-    imgui.StyleColorsDark()
+    winxiTheme.Configure(true)
+    theme.header_text_col = winxiTheme.For('TextColor', true)
+    theme.desc_text_col = winxiTheme.For('TextColor', true)
 
-    imgui.PushStyleColor(ImGuiCol_WindowBg , theme.window_bg)
-    imgui.PushStyleColor(ImGuiCol_TitleBg, theme.child_bg)
-    if imgui.Begin(('SimpleLog - v%s'):fmt(addon.version), ui.state.open) then
-        imgui.PopStyleColor(2)
+    window.Full(('SimpleLog - v%s###simplelog_settings'):fmt(addon.version), ui.state.open, 0, function()
         imgui.BeginGroup()
-            if ui.state.tab == 0 then
-                imgui.PushStyleColor(ImGuiCol_Button, theme.button_tab_act_col)
-            else
-                imgui.PushStyleColor(ImGuiCol_Button, theme.button_tab_dis_col)
+            if imgui.BeginTabBar('##simplelog_tabs') then
+                for i, name in ipairs({ 'Settings', 'Filters', 'Colors' }) do
+                    if imgui.BeginTabItem(name) then
+                        ui.state.tab = i - 1
+                        imgui.EndTabItem()
+                    end
+                end
+                imgui.EndTabBar()
             end
-            imgui.PushStyleColor(ImGuiCol_ButtonHovered, theme.button_hov_col)
-            imgui.PushStyleColor(ImGuiCol_ButtonActive, theme.button_act_col)
-            if imgui.Button('\xEF\x82\xAD Settings') then
-                ui.state.tab = 0
-            end
-            imgui.PopStyleColor(3)
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('Configuration of addon behavior')
-            end
-            if ui.state.tab == 1 then
-                imgui.PushStyleColor(ImGuiCol_Button, theme.button_tab_act_col)
-            else
-                imgui.PushStyleColor(ImGuiCol_Button, theme.button_tab_dis_col)
-            end
-            imgui.PushStyleColor(ImGuiCol_ButtonHovered, theme.button_hov_col)
-            imgui.PushStyleColor(ImGuiCol_ButtonActive, theme.button_act_col)
-            imgui.SameLine()
-            if imgui.Button('\xef\x8a\x8d Filters') then
-                ui.state.tab = 1
-            end
-            imgui.PopStyleColor(3)
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('Chat log filter settings')
-            end
-            if ui.state.tab == 2 then
-                imgui.PushStyleColor(ImGuiCol_Button, theme.button_tab_act_col)
-            else
-                imgui.PushStyleColor(ImGuiCol_Button, theme.button_tab_dis_col)
-            end
-            imgui.PushStyleColor(ImGuiCol_ButtonHovered, theme.button_hov_col)
-            imgui.PushStyleColor(ImGuiCol_ButtonActive, theme.button_act_col)
-            imgui.SameLine()
-            if imgui.Button('\xef\x87\xbc Colors') then
-                ui.state.tab = 2
-            end
-            imgui.PopStyleColor(3)
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('Chat log color settings')
-            end
-            imgui.PushStyleColor(ImGuiCol_ChildBg, theme.child_bg)
-            imgui.BeginChild('simplelog_conf', { imgui.GetWindowWidth()-16, imgui.GetWindowHeight()-120 }, ImGuiChildFlags_Borders or ImGuiChildFlags_Border or true)
-                imgui.PopStyleColor()
                 imgui.PushTextWrapPos(0)
                 if ui.state.tab == 0 then
                     imgui.TextColored(theme.desc_text_col, 'General Options:\nChange different modes of how the addon output messages.')
-                    if imgui.TreeNodeEx('Condese Options', bit.bor(ImGuiTreeNodeFlags_Framed, ImGuiTreeNodeFlags_DefaultOpen, ImGuiTreeNodeFlags_NoTreePushOnOpen)) then
+                    if widgets.Header('Condense Options', true) then
                         local simplify_change = imgui.Checkbox('##simplify', {gProfileSettings.mode.simplify})
                         if simplify_change then
                             gProfileSettings.mode.simplify = not gProfileSettings.mode.simplify
@@ -378,7 +332,7 @@ ui.render_config = function(toggle)
                         end
                     end
 
-                    if imgui.TreeNodeEx('Visbility Options', bit.bor(ImGuiTreeNodeFlags_Framed, ImGuiTreeNodeFlags_NoTreePushOnOpen)) then
+                    if widgets.Header('Visibility Options') then
                         local cancelmultimsg_change = imgui.Checkbox('##cancelmultimsg', {gProfileSettings.mode.cancelmultimsg})
                         if cancelmultimsg_change then
                             gProfileSettings.mode.cancelmultimsg = not gProfileSettings.mode.cancelmultimsg
@@ -460,10 +414,7 @@ ui.render_config = function(toggle)
                 elseif ui.state.tab == 1 then
                     imgui.TextColored(theme.desc_text_col, 'Profile: ')
                     imgui.SameLine()
-                    imgui.TextColored(theme.button_create_filt, gStatus.CurrentFilters)
-                    imgui.PushStyleColor(ImGuiCol_Button, theme.button_create_filt)
-                    imgui.PushStyleColor(ImGuiCol_ButtonHovered, theme.button_hov_col)
-                    imgui.PushStyleColor(ImGuiCol_ButtonActive, theme.button_act_col)
+                    imgui.Text(gStatus.CurrentFilters)
                     if imgui.Button('\xef\x85\x9b Create Job Profile') then
                         local jobFiltersFile = (gStatus.SettingsFolder .. '%s.lua'):fmt(AshitaCore:GetResourceManager():GetString("jobs.names_abbr", gStatus.PlayerJob));
                         local shortFileName = jobFiltersFile:match("[^\\]*.$");
@@ -477,10 +428,7 @@ ui.render_config = function(toggle)
                         end
                     end
                     
-                    imgui.PopStyleColor(3)
-                    if imgui.IsItemHovered() then
-                        imgui.SetTooltip('Configuration of addon behavior')
-                    end
+                    tooltip.Hover('Create a filter profile for the current job.')
 
                     local size = imgui.GetIO().DisplaySize
                     local center = { size.x * 0.5, size.y * 0.5 }
@@ -488,6 +436,7 @@ ui.render_config = function(toggle)
                     imgui.SetNextWindowPos(center, ImGuiCond_Appearing, {0.5, 0.5})
                     imgui.SetNextWindowSize({ -1, -1 },  ImGuiCond_Always)
 
+                    imgui.PushStyleColor(ImGuiCol_PopupBg, winxiTheme.For('BackgroundColor', true))
                     if imgui.BeginPopupModal('Overwrite?###file_man', nil, ImGuiWindowFlags_AlwaysAutoResize) then
                         imgui.NewLine()
                         imgui.Text('Profile filter already exists.\nDo you want to replace it?\nFilter Settings will be reset.')
@@ -512,6 +461,7 @@ ui.render_config = function(toggle)
                         end
                         imgui.EndPopup()
                     end
+                    imgui.PopStyleColor()
 
                     if imgui.BeginTabBar('#filters_bar') then
                         if imgui.BeginTabItem('Player') then
@@ -757,9 +707,6 @@ ui.render_config = function(toggle)
                     imgui.TextColored(theme.desc_text_col, 'Colors:')
                     imgui.TextColored(theme.desc_text_col, 'Colors are customizable based on party / alliance position. Use the colortest button to view the available colors.')
                     imgui.TextColored(theme.desc_text_col, 'If you wish for a color to be unchanged from its normal color, set it to 0.')
-                    imgui.PushStyleColor(ImGuiCol_Button, theme.button_test_colors)
-                    imgui.PushStyleColor(ImGuiCol_ButtonHovered, theme.button_hov_col)
-                    imgui.PushStyleColor(ImGuiCol_ButtonActive, theme.button_act_col)
                     if imgui.Button('\xef\x94\xbf Color Test') then
                         local counter = 0
                         local line = ''
@@ -782,15 +729,12 @@ ui.render_config = function(toggle)
                         end
                         AshitaCore:GetChatManager():AddChatMessage(122, false, 'Colors Tested!')
                     end
-                    imgui.PopStyleColor(3)
-                    if imgui.IsItemHovered() then
-                        imgui.SetTooltip('Show available colors on chat')
-                    end
+                    tooltip.Hover('Show available colors in chat.')
 
                     ui.updatecolors()
                     local colors_inputbox = {}
                     for i, v in ipairs(color_info.color_order) do
-                        imgui.PushItemWidth(30)
+                        imgui.PushItemWidth(imgui.GetFontSize() * 4)
                         colors_inputbox[i] = imgui.InputInt(('##%s'):fmt(v), color_info.color_inputs[v], 0)
                         if colors_inputbox[i] then
                             gProfileColor[v] = tonumber(color_info.color_inputs[v][1])
@@ -801,19 +745,17 @@ ui.render_config = function(toggle)
                     end
                 end
                 imgui.PopTextWrapPos()
-            imgui.EndChild()
-            if imgui.Button('\xef\x95\xaf Save Changes', {imgui.GetWindowWidth()-16, 20}) then
+            if imgui.Button('Save Changes', { -1, 0 }) then
                 if not static_config then
                     ui.save_changes()
                 else
                     gFuncs.Error('Saving is Disabled.')
                 end
             end
-            imgui.TextDisabled(('\xef\x83\x81 %s'):fmt(addon.link))
-            imgui.TextDisabled(('\xef\x87\xb9 2022 by %s'):fmt(addon.author))
+            imgui.TextColored(theme.desc_text_col, addon.link)
+            imgui.TextColored(theme.desc_text_col, ('2022 by %s'):fmt(addon.author))
         imgui.EndGroup()
-    end
-    imgui.End()
+    end, { kind = window.Settings })
 end
 
 ui.updatecolors = function ()

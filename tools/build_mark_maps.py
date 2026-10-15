@@ -64,7 +64,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('pack', nargs='?', type=Path, default=ROOT / 'references/XICombinedMaps-2048')
     parser.add_argument('--catalog', type=Path, default=ROOT / 'addons/mark/data/maps.lua')
-    parser.add_argument('--source-manifest', type=Path, default=ROOT / 'addons/zoneinfo/assets/maps/all/manifest.json')
+    parser.add_argument('--source-manifest', type=Path, default=ROOT / 'addons/zone/assets/maps/all/manifest.json')
     parser.add_argument('--output', type=Path, default=ROOT / 'addons/mark/assets/maps')
     args = parser.parse_args()
     result = export_maps(args.pack, args.catalog, args.source_manifest, args.output)

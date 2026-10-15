@@ -14,7 +14,7 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | [puppet](addons/puppet) | The next enfeebles and weapon skill an automaton will use | `/puppet` |
 | [trigger](addons/trigger) | Plays a sound when something happens: a tell, an invite, a trade, an item dropping, low HP and the like | `/trigger` |
 | [winxisettings](addons/winxisettings) | The look shared by every winxi addon, in one settings window | `/winxi` |
-| [zoneinfo](addons/zoneinfo) | Zone, region and weather banners, and a location line | `/zoneinfo config` |
+| [zone](addons/zone) | Zone, region and weather banners, and a location line | `/zone` |
 
 Each addon's folder has a README with all of its commands and settings.
 

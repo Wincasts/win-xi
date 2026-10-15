@@ -7,11 +7,11 @@ ffi.cdef[[
         uint8_t italic, underline, strikeout, charset;
         uint8_t outPrecision, clipPrecision, quality, pitchAndFamily;
         uint16_t face[32];
-    } zoneinfo_logfont_w;
-    typedef int (__stdcall *zoneinfo_font_enum_proc)(const zoneinfo_logfont_w*, const void*, uint32_t, intptr_t);
+    } zone_logfont_w;
+    typedef int (__stdcall *zone_font_enum_proc)(const zone_logfont_w*, const void*, uint32_t, intptr_t);
     void* __stdcall GetDC(void*);
     int __stdcall ReleaseDC(void*, void*);
-    int __stdcall EnumFontFamiliesExW(void*, zoneinfo_logfont_w*, zoneinfo_font_enum_proc, intptr_t, uint32_t);
+    int __stdcall EnumFontFamiliesExW(void*, zone_logfont_w*, zone_font_enum_proc, intptr_t, uint32_t);
     int __stdcall WideCharToMultiByte(uint32_t, uint32_t, const uint16_t*, int, char*, int, const char*, void*);
 ]];
 local families, problem;
@@ -26,11 +26,11 @@ local function enumerate()
     local callback;
     local ok, result = pcall(function ()
         local names, seen = {}, {};
-        local filter = ffi.new('zoneinfo_logfont_w');
+        local filter = ffi.new('zone_logfont_w');
         filter.charset = 1; -- DEFAULT_CHARSET: enumerate all installed charsets
         local buffer = ffi.new('char[128]');
         local callbackError;
-        callback = ffi.cast('zoneinfo_font_enum_proc', function (font)
+        callback = ffi.cast('zone_font_enum_proc', function (font)
             -- Never let a Lua error escape through a native callback.
             local success, err = pcall(function ()
                 local count = kernel.WideCharToMultiByte(65001, 0, font.face, -1, buffer, 128, nil, nil);

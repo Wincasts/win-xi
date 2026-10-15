@@ -1,11 +1,13 @@
 -- winxi.style: puts the theme on imgui's style stack around a window.
 --
 --   style.PushPlain()  the background, border and text colours and the padding. For a window that
---                      holds only text, bars and icons: three colours, cheap enough for every frame.
+--                      holds only text, bars and icons: four colours, cheap enough for every frame.
 --   style.PushFull()   those, and the palette that tints tabs, tables, buttons, inputs, sliders,
 --                      scrollbars and title bars from the border colour. For a window with controls.
 --
 -- Call one before a window's Begin and style.Pop() after its End. Pushes may be nested.
+-- Style rule: child regions are always transparent, showing the parent Winxi background.
+-- Do not override ChildBg or draw a separate background for a child region.
 -- Both take an optional table: padding (a number, in place of the theme's), background (a colour, in
 -- place of the theme's), alpha (0 to 1, for a window that is fading), kind (winxi.window's: a settings
 -- window has the theme's settings window colours and padding, and its border is never faded; a game
@@ -29,7 +31,7 @@ local background = nil; -- the window last pushed for's background (winxi.backgr
 
 local function Push(options, withPalette)
     local settingsKind = options ~= nil and options.kind == 'settings';
-    local colors, vars = 3, 1;
+    local colors, vars = 4, 1;
 
     if options and options.alpha and options.alpha < 1 then
         imgui.PushStyleVar(ImGuiStyleVar_Alpha, options.alpha);
@@ -52,6 +54,8 @@ local function Push(options, withPalette)
     -- a settings window's border is never faded, so that it can always be found
     imgui.PushStyleColor(ImGuiCol_Border, settingsKind and theme.For('BorderColor', true) or theme.GameBorderColor());
     imgui.PushStyleColor(ImGuiCol_Text, theme.For('TextColor', settingsKind));
+    -- Apply after the palette so themes cannot introduce a separate child background.
+    imgui.PushStyleColor(ImGuiCol_ChildBg, clear);
 
     local amount = options and tonumber(options.padding) or theme.For('Padding', settingsKind);
     padding[1], padding[2] = amount, amount;

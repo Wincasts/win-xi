@@ -1,5 +1,5 @@
 -- Compare optimized membership with an uncached reference, including boundary tolerances.
-package.path = 'addons/zoneinfo/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;' .. package.path;
 local g = require('area_geometry');
 local catalog = require('map_catalog');
 local function distance(p, x, y)

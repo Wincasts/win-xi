@@ -4,6 +4,8 @@
 cd "$(dirname "$0")/.." || exit 1
 run() { echo "== $1"; luajit tests/harness.lua "$1" "$2" "tests/$3" 2>&1; echo; }
 run inventory  addons/inventory/inventory.lua inventory_check.lua
+run inventory  addons/inventory/inventory.lua inventory_grid_check.lua
+run inventory  addons/inventory/inventory.lua inventory_performance_check.lua
 run treas      addons/treas/treas.lua   treas_check.lua
 run mark       addons/mark/mark.lua     mark_check.lua
 run mark       addons/mark/mark.lua     mark_performance_check.lua
@@ -16,16 +18,21 @@ luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
 luajit tests/mark_data_check.lua
 echo
+run simplelog  tests/empty.lua          simplelog_ui_check.lua
 run controller tests/empty.lua          controller_check.lua
 run debuffs    tests/empty.lua          debuffs_check.lua
 run statusicons tests/empty.lua         winxi_statusicons_mixed_check.lua
 run party      addons/party/party.lua party_check.lua
 run party      addons/party/party.lua party_borders_check.lua
+run party      addons/party/party.lua party_resolution_check.lua
+run party      addons/party/party.lua party_rearrange_check.lua
+run party      addons/party/party.lua party_cursor_check.lua
 run party      addons/party/party.lua party_dropdowns_check.lua
 run party      addons/party/party.lua winxi_fonts_check.lua
 run party      addons/party/party.lua winxi_settings_window_check.lua
 run party      addons/party/party.lua winxi_backgrounds_check.lua
 run inventory  addons/inventory/inventory.lua winxi_tabs_check.lua
+run inventory  addons/inventory/inventory.lua winxi_child_background_check.lua
 luajit tests/winxi_mapdat_check.lua
 luajit tests/winxi_cursor_check.lua
 luajit tests/hideparty_cursor_check.lua
@@ -42,10 +49,10 @@ python3 tests/trigger_sound_volumes_check.py
 run puppet     addons/puppet/puppet.lua puppet_check.lua
 run buff       addons/buff/buff.lua     buff_check.lua
 run buff       addons/buff/buff.lua     buff_performance_check.lua
-run zoneinfo   tests/zoneinfo_fixture.lua zoneinfo_check.lua
+run zone       tests/zoneinfo_fixture.lua zoneinfo_check.lua
 run zoneinfo-presentation tests/zoneinfo_fixture.lua zoneinfo_presentation_ui_check.lua
 run zoneinfo-background tests/zoneinfo_background_fixture.lua zoneinfo_background_check.lua
-echo '== zoneinfo geometry and map adapter'
+echo '== zone geometry and map adapter'
 luajit tests/zoneinfo_math_check.lua
 luajit tests/zoneinfo_banner_check.lua
 luajit tests/zoneinfo_editor_check.lua

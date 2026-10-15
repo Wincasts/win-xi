@@ -114,10 +114,10 @@ def build(catalog, indices):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('pack', type=Path)
-    parser.add_argument('--catalog', type=Path, default=Path('addons/zoneinfo/research/map_label_catalog.json'))
+    parser.add_argument('--catalog', type=Path, default=Path('addons/zone/research/map_label_catalog.json'))
     parser.add_argument('--floors', type=Path, default=Path('references/boussole/data/zonesFloors.lua'))
-    parser.add_argument('--addon', type=Path, default=Path('addons/zoneinfo'))
-    parser.add_argument('--refinements', type=Path, default=Path('addons/zoneinfo/research/boundary_refinements.json'))
+    parser.add_argument('--addon', type=Path, default=Path('addons/zone'))
+    parser.add_argument('--refinements', type=Path, default=Path('addons/zone/research/boundary_refinements.json'))
     parser.add_argument('--defaults-only', action='store_true', help='Refresh polygons/manifest without re-encoding existing previews')
     args = parser.parse_args()
     refinements = load_refinements(args.refinements)

@@ -8,7 +8,8 @@ addon.link    = 'https://github.com/Wincasts/ffxi-addons'
 -- look of its windows, the controller, the sounds, the packets and what is asked of the game are
 -- all the library's.
 --
---   /inventory           shows or hides the window (/inv does the same, as do the verbs after it)
+--   /inventory           opens or closes the settings (/inv does the same, as do the verbs after it)
+--   /inventory toggle    shows or hides the window
 --   /inventory config    opens or closes the settings
 --   /inventory focus     gives the open window the controller, or takes it away again
 --
@@ -80,6 +81,8 @@ local BuildCounts
 
 -- Whether a spot is drawn for each empty slot as well: the Show Empty Slots setting, as of this frame
 local showEmptySlots = false
+local previewGrid = false
+local previewSlots = 0
 
 local itemTypes = {
     misc       = 1,
@@ -868,6 +871,21 @@ local pad = {
 }
 
 local padTabs = 4
+local tabKeys = { 'bag', 'satchel', 'wardrobe', 'house' }
+local tabNames = { 'Bag', 'Satchel', 'Wardrobe', 'House' }
+
+local function TabEnabled(options, index)
+    return options.bagTabs[tabKeys[index]][1]
+end
+
+local function NextTab(options, index, direction)
+    for _ = 1, padTabs do
+        index = (index - 1 + direction) % padTabs + 1
+        if TabEnabled(options, index) then
+            return index
+        end
+    end
+end
 local iconSize = 32 -- an item's icon, square
 local labelGap = 6  -- between the highlight's outline and the box that names the item
 local padColor = imgui.GetColorU32({ 1.0, 0.85, 0.3, 1.0 })
@@ -1198,11 +1216,7 @@ local function PadPress(action)
     if action == 'up' or action == 'down' or action == 'left' or action == 'right' then
         pad.grid:Move(action)
     elseif action == 'previous' or action == 'next' then
-        if action == 'previous' then
-            pad.wantTab = (pad.tab - 2) % padTabs + 1
-        else
-            pad.wantTab = pad.tab % padTabs + 1
-        end
+        pad.wantTab = NextTab(pad.options, pad.tab, action == 'previous' and -1 or 1)
         -- an item picked for swapping is of the tab being left
         if pad.swap ~= nil then
             pad.swap.first = nil
@@ -1243,12 +1257,12 @@ local function PadPress(action)
             -- an empty slot, or an item with nothing to be done with it
             sound.Play('error')
         end
-    elseif action == 'sort' then
+    elseif action == 'sort' and TabEnabled(pad.options, pad.tab) then
         pad.menu = SortMenu()
         pad.menuItem = nil
         sound.Play('confirm')
     elseif action == 'back' then
-        -- the controller goes back to the game; the window stays, until /inv closes it
+        -- the controller goes back to the game; the window stays, until /inv toggle closes it
         pad.focused = false
         sound.Play('back')
     end
@@ -1285,6 +1299,13 @@ local function PadBeginFrame(options)
     pad.showing = showing
 
     pad.options = options
+    if not TabEnabled(options, pad.tab) then
+        pad.wantTab = NextTab(options, pad.tab, 1)
+        pad.menu, pad.swap = nil, nil
+        pad.grid:Reset()
+    elseif pad.wantTab ~= nil and not TabEnabled(options, pad.wantTab) then
+        pad.wantTab = nil
+    end
     pad.drawn = os.clock()
     pad.active = PadIsActive()
     if not pad.active then
@@ -1358,21 +1379,25 @@ local emptyEdge = { 1.0, 1.0, 1.0, 0.18 }
 
 -- How many empty slots a bag (or a group's bags together) has to show: none unless they are being shown
 local function EmptySlots(bagId, subId)
-    if not showEmptySlots then
-        return 0
+    local count = #inventories[bagId][subId]
+    local slots = showEmptySlots and (capacities[bagId][subId] or 0) or count
+    if previewGrid then
+        slots = math.max(slots, previewSlots)
     end
-    return math.max(0, (capacities[bagId][subId] or 0) - #inventories[bagId][subId])
+    return math.max(0, slots - count)
 end
 
 -- A bag's items are laid out here rather than by imgui, a grid of them in rows: the room for the whole
 -- grid is kept in one go, and the item under the mouse is worked out from where it is. Only what is in
 -- view is drawn, the icons all together and then the stack sizes over them, so that imgui draws the
 -- icons in one go (they share winxi.itemicons' sheet) and the text in another.
-local tabsWidthIsh = imgui.CalcTextSize(' bag satchel ward house ')
-local rowLengthIsh = math.max(1, math.ceil(tabsWidthIsh / (32 + 8)))
+local rowLengthIsh = 6 -- updated from the Columns setting each frame
 local itemGap = { 8, 4 } -- between items, across and down: the shell's spacing for its windows
 local stepX, stepY = iconSize + itemGap[1], iconSize + itemGap[2]
 local gridSize = { 0, 0 }
+local viewportSize = { 0, 0 }
+local gridPadding = { 0, 0 }
+local viewportMin, viewportMax = { 0, 1 }, { 0, 0 }
 local iconMin, iconMax, uvMin, uvMax = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
 local firstShown, lastShown = 0, -1 -- the items of the bag being drawn that are in view
 
@@ -1572,6 +1597,9 @@ BuildCounts = function()
 end
 
 local function DrawCountsRow(bagId)
+    -- Align to the requested grid width, not the previous frame's window width: using
+    -- GetContentRegionAvail here creates a feedback loop that prevents shrinking.
+    local countsRight = imgui.GetCursorPosX() + viewportSize[1]
     -- a little room between the slots and this row
     imgui.Dummy(countBuffer)
 
@@ -1584,9 +1612,8 @@ local function DrawCountsRow(bagId)
         end
 
         -- against the right edge, by hand: the text starts its own width short of it
-        local available = imgui.GetContentRegionAvail()
         local width = imgui.CalcTextSize(row.text)
-        imgui.SetCursorPosX(imgui.GetCursorPosX() + math.max(0, available - width))
+        imgui.SetCursorPosX(math.max(imgui.GetCursorPosX(), countsRight - width))
 
         if row.full then
             imgui.TextColored(red, row.text)
@@ -1599,6 +1626,7 @@ end
 -- The end of a tab: the tooltip of the item under the mouse, the menu if it is open, and the row of
 -- counts at the foot
 local function FinishTab(group)
+    imgui.EndChild()
     if hoveredItem ~= nil and not itemMenu.open then
         AddTooltip(hoveredItem)
     end
@@ -1609,8 +1637,11 @@ end
 -- Begins one of the four tabs. With the controller it is also where a change of tab is asked for and
 -- where the tab that is showing is noted.
 local function BeginTab(index, label)
+    if not TabEnabled(pad.options, index) then
+        return false
+    end
     local showing
-    if pad.active and pad.wantTab == index then
+    if pad.wantTab == index then
         showing = tabs.Begin(label, ImGuiTabItemFlags_SetSelected)
     else
         showing = tabs.Begin(label)
@@ -1625,6 +1656,26 @@ local function BeginTab(index, label)
             pad.tab = index
             pad.grid:Reset()
             pad.menu = nil
+            if pad.swap ~= nil then
+                pad.swap.first = nil
+            end
+        end
+        -- Preview the full chosen size in settings; otherwise fit the content up to that height.
+        -- NoBackground leaves the base Winxi window visible through the scrolling region.
+        viewportMin[1], viewportMax[1] = viewportSize[1], viewportSize[1]
+        viewportMin[2] = previewGrid and viewportMax[2] or 1
+        imgui.SetNextWindowSizeConstraints(viewportMin, viewportMax)
+        -- The parent already supplies Winxi padding. Child padding would subtract from the
+        -- slot area and clip the final column; reserve only the actual scrollbar width here.
+        imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, gridPadding)
+        local shown = imgui.BeginChild('##inv.grid.' .. index, viewportSize,
+            ImGuiChildFlags_AutoResizeY,
+            ImGuiWindowFlags_NoBackground)
+        imgui.PopStyleVar()
+        if not shown then
+            imgui.EndChild()
+            imgui.EndTabItem()
+            return false
         end
     end
     return showing
@@ -1751,7 +1802,11 @@ local defaults = T{
     isVisible = T{ true },
     isUnified = T{ true },
     showEmptySlots = T{ false },
-    maxHeight = T{ 432 },
+    maxHeight = T{ 432 }, -- retained for legacy settings import; no longer controls the window
+    lockMovement = T{ false },
+    gridRows = T{ 8 },
+    gridColumns = T{ 6 },
+    bagTabs = T{ bag = T{ true }, satchel = T{ true }, wardrobe = T{ true }, house = T{ true } },
     pos = T{ 256, 256 },
     controller = T{ false }, -- experimental: work the window with a controller
     controllerSounds = T{ false }, -- sounds as the controller works the window
@@ -1767,7 +1822,7 @@ local defaults = T{
 }
 
 local windowName = 'winxi.inventory'
-local controllerTooltip = 'Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv closes it, /inv focus gives it the controller again).\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv, from a macro.'
+local controllerTooltip = 'Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv toggle closes it, /inv focus gives it the controller again).\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv toggle, from a macro.'
 
 -- The inventory's own controller settings, between the sounds and the kind of controller
 local function DrawControllerSettings(options)
@@ -1802,29 +1857,57 @@ local function DrawControllerSettings(options)
     end
 end
 
+-- The settings tab, in sections: the window, the bags, the treasure pool and the controller. The
+-- shell adds the hiding rules under Visibility.
 local function DrawSettings(options)
-    widgets.Label('Visible')
-    imgui.Checkbox('##inv.visible', options.isVisible)
-    widgets.Label('Position')
-    if imgui.InputInt2('##inv.position', options.pos) then
-        imgui.SetWindowPos(windowName, options.pos)
-    end
-    widgets.Label('Max Height')
-    imgui.InputInt('##inv.maxHeight', options.maxHeight)
-
-    widgets.Gap()
-    widgets.Label('Draw Unified Bags')
-    imgui.Checkbox('##inv.unified', options.isUnified)
-    widgets.Label('Show Empty Slots')
-    imgui.Checkbox('##inv.emptySlots', options.showEmptySlots)
+    widgets.Label('Lock Drag to Move')
+    imgui.Checkbox('##inv.lockMovement', options.lockMovement)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Draws a spot for every slot of each bag, with the empty ones as faint squares after the items.')
+        imgui.SetTooltip('Prevent dragging the inventory window. The Position fields can still move it.')
     end
 
-    widgets.Gap()
-    shell.ControllerSettings(options, controllerTooltip, DrawControllerSettings)
+    if widgets.Header('Window', true) then
+        widgets.Label('Visible')
+        imgui.Checkbox('##inv.visible', options.isVisible)
+        widgets.Label('Position')
+        imgui.SetNextItemWidth(widgets.NumberWidth(2))
+        if imgui.InputInt2('##inv.position', options.pos) then
+            imgui.SetWindowPos(windowName, options.pos)
+        end
+        widgets.Label('Fade In And Out')
+        imgui.Checkbox('##inv.fade', options.fadeInOut)
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once.')
+        end
+    end
+
+    if widgets.Header('Bags') then
+        widgets.Label('Rows')
+        imgui.SetNextItemWidth(widgets.NumberWidth(1))
+        imgui.InputInt('##inv.gridRows', options.gridRows, 0, 0)
+        options.gridRows[1] = math.max(5, math.min(30, options.gridRows[1]))
+        widgets.Label('Columns')
+        imgui.SetNextItemWidth(widgets.NumberWidth(1))
+        imgui.InputInt('##inv.gridColumns', options.gridColumns, 0, 0)
+        options.gridColumns[1] = math.max(6, math.min(30, options.gridColumns[1]))
+        for index, key in ipairs(tabKeys) do
+            widgets.Label('Show ' .. tabNames[index] .. ' Tab')
+            imgui.Checkbox('##inv.tab.' .. key, options.bagTabs[key])
+        end
+        widgets.Label('Draw Unified Bags')
+        imgui.Checkbox('##inv.unified', options.isUnified)
+        widgets.Label('Show Empty Slots')
+        imgui.Checkbox('##inv.emptySlots', options.showEmptySlots)
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('Draws a spot for every slot of each bag, with the empty ones as faint squares after the items.')
+        end
+    end
 
     pool.DrawSettings(options)
+
+    if widgets.Header('Controller') then
+        shell.ControllerSettings(options, controllerTooltip, DrawControllerSettings)
+    end
 end
 
 -- The settings, the settings window, the command and the main window's frame are the shell's. The
@@ -1838,8 +1921,11 @@ local app = shell.New({
     command = '/inventory',
     aliases = { '/inv' },
     formerName = 'inv',
-    help = '/inventory (or /inv) shows or hides the window; /inv config opens or closes the settings; /inv focus gives the window the controller, or takes it away.',
+    help = '/inventory (or /inv) opens or closes the settings; /inv toggle shows or hides the window; /inv focus gives the window the controller, or takes it away.',
+    bareOpensConfig = true,
     drawSettings = DrawSettings,
+    hideAppearance = true,
+    hideHeader = 'Visibility',
     import = {
         tool = 'inv',
         keys = {
@@ -1861,7 +1947,7 @@ local app = shell.New({
             if not options.controller[1] then
                 Say('Controller Navigation is off: switch it on in /inv config.')
             elseif not options.isVisible[1] then
-                Say('The window is closed: /inv opens it.')
+                Say('The window is closed: /inv toggle opens it.')
             else
                 pad.focused = not pad.focused
             end
@@ -1869,7 +1955,7 @@ local app = shell.New({
     },
 })
 
-local windowExtra = { constraints = { { -1, 0 }, { -1, 432 } } }
+local windowExtra = { flags = 0 }
 local invFrame = { x = 0, y = 0, width = 0, height = 0 } -- where the window is, for the treasure pool
 
 -- The packets that change what is in the bags, and where in each the bag's number is: true for those
@@ -1917,9 +2003,20 @@ ashita.events.register('d3d_present', 'inv_present', function()
     RefreshInventories()
 
     showEmptySlots = options.showEmptySlots[1] and true or false
-    windowExtra.constraints[2][2] = options.maxHeight[1]
+    previewGrid = app.showConfig[1]
+    -- Normalize loaded settings too, so older characters also obey the minimums.
+    options.gridColumns[1] = math.max(6, math.min(30, math.floor(options.gridColumns[1])))
+    options.gridRows[1] = math.max(5, math.min(30, math.floor(options.gridRows[1])))
+    rowLengthIsh = options.gridColumns[1]
+    local rows = options.gridRows[1]
+    local scrollbarWidth = imgui.GetStyle().ScrollbarSize or 14
+    viewportSize[1] = rowLengthIsh * stepX - itemGap[1] + scrollbarWidth
+    previewSlots = rows * rowLengthIsh
+    viewportSize[2] = 0 -- AutoResizeY fits actual content, bounded by the selected rows
+    viewportMax[2] = rows * stepY - itemGap[2]
 
     PadBeginFrame(options)
+    windowExtra.flags = options.lockMovement[1] and ImGuiWindowFlags_NoMove or 0
     app:Window(options.isVisible, DrawWindow, windowExtra)
     if pad.windowX ~= nil then
         invFrame.x, invFrame.y = pad.windowX, pad.windowY

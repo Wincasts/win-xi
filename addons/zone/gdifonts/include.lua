@@ -61,7 +61,7 @@ ffi.cdef[[
 ]]
 
 local interface = renderer.CreateFontManager(d3d.get_device());
-assert(interface ~= nil, 'Zoneinfo GDI font manager creation failed.');
+assert(interface ~= nil, 'Zone GDI font manager creation failed.');
 local objects = T{};
 
 -- Render stuff..
@@ -70,7 +70,7 @@ if (ffi.C.D3DXCreateSprite(d3d.get_device(), sprite) == ffi.C.S_OK) then
     sprite = d3d.gc_safe_release(ffi.cast('ID3DXSprite*', sprite[0]));
 else
     renderer.DestroyFontManager(interface);
-    error('Zoneinfo GDI sprite creation failed.');
+    error('Zone GDI sprite creation failed.');
 end
 local autoRender = false;
 
@@ -218,13 +218,13 @@ function exports:set_auto_render(enabled)
     if (autoRender ~= newSetting) then
         autoRender = newSetting;
         if autoRender then
-            ashita.events.register('d3d_present', 'zoneinfo_gdifonts_render_tick', render_objects);
+            ashita.events.register('d3d_present', 'zone_gdifonts_render_tick', render_objects);
         else
-            ashita.events.unregister('d3d_present', 'zoneinfo_gdifonts_render_tick');
+            ashita.events.unregister('d3d_present', 'zone_gdifonts_render_tick');
         end
     end
 end
--- Zoneinfo explicitly renders after updating per-line opacity; never register a shared tick.
+-- Zone explicitly renders after updating per-line opacity; never register a shared tick.
 exports:set_auto_render(false);
 
 return exports;

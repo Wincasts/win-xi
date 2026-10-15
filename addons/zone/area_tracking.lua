@@ -1,4 +1,4 @@
--- Throttled polling is owned by zoneinfo.lua; this controller tracks one valid sample at a time.
+-- Throttled polling is owned by zone.lua; this controller tracks one valid sample at a time.
 local geometry = require('area_geometry');
 local definitions = require('map_catalog');
 local M = {};

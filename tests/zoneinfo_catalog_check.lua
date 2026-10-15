@@ -1,4 +1,4 @@
-package.path = 'addons/zoneinfo/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;' .. package.path;
 local catalog = require('map_catalog');
 local geometry = require('area_geometry');
 local editor_module = require('boundary_editor');

@@ -228,7 +228,7 @@ Requires PyYAML and luajit. It reads each zone's `mobs.yaml` (with the modules' 
 mobdb's importer does), `regions.yaml` and `npcs.yaml`, runs the mob scripts against stand-ins for their
 placeholder lists, spawn points, routes and respawn windows, and reads the lottery's chance and wait,
 and the trades to a ???, off the scripts' text. `data/maps.lua`, the list of each zone's maps, is taken
-from `addons/zoneinfo/data/all_maps.lua`.
+from `addons/zone/data/all_maps.lua`.
 
 `tools/build_mark_maps.py` exported the pictures to `assets\maps` before Mark read them from the
 game's files; Mark no longer uses that folder.
