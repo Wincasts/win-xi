@@ -7,7 +7,6 @@ local game = require('winxi.game');
 local style = require('winxi.style');
 local fade = require('winxi.fade');
 local fonts = require('winxi.fonts');
-local screen = require('winxi.screen');
 local scalingOK, scaling = pcall(require, 'scaling');
 if not scalingOK then scaling = nil; end
 
@@ -73,7 +72,7 @@ function anchoring.Draw(name, options, draw, menuChecked)
             ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus,
             wanted and 0 or ImGuiWindowFlags_NoInputs));
         begun = true;
-        if drawn then screen.Keep(name); draw(options); end
+        if drawn then draw(options); end
     end);
     local ended, endError = true, nil;
     if begun then ended, endError = pcall(imgui.End); end

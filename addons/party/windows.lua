@@ -30,7 +30,6 @@ local fade = require('winxi.fade')
 local borders = require('winxi.borders')
 local fonts = require('winxi.fonts')
 local titles = require('winxi.titles')
-local screen = require('winxi.screen')
 
 local positioning = require('positioning')
 local windows = { }
@@ -227,7 +226,6 @@ function windows.Draw(window, content, wanted, growFrom)
             if key == 'party1' then currentMainTop = top end
             if key == 'party2' then currentAllianceBottom = top + height end
         end
-        screen.Keep(window.name)
         if held then
             anchor.Track(window.name, growFrom)
             local x, y = anchor.Point(window.name)

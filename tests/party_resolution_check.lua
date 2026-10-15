@@ -110,15 +110,13 @@ settings.automaticPositioning[1], settings.fade.Enabled = true, false
 windows.Use(settings)
 local moved
 imgui.GetIO = function() return {DisplaySize={x=1280,y=720}} end
-local at = { 1200, 650 } -- where the window is: where it was last put, as imgui has it
-imgui.GetWindowPos = function() return at[1], at[2] end
+imgui.GetWindowPos = function() return 1200, 650 end
 imgui.GetWindowSize = function() return 300, 200 end
 local sharedPosition
 imgui.SetWindowPos = function(name, point)
     if sharedPosition then assert(point == sharedPosition, 'automatic windows must reuse the position vector') end
     sharedPosition = point
     moved = {name,point[1],point[2]}
-    at[1], at[2] = point[1], point[2]
 end
 imgui.Begin = function() return true end
 local manualX, manualY = settings.party.pos1[1], settings.party.pos1[2]
