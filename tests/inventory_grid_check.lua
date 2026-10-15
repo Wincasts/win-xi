@@ -9,12 +9,6 @@ local tabs = require('winxi.tabs')
 local beginChild, beginTab = imgui.BeginChild, tabs.Begin
 local constraints, dummy = imgui.SetNextWindowSizeConstraints, imgui.Dummy
 local bounds, spots = nil, {}
-local contentWidth, scrollbarWidth = 232, 0
-local contentAvailable = imgui.GetContentRegionAvail
-imgui.GetContentRegionAvail = function()
-    if debug.getinfo(2, 'n').name == 'BeginTab' then return contentWidth, 1000 end
-    return contentAvailable()
-end
 local cursorX, countX = imgui.SetCursorPosX, nil
 imgui.SetCursorPosX = function(x)
     if debug.getinfo(2, 'n').name == 'DrawCountsRow' then countX = x end
@@ -29,28 +23,23 @@ imgui.Dummy = function(size)
     return dummy(size)
 end
 local children, labels, selected = {}, {}, nil
-local slotRects = {}
+local slotRects, scrollBars = {}, {}
 local drawList = imgui.GetWindowDrawList()
 local rect = drawList.AddRectFilled
 function drawList:AddRectFilled(minimum, maximum, ...)
     if math.abs(maximum[1] - minimum[1] - 32) < 0.001 and maximum[2] - minimum[2] == 32 then
         slotRects[#slotRects + 1] = { minimum[1], minimum[2] }
+    elseif maximum[1] - minimum[1] == 2 then
+        scrollBars[#scrollBars + 1] = { minimum[1], minimum[2], maximum[1], maximum[2] }
     end
     return rect(self, minimum, maximum, ...)
-end
--- the grid's own padding, as imgui takes it from the content width (the outlines' room at its sides)
-local childPadding, pushStyle = 0, imgui.PushStyleVar
-imgui.PushStyleVar = function(var, value, ...)
-    if var == ImGuiStyleVar_WindowPadding and type(value) == 'table' then childPadding = value[1] end
-    return pushStyle(var, value, ...)
 end
 imgui.BeginChild = function(id, size, childFlags, windowFlags)
     assert(type(childFlags) == 'number' and type(windowFlags) == 'number',
         'BeginChild requires numeric child and window flags in the current ImGui binding')
     assert(childFlags == ImGuiChildFlags_AutoResizeY, 'grid should collapse to its contents')
-    assert(windowFlags == ImGuiWindowFlags_NoBackground,
-        'grid should be transparent without forcing a scrollbar')
-    contentWidth = size[1] - 2 * childPadding - scrollbarWidth
+    assert(windowFlags == bit.bor(ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar),
+        'grid should be transparent, with no scrollbar of its own to take room from the slots')
     children[#children + 1] = { id, size[1], bounds[2], bounds[1] }
     return beginChild(id, size, childFlags, windowFlags)
 end
@@ -60,7 +49,7 @@ tabs.Begin = function(label, flags)
     return beginTab(label, flags)
 end
 local function frame()
-    children, labels, selected, spots, slotRects = {}, {}, nil, {}, {}
+    children, labels, selected, spots, slotRects, scrollBars = {}, {}, nil, {}, {}, {}
     H.frames(1)
 end
 H.play(true)
@@ -144,16 +133,20 @@ check('decreasing dimensions shrinks preview', hasGrid(232, 176)
     and children[1][2] == 244 and children[1][3] == 184)
 -- the counts end where the slots do, inside the grid's padding
 check('footer does not hold window at previous width', countX == 236)
-scrollbarWidth = 14 -- emulate ImGui subtracting a visible scrollbar from content width
+check('no scroll bar while the grid does not scroll', #scrollBars == 0)
+-- scrolled half way down 100 more pixels than the grid (here the whole 1000 by 1000 window) shows
+H.ret.GetScrollMaxY, H.ret.GetScrollY = { 100 }, { 50 }
 frame()
-check('scrollbar does not enlarge the window', children[1][2] == 244)
-check('scrollbar tightens gaps while retaining six full-sized columns', hasGrid(218, 176)
-    and math.abs(slotRects[6][1] - 196) < 0.001
-    and slotRects[6][2] == 20 and slotRects[7][1] == 10 and slotRects[7][2] == 56)
-scrollbarWidth = 0
+check('a scrolling grid keeps the window\'s width and the slots\' spacing', children[1][2] == 244
+    and hasGrid(232, 176) and slotRects[6][1] == 210)
+local bar = scrollBars[1]
+check('a slim scroll bar in the right margin, as long and as far down as the grid shows', #scrollBars == 1
+    and bar[1] == 998 and bar[3] == 1000
+    and math.abs((bar[4] - bar[2]) - 1000 * 1000 / 1100) < 0.01
+    and math.abs(bar[2] - (1000 - 1000 * 1000 / 1100) / 2) < 0.01)
+H.ret.GetScrollMaxY, H.ret.GetScrollY = nil, nil
 frame()
-check('normal spacing restored when scrollbar disappears', hasGrid(232, 176)
-    and slotRects[6][1] == 210)
+check('the bar goes when the grid no longer scrolls', #scrollBars == 0)
 H.command('/inv config'); frame()
 check('closing settings removes preview slots', hasGrid(112, 32) and children[1][4] == 1)
 check('full slots keep their square behind the icon', #slotRects == 3
