@@ -86,7 +86,8 @@ end
 
 ashita.events.register('packet_in', 'inv_equipment_packet', function(e)
     if e.id == 0x00A or e.id == 0x00B then
-        equipment.Reset()
+        -- A new area clears only the encumbrance; item resources and text sizes stay good.
+        encumbered = 0
     elseif e.id == 0x001B then
         -- Jobs Update: a little-endian 32-bit equipment-slot mask at offset 0x60.
         local data = e.data_modified or e.data

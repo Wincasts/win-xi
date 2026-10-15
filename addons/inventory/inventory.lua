@@ -333,8 +333,8 @@ local function GroupSorter(group)
     return function(lhs, rhs)
         local order = manualOrders and manualOrders[group]
         if order then
-            local left = order[OrderKey(lhs.id)] or unplaced
-            local right = order[OrderKey(rhs.id)] or unplaced
+            local left = order[lhs.orderKey] or unplaced
+            local right = order[rhs.orderKey] or unplaced
             if left ~= right then
                 return left < right
             end
@@ -370,6 +370,7 @@ local function Info(res, id)
 
     info = {
         id = id,
+        orderKey = OrderKey(id), -- its key in the player's own order, made once rather than at each comparison
         sortId = itemRes.ResourceId,
         type = itemRes.Type,
         flags = itemRes.Flags,
@@ -709,7 +710,8 @@ local function AddStackSize(posX, posY, text, drawList)
     drawList:AddText(stackPos, stackMain, text)
 end
 
-local highlightColor = imgui.GetColorU32({ 0.23, 0.67, 0.91, 1.0 })
+local highlightBlue = { 0.23, 0.67, 0.91, 1.0 }
+local highlightColor = 0
 local highlightMin, highlightMax = { 0, 0 }, { 0, 0 }
 local function AddHighlight(posX, posY, size, drawList)
     local pad = 2
@@ -889,9 +891,9 @@ local function NextTab(options, index, direction)
 end
 local iconSize = 32 -- an item's icon, square
 local labelGap = 6  -- between the highlight's outline and the box that names the item
-local padColor = imgui.GetColorU32({ 1.0, 0.85, 0.3, 1.0 })
-local swapColor = imgui.GetColorU32({ 0.3, 0.9, 0.4, 1.0 })
+local padYellow = { 1.0, 0.85, 0.3, 1.0 }
 local swapTextColor = { 0.3, 0.9, 0.4, 1.0 }
+local padColor, swapColor = 0, 0 -- packed once a frame, in the window
 
 -- Whether the inventory has the controller: the setting is on, the window has been given it, and it
 -- is showing and being drawn (it is not, while the whole UI is hidden)
@@ -1004,14 +1006,14 @@ local function SwapPlaces(options, group, first, second)
 
     local order, place = T{ }, 0
     for _, item in ipairs(inventories[group].all) do
-        local key = OrderKey(item.id)
+        local key = item.orderKey
         if order[key] == nil then
             place = place + 1
             order[key] = place
         end
     end
 
-    local firstKey, secondKey = OrderKey(first.id), OrderKey(second.id)
+    local firstKey, secondKey = first.orderKey, second.orderKey
     if order[firstKey] == nil or order[secondKey] == nil then
         return false
     end
@@ -1388,6 +1390,7 @@ local hoveredItem = nil
 -- An empty slot: a faint square the size of an item's icon
 local emptyFill = { 1.0, 1.0, 1.0, 0.04 }
 local emptyEdge = { 1.0, 1.0, 1.0, 0.18 }
+local emptyFillColor, emptyEdgeColor = 0, 0 -- packed once a frame, in the window
 
 -- How many empty slots a bag (or a group's bags together) has to show: none unless they are being shown
 local function EmptySlots(bagId, subId)
@@ -1532,7 +1535,7 @@ local function DrawBag(bagId, subId)
 
     -- the empty slots carry on from the last item, in the same rows
     if total > count then
-        local fill, edge = imgui.GetColorU32(emptyFill), imgui.GetColorU32(emptyEdge)
+        local fill, edge = emptyFillColor, emptyEdgeColor
         for i = math.max(count + 1, firstShown), math.min(total, lastShown) do
             local x, y = Spot(left, top, i)
             iconMin[1], iconMin[2], iconMax[1], iconMax[2] = x, y, x + iconSize, y + iconSize
@@ -1783,6 +1786,8 @@ local function DrawWindow(drawOptions)
     -- once for the frame, inside the window: they take in its fade
     stackMain, stackShadow = imgui.GetColorU32(stackWhite), imgui.GetColorU32(stackBlack)
     iconTint = imgui.GetColorU32(iconWhite)
+    highlightColor, padColor, swapColor = imgui.GetColorU32(highlightBlue), imgui.GetColorU32(padYellow), imgui.GetColorU32(swapTextColor)
+    emptyFillColor, emptyEdgeColor = imgui.GetColorU32(emptyFill), imgui.GetColorU32(emptyEdge)
     IconSheet()
     hoveredItem = nil
 
