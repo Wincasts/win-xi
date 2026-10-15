@@ -2,7 +2,7 @@ addon.name    = 'puppet'
 addon.author  = 'win'
 addon.version = '1.0'
 addon.desc    = 'The enfeebling spells and the weapon skill an automaton will use next, from the maneuvers up and what is on its target.'
-addon.link    = 'https://github.com/Wincasts/ffxi-addons'
+addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- A small window for a puppetmaster: the next three spells the automaton will enfeeble with, the
 -- weapon skill it will use, and the order of everything it might do next with how each stands. The choosing is predict.lua's, which follows the server's; this gathers

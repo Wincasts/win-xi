@@ -2,7 +2,7 @@ addon.name    = 'mark';
 addon.author  = 'win';
 addon.version = '1.8';
 addon.desc    = 'Pick a notorious monster, make it your mark, and see how it appears, its placeholders and their respawns, where it spawns on the map, when its window opens and what it drops.';
-addon.link    = 'https://github.com/Wincasts/ffxi-addons';
+addon.link    = 'https://github.com/Wincasts/win-xi';
 
 -- A notorious monster looked up, and one of them hunted. The window has two dropdowns, a zone's and a
 -- monster's, and under them what the server's own data says of the monster chosen: how it comes to be
