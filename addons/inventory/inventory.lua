@@ -1268,6 +1268,20 @@ local slotFill = { 1.0, 1.0, 1.0, 0.04 }
 local slotEdge = { 1.0, 1.0, 1.0, 0.18 }
 local slotFillColor, slotEdgeColor = 0, 0 -- packed once a frame, in the window
 
+-- Dragging an item with the mouse, while Lock Drag to Move holds the window still: dropped on another
+-- item of the tab, the two swap places (the player's own order, as the controller's Manual sort);
+-- dropped on another tab's name at the top, it is moved to that group's bag with room (the one chosen
+-- under the grid, if any, first). The item picked up, its group and where the mouse was, and whether
+-- it has moved far enough to be a drag rather than a click.
+local drag = { item = nil, group = nil, x = 0, y = 0, moving = false }
+local dragStart = 4 -- pixels the mouse moves before a press on an item is a drag
+local dragWhite = { 1, 1, 1, 0.75 }
+local dragMin, dragMax = { 0, 0 }, { 0, 0 }
+local tabRects = { } -- each main tab's name, where it was drawn this frame: { left, top, right, bottom }
+for index = 1, #tabGroups do
+    tabRects[index] = { shown = false, 0, 0, 0, 0 }
+end
+
 -- How many empty slots a bag (or a group's bags together) has to show: none unless they are being shown
 local function EmptySlots(group, key)
     local count = #inventories[group][key]
@@ -1387,6 +1401,9 @@ local function DrawBag(group, key)
             if #entries > 0 then
                 OpenItemMenu(hovered, group, entries)
             end
+        elseif imgui.IsMouseClicked(0) and pad.options.lockMovement[1] then
+            drag.item, drag.group, drag.moving = hovered, group, false
+            drag.x, drag.y = imgui.GetMousePos()
         end
     end
 
@@ -1417,7 +1434,7 @@ local function DrawBag(group, key)
             local x, y = Spot(left, top, i)
             AddStackSize(x, y, item.stackText, drawList)
         end
-        if item == hovered or (itemMenu.open and item == itemMenu.item) then
+        if item == hovered or (itemMenu.open and item == itemMenu.item) or (drag.moving and item == drag.item) then
             local x, y = Spot(left, top, i)
             AddHighlight(x, y, iconSize, drawList)
         end
@@ -1563,7 +1580,7 @@ end
 -- counts, and in the unified view the tabs of the group's bags, at the foot
 local function FinishTab(group, unified)
     imgui.EndChild()
-    if hoveredItem ~= nil and not itemMenu.open then
+    if hoveredItem ~= nil and not itemMenu.open and not drag.moving then
         AddTooltip(hoveredItem)
     end
     DrawItemMenu()
@@ -1585,6 +1602,10 @@ local function BeginTab(index, label)
     else
         showing = tabs.Begin(label)
     end
+    local rect = tabRects[index]
+    rect[1], rect[2] = imgui.GetItemRectMin()
+    rect[3], rect[4] = imgui.GetItemRectMax()
+    rect.shown = true
 
     if showing then
         if pad.wantTab == index then
@@ -1662,6 +1683,69 @@ local function DrawTabs(unified)
     imgui.PopStyleVar()
 end
 
+-- Moves an item to the group of another tab: to the bag chosen under its grid if that has room, or
+-- else to the first of the group's bags that can take it and has room
+local function MoveToGroup(item, group)
+    local chosen, best = shownBag[group], nil
+    for _, bag in ipairs(moveableBags) do
+        if bag.group == group and CanMoveTo(item, bag) and #inventories[group][bag.key] < bag.slots then
+            if bag == chosen then
+                best = bag
+                break
+            end
+            best = best or bag
+        end
+    end
+    if best == nil then
+        Say(('No room for %s in the %s tab, or it cannot go there.'):format(item.shortName, group))
+        sound.Play('error')
+        return
+    end
+    MoveItem(item, best)
+end
+
+-- Carries an item being dragged under the mouse, and drops it where the button is let go
+local function DrawDrag()
+    if drag.item == nil then
+        return
+    end
+    local mx, my = imgui.GetMousePos()
+    if imgui.IsMouseDown(0) then
+        if not drag.moving and mx ~= nil and math.abs(mx - drag.x) + math.abs(my - drag.y) >= dragStart then
+            drag.moving = true
+        end
+        local place = drag.moving and iconSheet ~= nil and itemicons.Place(drag.item.id) or nil
+        if place ~= nil then
+            dragMin[1], dragMin[2] = mx - iconSize / 2, my - iconSize / 2
+            dragMax[1], dragMax[2] = dragMin[1] + iconSize, dragMin[2] + iconSize
+            uvMin[1], uvMin[2], uvMax[1], uvMax[2] = place[1], place[2], place[3], place[4]
+            imgui.GetForegroundDrawList():AddImage(iconSheet, dragMin, dragMax, uvMin, uvMax,
+                imgui.GetColorU32(dragWhite))
+        end
+        return
+    end
+
+    -- let go: on another item of the tab, or on another tab's name
+    local item, group, moving = drag.item, drag.group, drag.moving
+    drag.item, drag.group, drag.moving = nil, nil, false
+    if not moving or item.gone then
+        return
+    end
+    if hoveredItem ~= nil and hoveredItem ~= item then
+        if not SwapPlaces(pad.options, group, item, hoveredItem) then
+            sound.Play('error') -- two stacks of the same item share a place
+        end
+        return
+    end
+    for index, rect in ipairs(tabRects) do
+        if rect.shown and tabGroups[index] ~= group and mx ~= nil
+            and mx >= rect[1] and mx < rect[3] and my >= rect[2] and my < rect[4] then
+            MoveToGroup(item, tabGroups[index])
+            return
+        end
+    end
+end
+
 local topPadding = 6 -- more room above the tabs, below the title on the top edge, in pixels
 
 -- What goes in the window
@@ -1673,10 +1757,17 @@ local function DrawWindow(drawOptions)
     slotFillColor, slotEdgeColor = imgui.GetColorU32(slotFill), imgui.GetColorU32(slotEdge)
     IconSheet()
     hoveredItem = nil
+    for _, rect in ipairs(tabRects) do
+        rect.shown = false
+    end
+    if not drawOptions.lockMovement[1] then
+        drag.item, drag.moving = nil, false -- items are dragged only while the window is held still
+    end
 
     imgui.SetCursorPosY(imgui.GetCursorPosY() + topPadding)
 
     DrawTabs(drawOptions.isUnified[1])
+    DrawDrag()
 
     -- where the window is, for the box that goes under it and the treasure pool beside it
     local width, height = imgui.GetWindowSize()
@@ -1779,7 +1870,7 @@ local function DrawGeneralSettings(options)
     widgets.Label('Lock Drag to Move')
     imgui.Checkbox('##inv.lockMovement', options.lockMovement)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Prevent dragging the inventory window. The Position fields can still move it.')
+        imgui.SetTooltip('Prevent dragging the inventory window. The Position fields can still move it.\nWhile it is locked, items can be dragged with the mouse: onto another item to swap their places, or onto another tab\'s name to move them to that tab\'s bags.')
     end
 
     if widgets.Header('Window', true) then

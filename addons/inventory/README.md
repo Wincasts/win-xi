@@ -16,6 +16,13 @@ Visibility), **Bags** (grid size and bag display), **Treasure** (treasure pool c
 **Lock Drag to Move**, at the top of General, prevents dragging the inventory window when enabled.
 It is off by default; the **Position** fields remain usable while locked.
 
+While the window is locked, items can be dragged with the mouse. Drop an item on another item of the
+tab to swap their places (your own order, as the controller's Manual sort makes it; Auto sort puts
+the usual order back). Drop it on another tab's name at the top to move it into that tab's bags: the
+bag chosen along the foot of the window if it has room, or else the first that has room and can take
+it (wardrobes take only gear; the house's bags cannot be moved to from afar). Unlocked, a drag moves
+the window, as before.
+
 Under **Bags** in the settings, **Rows** and **Columns** set the inventory grid's visible size
 (5–30 rows and 6–30 columns). While settings are open, empty placeholders preview the full selected grid; changes to
 rows and columns update that preview immediately. With settings closed, the grid collapses to fit the
