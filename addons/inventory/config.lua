@@ -78,28 +78,41 @@ local function Count(label, id, value, low, high, tip)
     value[1] = math.max(low, math.min(high, value[1]))
 end
 
--- One of the two currencies on the row under the gil: none, or any of the game's
+-- What is shown in the gil's place: gil, or one of the game's currencies, and a second after it. The
+-- choices are those of the server's era, and any other the player has some of (currency.Choices);
+-- opening them asks the server what the player has, so that those come into the list.
 local currencyIds = { currency1 = '##inv.currency1', currency2 = '##inv.currency2' }
 local noneId = 'None##inv.currency.none'
 local currencyItemIds = {}
 for _, entry in ipairs(currency.list) do
     currencyItemIds[entry.key] = entry.name .. '##inv.currency.' .. entry.key
 end
+local currencyTips = {
+    currency1 = 'What is shown at the foot of the window, where the gil is: gil, or a currency.\nThe list has the currencies of the server\'s era (Phoenix: Treasures of Aht Urhgan), and any other you have some of.',
+    currency2 = 'A second, after the first with a comma between, or none.\nA currency\'s count is asked of the server as the inventory window is shown, and every minute while it stays.',
+}
 local function CurrencyChoice(options, key, label)
     widgets.Label(label)
     local chosen = options[key]
     if imgui.BeginCombo(currencyIds[key], currency.Name(chosen) or 'None') then
+        currency.Survey()
         if imgui.Selectable(noneId, currency.Name(chosen) == nil) then
             options[key] = ''
         end
-        for _, entry in ipairs(currency.list) do
+        local listed = false
+        for _, entry in ipairs(currency.Choices()) do
+            listed = listed or entry.key == chosen
             if imgui.Selectable(currencyItemIds[entry.key], entry.key == chosen) then
                 options[key] = entry.key
             end
         end
+        -- one chosen before, no longer among the choices, stays until another is
+        if not listed and currency.Name(chosen) ~= nil then
+            imgui.Selectable(currencyItemIds[chosen], true)
+        end
         imgui.EndCombo()
     end
-    tooltip.Hover('A currency to show on a row under the gil, as many as the game\'s Currencies menu says you have. Its count is asked of the server as the inventory window is shown, and every minute while it stays.')
+    tooltip.Hover(currencyTips[key])
 end
 
 function config.Inventory(options)

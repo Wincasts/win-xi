@@ -1,7 +1,10 @@
 -- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_currency_check.lua
--- Two of the game's currencies, chosen in the settings, on a row under the gil: asked of the server as
--- the game's Currencies menus ask, while the window is shown, and read from its answers.
+-- Gil, or one of the game's currencies, in the gil's place at the foot of the window, and a second
+-- after it with a comma: currencies asked of the server as the game's Currencies menus ask, while the
+-- window is shown, and read from its answers. The choices are the server's era's, and any other the
+-- player has some of.
 local imgui = require('imgui')
+local currency = require('currency')
 local function check(label, ok)
     H.print(label, ok)
     assert(ok, label)
@@ -41,85 +44,78 @@ local function asked(id)
     for _, s in ipairs(H.sent) do if s:find('^' .. id .. ':') then n = n + 1 end end
     return n
 end
+local function choosable(key)
+    for _, entry in ipairs(currency.Choices()) do if entry.key == key then return true end end
+    return false
+end
 
-H.play(true); H.gil(100)
+H.play(true); H.gil(12345)
 o.isVisible[1], o.controller[1], o.fadeInOut[1] = true, false, false
 H.bag(0, 30, { { 1 } })
 H.packet(0x00A); frame(200) -- the area settles
-check('no currency chosen: none asked for, no row', asked('10F') == 0 and asked('115') == 0
-    and not shown('- Sparks of Eminence'))
+check('gil by default, in its place, and nothing asked for', o.currency1 == 'gil' and o.currency2 == ''
+    and shown('12,345 G') and asked('10F') == 0 and asked('115') == 0)
 
-o.currency1 = 'sparks'
+o.currency2 = 'imperialStanding'
 frame()
-check('one chosen: its menu asked for, once', asked('10F') == 1 and asked('115') == 0)
-check('until it is answered, its name with a dash', shown('- Sparks of Eminence'))
-answer(0x113, 260, { [112] = 45000, [244] = 12 })
+check('a second: its menu asked for, once', asked('10F') == 1 and asked('115') == 0)
+check('until it is answered, a dash, after the gil with a comma', shown('12,345 G, - IS'))
+answer(0x113, 260, { [120] = 45000, [144] = 12 })
 frame()
-check('the answer read: grouped by thousands', shown('45,000 Sparks of Eminence'))
+check('the answer read: grouped by thousands', shown('12,345 G, 45,000 IS'))
 
-o.currency2 = 'bayld'
+o.currency1, o.currency2 = 'nyzulTokens', 'gil'
 frame()
-check('a second, from the other menu: that menu asked for', asked('10F') == 1 and asked('115') == 1)
-answer(0x118, 160, { [0] = 1234567 })
+check('either way round', shown('12 Tokens, 12,345 G'))
+o.currency1, o.currency2 = '', 'imperialStanding'
 frame()
-check('both shown, the first then the second', shown('45,000 Sparks of Eminence') and shown('1,234,567 Bayld'))
+check('the second alone, without the comma', shown('45,000 IS'))
+o.currency1, o.currency2 = '', ''
+frame()
+check('none: nothing in the gil\'s place', shown('') and not shown('12,345 G'))
 
+o.currency1, o.currency2 = 'gil', 'imperialStanding'
 frame(1000)
-check('not asked again within the minute', asked('10F') == 1 and asked('115') == 1)
+check('not asked again within the minute', asked('10F') == 1)
 frame(1000)
-check('asked again each minute the window stays shown', asked('10F') == 2 and asked('115') == 2)
-
+check('asked again each minute the window stays shown', asked('10F') == 2 and asked('115') == 0)
 o.isVisible[1] = false
 frame(2100)
-check('the window hidden: not asked', asked('10F') == 2 and asked('115') == 2)
+check('the window hidden: not asked', asked('10F') == 2)
 o.isVisible[1] = true
 frame()
-check('shown again: asked as it is shown', asked('10F') == 3 and asked('115') == 3)
-
+check('shown again: asked as it is shown', asked('10F') == 3)
 H.packet(0x00A)
 frame(100)
 check('a new area: not asked while it settles', asked('10F') == 3)
 frame(100)
-check('then asked again', asked('10F') == 4 and asked('115') == 4)
+check('then asked again', asked('10F') == 4)
 
--- side by side while they fit; where they do not, the second on a row of its own
-local sameLine, calc = imgui.SameLine, imgui.CalcTextSize
-local sequence = {}
-imgui.SameLine = function(...)
-    local last = sequence[#sequence]
-    if last ~= nil and last ~= 'same' then sequence[#sequence + 1] = 'same' end -- only after a currency
-    return sameLine(...)
-end
-local wide = false
-imgui.CalcTextSize = function(t, ...)
-    if wide and (t:find('Sparks', 1, true) or t:find('Bayld', 1, true)) then return 400, 14 end
-    return calc(t, ...)
-end
-local function between()
-    sequence = {}
-    local text2 = imgui.Text
-    imgui.Text = function(t, ...)
-        if t:find('Sparks', 1, true) or t:find('Bayld', 1, true) then sequence[#sequence + 1] = t end
-        return text2(t, ...)
-    end
-    frame()
-    imgui.Text = text2
-    return table.concat(sequence, ',')
-end
-check('short enough: one row', between() == '45,000 Sparks of Eminence,same,1,234,567 Bayld')
-wide = true
-check('too long for one row: two', between() == '45,000 Sparks of Eminence,1,234,567 Bayld')
-wide = false
-imgui.SameLine, imgui.CalcTextSize = sameLine, calc
+-- the choices: gil and the era's (Phoenix's, Treasures of Aht Urhgan); the rest when the player has some
+check('gil and the era\'s currencies can be chosen', choosable('gil') and choosable('conquestBastok')
+    and choosable('imperialStanding') and choosable('idTags'))
+check('later ones cannot, while the player has none', not choosable('sparks') and not choosable('bayld')
+    and not choosable('cruor'))
+answer(0x118, 160, { [0] = 1234567 })
+answer(0x113, 260, { [112] = 300 })
+check('one the server says the player has some of can', choosable('bayld') and choosable('sparks')
+    and not choosable('cruor'))
+o.currency1, o.currency2 = 'bayld', 'sparks'
+frame()
+check('and is shown with its short name', shown('1,234,567 Bayld, 300 Sparks'))
 
-o.currency1, o.currency2 = 'deeds', ''
-answer(0x113, 260, { [112] = 45000, [244] = 12 })
-frame()
-check('two-byte counts read too; none for the second, no second', shown('12 Deeds') and not shown('1,234,567 Bayld'))
-o.currency1, o.currency2 = '', 'bayld'
-frame()
-check('only the second chosen: it is shown alone', shown('1,234,567 Bayld') and not shown('12 Deeds'))
-o.currency1, o.currency2 = 'gone', ''
-frame()
-check('a key no longer known is none', not shown('- gone'))
+-- the settings: opening the list asks both menus, so the player's own come into it
+local sent115 = asked('115')
+H.command('/inv config')
+H.tab(2)
+local beginCombo = imgui.BeginCombo
+local listed = {}
+imgui.BeginCombo = function(id, ...) return id == '##inv.currency1' end
+local selectable = imgui.Selectable
+imgui.Selectable = function(label, ...) listed[#listed + 1] = label:match('^[^#]+'); return selectable(label, ...) end
+frame(2100) -- long enough for both to be asked again
+check('opening the choices asks about both menus', asked('115') > sent115)
+check('the choices listed: None, then gil first', listed[1] == 'None' and listed[2] == 'Gil')
+imgui.BeginCombo, imgui.Selectable = beginCombo, selectable
+H.command('/inv config')
 H.unload()
