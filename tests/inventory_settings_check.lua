@@ -40,7 +40,7 @@ check('the inventory window has its pin', hasLabel('Pin Inventory'))
 check('General excludes bag and treasure controls', not hasLabel('Rows') and not hasLabel('Pin Treasure Pool'))
 frame(2)
 check('Inventory has the grid, its tabs and the currencies', table.concat(headers, ',') == 'Grid,Tabs,Currencies'
-    and hasLabel('Currency 1') and hasLabel('Currency 2'))
+    and hasLabel('Currency List') and hasLabel('Currency 1') and hasLabel('Currency 2'))
 check('Inventory contains grid and bag visibility controls', hasLabel('Rows') and hasLabel('Columns') and hasLabel('Show Bag Tab')
     and hasLabel('Unified Bags') and hasLabel('Show Empty Slots'))
 check('Inventory excludes General and treasure controls', not hasLabel('Lock') and not hasLabel('Pin Treasure Pool'))

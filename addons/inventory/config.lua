@@ -87,8 +87,31 @@ local currencyItemIds = {}
 for _, entry in ipairs(currency.list) do
     currencyItemIds[entry.key] = entry.name .. '##inv.currency.' .. entry.key
 end
+local filterIds = {}
+for _, filter in ipairs(currency.filters) do
+    filterIds[filter.key] = filter.label .. '##inv.currencyList.' .. filter.key
+end
+local function FilterChoice(options)
+    widgets.Label('Currency List')
+    local chosen = options.currencyList
+    local label = 'Phoenix'
+    for _, filter in ipairs(currency.filters) do
+        if filter.key == chosen then label = filter.label end
+    end
+    if imgui.BeginCombo('##inv.currencyList', label) then
+        for _, filter in ipairs(currency.filters) do
+            if imgui.Selectable(filterIds[filter.key], filter.key == chosen) then
+                options.currencyList = filter.key
+            end
+            tooltip.Hover(filter.tip)
+        end
+        imgui.EndCombo()
+    end
+    tooltip.Hover('Which currencies Currency 1 and Currency 2 offer.\nA server does not say which it has: Retail lists every one the game knows; Phoenix lists those of its era (Treasures of Aht Urhgan), and any other you have some of.')
+end
+
 local currencyTips = {
-    currency1 = 'What is shown at the foot of the window, where the gil is: gil, or a currency.\nThe list has the currencies of the server\'s era (Phoenix: Treasures of Aht Urhgan), and any other you have some of.',
+    currency1 = 'What is shown at the foot of the window, where the gil is: gil, or a currency of the Currency List.',
     currency2 = 'A second, after the first with a comma between, or none.\nA currency\'s count is asked of the server as the inventory window is shown, and every minute while it stays.',
 }
 local function CurrencyChoice(options, key, label)
@@ -100,7 +123,7 @@ local function CurrencyChoice(options, key, label)
             options[key] = ''
         end
         local listed = false
-        for _, entry in ipairs(currency.Choices()) do
+        for _, entry in ipairs(currency.Choices(options.currencyList)) do
             listed = listed or entry.key == chosen
             if imgui.Selectable(currencyItemIds[entry.key], entry.key == chosen) then
                 options[key] = entry.key
@@ -138,6 +161,7 @@ function config.Inventory(options)
     end
 
     if widgets.Header('Currencies') then
+        FilterChoice(options)
         CurrencyChoice(options, 'currency1', 'Currency 1')
         CurrencyChoice(options, 'currency2', 'Currency 2')
     end

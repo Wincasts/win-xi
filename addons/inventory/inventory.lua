@@ -1902,6 +1902,7 @@ local defaults = T{
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
     currency1 = 'gil', -- what is shown in the gil's place, by currency.lua's keys: '' for none
     currency2 = '', -- and after it, with a comma between
+    currencyList = 'phoenix', -- which currencies can be chosen: a key of currency.filters
     treasurePool = T{ true }, -- the treasure pool, beside the window
     treasureShowEmpty = T{ false }, -- sample treasure in an empty pool, to see it
     treasureDetached = T{ false }, -- the treasure pool as a window of its own

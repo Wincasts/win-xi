@@ -100,6 +100,9 @@ answer(0x118, 160, { [0] = 1234567 })
 answer(0x113, 260, { [112] = 300 })
 check('one the server says the player has some of can', choosable('bayld') and choosable('sparks')
     and not choosable('cruor'))
+check('Retail: every currency the game knows', #currency.Choices('retail') == #currency.list
+    and currency.Choices('retail')[1].key == 'gil')
+check('Phoenix by default', o.currencyList == 'phoenix')
 o.currency1, o.currency2 = 'bayld', 'sparks'
 frame()
 check('and is shown with its short name', shown('1,234,567 Bayld, 300 Sparks'))
@@ -116,6 +119,14 @@ imgui.Selectable = function(label, ...) listed[#listed + 1] = label:match('^[^#]
 frame(2100) -- long enough for both to be asked again
 check('opening the choices asks about both menus', asked('115') > sent115)
 check('the choices listed: None, then gil first', listed[1] == 'None' and listed[2] == 'Gil')
+listed = {}
+frame()
+local phoenixListed = #listed
+listed = {}
+o.currencyList = 'retail'
+frame()
+check('the Retail list offers more', #listed > phoenixListed and #listed == #currency.list + 1)
+o.currencyList = 'phoenix'
 imgui.BeginCombo, imgui.Selectable = beginCombo, selectable
 H.command('/inv config')
 H.unload()

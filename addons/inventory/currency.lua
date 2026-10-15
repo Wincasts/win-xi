@@ -6,13 +6,15 @@
 -- again every minute while it stays; and reads the answer whenever it comes, the game's own as well.
 --
 -- Which can be chosen: a server does not say which currencies it has, and its answers carry every one
--- the game knows, so the choices are those of the server's era, and any other the server has said the
--- player has some of. The era is Phoenix's (references/Phoenix): Treasures of Aht Urhgan, its
--- modules/init.txt loading era/sql/wotg, which takes back Wings of the Goddess' changes. Gil is always
--- there. As the choices are opened both menus are asked about, so that what the player has is known.
+-- the game knows, so the player picks a list (currency.filters). Retail has every one. Phoenix has
+-- those of its era, and any other the server has said the player has some of: Treasures of Aht
+-- Urhgan, its modules/init.txt (references/Phoenix) loading era/sql/wotg, which takes back Wings of
+-- the Goddess' changes. Gil is in every list. As the choices are opened both menus are asked about, so
+-- that what the player has is known.
 --
 --   currency.list                    every currency the game knows, gil first: { key, name, short, ... }
---   currency.Choices()               those that can be chosen, in the menus' order
+--   currency.filters                 the lists to choose from: { key, label, tip }
+--   currency.Choices(filter)         those a list (a filter's key) has, in the menus' order
 --   currency.Name(key)               a currency's name, or nil for none (or one no longer known)
 --   currency.Line(first, second)     what goes in the gil's place: '12,345 G, 4,500 CP', or '' for none
 --   currency.SetGil(count)           how much gil the player has, as the bags are read
@@ -117,10 +119,18 @@ for _, entry in ipairs(currency.list) do
     byKey[entry.key] = entry
 end
 
+currency.filters = {
+    { key = 'phoenix', label = 'Phoenix',
+        tip = 'Phoenix\'s era, Treasures of Aht Urhgan, and any other currency you have some of.' },
+    { key = 'retail', label = 'Retail', tip = 'Every currency the game knows.' },
+}
+local filterKeys = {}
+for _, filter in ipairs(currency.filters) do filterKeys[filter.key] = filter end
+
 local values = {}  -- key -> how many, once an answer has said (gil, once the bags have)
 local texts = {}   -- key -> what is shown, made as the value changes
 local lines = {}   -- first .. '|' .. second -> the line, made as either changes
-local choices = nil -- what can be chosen, made again as it may change
+local choices = {} -- filter -> what it lets be chosen, made again as it may change
 local asked = { -math.huge, -math.huge } -- each menu: when it was last asked about
 local wasShown = false
 local settledAt = 0 -- not before this, after a new area
@@ -137,22 +147,25 @@ local function Changed(key, value)
     if values[key] == value then return end
     local entry = byKey[key]
     if not entry.era and (value or 0) ~= 0 and (values[key] or 0) == 0 then
-        choices = nil -- the player has some of one outside the era: it can be chosen now
+        choices.phoenix = nil -- the player has some of one outside the era: it can be chosen now
     end
     values[key], texts[key] = value, nil
     lines = {}
 end
 
-function currency.Choices()
-    if choices == nil then
-        choices = {}
+function currency.Choices(filter)
+    if filterKeys[filter] == nil then filter = 'phoenix' end
+    local list = choices[filter]
+    if list == nil then
+        list = {}
         for _, entry in ipairs(currency.list) do
-            if entry.era or (values[entry.key] or 0) ~= 0 then
-                choices[#choices + 1] = entry
+            if filter == 'retail' or entry.era or (values[entry.key] or 0) ~= 0 then
+                list[#list + 1] = entry
             end
         end
+        choices[filter] = list
     end
-    return choices
+    return list
 end
 
 function currency.Name(key)
@@ -227,7 +240,7 @@ end
 
 function currency.Reset()
     local gil = values.gil
-    values, texts, lines, choices = { gil = gil }, {}, {}, nil
+    values, texts, lines, choices = { gil = gil }, {}, {}, {}
     asked[1], asked[2] = -math.huge, -math.huge
 end
 
