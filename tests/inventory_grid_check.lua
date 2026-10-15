@@ -37,7 +37,8 @@ end
 imgui.BeginChild = function(id, size, childFlags, windowFlags)
     assert(type(childFlags) == 'number' and type(windowFlags) == 'number',
         'BeginChild requires numeric child and window flags in the current ImGui binding')
-    assert(childFlags == ImGuiChildFlags_AutoResizeY, 'grid should collapse to its contents')
+    assert(childFlags == bit.bor(ImGuiChildFlags_AutoResizeY, ImGuiChildFlags_AlwaysUseWindowPadding),
+        'grid should collapse to its contents, and keep its padding (room for the outlines) though it has no border')
     assert(windowFlags == bit.bor(ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar),
         'grid should be transparent, with no scrollbar of its own to take room from the slots')
     children[#children + 1] = { id, size[1], bounds[2], bounds[1] }

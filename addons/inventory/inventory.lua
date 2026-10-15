@@ -1628,6 +1628,7 @@ for index = 1, #tabGroups do
     gridIds[index] = '##inv.grid.' .. index
 end
 local gridFlags = bit.bor(ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar)
+local gridChildFlags = bit.bor(ImGuiChildFlags_AutoResizeY, ImGuiChildFlags_AlwaysUseWindowPadding)
 
 -- Begins one of the four tabs. With the controller it is also where a change of tab is asked for and
 -- where the tab that is showing is noted.
@@ -1665,13 +1666,13 @@ local function BeginTab(index, label)
         viewportMin[2] = previewGrid and viewportMax[2] or 1
         imgui.SetNextWindowSizeConstraints(viewportMin, viewportMax)
         -- The parent already supplies Winxi padding; the child's own is only the room for the
-        -- outlines (gridPadding). It has no scrollbar of its own, which would take room from the
+        -- outlines (gridPadding), which imgui gives a child without a border only when asked
+        -- (AlwaysUseWindowPadding): without it the slots sit against the left of the child and
+        -- all of its extra width is on the right. It has no scrollbar of its own, which would take room from the
         -- slots' right and look like padding there (the theme's track is clear): the wheel still
         -- scrolls it, and FinishTab draws a slim bar in the right margin in its place.
         imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, gridPadding)
-        local shown = imgui.BeginChild(gridIds[index], viewportSize,
-            ImGuiChildFlags_AutoResizeY,
-            gridFlags)
+        local shown = imgui.BeginChild(gridIds[index], viewportSize, gridChildFlags, gridFlags)
         imgui.PopStyleVar()
         if not shown then
             imgui.EndChild()
