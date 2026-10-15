@@ -376,8 +376,6 @@ local function Info(id)
         flags = itemRes.Flags,
         targets = itemRes.Targets,
         isUsable = bit.band(1, bit.rshift(itemRes.Flags, 10)) == 1,
-        isMoveable = true,
-        isTradeable = true,
         isEquippable = itemRes.Type == 4 or itemRes.Type == 5,
         name = ('%s [%i]'):format(Capitalize(itemRes.LogNameSingular[1]), id),
         properName = Capitalize(itemRes.LogNameSingular[1]),
@@ -656,47 +654,81 @@ local function DropLabel(item)
     return ('Drop %i %s'):format(item.stackCur, itemName)
 end
 
-local function TryToUse(item)
-    if imgui.Selectable('Use') then
-        UseItem(item)
+-- What can be done with an item from the given group of bags, as menu entries: the rules for both
+-- the right-click menu and the controller's. Each entry has its label and what it does (run). In the
+-- right-click menu moving and dropping are in submenus of their own: submenu names it, and short is
+-- the entry's label there. Dropping is asked about first with the controller (run gives the menu that
+-- asks), and done at once from the right-click menu's Drop submenu (direct).
+local function ItemEntries(item, group)
+    local entries = { }
+    if group == 'house' then
+        return entries
     end
-end
 
-local function TryToTrade(item)
-    if imgui.Selectable('Trade') then
-        TradeItem(item)
+    local carried = (group == 'bag')
+    local worn = (group == 'wardrobe')
+
+    if (carried or worn) and item.isUsable then
+        entries[#entries + 1] = { label = 'Use', run = function() UseItem(item) end }
     end
-end
-
-local function TryToEquip(item)
-    for _, slotName in ipairs(EquipSlots(item)) do
-        if imgui.Selectable(('Equip to %s'):format(slotName)) then
-            EquipItem(item, slotName)
+    if carried then
+        entries[#entries + 1] = { label = 'Trade', run = function() TradeItem(item) end }
+    end
+    if (carried or worn) and item.isEquippable then
+        for _, slotName in ipairs(EquipSlots(item)) do
+            entries[#entries + 1] = { label = ('Equip to %s'):format(slotName), run = function() EquipItem(item, slotName) end }
         end
     end
+    for _, bag in ipairs(moveableBags) do
+        if CanMoveTo(item, bag) then
+            entries[#entries + 1] = {
+                label = ('Move to %s'):format(bag.name), submenu = 'Move', short = ('to %s'):format(bag.name),
+                run = function() MoveItem(item, bag) end,
+            }
+        end
+    end
+    if not item.isLocked then
+        -- TODO: add quantity picker
+        local drop = function() DropItem(item) end
+        entries[#entries + 1] = {
+            label = 'Drop...', submenu = 'Drop', short = DropLabel(item), direct = drop,
+            run = function()
+                -- with Cancel the choice that is highlighted
+                return controller.NewMenu(item.shortName, {
+                    { label = 'Cancel' },
+                    { label = DropLabel(item), run = drop },
+                })
+            end,
+        }
+    end
+
+    return entries
 end
 
-local function TryToMove(item)
-    if imgui.BeginMenu('Move') then
-        for _, bag in ipairs(moveableBags) do
-            if CanMoveTo(item, bag) and imgui.MenuItem(('to %s'):format(bag.name)) then
-                MoveItem(item, bag)
+-- The right-click menu's entries: each in a line of its own, or together in its submenu
+local function DrawEntries(entries)
+    local i = 1
+    while i <= #entries do
+        local entry = entries[i]
+        if entry.submenu == nil then
+            if imgui.Selectable(entry.label) then
+                entry.run()
+            end
+            i = i + 1
+        else
+            local submenu = entry.submenu
+            local open = imgui.BeginMenu(submenu)
+            while i <= #entries and entries[i].submenu == submenu do
+                local inner = entries[i]
+                if open and imgui.MenuItem(inner.short) then
+                    (inner.direct or inner.run)()
+                end
+                i = i + 1
+            end
+            if open then
+                imgui.EndMenu()
             end
         end
-
-        imgui.EndMenu()
-    end
-end
-
-local function TryToDrop(item)
-    if imgui.BeginMenu('Drop') then
-        -- TODO: add quantity picker
-
-        if imgui.MenuItem(DropLabel(item)) then
-            DropItem(item)
-        end
-
-        imgui.EndMenu()
     end
 end
 
@@ -753,62 +785,8 @@ end
 
 -- The right-click menu. There is one for the whole window, opened on the item under the mouse; what it
 -- offers depends on the group of bags the item is in.
-local function FullMenu(item)
-    if item.isUsable then
-        TryToUse(item)
-    end
-    if item.isTradeable then
-        TryToTrade(item)
-    end
-    if item.isEquippable then
-        TryToEquip(item)
-    end
-    if item.isMoveable then
-        TryToMove(item)
-    end
-    if not item.isLocked then
-        TryToDrop(item)
-    end
-end
-
-local function WardrobeMenu(item)
-    if item.isUsable then
-        TryToUse(item)
-    end
-    if item.isEquippable then
-        TryToEquip(item)
-    end
-    if item.isMoveable then
-        TryToMove(item)
-    end
-    if not item.isLocked then
-        TryToDrop(item)
-    end
-end
-
-local function SatchelMenu(item)
-    if item.isMoveable then
-        TryToMove(item)
-    end
-    if not item.isLocked then
-        TryToDrop(item)
-    end
-end
-
-local itemMenus = { bag = FullMenu, satchel = SatchelMenu, wardrobe = WardrobeMenu }
-
--- Whether an item has anything in its menu, in the given group of bags
-local function HasMenu(item, group)
-    if group == 'bag' or group == 'wardrobe' then
-        return item.isUsable or item.isMoveable or item.isEquippable or not item.isLocked
-    elseif group == 'satchel' then
-        return item.isMoveable or not item.isLocked
-    end
-    return false
-end
-
 local menuName = '##inv.itemMenu'
-local itemMenu = { item = nil, group = nil, open = false }
+local itemMenu = { item = nil, group = nil, entries = nil, open = false }
 
 -- The item a menu was opened on, as the bags are now: the same slot of the same bag, with the same
 -- item in it. A bag is read again whenever anything in it changes, and its items with it.
@@ -822,8 +800,8 @@ local function FindAgain(item, group)
 end
 
 -- Opens the menu on an item, from the right-click
-local function OpenItemMenu(item, group)
-    itemMenu.item, itemMenu.group = item, group
+local function OpenItemMenu(item, group, entries)
+    itemMenu.item, itemMenu.group, itemMenu.entries = item, group, entries
     imgui.OpenPopup(menuName)
 end
 
@@ -835,13 +813,14 @@ local function DrawItemMenu()
     end
     if itemMenu.item.gone then
         itemMenu.item = FindAgain(itemMenu.item, itemMenu.group)
+        itemMenu.entries = itemMenu.item and ItemEntries(itemMenu.item, itemMenu.group)
     end
     if imgui.BeginPopup(menuName) then
         itemMenu.open = true
         if itemMenu.item == nil then
             imgui.CloseCurrentPopup()
         else
-            itemMenus[itemMenu.group](itemMenu.item)
+            DrawEntries(itemMenu.entries)
             if imgui.Selectable('Cancel') then
                 imgui.CloseCurrentPopup()
             end
@@ -908,52 +887,6 @@ local function PadIsActive()
         and options.isVisible[1]
         and os.clock() - pad.drawn < 0.25
         or false
-end
-
--- What can be done with an item from the given group of bags, as menu entries. The same choices, under
--- the same rules, as the right-click menus.
-local function PadEntries(item, group)
-    local entries = { }
-    local function add(label, run)
-        entries[#entries + 1] = { label = label, run = run }
-    end
-
-    if group == 'house' then
-        return entries
-    end
-
-    local carried = (group == 'bag')
-    local worn = (group == 'wardrobe')
-
-    if (carried or worn) and item.isUsable then
-        add('Use', function() UseItem(item) end)
-    end
-    if carried and item.isTradeable then
-        add('Trade', function() TradeItem(item) end)
-    end
-    if (carried or worn) and item.isEquippable then
-        for _, slotName in ipairs(EquipSlots(item)) do
-            add(('Equip to %s'):format(slotName), function() EquipItem(item, slotName) end)
-        end
-    end
-    if item.isMoveable then
-        for _, bag in ipairs(moveableBags) do
-            if CanMoveTo(item, bag) then
-                add(('Move to %s'):format(bag.name), function() MoveItem(item, bag) end)
-            end
-        end
-    end
-    if not item.isLocked then
-        -- dropping is asked about first, with Cancel the choice that is highlighted
-        add('Drop...', function()
-            return controller.NewMenu(item.shortName, {
-                { label = 'Cancel' },
-                { label = DropLabel(item), run = function() DropItem(item) end },
-            })
-        end)
-    end
-
-    return entries
 end
 
 -- The bags of each tab, by the game's number for them, with what each is called
@@ -1254,7 +1187,7 @@ local function PadPress(action)
         end
     elseif action == 'confirm' then
         local item = pad.items[pad.grid.cursor]
-        local entries = item ~= nil and PadEntries(item, pad.groups[pad.grid.cursor]) or nil
+        local entries = item ~= nil and ItemEntries(item, pad.groups[pad.grid.cursor]) or nil
         if entries ~= nil and #entries > 0 then
             pad.menu = controller.NewMenu(item.shortName, entries)
             pad.menuItem = item
@@ -1506,8 +1439,11 @@ local function DrawBag(bagId, subId)
     end
     if hovered ~= nil then
         hoveredItem = hovered
-        if imgui.IsMouseClicked(1) and HasMenu(hovered, bagId) then
-            OpenItemMenu(hovered, bagId)
+        if imgui.IsMouseClicked(1) then
+            local entries = ItemEntries(hovered, bagId)
+            if #entries > 0 then
+                OpenItemMenu(hovered, bagId, entries)
+            end
         end
     end
 
