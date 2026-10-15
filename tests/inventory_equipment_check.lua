@@ -9,7 +9,7 @@ local e = o.equipment
 local full, flags, background, alpha = window.Full, nil, nil, nil
 local windows, images, lines, texts, sizes, slots = 0, {}, 0, {}, {}, {}
 local title, paddingY = nil, nil
-local backdrops, slotNames, backdropFirst = 0, {}, true
+local backdrops, bevels, slotNames, backdropFirst = 0, 0, {}, true
 local slotCaptions = { Main = true, Sub = true, Range = true, Ammo = true, Head = true, Neck = true,
     ['L.Ear'] = true, ['R.Ear'] = true, Body = true, Hands = true, ['L.Ring'] = true,
     ['R.Ring'] = true, Back = true, Waist = true, Legs = true, Feet = true }
@@ -28,13 +28,18 @@ end
 local dummy = imgui.Dummy
 imgui.Dummy = function(size) sizes[#sizes + 1] = { size[1], size[2] }; return dummy(size) end
 local draw = imgui.GetWindowDrawList()
-local addLine, addText, gradient = draw.AddLine, draw.AddText, draw.AddRectFilledMultiColor
-function draw:AddRectFilledMultiColor(minimum, maximum, ...)
+local addLine, addText, face, quad = draw.AddLine, draw.AddText, draw.AddRectFilled, draw.AddQuadFilled
+function draw:AddRectFilled(minimum, maximum, ...)
     if maximum[1] - minimum[1] == 32 and maximum[2] - minimum[2] == 32 then
         backdrops = backdrops + 1
         backdropFirst = backdropFirst and #images == 0
     end
-    return gradient(self, minimum, maximum, ...)
+    return face(self, minimum, maximum, ...)
+end
+function draw:AddQuadFilled(...)
+    bevels = bevels + 1
+    backdropFirst = backdropFirst and #images == 0
+    return quad(self, ...)
 end
 function draw:AddLine(from, to, color, thickness)
     if thickness == 2 then lines = lines + 1 end -- encumbrance, not backdrop brush strokes
@@ -54,7 +59,7 @@ inv.GetEquippedItem = function(self, slot) slots[#slots + 1] = slot; return read
 local function frame()
     windows, images, lines, texts, sizes, slots = 0, {}, 0, {}, {}, {}
     paddingY = nil
-    backdrops, slotNames, backdropFirst = 0, {}, true
+    backdrops, bevels, slotNames, backdropFirst = 0, 0, {}, true
     H.frames(1)
 end
 local function hasSize(size)
@@ -71,6 +76,8 @@ frame()
 check('equipment disabled by default with no polling', not e.enabled[1] and windows == 0 and #slots == 0)
 check('hidden inventory and disabled equipment do not prepare the icon atlas', atlasFrames == 0)
 e.enabled[1] = true
+-- the wardrobe's number is a digit too: its marks are inventory_equipment_decorations_check's
+e.wardrobeMarkers[1] = false
 local beforeAtlas = atlasFrames
 frame()
 check('equipment independent of inventory visibility', windows == 1 and #slots == 16)
@@ -78,7 +85,7 @@ check('icon atlas advanced only once per addon frame', atlasFrames == beforeAtla
 check('equipment screen uses reference 4x4 slot order', table.concat(slots, ',') == '0,1,2,3,4,9,11,12,5,6,13,14,15,10,7,8')
 check('equipment resolves inventory and wardrobe indices', #images == 2 and images[1] == 20100 and images[2] == 88)
 check('default four by four dimensions', hasSize(140))
-check('all sixteen slots have game-style gradient backdrops', backdrops == 16)
+check('all sixteen slots have game-style sunken faces, each with four bevelled edges', backdrops == 16 and bevels == 64)
 check('backdrops include all slot captions with shadows', #slotNames == 32 and slotNames[1] == 'Main' and slotNames[32] == 'Feet')
 check('backdrops and captions are drawn beneath equipment icons', backdropFirst)
 check('equipment uses Winxi frame title', title == 'Equipment')
