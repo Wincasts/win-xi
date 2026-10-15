@@ -59,6 +59,7 @@ windows.ItemSpacing = { 8, 4 }
 local windowPadding = { 10, 10 }
 local noFramePadding = { 0, 0 }
 local windowSize = { -1, -1 } -- every window sizes itself
+local automaticPosition = { 0, 0 }
 local open = { true }
 local baseFlags = nil
 
@@ -220,7 +221,8 @@ function windows.Draw(window, content, wanted, growFrom)
         if automatic then
             local width, height = imgui.GetWindowSize()
             local left, top = positioning.Place(key, width, height, automaticLayout, currentMainTop, currentAllianceBottom)
-            imgui.SetWindowPos(window.name, {left, top})
+            automaticPosition[1], automaticPosition[2] = left, top
+            imgui.SetWindowPos(window.name, automaticPosition)
             if key == 'party1' then currentMainTop = top end
             if key == 'party2' then currentAllianceBottom = top + height end
         end

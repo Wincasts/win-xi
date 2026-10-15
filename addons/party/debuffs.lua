@@ -38,11 +38,15 @@ local function GetThrenodyColor(element)
     end
 end
 
+local noSpacing = { 0, 0 }
+local hoverEnabled, hoverServer, hoverKind
+local details = require('details')
+
 local function DrawSeparator()
     imgui.PopStyleVar()
     imgui.Text('')
     imgui.SameLine()
-    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 0 })
+    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, noSpacing)
 end
 
 local function DrawStatusEntry(text, isActive, color)
@@ -53,17 +57,23 @@ local function DrawStatusEntry(text, isActive, color)
     end
 
     imgui.Text(text)
+    if hoverEnabled and imgui.IsItemHovered() then
+        local id = tracker.StatusIds[hoverKind]
+        if id then details.Status(id, hoverServer) end
+    end
     imgui.SameLine()
     imgui.PopStyleColor()
 end
 
+-- Draw sets the current server once; no per-row closure allocation.
+local function on(kind)
+    hoverKind = kind
+    return tracker.Get(hoverServer, kind) ~= nil
+end
+
 -- The row for one enemy: a letter for each debuff, lit while it is on
 local function DrawStatus(serverId)
-    local function on(kind)
-        return tracker.Get(serverId, kind) ~= nil
-    end
-
-    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 0 })
+    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, noSpacing)
     DrawStatusEntry('D',  on('dia'), colors.StatusWhite)
     DrawStatusEntry('B',  on('bio'), colors.StatusBlack)
     DrawSeparator()
@@ -136,7 +146,8 @@ function debuffs.Ids(serverId, ids)
     return ids
 end
 
-function debuffs.Draw(serverId)
+function debuffs.Draw(serverId, hover)
+    hoverEnabled, hoverServer = hover, serverId
     DrawStatus(serverId)
 end
 

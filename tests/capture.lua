@@ -167,7 +167,11 @@ harness()
 if measuring then
     -- as in play: nothing being arranged, the settings shut
     require('winxi.organize').SetActive(false)
-    if CAPTURE.options.showConfig[1] then H.command('/' .. addonName) end
+    if CAPTURE.options.showConfig[1] then
+        H.command(addonName == 'party' and '/pt' or '/' .. addonName)
+    end
+    assert(not CAPTURE.options.showConfig[1], 'measurement requires settings to be closed')
+    assert(not require('winxi.organize').IsActive(), 'measurement requires Organize to be off')
     H.frames(600) -- long enough that everything has been run often enough to be compiled
 
     local imgui = require('imgui')

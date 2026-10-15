@@ -32,9 +32,10 @@ Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first.
 
 ## What else is here
 
-- `addons/` also holds addons built on other people's work (simplelog, targetlines, inventory, party,
-  treas), and `forks/addons` copies of other people's addons with changes of ours (cbind, hideparty,
+- `addons/` also holds addons built on other people's work (simplelog, targetlines, inventory, party),
+  and `forks/addons` copies of other people's addons with changes of ours (cbind, hideparty,
   imrecast, mobdb, tcrossbar). Both are under their authors' terms, not the license below.
+- `archive/` holds retired addons and their checks, including [treas](archive/addons/treas).
 - `plugins/exclude` is retired work, kept to look back on.
 - `tests/` runs addons against a stand-in for Ashita: `tests/run.sh`.
 - `tools/` builds data and art the addons use.

@@ -9,6 +9,7 @@
 -- member's TP goes. The percentage is coloured as it falls for a player, and not for anything else.
 require('common')
 local bit = require('bit')
+local perf = require('perf')
 
 local target = { }
 
@@ -35,7 +36,7 @@ function target.Indexes(settings)
     -- the target of target comes from the target itself, so that it still shows when the target's
     -- own window is switched off
     mainIndex = (mainActive and mainIndex ~= 0) and mainIndex or 0
-    local mainEntity = mainIndex ~= 0 and GetEntity(mainIndex) or nil
+    local mainEntity = mainIndex ~= 0 and perf.Entity(mainIndex) or nil
     local totIndex = mainEntity and mainEntity.TargetedIndex or 0
 
     return settings.showMain[1] and mainIndex or 0,
@@ -64,6 +65,7 @@ function target.Line(key, entity)
 
     local line = lines[1]
     line.name = entity.Name
+    line.statusServerId = entity.ServerId ~= 0 and entity.ServerId or nil
     -- its own kept figures, apart from a party member's of the same id; a made-up target, whose id is
     -- none, has its window's own
     local serverId = entity.ServerId or 0

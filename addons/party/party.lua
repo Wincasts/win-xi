@@ -30,6 +30,8 @@ local debuffs = require('debuffs')
 local packets = require('packets')
 local game = require('game')
 local perf = require('perf')
+local geometry = require('geometry')
+local details = require('details')
 
 local saved = settings.load(options.Defaults())
 
@@ -45,7 +47,9 @@ local function UseSettings()
         end
     end
     windows.Use(saved)
+    require('winxi.debuffs').Clear()
     roster.Forget()
+    pets.Forget(true)
 end
 
 UseSettings()
@@ -166,7 +170,7 @@ local function DrawTargetContent()
     frames.Draw(lines, 'target', roster.StatusTexture, style)
 
     if showDebuffs and not icons then
-        debuffs.Draw(drawingEntity.ServerId)
+        debuffs.Draw(drawingEntity.ServerId, style.hoverDetails)
     end
 end
 
@@ -174,16 +178,20 @@ end
 -- index for an entity it no longer knows about, so the entity is fetched and checked first). When there
 -- is none, the window goes on showing the entity it last showed for as long as it is fading out.
 local lastShown = { } -- key -> the index of the entity the window last showed
+local lastServerId = { } -- an index may be reused while the window is fading
 
 local function DrawTarget(key, index)
     local window = windows.List[key]
-    local entity = index ~= 0 and GetEntity(index) or nil
+    local entity = index ~= 0 and perf.Entity(index) or nil
     local wanted = entity ~= nil
 
     if wanted then
-        lastShown[key] = index
+        lastShown[key], lastServerId[key] = index, entity.ServerId
     elseif lastShown[key] and windows.Lingers(window) then
-        entity = GetEntity(lastShown[key])
+        entity = perf.Entity(lastShown[key])
+        if entity ~= nil and entity.ServerId ~= lastServerId[key] then
+            entity = nil
+        end
     end
 
     if entity ~= nil then
@@ -213,7 +221,19 @@ end
 
 -- Whether any target window shows debuffs: nothing is tracked unless one does
 local function ShowsDebuffs()
-    return saved.target.mainDebuffs[1] or saved.target.subDebuffs[1] or saved.target.totDebuffs[1]
+    return (saved.target.showMain[1] and saved.target.mainDebuffs[1])
+        or (saved.target.showSub[1] and saved.target.subDebuffs[1])
+        or (saved.target.showTot[1] and saved.target.totDebuffs[1])
+end
+
+local tracking = false
+local function UpdateTracking()
+    local wanted = saved.target.enabled[1] and ShowsDebuffs()
+    if wanted ~= tracking then
+        require('winxi.debuffs').Clear()
+        tracking = wanted
+    end
+    return wanted
 end
 
 -- another character's settings have been loaded, or these have been changed from outside
@@ -256,54 +276,38 @@ local function Present()
     partyCursor = game.StPartyIndex()
     rearranging = partyCursor ~= nil
     config.Draw(saved)
+    UpdateTracking()
+    -- Keep settings and lifecycle current, but do no layout or pet polling while hidden.
+    if not saved.showConfig[1] then winxiOrganize.SetActive(false) end
+    if winxiGame.IsHidden(saved.hide) then return end
+    local organizing = winxiOrganize.IsActive()
+    winxiOrganize.BeginFrame()
+    windows.UpdateFade(rearranging)
+    local showParty = saved.party.enabled[1] and not windows.IsFadedOut('party')
+    local showTarget = saved.target.enabled[1] and not windows.IsFadedOut('target')
+    if not showParty and not showTarget then
+        winxiOrganize.EndFrame()
+        return
+    end
+
+    details.BeginFrame(saved.style.hoverDetails[1] and not saved.clickThrough[1])
     if saved.automaticPositioning[1] then
-        local padding = winxiTheme.Get().Padding
-        local style = options.Style(saved)
-        style.trimLast = true
-        local _, mainHeight = frames.FullSize(6, 'party', style)
+        local count = 0
         if saved.pets.enabled[1] then
-            local _, petHeight = frames.FullSize(saved.pets.showParty[1] and 2 or 1, 'pets', style)
-            mainHeight = mainHeight + petHeight + 2 * padding + 1
+            -- A target drawn without the party still needs its configured layout reservation,
+            -- but does not need a live pet scan for a party that will not be drawn.
+            count = saved.pets.showParty[1] and saved.pets.reserve[1] or 1
+            if showParty then count = math.max(count, #pets.Lines(organizing, saved.pets)) end
         end
-        mainHeight = mainHeight + 2 * padding
-        style.scale = style.scale * (tonumber(saved.party.allianceScale[1]) or 100) / 100
-        local _, allianceHeight = frames.FullSize(6, 'alliance', style)
-        allianceHeight = allianceHeight + 2 * padding
-        style = options.Style(saved)
-        style.showTp = true
-        local letters = saved.target.mainDebuffs[1] and saved.target.debuffStyle ~= 'icons'
-        style.trimLast = not letters
-        local _, targetHeight = frames.FullSize(1, 'target', style)
-        targetHeight = targetHeight + 2 * padding
-        if letters then
-            -- Reserve both the status row and optional Threnody row.
-            targetHeight = targetHeight + 2 * (imgui.GetFontSize() + windows.ItemSpacing[2])
-        end
-        windows.UpdatePositions(mainHeight, targetHeight, allianceHeight)
+        windows.UpdatePositions(geometry.Reserve(saved, winxiTheme.Get().Padding,
+            imgui.GetFontSize(), windows.ItemSpacing[2], count))
     else
         windows.UpdatePositions()
     end
 
-    if winxiGame.IsHidden(saved.hide) then
-        return
-    end
-
-    -- Organizing ends when the settings window is closed. While it is on, every window that is
-    -- switched on is drawn filled with sample data, so that each is there to be arranged.
-    if not saved.showConfig[1] then
-        winxiOrganize.SetActive(false)
-    end
-    local organizing = winxiOrganize.IsActive()
-    winxiOrganize.BeginFrame()
-    windows.UpdateFade(rearranging)
-
-    -- none that has faded right out: it would only be prepared and then not drawn
-    if saved.party.enabled[1] and not windows.IsFadedOut('party') then
-        DrawParties(organizing)
-    end
-    if saved.target.enabled[1] and not windows.IsFadedOut('target') then
-        DrawTargets(organizing)
-    end
+    -- Every enabled window is filled with sample data while organizing.
+    if showParty then DrawParties(organizing) end
+    if showTarget then DrawTargets(organizing) end
 
     winxiOrganize.EndFrame()
 end
@@ -312,24 +316,26 @@ ashita.events.register('d3d_present', 'd3d_present_handler', function()
     perf.Run(Present)
 end)
 
-ashita.events.register('packet_in', 'packet_in_handler', function(e)
+local function PacketIn(e)
     packets.inbound.action.reset()
 
-    if saved.party.enabled[1] then
-        notices.HandlePacket(e)
+    -- Keep transient state current even while its frames are disabled; otherwise an answered
+    -- invitation or a previous zone's automaton can reappear when the frames are enabled again.
+    notices.HandlePacket(e)
+    pets.HandlePacket(e)
+    if e.id == 0x00A or e.id == 0x00B then
+        roster.Forget()
+        lastShown, lastServerId = { }, { }
+        require('winxi.debuffs').Clear()
     end
-    if saved.target.enabled[1] and ShowsDebuffs() then
-        debuffs.HandlePacket(e)
-    end
-    if saved.pets.enabled[1] then
-        pets.HandlePacket(e)
-    end
+    if UpdateTracking() then debuffs.HandlePacket(e) end
+end
+ashita.events.register('packet_in', 'packet_in_handler', function(e)
+    perf.Packet(PacketIn, e)
 end)
 
 ashita.events.register('packet_out', 'packet_out_handler', function(e)
-    if saved.party.enabled[1] then
-        notices.HandlePacketOut(e)
-    end
+    perf.Packet(notices.HandlePacketOut, e)
 end)
 
 ashita.events.register('command', 'command_handler', function(e)
@@ -351,7 +357,7 @@ ashita.events.register('command', 'command_handler', function(e)
         print('[party] Measuring for five seconds...')
         perf.Start(function(words)
             print('[party] ' .. words .. (saved.showConfig[1] and ' (the settings window was open)' or ''))
-        end)
+        end, e.command:lower():match('%s+counters%s*$') ~= nil)
         return
     elseif subcommand == 'cursor' then
         local ok, handle, detail = pcall(require('winxi.cursor').Get, true)

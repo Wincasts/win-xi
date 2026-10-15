@@ -3,8 +3,8 @@
 -- the way XivParty, a party list addon for Windower 4 by Tylas, sets out its compact layout
 -- (https://github.com/Tylas11/XivParty; its layouts/ffxi2.xml). The bars are that addon's images, in
 -- assets/bars with its licence. What is XivParty's and is not here: its background, job icons and cursor;
--- its glow over a bar that changes; buffs sorted debuffs first; a mark for the quartermaster; and
--- anything happening on hovering or clicking a member. What is here and is not XivParty's: a soft
+-- its glow over a bar that changes; a mark for the quartermaster; and click-to-target behavior.
+-- Status filtering and optional hover details are implemented locally. What is here and is not XivParty's: a soft
 -- shadow under each bar, silver bookends at its ends, and circles for leaders.
 --
 --     frames.Draw(lines, kind, StatusTexture, style)
@@ -49,6 +49,13 @@ local draw = require('draw')
 local colors = require('colors')
 local statusicons = require('winxi.statusicons')
 local cursor = require('winxi.cursor')
+local statuses = require('statuses')
+local details = require('details')
+local perf = require('perf')
+local function TextSize(text)
+    perf.Count('text measurements')
+    return imgui.CalcTextSize(text)
+end
 
 local frames = { }
 
@@ -150,6 +157,14 @@ local bookendAlpha = 1    -- how solid the caps are, 0 to 1
 local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
 local outlined = true     -- whether the names and figures have winxi's dark edge
 local nameChars = nil     -- how much of a name is written, where it is not the layout's own
+local activeStyle = {}
+local rowHeight = layout.rowHeight
+local function RowHeight(style, kind)
+    if (kind == 'party' or kind == 'target') and (style.buffRows or 1) > 1 then
+        return math.max(layout.rowHeight, layout.buffs.y + 2 * layout.buffs.size * (style.buffSize or 100) / 100 + 3)
+    end
+    return layout.rowHeight
+end
 
 -- An image, by its file or the number of a texture, at a place in the layout's units; u2, if given,
 -- is how far across the image the part to draw goes, from its left (0 to 1)
@@ -216,13 +231,13 @@ end
 local ellipsis = '...'
 
 local function Fitted(text, room)
-    if imgui.CalcTextSize(text) <= room then
+    if TextSize(text) <= room then
         return text
     end
     local low, high = 1, #text - 1
     while low < high do
         local middle = math.floor((low + high + 1) / 2)
-        if imgui.CalcTextSize(text:sub(1, middle) .. ellipsis) <= room then
+        if TextSize(text:sub(1, middle) .. ellipsis) <= room then
             low = middle
         else
             high = middle - 1
@@ -363,8 +378,8 @@ local function Layer(count, kind, place, paint)
 end
 
 local function DrawBars(count, kind, place)
-    Layer(count, kind, place, ShadowNear)
-    Layer(count, kind, place, ShadowFar)
+    if activeStyle.barShadows ~= 'off' then Layer(count, kind, place, ShadowNear) end
+    if activeStyle.barShadows == nil or activeStyle.barShadows == 'full' then Layer(count, kind, place, ShadowFar) end
     Layer(count, kind, place, Back)
     Layer(count, kind, place, Fill)
     Layer(count, kind, place, Front)
@@ -414,6 +429,10 @@ local function DrawName(member, state)
     if member.isPartyLeader or member.isAllianceLeader then
         x = x + DrawLeaderMarks(member)
     end
+    if member.isInZone and member.hpp and member.hpp <= (activeStyle.lowHp or 0) and (activeStyle.lowHp or 0) > 0 then
+        Write('!', x, name.y, hpRed)
+        x = x + TextSize('! ') / scale
+    end
 
     local mark, color = nil, nil
     if member.isSubTarget or member.isPartyTarget then
@@ -434,7 +453,7 @@ local function DrawName(member, state)
                 uv[1], uv[2], uv[3], uv[4])
         else
             -- Text fallback overlays in the same place; selection never shifts the name.
-            Write(mark, x, name.y, color, imgui.CalcTextSize(mark))
+            Write(mark, x, name.y, color, TextSize(mark))
         end
     end
 
@@ -466,7 +485,7 @@ local function DrawFigure(place, member, kept, fontSize, figure)
             elseif percent < 75 then
                 color = hpYellow
             end
-        elseif kind == 'tp' and amount >= 1000 and not member.tpText then
+        elseif kind == 'tp' and amount >= (activeStyle.tpReady or 1000) and not member.tpText then
             color = tpPulse
         end
     end
@@ -496,7 +515,7 @@ local function DrawFigure(place, member, kept, fontSize, figure)
     local width = nil
     if figure.alignRight then
         if kept.measured ~= words or kept.fontSize ~= fontSize or kept.font ~= valueFontFile then
-            kept.measured, kept.fontSize, kept.font, kept.width = words, fontSize, valueFontFile, imgui.CalcTextSize(words)
+            kept.measured, kept.fontSize, kept.font, kept.width = words, fontSize, valueFontFile, TextSize(words)
         end
         width = kept.width
     end
@@ -505,34 +524,51 @@ end
 
 -- A member's buffs, running leftwards: the first has its right edge at x
 local function DrawBuffs(member, x, StatusTexture)
-    local ids = member.statusIds
-    if ids == nil or StatusTexture == nil then
-        return
-    end
-
-    -- whatever their size, the icons stay centred on the height they have in the layout
+    if member.statusIds == nil or StatusTexture == nil then return end
+    local ids = statuses.Select(member.statusIds, activeStyle)
     local buffs = layout.buffs
     local size = buffs.size * buffScale
     local y = buffs.y + (buffs.size - size) / 2
+    local windowLeft = imgui.GetWindowPos()
+    local windowWidth = imgui.GetWindowSize()
+    local distance = buffs.gap + (tonumber(activeStyle.buffDistance) or 0) * scale
+    local direction, anchor, columns, capacity = statuses.Plan(activeStyle,
+        itemX + x * scale, windowLeft + windowWidth + distance, displayWidth, size * scale, buffSpacing * scale)
+    local start = (anchor - itemX) / scale
+    x = start
     local shown = 0
+    local iconCapacity = capacity
+    if activeStyle.buffOverflow ~= false and #ids > capacity then iconCapacity = math.max(0, capacity - 1) end
     for _, id in ipairs(ids) do
-        if shown >= buffs.most then
-            return -- no room for the rest
-        end
+        if shown >= iconCapacity then break end
         local texture, own = StatusTexture(id, ownIcons)
         if texture ~= nil then
-            shown = shown + 1
-            if own then
-                -- winxi's icons are as tall as the game's and narrower: each takes only its own width
-                local width = size * statusicons.OwnAspect
-                x = x - width
-                Image(texture, x, y, width, size, nil, nil, statusicons.OwnRight, statusicons.OwnLeft)
-            else
-                x = x - size
-                Image(texture, x, y, size, size)
+            if shown > 0 and shown % columns == 0 then x = start; y = y + size + 2 end
+            local width = own and size * statusicons.OwnAspect or size
+            if direction == 'left' then x = x - width end
+            Image(texture, x, y, width, size, nil, nil, own and statusicons.OwnRight or nil, own and statusicons.OwnLeft or nil)
+            if activeStyle.hoverDetails and details.Hover(itemX + x * scale, itemY + y * scale,
+                itemX + (x + width) * scale, itemY + (y + size) * scale) then
+                details.Status(id, member.statusServerId)
             end
-            x = x - buffSpacing
+            x = direction == 'left' and x - buffSpacing or x + width + buffSpacing
+            shown = shown + 1
         end
+    end
+    if activeStyle.buffOverflow ~= false and #ids > shown then
+        -- Reserve the last status slot for the badge rather than covering HP/name text.
+        if capacity > 0 then
+            if shown > 0 and shown % columns == 0 then x = start; y = y + size + 2 end
+            if direction == 'left' then x = x - size end
+        else
+            -- No external room at all: a compact badge in the otherwise empty lower-left corner.
+            x, y = 0, layout.tp.figure.y
+        end
+        imgui.PushFont(nil, math.min(14, size * 0.6) * scale)
+        Write('+' .. (#ids - shown), x, y, textColor)
+        imgui.PopFont()
+        if activeStyle.hoverDetails and details.Hover(itemX + x * scale, itemY + y * scale,
+            itemX + (x + size) * scale, itemY + (y + size) * scale) then details.Member(member) end
     end
 end
 
@@ -575,7 +611,8 @@ local function LineHeight(member, kind, showMp, showTp)
         end
     end
 
-    return math.min(layout.rowHeight, bottom + 1.2)
+    if kind == 'party' or kind == 'target' then bottom = math.max(bottom, rowHeight > layout.rowHeight and rowHeight - 1.2 or 0) end
+    return math.min(rowHeight, bottom + 1.2)
 end
 
 local room = { 0, 0 }
@@ -593,13 +630,17 @@ function frames.Scale(style)
     return Percent((style or usual).scale)
 end
 
+local fullLine = { }
+
 -- Maximum configured line geometry for a fully populated list, independent of current membership.
 -- Used to reserve a stable alliance block above the fully expanded main party.
 function frames.FullSize(count, kind, style)
     style = style or usual
+    rowHeight = RowHeight(style, kind)
     nameScale, valueScale = Percent(style.nameSize), Percent(style.valueSize)
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = style.hpOffset, style.mpOffset, style.tpOffset
-    local full = { isInZone = true, mpp = 100, tp = 1000 }
+    local full = fullLine
+    full.isInZone, full.mpp, full.tp = true, 100, 1000
     -- The owner's pet is first; other members' pets have HP only and are always in-zone.
     if kind == 'pets' and count > 1 then full.mpp, full.tp = nil, nil end
     local last = LineHeight(full, kind, style.showMp ~= false, style.showTp ~= false)
@@ -607,9 +648,26 @@ function frames.FullSize(count, kind, style)
         full.isInZone = false
         last = math.max(last, LineHeight(full, kind, style.showMp ~= false, style.showTp ~= false))
     end
-    if style.trimLast == false then last = layout.rowHeight end
+    if style.trimLast == false then last = rowHeight end
     local factor = Percent(style.scale)
-    return math.ceil(layout.width * factor), math.ceil(((count - 1) * layout.rowHeight + last) * factor)
+    return math.ceil(layout.width * factor), math.ceil(((count - 1) * rowHeight + last) * factor)
+end
+
+local function ConfigureExtras(style, kind)
+    activeStyle = style
+    rowHeight = RowHeight(style, kind)
+    castRange = style.castRange or 20.79
+    targetRange = math.max(castRange, style.targetRange or 50)
+    beyondCastOpacity, beyondTargetOpacity = style.nearOpacity or 0.7, style.farOpacity or 0.45
+end
+
+local function HoverMembers(members)
+    for index, member in ipairs(members) do
+        if details.Hover(itemX, lineY[index], itemX + room[1], lineY[index] + rowHeight * scale) then
+            details.Member(member)
+            break
+        end
+    end
 end
 
 function frames.Draw(members, kind, StatusTexture, style)
@@ -619,6 +677,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     end
 
     style = style or usual
+    ConfigureExtras(style, kind)
     scale = Percent(style.scale)
     valueScale = Percent(style.valueSize)
     nameScale = Percent(style.nameSize)
@@ -672,11 +731,11 @@ function frames.Draw(members, kind, StatusTexture, style)
     -- the room the list itself needs. The buffs go beyond it, beside the window.
     local windowX, windowY = imgui.GetCursorScreenPos()
     room[1] = math.ceil(layout.width * scale)
-    local lastHeight = layout.rowHeight
+    local lastHeight = rowHeight
     if style.trimLast then
         lastHeight = LineHeight(members[count], kind, showMp, showTp)
     end
-    room[2] = math.ceil(((count - 1) * layout.rowHeight + lastHeight) * scale)
+    room[2] = math.ceil(((count - 1) * rowHeight + lastHeight) * scale)
     imgui.Dummy(room)
 
     -- a list laid out off screen to be measured needs its room and nothing else
@@ -705,7 +764,7 @@ function frames.Draw(members, kind, StatusTexture, style)
         local member = members[index]
         local state = Animation(member, index)
         lineStates[index] = state
-        lineY[index] = math.floor(originY + (index - 1) * layout.rowHeight * scale)
+        lineY[index] = math.floor(originY + (index - 1) * rowHeight * scale)
 
         state.inZone = member.isInZone
         state.hasMp = member.mpp ~= nil
@@ -734,7 +793,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     local nameFace, valueFace = fonts.Get(style.nameFont), fonts.Get(style.valueFont)
     nameFont = FontSize(layout.name.size * nameScale)
     imgui.PushFont(nameFace, nameFont)
-    nameFontFile = style.nameFont
+    nameFontFile = nameFace or theme.Get().FontFile or ''
     for index = 1, count do
         itemY = lineY[index]
         DrawName(members[index], lineStates[index])
@@ -750,7 +809,7 @@ function frames.Draw(members, kind, StatusTexture, style)
             local text = not member.isInZone and ZoneText(member.zoneId, zone.maxChars)
             if text then
                 itemY = lineY[index]
-                Write(text, zone.x, zone.y, nil, imgui.CalcTextSize(text))
+                Write(text, zone.x, zone.y, nil, TextSize(text))
             end
         end
         imgui.PopFont()
@@ -760,7 +819,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     local tpPlace = layout.tp
     local hpFigure = kind == 'target' and layout.targetHpFigure or nil
     imgui.PushFont(valueFace, valueFont)
-    valueFontFile = style.valueFont
+    valueFontFile = valueFace or theme.Get().FontFile or ''
     for index = 1, count do
         local member, state = members[index], lineStates[index]
         if state.inZone then
@@ -784,7 +843,7 @@ function frames.Draw(members, kind, StatusTexture, style)
         imgui.PushFont(nameFace, nameFont)
         for index, member in ipairs(members) do
             local words = member.jobText or '[---/---]'
-            local width = imgui.CalcTextSize(words)
+            local width = TextSize(words)
             draw.Text(math.floor(right - width), math.floor(lineY[index] + layout.buffs.y * scale),
                 draw.Packed(textColor, 1), words, outlineEdge, dark)
         end
@@ -800,6 +859,7 @@ function frames.Draw(members, kind, StatusTexture, style)
         end
     end
 
+    if style.hoverDetails then HoverMembers(members) end
     drawList:PopClipRect()
 end
 

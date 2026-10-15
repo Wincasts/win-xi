@@ -3,6 +3,12 @@ local ffi = require('ffi')
 ffi.cdef('typedef struct IDirect3DTexture8 IDirect3DTexture8;')
 local image = require('gdi.image')
 local atlas = require('gdi.atlas')
+-- This standalone raster/cache test has no Ashita runtime. Diagnostics are tested separately;
+-- loading the real module here would pull in imgui and winxi.nameplates unnecessarily.
+local diagnosticNotes = {}
+package.preload['diag'] = function()
+    return { Note = function(format, ...) diagnosticNotes[#diagnosticNotes + 1] = format:format(...) end }
+end
 local badges = require('letter_badges')
 local source = image.new(3, 3)
 source:set_alpha(1, 1, 1)
@@ -79,6 +85,8 @@ atlas.read = function() reads = reads + 1; return nil, 'texture not ready' end
 assert(badges.Prepare(0x9999, definitions, 'different-font') == nil)
 assert(badges.Prepare(0x9999, definitions, 'different-font') == nil)
 assert(reads == 5, 'startup failures must have bounded retries')
+assert(#diagnosticNotes == 1 and diagnosticNotes[1]:find('texture not ready', 1, true),
+    'a failed badge build must report its reason once')
 now = 102
 atlas.read = function() reads = reads + 1; return source end
 assert(badges.Prepare(0x9999, definitions, 'different-font'))
