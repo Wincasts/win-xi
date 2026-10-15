@@ -50,8 +50,9 @@ comma between: `12,345 G, 4,500 IS`. Choose them under **Inventory → Currencie
 short name (G, CP, GP, IS, AP, Tokens and so on); the list names them in full.
 
 A server does not say which currencies it has, and its answers carry every currency the game knows,
-so the list holds gil, the currencies of the server's era, and any other the server says the player
-has some of. The era is Phoenix's, Treasures of Aht Urhgan (its `modules/init.txt` loads
+so **Currency List** picks which the two offer. **Retail** has every one. **Phoenix**, the default,
+holds gil, the currencies of Phoenix's era, and any other the server says the player has some of. The
+era is Phoenix's, Treasures of Aht Urhgan (its `modules/init.txt` loads
 `era/sql/wotg`, which takes back Wings of the Goddess' changes): conquest points, Beastmen's and
 Kindred's Seals, Ancient Beastcoins, guild points, Ballista and Fellow Points, Imperial Standing,
 assault points, Nyzul Isle Tokens and Imperial Army ID Tags. Opening the list asks the server what the
