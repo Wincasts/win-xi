@@ -1,7 +1,7 @@
 -- winxi.theme: the look shared by every addon that draws with winxi.
 --
 -- There is one theme for the whole client: the background, border and text colours, the padding, the
--- drop shadow, the font every window is written in (winxi.fonts), and the styles: the window border's art, window titles, the bars' texture and their bookends, and
+-- drop shadow, the font every window is written in (winxi.fonts), and the styles: the window border's art, window titles, its tabs' texture, the bars' texture and their bookends, and
 -- the custom status icons (which set, if any). Tooltips (winxi.tooltip) have values of their own, the Tooltip
 -- keys, and they are always the shared theme's: theme.Shared().
 --
@@ -42,6 +42,7 @@ theme.Defaults = {
     FontSize        = 0,      -- pixels, or 0 for the base size
     BorderStyle     = 'theme',    -- one of theme.BorderStyles: 'theme' is the plain border in BorderColor
     BackgroundStyle = 'plain',    -- one of theme.BackgroundStyles: 'plain' is the flat BackgroundColor
+    TabStyle        = 'sheen',    -- one of theme.TabStyles, over the tabs of a window (winxi.tabs): 'plain' is imgui's own
     BarTexture      = 'original', -- one of theme.BarTextures, for an addon that draws HP and MP bars
     Bookends        = true,       -- a small cap at each end of those bars
     BookendStyle    = 'texture',  -- one of theme.BookendStyles
@@ -131,6 +132,11 @@ theme.BackgroundStyles = {
     { key = 'marble', label = 'Marble' }, { key = 'weave', label = 'Weave' },
     { key = 'brushed', label = 'Brushed Metal' },
 };
+theme.TabStyles = {
+    { key = 'plain', label = 'Plain' }, { key = 'sheen', label = 'Sheen' }, { key = 'glass', label = 'Glass' },
+    { key = 'bevel', label = 'Bevel' }, { key = 'brushed', label = 'Brushed Metal' }, { key = 'grain', label = 'Grain' },
+    { key = 'lined', label = 'FFXI-inspired' }, { key = 'satin', label = 'Satin' },
+};
 theme.BarTextures = {
     { key = 'original', label = 'Original' }, { key = 'glass', label = 'Glass' }, { key = 'detailed', label = 'Detailed' },
     { key = 'crystal', label = 'Crystal' }, { key = 'satin', label = 'Satin' },
@@ -160,7 +166,7 @@ local numberKeys = { FontSize = { 0, theme.MaxFontSize }, Padding = { 0, theme.M
     TooltipDelay = { 0, theme.MaxTooltipDelay }, TooltipMaxWidth = { theme.MinTooltipWidth, theme.MaxTooltipWidth },
     TooltipPadding = { 0, theme.MaxTooltipPadding }, TooltipFontSize = { 0, theme.MaxFontSize } };
 local booleanKeys = { 'ShadowEnabled', 'Bookends', 'StatusIcons', 'FrameTitles', 'TitleShadow', 'TitleAllCaps', 'TooltipsEnabled' };
-local choiceKeys = { BorderStyle = theme.BorderStyles, BackgroundStyle = theme.BackgroundStyles, BarTexture = theme.BarTextures, BookendStyle = theme.BookendStyles, TitleStyle = theme.TitleStyles };
+local choiceKeys = { BorderStyle = theme.BorderStyles, BackgroundStyle = theme.BackgroundStyles, TabStyle = theme.TabStyles, BarTexture = theme.BarTextures, BookendStyle = theme.BookendStyles, TitleStyle = theme.TitleStyles };
 
 -- Whether a value is one of a style's choices
 local function IsChoice(choices, value)
@@ -390,7 +396,7 @@ function theme.Save()
     for _, key in ipairs(booleanKeys) do
         file:write(string.format('    %s = %s,\n', key, tostring(current[key])));
     end
-    for _, key in ipairs({ 'FontFile', 'SettingsFontFile', 'TitleFontFile', 'BorderStyle', 'BackgroundStyle', 'BarTexture', 'BookendStyle', 'TitleStyle', 'StatusIconSet' }) do
+    for _, key in ipairs({ 'FontFile', 'SettingsFontFile', 'TitleFontFile', 'BorderStyle', 'BackgroundStyle', 'TabStyle', 'BarTexture', 'BookendStyle', 'TitleStyle', 'StatusIconSet' }) do
         file:write(string.format('    %s = %q,\n', key, current[key]));
     end
     file:write('};\n');

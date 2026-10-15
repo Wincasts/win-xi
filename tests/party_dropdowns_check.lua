@@ -59,12 +59,12 @@ assert(PaletteColour(ImGuiCol_TabSelected)[4] == theme.Defaults.HighlightColor[4
 local save, written = theme.Save, nil
 theme.Save = function() written = true end
 local look = theme.Get()
-assert(look.BorderStyle == 'theme' and look.BarTexture == 'original' and look.BookendStyle == 'texture' and look.BackgroundStyle == 'plain')
+assert(look.BorderStyle == 'theme' and look.BarTexture == 'original' and look.BookendStyle == 'texture' and look.BackgroundStyle == 'plain' and look.TabStyle == 'sheen')
 look.BorderStyle, look.BarTexture, look.BookendStyle, look.BackgroundStyle = 'royal_platinum', 'radiant', 'match', 'gradient'
 local begin, selectable, finish = imgui.BeginCombo, imgui.Selectable, imgui.EndCombo
 local current, opened, ended = nil, 0, 0
 local previews, selected = {}, {}
-local picks = { BorderStyle = 'Crystal', BarTexture = 'Satin', BookendStyle = 'Royal Silver', BackgroundStyle = 'FFXI-inspired', TitleStyle = 'Plate' }
+local picks = { BorderStyle = 'Crystal', BarTexture = 'Satin', BookendStyle = 'Royal Silver', BackgroundStyle = 'FFXI-inspired', TabStyle = 'Brushed Metal', TitleStyle = 'Plate' }
 imgui.BeginCombo = function(id, preview)
     current = id:match('^##winxi%.(.+)$')
     if current == 'FontFile' or current == 'TitleFontFile' or current == 'StatusIconSet' then return false end -- the fonts' (winxi_fonts_check) and the icons' (winxisettings_check)
@@ -79,20 +79,20 @@ imgui.Selectable = function(label, on)
 end
 imgui.EndCombo = function() ended = ended + 1 end
 last.draw(saved)
-assert(opened == 5 and ended == 5)
-assert(previews.BorderStyle == 'Royal Platinum' and previews.BarTexture == 'Radiant (Bright)' and previews.BookendStyle == 'Match Border' and previews.BackgroundStyle == 'Gradient')
+assert(opened == 6 and ended == 6)
+assert(previews.BorderStyle == 'Royal Platinum' and previews.BarTexture == 'Radiant (Bright)' and previews.BookendStyle == 'Match Border' and previews.BackgroundStyle == 'Gradient' and previews.TabStyle == 'Sheen')
 assert(selected.BorderStyle == previews.BorderStyle and selected.BarTexture == previews.BarTexture and selected.BookendStyle == previews.BookendStyle)
-assert(look.BorderStyle == 'crystal' and look.BarTexture == 'satin' and look.BookendStyle == 'royal_silver' and look.BackgroundStyle == 'ffxi' and look.TitleStyle == 'plate')
+assert(look.BorderStyle == 'crystal' and look.BarTexture == 'satin' and look.BookendStyle == 'royal_silver' and look.BackgroundStyle == 'ffxi' and look.TabStyle == 'brushed' and look.TitleStyle == 'plate')
 assert(previews.TitleStyle == 'Outlined Text')
 -- Bookend Style is only offered with bookends on
 look.Bookends, opened = false, 0
 last.draw(saved)
-assert(opened == 4)
+assert(opened == 5)
 look.Bookends = true
 -- Title Style is only offered with frame titles on
 look.FrameTitles, opened = false, 0
 last.draw(saved)
-assert(opened == 4)
+assert(opened == 5)
 look.FrameTitles = true
 -- Closed combos should not draw selectable items or rewrite settings.
 imgui.BeginCombo = function() return false end
@@ -104,5 +104,5 @@ imgui.BeginCombo, imgui.Selectable, imgui.EndCombo = begin, selectable, finish
 assert(written, 'a chosen style is saved')
 theme.Save = save
 theme.Reset()
-assert(look.BorderStyle == 'theme' and look.BarTexture == 'original' and look.StatusIcons == true)
+assert(look.BorderStyle == 'theme' and look.BarTexture == 'original' and look.TabStyle == 'sheen' and look.StatusIcons == true)
 H.print('theme styles: last coloured tab, dropdowns, saved keys, previews, selection and closed menus', true)
