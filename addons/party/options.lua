@@ -301,7 +301,7 @@ function options.Defaults()
         -- windows it applies to
         hide = T{ DuringEvent = true, UnderChat = true, UnderMap = true, WhileLoading = true, WithInterface = true },
         clickThrough = T{ true },
-        automaticPositioning = T{ false },
+        automaticPositioning = T{ false }, -- on for new settings (StartNew), whose places are not yet the player's
         useSharedTheme = true,
         theme = T{ }, -- filled from the shared theme if the addon leaves it (winxi.theme's Configure)
         fade = T{
@@ -315,8 +315,11 @@ function options.Defaults()
 end
 
 -- What new settings are given once: the party's window held by its bottom left corner, so that it
--- grows upward from there, the target's window above it, and the alliance's second party over its third
+-- grows upward from there, the target's window above it, and the alliance's second party over its third;
+-- and the windows laid out from the screen's edges (positioning.lua), as the places kept here are for a
+-- screen of 2560 by 1440. Settings already kept keep their own places.
 local function StartNew(saved)
+    saved.automaticPositioning = T{ true }
     saved.party.corner1 = T{ 2098, 1278 }
     saved.links = T{
         T{ child = 'xiframes.tgt.sub', parent = 'xiframes.tgt.tot', side = 'below' },

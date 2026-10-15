@@ -23,6 +23,8 @@
 -- than the screen. window.IsResized() says, while a window's content is drawn, whether it is a
 -- settings window that has been resized.
 --
+-- Every window is kept on the screen (winxi.screen): moved back on where any of it is off.
+--
 -- Either way the font is pushed around the window, so it is what the window is written in unless draw
 -- pushes a font or size of its own.
 --
@@ -49,6 +51,7 @@ local borders = require('winxi.borders');
 local fonts = require('winxi.fonts');
 local backgrounds = require('winxi.backgrounds');
 local titles = require('winxi.titles');
+local screen = require('winxi.screen');
 
 local window = {};
 
@@ -162,6 +165,7 @@ local function Draw(full, name, open, flags, draw, options)
         imgui.PopStyleVar(bordered);
         bordered = 0;
         if drawn then
+            screen.Keep(name);
             if growFrom then anchor.Track(name, growFrom); end
             if not settingsKind and not (options and options.shadow == false) then shadow.Draw(); end
             backgrounds.Draw(background, options and options.background or theme.Get().BackgroundColor);
