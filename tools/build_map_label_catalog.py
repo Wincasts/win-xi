@@ -239,7 +239,7 @@ def main():
     parser.add_argument('manifest', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('--zone-names', type=Path, default=Path('references/boussole/data/zones.lua'))
-    parser.add_argument('--reviews', type=Path, default=Path('addons/zoneinfo/research/map_label_reviews.json'))
+    parser.add_argument('--reviews', type=Path, default=Path('addons/zone/research/map_label_reviews.json'))
     parser.add_argument('--lua-output', type=Path)
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text())

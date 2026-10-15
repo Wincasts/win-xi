@@ -190,11 +190,11 @@ app = shell.New({
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
-    help         = 'Use /name to open the Nameplates, Filters, Statuses and NM Tracking menu.',
+    help         = 'Use /name to open the Names, Filters, Statuses and NM Tracking menu.',
     drawSettings = DrawSettings,
     settingsLabel = 'Filters',
     leadingTabs  = {
-        { label = 'Nameplates', draw = function (options) custom.DrawSettings(options, app.save); end },
+        { label = 'Names', draw = function (options) custom.DrawSettings(options, app.save); end },
     },
     tabs         = {
         { label = 'Statuses', draw = function (options) statuses.DrawSettings(options, app.save); end },

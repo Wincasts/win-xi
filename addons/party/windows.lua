@@ -32,7 +32,10 @@ local borders = require('winxi.borders')
 local fonts = require('winxi.fonts')
 local titles = require('winxi.titles')
 
+local positioning = require('positioning')
 local windows = { }
+local automaticLayout, currentMainTop, currentAllianceBottom
+local automaticWindows = {}
 
 windows.List = {
     party1 = { name = 'xiframes.us.1', label = 'Party', group = 'party', section = 'party', pos = 'pos1', corner = 'corner1' },
@@ -75,8 +78,8 @@ end
 -- is applied to the windows of the groups chosen to fade. Suspended while the windows are arranged,
 -- and while the game's party cursor is out (a member is being picked from the party list, in the
 -- party menu or as a sub-target): the party windows are being read then, however still the player is.
-function windows.UpdateFade()
-    fade.Update(options.fade, organize.IsActive() or game.StPartyIndex() ~= nil)
+function windows.UpdateFade(rearranging)
+    fade.Update(options.fade, organize.IsActive() or rearranging or game.StPartyIndex() ~= nil)
 end
 
 -- Whether a group's windows fade: fading is switched on, and the group is one of those chosen for it
@@ -114,6 +117,13 @@ end
 -- character's own are used after a change of character
 local cornerGiven = setmetatable({ }, { __mode = 'k' })
 
+function windows.UpdatePositions(mainHeight, targetHeight, allianceHeight)
+    local display = imgui.GetIO().DisplaySize
+    automaticLayout = options.automaticPositioning[1] and mainHeight
+        and positioning.Layout(display.x, display.y, mainHeight, targetHeight, allianceHeight) or nil
+    currentMainTop, currentAllianceBottom = nil, nil
+end
+
 function windows.ForgetCorner(window)
     anchor.Reset(window.name)
     if window.corner ~= nil then
@@ -142,14 +152,29 @@ function windows.Draw(window, content, wanted, growFrom)
 
     -- held by a corner other than its top left, unless a link places it: its size is then measured
     -- before it is drawn (below), and it is given exactly that
-    local held = growFrom ~= nil and not organize.IsLinked(window.name)
+    local key = window == windows.List.party1 and 'party1'
+        or window == windows.List.party2 and 'party2'
+        or window == windows.List.party3 and 'party3'
+        or window == windows.List.main and 'main'
+    local automatic = automaticLayout ~= nil and positioning.Managed(key)
+    local held = not automatic and growFrom ~= nil and not organize.IsLinked(window.name)
     if not held then
         flags = bit.bor(flags, ImGuiWindowFlags_AlwaysAutoResize)
     end
     imgui.SetNextWindowSize(windowSize)
 
     local section = options[window.section]
-    organize.Place(window.name, section[window.pos])
+    if automatic then
+        automaticWindows[window.name] = true
+    else
+        organize.Place(window.name, section[window.pos])
+        if automaticWindows[window.name] then
+            imgui.SetNextWindowPos(section[window.pos], ImGuiCond_Always)
+            anchor.Reset(window.name)
+            cornerGiven[section] = nil
+            automaticWindows[window.name] = nil
+        end
+    end
 
     -- the theme's font: the frames write their names and values in it, at sizes of their own
     local font = fonts.Push()
@@ -178,7 +203,7 @@ function windows.Draw(window, content, wanted, growFrom)
         anchor.Measure(window.name, growFrom, content, padding)
         imgui.PopStyleVar()
         anchor.Place(window.name, growFrom)
-    elseif window.corner ~= nil and section[window.corner] ~= nil then
+    elseif not automatic and window.corner ~= nil and section[window.corner] ~= nil then
         windows.ForgetCorner(window)
     end
 
@@ -192,6 +217,13 @@ function windows.Draw(window, content, wanted, growFrom)
     imgui.PopStyleColor(2)
 
     if isOpen then
+        if automatic then
+            local width, height = imgui.GetWindowSize()
+            local left, top = positioning.Place(key, width, height, automaticLayout, currentMainTop, currentAllianceBottom)
+            imgui.SetWindowPos(window.name, {left, top})
+            if key == 'party1' then currentMainTop = top end
+            if key == 'party2' then currentAllianceBottom = top + height end
+        end
         if held then
             anchor.Track(window.name, growFrom)
             local x, y = anchor.Point(window.name)
@@ -217,7 +249,7 @@ function windows.Draw(window, content, wanted, growFrom)
 
         borders.Draw(borderTexture, titles.Gap(window.label))
         titles.Draw(window.label)
-        organize.Track(window.name, section[window.pos])
+        if not automatic then organize.Track(window.name, section[window.pos]) end
 
         imgui.PopStyleVar()
         imgui.PopStyleColor()

@@ -1,6 +1,6 @@
 -- The game's own map pictures, read from its files as a texture to draw.
 --
---   mapdat.Root()                   the game's folder, or nil while Ashita cannot say
+--   mapdat.Root()                   the game's folder from resource paths or the loaded FFXiMain.dll
 --   mapdat.Read(dat)                a map's file, by its place under the game's folder ('ROM/283/75.DAT'):
 --                                   a buffer and its length, or nil and why not
 --   mapdat.Header(buffer, length)   what the picture in a file is: { width, height, kind, bits, at },
@@ -38,18 +38,40 @@ pcall(ffi.cdef, [[
     size_t fread(void* buffer, size_t size, size_t count, void* file);
 ]]);
 
+-- Unique FFI names avoid conflicting with other addons' Windows declarations.
+pcall(ffi.cdef, [[
+    void* __stdcall winxi_mapdat_GetModuleHandleA(const char*) __asm__("GetModuleHandleA");
+    unsigned long __stdcall winxi_mapdat_GetModuleFileNameA(void*, char*, unsigned long) __asm__("GetModuleFileNameA");
+]]);
+
 ----------------------------------------------------------------------------------------------------
 -- The file
 ----------------------------------------------------------------------------------------------------
 local root = nil;
 
--- The game's first file is always ROM\0\0.DAT: what Ashita says is its place, less that, is the folder
+local function ModuleFolder()
+    local ok, folder = pcall(function()
+        local kernel = ffi.load('kernel32');
+        local module = kernel.winxi_mapdat_GetModuleHandleA('FFXiMain.dll');
+        -- Never pass a null handle: that would return the launcher, not the game's DLL.
+        if module == nil or module == 0 then return nil; end
+        local buffer = ffi.new('char[32768]');
+        local length = tonumber(kernel.winxi_mapdat_GetModuleFileNameA(module, buffer, 32768));
+        if length == 0 or length >= 32768 then return nil; end
+        return ffi.string(buffer, length):match('^(.-)[\\/]%s*[Ff][Ff][Xx][Ii][Mm][Aa][Ii][Nn]%.[Dd][Ll][Ll]$');
+    end);
+    return ok and folder or nil;
+end
+
+-- Some Ashita clients return a relative/empty resource path. In those clients the
+-- loaded FFXiMain.dll gives the actual game folder, independent of the launcher's folder.
 function mapdat.Root()
     if root == nil then
         local ok, path = pcall(function() return AshitaCore:GetResourceManager():GetFilePath(0); end);
-        if ok and type(path) == 'string' then
-            root = path:match('^(.-)[\\/][Rr][Oo][Mm][\\/]0[\\/]0%.[Dd][Aa][Tt]$');
+        if ok and type(path) == 'string' and (path:match('^%a:[\\/]') or path:match('^[\\/][\\/]')) then
+            root = path:match('^(.-)[\\/][Rr][Oo][Mm]%d*[\\/]%d+[\\/]%d+%.[Dd][Aa][Tt]$');
         end
+        root = root or ModuleFolder();
     end
     return root;
 end
@@ -66,7 +88,7 @@ end
 function mapdat.Read(dat)
     local folder = mapdat.Root();
     if folder == nil then
-        return nil, 'Ashita did not say where the game is';
+        return nil, 'could not locate the game folder from resource paths or FFXiMain.dll';
     end
     if type(dat) ~= 'string' or dat:find('..', 1, true) then
         return nil, 'not a map file';

@@ -24,6 +24,40 @@ check('the game folder is file 0\'s, less ROM\\0\\0.DAT', mapdat.Root() == 'X:\\
 check('a place out of the game folder is refused', select(2, mapdat.Read('../../secret.DAT')) == 'not a map file');
 check('no device, no texture', select(3, mapdat.Load('ROM/17/24.DAT')) == 'no device yet');
 
+-- Empty/relative resource paths in the actual client must use the game DLL, not the launcher.
+do
+    local oldCore,oldLoad = AshitaCore,ffi.load;
+    local module,filenameCalls = 123,0;
+    ffi.load = function(name)
+        assert(name == 'kernel32');
+        return {
+            winxi_mapdat_GetModuleHandleA = function(name) assert(name == 'FFXiMain.dll'); return module; end,
+            winxi_mapdat_GetModuleFileNameA = function(handle,buffer,size)
+                assert(handle == 123 and size == 32768);
+                filenameCalls = filenameCalls+1;
+                local path = [[C:\Games\FFXI\FFXiMain.dll]];
+                ffi.copy(buffer,path);
+                return #path;
+            end,
+        };
+    end;
+    for _,path in ipairs({'', [[ROM\0\0.DAT]], [[.\ROM\0\0.DAT]], 'unrecognized'}) do
+        AshitaCore = {GetResourceManager=function() return {GetFilePath=function() return path; end}; end};
+        local fresh = assert(loadfile('addons/libs/winxi/mapdat.lua'))();
+        check('game DLL resolves folder despite resource path: '..path, fresh.Root() == [[C:\Games\FFXI]]);
+        local calls = filenameCalls;
+        assert(fresh.Root() == [[C:\Games\FFXI]] and filenameCalls == calls, 'successful root cached');
+    end;
+    AshitaCore = {GetResourceManager=function() error('resource path unavailable'); end};
+    local fresh = assert(loadfile('addons/libs/winxi/mapdat.lua'))();
+    module = 0;
+    local calls = filenameCalls;
+    check('missing game DLL fails closed, never uses the launcher', fresh.Root() == nil, filenameCalls == calls);
+    module = 123;
+    check('missing root retried when the game DLL becomes available', fresh.Root() == [[C:\Games\FFXI]]);
+    AshitaCore,ffi.load = oldCore,oldLoad;
+end;
+
 -- A device that makes textures of memory, a row's pitch longer than the row, as a real one's can be
 local function Device()
     local device = { made = {} };

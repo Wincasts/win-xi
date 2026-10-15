@@ -18,12 +18,14 @@ The optional "Twister" voice clips keep their original filenames and spoken word
 ## WinXI Appearance
 
 Appearance is controlled globally through the **winxisettings** addon. Trigger always follows
-the shared theme and has no Winxi Theme tab or addon-specific theme override. The **Triggers** tab's
-**Indicator** section controls **Fade In And Out** and **Grow From**.
+the shared theme and has no Winxi Theme tab or addon-specific theme override.
+Settings have three tabs: **Notifications** for standard events and playback, **Triggers** for custom
+mob-action triggers, and **Toast** for the on-screen notification window. Toast controls **Fade In And
+Out** and **Grow From**; its extra options are hidden while **Enable Toast** is off.
 Settings windows use WinXI's separate settings appearance and can be resized;
 controls narrow to fit, with scrolling for rows that still need more room. The indicator uses the
 game-window theme, border, background, frame title and font, with outlined text for readability.
-The Triggers tab's hiding rules apply to the indicator only; notifications continue to sound.
+The Toast tab's hiding rules apply to the toast only; notifications continue to sound.
 All help tooltips, including the `(?)` marks, use WinXI's shared tooltip settings from
 **winxisettings → Tooltips**.
 
@@ -75,7 +77,7 @@ and at most eight buffers are held. Actual device compatibility still needs test
 
 ### Volume
 
-The **Playback → Volume** selector at the bottom of Settings applies to every sound Trigger plays:
+The **Playback → Volume** selector at the bottom of Notifications applies to every sound Trigger plays:
 notifications, triggers, Test buttons, sound-selection previews, and `/trigger test`.
 
 - **Medium** (default): the existing WAVs, unchanged.
@@ -120,13 +122,13 @@ is with what their kind's other mobs do. The game has some things under more tha
 and the same again for the mobs of Dynamis): what has one name is listed once, and a trigger for it is
 for every number it goes by.
 
-The tab's Indicator section makes triggers seen as well as heard. With Show Indicator on, a small
+The Toast tab makes triggers seen as well as heard. With Enable Toast on, a small
 window in the theme, like recast's, says what the mob does as the chat log does (`Mad Sheep readies
-Sheep Song.`, `starts casting` for a spell, `uses` for an ability) for as long as Indicator Duration
+Sheep Song.`, `starts casting` for a spell, `uses` for an ability) for as long as Duration
 says, a line for each thing going on, fading in as it appears and out as it goes by default.
-In Triggers → Indicator, Grow From is the
-side of it that stays where it is as what it says gets longer or shorter: Left, Center or Right. It is shown with a sample line while the Triggers tab is open, to
-be dragged to where you want it, and follows the hiding rules set in the Triggers tab (by default the opened-out chat log,
+In Toast, Grow From is the
+side of it that stays where it is as what it says gets longer or shorter: Left, Center or Right. It is shown with a sample line while the Toast tab is open and Enable Toast is on, to
+be dragged to where you want it, and follows the hiding rules set in the Toast tab (by default the opened-out chat log,
 the map, loading, an event or a hidden interface). A trigger's Test button shows its line too, under the kind's name.
 
 Each trigger has a switch, its sound, a Test button and a Remove button; they are kept with the rest of

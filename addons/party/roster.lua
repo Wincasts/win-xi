@@ -217,6 +217,10 @@ local function ReadMember(place, party, stal)
     member.isPartyTarget = stal ~= nil and stal == place
     local main = party:GetMemberMainJob(place)
     member.job = game.JobAbbr(main)
+    member.jobLevel = party:GetMemberMainJobLevel(place)
+    member.subJob = game.JobAbbr(party:GetMemberSubJob(place))
+    member.subJobLevel = party:GetMemberSubJobLevel(place)
+    member.jobText = game.JobText(member.job, member.jobLevel, member.subJob, member.subJobLevel)
     member.zoneId = zone
     member.hpp = party:GetMemberHPPercent(place)
     member.mpp = party:GetMemberMPPercent(place)

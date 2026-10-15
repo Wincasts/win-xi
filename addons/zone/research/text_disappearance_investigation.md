@@ -1,6 +1,6 @@
 # Shared text disappearance investigation
 
-Reported symptom: zoneinfo and name both stopped displaying text, with no error
+Reported symptom: zone and name both stopped displaying text, with no error
 message available. This has not been reproduced in a live Ashita client, so the
 original trigger is not established.
 
@@ -34,7 +34,7 @@ original trigger is not established.
 
 ## Offline evidence
 
-`zoneinfo_presentation_ui_check.lua` injects failures in CalcTextSize and
+`zone_presentation_ui_check.lua` injects failures in CalcTextSize and
 GetColorU32 while fonts/styles are pushed. Both failures now propagate with
 balanced font/style/color stacks; the failed window is ended and the next draw
 succeeds. Existing name rendering and menu checks also pass.
@@ -47,7 +47,7 @@ unconfirmed.
 
 Record whether it occurred while selecting a font, dragging a size slider,
 previewing a popup, zoning, or changing display resolution. Try Default fonts
-in zoneinfo and name, then unload zoneinfo to distinguish banner interference
+in zone and name, then unload zone to distinguish banner interference
 from a name-only issue. If the shared renderer remains broken after unload,
-a client restart may be needed. Capture any new rate-limited zoneinfo traceback.
-Deploy the shared `addons/libs/winxi/window.lua` change along with zoneinfo.
+a client restart may be needed. Capture any new rate-limited zone traceback.
+Deploy the shared `addons/libs/winxi/window.lua` change along with zone.

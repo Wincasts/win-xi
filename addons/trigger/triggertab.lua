@@ -278,13 +278,14 @@ for _, grow in ipairs(indicator.Grows) do
 end
 
 local function DrawIndicatorSettings(options)
-    widgets.Label('Show Indicator')
+    widgets.Label('Enable Toast')
     if imgui.Checkbox('##trigger.indicator.enabled', options.showIndicator) then shared.app:Save() end
-    Mark('A small window that says what a trigger was for, as the chat log does, for a few seconds. It is shown while this tab is open: drag it to where you want it.', true)
+    Mark('A small window showing what triggered, as the chat log does. While enabled, a preview appears on this tab so you can drag it into position.')
+    if not options.showIndicator[1] then return end
 
     -- how long only while it is switched on: off, there is nothing for it to set
     if options.showIndicator[1] then
-        widgets.Label('Indicator Duration')
+        widgets.Label('Duration')
         widgets.PushControlWidth()
         imgui.SliderInt('##trigger.indicator.seconds', options.indicatorSeconds, 1, 15, '%d s')
         widgets.PopControlWidth()
@@ -322,18 +323,16 @@ local function DrawAppearance(options)
     Mark('The side of the indicator that stays where it is as what it says gets longer or shorter. Its lines are set to that side too.', true)
 end
 
+local function DrawToast(options)
+    indicator.sample = options.showIndicator[1]
+    DrawIndicatorSettings(options)
+    if not options.showIndicator[1] then return end
+    widgets.Gap()
+    DrawAppearance(options)
+end
+
 local function DrawTriggers(options)
-    -- the indicator is shown while the tab is, to be put where it is wanted
-    indicator.sample = true
-
-    -- [Experimental], as every addon here marks what is
     imgui.TextColored(widgets.ExperimentalColor, '[Experimental]')
-
-    if widgets.Header('Indicator') then
-        DrawIndicatorSettings(options)
-        widgets.Gap()
-        DrawAppearance(options)
-    end
 
     if widgets.Header('New Trigger') then
         DrawMaking(options)
@@ -348,9 +347,12 @@ local function DrawTriggers(options)
     end
     local removed = nil
     for index, trigger in ipairs(triggers) do
+        if index > 1 then widgets.Gap() end
         imgui.PushID(index)
         if imgui.Checkbox('##enabled', trigger.enabled) then shared.app:Save() end
         imgui.SameLine()
+        imgui.Text(TriggerText(trigger))
+        widgets.Label('Sound')
         SoundCombo('##sound', trigger, 'trigger')
         imgui.SameLine()
         TestButton(trigger)
@@ -358,9 +360,7 @@ local function DrawTriggers(options)
         if imgui.Button('Remove') then
             removed = index
         end
-        imgui.SameLine()
-        imgui.Text(TriggerText(trigger))
-        Mark('Enable or disable this trigger, choose its sound, test its sound and indicator, or remove it.\n' .. TriggerText(trigger))
+
         imgui.PopID()
     end
     if removed ~= nil then
@@ -370,4 +370,4 @@ local function DrawTriggers(options)
     end
 end
 
-return { Draw = DrawTriggers }
+return { Draw = DrawTriggers, DrawToast = DrawToast }

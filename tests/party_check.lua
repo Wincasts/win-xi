@@ -251,10 +251,17 @@ for _, tab in ipairs(config.Tabs) do
 end
 H.print('sliders in the tabs', (H.calls.SliderInt or 0) - sliders)
 
+local menuGame = require('winxi.game')
+local menuName, wasShowing = menuGame.MenuName, o.showConfig[1]
+menuGame.MenuName = function() return 'menu    diagnostic' end
+assert(H.command('/pt menu') and o.showConfig[1] == wasShowing, 'menu diagnostic does not toggle settings')
+assert(H.printed[#H.printed]:find('menu    diagnostic', 1, true), 'menu diagnostic reports exact native name')
+menuGame.MenuName = menuName
 local before = H.calls.Begin or 0
-H.print('/xiframes kept from the game', H.command('/xiframes'), '| settings showing', o.showConfig[1]); H.frames(1)
+H.print('/pt kept from the game', H.command('/pt'), '| settings showing', o.showConfig[1]); H.frames(1)
 H.print('settings window drawn', (H.calls.Begin or 0) > before)
-H.print('/xif closes it', H.command('/xif') and o.showConfig[1] == false, '| /xiframesx is left alone', H.command('/xiframesx') == false,
+H.print('/xif closes it', H.command('/xif') and o.showConfig[1] == false, '| /ptx is left alone', H.command('/ptx') == false,
+    '| old /xiframes is left alone', H.command('/xiframes') == false,
     '| /party (the game\'s party chat) is left alone', H.command('/party hello') == false)
 H.unload(); H.print('unload ran; saves', H.saves() > 0)
 
@@ -429,4 +436,21 @@ do
     look.FrameTitles, look.TitleStyle = true, 'outline'
     theme.Touch()
     H.print('frame titles: on the top edge of each window, outlined, breaking the border, with a shadow too, or on a plate; shadowed; their own size', true)
+end
+
+-- The main party frame follows actual membership, including an alliance with an empty second party.
+do
+    local roster, windows = require('roster'), require('windows')
+    local organize = require('winxi.organize')
+    local counts, active = roster.Counts, organize.IsActive()
+    organize.SetActive(false)
+    for _, case in ipairs({ {1, 0, 0, 'Solo'}, {2, 0, 0, 'Party'},
+        {6, 1, 0, 'Alliance'}, {1, 0, 1, 'Alliance'}, {1, 0, 0, 'Solo'} }) do
+        roster.Counts = function() return case[1], case[2], case[3] end
+        H.frames(1)
+        assert(windows.List.party1.label == case[4], 'main party title: ' .. case[4])
+    end
+    roster.Counts = counts
+    organize.SetActive(active)
+    H.print('main party title follows solo, party and alliance membership', true)
 end

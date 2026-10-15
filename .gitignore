@@ -21,7 +21,7 @@ __pycache__/
 
 # Map pictures exported from XICombinedMaps before mark and zoneinfo read the game's files (winxi.mapdat)
 /addons/mark/assets/maps/
-/addons/zoneinfo/assets/maps/
+/addons/zone/assets/maps/
 
 # Retired diagnostic and experimental addons, kept locally for reference and never pushed
 /archive/

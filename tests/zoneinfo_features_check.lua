@@ -46,7 +46,7 @@ check('unchanged weather does not repeat', count('Weather:') == 1);
 check('flags are on by default, the chosen image off', d.backgroundFlags[1] and not d.backgroundEnabled[1]);
 check("a nation's region shows its flag", H.background_cache.file == 'flags/sandoria.png' and H.background_loads == 1);
 for _, flag in pairs(require('data.region_flags')) do
-    local file = io.open('addons/zoneinfo/assets/backgrounds/flags/' .. flag .. '.png', 'rb');
+    local file = io.open('addons/zone/assets/backgrounds/flags/' .. flag .. '.png', 'rb');
     check('flag file is bundled: ' .. flag, file ~= nil and bg.valid_flag(flag));
     if file then file:close(); end
 end
@@ -81,31 +81,31 @@ d.backgroundEnabled[1], d.backgroundFlags[1] = false, true;
 
 -- Saved detection settings
 local saves = H.saves();
-H.command('/zoneinfo approach 45');
+H.command('/zone approach 45');
 check('the approach command is saved', d.approachYalms[1] == 45 and H.saves() > saves);
-d.approachYalms[1] = 12; H.frames(1); H.command('/zoneinfo sample');
+d.approachYalms[1] = 12; H.frames(1); H.command('/zone sample');
 check('the setting drives detection', count('approach=12 yalms') == 1);
 local primary = catalog[100].key;
-H.command('/zoneinfo livemap ' .. primary);
+H.command('/zone livemap ' .. primary);
 check('the live map is saved for its zone', d.liveMaps.z100 == primary);
-game.zone = 103; H.frames(400); H.command('/zoneinfo sample');
+game.zone = 103; H.frames(400); H.command('/zone sample');
 check('another zone does not inherit it', d.liveMaps.z103 == nil and count('map=' .. primary) == 0);
-game.zone = 100; H.frames(400); H.command('/zoneinfo sample');
+game.zone = 100; H.frames(400); H.command('/zone sample');
 check('it is used again on return', count('zone=100 | map=' .. primary) == 1);
-H.command('/zoneinfo livemap auto');
+H.command('/zone livemap auto');
 check('automatic selection clears the saved map', d.liveMaps.z100 == nil);
 d.liveMaps.z100, d.liveMaps.bad, d.liveMaps.z7 = 'no_such_map', 'x', 5; d.approachYalms[1] = 500;
 p.complete(p.app.options); H.resettle(); H.frames(2);
 check('saved values are validated', d.liveMaps.bad == nil and d.liveMaps.z7 == nil and d.approachYalms[1] == 100);
-H.command('/zoneinfo sample');
+H.command('/zone sample');
 check('an unknown saved map is ignored', count('map=no_such_map') == 0);
 d.approachYalms[1] = 30;
 
 -- Location line
-check('the location line is off by default', not d.locationEnabled[1] and begun['##zoneinfo_location'] == nil);
+check('the location line is off by default', not d.locationEnabled[1] and begun['##zone_location'] == nil);
 d.areaEnabled[1] = false; d.locationEnabled[1] = true;
 move(200, 300); H.frames(400);
-check('it names the zone', begun['##zoneinfo_location'] ~= nil and (written['Zone 100'] or 0) > 0 and written['Zone 100 - Knightwell'] == nil);
+check('it names the zone', begun['##zone_location'] ~= nil and (written['Zone 100'] or 0) > 0 and written['Zone 100 - Knightwell'] == nil);
 check('dragging it is kept', d.locationPosition[1] == 100 and d.locationPosition[2] == 200);
 local announced = count('Sub-zone:');
 move(238, 337); H.frames(70);
@@ -115,8 +115,8 @@ check('leaving the sub-zone drops its name', (written['Zone 100'] or 0) > 0 and 
 d.locationLocked[1], d.locationPosition[1], d.locationPosition[2] = true, 5, 6; H.frames(2);
 check('locked, it stays where the settings put it', d.locationPosition[1] == 5 and d.locationPosition[2] == 6
     and placed[1] == 5 and placed[2] == 6 and placed[3] == ImGuiCond_Always);
-local windows = begun['##zoneinfo_location'];
+local windows = begun['##zone_location'];
 d.locationEnabled[1] = false; H.frames(5);
-check('turned off, nothing is drawn', begun['##zoneinfo_location'] == windows);
+check('turned off, nothing is drawn', begun['##zone_location'] == windows);
 draw.AddText, imgui.Begin, imgui.SetNextWindowPos = original_text, original_begin, original_pos;
 H.print(('zoneinfo flags/weather/detection/location: %d assertions passed'):format(checks));

@@ -29,9 +29,9 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Trigger's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-The tabs are **Nameplates → Filters → Statuses → NM Tracking**.
+The tabs are **Names → Filters → Statuses → NM Tracking**.
 
-- **Nameplates:** follows `guis/name.menu`: Name Appearance, Player Icons,
+- **Names:** follows `guis/name.menu`: Name Appearance, Player Icons,
   Mob Nameplates, and Check. Options boxes measure the longest option row and share a width fitted
   to that row plus its help marker and padding. Every `(?)` sits in the same
   right-aligned column. Measurements exclude help and window width, preventing
@@ -143,7 +143,7 @@ updated plugin as well as `libs/winxi`.
 
 ### How a name is written
 
-Edit **Mob Format** in Nameplates → Mob Nameplates. It applies to every mob nameplate,
+Edit **Mob Format** in Names → Mob Nameplates. It applies to every mob nameplate,
 including targeted and checked mobs. Checking a mob still updates
 its known level and check-detail line; targeting still applies the usual targeting behaviour.
 
@@ -212,7 +212,7 @@ Icons off it is a sheet of the game's icons alone.
 
 ### Experimental mob letters
 
-Enable **Mob Letters** in Nameplates → Mob Nameplates (off by default). It adds a compact rounded letter
+Enable **Mob Letters** in Names → Mob Nameplates (off by default). It adds a compact rounded letter
 badge after the mob nameplate, or uses an explicit `[letter]` token wherever you put it:
 
 ```text

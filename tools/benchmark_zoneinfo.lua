@@ -1,5 +1,5 @@
 -- Offline CPU/heap benchmark; not a measurement of Ashita graphics or game FPS.
-package.path = 'addons/zoneinfo/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;' .. package.path;
 local start = os.clock();
 if arg[1] then package.loaded['area_geometry'] = dofile(arg[1]); end -- Optional baseline snapshot.
 local catalog = require('map_catalog');

@@ -17,6 +17,8 @@
 --   widgets.BeginLabels(key)         starts a group of settings whose controls line up with each other
 --   widgets.Gap()                    the space between one family of settings and the next
 --   widgets.PushControlWidth() / PopControlWidth()   around an addon's own settings, to match winxi's
+--   widgets.NumberWidth(fields, digits)   the width for a box of whole numbers (InputInt, InputInt2),
+--                                    for SetNextItemWidth: room for the digits in each field and no more
 --   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
 --   widgets.Fade(settings, onChanged) the controls for fading while idle (see winxi.fade)
 --
@@ -170,6 +172,17 @@ end
 
 function widgets.PopControlWidth()
     imgui.PopItemWidth();
+end
+
+-- A box of whole numbers sized to what goes in it, rather than to the controls around it: each field
+-- is wide enough for digits figures (5 if not given) and its padding, with the gap between fields.
+-- Meant for boxes without +/- buttons (InputInt with a step of 0, InputInt2).
+function widgets.NumberWidth(fields, digits)
+    fields = fields or 1;
+    local textWidth = imgui.CalcTextSize(('0'):rep(digits or 5));
+    local style = imgui.GetStyle();
+    local field = textWidth + style.FramePadding.x * 2;
+    return field * fields + style.ItemInnerSpacing.x * (fields - 1);
 end
 
 -- The space between one family of settings and the next (the colours, the padding, the drop shadow)
@@ -810,20 +823,25 @@ end
 
 -- The controls for an addon's idle-fade settings (a table as winxi.fade describes). onChanged, if given,
 -- is called when a change is final (the mouse is up), for the addon to save its settings.
-function widgets.Fade(settings, onChanged)
+-- grouped optionally splits the detailed controls into collapsible sections.
+function widgets.Fade(settings, onChanged, grouped)
     FadeCheck(settings, 'Fade When Idle', 'Enabled', 'Fades the windows out once you have stood still for a while, and brings them back as soon as you move.');
 
     if settings.Enabled then
+        if not grouped or widgets.Header('Timing And Opacity') then
         FadeNumber(settings, 'Idle Time (Seconds)', 'Delay', 1, 120, nil, 'How long you must stand still before the fade starts.');
         FadeNumber(settings, 'Idle Fade Time (Seconds)', 'Duration', 0, 5, '%.1f', 'How long the windows take to fade out once you are idle.');
         FadeNumber(settings, 'Fade In/Out Time (Seconds)', 'Transition', 0, 1, '%.2f', 'How long a window takes to fade in as it appears, out as it goes, and back in when you stop being idle.\nOne speed for every window. At 0 they appear and go at once.');
         FadeNumber(settings, 'Faded Opacity (%)', 'Opacity', 0, 100, nil, 'How visible a faded window stays. At 0 it disappears completely.');
+        end
+        if not grouped or widgets.Header('Keep Frames Visible') then
         FadeCheck(settings, 'Stay Visible While Moving', 'Moving', 'Moving about does not count as idle. Switched off, the windows fade on the move as well, once nothing else has kept them up for the idle time.');
         FadeCheck(settings, 'Show On Party Changes', 'Party', 'A change to the party list brings the windows back: someone joining, leaving or changing area.');
         FadeCheck(settings, 'Stay Visible While Engaged', 'Combat', 'Standing still with your weapon drawn does not count as idle.');
         FadeCheck(settings, 'Stay Visible While Targeting', 'Target', 'Having anything targeted does not count as idle: the windows come back as soon as you target something, or your target changes.');
         FadeCheck(settings, 'Stay Visible While Missing HP', 'MissingHp', 'Standing still below full HP does not count as idle.');
         FadeCheck(settings, 'Stay Visible While Healing', 'Resting', 'Resting to recover HP and MP (/heal) does not count as idle.');
+        end
     end
 
     if fadeDirty and MouseIsUp() then

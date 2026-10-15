@@ -1,5 +1,5 @@
 -- Font enumeration without Windows: exercise callbacks, UTF-8 names and cleanup.
-package.path = 'addons/zoneinfo/?.lua;' .. package.path
+package.path = 'addons/zone/?.lua;' .. package.path
 local ffi = require('ffi')
 local families = require('gdi_families')
 local acquired, released, enumerated = 0, 0, 0
@@ -27,11 +27,11 @@ ffi.load = function(name)
             enumerated = enumerated + 1
             assert(filter.charset == 1)
             for _, name in ipairs({ 'Verdana', 'Arial', 'arial', '@Arial', 'Tahoma', '' }) do
-                local font = ffi.new('zoneinfo_logfont_w')
+                local font = ffi.new('zone_logfont_w')
                 for i = 1, #name do font.face[i - 1] = name:byte(i) end
                 assert(callback(font, nil, 0, 0) == 1)
             end
-            local font = ffi.new('zoneinfo_logfont_w')
+            local font = ffi.new('zone_logfont_w')
             font.face[0] = 0x416
             assert(callback(font, nil, 0, 0) == 1)
             return 1

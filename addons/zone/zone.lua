@@ -1,4 +1,4 @@
-addon.name    = 'zoneinfo';
+addon.name    = 'zone';
 addon.author  = 'win';
 addon.version = '2.5.0';
 addon.desc    = 'Zone, region, sub-zone and weather banners, a location line, and an all-map experimental boundary editor.';
@@ -332,7 +332,7 @@ local function sample_report()
     end
 end
 
-ashita.events.register('load', 'zoneinfo_load', function()
+ashita.events.register('load', 'zone_load', function()
     local loaded, err = editor:load();
     if (not loaded) then message('Boundary overrides not loaded: ' .. tostring(err), true); end
     editor_revision = editor.revision;
@@ -348,10 +348,10 @@ ashita.events.register('load', 'zoneinfo_load', function()
     tracking:set_zone(state.last_zone, os.clock(), 0);
     tracking.state.approach_yalms = presentation.display().approachYalms[1];
     apply_live_map(state.last_zone);
-    message('Use /zoneinfo config for sub-zone popups and display settings, or /zoneinfo debug on to check alignment.');
+    message('Use /zone for sub-zone popups and display settings, or /zone debug on to check alignment.');
 end);
 
-ashita.events.register('packet_in', 'zoneinfo_packet_in', function(e)
+ashita.events.register('packet_in', 'zone_packet_in', function(e)
     if (e.id == ZONE_IN_PACKET) then
         -- Do not classify stale coordinates during zone-in, including same-zone reloads.
         -- The frame poll remains responsible for reading the updated zone ID and its banner.
@@ -361,7 +361,7 @@ ashita.events.register('packet_in', 'zoneinfo_packet_in', function(e)
     end
 end);
 
-ashita.events.register('d3d_present', 'zoneinfo_present', function()
+ashita.events.register('d3d_present', 'zone_present', function()
     presentation.begin_frame();
     check_zone_changed(false);
     sync_approach();
@@ -391,15 +391,15 @@ ashita.events.register('d3d_present', 'zoneinfo_present', function()
     end
 end);
 
-ashita.events.register('command', 'zoneinfo_command', function(e)
+ashita.events.register('command', 'zone_command', function(e)
     local args = e.command:args();
-    if (#args == 0 or args[1]:lower() ~= '/zoneinfo') then return; end
+    if (#args == 0 or args[1]:lower() ~= '/zone') then return; end
     e.blocked = true;
     local command = args[2] and args[2]:lower() or '';
-    if (command == '' or command == 'test') then
-        check_zone_changed(true);
-    elseif (command == 'config' or command == 'settings') then
+    if (command == '') then
         presentation.toggle_config();
+    elseif (command == 'test') then
+        check_zone_changed(true);
     elseif (command == 'reload' or command == 'rl') then
         if (presentation.reload()) then
             message('Display settings reloaded.'); check_zone_changed(true);
@@ -408,7 +408,7 @@ ashita.events.register('command', 'zoneinfo_command', function(e)
         local field = command == 'poc' and 'enabled' or 'debug';
         local mode = args[3] and args[3]:lower();
         if (mode and mode ~= 'on' and mode ~= 'off') then
-            message(('Usage: /zoneinfo %s [on|off]'):format(command), true);
+            message(('Usage: /zone %s [on|off]'):format(command), true);
             return;
         end
         tracking.state[field] = mode == 'on' or (not mode and not tracking.state[field]);
@@ -420,7 +420,7 @@ ashita.events.register('command', 'zoneinfo_command', function(e)
     elseif (command == 'approach') then
         local distance = tonumber(args[3]);
         if (not distance or distance ~= distance or distance < 0 or distance > 100) then
-            message('Usage: /zoneinfo approach <0..100 yalms> (default 30; 0 restores feature-only detection).', true);
+            message('Usage: /zone approach <0..100 yalms> (default 30; 0 restores feature-only detection).', true);
             return;
         end
         presentation.display().approachYalms[1] = distance;
@@ -436,7 +436,7 @@ ashita.events.register('command', 'zoneinfo_command', function(e)
         elseif (key and catalog.maps[key] and catalog.maps[key].zone_id == get_zone_id()) then
             tracking.reader.live_map = key;
         else
-            message('Use the debug window live-map button, or /zoneinfo livemap auto. A live override must belong to the current zone.', true);
+            message('Use the debug window live-map button, or /zone livemap auto. A live override must belong to the current zone.', true);
             return;
         end
         save_live_map(get_zone_id());
@@ -457,7 +457,7 @@ ashita.events.register('command', 'zoneinfo_command', function(e)
         else
             local scale, ox, oy = tonumber(args[3]), tonumber(args[4]), tonumber(args[5]);
             if (not tracking.reader:set_override(zone, scale, ox, oy, map_key)) then
-                message('Usage in a mapped zone: /zoneinfo transform <scale> <offset_x> <offset_y> (or transform reset).', true);
+                message('Usage in a mapped zone: /zone transform <scale> <offset_x> <offset_y> (or transform reset).', true);
                 return;
             end
             tracking:reset(os.clock());
@@ -465,11 +465,11 @@ ashita.events.register('command', 'zoneinfo_command', function(e)
             message('Session-only manual transform set; verify alignment at several separated landmarks.');
         end
     else
-        message('/zoneinfo [test|config|reload] | poc [on|off] | debug [on|off] | approach <0..100 yalms> | sample | livemap auto | transform <scale> <offset_x> <offset_y> | transform reset');
+        message('/zone [test|reload] | poc [on|off] | debug [on|off] | approach <0..100 yalms> | sample | livemap auto | transform <scale> <offset_x> <offset_y> | transform reset');
     end
 end);
 
-ashita.events.register('unload', 'zoneinfo_unload', function()
+ashita.events.register('unload', 'zone_unload', function()
     presentation.shutdown();
     editor:cancel();
     if (editor:dirty()) then message('Unsaved boundary edits discarded. Use Save Boundaries in the debug window to persist them.'); end

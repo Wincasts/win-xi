@@ -42,10 +42,12 @@ options.Unit = 1.2
 --   font      a font of C:\Windows\Fonts, as a combo   default '': the theme's font
 --   place     where a window is, as two numbers default { x, y }, window: its key in windows.List
 --   gap       a little room between two families of settings
+--   header    a collapsible Winxi section heading (no saved value)
 -- when, if given, says whether the entry is shown, from the settings.
 options.Tabs = {
     { name = 'Style', entries = {
         { kind = 'slider', section = 'style', key = 'scale', label = 'Scale (%)', default = 100, min = 50, max = 200, format = '%d%%',
+          when = function() return false end, -- hidden; preserve existing saved scale
           tooltip = 'How big the party lists and the target windows are drawn: the bars, the text and the buffs together.' },
         { kind = 'slider', section = 'style', key = 'nameSize', label = 'Name Text Size (%)', default = 105, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the names are written, apart from everything else.' },
@@ -91,6 +93,7 @@ options.Tabs = {
           when = function(saved) return saved.party.showInvites[1] or saved.party.showTreasure[1] end,
           tooltip = 'Moves the invite and treasure icons from their corner: X to the right, Y down. Less than 0 moves them left or up.' .. unitsNote },
         { kind = 'check', section = 'party', key = 'sortByRole', label = 'Sort By Role', default = false,
+          when = function() return false end, -- hidden from settings; preserve existing saved behavior
           tooltip = 'Off lists members in the game\'s own party order.\nOn lists you first, then tanks (PLD, NIN, WAR, RUN), melee damage (MNK, SAM, DRK, DRG, THF, DNC, BLU, BST, PUP),\nranged damage (RNG), support (BRD, COR, GEO), mages (BLM, SMN, SCH) and healers (RDM, WHM).\nEach party of the alliance is sorted on its own.' },
         { kind = 'slider', section = 'party', key = 'allianceScale', label = 'Alliance Scale (%)', default = 100, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the alliance\'s other two parties are drawn, both alike, on top of the Scale in Style. Your own party is left as it is.' },
@@ -125,6 +128,47 @@ options.Tabs = {
           tooltip = 'Shows your automaton\'s HP and MP as numbers rather than percentages.\nOnly applies while you are a puppetmaster; other pets always show percentages.' },
     } },
 }
+
+-- Presentation order is separate from the setting definitions so regrouping never changes defaults.
+local groups = {
+    Style = {
+        { 'Names', 'scale', 'nameFont', 'nameSize' },
+        { 'Values And Text', 'valueFont', 'valueSize', 'outline', 'showMp', 'showTp', 'tpFlash' },
+        { 'Value Positioning', 'hpOffset', 'mpOffset', 'tpOffset' },
+        { 'Status Icons', 'buffSize', 'buffSpacing', 'buffDistance' },
+    },
+    Party = {
+        { 'Visibility', 'enabled', 'hideWhenSolo', 'sortByRole' },
+        { 'Notifications', 'showInvites', 'showTreasure', 'iconCorner', 'iconOffset' },
+        { 'Alliance', 'allianceScale' },
+        { 'Positioning', 'pos1', 'pos2', 'pos3' },
+    },
+    Target = {
+        { 'Visibility', 'enabled', 'showMain', 'showSub', 'showTot' },
+        { 'Debuffs', 'mainDebuffs', 'subDebuffs', 'totDebuffs', 'debuffStyle' },
+        { 'Positioning', 'mainPos', 'subPos', 'totPos' },
+    },
+    Pets = {
+        { 'Visibility', 'enabled', 'showParty' },
+        { 'Automaton', 'exactAutomaton' },
+    },
+}
+for _, tab in ipairs(options.Tabs) do
+    local entries, byKey = {}, {}
+    for _, entry in ipairs(tab.entries) do
+        if entry.key then byKey[entry.key] = entry end
+    end
+    for _, group in ipairs(groups[tab.name]) do
+        entries[#entries + 1] = { kind = 'header', label = group[1] }
+        for index = 2, #group do
+            local key = group[index]
+            entries[#entries + 1] = assert(byKey[key], 'Unknown setting: ' .. key)
+            byKey[key] = nil
+        end
+    end
+    assert(next(byKey) == nil, 'Ungrouped settings in ' .. tab.name)
+    tab.entries = entries
+end
 
 -- What an entry's setting starts as, made afresh each time: nothing for an entry with no setting
 local function Start(entry)
@@ -188,6 +232,7 @@ function options.Defaults()
         -- windows it applies to
         hide = T{ DuringEvent = true, UnderChat = true, UnderMap = true, WhileLoading = true, WithInterface = true },
         clickThrough = T{ true },
+        automaticPositioning = T{ false },
         useSharedTheme = true,
         theme = T{
             BackgroundColor = T{ 0.152, 0.152, 0.262, 0.8 }, BorderColor = T{ 0.69, 0.68, 0.78, 1 }, TextColor = T{ 1, 1, 1, 1 },
@@ -345,6 +390,9 @@ function options.Complete(saved)
     CompleteEntries(saved)
     if type(saved.showConfig) ~= 'table' then saved.showConfig = T{ false } end
     if type(saved.clickThrough) ~= 'table' then saved.clickThrough = T{ false } end
+    if type(saved.automaticPositioning) ~= 'table' or type(saved.automaticPositioning[1]) ~= 'boolean' then
+        saved.automaticPositioning = T{ false }
+    end
     if saved.useSharedTheme == nil then saved.useSharedTheme = true end
     for _, key in ipairs({ 'hide', 'theme', 'links', 'fade' }) do
         if type(saved[key]) ~= 'table' then
@@ -380,7 +428,7 @@ function options.Style(saved)
     style.outline, style.tpFlash = kept.outline[1], kept.tpFlash[1]
     style.showMp, style.showTp = kept.showMp[1], kept.showTp[1]
     style.nameFont, style.valueFont = kept.nameFont, kept.valueFont
-    style.nameChars, style.trimLast = nil, nil
+    style.nameChars, style.trimLast, style.showJobs = nil, nil, false
     return style
 end
 

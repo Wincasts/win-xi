@@ -41,12 +41,18 @@ Disable anchoring to return to the draggable window. Its saved **Position** is k
 so adjusting the anchor does not overwrite your free-window placement.
 
 Anchored buffs disappear immediately while the native interface is hidden, zoning, and during
-events. The configurable addon hiding rules still apply (including expanded chat/maps by default).
-Those rules are separate from native UI layering. **Hide While Menus Open** is enabled by
-default in both anchored and draggable modes: it immediately hides the whole bar for native
-menus, except the buff selector, with no remaining tooltip or cancellation targets. This is a
-whole-bar workaround, including for menus that do not overlap buffs. Disable it to leave the
-bar visible during menus; native overlap clipping is still not implemented.
+events. The configurable addon hiding rules still apply in both positioning modes (including
+expanded chat and maps by default). Existing character settings are updated once to restore map
+hiding, after which manual changes to the hiding rules are respected.
+Those rules are separate from native UI layering. **Hide Anchored Buffs With Menus** is enabled
+by default: it immediately hides the anchored bar for any native menu or submenu, including macro
+palettes (`mcr1pall`/`mcr2pall`), with no remaining tooltip or cancellation targets. This covers
+profile, job levels, skills, currencies, unity, playtime, equipment/automaton equipment, magic,
+items, synthesis, abilities, party, trade, search, linkshell, region info, Mog House, missions,
+quests, key items, View House, bazaar, macros, config, help desk, current time, and communication.
+The buff selector and ordinary inline chat input are exempt. This menu rule does not apply in
+draggable mode; shared expanded-chat/map rules still apply in both modes. Disable it to leave
+anchored buffs visible during menus too; native overlap clipping is still not implemented.
 
 **Current limitations:** the default origin was measured from
 `screenshots/Screenshot_20261014_111534.png` at 1:1 menu scale, not read from the live native buff

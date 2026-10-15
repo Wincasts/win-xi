@@ -1,5 +1,5 @@
 -- Height limits: an area announced only inside a band of elevation, edited, saved and loaded.
-package.path = 'addons/zoneinfo/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;' .. package.path;
 local g = require('area_geometry');
 local editor_module = require('boundary_editor');
 local checks = 0;

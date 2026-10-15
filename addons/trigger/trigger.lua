@@ -217,9 +217,13 @@ shared.app = shell.New({
     configTitle = 'Trigger Settings',
     command = '/trigger',
     help = '/trigger opens or closes the settings; /trigger test plays every event\'s sound in turn.',
+    settingsLabel = 'Notifications',
     drawSettings = DrawSettings,
     hideAppearance = true,
-    tabs = { { label = 'Triggers', draw = triggertab.Draw } },
+    tabs = {
+        { label = 'Triggers', draw = triggertab.Draw },
+        { label = 'Toast', draw = triggertab.DrawToast },
+    },
     onSettings = function(options)
         Complete(options)
         -- another character's numbers are not this one's

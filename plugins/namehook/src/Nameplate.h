@@ -166,6 +166,18 @@ struct HookDraw {
     }
 };
 
+// Independent additive world-space layer. Found by magic without changing HookShared v2.
+// A bubble never claims a name or obeys its category's hide setting. ServerIds prevents
+// stale speech attaching to a new entity which reused an index.
+struct HookBubbles {
+    char Magic[16];
+    uint32_t Version;
+    uint32_t Size;
+    uint32_t DrawSize;
+    uint32_t ServerIds[HOOK_ENTITIES];
+    HookDraw Draw;
+};
+
 // What the plugin asks of its host once a frame, for sorting names into categories. An id or index of
 // 0 is none.
 struct FrameFacts {
@@ -250,6 +262,10 @@ class Nameplate {
         // Puts an addon's drawing of a name in the picture, at this point of the world (three floats).
         // Called from the client's name drawing code, in place of the client drawing the name.
         virtual void DrawCustom([[maybe_unused]] uint32_t entityIndex, [[maybe_unused]] const HookDrawing& drawing, [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
+
+        virtual void BeginBubbles([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh) {}
+        virtual void DrawBubble([[maybe_unused]] uint32_t entityIndex, [[maybe_unused]] const HookDrawing& drawing,
+            [[maybe_unused]] const HookQuad* quads, [[maybe_unused]] const float* position) {}
 
         // A look at what the client is drawing on at the moment it draws a name, said in the chat log.
         // Asked for by the probe command, and called from the client's name drawing code, once.

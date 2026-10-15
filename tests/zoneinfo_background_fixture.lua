@@ -1,4 +1,4 @@
-package.path = 'addons/zoneinfo/?.lua;' .. package.path;
+package.path = 'addons/zone/?.lua;' .. package.path;
 local background = require('banner_background');
 local original = background.new;
 H.background_loads = 0;

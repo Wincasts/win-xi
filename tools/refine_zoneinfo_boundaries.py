@@ -65,5 +65,5 @@ def apply_refinements(maps, source):
     return maps
 
 
-def load_refinements(path=Path('addons/zoneinfo/research/boundary_refinements.json')):
+def load_refinements(path=Path('addons/zone/research/boundary_refinements.json')):
     return json.loads(path.read_text())

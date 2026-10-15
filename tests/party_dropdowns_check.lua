@@ -1,14 +1,40 @@
--- The styles in winxi's theme, as the Winxi Theme tab sets them: the last tab, coloured apart, its
--- dropdowns showing the chosen label and keeping the key, and a closed dropdown changing nothing
+-- Party's Behavior tab and the shared Winxi style widgets (no Party theme tab).
 H.load()
 local imgui = require('imgui')
 local theme = require('winxi.theme')
 local widgets = require('winxi.widgets')
 local config = require('config')
 local saved = H.options()
-local last = config.Tabs[#config.Tabs]
-assert(last.name == 'Winxi Theme' and last.theme, 'Winxi Theme must be the last tab')
-for _, tab in ipairs(config.Tabs) do assert(tab.name ~= 'Appearance') end
+assert(config.Tabs[1].name == 'Behavior', 'Behavior must be the first tab')
+for _, tab in ipairs(config.Tabs) do
+    assert(tab.name ~= 'Winxi Theme' and tab.name ~= 'Global Settings' and not tab.theme)
+end
+local fadeCalls, fade = 0, widgets.Fade
+widgets.Fade = function(value, save, grouped)
+    assert(value == saved.fade and type(save) == 'function' and grouped == true)
+    fadeCalls = fadeCalls + 1
+end
+config.Tabs[1].draw(saved)
+widgets.Fade = fade
+assert(fadeCalls == 1, 'idle fade controls belong to Behavior')
+-- Every tab has Winxi sections, and collapsed sections draw no setting controls.
+local header, label = widgets.Header, widgets.Label
+local headings = {}
+widgets.Header = function(text, first)
+    headings[#headings + 1] = text
+    if #headings == 1 then assert(first, 'first section has no leading gap') end
+    return false
+end
+widgets.Label = function() error('Collapsed section drew a setting') end
+for _, tab in ipairs(config.Tabs) do
+    headings = {}
+    tab.draw(saved)
+    assert(#headings >= 2, 'organized sections in ' .. tab.name)
+    if tab.name == 'Behavior' then assert(headings[1] == 'Mouse Interaction') end
+end
+widgets.Header, widgets.Label = header, label
+-- The library widgets remain covered independently of Party's tabs.
+local last = { draw = function() widgets.Appearance() end }
 
 -- the tab: coloured before it is begun, the colours taken off again, and held to the right
 local push, pop, beginTab = imgui.PushStyleColor, imgui.PopStyleColor, imgui.BeginTabItem
@@ -105,4 +131,4 @@ assert(written, 'a chosen style is saved')
 theme.Save = save
 theme.Reset()
 assert(look.BorderStyle == 'theme' and look.BarTexture == 'original' and look.TabStyle == 'sheen' and look.StatusIcons == true)
-H.print('theme styles: last coloured tab, dropdowns, saved keys, previews, selection and closed menus', true)
+H.print('Behavior fade controls, no Party theme tab; shared theme widgets and dropdowns', true)

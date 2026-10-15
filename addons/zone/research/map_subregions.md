@@ -49,10 +49,10 @@ Reproduce the full pass (the output directory also retains PNGs and
 per-map resumable checkpoints):
 
 ```sh
-python3 tools/ocr_combined_maps.py references/XICombinedMaps-2048 /tmp/zoneinfo-all-ocr \
-  --jobs 8 --resume --tessdata-dir /tmp/zoneinfo-tessdata
-python3 tools/build_map_label_catalog.py /tmp/zoneinfo-all-ocr/ocr_manifest.json \
-  addons/zoneinfo/research --lua-output addons/zoneinfo/data/map_subregions.lua
+python3 tools/ocr_combined_maps.py references/XICombinedMaps-2048 /tmp/zone-all-ocr \
+  --jobs 8 --resume --tessdata-dir /tmp/zone-tessdata
+python3 tools/build_map_label_catalog.py /tmp/zone-all-ocr/ocr_manifest.json \
+  addons/zone/research --lua-output addons/zone/data/map_subregions.lua
 python3 -m unittest discover -s tools -p 'test_*.py'
 ```
 
@@ -74,8 +74,8 @@ persistence migration, generation process and alignment checks.
 
 ## Existing addon work at the initial research pass (historical)
 
-`../zoneinfo.lua` shows a six-second zone/region/weather banner and chat message
-when the party-memory zone ID changes; `/zoneinfo` forces the same display.
+`../zone.lua` shows a six-second zone/region/weather banner and chat message
+when the party-memory zone ID changes; `/zone` forces the same display.
 It registers packet `0x00A`, but the recorded `zone_in_seen_at` timestamp is
 currently unused: the frame-based zone-ID poll actually triggers the banner.
 There is no player-coordinate reader, map/floor selection, sub-region lookup,
@@ -194,14 +194,14 @@ has been changed or claimed to be calibrated.
 Requires Python 3, Pillow, Tesseract and English `eng.traineddata`:
 
 ```sh
-python3 tools/ocr_combined_maps.py references/XICombinedMaps-2048 /tmp/zoneinfo-ocr \
+python3 tools/ocr_combined_maps.py references/XICombinedMaps-2048 /tmp/zone-ocr \
   --zones 100 101 102 103 104 106 107 108 109 110 190
 ```
 
 Use `--tessdata-dir PATH` if English data is outside Tesseract's default
 location. During this pass the installed Tesseract 5.5.3 had only `afr` and
 `osd`; `tessdata_fast/eng.traineddata` was downloaded to
-`/tmp/zoneinfo-tessdata`, leaving the system install unchanged. Pillow was
+`/tmp/zone-tessdata`, leaving the system install unchanged. Pillow was
 12.3.0. Omit `--zones` to attempt the entire pack (potentially slow).
 
 Each raster is saved under a DAT-derived filename; `ocr_manifest.json`
@@ -212,5 +212,5 @@ Tests (no language model download required):
 
 ```sh
 python3 -m unittest discover -s tools -p 'test_ocr_combined_maps.py'
-lua -e 'local d=dofile("addons/zoneinfo/data/map_subregions.lua"); local n=0; for _,m in ipairs(d.maps) do n=n+#m.landmarks end; assert(#d.maps==494 and n==273)'
+lua -e 'local d=dofile("addons/zone/data/map_subregions.lua"); local n=0; for _,m in ipairs(d.maps) do n=n+#m.landmarks end; assert(#d.maps==494 and n==273)'
 ```

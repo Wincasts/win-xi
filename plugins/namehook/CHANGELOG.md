@@ -1,5 +1,10 @@
 # Changelog
 
+## namehook 1.24 — independent world-space bubbles
+
+- Add a separate `NAMEBUBBLES` shared buffer for additive, depth-tested speech bubbles. It does not claim or replace names and works independently of category visibility, alongside stock names or Name's custom names. The existing `NAMEHOOK` v2 layout remains unchanged.
+- Keep bubble textures and bounds caches separate from the custom-name layer. Validate bubble server IDs, entity indices, quad ranges and drawing freshness; stale drawings expire after two frames. The `chatbubbles` addon supplies `/say` text and glyph quads.
+
 ## Unreleased — rendering optimizations
 
 - A name the client draws more than once in a frame, as it does for a player who is fishing, is listed and drawn for an addon once, where it was listed each time and drawn at each place: the name was doubled, and with the addon taking the last of them, could vanish. The call that draws all the names is taken over any other, and where it draws a name more than once, the highest of them: the client draws them in an order that changes as the camera moves, and taking the first had the name jump between the head and the feet. The client still draws a name it is left to draw each time, as it would. `/namehook status` says how many such repeats there were last frame.

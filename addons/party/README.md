@@ -3,8 +3,8 @@ Party, target and pet frames in winxi's themed windows, with bars and a layout a
 addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
 
 - **Party**: your party and the other two alliance parties. A member is a line: the name, an HP bar
-  and a smaller MP bar with their values, and TP as a value. The member targeted has `>>` before
-  their name, in blue; a leader has a circle before theirs. Your own party's list grows upwards, and
+  and a smaller MP bar with their values, and TP as a value. Selected members have the game's animated cursor before
+  their name (blue text for the target, green for a subtarget or party-cursor selection); a leader has a circle before theirs. Your own party's list grows upwards, and
   has its buffs running leftwards from the window. The game's own icons beside the window mark a party or
   alliance invite waiting for an answer (a green exclamation mark in a dark circle) and anything in the treasure pool (the chest).
   A name is written as far as the right end of its HP bar, and only cut short with "..." past that.
@@ -16,12 +16,13 @@ addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
 - **Pets**: your pet, and your party members' pets, listed under your party below a line.
 
 ## usage
-`/xif` (or `/xiframes`) opens the settings: `/party` is the game's own party chat, so the addon keeps
-the commands it had as xiframes. Its Style tab sets how every frame is drawn (sizes,
-where the values sit, the outline); Party, Target and Pets have what is each one's own. The Winxi
-Theme tab, last and coloured apart, is winxi's shared theme: the colours, padding and shadow, and its
-Styles section, with the Window Border, Bar Texture, Bar Bookends, Bookend Style and Custom
-Icons (the status icons) that were once this addon's own. What was set of those here is carried into the theme. Organize, at the foot of the window, fills the frames with sample data to drag into place.
+`/pt` (or `/xif`) opens the settings. `/party` is left alone for the game's own party chat;
+`/xiframes` is no longer used. Its Style tab sets how every frame is drawn (sizes,
+where the values sit, the outline); Party, Target and Pets have what is each one's own.
+**Behavior** contains mouse interaction, optional **Automatic Positioning**, hiding rules,
+**Fade When Idle**, and which windows fade.
+There is no Winxi Theme tab in Party; use **winxisettings** for shared colours, padding, shadows,
+window borders, bar textures, bookends and custom status icons. Organize, at the foot of the window, fills the frames with sample data to drag into place.
 
 ## once called xiframes
 The addon was xiframes until it was renamed party. The first time each character logs in with it,
@@ -46,7 +47,7 @@ place (and change `xiframes` to `party` in any script that loads it).
 call, with a kept copy.
 
 ## window borders
-In `/xif` → **Winxi Theme → Styles → Window Border**, choose **Theme** (the existing border), **Brushed Silver**,
+In **winxisettings → Styles → Window Border**, choose **Theme** (the existing border), **Brushed Silver**,
 **Bronze**, **FFXI-inspired** (a cool silver/lavender bevel reminiscent of the base UI),
 **Crystal** (icy blue facets), **Royal Gold** (warm gilding with tiny inlaid corner ornaments),
 **Obsidian** (dark violet metal with platinum corner highlights), or **Royal Silver**
@@ -69,8 +70,68 @@ For that look, use a dark navy background in Winxi Theme. Keep theme padding at 
 to leave room for these borders. Regenerate the assets with
 `python3 tools/generate_party_borders.py` (requires Pillow); no extracted game art is used.
 
+## Native Selection Cursor
+
+Selected members use the animated, right-pointing cursor from the installed client's
+`ROM/119/51.DAT` (`anc_s` sprites and the `anc` texture). The shared `winxi.cursor` loader
+reads the DAT through the same pivot-aware file reader used for maps, uploads it once, and
+animates its six frames at 15 FPS. The cursor retains the DAT's artwork/colours and scales
+with name text. It overlays the frame to the left of the name without indenting the name or
+changing its truncation; overlapping other elements is allowed. No replacement cursor PNG is bundled.
+Reload Party after changing the DAT or its overlay. If the DAT/sprites/texture cannot load,
+Party falls back to `>>` for the target and `>` for subtarget/party-cursor selection, retrying
+periodically. `/pt cursor` retries immediately and reports whether loading failed at DAT read,
+DAT parsing, or texture upload (or confirms a successful load). This only draws an indicator;
+it does not move or modify the game's cursor.
+
+## Party-Order Rearrangement
+
+While the native party cursor is active, party buff icons are replaced with outlined job/subjob
+labels beside each member. Detection uses the same pointer and active flag as `hideparty` uses to
+restore the default party frames—not the chat/menu name. This covers party-order rearrangement
+and party-member selection with `<stpt>`/`<stal>`. The labels appear in all three party lists,
+including Alliance 2 and Alliance 3. Labels use `[WAR15/RDM7]`; unknown halves use `---`, so
+an entirely unknown member shows `[---/---]`. Members in another zone also get a label.
+Labels stay outlined even when general text outlines are disabled. Buffs return when the party cursor
+closes. Role sorting is suspended and idle fading is paused while the party cursor is active.
+This is separate from the addon's Organize mode and does not modify target or pet frames.
+
+## Resolution And Scaling
+
+Party draws in ImGui output/display pixels, not the game's background-render or native-menu
+coordinate space. Frame dimensions use the saved style scale; changing aspect ratio does not
+stretch the bars. Background supersampling and native menu resolution are not inputs to Party's
+layout. Actual presentation and Windows DPI behavior still need in-game validation.
+
+Enable **Behavior → Positioning → Automatic Positioning** for the edge-relative layout
+(off by default):
+
+- Main party: bottom-right, **15px from the right and bottom**, growing upward and leftward.
+- Target: **5px above the main party**, following its actual height.
+- Alliance 2: **15px from the right**, at a stable vertical position reserved for the full layout.
+- Alliance 3: **5px below Alliance 2**, retaining their existing vertical link.
+- With both alliance parties and the main party fully expanded, reserve **35px between the bottom
+  of Alliance 3 and the top of Target**. Pet space is reserved for **at most two pets** (one when party members' pets are hidden);
+  target letter-debuff rows are also reserved. More than two pets can exceed this reservation.
+- Sub-target and target of target keep their manual positioning and existing links.
+
+Frame scale and text sizes are unchanged. Manual positions and the main party's saved corner are
+preserved, and disabling Automatic Positioning returns to the manual layout. Turn it off to drag
+the managed frames to custom positions.
+
+With this option off, positions remain absolute pixels. Use **Positioning** or **Organize** to place
+frames manually. The original defaults include positions beyond a 1920-wide output. Oversized frames
+cannot fit completely on small screens, and buff icons extending outside a window may still reach
+the screen edge; this is basic adaptation, not a full responsive layout system.
+
+The offline resolution check covers 640×480 through 3840×2160 and ultrawide outputs up to
+5120×1440, at saved scales of 50–200%, checking geometry and output clipping, plus automatic
+edge margins, the Target and alliance links, the full-layout 35px gap, clamping and invalid-display
+handling. It does not emulate
+the native game's renderer or prove every layout fits on every screen.
+
 ## window backgrounds
-In `/xif` → **Winxi Theme → Styles → Window Background**, choose **Plain** (the flat Background
+In **winxisettings → Styles → Window Background**, choose **Plain** (the flat Background
 Color, the default), **Gradient** (lighter at the top, darker at the bottom), **FFXI-inspired** (that
 gradient with a fine dark line on every other row, after the look of the game's own windows),
 **Grain** (soft stone), **Marble** (faint veins), **Weave** (linen) or **Brushed Metal**.
@@ -82,7 +143,7 @@ Regenerate the tiles with `python3 tools/generate_winxi_backgrounds.py` (Pillow 
 art is used.
 
 ## bar textures
-In `/xif` → **Winxi Theme → Styles → Bar Texture**, choose:
+In **winxisettings → Styles → Bar Texture**, choose:
 - **Original** — the bundled classic textures (still the default).
 - **Glass** — glossy reflections and beveled edges.
 - **Detailed** — metal bevels and subtle segmented fill.
@@ -105,7 +166,7 @@ with `python3 tools/generate_party_bars.py` (requires Pillow). The preview is il
 not an in-game screenshot.
 
 ## matching bookends
-Enable **Winxi Theme → Styles → Bar Bookends**, then select **Bookend Style**:
+Enable **winxisettings → Styles → Bar Bookends**, then select **Bookend Style**:
 - **Bar Texture** uses the selected bar's existing cap (the default).
 - **Match Border** follows the Window Border: each border has its own ornament. With the plain
   Theme border it uses the bar texture cap.

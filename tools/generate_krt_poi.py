@@ -14,7 +14,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path('references/Phoenix/data/zones/king_ranperres_tomb')
-OUT = Path('addons/zoneinfo/data/king_ranperres_tomb_poi.lua')
+OUT = Path('addons/zone/data/king_ranperres_tomb_poi.lua')
 
 DIR_NAMES = {
     'n': 'North', 's': 'South', 'e': 'East', 'w': 'West', 'c': 'Central',

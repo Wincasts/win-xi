@@ -2,6 +2,13 @@
 -- what a job is called for short
 local game = {}
 
+-- Use exactly the party-cursor state that hideparty uses to restore the native frames.
+-- MenuName reports the chat box while typing a diagnostic, not the party-order state.
+-- This state also covers selecting a party member with <stpt>/<stal>.
+function game.IsPartyRearranging()
+    return game.StPartyIndex() ~= nil
+end
+
 --- Fetches the party index of your <stpt> target, if it exists.
 ---@return integer?
 function game.StPartyIndex()
@@ -50,6 +57,16 @@ local jobs = {
 ---@return 'WAR'|'MNK'|'WHM'|'BLM'|'RDM'|'THF'|'PLD'|'DRK'|'BST'|'BRD'|'RNG'|'SAM'|'NIN'|'DRG'|'SMN'|'BLU'|'COR'|'PUP'|'DNC'|'SCH'|'GEO'|'RUN'|nil
 function game.JobAbbr(id)
     return jobs[id]
+end
+
+-- Unknown halves stay explicit; do not guess levels or reuse data from another member.
+function game.JobText(main, mainLevel, sub, subLevel)
+    local function part(job, level)
+        if type(job) ~= 'string' or job == '' or type(level) ~= 'number'
+            or level <= 0 or level ~= math.floor(level) then return '---' end
+        return job .. tostring(level)
+    end
+    return '[' .. part(main, mainLevel) .. '/' .. part(sub, subLevel) .. ']'
 end
 
 return game

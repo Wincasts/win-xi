@@ -45,6 +45,7 @@ local options = nil     -- the settings, as of the frame being drawn
 
 -- When each item will leave the pool, by the time it dropped: the game's drop times are not the clock's
 local leaves = {}
+local itemNames = {} -- resource names do not change when lots or pool slots do
 
 local items = {}   -- the pool this frame, made again each frame from the same tables
 local count = 0
@@ -84,7 +85,14 @@ local function Read()
     for slot = 0, 9 do
         local treasure = inv:GetTreasurePoolItem(slot)
         if treasure ~= nil and treasure.ItemId > 0 then
-            local info = res:GetItemById(treasure.ItemId)
+            local name = itemNames[treasure.ItemId]
+            if name == nil then
+                local info = res:GetItemById(treasure.ItemId)
+                if info ~= nil then
+                    name = info.Name[1]
+                    itemNames[treasure.ItemId] = name
+                end
+            end
             if leaves[treasure.DropTime] == nil then
                 leaves[treasure.DropTime] = now + poolTime
             end
@@ -93,7 +101,7 @@ local function Read()
             local item = items[count]
             item.sample = false
             item.slot = slot
-            item.name = info ~= nil and info.Name[1] or '?'
+            item.name = name or '?'
             item.winner = treasure.WinningLot > 0 and treasure.WinningEntityName or nil
             item.winning = item.winner ~= nil and item.winner == player
             item.lotted = treasure.Lot > 0 and treasure.Lot < 1000
@@ -242,11 +250,15 @@ function pool.Draw(drawOptions, frame, invWanted)
         return
     end
 
-    Read()
     local detached = options.treasureDetached[1]
-    if not detached and frame == nil then
-        return
+    if not detached and (frame == nil or not invWanted) then
+        -- Keep drawing during the fade-out, but do not poll an attached pool that is fully hidden.
+        if frame == nil or not options.fadeInOut[1] or not fade.Lingering(windowName) then
+            return
+        end
     end
+
+    Read()
     local shown = count > 0
     local wanted = shown and (detached or invWanted)
     local alpha = wanted and 1 or 0
@@ -272,7 +284,8 @@ function pool.Draw(drawOptions, frame, invWanted)
         imgui.SetNextWindowPos(placed, ImGuiCond_Always)
         flags = attachedFlags
     end
-    sizeMin[1], sizeMax[1] = options.treasureWidth[1], options.treasureWidth[1]
+    local width = math.min(600, math.max(200, options.treasureWidth[1]))
+    sizeMin[1], sizeMax[1] = width, width
     sizeMin[2], sizeMax[2] = 0, 10000
     imgui.SetNextWindowSizeConstraints(sizeMin, sizeMax)
 
@@ -304,13 +317,18 @@ function pool.DrawSettings(drawOptions)
         imgui.SetTooltip('Attached, the pool sits to the right of the inventory window and shows only while the inventory does.\nDetached, it is a window of its own that can be moved, and shows whenever there is treasure.')
     end
     if drawOptions.treasureDetached[1] then
-        widgets.Label('Treasure Position')
+        widgets.Label('Position')
+        imgui.SetNextItemWidth(widgets.NumberWidth(2))
         if imgui.InputInt2('##inv.pool.position', drawOptions.treasurePos) then
             imgui.SetWindowPos(windowName, drawOptions.treasurePos)
         end
     end
-    widgets.Label('Treasure Width')
-    imgui.SliderInt('##inv.pool.width', drawOptions.treasureWidth, 200, 600)
+    widgets.Label('Width')
+    imgui.SetNextItemWidth(widgets.NumberWidth(1))
+    imgui.InputInt('##inv.pool.width', drawOptions.treasureWidth, 0, 0)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('How wide the pool is, in pixels, from 200 to 600.')
+    end
 end
 
 return pool

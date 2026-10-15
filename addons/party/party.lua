@@ -51,10 +51,11 @@ UseSettings()
 -- What a party's window holds, drawn by one function for whichever party is being drawn: which is
 -- said beforehand, so that no function need be made afresh for each window every frame
 local drawing = { list = 1, sample = false, pets = nil }
+local rearranging = false
 
 local function DrawPartyContent()
     local own = drawing.list == 1
-    local members = roster.Members(drawing.list, drawing.sample, saved.party.sortByRole[1])
+    local members = roster.Members(drawing.list, drawing.sample, saved.party.sortByRole[1] and not rearranging)
     local petLines = drawing.pets
     local hasPets = petLines ~= nil and #petLines > 0
 
@@ -62,6 +63,7 @@ local function DrawPartyContent()
     -- does, and what follows a list is a known distance under it
     local style = options.Style(saved)
     style.trimLast = true
+    style.showJobs = rearranging
     -- the alliance's other two parties, both at the Alliance Scale on top of the Scale
     if not own then
         style.scale = style.scale * (tonumber(saved.party.allianceScale[1]) or 100) / 100
@@ -75,6 +77,7 @@ local function DrawPartyContent()
         imgui.SetCursorPosY(imgui.GetCursorPosY() + room)
         imgui.Separator()
         imgui.SetCursorPosY(imgui.GetCursorPosY() + room)
+        style.showJobs = false
         frames.Draw(petLines, 'pets', nil, style)
     end
 
@@ -109,6 +112,9 @@ local function DrawParty(list, sample)
 end
 
 local function DrawParties(sample)
+    local count1, count2, count3 = roster.Counts()
+    windows.List.party1.label = (sample or count2 > 0 or count3 > 0) and 'Alliance'
+        or (count1 > 1 and 'Party' or 'Solo')
     if sample then
         for list = 1, 3 do
             DrawParty(list, true)
@@ -117,7 +123,6 @@ local function DrawParties(sample)
     end
 
     -- the player's own is hidden while solo if that is set, but not while there is an invitation to be seen
-    local count1, count2, count3 = roster.Counts()
     local waiting = notices.Invitation() ~= nil and saved.party.showInvites[1]
     if (saved.party.hideWhenSolo[1] and (count1 > 1 or (waiting and count1 > 0)))
     or (not saved.party.hideWhenSolo[1] and count1 > 0) then
@@ -242,7 +247,35 @@ ashita.events.register('d3d_present', 'd3d_present_handler', function()
         CarryTheme()
     end
 
+    rearranging = require('game').IsPartyRearranging()
     config.Draw(saved)
+    if saved.automaticPositioning[1] then
+        local padding = winxiTheme.Get().Padding
+        local style = options.Style(saved)
+        style.trimLast = true
+        local _, mainHeight = frames.FullSize(6, 'party', style)
+        if saved.pets.enabled[1] then
+            local _, petHeight = frames.FullSize(saved.pets.showParty[1] and 2 or 1, 'pets', style)
+            mainHeight = mainHeight + petHeight + 2 * padding + 1
+        end
+        mainHeight = mainHeight + 2 * padding
+        style.scale = style.scale * (tonumber(saved.party.allianceScale[1]) or 100) / 100
+        local _, allianceHeight = frames.FullSize(6, 'alliance', style)
+        allianceHeight = allianceHeight + 2 * padding
+        style = options.Style(saved)
+        style.showTp = true
+        local letters = saved.target.mainDebuffs[1] and saved.target.debuffStyle ~= 'icons'
+        style.trimLast = not letters
+        local _, targetHeight = frames.FullSize(1, 'target', style)
+        targetHeight = targetHeight + 2 * padding
+        if letters then
+            -- Reserve both the status row and optional Threnody row.
+            targetHeight = targetHeight + 2 * (imgui.GetFontSize() + windows.ItemSpacing[2])
+        end
+        windows.UpdatePositions(mainHeight, targetHeight, allianceHeight)
+    else
+        windows.UpdatePositions()
+    end
 
     if winxiGame.IsHidden(saved.hide) then
         return
@@ -255,7 +288,7 @@ ashita.events.register('d3d_present', 'd3d_present_handler', function()
     end
     local organizing = winxiOrganize.IsActive()
     winxiOrganize.BeginFrame()
-    windows.UpdateFade()
+    windows.UpdateFade(rearranging)
 
     -- none that has faded right out: it would only be prepared and then not drawn
     if saved.party.enabled[1] and not windows.IsFadedOut('party') then
@@ -294,10 +327,26 @@ ashita.events.register('command', 'command_handler', function(e)
         return
     end
     cmd = cmd:lower()
-    if cmd ~= '/xiframes' and cmd ~= '/xif' then
+    if cmd ~= '/pt' and cmd ~= '/xif' then
         return
     end
     e.blocked = true
+
+    local subcommand = (e.command:match('^%s*%S+%s+(%S+)') or ''):lower()
+    if subcommand == 'menu' then
+        print(('[party] Current native menu: %q'):format(winxiGame.MenuName()))
+        return
+    elseif subcommand == 'cursor' then
+        local ok, handle, detail = pcall(require('winxi.cursor').Get, true)
+        if not ok then
+            print('[party] Native cursor error: ' .. tostring(handle))
+        elseif handle then
+            print(('[party] Native cursor loaded: %dx%d sprite from ROM/119/51.DAT'):format(detail[5], detail[6]))
+        else
+            print('[party] Native cursor unavailable: ' .. tostring(detail))
+        end
+        return
+    end
 
     config.Toggle(saved)
 end)

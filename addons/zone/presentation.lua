@@ -110,17 +110,17 @@ end
 -- Settings controls and font selection.
 local function changed(value) dirty = dirty or value or false; end
 local function checkbox(d, label, key)
-    widgets.Label(label); changed(imgui.Checkbox('##zoneinfo.' .. key, d[key]));
+    widgets.Label(label); changed(imgui.Checkbox('##zone.' .. key, d[key]));
 end
 local function slider(d, label, key, format)
     widgets.Label(label);
-    local range = ranges[key]; changed(imgui.SliderFloat('##zoneinfo.' .. key, d[key], range[1], range[2], format or '%.1f'));
+    local range = ranges[key]; changed(imgui.SliderFloat('##zone.' .. key, d[key], range[1], range[2], format or '%.1f'));
 end
 local function choice(d, label, key, values)
     widgets.Label(label);
     local labels = { floating = 'Floating Text', panel = 'Themed Panel', left = 'Left', center = 'Center', right = 'Right',
         imgui = 'ImGui (Default)', gdi = 'GDI Fonts (Experimental)' };
-    if imgui.BeginCombo('##zoneinfo.' .. key, labels[d[key]] or d[key]) then
+    if imgui.BeginCombo('##zone.' .. key, labels[d[key]] or d[key]) then
         for _, value in ipairs(values) do
             if imgui.Selectable(labels[value] or value, d[key] == value) then d[key] = value; changed(true); end
         end
@@ -147,7 +147,7 @@ local function font_choice(d, label, key)
         end
     end
     widgets.Label(label);
-    if imgui.BeginCombo('##zoneinfo.' .. key, d[key] == '' and 'Default' or d[key]) then
+    if imgui.BeginCombo('##zone.' .. key, d[key] == '' and 'Default' or d[key]) then
         for _, file in ipairs(font_files) do
             if imgui.Selectable(file == '' and 'Default' or file, d[key] == file) then d[key] = file; changed(true); end
         end
@@ -157,7 +157,7 @@ end
 local function gdi_family_choice(d, label, key)
     local families, problem = require('gdi_families').List();
     widgets.Label(label);
-    if imgui.BeginCombo('##zoneinfo.' .. key, d[key][1]) then
+    if imgui.BeginCombo('##zone.' .. key, d[key][1]) then
         for _, family in ipairs(families) do
             if imgui.Selectable(family, d[key][1] == family) then d[key][1] = family; changed(true); end
         end
@@ -197,7 +197,7 @@ local function draw_settings(options)
         checkbox(d, 'Show Location Line', 'locationEnabled');
         checkbox(d, 'Lock Position', 'locationLocked');
         widgets.Label('Position (X, Y)');
-        if imgui.InputInt2('##zoneinfo.locationPosition', d.locationPosition) then changed(true); location_place = true; end
+        if imgui.InputInt2('##zone.locationPosition', d.locationPosition) then changed(true); location_place = true; end
         widgets.PushControlWidth();
         slider(d, 'Text Size', 'locationSize', '%.0f px');
         widgets.PopControlWidth();
@@ -206,7 +206,7 @@ local function draw_settings(options)
     widgets.Gap();
     if widgets.Header('Banner Position') then
         checkbox(d, 'Centered On Screen', 'centered');
-        widgets.Label('Position / Offset (X, Y)'); changed(imgui.InputInt2('##zoneinfo.settingsPosition', d.position));
+        widgets.Label('Position / Offset (X, Y)'); changed(imgui.InputInt2('##zone.settingsPosition', d.position));
         choice(d, 'Text Alignment', 'alignment', { 'left', 'center', 'right' });
         imgui.Text('Centered: X offsets screen center. Otherwise X/Y are absolute pixels.');
     end
@@ -231,7 +231,7 @@ local function draw_settings(options)
     end
     widgets.Gap();
     if widgets.Header('Preview') then
-        widgets.Label('Preview While Configuring'); imgui.Checkbox('##zoneinfo.preview', M.preview);
+        widgets.Label('Preview While Configuring'); imgui.Checkbox('##zone.preview', M.preview);
         if imgui.Button('Preview Zone Once') and M.on_preview then M.on_preview(); end
         if imgui.Button('Preview Sub-zone Once') and M.on_area_preview then M.on_area_preview(); end
         if imgui.Button('Preview Weather Once') and M.on_weather_preview then M.on_weather_preview(); end
@@ -260,7 +260,7 @@ local function draw_appearance(options)
     end
     choice(d, 'Text Alignment', 'alignment', { 'left', 'center', 'right' });
     checkbox(d, 'Centered On Screen', 'centered');
-    widgets.Label('Position / Offset'); changed(imgui.InputInt2('##zoneinfo.position', d.position));
+    widgets.Label('Position / Offset'); changed(imgui.InputInt2('##zone.position', d.position));
     if imgui.IsItemHovered() then imgui.SetTooltip('With Centered On Screen on: X is an offset from screen center; Y is from the top. Otherwise X/Y are absolute pixels. Alignment anchors the whole banner at this position.'); end
     if widgets.Header('Zone Entry Text', true) then
         slider(d, 'Zone Title Size', 'zoneTitleSize', '%.0f px'); slider(d, 'Zone Detail Size', 'zoneDetailSize', '%.0f px');
@@ -281,14 +281,14 @@ local function draw_appearance(options)
         imgui.Text('A nation\'s own regions show its flag, fitted inside Image Size, in place of the image.');
         checkbox(d, 'Show Background Image', 'backgroundEnabled');
         widgets.Label('Image Filename');
-        changed(imgui.InputText('##zoneinfo.backgroundFile', d.backgroundFile, 256));
-        imgui.Text('Place PNG/JPG/BMP images in zoneinfo/assets/backgrounds/.');
+        changed(imgui.InputText('##zone.backgroundFile', d.backgroundFile, 256));
+        imgui.Text('Place PNG/JPG/BMP images in zone/assets/backgrounds/.');
         widgets.Label('Image Size (Width, Height)');
-        changed(imgui.InputInt2('##zoneinfo.backgroundSize', d.backgroundSize));
+        changed(imgui.InputInt2('##zone.backgroundSize', d.backgroundSize));
         widgets.Label('Image Offset (X, Y)');
-        changed(imgui.InputInt2('##zoneinfo.backgroundOffset', d.backgroundOffset));
+        changed(imgui.InputInt2('##zone.backgroundOffset', d.backgroundOffset));
         widgets.Label('Image Opacity');
-        changed(imgui.SliderFloat('##zoneinfo.backgroundOpacity', d.backgroundOpacity, 0, 1, '%.2f'));
+        changed(imgui.SliderFloat('##zone.backgroundOpacity', d.backgroundOpacity, 0, 1, '%.2f'));
         imgui.Text('Image stretches to this size and follows banner alignment and fade.');
         if background_cache.error then imgui.Text(background_cache.error); end
         if imgui.Button('Reload Background Image') then background_cache:clear(); end
@@ -299,11 +299,11 @@ local function draw_appearance(options)
         slider(d, 'Line Spacing', 'spacing', '%.0f px');
         checkbox(d, 'Use Theme Text Color', 'themeText');
         if not d.themeText[1] then
-            widgets.Label('Title Color'); changed(imgui.ColorEdit4('##zoneinfo.titleColor', d.titleColor));
-            widgets.Label('Detail Color'); changed(imgui.ColorEdit4('##zoneinfo.detailColor', d.detailColor));
+            widgets.Label('Title Color'); changed(imgui.ColorEdit4('##zone.titleColor', d.titleColor));
+            widgets.Label('Detail Color'); changed(imgui.ColorEdit4('##zone.detailColor', d.detailColor));
         end
         slider(d, 'Outline Width', 'outline', '%.1f px');
-        widgets.Label('Outline Color'); changed(imgui.ColorEdit4('##zoneinfo.outlineColor', d.outlineColor));
+        widgets.Label('Outline Color'); changed(imgui.ColorEdit4('##zone.outlineColor', d.outlineColor));
     end
     widgets.PopControlWidth();
     if d.renderer == 'gdi' then
@@ -316,7 +316,7 @@ local function draw_appearance(options)
     commit(options);
 end
 M.app = shell.New({
-    defaults = defaults(), configTitle = 'Zoneinfo Settings', drawSettings = draw_settings,
+    defaults = defaults(), configTitle = 'Zone Settings', drawSettings = draw_settings,
     drawAppearance = draw_appearance,
     onSettings = function(options)
         M.complete(options); dirty = false; M.preview[1] = false;
@@ -324,7 +324,7 @@ M.app = shell.New({
         location_place = true;
         if M.on_settings then M.on_settings(); end
     end,
-}); -- No shell command: /zoneinfo retains its established show-now behavior.
+}); -- Commands are handled by zone.lua: /zone toggles settings; /zone test previews the banner.
 
 -- Capture timing at popup creation; appearance and opacity remain live.
 local function row_timing(d, key)
@@ -457,7 +457,7 @@ function M.draw(state, tracking, now)
         row.font = get_font(d[font_key]);
     end
     -- Window alpha applies the shared fade; row colors apply only relative opacity.
-    return window.Plain('##zoneinfo_banner', open, flags, function()
+    return window.Plain('##zone_banner', open, flags, function()
         imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 0 });
         local font_pushed = false;
         local ok, err = pcall(function()
@@ -536,7 +536,7 @@ function M.draw_location(words)
     if locked then flags = bit.bor(flags, ImGuiWindowFlags_NoMove, ImGuiWindowFlags_NoInputs); end
     imgui.SetNextWindowPos(d.locationPosition, (locked or location_place) and ImGuiCond_Always or ImGuiCond_FirstUseEver);
     location_place = false;
-    return window.Plain('##zoneinfo_location', location_open, flags, function()
+    return window.Plain('##zone_location', location_open, flags, function()
         imgui.PushFont(nil, d.locationSize[1]);
         local ok, err = pcall(function()
             local width, height = imgui.CalcTextSize(words);
