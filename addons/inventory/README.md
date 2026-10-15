@@ -45,7 +45,7 @@ moving items to those bags. The controls apply to both unified and separate-bag 
 ### Currencies
 
 The gil's place at the foot of the window can show gil or any currency, and a second after it with a
-comma between: `12,345 G, 4,500 IS`. Choose them under **Inventory → Currencies** as **Currency 1**
+short upright line between them, and another line before the bag count: `12,345 G | 4,500 IS | 08/30`. Choose them under **Inventory → Currencies** as **Currency 1**
 (gil by default) and **Currency 2** (none by default); either can be **None**. Each is shown with a
 short name (G, CP, GP, IS, AP, Tokens and so on); the list names them in full.
 
