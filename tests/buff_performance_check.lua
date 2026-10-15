@@ -68,7 +68,7 @@ H.frames(2) -- warm resource and label caches
 local normal=sample('32 statuses, warm timers',120)
 o.showTimers[1]=false
 local off=sample('32 statuses, timers disabled',120)
-o.showTimers[1]=true; menu='menu    item    '
+o.showTimers[1]=true; menu='menu    mcr1pall'
 local hidden=sample('Menu-hidden',120)
 menu=''; o.isVisible[1]=false
 local invisible=sample('Visibility off, no fading',120)

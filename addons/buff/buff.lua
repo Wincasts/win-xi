@@ -10,6 +10,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --
 --   /buff           shows or hides the window (it only appears while there is a status to show)
 --   /buff config    opens or closes the settings
+--   /buff covers    adds the last native menu open to the menus that hide the anchored bar, or takes it off
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
@@ -46,7 +47,10 @@ local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 }, -- kept separately for free-position mode
     anchorToDefault = T{ true },
-    hideWithMenus = T{ true }, -- anchored native menus only; retain the saved setting key
+    hideWithMenus = T{ true }, -- anchored only: hide under the menus in coveringMenus
+    -- The native menus that open over the anchored bar, by short name. One taken off is kept as
+    -- false, so the defaults do not put it back.
+    coveringMenus = T{ mcr1pall = true, mcr2pall = true },
     hide = T{ UnderMap = true },
     -- Separate from obsolete anchorOffset: old absolute (6,6) must not shift this anchor.
     anchorAdjustment = T{ 0, 0 },
@@ -209,16 +213,52 @@ local function ApplyGameIcons(options)
     end
 end
 
+-- The covering menus, in order, as the settings list them
+local function CoveringList(options)
+    local names = {};
+    for name, covers in pairs(options.coveringMenus) do
+        if covers == true then names[#names + 1] = name; end
+    end
+    table.sort(names);
+    return #names > 0 and table.concat(names, ', ') or 'None';
+end
+
+local app;
+
+-- Puts a menu on the covering list, or takes it off, and says which in the chat log
+local function ToggleCovering(options, name)
+    local covers = options.coveringMenus[name] ~= true;
+    options.coveringMenus[name] = covers;
+    app:Save();
+    app:Say(covers and ('The anchored bar hides under %s.'):format(name)
+        or ('The anchored bar stays showing under %s.'):format(name));
+end
+
 local function DrawSettings(options)
     widgets.Label('Visible');
     imgui.Checkbox('##buff.visible', options.isVisible);
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Whether the window shows while you are under a status. /buff switches this.');
     end
-    widgets.Label('Hide Anchored Buffs With Menus');
+    widgets.Label('Hide Anchored Buffs Under Menus');
     imgui.Checkbox('##buff.hideWithMenus', options.hideWithMenus);
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Immediately hides the anchored bar while any native menu or macro palette is open, except the buff selector and normal chat input.\nDoes not apply in draggable mode. Expanded chat and draggable map hiding use the rules below.');
+        imgui.SetTooltip('Hides the anchored bar while a native menu that covers it is open: one on the list below.\nOther menus leave it showing. Does not apply in draggable mode.');
+    end
+    if options.anchorToDefault[1] and options.hideWithMenus[1] then
+        widgets.Label('Covering Menus');
+        imgui.TextWrapped(CoveringList(options));
+        local last = anchoring.LastMenu();
+        if last ~= nil then
+            widgets.Label('Last Menu Open');
+            local covers = options.coveringMenus[last] == true;
+            if imgui.Button(('%s %s##buff.covers'):format(covers and 'Remove' or 'Add', last)) then
+                ToggleCovering(options, last);
+            end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('The last native menu that was open. Add it if it opens over the bar.\n/buff covers does the same.');
+            end
+        end
     end
     widgets.Label('Anchor To Default Location');
     imgui.Checkbox('##buff.anchorToDefault', options.anchorToDefault);
@@ -287,13 +327,23 @@ local function DrawSettings(options)
     end
 end
 
-local app = shell.New({
+app = shell.New({
     defaults = defaults,
     window = windowName,
     configTitle = 'Buff Settings',
     command = '/buff',
-    help = '/buff shows or hides the window; /buff config opens or closes the settings.',
+    help = '/buff shows or hides the window; /buff config opens or closes the settings; /buff covers adds the last menu open to those the anchored bar hides under, or takes it off.',
     drawSettings = DrawSettings,
+    commands = {
+        covers = function(options)
+            local last = anchoring.LastMenu();
+            if last == nil then
+                app:Say('Open the menu first, with the bar anchored, then use /buff covers.');
+            else
+                ToggleCovering(options, last);
+            end
+        end,
+    },
     onSettings = ApplyGameIcons,
 });
 
