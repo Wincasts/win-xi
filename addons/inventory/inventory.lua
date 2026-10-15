@@ -39,43 +39,6 @@ local function Say(text)
 end
 
 local fontWidth = imgui.CalcTextSize('A')
-local inventories = T{
-    gil = 0,
-    recycleBin = T{},
-    bag = T{
-        all  = T{},
-        inv  = T{},
-        temp = T{},
-    },
-    satchel = T{
-        all = T{},
-        satchel = T{},
-        case = T{},
-        sack = T{},
-    },
-    wardrobe = T{
-        all = T{},
-        wardrobe1 = T{},
-        wardrobe2 = T{},
-        wardrobe3 = T{},
-        wardrobe4 = T{},
-        wardrobe5 = T{},
-        wardrobe6 = T{},
-        wardrobe7 = T{},
-        wardrobe8 = T{},
-    },
-    house = T{
-        all = T{},
-        mogSafe1 = T{},
-        mogSafe2 = T{},
-        storage = T{},
-        locker = T{},
-    },
-}
-
--- How many slots each bag has, by group and bag as inventories is (and 'all' for a group's bags
--- together). Filled in as the bags are read.
-local capacities = { bag = { }, satchel = { }, wardrobe = { }, house = { } }
 
 -- Puts together the row at the foot of each tab; defined with the row, further down
 local BuildCounts
@@ -196,20 +159,54 @@ local bags = {
     maxContainerId = 18,
 }
 
-local moveableBags = {
-    { id =  0, hasAccess = false, isGearOnly = false, name = 'inventory' },
-    { id =  5, hasAccess = false, isGearOnly = false, name = 'satchel' },
-    { id =  6, hasAccess = false, isGearOnly = false, name = 'sack' },
-    { id =  7, hasAccess = false, isGearOnly = false, name = 'case' },
-    { id =  8, hasAccess = false, isGearOnly = true,  name = 'wardrobe 1' },
-    { id = 10, hasAccess = false, isGearOnly = true,  name = 'wardrobe 2' },
-    { id = 11, hasAccess = false, isGearOnly = true,  name = 'wardrobe 3' },
-    { id = 12, hasAccess = false, isGearOnly = true,  name = 'wardrobe 4' },
-    { id = 13, hasAccess = false, isGearOnly = true,  name = 'wardrobe 5' },
-    { id = 14, hasAccess = false, isGearOnly = true,  name = 'wardrobe 6' },
-    { id = 15, hasAccess = false, isGearOnly = true,  name = 'wardrobe 7' },
-    { id = 16, hasAccess = false, isGearOnly = true,  name = 'wardrobe 8' },
+-- Every bag the window shows, in the order it shows them: its group (the tab it is in), its key in
+-- the group, what it is called over its items and in the counts (title), and in the move menu and
+-- what sorting says (name). Temporary items have no slots of their own: they are not counted,
+-- sorted or moved to. The wardrobes take gear alone; the house's bags cannot be moved to from afar.
+-- The recycle bin is not shown as a bag: the controller's sort menu lists it.
+local bagList = {
+    { id = bags.inventory,  group = 'bag',      key = 'inv',       title = 'inventory',   name = 'inventory' },
+    { id = bags.tempItems,  group = 'bag',      key = 'temp',      title = 'temp items',  name = 'temp items', noSlots = true },
+    { id = bags.mogSatchel, group = 'satchel',  key = 'satchel',   title = 'mog satchel', name = 'satchel' },
+    { id = bags.mogCase,    group = 'satchel',  key = 'case',      title = 'mog case',    name = 'case' },
+    { id = bags.mogSack,    group = 'satchel',  key = 'sack',      title = 'mog sack',    name = 'sack' },
+    { id = bags.wardrobe,   group = 'wardrobe', key = 'wardrobe1', title = 'wardrobe 1',  name = 'wardrobe 1', isGearOnly = true },
+    { id = bags.wardrobe2,  group = 'wardrobe', key = 'wardrobe2', title = 'wardrobe 2',  name = 'wardrobe 2', isGearOnly = true },
+    { id = bags.wardrobe3,  group = 'wardrobe', key = 'wardrobe3', title = 'wardrobe 3',  name = 'wardrobe 3', isGearOnly = true },
+    { id = bags.wardrobe4,  group = 'wardrobe', key = 'wardrobe4', title = 'wardrobe 4',  name = 'wardrobe 4', isGearOnly = true },
+    { id = bags.wardrobe5,  group = 'wardrobe', key = 'wardrobe5', title = 'wardrobe 5',  name = 'wardrobe 5', isGearOnly = true },
+    { id = bags.wardrobe6,  group = 'wardrobe', key = 'wardrobe6', title = 'wardrobe 6',  name = 'wardrobe 6', isGearOnly = true },
+    { id = bags.wardrobe7,  group = 'wardrobe', key = 'wardrobe7', title = 'wardrobe 7',  name = 'wardrobe 7', isGearOnly = true },
+    { id = bags.wardrobe8,  group = 'wardrobe', key = 'wardrobe8', title = 'wardrobe 8',  name = 'wardrobe 8', isGearOnly = true },
+    { id = bags.mogSafe,    group = 'house',    key = 'mogSafe1',  title = 'mog safe 1',  name = 'safe 1' },
+    { id = bags.mogSafe2,   group = 'house',    key = 'mogSafe2',  title = 'mog safe 2',  name = 'safe 2' },
+    { id = bags.storage,    group = 'house',    key = 'storage',   title = 'storage',     name = 'storage' },
+    { id = bags.mogLocker,  group = 'house',    key = 'locker',    title = 'mog locker',  name = 'locker' },
 }
+
+-- The groups, in the order of their tabs
+local tabGroups = { 'bag', 'satchel', 'wardrobe', 'house' }
+
+-- What is put together from the list: each bag by the game's number for it, the bags of each group,
+-- those an item can be moved to, what is in each (as read, and each group's all together) and how
+-- many slots each has
+local bagsById, groupBags, moveableBags = { }, { }, { }
+local inventories = T{ gil = 0, recycleBin = T{ } }
+local capacities = { }
+for _, group in ipairs(tabGroups) do
+    groupBags[group], inventories[group], capacities[group] = { }, T{ all = T{ } }, { all = 0 }
+end
+for _, bag in ipairs(bagList) do
+    bag.slots, bag.hasAccess = 0, false -- filled in as the bags are read
+    bagsById[bag.id] = bag
+    local inGroup = groupBags[bag.group]
+    inGroup[#inGroup + 1] = bag
+    inventories[bag.group][bag.key] = T{ }
+    capacities[bag.group][bag.key] = 0
+    if not bag.noSlots and bag.group ~= 'house' then
+        moveableBags[#moveableBags + 1] = bag
+    end
+end
 
 local function FormatGil(number)
     local str = tostring(number)
@@ -411,41 +408,11 @@ local function Info(id)
 end
 equipment.SetItemInfo(Info)
 
--- Where each bag is shown: its group (the tab) and its name within it. The recycle bin is not shown as
--- a bag: the controller's sort menu lists it.
-local bagPlaces = {
-    [bags.inventory] = { 'bag', 'inv' },
-    [bags.tempItems] = { 'bag', 'temp' },
-    [bags.mogSatchel] = { 'satchel', 'satchel' },
-    [bags.mogCase] = { 'satchel', 'case' },
-    [bags.mogSack] = { 'satchel', 'sack' },
-    [bags.wardrobe] = { 'wardrobe', 'wardrobe1' },
-    [bags.wardrobe2] = { 'wardrobe', 'wardrobe2' },
-    [bags.wardrobe3] = { 'wardrobe', 'wardrobe3' },
-    [bags.wardrobe4] = { 'wardrobe', 'wardrobe4' },
-    [bags.wardrobe5] = { 'wardrobe', 'wardrobe5' },
-    [bags.wardrobe6] = { 'wardrobe', 'wardrobe6' },
-    [bags.wardrobe7] = { 'wardrobe', 'wardrobe7' },
-    [bags.wardrobe8] = { 'wardrobe', 'wardrobe8' },
-    [bags.mogSafe] = { 'house', 'mogSafe1' },
-    [bags.mogSafe2] = { 'house', 'mogSafe2' },
-    [bags.storage] = { 'house', 'storage' },
-    [bags.mogLocker] = { 'house', 'locker' },
-}
-
--- The bags of each group, in the order they are put together before sorting
-local groupBags = {
-    bag = { bags.inventory, bags.tempItems },
-    satchel = { bags.mogSatchel, bags.mogCase, bags.mogSack },
-    wardrobe = { bags.wardrobe, bags.wardrobe2, bags.wardrobe3, bags.wardrobe4, bags.wardrobe5, bags.wardrobe6, bags.wardrobe7, bags.wardrobe8 },
-    house = { bags.mogSafe, bags.mogSafe2, bags.storage, bags.mogLocker },
-}
-
 -- Reads one bag from the game's memory. The items that were in it are marked as gone, for a menu still
 -- open on one of them.
 local function ReadBag(inv, bagId)
-    local place = bagPlaces[bagId]
-    local old = place and inventories[place[1]][place[2]] or inventories.recycleBin
+    local bag = bagsById[bagId]
+    local old = bag and inventories[bag.group][bag.key] or inventories.recycleBin
     for _, item in ipairs(old) do
         item.gone = true
     end
@@ -471,8 +438,8 @@ local function ReadBag(inv, bagId)
         end
     end
 
-    if place then
-        inventories[place[1]][place[2]] = list
+    if bag then
+        inventories[bag.group][bag.key] = list
     else
         inventories.recycleBin = list
     end
@@ -482,55 +449,36 @@ end
 local function Regroup(group)
     local sorter = sorters[group]
     local all = T{ }
-    for _, bagId in ipairs(groupBags[group]) do
-        local list = inventories[group][bagPlaces[bagId][2]]
+    for _, bag in ipairs(groupBags[group]) do
+        local list = inventories[group][bag.key]
         list:sort(sorter)
         all:extend(list)
     end
     inventories[group].all = all:sort(sorter)
 end
 
--- How many slots each bag has, which bags can be used, the gil, and the row at the foot of each tab:
--- cheap, and done whenever any bag is read
-local function UpdateCounts(inv)
-    for _, bag in ipairs(moveableBags) do
-        if bag.id > 10 then
-            bag.hasAccess = game.HasBagAccess(bag.id)
-        else
-            bag.hasAccess = inv:GetContainerCountMax(bag.id) > 0
-        end
+-- How many slots a bag has: none for one the player cannot use (wardrobes 3 to 8 must be unlocked)
+local function BagSlots(inv, bagId)
+    if bagId >= bags.wardrobe3 and bagId <= bags.wardrobe8 and not game.HasBagAccess(bagId) then
+        return 0
     end
+    return math.max(0, inv:GetContainerCountMax(bagId))
+end
 
+-- How many slots each bag has, which bags can be used, the gil, and the row at the foot of each tab:
+-- cheap, and done whenever any bag is read. Temporary items have no fixed slots worth showing.
+local function UpdateCounts(inv)
     inventories.gil = FormatGil(inv:GetContainerItem(0, 0).Count)
 
-    -- How many slots each bag has, for showing the empty ones. Temporary items have no fixed slots
-    -- worth showing, and a bag the player cannot use has none.
-    local function Slots(bagId)
-        if bagId >= bags.wardrobe3 and bagId <= bags.wardrobe8 and not game.HasBagAccess(bagId) then
-            return 0
-        end
-        return math.max(0, inv:GetContainerCountMax(bagId))
+    for _, group in ipairs(tabGroups) do
+        capacities[group].all = 0 -- the unified view of a group has the slots of all its bags together
     end
-
-    capacities.bag = { inv = Slots(bags.inventory), temp = 0 }
-    capacities.satchel = { satchel = Slots(bags.mogSatchel), case = Slots(bags.mogCase), sack = Slots(bags.mogSack) }
-    capacities.wardrobe = {
-        wardrobe1 = Slots(bags.wardrobe), wardrobe2 = Slots(bags.wardrobe2), wardrobe3 = Slots(bags.wardrobe3),
-        wardrobe4 = Slots(bags.wardrobe4), wardrobe5 = Slots(bags.wardrobe5), wardrobe6 = Slots(bags.wardrobe6),
-        wardrobe7 = Slots(bags.wardrobe7), wardrobe8 = Slots(bags.wardrobe8),
-    }
-    capacities.house = {
-        mogSafe1 = Slots(bags.mogSafe), mogSafe2 = Slots(bags.mogSafe2),
-        storage = Slots(bags.storage), locker = Slots(bags.mogLocker),
-    }
-
-    -- the unified view of a group has the slots of all its bags together
-    for _, group in pairs(capacities) do
-        local total = 0
-        for _, slots in pairs(group) do
-            total = total + slots
-        end
-        group.all = total
+    for _, bag in ipairs(bagList) do
+        bag.slots = not bag.noSlots and BagSlots(inv, bag.id) or 0
+        bag.hasAccess = bag.slots > 0
+        local inGroup = capacities[bag.group]
+        inGroup[bag.key] = bag.slots
+        inGroup.all = inGroup.all + bag.slots
     end
 
     BuildCounts()
@@ -573,9 +521,9 @@ local function RefreshInventories(now)
         if stale[id] then
             stale[id] = nil
             ReadBag(inv, id)
-            local place = bagPlaces[id]
-            if place then
-                changed[place[1]] = true
+            local bag = bagsById[id]
+            if bag then
+                changed[bag.group] = true
             end
         end
     end
@@ -855,12 +803,11 @@ local pad = {
     menuItem = nil,
 }
 
-local padTabs = 4
-local tabKeys = { 'bag', 'satchel', 'wardrobe', 'house' }
+local padTabs = #tabGroups
 local tabNames = { 'Bag', 'Satchel', 'Wardrobe', 'House' }
 
 local function TabEnabled(options, index)
-    return options.bagTabs[tabKeys[index]][1]
+    return options.bagTabs[tabGroups[index]][1]
 end
 
 local function NextTab(options, index, direction)
@@ -889,18 +836,6 @@ local function PadIsActive()
         or false
 end
 
--- The bags of each tab, by the game's number for them, with what each is called
-local tabBags = {
-    { { bags.inventory, 'inventory' } },
-    { { bags.mogSatchel, 'satchel' }, { bags.mogSack, 'sack' }, { bags.mogCase, 'case' } },
-    {
-        { bags.wardrobe, 'wardrobe 1' }, { bags.wardrobe2, 'wardrobe 2' }, { bags.wardrobe3, 'wardrobe 3' },
-        { bags.wardrobe4, 'wardrobe 4' }, { bags.wardrobe5, 'wardrobe 5' }, { bags.wardrobe6, 'wardrobe 6' },
-        { bags.wardrobe7, 'wardrobe 7' }, { bags.wardrobe8, 'wardrobe 8' },
-    },
-    { { bags.mogSafe, 'safe 1' }, { bags.mogSafe2, 'safe 2' }, { bags.storage, 'storage' }, { bags.mogLocker, 'locker' } },
-}
-
 -- The server takes sorting the same bag twice within a second for a cheating tool, and after a few
 -- of those removes the player. So a bag is never sorted again until this long after the last time.
 local sortCooldown = 3.0
@@ -913,14 +848,12 @@ local function SortTab()
     local now = os.clock()
     local sorted = { }
 
-    for _, bag in ipairs(tabBags[pad.tab] or { }) do
-        local id = bag[1]
-        local usable = inv:GetContainerCountMax(id) > 0
-            and (id < bags.wardrobe3 or id > bags.wardrobe8 or game.HasBagAccess(id))
-        if usable and now - (sortedAt[id] or -sortCooldown) >= sortCooldown then
+    for _, bag in ipairs(groupBags[tabGroups[pad.tab]] or { }) do
+        local id = bag.id
+        if not bag.noSlots and BagSlots(inv, id) > 0 and now - (sortedAt[id] or -sortCooldown) >= sortCooldown then
             sortedAt[id] = now
             AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.inventorySort:make(id))
-            sorted[#sorted + 1] = bag[2]
+            sorted[#sorted + 1] = bag.name
         end
     end
 
@@ -929,8 +862,6 @@ local function SortTab()
     end
     return #sorted > 0
 end
-
-local tabGroups = { 'bag', 'satchel', 'wardrobe', 'house' }
 
 -- Swaps the places of two items in the window, by the controller's Manual sort. The places of
 -- everything in the group are written down as they stand first, so that the two change and nothing
@@ -1329,9 +1260,9 @@ local emptyEdge = { 1.0, 1.0, 1.0, 0.18 }
 local emptyFillColor, emptyEdgeColor = 0, 0 -- packed once a frame, in the window
 
 -- How many empty slots a bag (or a group's bags together) has to show: none unless they are being shown
-local function EmptySlots(bagId, subId)
-    local count = #inventories[bagId][subId]
-    local slots = showEmptySlots and (capacities[bagId][subId] or 0) or count
+local function EmptySlots(group, key)
+    local count = #inventories[group][key]
+    local slots = showEmptySlots and capacities[group][key] or count
     if previewGrid then
         slots = math.max(slots, previewSlots)
     end
@@ -1404,10 +1335,10 @@ local function PadItems(items, group, left, top, drawList, windowY)
     end
 end
 
-local function DrawBag(bagId, subId)
-    local items = inventories[bagId][subId]
+local function DrawBag(group, key)
+    local items = inventories[group][key]
     local count = #items
-    local total = count + EmptySlots(bagId, subId)
+    local total = count + EmptySlots(group, key)
     if total == 0 then
         return
     end
@@ -1440,9 +1371,9 @@ local function DrawBag(bagId, subId)
     if hovered ~= nil then
         hoveredItem = hovered
         if imgui.IsMouseClicked(1) then
-            local entries = ItemEntries(hovered, bagId)
+            local entries = ItemEntries(hovered, group)
             if #entries > 0 then
-                OpenItemMenu(hovered, bagId, entries)
+                OpenItemMenu(hovered, group, entries)
             end
         end
     end
@@ -1484,38 +1415,26 @@ local function DrawBag(bagId, subId)
     end
 
     if pad.active then
-        PadItems(items, bagId, left, top, drawList, windowY)
+        PadItems(items, group, left, top, drawList, windowY)
     end
 end
 
-local function DrawSubInventory(title, bagId, subId)
+local function DrawSubInventory(title, group, key)
     -- a bag with nothing in it is left out, unless its empty slots are being shown
-    if #inventories[bagId][subId] == 0 and EmptySlots(bagId, subId) == 0 then
+    if #inventories[group][key] == 0 and EmptySlots(group, key) == 0 then
         return
     end
 
     imgui.Text(title)
     imgui.Separator()
-    DrawBag(bagId, subId)
+    DrawBag(group, key)
     imgui.NewLine()
 end
 
--- The bags counted at the foot of each tab, with what each is called there. Temporary items are not
--- counted: they have no slots of their own to fill.
-local countedBags = {
-    bag = { { 'inventory', 'inv' } },
-    satchel = { { 'mog satchel', 'satchel' }, { 'mog case', 'case' }, { 'mog sack', 'sack' } },
-    wardrobe = {
-        { 'wardrobe 1', 'wardrobe1' }, { 'wardrobe 2', 'wardrobe2' }, { 'wardrobe 3', 'wardrobe3' },
-        { 'wardrobe 4', 'wardrobe4' }, { 'wardrobe 5', 'wardrobe5' }, { 'wardrobe 6', 'wardrobe6' },
-        { 'wardrobe 7', 'wardrobe7' }, { 'wardrobe 8', 'wardrobe8' },
-    },
-    house = { { 'mog safe 1', 'mogSafe1' }, { 'mog safe 2', 'mogSafe2' }, { 'storage', 'storage' }, { 'mog locker', 'locker' } },
-}
-
 -- The row at the foot of a tab: the gil on the left and, on the right, how full each of the tab's bags
 -- is, as 08/30. A tab with one bag shows the count alone; one with several names each, one to a row
--- under the first. A full bag's count is red. Bags the player does not have are left out.
+-- under the first. A full bag's count is red. Bags the player does not have, and temporary items, which
+-- have no slots of their own to fill, are left out.
 --
 -- What the row says only changes when the bags do, so it is put together then (as they are read)
 -- and only drawn here.
@@ -1526,27 +1445,26 @@ local gilText = '0 G'
 BuildCounts = function()
     gilText = ('%s G'):format(inventories.gil)
 
-    for bagId, counted in pairs(countedBags) do
+    for group, inGroup in pairs(groupBags) do
         local shown = 0
-        for _, bag in ipairs(counted) do
-            if (capacities[bagId][bag[2]] or 0) > 0 then
+        for _, bag in ipairs(inGroup) do
+            if bag.slots > 0 then
                 shown = shown + 1
             end
         end
 
         local rows = { }
-        for _, bag in ipairs(counted) do
-            local slots = capacities[bagId][bag[2]] or 0
-            if slots > 0 then
-                local used = #inventories[bagId][bag[2]]
-                local text = ('%02d/%02d'):format(used, slots)
+        for _, bag in ipairs(inGroup) do
+            if bag.slots > 0 then
+                local used = #inventories[group][bag.key]
+                local text = ('%02d/%02d'):format(used, bag.slots)
                 if shown > 1 then
-                    text = ('%s %s'):format(bag[1], text)
+                    text = ('%s %s'):format(bag.title, text)
                 end
-                rows[#rows + 1] = { text = text, full = used >= slots }
+                rows[#rows + 1] = { text = text, full = used >= bag.slots }
             end
         end
-        countRows[bagId] = rows
+        countRows[group] = rows
     end
 end
 
@@ -1641,78 +1559,35 @@ local function BeginTab(index, label)
     return showing
 end
 
-local function DrawInventory()
-    imgui.PushStyleVar(ImGuiStyleVar_FramePadding, framePadding)
-    if tabs.BeginBar('##inv.bags.all', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if BeginTab(1, 'bag##inv.bags.all.1') then
-            DrawSubInventory('inventory', 'bag', 'inv')
-            DrawSubInventory('temp items', 'bag', 'temp')
-            FinishTab('bag')
-            imgui.EndTabItem()
-        end
-
-        if BeginTab(2, 'satchel##inv.bags.all.2') then
-            DrawSubInventory('mog satchel', 'satchel', 'satchel')
-            DrawSubInventory('mog case', 'satchel', 'case')
-            DrawSubInventory('mog sack', 'satchel', 'sack')
-            FinishTab('satchel')
-            imgui.EndTabItem()
-        end
-
-        if BeginTab(3, 'ward##inv.bags.all.3') then
-            DrawSubInventory('wardrobe 1', 'wardrobe', 'wardrobe1')
-            DrawSubInventory('wardrobe 2', 'wardrobe', 'wardrobe2')
-            DrawSubInventory('wardrobe 3', 'wardrobe', 'wardrobe3')
-            DrawSubInventory('wardrobe 4', 'wardrobe', 'wardrobe4')
-            DrawSubInventory('wardrobe 5', 'wardrobe', 'wardrobe5')
-            DrawSubInventory('wardrobe 6', 'wardrobe', 'wardrobe6')
-            DrawSubInventory('wardrobe 7', 'wardrobe', 'wardrobe7')
-            DrawSubInventory('wardrobe 8', 'wardrobe', 'wardrobe8')
-            FinishTab('wardrobe')
-            imgui.EndTabItem()
-        end
-
-        if BeginTab(4, 'house##inv.bags.all.4') then
-            DrawSubInventory('mog safe 1', 'house', 'mogSafe1')
-            DrawSubInventory('mog safe 2', 'house', 'mogSafe2')
-            DrawSubInventory('storage', 'house', 'storage')
-            DrawSubInventory('mog locker', 'house', 'locker')
-            FinishTab('house')
-            imgui.EndTabItem()
-        end
-
-        imgui.EndTabBar()
+-- The tabs, one for each group: its bags one under another, each with its title, or (unified) all
+-- of them together in one grid. The ids are made once, for each kind of tab bar.
+local tabLabels = { 'bag', 'satchel', 'ward', 'house' }
+local tabBars = { }
+for _, kind in ipairs({ 'all', 'unified' }) do
+    local ids = { bar = '##inv.bags.' .. kind }
+    for index, label in ipairs(tabLabels) do
+        ids[index] = ('%s##inv.bags.%s.%d'):format(label, kind, index)
     end
-    imgui.PopStyleVar()
+    tabBars[kind] = ids
 end
 
-local function DrawInventoryUnified()
+local function DrawTabs(unified)
+    local ids = tabBars[unified and 'unified' or 'all']
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, framePadding)
-    if tabs.BeginBar('##inv.bags.unified', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if BeginTab(1, 'bag##inv.bags.unified.1') then
-            DrawBag('bag', 'all')
-            FinishTab('bag')
-            imgui.EndTabItem()
+    if tabs.BeginBar(ids.bar, ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
+        for index, group in ipairs(tabGroups) do
+            if BeginTab(index, ids[index]) then
+                if unified then
+                    DrawBag(group, 'all')
+                else
+                    for _, bag in ipairs(groupBags[group]) do
+                        DrawSubInventory(bag.title, group, bag.key)
+                    end
+                end
+                FinishTab(group)
+                imgui.EndTabItem()
+            end
         end
-
-        if BeginTab(2, 'satchel##inv.bags.unified.2') then
-            DrawBag('satchel', 'all')
-            FinishTab('satchel')
-            imgui.EndTabItem()
-        end
-
-        if BeginTab(3, 'ward##inv.bags.unified.3') then
-            DrawBag('wardrobe', 'all')
-            FinishTab('wardrobe')
-            imgui.EndTabItem()
-        end
-
-        if BeginTab(4, 'house##inv.bags.unified.4') then
-            DrawBag('house', 'all')
-            FinishTab('house')
-            imgui.EndTabItem()
-        end
-
         imgui.EndTabBar()
     end
     imgui.PopStyleVar()
@@ -1732,11 +1607,7 @@ local function DrawWindow(drawOptions)
 
     imgui.SetCursorPosY(imgui.GetCursorPosY() + topPadding)
 
-    if drawOptions.isUnified[1] then
-        DrawInventoryUnified()
-    else
-        DrawInventory()
-    end
+    DrawTabs(drawOptions.isUnified[1])
 
     -- where the window is, for the box that goes under it and the treasure pool beside it
     local width, height = imgui.GetWindowSize()
@@ -1872,7 +1743,7 @@ local function DrawBagSettings(options)
         imgui.SetNextItemWidth(widgets.NumberWidth(1))
         imgui.InputInt('##inv.gridColumns', options.gridColumns, 0, 0)
         options.gridColumns[1] = math.max(6, math.min(30, options.gridColumns[1]))
-        for index, key in ipairs(tabKeys) do
+        for index, key in ipairs(tabGroups) do
             widgets.Label('Show ' .. tabNames[index] .. ' Tab')
             imgui.Checkbox('##inv.tab.' .. key, options.bagTabs[key])
         end
