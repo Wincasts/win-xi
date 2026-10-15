@@ -28,6 +28,12 @@ background, so the base Winxi window shows through. These controls replace Max H
 controller tab navigation skips hidden groups. Hiding a tab does not change its items or prevent
 moving items to those bags. The controls apply to both unified and separate-bag views.
 
+In the unified view (**Draw Unified Bags**), a tab with more than one bag has a row of tabs of its
+own along the foot of the window: **all**, for every bag together, then one for each bag the player
+has (satchel, case and sack; the wardrobes by number; safe 1, safe 2, storage and locker). Choosing a
+bag shows its items alone, with its own count in the row above; Auto sort then sorts that bag alone.
+A tab with one bag, such as the inventory's, has no row. These tabs are worked with the mouse.
+
 With the mouse, right-click an item for what can be done with it. With a controller (Controller
 Navigation, in the settings): the d-pad moves the highlight, LB / RB change tab, A opens the item's menu,
 B backs out of a menu or gives the controller back to the game, and X (square) opens the sort menu. The

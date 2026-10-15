@@ -41,7 +41,9 @@ local ret = { GetCursorScreenPos = { 10, 20 }, GetCursorPosX = { 5 }, GetCursorP
     Checkbox = { false }, InputInt = { false }, InputInt2 = { false }, RadioButton = { false }, Button = { false }, Selectable = { false },
     ColorEdit4 = { false }, SliderInt = { false }, SliderFloat = { false }, BeginPopupContextItem = { false }, BeginPopupModal = { false }, BeginPopup = { false } }
 local drawList = setmetatable({}, { __index = function(_, k) return function() calls['draw.' .. k] = (calls['draw.' .. k] or 0) + 1 end end })
-local selected, tabsBegun, tabShown = nil, 0, 1
+-- the tab bars begun and not yet ended, each with how many of its tabs have been begun; and which tab
+-- shows: tabShown in every bar, unless tabsIn names one for that bar
+local selected, bars, tabShown, tabsIn = nil, {}, 1, {}
 local imgui = setmetatable({}, { __index = function(_, k) return function(...)
     calls[k] = (calls[k] or 0) + 1
     if k == 'GetWindowDrawList' or k == 'GetBackgroundDrawList' or k == 'GetForegroundDrawList' then return drawList end
@@ -49,8 +51,13 @@ local imgui = setmetatable({}, { __index = function(_, k) return function(...)
     if k == 'GetIO' then return { DisplaySize = { x = 1920, y = 1080 } } end
     if k == 'Selectable' then local label, on = ... if on then selected = label:match('^[^#]+') end end
     -- one tab of a tab bar is showing at a time: the first, unless H.tab has chosen another
-    if k == 'BeginTabBar' then tabsBegun = 0 end
-    if k == 'BeginTabItem' then tabsBegun = tabsBegun + 1 return tabsBegun == tabShown end
+    if k == 'BeginTabBar' then bars[#bars + 1] = { id = (...), begun = 0 } end
+    if k == 'EndTabBar' then bars[#bars] = nil end
+    if k == 'BeginTabItem' then
+        local bar = bars[#bars] or { begun = 0 }
+        bar.begun = bar.begun + 1
+        return bar.begun == (tabsIn[bar.id] or tabShown)
+    end
     local r = ret[k] if r then return unpack(r) end
 end end })
 package.preload['imgui'] = function() return imgui end
@@ -153,6 +160,7 @@ H = {
     saves = function() return saves end,
     resettle = function() handlers.settings(store) end,    -- the settings as they are, given to the addon again as if loaded afresh
     tab = function(number) tabShown = number or 1 end,     -- which tab of a tab bar is showing: the first, unless told
+    tabIn = function(bar, number) tabsIn[bar] = number end, -- which tab shows in the bar of that id (nil: as H.tab says)
     selected = function() return selected end,             -- the menu choice last drawn as highlighted
     play = function(v) playing = v end,                    -- whether there is a player (false: loading)
     login = function(status) loginStatus = status end,     -- the game's login status: 2 in the world, less before

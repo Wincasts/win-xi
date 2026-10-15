@@ -161,7 +161,7 @@ local bags = {
 
 -- Every bag the window shows, in the order it shows them: its group (the tab it is in), its key in
 -- the group, what it is called over its items and in the counts (title), and in the move menu and
--- what sorting says (name). Temporary items have no slots of their own: they are not counted,
+-- what sorting says (name), and on its tab under the grid (tab, or else name). Temporary items have no slots of their own: they are not counted,
 -- sorted or moved to. The wardrobes take gear alone; the house's bags cannot be moved to from afar.
 -- The recycle bin is not shown as a bag: the controller's sort menu lists it.
 local bagList = {
@@ -170,14 +170,14 @@ local bagList = {
     { id = bags.mogSatchel, group = 'satchel',  key = 'satchel',   title = 'mog satchel', name = 'satchel' },
     { id = bags.mogCase,    group = 'satchel',  key = 'case',      title = 'mog case',    name = 'case' },
     { id = bags.mogSack,    group = 'satchel',  key = 'sack',      title = 'mog sack',    name = 'sack' },
-    { id = bags.wardrobe,   group = 'wardrobe', key = 'wardrobe1', title = 'wardrobe 1',  name = 'wardrobe 1', isGearOnly = true },
-    { id = bags.wardrobe2,  group = 'wardrobe', key = 'wardrobe2', title = 'wardrobe 2',  name = 'wardrobe 2', isGearOnly = true },
-    { id = bags.wardrobe3,  group = 'wardrobe', key = 'wardrobe3', title = 'wardrobe 3',  name = 'wardrobe 3', isGearOnly = true },
-    { id = bags.wardrobe4,  group = 'wardrobe', key = 'wardrobe4', title = 'wardrobe 4',  name = 'wardrobe 4', isGearOnly = true },
-    { id = bags.wardrobe5,  group = 'wardrobe', key = 'wardrobe5', title = 'wardrobe 5',  name = 'wardrobe 5', isGearOnly = true },
-    { id = bags.wardrobe6,  group = 'wardrobe', key = 'wardrobe6', title = 'wardrobe 6',  name = 'wardrobe 6', isGearOnly = true },
-    { id = bags.wardrobe7,  group = 'wardrobe', key = 'wardrobe7', title = 'wardrobe 7',  name = 'wardrobe 7', isGearOnly = true },
-    { id = bags.wardrobe8,  group = 'wardrobe', key = 'wardrobe8', title = 'wardrobe 8',  name = 'wardrobe 8', isGearOnly = true },
+    { id = bags.wardrobe,   group = 'wardrobe', key = 'wardrobe1', title = 'wardrobe 1',  name = 'wardrobe 1', tab = '1', isGearOnly = true },
+    { id = bags.wardrobe2,  group = 'wardrobe', key = 'wardrobe2', title = 'wardrobe 2',  name = 'wardrobe 2', tab = '2', isGearOnly = true },
+    { id = bags.wardrobe3,  group = 'wardrobe', key = 'wardrobe3', title = 'wardrobe 3',  name = 'wardrobe 3', tab = '3', isGearOnly = true },
+    { id = bags.wardrobe4,  group = 'wardrobe', key = 'wardrobe4', title = 'wardrobe 4',  name = 'wardrobe 4', tab = '4', isGearOnly = true },
+    { id = bags.wardrobe5,  group = 'wardrobe', key = 'wardrobe5', title = 'wardrobe 5',  name = 'wardrobe 5', tab = '5', isGearOnly = true },
+    { id = bags.wardrobe6,  group = 'wardrobe', key = 'wardrobe6', title = 'wardrobe 6',  name = 'wardrobe 6', tab = '6', isGearOnly = true },
+    { id = bags.wardrobe7,  group = 'wardrobe', key = 'wardrobe7', title = 'wardrobe 7',  name = 'wardrobe 7', tab = '7', isGearOnly = true },
+    { id = bags.wardrobe8,  group = 'wardrobe', key = 'wardrobe8', title = 'wardrobe 8',  name = 'wardrobe 8', tab = '8', isGearOnly = true },
     { id = bags.mogSafe,    group = 'house',    key = 'mogSafe1',  title = 'mog safe 1',  name = 'safe 1' },
     { id = bags.mogSafe2,   group = 'house',    key = 'mogSafe2',  title = 'mog safe 2',  name = 'safe 2' },
     { id = bags.storage,    group = 'house',    key = 'storage',   title = 'storage',     name = 'storage' },
@@ -186,6 +186,12 @@ local bagList = {
 
 -- The groups, in the order of their tabs
 local tabGroups = { 'bag', 'satchel', 'wardrobe', 'house' }
+
+-- In the unified view, a group of more than one bag has tabs of its own under the grid: all of its
+-- bags together, or one alone. The bag chosen for each group (none: all of them), and the bags that
+-- have a tab (those the player has), as of the last time the bags were read.
+local shownBag = { }
+local bagTabs = { }
 
 -- What is put together from the list: each bag by the game's number for it, the bags of each group,
 -- those an item can be moved to, what is in each (as read, and each group's all together) and how
@@ -198,6 +204,7 @@ for _, group in ipairs(tabGroups) do
 end
 for _, bag in ipairs(bagList) do
     bag.slots, bag.hasAccess = 0, false -- filled in as the bags are read
+    bag.tabId = ('%s##inv.bags.sub.%s'):format(bag.tab or bag.name, bag.key)
     bagsById[bag.id] = bag
     local inGroup = groupBags[bag.group]
     inGroup[#inGroup + 1] = bag
@@ -848,9 +855,11 @@ local function SortTab()
     local now = os.clock()
     local sorted = { }
 
-    for _, bag in ipairs(groupBags[tabGroups[pad.tab]] or { }) do
+    local group = tabGroups[pad.tab]
+    for _, bag in ipairs(groupBags[group] or { }) do
         local id = bag.id
-        if not bag.noSlots and BagSlots(inv, id) > 0 and now - (sortedAt[id] or -sortCooldown) >= sortCooldown then
+        local chosen = shownBag[group] == nil or shownBag[group] == bag
+        if chosen and not bag.noSlots and BagSlots(inv, id) > 0 and now - (sortedAt[id] or -sortCooldown) >= sortCooldown then
             sortedAt[id] = now
             AshitaCore:GetPacketManager():AddOutgoingPacket(packets.outbound.inventorySort:make(id))
             sorted[#sorted + 1] = bag.name
@@ -1453,22 +1462,30 @@ BuildCounts = function()
             end
         end
 
-        local rows = { }
+        local rows, withTabs = { }, { }
         for _, bag in ipairs(inGroup) do
             if bag.slots > 0 then
                 local used = #inventories[group][bag.key]
                 local text = ('%02d/%02d'):format(used, bag.slots)
+                -- the bag's count alone, for when its tab is chosen
+                bag.countRows = { { text = text, full = used >= bag.slots } }
                 if shown > 1 then
                     text = ('%s %s'):format(bag.title, text)
                 end
                 rows[#rows + 1] = { text = text, full = used >= bag.slots }
+                withTabs[#withTabs + 1] = bag
             end
         end
         countRows[group] = rows
+        bagTabs[group] = withTabs
+        -- a chosen bag the player no longer has is no longer chosen
+        if shownBag[group] ~= nil and shownBag[group].slots == 0 then
+            shownBag[group] = nil
+        end
     end
 end
 
-local function DrawCountsRow(bagId)
+local function DrawCountsRow(group, unified)
     -- Align to the requested grid width, not the previous frame's window width: using
     -- GetContentRegionAvail here creates a feedback loop that prevents shrinking.
     local countsRight = imgui.GetCursorPosX() + viewportSize[1]
@@ -1478,7 +1495,8 @@ local function DrawCountsRow(bagId)
     -- the gil against the left edge, on the same row as the first (or only) count
     imgui.Text(gilText)
 
-    for index, row in ipairs(countRows[bagId]) do
+    local chosen = unified and shownBag[group] or nil
+    for index, row in ipairs(chosen and chosen.countRows or countRows[group]) do
         if index == 1 then
             imgui.SameLine()
         end
@@ -1495,15 +1513,53 @@ local function DrawCountsRow(bagId)
     end
 end
 
--- The end of a tab: the tooltip of the item under the mouse, the menu if it is open, and the row of
--- counts at the foot
-local function FinishTab(group)
+-- The tabs under the grid, for a group of more than one bag: all of them, then each alone. The bag
+-- chosen here is drawn from the next frame on.
+local allTabIds = { }
+for _, group in ipairs(tabGroups) do
+    allTabIds[group] = { bar = '##inv.bags.sub.' .. group, all = 'all##inv.bags.sub.all.' .. group }
+end
+
+local function DrawBagTabs(group)
+    local withTabs = bagTabs[group]
+    if withTabs == nil or #withTabs < 2 then
+        return
+    end
+    local ids = allTabIds[group]
+    local chosen = shownBag[group]
+    if tabs.BeginBar(ids.bar, ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
+        if tabs.Begin(ids.all) then
+            chosen = nil
+            imgui.EndTabItem()
+        end
+        for _, bag in ipairs(withTabs) do
+            if tabs.Begin(bag.tabId) then
+                chosen = bag
+                imgui.EndTabItem()
+            end
+        end
+        imgui.EndTabBar()
+    end
+    if chosen ~= shownBag[group] then
+        -- other items: the highlight starts again from the first
+        shownBag[group] = chosen
+        pad.grid:Reset()
+        pad.menu = nil
+    end
+end
+
+-- The end of a tab: the tooltip of the item under the mouse, the menu if it is open, the row of
+-- counts, and in the unified view the tabs of the group's bags, at the foot
+local function FinishTab(group, unified)
     imgui.EndChild()
     if hoveredItem ~= nil and not itemMenu.open then
         AddTooltip(hoveredItem)
     end
     DrawItemMenu()
-    DrawCountsRow(group)
+    DrawCountsRow(group, unified)
+    if unified then
+        DrawBagTabs(group)
+    end
 end
 
 -- Begins one of the four tabs. With the controller it is also where a change of tab is asked for and
@@ -1578,13 +1634,14 @@ local function DrawTabs(unified)
         for index, group in ipairs(tabGroups) do
             if BeginTab(index, ids[index]) then
                 if unified then
-                    DrawBag(group, 'all')
+                    local chosen = shownBag[group]
+                    DrawBag(group, chosen and chosen.key or 'all')
                 else
                     for _, bag in ipairs(groupBags[group]) do
                         DrawSubInventory(bag.title, group, bag.key)
                     end
                 end
-                FinishTab(group)
+                FinishTab(group, unified)
                 imgui.EndTabItem()
             end
         end
