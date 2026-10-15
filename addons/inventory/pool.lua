@@ -283,7 +283,7 @@ function pool.Draw(drawOptions, at, invShown)
     local flags
     if detached then
         imgui.SetNextWindowPos(options.treasurePos, ImGuiCond_FirstUseEver)
-        flags = detachedFlags
+        flags = options.treasureLock[1] and attachedFlags or detachedFlags -- locked, held still as attached
     else
         placed[1], placed[2] = at[1], at[2]
         imgui.SetNextWindowPos(placed, ImGuiCond_Always)
@@ -319,6 +319,9 @@ function pool.DrawSettings(drawOptions)
             if imgui.InputInt2('##inv.pool.position', drawOptions.treasurePos) then
                 imgui.SetWindowPos(windowName, drawOptions.treasurePos)
             end
+            widgets.Label('Lock')
+            imgui.Checkbox('##inv.pool.lock', drawOptions.treasureLock)
+            tooltip.Hover('Prevent dragging the pool. The Position fields can still move it.')
         end
     end
     if not drawOptions.treasurePool[1] then

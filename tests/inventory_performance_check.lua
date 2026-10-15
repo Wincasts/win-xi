@@ -43,6 +43,26 @@ check('hidden detached treasure, not pinned: no reads or windows', poolReads == 
 o.treasurePinned[1] = true
 H.frames(1)
 check('pinned detached treasure still polls and draws', poolReads == reads + 10 and H.calls.Begin == begun + 1)
+do
+    -- detached, Lock holds it still as attached it always is
+    local window = require('winxi.window')
+    local full, flags = window.Full, nil
+    window.Full = function(name, open, f, ...)
+        if name == 'winxi.inventory.pool' then flags = f end
+        return full(name, open, f, ...)
+    end
+    H.frames(1)
+    local unlocked = flags
+    o.treasureLock[1] = true
+    H.frames(1)
+    check('detached and locked: the pool cannot be dragged', flags == bit.bor(unlocked, ImGuiWindowFlags_NoMove))
+    o.treasureLock[1] = false
+    H.frames(1)
+    check('unlocked again: it can', flags == unlocked)
+    window.Full = full
+    reads, begun = poolReads, H.calls.Begin
+    H.frames(1)
+end
 o.treasureDetached[1] = false
 reads, begun = poolReads, H.calls.Begin
 H.frames(1)

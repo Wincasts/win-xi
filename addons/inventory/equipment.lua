@@ -347,7 +347,7 @@ function equipment.DrawSettings(options)
             widgets.Label('Position')
             imgui.SetNextItemWidth(widgets.NumberWidth(2))
             if imgui.InputInt2('##inv.equipment.pos', o.pos) then imgui.SetWindowPos(windowName, o.pos) end
-            widgets.Label('Lock Drag to Move')
+            widgets.Label('Lock')
             imgui.Checkbox('##inv.equipment.lock', o.lockMovement)
             tooltip.Hover('Prevent dragging the monitor. The Position fields can still move it.')
         end

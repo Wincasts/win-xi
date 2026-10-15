@@ -92,7 +92,7 @@ check('attached: under the inventory window, its left edge in line, and held the
     and placedAt[1] == 100 and placedAt[2] == 200 + 150 + 6 and placedAt[3] == ImGuiCond_Always)
 e.lockMovement[1] = true
 frame()
-check('attached: Lock Drag to Move is the detached window\'s alone', flags == attachedFlags)
+check('attached: Lock is the detached window\'s alone', flags == attachedFlags)
 e.lockMovement[1] = false
 local equipment = require('equipment')
 local rect = equipment.Rect()
