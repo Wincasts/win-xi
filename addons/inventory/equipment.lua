@@ -1,5 +1,8 @@
 -- Live equipment monitor, inspired by the functionality of references/equipmon.
 -- Uses Winxi windows and the shared icon atlas rather than separate D3D textures/assets.
+-- Attached (the default) it sits under the inventory window, its left edge in line with the
+-- window's, and comes and goes with it, as the treasure pool does beside it; detached in the
+-- settings, it is a window of its own, there whenever it is enabled, and can be moved.
 local bit = require('bit')
 local imgui = require('imgui')
 local window = require('winxi.window')
@@ -7,6 +10,7 @@ local style = require('winxi.style')
 local widgets = require('winxi.widgets')
 local itemicons = require('winxi.itemicons')
 local text = require('winxi.text')
+local fade = require('winxi.fade')
 
 local equipment = {}
 local windowName = 'winxi.inventory.equipment'
@@ -46,6 +50,9 @@ local backdropTints = {}
 local transparent = { 0, 0, 0, 0 }
 local open = { true }
 local windowStyle = { shadow = false, title = 'Equipment' }
+local belowGap = 6 -- between the inventory window and the monitor under it, attached
+local placed = { 0, 0 }
+local attachedBottom = nil -- attached and showing: where the monitor's window ends, down the screen
 -- High-quality gear has a white border, as the game gives it; anything else has none
 local hqColor = { 1, 1, 1, 1 }
 local wardrobeNumbers = { [8] = 1, [10] = 2, [11] = 3, [12] = 4, [13] = 5, [14] = 6, [15] = 7, [16] = 8 }
@@ -263,38 +270,85 @@ local function DrawContent()
             imgui.SetTooltip(text)
         end
     end
-    o.pos[1], o.pos[2] = imgui.GetWindowPos()
+    if o.detached[1] then
+        o.pos[1], o.pos[2] = imgui.GetWindowPos()
+    else
+        local _, y = imgui.GetWindowPos()
+        local _, height = imgui.GetWindowSize()
+        attachedBottom = y + height
+    end
 end
 
-function equipment.Draw(options, sheet)
+-- Once a frame. frame is where the inventory window is ({ x, y, width, height }, or nil before it is
+-- first drawn) and invWanted whether it is switched on: attached, the monitor goes under it, and
+-- shows only while it does. sheet is the icon atlas, or what gives it, asked for only once the
+-- monitor is to be drawn
+function equipment.Draw(options, sheet, frame, invWanted)
     local o = options.equipment
+    attachedBottom = nil
     if not o.enabled[1] then return end
+    local detached = o.detached[1]
+    local alpha = math.max(0.125, math.min(1, o.opacity[1]))
+    if not detached then
+        if frame == nil then return end
+        local shown = invWanted and 1 or 0
+        if options.fadeInOut[1] then
+            shown = fade.Presence(windowName, invWanted)
+        end
+        if shown <= 0.01 then return end
+        alpha = alpha * shown
+    end
+    if type(sheet) == 'function' then sheet = sheet() end
     frameOptions, frameSheet = o, sheet
     frameScale = math.max(0.5, math.min(3, o.scale[1]))
     frameSize = 32 * frameScale
     framePitch = frameSize + math.max(0, math.min(20, o.spacing[1]))
     gridSize[1], gridSize[2] = frameSize + framePitch * 3, frameSize + framePitch * 3
-    -- Restore per-character positioning even when ImGui remembers the old window.
-    imgui.SetNextWindowPos(o.pos, positionSettings ~= o.pos and ImGuiCond_Always or ImGuiCond_FirstUseEver)
-    positionSettings = o.pos
     local flags = style.TitlelessFlags()
-    if o.lockMovement[1] then flags = bit.bor(flags, ImGuiWindowFlags_NoMove) end
+    if detached then
+        -- Restore per-character positioning even when ImGui remembers the old window.
+        imgui.SetNextWindowPos(o.pos, positionSettings ~= o.pos and ImGuiCond_Always or ImGuiCond_FirstUseEver)
+        positionSettings = o.pos
+        if o.lockMovement[1] then flags = bit.bor(flags, ImGuiWindowFlags_NoMove) end
+    else
+        placed[1], placed[2] = frame.x, frame.y + frame.height + belowGap
+        imgui.SetNextWindowPos(placed, ImGuiCond_Always)
+        positionSettings = nil -- detached again, it goes back where it was
+        flags = bit.bor(flags, ImGuiWindowFlags_NoMove)
+    end
     if not o.background[1] then flags = bit.bor(flags, ImGuiWindowFlags_NoBackground) end
-    windowStyle.alpha = math.max(0.125, math.min(1, o.opacity[1]))
+    windowStyle.alpha = alpha
     windowStyle.background = not o.background[1] and transparent or nil
     window.Full(windowName, open, flags, DrawContent, windowStyle)
+end
+
+-- Attached and showing: where the monitor's window ended last frame, down the screen, so that what
+-- goes under the inventory window can go under it instead; otherwise nil
+function equipment.Bottom()
+    return attachedBottom
 end
 
 function equipment.DrawSettings(options)
     local o = options.equipment
     if widgets.Header('Equipment Monitor', true) then
-        widgets.Label('Show Equipment')
+        widgets.Label('Enable')
         imgui.Checkbox('##inv.equipment.enabled', o.enabled)
-        widgets.Label('Lock Drag to Move')
-        imgui.Checkbox('##inv.equipment.lock', o.lockMovement)
-        widgets.Label('Position')
-        imgui.SetNextItemWidth(widgets.NumberWidth(2))
-        if imgui.InputInt2('##inv.equipment.pos', o.pos) then imgui.SetWindowPos(windowName, o.pos) end
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('The gear worn in each of the sixteen slots, as the game\'s equipment menu lays it out.')
+        end
+        if not o.enabled[1] then return end
+        widgets.Label('Detach From Inventory')
+        imgui.Checkbox('##inv.equipment.detached', o.detached)
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('Attached, the monitor sits under the inventory window, in line with its left edge, and shows only while the inventory does.\nDetached, it is a window of its own that can be moved, and shows whenever it is enabled.')
+        end
+        if o.detached[1] then
+            widgets.Label('Lock Drag to Move')
+            imgui.Checkbox('##inv.equipment.lock', o.lockMovement)
+            widgets.Label('Position')
+            imgui.SetNextItemWidth(widgets.NumberWidth(2))
+            if imgui.InputInt2('##inv.equipment.pos', o.pos) then imgui.SetWindowPos(windowName, o.pos) end
+        end
         widgets.Label('Scale')
         imgui.SliderFloat('##inv.equipment.scale', o.scale, 0.5, 3, '%.2f')
         widgets.Label('Spacing')

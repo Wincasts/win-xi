@@ -45,8 +45,17 @@ check('Treasure has only treasure settings section', table.concat(headers, ',') 
 check('Treasure contains pool controls', hasLabel('Show Treasure Pool') and hasLabel('Show When Empty'))
 check('Treasure excludes General and Bags controls', not hasLabel('Lock Drag to Move') and not hasLabel('Rows'))
 frame(4)
+check('Equipment disabled: only its Enable', table.concat(headers, ',') == 'Equipment Monitor'
+    and hasLabel('Enable') and not hasLabel('Scale') and not hasLabel('Detach From Inventory'))
+o.equipment.enabled[1] = true
+frame(4)
 check('Equipment has monitor and slot settings', table.concat(headers, ',') == 'Equipment Monitor,Slots')
-check('Equipment contains visibility, scale and ammo controls', hasLabel('Show Equipment') and hasLabel('Scale') and hasLabel('Show Ammo Count'))
+check('Equipment contains enable, detach, scale and ammo controls', hasLabel('Enable') and hasLabel('Detach From Inventory')
+    and hasLabel('Scale') and hasLabel('Show Ammo Count'))
+check('attached, the monitor has no lock or position of its own', not hasLabel('Lock Drag to Move') and not hasLabel('Position'))
+o.equipment.detached[1] = true
+frame(4)
+check('detached, it has its lock and position', hasLabel('Lock Drag to Move') and hasLabel('Position'))
 check('Equipment has independent decoration toggles', hasLabel('Quality Borders') and hasLabel('Wardrobe Markers'))
 check('Equipment excludes bag and treasure controls', not hasLabel('Rows') and not hasLabel('Show Treasure Pool'))
 H.unload()

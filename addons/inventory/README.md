@@ -61,10 +61,16 @@ worked with a controller.
 
 ## Equipment monitor
 
-Enable **Show Equipment** in `/inv` → **Equipment** for a live, independent equipment window,
-similar to EquipMon. It is disabled by default and does not require the reference addon or its assets.
-The monitor stays visible when the inventory window is toggled off, but follows General's shared
-Visibility rules (including hiding while logged out).
+Turn on **Enable** in `/inv` → **Equipment** for a live equipment window, similar to EquipMon. It
+is disabled by default and does not require the reference addon or its assets; while it is off, the
+rest of its settings are hidden.
+
+By default the monitor is attached to the inventory, as the treasure pool is: it sits under the
+inventory window, its left edge in line with the window's, and comes and goes (and fades) with it.
+The controller's verbose item box, when placed below the window, goes under the monitor instead.
+Turn on **Detach From Inventory** to make it a window of its own, with its own **Position** and
+**Lock Drag to Move**: it then stays visible when the inventory window is toggled off, but follows
+General's shared Visibility rules (including hiding while logged out).
 
 All 16 slots use the game's equipment-screen arrangement:
 
@@ -95,9 +101,9 @@ on the diagonal inside a thin dark rim, with the slot's name in pale lettering a
 slots retain their labels; occupied slots draw their icons on top. The backdrop and lettering scale
 with the icons, remain inside the square grid, and turn off together with Slot Backgrounds.
 
-The Equipment tab provides its own **Position**, **Lock Drag to Move**, **Scale**, **Spacing**,
-**Opacity**, **Window Background**, and **Slot Backgrounds** controls. Drag the unlocked window to
-move it. Settings are kept per character with the rest of Inventory's settings. Styling and count
+The Equipment tab provides its own **Scale**, **Spacing**, **Opacity**, **Window Background**, and
+**Slot Backgrounds** controls, and, detached, **Position** and **Lock Drag to Move**. Drag the
+unlocked, detached window to move it; attached, it moves with the inventory window. Settings are kept per character with the rest of Inventory's settings. Styling and count
 text use Winxi's theme rather than EquipMon's numbered texture themes and separate font objects;
 item icons share Inventory's icon atlas.
 
@@ -109,8 +115,10 @@ packet debounce, and rereads item IDs/counts even when an equipped index has not
 ammo change is reflected on the next draw after the client updates its memory; swaps that occur
 entirely between rendered frames cannot each be displayed.
 
-Equipment gets first access to the atlas's 48-new-icons-per-frame upload budget, enough for a full
-16-slot replacement before bag icons consume the remainder. Cached icons are reused immediately;
+Detached, equipment gets first access to the atlas's 48-new-icons-per-frame upload budget, enough
+for a full 16-slot replacement before bag icons consume the remainder. Attached, it is drawn after
+the inventory window, whose position it needs that frame, so the bag icons come first; it still reads
+the equipped items every frame. Cached icons are reused immediately;
 pending atlas uploads are requested again on subsequent frames, and missing icons never fall back
 to displaying the previous item's icon.
 All equipment icons are drawn together in one atlas batch, with decorations afterward. Stable

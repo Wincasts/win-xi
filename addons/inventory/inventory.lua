@@ -1219,8 +1219,10 @@ local function PadEndFrame()
                 if pad.options.controllerInfoPlace == 'item' or pad.windowX == nil then
                     controller.Label(DrawInfoBox, x, y + iconSize + 3 + labelGap, true, item.uniqueId)
                 else
-                    -- under the window, its left edge in line with the window's
-                    controller.Label(DrawInfoBox, pad.windowX, pad.windowY + pad.windowHeight + labelGap, true, item.uniqueId)
+                    -- under the window, its left edge in line with the window's, and under the
+                    -- equipment monitor if that is there
+                    local below = equipment.Bottom() or (pad.windowY + pad.windowHeight)
+                    controller.Label(DrawInfoBox, pad.windowX, below + labelGap, true, item.uniqueId)
                 end
             else
                 if item.label == nil then
@@ -1913,7 +1915,8 @@ local defaults = T{
     treasureWidth = T{ 300 }, -- how wide it is
     equipment = T{
         enabled = T{ false },
-        pos = T{ 100, 100 },
+        detached = T{ false }, -- a window of its own, rather than under the inventory window
+        pos = T{ 100, 100 }, -- where it is, detached
         lockMovement = T{ false },
         scale = T{ 1 },
         spacing = T{ 4 },
@@ -2112,7 +2115,7 @@ ashita.events.register('d3d_present', 'inv_present', function()
     -- Give combat gear changes first access to the icon upload budget and read them before
     -- any debounced bag scans/sorting. Equipment never waits for inventory packets to settle.
     iconFramed = false
-    if options.equipment.enabled[1] then
+    if options.equipment.enabled[1] and options.equipment.detached[1] then
         equipment.Draw(options, IconSheet())
     end
 
@@ -2151,6 +2154,10 @@ ashita.events.register('d3d_present', 'inv_present', function()
         pool.Draw(options, invFrame, options.isVisible[1])
     else
         pool.Draw(options, nil, options.isVisible[1])
+    end
+    -- attached, the equipment monitor goes under the window, where it is this frame
+    if options.equipment.enabled[1] and not options.equipment.detached[1] then
+        equipment.Draw(options, IconSheet, pad.windowX ~= nil and invFrame or nil, options.isVisible[1])
     end
     PadEndFrame()
 end)
