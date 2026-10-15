@@ -1,7 +1,10 @@
 # hideparty (winxi's changes)
 
 atom0s's hideparty, which hides the game's own party and target frames (`/hideparty`, `/hideparty hide`,
-`/hideparty show`), with two changes.
+`/hideparty show`), with these changes.
+
+The frames are hidden as soon as hideparty loads, with no `/hideparty hide` needed; `/hideparty show`
+brings them back. Unloading it shows them again, where atom0s's left them as they were.
 
 While the game's party cursor is out (a member is being picked from the party list, in the party menu or
 as a sub-target) the party frames are shown again, and hidden once it has gone. The game's cursor cannot

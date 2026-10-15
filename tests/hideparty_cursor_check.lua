@@ -81,13 +81,10 @@ handlers.load()
 local function frame() drawn, asked, reads = {}, {}, 0 handlers.d3d_present() end
 local function command(text) handlers.command({ command = text, blocked = false }) end
 
-frame()
-check('shown: the game draws its own, nothing drawn', #drawn == 0, #asked == 0, written[0x4000 + 0x69] == 1)
-
 local idle = target.GetIsActive
 target.GetIsActive = function() return 0 end
-command('/hideparty hide')
 frame()
+check('loaded: hidden at once', written[0x4000 + 0x69] == 0)
 check('hidden, nothing targeted: both textures made already, the device not read', #drawn == 0,
     #asked == 2 and asked[1].group == 'anc_l' and not asked[1].neutral and asked[2].neutral, reads == 0)
 target.GetIsActive = idle
@@ -119,5 +116,16 @@ failing = nil
 
 command('/hideparty show')
 frame()
-check('shown again: nothing drawn', #drawn == 0, written[0x4000 + 0x69] == 1)
+check('shown: the game draws its own, nothing drawn', #drawn == 0, written[0x4000 + 0x69] == 1)
+
+command('/hideparty hide')
+frame()
+command('/hideparty')
+frame()
+check('toggled from hidden: shown', #drawn == 0, written[0x4000 + 0x69] == 1)
+
+command('/hideparty hide')
+frame()
+handlers.unload()
+check('unloaded while hidden: the frames given back', written[0x4000 + 0x69] == 1)
 H_print('hideparty target cursor: drawn only while hidden, from anc_l around its tip, tinted sub cursor and failure passed')

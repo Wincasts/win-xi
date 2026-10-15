@@ -32,7 +32,7 @@ local targetcursor = require 'targetcursor';
 
 -- Addon Variables
 local hideparty = {
-    show = 1,
+    show = false, -- hidden from the moment it loads
     ptrs = {
       target = 0,
       party0 = 0,
@@ -191,4 +191,16 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     if (not hideparty.show) then
         targetcursor.Draw();
     end
+end);
+
+--[[
+* event: unload
+* desc : Event called when the addon is being unloaded.
+--]]
+ashita.events.register('unload', 'unload_cb', function ()
+    -- Hidden from loading, so the frames are given back on the way out, or they would stay hidden.
+    set_primitive_visibility(hideparty.ptrs.party0, 1);
+    set_primitive_visibility(hideparty.ptrs.party1, 1);
+    set_primitive_visibility(hideparty.ptrs.party2, 1);
+    set_primitive_visibility(hideparty.ptrs.target, 1);
 end);
