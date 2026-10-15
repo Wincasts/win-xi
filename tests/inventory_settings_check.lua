@@ -35,6 +35,7 @@ frame(1)
 check('settings tabs ordered General, Bags, Treasure, Equipment', table.concat(tabs, ',') == 'General,Bags,Treasure,Equipment')
 check('General sections ordered Window, Controller, Visibility', table.concat(headers, ',') == 'Window,Controller,Visibility')
 check('movement lock first in General', labels[1] == 'Lock Drag to Move')
+check('the inventory window has its pin', hasLabel('Pin Inventory'))
 check('General excludes bag and treasure controls', not hasLabel('Rows') and not hasLabel('Show Treasure Pool'))
 frame(2)
 check('Bags has only bag settings section', table.concat(headers, ',') == 'Bags')
@@ -42,7 +43,7 @@ check('Bags contains grid and bag visibility controls', hasLabel('Rows') and has
 check('Bags excludes General and treasure controls', not hasLabel('Lock Drag to Move') and not hasLabel('Show Treasure Pool'))
 frame(3)
 check('Treasure has only treasure settings section', table.concat(headers, ',') == 'Treasure Pool')
-check('Treasure contains pool controls', hasLabel('Show Treasure Pool') and hasLabel('Show When Empty'))
+check('Treasure contains pool controls', hasLabel('Show Treasure Pool') and hasLabel('Show When Empty') and hasLabel('Pin Treasure Pool'))
 check('Treasure excludes General and Bags controls', not hasLabel('Lock Drag to Move') and not hasLabel('Rows'))
 frame(4)
 check('Equipment disabled: only its Enable', table.concat(headers, ',') == 'Equipment Monitor'
@@ -50,7 +51,7 @@ check('Equipment disabled: only its Enable', table.concat(headers, ',') == 'Equi
 o.equipment.enabled[1] = true
 frame(4)
 check('Equipment has monitor and slot settings', table.concat(headers, ',') == 'Equipment Monitor,Slots')
-check('Equipment contains enable, detach, scale and ammo controls', hasLabel('Enable') and hasLabel('Detach From Inventory')
+check('Equipment contains enable, detach, pin, scale and ammo controls', hasLabel('Enable') and hasLabel('Detach From Inventory') and hasLabel('Pin Equipment')
     and hasLabel('Scale') and hasLabel('Show Ammo Count'))
 check('attached, the monitor has no lock or position of its own', not hasLabel('Lock Drag to Move') and not hasLabel('Position'))
 o.equipment.detached[1] = true

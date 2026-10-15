@@ -1,11 +1,12 @@
 -- The treasure pool, small, beside the inventory window: what the treas addon shows, in a line for
--- each item. It sits against the right of the inventory window, its top in line with the window's, and
--- comes and goes with it; or, detached in the settings, it is a window of its own that is there
--- whenever there is treasure.
+-- each item. It sits against the right of the inventory window, its top in line with the window's;
+-- or, detached in the settings, it is a window of its own that can be moved. Either way it is there
+-- while there is treasure and the inventory is shown, or, pinned, whether the inventory is or not:
+-- attached, with the inventory hidden, it then takes the inventory's place.
 --
---   pool.Draw(options, frame, invWanted)   once a frame, after the inventory window: frame is where
---                               that window is ({ x, y, width, height }, or nil before it is first
---                               drawn), and invWanted whether it is switched on
+--   pool.Draw(options, at, invShown)   once a frame, after the inventory window: at is where the pool
+--                               goes attached ({ x, y }, or nil before the inventory has a place),
+--                               and invShown whether the inventory window is to be shown
 --   pool.DrawSettings(options)  its section of the settings
 --
 -- With Show When Empty an empty pool is filled with sample treasure, in each of the states an item can
@@ -29,7 +30,6 @@ local gold = { 1.0, 215/255, 0.0, 1.0 }
 local red = { 0.95, 0.20, 0.20, 1.0 }
 local framePadding = { 4, 1 }
 local poolTime = 300 -- seconds an item stays in the pool
-local sideGap = 6     -- between the inventory window and the pool beside it
 
 -- The sample treasure: one the player is winning, one lotted and losing, one others have lotted, one
 -- nobody has, one passed on. left is how many seconds it starts with.
@@ -244,23 +244,27 @@ local function DrawWindow()
     end
 end
 
-function pool.Draw(drawOptions, frame, invWanted)
+function pool.Draw(drawOptions, at, invShown)
     options = drawOptions
     if not options.treasurePool[1] then
         return
     end
 
     local detached = options.treasureDetached[1]
-    if not detached and (frame == nil or not invWanted) then
-        -- Keep drawing during the fade-out, but do not poll an attached pool that is fully hidden.
-        if frame == nil or not options.fadeInOut[1] or not fade.Lingering(windowName) then
+    if not detached and at == nil then
+        return
+    end
+    local wanted = invShown or options.treasurePinned[1]
+    if not wanted then
+        -- Keep drawing during the fade-out, but do not poll a pool that is fully hidden.
+        if not options.fadeInOut[1] or not fade.Lingering(windowName) then
             return
         end
     end
 
     Read()
     local shown = count > 0
-    local wanted = shown and (detached or invWanted)
+    wanted = shown and wanted
     local alpha = wanted and 1 or 0
     if options.fadeInOut[1] then
         alpha = fade.Presence(windowName, wanted)
@@ -280,7 +284,7 @@ function pool.Draw(drawOptions, frame, invWanted)
         imgui.SetNextWindowPos(options.treasurePos, ImGuiCond_FirstUseEver)
         flags = detachedFlags
     else
-        placed[1], placed[2] = frame.x + frame.width + sideGap, frame.y
+        placed[1], placed[2] = at[1], at[2]
         imgui.SetNextWindowPos(placed, ImGuiCond_Always)
         flags = attachedFlags
     end
@@ -314,7 +318,12 @@ function pool.DrawSettings(drawOptions)
     widgets.Label('Detach From Inventory')
     imgui.Checkbox('##inv.pool.detached', drawOptions.treasureDetached)
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Attached, the pool sits to the right of the inventory window and shows only while the inventory does.\nDetached, it is a window of its own that can be moved, and shows whenever there is treasure.')
+        imgui.SetTooltip('Attached, the pool sits to the right of the inventory window.\nDetached, it is a window of its own that can be moved.\nEither way it shows while there is treasure and the inventory does, or, pinned, whether the inventory does or not.')
+    end
+    widgets.Label('Pin Treasure Pool')
+    imgui.Checkbox('##inv.pool.pinned', drawOptions.treasurePinned)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip('Keeps the pool on screen, while there is treasure, when /inv toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner, or beside the equipment monitor if that is there too.')
     end
     if drawOptions.treasureDetached[1] then
         widgets.Label('Position')

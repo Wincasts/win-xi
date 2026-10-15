@@ -49,7 +49,7 @@ end
 H.play(true)
 o.isVisible[1], o.fadeInOut[1], o.treasurePool[1] = false, false, false
 e.enabled[1] = true
-e.detached[1] = true -- a window of its own, there with the inventory hidden
+e.detached[1], e.pinned[1] = true, true -- a window of its own, pinned: there with the inventory hidden
 local containers = { 8, 10, 11, 12, 13, 14, 15, 16 }
 for n, bag in ipairs(containers) do
     H.bag(bag, 80, { { 20100 + n } })

@@ -95,15 +95,40 @@ frame()
 check('attached: Lock Drag to Move is the detached window\'s alone', flags == attachedFlags)
 e.lockMovement[1] = false
 local equipment = require('equipment')
-check('what goes under the inventory window goes under the monitor instead', equipment.Bottom() == 200 + 150)
+local rect = equipment.Rect()
+check('what goes under the inventory window goes under the monitor instead', rect ~= nil and rect[2] + rect[4] == 200 + 150)
 o.isVisible[1] = false
 frame()
-check('attached: goes with the inventory', windows == 0 and equipment.Bottom() == nil)
+check('attached: goes with the inventory', windows == 0 and equipment.Rect() == nil)
+-- pinned, it stays when the inventory is toggled off, and takes its place at its top-left corner
+e.pinned[1] = true
+frame()
+check('attached and pinned: stays, at the hidden inventory\'s top-left corner', windows == 1 and #slots == 16
+    and placedAt[1] == o.pos[1] and placedAt[2] == o.pos[2])
+o.treasurePool[1], o.treasureShowEmpty[1], o.treasurePinned[1] = true, true, true
+frame()
+check('a pinned treasure pool goes beside the pinned monitor', placedAt[1] == 100 + 300 + 6 and placedAt[2] == o.pos[2])
+e.pinned[1] = false
+frame()
+check('the monitor not pinned: the pool takes the corner itself', windows == 0
+    and placedAt[1] == o.pos[1] and placedAt[2] == o.pos[2])
+o.isVisible[1] = true
+frame()
+check('the inventory shown again: the pool beside it', placedAt[1] == 100 + 300 + 6 and placedAt[2] == 200)
+o.isVisible[1], o.treasurePool[1], o.treasureShowEmpty[1], o.treasurePinned[1] = false, false, false, false
+o.isPinned[1] = true
+frame()
+check('the inventory pinned: shown though toggled off, and the monitor under it', windows == 1
+    and placedAt[2] == 200 + 150 + 6)
+o.isPinned[1] = false
 e.detached[1] = true
+frame()
+check('detached, not pinned: hidden with the inventory too', windows == 0 and #slots == 0)
+e.pinned[1] = true
 e.pos[1], e.pos[2] = 40, 60
 local beforeAtlas = atlasFrames
 frame()
-check('detached: equipment independent of inventory visibility', windows == 1 and #slots == 16
+check('detached and pinned: shown with the inventory hidden, where it was put', windows == 1 and #slots == 16
     and placedAt[1] == 40 and placedAt[2] == 60 and flags ~= attachedFlags)
 check('icon atlas advanced only once per addon frame', atlasFrames == beforeAtlas + 1)
 check('equipment screen uses reference 4x4 slot order', table.concat(slots, ',') == '0,1,2,3,4,9,11,12,5,6,13,14,15,10,7,8')

@@ -39,7 +39,15 @@ H.frames(8)
 check('hidden attached treasure: no reads or windows', poolReads == reads and H.calls.Begin == begun)
 o.treasureDetached[1] = true
 H.frames(1)
-check('detached treasure still polls and draws', poolReads == reads + 10 and H.calls.Begin == begun + 1)
+check('hidden detached treasure, not pinned: no reads or windows', poolReads == reads and H.calls.Begin == begun)
+o.treasurePinned[1] = true
+H.frames(1)
+check('pinned detached treasure still polls and draws', poolReads == reads + 10 and H.calls.Begin == begun + 1)
+o.treasureDetached[1] = false
+reads, begun = poolReads, H.calls.Begin
+H.frames(1)
+check('pinned attached treasure too, with the inventory hidden', poolReads == reads + 10 and H.calls.Begin == begun + 1)
+o.treasurePinned[1] = false
 o.treasurePool[1] = false
 reads = poolReads; H.frames(1)
 check('disabled treasure does not poll', poolReads == reads)
