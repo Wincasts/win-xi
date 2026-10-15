@@ -44,15 +44,24 @@ moving items to those bags. The controls apply to both unified and separate-bag 
 
 ### Currencies
 
-Under the gil, the foot of the window can show two of the game's currencies, chosen under
-**Inventory → Currencies** as **Currency 1** and **Currency 2**: **None**, or any currency the game's
-two Currencies menus list (conquest points, seals and crests, guild points, Sparks of Eminence,
-Cruor, Bayld, Domain Points and so on). They share a row, the first on the left and the second on the
-right, or the second takes a row of its own when both are too long for one. The server tells the
-player how many they have only when asked, so while the inventory window is shown and a currency is
-chosen, the addon asks as the game's own menu does (0x10F for the first menu, 0x115 for the second):
-as the window is shown, every minute while it stays, and a few seconds after arriving in a new area.
-Only the menus a chosen currency is in are asked for. Until the first answer the count is a dash.
+The gil's place at the foot of the window can show gil or any currency, and a second after it with a
+comma between: `12,345 G, 4,500 IS`. Choose them under **Inventory → Currencies** as **Currency 1**
+(gil by default) and **Currency 2** (none by default); either can be **None**. Each is shown with a
+short name (G, CP, GP, IS, AP, Tokens and so on); the list names them in full.
+
+A server does not say which currencies it has, and its answers carry every currency the game knows,
+so the list holds gil, the currencies of the server's era, and any other the server says the player
+has some of. The era is Phoenix's, Treasures of Aht Urhgan (its `modules/init.txt` loads
+`era/sql/wotg`, which takes back Wings of the Goddess' changes): conquest points, Beastmen's and
+Kindred's Seals, Ancient Beastcoins, guild points, Ballista and Fellow Points, Imperial Standing,
+assault points, Nyzul Isle Tokens and Imperial Army ID Tags. Opening the list asks the server what the
+player has, so later currencies the player does have some of come into it.
+
+The server tells the player how many they have only when asked, so while the inventory window is
+shown and a currency is chosen, the addon asks as the game's own Currencies menus do (0x10F for the
+first menu, 0x115 for the second): as the window is shown, every minute while it stays, and a few
+seconds after arriving in a new area. Only the menus a chosen currency is in are asked for; gil needs
+no asking. Until the first answer the count is a dash.
 
 In the unified view (**Unified Bags**, under Inventory → Tabs), a tab with more than one bag has a row of tabs of its
 own along the foot of the window: **all**, for every bag together, then one for each bag the player

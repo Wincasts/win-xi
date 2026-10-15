@@ -199,7 +199,7 @@ local bagTabs = { }
 -- those an item can be moved to, what is in each (as read, and each group's all together) and how
 -- many slots each has
 local bagsById, groupBags, moveableBags = { }, { }, { }
-local inventories = T{ gil = 0, recycleBin = T{ } }
+local inventories = T{ recycleBin = T{ } }
 local capacities = { }
 for _, group in ipairs(tabGroups) do
     groupBags[group], inventories[group], capacities[group] = { }, T{ all = T{ } }, { all = 0 }
@@ -215,17 +215,6 @@ for _, bag in ipairs(bagList) do
     if not bag.noSlots and bag.group ~= 'house' then
         moveableBags[#moveableBags + 1] = bag
     end
-end
-
-local function FormatGil(number)
-    local str = tostring(number)
-    local len = #str
-    local numSeps = math.ceil((len / 3) - 1)
-    local strTbl = str:explode()
-    for i = 1, numSeps do
-        table.insert(strTbl, len - (3 * i) + 1, ',')
-    end
-    return strTbl:join('')
 end
 
 local function EscapeString(str)
@@ -477,7 +466,7 @@ end
 -- How many slots each bag has, which bags can be used, the gil, and the row at the foot of each tab:
 -- cheap, and done whenever any bag is read. Temporary items have no fixed slots worth showing.
 local function UpdateCounts(inv)
-    inventories.gil = FormatGil(inv:GetContainerItem(0, 0).Count)
+    currency.SetGil(inv:GetContainerItem(0, 0).Count)
 
     for _, group in ipairs(tabGroups) do
         capacities[group].all = 0 -- the unified view of a group has the slots of all its bags together
@@ -1486,15 +1475,11 @@ end
 -- What the row says only changes when the bags do, so it is put together then (as they are read)
 -- and only drawn here.
 local countBuffer = { 0, 3 } -- between the slots and the row
-local currencyGap = 12 -- the least room between the two currencies on one row
 local countRows = { bag = { }, satchel = { }, wardrobe = { }, house = { } } -- each: { text, full }
 -- the unified view's all tab: the group's bags as one count, how many used of how many there are
 local allRows = { bag = { }, satchel = { }, wardrobe = { }, house = { } }
-local gilText = '0 G'
 
 BuildCounts = function()
-    gilText = ('%s G'):format(inventories.gil)
-
     for group, inGroup in pairs(groupBags) do
         local shown = 0
         for _, bag in ipairs(inGroup) do
@@ -1537,8 +1522,9 @@ local function DrawCountsRow(group, unified)
     -- a little room between the slots and this row
     imgui.Dummy(countBuffer)
 
-    -- the gil against the left edge, on the same row as the first (or only) count
-    imgui.Text(gilText)
+    -- the gil, or the currencies chosen in its place (one, or two with a comma between), against the
+    -- left edge, on the same row as the first (or only) count
+    imgui.Text(currency.Line(pad.options.currency1, pad.options.currency2))
 
     -- unified: the chosen bag's count, or all of the group's as one; otherwise each bag's, named
     local rows = countRows[group]
@@ -1558,28 +1544,6 @@ local function DrawCountsRow(group, unified)
             imgui.TextColored(red, row.text)
         else
             imgui.Text(row.text)
-        end
-    end
-
-    -- the chosen currencies, on a row under the gil: the first against the left edge, the second
-    -- against the right, or alone against the left; the second on a row of its own, against the right,
-    -- where the two are too long for one
-    local first = currency.Text(pad.options.currency1)
-    local second = currency.Text(pad.options.currency2)
-    if first == nil then
-        first, second = second, nil
-    end
-    if first ~= nil then
-        local left = imgui.GetCursorPosX()
-        imgui.Text(first)
-        if second ~= nil then
-            local width = imgui.CalcTextSize(second)
-            local firstWidth = imgui.CalcTextSize(first)
-            if left + firstWidth + currencyGap + width <= countsRight then
-                imgui.SameLine()
-            end
-            imgui.SetCursorPosX(math.max(left, countsRight - width))
-            imgui.Text(second)
         end
     end
 end
@@ -1936,8 +1900,8 @@ local defaults = T{
     controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
-    currency1 = '', -- the currencies under the gil, by currency.lua's keys: '' for none
-    currency2 = '',
+    currency1 = 'gil', -- what is shown in the gil's place, by currency.lua's keys: '' for none
+    currency2 = '', -- and after it, with a comma between
     treasurePool = T{ true }, -- the treasure pool, beside the window
     treasureShowEmpty = T{ false }, -- sample treasure in an empty pool, to see it
     treasureDetached = T{ false }, -- the treasure pool as a window of its own
