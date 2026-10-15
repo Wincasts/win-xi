@@ -78,9 +78,33 @@ check('hidden inventory and disabled equipment do not prepare the icon atlas', a
 e.enabled[1] = true
 -- the wardrobe's number is a digit too: its marks are inventory_equipment_decorations_check's
 e.wardrobeMarkers[1] = false
+-- attached, by default: under the inventory window (here at 100, 200, 300 by 150), and only with it
+local setPos, placedAt = imgui.SetNextWindowPos, nil
+imgui.SetNextWindowPos = function(pos, cond) placedAt = { pos[1], pos[2], cond }; return setPos(pos, cond) end
+check('attached to the inventory by default', e.detached[1] == false)
+frame()
+check('attached: no monitor, no reads and no atlas while the inventory is hidden', windows == 0 and #slots == 0
+    and atlasFrames == 0)
+o.isVisible[1] = true
+frame(); frame()
+local attachedFlags = flags
+check('attached: under the inventory window, its left edge in line, and held there', windows == 1
+    and placedAt[1] == 100 and placedAt[2] == 200 + 150 + 6 and placedAt[3] == ImGuiCond_Always)
+e.lockMovement[1] = true
+frame()
+check('attached: Lock Drag to Move is the detached window\'s alone', flags == attachedFlags)
+e.lockMovement[1] = false
+local equipment = require('equipment')
+check('what goes under the inventory window goes under the monitor instead', equipment.Bottom() == 200 + 150)
+o.isVisible[1] = false
+frame()
+check('attached: goes with the inventory', windows == 0 and equipment.Bottom() == nil)
+e.detached[1] = true
+e.pos[1], e.pos[2] = 40, 60
 local beforeAtlas = atlasFrames
 frame()
-check('equipment independent of inventory visibility', windows == 1 and #slots == 16)
+check('detached: equipment independent of inventory visibility', windows == 1 and #slots == 16
+    and placedAt[1] == 40 and placedAt[2] == 60 and flags ~= attachedFlags)
 check('icon atlas advanced only once per addon frame', atlasFrames == beforeAtlas + 1)
 check('equipment screen uses reference 4x4 slot order', table.concat(slots, ',') == '0,1,2,3,4,9,11,12,5,6,13,14,15,10,7,8')
 check('equipment resolves inventory and wardrobe indices', #images == 2 and images[1] == 20100 and images[2] == 88)

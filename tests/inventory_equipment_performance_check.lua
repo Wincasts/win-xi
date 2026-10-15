@@ -88,6 +88,7 @@ local function matches(set)
 end
 H.play(true)
 o.isVisible[1], o.fadeInOut[1], o.treasurePool[1], e.enabled[1] = false, false, false, true
+e.detached[1] = true -- a window of its own, there with the inventory hidden
 equipSet(1); frame()
 check('equipment read and icon requests precede bag polling', equipmentBeforeBagScan)
 check('all sixteen icons and ammo correct on first frame', matches(1))
