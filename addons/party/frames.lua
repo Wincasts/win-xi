@@ -250,8 +250,13 @@ local animationCount = 0
 local lastFrame = os.clock() -- when a list was last drawn in a frame of its own
 local displayWidth, displayHeight = nil, nil -- the screen's size, asked for once a frame
 
-local function Animation(member)
-    local key = member.serverId or 0
+-- A line with no id yet (a member the game has not finished telling of) goes by its place in the
+-- list: lines that shared one would be drawn with one another's bars.
+local function Animation(member, index)
+    local key = member.serverId
+    if key == nil or key == 0 then
+        key = -(4000 + index)
+    end
     local state = animations[key]
     if state == nil then
         -- members come and go: start afresh now and then rather than keep every one ever seen
@@ -692,7 +697,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     local anyElsewhere = false
     for index = 1, count do
         local member = members[index]
-        local state = Animation(member)
+        local state = Animation(member, index)
         lineStates[index] = state
         lineY[index] = math.floor(originY + (index - 1) * layout.rowHeight * scale)
 
