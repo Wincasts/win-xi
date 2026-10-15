@@ -38,13 +38,19 @@ function drawList:AddRectFilled(minimum, maximum, ...)
     end
     return rect(self, minimum, maximum, ...)
 end
+-- the grid's own padding, as imgui takes it from the content width (the outlines' room at its sides)
+local childPadding, pushStyle = 0, imgui.PushStyleVar
+imgui.PushStyleVar = function(var, value, ...)
+    if var == ImGuiStyleVar_WindowPadding and type(value) == 'table' then childPadding = value[1] end
+    return pushStyle(var, value, ...)
+end
 imgui.BeginChild = function(id, size, childFlags, windowFlags)
     assert(type(childFlags) == 'number' and type(windowFlags) == 'number',
         'BeginChild requires numeric child and window flags in the current ImGui binding')
     assert(childFlags == ImGuiChildFlags_AutoResizeY, 'grid should collapse to its contents')
     assert(windowFlags == ImGuiWindowFlags_NoBackground,
         'grid should be transparent without forcing a scrollbar')
-    contentWidth = size[1] - scrollbarWidth
+    contentWidth = size[1] - 2 * childPadding - scrollbarWidth
     children[#children + 1] = { id, size[1], bounds[2], bounds[1] }
     return beginChild(id, size, childFlags, windowFlags)
 end
@@ -65,13 +71,14 @@ H.bag(0, 80, { { 1 }, { 2 }, { 3 } })
 o.gridRows[1], o.gridColumns[1] = 5, 6
 frame()
 check('four tabs enabled by default', table.concat(labels, ',') == 'bag,satchel,ward,house')
-check('grid viewport follows rows and columns', #children == 1 and children[1][2] == 232 and children[1][3] == 176)
+-- the slots' 232 by 176, and 6 at each side and 4 above and below for the outlines
+check('grid viewport follows rows and columns', #children == 1 and children[1][2] == 244 and children[1][3] == 184)
 o.maxHeight[1] = 100
 frame()
-check('legacy max height no longer limits the grid', children[1][3] == 176)
+check('legacy max height no longer limits the grid', children[1][3] == 184)
 o.gridRows[1], o.gridColumns[1] = 0, 100
 frame()
-check('out-of-range settings clamped', children[1][2] == 1192 and children[1][3] == 176)
+check('out-of-range settings clamped', children[1][2] == 1204 and children[1][3] == 184)
 o.gridRows[1], o.gridColumns[1] = 0, 0
 frame()
 check('minimum columns and rows enforced in saved settings', o.gridColumns[1] == 6 and o.gridRows[1] == 5)
@@ -80,7 +87,7 @@ for _, unified in ipairs({ true, false }) do
     o.bagTabs.satchel[1], o.bagTabs.wardrobe[1] = false, false
     frame()
     check('hidden groups omitted (' .. tostring(unified) .. ')', table.concat(labels, ',') == 'bag,house')
-    check('same viewport in both bag layouts', #children == 1 and children[1][3] == 176)
+    check('same viewport in both bag layouts', #children == 1 and children[1][3] == 184)
 end
 
 o.controller[1] = true
@@ -126,7 +133,7 @@ check('six-column preview fills final column then wraps', #slotRects == 30
 o.gridRows[1], o.gridColumns[1] = 7, 8
 frame()
 check('increasing dimensions expands preview', hasGrid(312, 248)
-    and children[1][2] == 312 and children[1][3] == 248)
+    and children[1][2] == 324 and children[1][3] == 256)
 check('eight-column preview fills eighth column then wraps', #slotRects == 56
     and slotRects[8][1] == 290 and slotRects[8][2] == 20
     and slotRects[9][1] == 10 and slotRects[9][2] == 56)
@@ -134,11 +141,12 @@ o.gridRows[1], o.gridColumns[1] = 5, 6
 H.ret.GetContentRegionAvail = { 5000, 1000 } -- simulate a previously much wider window
 frame()
 check('decreasing dimensions shrinks preview', hasGrid(232, 176)
-    and children[1][2] == 232 and children[1][3] == 176)
-check('footer does not hold window at previous width', countX == 230)
+    and children[1][2] == 244 and children[1][3] == 184)
+-- the counts end where the slots do, inside the grid's padding
+check('footer does not hold window at previous width', countX == 236)
 scrollbarWidth = 14 -- emulate ImGui subtracting a visible scrollbar from content width
 frame()
-check('scrollbar does not enlarge the window', children[1][2] == 232)
+check('scrollbar does not enlarge the window', children[1][2] == 244)
 check('scrollbar tightens gaps while retaining six full-sized columns', hasGrid(218, 176)
     and math.abs(slotRects[6][1] - 196) < 0.001
     and slotRects[6][2] == 20 and slotRects[7][1] == 10 and slotRects[7][2] == 56)
