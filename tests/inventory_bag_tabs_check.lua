@@ -37,12 +37,12 @@ H.tab(1); frame()
 check('a group of one bag has no tabs under its grid', bars['##inv.bags.sub.bag'] == nil)
 
 H.tab(3); H.tabIn(sub, 1); frame()
-check('wardrobes: all of them together to begin with', bars[sub] and images == 5
-    and wrote('wardrobe 1 03/30') and wrote('wardrobe 2 02/30'))
+check('wardrobes: all of them together to begin with, counted as one', bars[sub] and images == 5
+    and wrote('05/60') and not wrote('wardrobe 1 03/30') and not wrote('wardrobe 2 02/30'))
 H.tabIn(sub, 2); frame()
-check('wardrobe 1 alone, with its count alone', images == 3 and wrote('03/30') and not wrote('wardrobe 2 02/30'))
+check('wardrobe 1 alone, with its count alone', images == 3 and wrote('03/30') and not wrote('05/60'))
 H.tabIn(sub, 3); frame()
-check('wardrobe 2 alone, with its count alone', images == 2 and wrote('02/30') and not wrote('wardrobe 1 03/30'))
+check('wardrobe 2 alone, with its count alone', images == 2 and wrote('02/30') and not wrote('05/60'))
 
 -- sorting with one bag chosen sorts that bag alone
 H.tap(H.Button.X); H.tap(H.Button.A); H.frames(2)
@@ -57,5 +57,6 @@ check('one wardrobe left: no tabs, and all of it shown', bars[sub] == nil and im
 
 H.bag(10, 30, { { 20011 }, { 20012 } }); H.packet(0x01C); H.frames(10)
 o.isUnified[1] = false; frame()
-check('the separate view has no tabs under the grid', bars[sub] == nil and images == 5)
+check('the separate view has no tabs under the grid, and counts each bag by name', bars[sub] == nil and images == 5
+    and wrote('wardrobe 1 03/30') and wrote('wardrobe 2 02/30'))
 H.unload()

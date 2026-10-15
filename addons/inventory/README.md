@@ -32,6 +32,7 @@ In the unified view (**Draw Unified Bags**), a tab with more than one bag has a 
 own along the foot of the window: **all**, for every bag together, then one for each bag the player
 has (satchel, case and sack; the wardrobes by number; safe 1, safe 2, storage and locker). Choosing a
 bag shows its items alone, with its own count in the row above; Auto sort then sorts that bag alone.
+On **all** the row has one count, of every bag together (35/35, say); each bag's own is on its tab.
 A tab with one bag, such as the inventory's, has no row. These tabs are worked with the mouse.
 
 With the mouse, right-click an item for what can be done with it. With a controller (Controller
