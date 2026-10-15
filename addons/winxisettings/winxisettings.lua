@@ -2,7 +2,7 @@ addon.name    = 'winxisettings'
 addon.author  = 'win'
 addon.version = '1.0'
 addon.desc    = 'The look shared by every winxi addon, in one settings window of its own.'
-addon.link    = 'https://github.com/Wincasts/ffxi-addons'
+addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- winxi's appearance options and nothing else, in a window drawn with winxi itself. Four tabs:
 --   Game Windows       the windows on the game screen: their colours, padding, drop shadow, font, and

@@ -2,7 +2,7 @@ addon.name    = 'buff';
 addon.author  = 'win';
 addon.version = '1.0';
 addon.desc    = 'The statuses you are under, with FFXIV\'s icons and the time each has left.';
-addon.link    = 'https://github.com/Wincasts/ffxi-addons';
+addon.link    = 'https://github.com/Wincasts/win-xi';
 
 -- The player's own statuses in a window, in place of the game's row of icons: each with an icon
 -- of winxi's (FFXIV's: see winxi.statusicons) or the game's own where winxi has none, and the time it has left under it. After the statustimers addon (heals), which showed

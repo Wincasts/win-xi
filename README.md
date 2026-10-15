@@ -1,4 +1,4 @@
-# ffxi-addons
+# win-xi
 
 Ashita v4 addons for Final Fantasy XI, made for and tested on the Phoenix server. Most of them draw
 with `winxi`, a shared library that gives every addon the same look, set once in one settings window.

@@ -2,7 +2,7 @@ addon.name    = 'trigger'
 addon.author  = 'win'
 addon.version = '1.0'
 addon.desc    = 'Plays a sound when something happens: a tell, an invite, a trade, being examined, an item you are after dropping, low HP and the like.'
-addon.link    = 'https://github.com/Wincasts/ffxi-addons'
+addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- A sound for each of a few things worth hearing about. Each event has its own switch and its own
 -- sound, any wav in the addon's sounds folder. It needs only winxi.

@@ -2,7 +2,7 @@ addon.name    = 'inventory'
 addon.author  = 'lin, win'
 addon.version = '1.0'
 addon.desc    = 'The bags in a window: what is in them, and what can be done with it, by mouse or controller.'
-addon.link    = 'https://github.com/Wincasts/ffxi-addons'
+addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The inventory window that was a tool of xitools, as an addon of its own. It needs only winxi: the
 -- look of its windows, the controller, the sounds, the packets and what is asked of the game are
