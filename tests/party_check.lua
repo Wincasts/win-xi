@@ -312,7 +312,7 @@ do
     assert(depth == 0, 'a font left pushed')
     -- a path is never taken in
     local completed = options.Complete({ version = 3, style = { nameFont = 'C:\\evil\\x.ttf', valueFont = 'good.ttf' } })
-    assert(completed.style.nameFont == '' and completed.style.valueFont == 'good.ttf')
+    assert(completed.style.nameFont == 'trebucbi.ttf' and completed.style.valueFont == 'good.ttf')
     imgui.PushFont, imgui.PopFont, imgui.AddFontFromFileTTF = push, pop, add
     H.print('name and value fonts: each its own, the theme\'s where unset, no paths', true)
 end
