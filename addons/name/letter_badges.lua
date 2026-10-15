@@ -3,6 +3,7 @@
 local ffi = require('ffi');
 local image = require('gdi.image');
 local atlas = require('gdi.atlas');
+local diag = require('diag');
 local badges = { Slot = 5, Font = 'arialbd.ttf', Scale = 0.78, Pair = 1.5 }; -- Pair: a double letter's box, in sides
 local cached, pendingKey, failedKey, nextRetry, warned = nil, nil, nil, 0, false;
 local identity;
@@ -159,6 +160,7 @@ function badges.Prepare(texture, definitions, fontKey, immutable)
         failedKey, nextRetry = key, os.clock() + 1;
         if not warned then
             print('[name] Letter badges unavailable; using plain letters: ' .. tostring(result));
+            diag.Note('Letter badges not built: %s', tostring(result));
             warned = true;
         end
         return nil;

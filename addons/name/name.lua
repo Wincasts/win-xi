@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.30';
+addon.version = '1.31';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 require('common');
@@ -13,6 +13,7 @@ local nameplates = require('winxi.nameplates');
 local custom     = require('custom');
 local statuses   = require('statuses');
 local controls   = require('controls');
+local diag       = require('diag');
 
 local Category = nameplates.Category;
 
@@ -70,6 +71,7 @@ local function Push(options)
     nameplates.SetAllHidden(hidden);
     nameplates.SetAlwaysTarget(options.alwaysTarget[1]);
     seenHidden, seenOptions = nil, nil;
+    diag.Note('Settings given to the plugin: hidden 0x%02X, always target %s', hidden, tostring(options.alwaysTarget[1]));
 end
 
 -- Returns whether anything was different
@@ -92,6 +94,9 @@ local function Pull(options, hook)
     if (options.alwaysTarget[1] ~= alwaysTarget) then
         options.alwaysTarget[1] = alwaysTarget;
         changed = true;
+    end
+    if (changed) then
+        diag.Note('Settings taken from the plugin: hidden 0x%02X, options 0x%X', seenHidden, seenOptions);
     end
     return changed;
 end
@@ -138,22 +143,36 @@ local function DrawSettings(options)
         app:Save();
     end
 
-    -- what the plugin has to say of the frame just drawn
-    if (nameplates.Hook() ~= nil) then
-        local shown, hidden = 0, 0;
-        for _, name in nameplates.Each() do
-            if (nameplates.Has(name, nameplates.Flag.Wanted)) then
-                shown = shown + 1;
-            else
-                hidden = hidden + 1;
+    -- what the plugin has to say of the frame just drawn, and what name has been doing
+    controls.EndSection();
+    if (controls.Section('Status', '##name.filter.status')) then
+        if (nameplates.Hook() ~= nil) then
+            local shown, hidden = 0, 0;
+            for _, name in nameplates.Each() do
+                if (nameplates.Has(name, nameplates.Flag.Wanted)) then
+                    shown = shown + 1;
+                else
+                    hidden = hidden + 1;
+                end
             end
-        end
-
-        controls.EndSection();
-        if (controls.Section('Status', '##name.filter.status')) then
             widgets.Label('Names In View');
             imgui.Text(('%d shown, %d hidden'):format(shown, hidden));
             controls.Mark('The names the game had to draw last frame: near enough, and on screen.');
+        end
+
+        widgets.Label('Custom Names');
+        imgui.Text(diag.Status());
+        controls.Mark('Whether Name is drawing the names. When it stops for more than half a second the game draws its own, the reason is said in the chat log once, and a log is written.');
+
+        widgets.Label('Diagnostic Log');
+        if (imgui.Button('Write Log##name.diag.write')) then
+            local path, problem = diag.Write('written from the settings');
+            app:Say(path and ('Log written to ' .. path) or ('The log could not be written: ' .. tostring(problem)));
+        end
+        controls.Mark('Writes what Name and the namehook plugin are doing now, and what happened lately, to a small text file in config\\addons\\name\\logs. Send it with a report of a problem.');
+        if (diag.LastPath() ~= nil) then
+            widgets.Label('Last Log');
+            imgui.Text(diag.LastPath():match('[^\\]+$'));
         end
     end
     controls.EndSection();
@@ -179,8 +198,20 @@ app = shell.New({
     },
 
     -- another character's settings are given to the plugin afresh
-    onSettings   = function (options) connected = false; custom.Settle(options); end,
+    onSettings   = function (options)
+        connected = false;
+        custom.Settle(options);
+        diag.Options = options;
+        diag.Note('Settings loaded');
+    end,
 });
+diag.Options = app.options;
+
+-- A Lua error in drawing the names is kept for the log, then raised as before
+local function failed(message)
+    diag.Error(message, debug.traceback(tostring(message), 2));
+    return message;
+end
 
 ashita.events.register('load', 'load_cb', function ()
     custom.Find();
@@ -199,18 +230,28 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     local options = app.options;
 
     -- the one ask of the plugin this frame: what it gives is handed on
-    local hook = nameplates.Hook();
+    local hook, why = nameplates.Hook();
     if (hook == nil) then
+        if (connected) then
+            diag.Note('Plugin lost: %s', tostring(why));
+        end
         connected = false;
+        diag.Frame(why or 'unloaded');
         return;
     end
 
     if (not connected) then
         connected = true;
+        diag.Note('Plugin found');
         Push(options);
     elseif (Pull(options, hook)) then
         app:Save();
     end
 
-    custom.Frame(options, hook, preferredDefaults);
+    local ok, result = xpcall(custom.Frame, failed, options, hook, preferredDefaults);
+    if (not ok) then
+        diag.Frame('error');
+        error(result, 0);
+    end
+    diag.Frame(result);
 end);

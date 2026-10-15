@@ -50,8 +50,9 @@ headers, tabs = {}, {}
 H.tab(2); H.command('/name'); H.frames(1)
 headers, boxes, marks = {}, {}, {}
 H.frames(1); H.command('/name')
-H.print('Filters retained', table.concat(headers, '|') == 'Players|Pets|NPCs And Monsters|Target')
-local filterAligned = #boxes == 4 and #marks == 9
+-- Status is there without the plugin too: the custom names' state and the diagnostic log
+H.print('Filters retained', table.concat(headers, '|') == 'Players|Pets|NPCs And Monsters|Target|Status')
+local filterAligned = #boxes == 5 and #marks == 11
 for _, position in ipairs(marks) do filterAligned = filterAligned and position == marks[1] end
 H.print('Filters use groups and one help column', filterAligned)
 contentRight = 320
