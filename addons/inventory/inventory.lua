@@ -1584,8 +1584,35 @@ end
 
 -- The end of a tab: the tooltip of the item under the mouse, the menu if it is open, the row of
 -- counts, and in the unified view the tabs of the group's bags, at the foot
+-- The grid's scroll bar, slim, in its right margin, where it takes no room from the slots: how far
+-- down the grid is scrolled, and how much of it is in view. Drawn only while it scrolls. It is
+-- measured in the grid and drawn in the window around it, which does not clip the grid's margin.
+local scrollWidth = 2
+local scrollWhite = { 1, 1, 1, 0.35 }
+local scrollMin, scrollMax = { 0, 0 }, { 0, 0 }
+
+-- in the grid, before it ends: whether it scrolls, and where the bar goes
+local function MeasureScrollBar()
+    local most = imgui.GetScrollMaxY ~= nil and imgui.GetScrollMaxY() or 0
+    if most <= 0 then
+        return false
+    end
+    local scrolled = imgui.GetScrollY() or 0
+    local x, y = imgui.GetWindowPos()
+    local width, height = imgui.GetWindowSize()
+    local length = math.max(8, height * height / (height + most))
+    local right = x + width
+    scrollMin[1], scrollMin[2] = right - scrollWidth, y + (height - length) * scrolled / most
+    scrollMax[1], scrollMax[2] = right, scrollMin[2] + length
+    return true
+end
+
 local function FinishTab(group, unified)
+    local scrolls = MeasureScrollBar()
     imgui.EndChild()
+    if scrolls then
+        imgui.GetWindowDrawList():AddRectFilled(scrollMin, scrollMax, imgui.GetColorU32(scrollWhite), 1)
+    end
     if hoveredItem ~= nil and not itemMenu.open and not drag.moving then
         AddTooltip(hoveredItem)
     end
@@ -1595,6 +1622,12 @@ local function FinishTab(group, unified)
         DrawBagTabs(group)
     end
 end
+
+local gridIds = { }
+for index = 1, #tabGroups do
+    gridIds[index] = '##inv.grid.' .. index
+end
+local gridFlags = bit.bor(ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar)
 
 -- Begins one of the four tabs. With the controller it is also where a change of tab is asked for and
 -- where the tab that is showing is noted.
@@ -1632,24 +1665,19 @@ local function BeginTab(index, label)
         viewportMin[2] = previewGrid and viewportMax[2] or 1
         imgui.SetNextWindowSizeConstraints(viewportMin, viewportMax)
         -- The parent already supplies Winxi padding; the child's own is only the room for the
-        -- outlines (gridPadding). Its outer width is fixed; its available content width excludes
-        -- the scrollbar when one is needed.
+        -- outlines (gridPadding). It has no scrollbar of its own, which would take room from the
+        -- slots' right and look like padding there (the theme's track is clear): the wheel still
+        -- scrolls it, and FinishTab draws a slim bar in the right margin in its place.
         imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, gridPadding)
-        local shown = imgui.BeginChild('##inv.grid.' .. index, viewportSize,
+        local shown = imgui.BeginChild(gridIds[index], viewportSize,
             ImGuiChildFlags_AutoResizeY,
-            ImGuiWindowFlags_NoBackground)
+            gridFlags)
         imgui.PopStyleVar()
         if not shown then
             imgui.EndChild()
             imgui.EndTabItem()
             return false
         end
-        local availableWidth = imgui.GetContentRegionAvail()
-        local normalWidth = rowLengthIsh * (iconSize + itemGap[1]) - itemGap[1]
-        local fittedWidth = math.max(rowLengthIsh * iconSize, math.min(normalWidth, availableWidth))
-        -- Fit the same number of full-sized icons by reducing only their horizontal gaps.
-        -- Use this pitch consistently for drawing, mouse hit testing and controller positions.
-        stepX = (fittedWidth - iconSize) / (rowLengthIsh - 1)
     end
     return showing
 end

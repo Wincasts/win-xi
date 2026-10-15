@@ -27,10 +27,10 @@ Under **Bags** in the settings, **Rows** and **Columns** set the inventory grid'
 (5–30 rows and 6–30 columns). While settings are open, empty placeholders preview the full selected grid; changes to
 rows and columns update that preview immediately. With settings closed, the grid collapses to fit the
 bag content (including empty bag slots when Show Empty Slots is enabled), up to the selected row
-limit. Increasing or decreasing either dimension resizes the window to fit. Extra items scroll only
-when they exceed the chosen row limit; otherwise no scrollbar is shown. A scrollbar fits inside the
-same window width by slightly tightening horizontal slot spacing; icon size and column count stay
-unchanged, and normal spacing returns when scrolling is no longer needed. Tabs and slot counts remain visible. Every slot, full or
+limit. Increasing or decreasing either dimension resizes the window to fit. Extra items scroll, with
+the mouse wheel, only when they exceed the chosen row limit. A slim bar in the grid's right margin
+shows how far down it is scrolled; it takes no room from the slots, so the spacing and the window's
+width stay the same whether the grid scrolls or not. Tabs and slot counts remain visible. Every slot, full or
 empty, sits on a faint square of its own, under the item's icon; around them the grid has no separate
 background, so the base Winxi window shows through. These controls replace Max Height. **Show Bag/Satchel/Wardrobe/House Tab** toggles each group on or off;
 controller tab navigation skips hidden groups. Hiding a tab does not change its items or prevent
