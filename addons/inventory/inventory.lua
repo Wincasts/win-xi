@@ -443,16 +443,56 @@ local function ReadBag(inv, bagId)
     end
 end
 
--- Sorts a group's bags, each and all together, in the usual order or the player's own
-local function Regroup(group)
+-- Sorted lists merged into one, two at a time: equal items keep the order their lists come in
+local function Merged(lists, sorter)
+    while #lists > 1 do
+        local merged = { }
+        for i = 1, #lists, 2 do
+            local a, b = lists[i], lists[i + 1]
+            if b == nil then
+                merged[#merged + 1] = a
+            else
+                local out, x, y, na, nb = { }, 1, 1, #a, #b
+                while x <= na and y <= nb do
+                    if sorter(b[y], a[x]) then
+                        out[#out + 1] = b[y]; y = y + 1
+                    else
+                        out[#out + 1] = a[x]; x = x + 1
+                    end
+                end
+                for k = x, na do out[#out + 1] = a[k] end
+                for k = y, nb do out[#out + 1] = b[k] end
+                merged[#merged + 1] = out
+            end
+        end
+        lists = merged
+    end
+    return lists[1]
+end
+
+-- Sorts a group's bags, each and all together, in the usual order or the player's own. changed, if
+-- given, names the bags that were read again (by id): only those are sorted, the others being in
+-- order still. All of them together are the bags merged, two at a time, which takes far fewer
+-- comparisons than sorting them together again (the eight wardrobes, or the house's bags, are
+-- hundreds of items).
+local function Regroup(group, changed)
     local sorter = sorters[group]
-    local all = T{ }
+    local lists = { }
     for _, bag in ipairs(groupBags[group]) do
         local list = inventories[group][bag.key]
-        list:sort(sorter)
-        all:extend(list)
+        if changed == nil or changed[bag.id] then
+            list:sort(sorter)
+        end
+        if #list > 0 then
+            lists[#lists + 1] = list
+        end
     end
-    inventories[group].all = all:sort(sorter)
+    if #lists > 1 then
+        lists = { Merged(lists, sorter) } -- a new list of its own
+    elseif #lists == 1 then
+        lists[1] = { unpack(lists[1]) } -- one bag's own list is copied, not shared
+    end
+    inventories[group].all = T(lists[1] or { })
 end
 
 -- How many slots a bag has: none for one the player cannot use (wardrobes 3 to 8 must be unlocked)
@@ -514,11 +554,12 @@ local function RefreshInventories(now)
         return false
     end
 
-    local changed = { }
+    local changed, read = { }, { }
     for id = 0, bags.recycleBin do
         if stale[id] then
             stale[id] = nil
             ReadBag(inv, id)
+            read[id] = true
             local bag = bagsById[id]
             if bag then
                 changed[bag.group] = true
@@ -528,7 +569,7 @@ local function RefreshInventories(now)
     staleAt = nil
 
     for group in pairs(changed) do
-        Regroup(group)
+        Regroup(group, read)
     end
     UpdateCounts(inv)
     return true
