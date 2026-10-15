@@ -18,8 +18,8 @@
 -- corners, and fade with the window.
 --
 -- With any style but 'plain', the line imgui draws under a bar's tabs is drawn here in its place: in
--- the Highlight Color, two pixels deep, solid under the middle of the bar and fading out toward both
--- ends, brighter under the chosen tab with a fine light edge along its top, and a soft shade below it.
+-- the Highlight Color, two pixels deep and solid across the bar, brighter under the chosen tab with a
+-- fine light edge along its top, and a soft shade below it.
 local ffi = require('ffi');
 local d3d = require('d3d8');
 local imgui = require('imgui');
@@ -160,9 +160,8 @@ end
 
 -- The line under a bar's tabs: where the bar runs across, set by BeginBar and drawn with its first tab
 local pendingLeft, pendingRight = nil, nil;
-local lineColor, clearColor = { 0, 0, 0, 0 }, { 0, 0, 0, 0 };
+local lineColor = { 0, 0, 0, 0 };
 local edgeLight, shadeDark, shadeClear = { 1, 1, 1, 0.30 }, { 0, 0, 0, 0.30 }, { 0, 0, 0, 0 };
-local lineFade = 0.25;    -- how much of the bar, at each end, the line takes to fade out
 local lineStrength = 1.6; -- how much more solid than the Highlight Color the line is, and the chosen tab's part
 local chosenStrength = 2.4;
 
@@ -173,32 +172,17 @@ local function LineColor(into, strength)
     return into;
 end
 
-local function Fill(list, left, top, right, bottom, leftColor, rightColor, topToBottom)
-    from[1], from[2], to[1], to[2] = left, top, right, bottom;
-    if topToBottom then
-        -- leftColor at the top, rightColor at the foot
-        list:AddRectFilledMultiColor(from, to, leftColor, leftColor, rightColor, rightColor);
-    else
-        list:AddRectFilledMultiColor(from, to, leftColor, rightColor, rightColor, leftColor);
-    end
-end
-
 local function DrawLine(list, left, right, y)
-    local width = right - left;
-    if width < 4 then
+    if right - left < 1 then
         return;
     end
     -- GetColorU32 takes in the window's Alpha, and so a fading window's fade
-    local solid = imgui.GetColorU32(LineColor(lineColor, lineStrength));
-    clearColor[1], clearColor[2], clearColor[3], clearColor[4] = lineColor[1], lineColor[2], lineColor[3], 0;
-    local clear = imgui.GetColorU32(clearColor);
-    local fade = width * lineFade;
-    Fill(list, left, y - 1, left + fade, y + 1, clear, solid);
-    Fill(list, left + fade, y - 1, right - fade, y + 1, solid, solid);
-    Fill(list, right - fade, y - 1, right, y + 1, solid, clear);
-    -- the shade under it, fading as the line does
+    from[1], from[2], to[1], to[2] = left, y - 1, right, y + 1;
+    list:AddRectFilled(from, to, imgui.GetColorU32(LineColor(lineColor, lineStrength)));
+    -- the shade under it, dark at the top and clear at its foot
     local dark, none = imgui.GetColorU32(shadeDark), imgui.GetColorU32(shadeClear);
-    Fill(list, left + fade, y + 1, right - fade, y + 3, dark, none, true);
+    from[2], to[2] = y + 1, y + 3;
+    list:AddRectFilledMultiColor(from, to, dark, dark, none, none);
 end
 
 -- Under the chosen tab: the line brighter, with a fine light edge along its top
