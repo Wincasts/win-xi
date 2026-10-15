@@ -109,8 +109,10 @@ assert(next(counts) == nil, 'plain: imgui\'s line')
 look.TabStyle = 'sheen'; Reset(); lines = {}
 assert(tabs.BeginBar('bar', 0) == true and #pushes == 1 and pushes[1][1] == ImGuiStyleVar_TabBarBorderSize and pushes[1][2] == 0)
 tabs.Draw(false)
-assert(counts.AddRectFilledMultiColor == 4, 'the line in three and the shade under it')
-assert(lines[1][1] == 10 and lines[3][3] == 310 and lines[1][2] == 39 and lines[1][4] == 41, 'across the bar, under the tabs')
+assert(counts.AddRectFilledMultiColor == 1, 'the shade under the line')
+local line = rects[#rects]
+assert(line[1] == 10 and line[3] == 310 and line[2] == 39 and line[4] == 41, 'solid across the bar, under the tabs')
+assert(lines[1][1] == 10 and lines[1][3] == 310 and lines[1][2] == 41, 'the shade across the bar, below the line')
 Reset(); lines = {}
 tabs.Draw(true)
 assert(counts.AddRectFilledMultiColor == nil, 'drawn once a bar')
