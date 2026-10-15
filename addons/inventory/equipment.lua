@@ -18,7 +18,7 @@ local slots = {
 }
 local encumbered = 0
 local positionSettings = nil
-local resources = {}
+local itemInfo = function() return nil end -- inventory's item cache, handed over by SetItemInfo
 local minimum, maximum, uvMinimum, uvMaximum = {}, {}, {}, {}
 local gridSize = { 0, 0 }
 local white, blocked = { 1, 1, 1, 1 }, { 1, 0.2, 0.2, 0.8 }
@@ -79,14 +79,13 @@ end
 function equipment.Reset()
     encumbered = 0
     positionSettings = nil
-    resources = {}
     labelMetrics, badgeMetrics, ammoMetrics = {}, {}, {}
     for _, slot in ipairs(slots) do slot.ammoCount, slot.ammoText = nil, nil end
 end
 
 ashita.events.register('packet_in', 'inv_equipment_packet', function(e)
     if e.id == 0x00A or e.id == 0x00B then
-        -- A new area clears only the encumbrance; item resources and text sizes stay good.
+        -- A new area clears only the encumbrance; item info and text sizes stay good.
         encumbered = 0
     elseif e.id == 0x001B then
         -- Jobs Update: a little-endian 32-bit equipment-slot mask at offset 0x60.
@@ -98,20 +97,9 @@ ashita.events.register('packet_in', 'inv_equipment_packet', function(e)
     end
 end)
 
-local function Resource(id)
-    local info = resources[id]
-    if info == nil then
-        info = AshitaCore:GetResourceManager():GetItemById(id)
-        if info ~= nil then
-            -- Keep only stable values, not a pointer into a resource structure.
-            local flags = info.Flags or 0
-            local quality = 1 + (bit.band(flags, 0x8000) ~= 0 and 1 or 0)
-                + (bit.band(flags, 0x4000) ~= 0 and 2 or 0)
-            info = { name = info.Name[1], stack = info.StackSize, quality = quality }
-            resources[id] = info
-        end
-    end
-    return info
+-- What is known of an item (inventory's Info: shortName, stackMax, quality), false or nil if unknown
+function equipment.SetItemInfo(lookup)
+    itemInfo = lookup
 end
 
 local function Equipped(inv, slot)
@@ -177,7 +165,7 @@ local function DrawContent()
     end
     -- All atlas icons together: borders/badges/text no longer split the icon draw batch.
     for i, slot in ipairs(slots) do
-        slot.info = slot.id and Resource(slot.id) or nil
+        slot.info = slot.id and itemInfo(slot.id) or nil
         if slot.id ~= nil and sheet ~= nil then
             local uv = itemicons.Place(slot.id)
             if uv ~= nil then
@@ -212,7 +200,7 @@ local function DrawContent()
             uvMinimum[1], uvMinimum[2], uvMaximum[1], uvMaximum[2] = left + size, top, left, top + size
             draw:AddLine(uvMinimum, uvMaximum, cross, 2)
         end
-        if slot[1] == 3 and o.showAmmoCount[1] and info ~= nil and info.stack > 1 then
+        if slot[1] == 3 and o.showAmmoCount[1] and info ~= nil and info.stackMax > 1 then
             if slot.ammoCount ~= slot.count then
                 slot.ammoCount, slot.ammoText = slot.count, tostring(slot.count)
             end
@@ -221,7 +209,7 @@ local function DrawContent()
             draw:AddText(uvMinimum, tint, slot.ammoText)
         end
         if hovered and mx ~= nil and my ~= nil and mx >= left and mx < left + size and my >= top and my < top + size then
-            local text = slot[2] .. ': ' .. (info and info.name or 'Empty')
+            local text = slot[2] .. ': ' .. (info and info.shortName or 'Empty')
             if slot.id ~= nil then
                 text = text .. '\nStored in: ' .. (wardrobe and ('Wardrobe ' .. wardrobe) or 'Inventory')
             end

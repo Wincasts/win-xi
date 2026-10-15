@@ -353,16 +353,16 @@ local sorters = {
 -- What is known of an item whatever bag it is in and however many there are: read from the game's
 -- resources the first time the item is met, and kept. Each item in the bags looks here for anything it
 -- does not have itself (it has this as its metatable), so reading a bag again makes only small tables.
--- false for an item the game does not know.
+-- false for an item the game does not know. The equipment window looks here too.
 local infos = { }
 
-local function Info(res, id)
+local function Info(id)
     local info = infos[id]
     if info ~= nil then
         return info
     end
 
-    local itemRes = res:GetItemById(id)
+    local itemRes = AshitaCore:GetResourceManager():GetItemById(id)
     if itemRes == nil then
         infos[id] = false
         return false
@@ -387,6 +387,9 @@ local function Info(res, id)
         longNameP = itemRes.LogNamePlural[1],
         desc = EscapeString(itemRes.Description[1]),
         stackMax = itemRes.StackSize,
+        -- for the equipment window's borders: 1 normal, 2 Rare, 3 Exclusive, 4 both
+        quality = 1 + (bit.band(itemRes.Flags, 0x8000) ~= 0 and 1 or 0)
+            + (bit.band(itemRes.Flags, 0x4000) ~= 0 and 2 or 0),
     }
 
     if info.type == itemTypes.armor
@@ -408,6 +411,7 @@ local function Info(res, id)
     infos[id] = info
     return info
 end
+equipment.SetItemInfo(Info)
 
 -- Where each bag is shown: its group (the tab) and its name within it. The recycle bin is not shown as
 -- a bag: the controller's sort menu lists it.
@@ -441,7 +445,7 @@ local groupBags = {
 
 -- Reads one bag from the game's memory. The items that were in it are marked as gone, for a menu still
 -- open on one of them.
-local function ReadBag(inv, res, bagId)
+local function ReadBag(inv, bagId)
     local place = bagPlaces[bagId]
     local old = place and inventories[place[1]][place[2]] or inventories.recycleBin
     for _, item in ipairs(old) do
@@ -452,7 +456,7 @@ local function ReadBag(inv, res, bagId)
     for i = 0, inv:GetContainerCountMax(bagId) do
         local invItem = inv:GetContainerItem(bagId, i)
         local id = invItem ~= nil and invItem.Id or 0
-        local info = id ~= 0 and id ~= 65535 and Info(res, id)
+        local info = id ~= 0 and id ~= 65535 and Info(id)
         if info then
             local item = setmetatable({
                 bagId = bagId,
@@ -566,12 +570,11 @@ local function RefreshInventories(now)
         return false
     end
 
-    local res = AshitaCore:GetResourceManager()
     local changed = { }
     for id = 0, bags.recycleBin do
         if stale[id] then
             stale[id] = nil
-            ReadBag(inv, res, id)
+            ReadBag(inv, id)
             local place = bagPlaces[id]
             if place then
                 changed[place[1]] = true
