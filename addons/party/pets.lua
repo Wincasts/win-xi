@@ -15,6 +15,7 @@
 require('common')
 
 local pets = { }
+local perf = require('perf')
 
 local jobPup = 18
 local partySize = 6
@@ -24,6 +25,11 @@ local partySize = 6
 local automaton = { hp = nil, maxHp = 0, mp = nil, maxMp = 0 }
 
 function pets.HandlePacket(e)
+    -- A different zone/character must not inherit the previous automaton's exact values.
+    if e.id == 0x00A or e.id == 0x00B then
+        pets.Forget(true)
+        return
+    end
     -- Extended job info for puppetmaster: the automaton's current and maximum HP and MP
     if e.id == 0x044 and struct.unpack('B', e.data, 0x04 + 1) == jobPup then
         automaton.hp = struct.unpack('H', e.data, 0x68 + 1)
@@ -66,12 +72,12 @@ local function GetPetEntity(ownerIndex)
         return nil
     end
 
-    local owner = GetEntity(ownerIndex)
+    local owner = perf.Entity(ownerIndex)
     if owner == nil or owner.PetTargetIndex == nil or owner.PetTargetIndex == 0 then
         return nil
     end
 
-    local pet = GetEntity(owner.PetTargetIndex)
+    local pet = perf.Entity(owner.PetTargetIndex)
     if pet == nil or pet.Name == nil then
         return nil
     end
@@ -175,9 +181,18 @@ end
 local refreshInterval = 0.1
 local cache = { time = -1, sample = false, lines = { }, kept = { } }
 
+function pets.Forget(resetAutomaton)
+    cache.time = -1
+    if resetAutomaton then
+        automaton.hp, automaton.mp, automaton.maxHp, automaton.maxMp = nil, nil, 0, 0
+    end
+end
+
 function pets.Lines(sample, settings)
     local now = os.clock()
-    if cache.sample == sample and now - cache.time < refreshInterval then
+    if cache.sample == sample and cache.showParty == settings.showParty[1]
+    and cache.exactAutomaton == settings.exactAutomaton[1] and cache.nameFormat == settings.nameFormat
+    and now - cache.time < refreshInterval then
         return cache.lines
     end
 
@@ -191,7 +206,16 @@ function pets.Lines(sample, settings)
         end
         -- what is kept for a line between frames goes by its id: a pet's is its place in the list,
         -- not its name, which two pets may share
-        line.name, line.serverId = info.name, -(1000 + index)
+        if line.petName ~= info.name or line.owner ~= info.owner or line.nameFormat ~= settings.nameFormat then
+            line.petName, line.owner, line.nameFormat = info.name, info.owner, settings.nameFormat
+            line.name = info.name
+            if info.owner and settings.nameFormat == 'ownerPet' then
+                line.name = info.owner .. ': ' .. info.name
+            elseif info.owner and settings.nameFormat == 'petOwner' then
+                line.name = info.name .. ' (' .. info.owner .. ')'
+            end
+        end
+        line.serverId = -(1000 + index)
         line.hp, line.mp, line.mpp, line.tp = info.hp, info.mp, info.mpp, info.tp
 
         -- HP as a percentage unless the figure itself is known, and MP the same
@@ -216,6 +240,8 @@ function pets.Lines(sample, settings)
     end
 
     cache.time, cache.sample = now, sample
+    cache.showParty, cache.exactAutomaton = settings.showParty[1], settings.exactAutomaton[1]
+    cache.nameFormat = settings.nameFormat
     return lines
 end
 

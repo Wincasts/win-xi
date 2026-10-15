@@ -16,7 +16,6 @@ run inventory  addons/inventory/inventory.lua inventory_equipment_check.lua
 run inventory  addons/inventory/inventory.lua inventory_equipment_decorations_check.lua
 run inventory  addons/inventory/inventory.lua inventory_equipment_performance_check.lua
 run inventory  addons/inventory/inventory.lua inventory_performance_check.lua
-run treas      addons/treas/treas.lua   treas_check.lua
 run mark       addons/mark/mark.lua     mark_check.lua
 run mark       addons/mark/mark.lua     mark_performance_check.lua
 run mark       addons/mark/mark.lua     mark_persistence_check.lua
@@ -33,6 +32,11 @@ run controller tests/empty.lua          controller_check.lua
 run debuffs    tests/empty.lua          debuffs_check.lua
 run statusicons tests/empty.lua         winxi_statusicons_mixed_check.lua
 run party      addons/party/party.lua party_check.lua
+run party      addons/party/party.lua party_lifecycle_check.lua
+run party      addons/party/party.lua party_performance_check.lua
+run party      addons/party/party.lua party_optimization_check.lua
+run party      addons/party/party.lua party_customization_check.lua
+run party      addons/party/party.lua party_tracking_check.lua
 run party      addons/party/party.lua party_borders_check.lua
 run party      addons/party/party.lua party_resolution_check.lua
 run party      addons/party/party.lua party_rearrange_check.lua

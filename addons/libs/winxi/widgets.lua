@@ -291,7 +291,8 @@ widgets.HeaderColor = { 1.0, 0.75, 0.55, 1.0 };
 local collapsed = {};   -- group -> { title -> true while that section is collapsed }
 local headerTexts = {}; -- title -> { as shown open, as shown collapsed }, made once
 
-function widgets.Header(text, first)
+-- defaultCollapsed is optional; it affects only the first visit to this section.
+function widgets.Header(text, first, defaultCollapsed)
     if not first then
         imgui.NewLine();
     end
@@ -306,6 +307,7 @@ function widgets.Header(text, first)
         collapsed[labelGroup] = group;
     end
 
+    if group[text] == nil and defaultCollapsed then group[text] = true; end
     local isCollapsed = group[text] == true;
     imgui.TextColored(theme.Get().SettingsHeaderColor or widgets.HeaderColor, isCollapsed and shown[2] or shown[1]);
     if imgui.IsItemHovered() and ImGuiMouseCursor_Hand ~= nil then
@@ -313,7 +315,7 @@ function widgets.Header(text, first)
     end
     if imgui.IsItemClicked() then
         isCollapsed = not isCollapsed;
-        group[text] = isCollapsed or nil;
+        group[text] = isCollapsed;
     end
     return not isCollapsed;
 end

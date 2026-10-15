@@ -14,6 +14,7 @@ local ffi = require('ffi')
 local d3d8 = require('d3d8')
 local imgui = require('imgui')
 local outlinedText = require('winxi.text')
+local perf = require('perf')
 
 local draw = { }
 
@@ -63,6 +64,7 @@ end
 function draw.Image(texture, x1, y1, x2, y2, packed, u1, v1, u2, v2)
     pointA[1], pointA[2], pointB[1], pointB[2] = x1, y1, x2, y2
     uvA[1], uvA[2], uvB[1], uvB[2] = u1 or 0, v1 or 0, u2 or 1, v2 or 1
+    perf.Count('image submissions')
     list:AddImage(texture, pointA, pointB, uvA, uvB, packed)
 end
 
@@ -96,6 +98,7 @@ function draw.Texture(file)
         handle = false
         local device = d3d8.get_device()
         if device ~= nil then
+            perf.Count('texture load attempts')
             local pointer = ffi.new('IDirect3DTexture8*[1]')
             local path = string.format('%sassets/%s', addon.path, file)
             if ffi.C.D3DXCreateTextureFromFileA(device, path, pointer) == ffi.C.S_OK then

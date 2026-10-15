@@ -46,8 +46,7 @@ options.Unit = 1.2
 -- when, if given, says whether the entry is shown, from the settings.
 options.Tabs = {
     { name = 'Style', entries = {
-        { kind = 'slider', section = 'style', key = 'scale', label = 'Scale (%)', default = 100, min = 50, max = 200, format = '%d%%',
-          when = function() return false end, -- hidden; preserve existing saved scale
+        { kind = 'slider', section = 'style', key = 'scale', label = 'Frame Scale (%)', default = 100, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the party lists and the target windows are drawn: the bars, the text and the buffs together.' },
         { kind = 'slider', section = 'style', key = 'nameSize', label = 'Name Text Size (%)', default = 105, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the names are written, apart from everything else.' },
@@ -58,7 +57,7 @@ options.Tabs = {
         { kind = 'slider', section = 'style', key = 'buffSpacing', label = 'Buff Spacing', default = 1, min = -5, max = 20,
           tooltip = 'How much room there is between one buff icon and the next. At 0 they touch; less than 0 overlaps them.' .. unitsNote },
         { kind = 'slider', section = 'style', key = 'buffDistance', label = 'Buff Distance', default = 4, min = -60, max = 200,
-          tooltip = 'How far from your party\'s window the buff icons start. 0 is just clear of its left edge; more moves them further left, and less than 0 brings them right, over the window.' .. unitsNote },
+          tooltip = 'How far status icons start from the chosen window edge. Positive values move them farther outward; negative values overlap the window. Status Growth chooses left, right, or the side with more space.' .. unitsNote },
         { kind = 'slider', section = 'style', key = 'valueSize', label = 'Value Text Size (%)', default = 124, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the HP, MP and TP values are written, apart from everything else.' },
         { kind = 'font', section = 'style', key = 'valueFont', label = 'Value Font', default = '',
@@ -76,7 +75,7 @@ options.Tabs = {
         { kind = 'check', section = 'style', key = 'showTp', label = 'Show TP Values', default = true,
           tooltip = 'Writes each member\'s TP on their line. TP has no bar, so off leaves TP out altogether.' },
         { kind = 'check', section = 'style', key = 'tpFlash', label = 'Flash TP When Ready', default = true,
-          tooltip = 'A TP value of 1000 or over pulses between a light blue and a deeper one. Off, it is simply blue.' },
+          tooltip = 'TP at or above TP Ready Threshold pulses between a light blue and a deeper one. Off, ready TP is simply blue.' },
     } },
     { name = 'Party', entries = {
         { kind = 'check', section = 'party', key = 'enabled', label = 'Enabled', default = true },
@@ -93,7 +92,7 @@ options.Tabs = {
           when = function(saved) return saved.party.showInvites[1] or saved.party.showTreasure[1] end,
           tooltip = 'Moves the invite and treasure icons from their corner: X to the right, Y down. Less than 0 moves them left or up.' .. unitsNote },
         { kind = 'check', section = 'party', key = 'sortByRole', label = 'Sort By Role', default = false,
-          when = function() return false end, -- hidden from settings; preserve existing saved behavior
+          when = function() return false end, -- hide the control without changing saved behavior
           tooltip = 'Off lists members in the game\'s own party order.\nOn lists you first, then tanks (PLD, NIN, WAR, RUN), melee damage (MNK, SAM, DRK, DRG, THF, DNC, BLU, BST, PUP),\nranged damage (RNG), support (BRD, COR, GEO), mages (BLM, SMN, SCH) and healers (RDM, WHM).\nEach party of the alliance is sorted on its own.' },
         { kind = 'slider', section = 'party', key = 'allianceScale', label = 'Alliance Scale (%)', default = 100, min = 50, max = 200, format = '%d%%',
           tooltip = 'How big the alliance\'s other two parties are drawn, both alike, on top of the Scale in Style. Your own party is left as it is.' },
@@ -111,7 +110,8 @@ options.Tabs = {
         { kind = 'check', section = 'target', key = 'showTot', label = 'Show Target Of Target', default = false },
         { kind = 'check', section = 'target', key = 'totDebuffs', label = 'Target Of Target Debuffs', default = false },
         { kind = 'choice', section = 'target', key = 'debuffStyle', label = 'Debuff Style', default = 'letters', choices = debuffs.Styles,
-          when = function(saved) return saved.target.mainDebuffs[1] or saved.target.subDebuffs[1] or saved.target.totDebuffs[1] end,
+          when = function(saved) return saved.target.enabled[1] and ((saved.target.showMain[1] and saved.target.mainDebuffs[1])
+              or (saved.target.showSub[1] and saved.target.subDebuffs[1]) or (saved.target.showTot[1] and saved.target.totDebuffs[1])) end,
           tooltip = 'Letters: a letter under the window for each of the usual debuffs, lit while it is on.\nIcons: an icon beside the window for every status seen to take hold on the target, drawn as your party\'s buffs are:\nthe Buff Icon Size, Buff Spacing and Buff Distance of the Style tab, and Custom Icons of Winxi Theme.' },
         { kind = 'gap' },
         { kind = 'place', section = 'target', key = 'mainPos', label = 'Target Position', default = { 2098, 865 }, window = 'main' },
@@ -129,13 +129,62 @@ options.Tabs = {
     } },
 }
 
+-- Additional controls share the same default/validation/reset machinery.
+local extra = {
+    Style = {
+        { kind = 'dropdown', key = 'barShadows', label = 'Bar Shadows', default = 'full', choices = {
+            { key = 'off', label = 'Off' }, { key = 'simple', label = 'Simple' }, { key = 'full', label = 'Full' } } },
+        { kind = 'slider', key = 'castRange', label = 'Near Range (m)', default = 2079, min = 100, max = 5000, displayDivisor = 100,
+          tooltip = 'Approximate range indicator only; individual actions have different ranges.' },
+        { kind = 'slider', key = 'targetRange', label = 'Far Range (m)', default = 50, min = 1, max = 100, format = '%d m' },
+        { kind = 'slider', key = 'nearOpacity', label = 'Beyond Near Range Opacity (%)', default = 70, min = 0, max = 100 },
+        { kind = 'slider', key = 'farOpacity', label = 'Beyond Far Range Opacity (%)', default = 45, min = 0, max = 100 },
+        { kind = 'slider', key = 'lowHp', label = 'Low HP Warning (%)', default = 0, min = 0, max = 100,
+          tooltip = 'Adds a ! before names at or below this HP percentage. Zero disables it.' },
+        { kind = 'slider', key = 'tpReady', label = 'TP Ready Threshold', default = 1000, min = 1000, max = 3000 },
+        { kind = 'check', key = 'hoverDetails', label = 'Hover Details', default = false,
+          when = function() return false end, -- drawn beside Clickthrough in Behavior; storage stays compatible
+          tooltip = 'Full names, jobs, owners and status names. Enemy durations are estimates.' },
+        { kind = 'check', key = 'debuffsFirst', label = 'Debuffs First', default = false },
+        { kind = 'statuslist', key = 'priorityStatuses', label = 'Priority Effects', default = '', ordered = true,
+          tooltip = 'Comma-separated numeric status IDs, in priority order. Hidden IDs take precedence.' },
+        { kind = 'statuslist', key = 'hiddenStatuses', label = 'Hidden Effects', default = '', tooltip = 'Hidden effects take precedence over priority effects.' },
+        { kind = 'slider', key = 'buffLimit', label = 'Maximum Status Icons', default = 16, min = 1, max = 32 },
+        { kind = 'slider', key = 'buffRows', label = 'Status Rows', default = 1, min = 1, max = 2 },
+        { kind = 'check', key = 'buffOverflow', label = 'Status Overflow Count', default = true },
+        { kind = 'dropdown', key = 'buffDirection', label = 'Status Growth', default = 'left', choices = {
+            { key = 'left', label = 'Left' }, { key = 'right', label = 'Right' }, { key = 'auto', label = 'Most Available Space' } } },
+        { kind = 'check', key = 'buffFitScreen', label = 'Fit Status Icons To Screen', default = true },
+    },
+    Pets = {
+        { kind = 'slider', key = 'reserve', label = 'Reserved Pet Rows', default = 2, min = 1, max = 6,
+          when = function(saved) return saved.automaticPositioning[1] and saved.pets.enabled[1] and saved.pets.showParty[1] end,
+          tooltip = 'Automatic positioning reserves at least this many rows, and expands for the actual pet count. Six keeps a stable full-party reservation.' },
+        { kind = 'dropdown', key = 'nameFormat', label = 'Pet Names', default = 'ownerPet', choices = {
+            { key = 'pet', label = 'Pet' }, { key = 'ownerPet', label = 'Owner: Pet' }, { key = 'petOwner', label = 'Pet (Owner)' } } },
+    },
+}
+for _, tab in ipairs(options.Tabs) do
+    for _, entry in ipairs(extra[tab.name] or {}) do
+        entry.section = tab.name:lower()
+        tab.entries[#tab.entries + 1] = entry
+    end
+end
+
 -- Presentation order is separate from the setting definitions so regrouping never changes defaults.
 local groups = {
     Style = {
-        { 'Names', 'scale', 'nameFont', 'nameSize' },
-        { 'Values And Text', 'valueFont', 'valueSize', 'outline', 'showMp', 'showTp', 'tpFlash' },
-        { 'Value Positioning', 'hpOffset', 'mpOffset', 'tpOffset' },
-        { 'Status Icons', 'buffSize', 'buffSpacing', 'buffDistance' },
+        { 'Appearance', 'scale', 'outline', 'barShadows' },
+        { 'Names', 'nameFont', 'nameSize' },
+        { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
+        { 'Status Display', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow' },
+        { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses' },
+        { 'Warnings', 'lowHp', 'tpReady', 'tpFlash' },
+        { 'Advanced: Value Positioning', 'hpOffset', 'mpOffset', 'tpOffset', collapsed = true },
+        { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
+        { 'Advanced: Status IDs', collapsed = true },
+        -- Retained in the schema for existing settings and profiles, presented in Behavior instead.
+        { 'hoverDetails', hiddenGroup = true },
     },
     Party = {
         { 'Visibility', 'enabled', 'hideWhenSolo', 'sortByRole' },
@@ -144,13 +193,13 @@ local groups = {
         { 'Positioning', 'pos1', 'pos2', 'pos3' },
     },
     Target = {
-        { 'Visibility', 'enabled', 'showMain', 'showSub', 'showTot' },
-        { 'Debuffs', 'mainDebuffs', 'subDebuffs', 'totDebuffs', 'debuffStyle' },
+        { 'Frames', 'enabled', 'showMain', 'mainDebuffs', 'showSub', 'subDebuffs', 'showTot', 'totDebuffs', 'debuffStyle' },
         { 'Positioning', 'mainPos', 'subPos', 'totPos' },
     },
     Pets = {
         { 'Visibility', 'enabled', 'showParty' },
         { 'Automaton', 'exactAutomaton' },
+        { 'Layout', 'reserve', 'nameFormat' },
     },
 }
 for _, tab in ipairs(options.Tabs) do
@@ -159,10 +208,15 @@ for _, tab in ipairs(options.Tabs) do
         if entry.key then byKey[entry.key] = entry end
     end
     for _, group in ipairs(groups[tab.name]) do
-        entries[#entries + 1] = { kind = 'header', label = group[1] }
-        for index = 2, #group do
+        if not group.hiddenGroup then
+            entries[#entries + 1] = { kind = 'header', label = group[1], defaultCollapsed = group.collapsed }
+        end
+        for index = group.hiddenGroup and 1 or 2, #group do
             local key = group[index]
-            entries[#entries + 1] = assert(byKey[key], 'Unknown setting: ' .. key)
+            local entry = assert(byKey[key], 'Unknown setting: ' .. key)
+            if tab.name == 'Target' and (key == 'showMain' or key == 'showSub' or key == 'showTot'
+                or key == 'mainDebuffs' or key == 'subDebuffs' or key == 'totDebuffs') then entry.targetRow = true end
+            entries[#entries + 1] = entry
             byKey[key] = nil
         end
     end
@@ -172,7 +226,9 @@ end
 
 -- What an entry's setting starts as, made afresh each time: nothing for an entry with no setting
 local function Start(entry)
-    if entry.kind == 'check' or entry.kind == 'slider' then
+    if entry.kind == 'text' or entry.kind == 'statuslist' then
+        return T{ entry.default }
+    elseif entry.kind == 'check' or entry.kind == 'slider' then
         return T{ entry.default }
     elseif entry.kind == 'offset' or entry.kind == 'place' then
         return T{ entry.default[1], entry.default[2] }
@@ -184,7 +240,9 @@ end
 
 -- Whether a value is of the kind an entry keeps
 local function Fits(entry, value)
-    if entry.kind == 'check' then
+    if entry.kind == 'text' or entry.kind == 'statuslist' then
+        return type(value) == 'table' and type(value[1]) == 'string'
+    elseif entry.kind == 'check' then
         return type(value) == 'table' and type(value[1]) == 'boolean'
     elseif entry.kind == 'slider' then
         return type(value) == 'table' and type(value[1]) == 'number'
@@ -212,6 +270,17 @@ local function CompleteEntries(saved)
         for _, entry in ipairs(tab.entries) do
             if entry.key ~= nil and not Fits(entry, saved[entry.section][entry.key]) then
                 saved[entry.section][entry.key] = Start(entry)
+            end
+            if entry.kind == 'slider' then
+                local value = saved[entry.section][entry.key]
+                if value[1] ~= value[1] then value[1] = entry.default end
+                value[1] = math.max(entry.min, math.min(entry.max, value[1]))
+            elseif entry.kind == 'choice' or entry.kind == 'dropdown' then
+                local valid = false
+                for _, choice in ipairs(entry.choices) do
+                    if saved[entry.section][entry.key] == choice.key then valid = true end
+                end
+                if not valid then saved[entry.section][entry.key] = Start(entry) end
             end
         end
     end
@@ -375,6 +444,7 @@ end
 
 function options.Complete(saved)
     FromXiframes(saved)
+    if type(saved.profiles) ~= 'table' then saved.profiles = T{} end
     for _, section in ipairs(sections) do
         if type(saved[section]) ~= 'table' then
             saved[section] = T{ }
@@ -428,6 +498,16 @@ function options.Style(saved)
     style.outline, style.tpFlash = kept.outline[1], kept.tpFlash[1]
     style.showMp, style.showTp = kept.showMp[1], kept.showTp[1]
     style.nameFont, style.valueFont = kept.nameFont, kept.valueFont
+    style.barShadows = kept.barShadows
+    style.castRange, style.targetRange = kept.castRange[1] / 100, kept.targetRange[1]
+    style.nearOpacity, style.farOpacity = kept.nearOpacity[1] / 100, kept.farOpacity[1] / 100
+    style.lowHp, style.tpReady = kept.lowHp[1], kept.tpReady[1]
+    style.hoverDetails = kept.hoverDetails[1] and not saved.clickThrough[1]
+    style.debuffsFirst = kept.debuffsFirst[1]
+    style.priorityStatuses, style.hiddenStatuses = kept.priorityStatuses[1], kept.hiddenStatuses[1]
+    style.buffLimit, style.buffRows = kept.buffLimit[1], kept.buffRows[1]
+    style.buffOverflow, style.buffFitScreen = kept.buffOverflow[1], kept.buffFitScreen[1]
+    style.buffDirection = kept.buffDirection
     style.nameChars, style.trimLast, style.showJobs = nil, nil, false
     return style
 end

@@ -22,6 +22,7 @@ local d3d8 = require('d3d8')
 local statusicons = require('winxi.statusicons')
 local d3d8_device = d3d8.get_device()
 local game = require('game')
+local perf = require('perf')
 
 local roster = { }
 
@@ -95,6 +96,7 @@ local function CreateTexture(statusId, icon)
     end
 
     -- Courtesy of Thorny's partybuffs
+    perf.Count('texture load attempts')
     local dx_texture_ptr = ffi.new('IDirect3DTexture8*[1]')
     if ffi.C.D3DXCreateTextureFromFileInMemoryEx(d3d8_device, setAlpha(icon.Bitmap), icon.ImageSize, 0xFFFFFFFF, 0xFFFFFFFF, 1, 0, ffi.C.D3DFMT_A8R8G8B8, ffi.C.D3DPOOL_MANAGED, ffi.C.D3DX_DEFAULT, ffi.C.D3DX_DEFAULT, 0xFF000000, nil, nil, dx_texture_ptr) == ffi.C.S_OK then
         return d3d8.gc_safe_release(ffi.cast('IDirect3DTexture8*', dx_texture_ptr[0]))
@@ -131,7 +133,13 @@ end
 -- The buffs of another member of the player's own party, read into buffs. The game keeps them for
 -- the five other members of that party, and for nobody in the other two.
 local function ReadMemberBuffs(buffs, serverId)
+    if ptrStatusIcons == nil or ptrStatusIcons == 0 then
+        return
+    end
     local ptrPartyBuffs = ashita.memory.read_uint32(ptrStatusIcons)
+    if ptrPartyBuffs == nil or ptrPartyBuffs == 0 then
+        return
+    end
     for memberIndex = 0, 4 do
         local memberPtr = ptrPartyBuffs + (0x30 * memberIndex)
         local playerId = ashita.memory.read_uint32(memberPtr)
@@ -165,7 +173,7 @@ end
 -- The player's own buffs, read into buffs
 local function ReadOwnBuffs(buffs)
     for _, buff in ipairs(AshitaCore:GetMemoryManager():GetPlayer():GetBuffs()) do
-        if buff ~= nil and buff > 0 then
+        if buff ~= nil and buff > 0 and buff ~= 255 then
             buffs[#buffs + 1] = buff
         end
     end
@@ -380,6 +388,7 @@ local cache = { } -- party -> { time, sample, sortByRole, members }: the list is
 
 function roster.Forget()
     cache = { }
+    seenWithMp = { }
 end
 
 function roster.Counts()
@@ -392,7 +401,7 @@ end
 -- place has been taken, would give the distance to whatever has that index here.
 local function FindEntities(members)
     for _, member in ipairs(members) do
-        local entity = member.targetIndex and GetEntity(member.targetIndex) or nil
+        local entity = member.targetIndex and perf.Entity(member.targetIndex) or nil
         if entity ~= nil and (not member.isInZone or entity.ServerId ~= member.serverId) then
             entity = nil
         end
@@ -421,12 +430,16 @@ function roster.Members(list, sample, sortByRole, partyCursor)
     local members = cached.members
     Clear(members)
     for slot, place in ipairs(partyPlaces[list]) do
-        local member = ReadMember(place, partyMemory)
-        if sample and not (member.isActive and member.name ~= '') then
+        -- Empty alliance slots need no stats, jobs or buff reads. Slot zero is always the player.
+        local member
+        if place == 0 or partyMemory:GetMemberIsActive(place) == 1 then
+            member = ReadMember(place, partyMemory)
+        end
+        if sample and (member == nil or not member.isActive or member.name == '') then
             member = GetSampleMember(slot, place)
         end
 
-        if member.isActive and member.name ~= '' then
+        if member ~= nil and member.isActive and member.name ~= '' then
             members[#members + 1] = member
         end
     end

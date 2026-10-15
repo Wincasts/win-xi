@@ -18,6 +18,8 @@ local fonts = require('winxi.fonts')
 local organize = require('winxi.organize')
 local options = require('options')
 local windows = require('windows')
+local profiles = require('profiles')
+local statuspicker = require('statuspicker')
 
 local config = { }
 
@@ -51,13 +53,29 @@ end
 
 local controls = { }
 
+function controls.text(entry, value)
+    imgui.InputText(Id(entry), value, 8192)
+    Tooltip(entry.tooltip)
+end
+
+function controls.statuslist(entry, value)
+    statuspicker.Draw(entry.key, value, entry.ordered)
+    Tooltip(entry.tooltip)
+end
+
 function controls.check(entry, value)
     imgui.Checkbox(Id(entry), value)
     Tooltip(entry.tooltip)
 end
 
 function controls.slider(entry, value)
-    if entry.format ~= nil then
+    if entry.displayDivisor then
+        -- Preserve centimeter storage while exposing meters, including the existing 20.79m default.
+        box[1] = value[1] / entry.displayDivisor
+        if imgui.SliderFloat(Id(entry), box, entry.min / entry.displayDivisor, entry.max / entry.displayDivisor, '%.2f m') then
+            value[1] = math.max(entry.min, math.min(entry.max, math.floor(box[1] * entry.displayDivisor + 0.5)))
+        end
+    elseif entry.format ~= nil then
         imgui.SliderInt(Id(entry), value, entry.min, entry.max, entry.format)
     else
         imgui.SliderInt(Id(entry), value, entry.min, entry.max)
@@ -147,8 +165,21 @@ function controls.font(entry, value, section)
 end
 
 -- where a window is: typed in, the window goes there, and stays there if it was held by a corner
-function controls.place(entry, value)
-    if imgui.InputInt2(Id(entry), value) then
+local disabledPosition = { 0, 0 }
+function controls.place(entry, value, section, saved)
+    local managed = saved.automaticPositioning[1] and entry.window ~= 'sub' and entry.window ~= 'tot'
+    if managed then
+        disabledPosition[1], disabledPosition[2] = value[1], value[2]
+        if imgui.BeginDisabled then
+            imgui.BeginDisabled(true)
+            imgui.InputInt2(Id(entry), disabledPosition)
+            imgui.EndDisabled()
+        else
+            imgui.TextDisabled(('%d, %d'):format(value[1], value[2]))
+        end
+        imgui.SameLine()
+        imgui.TextDisabled('Managed automatically')
+    elseif imgui.InputInt2(Id(entry), value) then
         local which = windows.List[entry.window]
         imgui.SetWindowPos(which.name, value)
         windows.ForgetCorner(which)
@@ -156,19 +187,70 @@ function controls.place(entry, value)
     Tooltip(entry.tooltip)
 end
 
+local disabledCheck = { false }
+local function Checkbox(label, value, disabled)
+    if not disabled then return imgui.Checkbox(label, value) end
+    -- Use a copy as well as native disabling, so neither missing bindings nor test stubs can edit it.
+    disabledCheck[1] = value[1]
+    if imgui.BeginDisabled then
+        imgui.BeginDisabled(true)
+        imgui.Checkbox(label, disabledCheck)
+        imgui.EndDisabled()
+    else
+        imgui.TextDisabled((value[1] and '[x] ' or '[ ] ') .. label:gsub('##.*', ''))
+    end
+    return false
+end
+
+local targetRows = {
+    { 'Target', 'showMain', 'mainDebuffs' },
+    { 'Sub-target', 'showSub', 'subDebuffs' },
+    { 'Target of target', 'showTot', 'totDebuffs' },
+}
+local function DrawTargetRows(saved)
+    if imgui.BeginTable('##party.targetFrames', 3, ImGuiTableFlags_SizingFixedFit) then
+        imgui.TableSetupColumn('Frame')
+        imgui.TableSetupColumn('Show')
+        imgui.TableSetupColumn('Show debuffs')
+        imgui.TableHeadersRow()
+        for _, row in ipairs(targetRows) do
+            imgui.TableNextRow()
+            imgui.TableSetColumnIndex(0)
+            imgui.Text(row[1])
+            imgui.TableSetColumnIndex(1)
+            Checkbox('##xiframes.target.' .. row[2], saved.target[row[2]], not saved.target.enabled[1])
+            imgui.TableSetColumnIndex(2)
+            Checkbox('##xiframes.target.' .. row[3], saved.target[row[3]],
+                not saved.target.enabled[1] or not saved.target[row[2]][1])
+        end
+        imgui.EndTable()
+    end
+    imgui.TextDisabled('Enable a frame to configure its debuffs. Hidden frames retain their settings.')
+end
+
 local function DrawEntries(tab, saved)
     widgets.BeginLabels(tab.labels)
     local open, first = true, true
     for _, entry in ipairs(tab.entries) do
         if entry.kind == 'header' then
-            open = widgets.Header(entry.label, first)
+            open = widgets.Header(entry.label, first, entry.defaultCollapsed)
             first = false
+            if open and tab.name == 'Style' and entry.label == 'Appearance' then
+                imgui.TextWrapped('Shared colors, borders, backgrounds, bar textures and status icon artwork are configured in winxisettings (/wxi).')
+            elseif open and tab.name == 'Style' and entry.label == 'Advanced: Status IDs' then
+                widgets.Label('Priority Status IDs')
+                imgui.InputText('##party.priorityStatusIds', saved.style.priorityStatuses, 8192)
+                widgets.Label('Hidden Status IDs')
+                imgui.InputText('##party.hiddenStatusIds', saved.style.hiddenStatuses, 8192)
+                imgui.TextDisabled('Comma-separated IDs. Priority order follows the list; hidden IDs take precedence.')
+            end
         elseif entry.kind == 'gap' then
             if open then widgets.Gap() end
-        elseif open and (entry.when == nil or entry.when(saved)) then
+        elseif open and not entry.targetRow and (entry.when == nil or entry.when(saved)) then
             local section = saved[entry.section]
             widgets.Label(entry.label, entry.experimental)
-            controls[entry.kind](entry, section[entry.key], section)
+            controls[entry.kind](entry, section[entry.key], section, saved)
+            if tab.name == 'Target' and entry.key == 'enabled' then DrawTargetRows(saved) end
         end
     end
 end
@@ -180,7 +262,10 @@ local function DrawGlobal(saved)
         widgets.Label('Clickthrough')
         imgui.Checkbox('##xiframes.clickThrough', saved.clickThrough)
         Tooltip('The windows let the mouse through to the game. Ignored while organizing, so they can be dragged.')
-        imgui.TextDisabled('Coming soon: Clickable frames')
+        widgets.Label('Hover Details')
+        Checkbox('##party.hoverDetails', saved.style.hoverDetails, saved.clickThrough[1])
+        Tooltip('Full names, jobs, pet owners and status names. Enemy durations are estimates.')
+        if saved.clickThrough[1] then imgui.TextDisabled('Turn off Clickthrough to enable hover details.') end
     end
 
     if widgets.Header('Positioning') then
@@ -220,6 +305,54 @@ for _, tab in ipairs(options.Tabs) do
     tab.labels = ('xiframes.%s'):format(tab.name:lower())
     table.insert(config.Tabs, { name = tab.name, draw = function(saved) DrawEntries(tab, saved) end })
 end
+
+local profileName, overwrite = { '' }, { false }
+local selectedProfile, profileMessage = nil, ''
+local function DrawProfiles(saved)
+    imgui.TextColored(widgets.ExperimentalColor, '[Experimental] Profiles and presets are still being tested.')
+    imgui.TextWrapped('Profiles and presets change Party display settings, not window positions, links, Behavior settings or the shared theme. Presets change only their relevant controls.')
+    if widgets.Header('Presets', true) then
+        for _, name in ipairs(profiles.Presets) do
+            if imgui.Button('Apply ' .. name .. '##party.preset') then
+                profiles.Preset(saved, name)
+                Save()
+                profileMessage = 'Applied ' .. name
+            end
+        end
+    end
+    if not widgets.Header('Named Profiles') then return end
+    imgui.InputText('Profile Name##party.profileName', profileName, 41)
+    imgui.Checkbox('Allow Overwrite / Delete##party.profileOverwrite', overwrite)
+    if imgui.Button('Save Current##party.profileSave') then
+        local ok
+        ok, profileMessage = profiles.Save(saved, profileName[1], overwrite[1])
+        if ok then Save(); overwrite[1] = false end
+    end
+    if selectedProfile and not saved.profiles[selectedProfile] then selectedProfile = nil end
+    if imgui.BeginCombo('Saved Profile##party.profileSelect', selectedProfile or 'Choose a profile') then
+        for _, name in ipairs(profiles.Names(saved)) do
+            if imgui.Selectable(name .. '##party.savedProfile', name == selectedProfile) then selectedProfile = name end
+        end
+        imgui.EndCombo()
+    end
+    if selectedProfile and saved.profiles[selectedProfile] then
+        if imgui.Button('Load Selected##party.profileLoad') then
+            profiles.Apply(saved, saved.profiles[selectedProfile]); Save()
+            profileMessage = 'Loaded ' .. selectedProfile
+        end
+        if overwrite[1] and imgui.Button('Delete Selected##party.profileDelete') then
+            saved.profiles[selectedProfile] = nil
+            selectedProfile, overwrite[1] = nil, false
+            profileMessage = 'Deleted profile'
+            Save()
+        end
+    end
+    if profileMessage ~= '' then
+        if imgui.TextUnformatted then imgui.TextUnformatted(profileMessage)
+        else imgui.Text((profileMessage:gsub('%%', '%%%%'))) end
+    end
+end
+config.Tabs[#config.Tabs + 1] = { name = 'Profiles [Experimental]', draw = DrawProfiles }
 
 -- The window is never narrower than this, so it does not jump about as the tabs are switched. It has
 -- the theme's settings window values, apart from the game windows' that are set in it.

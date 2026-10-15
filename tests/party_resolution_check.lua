@@ -112,7 +112,12 @@ local moved
 imgui.GetIO = function() return {DisplaySize={x=1280,y=720}} end
 imgui.GetWindowPos = function() return 1200, 650 end
 imgui.GetWindowSize = function() return 300, 200 end
-imgui.SetWindowPos = function(name, point) moved = {name,point[1],point[2]} end
+local sharedPosition
+imgui.SetWindowPos = function(name, point)
+    if sharedPosition then assert(point == sharedPosition, 'automatic windows must reuse the position vector') end
+    sharedPosition = point
+    moved = {name,point[1],point[2]}
+end
 imgui.Begin = function() return true end
 local manualX, manualY = settings.party.pos1[1], settings.party.pos1[2]
 windows.UpdatePositions(300,50,240)

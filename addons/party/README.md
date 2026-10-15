@@ -23,8 +23,62 @@ where the values sit, the outline); Party, Target and Pets have what is each one
 **Fade When Idle**, and which windows fade.
 There is no Winxi Theme tab in Party; use **winxisettings** for shared colours, padding, shadows,
 window borders, bar textures, bookends and custom status icons. Organize, at the foot of the window, fills the frames with sample data to drag into place.
-`/pt perf` measures the next five seconds of play and says how long the addon took a frame, on
-average and at worst, and how much memory it made a frame.
+`/pt perf` measures five seconds of render and packet-handler CPU time: average, median, p95,
+p99 and worst latency. Memory is a **GC-sensitive net-growth estimate**, excluding negative deltas,
+not an exact allocation count. `/pt perf counters` also counts addon-local entity reads, text
+measurements, image submissions, texture-load attempts and status reorderings; shared Winxi internals are not all counted.
+These measurements do not include GPU execution. Percentile samples are capped at the first 16,384
+calls per category; averages and maxima cover the full interval.
+
+## customization
+
+- **Style → Appearance → Scale** is a visible control. The **Sort By Role** toggle is hidden;
+  existing saved sorting behavior is preserved. Native party selection temporarily suspends role sorting.
+- **Style → Status Display** provides a 1–32 icon limit, one or two rows, left/right/most-space growth,
+  screen-edge fitting and overflow badges. Screen fitting conservatively reserves the widest icon in
+  mixed sets. When needed, the last available slot becomes a `+N` badge; with no external space the
+  badge uses the frame's lower-left corner. Two rows increase row height.
+- **Style → Status Filtering** has Debuffs First and two effect pickers, Priority Effects and Hidden
+  Effects: search by name or ID, tick effects, and reorder priorities with Up and Down. Priority order
+  follows the list, hidden effects win, and other effects keep their original order. The same lists
+  can be typed as comma-separated numeric IDs under **Advanced: Status IDs** (collapsed by default),
+  which is also where IDs without a name in the game's resources can be entered. Debuff classification
+  covers common ailments, not every special effect; prioritize unknown effects explicitly.
+- **Style → Warnings** has a low-HP `!` threshold (zero disables it) and the TP-ready threshold.
+  **Advanced: Range Indicators** has near range (centimeters), far range (meters) and both dimming
+  levels. Far range is treated as at least near range. These are approximate distance indicators,
+  not action-specific range guarantees.
+- **Style → Appearance → Bar Shadows**: Off, Simple (one layer), or Full (two layers). This is
+  independent of Winxi window shadows.
+- **Behavior → Mouse Interaction → Hover Details**, beside Clickthrough, is off by default and works
+  only with Clickthrough off: names, jobs, pet owners, and status tooltips. Enemy duration tooltips
+  explicitly describe estimates, not exact server timers. No click-to-target behavior is introduced.
+- **Pets → Layout → Pet Names**: `Pet`, `Owner: Pet` (default), or `Pet (Owner)`.
+- **Profiles [Experimental]** offers Compact, Healer, Pet job, and Minimal presets plus up to 20 named profiles.
+  Profiles and presets are still being tested.
+  Presets change only their relevant controls; named profiles save Style, Party, Target and Pets
+  display settings. Neither changes positions, corners, links, Behavior settings or the shared theme.
+  Overwriting/deleting a profile requires the explicit permission checkbox.
+  The settings window has no section-reset buttons.
+
+Layout reservation is cached until relevant values change. Hidden frames and frames with both groups
+disabled or fully faded skip layout and pet polling. A visible target with its party hidden retains
+the configured minimum pet reservation without polling live pets. Status filtering is cached per input
+list, with value comparisons detecting in-place updates; caches release discarded lists. Hover details
+read mouse coordinates once per enabled frame. Profile names are sorted only when membership changes
+and requested only while the dropdown is open. Automatic windows reuse their positioning vector.
+Theme-font changes invalidate cached text measurements. Debuff tracking clears on disable,
+settings/character switches and zone-in/out, including while frames are disabled; re-enabling begins
+with only newly observed effects, never a reconstructed complete enemy status list.
+
+### Live validation
+
+After reloading Party in Ashita, run `/pt perf` with settings closed for solo, full party, full alliance,
+pet-heavy and target-debuff scenarios; repeat with `/pt perf counters` when investigating work counts.
+Compare Full/Simple/Off bar shadows under the same conditions. Validate six-pet positioning, theme-font
+switches, status overflow near both screen edges, two-row icons, tooltips with Clickthrough off, and
+zone/disable/re-enable tracking. Offline checks cannot validate actual GPU performance, DPI or mouse
+behavior in the game.
 
 ## once called xiframes
 The addon was xiframes until it was renamed party. The first time each character logs in with it,
@@ -44,10 +98,60 @@ place (and change `xiframes` to `party` in any script that loads it).
 | `options.lua` | the settings, each an entry in a list: defaults and the settings tabs come from it |
 | `config.lua` | the settings window |
 | `draw.lua`, `colors.lua`, `game.lua`, `packets.lua` | drawing on a draw list, the colours that mean something, small things asked of the game, and the packets read |
-| `perf.lua` | `/pt perf`: how long a frame takes in play |
+| `perf.lua` | `/pt perf`: render/packet CPU statistics and optional operation counters |
+| `geometry.lua` | cached automatic-layout reservations |
+| `statuses.lua`, `details.lua` | status filtering, screen capacity and hover details |
+| `profiles.lua` | presets, independent named snapshots and position-preserving resets |
 
 `tests/run.sh` loads the addon against a stand-in for Ashita, and compares what it draws, call for
 call, with a kept copy.
+
+### Offline QA
+
+From the repository root, run Party's checks independently with:
+
+```sh
+for check in tests/party*_check.lua; do
+    luajit tests/harness.lua party addons/party/party.lua "$check" || exit 1
+done
+```
+
+`party_lifecycle_check.lua` covers null buff pointers, inactive-slot reads, cache reuse,
+immediate pet-setting changes, zone resets, invitations while disabled, and entity-index reuse
+during target fade-out. `party_performance_check.lua` isolates geometry and letter-debuff
+allocation budgets from the harness's allocating stubs, with JIT disabled for reproducibility.
+`party_customization_check.lua` covers profile isolation/resets, status sorting and fitting, shadows,
+font invalidation, warning/overflow rendering, cached reservations, six pets, hidden-frame work
+and the effect picker.
+`party_tracking_check.lua` covers debuff lifecycle, tooltip semantics and profiling statistics.
+`party_optimization_check.lua` verifies disabled/faded early exits, target-only reservations,
+once-per-frame mouse sampling, status-cache invalidation and lazy profile-name sorting.
+The lifecycle check also verifies that empty status IDs 0 and 255 never enter the player's buff list.
+The existing resolution, cursor, rearrangement, border and dropdown checks cover presentation
+and input paths. The full runner also compares the plain and bare draw snapshots.
+
+The initial optimization pass preserved both scenes byte-for-byte relative to its pre-pass code.
+The customization pass intentionally updates pet-owner labels and screen-constrained status overflow;
+the snapshots also include previously unrecorded cursor/title and shared-library changes.
+The follow-up pass removes empty status 255 and fixes the Organize snapshot to open settings with
+`/pt`, asserting that settings and Organize are active. Measurement mode closes settings with `/pt`
+and asserts that both are off. The refreshed Organize scenes now genuinely include sample rows.
+Isolated allocation measurements before → after:
+
+| Operation | Bytes per call/row (JIT disabled) |
+|---|---:|
+| Full-list geometry reservation | 160 → 0 |
+| Letter-debuff row | 1,072 → 0 |
+
+The new cached-reservation and unchanged-status-filtering checks also measure **0 bytes per call**
+with JIT disabled after warm-up. These isolated budgets exclude rendering-library allocations.
+
+Empty alliance slots skip stats, jobs and buffs. Pet options invalidate the pet snapshot
+immediately rather than waiting for its polling interval. Invitations and automaton state
+continue receiving lifecycle packets while their frames are disabled; zoning clears cached
+rosters, automaton exact values and lingering target identities. These are offline checks,
+not an in-game FPS benchmark. Verify zoning, character switches, native selection, fading
+and actual rendering in Ashita before treating live QA as complete.
 
 ## window borders
 In **winxisettings → Styles → Window Border**, choose **Theme** (the existing border), **Brushed Silver**,
@@ -114,8 +218,10 @@ Enable **Behavior → Positioning → Automatic Positioning** for the edge-relat
 - Alliance 2: **15px from the right**, at a stable vertical position reserved for the full layout.
 - Alliance 3: **5px below Alliance 2**, retaining their existing vertical link.
 - With both alliance parties and the main party fully expanded, reserve **35px between the bottom
-  of Alliance 3 and the top of Target**. Pet space is reserved for **at most two pets** (one when party members' pets are hidden);
-  target letter-debuff rows are also reserved. More than two pets can exceed this reservation.
+  of Alliance 3 and the top of Target**. Pet space reserves at least **Pets → Reserved Pet Rows**
+  (default two, one when party pets are hidden), expanding for the actual pet count, up to six.
+  Select six for a stable full-party reservation without movement as pets appear.
+  Target letter-debuff rows are also reserved.
 - Sub-target and target of target keep their manual positioning and existing links.
 
 Frame scale and text sizes are unchanged. Manual positions and the main party's saved corner are

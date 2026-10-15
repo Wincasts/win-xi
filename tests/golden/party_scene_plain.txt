@@ -1,4 +1,4 @@
-## a party, pets, two alliance parties and a target (plain): 776 calls
+## a party, pets, two alliance parties and a target (plain): 784 calls
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (164,229)
 window PushClipRect (0,0) (1920,1080) false
@@ -86,11 +86,16 @@ window AddText (9,59) #000000E6 Ironwall
 window AddText (11,57) #000000E6 Ironwall
 window AddText (11,59) #000000E6 Ironwall
 window AddText (10,58) #FFFFFFFF Ironwall
-window AddText (9,95) #000000E6 >> Quickblade
-window AddText (9,97) #000000E6 >> Quickblade
-window AddText (11,95) #000000E6 >> Quickblade
-window AddText (11,97) #000000E6 >> Quickblade
-window AddText (10,96) #3BABE8FF >> Quickblade
+window AddText (2,95) #000000E6 >> 
+window AddText (2,97) #000000E6 >> 
+window AddText (4,95) #000000E6 >> 
+window AddText (4,97) #000000E6 >> 
+window AddText (3,96) #3BABE8FF >> 
+window AddText (9,95) #000000E6 Quickblade
+window AddText (9,97) #000000E6 Quickblade
+window AddText (11,95) #000000E6 Quickblade
+window AddText (11,97) #000000E6 Quickblade
+window AddText (10,96) #3BABE8FF Quickblade
 window AddText (9,134) #000000E6 Longnamedmage
 window AddText (9,136) #000000E6 Longnamedmage
 window AddText (11,134) #000000E6 Longnamedmage
@@ -188,7 +193,6 @@ window AddText (66,192) #FFFFFFFF 0
 imgui PopFont
 window AddImage 40.png (75,27.2) (91.2,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window AddImage 41.png (57.6,27.2) (73.8,48.8) (0.12,0) (0.88,1) #FFFFFFFF
-window AddImage 255.png (40.2,27.2) (56.4,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window PopClipRect
 imgui SetCursorPosY 11
 imgui Separator
@@ -222,11 +226,11 @@ window AddText (9,21) #000000E6 Carbuncle
 window AddText (11,19) #000000E6 Carbuncle
 window AddText (11,21) #000000E6 Carbuncle
 window AddText (10,20) #FFFFFFFF Carbuncle
-window AddText (9,57) #000000E6 FunguarFamiliar
-window AddText (9,59) #000000E6 FunguarFamiliar
-window AddText (11,57) #000000E6 FunguarFamiliar
-window AddText (11,59) #000000E6 FunguarFamiliar
-window AddText (10,58) #FFFFFFFF FunguarFamiliar
+window AddText (9,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (9,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (10,58) #FFFFFFFF Quickblade: FunguarFamiliar
 imgui PopFont
 imgui PushFont
 window AddText (138,23) #000000E6 80%
@@ -339,11 +343,16 @@ window AddText (9,59) #000000E6 Ironwall
 window AddText (11,57) #000000E6 Ironwall
 window AddText (11,59) #000000E6 Ironwall
 window AddText (10,58) #FFFFFFFF Ironwall
-window AddText (9,95) #000000E6 >> Quickblade
-window AddText (9,97) #000000E6 >> Quickblade
-window AddText (11,95) #000000E6 >> Quickblade
-window AddText (11,97) #000000E6 >> Quickblade
-window AddText (10,96) #3BABE8FF >> Quickblade
+window AddText (2,95) #000000E6 >> 
+window AddText (2,97) #000000E6 >> 
+window AddText (4,95) #000000E6 >> 
+window AddText (4,97) #000000E6 >> 
+window AddText (3,96) #3BABE8FF >> 
+window AddText (9,95) #000000E6 Quickblade
+window AddText (9,97) #000000E6 Quickblade
+window AddText (11,95) #000000E6 Quickblade
+window AddText (11,97) #000000E6 Quickblade
+window AddText (10,96) #3BABE8FF Quickblade
 window AddText (9,134) #000000E6 Longnamedmage
 window AddText (9,136) #000000E6 Longnamedmage
 window AddText (11,134) #000000E6 Longnamedmage
@@ -441,7 +450,6 @@ window AddText (66,192) #FFFFFFFF 0
 imgui PopFont
 window AddImage 40.png (75,27.2) (91.2,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window AddImage 41.png (57.6,27.2) (73.8,48.8) (0.12,0) (0.88,1) #FFFFFFFF
-window AddImage 255.png (40.2,27.2) (56.4,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window PopClipRect
 imgui SetCursorPosY 11
 imgui Separator
@@ -475,11 +483,11 @@ window AddText (9,21) #000000E6 Carbuncle
 window AddText (11,19) #000000E6 Carbuncle
 window AddText (11,21) #000000E6 Carbuncle
 window AddText (10,20) #FFFFFFFF Carbuncle
-window AddText (9,57) #000000E6 FunguarFamiliar
-window AddText (9,59) #000000E6 FunguarFamiliar
-window AddText (11,57) #000000E6 FunguarFamiliar
-window AddText (11,59) #000000E6 FunguarFamiliar
-window AddText (10,58) #FFFFFFFF FunguarFamiliar
+window AddText (9,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (9,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (10,58) #FFFFFFFF Quickblade: FunguarFamiliar
 imgui PopFont
 imgui PushFont
 window AddText (138,23) #000000E6 80%
@@ -505,11 +513,11 @@ window AddText (139,62) #FFFFFFFF 37%
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Party
-window AddText (382,194) #000000E6 Party
-window AddText (384,192) #000000E6 Party
-window AddText (384,194) #000000E6 Party
-window AddText (383,193) #F0E6C2FF Party
+window AddText (382,192) #000000E6 Alliance
+window AddText (382,194) #000000E6 Alliance
+window AddText (384,192) #000000E6 Alliance
+window AddText (384,194) #000000E6 Alliance
+window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
 imgui Begin xiframes.us.2
@@ -775,7 +783,7 @@ window AddText (384,194) #000000E6 Target
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## with an alliance invite and treasure waiting (plain): 796 calls
+## with an alliance invite and treasure waiting (plain): 804 calls
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (164,229)
 window PushClipRect (0,0) (1920,1080) false
@@ -863,11 +871,16 @@ window AddText (9,59) #000000E6 Ironwall
 window AddText (11,57) #000000E6 Ironwall
 window AddText (11,59) #000000E6 Ironwall
 window AddText (10,58) #FFFFFFFF Ironwall
-window AddText (9,95) #000000E6 >> Quickblade
-window AddText (9,97) #000000E6 >> Quickblade
-window AddText (11,95) #000000E6 >> Quickblade
-window AddText (11,97) #000000E6 >> Quickblade
-window AddText (10,96) #3BABE8FF >> Quickblade
+window AddText (2,95) #000000E6 >> 
+window AddText (2,97) #000000E6 >> 
+window AddText (4,95) #000000E6 >> 
+window AddText (4,97) #000000E6 >> 
+window AddText (3,96) #3BABE8FF >> 
+window AddText (9,95) #000000E6 Quickblade
+window AddText (9,97) #000000E6 Quickblade
+window AddText (11,95) #000000E6 Quickblade
+window AddText (11,97) #000000E6 Quickblade
+window AddText (10,96) #3BABE8FF Quickblade
 window AddText (9,134) #000000E6 Longnamedmage
 window AddText (9,136) #000000E6 Longnamedmage
 window AddText (11,134) #000000E6 Longnamedmage
@@ -965,7 +978,6 @@ window AddText (66,192) #FFFFFFFF 0
 imgui PopFont
 window AddImage 40.png (75,27.2) (91.2,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window AddImage 41.png (57.6,27.2) (73.8,48.8) (0.12,0) (0.88,1) #FFFFFFFF
-window AddImage 255.png (40.2,27.2) (56.4,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window PopClipRect
 imgui SetCursorPosY 11
 imgui Separator
@@ -999,11 +1011,11 @@ window AddText (9,21) #000000E6 Carbuncle
 window AddText (11,19) #000000E6 Carbuncle
 window AddText (11,21) #000000E6 Carbuncle
 window AddText (10,20) #FFFFFFFF Carbuncle
-window AddText (9,57) #000000E6 FunguarFamiliar
-window AddText (9,59) #000000E6 FunguarFamiliar
-window AddText (11,57) #000000E6 FunguarFamiliar
-window AddText (11,59) #000000E6 FunguarFamiliar
-window AddText (10,58) #FFFFFFFF FunguarFamiliar
+window AddText (9,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (9,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (10,58) #FFFFFFFF Quickblade: FunguarFamiliar
 imgui PopFont
 imgui PushFont
 window AddText (138,23) #000000E6 80%
@@ -1126,11 +1138,16 @@ window AddText (9,59) #000000E6 Ironwall
 window AddText (11,57) #000000E6 Ironwall
 window AddText (11,59) #000000E6 Ironwall
 window AddText (10,58) #FFFFFFFF Ironwall
-window AddText (9,95) #000000E6 >> Quickblade
-window AddText (9,97) #000000E6 >> Quickblade
-window AddText (11,95) #000000E6 >> Quickblade
-window AddText (11,97) #000000E6 >> Quickblade
-window AddText (10,96) #3BABE8FF >> Quickblade
+window AddText (2,95) #000000E6 >> 
+window AddText (2,97) #000000E6 >> 
+window AddText (4,95) #000000E6 >> 
+window AddText (4,97) #000000E6 >> 
+window AddText (3,96) #3BABE8FF >> 
+window AddText (9,95) #000000E6 Quickblade
+window AddText (9,97) #000000E6 Quickblade
+window AddText (11,95) #000000E6 Quickblade
+window AddText (11,97) #000000E6 Quickblade
+window AddText (10,96) #3BABE8FF Quickblade
 window AddText (9,134) #000000E6 Longnamedmage
 window AddText (9,136) #000000E6 Longnamedmage
 window AddText (11,134) #000000E6 Longnamedmage
@@ -1228,7 +1245,6 @@ window AddText (66,192) #FFFFFFFF 0
 imgui PopFont
 window AddImage 40.png (75,27.2) (91.2,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window AddImage 41.png (57.6,27.2) (73.8,48.8) (0.12,0) (0.88,1) #FFFFFFFF
-window AddImage 255.png (40.2,27.2) (56.4,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window PopClipRect
 imgui SetCursorPosY 11
 imgui Separator
@@ -1262,11 +1278,11 @@ window AddText (9,21) #000000E6 Carbuncle
 window AddText (11,19) #000000E6 Carbuncle
 window AddText (11,21) #000000E6 Carbuncle
 window AddText (10,20) #FFFFFFFF Carbuncle
-window AddText (9,57) #000000E6 FunguarFamiliar
-window AddText (9,59) #000000E6 FunguarFamiliar
-window AddText (11,57) #000000E6 FunguarFamiliar
-window AddText (11,59) #000000E6 FunguarFamiliar
-window AddText (10,58) #FFFFFFFF FunguarFamiliar
+window AddText (9,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (9,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (10,58) #FFFFFFFF Quickblade: FunguarFamiliar
 imgui PopFont
 imgui PushFont
 window AddText (138,23) #000000E6 80%
@@ -1302,11 +1318,11 @@ over AddImage treasure.png (361,204) (375,218) (0,0) (1,1) #00000082
 over AddImage treasure.png (361,206) (375,220) (0,0) (1,1) #00000082
 over AddImage treasure.png (361,205) (375,219) (0,0) (1,1) #FFFFFFD9
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Party
-window AddText (382,194) #000000E6 Party
-window AddText (384,192) #000000E6 Party
-window AddText (384,194) #000000E6 Party
-window AddText (383,193) #F0E6C2FF Party
+window AddText (382,192) #000000E6 Alliance
+window AddText (382,194) #000000E6 Alliance
+window AddText (384,192) #000000E6 Alliance
+window AddText (384,194) #000000E6 Alliance
+window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
 imgui Begin xiframes.us.2
@@ -1572,8 +1588,19 @@ window AddText (384,194) #000000E6 Target
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (plain): 1146 calls
+## filled with sample data, the settings open (plain): 1196 calls
 imgui Begin Party Settings
+imgui TextColored (1,0.75,0.55,1) [-] Mouse Interaction
+imgui Text Clickthrough:
+imgui SameLine 22
+imgui Text Hover Details:
+imgui SameLine 22
+imgui NewLine
+imgui TextColored (1,0.75,0.55,1) [-] Positioning
+imgui Text Automatic Positioning:
+imgui SameLine 22
+imgui NewLine
+imgui TextColored (1,0.75,0.55,1) [-] Visibility
 imgui Text Hide While Map Open:
 imgui SameLine 22
 imgui Text Hide While Chat Open:
@@ -1584,8 +1611,39 @@ imgui Text Hide During Events:
 imgui SameLine 22
 imgui Text Hide With Game Interface:
 imgui SameLine 22
-imgui Dummy (0,5)
-imgui Text Clickthrough:
+imgui NewLine
+imgui TextColored (1,0.75,0.55,1) [-] Fading
+imgui Text Fade When Idle:
+imgui SameLine 22
+imgui NewLine
+imgui TextColored (1,0.75,0.55,1) [-] Timing And Opacity
+imgui Text Idle Time (Seconds):
+imgui SameLine 22
+imgui Text Idle Fade Time (Seconds):
+imgui SameLine 22
+imgui Text Fade In/Out Time (Seconds):
+imgui SameLine 22
+imgui Text Faded Opacity (%):
+imgui SameLine 22
+imgui NewLine
+imgui TextColored (1,0.75,0.55,1) [-] Keep Frames Visible
+imgui Text Stay Visible While Moving:
+imgui SameLine 22
+imgui Text Show On Party Changes:
+imgui SameLine 22
+imgui Text Stay Visible While Engaged:
+imgui SameLine 22
+imgui Text Stay Visible While Targeting:
+imgui SameLine 22
+imgui Text Stay Visible While Missing HP:
+imgui SameLine 22
+imgui Text Stay Visible While Healing:
+imgui SameLine 22
+imgui NewLine
+imgui TextColored (1,0.75,0.55,1) [-] Affected Windows
+imgui Text Party:
+imgui SameLine 22
+imgui Text Target:
 imgui SameLine 22
 imgui Separator
 imgui SameLine
@@ -1799,11 +1857,16 @@ window AddText (9,59) #000000E6 Ironwall
 window AddText (11,57) #000000E6 Ironwall
 window AddText (11,59) #000000E6 Ironwall
 window AddText (10,58) #FFFFFFFF Ironwall
-window AddText (9,95) #000000E6 >> Quickblade
-window AddText (9,97) #000000E6 >> Quickblade
-window AddText (11,95) #000000E6 >> Quickblade
-window AddText (11,97) #000000E6 >> Quickblade
-window AddText (10,96) #3BABE8FF >> Quickblade
+window AddText (2,95) #000000E6 >> 
+window AddText (2,97) #000000E6 >> 
+window AddText (4,95) #000000E6 >> 
+window AddText (4,97) #000000E6 >> 
+window AddText (3,96) #3BABE8FF >> 
+window AddText (9,95) #000000E6 Quickblade
+window AddText (9,97) #000000E6 Quickblade
+window AddText (11,95) #000000E6 Quickblade
+window AddText (11,97) #000000E6 Quickblade
+window AddText (10,96) #3BABE8FF Quickblade
 window AddText (9,134) #000000E6 Longnamedmage
 window AddText (9,136) #000000E6 Longnamedmage
 window AddText (11,134) #000000E6 Longnamedmage
@@ -1901,7 +1964,6 @@ window AddText (66,192) #FFFFFFFF 0
 imgui PopFont
 window AddImage 40.png (75,27.2) (91.2,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window AddImage 41.png (57.6,27.2) (73.8,48.8) (0.12,0) (0.88,1) #FFFFFFFF
-window AddImage 255.png (40.2,27.2) (56.4,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window PopClipRect
 imgui SetCursorPosY 11
 imgui Separator
@@ -1935,11 +1997,11 @@ window AddText (9,21) #000000E6 Carbuncle
 window AddText (11,19) #000000E6 Carbuncle
 window AddText (11,21) #000000E6 Carbuncle
 window AddText (10,20) #FFFFFFFF Carbuncle
-window AddText (9,57) #000000E6 FunguarFamiliar
-window AddText (9,59) #000000E6 FunguarFamiliar
-window AddText (11,57) #000000E6 FunguarFamiliar
-window AddText (11,59) #000000E6 FunguarFamiliar
-window AddText (10,58) #FFFFFFFF FunguarFamiliar
+window AddText (9,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (9,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (10,58) #FFFFFFFF Quickblade: FunguarFamiliar
 imgui PopFont
 imgui PushFont
 window AddText (138,23) #000000E6 80%
@@ -2064,11 +2126,16 @@ window AddText (9,59) #000000E6 Ironwall
 window AddText (11,57) #000000E6 Ironwall
 window AddText (11,59) #000000E6 Ironwall
 window AddText (10,58) #FFFFFFFF Ironwall
-window AddText (9,95) #000000E6 >> Quickblade
-window AddText (9,97) #000000E6 >> Quickblade
-window AddText (11,95) #000000E6 >> Quickblade
-window AddText (11,97) #000000E6 >> Quickblade
-window AddText (10,96) #3BABE8FF >> Quickblade
+window AddText (2,95) #000000E6 >> 
+window AddText (2,97) #000000E6 >> 
+window AddText (4,95) #000000E6 >> 
+window AddText (4,97) #000000E6 >> 
+window AddText (3,96) #3BABE8FF >> 
+window AddText (9,95) #000000E6 Quickblade
+window AddText (9,97) #000000E6 Quickblade
+window AddText (11,95) #000000E6 Quickblade
+window AddText (11,97) #000000E6 Quickblade
+window AddText (10,96) #3BABE8FF Quickblade
 window AddText (9,134) #000000E6 Longnamedmage
 window AddText (9,136) #000000E6 Longnamedmage
 window AddText (11,134) #000000E6 Longnamedmage
@@ -2166,7 +2233,6 @@ window AddText (66,192) #FFFFFFFF 0
 imgui PopFont
 window AddImage 40.png (75,27.2) (91.2,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window AddImage 41.png (57.6,27.2) (73.8,48.8) (0.12,0) (0.88,1) #FFFFFFFF
-window AddImage 255.png (40.2,27.2) (56.4,48.8) (0.12,0) (0.88,1) #FFFFFFFF
 window PopClipRect
 imgui SetCursorPosY 11
 imgui Separator
@@ -2200,11 +2266,11 @@ window AddText (9,21) #000000E6 Carbuncle
 window AddText (11,19) #000000E6 Carbuncle
 window AddText (11,21) #000000E6 Carbuncle
 window AddText (10,20) #FFFFFFFF Carbuncle
-window AddText (9,57) #000000E6 FunguarFamiliar
-window AddText (9,59) #000000E6 FunguarFamiliar
-window AddText (11,57) #000000E6 FunguarFamiliar
-window AddText (11,59) #000000E6 FunguarFamiliar
-window AddText (10,58) #FFFFFFFF FunguarFamiliar
+window AddText (9,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (9,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,57) #000000E6 Quickblade: FunguarFamiliar
+window AddText (11,59) #000000E6 Quickblade: FunguarFamiliar
+window AddText (10,58) #FFFFFFFF Quickblade: FunguarFamiliar
 imgui PopFont
 imgui PushFont
 window AddText (138,23) #000000E6 80%
@@ -2240,11 +2306,11 @@ over AddImage treasure.png (361,204) (375,218) (0,0) (1,1) #00000082
 over AddImage treasure.png (361,206) (375,220) (0,0) (1,1) #00000082
 over AddImage treasure.png (361,205) (375,219) (0,0) (1,1) #FFFFFFD9
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Party
-window AddText (382,194) #000000E6 Party
-window AddText (384,192) #000000E6 Party
-window AddText (384,194) #000000E6 Party
-window AddText (383,193) #F0E6C2FF Party
+window AddText (382,192) #000000E6 Alliance
+window AddText (382,194) #000000E6 Alliance
+window AddText (384,192) #000000E6 Alliance
+window AddText (384,194) #000000E6 Alliance
+window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
 imgui Begin xiframes.us.2
@@ -2274,7 +2340,7 @@ window AddImage hp_fill.png (32.8,29.6) (155.2,46.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,67.6) (118.48,84.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,105.6) (140.51,122.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,144.6) (100.12,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (63.4,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (81.76,199.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,221.6) (63.4,238.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
@@ -2316,7 +2382,7 @@ window AddImage mp_fill.png (80.8,41.6) (169.6,56) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (80.8,79.6) (165.16,94) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (80.8,156.6) (168.71,171) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,194.6) (116.32,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,194.6) (126.98,209) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,233.6) (116.32,248) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
@@ -2486,9 +2552,9 @@ window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (28,221.6) (160,238.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,29.6) (125.82,46.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,67.6) (70.74,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,105.6) (63.4,122.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,144.6) (63.4,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (63.4,199.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,105.6) (118.48,122.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,144.6) (100.12,161.4) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (32.8,182.6) (81.76,199.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (32.8,221.6) (63.4,238.4) (0,0) (1,1) #FF9597FF
 window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
@@ -2523,19 +2589,19 @@ window AddImage mp_back.png (78.4,236.6) (176.8,251) (0,0) (1,1) #00000033
 window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_back.png (76,233.6) (174.4,248) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,41.6) (125.2,56) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,79.6) (169.6,94) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,117.6) (116.32,132) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,156.6) (116.32,171) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,194.6) (116.32,209) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,117.6) (148.29,132) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (80.8,156.6) (169.6,171) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (80.8,194.6) (126.98,209) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (80.8,233.6) (116.32,248) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (76,233.6) (174.4,248) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (78,43) (82,54) (0.98,0) (1,0.46) #FFFFFFFF
