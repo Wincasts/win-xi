@@ -10,7 +10,7 @@ The bags in a window: what is in them, and what can be done with it, by mouse or
 `/inv` is the same command, shorter: `/inv`, `/inv toggle` and `/inv focus` all work.
 
 Settings are organized into four tabs, each in collapsible sections: **General** (Window,
-Controller and Visibility), **Bags** (Grid and Tabs), **Treasure** (Treasure Pool and Display), and
+Controller and Visibility), **Inventory** (Grid, Tabs and Currencies), **Treasure** (Treasure Pool and Display), and
 **Equipment** (Equipment Monitor, Display and Slots). The Treasure and Equipment tabs are laid out
 alike: **Enable**, **Detach From Inventory**, the pin, and, detached, the position; then how it
 looks. While one is not enabled the rest of its tab is hidden. Every setting's tooltip is in winxi's
@@ -26,7 +26,7 @@ bag chosen along the foot of the window if it has room, or else the first that h
 it (wardrobes take only gear; the house's bags cannot be moved to from afar). Unlocked, a drag moves
 the window, as before.
 
-Under **Bags → Grid** in the settings, **Rows** and **Columns** set the inventory grid's visible size
+Under **Inventory → Grid** in the settings, **Rows** and **Columns** set the inventory grid's visible size
 (5–30 rows and 6–30 columns). While settings are open, empty placeholders preview the full selected grid; changes to
 rows and columns update that preview immediately. With settings closed, the grid collapses to fit the
 bag content (including empty bag slots when Show Empty Slots is enabled), up to the selected row
@@ -42,7 +42,19 @@ background, so the base Winxi window shows through. These controls replace Max H
 controller tab navigation skips hidden groups. Hiding a tab does not change its items or prevent
 moving items to those bags. The controls apply to both unified and separate-bag views.
 
-In the unified view (**Unified Bags**, under Bags → Tabs), a tab with more than one bag has a row of tabs of its
+### Currencies
+
+Under the gil, the foot of the window can show two of the game's currencies, chosen under
+**Inventory → Currencies** as **Currency 1** and **Currency 2**: **None**, or any currency the game's
+two Currencies menus list (conquest points, seals and crests, guild points, Sparks of Eminence,
+Cruor, Bayld, Domain Points and so on). They share a row, the first on the left and the second on the
+right, or the second takes a row of its own when both are too long for one. The server tells the
+player how many they have only when asked, so while the inventory window is shown and a currency is
+chosen, the addon asks as the game's own menu does (0x10F for the first menu, 0x115 for the second):
+as the window is shown, every minute while it stays, and a few seconds after arriving in a new area.
+Only the menus a chosen currency is in are asked for. Until the first answer the count is a dash.
+
+In the unified view (**Unified Bags**, under Inventory → Tabs), a tab with more than one bag has a row of tabs of its
 own along the foot of the window: **all**, for every bag together, then one for each bag the player
 has (satchel, case and sack; the wardrobes by number; safe 1, safe 2, storage and locker). Choosing a
 bag shows its items alone, with its own count in the row above; Auto sort then sorts that bag alone.

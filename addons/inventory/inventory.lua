@@ -29,6 +29,7 @@ local tabs = require('winxi.tabs')
 local pool = require('pool')
 local equipment = require('equipment')
 local config = require('config')
+local currency = require('currency')
 
 -- Colours and spacing that were xitools' own
 local red = { 0.95, 0.20, 0.20, 1.0 }
@@ -1485,6 +1486,7 @@ end
 -- What the row says only changes when the bags do, so it is put together then (as they are read)
 -- and only drawn here.
 local countBuffer = { 0, 3 } -- between the slots and the row
+local currencyGap = 12 -- the least room between the two currencies on one row
 local countRows = { bag = { }, satchel = { }, wardrobe = { }, house = { } } -- each: { text, full }
 -- the unified view's all tab: the group's bags as one count, how many used of how many there are
 local allRows = { bag = { }, satchel = { }, wardrobe = { }, house = { } }
@@ -1556,6 +1558,28 @@ local function DrawCountsRow(group, unified)
             imgui.TextColored(red, row.text)
         else
             imgui.Text(row.text)
+        end
+    end
+
+    -- the chosen currencies, on a row under the gil: the first against the left edge, the second
+    -- against the right, or alone against the left; the second on a row of its own, against the right,
+    -- where the two are too long for one
+    local first = currency.Text(pad.options.currency1)
+    local second = currency.Text(pad.options.currency2)
+    if first == nil then
+        first, second = second, nil
+    end
+    if first ~= nil then
+        local left = imgui.GetCursorPosX()
+        imgui.Text(first)
+        if second ~= nil then
+            local width = imgui.CalcTextSize(second)
+            local firstWidth = imgui.CalcTextSize(first)
+            if left + firstWidth + currencyGap + width <= countsRight then
+                imgui.SameLine()
+            end
+            imgui.SetCursorPosX(math.max(left, countsRight - width))
+            imgui.Text(second)
         end
     end
 end
@@ -1912,6 +1936,8 @@ local defaults = T{
     controllerInfo = 'simple', -- what is said of the highlighted item: 'simple' or 'verbose'
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
+    currency1 = '', -- the currencies under the gil, by currency.lua's keys: '' for none
+    currency2 = '',
     treasurePool = T{ true }, -- the treasure pool, beside the window
     treasureShowEmpty = T{ false }, -- sample treasure in an empty pool, to see it
     treasureDetached = T{ false }, -- the treasure pool as a window of its own
@@ -1955,7 +1981,7 @@ local app = shell.New({
     settingsLabel = 'General',
     drawSettings = config.General,
     tabs = {
-        { label = 'Bags', draw = config.Bags },
+        { label = 'Inventory', draw = config.Inventory },
         { label = 'Treasure', draw = pool.DrawSettings },
         { label = 'Equipment', draw = equipment.DrawSettings },
     },
@@ -1971,6 +1997,7 @@ local app = shell.New({
     },
     onSettings = function(options)
         equipment.Reset()
+        currency.Reset()
         -- the player's own order is part of the settings, which may be another character's now
         manualOrders = options.manualOrder
         MarkStale(nil)
@@ -2044,6 +2071,7 @@ ashita.events.register('d3d_present', 'inv_present', function()
     -- any debounced bag scans/sorting. Equipment never waits for inventory packets to settle.
     iconFramed = false
     attached.shown[1] = options.isVisible[1] or options.isPinned[1]
+    currency.Update(options.currency1, options.currency2, attached.shown[1])
     if options.equipment.enabled[1] and options.equipment.detached[1] then
         equipment.Draw(options, IconSheet, nil, attached.shown[1])
     end
