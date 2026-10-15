@@ -20,16 +20,27 @@ io.open = function(path, mode)
 end
 
 -- custom.Frame says why it drew nothing
-local options = {}
-custom.Defaults(options)
+local defaults = {}
+custom.Defaults(defaults)
 local hook = ffi.new('namehook_t')
-H.print('no plugin hooks: unhooked', custom.Frame(options, hook) == 'unhooked')
+H.print('no plugin hooks: unhooked', custom.Frame(defaults, hook) == 'unhooked')
 hook.Hooked = 1
 imgui.GetFont = function() return { ContainerAtlas = { TexRef = { GetTexID = function() return 0 end },
     TexData = { GetTexID = function() return 0 end } } } end
-H.print('font texture of id 0: texture', custom.Frame(options, hook) == 'texture')
+H.print('font texture of id 0: texture', custom.Frame(defaults, hook) == 'texture')
 imgui.GetFont = function() return { ContainerAtlas = { TexRef = { GetTexID = function() return 0x1234 end } } } end
-H.print('no drawing buffer: draw', custom.Frame(options, hook) == 'draw')
+H.print('no drawing buffer: draw', custom.Frame(defaults, hook) == 'draw')
+
+-- off unless asked for: nothing kept, said or written
+local options = H.options()
+H.print('off by default', options.diagnostics[1] == false, diag.Enabled() == false)
+for _ = 1, 40 do diag.Frame('texture') end
+diag.Frame(nil)
+H.print('off: a long pause is not written or said', #written == 0, diag.Status() == 'Drawing')
+H.command('/name custom off')
+H.print('other verbs still only say the help', H.printed[#H.printed]:find('Use /name to open', 1, true) ~= nil)
+H.command('/name diag')
+H.print('/name diag turns it on, and it is kept', options.diagnostics[1] == true, diag.Enabled(), H.saves() > 0)
 
 -- a pause too short to be seen is only counted
 for _ = 1, 5 do diag.Frame(nil) end
@@ -67,4 +78,9 @@ H.print('log has the reason, pauses, error, history and settings',
     text:find('Custom names back after', 1, true) ~= nil,
     text:find('fontSize               28', 1, true) ~= nil)
 if os.getenv('SHOW_LOG') then H.print(text) end
+local count = #written
+H.command('/name diag log')
+H.print('/name diag log writes one', #written == count + 1, H.printed[#H.printed]:find('Log written to', 1, true) ~= nil)
+H.command('/name diag off')
+H.print('/name diag off', options.diagnostics[1] == false, diag.Enabled() == false)
 io.open = realOpen

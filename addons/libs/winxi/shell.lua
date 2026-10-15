@@ -18,7 +18,8 @@
 --         drawSettings   = function(options) ... end,   -- the Settings tab, above the hiding rules
 --         drawAppearance = function(options) ... end,   -- optional: more for the Winxi Theme tab's Addon section
 --         hideAppearance = true,                 -- optional: omit the Winxi Theme tab
---         menuOnlyCommands = true,               -- optional: only the bare command opens the menu
+--         menuOnlyCommands = true,               -- optional: only the bare command opens the menu; other
+--                                                --   verbs say the help, but for those in commands
 --         settingsLabel = 'Settings',             -- optional: label of the main settings tab
 --         leadingTabs = { { label = 'Names', draw = function(options) ... end } }, -- optional: tabs before the main settings tab
 --         tabs        = { { label = 'More', draw = function(options) ... end } },   -- optional: tabs of the addon's own, between Settings and Winxi Theme
@@ -257,7 +258,7 @@ local function OnCommand(app, e)
         if spec.toggleSays ~= nil then
             app:Say(options.isVisible[1] and spec.toggleSays.shown or spec.toggleSays.hidden);
         end
-    elseif spec.menuOnlyCommands then
+    elseif spec.menuOnlyCommands and (spec.commands == nil or spec.commands[verb] == nil) then
         app:Say(spec.help or 'Use the settings menu.');
     elseif verb == 'config' then
         app:ToggleConfig();

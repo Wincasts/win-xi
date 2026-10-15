@@ -1,6 +1,8 @@
 -- What name has been doing, kept for testers to send in: why the names it draws stopped, if they
--- did, and a short history of what happened around it.
+-- did, and a short history of what happened around it. Off unless turned on, with /name diag:
+-- while off, nothing is kept, said or written but what diag.Write is asked for.
 --
+--   diag.Enabled(), diag.Enable(on)
 --   diag.Frame(reason)        each frame: nil while the names are drawn, or why they were not, a key
 --                             of diag.Reasons
 --   diag.Error(message)       a Lua error in the frame, with its traceback; the same one is kept once,
@@ -49,12 +51,36 @@ local errors = {};        -- message -> { count, traceback, first, last }
 local errorOrder = {};
 local lastPath = nil;
 local zone = nil;
+local enabled = false;
 
 local function stamp()
     return ('%s %8.2f f%d'):format(os.date('%H:%M:%S'), os.clock() - loadedAt, frame);
 end
 
+function diag.Enabled()
+    return enabled;
+end
+
+-- Notes the change while on, so the history says when it began and ended
+function diag.Enable(on)
+    on = on and true or false;
+    if (on == enabled) then
+        return;
+    end
+    if (on) then
+        enabled = true;
+        reason, seen = nil, false; -- what was not watched is not counted
+        diag.Note('Diagnostics on, name %s', addon.version);
+    else
+        diag.Note('Diagnostics off');
+        enabled = false;
+    end
+end
+
 function diag.Note(text, ...)
+    if (not enabled) then
+        return;
+    end
     local line = stamp() .. '  ' .. ((select('#', ...) > 0) and text:format(...) or text);
     if (#history < HISTORY) then
         history[#history + 1] = line;
@@ -85,6 +111,9 @@ local function finish()
 end
 
 function diag.Frame(now)
+    if (not enabled) then
+        return;
+    end
     frame = frame + 1;
     if (now == reason) then
         if (reason ~= nil and not seen and frame - since >= SEEN_AFTER) then
@@ -109,6 +138,9 @@ function diag.Frame(now)
 end
 
 function diag.Error(message, traceback)
+    if (not enabled) then
+        return;
+    end
     message = tostring(message);
     local known = errors[message];
     if (known == nil) then
@@ -234,6 +266,7 @@ function diag.Write(why)
         ('name %s diagnostic log'):format(addon.version),
         ('Written %s, %.0fs after loading, frame %d: %s'):format(os.date('%Y-%m-%d %H:%M:%S'), os.clock() - loadedAt, frame, why or 'asked for'),
         ('Custom names: %s'):format(diag.Status()),
+        ('Diagnostics: %s'):format(enabled and 'on' or 'off: only what is here now, no history'),
         '',
         '== Now',
     };
@@ -282,7 +315,5 @@ function diag.Write(why)
     diag.Note('Log written: %s', path);
     return path;
 end
-
-diag.Note('Loaded name %s', addon.version);
 
 return diag;
