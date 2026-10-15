@@ -16,9 +16,10 @@ Shows and hides the names over characters' heads, by what they are over. A setti
 
 ## Settings
 
-The preferred baseline is captured in `name_defaults.lua` from the live Win_4458
-profile. It uses **corbeli.ttf**, **bold**, maximum/minimum font sizes **28/10**,
-**75% check size**, **93% icon size**, **2 px icon spacing**, and **1 px outline**.
+The preferred baseline is in `name_defaults.lua`, taken from the author's own settings.
+It uses **trebucbi.ttf**, not bold, maximum/minimum font sizes **32/9**,
+**90% check size**, **90% icon size**, **4 px icon spacing**, **1 px outline**, a hunted
+monster's name at **120%**, and statuses level with the name's left.
 Difficulty abbreviations and check details are enabled, mastery stars and words
 mode are off. Own Name, Other Players, and Other Pets are hidden; Always Show
 Target is on. Appearance/hide preferences are captured too.

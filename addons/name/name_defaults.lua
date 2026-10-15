@@ -1,4 +1,4 @@
--- Preferred Name defaults, captured from the live Win_4458 profile.
+-- Preferred Name defaults, taken from the author's own settings.
 -- Existing character settings take precedence.
 require('common');
 

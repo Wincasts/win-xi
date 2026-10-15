@@ -25,6 +25,19 @@ addon.version   = '1.2';
 addon.desc      = 'Adds slash commands to hide, show, or toggle the games party frames, drawing the target cursor they take with them.';
 addon.link      = 'https://ashitaxi.com/';
 
+-- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
+-- older one may have been put over it (winxi.version)
+local winxiNeeded = 1;
+do
+    local ok, found = pcall(require, 'winxi.version');
+    local number = ok and type(found) == 'table' and found.Number or 0;
+    if number < winxiNeeded then
+        local text = ('%s needs winxi %d or newer, and addons/libs/winxi is %d: install the newest release of any winxi addon.'):format(addon.name, winxiNeeded, number);
+        print(('\30\68[%s]\30\01 %s'):format(addon.name, text));
+        error(text, 0);
+    end
+end
+
 require 'common';
 
 local chat = require 'chat';

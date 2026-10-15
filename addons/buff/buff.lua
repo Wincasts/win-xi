@@ -11,6 +11,19 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --   /buff           shows or hides the window (it only appears while there is a status to show)
 --   /buff config    opens or closes the settings
 
+-- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
+-- older one may have been put over it (winxi.version)
+local winxiNeeded = 1;
+do
+    local ok, found = pcall(require, 'winxi.version');
+    local number = ok and type(found) == 'table' and found.Number or 0;
+    if number < winxiNeeded then
+        local text = ('%s needs winxi %d or newer, and addons/libs/winxi is %d: install the newest release of any winxi addon.'):format(addon.name, winxiNeeded, number);
+        print(('\30\68[%s]\30\01 %s'):format(addon.name, text));
+        error(text, 0);
+    end
+end
+
 require('common');
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
