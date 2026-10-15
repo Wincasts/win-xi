@@ -81,8 +81,9 @@ local StatusType = {
     Threnody = 'threnody',
 };
 
--- Action category (4 is a spell finishing) -> spell -> the debuff it leaves, how long for in seconds,
--- the kind it takes the place of, and the messages that mean it took hold
+-- Action category (4 is a spell finishing) -> spell -> the debuff it leaves, how long for in seconds
+-- when the server's scripts do not say (winxi.debuff_durations is taken first), the kind it takes the
+-- place of, and the messages that mean it took hold
 local ActionMap = {
     [  4] = {
         [ 23] = {
@@ -596,11 +597,12 @@ local SPELL, MOVE = 4, 11;   -- the action categories durations are known for: a
 
 -- The messages of an action's result that say a status took hold, the status being param: "<target> is
 -- <status>", "<target> receives the effect of <status>", "<target> gains the effect of <status>", as
--- each kind of action words it
+-- each kind of action words it. Of an action on many, only the first target's says who did what: the
+-- rest have 266, 277 and 278, which say only "<target> ..."
 local Lands = {
     [127] = true, [203] = true, [236] = true, [237] = true, [242] = true, [243] = true, [267] = true,
-    [268] = true, [271] = true, [277] = true,
-    [186] = true, [205] = true, [230] = true, [319] = true, [320] = true, [375] = true,
+    [268] = true, [271] = true, [277] = true, [278] = true,
+    [186] = true, [205] = true, [230] = true, [266] = true, [319] = true, [320] = true, [375] = true,
 };
 -- and the same said of an additional effect, the status being its param
 local ProcLands = { [160] = true, [164] = true };
@@ -671,7 +673,11 @@ function debuffs.Action(action)
         return;
     end
 
-    local expires = os.time() + spell.dur;
+    -- the server's base duration for it where its scripts have one, this file's own where they have not
+    local status = debuffs.StatusIds[spell.type];
+    local byServer = durations.spells[action.param];
+    local seconds = (byServer and byServer[status]) or spell.dur;
+    local expires = os.time() + seconds;
     for _, target in pairs(action.targets) do
         for _, result in pairs(target.actions) do
             if Landed(spell.msg, result.message) then
@@ -682,7 +688,7 @@ function debuffs.Action(action)
                 end
                 on[spell.type] = { kind = spell.type, name = spell.name, expires = expires, by = action.actor_id, element = spell.ele };
                 -- by its number as well: Dia and Bio say only the damage they do as they land
-                Put(target.id, debuffs.StatusIds[spell.type], spell.dur, action.actor_id, action.category, action.param);
+                Put(target.id, status, seconds, action.actor_id, action.category, action.param);
                 if spell.over then
                     on[spell.over] = nil;
                     Take(target.id, debuffs.StatusIds[spell.over]);
