@@ -11,7 +11,8 @@
 --
 -- Reading a member means a couple of dozen memory calls and a search for their buffs, so each party
 -- is read at most ten times a second and the same lines are handed back in between; who is where
--- (for how far away they are) is looked up afresh every time, as an entity must not be kept.
+-- (for how far away they are) is looked up afresh every time, as an entity must not be kept, and so
+-- is who is targeted, for the cursor before a name to keep up with the game's.
 require('common')
 local bit = require('bit')
 local ffi = require('ffi')
@@ -187,11 +188,33 @@ local function ReadTargets(target)
     targeted.second = targeted.subActive and target:GetServerId(1) or 0
 end
 
+-- Whether each member is the one targeted, sub-targeted or under the party cursor. Looked at every
+-- frame, not ten times a second as the rest is, so the cursor before a name keeps up with the game's.
+-- A made-up member has no place, and is never selected.
+local function MarkTargets(members, target, stal)
+    ReadTargets(target)
+    for _, member in ipairs(members) do
+        local place = member.place
+        if place ~= nil then
+            local serverId = member.serverId
+            -- with a sub-target out, the game holds it first and the target second
+            if targeted.subActive then
+                member.isTarget = serverId == targeted.second
+                member.isSubTarget = serverId == targeted.first
+            else
+                member.isTarget = serverId == targeted.first
+                member.isSubTarget = false
+            end
+            member.isPartyTarget = stal ~= nil and stal == place
+        end
+    end
+end
+
 ---@return PartyMember
-local function ReadMember(place, party, stal)
+local function ReadMember(place, party)
     local member = places[place]
     if member == nil then
-        member = { statusIds = { }, isPlayer = place == 0 }
+        member = { statusIds = { }, isPlayer = place == 0, place = place }
         places[place] = member
     end
 
@@ -206,15 +229,6 @@ local function ReadMember(place, party, stal)
     member.isActive = place == 0 or party:GetMemberIsActive(place) == 1
     member.isPartyLeader = bit.band(flags, 4) == 4
     member.isAllianceLeader = bit.band(flags, 8) == 8
-    -- with a sub-target out, the game holds it first and the target second
-    if targeted.subActive then
-        member.isTarget = serverId == targeted.second
-        member.isSubTarget = serverId == targeted.first
-    else
-        member.isTarget = serverId == targeted.first
-        member.isSubTarget = false
-    end
-    member.isPartyTarget = stal ~= nil and stal == place
     local main = party:GetMemberMainJob(place)
     member.job = game.JobAbbr(main)
     member.jobLevel = party:GetMemberMainJobLevel(place)
@@ -250,7 +264,7 @@ local function GetSampleMember(slot, place)
     return {
         targetIndex = nil,
         name = ('Sample %d'):format(slot),
-        serverId = 0,
+        serverId = -(2000 + place), -- its own, apart from the other made-up members' and anyone real
         isInZone = true,
         isActive = true,
         isPartyLeader = slot == 1,
@@ -374,18 +388,17 @@ function roster.Members(list, sample, sortByRole)
     elseif cached.sample == sample
     and cached.sortByRole == sortByRole
     and now - cached.time < refreshInterval then
+        MarkTargets(cached.members, AshitaCore:GetMemoryManager():GetTarget(), game.StPartyIndex())
         return FindEntities(cached.members)
     end
 
     local memory = AshitaCore:GetMemoryManager()
     local partyMemory = memory:GetParty()
-    local stal = game.StPartyIndex()
 
     local members = cached.members
     Clear(members)
-    ReadTargets(memory:GetTarget())
     for slot, place in ipairs(partyPlaces[list]) do
-        local member = ReadMember(place, partyMemory, stal)
+        local member = ReadMember(place, partyMemory)
         if sample and not (member.isActive and member.name ~= '') then
             member = GetSampleMember(slot, place)
         end
@@ -400,6 +413,7 @@ function roster.Members(list, sample, sortByRole)
     end
 
     cached.time, cached.sample, cached.sortByRole = now, sample, sortByRole
+    MarkTargets(members, memory:GetTarget(), game.StPartyIndex())
     return FindEntities(members)
 end
 

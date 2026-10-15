@@ -50,6 +50,8 @@ local function IsPlayer(entity)
     return entity.SpawnFlags ~= nil and bit.band(entity.SpawnFlags, spawnFlagPlayer) ~= 0
 end
 
+local sampleIds = { main = -3001, sub = -3002, tot = -3003 }
+
 -- Each window's line, kept: its figures are only made into words again when they change
 local kept = { } -- key -> { the line }
 
@@ -62,7 +64,10 @@ function target.Line(key, entity)
 
     local line = lines[1]
     line.name = entity.Name
-    line.serverId = -(entity.ServerId or 0) -- its own kept figures, apart from a party member's of the same id
+    -- its own kept figures, apart from a party member's of the same id; a made-up target, whose id is
+    -- none, has its window's own
+    local serverId = entity.ServerId or 0
+    line.serverId = serverId ~= 0 and -serverId or sampleIds[key]
     line.plainHp = not IsPlayer(entity)
     if line.hpp ~= entity.HPPercent then
         line.hpp = entity.HPPercent
