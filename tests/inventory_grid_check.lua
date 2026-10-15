@@ -37,8 +37,7 @@ end
 imgui.BeginChild = function(id, size, childFlags, windowFlags)
     assert(type(childFlags) == 'number' and type(windowFlags) == 'number',
         'BeginChild requires numeric child and window flags in the current ImGui binding')
-    assert(childFlags == bit.bor(ImGuiChildFlags_AutoResizeY, ImGuiChildFlags_AlwaysUseWindowPadding),
-        'grid should collapse to its contents, and keep its padding (room for the outlines) though it has no border')
+    assert(childFlags == ImGuiChildFlags_AutoResizeY, 'grid should collapse to its contents')
     assert(windowFlags == bit.bor(ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar),
         'grid should be transparent, with no scrollbar of its own to take room from the slots')
     children[#children + 1] = { id, size[1], bounds[2], bounds[1] }
@@ -61,14 +60,14 @@ H.bag(0, 80, { { 1 }, { 2 }, { 3 } })
 o.gridRows[1], o.gridColumns[1] = 5, 6
 frame()
 check('four tabs enabled by default', table.concat(labels, ',') == 'bag,satchel,ward,house')
--- the slots' 232 by 176, and 6 at each side and 4 above and below for the outlines
-check('grid viewport follows rows and columns', #children == 1 and children[1][2] == 244 and children[1][3] == 184)
+-- exactly the slots' 232 by 176, so the window, its tabs and its foot are as wide as the slots
+check('grid viewport follows rows and columns', #children == 1 and children[1][2] == 232 and children[1][3] == 176)
 o.maxHeight[1] = 100
 frame()
-check('legacy max height no longer limits the grid', children[1][3] == 184)
+check('legacy max height no longer limits the grid', children[1][3] == 176)
 o.gridRows[1], o.gridColumns[1] = 0, 100
 frame()
-check('out-of-range settings clamped', children[1][2] == 1204 and children[1][3] == 184)
+check('out-of-range settings clamped', children[1][2] == 1192 and children[1][3] == 176)
 o.gridRows[1], o.gridColumns[1] = 0, 0
 frame()
 check('minimum columns and rows enforced in saved settings', o.gridColumns[1] == 6 and o.gridRows[1] == 5)
@@ -77,7 +76,7 @@ for _, unified in ipairs({ true, false }) do
     o.bagTabs.satchel[1], o.bagTabs.wardrobe[1] = false, false
     frame()
     check('hidden groups omitted (' .. tostring(unified) .. ')', table.concat(labels, ',') == 'bag,house')
-    check('same viewport in both bag layouts', #children == 1 and children[1][3] == 184)
+    check('same viewport in both bag layouts', #children == 1 and children[1][3] == 176)
 end
 
 o.controller[1] = true
@@ -123,7 +122,7 @@ check('six-column preview fills final column then wraps', #slotRects == 30
 o.gridRows[1], o.gridColumns[1] = 7, 8
 frame()
 check('increasing dimensions expands preview', hasGrid(312, 248)
-    and children[1][2] == 324 and children[1][3] == 256)
+    and children[1][2] == 312 and children[1][3] == 248)
 check('eight-column preview fills eighth column then wraps', #slotRects == 56
     and slotRects[8][1] == 290 and slotRects[8][2] == 20
     and slotRects[9][1] == 10 and slotRects[9][2] == 56)
@@ -131,18 +130,18 @@ o.gridRows[1], o.gridColumns[1] = 5, 6
 H.ret.GetContentRegionAvail = { 5000, 1000 } -- simulate a previously much wider window
 frame()
 check('decreasing dimensions shrinks preview', hasGrid(232, 176)
-    and children[1][2] == 244 and children[1][3] == 184)
--- the counts end where the slots do, inside the grid's padding
-check('footer does not hold window at previous width', countX == 236)
+    and children[1][2] == 232 and children[1][3] == 176)
+-- the counts end where the slots do
+check('footer does not hold window at previous width', countX == 230)
 check('no scroll bar while the grid does not scroll', #scrollBars == 0)
 -- scrolled half way down 100 more pixels than the grid (here the whole 1000 by 1000 window) shows
 H.ret.GetScrollMaxY, H.ret.GetScrollY = { 100 }, { 50 }
 frame()
-check('a scrolling grid keeps the window\'s width and the slots\' spacing', children[1][2] == 244
+check('a scrolling grid keeps the window\'s width and the slots\' spacing', children[1][2] == 232
     and hasGrid(232, 176) and slotRects[6][1] == 210)
 local bar = scrollBars[1]
-check('a slim scroll bar in the right margin, as long and as far down as the grid shows', #scrollBars == 1
-    and bar[1] == 998 and bar[3] == 1000
+check('a slim scroll bar just outside the grid\'s right edge, as long and as far down as the grid shows', #scrollBars == 1
+    and bar[1] == 1002 and bar[3] == 1004
     and math.abs((bar[4] - bar[2]) - 1000 * 1000 / 1100) < 0.01
     and math.abs(bar[2] - (1000 - 1000 * 1000 / 1100) / 2) < 0.01)
 H.ret.GetScrollMaxY, H.ret.GetScrollY = nil, nil
