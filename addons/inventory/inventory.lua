@@ -27,6 +27,7 @@ local sound = require('winxi.sound')
 local itemicons = require('winxi.itemicons')
 local tabs = require('winxi.tabs')
 local pool = require('pool')
+local equipment = require('equipment')
 
 -- Colours and spacing that were xitools' own
 local red = { 0.95, 0.20, 0.20, 1.0 }
@@ -1369,7 +1370,18 @@ local padMin, padMax = { 0, 0 }, { 0, 0 }
 -- Drawn each frame: the sheet the icons are on (winxi.itemicons), their tint (white, with the window's
 -- fade), and the item under the mouse, for its tooltip
 local iconSheet = nil
+local iconFramed = false -- whether itemicons.Frame has been called this frame
 local iconWhite = { 1, 1, 1, 1 }
+
+-- The icon sheet for this frame. itemicons.Frame starts a new frame of the sheet, so it is called
+-- once a frame, by whichever window draws first, and only if one does.
+local function IconSheet()
+    if not iconFramed then
+        iconFramed = true
+        iconSheet = itemicons.Frame()
+    end
+    return iconSheet
+end
 local iconTint = 0
 local hoveredItem = nil
 
@@ -1462,7 +1474,7 @@ local function DrawBag(bagId, subId)
     end
 
     local left, top = imgui.GetCursorScreenPos()
-    gridSize[1] = math.min(total, rowLengthIsh) * stepX - itemGap[1]
+    gridSize[1] = (math.min(total, rowLengthIsh) - 1) * stepX + iconSize
     gridSize[2] = math.ceil(total / rowLengthIsh) * stepY - itemGap[2]
     imgui.Dummy(gridSize)
 
@@ -1665,8 +1677,8 @@ local function BeginTab(index, label)
         viewportMin[1], viewportMax[1] = viewportSize[1], viewportSize[1]
         viewportMin[2] = previewGrid and viewportMax[2] or 1
         imgui.SetNextWindowSizeConstraints(viewportMin, viewportMax)
-        -- The parent already supplies Winxi padding. Child padding would subtract from the
-        -- slot area and clip the final column; reserve only the actual scrollbar width here.
+        -- The parent already supplies Winxi padding; keep the child's outer width fixed.
+        -- Its available content width excludes the scrollbar when one is needed.
         imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, gridPadding)
         local shown = imgui.BeginChild('##inv.grid.' .. index, viewportSize,
             ImGuiChildFlags_AutoResizeY,
@@ -1677,6 +1689,12 @@ local function BeginTab(index, label)
             imgui.EndTabItem()
             return false
         end
+        local availableWidth = imgui.GetContentRegionAvail()
+        local normalWidth = rowLengthIsh * (iconSize + itemGap[1]) - itemGap[1]
+        local fittedWidth = math.max(rowLengthIsh * iconSize, math.min(normalWidth, availableWidth))
+        -- Fit the same number of full-sized icons by reducing only their horizontal gaps.
+        -- Use this pitch consistently for drawing, mouse hit testing and controller positions.
+        stepX = (fittedWidth - iconSize) / (rowLengthIsh - 1)
     end
     return showing
 end
@@ -1765,7 +1783,7 @@ local function DrawWindow(drawOptions)
     -- once for the frame, inside the window: they take in its fade
     stackMain, stackShadow = imgui.GetColorU32(stackWhite), imgui.GetColorU32(stackBlack)
     iconTint = imgui.GetColorU32(iconWhite)
-    iconSheet = itemicons.Frame()
+    IconSheet()
     hoveredItem = nil
 
     imgui.SetCursorPosY(imgui.GetCursorPosY() + topPadding)
@@ -1818,6 +1836,20 @@ local defaults = T{
     treasureDetached = T{ false }, -- the treasure pool as a window of its own
     treasurePos = T{ 256, 100 }, -- where it is, detached
     treasureWidth = T{ 300 }, -- how wide it is
+    equipment = T{
+        enabled = T{ false },
+        pos = T{ 100, 100 },
+        lockMovement = T{ false },
+        scale = T{ 1 },
+        spacing = T{ 4 },
+        opacity = T{ 1 },
+        background = T{ true },
+        slotBackgrounds = T{ true },
+        qualityBorders = T{ true },
+        wardrobeMarkers = T{ true },
+        showEncumbrance = T{ true },
+        showAmmoCount = T{ true },
+    },
     -- manualOrder: the player's own order of items, once they have made one
 }
 
@@ -1857,9 +1889,9 @@ local function DrawControllerSettings(options)
     end
 end
 
--- The settings tab, in sections: the window, the bags, the treasure pool and the controller. The
--- shell adds the hiding rules under Visibility.
-local function DrawSettings(options)
+-- General holds movement, window and controller settings; the shell appends Visibility.
+-- Bags and treasure have their own settings tabs.
+local function DrawGeneralSettings(options)
     widgets.Label('Lock Drag to Move')
     imgui.Checkbox('##inv.lockMovement', options.lockMovement)
     if imgui.IsItemHovered() then
@@ -1881,7 +1913,13 @@ local function DrawSettings(options)
         end
     end
 
-    if widgets.Header('Bags') then
+    if widgets.Header('Controller') then
+        shell.ControllerSettings(options, controllerTooltip, DrawControllerSettings)
+    end
+end
+
+local function DrawBagSettings(options)
+    if widgets.Header('Bags', true) then
         widgets.Label('Rows')
         imgui.SetNextItemWidth(widgets.NumberWidth(1))
         imgui.InputInt('##inv.gridRows', options.gridRows, 0, 0)
@@ -1903,11 +1941,6 @@ local function DrawSettings(options)
         end
     end
 
-    pool.DrawSettings(options)
-
-    if widgets.Header('Controller') then
-        shell.ControllerSettings(options, controllerTooltip, DrawControllerSettings)
-    end
 end
 
 -- The settings, the settings window, the command and the main window's frame are the shell's. The
@@ -1923,7 +1956,13 @@ local app = shell.New({
     formerName = 'inv',
     help = '/inventory (or /inv) opens or closes the settings; /inv toggle shows or hides the window; /inv focus gives the window the controller, or takes it away.',
     bareOpensConfig = true,
-    drawSettings = DrawSettings,
+    settingsLabel = 'General',
+    drawSettings = DrawGeneralSettings,
+    tabs = {
+        { label = 'Bags', draw = DrawBagSettings },
+        { label = 'Treasure', draw = pool.DrawSettings },
+        { label = 'Equipment', draw = equipment.DrawSettings },
+    },
     hideAppearance = true,
     hideHeader = 'Visibility',
     import = {
@@ -1935,6 +1974,7 @@ local app = shell.New({
         },
     },
     onSettings = function(options)
+        equipment.Reset()
         -- the player's own order is part of the settings, which may be another character's now
         manualOrders = options.manualOrder
         MarkStale(nil)
@@ -1994,6 +2034,13 @@ ashita.events.register('d3d_present', 'inv_present', function()
     end
     local options = app.options
 
+    -- Give combat gear changes first access to the icon upload budget and read them before
+    -- any debounced bag scans/sorting. Equipment never waits for inventory packets to settle.
+    iconFramed = false
+    if options.equipment.enabled[1] then
+        equipment.Draw(options, IconSheet())
+    end
+
     -- the player's own order, changed by sorting by hand
     if options.manualOrder ~= manualOrders then
         manualOrders = options.manualOrder
@@ -2009,8 +2056,7 @@ ashita.events.register('d3d_present', 'inv_present', function()
     options.gridRows[1] = math.max(5, math.min(30, math.floor(options.gridRows[1])))
     rowLengthIsh = options.gridColumns[1]
     local rows = options.gridRows[1]
-    local scrollbarWidth = imgui.GetStyle().ScrollbarSize or 14
-    viewportSize[1] = rowLengthIsh * stepX - itemGap[1] + scrollbarWidth
+    viewportSize[1] = rowLengthIsh * (iconSize + itemGap[1]) - itemGap[1]
     previewSlots = rows * rowLengthIsh
     viewportSize[2] = 0 -- AutoResizeY fits actual content, bounded by the selected rows
     viewportMax[2] = rows * stepY - itemGap[2]

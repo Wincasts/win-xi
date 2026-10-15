@@ -13,6 +13,7 @@ package.path = root .. 'addons/libs/?.lua;' .. package.path
 package.path = (target:match('^(.*)/[^/]*$') or '.') .. '/?.lua;' .. package.path
 
 local handlers, present, calls, printed, clock = {}, {}, {}, {}, 0
+local cpuClock = os.clock
 os.clock = function() return clock end
 local realprint = print
 print = function(...) printed[#printed + 1] = (table.concat({ ... }, ' '):gsub('[%z\1-\31]', '')) end
@@ -108,8 +109,12 @@ ashita = { interface_version = 4,
     end } }
 -- the bags: what H.bag has put in each (bag -> slot -> { Id, Count, Index, Flags }) and how big each is,
 -- the gil H.gil has set, and how many times each bag's slots have been read
-local contents, sizes, gil, reads = {}, {}, nil, {}
+local contents, sizes, gil, reads, equipped = {}, {}, nil, {}, {}
 local inventory = {
+    GetEquippedItem = function(_, slot)
+        calls.GetEquippedItem = (calls.GetEquippedItem or 0) + 1
+        return equipped[slot]
+    end,
     GetContainerItem = function(_, bag, slot)
         reads[bag] = (reads[bag] or 0) + 1
         if bag == 0 and slot == 0 and gil ~= nil then return { Id = 65535, Count = gil, Index = 0, Flags = 0 } end
@@ -143,6 +148,7 @@ local function fire(event, e) for _, f in ipairs(handlers[event] or {}) do f(e) 
 -- What a check file works with
 H = {
     print = realprint, calls = calls, ret = ret, printed = printed, sent = sent, sounds = sounds, raised = raised,
+    cpuClock = cpuClock, -- real process CPU time, distinct from the simulated game clock
     options = function() return store end,
     saves = function() return saves end,
     resettle = function() handlers.settings(store) end,    -- the settings as they are, given to the addon again as if loaded afresh
@@ -155,6 +161,9 @@ H = {
     bag = function(bag, size, items)
         sizes[bag], contents[bag] = size, {}
         for i, item in ipairs(items or {}) do contents[bag][i] = { Id = item[1], Count = item[2] or 1, Index = i, Flags = 0 } end
+    end,
+    equip = function(slot, bag, index)
+        equipped[slot] = bag ~= nil and { Index = bag * 256 + index } or nil
     end,
     gil = function(count) gil = count; sizes[0] = sizes[0] or 30 end,
     reads = function() local r = reads reads = {} return r end,  -- how many slots of each bag were read, since last asked

@@ -45,9 +45,9 @@ do
     H.frames(5); r = H.reads()
     H.print('read once settled', (r[5] or 0) > 0, '| the satchel alone (the gil looked at, not the inventory)', (r[0] or 0) <= 2 and r[8] == nil)
 
-    -- Choose one column: the third item is two rows down.
-    o.gridColumns[1] = 1
-    H.ret.IsWindowHovered, H.ret.GetMousePos = { true }, { 15, 20 + 2 * 36 + 5 }
+    -- With six columns, the third item is the third slot of the first row.
+    o.gridColumns[1] = 6
+    H.ret.IsWindowHovered, H.ret.GetMousePos = { true }, { 15 + 2 * 40, 25 }
     local tips = H.calls.BeginTooltip or 0; H.frames(1)
     H.print('hovering the third item: its tooltip', (H.calls.BeginTooltip or 0) > tips)
     local opened = H.calls.OpenPopup or 0
