@@ -47,6 +47,7 @@ local style = require('winxi.style');
 local shell = require('winxi.shell');
 local sound = require('winxi.sound');
 local game = require('winxi.game');
+local tabs = require('winxi.tabs');
 local settings = require('settings');
 local hunts = require('hunts');
 local maps = require('maps');
@@ -1560,15 +1561,15 @@ local function Draw(options)
     wantTab = nil;
     imgui.BeginGroup();
     if imgui.BeginTabBar('##mark.tabs', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
-        if imgui.BeginTabItem('Database##mark.database', 0, turnTo == 1 and ImGuiTabItemFlags_SetSelected or 0) then
+        if tabs.Begin('Database##mark.database', turnTo == 1 and ImGuiTabItemFlags_SetSelected or 0) then
             DrawDatabase(options);
             imgui.EndTabItem();
         end
-        if imgui.BeginTabItem('Marks##mark.marksTab') then
+        if tabs.Begin('Marks##mark.marksTab') then
             DrawMarks(options);
             imgui.EndTabItem();
         end
-        if imgui.BeginTabItem('Stats##mark.statsTab', 0, turnTo == 3 and ImGuiTabItemFlags_SetSelected or 0) then
+        if tabs.Begin('Stats##mark.statsTab', turnTo == 3 and ImGuiTabItemFlags_SetSelected or 0) then
             DrawStats(options);
             imgui.EndTabItem();
         end
