@@ -91,7 +91,7 @@ def install_text(addon, version, extras):
         lines.append(f'    /addon load {other}          (optional: see its README)')
     lines += [
         '',
-        'and /winxi (with /addon load winxisettings) for the look every winxi addon shares.',
+        'and for the look every winxi addon shares: /addon load winxisettings, then /winxi.',
         '',
         'Every winxi addon comes with its own copy of addons/libs/winxi. If an addon says it needs a',
         'newer winxi, install the newest release of any winxi addon.',
@@ -185,11 +185,12 @@ def package(addon, output):
     digest = sha256(archive.read_bytes())
     (output / f'{name}.zip.sha256').write_text(f'{digest}  {archive.name}\n')
     winxi = re.search(r'Number = (\d+)', (ROOT / 'addons/libs/winxi/version.lua').read_text()).group(1)
+    bundled = [f'winxi {winxi}', 'winxisettings', *extras.get('addons', {})]
+    if extras.get('plugin'):
+        bundled.append(f"the {extras['plugin']} plugin")
     (output / f'{name}.notes.md').write_text(
-        release_notes + f'\nComes with winxi {winxi} and winxisettings'
-        + ''.join(f', {other}' for other in extras.get('addons', {}))
-        + (f" and the {extras['plugin']} plugin" if extras.get('plugin') else '')
-        + f'. Extract into your Ashita folder; see addons/{addon}/INSTALL.txt.\n')
+        release_notes + f"\nComes with {', '.join(bundled[:-1])} and {bundled[-1]}."
+        + f' Extract into your Ashita folder; see addons/{addon}/INSTALL.txt.\n')
 
     print(f'{archive.relative_to(ROOT)}: {len(names)} files, {archive.stat().st_size:,} bytes, sha256 {digest}')
     print(f'  gh release create {name} -R {REPOSITORY} --target {commit} --prerelease '
