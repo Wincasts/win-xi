@@ -8,7 +8,6 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | Addon | What it does | Command |
 |---|---|---|
 | [buff](addons/buff) | The statuses you are under, in a window, with FFXIV's icons and the time each has left | `/buff` |
-| [hidechatbg](addons/hidechatbg) | Hides the background behind the game's chat, leaving its text | `/hidechatbg` |
 | [hidecompass](addons/hidecompass) | Hides the game's compass | `/hidecompass` |
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
 | [name](addons/name) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style; needs the `namehook` plugin | `/name` |
