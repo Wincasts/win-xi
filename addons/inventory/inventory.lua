@@ -741,7 +741,7 @@ end
 -- The right-click menu. There is one for the whole window, opened on the item under the mouse; what it
 -- offers depends on the group of bags the item is in.
 local menuName = '##inv.itemMenu'
-local itemMenu = { item = nil, group = nil, entries = nil, open = false }
+local itemMenu = { item = nil, group = nil, entries = nil, open = false, opening = false }
 
 -- The item a menu was opened on, as the bags are now: the same slot of the same bag, with the same
 -- item in it. A bag is read again whenever anything in it changes, and its items with it.
@@ -754,10 +754,12 @@ local function FindAgain(item, group)
     return nil
 end
 
--- Opens the menu on an item, from the right-click
+-- Opens the menu on an item, from the right-click. The click is seen in the grid's scrolling region,
+-- but the menu is begun in the window around it, after the region ends; imgui knows a popup by its
+-- name and the window it was opened in, so it is opened there too, as the menu is drawn.
 local function OpenItemMenu(item, group, entries)
     itemMenu.item, itemMenu.group, itemMenu.entries = item, group, entries
-    imgui.OpenPopup(menuName)
+    itemMenu.opening = true
 end
 
 -- The open menu, once a frame, in the tab it was opened in. It closes if its item has gone.
@@ -769,6 +771,10 @@ local function DrawItemMenu()
     if itemMenu.item.gone then
         itemMenu.item = FindAgain(itemMenu.item, itemMenu.group)
         itemMenu.entries = itemMenu.item and ItemEntries(itemMenu.item, itemMenu.group)
+    end
+    if itemMenu.opening then
+        itemMenu.opening = false
+        imgui.OpenPopup(menuName)
     end
     if imgui.BeginPopup(menuName) then
         itemMenu.open = true
