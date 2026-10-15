@@ -382,9 +382,9 @@ local function Info(id)
         longNameP = itemRes.LogNamePlural[1],
         desc = EscapeString(itemRes.Description[1]),
         stackMax = itemRes.StackSize,
-        -- for the equipment window's borders: 1 normal, 2 Rare, 3 Exclusive, 4 both
-        quality = 1 + (bit.band(itemRes.Flags, 0x8000) ~= 0 and 1 or 0)
-            + (bit.band(itemRes.Flags, 0x4000) ~= 0 and 2 or 0),
+        -- high quality, for the equipment window's border: the game has no mark for it, but names an
+        -- item's HQ as a separate item, with +1 (or +2, +3) after the name
+        isHQ = itemRes.Name[1]:match(' %+%d$') ~= nil,
     }
 
     if info.type == itemTypes.armor

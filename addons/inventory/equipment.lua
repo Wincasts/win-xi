@@ -46,14 +46,8 @@ local backdropTints = {}
 local transparent = { 0, 0, 0, 0 }
 local open = { true }
 local windowStyle = { shadow = false, title = 'Equipment' }
--- Resource Rare/Exclusive flags, not container Flags (which describe slot state).
-local qualityColors = {
-    { 0.65, 0.65, 0.65, 1 }, -- normal
-    { 0.30, 0.65, 1.00, 1 }, -- Rare
-    { 0.30, 0.85, 0.45, 1 }, -- Exclusive
-    { 1.00, 0.75, 0.20, 1 }, -- Rare/Exclusive
-}
-local qualityTints = {}
+-- High-quality gear has a white border, as the game gives it; anything else has none
+local hqColor = { 1, 1, 1, 1 }
 local wardrobeNumbers = { [8] = 1, [10] = 2, [11] = 3, [12] = 4, [13] = 5, [14] = 6, [15] = 7, [16] = 8 }
 -- A wardrobe's mark, as the game's: its number in white, edged in black, in the top-right corner,
 -- over a wash of the wardrobe's colour that is strongest along the top and right edges and fades
@@ -95,7 +89,7 @@ local function Colors(alpha)
     packed.tint, packed.cross = imgui.GetColorU32(white), imgui.GetColorU32(blocked)
     packed.outline = imgui.GetColorU32(text.OutlineColor)
     for i, color in ipairs(backdropColors) do backdropTints[i] = imgui.GetColorU32(color) end
-    for i, color in ipairs(qualityColors) do qualityTints[i] = imgui.GetColorU32(color) end
+    packed.hq = imgui.GetColorU32(hqColor)
     for i, color in ipairs(wardrobeColors) do
         markColor[1], markColor[2], markColor[3] = color[1], color[2], color[3]
         markColor[4] = 1; markStrong[i] = imgui.GetColorU32(markColor)
@@ -125,7 +119,7 @@ ashita.events.register('packet_in', 'inv_equipment_packet', function(e)
     end
 end)
 
--- What is known of an item (inventory's Info: shortName, stackMax, quality), false or nil if unknown
+-- What is known of an item (inventory's Info: shortName, stackMax, isHQ), false or nil if unknown
 function equipment.SetItemInfo(lookup)
     itemInfo = lookup
 end
@@ -243,9 +237,9 @@ local function DrawContent()
         local left, top = x + (i - 1) % 4 * pitch, y + math.floor((i - 1) / 4) * pitch
         minimum[1], minimum[2], maximum[1], maximum[2] = left, top, left + size, top + size
         local info, wardrobe = slot.info, wardrobeNumbers[slot.container]
-        if info ~= nil and o.qualityBorders[1] then
+        if info ~= nil and info.isHQ and o.qualityBorders[1] then
             uvMinimum[1], uvMinimum[2], uvMaximum[1], uvMaximum[2] = left + 1, top + 1, left + size - 1, top + size - 1
-            draw:AddRect(uvMinimum, uvMaximum, qualityTints[info.quality], 0.0, 0, 2)
+            draw:AddRect(uvMinimum, uvMaximum, packed.hq, 0.0, 0, 2)
         end
         if o.showEncumbrance[1] and bit.band(encumbered, bit.lshift(1, slot[1])) ~= 0 then
             draw:AddLine(minimum, maximum, cross, 2)
@@ -319,7 +313,7 @@ function equipment.DrawSettings(options)
         widgets.Label('Quality Borders')
         imgui.Checkbox('##inv.equipment.quality', o.qualityBorders)
         if imgui.IsItemHovered() then
-            imgui.SetTooltip('Item borders: normal grey, Rare blue, Exclusive green, Rare/Exclusive gold. Uses resource flags, not item-name guesses.')
+            imgui.SetTooltip('A white border around high-quality gear, as the game draws it; other gear has none. An item is high quality when its name ends in +1, +2 or +3.')
         end
         widgets.Label('Wardrobe Markers')
         imgui.Checkbox('##inv.equipment.wardrobe', o.wardrobeMarkers)
