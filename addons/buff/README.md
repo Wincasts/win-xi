@@ -6,6 +6,7 @@ for the game's own row of status icons, which it switches off. It needs only the
 
 - `/buff` shows or hides the window (it only appears while there is a status to show)
 - `/buff config` opens or closes the settings
+- `/buff covers` adds the last native menu that was open to the menus the anchored bar hides under, or takes it off
 
 Hover over an icon for the status's name, number and description; right click one to remove it, where
 the game allows that.
@@ -44,15 +45,15 @@ Anchored buffs disappear immediately while the native interface is hidden, zonin
 events. The configurable addon hiding rules still apply in both positioning modes (including
 expanded chat and maps by default). Existing character settings are updated once to restore map
 hiding, after which manual changes to the hiding rules are respected.
-Those rules are separate from native UI layering. **Hide Anchored Buffs With Menus** is enabled
-by default: it immediately hides the anchored bar for any native menu or submenu, including macro
-palettes (`mcr1pall`/`mcr2pall`), with no remaining tooltip or cancellation targets. This covers
-profile, job levels, skills, currencies, unity, playtime, equipment/automaton equipment, magic,
-items, synthesis, abilities, party, trade, search, linkshell, region info, Mog House, missions,
-quests, key items, View House, bazaar, macros, config, help desk, current time, and communication.
-The buff selector and ordinary inline chat input are exempt. This menu rule does not apply in
-draggable mode; shared expanded-chat/map rules still apply in both modes. Disable it to leave
-anchored buffs visible during menus too; native overlap clipping is still not implemented.
+Those rules are separate from native UI layering. **Hide Anchored Buffs Under Menus** is enabled
+by default: it hides the anchored bar only while a native menu that covers it is open, one on the
+**Covering Menus** list. Other menus leave it showing. The game gives no menu rectangles to test
+against, so the list says which menus open over the bar: the macro palettes (`mcr1pall`,
+`mcr2pall`) to start. To add one, open the menu, then type `/buff covers` (or use the **Add**
+button beside **Last Menu Open** in the settings); the same takes it off again. The last menu
+seen is remembered after it closes and while chat is open, so typing the command works. The list
+is kept per character. The buff selector and ordinary inline chat input never count. This rule
+does not apply in draggable mode; shared expanded-chat/map rules still apply in both modes.
 
 **Current limitations:** the default origin was measured from
 `screenshots/Screenshot_20261014_111534.png` at 1:1 menu scale, not read from the live native buff

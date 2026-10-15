@@ -98,16 +98,27 @@ game.MenuName = function() return menu end
 assert(not anchoring.IsHidden())
 menu = 'menu    buff    '; assert(not anchoring.IsHidden())
 menu = 'menu    item    '; assert(not anchoring.IsHidden())
-assert(o.hideWithMenus[1] and anchoring.HideForMenu(o))
-for _, name in ipairs({ '', 'menu    buff    ', 'menu    inline  ' }) do
+-- Only the menus on the covering list hide the bar: the macro palettes to start
+assert(o.hideWithMenus[1] and o.coveringMenus.mcr1pall and o.coveringMenus.mcr2pall)
+for _, name in ipairs({ '', 'menu    buff    ', 'menu    inline  ', 'menu    item    ', 'menu    equip   ',
+    'menu    status  ', 'menu    magic   ', 'menu    submenu ' }) do
     menu = name; assert(not anchoring.HideForMenu(o), name .. ' should leave buffs visible')
 end
-for _, name in ipairs({ 'menu item', 'menu    inventor', 'menu    bank    ', 'menu    equip   ', 'menu    status  ',
-    'menu    magic   ', 'menu    ability ', 'menu    trade   ', 'menu    map     ',
-    'menu    mcr1pall', 'menu    mcr2pall', 'menu    submenu ' }) do
+for _, name in ipairs({ 'menu    mcr1pall', 'menu    mcr2pall' }) do
     menu = name; assert(anchoring.HideForMenu(o), name .. ' should hide anchored buffs')
 end
-menu = 'menu    item    '; o.hideWithMenus[1] = false
+-- The last menu seen is remembered past chat and the menu closing, for /buff covers
+menu = 'menu    equip   '; anchoring.HideForMenu(o)
+menu = 'menu    inline  '; anchoring.HideForMenu(o)
+menu = ''; anchoring.HideForMenu(o)
+assert(anchoring.LastMenu() == 'equip')
+local said = #H.printed
+H.command('/buff covers')
+assert(o.coveringMenus.equip == true and #H.printed == said + 1, 'covers adds the last menu')
+menu = 'menu    equip   '; assert(anchoring.HideForMenu(o))
+H.command('/buff covers')
+assert(o.coveringMenus.equip == false and not anchoring.HideForMenu(o), 'covers takes it off again')
+menu = 'menu    mcr1pall'; o.hideWithMenus[1] = false
 assert(not anchoring.HideForMenu(o))
 menu = ''; for key in pairs(original) do
     if key ~= 'MenuName' then
@@ -131,7 +142,7 @@ assert(anchoring.Draw('buffs.anchor.test', o, draw))
 assert(placed[1] == 160 and placed[2] == 68 and placed[3] == ImGuiCond_Always)
 assert(o.pos[1] == savedX and o.pos[2] == savedY)
 local begins = H.calls.Begin
-menu = 'menu    item    '
+menu = 'menu    mcr1pall'
 assert(anchoring.Draw('buffs.anchor.test', o, draw))
 assert(H.calls.Begin == begins + 1 and drawn == 2)
 o.hideWithMenus[1] = true
@@ -145,15 +156,14 @@ game.IsChatExpanded = function() return chat end
 for _, anchored in ipairs({ false, true }) do
     o.anchorToDefault[1] = anchored
     local before
-    for _, name in ipairs({ 'menu    item    ', 'menu    inventor', 'menu    bank    ', 'menu    equip   ',
-        'menu    status  ', 'menu    magic   ', 'menu    ability ', 'menu    trade   ',
-        'menu    mcr1pall', 'menu    mcr2pall', 'menu    submenu ' }) do
+    for _, name in ipairs({ 'menu    mcr1pall', 'menu    mcr2pall' }) do
         menu = name
         before = H.calls.Begin
         H.frames(1)
-        assert(H.calls.Begin == before + (anchored and 0 or 1), 'menus and palettes hide anchored mode only')
+        assert(H.calls.Begin == before + (anchored and 0 or 1), 'covering menus hide anchored mode only')
     end
-    for _, name in ipairs({ 'menu    inline  ', 'menu    buff    ' }) do
+    for _, name in ipairs({ 'menu    inline  ', 'menu    buff    ', 'menu    item    ', 'menu    equip   ',
+        'menu    status  ', 'menu    magic   ', 'menu    trade   ', 'menu    submenu ' }) do
         menu = name
         before = H.calls.Begin
         H.frames(1); assert(H.calls.Begin == before + 1, 'other menus stay visible')

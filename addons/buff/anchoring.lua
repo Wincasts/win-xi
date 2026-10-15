@@ -17,14 +17,30 @@ local position = { 0, 0 };
 local spacing = { 8, 4 };
 local appearance = { padding = 0, background = { 0, 0, 0, 0 }, alpha = 1 };
 
--- Optional anchored-only whole-bar workaround, not native menu clipping.
--- Cover all native menu panels and submenus, including mcr1pall/mcr2pall macro palettes.
--- Ordinary inline chat and the buff selector remain usable without hiding the bar.
-function anchoring.HideForMenu(options)
-    if not options.anchorToDefault or not options.anchorToDefault[1]
-        or not options.hideWithMenus or not options.hideWithMenus[1] then return false; end
+-- The native menu on top, by its short name (equip, mcr1pall), or nil. Ordinary inline chat and
+-- the buff selector are never counted: they do not cover the bar, and typing a command opens chat.
+local function OpenMenu()
     local name = game.MenuName():match('^menu%s+(%S+)%s*$');
-    return name ~= nil and name ~= 'buff' and name ~= 'inline';
+    if name == nil or name == 'buff' or name == 'inline' then return nil; end
+    return name;
+end
+
+-- The last native menu seen open while anchored, for /buff covers to add or remove: by the time
+-- the command is typed, chat is the menu on top.
+local lastMenu = nil;
+function anchoring.LastMenu() return lastMenu; end
+
+-- Hides the whole anchored bar while a menu that covers it is open: one on the options' list of
+-- covering menus. The game gives no menu rectangles to test against, so the list says which ones
+-- open over the bar (the macro palettes to start), and the player adds the rest.
+function anchoring.HideForMenu(options)
+    if not options.anchorToDefault or not options.anchorToDefault[1] then return false; end
+    local name = OpenMenu();
+    if name == nil then return false; end
+    lastMenu = name;
+    if not options.hideWithMenus or not options.hideWithMenus[1] then return false; end
+    local covering = options.coveringMenus;
+    return covering ~= nil and covering[name] == true;
 end
 
 function anchoring.IsHidden()
