@@ -1221,7 +1221,8 @@ local function PadEndFrame()
                 else
                     -- under the window, its left edge in line with the window's, and under the
                     -- equipment monitor if that is there
-                    local below = equipment.Bottom() or (pad.windowY + pad.windowHeight)
+                    local monitor = equipment.Rect()
+                    local below = monitor ~= nil and monitor[2] + monitor[4] or (pad.windowY + pad.windowHeight)
                     controller.Label(DrawInfoBox, pad.windowX, below + labelGap, true, item.uniqueId)
                 end
             else
@@ -1895,6 +1896,7 @@ end
 -- hiding, the theme.
 local defaults = T{
     isVisible = T{ true },
+    isPinned = T{ false }, -- the window stays when /inv toggle hides the rest
     isUnified = T{ true },
     showEmptySlots = T{ false },
     maxHeight = T{ 432 }, -- retained for legacy settings import; no longer controls the window
@@ -1911,11 +1913,13 @@ local defaults = T{
     treasurePool = T{ true }, -- the treasure pool, beside the window
     treasureShowEmpty = T{ false }, -- sample treasure in an empty pool, to see it
     treasureDetached = T{ false }, -- the treasure pool as a window of its own
+    treasurePinned = T{ false }, -- it stays when /inv toggle hides the inventory
     treasurePos = T{ 256, 100 }, -- where it is, detached
     treasureWidth = T{ 300 }, -- how wide it is
     equipment = T{
         enabled = T{ false },
         detached = T{ false }, -- a window of its own, rather than under the inventory window
+        pinned = T{ false }, -- it stays when /inv toggle hides the inventory
         pos = T{ 100, 100 }, -- where it is, detached
         lockMovement = T{ false },
         scale = T{ 1 },
@@ -1979,6 +1983,11 @@ local function DrawGeneralSettings(options)
     if widgets.Header('Window', true) then
         widgets.Label('Visible')
         imgui.Checkbox('##inv.visible', options.isVisible)
+        widgets.Label('Pin Inventory')
+        imgui.Checkbox('##inv.pinned', options.isPinned)
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip('Keeps the inventory window on screen when /inv toggle hides it; the treasure pool and equipment monitor have pins of their own.\nToggled off while pinned, the window stays but gives the controller back to the game.')
+        end
         widgets.Label('Position')
         imgui.SetNextItemWidth(widgets.NumberWidth(2))
         if imgui.InputInt2('##inv.position', options.pos) then
@@ -2074,7 +2083,17 @@ local app = shell.New({
 })
 
 local windowExtra = { flags = 0 }
-local invFrame = { x = 0, y = 0, width = 0, height = 0 } -- where the window is, for the treasure pool
+-- Whether the window is shown this frame: switched on by /inv toggle, or pinned. The treasure pool and
+-- equipment monitor are shown with it, or pinned without it.
+-- And where the attached treasure pool and equipment monitor go: beside the window and under it
+-- while it is on screen; while it is not, the pinned ones take its place, the monitor at its top-left
+-- corner and the pool there too, or beside the monitor if that is there.
+local attached = {
+    shown = { true },
+    gap = 6, -- between the window and those attached to it
+    pool = { 0, 0 }, equipment = { 0, 0 },
+    fade = require('winxi.fade'),
+}
 
 -- The packets that change what is in the bags, and where in each the bag's number is: true for those
 -- that change every bag. An item used up, dropped or traded away to the last of it comes as 0x020
@@ -2115,8 +2134,9 @@ ashita.events.register('d3d_present', 'inv_present', function()
     -- Give combat gear changes first access to the icon upload budget and read them before
     -- any debounced bag scans/sorting. Equipment never waits for inventory packets to settle.
     iconFramed = false
+    attached.shown[1] = options.isVisible[1] or options.isPinned[1]
     if options.equipment.enabled[1] and options.equipment.detached[1] then
-        equipment.Draw(options, IconSheet())
+        equipment.Draw(options, IconSheet, nil, attached.shown[1])
     end
 
     -- the player's own order, changed by sorting by hand
@@ -2147,17 +2167,29 @@ ashita.events.register('d3d_present', 'inv_present', function()
         and mx >= zone[1] and mx < zone[3] and my >= zone[2] and my < zone[4])
     windowExtra.flags = (options.lockMovement[1] or overBar) and ImGuiWindowFlags_NoMove or 0
     zone.shown = false
-    app:Window(options.isVisible, DrawWindow, windowExtra)
-    if pad.windowX ~= nil then
-        invFrame.x, invFrame.y = pad.windowX, pad.windowY
-        invFrame.width, invFrame.height = pad.windowWidth, pad.windowHeight
-        pool.Draw(options, invFrame, options.isVisible[1])
+    local shown = attached.shown[1]
+    app:Window(attached.shown, DrawWindow, windowExtra)
+    attached.shown[1] = shown
+
+    -- where the window is this frame, or was last; still fading out, it is on screen
+    local x, y = options.pos[1], options.pos[2]
+    local onScreen = shown or (options.fadeInOut[1] and attached.fade.Lingering(windowName))
+    if onScreen and pad.windowX ~= nil then
+        attached.equipment[1], attached.equipment[2] = x, y + pad.windowHeight + attached.gap
     else
-        pool.Draw(options, nil, options.isVisible[1])
+        attached.equipment[1], attached.equipment[2] = x, y
     end
-    -- attached, the equipment monitor goes under the window, where it is this frame
     if options.equipment.enabled[1] and not options.equipment.detached[1] then
-        equipment.Draw(options, IconSheet, pad.windowX ~= nil and invFrame or nil, options.isVisible[1])
+        equipment.Draw(options, IconSheet, attached.equipment, shown)
     end
+    local beside = equipment.Rect()
+    if onScreen and pad.windowX ~= nil then
+        attached.pool[1], attached.pool[2] = x + pad.windowWidth + attached.gap, y
+    elseif not onScreen and beside ~= nil then
+        attached.pool[1], attached.pool[2] = beside[1] + beside[3] + attached.gap, y
+    else
+        attached.pool[1], attached.pool[2] = x, y
+    end
+    pool.Draw(options, attached.pool, shown)
     PadEndFrame()
 end)

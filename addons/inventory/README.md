@@ -54,8 +54,7 @@ window takes the controller as `/inv toggle` opens it, and only `/inv toggle` cl
 While there is treasure, the treasure pool sits to the right of the window: a line for each item with
 the best lot so far, the time left, and buttons to lot and pass, with Lot All and Pass All over them.
 Hover over an item for who is winning it. It comes and goes with the inventory window; Detach From
-Inventory, under Treasure Pool in the settings, makes it a window of its own that can be moved and is
-there whenever there is treasure. Show When Empty fills an empty pool with sample treasure, to see how
+Inventory, under Treasure Pool in the settings, makes it a window of its own that can be moved. Show When Empty fills an empty pool with sample treasure, to see how
 it looks; its buttons do nothing. It is worked with the mouse only, where the `treas` addon can be
 worked with a controller.
 
@@ -66,11 +65,23 @@ is disabled by default and does not require the reference addon or its assets; w
 rest of its settings are hidden.
 
 By default the monitor is attached to the inventory, as the treasure pool is: it sits under the
-inventory window, its left edge in line with the window's, and comes and goes (and fades) with it.
+inventory window, its left edge in line with the window's, and comes and goes (and fades) with it
+unless pinned (see Pinning below).
 The controller's verbose item box, when placed below the window, goes under the monitor instead.
 Turn on **Detach From Inventory** to make it a window of its own, with its own **Position** and
-**Lock Drag to Move**: it then stays visible when the inventory window is toggled off, but follows
-General's shared Visibility rules (including hiding while logged out).
+**Lock Drag to Move**.
+
+### Pinning
+
+`/inv toggle` shows and hides the inventory window, the treasure pool and the equipment monitor
+together, attached or detached. Each has a pin that keeps it on screen when they are toggled off:
+**Pin Inventory** (General → Window), **Pin Treasure Pool** (Treasure) and **Pin Equipment**
+(Equipment). A pinned inventory window toggled off stays, but gives the controller back to the game.
+With the inventory hidden, pinned windows that are attached to it move up into its place: the
+equipment monitor to the inventory's top-left corner, and the treasure pool beside the monitor, or
+to that corner itself when the monitor is not there. Once the inventory is shown again they go back
+under and beside it. Pinned windows still follow General's shared Visibility rules (including
+hiding while logged out).
 
 All 16 slots use the game's equipment-screen arrangement:
 
