@@ -101,15 +101,22 @@ function cursor.Neutral(image, length)
     return grey
 end
 
+-- Each group read from the DAT once, whichever colour asks first; the grey copy is made from the same.
+local parsed = {}
 -- One entry per group and colour: the texture once made, or why it could not be and when to try again.
 local loaded = {}
 function cursor.Get(forceRetry, group, neutral)
     group = group or 'anc_s'
-    local key = group .. (neutral and ':neutral' or '')
-    local entry = loaded[key]
+    local colours = loaded[group]
+    if not colours then
+        colours = {}
+        loaded[group] = colours
+    end
+    local which = neutral and 2 or 1
+    local entry = colours[which]
     if not entry then
         entry = { retryAt = 0, failure = 'not loaded yet' }
-        loaded[key] = entry
+        colours[which] = entry
     end
     local frames = entry.frames
     if entry.handle then return entry.handle,frames[math.floor(os.clock()*15)%#frames+1] end
@@ -122,19 +129,26 @@ function cursor.Get(forceRetry, group, neutral)
     local d3d8 = require('d3d8')
     local device = d3d8.get_device()
     if not device then return Failed('device', 'Direct3D device unavailable') end
-    local buffer,length = mapdat.Read('ROM/119/51.DAT')
-    if not buffer then return Failed('DAT read', length) end
-    local image,imageLength,sprites = cursor.Parse(buffer,length,group)
-    if not image then return Failed('DAT parse', imageLength) end
+    local sprites = parsed[group]
+    if not sprites then
+        local buffer,length = mapdat.Read('ROM/119/51.DAT')
+        if not buffer then return Failed('DAT read', length) end
+        local image,imageLength,frames = cursor.Parse(buffer,length,group)
+        if not image then return Failed('DAT parse', imageLength) end
+        sprites = { image = image, length = imageLength, frames = frames }
+        parsed[group] = sprites
+    end
+    local image = sprites.image
     if neutral then
-        local grey,why = cursor.Neutral(image,imageLength)
+        local grey,why = cursor.Neutral(image,sprites.length)
         if not grey then return Failed('DAT parse', why) end
         image = grey
     end
-    local made,why = mapdat.Texture(device,image,imageLength)
+    local made,why = mapdat.Texture(device,image,sprites.length)
     if not made then return Failed('texture upload', why) end
     entry.texture = d3d8.gc_safe_release(ffi.cast('IDirect3DTexture8*',made))
-    entry.handle,entry.frames = tonumber(ffi.cast('uint32_t',entry.texture)),sprites
-    return entry.handle,sprites[math.floor(os.clock()*15)%#sprites+1]
+    entry.handle,entry.frames = tonumber(ffi.cast('uint32_t',entry.texture)),sprites.frames
+    frames = entry.frames
+    return entry.handle,frames[math.floor(os.clock()*15)%#frames+1]
 end
 return cursor
