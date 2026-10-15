@@ -1560,7 +1560,7 @@ local function Draw(options)
     local turnTo = wantTab;
     wantTab = nil;
     imgui.BeginGroup();
-    if imgui.BeginTabBar('##mark.tabs', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
+    if tabs.BeginBar('##mark.tabs', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
         if tabs.Begin('Database##mark.database', turnTo == 1 and ImGuiTabItemFlags_SetSelected or 0) then
             DrawDatabase(options);
             imgui.EndTabItem();

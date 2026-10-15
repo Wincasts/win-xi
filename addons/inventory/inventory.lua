@@ -1632,7 +1632,7 @@ end
 
 local function DrawInventory()
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, framePadding)
-    if imgui.BeginTabBar('##inv.bags.all', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
+    if tabs.BeginBar('##inv.bags.all', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
         if BeginTab(1, 'bag##inv.bags.all.1') then
             DrawSubInventory('inventory', 'bag', 'inv')
             DrawSubInventory('temp items', 'bag', 'temp')
@@ -1677,7 +1677,7 @@ end
 
 local function DrawInventoryUnified()
     imgui.PushStyleVar(ImGuiStyleVar_FramePadding, framePadding)
-    if imgui.BeginTabBar('##inv.bags.unified', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
+    if tabs.BeginBar('##inv.bags.unified', ImGuiTabBarFlags_NoCloseWithMiddleMouseButton) then
         if BeginTab(1, 'bag##inv.bags.unified.1') then
             DrawBag('bag', 'all')
             FinishTab('bag')
