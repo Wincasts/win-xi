@@ -63,13 +63,16 @@ crosses mark encumbered slots, even when empty. Both overlays can be switched of
 
 **Quality Borders** adds an inset item border: normal grey, Rare blue, Exclusive green, and
 Rare/Exclusive gold, based on the item's resource flags (not an inferred HQ status from its name).
-**Wardrobe Markers** adds a top-right **W1–W8** badge identifying the item's actual wardrobe;
-main-inventory items have no wardrobe badge. Both controls are under **Equipment → Slots**, enabled
+**Wardrobe Markers** marks gear kept in a wardrobe as the game's equipment menu does: the
+wardrobe's number, white with a dark edge, in the top-right corner, over a wash of the wardrobe's
+colour along the top and right edges. Wardrobes 1–3 use the game's blue, yellow and green; 4–8 use
+red, purple, teal, orange and pink. Main-inventory items have no mark. Both controls are under **Equipment → Slots**, enabled
 by default, and independent of Slot Backgrounds and each other. Hovering an equipped item shows
 its storage location even when wardrobe markers are disabled.
 
-**Slot Backgrounds** uses game-menu-inspired grey/lavender gradient tiles, subtle diagonal
-highlights and beveled edges, with a faint, shadowed slot name centered behind each item. Empty
+**Slot Backgrounds** draws each slot as the game's equipment menu does: a flat lavender-grey tile
+sunk into the window, its top and left edges in shadow and its right and bottom edges lit, meeting
+on the diagonal inside a thin dark rim, with the slot's name in pale lettering at its centre. Empty
 slots retain their labels; occupied slots draw their icons on top. The backdrop and lettering scale
 with the icons, remain inside the square grid, and turn off together with Slot Backgrounds.
 
