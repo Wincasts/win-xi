@@ -61,3 +61,20 @@ debuffs.Message({ target = 901, message = 206, param = 6 }); H.print('wears off:
 debuffs.Message({ target = 900, message = 6, param = 0 }); H.print('defeated: forgotten', statuses(900) == '', debuffs.StatusRemaining(900, 4) == nil)
 cast(1, 58, { [900] = 236 }); now = now + 30; H.print('remaining', debuffs.StatusRemaining(900, 4))
 debuffs.HandlePacket({ id = 0x00A }); H.print('a change of area: all forgotten', statuses(900) == '', statuses(902) == '')
+
+-- an action on many: the first target's message names who did it, the others' only the target
+debuffs.Action({ actor_id = 5, category = 11, param = 999, targets = {
+    { id = 900, actions = { { message = 243, param = 6 } } },
+    { id = 901, actions = { { message = 278, param = 6 } } },
+    { id = 902, actions = { { message = 277, param = 6 } } } } })
+H.print('a move on three: Silence on each', statuses(900) ~= '', statuses(901) ~= '', statuses(902) ~= '')
+debuffs.Action({ actor_id = 6, category = 4, param = 125, targets = {
+    { id = 1, actions = { { message = 230, param = 40 } } },
+    { id = 2, actions = { { message = 266, param = 40 } } } } })
+H.print('Protectra on two: Protect on both', debuffs.StatusRemaining(1, 40) ~= nil, debuffs.StatusRemaining(2, 40) ~= nil)
+
+-- how long: the server's base duration where its scripts have one, this file's own where not
+debuffs.Clear()
+cast(3, 454, { [900] = 237 }); H.print('Fire Threnody lasts the server\'s 60 s:', names(900), '| by number', statuses(900))
+cast(3, 368, { [901] = 237 }); H.print('Foe Requiem lasts the server\'s 64 s:', names(901), '| by number', statuses(901))
+cast(1, 23, { [902] = 2 }); H.print('Dia, which the scripts do not say: this file\'s 60 s:', names(902), '| by number', statuses(902))
