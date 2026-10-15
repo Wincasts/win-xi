@@ -1,5 +1,5 @@
 -- Gil and the game's currencies, one or two of which are shown in the gil's place at the foot of the
--- inventory window: '12,345 G', or '12,345 G, 4,500 CP' with a second. The server says what the player
+-- inventory window: '12,345 G', or '12,345 G | 4,500 CP' with a second, a line between them. The server says what the player
 -- has of a currency only when asked: the game asks as its Currencies menus open (0x10F for the first,
 -- 0x115 for the second) and is answered with all of them at once (0x113, 0x118). This asks the same
 -- way, for the menu a chosen currency is in, while the inventory window is shown: as it is shown, and
@@ -16,7 +16,8 @@
 --   currency.filters                 the lists to choose from: { key, label, tip }
 --   currency.Choices(filter)         those a list (a filter's key) has, in the menus' order
 --   currency.Name(key)               a currency's name, or nil for none (or one no longer known)
---   currency.Line(first, second)     what goes in the gil's place: '12,345 G, 4,500 CP', or '' for none
+--   currency.Shown(first, second)    what goes in the gil's place: the first's text and the second's
+--                                    ('12,345 G', '4,500 CP'), nil for none; the second alone is first
 --   currency.SetGil(count)           how much gil the player has, as the bags are read
 --   currency.Update(first, second, shown)   once a frame: the two chosen keys ('' for none), and
 --                                    whether the window is shown
@@ -129,7 +130,6 @@ for _, filter in ipairs(currency.filters) do filterKeys[filter.key] = filter end
 
 local values = {}  -- key -> how many, once an answer has said (gil, once the bags have)
 local texts = {}   -- key -> what is shown, made as the value changes
-local lines = {}   -- first .. '|' .. second -> the line, made as either changes
 local choices = {} -- filter -> what it lets be chosen, made again as it may change
 local asked = { -math.huge, -math.huge } -- each menu: when it was last asked about
 local wasShown = false
@@ -142,7 +142,7 @@ local function Grouped(number)
     return sign .. digits:reverse():gsub('(%d%d%d)', '%1,'):reverse():gsub('^,', '')
 end
 
--- A value has changed: what is shown for it, the lines it is in, and perhaps the choices
+-- A value has changed: what is shown for it, and perhaps the choices
 local function Changed(key, value)
     if values[key] == value then return end
     local entry = byKey[key]
@@ -150,7 +150,6 @@ local function Changed(key, value)
         choices.phoenix = nil -- the player has some of one outside the era: it can be chosen now
     end
     values[key], texts[key] = value, nil
-    lines = {}
 end
 
 function currency.Choices(filter)
@@ -185,19 +184,12 @@ local function Text(key)
     return text
 end
 
-function currency.Line(first, second)
-    local id = first .. '|' .. second
-    local line = lines[id]
-    if line == nil then
-        local a, b = Text(first), Text(second)
-        if a ~= nil and b ~= nil then
-            line = a .. ', ' .. b
-        else
-            line = a or b or ''
-        end
-        lines[id] = line
+function currency.Shown(first, second)
+    local a, b = Text(first), Text(second)
+    if a == nil then
+        return b, nil
     end
-    return line
+    return a, b
 end
 
 function currency.SetGil(count)
@@ -240,7 +232,7 @@ end
 
 function currency.Reset()
     local gil = values.gil
-    values, texts, lines, choices = { gil = gil }, {}, {}, {}
+    values, texts, choices = { gil = gil }, {}, {}
     asked[1], asked[2] = -math.huge, -math.huge
 end
 

@@ -31,9 +31,22 @@ end
 local texts = {}
 local text = imgui.Text
 imgui.Text = function(t, ...) texts[#texts + 1] = t; return text(t, ...) end
+local lines = 0 -- the upright lines drawn in the last frame
 local function frame(n)
     texts = {}
-    H.frames(n or 1)
+    H.frames((n or 1) - 1)
+    local before = H.calls['draw.AddLine'] or 0
+    H.frames(1)
+    lines = (H.calls['draw.AddLine'] or 0) - before
+end
+-- the texts drawn, in order, from the first given on
+local function order(...)
+    local want, at = { ... }, 1
+    for _, t in ipairs(texts) do
+        if t == want[at] then at = at + 1 end
+        if at > #want then return true end
+    end
+    return false
 end
 local function shown(t)
     for _, v in ipairs(texts) do if v == t then return true end end
@@ -55,21 +68,23 @@ H.bag(0, 30, { { 1 } })
 H.packet(0x00A); frame(200) -- the area settles
 check('gil by default, in its place, and nothing asked for', o.currency1 == 'gil' and o.currency2 == ''
     and shown('12,345 G') and asked('10F') == 0 and asked('115') == 0)
+check('one currency: no lines', lines == 0)
 
 o.currency2 = 'imperialStanding'
 frame()
 check('a second: its menu asked for, once', asked('10F') == 1 and asked('115') == 0)
-check('until it is answered, a dash, after the gil with a comma', shown('12,345 G, - IS'))
+check('until it is answered, a dash, after the gil', order('12,345 G', '- IS', '01/30'))
+check('a line between the two, and another before the count', lines == 2)
 answer(0x113, 260, { [120] = 45000, [144] = 12 })
 frame()
-check('the answer read: grouped by thousands', shown('12,345 G, 45,000 IS'))
+check('the answer read: grouped by thousands', order('12,345 G', '45,000 IS'))
 
 o.currency1, o.currency2 = 'nyzulTokens', 'gil'
 frame()
-check('either way round', shown('12 Tokens, 12,345 G'))
+check('either way round', order('12 Tokens', '12,345 G'))
 o.currency1, o.currency2 = '', 'imperialStanding'
 frame()
-check('the second alone, without the comma', shown('45,000 IS'))
+check('the second alone, in the first\'s place, without lines', shown('45,000 IS') and lines == 0)
 o.currency1, o.currency2 = '', ''
 frame()
 check('none: nothing in the gil\'s place', shown('') and not shown('12,345 G'))
@@ -105,7 +120,7 @@ check('Retail: every currency the game knows', #currency.Choices('retail') == #c
 check('Phoenix by default', o.currencyList == 'phoenix')
 o.currency1, o.currency2 = 'bayld', 'sparks'
 frame()
-check('and is shown with its short name', shown('1,234,567 Bayld, 300 Sparks'))
+check('and is shown with its short name', order('1,234,567 Bayld', '300 Sparks'))
 
 -- the settings: opening the list asks both menus, so the player's own come into it
 local sent115 = asked('115')

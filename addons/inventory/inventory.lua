@@ -1515,6 +1515,19 @@ BuildCounts = function()
     end
 end
 
+-- A short upright line between things on the foot row, as tall as its text, in the separator's colour
+local divider = { gap = 6, width = 1, top = { 0, 0 }, bottom = { 0, 0 }, size = { 1, 0 } }
+local function Divider()
+    local x, y = imgui.GetCursorScreenPos()
+    local height = imgui.GetTextLineHeight() or 14
+    local at = divider
+    at.top[1], at.top[2] = x + 0.5, y + 2
+    at.bottom[1], at.bottom[2] = x + 0.5, y + height - 1
+    imgui.GetWindowDrawList():AddLine(at.top, at.bottom, imgui.GetColorU32(ImGuiCol_Separator), at.width)
+    at.size[1], at.size[2] = at.width, height
+    imgui.Dummy(at.size)
+end
+
 local function DrawCountsRow(group, unified)
     -- Align to the requested grid width, not the previous frame's window width: using
     -- GetContentRegionAvail here creates a feedback loop that prevents shrinking.
@@ -1522,9 +1535,16 @@ local function DrawCountsRow(group, unified)
     -- a little room between the slots and this row
     imgui.Dummy(countBuffer)
 
-    -- the gil, or the currencies chosen in its place (one, or two with a comma between), against the
-    -- left edge, on the same row as the first (or only) count
-    imgui.Text(currency.Line(pad.options.currency1, pad.options.currency2))
+    -- the gil, or the currencies chosen in its place, against the left edge, on the same row as the
+    -- first (or only) count: one, or two with a line between them and another before the count
+    local first, second = currency.Shown(pad.options.currency1, pad.options.currency2)
+    imgui.Text(first or '')
+    if second ~= nil then
+        imgui.SameLine(0, divider.gap)
+        Divider()
+        imgui.SameLine(0, divider.gap)
+        imgui.Text(second)
+    end
 
     -- unified: the chosen bag's count, or all of the group's as one; otherwise each bag's, named
     local rows = countRows[group]
@@ -1536,9 +1556,18 @@ local function DrawCountsRow(group, unified)
             imgui.SameLine()
         end
 
-        -- against the right edge, by hand: the text starts its own width short of it
+        -- against the right edge, by hand: the text starts its own width short of it; after two
+        -- currencies, a line just before it
         local width = imgui.CalcTextSize(row.text)
-        imgui.SetCursorPosX(math.max(imgui.GetCursorPosX(), countsRight - width))
+        if index == 1 and second ~= nil then
+            local x = math.max(imgui.GetCursorPosX() + divider.gap + divider.width, countsRight - width)
+            imgui.SetCursorPosX(x - divider.gap - divider.width)
+            Divider()
+            imgui.SameLine(0, divider.gap)
+            imgui.SetCursorPosX(x)
+        else
+            imgui.SetCursorPosX(math.max(imgui.GetCursorPosX(), countsRight - width))
+        end
 
         if row.full then
             imgui.TextColored(red, row.text)
@@ -1901,7 +1930,7 @@ local defaults = T{
     controllerInfoPlace = 'window', -- where the verbose box goes: under the 'window' or the 'item'
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
     currency1 = 'gil', -- what is shown in the gil's place, by currency.lua's keys: '' for none
-    currency2 = '', -- and after it, with a comma between
+    currency2 = '', -- and after it, with a line between
     currencyList = 'phoenix', -- which currencies can be chosen: a key of currency.filters
     treasurePool = T{ true }, -- the treasure pool, beside the window
     treasureShowEmpty = T{ false }, -- sample treasure in an empty pool, to see it

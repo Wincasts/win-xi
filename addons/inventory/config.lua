@@ -112,7 +112,7 @@ end
 
 local currencyTips = {
     currency1 = 'What is shown at the foot of the window, where the gil is: gil, or a currency of the Currency List.',
-    currency2 = 'A second, after the first with a comma between, or none.\nA currency\'s count is asked of the server as the inventory window is shown, and every minute while it stays.',
+    currency2 = 'A second, after the first with a line between, and another before the bag count; or none.\nA currency\'s count is asked of the server as the inventory window is shown, and every minute while it stays.',
 }
 local function CurrencyChoice(options, key, label)
     widgets.Label(label)
