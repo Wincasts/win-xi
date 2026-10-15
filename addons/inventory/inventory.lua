@@ -1263,10 +1263,10 @@ end
 local iconTint = 0
 local hoveredItem = nil
 
--- An empty slot: a faint square the size of an item's icon
-local emptyFill = { 1.0, 1.0, 1.0, 0.04 }
-local emptyEdge = { 1.0, 1.0, 1.0, 0.18 }
-local emptyFillColor, emptyEdgeColor = 0, 0 -- packed once a frame, in the window
+-- A slot, full or empty: a faint square the size of an item's icon, under the icon
+local slotFill = { 1.0, 1.0, 1.0, 0.04 }
+local slotEdge = { 1.0, 1.0, 1.0, 0.18 }
+local slotFillColor, slotEdgeColor = 0, 0 -- packed once a frame, in the window
 
 -- How many empty slots a bag (or a group's bags together) has to show: none unless they are being shown
 local function EmptySlots(group, key)
@@ -1387,7 +1387,15 @@ local function DrawBag(group, key)
         end
     end
 
-    -- the icons, then the stack sizes over them, then the marks
+    -- a faint square for every slot, the items' and the empty ones' that carry on after them in the
+    -- same rows; then the icons over them, the stack sizes over those, and the marks
+    for i = firstShown, math.min(total, lastShown) do
+        local x, y = Spot(left, top, i)
+        iconMin[1], iconMin[2], iconMax[1], iconMax[2] = x, y, x + iconSize, y + iconSize
+        drawList:AddRectFilled(iconMin, iconMax, slotFillColor, 2)
+        drawList:AddRect(iconMin, iconMax, slotEdgeColor, 2)
+    end
+
     local last = math.min(count, lastShown)
     if iconSheet ~= nil then
         for i = firstShown, last do
@@ -1409,17 +1417,6 @@ local function DrawBag(group, key)
         if item == hovered or (itemMenu.open and item == itemMenu.item) then
             local x, y = Spot(left, top, i)
             AddHighlight(x, y, iconSize, drawList)
-        end
-    end
-
-    -- the empty slots carry on from the last item, in the same rows
-    if total > count then
-        local fill, edge = emptyFillColor, emptyEdgeColor
-        for i = math.max(count + 1, firstShown), math.min(total, lastShown) do
-            local x, y = Spot(left, top, i)
-            iconMin[1], iconMin[2], iconMax[1], iconMax[2] = x, y, x + iconSize, y + iconSize
-            drawList:AddRectFilled(iconMin, iconMax, fill, 2)
-            drawList:AddRect(iconMin, iconMax, edge, 2)
         end
     end
 
@@ -1669,7 +1666,7 @@ local function DrawWindow(drawOptions)
     stackMain, stackShadow = imgui.GetColorU32(stackWhite), imgui.GetColorU32(stackBlack)
     iconTint = imgui.GetColorU32(iconWhite)
     highlightColor, padColor, swapColor = imgui.GetColorU32(highlightBlue), imgui.GetColorU32(padYellow), imgui.GetColorU32(swapTextColor)
-    emptyFillColor, emptyEdgeColor = imgui.GetColorU32(emptyFill), imgui.GetColorU32(emptyEdge)
+    slotFillColor, slotEdgeColor = imgui.GetColorU32(slotFill), imgui.GetColorU32(slotEdge)
     IconSheet()
     hoveredItem = nil
 

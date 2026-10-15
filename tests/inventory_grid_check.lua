@@ -29,12 +29,12 @@ imgui.Dummy = function(size)
     return dummy(size)
 end
 local children, labels, selected = {}, {}, nil
-local emptyRects = {}
+local slotRects = {}
 local drawList = imgui.GetWindowDrawList()
 local rect = drawList.AddRectFilled
 function drawList:AddRectFilled(minimum, maximum, ...)
     if math.abs(maximum[1] - minimum[1] - 32) < 0.001 and maximum[2] - minimum[2] == 32 then
-        emptyRects[#emptyRects + 1] = { minimum[1], minimum[2] }
+        slotRects[#slotRects + 1] = { minimum[1], minimum[2] }
     end
     return rect(self, minimum, maximum, ...)
 end
@@ -54,7 +54,7 @@ tabs.Begin = function(label, flags)
     return beginTab(label, flags)
 end
 local function frame()
-    children, labels, selected, spots, emptyRects = {}, {}, nil, {}, {}
+    children, labels, selected, spots, slotRects = {}, {}, nil, {}, {}
     H.frames(1)
 end
 H.play(true)
@@ -119,16 +119,17 @@ H.ret.GetWindowPos, H.ret.GetWindowSize = { 0, 0 }, { 1000, 1000 }
 H.command('/inv config'); frame()
 check('settings preview reserves chosen rows', children[1][4] == children[1][3])
 check('settings preview draws all chosen slots', hasGrid(232, 176))
-check('six-column preview fills final column then wraps', #emptyRects == 27
-    and emptyRects[3][1] == 210 and emptyRects[3][2] == 20
-    and emptyRects[4][1] == 10 and emptyRects[4][2] == 56)
+-- a square for every slot, the three items' first: the sixth ends the first row, the seventh wraps
+check('six-column preview fills final column then wraps', #slotRects == 30
+    and slotRects[6][1] == 210 and slotRects[6][2] == 20
+    and slotRects[7][1] == 10 and slotRects[7][2] == 56)
 o.gridRows[1], o.gridColumns[1] = 7, 8
 frame()
 check('increasing dimensions expands preview', hasGrid(312, 248)
     and children[1][2] == 312 and children[1][3] == 248)
-check('eight-column preview fills eighth column then wraps', #emptyRects == 53
-    and emptyRects[5][1] == 290 and emptyRects[5][2] == 20
-    and emptyRects[6][1] == 10 and emptyRects[6][2] == 56)
+check('eight-column preview fills eighth column then wraps', #slotRects == 56
+    and slotRects[8][1] == 290 and slotRects[8][2] == 20
+    and slotRects[9][1] == 10 and slotRects[9][2] == 56)
 o.gridRows[1], o.gridColumns[1] = 5, 6
 H.ret.GetContentRegionAvail = { 5000, 1000 } -- simulate a previously much wider window
 frame()
@@ -139,14 +140,16 @@ scrollbarWidth = 14 -- emulate ImGui subtracting a visible scrollbar from conten
 frame()
 check('scrollbar does not enlarge the window', children[1][2] == 232)
 check('scrollbar tightens gaps while retaining six full-sized columns', hasGrid(218, 176)
-    and math.abs(emptyRects[3][1] - 196) < 0.001
-    and emptyRects[3][2] == 20 and emptyRects[4][1] == 10 and emptyRects[4][2] == 56)
+    and math.abs(slotRects[6][1] - 196) < 0.001
+    and slotRects[6][2] == 20 and slotRects[7][1] == 10 and slotRects[7][2] == 56)
 scrollbarWidth = 0
 frame()
 check('normal spacing restored when scrollbar disappears', hasGrid(232, 176)
-    and emptyRects[3][1] == 210)
+    and slotRects[6][1] == 210)
 H.command('/inv config'); frame()
 check('closing settings removes preview slots', hasGrid(112, 32) and children[1][4] == 1)
+check('full slots keep their square behind the icon', #slotRects == 3
+    and slotRects[1][1] == 10 and slotRects[3][1] == 90)
 
 local window = require('winxi.window')
 local full, flags = window.Full, nil
