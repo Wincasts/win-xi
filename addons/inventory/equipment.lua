@@ -9,6 +9,7 @@ local imgui = require('imgui')
 local window = require('winxi.window')
 local style = require('winxi.style')
 local widgets = require('winxi.widgets')
+local tooltip = require('winxi.tooltip')
 local itemicons = require('winxi.itemicons')
 local text = require('winxi.text')
 local fade = require('winxi.fade')
@@ -327,61 +328,63 @@ function equipment.Rect()
     return attachedRect.shown and attachedRect or nil
 end
 
+-- Its tab of the settings, laid out as the treasure pool's: what turns it on, whether it is attached to
+-- the inventory window, its pin and where it is; then how it looks, and what its slots show
 function equipment.DrawSettings(options)
     local o = options.equipment
     if widgets.Header('Equipment Monitor', true) then
         widgets.Label('Enable')
         imgui.Checkbox('##inv.equipment.enabled', o.enabled)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('The gear worn in each of the sixteen slots, as the game\'s equipment menu lays it out.')
-        end
+        tooltip.Hover('The gear worn in each of the sixteen slots, as the game\'s equipment menu lays it out.')
         if not o.enabled[1] then return end
         widgets.Label('Detach From Inventory')
         imgui.Checkbox('##inv.equipment.detached', o.detached)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Attached, the monitor sits under the inventory window, in line with its left edge.\nDetached, it is a window of its own that can be moved.\nEither way /inv toggle shows and hides it with the inventory, unless it is pinned.')
-        end
+        tooltip.Hover('Attached, the monitor sits under the inventory window, in line with its left edge.\nDetached, it is a window of its own that can be moved.\nEither way /inv toggle shows and hides it with the inventory, unless it is pinned.')
         widgets.Label('Pin Equipment')
         imgui.Checkbox('##inv.equipment.pinned', o.pinned)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Keeps the monitor on screen when /inv toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner.')
-        end
+        tooltip.Hover('Keeps the monitor on screen when /inv toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner.')
         if o.detached[1] then
-            widgets.Label('Lock Drag to Move')
-            imgui.Checkbox('##inv.equipment.lock', o.lockMovement)
             widgets.Label('Position')
             imgui.SetNextItemWidth(widgets.NumberWidth(2))
             if imgui.InputInt2('##inv.equipment.pos', o.pos) then imgui.SetWindowPos(windowName, o.pos) end
+            widgets.Label('Lock Drag to Move')
+            imgui.Checkbox('##inv.equipment.lock', o.lockMovement)
+            tooltip.Hover('Prevent dragging the monitor. The Position fields can still move it.')
         end
+    end
+    if not o.enabled[1] then return end
+
+    if widgets.Header('Display') then
         widgets.Label('Scale')
-        imgui.SliderFloat('##inv.equipment.scale', o.scale, 0.5, 3, '%.2f')
+        imgui.SliderFloat('##inv.equipment.scale', o.scale, 0.5, 3, '%.2fx')
+        tooltip.Hover('How large the slots are: 1 is the game\'s 32 pixels.')
         widgets.Label('Spacing')
-        imgui.SliderFloat('##inv.equipment.spacing', o.spacing, 0, 20, '%.1f')
+        imgui.SliderFloat('##inv.equipment.spacing', o.spacing, 0, 20, '%.0f px')
+        tooltip.Hover('The gap between slots, in pixels.')
         widgets.Label('Opacity')
-        imgui.SliderFloat('##inv.equipment.opacity', o.opacity, 0.125, 1, '%.3f')
+        imgui.SliderFloat('##inv.equipment.opacity', o.opacity, 0.125, 1, '%.2f')
+        tooltip.Hover('How opaque the whole monitor is, from 0.125 to 1.')
         widgets.Label('Window Background')
         imgui.Checkbox('##inv.equipment.background', o.background)
+        tooltip.Hover('The monitor\'s window behind the slots; off, the slots float over the game.')
     end
+
     if widgets.Header('Slots') then
         widgets.Label('Slot Backgrounds')
         imgui.Checkbox('##inv.equipment.slots', o.slotBackgrounds)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Draw each slot as the game\'s equipment menu does: a sunken lavender tile with its name, beneath the icon.')
-        end
+        tooltip.Hover('Draw each slot as the game\'s equipment menu does: a sunken lavender tile with its name, beneath the icon.')
         widgets.Label('Quality Borders')
         imgui.Checkbox('##inv.equipment.quality', o.qualityBorders)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('A white border around high-quality gear, as the game draws it; other gear has none. An item is high quality when its name ends in +1, +2 or +3.')
-        end
+        tooltip.Hover('A white border around high-quality gear, as the game draws it; other gear has none. An item is high quality when its name ends in +1, +2 or +3.')
         widgets.Label('Wardrobe Markers')
         imgui.Checkbox('##inv.equipment.wardrobe', o.wardrobeMarkers)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Mark gear kept in a wardrobe as the game does: the wardrobe\'s number in the top-right corner, over a wash of its colour. Gear in the inventory has no mark.')
-        end
+        tooltip.Hover('Mark gear kept in a wardrobe as the game does: the wardrobe\'s number in the top-right corner, over a wash of its colour. Gear in the inventory has no mark.')
         widgets.Label('Show Encumbrance')
         imgui.Checkbox('##inv.equipment.encumbrance', o.showEncumbrance)
+        tooltip.Hover('A red cross over each slot that encumbrance has locked.')
         widgets.Label('Show Ammo Count')
         imgui.Checkbox('##inv.equipment.ammo', o.showAmmoCount)
+        tooltip.Hover('How many are left of stacking ammunition, in the corner of the Ammo slot.')
     end
 end
 

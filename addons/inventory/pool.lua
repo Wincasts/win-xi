@@ -20,6 +20,7 @@ local style = require('winxi.style')
 local window = require('winxi.window')
 local fade = require('winxi.fade')
 local widgets = require('winxi.widgets')
+local tooltip = require('winxi.tooltip')
 local packets = require('winxi.packets')
 
 local pool = {}
@@ -296,47 +297,42 @@ function pool.Draw(drawOptions, at, invShown)
     window.Full(windowName, open, flags, DrawWindow, windowStyle)
 end
 
+-- Its tab of the settings: what turns it on, whether it is attached to the inventory window, its pin
+-- and where it is; then how it looks
 function pool.DrawSettings(drawOptions)
-    if not widgets.Header('Treasure Pool') then
-        return
-    end
-    widgets.Label('Show Treasure Pool')
-    imgui.Checkbox('##inv.pool.show', drawOptions.treasurePool)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The treasure pool, a line for each item, with buttons to lot and pass. It is there only while there is treasure.')
+    if widgets.Header('Treasure Pool', true) then
+        widgets.Label('Enable')
+        imgui.Checkbox('##inv.pool.show', drawOptions.treasurePool)
+        tooltip.Hover('The treasure pool, a line for each item, with buttons to lot and pass. It is there only while there is treasure.')
+        if not drawOptions.treasurePool[1] then
+            return
+        end
+        widgets.Label('Detach From Inventory')
+        imgui.Checkbox('##inv.pool.detached', drawOptions.treasureDetached)
+        tooltip.Hover('Attached, the pool sits to the right of the inventory window.\nDetached, it is a window of its own that can be moved.\nEither way it shows while there is treasure and the inventory does, or, pinned, whether the inventory does or not.')
+        widgets.Label('Pin Treasure Pool')
+        imgui.Checkbox('##inv.pool.pinned', drawOptions.treasurePinned)
+        tooltip.Hover('Keeps the pool on screen, while there is treasure, when /inv toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner, or beside the equipment monitor if that is there too.')
+        if drawOptions.treasureDetached[1] then
+            widgets.Label('Position')
+            imgui.SetNextItemWidth(widgets.NumberWidth(2))
+            if imgui.InputInt2('##inv.pool.position', drawOptions.treasurePos) then
+                imgui.SetWindowPos(windowName, drawOptions.treasurePos)
+            end
+        end
     end
     if not drawOptions.treasurePool[1] then
         return
     end
 
-    widgets.Label('Show When Empty')
-    imgui.Checkbox('##inv.pool.showEmpty', drawOptions.treasureShowEmpty)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Fills an empty pool with sample treasure, to see where it sits and how it looks. Its buttons do nothing.')
-    end
-
-    widgets.Label('Detach From Inventory')
-    imgui.Checkbox('##inv.pool.detached', drawOptions.treasureDetached)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Attached, the pool sits to the right of the inventory window.\nDetached, it is a window of its own that can be moved.\nEither way it shows while there is treasure and the inventory does, or, pinned, whether the inventory does or not.')
-    end
-    widgets.Label('Pin Treasure Pool')
-    imgui.Checkbox('##inv.pool.pinned', drawOptions.treasurePinned)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Keeps the pool on screen, while there is treasure, when /inv toggle hides the inventory.\nAttached, it then takes the inventory window\'s place, at its top-left corner, or beside the equipment monitor if that is there too.')
-    end
-    if drawOptions.treasureDetached[1] then
-        widgets.Label('Position')
-        imgui.SetNextItemWidth(widgets.NumberWidth(2))
-        if imgui.InputInt2('##inv.pool.position', drawOptions.treasurePos) then
-            imgui.SetWindowPos(windowName, drawOptions.treasurePos)
-        end
-    end
-    widgets.Label('Width')
-    imgui.SetNextItemWidth(widgets.NumberWidth(1))
-    imgui.InputInt('##inv.pool.width', drawOptions.treasureWidth, 0, 0)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('How wide the pool is, in pixels, from 200 to 600.')
+    if widgets.Header('Display') then
+        widgets.Label('Width')
+        imgui.SetNextItemWidth(widgets.NumberWidth(1))
+        imgui.InputInt('##inv.pool.width', drawOptions.treasureWidth, 0, 0)
+        tooltip.Hover('How wide the pool is, in pixels, from 200 to 600.')
+        widgets.Label('Show When Empty')
+        imgui.Checkbox('##inv.pool.showEmpty', drawOptions.treasureShowEmpty)
+        tooltip.Hover('Fills an empty pool with sample treasure, to see where it sits and how it looks. Its buttons do nothing.')
     end
 end
 

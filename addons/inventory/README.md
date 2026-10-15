@@ -9,11 +9,14 @@ The bags in a window: what is in them, and what can be done with it, by mouse or
 
 `/inv` is the same command, shorter: `/inv`, `/inv toggle` and `/inv focus` all work.
 
-Settings are organized into four tabs: **General** (movement lock, Window, Controller and
-Visibility), **Bags** (grid size and bag display), **Treasure** (treasure pool controls), and
-**Equipment** (the live equipment monitor).
+Settings are organized into four tabs, each in collapsible sections: **General** (Window,
+Controller and Visibility), **Bags** (Grid and Tabs), **Treasure** (Treasure Pool and Display), and
+**Equipment** (Equipment Monitor, Display and Slots). The Treasure and Equipment tabs are laid out
+alike: **Enable**, **Detach From Inventory**, the pin, and, detached, the position; then how it
+looks. While one is not enabled the rest of its tab is hidden. Every setting's tooltip is in winxi's
+themed tooltip.
 
-**Lock Drag to Move**, at the top of General, prevents dragging the inventory window when enabled.
+**Lock Drag to Move**, in General → Window, prevents dragging the inventory window when enabled.
 It is off by default; the **Position** fields remain usable while locked.
 
 While the window is locked, items can be dragged with the mouse. Drop an item on another item of the
@@ -23,7 +26,7 @@ bag chosen along the foot of the window if it has room, or else the first that h
 it (wardrobes take only gear; the house's bags cannot be moved to from afar). Unlocked, a drag moves
 the window, as before.
 
-Under **Bags** in the settings, **Rows** and **Columns** set the inventory grid's visible size
+Under **Bags → Grid** in the settings, **Rows** and **Columns** set the inventory grid's visible size
 (5–30 rows and 6–30 columns). While settings are open, empty placeholders preview the full selected grid; changes to
 rows and columns update that preview immediately. With settings closed, the grid collapses to fit the
 bag content (including empty bag slots when Show Empty Slots is enabled), up to the selected row
@@ -39,7 +42,7 @@ background, so the base Winxi window shows through. These controls replace Max H
 controller tab navigation skips hidden groups. Hiding a tab does not change its items or prevent
 moving items to those bags. The controls apply to both unified and separate-bag views.
 
-In the unified view (**Draw Unified Bags**), a tab with more than one bag has a row of tabs of its
+In the unified view (**Unified Bags**, under Bags → Tabs), a tab with more than one bag has a row of tabs of its
 own along the foot of the window: **all**, for every bag together, then one for each bag the player
 has (satchel, case and sack; the wardrobes by number; safe 1, safe 2, storage and locker). Choosing a
 bag shows its items alone, with its own count in the row above; Auto sort then sorts that bag alone.

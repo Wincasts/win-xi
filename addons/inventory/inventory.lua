@@ -28,6 +28,7 @@ local itemicons = require('winxi.itemicons')
 local tabs = require('winxi.tabs')
 local pool = require('pool')
 local equipment = require('equipment')
+local config = require('config')
 
 -- Colours and spacing that were xitools' own
 local red = { 0.95, 0.20, 0.20, 1.0 }
@@ -818,6 +819,7 @@ local pad = {
 
 local padTabs = #tabGroups
 local tabNames = { 'Bag', 'Satchel', 'Wardrobe', 'House' }
+config.tabGroups, config.tabNames = tabGroups, tabNames
 
 local function TabEnabled(options, index)
     return options.bagTabs[tabGroups[index]][1]
@@ -1936,100 +1938,6 @@ local defaults = T{
 }
 
 local windowName = 'winxi.inventory'
-local controllerTooltip = 'Work the inventory with a controller while its window is showing.\nD-pad: move the highlight.  LB / RB: change tab.\nA: open the item\'s menu, and choose from it.  B: back out of the menu, or give the controller back to the game (the window stays open: /inv toggle closes it, /inv focus gives it the controller again).\nX (square): the sort menu. Auto puts the tab back in the usual order and part stacks together; Manual swaps the places of two items; Recycle Bin takes back what was dropped.\nThose buttons do not reach the game while the window is showing. Open it with /inv toggle, from a macro.'
-
--- The inventory's own controller settings, between the sounds and the kind of controller
-local function DrawControllerSettings(options)
-    widgets.Label('Controller Item Info')
-    local verbose = options.controllerInfo == 'verbose'
-    local infoColumn = imgui.GetCursorPosX()
-    if imgui.RadioButton('Simple##inv.controllerInfo', not verbose) then
-        options.controllerInfo = 'simple'
-    end
-    imgui.SetCursorPosX(infoColumn)
-    if imgui.RadioButton('Verbose##inv.controllerInfo', verbose) then
-        options.controllerInfo = 'verbose'
-    end
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('What is said of the highlighted item.\nSimple: its name, in a box under it.  Verbose: its name, stats and description; for gear, its slot, races, level and jobs as well.')
-    end
-
-    if verbose then
-        widgets.Label('Verbose Info Position')
-        local underItem = options.controllerInfoPlace == 'item'
-        local placeColumn = imgui.GetCursorPosX()
-        if imgui.RadioButton('Below Window##inv.controllerInfoPlace', not underItem) then
-            options.controllerInfoPlace = 'window'
-        end
-        imgui.SetCursorPosX(placeColumn)
-        if imgui.RadioButton('Under Item##inv.controllerInfoPlace', underItem) then
-            options.controllerInfoPlace = 'item'
-        end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Where the verbose box goes: under the inventory window, in line with its left edge, or under the highlighted item.')
-        end
-    end
-end
-
--- General holds movement, window and controller settings; the shell appends Visibility.
--- Bags and treasure have their own settings tabs.
-local function DrawGeneralSettings(options)
-    widgets.Label('Lock Drag to Move')
-    imgui.Checkbox('##inv.lockMovement', options.lockMovement)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Prevent dragging the inventory window. The Position fields can still move it.\nWhile it is locked, items can be dragged with the mouse: onto another item to swap their places, or onto another tab\'s name to move them to that tab\'s bags.')
-    end
-
-    if widgets.Header('Window', true) then
-        widgets.Label('Visible')
-        imgui.Checkbox('##inv.visible', options.isVisible)
-        widgets.Label('Pin Inventory')
-        imgui.Checkbox('##inv.pinned', options.isPinned)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Keeps the inventory window on screen when /inv toggle hides it; the treasure pool and equipment monitor have pins of their own.\nToggled off while pinned, the window stays but gives the controller back to the game.')
-        end
-        widgets.Label('Position')
-        imgui.SetNextItemWidth(widgets.NumberWidth(2))
-        if imgui.InputInt2('##inv.position', options.pos) then
-            imgui.SetWindowPos(windowName, options.pos)
-        end
-        widgets.Label('Fade In And Out')
-        imgui.Checkbox('##inv.fade', options.fadeInOut)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once.')
-        end
-    end
-
-    if widgets.Header('Controller') then
-        shell.ControllerSettings(options, controllerTooltip, DrawControllerSettings)
-    end
-end
-
-local function DrawBagSettings(options)
-    if widgets.Header('Bags', true) then
-        widgets.Label('Rows')
-        imgui.SetNextItemWidth(widgets.NumberWidth(1))
-        imgui.InputInt('##inv.gridRows', options.gridRows, 0, 0)
-        options.gridRows[1] = math.max(5, math.min(30, options.gridRows[1]))
-        widgets.Label('Columns')
-        imgui.SetNextItemWidth(widgets.NumberWidth(1))
-        imgui.InputInt('##inv.gridColumns', options.gridColumns, 0, 0)
-        options.gridColumns[1] = math.max(6, math.min(30, options.gridColumns[1]))
-        for index, key in ipairs(tabGroups) do
-            widgets.Label('Show ' .. tabNames[index] .. ' Tab')
-            imgui.Checkbox('##inv.tab.' .. key, options.bagTabs[key])
-        end
-        widgets.Label('Draw Unified Bags')
-        imgui.Checkbox('##inv.unified', options.isUnified)
-        widgets.Label('Show Empty Slots')
-        imgui.Checkbox('##inv.emptySlots', options.showEmptySlots)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Draws a spot for every slot of each bag, with the empty ones as faint squares after the items.')
-        end
-    end
-
-end
-
 -- The settings, the settings window, the command and the main window's frame are the shell's. The
 -- inventory was a tool of xitools, which kept its settings among its own: the shell brings them over
 -- once for each character, with xitools' theme and rules for hiding.
@@ -2044,9 +1952,9 @@ local app = shell.New({
     help = '/inventory (or /inv) opens or closes the settings; /inv toggle shows or hides the window; /inv focus gives the window the controller, or takes it away.',
     bareOpensConfig = true,
     settingsLabel = 'General',
-    drawSettings = DrawGeneralSettings,
+    drawSettings = config.General,
     tabs = {
-        { label = 'Bags', draw = DrawBagSettings },
+        { label = 'Bags', draw = config.Bags },
         { label = 'Treasure', draw = pool.DrawSettings },
         { label = 'Equipment', draw = equipment.DrawSettings },
     },
