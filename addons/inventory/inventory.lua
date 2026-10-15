@@ -1287,7 +1287,10 @@ local itemGap = { 8, 4 } -- between items, across and down: the shell's spacing 
 local stepX, stepY = iconSize + itemGap[1], iconSize + itemGap[2]
 local gridSize = { 0, 0 }
 local viewportSize = { 0, 0 }
-local gridPadding = { 0, 0 }
+-- Room around the grid inside its scrolling region, for the outlines drawn just outside a slot (the
+-- mouse's 2 pixels out, the controller's 3), which would be cut off at the region's edge. imgui
+-- clips a region's sides half its padding in, so the sides need twice the outline's room.
+local gridPadding = { 6, 4 }
 local viewportMin, viewportMax = { 0, 1 }, { 0, 0 }
 local iconMin, iconMax, uvMin, uvMax = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
 local firstShown, lastShown = 0, -1 -- the items of the bag being drawn that are in view
@@ -1492,7 +1495,7 @@ end
 local function DrawCountsRow(group, unified)
     -- Align to the requested grid width, not the previous frame's window width: using
     -- GetContentRegionAvail here creates a feedback loop that prevents shrinking.
-    local countsRight = imgui.GetCursorPosX() + viewportSize[1]
+    local countsRight = imgui.GetCursorPosX() + viewportSize[1] - gridPadding[1]
     -- a little room between the slots and this row
     imgui.Dummy(countBuffer)
 
@@ -1601,8 +1604,9 @@ local function BeginTab(index, label)
         viewportMin[1], viewportMax[1] = viewportSize[1], viewportSize[1]
         viewportMin[2] = previewGrid and viewportMax[2] or 1
         imgui.SetNextWindowSizeConstraints(viewportMin, viewportMax)
-        -- The parent already supplies Winxi padding; keep the child's outer width fixed.
-        -- Its available content width excludes the scrollbar when one is needed.
+        -- The parent already supplies Winxi padding; the child's own is only the room for the
+        -- outlines (gridPadding). Its outer width is fixed; its available content width excludes
+        -- the scrollbar when one is needed.
         imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, gridPadding)
         local shown = imgui.BeginChild('##inv.grid.' .. index, viewportSize,
             ImGuiChildFlags_AutoResizeY,
@@ -1936,10 +1940,10 @@ ashita.events.register('d3d_present', 'inv_present', function()
     options.gridRows[1] = math.max(5, math.min(30, math.floor(options.gridRows[1])))
     rowLengthIsh = options.gridColumns[1]
     local rows = options.gridRows[1]
-    viewportSize[1] = rowLengthIsh * (iconSize + itemGap[1]) - itemGap[1]
+    viewportSize[1] = rowLengthIsh * (iconSize + itemGap[1]) - itemGap[1] + 2 * gridPadding[1]
     previewSlots = rows * rowLengthIsh
     viewportSize[2] = 0 -- AutoResizeY fits actual content, bounded by the selected rows
-    viewportMax[2] = rows * stepY - itemGap[2]
+    viewportMax[2] = rows * stepY - itemGap[2] + 2 * gridPadding[2]
 
     PadBeginFrame(options)
     windowExtra.flags = options.lockMovement[1] and ImGuiWindowFlags_NoMove or 0
