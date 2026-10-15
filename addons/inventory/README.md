@@ -61,8 +61,9 @@ Equipped items are resolved from their actual containers, including wardrobes, a
 Hover a slot for its name and equipped item. Stackable ammunition shows its current count; red
 crosses mark encumbered slots, even when empty. Both overlays can be switched off independently.
 
-**Quality Borders** adds an inset item border: normal grey, Rare blue, Exclusive green, and
-Rare/Exclusive gold, based on the item's resource flags (not an inferred HQ status from its name).
+**Quality Borders** draws a white inset border around high-quality gear, as the game does; other
+gear has no border. The game's item data has no HQ flag (an item's HQ is a separate item named with
++1, +2 or +3), so an item counts as high quality when its name ends that way.
 **Wardrobe Markers** marks gear kept in a wardrobe as the game's equipment menu does: the
 wardrobe's number, white with a dark edge, in the top-right corner, over a wash of the wardrobe's
 colour along the top and right edges. Wardrobes 1–3 use the game's blue, yellow and green; 4–8 use
