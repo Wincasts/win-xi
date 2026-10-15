@@ -11,6 +11,20 @@ addon.desc    = 'Party, target and pet frames in the style of XivParty'
 --   windows               the windows the lists are drawn in
 --   options, config       the settings, and the window they are changed in
 -- This file puts them together: what goes in which window each frame, and which packets go where.
+
+-- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
+-- older one may have been put over it (winxi.version)
+local winxiNeeded = 1
+do
+    local ok, found = pcall(require, 'winxi.version')
+    local number = ok and type(found) == 'table' and found.Number or 0
+    if number < winxiNeeded then
+        local text = ('%s needs winxi %d or newer, and addons/libs/winxi is %d: install the newest release of any winxi addon.'):format(addon.name, winxiNeeded, number)
+        print(('\30\68[%s]\30\01 %s'):format(addon.name, text))
+        error(text, 0)
+    end
+end
+
 require('common')
 local imgui = require('imgui')
 local settings = require('settings')

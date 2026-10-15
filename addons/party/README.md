@@ -253,7 +253,7 @@ art is used.
 
 ## bar textures
 In **winxisettings → Styles → Bar Texture**, choose:
-- **Original** — the bundled classic textures (still the default).
+- **Original** — the bundled classic textures.
 - **Glass** — glossy reflections and beveled edges.
 - **Detailed** — metal bevels and subtle segmented fill.
 - **Crystal** — angular facets, diagonal reflections and diamond accents.
@@ -261,7 +261,7 @@ In **winxisettings → Styles → Bar Texture**, choose:
 - **Runic** — a luminous central fill with chevrons and stationary frame markings.
 - **Classic FF** — a clean top-to-bottom gradient and crisp square bevel.
 - **Radiant (Bright)** — a near-white tintable fill for brighter HP/MP, with a thin silver bevel.
-- **Chrome** — polished metal: a hard bright band over a dark horizon, with bright side edges.
+- **Chrome** — polished metal: a hard bright band over a dark horizon, with bright side edges. The default.
 - **Flat** — one even colour in a thin square frame.
 - **Segmented** — ten cells, marked on the frame so that they stay put as the bar empties.
 - **Ember** — a glowing core fading to darker edges, with fine sparks.
