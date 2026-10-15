@@ -237,6 +237,10 @@ static struct {
 	uint32_t RepeatsLast;
 	uint32_t RepeatsMainLast;
 
+	// Names taken from a lower line and drawn where the higher was: this frame, and last
+	uint32_t Lifted;
+	uint32_t LiftedLast;
+
 	// Which way up is along the world's second axis, 1 or -1, as the view last had it: 0 until known
 	float WorldUp;
 
@@ -281,9 +285,12 @@ static uint32_t NamesFrame = 0xFFFFFFFF;
 // the names where it draws it, and otherwise the first time at all. Where that call draws it more than
 // once, it is the highest of them that is taken, and not the first: the client draws them in an order
 // that changes as the camera moves. A name is drawn for an addon as the client draws it, before the
-// rest are known, so which is highest is told from last frame's: one at least halfway up from the
-// lowest to the highest of those is taken, or failing that the last. Frames are kept as
-// Shared.Frame + 1, so that 0 is never.
+// rest are known, so the first of them is taken whatever its height, and one in the lower half of the
+// last frame that had more than one, within LIFT_FRAMES, is drawn where the highest was: lifted by
+// how far the highest was from the lowest, with the highest's size and colours. Waiting for the
+// higher let the name vanish when it did not come, as the count changed from frame to frame; and
+// taking a lower as it was had the name jump. Frames are kept as Shared.Frame + 1, so that 0 is never.
+#define LIFT_FRAMES 30
 #define SEEN_NONE 0xFFFF
 static struct {
 	uint32_t Frame;     // the frame its name was first drawn in
@@ -293,7 +300,12 @@ static struct {
 	uint16_t MainCount; // how many times that call drew it in MainFrame
 	uint16_t MainCountLast; // and in the frame before, if it drew it then
 	float Low, High;    // how high the lowest and the highest of those were in MainFrame
-	float Middle;       // halfway between them in the frame before
+	float LowAt[3], HighAt[3]; // and where they were
+	uint32_t HighScale, HighNameColor, HighIconColor; // the highest's size and colours
+	uint32_t MultiFrame; // the last frame that call drew it more than once in, or 0
+	float Middle;       // halfway between the lowest and highest of MultiFrame
+	float Lift[3];      // from its lowest to its highest
+	uint32_t LiftScale, LiftNameColor, LiftIconColor; // its highest's size and colours
 } Seen[HOOK_ENTITIES];
 
 // The party, the target and the pets, as they were when the frame began
@@ -513,6 +525,10 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 		const bool main = site != 0 && site == Globals.DrawNameLineCalls[0];
 		bool repeat = false;
 		bool replace = false;
+		// where the name is drawn and listed, and how: as the client has it, unless lifted
+		const float* at = pPosition;
+		float lifted[3];
+		uint32_t atScale = scale, atNameColor = nameColor, atIconColor = iconColor;
 		if (index < HOOK_ENTITIES) {
 			auto& seen = Seen[index];
 			if (main) {
@@ -520,23 +536,49 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 				if (seen.MainFrame != now) {
 					const bool last = seen.MainFrame == now - 1;
 					seen.MainCountLast = last ? seen.MainCount : 0;
-					seen.Middle = last ? (seen.Low + seen.High) * 0.5f : 0.0f;
+					// the frame before had more than one: what is lifted by is taken from it
+					if (last && seen.MainCount > 1) {
+						seen.MultiFrame = seen.MainFrame;
+						seen.Middle = (seen.Low + seen.High) * 0.5f;
+						for (int i = 0; i < 3; i++) {
+							seen.Lift[i] = seen.HighAt[i] - seen.LowAt[i];
+						}
+						seen.LiftScale = seen.HighScale;
+						seen.LiftNameColor = seen.HighNameColor;
+						seen.LiftIconColor = seen.HighIconColor;
+					}
 					seen.MainCount = 0;
-					seen.Low = height;
-					seen.High = height;
 					seen.MainFrame = now;
 				}
 				seen.MainCount++;
-				seen.Low = (height < seen.Low) ? height : seen.Low;
-				seen.High = (height > seen.High) ? height : seen.High;
+				if (pPosition != nullptr && (seen.MainCount == 1 || height < seen.Low)) {
+					seen.Low = height;
+					memcpy(seen.LowAt, pPosition, sizeof(seen.LowAt));
+				}
+				if (pPosition != nullptr && (seen.MainCount == 1 || height > seen.High)) {
+					seen.High = height;
+					memcpy(seen.HighAt, pPosition, sizeof(seen.HighAt));
+					seen.HighScale = scale;
+					seen.HighNameColor = nameColor;
+					seen.HighIconColor = iconColor;
+				}
 
 				if (seen.Frame == now && seen.Main) {
 					repeat = true; // taken already
-				} else if (seen.MainCountLast > 1 && height < seen.Middle && seen.MainCount < seen.MainCountLast) {
-					repeat = true; // a lower one, while a higher is to come
 				} else {
 					// it takes the place of another call's, if that came first
 					replace = seen.Frame == now;
+					// a lower one, while the name has lately been drawn higher too: drawn there
+					if (pPosition != nullptr && seen.MultiFrame != 0 && now - seen.MultiFrame <= LIFT_FRAMES && height < seen.Middle) {
+						for (int i = 0; i < 3; i++) {
+							lifted[i] = pPosition[i] + seen.Lift[i];
+						}
+						at = lifted;
+						atScale = seen.LiftScale;
+						atNameColor = seen.LiftNameColor;
+						atIconColor = seen.LiftIconColor;
+						Globals.Lifted++;
+					}
 				}
 			} else if (seen.Frame == now || seen.MainFrame == now || seen.MainFrame == now - 1) {
 				repeat = true;
@@ -561,11 +603,11 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 			flags |= NAME_WANTED;
 			if (!IsClaimed(category)) {
 				flags |= NAME_DRAWN;
-			} else if (!repeat && pPosition != nullptr && Instance != nullptr) {
+			} else if (!repeat && at != nullptr && Instance != nullptr) {
 				// claimed by an addon: if it has drawn the name, that is put where the client's would be
 				const HookDrawing* pDrawing = FindDrawing(pEntity->EntityIndex);
 				if (pDrawing != nullptr) {
-					Instance->DrawCustom(pEntity->EntityIndex, *pDrawing, &Draw.Quads[pDrawing->First], pPosition);
+					Instance->DrawCustom(pEntity->EntityIndex, *pDrawing, &Draw.Quads[pDrawing->First], at);
 					flags |= NAME_CUSTOM;
 				}
 			}
@@ -592,12 +634,12 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 			pName->ServerId = pEntity->EntityId;
 			pName->Category = category;
 			pName->Flags = flags;
-			pName->X = pPosition[0];
-			pName->Y = pPosition[1];
-			pName->Z = pPosition[2];
-			memcpy(&pName->Scale, &scale, sizeof(pName->Scale));
-			pName->NameColor = nameColor;
-			pName->IconColor = iconColor;
+			pName->X = at[0];
+			pName->Y = at[1];
+			pName->Z = at[2];
+			memcpy(&pName->Scale, &atScale, sizeof(pName->Scale));
+			pName->NameColor = atNameColor;
+			pName->IconColor = atIconColor;
 
 			for (size_t i = 0; i < HOOK_NAME_SIZE - 1 && pEntity->Name[i] != '\0'; i++) {
 				pName->Name[i] = pEntity->Name[i];
@@ -1251,8 +1293,8 @@ void Nameplate::SayStatus() {
 			(Globals.DrawNameLineCallCount <= 1 && Globals.DrawNameLine2CallCount <= 1) ? "there are no others to take"
 				: (Globals.OtherCallsTaken ? "all are taken" : "only the first is taken (othercalls off)"),
 			static_cast<unsigned>(Globals.UnownedLast));
-		Sayf(this, "%u names last frame were drawn again after their first time (%u of those by the call that draws all the names), and were listed and drawn for an addon once.",
-			static_cast<unsigned>(Globals.RepeatsLast), static_cast<unsigned>(Globals.RepeatsMainLast));
+		Sayf(this, "%u names last frame were drawn again after their first time (%u of those by the call that draws all the names), and were listed and drawn for an addon once; %u were taken from a lower line and drawn where the higher had been.",
+			static_cast<unsigned>(Globals.RepeatsLast), static_cast<unsigned>(Globals.RepeatsMainLast), static_cast<unsigned>(Globals.LiftedLast));
 	}
 }
 
@@ -1756,6 +1798,8 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 		Globals.RepeatsMainLast = Globals.RepeatsMain;
 		Globals.Repeats = 0;
 		Globals.RepeatsMain = 0;
+		Globals.LiftedLast = Globals.Lifted;
+		Globals.Lifted = 0;
 		Filling.Count = 0;
 		Filling.Changed = false;
 		Filling.Published = false;

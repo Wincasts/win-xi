@@ -629,15 +629,57 @@ int main() {
 			plugin.Publish(nullptr, nullptr, true);
 			CHECK(Shared.Count == 1 && Shared.Names[0].X == there[0] && Globals.RepeatsMainLast == 1);
 		}
-		// and with only a lower one, that is drawn: it is the last
+		// with only the lower one in a frame, it is drawn at once, where the higher was: the name
+		// neither vanishes waiting for the higher nor drops to the lower; and listed there, with the
+		// higher's size and colours
+		const uint32_t half = 0x3F000000;
+		setOut();
+		custom = plugin.custom;
+		DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0x80FFFFFF, 0x80000000);
+		DrawNameLineFrom(mainSite, buddy, there, "Buddy", one, 0x80FFFFFF, 0x80000000);
+		CHECK(plugin.custom == custom + 1 && plugin.lastX == there[0]);
+		plugin.Publish(nullptr, nullptr, true);
+		for (int frame = 0; frame < 3; frame++) {
+			setOut();
+			custom = plugin.custom;
+			DrawNameLineFrom(mainSite, buddy, where, "Buddy", half, 0x40FFFFFF, 0x40000000);
+			CHECK(plugin.custom == custom + 1 && plugin.lastX == there[0]);
+			plugin.Publish(nullptr, nullptr, true);
+			CHECK(Shared.Count == 1 && Shared.Names[0].X == there[0] && Shared.Names[0].Y == there[1] && Shared.Names[0].Z == there[2]);
+			CHECK(Shared.Names[0].NameColor == 0x80FFFFFF && Shared.Names[0].IconColor == 0x80000000 && Shared.Names[0].Scale == 1.0f);
+			CHECK(Globals.LiftedLast == 1);
+		}
+
+		// and in a frame with both again, the lower first, the same
 		setOut();
 		custom = plugin.custom;
 		DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
-		CHECK(plugin.custom == custom);
+		DrawNameLineFrom(mainSite, buddy, there, "Buddy", one, 0, 0);
+		CHECK(plugin.custom == custom + 1 && plugin.lastX == there[0]);
+		plugin.Publish(nullptr, nullptr, true);
+		CHECK(Shared.Count == 1 && Shared.Names[0].X == there[0] && Globals.RepeatsMainLast == 1);
+
+		// the lower alone for longer than LIFT_FRAMES is the name's own place: drawn where it is
+		for (int frame = 0; frame <= LIFT_FRAMES; frame++) {
+			setOut();
+			DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
+			plugin.Publish(nullptr, nullptr, true);
+		}
+		setOut();
+		custom = plugin.custom;
 		DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
 		CHECK(plugin.custom == custom + 1 && plugin.lastX == where[0]);
 		plugin.Publish(nullptr, nullptr, true);
-		CHECK(Shared.Count == 1 && Shared.Names[0].X == where[0]);
+		CHECK(Shared.Count == 1 && Shared.Names[0].X == where[0] && Globals.LiftedLast == 0);
+
+		// a single name the client draws once a frame is never lifted
+		Fresh();
+		for (int frame = 0; frame < 3; frame++) {
+			setOut();
+			DrawNameLineFrom(mainSite, buddy, frame == 1 ? where : there, "Buddy", one, 0, 0);
+			plugin.Publish(nullptr, nullptr, true);
+			CHECK(Shared.Names[0].X == (frame == 1 ? where[0] : there[0]) && Globals.LiftedLast == 0);
+		}
 
 		// by another call and then by that one: that one's takes the other's place on the list
 		Fresh();
