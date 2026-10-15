@@ -55,7 +55,7 @@ function config.General(options)
         if imgui.InputInt2('##inv.position', options.pos) then
             imgui.SetWindowPos(windowName, options.pos)
         end
-        widgets.Label('Lock Drag to Move')
+        widgets.Label('Lock')
         imgui.Checkbox('##inv.lockMovement', options.lockMovement)
         tooltip.Hover('Prevent dragging the inventory window. The Position fields can still move it.\nWhile it is locked, items can be dragged with the mouse: onto another item to swap their places, or onto another tab\'s name to move them to that tab\'s bags.')
         widgets.Label('Fade In And Out')

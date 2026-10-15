@@ -16,7 +16,7 @@ alike: **Enable**, **Detach From Inventory**, the pin, and, detached, the positi
 looks. While one is not enabled the rest of its tab is hidden. Every setting's tooltip is in winxi's
 themed tooltip.
 
-**Lock Drag to Move**, in General → Window, prevents dragging the inventory window when enabled.
+**Lock**, in General → Window, prevents dragging the inventory window when enabled.
 It is off by default; the **Position** fields remain usable while locked.
 
 While the window is locked, items can be dragged with the mouse. Drop an item on another item of the
@@ -57,7 +57,8 @@ window takes the controller as `/inv toggle` opens it, and only `/inv toggle` cl
 While there is treasure, the treasure pool sits to the right of the window: a line for each item with
 the best lot so far, the time left, and buttons to lot and pass, with Lot All and Pass All over them.
 Hover over an item for who is winning it. It comes and goes with the inventory window; Detach From
-Inventory, under Treasure Pool in the settings, makes it a window of its own that can be moved. Show When Empty fills an empty pool with sample treasure, to see how
+Inventory, under Treasure Pool in the settings, makes it a window of its own that can be moved, with
+its own **Position** and **Lock**. Show When Empty fills an empty pool with sample treasure, to see how
 it looks; its buttons do nothing. It is worked with the mouse only, where the `treas` addon can be
 worked with a controller.
 
@@ -72,7 +73,7 @@ inventory window, its left edge in line with the window's, and comes and goes (a
 unless pinned (see Pinning below).
 The controller's verbose item box, when placed below the window, goes under the monitor instead.
 Turn on **Detach From Inventory** to make it a window of its own, with its own **Position** and
-**Lock Drag to Move**.
+**Lock**.
 
 ### Pinning
 
@@ -116,7 +117,7 @@ slots retain their labels; occupied slots draw their icons on top. The backdrop 
 with the icons, remain inside the square grid, and turn off together with Slot Backgrounds.
 
 The Equipment tab provides its own **Scale**, **Spacing**, **Opacity**, **Window Background**, and
-**Slot Backgrounds** controls, and, detached, **Position** and **Lock Drag to Move**. Drag the
+**Slot Backgrounds** controls, and, detached, **Position** and **Lock**. Drag the
 unlocked, detached window to move it; attached, it moves with the inventory window. Settings are kept per character with the rest of Inventory's settings. Styling and count
 text use Winxi's theme rather than EquipMon's numbered texture themes and separate font objects;
 item icons share Inventory's icon atlas.

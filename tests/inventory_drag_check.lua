@@ -1,5 +1,5 @@
 -- Run with: luajit tests/harness.lua inventory addons/inventory/inventory.lua tests/inventory_drag_check.lua
--- While Lock Drag to Move holds the window still, items are dragged with the mouse: onto another item
+-- While Lock holds the window still, items are dragged with the mouse: onto another item
 -- to swap their places, or onto another tab's name to move them to that tab's bags.
 local imgui = require('imgui')
 local icons = require('winxi.itemicons')

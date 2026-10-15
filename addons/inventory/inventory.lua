@@ -1279,7 +1279,7 @@ local slotFill = { 1.0, 1.0, 1.0, 0.04 }
 local slotEdge = { 1.0, 1.0, 1.0, 0.18 }
 local slotFillColor, slotEdgeColor = 0, 0 -- packed once a frame, in the window
 
--- Dragging an item with the mouse, while Lock Drag to Move holds the window still: dropped on another
+-- Dragging an item with the mouse, while Lock holds the window still: dropped on another
 -- item of the tab, the two swap places (the player's own order, as the controller's Manual sort);
 -- dropped on another tab's name at the top, it is moved to that group's bag with room (the one chosen
 -- under the grid, if any, first). The item picked up, its group and where the mouse was, and whether
@@ -1916,6 +1916,7 @@ local defaults = T{
     treasureShowEmpty = T{ false }, -- sample treasure in an empty pool, to see it
     treasureDetached = T{ false }, -- the treasure pool as a window of its own
     treasurePinned = T{ false }, -- it stays when /inv toggle hides the inventory
+    treasureLock = T{ false }, -- detached, it cannot be dragged
     treasurePos = T{ 256, 100 }, -- where it is, detached
     treasureWidth = T{ 300 }, -- how wide it is
     equipment = T{
