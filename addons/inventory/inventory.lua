@@ -1611,31 +1611,77 @@ end
 -- counts, and in the unified view the tabs of the group's bags, at the foot
 -- The grid's scroll bar, slim, just outside its right edge in the window's padding, where it takes no
 -- room from the slots: how far down the grid is scrolled, and how much of it is in view. Drawn only
--- while it scrolls. It is measured in the grid and drawn in the window around it.
-local scrollBar = { width = 2, gap = 2, white = { 1, 1, 1, 0.35 }, min = { 0, 0 }, max = { 0, 0 } }
+-- while it scrolls. It is measured in the grid and drawn in the window around it. The strip beside the
+-- grid, from its right edge to the window's, is where the bar is dragged: a press on the bar takes
+-- hold of it where it is pressed, and a press elsewhere in the strip brings its middle to the mouse
+-- first. The window is not moved by a press there, locked or not.
+local scrollBar = {
+    width = 2, gap = 2, white = { 1, 1, 1, 0.35 }, bright = { 1, 1, 1, 0.7 }, min = { 0, 0 }, max = { 0, 0 },
+    zone = { shown = false, 0, 0, 0, 0 }, -- the strip, this frame: { left, top, right, bottom }
+    grab = nil, -- while dragged: how far below the bar's top the mouse holds it
+    top = 0, length = 0, height = 0, most = 0, hovered = false,
+}
 
--- in the grid, before it ends: whether it scrolls, and where the bar goes
+-- in the grid, before it ends: whether it scrolls, and where the bar goes; while the bar is dragged,
+-- the grid is scrolled to follow the mouse
 local function MeasureScrollBar()
+    local bar = scrollBar
     local most = imgui.GetScrollMaxY ~= nil and imgui.GetScrollMaxY() or 0
     if most <= 0 then
+        bar.grab = nil
         return false
     end
     local scrolled = imgui.GetScrollY() or 0
     local x, y = imgui.GetWindowPos()
     local width, height = imgui.GetWindowSize()
     local length = math.max(8, height * height / (height + most))
+    if bar.grab ~= nil then
+        if imgui.IsMouseDown(0) then
+            local _, my = imgui.GetMousePos()
+            local room = height - length
+            if my ~= nil and room > 0 then
+                scrolled = math.max(0, math.min(most, (my - bar.grab - y) * most / room))
+                imgui.SetScrollY(scrolled)
+            end
+        else
+            bar.grab = nil
+        end
+    end
     local right = x + width
-    local bar = scrollBar
+    bar.top, bar.length, bar.height, bar.most = y, length, height, most
     bar.min[1], bar.min[2] = right + bar.gap, y + (height - length) * scrolled / most
     bar.max[1], bar.max[2] = right + bar.gap + bar.width, bar.min[2] + length
+    local zone = bar.zone
+    zone[1], zone[2], zone[4] = right, y, y + height
     return true
+end
+
+-- in the window, once the grid has ended: the strip beside the grid reaches the window's right edge,
+-- and a press in it takes hold of the bar
+local function HoldScrollBar()
+    local bar, zone = scrollBar, scrollBar.zone
+    local x = imgui.GetWindowPos()
+    local width = imgui.GetWindowSize()
+    zone[3], zone.shown = x + width, true
+    local mx, my = imgui.GetMousePos()
+    bar.hovered = mx ~= nil and imgui.IsWindowHovered()
+        and mx >= zone[1] and mx < zone[3] and my >= zone[2] and my < zone[4]
+    if bar.hovered and bar.grab == nil and imgui.IsMouseClicked(0) then
+        if my >= bar.min[2] and my < bar.max[2] then
+            bar.grab = my - bar.min[2]
+        else
+            bar.grab = bar.length / 2
+        end
+    end
 end
 
 local function FinishTab(group, unified)
     local scrolls = MeasureScrollBar()
     imgui.EndChild()
     if scrolls then
-        imgui.GetWindowDrawList():AddRectFilled(scrollBar.min, scrollBar.max, imgui.GetColorU32(scrollBar.white), 1)
+        HoldScrollBar()
+        local color = (scrollBar.hovered or scrollBar.grab ~= nil) and scrollBar.bright or scrollBar.white
+        imgui.GetWindowDrawList():AddRectFilled(scrollBar.min, scrollBar.max, imgui.GetColorU32(color), 1)
     end
     if hoveredItem ~= nil and not itemMenu.open and not drag.moving then
         AddTooltip(hoveredItem)
@@ -2091,7 +2137,13 @@ ashita.events.register('d3d_present', 'inv_present', function()
     viewportMax[2] = rows * stepY - itemGap[2]
 
     PadBeginFrame(options)
-    windowExtra.flags = options.lockMovement[1] and ImGuiWindowFlags_NoMove or 0
+    -- held still while locked, and while the mouse is over the strip where the grid's scroll bar is
+    -- dragged (where it was last frame), or the bar is held, so that a press there does not move it
+    local zone, mx, my = scrollBar.zone, imgui.GetMousePos()
+    local overBar = scrollBar.grab ~= nil or (zone.shown and mx ~= nil
+        and mx >= zone[1] and mx < zone[3] and my >= zone[2] and my < zone[4])
+    windowExtra.flags = (options.lockMovement[1] or overBar) and ImGuiWindowFlags_NoMove or 0
+    zone.shown = false
     app:Window(options.isVisible, DrawWindow, windowExtra)
     if pad.windowX ~= nil then
         invFrame.x, invFrame.y = pad.windowX, pad.windowY
