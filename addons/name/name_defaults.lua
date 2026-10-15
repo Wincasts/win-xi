@@ -3,13 +3,13 @@
 require('common');
 
 return T{
-    font = 'corbeli.ttf',
-    fontBold = T{ true },
-    fontSize = T{ 28 },
-    minSize = T{ 10 },
+    font = 'trebucbi.ttf',
+    fontBold = T{ false },
+    fontSize = T{ 32 },
+    minSize = T{ 9 },
     outline = T{ 1 },
-    iconSize = T{ 93 },
-    iconSpacing = T{ 2 },
+    iconSize = T{ 90 },
+    iconSpacing = T{ 4 },
     showIcons = T{ true },
     showStars = T{ false },
     showMobLevel = T{ true },
@@ -17,7 +17,9 @@ return T{
     showMobLetter = T{ false },
     doubleMobLetters = T{ false },
     showCheckDetails = T{ true },
-    checkSize = T{ 75 },
+    checkSize = T{ 90 },
+    huntScale = T{ 120 },
+    statusAlign = T{ 'left' },
     abbreviateDifficulty = T{ true },
     checkDetailsInWords = T{ false },
     nameFormat = T{ '[name]' },
@@ -36,15 +38,5 @@ return T{
     hide = T{
         UnderChat = true, WhileLoading = true, DuringEvent = true,
         UnderMap = true, WithInterface = true,
-    },
-    theme = T{
-        BackgroundColor = T{ 0.15294099999999999, 0.15294099999999999, 0.26274500000000001, 0.80000000000000004 },
-        BorderColor = T{ 0.68999999999999995, 0.68000000000000005, 0.78000000000000003, 1 },
-        TextColor = T{ 1, 1, 1, 1 },
-        ShadowEnabled = true,
-        ShadowBlur = 3,
-        Padding = 12,
-        ShadowOffset = 2,
-        ShadowOpacity = 25,
     },
 };

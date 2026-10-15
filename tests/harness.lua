@@ -194,5 +194,25 @@ H = {
     Button = { DpadUp = 0, DpadDown = 1, DpadLeft = 2, DpadRight = 3, LB = 8, RB = 9, A = 12, B = 13, X = 14, Y = 15, L2 = 16, R2 = 17 },
 }
 
+-- The checks were written against winxi's plain look, from before the shipped theme took on borders,
+-- backgrounds and titles of its own: they get that look, so that what they measure does not move
+-- whenever the shipped defaults do.
+do
+    local theme = require('winxi.theme')
+    local plain = {
+        BackgroundColor = { 0.08, 0.08, 0.08, 0.8 }, BorderColor = { 0.69, 0.68, 0.78, 1.0 },
+        ThemeTabColor = { 0.20, 0.54, 0.58, 1.0 }, HighlightColor = { 0.69, 0.68, 0.78, 0.4 },
+        Padding = 10, ShadowEnabled = false, ShadowOffset = 4, ShadowBlur = 6, ShadowOpacity = 50, BorderOpacity = 100,
+        BorderStyle = 'theme', BackgroundStyle = 'plain', TabStyle = 'sheen', BarTexture = 'original', BookendOpacity = 100,
+        TitleStyle = 'outline', TitleColor = { 0.94, 0.90, 0.76, 1.0 }, TitleSize = 0, TitleFontFile = '', TitleOffsetX = 10,
+        TitleShadow = false, TitleShadowOpacity = 70,
+        SettingsBackgroundColor = { 0.08, 0.08, 0.08, 0.8 }, SettingsBorderColor = { 0.69, 0.68, 0.78, 1.0 },
+        SettingsHighlightColor = { 0.69, 0.68, 0.78, 0.4 }, SettingsHeaderColor = { 1.00, 0.75, 0.55, 1.0 },
+        TooltipPadding = 6, TooltipBackgroundColor = { 0.05, 0.05, 0.05, 0.95 },
+    }
+    for key, value in pairs(plain) do theme.Defaults[key] = value end
+    theme.Reset()
+end
+
 dofile(target)
 dofile(check)

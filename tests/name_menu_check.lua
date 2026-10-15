@@ -42,7 +42,7 @@ assert(ids['##name.trackedNm'] == nil, 'NM tracking has a tab of its own')
 assert(ids['##name.targetFormat'] == nil and ids['##name.checkedFormat'] == nil)
 H.print('mob toggles and format exposed; player, target and checked formats hidden', ids['##name.nameFormat'] == nil,
     ids['##name.showMobLevel'], ids['##name.showAggroIcons'], ids['##name.monsterFormat'], ids['##name.targetFormat'] == nil, ids['##name.checkedFormat'] == nil)
-H.print('preferred baseline retained', options.font == 'corbeli.ttf', options.fontBold[1], options.checkSize[1] == 75)
+H.print('preferred baseline retained', options.font == 'trebucbi.ttf', not options.fontBold[1], options.checkSize[1] == 90)
 local oldPlayers = options.showPlayers[1]
 H.command('/name custom off'); H.command('/name show all')
 H.print('verbs only say the help', options.showPlayers[1] == oldPlayers)

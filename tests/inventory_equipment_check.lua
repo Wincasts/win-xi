@@ -133,7 +133,7 @@ check('detached and pinned: shown with the inventory hidden, where it was put', 
 check('icon atlas advanced only once per addon frame', atlasFrames == beforeAtlas + 1)
 check('equipment screen uses reference 4x4 slot order', table.concat(slots, ',') == '0,1,2,3,4,9,11,12,5,6,13,14,15,10,7,8')
 check('equipment resolves inventory and wardrobe indices', #images == 2 and images[1] == 20100 and images[2] == 88)
-check('default four by four dimensions', hasSize(140))
+check('default four by four dimensions', hasSize(143))
 check('all sixteen slots have game-style sunken faces, each with four bevelled edges', backdrops == 16 and bevels == 64)
 check('backdrops include all slot captions with shadows', #slotNames == 32 and slotNames[1] == 'Main' and slotNames[32] == 'Feet')
 check('backdrops and captions are drawn beneath equipment icons', backdropFirst)
@@ -148,7 +148,7 @@ check('transparent background and opacity applied', background and background[4]
 e.scale[1], e.spacing[1] = 2, 6
 frame()
 check('scale and spacing resize the equipment grid', hasSize(274))
-e.scale[1], e.spacing[1] = 1, 4
+e.scale[1], e.spacing[1], e.showEncumbrance[1] = 1, 5, true
 -- Main and Feet are encumbered (bits 0 and 8).
 H.packetData(0x01B, string.rep('\0', 0x60) .. string.char(1, 1, 0, 0))
 frame()

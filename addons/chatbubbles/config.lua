@@ -7,7 +7,7 @@ local function defaults()
     local channels = T{};
     for _, mode in ipairs(modes.All) do channels[mode.key] = T{ mode.default == true }; end
     return T{ enabled = T{ true }, modes = channels, appearance = T{
-        background = T{ 0.08, 0.09, 0.12, 0.92 }, text = T{ 1, 1, 1, 1 },
+        background = T{ 1, 1, 1, 0.96 }, text = T{ 0.05, 0.05, 0.05, 1 },
         gameTextColors = T{ true },
     } };
 end

@@ -97,6 +97,9 @@ statusicons.MixedPlace = function(id)
 end
 local look = require('winxi.theme').Get()
 H.print('icons as party and buff draw them: Custom Icons on in winxisettings', look.StatusIcons == true)
+-- the row's place is looked at centred first, and at each of the others further down
+local startAlign = o.statusAlign[1]
+o.statusAlign[1] = 'center'
 block.Frame = 2; H.frames(1)
 H.print('the sheet is the plugin\'s eighth picture', draw.Textures[7] == 0x7777)
 H.print('own: what is chosen, each once, in the game\'s order:', listed(0x400), '| Protect is not chosen')
@@ -130,7 +133,7 @@ local function letters(index)
     end
     return left, right, foot
 end
-H.print('settings: above and centred to begin with', o.statusPlace[1], o.statusAlign[1])
+H.print('settings: above and level with the left to begin with', o.statusPlace[1], startAlign)
 local placed = {}
 for _, place in ipairs({ 'above', 'below' }) do
     for _, align in ipairs({ 'left', 'center', 'right' }) do

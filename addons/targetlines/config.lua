@@ -16,8 +16,8 @@ local defaultSettings = T {
         pet = { 0.98, 0.502, 0.447, 1 } -- salmon
     },
     curve = 100, -- /targetlines curve 100: how far a line bows out from the straight way between its ends, as a percentage
-    orbScale = 100, -- /targetlines orbsize 100: size of the orb at the tip of a line as it draws in, as a percentage
-    transparency = 10, -- /targetlines opacity 90: stored as how see-through the lines are, 0-90 percent
+    orbScale = 80, -- /targetlines orbsize 80: size of the orb at the tip of a line as it draws in, as a percentage
+    transparency = 20, -- /targetlines opacity 80: stored as how see-through the lines are, 0-90 percent
     nameplateAnchor = false, -- /targetlines nameplate on: lines start and end where the game puts each name, and stop short of each end
     nameplateRaise = 0, -- /targetlines anchorheight 0: how far above (or, below 0, under) the name a line starts and ends, in tenths of a yalm
     nameplateInset = 5, -- /targetlines anchorgap 5: how far short of each anchor a line starts and ends, in tenths of a yalm
@@ -252,7 +252,7 @@ config.drawWindow = function()
                 end
 
                 -- Shown as opacity (90% by default); stored as its complement, transparency
-                local opacity = { 100 - (tonumber(shown('transparency')) or 10) };
+                local opacity = { 100 - (tonumber(shown('transparency')) or 20) };
                 leftLabel('Opacity');
                 imgui.PushItemWidth(-1);
                 local opacityChanged = imgui.SliderInt('##opacity', opacity, 100 - maxTransparency, 100, '%d%%');
@@ -276,7 +276,7 @@ config.drawWindow = function()
                     imgui.SetTooltip('How far each line bows out from the straight way between its ends. 100%% is the normal curve; less is flatter, more is rounder.\n/targetlines curve|c <' .. minCurve .. '-' .. maxCurve .. '>');
                 end
 
-                local orbScale = { tonumber(shown('orbScale')) or 100 };
+                local orbScale = { tonumber(shown('orbScale')) or 80 };
                 leftLabel('Orb Size');
                 imgui.PushItemWidth(-1);
                 local orbScaleChanged = imgui.SliderInt('##orbscale', orbScale, minOrbScale, maxOrbScale, '%d%%');
@@ -480,7 +480,7 @@ ashita.events.register('command', 'command_cb', function(e)
             -- Given and shown as opacity; stored as its complement, transparency
             local minOpacity = 100 - maxTransparency;
             if (option == nil) then
-                print(chat.header(addon.name) .. chat.message('Line opacity: ') .. chat.success(tostring(100 - (tonumber(s.transparency) or 10)) .. ' percent'));
+                print(chat.header(addon.name) .. chat.message('Line opacity: ') .. chat.success(tostring(100 - (tonumber(s.transparency) or 20)) .. ' percent'));
             else
                 local value = tonumber(option);
                 if (not value or value < minOpacity or value > 100) then
@@ -521,7 +521,7 @@ ashita.events.register('command', 'command_cb', function(e)
             print(chat.header(addon.name) .. chat.message('Test line: ') .. chat.success(testLine[1] and 'on (from you to your target)' or 'off'));
         elseif (command == 'orbsize' or command == 'os') then
             if (option == nil) then
-                print(chat.header(addon.name) .. chat.message('Orb size: ') .. chat.success(tostring(tonumber(s.orbScale) or 100) .. ' percent'));
+                print(chat.header(addon.name) .. chat.message('Orb size: ') .. chat.success(tostring(tonumber(s.orbScale) or 80) .. ' percent'));
             else
                 local value = tonumber(option);
                 if (not value or value < minOrbScale or value > maxOrbScale) then

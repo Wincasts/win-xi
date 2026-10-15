@@ -521,139 +521,139 @@ window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
 imgui Begin xiframes.us.2
-imgui Dummy (164,154)
+imgui Dummy (131,123)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,29.6) (155.2,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,67.6) (118.48,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,105.6) (140.51,122.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,144.6) (100.12,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (30,31) (34,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,31) (158,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,69) (34,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,69) (158,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,107) (34,121) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,107) (158,121) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,146) (34,160) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,146) (158,160) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
-window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,41.6) (169.6,56) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,79.6) (165.16,94) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,156.6) (168.71,171) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (78,43) (82,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,43) (173,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,81) (82,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,81) (173,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,119) (82,130) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,119) (173,130) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,158) (82,169) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,158) (173,169) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage hp_back.png (25.36,29.12) (130.96,42.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,59.12) (130.96,72.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,90.12) (130.96,103.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,121.12) (130.96,134.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (26.32,30.08) (131.92,43.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,60.08) (131.92,73.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,91.08) (131.92,104.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,122.08) (131.92,135.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (24.4,27.68) (130,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,57.68) (130,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,88.68) (130,102.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,119.68) (130,133.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,27.68) (126.16,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,57.68) (96.78,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,88.68) (114.41,102.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,119.68) (82.1,133.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (24.4,27.68) (130,41.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,57.68) (130,71.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,88.68) (130,102.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,119.68) (130,133.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (26,29) (29,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,29) (129,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,59) (29,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,59) (129,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,90) (29,101) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,90) (129,101) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,121) (29,132) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,121) (129,132) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage mp_back.png (63.76,38.72) (142.48,50.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,68.72) (142.48,80.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,99.72) (142.48,111.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,130.72) (142.48,142.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (64.72,39.68) (143.44,51.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,69.68) (143.44,81.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,100.68) (143.44,112.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,131.68) (143.44,143.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (62.8,37.28) (141.52,48.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (62.8,67.28) (141.52,78.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,98.28) (141.52,109.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (62.8,129.28) (141.52,140.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,37.28) (137.68,48.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,67.28) (134.13,78.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,98.28) (137.68,109.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,129.28) (136.97,140.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,37.28) (141.52,48.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,67.28) (141.52,78.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,98.28) (141.52,109.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,129.28) (141.52,140.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (64,39) (67,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,39) (140,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,69) (67,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,69) (140,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,100) (67,108) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,100) (140,108) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,131) (67,139) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,131) (140,139) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
-window AddCircleFilled (14.67,30.05) 4.67 #000000E6 12
-window AddCircleFilled (14.67,30.05) 3.67 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
+window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddText (19,19) #000000E6 Secondlead
+window AddText (19,21) #000000E6 Secondlead
 window AddText (21,19) #000000E6 Secondlead
 window AddText (21,21) #000000E6 Secondlead
-window AddText (23,19) #000000E6 Secondlead
-window AddText (23,21) #000000E6 Secondlead
-window AddText (22,20) #FFFFFFFF Secondlead
-window AddText (9,57) #000000E6 Summoner
-window AddText (9,59) #000000E6 Summoner
-window AddText (11,57) #000000E6 Summoner
-window AddText (11,59) #000000E6 Summoner
-window AddText (10,58) #FFFFFFFF Summoner
-window AddText (9,95) #000000E6 Monk
-window AddText (9,97) #000000E6 Monk
-window AddText (11,95) #000000E6 Monk
-window AddText (11,97) #000000E6 Monk
-window AddText (10,96) #FFFFFFFF Monk
-window AddText (9,134) #000000E6 Healer
-window AddText (9,136) #000000E6 Healer
-window AddText (11,134) #000000E6 Healer
-window AddText (11,136) #000000E6 Healer
-window AddText (10,135) #FFFFFFFF Healer
+window AddText (20,20) #FFFFFFFF Secondlead
+window AddText (9,49) #000000E6 Summoner
+window AddText (9,51) #000000E6 Summoner
+window AddText (11,49) #000000E6 Summoner
+window AddText (11,51) #000000E6 Summoner
+window AddText (10,50) #FFFFFFFF Summoner
+window AddText (9,80) #000000E6 Monk
+window AddText (9,82) #000000E6 Monk
+window AddText (11,80) #000000E6 Monk
+window AddText (11,82) #000000E6 Monk
+window AddText (10,81) #FFFFFFFF Monk
+window AddText (9,111) #000000E6 Healer
+window AddText (9,113) #000000E6 Healer
+window AddText (11,111) #000000E6 Healer
+window AddText (11,113) #000000E6 Healer
+window AddText (10,112) #FFFFFFFF Healer
 imgui PopFont
 imgui PushFont
-window AddText (138,23) #000000E6 1500
-window AddText (138,25) #000000E6 1500
-window AddText (140,23) #000000E6 1500
-window AddText (140,25) #000000E6 1500
-window AddText (139,24) #FFFFFFFF 1500
-window AddText (65,38) #000000E6 1000
-window AddText (65,40) #000000E6 1000
-window AddText (67,38) #000000E6 1000
-window AddText (67,40) #000000E6 1000
-window AddText (66,39) #C3E6FFFF 1000
-window AddText (138,61) #000000E6 700
-window AddText (138,63) #000000E6 700
-window AddText (140,61) #000000E6 700
-window AddText (140,63) #000000E6 700
-window AddText (139,62) #F3F37CFF 700
-window AddText (158,75) #000000E6 900
-window AddText (158,77) #000000E6 900
-window AddText (160,75) #000000E6 900
-window AddText (160,77) #000000E6 900
-window AddText (159,76) #FFFFFFFF 900
-window AddText (65,76) #000000E6 0
-window AddText (65,78) #000000E6 0
-window AddText (67,76) #000000E6 0
-window AddText (67,78) #000000E6 0
-window AddText (66,77) #FFFFFFFF 0
-window AddText (138,99) #000000E6 1900
-window AddText (138,101) #000000E6 1900
-window AddText (140,99) #000000E6 1900
-window AddText (140,101) #000000E6 1900
-window AddText (139,100) #FFFFFFFF 1900
-window AddText (65,114) #000000E6 450
-window AddText (65,116) #000000E6 450
-window AddText (67,114) #000000E6 450
-window AddText (67,116) #000000E6 450
-window AddText (66,115) #FFFFFFFF 450
-window AddText (138,138) #000000E6 650
-window AddText (138,140) #000000E6 650
-window AddText (140,138) #000000E6 650
-window AddText (140,140) #000000E6 650
-window AddText (139,139) #F3F37CFF 650
-window AddText (158,152) #000000E6 1020
-window AddText (158,154) #000000E6 1020
-window AddText (160,152) #000000E6 1020
-window AddText (160,154) #000000E6 1020
-window AddText (159,153) #FFFFFFFF 1020
-window AddText (65,153) #000000E6 20
-window AddText (65,155) #000000E6 20
-window AddText (67,153) #000000E6 20
-window AddText (67,155) #000000E6 20
-window AddText (66,154) #FFFFFFFF 20
+window AddText (111,22) #000000E6 1500
+window AddText (111,24) #000000E6 1500
+window AddText (113,22) #000000E6 1500
+window AddText (113,24) #000000E6 1500
+window AddText (112,23) #FFFFFFFF 1500
+window AddText (52,34) #000000E6 1000
+window AddText (52,36) #000000E6 1000
+window AddText (54,34) #000000E6 1000
+window AddText (54,36) #000000E6 1000
+window AddText (53,35) #C3E6FFFF 1000
+window AddText (111,52) #000000E6 700
+window AddText (111,54) #000000E6 700
+window AddText (113,52) #000000E6 700
+window AddText (113,54) #000000E6 700
+window AddText (112,53) #F3F37CFF 700
+window AddText (126,63) #000000E6 900
+window AddText (126,65) #000000E6 900
+window AddText (128,63) #000000E6 900
+window AddText (128,65) #000000E6 900
+window AddText (127,64) #FFFFFFFF 900
+window AddText (52,64) #000000E6 0
+window AddText (52,66) #000000E6 0
+window AddText (54,64) #000000E6 0
+window AddText (54,66) #000000E6 0
+window AddText (53,65) #FFFFFFFF 0
+window AddText (111,83) #000000E6 1900
+window AddText (111,85) #000000E6 1900
+window AddText (113,83) #000000E6 1900
+window AddText (113,85) #000000E6 1900
+window AddText (112,84) #FFFFFFFF 1900
+window AddText (52,95) #000000E6 450
+window AddText (52,97) #000000E6 450
+window AddText (54,95) #000000E6 450
+window AddText (54,97) #000000E6 450
+window AddText (53,96) #FFFFFFFF 450
+window AddText (111,114) #000000E6 650
+window AddText (111,116) #000000E6 650
+window AddText (113,114) #000000E6 650
+window AddText (113,116) #000000E6 650
+window AddText (112,115) #F3F37CFF 650
+window AddText (126,125) #000000E6 1020
+window AddText (126,127) #000000E6 1020
+window AddText (128,125) #000000E6 1020
+window AddText (128,127) #000000E6 1020
+window AddText (127,126) #FFFFFFFF 1020
+window AddText (52,126) #000000E6 20
+window AddText (52,128) #000000E6 20
+window AddText (54,126) #000000E6 20
+window AddText (54,128) #000000E6 20
+window AddText (53,127) #FFFFFFFF 20
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
@@ -665,76 +665,76 @@ window AddText (383,193) #F0E6C2FF Alliance 2
 window PopClipRect
 imgui End
 imgui Begin xiframes.us.3
-imgui Dummy (164,77)
+imgui Dummy (131,62)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,29.6) (125.82,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,67.6) (70.74,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (30,31) (34,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,31) (158,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,69) (34,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,69) (158,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
-window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,41.6) (125.2,56) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,79.6) (169.6,94) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (78,43) (82,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,43) (173,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,81) (82,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,81) (173,92) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage hp_back.png (25.36,29.12) (130.96,42.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,59.12) (130.96,72.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (26.32,30.08) (131.92,43.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,60.08) (131.92,73.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (24.4,27.68) (130,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,57.68) (130,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,27.68) (102.66,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,57.68) (58.6,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (24.4,27.68) (130,41.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,57.68) (130,71.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (26,29) (29,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,29) (129,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,59) (29,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,59) (129,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage mp_back.png (63.76,38.72) (142.48,50.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,68.72) (142.48,80.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (64.72,39.68) (143.44,51.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,69.68) (143.44,81.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (62.8,37.28) (141.52,48.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,67.28) (141.52,78.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,37.28) (102.16,48.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,67.28) (137.68,78.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,37.28) (141.52,48.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,67.28) (141.52,78.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (64,39) (67,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,39) (140,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,69) (67,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,69) (140,77) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
-window AddCircleFilled (14.67,30.05) 4.67 #000000E6 12
-window AddCircleFilled (14.67,30.05) 3.67 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
+window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddText (19,19) #000000E6 Thirdlead
+window AddText (19,21) #000000E6 Thirdlead
 window AddText (21,19) #000000E6 Thirdlead
 window AddText (21,21) #000000E6 Thirdlead
-window AddText (23,19) #000000E6 Thirdlead
-window AddText (23,21) #000000E6 Thirdlead
-window AddText (22,20) #FFFFFFFF Thirdlead
-window AddText (9,57) #000000E6 Lastone
-window AddText (9,59) #000000E6 Lastone
-window AddText (11,57) #000000E6 Lastone
-window AddText (11,59) #000000E6 Lastone
-window AddText (10,58) #FFFFFFFF Lastone
+window AddText (20,20) #FFFFFFFF Thirdlead
+window AddText (9,49) #000000E6 Lastone
+window AddText (9,51) #000000E6 Lastone
+window AddText (11,49) #000000E6 Lastone
+window AddText (11,51) #000000E6 Lastone
+window AddText (10,50) #FFFFFFFF Lastone
 imgui PopFont
 imgui PushFont
-window AddText (138,23) #000000E6 1000
-window AddText (138,25) #000000E6 1000
-window AddText (140,23) #000000E6 1000
-window AddText (140,25) #000000E6 1000
-window AddText (139,24) #FFFFFFFF 1000
-window AddText (158,37) #000000E6 500
-window AddText (158,39) #000000E6 500
-window AddText (160,37) #000000E6 500
-window AddText (160,39) #000000E6 500
-window AddText (159,38) #FFFFFFFF 500
-window AddText (65,38) #000000E6 0
-window AddText (65,40) #000000E6 0
-window AddText (67,38) #000000E6 0
-window AddText (67,40) #000000E6 0
-window AddText (66,39) #FFFFFFFF 0
-window AddText (138,61) #000000E6 950
-window AddText (138,63) #000000E6 950
-window AddText (140,61) #000000E6 950
-window AddText (140,63) #000000E6 950
-window AddText (139,62) #F8BA80FF 950
-window AddText (65,76) #000000E6 3000
-window AddText (65,78) #000000E6 3000
-window AddText (67,76) #000000E6 3000
-window AddText (67,78) #000000E6 3000
-window AddText (66,77) #C3E6FFFF 3000
+window AddText (111,22) #000000E6 1000
+window AddText (111,24) #000000E6 1000
+window AddText (113,22) #000000E6 1000
+window AddText (113,24) #000000E6 1000
+window AddText (112,23) #FFFFFFFF 1000
+window AddText (126,33) #000000E6 500
+window AddText (126,35) #000000E6 500
+window AddText (128,33) #000000E6 500
+window AddText (128,35) #000000E6 500
+window AddText (127,34) #FFFFFFFF 500
+window AddText (52,34) #000000E6 0
+window AddText (52,36) #000000E6 0
+window AddText (54,34) #000000E6 0
+window AddText (54,36) #000000E6 0
+window AddText (53,35) #FFFFFFFF 0
+window AddText (111,52) #000000E6 950
+window AddText (111,54) #000000E6 950
+window AddText (113,52) #000000E6 950
+window AddText (113,54) #000000E6 950
+window AddText (112,53) #F8BA80FF 950
+window AddText (52,64) #000000E6 3000
+window AddText (52,66) #000000E6 3000
+window AddText (54,64) #000000E6 3000
+window AddText (54,66) #000000E6 3000
+window AddText (53,65) #C3E6FFFF 3000
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
@@ -1326,139 +1326,139 @@ window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
 imgui Begin xiframes.us.2
-imgui Dummy (164,154)
+imgui Dummy (131,123)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,29.6) (155.2,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,67.6) (118.48,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,105.6) (140.51,122.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,144.6) (100.12,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (30,31) (34,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,31) (158,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,69) (34,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,69) (158,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,107) (34,121) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,107) (158,121) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,146) (34,160) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,146) (158,160) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
-window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,41.6) (169.6,56) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,79.6) (165.16,94) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,156.6) (168.71,171) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (78,43) (82,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,43) (173,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,81) (82,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,81) (173,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,119) (82,130) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,119) (173,130) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,158) (82,169) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,158) (173,169) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage hp_back.png (25.36,29.12) (130.96,42.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,59.12) (130.96,72.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,90.12) (130.96,103.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,121.12) (130.96,134.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (26.32,30.08) (131.92,43.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,60.08) (131.92,73.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,91.08) (131.92,104.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,122.08) (131.92,135.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (24.4,27.68) (130,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,57.68) (130,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,88.68) (130,102.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,119.68) (130,133.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,27.68) (126.16,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,57.68) (96.78,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,88.68) (114.41,102.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,119.68) (82.1,133.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (24.4,27.68) (130,41.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,57.68) (130,71.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,88.68) (130,102.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,119.68) (130,133.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (26,29) (29,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,29) (129,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,59) (29,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,59) (129,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,90) (29,101) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,90) (129,101) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,121) (29,132) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,121) (129,132) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage mp_back.png (63.76,38.72) (142.48,50.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,68.72) (142.48,80.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,99.72) (142.48,111.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,130.72) (142.48,142.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (64.72,39.68) (143.44,51.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,69.68) (143.44,81.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,100.68) (143.44,112.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,131.68) (143.44,143.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (62.8,37.28) (141.52,48.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (62.8,67.28) (141.52,78.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,98.28) (141.52,109.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (62.8,129.28) (141.52,140.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,37.28) (137.68,48.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,67.28) (134.13,78.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,98.28) (137.68,109.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,129.28) (136.97,140.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,37.28) (141.52,48.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,67.28) (141.52,78.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,98.28) (141.52,109.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,129.28) (141.52,140.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (64,39) (67,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,39) (140,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,69) (67,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,69) (140,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,100) (67,108) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,100) (140,108) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,131) (67,139) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,131) (140,139) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
-window AddCircleFilled (14.67,30.05) 4.67 #000000E6 12
-window AddCircleFilled (14.67,30.05) 3.67 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
+window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddText (19,19) #000000E6 Secondlead
+window AddText (19,21) #000000E6 Secondlead
 window AddText (21,19) #000000E6 Secondlead
 window AddText (21,21) #000000E6 Secondlead
-window AddText (23,19) #000000E6 Secondlead
-window AddText (23,21) #000000E6 Secondlead
-window AddText (22,20) #FFFFFFFF Secondlead
-window AddText (9,57) #000000E6 Summoner
-window AddText (9,59) #000000E6 Summoner
-window AddText (11,57) #000000E6 Summoner
-window AddText (11,59) #000000E6 Summoner
-window AddText (10,58) #FFFFFFFF Summoner
-window AddText (9,95) #000000E6 Monk
-window AddText (9,97) #000000E6 Monk
-window AddText (11,95) #000000E6 Monk
-window AddText (11,97) #000000E6 Monk
-window AddText (10,96) #FFFFFFFF Monk
-window AddText (9,134) #000000E6 Healer
-window AddText (9,136) #000000E6 Healer
-window AddText (11,134) #000000E6 Healer
-window AddText (11,136) #000000E6 Healer
-window AddText (10,135) #FFFFFFFF Healer
+window AddText (20,20) #FFFFFFFF Secondlead
+window AddText (9,49) #000000E6 Summoner
+window AddText (9,51) #000000E6 Summoner
+window AddText (11,49) #000000E6 Summoner
+window AddText (11,51) #000000E6 Summoner
+window AddText (10,50) #FFFFFFFF Summoner
+window AddText (9,80) #000000E6 Monk
+window AddText (9,82) #000000E6 Monk
+window AddText (11,80) #000000E6 Monk
+window AddText (11,82) #000000E6 Monk
+window AddText (10,81) #FFFFFFFF Monk
+window AddText (9,111) #000000E6 Healer
+window AddText (9,113) #000000E6 Healer
+window AddText (11,111) #000000E6 Healer
+window AddText (11,113) #000000E6 Healer
+window AddText (10,112) #FFFFFFFF Healer
 imgui PopFont
 imgui PushFont
-window AddText (138,23) #000000E6 1500
-window AddText (138,25) #000000E6 1500
-window AddText (140,23) #000000E6 1500
-window AddText (140,25) #000000E6 1500
-window AddText (139,24) #FFFFFFFF 1500
-window AddText (65,38) #000000E6 1000
-window AddText (65,40) #000000E6 1000
-window AddText (67,38) #000000E6 1000
-window AddText (67,40) #000000E6 1000
-window AddText (66,39) #53B5FAFF 1000
-window AddText (138,61) #000000E6 700
-window AddText (138,63) #000000E6 700
-window AddText (140,61) #000000E6 700
-window AddText (140,63) #000000E6 700
-window AddText (139,62) #F3F37CFF 700
-window AddText (158,75) #000000E6 900
-window AddText (158,77) #000000E6 900
-window AddText (160,75) #000000E6 900
-window AddText (160,77) #000000E6 900
-window AddText (159,76) #FFFFFFFF 900
-window AddText (65,76) #000000E6 0
-window AddText (65,78) #000000E6 0
-window AddText (67,76) #000000E6 0
-window AddText (67,78) #000000E6 0
-window AddText (66,77) #FFFFFFFF 0
-window AddText (138,99) #000000E6 1900
-window AddText (138,101) #000000E6 1900
-window AddText (140,99) #000000E6 1900
-window AddText (140,101) #000000E6 1900
-window AddText (139,100) #FFFFFFFF 1900
-window AddText (65,114) #000000E6 450
-window AddText (65,116) #000000E6 450
-window AddText (67,114) #000000E6 450
-window AddText (67,116) #000000E6 450
-window AddText (66,115) #FFFFFFFF 450
-window AddText (138,138) #000000E6 650
-window AddText (138,140) #000000E6 650
-window AddText (140,138) #000000E6 650
-window AddText (140,140) #000000E6 650
-window AddText (139,139) #F3F37CFF 650
-window AddText (158,152) #000000E6 1020
-window AddText (158,154) #000000E6 1020
-window AddText (160,152) #000000E6 1020
-window AddText (160,154) #000000E6 1020
-window AddText (159,153) #FFFFFFFF 1020
-window AddText (65,153) #000000E6 20
-window AddText (65,155) #000000E6 20
-window AddText (67,153) #000000E6 20
-window AddText (67,155) #000000E6 20
-window AddText (66,154) #FFFFFFFF 20
+window AddText (111,22) #000000E6 1500
+window AddText (111,24) #000000E6 1500
+window AddText (113,22) #000000E6 1500
+window AddText (113,24) #000000E6 1500
+window AddText (112,23) #FFFFFFFF 1500
+window AddText (52,34) #000000E6 1000
+window AddText (52,36) #000000E6 1000
+window AddText (54,34) #000000E6 1000
+window AddText (54,36) #000000E6 1000
+window AddText (53,35) #53B5FAFF 1000
+window AddText (111,52) #000000E6 700
+window AddText (111,54) #000000E6 700
+window AddText (113,52) #000000E6 700
+window AddText (113,54) #000000E6 700
+window AddText (112,53) #F3F37CFF 700
+window AddText (126,63) #000000E6 900
+window AddText (126,65) #000000E6 900
+window AddText (128,63) #000000E6 900
+window AddText (128,65) #000000E6 900
+window AddText (127,64) #FFFFFFFF 900
+window AddText (52,64) #000000E6 0
+window AddText (52,66) #000000E6 0
+window AddText (54,64) #000000E6 0
+window AddText (54,66) #000000E6 0
+window AddText (53,65) #FFFFFFFF 0
+window AddText (111,83) #000000E6 1900
+window AddText (111,85) #000000E6 1900
+window AddText (113,83) #000000E6 1900
+window AddText (113,85) #000000E6 1900
+window AddText (112,84) #FFFFFFFF 1900
+window AddText (52,95) #000000E6 450
+window AddText (52,97) #000000E6 450
+window AddText (54,95) #000000E6 450
+window AddText (54,97) #000000E6 450
+window AddText (53,96) #FFFFFFFF 450
+window AddText (111,114) #000000E6 650
+window AddText (111,116) #000000E6 650
+window AddText (113,114) #000000E6 650
+window AddText (113,116) #000000E6 650
+window AddText (112,115) #F3F37CFF 650
+window AddText (126,125) #000000E6 1020
+window AddText (126,127) #000000E6 1020
+window AddText (128,125) #000000E6 1020
+window AddText (128,127) #000000E6 1020
+window AddText (127,126) #FFFFFFFF 1020
+window AddText (52,126) #000000E6 20
+window AddText (52,128) #000000E6 20
+window AddText (54,126) #000000E6 20
+window AddText (54,128) #000000E6 20
+window AddText (53,127) #FFFFFFFF 20
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
@@ -1470,76 +1470,76 @@ window AddText (383,193) #F0E6C2FF Alliance 2
 window PopClipRect
 imgui End
 imgui Begin xiframes.us.3
-imgui Dummy (164,77)
+imgui Dummy (131,62)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,29.6) (125.82,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,67.6) (70.74,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (30,31) (34,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,31) (158,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,69) (34,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,69) (158,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
-window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,41.6) (125.2,56) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,79.6) (169.6,94) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (78,43) (82,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,43) (173,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,81) (82,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,81) (173,92) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage hp_back.png (25.36,29.12) (130.96,42.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,59.12) (130.96,72.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (26.32,30.08) (131.92,43.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,60.08) (131.92,73.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (24.4,27.68) (130,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,57.68) (130,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,27.68) (102.66,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,57.68) (58.6,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (24.4,27.68) (130,41.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,57.68) (130,71.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (26,29) (29,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,29) (129,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,59) (29,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,59) (129,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage mp_back.png (63.76,38.72) (142.48,50.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,68.72) (142.48,80.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (64.72,39.68) (143.44,51.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,69.68) (143.44,81.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (62.8,37.28) (141.52,48.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,67.28) (141.52,78.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,37.28) (102.16,48.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,67.28) (137.68,78.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,37.28) (141.52,48.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,67.28) (141.52,78.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (64,39) (67,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,39) (140,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,69) (67,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,69) (140,77) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
-window AddCircleFilled (14.67,30.05) 4.67 #000000E6 12
-window AddCircleFilled (14.67,30.05) 3.67 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
+window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddText (19,19) #000000E6 Thirdlead
+window AddText (19,21) #000000E6 Thirdlead
 window AddText (21,19) #000000E6 Thirdlead
 window AddText (21,21) #000000E6 Thirdlead
-window AddText (23,19) #000000E6 Thirdlead
-window AddText (23,21) #000000E6 Thirdlead
-window AddText (22,20) #FFFFFFFF Thirdlead
-window AddText (9,57) #000000E6 Lastone
-window AddText (9,59) #000000E6 Lastone
-window AddText (11,57) #000000E6 Lastone
-window AddText (11,59) #000000E6 Lastone
-window AddText (10,58) #FFFFFFFF Lastone
+window AddText (20,20) #FFFFFFFF Thirdlead
+window AddText (9,49) #000000E6 Lastone
+window AddText (9,51) #000000E6 Lastone
+window AddText (11,49) #000000E6 Lastone
+window AddText (11,51) #000000E6 Lastone
+window AddText (10,50) #FFFFFFFF Lastone
 imgui PopFont
 imgui PushFont
-window AddText (138,23) #000000E6 1000
-window AddText (138,25) #000000E6 1000
-window AddText (140,23) #000000E6 1000
-window AddText (140,25) #000000E6 1000
-window AddText (139,24) #FFFFFFFF 1000
-window AddText (158,37) #000000E6 500
-window AddText (158,39) #000000E6 500
-window AddText (160,37) #000000E6 500
-window AddText (160,39) #000000E6 500
-window AddText (159,38) #FFFFFFFF 500
-window AddText (65,38) #000000E6 0
-window AddText (65,40) #000000E6 0
-window AddText (67,38) #000000E6 0
-window AddText (67,40) #000000E6 0
-window AddText (66,39) #FFFFFFFF 0
-window AddText (138,61) #000000E6 950
-window AddText (138,63) #000000E6 950
-window AddText (140,61) #000000E6 950
-window AddText (140,63) #000000E6 950
-window AddText (139,62) #F8BA80FF 950
-window AddText (65,76) #000000E6 3000
-window AddText (65,78) #000000E6 3000
-window AddText (67,76) #000000E6 3000
-window AddText (67,78) #000000E6 3000
-window AddText (66,77) #53B5FAFF 3000
+window AddText (111,22) #000000E6 1000
+window AddText (111,24) #000000E6 1000
+window AddText (113,22) #000000E6 1000
+window AddText (113,24) #000000E6 1000
+window AddText (112,23) #FFFFFFFF 1000
+window AddText (126,33) #000000E6 500
+window AddText (126,35) #000000E6 500
+window AddText (128,33) #000000E6 500
+window AddText (128,35) #000000E6 500
+window AddText (127,34) #FFFFFFFF 500
+window AddText (52,34) #000000E6 0
+window AddText (52,36) #000000E6 0
+window AddText (54,34) #000000E6 0
+window AddText (54,36) #000000E6 0
+window AddText (53,35) #FFFFFFFF 0
+window AddText (111,52) #000000E6 950
+window AddText (111,54) #000000E6 950
+window AddText (113,52) #000000E6 950
+window AddText (113,54) #000000E6 950
+window AddText (112,53) #F8BA80FF 950
+window AddText (52,64) #000000E6 3000
+window AddText (52,66) #000000E6 3000
+window AddText (54,64) #000000E6 3000
+window AddText (54,66) #000000E6 3000
+window AddText (53,65) #53B5FAFF 3000
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
@@ -2316,207 +2316,207 @@ imgui End
 imgui Begin xiframes.us.2
 over AddRectFilled (100,180) (115,198) #141414CC 2
 over AddText (104,182) #CFCF80FF Alliance 2
-imgui Dummy (164,231)
+imgui Dummy (131,185)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,223.4) (161.2,240.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,224.6) (162.4,241.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,221.6) (160,238.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,29.6) (155.2,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,67.6) (118.48,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,105.6) (140.51,122.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,144.6) (100.12,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (81.76,199.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,221.6) (63.4,238.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,221.6) (160,238.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (30,31) (34,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,31) (158,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,69) (34,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,69) (158,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,107) (34,121) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,107) (158,121) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,146) (34,160) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,146) (158,160) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,184) (34,198) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,184) (158,198) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,223) (34,237) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,223) (158,237) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,235.4) (175.6,249.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,236.6) (176.8,251) (0,0) (1,1) #00000033
-window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,233.6) (174.4,248) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,41.6) (169.6,56) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,79.6) (165.16,94) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,117.6) (169.6,132) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,156.6) (168.71,171) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,194.6) (126.98,209) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,233.6) (116.32,248) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,233.6) (174.4,248) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (78,43) (82,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,43) (173,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,81) (82,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,81) (173,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,119) (82,130) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,119) (173,130) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,158) (82,169) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,158) (173,169) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,196) (82,207) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,196) (173,207) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,235) (82,246) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,235) (173,246) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage hp_back.png (25.36,29.12) (130.96,42.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,59.12) (130.96,72.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,90.12) (130.96,103.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,121.12) (130.96,134.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,151.12) (130.96,164.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,182.12) (130.96,195.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (26.32,30.08) (131.92,43.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,60.08) (131.92,73.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,91.08) (131.92,104.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,122.08) (131.92,135.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,152.08) (131.92,165.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,183.08) (131.92,196.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (24.4,27.68) (130,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,57.68) (130,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,88.68) (130,102.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,119.68) (130,133.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,149.68) (130,163.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,180.68) (130,194.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,27.68) (126.16,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,57.68) (96.78,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,88.68) (114.41,102.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,119.68) (82.1,133.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,149.68) (67.41,163.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,180.68) (52.72,194.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (24.4,27.68) (130,41.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,57.68) (130,71.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,88.68) (130,102.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,119.68) (130,133.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,149.68) (130,163.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,180.68) (130,194.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (26,29) (29,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,29) (129,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,59) (29,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,59) (129,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,90) (29,101) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,90) (129,101) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,121) (29,132) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,121) (129,132) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,151) (29,162) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,151) (129,162) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,182) (29,193) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,182) (129,193) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage mp_back.png (63.76,38.72) (142.48,50.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,68.72) (142.48,80.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,99.72) (142.48,111.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,130.72) (142.48,142.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,160.72) (142.48,172.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,191.72) (142.48,203.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (64.72,39.68) (143.44,51.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,69.68) (143.44,81.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,100.68) (143.44,112.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,131.68) (143.44,143.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,161.68) (143.44,173.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,192.68) (143.44,204.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (62.8,37.28) (141.52,48.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (62.8,67.28) (141.52,78.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,98.28) (141.52,109.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (62.8,129.28) (141.52,140.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,159.28) (141.52,170.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,190.28) (141.52,201.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,37.28) (137.68,48.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,67.28) (134.13,78.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,98.28) (137.68,109.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,129.28) (136.97,140.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,159.28) (103.58,170.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,190.28) (95.06,201.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,37.28) (141.52,48.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,67.28) (141.52,78.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,98.28) (141.52,109.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,129.28) (141.52,140.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,159.28) (141.52,170.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,190.28) (141.52,201.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (64,39) (67,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,39) (140,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,69) (67,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,69) (140,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,100) (67,108) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,100) (140,108) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,131) (67,139) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,131) (140,139) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,161) (67,169) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,161) (140,169) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,192) (67,200) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,192) (140,200) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
-window AddCircleFilled (14.67,30.05) 4.67 #000000E6 12
-window AddCircleFilled (14.67,30.05) 3.67 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
+window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddText (19,19) #000000E6 Secondlead
+window AddText (19,21) #000000E6 Secondlead
 window AddText (21,19) #000000E6 Secondlead
 window AddText (21,21) #000000E6 Secondlead
-window AddText (23,19) #000000E6 Secondlead
-window AddText (23,21) #000000E6 Secondlead
-window AddText (22,20) #FFFFFFFF Secondlead
-window AddText (9,57) #000000E6 Summoner
-window AddText (9,59) #000000E6 Summoner
-window AddText (11,57) #000000E6 Summoner
-window AddText (11,59) #000000E6 Summoner
-window AddText (10,58) #FFFFFFFF Summoner
-window AddText (9,95) #000000E6 Monk
-window AddText (9,97) #000000E6 Monk
-window AddText (11,95) #000000E6 Monk
-window AddText (11,97) #000000E6 Monk
-window AddText (10,96) #FFFFFFFF Monk
-window AddText (9,134) #000000E6 Healer
-window AddText (9,136) #000000E6 Healer
-window AddText (11,134) #000000E6 Healer
-window AddText (11,136) #000000E6 Healer
-window AddText (10,135) #FFFFFFFF Healer
-window AddText (9,172) #000000E6 Sample 5
-window AddText (9,174) #000000E6 Sample 5
-window AddText (11,172) #000000E6 Sample 5
-window AddText (11,174) #000000E6 Sample 5
-window AddText (10,173) #FFFFFFFF Sample 5
-window AddText (9,211) #000000E6 Sample 6
-window AddText (9,213) #000000E6 Sample 6
-window AddText (11,211) #000000E6 Sample 6
-window AddText (11,213) #000000E6 Sample 6
-window AddText (10,212) #FFFFFFFF Sample 6
+window AddText (20,20) #FFFFFFFF Secondlead
+window AddText (9,49) #000000E6 Summoner
+window AddText (9,51) #000000E6 Summoner
+window AddText (11,49) #000000E6 Summoner
+window AddText (11,51) #000000E6 Summoner
+window AddText (10,50) #FFFFFFFF Summoner
+window AddText (9,80) #000000E6 Monk
+window AddText (9,82) #000000E6 Monk
+window AddText (11,80) #000000E6 Monk
+window AddText (11,82) #000000E6 Monk
+window AddText (10,81) #FFFFFFFF Monk
+window AddText (9,111) #000000E6 Healer
+window AddText (9,113) #000000E6 Healer
+window AddText (11,111) #000000E6 Healer
+window AddText (11,113) #000000E6 Healer
+window AddText (10,112) #FFFFFFFF Healer
+window AddText (9,141) #000000E6 Sample 5
+window AddText (9,143) #000000E6 Sample 5
+window AddText (11,141) #000000E6 Sample 5
+window AddText (11,143) #000000E6 Sample 5
+window AddText (10,142) #FFFFFFFF Sample 5
+window AddText (9,172) #000000E6 Sample 6
+window AddText (9,174) #000000E6 Sample 6
+window AddText (11,172) #000000E6 Sample 6
+window AddText (11,174) #000000E6 Sample 6
+window AddText (10,173) #FFFFFFFF Sample 6
 imgui PopFont
 imgui PushFont
-window AddText (138,23) #000000E6 1500
-window AddText (138,25) #000000E6 1500
-window AddText (140,23) #000000E6 1500
-window AddText (140,25) #000000E6 1500
-window AddText (139,24) #FFFFFFFF 1500
-window AddText (65,38) #000000E6 1000
-window AddText (65,40) #000000E6 1000
-window AddText (67,38) #000000E6 1000
-window AddText (67,40) #000000E6 1000
-window AddText (66,39) #BEE3FFFF 1000
-window AddText (138,61) #000000E6 700
-window AddText (138,63) #000000E6 700
-window AddText (140,61) #000000E6 700
-window AddText (140,63) #000000E6 700
-window AddText (139,62) #F3F37CFF 700
-window AddText (158,75) #000000E6 900
-window AddText (158,77) #000000E6 900
-window AddText (160,75) #000000E6 900
-window AddText (160,77) #000000E6 900
-window AddText (159,76) #FFFFFFFF 900
-window AddText (65,76) #000000E6 0
-window AddText (65,78) #000000E6 0
-window AddText (67,76) #000000E6 0
-window AddText (67,78) #000000E6 0
-window AddText (66,77) #FFFFFFFF 0
-window AddText (138,99) #000000E6 1900
-window AddText (138,101) #000000E6 1900
-window AddText (140,99) #000000E6 1900
-window AddText (140,101) #000000E6 1900
-window AddText (139,100) #FFFFFFFF 1900
-window AddText (65,114) #000000E6 450
-window AddText (65,116) #000000E6 450
-window AddText (67,114) #000000E6 450
-window AddText (67,116) #000000E6 450
-window AddText (66,115) #FFFFFFFF 450
-window AddText (138,138) #000000E6 650
-window AddText (138,140) #000000E6 650
-window AddText (140,138) #000000E6 650
-window AddText (140,140) #000000E6 650
-window AddText (139,139) #F3F37CFF 650
-window AddText (158,152) #000000E6 1020
-window AddText (158,154) #000000E6 1020
-window AddText (160,152) #000000E6 1020
-window AddText (160,154) #000000E6 1020
-window AddText (159,153) #FFFFFFFF 1020
-window AddText (65,153) #000000E6 20
-window AddText (65,155) #000000E6 20
-window AddText (67,153) #000000E6 20
-window AddText (67,155) #000000E6 20
-window AddText (66,154) #FFFFFFFF 20
-window AddText (138,176) #000000E6 560
-window AddText (138,178) #000000E6 560
-window AddText (140,176) #000000E6 560
-window AddText (140,178) #000000E6 560
-window AddText (139,177) #F8BA80FF 560
-window AddText (158,190) #000000E6 416
-window AddText (158,192) #000000E6 416
-window AddText (160,190) #000000E6 416
-window AddText (160,192) #000000E6 416
-window AddText (159,191) #FFFFFFFF 416
-window AddText (65,191) #000000E6 2000
-window AddText (65,193) #000000E6 2000
-window AddText (67,191) #000000E6 2000
-window AddText (67,193) #000000E6 2000
-window AddText (66,192) #BEE3FFFF 2000
-window AddText (138,215) #000000E6 350
-window AddText (138,217) #000000E6 350
-window AddText (140,215) #000000E6 350
-window AddText (140,217) #000000E6 350
-window AddText (139,216) #F8BA80FF 350
-window AddText (158,229) #000000E6 320
-window AddText (158,231) #000000E6 320
-window AddText (160,229) #000000E6 320
-window AddText (160,231) #000000E6 320
-window AddText (159,230) #FFFFFFFF 320
-window AddText (65,230) #000000E6 2500
-window AddText (65,232) #000000E6 2500
-window AddText (67,230) #000000E6 2500
-window AddText (67,232) #000000E6 2500
-window AddText (66,231) #BEE3FFFF 2500
+window AddText (111,22) #000000E6 1500
+window AddText (111,24) #000000E6 1500
+window AddText (113,22) #000000E6 1500
+window AddText (113,24) #000000E6 1500
+window AddText (112,23) #FFFFFFFF 1500
+window AddText (52,34) #000000E6 1000
+window AddText (52,36) #000000E6 1000
+window AddText (54,34) #000000E6 1000
+window AddText (54,36) #000000E6 1000
+window AddText (53,35) #BEE3FFFF 1000
+window AddText (111,52) #000000E6 700
+window AddText (111,54) #000000E6 700
+window AddText (113,52) #000000E6 700
+window AddText (113,54) #000000E6 700
+window AddText (112,53) #F3F37CFF 700
+window AddText (126,63) #000000E6 900
+window AddText (126,65) #000000E6 900
+window AddText (128,63) #000000E6 900
+window AddText (128,65) #000000E6 900
+window AddText (127,64) #FFFFFFFF 900
+window AddText (52,64) #000000E6 0
+window AddText (52,66) #000000E6 0
+window AddText (54,64) #000000E6 0
+window AddText (54,66) #000000E6 0
+window AddText (53,65) #FFFFFFFF 0
+window AddText (111,83) #000000E6 1900
+window AddText (111,85) #000000E6 1900
+window AddText (113,83) #000000E6 1900
+window AddText (113,85) #000000E6 1900
+window AddText (112,84) #FFFFFFFF 1900
+window AddText (52,95) #000000E6 450
+window AddText (52,97) #000000E6 450
+window AddText (54,95) #000000E6 450
+window AddText (54,97) #000000E6 450
+window AddText (53,96) #FFFFFFFF 450
+window AddText (111,114) #000000E6 650
+window AddText (111,116) #000000E6 650
+window AddText (113,114) #000000E6 650
+window AddText (113,116) #000000E6 650
+window AddText (112,115) #F3F37CFF 650
+window AddText (126,125) #000000E6 1020
+window AddText (126,127) #000000E6 1020
+window AddText (128,125) #000000E6 1020
+window AddText (128,127) #000000E6 1020
+window AddText (127,126) #FFFFFFFF 1020
+window AddText (52,126) #000000E6 20
+window AddText (52,128) #000000E6 20
+window AddText (54,126) #000000E6 20
+window AddText (54,128) #000000E6 20
+window AddText (53,127) #FFFFFFFF 20
+window AddText (111,144) #000000E6 560
+window AddText (111,146) #000000E6 560
+window AddText (113,144) #000000E6 560
+window AddText (113,146) #000000E6 560
+window AddText (112,145) #F8BA80FF 560
+window AddText (126,155) #000000E6 416
+window AddText (126,157) #000000E6 416
+window AddText (128,155) #000000E6 416
+window AddText (128,157) #000000E6 416
+window AddText (127,156) #FFFFFFFF 416
+window AddText (52,156) #000000E6 2000
+window AddText (52,158) #000000E6 2000
+window AddText (54,156) #000000E6 2000
+window AddText (54,158) #000000E6 2000
+window AddText (53,157) #BEE3FFFF 2000
+window AddText (111,175) #000000E6 350
+window AddText (111,177) #000000E6 350
+window AddText (113,175) #000000E6 350
+window AddText (113,177) #000000E6 350
+window AddText (112,176) #F8BA80FF 350
+window AddText (126,186) #000000E6 320
+window AddText (126,188) #000000E6 320
+window AddText (128,186) #000000E6 320
+window AddText (128,188) #000000E6 320
+window AddText (127,187) #FFFFFFFF 320
+window AddText (52,187) #000000E6 2500
+window AddText (52,189) #000000E6 2500
+window AddText (54,187) #000000E6 2500
+window AddText (54,189) #000000E6 2500
+window AddText (53,188) #BEE3FFFF 2500
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
@@ -2530,207 +2530,207 @@ imgui End
 imgui Begin xiframes.us.3
 over AddRectFilled (100,180) (115,198) #141414CC 2
 over AddText (104,182) #CFCF80FF Alliance 3
-imgui Dummy (164,231)
+imgui Dummy (131,185)
 window PushClipRect (0,0) (1920,1080) false
-window AddImage hp_back.png (29.2,31.4) (161.2,48.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,69.4) (161.2,86.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,107.4) (161.2,124.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,146.4) (161.2,163.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,184.4) (161.2,201.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (29.2,223.4) (161.2,240.2) (0,0) (1,1) #00000073
-window AddImage hp_back.png (30.4,32.6) (162.4,49.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,70.6) (162.4,87.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,108.6) (162.4,125.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,147.6) (162.4,164.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,185.6) (162.4,202.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (30.4,224.6) (162.4,241.4) (0,0) (1,1) #00000033
-window AddImage hp_back.png (28,29.6) (160,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,67.6) (160,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,105.6) (160,122.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,144.6) (160,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,182.6) (160,199.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_back.png (28,221.6) (160,238.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,29.6) (125.82,46.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,67.6) (70.74,84.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,105.6) (118.48,122.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,144.6) (100.12,161.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,182.6) (81.76,199.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_fill.png (32.8,221.6) (63.4,238.4) (0,0) (1,1) #FF9597FF
-window AddImage hp_front.png (28,29.6) (160,46.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,67.6) (160,84.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,105.6) (160,122.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,144.6) (160,161.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,182.6) (160,199.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (28,221.6) (160,238.4) (0,0) (0.97,1) #FF9597FF
-window AddImage hp_front.png (30,31) (34,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,31) (158,45) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,69) (34,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,69) (158,83) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,107) (34,121) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,107) (158,121) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,146) (34,160) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,146) (158,160) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,184) (34,198) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,184) (158,198) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (30,223) (34,237) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage hp_front.png (154,223) (158,237) (0.98,0) (1,0.5) #FFFFFFFF
-window AddImage mp_back.png (77.2,43.4) (175.6,57.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,81.4) (175.6,95.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,119.4) (175.6,133.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,158.4) (175.6,172.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,196.4) (175.6,210.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (77.2,235.4) (175.6,249.8) (0,0) (1,1) #00000073
-window AddImage mp_back.png (78.4,44.6) (176.8,59) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,82.6) (176.8,97) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,120.6) (176.8,135) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,159.6) (176.8,174) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,197.6) (176.8,212) (0,0) (1,1) #00000033
-window AddImage mp_back.png (78.4,236.6) (176.8,251) (0,0) (1,1) #00000033
-window AddImage mp_back.png (76,41.6) (174.4,56) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,79.6) (174.4,94) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_back.png (76,117.6) (174.4,132) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,156.6) (174.4,171) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_back.png (76,194.6) (174.4,209) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_back.png (76,233.6) (174.4,248) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,41.6) (125.2,56) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,79.6) (169.6,94) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,117.6) (148.29,132) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,156.6) (169.6,171) (0,0) (1,1) #8C8C8CFF
-window AddImage mp_fill.png (80.8,194.6) (126.98,209) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_fill.png (80.8,233.6) (116.32,248) (0,0) (1,1) #FFFF9CFF
-window AddImage mp_front.png (76,41.6) (174.4,56) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,79.6) (174.4,94) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (76,117.6) (174.4,132) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,156.6) (174.4,171) (0,0) (0.96,1) #8C8C8CFF
-window AddImage mp_front.png (76,194.6) (174.4,209) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (76,233.6) (174.4,248) (0,0) (0.96,1) #FFFF9CFF
-window AddImage mp_front.png (78,43) (82,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,43) (173,54) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,81) (82,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,81) (173,92) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,119) (82,130) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,119) (173,130) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,158) (82,169) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,158) (173,169) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,196) (82,207) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,196) (173,207) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (78,235) (82,246) (0.98,0) (1,0.46) #FFFFFFFF
-window AddImage mp_front.png (169,235) (173,246) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage hp_back.png (25.36,29.12) (130.96,42.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,59.12) (130.96,72.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,90.12) (130.96,103.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,121.12) (130.96,134.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,151.12) (130.96,164.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (25.36,182.12) (130.96,195.56) (0,0) (1,1) #00000073
+window AddImage hp_back.png (26.32,30.08) (131.92,43.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,60.08) (131.92,73.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,91.08) (131.92,104.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,122.08) (131.92,135.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,152.08) (131.92,165.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (26.32,183.08) (131.92,196.52) (0,0) (1,1) #00000033
+window AddImage hp_back.png (24.4,27.68) (130,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,57.68) (130,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,88.68) (130,102.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,119.68) (130,133.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,149.68) (130,163.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_back.png (24.4,180.68) (130,194.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,27.68) (102.66,41.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,57.68) (58.6,71.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,88.68) (96.78,102.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,119.68) (82.1,133.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,149.68) (67.41,163.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_fill.png (28.24,180.68) (52.72,194.12) (0,0) (1,1) #FF9597FF
+window AddImage hp_front.png (24.4,27.68) (130,41.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,57.68) (130,71.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,88.68) (130,102.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,119.68) (130,133.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,149.68) (130,163.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (24.4,180.68) (130,194.12) (0,0) (0.97,1) #FF9597FF
+window AddImage hp_front.png (26,29) (29,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,29) (129,40) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,59) (29,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,59) (129,70) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,90) (29,101) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,90) (129,101) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,121) (29,132) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,121) (129,132) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,151) (29,162) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,151) (129,162) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (26,182) (29,193) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage hp_front.png (126,182) (129,193) (0.98,0) (1,0.5) #FFFFFFFF
+window AddImage mp_back.png (63.76,38.72) (142.48,50.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,68.72) (142.48,80.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,99.72) (142.48,111.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,130.72) (142.48,142.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,160.72) (142.48,172.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (63.76,191.72) (142.48,203.24) (0,0) (1,1) #00000073
+window AddImage mp_back.png (64.72,39.68) (143.44,51.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,69.68) (143.44,81.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,100.68) (143.44,112.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,131.68) (143.44,143.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,161.68) (143.44,173.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (64.72,192.68) (143.44,204.2) (0,0) (1,1) #00000033
+window AddImage mp_back.png (62.8,37.28) (141.52,48.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,67.28) (141.52,78.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (62.8,98.28) (141.52,109.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,129.28) (141.52,140.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_back.png (62.8,159.28) (141.52,170.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_back.png (62.8,190.28) (141.52,201.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,37.28) (102.16,48.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,67.28) (137.68,78.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,98.28) (120.63,109.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,129.28) (137.68,140.8) (0,0) (1,1) #8C8C8CFF
+window AddImage mp_fill.png (66.64,159.28) (103.58,170.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_fill.png (66.64,190.28) (95.06,201.8) (0,0) (1,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,37.28) (141.52,48.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,67.28) (141.52,78.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,98.28) (141.52,109.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,129.28) (141.52,140.8) (0,0) (0.96,1) #8C8C8CFF
+window AddImage mp_front.png (62.8,159.28) (141.52,170.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (62.8,190.28) (141.52,201.8) (0,0) (0.96,1) #FFFF9CFF
+window AddImage mp_front.png (64,39) (67,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,39) (140,47) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,69) (67,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,69) (140,77) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,100) (67,108) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,100) (140,108) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,131) (67,139) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,131) (140,139) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,161) (67,169) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,161) (140,169) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (64,192) (67,200) (0.98,0) (1,0.46) #FFFFFFFF
+window AddImage mp_front.png (137,192) (140,200) (0.98,0) (1,0.46) #FFFFFFFF
 imgui PushFont
-window AddCircleFilled (14.67,30.05) 4.67 #000000E6 12
-window AddCircleFilled (14.67,30.05) 3.67 #E6E059FF 12
+window AddCircleFilled (13.94,28.04) 3.94 #000000E6 12
+window AddCircleFilled (13.94,28.04) 2.94 #E6E059FF 12
+window AddText (19,19) #000000E6 Thirdlead
+window AddText (19,21) #000000E6 Thirdlead
 window AddText (21,19) #000000E6 Thirdlead
 window AddText (21,21) #000000E6 Thirdlead
-window AddText (23,19) #000000E6 Thirdlead
-window AddText (23,21) #000000E6 Thirdlead
-window AddText (22,20) #FFFFFFFF Thirdlead
-window AddText (9,57) #000000E6 Lastone
-window AddText (9,59) #000000E6 Lastone
-window AddText (11,57) #000000E6 Lastone
-window AddText (11,59) #000000E6 Lastone
-window AddText (10,58) #FFFFFFFF Lastone
-window AddText (9,95) #000000E6 Sample 3
-window AddText (9,97) #000000E6 Sample 3
-window AddText (11,95) #000000E6 Sample 3
-window AddText (11,97) #000000E6 Sample 3
-window AddText (10,96) #FFFFFFFF Sample 3
-window AddText (9,134) #000000E6 Sample 4
-window AddText (9,136) #000000E6 Sample 4
-window AddText (11,134) #000000E6 Sample 4
-window AddText (11,136) #000000E6 Sample 4
-window AddText (10,135) #FFFFFFFF Sample 4
-window AddText (9,172) #000000E6 Sample 5
-window AddText (9,174) #000000E6 Sample 5
-window AddText (11,172) #000000E6 Sample 5
-window AddText (11,174) #000000E6 Sample 5
-window AddText (10,173) #FFFFFFFF Sample 5
-window AddText (9,211) #000000E6 Sample 6
-window AddText (9,213) #000000E6 Sample 6
-window AddText (11,211) #000000E6 Sample 6
-window AddText (11,213) #000000E6 Sample 6
-window AddText (10,212) #FFFFFFFF Sample 6
+window AddText (20,20) #FFFFFFFF Thirdlead
+window AddText (9,49) #000000E6 Lastone
+window AddText (9,51) #000000E6 Lastone
+window AddText (11,49) #000000E6 Lastone
+window AddText (11,51) #000000E6 Lastone
+window AddText (10,50) #FFFFFFFF Lastone
+window AddText (9,80) #000000E6 Sample 3
+window AddText (9,82) #000000E6 Sample 3
+window AddText (11,80) #000000E6 Sample 3
+window AddText (11,82) #000000E6 Sample 3
+window AddText (10,81) #FFFFFFFF Sample 3
+window AddText (9,111) #000000E6 Sample 4
+window AddText (9,113) #000000E6 Sample 4
+window AddText (11,111) #000000E6 Sample 4
+window AddText (11,113) #000000E6 Sample 4
+window AddText (10,112) #FFFFFFFF Sample 4
+window AddText (9,141) #000000E6 Sample 5
+window AddText (9,143) #000000E6 Sample 5
+window AddText (11,141) #000000E6 Sample 5
+window AddText (11,143) #000000E6 Sample 5
+window AddText (10,142) #FFFFFFFF Sample 5
+window AddText (9,172) #000000E6 Sample 6
+window AddText (9,174) #000000E6 Sample 6
+window AddText (11,172) #000000E6 Sample 6
+window AddText (11,174) #000000E6 Sample 6
+window AddText (10,173) #FFFFFFFF Sample 6
 imgui PopFont
 imgui PushFont
-window AddText (138,23) #000000E6 1000
-window AddText (138,25) #000000E6 1000
-window AddText (140,23) #000000E6 1000
-window AddText (140,25) #000000E6 1000
-window AddText (139,24) #FFFFFFFF 1000
-window AddText (158,37) #000000E6 500
-window AddText (158,39) #000000E6 500
-window AddText (160,37) #000000E6 500
-window AddText (160,39) #000000E6 500
-window AddText (159,38) #FFFFFFFF 500
-window AddText (65,38) #000000E6 0
-window AddText (65,40) #000000E6 0
-window AddText (67,38) #000000E6 0
-window AddText (67,40) #000000E6 0
-window AddText (66,39) #FFFFFFFF 0
-window AddText (138,61) #000000E6 950
-window AddText (138,63) #000000E6 950
-window AddText (140,61) #000000E6 950
-window AddText (140,63) #000000E6 950
-window AddText (139,62) #F8BA80FF 950
-window AddText (65,76) #000000E6 3000
-window AddText (65,78) #000000E6 3000
-window AddText (67,76) #000000E6 3000
-window AddText (67,78) #000000E6 3000
-window AddText (66,77) #BEE3FFFF 3000
-window AddText (138,99) #000000E6 980
-window AddText (138,101) #000000E6 980
-window AddText (140,99) #000000E6 980
-window AddText (140,101) #000000E6 980
-window AddText (139,100) #F3F37CFF 980
-window AddText (158,113) #000000E6 608
-window AddText (158,115) #000000E6 608
-window AddText (160,113) #000000E6 608
-window AddText (160,115) #000000E6 608
-window AddText (159,114) #FFFFFFFF 608
-window AddText (65,114) #000000E6 1000
-window AddText (65,116) #000000E6 1000
-window AddText (67,114) #000000E6 1000
-window AddText (67,116) #000000E6 1000
-window AddText (66,115) #BEE3FFFF 1000
-window AddText (138,138) #000000E6 770
-window AddText (138,140) #000000E6 770
-window AddText (140,138) #000000E6 770
-window AddText (140,140) #000000E6 770
-window AddText (139,139) #F3F37CFF 770
-window AddText (65,153) #000000E6 1500
-window AddText (65,155) #000000E6 1500
-window AddText (67,153) #000000E6 1500
-window AddText (67,155) #000000E6 1500
-window AddText (66,154) #BEE3FFFF 1500
-window AddText (138,176) #000000E6 560
-window AddText (138,178) #000000E6 560
-window AddText (140,176) #000000E6 560
-window AddText (140,178) #000000E6 560
-window AddText (139,177) #F8BA80FF 560
-window AddText (158,190) #000000E6 416
-window AddText (158,192) #000000E6 416
-window AddText (160,190) #000000E6 416
-window AddText (160,192) #000000E6 416
-window AddText (159,191) #FFFFFFFF 416
-window AddText (65,191) #000000E6 2000
-window AddText (65,193) #000000E6 2000
-window AddText (67,191) #000000E6 2000
-window AddText (67,193) #000000E6 2000
-window AddText (66,192) #BEE3FFFF 2000
-window AddText (138,215) #000000E6 350
-window AddText (138,217) #000000E6 350
-window AddText (140,215) #000000E6 350
-window AddText (140,217) #000000E6 350
-window AddText (139,216) #F8BA80FF 350
-window AddText (158,229) #000000E6 320
-window AddText (158,231) #000000E6 320
-window AddText (160,229) #000000E6 320
-window AddText (160,231) #000000E6 320
-window AddText (159,230) #FFFFFFFF 320
-window AddText (65,230) #000000E6 2500
-window AddText (65,232) #000000E6 2500
-window AddText (67,230) #000000E6 2500
-window AddText (67,232) #000000E6 2500
-window AddText (66,231) #BEE3FFFF 2500
+window AddText (111,22) #000000E6 1000
+window AddText (111,24) #000000E6 1000
+window AddText (113,22) #000000E6 1000
+window AddText (113,24) #000000E6 1000
+window AddText (112,23) #FFFFFFFF 1000
+window AddText (126,33) #000000E6 500
+window AddText (126,35) #000000E6 500
+window AddText (128,33) #000000E6 500
+window AddText (128,35) #000000E6 500
+window AddText (127,34) #FFFFFFFF 500
+window AddText (52,34) #000000E6 0
+window AddText (52,36) #000000E6 0
+window AddText (54,34) #000000E6 0
+window AddText (54,36) #000000E6 0
+window AddText (53,35) #FFFFFFFF 0
+window AddText (111,52) #000000E6 950
+window AddText (111,54) #000000E6 950
+window AddText (113,52) #000000E6 950
+window AddText (113,54) #000000E6 950
+window AddText (112,53) #F8BA80FF 950
+window AddText (52,64) #000000E6 3000
+window AddText (52,66) #000000E6 3000
+window AddText (54,64) #000000E6 3000
+window AddText (54,66) #000000E6 3000
+window AddText (53,65) #BEE3FFFF 3000
+window AddText (111,83) #000000E6 980
+window AddText (111,85) #000000E6 980
+window AddText (113,83) #000000E6 980
+window AddText (113,85) #000000E6 980
+window AddText (112,84) #F3F37CFF 980
+window AddText (126,94) #000000E6 608
+window AddText (126,96) #000000E6 608
+window AddText (128,94) #000000E6 608
+window AddText (128,96) #000000E6 608
+window AddText (127,95) #FFFFFFFF 608
+window AddText (52,95) #000000E6 1000
+window AddText (52,97) #000000E6 1000
+window AddText (54,95) #000000E6 1000
+window AddText (54,97) #000000E6 1000
+window AddText (53,96) #BEE3FFFF 1000
+window AddText (111,114) #000000E6 770
+window AddText (111,116) #000000E6 770
+window AddText (113,114) #000000E6 770
+window AddText (113,116) #000000E6 770
+window AddText (112,115) #F3F37CFF 770
+window AddText (52,126) #000000E6 1500
+window AddText (52,128) #000000E6 1500
+window AddText (54,126) #000000E6 1500
+window AddText (54,128) #000000E6 1500
+window AddText (53,127) #BEE3FFFF 1500
+window AddText (111,144) #000000E6 560
+window AddText (111,146) #000000E6 560
+window AddText (113,144) #000000E6 560
+window AddText (113,146) #000000E6 560
+window AddText (112,145) #F8BA80FF 560
+window AddText (126,155) #000000E6 416
+window AddText (126,157) #000000E6 416
+window AddText (128,155) #000000E6 416
+window AddText (128,157) #000000E6 416
+window AddText (127,156) #FFFFFFFF 416
+window AddText (52,156) #000000E6 2000
+window AddText (52,158) #000000E6 2000
+window AddText (54,156) #000000E6 2000
+window AddText (54,158) #000000E6 2000
+window AddText (53,157) #BEE3FFFF 2000
+window AddText (111,175) #000000E6 350
+window AddText (111,177) #000000E6 350
+window AddText (113,175) #000000E6 350
+window AddText (113,177) #000000E6 350
+window AddText (112,176) #F8BA80FF 350
+window AddText (126,186) #000000E6 320
+window AddText (126,188) #000000E6 320
+window AddText (128,186) #000000E6 320
+window AddText (128,188) #000000E6 320
+window AddText (127,187) #FFFFFFFF 320
+window AddText (52,187) #000000E6 2500
+window AddText (52,189) #000000E6 2500
+window AddText (54,187) #000000E6 2500
+window AddText (54,189) #000000E6 2500
+window AddText (53,188) #BEE3FFFF 2500
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false

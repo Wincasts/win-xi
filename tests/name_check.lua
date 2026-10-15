@@ -13,7 +13,7 @@ renderer.Frame = function(options, hook, formats)
     return frameForTests(options, hook)
 end
 local o = H.options()
-H.print('preferred live defaults loaded', o.font == 'corbeli.ttf', o.fontSize[1] == 28, o.fontBold[1], o.checkSize[1] == 75,
+H.print('preferred live defaults loaded', o.font == 'trebucbi.ttf', o.fontSize[1] == 32, not o.fontBold[1], o.checkSize[1] == 90,
     not o.showSelf[1], not o.showPlayers[1], not o.showPets[1], o.alwaysTarget[1], o.gdiFonts == nil)
 -- Use a deterministic rendering fixture independent of preferred user defaults.
 require('custom').Defaults(o)

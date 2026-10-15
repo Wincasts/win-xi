@@ -55,8 +55,10 @@ for n, bag in ipairs(containers) do
     H.bag(bag, 80, { { 20100 + n } })
     H.equip(n - 1, bag, 1)
 end
+check('wardrobe markers on and quality borders off by default', not e.qualityBorders[1] and e.wardrobeMarkers[1])
+-- the places below are worked out at the former 4 pixels between slots
+e.qualityBorders[1], e.spacing[1] = true, 4
 frame()
-check('quality borders and wardrobe markers enabled by default', e.qualityBorders[1] and e.wardrobeMarkers[1])
 check('only high-quality gear has a border; other gear has none', #borders == 4)
 -- the first HQ item is in Sub, the second slot: 46..78 across, 20..52 down
 check('HQ borders inset without increasing square window size', borders[1][2] == 47 and borders[1][3] == 21
