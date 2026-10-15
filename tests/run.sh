@@ -10,6 +10,7 @@ run inventory  addons/inventory/inventory.lua inventory_drag_check.lua
 run inventory  addons/inventory/inventory.lua inventory_menu_check.lua
 run inventory  addons/inventory/inventory.lua inventory_scrollbar_check.lua
 run inventory  addons/inventory/inventory.lua inventory_currency_check.lua
+run inventory  addons/inventory/inventory.lua inventory_sort_check.lua
 run inventory  addons/inventory/inventory.lua inventory_settings_check.lua
 run inventory  addons/inventory/inventory.lua inventory_equipment_check.lua
 run inventory  addons/inventory/inventory.lua inventory_equipment_decorations_check.lua
