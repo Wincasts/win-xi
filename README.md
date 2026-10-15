@@ -8,6 +8,7 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | Addon | What it does | Command |
 |---|---|---|
 | [buff](addons/buff) | The statuses you are under, in a window, with FFXIV's icons and the time each has left | `/buff` |
+| [hidechatbg](addons/hidechatbg) | Hides the background behind the game's chat, leaving its text | `/hidechatbg` |
 | [hidecompass](addons/hidecompass) | Hides the game's compass | `/hidecompass` |
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
 | [name](addons/name) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style; needs the `namehook` plugin | `/name` |
@@ -42,7 +43,7 @@ Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first.
 
 ## License
 
-The addons and library written here (the eight above, `winxi`, the tests and the tools) are MIT
+The addons and library written here (the nine above, `winxi`, the tests and the tools) are MIT
 licensed: see [LICENSE](LICENSE). `plugins/namehook` is a fork of a GPL v3 plugin and stays GPL v3.
 Folders with a LICENSE of their own, and the other people's addons and forks listed above, keep their own terms.
 Final Fantasy XI and its art belong to Square Enix.

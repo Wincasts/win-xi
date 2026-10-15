@@ -29,6 +29,7 @@ run inventory  addons/inventory/inventory.lua winxi_tabs_check.lua
 luajit tests/winxi_mapdat_check.lua
 luajit tests/winxi_cursor_check.lua
 luajit tests/hideparty_cursor_check.lua
+luajit tests/hidechatbg_check.lua
 luajit tests/map_files_check.lua
 echo
 run winxisettings addons/winxisettings/winxisettings.lua winxisettings_check.lua
