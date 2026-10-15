@@ -4,7 +4,7 @@
 -- top edge, where the theme has Frame Titles (winxi.titles).
 --
 --     windows.Use(options)                             the settings in use: after loading, or a change of character
---     windows.UpdateFade()                             once a frame, before any window
+--     windows.UpdateFade(rearranging)                  once a frame, before any window
 --     windows.Draw(window, content, wanted, growFrom)  draws one; content draws what it holds
 --     windows.Lingers(window)                          true while a window no longer wanted is still fading out
 --     windows.IsFadedOut(group)                        true while a group's windows are faded right out by idling
@@ -27,7 +27,6 @@ local shadow = require('winxi.shadow')
 local organize = require('winxi.organize')
 local anchor = require('winxi.anchor')
 local fade = require('winxi.fade')
-local game = require('game')
 local borders = require('winxi.borders')
 local fonts = require('winxi.fonts')
 local titles = require('winxi.titles')
@@ -78,8 +77,9 @@ end
 -- is applied to the windows of the groups chosen to fade. Suspended while the windows are arranged,
 -- and while the game's party cursor is out (a member is being picked from the party list, in the
 -- party menu or as a sub-target): the party windows are being read then, however still the player is.
+-- rearranging is whether that cursor is out.
 function windows.UpdateFade(rearranging)
-    fade.Update(options.fade, organize.IsActive() or rearranging or game.StPartyIndex() ~= nil)
+    fade.Update(options.fade, organize.IsActive() or rearranging)
 end
 
 -- Whether a group's windows fade: fading is switched on, and the group is one of those chosen for it

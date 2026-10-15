@@ -1,7 +1,9 @@
 -- roster: who is in the alliance, read from the game as lines for frames.lua to draw.
 --
 --     roster.Counts()                              how many members each of the three parties has
---     roster.Members(list, sample, sortByRole)     the lines of party 1, 2 or 3, in the order to list them
+--     roster.Members(list, sample, sortByRole, partyCursor)
+--                                                  the lines of party 1, 2 or 3, in the order to list them;
+--                                                  partyCursor is the place the game's party cursor is on, or nil
 --     roster.StatusTexture(id, useOwn)             the texture for a status icon, or nil; and whether it is one of winxi's own
 --     roster.Forget()                              reads everyone afresh: for when the settings change
 --
@@ -110,6 +112,22 @@ local function Clear(list)
     end
 end
 
+-- A member's entry in the game's list of party buffs, 0x30 bytes, as a table of them from 1; or nil
+-- where they cannot be had in one read, to be read a byte at a time instead
+local entrySize = 0x30
+
+local function ReadEntry(address)
+    local read = ashita.memory.read_array
+    if read == nil then
+        return nil
+    end
+    local ok, bytes = pcall(read, address, entrySize)
+    if not ok or type(bytes) ~= 'table' or #bytes < entrySize or type(bytes[1]) ~= 'number' then
+        return nil
+    end
+    return bytes
+end
+
 -- The buffs of another member of the player's own party, read into buffs. The game keeps them for
 -- the five other members of that party, and for nobody in the other two.
 local function ReadMemberBuffs(buffs, serverId)
@@ -119,15 +137,19 @@ local function ReadMemberBuffs(buffs, serverId)
         local playerId = ashita.memory.read_uint32(memberPtr)
 
         if playerId == serverId then
+            -- the member's whole entry in one read, where that can be had: eight bytes of high bits
+            -- from 8, then the thirty-two low bytes from 16. Otherwise a byte at a time.
+            local entry = ReadEntry(memberPtr)
             -- each byte of high bits serves four buffs, so it is read once for the four
             local highByte = 0
             for buffIndex = 0, 31 do
                 local fMod = math.fmod(buffIndex, 4) * 2
                 if fMod == 0 then
-                    highByte = ashita.memory.read_uint8(memberPtr + 8 + (math.floor(buffIndex / 4)))
+                    local at = 8 + math.floor(buffIndex / 4)
+                    highByte = entry and entry[at + 1] or ashita.memory.read_uint8(memberPtr + at)
                 end
 
-                local lowBits = ashita.memory.read_uint8(memberPtr + 16 + buffIndex)
+                local lowBits = entry and entry[16 + buffIndex + 1] or ashita.memory.read_uint8(memberPtr + 16 + buffIndex)
                 local highBits = bit.lshift(bit.band(bit.rshift(highByte, fMod), 0x03), 8)
                 local buff = highBits + lowBits
 
@@ -249,7 +271,8 @@ local function ReadMember(place, party)
     Clear(buffs)
     if place == 0 then
         ReadOwnBuffs(buffs)
-    elseif place <= 5 then
+    elseif place <= 5 and serverId ~= 0 then
+        -- an empty place (id 0) would match the empty entries in the game's list of buffs
         ReadMemberBuffs(buffs, serverId)
     end
 
@@ -379,7 +402,7 @@ local function FindEntities(members)
 end
 
 ---@return PartyMember[]
-function roster.Members(list, sample, sortByRole)
+function roster.Members(list, sample, sortByRole, partyCursor)
     local now = os.clock()
     local cached = cache[list]
     if cached == nil then
@@ -388,7 +411,7 @@ function roster.Members(list, sample, sortByRole)
     elseif cached.sample == sample
     and cached.sortByRole == sortByRole
     and now - cached.time < refreshInterval then
-        MarkTargets(cached.members, AshitaCore:GetMemoryManager():GetTarget(), game.StPartyIndex())
+        MarkTargets(cached.members, AshitaCore:GetMemoryManager():GetTarget(), partyCursor)
         return FindEntities(cached.members)
     end
 
@@ -413,7 +436,7 @@ function roster.Members(list, sample, sortByRole)
     end
 
     cached.time, cached.sample, cached.sortByRole = now, sample, sortByRole
-    MarkTargets(members, memory:GetTarget(), game.StPartyIndex())
+    MarkTargets(members, memory:GetTarget(), partyCursor)
     return FindEntities(members)
 end
 

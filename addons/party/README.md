@@ -23,6 +23,8 @@ where the values sit, the outline); Party, Target and Pets have what is each one
 **Fade When Idle**, and which windows fade.
 There is no Winxi Theme tab in Party; use **winxisettings** for shared colours, padding, shadows,
 window borders, bar textures, bookends and custom status icons. Organize, at the foot of the window, fills the frames with sample data to drag into place.
+`/pt perf` measures the next five seconds of play and says how long the addon took a frame, on
+average and at worst, and how much memory it made a frame.
 
 ## once called xiframes
 The addon was xiframes until it was renamed party. The first time each character logs in with it,
@@ -42,6 +44,7 @@ place (and change `xiframes` to `party` in any script that loads it).
 | `options.lua` | the settings, each an entry in a list: defaults and the settings tabs come from it |
 | `config.lua` | the settings window |
 | `draw.lua`, `colors.lua`, `game.lua`, `packets.lua` | drawing on a draw list, the colours that mean something, small things asked of the game, and the packets read |
+| `perf.lua` | `/pt perf`: how long a frame takes in play |
 
 `tests/run.sh` loads the addon against a stand-in for Ashita, and compares what it draws, call for
 call, with a kept copy.
