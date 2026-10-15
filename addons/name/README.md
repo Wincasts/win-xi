@@ -11,8 +11,8 @@ Shows and hides the names over characters' heads, by what they are over. A setti
 /addon load name
 ```
 
-- `/name`: opens or closes the settings. It is the only command: anything after it only brings up
-  this help. Use Filters to choose which names appear; unload Name to restore the game's names.
+- `/name`: opens or closes the settings. It is the only command, but for `/name diag` (see
+  [Diagnostics](#diagnostics)): anything else after it only brings up this help. Use Filters to choose which names appear; unload Name to restore the game's names.
 
 ## Settings
 
@@ -456,10 +456,18 @@ so, and what is set is given to the plugin when it is.
 
 ## Diagnostics
 
-Filters → Status shows whether Name is drawing the names (**Custom Names**). It is always shown,
-whether or not the plugin is loaded. When Name stops claiming the names for more than 30 frames,
-about half a second, the game draws its own names again. The reason is said once in the chat log and a log
-is written, once a session for each reason. The reasons:
+Off unless turned on, for testers:
+
+```
+/name diag          turns diagnostics on or off; kept with the character's settings
+/name diag on|off
+/name diag log      writes a log now, on or off (with diagnostics off it has no history)
+```
+
+While they are on, Filters → Status shows whether Name is drawing the names (**Custom Names**).
+When Name stops claiming the names for more than 30 frames, about half a second, the game draws
+its own names again. The reason is said once in the chat log and a log is written, once a session for each reason.
+The reasons:
 
 | Reason | What it means |
 |---|---|
@@ -469,7 +477,9 @@ is written, once a session for each reason. The reasons:
 | `draw` | The plugin had no drawing buffer |
 | `error` | A Lua error in the frame. It is still raised as before, and kept once in the log with its traceback and a count |
 
-**Write Log** in the same section writes a log on demand. Logs are small text files in
+With diagnostics off, nothing is kept or said, and the frame is drawn exactly as without them.
+
+**Write Log** in the Status section, while diagnostics are on, writes a log as `/name diag log` does. Logs are small text files in
 `config\addons\name\logs`, named `name-<date>-<time>.txt`. Each holds:
 
 - The plugin's state: whether it is hooked, the frame and the last claim, what is claimed and

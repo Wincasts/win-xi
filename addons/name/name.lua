@@ -40,6 +40,7 @@ local rows = {
 
 local defaults = T{
     alwaysTarget = T{ false }, -- the target's name is shown whatever it is over
+    diagnostics  = T{ false }, -- /name diag: why the names stopped, kept and written to logs
 };
 for _, row in ipairs(rows) do
     defaults[row.key] = T{ true };
@@ -143,10 +144,11 @@ local function DrawSettings(options)
         app:Save();
     end
 
-    -- what the plugin has to say of the frame just drawn, and what name has been doing
+    -- what the plugin has to say of the frame just drawn, and with diagnostics on, what name has been doing
+    local hooked = nameplates.Hook() ~= nil;
     controls.EndSection();
-    if (controls.Section('Status', '##name.filter.status')) then
-        if (nameplates.Hook() ~= nil) then
+    if ((hooked or diag.Enabled()) and controls.Section('Status', '##name.filter.status')) then
+        if (hooked) then
             local shown, hidden = 0, 0;
             for _, name in nameplates.Each() do
                 if (nameplates.Has(name, nameplates.Flag.Wanted)) then
@@ -160,19 +162,21 @@ local function DrawSettings(options)
             controls.Mark('The names the game had to draw last frame: near enough, and on screen.');
         end
 
-        widgets.Label('Custom Names');
-        imgui.Text(diag.Status());
-        controls.Mark('Whether Name is drawing the names. When it stops for more than half a second the game draws its own, the reason is said in the chat log once, and a log is written.');
+        if (diag.Enabled()) then
+            widgets.Label('Custom Names');
+            imgui.Text(diag.Status());
+            controls.Mark('Whether Name is drawing the names. When it stops for more than half a second the game draws its own, the reason is said in the chat log once, and a log is written.');
 
-        widgets.Label('Diagnostic Log');
-        if (imgui.Button('Write Log##name.diag.write')) then
-            local path, problem = diag.Write('written from the settings');
-            app:Say(path and ('Log written to ' .. path) or ('The log could not be written: ' .. tostring(problem)));
-        end
-        controls.Mark('Writes what Name and the namehook plugin are doing now, and what happened lately, to a small text file in config\\addons\\name\\logs. Send it with a report of a problem.');
-        if (diag.LastPath() ~= nil) then
-            widgets.Label('Last Log');
-            imgui.Text(diag.LastPath():match('[^\\]+$'));
+            widgets.Label('Diagnostic Log');
+            if (imgui.Button('Write Log##name.diag.write')) then
+                local path, problem = diag.Write('written from the settings');
+                app:Say(path and ('Log written to ' .. path) or ('The log could not be written: ' .. tostring(problem)));
+            end
+            controls.Mark('Writes what Name and the namehook plugin are doing now, and what happened lately, to a small text file in config\\addons\\name\\logs. Send it with a report of a problem.');
+            if (diag.LastPath() ~= nil) then
+                widgets.Label('Last Log');
+                imgui.Text(diag.LastPath():match('[^\\]+$'));
+            end
         end
     end
     controls.EndSection();
@@ -197,15 +201,47 @@ app = shell.New({
         { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end },
     },
 
+    -- for testers: /name diag on or off, /name diag log
+    commands     = {
+        diag = function (options, args)
+            local what = args[3] and args[3]:lower() or nil;
+            if (what == 'log') then
+                local path, problem = diag.Write('asked for by /name diag log');
+                app:Say(path and ('Log written to ' .. path) or ('The log could not be written: ' .. tostring(problem)));
+                return;
+            end
+            local on = not options.diagnostics[1];
+            if (what == 'on' or what == 'off') then
+                on = what == 'on';
+            elseif (what ~= nil) then
+                app:Say('/name diag turns diagnostics on or off; /name diag on, /name diag off; /name diag log writes a log.');
+                return;
+            end
+            options.diagnostics[1] = on;
+            diag.Enable(on);
+            app:Save();
+            app:Say(on and 'Diagnostics on: if the names Name draws stop, the reason is said and a log written to config\\addons\\name\\logs. /name diag log writes one now; /name diag off stops.'
+                or 'Diagnostics off.');
+        end,
+    },
+
     -- another character's settings are given to the plugin afresh
     onSettings   = function (options)
         connected = false;
         custom.Settle(options);
+        if (type(options.diagnostics) ~= 'table') then
+            options.diagnostics = T{ false };
+        end
         diag.Options = options;
+        diag.Enable(options.diagnostics[1]);
         diag.Note('Settings loaded');
     end,
 });
+if (type(app.options.diagnostics) ~= 'table') then
+    app.options.diagnostics = T{ false };
+end
 diag.Options = app.options;
+diag.Enable(app.options.diagnostics[1]);
 
 -- A Lua error in drawing the names is kept for the log, then raised as before
 local function failed(message)
@@ -248,6 +284,11 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         app:Save();
     end
 
+    -- with diagnostics off, nothing in the way
+    if (not diag.Enabled()) then
+        custom.Frame(options, hook, preferredDefaults);
+        return;
+    end
     local ok, result = xpcall(custom.Frame, failed, options, hook, preferredDefaults);
     if (not ok) then
         diag.Frame('error');
