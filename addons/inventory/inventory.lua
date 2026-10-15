@@ -1441,14 +1441,17 @@ local function DrawSubInventory(title, group, key)
 end
 
 -- The row at the foot of a tab: the gil on the left and, on the right, how full each of the tab's bags
--- is, as 08/30. A tab with one bag shows the count alone; one with several names each, one to a row
--- under the first. A full bag's count is red. Bags the player does not have, and temporary items, which
--- have no slots of their own to fill, are left out.
+-- is, as 08/30. In the unified view it is one count, of the bag chosen under the grid or, on the all
+-- tab, of the group's bags together. In the separate view a tab with one bag shows the count alone;
+-- one with several names each, one to a row under the first. A full count is red. Bags the player
+-- does not have, and temporary items, which have no slots of their own to fill, are left out.
 --
 -- What the row says only changes when the bags do, so it is put together then (as they are read)
 -- and only drawn here.
 local countBuffer = { 0, 3 } -- between the slots and the row
 local countRows = { bag = { }, satchel = { }, wardrobe = { }, house = { } } -- each: { text, full }
+-- the unified view's all tab: the group's bags as one count, how many used of how many there are
+local allRows = { bag = { }, satchel = { }, wardrobe = { }, house = { } }
 local gilText = '0 G'
 
 BuildCounts = function()
@@ -1463,9 +1466,11 @@ BuildCounts = function()
         end
 
         local rows, withTabs = { }, { }
+        local allUsed, allSlots = 0, 0
         for _, bag in ipairs(inGroup) do
             if bag.slots > 0 then
                 local used = #inventories[group][bag.key]
+                allUsed, allSlots = allUsed + used, allSlots + bag.slots
                 local text = ('%02d/%02d'):format(used, bag.slots)
                 -- the bag's count alone, for when its tab is chosen
                 bag.countRows = { { text = text, full = used >= bag.slots } }
@@ -1477,6 +1482,8 @@ BuildCounts = function()
             end
         end
         countRows[group] = rows
+        allRows[group] = allSlots > 0
+            and { { text = ('%02d/%02d'):format(allUsed, allSlots), full = allUsed >= allSlots } } or { }
         bagTabs[group] = withTabs
         -- a chosen bag the player no longer has is no longer chosen
         if shownBag[group] ~= nil and shownBag[group].slots == 0 then
@@ -1495,8 +1502,12 @@ local function DrawCountsRow(group, unified)
     -- the gil against the left edge, on the same row as the first (or only) count
     imgui.Text(gilText)
 
-    local chosen = unified and shownBag[group] or nil
-    for index, row in ipairs(chosen and chosen.countRows or countRows[group]) do
+    -- unified: the chosen bag's count, or all of the group's as one; otherwise each bag's, named
+    local rows = countRows[group]
+    if unified then
+        rows = shownBag[group] and shownBag[group].countRows or allRows[group]
+    end
+    for index, row in ipairs(rows) do
         if index == 1 then
             imgui.SameLine()
         end
