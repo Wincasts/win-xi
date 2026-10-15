@@ -28,6 +28,8 @@ local target = require('target')
 local notices = require('notices')
 local debuffs = require('debuffs')
 local packets = require('packets')
+local game = require('game')
+local perf = require('perf')
 
 local saved = settings.load(options.Defaults())
 
@@ -51,11 +53,14 @@ UseSettings()
 -- What a party's window holds, drawn by one function for whichever party is being drawn: which is
 -- said beforehand, so that no function need be made afresh for each window every frame
 local drawing = { list = 1, sample = false, pets = nil }
+-- the member the game's party cursor is on, or nil while it is not out: read once a frame for all
+-- that asks. While it is out the party's order is being rearranged.
+local partyCursor = nil
 local rearranging = false
 
 local function DrawPartyContent()
     local own = drawing.list == 1
-    local members = roster.Members(drawing.list, drawing.sample, saved.party.sortByRole[1] and not rearranging)
+    local members = roster.Members(drawing.list, drawing.sample, saved.party.sortByRole[1] and not rearranging, partyCursor)
     local petLines = drawing.pets
     local hasPets = petLines ~= nil and #petLines > 0
 
@@ -240,14 +245,16 @@ ashita.events.register('unload', 'unload_handler', function()
     settings.save()
 end)
 
-ashita.events.register('d3d_present', 'd3d_present_handler', function()
+-- All the addon does in a frame
+local function Present()
     -- Every frame, cheaply: nothing happens unless the choice of theme or the settings table has changed
     winxiTheme.Configure(saved.useSharedTheme, saved.theme)
     if saved.carriedTheme ~= nil then
         CarryTheme()
     end
 
-    rearranging = require('game').IsPartyRearranging()
+    partyCursor = game.StPartyIndex()
+    rearranging = partyCursor ~= nil
     config.Draw(saved)
     if saved.automaticPositioning[1] then
         local padding = winxiTheme.Get().Padding
@@ -299,6 +306,10 @@ ashita.events.register('d3d_present', 'd3d_present_handler', function()
     end
 
     winxiOrganize.EndFrame()
+end
+
+ashita.events.register('d3d_present', 'd3d_present_handler', function()
+    perf.Run(Present)
 end)
 
 ashita.events.register('packet_in', 'packet_in_handler', function(e)
@@ -335,6 +346,12 @@ ashita.events.register('command', 'command_handler', function(e)
     local subcommand = (e.command:match('^%s*%S+%s+(%S+)') or ''):lower()
     if subcommand == 'menu' then
         print(('[party] Current native menu: %q'):format(winxiGame.MenuName()))
+        return
+    elseif subcommand == 'perf' then
+        print('[party] Measuring for five seconds...')
+        perf.Start(function(words)
+            print('[party] ' .. words .. (saved.showConfig[1] and ' (the settings window was open)' or ''))
+        end)
         return
     elseif subcommand == 'cursor' then
         local ok, handle, detail = pcall(require('winxi.cursor').Get, true)

@@ -25,17 +25,36 @@ local tint = { 1, 1, 1, 1 }
 -- The draw list in use. A colour packed for one is not kept for the next: the fade may differ, and a
 -- colour's table may have been changed in place since.
 local lastColor, lastAlpha, lastPacked = nil, nil, nil
+local styleAlpha = 1 -- the window's fade, as imgui has it while the list is drawn on
 
 function draw.Use(drawList)
     list = drawList
     lastColor = nil
+    styleAlpha = tonumber(imgui.GetStyle().Alpha) or 1
+end
+
+-- A channel as a byte, as imgui makes one: held to 0 to 1, then rounded
+local function Byte(value)
+    if value <= 0 then
+        return 0
+    elseif value >= 1 then
+        return 255
+    end
+    return math.floor(value * 255 + 0.5)
+end
+
+-- A colour packed as imgui.GetColorU32 packs it (red in the lowest byte, alpha in the highest, the
+-- alpha taken down by the window's fade), worked out here rather than asked of imgui: there are a
+-- hundred and more a frame. Kept in draw so that a test can put its own in place.
+function draw.Pack(color)
+    return Byte(color[1]) + Byte(color[2]) * 0x100 + Byte(color[3]) * 0x10000 + Byte(color[4] * styleAlpha) * 0x1000000
 end
 
 -- Things are drawn a layer at a time, so one colour is asked for many times running: the last is kept
 function draw.Packed(color, alpha)
     if color ~= lastColor or alpha ~= lastAlpha then
         tint[1], tint[2], tint[3], tint[4] = color[1], color[2], color[3], color[4] * alpha
-        lastPacked = imgui.GetColorU32(tint)
+        lastPacked = draw.Pack(tint)
         lastColor, lastAlpha = color, alpha
     end
     return lastPacked

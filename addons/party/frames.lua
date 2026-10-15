@@ -103,6 +103,8 @@ for _, style in ipairs({ 'silver', 'bronze', 'ffxi', 'crystal', 'royal', 'obsidi
     bookendFiles[style] = 'bookends/' .. style .. '.png'
 end
 local wholeCap = { 0, 0, 1, 1 }
+local barKinds = { 'hp', 'mp' }
+local barTextureSet = false -- the set the bars' paths below were last made for: none yet (nil is the usual set)
 local layout = {
     width = 163.2, rowHeight = 38.4,
     valueSize = 14.72, -- the HP, MP and TP figures are written at one size, in pixels as the names' is
@@ -627,15 +629,19 @@ function frames.Draw(members, kind, StatusTexture, style)
     bookends = style.bookends ~= false and bookendAlpha > 0
     local capStyle = style.bookendStyle == 'match' and style.borderStyle or style.bookendStyle
     bookendFile = bookendFiles[capStyle]
-    -- Only known sets can select asset paths; the original remains the fallback.
+    -- Only known sets can select asset paths; the original remains the fallback. The paths are made
+    -- again only when the set changes.
     local textureSet = style.barTexture
-    local textureRoot = barTextureSets[textureSet]
-        and ('bars/' .. textureSet .. '/') or 'bars/'
-    for _, kind in ipairs({ 'hp', 'mp' }) do
-        local place = layout[kind]
-        place.back = textureRoot .. kind .. '_back.png'
-        place.fillImage = textureRoot .. kind .. '_fill.png'
-        place.front = textureRoot .. kind .. '_front.png'
+    if textureSet ~= barTextureSet then
+        barTextureSet = textureSet
+        local textureRoot = barTextureSets[textureSet]
+            and ('bars/' .. textureSet .. '/') or 'bars/'
+        for _, kind in ipairs(barKinds) do
+            local place = layout[kind]
+            place.back = textureRoot .. kind .. '_back.png'
+            place.fillImage = textureRoot .. kind .. '_fill.png'
+            place.front = textureRoot .. kind .. '_front.png'
+        end
     end
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = style.hpOffset, style.mpOffset, style.tpOffset
     outlined = style.outline ~= false
@@ -687,7 +693,7 @@ function frames.Draw(members, kind, StatusTexture, style)
 
     outlineEdge = math.max(1, math.floor(scale + 0.5))
     if outlined then
-        outlinePacked = imgui.GetColorU32(outlinedText.OutlineColor)
+        outlinePacked = draw.Packed(outlinedText.OutlineColor, 1)
     end
 
     itemX = math.floor(windowX)
@@ -774,7 +780,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     -- including alliance members and members in another zone. Always outline these labels.
     if style.showJobs and (kind == 'party' or kind == 'alliance') then
         local right = imgui.GetWindowPos() - layout.buffs.gap - (tonumber(style.buffDistance) or 0) * scale
-        local dark = imgui.GetColorU32(outlinedText.OutlineColor)
+        local dark = draw.Packed(outlinedText.OutlineColor, 1)
         imgui.PushFont(nameFace, nameFont)
         for index, member in ipairs(members) do
             local words = member.jobText or '[---/---]'

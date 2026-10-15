@@ -112,6 +112,15 @@ dofile = function(path)
             rawset(imgui, 'GetColorU32', function() COUNT.calls.GetColorU32 = (COUNT.calls.GetColorU32 or 0) + 1 return 1 end)
         else
             rawset(imgui, 'GetColorU32', pack)
+            -- an addon that packs its colours itself (party's draw.Pack) packs them as recorded too
+            local realrequire = require
+            require = function(name)
+                local module = realrequire(name)
+                if name == 'draw' and type(module) == 'table' and module.Pack ~= nil then
+                    module.Pack = pack
+                end
+                return module
+            end
         end
 
         local function list(tag)
