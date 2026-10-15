@@ -15,7 +15,6 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
 | `winxi.controller` | Working an addon's windows with a controller (XInput, or DirectInput by make): taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
-| `winxi.screen` | Keeps a window on the screen: `screen.Keep(name)` after `Begin` (every `winxi.window` does it) |
 | `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`), the Winxi Theme tab that holds it (`BeginThemeTab`), a corner picker (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`) |
 | `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
 | `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
