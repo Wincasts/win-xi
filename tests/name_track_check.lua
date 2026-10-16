@@ -138,9 +138,8 @@ AshitaCore.GetMemoryManager = function(...)
     return memory
 end
 render(); local plain = tall(3)
-H.print('Subtarget Scale 100%: the game\'s targets are not asked after', asked == 0, tall(1) == plain)
 options.subtargetScale[1] = 150; render()
-H.print('no sub target being chosen: every name its usual size', asked == 1, tall(3) == plain, tall(2) == plain)
+H.print('no sub target being chosen: every name its usual size', asked == 2, tall(3) == plain, tall(2) == plain)
 subActive = 1; render()
 H.print('Subtarget Scale 150%: the name under the cursor half as large again, the rest as they were',
     math.abs(tall(3) - plain * 1.5) < 0.01, tall(2) == plain, tall(1) == plain)
@@ -154,6 +153,23 @@ options.subtargetScale[1] = 150; subFlags = 0x1F; render()
 H.print('nothing targeted first: the name under the cursor larger all the same', math.abs(tall(3) - plain * 1.5) < 0.01, tall(2) == plain)
 subFlags = 0xFFFFFFFF; render()
 H.print('and chosen: as before', tall(3) == plain)
+-- the game sizes the name its own way as the choice begins and ends: none of it is seen, only our scale
+local function frames(n) for _ = 1, n do render() end end
+frames(31) -- the last choice's hold over, its size is the game's again
+hook.Names[2].Scale = 0.5; frames(6); local far = tall(3)
+H.print('a name further off, as the game has it', far < plain)
+subFlags = 0x1F; hook.Names[2].Scale = 1; frames(6)
+H.print('the game\'s leap to full size while it is chosen is not taken: our scale of its own size', math.abs(tall(3) - far * 1.5) < 0.01)
+-- a walk's step, the same for another name of the same size: the chosen one is that one's, half as large again
+hook.Names[1].Scale = 0.5; frames(6)
+for _, step in ipairs({ 0.4, 0.3, 0.2 }) do hook.Names[1].Scale, hook.Names[2].Scale = step, step; render() end
+H.print('the steps of a walk are still followed', tall(2) < far, math.abs(tall(3) - tall(2) * 1.5) < 0.01)
+for _, step in ipairs({ 0.3, 0.4, 0.5 }) do hook.Names[1].Scale, hook.Names[2].Scale = step, step; render() end
+hook.Names[1].Scale = 1; frames(6)
+subFlags = 0xFFFFFFFF; hook.Names[2].Scale = 0; render(); hook.Names[2].Scale = 1; frames(6)
+H.print('nor its leaps as the choice ends: its own size, without our scale', math.abs(tall(3) - far) < 0.01)
+hook.Names[2].Scale = 0.5; frames(31); hook.Names[2].Scale = 1; frames(6)
+H.print('once settled, the game\'s sizes are followed again', tall(3) == plain)
 options.subtargetScale[1] = 999; custom.Settle(options)
 H.print('kept within 50 to 200', options.subtargetScale[1] == 200)
 options.subtargetScale = 'big'; custom.Settle(options)

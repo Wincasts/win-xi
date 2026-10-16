@@ -75,7 +75,7 @@ namehook 1.10 or later.
 | Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars are unchanged |
 | Maximum Font Size | The height of a nearby name, 6 to 48 pixels. Names automatically shrink with distance |
 | Minimum Font Size | The height of a name at the distance it is no longer drawn at; never more than the maximum |
-| Subtarget Scale | The size of the name under the sub-target cursor (`<st>`, `<stpc>`, `<stnpc>` and the like) while you choose, 50% to 200% of the others'; 100% to begin with. Above 100% its letters are the largest size's drawn larger, so they are slightly softer |
+| Subtarget Scale | The size of the name under the sub-target cursor (`<st>`, `<stpc>`, `<stnpc>` and the like) while you choose, 50% to 200% of the others'; 100% to begin with. The game's own changes to that name's size as the choice begins and ends are ignored, at any setting, so it changes size once each way. Above 100% its letters are the largest size's drawn larger, so they are slightly softer |
 | Outline Thickness | The dark edge round each name, 0 to 4 pixels; rounded down to whole render-target pixels to keep nearby names thinner. As letters shrink, it becomes thinner and slightly less opaque so distant names stay readable. Nearby names retain the original outline. At 0 the names are written plain |
 | Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`; Default is the font everything else is written in |
 | Name Format | How every name but a monster's is written: see [How a name is written](#how-a-name-is-written) |

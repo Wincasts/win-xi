@@ -3,6 +3,7 @@
 ## 1.34
 
 - Subtarget Scale, under Name Appearance: the name under the sub-target cursor (`<st>`, `<stpc>` and the like) can be drawn from 50% to 200% of the size of the others while you choose. 100% to begin with, as before.
+- The name being chosen as a sub target keeps its own size against the game's: the game shrinks it and enlarges it to full size as a choice begins and ends, and these are no longer shown, at any Subtarget Scale. Only a walk's change of distance and Subtarget Scale change its size then.
 
 ## 1.33
 
