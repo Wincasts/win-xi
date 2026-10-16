@@ -84,6 +84,7 @@ CLOCK.icons[0] = { 8, 1096, 24, 1112 }
 local images = Images()
 H.frames(1)
 p('no set: the game\'s icons, none of its own', CLOCK.hidden == 0, Images() == images)
+p('the line clear of the game\'s day icon (8 to 24), four pixels on: 28, past the game\'s text at 26', placed[1] == 28)
 local listed = icons.Sets()
 p('the sets: the folders of icons, files left out', #listed == 1 and listed[1].key == 'mine')
 options.iconSet = 'mine'
@@ -141,6 +142,7 @@ options.iconScale[1] = 2
 drawn = {}
 H.frames(1)
 p('Icon Scale 2: the day icon twice as large about its middle', At(drawn[#drawn - 2], 0, 1088, 32, 1120))
+p('and the line clear of it, four pixels on', placed[1] == 36)
 options.iconScale[1] = 1
 
 -- Weather Icon: the weather's picture in the line, the game's hidden, nothing above
@@ -280,12 +282,12 @@ p('since: when it began, how many', select(2, exp.Since()) == 2)
 local c = fields.Context(time, nil, nil)
 c.exp = { level = 75, current = 12345, needed = 30000, limit = false, points = 4000, merits = 3, rate = 4200 }
 local experience = '{level}  {exp}  {tnl}  {rate}'
-p('the experience fields', Line(experience, c) == 'Lv75  EXP 12,345/30,000  TNL 17,655  4,200 EXP/hr')
+p('the experience fields', Line(experience, c) == 'Lv75  12,345/30,000  TNL 17,655  4,200 EXP/hr')
 p('none while not counted', Line(experience, fields.Context(time, nil, nil)) == '')
 c.exp.limit = true
 p('in limit mode: limit points to the next merit', Line(experience, c) == 'Lv75  LP 4,000/10,000  TNM 6,000  4,200 LP/hr')
 c.exp.limit, c.exp.needed = false, 0
-p('no level to go to: the experience alone, no TNL', Line(experience, c) == 'Lv75  EXP 12,345  4,200 EXP/hr')
+p('no level to go to: the experience alone, no TNL', Line(experience, c) == 'Lv75  12,345  4,200 EXP/hr')
 c.weatherIcon = 1234
 local pieces = fields.Segments(c, '{weathericon} {level}')
 p('the weather icon a piece of its own, the words after it', #pieces == 2, type(pieces[1]) == 'table' and pieces[1].icon == 1234,
@@ -303,7 +305,7 @@ H.packetData(0x02D, Message(CLOCK.id, 500, 8))
 p('nor counted', select(2, exp.Since()) == before)
 options.format = fields.Default .. '  {level}  {exp}  {tnl}  {rate}'
 H.frames(9)
-p('in the line: written, after the clock\'s own fields', measured ~= nil and measured:find('Moon 42%  Lv75  EXP 12,345/30,000  TNL 17,655', 1, true) ~= nil, measured)
+p('in the line: written, after the clock\'s own fields', measured ~= nil and measured:find('Moon 42%  Lv75  12,345/30,000  TNL 17,655', 1, true) ~= nil, measured)
 H.packetData(0x02D, Message(CLOCK.id, 500, 8))
 p('and counted', select(2, exp.Since()) == before + 1)
 p('/clock exp reset', H.command('/clock exp reset'), select(2, exp.Since()) == 0)

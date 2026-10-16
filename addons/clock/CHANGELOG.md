@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+- The line begins four pixels clear of the day icon as drawn, the set's scaled and moved or the
+  game's, and never left of the game's text.
+- `{exp}` is the numbers alone, `12,345/30,000`.
+
 ## 0.7.0
 
 - The line is a string you write: `{field}` for each field and anything else as it is, the dividers;

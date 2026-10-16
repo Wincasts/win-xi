@@ -62,7 +62,7 @@ what it writes.
 | `{weather}` | the weather by name: `Rain`; none under a clear sky |
 | `{weathericon}` | the Icon Set's picture for the weather, in the line in place of above the clock (the game's own is hidden); where the set has none, the game's stays above |
 | `{level}` | `Lv75` |
-| `{exp}` | `EXP 12,345/30,000`; in limit mode, limit points to the next merit point, `LP 4,000/10,000` |
+| `{exp}` | experience and what the level takes, `12,345/30,000`; in limit mode, limit points to the next merit point, `LP 4,000/10,000` |
 | `{tnl}` | `TNL 17,655`; in limit mode `TNM 6,000`; none with no level to go to |
 | `{rate}` | experience gained in the last hour, `4,200 EXP/hr` (since counting began, if sooner, and over at least a minute); in limit mode `LP/hr` |
 
@@ -71,6 +71,9 @@ one after it), so `{time} | {grid} | {day}` is `3:32 | Windsday` where there is 
 braces that is no field is written as it is. Experience is counted only while one of `{level}`,
 `{exp}`, `{tnl}` and `{rate}` is in the line; with one there, **Begin Again** forgets what has been
 counted for `{rate}`.
+
+The line begins four pixels clear of the day icon as it is drawn (the set's at its Icon Scale and
+Offset, or the game's), and never left of where the game writes its text.
 
 The line is the theme's font and text colour, with winxi's dark edge round it and no background. The
 Winxi Theme tab sets those. Settings are kept for each character.

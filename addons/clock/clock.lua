@@ -1,6 +1,6 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.7.0'
+addon.version = '0.7.1'
 addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
 local winxiNeeded = 5
 do
@@ -51,6 +51,7 @@ local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, Im
     ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus, ImGuiWindowFlags_NoBackground)
 local SCALE_MIN, SCALE_MAX = 0.5, 3
 local OFFSET_MOST = 10  -- pixels the set's icons can be moved up or down
+local ICON_GAP = 4      -- pixels between the day icon and the line
 local RATE_OVER = 3600  -- EXP Per Hour is the last hour's
 local noPadding = { 0, 0 }
 local place, pivot, room = { 0, 0 }, { 0, 0.5 }, { 0, 0 }
@@ -320,7 +321,10 @@ ashita.events.register('d3d_present', 'clock_present', function()
     if not weatherAt then weather = nil end
     hook.HideIcons((day and native.HideDay or 0) + (hideWeather and native.HideWeather or 0))
 
-    -- the line's left on the game's, its middle on the game's middle, growing right
+    -- the line's left on the game's, clear of the day icon as it is drawn (the set's, scaled and
+    -- moved, or the game's), its middle on the game's middle, growing right
+    local dayDrawn = day and Placed(dayAt, iconScale, iconOffset) or (dayAt[1] and dayAt)
+    if dayDrawn then left = math.max(left, dayDrawn[3] + ICON_GAP) end
     place[1], place[2] = left, (top + bottom) / 2
     imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, noPadding)

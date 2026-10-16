@@ -53,13 +53,13 @@ fields.All = {
         tip = 'Your main job\'s level: Lv75.',
         Text = function(c) return c.exp and ('Lv%d'):format(c.exp.level) or nil end },
     { token = 'exp', module = 'exp', label = 'EXP',
-        tip = 'Experience towards the next level, and how much the level takes: EXP 12,345/30,000.\nIn limit mode, limit points towards the next merit point: LP 4,000/10,000.',
+        tip = 'Experience towards the next level, and how much the level takes: 12,345/30,000.\nIn limit mode, limit points towards the next merit point: LP 4,000/10,000.',
         Text = function(c)
             local e = c.exp
             if not e then return nil end
             if e.limit then return ('LP %s/%s'):format(exp.Commas(e.points), exp.Commas(exp.PointsPerMerit)) end
-            if e.needed <= 0 then return ('EXP %s'):format(exp.Commas(e.current)) end
-            return ('EXP %s/%s'):format(exp.Commas(e.current), exp.Commas(e.needed))
+            if e.needed <= 0 then return exp.Commas(e.current) end
+            return ('%s/%s'):format(exp.Commas(e.current), exp.Commas(e.needed))
         end },
     { token = 'tnl', module = 'exp', label = 'EXP To Level',
         tip = 'Experience still needed for the next level: TNL 17,655.\nIn limit mode, limit points still needed for the next merit point: TNM 6,000.',
