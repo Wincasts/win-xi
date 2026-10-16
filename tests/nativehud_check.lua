@@ -46,6 +46,16 @@ local previous=scans
 assert(not clock.Begin() and scans==previous,'failed scans throttled')
 base=300; address=600
 assert(clock.Begin(),'DLL reload invalidates cached pointers and failed-scan throttle')
+-- Status says whether the game reached its clock and whether the replacement was drawn there
+fake.Frame=10; fake.NativeFrame[0]=0; fake.DrawnFrame[0]=0
+assert(clock.Begin() and clock.Status():find('not drawing its clock') and clock.Status():find('never'))
+fake.NativeFrame[0]=9
+assert(clock.Status():find('could not draw'),'the game drew its clock, the replacement was not')
+fake.DrawnFrame[0]=10
+assert(clock.Status():find('Drawn in place'))
+fake.Frame=20
+assert(clock.Status():find('not drawing its clock') and clock.Status():find('11 frames ago'),'a clock the game stopped drawing is not called drawn')
+local native,drawn=clock.Ages(); assert(native==11 and drawn==10)
 fake.SupportedMask=0
 assert(not clock.Begin() and clock.Status():find('clock'))
 print('Native HUD bridge: ABI, marker, clock/compass independence, renewal/capture/release, weather expiry, unload/reload passed')

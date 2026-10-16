@@ -65,9 +65,32 @@ function M.new(index)
             (tonumber(found.Frame) - tonumber(found.NativeFrame[0])) % 4294967296 > 2 or found.Weather > 19 then return nil end
         return tonumber(found.Weather)
     end
+    -- Frames since the game last reached this slot's native draw, and since uihook last drew the
+    -- replacement there; nil for never. Within 2 counts as current, as the plugin's freshness does.
+    function hook.Ages()
+        local found = Find()
+        if not found then return nil, nil end
+        local function Age(at)
+            at = tonumber(at)
+            if at == 0 then return nil end
+            return (tonumber(found.Frame) - at) % 4294967296
+        end
+        return Age(found.NativeFrame[index]), Age(found.DrawnFrame[index])
+    end
     function hook.Status()
-        Find() -- detects unload, DLL replacement and capability loss before exposing a stale status
-        return reason
+        local found = Find() -- detects unload, DLL replacement and capability loss before exposing a stale status
+        if not found or not owned then return reason end
+        local name = index == 0 and 'clock' or 'compass'
+        local native, drawn = hook.Ages()
+        if not native or native > 2 then
+            return ('Ready, but the game is not drawing its %s, so neither it nor the replacement is shown (last seen: %s). Unload hidecompass and check the %s is on in the game\'s config.')
+                :format(name, native and (native .. ' frames ago') or 'never', name)
+        end
+        if not drawn or drawn > 2 then
+            return ('The game draws its %s, but uihook could not draw the replacement over it (last drawn: %s); the stock %s should show.')
+                :format(name, drawn and (drawn .. ' frames ago') or 'never', name)
+        end
+        return ('Drawn in place of the game\'s %s (the game drew it %d frames ago).'):format(name, native)
     end
     return hook
 end
