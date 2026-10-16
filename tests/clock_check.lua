@@ -7,28 +7,28 @@ local p = H.print
 -- the line
 local raws = CLOCK.raws
 local time = package.loaded['ffxi.time']
-local order, shown = fields.Defaults()
 local context = fields.Context(time, '(H-9)', 'Rain')
-p('one line: time, grid, day, date, moon; weather off to begin with',
-    fields.Line(context, order, shown) == '3:32  (H-9)  Windsday  900/12/30  Moon 42%')
+local function Line(format, c) return fields.Line(c or context, format) end
+p('the default line: time, grid, day, date, moon', Line(fields.Default) == '3:32  (H-9)  Windsday  900/12/30  Moon 42%')
 p('every field from one timestamp', CLOCK.raws == raws + 1)
-p('no grid: left out', fields.Line(fields.Context(time, nil), order, shown) == '3:32  Windsday  900/12/30  Moon 42%',
-    fields.Line(fields.Context(time, ''), order, shown) == fields.Line(fields.Context(time, nil), order, shown))
-shown.weather, shown.date = true, false
-p('weather on, date off', fields.Line(context, order, shown) == '3:32  (H-9)  Windsday  Moon 42%  Rain')
-p('moved: day up past the grid, and the time to the end', fields.Move(order, 3, -1), fields.Move(order, 1, 1),
-    fields.Move(order, 2, 1), fields.Move(order, 3, 1), fields.Move(order, 4, 1), fields.Move(order, 5, 1),
-    fields.Line(context, order, shown) == 'Windsday  (H-9)  Moon 42%  Rain  3:32')
-p('not past either end', not fields.Move(order, 1, -1), not fields.Move(order, #order, 1))
--- settings from before a field was there, with one since gone and one twice over
-local old, oldShown = T{ 'moon', 'gone', 'time', 'moon' }, T{ moon = false, gone = true }
-fields.Normalize(old, oldShown)
-p('made whole: kept in their order, the rest after, as they begin',
-    table.concat(old, ',') == 'moon,time,grid,day,date,weather,weatherIcon,level,exp,toLevel,expRate', oldShown.gone == nil,
-    oldShown.moon == false, oldShown.time == true, oldShown.weather == false)
-shown = select(2, fields.Defaults())
-for key in pairs(shown) do shown[key] = false end
-p('nothing ticked: an empty line', fields.Line(context, order, shown) == '')
+local noGrid = fields.Context(time, nil)
+p('no grid: left out, with the spaces before it', Line(fields.Default, noGrid) == '3:32  Windsday  900/12/30  Moon 42%',
+    Line(fields.Default, fields.Context(time, '')) == Line(fields.Default, noGrid))
+p('dividers written as they are', Line('{time} | {grid} | {day}') == '3:32 | (H-9) | Windsday')
+p('a field with nothing takes its divider away', Line('{time} | {grid} | {day}', noGrid) == '3:32 | Windsday')
+p('the first, the one after it', Line('{grid} | {time} | {day}', noGrid) == '3:32 | Windsday')
+p('words before, between and after kept', Line('[{time}] {day}!') == '[3:32] Windsday!')
+p('a word in braces that is no field, as it is; any case', Line('{TIME} {nope}') == '3:32 {nope}')
+p('weather by name', Line('{time} · {weather}') == '3:32 · Rain')
+p('an empty line', Line('') == '', Line('   ') == '   ')
+p('which fields a line has', fields.Has(fields.Default, 'time'), not fields.Has(fields.Default, 'weathericon'),
+    not fields.Uses(fields.Default, 'exp'), fields.Uses('{time} {rate}', 'exp'))
+-- 0.6's list to tick and move, as a line
+p('0.6\'s list: the ticked, in order, two spaces apart', fields.FromList({ 'moon', 'gone', 'time', 'weatherIcon', 'level', 'expRate' },
+    { moon = true, time = true, weatherIcon = true, level = true, expRate = true }, { exp = false }) == '{moon}  {time}  {weathericon}',
+    fields.FromList({ 'moon', 'level', 'toLevel', 'expRate' }, { moon = true, level = true, toLevel = true, expRate = true }, { exp = true })
+        == '{moon}  {level}  {tnl}  {rate}',
+    fields.FromList({ 'time' }, { time = false }, {}) == '')
 
 -- what the clock's window is asked
 local begin, finish, setPos, pushFont, calc = imgui.Begin, imgui.End, imgui.SetNextWindowPos, imgui.PushFont, imgui.CalcTextSize
@@ -144,7 +144,7 @@ p('Icon Scale 2: the day icon twice as large about its middle', At(drawn[#drawn 
 options.iconScale[1] = 1
 
 -- Weather Icon: the weather's picture in the line, the game's hidden, nothing above
-options.shown.weatherIcon = true
+options.format = fields.Default .. '  {weathericon}'
 H.frames(9)
 drawn = {}
 local hiddenBefore = CLOCK.hidden
@@ -161,7 +161,7 @@ H.frames(9)
 drawn = {}
 H.frames(1)
 p('in the line, no picture for a hot spell: the game\'s above, nothing in the line', CLOCK.hidden == 1, #drawn == 1)
-options.shown.weatherIcon = false
+options.format = fields.Default
 
 options.iconSet = icons.None
 CLOCK.weather, CLOCK.icons = nil, {}
@@ -189,15 +189,34 @@ p('/clock opens the settings', H.command('/clock'))
 local sliders = H.calls.SliderFloat or 0
 H.frames(1)
 p('the settings: Text Scale among them', (H.calls.SliderFloat or 0) > sliders)
-local smalls, boxes = H.calls.SmallButton or 0, H.calls.Checkbox or 0
+local smalls, inputs = H.calls.SmallButton or 0, H.calls.InputText or 0
 H.frames(1)
-p('the Line section: a field to a row, ticked, with Up and Down', (H.calls.SmallButton or 0) - smalls == 2 * #fields.All,
-    (H.calls.Checkbox or 0) - boxes >= #fields.All)
--- a field moved and switched off: the line follows by its next reading, a quarter of a second
-fields.Move(options.order, 1, 1)
-options.shown.moon = false
+p('the Line section: the line to write, a button a field, five dividers and Default', (H.calls.InputText or 0) - inputs == 1,
+    (H.calls.SmallButton or 0) - smalls == #fields.All + 6)
+-- a button pressed: the field after two spaces, a divider in place of the spaces at the end
+local small = imgui.SmallButton
+local pressed = nil
+imgui.SmallButton = function(label, ...) small(label, ...); return label == pressed end
+options.format = '{time}  '
+pressed = '|##clock.divider.1'
+H.frames(1)
+p('a divider: in place of the spaces', options.format == '{time} | ')
+pressed = 'Map Grid##clock.add.grid'
+H.frames(1)
+p('a field: after the divider, as it is', options.format == '{time} | {grid}')
+pressed = 'Moon##clock.add.moon'
+H.frames(1)
+p('a field after a field: two spaces between', options.format == '{time} | {grid}  {moon}')
+pressed = 'Default##clock.formatDefault'
+H.frames(1)
+p('Default: the line a new character has', options.format == fields.Default)
+pressed = nil
+imgui.SmallButton = small
+-- written: the line follows by its next reading, a quarter of a second
+options.format = '{grid} | {time}'
 H.frames(9)
-p('the line follows the settings', measured == '(H-9)  3:32  Windsday  900/12/30')
+p('the line follows the settings', measured == '(H-9) | 3:32', measured)
+options.format = fields.Default
 H.command('/clock')
 
 -- a capability uihook does not have: nothing of its own drawn
@@ -258,22 +277,19 @@ p('over the window alone: the first gain an hour and more ago forgotten', exp.Sn
 p('since: when it began, how many', select(2, exp.Since()) == 2)
 
 -- the fields
-local order2, shown2 = fields.Defaults()
-for key in pairs(shown2) do shown2[key] = false end
-shown2.level, shown2.exp, shown2.toLevel, shown2.expRate = true, true, true, true
 local c = fields.Context(time, nil, nil)
 c.exp = { level = 75, current = 12345, needed = 30000, limit = false, points = 4000, merits = 3, rate = 4200 }
-p('the experience fields, with the module', fields.Line(c, order2, shown2, { exp = true }) == 'Lv75  EXP 12,345/30,000  TNL 17,655  4,200 EXP/hr')
-p('without it, none', fields.Line(c, order2, shown2, { exp = false }) == '', fields.Line(c, order2, shown2) == '')
+local experience = '{level}  {exp}  {tnl}  {rate}'
+p('the experience fields', Line(experience, c) == 'Lv75  EXP 12,345/30,000  TNL 17,655  4,200 EXP/hr')
+p('none while not counted', Line(experience, fields.Context(time, nil, nil)) == '')
 c.exp.limit = true
-p('in limit mode: limit points to the next merit', fields.Line(c, order2, shown2, { exp = true }) == 'Lv75  LP 4,000/10,000  TNM 6,000  4,200 LP/hr')
+p('in limit mode: limit points to the next merit', Line(experience, c) == 'Lv75  LP 4,000/10,000  TNM 6,000  4,200 LP/hr')
 c.exp.limit, c.exp.needed = false, 0
-p('no level to go to: the experience alone, no TNL', fields.Line(c, order2, shown2, { exp = true }) == 'Lv75  EXP 12,345  4,200 EXP/hr')
+p('no level to go to: the experience alone, no TNL', Line(experience, c) == 'Lv75  EXP 12,345  4,200 EXP/hr')
 c.weatherIcon = 1234
-shown2.weatherIcon = true
-local pieces = fields.Segments(c, order2, shown2, { exp = true })
-p('the weather icon a piece of its own, the words either side', #pieces == 2, type(pieces[1]) == 'table' and pieces[1].icon == 1234,
-    pieces[2] == 'Lv75  EXP 12,345  4,200 EXP/hr')
+local pieces = fields.Segments(c, '{weathericon} {level}')
+p('the weather icon a piece of its own, the words after it', #pieces == 2, type(pieces[1]) == 'table' and pieces[1].icon == 1234,
+    pieces[2] == ' Lv75')
 
 -- in the clock: off to begin with, then on, counted from packets
 H.load()
@@ -281,18 +297,26 @@ options = H.options()
 options.replace[1] = true -- left off by the 0.1 settings above
 CLOCK.rect = { 26, 1098, 106, 1108 }
 H.frames(9)
-p('experience off to begin with: not on the line', measured ~= nil and not measured:find('Lv75', 1, true))
+p('no experience field: not on the line', measured ~= nil and not measured:find('Lv75', 1, true))
 local before = select(2, exp.Since())
 H.packetData(0x02D, Message(CLOCK.id, 500, 8))
 p('nor counted', select(2, exp.Since()) == before)
-options.experience[1] = true
+options.format = fields.Default .. '  {level}  {exp}  {tnl}  {rate}'
 H.frames(9)
-p('on: on the line, after the clock\'s own fields', measured ~= nil and measured:find('Lv75  EXP 12,345/30,000  TNL 17,655', 1, true) ~= nil, measured)
+p('in the line: written, after the clock\'s own fields', measured ~= nil and measured:find('Moon 42%  Lv75  EXP 12,345/30,000  TNL 17,655', 1, true) ~= nil, measured)
 H.packetData(0x02D, Message(CLOCK.id, 500, 8))
 p('and counted', select(2, exp.Since()) == before + 1)
 p('/clock exp reset', H.command('/clock exp reset'), select(2, exp.Since()) == 0)
 H.command('/clock')
-local boxes2 = H.calls.Button or 0
+local smalls2 = H.calls.SmallButton or 0
 H.frames(1)
-p('the Experience section: Begin Again', (H.calls.Button or 0) > boxes2)
+p('with experience in the line, Begin Again', (H.calls.SmallButton or 0) - smalls2 == #fields.All + 7)
 H.command('/clock')
+
+-- 0.6's settings: a list to tick and move, and experience a switch, brought over as a line
+options.order, options.shown = T{ 'moon', 'time', 'level', 'expRate' }, T{ moon = true, time = true, level = true, expRate = true }
+options.experience, options.expWindow = T{ true }, T{ 30 }
+H.resettle()
+options = H.options()
+p('0.6 settings brought over', options.format == '{moon}  {time}  {level}  {rate}', options.order == nil and options.shown == nil,
+    options.experience == nil and options.expWindow == nil)

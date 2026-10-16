@@ -1,8 +1,8 @@
-# clock — experimental 0.6
+# clock — experimental 0.7
 
 The game's clock, written out in full on one line in its place: the time, the map grid, the day,
-the date and the moon to begin with, as `3:32  (H-9)  Windsday  900/12/30  Moon 42%`, and what is
-shown, and in what order, is yours to choose. The game's own day and weather
+the date and the moon to begin with, as `3:32  (H-9)  Windsday  900/12/30  Moon 42%`; what it shows,
+in what order and with what between, is a line you write. The game's own day and weather
 icons stay where the game puts them, and the compass above the clock is hidden. Drawn through
 **uihook 0.2** where the game draws its clock, so the game's menus and chat log are drawn over it as
 they are over the game's own.
@@ -42,34 +42,35 @@ Hide Compass does the compass's part. Keep the clock on in the game's config too
   its own, against the game's icon, grown about its middle; in the line, against the text's height.
   The game's own icons keep their size.
 
-Under **Experience**:
+- **Icon Offset**: moves the set's icons up or down, -10 to 10 pixels (0 to begin with), where the
+  game draws its own and in the line.
 
-- **Show Experience**: Level, EXP, EXP To Level and EXP Per Hour on the line (off to begin with).
-  Each is ticked and put in order under Line like the rest; while this is off they wait, greyed.
-  Experience is counted only while it is on.
-- **Rate Over**: EXP Per Hour is the experience gained in the last this many minutes, made an hourly
-  rate, 5 to 240 (60 to begin with); since the rate began, if sooner, and over at least a minute.
-- **Begin Again**: forgets what has been counted, for the rate to begin again from now.
+Under **Line**, the line itself, written as you like: each field is a word in braces, `{time}`, and
+anything else is written as it is, so `{time} | {grid} | {day}` is `3:32 | (H-9) | Windsday`. **Add
+Field** puts a field at the end, two spaces on; **Add Divider** puts ` | `, ` · `, ` - `, ` / ` or two
+spaces there in place of the spaces at the end; **Default** goes back to
+`{time}  {grid}  {day}  {date}  {moon}`. Under it, what the line shows now. Hover a field's button for
+what it writes.
 
-Under **Line**, each field the line can show, ticked if shown, in the order they are written from left
-to right; **Up** and **Down** move one along. Hover a field for what it writes.
+| Field | Writes |
+| --- | --- |
+| `{time}` | Vana'diel time, as the game writes it: `3:32` |
+| `{grid}` | where you are on the zone's map, as the game writes it: `(H-9)`; none where there is no map |
+| `{day}` | `Windsday` (the game's day icon stays to the left of the line) |
+| `{date}` | Vana'diel's year, month and day: `900/12/30` |
+| `{moon}` | `Moon 42%` |
+| `{weather}` | the weather by name: `Rain`; none under a clear sky |
+| `{weathericon}` | the Icon Set's picture for the weather, in the line in place of above the clock (the game's own is hidden); where the set has none, the game's stays above |
+| `{level}` | `Lv75` |
+| `{exp}` | `EXP 12,345/30,000`; in limit mode, limit points to the next merit point, `LP 4,000/10,000` |
+| `{tnl}` | `TNL 17,655`; in limit mode `TNM 6,000`; none with no level to go to |
+| `{rate}` | experience gained in the last hour, `4,200 EXP/hr` (since counting began, if sooner, and over at least a minute); in limit mode `LP/hr` |
 
-| Field | Writes | To begin with |
-| --- | --- | --- |
-| Time | Vana'diel time, as the game writes it: `3:32` | shown |
-| Map Grid | where you are on the zone's map, as the game writes it: `(H-9)`; none where there is no map | shown |
-| Day | `Windsday` (the game's day icon stays to the left of the line) | shown |
-| Date | Vana'diel's year, month and day: `900/12/30` | shown |
-| Moon | `Moon 42%` | shown |
-| Weather | the weather by name: `Rain`; none under a clear sky (the game's icon is above the clock either way) | hidden |
-| Weather Icon | the Icon Set's picture for the weather, in the line in place of above the clock (the game's own is hidden); where the set has none, the game's stays above | hidden |
-| Level | `Lv75` | shown, with Show Experience |
-| EXP | `EXP 12,345/30,000`; in limit mode, limit points to the next merit point, `LP 4,000/10,000` | shown, with Show Experience |
-| EXP To Level | `TNL 17,655`; in limit mode `TNM 6,000`; none with no level to go to | shown, with Show Experience |
-| EXP Per Hour | `4,200 EXP/hr`; in limit mode `LP/hr` | shown, with Show Experience |
-
-Fields are two spaces apart, as the game spaces its time and grid. A field with nothing to say is
-left out, gap and all. With none ticked, the game's text is hidden and nothing written in its place.
+A field with nothing to write takes the divider before it away with it (the first in the line, the
+one after it), so `{time} | {grid} | {day}` is `3:32 | Windsday` where there is no map. A word in
+braces that is no field is written as it is. Experience is counted only while one of `{level}`,
+`{exp}`, `{tnl}` and `{rate}` is in the line; with one there, **Begin Again** forgets what has been
+counted for `{rate}`.
 
 The line is the theme's font and text colour, with winxi's dark edge round it and no background. The
 Winxi Theme tab sets those. Settings are kept for each character.
@@ -93,8 +94,8 @@ A set can also have `weather\clear.png` (for no weather and sunshine), `clouds` 
 game draws no icon for. These go where its weather icon would be, 68 of its units above the day
 icon and as large; once the game has drawn a weather icon, exactly where it drew it.
 
-**gems** comes with the addon: round cut gemstones for the days, in the colours of the game's day
-circles, and weather icons after the game's own (a fireball, an ice crystal, a whirlwind, an earth
+**gems** comes with the addon: the game's marbled day circles, in their colours and at their size,
+cut as gemstones, and weather icons after the game's own (a fireball, an ice crystal, a whirlwind, an earth
 block, a bolt, a drop, a glow and a dark swirl), with a sun for a clear sky. Each is 32 pixels, twice
 the game's 16. `tools/generate_clock_icons.py` makes them.
 

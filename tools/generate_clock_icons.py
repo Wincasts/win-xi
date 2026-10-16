@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The clock addon's 'gems' icon set: round gemstones for the days, and weather icons after the
+"""The clock addon's 'gems' icon set: the game's marbled day circles cut as gemstones for the days, and weather icons after the
 game's own (font el* in ROM/119/51.DAT: a fireball, an ice sphere, a whirlwind, an earth block, a
 bolt, a drop, a glow and a dark swirl), with a sun for a clear sky, which the game has none for.
 
@@ -18,16 +18,17 @@ BIG = 256   # drawn at
 SIZE = 32   # saved at
 C = BIG / 2
 
-# The days' gems, in the colours of the game's day circles (menu colorbal)
+# The days' gems, in the colours of the game's day circles (menu colorbal in ROM/119/51.DAT): each
+# circle's brightest, middle and darkest tenth, as sampled from it
 DAYS = {
-    'firesday': (214, 38, 30),
-    'earthsday': (226, 186, 34),
-    'watersday': (38, 86, 214),
-    'windsday': (36, 170, 72),
-    'iceday': (120, 200, 238),
-    'lightningday': (150, 70, 212),
-    'lightsday': (236, 234, 246),
-    'darksday': (92, 52, 122),
+    'firesday': ((241, 62, 54), (171, 43, 31), (92, 22, 14)),
+    'earthsday': ((220, 215, 45), (176, 173, 31), (106, 102, 18)),
+    'watersday': ((121, 117, 198), (85, 82, 151), (48, 46, 85)),
+    'windsday': ((81, 185, 96), (43, 145, 58), (21, 79, 31)),
+    'iceday': ((167, 201, 209), (128, 170, 189), (80, 116, 136)),
+    'lightningday': ((208, 162, 206), (184, 124, 183), (109, 68, 109)),
+    'lightsday': ((222, 224, 195), (191, 191, 172), (132, 130, 120)),
+    'darksday': ((130, 110, 108), (79, 61, 57), (37, 27, 24)),
 }
 OUTLINE = (24, 16, 28, 255)
 LIGHT = math.radians(225)  # from the top left, as the game lights its icons
@@ -95,61 +96,53 @@ def save(img, path):
     img.resize((SIZE, SIZE), Image.LANCZOS).save(path)
 
 
-# --- the days: a round brilliant, seen from above --------------------------------------------------
+# --- the days: the game's marbled circles, cut as gems -----------------------------------------------
 
-def gem(color):
-    R = C - 16
-    img = canvas()
-    d = ImageDraw.Draw(img)
-    table_r, star_r = R * 0.48, R * 0.74
+def marbling(seed):
+    """Soft streaks, as the game's circles are mottled: a few waves, bent by others."""
+    rng = np.random.default_rng(seed)
+    yy, xx = np.mgrid[0:BIG, 0:BIG] / BIG
+    field = np.zeros((BIG, BIG))
+    for _ in range(5):
+        fx, fy, phase = rng.uniform(2, 6), rng.uniform(2, 6), rng.uniform(0, 6.3)
+        bend = np.sin(yy * rng.uniform(3, 7) + rng.uniform(0, 6.3)) * 0.6
+        field += np.sin(xx * fx * 6.3 + yy * fy * 3.1 + bend * 3 + phase)
+    field = (field - field.min()) / (field.max() - field.min())
+    return np.array(Image.fromarray((field * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6))) / 255.0
 
-    def at(radius, angle):
-        return (C + radius * math.cos(angle), C + radius * math.sin(angle))
 
-    def lit(angle, base, spread):
-        # a facet facing the light is lighter, one facing away darker
-        return shade(color, base + spread * math.cos(angle - LIGHT))
-
-    # the stone itself under its facets, so no gap between them shows through
-    d.ellipse((C - R, C - R, C + R, C + R), fill=shade(color, -0.04))
-    # the crown's outer facets, sixteen, from the star points to the girdle
-    for i in range(16):
-        a0, a1 = (i - 0.5) * math.pi / 8, (i + 0.5) * math.pi / 8
-        mid = i * math.pi / 8
-        inner = star_r if i % 2 == 0 else table_r / math.cos(math.pi / 8) * 1.02
-        # each split in two, the half towards the light a little lighter
-        d.polygon([at(inner, mid), at(R, a0), at(R, mid)], fill=lit(mid - 0.2, 0.04, 0.46))
-        d.polygon([at(inner, mid), at(R, mid), at(R, a1)], fill=lit(mid + 0.2, -0.14, 0.42))
-    # the star facets, eight triangles round the table
-    for i in range(8):
-        a = (i + 0.5) * math.pi / 4
-        d.polygon([at(table_r, a - math.pi / 8), at(star_r, a), at(table_r, a + math.pi / 8)], fill=lit(a, 0.16, 0.46))
-    # the table, an octagon, lit from above
-    table = [at(table_r, (i + 0.5) * math.pi / 4 - math.pi / 8) for i in range(8)]
-    d.polygon(table, fill=shade(color, 0.12))
-    inner = Image.new('L', (BIG, BIG), 0)
-    ImageDraw.Draw(inner).polygon(table, fill=255)
-    img.paste(radial(shade(color, 0.42), shade(color, 0.02), center=(C - R * 0.2, C - R * 0.22), radius=table_r * 1.5),
-              (0, 0), inner)
-    # facet edges, faint, as a cut stone catches them
-    for i in range(16):
-        mid = i * math.pi / 8
-        d.line([at(table_r * 0.95, mid), at(R, mid)], fill=shade(color, 0.55) + (85,), width=2)
-    d.polygon(table, outline=shade(color, 0.6) + (150,), width=3)
-
-    # round it off: everything outside the stone away, its rim darkened
-    disc = Image.new('L', (BIG, BIG), 0)
-    ImageDraw.Draw(disc).ellipse((C - R, C - R, C + R, C + R), fill=255)
-    img.putalpha(disc)
+def gem(colors, seed):
+    light, middle, dark = (np.array(c, np.float32) for c in colors)
+    R = BIG * 0.45  # the game's fill fourteen and a half of sixteen
     yy, xx = np.mgrid[0:BIG, 0:BIG]
-    rim = np.clip((np.hypot(xx - C, yy - C) - R * 0.82) / (R * 0.18), 0, 1)
-    arr = np.array(img).astype(np.float32)
-    arr[..., :3] *= (1 - 0.3 * rim)[..., None]
-    img = Image.fromarray(arr.clip(0, 255).astype(np.uint8), 'RGBA')
-
-    glint(img, C - R * 0.34, C - R * 0.38, R * 0.2, 230)
-    sparkle(img, C - R * 0.36, C - R * 0.4, R * 0.28)
-    return outlined(img, 10)
+    nx, ny = (xx - C) / R, (yy - C) / R
+    r2 = nx * nx + ny * ny
+    nz = np.sqrt(np.clip(1 - r2, 0, 1))
+    # lit from the top left and a little in front, as the game's
+    lx, ly, lz = -0.5, -0.62, 0.6
+    norm = math.sqrt(lx * lx + ly * ly + lz * lz)
+    lambert = np.clip((nx * lx + ny * ly + nz * lz) / norm, 0, 1)
+    shade_t = lambert ** 0.85
+    # dark to middle to light, then the marbling over it
+    t = shade_t[..., None]
+    rgb = np.where(t < 0.5, dark + (middle - dark) * (t / 0.5), middle + (light - middle) * ((t - 0.5) / 0.5))
+    rgb *= (0.86 + 0.28 * marbling(seed))[..., None]
+    # a faint cut: an octagonal table, lighter, and its facets' edges
+    angle = np.arctan2(ny, nx)
+    octagon = np.cos(math.pi / 8) / np.cos(((angle + math.pi / 8) % (math.pi / 4)) - math.pi / 8)
+    table = np.sqrt(r2) < 0.5 * octagon
+    rgb[table] = rgb[table] * 0.75 + light * 0.34
+    facets = np.abs(((angle / (math.pi / 8)) % 1) - 0.5) > 0.44
+    edges = facets & ~table & (r2 < 0.92)
+    rgb[edges] = rgb[edges] * 0.72 + light * 0.36
+    # its rim, darker, as the game's circles' edges are
+    rim = np.clip((np.sqrt(r2) - 0.78) / 0.22, 0, 1)[..., None]
+    rgb = rgb * (1 - 0.45 * rim) + dark * 0.45 * rim * 0.4
+    alpha = np.clip((1 - np.sqrt(r2)) * R / 2.5, 0, 1) * 255
+    img = Image.fromarray(np.dstack([rgb.clip(0, 255), alpha]).astype(np.uint8), 'RGBA')
+    glint(img, C - R * 0.38, C - R * 0.42, R * 0.2, 235)
+    sparkle(img, C - R * 0.4, C - R * 0.44, R * 0.3)
+    return outlined(img, 5, tuple(int(v * 0.55) for v in dark) + (255,))
 
 
 # --- the weather, after the game's ---------------------------------------------------------------
@@ -318,8 +311,8 @@ def main():
     parser.add_argument('--output', default=str(Path(__file__).resolve().parents[1] / 'addons/clock/icons/gems'))
     args = parser.parse_args()
     out = Path(args.output)
-    for name, color in DAYS.items():
-        save(gem(color), out / 'days' / f'{name}.png')
+    for seed, (name, colors) in enumerate(DAYS.items()):
+        save(gem(colors, seed), out / 'days' / f'{name}.png')
     for name, draw in WEATHER.items():
         save(draw(), out / 'weather' / f'{name}.png')
     print(f'{len(DAYS)} days and {len(WEATHER)} weather icons in {out}')

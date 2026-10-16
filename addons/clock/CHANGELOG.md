@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+- The line is a string you write: `{field}` for each field and anything else as it is, the dividers;
+  Add Field, Add Divider and Default build it. A field with nothing to write takes its divider away.
+  0.3 to 0.6's ticked, ordered list is brought over as a line.
+- Experience is counted while an experience field (`{level}`, `{exp}`, `{tnl}`, `{rate}`) is in the
+  line: no switch of its own. `{rate}` is always the last hour's: Rate Over is gone.
+- Icon Offset: the set's icons moved up or down, -10 to 10 pixels.
+- gems: the days closer to the game's own circles, in their sampled colours, marbled, at their size.
+
 ## 0.6.0
 
 - Weather Icon: a field for the Icon Set's weather picture in the line, put in order like the rest;

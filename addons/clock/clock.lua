@@ -1,6 +1,6 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.6.0'
+addon.version = '0.7.0'
 addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
 local winxiNeeded = 5
 do
@@ -29,8 +29,9 @@ local hook = native.new(native.Clock)
 local compass = native.new(native.Compass)
 local time, timeError
 local nextSample, segments = 0, nil -- the line, as fields.Segments last gave it
-local weekday = nil -- as the line was last read, for the day's icon
-local sets, setsOpen = {}, false -- the icon sets, listed as the list is opened
+local preview = ''                  -- and in words, for the settings
+local weekday = nil                 -- as the line was last read, for the day's icon
+local sets, setsOpen = {}, false    -- the icon sets, listed as the list is opened
 local screenMin, screenMax, iconMin, iconMax = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
 -- Where the game puts its weather icon, from its day icon's top left, and the weather icon's size:
 -- learnt whenever it draws both. Until then, from Clock::Draw: the weather's at (x-68, y-42) and the
@@ -49,16 +50,20 @@ local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, Im
     ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoInputs,
     ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus, ImGuiWindowFlags_NoBackground)
 local SCALE_MIN, SCALE_MAX = 0.5, 3
-local WINDOW_MIN, WINDOW_MAX = 5, 240 -- minutes the experience rate is taken over
-local modules = { exp = false }       -- which modules' fields are on the line
+local OFFSET_MOST = 10  -- pixels the set's icons can be moved up or down
+local RATE_OVER = 3600  -- EXP Per Hour is the last hour's
 local noPadding = { 0, 0 }
 local place, pivot, room = { 0, 0 }, { 0, 0.5 }, { 0, 0 }
 local widths = {}
+local format = { '' } -- the line being written in the settings
+-- What can be put between fields from the settings, as it is put
+local DIVIDERS = { { label = '|', text = ' | ' }, { label = '·', text = ' · ' }, { label = '-', text = ' - ' },
+    { label = '/', text = ' / ' }, { label = 'Space', text = '  ' } }
 
--- An icon's place grown or shrunk about its middle
-local function Scaled(at, scale)
+-- An icon's place grown or shrunk about its middle, and moved down by offset
+local function Placed(at, scale, offset)
     if not at or not at[1] then return nil end
-    local cx, cy = (at[1] + at[3]) / 2, (at[2] + at[4]) / 2
+    local cx, cy = (at[1] + at[3]) / 2, (at[2] + at[4]) / 2 + offset
     local w, h = (at[3] - at[1]) * scale / 2, (at[4] - at[2]) * scale / 2
     return { cx - w, cy - h, cx + w, cy + h }
 end
@@ -78,10 +83,25 @@ local function Release()
 end
 
 local app
-local tick = { false }
 local function Tip(text)
     if imgui.IsItemHovered() then imgui.SetTooltip(text) end
 end
+
+-- Something added to the end of the line from the settings: a field two spaces after what is there,
+-- or a divider in place of the spaces at the end
+local function Append(options, text, divider)
+    local line = options.format
+    if divider then
+        line = line:gsub('%s+$', '')
+    elseif line ~= '' and not line:find('%s$') then
+        line = line .. '  '
+    end
+    options.format = line .. text
+    format[1] = options.format
+    nextSample = 0
+    app.save()
+end
+
 local function DrawSettings(options)
     if widgets.Header('Clock', true) then
         widgets.Label('Replace Game\'s Clock')
@@ -89,7 +109,7 @@ local function DrawSettings(options)
             if not options.replace[1] then hook.Stop() end
             app.save()
         end
-        Tip('Writes the time, map grid, day, date and moon on one line where the game writes its clock.\nThe game\'s day and weather icons stay where it puts them.\nOff, the game\'s own clock comes back.')
+        Tip('Writes the line below where the game writes its clock.\nThe game\'s day and weather icons stay where it puts them.\nOff, the game\'s own clock comes back.')
         widgets.Label('Text Scale')
         imgui.SliderFloat('##clock.textScale', options.textScale, SCALE_MIN, SCALE_MAX, '%.2fx')
         if imgui.IsItemDeactivatedAfterEdit() then app.save() end
@@ -122,60 +142,54 @@ local function DrawSettings(options)
         imgui.SliderFloat('##clock.iconScale', options.iconScale, SCALE_MIN, SCALE_MAX, '%.2fx')
         if imgui.IsItemDeactivatedAfterEdit() then app.save() end
         Tip('How large the Icon Set\'s icons are: where the game draws its own, against the game\'s icon,\nand in the line (Weather Icon), against the text. The game\'s own icons keep their size.')
+        widgets.Label('Icon Offset')
+        imgui.SliderInt('##clock.iconOffset', options.iconOffset, -OFFSET_MOST, OFFSET_MOST, '%d px')
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        Tip('Moves the Icon Set\'s icons up (less than 0) or down (more than 0), in pixels, where the game\ndraws its own and in the line. The game\'s own icons stay where they are.')
         imgui.TextDisabled(timeError and ('Time unavailable: ' .. timeError) or hook.Status())
     end
-    if widgets.Header('Experience') then
-        widgets.Label('Show Experience')
-        if imgui.Checkbox('##clock.experience', options.experience) then
+    if widgets.Header('Line') then
+        imgui.TextDisabled('Each {field} is written in its place; anything else is written as it is.')
+        if format[1] ~= options.format and not imgui.IsAnyItemActive() then format[1] = options.format end
+        imgui.SetNextItemWidth(-1)
+        if imgui.InputText('##clock.format', format, 256) then
+            options.format = format[1]
+            nextSample = 0
+        end
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        imgui.TextDisabled('Shows: ' .. (preview ~= '' and preview or '(nothing)'))
+        widgets.Label('Add Field')
+        for i, field in ipairs(fields.All) do
+            if i > 1 and (i - 1) % 4 ~= 0 then imgui.SameLine() end
+            if i > 1 and (i - 1) % 4 == 0 then widgets.Label('') end
+            if imgui.SmallButton(field.label .. '##clock.add.' .. field.token) then Append(options, '{' .. field.token .. '}') end
+            Tip(('{%s}: %s'):format(field.token, field.tip))
+        end
+        widgets.Label('Add Divider')
+        for i, divider in ipairs(DIVIDERS) do
+            if i > 1 then imgui.SameLine() end
+            if imgui.SmallButton(divider.label .. '##clock.divider.' .. i) then Append(options, divider.text, true) end
+            Tip(('Puts \'%s\' at the end of the line. Type any other between the fields.'):format(divider.text))
+        end
+        widgets.Label('')
+        if imgui.SmallButton('Default##clock.formatDefault') then
+            options.format = fields.Default
+            format[1] = options.format
             nextSample = 0
             app.save()
         end
-        Tip('Level, EXP, EXP To Level and EXP Per Hour on the line, each ticked and put in order under Line.\nExperience is counted from the server\'s messages of experience gained while this is on.')
-        widgets.Label('Rate Over')
-        imgui.SliderInt('##clock.expWindow', options.expWindow, WINDOW_MIN, WINDOW_MAX, '%d min')
-        if imgui.IsItemDeactivatedAfterEdit() then nextSample = 0; app.save() end
-        Tip('EXP Per Hour is the experience gained in the last this many minutes, made an hourly rate:\nshorter follows a change of camp sooner, longer is steadier. Since the rate was begun, if sooner.')
-        widgets.Label('Rate')
-        if imgui.Button('Begin Again##clock.expReset') then
-            exp.Reset()
-            nextSample = 0
-        end
-        Tip('Forgets the experience counted so far, for EXP Per Hour to begin again from now. /clock exp reset does the same.')
-        local since, counted = exp.Since()
-        imgui.TextDisabled(since and ('%d gains counted over %d min.'):format(counted, math.floor((os.clock() - since) / 60))
-            or 'No experience gained yet.')
-    end
-    if widgets.Header('Line') then
-        imgui.TextDisabled('Ticked fields are shown, in this order, from left to right.')
-        local order, shown = options.order, options.shown
-        for at, key in ipairs(order) do
-            local field = fields.ByKey[key]
-            local id = '##clock.field.' .. key
-            tick[1] = shown[key] == true
-            -- a module's fields wait for it: ticked or not, they are not on the line while it is off
-            local idle = field.module == 'exp' and not options.experience[1]
-            imgui.BeginDisabled(idle)
-            if imgui.Checkbox(field.label .. id, tick) then
-                shown[key] = tick[1]
+        Tip(('Back to the line a new character has: %s'):format(fields.Default))
+        if fields.Uses(options.format, 'exp') then
+            widgets.Label('EXP Per Hour')
+            if imgui.SmallButton('Begin Again##clock.expReset') then
+                exp.Reset()
                 nextSample = 0
-                app.save()
             end
-            imgui.EndDisabled()
-            Tip(idle and (field.tip .. '\nTurn on Show Experience, under Experience, for it to be on the line.') or field.tip)
+            Tip('Forgets the experience counted so far, for EXP Per Hour to begin again from now. /clock exp reset does the same.')
+            local since, counted = exp.Since()
             imgui.SameLine()
-            imgui.BeginDisabled(at == 1)
-            local up = imgui.SmallButton('Up' .. id)
-            imgui.EndDisabled()
-            imgui.SameLine()
-            imgui.BeginDisabled(at == #order)
-            local down = imgui.SmallButton('Down' .. id)
-            imgui.EndDisabled()
-            -- the list has changed under the loop: drawn as it is next frame
-            if (up and fields.Move(order, at, -1)) or (down and fields.Move(order, at, 1)) then
-                nextSample = 0
-                app.save()
-                break
-            end
+            imgui.TextDisabled(since and ('%d gains counted over %d min.'):format(counted, math.floor((os.clock() - since) / 60))
+                or 'No experience gained yet.')
         end
     end
 end
@@ -188,11 +202,8 @@ local function SayStatus()
 end
 
 app = shell.New({
-    defaults = (function()
-        local order, shown = fields.Defaults()
-        return T{ replace = T{ true }, hideCompass = T{ true }, textScale = T{ 1 }, iconScale = T{ 1 }, iconSet = icons.None,
-            experience = T{ false }, expWindow = T{ 60 }, order = order, shown = shown }
-    end)(),
+    defaults = T{ replace = T{ true }, hideCompass = T{ true }, textScale = T{ 1 }, iconScale = T{ 1 }, iconOffset = T{ 0 },
+        iconSet = icons.None, format = fields.Default },
     configTitle = 'Clock Settings',
     command = '/clock',
     help = '/clock opens or closes the settings; /clock on, /clock off, /clock status, /clock exp reset.',
@@ -220,13 +231,20 @@ app = shell.New({
             options.enabled = nil
         end
         options.x, options.y = nil, nil
-        fields.Normalize(options.order, options.shown)
+        -- 0.3 to 0.6 kept the fields as a list to tick and move, and 0.6 experience as a switch
+        if type(options.order) == 'table' then
+            local experience = type(options.experience) == 'table' and options.experience[1] == true
+            options.format = fields.FromList(options.order, options.shown, { exp = experience })
+        end
+        options.order, options.shown, options.experience, options.expWindow = nil, nil, nil, nil
+        if type(options.format) ~= 'string' then options.format = fields.Default end
+        format[1] = options.format
         if type(options.iconSet) ~= 'string' then options.iconSet = icons.None end
         icons.Forget()
         local function Clamp(value, low, high, default) return math.min(high, math.max(low, tonumber(value) or default)) end
         options.textScale[1] = Clamp(options.textScale[1], SCALE_MIN, SCALE_MAX, 1)
         options.iconScale[1] = Clamp(options.iconScale[1], SCALE_MIN, SCALE_MAX, 1)
-        options.expWindow[1] = math.floor(Clamp(options.expWindow[1], WINDOW_MIN, WINDOW_MAX, 60))
+        options.iconOffset[1] = math.floor(Clamp(options.iconOffset[1], -OFFSET_MOST, OFFSET_MOST, 0))
         Release()
     end,
 })
@@ -237,9 +255,9 @@ ashita.events.register('load', 'clock_load', function()
     if timeError then print('[clock] Ashita ffxi.time unavailable: ' .. timeError) end
 end)
 ashita.events.register('unload', 'clock_unload', Release)
--- experience gained, counted only while it is shown
+-- experience gained, counted only while an experience field is in the line
 ashita.events.register('packet_in', 'clock_packet', function(e)
-    if app.options.experience[1] then exp.Packet(e.id, e.data) end
+    if fields.Uses(app.options.format, 'exp') then exp.Packet(e.id, e.data) end
 end)
 
 ashita.events.register('d3d_present', 'clock_present', function()
@@ -253,17 +271,16 @@ ashita.events.register('d3d_present', 'clock_present', function()
     local set = type(options.iconSet) == 'string' and options.iconSet or icons.None
     local day = icons.Day(set, weekday)
     local weather, double, gameDraws = icons.Weather(set, hook.Weather())
-    -- the weather's icon in the line (Weather Icon), where the set has a picture for it
-    local inline = weather ~= nil and options.shown.weatherIcon == true
-    modules.exp = options.experience[1] == true
+    -- the weather's icon in the line ({weathericon}), where the set has a picture for it
+    local inline = weather ~= nil and fields.Has(options.format, 'weathericon')
     if now >= nextSample then
         nextSample = now + 0.25
         local ok, value = pcall(function()
-            local context = fields.Context(time, hook.Grid(), options.shown.weather and WeatherName() or nil)
+            local context = fields.Context(time, hook.Grid(), fields.Has(options.format, 'weather') and WeatherName() or nil)
             context.weatherIcon = inline and weather or nil
-            context.exp = modules.exp and exp.Snapshot(now, options.expWindow[1] * 60) or nil
+            context.exp = fields.Uses(options.format, 'exp') and exp.Snapshot(now, RATE_OVER) or nil
             weekday = time.get_game_weekday(context.raw)
-            return fields.Segments(context, options.order, options.shown, modules)
+            return fields.Segments(context, options.format)
         end)
         if not ok then
             timeError, segments = tostring(value), nil
@@ -271,6 +288,9 @@ ashita.events.register('d3d_present', 'clock_present', function()
             return
         end
         segments, timeError = value, nil
+        local words = {}
+        for _, segment in ipairs(segments) do words[#words + 1] = type(segment) == 'string' and segment or '[icon]' end
+        preview = table.concat(words)
     end
     -- where the game writes its clock: until uihook has seen it, the game's own is left alone
     local left, top, _, bottom = hook.ClockRect()
@@ -278,7 +298,7 @@ ashita.events.register('d3d_present', 'clock_present', function()
     if not hook.Begin() then return end
 
     -- the set's icons where it has them, each where the game draws its own; the game's elsewhere
-    local iconScale = options.iconScale[1]
+    local iconScale, iconOffset = options.iconScale[1], options.iconOffset[1]
     local dayAt = { hook.IconRect(native.DayIcon) }
     local gameWeather = { hook.IconRect(native.WeatherIcon) }
     if dayAt[1] and gameWeather[1] then
@@ -311,8 +331,7 @@ ashita.events.register('d3d_present', 'clock_present', function()
         local list = imgui.GetWindowDrawList()
         local fontSize = imgui.GetFontSize()
         local iconSize = fontSize * iconScale
-        local gap = imgui.CalcTextSize(fields.Separator)
-        -- the pieces side by side, two spaces apart, their middles on the line's
+        -- the pieces side by side, their middles on the line's
         local width, height = 0, fontSize
         for i, segment in ipairs(segments) do
             if type(segment) == 'string' then
@@ -321,19 +340,18 @@ ashita.events.register('d3d_present', 'clock_present', function()
                 widths[i] = iconSize
                 height = math.max(height, iconSize)
             end
-            width = width + widths[i] + (i > 1 and gap or 0)
+            width = width + widths[i]
         end
         local x, y = imgui.GetCursorScreenPos()
         room[1], room[2] = width, height
         imgui.Dummy(room)
         local color = theme.Get().TextColor
         for i, segment in ipairs(segments) do
-            if i > 1 then x = x + gap end
             if type(segment) == 'string' then
                 -- the dark edge winxi writes over the game with, thicker as the text grows
                 outlined.Draw(list, x, y + (height - fontSize) / 2, color, segment, scale >= 1.75 and 2 or 1)
             else
-                iconMin[1], iconMin[2] = x, y + (height - iconSize) / 2
+                iconMin[1], iconMin[2] = x, y + (height - iconSize) / 2 + iconOffset
                 iconMax[1], iconMax[2] = x + iconSize, iconMin[2] + iconSize
                 list:AddImage(segment.icon, iconMin, iconMax)
             end
@@ -346,7 +364,7 @@ ashita.events.register('d3d_present', 'clock_present', function()
             screenMax[1], screenMax[2] = display.x or display[1] or 0, display.y or display[2] or 0
             list:PushClipRect(screenMin, screenMax, false)
             local function Icon(handle, at)
-                at = Scaled(at, iconScale)
+                at = Placed(at, iconScale, iconOffset)
                 if not handle or not at then return end
                 iconMin[1], iconMin[2], iconMax[1], iconMax[2] = at[1], at[2], at[3], at[4]
                 list:AddImage(handle, iconMin, iconMax)
