@@ -82,7 +82,7 @@ int main() {
     Give(detour);
     Check(!memcmp(image,native,sizeof(native)) && reinterpret_cast<ClockCall>(image)(object,nullptr,-20,47)==27,
         "unload restores native clock bytes and execution");
-    Check(sizeof(HudShared)==56,"HUD ABI 1 is 56 bytes, separate from Party ABI 3");
+    Check(sizeof(HudShared)==76,"HUD ABI 2 is 76 bytes, separate from Party ABI 3");
     VirtualFree(image,0,MEM_RELEASE);
     return failures?1:0;
 }

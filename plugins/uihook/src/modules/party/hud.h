@@ -3,7 +3,7 @@
 #pragma once
 #include <stdint.h>
 
-#define HUD_VERSION 1
+#define HUD_VERSION 2
 #define HUD_CLOCK 1u
 #define HUD_COMPASS 2u
 struct HudShared {
@@ -11,8 +11,12 @@ struct HudShared {
     uint32_t Version, Size, SupportedMask, Frame, Submit;
     uint32_t DrawnFrame[2], NativeFrame[2];
     uint32_t Weather; // native weather ID, 0xffff if unavailable; sampled at NativeFrame[0]
+    // Where the game drew its clock (its screen-space draws), in ImGui display pixels: left, top,
+    // right, bottom; current at ClockRectFrame. Drawn or replaced, the game's draws still say where.
+    float ClockRect[4];
+    uint32_t ClockRectFrame;
 };
-static_assert(sizeof(HudShared)==56, "HUD ABI 1");
+static_assert(sizeof(HudShared)==76, "HUD ABI 2");
 // Submit(index, capture): index 0 clock, 1 compass; capture 1=current ImGui window,
 // 0=renew empty replacement, -1=release that slot. index -1 releases ONLY these two slots.
 

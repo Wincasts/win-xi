@@ -7,6 +7,8 @@ ffi.cdef[[
         uint32_t Version, Size, SupportedMask, Frame, Submit;
         uint32_t DrawnFrame[2], NativeFrame[2];
         uint32_t Weather;
+        float ClockRect[4];
+        uint32_t ClockRectFrame;
     } uihook_hud_t;
     typedef int32_t (__cdecl *uihook_hud_submit_t)(int32_t index, int32_t capture);
 ]]
@@ -31,7 +33,7 @@ function M.new(index)
             local address = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D485544000000000000', 0, 0)
             if not address or address == 0 then reason = 'Update uihook: clock/compass shared block not found.'; return nil end
             local found = ffi.cast('uihook_hud_t*', address)
-            if found.Version ~= 1 or found.Size ~= ffi.sizeof('uihook_hud_t') or found.Submit == 0 then
+            if found.Version ~= 2 or found.Size ~= ffi.sizeof('uihook_hud_t') or found.Submit == 0 then
                 reason = 'uihook clock/compass ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_hud_submit_t', found.Submit)
@@ -76,6 +78,18 @@ function M.new(index)
             return (tonumber(found.Frame) - at) % 4294967296
         end
         return Age(found.NativeFrame[index]), Age(found.DrawnFrame[index])
+    end
+    -- Where the game drew its clock, in ImGui display pixels (left, top, right, bottom), while
+    -- current; nil otherwise. The replacement anchors to it, so it is drawn where the clock is and
+    -- under what the game draws after it (the chat log), not over the chat log or under it.
+    function hook.ClockRect()
+        local found = Find()
+        if not found or index ~= 0 or found.ClockRectFrame == 0 or
+            (tonumber(found.Frame) - tonumber(found.ClockRectFrame)) % 4294967296 > 2 then return nil end
+        local r = found.ClockRect
+        for i = 0, 3 do if r[i] ~= r[i] or math.abs(r[i]) > 100000 then return nil end end
+        if r[2] <= r[0] or r[3] <= r[1] then return nil end
+        return tonumber(r[0]), tonumber(r[1]), tonumber(r[2]), tonumber(r[3])
     end
     function hook.Status()
         local found = Find() -- detects unload, DLL replacement and capability loss before exposing a stale status

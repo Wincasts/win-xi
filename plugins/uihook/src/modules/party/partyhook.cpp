@@ -22,7 +22,7 @@ static void __fastcall RenderWindow(void* window, void*);
 static int32_t __cdecl SubmitHud(int32_t index, int32_t capture);
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
-static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff };
+static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0 };
 static Detour CompassDetour = { COMPASS_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderCompass), nullptr, nullptr, {} };
 static Detour ClockDetour = { CLOCK_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderClock), nullptr, nullptr, {} };
 // Sprite::Draw(this, x, y, sx, sy, color, flags1, flags2, flags3): preserve all eight stack
@@ -71,18 +71,40 @@ class PartyHook : public IPlugin {
         float nMinX=0, nMinY=0, nMaxX=0, nMaxY=0;
     } probe;
     bool inClock = false, inScene = false;
+    // The game's own clock draws in one Clock::Draw call: their screen bounds, and the viewport
+    // they were drawn in, to say where the clock is.
+    struct ClockBounds { uint32_t vertices=0; float left=0, top=0, right=0, bottom=0; D3DVIEWPORT8 viewport={}; bool viewportKnown=false; } bounds;
     void Native(bool up, const void* data, UINT stride, UINT count) {
         if (!inClock) return;
         auto* device=core->GetDirect3DDevice();
-        if (!probe.nativeCalls++ && device) device->GetVertexShader(&probe.nativeShader);
-        if (!up || !data || stride<8 || !(probe.nativeShader & D3DFVF_XYZRHW)) return;
+        DWORD shader=0;
+        if (device) device->GetVertexShader(&shader);
+        if (!probe.nativeCalls++) probe.nativeShader=shader;
+        if (!up || !data || stride<8 || !(shader & D3DFVF_XYZRHW)) return;
+        if (!bounds.viewportKnown && device) bounds.viewportKnown=SUCCEEDED(device->GetViewport(&bounds.viewport));
         auto* bytes=static_cast<const uint8_t*>(data);
         for (UINT i=0;i<count && i<4096;i++) {
             float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
+            if (!std::isfinite(v[0]) || !std::isfinite(v[1])) continue;
             if (!probe.nativeUP++) { probe.nMinX=probe.nMaxX=v[0]; probe.nMinY=probe.nMaxY=v[1]; }
             probe.nMinX=(std::min)(probe.nMinX,v[0]); probe.nMaxX=(std::max)(probe.nMaxX,v[0]);
             probe.nMinY=(std::min)(probe.nMinY,v[1]); probe.nMaxY=(std::max)(probe.nMaxY,v[1]);
+            if (!bounds.vertices++) { bounds.left=bounds.right=v[0]; bounds.top=bounds.bottom=v[1]; }
+            bounds.left=(std::min)(bounds.left,v[0]); bounds.right=(std::max)(bounds.right,v[0]);
+            bounds.top=(std::min)(bounds.top,v[1]); bounds.bottom=(std::max)(bounds.bottom,v[1]);
         }
+    }
+    // Replay maps ImGui display pixels onto the viewport; this is its inverse, for the clock's place.
+    void PublishClockRect() {
+        auto* gui=core->GetGuiManager();
+        if (!bounds.vertices || !bounds.viewportKnown || !gui) return;
+        const ImVec2 display=gui->GetIO().DisplaySize;
+        const auto& v=bounds.viewport;
+        if (!(display.x>0 && display.y>0) || !v.Width || !v.Height) return;
+        const float sx=display.x/float(v.Width), sy=display.y/float(v.Height);
+        Hud.ClockRect[0]=(bounds.left-float(v.X)+0.5f)*sx; Hud.ClockRect[1]=(bounds.top-float(v.Y)+0.5f)*sy;
+        Hud.ClockRect[2]=(bounds.right-float(v.X)+0.5f)*sx; Hud.ClockRect[3]=(bounds.bottom-float(v.Y)+0.5f)*sy;
+        Hud.ClockRectFrame=Shared.Frame;
     }
     void ProbeDevice(IDirect3DDevice8* device, const D3DVIEWPORT8& viewport, const Drawing& drawing) {
         probe.replayFrame=Shared.Frame; probe.viewport=viewport; probe.scene=inScene;
@@ -222,6 +244,8 @@ public:
         auto write=[&](const char* text) { chat->Write(0,false,text); };
         snprintf(line,sizeof(line),"[uihook:hud] frame %u, mask %u; Clock::Draw %u calls (%u last frame), at %d,%d; seen %u, drawn %u",
             Shared.Frame,Hud.SupportedMask,p.calls,p.callsLast,int32_t(p.x),int32_t(p.y),Hud.NativeFrame[0],Hud.DrawnFrame[0]); write(line);
+        snprintf(line,sizeof(line),"[uihook:hud] game's clock in ImGui pixels %.0f,%.0f to %.0f,%.0f at frame %u",
+            Hud.ClockRect[0],Hud.ClockRect[1],Hud.ClockRect[2],Hud.ClockRect[3],Hud.ClockRectFrame); write(line);
         snprintf(line,sizeof(line),"[uihook:hud] replay at frame %u: %u vertices, %u runs, captured %.0fx%.0f, drawn %.0f,%.0f to %.0f,%.0f",
             p.replayFrame,p.vertices,p.runs,p.width,p.height,p.minX,p.minY,p.maxX,p.maxY); write(line);
         snprintf(line,sizeof(line),"[uihook:hud] viewport %lu,%lu %lux%lu z %.2f-%.2f; target %ux%u, back buffer %ux%u, target is back buffer %d, in scene %d",
@@ -352,9 +376,11 @@ public:
             Hud.Weather=nativeWeather ? *nativeWeather : 0xffff;
             blocking=Replay(6);
         }
+        bounds=ClockBounds();
         inClock=true;
         reinterpret_cast<void(__fastcall*)(void*,void*,int32_t,int32_t)>(ClockDetour.trampoline)(object,nullptr,x,y);
         inClock=false;
+        if (compassGlobal && *compassGlobal==object) PublishClockRect();
     }
     int CaptureHud(int index,int capture) {
         if (index==-1) { StopHud(); return 1; }
