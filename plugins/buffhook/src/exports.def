@@ -1,0 +1,6 @@
+LIBRARY "buffhook"
+VERSION 1.0
+EXPORTS
+    expCreatePlugin @1
+    expDestroyPlugin @2
+    expGetInterfaceVersion @3
