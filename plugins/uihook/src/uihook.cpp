@@ -34,6 +34,11 @@ public:
         if (party) { party->Release(); party.reset(); }
         if (buffs) { buffs->Release(); buffs.reset(); }
     }
+    bool HandleCommand(int32_t mode, const char* command, bool injected) override {
+        return party && party->HandleCommand(mode, command, injected);
+    }
+    void Direct3DBeginScene(bool recording) override { if (party) party->Direct3DBeginScene(recording); }
+    void Direct3DEndScene(bool recording) override { if (party) party->Direct3DEndScene(recording); }
     bool Direct3DInitialize(IDirect3DDevice8* device) override {
         return buffs && party && buffs->Direct3DInitialize(device) && party->Direct3DInitialize(device);
     }

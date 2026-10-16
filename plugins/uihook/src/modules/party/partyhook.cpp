@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <vector>
 #include <cmath>
+#include <cstdio>
 #include "Ashita.h"
 #include "partyhook.h"
 #include "detour.h"
@@ -56,6 +57,59 @@ class PartyHook : public IPlugin {
     std::vector<PartyVertex> transformed;
     DWORD states = 0, saved = 0;
     bool blocking = false;
+    // What /uihook hud reports: the device as the clock replacement is drawn, and the game's own
+    // clock draws. Read-only; it changes nothing that is drawn.
+    struct HudProbe {
+        uint32_t calls=0, callsFrame=0, callsLast=0, x=0, y=0;
+        uint32_t replayFrame=0, vertices=0, runs=0;
+        float width=0, height=0, minX=0, minY=0, maxX=0, maxY=0;
+        D3DVIEWPORT8 viewport={};
+        UINT targetWidth=0, targetHeight=0, backWidth=0, backHeight=0;
+        bool targetIsBack=false, scene=false;
+        DWORD blendOp=0, fillMode=0, clipping=0, shader=0;
+        uint32_t nativeCalls=0, nativeUP=0; DWORD nativeShader=0;
+        float nMinX=0, nMinY=0, nMaxX=0, nMaxY=0;
+    } probe;
+    bool inClock = false, inScene = false;
+    void Native(bool up, const void* data, UINT stride, UINT count) {
+        if (!inClock) return;
+        auto* device=core->GetDirect3DDevice();
+        if (!probe.nativeCalls++ && device) device->GetVertexShader(&probe.nativeShader);
+        if (!up || !data || stride<8 || !(probe.nativeShader & D3DFVF_XYZRHW)) return;
+        auto* bytes=static_cast<const uint8_t*>(data);
+        for (UINT i=0;i<count && i<4096;i++) {
+            float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
+            if (!probe.nativeUP++) { probe.nMinX=probe.nMaxX=v[0]; probe.nMinY=probe.nMaxY=v[1]; }
+            probe.nMinX=(std::min)(probe.nMinX,v[0]); probe.nMaxX=(std::max)(probe.nMaxX,v[0]);
+            probe.nMinY=(std::min)(probe.nMinY,v[1]); probe.nMaxY=(std::max)(probe.nMaxY,v[1]);
+        }
+    }
+    void ProbeDevice(IDirect3DDevice8* device, const D3DVIEWPORT8& viewport, const Drawing& drawing) {
+        probe.replayFrame=Shared.Frame; probe.viewport=viewport; probe.scene=inScene;
+        probe.width=drawing.width; probe.height=drawing.height;
+        probe.vertices=static_cast<uint32_t>(transformed.size()); probe.runs=static_cast<uint32_t>(drawing.runs.size());
+        for (size_t i=0;i<transformed.size();i++) {
+            const auto& v=transformed[i];
+            if (!i) { probe.minX=probe.maxX=v.x; probe.minY=probe.maxY=v.y; }
+            probe.minX=(std::min)(probe.minX,v.x); probe.maxX=(std::max)(probe.maxX,v.x);
+            probe.minY=(std::min)(probe.minY,v.y); probe.maxY=(std::max)(probe.maxY,v.y);
+        }
+        IDirect3DSurface8 *target=nullptr, *back=nullptr; D3DSURFACE_DESC desc;
+        probe.targetWidth=probe.targetHeight=probe.backWidth=probe.backHeight=0;
+        if (SUCCEEDED(device->GetRenderTarget(&target)) && target) {
+            if (SUCCEEDED(target->GetDesc(&desc))) { probe.targetWidth=desc.Width; probe.targetHeight=desc.Height; }
+        }
+        if (SUCCEEDED(device->GetBackBuffer(0,D3DBACKBUFFER_TYPE_MONO,&back)) && back) {
+            if (SUCCEEDED(back->GetDesc(&desc))) { probe.backWidth=desc.Width; probe.backHeight=desc.Height; }
+        }
+        probe.targetIsBack=target && target==back;
+        if (target) target->Release();
+        if (back) back->Release();
+        device->GetRenderState(D3DRS_BLENDOP,&probe.blendOp);
+        device->GetRenderState(D3DRS_FILLMODE,&probe.fillMode);
+        device->GetRenderState(D3DRS_CLIPPING,&probe.clipping);
+        device->GetVertexShader(&probe.shader);
+    }
     bool targetScope = false;
     uint8_t* menuManager = nullptr;
 
@@ -149,10 +203,34 @@ public:
         ReleaseStates();
         for (auto& d:drawings) if (!d.Fresh()) d.Clear();
     }
-    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { return Block(); }
-    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { return Block(); }
-    bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE,UINT,const void*,UINT) override { return Block(); }
-    bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE,UINT,UINT,UINT,const void*,D3DFORMAT,const void*,UINT) override { return Block(); }
+    void Direct3DBeginScene(bool) override { inScene=true; }
+    void Direct3DEndScene(bool) override { inScene=false; }
+    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { Native(false,nullptr,0,0); return Block(); }
+    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { Native(false,nullptr,0,0); return Block(); }
+    bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
+        Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
+        return Block();
+    }
+    bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE,UINT,UINT vertices,UINT,const void*,D3DFORMAT,const void* data,UINT stride) override {
+        Native(true,data,stride,vertices); return Block();
+    }
+    bool HandleCommand(int32_t,const char* command,bool) override {
+        if (!command || _stricmp(command,"/uihook hud")!=0) return false;
+        auto* chat=core->GetChatManager();
+        char line[256];
+        const auto& p=probe;
+        auto write=[&](const char* text) { chat->Write(0,false,text); };
+        snprintf(line,sizeof(line),"[uihook:hud] frame %u, mask %u; Clock::Draw %u calls (%u last frame), at %d,%d; seen %u, drawn %u",
+            Shared.Frame,Hud.SupportedMask,p.calls,p.callsLast,int32_t(p.x),int32_t(p.y),Hud.NativeFrame[0],Hud.DrawnFrame[0]); write(line);
+        snprintf(line,sizeof(line),"[uihook:hud] replay at frame %u: %u vertices, %u runs, captured %.0fx%.0f, drawn %.0f,%.0f to %.0f,%.0f",
+            p.replayFrame,p.vertices,p.runs,p.width,p.height,p.minX,p.minY,p.maxX,p.maxY); write(line);
+        snprintf(line,sizeof(line),"[uihook:hud] viewport %lu,%lu %lux%lu z %.2f-%.2f; target %ux%u, back buffer %ux%u, target is back buffer %d, in scene %d",
+            p.viewport.X,p.viewport.Y,p.viewport.Width,p.viewport.Height,p.viewport.MinZ,p.viewport.MaxZ,
+            p.targetWidth,p.targetHeight,p.backWidth,p.backHeight,int(p.targetIsBack),int(p.scene)); write(line);
+        snprintf(line,sizeof(line),"[uihook:hud] game's states: blend op %lu, fill %lu, clipping %lu, shader 0x%lx; game's clock: %u draws, shader 0x%lx, %u screen vertices %.0f,%.0f to %.0f,%.0f",
+            p.blendOp,p.fillMode,p.clipping,p.shader,p.nativeCalls,p.nativeShader,p.nativeUP,p.nMinX,p.nMinY,p.nMaxX,p.nMaxY); write(line);
+        return true;
+    }
 
     int Capture(int index, int capture) {
         if (index<0) { Stop(); return 1; }
@@ -236,6 +314,7 @@ public:
             transformed[i].x=viewport.X+drawing.vertices[i].x*sx-0.5f;
             transformed[i].y=viewport.Y+drawing.vertices[i].y*sy-0.5f;
         }
+        if (index==6) ProbeDevice(device,viewport,drawing);
         if (FAILED(device->CaptureStateBlock(saved))) return false;
         device->ApplyStateBlock(states);
         bool ok=true;
@@ -264,6 +343,8 @@ public:
     }
     void Clock(void* object,int32_t x,int32_t y) {
         HudDrawScope scope(blocking,targetScope);
+        if (probe.callsFrame!=Shared.Frame) { probe.callsLast=probe.calls; probe.calls=0; probe.callsFrame=Shared.Frame; probe.nativeCalls=probe.nativeUP=0; }
+        ++probe.calls; probe.x=uint32_t(x); probe.y=uint32_t(y);
         // Clock::Draw takes this + two stack coordinates and returns with ret 8. Preserve all
         // arguments and let its original logic refresh the client's own time buffer even if hidden.
         if (compassGlobal && *compassGlobal==object && static_cast<uint8_t*>(object)[0x2e]) {
@@ -271,7 +352,9 @@ public:
             Hud.Weather=nativeWeather ? *nativeWeather : 0xffff;
             blocking=Replay(6);
         }
+        inClock=true;
         reinterpret_cast<void(__fastcall*)(void*,void*,int32_t,int32_t)>(ClockDetour.trampoline)(object,nullptr,x,y);
+        inClock=false;
     }
     int CaptureHud(int index,int capture) {
         if (index==-1) { StopHud(); return 1; }
