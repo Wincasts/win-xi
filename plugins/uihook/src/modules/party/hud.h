@@ -3,7 +3,7 @@
 #pragma once
 #include <stdint.h>
 
-#define HUD_VERSION 5
+#define HUD_VERSION 6
 #define HUD_CLOCK 1u
 #define HUD_COMPASS 2u
 struct HudShared {
@@ -33,8 +33,13 @@ struct HudShared {
     // place whichever are named, to see them all.
     int32_t WeatherShift;
     uint32_t PreviewWeather;
+    // Written by the addon, honoured as HideIcons is: how large the game's weather icons are drawn,
+    // its preview's among them, about each icon's middle (0 or 1 as the game draws them)
+    float WeatherScale;
 };
-static_assert(sizeof(HudShared)==160, "HUD ABI 5");
+static_assert(sizeof(HudShared)==164, "HUD ABI 6");
+#define HUD_SCALE_LEAST 0.25f
+#define HUD_SCALE_MOST 4.0f
 #define HUD_SHIFT_MOST 200
 #define HUD_ICON_DAY 1u
 #define HUD_ICON_WEATHER 2u
@@ -165,6 +170,15 @@ static void GiveClockIcons(ClockIconCalls& icons) {
 static void GiveClockText(ClockTextCall& text) {
     if (text.call) WriteCode(text.call,text.saved,5);
     text=ClockTextCall();
+}
+// Screen-space vertices (x, y the first two floats of each) grown or shrunk about (cx, cy), in place;
+// the colours, texture places and the rest of each vertex untouched
+static void ScaleScreenVertices(uint8_t* bytes,unsigned count,unsigned stride,float cx,float cy,float scale) {
+    for (unsigned i=0;i<count;i++) {
+        float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
+        v[0]=cx+(v[0]-cx)*scale; v[1]=cy+(v[1]-cy)*scale;
+        memcpy(bytes+size_t(i)*stride,v,sizeof(v));
+    }
 }
 // Restore the enclosing filter even through nested native boundaries / C++ unwinding.
 struct HudDrawScope {

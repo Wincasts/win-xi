@@ -29,7 +29,7 @@ static ClockTextCall TextCall;
 // Clock::Draw's three icon calls, aimed at DrawClockIcon<0..2> while uihook is loaded.
 template<int Icon> static void __fastcall DrawClockIcon(void*,void*,int32_t,int32_t,uint32_t,uint32_t,uint32_t);
 static ClockIconCalls IconCalls;
-static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0, {}, {}, {}, 0, 0, 0 };
+static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0, {}, {}, {}, 0, 0, 0, 0 };
 static Detour CompassDetour = { COMPASS_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderCompass), nullptr, nullptr, {} };
 static Detour ClockDetour = { CLOCK_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderClock), nullptr, nullptr, {} };
 // Sprite::Draw(this, x, y, sx, sy, color, flags1, flags2, flags3): preserve all eight stack
@@ -62,6 +62,7 @@ class PartyHook : public IPlugin {
     uint16_t* nativeWeather = nullptr;
     Drawing staging;
     std::vector<PartyVertex> transformed;
+    std::vector<uint8_t> scaledVertices; // a weather icon's vertices, drawn larger or smaller
     DWORD states = 0, saved = 0;
     bool blocking = false;
     // What /uihook hud reports: the device as the clock replacement is drawn, and the game's own
@@ -82,6 +83,10 @@ class PartyHook : public IPlugin {
     uint32_t hideIcons = 0;   // HUD_ICON_* to leave undrawn in this Clock::Draw call
     int32_t weatherShift = 0; // and the game's units to move its weather icons down by
     uint32_t preview = 0;     // and which of its weather icons to draw all of, beside each other
+    float weatherScale = 1;   // and how large its weather icons are drawn
+    bool previewing = false;  // while the preview's icons are drawn
+    bool scaling = false;     // while a scaled copy is drawn: not measured, not scaled again
+    float weatherMiddle[2][2] = {}; bool weatherMiddleKnown[2] = {}; // each weather icon's middle, as last drawn unscaled
     void* (__cdecl* bank)(int32_t) = nullptr;
     // The game's own clock draws in one Clock::Draw call: their screen bounds, and the viewport
     // they were drawn in, to say where the clock is; its text's (or, without the text call, all of
@@ -132,6 +137,36 @@ class PartyHook : public IPlugin {
     void PublishClockRect() {
         PublishRect(bounds,Hud.ClockRect,Hud.ClockRectFrame);
         for (unsigned i=0;i<3;i++) PublishRect(iconBounds[i],Hud.IconRect[i],Hud.IconFrame[i]);
+        // in the game's pixels, as its vertices are: what a scaled icon is grown about next frame
+        for (unsigned i=1;i<3;i++) if (iconBounds[i].vertices) {
+            weatherMiddle[i-1][0]=(iconBounds[i].left+iconBounds[i].right)/2;
+            weatherMiddle[i-1][1]=(iconBounds[i].top+iconBounds[i].bottom)/2;
+            weatherMiddleKnown[i-1]=true;
+        }
+    }
+    // A weather icon's draw, larger or smaller about its middle (as last measured, or this draw's
+    // own), drawn here from a copy in place of the game's. Only screen-space vertices drawn from
+    // memory, as the clock's are; anything else is left as the game draws it.
+    bool ScaleIcon(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) {
+        if (weatherScale==1 || !(inIcon==1 || inIcon==2 || previewing) || !data || stride<8) return false;
+        const UINT vertices=t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0;
+        auto* device=core->GetDirect3DDevice();
+        DWORD shader=0;
+        if (!vertices || vertices>4096 || !device || FAILED(device->GetVertexShader(&shader)) || !(shader & D3DFVF_XYZRHW)) return false;
+        scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(vertices)*stride);
+        float cx=0,cy=0;
+        // a double weather's two grow about the first's middle, so that the second moves out as they grow
+        if (!previewing && weatherMiddleKnown[0]) { cx=weatherMiddle[0][0]; cy=weatherMiddle[0][1]; }
+        else {
+            ClockBounds own;
+            for (UINT i=0;i<vertices;i++) { float v[2]; memcpy(v,&scaledVertices[size_t(i)*stride],sizeof(v)); own.Add(v[0],v[1]); }
+            cx=(own.left+own.right)/2; cy=(own.top+own.bottom)/2;
+        }
+        ScaleScreenVertices(scaledVertices.data(),vertices,stride,cx,cy,weatherScale);
+        scaling=true;
+        device->DrawPrimitiveUP(t,count,scaledVertices.data(),stride);
+        scaling=false;
+        return true;
     }
     void ProbeDevice(IDirect3DDevice8* device, const D3DVIEWPORT8& viewport, const Drawing& drawing) {
         probe.replayFrame=Shared.Frame; probe.viewport=viewport; probe.scene=inScene;
@@ -246,7 +281,7 @@ public:
     void Release() override {
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
-        GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
+        GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         GiveArrows(Arrows); Give(WindowDetour); blocking=targetScope=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
@@ -262,8 +297,10 @@ public:
     bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { Native(false,nullptr,0,0); return Block(); }
     bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { Native(false,nullptr,0,0); return Block(); }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
+        if (scaling) return false; // our own scaled copy, on its way to the device
         Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
-        return Block();
+        if (Block()) return true;
+        return ScaleIcon(t,count,data,stride);
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE,UINT,UINT vertices,UINT,const void*,D3DFORMAT,const void* data,UINT stride) override {
         Native(true,data,stride,vertices); return Block();
@@ -285,8 +322,8 @@ public:
             IconCalls.original ? "taken" : "not found (the game's icons only)",
             Hud.HideIcons & HUD_ICON_DAY ? "day " : "", Hud.HideIcons & HUD_ICON_WEATHER ? "weather" : (Hud.HideIcons ? "" : "none"),
             Hud.IconRect[0][0],Hud.IconRect[0][1],Hud.IconFrame[0],Hud.IconRect[1][0],Hud.IconRect[1][1],Hud.IconFrame[1]); write(line);
-        snprintf(line,sizeof(line),"[uihook:hud] weather icon moved %d of the game's units; all weather shown: 0x%02x (banks %s)",
-            int(Hud.WeatherShift),unsigned(Hud.PreviewWeather & 0xff),bank ? "found" : "not found");
+        snprintf(line,sizeof(line),"[uihook:hud] weather icon moved %d of the game's units, scaled %.2f; all weather shown: 0x%02x (banks %s)",
+            int(Hud.WeatherShift),double(Hud.WeatherScale),unsigned(Hud.PreviewWeather & 0xff),bank ? "found" : "not found");
         write(line);
         snprintf(line,sizeof(line),"[uihook:hud] replay at frame %u: %u vertices, %u runs, captured %.0fx%.0f, drawn %.0f,%.0f to %.0f,%.0f",
             p.replayFrame,p.vertices,p.runs,p.width,p.height,p.minX,p.minY,p.maxX,p.maxY); write(line);
@@ -423,13 +460,15 @@ public:
             hideIcons=replaced && IconCalls.original ? Hud.HideIcons & (HUD_ICON_DAY|HUD_ICON_WEATHER) : 0;
             weatherShift=replaced && IconCalls.original ? (std::max)(-HUD_SHIFT_MOST,(std::min)(HUD_SHIFT_MOST,Hud.WeatherShift)) : 0;
             preview=replaced && IconCalls.original && bank ? Hud.PreviewWeather & 0xff : 0;
+            const float scale=Hud.WeatherScale;
+            weatherScale=replaced && IconCalls.original && scale>=HUD_SCALE_LEAST && scale<=HUD_SCALE_MOST ? scale : 1;
         }
         bounds=ClockBounds();
         for (auto& icon:iconBounds) icon=ClockBounds();
         clockViewportKnown=false;
         inClock=true;
         reinterpret_cast<void(__fastcall*)(void*,void*,int32_t,int32_t)>(ClockDetour.trampoline)(object,nullptr,x,y);
-        inClock=inText=hideText=false; inIcon=-1; hideIcons=0; weatherShift=0; preview=0;
+        inClock=inText=hideText=false; inIcon=-1; hideIcons=0; weatherShift=0; preview=0; weatherScale=1;
         if (compassGlobal && *compassGlobal==object) {
             PublishClockRect();
             const char* grid=static_cast<const char*>(object)+CLOCK_GRID_AT;
@@ -462,15 +501,17 @@ public:
         void** sprites=from ? *reinterpret_cast<void***>(from) : nullptr;
         if (!sprites) return;
         const bool was=blocking;
-        blocking=false;
+        blocking=false; previewing=true;
         for (int i=0;i<8;i++) {
             auto* sprite=static_cast<uint8_t*>(sprites[i]);
             if (!sprite) continue;
             int16_t left=0,right=0; memcpy(&left,sprite+0x20,2); memcpy(&right,sprite+0x22,2);
             const int32_t width=right>left && right-left<=64 ? right-left : 16;
-            if (preview & (1u<<i)) IconCalls.original(sprite,nullptr,x+i*(width+2),y,color,a,b);
+            // each grown about its own middle: the places are as far apart as the grown icons and two
+            const int32_t step=static_cast<int32_t>(width*weatherScale+0.5f)+2;
+            if (preview & (1u<<i)) IconCalls.original(sprite,nullptr,x+i*step,y,color,a,b);
         }
-        blocking=was;
+        blocking=was; previewing=false;
     }
     void Slots(PartySlots& out) const {
         out.loaded=true;

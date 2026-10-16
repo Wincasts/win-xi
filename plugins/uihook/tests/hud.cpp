@@ -126,7 +126,13 @@ int main() {
     Give(detour);
     Check(!memcmp(image,native,sizeof(native)) && reinterpret_cast<ClockCall>(image)(object,nullptr,-20,47)==27,
         "unload restores native clock bytes and execution");
-    Check(sizeof(HudShared)==160,"HUD ABI 5 is 160 bytes, separate from Party ABI 3");
+    Check(sizeof(HudShared)==164,"HUD ABI 6 is 164 bytes, separate from Party ABI 3");
+    // a quad of screen-space vertices (x, y, z, rhw, colour, u, v) grown twice about its middle
+    struct Vertex { float x,y,z,rhw; uint32_t color; float u,v; };
+    Vertex quad[4]={{10,20,0,1,0xff112233,0,0},{26,20,0,1,0xff112233,1,0},{10,36,0,1,0xff112233,0,1},{26,36,0,1,0xff112233,1,1}};
+    ScaleScreenVertices(reinterpret_cast<uint8_t*>(quad),4,sizeof(Vertex),18,28,2);
+    Check(quad[0].x==2 && quad[0].y==12 && quad[3].x==34 && quad[3].y==44,"a weather icon twice as large about its middle");
+    Check(quad[1].u==1 && quad[2].v==1 && quad[3].color==0xff112233u && quad[3].rhw==1,"its colours and texture places untouched");
     // The text call: aimed at ours as a CALL, which takes the four arguments, and given back
     memset(image,0xcc,8192);
     uint8_t caller[]={0x68,0x80,0x80,0x80,0x80,0x6a,0x00,0x6a,0x07,0x6a,0xf6,0xe8,0,0,0,0,0x83,0xc4,0x10,0xc3};
