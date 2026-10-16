@@ -639,7 +639,7 @@ local function ApplyGameIcons(options)
     hiddenRow, hiddenOther = nil, nil;
 end
 
-local controllerTip = 'In the game\'s buff selector, A (confirm) removes the status its cursor is on, as a click does. Needs the buffhook plugin, which says which one that is.\nThe game keeps the rest of the controller: A is taken only while the cursor is on a status that can be removed.';
+local controllerTip = 'In the game\'s buff selector, A (confirm) removes the status its cursor is on, as a click does. Needs the uihook plugin (or legacy buffhook), which says which one that is.\nThe game keeps the rest of the controller: A is taken only while the cursor is on a status that can be removed.';
 
 local function DrawSettings(options)
     widgets.Label('Visible');
@@ -650,7 +650,7 @@ local function DrawSettings(options)
     widgets.Label('Anchor To Default Location');
     imgui.Checkbox('##buff.anchorToDefault', options.anchorToDefault);
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Puts the bar where the game puts its own status icons, in their place.\nWith the buffhook plugin loaded, the game draws its menus over the bar as it does over its icons, and the bar goes when they would.\nWithout it the bar is drawn over everything.');
+        imgui.SetTooltip('Puts the bar where the game puts its own status icons, in their place.\nWith uihook (or legacy buffhook) loaded, the game draws its menus over the bar as it does over its icons, and the bar goes when they would.\nWithout it the bar is drawn over everything.');
     end
     if options.anchorToDefault[1] then
         local problem = hook.Problem();
@@ -716,7 +716,7 @@ local function DrawSettings(options)
         ApplyGameIcons(options);
     end
     if imgui.IsItemHovered() then
-        imgui.SetTooltip('Stops the game drawing its own status icons, which this window stands in for.\nThey come back when this is switched off, or the addon is unloaded.\nAnchored with the buffhook plugin, the bar takes the place of the game\'s row of icons whatever this says.');
+        imgui.SetTooltip('Stops the game drawing its own status icons, which this window stands in for.\nThey come back when this is switched off, or the addon is unloaded.\nAnchored with uihook (or legacy buffhook), the bar takes the place of the game\'s row of icons whatever this says.');
     end
 
     if widgets.Header('Controller') then

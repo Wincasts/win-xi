@@ -32,9 +32,11 @@ local fonts = require('winxi.fonts')
 local titles = require('winxi.titles')
 
 local positioning = require('positioning')
+local nativePlacement = require('nativeposition')
 local windows = { }
 local automaticLayout, currentMainTop, currentAllianceBottom
-local automaticWindows = {}
+local automaticWindows = {} -- managed windows returning to saved manual positions
+local nativeTrackPosition = { 0, 0 }
 
 windows.List = {
     party1 = { name = 'xiframes.us.1', label = 'Party', group = 'party', section = 'party', pos = 'pos1', corner = 'corner1' },
@@ -97,6 +99,7 @@ end
 -- when it is no longer wanted, and fades with the player's idling as well. Any other window is simply
 -- there or not. wanted is whether the window should be showing.
 local function Alpha(window, wanted)
+    if windows.FollowNative and windows.FollowNative(window) then return wanted and 1 or 0 end
     if organize.IsActive() or not Fades(window.group) then
         return wanted and 1 or 0
     end
@@ -104,6 +107,7 @@ local function Alpha(window, wanted)
 end
 
 function windows.Lingers(window)
+    if windows.FollowNative and windows.FollowNative(window) then return false end
     if organize.IsActive() or not Fades(window.group) then
         return false
     end
@@ -111,6 +115,7 @@ function windows.Lingers(window)
 end
 
 function windows.IsFadedOut(group)
+    if windows.NativeBehaviorGroups and windows.NativeBehaviorGroups[group] then return false end
     return Fades(group) and fade.Alpha() <= 0.01
 end
 
@@ -119,9 +124,11 @@ end
 local cornerGiven = setmetatable({ }, { __mode = 'k' })
 
 function windows.UpdatePositions(mainHeight, targetHeight, allianceHeight)
-    local display = imgui.GetIO().DisplaySize
-    automaticLayout = options.automaticPositioning[1] and mainHeight
-        and positioning.Layout(display.x, display.y, mainHeight, targetHeight, allianceHeight) or nil
+    automaticLayout=nil
+    if options.automaticPositioning[1] and mainHeight then
+        local display=imgui.GetIO().DisplaySize
+        automaticLayout=positioning.Layout(display.x,display.y,mainHeight,targetHeight,allianceHeight)
+    end
     currentMainTop, currentAllianceBottom = nil, nil
 end
 
@@ -143,7 +150,8 @@ function windows.Draw(window, content, wanted, growFrom)
 
     baseFlags = baseFlags or bit.bor(ImGuiWindowFlags_NoDecoration)
     local flags = baseFlags
-    if options.clickThrough[1] and not organize.IsActive() then
+    local nativeWindow = windows.Native and windows.Native(window)
+    if (options.clickThrough[1] or (nativeWindow and windows.BlockNativeInputs)) and not organize.IsActive() then
         flags = bit.bor(flags, ImGuiWindowFlags_NoInputs)
     end
 
@@ -157,16 +165,22 @@ function windows.Draw(window, content, wanted, growFrom)
         or window == windows.List.party2 and 'party2'
         or window == windows.List.party3 and 'party3'
         or window == windows.List.main and 'main'
-    local automatic = automaticLayout ~= nil and positioning.Managed(key)
-    local held = not automatic and growFrom ~= nil and not organize.IsLinked(window.name)
+        or window == windows.List.sub and 'sub'
+        or window == windows.List.tot and 'tot'
+    local nativeRect = nativeWindow and nativePlacement.Enabled(options,key) and windows.NativeRect and windows.NativeRect(window) or nil
+    local defaultAnchored = nativeRect ~= nil
+    local automatic = not defaultAnchored and not nativePlacement.ManualOverride(options,key)
+        and automaticLayout ~= nil and positioning.Managed(key)
+    local held = not automatic and not defaultAnchored and growFrom ~= nil and not organize.IsLinked(window.name)
     if not held then
         flags = bit.bor(flags, ImGuiWindowFlags_AlwaysAutoResize)
     end
     imgui.SetNextWindowSize(windowSize)
 
     local section = options[window.section]
-    if automatic then
+    if automatic or defaultAnchored then
         automaticWindows[window.name] = true
+        if defaultAnchored then flags=bit.bor(flags,ImGuiWindowFlags_NoMove) end
     else
         organize.Place(window.name, section[window.pos])
         if automaticWindows[window.name] then
@@ -204,7 +218,7 @@ function windows.Draw(window, content, wanted, growFrom)
         anchor.Measure(window.name, growFrom, content, padding)
         imgui.PopStyleVar()
         anchor.Place(window.name, growFrom)
-    elseif not automatic and window.corner ~= nil and section[window.corner] ~= nil then
+    elseif not automatic and not defaultAnchored and window.corner ~= nil and section[window.corner] ~= nil then
         windows.ForgetCorner(window)
     end
 
@@ -218,7 +232,16 @@ function windows.Draw(window, content, wanted, growFrom)
     imgui.PopStyleColor(2)
 
     if isOpen then
-        if automatic then
+        if defaultAnchored then
+            local width,height=imgui.GetWindowSize()
+            local display=imgui.GetIO().DisplaySize
+            local x,y=nativePlacement.Place(key,nativeRect,display.x or display[1],display.y or display[2],width,height,
+                windows.FollowNative and windows.FollowNative(window))
+            if x then
+                automaticPosition[1],automaticPosition[2]=x,y
+                imgui.SetWindowPos(window.name,automaticPosition)
+            end
+        elseif automatic then
             local width, height = imgui.GetWindowSize()
             local left, top = positioning.Place(key, width, height, automaticLayout, currentMainTop, currentAllianceBottom)
             automaticPosition[1], automaticPosition[2] = left, top
@@ -239,7 +262,10 @@ function windows.Draw(window, content, wanted, growFrom)
             end
         end
 
-        shadow.Draw()
+        -- winxi's window shadow uses the shared BACKGROUND draw list, not this window's list.
+        -- Do not leave an uncaptured shadow over the game while the window itself is native-rendered.
+        -- Bar shadows are window geometry and are still captured normally.
+        if not nativeWindow then shadow.Draw() end
         backgrounds.Draw(background, look.BackgroundColor)
 
         imgui.PushStyleColor(ImGuiCol_Text, look.TextColor)
@@ -251,12 +277,19 @@ function windows.Draw(window, content, wanted, growFrom)
 
         borders.Draw(borderTexture, titles.Gap(window.label))
         titles.Draw(window.label)
-        if not automatic then organize.Track(window.name, section[window.pos]) end
+        if defaultAnchored then
+            -- Linked manual children may follow the live parent, but never write native coordinates
+            -- over the user's saved manual position/corner. Alliances have separate parent rectangles.
+            organize.Track(window.name,nativeTrackPosition)
+        elseif not automatic then organize.Track(window.name, section[window.pos]) end
 
         imgui.PopStyleVar()
         imgui.PopStyleColor()
     end
 
+    -- Only opted-in real HUD windows are captured, never off-screen anchor measurements,
+    -- tooltips or settings. Capture synchronously while this is still ImGui's current window.
+    if isOpen and nativeWindow and windows.Capture then windows.Capture(window) end
     imgui.PopStyleVar(2)
     imgui.End()
     imgui.PopStyleVar()

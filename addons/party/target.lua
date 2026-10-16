@@ -22,6 +22,7 @@ target.Samples = {
 
 -- Which entity each window is for, by its index, or 0 for none. settings say which windows are wanted.
 function target.Indexes(settings)
+    if not settings.showMain[1] and not settings.showSub[1] and not settings.showTot[1] then return 0,0,0 end
     local targets = AshitaCore:GetMemoryManager():GetTarget()
     local mainIndex = targets:GetTargetIndex(0)
     local mainActive = targets:GetIsActive(0) == 1
@@ -36,12 +37,15 @@ function target.Indexes(settings)
     -- the target of target comes from the target itself, so that it still shows when the target's
     -- own window is switched off
     mainIndex = (mainActive and mainIndex ~= 0) and mainIndex or 0
-    local mainEntity = mainIndex ~= 0 and perf.Entity(mainIndex) or nil
-    local totIndex = mainEntity and mainEntity.TargetedIndex or 0
+    local totIndex=0
+    if settings.showTot[1] and mainIndex~=0 then
+        local mainEntity=perf.Entity(mainIndex)
+        totIndex=mainEntity and mainEntity.TargetedIndex or 0
+    end
 
     return settings.showMain[1] and mainIndex or 0,
         (settings.showSub[1] and subActive) and subIndex or 0,
-        settings.showTot[1] and totIndex or 0
+        totIndex
 end
 
 -- The lowest bit of an entity's spawn flags is set for a player character, and for nothing else

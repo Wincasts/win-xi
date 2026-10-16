@@ -1,6 +1,6 @@
 -- roster: who is in the alliance, read from the game as lines for frames.lua to draw.
 --
---     roster.Counts()                              how many members each of the three parties has
+--     roster.Counts()                              three member counts, then whether still in a party
 --     roster.Members(list, sample, sortByRole, partyCursor)
 --                                                  the lines of party 1, 2 or 3, in the order to list them;
 --                                                  partyCursor is the place the game's party cursor is on, or nil
@@ -393,7 +393,11 @@ end
 
 function roster.Counts()
     local memory = AshitaCore:GetMemoryManager():GetParty()
-    return memory:GetAlliancePartyMemberCount1(), memory:GetAlliancePartyMemberCount2(), memory:GetAlliancePartyMemberCount3()
+    local own,second,third=memory:GetAlliancePartyMemberCount1(),memory:GetAlliancePartyMemberCount2(),memory:GetAlliancePartyMemberCount3()
+    -- The last remaining leader is still in a party until they leave/disband it. Use the same
+    -- native leader flag as the member badge, not just a one-person roster, to distinguish solo.
+    local inParty=own>1 or second>0 or third>0 or (own>0 and bit.band(memory:GetMemberFlagMask(0),4)~=0)
+    return own,second,third,inParty
 end
 
 -- An entity must not be kept from one frame to the next: each member's is looked up afresh, in case

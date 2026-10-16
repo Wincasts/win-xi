@@ -22,7 +22,8 @@ Each addon's folder has a README with all of its commands and settings.
 
 **buff**, **inventory**, **name**, **party** and **trigger** are released one at a time, on the
 [Releases](https://github.com/Wincasts/win-xi/releases) page. Each zip has everything the addon needs:
-the `winxi` library, `winxisettings`, and with name the `namehook` plugin, with buff the `buffhook` plugin, with party `hideparty`.
+the `winxi` library, `winxisettings`, and with name the `namehook` plugin. New buff/party packages include
+`uihook` for native UI replacement; party also includes `hideparty` for the ordinary overlay mode.
 Extract it into your Ashita folder (the one holding `addons`, `plugins` and `config`), merging
 folders, and follow `addons/<the addon>/INSTALL.txt`. If an addon says it needs a newer winxi,
 install the newest release of any of them.
@@ -36,9 +37,16 @@ The others, or anything newer than its release, can be copied from here. Every a
 - `addons/<the addon>` for each one you want
 - `addons/winxisettings`, to change the shared look
 - for `name`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
-- for `buff`, also `plugins/buffhook.dll` (see [plugins/buffhook](plugins/buffhook))
+- for `buff`, `clock` or native `party` replacement, also `plugins/uihook.dll` (build/install:
+  [plugins/uihook](plugins/uihook))
 
-Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first; for `buff`, `/load buffhook`.
+Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first; for `buff` or native
+`party`, `/load uihook` first. Uihook replaces `buffhook` and `partyhook`; unload those before loading
+it and remove their startup commands. Party native rendering remains opt-in; unload `hideparty`
+before enabling it. The experimental [clock addon](addons/clock/README.md) uses uihook 0.2 to
+replace only the native clock/day/weather display; unload `hidecompass` first. Clock requires winxi 5.
+Clock and compass hooks are available independently; no custom compass UI is included yet.
+See the uihook README for migration and testing steps.
 
 ## What else is here
 

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Compile the migrated modules' signature/ABI/detour fixtures and run under Wine.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TOOLCHAIN="${TOOLCHAIN:-$HERE/../../.toolchain}"
+MSVC="${MSVC_PATH:-$TOOLCHAIN/msvc}"
+OUT="$HERE/build/tests"
+mkdir -p "$OUT"
+for module in buffs party hud; do
+    clang-cl --target=i686-pc-windows-msvc /nologo /std:c++latest /Od /MT /EHa /W4 /permissive- \
+        /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS -Wno-keyword-macro \
+        /imsvc "$MSVC/crt/include" /imsvc "$MSVC/sdk/include/ucrt" /imsvc "$MSVC/sdk/include/um" /imsvc "$MSVC/sdk/include/shared" \
+        /c "/Fo$OUT/$module.obj" "$HERE/tests/$module.cpp"
+    lld-link /nologo /subsystem:console "/out:$OUT/$module.exe" "$OUT/$module.obj" \
+        "/libpath:$MSVC/crt/lib/x86" "/libpath:$MSVC/sdk/lib/ucrt/x86" "/libpath:$MSVC/sdk/lib/um/x86"
+    WINEPREFIX="$OUT/prefix" WINEDEBUG=-all wine "$OUT/$module.exe"
+done
+cd "$HERE/../.."
+luajit tests/nativehud_check.lua
+luajit tests/clock_check.lua
+luajit tests/party_hook_check.lua
+UIHOOK_TEST_PLUGIN=uihook luajit tests/party_hook_check.lua
+luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_check.lua
+UIHOOK_TEST_PLUGIN=uihook luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_check.lua

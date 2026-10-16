@@ -148,6 +148,10 @@ Isolated allocation measurements before → after:
 
 The new cached-reservation and unchanged-status-filtering checks also measure **0 bytes per call**
 with JIT disabled after warm-up. These isolated budgets exclude rendering-library allocations.
+Native renewal/rectangle/anchoring paths also have zero-allocation budgets; idle-disabled hooks make
+no repeated DLL calls. Manual layout avoids unused display queries, and target polling skips discarded
+ToT entity lookups or all target reads when every target window is disabled. Native capture/replay
+optimization details and the CPU-only benchmark are in the [partyhook README](../../plugins/partyhook/README.md#optimization-checks).
 
 Empty alliance slots skip stats, jobs and buffs. Pet options invalidate the pet snapshot
 immediately rather than waiting for its polling interval. Invitations and automaton state
@@ -179,6 +183,57 @@ selecting a border keeps your current theme background.
 For that look, use a dark navy background in Winxi Theme. Keep theme padding at least **3px**
 to leave room for these borders. Regenerate the assets with
 `python3 tools/generate_party_borders.py` (requires Pillow); no extracted game art is used.
+
+## Experimental Native HUD Replacement
+
+Use [uihook](../../plugins/uihook/README.md) for new native-rendering installations; it combines
+buff and party/target support. Load `/load uihook` instead of `/load partyhook`, and never load both.
+The updated addon still supports legacy partyhook for rollback. The behavior and testing notes below
+apply to both plugins.
+
+The opt-in `partyhook` plugin captures existing Party windows and replays them at the native HUD's
+rendering stage, rather than as a final overlay. Native logic keeps running; only GPU submissions
+inside the selected native window's render call are blocked. Normal rendering remains the default.
+User testing confirms party/rearranging, chat hiding, target/native arrows, menu overlap, subtarget
+range colours, rapid switching/despawns/doors, cutscenes, interface hide/show and independent toggles.
+**Zoning remains untested**, as do font/device-reset recovery and broader client compatibility.
+
+Build/install/update and live checklist: [plugins/partyhook](../../plugins/partyhook/README.md).
+**This addon requires partyhook 0.3 (shared ABI 3); update both addon and DLL, not just the addon.**
+Unload Party and partyhook before replacing the DLL; keep hideparty unloaded.
+
+- `/pt native on|off`: party/alliance lists, including embedded pet rows.
+- `/pt native target on|off`: independent target replacement. Captures main, sub-target and target-of-target
+  windows together at the native target-box stage; normal Target settings still select which are shown.
+- `/pt native status`: concise mode/readiness status; cumulative debug counters are hidden.
+- **Behavior → Native HUD Replacement (Experimental)** exposes both saved opt-ins.
+
+Target mode preserves the **game's own overhead main/subtarget arrows**, including placement, animation
+and range tints, by allowing their two verified native draw calls through HUD suppression. No Lua
+replacement cursor is drawn. All custom target windows share the native target window's lifecycle;
+no entity (for example some doors) may mean an arrow without a custom information bar.
+
+Manual/automatic positions and styling remain the defaults, except outer window drop shadows are
+disabled for captured windows; bar/text shadows remain.
+
+**Use Default UI Positioning is hidden and forcibly disabled for this testing build**, including old
+saved opt-ins. Its alliance-location controls are hidden too. Manual positions, corners and links are
+preserved; ordinary Automatic Positioning remains available. With Automatic Positioning off, arrange
+alliances independently in Organize. Alliance 3 is linked below Alliance 2 by default, not the main
+party; use **Unlink** to move all three lists separately.
+
+- **Follow Default UI Behavior** remains a separate opt-in for native-rendered groups: follow the native
+  window lifecycle rather than custom chat/map hide rules, keep native member order, allow solo-party
+  drawing, and disable addon idle/presence fading. Loading, interface-hide and cutscene guards remain.
+  Styles, sizes, pet/buff choices and non-native groups keep their normal settings. This is not a
+  pixel-identical recreation of stock frames or all their animations.
+
+Default behavior remains off by default and **has not yet been live-tested**. Organize uses ordinary
+windows and temporarily restores stock HUD frames; it edits saved manual positions. Native anchoring
+cannot be reactivated through saved settings while parked.
+With default behavior off, visibility-rule hiding renews empty replacements so stock frames stay suppressed.
+Disabling one mode leaves the other untouched. Do not run hideparty alongside either mode.
+The plugin is built/installed separately, not automatically included in the existing release package.
 
 ## Native Selection Cursor
 
