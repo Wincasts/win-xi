@@ -18,6 +18,7 @@ local fonts = require('winxi.fonts')
 local organize = require('winxi.organize')
 local options = require('options')
 local windows = require('windows')
+local nativePlacement = require('nativeposition')
 local profiles = require('profiles')
 local statuspicker = require('statuspicker')
 
@@ -167,7 +168,9 @@ end
 -- where a window is: typed in, the window goes there, and stays there if it was held by a corner
 local disabledPosition = { 0, 0 }
 function controls.place(entry, value, section, saved)
-    local managed = saved.automaticPositioning[1] and entry.window ~= 'sub' and entry.window ~= 'tot'
+    local defaultManaged=nativePlacement.Enabled(saved,entry.window)
+    local managed=defaultManaged or (saved.automaticPositioning[1] and not nativePlacement.ManualOverride(saved,entry.window)
+        and entry.window ~= 'sub' and entry.window ~= 'tot')
     if managed then
         disabledPosition[1], disabledPosition[2] = value[1], value[2]
         if imgui.BeginDisabled then
@@ -178,7 +181,7 @@ function controls.place(entry, value, section, saved)
             imgui.TextDisabled(('%d, %d'):format(value[1], value[2]))
         end
         imgui.SameLine()
-        imgui.TextDisabled('Managed automatically')
+        imgui.TextDisabled(defaultManaged and 'Default UI location' or 'Managed automatically')
     elseif imgui.InputInt2(Id(entry), value) then
         local which = windows.List[entry.window]
         imgui.SetWindowPos(which.name, value)
@@ -272,6 +275,19 @@ local function DrawGlobal(saved)
         widgets.Label('Automatic Positioning')
         if imgui.Checkbox('##party.automaticPositioning', saved.automaticPositioning) then Save() end
         Tooltip('Main party: 15px from the right and bottom. Target: 5px above the main party.\nAlliance 2: right edge, with room reserved for full parties and a 35px gap above the fully expanded Target. Alliance 3 stays linked 5px below Alliance 2.\nSub-target and target of target are unchanged. Manual positions are preserved; disable to use them.\nDoes not resize frames. If the full layout cannot fit, windows are clamped to the screen and gaps may be smaller.')
+    end
+
+    if widgets.Header('Native HUD Replacement (Experimental)') then
+        widgets.Label('Replace Native Lists')
+        if imgui.Checkbox('##party.nativeParty', saved.nativeParty) then Save() end
+        Tooltip('Requires /load uihook (legacy partyhook also supported). Unload hideparty first. Replays the three Party lists in the native UI render order, keeping native selection logic. Organize mode uses ordinary windows. /pt native status shows diagnostics.')
+        widgets.Label('Replace Native Target')
+        if imgui.Checkbox('##party.nativeTarget', saved.nativeTarget) then Save() end
+        Tooltip('Requires uihook (or legacy partyhook 0.3 / ABI 3). Main, sub-target and target-of-target windows replace the stock target box together. The client still draws its own overhead target/subtarget arrows, with native positions and range colours. /pt native target on|off. Independent of the party-list option.')
+        widgets.Label('Follow Default UI Behavior')
+        if imgui.Checkbox('##party.nativeBehavior',saved.nativeBehavior) then Save() end
+        Tooltip('For native-rendered groups only: follow whether the client draws the HUD instead of Party hide rules, use native party order, show the solo member when the client does, and skip addon idle/presence fading. Native menus still cover the frames and the original target arrows are preserved. Zoning, interface hiding and cutscenes are always guarded. Other windows keep their normal options. Styles, pet/buff choices and frame sizes are unchanged.')
+        if saved.nativeParty[1] or saved.nativeTarget[1] then imgui.TextWrapped(require('hook').Status()) end
     end
 
     if widgets.Header('Visibility') then

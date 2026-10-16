@@ -11,7 +11,7 @@ Each zip holds the addon, everything it needs and nothing else:
     addons/winxisettings/        the shared look's settings window, in every zip
     addons/hideparty/            with party
     plugins/namehook.dll         with name, built here, with its GPL license and where its source is
-    plugins/buffhook.dll         with buff, built here, with its MIT license and where its source is
+    plugins/uihook.dll           with buff/party, built here, with its MIT license and where its source is
 
 The files are the commit's (git archive of HEAD), never the working folder's, so the zip is what is on
 GitHub at that commit. Anything uncommitted in what goes into a zip stops the packaging. Run the checks
@@ -35,16 +35,17 @@ REPOSITORY = 'Wincasts/win-xi'
 
 # What each release brings besides the addon, winxi and winxisettings
 RELEASES = {
-    'buff': {'plugin': 'buffhook'},
+    'buff': {'plugin': 'uihook'},
+    'clock': {'plugin': 'uihook'},
     'inventory': {},
     'name': {'plugin': 'namehook'},
-    'party': {'addons': {'hideparty': 'forks/addons/hideparty'}},
+    'party': {'plugin': 'uihook', 'addons': {'hideparty': 'forks/addons/hideparty'}},
     'trigger': {},
 }
 # MIT, as the repository's LICENSE says: each is given a copy of it. The others keep their own terms.
-MIT = {'addons/libs/winxi', 'addons/winxisettings', 'addons/buff', 'addons/name', 'addons/trigger'}
+MIT = {'addons/clock', 'addons/libs/winxi', 'addons/winxisettings', 'addons/buff', 'addons/name', 'addons/trigger'}
 # The terms each plugin is under: namehook is a fork of GPL code, buffhook this repository's own
-PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'buffhook': 'the MIT License'}
+PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'buffhook': 'the MIT License', 'uihook': 'the MIT License'}
 # Kept with the addons to make their art and sounds, and of no use in the game
 LEFT_OUT = ('*.py', '*.sh')
 # Text no release should hold: the author's character's settings folder

@@ -24,6 +24,8 @@ run mark       addons/mark/mark.lua     mark_stats_ui_check.lua
 run mark       addons/mark/mark.lua     mark_database_check.lua
 luajit tests/mark_stats_check.lua
 luajit tests/winxi_version_check.lua
+luajit tests/nativehud_check.lua
+luajit tests/clock_check.lua
 luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
 luajit tests/mark_data_check.lua
@@ -34,6 +36,7 @@ run debuffs    tests/empty.lua          debuffs_check.lua
 run statusicons tests/empty.lua         winxi_statusicons_mixed_check.lua
 run party      addons/party/party.lua party_check.lua
 run party      addons/party/party.lua party_lifecycle_check.lua
+run party      addons/party/party.lua party_solo_state_check.lua
 run party      addons/party/party.lua party_performance_check.lua
 run party      addons/party/party.lua party_optimization_check.lua
 run party      addons/party/party.lua party_customization_check.lua
@@ -41,6 +44,10 @@ run party      addons/party/party.lua party_tracking_check.lua
 run party      addons/party/party.lua party_borders_check.lua
 run party      addons/party/party.lua party_resolution_check.lua
 run party      addons/party/party.lua party_rearrange_check.lua
+luajit tests/party_hook_check.lua
+luajit tests/party_hook_performance_check.lua
+run party      addons/party/party.lua party_hook_integration_check.lua
+run party      addons/party/party.lua party_native_positioning_check.lua
 run party      addons/party/party.lua party_cursor_check.lua
 run party      addons/party/party.lua party_dropdowns_check.lua
 run party      addons/party/party.lua winxi_fonts_check.lua

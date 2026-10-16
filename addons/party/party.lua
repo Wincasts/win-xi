@@ -48,6 +48,11 @@ local geometry = require('geometry')
 local details = require('details')
 
 local saved = settings.load(options.Defaults())
+local nativeHook -- loaded only when the experimental mode is requested
+local nativeBehaviorGroups = { party=false, target=false }
+local function FollowNative(window)
+    return saved.nativeBehavior[1] and nativeHook and nativeHook.Uses(window) or false
+end
 
 -- Brings the settings up to date, and hands winxi what is its to fill in. Run when the settings are
 -- loaded or replaced, not every frame: everything handed over is a table that is then changed in place.
@@ -78,7 +83,7 @@ local rearranging = false
 
 local function DrawPartyContent()
     local own = drawing.list == 1
-    local members = roster.Members(drawing.list, drawing.sample, saved.party.sortByRole[1] and not rearranging, partyCursor)
+    local members = roster.Members(drawing.list, drawing.sample, saved.party.sortByRole[1] and not rearranging and not nativeBehaviorGroups.party, partyCursor)
     local petLines = drawing.pets
     local hasPets = petLines ~= nil and #petLines > 0
 
@@ -135,9 +140,10 @@ local function DrawParty(list, sample)
 end
 
 local function DrawParties(sample)
-    local count1, count2, count3 = roster.Counts()
+    local count1,count2,count3,inParty=roster.Counts()
+    inParty=inParty or count1>1 or count2>0 or count3>0
     windows.List.party1.label = (sample or count2 > 0 or count3 > 0) and 'Alliance'
-        or (count1 > 1 and 'Party' or 'Solo')
+        or (inParty and 'Party' or 'Solo')
     if sample then
         for list = 1, 3 do
             DrawParty(list, true)
@@ -147,7 +153,8 @@ local function DrawParties(sample)
 
     -- the player's own is hidden while solo if that is set, but not while there is an invitation to be seen
     local waiting = notices.Invitation() ~= nil and saved.party.showInvites[1]
-    if (saved.party.hideWhenSolo[1] and (count1 > 1 or (waiting and count1 > 0)))
+    if (nativeBehaviorGroups.party and count1 > 0)
+    or (saved.party.hideWhenSolo[1] and count1 > 0 and (inParty or waiting))
     or (not saved.party.hideWhenSolo[1] and count1 > 0) then
         DrawParty(1, false)
     end
@@ -276,6 +283,7 @@ settings.register('settings', 'settings_update', function(s)
 end)
 
 ashita.events.register('unload', 'unload_handler', function()
+    if nativeHook then nativeHook.Stop() end
     settings.save()
 end)
 
@@ -293,18 +301,44 @@ local function Present()
     UpdateTracking()
     -- Keep settings and lifecycle current, but do no layout or pet polling while hidden.
     if not saved.showConfig[1] then winxiOrganize.SetActive(false) end
-    if winxiGame.IsHidden(saved.hide) then return end
+    windows.Capture, windows.Native, windows.NativeRect, windows.FollowNative, windows.BlockNativeInputs = nil, nil, nil, nil, false
+    nativeBehaviorGroups.party,nativeBehaviorGroups.target=false,false
+    windows.NativeBehaviorGroups=nativeBehaviorGroups
     local organizing = winxiOrganize.IsActive()
+    if (saved.nativeParty[1] or saved.nativeTarget[1]) and not nativeHook then nativeHook = require('hook') end
+    -- Renew empty replacements BEFORE the hiding rules, for each independently enabled group.
+    -- Expanded chat/maps hide the replacement too, rather than allowing stock HUD frames back.
+    local native = nativeHook and nativeHook.Begin(
+        saved.nativeParty[1] and saved.party.enabled[1] and not organizing,
+        saved.nativeTarget[1] and saved.target.enabled[1] and not organizing)
+    local hidden=winxiGame.IsHidden(saved.hide)
+    if native then
+        nativeBehaviorGroups.party=saved.nativeBehavior[1] and nativeHook.Uses(windows.List.party1)
+        nativeBehaviorGroups.target=saved.nativeBehavior[1] and nativeHook.Uses(windows.List.main)
+    end
+    -- Native behavior follows the client's HUD lifecycle. Hard guards affect native groups only;
+    -- ordinary groups still obey their own saved hide rules (including any explicit overrides).
+    local followsNative=nativeBehaviorGroups.party or nativeBehaviorGroups.target
+    local nativeHidden=followsNative
+        and (winxiGame.IsLoading() or winxiGame.IsInterfaceHidden() or winxiGame.IsEventHappening())
+    if hidden and (not followsNative or nativeHidden) then return end
+    if native then
+        windows.Capture,windows.Native,windows.NativeRect,windows.FollowNative=nativeHook.Capture,nativeHook.Uses,nativeHook.Rect,FollowNative
+        local menu = winxiGame.MenuName():match('^menu%s+(%S+)%s*$')
+        windows.BlockNativeInputs = hidden or (menu ~= nil and menu ~= 'inline')
+    end
     winxiOrganize.BeginFrame()
     windows.UpdateFade(rearranging)
-    local showParty = saved.party.enabled[1] and not windows.IsFadedOut('party')
-    local showTarget = saved.target.enabled[1] and not windows.IsFadedOut('target')
+    local showParty = saved.party.enabled[1] and (not hidden or nativeBehaviorGroups.party)
+        and not (nativeHidden and nativeBehaviorGroups.party) and not windows.IsFadedOut('party')
+    local showTarget = saved.target.enabled[1] and (not hidden or nativeBehaviorGroups.target)
+        and not (nativeHidden and nativeBehaviorGroups.target) and not windows.IsFadedOut('target')
     if not showParty and not showTarget then
         winxiOrganize.EndFrame()
         return
     end
 
-    details.BeginFrame(not saved.clickThrough[1])
+    details.BeginFrame(not saved.clickThrough[1] and not windows.BlockNativeInputs)
     if saved.automaticPositioning[1] then
         local count = 0
         if saved.pets.enabled[1] then
@@ -364,7 +398,23 @@ ashita.events.register('command', 'command_handler', function(e)
     e.blocked = true
 
     local subcommand = (e.command:match('^%s*%S+%s+(%S+)') or ''):lower()
-    if subcommand == 'menu' then
+    if subcommand == 'native' then
+        local choice = (e.command:match('^%s*%S+%s+%S+%s+(%S+)') or 'status'):lower()
+        local isTarget = choice == 'target'
+        if isTarget then choice = (e.command:match('^%s*%S+%s+%S+%s+%S+%s+(%S+)') or 'status'):lower() end
+        if choice == 'on' or choice == 'off' then
+            saved[isTarget and 'nativeTarget' or 'nativeParty'][1] = choice == 'on'
+            if nativeHook and choice == 'off' then nativeHook.Disable(isTarget) end
+            settings.save()
+            print(('[party] Native %s replacement %s. Unload hideparty before enabling; /pt native status for diagnostics.'):format(isTarget and 'target' or 'party', choice))
+        elseif choice ~= 'status' then
+            print('[party] Usage: /pt native [target] on|off|status')
+            return
+        end
+        nativeHook = nativeHook or require('hook')
+        print('[party] ' .. nativeHook.Status())
+        return
+    elseif subcommand == 'menu' then
         print(('[party] Current native menu: %q'):format(winxiGame.MenuName()))
         return
     elseif subcommand == 'perf' then

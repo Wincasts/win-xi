@@ -302,6 +302,12 @@ function options.Defaults()
         hide = T{ DuringEvent = true, UnderChat = true, UnderMap = true, WhileLoading = true, WithInterface = true },
         clickThrough = T{ true },
         automaticPositioning = T{ false },
+        nativeParty = T{ false }, -- experimental partyhook rendering; never enabled by migration
+        nativeTarget = T{ false }, -- independent opt-in
+        nativePositioning = T{ false }, -- parked/hidden; forcibly disabled during settings completion
+        nativeBehavior = T{ false }, -- native draw visibility/order, without addon idle/presence fading
+        nativeAlliance2 = T{ true },
+        nativeAlliance3 = T{ true },
         useSharedTheme = true,
         theme = T{ }, -- filled from the shared theme if the addon leaves it (winxi.theme's Configure)
         fade = T{
@@ -457,6 +463,16 @@ function options.Complete(saved)
     CompleteEntries(saved)
     if type(saved.showConfig) ~= 'table' then saved.showConfig = T{ false } end
     if type(saved.clickThrough) ~= 'table' then saved.clickThrough = T{ false } end
+    if type(saved.nativeParty) ~= 'table' or type(saved.nativeParty[1]) ~= 'boolean' then
+        saved.nativeParty = T{ false }
+    end
+    if type(saved.nativeTarget) ~= 'table' or type(saved.nativeTarget[1]) ~= 'boolean' then
+        saved.nativeTarget = T{ false }
+    end
+    for key, default in pairs({ nativePositioning=false, nativeBehavior=false, nativeAlliance2=true, nativeAlliance3=true }) do
+        if type(saved[key]) ~= 'table' or type(saved[key][1]) ~= 'boolean' then saved[key]=T{ default } end
+    end
+    saved.nativePositioning[1]=false -- paused for testing, including previously enabled settings
     if type(saved.automaticPositioning) ~= 'table' or type(saved.automaticPositioning[1]) ~= 'boolean' then
         saved.automaticPositioning = T{ false }
     end

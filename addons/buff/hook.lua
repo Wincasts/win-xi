@@ -1,6 +1,6 @@
--- The buffhook plugin, by way of the block it keeps in its DLL: it draws the anchored bar where, and
+-- The uihook buff module (or legacy buffhook), by way of the block it keeps in its DLL: it draws the anchored bar where, and
 -- when, the game draws its own row of status icons, in their place, so that the menus the game opens
--- over them are drawn over the bar too. See plugins/buffhook/README.md.
+-- over them are drawn over the bar too. See plugins/uihook/README.md.
 --
 --   hook.Block()          the plugin's block, or nil while it is not loaded, or not one this reads,
 --                         or has not taken the game's drawing of its icons
@@ -57,7 +57,7 @@ ffi.cdef[[
 
 local hook = {};
 
-hook.Plugin = 'buffhook';
+hook.Plugin = 'uihook';
 
 local MAGIC = '42554646484F4F4B2D53484152454400'; -- "BUFFHOOK-SHARED" and its 0
 local VERSION = 4;
@@ -73,15 +73,21 @@ local why = 'unloaded';
 local lookedAt = -LOOK_EVERY;
 
 local problems = {
-    unloaded = 'Load the buffhook plugin (/load buffhook) for the anchored bar to go under the menus that open over it, as the game\'s icons do. Without it the bar is drawn over everything.',
-    old      = 'The buffhook plugin loaded is not one this addon reads: install the plugin that came with it.',
-    mismatch = 'The buffhook plugin loaded is older or newer than this addon: install the plugin that came with it.',
-    unhooked = 'The buffhook plugin did not recognise this client\'s status icons: the anchored bar is drawn over everything.',
+    unloaded = 'Load the uihook plugin (/load uihook; legacy /load buffhook is also supported) for the anchored bar to go under the menus that open over it, as the game\'s icons do. Without it the bar is drawn over everything.',
+    old      = 'The native UI plugin loaded is not one this addon reads: install the plugin that came with it.',
+    mismatch = 'The native UI plugin loaded is older or newer than this addon: install the plugin that came with it.',
+    unhooked = 'The native UI plugin did not recognise this client\'s status icons: the anchored bar is drawn over everything.',
 };
 
 -- The block lives in the plugin's DLL, so it is let go of the moment the plugin is no longer loaded.
 local function Find()
-    if not AshitaCore:GetPluginManager():IsLoaded(hook.Plugin) then
+    local manager = AshitaCore:GetPluginManager();
+    local plugin = manager:IsLoaded('uihook') and 'uihook' or 'buffhook';
+    if hook.Plugin ~= plugin then
+        block, lookedAt = nil, -LOOK_EVERY;
+        hook.Plugin = plugin;
+    end
+    if not manager:IsLoaded(hook.Plugin) then
         block, why, lookedAt = nil, 'unloaded', -LOOK_EVERY;
         return nil;
     end

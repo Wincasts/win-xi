@@ -192,6 +192,10 @@ public:
     uint32_t GetFlags(void) const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, [[maybe_unused]] ILogManager* log, [[maybe_unused]] uint32_t id) override {
+        if (GetModuleHandleA("uihook.dll")) {
+            core->GetChatManager()->Write(0, false, CHAT_HEADER "uihook already owns status hooks; unload it first.");
+            return false;
+        }
         m_AshitaCore = core;
         Instance = this;
         MODULEINFO module = {};

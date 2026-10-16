@@ -718,7 +718,7 @@ window AddText (384,194) #000000E6 Target
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (bare): 638 calls
+## filled with sample data, the settings open (bare): 646 calls
 imgui Begin Party Settings
 imgui TextColored (1,0.75,0.55,1) [-] Mouse Interaction
 imgui Text Clickthrough:
@@ -728,6 +728,14 @@ imgui SameLine 22
 imgui NewLine
 imgui TextColored (1,0.75,0.55,1) [-] Positioning
 imgui Text Automatic Positioning:
+imgui SameLine 22
+imgui NewLine
+imgui TextColored (1,0.75,0.55,1) [-] Native HUD Replacement (Experimental)
+imgui Text Replace Native Lists:
+imgui SameLine 22
+imgui Text Replace Native Target:
+imgui SameLine 22
+imgui Text Follow Default UI Behavior:
 imgui SameLine 22
 imgui NewLine
 imgui TextColored (1,0.75,0.55,1) [-] Visibility

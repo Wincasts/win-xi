@@ -1,5 +1,9 @@
 # buffhook
 
+**Legacy standalone plugin.** New installations should use [uihook](../uihook/README.md), which
+includes this buff module alongside party/target replacement. Do not load both DLLs together.
+This document retains the buff rendering/protocol details.
+
 An Ashita v4 plugin that draws the `buff` addon's bar where, and when, the game draws its own row of
 status icons, in their place. The game's menus that open over its icons (the macro palettes, the
 main menu, and the rest) are drawn over the bar as they would be over them, a menu that covers part

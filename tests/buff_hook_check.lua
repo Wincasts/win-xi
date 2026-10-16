@@ -8,6 +8,7 @@ local imgui = require('imgui')
 local game = require('winxi.game')
 local icons = require('winxi.statusicons')
 local hook = require('hook')
+local plugin = os.getenv('UIHOOK_TEST_PLUGIN') or 'buffhook'
 
 for _, key in ipairs({ 'IsLoading', 'IsInterfaceHidden', 'IsEventHappening', 'IsChatExpanded', 'IsMapOpen' }) do
     game[key] = function() return false end
@@ -35,7 +36,7 @@ block.Version, block.Size, block.Hooked, block.Frame = 4, ffi.sizeof('buffhook_t
 block.Width, block.Height = 960, 540 -- the game's picture, half imgui's 1920 by 1080
 local written, at = {}, { ['75??8B4E0851B9'] = 100, ['7D??33C05EC20400C6'] = 200, ['85C00F??????????6A0232DBE8'] = 300 }
 ashita.memory.find = function(module, _, pattern)
-    if module == 'buffhook.dll' then return tonumber(ffi.cast('uintptr_t', holder)) end
+    if module == plugin .. '.dll' then return tonumber(ffi.cast('uintptr_t', holder)) end
     return at[pattern] or 0
 end
 ashita.memory.read_uint16 = function(pointer) return written[pointer] or pointer + 1 end
@@ -50,7 +51,7 @@ imgui.GetFontBaked = function() return baked end
 local o = H.options()
 o.fadeInOut[1] = false
 H.play(true)
-H.loaded('buffhook', true)
+H.loaded(plugin, true)
 
 local begins = H.calls.Begin or 0
 H.frames(1)
@@ -96,11 +97,11 @@ menu = ''
 H.ret.GetMousePos = { 0, 0 }; H.ret.IsItemHovered = { false }
 
 -- without the plugin, or with one that took nothing: a window, and the game's row hidden again
-H.loaded('buffhook', false); begins = H.calls.Begin
+H.loaded(plugin, false); begins = H.calls.Begin
 H.frames(1)
 H.print('no plugin: a window', H.calls.Begin > begins, '| the row hidden', written[100] == 0x9090 and written[200] == 0x9090,
     '| said in the settings', hook.Problem() ~= nil and hook.Problem():find('/load buffhook') ~= nil)
-H.loaded('buffhook', true); block.Hooked = 0; begins = H.calls.Begin
+H.loaded(plugin, true); block.Hooked = 0; begins = H.calls.Begin
 H.frames(1)
 H.print('a plugin that took nothing: a window', H.calls.Begin > begins, '| said', hook.Problem() ~= nil and hook.Problem():find('recognise') ~= nil)
 block.Hooked = 1; block.Frame = 20; H.frames(1)
