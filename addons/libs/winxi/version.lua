@@ -23,7 +23,7 @@
 -- 2, 3: fonts.Texture as it was tried, given only to testers
 -- 4: fonts.Texture gives the plugins' mark for imgui's font texture, fonts.TextureMark,
 --    fonts.TextureDetail
--- 5: nativehud clock/compass bridge for uihook HUD ABI 1
+-- 5: nativehud clock/compass bridge for uihook HUD ABI 2
 return {
     Number = 5,
 };

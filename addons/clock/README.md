@@ -27,12 +27,16 @@ be disabled independently in the client: the clock hook covers both radar-on and
 - `/clock` or `/clock status`: readiness/off status.
 - `/clock on`: enable replacement (default).
 - `/clock off`: release the clock slot; the stock clock returns.
-- `/clock pos <x> <y>`: set position in ImGui display pixels; `y=-1` uses the bottom-left default.
+- `/clock pos <x> <y>`: set position in ImGui display pixels.
+- `/clock pos native`: back on the game's clock (the default).
 - `/clock help`: command summary.
 
 Settings are saved per character. The display is intentionally basic: fixed font, background, no
-mouse interaction or configuration window. Defaults to x=20 and 105 pixels above the display bottom;
-this is a custom position, **not native anchoring**. It doesn't use winxi's full themed-window stack.
+mouse interaction or configuration window. By default its bottom-left corner sits on the bottom-left
+of the game's own clock, wherever uihook sees the game draw it, and it grows upward from there. It is
+drawn when the game draws its clock, so what the game draws afterwards (the chat log) covers it: a
+place of your own below the clock can be hidden. Until uihook has seen where the clock is, it sits 105
+pixels above the bottom-left of the screen. It doesn't use winxi's full themed-window stack.
 
 ## Behavior and limitations
 

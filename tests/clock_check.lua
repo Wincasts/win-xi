@@ -12,7 +12,9 @@ local handlers,calls,texts={},{},{}
 local current,ready=false,true
 local hook={Begin=function() calls[#calls+1]='begin'; return ready end,
     Capture=function() assert(current,'capture must happen before End'); calls[#calls+1]='capture'; return true end,
-    Stop=function() calls[#calls+1]='stop' end,Status=function() return 'Ready' end,Weather=function() return 7 end}
+    Stop=function() calls[#calls+1]='stop' end,Status=function() return 'Ready' end,Weather=function() return 7 end,
+    ClockRect=function() return nil end}
+local placed
 package.loaded.common={}
 package.loaded['winxi.version']={Number=5}
 package.loaded['ffxi.time']=time
@@ -21,7 +23,7 @@ package.loaded['winxi.nativehud']={Clock=0,new=function(index) assert(index==0,'
 package.loaded.settings={load=function(defaults) return defaults end,register=function() end,save=function() end}
 local guiBegins=0
 package.loaded.imgui={GetIO=function() return {DisplaySize={x=1920,y=1080}} end,
-    SetNextWindowPos=function(pos) assert(pos[1]==20 and pos[2]==975) end,
+    SetNextWindowPos=function(pos,cond,pivot) placed={pos[1],pos[2],pivot} end,
     Begin=function(name) assert(name=='clock.native'); current=true; guiBegins=guiBegins+1; return true end,
     TextUnformatted=function(line) assert(current); texts[#texts+1]=line end,
     End=function() assert(current); current=false end}
@@ -37,10 +39,18 @@ dofile('addons/clock/clock.lua')
 handlers.clock_load()
 handlers.clock_present()
 assert(not current and calls[#calls]=='capture' and #texts==4)
+assert(placed[1]==20 and placed[2]==975 and not placed[3],'no place from the game: the fallback above the bottom')
+hook.ClockRect=function() return 26,1098,106,1108 end
+handlers.clock_present()
+assert(placed[1]==26 and placed[2]==1108 and placed[3][1]==0 and placed[3][2]==1,'on the game\'s clock, bottom-left, growing up')
 local function command(...)
     local args={...}; local e={command={args=function() return args end}}
     handlers.clock_command(e); assert(e.blocked)
 end
+command('/clock','pos','300','400'); handlers.clock_present()
+assert(placed[1]==300 and placed[2]==400 and not placed[3],'a place of its own is kept')
+command('/clock','pos','native'); handlers.clock_present()
+assert(placed[1]==26 and placed[2]==1108,'native goes back to the game\'s clock')
 command('/clock','off')
 local before=guiBegins
 handlers.clock_present()

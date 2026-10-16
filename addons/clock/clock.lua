@@ -50,6 +50,9 @@ ashita.events.register('command', 'clock_command', function(e)
         options.enabled = command == 'on'
         if not options.enabled then hook.Stop() end
         settings.save()
+    elseif command == 'pos' and #args == 3 and args[3]:lower() == 'native' then
+        options.x, options.y = 20, -1
+        settings.save()
     elseif command == 'pos' and #args == 4 then
         local x, y = tonumber(args[3]), tonumber(args[4])
         if x and y and x == x and y == y and math.abs(x) < 100000 and math.abs(y) < 100000 then
@@ -60,7 +63,7 @@ ashita.events.register('command', 'clock_command', function(e)
         print('[clock] ' .. (not options.enabled and 'Off (stock clock restored).' or
             timeError and ('Time unavailable: ' .. timeError) or hook.Status()))
     else
-        print('[clock] /clock on|off|status; /clock pos <x> <y> (-1 y = bottom-left default).')
+        print('[clock] /clock on|off|status; /clock pos <x> <y>, or /clock pos native for the game\'s clock\'s place (the default).')
     end
 end)
 ashita.events.register('d3d_present', 'clock_present', function()
@@ -84,9 +87,17 @@ ashita.events.register('d3d_present', 'clock_present', function()
         lines, timeError = value, nil
     end
     if not lines or not hook.Begin() then return end
-    local display = imgui.GetIO().DisplaySize
-    local height = display.y or display[2] or 0
-    imgui.SetNextWindowPos({ options.x, options.y == -1 and math.max(0, height - 105) or options.y }, ImGuiCond_Always)
+    -- y -1 (the default): where the game draws its clock, the window's bottom-left on the clock's,
+    -- growing up from it. It is drawn as the game draws its clock, under what the game draws after
+    -- (the chat log), so a place of its own below the clock would be drawn over.
+    local left, _, _, bottom = hook.ClockRect()
+    if options.y == -1 and left then
+        imgui.SetNextWindowPos({ left, bottom }, ImGuiCond_Always, { 0, 1 })
+    else
+        local display = imgui.GetIO().DisplaySize
+        local height = display.y or display[2] or 0
+        imgui.SetNextWindowPos({ options.x, options.y == -1 and math.max(0, height - 105) or options.y }, ImGuiCond_Always)
+    end
     if imgui.Begin('clock.native', { true }, flags) then
         for i = 1, #lines do imgui.TextUnformatted(lines[i]) end
         hook.Capture() -- current window's background and text, never a pointer passed from Lua

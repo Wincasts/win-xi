@@ -75,14 +75,15 @@ compass still draws. Radar-disabled/unsupported-zone checks gate compass replay.
 and shared visibility states gate clock replay. Missing signatures or replay failure leave the
 unsupported element native. HUD discovery does not depend on party/window recognition.
 
-### HUD ABI 1
+### HUD ABI 2
 
-A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **56 bytes** total:
+A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **76 bytes** total:
 
 ```text
 char Magic[16]
 u32 Version, Size, SupportedMask, Frame, Submit
 u32 DrawnFrame[2], NativeFrame[2], Weather
+float ClockRect[4]; u32 ClockRectFrame
 ```
 
 `SupportedMask`: bit 0 clock, bit 1 compass. `Submit` is `cdecl int(index, capture)` and may only be
@@ -91,9 +92,12 @@ capture 1 synchronously captures/consumes the current ImGui window, 0 renews int
 -1 releases that slot. Index -1 releases both HUD slots **only**, never Party's slots. Party's own
 release-all likewise cannot release HUD slots. `NativeFrame` records the last eligible native
 boundary; `Weather` is a native ID (0xffff unavailable), sampled at `NativeFrame[0]` and expiring
-with that timestamp. Geometry limits, clipping, font validation, texture retention and two-frame
+with that timestamp. `ClockRect` is where the game drew its clock (left, top, right, bottom), taken
+from the screen-space draws Clock::Draw makes, replaced or not, and turned into ImGui display pixels
+by the inverse of replay's mapping; current at `ClockRectFrame`. A replacement drawn below the
+clock would be covered by what the game draws after it, the chat log among them. Geometry limits, clipping, font validation, texture retention and two-frame
 freshness reuse the existing capture/replay implementation. Addons should use the slot-specific
-`winxi.nativehud` bridge, which validates ABI, capability, unload/reload and weather freshness.
+`winxi.nativehud` bridge, which validates ABI, capability, unload/reload and weather and place freshness.
 
 ## Architecture
 
