@@ -724,7 +724,8 @@ draw.QuadsMax = 16384
 local badges = require('letter_badges')
 local originalBadgePrepare = badges.Prepare
 local badgeMasterHeight, pairsWanted;
-badges.Prepare = function(_, definitions)
+badges.Prepare = function(texture, definitions)
+    assert(texture == 0x7000000, 'badges must be cut from the texture the plugin drew from, never the mark')
     pairsWanted = definitions[1].pairs
     assert(#definitions == 1, 'all distances must share one close-up badge master')
     if badgeMasterHeight then
@@ -746,6 +747,7 @@ badges.Prepare = function(_, definitions)
     return { address = 0x5555, regions = regions }
 end
 local preparedBadges = badges.Prepare
+block.FontTexture = 0x7000000 -- as the plugin says it drew the font's mark from: the badges are cut from it
 custom.Defaults(o)
 o.showCheckDetails[1], o.showIcons[1], o.showStars[1] = false, false, false
 o.outline[1] = 0
@@ -762,6 +764,18 @@ local badgeQuad = draw.Quads[labelled.First + 6]
 assert(badgeQuad.Color == 0xFFFFE040, 'letter token colour must tint the box')
 assert(badgeQuad.Texture == 5 and draw.Textures[5] == 0x5555, 'letter must use the font-derived badge atlas')
 assert(badgeQuad.Flags == 1, 'badge must opt into the nameplate outline effect')
+-- before the plugin has drawn from the font's texture there is nothing to cut badges from: none is
+-- asked for (the mark handed to Direct3D crashed the game), and the letter is drawn plainly
+do
+    local asked = false
+    block.FontTexture = 0
+    badges.Prepare = function() asked = true end
+    frameForTests(o, block, suppliedFormats)
+    H.print('no texture drawn from yet: no badges asked for', asked == false, draw.Textures[5] == 0)
+    badges.Prepare = preparedBadges
+    block.FontTexture = 0x7000000
+    frameForTests(o, block, suppliedFormats)
+end
 assert(badgeQuad.X1 - badgeQuad.X0 == badgeQuad.Y1 - badgeQuad.Y0, 'badge must be square')
 assert(math.abs(badgeQuad.Y1 - draw.Quads[labelled.First].Y1) < 0.001,
     'box bottom must align with the name font lowercase baseline')

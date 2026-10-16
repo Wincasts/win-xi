@@ -62,59 +62,66 @@ atlas.upload = function(sheet)
 end
 package.loaded.d3d8 = { gc_safe_release = function(texture) return texture end }
 local definitions = { { height = 5, glyphs = { A = glyph }, bold = false } }
-assert(badges.Prepare(0x1234, definitions, 'selected-font') == nil)
+-- none, or winxi.fonts' mark for imgui's font texture, is never handed to Direct3D to read
+for _ = 1, 3 do
+    assert(badges.Prepare(1, definitions, 'selected-font') == nil)
+    assert(badges.Prepare(0, definitions, 'selected-font') == nil)
+    assert(badges.Prepare(nil, definitions, 'selected-font') == nil)
+end
+assert(reads == 0, 'a mark or none was read as a texture')
+assert(badges.Prepare(0x12340000, definitions, 'selected-font') == nil)
 assert(reads == 0, 'must allow ImGui a frame to upload new glyph pixels before reading')
-local first = assert(badges.Prepare(0x1234, definitions, 'selected-font'))
+local first = assert(badges.Prepare(0x12340000, definitions, 'selected-font'))
 assert(first.address == 0x5678 and first.regions[5].A.uv.w == 4)
-assert(badges.Prepare(0x1234, definitions, 'selected-font') == first)
+assert(badges.Prepare(0x12340000, definitions, 'selected-font') == first)
 assert(reads == 1 and uploads == 1, 'unchanged frames must reuse the texture')
 definitions[1].bold = true
-assert(badges.Prepare(0x1234, definitions, 'selected-font') == nil)
-assert(badges.Prepare(0x1234, definitions, 'selected-font') ~= first)
+assert(badges.Prepare(0x12340000, definitions, 'selected-font') == nil)
+assert(badges.Prepare(0x12340000, definitions, 'selected-font') ~= first)
 assert(reads == 2 and uploads == 2, 'bold changes must rebuild')
-assert(badges.Prepare(0x1234, definitions, 'different-font') == nil)
-assert(badges.Prepare(0x1234, definitions, 'different-font'))
+assert(badges.Prepare(0x12340000, definitions, 'different-font') == nil)
+assert(badges.Prepare(0x12340000, definitions, 'different-font'))
 assert(reads == 3 and uploads == 3, 'font changes must rebuild')
 glyph[5] = 0.1
-assert(badges.Prepare(0x1234, definitions, 'different-font') == nil)
-assert(badges.Prepare(0x1234, definitions, 'different-font'))
+assert(badges.Prepare(0x12340000, definitions, 'different-font') == nil)
+assert(badges.Prepare(0x12340000, definitions, 'different-font'))
 assert(reads == 4 and uploads == 4, 'atlas repacking must invalidate the UV cache')
 local now = 100
 os.clock = function() return now end
 atlas.read = function() reads = reads + 1; return nil, 'texture not ready' end
-assert(badges.Prepare(0x9999, definitions, 'different-font') == nil)
-assert(badges.Prepare(0x9999, definitions, 'different-font') == nil)
+assert(badges.Prepare(0x99990000, definitions, 'different-font') == nil)
+assert(badges.Prepare(0x99990000, definitions, 'different-font') == nil)
 assert(reads == 5, 'startup failures must have bounded retries')
 assert(#diagnosticNotes == 1 and diagnosticNotes[1]:find('texture not ready', 1, true),
     'a failed badge build must report its reason once')
 now = 102
 atlas.read = function() reads = reads + 1; return source end
-assert(badges.Prepare(0x9999, definitions, 'different-font'))
+assert(badges.Prepare(0x99990000, definitions, 'different-font'))
 assert(reads == 6 and uploads == 5, 'failed texture creation must recover')
 -- Immutable renderer definitions bypass value serialization on unchanged frames.
 local fixed = { { height = 5, glyphs = { A = glyph }, bold = true } }
-local ready = badges.Prepare(0x9999, fixed, 'fixed-font', true)
-if not ready then ready = assert(badges.Prepare(0x9999, fixed, 'fixed-font', true)) end
+local ready = badges.Prepare(0x99990000, fixed, 'fixed-font', true)
+if not ready then ready = assert(badges.Prepare(0x99990000, fixed, 'fixed-font', true)) end
 local originalTostring, serialized = tostring, 0
 tostring = function(value) serialized = serialized + 1; return originalTostring(value) end
-assert(badges.Prepare(0x9999, fixed, 'fixed-font', true) == ready)
+assert(badges.Prepare(0x99990000, fixed, 'fixed-font', true) == ready)
 tostring = originalTostring
 assert(serialized == 0, 'warm immutable definitions must not rebuild the cache key')
 local replacement = { unpack(glyph) }
 replacement[1] = replacement[1] + 1
 fixed = { { height = 5, glyphs = { A = replacement }, bold = true } }
-assert(badges.Prepare(0x9999, fixed, 'fixed-font', true) == nil)
-assert(badges.Prepare(0x9999, fixed, 'fixed-font', true) ~= ready,
+assert(badges.Prepare(0x99990000, fixed, 'fixed-font', true) == nil)
+assert(badges.Prepare(0x99990000, fixed, 'fixed-font', true) ~= ready,
     'replacing immutable definitions after a glyph change must rebuild the atlas')
 print('name badges: transparent cutout, antialias, bold, compact rounded bounds, cache invalidation, immutable fast path and retry', true)
 -- Double letters are made only as far as they are wanted, and made again when more are
 local paired = { { height = 5, glyphs = { A = glyph, B = glyph }, bold = false, pairs = 2 } }
-if not badges.Prepare(0x9999, paired, 'paired-font') then assert(badges.Prepare(0x9999, paired, 'paired-font')) end
-local made = badges.Prepare(0x9999, paired, 'paired-font')
+if not badges.Prepare(0x99990000, paired, 'paired-font') then assert(badges.Prepare(0x99990000, paired, 'paired-font')) end
+local made = badges.Prepare(0x99990000, paired, 'paired-font')
 assert(made.regions[5].A and made.regions[5].AA and made.regions[5].AB and made.regions[5].AC == nil)
 assert(made.regions[5].AA.uv.w > made.regions[5].A.uv.w and made.regions[5].AA.uv.h == made.regions[5].A.uv.h)
 paired[1].pairs = 27
-assert(badges.Prepare(0x9999, paired, 'paired-font') == nil)
-local more = assert(badges.Prepare(0x9999, paired, 'paired-font'))
+assert(badges.Prepare(0x99990000, paired, 'paired-font') == nil)
+local more = assert(badges.Prepare(0x99990000, paired, 'paired-font'))
 assert(more ~= made and more.regions[5].BA and more.regions[5].AC == nil, 'a pair with a letter the font lacks is left out')
 

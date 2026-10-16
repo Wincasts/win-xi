@@ -126,7 +126,14 @@ end
 -- many double letters are wanted as well, AA being the first, or nil for none.
 -- immutable opts into an identity-key shortcut. Callers must replace definitions
 -- when their glyphs change; mutable/default callers still compare every value.
+-- texture is a Direct3D texture's address: anything else (none, or winxi.fonts.TextureMark) is
+-- refused here, as Direct3D would be asked to read from it, and a fault there cannot be caught.
+local LOWEST_ADDRESS = 0x10000;
+
 function badges.Prepare(texture, definitions, fontKey, immutable)
+    if type(texture) ~= 'number' or texture < LOWEST_ADDRESS then
+        return nil;
+    end
     local key;
     if immutable and identity and identity.texture == texture
         and identity.definitions == definitions and identity.fontKey == fontKey then
