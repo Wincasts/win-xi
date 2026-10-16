@@ -36,7 +36,7 @@ icons.Get = function(id) counts.icons = counts.icons + 1; return 0x1000 + id, tr
 -- the plugin's block
 local holder = ffi.new('buffhook_t[1]')
 local block = holder[0]
-block.Version, block.Size, block.Hooked, block.Frame = 1, ffi.sizeof('buffhook_t'), 1, 1
+block.Version, block.Size, block.Hooked, block.Frame = 2, ffi.sizeof('buffhook_t'), 1, 1
 block.Width, block.Height = 1920, 1080
 ashita.memory.find = function(module)
     counts.finds = counts.finds + 1
@@ -107,11 +107,11 @@ o.isVisible[1] = true
 
 if measure then return end
 assert(warm.loaded == 120 and warm.finds == 0, 'the plugin is asked after once a frame, its block found once')
-assert(warm.icons == 32 * 120 and warm.windows == 0)
+assert(warm.icons == 32 * 120 and warm.windows == 0 and warm.menus == 120, 'the selector asked after once a frame')
 assert(warm.metrics == 0, 'label widths are measured once each')
 assert(warm.glyphs == 6 * 120, 'each of the six letters (2, 5, 1, m, h, 0) is looked up once a frame, however often it is written')
 assert(warm.allocated < 0.5, 'next to nothing is made each frame')
 assert(hovered.windows == 120 and hovered.allocated < 0.5)
 assert(untimed.glyphs == 0 and untimed.metrics == 0)
-assert(hidden.icons == 0 and hidden.glyphs == 0)
+assert(hidden.icons == 0 and hidden.glyphs == 0 and hidden.menus == 0)
 H.print('Hooked hot path budgets: passed')

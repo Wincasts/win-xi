@@ -8,12 +8,14 @@
 --   hook.Drawn(block)     whether the game drew its icons, with the bar in their place, last frame
 --   hook.Origin(block)    where it put the first of them, in imgui's pixels: x, y, or nil before it has
 --   hook.Scale(block)     how many of the game's pixels there are to one of imgui's: x, y
+--   hook.CursorStatus(block)  the status the game's cursor is on, for the buff selector, or nil
 --
 -- Every frame the bar is to take the game's icons' place, whether there is anything in it or not:
 --   hook.Begin(block)     starts the bar afresh
 --   hook.Texture(address) the slot for a Direct3D texture's address, or nil when the slots are full
 --   hook.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot)   a rectangle of it, in the game's pixels
---                         from where the game puts its first icon; color as 0xAARRGGBB
+--                         from where the game puts its first icon; color as 0xAARRGGBB; slot
+--                         hook.Solid for one of its colour alone
 --   hook.Finish()         hands it over
 -- A frame without one gives the game its own icons back, a frame or two later.
 local ffi = require('ffi');
@@ -36,6 +38,8 @@ ffi.cdef[[
         uint32_t DrawnFrame;
         float    OriginX, OriginY;
         float    Width, Height;
+        int32_t  Cursor;
+        uint32_t CursorStatus;
         uint32_t SubmitFrame;
         uint32_t Count;
         uint32_t Textures[48];
@@ -48,9 +52,12 @@ local hook = {};
 hook.Plugin = 'buffhook';
 
 local MAGIC = '42554646484F4F4B2D53484152454400'; -- "BUFFHOOK-SHARED" and its 0
-local VERSION = 1;
+local VERSION = 2;
 local TEXTURES, QUADS = 48, 1024;
 local DRAW_FRAMES = 2;
+local NO_STATUS = 0xFFFF;
+
+hook.Solid = 0xFFFFFFFF;
 local LOOK_EVERY = 1; -- seconds between looks for the block while it is not found
 
 local block = nil;
@@ -120,6 +127,14 @@ function hook.Scale(found)
         return 1, 1;
     end
     return found.Width / w, found.Height / h;
+end
+
+function hook.CursorStatus(found)
+    local status = found.CursorStatus;
+    if not hook.Drawn(found) or status == NO_STATUS then
+        return nil;
+    end
+    return status;
 end
 
 function hook.Origin(found)

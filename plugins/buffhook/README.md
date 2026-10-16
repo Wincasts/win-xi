@@ -23,6 +23,11 @@ the game's own.
 The bar is drawn with Direct3D 8 as the game draws its icons, at that moment in the frame: the
 device's state is recorded before and put back after.
 
+While it draws the bar, the plugin also puts the hand the game's buff selector points with out of
+sight, by setting the list window's cursor offset (which only the status list sets, to -5, -5, as it
+is made) far off the picture, and puts it back when the game draws its own icons again or the plugin
+unloads. It says which status the game's cursor is on, for the addon to draw its own highlight.
+
 If the functions are not found (another client version, or something else has changed them), the
 plugin says so in the chat and the addon draws its bar over the game as it does without the plugin.
 
@@ -40,12 +45,13 @@ Written by the plugin:
 | `DrawnFrame` | the `Frame` the game last drew its status icons in |
 | `OriginX`, `OriginY` | where it put the first of them then, in pixels of its picture |
 | `Width`, `Height` | the size of that picture, which may differ from the window's |
+| `Cursor`, `CursorStatus` | the item the game's cursor is on, and its status (`0xFFFF` for none) |
 
 Written by the addon, each frame the bar is to take the icons' place, whether it holds anything or
 not: `SubmitFrame` (the `Frame` it was written in), `Count`, up to 48 `Textures` (Direct3D textures'
 addresses) and up to 1024 `Quads`. A quad is a rectangle of one of the textures: its corners in the
 game's pixels from where the game puts its first icon, the same corners in the texture, and a colour
-as `0xAARRGGBB`. The plugin holds a reference to each texture while it draws from it.
+as `0xAARRGGBB`; a quad whose texture is `0xFFFFFFFF` is its colour alone. The plugin holds a reference to each texture while it draws from it.
 
 ## Building
 
