@@ -124,3 +124,32 @@ local zone = dofile('addons/name/placeholders/100.lua')
 local tables = dofile('addons/name/data/100.lua')
 H.print('bundled West Ronfaure: Jaggedy-Eared Jack is drawn from one slot, in an area with Forest Hares',
     #zone['Jaggedy-Eared Jack'] == 1 and zone['Jaggedy-Eared Jack'][1] == 294 and tables.Names['Forest Hare'] ~= nil)
+
+-- the name under the sub-target cursor, while one is being chosen
+local subActive, subIndex, asked = 0, 3, 0
+local manager = AshitaCore.GetMemoryManager
+AshitaCore.GetMemoryManager = function(...)
+    local memory = manager(...)
+    memory.GetTarget = function() asked = asked + 1; return {
+        GetIsSubTargetActive = function() return subActive end,
+        GetTargetIndex = function(_, slot) return slot == 0 and subIndex or 1 end,
+    } end
+    return memory
+end
+render(); local plain = tall(3)
+H.print('Subtarget Scale 100%: the game\'s targets are not asked after', asked == 0, tall(1) == plain)
+options.subtargetScale[1] = 150; render()
+H.print('no sub target being chosen: every name its usual size', asked == 1, tall(3) == plain, tall(2) == plain)
+subActive = 1; render()
+H.print('Subtarget Scale 150%: the name under the cursor half as large again, the rest as they were',
+    math.abs(tall(3) - plain * 1.5) < 0.01, tall(2) == plain, tall(1) == plain)
+options.subtargetScale[1] = 50; render()
+-- below 100% a smaller rung's letters are taken, and the stand-in's are 12 high at every rung
+H.print('and 50% smaller, the rest as they were', tall(3) < plain, tall(2) == plain, tall(1) == plain)
+subActive = 0; render()
+H.print('chosen: as before', tall(3) == plain)
+options.subtargetScale[1] = 999; custom.Settle(options)
+H.print('kept within 50 to 200', options.subtargetScale[1] == 200)
+options.subtargetScale = 'big'; custom.Settle(options)
+H.print('of another shape, made good', options.subtargetScale[1] == 100)
+AshitaCore.GetMemoryManager = manager
