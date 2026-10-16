@@ -13,7 +13,8 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --
 -- In the game's buff selector, with the plugin loaded, the status the game's cursor is on has
 -- winxi's highlight round it in place of the game's hand, which points at where the game's icons would
--- be; a click on an icon then removes it.
+-- be; a click on an icon then removes it, as does the controller's A (confirm) on the one the cursor
+-- is on, with Controller Navigation on.
 --
 -- Anchored to the game's icons' place, with the buffhook plugin loaded, the bar is drawn by the
 -- plugin where and when the game draws its icons, in their place (hook.lua): the menus the game opens
@@ -48,6 +49,7 @@ local hook = require('hook');
 local fade = require('winxi.fade');
 local style = require('winxi.style');
 local controller = require('winxi.controller');
+local sound = require('winxi.sound');
 local bit = require('bit');
 
 local windowName = 'winxi.buff';
@@ -70,6 +72,9 @@ local defaults = T{
     fontFile = '',          -- empty inherits the Winxi theme font
     fontSize = T{ 0 },      -- zero inherits the current font size
     hideGameIcons = T{ true },
+    controller = T{ true },        -- A removes the status the buff selector's cursor is on
+    controllerSounds = T{ false },
+    controllerType = 'xinput',     -- which kind: a key of winxi.controller's Layouts
 };
 
 -- The time left as the window writes it: seconds under a minute, then minutes, then hours. Each is
@@ -107,6 +112,17 @@ local function HidesTimer(id)
     return hidden;
 end
 
+local cancellable = {}; -- the same, for whether a status can be removed
+local function CanCancel(id)
+    local can = cancellable[id];
+    if can == nil then
+        local icon = AshitaCore:GetResourceManager():GetStatusIconByIndex(id);
+        can = icon ~= nil and icon.CanCancel ~= 0;
+        if icon ~= nil then cancellable[id] = can; end
+    end
+    return can;
+end
+
 local function Tooltip(id)
     local resources = AshitaCore:GetResourceManager();
     local icon = resources:GetStatusIconByIndex(id);
@@ -117,7 +133,7 @@ local function Tooltip(id)
             imgui.Text(icon.Description[1]);
         end
         if icon.CanCancel ~= 0 then
-            imgui.TextDisabled(selecting and 'Click to remove.' or 'Right click to remove.');
+            imgui.TextDisabled(selecting and 'Click, or A, to remove.' or 'Right click to remove.');
         end
     end
     imgui.EndTooltip();
@@ -143,6 +159,30 @@ local function FindCursor(found)
         end
     end
 end
+
+-- The controller's A, in the selector, removes the status its cursor is on: taken from the game only
+-- then, and only for a status that can be removed. The game's own A does not remove one.
+local app;
+
+local function CursorStatus()
+    local status = cursorIndex ~= nil and current[cursorIndex] or nil;
+    if status ~= nil and selecting and app.options.controller[1] and CanCancel(status.id) then
+        return status;
+    end
+    return nil;
+end
+
+controller.Bind({
+    active = function() return CursorStatus() ~= nil; end,
+    actions = { [controller.Button.A] = 'confirm' },
+    press = function()
+        local status = CursorStatus();
+        if status ~= nil then
+            statuses.Cancel(status.id);
+            sound.Play('confirm');
+        end
+    end,
+});
 
 -- A status is removed with a right click, or in the selector with any click
 local function ClickedToRemove()
@@ -497,7 +537,7 @@ local function ApplyGameIcons(options)
     hiddenRow, hiddenOther = nil, nil;
 end
 
-local app;
+local controllerTip = 'In the game\'s buff selector, A (confirm) removes the status its cursor is on, as a click does. Needs the buffhook plugin, which says which one that is.\nThe game keeps the rest of the controller: A is taken only while the cursor is on a status that can be removed.';
 
 local function DrawSettings(options)
     widgets.Label('Visible');
@@ -576,6 +616,10 @@ local function DrawSettings(options)
     if imgui.IsItemHovered() then
         imgui.SetTooltip('Stops the game drawing its own status icons, which this window stands in for.\nThey come back when this is switched off, or the addon is unloaded.\nAnchored with the buffhook plugin, the bar takes the place of the game\'s row of icons whatever this says.');
     end
+
+    if widgets.Header('Controller') then
+        shell.ControllerSettings(options, controllerTip);
+    end
 end
 
 app = shell.New({
@@ -602,7 +646,12 @@ ashita.events.register('d3d_present', 'buff_present', function()
         found = nil;
     end
     UpdateGameIcons(options, found ~= nil);
-    selecting = false;
+    selecting, cursorIndex = false, nil;
+    -- the kind of controller, and its sounds, from the settings (a key winxi does not know leaves it)
+    if options.controllerType ~= controller.GetLayout() then
+        controller.SetLayout(options.controllerType);
+    end
+    sound.SetEnabled(options.controllerSounds[1]);
     if not app:BeginFrame() then
         -- an empty bar: the game's icons stay away while the bar is hidden
         if found ~= nil then

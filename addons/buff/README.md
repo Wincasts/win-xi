@@ -61,7 +61,10 @@ removes it, while no menu of the game's is open.
 its hand at where the game's own icons would be, which is not where the bar's are once they are a
 size of their own. With the plugin, the hand is put out of sight and the status the game's cursor is
 on has winxi's highlight round it instead (the controller's: a line and a fainter glow outside it),
-anchored or dragged; the game's keys move it as before, and a click on an icon removes that one.
+anchored or dragged; the game's keys move it as before, and a click on an icon removes that one, as
+does a controller's A on the status the cursor is on (**Controller Navigation**, on to start, with the
+kind of controller under it for a DirectInput one). A is taken from the game only while the cursor
+is on a status that can be removed.
 Dragged elsewhere, with **Hide Game's Icons** on, the plugin keeps the game's row and its hand away
 in place of changing the game's code. Without the plugin there is no highlight, but a click still
 removes.
