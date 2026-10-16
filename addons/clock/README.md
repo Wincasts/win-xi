@@ -1,4 +1,4 @@
-# clock — experimental 0.8
+# clock — experimental 0.9
 
 The game's clock, written out in full on one line in its place: the time, the map grid, the day,
 the date and the moon to begin with, as `3:32  (H-9)  Windsday  900/12/30  Moon 42%`; what it shows,
@@ -27,37 +27,28 @@ Hide Compass does the compass's part. Keep the clock on in the game's config too
 
 ## Settings
 
-`/clock` opens or closes the settings. Under **Clock**:
+`/clock` opens or closes the settings: four sections, each folding away. Settings are kept for each
+character.
 
-- **Replace Game's Clock**: the one line in place of the game's text (on to begin with). Off, the
-  game's own clock comes back.
-- **Text Scale**: how large the line is, from 0.5x to 3x the theme's font size (1x to begin with).
-  The line keeps its left edge and middle on the game's text, growing to the right and both ways
-  from the middle; the dark edge round the letters thickens from 1.75x.
+**Clock**
+
+- **Replace Game's Clock**: the line in place of the game's text (on to begin with). Off, the game's
+  own clock comes back.
 - **Hide Compass**: the game's compass and radar are not drawn (on to begin with). The clock and its
   icons are drawn all the same.
-- **Icon Set**: pictures of your own for the day and weather icons (Game's Icons to begin with).
-  See [Icons](#icons).
-- **Icon Scale**: how large the set's icons are, 0.5x to 3x (1x to begin with): where the game draws
-  its own, against the game's icon, grown about its middle; in the line, against the text's height.
-  The game's own icons keep their size.
+- Under them, whether the line is being drawn, or what is in the way.
 
-- **Icon Offset**: moves the set's icons up or down, -10 to 10 pixels (0 to begin with), where the
-  game draws its own and in the line.
-- **Weather Offset**: moves the weather icon above the clock up or down, -40 to 40 pixels (0 to begin
-  with): the game's own icon too, which uihook draws that much higher or lower, in the game's units
-  (its day icon sixteen across), and the set's with it.
-- **Show All Weather Icons**: draws every weather icon in a row from the weather icon's place, fire,
-  ice, wind, earth, thunder, water, light and dark, then the clear sky: the set's where it has them,
-  the game's own where not, to see them all and where they sit. The weather's own icon gives way to
-  the row. Until it is turned off, or the game restarted: it is not saved.
+**Line**
 
-Under **Line**, the line itself, written as you like: each field is a word in braces, `{time}`, and
-anything else is written as it is, so `{time} | {grid} | {day}` is `3:32 | (H-9) | Windsday`. **Add
-Field** puts a field at the end, two spaces on; **Add Divider** puts ` | `, ` · `, ` - `, ` / ` or two
-spaces there in place of the spaces at the end; **Default** goes back to
-`{time}  {grid}  {day}  {date}  {moon}`. Under it, what the line shows now. Hover a field's button for
-what it writes.
+- **Line**: the line itself, written as you like. Each field is a word in braces, `{time}`, and
+  anything else is written as it is, so `{time} | {grid} | {day}` is `3:32 | (H-9) | Windsday`.
+- **Shows**: what the line shows now.
+- **Add Field**: a list of the fields; the one chosen goes at the end, two spaces on. Hover one for
+  what it writes.
+- **Add Divider**: ` | `, ` · `, ` - `, ` / ` or two spaces at the end, in place of the spaces there.
+  **Default** goes back to `{time}  {grid}  {day}  {date}  {moon}`.
+- **EXP Per Hour**, while an experience field is in the line: **Begin Again** forgets what has been
+  counted for `{rate}`, and how much has been, over how long.
 
 | Field | Writes |
 | --- | --- |
@@ -76,14 +67,36 @@ what it writes.
 A field with nothing to write takes the divider before it away with it (the first in the line, the
 one after it), so `{time} | {grid} | {day}` is `3:32 | Windsday` where there is no map. A word in
 braces that is no field is written as it is. Experience is counted only while one of `{level}`,
-`{exp}`, `{tnl}` and `{rate}` is in the line; with one there, **Begin Again** forgets what has been
-counted for `{rate}`.
+`{exp}`, `{tnl}` and `{rate}` is in the line.
 
-The line begins four pixels clear of the day icon as it is drawn (the set's at its Icon Scale and
-Offset, or the game's), and never left of where the game writes its text.
+**Text**
 
-The line is the theme's font and text colour, with winxi's dark edge round it and no background. The
-Winxi Theme tab sets those. Settings are kept for each character.
+- **Font**: one of `C:\Windows\Fonts`, or the theme's (to begin with).
+- **Font Size**: in pixels, up to 48; 0 for the theme's size (to begin with). The line keeps its left
+  edge and middle on the game's text, growing to the right and both ways from the middle.
+- **Text Color**: the line's colour, and how solid it is (white to begin with).
+- **Outline**: the dark edge round the letters, 0 (none) to 3 pixels (1 to begin with), so the line
+  reads over anything.
+
+The line has no background. It begins four pixels clear of the day icon as it is drawn (the set's at
+its Icon Scale and Offset, or the game's), and never left of where the game writes its text.
+
+**Icons**
+
+- **Icon Set**: pictures of your own for the day and weather icons (Game's Icons to begin with).
+  See [Icons](#icons).
+- **Icon Scale**: how large the set's icons are, 0.5x to 3x (1x to begin with): where the game draws
+  its own, against the game's icon, grown about its middle; in the line, against the text's height.
+  The game's own icons keep their size.
+- **Icon Offset**: moves the set's icons up or down, -10 to 10 pixels (0 to begin with), where the
+  game draws its own and in the line.
+- **Weather Offset**: moves the weather icon above the clock up or down, -40 to 40 pixels (0 to begin
+  with): the game's own icon too, which uihook draws that much higher or lower, in the game's units
+  (its day icon sixteen across), and the set's with it.
+- **Show All Weather**: draws every weather icon in a row from the weather icon's place, fire, ice,
+  wind, earth, thunder, water, light and dark, then the clear sky: the set's where it has them, the
+  game's own where not, to see them all and where they sit. The weather's own icon gives way to the
+  row. Until it is turned off, or the game restarted: it is not saved.
 
 ## Icons
 

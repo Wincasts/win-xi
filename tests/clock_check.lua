@@ -1,5 +1,5 @@
 -- The clock addon (through tests/clock_stand_in.lua): one line where the game writes its clock, no
--- background, its text scale, the compass hidden, the settings, and letting go of the game's clock.
+-- background, its font, the compass hidden, the settings, and letting go of the game's clock.
 local imgui = require('imgui')
 local fields = require('fields')
 local p = H.print
@@ -62,13 +62,20 @@ p('the line, with the game\'s grid', measured == '3:32  (H-9)  Windsday  900/12/
 p('no background', bit.band(windows['clock.native'], ImGuiWindowFlags_NoBackground) ~= 0)
 p('begun, then captured inside its window', Has(seen, 'clock.begin'), Has(seen, 'clock.capture'))
 p('outlined: the words drawn with their edge', (H.calls['draw.AddText'] or 0) >= 5)
-p('text scale 1: the theme\'s size', sized == 14)
-
+p('Font Size 0: the theme\'s size', sized == 14)
 local options = H.options()
-options.textScale[1] = 2
+local texts = H.calls['draw.AddText'] or 0
 H.frames(1)
-p('text scale 2: twice the theme\'s size', sized == 28)
-options.textScale[1] = 1
+p('Outline 1: the words and their edge, four times over', (H.calls['draw.AddText'] or 0) - texts == 5)
+options.outline[1] = 0
+texts = H.calls['draw.AddText'] or 0
+H.frames(1)
+p('Outline 0: the words alone', (H.calls['draw.AddText'] or 0) - texts == 1)
+options.outline[1] = 1
+options.fontSize[1] = 28
+H.frames(1)
+p('Font Size 28', sized == 28)
+options.fontSize[1] = 0
 
 -- the icons: the game's, unless the chosen set has a picture for the day or the weather
 local icons = require('icons')
@@ -217,10 +224,16 @@ p('/clock on', H.command('/clock on'), options.replace[1] == true)
 local before = #H.printed
 p('/clock status says the clock and the compass', H.command('/clock status'), #H.printed == before + 2,
     tostring(H.printed[before + 1]):find('Drawn in place', 1, true) ~= nil, tostring(H.printed[before + 2]):find('Compass', 1, true) ~= nil)
+local widgets = require('winxi.widgets')
+local themeTab, themeTabs = widgets.BeginThemeTab, 0
+widgets.BeginThemeTab = function(...) themeTabs = themeTabs + 1; return themeTab(...) end
 p('/clock opens the settings', H.command('/clock'))
 local sliders = H.calls.SliderFloat or 0
 H.frames(1)
-p('the settings: Text Scale among them', (H.calls.SliderFloat or 0) > sliders)
+p('the settings: Icon Scale among them, and no Winxi Theme tab', (H.calls.SliderFloat or 0) > sliders, themeTabs == 0)
+local headers, combos, colors = H.calls.CollapsingHeader or 0, H.calls.BeginCombo or 0, H.calls.ColorEdit4 or 0
+H.frames(1)
+p('the font in the settings: Font, Font Size, Text Color', (H.calls.BeginCombo or 0) - combos >= 3, (H.calls.ColorEdit4 or 0) - colors == 1)
 local smalls, inputs = H.calls.SmallButton or 0, H.calls.InputText or 0
 local setWidth, widths = imgui.SetNextItemWidth, {}
 imgui.SetNextItemWidth = function(width, ...) widths[#widths + 1] = width; return setWidth(width, ...) end
@@ -228,27 +241,30 @@ H.frames(1)
 imgui.SetNextItemWidth = setWidth
 p('the line\'s box a width of its own: the settings window fits itself to it, and one as wide as the window shrinks it',
     #widths > 0, (function() for _, w in ipairs(widths) do if not (w > 0) then return false end end return true end)())
-p('the Line section: the line to write, a button a field, five dividers and Default', (H.calls.InputText or 0) - inputs == 1,
-    (H.calls.SmallButton or 0) - smalls == #fields.All + 6)
+p('the Line section: the line to write, five dividers and Default', (H.calls.InputText or 0) - inputs == 1,
+    (H.calls.SmallButton or 0) - smalls == 6)
 -- a button pressed: the field after two spaces, a divider in place of the spaces at the end
-local small = imgui.SmallButton
+local small, combo, selectable = imgui.SmallButton, imgui.BeginCombo, imgui.Selectable
 local pressed = nil
 imgui.SmallButton = function(label, ...) small(label, ...); return label == pressed end
+-- Add Field's list, open, and a field in it chosen
+imgui.BeginCombo = function(label, ...) combo(label, ...); return label == '##clock.addField' and pressed ~= nil and pressed:find('##clock.add.', 1, true) ~= nil end
+imgui.Selectable = function(label, ...) selectable(label, ...); return label == pressed end
 options.format = '{time}  '
 pressed = '|##clock.divider.1'
 H.frames(1)
 p('a divider: in place of the spaces', options.format == '{time} | ')
-pressed = 'Map Grid##clock.add.grid'
+pressed = 'Map Grid  {grid}##clock.add.grid'
 H.frames(1)
 p('a field: after the divider, as it is', options.format == '{time} | {grid}')
-pressed = 'Moon##clock.add.moon'
+pressed = 'Moon  {moon}##clock.add.moon'
 H.frames(1)
 p('a field after a field: two spaces between', options.format == '{time} | {grid}  {moon}')
 pressed = 'Default##clock.formatDefault'
 H.frames(1)
 p('Default: the line a new character has', options.format == fields.Default)
 pressed = nil
-imgui.SmallButton = small
+imgui.SmallButton, imgui.BeginCombo, imgui.Selectable = small, combo, selectable
 -- written: the line follows by its next reading, a quarter of a second
 options.format = '{grid} | {time}'
 H.frames(9)
@@ -268,9 +284,17 @@ options.enabled, options.x, options.y = false, 20, -1
 H.resettle()
 options = H.options()
 p('0.1 settings brought over', options.replace[1] == false and options.enabled == nil, options.x == nil and options.y == nil)
-options.textScale[1] = 9
+options.fontSize[1] = 99
 H.resettle()
-p('a text scale out of range is brought in', H.options().textScale[1] == 3)
+p('a font size out of range is brought in', H.options().fontSize[1] == 48)
+-- 0.8's Text Scale, against the theme's size: a Font Size the first time the line is drawn
+options = H.options()
+options.textScale, options.fontSize[1], options.replace[1] = T{ 2 }, 0, true
+H.resettle()
+H.frames(1)
+p('Text Scale 2 brought over: twice the theme\'s 14', H.options().textScale == nil, H.options().fontSize[1] == 28)
+options = H.options()
+options.fontSize[1], options.replace[1] = 0, false
 
 mark = #CLOCK.log
 H.unload()
@@ -347,7 +371,7 @@ p('/clock exp reset', H.command('/clock exp reset'), select(2, exp.Since()) == 0
 H.command('/clock')
 local smalls2 = H.calls.SmallButton or 0
 H.frames(1)
-p('with experience in the line, Begin Again', (H.calls.SmallButton or 0) - smalls2 == #fields.All + 7)
+p('with experience in the line, Begin Again', (H.calls.SmallButton or 0) - smalls2 == 7)
 H.command('/clock')
 
 -- 0.6's settings: a list to tick and move, and experience a switch, brought over as a line

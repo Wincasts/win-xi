@@ -1,6 +1,6 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.8.1'
+addon.version = '0.9.0'
 addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
 local winxiNeeded = 5
 do
@@ -19,7 +19,6 @@ local shell = require('winxi.shell')
 local widgets = require('winxi.widgets')
 local fonts = require('winxi.fonts')
 local outlined = require('winxi.text')
-local theme = require('winxi.theme')
 local native = require('winxi.nativehud')
 local fields = require('fields')
 local icons = require('icons')
@@ -51,6 +50,8 @@ local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, Im
     ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoInputs,
     ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus, ImGuiWindowFlags_NoBackground)
 local SCALE_MIN, SCALE_MAX = 0.5, 3
+local FONT_MOST = 48    -- pixels the line's font can be
+local OUTLINE_MOST = 3  -- pixels its dark edge can be
 local OFFSET_MOST = 10  -- pixels the set's icons can be moved up or down
 local ICON_GAP = 4      -- pixels between the day icon and the line
 local WEATHER_MOST = 40 -- pixels the weather icon can be moved up or down
@@ -63,6 +64,7 @@ local noPadding = { 0, 0 }
 local place, pivot, room = { 0, 0 }, { 0, 0.5 }, { 0, 0 }
 local widths = {}
 local format = { '' } -- the line being written in the settings
+local scaleWas = nil  -- a Text Scale of 0.8 or before, to be made a Font Size
 -- What can be put between fields from the settings, as it is put
 local DIVIDERS = { { label = '|', text = ' | ' }, { label = '·', text = ' · ' }, { label = '-', text = ' - ' },
     { label = '/', text = ' / ' }, { label = 'Space', text = '  ' } }
@@ -109,6 +111,32 @@ local function Append(options, text, divider)
     app.save()
 end
 
+local fieldsOpen = false -- the Add Field list, as last drawn
+
+-- The clock's own font: a file of C:\Windows\Fonts or the theme's (''), at a size or the theme's (0)
+local function FontChoice(options)
+    widgets.Label('Font')
+    local file = options.fontFile
+    if imgui.BeginCombo('##clock.fontFile', file ~= '' and file or 'Theme\'s Font') then
+        if imgui.Selectable('Theme\'s Font##clock.font.theme', file == '') and file ~= '' then
+            options.fontFile = ''
+            app.save()
+        end
+        for _, choice in ipairs(fonts.Files()) do
+            if imgui.Selectable(choice .. '##clock.font', file == choice) and file ~= choice then
+                options.fontFile = choice
+                app.save()
+            end
+        end
+        imgui.EndCombo()
+    end
+    Tip('The line\'s font: one of C:\\Windows\\Fonts, or the theme\'s.')
+    widgets.Label('Font Size')
+    imgui.SliderInt('##clock.fontSize', options.fontSize, 0, FONT_MOST, options.fontSize[1] > 0 and '%d px' or 'Theme\'s')
+    if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+    Tip('How large the line is, in pixels; 0 for the theme\'s size.')
+end
+
 local function DrawSettings(options)
     if widgets.Header('Clock', true) then
         widgets.Label('Replace Game\'s Clock')
@@ -117,53 +145,16 @@ local function DrawSettings(options)
             app.save()
         end
         Tip('Writes the line below where the game writes its clock.\nThe game\'s day and weather icons stay where it puts them.\nOff, the game\'s own clock comes back.')
-        widgets.Label('Text Scale')
-        imgui.SliderFloat('##clock.textScale', options.textScale, SCALE_MIN, SCALE_MAX, '%.2fx')
-        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('How large the line is, against the theme\'s font size.')
         widgets.Label('Hide Compass')
         if imgui.Checkbox('##clock.hideCompass', options.hideCompass) then
             if not options.hideCompass[1] then compass.Stop() end
             app.save()
         end
         Tip('Stops the game drawing its compass and radar. The clock and its icons stay.')
-        widgets.Label('Icon Set')
-        local chosen = options.iconSet
-        if imgui.BeginCombo('##clock.iconSet', chosen == icons.None and 'Game\'s Icons' or chosen) then
-            if not setsOpen then sets, setsOpen = icons.Sets(), true end
-            local function Choose(key)
-                options.iconSet = key
-                icons.Forget()
-                app.save()
-            end
-            if imgui.Selectable('Game\'s Icons##clock.set.none', chosen == icons.None) then Choose(icons.None) end
-            for _, set in ipairs(sets) do
-                if imgui.Selectable(set.label .. '##clock.set.' .. set.key, chosen == set.key) then Choose(set.key) end
-            end
-            imgui.EndCombo()
-        else
-            setsOpen = false
-        end
-        Tip('Pictures of your own for the day and weather icons: a folder of addons\\clock\\icons.\nWhere the set has no picture for the day or the weather, the game\'s own icon is drawn.')
-        widgets.Label('Icon Scale')
-        imgui.SliderFloat('##clock.iconScale', options.iconScale, SCALE_MIN, SCALE_MAX, '%.2fx')
-        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('How large the Icon Set\'s icons are: where the game draws its own, against the game\'s icon,\nand in the line (Weather Icon), against the text. The game\'s own icons keep their size.')
-        widgets.Label('Icon Offset')
-        imgui.SliderInt('##clock.iconOffset', options.iconOffset, -OFFSET_MOST, OFFSET_MOST, '%d px')
-        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('Moves the Icon Set\'s icons up (less than 0) or down (more than 0), in pixels, where the game\ndraws its own and in the line. The game\'s own icons stay where they are.')
-        widgets.Label('Weather Offset')
-        imgui.SliderInt('##clock.weatherOffset', options.weatherOffset, -WEATHER_MOST, WEATHER_MOST, '%d px')
-        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('Moves the weather icon above the clock up (less than 0) or down (more than 0), in pixels:\nthe game\'s own and the Icon Set\'s alike.')
-        widgets.Label('Show All Weather Icons')
-        imgui.Checkbox('##clock.showAll', showAll)
-        Tip('Draws every weather icon in a row from the weather icon\'s place, to see them and where they sit:\nfire, ice, wind, earth, thunder, water, light and dark, then the clear sky.\nThe Icon Set\'s where it has them, the game\'s own where not. Until it is turned off, or the game is restarted.')
         imgui.TextDisabled(timeError and ('Time unavailable: ' .. timeError) or hook.Status())
     end
+
     if widgets.Header('Line') then
-        imgui.TextDisabled('Each {field} is written in its place; anything else is written as it is.')
         if format[1] ~= options.format and not imgui.IsAnyItemActive() then format[1] = options.format end
         widgets.Label('Line')
         -- a width of its own, wider as the line grows: the settings window fits itself to what is
@@ -176,13 +167,20 @@ local function DrawSettings(options)
             nextSample = 0
         end
         if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        imgui.TextDisabled('Shows: ' .. (preview ~= '' and preview or '(nothing)'))
+        Tip('Each {field} is written in its place, and anything else as it is: the dividers.\nA field with nothing to write takes the divider before it with it.')
+        widgets.Label('Shows')
+        imgui.TextDisabled(preview ~= '' and preview or '(nothing)')
         widgets.Label('Add Field')
-        for i, field in ipairs(fields.All) do
-            if i > 1 and (i - 1) % 4 ~= 0 then imgui.SameLine() end
-            if i > 1 and (i - 1) % 4 == 0 then widgets.Label('') end
-            if imgui.SmallButton(field.label .. '##clock.add.' .. field.token) then Append(options, '{' .. field.token .. '}') end
-            Tip(('{%s}: %s'):format(field.token, field.tip))
+        local opened = imgui.BeginCombo('##clock.addField', 'Choose a field')
+        Tip('Puts a field at the end of the line, two spaces on.')
+        if opened then
+            for _, field in ipairs(fields.All) do
+                if imgui.Selectable(('%s  {%s}##clock.add.%s'):format(field.label, field.token, field.token), false) then
+                    Append(options, '{' .. field.token .. '}')
+                end
+                Tip(field.tip)
+            end
+            imgui.EndCombo()
         end
         widgets.Label('Add Divider')
         for i, divider in ipairs(DIVIDERS) do
@@ -207,9 +205,57 @@ local function DrawSettings(options)
             Tip('Forgets the experience counted so far, for EXP Per Hour to begin again from now. /clock exp reset does the same.')
             local since, counted = exp.Since()
             imgui.SameLine()
-            imgui.TextDisabled(since and ('%d gains counted over %d min.'):format(counted, math.floor((os.clock() - since) / 60))
-                or 'No experience gained yet.')
+            imgui.TextDisabled(since and ('%d gains over %d min'):format(counted, math.floor((os.clock() - since) / 60))
+                or 'None gained yet')
         end
+    end
+
+    if widgets.Header('Text') then
+        FontChoice(options)
+        widgets.Label('Text Color')
+        if imgui.ColorEdit4('##clock.textColor', options.textColor, ImGuiColorEditFlags_NoInputs) then nextSample = 0 end
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        Tip('The line\'s colour, and how solid it is.')
+        widgets.Label('Outline')
+        imgui.SliderInt('##clock.outline', options.outline, 0, OUTLINE_MOST, options.outline[1] > 0 and '%d px' or 'None')
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        Tip('How thick the dark edge round the letters is, in pixels, so the line reads over anything.')
+    end
+
+    if widgets.Header('Icons') then
+        widgets.Label('Icon Set')
+        local chosen = options.iconSet
+        if imgui.BeginCombo('##clock.iconSet', chosen == icons.None and 'Game\'s Icons' or chosen) then
+            if not setsOpen then sets, setsOpen = icons.Sets(), true end
+            local function Choose(key)
+                options.iconSet = key
+                icons.Forget()
+                app.save()
+            end
+            if imgui.Selectable('Game\'s Icons##clock.set.none', chosen == icons.None) then Choose(icons.None) end
+            for _, set in ipairs(sets) do
+                if imgui.Selectable(set.label .. '##clock.set.' .. set.key, chosen == set.key) then Choose(set.key) end
+            end
+            imgui.EndCombo()
+        else
+            setsOpen = false
+        end
+        Tip('Pictures of your own for the day and weather icons: a folder of addons\\clock\\icons.\nWhere the set has no picture for the day or the weather, the game\'s own icon is drawn.')
+        widgets.Label('Icon Scale')
+        imgui.SliderFloat('##clock.iconScale', options.iconScale, SCALE_MIN, SCALE_MAX, '%.2fx')
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        Tip('How large the Icon Set\'s icons are: where the game draws its own, against the game\'s icon,\nand in the line ({weathericon}), against the text. The game\'s own icons keep their size.')
+        widgets.Label('Icon Offset')
+        imgui.SliderInt('##clock.iconOffset', options.iconOffset, -OFFSET_MOST, OFFSET_MOST, '%d px')
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        Tip('Moves the Icon Set\'s icons up (less than 0) or down (more than 0), in pixels, where the game\ndraws its own and in the line. The game\'s own icons stay where they are.')
+        widgets.Label('Weather Offset')
+        imgui.SliderInt('##clock.weatherOffset', options.weatherOffset, -WEATHER_MOST, WEATHER_MOST, '%d px')
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        Tip('Moves the weather icon above the clock up (less than 0) or down (more than 0), in pixels:\nthe game\'s own and the Icon Set\'s alike.')
+        widgets.Label('Show All Weather')
+        imgui.Checkbox('##clock.showAll', showAll)
+        Tip('Draws every weather icon in a row from the weather icon\'s place, to see them and where they sit:\nfire, ice, wind, earth, thunder, water, light and dark, then the clear sky.\nThe Icon Set\'s where it has them, the game\'s own where not. Until it is turned off, or the game is restarted.')
     end
 end
 
@@ -221,8 +267,10 @@ local function SayStatus()
 end
 
 app = shell.New({
-    defaults = T{ replace = T{ true }, hideCompass = T{ true }, textScale = T{ 1 }, iconScale = T{ 1 }, iconOffset = T{ 0 },
-        weatherOffset = T{ 0 }, iconSet = icons.None, format = fields.Default },
+    defaults = T{ replace = T{ true }, hideCompass = T{ true }, fontFile = '', fontSize = T{ 0 }, textColor = T{ 1, 1, 1, 1 },
+        outline = T{ 1 }, iconScale = T{ 1 }, iconOffset = T{ 0 }, weatherOffset = T{ 0 }, iconSet = icons.None,
+        format = fields.Default },
+    hideAppearance = true, -- the clock has its own font and colour: no Winxi Theme tab
     configTitle = 'Clock Settings',
     command = '/clock',
     help = '/clock opens or closes the settings; /clock on, /clock off, /clock status, /clock exp reset.',
@@ -261,7 +309,16 @@ app = shell.New({
         if type(options.iconSet) ~= 'string' then options.iconSet = icons.None end
         icons.Forget()
         local function Clamp(value, low, high, default) return math.min(high, math.max(low, tonumber(value) or default)) end
-        options.textScale[1] = Clamp(options.textScale[1], SCALE_MIN, SCALE_MAX, 1)
+        -- 0.1 to 0.8 had a Text Scale against the theme's size: made a Font Size the first time the
+        -- line is drawn, when the theme's size is known
+        if type(options.textScale) == 'table' then
+            scaleWas = Clamp(options.textScale[1], SCALE_MIN, SCALE_MAX, 1)
+            options.textScale = nil
+        end
+        if type(options.fontFile) ~= 'string' then options.fontFile = '' end
+        options.fontSize[1] = math.floor(Clamp(options.fontSize[1], 0, FONT_MOST, 0))
+        options.outline[1] = math.floor(Clamp(options.outline[1], 0, OUTLINE_MOST, 1))
+        for i = 1, 4 do options.textColor[i] = Clamp(options.textColor[i], 0, 1, 1) end
         options.iconScale[1] = Clamp(options.iconScale[1], SCALE_MIN, SCALE_MAX, 1)
         options.iconOffset[1] = math.floor(Clamp(options.iconOffset[1], -OFFSET_MOST, OFFSET_MOST, 0))
         options.weatherOffset[1] = math.floor(Clamp(options.weatherOffset[1], -WEATHER_MOST, WEATHER_MOST, 0))
@@ -377,8 +434,14 @@ ashita.events.register('d3d_present', 'clock_present', function()
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, noPadding)
     local pushed = fonts.Push()
     if imgui.Begin('clock.native', { true }, flags) then
-        local scale = options.textScale[1]
-        imgui.PushFont(nil, imgui.GetFontSize() * scale)
+        if scaleWas then
+            -- the old Text Scale, against the theme's size, as a size of its own
+            if scaleWas ~= 1 then options.fontSize[1] = math.min(FONT_MOST, math.floor(imgui.GetFontSize() * scaleWas + 0.5)) end
+            scaleWas = nil
+            app.save()
+        end
+        local size = options.fontSize[1] > 0 and options.fontSize[1] or imgui.GetFontSize()
+        imgui.PushFont(fonts.Get(options.fontFile), size)
         local list = imgui.GetWindowDrawList()
         local fontSize = imgui.GetFontSize()
         local iconSize = fontSize * iconScale
@@ -396,11 +459,16 @@ ashita.events.register('d3d_present', 'clock_present', function()
         local x, y = imgui.GetCursorScreenPos()
         room[1], room[2] = width, height
         imgui.Dummy(room)
-        local color = theme.Get().TextColor
+        local color, edge = options.textColor, options.outline[1]
         for i, segment in ipairs(segments) do
             if type(segment) == 'string' then
-                -- the dark edge winxi writes over the game with, thicker as the text grows
-                outlined.Draw(list, x, y + (height - fontSize) / 2, color, segment, scale >= 1.75 and 2 or 1)
+                -- the dark edge winxi writes over the game with, as thick as Outline; none at 0
+                if edge > 0 then
+                    outlined.Draw(list, x, y + (height - fontSize) / 2, color, segment, edge)
+                else
+                    iconMin[1], iconMin[2] = x, y + (height - fontSize) / 2
+                    list:AddText(iconMin, imgui.GetColorU32(color), segment)
+                end
             else
                 iconMin[1], iconMin[2] = x, y + (height - iconSize) / 2 + iconOffset
                 iconMax[1], iconMax[2] = x + iconSize, iconMin[2] + iconSize

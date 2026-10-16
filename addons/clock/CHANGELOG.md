@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0
+
+- The settings in four sections, each folding away: Clock, Line, Text and Icons. Add Field is a list
+  in place of a button a field. No Winxi Theme tab.
+- The line's own font: Font, Font Size (in pixels, 0 the theme's), Text Color and Outline (0 to 3
+  pixels). Font Size takes the place of Text Scale, which is brought over as the size it made.
+
 ## 0.8.1
 
 - The settings window no longer shrinks and wanders while open: the line's box was as wide as the
