@@ -51,8 +51,11 @@ calls per category; averages and maxima cover the full interval.
 - **Style → Appearance → Bar Shadows**: Off, Simple (one layer), or Full (two layers). This is
   independent of Winxi window shadows.
 - **Behavior → Mouse Interaction → Hover Details**, beside Clickthrough, is off by default and works
-  only with Clickthrough off: names, jobs, pet owners, and status tooltips. Enemy duration tooltips
-  explicitly describe estimates, not exact server timers. No click-to-target behavior is introduced.
+  only with Clickthrough off: names, jobs, pet owners, and status summaries.
+  Each buff/debuff icon has a Winxi tooltip whenever Clickthrough is off, even without Hover Details.
+  Tooltips follow **winxisettings → Tooltips**, including visibility, delay and appearance.
+  Enemy duration tooltips explicitly describe estimates, not exact server timers.
+  No click-to-target behavior is introduced.
 - **Pets → Layout → Pet Names**: `Pet`, `Owner: Pet` (default), or `Pet (Owner)`.
 - **Profiles [Experimental]** offers Compact, Healer, Pet job, and Minimal presets plus up to 20 named profiles.
   Profiles and presets are still being tested.

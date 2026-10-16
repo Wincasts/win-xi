@@ -1,5 +1,6 @@
 local imgui = require('imgui')
 local tracker = require('winxi.debuffs')
+local tooltip = require('winxi.tooltip')
 local details = {}
 local names = {}
 local mouseX, mouseY
@@ -21,7 +22,7 @@ function details.Status(id, serverId)
         text = text .. (remaining and ('\nEstimated remaining: %ds'):format(math.max(0, remaining)) or '\nDuration unknown')
         text = text .. '\nObserved effects only; resists and duration bonuses may differ.'
     end
-    imgui.SetTooltip(text)
+    tooltip.Show(text)
 end
 function details.Hover(left, top, right, bottom)
     return type(mouseX) == 'number' and type(mouseY) == 'number'
@@ -36,6 +37,6 @@ function details.Member(member)
         for _, id in ipairs(member.statusIds) do text = text .. '\n' .. details.StatusName(id) end
         if member.statusServerId then text = text .. '\nEnemy effects are observed estimates, not a complete status list.' end
     end
-    imgui.SetTooltip(text)
+    tooltip.Show(text)
 end
 return details
