@@ -56,6 +56,33 @@ for name, value in pairs({ weekday = 3, hours = 3, minutes = 32, year = 900, mon
 end
 package.loaded['ffxi.time'] = time
 
+-- the player as memory has them, for experience: CLOCK.player's fields, and the party's first
+-- member's server id, CLOCK.id
+CLOCK.id = 0x01020304
+CLOCK.player = { level = 75, current = 12345, needed = 30000, limit = false, points = 4000, merits = 3 }
+local memory = AshitaCore.GetMemoryManager
+AshitaCore.GetMemoryManager = function(self)
+    local manager = memory(self)
+    local player, party = manager.GetPlayer, manager.GetParty
+    manager.GetPlayer = function(...)
+        local p = player(...)
+        local me = CLOCK.player
+        p.GetMainJobLevel = function() return me.level end
+        p.GetExpCurrent = function() return me.current end
+        p.GetExpNeeded = function() return me.needed end
+        p.GetIsLimitModeEnabled = function() return me.limit end
+        p.GetLimitPoints = function() return me.points end
+        p.GetMeritPoints = function() return me.merits end
+        return p
+    end
+    manager.GetParty = function(...)
+        local p = party(...)
+        p.GetMemberServerId = function(_, index) return index == 0 and CLOCK.id or 0 end
+        return p
+    end
+    return manager
+end
+
 -- a character's settings as clock 0.1 saved them
 HARNESS_SAVED = { enabled = true, x = 20, y = -1 }
 

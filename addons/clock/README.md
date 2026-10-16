@@ -1,4 +1,4 @@
-# clock — experimental 0.5
+# clock — experimental 0.6
 
 The game's clock, written out in full on one line in its place: the time, the map grid, the day,
 the date and the moon to begin with, as `3:32  (H-9)  Windsday  900/12/30  Moon 42%`, and what is
@@ -38,6 +38,18 @@ Hide Compass does the compass's part. Keep the clock on in the game's config too
   icons are drawn all the same.
 - **Icon Set**: pictures of your own for the day and weather icons (Game's Icons to begin with).
   See [Icons](#icons).
+- **Icon Scale**: how large the set's icons are, 0.5x to 3x (1x to begin with): where the game draws
+  its own, against the game's icon, grown about its middle; in the line, against the text's height.
+  The game's own icons keep their size.
+
+Under **Experience**:
+
+- **Show Experience**: Level, EXP, EXP To Level and EXP Per Hour on the line (off to begin with).
+  Each is ticked and put in order under Line like the rest; while this is off they wait, greyed.
+  Experience is counted only while it is on.
+- **Rate Over**: EXP Per Hour is the experience gained in the last this many minutes, made an hourly
+  rate, 5 to 240 (60 to begin with); since the rate began, if sooner, and over at least a minute.
+- **Begin Again**: forgets what has been counted, for the rate to begin again from now.
 
 Under **Line**, each field the line can show, ticked if shown, in the order they are written from left
 to right; **Up** and **Down** move one along. Hover a field for what it writes.
@@ -50,6 +62,11 @@ to right; **Up** and **Down** move one along. Hover a field for what it writes.
 | Date | Vana'diel's year, month and day: `900/12/30` | shown |
 | Moon | `Moon 42%` | shown |
 | Weather | the weather by name: `Rain`; none under a clear sky (the game's icon is above the clock either way) | hidden |
+| Weather Icon | the Icon Set's picture for the weather, in the line in place of above the clock (the game's own is hidden); where the set has none, the game's stays above | hidden |
+| Level | `Lv75` | shown, with Show Experience |
+| EXP | `EXP 12,345/30,000`; in limit mode, limit points to the next merit point, `LP 4,000/10,000` | shown, with Show Experience |
+| EXP To Level | `TNL 17,655`; in limit mode `TNM 6,000`; none with no level to go to | shown, with Show Experience |
+| EXP Per Hour | `4,200 EXP/hr`; in limit mode `LP/hr` | shown, with Show Experience |
 
 Fields are two spaces apart, as the game spaces its time and grid. A field with nothing to say is
 left out, gap and all. With none ticked, the game's text is hidden and nothing written in its place.
@@ -87,6 +104,16 @@ the game's 16. `tools/generate_clock_icons.py` makes them.
 - `/clock on`, `/clock off`: Replace Game's Clock.
 - `/clock status`: whether the line is drawn in the game's clock's place, and whether the compass is
   hidden, or what is in the way.
+- `/clock exp reset`: EXP Per Hour begins again from now.
+
+## Experience
+
+The level and experience are the game's, read from memory. Gains are counted from the server's
+messages (packet 0x02D, messages 8 and 253 for experience and an experience chain, 371 and 372 for
+limit points and a limit chain, the player's own), as Phoenix sends them from
+`src/map/utils/charutils.cpp`: memory's experience cannot be compared across a level up and does
+not move while limit points are earned. A merit point is 10,000 limit points. Experience from a
+scroll, which the server reports in the item's own message, is not counted in the rate.
 
 ## How it works
 

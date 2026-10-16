@@ -24,7 +24,7 @@ p('not past either end', not fields.Move(order, 1, -1), not fields.Move(order, #
 local old, oldShown = T{ 'moon', 'gone', 'time', 'moon' }, T{ moon = false, gone = true }
 fields.Normalize(old, oldShown)
 p('made whole: kept in their order, the rest after, as they begin',
-    table.concat(old, ',') == 'moon,time,grid,day,date,weather', oldShown.gone == nil,
+    table.concat(old, ',') == 'moon,time,grid,day,date,weather,weatherIcon,level,exp,toLevel,expRate', oldShown.gone == nil,
     oldShown.moon == false, oldShown.time == true, oldShown.weather == false)
 shown = select(2, fields.Defaults())
 for key in pairs(shown) do shown[key] = false end
@@ -133,6 +133,36 @@ H.command('/clock off')
 H.frames(1)
 p('off: the game\'s icons back', CLOCK.hidden == 0)
 H.command('/clock on')
+
+-- Icon Scale: the set's icons grown about their middles where the game draws its own
+CLOCK.weather = 7
+CLOCK.icons[1], CLOCK.icons[2] = { 8, 1030, 24, 1046 }, { 24, 1030, 40, 1046 }
+options.iconScale[1] = 2
+drawn = {}
+H.frames(1)
+p('Icon Scale 2: the day icon twice as large about its middle', At(drawn[#drawn - 2], 0, 1088, 32, 1120))
+options.iconScale[1] = 1
+
+-- Weather Icon: the weather's picture in the line, the game's hidden, nothing above
+options.shown.weatherIcon = true
+H.frames(9)
+drawn = {}
+local hiddenBefore = CLOCK.hidden
+H.frames(1)
+local inline = drawn[1]
+p('in the line: the game\'s weather icons hidden, the day icon still the set\'s', CLOCK.hidden == 3,
+    #drawn == 2, inline ~= nil and inline[3] == 20 and inline[5] - inline[3] == 14)
+options.iconScale[1] = 2
+H.frames(1)
+p('in the line at Icon Scale 2: twice the text\'s height', drawn[#drawn - 1][5] - drawn[#drawn - 1][3] == 28)
+options.iconScale[1] = 1
+CLOCK.weather = 4
+H.frames(9)
+drawn = {}
+H.frames(1)
+p('in the line, no picture for a hot spell: the game\'s above, nothing in the line', CLOCK.hidden == 1, #drawn == 1)
+options.shown.weatherIcon = false
+
 options.iconSet = icons.None
 CLOCK.weather, CLOCK.icons = nil, {}
 H.frames(1)
@@ -200,3 +230,69 @@ for _, name in ipairs({ 'days/firesday', 'days/earthsday', 'days/watersday', 'da
     if file then file:close() else missing[#missing + 1] = name end
 end
 p('the gems set is whole', #missing == 0, table.concat(missing, ' '))
+
+-- experience
+local exp = require('exp')
+local function Message(actor, amount, message)
+    local function le(n, bytes) local s = '' for _ = 1, bytes do s = s .. string.char(n % 256); n = math.floor(n / 256) end return s end
+    return le(0, 4) .. le(actor, 4) .. le(actor, 4) .. le(0, 4) .. le(amount, 4) .. le(0, 4) .. le(message, 2) .. le(0, 2)
+end
+p('commas', exp.Commas(0) == '0', exp.Commas(999) == '999', exp.Commas(1000) == '1,000', exp.Commas(12345678) == '12,345,678')
+exp.Reset(1000)
+p('a gain of the player\'s own is counted', exp.Packet(0x02D, Message(CLOCK.id, 200, 8), 1000))
+p('an EXP chain and limit points too', exp.Packet(0x02D, Message(CLOCK.id, 300, 253), 1100), exp.Packet(0x02D, Message(CLOCK.id, 50, 371), 1200),
+    exp.Packet(0x02D, Message(CLOCK.id, 50, 372), 1200))
+p('not another\'s, another message or another packet', not exp.Packet(0x02D, Message(5, 999, 8), 1200),
+    not exp.Packet(0x02D, Message(CLOCK.id, 999, 6), 1200), not exp.Packet(0x028, Message(CLOCK.id, 999, 8), 1200),
+    not exp.Packet(0x02D, 'short', 1200))
+local snap = exp.Snapshot(1000 + 1800, 3600)
+p('the rate: 600 in half an hour, 1,200 an hour', snap.rate == 1200, snap.level == 75, snap.current == 12345, snap.needed == 30000)
+p('at least a minute: one gain at once is not a great rate', (function()
+    exp.Reset(5000); exp.Packet(0x02D, Message(CLOCK.id, 100, 8), 5000)
+    return exp.Snapshot(5001, 3600).rate == 6000
+end)())
+exp.Reset(0)
+exp.Packet(0x02D, Message(CLOCK.id, 100, 8), 0)
+exp.Packet(0x02D, Message(CLOCK.id, 300, 8), 3000)
+p('over the window alone: the first gain an hour and more ago forgotten', exp.Snapshot(3700, 3600).rate == 300)
+p('since: when it began, how many', select(2, exp.Since()) == 2)
+
+-- the fields
+local order2, shown2 = fields.Defaults()
+for key in pairs(shown2) do shown2[key] = false end
+shown2.level, shown2.exp, shown2.toLevel, shown2.expRate = true, true, true, true
+local c = fields.Context(time, nil, nil)
+c.exp = { level = 75, current = 12345, needed = 30000, limit = false, points = 4000, merits = 3, rate = 4200 }
+p('the experience fields, with the module', fields.Line(c, order2, shown2, { exp = true }) == 'Lv75  EXP 12,345/30,000  TNL 17,655  4,200 EXP/hr')
+p('without it, none', fields.Line(c, order2, shown2, { exp = false }) == '', fields.Line(c, order2, shown2) == '')
+c.exp.limit = true
+p('in limit mode: limit points to the next merit', fields.Line(c, order2, shown2, { exp = true }) == 'Lv75  LP 4,000/10,000  TNM 6,000  4,200 LP/hr')
+c.exp.limit, c.exp.needed = false, 0
+p('no level to go to: the experience alone, no TNL', fields.Line(c, order2, shown2, { exp = true }) == 'Lv75  EXP 12,345  4,200 EXP/hr')
+c.weatherIcon = 1234
+shown2.weatherIcon = true
+local pieces = fields.Segments(c, order2, shown2, { exp = true })
+p('the weather icon a piece of its own, the words either side', #pieces == 2, type(pieces[1]) == 'table' and pieces[1].icon == 1234,
+    pieces[2] == 'Lv75  EXP 12,345  4,200 EXP/hr')
+
+-- in the clock: off to begin with, then on, counted from packets
+H.load()
+options = H.options()
+options.replace[1] = true -- left off by the 0.1 settings above
+CLOCK.rect = { 26, 1098, 106, 1108 }
+H.frames(9)
+p('experience off to begin with: not on the line', measured ~= nil and not measured:find('Lv75', 1, true))
+local before = select(2, exp.Since())
+H.packetData(0x02D, Message(CLOCK.id, 500, 8))
+p('nor counted', select(2, exp.Since()) == before)
+options.experience[1] = true
+H.frames(9)
+p('on: on the line, after the clock\'s own fields', measured ~= nil and measured:find('Lv75  EXP 12,345/30,000  TNL 17,655', 1, true) ~= nil, measured)
+H.packetData(0x02D, Message(CLOCK.id, 500, 8))
+p('and counted', select(2, exp.Since()) == before + 1)
+p('/clock exp reset', H.command('/clock exp reset'), select(2, exp.Since()) == 0)
+H.command('/clock')
+local boxes2 = H.calls.Button or 0
+H.frames(1)
+p('the Experience section: Begin Again', (H.calls.Button or 0) > boxes2)
+H.command('/clock')

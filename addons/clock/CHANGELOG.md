@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0
+
+- Weather Icon: a field for the Icon Set's weather picture in the line, put in order like the rest;
+  the game's own above is hidden while it is there, and stays where the set has no picture.
+- Icon Scale (0.5x to 3x) for the set's icons, at the game's places and in the line.
+- Experience, a module turned on under Experience: Level, EXP (or limit points to the next merit),
+  EXP To Level and EXP Per Hour fields, counted from the server's gain messages, the rate over the
+  last Rate Over minutes; Begin Again and `/clock exp reset`.
+
 ## 0.5.0
 
 - The **gems** icon set: round cut gemstones for the days, and weather icons after the game's, with
