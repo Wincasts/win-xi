@@ -262,7 +262,7 @@ static Nameplate* Instance = nullptr;
 
 // What addons read and write. The names in it are those of the last frame, whole: the frame being
 // drawn is gathered apart, in Filling, and copied here by Publish.
-static HookShared Shared = { "NAMEHOOK", HOOK_VERSION, sizeof(HookShared), sizeof(HookName), 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0, 0, 0.0f, 0.0f, {}, {} };
+static HookShared Shared = { "NAMEHOOK", HOOK_VERSION, sizeof(HookShared), sizeof(HookName), 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0, 0, 0.0f, 0.0f, 0, {}, {} };
 
 static struct {
 	uint32_t Count;
@@ -275,7 +275,7 @@ static struct {
 // What an addon has drawn of the names, for the plugin to put in the picture. Kept apart from Shared,
 // which is in the DLL's file: this is large, and empty until an addon fills it.
 static HookDraw Draw;
-static HookBubbles Bubbles = { "NAMEBUBBLES", 1, sizeof(HookBubbles), sizeof(HookDraw), {}, {} };
+static HookBubbles Bubbles = { "NAMEBUBBLES", 2, sizeof(HookBubbles), sizeof(HookDraw), {}, {} };
 
 // The frame whose first name has been seen, so that what is done once a frame is done then
 static uint32_t NamesFrame = 0xFFFFFFFF;
@@ -510,7 +510,7 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 		NamesFrame = Shared.Frame;
 		Instance->BeginBubbles(Bubbles.Draw, Bubbles.Draw.QuadCount > 0 && Bubbles.Draw.QuadCount <= HOOK_QUADS_MAX
 			&& Shared.Frame - Bubbles.Draw.Frame <= HOOK_DRAW_FRAMES);
-		Instance->BeginNames(Draw, IsDrawFresh(), Shared.TargetWidth, Shared.TargetHeight);
+		Instance->BeginNames(Draw, IsDrawFresh(), Shared.TargetWidth, Shared.TargetHeight, Shared.FontTexture);
 	}
 
 	if (ProbeWanted && Instance != nullptr) {

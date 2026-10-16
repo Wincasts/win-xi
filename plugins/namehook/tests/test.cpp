@@ -30,7 +30,7 @@ struct TestPlugin : public Nameplate {
 	float lastX = 0.0f;
 	int bubbles = 0;
 
-	void BeginNames(const HookDraw&, bool, float& targetWidth, float& targetHeight) override {
+	void BeginNames(const HookDraw&, bool, float& targetWidth, float& targetHeight, uint32_t&) override {
 		begun++;
 		targetWidth = 1200.0f;
 		targetHeight = 900.0f;
@@ -138,8 +138,9 @@ int main() {
 	static_assert(offsetof(HookShared, Draw) == 68 && offsetof(HookShared, TargetWidth) == 72);
 	static_assert(sizeof(HookQuad) == 48 && sizeof(HookDrawing) == 24 && offsetof(HookDraw, Textures) == 16);
 	static_assert(offsetof(HookDraw, Entities) == 48 && offsetof(HookDraw, Quads) == 48 + 24 * HOOK_ENTITIES);
-	static_assert(offsetof(HookShared, Override) == 80 && offsetof(HookShared, Names) == 80 + HOOK_ENTITIES);
-	CHECK(memcmp(Shared.Magic, "NAMEHOOK\0\0\0\0\0\0\0", 16) == 0 && Shared.Version == 2);
+	static_assert(offsetof(HookShared, FontTexture) == 80);
+	static_assert(offsetof(HookShared, Override) == 84 && offsetof(HookShared, Names) == 84 + HOOK_ENTITIES);
+	CHECK(memcmp(Shared.Magic, "NAMEHOOK\0\0\0\0\0\0\0", 16) == 0 && Shared.Version == 3);
 	CHECK(Shared.Size == sizeof(HookShared) && Shared.NameSize == sizeof(HookName));
 
 	// Native scale factors are reused, but dimensions/settings invalidate them.
@@ -595,7 +596,7 @@ int main() {
 	// World-space speech bubbles: their own block and their own drawing, beside the names and
 	// independent of whether a name is shown or claimed
 	{
-		CHECK(strcmp(Bubbles.Magic, "NAMEBUBBLES") == 0 && Bubbles.Version == 1);
+		CHECK(strcmp(Bubbles.Magic, "NAMEBUBBLES") == 0 && Bubbles.Version == 2);
 		CHECK(Bubbles.Size == sizeof(HookBubbles) && Bubbles.DrawSize == sizeof(HookDraw));
 		const uint32_t hidden = Shared.Hidden;
 		const uint32_t index = buddy->pEntity->EntityIndex;

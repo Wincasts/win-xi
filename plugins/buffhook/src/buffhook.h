@@ -3,11 +3,15 @@
 
 #include <stdint.h>
 
-#define BUFF_VERSION 3
+#define BUFF_VERSION 4
 #define BUFF_TEXTURES 48   // the textures a bar can be drawn from
 #define BUFF_QUADS 1024    // and the rectangles it can be drawn with
 #define BUFF_DRAW_FRAMES 2 // how long what the addon wrote is good for, in frames
 #define BUFF_SOLID 0xFFFFFFFF // a quad's Texture for one of its colour alone
+// A texture's address the addon cannot give: imgui's font texture, which the plugin reads for itself
+// as it draws. Its id is 64 bits, and a Lua integer in this game 32: once the texture is above 2 GB,
+// as it can be after a while on Windows, Ashita cannot hand it to Lua at all.
+#define BUFF_TEXTURE_FONT 1
 #define BUFF_NO_STATUS 0xFFFF
 
 // One rectangle of the bar: an icon, or a letter of a time.
@@ -34,6 +38,7 @@ struct BuffShared {
     float Height;
     int32_t Cursor;       // which of them the game's cursor is on, for the buff selector
     uint32_t CursorStatus; // and its status, or BUFF_NO_STATUS
+    uint32_t FontTexture; // imgui's font texture as BUFF_TEXTURE_FONT was last drawn from: 0 for none
 
     // Written by the addon. While SubmitFrame is within BUFF_DRAW_FRAMES of Frame, the quads are
     // drawn where the game would have drawn its icons, and the game draws none of its own. Sequence
@@ -42,6 +47,6 @@ struct BuffShared {
     uint32_t SubmitFrame;
     uint32_t Sequence;
     uint32_t Count;
-    uint32_t Textures[BUFF_TEXTURES]; // Direct3D textures' addresses, 0 for none
+    uint32_t Textures[BUFF_TEXTURES]; // Direct3D textures' addresses, BUFF_TEXTURE_FONT, or 0 for none
     BuffQuad Quads[BUFF_QUADS];
 };

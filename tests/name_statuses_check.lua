@@ -34,7 +34,7 @@ os.time = function() return now end
 -- the plugin, and its place for what is drawn
 local block = ffi.new('namehook_t')
 ffi.copy(block.Magic, 'NAMEHOOK')
-block.Version, block.Size, block.NameSize, block.Hooked = 2, ffi.sizeof('namehook_t'), ffi.sizeof('namehook_name_t'), 1
+block.Version, block.Size, block.NameSize, block.Hooked = 3, ffi.sizeof('namehook_t'), ffi.sizeof('namehook_name_t'), 1
 block.Width, block.Height, block.TargetWidth, block.TargetHeight = 960, 540, 960, 540
 local plugins = AshitaCore.GetPluginManager()
 plugins.IsLoaded = function(_, name) return name == 'namehook' end
@@ -48,7 +48,7 @@ block.Draw = tonumber(ffi.cast('uintptr_t', low))
 imgui.GetIO = function() return { DisplaySize = { x = 960, y = 540 } } end
 local glyph = { X0 = 1, Y0 = 2, X1 = 9, Y1 = 14, U0 = 0.25, V0 = 0.5, U1 = 0.3, V1 = 0.6, AdvanceX = 10, Visible = 1 }
 imgui.GetFontBaked = function() return { FindGlyph = function() return glyph end, FindGlyphNoFallback = function() return nil end } end
-imgui.GetFont = function() return { ContainerAtlas = { TexRef = { GetTexID = function() return 0x1234 end }, TexData = { GetTexID = function() return 0 end } } } end
+imgui.GetFont = function() return { ContainerAtlas = { TexData = { UniqueID = 2, Status = 0, Width = 512, Height = 256 } } } end
 
 local function put(i, index, category, flags, name)
     local n = block.Names[i]

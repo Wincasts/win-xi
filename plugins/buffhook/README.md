@@ -46,14 +46,17 @@ Written by the plugin:
 | `OriginX`, `OriginY` | where it put the first of them then, in pixels of its picture |
 | `Width`, `Height` | the size of that picture, which may differ from the window's |
 | `Cursor`, `CursorStatus` | the item the game's cursor is on, and its status (`0xFFFF` for none) |
+| `FontTexture` | imgui's font texture as the plugin last drew a texture of `1` from, or 0 for none |
 
 Written by the addon, each frame the bar is to take the icons' place, whether it holds anything or
 not: `SubmitFrame` (the `Frame` it was written in), `Count`, up to 48 `Textures` (Direct3D textures'
-addresses) and up to 1024 `Quads`. A quad is a rectangle of one of the textures: its corners in the
+addresses, or `1`, `BUFF_TEXTURE_FONT`, for imgui's font texture, which the plugin reads itself as it
+draws: its id is 64 bits and a Lua integer in this game 32, so once the texture is above 2 GB, as it
+can be after a while on Windows, Ashita cannot hand it to the addon at all) and up to 1024 `Quads`. A quad is a rectangle of one of the textures: its corners in the
 game's pixels from where the game puts its first icon, the same corners in the texture, and a colour
 as `0xAARRGGBB`; a quad whose texture is `0xFFFFFFFF` is its colour alone. `Sequence` goes up each time
 the quads or textures are written afresh; a bar handed over again as it was leaves it, and the plugin
-draws from the vertices it made of it last. The plugin holds a reference to each texture while it draws from it.
+draws from the vertices it made of it last, unless imgui's font texture has changed since. The plugin holds a reference to each texture while it draws from it.
 
 ## Building
 

@@ -14,7 +14,7 @@ local hook = ffi.new('namehook_t')
 hook.Hooked, hook.Draw = 1, tonumber(ffi.cast('uintptr_t', low))
 hook.Width, hook.Height, hook.TargetWidth, hook.TargetHeight = 1920, 1080, 1920, 1080
 local glyph = { X0 = 0, Y0 = 0, X1 = 8, Y1 = 12, U0 = 0, V0 = 0, U1 = 1, V1 = 1, AdvanceX = 8, Visible = 1 }
-local font = { ContainerAtlas = { TexRef = { GetTexID = function() return 0x1234 end } } }
+local font = { ContainerAtlas = { TexData = { UniqueID = 2, Status = 0, Width = 512, Height = 256 } } }
 imgui.GetFont = function() return font end
 imgui.GetFontBaked = function() return { FindGlyph = function() return glyph end } end
 imgui.PushFont, imgui.PopFont = function() end, function() end

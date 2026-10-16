@@ -111,7 +111,7 @@ public:
 
     virtual void GetFrameFacts(FrameFacts& facts, bool withPets) override;
     virtual void ProbeScene() override;
-    virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) override;
+    virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight, uint32_t& fontTexture) override;
     virtual void DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
     virtual void BeginBubbles(const HookDraw& draw, bool fresh) override;
     virtual void DrawBubble(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
@@ -168,7 +168,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 1.24;
+    return 1.25;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -375,9 +375,27 @@ void AshitaNameplate::ReleaseNameStates() {
     m_CanDraw = false;
 }
 
-static void RetainTextures(IDirect3DBaseTexture8** textures, const HookDraw* draw) {
+// imgui's font texture as its renderer made it, for a texture an addon gave as HOOK_TEXTURE_FONT:
+// read here, where it is a pointer, and not by the addon, which Ashita cannot hand it to once it is
+// above 2 GB. Asked each frame, as imgui makes the texture again when the font atlas grows. Null
+// while it has none ready.
+static IDirect3DBaseTexture8* FontTexture(IAshitaCore* core) {
+    IGuiManager* gui = core != nullptr ? core->GetGuiManager() : nullptr;
+    if (gui == nullptr) {
+        return nullptr;
+    }
+    const ImFontAtlas* atlas = gui->GetIO().Fonts;
+    const ImTextureData* data = atlas != nullptr ? atlas->TexData : nullptr;
+    if (data == nullptr || (data->Status != ImTextureStatus_OK && data->Status != ImTextureStatus_WantUpdates)) {
+        return nullptr;
+    }
+    return reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(data->TexID));
+}
+
+static void RetainTextures(IDirect3DBaseTexture8** textures, const HookDraw* draw, IDirect3DBaseTexture8* font) {
     for (size_t i = 0; i < HOOK_TEXTURES; i++) {
-        auto* texture = draw != nullptr ? reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(draw->Textures[i])) : nullptr;
+        const uint32_t given = draw != nullptr ? draw->Textures[i] : 0;
+        auto* texture = given == HOOK_TEXTURE_FONT ? font : reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(given));
         if (texture != textures[i]) {
             if (texture != nullptr) texture->AddRef();
             if (textures[i] != nullptr) textures[i]->Release();
@@ -387,15 +405,15 @@ static void RetainTextures(IDirect3DBaseTexture8** textures, const HookDraw* dra
 }
 
 void AshitaNameplate::ReleaseTextures() {
-    RetainTextures(m_Textures, nullptr);
-    RetainTextures(m_BubbleTextures, nullptr);
+    RetainTextures(m_Textures, nullptr, nullptr);
+    RetainTextures(m_BubbleTextures, nullptr, nullptr);
     m_BubblesFresh = false;
 }
 
 void AshitaNameplate::BeginBubbles(const HookDraw& draw, bool fresh) {
     m_BubblesFresh = fresh;
     m_BubbleFit = draw.HorizontalFit();
-    RetainTextures(m_BubbleTextures, fresh ? &draw : nullptr);
+    RetainTextures(m_BubbleTextures, fresh ? &draw : nullptr, fresh ? FontTexture(m_AshitaCore) : nullptr);
 }
 
 // Everything of the device's state that drawing a name changes. Recorded twice over: once to be
@@ -442,7 +460,7 @@ static void SetNameStates(IDirect3DDevice8* device) {
     device->SetStreamSource(0, nullptr, 0);
 }
 
-void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight) {
+void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight, uint32_t& fontTexture) {
     m_CanDraw = false;
     m_HorizontalFit = draw.HorizontalFit();
 
@@ -459,7 +477,9 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
     targetHeight = static_cast<float>(m_Viewport.Height);
 
     // Each layer owns its textures; bubbles work even without an addon drawing names.
-    RetainTextures(m_Textures, fresh ? &draw : nullptr);
+    IDirect3DBaseTexture8* font = fresh ? FontTexture(m_AshitaCore) : nullptr;
+    fontTexture = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(font));
+    RetainTextures(m_Textures, fresh ? &draw : nullptr, font);
     if (!fresh && !m_BubblesFresh) return;
 
     // A point in the world goes through the view and then the projection to where it is in the picture

@@ -21,7 +21,7 @@
 
 #define CHAT_HEADER "\x1e\x51[\x1e\x06" "buffhook\x1e\x51]\x1e\x01 "
 
-static BuffShared Shared = { "BUFFHOOK-SHARED", BUFF_VERSION, sizeof(BuffShared), 0, 1, 0, 0.0f, 0.0f, 0.0f, 0.0f, -1, BUFF_NO_STATUS, 0, 0, 0, {}, {} };
+static BuffShared Shared = { "BUFFHOOK-SHARED", BUFF_VERSION, sizeof(BuffShared), 0, 1, 0, 0.0f, 0.0f, 0.0f, 0.0f, -1, BUFF_NO_STATUS, 0, 0, 0, 0, {}, {} };
 
 // ---------------------------------------------------------------------------------------------------
 // Finding and taking the game's two callbacks
@@ -119,13 +119,34 @@ private:
     float m_BuiltLeft = 0.0f;
     float m_BuiltTop = 0.0f;
     uint32_t m_RunCount = 0;
+    IDirect3DBaseTexture8* m_BuiltFont = nullptr; // imgui's font texture as it was then
 
-    void RetainTextures(bool keep) {
+    // imgui's font texture as its renderer made it, for a texture the addon gave as BUFF_TEXTURE_FONT:
+    // read here, where it is a pointer, and not by the addon, which Ashita cannot hand it to once it
+    // is above 2 GB. Asked each time the bar is drawn, as imgui makes the texture again when the font
+    // atlas grows. Null while it has none ready.
+    IDirect3DBaseTexture8* FontTexture() const {
+        IGuiManager* gui = m_AshitaCore != nullptr ? m_AshitaCore->GetGuiManager() : nullptr;
+        if (gui == nullptr) {
+            return nullptr;
+        }
+        const ImFontAtlas* atlas = gui->GetIO().Fonts;
+        const ImTextureData* data = atlas != nullptr ? atlas->TexData : nullptr;
+        if (data == nullptr || (data->Status != ImTextureStatus_OK && data->Status != ImTextureStatus_WantUpdates)) {
+            return nullptr;
+        }
+        return reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(data->TexID));
+    }
+
+    void RetainTextures(bool keep, IDirect3DBaseTexture8* font = nullptr) {
         if (!keep) {
             m_Built = false;
         }
+        m_BuiltFont = font;
+        Shared.FontTexture = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(font));
         for (uint32_t i = 0; i < BUFF_TEXTURES; i++) {
-            auto* texture = keep ? reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(Shared.Textures[i])) : nullptr;
+            const uint32_t given = keep ? Shared.Textures[i] : 0;
+            auto* texture = given == BUFF_TEXTURE_FONT ? font : reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(given));
             if (texture != m_Textures[i]) {
                 if (texture != nullptr) texture->AddRef();
                 if (m_Textures[i] != nullptr) m_Textures[i]->Release();
@@ -167,7 +188,7 @@ public:
     const char* GetAuthor(void) const override { return "win"; }
     const char* GetDescription(void) const override { return "Draws the buff addon's bar in place of the game's status icons, under the menus that open over them."; }
     const char* GetLink(void) const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion(void) const override { return 1.0; }
+    double GetVersion(void) const override { return 1.1; }
     uint32_t GetFlags(void) const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, [[maybe_unused]] ILogManager* log, [[maybe_unused]] uint32_t id) override {
@@ -266,8 +287,8 @@ public:
 
     // The vertices, in runs of quads from one texture in the order the addon wrote them: made again
     // only when the addon has written the bar afresh, or the game has moved where it goes
-    void Build(float left, float top) {
-        RetainTextures(true);
+    void Build(float left, float top, IDirect3DBaseTexture8* font) {
+        RetainTextures(true, font);
         m_Built = true;
         m_BuiltSequence = Shared.Sequence;
         m_BuiltLeft = left;
@@ -306,8 +327,9 @@ public:
         if (device == nullptr) {
             return;
         }
-        if (!m_Built || m_BuiltSequence != Shared.Sequence || m_BuiltLeft != left || m_BuiltTop != top) {
-            Build(left, top);
+        IDirect3DBaseTexture8* font = FontTexture();
+        if (!m_Built || m_BuiltSequence != Shared.Sequence || m_BuiltLeft != left || m_BuiltTop != top || m_BuiltFont != font) {
+            Build(left, top, font);
         }
         const uint32_t runCount = m_RunCount;
         if (runCount == 0 || !MakeStates(device)) {

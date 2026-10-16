@@ -25,10 +25,11 @@ custom.Defaults(defaults)
 local hook = ffi.new('namehook_t')
 H.print('no plugin hooks: unhooked', custom.Frame(defaults, hook) == 'unhooked')
 hook.Hooked = 1
-imgui.GetFont = function() return { ContainerAtlas = { TexRef = { GetTexID = function() return 0 end },
-    TexData = { GetTexID = function() return 0 end } } } end
-H.print('font texture of id 0: texture', custom.Frame(defaults, hook) == 'texture')
-imgui.GetFont = function() return { ContainerAtlas = { TexRef = { GetTexID = function() return 0x1234 end } } } end
+imgui.GetFont = function() return { ContainerAtlas = { TexData = { UniqueID = 2, Status = 2, Width = 512, Height = 256 } } } end
+H.print('font texture not ready: texture', custom.Frame(defaults, hook) == 'texture')
+imgui.GetFont = function() return { ContainerAtlas = {} } end
+H.print('font texture unreadable: texture', custom.Frame(defaults, hook) == 'texture')
+imgui.GetFont = function() return { ContainerAtlas = { TexData = { UniqueID = 2, Status = 0, Width = 512, Height = 256 } } } end
 H.print('no drawing buffer: draw', custom.Frame(defaults, hook) == 'draw')
 
 -- off unless asked for: nothing kept, said or written
