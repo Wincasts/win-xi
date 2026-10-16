@@ -84,6 +84,7 @@ local STEADY_STRETCH = 45;  -- frames over which the strongest of a pulsing name
 local SIGN_SIZE     = 0.7;  -- how large the magnifying glass is beside the letters it is written among
 local MAGNIFIER     = 0xF002; -- the magnifying glass, among the icons Ashita's own font has with its letters
 local PROBE         = 65;   -- the letter looked at each frame to see that the font's letters are where they were
+local SUBTARGET_NONE = 0xFFFFFFFF; -- the sub-target flags while no sub target is being chosen
 
 local FONT_FOLDER   = 'C:\\Windows\\Fonts\\';
 local DEFAULT_FONT  = 'Default';
@@ -952,12 +953,15 @@ function custom.Frame(options, hook, formats)
     local huntScale = options.huntScale ~= nil and math.max(100, math.min(200, options.huntScale[1])) / 100 or 1;
     nameplates.SetTexture(HUNT.Slot, huntTexture);
     -- the character under the sub-target cursor while one is being chosen, looked for only if its
-    -- name is to be another size: the second of the game's two targets is then the target proper
+    -- name is to be another size. It is the first of the game's two targets either way: with a
+    -- target already, that moves to the second and IsSubTargetActive is set; with none, nothing
+    -- moves and only the sub-target flags (the kinds that may be chosen, all set when none is
+    -- being chosen) say a choice is being made
     local subtargetScale = options.subtargetScale ~= nil and math.max(50, math.min(200, options.subtargetScale[1])) / 100 or 1;
     local subtarget = 0;
     if (subtargetScale ~= 1) then
         local target = AshitaCore:GetMemoryManager():GetTarget();
-        if (target ~= nil and target:GetIsSubTargetActive() == 1) then
+        if (target ~= nil and (target:GetIsSubTargetActive() == 1 or target:GetSubTargetFlags() ~= SUBTARGET_NONE)) then
             subtarget = target:GetTargetIndex(0);
         end
     end

@@ -126,12 +126,13 @@ H.print('bundled West Ronfaure: Jaggedy-Eared Jack is drawn from one slot, in an
     #zone['Jaggedy-Eared Jack'] == 1 and zone['Jaggedy-Eared Jack'][1] == 294 and tables.Names['Forest Hare'] ~= nil)
 
 -- the name under the sub-target cursor, while one is being chosen
-local subActive, subIndex, asked = 0, 3, 0
+local subActive, subFlags, subIndex, asked = 0, 0xFFFFFFFF, 3, 0
 local manager = AshitaCore.GetMemoryManager
 AshitaCore.GetMemoryManager = function(...)
     local memory = manager(...)
     memory.GetTarget = function() asked = asked + 1; return {
         GetIsSubTargetActive = function() return subActive end,
+        GetSubTargetFlags = function() return subFlags end,
         GetTargetIndex = function(_, slot) return slot == 0 and subIndex or 1 end,
     } end
     return memory
@@ -148,6 +149,11 @@ options.subtargetScale[1] = 50; render()
 H.print('and 50% smaller, the rest as they were', tall(3) < plain, tall(2) == plain, tall(1) == plain)
 subActive = 0; render()
 H.print('chosen: as before', tall(3) == plain)
+-- with nothing targeted first, the choice is made in the first slot and only the flags say so
+options.subtargetScale[1] = 150; subFlags = 0x1F; render()
+H.print('nothing targeted first: the name under the cursor larger all the same', math.abs(tall(3) - plain * 1.5) < 0.01, tall(2) == plain)
+subFlags = 0xFFFFFFFF; render()
+H.print('and chosen: as before', tall(3) == plain)
 options.subtargetScale[1] = 999; custom.Settle(options)
 H.print('kept within 50 to 200', options.subtargetScale[1] == 200)
 options.subtargetScale = 'big'; custom.Settle(options)
