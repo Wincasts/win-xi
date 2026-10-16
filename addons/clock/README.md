@@ -1,4 +1,4 @@
-# clock — experimental 0.4
+# clock — experimental 0.5
 
 The game's clock, written out in full on one line in its place: the time, the map grid, the day,
 the date and the moon to begin with, as `3:32  (H-9)  Windsday  900/12/30  Moon 42%`, and what is
@@ -69,8 +69,17 @@ icon, from its DATs, is drawn as ever.
 A set is a folder of `addons\clock\icons`, holding any of `days\firesday.png` to `days\darksday.png`
 and `weather\fire.png`, `ice`, `wind`, `earth`, `thunder`, `water`, `light` and `dark`
 ([icons/README.txt](icons/README.txt)). Weather is by element: rain and squalls are water, dust and
-sand storms earth, auroras and stellar glare light, and so on. No set comes with the addon. A folder
-added while the game runs is in the list the next time it is opened.
+sand storms earth, auroras and stellar glare light, and so on. A folder added while the game runs is
+in the list the next time it is opened.
+
+A set can also have `weather\clear.png` (for no weather and sunshine), `clouds` and `fog`: skies the
+game draws no icon for. These go where its weather icon would be, 68 of its units above the day
+icon and as large; once the game has drawn a weather icon, exactly where it drew it.
+
+**gems** comes with the addon: round cut gemstones for the days, in the colours of the game's day
+circles, and weather icons after the game's own (a fireball, an ice crystal, a whirlwind, an earth
+block, a bolt, a drop, a glow and a dark swirl), with a sun for a clear sky. Each is 32 pixels, twice
+the game's 16. `tools/generate_clock_icons.py` makes them.
 
 ## Commands
 

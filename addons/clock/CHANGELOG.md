@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- The **gems** icon set: round cut gemstones for the days, and weather icons after the game's, with
+  a sun for a clear sky (`tools/generate_clock_icons.py`).
+- Skies the game draws no icon for (no weather, sunshine, clouds, fog) can have a set's picture,
+  `clear`, `clouds` or `fog`, where the game's weather icon would be.
+
 ## 0.4.0
 
 - Icon Set: pictures of your own for the day and weather icons, a folder of `icons` each, drawn where

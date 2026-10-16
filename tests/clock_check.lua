@@ -73,6 +73,13 @@ options.textScale[1] = 1
 -- the icons: the game's, unless the chosen set has a picture for the day or the weather
 local icons = require('icons')
 local function Images() return H.calls['draw.AddImage'] or 0 end
+-- where each picture went: the last drawn, as { handle, left, top, right, bottom }
+local drawn = {}
+rawset(imgui.GetWindowDrawList(), 'AddImage', function(_, handle, from, to)
+    H.calls['draw.AddImage'] = (H.calls['draw.AddImage'] or 0) + 1
+    drawn[#drawn + 1] = { handle, from[1], from[2], to[1], to[2] }
+end)
+local function At(entry, l, t, r, b) return entry ~= nil and entry[2] == l and entry[3] == t and entry[4] == r and entry[5] == b end
 CLOCK.icons[0] = { 8, 1096, 24, 1112 }
 local images = Images()
 H.frames(1)
@@ -91,20 +98,37 @@ CLOCK.icons[0] = nil
 H.frames(1)
 p('until uihook has seen where the day icon goes, the game\'s', CLOCK.hidden == 0)
 CLOCK.icons[0] = { 8, 1096, 24, 1112 }
-CLOCK.weather, CLOCK.icons[1], CLOCK.icons[2] = 7, { 8, 1028, 24, 1044 }, { 24, 1028, 40, 1044 }
+-- a clear sky, which the game draws no icon for: the set's where the game's weather icon would be,
+-- 68 of the game's units above its day icon, which is 16 of them across
+CLOCK.files['weather/clear'] = true
+CLOCK.weather = 1
+drawn = {}
+H.frames(1)
+p('sunshine: the clear sky, above the day icon, none of the game\'s hidden', CLOCK.hidden == 1, At(drawn[#drawn], 8, 1028, 24, 1044))
+CLOCK.icons[0] = { 8, 1096, 40, 1128 }
+drawn = {}
+H.frames(1)
+p('the game\'s icons drawn twice as large: twice as far up', At(drawn[#drawn], 8, 960, 40, 992))
+CLOCK.icons[0] = { 8, 1096, 24, 1112 }
+CLOCK.weather, CLOCK.icons[1], CLOCK.icons[2] = 7, { 8, 1030, 24, 1046 }, { 24, 1030, 40, 1046 }
 CLOCK.files['weather/water'] = true
 images = Images()
 H.frames(1)
-p('a squall, double water: both weather icons ours, beside the day\'s', CLOCK.hidden == 3, Images() == images + 3)
+p('a squall, double water: both weather icons ours, beside the day\'s', CLOCK.hidden == 3, Images() == images + 3,
+    At(drawn[#drawn - 1], 8, 1030, 24, 1046), At(drawn[#drawn], 24, 1030, 40, 1046))
 CLOCK.weather = 4
 H.frames(1)
 p('a hot spell, no fire picture: the game\'s weather icon', CLOCK.hidden == 1)
 CLOCK.weather = 2
 H.frames(1)
 p('clouds, for which the game draws none: none hidden', CLOCK.hidden == 1)
+CLOCK.weather, CLOCK.icons[1], CLOCK.icons[2] = 0, nil, nil
+drawn = {}
+H.frames(1)
+p('no weather: the clear sky where the game was last seen to put its weather icon', CLOCK.hidden == 1, At(drawn[#drawn], 8, 1030, 24, 1046))
 local loads = CLOCK.loads
 H.frames(5)
-p('each picture loaded once', CLOCK.loads == loads, loads == 2)
+p('each picture loaded once', CLOCK.loads == loads, loads == 3)
 H.command('/clock off')
 H.frames(1)
 p('off: the game\'s icons back', CLOCK.hidden == 0)
@@ -166,3 +190,13 @@ mark = #CLOCK.log
 H.unload()
 seen = Since(mark)
 p('unloaded: the clock and the compass given back', Has(seen, 'clock.stop'), Has(seen, 'compass.stop'))
+
+-- the set that comes with the addon: every day, every element, and the clear sky
+local missing = {}
+for _, name in ipairs({ 'days/firesday', 'days/earthsday', 'days/watersday', 'days/windsday', 'days/iceday',
+    'days/lightningday', 'days/lightsday', 'days/darksday', 'weather/fire', 'weather/ice', 'weather/wind',
+    'weather/earth', 'weather/thunder', 'weather/water', 'weather/light', 'weather/dark', 'weather/clear' }) do
+    local file = io.open('addons/clock/icons/gems/' .. name .. '.png', 'rb')
+    if file then file:close() else missing[#missing + 1] = name end
+end
+p('the gems set is whole', #missing == 0, table.concat(missing, ' '))

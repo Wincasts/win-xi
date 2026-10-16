@@ -1,6 +1,6 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.4.0'
+addon.version = '0.5.0'
 addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
 local winxiNeeded = 5
 do
@@ -31,6 +31,19 @@ local nextSample, line = 0, nil
 local weekday = nil -- as the line was last read, for the day's icon
 local sets, setsOpen = {}, false -- the icon sets, listed as the list is opened
 local screenMin, screenMax, iconMin, iconMax = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
+-- Where the game puts its weather icon, from its day icon's top left, and the weather icon's size:
+-- learnt whenever it draws both. Until then, from Clock::Draw: the weather's at (x-68, y-42) and the
+-- day's at (x-68, y+26), both sixteen of its units across, so 68 units above, as large.
+local weatherSlot = nil
+local function SkySlot(dayAt)
+    if not dayAt or not dayAt[1] then return nil end
+    if weatherSlot then
+        local x, y = dayAt[1] + weatherSlot[1], dayAt[2] + weatherSlot[2]
+        return { x, y, x + weatherSlot[3], y + weatherSlot[4] }
+    end
+    local up = 68 * (dayAt[3] - dayAt[1]) / 16
+    return { dayAt[1], dayAt[2] - up, dayAt[3], dayAt[4] - up }
+end
 local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, ImGuiWindowFlags_NoMove,
     ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoInputs,
     ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus, ImGuiWindowFlags_NoBackground)
@@ -203,13 +216,24 @@ ashita.events.register('d3d_present', 'clock_present', function()
     -- the set's icons where it has them, each where the game draws its own; the game's elsewhere
     local set = type(options.iconSet) == 'string' and options.iconSet or icons.None
     local day = icons.Day(set, weekday)
-    local weather, double = icons.Weather(set, hook.Weather())
-    local dayAt = day and { hook.IconRect(native.DayIcon) }
-    local weatherAt = weather and { hook.IconRect(native.WeatherIcon) }
-    local secondAt = weather and double and { hook.IconRect(native.SecondWeatherIcon) }
-    if dayAt and not dayAt[1] then day = nil end
-    if weatherAt and not weatherAt[1] then weather = nil end
-    hook.HideIcons((day and native.HideDay or 0) + (weather and native.HideWeather or 0))
+    local weather, double, gameDraws = icons.Weather(set, hook.Weather())
+    local dayAt = { hook.IconRect(native.DayIcon) }
+    local gameWeather = { hook.IconRect(native.WeatherIcon) }
+    if dayAt[1] and gameWeather[1] then
+        weatherSlot = { gameWeather[1] - dayAt[1], gameWeather[2] - dayAt[2], gameWeather[3] - gameWeather[1], gameWeather[4] - gameWeather[2] }
+    end
+    local weatherAt, secondAt
+    if weather and gameDraws then
+        -- in place of the game's icon, once uihook has seen where it goes
+        weatherAt = gameWeather[1] and gameWeather or nil
+        secondAt = double and { hook.IconRect(native.SecondWeatherIcon) } or nil
+    elseif weather then
+        -- a sky the game draws no icon for: where its weather icon would be
+        weatherAt = SkySlot(dayAt)
+    end
+    if not dayAt[1] then day = nil end
+    if not weatherAt then weather = nil end
+    hook.HideIcons((day and native.HideDay or 0) + (weather and gameDraws and native.HideWeather or 0))
 
     -- the line's left on the game's, its middle on the game's middle, growing right
     place[1], place[2] = left, (top + bottom) / 2

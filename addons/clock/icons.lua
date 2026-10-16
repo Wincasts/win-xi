@@ -5,14 +5,16 @@
 --                                addons\clock\icons, by name
 --   icons.Day(set, weekday)      the set's icon for the day (0 Firesday .. 7 Darksday): a handle imgui
 --                                can draw, or nil where the set has none
---   icons.Weather(set, weather)  the set's icon for the weather (the game's id, 4 to 19), and whether
---                                it is the double weather; nil where the set has none, or the game
---                                draws no icon for it (0 to 3: none, sunshine, clouds, fog)
+--   icons.Weather(set, weather)  the set's icon for the weather (the game's id, 0 to 19), whether it
+--                                is the double weather, and whether the game draws an icon for it
+--                                (4 to 19) or none (0 to 3: none, sunshine, clouds, fog), so that the
+--                                set's goes where the game's would; nil where the set has none
 --   icons.Load(path)             loads one picture (a field, for the checks to stand in for)
 --
 -- A set is a folder, addons\clock\icons\<set>\, holding any of
 --     days\firesday.png  earthsday  watersday  windsday  iceday  lightningday  lightsday  darksday
 --     weather\fire.png   ice  wind  earth  thunder  water  light  dark
+--     weather\clear.png  (no weather, and sunshine)  clouds  fog: for skies the game draws no icon for
 -- Each is drawn where the game draws that icon, at its size, so square pictures suit it best. Double
 -- weather is the weather's icon twice, side by side, as the game draws it.
 local ffi = require('ffi')
@@ -26,6 +28,8 @@ local DAYS = { 'firesday', 'earthsday', 'watersday', 'windsday', 'iceday', 'ligh
 -- The weather ids in pairs, the single then the double, from 4: hot spell, rain, dust storm, wind,
 -- snow, thunder, aurora, gloom; their elements, by which the game picks its icon
 local ELEMENTS = { 'fire', 'water', 'earth', 'wind', 'ice', 'thunder', 'light', 'dark' }
+-- 0 to 3, which the game draws no icon for: none and sunshine are both a clear sky
+local SKIES = { [0] = 'clear', [1] = 'clear', [2] = 'clouds', [3] = 'fog' }
 
 local root = nil
 local handles = {} -- path -> its handle, or false where there is none or it will not load
@@ -78,10 +82,15 @@ end
 
 function icons.Weather(set, weather)
     weather = tonumber(weather)
-    if weather == nil or weather < 4 or weather > 19 then return nil end
+    if weather == nil or weather < 0 or weather > 19 then return nil end
+    if weather < 4 then
+        local handle = Picture(set, 'weather', SKIES[weather])
+        if handle == nil then return nil end
+        return handle, false, false
+    end
     local handle = Picture(set, 'weather', ELEMENTS[math.floor((weather - 4) / 2) + 1])
     if handle == nil then return nil end
-    return handle, weather % 2 == 1
+    return handle, weather % 2 == 1, true
 end
 
 -- Another set chosen: what was loaded is looked for again (and a picture added since is found).
