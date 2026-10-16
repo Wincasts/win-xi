@@ -88,4 +88,26 @@ place, own = statusicons.MixedPlace(3)
 H.print('its icon in a cell of 64', own, close(place[1], (3 * 64 + 0.5) / 2048), '| the game\'s beside it', select(2, statusicons.MixedPlace(4)) == false)
 look.StatusIconSet = 'ffxiv'
 
+-- a slow D3DX, a millisecond an icon: a frame stops at 2 ms, whatever its count, and still puts on one
+local realClock, now = os.clock, 0
+os.clock = function() return now end
+local inMemory = ffi.C.D3DXLoadSurfaceFromFileInMemory
+ffi.C.D3DXLoadSurfaceFromFileInMemory = function(...) now = now + 0.001 return inMemory(...) end
+look.StatusIconSet = 'slow'
+loads, memoryLoads = {}, {}
+statusicons.MixedSheet()
+local first = #memoryLoads
+local slowFrames = 1
+while statusicons.MixedPlace(671) == nil and slowFrames < 1000 do statusicons.MixedSheet(); slowFrames = slowFrames + 1 end
+H.print('slow: a frame stops at its time', first == 2, '| the sheet still made whole', #memoryLoads == 672 - 3 - 1, '| over', slowFrames, 'frames')
+now = 1000
+ffi.C.D3DXLoadSurfaceFromFileInMemory = function(...) now = now + 0.05 return inMemory(...) end
+look.StatusIconSet = 'slower'
+memoryLoads = {}
+statusicons.MixedSheet(); statusicons.MixedSheet()
+H.print('slower than the whole time: still one a frame', #memoryLoads == 2)
+os.clock = realClock
+ffi.C.D3DXLoadSurfaceFromFileInMemory = inMemory
+look.StatusIconSet = 'ffxiv'
+
 ffi.C = originalC

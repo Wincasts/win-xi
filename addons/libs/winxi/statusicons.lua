@@ -76,6 +76,10 @@ local building = nil;    -- while a sheet is being made: { surface, ids, next, w
 -- The mixed sheet: cells as tall as MIXED.Cell, as wide as the set's icons are for that, in the
 -- place each status's number gives it; the game's icons in the corner of theirs, at their own size
 local MIXED = { Width = 2048, Cell = 64, Game = 32, PerFrame = 32, Filter = 4, NoFilter = 1, Black = 0xFF000000 };
+-- Seconds a frame may spend putting icons on a sheet: each is decoded by D3DX, which can be slow
+-- (under Wine above all), so a frame stops at this as well as at the sheet's PerFrame. As a character
+-- comes in, a sheet of every icon made at a fixed count a frame held the game up for seconds.
+local BUDGET = 0.002;
 local mixed = nil;       -- its handle, once begun
 local mixedTried = nil;
 local mixedPlaces = {};  -- status -> { u0, v0, u1, v1 }, own = whether the set's
@@ -328,7 +332,12 @@ end
 local function FillBuilt()
     local rect, from = ffi.new('RECT'), ffi.new('RECT');
     local last = math.min(#building.ids, building.next + BUILT.PerFrame - 1);
+    local stop = os.clock() + BUDGET;
     for index = building.next, last do
+        if index > building.next and os.clock() >= stop then
+            last = index - 1;
+            break;
+        end
         local id = building.ids[index];
         local path = ('%s%d.png'):format(folder, id);
         local width, height = nil, nil;
@@ -412,7 +421,12 @@ local function FillGameSheet()
     local resources = AshitaCore:GetResourceManager();
     local rect = ffi.new('RECT');
     local last = math.min(GAME.Columns * GAME.Columns - 1, gameNext + GAME.PerFrame - 1);
+    local stop = os.clock() + BUDGET;
     for id = gameNext, last do
+        if id > gameNext and os.clock() >= stop then
+            last = id - 1;
+            break;
+        end
         local icon = resources:GetStatusIconByIndex(id);
         if icon ~= nil and icon.ImageSize > 0 then
             local x, y = id % GAME.Columns * GAME.Icon, math.floor(id / GAME.Columns) * GAME.Icon;
@@ -498,7 +512,12 @@ local function FillMixed()
     local rect, from = ffi.new('RECT'), ffi.new('RECT');
     local last = math.min(BUILT.Last, mixing.next + MIXED.PerFrame - 1);
     local width, side, tall = mixing.width, MIXED.Width, mixing.height;
+    local stop = os.clock() + BUDGET;
     for id = mixing.next, last do
+        if id > mixing.next and os.clock() >= stop then
+            last = id - 1;
+            break;
+        end
         local x, y = id % mixing.columns * width, math.floor(id / mixing.columns) * MIXED.Cell;
         local placed = false;
         if Present(id) then
