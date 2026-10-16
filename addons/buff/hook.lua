@@ -130,10 +130,11 @@ function hook.Origin(found)
     return found.OriginX / sx, found.OriginY / sy;
 end
 
--- The bar being written: the textures it uses so far, by address, and how many quads
+-- The bar being written: the textures it uses so far, by address, and how many quads; and how many
+-- textures the last bar handed over had, whose slots are emptied if this one has fewer
 local writing = nil;
 local slots = {};
-local slotCount, count = 0, 0;
+local slotCount, count, lastSlotCount = 0, 0, TEXTURES;
 
 function hook.Begin(found)
     writing = found;
@@ -171,12 +172,13 @@ function hook.Finish()
     if writing == nil then
         return;
     end
-    for slot = 0, TEXTURES - 1 do
-        writing.Textures[slot] = 0;
-    end
     for address, slot in pairs(slots) do
         writing.Textures[slot] = address;
     end
+    for slot = slotCount, lastSlotCount - 1 do
+        writing.Textures[slot] = 0;
+    end
+    lastSlotCount = slotCount;
     writing.Count = count;
     writing.SubmitFrame = writing.Frame;
     writing = nil;

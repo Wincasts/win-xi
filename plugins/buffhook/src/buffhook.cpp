@@ -52,6 +52,14 @@ struct BarVertex {
 
 static BarVertex Vertices[BUFF_QUADS * 6];
 
+// Vertices that follow one another and are drawn from the same texture
+struct BarRun {
+    uint32_t texture;
+    uint32_t first;
+    uint32_t count;
+};
+static BarRun Runs[BUFF_QUADS];
+
 // Everything of the device's state that drawing the bar changes. Recorded twice over: once to be put
 // on the device, and once to be filled with what the game had, and put back.
 static void SetBarStates(IDirect3DDevice8* device) {
@@ -210,15 +218,22 @@ public:
         }
         RetainTextures(true);
 
-        // on the pixel's middle, as the game draws its own
+        // on the pixel's middle, as the game draws its own; in runs of quads from one texture, in
+        // the order the addon wrote them
         left -= 0.5f;
         top -= 0.5f;
         uint32_t made = 0;
+        uint32_t runCount = 0;
         for (uint32_t i = 0; i < count; i++) {
             const BuffQuad& quad = Shared.Quads[i];
             if (quad.Texture >= BUFF_TEXTURES || m_Textures[quad.Texture] == nullptr) {
                 continue;
             }
+            if (runCount == 0 || Runs[runCount - 1].texture != quad.Texture) {
+                Runs[runCount++] = { quad.Texture, made, 0 };
+            }
+            Runs[runCount - 1].count += 6;
+
             const float x0 = left + quad.X0, y0 = top + quad.Y0, x1 = left + quad.X1, y1 = top + quad.Y1;
             BarVertex* v = &Vertices[made];
             v[0] = { x0, y0, 0.0f, 1.0f, quad.Color, quad.U0, quad.V0 };
@@ -229,35 +244,16 @@ public:
             v[5] = { x0, y1, 0.0f, 1.0f, quad.Color, quad.U0, quad.V1 };
             made += 6;
         }
-        if (made == 0 || !MakeStates(device)) {
+        if (runCount == 0 || !MakeStates(device)) {
             return;
         }
 
         device->CaptureStateBlock(m_SavedStates);
         device->ApplyStateBlock(m_BarStates);
-        // in runs of quads drawn from one texture, in the order the addon wrote them
-        uint32_t first = 0;
-        uint32_t quadAt = 0;
-        uint32_t runTexture = BUFF_TEXTURES;
-        auto flush = [&](uint32_t end) {
-            if (end > first) {
-                device->SetTexture(0, m_Textures[runTexture]);
-                device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, (end - first) / 3, &Vertices[first], sizeof(BarVertex));
-            }
-            first = end;
-        };
-        for (uint32_t i = 0; i < count; i++) {
-            const BuffQuad& quad = Shared.Quads[i];
-            if (quad.Texture >= BUFF_TEXTURES || m_Textures[quad.Texture] == nullptr) {
-                continue;
-            }
-            if (quad.Texture != runTexture) {
-                flush(quadAt);
-                runTexture = quad.Texture;
-            }
-            quadAt += 6;
+        for (uint32_t i = 0; i < runCount; i++) {
+            device->SetTexture(0, m_Textures[Runs[i].texture]);
+            device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(BarVertex));
         }
-        flush(quadAt);
         device->ApplyStateBlock(m_SavedStates);
     }
 };
