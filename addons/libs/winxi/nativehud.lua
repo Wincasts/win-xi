@@ -15,6 +15,7 @@ ffi.cdef[[
         uint32_t HideIcons;
         int32_t WeatherShift;
         uint32_t PreviewWeather;
+        float WeatherScale;
     } uihook_hud_t;
     typedef int32_t (__cdecl *uihook_hud_submit_t)(int32_t index, int32_t capture);
 ]]
@@ -39,7 +40,7 @@ function M.new(index)
             local address = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D485544000000000000', 0, 0)
             if not address or address == 0 then reason = 'Update uihook: clock/compass shared block not found.'; return nil end
             local found = ffi.cast('uihook_hud_t*', address)
-            if found.Version ~= 5 or found.Size ~= ffi.sizeof('uihook_hud_t') or found.Submit == 0 then
+            if found.Version ~= 6 or found.Size ~= ffi.sizeof('uihook_hud_t') or found.Submit == 0 then
                 reason = 'uihook clock/compass ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_hud_submit_t', found.Submit)
@@ -66,7 +67,7 @@ function M.new(index)
     function hook.Stop()
         if owned and Find() then
             submit(index, -1)
-            if index == 0 then block.HideIcons, block.WeatherShift, block.PreviewWeather = 0, 0, 0 end
+            if index == 0 then block.HideIcons, block.WeatherShift, block.PreviewWeather, block.WeatherScale = 0, 0, 0, 0 end
         end
         owned = false
     end
@@ -126,6 +127,13 @@ function M.new(index)
         local found = Find()
         if not found or index ~= 0 then return false end
         found.WeatherShift = math.max(-200, math.min(200, math.floor(tonumber(units) or 0)))
+        return true
+    end
+    -- How large the game's weather icons are drawn, about each one's middle (1 as the game draws them)
+    function hook.ScaleWeather(scale)
+        local found = Find()
+        if not found or index ~= 0 then return false end
+        found.WeatherScale = math.max(0.25, math.min(4, tonumber(scale) or 1))
         return true
     end
     -- The game's own weather icons to draw in a row from the weather icon's place, to see them all:

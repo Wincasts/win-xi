@@ -1,6 +1,6 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.9.0'
+addon.version = '0.10.0'
 addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
 local winxiNeeded = 5
 do
@@ -253,6 +253,10 @@ local function DrawSettings(options)
         imgui.SliderInt('##clock.weatherOffset', options.weatherOffset, -WEATHER_MOST, WEATHER_MOST, '%d px')
         if imgui.IsItemDeactivatedAfterEdit() then app.save() end
         Tip('Moves the weather icon above the clock up (less than 0) or down (more than 0), in pixels:\nthe game\'s own and the Icon Set\'s alike.')
+        widgets.Label('Weather Scale')
+        imgui.SliderFloat('##clock.weatherScale', options.weatherScale, SCALE_MIN, SCALE_MAX, '%.2fx')
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        Tip('How large the weather icon is, about its middle: the game\'s own, which uihook draws that large,\nand the Icon Set\'s, on top of Icon Scale.')
         widgets.Label('Show All Weather')
         imgui.Checkbox('##clock.showAll', showAll)
         Tip('Draws every weather icon in a row from the weather icon\'s place, to see them and where they sit:\nfire, ice, wind, earth, thunder, water, light and dark, then the clear sky.\nThe Icon Set\'s where it has them, the game\'s own where not. Until it is turned off, or the game is restarted.')
@@ -268,7 +272,7 @@ end
 
 app = shell.New({
     defaults = T{ replace = T{ true }, hideCompass = T{ true }, fontFile = '', fontSize = T{ 0 }, textColor = T{ 1, 1, 1, 1 },
-        outline = T{ 1 }, iconScale = T{ 1 }, iconOffset = T{ 0 }, weatherOffset = T{ 0 }, iconSet = icons.None,
+        outline = T{ 1 }, iconScale = T{ 1 }, iconOffset = T{ 0 }, weatherOffset = T{ 0 }, weatherScale = T{ 1 }, iconSet = icons.None,
         format = fields.Default },
     hideAppearance = true, -- the clock has its own font and colour: no Winxi Theme tab
     configTitle = 'Clock Settings',
@@ -322,6 +326,7 @@ app = shell.New({
         options.iconScale[1] = Clamp(options.iconScale[1], SCALE_MIN, SCALE_MAX, 1)
         options.iconOffset[1] = math.floor(Clamp(options.iconOffset[1], -OFFSET_MOST, OFFSET_MOST, 0))
         options.weatherOffset[1] = math.floor(Clamp(options.weatherOffset[1], -WEATHER_MOST, WEATHER_MOST, 0))
+        options.weatherScale[1] = Clamp(options.weatherScale[1], SCALE_MIN, SCALE_MAX, 1)
         Release()
     end,
 })
@@ -383,6 +388,8 @@ ashita.events.register('d3d_present', 'clock_present', function()
     local shiftUnits = unit > 0 and math.floor(options.weatherOffset[1] / unit + 0.5) or 0
     local shift = shiftUnits * unit
     hook.ShiftWeather(shiftUnits)
+    local weatherScale = options.weatherScale[1]
+    hook.ScaleWeather(weatherScale)
     if dayAt[1] and gameWeather[1] then
         weatherSlot = { gameWeather[1] - dayAt[1], gameWeather[2] - dayAt[2] - shift, gameWeather[3] - gameWeather[1], gameWeather[4] - gameWeather[2] }
     end
@@ -397,11 +404,12 @@ ashita.events.register('d3d_present', 'clock_present', function()
         local first = Sky()
         if first then
             all = {}
-            local step = (first[3] - first[1]) + 2 * unit
+            -- as far apart as the grown icons and two of the game's units, as uihook spaces the game's
+            local step = (first[3] - first[1]) * weatherScale + 2 * unit
             for i, id in ipairs(ALL_WEATHER) do
                 local handle = icons.Weather(set, id)
                 local at = { first[1] + (i - 1) * step, first[2], first[3] + (i - 1) * step, first[4] }
-                if handle then all[#all + 1] = { handle, at }
+                if handle then all[#all + 1] = { handle, at, true }
                 elseif i <= 8 then gameAll = gameAll + 2 ^ (i - 1) end
             end
         end
@@ -444,7 +452,7 @@ ashita.events.register('d3d_present', 'clock_present', function()
         imgui.PushFont(fonts.Get(options.fontFile), size)
         local list = imgui.GetWindowDrawList()
         local fontSize = imgui.GetFontSize()
-        local iconSize = fontSize * iconScale
+        local iconSize = fontSize * iconScale * weatherScale -- the line's only icon is the weather's
         -- the pieces side by side, their middles on the line's
         local width, height = 0, fontSize
         for i, segment in ipairs(segments) do
@@ -482,16 +490,22 @@ ashita.events.register('d3d_present', 'clock_present', function()
             local display = imgui.GetIO().DisplaySize
             screenMax[1], screenMax[2] = display.x or display[1] or 0, display.y or display[2] or 0
             list:PushClipRect(screenMin, screenMax, false)
-            local function Icon(handle, at)
-                at = Placed(at, iconScale, iconOffset)
+            local function Icon(handle, at, isWeather)
+                at = Placed(at, iconScale * (isWeather and weatherScale or 1), iconOffset)
                 if not handle or not at then return end
                 iconMin[1], iconMin[2], iconMax[1], iconMax[2] = at[1], at[2], at[3], at[4]
                 list:AddImage(handle, iconMin, iconMax)
             end
             Icon(day, dayAt)
-            Icon(weather, weatherAt)
-            Icon(weather, secondAt)
-            for _, entry in ipairs(all or {}) do Icon(entry[1], entry[2]) end
+            Icon(weather, weatherAt, true)
+            -- a double weather's second grows about the first's middle, out beside it
+            if secondAt and secondAt[1] and weatherAt then
+                local grow = iconScale * weatherScale - 1
+                local dx = ((secondAt[1] + secondAt[3]) - (weatherAt[1] + weatherAt[3])) / 2 * grow
+                secondAt = { secondAt[1] + dx, secondAt[2], secondAt[3] + dx, secondAt[4] }
+            end
+            Icon(weather, secondAt, true)
+            for _, entry in ipairs(all or {}) do Icon(entry[1], entry[2], true) end
             list:PopClipRect()
         end
         hook.Capture() -- current window's text and icons, never a pointer passed from Lua

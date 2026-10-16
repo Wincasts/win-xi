@@ -163,6 +163,23 @@ TURN_ALL = false
 H.frames(1)
 p('turned off: none of the game\'s drawn for it', CLOCK.preview == 0)
 H.command('/clock')
+-- Weather Scale: the game's weather icons drawn larger by uihook, the set's with them
+options.weatherScale[1] = 2
+CLOCK.weather, CLOCK.icons[1], CLOCK.icons[2] = 7, { 8, 1030, 24, 1046 }, { 24, 1030, 40, 1046 }
+drawn = {}
+H.frames(1)
+p('Weather Scale 2: handed to uihook, a squall\'s two the set\'s, twice as large and side by side', CLOCK.scale == 2,
+    DrawnAt(0, 1022, 32, 1054), DrawnAt(32, 1022, 64, 1054), DrawnAt(8, 1096, 24, 1112))
+H.command('/clock')
+TURN_ALL = true
+drawn = {}
+H.frames(1)
+p('all shown at Weather Scale 2: the row as far apart as the grown icons and two', DrawnAt(170, 1022, 202, 1054))
+TURN_ALL = false
+H.frames(1)
+H.command('/clock')
+options.weatherScale[1] = 1
+CLOCK.icons[1], CLOCK.icons[2] = nil, nil
 imgui.Checkbox = check
 local loads = CLOCK.loads
 H.frames(5)

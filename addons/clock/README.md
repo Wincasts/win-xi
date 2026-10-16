@@ -1,4 +1,4 @@
-# clock — experimental 0.9
+# clock — experimental 0.10
 
 The game's clock, written out in full on one line in its place: the time, the map grid, the day,
 the date and the moon to begin with, as `3:32  (H-9)  Windsday  900/12/30  Moon 42%`; what it shows,
@@ -93,6 +93,9 @@ its Icon Scale and Offset, or the game's), and never left of where the game writ
 - **Weather Offset**: moves the weather icon above the clock up or down, -40 to 40 pixels (0 to begin
   with): the game's own icon too, which uihook draws that much higher or lower, in the game's units
   (its day icon sixteen across), and the set's with it.
+- **Weather Scale**: how large the weather icon above the clock is, 0.5x to 3x (1x to begin with),
+  about its middle: the game's own too, which uihook draws that large, and the set's on top of Icon
+  Scale, in the line as well. A double weather's two grow about the first's middle, side by side.
 - **Show All Weather**: draws every weather icon in a row from the weather icon's place, fire, ice,
   wind, earth, thunder, water, light and dark, then the clear sky: the set's where it has them, the
   game's own where not, to see them all and where they sit. The weather's own icon gives way to the

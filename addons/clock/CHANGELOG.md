@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0
+
+- Weather Scale: the weather icon 0.5x to 3x as large, the game's own (uihook draws it so) and the
+  set's, double weather's two side by side, and Show All Weather's row spaced for them.
+- Needs uihook 0.2 with HUD ABI 6.
+
 ## 0.9.0
 
 - The settings in four sections, each folding away: Clock, Line, Text and Icons. Add Field is a list

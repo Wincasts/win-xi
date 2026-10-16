@@ -95,9 +95,9 @@ compass still draws. Radar-disabled/unsupported-zone checks gate compass replay.
 and shared visibility states gate clock replay. Missing signatures or replay failure leave the
 unsupported element native. HUD discovery does not depend on party/window recognition.
 
-### HUD ABI 5
+### HUD ABI 6
 
-A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **160 bytes** total:
+A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **164 bytes** total:
 
 ```text
 char Magic[16]
@@ -107,7 +107,7 @@ float ClockRect[4]; u32 ClockRectFrame
 char Grid[12]
 float IconRect[3][4]; u32 IconFrame[3]
 u32 HideIcons            written by the addon
-i32 WeatherShift; u32 PreviewWeather   written by the addon
+i32 WeatherShift; u32 PreviewWeather; float WeatherScale   written by the addon
 ```
 
 `SupportedMask`: bit 0 clock, bit 1 compass. `Submit` is `cdecl int(index, capture)` and may only be
@@ -129,8 +129,12 @@ icons down (up, below 0) by that many of its units, at most 200 either way: adde
 calls are given. `PreviewWeather` names game weather icons (bit 0 fire, 1 ice, 2 wind, 3 earth,
 4 thunder, 5 water, 6 light, 7 dark, its sprites' order) to draw after the day icon, each in its
 place in a row from the weather icon's (68 units above the day icon's, shifted), a sprite's width and
-two apart; they are not measured and never hidden. Both are honoured as `HideIcons` is, and cleared
-with it. Geometry limits,
+two apart; they are not measured and never hidden. `WeatherScale` (0.25 to 4; 0 or 1 as the game
+draws them) grows or shrinks the game's weather icons and the preview's: each screen-space draw made
+from memory in their calls is drawn again by uihook from a copy, its positions scaled about the
+first weather icon's middle as last measured (each preview icon about its own, the row spaced for
+them), and the game's draw blocked; anything else is left as the game draws it, and the icons are
+measured unscaled. All are honoured as `HideIcons` is, and cleared with it. Geometry limits,
 clipping, font validation, texture retention and two-frame
 freshness reuse the existing capture/replay implementation. Addons should use the slot-specific
 `winxi.nativehud` bridge, which validates ABI, capability, unload/reload and weather, place and grid freshness.

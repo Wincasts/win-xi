@@ -4,15 +4,16 @@
 package.path = 'addons/clock/?.lua;' .. package.path
 
 CLOCK = { rect = nil, grid = '(H-9)', ready = { true, true }, log = {}, status = 'Drawn in place of the game\'s clock.',
-    icons = {}, weather = nil, hidden = 0, files = {}, loads = 0, shift = 0, preview = 0 }
+    icons = {}, weather = nil, hidden = 0, files = {}, loads = 0, shift = 0, preview = 0, scale = 0 }
 local function Slot(index)
     local slot = {}
     local function Note(what) CLOCK.log[#CLOCK.log + 1] = (index == 0 and 'clock.' or 'compass.') .. what end
     function slot.Begin() Note('begin'); return CLOCK.ready[index + 1] end
     function slot.Capture() Note('capture'); return true end
-    function slot.Stop() Note('stop'); if index == 0 then CLOCK.hidden, CLOCK.shift, CLOCK.preview = 0, 0, 0 end end
+    function slot.Stop() Note('stop'); if index == 0 then CLOCK.hidden, CLOCK.shift, CLOCK.preview, CLOCK.scale = 0, 0, 0, 0 end end
     function slot.ShiftWeather(units) if index ~= 0 then return false end CLOCK.shift = units; return true end
     function slot.PreviewWeather(mask) if index ~= 0 then return false end CLOCK.preview = mask; return true end
+    function slot.ScaleWeather(scale) if index ~= 0 then return false end CLOCK.scale = scale; return true end
     function slot.Status() return index == 0 and CLOCK.status or 'Native replacement ready.' end
     function slot.Weather() return index == 0 and CLOCK.weather or nil end
     function slot.IconRect(icon)
