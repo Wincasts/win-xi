@@ -222,7 +222,12 @@ local sliders = H.calls.SliderFloat or 0
 H.frames(1)
 p('the settings: Text Scale among them', (H.calls.SliderFloat or 0) > sliders)
 local smalls, inputs = H.calls.SmallButton or 0, H.calls.InputText or 0
+local setWidth, widths = imgui.SetNextItemWidth, {}
+imgui.SetNextItemWidth = function(width, ...) widths[#widths + 1] = width; return setWidth(width, ...) end
 H.frames(1)
+imgui.SetNextItemWidth = setWidth
+p('the line\'s box a width of its own: the settings window fits itself to it, and one as wide as the window shrinks it',
+    #widths > 0, (function() for _, w in ipairs(widths) do if not (w > 0) then return false end end return true end)())
 p('the Line section: the line to write, a button a field, five dividers and Default', (H.calls.InputText or 0) - inputs == 1,
     (H.calls.SmallButton or 0) - smalls == #fields.All + 6)
 -- a button pressed: the field after two spaces, a divider in place of the spaces at the end

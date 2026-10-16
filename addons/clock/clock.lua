@@ -1,6 +1,6 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.8.0'
+addon.version = '0.8.1'
 addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
 local winxiNeeded = 5
 do
@@ -165,7 +165,12 @@ local function DrawSettings(options)
     if widgets.Header('Line') then
         imgui.TextDisabled('Each {field} is written in its place; anything else is written as it is.')
         if format[1] ~= options.format and not imgui.IsAnyItemActive() then format[1] = options.format end
-        imgui.SetNextItemWidth(-1)
+        widgets.Label('Line')
+        -- a width of its own, wider as the line grows: the settings window fits itself to what is
+        -- in it, so a box as wide as the window (-1) and the window shrank each other every frame
+        local _, textHeight = imgui.CalcTextSize('A')
+        textHeight = textHeight or 14
+        imgui.SetNextItemWidth(math.max(textHeight * 24, (imgui.CalcTextSize(format[1]) or 0) + textHeight * 2))
         if imgui.InputText('##clock.format', format, 256) then
             options.format = format[1]
             nextSample = 0

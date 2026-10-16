@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1
+
+- The settings window no longer shrinks and wanders while open: the line's box was as wide as the
+  window, which winxi fits to its content each frame, so each made the other smaller. It is now 24
+  letters wide, or as wide as the line.
+
 ## 0.8.0
 
 - Weather Offset: the weather icon above the clock moved up or down, -40 to 40 pixels, the game's own
