@@ -237,16 +237,18 @@ local function snapshot(lines)
         return ('%.0f x %.0f'):format(size.x, size.y);
     end);
     try(lines, 'Font texture', function ()
-        local texture, problem = fonts.Texture();
-        return texture ~= nil and ('id %s'):format(tostring(texture)) or problem;
+        local texture, problem, route = fonts.Texture();
+        return texture ~= nil and ('id %s, from the %s'):format(tostring(texture), route) or problem;
     end);
     -- each of imgui's answers apart, so that one that fails does not hide the others
-    try(lines, 'Font texture data', function ()
-        local data = imgui.GetFont().ContainerAtlas.TexData;
-        return ('%d x %d, status %s'):format(data.Width, data.Height, tostring(data.Status));
-    end);
-    try(lines, 'Font texture data id', function () return tostring(imgui.GetFont().ContainerAtlas.TexData:GetTexID()); end);
-    try(lines, 'Font texture reference id', function () return tostring(imgui.GetFont().ContainerAtlas.TexRef:GetTexID()); end);
+    local ok, detail = pcall(fonts.TextureDetail);
+    if (ok) then
+        for _, line in ipairs(detail) do
+            lines[#lines + 1] = ('  %-20s %s'):format(line[1], line[2]);
+        end
+    else
+        lines[#lines + 1] = ('  (unreadable: %s)'):format(tostring(detail));
+    end
 end
 
 local function optionLines(lines, options)

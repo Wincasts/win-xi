@@ -21,6 +21,7 @@
 -- option, a setting. An addon that starts using it sets its winxiNeeded to the new Number. winxi
 -- keeps what it had, so a newer winxi serves every older addon.
 -- 2: fonts.Texture
+-- 3: fonts.Texture reads the texture's fields before its methods; fonts.TextureDetail
 return {
-    Number = 2,
+    Number = 3,
 };
