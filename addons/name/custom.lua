@@ -79,6 +79,7 @@ local TEMPER_TOP    = 75;   -- the level from which an ordinary monster has the 
 local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
 local SIZE_JUMP     = 0.15; -- a change in the game's size for a name, from one frame to the next, that is no step of a walk
 local SIZE_HOLD     = 4;    -- frames such a change has to last to be believed
+local SUB_SETTLE    = 30;   -- frames after a character stops being the sub target that its name's size is still held
 local STEADY_AFTER  = 4;    -- frames a name's colour has to stay the same to be taken as its own at once
 local STEADY_STRETCH = 45;  -- frames over which the strongest of a pulsing name's colours is looked for
 local SIGN_SIZE     = 0.7;  -- how large the magnifying glass is beside the letters it is written among
@@ -751,10 +752,18 @@ end
 -- name its full size for a frame, whatever distance it is at, and then the size it had. A name whose
 -- size leaps between one frame and the next keeps the size it had until the new one has lasted; one
 -- that changes as a walk changes it is followed at once. known is what is kept of the name's entity.
-local function steadySize(known, name)
+-- held, while the character is the sub target being chosen and for a little after: the game sizes
+-- that name its own way as the choice begins and ends, and none of its leaps is believed then, only
+-- the steps of a walk; Subtarget Scale is the one change of size it has.
+local function steadySize(known, name, held)
     local size = math.max(0, math.min(1, name.Scale));
 
-    if (known.sizeOf ~= name.ServerId or known.sizeSeen ~= frame - 1 or math.abs(size - known.size) <= SIZE_JUMP) then
+    if (held and known.sizeOf == name.ServerId) then
+        if (math.abs(size - known.size) <= SIZE_JUMP) then
+            known.size = size;
+        end
+        known.sizeRun = 0;
+    elseif (known.sizeOf ~= name.ServerId or known.sizeSeen ~= frame - 1 or math.abs(size - known.size) <= SIZE_JUMP) then
         -- another character's, or one not listed last frame, or a step: as the game has it
         known.sizeOf, known.size, known.sizeRun = name.ServerId, size, 0;
     elseif (known.sizeRun > 0 and math.abs(size - known.sizeLeap) <= SIZE_JUMP) then
@@ -952,18 +961,15 @@ function custom.Frame(options, hook, formats)
     local huntTexture = trackedName ~= '' and sheet(HUNT.Sheet) or 0;
     local huntScale = options.huntScale ~= nil and math.max(100, math.min(200, options.huntScale[1])) / 100 or 1;
     nameplates.SetTexture(HUNT.Slot, huntTexture);
-    -- the character under the sub-target cursor while one is being chosen, looked for only if its
-    -- name is to be another size. It is the first of the game's two targets either way: with a
+    -- the character under the sub-target cursor while one is being chosen. It is the first of the game's two targets either way: with a
     -- target already, that moves to the second and IsSubTargetActive is set; with none, nothing
     -- moves and only the sub-target flags (the kinds that may be chosen, all set when none is
     -- being chosen) say a choice is being made
     local subtargetScale = options.subtargetScale ~= nil and math.max(50, math.min(200, options.subtargetScale[1])) / 100 or 1;
     local subtarget = 0;
-    if (subtargetScale ~= 1) then
-        local target = AshitaCore:GetMemoryManager():GetTarget();
-        if (target ~= nil and (target:GetIsSubTargetActive() == 1 or target:GetSubTargetFlags() ~= SUBTARGET_NONE)) then
-            subtarget = target:GetTargetIndex(0);
-        end
+    local target = AshitaCore:GetMemoryManager():GetTarget();
+    if (target ~= nil and (target:GetIsSubTargetActive() == 1 or target:GetSubTargetFlags() ~= SUBTARGET_NONE)) then
+        subtarget = target:GetTargetIndex(0);
     end
     -- the statuses its player has chosen to see over a name: read once, here, for all of them
     local statusRows = statuses.Begin(options);
@@ -1097,7 +1103,9 @@ function custom.Frame(options, hook, formats)
             -- its furthest it is nothing: Scale is 1 and then falls to 0. Here it shrinks over the
             -- same distance, from its largest to its smallest rather than to nothing,
             -- and fades out over the last of it.
-            local nearness = steadySize(written, name);
+            local isSubtarget = subtarget ~= 0 and name.EntityIndex == subtarget;
+            if (isSubtarget) then written.subUntil = frame + SUB_SETTLE; end
+            local nearness = steadySize(written, name, written.subUntil ~= nil and frame <= written.subUntil);
             local size = leastSize + (fullSize - leastSize) * nearness;
 
             -- whether it is the notorious monster being hunted, or one of its placeholders: looked
@@ -1119,7 +1127,7 @@ function custom.Frame(options, hook, formats)
                     size = size * huntScale;
                 end
             end
-            if (subtarget ~= 0 and name.EntityIndex == subtarget) then
+            if (isSubtarget) then
                 size = size * subtargetScale;
             end
 
