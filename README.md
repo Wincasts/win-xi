@@ -44,8 +44,8 @@ Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first; fo
 `party`, `/load uihook` first. Uihook replaces `buffhook` and `partyhook`; unload those before loading
 it and remove their startup commands. Party native rendering remains opt-in; unload `hideparty`
 before enabling it. The experimental [clock addon](addons/clock/README.md) uses uihook 0.2 to
-replace only the native clock/day/weather display; unload `hidecompass` first. Clock requires winxi 5.
-Clock and compass hooks are available independently; no custom compass UI is included yet.
+write the game's clock on one line in place of its text, keeping its day and weather icons, and can
+hide the compass; unload `hidecompass` first. Clock requires winxi 5.
 See the uihook README for migration and testing steps.
 
 ## What else is here

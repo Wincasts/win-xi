@@ -1,8 +1,10 @@
-# clock — experimental 0.1
+# clock — experimental 0.2
 
-A minimal Vana'diel clock, drawn through **uihook 0.2** at the client's native clock boundary.
-Shows **HH:MM**, weekday, Vana'diel date, moon illumination percentage and weather (when the
-native weather source is available). No compass replacement UI is included.
+The game's clock, written out in full on one line in its place: the time, the map grid, the day,
+the date and the moon, as `3:32  (H-9)  Windsday  900/12/30  Moon 42%`. The game's own day and weather
+icons stay where the game puts them, and the compass above the clock is hidden. Drawn through
+**uihook 0.2** where the game draws its clock, so the game's menus and chat log are drawn over it as
+they are over the game's own.
 
 ## Install
 
@@ -18,51 +20,59 @@ native weather source is available). No compass replacement UI is included.
    /addon load clock
    ```
 
-**Unload hidecompass first.** It hides the shared native compass/clock object, so the client's clock
-render boundary no longer runs. Keep the native clock enabled in the game's settings too. Radar can
-be disabled independently in the client: the clock hook covers both radar-on and radar-off paths.
+**Unload hidecompass first.** It hides the object the game draws both its compass and its clock from,
+so the game never gets as far as its clock and there is nothing to draw in place of. This addon's own
+Hide Compass does the compass's part. Keep the clock on in the game's config too.
+
+## Settings
+
+`/clock` opens or closes the settings. Under **Clock**:
+
+- **Replace Game's Clock**: the one line in place of the game's text (on to begin with). Off, the
+  game's own clock comes back.
+- **Text Scale**: how large the line is, from 0.5x to 3x the theme's font size (1x to begin with).
+  The line keeps its left edge and middle on the game's text, growing to the right and both ways
+  from the middle; the dark edge round the letters thickens from 1.75x.
+- **Hide Compass**: the game's compass and radar are not drawn (on to begin with). The clock and its
+  icons are drawn all the same.
+
+The line is the theme's font and text colour, with winxi's dark edge round it and no background. The
+Winxi Theme tab sets those. Settings are kept for each character.
 
 ## Commands
 
-- `/clock` or `/clock status`: readiness/off status.
-- `/clock on`: enable replacement (default).
-- `/clock off`: release the clock slot; the stock clock returns.
-- `/clock pos <x> <y>`: set position in ImGui display pixels.
-- `/clock pos native`: back on the game's clock (the default).
-- `/clock help`: command summary.
+- `/clock`: the settings.
+- `/clock on`, `/clock off`: Replace Game's Clock.
+- `/clock status`: whether the line is drawn in the game's clock's place, and whether the compass is
+  hidden, or what is in the way.
 
-Settings are saved per character. The display is intentionally basic: fixed font, background, no
-mouse interaction or configuration window. By default its bottom-left corner sits on the bottom-left
-of the game's own clock, wherever uihook sees the game draw it, and it grows upward from there. It is
-drawn when the game draws its clock, so what the game draws afterwards (the chat log) covers it: a
-place of your own below the clock can be hidden. Until uihook has seen where the clock is, it sits 105
-pixels above the bottom-left of the screen. It doesn't use winxi's full themed-window stack.
+## How it works
 
-## Behavior and limitations
+uihook draws the line when the game draws its clock. Of the game's clock, only its text gives way:
+the game still writes it, unseen, and uihook measures where, so the line goes exactly there at any
+resolution or menu scale. The day icon to its left and the weather icon above it (two for double
+weather) are the game's own, drawn after the text as ever. The map grid is the game's own `(H-9)`.
 
-- Replaces only the **clock/day/weather** draw routine. The native compass stays untouched.
-- Native visibility/layering is retained: no clock replacement when the client does not call its
-  clock drawing routine, including native compass/clock hide states. No always-on floating fallback
-  when the plugin, ABI, or time library is unavailable.
-- One timestamp supplies all fields, sampled four times per second. Weather is read by C++ from the
-  verified native source and handed over as an ID; no game or texture pointers cross Lua.
-- Disabling/unloading Clock releases only its slot, not buffs, party, targets or a future compass
-  addon. Missing submissions expire after two presented frames as with the other replacement modes.
-- Capture/replay is prior-frame geometry. GPU capture/replay failures retain the existing renderer's
-  fail-open behavior; this experimental addon does not guarantee a seamless transition on failure.
-- Native keyboard/controller behavior is not rewritten. No memory state/opacity/visibility writes
-  from hidecompass are used by the replacement.
+- Nothing is drawn until uihook has seen where the game writes its clock, and then only while the
+  game goes on drawing it: with the clock off in the game's config, in a cutscene, or with the
+  interface hidden, there is no line either. There is no floating clock of its own.
+- One timestamp supplies every field, read four times a second.
+- Turning the line off or unloading gives back only the clock's slot and the compass's, never the
+  buff or party addons'. If the addon stops handing the line over, the game's text is back within
+  two frames.
+- If uihook cannot find the game's text call it replaces the whole clock, icons and all, as 0.1 did.
+  `/uihook hud` says which.
 
-**Not live-validated yet.** Check menu overlap, native clock/radar toggles, cutscenes, zoning, UI
-hide/show, resolution/font changes, reset recovery and addon/plugin reload. The C++ discovery has
-been cross-checked against the local private client dump; that is not proof of visible GPU output.
+**Not live-validated yet.** Check the clock and radar toggles in the game's config, weather and double
+weather, cutscenes, zoning, hiding the interface, resolution and font changes, and reloading the
+addon and the plugin.
 
 ## Checks
 
 ```sh
 plugins/uihook/tests/run.sh
 luajit tests/nativehud_check.lua
-luajit tests/clock_check.lua
+luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 ```
 
 See [uihook](../../plugins/uihook/README.md) for the hook protocol and native discovery details.

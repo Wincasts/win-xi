@@ -1,65 +1,95 @@
--- Basic clock addon without client/GPU. Checks formatting and current-window capture timing.
-local rawCalls=0
-local time={get_game_time_raw=function() rawCalls=rawCalls+1; return 123 end}
-for name,value in pairs({weekday=7,hours=23,minutes=59,year=900,month=12,day=30,moon_percent=42}) do
-    time['get_game_'..name]=function(raw) assert(raw==123,'every field must use the same timestamp'); return value end
+-- The clock addon (through tests/clock_stand_in.lua): one line where the game writes its clock, no
+-- background, its text scale, the compass hidden, the settings, and letting go of the game's clock.
+local imgui = require('imgui')
+local display = require('display')
+local p = H.print
+
+-- the line
+local raws = CLOCK.raws
+local time = package.loaded['ffxi.time']
+p('one line: time, grid, day, date, moon', display.Line(time, '(H-9)') == '3:32  (H-9)  Windsday  900/12/30  Moon 42%')
+p('every field from one timestamp', CLOCK.raws == raws + 1)
+p('no grid: left out', display.Line(time, nil) == '3:32  Windsday  900/12/30  Moon 42%', display.Line(time, '') == display.Line(time, nil))
+
+-- what the clock's window is asked
+local begin, finish, setPos, pushFont, calc = imgui.Begin, imgui.End, imgui.SetNextWindowPos, imgui.PushFont, imgui.CalcTextSize
+local inside, windows, placed, sized, measured = nil, {}, nil, nil, nil
+imgui.Begin = function(name, open, flags) inside = name; windows[name] = flags; return begin(name, open, flags) end
+imgui.End = function(...) inside = nil; return finish(...) end
+imgui.SetNextWindowPos = function(pos, cond, pivot) placed = { pos[1], pos[2], pivot }; return setPos(pos, cond, pivot) end
+imgui.PushFont = function(font, size) if inside == 'clock.native' then sized = size end; return pushFont(font, size) end
+imgui.CalcTextSize = function(words) if inside == 'clock.native' then measured = words end; return calc(words) end
+local function Since(mark)
+    local seen = {}
+    for i = mark + 1, #CLOCK.log do seen[#seen + 1] = CLOCK.log[i] end
+    return table.concat(seen, ' ')
 end
-local display=dofile('addons/clock/display.lua')
-local lines=display.Read(time,'Rain')
-assert(rawCalls==1 and lines[1]=='23:59  Darksday' and lines[2]=="Vana'diel 0900-12-30" and lines[3]=='Moon: 42%' and lines[4]=='Weather: Rain')
-assert(#display.Read(time)==3,'weather is optional')
-local handlers,calls,texts={},{},{}
-local current,ready=false,true
-local hook={Begin=function() calls[#calls+1]='begin'; return ready end,
-    Capture=function() assert(current,'capture must happen before End'); calls[#calls+1]='capture'; return true end,
-    Stop=function() calls[#calls+1]='stop' end,Status=function() return 'Ready' end,Weather=function() return 7 end,
-    ClockRect=function() return nil end}
-local placed
-package.loaded.common={}
-package.loaded['winxi.version']={Number=5}
-package.loaded['ffxi.time']=time
-package.loaded.display=display
-package.loaded['winxi.nativehud']={Clock=0,new=function(index) assert(index==0,'clock must never own compass'); return hook end}
-package.loaded.settings={load=function(defaults) return defaults end,register=function() end,save=function() end}
-local guiBegins=0
-package.loaded.imgui={GetIO=function() return {DisplaySize={x=1920,y=1080}} end,
-    SetNextWindowPos=function(pos,cond,pivot) placed={pos[1],pos[2],pivot} end,
-    Begin=function(name) assert(name=='clock.native'); current=true; guiBegins=guiBegins+1; return true end,
-    TextUnformatted=function(line) assert(current); texts[#texts+1]=line end,
-    End=function() assert(current); current=false end}
-for i,name in ipairs({'NoTitleBar','NoResize','NoMove','AlwaysAutoResize','NoSavedSettings','NoInputs','NoFocusOnAppearing','NoBringToFrontOnFocus'}) do
-    _G['ImGuiWindowFlags_'..name]=2^(i-1)
-end
-ImGuiCond_Always=1
-addon={}
-ashita={events={register=function(_,name,callback) handlers[name]=callback end}}
-AshitaCore={GetResourceManager=function() return {GetString=function(_,kind,id) assert(kind=='weather' and id==7); return 'Rain' end} end}
-os.clock=function() return 1 end
-dofile('addons/clock/clock.lua')
-handlers.clock_load()
-handlers.clock_present()
-assert(not current and calls[#calls]=='capture' and #texts==4)
-assert(placed[1]==20 and placed[2]==975 and not placed[3],'no place from the game: the fallback above the bottom')
-hook.ClockRect=function() return 26,1098,106,1108 end
-handlers.clock_present()
-assert(placed[1]==26 and placed[2]==1108 and placed[3][1]==0 and placed[3][2]==1,'on the game\'s clock, bottom-left, growing up')
-local function command(...)
-    local args={...}; local e={command={args=function() return args end}}
-    handlers.clock_command(e); assert(e.blocked)
-end
-command('/clock','pos','300','400'); handlers.clock_present()
-assert(placed[1]==300 and placed[2]==400 and not placed[3],'a place of its own is kept')
-command('/clock','pos','native'); handlers.clock_present()
-assert(placed[1]==26 and placed[2]==1108,'native goes back to the game\'s clock')
-command('/clock','off')
-local before=guiBegins
-handlers.clock_present()
-assert(guiBegins==before and calls[#calls]=='stop','off releases replacement, does not consume or renew empty')
-command('/clock','on')
-ready=false; handlers.clock_present()
-assert(guiBegins==before,'missing native capability never produces a floating duplicate clock')
-ready=true; handlers.clock_present()
-assert(guiBegins==before+1)
-handlers.clock_unload()
-assert(calls[#calls]=='stop','unload restores native clock only')
-print('Clock addon: timestamp-consistent time/date/day/moon/weather, capture timing, disabled/unavailable and unload passed')
+local function Has(list, word) return (' ' .. list .. ' '):find(' ' .. word .. ' ', 1, true) ~= nil end
+
+H.load()
+local mark = #CLOCK.log
+H.frames(2)
+local seen = Since(mark)
+p('before uihook has seen the clock: none of its own, the game\'s left alone', windows['clock.native'] == nil, Has(seen, 'clock.stop'), not Has(seen, 'clock.begin'))
+p('the compass hidden from the start', Has(seen, 'compass.begin'))
+
+CLOCK.rect = { 26, 1098, 106, 1108 }
+mark = #CLOCK.log
+H.frames(1)
+seen = Since(mark)
+p('drawn where the game writes its clock: its left, its middle', placed[1] == 26, placed[2] == 1103, placed[3][1] == 0 and placed[3][2] == 0.5)
+p('the line, with the game\'s grid', measured == '3:32  (H-9)  Windsday  900/12/30  Moon 42%')
+p('no background', bit.band(windows['clock.native'], ImGuiWindowFlags_NoBackground) ~= 0)
+p('begun, then captured inside its window', Has(seen, 'clock.begin'), Has(seen, 'clock.capture'))
+p('outlined: the words drawn with their edge', (H.calls['draw.AddText'] or 0) >= 5)
+p('text scale 1: the theme\'s size', sized == 14)
+
+local options = H.options()
+options.textScale[1] = 2
+H.frames(1)
+p('text scale 2: twice the theme\'s size', sized == 28)
+options.textScale[1] = 1
+
+-- the compass
+options.hideCompass[1] = false
+mark = #CLOCK.log
+H.frames(1)
+seen = Since(mark)
+p('Hide Compass off: the compass given back, not hidden', Has(seen, 'compass.stop'), not Has(seen, 'compass.begin'))
+options.hideCompass[1] = true
+
+-- the commands
+p('/clock off', H.command('/clock off'), options.enabled[1] == false)
+windows['clock.native'], mark = nil, #CLOCK.log
+H.frames(1)
+seen = Since(mark)
+p('off: the game\'s clock given back, nothing drawn', Has(seen, 'clock.stop'), windows['clock.native'] == nil, Has(seen, 'compass.begin'))
+p('/clock on', H.command('/clock on'), options.enabled[1] == true)
+local before = #H.printed
+p('/clock status says the clock and the compass', H.command('/clock status'), #H.printed == before + 2,
+    tostring(H.printed[before + 1]):find('Drawn in place', 1, true) ~= nil, tostring(H.printed[before + 2]):find('Compass', 1, true) ~= nil)
+p('/clock opens the settings', H.command('/clock'))
+local sliders = H.calls.SliderFloat or 0
+H.frames(1)
+p('the settings: Text Scale among them', (H.calls.SliderFloat or 0) > sliders)
+
+-- a capability uihook does not have: nothing of its own drawn
+CLOCK.ready[1] = false
+windows['clock.native'] = nil
+H.frames(1)
+p('uihook without the clock: no window of its own', windows['clock.native'] == nil)
+CLOCK.ready[1] = true
+
+-- 0.1's settings: enabled as true or false, and a place of its own
+options.enabled, options.x, options.y = false, 20, -1
+H.resettle()
+options = H.options()
+p('0.1 settings brought over', type(options.enabled) == 'table' and options.enabled[1] == false, options.x == nil and options.y == nil)
+options.textScale[1] = 9
+H.resettle()
+p('a text scale out of range is brought in', H.options().textScale[1] == 3)
+
+mark = #CLOCK.log
+H.unload()
+seen = Since(mark)
+p('unloaded: the clock and the compass given back', Has(seen, 'clock.stop'), Has(seen, 'compass.stop'))

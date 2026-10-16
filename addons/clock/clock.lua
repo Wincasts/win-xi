@@ -1,7 +1,7 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.1.0'
-addon.desc = 'Basic Vana\'diel clock at the native clock render boundary (uihook).'
+addon.version = '0.2.0'
+addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
 local winxiNeeded = 5
 do
     local ok, found = pcall(require, 'winxi.version')
@@ -15,92 +15,132 @@ end
 require('common')
 local imgui = require('imgui')
 local bit = require('bit')
-local settings = require('settings')
+local shell = require('winxi.shell')
+local widgets = require('winxi.widgets')
+local fonts = require('winxi.fonts')
+local outlined = require('winxi.text')
+local theme = require('winxi.theme')
 local native = require('winxi.nativehud')
-local hook = native.new(native.Clock)
 local format = require('display')
-local options = settings.load({ enabled = true, x = 20, y = -1 })
-local time, timeError
-local nextSample, lines = 0, nil
-local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize,
-    ImGuiWindowFlags_NoMove, ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings,
-    ImGuiWindowFlags_NoInputs, ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus)
 
-settings.register('settings', 'clock_settings', function(value)
-    options = value
+local hook = native.new(native.Clock)
+local compass = native.new(native.Compass)
+local time, timeError
+local nextSample, line = 0, nil
+local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, ImGuiWindowFlags_NoMove,
+    ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoInputs,
+    ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus, ImGuiWindowFlags_NoBackground)
+local SCALE_MIN, SCALE_MAX = 0.5, 3
+local noPadding = { 0, 0 }
+local place, pivot, room = { 0, 0 }, { 0, 0.5 }, { 0, 0 }
+
+local function Release()
     hook.Stop()
-    nextSample, lines = 0, nil
-end)
+    compass.Stop()
+    nextSample, line = 0, nil
+end
+
+local app
+local function Tip(text)
+    if imgui.IsItemHovered() then imgui.SetTooltip(text) end
+end
+local function DrawSettings(options)
+    if widgets.Header('Clock', true) then
+        widgets.Label('Replace Game\'s Clock')
+        if imgui.Checkbox('##clock.enabled', options.enabled) then
+            if not options.enabled[1] then hook.Stop() end
+            app.save()
+        end
+        Tip('Writes the time, map grid, day, date and moon on one line where the game writes its clock.\nThe game\'s day and weather icons stay where it puts them.\nOff, the game\'s own clock comes back.')
+        widgets.Label('Text Scale')
+        imgui.SliderFloat('##clock.textScale', options.textScale, SCALE_MIN, SCALE_MAX, '%.2fx')
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        Tip('How large the line is, against the theme\'s font size.')
+        widgets.Label('Hide Compass')
+        if imgui.Checkbox('##clock.hideCompass', options.hideCompass) then
+            if not options.hideCompass[1] then compass.Stop() end
+            app.save()
+        end
+        Tip('Stops the game drawing its compass and radar. The clock and its icons stay.')
+        imgui.TextDisabled(timeError and ('Time unavailable: ' .. timeError) or hook.Status())
+    end
+end
+
+local function SayStatus()
+    local options = app.options
+    app:Say(not options.enabled[1] and 'Off: the game\'s own clock is shown.' or
+        timeError and ('Time unavailable: ' .. timeError) or hook.Status())
+    app:Say(options.hideCompass[1] and ('Compass: ' .. compass.Status()) or 'Compass: shown.')
+end
+
+app = shell.New({
+    defaults = T{ enabled = T{ true }, hideCompass = T{ true }, textScale = T{ 1 } },
+    configTitle = 'Clock Settings',
+    command = '/clock',
+    help = '/clock opens or closes the settings; /clock on, /clock off, /clock status.',
+    drawSettings = DrawSettings,
+    commands = {
+        on = function(options) options.enabled[1] = true; app.save() end,
+        off = function(options) options.enabled[1] = false; hook.Stop(); app.save() end,
+        status = SayStatus,
+    },
+    onSettings = function(options)
+        -- 0.1 kept enabled as true or false, and a place of its own, now the game's clock's
+        if type(options.enabled) ~= 'table' then options.enabled = T{ options.enabled ~= false } end
+        options.x, options.y = nil, nil
+        local scale = tonumber(options.textScale[1]) or 1
+        options.textScale[1] = math.min(SCALE_MAX, math.max(SCALE_MIN, scale))
+        Release()
+    end,
+})
+
 ashita.events.register('load', 'clock_load', function()
     local ok, value = pcall(require, 'ffxi.time')
     if ok then time = value else timeError = tostring(value) end
     if timeError then print('[clock] Ashita ffxi.time unavailable: ' .. timeError) end
-    print('[clock] Requires /load uihook. Unload hidecompass; /clock status or /clock help.')
 end)
-ashita.events.register('unload', 'clock_unload', function()
-    hook.Stop()
-    settings.save()
-end)
-ashita.events.register('command', 'clock_command', function(e)
-    local args = e.command:args()
-    if #args == 0 or args[1]:lower() ~= '/clock' then return end
-    e.blocked = true
-    local command = args[2] and args[2]:lower() or 'status'
-    if (command == 'on' or command == 'off') and #args == 2 then
-        options.enabled = command == 'on'
-        if not options.enabled then hook.Stop() end
-        settings.save()
-    elseif command == 'pos' and #args == 3 and args[3]:lower() == 'native' then
-        options.x, options.y = 20, -1
-        settings.save()
-    elseif command == 'pos' and #args == 4 then
-        local x, y = tonumber(args[3]), tonumber(args[4])
-        if x and y and x == x and y == y and math.abs(x) < 100000 and math.abs(y) < 100000 then
-            options.x, options.y = x, y
-            settings.save()
-        else print('[clock] Position must be finite screen coordinates.') end
-    elseif command == 'status' and #args <= 2 then
-        print('[clock] ' .. (not options.enabled and 'Off (stock clock restored).' or
-            timeError and ('Time unavailable: ' .. timeError) or hook.Status()))
-    else
-        print('[clock] /clock on|off|status; /clock pos <x> <y>, or /clock pos native for the game\'s clock\'s place (the default).')
-    end
-end)
+ashita.events.register('unload', 'clock_unload', Release)
+
 ashita.events.register('d3d_present', 'clock_present', function()
-    if not options.enabled or not time then hook.Stop(); return end
+    app:BeginFrame()
+    local options = app.options
+    -- an empty compass, renewed each frame; the clock inside it is drawn all the same
+    if options.hideCompass[1] then compass.Begin() else compass.Stop() end
+    if not options.enabled[1] or not time then hook.Stop(); return end
+
     local now = os.clock()
     if now >= nextSample then
         nextSample = now + 0.25
-        local weather
-        local id = hook.Weather()
-        if id then
-            local ok, name = pcall(function() return AshitaCore:GetResourceManager():GetString('weather', id) end)
-            weather = ok and type(name) == 'string' and #name > 0 and name or ('ID ' .. id)
-        end
-        local ok, value = pcall(format.Read, time, weather)
+        local ok, value = pcall(format.Line, time, hook.Grid())
         if not ok then
-            timeError = tostring(value)
-            lines = nil
+            timeError, line = tostring(value), nil
             hook.Stop()
             return
         end
-        lines, timeError = value, nil
+        line, timeError = value, nil
     end
-    if not lines or not hook.Begin() then return end
-    -- y -1 (the default): where the game draws its clock, the window's bottom-left on the clock's,
-    -- growing up from it. It is drawn as the game draws its clock, under what the game draws after
-    -- (the chat log), so a place of its own below the clock would be drawn over.
-    local left, _, _, bottom = hook.ClockRect()
-    if options.y == -1 and left then
-        imgui.SetNextWindowPos({ left, bottom }, ImGuiCond_Always, { 0, 1 })
-    else
-        local display = imgui.GetIO().DisplaySize
-        local height = display.y or display[2] or 0
-        imgui.SetNextWindowPos({ options.x, options.y == -1 and math.max(0, height - 105) or options.y }, ImGuiCond_Always)
-    end
+    -- where the game writes its clock: until uihook has seen it, the game's own is left alone
+    local left, top, _, bottom = hook.ClockRect()
+    if not line or not left then hook.Stop(); return end
+    if not hook.Begin() then return end
+
+    -- the line's left on the game's, its middle on the game's middle, growing right
+    place[1], place[2] = left, (top + bottom) / 2
+    imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
+    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, noPadding)
+    local pushed = fonts.Push()
     if imgui.Begin('clock.native', { true }, flags) then
-        for i = 1, #lines do imgui.TextUnformatted(lines[i]) end
-        hook.Capture() -- current window's background and text, never a pointer passed from Lua
+        local scale = options.textScale[1]
+        imgui.PushFont(nil, imgui.GetFontSize() * scale)
+        local x, y = imgui.GetCursorScreenPos()
+        room[1], room[2] = imgui.CalcTextSize(line)
+        imgui.Dummy(room)
+        -- the dark edge winxi writes over the game with, thicker as the text grows
+        outlined.Draw(imgui.GetWindowDrawList(), x, y, theme.Get().TextColor, line, scale >= 1.75 and 2 or 1)
+        imgui.PopFont()
+        hook.Capture() -- current window's text, never a pointer passed from Lua
     end
     imgui.End()
+    fonts.Pop(pushed)
+    imgui.PopStyleVar(1)
 end)

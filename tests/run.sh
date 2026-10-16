@@ -25,7 +25,7 @@ run mark       addons/mark/mark.lua     mark_database_check.lua
 luajit tests/mark_stats_check.lua
 luajit tests/winxi_version_check.lua
 luajit tests/nativehud_check.lua
-luajit tests/clock_check.lua
+run clock      tests/clock_stand_in.lua clock_check.lua
 luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
 luajit tests/mark_data_check.lua

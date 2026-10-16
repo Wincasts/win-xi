@@ -17,7 +17,7 @@ for module in buffs party hud; do
 done
 cd "$HERE/../.."
 luajit tests/nativehud_check.lua
-luajit tests/clock_check.lua
+luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 luajit tests/party_hook_check.lua
 UIHOOK_TEST_PLUGIN=uihook luajit tests/party_hook_check.lua
 luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_check.lua
