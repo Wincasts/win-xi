@@ -31,7 +31,7 @@ icons.Get = function(id) return 0x1000 + id, true end
 -- The plugin's block, as it would be in its DLL; and the game's code the addon changes
 local holder = ffi.new('buffhook_t[1]')
 local block = holder[0]
-block.Version, block.Size, block.Hooked, block.Frame = 2, ffi.sizeof('buffhook_t'), 1, 10
+block.Version, block.Size, block.Hooked, block.Frame = 3, ffi.sizeof('buffhook_t'), 1, 10
 block.Width, block.Height = 960, 540 -- the game's picture, half imgui's 1920 by 1080
 local written, at = {}, { ['75??8B4E0851B9'] = 100, ['7D??33C05EC20400C6'] = 200, ['85C00F??????????6A0232DBE8'] = 300 }
 ashita.memory.find = function(module, _, pattern)
@@ -163,3 +163,16 @@ H.print('A with the selector shut: the game\'s', H.tap(H.Button.A) == false, #H.
 menu = 'menu    buff    '; o.controller[1] = false; frame(43); sent = #H.sent
 H.print('A with Controller Navigation off: the game\'s', H.tap(H.Button.A) == false, #H.sent == sent)
 o.controller[1] = true; menu = ''; frame(44)
+
+-- The bar is written only when something of it changes, and handed over again as it was otherwise;
+-- a plugin loaded again has nothing of it, and it is written afresh
+block.Frame = 50; H.frames(1)
+local sequence, count = block.Sequence, block.Count
+block.Frame = 51; H.frames(1)
+H.print('unchanged: handed over again, not written', block.SubmitFrame == 51, block.Sequence == sequence)
+o.iconSize[1] = 48; block.Frame = 52; H.frames(1)
+H.print('changed: written afresh', block.Sequence == sequence + 1)
+o.iconSize[1] = 40; block.Frame = 53; H.frames(1)
+block.Sequence, block.Count = 0, 0 -- the plugin loaded again
+block.Frame = 54; H.frames(1)
+H.print('a plugin loaded again: written afresh', block.Sequence == 1 and block.Count > 0)

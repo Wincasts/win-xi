@@ -36,11 +36,21 @@ local details, imgui = require('details'), require('imgui')
 AshitaCore.GetResourceManager = function() return { GetString = function(_, _, id) return 'Effect ' .. id end } end
 cast()
 local tooltip
-imgui.SetTooltip = function(text) tooltip = text end
+local shared = require('winxi.theme').Shared()
+shared.TooltipDelay, shared.TooltipsEnabled = 0, true
+imgui.SetTooltip = function() error('party details must use Winxi tooltips') end
+imgui.Text = function(text) tooltip = text end
 details.Status(134, 900)
 assert(tooltip:find('Estimated remaining:', 1, true) and tooltip:find('Observed effects only', 1, true))
 details.Member({ name = 'Pet', owner = 'Owner', jobText = '[WAR99/SAM49]', statusIds = { 4 } })
 assert(tooltip:find('Owner: Owner', 1, true) and tooltip:find('Effect 4', 1, true))
+tooltip = nil
+shared.TooltipsEnabled = false
+details.Status(4)
+assert(tooltip == nil, 'status tooltips respect shared visibility')
+shared.TooltipsEnabled = true
+details.Status(4)
+assert(tooltip == 'Effect 4 (4)', 'party buffs and debuffs show their name and ID')
 o.style.hoverDetails[1], o.clickThrough[1] = true, true
 assert(not require('options').Style(o).hoverDetails)
 o.clickThrough[1] = false
