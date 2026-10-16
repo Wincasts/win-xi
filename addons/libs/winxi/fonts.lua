@@ -9,6 +9,8 @@
 --   fonts.Get(file)     a font of C:\Windows\Fonts loaded for imgui, or nil (Default, or a file that
 --                       would not load); loaded the first time it is asked for
 --   fonts.Files()       the .ttf files there are to choose from, sorted, looked for once
+--   fonts.Texture()     the Direct3D texture imgui draws the font in use from, as a number, for
+--                       drawing its letters elsewhere (a plugin's quads); or nil, and why not
 --
 -- The theme's FontFile (and SettingsFontFile) is a file of C:\Windows\Fonts, or '' for imgui's own
 -- font; its FontSize (and SettingsFontSize) is in pixels, or 0 for the base size. Either is only the starting point: an addon that pushes a font of
@@ -53,6 +55,46 @@ function fonts.Files()
         end
     end
     return files;
+end
+
+-- imgui 1.92 keeps the font's texture in two places: the atlas's texture data, and the reference to
+-- it that the renderer is handed. The data is asked first. Asking the reference, while it holds the
+-- texture both ways (as it can once the atlas has been made again, a font added while running, say),
+-- trips an assertion in imgui that Ashita turns into an exception: asked first, alone, that kept the
+-- data from ever being asked. Each is asked apart, so that one failing leaves the other.
+local function FontAtlas()
+    return imgui.GetFont().ContainerAtlas;
+end
+
+local function DataId(atlas)
+    return atlas.TexData:GetTexID();
+end
+
+local function ReferenceId(atlas)
+    return atlas.TexRef:GetTexID();
+end
+
+local function Answer(ok, id)
+    if not ok then
+        return ('error: %s'):format(tostring(id));
+    end
+    return ('id %s'):format(tostring(id));
+end
+
+function fonts.Texture()
+    local ok, atlas = pcall(FontAtlas);
+    if not ok or atlas == nil then
+        return nil, ('no font atlas: %s'):format(ok and 'none' or tostring(atlas));
+    end
+    local dataOk, data = pcall(DataId, atlas);
+    if dataOk and type(data) == 'number' and data ~= 0 then
+        return data;
+    end
+    local referenceOk, reference = pcall(ReferenceId, atlas);
+    if referenceOk and type(reference) == 'number' and reference ~= 0 then
+        return reference;
+    end
+    return nil, ('texture data %s; reference %s'):format(Answer(dataOk, data), Answer(referenceOk, reference));
 end
 
 function fonts.Push(settingsKind)

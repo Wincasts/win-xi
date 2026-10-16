@@ -19,15 +19,24 @@ local function load(path, winxi)
     local ok, problem = pcall(dofile, path)
     return ok, problem
 end
+-- each addon needs the winxi it says it was made with: never one newer than this, nor before 1
+local function needed(path)
+    local file = assert(io.open(path, 'rb'))
+    local source = file:read('*a')
+    file:close()
+    return tonumber(source:match('local winxiNeeded = (%d+)'))
+end
 for _, path in ipairs(released) do
+    local need = needed(path)
+    assert(need ~= nil and need >= 1 and need <= current, path .. ': winxiNeeded ' .. tostring(need) .. ' with winxi ' .. current)
     local _, problem = load(path, nil)
     assert(problem:find('needs winxi %d+ or newer, and addons/libs/winxi is 0'), path .. ': no winxi.version: ' .. problem)
     assert(said and said:find('install the newest release'), path .. ': not said in the chat')
-    _, problem = load(path, { Number = current - 1 })
-    assert(problem:find('is ' .. (current - 1) .. ':'), path .. ': older winxi: ' .. problem)
-    _, problem = load(path, { Number = current })
-    assert(problem == 'past the check' and said == nil, path .. ': current winxi stopped: ' .. tostring(problem))
+    _, problem = load(path, { Number = need - 1 })
+    assert(problem:find('is ' .. (need - 1) .. ':'), path .. ': older winxi: ' .. problem)
+    _, problem = load(path, { Number = need })
+    assert(problem == 'past the check' and said == nil, path .. ': the winxi it needs stopped it: ' .. tostring(problem))
     _, problem = load(path, { Number = current + 1 })
     assert(problem == 'past the check', path .. ': newer winxi stopped')
 end
-io.write(('winxi version: %d released addons stop on a missing or older winxi, with a message, and load on this one or newer\ttrue\n'):format(#released))
+io.write(('winxi version: %d released addons stop on a missing winxi or one older than they need, with a message, and load on the one they need or newer\ttrue\n'):format(#released))

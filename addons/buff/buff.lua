@@ -23,7 +23,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 1;
+local winxiNeeded = 2; -- fonts.Texture
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -312,25 +312,6 @@ local function ARGB(color, alpha)
     return Byte((color[4] or 1) * alpha) * 0x1000000 + Byte(color[1]) * 0x10000 + Byte(color[2]) * 0x100 + Byte(color[3]);
 end
 
--- The font's texture as Direct3D has it, or nil while it has none: for a moment after letters of a
--- new size have been put in it
-local function AskFontTexture()
-    local atlas = imgui.GetFont().ContainerAtlas;
-    local id = atlas.TexRef:GetTexID();
-    if id == nil or id == 0 then
-        id = atlas.TexData:GetTexID();
-    end
-    return id;
-end
-
-local function FontTexture()
-    local ok, id = pcall(AskFontTexture);
-    if ok and type(id) == 'number' and id ~= 0 then
-        return id;
-    end
-    return nil;
-end
-
 -- The letters of the font in use, by byte, copied out of imgui once each: each field of imgui's is a
 -- call into it, and a bar's times read thousands a frame. Where a letter is in the font's texture
 -- moves when imgui makes the texture again, so one letter is looked at each frame, and when it has
@@ -482,7 +463,7 @@ local function WriteHooked(options, found, alpha)
     local baked, texture = nil, nil;
     if showTimers then
         baked = imgui.GetFontBaked();
-        texture = FontTexture();
+        texture = fonts.Texture();
         if baked ~= nil then CheckGlyphs(baked, texture); end
     end
 

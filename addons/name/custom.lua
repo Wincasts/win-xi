@@ -6,7 +6,8 @@
 --   custom.DrawSettings(options)  the settings tab
 --   custom.Frame(options, hook)   each frame: claims the names and draws them;
 --                                 hook is the plugin's block, as nameplates.Hook gave it this frame.
---                                 Returns nil, or why nothing was claimed: a key of diag.Reasons
+--                                 Returns nil, or why nothing was claimed: a key of diag.Reasons, and
+--                                 for 'texture' what imgui said, for the log
 --
 -- The namehook plugin lists the names the game was about to draw. While this draws, it claims
 -- them all, so the game draws none; which names are wanted is still the plugin's to say, and only
@@ -26,6 +27,7 @@ local text       = require('winxi.text');
 local widgets    = require('winxi.widgets');
 local controls   = require('controls');
 local nameplates = require('winxi.nameplates');
+local winxiFonts = require('winxi.fonts');
 local icons = require('icons');
 local format = require('format');
 local levels = require('levels');
@@ -407,25 +409,6 @@ function custom.DrawSettings(options, save)
     end
     controls.EndSection();
     controls.EndLayout();
-end
-
--- The font's texture as Direct3D has it, or nil while it has none: for a moment after letters of a
--- new size have been put in it
-local function askFontTexture()
-    local atlas = imgui.GetFont().ContainerAtlas;
-    local id = atlas.TexRef:GetTexID();
-    if (id == nil or id == 0) then
-        id = atlas.TexData:GetTexID();
-    end
-    return id;
-end
-
-local function fontTexture()
-    local ok, id = pcall(askFontTexture);
-    if (ok and type(id) == 'number' and id ~= 0) then
-        return id;
-    end
-    return nil;
 end
 
 -- The font's letters, by size and then by letter: { x0, y0, x1, y1, u0, v0, u1, v1, advance,
@@ -925,9 +908,11 @@ function custom.Frame(options, hook, formats)
         return 'unhooked';
     end
 
-    local texture = fontTexture();
+    -- the font's texture as Direct3D has it: none for a moment after letters of a new size have been
+    -- put in it, or while imgui will not say (winxi.fonts.Texture says which)
+    local texture, problem = winxiFonts.Texture();
     if (texture == nil) then
-        return 'texture';
+        return 'texture', problem;
     end
     if (texture ~= glyphTexture or options.font ~= glyphFont) then
         glyphTexture, glyphFont = texture, options.font;

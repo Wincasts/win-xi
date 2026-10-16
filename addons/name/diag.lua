@@ -3,8 +3,9 @@
 -- while off, nothing is kept, said or written but what diag.Write is asked for.
 --
 --   diag.Enabled(), diag.Enable(on)
---   diag.Frame(reason)        each frame: nil while the names are drawn, or why they were not, a key
---                             of diag.Reasons
+--   diag.Frame(reason, detail)  each frame: nil while the names are drawn, or why they were not, a
+--                             key of diag.Reasons; detail, if any, what was said of it (imgui's
+--                             answers for the font texture), kept as the latest of the pause
 --   diag.Error(message)       a Lua error in the frame, with its traceback; the same one is kept once,
 --                             with a count
 --   diag.Note(text, ...)      a line for the history, formatted as string.format would
@@ -19,6 +20,7 @@
 local bit = require('bit');
 local ffi = require('ffi');
 local imgui = require('imgui');
+local fonts = require('winxi.fonts');
 local nameplates = require('winxi.nameplates');
 
 local diag = {};
@@ -28,7 +30,7 @@ diag.Reasons = {
     old      = 'the namehook plugin has no block this addon can read',
     mismatch = 'the namehook plugin and this addon are of different versions',
     unhooked = 'the namehook plugin did not recognise this client\'s name drawing',
-    texture  = 'imgui\'s font texture had no Direct3D texture yet (its id was 0)',
+    texture  = 'imgui\'s font texture could not be had: none yet, or imgui would not say',
     draw     = 'the namehook plugin had no drawing buffer',
     error    = 'a Lua error in the frame',
 };
@@ -42,6 +44,7 @@ local frame = 0;
 local loadedAt = os.clock();
 
 local reason = nil;       -- why the names are not drawn, or nil while they are
+local detail = nil;       -- what was said of it, the latest
 local since = 0;          -- the frame that started
 local sinceClock = 0;
 local seen = false;       -- whether this pause has lasted long enough to be seen
@@ -69,7 +72,7 @@ function diag.Enable(on)
     end
     if (on) then
         enabled = true;
-        reason, seen = nil, false; -- what was not watched is not counted
+        reason, detail, seen = nil, nil, false; -- what was not watched is not counted
         diag.Note('Diagnostics on, name %s', addon.version);
     else
         diag.Note('Diagnostics off');
@@ -90,6 +93,15 @@ function diag.Note(text, ...)
     end
 end
 
+-- The reason, in words, with what was said of it
+local function Describe()
+    local words = diag.Reasons[reason] or tostring(reason);
+    if (detail ~= nil) then
+        return ('%s (%s)'):format(words, detail);
+    end
+    return words;
+end
+
 local function count(key)
     local known = counts[key];
     if (known == nil) then
@@ -104,27 +116,28 @@ local function finish()
     local frames = frame - since;
     known.frames = known.frames + frames;
     if (seen) then
-        diag.Note('Custom names back after %d frames (%.1fs); they had stopped: %s', frames, os.clock() - sinceClock, diag.Reasons[reason] or reason);
+        diag.Note('Custom names back after %d frames (%.1fs); they had stopped: %s', frames, os.clock() - sinceClock, Describe());
     else
         known.blips = known.blips + 1;
     end
 end
 
-function diag.Frame(now)
+function diag.Frame(now, said)
     if (not enabled) then
         return;
     end
     frame = frame + 1;
     if (now == reason) then
+        if (said ~= nil) then detail = said; end
         if (reason ~= nil and not seen and frame - since >= SEEN_AFTER) then
             seen = true;
             count(reason).seen = count(reason).seen + 1;
-            diag.Note('Custom names stopped, the game draws its own: %s', diag.Reasons[reason] or reason);
+            diag.Note('Custom names stopped, the game draws its own: %s', Describe());
             -- one the player chose is not worth a word or a file
             if (reason ~= 'unloaded' and not told[reason]) then
                 told[reason] = true;
-                local path = diag.Write('custom names stopped: ' .. reason);
-                print(('\30\81[%s]\30\01 Custom names stopped: %s.%s'):format(addon.name, diag.Reasons[reason] or reason,
+                local path = diag.Write('custom names stopped: ' .. reason .. (detail ~= nil and (' (' .. detail .. ')') or ''));
+                print(('\30\81[%s]\30\01 Custom names stopped: %s.%s'):format(addon.name, Describe(),
                     path and (' A log for the developers was written to ' .. path) or ''));
             end
         end
@@ -134,7 +147,7 @@ function diag.Frame(now)
     if (reason ~= nil) then
         finish();
     end
-    reason, since, sinceClock, seen = now, frame, os.clock(), false;
+    reason, detail, since, sinceClock, seen = now, said, frame, os.clock(), false;
 end
 
 function diag.Error(message, traceback)
@@ -157,7 +170,7 @@ function diag.Status()
     if (reason == nil) then
         return 'Drawing';
     end
-    return ('%s for %.1fs: %s'):format(seen and 'Stopped' or 'Pausing', os.clock() - sinceClock, diag.Reasons[reason] or reason);
+    return ('%s for %.1fs: %s'):format(seen and 'Stopped' or 'Pausing', os.clock() - sinceClock, Describe());
 end
 
 function diag.LastPath()
@@ -224,11 +237,16 @@ local function snapshot(lines)
         return ('%.0f x %.0f'):format(size.x, size.y);
     end);
     try(lines, 'Font texture', function ()
-        local atlas = imgui.GetFont().ContainerAtlas;
-        local data = atlas.TexData;
-        return ('ref id %s, data id %s, %d x %d, status %s'):format(tostring(atlas.TexRef:GetTexID()),
-            tostring(data:GetTexID()), data.Width, data.Height, tostring(data.Status));
+        local texture, problem = fonts.Texture();
+        return texture ~= nil and ('id %s'):format(tostring(texture)) or problem;
     end);
+    -- each of imgui's answers apart, so that one that fails does not hide the others
+    try(lines, 'Font texture data', function ()
+        local data = imgui.GetFont().ContainerAtlas.TexData;
+        return ('%d x %d, status %s'):format(data.Width, data.Height, tostring(data.Status));
+    end);
+    try(lines, 'Font texture data id', function () return tostring(imgui.GetFont().ContainerAtlas.TexData:GetTexID()); end);
+    try(lines, 'Font texture reference id', function () return tostring(imgui.GetFont().ContainerAtlas.TexRef:GetTexID()); end);
 end
 
 local function optionLines(lines, options)
