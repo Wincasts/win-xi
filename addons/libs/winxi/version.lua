@@ -20,6 +20,7 @@
 -- Number goes up by one whenever winxi gains something an addon may come to rely on: a function, an
 -- option, a setting. An addon that starts using it sets its winxiNeeded to the new Number. winxi
 -- keeps what it had, so a newer winxi serves every older addon.
+-- 2: fonts.Texture
 return {
-    Number = 1,
+    Number = 2,
 };

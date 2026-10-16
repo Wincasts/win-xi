@@ -2,6 +2,7 @@
 local ffi = require('ffi');
 local imgui = require('imgui');
 local nameplates = require('winxi.nameplates');
+local fonts = require('winxi.fonts');
 local bubbles = require('bubbles');
 local colors = require('colors');
 ffi.cdef[[
@@ -60,12 +61,6 @@ function M.Clear()
     lookedAt = -math.huge;
 end
 
-local function texture(atlas)
-    local id = atlas.TexRef:GetTexID();
-    if (id == nil or id == 0) then id = atlas.TexData:GetTexID(); end
-    return id;
-end
-
 local function whiteUV(atlas)
     if (imgui.GetFontTexUvWhitePixel) then
         local x, y = imgui.GetFontTexUvWhitePixel();
@@ -122,9 +117,10 @@ function M.Draw(name, message, now, scale, appearance)
         return false;
     end
     local atlas = font.ContainerAtlas;
-    local ok, id = pcall(texture, atlas);
-    if (not ok or not id or id == 0) then
-        problem = 'ImGui font texture is not ready';
+    -- every font is in the one atlas: the texture is the same whichever font is in use
+    local id, why = fonts.Texture();
+    if (id == nil) then
+        problem = 'ImGui font texture is not ready: ' .. why;
         return false;
     end
     local uvOK, u, v = pcall(whiteUV, atlas);

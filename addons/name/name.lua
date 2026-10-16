@@ -5,7 +5,7 @@ addon.desc    = 'Shows and hides the names over characters\' heads by what they 
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 1;
+local winxiNeeded = 2; -- fonts.Texture
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -302,10 +302,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         custom.Frame(options, hook, preferredDefaults);
         return;
     end
-    local ok, result = xpcall(custom.Frame, failed, options, hook, preferredDefaults);
+    local ok, result, detail = xpcall(custom.Frame, failed, options, hook, preferredDefaults);
     if (not ok) then
         diag.Frame('error');
         error(result, 0);
     end
-    diag.Frame(result);
+    diag.Frame(result, detail);
 end);
