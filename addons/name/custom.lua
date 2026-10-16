@@ -1029,8 +1029,12 @@ function custom.Frame(options, hook, formats)
             set.badgeFit = indicator ~= nil and heights[rung] / fullHeight or 1;
         end
     end
-    local badgeAtlas = badgeDefinitions ~= nil and letterBadges.Prepare(
-        texture, badgeDefinitions, letterBadges.Font, true) or nil;
+    -- the badges are cut from the font's texture as Direct3D has it, which only the plugin can read
+    -- (texture is winxi's mark for it): the one it drew from, which it holds while it draws, or 0
+    -- until it has
+    local fontAddress = tonumber(hook.FontTexture) or 0;
+    local badgeAtlas = badgeDefinitions ~= nil and fontAddress ~= 0 and letterBadges.Prepare(
+        fontAddress, badgeDefinitions, letterBadges.Font, true) or nil;
     nameplates.SetTexture(letterBadges.Slot, badgeAtlas and badgeAtlas.address or 0);
     if badgeAtlas then
         for rung = 1, rungs do
