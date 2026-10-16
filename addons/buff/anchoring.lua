@@ -25,6 +25,11 @@ function anchoring.MenuOpen()
     return name;
 end
 
+-- Whether the buff selector is open: the game's cursor on its status icons, to remove one
+function anchoring.SelectorOpen()
+    return game.MenuName():match('^menu%s+buff%s*$') ~= nil;
+end
+
 function anchoring.IsHidden()
     -- Actual HUD visibility, not menu occlusion. The shell separately applies configured hiding
     -- rules (including expanded chat); those rules are not native draw-order inheritance.

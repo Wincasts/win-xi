@@ -77,9 +77,9 @@ if arg[4]=='measure' then
     return
 end
 assert(normal.ids==120 and normal.timers==120 and normal.clock==360)
-assert(normal.resources==0 and normal.metrics==0 and normal.menus==0 and normal.draws==3840)
+assert(normal.resources==0 and normal.metrics==0 and normal.menus==120 and normal.draws==3840) -- the selector, once a frame
 assert(off.ids==120 and off.timers==0 and off.clock==0 and off.resources==0 and off.metrics==0 and off.draws==3840)
-assert(invisible.ids==0 and invisible.timers==0 and invisible.clock==0 and invisible.draws==0)
+assert(invisible.ids==0 and invisible.timers==0 and invisible.clock==0 and invisible.draws==0 and invisible.menus==0)
 -- Font/size changes must invalidate layout and label measurements, then become cheap again.
 size=18
 local resized=sample('Font-size changed',1)

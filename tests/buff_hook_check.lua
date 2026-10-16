@@ -31,7 +31,7 @@ icons.Get = function(id) return 0x1000 + id, true end
 -- The plugin's block, as it would be in its DLL; and the game's code the addon changes
 local holder = ffi.new('buffhook_t[1]')
 local block = holder[0]
-block.Version, block.Size, block.Hooked, block.Frame = 1, ffi.sizeof('buffhook_t'), 1, 10
+block.Version, block.Size, block.Hooked, block.Frame = 2, ffi.sizeof('buffhook_t'), 1, 10
 block.Width, block.Height = 960, 540 -- the game's picture, half imgui's 1920 by 1080
 local written, at = {}, { ['75??8B4E0851B9'] = 100, ['7D??33C05EC20400C6'] = 200, ['85C00F??????????6A0232DBE8'] = 300 }
 ashita.memory.find = function(module, _, pattern)
@@ -106,8 +106,46 @@ H.print('a plugin that took nothing: a window', H.calls.Begin > begins, '| said'
 block.Hooked = 1; block.Frame = 20; H.frames(1)
 H.print('the plugin again: handed over, the row given back', block.SubmitFrame == 20, written[100] == 101 and written[200] == 201)
 
--- not anchored: always a window, the plugin unasked
+-- not anchored: a window; with the game's icons hidden, the plugin keeps them, and its hand, away
 o.anchorToDefault[1] = false; block.Frame = 21; begins = H.calls.Begin
 H.frames(1)
-H.print('draggable: a window, nothing handed over', H.calls.Begin > begins, block.SubmitFrame == 20)
+H.print('draggable: a window, and an empty bar handed over', H.calls.Begin > begins, block.SubmitFrame == 21 and block.Count == 0,
+    '| the row left to the plugin', written[100] == 101 and written[200] == 201)
+o.hideGameIcons[1] = false; block.Frame = 22; H.frames(1)
+H.print('draggable, the game\'s icons shown: nothing handed over', block.SubmitFrame == 21, '| nothing hidden', written[300] == 301)
+o.hideGameIcons[1] = true
+
+-- The buff selector: the status the game's cursor is on has the highlight round it, drawn by the
+-- plugin anchored, and in the window dragged; a click on an icon removes it
+menu = 'menu    buff    '
+block.CursorStatus = 33
+block.Frame = 30; block.DrawnFrame = 30; H.frames(1)
+local rects = H.calls['draw.AddRect'] or 0
+block.Frame = 31; block.DrawnFrame = 31; H.frames(1)
+H.print('dragged: the highlight drawn round the cursor\'s status', (H.calls['draw.AddRect'] or 0) == rects + 2)
 o.anchorToDefault[1] = true
+block.Frame = 32; block.DrawnFrame = 32; H.frames(1)
+local solid, around = 0, true
+for i = 0, block.Count - 1 do
+    local quad = block.Quads[i]
+    if quad.Texture == hook.Solid then
+        solid = solid + 1
+        around = around and quad.X1 > (width + 4) * 0.5 - 3 and quad.X0 < (2 * width + 4) * 0.5 + 3
+    end
+end
+H.print('anchored: the highlight handed over, a line and its glow, round Haste', solid == 8, around)
+block.CursorStatus = 0xFFFF; block.Frame = 33; block.DrawnFrame = 33; H.frames(1)
+solid = 0
+for i = 0, block.Count - 1 do if block.Quads[i].Texture == hook.Solid then solid = solid + 1 end end
+H.print('no status under the cursor: no highlight', solid == 0)
+
+block.OriginX, block.OriginY = 100, 50
+H.ret.GetMousePos = { 200 + 2, 100 + 2 }; H.ret.IsItemHovered = { true }; H.ret.IsItemClicked = { true }
+local sent = #H.sent
+block.Frame = 34; block.DrawnFrame = 34; H.frames(1)
+H.print('in the selector, a click on Protect: it cannot be removed, nothing sent', #H.sent == sent)
+H.ret.GetMousePos = { 200 + (width + 4) + 2, 100 + 2 }
+block.Frame = 35; block.DrawnFrame = 35; H.frames(1)
+H.print('a click on Haste removes it', #H.sent == sent + 1)
+H.ret.GetMousePos = { -1000, -1000 }; H.ret.IsItemHovered = { false }; H.ret.IsItemClicked = { false }
+menu = ''

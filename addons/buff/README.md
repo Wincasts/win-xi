@@ -8,7 +8,7 @@ for the game's own row of status icons, which it switches off. It needs only the
 - `/buff config` opens or closes the settings
 
 Hover over an icon for the status's name, number and description; right click one to remove it, where
-the game allows that.
+the game allows that. In the game's buff selector, any click on an icon removes it.
 
 Unload `statustimers` first: both switch the game's own icons off, and the second to try says it could
 not.
@@ -57,6 +57,15 @@ It is placed where the game puts its first icon, not where it was measured to be
 Adjustment** still nudges it from there. Hovering an icon still shows its tooltip, and a right click
 removes it, while no menu of the game's is open.
 
+**The buff selector.** The game's selector (its cursor on the status icons, to remove one) points
+its hand at where the game's own icons would be, which is not where the bar's are once they are a
+size of their own. With the plugin, the hand is put out of sight and the status the game's cursor is
+on has winxi's highlight round it instead (the controller's: a line and a fainter glow outside it),
+anchored or dragged; the game's keys move it as before, and a click on an icon removes that one.
+Dragged elsewhere, with **Hide Game's Icons** on, the plugin keeps the game's row and its hand away
+in place of changing the game's code. Without the plugin there is no highlight, but a click still
+removes.
+
 Without the plugin, or with one that did not recognise the client, the anchored bar is a window
 drawn over everything, at the place measured below, and the settings say why. Draggable mode is
 always a window.
@@ -97,7 +106,7 @@ previous live `buffs` implementation using the same fixture:
 | --- | ---: | ---: |
 | Timer metadata lookups, timers enabled | 2,880 | 0 |
 | Text measurements, timers enabled | 2,040 | 0 |
-| Menu checks, anchored bar visible | 240 | 0 |
+| Menu checks, anchored bar visible (the selector, once a frame) | 240 | 120 |
 | Timer-array fetches, timers disabled | 120 | 0 |
 | Game-clock reads, timers disabled | 360 | 0 |
 | Timer-array fetches, empty bar | 120 | 0 |
@@ -115,7 +124,7 @@ statuses, each with a time:
 | Work over 120 frames, handed to the plugin | First version | Now |
 | --- | ---: | ---: |
 | Lua memory made, per frame | 0.53 KiB | 0.09 KiB |
-| Menu checks, mouse away from the bar | 120 | 0 |
+| Menu checks, mouse away from the bar (the selector, once a frame) | 120 | 120 |
 | Text measurements | 0 | 0 |
 | Letter lookups (each letter in use, once a frame) | 720 | 720 |
 

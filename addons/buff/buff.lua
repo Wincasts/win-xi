@@ -11,6 +11,10 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --   /buff           shows or hides the window (it only appears while there is a status to show)
 --   /buff config    opens or closes the settings
 --
+-- In the game's buff selector, with the plugin loaded, the status the game's cursor is on has
+-- winxi's highlight round it in place of the game's hand, which points at where the game's icons would
+-- be; a click on an icon then removes it.
+--
 -- Anchored to the game's icons' place, with the buffhook plugin loaded, the bar is drawn by the
 -- plugin where and when the game draws its icons, in their place (hook.lua): the menus the game opens
 -- over its icons are drawn over the bar, and it goes when they would. Without the plugin, or not
@@ -43,9 +47,11 @@ local anchoring = require('anchoring');
 local hook = require('hook');
 local fade = require('winxi.fade');
 local style = require('winxi.style');
+local controller = require('winxi.controller');
 local bit = require('bit');
 
 local windowName = 'winxi.buff';
+local selecting = false; -- whether the game's buff selector is open, this frame
 local gap = 4;      -- between one icon and the next
 local timerGap = 1; -- between an icon and its time
 
@@ -111,7 +117,7 @@ local function Tooltip(id)
             imgui.Text(icon.Description[1]);
         end
         if icon.CanCancel ~= 0 then
-            imgui.TextDisabled('Right click to remove.');
+            imgui.TextDisabled(selecting and 'Click to remove.' or 'Right click to remove.');
         end
     end
     imgui.EndTooltip();
@@ -119,6 +125,29 @@ local function Tooltip(id)
 end
 
 local current = {}; -- the statuses this frame
+
+-- The game's buff selector, this frame: whether it is open, and which of the statuses its cursor is
+-- on, by its place in current (nil without the plugin to say)
+local cursorIndex = nil;
+
+local function FindCursor(found)
+    cursorIndex = nil;
+    if not selecting or found == nil then
+        return;
+    end
+    local status = hook.CursorStatus(found);
+    for index, entry in ipairs(current) do
+        if entry.id == status then
+            cursorIndex = index;
+            return;
+        end
+    end
+end
+
+-- A status is removed with a right click, or in the selector with any click
+local function ClickedToRemove()
+    return imgui.IsItemClicked(ImGuiMouseButton_Right) or (selecting and imgui.IsItemClicked(ImGuiMouseButton_Left));
+end
 local cell = { 0, 0 };
 local cornerA, cornerB = { 0, 0 }, { 0, 0 };
 local uvA, uvB = { 0, 0 }, { 1, 1 };
@@ -134,6 +163,24 @@ local function MeasureTimers()
         textHeight = height;
         for label in pairs(labelWidths) do labelWidths[label] = nil; end
     end
+end
+
+-- winxi's highlight round the status the selector's cursor is on, as the controller draws it round
+-- a window: a line, and a fainter one just outside it
+local cursorGlow = { 0, 0, 0, 0 };
+local cursorMin, cursorMax = { 0, 0 }, { 0, 0 };
+
+local function GlowColor()
+    local color = controller.HighlightColor;
+    cursorGlow[1], cursorGlow[2], cursorGlow[3], cursorGlow[4] = color[1], color[2], color[3], color[4] * 0.35;
+    return cursorGlow;
+end
+
+local function DrawCursor(drawList, x, y, width, height)
+    cursorMin[1], cursorMin[2], cursorMax[1], cursorMax[2] = x - 2, y - 2, x + width + 2, y + height + 2;
+    drawList:AddRect(cursorMin, cursorMax, imgui.GetColorU32(GlowColor()), 2, 0, 2);
+    cursorMin[1], cursorMin[2], cursorMax[1], cursorMax[2] = x, y, x + width, y + height;
+    drawList:AddRect(cursorMin, cursorMax, imgui.GetColorU32(controller.HighlightColor), 0, 0, 2);
 end
 
 -- A label's width in the font in use: measured once each, for as long as the font stays the same
@@ -169,9 +216,12 @@ local function DrawStatusesContent(options)
         imgui.Dummy(cell);
         if imgui.IsItemHovered() then
             local canCancel = Tooltip(status.id);
-            if canCancel and imgui.IsItemClicked(ImGuiMouseButton_Right) then
+            if canCancel and ClickedToRemove() then
                 statuses.Cancel(status.id);
             end
+        end
+        if index == cursorIndex then
+            DrawCursor(drawList, x + (cell[1] - width) / 2, y, width, height);
         end
 
         local handle, own = icons.Get(status.id, useOwn);
@@ -277,6 +327,15 @@ local function WriteWords(baked, words, pen, top, sx, sy, color, edge, slot)
     end
 end
 
+-- A frame of colour alone round x0, y0 to x1, y1, thickness wide, inside it; in imgui's pixels
+local function SolidFrame(x0, y0, x1, y1, thickness, color, sx, sy)
+    local solid = hook.Solid;
+    hook.Quad(x0 * sx, y0 * sy, x1 * sx, (y0 + thickness) * sy, 0, 0, 0, 0, color, solid);
+    hook.Quad(x0 * sx, (y1 - thickness) * sy, x1 * sx, y1 * sy, 0, 0, 0, 0, color, solid);
+    hook.Quad(x0 * sx, (y0 + thickness) * sy, (x0 + thickness) * sx, (y1 - thickness) * sy, 0, 0, 0, 0, color, solid);
+    hook.Quad((x1 - thickness) * sx, (y0 + thickness) * sy, x1 * sx, (y1 - thickness) * sy, 0, 0, 0, 0, color, solid);
+end
+
 -- Where the bar's cells are, this frame, for the mouse: in imgui's pixels from the bar's corner
 local layout = { width = 0, height = 0, perRow = 1 };
 
@@ -308,10 +367,15 @@ local function WriteHooked(options, found, alpha)
         local x = nudgeX + ((index - 1) % perRow) * (cellWidth + gap);
         local y = nudgeY + math.floor((index - 1) / perRow) * (cellHeight + rowGap);
 
+        local left = x + (cellWidth - width) / 2;
+        if index == cursorIndex then
+            SolidFrame(left - 4, y - 4, left + width + 4, y + height + 4, 2, ARGB(GlowColor(), alpha), sx, sy);
+            SolidFrame(left - 2, y - 2, left + width + 2, y + height + 2, 2, ARGB(controller.HighlightColor, alpha), sx, sy);
+        end
+
         local handle, own = icons.Get(status.id, useOwn);
         local slot = hook.Texture(handle);
         if slot ~= nil then
-            local left = x + (cellWidth - width) / 2;
             if own then
                 hook.Quad(left * sx, y * sy, (left + width) * sx, (y + height) * sy,
                     icons.OwnLeft, 0, icons.OwnRight, 1, iconColor, slot);
@@ -371,7 +435,7 @@ local function Interact(options, found)
         imgui.Dummy(hoverCell);
         if imgui.IsItemHovered() then
             local canCancel = Tooltip(status.id);
-            if canCancel and imgui.IsItemClicked(ImGuiMouseButton_Right) then
+            if canCancel and ClickedToRemove() then
                 statuses.Cancel(status.id);
             end
         end
@@ -389,6 +453,8 @@ local function DrawHooked(options, found)
         hook.Finish();
         return;
     end
+    selecting = anchoring.SelectorOpen();
+    FindCursor(found);
 
     -- the window's font: the theme's, then the one chosen for the bar
     local pushedTheme = fonts.Push();
@@ -528,9 +594,15 @@ end);
 
 ashita.events.register('d3d_present', 'buff_present', function()
     local options = app.options;
-    -- anchored, with the plugin to draw it in the game's icons' place
-    local found = options.anchorToDefault[1] and hook.Block() or nil;
+    -- With the plugin, the game's icons are its to stand in for: anchored, it draws the bar in their
+    -- place; dragged elsewhere with them hidden, it draws nothing there, and the game's hand with them
+    local found = hook.Block();
+    local anchored = options.anchorToDefault[1];
+    if found ~= nil and not anchored and not options.hideGameIcons[1] then
+        found = nil;
+    end
     UpdateGameIcons(options, found ~= nil);
+    selecting = false;
     if not app:BeginFrame() then
         -- an empty bar: the game's icons stay away while the bar is hidden
         if found ~= nil then
@@ -539,16 +611,22 @@ ashita.events.register('d3d_present', 'buff_present', function()
         end
         return;
     end
-    if found ~= nil then
+    if found ~= nil and anchored then
         DrawHooked(options, found);
         return;
+    end
+    if found ~= nil then
+        hook.Begin(found);
+        hook.Finish();
     end
     -- the window is there only while there is a status to show
     if not options.isVisible[1] and not options.fadeInOut[1] then return; end
     if statuses.Read(current, options.showTimers[1]) == 0 then
         return;
     end
-    if options.anchorToDefault[1] then
+    selecting = anchoring.SelectorOpen();
+    FindCursor(found);
+    if anchored then
         anchoring.Draw(anchoredName, options, DrawStatuses);
     else
         app:Window(options.isVisible, DrawStatuses);

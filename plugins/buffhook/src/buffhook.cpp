@@ -21,10 +21,14 @@
 
 #define CHAT_HEADER "\x1e\x51[\x1e\x06" "buffhook\x1e\x51]\x1e\x01 "
 
-static BuffShared Shared = { "BUFFHOOK-SHARED", BUFF_VERSION, sizeof(BuffShared), 0, 1, 0, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, {}, {} };
+static BuffShared Shared = { "BUFFHOOK-SHARED", BUFF_VERSION, sizeof(BuffShared), 0, 1, 0, 0.0f, 0.0f, 0.0f, 0.0f, -1, BUFF_NO_STATUS, 0, 0, {}, {} };
 
 // ---------------------------------------------------------------------------------------------------
 // Finding and taking the game's two callbacks
+
+// The status icon list's window's setting for where its cursor goes: found, not taken
+typedef void(__fastcall* CursorOffset)(void* window, void* unused, int32_t x, int32_t y);
+static CursorOffset SetCursorOffset = nullptr;
 
 // The status icon menu's item callback: list, the list's own value, the item's place, its number,
 // and whether it is the chosen one
@@ -106,6 +110,7 @@ private:
     IDirect3DBaseTexture8* m_Textures[BUFF_TEXTURES] = {}; // the addon's, held while they are drawn from
     DWORD m_BarStates = 0;   // the device's state as the bar is drawn with it
     DWORD m_SavedStates = 0; // the same states as the game had them, to put back
+    void* m_CursorWindow = nullptr; // the window whose cursor is put out of sight, while it is
 
     void RetainTextures(bool keep) {
         for (uint32_t i = 0; i < BUFF_TEXTURES; i++) {
@@ -162,6 +167,9 @@ public:
         if (GetModuleInformation(GetCurrentProcess(), GetModuleHandleA("FFXiMain.dll"), &module, sizeof(module))) {
             begin = static_cast<uint8_t*>(module.lpBaseOfDll);
         }
+        if (begin != nullptr) {
+            SetCursorOffset = reinterpret_cast<CursorOffset>(FindPattern(begin, module.SizeOfImage, CURSOR_OFFSET_PATTERN));
+        }
         if (begin != nullptr && Take(IconDetour, begin, module.SizeOfImage) && Take(TimeDetour, begin, module.SizeOfImage)) {
             Shared.Hooked = 1;
         } else {
@@ -175,6 +183,10 @@ public:
     void Release(void) override {
         Give(IconDetour);
         Give(TimeDetour);
+        // the window's cursor back, if the game has drawn the list lately, and so still has it
+        if (Shared.Frame - Shared.DrawnFrame <= BUFF_DRAW_FRAMES) {
+            PutCursorBack(m_CursorWindow);
+        }
         Shared.Hooked = 0;
         ReleaseStates();
         RetainTextures(false);
@@ -197,11 +209,42 @@ public:
         return Shared.SubmitFrame != 0 && Shared.Frame - Shared.SubmitFrame <= BUFF_DRAW_FRAMES;
     }
 
-    // Where the game would put its first icon
-    void Place(float x, float y) {
+    // The buff selector's cursor, the game's hand, is put out of sight while the bar is drawn in the
+    // icons' place, as it points at where the game's icons would be; the addon draws its own. Put
+    // back when the game draws its own icons again, or the plugin unloads.
+    // Only the window being drawn, or the last one hidden while the game still draws it, is changed:
+    // one the game has made again in its place is gone, and is forgotten.
+    void PutCursorAway(void* window) {
+        if (SetCursorOffset == nullptr || window == nullptr || window == m_CursorWindow) {
+            return;
+        }
+        SetCursorOffset(window, nullptr, CURSOR_AWAY, CURSOR_AWAY);
+        m_CursorWindow = window;
+    }
+
+    void PutCursorBack(void* window) {
+        if (m_CursorWindow != nullptr && window == m_CursorWindow) {
+            SetCursorOffset(m_CursorWindow, nullptr, CURSOR_OFFSET_X, CURSOR_OFFSET_Y);
+        }
+        m_CursorWindow = nullptr;
+    }
+
+    // Where the game would put its first icon, and which of them its cursor is on
+    void Place(const uint8_t* list, float x, float y) {
         Shared.OriginX = x;
         Shared.OriginY = y;
         Shared.DrawnFrame = Shared.Frame;
+        const int32_t cursor = *reinterpret_cast<const int32_t*>(list + LIST_CURSOR);
+        const uint32_t count = *reinterpret_cast<const uint16_t*>(list + LIST_COUNT);
+        Shared.Cursor = cursor;
+        Shared.CursorStatus = (cursor >= 0 && static_cast<uint32_t>(cursor) < count && cursor < LIST_ITEMS_MOST)
+            ? *reinterpret_cast<const uint16_t*>(list + LIST_STATUSES + cursor * 2) : BUFF_NO_STATUS;
+        void* window = *reinterpret_cast<void* const*>(list + LIST_WINDOW);
+        if (Fresh()) {
+            PutCursorAway(window);
+        } else {
+            PutCursorBack(window);
+        }
         IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
         D3DVIEWPORT8 viewport;
         if (device != nullptr && SUCCEEDED(device->GetViewport(&viewport))) {
@@ -226,7 +269,7 @@ public:
         uint32_t runCount = 0;
         for (uint32_t i = 0; i < count; i++) {
             const BuffQuad& quad = Shared.Quads[i];
-            if (quad.Texture >= BUFF_TEXTURES || m_Textures[quad.Texture] == nullptr) {
+            if (quad.Texture != BUFF_SOLID && (quad.Texture >= BUFF_TEXTURES || m_Textures[quad.Texture] == nullptr)) {
                 continue;
             }
             if (runCount == 0 || Runs[runCount - 1].texture != quad.Texture) {
@@ -251,7 +294,14 @@ public:
         device->CaptureStateBlock(m_SavedStates);
         device->ApplyStateBlock(m_BarStates);
         for (uint32_t i = 0; i < runCount; i++) {
-            device->SetTexture(0, m_Textures[Runs[i].texture]);
+            // a run of colour alone is drawn with the vertices' colour, from no texture
+            const bool solid = Runs[i].texture == BUFF_SOLID;
+            if (i == 0 || solid != (Runs[i - 1].texture == BUFF_SOLID)) {
+                const DWORD operation = solid ? D3DTOP_SELECTARG2 : D3DTOP_MODULATE;
+                device->SetTextureStageState(0, D3DTSS_COLOROP, operation);
+                device->SetTextureStageState(0, D3DTSS_ALPHAOP, operation);
+            }
+            device->SetTexture(0, solid ? nullptr : m_Textures[Runs[i].texture]);
             device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(BarVertex));
         }
         device->ApplyStateBlock(m_SavedStates);
@@ -264,7 +314,7 @@ static void __cdecl DrawStatusIcon(void* list, int32_t extra, int32_t x, int32_t
     BuffHook* plugin = BuffHook::Instance;
     // the game draws its icon a pixel in from the item's corner
     if (plugin != nullptr && index == 0) {
-        plugin->Place(static_cast<float>(x + 1), static_cast<float>(y + 1));
+        plugin->Place(static_cast<const uint8_t*>(list), static_cast<float>(x + 1), static_cast<float>(y + 1));
     }
     if (plugin == nullptr || !BuffHook::Fresh()) {
         reinterpret_cast<ItemCallback>(IconDetour.trampoline)(list, extra, x, y, index, chosen);
