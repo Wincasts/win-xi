@@ -30,7 +30,7 @@ H.frames(1); H.command('/name')
 H.print('public tabs: Names, Filters, Statuses and NM Tracking', table.concat(tabs, '|') == 'Names|Filters|Statuses|NM Tracking')
 H.print('mockup sections', table.concat(headers, '|') == 'Name Appearance|Player Icons|Mob Nameplates|Check')
 H.print('each section open, its settings in a group', #boxes == 4)
-local aligned = #marks == 16
+local aligned = #marks == 17
 for _, position in ipairs(marks) do aligned = aligned and position == marks[1] end
 H.print('all tooltip markers in one column, past the widest option', aligned, (marks[1] or 0) > contentRight)
 H.print('font selector, bold, numeric sizes and four outline choices', ids['##name.font'], ids['##name.fontBold'], ids['##name.fontSize'], ids['##name.minSize'], ids['0##name.outline0'], ids['3##name.outline3'])

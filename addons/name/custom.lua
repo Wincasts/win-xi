@@ -106,6 +106,7 @@ local settings = {
     trackedNm = function () return T{ '' }; end, -- the notorious monster being hunted, by name, or nothing
     labelPlaceholders = function () return T{ true }; end, -- its placeholders are named Placeholder
     huntScale = function () return T{ 100 }; end, -- its name's size, as a percentage of the others'
+    subtargetScale = function () return T{ 100 }; end, -- the sub target's name's size, as a percentage of the others'
     checkSize = function () return T{ 90 }; end, -- percent of the name's size
     abbreviateDifficulty = function () return T{ true }; end, -- compact difficulty by default
     showCheckDetails = function () return T{ true }; end, -- under a checked monster's name: how hard, what it does
@@ -146,6 +147,10 @@ function custom.Settle(options)
         options.huntScale = settings.huntScale();
     end
     options.huntScale[1] = math.max(100, math.min(200, math.floor(options.huntScale[1])));
+    if (type(options.subtargetScale) ~= 'table' or type(options.subtargetScale[1]) ~= 'number' or options.subtargetScale[1] ~= options.subtargetScale[1]) then
+        options.subtargetScale = settings.subtargetScale();
+    end
+    options.subtargetScale[1] = math.max(50, math.min(200, math.floor(options.subtargetScale[1])));
     if (type(options.labelPlaceholders) ~= 'table' or type(options.labelPlaceholders[1]) ~= 'boolean') then
         options.labelPlaceholders = settings.labelPlaceholders();
     end
@@ -352,6 +357,8 @@ function custom.DrawSettings(options, save)
                 'The smallest height of a distant name. It fades out as it gets there.') and options.fontSize[1] < options.minSize[1]) then
             options.fontSize[1] = options.minSize[1];
         end
+        controls.Slider('Subtarget Scale', '##name.subtargetScale', options.subtargetScale, 50, 200, '%d%%',
+            'The size of the name under the sub-target cursor (<st>, <stpc>, <stnpc> and the like) while you choose, as a percentage of the others\'. 100% is the size of every other name. Above 100% its letters are the largest size\'s stretched, and a little softer.');
         controls.Outline(options.outline);
     end
     controls.EndSection();
@@ -944,6 +951,16 @@ function custom.Frame(options, hook, formats)
     local huntTexture = trackedName ~= '' and sheet(HUNT.Sheet) or 0;
     local huntScale = options.huntScale ~= nil and math.max(100, math.min(200, options.huntScale[1])) / 100 or 1;
     nameplates.SetTexture(HUNT.Slot, huntTexture);
+    -- the character under the sub-target cursor while one is being chosen, looked for only if its
+    -- name is to be another size: the second of the game's two targets is then the target proper
+    local subtargetScale = options.subtargetScale ~= nil and math.max(50, math.min(200, options.subtargetScale[1])) / 100 or 1;
+    local subtarget = 0;
+    if (subtargetScale ~= 1) then
+        local target = AshitaCore:GetMemoryManager():GetTarget();
+        if (target ~= nil and target:GetIsSubTargetActive() == 1) then
+            subtarget = target:GetTargetIndex(0);
+        end
+    end
     -- the statuses its player has chosen to see over a name: read once, here, for all of them
     local statusRows = statuses.Begin(options);
 
@@ -1097,6 +1114,9 @@ function custom.Frame(options, hook, formats)
                 if (hunted) then
                     size = size * huntScale;
                 end
+            end
+            if (subtarget ~= 0 and name.EntityIndex == subtarget) then
+                size = size * subtargetScale;
             end
 
             -- as solid as the game has it, which fades a name with its character; but for the target,
