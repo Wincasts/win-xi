@@ -140,6 +140,11 @@ clock calling convention/trampoline/restoration, radar/clock filter independence
 ABI. Lua checks cover slot isolation, reloads, weather expiry, clock presentation and capture timing.
 These are offline checks, **not proof of live GPU output**.
 
+In game, `/uihook hud` prints what the clock replacement was drawn into: Clock::Draw's calls and
+position, the replayed vertices' bounds, the viewport, the render target against the back buffer,
+whether a scene was open, a few of the game's render states, and the game's own clock draws (their
+count, vertex format and, for drawing from memory, their screen bounds). It only reads.
+
 Live validation is required for combined buff/party/target use: menu overlap, buff selection/cursor
 restoration, target/subtarget arrows, independent toggles, Organize, addon/plugin unload/reload,
 cutscenes, zoning, UI hide/show, resolution/font changes and device recovery. Existing partyhook
