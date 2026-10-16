@@ -421,6 +421,7 @@ end
 local glyphSets = {};   -- height -> { checked = the frame it was last looked at, glyphs, baked }
 local glyphFont = nil;  -- the font they are of
 local glyphTexture = nil;
+local glyphRoute = nil;  -- which way winxi.fonts.Texture had it, for the diagnostics
 local frame = 0;
 
 local function readGlyph(baked, byte)
@@ -910,9 +911,13 @@ function custom.Frame(options, hook, formats)
 
     -- the font's texture as Direct3D has it: none for a moment after letters of a new size have been
     -- put in it, or while imgui will not say (winxi.fonts.Texture says which)
-    local texture, problem = winxiFonts.Texture();
+    local texture, problem, route = winxiFonts.Texture();
     if (texture == nil) then
         return 'texture', problem;
+    end
+    if (texture ~= glyphTexture or route ~= glyphRoute) then
+        diag.Note('Font texture id %s, from the %s (was %s)', tostring(texture), route, tostring(glyphTexture));
+        glyphRoute = route;
     end
     if (texture ~= glyphTexture or options.font ~= glyphFont) then
         glyphTexture, glyphFont = texture, options.font;
