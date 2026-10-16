@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.33
 
-- The font's texture is read through winxi's fonts.Texture: from the atlas's texture data first, then its reference, each asked apart. Asked of the reference first, an exception there (imgui's assertion, as Ashita reports it, which it can make once the atlas has been made again) kept the data from being asked, and the names were the game's for the whole session.
-- Diagnostics say what imgui answered when the font's texture cannot be had, in the history, the chat and the log, and the log reads its texture data, data id and reference id apart; the reason no longer says the id was 0 when it was an exception. Needs winxi 2.
+- The font's texture is read through winxi's fonts.Texture: from the fields of the atlas's texture data and its reference first, then their methods, each asked apart. On Windows the methods could both throw an exception (imgui's assertion, as Ashita reports it) once the game had been running a while, and the names were the game's for the rest of the session; a field is only read and cannot trip it.
+- Diagnostics say what imgui answered when the font's texture cannot be had, in the history, the chat and the log. The log reads everything imgui holds of the texture apart (the texture data, every id each way, every texture in the atlas's list), and the history notes each change of the texture's id. The reason no longer says the id was 0 when it was an exception. Needs winxi 3.
 
 ## 1.32 — first release
 
