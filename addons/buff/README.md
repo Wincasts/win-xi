@@ -6,7 +6,6 @@ for the game's own row of status icons, which it switches off. It needs only the
 
 - `/buff` shows or hides the window (it only appears while there is a status to show)
 - `/buff config` opens or closes the settings
-- `/buff covers` adds the last native menu that was open to the menus the anchored bar hides under, or takes it off
 
 Hover over an icon for the status's name, number and description; right click one to remove it, where
 the game allows that.
@@ -26,8 +25,9 @@ existing buff settings. No live installation or settings files are changed by th
 
 ## Automatic default-HUD placement
 
-**Anchor To Default Location** is enabled by default. It draws a locked, transparent, borderless
-bar below the help strip, at the screenshot-calibrated default buff location: approximately
+**Anchor To Default Location** is enabled by default. It puts a locked, transparent, borderless
+bar where the game's own status icons are. With the `buffhook` plugin the game says where that is;
+without it, the bar goes at the screenshot-calibrated default buff location: approximately
 `148, 50` in native menu coordinates. Ashita's existing `scaling` helper supplies the menu
 resolution; the current display size determines the menu-to-screen scale independently on each
 axis. If the helper is unavailable or its dimensions are invalid, placement falls back to 1:1.
@@ -45,26 +45,26 @@ Anchored buffs disappear immediately while the native interface is hidden, zonin
 events. The configurable addon hiding rules still apply in both positioning modes (including
 expanded chat and maps by default). Existing character settings are updated once to restore map
 hiding, after which manual changes to the hiding rules are respected.
-Those rules are separate from native UI layering. **Hide Anchored Buffs Under Menus** is enabled
-by default: it hides the anchored bar only while a native menu that covers it is open, one on the
-**Covering Menus** list. Other menus leave it showing. The game gives no menu rectangles to test
-against, so the list says which menus open over the bar: the macro palettes (`mcr1pall`,
-`mcr2pall`) to start. To add one, open the menu, then type `/buff covers` (or use the **Add**
-button beside **Last Menu Open** in the settings); the same takes it off again. The last menu
-seen is remembered after it closes and while chat is open, so typing the command works. The list
-is kept per character. The buff selector and ordinary inline chat input never count. This rule
-does not apply in draggable mode; shared expanded-chat/map rules still apply in both modes.
 
-**Current limitations:** the default origin was measured from
+## Under the game's menus: the buffhook plugin
+
+With the `buffhook` plugin loaded (`/load buffhook`, before `/addon load buff`), the anchored bar is
+drawn by the plugin where, and when, the game draws its own row of status icons, in their place (see
+[plugins/buffhook](../../plugins/buffhook)). It then behaves as the game's icons do: the menus the
+game opens over them (the macro palettes, the main menu and the rest) are drawn over the bar, a menu
+that covers part of it covers just that part, and it goes when the game would not draw its icons.
+It is placed where the game puts its first icon, not where it was measured to be: **Anchor
+Adjustment** still nudges it from there. Hovering an icon still shows its tooltip, and a right click
+removes it, while no menu of the game's is open.
+
+Without the plugin, or with one that did not recognise the client, the anchored bar is a window
+drawn over everything, at the place measured below, and the settings say why. Draggable mode is
+always a window.
+
+**Placement without the plugin:** the default origin was measured from
 `screenshots/Screenshot_20261014_111534.png` at 1:1 menu scale, not read from the live native buff
-bar. UI scaling is automatic, but custom native layouts and other scales still need in-game
-validation. Menu resolution is cached by Ashita's scaling helper at load time; reload buff after
-changing that configuration. This does not use the experimental `menurect` addon. **Native menu
-overlap clipping is not implemented yet**: ImGui draws after the game UI, so overlapping buffs can still
-appear above native menus. Correct layering must preserve uncovered parts of the bar and suppress
-both rendering and interaction in covered regions, using verified native menu rectangles or a
-native-layer rendering hook. This version does not claim native draw-order inheritance. Controller
-selection/cancellation is not added by anchoring.
+bar. Menu resolution is cached by Ashita's scaling helper at load time; reload buff after changing
+that configuration.
 
 ## Settings
 
@@ -80,7 +80,7 @@ selection/cancellation is not added by anchoring.
 - **Font Size**: text size in pixels; `0` (**Theme Size**, default) inherits the current theme size.
   This does not resize the icons. Timer spacing and cached measurements update automatically.
 - **Hide Game's Icons**: stops the game drawing its own row. They come back when this is switched off
-  or the addon unloads.
+  or the addon unloads. Anchored with the plugin, the bar takes the row's place whatever this says.
 
 ## Optimization check
 
@@ -96,7 +96,7 @@ previous live `buffs` implementation using the same fixture:
 | --- | ---: | ---: |
 | Timer metadata lookups, timers enabled | 2,880 | 0 |
 | Text measurements, timers enabled | 2,040 | 0 |
-| Menu checks, anchored bar visible | 240 | 120 |
+| Menu checks, anchored bar visible | 240 | 0 |
 | Timer-array fetches, timers disabled | 120 | 0 |
 | Game-clock reads, timers disabled | 360 | 0 |
 | Timer-array fetches, empty bar | 120 | 0 |

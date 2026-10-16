@@ -90,7 +90,7 @@ io.open = function(p, mode)
     return realOpen(p, mode)
 end
 
-local playing, loginStatus, pool, lots, sent, sounds, raised = false, 2, 0, {}, {}, {}, {}
+local playing, loginStatus, pool, lots, sent, sounds, raised, plugins = false, 2, 0, {}, {}, {}, {}, {}
 function GetPlayerEntity() return playing and {} or nil end
 ashita = { interface_version = 4,
     events = { register = function(e, _, f) handlers[e] = handlers[e] or {}; table.insert(handlers[e], f) end },
@@ -139,7 +139,8 @@ AshitaCore = { GetInstallPath = function() return 'C:\\ashita' end,
         LogNameSingular = { 'item ' .. id }, LogNamePlural = { 'items ' .. id }, Description = { 'About item ' .. id },
         Slots = 16, Skill = 0, Level = 1, Jobs = 2, Races = 0, Bitmap = '', ImageSize = 0 } end } end,
     GetPointerManager = function() return { Get = function() return 0 end } end,
-    GetPluginManager = function() return { RaiseEvent = function(_, name, data) raised[#raised + 1] = name .. ' ' .. string.char(unpack(data)) end } end,
+    GetPluginManager = function() return { RaiseEvent = function(_, name, data) raised[#raised + 1] = name .. ' ' .. string.char(unpack(data)) end,
+        IsLoaded = function(_, name) return plugins[name] == true end } end,
     GetChatManager = function() return { QueueCommand = function() end } end,
     GetPacketManager = function() return { AddOutgoingPacket = function(_, id, data) sent[#sent + 1] = ('%X:%s'):format(id, tostring(data and data[5])) end } end }
 -- a byte of a packet's data, where the data has it ('B', or 'i1' signed); anything else is 1
@@ -191,6 +192,7 @@ H = {
     end,
     button = function(button, state) return fire('xinput_button', { button = button, state = state, blocked = false }).blocked end,
     plugin = function(name, data) fire('plugin_event', { name = name, data = data }) end,
+    loaded = function(name, on) plugins[name] = on end,      -- whether Ashita says a plugin is loaded
     Button = { DpadUp = 0, DpadDown = 1, DpadLeft = 2, DpadRight = 3, LB = 8, RB = 9, A = 12, B = 13, X = 14, Y = 15, L2 = 16, R2 = 17 },
 }
 

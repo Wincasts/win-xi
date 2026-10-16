@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- The anchored bar hides only under the menus that cover it: those on the Covering Menus list, the macro palettes to start. `/buff covers` adds the last menu open to the list, or takes it off; so does the button in the settings.
+- With the new `buffhook` plugin, which comes with buff, the anchored bar is drawn where and when the game draws its own status icons, in their place: the game's menus are drawn over it as over its icons, a menu covering part of it covers just that part, and it goes when they would. Without the plugin it is drawn over everything, as before, and the settings say how to load it.
+- The Covering Menus list, `/buff covers` and Hide Anchored Buffs Under Menus are gone: the plugin does what they stood in for.
 
 ## 1.0 — first release
 

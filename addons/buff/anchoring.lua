@@ -1,6 +1,6 @@
--- Default HUD placement calibrated against Screenshot_20261014_111534.png at 1:1 menu scale.
--- Use Ashita's existing scaling helper, not the experimental menu rectangle probe. This does
--- not read the buff bar's live geometry or inherit native UI layering.
+-- The anchored bar without the buffhook plugin: a window of imgui's, over everything, at the game's
+-- icons' place as calibrated against Screenshot_20261014_111534.png at 1:1 menu scale, scaled by
+-- Ashita's scaling helper. With the plugin, the game says where its icons are (hook.lua).
 local bit = require('bit');
 local imgui = require('imgui');
 local game = require('winxi.game');
@@ -19,28 +19,10 @@ local appearance = { padding = 0, background = { 0, 0, 0, 0 }, alpha = 1 };
 
 -- The native menu on top, by its short name (equip, mcr1pall), or nil. Ordinary inline chat and
 -- the buff selector are never counted: they do not cover the bar, and typing a command opens chat.
-local function OpenMenu()
+function anchoring.MenuOpen()
     local name = game.MenuName():match('^menu%s+(%S+)%s*$');
     if name == nil or name == 'buff' or name == 'inline' then return nil; end
     return name;
-end
-
--- The last native menu seen open while anchored, for /buff covers to add or remove: by the time
--- the command is typed, chat is the menu on top.
-local lastMenu = nil;
-function anchoring.LastMenu() return lastMenu; end
-
--- Hides the whole anchored bar while a menu that covers it is open: one on the options' list of
--- covering menus. The game gives no menu rectangles to test against, so the list says which ones
--- open over the bar (the macro palettes to start), and the player adds the rest.
-function anchoring.HideForMenu(options)
-    if not options.anchorToDefault or not options.anchorToDefault[1] then return false; end
-    local name = OpenMenu();
-    if name == nil then return false; end
-    lastMenu = name;
-    if not options.hideWithMenus or not options.hideWithMenus[1] then return false; end
-    local covering = options.coveringMenus;
-    return covering ~= nil and covering[name] == true;
 end
 
 function anchoring.IsHidden()
@@ -64,10 +46,10 @@ function anchoring.Position(nudge, display, menu)
         math.floor(nativeOrigin[2] * sy + 0.5) + nudge[2];
 end
 
--- menuChecked is true only when the caller already applied HideForMenu this frame.
-function anchoring.Draw(name, options, draw, menuChecked)
+-- The bar as a window of imgui's, over everything: without the buffhook plugin
+function anchoring.Draw(name, options, draw)
     -- Do not linger when the HUD itself is hidden.
-    if anchoring.IsHidden() or (not menuChecked and anchoring.HideForMenu(options)) then return false; end
+    if anchoring.IsHidden() then return false; end
     local wanted = options.isVisible[1];
     local alpha = wanted and 1 or 0;
     if options.fadeInOut[1] then alpha = fade.Presence(name, wanted); end

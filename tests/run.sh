@@ -64,6 +64,7 @@ python3 tests/trigger_sound_volumes_check.py
 run puppet     addons/puppet/puppet.lua puppet_check.lua
 run buff       addons/buff/buff.lua     buff_check.lua
 run buff       addons/buff/buff.lua     buff_performance_check.lua
+run buff       addons/buff/buff.lua     buff_hook_check.lua
 run zone       tests/zoneinfo_fixture.lua zoneinfo_check.lua
 run zoneinfo-presentation tests/zoneinfo_fixture.lua zoneinfo_presentation_ui_check.lua
 run zoneinfo-background tests/zoneinfo_background_fixture.lua zoneinfo_background_check.lua

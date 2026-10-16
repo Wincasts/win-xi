@@ -3,7 +3,8 @@
 local o = H.options()
 assert(o.hide.UnderMap == true and o.hide.UnderChat == true)
 H.print('defaults: size', o.iconSize[1], '| per row', o.perRow[1], '| timers', o.showTimers[1], '| status icons', require('winxi.theme').Get().StatusIcons)
-H.print('nowhere to hide the game\'s icons, said once:', H.printed[#H.printed])
+H.frames(1); H.frames(1)
+H.print('nowhere to hide the game\'s icons, said once:', H.printed[#H.printed], #H.printed)
 
 -- a player under Protect (40, no end), Haste (33, 90 seconds left) and a food (251, two hours)
 local stamp, epoch = 2000000000, 0x3C307D70
@@ -98,28 +99,11 @@ game.MenuName = function() return menu end
 assert(not anchoring.IsHidden())
 menu = 'menu    buff    '; assert(not anchoring.IsHidden())
 menu = 'menu    item    '; assert(not anchoring.IsHidden())
--- Only the menus on the covering list hide the bar: the macro palettes to start
-assert(o.hideWithMenus[1] and o.coveringMenus.mcr1pall and o.coveringMenus.mcr2pall)
-for _, name in ipairs({ '', 'menu    buff    ', 'menu    inline  ', 'menu    item    ', 'menu    equip   ',
-    'menu    status  ', 'menu    magic   ', 'menu    submenu ' }) do
-    menu = name; assert(not anchoring.HideForMenu(o), name .. ' should leave buffs visible')
+-- Without the plugin no menu hides the bar: the menu on top is known, for the plugin's mouse
+for _, name in ipairs({ '', 'menu    buff    ', 'menu    inline  ' }) do
+    menu = name; assert(anchoring.MenuOpen() == nil, name .. ' is no menu over the bar')
 end
-for _, name in ipairs({ 'menu    mcr1pall', 'menu    mcr2pall' }) do
-    menu = name; assert(anchoring.HideForMenu(o), name .. ' should hide anchored buffs')
-end
--- The last menu seen is remembered past chat and the menu closing, for /buff covers
-menu = 'menu    equip   '; anchoring.HideForMenu(o)
-menu = 'menu    inline  '; anchoring.HideForMenu(o)
-menu = ''; anchoring.HideForMenu(o)
-assert(anchoring.LastMenu() == 'equip')
-local said = #H.printed
-H.command('/buff covers')
-assert(o.coveringMenus.equip == true and #H.printed == said + 1, 'covers adds the last menu')
-menu = 'menu    equip   '; assert(anchoring.HideForMenu(o))
-H.command('/buff covers')
-assert(o.coveringMenus.equip == false and not anchoring.HideForMenu(o), 'covers takes it off again')
-menu = 'menu    mcr1pall'; o.hideWithMenus[1] = false
-assert(not anchoring.HideForMenu(o))
+menu = 'menu    mcr1pall'; assert(anchoring.MenuOpen() == 'mcr1pall')
 menu = ''; for key in pairs(original) do
     if key ~= 'MenuName' then
         state[key] = true; assert(anchoring.IsHidden(), key); state[key] = false
@@ -144,11 +128,8 @@ assert(o.pos[1] == savedX and o.pos[2] == savedY)
 local begins = H.calls.Begin
 menu = 'menu    mcr1pall'
 assert(anchoring.Draw('buffs.anchor.test', o, draw))
-assert(H.calls.Begin == begins + 1 and drawn == 2)
-o.hideWithMenus[1] = true
-assert(not anchoring.Draw('buffs.anchor.test', o, draw))
-assert(H.calls.Begin == begins + 1 and drawn == 2, 'menu hides without drawing or interaction')
--- Native menus and macro palettes only suppress anchored drawing; chat/maps use shared rules.
+assert(H.calls.Begin == begins + 1 and drawn == 2, 'without the plugin a palette leaves the bar drawn')
+-- Without the plugin native menus leave both modes drawn; chat and maps use the shared rules.
 under(1, 40)
 local oldChat = game.IsChatExpanded
 local chat = false
@@ -156,17 +137,11 @@ game.IsChatExpanded = function() return chat end
 for _, anchored in ipairs({ false, true }) do
     o.anchorToDefault[1] = anchored
     local before
-    for _, name in ipairs({ 'menu    mcr1pall', 'menu    mcr2pall' }) do
-        menu = name
-        before = H.calls.Begin
-        H.frames(1)
-        assert(H.calls.Begin == before + (anchored and 0 or 1), 'covering menus hide anchored mode only')
-    end
-    for _, name in ipairs({ 'menu    inline  ', 'menu    buff    ', 'menu    item    ', 'menu    equip   ',
+    for _, name in ipairs({ 'menu    mcr1pall', 'menu    mcr2pall', 'menu    inline  ', 'menu    buff    ', 'menu    item    ', 'menu    equip   ',
         'menu    status  ', 'menu    magic   ', 'menu    trade   ', 'menu    submenu ' }) do
         menu = name
         before = H.calls.Begin
-        H.frames(1); assert(H.calls.Begin == before + 1, 'other menus stay visible')
+        H.frames(1); assert(H.calls.Begin == before + 1, 'menus leave the bar drawn')
     end
     menu = 'menu    map     '
     before = H.calls.Begin
@@ -207,15 +182,19 @@ package.loaded.scaling, imgui.GetIO = savedScaling, savedIO
 o.fadeInOut[1] = true
 imgui.SetNextWindowPos = originalPlace
 
--- the game's own icons: three places changed, and put back
+-- the game's own icons: three places changed, and put back; the row and the rest apart
 local native = require('native')
 local written, at = {}, { ['75??8B4E0851B9'] = 100, ['7D??33C05EC20400C6'] = 200, ['85C00F??????????6A0232DBE8'] = 300 }
+local originalFind = ashita.memory.find
 ashita.memory.find = function(_, _, pattern) return at[pattern] or 0 end
 ashita.memory.read_uint16 = function(pointer) return written[pointer] or pointer + 1 end
 ashita.memory.write_uint16 = function(pointer, value) written[pointer] = value end
-H.print('hidden', native.Set(true), native.IsHidden(), '|', written[100] == 0x9090, written[200] == 0x9090, written[300] == 0xC031)
-H.print('hidden already by another: left alone', (function() local n = dofile('addons/buff/native.lua') return n.Set(true) == false and written[100] == 0x9090 end)())
-H.unload(); H.print('unload puts them back', native.IsHidden() == false, written[100] == 101, written[200] == 201, written[300] == 301)
+H.print('hidden', native.Set(true, true), '|', written[100] == 0x9090, written[200] == 0x9090, written[300] == 0xC031)
+H.print('the row given back, the rest kept', native.Set(false, true), written[100] == 101, written[200] == 201, written[300] == 0xC031)
+H.print('hidden already by another: left alone', (function() local n = dofile('addons/buff/native.lua') return n.Set(false, true) == false and written[300] == 0xC031 end)())
+native.Set(true, true)
+H.unload(); H.print('unload puts them back', written[100] == 101, written[200] == 201, written[300] == 301)
+ashita.memory.find = originalFind
 
 assert(addon.name == 'buff')
 assert(H.command('/buff config'))

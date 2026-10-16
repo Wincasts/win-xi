@@ -1,0 +1,113 @@
+-- buff with the buffhook plugin: the anchored bar is handed to the plugin, in the game's pixels from
+-- where the game puts its first icon, instead of being drawn as a window; the game's row of icons is
+-- left for the plugin to stand in for; an empty bar keeps it away while the bar is hidden; and without
+-- the plugin, or with one that took nothing, the bar is a window again.
+--     luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_check.lua
+local ffi = require('ffi')
+local imgui = require('imgui')
+local game = require('winxi.game')
+local icons = require('winxi.statusicons')
+local hook = require('hook')
+
+for _, key in ipairs({ 'IsLoading', 'IsInterfaceHidden', 'IsEventHappening', 'IsChatExpanded', 'IsMapOpen' }) do
+    game[key] = function() return false end
+end
+local chat = false
+game.IsChatExpanded = function() return chat end
+local menu = ''
+game.MenuName = function() return menu end
+
+-- Protect (40, no end), Haste (33, 90 seconds left)
+local statuses = require('statuses')
+statuses.Read = function(list)
+    list[1], list[2] = { id = 40 }, { id = 33, seconds = 90 }
+    for index = #list, 3, -1 do list[index] = nil end
+    return 2
+end
+AshitaCore.GetResourceManager = function() return { GetString = function(_, _, id) return 'Status ' .. id end,
+    GetStatusIconByIndex = function(_, id) return { CanCancel = id == 33 and 1 or 0, HideTimer = 0, Description = { 'What it does.' } } end } end
+icons.Get = function(id) return 0x1000 + id, true end
+
+-- The plugin's block, as it would be in its DLL; and the game's code the addon changes
+local holder = ffi.new('buffhook_t[1]')
+local block = holder[0]
+block.Version, block.Size, block.Hooked, block.Frame = 1, ffi.sizeof('buffhook_t'), 1, 10
+block.Width, block.Height = 960, 540 -- the game's picture, half imgui's 1920 by 1080
+local written, at = {}, { ['75??8B4E0851B9'] = 100, ['7D??33C05EC20400C6'] = 200, ['85C00F??????????6A0232DBE8'] = 300 }
+ashita.memory.find = function(module, _, pattern)
+    if module == 'buffhook.dll' then return tonumber(ffi.cast('uintptr_t', holder)) end
+    return at[pattern] or 0
+end
+ashita.memory.read_uint16 = function(pointer) return written[pointer] or pointer + 1 end
+ashita.memory.write_uint16 = function(pointer, value) written[pointer] = value end
+
+-- the font: a glyph a letter, 6 wide, from a texture of its own
+local font = { ContainerAtlas = { TexRef = { GetTexID = function() return 0x9000 end }, TexData = { GetTexID = function() return 0 end } } }
+imgui.GetFont = function() return font end
+local baked = { FindGlyph = function(_, byte) return { X0 = 0, Y0 = 2, X1 = 5, Y1 = 12, U0 = byte / 256, V0 = 0, U1 = (byte + 1) / 256, V1 = 1, AdvanceX = 6, Visible = 1 } end }
+imgui.GetFontBaked = function() return baked end
+
+local o = H.options()
+o.fadeInOut[1] = false
+H.play(true)
+H.loaded('buffhook', true)
+
+local begins = H.calls.Begin or 0
+H.frames(1)
+H.print('handed over, not drawn as a window', block.SubmitFrame == 10, (H.calls.Begin or 0) == begins)
+H.print('the textures: the font and the two icons', block.Textures[0] == 0x9000, block.Textures[1] == 0x1000 + 40, block.Textures[2] == 0x1000 + 33)
+-- Protect has no end: two icons, and Haste's 90 seconds, "1m": two letters, each five times over
+H.print('quads: two icons, two letters with their edges', block.Count == 2 + 2 * 5)
+local first = block.Quads[0]
+local width = math.floor(40 * icons.OwnAspect + 0.5)
+H.print('the first icon at the first icon\'s place, in the game\'s pixels', first.X0 == 0 and first.Y0 == 0, first.X1 == width * 0.5, first.Y1 == 40 * 0.5,
+    '| white', first.Color == 0xFFFFFFFF, '| from its texture', first.Texture == 1)
+local second = block.Quads[1]
+H.print('the second beside it, a gap on', second.X0 == (width + 4) * 0.5 and second.Y0 == 0)
+local edge, letter = block.Quads[2], block.Quads[10]
+H.print('the edge first, dark, then the letter', bit.rshift(edge.Color, 24) < 255 and bit.band(edge.Color, 0xFFFFFF) == 0, letter.Texture == 0, letter.Y0 > first.Y1)
+H.print('the game\'s row left to the plugin, the rest hidden', written[100] == nil and written[200] == nil, written[300] == 0xC031)
+
+-- nudged: the whole bar moves, in imgui's pixels
+o.anchorAdjustment[1], o.anchorAdjustment[2] = 10, 4
+block.Frame = 11; H.frames(1)
+H.print('nudged', block.Quads[0].X0 == 5 and block.Quads[0].Y0 == 2)
+o.anchorAdjustment[1], o.anchorAdjustment[2] = 0, 0
+
+-- hidden by the shared rules, or switched off: an empty bar, so that the game's icons stay away
+chat = true; block.Frame = 12; H.frames(1)
+H.print('hidden under chat: an empty bar', block.SubmitFrame == 12 and block.Count == 0)
+chat = false; o.isVisible[1] = false; block.Frame = 13; H.frames(1)
+H.print('switched off: an empty bar', block.SubmitFrame == 13 and block.Count == 0)
+o.isVisible[1] = true
+
+-- under the mouse, with the game having drawn it: a window over the cell, for its tooltip and click
+block.DrawnFrame, block.Frame, block.OriginX, block.OriginY = 14, 14, 100, 50
+H.ret.GetMousePos = { 200 + 2, 100 + 2 } -- the first icon's corner in imgui's pixels, and a little in
+H.ret.IsItemHovered = { true }
+local tips = H.calls.BeginTooltip or 0
+begins = H.calls.Begin or 0
+H.frames(1)
+H.print('hovered: a window over the cell, and the tooltip', (H.calls.Begin or 0) == begins + 1, (H.calls.BeginTooltip or 0) == tips + 1)
+menu = 'menu    mcr1pall'; begins = H.calls.Begin; block.Frame = 15; block.DrawnFrame = 15
+H.frames(1)
+H.print('not while a menu of the game\'s is open, as it may be over the bar', H.calls.Begin == begins)
+menu = ''
+H.ret.GetMousePos = { 0, 0 }; H.ret.IsItemHovered = { false }
+
+-- without the plugin, or with one that took nothing: a window, and the game's row hidden again
+H.loaded('buffhook', false); begins = H.calls.Begin
+H.frames(1)
+H.print('no plugin: a window', H.calls.Begin > begins, '| the row hidden', written[100] == 0x9090 and written[200] == 0x9090,
+    '| said in the settings', hook.Problem() ~= nil and hook.Problem():find('/load buffhook') ~= nil)
+H.loaded('buffhook', true); block.Hooked = 0; begins = H.calls.Begin
+H.frames(1)
+H.print('a plugin that took nothing: a window', H.calls.Begin > begins, '| said', hook.Problem() ~= nil and hook.Problem():find('recognise') ~= nil)
+block.Hooked = 1; block.Frame = 20; H.frames(1)
+H.print('the plugin again: handed over, the row given back', block.SubmitFrame == 20, written[100] == 101 and written[200] == 201)
+
+-- not anchored: always a window, the plugin unasked
+o.anchorToDefault[1] = false; block.Frame = 21; begins = H.calls.Begin
+H.frames(1)
+H.print('draggable: a window, nothing handed over', H.calls.Begin > begins, block.SubmitFrame == 20)
+o.anchorToDefault[1] = true
