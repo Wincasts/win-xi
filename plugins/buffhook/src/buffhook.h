@@ -1,0 +1,40 @@
+// buffhook: what the buff addon and the plugin share. See README.md.
+#pragma once
+
+#include <stdint.h>
+
+#define BUFF_VERSION 1
+#define BUFF_TEXTURES 48   // the textures a bar can be drawn from
+#define BUFF_QUADS 1024    // and the rectangles it can be drawn with
+#define BUFF_DRAW_FRAMES 2 // how long what the addon wrote is good for, in frames
+
+// One rectangle of the bar: an icon, or a letter of a time.
+struct BuffQuad {
+    float X0, Y0, X1, Y1; // its corners, in pixels of the game's picture, from where the game puts its first icon
+    float U0, V0, U1, V1; // and the same corners in its texture
+    uint32_t Color;       // as 0xAARRGGBB
+    uint32_t Texture;     // which of BuffShared::Textures
+};
+
+// The block an addon reads and writes: found in this DLL by its first 16 bytes.
+struct BuffShared {
+    char Magic[16];
+    uint32_t Version;     // BUFF_VERSION
+    uint32_t Size;        // of this: an addon that has it otherwise does not read on
+    uint32_t Hooked;      // 1 while the game's drawing of its status icons is in this plugin's hands
+
+    // Written by the plugin
+    uint32_t Frame;       // counts the frames presented
+    uint32_t DrawnFrame;  // the Frame the game last drew its status icons in: 0 if it has not
+    float OriginX;        // where it put the first of them then, in pixels of its picture
+    float OriginY;
+    float Width;          // and the size of the picture
+    float Height;
+
+    // Written by the addon. While SubmitFrame is within BUFF_DRAW_FRAMES of Frame, the quads are
+    // drawn where the game would have drawn its icons, and the game draws none of its own.
+    uint32_t SubmitFrame;
+    uint32_t Count;
+    uint32_t Textures[BUFF_TEXTURES]; // Direct3D textures' addresses, 0 for none
+    BuffQuad Quads[BUFF_QUADS];
+};

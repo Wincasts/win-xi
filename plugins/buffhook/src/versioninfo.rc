@@ -1,0 +1,28 @@
+1 VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0
+ FILEOS 4
+ FILETYPE 2
+ FILESUBTYPE 0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "CompanyName", "win"
+            VALUE "FileDescription", "buffhook - draws the buff addon's bar in place of the game's status icons"
+            VALUE "FileVersion","1.0.0.0\0"
+            VALUE "InternalName", "buffhook"
+            VALUE "LegalCopyright", "Copyright (c) 2026 win"
+            VALUE "OriginalFilename", "buffhook.dll"
+            VALUE "ProductName", "buffhook"
+            VALUE "ProductVersion","1.0.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
