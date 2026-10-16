@@ -3,7 +3,7 @@
 #pragma once
 #include <stdint.h>
 
-#define HUD_VERSION 3
+#define HUD_VERSION 4
 #define HUD_CLOCK 1u
 #define HUD_COMPASS 2u
 struct HudShared {
@@ -18,8 +18,18 @@ struct HudShared {
     // The map grid the game prints after the time, "(H-9)", from the clock's object; current at
     // ClockRectFrame. Eight characters at most, then zeros.
     char Grid[12];
+    // The game's clock icons, as ClockRect: 0 the day's, 1 the weather's, 2 the second weather icon
+    // of a double weather. Each current at its IconFrame; a frame it was not drawn in, it is not.
+    float IconRect[3][4];
+    uint32_t IconFrame[3];
+    // Written by the addon: HUD_ICON_DAY and HUD_ICON_WEATHER for icons it draws its own of. Only
+    // while its clock replacement is fresh and drawn are the game's left undrawn (both weather icons
+    // for HUD_ICON_WEATHER); they are measured either way.
+    uint32_t HideIcons;
 };
-static_assert(sizeof(HudShared)==88, "HUD ABI 3");
+static_assert(sizeof(HudShared)==152, "HUD ABI 4");
+#define HUD_ICON_DAY 1u
+#define HUD_ICON_WEATHER 2u
 // Submit(index, capture): index 0 clock, 1 compass; capture 1=current ImGui window,
 // 0=renew empty replacement, -1=release that slot. index -1 releases ONLY these two slots.
 
@@ -35,6 +45,15 @@ static_assert(sizeof(HudShared)==88, "HUD ABI 3");
 #define CLOCK_TEXT_PATTERN "68 80 80 80 80 8D 57 1A 51 8D 43 CE 52 50 E8 ?? ?? ?? ??"
 #define CLOCK_TEXT_CALL 14
 #define CLOCK_GRID_AT 0x11
+// Clock::Draw's three icon calls, Sprite::Draw(this=sprite, x, y, colour, 0, 0): thiscall, five
+// stack words it clears itself (ret 0x14). The day's at (x-68, y+26), the weather's at (x-68, y-42),
+// and the second weather icon a sprite's width on. Each pattern ends at its CALL.
+#define CLOCK_DAY_ICON_PATTERN "6A 00 6A 00 83 C0 1A 68 80 80 80 80 83 EA 44 50 52 E8 ?? ?? ?? ??"
+#define CLOCK_DAY_ICON_CALL 17
+#define CLOCK_WEATHER_ICON_PATTERN "68 80 80 80 80 8D 4B BC 57 51 8B CE E8 ?? ?? ?? ??"
+#define CLOCK_WEATHER_ICON_CALL 12
+#define CLOCK_SECOND_ICON_PATTERN "68 80 80 80 80 8D 54 18 BC 57 52 8B CE E8 ?? ?? ?? ??"
+#define CLOCK_SECOND_ICON_CALL 13
 #define CLOCK_RADAR_PATTERN "8B 44 24 28 8B CB 50 57 E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 85 C0 89 44 24 24"
 
 static uint8_t* HudCallee(uint8_t* begin,size_t size,uint8_t* call,uint8_t opcode) {
@@ -43,7 +62,8 @@ static uint8_t* HudCallee(uint8_t* begin,size_t size,uint8_t* call,uint8_t opcod
     int64_t offset=static_cast<int64_t>(call-begin)+5+rel;
     return offset>=0 && static_cast<uint64_t>(offset)<size ? begin+offset : nullptr;
 }
-struct HudDiscovery { uint8_t* compass=nullptr; uint8_t* clock=nullptr; void** global=nullptr; uint8_t* radarVisible=nullptr; uint16_t* weather=nullptr; uint8_t* text=nullptr; uint8_t* textTarget=nullptr; };
+struct HudDiscovery { uint8_t* compass=nullptr; uint8_t* clock=nullptr; void** global=nullptr; uint8_t* radarVisible=nullptr; uint16_t* weather=nullptr; uint8_t* text=nullptr; uint8_t* textTarget=nullptr;
+    uint8_t* icons[3]={}; uint8_t* iconTarget=nullptr; };
 static HudDiscovery FindHud(uint8_t* begin,size_t size) {
     HudDiscovery out;
     auto* step=UniquePattern(begin,size,COMPASS_STEP_PATTERN);
@@ -68,6 +88,18 @@ static HudDiscovery FindHud(uint8_t* begin,size_t size) {
         auto* target=HudCallee(begin,size,text+CLOCK_TEXT_CALL,0xe8);
         if (target) { out.text=text+CLOCK_TEXT_CALL; out.textTarget=target; }
     }
+    // Optional, and all three or none: each inside Clock::Draw, each calling the one sprite routine.
+    const char* iconPatterns[3]={CLOCK_DAY_ICON_PATTERN,CLOCK_WEATHER_ICON_PATTERN,CLOCK_SECOND_ICON_PATTERN};
+    const unsigned iconCalls[3]={CLOCK_DAY_ICON_CALL,CLOCK_WEATHER_ICON_CALL,CLOCK_SECOND_ICON_CALL};
+    uint8_t* icons[3]={}; uint8_t* sprite=nullptr; bool iconsOk=true;
+    for (unsigned i=0;i<3 && iconsOk;i++) {
+        auto* at=UniquePattern(begin,size,iconPatterns[i]);
+        if (!at || at<=clock || at-clock>=0x160) { iconsOk=false; break; }
+        auto* target=HudCallee(begin,size,at+iconCalls[i],0xe8);
+        if (!target || (sprite && target!=sprite)) { iconsOk=false; break; }
+        sprite=target; icons[i]=at+iconCalls[i];
+    }
+    if (iconsOk) { for (unsigned i=0;i<3;i++) out.icons[i]=icons[i]; out.iconTarget=sprite; }
     auto* weather=UniquePattern(begin,size,CLOCK_WEATHER_PATTERN);
     if (weather && weather>=clock && weather-clock<0x160) {
         uint32_t address=0; memcpy(&address,weather+2,4);
@@ -87,6 +119,25 @@ static bool TakeClockText(ClockTextCall& text,uint8_t* call,uint8_t* target,void
     int32_t distance=Distance(call+5,replacement); memcpy(jump+1,&distance,4);
     WriteCode(call,jump,5);
     return true;
+}
+// The three icon calls, each aimed at its own replacement, which knows which icon it is drawing.
+using ClockIcon = void(__fastcall*)(void*,void*,int32_t,int32_t,uint32_t,uint32_t,uint32_t);
+struct ClockIconCalls { uint8_t* calls[3]={}; ClockIcon original=nullptr; uint8_t saved[3][5]={}; };
+static bool TakeClockIcons(ClockIconCalls& icons,uint8_t* const calls[3],uint8_t* target,void* const replacements[3]) {
+    if (!target) return false;
+    for (unsigned i=0;i<3;i++) if (!calls[i] || !VerifyCall(calls[i],target)) return false;
+    icons.original=reinterpret_cast<ClockIcon>(target);
+    for (unsigned i=0;i<3;i++) {
+        icons.calls[i]=calls[i]; memcpy(icons.saved[i],calls[i],5);
+        uint8_t jump[5]={0xe8,0,0,0,0};
+        int32_t distance=Distance(calls[i]+5,replacements[i]); memcpy(jump+1,&distance,4);
+        WriteCode(calls[i],jump,5);
+    }
+    return true;
+}
+static void GiveClockIcons(ClockIconCalls& icons) {
+    for (unsigned i=0;i<3;i++) if (icons.calls[i]) WriteCode(icons.calls[i],icons.saved[i],5);
+    icons=ClockIconCalls();
 }
 static void GiveClockText(ClockTextCall& text) {
     if (text.call) WriteCode(text.call,text.saved,5);

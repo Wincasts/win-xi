@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- Icon Set: pictures of your own for the day and weather icons, a folder of `icons` each, drawn where
+  and as large as the game's. Where a set has no picture, the game's own icon (from its DATs) is drawn.
+- Needs uihook 0.2 with HUD ABI 4.
+
 ## 0.3.0
 
 - The line's fields are chosen and put in order under Line in the settings: Time, Map Grid, Day,

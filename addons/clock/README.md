@@ -1,4 +1,4 @@
-# clock — experimental 0.3
+# clock — experimental 0.4
 
 The game's clock, written out in full on one line in its place: the time, the map grid, the day,
 the date and the moon to begin with, as `3:32  (H-9)  Windsday  900/12/30  Moon 42%`, and what is
@@ -36,6 +36,8 @@ Hide Compass does the compass's part. Keep the clock on in the game's config too
   from the middle; the dark edge round the letters thickens from 1.75x.
 - **Hide Compass**: the game's compass and radar are not drawn (on to begin with). The clock and its
   icons are drawn all the same.
+- **Icon Set**: pictures of your own for the day and weather icons (Game's Icons to begin with).
+  See [Icons](#icons).
 
 Under **Line**, each field the line can show, ticked if shown, in the order they are written from left
 to right; **Up** and **Down** move one along. Hover a field for what it writes.
@@ -55,6 +57,21 @@ left out, gap and all. With none ticked, the game's text is hidden and nothing w
 The line is the theme's font and text colour, with winxi's dark edge round it and no background. The
 Winxi Theme tab sets those. Settings are kept for each character.
 
+## Icons
+
+The game draws the day's icon to the left of the clock, and above it the weather's when there is
+weather: elemental weather only, none for a clear sky, sunshine, clouds or fog, and two side by side
+for double weather. An icon set puts pictures of your own in their place, as buff's status icon
+sets do: where the set has a picture for today or the weather, it is drawn exactly where and as
+large as the game's icon would be, and the game's is not drawn; where it has none, the game's own
+icon, from its DATs, is drawn as ever.
+
+A set is a folder of `addons\clock\icons`, holding any of `days\firesday.png` to `days\darksday.png`
+and `weather\fire.png`, `ice`, `wind`, `earth`, `thunder`, `water`, `light` and `dark`
+([icons/README.txt](icons/README.txt)). Weather is by element: rain and squalls are water, dust and
+sand storms earth, auroras and stellar glare light, and so on. No set comes with the addon. A folder
+added while the game runs is in the list the next time it is opened.
+
 ## Commands
 
 - `/clock`: the settings.
@@ -67,7 +84,9 @@ Winxi Theme tab sets those. Settings are kept for each character.
 uihook draws the line when the game draws its clock. Of the game's clock, only its text gives way:
 the game still writes it, unseen, and uihook measures where, so the line goes exactly there at any
 resolution or menu scale. The day icon to its left and the weather icon above it (two for double
-weather) are the game's own, drawn after the text as ever. The map grid is the game's own `(H-9)`.
+weather) are the game's own, drawn after the text as ever, unless the icon set has a picture for one:
+uihook then measures the game's icon unseen as it does the text, and the picture goes there. The map
+grid is the game's own `(H-9)`.
 
 - Nothing is drawn until uihook has seen where the game writes its clock, and then only while the
   game goes on drawing it: with the clock off in the game's config, in a cutscene, or with the

@@ -10,10 +10,13 @@ ffi.cdef[[
         float ClockRect[4];
         uint32_t ClockRectFrame;
         char Grid[12];
+        float IconRect[3][4];
+        uint32_t IconFrame[3];
+        uint32_t HideIcons;
     } uihook_hud_t;
     typedef int32_t (__cdecl *uihook_hud_submit_t)(int32_t index, int32_t capture);
 ]]
-local M = { Clock = 0, Compass = 1 }
+local M = { Clock = 0, Compass = 1, DayIcon = 0, WeatherIcon = 1, SecondWeatherIcon = 2, HideDay = 1, HideWeather = 2 }
 function M.new(index)
     assert(index == 0 or index == 1, 'native HUD slot must be clock or compass')
     local block, submit, base, looked = nil, nil, nil, -1
@@ -34,7 +37,7 @@ function M.new(index)
             local address = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D485544000000000000', 0, 0)
             if not address or address == 0 then reason = 'Update uihook: clock/compass shared block not found.'; return nil end
             local found = ffi.cast('uihook_hud_t*', address)
-            if found.Version ~= 3 or found.Size ~= ffi.sizeof('uihook_hud_t') or found.Submit == 0 then
+            if found.Version ~= 4 or found.Size ~= ffi.sizeof('uihook_hud_t') or found.Submit == 0 then
                 reason = 'uihook clock/compass ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_hud_submit_t', found.Submit)
@@ -59,7 +62,10 @@ function M.new(index)
         return ok
     end
     function hook.Stop()
-        if owned and Find() then submit(index, -1) end
+        if owned and Find() then
+            submit(index, -1)
+            if index == 0 then block.HideIcons = 0 end
+        end
         owned = false
     end
     function hook.Weather()
@@ -92,6 +98,25 @@ function M.new(index)
         for i = 0, 3 do if r[i] ~= r[i] or math.abs(r[i]) > 100000 then return nil end end
         if r[2] <= r[0] or r[3] <= r[1] then return nil end
         return tonumber(r[0]), tonumber(r[1]), tonumber(r[2]), tonumber(r[3])
+    end
+    -- Where the game drew one of its clock's icons (M.DayIcon, M.WeatherIcon, M.SecondWeatherIcon),
+    -- as ClockRect, while it is drawing it; nil otherwise (no weather icon under a clear sky).
+    function hook.IconRect(icon)
+        local found = Find()
+        if not found or index ~= 0 or icon < 0 or icon > 2 or found.IconFrame[icon] == 0 or
+            (tonumber(found.Frame) - tonumber(found.IconFrame[icon])) % 4294967296 > 2 then return nil end
+        local r = found.IconRect[icon]
+        for i = 0, 3 do if r[i] ~= r[i] or math.abs(r[i]) > 100000 then return nil end end
+        if r[2] <= r[0] or r[3] <= r[1] then return nil end
+        return tonumber(r[0]), tonumber(r[1]), tonumber(r[2]), tonumber(r[3])
+    end
+    -- Which of the game's clock icons the addon draws its own of (M.HideDay, M.HideWeather), each
+    -- frame its line is handed over; the game's are left undrawn only while that line is drawn.
+    function hook.HideIcons(mask)
+        local found = Find()
+        if not found or index ~= 0 then return false end
+        found.HideIcons = mask
+        return true
     end
     -- The map grid the game prints after the time, "(H-9)", while current; nil otherwise.
     function hook.Grid()

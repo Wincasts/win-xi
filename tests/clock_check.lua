@@ -70,6 +70,49 @@ H.frames(1)
 p('text scale 2: twice the theme\'s size', sized == 28)
 options.textScale[1] = 1
 
+-- the icons: the game's, unless the chosen set has a picture for the day or the weather
+local icons = require('icons')
+local function Images() return H.calls['draw.AddImage'] or 0 end
+CLOCK.icons[0] = { 8, 1096, 24, 1112 }
+local images = Images()
+H.frames(1)
+p('no set: the game\'s icons, none of its own', CLOCK.hidden == 0, Images() == images)
+local listed = icons.Sets()
+p('the sets: the folders of icons, files left out', #listed == 1 and listed[1].key == 'mine')
+options.iconSet = 'mine'
+H.frames(1)
+p('a set with no picture for Windsday: still the game\'s', CLOCK.hidden == 0)
+CLOCK.files['days/windsday'] = true
+icons.Forget()
+images = Images()
+H.frames(1)
+p('a picture for Windsday: the game\'s day icon left undrawn, ours where it was', CLOCK.hidden == 1, Images() == images + 1)
+CLOCK.icons[0] = nil
+H.frames(1)
+p('until uihook has seen where the day icon goes, the game\'s', CLOCK.hidden == 0)
+CLOCK.icons[0] = { 8, 1096, 24, 1112 }
+CLOCK.weather, CLOCK.icons[1], CLOCK.icons[2] = 7, { 8, 1028, 24, 1044 }, { 24, 1028, 40, 1044 }
+CLOCK.files['weather/water'] = true
+images = Images()
+H.frames(1)
+p('a squall, double water: both weather icons ours, beside the day\'s', CLOCK.hidden == 3, Images() == images + 3)
+CLOCK.weather = 4
+H.frames(1)
+p('a hot spell, no fire picture: the game\'s weather icon', CLOCK.hidden == 1)
+CLOCK.weather = 2
+H.frames(1)
+p('clouds, for which the game draws none: none hidden', CLOCK.hidden == 1)
+local loads = CLOCK.loads
+H.frames(5)
+p('each picture loaded once', CLOCK.loads == loads, loads == 2)
+H.command('/clock off')
+H.frames(1)
+p('off: the game\'s icons back', CLOCK.hidden == 0)
+H.command('/clock on')
+options.iconSet = icons.None
+CLOCK.weather, CLOCK.icons = nil, {}
+H.frames(1)
+
 -- the compass
 options.hideCompass[1] = false
 mark = #CLOCK.log

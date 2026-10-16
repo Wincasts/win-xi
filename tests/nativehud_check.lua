@@ -1,6 +1,7 @@
 -- Standalone bridge lifecycle and slot isolation; no native code is called.
 local realffi = require('ffi')
-local fake = {Version=3,Size=88,Grid='(H-9)',ClockRect={[0]=26,[1]=1098,[2]=106,[3]=1108},ClockRectFrame=10,SupportedMask=3,Frame=10,Submit=123,
+local fake = {Version=4,Size=152,HideIcons=0,IconFrame={[0]=10,[1]=0,[2]=0},
+    IconRect={[0]={[0]=8,[1]=1096,[2]=24,[3]=1112},[1]={[0]=0,[1]=0,[2]=0,[3]=0},[2]={[0]=0,[1]=0,[2]=0,[3]=0}},Grid='(H-9)',ClockRect={[0]=26,[1]=1098,[2]=106,[3]=1108},ClockRectFrame=10,SupportedMask=3,Frame=10,Submit=123,
     DrawnFrame={[0]=0,[1]=0},NativeFrame={[0]=10,[1]=10},Weather=7}
 local loaded,base,address,now = false,100,500,0
 local calls,scans={},0
@@ -19,12 +20,12 @@ ashita={memory={get_base=function(name) assert(name=='uihook.dll'); return base 
         scans=scans+1; return address
     end}}
 local native=dofile('addons/libs/winxi/nativehud.lua')
-assert(realffi.sizeof('uihook_hud_t')==88)
+assert(realffi.sizeof('uihook_hud_t')==152)
 local clock,compass=native.new(native.Clock),native.new(native.Compass)
 assert(not clock.Begin() and #calls==0)
-loaded=true; fake.Version=2
+loaded=true; fake.Version=3
 assert(not clock.Begin() and #calls==0 and clock.Status():find('ABI mismatch'))
-fake.Version=3; now=2
+fake.Version=4; now=2
 assert(clock.Begin() and calls[#calls][1]==0 and calls[#calls][2]==0)
 assert(clock.Capture() and calls[#calls][1]==0 and calls[#calls][2]==1)
 assert(clock.Weather()==7)
@@ -55,12 +56,19 @@ fake.DrawnFrame[0]=10
 assert(clock.Status():find('Drawn in place'))
 fake.Frame=20
 assert(clock.Status():find('not drawing its clock') and clock.Status():find('11 frames ago'),'a clock the game stopped drawing is not called drawn')
-local native,drawn=clock.Ages(); assert(native==11 and drawn==10)
+local nativeAge,drawnAge=clock.Ages(); assert(nativeAge==11 and drawnAge==10)
 -- The game's clock's place, current only while the game draws it, and the clock's alone
 fake.Frame=10
 local l,t,r,b=clock.ClockRect(); assert(l==26 and t==1098 and r==106 and b==1108)
 assert(compass.ClockRect()==nil,'the compass slot has no clock place')
 assert(clock.Grid()=='(H-9)' and compass.Grid()==nil,'the grid, the clock\'s alone')
+-- the icons' places, while drawn; none for weather under a clear sky
+local il,it,ir,ib=clock.IconRect(native.DayIcon); assert(il==8 and it==1096 and ir==24 and ib==1112)
+assert(clock.IconRect(native.WeatherIcon)==nil and compass.IconRect(native.DayIcon)==nil,'not drawn, or not the clock')
+assert(clock.HideIcons(native.HideDay+native.HideWeather) and fake.HideIcons==3,'which icons the addon draws its own of')
+assert(not compass.HideIcons(1) and fake.HideIcons==3,'the compass slot has none')
+clock.Stop(); assert(fake.HideIcons==0,'stopping gives the game its icons back')
+clock.Begin()
 fake.Grid='(H-9)\0\0\0'; assert(clock.Grid()=='(H-9)','to the first zero')
 fake.Grid='\1\2'; assert(clock.Grid()==nil,'not text'); fake.Grid='(H-9)'
 fake.Frame=13; assert(clock.ClockRect()==nil,'a place the game stopped drawing at is not kept')

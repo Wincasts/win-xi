@@ -1,6 +1,6 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.3.0'
+addon.version = '0.4.0'
 addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
 local winxiNeeded = 5
 do
@@ -22,11 +22,15 @@ local outlined = require('winxi.text')
 local theme = require('winxi.theme')
 local native = require('winxi.nativehud')
 local fields = require('fields')
+local icons = require('icons')
 
 local hook = native.new(native.Clock)
 local compass = native.new(native.Compass)
 local time, timeError
 local nextSample, line = 0, nil
+local weekday = nil -- as the line was last read, for the day's icon
+local sets, setsOpen = {}, false -- the icon sets, listed as the list is opened
+local screenMin, screenMax, iconMin, iconMax = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
 local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, ImGuiWindowFlags_NoMove,
     ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoInputs,
     ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus, ImGuiWindowFlags_NoBackground)
@@ -71,6 +75,24 @@ local function DrawSettings(options)
             app.save()
         end
         Tip('Stops the game drawing its compass and radar. The clock and its icons stay.')
+        widgets.Label('Icon Set')
+        local chosen = options.iconSet
+        if imgui.BeginCombo('##clock.iconSet', chosen == icons.None and 'Game\'s Icons' or chosen) then
+            if not setsOpen then sets, setsOpen = icons.Sets(), true end
+            local function Choose(key)
+                options.iconSet = key
+                icons.Forget()
+                app.save()
+            end
+            if imgui.Selectable('Game\'s Icons##clock.set.none', chosen == icons.None) then Choose(icons.None) end
+            for _, set in ipairs(sets) do
+                if imgui.Selectable(set.label .. '##clock.set.' .. set.key, chosen == set.key) then Choose(set.key) end
+            end
+            imgui.EndCombo()
+        else
+            setsOpen = false
+        end
+        Tip('Pictures of your own for the day and weather icons: a folder of addons\\clock\\icons.\nWhere the set has no picture for the day or the weather, the game\'s own icon is drawn.')
         imgui.TextDisabled(timeError and ('Time unavailable: ' .. timeError) or hook.Status())
     end
     if widgets.Header('Line') then
@@ -114,7 +136,7 @@ end
 app = shell.New({
     defaults = (function()
         local order, shown = fields.Defaults()
-        return T{ replace = T{ true }, hideCompass = T{ true }, textScale = T{ 1 }, order = order, shown = shown }
+        return T{ replace = T{ true }, hideCompass = T{ true }, textScale = T{ 1 }, iconSet = icons.None, order = order, shown = shown }
     end)(),
     configTitle = 'Clock Settings',
     command = '/clock',
@@ -135,6 +157,8 @@ app = shell.New({
         end
         options.x, options.y = nil, nil
         fields.Normalize(options.order, options.shown)
+        if type(options.iconSet) ~= 'string' then options.iconSet = icons.None end
+        icons.Forget()
         local scale = tonumber(options.textScale[1]) or 1
         options.textScale[1] = math.min(SCALE_MAX, math.max(SCALE_MIN, scale))
         Release()
@@ -160,7 +184,9 @@ ashita.events.register('d3d_present', 'clock_present', function()
         nextSample = now + 0.25
         local ok, value = pcall(function()
             local weather = options.shown.weather and WeatherName() or nil
-            return fields.Line(fields.Context(time, hook.Grid(), weather), options.order, options.shown)
+            local context = fields.Context(time, hook.Grid(), weather)
+            weekday = time.get_game_weekday(context.raw)
+            return fields.Line(context, options.order, options.shown)
         end)
         if not ok then
             timeError, line = tostring(value), nil
@@ -173,6 +199,17 @@ ashita.events.register('d3d_present', 'clock_present', function()
     local left, top, _, bottom = hook.ClockRect()
     if not line or not left then hook.Stop(); return end
     if not hook.Begin() then return end
+
+    -- the set's icons where it has them, each where the game draws its own; the game's elsewhere
+    local set = type(options.iconSet) == 'string' and options.iconSet or icons.None
+    local day = icons.Day(set, weekday)
+    local weather, double = icons.Weather(set, hook.Weather())
+    local dayAt = day and { hook.IconRect(native.DayIcon) }
+    local weatherAt = weather and { hook.IconRect(native.WeatherIcon) }
+    local secondAt = weather and double and { hook.IconRect(native.SecondWeatherIcon) }
+    if dayAt and not dayAt[1] then day = nil end
+    if weatherAt and not weatherAt[1] then weather = nil end
+    hook.HideIcons((day and native.HideDay or 0) + (weather and native.HideWeather or 0))
 
     -- the line's left on the game's, its middle on the game's middle, growing right
     place[1], place[2] = left, (top + bottom) / 2
@@ -188,6 +225,22 @@ ashita.events.register('d3d_present', 'clock_present', function()
         -- the dark edge winxi writes over the game with, thicker as the text grows
         outlined.Draw(imgui.GetWindowDrawList(), x, y, theme.Get().TextColor, line, scale >= 1.75 and 2 or 1)
         imgui.PopFont()
+        if day or weather then
+            -- the icons are away from the line: drawn unclipped by the window
+            local list = imgui.GetWindowDrawList()
+            local display = imgui.GetIO().DisplaySize
+            screenMax[1], screenMax[2] = display.x or display[1] or 0, display.y or display[2] or 0
+            list:PushClipRect(screenMin, screenMax, false)
+            local function Icon(handle, at)
+                if not handle or not at or not at[1] then return end
+                iconMin[1], iconMin[2], iconMax[1], iconMax[2] = at[1], at[2], at[3], at[4]
+                list:AddImage(handle, iconMin, iconMax)
+            end
+            Icon(day, dayAt)
+            Icon(weather, weatherAt)
+            Icon(weather, secondAt)
+            list:PopClipRect()
+        end
         hook.Capture() -- current window's text, never a pointer passed from Lua
     end
     imgui.End()
