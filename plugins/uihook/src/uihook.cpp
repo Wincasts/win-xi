@@ -7,14 +7,17 @@ IPlugin* CreatePartyModule();
 
 class UIHook : public IPlugin {
     std::unique_ptr<IPlugin> buffs, party;
+    IAshitaCore* m_Core = nullptr;
 public:
     const char* GetName() const override { return "uihook"; }
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "Modular native UI replacement: buffs, party/alliance, targets, clock and compass."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
     double GetVersion() const override { return 0.2; }
-    uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseDirect3D); }
+    // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one
+    uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
     bool Initialize(IAshitaCore* core, ILogManager* log, uint32_t id) override {
+        m_Core = core;
         if (core->GetPluginManager()->IsLoaded("buffhook") || core->GetPluginManager()->IsLoaded("partyhook")
             || GetModuleHandleA("buffhook.dll") || GetModuleHandleA("partyhook.dll")) {
             core->GetChatManager()->Write(0, false, "[uihook] Unload buffhook and partyhook before loading uihook.");
@@ -35,7 +38,11 @@ public:
         if (buffs) { buffs->Release(); buffs.reset(); }
     }
     bool HandleCommand(int32_t mode, const char* command, bool injected) override {
-        return party && party->HandleCommand(mode, command, injected);
+        char words[2][16] = {};
+        if (!command || sscanf_s(command, "%15s %15s", words[0], 16u, words[1], 16u) < 1 || _stricmp(words[0], "/uihook") != 0) return false;
+        if (_stricmp(words[1], "hud") == 0) return party && party->HandleCommand(mode, "/uihook hud", injected);
+        m_Core->GetChatManager()->Write(0, false, "[uihook] 0.2; /uihook hud says what the clock replacement is drawn into.");
+        return true;
     }
     void Direct3DBeginScene(bool recording) override { if (party) party->Direct3DBeginScene(recording); }
     void Direct3DEndScene(bool recording) override { if (party) party->Direct3DEndScene(recording); }
