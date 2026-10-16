@@ -304,7 +304,7 @@ local function Present()
         return
     end
 
-    details.BeginFrame(saved.style.hoverDetails[1] and not saved.clickThrough[1])
+    details.BeginFrame(not saved.clickThrough[1])
     if saved.automaticPositioning[1] then
         local count = 0
         if saved.pets.enabled[1] then

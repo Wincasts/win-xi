@@ -547,7 +547,7 @@ local function DrawBuffs(member, x, StatusTexture)
             local width = own and size * statusicons.OwnAspect or size
             if direction == 'left' then x = x - width end
             Image(texture, x, y, width, size, nil, nil, own and statusicons.OwnRight or nil, own and statusicons.OwnLeft or nil)
-            if activeStyle.hoverDetails and details.Hover(itemX + x * scale, itemY + y * scale,
+            if details.Hover(itemX + x * scale, itemY + y * scale,
                 itemX + (x + width) * scale, itemY + (y + size) * scale) then
                 details.Status(id, member.statusServerId)
             end
