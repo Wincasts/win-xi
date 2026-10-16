@@ -77,6 +77,13 @@ is the game's). With a fresh clock replacement only the text gives way: the game
 runs with its GPU submissions blocked, which is how its screen bounds are measured, and the icons
 draw as ever. Without the call found, the whole of Clock::Draw is replaced, icons and all.
 
+The three icon calls, `Sprite::Draw(this=sprite, x, y, colour, 0, 0)` (thiscall, five stack words,
+`ret 0x14`), are found the same way, all three or none, each inside Clock::Draw and each calling the
+one sprite routine, and aimed at uihook's own. Each icon is measured on the screen, drawn or not
+(`IconRect`). The game's day or weather icons (both weather icons for double weather) are left
+undrawn only for those the addon names in `HideIcons`, and only while its clock replacement is drawn
+in that call: an addon that stops, fails or is unloaded has the game's back at once.
+
 The dispatcher runs original native logic with GPU submissions suppressed only while a fresh
 replacement is being drawn. Nested clock calls temporarily escape compass suppression; with only a
 compass replacement, the stock clock still draws, and with only a clock replacement, the stock
@@ -84,9 +91,9 @@ compass still draws. Radar-disabled/unsupported-zone checks gate compass replay.
 and shared visibility states gate clock replay. Missing signatures or replay failure leave the
 unsupported element native. HUD discovery does not depend on party/window recognition.
 
-### HUD ABI 3
+### HUD ABI 4
 
-A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **88 bytes** total:
+A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **152 bytes** total:
 
 ```text
 char Magic[16]
@@ -94,6 +101,8 @@ u32 Version, Size, SupportedMask, Frame, Submit
 u32 DrawnFrame[2], NativeFrame[2], Weather
 float ClockRect[4]; u32 ClockRectFrame
 char Grid[12]
+float IconRect[3][4]; u32 IconFrame[3]
+u32 HideIcons            written by the addon
 ```
 
 `SupportedMask`: bit 0 clock, bit 1 compass. `Submit` is `cdecl int(index, capture)` and may only be
@@ -107,7 +116,10 @@ from the screen-space draws of its text call, replaced or not (all of Clock::Dra
 call), and turned into ImGui display pixels by the inverse of replay's mapping; current at
 `ClockRectFrame`. A replacement drawn below the clock would be covered by what the game draws after
 it, the chat log among them. `Grid` is the map grid the game prints after the time, `(H-9)`, copied
-from the clock's object (+0x11, eight characters, then zeros) at `ClockRectFrame`. Geometry limits,
+from the clock's object (+0x11, eight characters, then zeros) at `ClockRectFrame`. `IconRect` is
+the day icon (0), the weather icon (1) and the second weather icon (2), as `ClockRect`, each current
+at its `IconFrame`. `HideIcons` is bit 0 the day icon and bit 1 the weather icons; the bridge writes
+it each frame and clears it as the clock slot is released. Geometry limits,
 clipping, font validation, texture retention and two-frame
 freshness reuse the existing capture/replay implementation. Addons should use the slot-specific
 `winxi.nativehud` bridge, which validates ABI, capability, unload/reload and weather, place and grid freshness.

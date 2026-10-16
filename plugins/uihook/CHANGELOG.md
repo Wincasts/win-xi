@@ -3,7 +3,8 @@
 ## 0.2
 
 - Add verified native clock and compass boundaries, sharing the existing capture/replay renderer.
-- Add independent HUD ABI 3 (88 bytes), clock/compass capabilities, native weather readback, the game's clock text's place and its map grid.
+- Add independent HUD ABI 4 (152 bytes), clock/compass capabilities, native weather readback, the game's clock text's place, its map grid and its icons' places.
+- Redirect Clock::Draw's three icon calls, measuring each icon and leaving undrawn those the addon draws its own of.
 - Redirect Clock::Draw's one text call, so a clock replacement hides only the game's text and keeps its day and weather icons.
 - `/uihook` lists the addons handing it something now, and what; `/uihook hud` reports what the clock replacement is drawn into.
 - Preserve stock clock during compass replacement and stock compass during clock replacement.

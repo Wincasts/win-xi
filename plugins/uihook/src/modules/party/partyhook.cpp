@@ -26,7 +26,10 @@ static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
 static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
 // The one CALL in Clock::Draw that draws its text, aimed at DrawClockText while uihook is loaded.
 static ClockTextCall TextCall;
-static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0, {} };
+// Clock::Draw's three icon calls, aimed at DrawClockIcon<0..2> while uihook is loaded.
+template<int Icon> static void __fastcall DrawClockIcon(void*,void*,int32_t,int32_t,uint32_t,uint32_t,uint32_t);
+static ClockIconCalls IconCalls;
+static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0, {}, {}, {}, 0 };
 static Detour CompassDetour = { COMPASS_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderCompass), nullptr, nullptr, {} };
 static Detour ClockDetour = { CLOCK_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderClock), nullptr, nullptr, {} };
 // Sprite::Draw(this, x, y, sx, sy, color, flags1, flags2, flags3): preserve all eight stack
@@ -75,9 +78,20 @@ class PartyHook : public IPlugin {
         float nMinX=0, nMinY=0, nMaxX=0, nMaxY=0;
     } probe;
     bool inClock = false, inScene = false, inText = false, hideText = false;
+    int inIcon = -1;          // which of the clock's icons is being drawn, or -1
+    uint32_t hideIcons = 0;   // HUD_ICON_* to leave undrawn in this Clock::Draw call
     // The game's own clock draws in one Clock::Draw call: their screen bounds, and the viewport
-    // they were drawn in, to say where the clock is.
-    struct ClockBounds { uint32_t vertices=0; float left=0, top=0, right=0, bottom=0; D3DVIEWPORT8 viewport={}; bool viewportKnown=false; } bounds;
+    // they were drawn in, to say where the clock is; its text's (or, without the text call, all of
+    // it), and each icon's.
+    struct ClockBounds {
+        uint32_t vertices=0; float left=0, top=0, right=0, bottom=0;
+        void Add(float x,float y) {
+            if (!vertices++) { left=right=x; top=bottom=y; }
+            left=(std::min)(left,x); right=(std::max)(right,x);
+            top=(std::min)(top,y); bottom=(std::max)(bottom,y);
+        }
+    } bounds, iconBounds[3];
+    D3DVIEWPORT8 clockViewport={}; bool clockViewportKnown=false;
     void Native(bool up, const void* data, UINT stride, UINT count) {
         if (!inClock) return;
         auto* device=core->GetDirect3DDevice();
@@ -85,7 +99,7 @@ class PartyHook : public IPlugin {
         if (device) device->GetVertexShader(&shader);
         if (!probe.nativeCalls++) probe.nativeShader=shader;
         if (!up || !data || stride<8 || !(shader & D3DFVF_XYZRHW)) return;
-        if (!bounds.viewportKnown && device) bounds.viewportKnown=SUCCEEDED(device->GetViewport(&bounds.viewport));
+        if (!clockViewportKnown && device) clockViewportKnown=SUCCEEDED(device->GetViewport(&clockViewport));
         auto* bytes=static_cast<const uint8_t*>(data);
         for (UINT i=0;i<count && i<4096;i++) {
             float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
@@ -93,24 +107,28 @@ class PartyHook : public IPlugin {
             if (!probe.nativeUP++) { probe.nMinX=probe.nMaxX=v[0]; probe.nMinY=probe.nMaxY=v[1]; }
             probe.nMinX=(std::min)(probe.nMinX,v[0]); probe.nMaxX=(std::max)(probe.nMaxX,v[0]);
             probe.nMinY=(std::min)(probe.nMinY,v[1]); probe.nMaxY=(std::max)(probe.nMaxY,v[1]);
+            if (inIcon>=0) { iconBounds[inIcon].Add(v[0],v[1]); continue; }
             // With the text call taken, the clock's place is its text's; the icons are the game's.
             if (TextCall.call && !inText) continue;
-            if (!bounds.vertices++) { bounds.left=bounds.right=v[0]; bounds.top=bounds.bottom=v[1]; }
-            bounds.left=(std::min)(bounds.left,v[0]); bounds.right=(std::max)(bounds.right,v[0]);
-            bounds.top=(std::min)(bounds.top,v[1]); bounds.bottom=(std::max)(bounds.bottom,v[1]);
+            bounds.Add(v[0],v[1]);
         }
     }
     // Replay maps ImGui display pixels onto the viewport; this is its inverse, for the clock's place.
-    void PublishClockRect() {
+    bool PublishRect(const ClockBounds& from,float out[4],uint32_t& frame) {
         auto* gui=core->GetGuiManager();
-        if (!bounds.vertices || !bounds.viewportKnown || !gui) return;
+        if (!from.vertices || !clockViewportKnown || !gui) return false;
         const ImVec2 display=gui->GetIO().DisplaySize;
-        const auto& v=bounds.viewport;
-        if (!(display.x>0 && display.y>0) || !v.Width || !v.Height) return;
+        const auto& v=clockViewport;
+        if (!(display.x>0 && display.y>0) || !v.Width || !v.Height) return false;
         const float sx=display.x/float(v.Width), sy=display.y/float(v.Height);
-        Hud.ClockRect[0]=(bounds.left-float(v.X)+0.5f)*sx; Hud.ClockRect[1]=(bounds.top-float(v.Y)+0.5f)*sy;
-        Hud.ClockRect[2]=(bounds.right-float(v.X)+0.5f)*sx; Hud.ClockRect[3]=(bounds.bottom-float(v.Y)+0.5f)*sy;
-        Hud.ClockRectFrame=Shared.Frame;
+        out[0]=(from.left-float(v.X)+0.5f)*sx; out[1]=(from.top-float(v.Y)+0.5f)*sy;
+        out[2]=(from.right-float(v.X)+0.5f)*sx; out[3]=(from.bottom-float(v.Y)+0.5f)*sy;
+        frame=Shared.Frame;
+        return true;
+    }
+    void PublishClockRect() {
+        PublishRect(bounds,Hud.ClockRect,Hud.ClockRectFrame);
+        for (unsigned i=0;i<3;i++) PublishRect(iconBounds[i],Hud.IconRect[i],Hud.IconFrame[i]);
     }
     void ProbeDevice(IDirect3DDevice8* device, const D3DVIEWPORT8& viewport, const Drawing& drawing) {
         probe.replayFrame=Shared.Frame; probe.viewport=viewport; probe.scene=inScene;
@@ -182,6 +200,9 @@ public:
             if (hud.clock && Take(ClockDetour,begin,module.SizeOfImage)) {
                 compassGlobal=hud.global; nativeWeather=hud.weather; Hud.SupportedMask=HUD_CLOCK;
                 TakeClockText(TextCall,hud.text,hud.textTarget,reinterpret_cast<void*>(&DrawClockText));
+                void* const iconReplacements[3]={reinterpret_cast<void*>(&DrawClockIcon<0>),
+                    reinterpret_cast<void*>(&DrawClockIcon<1>),reinterpret_cast<void*>(&DrawClockIcon<2>)};
+                TakeClockIcons(IconCalls,hud.icons,hud.iconTarget,iconReplacements);
                 if (hud.radarVisible && Take(CompassDetour,begin,module.SizeOfImage)) {
                     radarVisible=reinterpret_cast<bool(__cdecl*)()>(hud.radarVisible);
                     Hud.SupportedMask|=HUD_COMPASS;
@@ -221,7 +242,7 @@ public:
     void Release() override {
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
-        GiveClockText(TextCall); Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
+        GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         GiveArrows(Arrows); Give(WindowDetour); blocking=targetScope=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
@@ -256,6 +277,10 @@ public:
         snprintf(line,sizeof(line),"[uihook:hud] game's clock text in ImGui pixels %.0f,%.0f to %.0f,%.0f at frame %u; text call %s; grid \"%s\"",
             Hud.ClockRect[0],Hud.ClockRect[1],Hud.ClockRect[2],Hud.ClockRect[3],Hud.ClockRectFrame,
             TextCall.call ? "taken (icons left to the game)" : "not found (icons replaced too)",grid); write(line);
+        snprintf(line,sizeof(line),"[uihook:hud] icon calls %s; addon draws its own: %s%s; day at %.0f,%.0f (frame %u), weather at %.0f,%.0f (frame %u)",
+            IconCalls.original ? "taken" : "not found (the game's icons only)",
+            Hud.HideIcons & HUD_ICON_DAY ? "day " : "", Hud.HideIcons & HUD_ICON_WEATHER ? "weather" : (Hud.HideIcons ? "" : "none"),
+            Hud.IconRect[0][0],Hud.IconRect[0][1],Hud.IconFrame[0],Hud.IconRect[1][0],Hud.IconRect[1][1],Hud.IconFrame[1]); write(line);
         snprintf(line,sizeof(line),"[uihook:hud] replay at frame %u: %u vertices, %u runs, captured %.0fx%.0f, drawn %.0f,%.0f to %.0f,%.0f",
             p.replayFrame,p.vertices,p.runs,p.width,p.height,p.minX,p.minY,p.maxX,p.maxY); write(line);
         snprintf(line,sizeof(line),"[uihook:hud] viewport %lu,%lu %lux%lu z %.2f-%.2f; target %ux%u, back buffer %ux%u, target is back buffer %d, in scene %d",
@@ -387,11 +412,15 @@ public:
             const bool replaced=Replay(6);
             // With the text call taken only the game's text gives way; its icons are drawn as ever
             if (TextCall.call) hideText=replaced; else blocking=replaced;
+            // the addon's own icons only while its line is drawn: otherwise the game's are back
+            hideIcons=replaced && IconCalls.original ? Hud.HideIcons & (HUD_ICON_DAY|HUD_ICON_WEATHER) : 0;
         }
         bounds=ClockBounds();
+        for (auto& icon:iconBounds) icon=ClockBounds();
+        clockViewportKnown=false;
         inClock=true;
         reinterpret_cast<void(__fastcall*)(void*,void*,int32_t,int32_t)>(ClockDetour.trampoline)(object,nullptr,x,y);
-        inClock=inText=hideText=false;
+        inClock=inText=hideText=false; inIcon=-1; hideIcons=0;
         if (compassGlobal && *compassGlobal==object) {
             PublishClockRect();
             const char* grid=static_cast<const char*>(object)+CLOCK_GRID_AT;
@@ -405,6 +434,14 @@ public:
         inText=true; blocking=hideText;
         TextCall.original(x,y,text,color);
         inText=false; blocking=was;
+    }
+    // An icon still runs, so it is measured where it would be; drawn unless the addon draws its own.
+    void Icon(int icon,void* sprite,int32_t x,int32_t y,uint32_t color,uint32_t a,uint32_t b) {
+        const bool was=blocking;
+        const uint32_t mask=icon==0 ? HUD_ICON_DAY : HUD_ICON_WEATHER;
+        inIcon=icon; if (hideIcons & mask) blocking=true;
+        IconCalls.original(sprite,nullptr,x,y,color,a,b);
+        inIcon=-1; blocking=was;
     }
     void Slots(PartySlots& out) const {
         out.loaded=true;
@@ -489,6 +526,10 @@ static void __fastcall RenderCompass(void* object,void*) {
 static void __fastcall RenderClock(void* object,void*,int32_t x,int32_t y) {
     if (PartyHook::Instance) PartyHook::Instance->Clock(object,x,y);
     else reinterpret_cast<void(__fastcall*)(void*,void*,int32_t,int32_t)>(ClockDetour.trampoline)(object,nullptr,x,y);
+}
+template<int Icon> static void __fastcall DrawClockIcon(void* sprite,void*,int32_t x,int32_t y,uint32_t color,uint32_t a,uint32_t b) {
+    if (PartyHook::Instance && IconCalls.original) PartyHook::Instance->Icon(Icon,sprite,x,y,color,a,b);
+    else if (IconCalls.original) IconCalls.original(sprite,nullptr,x,y,color,a,b);
 }
 static void __cdecl DrawClockText(int32_t x,int32_t y,const char* text,uint32_t color) {
     if (PartyHook::Instance && TextCall.original) PartyHook::Instance->Text(x,y,text,color);
