@@ -81,15 +81,17 @@ local problems = {
 
 -- The block lives in the plugin's DLL, so it is let go of the moment the plugin is no longer loaded.
 local function Find()
+    -- The plugin in use is asked after first, once a frame; the other only once that one is gone
+    -- (uihook and the legacy buffhook will not load together)
     local manager = AshitaCore:GetPluginManager();
-    local plugin = manager:IsLoaded('uihook') and 'uihook' or 'buffhook';
-    if hook.Plugin ~= plugin then
-        block, lookedAt = nil, -LOOK_EVERY;
-        hook.Plugin = plugin;
-    end
     if not manager:IsLoaded(hook.Plugin) then
-        block, why, lookedAt = nil, 'unloaded', -LOOK_EVERY;
-        return nil;
+        local other = hook.Plugin == 'uihook' and 'buffhook' or 'uihook';
+        block, lookedAt = nil, -LOOK_EVERY;
+        if not manager:IsLoaded(other) then
+            why = 'unloaded';
+            return nil;
+        end
+        hook.Plugin = other;
     end
     if block ~= nil then
         return block;
