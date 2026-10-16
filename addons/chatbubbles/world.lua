@@ -30,13 +30,14 @@ function M.Begin(hook)
         -- Exactly 16 bytes: "NAMEBUBBLES" (11 bytes) followed by five zeros.
         local address = ashita.memory.find('namehook.dll', 0, '4E414D45425542424C45530000000000', 0, 0);
         if (not address or address == 0) then
-            problem = 'World bubbles require namehook 1.24 or later. Replace namehook.dll and reload the plugin.';
+            problem = 'World bubbles require namehook 1.25 or later. Replace namehook.dll and reload the plugin.';
             return nil;
         end
         local candidate = ffi.cast('chatbubbles_world_t*', address);
-        if (candidate.Version ~= 1 or candidate.Size ~= ffi.sizeof('chatbubbles_world_t')
+        -- version 2: a texture may be winxi.fonts.TextureMark, which version 1 took for an address
+        if (candidate.Version ~= 2 or candidate.Size ~= ffi.sizeof('chatbubbles_world_t')
                 or candidate.DrawSize ~= ffi.sizeof('namehook_draw_t')) then
-            problem = 'Incompatible namehook world-bubble buffer';
+            problem = 'Incompatible namehook world-bubble buffer: World bubbles require namehook 1.25 or later.';
             return nil;
         end
         block = candidate;
@@ -117,10 +118,11 @@ function M.Draw(name, message, now, scale, appearance)
         return false;
     end
     local atlas = font.ContainerAtlas;
-    -- every font is in the one atlas: the texture is the same whichever font is in use
+    -- every font is in the one atlas: the texture is the same whichever font is in use, and the
+    -- plugin is given its mark and reads it itself
     local id, why = fonts.Texture();
     if (id == nil) then
-        problem = 'ImGui font texture is not ready: ' .. why;
+        problem = why;
         return false;
     end
     local uvOK, u, v = pcall(whiteUV, atlas);

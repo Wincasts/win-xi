@@ -31,7 +31,7 @@ icons.Get = function(id) return 0x1000 + id, true end
 -- The plugin's block, as it would be in its DLL; and the game's code the addon changes
 local holder = ffi.new('buffhook_t[1]')
 local block = holder[0]
-block.Version, block.Size, block.Hooked, block.Frame = 3, ffi.sizeof('buffhook_t'), 1, 10
+block.Version, block.Size, block.Hooked, block.Frame = 4, ffi.sizeof('buffhook_t'), 1, 10
 block.Width, block.Height = 960, 540 -- the game's picture, half imgui's 1920 by 1080
 local written, at = {}, { ['75??8B4E0851B9'] = 100, ['7D??33C05EC20400C6'] = 200, ['85C00F??????????6A0232DBE8'] = 300 }
 ashita.memory.find = function(module, _, pattern)
@@ -42,7 +42,7 @@ ashita.memory.read_uint16 = function(pointer) return written[pointer] or pointer
 ashita.memory.write_uint16 = function(pointer, value) written[pointer] = value end
 
 -- the font: a glyph a letter, 6 wide, from a texture of its own
-local font = { ContainerAtlas = { TexRef = { GetTexID = function() return 0x9000 end }, TexData = { GetTexID = function() return 0 end } } }
+local font = { ContainerAtlas = { TexData = { UniqueID = 2, Status = 0, Width = 512, Height = 256 } } }
 imgui.GetFont = function() return font end
 local baked = { FindGlyph = function(_, byte) return { X0 = 0, Y0 = 2, X1 = 5, Y1 = 12, U0 = byte / 256, V0 = 0, U1 = (byte + 1) / 256, V1 = 1, AdvanceX = 6, Visible = 1 } end }
 imgui.GetFontBaked = function() return baked end
@@ -55,7 +55,7 @@ H.loaded('buffhook', true)
 local begins = H.calls.Begin or 0
 H.frames(1)
 H.print('handed over, not drawn as a window', block.SubmitFrame == 10, (H.calls.Begin or 0) == begins)
-H.print('the textures: the font and the two icons', block.Textures[0] == 0x9000, block.Textures[1] == 0x1000 + 40, block.Textures[2] == 0x1000 + 33)
+H.print('the textures: the font\'s mark and the two icons', block.Textures[0] == 1, block.Textures[1] == 0x1000 + 40, block.Textures[2] == 0x1000 + 33)
 -- Protect has no end: two icons, and Haste's 90 seconds, "1m": two letters, each five times over
 H.print('quads: two icons, two letters with their edges', block.Count == 2 + 2 * 5)
 local first = block.Quads[0]
@@ -176,3 +176,11 @@ o.iconSize[1] = 40; block.Frame = 53; H.frames(1)
 block.Sequence, block.Count = 0, 0 -- the plugin loaded again
 block.Frame = 54; H.frames(1)
 H.print('a plugin loaded again: written afresh', block.Sequence == 1 and block.Count > 0)
+sequence = block.Sequence
+font.ContainerAtlas.TexData.UniqueID = 3 -- imgui made its font texture again
+block.Frame = 55; H.frames(1)
+H.print('imgui\'s font texture made again: written afresh, the font still its mark', block.Sequence == sequence + 1, block.Textures[0] == 1)
+font.ContainerAtlas.TexData.Status = 2 -- and has it not ready
+block.Frame = 56; H.frames(1)
+H.print('the font texture not ready: the bar still handed over, with no font', block.SubmitFrame == 56)
+font.ContainerAtlas.TexData.Status = 0

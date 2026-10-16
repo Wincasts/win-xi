@@ -93,7 +93,7 @@ The head of that file lists everything it offers.
 | Field | Meaning |
 |---|---|
 | `Magic` | The 8 bytes `NAMEHOOK` and eight 0s, by which the block is found |
-| `Version` | 2 |
+| `Version` | 3 |
 | `Size`, `NameSize` | The size in bytes of the block and of one name. An addon that has either otherwise does not read on. |
 | `Hooked` | 1 while the client's name drawing is in the plugin's hands; 0 on a client it does not recognise, where names are shown and hidden but none are listed |
 | `Hidden` | The categories whose names are hidden, a bit each. Written by addons and by the commands. |
@@ -105,6 +105,7 @@ The head of that file lists everything it offers.
 | `Sequence` | Goes up each time the list is made ready: once a frame as a rule, and more if names are drawn in more than one scene |
 | `Draw` | The address of the `HookDraw`, for an addon that has the plugin [draw names for it](#having-the-plugin-draw-the-names) |
 | `TargetWidth`, `TargetHeight` | The size of the picture the client draws the world on, which is larger than its window when the background resolution is. 0 until a name has been drawn. |
+| `FontTexture` | imgui's font texture as the plugin last drew a texture of `1` from (see `Textures`), or 0 for none |
 | `Override` | A byte for each of the client's 0x900 entities, by index: 0 by its category, 1 shown, 2 hidden. Written by addons. |
 | `Names` | Up to 256 names |
 
@@ -163,7 +164,7 @@ What is set out goes in `HookDraw` (`src/Nameplate.h`), at the address in the bl
 | `QuadCount` | How many of `Quads` are in use. Set to 0 by the addon each frame, and raised as it adds them. |
 | `QuadsMax` | 16384 |
 | `Reserved` | Optional unsigned 16.16 horizontal outline ratio. 0 preserves legacy equal X/Y target-pixel offsets; otherwise X offsets are multiplied by `Reserved / 65536`. Older plugins ignore it. The shared layout/version is unchanged. |
-| `Textures` | Eight Direct3D textures (`IDirect3DTexture8*`), or 0. The plugin holds each while it draws from it. |
+| `Textures` | Eight Direct3D textures (`IDirect3DTexture8*`), or 0. `1` (`HOOK_TEXTURE_FONT`) is imgui's font texture, which the plugin reads itself each frame from Ashita's imgui: its id is 64 bits and a Lua integer in this client 32, so once the texture is above 2 GB, as it can be after a while on Windows, Ashita cannot hand it to an addon at all. The plugin holds each while it draws from it. |
 | `Entities` | For each of the client's 0x900 entities, by index: `Frame` (as `HookDraw`'s when it was set out, or it is not drawn), `First` and `Count` (its quads, 256 at most), `Alpha` (0 to 1, how solid the whole name is), `Edge` (how thick a dark edge its edged quads are given, in pixels) and `EdgeColor`. A quad's edge is as solid as the quad's own colour is |
 | `Quads` | Each a rectangle: its corners `X0`, `Y0`, `X1`, `Y1` in pixels of the client's picture, measured from the point the client puts the name at; the same corners in its texture, `U0`, `V0`, `U1`, `V1`; `Color` as 0xAARRGGBB; `Texture`, which of the eight; and `Flags`, 1 if it is given the edge |
 
@@ -177,7 +178,7 @@ Each name is drawn twice: once blended into the picture and tested against its d
 
 `addons/chatbubbles` uses a second independent shared block, `HookBubbles` in
 `src/Nameplate.h`, found by `NAMEBUBBLES` followed by five zero bytes. Its header
-contains `Version` (1), `Size` (`sizeof(HookBubbles)`) and `DrawSize`
+contains `Version` (2: a texture may be `1`, imgui's font texture, as for the names), `Size` (`sizeof(HookBubbles)`) and `DrawSize`
 (`sizeof(HookDraw)`), followed by a server-ID array for the 0x900 entity indices
 and a complete `HookDraw`. See `addons/chatbubbles/world.lua` for the writer.
 

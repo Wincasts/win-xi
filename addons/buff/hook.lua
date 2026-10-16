@@ -12,7 +12,9 @@
 --
 -- Every frame the bar is to take the game's icons' place, whether there is anything in it or not:
 --   hook.Begin(block)     starts the bar afresh
---   hook.Texture(address) the slot for a Direct3D texture's address, or nil when the slots are full
+--   hook.Texture(address) the slot for a Direct3D texture's address (or winxi.fonts.TextureMark,
+--                         for imgui's font texture, which the plugin reads itself), or nil when the
+--                         slots are full
 --   hook.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot)   a rectangle of it, in the game's pixels
 --                         from where the game puts its first icon; color as 0xAARRGGBB; slot
 --                         hook.Solid for one of its colour alone
@@ -44,6 +46,7 @@ ffi.cdef[[
         float    Width, Height;
         int32_t  Cursor;
         uint32_t CursorStatus;
+        uint32_t FontTexture;
         uint32_t SubmitFrame;
         uint32_t Sequence;
         uint32_t Count;
@@ -57,7 +60,7 @@ local hook = {};
 hook.Plugin = 'buffhook';
 
 local MAGIC = '42554646484F4F4B2D53484152454400'; -- "BUFFHOOK-SHARED" and its 0
-local VERSION = 3;
+local VERSION = 4;
 local TEXTURES, QUADS = 48, 1024;
 local DRAW_FRAMES = 2;
 local NO_STATUS = 0xFFFF;

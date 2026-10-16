@@ -420,8 +420,7 @@ end
 -- kept, with nothing asked of imgui at all.
 local glyphSets = {};   -- height -> { checked = the frame it was last looked at, glyphs, baked }
 local glyphFont = nil;  -- the font they are of
-local glyphTexture = nil;
-local glyphRoute = nil;  -- which way winxi.fonts.Texture had it, for the diagnostics
+local glyphTexture = nil; -- imgui's unique id for the font's texture they are in
 local frame = 0;
 
 local function readGlyph(baked, byte)
@@ -909,18 +908,18 @@ function custom.Frame(options, hook, formats)
         return 'unhooked';
     end
 
-    -- the font's texture as Direct3D has it: none for a moment after letters of a new size have been
-    -- put in it, or while imgui will not say (winxi.fonts.Texture says which)
-    local texture, problem, route = winxiFonts.Texture();
+    -- the font's texture: the plugin is given winxi's mark for it and reads it itself as it draws.
+    -- None while imgui has none ready. Which texture it is (imgui's unique id, new each time imgui
+    -- makes it again) says when the letters' places in it may have changed.
+    local texture, which = winxiFonts.Texture();
     if (texture == nil) then
-        return 'texture', problem;
+        return 'texture', which;
     end
-    if (texture ~= glyphTexture or route ~= glyphRoute) then
-        diag.Note('Font texture id %s, from the %s (was %s)', tostring(texture), route, tostring(glyphTexture));
-        glyphRoute = route;
-    end
-    if (texture ~= glyphTexture or options.font ~= glyphFont) then
-        glyphTexture, glyphFont = texture, options.font;
+    if (which ~= glyphTexture or options.font ~= glyphFont) then
+        if (which ~= glyphTexture) then
+            diag.Note('Font texture %s (was %s)', tostring(which), tostring(glyphTexture));
+        end
+        glyphTexture, glyphFont = which, options.font;
         glyphSets = {};
     end
 

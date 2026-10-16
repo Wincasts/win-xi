@@ -1,9 +1,10 @@
 -- Standalone real FFI/quad writer test; Linux + LuaJIT, no client/GPU needed.
 package.path = './addons/chatbubbles/?.lua;./addons/libs/?.lua;' .. package.path;
 local ffi = require('ffi');
+package.preload['winxi.theme'] = function() return { For = function() return ''; end, Get = function() return {}; end }; end; -- winxi.fonts' theme, which needs Ashita
 local codes = {};
 local atlas = {
-    TexRef = { GetTexID = function() return 123; end },
+    TexData = { UniqueID = 2, Status = 0, Width = 512, Height = 256 },
     TexUvWhitePixel = { x = 0.5, y = 0.5 },
 };
 local font = { ContainerAtlas = atlas };
@@ -27,7 +28,7 @@ local low = ffi.C.mmap(nil, size, 3, 0x62, -1, 0);
 assert(low ~= ffi.cast('void*', -1));
 local block = ffi.cast('chatbubbles_world_t*', low);
 ffi.copy(block.Magic, 'NAMEBUBBLES', 11);
-block.Version, block.Size, block.DrawSize = 1, size, ffi.sizeof('namehook_draw_t');
+block.Version, block.Size, block.DrawSize = 2, size, ffi.sizeof('namehook_draw_t');
 block.Draw.QuadsMax = 16384;
 local address = tonumber(ffi.cast('uintptr_t', low));
 local available = true;
@@ -43,7 +44,7 @@ ashita = { memory = { find = function(_, _, magic)
         local first = assert(binary:find(bytes, 1, true), 'bubble signature missing from built DLL');
         local header = ffi.new('uint32_t[3]');
         ffi.copy(header, binary:sub(first + 16, first + 27), 12);
-        assert(header[0] == 1 and header[1] == size and header[2] == ffi.sizeof('namehook_draw_t'),
+        assert(header[0] == 2 and header[1] == size and header[2] == ffi.sizeof('namehook_draw_t'),
             'compiled bubble ABI must match Lua');
     end
     return available and address or 0;
@@ -59,7 +60,7 @@ local name = { EntityIndex = 5, ServerId = 12345, Scale = 1 };
 assert(world.Draw(name, { text = 'Hi', expires = 108 }, 100, scale));
 assert(block.Draw.Frame == 100 and block.Draw.QuadCount == 11);
 assert(block.ServerIds[5] == 12345 and block.Draw.Entities[5].Count == 11);
-assert(block.Draw.Textures[0] == 123 and block.Draw.Entities[5].Alpha == 1);
+assert(block.Draw.Textures[0] == 1 and block.Draw.Entities[5].Alpha == 1);
 assert(codes[72] and codes[105]);
 local bg = block.Draw.Quads[0];
 assert(math.abs((bg.X1 - bg.X0) * 1920 / 2048 - 36) < 0.01);
@@ -107,12 +108,11 @@ world.Begin(hook);
 assert(not world.Draw(name, { text = 'UV missing', expires = 108 }, 101, scale));
 assert(world.Problem():find('white%-pixel'));
 atlas.TexUvWhitePixel = white;
-local oldTexID = atlas.TexRef.GetTexID;
-atlas.TexRef.GetTexID = function() return 0; end;
+atlas.TexData.Status = 2; -- imgui has it not ready
 world.Begin(hook);
 assert(not world.Draw(name, { text = 'Texture missing', expires = 108 }, 101, scale));
 assert(world.Problem():find('texture'));
-atlas.TexRef.GetTexID = oldTexID;
+atlas.TexData.Status = 0;
 hook.Hooked = 0;
 assert(world.Begin(hook) == nil and world.Problem():find('not hooked', 1, true));
 hook.Hooked = 1;
@@ -121,12 +121,12 @@ world.Begin(hook);
 assert(block.Draw.QuadCount == 0);
 world.Clear();
 available = false;
-assert(world.Begin(hook) == nil and world.Problem():find('1.24', 1, true));
+assert(world.Begin(hook) == nil and world.Problem():find('1.25', 1, true));
 available = true;
 world.Clear();
-block.Version = 2;
+block.Version = 1; -- an older plugin, which would take the font's mark for an address
 assert(world.Begin(hook) == nil and world.Problem():find('Incompatible', 1, true));
-block.Version = 1;
+block.Version = 2;
 world.Clear();
 assert(world.Begin(hook));
 loaded = false;

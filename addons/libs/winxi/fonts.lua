@@ -9,11 +9,11 @@
 --   fonts.Get(file)     a font of C:\Windows\Fonts loaded for imgui, or nil (Default, or a file that
 --                       would not load); loaded the first time it is asked for
 --   fonts.Files()       the .ttf files there are to choose from, sorted, looked for once
---   fonts.Texture()     the Direct3D texture imgui draws the font in use from, as a number, for
---                       drawing its letters elsewhere (a plugin's quads), nil, and which way it was
---                       had; or nil, and why not
---   fonts.TextureDetail() what imgui holds of that texture, read each way apart, as { label, text }
---                       pairs: for diagnostics
+--   fonts.Texture()     the mark a plugin is given for the texture imgui draws its letters from
+--                       (fonts.TextureMark: it reads the texture itself), and which texture that is
+--                       (imgui's unique id for it, new each time imgui makes it again, when the
+--                       letters' places in it change); or nil, and why not
+--   fonts.TextureDetail() a line of what imgui says of that texture, for diagnostics
 --
 -- The theme's FontFile (and SettingsFontFile) is a file of C:\Windows\Fonts, or '' for imgui's own
 -- font; its FontSize (and SettingsFontSize) is in pixels, or 0 for the base size. Either is only the starting point: an addon that pushes a font of
@@ -60,107 +60,39 @@ function fonts.Files()
     return files;
 end
 
--- imgui 1.92 keeps the font's texture in two places: the atlas's texture data, and the reference to
--- it that the renderer is handed. Their fields are read first: a field is only read, where asking
--- the reference for its id (GetTexID) trips an assertion in imgui while it holds the texture both
--- ways, which Ashita turns into an exception. On a tester's Windows machine names drew for a while
--- and then both methods threw for the rest of the session, as they can once the renderer has made
--- its textures again (a Direct3D device reset: alt-tab or minimising in full screen, a change of
--- resolution). The methods are asked after the fields, each apart, so that one failing leaves the
--- others.
-local function FontAtlas()
-    return imgui.GetFont().ContainerAtlas;
-end
+-- imgui's font texture is never read here. Its id (ImTextureID) is 64 bits and a Lua integer in this
+-- game 32, and once the texture is above 2 GB, as it can be after a while on Windows, Ashita cannot
+-- hand it to Lua at all: every way of asking throws. The plugins that draw imgui's letters (namehook,
+-- buffhook) are given fonts.TextureMark in its place, and read the texture themselves as they draw.
+fonts.TextureMark = 1;
 
-local function DataField(atlas)
-    return atlas.TexData.TexID;
-end
+-- imgui's ImTextureStatus: the texture is there to draw from while OK, or while letters are being
+-- added to it
+local STATUS_OK, STATUS_WANT_UPDATES = 0, 3;
 
-local function ReferenceField(atlas)
-    return atlas.TexRef._TexID;
-end
-
-local function DataId(atlas)
-    return atlas.TexData:GetTexID();
-end
-
-local function ReferenceId(atlas)
-    return atlas.TexRef:GetTexID();
-end
-
--- the ways of asking, in order: a name for what each said, and how to ask
-local ROUTES = {
-    { 'texture data field', DataField },
-    { 'reference field', ReferenceField },
-    { 'texture data', DataId },
-    { 'reference', ReferenceId },
-};
-
-local function Answer(name, ok, id)
-    if not ok then
-        return ('%s error: %s'):format(name, tostring(id));
-    end
-    return ('%s id %s'):format(name, tostring(id));
+local function TextureData()
+    local data = imgui.GetFont().ContainerAtlas.TexData;
+    return data.UniqueID, data.Status, data.Width, data.Height;
 end
 
 function fonts.Texture()
-    local ok, atlas = pcall(FontAtlas);
-    if not ok or atlas == nil then
-        return nil, ('no font atlas: %s'):format(ok and 'none' or tostring(atlas));
+    local ok, unique, status = pcall(TextureData);
+    if not ok then
+        return nil, ('imgui\'s font texture could not be read: %s'):format(tostring(unique));
     end
-    -- asked every frame by some: nothing is made unless none answers
-    for index = 1, #ROUTES do
-        local route = ROUTES[index];
-        local asked, id = pcall(route[2], atlas);
-        if asked and type(id) == 'number' and id ~= 0 then
-            return id, nil, route[1];
-        end
+    if status ~= STATUS_OK and status ~= STATUS_WANT_UPDATES then
+        return nil, ('imgui\'s font texture is not ready: status %s'):format(tostring(status));
     end
-    local answers = {};
-    for index, route in ipairs(ROUTES) do
-        answers[index] = Answer(route[1], pcall(route[2], atlas));
-    end
-    return nil, table.concat(answers, '; ');
+    return fonts.TextureMark, unique;
 end
 
--- what imgui holds of the font's texture, a line each, each read apart: for diagnostics
+-- what imgui says of the font's texture, for diagnostics
 function fonts.TextureDetail()
-    local lines = {};
-    local function try(label, read)
-        local ok, value = pcall(read);
-        lines[#lines + 1] = { label, ok and tostring(value) or ('(unreadable: ' .. tostring(value) .. ')') };
+    local ok, unique, status, width, height = pcall(TextureData);
+    if not ok then
+        return ('unreadable: %s'):format(tostring(unique));
     end
-    local atlas = nil;
-    try('atlas', function () atlas = FontAtlas(); return atlas ~= nil and 'found' or 'none'; end);
-    if atlas == nil then
-        return lines;
-    end
-    try('texture data', function ()
-        local data = atlas.TexData;
-        return ('unique id %s, %s x %s, status %s'):format(tostring(data.UniqueID), tostring(data.Width), tostring(data.Height), tostring(data.Status));
-    end);
-    for _, route in ipairs(ROUTES) do
-        try(route[1] .. ' id', function () return route[2](atlas); end);
-    end
-    try('reference data', function ()
-        local held = atlas.TexRef._TexData;
-        return held == nil and 'none' or tostring(held);
-    end);
-    try('textures in the list', function ()
-        local list = atlas.TexList;
-        if type(list) ~= 'table' then
-            return tostring(list);
-        end
-        local each = {};
-        for index, data in ipairs(list) do
-            local ok, said = pcall(function ()
-                return ('%s x %s status %s id %s'):format(tostring(data.Width), tostring(data.Height), tostring(data.Status), tostring(data.TexID));
-            end);
-            each[#each + 1] = ('[%d] %s'):format(index, ok and said or ('unreadable: ' .. tostring(said)));
-        end
-        return ('%d: %s'):format(#list, table.concat(each, ', '));
-    end);
-    return lines;
+    return ('unique id %s, %s x %s, status %s'):format(tostring(unique), tostring(width), tostring(height), tostring(status));
 end
 
 function fonts.Push(settingsKind)

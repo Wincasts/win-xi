@@ -43,7 +43,10 @@
 --   BeginDrawing(hook, true) uses the live output's vertical ratio and converts Quad X coordinates
 --   by the horizontal/vertical ratio, for uniformly laid out fonts on nonuniform render targets.
 --   Without that opt-in, coordinates and the returned horizontal ratio retain their legacy meaning.
---   nameplates.SetTexture(slot, texture)          slot 0 to 7; texture a Direct3D texture's address
+--   nameplates.SetTexture(slot, texture)          slot 0 to 7; texture a Direct3D texture's address,
+--                                                 or winxi.fonts.TextureMark for imgui's font texture,
+--                                                 which the plugin reads itself (hook.FontTexture says
+--                                                 which it last drew from, 0 for none)
 --   nameplates.BeginName(entityIndex, alpha, edge, edgeColor)   false if there is no room for it
 --   nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity)
 --   nameplates.EndName()
@@ -97,6 +100,7 @@ ffi.cdef[[
         uint32_t Sequence;
         uint32_t Draw;
         float    TargetWidth, TargetHeight;
+        uint32_t FontTexture;
         uint8_t  Override[0x900];
         namehook_name_t Names[256];
     } namehook_t;
@@ -162,7 +166,7 @@ nameplates.Flag = {
 };
 
 local MAGIC        = '4E414D45484F4F4B0000000000000000'; -- "NAMEHOOK" and the eight 0s after it
-local VERSION      = 2;
+local VERSION      = 3;
 local LOOK_EVERY   = 1; -- seconds between looks for the plugin's block while it is not found
 local ENTITIES     = 0x900;
 local ALWAYS_TARGET = 0x01;

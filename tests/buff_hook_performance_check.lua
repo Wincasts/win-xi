@@ -35,7 +35,7 @@ icons.Get = function(id) counts.icons = counts.icons + 1; return 0x1000 + id, tr
 -- the plugin's block
 local holder = ffi.new('buffhook_t[1]')
 local block = holder[0]
-block.Version, block.Size, block.Hooked, block.Frame = 3, ffi.sizeof('buffhook_t'), 1, 1
+block.Version, block.Size, block.Hooked, block.Frame = 4, ffi.sizeof('buffhook_t'), 1, 1
 block.Width, block.Height = 1920, 1080
 ashita.memory.find = function(module)
     counts.finds = counts.finds + 1
@@ -50,7 +50,7 @@ manager.IsLoaded = function(self, name) counts.loaded = counts.loaded + 1; retur
 AshitaCore.GetPluginManager = function() return manager end
 H.loaded('buffhook', true)
 
-local font = { ContainerAtlas = { TexRef = { GetTexID = function() return 0x9000 end }, TexData = { GetTexID = function() return 0 end } } }
+local font = { ContainerAtlas = { TexData = { UniqueID = 2, Status = 0, Width = 512, Height = 256 } } }
 imgui.GetFont = function() return font end
 -- a letter as imgui's binding gives it: each of its fields read is a call into the binding, counted
 local fields = { X0 = 0, Y0 = 2, X1 = 5, Y1 = 12, U0 = 0, V0 = 0, U1 = 0.1, V1 = 1, AdvanceX = 6, Visible = 1 }

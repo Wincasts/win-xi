@@ -20,8 +20,9 @@
 -- Number goes up by one whenever winxi gains something an addon may come to rely on: a function, an
 -- option, a setting. An addon that starts using it sets its winxiNeeded to the new Number. winxi
 -- keeps what it had, so a newer winxi serves every older addon.
--- 2: fonts.Texture
--- 3: fonts.Texture reads the texture's fields before its methods; fonts.TextureDetail
+-- 2, 3: fonts.Texture as it was tried, given only to testers
+-- 4: fonts.Texture gives the plugins' mark for imgui's font texture, fonts.TextureMark,
+--    fonts.TextureDetail
 return {
-    Number = 3,
+    Number = 4,
 };

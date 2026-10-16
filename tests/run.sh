@@ -51,6 +51,7 @@ run inventory  addons/inventory/inventory.lua winxi_child_background_check.lua
 luajit tests/winxi_mapdat_check.lua
 luajit tests/winxi_cursor_check.lua
 luajit tests/winxi_font_texture_check.lua
+luajit tests/chatbubbles_world_check.lua
 luajit tests/hideparty_cursor_check.lua
 luajit tests/map_files_check.lua
 echo

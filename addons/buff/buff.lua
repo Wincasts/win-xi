@@ -23,7 +23,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 3; -- fonts.Texture's fields
+local winxiNeeded = 4; -- fonts.Texture's mark
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -463,8 +463,12 @@ local function WriteHooked(options, found, alpha)
     local baked, texture = nil, nil;
     if showTimers then
         baked = imgui.GetFontBaked();
-        texture = fonts.Texture();
-        if baked ~= nil then CheckGlyphs(baked, texture); end
+        -- the plugin is given the mark, and reads imgui's font texture itself: which texture it is
+        -- (imgui's unique id) is what says the letters may have moved
+        local which;
+        texture, which = fonts.Texture();
+        if texture == nil then which = nil; end
+        if baked ~= nil then CheckGlyphs(baked, which); end
     end
 
     madeCount = 0;

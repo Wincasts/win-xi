@@ -2,8 +2,8 @@
 
 ## 1.33
 
-- The font's texture is read through winxi's fonts.Texture: from the fields of the atlas's texture data and its reference first, then their methods, each asked apart. On Windows the methods could both throw an exception (imgui's assertion, as Ashita reports it) once the game had been running a while, and the names were the game's for the rest of the session; a field is only read and cannot trip it.
-- Diagnostics say what imgui answered when the font's texture cannot be had, in the history, the chat and the log. The log reads everything imgui holds of the texture apart (the texture data, every id each way, every texture in the atlas's list), and the history notes each change of the texture's id. The reason no longer says the id was 0 when it was an exception. Needs winxi 3.
+- The names' letters are drawn from imgui's font texture as the namehook plugin reads it, and Name no longer asks imgui for it. Its id is 64 bits and a Lua integer in this game 32: once the texture was above 2 GB, as it can be after a while on Windows, Ashita could not hand it to Name at all, and the names were the game's for the rest of the session. Needs namehook 1.25, which comes with it, and winxi 4.
+- Diagnostics say whether imgui has the font texture ready and what it says of it, and the log the texture the plugin drew from; the history notes each time imgui makes the texture again.
 
 ## 1.32 — first release
 

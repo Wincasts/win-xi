@@ -1,5 +1,10 @@
 # Changelog
 
+## namehook 1.25 — imgui's font texture read by the plugin
+
+- A texture of `1` (`HOOK_TEXTURE_FONT`), in the names' textures or the bubbles', is imgui's font texture, which the plugin reads itself each frame from Ashita's imgui. Its id is 64 bits and a Lua integer in this client 32: once the texture is above 2 GB, as it can be after a while on Windows, Ashita could not hand it to the addon at all, and Name's names were the client's for the rest of the session. `FontTexture` says which texture it drew from.
+- `NAMEHOOK` is version 3 (`FontTexture` is new, after `TargetHeight`) and `NAMEBUBBLES` version 2, so that an older plugin, which would take `1` for an address, is not used by the addons that give it.
+
 ## namehook 1.24 — independent world-space bubbles
 
 - Add a separate `NAMEBUBBLES` shared buffer for additive, depth-tested speech bubbles. It does not claim or replace names and works independently of category visibility, alongside stock names or Name's custom names. The existing `NAMEHOOK` v2 layout remains unchanged.

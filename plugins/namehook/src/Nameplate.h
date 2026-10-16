@@ -59,7 +59,7 @@ enum : uint8_t {
     OVERRIDE_HIDE = 2,
 };
 
-#define HOOK_VERSION 2
+#define HOOK_VERSION 3
 #define HOOK_NAMES_MAX 256
 #define HOOK_ENTITIES 0x900     // the client's entities, by index
 #define HOOK_CLAIM_FRAMES 30    // how long a claim lasts without being made again
@@ -68,6 +68,10 @@ enum : uint8_t {
 #define HOOK_QUADS_MAX 16384    // the quads of every name an addon has drawn, together
 #define HOOK_QUADS_PER_NAME 256 // and of one
 #define HOOK_TEXTURES 8
+// A texture's address an addon cannot give: imgui's font texture, which the plugin reads for itself
+// as it draws. Its id is 64 bits, and a Lua integer in this client 32: once the texture is above
+// 2 GB, as it can be after a while on Windows, Ashita cannot hand it to Lua at all.
+#define HOOK_TEXTURE_FONT 1
 #define HOOK_DRAW_FRAMES 2      // how long what an addon has drawn is good for
 
 // One name the client was about to draw last frame.
@@ -113,6 +117,7 @@ struct HookShared {
     uint32_t Draw;       // where the HookDraw is, for an addon that has the plugin draw names for it
     float TargetWidth;   // the size of the picture the client draws the world on, which may be larger
     float TargetHeight;  // than its window: 0 until a name has been drawn
+    uint32_t FontTexture; // imgui's font texture as the plugin last drew HOOK_TEXTURE_FONT from: 0 for none
 
     uint8_t Override[HOOK_ENTITIES]; // OVERRIDE_* for each entity, by index; written by addons
     HookName Names[HOOK_NAMES_MAX];
@@ -157,7 +162,7 @@ struct HookDraw {
     uint32_t QuadCount;
     uint32_t QuadsMax;  // HOOK_QUADS_MAX
     uint32_t Reserved; // optional 16.16 horizontal outline fit; 0 means legacy 1:1
-    uint32_t Textures[HOOK_TEXTURES]; // each an IDirect3DTexture8*, or 0
+    uint32_t Textures[HOOK_TEXTURES]; // each an IDirect3DTexture8*, HOOK_TEXTURE_FONT, or 0
     HookDrawing Entities[HOOK_ENTITIES];
     HookQuad Quads[HOOK_QUADS_MAX];
 
@@ -166,7 +171,8 @@ struct HookDraw {
     }
 };
 
-// Independent additive world-space layer. Found by magic without changing HookShared v2.
+// Independent additive world-space layer. Found by magic without changing HookShared.
+// Version 2: a texture may be HOOK_TEXTURE_FONT, which version 1 would have taken for an address.
 // A bubble never claims a name or obeys its category's hide setting. ServerIds prevents
 // stale speech attaching to a new entity which reused an index.
 struct HookBubbles {
@@ -256,8 +262,8 @@ class Nameplate {
 
         // Called from the client's name drawing code before the first name of each frame. fresh is
         // whether an addon has drawn names for this frame. Gives back the size of the picture the
-        // client is drawing on.
-        virtual void BeginNames([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh, [[maybe_unused]] float& targetWidth, [[maybe_unused]] float& targetHeight) {}
+        // client is drawing on, and imgui's font texture as HOOK_TEXTURE_FONT is drawn from (0 for none).
+        virtual void BeginNames([[maybe_unused]] const HookDraw& draw, [[maybe_unused]] bool fresh, [[maybe_unused]] float& targetWidth, [[maybe_unused]] float& targetHeight, [[maybe_unused]] uint32_t& fontTexture) {}
 
         // Puts an addon's drawing of a name in the picture, at this point of the world (three floats).
         // Called from the client's name drawing code, in place of the client drawing the name.

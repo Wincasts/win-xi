@@ -30,7 +30,7 @@ diag.Reasons = {
     old      = 'the namehook plugin has no block this addon can read',
     mismatch = 'the namehook plugin and this addon are of different versions',
     unhooked = 'the namehook plugin did not recognise this client\'s name drawing',
-    texture  = 'imgui\'s font texture could not be had: none yet, or imgui would not say',
+    texture  = 'imgui\'s font texture was not ready, or could not be read',
     draw     = 'the namehook plugin had no drawing buffer',
     error    = 'a Lua error in the frame',
 };
@@ -221,6 +221,8 @@ local function snapshot(lines)
             local draw = ffi.cast('namehook_draw_t*', hook.Draw);
             return ('frame %d, %d quads of %d'):format(draw.Frame, draw.QuadCount, draw.QuadsMax);
         end);
+        -- the texture the plugin read for the font's mark, as it last drew the names: 0 for none
+        try(lines, 'Font texture drawn', function () return '0x' .. bit.tohex(hook.FontTexture); end);
         try(lines, 'Names', function ()
             local shown, custom, game = 0, 0, 0;
             for _, name in nameplates.Each() do
@@ -237,18 +239,10 @@ local function snapshot(lines)
         return ('%.0f x %.0f'):format(size.x, size.y);
     end);
     try(lines, 'Font texture', function ()
-        local texture, problem, route = fonts.Texture();
-        return texture ~= nil and ('id %s, from the %s'):format(tostring(texture), route) or problem;
+        local texture, said = fonts.Texture();
+        return texture ~= nil and ('ready (unique id %s): the plugin is given its mark'):format(tostring(said)) or said;
     end);
-    -- each of imgui's answers apart, so that one that fails does not hide the others
-    local ok, detail = pcall(fonts.TextureDetail);
-    if (ok) then
-        for _, line in ipairs(detail) do
-            lines[#lines + 1] = ('  %-20s %s'):format(line[1], line[2]);
-        end
-    else
-        lines[#lines + 1] = ('  (unreadable: %s)'):format(tostring(detail));
-    end
+    try(lines, 'Font texture data', fonts.TextureDetail);
 end
 
 local function optionLines(lines, options)

@@ -31,7 +31,7 @@ options.monsterFormat[1] = '[aggro][name] [letter]'
 local decoded, prepared, uploads = 0, 0, 0
 local glyph = { X0 = 0, Y0 = 0, X1 = 8, Y1 = 12, U0 = 0, V0 = 0, U1 = 1, V1 = 1, AdvanceX = 8, Visible = 1 }
 local baked = { FindGlyph = function() decoded = decoded + 1; return glyph end }
-local font = { ContainerAtlas = { TexRef = { GetTexID = function() return 0x1234 end } } }
+local font = { ContainerAtlas = { TexData = { UniqueID = 2, Status = 0, Width = 512, Height = 256 } } }
 imgui.GetFont = function() return font end
 imgui.GetFontBaked = function() return baked end
 imgui.PushFont, imgui.PopFont = function() end, function() end

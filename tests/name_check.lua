@@ -23,7 +23,7 @@ o.alwaysTarget[1] = false
 local loaded = false
 local block = ffi.new('namehook_t')
 ffi.copy(block.Magic, 'NAMEHOOK')
-block.Version, block.Size, block.NameSize, block.Hooked = 2, ffi.sizeof('namehook_t'), ffi.sizeof('namehook_name_t'), 1
+block.Version, block.Size, block.NameSize, block.Hooked = 3, ffi.sizeof('namehook_t'), ffi.sizeof('namehook_name_t'), 1
 block.Width, block.Height = 960, 540
 
 local manager = AshitaCore.GetPluginManager()
@@ -32,7 +32,7 @@ AshitaCore.GetPluginManager = function() return manager end
 ashita.memory.find = function(module) return module == 'namehook.dll' and tonumber(ffi.cast('uintptr_t', ffi.cast('void*', block))) or 0 end
 
 H.print('the block is laid out as the plugin has it', ffi.sizeof('namehook_name_t') == 128, ffi.offsetof('namehook_t', 'Sequence') == 64,
-    ffi.offsetof('namehook_t', 'Draw') == 68, ffi.offsetof('namehook_t', 'Override') == 80, ffi.offsetof('namehook_t', 'Names') == 80 + 0x900)
+    ffi.offsetof('namehook_t', 'Draw') == 68, ffi.offsetof('namehook_t', 'FontTexture') == 80, ffi.offsetof('namehook_t', 'Override') == 84, ffi.offsetof('namehook_t', 'Names') == 84 + 0x900)
 H.print('and so is what is drawn for it', ffi.sizeof('namehook_quad_t') == 48, ffi.sizeof('namehook_drawing_t') == 24,
     ffi.offsetof('namehook_draw_t', 'Entities') == 48, ffi.offsetof('namehook_draw_t', 'Quads') == 48 + 24 * 0x900)
 
@@ -139,8 +139,9 @@ imgui.PushFont = function(_, size) pushed[#pushed + 1] = size end
 local signGlyph = { X0 = 0, Y0 = 1, X1 = 12, Y1 = 13, U0 = 0.7, V0 = 0.7, U1 = 0.8, V1 = 0.8, AdvanceX = 14, Visible = 1 }
 local hasSign = true
 imgui.GetFontBaked = function() return { FindGlyph = function() return glyph end, FindGlyphNoFallback = function(_, code) return hasSign and code == 0xF002 and signGlyph or nil end } end
-local fontTexture = 0x1234
-imgui.GetFont = function() return { ContainerAtlas = { TexRef = { GetTexID = function() return fontTexture end }, TexData = { GetTexID = function() return 0 end } } } end
+-- imgui's font texture as imgui says of it: the plugin is given winxi's mark for it, and reads it itself
+local fontTexture = { UniqueID = 2, Status = 0, Width = 512, Height = 256 }
+imgui.GetFont = function() return { ContainerAtlas = { TexData = fontTexture } } end
 
 block.Claimed, block.ClaimFrame = 0, 0
 put(0, 0x401, Category.Party, Flag.Wanted + Flag.Stars, 'Buddy', '\146 Buddy')
@@ -155,7 +156,7 @@ H.print('/name custom compatibility command kept from the game', H.command('/nam
 block.Frame = 78
 H.frames(1)
 local buddy = draw.Entities[0x401]
-H.print('custom on: all claimed', block.Claimed == Category.All, '| set out in frame', draw.Frame, '| font texture', draw.Textures[0] == 0x1234)
+H.print('custom on: all claimed', block.Claimed == Category.All, '| set out in frame', draw.Frame, '| font texture: the mark', draw.Textures[0] == 1)
 -- five letters; the hidden name is not set out
 H.print('the wanted name: quads', buddy.Count, '| of this frame', buddy.Frame == draw.Frame, '| the hidden one: none', draw.Entities[0x402].Frame ~= draw.Frame, '| in all', draw.QuadCount)
 -- 15 pixels on the screen is 23 of the game's picture, the largest of the three sizes letters are kept
@@ -240,10 +241,10 @@ H.print(('a colour that stays: taken up at once %08X'):format(draw.Quads[buddy.F
 o.outline[1] = 0; H.frames(1)
 H.print('no outline: no edge', buddy.Edge, '| remains disabled', buddy.Edge == 0)
 -- while the font has no texture nothing is set out, and what was is left to go stale
-fontTexture = 0; local frameBefore = draw.Frame; block.Frame = 90; block.ClaimFrame = 0; H.frames(1)
-H.print('no font texture: nothing set out', draw.Frame == frameBefore, '| nor claimed', block.ClaimFrame == 0)
-fontTexture = 0x5678; H.frames(1)
-H.print('another texture: taken up', draw.Textures[0] == 0x5678, draw.Frame == 90)
+fontTexture.Status = 2; local frameBefore = draw.Frame; block.Frame = 90; block.ClaimFrame = 0; H.frames(1)
+H.print('no font texture ready: nothing set out', draw.Frame == frameBefore, '| nor claimed', block.ClaimFrame == 0)
+fontTexture.Status, fontTexture.UniqueID = 0, 3; H.frames(1)
+H.print('imgui made it again: taken up, the mark still', draw.Textures[0] == 1, draw.Frame == 90)
 -- two icons before a name: 2 pixels of the screen between them, and Icon Spacing between the last and the name
 local icons = require('icons')
 local realHas, realPlace, realTexture = icons.Has, icons.Place, icons.Texture
@@ -658,7 +659,7 @@ block.Count = 1
 H.tab(1); H.command('/name'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/name'); H.tab(2)
 H.print('its tab drawn: sliders', (H.calls.SliderInt or 0) - sliders)
 
-H.print('ImGui signs retain their own texture', draw.Textures[4] == fontTexture)
+H.print('ImGui signs retain their own texture: the font\'s mark', draw.Textures[4] == 1)
 local savedMonsterFormat = o.monsterFormat[1]
 local savedSignName = ffi.new(ffi.typeof(block.Names[1]), block.Names[1])
 local savedSignAlive, savedSignCount = alive[300], block.Count
