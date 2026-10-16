@@ -127,6 +127,36 @@ CLOCK.weather, CLOCK.icons[1], CLOCK.icons[2] = 0, nil, nil
 drawn = {}
 H.frames(1)
 p('no weather: the clear sky where the game was last seen to put its weather icon', CLOCK.hidden == 1, At(drawn[#drawn], 8, 1030, 24, 1046))
+-- Weather Offset: the game's weather icon moved in its units, the set's with it
+options.weatherOffset[1] = -6
+drawn = {}
+H.frames(1)
+p('Weather Offset -6: the game\'s moved 6 of its units, the clear sky 6 pixels up', CLOCK.shift == -6, At(drawn[#drawn], 8, 1024, 24, 1040))
+CLOCK.icons[0] = { 8, 1096, 40, 1128 }
+H.frames(1)
+p('the game\'s icons twice as large: 3 of its units', CLOCK.shift == -3)
+CLOCK.icons[0] = { 8, 1096, 24, 1112 }
+options.weatherOffset[1] = 0
+H.frames(1)
+p('back to 0', CLOCK.shift == 0)
+-- Show All Weather Icons: a row from the weather icon's place, the set's where it has them
+local check = imgui.Checkbox
+imgui.Checkbox = function(label, value, ...)
+    if label == '##clock.showAll' and TURN_ALL ~= nil then value[1] = TURN_ALL; TURN_ALL = nil; return true end
+    return check(label, value, ...)
+end
+H.command('/clock')
+TURN_ALL = true
+drawn = {}
+H.frames(1)
+local function DrawnAt(l, t, r, b) for _, d in ipairs(drawn) do if At(d, l, t, r, b) then return true end end return false end
+p('all shown: the game\'s own for each element the set has no picture for, water and the clear sky the set\'s',
+    CLOCK.preview == 0xFF - 32, DrawnAt(98, 1030, 114, 1046), DrawnAt(152, 1030, 168, 1046), bit.band(CLOCK.hidden, 2) ~= 0)
+TURN_ALL = false
+H.frames(1)
+p('turned off: none of the game\'s drawn for it', CLOCK.preview == 0)
+H.command('/clock')
+imgui.Checkbox = check
 local loads = CLOCK.loads
 H.frames(5)
 p('each picture loaded once', CLOCK.loads == loads, loads == 3)

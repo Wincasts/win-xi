@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0
+
+- Weather Offset: the weather icon above the clock moved up or down, -40 to 40 pixels, the game's own
+  too (uihook draws it there), and the set's with it.
+- Show All Weather Icons: every weather icon in a row from the weather icon's place, the set's where
+  it has them and the game's own where not, for the session.
+- Needs uihook 0.2 with HUD ABI 5.
+
 ## 0.7.1
 
 - The line begins four pixels clear of the day icon as drawn, the set's scaled and moved or the

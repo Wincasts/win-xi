@@ -13,6 +13,8 @@ ffi.cdef[[
         float IconRect[3][4];
         uint32_t IconFrame[3];
         uint32_t HideIcons;
+        int32_t WeatherShift;
+        uint32_t PreviewWeather;
     } uihook_hud_t;
     typedef int32_t (__cdecl *uihook_hud_submit_t)(int32_t index, int32_t capture);
 ]]
@@ -37,7 +39,7 @@ function M.new(index)
             local address = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D485544000000000000', 0, 0)
             if not address or address == 0 then reason = 'Update uihook: clock/compass shared block not found.'; return nil end
             local found = ffi.cast('uihook_hud_t*', address)
-            if found.Version ~= 4 or found.Size ~= ffi.sizeof('uihook_hud_t') or found.Submit == 0 then
+            if found.Version ~= 5 or found.Size ~= ffi.sizeof('uihook_hud_t') or found.Submit == 0 then
                 reason = 'uihook clock/compass ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_hud_submit_t', found.Submit)
@@ -64,7 +66,7 @@ function M.new(index)
     function hook.Stop()
         if owned and Find() then
             submit(index, -1)
-            if index == 0 then block.HideIcons = 0 end
+            if index == 0 then block.HideIcons, block.WeatherShift, block.PreviewWeather = 0, 0, 0 end
         end
         owned = false
     end
@@ -116,6 +118,22 @@ function M.new(index)
         local found = Find()
         if not found or index ~= 0 then return false end
         found.HideIcons = mask
+        return true
+    end
+    -- Moves the game's weather icons down (up, below 0) by that many of its units, each frame the
+    -- line is handed over, as HideIcons
+    function hook.ShiftWeather(units)
+        local found = Find()
+        if not found or index ~= 0 then return false end
+        found.WeatherShift = math.max(-200, math.min(200, math.floor(tonumber(units) or 0)))
+        return true
+    end
+    -- The game's own weather icons to draw in a row from the weather icon's place, to see them all:
+    -- bit 0 fire, 1 ice, 2 wind, 3 earth, 4 thunder, 5 water, 6 light, 7 dark, each in its own place
+    function hook.PreviewWeather(mask)
+        local found = Find()
+        if not found or index ~= 0 then return false end
+        found.PreviewWeather = mask
         return true
     end
     -- The map grid the game prints after the time, "(H-9)", while current; nil otherwise.

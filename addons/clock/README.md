@@ -1,4 +1,4 @@
-# clock — experimental 0.7
+# clock — experimental 0.8
 
 The game's clock, written out in full on one line in its place: the time, the map grid, the day,
 the date and the moon to begin with, as `3:32  (H-9)  Windsday  900/12/30  Moon 42%`; what it shows,
@@ -44,6 +44,13 @@ Hide Compass does the compass's part. Keep the clock on in the game's config too
 
 - **Icon Offset**: moves the set's icons up or down, -10 to 10 pixels (0 to begin with), where the
   game draws its own and in the line.
+- **Weather Offset**: moves the weather icon above the clock up or down, -40 to 40 pixels (0 to begin
+  with): the game's own icon too, which uihook draws that much higher or lower, in the game's units
+  (its day icon sixteen across), and the set's with it.
+- **Show All Weather Icons**: draws every weather icon in a row from the weather icon's place, fire,
+  ice, wind, earth, thunder, water, light and dark, then the clear sky: the set's where it has them,
+  the game's own where not, to see them all and where they sit. The weather's own icon gives way to
+  the row. Until it is turned off, or the game restarted: it is not saved.
 
 Under **Line**, the line itself, written as you like: each field is a word in braces, `{time}`, and
 anything else is written as it is, so `{time} | {grid} | {day}` is `3:32 | (H-9) | Windsday`. **Add
