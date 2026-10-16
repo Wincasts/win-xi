@@ -3,7 +3,7 @@
 #pragma once
 #include <stdint.h>
 
-#define HUD_VERSION 4
+#define HUD_VERSION 5
 #define HUD_CLOCK 1u
 #define HUD_COMPASS 2u
 struct HudShared {
@@ -26,8 +26,16 @@ struct HudShared {
     // while its clock replacement is fresh and drawn are the game's left undrawn (both weather icons
     // for HUD_ICON_WEATHER); they are measured either way.
     uint32_t HideIcons;
+    // Written by the addon, honoured as HideIcons is: WeatherShift moves the game's weather icons
+    // down (up, below 0) by that many of the game's units; PreviewWeather draws the game's own icons
+    // of the weathers named (bit 0 fire, 1 ice, 2 wind, 3 earth, 4 thunder, 5 water, 6 light, 7 dark,
+    // the order of its weather sprites) side by side from the weather icon's place, each in its own
+    // place whichever are named, to see them all.
+    int32_t WeatherShift;
+    uint32_t PreviewWeather;
 };
-static_assert(sizeof(HudShared)==152, "HUD ABI 4");
+static_assert(sizeof(HudShared)==160, "HUD ABI 5");
+#define HUD_SHIFT_MOST 200
 #define HUD_ICON_DAY 1u
 #define HUD_ICON_WEATHER 2u
 // Submit(index, capture): index 0 clock, 1 compass; capture 1=current ImGui window,
@@ -54,6 +62,14 @@ static_assert(sizeof(HudShared)==152, "HUD ABI 4");
 #define CLOCK_WEATHER_ICON_CALL 12
 #define CLOCK_SECOND_ICON_PATTERN "68 80 80 80 80 8D 54 18 BC 57 52 8B CE E8 ?? ?? ?? ??"
 #define CLOCK_SECOND_ICON_CALL 13
+// The sprite banks' getter, Bank(n): cdecl, banks[n] for n below 18, else 0; Clock::Draw asks it for
+// its day icons (4) and its weather icons (14), a bank's first word its sprites. Each pattern ends at
+// the push of the bank's number, its CALL two on.
+#define CLOCK_DAY_BANK_PATTERN "6A 04 E8 ?? ?? ?? ?? 8B F0 83 C4 28"
+#define CLOCK_WEATHER_BANK_PATTERN "6A 0E E8 ?? ?? ?? ?? 8B C8 83 C4 04 85 C9"
+#define CLOCK_BANK_CALL 2
+#define CLOCK_WEATHER_BANK 14
+#define CLOCK_WEATHER_ABOVE_DAY 68 // the weather icon's y above the day icon's, in the game's units
 #define CLOCK_RADAR_PATTERN "8B 44 24 28 8B CB 50 57 E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 85 C0 89 44 24 24"
 
 static uint8_t* HudCallee(uint8_t* begin,size_t size,uint8_t* call,uint8_t opcode) {
@@ -63,7 +79,7 @@ static uint8_t* HudCallee(uint8_t* begin,size_t size,uint8_t* call,uint8_t opcod
     return offset>=0 && static_cast<uint64_t>(offset)<size ? begin+offset : nullptr;
 }
 struct HudDiscovery { uint8_t* compass=nullptr; uint8_t* clock=nullptr; void** global=nullptr; uint8_t* radarVisible=nullptr; uint16_t* weather=nullptr; uint8_t* text=nullptr; uint8_t* textTarget=nullptr;
-    uint8_t* icons[3]={}; uint8_t* iconTarget=nullptr; };
+    uint8_t* icons[3]={}; uint8_t* iconTarget=nullptr; uint8_t* bank=nullptr; };
 static HudDiscovery FindHud(uint8_t* begin,size_t size) {
     HudDiscovery out;
     auto* step=UniquePattern(begin,size,COMPASS_STEP_PATTERN);
@@ -100,6 +116,13 @@ static HudDiscovery FindHud(uint8_t* begin,size_t size) {
         sprite=target; icons[i]=at+iconCalls[i];
     }
     if (iconsOk) { for (unsigned i=0;i<3;i++) out.icons[i]=icons[i]; out.iconTarget=sprite; }
+    // Optional, for the preview alone: both of Clock::Draw's bank calls, to the one getter
+    auto* dayBank=UniquePattern(begin,size,CLOCK_DAY_BANK_PATTERN);
+    auto* weatherBank=UniquePattern(begin,size,CLOCK_WEATHER_BANK_PATTERN);
+    if (dayBank && weatherBank && dayBank>clock && weatherBank>clock && dayBank-clock<0x160 && weatherBank-clock<0x160) {
+        auto* getter=HudCallee(begin,size,dayBank+CLOCK_BANK_CALL,0xe8);
+        if (getter && getter==HudCallee(begin,size,weatherBank+CLOCK_BANK_CALL,0xe8)) out.bank=getter;
+    }
     auto* weather=UniquePattern(begin,size,CLOCK_WEATHER_PATTERN);
     if (weather && weather>=clock && weather-clock<0x160) {
         uint32_t address=0; memcpy(&address,weather+2,4);

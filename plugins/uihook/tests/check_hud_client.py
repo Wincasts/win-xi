@@ -61,5 +61,14 @@ for name in ('DAY', 'WEATHER', 'SECOND'):
 first_ret = min(i for i in (data.find(b'\xC2\x14\x00', sprite, sprite + 0x200), data.find(b'\xC3', sprite, sprite + 0x200)) if i >= 0)
 assert data[first_ret:first_ret + 3] == b'\xC2\x14\x00', hex(first_ret)
 print(f'clock icon calls to the sprite routine at RVA {sprite:08X} (ret 0x14)')
+banks = []
+for name in ('DAY', 'WEATHER'):
+    at = unique(f'CLOCK_{name}_BANK_PATTERN')
+    assert clock < at < clock + 0x160
+    banks.append(callee(at + int(re.search(r'#define CLOCK_BANK_CALL (\d+)', text)[1])))
+assert banks[0] == banks[1], [hex(b) for b in banks]
+# Bank(n): banks[n] for n below 18, else 0, and nothing else
+assert data[banks[0]:banks[0] + 12] == bytes.fromhex('8B442404 85C0 7C0D 83F812 7D'.replace(' ', '')), data[banks[0]:banks[0] + 12].hex()
+print(f'clock sprite banks getter at RVA {banks[0]:08X}')
 print('Clock/compass call graph, live global, native radar query, text and icon calls and weather source cross-check passed.')
 print('Static verification only: live layering, visibility, menu/controller, zoning and reset checks remain required.')

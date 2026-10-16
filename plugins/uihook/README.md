@@ -84,6 +84,10 @@ one sprite routine, and aimed at uihook's own. Each icon is measured on the scre
 undrawn only for those the addon names in `HideIcons`, and only while its clock replacement is drawn
 in that call: an addon that stops, fails or is unloaded has the game's back at once.
 
+For the preview, Clock::Draw's two calls to the sprite banks' getter (`Bank(n)`, cdecl, `banks[n]`
+for n below 18, else 0; a bank's first word its sprites) are found, its day bank (4) and its weather
+bank (14), both to the one getter; without them there is no preview, and nothing else is lost.
+
 The dispatcher runs original native logic with GPU submissions suppressed only while a fresh
 replacement is being drawn. Nested clock calls temporarily escape compass suppression; with only a
 compass replacement, the stock clock still draws, and with only a clock replacement, the stock
@@ -91,9 +95,9 @@ compass still draws. Radar-disabled/unsupported-zone checks gate compass replay.
 and shared visibility states gate clock replay. Missing signatures or replay failure leave the
 unsupported element native. HUD discovery does not depend on party/window recognition.
 
-### HUD ABI 4
+### HUD ABI 5
 
-A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **152 bytes** total:
+A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **160 bytes** total:
 
 ```text
 char Magic[16]
@@ -103,6 +107,7 @@ float ClockRect[4]; u32 ClockRectFrame
 char Grid[12]
 float IconRect[3][4]; u32 IconFrame[3]
 u32 HideIcons            written by the addon
+i32 WeatherShift; u32 PreviewWeather   written by the addon
 ```
 
 `SupportedMask`: bit 0 clock, bit 1 compass. `Submit` is `cdecl int(index, capture)` and may only be
@@ -119,7 +124,13 @@ it, the chat log among them. `Grid` is the map grid the game prints after the ti
 from the clock's object (+0x11, eight characters, then zeros) at `ClockRectFrame`. `IconRect` is
 the day icon (0), the weather icon (1) and the second weather icon (2), as `ClockRect`, each current
 at its `IconFrame`. `HideIcons` is bit 0 the day icon and bit 1 the weather icons; the bridge writes
-it each frame and clears it as the clock slot is released. Geometry limits,
+it each frame and clears it as the clock slot is released. `WeatherShift` moves the game's weather
+icons down (up, below 0) by that many of its units, at most 200 either way: added to the `y` their
+calls are given. `PreviewWeather` names game weather icons (bit 0 fire, 1 ice, 2 wind, 3 earth,
+4 thunder, 5 water, 6 light, 7 dark, its sprites' order) to draw after the day icon, each in its
+place in a row from the weather icon's (68 units above the day icon's, shifted), a sprite's width and
+two apart; they are not measured and never hidden. Both are honoured as `HideIcons` is, and cleared
+with it. Geometry limits,
 clipping, font validation, texture retention and two-frame
 freshness reuse the existing capture/replay implementation. Addons should use the slot-specific
 `winxi.nativehud` bridge, which validates ABI, capability, unload/reload and weather, place and grid freshness.

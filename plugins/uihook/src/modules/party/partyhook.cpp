@@ -29,7 +29,7 @@ static ClockTextCall TextCall;
 // Clock::Draw's three icon calls, aimed at DrawClockIcon<0..2> while uihook is loaded.
 template<int Icon> static void __fastcall DrawClockIcon(void*,void*,int32_t,int32_t,uint32_t,uint32_t,uint32_t);
 static ClockIconCalls IconCalls;
-static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0, {}, {}, {}, 0 };
+static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0, {}, {}, {}, 0, 0, 0 };
 static Detour CompassDetour = { COMPASS_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderCompass), nullptr, nullptr, {} };
 static Detour ClockDetour = { CLOCK_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderClock), nullptr, nullptr, {} };
 // Sprite::Draw(this, x, y, sx, sy, color, flags1, flags2, flags3): preserve all eight stack
@@ -80,6 +80,9 @@ class PartyHook : public IPlugin {
     bool inClock = false, inScene = false, inText = false, hideText = false;
     int inIcon = -1;          // which of the clock's icons is being drawn, or -1
     uint32_t hideIcons = 0;   // HUD_ICON_* to leave undrawn in this Clock::Draw call
+    int32_t weatherShift = 0; // and the game's units to move its weather icons down by
+    uint32_t preview = 0;     // and which of its weather icons to draw all of, beside each other
+    void* (__cdecl* bank)(int32_t) = nullptr;
     // The game's own clock draws in one Clock::Draw call: their screen bounds, and the viewport
     // they were drawn in, to say where the clock is; its text's (or, without the text call, all of
     // it), and each icon's.
@@ -203,6 +206,7 @@ public:
                 void* const iconReplacements[3]={reinterpret_cast<void*>(&DrawClockIcon<0>),
                     reinterpret_cast<void*>(&DrawClockIcon<1>),reinterpret_cast<void*>(&DrawClockIcon<2>)};
                 TakeClockIcons(IconCalls,hud.icons,hud.iconTarget,iconReplacements);
+                bank=reinterpret_cast<void*(__cdecl*)(int32_t)>(hud.bank);
                 if (hud.radarVisible && Take(CompassDetour,begin,module.SizeOfImage)) {
                     radarVisible=reinterpret_cast<bool(__cdecl*)()>(hud.radarVisible);
                     Hud.SupportedMask|=HUD_COMPASS;
@@ -242,7 +246,7 @@ public:
     void Release() override {
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
-        GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
+        GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         GiveArrows(Arrows); Give(WindowDetour); blocking=targetScope=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
@@ -281,6 +285,9 @@ public:
             IconCalls.original ? "taken" : "not found (the game's icons only)",
             Hud.HideIcons & HUD_ICON_DAY ? "day " : "", Hud.HideIcons & HUD_ICON_WEATHER ? "weather" : (Hud.HideIcons ? "" : "none"),
             Hud.IconRect[0][0],Hud.IconRect[0][1],Hud.IconFrame[0],Hud.IconRect[1][0],Hud.IconRect[1][1],Hud.IconFrame[1]); write(line);
+        snprintf(line,sizeof(line),"[uihook:hud] weather icon moved %d of the game's units; all weather shown: 0x%02x (banks %s)",
+            int(Hud.WeatherShift),unsigned(Hud.PreviewWeather & 0xff),bank ? "found" : "not found");
+        write(line);
         snprintf(line,sizeof(line),"[uihook:hud] replay at frame %u: %u vertices, %u runs, captured %.0fx%.0f, drawn %.0f,%.0f to %.0f,%.0f",
             p.replayFrame,p.vertices,p.runs,p.width,p.height,p.minX,p.minY,p.maxX,p.maxY); write(line);
         snprintf(line,sizeof(line),"[uihook:hud] viewport %lu,%lu %lux%lu z %.2f-%.2f; target %ux%u, back buffer %ux%u, target is back buffer %d, in scene %d",
@@ -414,13 +421,15 @@ public:
             if (TextCall.call) hideText=replaced; else blocking=replaced;
             // the addon's own icons only while its line is drawn: otherwise the game's are back
             hideIcons=replaced && IconCalls.original ? Hud.HideIcons & (HUD_ICON_DAY|HUD_ICON_WEATHER) : 0;
+            weatherShift=replaced && IconCalls.original ? (std::max)(-HUD_SHIFT_MOST,(std::min)(HUD_SHIFT_MOST,Hud.WeatherShift)) : 0;
+            preview=replaced && IconCalls.original && bank ? Hud.PreviewWeather & 0xff : 0;
         }
         bounds=ClockBounds();
         for (auto& icon:iconBounds) icon=ClockBounds();
         clockViewportKnown=false;
         inClock=true;
         reinterpret_cast<void(__fastcall*)(void*,void*,int32_t,int32_t)>(ClockDetour.trampoline)(object,nullptr,x,y);
-        inClock=inText=hideText=false; inIcon=-1; hideIcons=0;
+        inClock=inText=hideText=false; inIcon=-1; hideIcons=0; weatherShift=0; preview=0;
         if (compassGlobal && *compassGlobal==object) {
             PublishClockRect();
             const char* grid=static_cast<const char*>(object)+CLOCK_GRID_AT;
@@ -439,9 +448,29 @@ public:
     void Icon(int icon,void* sprite,int32_t x,int32_t y,uint32_t color,uint32_t a,uint32_t b) {
         const bool was=blocking;
         const uint32_t mask=icon==0 ? HUD_ICON_DAY : HUD_ICON_WEATHER;
+        if (icon>0) y+=weatherShift;
         inIcon=icon; if (hideIcons & mask) blocking=true;
         IconCalls.original(sprite,nullptr,x,y,color,a,b);
         inIcon=-1; blocking=was;
+        // the day icon is drawn whatever the weather: the preview's row is drawn after it
+        if (icon==0 && preview) Preview(x,y-CLOCK_WEATHER_ABOVE_DAY+weatherShift,color,a,b);
+    }
+    // The game's own weather icons, each in its place in a row from the weather icon's, a sprite's
+    // width and two apart, drawn as the game draws its weather icon; not measured, never hidden.
+    void Preview(int32_t x,int32_t y,uint32_t color,uint32_t a,uint32_t b) {
+        auto* from=static_cast<uint8_t*>(bank(CLOCK_WEATHER_BANK));
+        void** sprites=from ? *reinterpret_cast<void***>(from) : nullptr;
+        if (!sprites) return;
+        const bool was=blocking;
+        blocking=false;
+        for (int i=0;i<8;i++) {
+            auto* sprite=static_cast<uint8_t*>(sprites[i]);
+            if (!sprite) continue;
+            int16_t left=0,right=0; memcpy(&left,sprite+0x20,2); memcpy(&right,sprite+0x22,2);
+            const int32_t width=right>left && right-left<=64 ? right-left : 16;
+            if (preview & (1u<<i)) IconCalls.original(sprite,nullptr,x+i*(width+2),y,color,a,b);
+        }
+        blocking=was;
     }
     void Slots(PartySlots& out) const {
         out.loaded=true;

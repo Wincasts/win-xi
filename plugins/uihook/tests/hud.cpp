@@ -70,6 +70,16 @@ int main() {
     found=FindHud(image,8192);
     Check(found.iconTarget==spriteRoutine && found.icons[0]==iconAt[0]+iconCalls[0] && found.icons[1]==iconAt[1]+iconCalls[1]
         && found.icons[2]==iconAt[2]+iconCalls[2],"the day, weather and second weather icon calls found, and the sprite routine");
+    // the sprite banks' getter, from both of Clock::Draw's calls to it
+    auto* getter=image+0xe80;
+    Check(!found.bank,"no bank calls: no preview, the rest kept");
+    Pattern(clock+0xa0,CLOCK_DAY_BANK_PATTERN); Relative(clock+0xa0+CLOCK_BANK_CALL,getter);
+    Pattern(clock+0xc0-0x10,CLOCK_WEATHER_BANK_PATTERN); Relative(clock+0xb0+CLOCK_BANK_CALL,getter+1);
+    found=FindHud(image,8192);
+    Check(!found.bank && found.iconTarget==spriteRoutine,"the two bank calls to different routines: no preview, the icons kept");
+    Relative(clock+0xb0+CLOCK_BANK_CALL,getter);
+    found=FindHud(image,8192);
+    Check(found.bank==getter,"both bank calls to the one getter: the preview's banks found");
     Relative(radar+8,clock+1);
     Check(!FindHud(image,8192).clock,"mismatched clock callee rejects discovery without patching");
     Relative(radar+8,clock);
@@ -116,7 +126,7 @@ int main() {
     Give(detour);
     Check(!memcmp(image,native,sizeof(native)) && reinterpret_cast<ClockCall>(image)(object,nullptr,-20,47)==27,
         "unload restores native clock bytes and execution");
-    Check(sizeof(HudShared)==152,"HUD ABI 4 is 152 bytes, separate from Party ABI 3");
+    Check(sizeof(HudShared)==160,"HUD ABI 5 is 160 bytes, separate from Party ABI 3");
     // The text call: aimed at ours as a CALL, which takes the four arguments, and given back
     memset(image,0xcc,8192);
     uint8_t caller[]={0x68,0x80,0x80,0x80,0x80,0x6a,0x00,0x6a,0x07,0x6a,0xf6,0xe8,0,0,0,0,0x83,0xc4,0x10,0xc3};
