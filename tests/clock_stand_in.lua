@@ -28,4 +28,7 @@ for name, value in pairs({ weekday = 3, hours = 3, minutes = 32, year = 900, mon
 end
 package.loaded['ffxi.time'] = time
 
+-- a character's settings as clock 0.1 saved them
+HARNESS_SAVED = { enabled = true, x = 20, y = -1 }
+
 dofile('addons/clock/clock.lua')

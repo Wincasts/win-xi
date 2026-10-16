@@ -70,7 +70,23 @@ setmetatable(_G, { __index = function(_, k) if type(k) == 'string' and k:match('
 -- the settings library: one character, logged in; whatever is loaded is kept to look at
 local saves, store = 0, nil
 package.preload['settings'] = function() return { logged_in = true, name = 'Tester', server_id = 1,
-    load = function(d) store = d return d end, save = function() saves = saves + 1 end,
+    -- HARNESS_SAVED, if a check's stand-in sets it, is a settings file already saved: merged with the
+    -- defaults as Ashita merges them (table.merge, the saved file the destination), and given back
+    load = function(d)
+        if HARNESS_SAVED == nil then store = d return d end
+        local function merge(into, from)
+            for k, v in pairs(from) do
+                if type(v) == 'table' then
+                    if rawget(into, k) == nil then into[k] = v else merge(into[k], v) end
+                elseif rawget(into, k) == nil then
+                    into[k] = v
+                end
+            end
+            return into
+        end
+        store = merge(HARNESS_SAVED, d)
+        return store
+    end, save = function() saves = saves + 1 end,
     register = function(_, _, f) handlers.settings = f end } end
 
 -- xitools' settings, for the addons that bring theirs over from it: the fixture stands in for the file

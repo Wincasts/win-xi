@@ -27,6 +27,7 @@ end
 local function Has(list, word) return (' ' .. list .. ' '):find(' ' .. word .. ' ', 1, true) ~= nil end
 
 H.load()
+p('0.1\'s saved settings load, and are brought over', H.options().replace[1] == true, H.options().enabled == nil, H.options().x == nil)
 local mark = #CLOCK.log
 H.frames(2)
 local seen = Since(mark)
@@ -59,12 +60,12 @@ p('Hide Compass off: the compass given back, not hidden', Has(seen, 'compass.sto
 options.hideCompass[1] = true
 
 -- the commands
-p('/clock off', H.command('/clock off'), options.enabled[1] == false)
+p('/clock off', H.command('/clock off'), options.replace[1] == false)
 windows['clock.native'], mark = nil, #CLOCK.log
 H.frames(1)
 seen = Since(mark)
 p('off: the game\'s clock given back, nothing drawn', Has(seen, 'clock.stop'), windows['clock.native'] == nil, Has(seen, 'compass.begin'))
-p('/clock on', H.command('/clock on'), options.enabled[1] == true)
+p('/clock on', H.command('/clock on'), options.replace[1] == true)
 local before = #H.printed
 p('/clock status says the clock and the compass', H.command('/clock status'), #H.printed == before + 2,
     tostring(H.printed[before + 1]):find('Drawn in place', 1, true) ~= nil, tostring(H.printed[before + 2]):find('Compass', 1, true) ~= nil)
@@ -80,11 +81,11 @@ H.frames(1)
 p('uihook without the clock: no window of its own', windows['clock.native'] == nil)
 CLOCK.ready[1] = true
 
--- 0.1's settings: enabled as true or false, and a place of its own
+-- 0.1's settings given again, off: brought over as off
 options.enabled, options.x, options.y = false, 20, -1
 H.resettle()
 options = H.options()
-p('0.1 settings brought over', type(options.enabled) == 'table' and options.enabled[1] == false, options.x == nil and options.y == nil)
+p('0.1 settings brought over', options.replace[1] == false and options.enabled == nil, options.x == nil and options.y == nil)
 options.textScale[1] = 9
 H.resettle()
 p('a text scale out of range is brought in', H.options().textScale[1] == 3)

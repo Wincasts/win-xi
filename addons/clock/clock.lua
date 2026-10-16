@@ -47,8 +47,8 @@ end
 local function DrawSettings(options)
     if widgets.Header('Clock', true) then
         widgets.Label('Replace Game\'s Clock')
-        if imgui.Checkbox('##clock.enabled', options.enabled) then
-            if not options.enabled[1] then hook.Stop() end
+        if imgui.Checkbox('##clock.replace', options.replace) then
+            if not options.replace[1] then hook.Stop() end
             app.save()
         end
         Tip('Writes the time, map grid, day, date and moon on one line where the game writes its clock.\nThe game\'s day and weather icons stay where it puts them.\nOff, the game\'s own clock comes back.')
@@ -68,25 +68,30 @@ end
 
 local function SayStatus()
     local options = app.options
-    app:Say(not options.enabled[1] and 'Off: the game\'s own clock is shown.' or
+    app:Say(not options.replace[1] and 'Off: the game\'s own clock is shown.' or
         timeError and ('Time unavailable: ' .. timeError) or hook.Status())
     app:Say(options.hideCompass[1] and ('Compass: ' .. compass.Status()) or 'Compass: shown.')
 end
 
 app = shell.New({
-    defaults = T{ enabled = T{ true }, hideCompass = T{ true }, textScale = T{ 1 } },
+    defaults = T{ replace = T{ true }, hideCompass = T{ true }, textScale = T{ 1 } },
     configTitle = 'Clock Settings',
     command = '/clock',
     help = '/clock opens or closes the settings; /clock on, /clock off, /clock status.',
     drawSettings = DrawSettings,
     commands = {
-        on = function(options) options.enabled[1] = true; app.save() end,
-        off = function(options) options.enabled[1] = false; hook.Stop(); app.save() end,
+        on = function(options) options.replace[1] = true; app.save() end,
+        off = function(options) options.replace[1] = false; hook.Stop(); app.save() end,
         status = SayStatus,
     },
     onSettings = function(options)
-        -- 0.1 kept enabled as true or false, and a place of its own, now the game's clock's
-        if type(options.enabled) ~= 'table' then options.enabled = T{ options.enabled ~= false } end
+        -- 0.1 kept enabled as true or false, and a place of its own, now the game's clock's. Under a
+        -- new name: Ashita merges the saved file with these defaults, and a default table over a
+        -- saved true or false stops the addon loading (table.merge's rawget)
+        if options.enabled ~= nil then
+            options.replace[1] = options.enabled ~= false
+            options.enabled = nil
+        end
         options.x, options.y = nil, nil
         local scale = tonumber(options.textScale[1]) or 1
         options.textScale[1] = math.min(SCALE_MAX, math.max(SCALE_MIN, scale))
@@ -106,7 +111,7 @@ ashita.events.register('d3d_present', 'clock_present', function()
     local options = app.options
     -- an empty compass, renewed each frame; the clock inside it is drawn all the same
     if options.hideCompass[1] then compass.Begin() else compass.Stop() end
-    if not options.enabled[1] or not time then hook.Stop(); return end
+    if not options.replace[1] or not time then hook.Stop(); return end
 
     local now = os.clock()
     if now >= nextSample then
