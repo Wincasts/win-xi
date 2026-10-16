@@ -45,7 +45,7 @@ end
 local clocked=dofile(root .. '/statuses.lua')
 ashita.memory.find=originalFind
 statuses.Read=clocked.Read
-local o=H.options(); o.fadeInOut[1]=false; o.hideWithMenus[1]=true
+local o=H.options(); o.fadeInOut[1]=false
 local font,size={},14
 imgui.GetFont=function() return font end
 imgui.GetFontSize=function() return size end
@@ -68,9 +68,7 @@ H.frames(2) -- warm resource and label caches
 local normal=sample('32 statuses, warm timers',120)
 o.showTimers[1]=false
 local off=sample('32 statuses, timers disabled',120)
-o.showTimers[1]=true; menu='menu    mcr1pall'
-local hidden=sample('Menu-hidden',120)
-menu=''; o.isVisible[1]=false
+o.showTimers[1]=true; o.isVisible[1]=false
 local invisible=sample('Visibility off, no fading',120)
 o.isVisible[1]=true
 if arg[4]=='measure' then
@@ -79,9 +77,8 @@ if arg[4]=='measure' then
     return
 end
 assert(normal.ids==120 and normal.timers==120 and normal.clock==360)
-assert(normal.resources==0 and normal.metrics==0 and normal.menus==120 and normal.draws==3840)
+assert(normal.resources==0 and normal.metrics==0 and normal.menus==0 and normal.draws==3840)
 assert(off.ids==120 and off.timers==0 and off.clock==0 and off.resources==0 and off.metrics==0 and off.draws==3840)
-assert(hidden.ids==0 and hidden.timers==0 and hidden.clock==0 and hidden.draws==0)
 assert(invisible.ids==0 and invisible.timers==0 and invisible.clock==0 and invisible.draws==0)
 -- Font/size changes must invalidate layout and label measurements, then become cheap again.
 size=18

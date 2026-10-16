@@ -22,7 +22,7 @@ Each addon's folder has a README with all of its commands and settings.
 
 **buff**, **inventory**, **name**, **party** and **trigger** are released one at a time, on the
 [Releases](https://github.com/Wincasts/win-xi/releases) page. Each zip has everything the addon needs:
-the `winxi` library, `winxisettings`, and with name the `namehook` plugin, with party `hideparty`.
+the `winxi` library, `winxisettings`, and with name the `namehook` plugin, with buff the `buffhook` plugin, with party `hideparty`.
 Extract it into your Ashita folder (the one holding `addons`, `plugins` and `config`), merging
 folders, and follow `addons/<the addon>/INSTALL.txt`. If an addon says it needs a newer winxi,
 install the newest release of any of them.
@@ -36,8 +36,9 @@ The others, or anything newer than its release, can be copied from here. Every a
 - `addons/<the addon>` for each one you want
 - `addons/winxisettings`, to change the shared look
 - for `name`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
+- for `buff`, also `plugins/buffhook.dll` (see [plugins/buffhook](plugins/buffhook))
 
-Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first.
+Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first; for `buff`, `/load buffhook`.
 
 ## What else is here
 
