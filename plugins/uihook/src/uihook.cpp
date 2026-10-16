@@ -1,6 +1,8 @@
 // One Ashita lifecycle; independent native-UI modules and versioned shared blocks.
 #include "Ashita.h"
 #include <memory>
+#include <string>
+#include "slots.h"
 
 IPlugin* CreateBuffModule();
 IPlugin* CreatePartyModule();
@@ -41,8 +43,49 @@ public:
         char words[2][16] = {};
         if (!command || sscanf_s(command, "%15s %15s", words[0], 16u, words[1], 16u) < 1 || _stricmp(words[0], "/uihook") != 0) return false;
         if (_stricmp(words[1], "hud") == 0) return party && party->HandleCommand(mode, "/uihook hud", injected);
-        m_Core->GetChatManager()->Write(0, false, "[uihook] 0.2; /uihook hud says what the clock replacement is drawn into.");
+        if (!words[1][0] || _stricmp(words[1], "addons") == 0) { Addons(); return true; }
+        Say("0.2. /uihook (or /uihook addons) lists the addons handing it something now; /uihook hud says what the clock is drawn into.");
         return true;
+    }
+    void Say(const std::string& text) const { m_Core->GetChatManager()->Write(0, false, ("[uihook] " + text).c_str()); }
+    // Which addons are handing uihook something now: told by their slots, each of which only one
+    // addon fills (buff its bar, party the party, alliance and target windows, clock the clock and
+    // compass). A plugin cannot see which Lua addon calls it, only what has been handed over.
+    void Addons() const {
+        BuffSlots buff; PartySlots slots;
+        GetBuffSlots(buff); GetPartySlots(slots);
+        std::string none;
+        auto absent = [&](const char* name) { none += none.empty() ? name : std::string(", ") + name; };
+        auto part = [](std::string& list, const char* name, bool empty) {
+            if (!list.empty()) list += ", ";
+            list += name;
+            if (empty) list += " (hidden)";
+        };
+        Say("0.2. Addons handing it something now:");
+        int shown = 0;
+        if (buff.fresh) {
+            Say("  buff: its bar, in place of the game's status icons (" + std::to_string(buff.quads) + " quads)");
+            ++shown;
+        } else absent("buff");
+        std::string party;
+        const char* lists[3] = { "party list", "alliance 1", "alliance 2" };
+        for (unsigned i = 0; i < 3; ++i) if (slots.fresh & (1u << i)) part(party, lists[i], (slots.empty & (1u << i)) != 0);
+        if (slots.fresh & 0x38) part(party, "target window", (slots.empty & 0x38) == (slots.fresh & 0x38));
+        if (!party.empty()) { Say("  party: " + party); ++shown; } else absent("party");
+        std::string hud;
+        if (slots.hudFresh & 1) part(hud, (slots.hudEmpty & 1) ? "the game's clock text hidden" : "its line in place of the game's clock", false);
+        if (slots.hudFresh & 2) part(hud, (slots.hudEmpty & 2) ? "the compass hidden" : "the compass replaced", false);
+        if (!hud.empty()) { Say("  clock: " + hud); ++shown; } else absent("clock");
+        if (!shown) Say("  none");
+        if (!none.empty()) Say("Not now: " + none + " (not loaded, switched off, or waiting for the game to draw that part).");
+        std::string missing;
+        auto lack = [&](bool there, const char* name) { if (!there) missing += missing.empty() ? name : std::string(", ") + name; };
+        lack(buff.loaded && buff.hooked, "status icons");
+        lack(slots.partyHooked, "party lists");
+        lack(slots.targetHooked, "target window");
+        lack(slots.clockHooked, "clock");
+        lack(slots.compassHooked, "compass");
+        if (!missing.empty()) Say("Not recognised in this client, left to the game: " + missing + ".");
     }
     void Direct3DBeginScene(bool recording) override { if (party) party->Direct3DBeginScene(recording); }
     void Direct3DEndScene(bool recording) override { if (party) party->Direct3DEndScene(recording); }

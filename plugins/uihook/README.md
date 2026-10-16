@@ -157,7 +157,13 @@ clock calling convention/trampoline/restoration, radar/clock filter independence
 ABI. Lua checks cover slot isolation, reloads, weather expiry, clock presentation and capture timing.
 These are offline checks, **not proof of live GPU output**.
 
-In game, `/uihook hud` prints what the clock replacement was drawn into: Clock::Draw's calls and
+In game, `/uihook` (or `/uihook addons`) lists the addons handing uihook something now, and what:
+buff's bar, party's party, alliance and target windows, clock's line and its hidden compass, each
+marked "(hidden)" where the addon hands over an intentionally empty replacement. A plugin cannot see
+which Lua addon calls it, so this is read from the slots, each filled by one addon only, while the
+last submission is fresh (two frames). It also says which parts this client was not recognised for.
+
+`/uihook hud` prints what the clock replacement was drawn into: Clock::Draw's calls and
 position, the replayed vertices' bounds, the viewport, the render target against the back buffer,
 whether a scene was open, a few of the game's render states, and the game's own clock draws (their
 count, vertex format and, for drawing from memory, their screen bounds), where its text is, whether its

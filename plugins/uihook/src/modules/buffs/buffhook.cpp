@@ -16,6 +16,7 @@
 
 #include "Ashita.h"
 #include "buffhook.h"
+#include "../../slots.h"
 #include "detour.h"
 #include "game.h"
 
@@ -377,4 +378,13 @@ static void __cdecl DrawStatusTime(void* list, int32_t extra, int32_t x, int32_t
 }
 
 IPlugin* CreateBuffModule() { return new BuffHook(); }
+
+void GetBuffSlots(BuffSlots& out) {
+    out = BuffSlots();
+    if (BuffHook::Instance == nullptr) return;
+    out.loaded = true;
+    out.hooked = Shared.Hooked != 0;
+    out.fresh = BuffHook::Fresh();
+    out.quads = out.fresh ? Shared.Count : 0;
+}
 

@@ -12,6 +12,7 @@
 #include "game.h"
 #include "target.h"
 #include "hud.h"
+#include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
 #define PARTY_FVF (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1)
@@ -405,6 +406,20 @@ public:
         TextCall.original(x,y,text,color);
         inText=false; blocking=was;
     }
+    void Slots(PartySlots& out) const {
+        out.loaded=true;
+        out.partyHooked=Shared.Hooked && (Shared.SupportedMask & 7);
+        out.targetHooked=Shared.Hooked && (Shared.SupportedMask & 8);
+        out.clockHooked=(Hud.SupportedMask & HUD_CLOCK)!=0;
+        out.compassHooked=(Hud.SupportedMask & HUD_COMPASS)!=0;
+        for (unsigned i=0;i<8;i++) {
+            if (!drawings[i].Fresh()) continue;
+            const uint8_t bit=static_cast<uint8_t>(1u<<(i<6 ? i : i-6));
+            const bool empty=drawings[i].vertices.empty();
+            if (i<6) { out.fresh|=bit; if (empty) out.empty|=bit; }
+            else { out.hudFresh|=bit; if (empty) out.hudEmpty|=bit; }
+        }
+    }
     int CaptureHud(int index,int capture) {
         if (index==-1) { StopHud(); return 1; }
         if (index<0 || index>1) return 0;
@@ -485,4 +500,9 @@ static int32_t __cdecl SubmitHud(int32_t index,int32_t capture) {
     catch (...) { PartyHook::Instance->StopHud(); ++Shared.Failures; return 0; }
 }
 IPlugin* CreatePartyModule() { return new PartyHook(); }
+
+void GetPartySlots(PartySlots& out) {
+    out = PartySlots();
+    if (PartyHook::Instance) PartyHook::Instance->Slots(out);
+}
 
