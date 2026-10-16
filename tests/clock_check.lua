@@ -1,15 +1,34 @@
 -- The clock addon (through tests/clock_stand_in.lua): one line where the game writes its clock, no
 -- background, its text scale, the compass hidden, the settings, and letting go of the game's clock.
 local imgui = require('imgui')
-local display = require('display')
+local fields = require('fields')
 local p = H.print
 
 -- the line
 local raws = CLOCK.raws
 local time = package.loaded['ffxi.time']
-p('one line: time, grid, day, date, moon', display.Line(time, '(H-9)') == '3:32  (H-9)  Windsday  900/12/30  Moon 42%')
+local order, shown = fields.Defaults()
+local context = fields.Context(time, '(H-9)', 'Rain')
+p('one line: time, grid, day, date, moon; weather off to begin with',
+    fields.Line(context, order, shown) == '3:32  (H-9)  Windsday  900/12/30  Moon 42%')
 p('every field from one timestamp', CLOCK.raws == raws + 1)
-p('no grid: left out', display.Line(time, nil) == '3:32  Windsday  900/12/30  Moon 42%', display.Line(time, '') == display.Line(time, nil))
+p('no grid: left out', fields.Line(fields.Context(time, nil), order, shown) == '3:32  Windsday  900/12/30  Moon 42%',
+    fields.Line(fields.Context(time, ''), order, shown) == fields.Line(fields.Context(time, nil), order, shown))
+shown.weather, shown.date = true, false
+p('weather on, date off', fields.Line(context, order, shown) == '3:32  (H-9)  Windsday  Moon 42%  Rain')
+p('moved: day up past the grid, and the time to the end', fields.Move(order, 3, -1), fields.Move(order, 1, 1),
+    fields.Move(order, 2, 1), fields.Move(order, 3, 1), fields.Move(order, 4, 1), fields.Move(order, 5, 1),
+    fields.Line(context, order, shown) == 'Windsday  (H-9)  Moon 42%  Rain  3:32')
+p('not past either end', not fields.Move(order, 1, -1), not fields.Move(order, #order, 1))
+-- settings from before a field was there, with one since gone and one twice over
+local old, oldShown = T{ 'moon', 'gone', 'time', 'moon' }, T{ moon = false, gone = true }
+fields.Normalize(old, oldShown)
+p('made whole: kept in their order, the rest after, as they begin',
+    table.concat(old, ',') == 'moon,time,grid,day,date,weather', oldShown.gone == nil,
+    oldShown.moon == false, oldShown.time == true, oldShown.weather == false)
+shown = select(2, fields.Defaults())
+for key in pairs(shown) do shown[key] = false end
+p('nothing ticked: an empty line', fields.Line(context, order, shown) == '')
 
 -- what the clock's window is asked
 local begin, finish, setPos, pushFont, calc = imgui.Begin, imgui.End, imgui.SetNextWindowPos, imgui.PushFont, imgui.CalcTextSize
@@ -73,6 +92,16 @@ p('/clock opens the settings', H.command('/clock'))
 local sliders = H.calls.SliderFloat or 0
 H.frames(1)
 p('the settings: Text Scale among them', (H.calls.SliderFloat or 0) > sliders)
+local smalls, boxes = H.calls.SmallButton or 0, H.calls.Checkbox or 0
+H.frames(1)
+p('the Line section: a field to a row, ticked, with Up and Down', (H.calls.SmallButton or 0) - smalls == 2 * #fields.All,
+    (H.calls.Checkbox or 0) - boxes >= #fields.All)
+-- a field moved and switched off: the line follows by its next reading, a quarter of a second
+fields.Move(options.order, 1, 1)
+options.shown.moon = false
+H.frames(9)
+p('the line follows the settings', measured == '(H-9)  3:32  Windsday  900/12/30')
+H.command('/clock')
 
 -- a capability uihook does not have: nothing of its own drawn
 CLOCK.ready[1] = false

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- The line's fields are chosen and put in order under Line in the settings: Time, Map Grid, Day,
+  Date, Moon and Weather (by name, hidden to begin with), each ticked and moved with Up and Down.
+- Fields are one entry each in `fields.lua` (from `display.lua`); a new one reaches every character's
+  settings at the end of their line.
+
 ## 0.2.0
 
 - One line in place of the game's clock text: time, map grid (the game's own), day, date and moon.

@@ -1,6 +1,6 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.2.0'
+addon.version = '0.3.0'
 addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
 local winxiNeeded = 5
 do
@@ -21,7 +21,7 @@ local fonts = require('winxi.fonts')
 local outlined = require('winxi.text')
 local theme = require('winxi.theme')
 local native = require('winxi.nativehud')
-local format = require('display')
+local fields = require('fields')
 
 local hook = native.new(native.Clock)
 local compass = native.new(native.Compass)
@@ -34,6 +34,14 @@ local SCALE_MIN, SCALE_MAX = 0.5, 3
 local noPadding = { 0, 0 }
 local place, pivot, room = { 0, 0 }, { 0, 0.5 }, { 0, 0 }
 
+-- The weather by name, for the Weather field: nil for a clear sky, or while uihook has none to give.
+local function WeatherName()
+    local id = hook.Weather()
+    if not id or id == 0 then return nil end
+    local ok, name = pcall(function() return AshitaCore:GetResourceManager():GetString('weather', id) end)
+    return ok and type(name) == 'string' and #name > 0 and name or ('Weather ' .. id)
+end
+
 local function Release()
     hook.Stop()
     compass.Stop()
@@ -41,6 +49,7 @@ local function Release()
 end
 
 local app
+local tick = { false }
 local function Tip(text)
     if imgui.IsItemHovered() then imgui.SetTooltip(text) end
 end
@@ -64,6 +73,35 @@ local function DrawSettings(options)
         Tip('Stops the game drawing its compass and radar. The clock and its icons stay.')
         imgui.TextDisabled(timeError and ('Time unavailable: ' .. timeError) or hook.Status())
     end
+    if widgets.Header('Line') then
+        imgui.TextDisabled('Ticked fields are shown, in this order, from left to right.')
+        local order, shown = options.order, options.shown
+        for at, key in ipairs(order) do
+            local field = fields.ByKey[key]
+            local id = '##clock.field.' .. key
+            tick[1] = shown[key] == true
+            if imgui.Checkbox(field.label .. id, tick) then
+                shown[key] = tick[1]
+                nextSample = 0
+                app.save()
+            end
+            Tip(field.tip)
+            imgui.SameLine()
+            imgui.BeginDisabled(at == 1)
+            local up = imgui.SmallButton('Up' .. id)
+            imgui.EndDisabled()
+            imgui.SameLine()
+            imgui.BeginDisabled(at == #order)
+            local down = imgui.SmallButton('Down' .. id)
+            imgui.EndDisabled()
+            -- the list has changed under the loop: drawn as it is next frame
+            if (up and fields.Move(order, at, -1)) or (down and fields.Move(order, at, 1)) then
+                nextSample = 0
+                app.save()
+                break
+            end
+        end
+    end
 end
 
 local function SayStatus()
@@ -74,7 +112,10 @@ local function SayStatus()
 end
 
 app = shell.New({
-    defaults = T{ replace = T{ true }, hideCompass = T{ true }, textScale = T{ 1 } },
+    defaults = (function()
+        local order, shown = fields.Defaults()
+        return T{ replace = T{ true }, hideCompass = T{ true }, textScale = T{ 1 }, order = order, shown = shown }
+    end)(),
     configTitle = 'Clock Settings',
     command = '/clock',
     help = '/clock opens or closes the settings; /clock on, /clock off, /clock status.',
@@ -93,6 +134,7 @@ app = shell.New({
             options.enabled = nil
         end
         options.x, options.y = nil, nil
+        fields.Normalize(options.order, options.shown)
         local scale = tonumber(options.textScale[1]) or 1
         options.textScale[1] = math.min(SCALE_MAX, math.max(SCALE_MIN, scale))
         Release()
@@ -116,7 +158,10 @@ ashita.events.register('d3d_present', 'clock_present', function()
     local now = os.clock()
     if now >= nextSample then
         nextSample = now + 0.25
-        local ok, value = pcall(format.Line, time, hook.Grid())
+        local ok, value = pcall(function()
+            local weather = options.shown.weather and WeatherName() or nil
+            return fields.Line(fields.Context(time, hook.Grid(), weather), options.order, options.shown)
+        end)
         if not ok then
             timeError, line = tostring(value), nil
             hook.Stop()
