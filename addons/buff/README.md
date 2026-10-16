@@ -87,6 +87,7 @@ that configuration.
 ```
 luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_check.lua
 luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_performance_check.lua
+luajit tests/harness.lua buff addons/buff/buff.lua tests/buff_hook_performance_check.lua
 ```
 
 The performance check counts work over 120 warmed-up frames with 32 statuses. Compared with the
@@ -107,6 +108,21 @@ Status entries are reused, not rebuilt. Timer arrays are read only if requested 
 status is present; the game clock is read only for finite timers. Tooltip cancellation reuses the
 resource lookup already needed for the tooltip. Native patch scanning remains outside the frame
 loop, and shared icon textures already use the library's cache.
+
+The hook check counts the anchored bar handed to the buffhook plugin, over 120 frames with 32
+statuses, each with a time:
+
+| Work over 120 frames, handed to the plugin | First version | Now |
+| --- | ---: | ---: |
+| Lua memory made, per frame | 0.53 KiB | 0.09 KiB |
+| Menu checks, mouse away from the bar | 120 | 0 |
+| Text measurements | 0 | 0 |
+| Letter lookups (each letter in use, once a frame) | 720 | 720 |
+
+The plugin's block is found once and Ashita is asked once a frame whether the plugin is still loaded,
+as its block goes with it. The letters' places in the font's texture are looked up again each frame,
+as imgui may move them; label widths are shared with the window and measured once per font. The
+plugin builds the bar's vertices and its runs of one texture in one pass.
 
 These are synthetic call-count checks, **not an FPS claim or an in-game CPU/GPU benchmark**.
 Rendering still emits one image per icon and updates countdowns every visible frame. Fade-out

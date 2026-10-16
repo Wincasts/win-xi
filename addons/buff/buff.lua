@@ -136,6 +136,16 @@ local function MeasureTimers()
     end
 end
 
+-- A label's width in the font in use: measured once each, for as long as the font stays the same
+local function LabelWidth(label)
+    local width = labelWidths[label];
+    if width == nil then
+        width = imgui.CalcTextSize(label);
+        labelWidths[label] = width;
+    end
+    return width;
+end
+
 local function DrawStatusesContent(options)
     local height = options.iconSize[1];
     local width = math.floor(height * icons.OwnAspect + 0.5);
@@ -181,12 +191,7 @@ local function DrawStatusesContent(options)
 
         if showTimers and status.seconds ~= nil and not HidesTimer(status.id) then
             local label = Label(status.seconds);
-            local labelWidth = labelWidths[label];
-            if labelWidth == nil then
-                labelWidth = imgui.CalcTextSize(label);
-                labelWidths[label] = labelWidth;
-            end
-            text.Draw(drawList, x + (cell[1] - labelWidth) / 2, y + height + timerGap, textColor, label);
+            text.Draw(drawList, x + (cell[1] - LabelWidth(label)) / 2, y + height + timerGap, textColor, label);
         end
     end
 end
@@ -206,13 +211,15 @@ end
 -- it out, in imgui's pixels, and handed over in the game's. The times are in the same font as the
 -- window's, a rectangle of imgui's font texture for each letter, with the same dark edge.
 local rowGap = 4; -- between one row and the next, as the anchored window has it
+local anchoredName, hoverName = windowName .. '.anchored', windowName .. '.hooked';
+
+local function Byte(value)
+    return math.floor(math.max(0, math.min(1, value)) * 255 + 0.5);
+end
 
 -- A colour of imgui's, { r, g, b, a } from 0 to 1, as 0xAARRGGBB, faded by alpha
 local function ARGB(color, alpha)
-    local function byte(value)
-        return math.floor(math.max(0, math.min(1, value)) * 255 + 0.5);
-    end
-    return byte((color[4] or 1) * alpha) * 0x1000000 + byte(color[1]) * 0x10000 + byte(color[2]) * 0x100 + byte(color[3]);
+    return Byte((color[4] or 1) * alpha) * 0x1000000 + Byte(color[1]) * 0x10000 + Byte(color[2]) * 0x100 + Byte(color[3]);
 end
 
 -- The font's texture as Direct3D has it, or nil while it has none: for a moment after letters of a
@@ -234,26 +241,16 @@ local function FontTexture()
     return nil;
 end
 
--- The letters looked up this frame, by byte: where they are in the font's texture moves when it is
--- made again, so none is kept from one frame to the next
-local frameGlyphs = {};
+-- The letters looked up this frame, by byte, each with the frame it was looked up in: where they
+-- are in the font's texture moves when it is made again, so none is kept from one frame to the next
+local glyphs, glyphFrames, glyphFrame = {}, {}, 0;
 
 local function Glyph(baked, byte)
-    local glyph = frameGlyphs[byte];
-    if glyph == nil then
-        glyph = baked:FindGlyph(byte) or false;
-        frameGlyphs[byte] = glyph;
+    if glyphFrames[byte] ~= glyphFrame then
+        glyphs[byte] = baked:FindGlyph(byte) or false;
+        glyphFrames[byte] = glyphFrame;
     end
-    return glyph or nil;
-end
-
-local function WordsWidth(baked, words)
-    local width = 0;
-    for at = 1, #words do
-        local glyph = Glyph(baked, words:byte(at));
-        if glyph ~= nil then width = width + glyph.AdvanceX; end
-    end
-    return width;
+    return glyphs[byte] or nil;
 end
 
 local opaque = { 1, 1, 1, 1 };
@@ -302,7 +299,7 @@ local function WriteHooked(options, found, alpha)
 
     local baked, fontSlot = nil, nil;
     if showTimers then
-        frameGlyphs = {};
+        glyphFrame = glyphFrame + 1;
         baked = imgui.GetFontBaked();
         fontSlot = hook.Texture(FontTexture());
     end
@@ -327,7 +324,7 @@ local function WriteHooked(options, found, alpha)
 
         if baked ~= nil and fontSlot ~= nil and status.seconds ~= nil and not HidesTimer(status.id) then
             local label = Label(status.seconds);
-            local pen = math.floor(x + (cellWidth - WordsWidth(baked, label)) / 2);
+            local pen = math.floor(x + (cellWidth - LabelWidth(label)) / 2);
             WriteWords(baked, label, pen, y + height + timerGap, sx, sy, textColor, edgeColor, fontSlot);
         end
     end
@@ -338,12 +335,10 @@ end
 -- cell the mouse is on takes the click, so that the game does not.
 local hoverCell = { 0, 0 };
 local hoverPos = { 0, 0 };
+local noPadding = { 0, 0 };
 local hoverFlags = nil;
 
 local function Interact(options, found)
-    if not hook.Drawn(found) or anchoring.MenuOpen() ~= nil then
-        return;
-    end
     local left, top = hook.Origin(found);
     if left == nil then
         return;
@@ -360,7 +355,7 @@ local function Interact(options, found)
         return;
     end
     local status = current[row * layout.perRow + column + 1];
-    if status == nil then
+    if status == nil or not hook.Drawn(found) or anchoring.MenuOpen() ~= nil then
         return;
     end
 
@@ -370,9 +365,9 @@ local function Interact(options, found)
     hoverPos[1], hoverPos[2] = x, y;
     hoverCell[1], hoverCell[2] = layout.width, layout.height;
     imgui.SetNextWindowPos(hoverPos, ImGuiCond_Always);
-    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
+    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, noPadding);
     imgui.PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-    if imgui.Begin(windowName .. '.hooked', nil, hoverFlags) then
+    if imgui.Begin(hoverName, nil, hoverFlags) then
         imgui.Dummy(hoverCell);
         if imgui.IsItemHovered() then
             local canCancel = Tooltip(status.id);
@@ -389,7 +384,7 @@ local function DrawHooked(options, found)
     hook.Begin(found);
     local wanted = options.isVisible[1];
     local alpha = wanted and 1 or 0;
-    if options.fadeInOut[1] then alpha = fade.Presence(windowName .. '.anchored', wanted); end
+    if options.fadeInOut[1] then alpha = fade.Presence(anchoredName, wanted); end
     if alpha <= 0.01 or statuses.Read(current, options.showTimers[1]) == 0 then
         hook.Finish();
         return;
@@ -554,7 +549,7 @@ ashita.events.register('d3d_present', 'buff_present', function()
         return;
     end
     if options.anchorToDefault[1] then
-        anchoring.Draw(windowName .. '.anchored', options, DrawStatuses);
+        anchoring.Draw(anchoredName, options, DrawStatuses);
     else
         app:Window(options.isVisible, DrawStatuses);
     end
