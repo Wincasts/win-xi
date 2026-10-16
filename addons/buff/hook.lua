@@ -17,6 +17,10 @@
 --                         from where the game puts its first icon; color as 0xAARRGGBB; slot
 --                         hook.Solid for one of its colour alone
 --   hook.Finish()         hands it over
+--   hook.Holds(block)     whether the block still has the bar handed over last (not if the plugin
+--                         has been loaded again since)
+--   hook.Keep(block)      hands over again the bar handed over last, as it was, in place of
+--                         Begin to Finish: for a frame in which nothing of it has changed
 -- A frame without one gives the game its own icons back, a frame or two later.
 local ffi = require('ffi');
 local imgui = require('imgui');
@@ -41,6 +45,7 @@ ffi.cdef[[
         int32_t  Cursor;
         uint32_t CursorStatus;
         uint32_t SubmitFrame;
+        uint32_t Sequence;
         uint32_t Count;
         uint32_t Textures[48];
         buffhook_quad_t Quads[1024];
@@ -52,7 +57,7 @@ local hook = {};
 hook.Plugin = 'buffhook';
 
 local MAGIC = '42554646484F4F4B2D53484152454400'; -- "BUFFHOOK-SHARED" and its 0
-local VERSION = 2;
+local VERSION = 3;
 local TEXTURES, QUADS = 48, 1024;
 local DRAW_FRAMES = 2;
 local NO_STATUS = 0xFFFF;
@@ -150,6 +155,7 @@ end
 local writing = nil;
 local slots = {};
 local slotCount, count, lastSlotCount = 0, 0, TEXTURES;
+local written = nil; -- the Sequence of the bar handed over last
 
 function hook.Begin(found)
     writing = found;
@@ -183,6 +189,15 @@ function hook.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot)
     count = count + 1;
 end
 
+function hook.Holds(found)
+    return written ~= nil and found.Sequence == written;
+end
+
+function hook.Keep(found)
+    writing = nil;
+    found.SubmitFrame = found.Frame;
+end
+
 function hook.Finish()
     if writing == nil then
         return;
@@ -195,6 +210,8 @@ function hook.Finish()
     end
     lastSlotCount = slotCount;
     writing.Count = count;
+    writing.Sequence = writing.Sequence + 1;
+    written = writing.Sequence;
     writing.SubmitFrame = writing.Frame;
     writing = nil;
 end

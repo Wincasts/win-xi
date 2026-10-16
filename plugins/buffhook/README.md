@@ -51,7 +51,9 @@ Written by the addon, each frame the bar is to take the icons' place, whether it
 not: `SubmitFrame` (the `Frame` it was written in), `Count`, up to 48 `Textures` (Direct3D textures'
 addresses) and up to 1024 `Quads`. A quad is a rectangle of one of the textures: its corners in the
 game's pixels from where the game puts its first icon, the same corners in the texture, and a colour
-as `0xAARRGGBB`; a quad whose texture is `0xFFFFFFFF` is its colour alone. The plugin holds a reference to each texture while it draws from it.
+as `0xAARRGGBB`; a quad whose texture is `0xFFFFFFFF` is its colour alone. `Sequence` goes up each time
+the quads or textures are written afresh; a bar handed over again as it was leaves it, and the plugin
+draws from the vertices it made of it last. The plugin holds a reference to each texture while it draws from it.
 
 ## Building
 

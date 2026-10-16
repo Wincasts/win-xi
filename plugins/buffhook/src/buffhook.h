@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define BUFF_VERSION 2
+#define BUFF_VERSION 3
 #define BUFF_TEXTURES 48   // the textures a bar can be drawn from
 #define BUFF_QUADS 1024    // and the rectangles it can be drawn with
 #define BUFF_DRAW_FRAMES 2 // how long what the addon wrote is good for, in frames
@@ -36,8 +36,11 @@ struct BuffShared {
     uint32_t CursorStatus; // and its status, or BUFF_NO_STATUS
 
     // Written by the addon. While SubmitFrame is within BUFF_DRAW_FRAMES of Frame, the quads are
-    // drawn where the game would have drawn its icons, and the game draws none of its own.
+    // drawn where the game would have drawn its icons, and the game draws none of its own. Sequence
+    // goes up each time the quads or textures are written afresh: a bar handed over again as it was
+    // leaves it, and the plugin draws from what it made of them last.
     uint32_t SubmitFrame;
+    uint32_t Sequence;
     uint32_t Count;
     uint32_t Textures[BUFF_TEXTURES]; // Direct3D textures' addresses, 0 for none
     BuffQuad Quads[BUFF_QUADS];

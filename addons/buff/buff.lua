@@ -331,16 +331,40 @@ local function FontTexture()
     return nil;
 end
 
--- The letters looked up this frame, by byte, each with the frame it was looked up in: where they
--- are in the font's texture moves when it is made again, so none is kept from one frame to the next
-local glyphs, glyphFrames, glyphFrame = {}, {}, 0;
+-- The letters of the font in use, by byte, copied out of imgui once each: each field of imgui's is a
+-- call into it, and a bar's times read thousands a frame. Where a letter is in the font's texture
+-- moves when imgui makes the texture again, so one letter is looked at each frame, and when it has
+-- moved, or the font, its size or its texture is another, the letters are looked up afresh.
+-- glyphsMade goes up each time, for whoever keeps something made from them.
+local PROBE = 48; -- '0', which every time has
+local glyphs, glyphsMade = {}, 0;
+local glyphFont, glyphSize, glyphTexture = nil, nil, nil;
+local probe = { 0, 0, 0, 0 };
 
-local function Glyph(baked, byte)
-    if glyphFrames[byte] ~= glyphFrame then
-        glyphs[byte] = baked:FindGlyph(byte) or false;
-        glyphFrames[byte] = glyphFrame;
+local function CheckGlyphs(baked, texture)
+    local font, size = imgui.GetFont(), imgui.GetFontSize();
+    local found = baked:FindGlyph(PROBE);
+    local u0, v0, u1, v1 = 0, 0, 0, 0;
+    if found ~= nil then u0, v0, u1, v1 = found.U0, found.V0, found.U1, found.V1; end
+    if font ~= glyphFont or size ~= glyphSize or texture ~= glyphTexture
+        or u0 ~= probe[1] or v0 ~= probe[2] or u1 ~= probe[3] or v1 ~= probe[4] then
+        glyphFont, glyphSize, glyphTexture = font, size, texture;
+        probe[1], probe[2], probe[3], probe[4] = u0, v0, u1, v1;
+        for byte in pairs(glyphs) do glyphs[byte] = nil; end
+        glyphsMade = glyphsMade + 1;
     end
-    return glyphs[byte] or nil;
+end
+
+-- { x0, y0, x1, y1, u0, v0, u1, v1, advance, visible }, or nil where the font has no such letter
+local function Glyph(baked, byte)
+    local glyph = glyphs[byte];
+    if glyph == nil then
+        local found = baked:FindGlyph(byte);
+        glyph = found ~= nil and { found.X0, found.Y0, found.X1, found.Y1, found.U0, found.V0, found.U1, found.V1,
+            found.AdvanceX, found.Visible ~= 0 and found.Visible ~= false } or false;
+        glyphs[byte] = glyph;
+    end
+    return glyph or nil;
 end
 
 local opaque = { 1, 1, 1, 1 };
@@ -357,11 +381,11 @@ local function WriteWords(baked, words, pen, top, sx, sy, color, edge, slot)
         for index = 1, #words do
             local glyph = Glyph(baked, words:byte(index));
             if glyph ~= nil then
-                if glyph.Visible ~= 0 and glyph.Visible ~= false then
-                    hook.Quad((at + glyph.X0) * sx, (top + dy + glyph.Y0) * sy, (at + glyph.X1) * sx, (top + dy + glyph.Y1) * sy,
-                        glyph.U0, glyph.V0, glyph.U1, glyph.V1, tint, slot);
+                if glyph[10] then
+                    hook.Quad((at + glyph[1]) * sx, (top + dy + glyph[2]) * sy, (at + glyph[3]) * sx, (top + dy + glyph[4]) * sy,
+                        glyph[5], glyph[6], glyph[7], glyph[8], tint, slot);
                 end
-                at = at + glyph.AdvanceX;
+                at = at + glyph[9];
             end
         end
     end
@@ -378,6 +402,65 @@ end
 
 -- Where the bar's cells are, this frame, for the mouse: in imgui's pixels from the bar's corner
 local layout = { width = 0, height = 0, perRow = 1 };
+
+-- Everything the bar handed over is made from, in order, this frame and the last that wrote it. The
+-- bar changes as a time does, about once a second: a frame whose are the same as the last's hands
+-- over what is there again, and writes nothing.
+local made, last = {}, {};
+-- each status's icon (the texture, its place on it or nil for the whole, whether it is the set's
+-- shape) and its time as written (or false): once a frame
+local handles, places, owns, labels = {}, {}, {}, {};
+
+-- A status's icon for the plugin: from winxi's sheet of every icon where it is on it already (the
+-- set's with the game's for the rest, or the game's alone with Custom Icons off), so that the bar is
+-- drawn from a texture or two; from its own until then, as the sheet is filled a few a frame.
+local function BarIcon(id, useOwn, sheet)
+    if sheet ~= nil then
+        local place, own;
+        if useOwn then
+            place, own = icons.MixedPlace(id);
+        else
+            place, own = icons.GameSheetPlace(id), false;
+        end
+        if place ~= nil then
+            return sheet, place, own;
+        end
+    end
+    local handle, own = icons.Get(id, useOwn);
+    return handle, nil, own;
+end
+local madeCount, lastCount = 0, -1;
+
+local function Note(value)
+    madeCount = madeCount + 1;
+    made[madeCount] = value;
+end
+
+local function Unchanged()
+    if madeCount ~= lastCount then
+        return false;
+    end
+    for index = 1, madeCount do
+        if made[index] ~= last[index] then
+            return false;
+        end
+    end
+    return true;
+end
+
+-- An empty bar, for the game's icons to stay away while the bar is not shown: written once, then
+-- handed over again as it was. It leaves nothing for WriteHooked to compare with.
+local emptyHanded = false;
+
+local function HandEmpty(found)
+    if emptyHanded and hook.Holds(found) then
+        hook.Keep(found);
+        return;
+    end
+    hook.Begin(found);
+    hook.Finish();
+    emptyHanded, lastCount = true, -1;
+end
 
 local function WriteHooked(options, found, alpha)
     local height = options.iconSize[1];
@@ -396,13 +479,34 @@ local function WriteHooked(options, found, alpha)
     local textColor = ARGB(theme.Get().TextColor, alpha);
     local edgeColor = ARGB(text.OutlineColor, alpha);
 
-    local baked, fontSlot = nil, nil;
+    local baked, texture = nil, nil;
     if showTimers then
-        glyphFrame = glyphFrame + 1;
         baked = imgui.GetFontBaked();
-        fontSlot = hook.Texture(FontTexture());
+        texture = FontTexture();
+        if baked ~= nil then CheckGlyphs(baked, texture); end
     end
 
+    madeCount = 0;
+    Note(cellWidth); Note(cellHeight); Note(perRow); Note(width); Note(height); Note(useOwn);
+    Note(sx); Note(sy); Note(nudgeX); Note(nudgeY); Note(iconColor); Note(textColor); Note(edgeColor);
+    Note(cursorIndex or 0); Note(texture or 0); Note(glyphsMade); Note(baked ~= nil);
+    local sheet = useOwn and icons.MixedSheet() or icons.GameSheet();
+    for index, status in ipairs(current) do
+        Note(status.id);
+        local handle, place, own = BarIcon(status.id, useOwn, sheet);
+        handles[index], places[index], owns[index] = handle, place, own;
+        Note(handle or 0); Note(place or false); Note(own);
+        local label = status.seconds ~= nil and showTimers and not HidesTimer(status.id) and Label(status.seconds) or false;
+        labels[index] = label;
+        Note(label);
+    end
+    if Unchanged() then
+        return false;
+    end
+    made, last = last, made;
+    lastCount, emptyHanded = madeCount, false;
+
+    local fontSlot = hook.Texture(texture);
     for index, status in ipairs(current) do
         local x = nudgeX + ((index - 1) % perRow) * (cellWidth + gap);
         local y = nudgeY + math.floor((index - 1) / perRow) * (cellHeight + rowGap);
@@ -413,25 +517,28 @@ local function WriteHooked(options, found, alpha)
             SolidFrame(left - 2, y - 2, left + width + 2, y + height + 2, 2, ARGB(controller.HighlightColor, alpha), sx, sy);
         end
 
-        local handle, own = icons.Get(status.id, useOwn);
-        local slot = hook.Texture(handle);
+        local slot = hook.Texture(handles[index]);
         if slot ~= nil then
-            if own then
-                hook.Quad(left * sx, y * sy, (left + width) * sx, (y + height) * sy,
-                    icons.OwnLeft, 0, icons.OwnRight, 1, iconColor, slot);
-            else
-                -- the game's icons are square: as wide as the others, in the middle of their height
-                local top = y + (height - width) / 2;
-                hook.Quad(left * sx, top * sy, (left + width) * sx, (top + width) * sy, 0, 0, 1, 1, iconColor, slot);
+            local place, own = places[index], owns[index];
+            local u0, v0, u1, v1 = 0, 0, 1, 1;
+            if place ~= nil then
+                u0, v0, u1, v1 = place[1], place[2], place[3], place[4];
+            elseif own then
+                u0, u1 = icons.OwnLeft, icons.OwnRight;
             end
+            -- the game's icons are square: as wide as the others, in the middle of their height
+            local top = own and y or y + (height - width) / 2;
+            local bottom = own and y + height or top + width;
+            hook.Quad(left * sx, top * sy, (left + width) * sx, bottom * sy, u0, v0, u1, v1, iconColor, slot);
         end
 
-        if baked ~= nil and fontSlot ~= nil and status.seconds ~= nil and not HidesTimer(status.id) then
-            local label = Label(status.seconds);
+        local label = labels[index];
+        if baked ~= nil and fontSlot ~= nil and label then
             local pen = math.floor(x + (cellWidth - LabelWidth(label)) / 2);
             WriteWords(baked, label, pen, y + height + timerGap, sx, sy, textColor, edgeColor, fontSlot);
         end
     end
+    return true;
 end
 
 -- Under the mouse, a status's description, and a right click to remove it: while the game has drawn
@@ -485,12 +592,11 @@ local function Interact(options, found)
 end
 
 local function DrawHooked(options, found)
-    hook.Begin(found);
     local wanted = options.isVisible[1];
     local alpha = wanted and 1 or 0;
     if options.fadeInOut[1] then alpha = fade.Presence(anchoredName, wanted); end
     if alpha <= 0.01 or statuses.Read(current, options.showTimers[1]) == 0 then
-        hook.Finish();
+        HandEmpty(found);
         return;
     end
     selecting = anchoring.SelectorOpen();
@@ -501,8 +607,19 @@ local function DrawHooked(options, found)
     local face, size = fonts.Get(options.fontFile), options.fontSize[1];
     local pushedOwn = face ~= nil or size > 0;
     if pushedOwn then imgui.PushFont(face, size > 0 and size or imgui.GetFontSize()); end
-    local ok, err = pcall(WriteHooked, options, found, alpha);
-    hook.Finish();
+    -- a plugin loaded again since has nothing of the last bar
+    if not hook.Holds(found) then
+        lastCount = -1;
+    end
+    hook.Begin(found);
+    local ok, written = pcall(WriteHooked, options, found, alpha);
+    local err = written;
+    if ok and not written then
+        hook.Keep(found);
+    else
+        hook.Finish();
+        if not ok then lastCount = -1; end
+    end
     if ok and wanted then ok, err = pcall(Interact, options, found); end
     if pushedOwn then imgui.PopFont(); end
     fonts.Pop(pushedTheme);
@@ -655,8 +772,7 @@ ashita.events.register('d3d_present', 'buff_present', function()
     if not app:BeginFrame() then
         -- an empty bar: the game's icons stay away while the bar is hidden
         if found ~= nil then
-            hook.Begin(found);
-            hook.Finish();
+            HandEmpty(found);
         end
         return;
     end
@@ -665,8 +781,7 @@ ashita.events.register('d3d_present', 'buff_present', function()
         return;
     end
     if found ~= nil then
-        hook.Begin(found);
-        hook.Finish();
+        HandEmpty(found);
     end
     -- the window is there only while there is a status to show
     if not options.isVisible[1] and not options.fadeInOut[1] then return; end

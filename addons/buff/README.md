@@ -124,17 +124,23 @@ loop, and shared icon textures already use the library's cache.
 The hook check counts the anchored bar handed to the buffhook plugin, over 120 frames with 32
 statuses, each with a time:
 
-| Work over 120 frames, handed to the plugin | First version | Now |
-| --- | ---: | ---: |
-| Lua memory made, per frame | 0.53 KiB | 0.09 KiB |
-| Menu checks, mouse away from the bar (the selector, once a frame) | 120 | 120 |
-| Text measurements | 0 | 0 |
-| Letter lookups (each letter in use, once a frame) | 720 | 720 |
+| Work over 120 frames, handed to the plugin | First version | Then | Now |
+| --- | ---: | ---: | ---: |
+| Bars written (the times going down once a second) | 120 | 120 | 4 |
+| Quads written, times steady | 47,040 | 47,040 | 0 |
+| Letter fields read from imgui (each a call into it) | 475,200 | 475,200 | 480 |
+| Letter lookups | 720 | 720 | 120 |
+| Textures the bar is drawn from, winxi's icon sheet ready | 33 | 33 | 2 |
+| Lua memory made, per frame | 0.53 KiB | 0.09 KiB | about 0.1 KiB |
 
-The plugin's block is found once and Ashita is asked once a frame whether the plugin is still loaded,
-as its block goes with it. The letters' places in the font's texture are looked up again each frame,
-as imgui may move them; label widths are shared with the window and measured once per font. The
-plugin builds the bar's vertices and its runs of one texture in one pass.
+The bar changes as a time does, about once a second. Everything it is made from (the statuses, their
+icons and times, the layout, the colours, the cursor, the font) is noted each frame and compared with
+the last bar written: unchanged, the same bar is handed over again and nothing is written, and the
+plugin draws from the vertices it made of it last. The letters are copied out of imgui once each, and
+one is looked at each frame to see that imgui has not moved them in its texture. Icons come from
+winxi's sheet of every icon once they are on it (filled a few a frame), so the bar is drawn in a run
+or two, not one for each icon. Ashita is asked once a frame whether the plugin is still loaded, as its
+block goes with it, and the game's menu once a frame for the selector.
 
 These are synthetic call-count checks, **not an FPS claim or an in-game CPU/GPU benchmark**.
 Rendering still emits one image per icon and updates countdowns every visible frame. Fade-out

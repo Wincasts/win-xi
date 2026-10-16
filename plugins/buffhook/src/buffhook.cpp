@@ -21,7 +21,7 @@
 
 #define CHAT_HEADER "\x1e\x51[\x1e\x06" "buffhook\x1e\x51]\x1e\x01 "
 
-static BuffShared Shared = { "BUFFHOOK-SHARED", BUFF_VERSION, sizeof(BuffShared), 0, 1, 0, 0.0f, 0.0f, 0.0f, 0.0f, -1, BUFF_NO_STATUS, 0, 0, {}, {} };
+static BuffShared Shared = { "BUFFHOOK-SHARED", BUFF_VERSION, sizeof(BuffShared), 0, 1, 0, 0.0f, 0.0f, 0.0f, 0.0f, -1, BUFF_NO_STATUS, 0, 0, 0, {}, {} };
 
 // ---------------------------------------------------------------------------------------------------
 // Finding and taking the game's two callbacks
@@ -112,7 +112,18 @@ private:
     DWORD m_SavedStates = 0; // the same states as the game had them, to put back
     void* m_CursorWindow = nullptr; // the window whose cursor is put out of sight, while it is
 
+    // The vertices made from the addon's quads, and its textures held, kept while the addon hands
+    // over the same bar (its Sequence) to be drawn in the same place
+    bool m_Built = false;
+    uint32_t m_BuiltSequence = 0;
+    float m_BuiltLeft = 0.0f;
+    float m_BuiltTop = 0.0f;
+    uint32_t m_RunCount = 0;
+
     void RetainTextures(bool keep) {
+        if (!keep) {
+            m_Built = false;
+        }
         for (uint32_t i = 0; i < BUFF_TEXTURES; i++) {
             auto* texture = keep ? reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(Shared.Textures[i])) : nullptr;
             if (texture != m_Textures[i]) {
@@ -253,29 +264,30 @@ public:
         }
     }
 
-    void DrawBar(float left, float top) {
-        IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
-        const uint32_t count = Shared.Count <= BUFF_QUADS ? Shared.Count : BUFF_QUADS;
-        if (device == nullptr || count == 0) {
-            return;
-        }
+    // The vertices, in runs of quads from one texture in the order the addon wrote them: made again
+    // only when the addon has written the bar afresh, or the game has moved where it goes
+    void Build(float left, float top) {
         RetainTextures(true);
+        m_Built = true;
+        m_BuiltSequence = Shared.Sequence;
+        m_BuiltLeft = left;
+        m_BuiltTop = top;
 
-        // on the pixel's middle, as the game draws its own; in runs of quads from one texture, in
-        // the order the addon wrote them
+        // on the pixel's middle, as the game draws its own
         left -= 0.5f;
         top -= 0.5f;
+        const uint32_t count = Shared.Count <= BUFF_QUADS ? Shared.Count : BUFF_QUADS;
         uint32_t made = 0;
-        uint32_t runCount = 0;
+        m_RunCount = 0;
         for (uint32_t i = 0; i < count; i++) {
             const BuffQuad& quad = Shared.Quads[i];
             if (quad.Texture != BUFF_SOLID && (quad.Texture >= BUFF_TEXTURES || m_Textures[quad.Texture] == nullptr)) {
                 continue;
             }
-            if (runCount == 0 || Runs[runCount - 1].texture != quad.Texture) {
-                Runs[runCount++] = { quad.Texture, made, 0 };
+            if (m_RunCount == 0 || Runs[m_RunCount - 1].texture != quad.Texture) {
+                Runs[m_RunCount++] = { quad.Texture, made, 0 };
             }
-            Runs[runCount - 1].count += 6;
+            Runs[m_RunCount - 1].count += 6;
 
             const float x0 = left + quad.X0, y0 = top + quad.Y0, x1 = left + quad.X1, y1 = top + quad.Y1;
             BarVertex* v = &Vertices[made];
@@ -287,6 +299,17 @@ public:
             v[5] = { x0, y1, 0.0f, 1.0f, quad.Color, quad.U0, quad.V1 };
             made += 6;
         }
+    }
+
+    void DrawBar(float left, float top) {
+        IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
+        if (device == nullptr) {
+            return;
+        }
+        if (!m_Built || m_BuiltSequence != Shared.Sequence || m_BuiltLeft != left || m_BuiltTop != top) {
+            Build(left, top);
+        }
+        const uint32_t runCount = m_RunCount;
         if (runCount == 0 || !MakeStates(device)) {
             return;
         }
