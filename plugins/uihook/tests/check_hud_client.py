@@ -44,5 +44,11 @@ assert first == second and first % 4 == 0 and base <= first <= base + len(data) 
 assert clock <= weather < clock + 0x160
 weather_global = struct.unpack_from('<I', data, weather + 2)[0]
 assert base <= weather_global <= base + len(data) - 2
-print('Clock/compass call graph, live global, native radar query and weather source cross-check passed.')
+text_call = unique('CLOCK_TEXT_PATTERN') + int(re.search(r'#define CLOCK_TEXT_CALL (\d+)', text)[1])
+assert clock < text_call < clock + 0x100
+routine = callee(text_call)
+# cdecl: Clock::Draw pushes the next call's argument straight after, and clears both later (add esp,0x28)
+assert data[text_call + 5:text_call + 7] == bytes.fromhex('6A04')
+print(f'clock text call at RVA {text_call:08X}, calling {routine:08X}')
+print('Clock/compass call graph, live global, native radar query, text call and weather source cross-check passed.')
 print('Static verification only: live layering, visibility, menu/controller, zoning and reset checks remain required.')

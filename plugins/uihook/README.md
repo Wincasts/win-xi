@@ -55,8 +55,9 @@ then load the legacy plugins and reload the addons.
 
 ## Clock and compass
 
-The [clock addon](../../addons/clock/README.md) is a minimal clock-only replacement. Deploy winxi 5
-and `/addon load clock` after loading uihook. **Unload hidecompass first**: it hides the shared native
+The [clock addon](../../addons/clock/README.md) writes the clock on one line in place of the game's
+text, keeps the game's icons and hides the compass through the compass slot. Deploy winxi 5 and
+`/addon load clock` after loading uihook. **Unload hidecompass first**: it hides the shared native
 object and prevents both clock and compass render boundaries from running. Enable the native clock
 in the client. Radar can remain independently on or off. No compass addon/UI is included yet.
 
@@ -68,6 +69,14 @@ query before compass replacement can be advertised. Optional native weather disc
 the clock function and its in-module global; failure leaves weather unavailable, not clock disabled.
 No fixed addresses or persistent native visibility/opacity writes are used.
 
+Clock::Draw makes one text call, `Text(x-50, y+26, "%d:%02d  %s", colour)` (cdecl, four arguments),
+then draws the day icon at (x-68, y+26) and, for weather 4 to 19, the weather icon at (x-68, y-42),
+twice side by side for double weather. `CLOCK_TEXT_PATTERN` finds that call, unique and within
+Clock::Draw's first 0x100 bytes, and it is aimed at uihook's own (still a CALL, so the return address
+is the game's). With a fresh clock replacement only the text gives way: the game's text call still
+runs with its GPU submissions blocked, which is how its screen bounds are measured, and the icons
+draw as ever. Without the call found, the whole of Clock::Draw is replaced, icons and all.
+
 The dispatcher runs original native logic with GPU submissions suppressed only while a fresh
 replacement is being drawn. Nested clock calls temporarily escape compass suppression; with only a
 compass replacement, the stock clock still draws, and with only a clock replacement, the stock
@@ -75,15 +84,16 @@ compass still draws. Radar-disabled/unsupported-zone checks gate compass replay.
 and shared visibility states gate clock replay. Missing signatures or replay failure leave the
 unsupported element native. HUD discovery does not depend on party/window recognition.
 
-### HUD ABI 2
+### HUD ABI 3
 
-A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **76 bytes** total:
+A third, independent block in `uihook.dll`: `UIHOOK-HUD` padded to 16 bytes, **88 bytes** total:
 
 ```text
 char Magic[16]
 u32 Version, Size, SupportedMask, Frame, Submit
 u32 DrawnFrame[2], NativeFrame[2], Weather
 float ClockRect[4]; u32 ClockRectFrame
+char Grid[12]
 ```
 
 `SupportedMask`: bit 0 clock, bit 1 compass. `Submit` is `cdecl int(index, capture)` and may only be
@@ -92,12 +102,15 @@ capture 1 synchronously captures/consumes the current ImGui window, 0 renews int
 -1 releases that slot. Index -1 releases both HUD slots **only**, never Party's slots. Party's own
 release-all likewise cannot release HUD slots. `NativeFrame` records the last eligible native
 boundary; `Weather` is a native ID (0xffff unavailable), sampled at `NativeFrame[0]` and expiring
-with that timestamp. `ClockRect` is where the game drew its clock (left, top, right, bottom), taken
-from the screen-space draws Clock::Draw makes, replaced or not, and turned into ImGui display pixels
-by the inverse of replay's mapping; current at `ClockRectFrame`. A replacement drawn below the
-clock would be covered by what the game draws after it, the chat log among them. Geometry limits, clipping, font validation, texture retention and two-frame
+with that timestamp. `ClockRect` is where the game wrote its clock's text (left, top, right, bottom), taken
+from the screen-space draws of its text call, replaced or not (all of Clock::Draw's draws without the
+call), and turned into ImGui display pixels by the inverse of replay's mapping; current at
+`ClockRectFrame`. A replacement drawn below the clock would be covered by what the game draws after
+it, the chat log among them. `Grid` is the map grid the game prints after the time, `(H-9)`, copied
+from the clock's object (+0x11, eight characters, then zeros) at `ClockRectFrame`. Geometry limits,
+clipping, font validation, texture retention and two-frame
 freshness reuse the existing capture/replay implementation. Addons should use the slot-specific
-`winxi.nativehud` bridge, which validates ABI, capability, unload/reload and weather and place freshness.
+`winxi.nativehud` bridge, which validates ABI, capability, unload/reload and weather, place and grid freshness.
 
 ## Architecture
 
@@ -130,7 +143,7 @@ Future UI modules should own their recognition and native semantics; any additio
 plugins/uihook/build.sh
 plugins/uihook/tests/run.sh
 luajit tests/nativehud_check.lua
-luajit tests/clock_check.lua
+luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 python3 plugins/uihook/tests/check_hud_client.py /path/to/ffximain.bin /path/to/ffximain.txt
 luajit tests/party_hook_performance_check.lua
 luajit tests/harness.lua party addons/party/party.lua tests/party_hook_integration_check.lua
@@ -147,7 +160,8 @@ These are offline checks, **not proof of live GPU output**.
 In game, `/uihook hud` prints what the clock replacement was drawn into: Clock::Draw's calls and
 position, the replayed vertices' bounds, the viewport, the render target against the back buffer,
 whether a scene was open, a few of the game's render states, and the game's own clock draws (their
-count, vertex format and, for drawing from memory, their screen bounds). It only reads.
+count, vertex format and, for drawing from memory, their screen bounds), where its text is, whether its
+text call was taken and the grid. It only reads.
 
 Live validation is required for combined buff/party/target use: menu overlap, buff selection/cursor
 restoration, target/subtarget arrows, independent toggles, Organize, addon/plugin unload/reload,

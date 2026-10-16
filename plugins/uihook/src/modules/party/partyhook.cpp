@@ -22,7 +22,10 @@ static void __fastcall RenderWindow(void* window, void*);
 static int32_t __cdecl SubmitHud(int32_t index, int32_t capture);
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
-static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0 };
+static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
+// The one CALL in Clock::Draw that draws its text, aimed at DrawClockText while uihook is loaded.
+static ClockTextCall TextCall;
+static HudShared Hud = { "UIHOOK-HUD", HUD_VERSION, sizeof(HudShared), 0, 1, 0, {}, {}, 0xffff, {}, 0, {} };
 static Detour CompassDetour = { COMPASS_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderCompass), nullptr, nullptr, {} };
 static Detour ClockDetour = { CLOCK_DRAW_PATTERN, 6, -1, reinterpret_cast<void*>(&RenderClock), nullptr, nullptr, {} };
 // Sprite::Draw(this, x, y, sx, sy, color, flags1, flags2, flags3): preserve all eight stack
@@ -70,7 +73,7 @@ class PartyHook : public IPlugin {
         uint32_t nativeCalls=0, nativeUP=0; DWORD nativeShader=0;
         float nMinX=0, nMinY=0, nMaxX=0, nMaxY=0;
     } probe;
-    bool inClock = false, inScene = false;
+    bool inClock = false, inScene = false, inText = false, hideText = false;
     // The game's own clock draws in one Clock::Draw call: their screen bounds, and the viewport
     // they were drawn in, to say where the clock is.
     struct ClockBounds { uint32_t vertices=0; float left=0, top=0, right=0, bottom=0; D3DVIEWPORT8 viewport={}; bool viewportKnown=false; } bounds;
@@ -89,6 +92,8 @@ class PartyHook : public IPlugin {
             if (!probe.nativeUP++) { probe.nMinX=probe.nMaxX=v[0]; probe.nMinY=probe.nMaxY=v[1]; }
             probe.nMinX=(std::min)(probe.nMinX,v[0]); probe.nMaxX=(std::max)(probe.nMaxX,v[0]);
             probe.nMinY=(std::min)(probe.nMinY,v[1]); probe.nMaxY=(std::max)(probe.nMaxY,v[1]);
+            // With the text call taken, the clock's place is its text's; the icons are the game's.
+            if (TextCall.call && !inText) continue;
             if (!bounds.vertices++) { bounds.left=bounds.right=v[0]; bounds.top=bounds.bottom=v[1]; }
             bounds.left=(std::min)(bounds.left,v[0]); bounds.right=(std::max)(bounds.right,v[0]);
             bounds.top=(std::min)(bounds.top,v[1]); bounds.bottom=(std::max)(bounds.bottom,v[1]);
@@ -175,6 +180,7 @@ public:
             auto hud=FindHud(begin,module.SizeOfImage);
             if (hud.clock && Take(ClockDetour,begin,module.SizeOfImage)) {
                 compassGlobal=hud.global; nativeWeather=hud.weather; Hud.SupportedMask=HUD_CLOCK;
+                TakeClockText(TextCall,hud.text,hud.textTarget,reinterpret_cast<void*>(&DrawClockText));
                 if (hud.radarVisible && Take(CompassDetour,begin,module.SizeOfImage)) {
                     radarVisible=reinterpret_cast<bool(__cdecl*)()>(hud.radarVisible);
                     Hud.SupportedMask|=HUD_COMPASS;
@@ -214,7 +220,7 @@ public:
     void Release() override {
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
-        Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
+        GiveClockText(TextCall); Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         GiveArrows(Arrows); Give(WindowDetour); blocking=targetScope=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
@@ -244,8 +250,11 @@ public:
         auto write=[&](const char* text) { chat->Write(0,false,text); };
         snprintf(line,sizeof(line),"[uihook:hud] frame %u, mask %u; Clock::Draw %u calls (%u last frame), at %d,%d; seen %u, drawn %u",
             Shared.Frame,Hud.SupportedMask,p.calls,p.callsLast,int32_t(p.x),int32_t(p.y),Hud.NativeFrame[0],Hud.DrawnFrame[0]); write(line);
-        snprintf(line,sizeof(line),"[uihook:hud] game's clock in ImGui pixels %.0f,%.0f to %.0f,%.0f at frame %u",
-            Hud.ClockRect[0],Hud.ClockRect[1],Hud.ClockRect[2],Hud.ClockRect[3],Hud.ClockRectFrame); write(line);
+        char grid[9]={}; memcpy(grid,Hud.Grid,8);
+        for (char& c:grid) if (c && (c<32 || c>126)) c='?';
+        snprintf(line,sizeof(line),"[uihook:hud] game's clock text in ImGui pixels %.0f,%.0f to %.0f,%.0f at frame %u; text call %s; grid \"%s\"",
+            Hud.ClockRect[0],Hud.ClockRect[1],Hud.ClockRect[2],Hud.ClockRect[3],Hud.ClockRectFrame,
+            TextCall.call ? "taken (icons left to the game)" : "not found (icons replaced too)",grid); write(line);
         snprintf(line,sizeof(line),"[uihook:hud] replay at frame %u: %u vertices, %u runs, captured %.0fx%.0f, drawn %.0f,%.0f to %.0f,%.0f",
             p.replayFrame,p.vertices,p.runs,p.width,p.height,p.minX,p.minY,p.maxX,p.maxY); write(line);
         snprintf(line,sizeof(line),"[uihook:hud] viewport %lu,%lu %lux%lu z %.2f-%.2f; target %ux%u, back buffer %ux%u, target is back buffer %d, in scene %d",
@@ -374,13 +383,27 @@ public:
         if (compassGlobal && *compassGlobal==object && static_cast<uint8_t*>(object)[0x2e]) {
             Hud.NativeFrame[0]=Shared.Frame;
             Hud.Weather=nativeWeather ? *nativeWeather : 0xffff;
-            blocking=Replay(6);
+            const bool replaced=Replay(6);
+            // With the text call taken only the game's text gives way; its icons are drawn as ever
+            if (TextCall.call) hideText=replaced; else blocking=replaced;
         }
         bounds=ClockBounds();
         inClock=true;
         reinterpret_cast<void(__fastcall*)(void*,void*,int32_t,int32_t)>(ClockDetour.trampoline)(object,nullptr,x,y);
-        inClock=false;
-        if (compassGlobal && *compassGlobal==object) PublishClockRect();
+        inClock=inText=hideText=false;
+        if (compassGlobal && *compassGlobal==object) {
+            PublishClockRect();
+            const char* grid=static_cast<const char*>(object)+CLOCK_GRID_AT;
+            memset(Hud.Grid,0,sizeof(Hud.Grid));
+            memcpy(Hud.Grid,grid,8);
+        }
+    }
+    // The game's text still runs, so it is measured where it would be; drawn only when not replaced.
+    void Text(int32_t x,int32_t y,const char* text,uint32_t color) {
+        const bool was=blocking;
+        inText=true; blocking=hideText;
+        TextCall.original(x,y,text,color);
+        inText=false; blocking=was;
     }
     int CaptureHud(int index,int capture) {
         if (index==-1) { StopHud(); return 1; }
@@ -451,6 +474,10 @@ static void __fastcall RenderCompass(void* object,void*) {
 static void __fastcall RenderClock(void* object,void*,int32_t x,int32_t y) {
     if (PartyHook::Instance) PartyHook::Instance->Clock(object,x,y);
     else reinterpret_cast<void(__fastcall*)(void*,void*,int32_t,int32_t)>(ClockDetour.trampoline)(object,nullptr,x,y);
+}
+static void __cdecl DrawClockText(int32_t x,int32_t y,const char* text,uint32_t color) {
+    if (PartyHook::Instance && TextCall.original) PartyHook::Instance->Text(x,y,text,color);
+    else if (TextCall.original) TextCall.original(x,y,text,color);
 }
 static int32_t __cdecl SubmitHud(int32_t index,int32_t capture) {
     if (!PartyHook::Instance) return 0;

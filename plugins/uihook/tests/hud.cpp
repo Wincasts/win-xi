@@ -16,6 +16,8 @@ static void Relative(uint8_t* at,uint8_t* target,uint8_t opcode=0xe8) {
 }
 static void* seenThis=nullptr;
 static int32_t seenX=0,seenY=0;
+static int textX=0,textY=0;
+static void __cdecl TextReplacement(int32_t x,int32_t y,const char*,uint32_t) { textX=x; textY=y; }
 static int __fastcall Replacement(void* self,void*,int32_t x,int32_t y) {
     seenThis=self; seenX=x; seenY=y; return 99;
 }
@@ -36,6 +38,20 @@ int main() {
         "clock and compass independently identified from hidecompass step + both clock calls");
     Check(found.radarVisible==visible && found.weather==reinterpret_cast<uint16_t*>(weather),
         "native radar visibility query and weather source independently verified");
+    Check(!found.text,"no text call: the clock is still found, replaced whole");
+    auto* textAt=clock+0x40; auto* textRoutine=image+0xe00;
+    Pattern(textAt,CLOCK_TEXT_PATTERN); Relative(textAt+CLOCK_TEXT_CALL,textRoutine);
+    found=FindHud(image,8192);
+    Check(found.clock==clock && found.text==textAt+CLOCK_TEXT_CALL && found.textTarget==textRoutine,
+        "the clock's text call found inside Clock::Draw, and what it calls");
+    Pattern(image+0x1800,CLOCK_TEXT_PATTERN); Relative(image+0x1800+CLOCK_TEXT_CALL,textRoutine);
+    Check(!FindHud(image,8192).text && FindHud(image,8192).clock,"a second text call anywhere: not taken, the clock kept");
+    memset(image+0x1800,0xcc,32);
+    memset(textAt,0xcc,32);
+    Pattern(clock+0x120,CLOCK_TEXT_PATTERN); Relative(clock+0x120+CLOCK_TEXT_CALL,textRoutine);
+    Check(!FindHud(image,8192).text,"a text call past Clock::Draw's start is not its own");
+    memset(clock+0x120,0xcc,32);
+    Pattern(textAt,CLOCK_TEXT_PATTERN); Relative(textAt+CLOCK_TEXT_CALL,textRoutine);
     Relative(radar+8,clock+1);
     Check(!FindHud(image,8192).clock,"mismatched clock callee rejects discovery without patching");
     Relative(radar+8,clock);
@@ -82,7 +98,23 @@ int main() {
     Give(detour);
     Check(!memcmp(image,native,sizeof(native)) && reinterpret_cast<ClockCall>(image)(object,nullptr,-20,47)==27,
         "unload restores native clock bytes and execution");
-    Check(sizeof(HudShared)==76,"HUD ABI 2 is 76 bytes, separate from Party ABI 3");
+    Check(sizeof(HudShared)==88,"HUD ABI 3 is 88 bytes, separate from Party ABI 3");
+    // The text call: aimed at ours as a CALL, which takes the four arguments, and given back
+    memset(image,0xcc,8192);
+    uint8_t caller[]={0x68,0x80,0x80,0x80,0x80,0x6a,0x00,0x6a,0x07,0x6a,0xf6,0xe8,0,0,0,0,0x83,0xc4,0x10,0xc3};
+    memcpy(image,caller,sizeof(caller));
+    auto* routine=image+0x100; routine[0]=0xc3;
+    Relative(image+11,routine);
+    uint8_t before[20]; memcpy(before,image,20);
+    ClockTextCall text;
+    Check(!TakeClockText(text,image+11,routine+1,reinterpret_cast<void*>(&TextReplacement)) && !memcmp(image,before,20),
+        "a call to something else is not written");
+    Check(TakeClockText(text,image+11,routine,reinterpret_cast<void*>(&TextReplacement)) && image[11]==0xe8,
+        "the text call taken, still a CALL");
+    reinterpret_cast<void(*)()>(image)();
+    Check(textX==-10 && textY==7 && text.original==reinterpret_cast<ClockText>(routine),"ours is given the game's x and y, cdecl");
+    GiveClockText(text);
+    Check(!memcmp(image,before,20) && !text.call,"given back as it was");
     VirtualFree(image,0,MEM_RELEASE);
     return failures?1:0;
 }
