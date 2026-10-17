@@ -63,7 +63,7 @@ package.loaded['winxi.controller'] = {HighlightColor={0.23,0.67,0.91,1}, RepeatD
 local images = {}
 package.loaded['winxi.style'] = {Background=function() return 'tile' end}
 local labels, overs, lines = {}, {}, {}
-package.loaded['winxi.tabs'] = {Over=function(_,l,t,r,b) overs[#overs+1]={l,t,r,b} end,
+package.loaded['winxi.tabs'] = {Over=function(_,l,t,r,b,radius) overs[#overs+1]={l,t,r,b,radius} end,
     Line=function(_,l,r,y,cl,cr) lines[#lines+1]={l,r,y,cl,cr} end}
 package.loaded['winxi.text'] = {Draw=function(_,x,y,color,words) labels[#labels+1]={x=x,y=y,color=color,text=words} end}
 package.loaded['winxi.cursor'] = {Get=function() return 99, {0,0,1,1,16,12} end}
@@ -246,8 +246,8 @@ for filter=0,15 do
 end
 chatState.filter=0; chatState.scroll=0
 -- The game's tabs and scrollbar replaced: WinXI tabs named for their channels where the game drew its own,
--- the chosen one solid, the tab style over each and the line under the row; a thumb in the game's bar; and
--- the game asked to leave both undrawn, only while there is a fresh place to draw them in
+-- square boxes, the chosen one solid, the tab style over each and no line under the row; a thumb in the
+-- game's bar; and the game asked to leave both undrawn, only while there is a fresh place to draw them in
 tabsGeometry={{left=10,top=100,right=60,bottom=116,channel=0,selected=false},
     {left=60,top=100,right=110,bottom=116,channel=3,selected=true},{left=110,top=100,right=160,bottom=116,channel=nil,selected=false}}
 scrollGeometry={left=2,top=120,right=6,bottom=1020,page=20,count=100,above=80}
@@ -257,8 +257,8 @@ assert(#labels==3 and labels[1].text=='Window' and labels[2].text=='Say' and lab
 assert(labels[2].x==60+(50-3*7)/2 and labels[2].y>100 and labels[2].y<108 and labels[2].color==look.TextColor,'centred in the game\'s tab, in the title colour')
 assert(#filled==5 and filled[1].a[1]==10 and filled[1].b[2]==116 and filled[2].color[4]>filled[1].color[4] and filled[3].color[4]==filled[1].color[4],
     'each tab filled where the game drew it, the chosen one solid and the rest faint')
-assert(#overs==3 and overs[2][1]==60 and overs[2][3]==110 and #lines==1 and lines[1][1]==10 and lines[1][2]==160 and lines[1][3]==116 and lines[1][4]==60 and lines[1][5]==110,
-    'the tab style over each, and the line under the row brighter under the chosen one')
+assert(#overs==3 and overs[2][1]==60 and overs[2][3]==110 and overs[2][5]==0 and #lines==0,
+    'the tab style over each, square-cornered, and no line under the row')
 assert(filled[4].a[1]==2 and filled[4].a[2]==120 and filled[4].b[1]==6 and filled[4].b[2]==1020 and filled[5].a[2]==840 and filled[5].b[2]==1020 and filled[5].b[1]==6,
     'the track where the game\'s bar is and, at the newest, the thumb at its foot, as wide as the bar')
 assert(#text==0 and #images==0,'still no addon rows or cursor over the native content')
