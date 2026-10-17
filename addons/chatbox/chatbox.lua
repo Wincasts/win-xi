@@ -108,6 +108,8 @@ local PADDING_SIDES = {
 local function Tip(text)
     if imgui.IsItemHovered() then imgui.SetTooltip(text) end
 end
+-- Forget the kept messages, the decode sample and where the log was scrolled to: the settings' Clear and /chatbox clear alike.
+local function ClearHistory() model.Clear(history); decodeSample = nil; wheelOffset, pendingWheel = 0, 0 end
 
 app = shell.New({
     defaults = T{ enabled = T{ true }, width = T{ 640 }, matchGameLogSize = T{ true }, matchGameInputSize = T{ false }, fontSize = T{ 12 },
@@ -125,7 +127,7 @@ app = shell.New({
             end
             Tip('Draws the WinXI log and input bar in place of the game\'s own.\nOff, the game\'s chat log and input come back at once. /chatbox on and off do the same.')
             widgets.Label('Chat History')
-            if imgui.SmallButton('Clear##chatbox.clear') then model.Clear(history) end
+            if imgui.SmallButton('Clear##chatbox.clear') then ClearHistory() end
             Tip('Forgets the messages kept for the compact log, 256 at most and never written to disk.\nThe game\'s own history, which the expanded log shows, is left alone.')
             imgui.TextDisabled('Native Square/window selection, confirm to expand, cancel to close.')
             imgui.TextDisabled(primary.Status())
@@ -177,7 +179,7 @@ app = shell.New({
     commands = {
         on = function(options) options.enabled[1] = true; app.save() end,
         off = function(options) options.enabled[1] = false; Release(); app.save() end,
-        clear = function() model.Clear(history); decodeSample = nil; wheelOffset, pendingWheel = 0, 0 end,
+        clear = ClearHistory,
         status = Status,
         bytes = function()
             if not decodeSample then app:Say('No decode sample yet. Receive a chat line, then /chatbox bytes.'); return end

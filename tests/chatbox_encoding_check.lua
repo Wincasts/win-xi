@@ -28,6 +28,7 @@ package.loaded.ffi = {
 }
 AshitaCore={GetChatManager=function() return {ParseAutoTranslate=function(_,raw,expand)
     assert(expand); parsed=true
+    if raw=='' then return nil end -- the game's answer to nothing is not relied on
     return raw:gsub('<AT>', 'world'):gsub('<PHRASE>', '\239\39hello world\239\40')
 end} end}
 local encoding = require('encoding')
@@ -36,6 +37,8 @@ assert(encoding.Decode(' hello world ', true)==' hello world ', 'input preserves
 assert(encoding.Decode(' hello world ')=='hello world', 'log still trims whitespace')
 assert(encoding.Decode('\130\160')=='あ', 'CP932 bytes passed intact, UTF-8 output returned')
 assert(encoding.Decode('\7')=='', 'paragraph-only messages trim to empty')
+do local empty, expandedEmpty, emptySpans = encoding.Decode('', true)
+    assert(empty=='' and expandedEmpty=='' and type(emptySpans)=='table' and #emptySpans==0, 'an empty line decodes to an empty line without the game: the input bar stays with its caret at the start') end
 local phrase, expanded=encoding.Decode('<PHRASE>')
 assert(phrase=='❮hello world❯', 'expanded phrase uses auto-translate brackets')
 assert(expanded=='\239\39hello world\239\40', 'diagnostic exposes the actual expanded bytes before cleaning')

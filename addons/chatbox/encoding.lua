@@ -19,6 +19,7 @@ local function Transcode(text)
     return ffi.string(output, size)
 end
 function M.Decode(raw, preserveSpaces, preserveColors)
+    if raw == '' then return '', '', {} end -- nothing to expand, transcode or colour; the game is not asked
     local expanded = AshitaCore:GetChatManager():ParseAutoTranslate(raw, true)
     if type(expanded) ~= 'string' or #expanded > log.MaxBytes * 4 then return nil end
     local output, spans, length, bank, slot = {}, {}, 0, nil, nil

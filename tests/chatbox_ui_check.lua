@@ -499,6 +499,13 @@ frame()
 assert(text[1].text == 'wheel 68' and text[10].text == 'wheel 77', 'one notch scrolls three visual rows')
 assert(wheel(120*100).blocked); frame()
 assert(text[1].text == 'wheel 1' and text[10].text == 'wheel 10', 'scroll clamps at oldest full viewport')
+-- The settings' Clear forgets the scroll too, as /chatbox clear does: new lines after it show at the bottom
+do local oldSmall=imgui.SmallButton; imgui.SmallButton=function(label) return label:find('chatbox.clear',1,true)~=nil end
+    headers['Chatbox']=true; spec.drawSettings(app.options); headers['Chatbox']=nil; imgui.SmallButton=oldSmall end
+for i=1,80 do message('wheel ' .. i) end; frame() -- no frame between: nothing has clamped the old scroll away
+assert(text[10].text == 'wheel 80', 'the settings\' Clear forgets the scroll as well, so the newest line is at the bottom again')
+assert(wheel(120*100).blocked); frame()
+assert(text[1].text == 'wheel 1' and text[10].text == 'wheel 10')
 assert(wheel(-120*100).blocked); frame()
 assert(text[10].text == 'wheel 80', 'scroll clamps at newest')
 mouse.x,mouse.y=0,0
