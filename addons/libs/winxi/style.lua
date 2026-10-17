@@ -8,6 +8,7 @@
 -- Call one before a window's Begin and style.Pop() after its End. Pushes may be nested.
 -- Style rule: child regions are always transparent, showing the parent Winxi background.
 -- Do not override ChildBg or draw a separate background for a child region.
+-- Both accept per-window RGBA border/textColor overrides (border alpha replaces Border Opacity).
 -- Both take an optional table: padding (a number, in place of the theme's), background (a colour, in
 -- place of the theme's), alpha (0 to 1, for a window that is fading), kind (winxi.window's: a settings
 -- window has the theme's settings window colours and padding, and its border is never faded; a game
@@ -52,8 +53,8 @@ local function Push(options, withPalette)
     background = backgrounds.For(options);
     imgui.PushStyleColor(ImGuiCol_WindowBg, background and clear or (options and options.background or theme.For('BackgroundColor', settingsKind)));
     -- a settings window's border is never faded, so that it can always be found
-    imgui.PushStyleColor(ImGuiCol_Border, settingsKind and theme.For('BorderColor', true) or theme.GameBorderColor());
-    imgui.PushStyleColor(ImGuiCol_Text, theme.For('TextColor', settingsKind));
+    imgui.PushStyleColor(ImGuiCol_Border, options and options.border or (settingsKind and theme.For('BorderColor', true) or theme.GameBorderColor()));
+    imgui.PushStyleColor(ImGuiCol_Text, options and options.textColor or theme.For('TextColor', settingsKind));
     -- Apply after the palette so themes cannot introduce a separate child background.
     imgui.PushStyleColor(ImGuiCol_ChildBg, clear);
 

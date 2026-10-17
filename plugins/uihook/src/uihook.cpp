@@ -13,7 +13,7 @@ class UIHook : public IPlugin {
 public:
     const char* GetName() const override { return "uihook"; }
     const char* GetAuthor() const override { return "win"; }
-    const char* GetDescription() const override { return "Modular native UI replacement: buffs, party/alliance, targets, clock and compass."; }
+    const char* GetDescription() const override { return "Modular native UI replacement: buffs, party/alliance, targets, clock, compass and chat."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
     double GetVersion() const override { return 0.2; }
     // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one
@@ -43,8 +43,9 @@ public:
         char words[2][16] = {};
         if (!command || sscanf_s(command, "%15s %15s", words[0], 16u, words[1], 16u) < 1 || _stricmp(words[0], "/uihook") != 0) return false;
         if (_stricmp(words[1], "hud") == 0) return party && party->HandleCommand(mode, "/uihook hud", injected);
+        if (_stricmp(words[1], "chat") == 0) return party && party->HandleCommand(mode, "/uihook chat", injected);
         if (!words[1][0] || _stricmp(words[1], "addons") == 0) { Addons(); return true; }
-        Say("0.2. /uihook (or /uihook addons) lists the addons handing it something now; /uihook hud says what the clock is drawn into.");
+        Say("0.2. /uihook (or /uihook addons) lists the addons handing it something now; /uihook hud says what the clock is drawn into; /uihook chat reports chat replacement hooks.");
         return true;
     }
     void Say(const std::string& text) const { m_Core->GetChatManager()->Write(0, false, ("[uihook] " + text).c_str()); }
@@ -76,6 +77,11 @@ public:
         if (slots.hudFresh & 1) part(hud, (slots.hudEmpty & 1) ? "the game's clock text hidden" : "its line in place of the game's clock", false);
         if (slots.hudFresh & 2) part(hud, (slots.hudEmpty & 2) ? "the compass hidden" : "the compass replaced", false);
         if (!hud.empty()) { Say("  clock: " + hud); ++shown; } else absent("clock");
+        std::string chat;
+        if (slots.chatFresh & 1) part(chat, "primary log", (slots.chatEmpty & 1)!=0);
+        if (slots.chatFresh & 2) part(chat, "split log", (slots.chatEmpty & 2)!=0);
+        if (slots.chatFresh & 4) part(chat, "input bar", (slots.chatEmpty & 4)!=0);
+        if (!chat.empty()) { Say("  chat replacement: " + chat); ++shown; }
         if (!shown) Say("  none");
         if (!none.empty()) Say("Not now: " + none + " (not loaded, switched off, or waiting for the game to draw that part).");
         std::string missing;
@@ -85,6 +91,7 @@ public:
         lack(slots.targetHooked, "target window");
         lack(slots.clockHooked, "clock");
         lack(slots.compassHooked, "compass");
+        lack(slots.chatHooked, "chat logs");
         if (!missing.empty()) Say("Not recognised in this client, left to the game: " + missing + ".");
     }
     void Direct3DBeginScene(bool recording) override { if (party) party->Direct3DBeginScene(recording); }

@@ -6,7 +6,7 @@ TOOLCHAIN="${TOOLCHAIN:-$HERE/../../.toolchain}"
 MSVC="${MSVC_PATH:-$TOOLCHAIN/msvc}"
 OUT="$HERE/build/tests"
 mkdir -p "$OUT"
-for module in buffs party hud; do
+for module in buffs party hud chat chat_controls; do
     clang-cl --target=i686-pc-windows-msvc /nologo /std:c++latest /Od /MT /EHa /W4 /permissive- \
         /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS -Wno-keyword-macro \
         /imsvc "$MSVC/crt/include" /imsvc "$MSVC/sdk/include/ucrt" /imsvc "$MSVC/sdk/include/um" /imsvc "$MSVC/sdk/include/shared" \
@@ -17,6 +17,7 @@ for module in buffs party hud; do
 done
 cd "$HERE/../.."
 luajit tests/nativehud_check.lua
+luajit tests/nativechat_check.lua
 luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 luajit tests/party_hook_check.lua
 UIHOOK_TEST_PLUGIN=uihook luajit tests/party_hook_check.lua

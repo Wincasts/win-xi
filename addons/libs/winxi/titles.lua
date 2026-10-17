@@ -101,7 +101,7 @@ local shade = { 0, 0, 0, 0 };
 local haze = 3; -- layers of the haze behind a Break With Shadow title, each a pixel or two wider
 local spot = { 0, 0 };
 
-function titles.Draw(words)
+function titles.Draw(words, options)
     if not Shown(words) then
         return;
     end
@@ -127,13 +127,13 @@ function titles.Draw(words)
 
     if current.TitleStyle == 'plate' then
         -- the background, near solid, so that the border does not show through it
-        local background = current.BackgroundColor;
+        local background = options and options.background or current.BackgroundColor;
         fill[1], fill[2], fill[3] = background[1], background[2], background[3];
         fill[4] = math.max(background[4], 0.95);
         plateMin[1], plateMin[2] = left - margin, top;
         plateMax[1], plateMax[2] = left + w + margin, top + h;
         list:AddRectFilled(plateMin, plateMax, imgui.GetColorU32(fill), 3);
-        list:AddRect(plateMin, plateMax, imgui.GetColorU32(theme.GameBorderColor()), 3);
+        list:AddRect(plateMin, plateMax, imgui.GetColorU32(options and options.border or theme.GameBorderColor()), 3);
     end
     if hazed then
         -- a soft dark haze, rounded, fading outward, over the gap in the border
@@ -160,7 +160,7 @@ function titles.Draw(words)
             list:AddText(spot, imgui.GetColorU32(shade), words);
         end
     end
-    text.Draw(list, left, top, current.TitleColor, words);
+    text.Draw(list, left, top, options and options.titleColor or current.TitleColor, words);
 
     list:PopClipRect();
     if pushed then

@@ -155,8 +155,8 @@ local function ArtEdge(list, texture, tint, x, y, width, height, gapA, gapB)
     end
 end
 
-function borders.Draw(texture, gapLeft, gapRight)
-    if not texture and not gapLeft then
+function borders.Draw(texture, gapLeft, gapRight, override)
+    if not texture and not gapLeft and not override then
         return;
     end
     local x, y = imgui.GetWindowPos();
@@ -170,12 +170,13 @@ function borders.Draw(texture, gapLeft, gapRight)
     -- part of the border under a clipped gap by a pixel.
     if texture then
         white[4] = (tonumber(theme.Get().BorderOpacity) or 100) / 100;
-        if white[4] <= 0 then
+        local tint = override or white;
+        if tint[4] <= 0 then
             return;
         end
-        ArtEdge(list, texture, imgui.GetColorU32(white), x, y, width, height, gapLeft, gapRight);
+        ArtEdge(list, texture, imgui.GetColorU32(tint), x, y, width, height, gapLeft, gapRight);
     else
-        local color = theme.GameBorderColor();
+        local color = override or theme.GameBorderColor();
         if color[4] <= 0 then
             return;
         end

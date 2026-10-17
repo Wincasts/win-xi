@@ -2,6 +2,19 @@
 
 ## 0.2
 
+- Chat ABI 8 (232 bytes): capture validated theme colours with the expanded frame. Tint native
+  tabs, row-selection highlight, cursor and scrollbar via four verified CALL sites, preserving
+  positions/scale/flags, native fade alpha and all native input/selection behavior.
+- Selected tabs use the actual native sprite; scrollbar colours are changed in a local draw-only
+  copy, never in native state. Control hooks are optional/all-or-none; missing signatures leave
+  controls native. Add argument-preservation/Wine fixtures and optional private-client verification.
+- Expanded capture mode 2 replaces only the frame; a unique full-log content signature
+  cross-checked against its vtable lets native tabs, text, cursor and scrollbar draw unchanged.
+- Keep native expanded keyboard/controller/mouse selection and message actions; retain the frame
+  skin on older pages and all native filters. Reject stale compact/expanded captures across boundaries.
+- Expanded typography and exact geometry remain native. Requires the updated nativechat bridge;
+  offline tests/build pass, live GPU/interaction validation remains pending.
+
 - Add verified native clock and compass boundaries, sharing the existing capture/replay renderer.
 - Add independent HUD ABI 6 (164 bytes), clock/compass capabilities, native weather readback, the game's clock text's place, its map grid and its icons' places, a move and a scale for its weather icons and a preview of all of them.
 - Redirect Clock::Draw's three icon calls, measuring each icon and leaving undrawn those the addon draws its own of.

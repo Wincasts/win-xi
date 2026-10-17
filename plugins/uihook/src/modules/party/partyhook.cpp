@@ -12,6 +12,8 @@
 #include "game.h"
 #include "target.h"
 #include "hud.h"
+#include "../chat/chat.h"
+#include "../chat/controls.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -21,6 +23,8 @@
 static int32_t __cdecl Submit(int32_t index, int32_t capture);
 static void __fastcall RenderWindow(void* window, void*);
 static int32_t __cdecl SubmitHud(int32_t index, int32_t capture);
+static int32_t __cdecl SubmitChat(int32_t index, int32_t capture);
+static ChatShared Chat = { "UIHOOK-CHAT", 8, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {} };
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
 static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
@@ -38,6 +42,13 @@ static void __fastcall DrawTargetArrow(void*,void*,uint32_t,uint32_t,uint32_t,ui
 static ArrowCalls Arrows;
 static PartyShared Shared = { "PARTYHOOK", PARTY_VERSION, sizeof(PartyShared), 0, 0, 1, {}, 0, 0, 0, 0, 0, 0, 0, {} };
 static Detour WindowDetour = { WINDOW_PATTERN, WINDOW_STOLEN, -1, reinterpret_cast<void*>(&RenderWindow), nullptr, nullptr, {} };
+static void __fastcall DrawExpandedChat(void*,void*);
+static Detour ExpandedChatDetour = { CHAT_FULL_DRAW_PATTERN, 5, -1, reinterpret_cast<void*>(&DrawExpandedChat), nullptr, nullptr, {} };
+static void __fastcall DrawChatTab(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
+static void __fastcall DrawChatSelection(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
+static void __fastcall DrawChatCursor(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
+static void __fastcall DrawChatScroll(void*,void*);
+static ChatControlCalls ChatControls;
 
 using Run = TextureRun<IDirect3DBaseTexture8>;
 struct Drawing {
@@ -56,7 +67,11 @@ struct Drawing {
 class PartyHook : public IPlugin {
     IAshitaCore* core = nullptr;
     void** globals[4] = {};
-    Drawing drawings[8]; // first six retain Party ABI; 6=clock, 7=compass (separate HUD ABI)
+    Drawing drawings[11]; // Party 0..5, HUD 6..7, chat logs/input 8..10; independent ABIs
+    ChatModule chat;
+    bool expandedCapture=false, expandedSkin=false, controlsValid=false;
+    void* expandedOwner=nullptr;
+    ChatControlStyle controlStyle;
     void** compassGlobal = nullptr;
     bool (__cdecl* radarVisible)() = nullptr;
     uint16_t* nativeWeather = nullptr;
@@ -79,6 +94,7 @@ class PartyHook : public IPlugin {
         float nMinX=0, nMinY=0, nMaxX=0, nMaxY=0;
     } probe;
     bool inClock = false, inScene = false, inText = false, hideText = false;
+    float clockShiftX=0, clockShiftY=0; // native screen pixels; replay itself is already positioned by its addon
     int inIcon = -1;          // which of the clock's icons is being drawn, or -1
     uint32_t hideIcons = 0;   // HUD_ICON_* to leave undrawn in this Clock::Draw call
     int32_t weatherShift = 0; // and the game's units to move its weather icons down by
@@ -129,8 +145,8 @@ class PartyHook : public IPlugin {
         const auto& v=clockViewport;
         if (!(display.x>0 && display.y>0) || !v.Width || !v.Height) return false;
         const float sx=display.x/float(v.Width), sy=display.y/float(v.Height);
-        out[0]=(from.left-float(v.X)+0.5f)*sx; out[1]=(from.top-float(v.Y)+0.5f)*sy;
-        out[2]=(from.right-float(v.X)+0.5f)*sx; out[3]=(from.bottom-float(v.Y)+0.5f)*sy;
+        out[0]=(from.left+clockShiftX-float(v.X)+0.5f)*sx; out[1]=(from.top+clockShiftY-float(v.Y)+0.5f)*sy;
+        out[2]=(from.right+clockShiftX-float(v.X)+0.5f)*sx; out[3]=(from.bottom+clockShiftY-float(v.Y)+0.5f)*sy;
         frame=Shared.Frame;
         return true;
     }
@@ -144,11 +160,13 @@ class PartyHook : public IPlugin {
             weatherMiddleKnown[i-1]=true;
         }
     }
-    // A weather icon's draw, larger or smaller about its middle (as last measured, or this draw's
-    // own), drawn here from a copy in place of the game's. Only screen-space vertices drawn from
+    // Weather resizing and whole-clock translation to the replacement log's top-left:
+    // drawn from a copy in place of the game's, never modifying client vertex memory. Only screen-space vertices drawn from
     // memory, as the clock's are; anything else is left as the game draws it.
     bool ScaleIcon(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) {
-        if (weatherScale==1 || !(inIcon==1 || inIcon==2 || previewing) || !data || stride<8) return false;
+        const bool resize=weatherScale!=1 && (inIcon==1 || inIcon==2 || previewing);
+        const bool translate=inClock && (clockShiftX!=0 || clockShiftY!=0);
+        if ((!resize && !translate) || !data || stride<8) return false;
         const UINT vertices=t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0;
         auto* device=core->GetDirect3DDevice();
         DWORD shader=0;
@@ -162,11 +180,12 @@ class PartyHook : public IPlugin {
             for (UINT i=0;i<vertices;i++) { float v[2]; memcpy(v,&scaledVertices[size_t(i)*stride],sizeof(v)); own.Add(v[0],v[1]); }
             cx=(own.left+own.right)/2; cy=(own.top+own.bottom)/2;
         }
-        ScaleScreenVertices(scaledVertices.data(),vertices,stride,cx,cy,weatherScale);
+        if (resize) ScaleScreenVertices(scaledVertices.data(),vertices,stride,cx,cy,weatherScale);
+        if (translate && !ChatTranslateVertices(scaledVertices.data(),vertices,stride,clockShiftX,clockShiftY)) return false;
         scaling=true;
-        device->DrawPrimitiveUP(t,count,scaledVertices.data(),stride);
+        const bool ok=SUCCEEDED(device->DrawPrimitiveUP(t,count,scaledVertices.data(),stride));
         scaling=false;
-        return true;
+        return ok;
     }
     void ProbeDevice(IDirect3DDevice8* device, const D3DVIEWPORT8& viewport, const Drawing& drawing) {
         probe.replayFrame=Shared.Frame; probe.viewport=viewport; probe.scene=inScene;
@@ -229,9 +248,18 @@ public:
         core=c; Instance=this;
         Shared.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&Submit));
         Hud.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&SubmitHud));
+        Chat.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&SubmitChat));
         MODULEINFO module={};
         if (GetModuleInformation(GetCurrentProcess(),GetModuleHandleA("FFXiMain.dll"),&module,sizeof(module))) {
             auto* begin=static_cast<uint8_t*>(module.lpBaseOfDll);
+            // Window geometry is shared by party and input; discovery cannot depend on party globals.
+            if (auto* rect=UniquePattern(begin,module.SizeOfImage,RECT_PATTERN)) {
+                uintptr_t manager=0; memcpy(&manager,rect+RECT_MANAGER_AT,4);
+                uintptr_t low=reinterpret_cast<uintptr_t>(begin);
+                if (manager>=low && manager<=low+module.SizeOfImage-0x84) {
+                    menuManager=reinterpret_cast<uint8_t*>(manager); Shared.GeometryReady=1;
+                }
+            }
             // HUD discovery is independent of party/window recognition. Compass replacement needs
             // the nested clock boundary too, so replacing radar can never swallow an ordinary clock.
             auto hud=FindHud(begin,module.SizeOfImage);
@@ -247,19 +275,23 @@ public:
                     Hud.SupportedMask|=HUD_COMPASS;
                 }
             }
+            // Chat recognition must not depend on party globals/signatures.
+            if (chat.Discover(begin,module.SizeOfImage) && Take(WindowDetour,begin,module.SizeOfImage)) {
+                Chat.SupportedMask=3 | (chat.InputSupported() ? 4 : 0) | (chat.ExpandedSupported() ? CHAT_FULL_SUPPORTED : 0);
+                const auto controls=DiscoverChatControls(begin,module.SizeOfImage,WindowDetour.target,chat.ExpandedDraw());
+                if (chat.ExpandedDraw() && Take(ExpandedChatDetour,begin,module.SizeOfImage)) {
+                    Chat.SupportedMask |= CHAT_FULL_SKIN_SUPPORTED;
+                    void* callbacks[]={reinterpret_cast<void*>(&DrawChatTab),reinterpret_cast<void*>(&DrawChatSelection),
+                        reinterpret_cast<void*>(&DrawChatCursor),reinterpret_cast<void*>(&DrawChatScroll)};
+                    if (TakeChatControls(ChatControls,controls,callbacks)) Chat.SupportedMask |= CHAT_CONTROLS_SUPPORTED;
+                }
+            }
             auto* party=FindPattern(begin,module.SizeOfImage,PARTY_PATTERN);
             uintptr_t main=0;
             if (party) memcpy(&main,party+PARTY_GLOBAL_AT,4);
             if (main && PartyGlobals(begin,module.SizeOfImage,main,globals)
-                && Take(WindowDetour,begin,module.SizeOfImage)) {
+                && (WindowDetour.trampoline || Take(WindowDetour,begin,module.SizeOfImage))) {
                 Shared.SupportedMask=7; Shared.Hooked=1;
-                if (auto* rect=UniquePattern(begin,module.SizeOfImage,RECT_PATTERN)) {
-                    uintptr_t manager=0; memcpy(&manager,rect+RECT_MANAGER_AT,4);
-                    uintptr_t low=reinterpret_cast<uintptr_t>(begin);
-                    if (manager>=low && manager<=low+module.SizeOfImage-0x84) {
-                        menuManager=reinterpret_cast<uint8_t*>(manager); Shared.GeometryReady=1;
-                    }
-                }
                 uintptr_t target=0; memcpy(&target,party+TARGET_GLOBAL_AT,4);
                 globals[3]=TargetGlobal(begin,module.SizeOfImage,target);
                 if (globals[3] && TakeArrows(Arrows,begin,module.SizeOfImage,reinterpret_cast<void*>(&DrawTargetArrow))) {
@@ -281,13 +313,15 @@ public:
     void Release() override {
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
+        Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); StopChat();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
-        GiveArrows(Arrows); Give(WindowDetour); blocking=targetScope=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
+        GiveArrows(Arrows); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
         ++Shared.Frame;
-        Hud.Frame=Shared.Frame;
+        Hud.Frame=Chat.Frame=Shared.Frame;
+        chat.Sample(Chat,Shared.Frame);
         // As namehook: no cross-frame state blocks holding client resources across a reset.
         ReleaseStates();
         for (auto& d:drawings) if (!d.Fresh()) d.Clear();
@@ -302,10 +336,31 @@ public:
         if (Block()) return true;
         return ScaleIcon(t,count,data,stride);
     }
-    bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE,UINT,UINT vertices,UINT,const void*,D3DFORMAT,const void* data,UINT stride) override {
-        Native(true,data,stride,vertices); return Block();
+    bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
+        if (scaling) return false;
+        Native(true,data,stride,vertices);
+        if (Block()) return true;
+        auto* device=core->GetDirect3DDevice(); DWORD shader=0;
+        if (!inClock || min!=0 || (clockShiftX==0 && clockShiftY==0) || !data || stride<8 || !vertices || vertices>4096
+            || !device || FAILED(device->GetVertexShader(&shader)) || !(shader & D3DFVF_XYZRHW)) return false;
+        scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(vertices)*stride);
+        if (!ChatTranslateVertices(scaledVertices.data(),vertices,stride,clockShiftX,clockShiftY)) return false;
+        scaling=true;
+        const bool ok=SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,scaledVertices.data(),stride));
+        scaling=false;
+        return ok;
     }
     bool HandleCommand(int32_t,const char* command,bool) override {
+        if (command && _stricmp(command,"/uihook chat")==0) {
+            char line[256];
+            snprintf(line,sizeof(line),"[uihook:chat] ABI 8, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
+                Chat.SupportedMask,Chat.Frame,Chat.NativeFrame[0],Chat.DrawnFrame[0],Chat.NativeFrame[1],Chat.DrawnFrame[1],Chat.NativeFrame[2],Chat.DrawnFrame[2]);
+            core->GetChatManager()->Write(0,false,line);
+            snprintf(line,sizeof(line),"[uihook:chat] state 0x%x at %u, full bounds at %u; history scroll %u, cursor %u/%u, filter %u (browsing/filter menus remain native).",
+                Chat.StateFlags,Chat.StateFrame,Chat.ExpandedRectFrame,Chat.FullScroll,Chat.FullCursor,Chat.FullPageRows,Chat.FullFilter);
+            core->GetChatManager()->Write(0,false,line);
+            return true;
+        }
         if (!command || _stricmp(command,"/uihook hud")!=0) return false;
         auto* chat=core->GetChatManager();
         char line[256];
@@ -337,11 +392,12 @@ public:
 
     int Capture(int index, int capture) {
         if (index<0) { Stop(); return 1; }
-        if (index>7) return 0;
+        if (index>10) return 0;
         Drawing& out=drawings[index];
         if (capture<0) { out.Clear(); return 1; }
         if (index<6 ? (!Shared.Hooked || !(Shared.SupportedMask & (index<3 ? (1u<<index) : 8u)))
-                    : !(Hud.SupportedMask & (1u<<(index-6)))) return 0;
+                    : index<8 ? !(Hud.SupportedMask & (1u<<(index-6)))
+                              : !(Chat.SupportedMask & (1u<<(index-8)))) return 0;
         if (!capture) { out.Clear(); out.submitted=Shared.Frame; return 1; }
         auto* gui=core->GetGuiManager();
         ImDrawList* list=gui ? gui->GetWindowDrawList() : nullptr;
@@ -395,6 +451,14 @@ public:
         out.vertices.swap(staging.vertices); out.runs.swap(staging.runs);
         out.width=staging.width; out.height=staging.height; out.font=staging.font; out.submitted=Shared.Frame;
         Shared.CapturedVertices=static_cast<uint32_t>(out.vertices.size());
+        if (index==8 && !out.vertices.empty()) {
+            const ImVec2 pos=gui->GetWindowPos(), size=gui->GetWindowSize();
+            if (std::isfinite(pos.x) && std::isfinite(pos.y) && std::isfinite(size.x) && std::isfinite(size.y) && size.x>0 && size.y>0) {
+                Chat.ReplacementRect[0]=pos.x; Chat.ReplacementRect[1]=pos.y;
+                Chat.ReplacementRect[2]=pos.x+size.x; Chat.ReplacementRect[3]=pos.y+size.y;
+                Chat.ReplacementRectFrame=Shared.Frame;
+            }
+        }
         // Keep ImGui's layout and hit-testing; consume only its GPU commands, after making a complete copy.
         for (int c=0;c<list->CmdBuffer.Size;c++) list->CmdBuffer[c].ElemCount=0;
         return 1;
@@ -403,7 +467,10 @@ public:
     bool Replay(unsigned index) {
         Drawing& drawing=drawings[index];
         if (!drawing.Fresh()) return false;
-        if (drawing.vertices.empty()) return true; // explicit empty replacement (solo/faded/hidden list)
+        if (drawing.vertices.empty()) {
+            if (index>=8) Chat.DrawnFrame[index-8]=Shared.Frame;
+            return true; // explicit empty replacement (solo/faded/hidden list)
+        }
         if (drawing.font!=Font()) return false; // atlas changed: old glyph UVs are not safe to replay
         // Keep the atlas check on repeated passes, but avoid redundant viewport queries/state work.
         if (drawing.drawn==Shared.Frame) return true;
@@ -428,7 +495,9 @@ public:
         device->ApplyStateBlock(saved);
         if (ok) {
             drawing.drawn=Shared.Frame;
-            if (index<6) Shared.DrawnFrame[index]=Shared.Frame; else Hud.DrawnFrame[index-6]=Shared.Frame;
+            if (index<6) Shared.DrawnFrame[index]=Shared.Frame;
+            else if (index<8) Hud.DrawnFrame[index-6]=Shared.Frame;
+            else Chat.DrawnFrame[index-8]=Shared.Frame;
             ++Shared.Replays;
         }
         return ok;
@@ -446,6 +515,15 @@ public:
     }
     void Clock(void* object,int32_t x,int32_t y) {
         HudDrawScope scope(blocking,targetScope);
+        clockShiftX=clockShiftY=0;
+        auto* gui=core->GetGuiManager(); auto* device=core->GetDirect3DDevice(); D3DVIEWPORT8 viewport;
+        float dx=0,dy=0;
+        if (compassGlobal && *compassGlobal==object && gui && device && SUCCEEDED(device->GetViewport(&viewport))) {
+            const ImVec2 display=gui->GetIO().DisplaySize;
+            if (ChatClockOffset(Chat,display.x,display.y,dx,dy)) {
+                clockShiftX=dx*viewport.Width/display.x; clockShiftY=dy*viewport.Height/display.y;
+            }
+        }
         if (probe.callsFrame!=Shared.Frame) { probe.callsLast=probe.calls; probe.calls=0; probe.callsFrame=Shared.Frame; probe.nativeCalls=probe.nativeUP=0; }
         ++probe.calls; probe.x=uint32_t(x); probe.y=uint32_t(y);
         // Clock::Draw takes this + two stack coordinates and returns with ret 8. Preserve all
@@ -519,13 +597,30 @@ public:
         out.targetHooked=Shared.Hooked && (Shared.SupportedMask & 8);
         out.clockHooked=(Hud.SupportedMask & HUD_CLOCK)!=0;
         out.compassHooked=(Hud.SupportedMask & HUD_COMPASS)!=0;
-        for (unsigned i=0;i<8;i++) {
+        out.chatHooked=Chat.SupportedMask!=0;
+        for (unsigned i=0;i<11;i++) {
             if (!drawings[i].Fresh()) continue;
-            const uint8_t bit=static_cast<uint8_t>(1u<<(i<6 ? i : i-6));
+            const uint8_t bit=static_cast<uint8_t>(1u<<(i<6 ? i : i<8 ? i-6 : i-8));
             const bool empty=drawings[i].vertices.empty();
             if (i<6) { out.fresh|=bit; if (empty) out.empty|=bit; }
-            else { out.hudFresh|=bit; if (empty) out.hudEmpty|=bit; }
+            else if (i<8) { out.hudFresh|=bit; if (empty) out.hudEmpty|=bit; }
+            else { out.chatFresh|=bit; if (empty) out.chatEmpty|=bit; }
         }
+    }
+    void StopChat() { drawings[8].Clear(); drawings[9].Clear(); drawings[10].Clear(); staging.Clear(); Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; Chat.ControlStyleFrame=0; }
+    int CaptureChat(int index,int capture) {
+        if (index==-1) { StopChat(); return 1; }
+        if (index<0 || index>2 || capture>2) return 0;
+        if (capture==2 && (index!=0 || !(Chat.SupportedMask & CHAT_FULL_SKIN_SUPPORTED))) return 0;
+        chat.Sample(Chat,Shared.Frame);
+        if (index==0) { Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; }
+        const int result=Capture(index+8,capture==2 ? 1 : capture);
+        if (index==0 && result && capture>0) {
+            expandedCapture=capture==2;
+            controlsValid=expandedCapture && (Chat.SupportedMask & CHAT_CONTROLS_SUPPORTED) && controlStyle.Read(Chat);
+        }
+        if (!result) drawings[index+8].Clear(); // failed capture restores native even after an empty Begin
+        return result;
     }
     int CaptureHud(int index,int capture) {
         if (index==-1) { StopHud(); return 1; }
@@ -545,17 +640,46 @@ public:
         ArrowScope allow(blocking,targetScope);
         reinterpret_cast<SpriteDraw>(Arrows.sprite)(sprite,nullptr,x,y,sx,sy,color,a,b,c);
     }
-    void RecordRect(unsigned index,void* window) {
-        if (!menuManager) return;
+    bool WindowRect(void* window,NativeRect& result) {
+        if (!menuManager) return false;
         auto* device=core->GetDirect3DDevice(); D3DVIEWPORT8 viewport;
-        if (!device || FAILED(device->GetViewport(&viewport))) return;
-        int16_t rect[4]; auto* data=static_cast<const uint8_t*>(window);
-        memcpy(rect,data+0x3a,sizeof(rect));
-        int16_t w=0,h=0; memcpy(&w,menuManager+0x80,2); memcpy(&h,menuManager+0x82,2);
+        if (!device || FAILED(device->GetViewport(&viewport))) return false;
+        int16_t rect[4], dimensions[2]; uint8_t scaled=0;
+        auto* data=static_cast<const uint8_t*>(window);
+        if (!ChatRead(data+0x3a,rect,sizeof(rect)) || !ChatRead(data+0x99,&scaled,1)
+            || !ChatRead(menuManager+0x80,dimensions,sizeof(dimensions))) return false;
+        return MakeNativeRect(rect,scaled!=0,dimensions[0],dimensions[1],viewport.Width,viewport.Height,Shared.Frame,result);
+    }
+    void RecordRect(unsigned index,void* window) {
         NativeRect result={};
-        if (MakeNativeRect(rect,data[0x99]!=0,w,h,viewport.Width,viewport.Height,Shared.Frame,result))
-            Shared.Rects[index]=result;
+        if (WindowRect(window,result)) Shared.Rects[index]=result;
         else Shared.Rects[index].Frame=0;
+    }
+    void RecordChatRect(int index,void* window) {
+        NativeRect result={};
+        float* rect=index==0 ? Chat.PrimaryRect : index==3 ? Chat.ExpandedRect : Chat.InputRect;
+        uint32_t& frame=index==0 ? Chat.PrimaryRectFrame : index==3 ? Chat.ExpandedRectFrame : Chat.InputRectFrame;
+        frame=0;
+        if (!WindowRect(window,result)) return;
+        rect[0]=result.Left; rect[1]=result.Top; rect[2]=result.Right; rect[3]=result.Bottom;
+        frame=result.Frame;
+    }
+    bool ControlsActive() const { return expandedSkin && controlsValid; }
+    void ChatTab(void* sprite,uint32_t x,uint32_t y,uint32_t color,uint32_t a,uint32_t b) {
+        ForwardChatTab(reinterpret_cast<ChatTabSprite>(ChatControls.targets[CHAT_ART_TAB]),ControlsActive(),controlStyle,expandedOwner,
+            sprite,x,y,color,a,b);
+    }
+    void ChatWindowArt(bool cursor,void* sprite,uint32_t x,uint32_t y,uint32_t sx,uint32_t sy,uint32_t color,uint32_t a,uint32_t b,uint32_t c) {
+        ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
+            expandedSkin,ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
+    }
+    void ChatScroll(void* object) {
+        ForwardChatScroll(reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL]),ControlsActive(),controlStyle,object);
+    }
+    void ExpandedContent(void* owner) {
+        ChatNativeContent(expandedSkin,blocking);
+        ChatOwnerScope ownerScope(expandedOwner,expandedSkin ? owner : nullptr);
+        reinterpret_cast<void(__fastcall*)(void*,void*)>(ExpandedChatDetour.trampoline)(owner,nullptr);
     }
     void Render(void* window) {
         int index=-1;
@@ -563,19 +687,55 @@ public:
             void* object=globals[i] ? *globals[i] : nullptr;
             if (object && *reinterpret_cast<void**>(static_cast<uint8_t*>(object)+OBJECT_WINDOW)==window) { index=i; break; }
         }
-        bool was=blocking, wasTarget=targetScope;
+        bool was=blocking, wasTarget=targetScope, wasExpanded=expandedSkin;
+        expandedSkin=false;
         blocking=false; // replacement GPU calls must not be caught by our own callbacks
-        bool replaced=index==3 ? ReplayTargets() : index>=0 && Replay(static_cast<unsigned>(index));
+        const int chatIndex=chat.Identify(window);
+        const int chatSlot=chatIndex==3 ? 0 : chatIndex;
+        bool chatReady=true;
+        if (chatIndex>=0) {
+            chat.Sample(Chat,Shared.Frame);
+            Chat.NativeFrame[chatSlot]=Shared.Frame;
+            // Full-log captures replace only the frame, never the native rows/actions. A compact
+            // capture must not cover a newly opened full log (or vice versa).
+            if (chatSlot==0) chatReady=ChatReplayAllowed(Chat,expandedCapture)
+                && (expandedCapture ? chatIndex==3 && !drawings[8].vertices.empty() : chatIndex==0);
+            else chatReady=!(Chat.StateFlags & CHAT_EXPANDED); // no stale input/split captures over expanded native UI
+        }
+        bool replaced=chatIndex>=0 ? chatReady && Replay(static_cast<unsigned>(chatSlot+8))
+            : index==3 ? ReplayTargets() : index>=0 && Replay(static_cast<unsigned>(index));
         blocking=replaced;
+        expandedSkin=chatIndex==3 && replaced && expandedCapture;
         targetScope=index==3 && replaced;
         reinterpret_cast<void(__fastcall*)(void*,void*)>(WindowDetour.trampoline)(window,nullptr);
         // Read after the client's animation/layout update, even when this window is not replaced.
         // No native positioning/state writes: Lua uses this geometry for its next submission.
         if (index>=0) RecordRect(static_cast<unsigned>(index),window);
-        blocking=was; targetScope=wasTarget;
+        if (chatIndex==0 || chatIndex==2 || chatIndex==3) RecordChatRect(chatIndex,window);
+        blocking=was; targetScope=wasTarget; expandedSkin=wasExpanded;
     }
 };
 PartyHook* PartyHook::Instance=nullptr;
+static void __fastcall DrawChatTab(void* sprite,void*,uint32_t x,uint32_t y,uint32_t color,uint32_t a,uint32_t b) {
+    if (PartyHook::Instance) PartyHook::Instance->ChatTab(sprite,x,y,color,a,b);
+    else reinterpret_cast<ChatTabSprite>(ChatControls.targets[CHAT_ART_TAB])(sprite,nullptr,x,y,color,a,b);
+}
+static void __fastcall DrawChatSelection(void* sprite,void*,uint32_t x,uint32_t y,uint32_t sx,uint32_t sy,uint32_t color,uint32_t a,uint32_t b,uint32_t c) {
+    if (PartyHook::Instance) PartyHook::Instance->ChatWindowArt(false,sprite,x,y,sx,sy,color,a,b,c);
+    else reinterpret_cast<ChatWindowSprite>(ChatControls.targets[CHAT_ART_SELECTION])(sprite,nullptr,x,y,sx,sy,color,a,b,c);
+}
+static void __fastcall DrawChatCursor(void* sprite,void*,uint32_t x,uint32_t y,uint32_t sx,uint32_t sy,uint32_t color,uint32_t a,uint32_t b,uint32_t c) {
+    if (PartyHook::Instance) PartyHook::Instance->ChatWindowArt(true,sprite,x,y,sx,sy,color,a,b,c);
+    else reinterpret_cast<ChatWindowSprite>(ChatControls.targets[CHAT_ART_CURSOR])(sprite,nullptr,x,y,sx,sy,color,a,b,c);
+}
+static void __fastcall DrawChatScroll(void* object,void*) {
+    if (PartyHook::Instance) PartyHook::Instance->ChatScroll(object);
+    else reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL])(object,nullptr);
+}
+static void __fastcall DrawExpandedChat(void* owner,void*) {
+    if (PartyHook::Instance) PartyHook::Instance->ExpandedContent(owner);
+    else reinterpret_cast<void(__fastcall*)(void*,void*)>(ExpandedChatDetour.trampoline)(owner,nullptr);
+}
 static void __fastcall RenderWindow(void* window,void*) {
     if (PartyHook::Instance) PartyHook::Instance->Render(window);
     else reinterpret_cast<void(__fastcall*)(void*,void*)>(WindowDetour.trampoline)(window,nullptr);
@@ -609,6 +769,11 @@ static int32_t __cdecl SubmitHud(int32_t index,int32_t capture) {
     if (!PartyHook::Instance) return 0;
     try { return PartyHook::Instance->CaptureHud(index,capture); }
     catch (...) { PartyHook::Instance->StopHud(); ++Shared.Failures; return 0; }
+}
+static int32_t __cdecl SubmitChat(int32_t index,int32_t capture) {
+    if (!PartyHook::Instance) return 0;
+    try { return PartyHook::Instance->CaptureChat(index,capture); }
+    catch (...) { PartyHook::Instance->StopChat(); ++Shared.Failures; return 0; }
 }
 IPlugin* CreatePartyModule() { return new PartyHook(); }
 

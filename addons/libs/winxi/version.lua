@@ -24,6 +24,15 @@
 -- 4: fonts.Texture gives the plugins' mark for imgui's font texture, fonts.TextureMark,
 --    fonts.TextureDetail
 -- 5: nativehud clock/compass bridge for uihook HUD ABI 2
+-- 6: shell resizable main windows and deferred explicit window sizing
+-- 7: nativechat bridge and window.capture after complete theme decoration
+-- 8: nativechat ABI 2, independent native-backed input replacement slot
+-- 9: nativechat ABI 3 input geometry; per-window fontSize override
+-- 10: nativechat ABI 4 primary log geometry, for bottom-left native anchoring
+-- 11: nativechat ABI 5 captured-log bounds and automatic whole-clock anchoring
+-- 12: nativechat ABI 6 native focus, full-log geometry and safe expansion handoff
+-- 13: nativechat ABI 7 frame-only expanded capture with native content pass-through
+-- 14: nativechat ABI 8 captured theme colours for native expanded control artwork
 return {
-    Number = 5,
+    Number = 14,
 };

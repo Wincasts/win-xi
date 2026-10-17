@@ -1,0 +1,522 @@
+addon.name = 'chatbox'
+addon.author = 'win'
+addon.version = '0.7.0'
+addon.desc = 'WinXI native-backed chat, titled with your channel, with selection and expanded view.'
+local winxiNeeded = 14
+do
+    local ok, found = pcall(require, 'winxi.version')
+    local number = ok and type(found) == 'table' and found.Number or 0
+    if number < winxiNeeded then
+        local text = ('%s needs winxi %d or newer, and addons/libs/winxi is %d: install the newest release of any winxi addon.'):format(addon.name, winxiNeeded, number)
+        print('[chatbox] ' .. text)
+        error(text, 0)
+    end
+end
+require('common')
+local imgui = require('imgui')
+local bit = require('bit')
+local shell = require('winxi.shell')
+local window = require('winxi.window')
+local theme = require('winxi.theme')
+local widgets = require('winxi.widgets')
+local controller = require('winxi.controller')
+local fonts = require('winxi.fonts')
+local cursorArt = require('winxi.cursor')
+local native = require('winxi.nativechat')
+local model = require('log')
+local render = require('render')
+local encoding = require('encoding')
+local channels = require('channels')
+local appearance = require('appearance')
+local scrollbar = require('scrollbar')
+local palette = require('palette')
+local inputModel = require('input')
+local input = inputModel.New()
+local layout = require('layout')
+local layoutState = layout.New()
+
+local primary, secondary = native.new(native.Primary), native.new(native.Secondary)
+local history = model.New()
+local decodeErrors, zoning = 0, false
+local decodeSample -- latest incoming event; bounded, memory-only diagnostics
+local anchorStatus = 'Waiting for native primary chat geometry.'
+local app
+local open, place, pivot, size, contentSize = { true }, { 20, 0 }, { 0, 1 }, { 0, 0 }, { 0, 0 }
+local ROW_GAP = 2
+-- Windows stay click-through except for wheel events and the custom scrollbar.
+local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, ImGuiWindowFlags_NoMove,
+    ImGuiWindowFlags_NoCollapse, ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoInputs,
+    ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse,
+    ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus)
+-- The last box drawn, kept up to HOLD_FRAMES while the game's log has no fresh place (opening or closing)
+local held, frame, HOLD_FRAMES = nil, 0, 30
+local lastDrawn, lastHandOver = nil, nil -- for /chatbox status: the last box drawn, and why the game's was shown
+-- /cm selects the persistent input mode; a one-line /p or /l only overrides its preview.
+-- Until a mode command is observed, retain the last sent channel as a fallback.
+local spoken, selectedMode = 'Say', nil
+-- Expanded mode skins the frame and tints native control art. Rows, selection and input remain native.
+local wheelOffset, pendingWheel, wheelView = 0, 0, nil
+local pendingScroll, scrollDrag, scrollPressed
+local wheelTarget -- bounds of the last successfully captured log only
+local function Release()
+    held = nil
+    wheelTarget = nil
+    pendingWheel = 0
+    pendingScroll, scrollDrag, scrollPressed = nil, nil, nil
+    primary.Stop()
+    secondary.Stop()
+    input.Stop()
+end
+local function Reset()
+    Release()
+    model.Clear(history)
+    wheelOffset, pendingWheel, wheelView = 0, 0, nil
+    spoken, selectedMode = 'Say', nil
+    channels.ResetLinkshells()
+    layoutState = layout.New()
+    decodeErrors, decodeSample = 0, nil
+    anchorStatus = 'Waiting for native primary chat geometry.'
+end
+local function Status()
+    local size = app.options.matchGameLogSize[1] and 'the game log\'s size' or '10 rows'
+    app:Say((app.options.enabled[1] and 'On' or 'Off') .. '. Compact at ' .. size .. ', native-controlled expansion; ' .. #history.messages .. ' messages retained.')
+    app:Say(primary.Status())
+    app:Say(anchorStatus)
+    app:Say('Input: ' .. input.Status())
+    if lastDrawn then
+        local d = lastDrawn
+        app:Say(('Last box (%s, %d frames ago): %d,%d to %d,%d, %d rows of room, %d drawn from y %d; titled %s.')
+            :format(d.expanded and 'expanded' or 'compact', frame - d.frame, d.left, d.top, d.left + d.width, d.bottom,
+                d.rows, d.drawn, d.firstY, d.title))
+    end
+    if lastHandOver then
+        local h = lastHandOver
+        app:Say(('Last handed to the game %d frames ago: full-log cursor %s of %s, scroll %s, filter %s; mouse %d,%d.')
+            :format(frame - h.frame, tostring(h.cursor), tostring(h.pageRows), tostring(h.scroll), tostring(h.filter), h.mouseX, h.mouseY))
+    end
+    if decodeErrors > 0 then app:Say(('%d messages could not be decoded. Native history browsing remains available.'):format(decodeErrors)) end
+end
+-- Room between each edge of the log and input bar and their text, in pixels: 3 each by default
+local PADDING_DEFAULT, PADDING_MOST = 3, 40
+local PADDING_SIDES = {
+    { key = 'leftPadding', label = 'Left Padding', tip = 'How far the text sits from the left edge of the log and the input bar, in pixels.' },
+    { key = 'rightPadding', label = 'Right Padding', tip = 'How far long lines stop short of the right edge, in pixels.' },
+    { key = 'topPadding', label = 'Top Padding', tip = 'Room kept above the log\'s rows, in pixels. Input height uses both vertical paddings, with its text always centred.' },
+    { key = 'bottomPadding', label = 'Bottom Padding', tip = 'Room kept below the log\'s rows, in pixels. Input height uses both vertical paddings, with its text always centred.' },
+}
+
+app = shell.New({
+    defaults = T{ enabled = T{ true }, width = T{ 640 }, matchGameLogSize = T{ true }, matchGameInputSize = T{ false }, fontSize = T{ 12 },
+        appearance = appearance.Defaults(T, theme.Get()), fontFile = '',
+        leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 } },
+    command = '/chatbox',
+    configTitle = 'Chatbox Settings',
+    help = '/chatbox opens settings; /chatbox on, off, clear, status, modes (the last lines\' chat modes), bytes (last incoming decode sample). Follows the game log\'s size; native selection, expansion and input controls.',
+    drawSettings = function(options)
+        if widgets.Header('Chatbox', true) then
+            widgets.Label('Replace Native Chat')
+            if imgui.Checkbox('##chatbox.enabled', options.enabled) then
+                if not options.enabled[1] then Release() end
+                app.save()
+            end
+            widgets.Label('Match Game Log Size')
+            if imgui.Checkbox('##chatbox.matchGameLogSize', options.matchGameLogSize) then app.save() end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Takes the width and height of the game\'s own chat log, so changing its size in the game\'s\nsettings changes this one; as many rows as fit at Text Size. Off: Width, and ten rows.')
+            end
+            widgets.Label('Width')
+            imgui.SliderInt('##chatbox.width', options.width, 240, 1200, '%d px')
+            if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+            widgets.Label('Font')
+            local file = options.fontFile
+            if imgui.BeginCombo('##chatbox.fontFile', file ~= '' and file or 'Theme\'s Font') then
+                if imgui.Selectable('Theme\'s Font##chatbox.font.theme', file == '') and file ~= '' then
+                    options.fontFile = ''
+                    app.save()
+                end
+                for _, choice in ipairs(fonts.Files()) do
+                    if imgui.Selectable(choice .. '##chatbox.font', file == choice) and file ~= choice then
+                        options.fontFile = choice
+                        app.save()
+                    end
+                end
+                imgui.EndCombo()
+            end
+            if imgui.IsItemHovered() then imgui.SetTooltip('The chat\'s font: one of C:\\Windows\\Fonts, or the theme\'s.') end
+            widgets.Label('Text Size')
+            imgui.SliderInt('##chatbox.fontSize', options.fontSize, 8, 24, '%d px')
+            if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+            for _, side in ipairs(PADDING_SIDES) do
+                widgets.Label(side.label)
+                imgui.SliderInt('##chatbox.' .. side.key, options[side.key], 0, PADDING_MOST, '%d px')
+                if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+                if imgui.IsItemHovered() then imgui.SetTooltip(side.tip) end
+            end
+            widgets.Label('Match Game Input Size')
+            if imgui.Checkbox('##chatbox.matchGameInputSize', options.matchGameInputSize) then app.save() end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Uses the native input width for both boxes and its height/position for the input.\nOff: both boxes use Width (or the game log\'s, with Match Game Log Size). Text Size applies to both.')
+            end
+            imgui.TextDisabled('Native Square/window selection, confirm to expand, cancel to close.')
+            imgui.TextDisabled(primary.Status())
+            if imgui.SmallButton('Clear##chatbox.clear') then model.Clear(history) end
+        end
+        if widgets.Header('Window Colors') then appearance.Draw(options.appearance, app.save) end
+    end,
+    commands = {
+        on = function(options) options.enabled[1] = true; app.save() end,
+        off = function(options) options.enabled[1] = false; Release(); app.save() end,
+        clear = function() model.Clear(history); decodeSample = nil; wheelOffset, pendingWheel = 0, 0 end,
+        status = Status,
+        bytes = function()
+            if not decodeSample then app:Say('No decode sample yet. Receive a chat line, then /chatbox bytes.'); return end
+            -- Hex is ASCII-only: printing the diagnostic cannot reinterpret the bad character.
+            app:Say(('Chat bytes, original mode %d / display mode %d (first 256 bytes per stage):')
+                :format(decodeSample.originalMode, decodeSample.mode))
+            for _, key in ipairs({'original','modified','expanded','utf8'}) do
+                local text = decodeSample[key] or ''
+                app:Say(key .. ': ' .. (text:gsub('.', function(c) return ('%02X '):format(c:byte()) end)))
+            end
+        end,
+        -- the last lines kept and their chat modes, to learn a channel's mode from the game
+        modes = function()
+            local messages = history.messages
+            if #messages == 0 then app:Say('No lines kept yet.') end
+            for i = math.max(1, #messages - 9), #messages do
+                local message = messages[i]
+                app:Say(('mode %3d: %s'):format(message.mode, message.text:sub(1, 60)))
+            end
+        end,
+    },
+    onSettings = function(options)
+        local width = tonumber(options.width[1]) or 640
+        if width ~= width then width = 640 end
+        options.width[1] = math.floor(math.max(240, math.min(1200, width)))
+        local fontSize = tonumber(options.fontSize[1]) or 12
+        if fontSize ~= fontSize then fontSize = 12 end
+        options.fontSize[1] = math.floor(math.max(8, math.min(24, fontSize)))
+        -- Retire old display filters/rewriters and colour overrides, even for existing characters.
+        options.combat, options.colors, options.themeColors = nil, nil, nil
+        options.inlineColors, options.timestampOwnColor, options.timestampColor = nil, nil, nil
+        options.appearance = appearance.Repair(options.appearance, T, theme.Get())
+        if type(options.fontFile) ~= 'string' then options.fontFile = '' end
+        for _, side in ipairs(PADDING_SIDES) do
+            if type(options[side.key]) ~= 'table' then options[side.key] = T{ PADDING_DEFAULT } end
+            local amount = tonumber(options[side.key][1]) or PADDING_DEFAULT
+            if amount ~= amount then amount = PADDING_DEFAULT end
+            options[side.key][1] = math.floor(math.max(0, math.min(PADDING_MOST, amount)))
+        end
+        -- Once: the first paddings were 4 on every side; left all at that, they take the 3 of now.
+        if type(options.paddingVersion) ~= 'table' then options.paddingVersion = T{ 0 } end
+        if (tonumber(options.paddingVersion[1]) or 0) < 1 then
+            local untouched = true
+            for _, side in ipairs(PADDING_SIDES) do untouched = untouched and options[side.key][1] == 4 end
+            if untouched then
+                for _, side in ipairs(PADDING_SIDES) do options[side.key][1] = PADDING_DEFAULT end
+            end
+            options.paddingVersion[1] = 1
+            if app then app.save() end -- the first load runs before app exists; the next save keeps it
+        end
+        Reset() -- a new character must never inherit another character's private chat
+    end,
+})
+
+ashita.events.register('command', 'chatbox_mode', function(e)
+    if e.blocked then return end
+    selectedMode = channels.ModeCommand(e.command_modified or e.command) or selectedMode
+end)
+
+ashita.events.register('text_in', 'chatbox_text', function(e)
+    -- Observe, never block or rewrite: the game keeps its own history and fallback rendering.
+    -- Load filtering/formatting addons before chatbox to observe their modified text.
+    if e.blocked then return end
+    local originalMode = bit.band(e.mode or 0, 0xff)
+    local mode = bit.band(e.mode_modified or e.mode or 0, 0xff)
+    -- 190 replays NPC text into the native log; it is not another dialogue line.
+    -- Check the original mode too, before another addon's formatting remaps it.
+    if originalMode == 190 or mode == 190 or mode == 152 then return end
+    spoken = channels.Sent(mode) or spoken
+    local raw = e.message_modified or e.message
+    if type(raw) ~= 'string' or #raw > model.MaxBytes then return end
+    local ok, text, expanded, spans = pcall(encoding.Decode, raw, false, true)
+    if not ok or not text then decodeErrors = decodeErrors + 1; return end
+    decodeSample = { originalMode=originalMode, mode=mode,
+        original=type(e.message)=='string' and e.message:sub(1,256) or '',
+        modified=raw:sub(1,256), expanded=type(expanded)=='string' and expanded:sub(1,256) or '',
+        utf8=text:sub(1,256) }
+    model.Add(history, text, mode, nil, originalMode, spans)
+end)
+ashita.events.register('packet_in', 'chatbox_zone', function(e)
+    if e.blocked then return end
+    if e.id == 0x00b then zoning = true; Release()
+    elseif e.id == 0x00a then zoning = false; channels.ResetLinkshells()
+    elseif e.id == 0x0e0 then channels.LinkshellPacket(e.data_modified or e.data) end
+end)
+ashita.events.register('unload', 'chatbox_unload', Reset)
+
+-- Native Square/window focus: a faint light over the box and the game's cursor at its newest line.
+-- Both are drawn in the window, so they are part of the captured replacement; no buttons are bound.
+local captured, focused = false, false
+local windowOptions = { capture = function() captured = primary.Capture() end }
+local white, light = { 1, 1, 1, 1 }, { 1, 1, 1, 0.07 }
+
+-- The game's right-pointing cursor (as party's), its point at the box's left edge on the given row;
+-- drawn out past the window's edge, so the clip is opened. '>' where the art cannot be read.
+local function DrawCursor(list, edge, rowTop, fontSize)
+    local handle, art = cursorArt.Get()
+    list:PushClipRect({ 0, 0 }, { edge + 4096, rowTop + 4096 }, false)
+    if handle then
+        local height = fontSize + 2
+        local width = height * art[5] / art[6]
+        local left = math.max(0, edge + 3 - width)
+        list:AddImage(handle, { left, rowTop - 1 }, { left + width, rowTop - 1 + height },
+            { art[1], art[2] }, { art[3], art[4] }, imgui.GetColorU32(white))
+    else
+        local width = imgui.CalcTextSize('>')
+        list:AddText({ math.max(0, edge + 2 - width), rowTop }, imgui.GetColorU32(controller.HighlightColor), '>')
+    end
+    list:PopClipRect()
+end
+
+-- The log's rows, in the window being drawn (with the chat's font pushed): the light and cursor when the
+-- game has it selected, then the rows at the bottom, preserving all source inline colours. A box taller than its whole rows has its room above them.
+local function DrawLog(box, rowCount, fontSize, padding)
+    local options = app.options
+    local list = imgui.GetWindowDrawList()
+    local left, top = box.left, box.bottom - box.height
+    if focused then
+        list:AddRectFilled({ left, top }, { left + box.width, box.bottom }, imgui.GetColorU32(light))
+    end
+    local inset = options.leftPadding[1]
+    local width = math.max(1, box.width - inset - options.rightPadding[1])
+    local font, size = imgui.GetFont(), imgui.GetFontSize()
+    local modes -- compact combines all observed modes
+    local visible = history
+    local metrics = model.Metrics(visible,width,font,size,render.Measure,modes)
+    if metrics.total > rowCount then
+        width = math.max(1,width-scrollbar.Reserve)
+        metrics = model.Metrics(visible,width,font,size,render.Measure,modes)
+    end
+    local rows, overflow
+    local viewKey = 'compact'
+    if wheelView ~= viewKey then
+        wheelOffset, pendingWheel, wheelView = 0, 0, viewKey
+        pendingScroll, scrollDrag = nil, nil
+    end
+    if pendingScroll ~= nil then
+        wheelOffset = math.max(0,math.min(math.max(0,metrics.total-rowCount),pendingScroll))
+        pendingWheel, pendingScroll = 0, nil
+    end
+    local movement = pendingWheel < 0 and math.ceil(pendingWheel) or math.floor(pendingWheel)
+    wheelOffset = math.max(0, wheelOffset + movement)
+    pendingWheel = pendingWheel - movement
+    rows, wheelOffset, overflow = model.Tail(visible, width, font, size, render.Measure, rowCount, modes, 0, wheelOffset)
+    lastDrawn = { frame = frame, expanded = false, left = left, top = top, width = box.width, bottom = box.bottom,
+        rows = rowCount, drawn = #rows, title = windowOptions.title, firstY = 0, overflow = overflow }
+    -- The rows centred between the top padding (under the title's half) and the bottom padding; the
+    -- newest at the foot of them, as the game's.
+    local step = fontSize + ROW_GAP
+    local areaTop = top + math.ceil(fontSize / 2) + options.topPadding[1]
+    local areaBottom = box.bottom - options.bottomPadding[1]
+    local block = rowCount * step - ROW_GAP
+    local x, y = left + inset, areaTop + math.floor(math.max(0, areaBottom - areaTop - block) / 2)
+    y = y + (rowCount - #rows) * step
+    if focused then
+        DrawCursor(list, left, y + (#rows - 1) * step, fontSize)
+    end
+    lastDrawn.firstY = y
+    for _, row in ipairs(rows) do
+        if row.text ~= '' then
+            local color = imgui.GetColorU32(windowOptions.textColor or palette.Mode(row.message.mode) or theme.Get().TextColor)
+            render.Rich(list, { x, y }, color, row.text, row.spans)
+        end
+        y = y + step
+    end
+    local offset = wheelOffset
+    local bar = scrollbar.Layout(left+box.width-3-scrollbar.Width,areaTop,areaBottom,metrics.total,rowCount,offset)
+    lastDrawn.scrollbar = bar
+    if bar then
+        local io = imgui.GetIO()
+        local mouse = io.MousePos
+        local hovered = not io.WantCaptureMouse and scrollbar.Hit(bar,
+            mouse and (mouse.x or mouse[1]),mouse and (mouse.y or mouse[2]))
+        local tint = (hovered or scrollDrag ~= nil) and scrollbar.Bright or scrollbar.White
+        list:AddRectFilled({bar.left,bar.thumbTop},{bar.right,bar.thumbBottom},imgui.GetColorU32(tint),1)
+    else
+        scrollDrag = nil
+    end
+    contentSize[1], contentSize[2] = width, box.height - padding * 2
+    imgui.Dummy(contentSize)
+end
+
+-- Keep the native rectangle exactly: moving/resizing native content would break mouse hit-tests.
+-- The plugin re-enables native drawing at FullLog::Draw, including the tabs, and leaves the
+-- subsequent native cursor/scrollbar visible. No themed rows, title or input are placed over them.
+local expandedColors = {}
+local expandedOptions = { padding = 0, shadow = false,
+    capture = function() captured = primary.Capture(true, expandedColors) end }
+local function DrawExpanded(state, sw, sh)
+    held = nil
+    wheelOffset, pendingWheel, wheelView = 0, 0, nil
+    pendingScroll, scrollDrag, scrollPressed = nil, nil, nil
+    secondary.Stop()
+    input.Stop()
+    if state.nativeBrowse or not state.expandedSupported or not state.nativeContent then
+        local mouse = imgui.GetIO().MousePos
+        lastHandOver = { frame = frame, cursor = state.cursor, pageRows = state.pageRows, scroll = state.scroll,
+            filter = state.filter, mouseX = mouse and (mouse.x or mouse[1]) or -1, mouseY = mouse and (mouse.y or mouse[2]) or -1 }
+        anchorStatus = 'Expanded chat remains native: nested menu or native-content skin unavailable.'
+        return
+    end
+    local rect = { primary.Rect(sw, sh, true) }
+    if #rect ~= 4 or rect[1] < 0 or rect[2] < 0 or rect[3] > sw or rect[4] > sh
+        or rect[3] <= rect[1] or rect[4] <= rect[2] then
+        anchorStatus = 'Waiting for native expanded bounds; full native log left visible.'
+        return
+    end
+    appearance.Apply(expandedOptions, app.options.appearance.log)
+    local look = theme.Get()
+    expandedColors[1] = look.HighlightColor or controller.HighlightColor
+    expandedColors[2] = expandedOptions.titleColor or look.TitleColor or look.TextColor or white
+    expandedColors[3] = expandedOptions.border or look.BorderColor or white
+    expandedColors[4] = expandedOptions.border or look.BorderColor or white
+    place[1], place[2] = rect[1], rect[4]
+    size[1], size[2] = rect[3]-rect[1], rect[4]-rect[2]
+    imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
+    imgui.SetNextWindowSize(size, ImGuiCond_Always)
+    window.Plain('winxi.chatbox.expanded', open, flags, function() end, expandedOptions)
+    anchorStatus = state.nativeControls and 'Expanded native rows and actions; WinXI frame and theme-tinted native controls.'
+        or 'Expanded native rows and actions; WinXI frame (control artwork hooks unavailable).'
+    lastDrawn = { frame = frame, expanded = true, left = rect[1], top = rect[2], width = size[1], bottom = rect[4],
+        rows = state.pageRows or 0, drawn = 0, firstY = rect[2], title = 'native content', overflow = false }
+end
+
+ashita.events.register('d3d_present', 'chatbox_present', function()
+    wheelTarget = nil -- rearmed only after this frame captures a complete replacement
+    app:BeginFrame() -- configures WinXI's shared/local theme and draws settings
+    if not app.options.enabled[1] or zoning then Release(); return end
+    if not primary.Begin() then
+        pendingScroll, scrollDrag, scrollPressed = nil, nil, nil
+        secondary.Stop(); input.Stop(); return
+    end
+    captured, focused = false, false
+    local ok, err = pcall(function()
+        local display = imgui.GetIO().DisplaySize
+        local sw, sh = display.x or display[1], display.y or display[2]
+        if not sw or not sh or sw < 100 or sh < 100 then input.Stop(); return end
+        local state = primary.State()
+        local expanded = state and state.expanded
+        frame = frame + 1
+        if expanded then DrawExpanded(state, sw, sh); return end
+        local fontSize, padding = app.options.fontSize[1], PADDING_DEFAULT
+        -- The title sits across the top edge, half inside: rows keep clear of that half.
+        local headroom = math.ceil(fontSize / 2)
+        windowOptions.fontSize, windowOptions.padding = fontSize, padding
+        appearance.Apply(windowOptions, app.options.appearance.log)
+        -- Compact: the game log's own size (as many rows as fit), or Width and ten rows.
+        local logRect = { primary.Rect(sw, sh) }
+        local rowCount = model.Rows
+        -- what the rows cannot use: the title's half, and the top and bottom padding
+        local above, below = headroom + app.options.topPadding[1], app.options.bottomPadding[1]
+        local frameHeight = model.Rows * fontSize + (model.Rows - 1) * ROW_GAP + above + below
+        size[1] = math.min(app.options.width[1], sw - 40)
+        if app.options.matchGameLogSize[1] and #logRect == 4 then
+            local fit = layout.Fit(logRect[4] - logRect[2] - above - below, fontSize, 0, ROW_GAP)
+            if fit >= 1 then
+                rowCount, frameHeight, size[1] = fit, logRect[4] - logRect[2], logRect[3] - logRect[1]
+            end
+        end
+        size[2] = frameHeight
+        local plan = input.Measure(size[1], sh, fontSize, padding, app.options.matchGameInputSize[1],
+            app.options.topPadding[1], app.options.bottomPadding[1])
+        appearance.Apply(plan, app.options.appearance.input)
+        plan.font = fonts.Get(app.options.fontFile)
+        plan.leftPadding, plan.rightPadding = app.options.leftPadding[1], app.options.rightPadding[1]
+        local box, placeKnown
+        placeKnown = #logRect == 4
+        box = layout.Arrange(layoutState, logRect, plan,
+            size[1], sw, sh, size[2], padding, app.options.matchGameInputSize[1])
+        anchorStatus = box and 'Anchored to native chat; log and input share one width.'
+            or 'Native chat anchor unavailable or the log does not fit; native log left visible.'
+        if box then
+            held = { box = box, rows = rowCount, frame = frame }
+        elseif held and not placeKnown and frame - held.frame <= HOLD_FRAMES and held.box.bottom <= sh then
+            -- Opening or closing the full log, the game's new place is not known for a frame or two:
+            -- the last box stays rather than the game's own log showing through.
+            box, rowCount = held.box, held.rows
+            anchorStatus = 'Waiting a moment for the game\'s log to settle.'
+        end
+        if box then
+            place[1], place[2] = box.left, box.bottom
+            size[1], size[2] = box.width, box.height
+            focused = state ~= nil and state.selected
+            windowOptions.title = channels.Title(plan.snapshot and channels.Typed(plan.snapshot.text) or selectedMode or spoken)
+            imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
+            imgui.SetNextWindowSize(size, ImGuiCond_Always)
+            window.Plain('winxi.chatbox', open, flags, function()
+                local chatFont = plan.font
+                if chatFont then imgui.PushFont(chatFont, fontSize) end
+                local drawn, drawError = pcall(DrawLog, box, rowCount, fontSize, padding)
+                if chatFont then imgui.PopFont() end
+                if not drawn then error(drawError, 0) end
+            end, windowOptions)
+        end
+        -- Input is independent: keep it working while waiting for the log's first geometry sample.
+        input.Draw(plan.width, sh, fontSize, padding, flags, app.options.matchGameInputSize[1], plan)
+    end)
+    if not ok then Release(); error(err, 0) end
+    if not captured then
+        pendingScroll, scrollDrag, scrollPressed = nil, nil, nil
+        primary.Stop()
+        secondary.Stop()
+        return
+    end
+    -- This first version combines all observed messages into one log. Do not leave a duplicate
+    -- split native log underneath it. Only hide split after a complete primary capture succeeded.
+    if lastDrawn and not lastDrawn.expanded then
+        secondary.Begin()
+        wheelTarget = lastDrawn
+    end
+end)
+
+-- Only the wheel over overflowing chat and left-button interactions with its scrollbar are taken.
+-- All other mouse input stays native. The scrollbar is drawn into the same captured window.
+ashita.events.register('mouse', 'chatbox_scroll', function(e)
+    if e.blocked or not wheelTarget or not app.options.enabled[1] or zoning then return end
+    local state = primary.State()
+    if state and (state.expanded or state.nativeBrowse) then scrollDrag, scrollPressed = nil, nil; return end
+    local io = imgui.GetIO()
+    if io.WantCaptureMouse and not scrollPressed then return end
+    local mouse = io.MousePos
+    local x, y = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+    local box, message = wheelTarget, e.message
+    local bar = box.scrollbar
+    if scrollPressed and message == 0x0202 then -- left up, including outside the log
+        scrollDrag, scrollPressed = nil, nil
+        e.blocked = true
+        return
+    end
+    if scrollDrag and message == 0x0200 and bar and y then
+        pendingScroll = scrollbar.Drag(bar,y,scrollDrag)
+        e.blocked = true
+        return
+    end
+    if message == 0x0201 and scrollbar.Hit(bar,x,y) then
+        scrollPressed = true
+        if y >= bar.thumbTop and y < bar.thumbBottom then
+            scrollDrag = y-bar.thumbTop
+        else
+            pendingScroll = scrollbar.Page(bar,y)
+        end
+        e.blocked = true
+        return
+    end
+    if message ~= 0x020a or not x or not y or x < box.left or x >= box.left + box.width
+        or y < box.top or y >= box.bottom or not box.overflow then return end
+    -- Ashita exposes the signed wheel delta; wparam is a fallback for raw WNDPROC events.
+    local delta = tonumber(e.delta)
+    if not delta and e.wparam then delta = bit.arshift(tonumber(e.wparam), 16) end
+    if not delta or delta == 0 then return end
+    pendingWheel = pendingWheel + delta / 120 * 3
+    e.blocked = true -- never scroll native history underneath the themed viewport
+end)
