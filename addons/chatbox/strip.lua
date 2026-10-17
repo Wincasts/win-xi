@@ -5,8 +5,11 @@
 -- the chosen one last, on top of all. Each is a square-cornered box, as winxi's windows are: the window's
 -- background colour, so that it covers what is under it, the Highlight Color over that (solid for the
 -- chosen one, faint for the rest), the theme's tab style over both, and an edge in the border colour,
--- so that where one lies over another the join shows. The channel's name, in the chat's font with
--- winxi's dark edge, is centred in the part of the tab left uncovered, cut to what fits there.
+-- so that where one lies over another the join shows. The tab's name, in the chat's font with winxi's
+-- dark edge, is centred in the part of the tab left uncovered, cut to what fits there. With the whole
+-- strip drawn, the tabs are named by where they stand, left to right (channels.TabNames: Window, Say,
+-- Tell, Party, Linkshell 1, Linkshell 2, Assist (J), Assist (E), Unity, Shout); with fewer, by the
+-- channel whose sprite each was drawn with, or its place.
 local imgui = require('imgui')
 local tabs = require('winxi.tabs')
 local text = require('winxi.text')
@@ -42,11 +45,26 @@ function M.Uncovered(order, at)
     return left, math.max(left, right)
 end
 
+-- Each tab's name: by its rank from the left when the strip is whole, else by its channel or place
+function M.Names(strip, names, byPlace)
+    local ranked = {}
+    for i, tab in ipairs(strip) do ranked[i] = tab end
+    table.sort(ranked, function(a, b) return a.left < b.left end)
+    local result = {}
+    for rank, tab in ipairs(ranked) do
+        local known = #strip == #byPlace and byPlace[rank] or (tab.channel and names[tab.channel] and names[tab.channel].name)
+        result[tab] = known or ('Tab ' .. rank)
+    end
+    return result
+end
+
 -- strip: the tabs as winxi.nativechat gives them (left, top, right, bottom, channel, selected), in the
--- game's draw order. names: channel -> { name = ... }. colors: highlight, text, border, background (each a
--- table of four; background and border may be nil). measure(words) -> width, height.
-function M.Draw(list, strip, names, colors, measure)
+-- game's draw order. names: channel -> { name = ... }; byPlace: the names left to right for a whole
+-- strip. colors: highlight, text, border, background (each a table of four; background and border may
+-- be nil). measure(words) -> width, height.
+function M.Draw(list, strip, names, byPlace, colors, measure)
     local order = M.Order(strip)
+    local named = M.Names(strip, names, byPlace)
     local highlight = colors.highlight
     for at, tab in ipairs(order) do
         local a, b = { tab.left, tab.top }, { tab.right, tab.bottom }
@@ -56,10 +74,7 @@ function M.Draw(list, strip, names, colors, measure)
         tabs.Over(list, tab.left, tab.top, tab.right, tab.bottom, 0)
         if colors.border then list:AddRect(a, b, imgui.GetColorU32(colors.border)) end
         local left, right = M.Uncovered(order, at)
-        local known = tab.channel and names[tab.channel]
-        local place = 0
-        for i, each in ipairs(strip) do if each == tab then place = i end end
-        local label = M.Fit(known and known.name or ('Tab ' .. place), right - left - 2 * M.Inset, measure)
+        local label = M.Fit(named[tab], right - left - 2 * M.Inset, measure)
         local width, height = measure(label)
         text.Draw(list, left + (right - left - width) / 2, tab.top + (tab.bottom - tab.top - height) / 2, colors.text, label, 1)
     end

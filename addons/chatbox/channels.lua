@@ -36,6 +36,11 @@ M.Filters = {
 }
 local tabCount = 0
 for _ in pairs(M.Filters) do tabCount = tabCount + 1 end
+-- The tabs' names by place along the top, left to right: what each tab says in the game. The strip
+-- names the game's tabs by where they stand, which is sure; which channel's sprite a tab is drawn with
+-- (above) did not line up with where the game draws it.
+M.TabNames = {}
+for _, filter in pairs(M.Filters) do M.TabNames[filter.place] = filter.name end
 
 -- The expanded title: the tab's name and its place along the top, 'Window 1/10'; made once each.
 local titles = {}

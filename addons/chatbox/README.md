@@ -173,13 +173,14 @@ overlap at their edges and are stacked; the addon draws them in the game's order
 before it, and the chosen one last, on top of all. Each is a square-cornered box, as winxi's windows
 are: the log's **Background** colour, then WinXI's **Highlight Color** over it, solid for the chosen
 tab and faint for the rest, the theme's **Tab Style** over both, and an edge in the **Border / Art
-Tint**, so the joins show where one lies over another. The channel's name (Window, Say, Tell, Party,
-Linkshell 1, Linkshell 2, Assist (J), Assist (E), Unity, Shout), in the chat's **Font** and **Font
+Tint**, so the joins show where one lies over another. The tab's name, in the chat's **Font** and **Font
 Size** and the log's **Title** colour with winxi's dark edge, is centred in the part of the tab left
-uncovered and cut to what fits there. No line under the row, the frame's border being there. The
+uncovered and cut to what fits there: with the whole strip drawn the tabs are named by where they
+stand, left to right, Window, Say, Tell, Party, Linkshell 1, Linkshell 2, Assist (J), Assist (E),
+Unity and Shout; with fewer, by the channel each was drawn for where that is known. No line under the row, the frame's border being there. The
 scrollbar is a faint track and a white thumb, as wide as the
-game's bar, the thumb where the game's page is among its rows. A tab whose sprite the game does not
-own is named for its place. Nothing is moved, so Square, the mouse and the wheel still work on the
+game's bar, the thumb where the game's page is among its rows. A tab that cannot be named is named for
+its place. Nothing is moved, so Square, the mouse and the wheel still work on the
 game's own controls. With either off, or without a fresh place from uihook (the first frame, or a
 build without the hooks), the game's own are drawn: the selected tab and row highlight in the
 Highlight Color, other tabs the Title colour, the cursor and scrollbar the **Border / Art Tint**,
