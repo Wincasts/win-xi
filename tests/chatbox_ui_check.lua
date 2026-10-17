@@ -729,10 +729,27 @@ assert(hooks[1].captures==captures and #text==2,'the second window\'s place unkn
 splitRect={20,520,660,700}; frame()
 assert(hooks[1].captures==captures+1,'its place known again: drawn again')
 local said3={}; app.Say=function(_,line) said3[#said3+1]=line end; spec.commands.status(); app.Say=function() end
-assert(table.concat(said3,'\n'):find('Second window: over the game',1,true) and table.concat(said3,'\n'):find('12 rows of room',1,true),'/chatbox status describes the second window')
+assert(table.concat(said3,'\n'):find('Second window: over the first',1,true) and table.concat(said3,'\n'):find('12 rows of room',1,true),'/chatbox status describes the second window')
 app.options.matchGameLogSize[1]=false; frame()
 assert(rendered['winxi.chatbox.split'].size[2]==150 and rendered['winxi.chatbox.split'].pos[2]==1018-150,'Match Game Log Size off: ten rows each, the second still stacked over the first')
 app.options.matchGameLogSize[1]=true
+-- the game's horizontal layout: its second window beside the first, which the second box follows, the game's gap
+-- and its width kept, the first's bottom shared, lifting with it over the input
+splitRect={680,700,1000,1018}; frame()
+split=rendered['winxi.chatbox.split']
+assert(split.pos[1]==680 and split.pos[2]==1018 and split.size[1]==320 and split.size[2]==318 and text[#text].text=='party 37','beside the first: the game\'s place and size for it, its scroll kept')
+local savedInputRect=nativeRect; nativeRect=nil -- the input over the log's foot: both boxes lift above it
+inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; frame()
+assert(rendered['winxi.chatbox'].pos[2]==1000 and rendered['winxi.chatbox.split'].pos[2]==1000,'both lift above the input')
+inputOpen=false; nativeRect=savedInputRect
+app.options.matchGameLogSize[1]=false; frame()
+split=rendered['winxi.chatbox.split']
+assert(split.pos[1]==680 and split.pos[2]==1018 and split.size[1]==320 and split.size[2]==150,'Match Game Log Size off: the game\'s width and gap, ten rows, the first\'s bottom')
+splitRect={0,700,16,1018}; frame(); assert(rendered['winxi.chatbox.split'].pos[1]==0 and rendered['winxi.chatbox.split'].size[1]==16,'to the first\'s left: there')
+splitRect={1700,700,1950,1018}; captures=hooks[1].captures; frame(); assert(hooks[1].captures==captures,'no room on the screen for it: the game\'s is left')
+said3={}; app.Say=function(_,line) said3[#said3+1]=line end; spec.commands.status(); app.Say=function() end
+assert(table.concat(said3,'\n'):find('no room beside the first',1,true),'/chatbox status says so')
+splitRect={20,520,660,700}; app.options.matchGameLogSize[1]=true
 chatState.expanded=true; nativeLogRect=nil; captures=hooks[1].captures; frame()
 assert(hooks[1].captures==captures and #text==0,'the expanded log: one view, the game\'s rows')
 chatState.expanded=false; nativeLogRect={20,700,660,1018}; frame()

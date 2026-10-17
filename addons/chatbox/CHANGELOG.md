@@ -3,8 +3,10 @@
 ## 0.10.0
 
 - The game's second log window mirrored. With Log Window 2 on in the game's settings, a second WinXI
-  box stands over the first, of the first's width and the game's second window's height (as many
-  rows as fit at Font Size; ten rows with Match Game Log Size off), titled Window 2. Each box shows
+  box stands where the game puts its second window: over the first in the game's vertical layout (the
+  first's width, the game's height for it) or beside it in the horizontal (the game's width and gap
+  from the first, the first's bottom, lifting with it over the input); as many rows as fit at Font
+  Size, or ten with Match Game Log Size off; titled Window 2. Each box shows
   the messages the game's Log Window settings route to its window, as uihook reads the game's own
   routing (the first shows everything while the second is off, as the game does); each scrolls on
   its own with the wheel and its scrollbar; the focus light and cursor go to the window the game's
