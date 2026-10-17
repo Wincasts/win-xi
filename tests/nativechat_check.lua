@@ -1,6 +1,6 @@
 -- Standalone native chat bridge contract; callbacks mocked, no client needed.
 local ffi = require('ffi')
-local block = {Version=10,Size=70208,Submit=123,SupportedMask=255,Frame=10,
+local block = {Version=11,Size=70300,Submit=123,SupportedMask=511,Frame=10,
     NativeFrame={[0]=10,[1]=0,[2]=0},DrawnFrame={[0]=10,[1]=0,[2]=0},
     InputRect={[0]=0,[1]=0.9,[2]=1,[3]=1},InputRectFrame=10,
     PrimaryRect={[0]=0.05,[1]=0.5,[2]=0.5,[3]=0.9},PrimaryRectFrame=10,
@@ -8,7 +8,9 @@ local block = {Version=10,Size=70208,Submit=123,SupportedMask=255,Frame=10,
     StateFlags=0,StateFrame=10,FullScroll=0,FullCursor=20,FullPageRows=20,FullFilter=0,
     ControlStyleFrame=0,ControlColors={[0]={},[1]={},[2]={},[3]={}},
     ReplaceControls=0,TabFrame=0,TabCount=0,Tabs={},ScrollFrame=0,ScrollPage=0,ScrollCount=0,ScrollTop=0,ScrollRect={[0]=0,[1]=0,[2]=0,[3]=0},
-    TextFrame=0,TextCount=0,TextSerial=0,Rows={},Text=ffi.new('char[65536]')}
+    TextFrame=0,TextCount=0,TextSerial=0,Rows={},Text=ffi.new('char[65536]'),
+    SplitRect={[0]=0.05,[1]=0.3,[2]=0.5,[3]=0.5},SplitRectFrame=0,WindowFrame=0,WindowFlags=0,WindowModes={[0]={},[1]={}}}
+for w=0,1 do for i=0,7 do block.WindowModes[w][i]=0 end end
 for i=0,11 do block.Tabs[i]={Rect={[0]=0,[1]=0,[2]=0,[3]=0},Channel=0,Selected=0} end
 for i=0,127 do block.Rows[i]={Rect={[0]=0,[1]=0,[2]=0,[3]=0},Offset=0,Length=0,Mode=0,Flags=0} end
 local loaded, base, address, now, result = false, 100, 500, 0, 1
@@ -27,12 +29,12 @@ ashita={memory={get_base=function(name) assert(name=='uihook.dll'); return base 
         scans=scans+1; return address
     end}}
 local native=dofile('addons/libs/winxi/nativechat.lua')
-assert(ffi.sizeof('uihook_chat_t')==70208)
+assert(ffi.sizeof('uihook_chat_t')==70300)
 local primary, split, input=native.new(native.Primary),native.new(native.Secondary),native.new(native.Input)
 assert(not primary.Begin() and #calls==0)
-loaded=true; block.Version=9
+loaded=true; block.Version=10
 assert(not primary.Begin() and primary.Status():find('ABI mismatch'))
-block.Version=10; now=2
+block.Version=11; now=2
 assert(primary.Begin() and primary.Capture())
 assert(calls[#calls][1]==0 and calls[#calls][2]==1)
 assert(primary.Capture(true) and calls[#calls][1]==0 and calls[#calls][2]==2,
@@ -47,7 +49,7 @@ assert(primary.Capture(true,controls) and block.ControlStyleFrame==block.Frame)
 assert(primary.Capture() and block.ControlStyleFrame==0,'compact capture cannot retain expanded tints')
 block.SupportedMask=31
 assert(primary.Capture(true,controls) and block.ControlStyleFrame==0,'optional controls capability is independent of frame capture')
-block.SupportedMask=255
+block.SupportedMask=511
 assert(primary.Capture(true,controls)); primary.Stop()
 assert(block.ControlStyleFrame==0,'release invalidates shared colour stamp')
 -- which of the game's controls the addon draws itself: written with an expanded capture, where uihook can hide them
@@ -58,12 +60,12 @@ assert(primary.Capture(true,controls) and block.ReplaceControls==0,'nothing aske
 assert(primary.Capture(true,controls,{tabs=true}) and primary.Capture() and block.ReplaceControls==0,'a compact capture hides nothing')
 block.SupportedMask=63
 assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true}) and block.ReplaceControls==0 and not primary.State().nativeReplace and not primary.State().nativeText,'without the hooks nothing is asked')
-block.SupportedMask=255
+block.SupportedMask=511
 assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true}) and block.ReplaceControls==7,'the text as well')
 assert(primary.Capture(true,controls,{text=true}) and block.ReplaceControls==4,'the text alone')
 block.SupportedMask=127
 assert(primary.Capture(true,controls,{tabs=true,text=true}) and block.ReplaceControls==1 and not primary.State().nativeText,'without the row site the text is not asked for')
-block.SupportedMask=255
+block.SupportedMask=511
 assert(primary.Capture(true,controls,{tabs=true}) and block.ReplaceControls==1); primary.Stop()
 assert(block.ReplaceControls==0,'release asks for nothing')
 assert(primary.State().nativeReplace and primary.State().nativeText,'the hooks are known')
@@ -86,7 +88,7 @@ local bar=primary.Scrollbar(1920,1080)
 assert(bar.left==9.6 and bar.top==108 and bar.right==19.2 and bar.bottom==972 and bar.page==20 and bar.count==75 and bar.above==30,'the scrollbar\'s place and rows')
 block.ScrollTop=80; assert(primary.Scrollbar(1920,1080)==nil,'more above than there are rows is no scrollbar'); block.ScrollTop=30
 block.ScrollFrame=0; assert(primary.Scrollbar(1920,1080)==nil,'none drawn, none'); block.ScrollFrame=10
-block.SupportedMask=63; assert(primary.Tabs(1920,1080)==nil and primary.Scrollbar(1920,1080)==nil,'without the hooks, nothing'); block.SupportedMask=255
+block.SupportedMask=63; assert(primary.Tabs(1920,1080)==nil and primary.Scrollbar(1920,1080)==nil,'without the hooks, nothing'); block.SupportedMask=511
 block.TabFrame=0
 -- the game's rows of text: in its order, each with its bytes, mode, flags and place, scaled to the display; the
 -- same table while the serial holds; nothing stale, nothing without the row site
@@ -110,8 +112,32 @@ assert(split.Rows(1920,1080)==nil and input.Rows(1920,1080)==nil,'the primary sl
 block.TextSerial=3; block.Rows[0].Offset=65535; assert(primary.Rows(1920,1080)[1].text=='','text past the room is none'); block.Rows[0].Offset=0
 block.TextSerial=4; block.TextCount=0; assert(primary.Rows(1920,1080)==nil,'no rows, nothing'); block.TextCount=3; block.TextSerial=5
 block.Frame=13; assert(primary.Rows(1920,1080)==nil,'stale rows expire'); block.Frame=10
-block.SupportedMask=127; assert(primary.Rows(1920,1080)==nil,'without the row site, nothing'); block.SupportedMask=255
+block.SupportedMask=127; assert(primary.Rows(1920,1080)==nil,'without the row site, nothing'); block.SupportedMask=511
 block.TextFrame=0
+-- the game's routing between its two log windows: the second's place, and which modes each window keeps; the same
+-- table while it holds; nothing stale, nothing without the routing hooks
+assert(split.Rect(1920,1080)==nil and primary.Routes()==nil,'no second window yet')
+block.SplitRectFrame=10
+local sl,st,sr,sb=split.Rect(1920,1080)
+assert(sl==96 and st==324 and sr==960 and sb==540,'the second log window\'s place in display pixels')
+assert(split.Rect(1920,1080,true)==nil,'the split slot has no expanded bounds')
+block.WindowFrame=10; block.WindowFlags=1
+block.WindowModes[0][0]=2+512; block.WindowModes[1][0]=32+8192; block.WindowModes[1][6]=bit.lshift(1,19) -- the first says 1 and 9, the second party 5 and 13, and 211
+local routes=primary.Routes()
+assert(routes.split and routes.first[1] and routes.first[9] and not routes.first[5] and routes.second[5] and routes.second[13] and routes.second[211] and not routes.second[1],'each window\'s modes')
+assert(native.Shows(routes,1,1) and not native.Shows(routes,1,5) and native.Shows(routes,2,5) and not native.Shows(routes,2,1),'Shows by the window\'s set')
+assert(native.Shows(routes,1,0x8005) and not native.Shows(routes,2,0x8005),'a mode word with bit 15: the first window alone')
+assert(native.Shows(routes,1,0x105) == false and native.Shows(routes,2,0x105),'other high bits are not the mode')
+assert(not native.Shows(routes,3,1),'no third window')
+assert(primary.Routes()==routes,'the same table while the routing holds')
+block.WindowModes[0][0]=2+512+32; assert(primary.Routes()~=routes and primary.Routes().first[5],'a change: a new table')
+block.WindowFlags=0; routes=primary.Routes()
+assert(not routes.split and native.Shows(routes,1,5) and native.Shows(routes,1,99) and not native.Shows(routes,2,5),'the second window hidden: the first shows everything, the second nothing')
+assert(native.Shows(nil,1,5) and not native.Shows(nil,2,5),'without routes the same')
+assert(split.Routes()==nil and input.Routes()==nil,'the primary slot\'s alone')
+block.Frame=13; assert(primary.Routes()==nil and split.Rect(1920,1080)==nil,'stale routing and place expire'); block.Frame=10
+block.SupportedMask=255; assert(primary.Routes()==nil and split.Rect(1920,1080)==nil,'without the routing hooks, nothing'); block.SupportedMask=511
+block.WindowFrame=0; block.SplitRectFrame=0
 assert(primary.Begin())
 assert(split.Begin() and calls[#calls][1]==1)
 assert(input.Begin() and input.Capture() and calls[#calls][1]==2)
@@ -125,13 +151,15 @@ local el,et,er,eb=primary.Rect(1920,1080,true)
 assert(el==0 and et==108 and er==1920 and eb==972, 'expanded geometry independent of compact anchor')
 assert(input.Rect(1920,1080,true)==nil, 'input cannot read expanded log bounds')
 local state=primary.State(); assert(not state.selected and not state.expanded and state.expandedSupported and state.nativeContent and state.nativeControls and state.nativeReplace and state.nativeText)
-block.StateFlags=1; assert(primary.State().selected and not primary.State().expanded, 'native selector focus')
+block.StateFlags=1; assert(primary.State().selected and primary.State().selectedWindow==1 and not primary.State().expanded, 'native selector focus')
+block.StateFlags=2; assert(primary.State().selected and primary.State().selectedWindow==2, 'the second window\'s focus')
+block.StateFlags=0; assert(primary.State().selectedWindow==nil and primary.State().nativeWindows, 'no focus; the routing hooks known')
 block.StateFlags=4; state=primary.State(); assert(state.expanded and not state.nativeBrowse and state.pageRows==20)
 block.StateFlags=12; assert(primary.State().nativeBrowse, 'native history/menu fallback')
 block.StateFlags=20; state=primary.State(); assert(state.expanded and state.nested and not state.nativeBrowse, 'a menu open over the live full log')
 block.Frame=13; assert(primary.State()==nil and primary.Rect(1920,1080,true)==nil, 'state/full bounds expire')
 block.Frame=10; block.StateFlags=0
-assert(split.Rect(1920,1080)==nil and input.Rect(0,1080)==nil, 'no split geometry; invalid display rejected')
+assert(split.Rect(1920,1080)==nil and input.Rect(0,1080)==nil, 'no split geometry without a fresh place; invalid display rejected')
 block.PrimaryRectFrame=0; assert(primary.Rect(1920,1080)==nil and input.Rect(1920,1080)~=nil, 'log/input geometry independent')
 block.PrimaryRectFrame=10
 block.Frame=13; assert(primary.Rect(1920,1080)==nil, 'stale primary geometry expires')
@@ -163,4 +191,4 @@ base=400
 assert(not primary.Capture(),'new DLL cannot inherit old ownership')
 assert(primary.Begin()); block.SupportedMask=0
 assert(not primary.Begin() and primary.Status():find('not recognise'))
-print('Native chat bridge: ABI, marker, slot isolation, rows of text, failure release, expiry, unload/reload passed')
+print('Native chat bridge: ABI, marker, slot isolation, rows of text, window routing, failure release, expiry, unload/reload passed')

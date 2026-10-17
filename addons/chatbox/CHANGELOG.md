@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0
+
+- The game's second log window mirrored. With Log Window 2 on in the game's settings, a second WinXI
+  box stands over the first, of the first's width and the game's second window's height (as many
+  rows as fit at Font Size; ten rows with Match Game Log Size off), titled Window 2. Each box shows
+  the messages the game's Log Window settings route to its window, as uihook reads the game's own
+  routing (the first shows everything while the second is off, as the game does); each scrolls on
+  its own with the wheel and its scrollbar; the focus light and cursor go to the window the game's
+  focus is on. With one window, as before: the game's second log is hidden under the first.
+  `/chatbox status` says what the second window is doing.
+- Needs winxi 17 and uihook 0.5 with chat ABI 11.
+
 ## 0.9.0
 
 - The expanded log's text in the chat's font. uihook decodes the game's rows of text as it draws

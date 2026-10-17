@@ -27,6 +27,7 @@ local nativeLogRect = {20,700,660,1018}
 local expandedRect={0,100,1920,1020}
 local chatState={selected=false,expanded=false,expandedSupported=true,nativeBrowse=false,nested=false,nativeContent=true,nativeControls=true,nativeReplace=true,nativeText=true}
 local tabsGeometry, scrollGeometry, rowsGeometry -- where the game drew its tabs, scrollbar and rows of text, as uihook measured them
+local splitRect, routes -- the game's second log window, and its routing between the two, as uihook reads them
 package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=function(index)
     local hook = {begins=0,stops=0,captures=0}
     function hook.Begin() hook.begins=hook.begins+1; return ready end
@@ -42,14 +43,27 @@ package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=functio
     function hook.Tabs() return index==0 and tabsGeometry or nil end
     function hook.Scrollbar() return index==0 and scrollGeometry or nil end
     function hook.Rows() return index==0 and rowsGeometry or nil end
-    function hook.State() return chatState end
+    function hook.State()
+        local state={}
+        for k,v in pairs(chatState) do state[k]=v end
+        if state.selected and state.selectedWindow==nil then state.selectedWindow=1 end -- as the real bridge: a focused window is 1 or 2
+        return state
+    end
+    function hook.Routes() return index==0 and routes or nil end
     function hook.Rect(_,_,expanded)
         local rect
         if index==0 then rect=expanded and expandedRect or (not expanded and nativeLogRect or nil)
+        elseif index==1 then rect=not expanded and splitRect or nil
         elseif index==2 then rect=nativeRect end
         if rect then return unpack(rect) end
     end
     hooks[index]=hook; return hook
+end, Shows=function(r, window, mode)
+    mode=tonumber(mode) or 0
+    if not r or not r.split then return window==1 end
+    if bit.band(mode,0x8000)~=0 then return window==1 end
+    local set=window==1 and r.first or window==2 and r.second or nil
+    return set~=nil and set[bit.band(mode,0xff)]==true
 end }
 local look = { Padding=12,TextColor={1,1,1,1},HighlightColor={0.2,0.4,0.8,0.6} }
 package.loaded['winxi.theme'] = { Get=function() return look end }
@@ -674,6 +688,56 @@ assert(#filled == 0, 'scrollbar disappears when all rows fit')
 assert(not wheel(120).blocked, 'no overflowing rows means no wheel interception')
 app.options.enabled[1]=false; frame()
 assert(not wheel(120).blocked, 'disabled replacement releases mouse wheel')
+-- The game's two log windows mirrored: a second box stacked over the first, of the first's width and the game's
+-- second window's height; each shows the messages the game's Log Window settings route to it; each scrolls on its
+-- own; the focus light and cursor go to the window the game's focus is on
+app.options.enabled[1]=true
+spec.commands.clear()
+app.options.matchGameLogSize[1]=true
+nativeLogRect={20,700,660,1018}; splitRect={20,520,660,700}
+routes={split=true,first={[1]=true,[9]=true},second={[1]=true,[5]=true,[13]=true}} -- say to both, party to the second alone, tells to neither
+message('said',{mode=1}); message('partied',{mode=5}); message('told',{mode=12}); message('marked',{mode=0x8005})
+local begins=hooks[1].begins
+frame()
+local first,split=rendered['winxi.chatbox'],rendered['winxi.chatbox.split']
+assert(split and split.pos[1]==20 and split.pos[2]==700 and split.pos[4]==1 and split.size[1]==640 and split.size[2]==180,'the second box stacked over the first, the first\'s width, the game\'s second window\'s height')
+assert(split.style.title=='Window 2' and first.style.title~='Window 2' and split.style.fontSize==12,'titled Window 2, in the chat\'s font size; the first still by its channel')
+assert(hooks[1].captures==1 and hooks[1].begins==begins+1,'the second window captured, once begun, not hidden again after')
+local function texts() local t={} for _,entry in ipairs(text) do t[#t+1]=entry.text end return table.concat(t,'|') end
+assert(texts()=='said|marked|said|partied','the first shows what is routed to it, and a line the game marks for it alone; the second its own; the tell neither')
+chatState.selected=true; chatState.selectedWindow=2; frame()
+assert(#filled==1 and filled[1].a[2]==520 and filled[1].b[2]==700 and #images==1 and images[1].a[2]>520 and images[1].a[2]<700,'the game\'s focus on the second window lights it alone, the cursor at its newest line')
+chatState.selectedWindow=1; frame()
+assert(#filled==1 and filled[1].a[2]==700 and filled[1].b[2]==1018,'on the first, the first')
+chatState.selected=false; chatState.selectedWindow=nil
+for i=1,40 do message('party '..i,{mode=5}) end
+frame()
+assert(text[1].text=='said' and text[2].text=='marked' and text[3].text=='party 29' and text[#text].text=='party 40' and #text==14,'the first two rows, the second its twelve newest')
+mouse.x,mouse.y=100,600
+assert(wheel(120).blocked,'the wheel over the second box is taken'); frame()
+assert(text[1].text=='said' and text[2].text=='marked' and text[#text].text=='party 37','the second scrolls, the first does not')
+mouse.x,mouse.y=100,900
+assert(not wheel(120).blocked,'the first box, every row fitting, passes the wheel on')
+mouse.x,mouse.y=0,0
+local captures=hooks[1].captures; begins=hooks[1].begins
+routes={split=false}; frame()
+assert(hooks[1].captures==captures and hooks[1].begins==begins+1,'the game showing one window: the second is hidden under the first, as before')
+assert(#text==22 and text[#text].text=='party 40' and text[1].text=='party 19','and the first shows everything, its 22 newest rows')
+routes=nil; frame(); assert(hooks[1].captures==captures,'no routing from uihook: no second box')
+routes={split=true,first={[1]=true},second={[5]=true}}; splitRect=nil; frame()
+assert(hooks[1].captures==captures and #text==2,'the second window\'s place unknown: no second box; the first still shows what is routed to it')
+splitRect={20,520,660,700}; frame()
+assert(hooks[1].captures==captures+1,'its place known again: drawn again')
+local said3={}; app.Say=function(_,line) said3[#said3+1]=line end; spec.commands.status(); app.Say=function() end
+assert(table.concat(said3,'\n'):find('Second window: over the game',1,true) and table.concat(said3,'\n'):find('12 rows of room',1,true),'/chatbox status describes the second window')
+app.options.matchGameLogSize[1]=false; frame()
+assert(rendered['winxi.chatbox.split'].size[2]==150 and rendered['winxi.chatbox.split'].pos[2]==1018-150,'Match Game Log Size off: ten rows each, the second still stacked over the first')
+app.options.matchGameLogSize[1]=true
+chatState.expanded=true; nativeLogRect=nil; captures=hooks[1].captures; frame()
+assert(hooks[1].captures==captures and #text==0,'the expanded log: one view, the game\'s rows')
+chatState.expanded=false; nativeLogRect={20,700,660,1018}; frame()
+assert(hooks[1].captures==captures+1 and text[#text].text=='party 40','back to two, the second at its newest')
+routes=nil; splitRect=nil
 imgui.GetIO=oldIO
 os.clock=realClock
-print('Chatbox UI: compact rows, native expanded frame/content separation, no custom selection/input, mouse pass-through, menu handoff, failure and lifecycle passed')
+print('Chatbox UI: compact rows, two log windows routed as the game routes them, native expanded frame/content separation, no custom selection/input, mouse pass-through, menu handoff, failure and lifecycle passed')

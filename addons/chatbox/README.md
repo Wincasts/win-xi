@@ -1,4 +1,4 @@
-# Chatbox — experimental 0.9
+# Chatbox — experimental 0.10
 
 A **WinXI-styled chat log the game still drives**. The compact log takes the native primary log's
 place and **size** (it follows the game's chat size setting), in WinXI's background and border art,
@@ -19,6 +19,10 @@ each where the game's are.
   begins when the addon loads; the expanded log is the game's own, from before it loaded too.
 - The log lifts above the input bar while typing, and the game's clock and its icons follow the top
   of the log.
+- With **Log Window 2** on in the game's settings, a second box stands over the first, of the same
+  width and the game's second window's height, titled Window 2. Each box shows the messages the
+  game's Log Window settings route to its window, read from the game, and scrolls on its own; the
+  focus light follows the game's focus between them.
 - The mouse wheel scrolls an overflowing compact log three visual rows a notch, and a slim scrollbar
   appears on its right: drag the thumb or click the track to page.
 - No dragging or mouse resizing. Combat formatting, filters and timestamps are left to the game or
@@ -28,9 +32,9 @@ each where the game's are.
 
 ```text
 addons/chatbox/          this directory
-addons/libs/winxi/       WinXI 16 or newer
+addons/libs/winxi/       WinXI 17 or newer
 addons/winxisettings/    shared theme settings (optional)
-plugins/uihook.dll       0.4 or newer, chat ABI 10 (native content, the tab strip, scrollbar and rows of text measured)
+plugins/uihook.dll       0.5 or newer, chat ABI 11 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing)
 ```
 
 Build uihook with `plugins/uihook/build.sh`; the output is `plugins/uihook/build/uihook.dll`. Turn
@@ -138,8 +142,10 @@ boxes off and keeps the colours chosen. None of these change the theme or other 
 ## Native behaviour and limitations
 
 **Compact log.** `winxi.nativechat` captures the complete themed window, after its border and title,
-and uihook replays it at the native primary log's render boundary; the split log is hidden while it
-shows. The game decides when the log is drawn: the replacement never forces a closed log open,
+and uihook replays it at the native primary log's render boundary. The game's second log window, where
+it shows one, is replaced the same way by the second box, with the messages the game routes to it
+(uihook reads the game's own routing; nothing is guessed from the channels); with one window, or
+without that reading, the split log is hidden while the first box shows. The game decides when the log is drawn: the replacement never forces a closed log open,
 ignores UI hide, or draws over browsing and action menus. Zoning suspends it. Turning it off,
 unloading, a failed capture or stale submissions bring the game's drawing back; a missing or stale
 primary rectangle, or too little room above the native anchor, leaves the game's log showing rather

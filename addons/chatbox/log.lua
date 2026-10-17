@@ -67,7 +67,8 @@ function M.Clear(log)
     log.messages, log.cache, log.lastNpc, log.metrics, log.wraps = {}, nil, nil, nil, nil
     log.revision = log.revision + 1
 end
-function M.Add(log, text, mode, now, originalMode, spans)
+-- raw: the chat mode as the game gave it, whole (its low byte is mode; its bit 15 the game's own routing mark)
+function M.Add(log, text, mode, now, originalMode, spans, raw)
     if type(text) ~= 'string' or #text > M.MaxBytes or not text:find('%S') then return false end
     if npcModes[mode] or npcModes[originalMode] then
         local stamp = M.Stamp(text) or ''
@@ -106,7 +107,7 @@ function M.Add(log, text, mode, now, originalMode, spans)
         log.lastNpc = { text = text, time = now }
     end
     log.messages[#log.messages + 1] = { text = text, mode = mode, originalMode = originalMode,
-        time = now or os.clock(), spans = spans }
+        time = now or os.clock(), spans = spans, raw = tonumber(raw) or mode }
     if #log.messages > M.Capacity then
         local removed = table.remove(log.messages, 1)
         for _, layout in ipairs(log.wraps or {}) do layout.messages[removed] = nil end
@@ -196,6 +197,14 @@ local function Offsets(wrapped, text)
     return offsets
 end
 
+-- modes, where given, chooses the messages shown: a set of chat modes (a channel of the full log), or a
+-- function of the message (the game's routing between its two log windows). The same value (the same
+-- table or function) keeps the caches; nil shows them all.
+local function Shows(modes, message)
+    if not modes then return true end
+    if type(modes) == 'function' then return modes(message) == true end
+    return modes[message.mode] == true
+end
 -- Total wrapped rows plus cumulative row counts by newest-message index. Used by the scrollbar
 -- and keyboard browser to describe the same viewport. Cached separately from the tail layout.
 function M.Metrics(log, width, font, size, measure, modes)
@@ -210,7 +219,7 @@ function M.Metrics(log, width, font, size, measure, modes)
     local index = 0
     for i=#log.messages,1,-1 do
         local message = log.messages[i]
-        if not modes or modes[message.mode] then
+        if Shows(modes, message) then
             index = index+1
             local count = #Lines(wrapped, message, width, measure).lines
             metrics.counts[message] = count
@@ -224,8 +233,8 @@ function M.Metrics(log, width, font, size, measure, modes)
     return metrics
 end
 
--- modes, if given, is a set of the chat modes to show (a channel of the full log); nil shows them all.
--- newer: how many of the newest of those to leave out, to look further back (0 for the newest).
+-- modes, if given, chooses the messages shown (a set of chat modes, or a function of the message, as above);
+-- nil shows them all. newer: how many of the newest of those to leave out, to look further back (0 for the newest).
 -- Each row has its message: index, its place counting back from the newest shown by modes (1 the
 -- newest), and message itself (text and mode).
 function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffset)
@@ -242,7 +251,7 @@ function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffs
     local groups, count, index, remaining = {}, 0, 0, false
     for i = #log.messages, 1, -1 do
         local message = log.messages[i]
-        if not modes or modes[message.mode] then
+        if Shows(modes, message) then
             index = index + 1
             if index > newer then
                 local entry = Lines(wrapped, message, width, measure)
@@ -251,7 +260,7 @@ function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffs
                 count = count + #lines
                 if count >= rowCount + rowOffset then
                     for j = i - 1, 1, -1 do
-                        if not modes or modes[log.messages[j].mode] then remaining = true; break end
+                        if Shows(modes, log.messages[j]) then remaining = true; break end
                     end
                     break
                 end
@@ -279,7 +288,7 @@ function M.Count(log, modes)
     if not modes then return #log.messages end
     local count = 0
     for _, message in ipairs(log.messages) do
-        if modes[message.mode] then count = count + 1 end
+        if Shows(modes, message) then count = count + 1 end
     end
     return count
 end
