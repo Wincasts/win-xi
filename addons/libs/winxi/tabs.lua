@@ -6,6 +6,14 @@
 --                              the tab just begun. chosen: what BeginTabItem returned
 --   tabs.BeginBar(id, flags)   in place of imgui.BeginTabBar: the bar, with the line under its tabs in
 --                              the style. Returns what BeginTabBar does; EndTabBar as ever.
+--   tabs.Over(list, left, top, right, bottom, radius)
+--                              the style over a tab the addon draws itself, not imgui's: a rectangle on a
+--                              draw list, kept inside rounded top corners of the radius (imgui's TabRounding
+--                              if none). For an addon drawing tabs where the game's are, as chatbox does
+--                              over the expanded log's. Nothing for 'plain'.
+--   tabs.Line(list, left, right, y, chosenLeft, chosenRight)
+--                              the line under such a row of tabs, from left to right at y, the chosen tab's
+--                              part brighter; drawn for every style, there being no line of imgui's.
 --
 -- Only for a window of the game kind (winxi.window's kinds): a settings window's tabs are left plain.
 --
@@ -253,6 +261,34 @@ function tabs.Begin(label, flags)
     local open = imgui.BeginTabItem(label, 0, flags or 0);
     tabs.Draw(open);
     return open;
+end
+
+function tabs.Over(list, left, top, right, bottom, radius)
+    local style = theme.Get().TabStyle;
+    if style ~= 'sheen' and not files[style] then
+        return;
+    end
+    local height = bottom - top;
+    if height < 2 or right - left < 2 then
+        return;
+    end
+    local imguiStyle = imgui.GetStyle();
+    radius = math.floor(math.min(radius or imguiStyle.TabRounding or 0, height / 2, (right - left) / 2));
+    if style == 'sheen' then
+        DrawSheen(list, left, top, right, height, radius, imguiStyle.Alpha or 1);
+    else
+        local texture = Texture(style);
+        if texture ~= nil then
+            DrawImage(list, texture, left, top, right, height, radius);
+        end
+    end
+end
+
+function tabs.Line(list, left, right, y, chosenLeft, chosenRight)
+    DrawLine(list, left, right, y);
+    if chosenLeft ~= nil and chosenRight ~= nil and chosenRight > chosenLeft then
+        DrawChosen(list, chosenLeft, chosenRight, y);
+    end
 end
 
 return tabs;

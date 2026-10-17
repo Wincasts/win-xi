@@ -33,6 +33,8 @@
 -- 12: nativechat ABI 6 native focus, full-log geometry and safe expansion handoff
 -- 13: nativechat ABI 7 frame-only expanded capture with native content pass-through
 -- 14: nativechat ABI 8 captured theme colours for native expanded control artwork
+-- 15: nativechat ABI 9, the game's tab strip and scrollbar measured and, asked, left undrawn; tabs.Over
+--     and tabs.Line, the tab style over a tab an addon places itself
 return {
-    Number = 14,
+    Number = 15,
 };

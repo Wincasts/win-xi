@@ -8,7 +8,7 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | Addon | What it does | Command |
 |---|---|---|
 | [buff](addons/buff) | The statuses you are under, in a window, with FFXIV's icons and the time each has left | `/buff` |
-| [chatbox](addons/chatbox) | Experimental WinXI chat log the game still drives: the game log's place and size, a native-backed input bar, native selection and expansion; needs `uihook` | `/chatbox` |
+| [chatbox](addons/chatbox) | Experimental WinXI chat log the game still drives: the game log's place and size, a native-backed input bar, native selection, and the expanded log in WinXI tabs; needs `uihook` | `/chatbox` |
 | [hidecompass](addons/hidecompass) | Hides the game's compass | `/hidecompass` |
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
 | [name](addons/name) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style; needs the `namehook` plugin | `/name` |
@@ -49,7 +49,7 @@ before enabling it. The experimental [clock addon](addons/clock/README.md) uses 
 write the game's clock on one line in place of its text, keeping its day and weather icons, and can
 hide the compass; unload `hidecompass` first. Clock requires winxi 5.
 [Chatbox](addons/chatbox/README.md) includes a native-backed WinXI input bar and requires
-winxi 14 and a uihook build with chat ABI 8;
+winxi 15 and uihook 0.3 with chat ABI 9;
 load uihook first and unload other chat replacements/visibility writers.
 See the uihook README for migration and testing steps.
 

@@ -183,12 +183,13 @@ eligibility: closing the log or switching to expanded chat does not force it ope
 Do not run FancyChat, hidechatbg or other chat-visibility writers alongside replacement:
 they can close the native log or change what native restoration looks like.
 The [chatbox addon](../../addons/chatbox/README.md) supplies a compact log, native selection highlight,
-a WinXI frame and theme-tinted controls around the actual native expanded browser, and a native-backed WinXI input bar.
+a WinXI frame, WinXI tabs and scrollbar where the game's are (or theme-tinted native controls) around the actual
+native expanded browser, and a native-backed WinXI input bar.
 The plugin itself does not collect chat messages or own keyboard input.
 
-### Chat ABI 8
+### Chat ABI 9
 
-Independent `UIHOOK-CHAT` marker padded to 16 bytes, **232 bytes** total (update DLL and bridge together):
+Independent `UIHOOK-CHAT` marker padded to 16 bytes, **564 bytes** total (update DLL and bridge together):
 
 ```text
 char Magic[16]
@@ -202,17 +203,25 @@ u32 StateFlags, StateFrame
 u32 FullScroll, FullCursor, FullPageRows, FullFilter
 u32 ControlStyleFrame
 float ControlColors[4][4]  // highlight, tab, cursor, scrollbar; RGBA [0,1]
+u32 ReplaceControls         // Lua-owned: 1 tabs, 2 scrollbar left undrawn, the addon drawing its own
+u32 TabFrame, TabCount
+struct { float Rect[4]; u32 Channel, Selected; } Tabs[12]  // the game's tab strip as last drawn
+u32 ScrollFrame, ScrollPage, ScrollCount, ScrollTop        // its scrollbar: page rows, rows, rows above the view
+float ScrollRect[4]
 ```
 
 Submission bits/indexes: 0 primary (compact OR expanded), 1 split, 2 input (`nativechat.Input`).
 SupportedMask bit 3 advertises verified expansion state/geometry; bit 4 advertises the verified
-full-log content Draw hook. Bit 5 advertises the optional verified control-art CALL sites.
+full-log content Draw hook. Bit 5 advertises the optional verified control-art CALL sites, and
+bit 6 that the tab strip and scrollbar are measured and can be left undrawn (the same group of sites).
 None is an additional submission slot. `Submit` is render-thread-only
 `cdecl int(index, capture)`: 0 renews empty, 1 captures compact/input contents, 2 captures a
 **frame-only expanded skin** (primary slot only, requires bit 4), and -1 releases that slot.
-`primary.Capture(true, colors)` requests mode 2, optionally publishing the four RGBA control
-colours before stamping ControlStyleFrame. Missing/invalid colours leave controls native. The
-plugin validates and copies the style only with a successful current-frame expanded capture.
+`primary.Capture(true, colors, replace)` requests mode 2, optionally publishing the four RGBA control
+colours before stamping ControlStyleFrame, and which controls the addon draws itself
+(`{ tabs = true, scrollbar = true }`, ReplaceControls). Missing/invalid colours leave controls native. The
+plugin validates and copies the style, and the replace bits, only with a successful current-frame
+expanded capture; a compact capture or a release clears both.
 Older bridges/DLLs are rejected; interpreting a frame-only capture as whole-window replacement
 would hide text. Index -1 releases all three **chat slots only**. Party/HUD release-all
 cannot release chat slots. Frames use the same clock as Party/HUD; the bridge validates
@@ -237,7 +246,13 @@ another active menu/input, invalid layout data or unsupported full-log discovery
 and cursor movement no longer trigger fallback: all pages retain native contents and behavior.
 During opening/closing, no fresh expanded rectangle means no frame skin. Other addons' native
 expanded-chat hiding rules remain untouched; no controller input or native expansion flags are rewritten.
-`State().nativeContent` reports the bit-4 content-hook capability; `nativeControls` reports bit 5.
+`State().nativeContent` reports the bit-4 content-hook capability; `nativeControls` reports bit 5 and
+`nativeReplace` bit 6. `primary.Tabs(w, h)` gives the game's tabs as last drawn in a skinned full log,
+left to right, each with its bounds in ImGui pixels, its channel (the filter's number, nil where its
+sprite is none of the owner's) and whether it was drawn chosen; `primary.Scrollbar(w, h)` the game's
+scrollbar's bounds and its page, count and rows above the view. Both only while fresh (two frames),
+and nil when the game drew none, so an addon asks for a control to be left undrawn only when it has
+a place to draw its own.
 
 Full-log discovery cross-checks the three adjacent logwindo/logwin2/fulllog registry entries
 against the primary/split pointer signature. A unique constructor identifies the full-log
@@ -254,18 +269,26 @@ native row offsets or decoding font glyph indices. The expanded skin has no cust
 Compact and expanded captures cannot replay across boundaries; empty mode-2 submissions cannot
 suppress a full log. Missing content hooks leave native expanded drawing intact, while compact
 replacement remains available. Expanded font and spacing are intentionally native, not WinXI.
-Optional control styling redirects **four CALL sites only**: the full-log tab sprite call,
-Window::Render's row-selection sprite call, cursor sprite call, and scrollbar Draw call. Each
-unique site is checked against its parent function and native callee; all four are verified before
-any is patched. Shared sprite/scrollbar routines are never patched. The native five-word tab and
+Optional control styling redirects **five CALL sites only**: the full-log tab sprite call,
+Window::Render's row-selection sprite call, cursor sprite call, scrollbar Draw call, and the full
+log's call to its whole tab strip (its content Draw's first call: thiscall with the filter on the
+stack, ret 4; the pattern's own bytes keep ecx the owner up to the call). Each
+unique site is checked against its parent function and native callee; all five are verified before
+any is patched. Shared sprite/scrollbar/tab-strip routines are never patched. The native five-word tab and
 eight-word window-sprite ABIs retain all geometry, float bits and flags; only colour changes.
 Selected tabs are identified by the native owner's selected-tab sprite, not guessed tab ordering.
 The row-selection draw alone bypasses frame suppression, then restores it. Scrollbar Draw reads
 its first 40 bytes, so it receives a temporary copy with only the two colour words changed; native
 range/page/offset/scale and mouse state are untouched. Sprite colour unity is 128; alpha retains
 native pulse/fades. Theme changes never recolour message text or other windows' controls.
-Native artwork is tinted, not replaced by WinXI Tab Style assets. Missing control signatures
-leave controls native while frame/content support remains independent.
+Native artwork is tinted where it is drawn. Where the addon draws its own tabs or scrollbar, the
+strip's or the scrollbar's GPU submissions are blocked for that call alone (labels and art alike),
+while each tab sprite call and the scrollbar Draw are measured from their screen-space vertices,
+drawn or not, and published normalized to the viewport they were drawn in; whose tab a sprite is
+comes from the owner's tab sprite table (+0x80 plain, +0x84 chosen, by channel), and the
+scrollbar's page/count/rows-above from the fields the verified Update pattern writes (+0x0C, +0x10,
++0x14), read only. Hit-tests, Square selection, the wheel and the native objects are untouched.
+Missing control signatures leave controls native while frame/content support remains independent.
 See [discovery notes](src/modules/chat/FINDINGS.md) for static-client evidence and live checks.
 Optional private-client verification: `python3 plugins/uihook/tests/check_chat_client.py /path/to/ffximain.bin /path/to/ffximain.txt`.
 

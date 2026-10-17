@@ -125,3 +125,33 @@ imgui.GetCursorScreenPos, imgui.GetContentRegionAvail = getCursor, getAvail
 look.TabStyle, tabs.Load = 'sheen', load
 imgui.GetWindowDrawList, imgui.GetStyle, imgui.GetItemRectMin, imgui.GetItemRectMax = getList, getStyle, rectMin, rectMax
 H.print('tabs: plain draws nothing, sheen inside the rounded top, images edge to edge and only stretched down, missing image, narrow tab, Begin, the line under the tabs', true)
+
+-- a tab the addon places itself: the style kept inside the rectangle given and its rounded top, nothing
+-- for Plain, and the line under a row of them, drawn whatever the style, the chosen tab's part brighter
+look.TabStyle = 'plain'; Reset(); lines = {}
+tabs.Over(list, 200, 300, 260, 320, 4)
+assert(next(counts) == nil, 'plain: nothing over the tab')
+look.TabStyle = 'sheen'; Reset()
+tabs.Over(list, 200, 300, 260, 320, 4)
+assert(counts.AddRectFilled > 4 and counts.AddImage == nil, 'the sheen over the tab given')
+for _, r in ipairs(rects) do
+    assert(r[1] >= 200 and r[3] <= 260 and r[2] >= 300 and r[4] <= 320, 'inside the tab given')
+end
+assert(rects[1][1] > 200 and rects[1][3] < 260, 'its top row pulled in by the rounded corners')
+look.TabStyle = 'glass'; Reset()
+tabs.Over(list, 200, 300, 260, 320)
+assert(counts.AddImage ~= nil, 'an image over it, the radius imgui\'s when none is given')
+for _, image in ipairs(images) do
+    assert(image[1] >= 200 and image[3] <= 260 and image[2] >= 300 and image[4] <= 320, 'inside the tab given')
+end
+Reset(); tabs.Over(list, 200, 300, 201, 320, 4); assert(next(counts) == nil, 'a tab too narrow to draw')
+for _, style in ipairs({ 'plain', 'sheen' }) do
+    look.TabStyle = style; Reset(); lines = {}
+    tabs.Line(list, 200, 500, 320, 260, 320)
+    assert(counts.AddRectFilledMultiColor == 1, style .. ': the shade under the line')
+    local across, chosen = rects[1], rects[#rects - 1]
+    assert(across[1] == 200 and across[3] == 500 and across[2] == 319 and across[4] == 321, style .. ': solid across the row, under the tabs')
+    assert(chosen[1] == 260 and chosen[3] == 320 and chosen[2] == 319 and chosen[4] == 321, style .. ': the chosen tab\'s part of the line')
+    Reset(); tabs.Line(list, 200, 500, 320)
+    assert(#rects == 1 and counts.AddRectFilledMultiColor == 1, style .. ': no chosen tab, the line alone')
+end

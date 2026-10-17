@@ -18,6 +18,11 @@ ffi.cdef[[
         uint32_t FullScroll, FullCursor, FullPageRows, FullFilter;
         uint32_t ControlStyleFrame;
         float ControlColors[4][4];
+        uint32_t ReplaceControls;
+        uint32_t TabFrame, TabCount;
+        struct { float Rect[4]; uint32_t Channel, Selected; } Tabs[12];
+        uint32_t ScrollFrame, ScrollPage, ScrollCount, ScrollTop;
+        float ScrollRect[4];
     } uihook_chat_t;
     typedef int32_t (__cdecl *uihook_chat_submit_t)(int32_t index, int32_t capture);
 ]]
@@ -43,7 +48,7 @@ function M.new(index)
             local at = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D434841540000000000', 0, 0)
             if not at or at == 0 then reason = 'Update uihook: chat shared block not found.'; return nil end
             local found = ffi.cast('uihook_chat_t*', at)
-            if found.Version ~= 8 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
+            if found.Version ~= 9 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
                 reason = 'uihook chat ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_chat_submit_t', found.Submit)
@@ -63,7 +68,10 @@ function M.new(index)
         return owned
     end
     -- Copy/consume this ImGui window's GPU commands, leaving its layout/hit testing intact.
-    function hook.Capture(expandedFrame, controls)
+    -- For the expanded log: controls, the theme's colours for the game's own controls (highlight, tab,
+    -- cursor, scrollbar), and replace, which of them the addon draws itself, { tabs = true, scrollbar = true }:
+    -- those the game leaves undrawn, their hit-tests still its own. Tabs() and Scrollbar() say where.
+    function hook.Capture(expandedFrame, controls, replace)
         local found = Find()
         if not found or not owned then return false end
         if expandedFrame and (index ~= M.Primary or bit.band(found.SupportedMask,16) == 0) then
@@ -75,6 +83,10 @@ function M.new(index)
         -- leave native artwork untinted; they must never compromise native chat rendering.
         if index == M.Primary then
             found.ControlStyleFrame = 0
+            found.ReplaceControls = 0
+            if expandedFrame and bit.band(found.SupportedMask,64) ~= 0 and type(replace) == 'table' then
+                found.ReplaceControls = (replace.tabs and 1 or 0) + (replace.scrollbar and 2 or 0)
+            end
             if expandedFrame and bit.band(found.SupportedMask,32) ~= 0 and type(controls) == 'table' then
                 local valid = true
                 for i=1,4 do
@@ -97,7 +109,7 @@ function M.new(index)
     end
     function hook.Stop()
         local found = Find()
-        if found and index == M.Primary then found.ControlStyleFrame = 0 end
+        if found and index == M.Primary then found.ControlStyleFrame = 0; found.ReplaceControls = 0 end
         if found and owned then submit(index, -1) end
         owned = false
     end
@@ -120,24 +132,69 @@ function M.new(index)
             nativeBrowse = bit.band(flags,8) ~= 0, expandedSupported = bit.band(found.SupportedMask,8) ~= 0,
             nativeContent = bit.band(found.SupportedMask,16) ~= 0,
             nativeControls = bit.band(found.SupportedMask,32) ~= 0,
+            nativeReplace = bit.band(found.SupportedMask,64) ~= 0,
             scroll = tonumber(found.FullScroll), cursor = tonumber(found.FullCursor),
             pageRows = tonumber(found.FullPageRows), filter = tonumber(found.FullFilter) }
+    end
+    -- Fresh: stamped within the last two frames. Display: a size to scale normalized bounds to.
+    local function Fresh(found, stamp)
+        stamp = tonumber(stamp)
+        return stamp ~= 0 and (tonumber(found.Frame) - stamp) % 4294967296 <= 2
+    end
+    local function Display(width, height)
+        return type(width) == 'number' and type(height) == 'number' and width == width and height == height
+            and width > 0 and height > 0 and width <= 32768 and height <= 32768
+    end
+    -- Normalized bounds scaled to the display, or nil where they are not a rectangle
+    local function Scaled(r, width, height)
+        for i = 0, 3 do
+            if r[i] ~= r[i] or math.abs(r[i]) > 4 then return nil end
+        end
+        if r[2] <= r[0] or r[3] <= r[1] then return nil end
+        return tonumber(r[0]) * width, tonumber(r[1]) * height, tonumber(r[2]) * width, tonumber(r[3]) * height
     end
     -- Native primary/input bounds; expanded=true selects fulllog on the primary slot.
     function hook.Rect(width, height, expanded)
         local found = Find()
         if not found or (index ~= M.Primary and index ~= M.Input) then return nil end
         if expanded and (index ~= M.Primary or bit.band(found.SupportedMask,8) == 0) then return nil end
-        local frame = tonumber(expanded and found.ExpandedRectFrame or index == M.Primary and found.PrimaryRectFrame or found.InputRectFrame)
-        if frame == 0 or (tonumber(found.Frame) - frame) % 4294967296 > 2 then return nil end
-        if type(width) ~= 'number' or type(height) ~= 'number' or width ~= width or height ~= height
-            or width <= 0 or height <= 0 or width > 32768 or height > 32768 then return nil end
-        local r = expanded and found.ExpandedRect or index == M.Primary and found.PrimaryRect or found.InputRect
-        for i = 0, 3 do
-            if r[i] ~= r[i] or math.abs(r[i]) > 4 then return nil end
+        if not Fresh(found, expanded and found.ExpandedRectFrame or index == M.Primary and found.PrimaryRectFrame or found.InputRectFrame) then return nil end
+        if not Display(width, height) then return nil end
+        return Scaled(expanded and found.ExpandedRect or index == M.Primary and found.PrimaryRect or found.InputRect, width, height)
+    end
+    -- The game's tab strip as it last drew it in the skinned full log: each tab's bounds in display pixels,
+    -- left to right, its channel (the filter's number, 0 to 10; nil where the sprite was none of the known
+    -- tabs) and whether it was drawn chosen. nil when there is none, or none fresh.
+    function hook.Tabs(width, height)
+        local found = Find()
+        if not found or index ~= M.Primary or bit.band(found.SupportedMask,64) == 0 then return nil end
+        if not Fresh(found, found.TabFrame) or not Display(width, height) then return nil end
+        local list = {}
+        for i = 0, math.min(tonumber(found.TabCount), 12) - 1 do
+            local tab = found.Tabs[i]
+            local left, top, right, bottom = Scaled(tab.Rect, width, height)
+            if left then
+                local channel = tonumber(tab.Channel)
+                list[#list + 1] = { left = left, top = top, right = right, bottom = bottom,
+                    channel = channel <= 10 and channel or nil, selected = tab.Selected ~= 0 }
+            end
         end
-        if r[2] <= r[0] or r[3] <= r[1] then return nil end
-        return tonumber(r[0]) * width, tonumber(r[1]) * height, tonumber(r[2]) * width, tonumber(r[3]) * height
+        if #list == 0 then return nil end
+        table.sort(list, function(a, b) return a.left < b.left end)
+        return list
+    end
+    -- The game's scrollbar as it last drew it there: its bounds in display pixels, and its rows, page
+    -- (shown at once), count (in all) and above (scrolled past, above the view). nil when the game drew
+    -- none (every row fits), or none fresh.
+    function hook.Scrollbar(width, height)
+        local found = Find()
+        if not found or index ~= M.Primary or bit.band(found.SupportedMask,64) == 0 then return nil end
+        if not Fresh(found, found.ScrollFrame) or not Display(width, height) then return nil end
+        local left, top, right, bottom = Scaled(found.ScrollRect, width, height)
+        if not left then return nil end
+        local page, count, above = tonumber(found.ScrollPage), tonumber(found.ScrollCount), tonumber(found.ScrollTop)
+        if page < 1 or count < 0 or above < 0 or above > count then return nil end
+        return { left = left, top = top, right = right, bottom = bottom, page = page, count = count, above = above }
     end
     function hook.Status()
         if not Find() then return reason end

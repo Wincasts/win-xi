@@ -15,8 +15,14 @@
 #define CHAT_FULL_FIELDS_PATTERN "8B 55 54 8B 0D ?? ?? ?? ?? 52 E8 ?? ?? ?? ?? 25 FF 00 00 00 89 47 10 8B 4D 58 89 4F 0C 8B 55 20 8B 4D 58 2B C2 2B C1 89 47 14"
 // StateFlags bits
 enum { CHAT_SELECTED_PRIMARY=1, CHAT_SELECTED_SPLIT=2, CHAT_EXPANDED=4, CHAT_NATIVE_BROWSE=8 };
-// SupportedMask bits: 1 primary, 2 split, 4 input, 8 full-log state, 16 content pass-through, 32 control art
-enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32 };
+// SupportedMask bits: 1 primary, 2 split, 4 input, 8 full-log state, 16 content pass-through, 32 control art,
+// 64 the tab strip and scrollbar measured as the game draws them, and hidden when the addon draws its own
+enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64 };
+// ReplaceControls bits, written by Lua: which native controls to leave undrawn, the addon drawing its own in their places
+enum { CHAT_REPLACE_TABS=1, CHAT_REPLACE_SCROLL=2 };
+// A tab of the game's strip as last drawn: its bounds, normalized to the viewport, the channel whose tab it is
+// (0 to 10, or 0xffffffff when its sprite is not one of the owner's) and whether it was drawn chosen
+struct ChatTab { float Rect[4]; uint32_t Channel, Selected; };
 #define CHAT_PATTERN "A1 ?? ?? ?? ?? C6 40 59 01 8B 0D ?? ?? ?? ?? C6 41 59 01 C2 08 00"
 struct ChatShared {
     char Magic[16];
@@ -34,8 +40,13 @@ struct ChatShared {
     uint32_t FullScroll, FullCursor, FullPageRows, FullFilter; // diagnostics, read-only
     uint32_t ControlStyleFrame; // Lua-owned, copied only with a successful expanded capture
     float ControlColors[4][4]; // highlight, tab label/art, cursor, scrollbar; RGBA [0,1]
+    uint32_t ReplaceControls; // Lua-owned CHAT_REPLACE_* bits, copied only with a successful expanded capture
+    uint32_t TabFrame, TabCount; // the game's tab strip as last drawn in a skinned full log
+    ChatTab Tabs[12];
+    uint32_t ScrollFrame, ScrollPage, ScrollCount, ScrollTop; // its scrollbar: page rows, rows in all, rows above the view
+    float ScrollRect[4]; // normalized to the viewport, as the game drew (or would have drawn) it
 };
-static_assert(sizeof(ChatShared)==232, "chat ABI 8");
+static_assert(sizeof(ChatShared)==564, "chat ABI 9");
 // ABI 8: primary capture=1 replaces compact contents; capture=2 skins the expanded frame ONLY.
 // Never replay a capture across the compact/full boundary: the native content must remain visible.
 static inline bool ChatReplayAllowed(const ChatShared& chat, bool expandedCapture) {

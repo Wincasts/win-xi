@@ -24,7 +24,7 @@ static int32_t __cdecl Submit(int32_t index, int32_t capture);
 static void __fastcall RenderWindow(void* window, void*);
 static int32_t __cdecl SubmitHud(int32_t index, int32_t capture);
 static int32_t __cdecl SubmitChat(int32_t index, int32_t capture);
-static ChatShared Chat = { "UIHOOK-CHAT", 8, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {} };
+static ChatShared Chat = { "UIHOOK-CHAT", 9, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {} };
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
 static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
@@ -48,6 +48,7 @@ static void __fastcall DrawChatTab(void*,void*,uint32_t,uint32_t,uint32_t,uint32
 static void __fastcall DrawChatSelection(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
 static void __fastcall DrawChatCursor(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
 static void __fastcall DrawChatScroll(void*,void*);
+static void __fastcall DrawChatTabs(void*,void*,uint32_t);
 static ChatControlCalls ChatControls;
 
 using Run = TextureRun<IDirect3DBaseTexture8>;
@@ -72,6 +73,12 @@ class PartyHook : public IPlugin {
     bool expandedCapture=false, expandedSkin=false, controlsValid=false;
     void* expandedOwner=nullptr;
     ChatControlStyle controlStyle;
+    uint32_t replaceControls=0;       // CHAT_REPLACE_* bits, copied with a successful expanded capture
+    // The game's tab strip and scrollbar, measured as they are drawn in a skinned full log (hidden or not)
+    ChatBounds* chatMeasure=nullptr;  // the control being drawn, while it is
+    bool measuringTabs=false;
+    ChatBounds tabBounds[12], scrollBounds; uint32_t tabChannels[12]={}; bool tabSelected[12]={}; unsigned tabCount=0;
+    D3DVIEWPORT8 chatViewport={}; bool chatViewportKnown=false;
     void** compassGlobal = nullptr;
     bool (__cdecl* radarVisible)() = nullptr;
     uint16_t* nativeWeather = nullptr;
@@ -117,6 +124,7 @@ class PartyHook : public IPlugin {
     } bounds, iconBounds[3];
     D3DVIEWPORT8 clockViewport={}; bool clockViewportKnown=false;
     void Native(bool up, const void* data, UINT stride, UINT count) {
+        if (chatMeasure && !inClock) { MeasureChat(up,data,stride,count); return; }
         if (!inClock) return;
         auto* device=core->GetDirect3DDevice();
         DWORD shader=0;
@@ -136,6 +144,21 @@ class PartyHook : public IPlugin {
             if (TextCall.call && !inText) continue;
             bounds.Add(v[0],v[1]);
         }
+    }
+    // A native chat control's screen-space vertices, drawn from memory, give its bounds; anything else is not it
+    void MeasureChat(bool up,const void* data,UINT stride,UINT count) {
+        auto* device=core->GetDirect3DDevice();
+        DWORD shader=0;
+        if (!up || !data || stride<8 || !device || FAILED(device->GetVertexShader(&shader)) || !(shader & D3DFVF_XYZRHW)) return;
+        if (!chatViewportKnown) chatViewportKnown=SUCCEEDED(device->GetViewport(&chatViewport));
+        auto* bytes=static_cast<const uint8_t*>(data);
+        for (UINT i=0;i<count && i<4096;i++) {
+            float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
+            if (std::isfinite(v[0]) && std::isfinite(v[1])) chatMeasure->Add(v[0],v[1]);
+        }
+    }
+    bool NormalizeChat(const ChatBounds& from,float out[4]) const {
+        return chatViewportKnown && ChatNormalize(from,float(chatViewport.X),float(chatViewport.Y),float(chatViewport.Width),float(chatViewport.Height),out);
     }
     // Replay maps ImGui display pixels onto the viewport; this is its inverse, for the clock's place.
     bool PublishRect(const ClockBounds& from,float out[4],uint32_t& frame) {
@@ -282,8 +305,8 @@ public:
                 if (chat.ExpandedDraw() && Take(ExpandedChatDetour,begin,module.SizeOfImage)) {
                     Chat.SupportedMask |= CHAT_FULL_SKIN_SUPPORTED;
                     void* callbacks[]={reinterpret_cast<void*>(&DrawChatTab),reinterpret_cast<void*>(&DrawChatSelection),
-                        reinterpret_cast<void*>(&DrawChatCursor),reinterpret_cast<void*>(&DrawChatScroll)};
-                    if (TakeChatControls(ChatControls,controls,callbacks)) Chat.SupportedMask |= CHAT_CONTROLS_SUPPORTED;
+                        reinterpret_cast<void*>(&DrawChatCursor),reinterpret_cast<void*>(&DrawChatScroll),reinterpret_cast<void*>(&DrawChatTabs)};
+                    if (TakeChatControls(ChatControls,controls,callbacks)) Chat.SupportedMask |= CHAT_CONTROLS_SUPPORTED | CHAT_REPLACE_SUPPORTED;
                 }
             }
             auto* party=FindPattern(begin,module.SizeOfImage,PARTY_PATTERN);
@@ -353,11 +376,14 @@ public:
     bool HandleCommand(int32_t,const char* command,bool) override {
         if (command && _stricmp(command,"/uihook chat")==0) {
             char line[256];
-            snprintf(line,sizeof(line),"[uihook:chat] ABI 8, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
+            snprintf(line,sizeof(line),"[uihook:chat] ABI 9, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
                 Chat.SupportedMask,Chat.Frame,Chat.NativeFrame[0],Chat.DrawnFrame[0],Chat.NativeFrame[1],Chat.DrawnFrame[1],Chat.NativeFrame[2],Chat.DrawnFrame[2]);
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:chat] state 0x%x at %u, full bounds at %u; history scroll %u, cursor %u/%u, filter %u (browsing/filter menus remain native).",
                 Chat.StateFlags,Chat.StateFrame,Chat.ExpandedRectFrame,Chat.FullScroll,Chat.FullCursor,Chat.FullPageRows,Chat.FullFilter);
+            core->GetChatManager()->Write(0,false,line);
+            snprintf(line,sizeof(line),"[uihook:chat] replacing %u (1 tabs, 2 scrollbar); %u tabs measured at %u; scrollbar page %u of %u rows, %u above, at %u.",
+                replaceControls,Chat.TabCount,Chat.TabFrame,Chat.ScrollPage,Chat.ScrollCount,Chat.ScrollTop,Chat.ScrollFrame);
             core->GetChatManager()->Write(0,false,line);
             return true;
         }
@@ -607,17 +633,19 @@ public:
             else { out.chatFresh|=bit; if (empty) out.chatEmpty|=bit; }
         }
     }
-    void StopChat() { drawings[8].Clear(); drawings[9].Clear(); drawings[10].Clear(); staging.Clear(); Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; Chat.ControlStyleFrame=0; }
+    void StopChat() { drawings[8].Clear(); drawings[9].Clear(); drawings[10].Clear(); staging.Clear(); Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; replaceControls=0; Chat.ControlStyleFrame=0; Chat.TabFrame=Chat.ScrollFrame=0; }
     int CaptureChat(int index,int capture) {
         if (index==-1) { StopChat(); return 1; }
         if (index<0 || index>2 || capture>2) return 0;
         if (capture==2 && (index!=0 || !(Chat.SupportedMask & CHAT_FULL_SKIN_SUPPORTED))) return 0;
         chat.Sample(Chat,Shared.Frame);
-        if (index==0) { Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; }
+        if (index==0) { Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; replaceControls=0; }
         const int result=Capture(index+8,capture==2 ? 1 : capture);
         if (index==0 && result && capture>0) {
             expandedCapture=capture==2;
             controlsValid=expandedCapture && (Chat.SupportedMask & CHAT_CONTROLS_SUPPORTED) && controlStyle.Read(Chat);
+            // the addon's own tabs and scrollbar stand in only while its frame does, and only where the hooks are
+            replaceControls=controlsValid && (Chat.SupportedMask & CHAT_REPLACE_SUPPORTED) ? Chat.ReplaceControls & (CHAT_REPLACE_TABS|CHAT_REPLACE_SCROLL) : 0;
         }
         if (!result) drawings[index+8].Clear(); // failed capture restores native even after an empty Begin
         return result;
@@ -665,16 +693,55 @@ public:
         frame=result.Frame;
     }
     bool ControlsActive() const { return expandedSkin && controlsValid; }
+    // The whole tab strip: measured tab by tab in a skinned full log, and left undrawn (art and labels alike)
+    // where the addon draws its own tabs; the game's hit-tests and Square selection are untouched either way.
+    void ChatTabs(void* owner,uint32_t filter) {
+        const bool measure=expandedSkin && owner && owner==expandedOwner;
+        const bool was=blocking;
+        if (ChatHidden(replaceControls,CHAT_REPLACE_TABS,measure && controlsValid)) blocking=true;
+        tabCount=0; measuringTabs=measure;
+        reinterpret_cast<ChatTabStrip>(ChatControls.targets[CHAT_ART_TABS])(owner,nullptr,filter);
+        measuringTabs=false; chatMeasure=nullptr; blocking=was;
+        if (!measure) return;
+        unsigned published=0;
+        for (unsigned i=0;i<tabCount && published<12;i++) {
+            auto& tab=Chat.Tabs[published];
+            if (!NormalizeChat(tabBounds[i],tab.Rect)) continue;
+            tab.Channel=tabChannels[i]; tab.Selected=tabSelected[i] ? 1 : 0; published++;
+        }
+        Chat.TabCount=published; Chat.TabFrame=published ? Shared.Frame : 0;
+    }
     void ChatTab(void* sprite,uint32_t x,uint32_t y,uint32_t color,uint32_t a,uint32_t b) {
+        if (measuringTabs && tabCount<12) {
+            uint32_t channel=0xffffffff; bool selected=false;
+            ChatTabChannel(expandedOwner,sprite,channel,selected);
+            tabBounds[tabCount]=ChatBounds(); tabChannels[tabCount]=channel; tabSelected[tabCount]=selected;
+            chatMeasure=&tabBounds[tabCount];
+        }
         ForwardChatTab(reinterpret_cast<ChatTabSprite>(ChatControls.targets[CHAT_ART_TAB]),ControlsActive(),controlStyle,expandedOwner,
             sprite,x,y,color,a,b);
+        if (chatMeasure) { if (chatMeasure->vertices) tabCount++; chatMeasure=nullptr; }
     }
     void ChatWindowArt(bool cursor,void* sprite,uint32_t x,uint32_t y,uint32_t sx,uint32_t sy,uint32_t color,uint32_t a,uint32_t b,uint32_t c) {
         ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
             expandedSkin,ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
     }
+    // The scrollbar: its page, count and rows above the view read and its bounds measured in a skinned full
+    // log, and left undrawn where the addon draws its own; the native object is never written.
     void ChatScroll(void* object) {
+        const bool measure=expandedSkin;
+        ChatScrollInfo info;
+        const bool fields=measure && ChatScrollRead(object,info);
+        const bool was=blocking;
+        if (ChatHidden(replaceControls,CHAT_REPLACE_SCROLL,measure && controlsValid)) blocking=true;
+        if (measure) { scrollBounds=ChatBounds(); chatMeasure=&scrollBounds; }
         ForwardChatScroll(reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL]),ControlsActive(),controlStyle,object);
+        chatMeasure=nullptr; blocking=was;
+        if (!measure) return;
+        Chat.ScrollFrame=0;
+        if (fields && NormalizeChat(scrollBounds,Chat.ScrollRect)) {
+            Chat.ScrollPage=info.page; Chat.ScrollCount=info.count; Chat.ScrollTop=info.top; Chat.ScrollFrame=Shared.Frame;
+        }
     }
     void ExpandedContent(void* owner) {
         ChatNativeContent(expandedSkin,blocking);
@@ -706,6 +773,8 @@ public:
             : index==3 ? ReplayTargets() : index>=0 && Replay(static_cast<unsigned>(index));
         blocking=replaced;
         expandedSkin=chatIndex==3 && replaced && expandedCapture;
+        // a full log drawn afresh: its tabs and scrollbar measured again, or not at all if the game leaves them out
+        if (chatIndex==3) { Chat.TabFrame=Chat.ScrollFrame=0; chatViewportKnown=false; chatMeasure=nullptr; measuringTabs=false; }
         targetScope=index==3 && replaced;
         reinterpret_cast<void(__fastcall*)(void*,void*)>(WindowDetour.trampoline)(window,nullptr);
         // Read after the client's animation/layout update, even when this window is not replaced.
@@ -727,6 +796,10 @@ static void __fastcall DrawChatSelection(void* sprite,void*,uint32_t x,uint32_t 
 static void __fastcall DrawChatCursor(void* sprite,void*,uint32_t x,uint32_t y,uint32_t sx,uint32_t sy,uint32_t color,uint32_t a,uint32_t b,uint32_t c) {
     if (PartyHook::Instance) PartyHook::Instance->ChatWindowArt(true,sprite,x,y,sx,sy,color,a,b,c);
     else reinterpret_cast<ChatWindowSprite>(ChatControls.targets[CHAT_ART_CURSOR])(sprite,nullptr,x,y,sx,sy,color,a,b,c);
+}
+static void __fastcall DrawChatTabs(void* owner,void*,uint32_t filter) {
+    if (PartyHook::Instance) PartyHook::Instance->ChatTabs(owner,filter);
+    else reinterpret_cast<ChatTabStrip>(ChatControls.targets[CHAT_ART_TABS])(owner,nullptr,filter);
 }
 static void __fastcall DrawChatScroll(void* object,void*) {
     if (PartyHook::Instance) PartyHook::Instance->ChatScroll(object);
