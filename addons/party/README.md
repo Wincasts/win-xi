@@ -213,8 +213,10 @@ and range tints, by allowing their two verified native draw calls through HUD su
 replacement cursor is drawn. All custom target windows share the native target window's lifecycle;
 no entity (for example some doors) may mean an arrow without a custom information bar.
 
-Manual/automatic positions and styling remain the defaults, except outer window drop shadows are
-disabled for captured windows; bar/text shadows remain.
+Manual/automatic positions and styling remain the defaults. Outer window drop shadows are captured
+with native-rendered party/alliance and target windows, using Winxi's shadow settings. Only the exterior
+shadow is drawn in native mode so it cannot darken the existing window background. Bar/text shadows
+remain unchanged. This fix requires updated Party and `winxi/shadow.lua`, not a new uihook DLL.
 
 **Use Default UI Positioning is hidden and forcibly disabled for this testing build**, including old
 saved opt-ins. Its alliance-location controls are hidden too. Manual positions, corners and links are

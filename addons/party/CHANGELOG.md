@@ -2,6 +2,8 @@
 
 ## 0.2 — first release
 
+- Restore outer window shadows for native-rendered party/alliance and target windows. Capture the exterior shadow on the window's own draw list rather than leaking it onto ImGui's background list; preserve theme opacity/offset/blur, disabled shadows and ordinary/Organize rendering. Update Party and Winxi's shadow module only; no uihook/legacy partyhook DLL or ABI change. Offline geometry/routing checks pass; live appearance/layering still needs validation.
+
 - Testing-build cleanup: hide cumulative native-hook counters/geometry diagnostics in settings and `/pt native status`, retaining concise mode/readiness/errors. Hide Use Default UI Positioning and its alliance-location controls, clear saved opt-ins and gate anchoring off at runtime. Preserve manual positions/corners/links and ordinary Automatic Positioning. Native replacement and the independent behavior option remain available. Addon-only change; ABI 3/DLL unchanged.
 
 - Fix Solo/Party classification after everyone else leaves: the remaining leader is still in a one-member party, using the same native leader flag as the leadership badge. Keep the Party header and do not apply Hide When Solo until the player actually leaves/disbands. Preserve Alliance labeling/visibility and guard absent-player state. Add regression coverage for the party→one-member leader→true solo transition.
