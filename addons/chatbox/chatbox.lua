@@ -557,7 +557,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         secondary.Stop(); input.Stop(); return
     end
     captured, capturedSplit, selectedWindow = false, false, nil
-    local splitDrawn = false
+    local splitDrawn, firstHidden = false, false -- firstHidden: the game's log at 0 lines, nothing drawn in its place
     local ok, err = pcall(function()
         local display = imgui.GetIO().DisplaySize
         local sw, sh = display.x or display[1], display.y or display[2]
@@ -584,6 +584,8 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
             local fit = layout.Fit(logRect[4] - logRect[2] - above - below, fontSize, 0, ROW_GAP)
             if fit >= 1 then
                 rowCount, frameHeight, size[1] = fit, logRect[4] - logRect[2], logRect[3] - logRect[1]
+            else
+                firstHidden = true -- the game's log sized to no whole row (0 lines): nothing to draw, nothing shown
             end
         end
         size[2] = frameHeight
@@ -598,6 +600,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
             size[1], sw, sh, size[2], padding, app.options.matchGameInputSize[1])
         anchorStatus = box and 'Anchored to native chat; log and input share one width.'
             or 'Native chat anchor unavailable or the log does not fit; native log left visible.'
+        if firstHidden then box = nil; anchorStatus = 'The game\'s log is at 0 lines: nothing drawn, and nothing of the game\'s shown.' end
         -- The game's second log window, where it shows one: a box where the game puts its own beside the first,
         -- stacked over it (the game's vertical layout: the first's width, over its top) or beside it (horizontal:
         -- the game's width for it, the game's gap from the first, the first's bottom); as tall as the game's (as
@@ -607,13 +610,19 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         local splitRect = { secondary.Rect(sw, sh) }
         local second
         if routes and routes.split and #splitRect == 4 then
-            if box and #logRect == 4 then
-                local rows, height = model.Rows, frameHeight
-                local match = app.options.matchGameLogSize[1]
-                if match then
-                    local fit = layout.Fit(splitRect[4] - splitRect[2] - above - below, fontSize, 0, ROW_GAP)
-                    if fit >= 1 then rows, height = fit, splitRect[4] - splitRect[2] end
-                end
+            local rows, height, secondHidden = model.Rows, frameHeight, false
+            local match = app.options.matchGameLogSize[1]
+            if match then
+                local fit = layout.Fit(splitRect[4] - splitRect[2] - above - below, fontSize, 0, ROW_GAP)
+                if fit >= 1 then rows, height = fit, splitRect[4] - splitRect[2] else secondHidden = true end
+            end
+            if secondHidden then
+                splitStatus = 'Second window: the game\'s is at 0 lines; nothing drawn, and nothing of the game\'s shown.'
+            elseif firstHidden then
+                -- the first at 0 lines: the second where the game draws its own, as it is the one log window shown
+                second = { left = splitRect[1], width = splitRect[3] - splitRect[1], bottom = splitRect[4], top = splitRect[2], height = height, rows = rows }
+                splitStatus = ('Second window: in the game\'s place, %d rows, the first at 0 lines; the game\'s Log Window settings route its messages.'):format(rows)
+            elseif box and #logRect == 4 then
                 local beside = splitRect[4] > logRect[2] + 2 -- not wholly above the first: the game's horizontal layout
                 if not beside then
                     if box.top - height >= 0 then
@@ -669,25 +678,29 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
                 if not drawn then error(drawError, 0) end
             end, windowOptions)
             lastDrawn = views[1].drawn
-            if second and captured and secondary.Begin() then
-                splitOptions.title = 'Window 2'
-                imgui.SetNextWindowPos({ second.left, second.bottom }, ImGuiCond_Always, pivot)
-                imgui.SetNextWindowSize({ second.width, second.height }, ImGuiCond_Always)
-                window.Plain('winxi.chatbox.split', open, flags, function()
-                    if chatFont then imgui.PushFont(chatFont, fontSize) end
-                    local drawn, drawError = pcall(DrawLog, second, second.rows, fontSize, padding, views[2], Filter(routes, 2), selectedWindow == 2, splitOptions)
-                    if chatFont then imgui.PopFont() end
-                    if not drawn then error(drawError, 0) end
-                end, splitOptions)
-                splitDrawn = capturedSplit
-                lastSplit = views[2].drawn
-            end
+        end
+        if firstHidden then lastDrawn = nil; selectedWindow = state ~= nil and state.selectedWindow or nil end
+        -- the second box, with the first's or on its own while the first is at 0 lines
+        if second and (captured or firstHidden) and secondary.Begin() then
+            local chatFont = plan.font
+            splitOptions.title = 'Window 2'
+            imgui.SetNextWindowPos({ second.left, second.bottom }, ImGuiCond_Always, pivot)
+            imgui.SetNextWindowSize({ second.width, second.height }, ImGuiCond_Always)
+            window.Plain('winxi.chatbox.split', open, flags, function()
+                if chatFont then imgui.PushFont(chatFont, fontSize) end
+                local drawn, drawError = pcall(DrawLog, second, second.rows, fontSize, padding, views[2], Filter(routes, 2), selectedWindow == 2, splitOptions)
+                if chatFont then imgui.PopFont() end
+                if not drawn then error(drawError, 0) end
+            end, splitOptions)
+            splitDrawn = capturedSplit
+            lastSplit = views[2].drawn
         end
         -- Input is independent: keep it working while waiting for the log's first geometry sample.
         input.Draw(plan.width, sh, fontSize, padding, flags, app.options.matchGameInputSize[1], plan)
     end)
     if not ok then Release(); error(err, 0) end
-    if not captured then
+    -- The first log at 0 lines keeps Begin's empty hide, so nothing of the game's shows in its place either
+    if not captured and not firstHidden then
         ResetViews(false)
         primary.Stop()
         secondary.Stop()
@@ -695,10 +708,10 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
     end
     -- One box or two: the game's second log window is drawn as the second box where the game shows one and
     -- uihook says how the game routes between them; otherwise it is hidden rather than left as a duplicate
-    -- under the first. Only hide it after a complete primary capture succeeded.
-    if lastDrawn and not lastDrawn.expanded then
+    -- under the first. Only hide it after a complete primary capture succeeded (or the first is at 0 lines).
+    if firstHidden or (lastDrawn and not lastDrawn.expanded) then
         if not splitDrawn then secondary.Begin() end
-        views[1].target = lastDrawn
+        views[1].target = captured and lastDrawn or nil
         views[2].target = splitDrawn and lastSplit or nil
     end
 end)

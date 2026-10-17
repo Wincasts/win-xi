@@ -12,6 +12,9 @@
   its own with the wheel and its scrollbar; the focus light and cursor go to the window the game's
   focus is on. With one window, as before: the game's second log is hidden under the first.
   `/chatbox status` says what the second window is doing.
+- A log window the game has at 0 lines shows nothing: no box in its place (and nothing of the
+  game's either), the other window still drawn, the input bar still working; the game's window
+  sizes are followed down to that, with Match Game Log Size on.
 - Needs winxi 17 and uihook 0.5 with chat ABI 11.
 
 ## 0.9.0

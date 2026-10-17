@@ -23,7 +23,8 @@ each where the game's are.
   window, over the first (the same width, the game's height for it) or beside it (the game's width and
   gap, the first's bottom), titled Window 2. Each box shows the messages the
   game's Log Window settings route to its window, read from the game, and scrolls on its own; the
-  focus light follows the game's focus between them.
+  focus light follows the game's focus between them. A window the game has at 0 lines shows
+  nothing, the other still drawn.
 - The mouse wheel scrolls an overflowing compact log three visual rows a notch, and a slim scrollbar
   appears on its right: drag the thumb or click the track to page.
 - No dragging or mouse resizing. Combat formatting, filters and timestamps are left to the game or
