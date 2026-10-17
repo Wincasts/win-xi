@@ -168,12 +168,12 @@ rows, selection and cursor where its mouse hit-tests are. Browsing, tabs, wheel,
 message-action menus) and Cancel are all native; no tell is made up, and every tab uses the game's
 own filter. The **tabs and scrollbar** are the addon's: uihook measures the game's tab strip and
 scrollbar as the game draws them and, with Replace Tabs and Replace Scrollbar on, leaves them
-undrawn, and the addon draws its own in exactly those places the frame after. Each tab is a block
-with a rounded top in WinXI's **Highlight Color**, the chosen one solid and the rest faint, the
-theme's **Tab Style** over it and the channel's name (Window, Say, Tell, Party, Linkshell, Linkshell
-2, Assist (E), Assist (J), Unity, Shout) in the chat's **Font** and **Font Size**, in the log's
-**Title** colour with winxi's dark edge, cut to what fits; under the row, the tab style's line,
-brighter under the chosen tab. The scrollbar is a faint track and a white thumb, as wide as the
+undrawn, and the addon draws its own in exactly those places the frame after. Each tab is a
+square-cornered box in WinXI's **Highlight Color**, as winxi's windows are, the chosen one solid and
+the rest faint, the theme's **Tab Style** over it and the channel's name (Window, Say, Tell, Party,
+Linkshell, Linkshell 2, Assist (E), Assist (J), Unity, Shout) in the chat's **Font** and **Font
+Size**, in the log's **Title** colour with winxi's dark edge, cut to what fits; no line under the
+row, the frame's border being there. The scrollbar is a faint track and a white thumb, as wide as the
 game's bar, the thumb where the game's page is among its rows. A tab whose sprite the game does not
 own is named for its place. Nothing is moved, so Square, the mouse and the wheel still work on the
 game's own controls. With either off, or without a fresh place from uihook (the first frame, or a
