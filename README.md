@@ -49,7 +49,7 @@ before enabling it. The experimental [clock addon](addons/clock/README.md) uses 
 write the game's clock on one line in place of its text, keeping its day and weather icons, and can
 hide the compass; unload `hidecompass` first. Clock requires winxi 5.
 [Chatbox](addons/chatbox/README.md) includes a native-backed WinXI input bar and requires
-winxi 18 and uihook 0.5 with chat ABI 12;
+winxi 19 and uihook 0.5 with chat ABI 13;
 load uihook first and unload other chat replacements/visibility writers.
 See the uihook README for migration and testing steps.
 

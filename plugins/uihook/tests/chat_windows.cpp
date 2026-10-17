@@ -4,6 +4,7 @@
 #include "../src/modules/party/target.h"
 #include "../src/modules/chat/chat.h"
 #include "../src/modules/chat/windows.h"
+#include "../src/modules/chat/colors.h"
 static int failures=0;
 static void Check(bool ok,const char* text) { printf("%s %s\n",ok?"ok":"FAIL",text); if(!ok) ++failures; }
 static void Pattern(uint8_t* at,const char* text) {
@@ -116,6 +117,35 @@ int main() {
     memset(image+640,0,32);
     Check(DiscoverChatWindows(image,sizeof(image),splitOwner,routes),"whole again");
     Check(!DiscoverChatWindows(image,sizeof(image),nullptr,routes) && !routes.Ready(),"no split owner known: nothing");
-    Check(sizeof(ChatShared)==70328,"chat ABI 12: the second window's bounds, the two windows' routing and lines");
+    Check(sizeof(ChatShared)==71684,"chat ABI 13: the second window's bounds, the two windows' routing, lines and the game's colours");
+    // the game's colours: each mode's category, each category's colour, the inline palette; the serial moving only
+    // with a change; nothing where a table cannot be read
+    auto* categoryTable=image+5400; // entries of 8: category, pad, colour at +4
+    const uint8_t cats[]={0x54,0x56,0x57,0x54,0};
+    const uint32_t cols[]={0x80808080u,0x80D84C64u,0x803464FFu,0x11111111u,0};
+    for (unsigned i=0;i<5;i++) { categoryTable[i*8]=cats[i]; memcpy(categoryTable+i*8+4,&cols[i],4); }
+    auto* paletteTable=image+5500;
+    for (unsigned i=0;i<CHAT_INLINE_COLORS;i++) { uint32_t c=i==2 ? 0x4040C000u : i==6 ? 0x60108080u : 0; memcpy(paletteTable+i*4,&c,4); }
+    auto* categoryLookup=image+704; Pattern(categoryLookup,CHAT_CATEGORY_COLOR_PATTERN); Put(categoryLookup+1,Address(categoryTable));
+    auto* paletteLookup=image+768; Pattern(paletteLookup,CHAT_INLINE_PALETTE_PATTERN); Put(paletteLookup+18,Address(paletteTable));
+    ChatColorTables colors;
+    Check(DiscoverChatColors(image,sizeof(image),colors) && colors.Ready() && colors.modes==table && colors.categories==categoryTable && colors.palette==paletteTable,"the mode, category and palette tables found");
+    SampleChatColors(colors,shared,30);
+    Check(shared.ColorFrame==30 && shared.ColorSerial==1,"read, the first serial");
+    Check(shared.ModeCategory[1]==0x54 && shared.ModeCategory[9]==0x54 && shared.ModeCategory[4]==0x56 && shared.ModeCategory[5]==0x57 && shared.ModeCategory[7]==0,"each mode's category, none for a mode without an entry");
+    Check(shared.CategoryColors[0x54]==0x80808080u && shared.CategoryColors[0x56]==0x80D84C64u && shared.CategoryColors[0x55]==0,"each category's colour, the first entry's where a category is listed twice, none where unlisted");
+    Check(shared.InlineColors[2]==0x4040C000u && shared.InlineColors[6]==0x60108080u && shared.InlineColors[1]==0,"the inline palette");
+    SampleChatColors(colors,shared,31);
+    Check(shared.ColorFrame==31 && shared.ColorSerial==1,"nothing changed: the serial holds");
+    memcpy(categoryTable+4,&cols[1],4); SampleChatColors(colors,shared,32);
+    Check(shared.ColorSerial==2 && shared.CategoryColors[0x54]==0x80D84C64u,"a colour changed (the user's config): the serial moves");
+    colors.categories=reinterpret_cast<uint8_t*>(uintptr_t(16)); SampleChatColors(colors,shared,33);
+    Check(shared.ColorFrame==0,"a table that cannot be read: nothing published");
+    colors.Clear(); SampleChatColors(colors,shared,34);
+    Check(shared.ColorFrame==0 && !colors.Ready(),"released: nothing");
+    Pattern(image+832,CHAT_INLINE_PALETTE_PATTERN);
+    Check(!DiscoverChatColors(image,sizeof(image),colors),"an ambiguous palette lookup refused");
+    memset(image+832,0,18);
+    Check(DiscoverChatColors(image,sizeof(image),colors),"whole again");
     return failures?1:0;
 }

@@ -29,6 +29,7 @@ local chatState={selected=false,expanded=false,expandedSupported=true,nativeBrow
 local tabsGeometry, scrollGeometry, rowsGeometry -- where the game drew its tabs, scrollbar and rows of text, as uihook measured them
 local splitRect, routes -- the game's second log window, and its routing between the two, as uihook reads them
 local linesState={} -- each window's lines as the game has them, by slot
+local gameColors -- the game's colours, as uihook reads them
 package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=function(index)
     local hook = {begins=0,stops=0,captures=0}
     function hook.Begin() hook.begins=hook.begins+1; return ready end
@@ -52,6 +53,7 @@ package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=functio
     end
     function hook.Routes() return index==0 and routes or nil end
     function hook.Lines() return linesState[index] end
+    function hook.Colors() return index==0 and gameColors or nil end
     function hook.Rect(_,_,expanded)
         local rect
         if index==0 then rect=expanded and expandedRect or (not expanded and nativeLogRect or nil)
@@ -796,7 +798,25 @@ local splitText=0; for _,entry in ipairs(text) do if entry.text:find('party',1,t
 assert(#text==3,'one row in it')
 linesState[1]={shown=0,most=6,fewest=0}; captures=hooks[1].captures; frame(); assert(hooks[1].captures==captures,'the second at 0 lines: nothing')
 linesState={}; nativeLogRect={20,700,660,1018}
-routes=nil; splitRect=nil
+-- The game's colours, where uihook reads them: a line's body in the game's colour for its mode (as the user has
+-- it configured), its inline codes the colours the game gives them; without them, the approximations
+routes=nil; splitRect=nil; spec.commands.clear()
+local red,purple,pink={1,0.47,0.47,1},{0.63,0.25,1,1},{1,0.59,0.78,1}
+gameColors={serial=1,Mode=function(mode) mode=bit.band(mode,255); return mode==20 and red or mode==4 and pink or {0.5,0.5,0.5,0.5} end,
+    Inline=function(bank,slot) if bank==0x1e and slot==0x51 then return purple end; if bank==0x1f and slot==4 then return pink end; return nil end}
+package.loaded.encoding.Decode=function(raw,_,colours)
+    decodes=decodes+1
+    if raw=='bad' then error('bad encoding') end
+    if raw=='stamped' then return '[12:00:00] hit', raw, {{first=1,last=10,bank=0x1e,slot=0x51}} end
+    return raw
+end
+message('stamped',{mode=20}); message('plain',{mode=99}); frame()
+assert(#text==3 and text[1].text=='[12:00:00]' and text[1].color==purple and text[2].text==' hit' and text[2].color==red,'a damage line by another, mode 20: its stamp in the game\'s purple, its body in the game\'s red for the mode')
+assert(text[3].text=='plain' and text[3].color[1]==0.5 and text[3].color[4]==0.5,'a mode the game has no entry for: whatever the game draws those in')
+gameColors=nil; frame()
+assert(text[2].color==require('palette').Mode(20) and text[2].color[1]==1 and text[2].color[2]==1,'without the game\'s colours, the approximations: mode 20 unlisted, white')
+assert(text[1].color[1]==1 and text[1].color[2]==1 and math.abs(text[1].color[3]-0xc9/255)<0.01,'and 1E 51 from the approximate palette')
+package.loaded.encoding.Decode=function(raw,...) decodes=decodes+1; return plainDecodeStub(raw,...) end
 imgui.GetIO=oldIO
 os.clock=realClock
 print('Chatbox UI: compact rows, two log windows routed as the game routes them, native expanded frame/content separation, no custom selection/input, mouse pass-through, menu handoff, failure and lifecycle passed')

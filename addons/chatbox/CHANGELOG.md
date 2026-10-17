@@ -19,7 +19,12 @@
   window the game has at 0 lines shows nothing: no box in its place (and nothing of the game's
   either), the other window still drawn, the input bar still working. With a uihook that does not
   say the lines, as many rows as fit the game's window, as before.
-- Needs winxi 18 and uihook 0.5 with chat ABI 12.
+- The game's own chat colours, as you have them configured, in place of the approximations: each
+  line's body in the colour the game draws its chat mode in (SimpleLog's and other addons' lines too,
+  whatever mode they are sent with), and the inline colour codes the colours the game gives them. A
+  mode the game has no colour for is white, as the game draws it. Without uihook's reading, the
+  approximations as before.
+- Needs winxi 19 and uihook 0.5 with chat ABI 13.
 
 ## 0.9.0
 

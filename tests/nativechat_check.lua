@@ -1,6 +1,6 @@
 -- Standalone native chat bridge contract; callbacks mocked, no client needed.
 local ffi = require('ffi')
-local block = {Version=12,Size=70328,Submit=123,SupportedMask=1023,Frame=10,
+local block = {Version=13,Size=71684,Submit=123,SupportedMask=2047,Frame=10,
     NativeFrame={[0]=10,[1]=0,[2]=0},DrawnFrame={[0]=10,[1]=0,[2]=0},
     InputRect={[0]=0,[1]=0.9,[2]=1,[3]=1},InputRectFrame=10,
     PrimaryRect={[0]=0.05,[1]=0.5,[2]=0.5,[3]=0.9},PrimaryRectFrame=10,
@@ -10,7 +10,10 @@ local block = {Version=12,Size=70328,Submit=123,SupportedMask=1023,Frame=10,
     ReplaceControls=0,TabFrame=0,TabCount=0,Tabs={},ScrollFrame=0,ScrollPage=0,ScrollCount=0,ScrollTop=0,ScrollRect={[0]=0,[1]=0,[2]=0,[3]=0},
     TextFrame=0,TextCount=0,TextSerial=0,Rows={},Text=ffi.new('char[65536]'),
     SplitRect={[0]=0.05,[1]=0.3,[2]=0.5,[3]=0.5},SplitRectFrame=0,WindowFrame=0,WindowFlags=0,WindowModes={[0]={},[1]={}},
-    LinesFrame=0,Lines={[0]={[0]=0,[1]=0,[2]=0},[1]={[0]=0,[1]=0,[2]=0}}}
+    LinesFrame=0,Lines={[0]={[0]=0,[1]=0,[2]=0},[1]={[0]=0,[1]=0,[2]=0}},
+    ColorFrame=0,ColorSerial=0,InlineColors={},CategoryColors={},ModeCategory={}}
+for i=0,16 do block.InlineColors[i]=0 end
+for i=0,255 do block.CategoryColors[i]=0; block.ModeCategory[i]=0 end
 for w=0,1 do for i=0,7 do block.WindowModes[w][i]=0 end end
 for i=0,11 do block.Tabs[i]={Rect={[0]=0,[1]=0,[2]=0,[3]=0},Channel=0,Selected=0} end
 for i=0,127 do block.Rows[i]={Rect={[0]=0,[1]=0,[2]=0,[3]=0},Offset=0,Length=0,Mode=0,Flags=0} end
@@ -30,12 +33,12 @@ ashita={memory={get_base=function(name) assert(name=='uihook.dll'); return base 
         scans=scans+1; return address
     end}}
 local native=dofile('addons/libs/winxi/nativechat.lua')
-assert(ffi.sizeof('uihook_chat_t')==70328)
+assert(ffi.sizeof('uihook_chat_t')==71684)
 local primary, split, input=native.new(native.Primary),native.new(native.Secondary),native.new(native.Input)
 assert(not primary.Begin() and #calls==0)
-loaded=true; block.Version=11
+loaded=true; block.Version=12
 assert(not primary.Begin() and primary.Status():find('ABI mismatch'))
-block.Version=12; now=2
+block.Version=13; now=2
 assert(primary.Begin() and primary.Capture())
 assert(calls[#calls][1]==0 and calls[#calls][2]==1)
 assert(primary.Capture(true) and calls[#calls][1]==0 and calls[#calls][2]==2,
@@ -50,7 +53,7 @@ assert(primary.Capture(true,controls) and block.ControlStyleFrame==block.Frame)
 assert(primary.Capture() and block.ControlStyleFrame==0,'compact capture cannot retain expanded tints')
 block.SupportedMask=31
 assert(primary.Capture(true,controls) and block.ControlStyleFrame==0,'optional controls capability is independent of frame capture')
-block.SupportedMask=1023
+block.SupportedMask=2047
 assert(primary.Capture(true,controls)); primary.Stop()
 assert(block.ControlStyleFrame==0,'release invalidates shared colour stamp')
 -- which of the game's controls the addon draws itself: written with an expanded capture, where uihook can hide them
@@ -61,12 +64,12 @@ assert(primary.Capture(true,controls) and block.ReplaceControls==0,'nothing aske
 assert(primary.Capture(true,controls,{tabs=true}) and primary.Capture() and block.ReplaceControls==0,'a compact capture hides nothing')
 block.SupportedMask=63
 assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true}) and block.ReplaceControls==0 and not primary.State().nativeReplace and not primary.State().nativeText,'without the hooks nothing is asked')
-block.SupportedMask=1023
+block.SupportedMask=2047
 assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true}) and block.ReplaceControls==7,'the text as well')
 assert(primary.Capture(true,controls,{text=true}) and block.ReplaceControls==4,'the text alone')
 block.SupportedMask=127
 assert(primary.Capture(true,controls,{tabs=true,text=true}) and block.ReplaceControls==1 and not primary.State().nativeText,'without the row site the text is not asked for')
-block.SupportedMask=1023
+block.SupportedMask=2047
 assert(primary.Capture(true,controls,{tabs=true}) and block.ReplaceControls==1); primary.Stop()
 assert(block.ReplaceControls==0,'release asks for nothing')
 assert(primary.State().nativeReplace and primary.State().nativeText,'the hooks are known')
@@ -89,7 +92,7 @@ local bar=primary.Scrollbar(1920,1080)
 assert(bar.left==9.6 and bar.top==108 and bar.right==19.2 and bar.bottom==972 and bar.page==20 and bar.count==75 and bar.above==30,'the scrollbar\'s place and rows')
 block.ScrollTop=80; assert(primary.Scrollbar(1920,1080)==nil,'more above than there are rows is no scrollbar'); block.ScrollTop=30
 block.ScrollFrame=0; assert(primary.Scrollbar(1920,1080)==nil,'none drawn, none'); block.ScrollFrame=10
-block.SupportedMask=63; assert(primary.Tabs(1920,1080)==nil and primary.Scrollbar(1920,1080)==nil,'without the hooks, nothing'); block.SupportedMask=1023
+block.SupportedMask=63; assert(primary.Tabs(1920,1080)==nil and primary.Scrollbar(1920,1080)==nil,'without the hooks, nothing'); block.SupportedMask=2047
 block.TabFrame=0
 -- the game's rows of text: in its order, each with its bytes, mode, flags and place, scaled to the display; the
 -- same table while the serial holds; nothing stale, nothing without the row site
@@ -113,7 +116,7 @@ assert(split.Rows(1920,1080)==nil and input.Rows(1920,1080)==nil,'the primary sl
 block.TextSerial=3; block.Rows[0].Offset=65535; assert(primary.Rows(1920,1080)[1].text=='','text past the room is none'); block.Rows[0].Offset=0
 block.TextSerial=4; block.TextCount=0; assert(primary.Rows(1920,1080)==nil,'no rows, nothing'); block.TextCount=3; block.TextSerial=5
 block.Frame=13; assert(primary.Rows(1920,1080)==nil,'stale rows expire'); block.Frame=10
-block.SupportedMask=127; assert(primary.Rows(1920,1080)==nil,'without the row site, nothing'); block.SupportedMask=1023
+block.SupportedMask=127; assert(primary.Rows(1920,1080)==nil,'without the row site, nothing'); block.SupportedMask=2047
 block.TextFrame=0
 -- the game's routing between its two log windows: the second's place, and which modes each window keeps; the same
 -- table while it holds; nothing stale, nothing without the routing hooks
@@ -137,7 +140,7 @@ assert(not routes.split and native.Shows(routes,1,5) and native.Shows(routes,1,9
 assert(native.Shows(nil,1,5) and not native.Shows(nil,2,5),'without routes the same')
 assert(split.Routes()==nil and input.Routes()==nil,'the primary slot\'s alone')
 block.Frame=13; assert(primary.Routes()==nil and split.Rect(1920,1080)==nil,'stale routing and place expire'); block.Frame=10
-block.SupportedMask=255; assert(primary.Routes()==nil and split.Rect(1920,1080)==nil,'without the routing hooks, nothing'); block.SupportedMask=1023
+block.SupportedMask=255; assert(primary.Routes()==nil and split.Rect(1920,1080)==nil,'without the routing hooks, nothing'); block.SupportedMask=2047
 block.WindowFrame=0; block.SplitRectFrame=0
 -- each window's lines as the game has them now; the same table while they hold; nothing stale, nothing without the hooks
 assert(primary.Lines()==nil and split.Lines()==nil,'no lines yet')
@@ -149,9 +152,34 @@ assert(primary.Lines()==lines,'the same table while they hold')
 block.Lines[0][0]=4; assert(primary.Lines()~=lines and primary.Lines().shown==4,'a change: a new table')
 assert(input.Lines()==nil,'the input has no lines')
 block.Frame=13; assert(primary.Lines()==nil,'stale lines expire'); block.Frame=10
-block.SupportedMask=511; assert(primary.Lines()==nil and not primary.State().nativeLines,'without the lines hooks, nothing'); block.SupportedMask=1023
+block.SupportedMask=511; assert(primary.Lines()==nil and not primary.State().nativeLines,'without the lines hooks, nothing'); block.SupportedMask=2047
 assert(primary.State().nativeLines,'the hooks known')
 block.LinesFrame=0
+-- the game's colours: a mode's, by its category; what a 1E or 1F code names; the game's white for the unknown; nil for
+-- a return to the row's colour; the same table while the serial holds
+assert(primary.Colors()==nil,'no colours yet')
+block.ColorFrame=10; block.ColorSerial=1
+block.ModeCategory[1]=0x54; block.ModeCategory[4]=0x56; block.ModeCategory[0x14]=0x63
+block.CategoryColors[0x54]=0x80808080; block.CategoryColors[0x56]=0x80D84C64; block.CategoryColors[0x63]=0x80FF3C3C; block.CategoryColors[0x51]=0xFF5020FF
+block.InlineColors[2]=0x4040C000; block.InlineColors[6]=0x60108080
+local colors=primary.Colors()
+local function near(c,r,g,b,a) return c and math.abs(c[1]-r)<0.01 and math.abs(c[2]-g)<0.01 and math.abs(c[3]-b)<0.01 and math.abs(c[4]-a)<0.01 end
+assert(near(colors.Mode(1),1,1,1,1),'say: the game\'s 80808080 is white at its unity')
+assert(near(colors.Mode(4),1,0.59375,0.78125,1),'a tell: pink, the red component past one clamped')
+assert(near(colors.Mode(0x14),1,0.46875,0.46875,1) and near(colors.Mode(0x8014),1,0.46875,0.46875,1),'damage by another: red; the low byte is the mode')
+assert(near(colors.Mode(7),1,1,1,1),'a mode the game has no entry for: the game\'s 80808080, white')
+assert(near(colors.Inline(0x1e,0x51),0.625,0.25,1,1),'1E 51 names a category: Ashita\'s timestamp purple')
+assert(near(colors.Inline(0x1e,6),0.125,1,1,0.75),'1E 06 from the palette, three quarters opaque')
+assert(colors.Inline(0x1e,1)==nil and colors.Inline(0x1e,0)==nil and colors.Inline(0x1e,9)==nil,'1E 01, 1E 00 and an unset palette slot return to the row\'s colour')
+assert(near(colors.Inline(0x1f,4),1,0.59375,0.78125,1) and colors.Inline(0x1f,1)==nil and near(colors.Inline(0x1f,7),1,1,1,1),'1F names a mode; 1F 01 the row\'s colour; an unknown mode white')
+assert(colors.Inline(0x20,4)==nil and colors.Mode(nil)==nil,'other banks and no mode: nothing')
+assert(primary.Colors()==colors,'the same table while the serial holds')
+block.ColorSerial=2; assert(primary.Colors()~=colors,'a change: a new table')
+assert(split.Colors()==nil and input.Colors()==nil,'the primary slot\'s alone')
+block.Frame=13; assert(primary.Colors()==nil,'stale colours expire'); block.Frame=10
+block.SupportedMask=1023; assert(primary.Colors()==nil and not primary.State().nativeColors,'without the colour hooks, nothing'); block.SupportedMask=2047
+assert(primary.State().nativeColors,'the hooks known')
+block.ColorFrame=0
 assert(primary.Begin())
 assert(split.Begin() and calls[#calls][1]==1)
 assert(input.Begin() and input.Capture() and calls[#calls][1]==2)

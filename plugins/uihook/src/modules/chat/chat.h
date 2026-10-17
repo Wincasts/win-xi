@@ -24,7 +24,8 @@ enum { CHAT_SELECTED_PRIMARY=1, CHAT_SELECTED_SPLIT=2, CHAT_EXPANDED=4, CHAT_NAT
 // 64 the tab strip and scrollbar measured as the game draws them, and hidden when the addon draws its own,
 // 128 the full log's rows of text decoded and measured as the game draws them, and hidden the same way
 // 256 the game's two log windows' routing read: which chat modes each shows, and the second window's bounds
-enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64, CHAT_TEXT_SUPPORTED=128, CHAT_WINDOWS_SUPPORTED=256, CHAT_LINES_SUPPORTED=512 };
+enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64, CHAT_TEXT_SUPPORTED=128, CHAT_WINDOWS_SUPPORTED=256, CHAT_LINES_SUPPORTED=512, CHAT_COLORS_SUPPORTED=1024 };
+// 1024 the game's chat colours read: each mode's category and each category's colour, and the inline palette
 // 512 the two log windows' lines read: each window's current whole lines (the game grows a row a message and shrinks
 // to its fewest), its most and its fewest
 // WindowFlags bits: 1, the second log window is shown, so the game routes each message by its filters;
@@ -74,8 +75,14 @@ struct ChatShared {
                                 // with bit 15 set goes to the first window alone, whatever these say
     uint32_t LinesFrame;        // the two log windows' lines, read each frame from the game's owners
     uint32_t Lines[2][3];       // per window: its lines now (0, nothing shown), its most and its fewest
+    uint32_t ColorFrame, ColorSerial; // the game's chat colours, read each frame; the serial moves when they change
+    uint32_t InlineColors[17];  // the colours 1E 00 to 1E 10 name (0, none: 1E 01 returns to the row's colour)
+    uint32_t CategoryColors[256]; // by category: the colour the game draws its modes in, and 1E and 1F codes name;
+                                  // 0 where the game has no entry (it draws those 80808080). Components are of
+                                  // 80 as one: 80808080 is white, FF twice white, 40 half
+    uint8_t ModeCategory[256];  // by chat mode (its low byte): its category, or 0 where the game has no entry
 };
-static_assert(sizeof(ChatShared)==70328, "chat ABI 12");
+static_assert(sizeof(ChatShared)==71684, "chat ABI 13");
 // ABI 8: primary capture=1 replaces compact contents; capture=2 skins the expanded frame ONLY.
 // Never replay a capture across the compact/full boundary: the native content must remain visible.
 static inline bool ChatReplayAllowed(const ChatShared& chat, bool expandedCapture) {

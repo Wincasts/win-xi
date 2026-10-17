@@ -157,7 +157,7 @@ int main() {
     Check(chat.Discover(image,sizeof(image)) && !chat.ExpandedSupported(),"missing verified layout leaves expanded history native");
     chat.Clear();
     Check(chat.Identify(menu)==-1,"release clears recognition");
-    Check(sizeof(ChatShared)==70328,"chat ABI 12: the rows of text, the two log windows' bounds, routing and lines");
+    Check(sizeof(ChatShared)==71684,"chat ABI 13: the rows of text, the two log windows' bounds, routing, lines and the game's colours");
     // each window's lines now, most and fewest, read from its owner with the fields' sense checked
     chat.Discover(image,sizeof(image));
     Check(chat.LinesSupported(),"the owners' line fields pinned by the Update and grow signatures");
