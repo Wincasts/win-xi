@@ -28,7 +28,8 @@ does the same.
 - **Position**: where the box's top left corner is.
 - **Show Box**: draws the theme's window behind the lines while any are moving.
 - **Box Width**, **Box Height**: the box's size in pixels.
-- **Scroll Time**: seconds a line takes from the top to the bottom.
+- **Scroll Speed**: how fast a line moves down the box, in pixels a second (90 to start).
+- **Line Spacing**: the gap between one line and the next when they come together, in pixels.
 - **Align**: lines to the box's left, centre or right.
 
 **Lines**
@@ -39,4 +40,5 @@ does the same.
 - **Font**, **Font Size**: the lines' font; Theme Font and 0 (Theme Size) follow Winxi Theme.
 - **Outline**: the dark edge round the text, 0 to 3 pixels.
 
-Lines that come at once wait for the one before to move out of the way, so they never overlap.
+Lines that come at once wait for the one before to move its height and the Line Spacing down, so
+they never overlap. A Scroll Time set before Scroll Speed is brought over as the speed that took as long.

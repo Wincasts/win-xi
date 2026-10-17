@@ -1,6 +1,6 @@
 addon.name    = 'sct';
 addon.author  = 'win';
-addon.version = '0.1';
+addon.version = '0.2';
 addon.desc    = 'Scrolling text for the statuses you gain and lose.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -57,7 +57,8 @@ local defaults = T{
     showBox = T{ false },
     width = T{ 260 },
     height = T{ 300 },
-    duration = T{ 3.0 },   -- seconds a line takes from the top to the bottom
+    speed = T{ 90 },       -- pixels a second a line moves down the box
+    spacing = T{ 2 },      -- pixels between one line and the next
     iconSize = T{ 24 },
     align = 'left',        -- 'left', 'center' or 'right'
     fontFile = '',         -- empty inherits the Winxi theme font
@@ -98,12 +99,21 @@ end
 
 local app;
 
--- The seconds a line waits behind the one before it: as long as the line before takes to move a
--- line's height down the box
+-- How far a line moves, from the top of the box until its foot reaches the bottom
 local lineHeight = 24;
+local function Travel(options)
+    return math.max(1, options.height[1] - lineHeight);
+end
+
+-- The seconds a line takes from the top to the bottom, at the speed set
+local function Duration(options)
+    return Travel(options) / math.max(1, options.speed[1]);
+end
+
+-- The seconds a line waits behind the one before it: as long as the line before takes to move a
+-- line's height, and the spacing, down the box
 local function Spacing(options)
-    local travel = math.max(1, options.height[1] - lineHeight);
-    return options.duration[1] * (lineHeight + 2) / travel;
+    return (lineHeight + options.spacing[1]) / math.max(1, options.speed[1]);
 end
 
 local function Add(id, gained)
@@ -194,10 +204,11 @@ local function DrawLines(options, x, y, now)
     end
     local _, textHeight = imgui.CalcTextSize('A');
     lineHeight = math.max(iconHeight, textHeight);
-    local travel = math.max(1, height - lineHeight);
+    local travel = Travel(options);
+    local duration = Duration(options);
 
     for _, line in ipairs(lines) do
-        local progress = (now - line.start) / options.duration[1];
+        local progress = (now - line.start) / duration;
         if progress >= 0 and progress < 1 then
             local alpha = progress < FADE_FROM and 1 or (1 - progress) / (1 - FADE_FROM);
             local top = y + travel * progress;
@@ -296,7 +307,7 @@ end
 
 -- Lines that have reached the bottom are let go
 local function Prune(options, now)
-    local duration = options.duration[1];
+    local duration = Duration(options);
     local kept = 0;
     for index = 1, #lines do
         local line = lines[index];
@@ -348,9 +359,12 @@ local function DrawSettings(options)
         imgui.SliderInt('##sct.width', options.width, 80, 800);
         widgets.Label('Box Height');
         imgui.SliderInt('##sct.height', options.height, 60, 1000);
-        widgets.Label('Scroll Time');
-        imgui.SliderFloat('##sct.duration', options.duration, 0.5, 10, '%.1f s');
-        Tip('Seconds a line takes from the top of the box to the bottom.');
+        widgets.Label('Scroll Speed');
+        imgui.SliderInt('##sct.speed', options.speed, 10, 600, '%d px/s');
+        Tip('How fast a line moves down the box, in pixels a second.');
+        widgets.Label('Line Spacing');
+        imgui.SliderInt('##sct.spacing', options.spacing, 0, 40, '%d px');
+        Tip('The gap between one line and the next, in pixels, when they come close together.');
         widgets.PopControlWidth();
         widgets.Label('Align');
         options.align = Combo('##sct.align', options.align, aligns);
@@ -404,7 +418,17 @@ app = shell.New({
     commands = {
         test = function() Add(33, true); Add(4, true); Add(33, false); end,
     },
-    onSettings = function() place = true; end,
+    onSettings = function(options)
+        place = true;
+        -- Scroll Time, before Scroll Speed: the speed that took the same time down the box
+        if options.duration ~= nil then
+            local seconds = type(options.duration) == 'table' and tonumber(options.duration[1]) or nil;
+            if seconds ~= nil and seconds > 0 then
+                options.speed[1] = math.max(10, math.min(600, math.floor(Travel(options) / seconds + 0.5)));
+            end
+            options.duration = nil;
+        end
+    end,
 });
 
 ashita.events.register('d3d_present', 'sct_present', function()
