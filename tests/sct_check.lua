@@ -148,3 +148,12 @@ H.print('Line Spacing: lines further apart', near and far and far > near + 25, n
 o.duration = { 2 }; o.height[1] = 300
 H.resettle()
 H.print('Scroll Time of 2 s brought over as a speed', o.duration == nil, o.speed[1])
+
+-- Show Outline: the edge is drawn unlocked, and not with it off or locked
+local rects = 0
+list.AddRect = function() rects = rects + 1 end
+o.locked[1], o.showBox[1], o.showOutline[1] = false, false, true
+frame(); local on = rects
+o.showOutline[1] = false; rects = 0; frame(); local off = rects
+o.showOutline[1], o.locked[1] = true, true; rects = 0; frame()
+H.print('outline drawn unlocked', on > 0, '| hidden with Show Outline off', off == 0, '| and locked', rects == 0)
