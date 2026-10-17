@@ -190,14 +190,28 @@ owners', 03321850 the first's and 03321B80 the second's) sets +54 to 14, +4E to 
 4. SampleLines reads +31, +4E and +50 from each owner (the slots of the primary/split signature), with
 +34 and +54 for sense, every frame; nothing is written.
 
-## ABI 12 safety boundary
+## The game's colours (0.5)
 
-- 70328-byte shared layout, **version 12** required on both sides.
+The row draw colours a row's words by its message's chat mode through 032E9C70(mode): the mode's entry in
+the table at 0352E888 (032E9CD0), its category byte, then 032E9D00(category): the category colour table at
+0352E6E8 (8-byte entries, a category byte and its colour at +4, ended by a zero category; 51 of them;
+032E9D40 writes a category's colour, which is where the user's configuration lands), 80808080 for a mode
+or category without an entry. A `1F xx` word takes 032E9C70(xx), a `1E xx` word 03321FD0(xx): slots 0 to
+16 from the palette of 17 colours at 034F53C8, others as categories. Components are of 80 as one:
+80808080 is white, FF5020FF (category 51, Ashita's timestamp) purple, 80FF3C3C (category 63, melee
+damage by another) red. colors.h recognises the three lookups by unique patterns and reads the three
+tables every frame, publishing each mode's category, each category's colour and the palette with a
+serial that moves only when they change; nothing is called or written.
+
+## ABI 13 safety boundary
+
+- 71684-byte shared layout, **version 13** required on both sides.
 - SupportedMask bit 3: native full-log state/geometry. Bit 4: verified content hook. Bit 5: control art.
   Bit 6: the tab strip and scrollbar measured and hideable (the same all-or-none group of sites).
   Bit 7: the rows of text decoded, measured and hideable (the row site, verified on its own, taken only with bit 6).
   Bit 8: the two log windows' routing read and the second window's bounds published (recognition only, no site taken).
   Bit 9: each window's lines read from its owner (recognition only).
+  Bit 10: the game's colour tables read (recognition only).
 - ControlStyleFrame and four RGBA colours are published by Lua. The plugin checks finite [0,1]
   values and a current-frame stamp, then snapshots them only with a successful expanded capture.
   ReplaceControls (1 tabs, 2 scrollbar, 4 text) is snapshotted with it, and only with the hooks each needs.

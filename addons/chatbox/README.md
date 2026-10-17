@@ -14,7 +14,8 @@ each where the game's are.
   pearl; loaded mid-session, re-equip your pearls if names are missing, as the game sends their
   slots on login and equip.
 - Native and SimpleLog inline colours are always kept; uncoloured text takes its native chat-mode
-  colour.
+  colour. The colours are the game's own, as configured, read through uihook; without that, close
+  approximations.
 - The last 256 messages seen are kept **in memory only**. No chat is written to disk. Compact history
   begins when the addon loads; the expanded log is the game's own, from before it loaded too.
 - The log lifts above the input bar while typing, and the game's clock and its icons follow the top
@@ -36,9 +37,9 @@ each where the game's are.
 
 ```text
 addons/chatbox/          this directory
-addons/libs/winxi/       WinXI 18 or newer
+addons/libs/winxi/       WinXI 19 or newer
 addons/winxisettings/    shared theme settings (optional)
-plugins/uihook.dll       0.5 or newer, chat ABI 12 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing and lines)
+plugins/uihook.dll       0.5 or newer, chat ABI 13 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing and lines, the game's colours)
 ```
 
 Build uihook with `plugins/uihook/build.sh`; the output is `plugins/uihook/build/uihook.dll`. Turn

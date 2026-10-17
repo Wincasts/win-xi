@@ -187,9 +187,9 @@ a WinXI frame, WinXI tabs, scrollbar and rows of text where the game's are (or t
 and the game's own text) around the actual native expanded browser, and a native-backed WinXI input bar.
 The plugin itself does not collect chat messages or own keyboard input.
 
-### Chat ABI 12
+### Chat ABI 13
 
-Independent `UIHOOK-CHAT` marker padded to 16 bytes, **70328 bytes** total (update DLL and bridge together):
+Independent `UIHOOK-CHAT` marker padded to 16 bytes, **71684 bytes** total (update DLL and bridge together):
 
 ```text
 char Magic[16]
@@ -215,6 +215,8 @@ float SplitRect[4]; u32 SplitRectFrame                     // the game's second 
 u32 WindowFrame, WindowFlags                               // the two log windows' routing, read each frame: 1 the second window is shown
 u32 WindowModes[2][8]                                      // per window, a bit for each chat mode (its low byte) its filters keep
 u32 LinesFrame; u32 Lines[2][3]                            // per window: its lines now, its most and its fewest, read each frame
+u32 ColorFrame, ColorSerial; u32 InlineColors[17]          // the game's chat colours, read each frame; the serial moves when they change
+u32 CategoryColors[256]; u8 ModeCategory[256]              // each category's colour (components of 80 as one), each mode's category
 ```
 
 Submission bits/indexes: 0 primary (compact OR expanded), 1 split, 2 input (`nativechat.Input`).
@@ -231,7 +233,10 @@ goes to the first window alone, and while the second window is hidden the first 
 `split.Rect(w, h)` the second window's place. Bit 9 that each window's lines are read from its owner
 (`Lines()` on the primary and split slots: its lines now, as the game grows a row a message and shrinks
 to its fewest while none come, its most and its fewest), the fields pinned by the owner's Update and
-grow signatures and checked for sense each frame. None is an additional submission slot. `Submit` is render-thread-only
+grow signatures and checked for sense each frame. Bit 10 that the game's chat colours are read, as
+configured: each mode's category, each category's colour (what the game draws a message of that mode
+in, and what a 1E code past the palette or a 1F code names) and the inline palette's seventeen colours
+(`Colors()`: `Mode(mode)`, `Inline(bank, slot)`). None is an additional submission slot. `Submit` is render-thread-only
 `cdecl int(index, capture)`: 0 renews empty, 1 captures compact/input contents, 2 captures a
 **frame-only expanded skin** (primary slot only, requires bit 4), and -1 releases that slot.
 `primary.Capture(true, colors, replace)` requests mode 2, optionally publishing the four RGBA control

@@ -2,7 +2,7 @@ addon.name = 'chatbox'
 addon.author = 'win'
 addon.version = '0.10.0'
 addon.desc = 'WinXI native-backed chat, titled with your channel, with selection and an expanded view in WinXI tabs.'
-local winxiNeeded = 18
+local winxiNeeded = 19
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -557,6 +557,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         secondary.Stop(); input.Stop(); return
     end
     captured, capturedSplit, selectedWindow = false, false, nil
+    palette.Source(primary.Colors and primary.Colors() or nil) -- the game's chat colours as configured, where uihook reads them
     local splitDrawn, firstHidden = false, false -- firstHidden: the game's log at 0 lines, nothing drawn in its place
     local ok, err = pcall(function()
         local display = imgui.GetIO().DisplaySize

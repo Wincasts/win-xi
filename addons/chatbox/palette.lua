@@ -1,4 +1,5 @@
--- Standard FFXI palette approximations (RGB), not ImGui's theme palette.
+-- The game's own chat colours where uihook reads them (Source), as the game has them configured; otherwise
+-- standard FFXI palette approximations (RGB), not ImGui's theme palette.
 -- Slot RGB observations: https://github.com/Citrus333/FancyChatXI/blob/main/utils.lua
 -- Kept as data only; no FancyChat parser or renderer is used. These cannot reflect
 -- custom DAT palettes or the game's user-configured channel colours.
@@ -41,13 +42,22 @@ for bank, text in pairs(data) do
     end
 end
 local M = {}
+-- The game's colours, from winxi.nativechat's Colors() (with Mode and Inline), or nil for the approximations below.
+-- Set each frame by the addon; a table the same while the game's colours hold.
+local game
+function M.Source(colors) game = colors end
 -- The second palette is indexed by native chat mode as well as by inline colour code.
--- Unlisted native modes are white. Unlike an inline slot 1 (reset), mode 1 is Say.
+-- Unlisted native modes are white, as the game draws them.
+-- Unlike an inline slot 1 (reset), mode 1 is Say.
 function M.Mode(mode)
     if type(mode) ~= 'number' or mode < 0 or mode > 255 or mode ~= math.floor(mode) then return nil end
+    if game then return game.Mode(mode) end
     return colors[31][mode] or white
 end
+-- The colour an inline code names, or nil where it returns to the line's colour (slots 0 and 1, and the game's
+-- unset palette slots).
 function M.Color(bank, slot)
+    if game then return game.Inline(bank, slot) end
     if not colors[bank] or not slot or slot < 2 or slot > 255 then return nil end
     return colors[bank][slot] or white
 end

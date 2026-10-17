@@ -32,6 +32,10 @@ ffi.cdef[[
         uint32_t WindowModes[2][8];
         uint32_t LinesFrame;
         uint32_t Lines[2][3];
+        uint32_t ColorFrame, ColorSerial;
+        uint32_t InlineColors[17];
+        uint32_t CategoryColors[256];
+        uint8_t ModeCategory[256];
     } uihook_chat_t;
     typedef int32_t (__cdecl *uihook_chat_submit_t)(int32_t index, int32_t capture);
 ]]
@@ -57,7 +61,7 @@ function M.new(index)
             local at = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D434841540000000000', 0, 0)
             if not at or at == 0 then reason = 'Update uihook: chat shared block not found.'; return nil end
             local found = ffi.cast('uihook_chat_t*', at)
-            if found.Version ~= 12 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
+            if found.Version ~= 13 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
                 reason = 'uihook chat ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_chat_submit_t', found.Submit)
@@ -152,6 +156,7 @@ function M.new(index)
             nativeText = bit.band(found.SupportedMask,128) ~= 0,
             nativeWindows = bit.band(found.SupportedMask,256) ~= 0,
             nativeLines = bit.band(found.SupportedMask,512) ~= 0,
+            nativeColors = bit.band(found.SupportedMask,1024) ~= 0,
             scroll = tonumber(found.FullScroll), cursor = tonumber(found.FullCursor),
             pageRows = tonumber(found.FullPageRows), filter = tonumber(found.FullFilter) }
     end
@@ -199,6 +204,47 @@ function M.new(index)
             linesList = { shown = shown, most = most, fewest = fewest }
         end
         return linesList
+    end
+    -- The game's chat colours as it has them now, the user's configuration included: Mode(mode), the colour it draws
+    -- a message of that chat mode in (white, as the game's, for a mode it has no entry for); Inline(bank, slot), the
+    -- colour a 1E (bank 30) or 1F (bank 31) code names, or nil where the code returns to the row's own colour (1E 00,
+    -- 1E 01, and the palette's unset slots). Each is { r, g, b, a } in 0 to 1, the game's components (of 80 as one)
+    -- clamped. The same table while the colours hold. nil without the colour hooks, or nothing fresh.
+    local colorsSerial, colorsList
+    function hook.Colors()
+        local found = Find()
+        if not found or index ~= M.Primary or bit.band(found.SupportedMask,1024) == 0 then return nil end
+        if not Fresh(found, found.ColorFrame) then return nil end
+        local serial = tonumber(found.ColorSerial)
+        if colorsList and colorsSerial == serial then return colorsList end
+        local function Color(value)
+            value = tonumber(value) or 0
+            if value == 0 then return nil end
+            local a, r, g, b = bit.band(bit.rshift(value, 24), 255), bit.band(bit.rshift(value, 16), 255), bit.band(bit.rshift(value, 8), 255), bit.band(value, 255)
+            return { math.min(1, r / 128), math.min(1, g / 128), math.min(1, b / 128), math.min(1, a / 128) }
+        end
+        local unknown = Color(0x80808080) -- what the game draws a mode or category it has no entry for in: white
+        local categories, modes, inline30, inline31 = {}, {}, {}, {}
+        for i = 0, 255 do categories[i] = Color(found.CategoryColors[i]) end
+        for mode = 0, 255 do
+            local category = tonumber(found.ModeCategory[mode])
+            modes[mode] = category ~= 0 and categories[category] or unknown
+        end
+        for slot = 0, 255 do
+            if slot < 17 then inline30[slot] = Color(found.InlineColors[slot]) else inline30[slot] = categories[slot] or unknown end
+            inline31[slot] = modes[slot]
+        end
+        inline31[1] = nil -- 1F 01, as 1E 01: the row's own colour
+        colorsSerial, colorsList = serial, { serial = serial,
+            Mode = function(mode) mode = tonumber(mode); return mode and modes[bit.band(mode, 255)] or nil end,
+            Inline = function(bank, slot)
+                slot = tonumber(slot)
+                if not slot then return nil end
+                if bank == 0x1e then return inline30[bit.band(slot, 255)] end
+                if bank == 0x1f then return inline31[bit.band(slot, 255)] end
+                return nil
+            end }
+        return colorsList
     end
     -- The game's routing of messages between its two log windows, as uihook reads it from the game's config each
     -- frame: split, whether the second window is shown (then each message goes where the game's Log Window

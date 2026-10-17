@@ -2,7 +2,11 @@
 
 ## 0.5
 
-- Chat ABI 12 (70328 bytes): each log window's lines as the game has them now (LinesFrame, Lines[2][3]:
+- Chat ABI 13 (71684 bytes): the game's chat colours as configured (ColorFrame, ColorSerial, InlineColors[17],
+  CategoryColors[256], ModeCategory[256]), read each frame from the game's mode table, category colour table
+  and inline palette, the serial moving only when they change; the game's components are of 80 as one.
+  SupportedMask bit 10. Recognition only, nothing written.
+- Chat ABI 12: each log window's lines as the game has them now (LinesFrame, Lines[2][3]:
   its lines, its most and its fewest), read each frame from the window's owner, whose fields are pinned
   by its Update and grow signatures and checked for sense. SupportedMask bit 9. The game grows a window
   a row for each message and shrinks it to its fewest lines while none come; its window rect follows.

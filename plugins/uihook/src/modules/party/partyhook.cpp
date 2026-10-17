@@ -15,6 +15,7 @@
 #include "../chat/chat.h"
 #include "../chat/controls.h"
 #include "../chat/windows.h"
+#include "../chat/colors.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -25,7 +26,7 @@ static int32_t __cdecl Submit(int32_t index, int32_t capture);
 static void __fastcall RenderWindow(void* window, void*);
 static int32_t __cdecl SubmitHud(int32_t index, int32_t capture);
 static int32_t __cdecl SubmitChat(int32_t index, int32_t capture);
-static ChatShared Chat = { "UIHOOK-CHAT", 12, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {}, 0, 0, 0, {}, {}, {}, 0, 0, 0, {}, 0, {} };
+static ChatShared Chat = { "UIHOOK-CHAT", 13, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {}, 0, 0, 0, {}, {}, {}, 0, 0, 0, {}, 0, {}, 0, 0, {}, {}, {} };
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
 static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
@@ -75,6 +76,7 @@ class PartyHook : public IPlugin {
     Drawing drawings[11]; // Party 0..5, HUD 6..7, chat logs/input 8..10; independent ABIs
     ChatModule chat;
     ChatWindowRoutes windowRoutes; // the two log windows' routing, read from the game's config each frame
+    ChatColorTables colorTables;   // the game's chat colours, read each frame
     bool expandedCapture=false, expandedSkin=false, controlsValid=false;
     void* expandedOwner=nullptr;
     ChatControlStyle controlStyle;
@@ -314,6 +316,7 @@ public:
                 // which messages each of the two log windows shows, as the client decides it: read, never written
                 if (DiscoverChatWindows(begin,module.SizeOfImage,chat.SplitOwner(),windowRoutes)) Chat.SupportedMask|=CHAT_WINDOWS_SUPPORTED;
                 if (chat.LinesSupported()) Chat.SupportedMask|=CHAT_LINES_SUPPORTED; // each window's lines now, as the game grows and shrinks it
+                if (DiscoverChatColors(begin,module.SizeOfImage,colorTables)) Chat.SupportedMask|=CHAT_COLORS_SUPPORTED; // the game's chat colours, as configured
                 const auto controls=DiscoverChatControls(begin,module.SizeOfImage,WindowDetour.target,chat.ExpandedDraw());
                 if (chat.ExpandedDraw() && Take(ExpandedChatDetour,begin,module.SizeOfImage)) {
                     Chat.SupportedMask |= CHAT_FULL_SKIN_SUPPORTED;
@@ -354,7 +357,7 @@ public:
     void Release() override {
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
-        Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); StopChat();
+        Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
@@ -365,6 +368,7 @@ public:
         chat.Sample(Chat,Shared.Frame);
         SampleChatWindows(windowRoutes,Chat,Shared.Frame);
         chat.SampleLines(Chat,Shared.Frame);
+        SampleChatColors(colorTables,Chat,Shared.Frame);
         // As namehook: no cross-frame state blocks holding client resources across a reset.
         ReleaseStates();
         for (auto& d:drawings) if (!d.Fresh()) d.Clear();
@@ -396,7 +400,7 @@ public:
     bool HandleCommand(int32_t,const char* command,bool) override {
         if (command && _stricmp(command,"/uihook chat")==0) {
             char line[256];
-            snprintf(line,sizeof(line),"[uihook:chat] ABI 12, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
+            snprintf(line,sizeof(line),"[uihook:chat] ABI 13, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
                 Chat.SupportedMask,Chat.Frame,Chat.NativeFrame[0],Chat.DrawnFrame[0],Chat.NativeFrame[1],Chat.DrawnFrame[1],Chat.NativeFrame[2],Chat.DrawnFrame[2]);
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:chat] state 0x%x at %u, full bounds at %u; history scroll %u, cursor %u/%u, filter %u (browsing/filter menus remain native).",
@@ -415,6 +419,12 @@ public:
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:chat] lines at %u: the first %u of %u (fewest %u), the second %u of %u (fewest %u).",
                 Chat.LinesFrame,Chat.Lines[0][0],Chat.Lines[0][1],Chat.Lines[0][2],Chat.Lines[1][0],Chat.Lines[1][1],Chat.Lines[1][2]);
+            core->GetChatManager()->Write(0,false,line);
+            unsigned categories=0,modes=0;
+            for (unsigned i=0;i<256;i++) { if (Chat.CategoryColors[i]) categories++; if (Chat.ModeCategory[i]) modes++; }
+            snprintf(line,sizeof(line),"[uihook:chat] colours %s at %u, serial %u: %u categories, %u modes; say (mode 1) %08X, 1E 51 %08X.",
+                colorTables.Ready() ? "read" : "not found", Chat.ColorFrame, Chat.ColorSerial, categories, modes,
+                Chat.CategoryColors[Chat.ModeCategory[1]], Chat.CategoryColors[0x51]);
             core->GetChatManager()->Write(0,false,line);
             return true;
         }

@@ -9,7 +9,7 @@ from pathlib import Path
 
 modules = Path(__file__).resolve().parents[1] / 'src/modules'
 source = '\n'.join((modules / name).read_text() for name in (
-    'chat/chat.h', 'chat/controls.h', 'chat/windows.h', 'party/game.h', 'party/target.h'))
+    'chat/chat.h', 'chat/controls.h', 'chat/windows.h', 'chat/colors.h', 'party/game.h', 'party/target.h'))
 data = Path(sys.argv[1]).read_bytes()
 base = int(re.search(r'base (0x[0-9A-Fa-f]+)', Path(sys.argv[2]).read_text())[1], 16)
 
@@ -111,10 +111,25 @@ read_regex = b''.join(b'.' if token == '??' else re.escape(bytes.fromhex(token))
 readers = [m.start() for m in re.finditer(read_regex, data, re.S)]
 assert readers and len({struct.unpack_from('<I', data, at + 2)[0] for at in readers}) == 1, readers
 assert any(callee(at + 15) == value for at in readers)
+# the game's colours: the category colour table (8-byte entries ended by a zero category) and the inline palette
+category_lookup = unique('CHAT_CATEGORY_COLOR_PATTERN')
+category_table = struct.unpack_from('<I', data, category_lookup + 1)[0] - base
+categories = 0
+while data[category_table + categories * 8]:
+    categories += 1
+    assert categories < 256
+assert categories > 40, categories
+palette_lookup = unique('CHAT_INLINE_PALETTE_PATTERN')
+palette_table = struct.unpack_from('<I', data, palette_lookup + 18)[0] - base
+assert 0 <= palette_table < len(data) - 68
+# say's category colour is white at the game's unity (80808080); Ashita's timestamp purple is category 51
+say_category = next(data[table + i * 4 + 2] for i in range(entries) if struct.unpack_from('<H', data, table + i * 4)[0] == 1)
+say_color = next(struct.unpack_from('<I', data, category_table + i * 8 + 4)[0] for i in range(categories) if data[category_table + i * 8] == say_category)
+assert say_color == 0x80808080, hex(say_color)
 unique('CHAT_LINES_UPDATE_PATTERN')
 unique('CHAT_LINES_GROW_PATTERN')
 # the owners' base constructor sets the row height (+54) to 14, the fewest (+50) to 0, the most (+4E) to 8, the lines (+31) to 4
 assert data.count(bytes.fromhex('66C7465414006689465066C7464E0800')) == 1
-print(f'Log window routing: {entries} mode entries, category bits {bits}, {len(readers)} config readers; line fields pinned.')
+print(f'Log window routing: {entries} mode entries, category bits {bits}, {len(readers)} config readers; line fields pinned; {categories} category colours.')
 print('Native full-log vtable/content, tab strip, tab/selection/cursor/scrollbar and row-drawing CALL graph cross-check passed.')
 print('Static verification only: live artwork, pulse/fades, hit-tests, menu actions and GPU resets still need validation.')
