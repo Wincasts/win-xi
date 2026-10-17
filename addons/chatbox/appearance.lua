@@ -51,7 +51,7 @@ function M.Draw(options, save)
     local widgets = require('winxi.widgets')
     for _, entry in ipairs({{'log','Chat Log Window'},{'input','Input Text Box'}}) do
         local name, label = entry[1], entry[2]
-        if widgets.Header(label, true) then
+        if widgets.Header(label, name == 'log') then
             local section = options[name]
             for _, field in ipairs(fields) do
                 if name == 'log' or field.key ~= 'titleColor' then
@@ -65,9 +65,13 @@ function M.Draw(options, save)
                     end
                 end
             end
-            if imgui.Button('Follow WinXI Theme##chatbox.appearance.' .. name .. '.reset') then
+            widgets.Label('')
+            if imgui.SmallButton('Follow WinXI Theme##chatbox.appearance.' .. name .. '.reset') then
                 for _, own in pairs(section.own) do own[1] = false end
                 save()
+            end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip('Turns this window\'s Own Color boxes off, keeping the colours chosen for another time.')
             end
         end
     end

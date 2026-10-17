@@ -26,7 +26,8 @@ package.loaded.imgui = {
     Checkbox=function(id,value) if id == clicked then value[1]=true; return true end return false end,
     SameLine=function() end, ColorEdit4=function(id) picked[id]=true end,
     IsItemDeactivatedAfterEdit=function() return true end,
-    Button=function(id) return id == clicked end, TextDisabled=function() end,
+    SmallButton=function(id) return id == clicked end, TextDisabled=function() end,
+    IsItemHovered=function() return false end,
 }
 package.loaded['winxi.widgets'] = {Header=function() return true end,Label=function() end}
 ImGuiColorEditFlags_NoInputs = 0
