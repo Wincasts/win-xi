@@ -11,6 +11,7 @@
 --         defaults    = T{ isVisible = T{ true }, pos = T{ 100, 100 }, ... },   -- the addon's own settings
 --         window      = 'winxi.example',          -- the main window's name
 --         title       = 'Example',                -- optional: the words on the main window's top edge (winxi.titles)
+--         resizable   = true,                     -- optional: no auto-fit/NoResize flags; caller owns initial size and content layout
 --         configTitle = 'Example Settings',
 --         command     = '/example',
 --         aliases     = { '/ex' },                -- optional: other commands that do the same
@@ -126,7 +127,8 @@ end
 -- The main window, drawn with the theme. wanted is the window's own switch (a table holding true or
 -- false): switched off, the window goes on being drawn until it has faded out. draw draws its content.
 -- extra, if given: constraints = { min, max } for imgui's size constraints,
--- flags = additional ImGui window flags (for example, NoMove).
+-- flags = additional ImGui window flags (for example, NoMove),
+-- size = { width, height } to apply this frame (after the fade/visibility check).
 function App:Window(wanted, draw, extra)
     local options = self.options;
     local isWanted = wanted[1] and true or false;
@@ -139,6 +141,9 @@ function App:Window(wanted, draw, extra)
     end
 
     imgui.SetNextWindowPos(options.pos, ImGuiCond_FirstUseEver);
+    if extra ~= nil and extra.size ~= nil then
+        imgui.SetNextWindowSize(extra.size, ImGuiCond_Always);
+    end
     if extra ~= nil and extra.constraints ~= nil then
         imgui.SetNextWindowSizeConstraints(extra.constraints[1], extra.constraints[2]);
     end
@@ -148,7 +153,8 @@ function App:Window(wanted, draw, extra)
     self.draw = draw;
 
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
-    local flags = bit.bor(style.TitlelessFlags(), extra ~= nil and extra.flags or 0);
+    local baseFlags = self.spec.resizable and style.ResizableFlags() or style.TitlelessFlags();
+    local flags = bit.bor(baseFlags, extra ~= nil and extra.flags or 0);
     local drawn = window.Full(self.spec.window, isWanted and wanted or self.lingering, flags, self.drawWindow, self.windowStyle);
     imgui.PopStyleVar();
     return drawn;

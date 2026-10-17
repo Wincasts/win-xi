@@ -1,7 +1,7 @@
 -- winxi.fonts: the theme's font, the one every winxi window is written in unless the addon says
 -- otherwise.
 --
---   fonts.Push(settingsKind)  before a window's Begin: the theme's font and size, where it has any;
+--   fonts.Push(settingsKind, overrideSize)  before a window's Begin: the theme's font and size, where it has any;
 --                       returns whether anything was pushed, for fonts.Pop. settingsKind true for a
 --                       settings window (winxi.window's kinds), which is written in the theme's
 --                       Settings Font at its Settings Font Size.
@@ -95,9 +95,9 @@ function fonts.TextureDetail()
     return ('unique id %s, %s x %s, status %s'):format(tostring(unique), tostring(width), tostring(height), tostring(status));
 end
 
-function fonts.Push(settingsKind)
+function fonts.Push(settingsKind, overrideSize)
     local font = fonts.Get(theme.For('FontFile', settingsKind));
-    local size = tonumber(theme.For('FontSize', settingsKind)) or 0;
+    local size = tonumber(overrideSize) or tonumber(theme.For('FontSize', settingsKind)) or 0;
     if font == nil and size <= 0 then
         return false;
     end

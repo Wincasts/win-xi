@@ -16,6 +16,8 @@ struct PartySlots {
     bool partyHooked = false, targetHooked = false, clockHooked = false, compassHooked = false;
     uint8_t fresh = 0, empty = 0;
     uint8_t hudFresh = 0, hudEmpty = 0;
+    bool chatHooked = false;
+    uint8_t chatFresh = 0, chatEmpty = 0;
 };
 void GetBuffSlots(BuffSlots& out);
 void GetPartySlots(PartySlots& out);

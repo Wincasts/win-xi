@@ -4,7 +4,7 @@
 -- in the chat; the current one lets it go on.
 local current = dofile('addons/libs/winxi/version.lua').Number
 local released = {
-    'addons/clock/clock.lua', 'addons/buff/buff.lua', 'addons/name/name.lua', 'addons/party/party.lua', 'addons/inventory/inventory.lua',
+    'addons/chatbox/chatbox.lua', 'addons/parse/parse.lua', 'addons/clock/clock.lua', 'addons/buff/buff.lua', 'addons/name/name.lua', 'addons/party/party.lua', 'addons/inventory/inventory.lua',
     'addons/trigger/trigger.lua', 'addons/winxisettings/winxisettings.lua', 'forks/addons/hideparty/hideparty.lua',
 }
 local said

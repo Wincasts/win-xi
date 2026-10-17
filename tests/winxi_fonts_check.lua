@@ -33,6 +33,11 @@ look.FontSize = 18
 plain, frames = both()
 assert(plain == 1 and frames == 1 and last[1] == nil and last[2] == 18, 'a size alone keeps the font')
 
+window.Plain('winxi.scaled', nil, 0, function() end, { fontSize = 27 })
+assert(began == 1 and last[2] == 27 and depth == 0 and look.FontSize == 18, 'per-window font size does not mutate the theme')
+window.Plain('winxi.unscaled', nil, 0, function() end)
+assert(last[2] == 18 and depth == 0, 'next window returns to theme size')
+
 -- a settings window has a font and size of its own, so the Font and Font Size of the game's windows
 -- do not change the window they are set in
 began, last = nil, nil

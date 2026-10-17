@@ -7,6 +7,13 @@ icons stay where the game puts them, and the compass above the clock is hidden. 
 **uihook 0.2** where the game draws its clock, so the game's menus and chat log are drawn over it as
 they are over the game's own.
 
+With [chatbox](../chatbox/README.md) 0.4 or newer and its matching uihook build, the clock group
+follows the **top of the replacement chat log**. Uihook moves the native clock text and
+icons together, and reports their translated rectangles to this addon, preserving the
+usual spacing above chat as typing opens/closes. With chatbox off or no fresh replacement,
+normal native placement returns. Expanded chat also suspends this compact-clock relocation;
+the game's normal expanded-chat visibility applies. No clock settings or saved positions are changed.
+
 ## Install
 
 1. Build `plugins/uihook/build.sh` and copy `plugins/uihook/build/uihook.dll` to Ashita's `plugins/`.

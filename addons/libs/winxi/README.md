@@ -36,6 +36,12 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 
 ## Style rule: transparent child regions
 
+Game windows can override colours per draw without modifying the theme: pass RGBA `background`,
+`border`, `textColor` and/or `titleColor` in `window.Plain`/`window.Full` options. Omitted values
+follow the theme. `border` is an art tint for textured borders, or the plain border colour;
+its alpha replaces Border Opacity. Title plates use that window's background/border overrides.
+`textColor` sets ImGui's default text colour; explicitly coloured addon draw calls still take precedence.
+
 Child regions must show the base Winxi window underneath, never a separate child background.
 `winxi.style.PushPlain` and `PushFull` enforce a transparent `ImGuiCol_ChildBg` for both game and
 settings windows, after applying the theme palette. This is a shared style rule, not an addon setting.
@@ -59,7 +65,7 @@ end);
 ```
 
 Use `window.Full` for a window with tabs, tables, buttons or inputs: it also tints those from the
-border colour. Options (padding, background, alpha, shadow, growFrom, kind) are described at the top
+border colour. Options (padding, background, border, textColor, titleColor, alpha, shadow, growFrom, kind) are described at the top
 of `window.lua`.
 
 Every window is one of two kinds, given as `kind` in its options:

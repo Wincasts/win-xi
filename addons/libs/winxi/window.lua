@@ -28,6 +28,7 @@
 --
 -- options (all optional):
 --   padding     a number, in place of the theme's padding
+--   fontSize    pixels, overriding the theme's font size for this window only (typeface unchanged)
 --   background  a colour, in place of the theme's background
 --   alpha       0 to 1, for a window that fades (winxi.fade); at 0 the window is not drawn at all
 --   shadow      false for a window that should not have the theme's drop shadow
@@ -36,6 +37,9 @@
 --               controller (see controller.Highlight)
 --   title       words for the top edge of a window of the game kind (winxi.titles), as the theme draws
 --               them; a settings window has imgui's own title
+--   capture     optional callback after content AND border/title art, before End; for native-hook
+--               capture of the complete window. Not called during anchor measurement. Such a
+--               window's shadow is drawn on its own list (shadow.Draw(true)), so it is captured too.
 --   growFrom    the corner that stays put as the content changes size (see winxi.anchor); with any
 --               corner but TopLeft, draw is called twice a frame, once to measure
 local bit = require('bit');
@@ -145,7 +149,7 @@ local function Draw(full, name, open, flags, draw, options)
     if settingsKind then
         flags, state = BeginSettings(name, flags);
     end
-    local font = fonts.Push(settingsKind);
+    local font = fonts.Push(settingsKind, options and options.fontSize);
     local border = not settingsKind and borders.Texture(theme.Get().BorderStyle) or nil;
     local title = not settingsKind and options and options.title or nil;
     local begun, drawn, bordered = false, false, 0;
@@ -156,14 +160,14 @@ local function Draw(full, name, open, flags, draw, options)
             anchor.Place(name, growFrom);
         end
 
-        bordered = borders.Push(border, titles.Breaks(title));
+        bordered = borders.Push(border, titles.Breaks(title) or (options and options.border ~= nil));
         drawn = imgui.Begin(name, open, flags);
         begun = true;
         imgui.PopStyleVar(bordered);
         bordered = 0;
         if drawn then
             if growFrom then anchor.Track(name, growFrom); end
-            if not settingsKind and not (options and options.shadow == false) then shadow.Draw(); end
+            if not settingsKind and not (options and options.shadow == false) then shadow.Draw(options ~= nil and options.capture ~= nil); end
             backgrounds.Draw(background, options and options.background or theme.Get().BackgroundColor);
             if state ~= nil then
                 state.x, state.y = imgui.GetWindowPos();
@@ -172,9 +176,11 @@ local function Draw(full, name, open, flags, draw, options)
             end
             draw();
             resized = false;
-            borders.Draw(border, titles.Gap(title));
-            titles.Draw(title);
+            local gapLeft, gapRight = titles.Gap(title);
+            borders.Draw(border, gapLeft, gapRight, options and options.border);
+            titles.Draw(title, options);
             if options and options.controller then controller.Highlight(options.controller); end
+            if options and options.capture then options.capture(); end
         end
     end);
     -- A failed draw must not leave a window or fading Alpha on the shared ImGui context.

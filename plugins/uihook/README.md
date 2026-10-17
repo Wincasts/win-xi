@@ -1,7 +1,7 @@
 # uihook — experimental 0.2
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
-**target**, **clock** and **compass** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
+**target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
 Loading uihook without addon submissions leaves native drawing unchanged.
 
 ## Build and install
@@ -139,9 +139,161 @@ clipping, font validation, texture retention and two-frame
 freshness reuse the existing capture/replay implementation. Addons should use the slot-specific
 `winxi.nativehud` bridge, which validates ABI, capability, unload/reload and weather, place and grid freshness.
 
+## Chat log and input replacement
+
+`src/modules/chat/chat.h` uses the two-window signature researched in
+[chatdiag](../../archive/addons/chatdiag/FINDINGS.md). It re-follows each window's `+08`
+menu pointer on every native draw and verifies `menu logwindo`. Primary and split logs
+are independent; recognition does not require the party signatures. The existing
+`Window::Render` detour and GPU filter are shared, not patched twice.
+
+An addon can hide a whole native log (including its background, text and mode tab), or
+write over it with its own captured ImGui window. This does **not** edit messages, chat
+mode, input history, input-open state, or the log's open/close timer. Native logic
+still runs. The primary slot also serves the verified native `fulllog` boundary, but only
+for the newest page of each channel tab; scrolling and nested menus stay native, but mouse-hover cursor movement alone does not release replacement.
+A third, independent input slot
+replaces `menu inline` using chatdiag's active-menu signature (operand at +16), an
+in-module pointer slot and the exact menu header name. Missing or ambiguous input
+recognition leaves the input native without disabling the logs. No visibility-byte
+writes, keyboard interception or changes to the native input controller are made.
+This is not a background-only or label-only hiding control.
+
+Use `require('winxi.nativechat')`, with one bridge per log/input slot (WinXI 12+):
+
+```lua
+local nativechat = require('winxi.nativechat')
+local chat = nativechat.new(nativechat.Primary) -- Secondary for split chat
+
+-- In your render callback, every frame:
+chat.Begin() -- intentionally empty: hides this native log while it is drawn
+-- Or build your replacement inside an ImGui Begin/End pair, then call
+-- chat.Capture() after drawing, before ImGui End. Only capture if Begin succeeded.
+
+-- On disable/unload:
+chat.Stop()
+```
+
+`Begin` renews a hidden replacement; `Capture` copies and consumes the current ImGui
+window's draw commands. Failed chat captures release the slot. Use `Stop` to restore
+it immediately; otherwise submissions expire after two presented frames. Stop on addon
+unload, and call Begin only while replacement is enabled. Replacements use the addon's
+submitted screen coordinates, not automatic chat anchoring, and follow native draw
+eligibility: closing the log or switching to expanded chat does not force it open.
+Do not run FancyChat, hidechatbg or other chat-visibility writers alongside replacement:
+they can close the native log or change what native restoration looks like.
+The [chatbox addon](../../addons/chatbox/README.md) supplies a compact log, native selection highlight,
+a WinXI frame and theme-tinted controls around the actual native expanded browser, and a native-backed WinXI input bar.
+The plugin itself does not collect chat messages or own keyboard input.
+
+### Chat ABI 8
+
+Independent `UIHOOK-CHAT` marker padded to 16 bytes, **232 bytes** total (update DLL and bridge together):
+
+```text
+char Magic[16]
+u32 Version, Size, SupportedMask, Frame, Submit
+u32 DrawnFrame[3], NativeFrame[3]
+float InputRect[4]; u32 InputRectFrame
+float PrimaryRect[4]; u32 PrimaryRectFrame
+float ReplacementRect[4]; u32 ReplacementRectFrame
+float ExpandedRect[4]; u32 ExpandedRectFrame
+u32 StateFlags, StateFrame
+u32 FullScroll, FullCursor, FullPageRows, FullFilter
+u32 ControlStyleFrame
+float ControlColors[4][4]  // highlight, tab, cursor, scrollbar; RGBA [0,1]
+```
+
+Submission bits/indexes: 0 primary (compact OR expanded), 1 split, 2 input (`nativechat.Input`).
+SupportedMask bit 3 advertises verified expansion state/geometry; bit 4 advertises the verified
+full-log content Draw hook. Bit 5 advertises the optional verified control-art CALL sites.
+None is an additional submission slot. `Submit` is render-thread-only
+`cdecl int(index, capture)`: 0 renews empty, 1 captures compact/input contents, 2 captures a
+**frame-only expanded skin** (primary slot only, requires bit 4), and -1 releases that slot.
+`primary.Capture(true, colors)` requests mode 2, optionally publishing the four RGBA control
+colours before stamping ControlStyleFrame. Missing/invalid colours leave controls native. The
+plugin validates and copies the style only with a successful current-frame expanded capture.
+Older bridges/DLLs are rejected; interpreting a frame-only capture as whole-window replacement
+would hide text. Index -1 releases all three **chat slots only**. Party/HUD release-all
+cannot release chat slots. Frames use the same clock as Party/HUD; the bridge validates
+DLL/ABI/capability and exposes `Ages()` and `Status()`. `/uihook chat` reports recognition
+and last native/drawn frames; `/uihook` includes fresh chat replacements.
+`InputRect` and `PrimaryRect` are the viewport-normalized native input and primary log
+rectangles (left/top/right/bottom), each read after its layout update using the verified
+`Window::GetRect` coordinate source. `ExpandedRect` uses the same normalized format and
+is recorded only at the verified full-log boundary; `NativeFrame[0]` records either primary boundary.
+Menu-manager geometry discovery is independent of party recognition; missing geometry
+leaves the rectangle frames unavailable, without disabling capture. The input/primary bridge's
+`Rect(displayWidth, displayHeight)` returns its own bounds in ImGui pixels only while fresh
+(two frames), or nil. The primary log anchors at its native rectangle's bottom-left,
+with its ten compact rows growing up. `primary.Rect(w,h,true)` reads the independent
+expanded bounds. No native positioning writes or font-metric guesses are published.
+
+`State()` returns fresh native focus/expansion information. StateFlags bits 0/1 select the
+primary/split log only when that window is the active native menu and has cursor enable/focus
+bytes +0x62/+0x63 set. Bit 2 is the existing menu-manager +0xF1 > 2 expanded state, found by
+the same signature as `winxi.game.IsChatExpanded`. Bit 3 requires full native fallback:
+another active menu/input, invalid layout data or unsupported full-log discovery. Nonzero scroll
+and cursor movement no longer trigger fallback: all pages retain native contents and behavior.
+During opening/closing, no fresh expanded rectangle means no frame skin. Other addons' native
+expanded-chat hiding rules remain untouched; no controller input or native expansion flags are rewritten.
+`State().nativeContent` reports the bit-4 content-hook capability; `nativeControls` reports bit 5.
+
+Full-log discovery cross-checks the three adjacent logwindo/logwin2/fulllog registry entries
+against the primary/split pointer signature. A unique constructor identifies the full-log
+owner vtable; unique Open/Update field-access patterns validate cursor (+0x1C), scroll (+0x20),
+filter (+0x54, the tab's channel number, 0 to 15 accepted and published as FullFilter) and page rows (+0x58) against that class's Update method (vtable +0x28) before any such reads are used.
+Unknown layouts stay native. All live object pointers are re-followed through guarded reads.
+A unique content Draw prologue is additionally cross-checked against full-log vtable +0x10
+before its five whole instruction bytes are detoured. The dispatcher replays mode-2 captures
+**only at the full-log window**, blocking its stock decoration. At the verified content Draw,
+GPU blocking is disabled, and remains disabled for Window::Render's subsequent native cursor
+and scrollbar. The outer render scope restores the previous blocking state. Thus the game's
+actual glyph rows, tabs, positions, colours and row actions are preserved without approximating
+native row offsets or decoding font glyph indices. The expanded skin has no custom text/title.
+Compact and expanded captures cannot replay across boundaries; empty mode-2 submissions cannot
+suppress a full log. Missing content hooks leave native expanded drawing intact, while compact
+replacement remains available. Expanded font and spacing are intentionally native, not WinXI.
+Optional control styling redirects **four CALL sites only**: the full-log tab sprite call,
+Window::Render's row-selection sprite call, cursor sprite call, and scrollbar Draw call. Each
+unique site is checked against its parent function and native callee; all four are verified before
+any is patched. Shared sprite/scrollbar routines are never patched. The native five-word tab and
+eight-word window-sprite ABIs retain all geometry, float bits and flags; only colour changes.
+Selected tabs are identified by the native owner's selected-tab sprite, not guessed tab ordering.
+The row-selection draw alone bypasses frame suppression, then restores it. Scrollbar Draw reads
+its first 40 bytes, so it receives a temporary copy with only the two colour words changed; native
+range/page/offset/scale and mouse state are untouched. Sprite colour unity is 128; alpha retains
+native pulse/fades. Theme changes never recolour message text or other windows' controls.
+Native artwork is tinted, not replaced by WinXI Tab Style assets. Missing control signatures
+leave controls native while frame/content support remains independent.
+See [discovery notes](src/modules/chat/FINDINGS.md) for static-client evidence and live checks.
+Optional private-client verification: `python3 plugins/uihook/tests/check_chat_client.py /path/to/ffximain.bin /path/to/ffximain.txt`.
+
+`ReplacementRect` is the actual captured primary ImGui window rectangle in **ImGui pixels**,
+not native normalized coordinates, sampled by the plugin on a successful nonempty capture.
+Empty, released or failed primary submissions invalidate it. With fresh capture, native
+boundary, native rectangle and successful primary replay timestamps, Clock::Draw's GPU
+submissions are translated by the difference between replacement and native log top-lefts.
+This moves the native clock **and its icons** as one group while retaining native spacing
+above chat. It never moves the compass, never changes native positions and stops when the
+log is released, expires or is expanded. Only copied screen-space UP vertices are changed (indexed UP
+requires minimum vertex 0); unsupported draw paths/shaders are left native. HUD clock/icon
+rectangles include the translation, so the clock addon's replay/custom icons follow too;
+its already-positioned replay is not translated again. Weather scaling and translation
+compose on the copy, leaving the game's original vertices untouched.
+
+Offline fixtures check chat discovery ambiguity, invalid/aliased globals, menu-name
+validation, null/recreated children, bad pointers, native focus, verified full-log layouts,
+compact/expanded capture isolation, content-hook signature/vtable checks, native GPU pass-through,
+scroll/filter continuity and menu handoff; Lua fixtures check ABI,
+slot isolation, capture failure and unload/reload. **Live GPU validation is still needed**:
+primary/split, expand/collapse, input/mode changes, zoning, UI hide/show, resolution/font
+changes, device recovery, stale submissions and addon/plugin unload/reload.
+
 ## Architecture
 
 - `src/uihook.cpp`: sole exported plugin entry point, lifecycle dispatch and scoped GPU-filter routing.
+- `src/modules/chat/`: primary/split/input recognition and independent chat ABI; uses the shared renderer.
 - `src/modules/buffs/`: icon/time detours, native origin and selector cursor, textured quad replay.
 - `src/modules/party/`: party/alliance/target identification, ImGui capture/clipping/replay,
   scoped stock-HUD suppression and native target-arrow exceptions. `hud.h` adds clock/compass
@@ -170,6 +322,7 @@ Future UI modules should own their recognition and native semantics; any additio
 plugins/uihook/build.sh
 plugins/uihook/tests/run.sh
 luajit tests/nativehud_check.lua
+luajit tests/nativechat_check.lua
 luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 python3 plugins/uihook/tests/check_hud_client.py /path/to/ffximain.bin /path/to/ffximain.txt
 luajit tests/party_hook_performance_check.lua
