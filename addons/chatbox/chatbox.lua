@@ -105,6 +105,10 @@ local PADDING_SIDES = {
     { key = 'bottomPadding', label = 'Bottom Padding', tip = 'Room kept below the log\'s rows, in pixels. Input height uses both vertical paddings, with its text always centred.' },
 }
 
+local function Tip(text)
+    if imgui.IsItemHovered() then imgui.SetTooltip(text) end
+end
+
 app = shell.New({
     defaults = T{ enabled = T{ true }, width = T{ 640 }, matchGameLogSize = T{ true }, matchGameInputSize = T{ false }, fontSize = T{ 12 },
         appearance = appearance.Defaults(T, theme.Get()), fontFile = '',
@@ -119,14 +123,26 @@ app = shell.New({
                 if not options.enabled[1] then Release() end
                 app.save()
             end
+            Tip('Draws the WinXI log and input bar in place of the game\'s own.\nOff, the game\'s chat log and input come back at once. /chatbox on and off do the same.')
+            widgets.Label('Chat History')
+            if imgui.SmallButton('Clear##chatbox.clear') then model.Clear(history) end
+            Tip('Forgets the messages kept for the compact log, 256 at most and never written to disk.\nThe game\'s own history, which the expanded log shows, is left alone.')
+            imgui.TextDisabled('Native Square/window selection, confirm to expand, cancel to close.')
+            imgui.TextDisabled(primary.Status())
+        end
+        if widgets.Header('Size') then
             widgets.Label('Match Game Log Size')
             if imgui.Checkbox('##chatbox.matchGameLogSize', options.matchGameLogSize) then app.save() end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('Takes the width and height of the game\'s own chat log, so changing its size in the game\'s\nsettings changes this one; as many rows as fit at Text Size. Off: Width, and ten rows.')
-            end
+            Tip('Takes the width and height of the game\'s own chat log, so changing its size in the game\'s\nsettings changes this one; as many rows as fit at Font Size. Off: Width, and ten rows.')
             widgets.Label('Width')
             imgui.SliderInt('##chatbox.width', options.width, 240, 1200, '%d px')
             if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+            Tip('How wide the log and the input bar are, in pixels, with Match Game Log Size and Match Game Input Size off.')
+            widgets.Label('Match Game Input Size')
+            if imgui.Checkbox('##chatbox.matchGameInputSize', options.matchGameInputSize) then app.save() end
+            Tip('Uses the native input width for both boxes and its height/position for the input.\nOff: both boxes use Width (or the game log\'s, with Match Game Log Size). Font Size applies to both.')
+        end
+        if widgets.Header('Text') then
             widgets.Label('Font')
             local file = options.fontFile
             if imgui.BeginCombo('##chatbox.fontFile', file ~= '' and file or 'Theme\'s Font') then
@@ -142,24 +158,19 @@ app = shell.New({
                 end
                 imgui.EndCombo()
             end
-            if imgui.IsItemHovered() then imgui.SetTooltip('The chat\'s font: one of C:\\Windows\\Fonts, or the theme\'s.') end
-            widgets.Label('Text Size')
+            Tip('The chat\'s font: one of C:\\Windows\\Fonts, or the theme\'s.')
+            widgets.Label('Font Size')
             imgui.SliderInt('##chatbox.fontSize', options.fontSize, 8, 24, '%d px')
             if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+            Tip('How large the log\'s and the input bar\'s text is, in pixels; both boxes grow with it.\nThe expanded log keeps the game\'s own font.')
+        end
+        if widgets.Header('Padding') then
             for _, side in ipairs(PADDING_SIDES) do
                 widgets.Label(side.label)
                 imgui.SliderInt('##chatbox.' .. side.key, options[side.key], 0, PADDING_MOST, '%d px')
                 if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-                if imgui.IsItemHovered() then imgui.SetTooltip(side.tip) end
+                Tip(side.tip)
             end
-            widgets.Label('Match Game Input Size')
-            if imgui.Checkbox('##chatbox.matchGameInputSize', options.matchGameInputSize) then app.save() end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('Uses the native input width for both boxes and its height/position for the input.\nOff: both boxes use Width (or the game log\'s, with Match Game Log Size). Text Size applies to both.')
-            end
-            imgui.TextDisabled('Native Square/window selection, confirm to expand, cancel to close.')
-            imgui.TextDisabled(primary.Status())
-            if imgui.SmallButton('Clear##chatbox.clear') then model.Clear(history) end
         end
         if widgets.Header('Window Colors') then appearance.Draw(options.appearance, app.save) end
     end,

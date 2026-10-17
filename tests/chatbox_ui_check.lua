@@ -144,7 +144,7 @@ message('internal',{mode=152}); frame(); assert(text[10].text=='modified')
 message('bad'); frame(); assert(text[10].text=='modified','decoding error contained')
 fontSize=20; frame(); assert(measuredSize[2]==150,'theme font size does not enlarge compact chat text')
 look.Padding=20; frame(); assert(measuredSize[2]==150,'compact padding independent of theme')
-app.options.fontSize[1]=16; frame(); assert(measuredSize[2]==186+6,'Text Size applies without changing ten rows')
+app.options.fontSize[1]=16; frame(); assert(measuredSize[2]==186+6,'Font Size applies without changing ten rows')
 app.options.fontSize[1]=12
 ready=false; count=hooks[0].captures; frame(); assert(hooks[0].captures==count)
 ready=true; captureOK=false; count=hooks[1].begins; local stops=hooks[0].stops
@@ -287,8 +287,21 @@ imgui.SmallButton=function() return false end
 imgui.SetTooltip=function() end
 imgui.BeginDisabled=function() end; imgui.EndDisabled=function() end
 imgui.Button=function() return false end
-headers.Colors=true
+-- the settings window: five sections, each folding away, drawn whole when open
+local opened = {}
+package.loaded['winxi.widgets'].Header=function(name) opened[#opened+1]=name; return headers[name] end
+imgui.Selectable=function() return false end
+imgui.EndCombo=function() end
+imgui.BeginCombo=function() return true end
 spec.drawSettings(app.options)
+assert(table.concat(opened,',')=='Chatbox,Size,Text,Padding,Window Colors','collapsed: only the five section titles')
+for _,name in ipairs(opened) do headers[name]=true end
+headers['Chat Log Window'], headers['Input Text Box'] = true, true
+opened={}
+spec.drawSettings(app.options)
+assert(table.concat(opened,',')=='Chatbox,Size,Text,Padding,Window Colors,Chat Log Window,Input Text Box','open: every section drawn')
+for k in pairs(headers) do headers[k]=nil end
+package.loaded['winxi.widgets'].Header=function(name) return headers[name] end
 assert(spec.tabs == nil and app.options.colors == nil and app.options.combat == nil, 'no channel colour controls or Combat Log tab')
 -- Font, Left Padding and source timestamps
 pushedFonts={}; app.options.fontFile='arial.ttf'; inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; frame()
