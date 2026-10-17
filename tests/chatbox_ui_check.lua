@@ -256,7 +256,7 @@ tabsGeometry={{left=10,top=100,right=64,bottom=116,channel=0,selected=false},
 scrollGeometry={left=2,top=120,right=6,bottom=1020,page=20,count=100,above=80}
 frame()
 assert(hooks[0].replace.tabs and hooks[0].replace.scrollbar,'the game asked to leave its tabs and scrollbar undrawn')
-assert(#labels==3 and labels[1].text=='Window' and labels[2].text=='Tab 3' and labels[3].text=='Say','drawn in the game\'s order with the chosen tab last, each named for its channel, an unknown one by its place')
+assert(#labels==3 and labels[1].text=='Window' and labels[2].text=='Tab 3' and labels[3].text=='Say','drawn in the game\'s order with the chosen tab last; a part of the strip named by channel, an unknown one by its place')
 assert(labels[3].x==60+(54-3*7)/2 and labels[3].y>100 and labels[3].y<108 and labels[3].color==look.TextColor,'the chosen tab on top, its name centred in the whole of it, in the title colour')
 assert(labels[1].x==10+(50-6*7)/2 and labels[2].x==114+(46-5*7)/2,'the others\' names centred in what the tab over them leaves uncovered')
 assert(#filled==8 and filled[1].color==look.BackgroundColor and filled[1].a[1]==10 and filled[1].b[1]==64 and filled[2].color[4]==filled[4].color[4] and filled[6].color[4]>filled[2].color[4],
@@ -281,6 +281,22 @@ tabsGeometry[1].selected, tabsGeometry[2].selected = true, false; frame()
 assert(labels[3].text=='Window' and labels[3].x==10+(54-6*7)/2 and labels[1].text=='Say' and labels[1].x==64+(46-3*7)/2,
     'another tab chosen: it is drawn last, whole, and the one that lay over it now gives way to it')
 tabsGeometry[1].selected, tabsGeometry[2].selected = false, true
+-- the whole strip: named by where each stands, left to right, whatever channel its sprite was matched to
+local whole={}
+for i=1,10 do whole[i]={left=i*50-40+(i>1 and -4 or 0),top=100,right=i*50+10,bottom=116,channel=(i*3)%11,selected=i==4} end
+whole[3],whole[7]=whole[7],whole[3] -- drawn in another order than they stand
+local before=tabsGeometry; tabsGeometry=whole; frame()
+local byLeft={}
+for _, l in ipairs(labels) do byLeft[#byLeft+1]=l end
+table.sort(byLeft,function(a,b) return a.x<b.x end)
+local seen={}
+for i, l in ipairs(byLeft) do seen[i]=l.text end
+local wanted={'Window','Say','Tell','Party','Linkshell 1','Linkshell 2','Assist (J)','Assist (E)','Unity','Shout'}
+for i=1,10 do
+    assert(#seen[i]>=3 and wanted[i]:sub(1,#seen[i])==seen[i], 'all ten from the left, each cut to fit: '..i..' is '..seen[i]..', not '..wanted[i])
+end
+assert(labels[10].text=='Party','the chosen fourth tab drawn last, named for its place')
+tabsGeometry=before
 app.options.replaceTabs[1]=false; frame()
 assert(not hooks[0].replace.tabs and hooks[0].replace.scrollbar and #labels==0 and #filled==2,'Replace Tabs off: the game\'s tabs stay, the scrollbar still the addon\'s')
 app.options.replaceScrollbar[1]=false; frame()

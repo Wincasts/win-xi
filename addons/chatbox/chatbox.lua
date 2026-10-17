@@ -394,7 +394,7 @@ local function DrawExpandedControls()
         local look = theme.Get()
         stripColors.highlight, stripColors.text, stripColors.border = expandedColors[1], expandedColors[2], expandedColors[3]
         stripColors.background = expandedOptions.background or look.BackgroundColor
-        strip.Draw(list, expandedTabs, channels.Filters, stripColors, render.Measure)
+        strip.Draw(list, expandedTabs, channels.Filters, channels.TabNames, stripColors, render.Measure)
     end
     if expandedScroll then
         local s = expandedScroll
