@@ -30,6 +30,7 @@ assert(model.Clean('Hill?Lizard') == 'Hill?Lizard', 'real question marks are unt
 assert(model.Clean('Stalking\129\63Sapling') == 'Stalking Sapling', 'live 81 3F enemy-name separator')
 assert(model.Clean('\130\129\63') == '\130\129\63', '81 3F spanning a valid SJIS pair and a real question mark is untouched')
 assert(model.Clean('\31\129?') == '?', 'palette operand 81 followed by a real question mark is not a name separator')
+assert(model.Clean('a\239\42b\239\77c') == 'abc', 'the game\'s other pictographs, EF 29 to EF 4D, show nothing')
 same(model.Wrap('one two three', 7, measure), {'one two', 'three'})
 same(model.Wrap('abcdefghijkl', 4, measure), {'abcd','efgh','ijkl'})
 same(model.Wrap('猫犬鳥魚', 2, measure), {'猫犬','鳥魚'})

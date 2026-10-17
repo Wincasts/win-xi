@@ -25,15 +25,15 @@ local nativeRect, lastWindowStyle
 local rendered = {}
 local nativeLogRect = {20,700,660,1018}
 local expandedRect={0,100,1920,1020}
-local chatState={selected=false,expanded=false,expandedSupported=true,nativeBrowse=false,nativeContent=true,nativeControls=true,nativeReplace=true}
-local tabsGeometry, scrollGeometry -- where the game drew its tabs and scrollbar, as uihook measured them
+local chatState={selected=false,expanded=false,expandedSupported=true,nativeBrowse=false,nativeContent=true,nativeControls=true,nativeReplace=true,nativeText=true}
+local tabsGeometry, scrollGeometry, rowsGeometry -- where the game drew its tabs, scrollbar and rows of text, as uihook measured them
 package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=function(index)
     local hook = {begins=0,stops=0,captures=0}
     function hook.Begin() hook.begins=hook.begins+1; return ready end
     function hook.Stop() hook.stops=hook.stops+1 end
     function hook.Capture(expanded,controls,replace)
         hook.expanded,hook.controls=expanded,controls
-        hook.replace=replace and {tabs=replace.tabs,scrollbar=replace.scrollbar} or nil
+        hook.replace=replace and {tabs=replace.tabs,scrollbar=replace.scrollbar,text=replace.text} or nil
         assert(sequence[#sequence] == 'border', 'complete decoration captured')
         hook.captures=hook.captures+1; return captureOK
     end
@@ -41,6 +41,7 @@ package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=functio
     function hook.Ages() return 0, 0 end
     function hook.Tabs() return index==0 and tabsGeometry or nil end
     function hook.Scrollbar() return index==0 and scrollGeometry or nil end
+    function hook.Rows() return index==0 and rowsGeometry or nil end
     function hook.State() return chatState end
     function hook.Rect(_,_,expanded)
         local rect
@@ -74,6 +75,9 @@ package.loaded['winxi.shell'] = {New=function(s)
     return app
 end}
 package.loaded.encoding = { Decode=function(raw) if raw=='bad' then error('bad encoding') end; return raw end }
+local decodes = 0
+local plainDecodeStub = package.loaded.encoding.Decode
+package.loaded.encoding.Decode = function(raw, ...) decodes = decodes + 1; return plainDecodeStub(raw, ...) end
 local text, measured, measuredPos, measuredSize = {}, 0, nil, nil
 local dummy
 local outlines={}
@@ -297,6 +301,38 @@ for i=1,10 do
 end
 assert(labels[10].text=='Party','the chosen fourth tab drawn last, named for its place')
 tabsGeometry=before
+-- the game's rows of text replaced: each drawn where the game drew it, in the chat's font no taller than the
+-- row and centred in it, in its mode's colour; the cursor after the cursor row's text; decoded once each; and
+-- the game asked to leave its text undrawn only while there are fresh rows to draw
+rowsGeometry={{left=40,top=820,right=300,bottom=836,text='newest line',mode=1,cursor=false},
+    {left=40,top=804,right=200,bottom=820,text='older',mode=12,cursor=true},{left=40,top=788,right=100,bottom=804,text='',mode=1,cursor=false},
+    {text='nowhere',mode=1,cursor=false}}
+pushedFonts={}; app.options.fontFile='arial.ttf'; decodes=0; frame()
+assert(hooks[0].replace.text,'the game asked to leave its text undrawn')
+assert(#text==2 and text[1].text=='newest line' and text[1].pos[1]==40 and text[1].pos[2]==822 and text[1].color==require('palette').Mode(1),
+    'the newest row where the game drew it, 12px text centred in the 16px row, in its mode\'s colour')
+assert(text[2].text=='older' and text[2].pos[2]==806 and text[2].color==require('palette').Mode(12),'the older row in a tell\'s colour')
+assert(#images==1 and images[1].a[1]==40+5*7+4 and images[1].a[2]==805,'the cursor after the cursor row\'s text')
+assert(pushedFonts[1]=='font:arial.ttf' and decodes==2,'the chat\'s font; the two rows with text decoded, the empty and the unplaced not')
+frame(); assert(decodes==2,'the rows decoded once, not every frame')
+rowsGeometry[1].text='older'; frame(); assert(decodes==2,'a row already decoded is known by its bytes')
+rowsGeometry[1].text='newest line'
+local said2={}; app.Say=function(_,line) said2[#said2+1]=line end
+spec.commands.status()
+assert(table.concat(said2,'\n'):find('WinXI tabs, scrollbar and text where the game\'s are',1,true) and table.concat(said2,'\n'):find('2 drawn',1,true),'/chatbox status says the text is the addon\'s and how many rows were drawn')
+app.Say=function() end
+app.options.fontSize[1]=24; frame()
+assert(text[1].pos[2]==820 and labels[1].y>100,'Font Size past the row\'s height: the row\'s height, the text at the row\'s top')
+app.options.fontSize[1]=12
+app.options.fontFile=''; pushedFonts={}; frame(); assert(#pushedFonts==0 and #text==2,'the theme\'s font at the row\'s size: nothing named')
+app.options.replaceText[1]=false; frame()
+assert(not hooks[0].replace.text and #text==0 and hooks[0].replace.tabs,'Replace Text off: the game\'s font, the tabs still the addon\'s')
+app.options.replaceText[1]=true
+chatState.nativeText=false; frame()
+assert(not hooks[0].replace.text and #text==0,'without uihook\'s row site the game draws its text')
+chatState.nativeText=true
+rowsGeometry=nil; frame()
+assert(not hooks[0].replace.text and #text==0 and hooks[0].replace.tabs,'no fresh rows: the game\'s text is left drawn')
 app.options.replaceTabs[1]=false; frame()
 assert(not hooks[0].replace.tabs and hooks[0].replace.scrollbar and #labels==0 and #filled==2,'Replace Tabs off: the game\'s tabs stay, the scrollbar still the addon\'s')
 app.options.replaceScrollbar[1]=false; frame()

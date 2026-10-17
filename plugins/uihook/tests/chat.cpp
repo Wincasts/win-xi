@@ -153,7 +153,7 @@ int main() {
     Check(chat.Discover(image,sizeof(image)) && !chat.ExpandedSupported(),"missing verified layout leaves expanded history native");
     chat.Clear();
     Check(chat.Identify(menu)==-1,"release clears recognition");
-    Check(sizeof(ChatShared)==564,"chat ABI 9: the tab strip and scrollbar measured, and which the addon draws itself");
+    Check(sizeof(ChatShared)==70208,"chat ABI 10: the full log's rows of text decoded and measured, 128 rows and 64 KB of text");
     ChatShared shared={}; shared.SupportedMask=1; shared.Frame=10;
     shared.PrimaryRectFrame=shared.ReplacementRectFrame=shared.NativeFrame[0]=shared.DrawnFrame[0]=10;
     shared.PrimaryRect[0]=0.1f; shared.PrimaryRect[1]=0.5f; shared.PrimaryRect[2]=0.7f; shared.PrimaryRect[3]=0.9f;

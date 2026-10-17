@@ -35,6 +35,8 @@
 -- 14: nativechat ABI 8 captured theme colours for native expanded control artwork
 -- 15: nativechat ABI 9, the game's tab strip and scrollbar measured and, asked, left undrawn; tabs.Over
 --     and tabs.Line, the tab style over a tab an addon places itself
+-- 16: nativechat ABI 10, the full log's rows of text decoded and measured as the game draws them and,
+--     asked, left undrawn: Rows, State().nativeText, replace.text
 return {
-    Number = 15,
+    Number = 16,
 };

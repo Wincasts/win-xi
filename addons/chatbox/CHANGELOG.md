@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.0
+
+- The expanded log's text in the chat's font. uihook decodes the game's rows of text as it draws
+  them (its glyph words back to the bytes it was given, colour codes and all) and measures each
+  row; asked, it leaves the game's text undrawn, and the addon draws each row where the game drew
+  it: in the chat's **Font**, at **Font Size** or the game's row height if that is less, centred in
+  the row, in its message's chat-mode colour with the game's inline colours kept, auto-translate
+  brackets as shapes; the game's cursor after the cursor row's text. The rows, their wrapping,
+  the cursor, hovering, Confirm and its menus, the wheel and the scrollbar are still the game's.
+  **Replace Text** (experimental, on to begin with) in the Expanded section; off, or without a
+  fresh set of rows from uihook, the game's own font is drawn as before. Each row is decoded once
+  and kept by its bytes.
+- The game's other pictographs (EF 29 to EF 4D) show nothing, in place of a stray character.
+- Needs winxi 16 and uihook 0.4 with chat ABI 10.
+
 ## 0.8.0
 
 - The expanded log's tabs and scrollbar in WinXI's look, where the game's are. uihook measures the

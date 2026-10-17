@@ -16,10 +16,18 @@
 // StateFlags bits
 enum { CHAT_SELECTED_PRIMARY=1, CHAT_SELECTED_SPLIT=2, CHAT_EXPANDED=4, CHAT_NATIVE_BROWSE=8 };
 // SupportedMask bits: 1 primary, 2 split, 4 input, 8 full-log state, 16 content pass-through, 32 control art,
-// 64 the tab strip and scrollbar measured as the game draws them, and hidden when the addon draws its own
-enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64 };
+// 64 the tab strip and scrollbar measured as the game draws them, and hidden when the addon draws its own,
+// 128 the full log's rows of text decoded and measured as the game draws them, and hidden the same way
+enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64, CHAT_TEXT_SUPPORTED=128 };
 // ReplaceControls bits, written by Lua: which native controls to leave undrawn, the addon drawing its own in their places
-enum { CHAT_REPLACE_TABS=1, CHAT_REPLACE_SCROLL=2 };
+enum { CHAT_REPLACE_TABS=1, CHAT_REPLACE_SCROLL=2, CHAT_REPLACE_TEXT=4 };
+// A row of the full log's text as last drawn: its bounds, normalized to the viewport (where placed), its text's
+// place and length in the shared Text, its message's chat mode, and flags: 1 the game's cursor is on it, 2 pressed,
+// 4 marked by the game, 8 cut (longer than the room left), 16 placed (its Rect is where it was drawn)
+enum { CHAT_ROW_CURSOR=1, CHAT_ROW_PRESSED=2, CHAT_ROW_MARKED=4, CHAT_ROW_CUT=8, CHAT_ROW_PLACED=16 };
+struct ChatTextRow { float Rect[4]; uint32_t Offset, Length, Mode, Flags; };
+#define CHAT_TEXT_ROWS 128   // rows of text published at most: a 4K screen's full log holds fewer
+#define CHAT_TEXT_BYTES 65536 // the room for their text, in all
 // A tab of the game's strip as last drawn: its bounds, normalized to the viewport, the channel whose tab it is
 // (0 to 10, or 0xffffffff when its sprite is not one of the owner's) and whether it was drawn chosen
 struct ChatTab { float Rect[4]; uint32_t Channel, Selected; };
@@ -45,8 +53,11 @@ struct ChatShared {
     ChatTab Tabs[12];
     uint32_t ScrollFrame, ScrollPage, ScrollCount, ScrollTop; // its scrollbar: page rows, rows in all, rows above the view
     float ScrollRect[4]; // normalized to the viewport, as the game drew (or would have drawn) it
+    uint32_t TextFrame, TextCount, TextSerial; // the full log's rows of text as last drawn in a skinned full log, newest first; the serial changes when they do
+    ChatTextRow Rows[CHAT_TEXT_ROWS];
+    char Text[CHAT_TEXT_BYTES]; // each row's bytes at its Offset, as the game was given them (CP932 with 1E/1F colour codes)
 };
-static_assert(sizeof(ChatShared)==564, "chat ABI 9");
+static_assert(sizeof(ChatShared)==70208, "chat ABI 10");
 // ABI 8: primary capture=1 replaces compact contents; capture=2 skins the expanded frame ONLY.
 // Never replay a capture across the compact/full boundary: the native content must remain visible.
 static inline bool ChatReplayAllowed(const ChatShared& chat, bool expandedCapture) {

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4
+
+- Chat ABI 10 (70208 bytes): the game's expanded-log rows of text decoded and measured as it draws
+  them and, where the addon asks (ReplaceControls bit 4, copied with a successful expanded capture
+  and only with the row site), left undrawn, the addon drawing its own text in their places. Each
+  row's screen bounds, normalized to the viewport (a row that drew nothing placed where the game
+  would have drawn it), its text as the game was given it (CP932 with its 1E/1F colour codes, the
+  7F controls left out), its message's chat mode and its flags (cursor, pressed, marked, cut,
+  placed) are published newest first (TextFrame, TextCount, TextSerial, Rows[128], Text[64 KB]);
+  the serial moves only when the rows change. SupportedMask bit 7.
+- A sixth verified CALL site, the one row-drawing call inside the log drawer the content Draw calls
+  at +AA (cdecl, 22 words: the row's text, its 60-byte header by value, x, y, alpha, the cursor
+  flag, an out pointer and a zero; the caller's add esp,58 checked), validated on its own and taken
+  only with the control group; the drawer and the row draw are not patched, and the compact logs'
+  rows pass through it untouched. The rows are decoded from the game's glyph words by the exact
+  inverse of the client's encoder (transcribed in glyphs.h; the fixture round-trips every two-byte
+  character): a single byte is its glyph and 20, glyph 5F (81 3F, the blank in an enemy's name) a
+  space, glyphs 2115–2143 the pictographs EF 1F–EF 4D.
+- `/uihook chat` says whether the row site was taken and how many rows were published, at what
+  frame and serial, and their bytes.
+
 ## 0.3
 
 - Chat ABI 9 (564 bytes): the game's expanded-log tab strip and scrollbar measured as it draws them

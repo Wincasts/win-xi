@@ -24,7 +24,7 @@ static int32_t __cdecl Submit(int32_t index, int32_t capture);
 static void __fastcall RenderWindow(void* window, void*);
 static int32_t __cdecl SubmitHud(int32_t index, int32_t capture);
 static int32_t __cdecl SubmitChat(int32_t index, int32_t capture);
-static ChatShared Chat = { "UIHOOK-CHAT", 9, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {} };
+static ChatShared Chat = { "UIHOOK-CHAT", 10, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {}, 0, 0, 0, {}, {} };
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
 static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
@@ -50,6 +50,9 @@ static void __fastcall DrawChatCursor(void*,void*,uint32_t,uint32_t,uint32_t,uin
 static void __fastcall DrawChatScroll(void*,void*);
 static void __fastcall DrawChatTabs(void*,void*,uint32_t);
 static ChatControlCalls ChatControls;
+// The one call in the log drawer that draws a row of text, aimed at DrawChatRow while uihook is loaded
+static void __cdecl DrawChatRow(const uint16_t*,ChatRowHeader,int32_t,int32_t,uint32_t,uint32_t,void*,uint32_t);
+static ChatTextSite ChatText;
 
 using Run = TextureRun<IDirect3DBaseTexture8>;
 struct Drawing {
@@ -79,6 +82,11 @@ class PartyHook : public IPlugin {
     bool measuringTabs=false;
     ChatBounds tabBounds[12], scrollBounds; uint32_t tabChannels[12]={}; bool tabSelected[12]={}; unsigned tabCount=0;
     D3DVIEWPORT8 chatViewport={}; bool chatViewportKnown=false;
+    // The full log's rows of text, measured and decoded as the game draws them in a skinned full log; the
+    // last published kept apart, so that the serial moves only when the rows do
+    ChatBounds rowBounds; unsigned rowCount=0; uint32_t textUsed=0;
+    ChatTextRow lastRows[CHAT_TEXT_ROWS]={}; char lastText[CHAT_TEXT_BYTES]={}; unsigned lastRowCount=0; uint32_t lastTextUsed=0;
+    uint16_t rowWords[CHAT_ROW_WORDS]={};
     void** compassGlobal = nullptr;
     bool (__cdecl* radarVisible)() = nullptr;
     uint16_t* nativeWeather = nullptr;
@@ -306,7 +314,12 @@ public:
                     Chat.SupportedMask |= CHAT_FULL_SKIN_SUPPORTED;
                     void* callbacks[]={reinterpret_cast<void*>(&DrawChatTab),reinterpret_cast<void*>(&DrawChatSelection),
                         reinterpret_cast<void*>(&DrawChatCursor),reinterpret_cast<void*>(&DrawChatScroll),reinterpret_cast<void*>(&DrawChatTabs)};
-                    if (TakeChatControls(ChatControls,controls,callbacks)) Chat.SupportedMask |= CHAT_CONTROLS_SUPPORTED | CHAT_REPLACE_SUPPORTED;
+                    if (TakeChatControls(ChatControls,controls,callbacks)) {
+                        Chat.SupportedMask |= CHAT_CONTROLS_SUPPORTED | CHAT_REPLACE_SUPPORTED;
+                        // the rows of text as well, where the drawer's one row-drawing call is verified: on its own, the controls stand without it
+                        if (TakeChatText(ChatText,DiscoverChatText(begin,module.SizeOfImage,chat.ExpandedDraw()),reinterpret_cast<void*>(&DrawChatRow)))
+                            Chat.SupportedMask |= CHAT_TEXT_SUPPORTED;
+                    }
                 }
             }
             auto* party=FindPattern(begin,module.SizeOfImage,PARTY_PATTERN);
@@ -338,7 +351,7 @@ public:
         Hud.SupportedMask=0; Hud.Submit=0;
         Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); StopChat();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
-        GiveArrows(Arrows); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
+        GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
@@ -376,14 +389,17 @@ public:
     bool HandleCommand(int32_t,const char* command,bool) override {
         if (command && _stricmp(command,"/uihook chat")==0) {
             char line[256];
-            snprintf(line,sizeof(line),"[uihook:chat] ABI 9, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
+            snprintf(line,sizeof(line),"[uihook:chat] ABI 10, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
                 Chat.SupportedMask,Chat.Frame,Chat.NativeFrame[0],Chat.DrawnFrame[0],Chat.NativeFrame[1],Chat.DrawnFrame[1],Chat.NativeFrame[2],Chat.DrawnFrame[2]);
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:chat] state 0x%x at %u, full bounds at %u; history scroll %u, cursor %u/%u, filter %u (browsing/filter menus remain native).",
                 Chat.StateFlags,Chat.StateFrame,Chat.ExpandedRectFrame,Chat.FullScroll,Chat.FullCursor,Chat.FullPageRows,Chat.FullFilter);
             core->GetChatManager()->Write(0,false,line);
-            snprintf(line,sizeof(line),"[uihook:chat] replacing %u (1 tabs, 2 scrollbar); %u tabs measured at %u; scrollbar page %u of %u rows, %u above, at %u.",
+            snprintf(line,sizeof(line),"[uihook:chat] replacing %u (1 tabs, 2 scrollbar, 4 text); %u tabs measured at %u; scrollbar page %u of %u rows, %u above, at %u.",
                 replaceControls,Chat.TabCount,Chat.TabFrame,Chat.ScrollPage,Chat.ScrollCount,Chat.ScrollTop,Chat.ScrollFrame);
+            core->GetChatManager()->Write(0,false,line);
+            snprintf(line,sizeof(line),"[uihook:chat] text: row site %s; %u rows at %u, serial %u, %u bytes.",
+                ChatText.call ? "taken" : "not found", Chat.TextCount,Chat.TextFrame,Chat.TextSerial,lastTextUsed);
             core->GetChatManager()->Write(0,false,line);
             return true;
         }
@@ -633,7 +649,7 @@ public:
             else { out.chatFresh|=bit; if (empty) out.chatEmpty|=bit; }
         }
     }
-    void StopChat() { drawings[8].Clear(); drawings[9].Clear(); drawings[10].Clear(); staging.Clear(); Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; replaceControls=0; Chat.ControlStyleFrame=0; Chat.TabFrame=Chat.ScrollFrame=0; }
+    void StopChat() { drawings[8].Clear(); drawings[9].Clear(); drawings[10].Clear(); staging.Clear(); Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; replaceControls=0; Chat.ControlStyleFrame=0; Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; }
     int CaptureChat(int index,int capture) {
         if (index==-1) { StopChat(); return 1; }
         if (index<0 || index>2 || capture>2) return 0;
@@ -644,8 +660,9 @@ public:
         if (index==0 && result && capture>0) {
             expandedCapture=capture==2;
             controlsValid=expandedCapture && (Chat.SupportedMask & CHAT_CONTROLS_SUPPORTED) && controlStyle.Read(Chat);
-            // the addon's own tabs and scrollbar stand in only while its frame does, and only where the hooks are
+            // the addon's own tabs, scrollbar and text stand in only while its frame does, and only where the hooks are
             replaceControls=controlsValid && (Chat.SupportedMask & CHAT_REPLACE_SUPPORTED) ? Chat.ReplaceControls & (CHAT_REPLACE_TABS|CHAT_REPLACE_SCROLL) : 0;
+            if (controlsValid && (Chat.SupportedMask & CHAT_TEXT_SUPPORTED)) replaceControls |= Chat.ReplaceControls & CHAT_REPLACE_TEXT;
         }
         if (!result) drawings[index+8].Clear(); // failed capture restores native even after an empty Begin
         return result;
@@ -743,10 +760,54 @@ public:
             Chat.ScrollPage=info.page; Chat.ScrollCount=info.count; Chat.ScrollTop=info.top; Chat.ScrollFrame=Shared.Frame;
         }
     }
+    // A row of the full log's text as the game draws it in a skinned full log: measured from its glyphs'
+    // screen-space vertices, decoded from its glyph words to the bytes the game was given, and, where the addon
+    // draws its own text, left undrawn (glyphs and the cursor's mark alike: this call's GPU submissions blocked);
+    // the game's rows, cursor and hit-tests untouched. Anywhere else, a compact log's row, it is the game's call.
+    void ChatRow(const uint16_t* text,const ChatRowHeader& header,int32_t x,int32_t y,uint32_t alpha,uint32_t flag,void* out,uint32_t zero) {
+        const bool skinned=expandedSkin && expandedOwner;
+        const bool measure=skinned && rowCount<CHAT_TEXT_ROWS;
+        const bool was=blocking;
+        if (ChatHidden(replaceControls,CHAT_REPLACE_TEXT,skinned && controlsValid)) blocking=true;
+        if (measure) { rowBounds=ChatBounds(); chatMeasure=&rowBounds; }
+        reinterpret_cast<ChatRowDraw>(ChatText.target)(text,header,x,y,alpha,flag,out,zero);
+        chatMeasure=nullptr; blocking=was;
+        if (!measure) return;
+        ChatTextRow& row=Chat.Rows[rowCount];
+        row=ChatTextRow();
+        ChatRowInfo info;
+        const bool fields=ChatRowFields(header,info);
+        row.Mode=info.mode;
+        if (info.state==1) row.Flags|=CHAT_ROW_CURSOR; else if (info.state==2) row.Flags|=CHAT_ROW_PRESSED;
+        if (info.marks & 0x40) row.Flags|=CHAT_ROW_MARKED;
+        row.Offset=textUsed;
+        if (fields && info.words && text && ChatRead(text,rowWords,info.words*2)) {
+            bool cut=false;
+            row.Length=ChatDecodeRow(rowWords,info.words,Chat.Text+textUsed,CHAT_TEXT_BYTES-textUsed,cut);
+            textUsed+=row.Length;
+            if (cut) row.Flags|=CHAT_ROW_CUT;
+        } else if (info.words) row.Flags|=CHAT_ROW_CUT; // words that could not be read, or more than a row holds: none published
+        // its place: its glyphs', or, for a row that drew none, where the game would have drawn them (a 16-pixel cell from x, y)
+        ChatBounds empty; empty.Add(float(x)-0.5f,float(y)-0.5f); empty.Add(float(x)+15.5f,float(y)+15.5f);
+        if (NormalizeChat(rowBounds.vertices ? rowBounds : empty,row.Rect)) row.Flags|=CHAT_ROW_PLACED;
+        rowCount++;
+    }
+    // The rows drawn in this content Draw published together, the serial moved only where they differ from the last
+    void PublishChatText() {
+        const bool same=rowCount==lastRowCount && textUsed==lastTextUsed
+            && !memcmp(Chat.Rows,lastRows,sizeof(ChatTextRow)*rowCount) && !memcmp(Chat.Text,lastText,textUsed);
+        if (!same) {
+            memcpy(lastRows,Chat.Rows,sizeof(ChatTextRow)*rowCount); memcpy(lastText,Chat.Text,textUsed);
+            lastRowCount=rowCount; lastTextUsed=textUsed; Chat.TextSerial++;
+        }
+        Chat.TextCount=rowCount; Chat.TextFrame=rowCount ? Shared.Frame : 0;
+    }
     void ExpandedContent(void* owner) {
         ChatNativeContent(expandedSkin,blocking);
         ChatOwnerScope ownerScope(expandedOwner,expandedSkin ? owner : nullptr);
+        rowCount=0; textUsed=0;
         reinterpret_cast<void(__fastcall*)(void*,void*)>(ExpandedChatDetour.trampoline)(owner,nullptr);
+        if (expandedSkin) PublishChatText();
     }
     void Render(void* window) {
         int index=-1;
@@ -773,8 +834,8 @@ public:
             : index==3 ? ReplayTargets() : index>=0 && Replay(static_cast<unsigned>(index));
         blocking=replaced;
         expandedSkin=chatIndex==3 && replaced && expandedCapture;
-        // a full log drawn afresh: its tabs and scrollbar measured again, or not at all if the game leaves them out
-        if (chatIndex==3) { Chat.TabFrame=Chat.ScrollFrame=0; chatViewportKnown=false; chatMeasure=nullptr; measuringTabs=false; }
+        // a full log drawn afresh: its tabs, scrollbar and rows measured again, or not at all if the game leaves them out
+        if (chatIndex==3) { Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; chatViewportKnown=false; chatMeasure=nullptr; measuringTabs=false; rowCount=0; textUsed=0; }
         targetScope=index==3 && replaced;
         reinterpret_cast<void(__fastcall*)(void*,void*)>(WindowDetour.trampoline)(window,nullptr);
         // Read after the client's animation/layout update, even when this window is not replaced.
@@ -804,6 +865,10 @@ static void __fastcall DrawChatTabs(void* owner,void*,uint32_t filter) {
 static void __fastcall DrawChatScroll(void* object,void*) {
     if (PartyHook::Instance) PartyHook::Instance->ChatScroll(object);
     else reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL])(object,nullptr);
+}
+static void __cdecl DrawChatRow(const uint16_t* text,ChatRowHeader header,int32_t x,int32_t y,uint32_t alpha,uint32_t flag,void* out,uint32_t zero) {
+    if (PartyHook::Instance) PartyHook::Instance->ChatRow(text,header,x,y,alpha,flag,out,zero);
+    else reinterpret_cast<ChatRowDraw>(ChatText.target)(text,header,x,y,alpha,flag,out,zero);
 }
 static void __fastcall DrawExpandedChat(void* owner,void*) {
     if (PartyHook::Instance) PartyHook::Instance->ExpandedContent(owner);

@@ -1,17 +1,19 @@
 -- Standalone native chat bridge contract; callbacks mocked, no client needed.
 local ffi = require('ffi')
-local block = {Version=9,Size=564,Submit=123,SupportedMask=127,Frame=10,
+local block = {Version=10,Size=70208,Submit=123,SupportedMask=255,Frame=10,
     NativeFrame={[0]=10,[1]=0,[2]=0},DrawnFrame={[0]=10,[1]=0,[2]=0},
     InputRect={[0]=0,[1]=0.9,[2]=1,[3]=1},InputRectFrame=10,
     PrimaryRect={[0]=0.05,[1]=0.5,[2]=0.5,[3]=0.9},PrimaryRectFrame=10,
     ExpandedRect={[0]=0,[1]=0.1,[2]=1,[3]=0.9},ExpandedRectFrame=10,
     StateFlags=0,StateFrame=10,FullScroll=0,FullCursor=20,FullPageRows=20,FullFilter=0,
     ControlStyleFrame=0,ControlColors={[0]={},[1]={},[2]={},[3]={}},
-    ReplaceControls=0,TabFrame=0,TabCount=0,Tabs={},ScrollFrame=0,ScrollPage=0,ScrollCount=0,ScrollTop=0,ScrollRect={[0]=0,[1]=0,[2]=0,[3]=0}}
+    ReplaceControls=0,TabFrame=0,TabCount=0,Tabs={},ScrollFrame=0,ScrollPage=0,ScrollCount=0,ScrollTop=0,ScrollRect={[0]=0,[1]=0,[2]=0,[3]=0},
+    TextFrame=0,TextCount=0,TextSerial=0,Rows={},Text=ffi.new('char[65536]')}
 for i=0,11 do block.Tabs[i]={Rect={[0]=0,[1]=0,[2]=0,[3]=0},Channel=0,Selected=0} end
+for i=0,127 do block.Rows[i]={Rect={[0]=0,[1]=0,[2]=0,[3]=0},Offset=0,Length=0,Mode=0,Flags=0} end
 local loaded, base, address, now, result = false, 100, 500, 0, 1
 local calls, scans = {}, 0
-package.loaded.ffi = {cdef=ffi.cdef,sizeof=ffi.sizeof,cast=function(kind)
+package.loaded.ffi = {cdef=ffi.cdef,sizeof=ffi.sizeof,string=ffi.string,cast=function(kind)
     if kind == 'uihook_chat_t*' then return block end
     assert(kind == 'uihook_chat_submit_t')
     return function(index, capture) calls[#calls+1]={index,capture}; return result end
@@ -25,12 +27,12 @@ ashita={memory={get_base=function(name) assert(name=='uihook.dll'); return base 
         scans=scans+1; return address
     end}}
 local native=dofile('addons/libs/winxi/nativechat.lua')
-assert(ffi.sizeof('uihook_chat_t')==564)
+assert(ffi.sizeof('uihook_chat_t')==70208)
 local primary, split, input=native.new(native.Primary),native.new(native.Secondary),native.new(native.Input)
 assert(not primary.Begin() and #calls==0)
-loaded=true; block.Version=8
+loaded=true; block.Version=9
 assert(not primary.Begin() and primary.Status():find('ABI mismatch'))
-block.Version=9; now=2
+block.Version=10; now=2
 assert(primary.Begin() and primary.Capture())
 assert(calls[#calls][1]==0 and calls[#calls][2]==1)
 assert(primary.Capture(true) and calls[#calls][1]==0 and calls[#calls][2]==2,
@@ -45,7 +47,7 @@ assert(primary.Capture(true,controls) and block.ControlStyleFrame==block.Frame)
 assert(primary.Capture() and block.ControlStyleFrame==0,'compact capture cannot retain expanded tints')
 block.SupportedMask=31
 assert(primary.Capture(true,controls) and block.ControlStyleFrame==0,'optional controls capability is independent of frame capture')
-block.SupportedMask=127
+block.SupportedMask=255
 assert(primary.Capture(true,controls)); primary.Stop()
 assert(block.ControlStyleFrame==0,'release invalidates shared colour stamp')
 -- which of the game's controls the addon draws itself: written with an expanded capture, where uihook can hide them
@@ -55,11 +57,16 @@ assert(primary.Capture(true,controls,{scrollbar=true}) and block.ReplaceControls
 assert(primary.Capture(true,controls) and block.ReplaceControls==0,'nothing asked, nothing hidden')
 assert(primary.Capture(true,controls,{tabs=true}) and primary.Capture() and block.ReplaceControls==0,'a compact capture hides nothing')
 block.SupportedMask=63
-assert(primary.Capture(true,controls,{tabs=true,scrollbar=true}) and block.ReplaceControls==0 and not primary.State().nativeReplace,'without the hooks nothing is asked')
+assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true}) and block.ReplaceControls==0 and not primary.State().nativeReplace and not primary.State().nativeText,'without the hooks nothing is asked')
+block.SupportedMask=255
+assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true}) and block.ReplaceControls==7,'the text as well')
+assert(primary.Capture(true,controls,{text=true}) and block.ReplaceControls==4,'the text alone')
 block.SupportedMask=127
+assert(primary.Capture(true,controls,{tabs=true,text=true}) and block.ReplaceControls==1 and not primary.State().nativeText,'without the row site the text is not asked for')
+block.SupportedMask=255
 assert(primary.Capture(true,controls,{tabs=true}) and block.ReplaceControls==1); primary.Stop()
 assert(block.ReplaceControls==0,'release asks for nothing')
-assert(primary.State().nativeReplace,'the hooks are known')
+assert(primary.State().nativeReplace and primary.State().nativeText,'the hooks are known')
 -- where the game drew its tabs and scrollbar: scaled to the display, the tabs left to right, nothing stale
 assert(primary.Tabs(1920,1080)==nil and primary.Scrollbar(1920,1080)==nil,'nothing measured yet')
 block.TabFrame=10; block.TabCount=3
@@ -79,8 +86,32 @@ local bar=primary.Scrollbar(1920,1080)
 assert(bar.left==9.6 and bar.top==108 and bar.right==19.2 and bar.bottom==972 and bar.page==20 and bar.count==75 and bar.above==30,'the scrollbar\'s place and rows')
 block.ScrollTop=80; assert(primary.Scrollbar(1920,1080)==nil,'more above than there are rows is no scrollbar'); block.ScrollTop=30
 block.ScrollFrame=0; assert(primary.Scrollbar(1920,1080)==nil,'none drawn, none'); block.ScrollFrame=10
-block.SupportedMask=63; assert(primary.Tabs(1920,1080)==nil and primary.Scrollbar(1920,1080)==nil,'without the hooks, nothing'); block.SupportedMask=127
+block.SupportedMask=63; assert(primary.Tabs(1920,1080)==nil and primary.Scrollbar(1920,1080)==nil,'without the hooks, nothing'); block.SupportedMask=255
 block.TabFrame=0
+-- the game's rows of text: in its order, each with its bytes, mode, flags and place, scaled to the display; the
+-- same table while the serial holds; nothing stale, nothing without the row site
+assert(primary.Rows(1920,1080)==nil,'no rows yet')
+block.TextFrame=10; block.TextCount=3; block.TextSerial=1
+ffi.copy(block.Text,'hello\31\2world'); ffi.copy(block.Text+12,'older')
+block.Rows[0].Offset,block.Rows[0].Length,block.Rows[0].Mode,block.Rows[0].Flags=0,12,1,1+16
+block.Rows[0].Rect[0],block.Rows[0].Rect[1],block.Rows[0].Rect[2],block.Rows[0].Rect[3]=0.02,0.5,0.2,0.515
+block.Rows[1].Offset,block.Rows[1].Length,block.Rows[1].Mode,block.Rows[1].Flags=12,5,12,4+8+16
+block.Rows[1].Rect[0],block.Rows[1].Rect[1],block.Rows[1].Rect[2],block.Rows[1].Rect[3]=0.02,0.485,0.1,0.5
+block.Rows[2].Offset,block.Rows[2].Length,block.Rows[2].Mode,block.Rows[2].Flags=17,0,1,0
+local rows=primary.Rows(1920,1080)
+assert(#rows==3 and rows[1].text=='hello\31\2world' and rows[1].mode==1 and rows[1].cursor and not rows[1].marked and not rows[1].cut,'the newest first, its bytes with the colour code, its mode, the cursor on it')
+assert(rows[1].left==38.4 and rows[1].top==540 and rows[1].right==384 and rows[1].bottom==556.2,'its place in display pixels')
+assert(rows[2].text=='older' and rows[2].mode==12 and rows[2].marked and rows[2].cut and not rows[2].cursor and rows[2].top==523.8,'the older one, marked and cut')
+assert(rows[3].text=='' and rows[3].left==nil and rows[3].mode==1,'an empty row without a place')
+assert(primary.Rows(1920,1080)==rows,'the same table while the rows are what they were')
+assert(primary.Rows(1280,720)~=rows and primary.Rows(1280,720)[1].left==25.6,'another display, scaled anew')
+block.TextSerial=2; assert(primary.Rows(1920,1080)~=rows,'rows changed: a new table')
+assert(split.Rows(1920,1080)==nil and input.Rows(1920,1080)==nil,'the primary slot\'s alone')
+block.TextSerial=3; block.Rows[0].Offset=65535; assert(primary.Rows(1920,1080)[1].text=='','text past the room is none'); block.Rows[0].Offset=0
+block.TextSerial=4; block.TextCount=0; assert(primary.Rows(1920,1080)==nil,'no rows, nothing'); block.TextCount=3; block.TextSerial=5
+block.Frame=13; assert(primary.Rows(1920,1080)==nil,'stale rows expire'); block.Frame=10
+block.SupportedMask=127; assert(primary.Rows(1920,1080)==nil,'without the row site, nothing'); block.SupportedMask=255
+block.TextFrame=0
 assert(primary.Begin())
 assert(split.Begin() and calls[#calls][1]==1)
 assert(input.Begin() and input.Capture() and calls[#calls][1]==2)
@@ -93,7 +124,7 @@ assert(pl==96 and pt==540 and pr==960 and pb==972, 'primary log anchor uses its 
 local el,et,er,eb=primary.Rect(1920,1080,true)
 assert(el==0 and et==108 and er==1920 and eb==972, 'expanded geometry independent of compact anchor')
 assert(input.Rect(1920,1080,true)==nil, 'input cannot read expanded log bounds')
-local state=primary.State(); assert(not state.selected and not state.expanded and state.expandedSupported and state.nativeContent and state.nativeControls and state.nativeReplace)
+local state=primary.State(); assert(not state.selected and not state.expanded and state.expandedSupported and state.nativeContent and state.nativeControls and state.nativeReplace and state.nativeText)
 block.StateFlags=1; assert(primary.State().selected and not primary.State().expanded, 'native selector focus')
 block.StateFlags=4; state=primary.State(); assert(state.expanded and not state.nativeBrowse and state.pageRows==20)
 block.StateFlags=12; assert(primary.State().nativeBrowse, 'native history/menu fallback')
@@ -131,4 +162,4 @@ base=400
 assert(not primary.Capture(),'new DLL cannot inherit old ownership')
 assert(primary.Begin()); block.SupportedMask=0
 assert(not primary.Begin() and primary.Status():find('not recognise'))
-print('Native chat bridge: ABI, marker, slot isolation, failure release, expiry, unload/reload passed')
+print('Native chat bridge: ABI, marker, slot isolation, rows of text, failure release, expiry, unload/reload passed')

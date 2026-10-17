@@ -23,6 +23,9 @@ ffi.cdef[[
         struct { float Rect[4]; uint32_t Channel, Selected; } Tabs[12];
         uint32_t ScrollFrame, ScrollPage, ScrollCount, ScrollTop;
         float ScrollRect[4];
+        uint32_t TextFrame, TextCount, TextSerial;
+        struct { float Rect[4]; uint32_t Offset, Length, Mode, Flags; } Rows[128];
+        char Text[65536];
     } uihook_chat_t;
     typedef int32_t (__cdecl *uihook_chat_submit_t)(int32_t index, int32_t capture);
 ]]
@@ -48,7 +51,7 @@ function M.new(index)
             local at = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D434841540000000000', 0, 0)
             if not at or at == 0 then reason = 'Update uihook: chat shared block not found.'; return nil end
             local found = ffi.cast('uihook_chat_t*', at)
-            if found.Version ~= 9 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
+            if found.Version ~= 10 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
                 reason = 'uihook chat ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_chat_submit_t', found.Submit)
@@ -69,8 +72,9 @@ function M.new(index)
     end
     -- Copy/consume this ImGui window's GPU commands, leaving its layout/hit testing intact.
     -- For the expanded log: controls, the theme's colours for the game's own controls (highlight, tab,
-    -- cursor, scrollbar), and replace, which of them the addon draws itself, { tabs = true, scrollbar = true }:
-    -- those the game leaves undrawn, their hit-tests still its own. Tabs() and Scrollbar() say where.
+    -- cursor, scrollbar), and replace, which of them the addon draws itself, { tabs = true, scrollbar = true,
+    -- text = true }: those the game leaves undrawn, their hit-tests still its own. Tabs(), Scrollbar() and
+    -- Rows() say where.
     function hook.Capture(expandedFrame, controls, replace)
         local found = Find()
         if not found or not owned then return false end
@@ -84,8 +88,11 @@ function M.new(index)
         if index == M.Primary then
             found.ControlStyleFrame = 0
             found.ReplaceControls = 0
-            if expandedFrame and bit.band(found.SupportedMask,64) ~= 0 and type(replace) == 'table' then
-                found.ReplaceControls = (replace.tabs and 1 or 0) + (replace.scrollbar and 2 or 0)
+            if expandedFrame and type(replace) == 'table' then
+                local bits = 0
+                if bit.band(found.SupportedMask,64) ~= 0 then bits = (replace.tabs and 1 or 0) + (replace.scrollbar and 2 or 0) end
+                if bit.band(found.SupportedMask,128) ~= 0 and replace.text then bits = bits + 4 end
+                found.ReplaceControls = bits
             end
             if expandedFrame and bit.band(found.SupportedMask,32) ~= 0 and type(controls) == 'table' then
                 local valid = true
@@ -133,6 +140,7 @@ function M.new(index)
             nativeContent = bit.band(found.SupportedMask,16) ~= 0,
             nativeControls = bit.band(found.SupportedMask,32) ~= 0,
             nativeReplace = bit.band(found.SupportedMask,64) ~= 0,
+            nativeText = bit.band(found.SupportedMask,128) ~= 0,
             scroll = tonumber(found.FullScroll), cursor = tonumber(found.FullCursor),
             pageRows = tonumber(found.FullPageRows), filter = tonumber(found.FullFilter) }
     end
@@ -195,6 +203,34 @@ function M.new(index)
         local page, count, above = tonumber(found.ScrollPage), tonumber(found.ScrollCount), tonumber(found.ScrollTop)
         if page < 1 or count < 0 or above < 0 or above > count then return nil end
         return { left = left, top = top, right = right, bottom = bottom, page = page, count = count, above = above }
+    end
+    -- The game's rows of text as it last drew them in the skinned full log, in the order it drew them (the
+    -- newest first): each with its bounds in display pixels (left, top, right, bottom; nil where the row drew
+    -- nothing and the game's place for it was not known), its text as the game was given it (CP932 bytes with
+    -- the game's 1E/1F colour codes; '' for an empty row), its chat mode, and cursor (the game's cursor is on
+    -- it), marked (the game marks it) and cut (longer than the room to publish it). The same table again while
+    -- the rows are what they were. nil when there are none, or none fresh.
+    local rowsSerial, rowsWidth, rowsHeight, rowsList
+    function hook.Rows(width, height)
+        local found = Find()
+        if not found or index ~= M.Primary or bit.band(found.SupportedMask,128) == 0 then return nil end
+        if not Fresh(found, found.TextFrame) or not Display(width, height) then return nil end
+        local serial = tonumber(found.TextSerial)
+        if rowsList and rowsSerial == serial and rowsWidth == width and rowsHeight == height then return rowsList end
+        local list = {}
+        for i = 0, math.min(tonumber(found.TextCount), 128) - 1 do
+            local row = found.Rows[i]
+            local flags, offset, length = tonumber(row.Flags), tonumber(row.Offset), tonumber(row.Length)
+            local text = ''
+            if length > 0 and offset + length <= 65536 then text = ffi.string(found.Text + offset, length) end
+            local entry = { text = text, mode = tonumber(row.Mode), cursor = bit.band(flags, 1) ~= 0,
+                marked = bit.band(flags, 4) ~= 0, cut = bit.band(flags, 8) ~= 0 }
+            if bit.band(flags, 16) ~= 0 then entry.left, entry.top, entry.right, entry.bottom = Scaled(row.Rect, width, height) end
+            list[#list + 1] = entry
+        end
+        if #list == 0 then return nil end
+        rowsSerial, rowsWidth, rowsHeight, rowsList = serial, width, height, list
+        return list
     end
     function hook.Status()
         if not Find() then return reason end
