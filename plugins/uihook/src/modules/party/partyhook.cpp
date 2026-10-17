@@ -14,6 +14,7 @@
 #include "hud.h"
 #include "../chat/chat.h"
 #include "../chat/controls.h"
+#include "../chat/windows.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -24,7 +25,7 @@ static int32_t __cdecl Submit(int32_t index, int32_t capture);
 static void __fastcall RenderWindow(void* window, void*);
 static int32_t __cdecl SubmitHud(int32_t index, int32_t capture);
 static int32_t __cdecl SubmitChat(int32_t index, int32_t capture);
-static ChatShared Chat = { "UIHOOK-CHAT", 10, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {}, 0, 0, 0, {}, {} };
+static ChatShared Chat = { "UIHOOK-CHAT", 11, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {}, 0, 0, 0, {}, {}, {}, 0, 0, 0, {} };
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
 static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
@@ -73,6 +74,7 @@ class PartyHook : public IPlugin {
     void** globals[4] = {};
     Drawing drawings[11]; // Party 0..5, HUD 6..7, chat logs/input 8..10; independent ABIs
     ChatModule chat;
+    ChatWindowRoutes windowRoutes; // the two log windows' routing, read from the game's config each frame
     bool expandedCapture=false, expandedSkin=false, controlsValid=false;
     void* expandedOwner=nullptr;
     ChatControlStyle controlStyle;
@@ -309,6 +311,8 @@ public:
             // Chat recognition must not depend on party globals/signatures.
             if (chat.Discover(begin,module.SizeOfImage) && Take(WindowDetour,begin,module.SizeOfImage)) {
                 Chat.SupportedMask=3 | (chat.InputSupported() ? 4 : 0) | (chat.ExpandedSupported() ? CHAT_FULL_SUPPORTED : 0);
+                // which messages each of the two log windows shows, as the client decides it: read, never written
+                if (DiscoverChatWindows(begin,module.SizeOfImage,chat.SplitOwner(),windowRoutes)) Chat.SupportedMask|=CHAT_WINDOWS_SUPPORTED;
                 const auto controls=DiscoverChatControls(begin,module.SizeOfImage,WindowDetour.target,chat.ExpandedDraw());
                 if (chat.ExpandedDraw() && Take(ExpandedChatDetour,begin,module.SizeOfImage)) {
                     Chat.SupportedMask |= CHAT_FULL_SKIN_SUPPORTED;
@@ -349,7 +353,7 @@ public:
     void Release() override {
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
-        Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); StopChat();
+        Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); StopChat();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
@@ -358,6 +362,7 @@ public:
         ++Shared.Frame;
         Hud.Frame=Chat.Frame=Shared.Frame;
         chat.Sample(Chat,Shared.Frame);
+        SampleChatWindows(windowRoutes,Chat,Shared.Frame);
         // As namehook: no cross-frame state blocks holding client resources across a reset.
         ReleaseStates();
         for (auto& d:drawings) if (!d.Fresh()) d.Clear();
@@ -389,7 +394,7 @@ public:
     bool HandleCommand(int32_t,const char* command,bool) override {
         if (command && _stricmp(command,"/uihook chat")==0) {
             char line[256];
-            snprintf(line,sizeof(line),"[uihook:chat] ABI 10, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
+            snprintf(line,sizeof(line),"[uihook:chat] ABI 11, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
                 Chat.SupportedMask,Chat.Frame,Chat.NativeFrame[0],Chat.DrawnFrame[0],Chat.NativeFrame[1],Chat.DrawnFrame[1],Chat.NativeFrame[2],Chat.DrawnFrame[2]);
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:chat] state 0x%x at %u, full bounds at %u; history scroll %u, cursor %u/%u, filter %u (browsing/filter menus remain native).",
@@ -400,6 +405,11 @@ public:
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:chat] text: row site %s; %u rows at %u, serial %u, %u bytes.",
                 ChatText.call ? "taken" : "not found", Chat.TextCount,Chat.TextFrame,Chat.TextSerial,lastTextUsed);
+            core->GetChatManager()->Write(0,false,line);
+            unsigned firstModes=0,secondModes=0;
+            for (unsigned i=0;i<8;i++) for (unsigned b=0;b<32;b++) { firstModes+=(Chat.WindowModes[0][i]>>b)&1; secondModes+=(Chat.WindowModes[1][i]>>b)&1; }
+            snprintf(line,sizeof(line),"[uihook:chat] windows: routing %s at %u; the second window %s; the first keeps %u modes, the second %u; split bounds at %u.",
+                windowRoutes.Ready() ? "read" : "not found", Chat.WindowFrame, Chat.WindowFlags & CHAT_SECOND_WINDOW ? "shown" : "hidden", firstModes, secondModes, Chat.SplitRectFrame);
             core->GetChatManager()->Write(0,false,line);
             return true;
         }
@@ -702,8 +712,8 @@ public:
     }
     void RecordChatRect(int index,void* window) {
         NativeRect result={};
-        float* rect=index==0 ? Chat.PrimaryRect : index==3 ? Chat.ExpandedRect : Chat.InputRect;
-        uint32_t& frame=index==0 ? Chat.PrimaryRectFrame : index==3 ? Chat.ExpandedRectFrame : Chat.InputRectFrame;
+        float* rect=index==0 ? Chat.PrimaryRect : index==1 ? Chat.SplitRect : index==3 ? Chat.ExpandedRect : Chat.InputRect;
+        uint32_t& frame=index==0 ? Chat.PrimaryRectFrame : index==1 ? Chat.SplitRectFrame : index==3 ? Chat.ExpandedRectFrame : Chat.InputRectFrame;
         frame=0;
         if (!WindowRect(window,result)) return;
         rect[0]=result.Left; rect[1]=result.Top; rect[2]=result.Right; rect[3]=result.Bottom;
@@ -841,7 +851,7 @@ public:
         // Read after the client's animation/layout update, even when this window is not replaced.
         // No native positioning/state writes: Lua uses this geometry for its next submission.
         if (index>=0) RecordRect(static_cast<unsigned>(index),window);
-        if (chatIndex==0 || chatIndex==2 || chatIndex==3) RecordChatRect(chatIndex,window);
+        if (chatIndex>=0) RecordChatRect(chatIndex,window);
         blocking=was; targetScope=wasTarget; expandedSkin=wasExpanded;
     }
 };

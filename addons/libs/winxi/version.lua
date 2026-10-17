@@ -37,6 +37,8 @@
 --     and tabs.Line, the tab style over a tab an addon places itself
 -- 16: nativechat ABI 10, the full log's rows of text decoded and measured as the game draws them and,
 --     asked, left undrawn: Rows, State().nativeText, replace.text
+-- 17: nativechat ABI 11, the game's second log window's bounds (Rect on the split slot) and the two windows'
+--     routing as the game decides it: Routes, Shows, State().selectedWindow, State().nativeWindows
 return {
-    Number = 16,
+    Number = 17,
 };

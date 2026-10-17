@@ -9,7 +9,7 @@ from pathlib import Path
 
 modules = Path(__file__).resolve().parents[1] / 'src/modules'
 source = '\n'.join((modules / name).read_text() for name in (
-    'chat/chat.h', 'chat/controls.h', 'party/game.h', 'party/target.h'))
+    'chat/chat.h', 'chat/controls.h', 'chat/windows.h', 'party/game.h', 'party/target.h'))
 data = Path(sys.argv[1]).read_bytes()
 base = int(re.search(r'base (0x[0-9A-Fa-f]+)', Path(sys.argv[2]).read_text())[1], 16)
 
@@ -69,5 +69,48 @@ assert data.find(b'\xC2\x18\x00', drawer, drawer + 0x200) >= 0
 assert data.find(bytes.fromhex('6A7F5152B90F00000083EC3C8BFC55F3A5'), drawer, drawer + 0x200) >= 0
 encoder = data.find(bytes.fromhex('8B4C240433C033D28A018A51013D9F000000'))
 assert encoder >= 0 and data.find(bytes.fromhex('8B4C240433C033D28A018A51013D9F000000'), encoder + 1) < 0
+# The two log windows' routing: the keep check reads the second window's owner (the split log's global of the
+# primary/split signature) and the config words B9/BA and BB/BC; the category test's first call is the mode
+# table lookup, whose table (in the image) ends with a zero mode word; the category index's 30 jump cases are
+# each a constant, zero or none; every config reader names one manager global and one of them calls the value,
+# whose first call is the entry (44 bytes each, the value at +8).
+chat_signature = unique('CHAT_PATTERN')
+split_owner = struct.unpack_from('<I', data, chat_signature + 11)[0]
+first_keep = unique('CHAT_FIRST_KEEP_PATTERN')
+assert struct.unpack_from('<I', data, first_keep + 1)[0] == split_owner
+unique('CHAT_SECOND_KEEP_PATTERN')
+lookup = unique('CHAT_MODE_LOOKUP_PATTERN')
+test = unique('CHAT_CATEGORY_TEST_PATTERN')
+assert callee(test + 9) == lookup
+table = struct.unpack_from('<I', data, lookup + 1)[0] - base
+assert 0 <= table < len(data) - 2048
+entries = 0
+while struct.unpack_from('<H', data, table + entries * 4)[0]:
+    entries += 1
+    assert entries < 512
+assert entries > 100, entries
+index = unique('CHAT_CATEGORY_INDEX_PATTERN')
+jumps = struct.unpack_from('<I', data, index + 19)[0] - base
+bits = []
+for i in range(30):
+    target = struct.unpack_from('<I', data, jumps + i * 4)[0] - base
+    code = data[target:target + 6]
+    if code[0] == 0xB8 and code[5] == 0xC3:
+        bits.append(struct.unpack_from('<i', code, 1)[0])
+    elif code[:3] == bytes.fromhex('33C0C3'):
+        bits.append(0)
+    else:
+        assert code[:4] == bytes.fromhex('83C8FFC3'), (i, code.hex())
+        bits.append(-1)
+assert all(-1 <= bit <= 63 for bit in bits) and bits[0] == 0 and -1 in bits, bits
+value = unique('CHAT_CONFIG_VALUE_PATTERN')
+entry = unique('CHAT_CONFIG_ENTRY_PATTERN')
+assert callee(value + 5) == entry
+read_pattern = re.search(r'#define CHAT_CONFIG_READ_PATTERN "([^"]+)"', source)[1]
+read_regex = b''.join(b'.' if token == '??' else re.escape(bytes.fromhex(token)) for token in read_pattern.split())
+readers = [m.start() for m in re.finditer(read_regex, data, re.S)]
+assert readers and len({struct.unpack_from('<I', data, at + 2)[0] for at in readers}) == 1, readers
+assert any(callee(at + 15) == value for at in readers)
+print(f'Log window routing: {entries} mode entries, category bits {bits}, {len(readers)} config readers.')
 print('Native full-log vtable/content, tab strip, tab/selection/cursor/scrollbar and row-drawing CALL graph cross-check passed.')
 print('Static verification only: live artwork, pulse/fades, hit-tests, menu actions and GPU resets still need validation.')

@@ -152,12 +152,39 @@ bit 4, only with the row site), each row-draw call's GPU submissions are blocked
 cursor's mark alike; the 0x40 marker sprites, the row highlight, the cursor and all hit-tests are
 the game's. The compact logs' rows pass through the same site untouched.
 
-## ABI 10 safety boundary
+## The two log windows (0.5)
 
-- 70208-byte shared layout, **version 10** required on both sides.
+Each log window owns a history ring (the globals at 03738158, 0373815C and 03738160: the first
+window's, the second's and the full log's; a window owner's +18 points to its ring), and the text-in
+function 032E7C00 (the one Ashita hooks for text_in) hands every message to both compact rings through
+032E8CE0, which wraps it to the window's width (owner +32) and keeps a row only where the window's keep
+check 032E9980 (thiscall(ring; the 60-byte header by value, the window's filter), ret 40) says so:
+filter 0, the first window's, at 032E9B40, filter 8, the second's, at 032E9B80, and the full log's tab
+filters 1 to 10 in 032E99F0 (which lists the same modes per channel as chatbox's channels.lua). The
+first window keeps everything while the second is hidden (the second's owner, the global [037E1940],
+the split log's of the primary/split signature, byte +4D zero), keeps a mode word with bit 15 set
+(header byte 1's top bit), and otherwise asks 032E9BB0(mode's low byte, default 1, B9, BA); the
+second drops bit-15 words and asks 032E9BB0(mode, default 0, BB, BC). 032E9BB0: the mode's entry in
+the table at 0352E888 (032E9CD0: entries of a mode word, a category byte and one more, the first with
+that word, ended by a zero word; 196 of them), the category's bit from the jump table of 032EA120
+(categories 54 to 71: a constant, zero, or none, which takes the default), and that bit of the two
+config words, read through 03353850 (the config manager at [038226CC]; 03355330 the value of the
+entry 033554D0 gives, the array at the manager's +4, 44 bytes an entry, the value at +8; -1 without
+a manager or array), 03353A10 testing bit n of the pair. windows.h recognises each of these by a
+unique pattern (the config reader's is matched twice, the twin reading another value; both must
+name one manager global, and one must call the value), reads the table, the cases and the config
+words, and makes the same decision for every mode, publishing a bit per mode per window, made again
+only when the words or the flag change. Nothing is called and nothing written; the keep check is
+not hooked. The compact logs' rows are pre-wrapped lines in each ring, so the addon keeps its own
+history and routes it with the published bits rather than reading the rings.
+
+## ABI 11 safety boundary
+
+- 70300-byte shared layout, **version 11** required on both sides.
 - SupportedMask bit 3: native full-log state/geometry. Bit 4: verified content hook. Bit 5: control art.
   Bit 6: the tab strip and scrollbar measured and hideable (the same all-or-none group of sites).
   Bit 7: the rows of text decoded, measured and hideable (the row site, verified on its own, taken only with bit 6).
+  Bit 8: the two log windows' routing read and the second window's bounds published (recognition only, no site taken).
 - ControlStyleFrame and four RGBA colours are published by Lua. The plugin checks finite [0,1]
   values and a current-frame stamp, then snapshots them only with a successful expanded capture.
   ReplaceControls (1 tabs, 2 scrollbar, 4 text) is snapshotted with it, and only with the hooks each needs.

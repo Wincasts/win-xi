@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5
+
+- Chat ABI 11 (70300 bytes): the game's two log windows. The second window's bounds (SplitRect,
+  SplitRectFrame, read as the primary's are) and the game's routing between the two, read each frame
+  (WindowFrame, WindowFlags bit 1 the second window shown, WindowModes[2][8]: per window, a bit for
+  each chat mode its Log Window settings keep). SupportedMask bit 8. Nothing is hooked or written for
+  it: the client's keep check is recognised (the first window's, which keeps everything while the
+  second is hidden, a mode word with bit 15 set, and otherwise its config words B9/BA by the mode's
+  category's bit; the second's, which drops bit-15 words and reads BB/BC) with its mode table, its
+  category cases (read from the jump table) and the config manager's value reader, and the decision
+  is made again for every mode from the same data, again only when the config or the flag changes.
+- `/uihook chat` says whether the routing was read, whether the second window is shown, how many
+  modes each window keeps and when the second window's bounds were read.
+
 ## 0.4
 
 - Chat ABI 10 (70208 bytes): the game's expanded-log rows of text decoded and measured as it draws

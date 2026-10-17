@@ -18,7 +18,11 @@ enum { CHAT_SELECTED_PRIMARY=1, CHAT_SELECTED_SPLIT=2, CHAT_EXPANDED=4, CHAT_NAT
 // SupportedMask bits: 1 primary, 2 split, 4 input, 8 full-log state, 16 content pass-through, 32 control art,
 // 64 the tab strip and scrollbar measured as the game draws them, and hidden when the addon draws its own,
 // 128 the full log's rows of text decoded and measured as the game draws them, and hidden the same way
-enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64, CHAT_TEXT_SUPPORTED=128 };
+// 256 the game's two log windows' routing read: which chat modes each shows, and the second window's bounds
+enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64, CHAT_TEXT_SUPPORTED=128, CHAT_WINDOWS_SUPPORTED=256 };
+// WindowFlags bits: 1, the second log window is shown, so the game routes each message by its filters;
+// clear, the first window shows everything (and WindowModes says so)
+enum { CHAT_SECOND_WINDOW=1 };
 // ReplaceControls bits, written by Lua: which native controls to leave undrawn, the addon drawing its own in their places
 enum { CHAT_REPLACE_TABS=1, CHAT_REPLACE_SCROLL=2, CHAT_REPLACE_TEXT=4 };
 // A row of the full log's text as last drawn: its bounds, normalized to the viewport (where placed), its text's
@@ -56,8 +60,13 @@ struct ChatShared {
     uint32_t TextFrame, TextCount, TextSerial; // the full log's rows of text as last drawn in a skinned full log, newest first; the serial changes when they do
     ChatTextRow Rows[CHAT_TEXT_ROWS];
     char Text[CHAT_TEXT_BYTES]; // each row's bytes at its Offset, as the game was given them (CP932 with 1E/1F colour codes)
+    float SplitRect[4]; // the game's second log window's bounds, normalized to the viewport; read-only
+    uint32_t SplitRectFrame;
+    uint32_t WindowFrame, WindowFlags; // the game's routing, read each frame: CHAT_SECOND_WINDOW when the second window is shown
+    uint32_t WindowModes[2][8]; // per window, a bit for each chat mode (its low byte) the window's filters keep; a mode word
+                                // with bit 15 set goes to the first window alone, whatever these say
 };
-static_assert(sizeof(ChatShared)==70208, "chat ABI 10");
+static_assert(sizeof(ChatShared)==70300, "chat ABI 11");
 // ABI 8: primary capture=1 replaces compact contents; capture=2 skins the expanded frame ONLY.
 // Never replay a capture across the compact/full boundary: the native content must remain visible.
 static inline bool ChatReplayAllowed(const ChatShared& chat, bool expandedCapture) {
@@ -179,6 +188,7 @@ public:
         return true;
     }
     uint8_t* ExpandedDraw() const { return ExpandedSupported() ? fullDraw : nullptr; }
+    void** SplitOwner() const { return slots[1]; } // the second log window's owner global (logwin2)
     bool InputSupported() const { return activeMenu!=nullptr; }
     bool ExpandedSupported() const { return activeMenu && fullOwner && sizeByte && fullVtable; }
     void Clear() { slots[0]=slots[1]=nullptr; activeMenu=nullptr; fullOwner=nullptr; sizeByte=nullptr; fullVtable=0; fullDraw=nullptr; }

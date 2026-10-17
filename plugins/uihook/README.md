@@ -187,9 +187,9 @@ a WinXI frame, WinXI tabs, scrollbar and rows of text where the game's are (or t
 and the game's own text) around the actual native expanded browser, and a native-backed WinXI input bar.
 The plugin itself does not collect chat messages or own keyboard input.
 
-### Chat ABI 10
+### Chat ABI 11
 
-Independent `UIHOOK-CHAT` marker padded to 16 bytes, **70208 bytes** total (update DLL and bridge together):
+Independent `UIHOOK-CHAT` marker padded to 16 bytes, **70300 bytes** total (update DLL and bridge together):
 
 ```text
 char Magic[16]
@@ -211,6 +211,9 @@ float ScrollRect[4]
 u32 TextFrame, TextCount, TextSerial                       // its rows of text as last drawn, newest first; the serial moves when they change
 struct { float Rect[4]; u32 Offset, Length, Mode, Flags; } Rows[128]  // each row's place, its text's place in Text, its chat mode, flags
 char Text[65536]                                           // the rows' text as the game was given it: CP932 with 1E/1F colour codes
+float SplitRect[4]; u32 SplitRectFrame                     // the game's second log window's bounds, as PrimaryRect
+u32 WindowFrame, WindowFlags                               // the two log windows' routing, read each frame: 1 the second window is shown
+u32 WindowModes[2][8]                                      // per window, a bit for each chat mode (its low byte) its filters keep
 ```
 
 Submission bits/indexes: 0 primary (compact OR expanded), 1 split, 2 input (`nativechat.Input`).
@@ -218,7 +221,13 @@ SupportedMask bit 3 advertises verified expansion state/geometry; bit 4 advertis
 full-log content Draw hook. Bit 5 advertises the optional verified control-art CALL sites, and
 bit 6 that the tab strip and scrollbar are measured and can be left undrawn (the same group of sites);
 bit 7 that the rows of text are decoded and measured and can be left undrawn (the row site, taken only
-with bit 6). None is an additional submission slot. `Submit` is render-thread-only
+with bit 6); bit 8 that the game's routing between its two log windows is read (which chat modes each
+window's Log Window settings keep, and the second window's bounds), nothing of it hooked or written: the
+client's keep check is recognised and its decision made again from the config words it reads (B9/BA the
+first window's, BB/BC the second's), its mode table and its category cases; a mode word with bit 15 set
+goes to the first window alone, and while the second window is hidden the first keeps everything.
+`primary.Routes()` gives the sets and `nativechat.Shows(routes, window, mode)` applies them;
+`split.Rect(w, h)` the second window's place. None is an additional submission slot. `Submit` is render-thread-only
 `cdecl int(index, capture)`: 0 renews empty, 1 captures compact/input contents, 2 captures a
 **frame-only expanded skin** (primary slot only, requires bit 4), and -1 releases that slot.
 `primary.Capture(true, colors, replace)` requests mode 2, optionally publishing the four RGBA control

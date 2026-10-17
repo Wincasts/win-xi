@@ -1,8 +1,8 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.9.0'
+addon.version = '0.10.0'
 addon.desc = 'WinXI native-backed chat, titled with your channel, with selection and an expanded view in WinXI tabs.'
-local winxiNeeded = 16
+local winxiNeeded = 17
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -51,19 +51,26 @@ local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, Im
     ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus)
 -- The last box drawn, kept up to HOLD_FRAMES while the game's log has no fresh place (opening or closing)
 local held, frame, HOLD_FRAMES = nil, 0, 30
-local lastDrawn, lastHandOver = nil, nil -- for /chatbox status: the last box drawn, and why the game's was shown
+local lastDrawn, lastSplit, lastHandOver = nil, nil, nil -- for /chatbox status: the last boxes drawn, and why the game's was shown
+local splitStatus = 'Second window: none; the game shows one log window.'
 -- /cm selects the persistent input mode; a one-line /p or /l only overrides its preview.
 -- Until a mode command is observed, retain the last sent channel as a fallback.
 local spoken, selectedMode = 'Say', nil
 -- Expanded mode skins the frame and tints native control art. Rows, selection and input remain native.
-local wheelOffset, pendingWheel, wheelView = 0, 0, nil
-local pendingScroll, scrollDrag, scrollPressed
-local wheelTarget -- bounds of the last successfully captured log only
+-- Each log window's own scrolling (the first's, and the second's where the game shows two): the wheel's
+-- offset in rows, what the wheel and the scrollbar ask for, and the box drawn last, which the mouse is
+-- matched against, set only after a frame captures it whole.
+local function NewView(name) return { name = name, offset = 0, pending = 0, pendingScroll = nil, drag = nil, pressed = nil, target = nil } end
+local views = { NewView('first'), NewView('second') }
+local function ResetViews(scroll)
+    for _, view in ipairs(views) do
+        view.target, view.pendingScroll, view.drag, view.pressed, view.pending = nil, nil, nil, nil, 0
+        if scroll then view.offset = 0 end
+    end
+end
 local function Release()
     held = nil
-    wheelTarget = nil
-    pendingWheel = 0
-    pendingScroll, scrollDrag, scrollPressed = nil, nil, nil
+    ResetViews(false)
     primary.Stop()
     secondary.Stop()
     input.Stop()
@@ -71,7 +78,7 @@ end
 local function Reset()
     Release()
     model.Clear(history)
-    wheelOffset, pendingWheel, wheelView = 0, 0, nil
+    ResetViews(true)
     spoken, selectedMode = 'Say', nil
     channels.ResetLinkshells()
     layoutState = layout.New()
@@ -90,6 +97,12 @@ local function Status()
             :format(d.expanded and 'expanded' or 'compact', frame - d.frame, d.left, d.top, d.left + d.width, d.bottom,
                 d.rows, d.drawn, d.firstY, d.title))
     end
+    if lastSplit then
+        local d = lastSplit
+        app:Say(('Second window (%d frames ago): %d,%d to %d,%d, %d rows of room, %d drawn.')
+            :format(frame - d.frame, d.left, d.top, d.left + d.width, d.bottom, d.rows, d.drawn))
+    end
+    app:Say(splitStatus)
     if lastHandOver then
         local h = lastHandOver
         app:Say(('Last handed to the game %d frames ago: full-log cursor %s of %s, scroll %s, filter %s; mouse %d,%d.')
@@ -110,7 +123,7 @@ local function Tip(text)
     if imgui.IsItemHovered() then imgui.SetTooltip(text) end
 end
 -- Forget the kept messages, the decode sample and where the log was scrolled to: the settings' Clear and /chatbox clear alike.
-local function ClearHistory() model.Clear(history); decodeSample = nil; wheelOffset, pendingWheel = 0, 0 end
+local function ClearHistory() model.Clear(history); decodeSample = nil; for _, view in ipairs(views) do view.offset, view.pending = 0, 0 end end
 
 app = shell.New({
     defaults = T{ enabled = T{ true }, width = T{ 640 }, matchGameLogSize = T{ true }, matchGameInputSize = T{ false }, fontSize = T{ 12 },
@@ -270,7 +283,7 @@ ashita.events.register('text_in', 'chatbox_text', function(e)
         original=type(e.message)=='string' and e.message:sub(1,256) or '',
         modified=raw:sub(1,256), expanded=type(expanded)=='string' and expanded:sub(1,256) or '',
         utf8=text:sub(1,256) }
-    model.Add(history, text, mode, nil, originalMode, spans)
+    model.Add(history, text, mode, nil, originalMode, spans, e.mode_modified or e.mode)
 end)
 ashita.events.register('packet_in', 'chatbox_zone', function(e)
     if e.blocked then return end
@@ -282,8 +295,9 @@ ashita.events.register('unload', 'chatbox_unload', Reset)
 
 -- Native Square/window focus: a faint light over the box and the game's cursor at its newest line.
 -- Both are drawn in the window, so they are part of the captured replacement; no buttons are bound.
-local captured, focused = false, false
+local captured, capturedSplit, selectedWindow = false, false, nil
 local windowOptions = { capture = function() captured = primary.Capture() end }
+local splitOptions = { capture = function() capturedSplit = secondary.Capture() end } -- the second log window's box
 local white, light = { 1, 1, 1, 1 }, { 1, 1, 1, 0.07 }
 
 -- The game's right-pointing cursor (as party's), its point at the box's left edge on the given row;
@@ -305,18 +319,20 @@ local function DrawCursor(list, edge, rowTop, fontSize)
 end
 
 -- The log's rows, in the window being drawn (with the chat's font pushed): the light and cursor when the
--- game has it selected, then the rows at the bottom, preserving all source inline colours. A box taller than its whole rows has its room above them.
-local function DrawLog(box, rowCount, fontSize, padding)
+-- game has it selected (lit), then the rows at the bottom, preserving all source inline colours. A box taller
+-- than its whole rows has its room above them. view: the window's own scrolling; filter: which messages it
+-- shows (nil, all of them); style: the window's options, for its title and Default Text colour.
+local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, style)
     local options = app.options
     local list = imgui.GetWindowDrawList()
     local left, top = box.left, box.bottom - box.height
-    if focused then
+    if lit then
         list:AddRectFilled({ left, top }, { left + box.width, box.bottom }, imgui.GetColorU32(light))
     end
     local inset = options.leftPadding[1]
     local width = math.max(1, box.width - inset - options.rightPadding[1])
     local font, size = imgui.GetFont(), imgui.GetFontSize()
-    local modes -- compact combines all observed modes
+    local modes = filter
     local visible = history
     local metrics = model.Metrics(visible,width,font,size,render.Measure,modes)
     if metrics.total > rowCount then
@@ -324,21 +340,16 @@ local function DrawLog(box, rowCount, fontSize, padding)
         metrics = model.Metrics(visible,width,font,size,render.Measure,modes)
     end
     local rows, overflow
-    local viewKey = 'compact'
-    if wheelView ~= viewKey then
-        wheelOffset, pendingWheel, wheelView = 0, 0, viewKey
-        pendingScroll, scrollDrag = nil, nil
+    if view.pendingScroll ~= nil then
+        view.offset = math.max(0,math.min(math.max(0,metrics.total-rowCount),view.pendingScroll))
+        view.pending, view.pendingScroll = 0, nil
     end
-    if pendingScroll ~= nil then
-        wheelOffset = math.max(0,math.min(math.max(0,metrics.total-rowCount),pendingScroll))
-        pendingWheel, pendingScroll = 0, nil
-    end
-    local movement = pendingWheel < 0 and math.ceil(pendingWheel) or math.floor(pendingWheel)
-    wheelOffset = math.max(0, wheelOffset + movement)
-    pendingWheel = pendingWheel - movement
-    rows, wheelOffset, overflow = model.Tail(visible, width, font, size, render.Measure, rowCount, modes, 0, wheelOffset)
-    lastDrawn = { frame = frame, expanded = false, left = left, top = top, width = box.width, bottom = box.bottom,
-        rows = rowCount, drawn = #rows, title = windowOptions.title, firstY = 0, overflow = overflow }
+    local movement = view.pending < 0 and math.ceil(view.pending) or math.floor(view.pending)
+    view.offset = math.max(0, view.offset + movement)
+    view.pending = view.pending - movement
+    rows, view.offset, overflow = model.Tail(visible, width, font, size, render.Measure, rowCount, modes, 0, view.offset)
+    local drawn = { frame = frame, expanded = false, left = left, top = top, width = box.width, bottom = box.bottom,
+        rows = rowCount, drawn = #rows, title = style.title, firstY = 0, overflow = overflow }
     -- The rows centred between the top padding (under the title's half) and the bottom padding; the
     -- newest at the foot of them, as the game's.
     local step = fontSize + ROW_GAP
@@ -347,32 +358,33 @@ local function DrawLog(box, rowCount, fontSize, padding)
     local block = rowCount * step - ROW_GAP
     local x, y = left + inset, areaTop + math.floor(math.max(0, areaBottom - areaTop - block) / 2)
     y = y + (rowCount - #rows) * step
-    if focused then
+    if lit then
         DrawCursor(list, left, y + (#rows - 1) * step, fontSize)
     end
-    lastDrawn.firstY = y
+    drawn.firstY = y
     for _, row in ipairs(rows) do
         if row.text ~= '' then
-            local color = imgui.GetColorU32(windowOptions.textColor or palette.Mode(row.message.mode) or theme.Get().TextColor)
+            local color = imgui.GetColorU32(style.textColor or palette.Mode(row.message.mode) or theme.Get().TextColor)
             render.Rich(list, { x, y }, color, row.text, row.spans)
         end
         y = y + step
     end
-    local offset = wheelOffset
-    local bar = scrollbar.Layout(left+box.width-3-scrollbar.Width,areaTop,areaBottom,metrics.total,rowCount,offset)
-    lastDrawn.scrollbar = bar
+    local bar = scrollbar.Layout(left+box.width-3-scrollbar.Width,areaTop,areaBottom,metrics.total,rowCount,view.offset)
+    drawn.scrollbar = bar
     if bar then
         local io = imgui.GetIO()
         local mouse = io.MousePos
         local hovered = not io.WantCaptureMouse and scrollbar.Hit(bar,
             mouse and (mouse.x or mouse[1]),mouse and (mouse.y or mouse[2]))
-        local tint = (hovered or scrollDrag ~= nil) and scrollbar.Bright or scrollbar.White
+        local tint = (hovered or view.drag ~= nil) and scrollbar.Bright or scrollbar.White
         list:AddRectFilled({bar.left,bar.thumbTop},{bar.right,bar.thumbBottom},imgui.GetColorU32(tint),1)
     else
-        scrollDrag = nil
+        view.drag = nil
     end
     contentSize[1], contentSize[2] = width, box.height - padding * 2
     imgui.Dummy(contentSize)
+    view.drawn = drawn
+    return drawn
 end
 
 -- Keep the native rectangle exactly: moving/resizing native content would break mouse hit-tests.
@@ -475,8 +487,7 @@ local function DrawExpandedControls()
 end
 local function DrawExpanded(state, sw, sh)
     held = nil
-    wheelOffset, pendingWheel, wheelView = 0, 0, nil
-    pendingScroll, scrollDrag, scrollPressed = nil, nil, nil
+    ResetViews(true)
     secondary.Stop()
     input.Stop()
     if state.nativeBrowse or not state.expandedSupported or not state.nativeContent then
@@ -524,15 +535,29 @@ local function DrawExpanded(state, sw, sh)
     if state.nested then anchorStatus = anchorStatus .. ' A menu of the game\'s is open over it.' end
 end
 
+-- The game's routing between its two log windows, as functions of a message, one each, kept while the routing
+-- is what it was, so the model's caches hold: nil (everything) while the game shows one window.
+local routeFilters = { routes = nil }
+local function Filter(routes, window)
+    if not routes or not routes.split then return nil end
+    if routeFilters.routes ~= routes then
+        routeFilters.routes = routes
+        routeFilters[1] = function(message) return native.Shows(routes, 1, message.raw or message.mode) end
+        routeFilters[2] = function(message) return native.Shows(routes, 2, message.raw or message.mode) end
+    end
+    return routeFilters[window]
+end
+
 ashita.events.register('d3d_present', 'chatbox_present', function()
-    wheelTarget = nil -- rearmed only after this frame captures a complete replacement
+    for _, view in ipairs(views) do view.target = nil end -- rearmed only after this frame captures a complete replacement
     app:BeginFrame() -- configures WinXI's shared/local theme and draws settings
     if not app.options.enabled[1] or zoning then Release(); return end
     if not primary.Begin() then
-        pendingScroll, scrollDrag, scrollPressed = nil, nil, nil
+        ResetViews(false)
         secondary.Stop(); input.Stop(); return
     end
-    captured, focused = false, false
+    captured, capturedSplit, selectedWindow = false, false, nil
+    local splitDrawn = false
     local ok, err = pcall(function()
         local display = imgui.GetIO().DisplaySize
         local sw, sh = display.x or display[1], display.y or display[2]
@@ -546,6 +571,8 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         local headroom = math.ceil(fontSize / 2)
         windowOptions.fontSize, windowOptions.padding = fontSize, padding
         appearance.Apply(windowOptions, app.options.appearance.log)
+        splitOptions.fontSize, splitOptions.padding = fontSize, padding
+        appearance.Apply(splitOptions, app.options.appearance.log)
         -- Compact: the game log's own size (as many rows as fit), or Width and ten rows.
         local logRect = { primary.Rect(sw, sh) }
         local rowCount = model.Rows
@@ -571,85 +598,137 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
             size[1], sw, sh, size[2], padding, app.options.matchGameInputSize[1])
         anchorStatus = box and 'Anchored to native chat; log and input share one width.'
             or 'Native chat anchor unavailable or the log does not fit; native log left visible.'
+        -- The game's second log window, where it shows one: a box of the first's width stacked over the first,
+        -- as the game stacks its own, as tall as the game's (as many rows as fit) or ten rows; its messages
+        -- the ones the game's Log Window settings route to it, the first's the ones routed there.
+        local routes = primary.Routes and primary.Routes() or nil
+        local splitRect = { secondary.Rect(sw, sh) }
+        local second
+        if routes and routes.split and #splitRect == 4 then
+            if box then
+                local rows, height = model.Rows, frameHeight
+                if app.options.matchGameLogSize[1] then
+                    local fit = layout.Fit(splitRect[4] - splitRect[2] - above - below, fontSize, 0, ROW_GAP)
+                    if fit >= 1 then rows, height = fit, splitRect[4] - splitRect[2] end
+                end
+                if box.top - height >= 0 then
+                    second = { left = box.left, width = box.width, bottom = box.top, top = box.top - height, height = height, rows = rows }
+                    splitStatus = ('Second window: over the game\'s, %d rows; the game\'s Log Window settings route its messages.'):format(rows)
+                else
+                    splitStatus = 'Second window: no room above the first; the game\'s is left visible.'
+                end
+            end
+        elseif routes and routes.split then
+            splitStatus = 'Second window: the game shows one, but its place is not known; the game\'s is left visible.'
+        elseif #splitRect == 4 and not routes then
+            splitStatus = 'Second window: hidden; uihook has no window routing.'
+        else
+            splitStatus = 'Second window: none; the game shows one log window.'
+        end
         if box then
-            held = { box = box, rows = rowCount, frame = frame }
+            held = { box = box, rows = rowCount, second = second, frame = frame }
         elseif held and not placeKnown and frame - held.frame <= HOLD_FRAMES and held.box.bottom <= sh then
             -- Opening or closing the full log, the game's new place is not known for a frame or two:
             -- the last box stays rather than the game's own log showing through.
-            box, rowCount = held.box, held.rows
+            box, rowCount, second = held.box, held.rows, held.second
             anchorStatus = 'Waiting a moment for the game\'s log to settle.'
         end
         if box then
             place[1], place[2] = box.left, box.bottom
             size[1], size[2] = box.width, box.height
-            focused = state ~= nil and state.selected
+            selectedWindow = state ~= nil and state.selectedWindow or nil
+            -- the light and cursor on the window the game's focus is on; on the first while the second is not drawn
+            local litFirst = selectedWindow ~= nil and (selectedWindow == 1 or not second)
             windowOptions.title = channels.Title(plan.snapshot and channels.Typed(plan.snapshot.text) or selectedMode or spoken)
             imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
             imgui.SetNextWindowSize(size, ImGuiCond_Always)
+            local chatFont = plan.font
             window.Plain('winxi.chatbox', open, flags, function()
-                local chatFont = plan.font
                 if chatFont then imgui.PushFont(chatFont, fontSize) end
-                local drawn, drawError = pcall(DrawLog, box, rowCount, fontSize, padding)
+                local drawn, drawError = pcall(DrawLog, box, rowCount, fontSize, padding, views[1], Filter(routes, 1), litFirst, windowOptions)
                 if chatFont then imgui.PopFont() end
                 if not drawn then error(drawError, 0) end
             end, windowOptions)
+            lastDrawn = views[1].drawn
+            if second and captured and secondary.Begin() then
+                splitOptions.title = 'Window 2'
+                imgui.SetNextWindowPos({ second.left, second.bottom }, ImGuiCond_Always, pivot)
+                imgui.SetNextWindowSize({ second.width, second.height }, ImGuiCond_Always)
+                window.Plain('winxi.chatbox.split', open, flags, function()
+                    if chatFont then imgui.PushFont(chatFont, fontSize) end
+                    local drawn, drawError = pcall(DrawLog, second, second.rows, fontSize, padding, views[2], Filter(routes, 2), selectedWindow == 2, splitOptions)
+                    if chatFont then imgui.PopFont() end
+                    if not drawn then error(drawError, 0) end
+                end, splitOptions)
+                splitDrawn = capturedSplit
+                lastSplit = views[2].drawn
+            end
         end
         -- Input is independent: keep it working while waiting for the log's first geometry sample.
         input.Draw(plan.width, sh, fontSize, padding, flags, app.options.matchGameInputSize[1], plan)
     end)
     if not ok then Release(); error(err, 0) end
     if not captured then
-        pendingScroll, scrollDrag, scrollPressed = nil, nil, nil
+        ResetViews(false)
         primary.Stop()
         secondary.Stop()
         return
     end
-    -- This first version combines all observed messages into one log. Do not leave a duplicate
-    -- split native log underneath it. Only hide split after a complete primary capture succeeded.
+    -- One box or two: the game's second log window is drawn as the second box where the game shows one and
+    -- uihook says how the game routes between them; otherwise it is hidden rather than left as a duplicate
+    -- under the first. Only hide it after a complete primary capture succeeded.
     if lastDrawn and not lastDrawn.expanded then
-        secondary.Begin()
-        wheelTarget = lastDrawn
+        if not splitDrawn then secondary.Begin() end
+        views[1].target = lastDrawn
+        views[2].target = splitDrawn and lastSplit or nil
     end
 end)
 
--- Only the wheel over overflowing chat and left-button interactions with its scrollbar are taken.
--- All other mouse input stays native. The scrollbar is drawn into the same captured window.
-ashita.events.register('mouse', 'chatbox_scroll', function(e)
-    if e.blocked or not wheelTarget or not app.options.enabled[1] or zoning then return end
-    local state = primary.State()
-    if state and (state.expanded or state.nativeBrowse) then scrollDrag, scrollPressed = nil, nil; return end
-    local io = imgui.GetIO()
-    if io.WantCaptureMouse and not scrollPressed then return end
-    local mouse = io.MousePos
-    local x, y = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
-    local box, message = wheelTarget, e.message
-    local bar = box.scrollbar
-    if scrollPressed and message == 0x0202 then -- left up, including outside the log
-        scrollDrag, scrollPressed = nil, nil
+-- Only the wheel over an overflowing box and left-button interactions with its scrollbar are taken; each box
+-- has its own. All other mouse input stays native. true when the event was taken.
+local function Scroll(view, box, e, x, y)
+    local bar, message = box.scrollbar, e.message
+    if view.pressed and message == 0x0202 then -- left up, including outside the log
+        view.drag, view.pressed = nil, nil
         e.blocked = true
-        return
+        return true
     end
-    if scrollDrag and message == 0x0200 and bar and y then
-        pendingScroll = scrollbar.Drag(bar,y,scrollDrag)
+    if view.drag and message == 0x0200 and bar and y then
+        view.pendingScroll = scrollbar.Drag(bar,y,view.drag)
         e.blocked = true
-        return
+        return true
     end
     if message == 0x0201 and scrollbar.Hit(bar,x,y) then
-        scrollPressed = true
+        view.pressed = true
         if y >= bar.thumbTop and y < bar.thumbBottom then
-            scrollDrag = y-bar.thumbTop
+            view.drag = y-bar.thumbTop
         else
-            pendingScroll = scrollbar.Page(bar,y)
+            view.pendingScroll = scrollbar.Page(bar,y)
         end
         e.blocked = true
-        return
+        return true
     end
     if message ~= 0x020a or not x or not y or x < box.left or x >= box.left + box.width
-        or y < box.top or y >= box.bottom or not box.overflow then return end
+        or y < box.top or y >= box.bottom or not box.overflow then return false end
     -- Ashita exposes the signed wheel delta; wparam is a fallback for raw WNDPROC events.
     local delta = tonumber(e.delta)
     if not delta and e.wparam then delta = bit.arshift(tonumber(e.wparam), 16) end
-    if not delta or delta == 0 then return end
-    pendingWheel = pendingWheel + delta / 120 * 3
+    if not delta or delta == 0 then return false end
+    view.pending = view.pending + delta / 120 * 3
     e.blocked = true -- never scroll native history underneath the themed viewport
+    return true
+end
+ashita.events.register('mouse', 'chatbox_scroll', function(e)
+    if e.blocked or not app.options.enabled[1] or zoning then return end
+    local state = primary.State()
+    if state and (state.expanded or state.nativeBrowse) then
+        for _, view in ipairs(views) do view.drag, view.pressed = nil, nil end
+        return
+    end
+    local io = imgui.GetIO()
+    local mouse = io.MousePos
+    local x, y = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+    for _, view in ipairs(views) do
+        if view.target and (not io.WantCaptureMouse or view.pressed) and Scroll(view, view.target, e, x, y) then return end
+    end
 end)

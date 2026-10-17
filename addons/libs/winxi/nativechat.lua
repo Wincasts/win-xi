@@ -26,6 +26,10 @@ ffi.cdef[[
         uint32_t TextFrame, TextCount, TextSerial;
         struct { float Rect[4]; uint32_t Offset, Length, Mode, Flags; } Rows[128];
         char Text[65536];
+        float SplitRect[4];
+        uint32_t SplitRectFrame;
+        uint32_t WindowFrame, WindowFlags;
+        uint32_t WindowModes[2][8];
     } uihook_chat_t;
     typedef int32_t (__cdecl *uihook_chat_submit_t)(int32_t index, int32_t capture);
 ]]
@@ -51,7 +55,7 @@ function M.new(index)
             local at = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D434841540000000000', 0, 0)
             if not at or at == 0 then reason = 'Update uihook: chat shared block not found.'; return nil end
             local found = ffi.cast('uihook_chat_t*', at)
-            if found.Version ~= 10 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
+            if found.Version ~= 11 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
                 reason = 'uihook chat ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_chat_submit_t', found.Submit)
@@ -132,16 +136,19 @@ function M.new(index)
     end
     -- Native focus/expansion only: no button interception or native menu/state writes. nested: a menu (a
     -- row's actions, the input line) is open over the live full log, which is still drawn under it.
+    -- selectedWindow: which log window the game's focus is on, 1 or 2, or nil.
     function hook.State()
         local found = Find()
         if not found or found.StateFrame == 0 or (tonumber(found.Frame)-tonumber(found.StateFrame)) % 4294967296 > 2 then return nil end
         local flags = tonumber(found.StateFlags)
-        return { selected = bit.band(flags,3) ~= 0, expanded = bit.band(flags,4) ~= 0,
+        return { selected = bit.band(flags,3) ~= 0, selectedWindow = bit.band(flags,1) ~= 0 and 1 or bit.band(flags,2) ~= 0 and 2 or nil,
+            expanded = bit.band(flags,4) ~= 0,
             nativeBrowse = bit.band(flags,8) ~= 0, nested = bit.band(flags,16) ~= 0, expandedSupported = bit.band(found.SupportedMask,8) ~= 0,
             nativeContent = bit.band(found.SupportedMask,16) ~= 0,
             nativeControls = bit.band(found.SupportedMask,32) ~= 0,
             nativeReplace = bit.band(found.SupportedMask,64) ~= 0,
             nativeText = bit.band(found.SupportedMask,128) ~= 0,
+            nativeWindows = bit.band(found.SupportedMask,256) ~= 0,
             scroll = tonumber(found.FullScroll), cursor = tonumber(found.FullCursor),
             pageRows = tonumber(found.FullPageRows), filter = tonumber(found.FullFilter) }
     end
@@ -162,14 +169,49 @@ function M.new(index)
         if r[2] <= r[0] or r[3] <= r[1] then return nil end
         return tonumber(r[0]) * width, tonumber(r[1]) * height, tonumber(r[2]) * width, tonumber(r[3]) * height
     end
-    -- Native primary/input bounds; expanded=true selects fulllog on the primary slot.
+    -- Native primary/split/input bounds; expanded=true selects fulllog on the primary slot. The split log's
+    -- bounds (the game's second log window) need uihook's window routing.
     function hook.Rect(width, height, expanded)
         local found = Find()
-        if not found or (index ~= M.Primary and index ~= M.Input) then return nil end
+        if not found then return nil end
         if expanded and (index ~= M.Primary or bit.band(found.SupportedMask,8) == 0) then return nil end
-        if not Fresh(found, expanded and found.ExpandedRectFrame or index == M.Primary and found.PrimaryRectFrame or found.InputRectFrame) then return nil end
-        if not Display(width, height) then return nil end
-        return Scaled(expanded and found.ExpandedRect or index == M.Primary and found.PrimaryRect or found.InputRect, width, height)
+        if index == M.Secondary and bit.band(found.SupportedMask,256) == 0 then return nil end
+        local stamp = expanded and found.ExpandedRectFrame or index == M.Primary and found.PrimaryRectFrame
+            or index == M.Secondary and found.SplitRectFrame or found.InputRectFrame
+        if not Fresh(found, stamp) or not Display(width, height) then return nil end
+        return Scaled(expanded and found.ExpandedRect or index == M.Primary and found.PrimaryRect
+            or index == M.Secondary and found.SplitRect or found.InputRect, width, height)
+    end
+    -- The game's routing of messages between its two log windows, as uihook reads it from the game's config each
+    -- frame: split, whether the second window is shown (then each message goes where the game's Log Window
+    -- settings send it; hidden, the first shows everything); first and second, the set of chat modes (the low
+    -- byte) each window's filters keep. M.Shows applies them. The same table while the routing holds. nil without
+    -- the routing hooks, or nothing fresh.
+    local routesWords, routesList
+    function hook.Routes()
+        local found = Find()
+        if not found or index ~= M.Primary or bit.band(found.SupportedMask,256) == 0 then return nil end
+        if not Fresh(found, found.WindowFrame) then return nil end
+        local split = bit.band(tonumber(found.WindowFlags), 1) ~= 0
+        local same = routesList ~= nil and routesList.split == split
+        if same then
+            for i = 1, 16 do
+                if routesWords[i] ~= tonumber(found.WindowModes[math.floor((i - 1) / 8)][(i - 1) % 8]) then same = false; break end
+            end
+        end
+        if same then return routesList end
+        local words, sets = {}, { {}, {} }
+        for w = 0, 1 do
+            for i = 0, 7 do
+                local word = tonumber(found.WindowModes[w][i])
+                words[w * 8 + i + 1] = word
+                for b = 0, 31 do
+                    if bit.band(word, bit.lshift(1, b)) ~= 0 then sets[w + 1][i * 32 + b] = true end
+                end
+            end
+        end
+        routesWords, routesList = words, { split = split, first = sets[1], second = sets[2] }
+        return routesList
     end
     -- The game's tab strip as it last drew it in the skinned full log: each tab's bounds in display pixels,
     -- in the order the game drew them (they overlap at their edges, each drawn over the ones before it),
@@ -241,5 +283,15 @@ function M.new(index)
         return reason
     end
     return hook
+end
+-- Whether the game's window (1 or 2) shows a message of that chat mode, by routes from Routes(): the game's own
+-- rule, a mode word with bit 15 set to the first window alone, else the window's set by the mode's low byte;
+-- without routes, or with the second window hidden, the first shows everything and the second nothing.
+function M.Shows(routes, window, mode)
+    mode = tonumber(mode) or 0
+    if not routes or not routes.split then return window == 1 end
+    if bit.band(mode, 0x8000) ~= 0 then return window == 1 end
+    local set = window == 1 and routes.first or window == 2 and routes.second or nil
+    return set ~= nil and set[bit.band(mode, 0xff)] == true
 end
 return M
