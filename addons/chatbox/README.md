@@ -19,8 +19,9 @@ each where the game's are.
   begins when the addon loads; the expanded log is the game's own, from before it loaded too.
 - The log lifts above the input bar while typing, and the game's clock and its icons follow the top
   of the log.
-- With **Log Window 2** on in the game's settings, a second box stands over the first, of the same
-  width and the game's second window's height, titled Window 2. Each box shows the messages the
+- With **Log Window 2** on in the game's settings, a second box stands where the game puts its second
+  window, over the first (the same width, the game's height for it) or beside it (the game's width and
+  gap, the first's bottom), titled Window 2. Each box shows the messages the
   game's Log Window settings route to its window, read from the game, and scrolls on its own; the
   focus light follows the game's focus between them.
 - The mouse wheel scrolls an overflowing compact log three visual rows a notch, and a slim scrollbar

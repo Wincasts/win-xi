@@ -598,24 +598,43 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
             size[1], sw, sh, size[2], padding, app.options.matchGameInputSize[1])
         anchorStatus = box and 'Anchored to native chat; log and input share one width.'
             or 'Native chat anchor unavailable or the log does not fit; native log left visible.'
-        -- The game's second log window, where it shows one: a box of the first's width stacked over the first,
-        -- as the game stacks its own, as tall as the game's (as many rows as fit) or ten rows; its messages
-        -- the ones the game's Log Window settings route to it, the first's the ones routed there.
+        -- The game's second log window, where it shows one: a box where the game puts its own beside the first,
+        -- stacked over it (the game's vertical layout: the first's width, over its top) or beside it (horizontal:
+        -- the game's width for it, the game's gap from the first, the first's bottom); as tall as the game's (as
+        -- many rows as fit) or ten rows; its messages the ones the game's Log Window settings route to it, the
+        -- first's the ones routed there.
         local routes = primary.Routes and primary.Routes() or nil
         local splitRect = { secondary.Rect(sw, sh) }
         local second
         if routes and routes.split and #splitRect == 4 then
-            if box then
+            if box and #logRect == 4 then
                 local rows, height = model.Rows, frameHeight
-                if app.options.matchGameLogSize[1] then
+                local match = app.options.matchGameLogSize[1]
+                if match then
                     local fit = layout.Fit(splitRect[4] - splitRect[2] - above - below, fontSize, 0, ROW_GAP)
                     if fit >= 1 then rows, height = fit, splitRect[4] - splitRect[2] end
                 end
-                if box.top - height >= 0 then
-                    second = { left = box.left, width = box.width, bottom = box.top, top = box.top - height, height = height, rows = rows }
-                    splitStatus = ('Second window: over the game\'s, %d rows; the game\'s Log Window settings route its messages.'):format(rows)
+                local beside = splitRect[4] > logRect[2] + 2 -- not wholly above the first: the game's horizontal layout
+                if not beside then
+                    if box.top - height >= 0 then
+                        second = { left = box.left, width = box.width, bottom = box.top, top = box.top - height, height = height, rows = rows }
+                        splitStatus = ('Second window: over the first, %d rows; the game\'s Log Window settings route its messages.'):format(rows)
+                    else
+                        splitStatus = 'Second window: no room above the first; the game\'s is left visible.'
+                    end
                 else
-                    splitStatus = 'Second window: no room above the first; the game\'s is left visible.'
+                    local width = splitRect[3] - splitRect[1]
+                    local left
+                    if splitRect[1] >= logRect[3] - 2 then left = box.left + box.width + (splitRect[1] - logRect[3]) -- to the right of the first
+                    elseif splitRect[3] <= logRect[1] + 2 then left = box.left - (logRect[1] - splitRect[3]) - width -- to its left
+                    else left = match and splitRect[1] or box.left + box.width end -- overlapping the first: the game's place, or its right
+                    if not match then height = frameHeight; rows = model.Rows end
+                    if left >= 0 and left + width <= sw and box.bottom - height >= 0 then
+                        second = { left = left, width = width, bottom = box.bottom, top = box.bottom - height, height = height, rows = rows }
+                        splitStatus = ('Second window: beside the first, %d rows; the game\'s Log Window settings route its messages.'):format(rows)
+                    else
+                        splitStatus = 'Second window: no room beside the first; the game\'s is left visible.'
+                    end
                 end
             end
         elseif routes and routes.split then
