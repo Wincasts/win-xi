@@ -112,4 +112,39 @@ H.print('test lines drawn', #words() >= 2)
 
 -- the settings window draws
 H.command('/sct config'); H.frames(2)
-H.print('settings drawn', (H.calls.ColorEdit4 or 0) >= 3, '| a header for each section', (H.calls.SliderFloat or 0) > 0)
+H.print('settings drawn', (H.calls.ColorEdit4 or 0) >= 3, '| sliders drawn', (H.calls.SliderInt or 0) > 0)
+
+-- Scroll Speed: a line twice as fast is twice as far down after the same time
+local function fall(speed)
+    o.speed[1] = speed
+    for _ = 1, 400 do frame() end -- the box empties
+    H.command('/sct test'); frame()
+    local top
+    for _, line in ipairs(words()) do top = line.y end
+    for _ = 1, 10 do frame() end
+    for _, line in ipairs(words()) do if line.words == 'Status 33' then return line.y - top end end
+end
+local slow, fast = fall(60), fall(120)
+H.print('Scroll Speed: twice as fast, twice as far', slow and fast and math.abs(fast - 2 * slow) < 0.01, slow, fast)
+
+-- Line Spacing: the second line follows the first by its height and the spacing
+local function gap(spacing)
+    o.spacing[1] = spacing; o.speed[1] = 90
+    for _ = 1, 400 do frame() end
+    H.command('/sct test')
+    local a, b
+    for _ = 1, 60 do
+        frame()
+        local w = words()
+        if #w >= 2 then a, b = w[1].y, w[2].y break end
+    end
+    -- the second has just left the top: how far down the first was then
+    return a and b and a - b
+end
+local near, far = gap(0), gap(30)
+H.print('Line Spacing: lines further apart', near and far and far > near + 25, near, far)
+
+-- Scroll Time, from before Scroll Speed, comes over as the speed that took that long
+o.duration = { 2 }; o.height[1] = 300
+H.resettle()
+H.print('Scroll Time of 2 s brought over as a speed', o.duration == nil, o.speed[1])
