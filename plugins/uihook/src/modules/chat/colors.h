@@ -51,15 +51,19 @@ static void SampleChatColors(ChatColorTables& tables,ChatShared& shared,uint32_t
     if (!tables.Ready()) return;
     uint32_t inlineColors[CHAT_INLINE_COLORS]; uint32_t categoryColors[256]={}; uint8_t modeCategory[256]={};
     if (!ChatRead(tables.palette,inlineColors,sizeof(inlineColors))) return;
+    // each table copied whole, as far as it can be read, then walked to its end: an entry past what was read fails
+    uint8_t categoryTable[CHAT_CATEGORY_ENTRIES*8], modeTable[CHAT_MODE_ENTRIES*4];
+    const size_t categoryBytes=ChatReadSpan(tables.categories,categoryTable,sizeof(categoryTable));
     for (unsigned i=0;i<CHAT_CATEGORY_ENTRIES;i++) {
-        uint8_t entry[8];
-        if (!ChatRead(tables.categories+i*8,entry,8)) return;
+        if ((i+1)*8>categoryBytes) return;
+        const uint8_t* entry=categoryTable+i*8;
         if (!entry[0]) break;
         if (!categoryColors[entry[0]]) memcpy(&categoryColors[entry[0]],entry+4,4); // the first entry for a category counts
     }
+    const size_t modeBytes=ChatReadSpan(tables.modes,modeTable,sizeof(modeTable));
     for (unsigned i=0;i<CHAT_MODE_ENTRIES;i++) {
-        uint8_t entry[4];
-        if (!ChatRead(tables.modes+i*4,entry,4)) return;
+        if ((i+1)*4>modeBytes) return;
+        const uint8_t* entry=modeTable+i*4;
         uint16_t word=0; memcpy(&word,entry,2);
         if (!word) break;
         if (word<256 && !modeCategory[word]) modeCategory[word]=entry[2];
