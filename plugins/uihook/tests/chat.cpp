@@ -75,6 +75,7 @@ int main() {
     Pattern(image+576,CHAT_FULL_INIT_PATTERN); Pattern(image+1408,CHAT_FULL_FIELDS_PATTERN);
     Pattern(image+1600,CHAT_FULL_DRAW_PATTERN);
     uint32_t draw=reinterpret_cast<uintptr_t>(image+1600); memcpy(image+1040,&draw,4);
+    Pattern(image+1880,CHAT_LINES_UPDATE_PATTERN); Pattern(image+1920,CHAT_LINES_GROW_PATTERN);
     Pattern(image+608,CHAT_STATE_PATTERN);
     uint32_t manager=reinterpret_cast<uintptr_t>(image+1100);
     memcpy(image+612,&manager,4);
@@ -156,7 +157,31 @@ int main() {
     Check(chat.Discover(image,sizeof(image)) && !chat.ExpandedSupported(),"missing verified layout leaves expanded history native");
     chat.Clear();
     Check(chat.Identify(menu)==-1,"release clears recognition");
-    Check(sizeof(ChatShared)==70300,"chat ABI 11: the rows of text, and the two log windows' bounds and routing");
+    Check(sizeof(ChatShared)==70328,"chat ABI 12: the rows of text, the two log windows' bounds, routing and lines");
+    // each window's lines now, most and fewest, read from its owner with the fields' sense checked
+    chat.Discover(image,sizeof(image));
+    Check(chat.LinesSupported(),"the owners' line fields pinned by the Update and grow signatures");
+    *first=owner; *second=split;
+    auto fill=[](uint8_t* at,int8_t now,int16_t most,int16_t fewest,int16_t row,int32_t height) {
+        at[0x31]=uint8_t(now); memcpy(at+0x4e,&most,2); memcpy(at+0x50,&fewest,2); memcpy(at+0x54,&row,2); memcpy(at+0x34,&height,4); };
+    fill(owner,3,8,0,16,48); fill(split,0,6,0,16,0);
+    ChatShared lines={}; chat.SampleLines(lines,21);
+    Check(lines.LinesFrame==21 && lines.Lines[0][0]==3 && lines.Lines[0][1]==8 && lines.Lines[0][2]==0 && lines.Lines[1][0]==0 && lines.Lines[1][1]==6,"the first at three of eight lines, the second at none of six");
+    fill(owner,9,8,0,16,144); chat.SampleLines(lines,22);
+    Check(lines.LinesFrame==22 && lines.Lines[0][0]==9,"a row more than most, the one scrolling in, is allowed");
+    fill(owner,10,8,0,16,160); chat.SampleLines(lines,23);
+    Check(lines.LinesFrame==0,"more than that makes no sense: nothing published");
+    fill(owner,3,8,9,16,48); chat.SampleLines(lines,24);
+    Check(lines.LinesFrame==0,"fewest past most: nothing");
+    fill(owner,3,8,0,2,48); chat.SampleLines(lines,25);
+    Check(lines.LinesFrame==0,"a row height of two: nothing");
+    fill(owner,3,8,0,16,48); *second=nullptr; chat.SampleLines(lines,26);
+    Check(lines.LinesFrame==0,"a missing owner: nothing"); *second=split;
+    chat.SampleLines(lines,27); Check(lines.LinesFrame==27,"whole again");
+    Pattern(image+1960,CHAT_LINES_GROW_PATTERN); chat.Discover(image,sizeof(image));
+    Check(!chat.LinesSupported(),"an ambiguous grow signature leaves the lines unread");
+    chat.SampleLines(lines,28); Check(lines.LinesFrame==0,"and nothing published");
+    memset(image+1960,0,24); chat.Discover(image,sizeof(image));
     ChatShared shared={}; shared.SupportedMask=1; shared.Frame=10;
     shared.PrimaryRectFrame=shared.ReplacementRectFrame=shared.NativeFrame[0]=shared.DrawnFrame[0]=10;
     shared.PrimaryRect[0]=0.1f; shared.PrimaryRect[1]=0.5f; shared.PrimaryRect[2]=0.7f; shared.PrimaryRect[3]=0.9f;

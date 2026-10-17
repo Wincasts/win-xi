@@ -25,7 +25,7 @@ static int32_t __cdecl Submit(int32_t index, int32_t capture);
 static void __fastcall RenderWindow(void* window, void*);
 static int32_t __cdecl SubmitHud(int32_t index, int32_t capture);
 static int32_t __cdecl SubmitChat(int32_t index, int32_t capture);
-static ChatShared Chat = { "UIHOOK-CHAT", 11, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {}, 0, 0, 0, {}, {}, {}, 0, 0, 0, {} };
+static ChatShared Chat = { "UIHOOK-CHAT", 12, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {}, 0, 0, 0, {}, {}, {}, 0, 0, 0, {}, 0, {} };
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
 static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
@@ -313,6 +313,7 @@ public:
                 Chat.SupportedMask=3 | (chat.InputSupported() ? 4 : 0) | (chat.ExpandedSupported() ? CHAT_FULL_SUPPORTED : 0);
                 // which messages each of the two log windows shows, as the client decides it: read, never written
                 if (DiscoverChatWindows(begin,module.SizeOfImage,chat.SplitOwner(),windowRoutes)) Chat.SupportedMask|=CHAT_WINDOWS_SUPPORTED;
+                if (chat.LinesSupported()) Chat.SupportedMask|=CHAT_LINES_SUPPORTED; // each window's lines now, as the game grows and shrinks it
                 const auto controls=DiscoverChatControls(begin,module.SizeOfImage,WindowDetour.target,chat.ExpandedDraw());
                 if (chat.ExpandedDraw() && Take(ExpandedChatDetour,begin,module.SizeOfImage)) {
                     Chat.SupportedMask |= CHAT_FULL_SKIN_SUPPORTED;
@@ -353,7 +354,7 @@ public:
     void Release() override {
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
-        Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); StopChat();
+        Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); StopChat();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
@@ -363,6 +364,7 @@ public:
         Hud.Frame=Chat.Frame=Shared.Frame;
         chat.Sample(Chat,Shared.Frame);
         SampleChatWindows(windowRoutes,Chat,Shared.Frame);
+        chat.SampleLines(Chat,Shared.Frame);
         // As namehook: no cross-frame state blocks holding client resources across a reset.
         ReleaseStates();
         for (auto& d:drawings) if (!d.Fresh()) d.Clear();
@@ -394,7 +396,7 @@ public:
     bool HandleCommand(int32_t,const char* command,bool) override {
         if (command && _stricmp(command,"/uihook chat")==0) {
             char line[256];
-            snprintf(line,sizeof(line),"[uihook:chat] ABI 11, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
+            snprintf(line,sizeof(line),"[uihook:chat] ABI 12, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
                 Chat.SupportedMask,Chat.Frame,Chat.NativeFrame[0],Chat.DrawnFrame[0],Chat.NativeFrame[1],Chat.DrawnFrame[1],Chat.NativeFrame[2],Chat.DrawnFrame[2]);
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:chat] state 0x%x at %u, full bounds at %u; history scroll %u, cursor %u/%u, filter %u (browsing/filter menus remain native).",
@@ -410,6 +412,9 @@ public:
             for (unsigned i=0;i<8;i++) for (unsigned b=0;b<32;b++) { firstModes+=(Chat.WindowModes[0][i]>>b)&1; secondModes+=(Chat.WindowModes[1][i]>>b)&1; }
             snprintf(line,sizeof(line),"[uihook:chat] windows: routing %s at %u; the second window %s; the first keeps %u modes, the second %u; split bounds at %u.",
                 windowRoutes.Ready() ? "read" : "not found", Chat.WindowFrame, Chat.WindowFlags & CHAT_SECOND_WINDOW ? "shown" : "hidden", firstModes, secondModes, Chat.SplitRectFrame);
+            core->GetChatManager()->Write(0,false,line);
+            snprintf(line,sizeof(line),"[uihook:chat] lines at %u: the first %u of %u (fewest %u), the second %u of %u (fewest %u).",
+                Chat.LinesFrame,Chat.Lines[0][0],Chat.Lines[0][1],Chat.Lines[0][2],Chat.Lines[1][0],Chat.Lines[1][1],Chat.Lines[1][2]);
             core->GetChatManager()->Write(0,false,line);
             return true;
         }

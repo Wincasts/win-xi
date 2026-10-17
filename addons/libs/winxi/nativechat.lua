@@ -30,6 +30,8 @@ ffi.cdef[[
         uint32_t SplitRectFrame;
         uint32_t WindowFrame, WindowFlags;
         uint32_t WindowModes[2][8];
+        uint32_t LinesFrame;
+        uint32_t Lines[2][3];
     } uihook_chat_t;
     typedef int32_t (__cdecl *uihook_chat_submit_t)(int32_t index, int32_t capture);
 ]]
@@ -55,7 +57,7 @@ function M.new(index)
             local at = ashita.memory.find('uihook.dll', 0, '5549484F4F4B2D434841540000000000', 0, 0)
             if not at or at == 0 then reason = 'Update uihook: chat shared block not found.'; return nil end
             local found = ffi.cast('uihook_chat_t*', at)
-            if found.Version ~= 11 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
+            if found.Version ~= 12 or found.Size ~= ffi.sizeof('uihook_chat_t') or found.Submit == 0 then
                 reason = 'uihook chat ABI mismatch; install the matching DLL.'; return nil
             end
             block, submit = found, ffi.cast('uihook_chat_submit_t', found.Submit)
@@ -149,6 +151,7 @@ function M.new(index)
             nativeReplace = bit.band(found.SupportedMask,64) ~= 0,
             nativeText = bit.band(found.SupportedMask,128) ~= 0,
             nativeWindows = bit.band(found.SupportedMask,256) ~= 0,
+            nativeLines = bit.band(found.SupportedMask,512) ~= 0,
             scroll = tonumber(found.FullScroll), cursor = tonumber(found.FullCursor),
             pageRows = tonumber(found.FullPageRows), filter = tonumber(found.FullFilter) }
     end
@@ -181,6 +184,21 @@ function M.new(index)
         if not Fresh(found, stamp) or not Display(width, height) then return nil end
         return Scaled(expanded and found.ExpandedRect or index == M.Primary and found.PrimaryRect
             or index == M.Secondary and found.SplitRect or found.InputRect, width, height)
+    end
+    -- This log window's lines as the game has them now: shown, how many lines it shows at the moment (the game adds a
+    -- row for each message and takes rows away, down to its fewest, while none come; 0, nothing shown), most, the
+    -- lines it grows to, and fewest. The same table while they hold. nil without the lines hooks, or nothing fresh,
+    -- or on the input slot.
+    local linesList
+    function hook.Lines()
+        local found = Find()
+        if not found or index == M.Input or bit.band(found.SupportedMask,512) == 0 then return nil end
+        if not Fresh(found, found.LinesFrame) then return nil end
+        local shown, most, fewest = tonumber(found.Lines[index][0]), tonumber(found.Lines[index][1]), tonumber(found.Lines[index][2])
+        if not linesList or linesList.shown ~= shown or linesList.most ~= most or linesList.fewest ~= fewest then
+            linesList = { shown = shown, most = most, fewest = fewest }
+        end
+        return linesList
     end
     -- The game's routing of messages between its two log windows, as uihook reads it from the game's config each
     -- frame: split, whether the second window is shown (then each message goes where the game's Log Window

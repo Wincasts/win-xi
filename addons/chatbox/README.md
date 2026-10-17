@@ -23,8 +23,10 @@ each where the game's are.
   window, over the first (the same width, the game's height for it) or beside it (the game's width and
   gap, the first's bottom), titled Window 2. Each box shows the messages the
   game's Log Window settings route to its window, read from the game, and scrolls on its own; the
-  focus light follows the game's focus between them. A window the game has at 0 lines shows
-  nothing, the other still drawn.
+  focus light follows the game's focus between them.
+- Each box has as many rows as the game's window shows at the moment: the game grows its window a
+  row for each message and shrinks it to its fewest lines while none come, and the box follows,
+  tall enough for those rows at Font Size. A window at 0 lines shows nothing, the other still drawn.
 - The mouse wheel scrolls an overflowing compact log three visual rows a notch, and a slim scrollbar
   appears on its right: drag the thumb or click the track to page.
 - No dragging or mouse resizing. Combat formatting, filters and timestamps are left to the game or
@@ -34,9 +36,9 @@ each where the game's are.
 
 ```text
 addons/chatbox/          this directory
-addons/libs/winxi/       WinXI 17 or newer
+addons/libs/winxi/       WinXI 18 or newer
 addons/winxisettings/    shared theme settings (optional)
-plugins/uihook.dll       0.5 or newer, chat ABI 11 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing)
+plugins/uihook.dll       0.5 or newer, chat ABI 12 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing and lines)
 ```
 
 Build uihook with `plugins/uihook/build.sh`; the output is `plugins/uihook/build/uihook.dll`. Turn

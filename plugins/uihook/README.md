@@ -187,9 +187,9 @@ a WinXI frame, WinXI tabs, scrollbar and rows of text where the game's are (or t
 and the game's own text) around the actual native expanded browser, and a native-backed WinXI input bar.
 The plugin itself does not collect chat messages or own keyboard input.
 
-### Chat ABI 11
+### Chat ABI 12
 
-Independent `UIHOOK-CHAT` marker padded to 16 bytes, **70300 bytes** total (update DLL and bridge together):
+Independent `UIHOOK-CHAT` marker padded to 16 bytes, **70328 bytes** total (update DLL and bridge together):
 
 ```text
 char Magic[16]
@@ -214,6 +214,7 @@ char Text[65536]                                           // the rows' text as 
 float SplitRect[4]; u32 SplitRectFrame                     // the game's second log window's bounds, as PrimaryRect
 u32 WindowFrame, WindowFlags                               // the two log windows' routing, read each frame: 1 the second window is shown
 u32 WindowModes[2][8]                                      // per window, a bit for each chat mode (its low byte) its filters keep
+u32 LinesFrame; u32 Lines[2][3]                            // per window: its lines now, its most and its fewest, read each frame
 ```
 
 Submission bits/indexes: 0 primary (compact OR expanded), 1 split, 2 input (`nativechat.Input`).
@@ -227,7 +228,10 @@ client's keep check is recognised and its decision made again from the config wo
 first window's, BB/BC the second's), its mode table and its category cases; a mode word with bit 15 set
 goes to the first window alone, and while the second window is hidden the first keeps everything.
 `primary.Routes()` gives the sets and `nativechat.Shows(routes, window, mode)` applies them;
-`split.Rect(w, h)` the second window's place. None is an additional submission slot. `Submit` is render-thread-only
+`split.Rect(w, h)` the second window's place. Bit 9 that each window's lines are read from its owner
+(`Lines()` on the primary and split slots: its lines now, as the game grows a row a message and shrinks
+to its fewest while none come, its most and its fewest), the fields pinned by the owner's Update and
+grow signatures and checked for sense each frame. None is an additional submission slot. `Submit` is render-thread-only
 `cdecl int(index, capture)`: 0 renews empty, 1 captures compact/input contents, 2 captures a
 **frame-only expanded skin** (primary slot only, requires bit 4), and -1 releases that slot.
 `primary.Capture(true, colors, replace)` requests mode 2, optionally publishing the four RGBA control

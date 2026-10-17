@@ -111,6 +111,10 @@ read_regex = b''.join(b'.' if token == '??' else re.escape(bytes.fromhex(token))
 readers = [m.start() for m in re.finditer(read_regex, data, re.S)]
 assert readers and len({struct.unpack_from('<I', data, at + 2)[0] for at in readers}) == 1, readers
 assert any(callee(at + 15) == value for at in readers)
-print(f'Log window routing: {entries} mode entries, category bits {bits}, {len(readers)} config readers.')
+unique('CHAT_LINES_UPDATE_PATTERN')
+unique('CHAT_LINES_GROW_PATTERN')
+# the owners' base constructor sets the row height (+54) to 14, the fewest (+50) to 0, the most (+4E) to 8, the lines (+31) to 4
+assert data.count(bytes.fromhex('66C7465414006689465066C7464E0800')) == 1
+print(f'Log window routing: {entries} mode entries, category bits {bits}, {len(readers)} config readers; line fields pinned.')
 print('Native full-log vtable/content, tab strip, tab/selection/cursor/scrollbar and row-drawing CALL graph cross-check passed.')
 print('Static verification only: live artwork, pulse/fades, hit-tests, menu actions and GPU resets still need validation.')
