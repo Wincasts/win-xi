@@ -2,7 +2,11 @@
 
 ## 0.5
 
-- Chat ABI 11 (70300 bytes): the game's two log windows. The second window's bounds (SplitRect,
+- Chat ABI 12 (70328 bytes): each log window's lines as the game has them now (LinesFrame, Lines[2][3]:
+  its lines, its most and its fewest), read each frame from the window's owner, whose fields are pinned
+  by its Update and grow signatures and checked for sense. SupportedMask bit 9. The game grows a window
+  a row for each message and shrinks it to its fewest lines while none come; its window rect follows.
+- Chat ABI 11: the game's two log windows. The second window's bounds (SplitRect,
   SplitRectFrame, read as the primary's are) and the game's routing between the two, read each frame
   (WindowFrame, WindowFlags bit 1 the second window shown, WindowModes[2][8]: per window, a bit for
   each chat mode its Log Window settings keep). SupportedMask bit 8. Nothing is hooked or written for

@@ -28,6 +28,7 @@ local expandedRect={0,100,1920,1020}
 local chatState={selected=false,expanded=false,expandedSupported=true,nativeBrowse=false,nested=false,nativeContent=true,nativeControls=true,nativeReplace=true,nativeText=true}
 local tabsGeometry, scrollGeometry, rowsGeometry -- where the game drew its tabs, scrollbar and rows of text, as uihook measured them
 local splitRect, routes -- the game's second log window, and its routing between the two, as uihook reads them
+local linesState={} -- each window's lines as the game has them, by slot
 package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=function(index)
     local hook = {begins=0,stops=0,captures=0}
     function hook.Begin() hook.begins=hook.begins+1; return ready end
@@ -50,6 +51,7 @@ package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=functio
         return state
     end
     function hook.Routes() return index==0 and routes or nil end
+    function hook.Lines() return linesState[index] end
     function hook.Rect(_,_,expanded)
         local rect
         if index==0 then rect=expanded and expandedRect or (not expanded and nativeLogRect or nil)
@@ -774,6 +776,26 @@ inputOpen=false
 app.options.matchGameLogSize[1]=false; frame()
 assert(hooks[0].captures==firstCaptures+1 and rendered['winxi.chatbox'].size[2]==150,'Match Game Log Size off: ten rows whatever the game\'s size')
 app.options.matchGameLogSize[1]=true; nativeLogRect={20,700,660,1018}
+-- The game's lines, where uihook says them: the box has as many rows as the game shows now, whatever fits its
+-- window (the game grows a row a message and shrinks while none come), no shorter than the game's window and tall
+-- enough for its rows at Font Size; at 0 lines nothing; the second window the same
+nativeLogRect={20,1002,660,1018}; linesState[0]={shown=1,most=8,fewest=0}; firstCaptures=hooks[0].captures; frame()
+assert(hooks[0].captures==firstCaptures+1 and rendered['winxi.chatbox'].pos[2]==1018 and rendered['winxi.chatbox'].size[2]==24 and #text==1 and text[1].text=='party 40','one line in a 16px window: one row, the box tall enough for it, over the game\'s bottom')
+linesState[0]={shown=3,most=8,fewest=0}; frame()
+assert(rendered['winxi.chatbox'].size[2]==3*12+2*2+12 and #text==3,'three lines: three rows, the box grown for them')
+nativeLogRect={20,700,660,1018}; frame()
+assert(rendered['winxi.chatbox'].size[2]==318 and #text==3,'the game\'s window taller than three rows need: its height, three rows')
+linesState[0]={shown=0,most=8,fewest=0}; firstCaptures=hooks[0].captures; frame()
+assert(hooks[0].captures==firstCaptures,'at 0 lines: nothing, whatever the window\'s height')
+nativeLogRect=nil; frame(); assert(hooks[0].captures==firstCaptures,'and no hold while the game says 0 lines')
+linesState[0]={shown=2,most=8,fewest=0}; nativeLogRect={20,1000,660,1018}; frame()
+assert(hooks[0].captures==firstCaptures+1 and #text==2 and rendered['winxi.chatbox'].size[2]==2*12+2+12,'a message: back, two rows in an 18px window')
+splitRect={20,520,660,700}; linesState[1]={shown=1,most=6,fewest=0}; frame()
+assert(rendered['winxi.chatbox.split'].size[2]==180 and rendered['winxi.chatbox.split'].pos[2]==1018-(2*12+2+12),'the second at one line in a tall window: the game\'s height, over the first')
+local splitText=0; for _,entry in ipairs(text) do if entry.text:find('party',1,true) then splitText=splitText+1 end end
+assert(#text==3,'one row in it')
+linesState[1]={shown=0,most=6,fewest=0}; captures=hooks[1].captures; frame(); assert(hooks[1].captures==captures,'the second at 0 lines: nothing')
+linesState={}; nativeLogRect={20,700,660,1018}
 routes=nil; splitRect=nil
 imgui.GetIO=oldIO
 os.clock=realClock

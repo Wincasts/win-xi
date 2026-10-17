@@ -2,7 +2,7 @@ addon.name = 'chatbox'
 addon.author = 'win'
 addon.version = '0.10.0'
 addon.desc = 'WinXI native-backed chat, titled with your channel, with selection and an expanded view in WinXI tabs.'
-local winxiNeeded = 17
+local winxiNeeded = 18
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -580,12 +580,28 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         local above, below = headroom + app.options.topPadding[1], app.options.bottomPadding[1]
         local frameHeight = model.Rows * fontSize + (model.Rows - 1) * ROW_GAP + above + below
         size[1] = math.min(app.options.width[1], sw - 40)
-        if app.options.matchGameLogSize[1] and #logRect == 4 then
-            local fit = layout.Fit(logRect[4] - logRect[2] - above - below, fontSize, 0, ROW_GAP)
-            if fit >= 1 then
-                rowCount, frameHeight, size[1] = fit, logRect[4] - logRect[2], logRect[3] - logRect[1]
-            else
-                firstHidden = true -- the game's log sized to no whole row (0 lines): nothing to draw, nothing shown
+        -- Matching the game's size: its lines now, as it grows a row a message and shrinks to its fewest while none
+        -- come (0, nothing drawn), the box no shorter than the game's window and tall enough for those rows at Font
+        -- Size; or, with a uihook that does not say, as many rows as fit the game's window.
+        local function Sized(rect, lines)
+            if lines then
+                if lines.shown < 1 then return 0 end
+                local height = lines.shown * fontSize + (lines.shown - 1) * ROW_GAP + above + below
+                if rect then height = math.max(height, rect[4] - rect[2]) end
+                return lines.shown, height
+            end
+            if not rect then return nil end
+            local fit = layout.Fit(rect[4] - rect[2] - above - below, fontSize, 0, ROW_GAP)
+            if fit < 1 then return 0 end
+            return fit, rect[4] - rect[2]
+        end
+        local match = app.options.matchGameLogSize[1]
+        if match then
+            local rows, height = Sized(#logRect == 4 and logRect or nil, primary.Lines and primary.Lines() or nil)
+            if rows == 0 then
+                firstHidden = true -- the game's log at 0 lines: nothing to draw, nothing shown
+            elseif rows and #logRect == 4 then
+                rowCount, frameHeight, size[1] = rows, height, logRect[3] - logRect[1]
             end
         end
         size[2] = frameHeight
@@ -611,10 +627,9 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         local second
         if routes and routes.split and #splitRect == 4 then
             local rows, height, secondHidden = model.Rows, frameHeight, false
-            local match = app.options.matchGameLogSize[1]
             if match then
-                local fit = layout.Fit(splitRect[4] - splitRect[2] - above - below, fontSize, 0, ROW_GAP)
-                if fit >= 1 then rows, height = fit, splitRect[4] - splitRect[2] else secondHidden = true end
+                local sized, tall = Sized(splitRect, secondary.Lines and secondary.Lines() or nil)
+                if sized == 0 then secondHidden = true elseif sized then rows, height = sized, tall end
             end
             if secondHidden then
                 splitStatus = 'Second window: the game\'s is at 0 lines; nothing drawn, and nothing of the game\'s shown.'
@@ -655,7 +670,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         end
         if box then
             held = { box = box, rows = rowCount, second = second, frame = frame }
-        elseif held and not placeKnown and frame - held.frame <= HOLD_FRAMES and held.box.bottom <= sh then
+        elseif not firstHidden and held and not placeKnown and frame - held.frame <= HOLD_FRAMES and held.box.bottom <= sh then
             -- Opening or closing the full log, the game's new place is not known for a frame or two:
             -- the last box stays rather than the game's own log showing through.
             box, rowCount, second = held.box, held.rows, held.second

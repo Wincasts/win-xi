@@ -39,6 +39,7 @@
 --     asked, left undrawn: Rows, State().nativeText, replace.text
 -- 17: nativechat ABI 11, the game's second log window's bounds (Rect on the split slot) and the two windows'
 --     routing as the game decides it: Routes, Shows, State().selectedWindow, State().nativeWindows
+-- 18: nativechat ABI 12, each log window's lines as the game grows and shrinks it: Lines, State().nativeLines
 return {
-    Number = 17,
+    Number = 18,
 };

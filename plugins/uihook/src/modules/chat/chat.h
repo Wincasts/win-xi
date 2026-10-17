@@ -12,6 +12,11 @@
 // Full-log content Draw: native tabs, glyph rows and row decorations. Cross-check with vtable +10.
 #define CHAT_FULL_DRAW_PATTERN "83 EC 0C 53 55 56 8B F1 57 33 ED 8B 46 54 89 6C 24 14 50 E8"
 #define CHAT_FULL_INIT_PATTERN "8B 56 58 89 56 1C 89 5E 28"
+// The compact log owner's Update, where its whole lines (+31, the ceiling of its height +34 over its row height +54)
+// and page rows (+30) are made, and its grow (a row added to the height per message, up to its most lines +4E):
+// the fields the two log windows' current, most and fewest (+50) lines are read from. Both windows share the class.
+#define CHAT_LINES_UPDATE_PATTERN "8B 46 34 0F BF 4E 54 99 F7 F9 88 46 31 FE C0 3B D3 88 46 30"
+#define CHAT_LINES_GROW_PATTERN "8A 44 24 04 83 EC 08 84 C0 53 55 56 57 8B F1 74 42 8B 46 34 0F BF 4E 54"
 #define CHAT_FULL_FIELDS_PATTERN "8B 55 54 8B 0D ?? ?? ?? ?? 52 E8 ?? ?? ?? ?? 25 FF 00 00 00 89 47 10 8B 4D 58 89 4F 0C 8B 55 20 8B 4D 58 2B C2 2B C1 89 47 14"
 // StateFlags bits: 16, a menu (a row's actions, input) open over the live full log, which keeps its skin
 enum { CHAT_SELECTED_PRIMARY=1, CHAT_SELECTED_SPLIT=2, CHAT_EXPANDED=4, CHAT_NATIVE_BROWSE=8, CHAT_NESTED_MENU=16 };
@@ -19,7 +24,9 @@ enum { CHAT_SELECTED_PRIMARY=1, CHAT_SELECTED_SPLIT=2, CHAT_EXPANDED=4, CHAT_NAT
 // 64 the tab strip and scrollbar measured as the game draws them, and hidden when the addon draws its own,
 // 128 the full log's rows of text decoded and measured as the game draws them, and hidden the same way
 // 256 the game's two log windows' routing read: which chat modes each shows, and the second window's bounds
-enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64, CHAT_TEXT_SUPPORTED=128, CHAT_WINDOWS_SUPPORTED=256 };
+enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64, CHAT_TEXT_SUPPORTED=128, CHAT_WINDOWS_SUPPORTED=256, CHAT_LINES_SUPPORTED=512 };
+// 512 the two log windows' lines read: each window's current whole lines (the game grows a row a message and shrinks
+// to its fewest), its most and its fewest
 // WindowFlags bits: 1, the second log window is shown, so the game routes each message by its filters;
 // clear, the first window shows everything (and WindowModes says so)
 enum { CHAT_SECOND_WINDOW=1 };
@@ -65,8 +72,10 @@ struct ChatShared {
     uint32_t WindowFrame, WindowFlags; // the game's routing, read each frame: CHAT_SECOND_WINDOW when the second window is shown
     uint32_t WindowModes[2][8]; // per window, a bit for each chat mode (its low byte) the window's filters keep; a mode word
                                 // with bit 15 set goes to the first window alone, whatever these say
+    uint32_t LinesFrame;        // the two log windows' lines, read each frame from the game's owners
+    uint32_t Lines[2][3];       // per window: its lines now (0, nothing shown), its most and its fewest
 };
-static_assert(sizeof(ChatShared)==70300, "chat ABI 11");
+static_assert(sizeof(ChatShared)==70328, "chat ABI 12");
 // ABI 8: primary capture=1 replaces compact contents; capture=2 skins the expanded frame ONLY.
 // Never replay a capture across the compact/full boundary: the native content must remain visible.
 static inline bool ChatReplayAllowed(const ChatShared& chat, bool expandedCapture) {
@@ -125,6 +134,7 @@ class ChatModule {
     uint8_t* sizeByte=nullptr;
     uintptr_t fullVtable=0;
     uint8_t* fullDraw=nullptr;
+    bool linesKnown=false; // the owners' line fields pinned by their Update and grow
     bool Full(void*& owner,void*& child) const {
         uintptr_t vtable=0;
         return fullOwner && ChatRead(fullOwner,&owner,4) && owner && ChatRead(owner,&vtable,4) && vtable==fullVtable
@@ -181,6 +191,7 @@ public:
             fullOwner=reinterpret_cast<void**>(pointers[2]);
         }
         if (ambiguous) fullOwner=nullptr;
+        linesKnown=UniquePattern(begin,size,CHAT_LINES_UPDATE_PATTERN) && UniquePattern(begin,size,CHAT_LINES_GROW_PATTERN);
         auto* draw=UniquePattern(begin,size,CHAT_FULL_DRAW_PATTERN);
         uintptr_t entry=0;
         if (draw && fullVtable && ChatRead(reinterpret_cast<void*>(fullVtable+0x10),&entry,4)
@@ -191,7 +202,26 @@ public:
     void** SplitOwner() const { return slots[1]; } // the second log window's owner global (logwin2)
     bool InputSupported() const { return activeMenu!=nullptr; }
     bool ExpandedSupported() const { return activeMenu && fullOwner && sizeByte && fullVtable; }
-    void Clear() { slots[0]=slots[1]=nullptr; activeMenu=nullptr; fullOwner=nullptr; sizeByte=nullptr; fullVtable=0; fullDraw=nullptr; }
+    bool LinesSupported() const { return linesKnown && slots[0] && slots[1]; }
+    void Clear() { slots[0]=slots[1]=nullptr; activeMenu=nullptr; fullOwner=nullptr; sizeByte=nullptr; fullVtable=0; fullDraw=nullptr; linesKnown=false; }
+    // Each log window's lines now, most and fewest, read from its owner and checked for sense (a row height of 4 to
+    // 128, most 0 to 64, fewest no more than most, the lines no more than most and one, the height within them);
+    // nothing published where any of it cannot be read or makes no sense.
+    void SampleLines(ChatShared& shared,uint32_t frame) const {
+        shared.LinesFrame=0;
+        if (!LinesSupported()) return;
+        uint32_t lines[2][3];
+        for (unsigned i=0;i<2;i++) {
+            uint8_t* owner=nullptr; int8_t now=0; int16_t most=0,fewest=0,row=0; int32_t height=0;
+            if (!ChatRead(slots[i],&owner,4) || !owner || !ChatRead(owner+0x31,&now,1) || !ChatRead(owner+0x4e,&most,2)
+                || !ChatRead(owner+0x50,&fewest,2) || !ChatRead(owner+0x54,&row,2) || !ChatRead(owner+0x34,&height,4)) return;
+            if (row<4 || row>128 || most<0 || most>64 || fewest<0 || fewest>most || now<0 || now>most+1
+                || height<0 || height>(most+2)*row) return;
+            lines[i][0]=uint32_t(now); lines[i][1]=uint32_t(most); lines[i][2]=uint32_t(fewest);
+        }
+        memcpy(shared.Lines,lines,sizeof(lines));
+        shared.LinesFrame=frame;
+    }
     void Sample(ChatShared& shared,uint32_t frame) const {
         shared.StateFlags=shared.StateFrame=0;
         shared.FullScroll=shared.FullCursor=shared.FullPageRows=shared.FullFilter=0;

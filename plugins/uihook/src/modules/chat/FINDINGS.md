@@ -178,13 +178,26 @@ only when the words or the flag change. Nothing is called and nothing written; t
 not hooked. The compact logs' rows are pre-wrapped lines in each ring, so the addon keeps its own
 history and routes it with the published bits rather than reading the rings.
 
-## ABI 11 safety boundary
+## Each window's lines (0.5)
 
-- 70300-byte shared layout, **version 11** required on both sides.
+The compact log owner's Update (03322800 on) holds the window's height in pixels at +34, which its grow
+03322560 (called from the ring insert for each row of a message) raises by the row height +54 up to the
+most lines +4E (config), and which the Update lowers by the frame's time while nothing holds it, down to
+the fewest lines +50 (config); +31 is then the ceiling of the height over the row height, the lines
+shown, +30 one more, the page rows the drawer gets, and the window's rectangle (032D8F70 at the Update's
+end) is set from +31, its top (lines − 8) × 16 from a baseline. The base constructor 03321ED0 (both
+owners', 03321850 the first's and 03321B80 the second's) sets +54 to 14, +4E to 8, +50 to 0 and +31 to
+4. SampleLines reads +31, +4E and +50 from each owner (the slots of the primary/split signature), with
++34 and +54 for sense, every frame; nothing is written.
+
+## ABI 12 safety boundary
+
+- 70328-byte shared layout, **version 12** required on both sides.
 - SupportedMask bit 3: native full-log state/geometry. Bit 4: verified content hook. Bit 5: control art.
   Bit 6: the tab strip and scrollbar measured and hideable (the same all-or-none group of sites).
   Bit 7: the rows of text decoded, measured and hideable (the row site, verified on its own, taken only with bit 6).
   Bit 8: the two log windows' routing read and the second window's bounds published (recognition only, no site taken).
+  Bit 9: each window's lines read from its owner (recognition only).
 - ControlStyleFrame and four RGBA colours are published by Lua. The plugin checks finite [0,1]
   values and a current-frame stamp, then snapshots them only with a successful expanded capture.
   ReplaceControls (1 tabs, 2 scrollbar, 4 text) is snapshotted with it, and only with the hooks each needs.

@@ -116,6 +116,6 @@ int main() {
     memset(image+640,0,32);
     Check(DiscoverChatWindows(image,sizeof(image),splitOwner,routes),"whole again");
     Check(!DiscoverChatWindows(image,sizeof(image),nullptr,routes) && !routes.Ready(),"no split owner known: nothing");
-    Check(sizeof(ChatShared)==70300,"chat ABI 11: the second window's bounds and the two windows' routing");
+    Check(sizeof(ChatShared)==70328,"chat ABI 12: the second window's bounds, the two windows' routing and lines");
     return failures?1:0;
 }

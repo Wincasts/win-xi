@@ -12,10 +12,14 @@
   its own with the wheel and its scrollbar; the focus light and cursor go to the window the game's
   focus is on. With one window, as before: the game's second log is hidden under the first.
   `/chatbox status` says what the second window is doing.
-- A log window the game has at 0 lines shows nothing: no box in its place (and nothing of the
-  game's either), the other window still drawn, the input bar still working; the game's window
-  sizes are followed down to that, with Match Game Log Size on.
-- Needs winxi 17 and uihook 0.5 with chat ABI 11.
+- Each box has as many rows as the game's window shows at the moment, with Match Game Log Size on:
+  the game grows its window a row for each message and shrinks it to its fewest lines while none
+  come, and the box follows, no shorter than the game's window and tall enough for its rows at Font
+  Size, so a message to a window at 0 lines brings its box back one row tall, and more grow it. A
+  window the game has at 0 lines shows nothing: no box in its place (and nothing of the game's
+  either), the other window still drawn, the input bar still working. With a uihook that does not
+  say the lines, as many rows as fit the game's window, as before.
+- Needs winxi 18 and uihook 0.5 with chat ABI 12.
 
 ## 0.9.0
 
