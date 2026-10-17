@@ -23,5 +23,8 @@ __pycache__/
 /addons/mark/assets/maps/
 /addons/zone/assets/maps/
 
+# Combat diagnostics contain character names and raw packets
+/addons/parse/captures/
+
 # Retired diagnostic and experimental addons, kept locally for reference and never pushed
 /archive/
