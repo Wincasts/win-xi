@@ -27,8 +27,11 @@ validation remains required.
 - Full-log Open (032F76A0) initializes cursor +1C, scroll +20, filter +54 and page rows +58.
   Unique Open/Update field-access patterns are checked against that class's vtable +28
   Update entry (032F7840). All live reads are guarded and bounded.
-- Another active menu/input or invalid layout requests full native fallback. Nonzero scroll
-  and cursor-only movement do not: the frame skin may remain on every native page/tab.
+- Invalid layout, or another menu active before the full log is made, requests full native
+  fallback. A menu open over the live full log (a row's actions, opened by Confirm, or the input
+  line) does not (0.9): the log is still drawn under it and keeps its skin, with StateFlags bit 4
+  noting the menu, which is the game's own. Nonzero scroll and cursor-only movement do not either:
+  the frame skin may remain on every native page/tab.
 
 ## Native content pass-through, not independent selection
 
@@ -164,7 +167,7 @@ the game's. The compact logs' rows pass through the same site untouched.
   windows. Empty expanded submissions cannot hide native content. Secondary/input captures
   are not replayed during expansion.
 - Missing content hooks leave expanded native drawing intact; compact replacement is independent.
-- Nested menus/input, stale submissions, capture failure and release restore full native drawing.
+- Stale submissions, capture failure and release restore full native drawing; a menu over the live full log leaves its skin.
 
 ## Validation
 

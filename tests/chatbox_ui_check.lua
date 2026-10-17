@@ -25,7 +25,7 @@ local nativeRect, lastWindowStyle
 local rendered = {}
 local nativeLogRect = {20,700,660,1018}
 local expandedRect={0,100,1920,1020}
-local chatState={selected=false,expanded=false,expandedSupported=true,nativeBrowse=false,nativeContent=true,nativeControls=true,nativeReplace=true,nativeText=true}
+local chatState={selected=false,expanded=false,expandedSupported=true,nativeBrowse=false,nested=false,nativeContent=true,nativeControls=true,nativeReplace=true,nativeText=true}
 local tabsGeometry, scrollGeometry, rowsGeometry -- where the game drew its tabs, scrollbar and rows of text, as uihook measured them
 package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=function(index)
     local hook = {begins=0,stops=0,captures=0}
@@ -239,6 +239,11 @@ local joined=table.concat(said,'\n')
 assert(joined:find('Last box %(expanded') and joined:find('Last handed to the game'),'/chatbox status says what the expanded box drew and why the game\'s was shown')
 app.Say=function() end
 chatState.nativeBrowse=false; frame(); assert(hooks[0].captures==count+1,'return to native newest/all restores expanded theme')
+chatState.nested=true; count=hooks[0].captures; frame()
+assert(hooks[0].captures==count+1 and hooks[0].expanded,'a row\'s action menu open over the log: the skin stays under it')
+said={}; app.Say=function(_,line) said[#said+1]=line end; spec.commands.status(); app.Say=function() end
+assert(table.concat(said,'\n'):find('A menu of the game\'s is open over it',1,true),'/chatbox status says a menu is open')
+chatState.nested=false
 message('to you',{mode=12}); message('from you',{mode=4}); message('a yell',{mode=11})
 frame()
 assert(#text==0,'incoming messages do not create a second expanded history')

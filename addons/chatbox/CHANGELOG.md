@@ -13,6 +13,8 @@
   fresh set of rows from uihook, the game's own font is drawn as before. Each row is decoded once
   and kept by its bytes.
 - The game's other pictographs (EF 29 to EF 4D) show nothing, in place of a stray character.
+- Confirm on a player's line opens the game's action menu over the expanded log, which keeps its
+  WinXI look under it instead of showing the game's own; `/chatbox status` says a menu is open.
 - Needs winxi 16 and uihook 0.4 with chat ABI 10.
 
 ## 0.8.0

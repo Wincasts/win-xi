@@ -120,7 +120,7 @@ int main() {
     *reinterpret_cast<void**>(fullOwner+8)=nullptr; *active=menu; chat.Sample(state,12);
     Check(state.StateFlags==CHAT_EXPANDED,"opening: full log not made yet");
     *active=input; chat.Sample(state,12);
-    Check(state.StateFlags==(CHAT_EXPANDED|CHAT_NATIVE_BROWSE),"another menu while expanded stays native");
+    Check(state.StateFlags==(CHAT_EXPANDED|CHAT_NATIVE_BROWSE),"another menu before the full log is made stays native");
     *reinterpret_cast<void**>(fullOwner+8)=fullWindow;
     *active=fullWindow; chat.Sample(state,12);
     Check(chat.Identify(fullWindow)==3 && state.StateFlags==CHAT_EXPANDED && state.FullPageRows==20,"native expanded newest/all view recognised");
@@ -129,7 +129,10 @@ int main() {
     *reinterpret_cast<int32_t*>(fullOwner+0x1c)=1; chat.Sample(state,12);
     Check(state.StateFlags==CHAT_EXPANDED && state.FullCursor==1,"hovering the oldest visible row keeps native content");
     *active=input; chat.Sample(state,12);
-    Check(state.StateFlags & CHAT_NATIVE_BROWSE,"a menu opened from a hovered row still hands off");
+    Check(state.StateFlags==(CHAT_EXPANDED|CHAT_NESTED_MENU) && state.FullCursor==1,"a menu opened from a hovered row: the log keeps its skin under it, the menu noted");
+    state.SupportedMask=CHAT_FULL_SKIN_SUPPORTED;
+    Check(ChatReplayAllowed(state,true),"the skin is replayed under a row's action menu");
+    state.SupportedMask=0;
     *active=fullWindow;
     *reinterpret_cast<int32_t*>(fullOwner+0x1c)=20;
     *reinterpret_cast<int32_t*>(fullOwner+0x20)=1; chat.Sample(state,12);
@@ -144,7 +147,7 @@ int main() {
     Check(state.StateFlags & CHAT_NATIVE_BROWSE,"an unknown filter value is invalid layout data");
     *reinterpret_cast<int32_t*>(fullOwner+0x54)=0;
     *active=input; chat.Sample(state,12);
-    Check(state.StateFlags & CHAT_NATIVE_BROWSE,"nested menus/input keep native expanded context");
+    Check(state.StateFlags==(CHAT_EXPANDED|CHAT_NESTED_MENU),"input open over the live full log keeps its skin");
     *reinterpret_cast<uint32_t*>(fullOwner)=0;
     Check(chat.Identify(fullWindow)==-1,"wrong full-log vtable never claimed"); memcpy(fullOwner,&vtable,4);
     memcpy(image+840,registry,132);
