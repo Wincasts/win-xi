@@ -168,12 +168,16 @@ rows, selection and cursor where its mouse hit-tests are. Browsing, tabs, wheel,
 message-action menus) and Cancel are all native; no tell is made up, and every tab uses the game's
 own filter. The **tabs and scrollbar** are the addon's: uihook measures the game's tab strip and
 scrollbar as the game draws them and, with Replace Tabs and Replace Scrollbar on, leaves them
-undrawn, and the addon draws its own in exactly those places the frame after. Each tab is a
-square-cornered box in WinXI's **Highlight Color**, as winxi's windows are, the chosen one solid and
-the rest faint, the theme's **Tab Style** over it and the channel's name (Window, Say, Tell, Party,
-Linkshell, Linkshell 2, Assist (E), Assist (J), Unity, Shout) in the chat's **Font** and **Font
-Size**, in the log's **Title** colour with winxi's dark edge, cut to what fits; no line under the
-row, the frame's border being there. The scrollbar is a faint track and a white thumb, as wide as the
+undrawn, and the addon draws its own in exactly those places the frame after. The game's tabs
+overlap at their edges and are stacked; the addon draws them in the game's order, each over the ones
+before it, and the chosen one last, on top of all. Each is a square-cornered box, as winxi's windows
+are: the log's **Background** colour, then WinXI's **Highlight Color** over it, solid for the chosen
+tab and faint for the rest, the theme's **Tab Style** over both, and an edge in the **Border / Art
+Tint**, so the joins show where one lies over another. The channel's name (Window, Say, Tell, Party,
+Linkshell, Linkshell 2, Assist (E), Assist (J), Unity, Shout), in the chat's **Font** and **Font
+Size** and the log's **Title** colour with winxi's dark edge, is centred in the part of the tab left
+uncovered and cut to what fits there. No line under the row, the frame's border being there. The
+scrollbar is a faint track and a white thumb, as wide as the
 game's bar, the thumb where the game's page is among its rows. A tab whose sprite the game does not
 own is named for its place. Nothing is moved, so Square, the mouse and the wheel still work on the
 game's own controls. With either off, or without a fresh place from uihook (the first frame, or a

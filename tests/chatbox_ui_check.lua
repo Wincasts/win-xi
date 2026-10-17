@@ -246,27 +246,36 @@ for filter=0,15 do
 end
 chatState.filter=0; chatState.scroll=0
 -- The game's tabs and scrollbar replaced: WinXI tabs named for their channels where the game drew its own,
--- square boxes, the chosen one solid, the tab style over each and no line under the row; a thumb in the
--- game's bar; and the game asked to leave both undrawn, only while there is a fresh place to draw them in
-tabsGeometry={{left=10,top=100,right=60,bottom=116,channel=0,selected=false},
-    {left=60,top=100,right=110,bottom=116,channel=3,selected=true},{left=110,top=100,right=160,bottom=116,channel=nil,selected=false}}
+-- square boxes stacked as the game stacks them (each over the ones drawn before it) with the chosen one on
+-- top, each the window's background then the highlight (solid for the chosen one), the tab style over it,
+-- an edge, and its name centred in what is left uncovered; a thumb in the game's bar; and the game asked
+-- to leave both undrawn, only while there is a fresh place to draw them in
+look.BackgroundColor, look.BorderColor = {0.1,0.1,0.2,0.8}, {0.5,0.5,0.5,1}
+tabsGeometry={{left=10,top=100,right=64,bottom=116,channel=0,selected=false},
+    {left=60,top=100,right=114,bottom=116,channel=3,selected=true},{left=110,top=100,right=160,bottom=116,channel=nil,selected=false}}
 scrollGeometry={left=2,top=120,right=6,bottom=1020,page=20,count=100,above=80}
 frame()
 assert(hooks[0].replace.tabs and hooks[0].replace.scrollbar,'the game asked to leave its tabs and scrollbar undrawn')
-assert(#labels==3 and labels[1].text=='Window' and labels[2].text=='Say' and labels[3].text=='Tab 3','the channels\' names left to right, an unknown tab named by its place')
-assert(labels[2].x==60+(50-3*7)/2 and labels[2].y>100 and labels[2].y<108 and labels[2].color==look.TextColor,'centred in the game\'s tab, in the title colour')
-assert(#filled==5 and filled[1].a[1]==10 and filled[1].b[2]==116 and filled[2].color[4]>filled[1].color[4] and filled[3].color[4]==filled[1].color[4],
-    'each tab filled where the game drew it, the chosen one solid and the rest faint')
-assert(#overs==3 and overs[2][1]==60 and overs[2][3]==110 and overs[2][5]==0 and #lines==0,
+assert(#labels==3 and labels[1].text=='Window' and labels[2].text=='Tab 3' and labels[3].text=='Say','drawn in the game\'s order with the chosen tab last, each named for its channel, an unknown one by its place')
+assert(labels[3].x==60+(54-3*7)/2 and labels[3].y>100 and labels[3].y<108 and labels[3].color==look.TextColor,'the chosen tab on top, its name centred in the whole of it, in the title colour')
+assert(labels[1].x==10+(50-6*7)/2 and labels[2].x==114+(46-5*7)/2,'the others\' names centred in what the tab over them leaves uncovered')
+assert(#filled==8 and filled[1].color==look.BackgroundColor and filled[1].a[1]==10 and filled[1].b[1]==64 and filled[2].color[4]==filled[4].color[4] and filled[6].color[4]>filled[2].color[4],
+    'each tab the background then the highlight where the game drew it, the chosen one solid and the rest faint')
+assert(#outlines==3 and outlines[3].a[1]==60 and outlines[3].b[1]==114 and outlines[3].color==look.BorderColor,'an edge round each in the border colour, the chosen one\'s last')
+assert(#overs==3 and overs[3][1]==60 and overs[3][3]==114 and overs[3][5]==0 and #lines==0,
     'the tab style over each, square-cornered, and no line under the row')
-assert(filled[4].a[1]==2 and filled[4].a[2]==120 and filled[4].b[1]==6 and filled[4].b[2]==1020 and filled[5].a[2]==840 and filled[5].b[2]==1020 and filled[5].b[1]==6,
+assert(filled[7].a[1]==2 and filled[7].a[2]==120 and filled[7].b[1]==6 and filled[7].b[2]==1020 and filled[8].a[2]==840 and filled[8].b[2]==1020 and filled[8].b[1]==6,
     'the track where the game\'s bar is and, at the newest, the thumb at its foot, as wide as the bar')
 assert(#text==0 and #images==0,'still no addon rows or cursor over the native content')
 scrollGeometry.above=0; frame()
-assert(filled[5].a[2]==120 and filled[5].b[2]==300,'scrolled to the oldest, the thumb at the top')
+assert(filled[8].a[2]==120 and filled[8].b[2]==300,'scrolled to the oldest, the thumb at the top')
 tabsGeometry[2].channel=10; frame()
-assert(labels[2].text=='Assist' or labels[2].text=='Assist (E)','a long name cut to what fits the tab')
+assert(labels[3].text=='Assist' or labels[3].text=='Assist (E)','a long name cut to what fits the tab')
 tabsGeometry[2].channel=3
+tabsGeometry[1].selected, tabsGeometry[2].selected = true, false; frame()
+assert(labels[3].text=='Window' and labels[3].x==10+(54-6*7)/2 and labels[1].text=='Say' and labels[1].x==64+(46-3*7)/2,
+    'another tab chosen: it is drawn last, whole, and the one that lay over it now gives way to it')
+tabsGeometry[1].selected, tabsGeometry[2].selected = false, true
 app.options.replaceTabs[1]=false; frame()
 assert(not hooks[0].replace.tabs and hooks[0].replace.scrollbar and #labels==0 and #filled==2,'Replace Tabs off: the game\'s tabs stay, the scrollbar still the addon\'s')
 app.options.replaceScrollbar[1]=false; frame()

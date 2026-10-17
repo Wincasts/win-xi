@@ -163,8 +163,9 @@ function M.new(index)
         return Scaled(expanded and found.ExpandedRect or index == M.Primary and found.PrimaryRect or found.InputRect, width, height)
     end
     -- The game's tab strip as it last drew it in the skinned full log: each tab's bounds in display pixels,
-    -- left to right, its channel (the filter's number, 0 to 10; nil where the sprite was none of the known
-    -- tabs) and whether it was drawn chosen. nil when there is none, or none fresh.
+    -- in the order the game drew them (they overlap at their edges, each drawn over the ones before it),
+    -- its channel (the filter's number, 0 to 10; nil where the sprite was none of the known tabs) and
+    -- whether it was drawn chosen. nil when there is none, or none fresh.
     function hook.Tabs(width, height)
         local found = Find()
         if not found or index ~= M.Primary or bit.band(found.SupportedMask,64) == 0 then return nil end
@@ -180,7 +181,6 @@ function M.new(index)
             end
         end
         if #list == 0 then return nil end
-        table.sort(list, function(a, b) return a.left < b.left end)
         return list
     end
     -- The game's scrollbar as it last drew it there: its bounds in display pixels, and its rows, page

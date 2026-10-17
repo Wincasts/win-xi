@@ -67,8 +67,8 @@ block.Tabs[0].Rect[0],block.Tabs[0].Rect[1],block.Tabs[0].Rect[2],block.Tabs[0].
 block.Tabs[1].Rect[0],block.Tabs[1].Rect[1],block.Tabs[1].Rect[2],block.Tabs[1].Rect[3]=0.0,0.05,0.1,0.08; block.Tabs[1].Channel=0
 block.Tabs[2].Rect[0],block.Tabs[2].Rect[1],block.Tabs[2].Rect[2],block.Tabs[2].Rect[3]=0.15,0.05,0.2,0.08; block.Tabs[2].Channel=4294967295
 local tabs=primary.Tabs(1920,1080)
-assert(#tabs==3 and tabs[1].channel==0 and tabs[2].channel==3 and tabs[3].channel==nil,'left to right, the channel of each, none for an unknown sprite')
-assert(tabs[2].left==192 and tabs[2].top==54 and tabs[2].right==288 and tabs[2].bottom==86.4 and tabs[2].selected and not tabs[1].selected,'display pixels; the chosen one')
+assert(#tabs==3 and tabs[1].channel==3 and tabs[2].channel==0 and tabs[3].channel==nil,'in the game\'s draw order, the channel of each, none for an unknown sprite')
+assert(tabs[1].left==192 and tabs[1].top==54 and tabs[1].right==288 and tabs[1].bottom==86.4 and tabs[1].selected and not tabs[2].selected,'display pixels; the chosen one')
 assert(split.Tabs(1920,1080)==nil and input.Tabs(1920,1080)==nil,'the primary slot\'s alone')
 block.Tabs[1].Rect[2]=0.0; assert(#primary.Tabs(1920,1080)==2,'a tab that is no rectangle is left out')
 block.TabCount=0; assert(primary.Tabs(1920,1080)==nil,'no tabs, nothing'); block.TabCount=3
