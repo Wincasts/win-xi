@@ -17,6 +17,14 @@ imgui.End = function(...)
     stack[#stack] = nil
     return result
 end
+local shadow = require('winxi.shadow')
+local drawShadow, shadowed = shadow.Draw, {}
+shadow.Draw = function(native)
+    local name = stack[#stack]
+    assert(name, 'shadow drawn inside its window')
+    shadowed[name] = native and 'captured' or 'ordinary'
+    return drawShadow(native)
+end
 local active, partyActive, targetActive = false, false, false
 package.loaded.hook = {
     Begin=function(party, target)
@@ -30,6 +38,7 @@ package.loaded.hook = {
     Disable=function(target) if target then targetActive=false else partyActive=false end end,
     Capture=function(window)
         assert(active and stack[#stack]==window.name, 'capture must be inside its own real window, not anchor measurement')
+        assert(shadowed[window.name]=='captured', 'native shadow must be on the captured list before submission')
         captured[window.name]=(captured[window.name] or 0)+1
         return true
     end,
@@ -54,10 +63,12 @@ H.frames(1)
 for i=1,3 do assert(captured['xiframes.us.'..i]==1,'each real party/alliance list captured exactly once') end
 windows.Draw(windows.List.main, function() end)
 assert(captured['xiframes.tgt.main']==nil and #stack==0,'target untouched, ImGui stack balanced')
+assert(shadowed['xiframes.tgt.main']=='ordinary', 'unhooked target retains the background-list shadow')
 local before=stopped
 organize.IsActive=function() return true end
 H.frames(1)
 assert(stopped>before and windows.Capture==nil,'organize uses ordinary interactive windows')
+assert(shadowed['xiframes.us.1']=='ordinary', 'organize restores ordinary shadows')
 organize.IsActive=function() return false end
 before=stopped
 local previousEmpty, previousCaptures=emptyFrames, captured['xiframes.us.1']

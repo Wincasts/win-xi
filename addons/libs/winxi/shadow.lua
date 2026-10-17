@@ -12,10 +12,30 @@ local shadow = {};
 local maxLayers = 6; -- however soft the edge: a wider one spaces the layers further apart
 local color = { 0, 0, 0, 0 };
 local topLeft, bottomRight = { 0, 0 }, { 0, 0 };
+local clipMin, clipMax = { 0, 0 }, { 0, 0 };
 
-function shadow.Draw()
+local function Layers(drawList, x, y, w, h, offset, layers, step, packed)
+    for layer = 0, layers - 1 do
+        local grow = layer * step;
+        topLeft[1], topLeft[2] = x + offset - grow, y + offset - grow;
+        bottomRight[1], bottomRight[2] = x + w + offset + grow, y + h + offset + grow;
+        drawList:AddRectFilled(topLeft, bottomRight, packed, grow + 2);
+    end
+end
+
+local function Exterior(drawList, left, top, right, bottom, x, y, w, h, offset, layers, step, packed)
+    if right <= left or bottom <= top then return; end
+    clipMin[1], clipMin[2], clipMax[1], clipMax[2] = left, top, right, bottom;
+    -- Replace the content clip: the shadow is deliberately outside the window.
+    drawList:PushClipRect(clipMin, clipMax, false);
+    Layers(drawList, x, y, w, h, offset, layers, step, packed);
+    drawList:PopClipRect();
+end
+
+-- captured=true keeps the exterior shadow on this window's list for native HUD replay.
+function shadow.Draw(captured)
     local current = theme.Get();
-    if not current.ShadowEnabled or imgui.GetBackgroundDrawList == nil then
+    if not current.ShadowEnabled or (not captured and imgui.GetBackgroundDrawList == nil) then
         return;
     end
 
@@ -32,15 +52,23 @@ function shadow.Draw()
     local step = blur / layers;
 
     -- the colour is worked out each time, as it takes in the window's fade; the tables are reused
-    local drawList = imgui.GetBackgroundDrawList();
+    local drawList = captured and imgui.GetWindowDrawList() or imgui.GetBackgroundDrawList();
     color[4] = opacity / layers;
     local packed = imgui.GetColorU32(color);
 
-    for layer = 0, layers - 1 do
-        local grow = layer * step;
-        topLeft[1], topLeft[2] = x + offset - grow, y + offset - grow;
-        bottomRight[1], bottomRight[2] = x + w + offset + grow, y + h + offset + grow;
-        drawList:AddRectFilled(topLeft, bottomRight, packed, grow + 2);
+    if captured then
+        -- Begin has already emitted the window background/border. Four non-overlapping strips
+        -- leave that geometry untouched, including translucent backgrounds, while capturing the
+        -- same soft exterior silhouette. No shadow escapes onto ImGui's global background list.
+        local grow = (layers - 1) * step;
+        local left, top = math.min(x, x + offset - grow), math.min(y, y + offset - grow);
+        local right, bottom = math.max(x + w, x + w + offset + grow), math.max(y + h, y + h + offset + grow);
+        Exterior(drawList, left, top, right, y, x, y, w, h, offset, layers, step, packed);
+        Exterior(drawList, left, y + h, right, bottom, x, y, w, h, offset, layers, step, packed);
+        Exterior(drawList, left, y, x, y + h, x, y, w, h, offset, layers, step, packed);
+        Exterior(drawList, x + w, y, right, y + h, x, y, w, h, offset, layers, step, packed);
+    else
+        Layers(drawList, x, y, w, h, offset, layers, step, packed);
     end
 end
 

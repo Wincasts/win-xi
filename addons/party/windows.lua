@@ -262,10 +262,8 @@ function windows.Draw(window, content, wanted, growFrom)
             end
         end
 
-        -- winxi's window shadow uses the shared BACKGROUND draw list, not this window's list.
-        -- Do not leave an uncaptured shadow over the game while the window itself is native-rendered.
-        -- Bar shadows are window geometry and are still captured normally.
-        if not nativeWindow then shadow.Draw() end
+        -- Native replay captures only this window's list, including its exterior shadow.
+        shadow.Draw(nativeWindow)
         backgrounds.Draw(background, look.BackgroundColor)
 
         imgui.PushStyleColor(ImGuiCol_Text, look.TextColor)
