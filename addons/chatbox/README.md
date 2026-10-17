@@ -1,11 +1,11 @@
-# Chatbox — experimental 0.7
+# Chatbox — experimental 0.8
 
 A **WinXI-styled chat log the game still drives**. The compact log takes the native primary log's
 place and **size** (it follows the game's chat size setting), in WinXI's background and border art,
 with **12px text** and **3px padding** to begin with. New messages appear at the bottom; long ones
 wrap and count as rows. A WinXI title on the top edge names the channel. Typing goes into a WinXI
 input bar over the game's own editor, and confirming on the log opens the game's own expanded log
-in a WinXI frame.
+in a WinXI frame, its channel tabs and scrollbar drawn in WinXI's look where the game's are.
 
 - The title follows `/cm` (`/chatmode`) at once, with a passing override for a line typed with
   `/p`, `/l`, `/t` and the like. Until a mode command is seen it is the last channel spoken in (Say
@@ -27,9 +27,9 @@ in a WinXI frame.
 
 ```text
 addons/chatbox/          this directory
-addons/libs/winxi/       WinXI 14 or newer
+addons/libs/winxi/       WinXI 15 or newer
 addons/winxisettings/    shared theme settings (optional)
-plugins/uihook.dll       a build with chat ABI 8 (native content and tinted control artwork)
+plugins/uihook.dll       0.3 or newer, chat ABI 9 (native content, the tab strip and scrollbar measured)
 ```
 
 Build uihook with `plugins/uihook/build.sh`; the output is `plugins/uihook/build/uihook.dll`. Turn
@@ -65,7 +65,7 @@ formatter or filter.
 
 ## Settings
 
-`/chatbox` opens the settings: five sections, each folding away, and a Winxi Theme tab. Settings
+`/chatbox` opens the settings: six sections, each folding away, and a Winxi Theme tab. Settings
 are kept for each character.
 
 **Chatbox**
@@ -105,6 +105,15 @@ are kept for each character.
   above and below. The input bar is Font Size plus both vertical paddings tall, its text and caret
   always centred in the whole bar, and has a plain `> ` prompt. Settings still at the first default
   of 4 on every side become 3 once; paddings set by hand are kept.
+
+**Expanded**
+
+- **Replace Tabs** (on to begin with): the expanded log's channel tabs drawn in WinXI's tab style and
+  the chat's font, each where the game draws its own, so Square and the mouse still choose among
+  them. Off, the game's own tabs are drawn, tinted.
+- **Replace Scrollbar** (on to begin with): the expanded log's scrollbar drawn as the compact log's,
+  a faint track and a thumb, where the game's is; scrolling is still the game's. Off, the game's own
+  is drawn, tinted.
 
 **Window Colors**
 
@@ -155,15 +164,26 @@ testing.
 over the box and the game's hand cursor at its newest line show the selection. The addon binds no
 button and writes no expanded flag. Expanded mode is a **WinXI frame around the game's own
 browser**, at its full-log rectangle: uihook replaces the decoration and lets the game draw its
-rows, channel tabs, selection, cursor and scrollbar where its mouse hit-tests are. Browsing, tabs,
-wheel, Confirm (with its message-action menus) and Cancel are all native; no tell is made up, and
-every tab uses the game's own filter. The selected tab and row highlight take WinXI's **Highlight
-Color**, other tabs the log's **Title** colour, the cursor and scrollbar its **Border / Art Tint**,
-captured with the frame; native fade and pulse are kept. This is **tinted native artwork**, not
-WinXI tab textures, and nothing is moved. Expanded rows keep the game's bitmap font, spacing and
-colours; Font, Font Size, padding, Width and Default Text apply to the compact log and input only,
-and there is no WinXI title over the tabs. Missing control signatures leave the art untinted;
-missing content signatures, geometry or a failed capture leave the game's whole view showing.
+rows, selection and cursor where its mouse hit-tests are. Browsing, tabs, wheel, Confirm (with its
+message-action menus) and Cancel are all native; no tell is made up, and every tab uses the game's
+own filter. The **tabs and scrollbar** are the addon's: uihook measures the game's tab strip and
+scrollbar as the game draws them and, with Replace Tabs and Replace Scrollbar on, leaves them
+undrawn, and the addon draws its own in exactly those places the frame after. Each tab is a block
+with a rounded top in WinXI's **Highlight Color**, the chosen one solid and the rest faint, the
+theme's **Tab Style** over it and the channel's name (Window, Say, Tell, Party, Linkshell, Linkshell
+2, Assist (E), Assist (J), Unity, Shout) in the chat's **Font** and **Font Size**, in the log's
+**Title** colour with winxi's dark edge, cut to what fits; under the row, the tab style's line,
+brighter under the chosen tab. The scrollbar is a faint track and a white thumb, as wide as the
+game's bar, the thumb where the game's page is among its rows. A tab whose sprite the game does not
+own is named for its place. Nothing is moved, so Square, the mouse and the wheel still work on the
+game's own controls. With either off, or without a fresh place from uihook (the first frame, or a
+build without the hooks), the game's own are drawn: the selected tab and row highlight in the
+Highlight Color, other tabs the Title colour, the cursor and scrollbar the **Border / Art Tint**,
+native fade and pulse kept. The row highlight and cursor are always the game's, tinted so.
+Expanded rows keep the game's bitmap font, spacing and colours; padding, Width and Default Text
+apply to the compact log and input only, and there is no WinXI title over the tabs. Missing control
+signatures leave the art untinted and the game's tabs and scrollbar drawn; missing content
+signatures, geometry or a failed capture leave the game's whole view showing.
 Compact and expanded captures are never replayed at each other's boundary. Nested menus and input
 hand the view back to the game, and expanding releases compact scrollbar drags and resets the
 wheel. Other addons' Under Expanded Chat hiding works as before.

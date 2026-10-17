@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3
+
+- Chat ABI 9 (564 bytes): the game's expanded-log tab strip and scrollbar measured as it draws them
+  and, where the addon asks (ReplaceControls bits 1 tabs, 2 scrollbar, copied with a successful
+  expanded capture), left undrawn, the addon drawing its own in their places. Each tab's screen
+  bounds, normalized to the viewport, its channel (from the owner's tab sprites) and whether it was
+  drawn chosen are published (TabFrame, TabCount, Tabs[12]); the scrollbar's bounds and its page
+  rows, row count and rows above the view (ScrollFrame, ScrollRect, ScrollPage/Count/Top), read
+  from the fields FullLog::Update writes, never written. SupportedMask bit 6.
+- A fifth verified CALL site, the full log's call to its tab strip (thiscall, the filter on the stack,
+  ret 4; the content Draw's own fixed bytes keep ecx the owner), in the same all-or-none group as the
+  four control sites; the strip's GPU submissions, art and labels alike, are blocked while the addon
+  draws its own, with the game's hit-tests and Square selection untouched. Measurement reads
+  screen-space vertices only, as the clock's.
+- `/uihook chat` says what is replaced, how many tabs were measured and the scrollbar's rows.
+- chat.h's helpers are inline, so the controls test builds without unused-function warnings.
+
 ## 0.2
 
 - Chat ABI 8 (232 bytes): capture validated theme colours with the expanded frame. Tint native

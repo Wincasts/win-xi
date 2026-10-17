@@ -50,8 +50,10 @@ for name in ('CHAT_SELECTION_ART_PATTERN', 'CHAT_CURSOR_ART_PATTERN', 'CHAT_SCRO
 assert callee(sites['CHAT_TAB_ART_PATTERN']) == simple
 assert callee(sites['CHAT_SELECTION_ART_PATTERN']) == callee(sites['CHAT_CURSOR_ART_PATTERN']) == sprite
 assert callee(sites['CHAT_SCROLL_ART_PATTERN']) == scroll
-# Native callee stack cleanup: five-word simple sprite and eight-word scaled sprite.
-for entry, cleanup in ((simple, 0x14), (sprite, 0x20)):
-    assert data.find(b'\xC2' + struct.pack('<H', cleanup), entry, entry + 0x400) >= 0
-print('Native full-log vtable/content and tab/selection/cursor/scrollbar CALL graph cross-check passed.')
+# Native callee stack cleanup: five-word simple sprite, eight-word scaled sprite, and the tab strip's one
+# word (the filter; its this is ecx, still the owner at the call, as the content Draw pattern fixes the bytes
+# between mov esi,ecx and the call).
+for entry, cleanup in ((simple, 0x14), (sprite, 0x20), (tabs, 0x04)):
+    assert data.find(b'\xC2' + struct.pack('<H', cleanup), entry, entry + 0x400) >= 0, hex(entry)
+print('Native full-log vtable/content, tab strip and tab/selection/cursor/scrollbar CALL graph cross-check passed.')
 print('Static verification only: live artwork, pulse/fades, hit-tests, menu actions and GPU resets still need validation.')

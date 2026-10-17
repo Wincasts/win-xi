@@ -1,8 +1,8 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.7.0'
-addon.desc = 'WinXI native-backed chat, titled with your channel, with selection and expanded view.'
-local winxiNeeded = 14
+addon.version = '0.8.0'
+addon.desc = 'WinXI native-backed chat, titled with your channel, with selection and an expanded view in WinXI tabs.'
+local winxiNeeded = 15
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -29,6 +29,7 @@ local encoding = require('encoding')
 local channels = require('channels')
 local appearance = require('appearance')
 local scrollbar = require('scrollbar')
+local strip = require('strip')
 local palette = require('palette')
 local inputModel = require('input')
 local input = inputModel.New()
@@ -113,6 +114,7 @@ local function ClearHistory() model.Clear(history); decodeSample = nil; wheelOff
 
 app = shell.New({
     defaults = T{ enabled = T{ true }, width = T{ 640 }, matchGameLogSize = T{ true }, matchGameInputSize = T{ false }, fontSize = T{ 12 },
+        replaceTabs = T{ true }, replaceScrollbar = T{ true },
         appearance = appearance.Defaults(T, theme.Get()), fontFile = '',
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 } },
     command = '/chatbox',
@@ -173,6 +175,14 @@ app = shell.New({
                 if imgui.IsItemDeactivatedAfterEdit() then app.save() end
                 Tip(side.tip)
             end
+        end
+        if widgets.Header('Expanded') then
+            widgets.Label('Replace Tabs')
+            if imgui.Checkbox('##chatbox.replaceTabs', options.replaceTabs) then app.save() end
+            Tip('Draws the expanded log\'s channel tabs in WinXI\'s tab style and the chat\'s font, each where the game\'s is, so Square and the mouse still choose among them.\nOff, the game\'s own tabs are drawn, tinted.')
+            widgets.Label('Replace Scrollbar')
+            if imgui.Checkbox('##chatbox.replaceScrollbar', options.replaceScrollbar) then app.save() end
+            Tip('Draws the expanded log\'s scrollbar as the compact log\'s, where the game\'s is; scrolling is still the game\'s.\nOff, the game\'s own is drawn, tinted.')
         end
         if widgets.Header('Window Colors') then appearance.Draw(options.appearance, app.save) end
     end,
@@ -363,11 +373,37 @@ local function DrawLog(box, rowCount, fontSize, padding)
 end
 
 -- Keep the native rectangle exactly: moving/resizing native content would break mouse hit-tests.
--- The plugin re-enables native drawing at FullLog::Draw, including the tabs, and leaves the
--- subsequent native cursor/scrollbar visible. No themed rows, title or input are placed over them.
-local expandedColors = {}
+-- The plugin re-enables native drawing at FullLog::Draw and leaves the native rows, cursor and, unless
+-- the addon draws its own, tabs and scrollbar visible. No themed rows, title or input are placed over them.
+-- The tabs and scrollbar the addon draws stand where uihook measured the game's, so the game's hit-tests,
+-- Square selection and scrolling are untouched; the game is asked to leave its own undrawn only while
+-- there is a fresh place to draw them in.
+local expandedColors, expandedReplace = {}, { tabs = false, scrollbar = false }
 local expandedOptions = { padding = 0, shadow = false,
-    capture = function() captured = primary.Capture(true, expandedColors) end }
+    capture = function() captured = primary.Capture(true, expandedColors, expandedReplace) end }
+local expandedTabs, expandedScroll, expandedScreen = nil, nil, { 0, 0 }
+local origin = { 0, 0 }
+local function DrawExpandedControls()
+    if not expandedTabs and not expandedScroll then return end
+    local list = imgui.GetWindowDrawList()
+    local chatFont = fonts.Get(app.options.fontFile)
+    if chatFont then imgui.PushFont(chatFont, app.options.fontSize[1]) end
+    list:PushClipRect(origin, expandedScreen, false) -- the game's tabs may stand above the frame
+    if expandedTabs then
+        strip.Draw(list, expandedTabs, channels.Filters, expandedColors[1], expandedColors[2], render.Measure)
+    end
+    if expandedScroll then
+        local s = expandedScroll
+        local bar = scrollbar.Layout(s.left, s.top, s.bottom, s.count, s.page, s.count - s.page - s.above)
+        if bar then
+            -- the track faint, and the thumb as the compact log's, both as wide as the game's bar
+            list:AddRectFilled({ s.left, s.top }, { s.right, s.bottom }, imgui.GetColorU32(light), 1)
+            list:AddRectFilled({ s.left, bar.thumbTop }, { s.right, bar.thumbBottom }, imgui.GetColorU32(scrollbar.White), 1)
+        end
+    end
+    list:PopClipRect()
+    if chatFont then imgui.PopFont() end
+end
 local function DrawExpanded(state, sw, sh)
     held = nil
     wheelOffset, pendingWheel, wheelView = 0, 0, nil
@@ -393,12 +429,20 @@ local function DrawExpanded(state, sw, sh)
     expandedColors[2] = expandedOptions.titleColor or look.TitleColor or look.TextColor or white
     expandedColors[3] = expandedOptions.border or look.BorderColor or white
     expandedColors[4] = expandedOptions.border or look.BorderColor or white
+    -- where the game drew its tabs and scrollbar last, to draw the addon's own there and ask the game to leave its undrawn
+    local replace = state.nativeReplace
+    expandedTabs = replace and app.options.replaceTabs[1] and primary.Tabs(sw, sh) or nil
+    expandedScroll = replace and app.options.replaceScrollbar[1] and primary.Scrollbar(sw, sh) or nil
+    expandedReplace.tabs, expandedReplace.scrollbar = expandedTabs ~= nil, expandedScroll ~= nil
+    expandedScreen[1], expandedScreen[2] = sw, sh
     place[1], place[2] = rect[1], rect[4]
     size[1], size[2] = rect[3]-rect[1], rect[4]-rect[2]
     imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
     imgui.SetNextWindowSize(size, ImGuiCond_Always)
-    window.Plain('winxi.chatbox.expanded', open, flags, function() end, expandedOptions)
-    anchorStatus = state.nativeControls and 'Expanded native rows and actions; WinXI frame and theme-tinted native controls.'
+    window.Plain('winxi.chatbox.expanded', open, flags, DrawExpandedControls, expandedOptions)
+    local own = (expandedTabs and expandedScroll) and 'WinXI tabs and scrollbar' or expandedTabs and 'WinXI tabs' or expandedScroll and 'WinXI scrollbar' or nil
+    anchorStatus = own and ('Expanded native rows and actions; WinXI frame and ' .. own .. ' where the game\'s are.')
+        or state.nativeControls and 'Expanded native rows and actions; WinXI frame and theme-tinted native controls.'
         or 'Expanded native rows and actions; WinXI frame (control artwork hooks unavailable).'
     lastDrawn = { frame = frame, expanded = true, left = rect[1], top = rect[2], width = size[1], bottom = rect[4],
         rows = state.pageRows or 0, drawn = 0, firstY = rect[2], title = 'native content', overflow = false }

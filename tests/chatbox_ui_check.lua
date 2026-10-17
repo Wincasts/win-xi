@@ -25,18 +25,22 @@ local nativeRect, lastWindowStyle
 local rendered = {}
 local nativeLogRect = {20,700,660,1018}
 local expandedRect={0,100,1920,1020}
-local chatState={selected=false,expanded=false,expandedSupported=true,nativeBrowse=false,nativeContent=true,nativeControls=true}
+local chatState={selected=false,expanded=false,expandedSupported=true,nativeBrowse=false,nativeContent=true,nativeControls=true,nativeReplace=true}
+local tabsGeometry, scrollGeometry -- where the game drew its tabs and scrollbar, as uihook measured them
 package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=function(index)
     local hook = {begins=0,stops=0,captures=0}
     function hook.Begin() hook.begins=hook.begins+1; return ready end
     function hook.Stop() hook.stops=hook.stops+1 end
-    function hook.Capture(expanded,controls)
+    function hook.Capture(expanded,controls,replace)
         hook.expanded,hook.controls=expanded,controls
+        hook.replace=replace and {tabs=replace.tabs,scrollbar=replace.scrollbar} or nil
         assert(sequence[#sequence] == 'border', 'complete decoration captured')
         hook.captures=hook.captures+1; return captureOK
     end
     function hook.Status() return 'test hook' end
     function hook.Ages() return 0, 0 end
+    function hook.Tabs() return index==0 and tabsGeometry or nil end
+    function hook.Scrollbar() return index==0 and scrollGeometry or nil end
     function hook.State() return chatState end
     function hook.Rect(_,_,expanded)
         local rect
@@ -58,6 +62,10 @@ package.loaded['winxi.controller'] = {HighlightColor={0.23,0.67,0.91,1}, RepeatD
     Button={DpadUp=0,DpadDown=1,A=12}, Bind=function(spec) binding=spec; return spec end}
 local images = {}
 package.loaded['winxi.style'] = {Background=function() return 'tile' end}
+local labels, overs, lines = {}, {}, {}
+package.loaded['winxi.tabs'] = {Over=function(_,l,t,r,b) overs[#overs+1]={l,t,r,b} end,
+    Line=function(_,l,r,y,cl,cr) lines[#lines+1]={l,r,y,cl,cr} end}
+package.loaded['winxi.text'] = {Draw=function(_,x,y,color,words) labels[#labels+1]={x=x,y=y,color=color,text=words} end}
 package.loaded['winxi.cursor'] = {Get=function() return 99, {0,0,1,1,16,12} end}
 package.loaded['winxi.shell'] = {New=function(s)
     spec=s
@@ -114,7 +122,7 @@ end
 package.loaded['winxi.window'] = {Plain=Window, Full=Window}
 dofile('addons/chatbox/chatbox.lua')
 local function frame()
-    text={}; outlines={}; filled={}; images={}
+    text={}; outlines={}; filled={}; images={}; labels={}; overs={}; lines={}
     events.d3d_present(); assert(styleDepth==0, 'input minimum-size override balanced'); assert(fontDepth==0, 'chat font pushes balanced')
 end
 local function message(value, extra)
@@ -237,6 +245,41 @@ for filter=0,15 do
         'all native tabs and older pages retain frame skin without custom filtering')
 end
 chatState.filter=0; chatState.scroll=0
+-- The game's tabs and scrollbar replaced: WinXI tabs named for their channels where the game drew its own,
+-- the chosen one solid, the tab style over each and the line under the row; a thumb in the game's bar; and
+-- the game asked to leave both undrawn, only while there is a fresh place to draw them in
+tabsGeometry={{left=10,top=100,right=60,bottom=116,channel=0,selected=false},
+    {left=60,top=100,right=110,bottom=116,channel=3,selected=true},{left=110,top=100,right=160,bottom=116,channel=nil,selected=false}}
+scrollGeometry={left=2,top=120,right=6,bottom=1020,page=20,count=100,above=80}
+frame()
+assert(hooks[0].replace.tabs and hooks[0].replace.scrollbar,'the game asked to leave its tabs and scrollbar undrawn')
+assert(#labels==3 and labels[1].text=='Window' and labels[2].text=='Say' and labels[3].text=='Tab 3','the channels\' names left to right, an unknown tab named by its place')
+assert(labels[2].x==60+(50-3*7)/2 and labels[2].y>100 and labels[2].y<108 and labels[2].color==look.TextColor,'centred in the game\'s tab, in the title colour')
+assert(#filled==5 and filled[1].a[1]==10 and filled[1].b[2]==116 and filled[2].color[4]>filled[1].color[4] and filled[3].color[4]==filled[1].color[4],
+    'each tab filled where the game drew it, the chosen one solid and the rest faint')
+assert(#overs==3 and overs[2][1]==60 and overs[2][3]==110 and #lines==1 and lines[1][1]==10 and lines[1][2]==160 and lines[1][3]==116 and lines[1][4]==60 and lines[1][5]==110,
+    'the tab style over each, and the line under the row brighter under the chosen one')
+assert(filled[4].a[1]==2 and filled[4].a[2]==120 and filled[4].b[1]==6 and filled[4].b[2]==1020 and filled[5].a[2]==840 and filled[5].b[2]==1020 and filled[5].b[1]==6,
+    'the track where the game\'s bar is and, at the newest, the thumb at its foot, as wide as the bar')
+assert(#text==0 and #images==0,'still no addon rows or cursor over the native content')
+scrollGeometry.above=0; frame()
+assert(filled[5].a[2]==120 and filled[5].b[2]==300,'scrolled to the oldest, the thumb at the top')
+tabsGeometry[2].channel=10; frame()
+assert(labels[2].text=='Assist' or labels[2].text=='Assist (E)','a long name cut to what fits the tab')
+tabsGeometry[2].channel=3
+app.options.replaceTabs[1]=false; frame()
+assert(not hooks[0].replace.tabs and hooks[0].replace.scrollbar and #labels==0 and #filled==2,'Replace Tabs off: the game\'s tabs stay, the scrollbar still the addon\'s')
+app.options.replaceScrollbar[1]=false; frame()
+assert(not hooks[0].replace.scrollbar and #filled==0,'Replace Scrollbar off: the game\'s')
+app.options.replaceTabs[1], app.options.replaceScrollbar[1]=true, true
+chatState.nativeReplace=false; frame()
+assert(not hooks[0].replace.tabs and not hooks[0].replace.scrollbar and #filled==0,'without uihook\'s hooks the game draws its own, tinted')
+chatState.nativeReplace=true
+tabsGeometry=nil; frame()
+assert(not hooks[0].replace.tabs and hooks[0].replace.scrollbar and #labels==0,'no fresh place for tabs: the game\'s are left drawn')
+scrollGeometry=nil; frame()
+assert(not hooks[0].replace.scrollbar and #filled==0,'none drawn by the game, none asked for')
+assert(hooks[0].expanded and #text==0,'the frame-only capture as before')
 expandedRect=nil; count=hooks[0].captures; frame()
 assert(hooks[0].captures==count,'missing expanded geometry immediately restores native; no stale compact/full capture')
 for _=1,30 do frame() end
@@ -294,12 +337,12 @@ imgui.Selectable=function() return false end
 imgui.EndCombo=function() end
 imgui.BeginCombo=function() return true end
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox,Size,Text,Padding,Window Colors','collapsed: only the five section titles')
+assert(table.concat(opened,',')=='Chatbox,Size,Text,Padding,Expanded,Window Colors','collapsed: only the six section titles')
 for _,name in ipairs(opened) do headers[name]=true end
 headers['Chat Log Window'], headers['Input Text Box'] = true, true
 opened={}
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox,Size,Text,Padding,Window Colors,Chat Log Window,Input Text Box','open: every section drawn')
+assert(table.concat(opened,',')=='Chatbox,Size,Text,Padding,Expanded,Window Colors,Chat Log Window,Input Text Box','open: every section drawn')
 for k in pairs(headers) do headers[k]=nil end
 package.loaded['winxi.widgets'].Header=function(name) return headers[name] end
 assert(spec.tabs == nil and app.options.colors == nil and app.options.combat == nil, 'no channel colour controls or Combat Log tab')

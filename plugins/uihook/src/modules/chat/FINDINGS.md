@@ -1,4 +1,4 @@
-# Native chat selection and expansion — 0.7 implementation
+# Native chat selection and expansion — 0.7 and 0.8 implementation
 
 Static evidence from the unpacked Phoenix client captured 2026-10-15:
 `addons/codedump/ffximain.bin` in the local test install (image base 031C0000).
@@ -78,19 +78,44 @@ row-position bridge; the native row buffer contains engine font indices, not pla
   at +18/+1C; a local 40-byte copy changes those words only and is passed to the original Draw.
   The native object, page/count/offset, dimensions, scale and mouse/drag fields are never written.
 
-All four sites/callees and parent-function boundaries must validate before any CALL is patched.
+- Tab strip: the content Draw's first call (full+19), to 032F7B80. The prologue pattern fixes the bytes
+  from `mov esi,ecx` to the call (`xor ebp,ebp; mov eax,[esi+54]; mov [esp+14],ebp; push eax; call`), so
+  ecx is still the owner and the one stack word is the filter: thiscall(owner, filter), `ret 4`, which
+  check_chat_client.py looks for within the function. Redirected so that the whole strip, art and
+  labels, can be left undrawn while the addon draws its own tabs (0.8), and so that each tab sprite
+  call inside it can be measured. The owner's tab sprites are at +0x80 + channel*8 (plain) and
+  +0x84 + channel*8 (chosen), channels 0 to 10: whose tab a sprite call draws, and whether chosen.
+- Scrollbar fields: the verified Update pattern writes page rows to +0x0C, the filtered row count
+  (`and eax,0FFh`) to +0x10 and count − scroll − page, the rows above the view, to +0x14. Read at Draw
+  for the addon's own thumb; never written. The Draw's own `cmp [ecx+10],[ecx+0C]; jle` means no Draw
+  (and so nothing measured) when every row fits.
+
+All five sites/callees and parent-function boundaries must validate before any CALL is patched.
 Absent/ambiguous signatures disable optional control tinting, not the native content/frame path.
 These patterns and relationships were verified against the same private client dump. Native
 sprite colour unity is 128. RGB follows the captured theme; alpha multiplies the original native
 fade/pulse alpha. Native tab labels/art remain coupled; this is tinting, not custom text or
 WinXI Tab Style texture substitution. Navigation/hit-tests/menu actions remain entirely native.
 
-## ABI 8 safety boundary
+## Measured controls (0.8)
 
-- 232-byte shared layout, **version 8** required on both sides.
+Within a skinned full log, each tab sprite call and the scrollbar Draw are measured from the
+screen-space (XYZRHW) vertices they submit, as the clock's draws are, and published normalized to the
+viewport they were drawn in (D3D8's half pixel added), with the tab's channel and chosen state and
+the scrollbar's rows. The addon asks, with its expanded capture, for the strip and/or the scrollbar
+to be left undrawn (GPU submissions blocked for that call alone) and draws its own at the published
+places the frame after, so the game's hit-tests, Square selection and wheel are what they were. No
+geometry is derived from sprite fields; nothing native is written. A frame in which the game draws
+no strip or no scrollbar publishes none, and the addon then leaves the game's drawn.
+
+## ABI 9 safety boundary
+
+- 564-byte shared layout, **version 9** required on both sides.
 - SupportedMask bit 3: native full-log state/geometry. Bit 4: verified content hook. Bit 5: control art.
+  Bit 6: the tab strip and scrollbar measured and hideable (the same all-or-none group of sites).
 - ControlStyleFrame and four RGBA colours are published by Lua. The plugin checks finite [0,1]
   values and a current-frame stamp, then snapshots them only with a successful expanded capture.
+  ReplaceControls (1 tabs, 2 scrollbar) is snapshotted with it, and only with the control hooks.
   Missing/invalid styles never suppress or recolour native message text.
 - Primary capture mode 1: compact contents; mode 2: expanded frame only, requires bit 4.
 - Compact captures never cover full-log windows, and expanded captures never cover compact

@@ -1,12 +1,14 @@
 -- Standalone native chat bridge contract; callbacks mocked, no client needed.
 local ffi = require('ffi')
-local block = {Version=8,Size=232,Submit=123,SupportedMask=63,Frame=10,
+local block = {Version=9,Size=564,Submit=123,SupportedMask=127,Frame=10,
     NativeFrame={[0]=10,[1]=0,[2]=0},DrawnFrame={[0]=10,[1]=0,[2]=0},
     InputRect={[0]=0,[1]=0.9,[2]=1,[3]=1},InputRectFrame=10,
     PrimaryRect={[0]=0.05,[1]=0.5,[2]=0.5,[3]=0.9},PrimaryRectFrame=10,
     ExpandedRect={[0]=0,[1]=0.1,[2]=1,[3]=0.9},ExpandedRectFrame=10,
     StateFlags=0,StateFrame=10,FullScroll=0,FullCursor=20,FullPageRows=20,FullFilter=0,
-    ControlStyleFrame=0,ControlColors={[0]={},[1]={},[2]={},[3]={}}}
+    ControlStyleFrame=0,ControlColors={[0]={},[1]={},[2]={},[3]={}},
+    ReplaceControls=0,TabFrame=0,TabCount=0,Tabs={},ScrollFrame=0,ScrollPage=0,ScrollCount=0,ScrollTop=0,ScrollRect={[0]=0,[1]=0,[2]=0,[3]=0}}
+for i=0,11 do block.Tabs[i]={Rect={[0]=0,[1]=0,[2]=0,[3]=0},Channel=0,Selected=0} end
 local loaded, base, address, now, result = false, 100, 500, 0, 1
 local calls, scans = {}, 0
 package.loaded.ffi = {cdef=ffi.cdef,sizeof=ffi.sizeof,cast=function(kind)
@@ -23,12 +25,12 @@ ashita={memory={get_base=function(name) assert(name=='uihook.dll'); return base 
         scans=scans+1; return address
     end}}
 local native=dofile('addons/libs/winxi/nativechat.lua')
-assert(ffi.sizeof('uihook_chat_t')==232)
+assert(ffi.sizeof('uihook_chat_t')==564)
 local primary, split, input=native.new(native.Primary),native.new(native.Secondary),native.new(native.Input)
 assert(not primary.Begin() and #calls==0)
-loaded=true; block.Version=7
+loaded=true; block.Version=8
 assert(not primary.Begin() and primary.Status():find('ABI mismatch'))
-block.Version=8; now=2
+block.Version=9; now=2
 assert(primary.Begin() and primary.Capture())
 assert(calls[#calls][1]==0 and calls[#calls][2]==1)
 assert(primary.Capture(true) and calls[#calls][1]==0 and calls[#calls][2]==2,
@@ -43,9 +45,42 @@ assert(primary.Capture(true,controls) and block.ControlStyleFrame==block.Frame)
 assert(primary.Capture() and block.ControlStyleFrame==0,'compact capture cannot retain expanded tints')
 block.SupportedMask=31
 assert(primary.Capture(true,controls) and block.ControlStyleFrame==0,'optional controls capability is independent of frame capture')
-block.SupportedMask=63
+block.SupportedMask=127
 assert(primary.Capture(true,controls)); primary.Stop()
 assert(block.ControlStyleFrame==0,'release invalidates shared colour stamp')
+-- which of the game's controls the addon draws itself: written with an expanded capture, where uihook can hide them
+assert(primary.Begin() and primary.Capture(true,controls,{tabs=true,scrollbar=true}) and block.ReplaceControls==3,'tabs and scrollbar asked for')
+assert(primary.Capture(true,controls,{tabs=true}) and block.ReplaceControls==1,'tabs alone')
+assert(primary.Capture(true,controls,{scrollbar=true}) and block.ReplaceControls==2,'the scrollbar alone')
+assert(primary.Capture(true,controls) and block.ReplaceControls==0,'nothing asked, nothing hidden')
+assert(primary.Capture(true,controls,{tabs=true}) and primary.Capture() and block.ReplaceControls==0,'a compact capture hides nothing')
+block.SupportedMask=63
+assert(primary.Capture(true,controls,{tabs=true,scrollbar=true}) and block.ReplaceControls==0 and not primary.State().nativeReplace,'without the hooks nothing is asked')
+block.SupportedMask=127
+assert(primary.Capture(true,controls,{tabs=true}) and block.ReplaceControls==1); primary.Stop()
+assert(block.ReplaceControls==0,'release asks for nothing')
+assert(primary.State().nativeReplace,'the hooks are known')
+-- where the game drew its tabs and scrollbar: scaled to the display, the tabs left to right, nothing stale
+assert(primary.Tabs(1920,1080)==nil and primary.Scrollbar(1920,1080)==nil,'nothing measured yet')
+block.TabFrame=10; block.TabCount=3
+block.Tabs[0].Rect[0],block.Tabs[0].Rect[1],block.Tabs[0].Rect[2],block.Tabs[0].Rect[3]=0.1,0.05,0.15,0.08; block.Tabs[0].Channel=3; block.Tabs[0].Selected=1
+block.Tabs[1].Rect[0],block.Tabs[1].Rect[1],block.Tabs[1].Rect[2],block.Tabs[1].Rect[3]=0.0,0.05,0.1,0.08; block.Tabs[1].Channel=0
+block.Tabs[2].Rect[0],block.Tabs[2].Rect[1],block.Tabs[2].Rect[2],block.Tabs[2].Rect[3]=0.15,0.05,0.2,0.08; block.Tabs[2].Channel=4294967295
+local tabs=primary.Tabs(1920,1080)
+assert(#tabs==3 and tabs[1].channel==0 and tabs[2].channel==3 and tabs[3].channel==nil,'left to right, the channel of each, none for an unknown sprite')
+assert(tabs[2].left==192 and tabs[2].top==54 and tabs[2].right==288 and tabs[2].bottom==86.4 and tabs[2].selected and not tabs[1].selected,'display pixels; the chosen one')
+assert(split.Tabs(1920,1080)==nil and input.Tabs(1920,1080)==nil,'the primary slot\'s alone')
+block.Tabs[1].Rect[2]=0.0; assert(#primary.Tabs(1920,1080)==2,'a tab that is no rectangle is left out')
+block.TabCount=0; assert(primary.Tabs(1920,1080)==nil,'no tabs, nothing'); block.TabCount=3
+block.Frame=13; assert(primary.Tabs(1920,1080)==nil,'stale tabs expire'); block.Frame=10
+block.ScrollFrame=10; block.ScrollPage=20; block.ScrollCount=75; block.ScrollTop=30
+block.ScrollRect[0],block.ScrollRect[1],block.ScrollRect[2],block.ScrollRect[3]=0.005,0.1,0.01,0.9
+local bar=primary.Scrollbar(1920,1080)
+assert(bar.left==9.6 and bar.top==108 and bar.right==19.2 and bar.bottom==972 and bar.page==20 and bar.count==75 and bar.above==30,'the scrollbar\'s place and rows')
+block.ScrollTop=80; assert(primary.Scrollbar(1920,1080)==nil,'more above than there are rows is no scrollbar'); block.ScrollTop=30
+block.ScrollFrame=0; assert(primary.Scrollbar(1920,1080)==nil,'none drawn, none'); block.ScrollFrame=10
+block.SupportedMask=63; assert(primary.Tabs(1920,1080)==nil and primary.Scrollbar(1920,1080)==nil,'without the hooks, nothing'); block.SupportedMask=127
+block.TabFrame=0
 assert(primary.Begin())
 assert(split.Begin() and calls[#calls][1]==1)
 assert(input.Begin() and input.Capture() and calls[#calls][1]==2)
@@ -58,7 +93,7 @@ assert(pl==96 and pt==540 and pr==960 and pb==972, 'primary log anchor uses its 
 local el,et,er,eb=primary.Rect(1920,1080,true)
 assert(el==0 and et==108 and er==1920 and eb==972, 'expanded geometry independent of compact anchor')
 assert(input.Rect(1920,1080,true)==nil, 'input cannot read expanded log bounds')
-local state=primary.State(); assert(not state.selected and not state.expanded and state.expandedSupported and state.nativeContent and state.nativeControls)
+local state=primary.State(); assert(not state.selected and not state.expanded and state.expandedSupported and state.nativeContent and state.nativeControls and state.nativeReplace)
 block.StateFlags=1; assert(primary.State().selected and not primary.State().expanded, 'native selector focus')
 block.StateFlags=4; state=primary.State(); assert(state.expanded and not state.nativeBrowse and state.pageRows==20)
 block.StateFlags=12; assert(primary.State().nativeBrowse, 'native history/menu fallback')

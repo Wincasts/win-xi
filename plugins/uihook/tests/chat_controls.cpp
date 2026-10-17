@@ -48,6 +48,8 @@ int main() {
         "four control call sites unique and cross-checked against native parent functions/callees");
     Check(found.targets[0]==tabSprite && found.targets[1]==sprite && found.targets[2]==sprite && found.targets[3]==scrollDraw,
         "five-word tab, eight-word window sprites and no-argument scrollbar have independent ABIs");
+    Check(found.calls[CHAT_ART_TABS]==full+19 && found.targets[CHAT_ART_TABS]==tabs,
+        "the fifth site is the full log's call to its tab strip, the strip the callee");
     Call(cursor+18,tabSprite);
     Check(!DiscoverChatControls(image,sizeof(image),window,full).calls[0],"wrong cursor callee rejects whole optional group");
     Call(cursor+18,sprite);
@@ -60,18 +62,18 @@ int main() {
     Call(full+19,tabs);
     Check(!ChatCallee(image,sizeof(image),image+sizeof(image)-1),"truncated CALL safely rejected");
     ChatControlCalls hooks;
-    void* replacements[]={image+5000,image+5100,image+5200,image+5300};
+    void* replacements[]={image+5000,image+5100,image+5200,image+5300,image+5400};
     Call(scroll+10,tabSprite);
     Check(!TakeChatControls(hooks,found,replacements) && VerifyCall(tab+24,tabSprite),"all sites validated before any patch");
     Call(scroll+10,scrollDraw);
     Check(TakeChatControls(hooks,found,replacements),"verified controls can be redirected together");
     bool patched=true;
-    for (unsigned i=0;i<4;i++) patched &= VerifyCall(found.calls[i],static_cast<uint8_t*>(replacements[i]));
-    Check(patched && tabSprite[0]==0x51 && sprite[0]==0x83 && scrollDraw[0]==0x83,
-        "redirected sites remain CALLs; shared sprite and scrollbar functions untouched");
+    for (unsigned i=0;i<CHAT_ART_COUNT;i++) patched &= VerifyCall(found.calls[i],static_cast<uint8_t*>(replacements[i]));
+    Check(patched && tabSprite[0]==0x51 && sprite[0]==0x83 && scrollDraw[0]==0x83 && full[19]==0xe8,
+        "redirected sites remain CALLs; shared sprite, scrollbar and tab strip functions untouched");
     GiveChatControls(hooks);
     Check(VerifyCall(tab+24,tabSprite) && VerifyCall(cursor+18,sprite) && VerifyCall(selection+14,sprite)
-        && VerifyCall(scroll+10,scrollDraw) && !hooks.calls[0],"unload restores all native CALLs and clears ownership");
+        && VerifyCall(scroll+10,scrollDraw) && VerifyCall(full+19,tabs) && !hooks.calls[0],"unload restores all native CALLs and clears ownership");
 
     ChatShared shared={}; shared.Frame=10; shared.ControlStyleFrame=10;
     for (unsigned i=0;i<4;i++) { shared.ControlColors[i][0]=0.25f; shared.ControlColors[i][1]=0.5f;
@@ -132,6 +134,32 @@ int main() {
         "scrollbar wrapper forwards tinted local presentation without modifying native state");
     ForwardChatScroll(ProbeScroll,false,style,nativeScroll);
     Check(seenObject==nativeScroll && !memcmp(seenScroll.bytes,nativeScroll,sizeof(seenScroll)),"unthemed scrollbar forwards original object");
+    // the addon's own tabs and scrollbar: whose tab a sprite is, the scrollbar's rows, the bounds normalized
+    void* plain=image+6020;
+    *reinterpret_cast<void**>(owner+0x80+7*8)=plain;
+    uint32_t channel=99; bool chosenTab=true;
+    Check(ChatTabChannel(owner,plain,channel,chosenTab) && channel==7 && !chosenTab,"a tab's plain sprite names its channel, not chosen");
+    Check(ChatTabChannel(owner,chosen,channel,chosenTab) && channel==4 && chosenTab,"the chosen sprite names its channel, chosen");
+    Check(!ChatTabChannel(owner,image+6030,channel,chosenTab) && !ChatTabChannel(nullptr,plain,channel,chosenTab),
+        "a sprite that is none of the owner's tabs, or no owner, is no channel");
+    uint8_t scrollObject[0x28]={};
+    *reinterpret_cast<int32_t*>(scrollObject+0x0c)=20; *reinterpret_cast<int32_t*>(scrollObject+0x10)=75; *reinterpret_cast<int32_t*>(scrollObject+0x14)=30;
+    ChatScrollInfo info;
+    Check(ChatScrollRead(scrollObject,info) && info.page==20 && info.count==75 && info.top==30,"page rows, row count and rows above the view read from the scrollbar");
+    *reinterpret_cast<int32_t*>(scrollObject+0x14)=80;
+    Check(!ChatScrollRead(scrollObject,info),"more rows above the view than there are rows is no scrollbar");
+    *reinterpret_cast<int32_t*>(scrollObject+0x14)=30; *reinterpret_cast<int32_t*>(scrollObject+0x0c)=0;
+    Check(!ChatScrollRead(scrollObject,info) && !ChatScrollRead(reinterpret_cast<void*>(1),info),"an empty page, or an unreadable object, is no scrollbar");
+    ChatBounds bounds;
+    float rect[4];
+    Check(!ChatNormalize(bounds,0,0,1000,500,rect),"nothing drawn gives no bounds");
+    bounds.Add(100,50); bounds.Add(200,50); bounds.Add(200,80); bounds.Add(100,80);
+    Check(ChatNormalize(bounds,0,0,1000,500,rect) && std::fabs(rect[0]-0.1005f)<1e-5f && std::fabs(rect[1]-0.101f)<1e-5f
+        && std::fabs(rect[2]-0.2005f)<1e-5f && std::fabs(rect[3]-0.161f)<1e-5f,"bounds normalized to the viewport, the half pixel added");
+    Check(ChatNormalize(bounds,100,50,1000,500,rect) && std::fabs(rect[0]-0.0005f)<1e-5f && std::fabs(rect[1]-0.001f)<1e-5f,"a viewport not at the origin is taken off first");
+    Check(!ChatNormalize(bounds,0,0,0,500,rect),"an empty viewport gives no bounds");
+    Check(ChatHidden(CHAT_REPLACE_TABS|CHAT_REPLACE_SCROLL,CHAT_REPLACE_TABS,true) && !ChatHidden(CHAT_REPLACE_SCROLL,CHAT_REPLACE_TABS,true)
+        && !ChatHidden(CHAT_REPLACE_TABS,CHAT_REPLACE_TABS,false),"a control is hidden only when asked, and only in a skinned full log");
     void* current=chosen;
     { ChatOwnerScope first(current,owner); { ChatOwnerScope nested(current,nullptr); }
         Check(current==owner,"nested full-log drawing restores parent owner"); }

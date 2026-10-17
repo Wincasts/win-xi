@@ -1,18 +1,23 @@
-// Theme the client's expanded controls without replacing their geometry, labels or hit-tests.
-// Only four verified CALL sites are redirected; the shared sprite renderer is never patched.
+// Theme the client's expanded controls without replacing their geometry or hit-tests, or, asked by the
+// addon, leave its tab strip and scrollbar undrawn where it draws its own: measured as the game draws them,
+// so the addon's stand where the game's hit-tests are. Only five verified CALL sites are redirected; the
+// shared sprite renderer is never patched.
 #pragma once
 #include "chat.h"
+#include <algorithm>
 #define CHAT_TAB_SPRITE_PATTERN "51 53 55 56 8B 71 14 8D 59 04 57 8B CB E8"
 #define CHAT_TAB_ART_PATTERN "6A 00 8D 44 42 20 68 80 80 80 80 0F BF CE 8B 3C 87 0F BF C5 50 51 8B CF E8"
 #define CHAT_SELECTION_ART_PATTERN "0F BF 44 24 38 0F BF D7 52 50 8B 4C 24 3C E8"
 #define CHAT_CURSOR_ART_PATTERN "50 68 00 00 80 3F 0F BF D3 68 00 00 80 3F 51 52 8B CE E8"
 #define CHAT_SCROLL_ART_PATTERN "8B 41 10 8B 51 0C 3B C2 7E 05 E8"
 #define CHAT_SCROLL_DRAW_PATTERN "83 EC 0C 56 8B F1 8B 46 10 85 C0 0F 84 ?? ?? ?? ?? DB 06 D9 46 20"
-enum { CHAT_ART_TAB, CHAT_ART_SELECTION, CHAT_ART_CURSOR, CHAT_ART_SCROLL, CHAT_ART_COUNT };
+enum { CHAT_ART_TAB, CHAT_ART_SELECTION, CHAT_ART_CURSOR, CHAT_ART_SCROLL, CHAT_ART_TABS, CHAT_ART_COUNT };
 enum { CHAT_COLOR_HIGHLIGHT, CHAT_COLOR_TAB, CHAT_COLOR_CURSOR, CHAT_COLOR_SCROLL, CHAT_COLOR_COUNT };
 using ChatTabSprite = void(__fastcall*)(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
 using ChatWindowSprite = void(__fastcall*)(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
 using ChatScrollDraw = void(__fastcall*)(void*,void*);
+// FullLog::Draw's first call, the whole tab strip: thiscall(owner) with the filter on the stack, ret 4.
+using ChatTabStrip = void(__fastcall*)(void*,void*,uint32_t);
 struct ChatControlDiscovery { uint8_t* calls[CHAT_ART_COUNT]={}; uint8_t* targets[CHAT_ART_COUNT]={}; };
 static uint8_t* ChatCallee(uint8_t* begin,size_t size,uint8_t* call) {
     if (!call || call<begin || size<5 || size_t(call-begin)>size-5 || call[0]!=0xe8) return nullptr;
@@ -37,8 +42,8 @@ static ChatControlDiscovery DiscoverChatControls(uint8_t* begin,size_t size,uint
     if (!ChatWithin(tab,tabs,0x200) || !ChatWithin(selection,window,0x800)
         || !ChatWithin(cursor,window,0x800) || !ChatWithin(scroll,window,0x800)
         || !tabSprite || !windowSprite || !scrollDraw) return out;
-    uint8_t* calls[]={tab+24,selection+14,cursor+18,scroll+10};
-    uint8_t* targets[]={tabSprite,windowSprite,windowSprite,scrollDraw};
+    uint8_t* calls[]={tab+24,selection+14,cursor+18,scroll+10,fullDraw+19};
+    uint8_t* targets[]={tabSprite,windowSprite,windowSprite,scrollDraw,tabs};
     for (unsigned i=0;i<CHAT_ART_COUNT;i++)
         if (ChatCallee(begin,size,calls[i])!=targets[i]) return out;
     memcpy(out.calls,calls,sizeof(calls)); memcpy(out.targets,targets,sizeof(targets));
@@ -117,3 +122,41 @@ static void ForwardChatScroll(ChatScrollDraw original,bool styled,const ChatCont
     void* drawn=styled && ChatScrollCopy(object,copy,style) ? &copy : object;
     original(drawn,nullptr);
 }
+// Whose tab a sprite is: the strip draws owner[0x80 + channel*8], or owner[0x84 + channel*8] for the chosen one.
+static bool ChatTabChannel(void* owner,void* sprite,uint32_t& channel,bool& selected) {
+    if (!owner || !sprite) return false;
+    for (uint32_t c=0;c<=10;c++) for (unsigned chosen=0;chosen<2;chosen++) {
+        void* at=nullptr;
+        if (ChatRead(static_cast<uint8_t*>(owner)+0x80+c*8+chosen*4,&at,4) && at==sprite) { channel=c; selected=chosen==1; return true; }
+    }
+    return false;
+}
+// FullLog::Update writes its scrollbar's page rows to +0C, its row count to +10 and the rows above the view
+// to +14 (the verified field pattern); read for the addon's own thumb, never written.
+struct ChatScrollInfo { uint32_t page=0, count=0, top=0; };
+static bool ChatScrollRead(void* object,ChatScrollInfo& out) {
+    int32_t fields[3]={};
+    if (!object || !ChatRead(static_cast<uint8_t*>(object)+0xc,fields,sizeof(fields))) return false;
+    if (fields[0]<1 || fields[0]>4096 || fields[1]<0 || fields[1]>1048576 || fields[2]<0 || fields[2]>fields[1]) return false;
+    out.page=uint32_t(fields[0]); out.count=uint32_t(fields[1]); out.top=uint32_t(fields[2]);
+    return true;
+}
+// The screen bounds of what a native control's draw submitted, from its screen-space vertices
+struct ChatBounds {
+    uint32_t vertices=0; float left=0, top=0, right=0, bottom=0;
+    void Add(float x,float y) {
+        if (!vertices++) { left=right=x; top=bottom=y; }
+        left=(std::min)(left,x); right=(std::max)(right,x);
+        top=(std::min)(top,y); bottom=(std::max)(bottom,y);
+    }
+};
+// Normalized to the viewport the control was drawn in, as the chat rectangles are; D3D8's half pixel added
+static bool ChatNormalize(const ChatBounds& from,float x,float y,float width,float height,float out[4]) {
+    if (!from.vertices || !(width>0) || !(height>0)) return false;
+    out[0]=(from.left-x+0.5f)/width; out[1]=(from.top-y+0.5f)/height;
+    out[2]=(from.right-x+0.5f)/width; out[3]=(from.bottom-y+0.5f)/height;
+    for (unsigned i=0;i<4;i++) if (!std::isfinite(out[i]) || out[i]<-4 || out[i]>4) return false;
+    return out[2]>out[0] && out[3]>out[1];
+}
+// A native control is left undrawn only inside a skinned full log whose capture asked for it
+static inline bool ChatHidden(uint32_t replace,uint32_t bit,bool active) { return active && (replace & bit)!=0; }
