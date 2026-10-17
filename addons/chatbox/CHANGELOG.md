@@ -4,9 +4,11 @@
 
 - The expanded log's tabs and scrollbar in WinXI's look, where the game's are. uihook measures the
   game's tab strip and scrollbar as it draws them and, asked, leaves them undrawn; the addon draws
-  each tab in its place, a square-cornered box in the Highlight Color, as winxi's windows are (the
-  chosen one solid, the rest faint), with the theme's tab style over it and the channel's name in the
-  chat's font with winxi's dark edge, and a track and thumb in the game's bar as the compact log's. Choosing a tab, by Square or the mouse, and scrolling are still the game's; the
+  each tab in its place, in the game's order with the chosen one last, on top, where they overlap:
+  a square-cornered box, as winxi's windows are, the background colour, the Highlight Color over it
+  (solid for the chosen one, faint for the rest), the theme's tab style and an edge in the border
+  colour, with the channel's name in the chat's font with winxi's dark edge centred in what is left
+  uncovered; and a track and thumb in the game's bar as the compact log's. Choosing a tab, by Square or the mouse, and scrolling are still the game's; the
   rows, selection and cursor are drawn by the game as before. **Replace Tabs** and **Replace
   Scrollbar** (on to begin with) in a new **Expanded** section; off, the game's own are drawn,
   tinted, as in 0.7. Without a fresh place from uihook the game's are left drawn.

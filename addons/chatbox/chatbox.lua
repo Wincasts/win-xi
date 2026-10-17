@@ -382,6 +382,7 @@ local expandedColors, expandedReplace = {}, { tabs = false, scrollbar = false }
 local expandedOptions = { padding = 0, shadow = false,
     capture = function() captured = primary.Capture(true, expandedColors, expandedReplace) end }
 local expandedTabs, expandedScroll, expandedScreen = nil, nil, { 0, 0 }
+local stripColors = {}
 local origin = { 0, 0 }
 local function DrawExpandedControls()
     if not expandedTabs and not expandedScroll then return end
@@ -390,7 +391,10 @@ local function DrawExpandedControls()
     if chatFont then imgui.PushFont(chatFont, app.options.fontSize[1]) end
     list:PushClipRect(origin, expandedScreen, false) -- the game's tabs may stand above the frame
     if expandedTabs then
-        strip.Draw(list, expandedTabs, channels.Filters, expandedColors[1], expandedColors[2], render.Measure)
+        local look = theme.Get()
+        stripColors.highlight, stripColors.text, stripColors.border = expandedColors[1], expandedColors[2], expandedColors[3]
+        stripColors.background = expandedOptions.background or look.BackgroundColor
+        strip.Draw(list, expandedTabs, channels.Filters, stripColors, render.Measure)
     end
     if expandedScroll then
         local s = expandedScroll
