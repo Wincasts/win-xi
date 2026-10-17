@@ -754,6 +754,26 @@ chatState.expanded=true; nativeLogRect=nil; captures=hooks[1].captures; frame()
 assert(hooks[1].captures==captures and #text==0,'the expanded log: one view, the game\'s rows')
 chatState.expanded=false; nativeLogRect={20,700,660,1018}; frame()
 assert(hooks[1].captures==captures+1 and text[#text].text=='party 40','back to two, the second at its newest')
+-- A log window the game has at 0 lines (its rect too short for one whole row): nothing drawn in its place, nothing
+-- of the game's shown there, the other window still drawn; both at 0: nothing, the input still working
+splitRect={20,520,660,700}; routes={split=true,first={[1]=true,[5]=true},second={[5]=true}}; frame()
+captures=hooks[1].captures; local firstCaptures=hooks[0].captures; local firstStops=hooks[0].stops
+nativeLogRect={20,1000,660,1018}; frame()
+assert(hooks[0].captures==firstCaptures and hooks[0].stops==firstStops,'the first at 0 lines: not drawn, its empty hide kept, not released')
+assert(hooks[1].captures==captures+1 and rendered['winxi.chatbox.split'].pos[2]==700 and rendered['winxi.chatbox.split'].pos[1]==20 and rendered['winxi.chatbox.split'].size[2]==180,'the second drawn alone, where the game draws it')
+assert(text[1].text=='party 29' and #text==12,'only the second\'s rows')
+mouse.x,mouse.y=100,600; assert(wheel(120).blocked,'and it still scrolls'); frame(); mouse.x,mouse.y=0,0
+said3={}; app.Say=function(_,line) said3[#said3+1]=line end; spec.commands.status(); app.Say=function() end
+assert(table.concat(said3,'\n'):find('at 0 lines: nothing drawn',1,true),'/chatbox status says the first is at 0 lines')
+nativeLogRect={20,700,660,1018}; splitRect={20,690,660,700}; local begins2=hooks[1].begins; captures=hooks[1].captures; frame()
+assert(hooks[1].captures==captures and hooks[1].begins==begins2+1 and #text==22 and text[#text].text=='party 40','the second at 0 lines: not drawn, hidden; the first drawn, still routed')
+assert(table.concat((function() said3={}; app.Say=function(_,line) said3[#said3+1]=line end; spec.commands.status(); app.Say=function() end; return said3 end)(),'\n'):find('is at 0 lines; nothing drawn',1,true),'status says the second is at 0 lines')
+nativeLogRect={20,1000,660,1018}; inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; local inputCaptures=hooks[2].captures; firstCaptures=hooks[0].captures; frame()
+assert(hooks[0].captures==firstCaptures and hooks[1].captures==captures and hooks[2].captures==inputCaptures+1 and text[#text].text=='hi','both at 0 lines: no box, the input bar still drawn')
+inputOpen=false
+app.options.matchGameLogSize[1]=false; frame()
+assert(hooks[0].captures==firstCaptures+1 and rendered['winxi.chatbox'].size[2]==150,'Match Game Log Size off: ten rows whatever the game\'s size')
+app.options.matchGameLogSize[1]=true; nativeLogRect={20,700,660,1018}
 routes=nil; splitRect=nil
 imgui.GetIO=oldIO
 os.clock=realClock
