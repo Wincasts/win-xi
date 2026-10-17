@@ -55,5 +55,19 @@ assert callee(sites['CHAT_SCROLL_ART_PATTERN']) == scroll
 # between mov esi,ecx and the call).
 for entry, cleanup in ((simple, 0x14), (sprite, 0x20), (tabs, 0x04)):
     assert data.find(b'\xC2' + struct.pack('<H', cleanup), entry, entry + 0x400) >= 0, hex(entry)
-print('Native full-log vtable/content, tab strip and tab/selection/cursor/scrollbar CALL graph cross-check passed.')
+# The rows of text: the content Draw's call at +AA is to the drawer (ret 18, six words), and inside the drawer
+# the one row-drawing call, cdecl with 22 words the caller takes back (add esp,58), to the row draw.
+drawer = unique('CHAT_ROWS_DRAW_PATTERN')
+row_site = unique('CHAT_ROW_SITE_PATTERN') + 17
+row_draw = unique('CHAT_ROW_DRAW_PATTERN')
+assert callee(full + 0xAA) == drawer
+assert drawer <= row_site < drawer + 0x200 and callee(row_site) == row_draw
+assert data.find(bytes.fromhex('83C458'), row_site + 5, row_site + 40) >= 0
+assert data.find(b'\xC2\x18\x00', drawer, drawer + 0x200) >= 0
+# the row draw ends in the glyph loop's draw: a 16-pixel cell (the float 16.0 the glyph draw scales by) and the
+# width table; and the client's own encoder (the function the decoder is transcribed from) is where expected
+assert data.find(bytes.fromhex('6A7F5152B90F00000083EC3C8BFC55F3A5'), drawer, drawer + 0x200) >= 0
+encoder = data.find(bytes.fromhex('8B4C240433C033D28A018A51013D9F000000'))
+assert encoder >= 0 and data.find(bytes.fromhex('8B4C240433C033D28A018A51013D9F000000'), encoder + 1) < 0
+print('Native full-log vtable/content, tab strip, tab/selection/cursor/scrollbar and row-drawing CALL graph cross-check passed.')
 print('Static verification only: live artwork, pulse/fades, hit-tests, menu actions and GPU resets still need validation.')

@@ -1,9 +1,10 @@
 // Theme the client's expanded controls without replacing their geometry or hit-tests, or, asked by the
-// addon, leave its tab strip and scrollbar undrawn where it draws its own: measured as the game draws them,
-// so the addon's stand where the game's hit-tests are. Only five verified CALL sites are redirected; the
-// shared sprite renderer is never patched.
+// addon, leave its tab strip, scrollbar and rows of text undrawn where it draws its own: measured as the
+// game draws them, so the addon's stand where the game's hit-tests are. Only six verified CALL sites are
+// redirected; the shared sprite, scrollbar, tab-strip and row-drawing routines are never patched.
 #pragma once
 #include "chat.h"
+#include "glyphs.h"
 #include <algorithm>
 #define CHAT_TAB_SPRITE_PATTERN "51 53 55 56 8B 71 14 8D 59 04 57 8B CB E8"
 #define CHAT_TAB_ART_PATTERN "6A 00 8D 44 42 20 68 80 80 80 80 0F BF CE 8B 3C 87 0F BF C5 50 51 8B CF E8"
@@ -160,3 +161,43 @@ static bool ChatNormalize(const ChatBounds& from,float x,float y,float width,flo
 }
 // A native control is left undrawn only inside a skinned full log whose capture asked for it
 static inline bool ChatHidden(uint32_t replace,uint32_t bit,bool active) { return active && (replace & bit)!=0; }
+
+// The full log's rows of text: its content Draw's last call, at +AA, is to the log drawer it shares with the
+// compact logs (thiscall, six stack words), and inside the drawer one call draws a row: cdecl with the row's
+// text, its 60-byte header by value, x, y, an alpha, the cursor flag, an out pointer and a zero, 22 words the
+// caller takes back (add esp,58, within the 40 bytes after the call, once it has read what it keeps from the
+// stack). That one site is redirected, a sixth; the drawer and the row draw are not.
+#define CHAT_ROWS_DRAW_PATTERN "83 EC 0C A1 ?? ?? ?? ?? 89 4C 24 00 53 55 8A 48 08 56 84 C9 57 0F 84"
+#define CHAT_ROW_SITE_PATTERN "6A 7F 51 52 B9 0F 00 00 00 83 EC 3C 8B FC 55 F3 A5 E8"
+#define CHAT_ROW_DRAW_PATTERN "8B 44 24 58 8B 4C 24 54 8B 54 24 50 50 8B 44 24 50 51 8B 4C 24 50 52 8B 54 24 50 50"
+#define CHAT_ROWS_CALL 0xaa
+#define CHAT_ROW_SITE_CALL 17
+using ChatRowDraw = void(__cdecl*)(const uint16_t*,ChatRowHeader,int32_t,int32_t,uint32_t,uint32_t,void*,uint32_t);
+struct ChatTextSite { uint8_t* call=nullptr; uint8_t* target=nullptr; uint8_t saved[5]={}; };
+static ChatTextSite DiscoverChatText(uint8_t* begin,size_t size,uint8_t* fullDraw) {
+    ChatTextSite out;
+    if (!fullDraw || !ChatWithin(fullDraw,begin,size)) return out;
+    auto* rows=UniquePattern(begin,size,CHAT_ROWS_DRAW_PATTERN);
+    auto* site=UniquePattern(begin,size,CHAT_ROW_SITE_PATTERN);
+    auto* row=UniquePattern(begin,size,CHAT_ROW_DRAW_PATTERN);
+    if (!rows || !site || !row || ChatCallee(begin,size,fullDraw+CHAT_ROWS_CALL)!=rows) return out;
+    auto* call=site+CHAT_ROW_SITE_CALL;
+    if (!ChatWithin(call,rows,0x200) || size_t(call-begin)+40>size || ChatCallee(begin,size,call)!=row) return out;
+    bool cleaned=false;
+    for (unsigned i=5;i+3<=40;i++) if (call[i]==0x83 && call[i+1]==0xc4 && call[i+2]==0x58) cleaned=true;
+    if (!cleaned) return out;
+    out.call=call; out.target=row;
+    return out;
+}
+static bool TakeChatText(ChatTextSite& out,const ChatTextSite& found,void* replacement) {
+    if (out.call || !found.call || !found.target || !replacement || !VerifyCall(found.call,found.target)) return false;
+    out.call=found.call; out.target=found.target; memcpy(out.saved,out.call,5);
+    uint8_t patch[5]={0xe8,0,0,0,0};
+    const int32_t distance=Distance(out.call+5,replacement); memcpy(patch+1,&distance,4);
+    WriteCode(out.call,patch,5);
+    return true;
+}
+static void GiveChatText(ChatTextSite& out) {
+    if (out.call) WriteCode(out.call,out.saved,5);
+    out=ChatTextSite();
+}

@@ -15,7 +15,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "Modular native UI replacement: buffs, party/alliance, targets, clock, compass and chat."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.3; }
+    double GetVersion() const override { return 0.4; }
     // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
     bool Initialize(IAshitaCore* core, ILogManager* log, uint32_t id) override {
@@ -45,7 +45,7 @@ public:
         if (_stricmp(words[1], "hud") == 0) return party && party->HandleCommand(mode, "/uihook hud", injected);
         if (_stricmp(words[1], "chat") == 0) return party && party->HandleCommand(mode, "/uihook chat", injected);
         if (!words[1][0] || _stricmp(words[1], "addons") == 0) { Addons(); return true; }
-        Say("0.3. /uihook (or /uihook addons) lists the addons handing it something now; /uihook hud says what the clock is drawn into; /uihook chat reports chat replacement hooks.");
+        Say("0.4. /uihook (or /uihook addons) lists the addons handing it something now; /uihook hud says what the clock is drawn into; /uihook chat reports chat replacement hooks.");
         return true;
     }
     void Say(const std::string& text) const { m_Core->GetChatManager()->Write(0, false, ("[uihook] " + text).c_str()); }
@@ -62,7 +62,7 @@ public:
             list += name;
             if (empty) list += " (hidden)";
         };
-        Say("0.3. Addons handing it something now:");
+        Say("0.4. Addons handing it something now:");
         int shown = 0;
         if (buff.fresh) {
             Say("  buff: its bar, in place of the game's status icons (" + std::to_string(buff.quads) + " quads)");

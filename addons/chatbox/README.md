@@ -1,11 +1,12 @@
-# Chatbox — experimental 0.8
+# Chatbox — experimental 0.9
 
 A **WinXI-styled chat log the game still drives**. The compact log takes the native primary log's
 place and **size** (it follows the game's chat size setting), in WinXI's background and border art,
 with **12px text** and **3px padding** to begin with. New messages appear at the bottom; long ones
 wrap and count as rows. A WinXI title on the top edge names the channel. Typing goes into a WinXI
 input bar over the game's own editor, and confirming on the log opens the game's own expanded log
-in a WinXI frame, its channel tabs and scrollbar drawn in WinXI's look where the game's are.
+in a WinXI frame, its channel tabs and scrollbar drawn in WinXI's look and its text in the chat's font,
+each where the game's are.
 
 - The title follows `/cm` (`/chatmode`) at once, with a passing override for a line typed with
   `/p`, `/l`, `/t` and the like. Until a mode command is seen it is the last channel spoken in (Say
@@ -27,9 +28,9 @@ in a WinXI frame, its channel tabs and scrollbar drawn in WinXI's look where the
 
 ```text
 addons/chatbox/          this directory
-addons/libs/winxi/       WinXI 15 or newer
+addons/libs/winxi/       WinXI 16 or newer
 addons/winxisettings/    shared theme settings (optional)
-plugins/uihook.dll       0.3 or newer, chat ABI 9 (native content, the tab strip and scrollbar measured)
+plugins/uihook.dll       0.4 or newer, chat ABI 10 (native content, the tab strip, scrollbar and rows of text measured)
 ```
 
 Build uihook with `plugins/uihook/build.sh`; the output is `plugins/uihook/build/uihook.dll`. Turn
@@ -94,7 +95,8 @@ are kept for each character.
 
 - **Font**: the log's and input bar's font, the theme's (to begin with) or any `.ttf` in
   `C:\Windows\Fonts`. Japanese and other non-Latin text need a font with those glyphs.
-- **Font Size**: 8 to 24 pixels (12 to begin with); both boxes grow with it.
+- **Font Size**: 8 to 24 pixels (12 to begin with); both boxes grow with it. The expanded log's text
+  is this size too, with Replace Text, though no taller than the game's rows.
 
 **Padding**
 
@@ -114,6 +116,10 @@ are kept for each character.
 - **Replace Scrollbar** (on to begin with): the expanded log's scrollbar drawn as the compact log's,
   a faint track and a thumb, where the game's is; scrolling is still the game's. Off, the game's own
   is drawn, tinted.
+- **Replace Text** (experimental, on to begin with): the expanded log's rows of text drawn in the
+  chat's Font, at Font Size or the game's row height if that is less, each row where the game draws
+  its own and in the game's colours, so the cursor, hovering, Confirm and scrolling are still the
+  game's. Off, the game's own font.
 
 **Window Colors**
 
@@ -166,9 +172,10 @@ button and writes no expanded flag. Expanded mode is a **WinXI frame around the 
 browser**, at its full-log rectangle: uihook replaces the decoration and lets the game draw its
 rows, selection and cursor where its mouse hit-tests are. Browsing, tabs, wheel, Confirm (with its
 message-action menus) and Cancel are all native; no tell is made up, and every tab uses the game's
-own filter. The **tabs and scrollbar** are the addon's: uihook measures the game's tab strip and
-scrollbar as the game draws them and, with Replace Tabs and Replace Scrollbar on, leaves them
-undrawn, and the addon draws its own in exactly those places the frame after. The game's tabs
+own filter. The **tabs, scrollbar and text** are the addon's: uihook measures the game's tab strip,
+scrollbar and rows of text as the game draws them and, with Replace Tabs, Replace Scrollbar and
+Replace Text on, leaves them undrawn, and the addon draws its own in exactly those places the frame
+after. The game's tabs
 overlap at their edges and are stacked; the addon draws them in the game's order, each over the ones
 before it, and the chosen one last, on top of all. Each is a square-cornered box, as winxi's windows
 are: the log's **Background** colour, then WinXI's **Highlight Color** over it, solid for the chosen
@@ -185,10 +192,19 @@ game's own controls. With either off, or without a fresh place from uihook (the 
 build without the hooks), the game's own are drawn: the selected tab and row highlight in the
 Highlight Color, other tabs the Title colour, the cursor and scrollbar the **Border / Art Tint**,
 native fade and pulse kept. The row highlight and cursor are always the game's, tinted so.
-Expanded rows keep the game's bitmap font, spacing and colours; padding, Width and Default Text
-apply to the compact log and input only, and there is no WinXI title over the tabs. Missing control
-signatures leave the art untinted and the game's tabs and scrollbar drawn; missing content
-signatures, geometry or a failed capture leave the game's whole view showing.
+The **text** is the addon's with Replace Text on: uihook decodes each of the game's rows as the
+game draws it (its glyph words back to the bytes the game was given, colour codes and all) and
+measures the row, and the addon draws the row's text where the game drew it, in the chat's **Font**
+at **Font Size** or the game's row height if that is less, centred in the row, in its message's
+chat-mode colour with the game's inline colours kept and auto-translate brackets as shapes, clipped
+to the log's box; the game's cursor is drawn after the cursor row's text, where the game puts its
+mark. The rows themselves, their wrapping and spacing, the cursor, hovering, Confirm and its menus
+and the wheel are still the game's. A font wider than the game's can run past the right edge, where
+it is clipped. Off, or without a fresh set of rows from uihook, the game's own bitmap font is drawn.
+Padding, Width and Default Text apply to the compact log and input only, and there is no WinXI
+title over the tabs. Missing control signatures leave the art untinted and the game's tabs,
+scrollbar and text drawn; missing content signatures, geometry or a failed capture leave the
+game's whole view showing.
 Compact and expanded captures are never replayed at each other's boundary. Nested menus and input
 hand the view back to the game, and expanding releases compact scrollbar drags and resets the
 wheel. Other addons' Under Expanded Chat hiding works as before.
@@ -205,8 +221,8 @@ dropped on load.
 are parsed first, kept as byte ranges and never drawn; slot 1 resets to the line's colour. NPC bell
 separators and CRLF become paragraph breaks; `7F` prompt, end and timing controls are consumed;
 truncated escapes are dropped. Auto-translate brackets are drawn as shapes, and elemental
-`EF 1F`–`EF 26` symbols as `[fire]`, `[ice]` and so on. Other pictographs, blinking and timed reveal
-are not reproduced. No FancyChat code is used; palette observations are credited in `palette.lua`.
+`EF 1F`–`EF 26` symbols as `[fire]`, `[ice]` and so on. The game's other pictographs (`EF 29`–`EF 4D`),
+blinking and timed reveal are not reproduced. No FancyChat code is used; palette observations are credited in `palette.lua`.
 Native chat recognition lives in uihook, not in this addon.
 
 ## Checks

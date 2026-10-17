@@ -13,12 +13,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "win"
             VALUE "FileDescription", "uihook - modular native UI replacement"
-            VALUE "FileVersion", "0.3.0.0\0"
+            VALUE "FileVersion", "0.4.0.0\0"
             VALUE "InternalName", "uihook"
             VALUE "LegalCopyright", "Copyright (c) 2026 win"
             VALUE "OriginalFilename", "uihook.dll"
             VALUE "ProductName", "uihook"
-            VALUE "ProductVersion", "0.3.0\0"
+            VALUE "ProductVersion", "0.4.0\0"
         END
     END
     BLOCK "VarFileInfo"

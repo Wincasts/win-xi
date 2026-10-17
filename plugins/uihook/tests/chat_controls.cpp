@@ -29,6 +29,11 @@ static ChatScrollArt seenScroll;
 static void __fastcall ProbeScroll(void* object,void*) {
     seenObject=object; memcpy(seenScroll.bytes,object,sizeof(seenScroll));
 }
+static const uint16_t* seenText=nullptr; static ChatRowHeader seenHeader; static uint32_t seenRow[6];
+static void __cdecl ProbeRow(const uint16_t* text,ChatRowHeader header,int32_t x,int32_t y,uint32_t alpha,uint32_t flag,void* out,uint32_t zero) {
+    seenText=text; seenHeader=header;
+    const uint32_t args[]={uint32_t(x),uint32_t(y),alpha,flag,uint32_t(reinterpret_cast<uintptr_t>(out)),zero}; memcpy(seenRow,args,sizeof(args));
+}
 int main() {
     uint8_t image[8192]={};
     auto* window=image+64;
@@ -164,5 +169,70 @@ int main() {
     { ChatOwnerScope first(current,owner); { ChatOwnerScope nested(current,nullptr); }
         Check(current==owner,"nested full-log drawing restores parent owner"); }
     Check(current==chosen,"content owner scope restores previous pointer on exit");
+
+    // the rows of text: the drawer the content Draw calls at +AA, its one row-drawing call, cdecl with 22 words
+    auto* drawer=image+6200; Pattern(drawer,CHAT_ROWS_DRAW_PATTERN);
+    auto* rowSite=image+6300; Pattern(rowSite,CHAT_ROW_SITE_PATTERN);
+    auto* rowDraw=image+6500; Pattern(rowDraw,CHAT_ROW_DRAW_PATTERN);
+    Call(full+CHAT_ROWS_CALL,drawer); Call(rowSite+CHAT_ROW_SITE_CALL,rowDraw);
+    memcpy(rowSite+CHAT_ROW_SITE_CALL+20,"\x83\xc4\x58",3); // the caller takes the words back once it has read its stack, as the client does
+    auto textSite=DiscoverChatText(image,sizeof(image),full);
+    Check(textSite.call==rowSite+CHAT_ROW_SITE_CALL && textSite.target==rowDraw,"the row site is the drawer's call to the row draw, the drawer the content Draw's callee at +AA");
+    Call(full+CHAT_ROWS_CALL,image+4000);
+    Check(!DiscoverChatText(image,sizeof(image),full).call,"the content Draw must call the drawer there");
+    Call(full+CHAT_ROWS_CALL,drawer);
+    Call(rowSite+CHAT_ROW_SITE_CALL,tabSprite);
+    Check(!DiscoverChatText(image,sizeof(image),full).call,"the site's callee must be the row draw");
+    Call(rowSite+CHAT_ROW_SITE_CALL,rowDraw);
+    rowSite[CHAT_ROW_SITE_CALL+22]=0x54;
+    Check(!DiscoverChatText(image,sizeof(image),full).call,"the caller must take back 22 words (add esp,58)");
+    rowSite[CHAT_ROW_SITE_CALL+22]=0x58;
+    Pattern(image+7000,CHAT_ROW_SITE_PATTERN);
+    Check(!DiscoverChatText(image,sizeof(image),full).call,"an ambiguous row site is never patched");
+    memset(image+7000,0,18);
+    Check(!DiscoverChatText(image,sizeof(image),nullptr).call,"no content Draw, no text site");
+    ChatTextSite textHook;
+    Check(TakeChatText(textHook,DiscoverChatText(image,sizeof(image),full),image+5500) && VerifyCall(rowSite+CHAT_ROW_SITE_CALL,image+5500)
+        && rowDraw[0]==0x8b && drawer[0]==0x83,"the row site redirected, the row draw and the drawer untouched");
+    Check(!TakeChatText(textHook,textSite,image+5500),"a taken site is not taken twice");
+    GiveChatText(textHook);
+    Check(VerifyCall(rowSite+CHAT_ROW_SITE_CALL,rowDraw) && !textHook.call,"unload restores the row site");
+    uint16_t rowText[4]={0x28,0x29,0x2a,0x2b}; ChatRowHeader header; for (unsigned i=0;i<60;i++) header.bytes[i]=uint8_t(i);
+    ProbeRow(rowText,header,-3,17,0x7f,1,image+10,0);
+    Check(seenText==rowText && !memcmp(seenHeader.bytes,header.bytes,60) && seenRow[0]==0xfffffffd && seenRow[1]==17 && seenRow[2]==0x7f
+        && seenRow[3]==1 && seenRow[4]==uint32_t(reinterpret_cast<uintptr_t>(image+10)) && seenRow[5]==0,"the row draw's 22 words pass through by value, the header whole");
+    // the row's header fields and its words decoded: the game's encoder round-trips through the decoder
+    ChatRowInfo rowInfo; header.bytes[0]=9; header.bytes[0x10]=0x12; header.bytes[0x11]=0; header.bytes[0x12]=1; header.bytes[0x15]=0x40;
+    Check(ChatRowFields(header,rowInfo) && rowInfo.mode==9 && rowInfo.words==0x12 && rowInfo.state==1 && rowInfo.marks==0x40,"the row's mode, words, cursor state and marks read from its header");
+    header.bytes[0x10]=0xe3; header.bytes[0x11]=0x03;
+    Check(!ChatRowFields(header,rowInfo),"more words than a row holds is no row");
+    Check(ChatGlyphOf(0x81,0x40)==0x60 && ChatGlyphOf(0x88,0x9f)==0x400 && ChatGlyphOf(0x98,0x9f)==0xf95 && ChatGlyphOf(0xe0,0x40)==0x1517
+        && ChatGlyphOf(0xed,0x40)==0x1fbe && ChatGlyphOf(0x87,0x7e)==0x3dd && ChatGlyphOf(0xef,0x1f)==CHAT_GLYPH_ICON_FIRST && ChatGlyphOf(0xfc,0xfc)==0xcb,
+        "the encoder as the client has it: band starts, the pictographs and the overflow glyph");
+    bool roundTrip=true; unsigned glyphs=0;
+    for (unsigned lead=0x81;lead<=0xfc && roundTrip;lead++) {
+        if (lead>0x9f && lead<0xe0) continue;
+        for (unsigned trail=0x40;trail<=0xfc;trail++) {
+            if (trail==0x7f) continue;
+            const uint16_t glyph=ChatGlyphOf(uint8_t(lead),uint8_t(trail));
+            uint8_t bytes[2]; const unsigned n=ChatGlyphBytes(glyph,bytes);
+            if (n!=2 || ChatGlyphOf(bytes[0],bytes[1])!=glyph) { roundTrip=false; printf("  %02x %02x -> %x -> %u bytes %02x %02x\n",lead,trail,glyph,n,bytes[0],bytes[1]); break; }
+            glyphs++;
+        }
+    }
+    Check(roundTrip && glyphs==60*188,"every two-byte character decodes to bytes that encode to its glyph again");
+    uint8_t one[2];
+    bool ascii=true;
+    for (unsigned c=0x20;c<0x7f;c++) if (ChatGlyphBytes(uint16_t(c-0x20),one)!=1 || one[0]!=c) ascii=false;
+    Check(ascii && ChatGlyphBytes(0x5f,one)==1 && one[0]==0x20,"single bytes are their glyph and 20; glyph 5F, the name blank, a space");
+    Check(ChatGlyphBytes(0x211d,one)==2 && one[0]==0xef && one[1]==0x27 && ChatGlyphBytes(CHAT_GLYPH_ICON_LAST,one)==2 && one[1]==0x4d,"the pictographs are EF 1F to EF 4D");
+    Check(ChatGlyphBytes(CHAT_GLYPH_COUNT,one)==0 && ChatGlyphBytes(0x2950,one)==0,"a glyph past the font is no character");
+    const uint16_t words[]={0x28,0x1fbe,0xfe00-0x0c,0x29,0xff00-0x50,0x2a,0xffcf,0x5f,0x211d,0x1f00,0x2b};
+    char decoded[64]; bool cut=true;
+    const uint32_t length=ChatDecodeRow(words,11,decoded,sizeof(decoded),cut);
+    Check(length==14 && !cut && !memcmp(decoded,"H\xed\x40\x1f\x0cI\x1e\x50J \xef\x27?K",14),
+        "a row's words decoded: characters, 1F and 1E colour codes, a 7F control left out, the blank, a pictograph, an unknown glyph a ?");
+    Check(ChatDecodeRow(words,11,decoded,4,cut)==3 && cut,"no room for a whole character: cut there");
+    Check(ChatDecodeRow(words,0,decoded,sizeof(decoded),cut)==0 && !cut,"an empty row");
     return failures?1:0;
 }

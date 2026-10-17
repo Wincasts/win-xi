@@ -1,8 +1,8 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.8.0'
+addon.version = '0.9.0'
 addon.desc = 'WinXI native-backed chat, titled with your channel, with selection and an expanded view in WinXI tabs.'
-local winxiNeeded = 15
+local winxiNeeded = 16
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -114,7 +114,7 @@ local function ClearHistory() model.Clear(history); decodeSample = nil; wheelOff
 
 app = shell.New({
     defaults = T{ enabled = T{ true }, width = T{ 640 }, matchGameLogSize = T{ true }, matchGameInputSize = T{ false }, fontSize = T{ 12 },
-        replaceTabs = T{ true }, replaceScrollbar = T{ true },
+        replaceTabs = T{ true }, replaceScrollbar = T{ true }, replaceText = T{ true },
         appearance = appearance.Defaults(T, theme.Get()), fontFile = '',
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 } },
     command = '/chatbox',
@@ -166,7 +166,7 @@ app = shell.New({
             widgets.Label('Font Size')
             imgui.SliderInt('##chatbox.fontSize', options.fontSize, 8, 24, '%d px')
             if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-            Tip('How large the log\'s and the input bar\'s text is, in pixels; both boxes grow with it.\nThe expanded log keeps the game\'s own font.')
+            Tip('How large the log\'s and the input bar\'s text is, in pixels; both boxes grow with it.\nThe expanded log\'s text too, with Replace Text, though no taller than the game\'s rows.')
         end
         if widgets.Header('Padding') then
             for _, side in ipairs(PADDING_SIDES) do
@@ -183,6 +183,9 @@ app = shell.New({
             widgets.Label('Replace Scrollbar')
             if imgui.Checkbox('##chatbox.replaceScrollbar', options.replaceScrollbar) then app.save() end
             Tip('Draws the expanded log\'s scrollbar as the compact log\'s, where the game\'s is; scrolling is still the game\'s.\nOff, the game\'s own is drawn, tinted.')
+            widgets.Label('Replace Text', true)
+            if imgui.Checkbox('##chatbox.replaceText', options.replaceText) then app.save() end
+            Tip('Draws the expanded log\'s rows of text in the chat\'s Font, at Font Size or the game\'s row height if that is less, each row where the game draws its own and in the game\'s colours,\nso the cursor, hovering, Confirm and scrolling are still the game\'s. Off, the game\'s own font.')
         end
         if widgets.Header('Window Colors') then appearance.Draw(options.appearance, app.save) end
     end,
@@ -378,15 +381,77 @@ end
 -- The tabs and scrollbar the addon draws stand where uihook measured the game's, so the game's hit-tests,
 -- Square selection and scrolling are untouched; the game is asked to leave its own undrawn only while
 -- there is a fresh place to draw them in.
-local expandedColors, expandedReplace = {}, { tabs = false, scrollbar = false }
+local expandedColors, expandedReplace = {}, { tabs = false, scrollbar = false, text = false }
 local expandedOptions = { padding = 0, shadow = false,
     capture = function() captured = primary.Capture(true, expandedColors, expandedReplace) end }
-local expandedTabs, expandedScroll, expandedScreen = nil, nil, { 0, 0 }
+local expandedTabs, expandedScroll, expandedRows, expandedScreen = nil, nil, nil, { 0, 0 }
+local expandedBox = { 0, 0, 0, 0 } -- the full log's rectangle, which its rows are clipped to
 local stripColors = {}
 local origin = { 0, 0 }
+-- The game's rows of text, decoded once each (CP932 with the game's colour codes to UTF-8 and colour spans)
+-- and kept by their bytes: 512 at most, then forgotten together
+local decodedRows, decodedCount = {}, 0
+local function DecodeRow(raw)
+    local entry = decodedRows[raw]
+    if entry == nil then
+        local ok, text, _, spans = pcall(encoding.Decode, raw, true, true)
+        entry = { text = ok and type(text) == 'string' and text or '', spans = ok and spans or nil }
+        if decodedCount >= 512 then decodedRows, decodedCount = {}, 0 end
+        decodedRows[raw], decodedCount = entry, decodedCount + 1
+    end
+    return entry
+end
+-- The game's cursor art (as the compact log's) with its left edge at x, on a row of that height
+local function DrawMark(list, x, rowTop, fontSize)
+    local handle, art = cursorArt.Get()
+    if handle then
+        local height = fontSize + 2
+        local width = height * art[5] / art[6]
+        list:AddImage(handle, { x, rowTop - 1 }, { x + width, rowTop - 1 + height },
+            { art[1], art[2] }, { art[3], art[4] }, imgui.GetColorU32(white))
+    else
+        list:AddText({ x, rowTop }, imgui.GetColorU32(controller.HighlightColor), '>')
+    end
+end
+-- The game's rows of text where it drew them, in the chat's font at Font Size or the row's height if that is
+-- less, each centred in its row, in its chat mode's colour with the game's inline colours kept; the game's
+-- cursor row gets the cursor after its text, as the game puts its mark there. Clipped to the full log's box.
+local function DrawExpandedRows(list, rows)
+    local height
+    for _, row in ipairs(rows) do
+        if row.top then height = row.bottom - row.top; break end
+    end
+    if not height or height < 1 then return 0 end
+    local size = math.min(app.options.fontSize[1], math.floor(height))
+    local chatFont = fonts.Get(app.options.fontFile)
+    imgui.PushFont(chatFont, size)
+    list:PushClipRect({ expandedBox[1], expandedBox[2] }, { expandedBox[3], expandedBox[4] }, true)
+    local fallback = theme.Get().TextColor
+    local drawn = 0
+    for _, row in ipairs(rows) do
+        if row.top then
+            local y = row.top + math.floor((row.bottom - row.top - size) / 2)
+            local x = row.left
+            if row.text ~= '' then
+                local entry = DecodeRow(row.text)
+                if entry.text ~= '' then
+                    render.Rich(list, { x, y }, imgui.GetColorU32(palette.Mode(row.mode) or fallback), entry.text, entry.spans)
+                    x = x + render.Measure(entry.text)
+                    drawn = drawn + 1
+                end
+            end
+            if row.cursor then DrawMark(list, x + 4, y, size) end
+        end
+    end
+    list:PopClipRect()
+    imgui.PopFont()
+    return drawn
+end
 local function DrawExpandedControls()
-    if not expandedTabs and not expandedScroll then return end
+    if not expandedTabs and not expandedScroll and not expandedRows then return end
     local list = imgui.GetWindowDrawList()
+    if expandedRows and lastDrawn then lastDrawn.drawn = DrawExpandedRows(list, expandedRows) end
+    if not expandedTabs and not expandedScroll then return end
     local chatFont = fonts.Get(app.options.fontFile)
     if chatFont then imgui.PushFont(chatFont, app.options.fontSize[1]) end
     list:PushClipRect(origin, expandedScreen, false) -- the game's tabs may stand above the frame
@@ -433,23 +498,29 @@ local function DrawExpanded(state, sw, sh)
     expandedColors[2] = expandedOptions.titleColor or look.TitleColor or look.TextColor or white
     expandedColors[3] = expandedOptions.border or look.BorderColor or white
     expandedColors[4] = expandedOptions.border or look.BorderColor or white
-    -- where the game drew its tabs and scrollbar last, to draw the addon's own there and ask the game to leave its undrawn
+    -- where the game drew its tabs, scrollbar and rows of text last, to draw the addon's own there and ask the game to leave its undrawn
     local replace = state.nativeReplace
     expandedTabs = replace and app.options.replaceTabs[1] and primary.Tabs(sw, sh) or nil
     expandedScroll = replace and app.options.replaceScrollbar[1] and primary.Scrollbar(sw, sh) or nil
-    expandedReplace.tabs, expandedReplace.scrollbar = expandedTabs ~= nil, expandedScroll ~= nil
+    expandedRows = state.nativeText and app.options.replaceText[1] and primary.Rows(sw, sh) or nil
+    expandedReplace.tabs, expandedReplace.scrollbar, expandedReplace.text = expandedTabs ~= nil, expandedScroll ~= nil, expandedRows ~= nil
     expandedScreen[1], expandedScreen[2] = sw, sh
+    expandedBox[1], expandedBox[2], expandedBox[3], expandedBox[4] = rect[1], rect[2], rect[3], rect[4]
     place[1], place[2] = rect[1], rect[4]
     size[1], size[2] = rect[3]-rect[1], rect[4]-rect[2]
     imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
     imgui.SetNextWindowSize(size, ImGuiCond_Always)
+    lastDrawn = { frame = frame, expanded = true, left = rect[1], top = rect[2], width = size[1], bottom = rect[4],
+        rows = state.pageRows or 0, drawn = 0, firstY = rect[2], title = expandedRows and 'WinXI text' or 'native content', overflow = false }
     window.Plain('winxi.chatbox.expanded', open, flags, DrawExpandedControls, expandedOptions)
-    local own = (expandedTabs and expandedScroll) and 'WinXI tabs and scrollbar' or expandedTabs and 'WinXI tabs' or expandedScroll and 'WinXI scrollbar' or nil
-    anchorStatus = own and ('Expanded native rows and actions; WinXI frame and ' .. own .. ' where the game\'s are.')
+    local parts = {}
+    if expandedTabs then parts[#parts + 1] = 'tabs' end
+    if expandedScroll then parts[#parts + 1] = 'scrollbar' end
+    if expandedRows then parts[#parts + 1] = 'text' end
+    local own = #parts > 0 and ('WinXI ' .. table.concat(parts, ', '):gsub(', ([^,]+)$', ' and %1')) or nil
+    anchorStatus = own and ((expandedRows and 'Expanded native actions; WinXI frame and ' or 'Expanded native rows and actions; WinXI frame and ') .. own .. ' where the game\'s are.')
         or state.nativeControls and 'Expanded native rows and actions; WinXI frame and theme-tinted native controls.'
         or 'Expanded native rows and actions; WinXI frame (control artwork hooks unavailable).'
-    lastDrawn = { frame = frame, expanded = true, left = rect[1], top = rect[2], width = size[1], bottom = rect[4],
-        rows = state.pageRows or 0, drawn = 0, firstY = rect[2], title = 'native content', overflow = false }
 end
 
 ashita.events.register('d3d_present', 'chatbox_present', function()

@@ -18,6 +18,8 @@ function M.Clean(raw, icons, colors)
         elseif icons and b == 0xef and nextByte and nextByte >= 0x1f and nextByte <= 0x26 then
             local elements = {'fire','ice','wind','earth','lightning','water','light','dark'}
             icon('[' .. elements[nextByte - 0x1e] .. ']'); i = i + 2
+        elseif b == 0xef and nextByte and nextByte >= 0x1f and nextByte <= 0x4d then
+            i = i + 2 -- the game's other pictographs, drawn from its table, not the font: nothing to show
         elseif icons and b == 0x7f and (nextByte == 0x66 or nextByte == 0x69 or nextByte == 0x64) then
             local opening = nextByte == 0x69 or (nextByte == 0x66 and not preview)
             icon(opening and '❮' or '❯')
