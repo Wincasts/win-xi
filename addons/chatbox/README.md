@@ -174,7 +174,7 @@ before it, and the chosen one last, on top of all. Each is a square-cornered box
 are: the log's **Background** colour, then WinXI's **Highlight Color** over it, solid for the chosen
 tab and faint for the rest, the theme's **Tab Style** over both, and an edge in the **Border / Art
 Tint**, so the joins show where one lies over another. The channel's name (Window, Say, Tell, Party,
-Linkshell, Linkshell 2, Assist (E), Assist (J), Unity, Shout), in the chat's **Font** and **Font
+Linkshell 1, Linkshell 2, Assist (J), Assist (E), Unity, Shout), in the chat's **Font** and **Font
 Size** and the log's **Title** colour with winxi's dark edge, is centred in the part of the tab left
 uncovered and cut to what fits there. No line under the row, the frame's border being there. The
 scrollbar is a faint track and a white thumb, as wide as the
