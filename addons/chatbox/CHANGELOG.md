@@ -24,6 +24,10 @@
   whatever mode they are sent with), and the inline colour codes the colours the game gives them. A
   mode the game has no colour for is white, as the game draws it. Without uihook's reading, the
   approximations as before.
+- Two boxes no longer undo each other's layout every frame. The log's caches held one box's wrapping,
+  row counts and rows, so with the second window shown each frame laid the history out again, and
+  with the windows side by side (two widths) re-measured every message's wrapping: thousands of text
+  measurements a frame. They hold both boxes now, and a frame with no new message measures nothing.
 - Needs winxi 19 and uihook 0.5 with chat ABI 13.
 
 ## 0.9.0

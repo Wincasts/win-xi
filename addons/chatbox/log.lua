@@ -160,9 +160,13 @@ function M.Wrap(text, width, measure)
     end
     return rows
 end
--- Two layouts cover the full width and scrollbar-reserved width. Wrapping is independent of
--- channel filters and viewport offsets; retain it per message, not per rendered viewport.
--- Eviction in Add and reset in Clear bound storage to retained messages in these two layouts.
+-- Each box drawn a frame (two with the game's second log window) uses its full width and its scrollbar-reserved
+-- width: the caches hold that many layouts and metrics, and a tail view per box, so the boxes do not evict each
+-- other every frame.
+local LAYOUTS, VIEWS = 4, 2
+-- Up to LAYOUTS layouts (width, font, size). Wrapping is independent of channel filters and viewport offsets;
+-- retain it per message, not per rendered viewport. Eviction in Add and reset in Clear bound storage to
+-- retained messages in these layouts.
 local function Wrapped(log, width, font, size, measure)
     local layouts = log.wraps or {}
     log.wraps = layouts
@@ -174,7 +178,7 @@ local function Wrapped(log, width, font, size, measure)
     end
     local messages = {}
     table.insert(layouts, 1, { width = width, font = font, size = size, messages = messages })
-    if #layouts > 2 then table.remove(layouts) end
+    if #layouts > LAYOUTS then table.remove(layouts) end
     return messages
 end
 local function Lines(cache, message, width, measure)
@@ -228,7 +232,7 @@ function M.Metrics(log, width, font, size, measure, modes)
         end
     end
     table.insert(cache,1,metrics)
-    if #cache > 2 then table.remove(cache) end
+    if #cache > LAYOUTS then table.remove(cache) end
     log.metrics = cache
     return metrics
 end
@@ -242,10 +246,12 @@ function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffs
     newer = math.max(0, math.floor(tonumber(newer) or 0))
     rowOffset = math.max(0, math.min(M.Capacity*(M.MaxBytes+1), math.floor(tonumber(rowOffset) or 0)))
     local requestedOffset = rowOffset
-    local cache = log.cache
-    if cache and cache.revision == log.revision and cache.width == width and cache.font == font and cache.size == size
-        and cache.rowCount == rowCount and cache.modes == modes and cache.newer == newer and cache.rowOffset == rowOffset then
-        return cache.rows, cache.actualOffset, cache.overflow
+    local views = log.cache or {}
+    for _, cache in ipairs(views) do
+        if cache.revision == log.revision and cache.width == width and cache.font == font and cache.size == size
+            and cache.rowCount == rowCount and cache.modes == modes and cache.newer == newer and cache.rowOffset == rowOffset then
+            return cache.rows, cache.actualOffset, cache.overflow
+        end
     end
     local wrapped = Wrapped(log, width, font, size, measure)
     local groups, count, index, remaining = {}, 0, 0, false
@@ -279,9 +285,12 @@ function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffs
                 spans = require('richtext').Slice(group.message.spans, group.offsets[line], #text) } end
         end
     end
-    log.cache = { revision = log.revision, width = width, font = font, size = size, rowCount = rowCount, modes = modes,
-        newer = newer, rowOffset = requestedOffset, actualOffset = rowOffset, overflow = remaining or count > rowCount, rows = rows }
-    return rows, rowOffset, log.cache.overflow
+    local overflow = remaining or count > rowCount
+    table.insert(views, 1, { revision = log.revision, width = width, font = font, size = size, rowCount = rowCount, modes = modes,
+        newer = newer, rowOffset = requestedOffset, actualOffset = rowOffset, overflow = overflow, rows = rows })
+    if #views > VIEWS then table.remove(views) end
+    log.cache = views
+    return rows, rowOffset, overflow
 end
 -- How many messages modes shows (all of them for nil).
 function M.Count(log, modes)

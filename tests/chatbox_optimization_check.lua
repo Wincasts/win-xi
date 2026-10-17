@@ -60,13 +60,27 @@ for _, change in ipairs({
 }) do
     before = calls; change()
     assert(calls > before, 'width/font/size changes invalidate wrapping')
-    assert(#log.wraps <= 2, 'layout cache remains bounded')
+    assert(#log.wraps <= 4, 'layout cache remains bounded')
 end
 for _, layout in ipairs(log.wraps) do
     local count = 0
     for _ in pairs(layout.messages) do count = count + 1 end
     assert(count <= model.Capacity, 'message cache remains bounded')
 end
+-- Two boxes (the game's second log window), each with its own filter and width and both overflowing so each
+-- uses its scrollbar-reserved width too: once laid out, a frame wraps nothing and filters nothing.
+local filtered = 0
+local first = function(message) filtered = filtered + 1; return message.mode == 1 end
+local second = function(message) filtered = filtered + 1; return message.mode == 2 end
+local function box(width, filter, rows)
+    if metrics(width, filter).total > rows then width = width - 2; metrics(width, filter) end
+    model.Tail(log, width, 'font', 12, measure, rows, filter, 0, 0)
+end
+local function frames() for _ = 1, 3 do box(24, first, 10); box(18, second, 6) end end
+frames()
+before, filtered = calls, 0
+frames()
+assert(calls == before and filtered == 0, 'two boxes keep each other\'s wrapping, metrics and rows')
 model.Clear(log)
 assert(log.wraps == nil and #tail(20, 0) == 0, 'clear discards cached private history')
-print('Chatbox optimization: shared wrapping, scrolling, filters, spans, eviction, layout invalidation and clear passed')
+print('Chatbox optimization: shared wrapping, scrolling, filters, spans, eviction, layout invalidation, two boxes and clear passed')
