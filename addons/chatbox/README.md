@@ -205,8 +205,9 @@ Padding, Width and Default Text apply to the compact log and input only, and the
 title over the tabs. Missing control signatures leave the art untinted and the game's tabs,
 scrollbar and text drawn; missing content signatures, geometry or a failed capture leave the
 game's whole view showing.
-Compact and expanded captures are never replayed at each other's boundary. Nested menus and input
-hand the view back to the game, and expanding releases compact scrollbar drags and resets the
+Compact and expanded captures are never replayed at each other's boundary. A row's action menu
+(Confirm on a player's line) and the input line open over the log, which keeps its WinXI look under
+them; the menu itself is the game's. Expanding releases compact scrollbar drags and resets the
 wheel. Other addons' Under Expanded Chat hiding works as before.
 
 **Colours.** The palettes are **standard-palette approximations**, not live reads: custom DAT

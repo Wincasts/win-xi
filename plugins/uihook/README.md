@@ -151,7 +151,7 @@ An addon can hide a whole native log (including its background, text and mode ta
 write over it with its own captured ImGui window. This does **not** edit messages, chat
 mode, input history, input-open state, or the log's open/close timer. Native logic
 still runs. The primary slot also serves the verified native `fulllog` boundary, but only
-for the newest page of each channel tab; scrolling and nested menus stay native, but mouse-hover cursor movement alone does not release replacement.
+for every page of each channel tab; scrolling, nested menus and the row-action menu stay native, and neither they nor mouse-hover cursor movement release the skin.
 A third, independent input slot
 replaces `menu inline` using chatdiag's active-menu signature (operand at +16), an
 in-module pointer slot and the exact menu header name. Missing or ambiguous input
@@ -246,7 +246,9 @@ expanded bounds. No native positioning writes or font-metric guesses are publish
 primary/split log only when that window is the active native menu and has cursor enable/focus
 bytes +0x62/+0x63 set. Bit 2 is the existing menu-manager +0xF1 > 2 expanded state, found by
 the same signature as `winxi.game.IsChatExpanded`. Bit 3 requires full native fallback:
-another active menu/input, invalid layout data or unsupported full-log discovery. Nonzero scroll
+invalid layout data, unsupported full-log discovery or another menu active before the full log is
+made. Bit 4 notes a menu open over the live full log (a row's actions, the input line): the log keeps
+its skin under it, the menu being the game's own. Nonzero scroll
 and cursor movement no longer trigger fallback: all pages retain native contents and behavior.
 During opening/closing, no fresh expanded rectangle means no frame skin. Other addons' native
 expanded-chat hiding rules remain untouched; no controller input or native expansion flags are rewritten.

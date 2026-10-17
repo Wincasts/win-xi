@@ -13,8 +13,8 @@
 #define CHAT_FULL_DRAW_PATTERN "83 EC 0C 53 55 56 8B F1 57 33 ED 8B 46 54 89 6C 24 14 50 E8"
 #define CHAT_FULL_INIT_PATTERN "8B 56 58 89 56 1C 89 5E 28"
 #define CHAT_FULL_FIELDS_PATTERN "8B 55 54 8B 0D ?? ?? ?? ?? 52 E8 ?? ?? ?? ?? 25 FF 00 00 00 89 47 10 8B 4D 58 89 4F 0C 8B 55 20 8B 4D 58 2B C2 2B C1 89 47 14"
-// StateFlags bits
-enum { CHAT_SELECTED_PRIMARY=1, CHAT_SELECTED_SPLIT=2, CHAT_EXPANDED=4, CHAT_NATIVE_BROWSE=8 };
+// StateFlags bits: 16, a menu (a row's actions, input) open over the live full log, which keeps its skin
+enum { CHAT_SELECTED_PRIMARY=1, CHAT_SELECTED_SPLIT=2, CHAT_EXPANDED=4, CHAT_NATIVE_BROWSE=8, CHAT_NESTED_MENU=16 };
 // SupportedMask bits: 1 primary, 2 split, 4 input, 8 full-log state, 16 content pass-through, 32 control art,
 // 64 the tab strip and scrollbar measured as the game draws them, and hidden when the addon draws its own,
 // 128 the full log's rows of text decoded and measured as the game draws them, and hidden the same way
@@ -200,7 +200,7 @@ public:
         const bool full=Full(owner,child) && Named(child,"menu    fulllog ");
         // Opening or closing: the full log is not yet (or no longer) what the game's focus is on, which
         // is still a log window or nothing. No history is being browsed, so the addon keeps drawing.
-        if (!full || active!=child) {
+        if (!full) {
             if (!active || index==0 || index==1) shared.StateFlags=CHAT_EXPANDED;
             return;
         }
@@ -211,9 +211,12 @@ public:
             || filterPage[0]<0 || filterPage[0]>15 || filterPage[1]<1 || filterPage[1]>4096 || cursorScroll[0]>filterPage[1]) return;
         shared.FullCursor=cursorScroll[0]; shared.FullScroll=cursorScroll[1];
         shared.FullFilter=filterPage[0]; shared.FullPageRows=filterPage[1];
-        // Every page stays native-controlled. The optional replacement skins only the frame;
-        // the client's actual glyph rows, tabs, cursor and scrollbar are never replaced.
-        shared.StateFlags=CHAT_EXPANDED;
+        // Every page stays native-controlled. The optional replacement skins the frame (and, asked, stands
+        // its own controls and text where the game's are); the client's rows, cursor and actions are its own.
+        // A menu open over the live full log (a row's actions, the input line) is noted: the log, still
+        // drawn under it, keeps its skin, and the menu is the game's. Focus still on a log window is the
+        // log opening, not a menu.
+        shared.StateFlags=CHAT_EXPANDED | (active && active!=child && index!=0 && index!=1 ? CHAT_NESTED_MENU : 0);
     }
     int Identify(void* window) const {
         if (!window) return -1;

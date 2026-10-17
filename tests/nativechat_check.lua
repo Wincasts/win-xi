@@ -128,6 +128,7 @@ local state=primary.State(); assert(not state.selected and not state.expanded an
 block.StateFlags=1; assert(primary.State().selected and not primary.State().expanded, 'native selector focus')
 block.StateFlags=4; state=primary.State(); assert(state.expanded and not state.nativeBrowse and state.pageRows==20)
 block.StateFlags=12; assert(primary.State().nativeBrowse, 'native history/menu fallback')
+block.StateFlags=20; state=primary.State(); assert(state.expanded and state.nested and not state.nativeBrowse, 'a menu open over the live full log')
 block.Frame=13; assert(primary.State()==nil and primary.Rect(1920,1080,true)==nil, 'state/full bounds expire')
 block.Frame=10; block.StateFlags=0
 assert(split.Rect(1920,1080)==nil and input.Rect(0,1080)==nil, 'no split geometry; invalid display rejected')

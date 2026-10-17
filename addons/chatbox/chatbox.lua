@@ -521,6 +521,7 @@ local function DrawExpanded(state, sw, sh)
     anchorStatus = own and ((expandedRows and 'Expanded native actions; WinXI frame and ' or 'Expanded native rows and actions; WinXI frame and ') .. own .. ' where the game\'s are.')
         or state.nativeControls and 'Expanded native rows and actions; WinXI frame and theme-tinted native controls.'
         or 'Expanded native rows and actions; WinXI frame (control artwork hooks unavailable).'
+    if state.nested then anchorStatus = anchorStatus .. ' A menu of the game\'s is open over it.' end
 end
 
 ashita.events.register('d3d_present', 'chatbox_present', function()

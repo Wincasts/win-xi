@@ -20,6 +20,9 @@
   space, glyphs 2115–2143 the pictographs EF 1F–EF 4D.
 - `/uihook chat` says whether the row site was taken and how many rows were published, at what
   frame and serial, and their bytes.
+- A menu open over the live full log (a row's action menu, the input line) no longer hands the
+  expanded view back to the game: the log keeps its skin under the menu, and StateFlags bit 4
+  (`State().nested`) notes it. Invalid layout, or another menu before the full log is made, still does.
 
 ## 0.3
 

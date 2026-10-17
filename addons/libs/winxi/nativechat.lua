@@ -130,13 +130,14 @@ function M.new(index)
         end
         return Age(found.NativeFrame[index]), Age(found.DrawnFrame[index])
     end
-    -- Native focus/expansion only: no button interception or native menu/state writes.
+    -- Native focus/expansion only: no button interception or native menu/state writes. nested: a menu (a
+    -- row's actions, the input line) is open over the live full log, which is still drawn under it.
     function hook.State()
         local found = Find()
         if not found or found.StateFrame == 0 or (tonumber(found.Frame)-tonumber(found.StateFrame)) % 4294967296 > 2 then return nil end
         local flags = tonumber(found.StateFlags)
         return { selected = bit.band(flags,3) ~= 0, expanded = bit.band(flags,4) ~= 0,
-            nativeBrowse = bit.band(flags,8) ~= 0, expandedSupported = bit.band(found.SupportedMask,8) ~= 0,
+            nativeBrowse = bit.band(flags,8) ~= 0, nested = bit.band(flags,16) ~= 0, expandedSupported = bit.band(found.SupportedMask,8) ~= 0,
             nativeContent = bit.band(found.SupportedMask,16) ~= 0,
             nativeControls = bit.band(found.SupportedMask,32) ~= 0,
             nativeReplace = bit.band(found.SupportedMask,64) ~= 0,
