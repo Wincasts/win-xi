@@ -271,6 +271,11 @@ scrollGeometry.above=0; frame()
 assert(filled[8].a[2]==120 and filled[8].b[2]==300,'scrolled to the oldest, the thumb at the top')
 tabsGeometry[2].channel=10; frame()
 assert(labels[3].text=='Assist' or labels[3].text=='Assist (E)','a long name cut to what fits the tab')
+tabsGeometry[2].channel=2; frame(); assert(#labels[3].text>0 and ('Linkshell 1'):sub(1,#labels[3].text)==labels[3].text,'the first linkshell\'s tab says Linkshell 1, cut to fit')
+local channels=require('channels')
+local places={}
+for filter, tab in pairs(channels.Filters) do places[tab.place]=tab.name end
+assert(table.concat(places,',')=='Window,Say,Tell,Party,Linkshell 1,Linkshell 2,Assist (J),Assist (E),Unity,Shout','the tabs in the game\'s order, named as the game names them')
 tabsGeometry[2].channel=3
 tabsGeometry[1].selected, tabsGeometry[2].selected = true, false; frame()
 assert(labels[3].text=='Window' and labels[3].x==10+(54-6*7)/2 and labels[1].text=='Say' and labels[1].x==64+(46-3*7)/2,

@@ -17,19 +17,20 @@ local unity = Set{ 211, 212 }
 -- The game's full log has a tab for each channel, Square moving between them left to right. Its filter
 -- is the channel's number, not the tab's place: as seen in the game (Square through every tab, the
 -- title each showed), Window 0, Party 1, Linkshell 2, Say 3, Tell 4, Shout 5, Unity 6, Linkshell 2 7,
--- Assist J 9. Assist E was not one of these; 10 is taken for it, the Assist channels coming last to
--- the game. place is the tab's place along the top, for the title. Each shows the modes of its channel,
--- sent and received; Window shows everything. Which Assist channel has modes 220/221 and which 222/223
--- is a guess, FancyChat listing 220 and 222 as assist without saying which is which.
+-- Assist J 9. Assist E was not one of these; 10 is taken for it. The tabs run, left to right, Window,
+-- Say, Tell, Party, Linkshell 1, Linkshell 2, Assist (J), Assist (E), Unity and Shout: place is that,
+-- for the title, and name what the tab says. Each shows the modes of its channel, sent and received;
+-- Window shows everything. Which Assist channel has modes 220/221 and which 222/223 is a guess,
+-- FancyChat listing 220 and 222 as assist without saying which is which.
 M.Filters = {
     [0] = { name = 'Window', place = 1 },
     [3] = { name = 'Say', place = 2, modes = say },
     [4] = { name = 'Tell', place = 3, modes = tell },
     [1] = { name = 'Party', place = 4, modes = party },
-    [2] = { name = 'Linkshell', place = 5, modes = linkshell },
+    [2] = { name = 'Linkshell 1', place = 5, modes = linkshell },
     [7] = { name = 'Linkshell 2', place = 6, modes = linkshell2 },
-    [10] = { name = 'Assist (E)', place = 7, modes = Set{ 220, 221 } },
-    [9] = { name = 'Assist (J)', place = 8, modes = Set{ 222, 223 } },
+    [9] = { name = 'Assist (J)', place = 7, modes = Set{ 222, 223 } },
+    [10] = { name = 'Assist (E)', place = 8, modes = Set{ 220, 221 } },
     [6] = { name = 'Unity', place = 9, modes = unity },
     [5] = { name = 'Shout', place = 10, modes = Set{ 2, 10, 3, 11 } }, -- yells too: the game has no Yell tab
 }
