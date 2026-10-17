@@ -1,6 +1,6 @@
 addon.name    = 'sct';
 addon.author  = 'win';
-addon.version = '0.2';
+addon.version = '0.3';
 addon.desc    = 'Scrolling text for the statuses you gain and lose.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -55,6 +55,7 @@ local defaults = T{
     pos = T{ 100, 300 },
     locked = T{ false },
     showBox = T{ false },
+    showOutline = T{ true }, -- the box's edge, while it is unlocked
     width = T{ 260 },
     height = T{ 300 },
     speed = T{ 90 },       -- pixels a second a line moves down the box
@@ -257,7 +258,7 @@ local function DrawBox(options, now)
     boxSize[1], boxSize[2] = options.width[1], options.height[1];
     imgui.Dummy(boxSize);
     -- unlocked with no box to see, its edge shows where it is, to be dragged
-    if not options.locked[1] and not options.showBox[1] then
+    if not options.locked[1] and not options.showBox[1] and options.showOutline[1] then
         outlineMin[1], outlineMin[2], outlineMax[1], outlineMax[2] = x, y, x + boxSize[1], y + boxSize[2];
         imgui.GetWindowDrawList():AddRect(outlineMin, outlineMax, imgui.GetColorU32(theme.Get().TextColor), 0, 0, 1);
     end
@@ -354,6 +355,9 @@ local function DrawSettings(options)
         widgets.Label('Show Box');
         imgui.Checkbox('##sct.showBox', options.showBox);
         Tip('Draws the theme\'s window behind the text while lines are moving.');
+        widgets.Label('Show Outline');
+        imgui.Checkbox('##sct.showOutline', options.showOutline);
+        Tip('Draws the box\'s edge while it is unlocked, to see where it is. Locked, the edge is never drawn.\nOff, the box can still be dragged where it is while unlocked.');
         widgets.PushControlWidth();
         widgets.Label('Box Width');
         imgui.SliderInt('##sct.width', options.width, 80, 800);

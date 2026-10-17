@@ -23,10 +23,12 @@ does the same.
 **Box**
 
 - **Visible**: whether the text shows.
-- **Locked**: unlocked, the box's edge is drawn and it can be dragged; locked, clicks go through it.
+- **Locked**: unlocked, the box can be dragged (its edge drawn, with Show Outline on); locked, clicks go through it.
   It starts unlocked, to be placed.
 - **Position**: where the box's top left corner is.
 - **Show Box**: draws the theme's window behind the lines while any are moving.
+- **Show Outline**: draws the box's edge while it is unlocked (never while locked). Off, the box
+  can still be dragged while unlocked, unseen.
 - **Box Width**, **Box Height**: the box's size in pixels.
 - **Scroll Speed**: how fast a line moves down the box, in pixels a second (90 to start).
 - **Line Spacing**: the gap between one line and the next when they come together, in pixels.
