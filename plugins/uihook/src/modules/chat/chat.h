@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <cmath>
+#include <algorithm>
 
 #define CHAT_INPUT_PATTERN "8B 48 0C 85 C9 74 ?? 8B 51 08 85 D2 74 ?? 3B 05"
 #define CHAT_STATE_PATTERN "83 EC ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 0F BF 4C 24 ?? 84 C0"
@@ -122,17 +123,37 @@ static inline bool ChatTranslateVertices(void* data,unsigned count,unsigned stri
     return true;
 }
 
+static bool ChatReadable(const MEMORY_BASIC_INFORMATION& page) {
+    const DWORD access=page.Protect & 0xff;
+    return page.State==MEM_COMMIT && !(page.Protect & PAGE_GUARD)
+        && (access==PAGE_READONLY || access==PAGE_READWRITE || access==PAGE_WRITECOPY
+            || access==PAGE_EXECUTE_READ || access==PAGE_EXECUTE_READWRITE || access==PAGE_EXECUTE_WRITECOPY);
+}
 static bool ChatRead(const void* at,void* out,size_t size) {
     MEMORY_BASIC_INFORMATION page={};
     const uintptr_t address=reinterpret_cast<uintptr_t>(at);
-    if (!address || !size || address+size<address || !VirtualQuery(at,&page,sizeof(page))) return false;
-    const DWORD access=page.Protect & 0xff;
-    if (page.State!=MEM_COMMIT || (page.Protect & PAGE_GUARD)
-        || !(access==PAGE_READONLY || access==PAGE_READWRITE || access==PAGE_WRITECOPY
-            || access==PAGE_EXECUTE_READ || access==PAGE_EXECUTE_READWRITE || access==PAGE_EXECUTE_WRITECOPY)
+    if (!address || !size || address+size<address || !VirtualQuery(at,&page,sizeof(page)) || !ChatReadable(page)
         || address+size>reinterpret_cast<uintptr_t>(page.BaseAddress)+page.RegionSize) return false;
     memcpy(out,at,size);
     return true;
+}
+// As much of size bytes from at as can be read, region by region, one VirtualQuery a region (a table read entry by
+// entry with ChatRead asks once an entry, every frame): how many bytes were copied, from the start.
+static inline size_t ChatReadSpan(const void* at,void* out,size_t size) {
+    const uintptr_t address=reinterpret_cast<uintptr_t>(at);
+    if (!address || address+size<address) return 0;
+    size_t done=0;
+    while (done<size) {
+        MEMORY_BASIC_INFORMATION page={};
+        const uintptr_t from=address+done;
+        if (!VirtualQuery(reinterpret_cast<const void*>(from),&page,sizeof(page)) || !ChatReadable(page)) break;
+        const uintptr_t end=reinterpret_cast<uintptr_t>(page.BaseAddress)+page.RegionSize;
+        if (end<=from) break;
+        const size_t count=(std::min)(size-done,size_t(end-from));
+        memcpy(static_cast<uint8_t*>(out)+done,reinterpret_cast<const void*>(from),count);
+        done+=count;
+    }
+    return done;
 }
 class ChatModule {
     void** slots[2]={};

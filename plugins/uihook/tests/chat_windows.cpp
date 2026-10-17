@@ -139,6 +139,22 @@ int main() {
     Check(shared.ColorFrame==31 && shared.ColorSerial==1,"nothing changed: the serial holds");
     memcpy(categoryTable+4,&cols[1],4); SampleChatColors(colors,shared,32);
     Check(shared.ColorSerial==2 && shared.CategoryColors[0x54]==0x80D84C64u,"a colour changed (the user's config): the serial moves");
+    // read whole, region by region: a table ending on the last readable page read, one whose end lies past it not
+    auto* pages=static_cast<uint8_t*>(VirtualAlloc(nullptr,8192,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE));
+    DWORD was=0;
+    Check(pages && VirtualProtect(pages+4096,4096,PAGE_NOACCESS,&was),"a readable page before an unreadable one");
+    uint8_t span[64]={};
+    Check(ChatReadSpan(pages+4096-16,span,64)==16 && ChatReadSpan(pages+4096,span,64)==0 && ChatReadSpan(nullptr,span,64)==0,
+        "a span read stops where reading must: at the unreadable page, and nothing from one or from null");
+    auto* edge=pages+4096-3*8; // two entries and the end, the end the page's last entry
+    memset(edge,0,24); edge[0]=0x54; memcpy(edge+4,&cols[2],4); edge[8]=0x56; memcpy(edge+12,&cols[1],4);
+    colors.categories=edge; SampleChatColors(colors,shared,40);
+    Check(shared.ColorFrame==40 && shared.CategoryColors[0x54]==0x803464FFu && shared.CategoryColors[0x56]==0x80D84C64u,
+        "a table ending on the last readable page: read");
+    edge=pages+4096-2*8; memset(edge,0,16); edge[0]=0x54; memcpy(edge+4,&cols[2],4); edge[8]=0x56; memcpy(edge+12,&cols[1],4);
+    colors.categories=edge; SampleChatColors(colors,shared,41);
+    Check(shared.ColorFrame==0,"a table whose end lies on the unreadable page: nothing published");
+    VirtualFree(pages,0,MEM_RELEASE);
     colors.categories=reinterpret_cast<uint8_t*>(uintptr_t(16)); SampleChatColors(colors,shared,33);
     Check(shared.ColorFrame==0,"a table that cannot be read: nothing published");
     colors.Clear(); SampleChatColors(colors,shared,34);
