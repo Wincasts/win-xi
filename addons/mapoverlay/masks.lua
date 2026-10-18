@@ -1,14 +1,16 @@
--- The walkable ground of each map, from data/walkable.lua (tools/trace_walkable_maps.py), as a mask
--- winxi.mapdat lays over the map's picture: 0 off the ground, 255 on it, the edge softened over a
--- few pixels so it does not show the mask's steps.
+-- The walkable ground of each map, from data/walkable.lua (tools/trace_walkable_maps.py), as a mask:
+-- 0 off the ground, 255 on it, the edge softened over a few pixels so it does not show the mask's
+-- steps. winxi.mapdat lays it over the map's picture; flat.lua paints it.
 --
 --   masks.ForZone(zone)   the maps of a zone with ground traced, by floor: { [floor] = map }
---   masks.Get(map)        { width, height, values, bounds = { x0, y0, x1, y1 } in map units }
+--   masks.Get(map)        { width, height, values, edge, bounds = { x0, y0, x1, y1 } in map units }:
+--                         edge 255 on the ground's rim, EDGE pixels in from where it ends, 0 elsewhere
 local ffi = require('ffi');
 local data = require('data.walkable');
 
 local masks = {};
 local SOFTEN = 2;      -- passes of a 3x3 average over the edge
+local EDGE = 3;        -- pixels of the ground's rim, a map unit and a half
 
 local byZone = {};
 for key, map in pairs(data.maps) do
@@ -39,6 +41,30 @@ local function Soften(values, size)
     end
 end
 
+-- The ground's rim: what of the ground is within EDGE pixels of where it ends, each pass taking a
+-- pixel off the ground wherever one of its four neighbours is off it
+local function Rim(values, size)
+    local inner = ffi.new('uint8_t[?]', size * size);
+    local before = ffi.new('uint8_t[?]', size * size);
+    ffi.copy(inner, values, size * size);
+    for _ = 1, EDGE do
+        ffi.copy(before, inner, size * size);
+        for y = 0, size - 1 do
+            for x = 0, size - 1 do
+                local at = y * size + x;
+                if before[at] ~= 0 and (x == 0 or y == 0 or x == size - 1 or y == size - 1
+                    or before[at - 1] == 0 or before[at + 1] == 0 or before[at - size] == 0 or before[at + size] == 0) then
+                    inner[at] = 0;
+                end
+            end
+        end
+    end
+    for at = 0, size * size - 1 do
+        inner[at] = (values[at] ~= 0 and inner[at] == 0) and 255 or 0;
+    end
+    return inner;
+end
+
 local made = {};
 
 function masks.Get(map)
@@ -58,9 +84,10 @@ function masks.Get(map)
             x, inside = x + length, not inside;
         end
     end
+    local edge = Rim(values, size);
     Soften(values, size);
     local units = 512 / size;
-    local mask = { width = size, height = size, values = values };
+    local mask = { width = size, height = size, values = values, edge = edge };
     if x1 >= 0 then
         mask.bounds = { x0 * units, y0 * units, (x1 + 1) * units, (y1 + 1) * units };
     end

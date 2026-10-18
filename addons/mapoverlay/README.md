@@ -1,7 +1,8 @@
 # mapoverlay
 
-The map of the zone you are in, laid over the game, with only the ground you can walk drawn and the
-parchment round it left clear. A marker shows where you are and which way you face.
+The ground you can walk in the zone you are in, laid over the game, flat white-grey with a darker
+rim and the game's own grid over it; everything off the ground is left clear. A marker shows where
+you are and which way you face. **Style** can show the map's own artwork instead, cut to the ground.
 
 ## Commands
 
@@ -40,7 +41,19 @@ it. A floor with no traced map draws nothing.
   **Locked** off lets it be dragged, its edge drawn; on, clicks go through it. **Position** is its
   top left corner.
 - **Size**: how wide and tall the overlay is, 150 to 1600 pixels.
-- **Opacity**: how solid the map is.
+- **Map Opacity**: how solid the ground is, 0.05 to 1 (0.85 to start).
+- **Style**: **Flat** (to start) paints the ground in **Fill Color** (light grey) with its rim, a
+  map unit and a half wide, in **Edge Color** (mid grey). **Map Art** is the map's own picture, only
+  where the ground is. A colour change is painted again within a fifth of a second.
+
+**Grid**
+
+- **Show Grid** (on): the game's map squares, A to O across and 1 to 15 down, the same squares the
+  clock names, drawn over the part of the map shown and across the whole overlay.
+- **Grid Color** (black) and **Grid Opacity** (0.6): its lines, and how strongly they and the labels
+  show.
+- **Grid Labels** (on): each square's letter along the top and number down the left, in outlined
+  text.
 
 **View**
 
@@ -50,7 +63,7 @@ it. A floor with no traced map draws nothing.
 
 **Player**
 
-- **Show Player**, **Player Color**, **Player Size**: the marker.
+- **Show Player**, **Player Color**, **Player Size**: the marker, 6 to 64 pixels.
 
 The overlay follows Winxi Theme's hiding rules (cutscenes, menus) like the other winxi addons.
 
@@ -58,8 +71,9 @@ The overlay follows Winxi Theme's hiding rules (cutscenes, menus) like the other
 
 `tools/trace_walkable_maps.py` reads each map's picture from XICombinedMaps-2048 and writes
 `data/walkable.lua`: for each map, a mask two pixels to a map unit, as runs along each row. The
-addon softens its edge and hands it to `winxi.mapdat`, which multiplies the picture's own alpha by
-it as it reads the picture from the game's files. A mask traced from the pack's picture fits the
+addon finds the ground's rim, softens the edge, and paints the two into a texture (`flat.lua`); with
+Map Art it hands the mask to `winxi.mapdat`, which multiplies the picture's own alpha by it as it
+reads the picture from the game's files. A mask traced from the pack's picture fits the
 game's own picture too, as where a map lies is the client's table, not the picture.
 
 What to trace and how is in `research/walkable.json`, by map key (as zone's `data/all_maps.lua`

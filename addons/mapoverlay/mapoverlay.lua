@@ -1,14 +1,16 @@
 addon.name    = 'mapoverlay';
 addon.author  = 'win';
-addon.version = '0.1';
+addon.version = '0.2';
 addon.desc    = 'The zone\'s map over the game, only where the ground can be walked.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
--- The map of the zone the player is in, laid over the game, with only its walkable ground drawn and
--- the parchment round it left clear. The ground is traced from the map's own artwork, ahead of time,
--- by tools/trace_walkable_maps.py into data/walkable.lua: a mask for each map, which winxi.mapdat lays
--- over the picture as it reads it from the game's files (XICombinedMaps' where pivot has it). Only the
--- maps traced so far have one: elsewhere nothing is drawn.
+-- The walkable ground of the zone the player is in, laid over the game, with everything off it left
+-- clear. The ground is traced from the map's own artwork, ahead of time, by
+-- tools/trace_walkable_maps.py into data/walkable.lua: a mask for each map. Flat (to start), the
+-- ground is painted in one colour with its rim in another (flat.lua), and a grid of the game's own
+-- squares, A to O across and 1 to 15 down, drawn over it; Map Art, the mask is laid over the map's
+-- picture as winxi.mapdat reads it from the game's files (XICombinedMaps' where pivot has it). Only
+-- the maps traced so far have one: elsewhere nothing is drawn.
 --
 --   /mapoverlay           shows or hides the overlay (/mov does the same)
 --   /mapoverlay config    opens or closes the settings
@@ -37,13 +39,17 @@ local window = require('winxi.window');
 local fade = require('winxi.fade');
 local style = require('winxi.style');
 local mapdat = require('winxi.mapdat');
+local text = require('winxi.text');
 local masks = require('masks');
+local flat = require('flat');
 local position = require('position');
 
 local windowName = 'winxi.mapoverlay';
 local LOOK_EVERY = 0.25; -- seconds between looks at which map the player is on
 local MARGIN = 6;        -- map units kept round the ground when fitting to it
 local KEEP = 8;          -- textures kept, for going back to a floor without reading it again
+local REPAINT = 0.2;     -- seconds at least between paintings of the ground while its colours change
+local GRID_FIRST, GRID_STEP, GRID_SQUARES = 16, 32, 15; -- the game's grid, in map units: A1 is 16 to 48
 
 local defaults = T{
     isVisible = T{ true },
@@ -51,7 +57,14 @@ local defaults = T{
     centered = T{ true },
     locked = T{ true },
     size = T{ 600 },
+    style = 'flat',          -- 'flat': the ground painted; 'art': the map's own picture
     opacity = T{ 0.85 },
+    fillColor = T{ 0.92, 0.92, 0.92 },
+    edgeColor = T{ 0.55, 0.55, 0.55 },
+    showGrid = T{ true },
+    gridColor = T{ 0.0, 0.0, 0.0 },
+    gridOpacity = T{ 0.6 },
+    gridLabels = T{ true },
     fit = T{ true },
     zoom = T{ 1.0 },
     showPlayer = T{ true },
@@ -59,29 +72,53 @@ local defaults = T{
     playerSize = T{ 14 },
 };
 
+local styles = { { key = 'flat', label = 'Flat' }, { key = 'art', label = 'Map Art' } };
+
 local app;
 
 -- Textures
 
-local textures = {}; -- map key -> { texture, handle, used }, or { why } where it could not be made
+-- map key and style -> { texture, handle, why, used, colours, painted }: flat, painted in colours
+local textures = {};
 local clock = 0;
 
-local function Texture(map)
+local function Colours(options)
+    local f, e = options.fillColor, options.edgeColor;
+    return ('%.3f,%.3f,%.3f/%.3f,%.3f,%.3f'):format(f[1], f[2], f[3], e[1], e[2], e[3]);
+end
+
+local function Make(map, options)
+    if options.style == 'art' then
+        return mapdat.Load(map.dat, masks.Get(map));
+    end
+    return flat.Load(masks.Get(map), options.fillColor, options.edgeColor);
+end
+
+local function Texture(map, options)
     clock = clock + 1;
-    local held = textures[map.key];
+    local key = map.key .. '/' .. options.style;
+    local colours = options.style == 'flat' and Colours(options) or '';
+    local held = textures[key];
+    -- the colours changed: painted again, but not every frame while a colour is dragged
+    if held and held.colours ~= colours and os.clock() - held.painted >= REPAINT then
+        local texture, handle, why = Make(map, options);
+        if why ~= 'no device yet' then
+            held.texture, held.handle, held.why, held.colours, held.painted = texture, handle, why, colours, os.clock();
+        end
+    end
     if held then
         held.used = clock;
         return held.handle, held.why;
     end
     local count, oldest = 0, nil;
-    for key, kept in pairs(textures) do
+    for name, kept in pairs(textures) do
         count = count + 1;
-        if oldest == nil or kept.used < textures[oldest].used then oldest = key; end
+        if oldest == nil or kept.used < textures[oldest].used then oldest = name; end
     end
     if count >= KEEP then textures[oldest] = nil; end
-    local texture, handle, why = mapdat.Load(map.dat, masks.Get(map));
+    local texture, handle, why = Make(map, options);
     if why == 'no device yet' then return nil, why; end
-    textures[map.key] = { texture = texture, handle = handle, why = why, used = clock };
+    textures[key] = { texture = texture, handle = handle, why = why, used = clock, colours = colours, painted = os.clock() };
     return handle, why;
 end
 
@@ -118,6 +155,7 @@ end
 
 local corner1, corner2, uv1, uv2 = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 };
 local tint, colour, dark, edge = { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, { 0, 0, 0, 1 }, { 1, 1, 1, 0.6 };
+local line, label, shade, from, to = { 0, 0, 0, 1 }, { 1, 1, 1, 1 }, { 0, 0, 0, 1 }, { 0, 0, 0 }, { 0, 0, 0 };
 local boxSize, outlineA, outlineB = { 0, 0 }, { 0, 0 }, { 0, 0 };
 local p1, p2, p3 = { 0, 0 }, { 0, 0 }, { 0, 0 };
 
@@ -151,6 +189,44 @@ local function Arrow(drawList, x, y, heading, size, options, alpha)
     drawList:AddTriangleFilled(p1, p2, p3, imgui.GetColorU32(colour));
 end
 
+-- The game's grid over the part of the map shown: its lines, and its letters along the top and
+-- numbers down the left of each square in view
+local function Grid(drawList, options, alpha, x, y, size, vx, vy, vs)
+    local opacity = options.gridOpacity[1] * alpha;
+    if opacity <= 0.01 then return; end
+    local c = options.gridColor;
+    line[1], line[2], line[3], line[4] = c[1], c[2], c[3], opacity;
+    local packed = imgui.GetColorU32(line);
+    local function Screen(u, start) return start + (u - (start == x and vx or vy)) / vs * size; end
+    for k = 0, GRID_SQUARES do
+        local u = GRID_FIRST + k * GRID_STEP;
+        if u >= vx and u <= vx + vs then
+            from[1], from[2], to[1], to[2] = Screen(u, x), y, Screen(u, x), y + size;
+            drawList:AddLine(from, to, packed, 1);
+        end
+        if u >= vy and u <= vy + vs then
+            from[1], from[2], to[1], to[2] = x, Screen(u, y), x + size, Screen(u, y);
+            drawList:AddLine(from, to, packed, 1);
+        end
+    end
+    if not options.gridLabels[1] then return; end
+    label[4], shade[4] = opacity, opacity;
+    local light, darkPacked = imgui.GetColorU32(label), imgui.GetColorU32(shade);
+    for k = 0, GRID_SQUARES - 1 do
+        local middle = GRID_FIRST + (k + 0.5) * GRID_STEP;
+        if middle >= vx and middle <= vx + vs then
+            local letter = string.char(65 + k);
+            local w = imgui.CalcTextSize(letter);
+            text.Packed(drawList, Screen(middle, x) - w / 2, y + 2, light, letter, 1, darkPacked);
+        end
+        if middle >= vy and middle <= vy + vs then
+            local number = tostring(k + 1);
+            local _, h = imgui.CalcTextSize(number);
+            text.Packed(drawList, x + 3, Screen(middle, y) - h / 2, light, number, 1, darkPacked);
+        end
+    end
+end
+
 local function DrawMap(options, alpha)
     local x, y = imgui.GetCursorScreenPos();
     local size = options.size[1];
@@ -163,7 +239,7 @@ local function DrawMap(options, alpha)
     end
     local map = current.map;
     if map == nil then return; end
-    local handle = Texture(map);
+    local handle = Texture(map, options);
     if handle == nil then return; end
 
     local player = position.Player();
@@ -176,6 +252,9 @@ local function DrawMap(options, alpha)
     uv1[1], uv1[2], uv2[1], uv2[2] = vx / 512, vy / 512, (vx + vs) / 512, (vy + vs) / 512;
     tint[4] = options.opacity[1] * alpha;
     drawList:AddImage(handle, corner1, corner2, uv1, uv2, imgui.GetColorU32(tint));
+    if options.showGrid[1] then
+        Grid(drawList, options, alpha, x, y, size, vx, vy, vs);
+    end
 
     if options.showPlayer[1] and px ~= nil then
         local sx, sy = x + (px - vx) / vs * size, y + (py - vy) / vs * size;
@@ -225,16 +304,31 @@ local function Tip(words)
     if imgui.IsItemHovered() then imgui.SetTooltip(words); end
 end
 
+local function Combo(id, value, choices)
+    local shown = choices[1].label;
+    for _, choice in ipairs(choices) do
+        if choice.key == value then shown = choice.label; end
+    end
+    local chosen = value;
+    if imgui.BeginCombo(id, shown) then
+        for _, choice in ipairs(choices) do
+            if imgui.Selectable(choice.label .. id, choice.key == value) then chosen = choice.key; end
+        end
+        imgui.EndCombo();
+    end
+    return chosen;
+end
+
 local function Status()
     if current.map == nil then
         return 'No map: ' .. tostring(current.why);
     end
     local transform, why = position.Transform(current.map);
-    local text = ('Zone %d, floor %d: %s'):format(current.map.zone, current.map.floor, current.map.key);
-    local held = textures[current.map.key];
-    if held and held.why then text = text .. ' (the picture could not be read: ' .. held.why .. ')'; end
-    if transform == nil then text = text .. ' (no player marker: ' .. tostring(why) .. ')'; end
-    return text;
+    local said = ('Zone %d, floor %d: %s'):format(current.map.zone, current.map.floor, current.map.key);
+    local held = textures[current.map.key .. '/' .. app.options.style];
+    if held and held.why then said = said .. ' (nothing to draw: ' .. held.why .. ')'; end
+    if transform == nil then said = said .. ' (no player marker: ' .. tostring(why) .. ')'; end
+    return said;
 end
 
 local function DrawSettings(options)
@@ -255,9 +349,35 @@ local function DrawSettings(options)
         widgets.PushControlWidth();
         widgets.Label('Size');
         imgui.SliderInt('##mapoverlay.size', options.size, 150, 1600, '%d px');
-        widgets.Label('Opacity');
-        imgui.SliderFloat('##mapoverlay.opacity', options.opacity, 0.1, 1.0, '%.2f');
+        widgets.Label('Map Opacity');
+        imgui.SliderFloat('##mapoverlay.opacity', options.opacity, 0.05, 1.0, '%.2f');
+        Tip('How solid the ground is: 1 solid, less to see the game through it.');
         widgets.PopControlWidth();
+        widgets.Label('Style');
+        options.style = Combo('##mapoverlay.style', options.style, styles);
+        Tip('Flat: the ground painted in the colours below.\nMap Art: the map\'s own picture, only where the ground is.');
+        if options.style == 'flat' then
+            widgets.Label('Fill Color');
+            imgui.ColorEdit3('##mapoverlay.fillColor', options.fillColor, ImGuiColorEditFlags_NoInputs);
+            widgets.Label('Edge Color');
+            imgui.ColorEdit3('##mapoverlay.edgeColor', options.edgeColor, ImGuiColorEditFlags_NoInputs);
+            Tip('The rim of the ground, a map unit and a half wide.');
+        end
+    end
+
+    if widgets.Header('Grid') then
+        widgets.Label('Show Grid');
+        imgui.Checkbox('##mapoverlay.showGrid', options.showGrid);
+        Tip('The game\'s map squares, A to O across and 1 to 15 down, as the clock names them.');
+        widgets.Label('Grid Color');
+        imgui.ColorEdit3('##mapoverlay.gridColor', options.gridColor, ImGuiColorEditFlags_NoInputs);
+        widgets.PushControlWidth();
+        widgets.Label('Grid Opacity');
+        imgui.SliderFloat('##mapoverlay.gridOpacity', options.gridOpacity, 0.0, 1.0, '%.2f');
+        widgets.PopControlWidth();
+        widgets.Label('Grid Labels');
+        imgui.Checkbox('##mapoverlay.gridLabels', options.gridLabels);
+        Tip('Each square\'s letter along the top and number down the left.');
     end
 
     if widgets.Header('View') then
@@ -278,7 +398,8 @@ local function DrawSettings(options)
         imgui.ColorEdit4('##mapoverlay.playerColor', options.playerColor, ImGuiColorEditFlags_NoInputs);
         widgets.PushControlWidth();
         widgets.Label('Player Size');
-        imgui.SliderInt('##mapoverlay.playerSize', options.playerSize, 6, 40, '%d px');
+        imgui.SliderInt('##mapoverlay.playerSize', options.playerSize, 6, 64, '%d px');
+        Tip('How large your marker is on the map.');
         widgets.PopControlWidth();
     end
 
@@ -296,7 +417,10 @@ app = shell.New({
     commands = {
         status = function() current.next = 0; Look(); app:Say(Status()); end,
     },
-    onSettings = function() place = true; end,
+    onSettings = function(options)
+        place = true;
+        if options.style ~= 'flat' and options.style ~= 'art' then options.style = 'flat'; end
+    end,
 });
 
 ashita.events.register('d3d_present', 'mapoverlay_present', function()
