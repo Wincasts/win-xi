@@ -49,7 +49,8 @@ it. A floor with no traced map draws nothing.
 **Grid**
 
 - **Show Grid** (on): the game's map squares, A to O across and 1 to 15 down, the same squares the
-  clock names, drawn over the part of the map shown and across the whole overlay.
+  clock names. Each line is drawn only where it crosses the ground; off it nothing is drawn. Where
+  each line crosses is worked out once a map, and the lines stay one pixel at any zoom.
 - **Grid Color** (black) and **Grid Opacity** (0.6): its lines, and how strongly they and the labels
   show.
 - **Grid Labels** (on): each square's letter along the top and number down the left, in outlined

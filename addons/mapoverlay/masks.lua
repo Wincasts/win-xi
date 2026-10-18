@@ -3,14 +3,22 @@
 -- steps. winxi.mapdat lays it over the map's picture; flat.lua paints it.
 --
 --   masks.ForZone(zone)   the maps of a zone with ground traced, by floor: { [floor] = map }
---   masks.Get(map)        { width, height, values, edge, bounds = { x0, y0, x1, y1 } in map units }:
---                         edge 255 on the ground's rim, EDGE pixels in from where it ends, 0 elsewhere
+--   masks.Get(map)        { width, height, values, edge, grid, bounds = { x0, y0, x1, y1 } in map units }:
+--                         edge 255 on the ground's rim, EDGE pixels in from where it ends, 0 elsewhere;
+--                         grid the stretches of the game's grid lines on the ground, in map units:
+--                         { across = { [k] = { y0, y1, y0, y1, ... } }, down = { [k] = { x0, x1, ... } } }
+--                         for the line at masks.GridLine(k), k 0 to 15, across the map (x fixed) or down it
 local ffi = require('ffi');
 local data = require('data.walkable');
 
 local masks = {};
 local SOFTEN = 2;      -- passes of a 3x3 average over the edge
 local EDGE = 3;        -- pixels of the ground's rim, a map unit and a half
+local GRID_FIRST, GRID_STEP, GRID_LINES = 16, 32, 16; -- the game's grid in map units: A1 is 16 to 48
+
+function masks.GridLine(k)
+    return GRID_FIRST + k * GRID_STEP;
+end
 
 local byZone = {};
 for key, map in pairs(data.maps) do
@@ -65,6 +73,29 @@ local function Rim(values, size)
     return inner;
 end
 
+-- Where each grid line crosses the ground: the runs of ground along the mask's column (or row) under it
+local function Stretches(values, size)
+    local units = 512 / size;
+    local grid = { across = {}, down = {} };
+    for k = 0, GRID_LINES - 1 do
+        local at = math.min(size - 1, math.floor(masks.GridLine(k) / units));
+        local column, row = {}, {};
+        local inColumn, inRow = nil, nil;
+        for i = 0, size do
+            local c = i < size and values[i * size + at] ~= 0;
+            local r = i < size and values[at * size + i] ~= 0;
+            if c and not inColumn then inColumn = i; elseif not c and inColumn then
+                column[#column + 1], column[#column + 2], inColumn = inColumn * units, i * units, nil;
+            end
+            if r and not inRow then inRow = i; elseif not r and inRow then
+                row[#row + 1], row[#row + 2], inRow = inRow * units, i * units, nil;
+            end
+        end
+        grid.across[k], grid.down[k] = column, row;
+    end
+    return grid;
+end
+
 local made = {};
 
 function masks.Get(map)
@@ -85,9 +116,10 @@ function masks.Get(map)
         end
     end
     local edge = Rim(values, size);
+    local grid = Stretches(values, size);
     Soften(values, size);
     local units = 512 / size;
-    local mask = { width = size, height = size, values = values, edge = edge };
+    local mask = { width = size, height = size, values = values, edge = edge, grid = grid };
     if x1 >= 0 then
         mask.bounds = { x0 * units, y0 * units, (x1 + 1) * units, (y1 + 1) * units };
     end

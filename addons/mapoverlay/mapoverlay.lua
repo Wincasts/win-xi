@@ -7,9 +7,9 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 -- The walkable ground of the zone the player is in, laid over the game, with everything off it left
 -- clear. The ground is traced from the map's own artwork, ahead of time, by
 -- tools/trace_walkable_maps.py into data/walkable.lua: a mask for each map. Flat (to start), the
--- ground is painted in one colour with its rim in another (flat.lua), and a grid of the game's own
--- squares, A to O across and 1 to 15 down, drawn over it; Map Art, the mask is laid over the map's
--- picture as winxi.mapdat reads it from the game's files (XICombinedMaps' where pivot has it). Only
+-- ground is painted in one colour with its rim in another (flat.lua), and the lines of the game's
+-- own grid, A to O across and 1 to 15 down, drawn where they cross it; Map Art, the mask is laid over
+-- the map's picture as winxi.mapdat reads it from the game's files (XICombinedMaps' where pivot has it). Only
 -- the maps traced so far have one: elsewhere nothing is drawn.
 --
 --   /mapoverlay           shows or hides the overlay (/mov does the same)
@@ -189,9 +189,9 @@ local function Arrow(drawList, x, y, heading, size, options, alpha)
     drawList:AddTriangleFilled(p1, p2, p3, imgui.GetColorU32(colour));
 end
 
--- The game's grid over the part of the map shown: its lines, and its letters along the top and
--- numbers down the left of each square in view
-local function Grid(drawList, options, alpha, x, y, size, vx, vy, vs)
+-- The game's grid over the part of the map shown: its lines only where they cross the ground, and
+-- its letters along the top and numbers down the left of each square in view
+local function Grid(drawList, options, alpha, x, y, size, vx, vy, vs, stretches)
     local opacity = options.gridOpacity[1] * alpha;
     if opacity <= 0.01 then return; end
     local c = options.gridColor;
@@ -201,12 +201,24 @@ local function Grid(drawList, options, alpha, x, y, size, vx, vy, vs)
     for k = 0, GRID_SQUARES do
         local u = GRID_FIRST + k * GRID_STEP;
         if u >= vx and u <= vx + vs then
-            from[1], from[2], to[1], to[2] = Screen(u, x), y, Screen(u, x), y + size;
-            drawList:AddLine(from, to, packed, 1);
+            local runs = stretches.across[k];
+            for i = 1, #runs, 2 do
+                local a, b = math.max(runs[i], vy), math.min(runs[i + 1], vy + vs);
+                if b > a then
+                    from[1], from[2], to[1], to[2] = Screen(u, x), Screen(a, y), Screen(u, x), Screen(b, y);
+                    drawList:AddLine(from, to, packed, 1);
+                end
+            end
         end
         if u >= vy and u <= vy + vs then
-            from[1], from[2], to[1], to[2] = x, Screen(u, y), x + size, Screen(u, y);
-            drawList:AddLine(from, to, packed, 1);
+            local runs = stretches.down[k];
+            for i = 1, #runs, 2 do
+                local a, b = math.max(runs[i], vx), math.min(runs[i + 1], vx + vs);
+                if b > a then
+                    from[1], from[2], to[1], to[2] = Screen(a, x), Screen(u, y), Screen(b, x), Screen(u, y);
+                    drawList:AddLine(from, to, packed, 1);
+                end
+            end
         end
     end
     if not options.gridLabels[1] then return; end
@@ -253,7 +265,7 @@ local function DrawMap(options, alpha)
     tint[4] = options.opacity[1] * alpha;
     drawList:AddImage(handle, corner1, corner2, uv1, uv2, imgui.GetColorU32(tint));
     if options.showGrid[1] then
-        Grid(drawList, options, alpha, x, y, size, vx, vy, vs);
+        Grid(drawList, options, alpha, x, y, size, vx, vy, vs, masks.Get(map).grid);
     end
 
     if options.showPlayer[1] and px ~= nil then
@@ -368,7 +380,7 @@ local function DrawSettings(options)
     if widgets.Header('Grid') then
         widgets.Label('Show Grid');
         imgui.Checkbox('##mapoverlay.showGrid', options.showGrid);
-        Tip('The game\'s map squares, A to O across and 1 to 15 down, as the clock names them.');
+        Tip('The game\'s map squares, A to O across and 1 to 15 down, as the clock names them, drawn on the ground only.');
         widgets.Label('Grid Color');
         imgui.ColorEdit3('##mapoverlay.gridColor', options.gridColor, ImGuiColorEditFlags_NoInputs);
         widgets.PushControlWidth();

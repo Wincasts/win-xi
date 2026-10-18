@@ -103,19 +103,30 @@ local near = function(a, e) return math.abs(a - e) < 1e-6 end
 H.print('fitted to the ground, a square round its middle', near(image.uvA[1], (cx - half) / 512), near(image.uvA[2], (cy - half) / 512),
     near(image.uvB[1] - image.uvA[1], 2 * half / 512), near(image.uvB[2] - image.uvA[2], 2 * half / 512))
 
--- the grid: lines at 16 + 32k map units within the part shown, letters and numbers for the squares in it
-local vx, vs = cx - half, 2 * half
-local expected, firstLetter = 0, nil
-for k = 0, 15 do local u = 16 + 32 * k if u >= vx and u <= vx + vs then expected = expected + 1 end end
-local vy = cy - half
-local across = expected
-for k = 0, 15 do local u = 16 + 32 * k if u >= vy and u <= vy + vs then expected = expected + 1 end end
+-- the grid: the game's lines, 16 + 32k map units, only where they cross the ground, at their places
+local vx, vy, vs = cx - half, cy - half, 2 * half
+local firstLetter = nil
 for k = 0, 14 do local m = 16 + 32 * (k + 0.5) if m >= vx and m <= vx + vs then firstLetter = firstLetter or string.char(65 + k) end end
-local firstLine = nil
-for _, d in ipairs(drawn) do if d.kind == 'line' and d.a[1] == d.b[1] then firstLine = firstLine or d end end
-local u0 = 16 + 32 * math.ceil((vx - 16) / 32)
-H.print('the grid: a line for each of the game\'s lines in view, at its place', lines() == expected, across > 0,
-    firstLine and math.abs(firstLine.a[1] - (image.a[1] + (u0 - vx) / vs * o.size[1])) < 1e-6, firstLine and firstLine.b[2] - firstLine.a[2] == o.size[1])
+local function toMap(sx, sy) return vx + (sx - image.a[1]) / o.size[1] * vs, vy + (sy - image.a[2]) / o.size[1] * vs end
+local onGround, onLine, full, expected = true, true, 0, 0
+for k = 0, 15 do
+    local u = 16 + 32 * k
+    if u >= vx and u <= vx + vs then expected = expected + #mask.grid.across[k] / 2 end
+    if u >= vy and u <= vy + vs then expected = expected + #mask.grid.down[k] / 2 end
+end
+for _, d in ipairs(drawn) do
+    if d.kind == 'line' then
+        local ax, ay = toMap(d.a[1], d.a[2])
+        local bx, by = toMap(d.b[1], d.b[2])
+        local mx, my = (ax + bx) / 2, (ay + by) / 2
+        onGround = onGround and mask.values[math.floor(my * 2) * 1024 + math.floor(mx * 2)] > 0
+        local fixed = d.a[1] == d.b[1] and ax or ay
+        onLine = onLine and math.abs((fixed - 16) / 32 - math.floor((fixed - 16) / 32 + 0.5)) < 1e-6
+        if math.abs(d.b[2] - d.a[2]) >= o.size[1] - 1e-6 or math.abs(d.b[1] - d.a[1]) >= o.size[1] - 1e-6 then full = full + 1 end
+    end
+end
+H.print('the grid: a line for each stretch on the ground in view, each on a grid line, its middle on the ground, none across the whole overlay',
+    lines() == expected, expected > 4, onLine, onGround, full == 0)
 local said = labels()
 H.print('its squares named: the first letter in view along the top, outlined', said[firstLetter] ~= nil and said[firstLetter] >= 2)
 o.gridLabels[1] = false
