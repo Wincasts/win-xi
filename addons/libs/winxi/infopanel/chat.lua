@@ -161,7 +161,9 @@ function M.New(deps)
         local layouts=M.Layouts(options,primary,split)
         if #layouts==0 then return nil end
         local now=os.clock()
-        if not samples or #samples~=#layouts or now>=nextSample then
+        -- the fields read four times a second (at once for another set of layouts); where they cannot be read,
+        -- tried again then, not every frame
+        if now>=nextSample or (samples and #samples~=#layouts) then
             nextSample=now+0.25
             local context=source.Context(Formats(options),now)
             if not context then samples=nil; return nil end
@@ -171,6 +173,7 @@ function M.New(deps)
             samples={}
             for i,l in ipairs(layouts) do samples[i]=panel.Build(l.p,fields,context) end
         end
+        if not samples then return nil end
         local size=options.fontSize[1]>0 and options.fontSize[1] or chatFontSize
         local function Content(built)
             local height=size
@@ -219,6 +222,7 @@ function M.New(deps)
         return {slot=first.slot,rect=first.rect,panels=panels,lift=logLift,inputLift=floor and lift or 0,menus=anchor,size=size,
             fontFile=options.fontFile~='' and options.fontFile or chatFontFile,options=options}
     end
+    local drawOptions={reserve=false} -- filled afresh for each panel drawn
     function service.Draw(attachment,slot)
         if not attachment then return end
         local imgui=require('imgui')
@@ -229,8 +233,8 @@ function M.New(deps)
             if drawn.slot==slot then
                 frame.Draw(drawn.rect,function()
                     imgui.PushFont(fonts.Get(attachment.fontFile),attachment.size)
-                    local drawOptions={textColor=options.textColor,outline=options.outline,iconScale=options.iconScale,
-                        iconOffset=options.iconOffset,weatherScale=options.weatherScale,reserve=false}
+                    drawOptions.textColor,drawOptions.outline,drawOptions.iconScale=options.textColor,options.outline,options.iconScale
+                    drawOptions.iconOffset,drawOptions.weatherScale=options.iconOffset,options.weatherScale
                     local ok,err=pcall(panel.Draw,drawn.p,drawn.samples,drawn.rect,drawOptions)
                     imgui.PopFont()
                     if not ok then error(err,0) end

@@ -7,7 +7,9 @@
   names once in their font; the Linkshell title reads the pearl from the inventory once a second, or as a
   pearl is equipped, not every frame; the expanded status line is made only as it changes; and a mouse
   message chatbox would never take (a move without a drag, a release without a press) is let by before
-  the game's state is read.
+  the game's state is read. The info panel measures its words once each time its fields are read (four
+  times a second), not every frame; where its fields cannot be read it tries again then, not every frame;
+  and the Icon Set list reads its folders at most once a second while it is open.
 - The attached panel moves under chat: it takes the bottom of the logs' place and every drawn log
   (both, stacked or side by side) is lifted by its height to sit wholly above it. The lowest log owns
   it; Window 2 only while it is the one shown. No room to lift chat: no panel that frame.
