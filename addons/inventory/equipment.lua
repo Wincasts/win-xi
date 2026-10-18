@@ -268,7 +268,7 @@ local function DrawContent()
                 text = text .. '\nStored in: ' .. (wardrobe and ('Wardrobe ' .. wardrobe) or 'Inventory')
             end
             if bit.band(encumbered, bit.lshift(1, slot[1])) ~= 0 then text = text .. '\nEncumbered' end
-            imgui.SetTooltip(text)
+            tooltip.Show(text)
         end
     end
     if o.detached[1] then

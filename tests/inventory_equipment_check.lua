@@ -173,8 +173,8 @@ H.equip(0, 8, 80)
 frame()
 check('stale equipped index safely treated as empty', #images == 1)
 H.ret.IsWindowHovered, H.ret.GetMousePos = { true }, { 15, 25 }
-local tooltip, tip = imgui.SetTooltip, nil
-imgui.SetTooltip = function(text) tip = text; return tooltip(text) end
+local tips, tip = require('winxi.tooltip'), nil
+tips.Show = function(text) tip = text end -- shown through winxi.tooltip
 frame()
 check('empty slot tooltip identifies slot', tip == 'Main: Empty')
 o.isVisible[1] = true

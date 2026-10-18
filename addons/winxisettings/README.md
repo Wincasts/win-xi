@@ -8,7 +8,8 @@ drawn with winxi itself. It opens as it is loaded.
 Four tabs, in this order:
 
 - **Game Windows**: the windows on the game screen. Their background, border, text and highlight
-  colours, padding, drop shadow, font and font size, and the styles: window border and background,
+  colours, padding, drop shadow, font and font size, the text outline (the dark edge round text written
+  over a bar or the game, in every addon) and its colour, and the styles: window border and background,
   border opacity, frame titles (style, colour, all caps, font, size, position and shadow), bar texture and bar
   bookends.
 - **Icons**: under HQ Icons, Custom Icons: None for the game's own status icons, or a set of custom ones,

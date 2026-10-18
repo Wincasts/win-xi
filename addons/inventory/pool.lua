@@ -196,9 +196,9 @@ local function DrawContent()
             Write(item, item.name)
             if imgui.IsItemHovered() then
                 if item.winner ~= nil then
-                    imgui.SetTooltip(('%s\nBest lot: %s, by %s'):format(item.name, item.winnerLotText, item.winner))
+                    tooltip.Show(('%s\nBest lot: %s, by %s'):format(item.name, item.winnerLotText, item.winner))
                 else
-                    imgui.SetTooltip(('%s\nNo one has lotted yet.'):format(item.name))
+                    tooltip.Show(('%s\nNo one has lotted yet.'):format(item.name))
                 end
             end
 

@@ -30,6 +30,7 @@ package.loaded.imgui = {
     IsItemHovered=function() return false end,
 }
 package.loaded['winxi.widgets'] = {Header=function() return true end,Label=function() end}
+package.loaded['winxi.tooltip'] = {Hover=function() end}
 ImGuiColorEditFlags_NoInputs = 0
 appearance.Draw(options,function() saved=saved+1 end)
 assert(options.input.own.background[1] and picked['##chatbox.appearance.input.background'] and saved > 0)

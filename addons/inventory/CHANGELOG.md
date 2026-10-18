@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The item, treasure and equipment tooltips are drawn by winxi.tooltip, as the settings' are, so winxisettings' Tooltips tab applies to them.
+
 ## 1.0 — first release
 
 - Your bags in a window, one at a time or all together, by mouse or controller (experimental).

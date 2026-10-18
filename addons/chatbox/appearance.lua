@@ -70,9 +70,7 @@ function M.Draw(options, save)
                 for _, own in pairs(section.own) do own[1] = false end
                 save()
             end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip('Turns this window\'s Own Color boxes off, keeping the colours chosen for another time.')
-            end
+            require('winxi.tooltip').Hover('Turns this window\'s Own Color boxes off, keeping the colours chosen for another time.')
         end
     end
     imgui.TextDisabled('Unchecked colours follow WinXI. Alpha controls background/border opacity.')

@@ -1,5 +1,6 @@
 -- A font-independent cog: available with every winxi font, no icon asset required.
 local imgui = require('imgui')
+local tips = require('winxi.tooltip')
 local M = {}
 function M.GearSize() return imgui.GetFontSize() + 8 end
 function M.GearButton()
@@ -21,7 +22,7 @@ function M.GearButton()
         draw:AddLine(point, nextPoint, color, 1)
     end
     draw:AddCircle({ cx, cy }, radius * 0.32, color, 12, 1)
-    if imgui.IsItemHovered() then imgui.SetTooltip('Edit columns') end
+    tips.Hover('Edit columns')
     return clicked
 end
 return M

@@ -42,6 +42,10 @@
 --               window's shadow is drawn on its own list (shadow.Draw(true)), so it is captured too.
 --   growFrom    the corner that stays put as the content changes size (see winxi.anchor); with any
 --               corner but TopLeft, draw is called twice a frame, once to measure
+--   locked      true for a window held where it is (imgui's NoMove), as an addon's Lock Window
+--               setting (widgets.Lock) has it
+--   clickThrough true for a window the mouse goes through to the game (imgui's NoInputs); with locked,
+--               what Lock Window means for a window drawn over the game
 local bit = require('bit');
 local imgui = require('imgui');
 local style = require('winxi.style');
@@ -182,6 +186,11 @@ local function Draw(full, name, open, flags, draw, options)
         style.PushPlain(options);
     end
     local background = style.Background();
+
+    if options ~= nil then
+        if options.locked then flags = bit.bor(flags or 0, ImGuiWindowFlags_NoMove); end
+        if options.clickThrough then flags = bit.bor(flags or 0, ImGuiWindowFlags_NoInputs); end
+    end
 
     local settingsKind = window.IsSettings(options);
     local state = nil;

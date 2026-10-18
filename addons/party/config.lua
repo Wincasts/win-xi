@@ -14,7 +14,6 @@ local imgui = require('imgui')
 local settings = require('settings')
 local widgets = require('winxi.widgets')
 local window = require('winxi.window')
-local fonts = require('winxi.fonts')
 local organize = require('winxi.organize')
 local options = require('options')
 local windows = require('windows')
@@ -28,11 +27,7 @@ local function Save()
     settings.save()
 end
 
-local function Tooltip(text)
-    if text ~= nil and imgui.IsItemHovered() then
-        imgui.SetTooltip(text)
-    end
-end
+local Tooltip = require('winxi.tooltip').Hover
 
 -- The controls of the kinds of entry. Each control's hidden label is made once, and kept on the entry.
 local box = { 0 }             -- a number on its way in and out of a slider
@@ -150,19 +145,7 @@ end
 
 -- a font of C:\Windows\Fonts, or '' for the theme's
 function controls.font(entry, value, section)
-    local opened = imgui.BeginCombo(Id(entry), value ~= '' and value or 'Theme Font')
-    Tooltip(entry.tooltip)
-    if opened then
-        if imgui.Selectable('Theme Font' .. Id(entry, 'theme'), value == '') then
-            section[entry.key] = ''
-        end
-        for _, file in ipairs(fonts.Files()) do
-            if imgui.Selectable(file .. Id(entry, file), value == file) then
-                section[entry.key] = file
-            end
-        end
-        imgui.EndCombo()
-    end
+    widgets.FontFile(section, entry.key, Id(entry), { label = false, tooltip = entry.tooltip })
 end
 
 -- where a window is: typed in, the window goes there, and stays there if it was held by a corner

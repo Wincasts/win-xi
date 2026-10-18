@@ -3,7 +3,6 @@ local imgui=require('imgui')
 local widgets=require('winxi.widgets')
 local controls=require('winxi.infopanel.panel_settings')
 local fields=require('winxi.infopanel.fields')
-local fonts=require('winxi.fonts')
 local M={}
 function M.Draw(options,service,save)
     local function Changed() service.Invalidate(); save() end
@@ -63,16 +62,8 @@ function M.Draw(options,service,save)
     end)
     Tab('Text',function()
         if widgets.Header('Text',true) then
-            widgets.Label('Font')
-            if imgui.BeginCombo('##chatbox.panel.font',options.fontFile~='' and options.fontFile or 'Chat Font') then
-                if imgui.Selectable('Chat Font##chatbox.panel.font',options.fontFile=='') then options.fontFile=''; Changed() end
-                for _,file in ipairs(fonts.Files()) do
-                    if imgui.Selectable(file..'##chatbox.panel.font',file==options.fontFile) then options.fontFile=file; Changed() end
-                end
-                imgui.EndCombo()
-            end
-            widgets.Label('Font Size')
-            if imgui.SliderInt('##chatbox.panel.fontSize',options.fontSize,0,48,options.fontSize[1]==0 and 'Chat Size' or '%d px') then Changed() end
+            if widgets.FontFile(options,'fontFile','##chatbox.panel.font',{theme='Chat Font',tooltip='The panel\'s font: the chat\'s, or one of C:\\Windows\\Fonts.'}) then Changed() end
+            if widgets.FontSize(options,'fontSize','##chatbox.panel.fontSize',{max=48,theme='Chat Size',tooltip='How large the panel\'s text is, in pixels; Chat Size (0) is the chat\'s.'}) then Changed() end
             widgets.Label('Text Color')
             if imgui.ColorEdit4('##chatbox.panel.textColor',options.textColor,ImGuiColorEditFlags_NoInputs) then Changed() end
             widgets.Label('Outline')

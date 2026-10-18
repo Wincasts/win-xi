@@ -50,6 +50,9 @@
 -- 23: nameplates.Each, Find, Count and Screen take the plugin's block, as Claim does; the FFXI-inspired
 --     background's lines from a tile (assets/backgrounds/lines.png) over its gradient
 -- 24: nativetext, each chat line as uihook 0.8 records it after every addon (text ABI 1): Ready, Drain, Status
+-- 25: widgets.FontFile, FontSize and Lock, the controls every addon had written for itself; the theme's Text
+--     Outline and Outline Color, winxi.text's edge where an addon gives none (text.Edge, text.EdgeColor); a
+--     window's locked and clickThrough options
 return {
-    Number = 24,
+    Number = 25,
 };

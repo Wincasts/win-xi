@@ -21,6 +21,10 @@
 --                                    for SetNextItemWidth: room for the digits in each field and no more
 --   widgets.GrowFrom(current)        four buttons for a window's corner; returns the new choice or nil
 --   widgets.Fade(settings, onChanged) the controls for fading while idle (see winxi.fade)
+--   widgets.FontFile(options, key, id, spec)   a font of the addon's own, for text it writes itself: the
+--                                    theme's font or a .ttf of C:\Windows\Fonts, kept as a file name
+--   widgets.FontSize(options, key, id, spec)   its size: the theme's size (0) or pixels
+--   widgets.Lock(box, id, spec)      Lock Window: holds a window still and lets the mouse through it
 --
 -- With the shared theme in use, the theme controls change it for every addon using winxi. Changes show
 -- at once in the addon they are made in, and are saved (and so reach the others) when a control is let
@@ -544,11 +548,15 @@ function widgets.Appearance(appearanceHooks, parts)
         end
     end
 
-    -- The font every window is written in, where its addon does not choose one of its own
+    -- The font every window is written in, where its addon does not choose one of its own, and the
+    -- edge round text written over a bar or the game
     if widgets.Header('Font') then
         FontChoice('FontFile', 'FontSize',
             'The font every window on the game screen drawn with winxi is written in: a font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is imgui\'s own.\nA font or size an addon sets for its own text is used in place of this one.',
             'How big the text of every window on the game screen is, in pixels. 0 (Default) keeps the base size.\nAn addon that sets sizes of its own (the party addon\'s names and values, for one) keeps them.');
+        widgets.Gap();
+        Slider('Text Outline', 'TextOutline', 0, theme.MaxTextOutline, 'How thick the dark edge round text written over a bar, an image or the game itself is, in pixels, in every addon that writes with winxi: the party addon\'s names and figures, a clock\'s line, scrolling text, zone banners. 0 is none.');
+        Color('Outline Color', 'TextOutlineColor', 'The colour of that edge, and how solid it is.');
     end
 
     -- The styles: the window border for every window, and what an addon that draws bars or statuses
@@ -793,6 +801,76 @@ function widgets.GrowFrom(current)
         Tooltip('The corner that stays where it is when the window\'s content changes size: it grows away from that corner.');
     end
     return chosen;
+end
+
+-- A font of the addon's own, for the text an addon writes itself (a clock's line, a bar's figures,
+-- scrolling text): the theme's font and size unless the addon's settings say otherwise, as every
+-- winxi addon offers it. The settings are a file name, '' for the theme's font, and a size in a table
+-- (as imgui's sliders take), 0 for the theme's size.
+--
+--   widgets.FontFile(options, key, id, spec)   the combo: Theme Font, then every .ttf of C:\Windows\Fonts
+--   widgets.FontSize(options, key, id, spec)   the slider: Theme Size at 0, or pixels
+--
+-- options[key] is the setting; id the control's hidden label ('##buff.fontFile'). spec, each optional:
+--   label     the setting's name to its left: Font, or Font Size; false for none, where the addon has
+--             written one already
+--   tooltip   over the control
+--   theme     what the theme's own is called: Theme Font, or Theme Size
+--   min, max  the size's range: 0 and theme.MaxFontSize. Only a range from 0 offers the theme's size.
+-- Both return whether the setting was changed this frame. FontSize returns as well whether the slider
+-- was let go after a change, for an addon that saves then rather than as it is dragged.
+local noSpec = {};
+
+function widgets.FontFile(options, key, id, spec)
+    spec = spec or noSpec;
+    local file = options[key];
+    if type(file) ~= 'string' then file = ''; end
+    local themeLabel = spec.theme or 'Theme Font';
+    if spec.label ~= false then widgets.Label(spec.label or 'Font'); end
+    local opened = imgui.BeginCombo(id, file ~= '' and file or themeLabel);
+    Tooltip(spec.tooltip);
+    local changed = false;
+    if opened then
+        if imgui.Selectable(themeLabel .. id .. '.theme', file == '') and file ~= '' then
+            options[key] = '';
+            changed = true;
+        end
+        for _, choice in ipairs(fonts.Files()) do
+            if imgui.Selectable(choice .. id .. '.' .. choice, file == choice) and file ~= choice then
+                options[key] = choice;
+                changed = true;
+            end
+        end
+        imgui.EndCombo();
+    end
+    return changed;
+end
+
+function widgets.FontSize(options, key, id, spec)
+    spec = spec or noSpec;
+    local low, high = spec.min or 0, spec.max or theme.MaxFontSize;
+    if spec.label ~= false then widgets.Label(spec.label or 'Font Size'); end
+    local size = options[key];
+    local format = (low <= 0 and (tonumber(size[1]) or 0) <= 0) and (spec.theme or 'Theme Size') or '%d px';
+    local changed = imgui.SliderInt(id, size, low, high, format);
+    local done = imgui.IsItemDeactivatedAfterEdit() and true or false;
+    Tooltip(spec.tooltip);
+    return changed, done;
+end
+
+-- Lock Window: a window held where it is, the mouse going through it to the game (winxi.window's
+-- locked and clickThrough options, or the addon's own flags). box is the setting, a table holding
+-- true or false; id the control's hidden label. spec, each optional: label (Lock Window), tooltip, and
+-- onChanged, called with the new value. Returns whether it was changed.
+function widgets.Lock(box, id, spec)
+    spec = spec or noSpec;
+    widgets.Label(spec.label or 'Lock Window');
+    local changed = imgui.Checkbox(id, box);
+    Tooltip(spec.tooltip or 'Keeps the window where it is, and lets the mouse through it to the game. Off, it can be dragged.');
+    if changed and spec.onChanged then
+        spec.onChanged(box[1] and true or false);
+    end
+    return changed;
 end
 
 local fadeDirty = false; -- a fade setting has been changed since the addon was last told
