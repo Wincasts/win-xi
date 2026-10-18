@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7
+
+- Lighter every frame: each guarded read of the client's memory (every window the game draws has its
+  name read, a chat window its owner followed, and the chat's state, lines and routing are sampled each
+  frame) asked Windows about that memory, a system call. The regions found readable are now kept for
+  the frame, a read inside one made at once, and forgotten as the frame is presented.
+- The game's chat colours, a few thousand bytes read and compared, are read every fourth frame once they
+  have been read, and vouched for as current between: ColorFrame still moves each frame.
+
 ## 0.6
 
 - Lighter for every window the game draws: a window's own name is read first, so one that is none of the

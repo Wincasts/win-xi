@@ -252,5 +252,18 @@ int main() {
     Check(ChatTranslateVertices(verts,2,12,5,-10) && verts[0]==15 && verts[1]==10 && verts[2]==123
         && verts[3]==35 && verts[4]==30 && verts[5]==456,"clock translation preserves other vertex fields");
     Check(!ChatTranslateVertices(verts,4097,12,0,1),"clock translation geometry bounded");
+    // reads are served from the regions found readable this frame: one past a region's end is refused
+    // whether or not the region is cached, and one inside a cached region is served
+    {
+        auto* page=static_cast<uint8_t*>(VirtualAlloc(nullptr,4096,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE));
+        uint32_t word=0;
+        ChatReadReset();
+        Check(page && ChatRead(page+4092,&word,4),"a read ending at a region's end served");
+        Check(!ChatRead(page+4094,&word,4),"a read past the region refused once it is cached");
+        Check(ChatRead(page,&word,4) && ChatRead(page+100,&word,4),"reads inside a cached region served");
+        Check(!ChatRead(nullptr,&word,4) && !ChatRead(page,&word,0),"null and empty reads refused");
+        VirtualFree(page,0,MEM_RELEASE);
+        ChatReadReset();
+    }
     return failures?1:0;
 }
