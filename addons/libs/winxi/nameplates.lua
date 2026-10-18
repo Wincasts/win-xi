@@ -12,6 +12,8 @@
 --   for i, name in nameplates.Each() do ... end    the names of the last frame
 --   nameplates.Count()                how many there are
 --   nameplates.Find(entityIndex)      the name over one entity, or nil if none was to be drawn
+-- Each, Find, Count and Screen take the plugin's block as a last argument, for an addon that has it
+-- already: see nameplates.Hook below.
 --
 -- A name is the plugin's own record, read in place and good for this frame only:
 --   name.EntityIndex, name.ServerId
@@ -23,7 +25,7 @@
 --                                     0x80 for full: 0xAARRGGBB and 0xAABBGGRR
 --   nameplates.Name(name)             the entity's name
 --   nameplates.Text(name)             the name as the game writes it: its icons, a byte each, then the name
---   nameplates.Screen(name)           where it is on screen, in imgui's pixels: x, y, or nil behind the camera
+--   nameplates.Screen(name, hook)     where it is on screen, in imgui's pixels: x, y, or nil behind the camera
 --
 -- What is shown:
 --   nameplates.IsHidden(category), nameplates.SetHidden(category, hidden)
@@ -59,9 +61,11 @@
 -- frame after it drew them, and draws nothing for the others.
 --
 -- nameplates.Hook asks Ashita whether the plugin is still loaded, which is not free. An addon that
--- has just asked can hand what it was given to nameplates.Claim(categories, hook) and
--- nameplates.BeginDrawing(hook), and read hook.Hidden, hook.Options and hook.Names itself: within
--- one frame the plugin cannot have gone.
+-- has just asked can hand what it was given to nameplates.Claim(categories, hook),
+-- nameplates.BeginDrawing(hook), nameplates.Each(hook), nameplates.Find(entityIndex, hook),
+-- nameplates.Count(hook) and nameplates.Screen(name, hook), and read hook.Hidden, hook.Options and
+-- hook.Names itself: within one frame the plugin cannot have gone. (The answer is not kept here from
+-- one call to the next: the plugin can be unloaded between two frames, and its block goes with it.)
 --
 -- Entities are known by index, which another entity has after a change of area: an addon that
 -- overrides names clears them then.
@@ -228,8 +232,8 @@ function nameplates.Problem()
     return nil;
 end
 
-function nameplates.Count()
-    local hook = nameplates.Hook();
+function nameplates.Count(hook)
+    hook = hook or nameplates.Hook();
     return hook ~= nil and hook.Count or 0;
 end
 
@@ -244,27 +248,30 @@ local function nextName(hook, i)
     return nil;
 end
 
-function nameplates.Each()
-    local hook = nameplates.Hook();
+function nameplates.Each(hook)
+    hook = hook or nameplates.Hook();
     if (hook == nil) then
         return nothing;
     end
     return nextName, hook, 0;
 end
 
--- Where each entity's name is in the list, worked out once each time the plugin makes the list ready
+-- Where each entity's name is in the list, worked out once each time the plugin makes the list ready:
+-- the one table, emptied and filled again, as that is once a frame
 local places = {};
 local placedAt = nil;
 
-function nameplates.Find(entityIndex)
-    local hook = nameplates.Hook();
+function nameplates.Find(entityIndex, hook)
+    hook = hook or nameplates.Hook();
     if (hook == nil) then
         return nil;
     end
 
     if (placedAt ~= hook.Sequence) then
         placedAt = hook.Sequence;
-        places = {};
+        for index in pairs(places) do
+            places[index] = nil;
+        end
         for i = 0, hook.Count - 1 do
             places[hook.Names[i].EntityIndex] = i;
         end
@@ -291,13 +298,16 @@ end
 
 -- The plugin's places are in the client's window; imgui's are in the picture Ashita draws on, which
 -- is the same size unless something has made it otherwise
-function nameplates.Screen(name)
-    local hook = nameplates.Hook();
+local imgui = nil; -- asked for on first use, so that this file loads where there is none
+
+function nameplates.Screen(name, hook)
+    hook = hook or nameplates.Hook();
     if (hook == nil or bit.band(name.Flags, nameplates.Flag.OnScreen) == 0 or hook.Width <= 0 or hook.Height <= 0) then
         return nil;
     end
 
-    local display = require('imgui').GetIO().DisplaySize;
+    imgui = imgui or require('imgui');
+    local display = imgui.GetIO().DisplaySize;
     return name.ScreenX * display.x / hook.Width, name.ScreenY * display.y / hook.Height;
 end
 
@@ -385,7 +395,8 @@ function nameplates.BeginDrawing(hook, correctAspect)
     -- client's potentially differently-sized menu coordinate system. Legacy callers
     -- retain the original target-pixel API unless they opt in.
     if (correctAspect) then
-        local display = require('imgui').GetIO().DisplaySize;
+        imgui = imgui or require('imgui');
+        local display = imgui.GetIO().DisplaySize;
         local width = display.x > 0 and display.x or hook.Width;
         local height = display.y > 0 and display.y or hook.Height;
         if (hook.TargetWidth > 0 and hook.TargetHeight > 0 and width > 0 and height > 0) then

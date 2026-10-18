@@ -47,6 +47,8 @@
 --     for native menu placement; older plugins leave menus untouched.
 -- 21: shared infopanel data/layout/settings, chat-owned attachments, frame.Draw and explicit-rect
 --     background/border/shadow drawing on a host window's captured list
+-- 23: nameplates.Each, Find, Count and Screen take the plugin's block, as Claim does; the FFXI-inspired
+--     background's lines from a tile (assets/backgrounds/lines.png) over its gradient
 return {
-    Number = 22,
+    Number = 23,
 };

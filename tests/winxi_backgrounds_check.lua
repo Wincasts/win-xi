@@ -53,12 +53,26 @@ backgrounds.Draw(backgrounds.For(nil), look.BackgroundColor)
 assert(counts.AddRectFilledMultiColor == 1 and counts.AddRectFilled == 75)
 
 local load = backgrounds.Load
-backgrounds.Load = function(name) return name == 'marble' and 77 or false end
+backgrounds.Load = function(name) return (name == 'marble' and 77) or (name == 'lines' and 78) or false end
 look.BackgroundStyle, counts = 'marble', {}
 backgrounds.Draw(backgrounds.For(nil), look.BackgroundColor)
 assert(counts.AddImage == 6, 'three across and two down')
 for _, uv in ipairs(uvs) do
     assert(math.abs(uv[1] / 128 - uv[3]) < 1e-9 and math.abs(uv[2] / 128 - uv[4]) < 1e-9, 'never stretched')
+end
+
+-- the lines of FFXI-inspired as a tile once it loads (tried again a couple of seconds after it would
+-- not): over the gradient, three across and two down and never stretched, at the colour's alpha
+H.frames(70)
+look.BackgroundStyle, counts, uvs = 'ffxi', {}, {}
+local packed, tints = imgui.GetColorU32, {}
+imgui.GetColorU32 = function(colour) tints[#tints + 1] = colour[4]; return 1 end
+backgrounds.Draw(backgrounds.For(nil), look.BackgroundColor)
+imgui.GetColorU32 = packed
+assert(counts.AddRectFilledMultiColor == 1 and counts.AddRectFilled == nil and counts.AddImage == 6, 'the lines tiled, not a row at a time')
+assert(tints[#tints] == look.BackgroundColor[4], 'the lines at the colour\'s alpha')
+for _, uv in ipairs(uvs) do
+    assert(math.abs(uv[1] / 128 - uv[3]) < 1e-9 and math.abs(uv[2] / 128 - uv[4]) < 1e-9, 'the lines never stretched')
 end
 -- a tile that will not load: the flat background
 look.BackgroundStyle = 'weave'
@@ -80,4 +94,4 @@ assert(counts.AddImage == 6)
 
 look.BackgroundStyle, backgrounds.Load = 'plain', load
 imgui.GetWindowDrawList, imgui.GetWindowPos, imgui.GetWindowSize = getList, getPos, getSize
-H.print('backgrounds: plain and settings windows left alone, gradient, lines, tiles unstretched, missing tile, winxi and party windows', true)
+H.print('backgrounds: plain and settings windows left alone, gradient, lines a row at a time and as a tile, tiles unstretched, missing tile, winxi and party windows', true)

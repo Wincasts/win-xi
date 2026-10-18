@@ -4,6 +4,11 @@
 Each is a 128x128 greyscale tile, near white, so that tinted by the theme's background colour it is
 that colour with a quiet texture in it: light at 255, the darkest marks about 70% of it. The tiles
 wrap on every side, and are drawn pixel for pixel, side by side. No game artwork is used.
+
+lines.png is the one that is not a background: the FFXI-inspired style's lines, drawn over its
+gradient (see backgrounds.lua). Named on the command line, only those tiles are made again:
+
+    python3 tools/generate_winxi_backgrounds.py lines
 """
 from pathlib import Path
 import numpy as np
@@ -74,7 +79,17 @@ def brushed():
     return to_tile(rows * .75 + along * .25, .8)
 
 
+def lines():
+    """the FFXI-inspired style's fine lines: a dark row, a clear row, and so on down. Not tinted: laid
+    over the gradient as it is, black at 14% on every other row, at the window colour's alpha, which
+    is what a rectangle for every other row of the window was."""
+    tile = np.zeros((N, N, 4), np.uint8)
+    tile[0::2, :, 3] = round(0.14 * 255)
+    return Image.fromarray(tile, 'RGBA')
+
+
 TILES = {'grain': grain, 'marble': marble, 'weave': weave, 'brushed': brushed}
+OVERLAYS = {'lines': lines}  # drawn over a background, not as one: not in the preview's panels
 LABELS = {'plain': 'PLAIN', 'gradient': 'GRADIENT', 'ffxi': 'FFXI-INSPIRED', 'grain': 'GRAIN',
           'marble': 'MARBLE', 'weave': 'WEAVE', 'brushed': 'BRUSHED METAL'}
 
@@ -129,10 +144,20 @@ def preview(tiles):
 
 
 if __name__ == '__main__':
+    import sys
     ROOT.mkdir(parents=True, exist_ok=True)
-    tiles = {}
+    # the tiles named on the command line, or every one of them and the preview
+    wanted = set(sys.argv[1:])
+    tiles, made = {}, 0
     for name, make in TILES.items():
-        tiles[name] = make()
-        tiles[name].save(ROOT / f'{name}.png')
-    preview(tiles)
-    print(f'Generated {len(tiles)} background tiles and preview in {ROOT}')
+        if not wanted or name in wanted:
+            tiles[name] = make()
+            tiles[name].save(ROOT / f'{name}.png')
+            made += 1
+    for name, make in OVERLAYS.items():
+        if not wanted or name in wanted:
+            make().save(ROOT / f'{name}.png')
+            made += 1
+    if not wanted:
+        preview(tiles)
+    print(f'Generated {made} background tiles{"" if wanted else " and preview"} in {ROOT}')
