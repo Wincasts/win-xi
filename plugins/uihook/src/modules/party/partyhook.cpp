@@ -16,6 +16,8 @@
 #include "../chat/controls.h"
 #include "../chat/windows.h"
 #include "../chat/colors.h"
+#include "../chat/menus.h"
+#include "../chat/history.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -27,6 +29,10 @@ static void __fastcall RenderWindow(void* window, void*);
 static int32_t __cdecl SubmitHud(int32_t index, int32_t capture);
 static int32_t __cdecl SubmitChat(int32_t index, int32_t capture);
 static ChatShared Chat = { "UIHOOK-CHAT", 13, sizeof(ChatShared), 0, 1, 0, {}, {}, {}, 0, {}, 0, {}, 0, {}, 0, 0, 0, 0, 0, 0, 0, 0, {}, 0, 0, 0, {}, 0, 0, 0, 0, {}, 0, 0, 0, {}, {}, {}, 0, 0, 0, {}, 0, {}, 0, 0, {}, {}, {} };
+static MenuShared Menus = { "UIHOOK-MENUS", 1, sizeof(MenuShared), 1, 0, 0, 0, {}, 0, 0, 0, {}, 0, {}, 0, 0, 0 };
+// The first log window's history, read when an addon asks (independent history ABI 1)
+static ChatHistoryShared History = { "UIHOOK-HISTORY", 1, sizeof(ChatHistoryShared), 0, 0, 0, 0, 0, 0, 0, {}, {} };
+static uint32_t historyServed = 0; // the request last served
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
 static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
@@ -75,6 +81,7 @@ class PartyHook : public IPlugin {
     void** globals[4] = {};
     Drawing drawings[11]; // Party 0..5, HUD 6..7, chat logs/input 8..10; independent ABIs
     ChatModule chat;
+    MenuModule menus;
     ChatWindowRoutes windowRoutes; // the two log windows' routing, read from the game's config each frame
     ChatColorTables colorTables;   // the game's chat colours, read each frame
     bool expandedCapture=false, expandedSkin=false, controlsValid=false;
@@ -89,6 +96,7 @@ class PartyHook : public IPlugin {
     // The full log's rows of text, measured and decoded as the game draws them in a skinned full log; the
     // last published kept apart, so that the serial moves only when the rows do
     ChatBounds rowBounds; unsigned rowCount=0; uint32_t textUsed=0;
+    ChatBounds selectionBounds[8]; unsigned selectionCount=0; // the game's row-selection art, each call, as drawn in this full log before its rows
     ChatTextRow lastRows[CHAT_TEXT_ROWS]={}; char lastText[CHAT_TEXT_BYTES]={}; unsigned lastRowCount=0; uint32_t lastTextUsed=0;
     uint16_t rowWords[CHAT_ROW_WORDS]={};
     void** compassGlobal = nullptr;
@@ -99,6 +107,7 @@ class PartyHook : public IPlugin {
     std::vector<uint8_t> scaledVertices; // a weather icon's vertices, drawn larger or smaller
     DWORD states = 0, saved = 0;
     bool blocking = false;
+    uint32_t primaryDeferred = 0; // the frame the first log's replay was held back for a second log stacked over it
     // What /uihook hud reports: the device as the clock replacement is drawn, and the game's own
     // clock draws. Read-only; it changes nothing that is drawn.
     struct HudProbe {
@@ -313,6 +322,11 @@ public:
             // Chat recognition must not depend on party globals/signatures.
             if (chat.Discover(begin,module.SizeOfImage) && Take(WindowDetour,begin,module.SizeOfImage)) {
                 Chat.SupportedMask=3 | (chat.InputSupported() ? 4 : 0) | (chat.ExpandedSupported() ? CHAT_FULL_SUPPORTED : 0);
+                History.Supported=1; // the first window's ring, followed from its owner when read
+                if (menuManager && menus.Discover(begin,module.SizeOfImage,static_cast<uint8_t*>(WindowDetour.target))) {
+                    Menus.Supported=1;
+                    menus.Log(chat.ExpandedSupported() ? chat.FullOwner() : nullptr); // the expanded log, placed as the menus are
+                }
                 // which messages each of the two log windows shows, as the client decides it: read, never written
                 if (DiscoverChatWindows(begin,module.SizeOfImage,chat.SplitOwner(),windowRoutes)) Chat.SupportedMask|=CHAT_WINDOWS_SUPPORTED;
                 if (chat.LinesSupported()) Chat.SupportedMask|=CHAT_LINES_SUPPORTED; // each window's lines now, as the game grows and shrinks it
@@ -326,7 +340,7 @@ public:
                         Chat.SupportedMask |= CHAT_CONTROLS_SUPPORTED | CHAT_REPLACE_SUPPORTED;
                         // the rows of text as well, where the drawer's one row-drawing call is verified: on its own, the controls stand without it
                         if (TakeChatText(ChatText,DiscoverChatText(begin,module.SizeOfImage,chat.ExpandedDraw()),reinterpret_cast<void*>(&DrawChatRow)))
-                            Chat.SupportedMask |= CHAT_TEXT_SUPPORTED;
+                            Chat.SupportedMask |= CHAT_TEXT_SUPPORTED | CHAT_MIRROR_SUPPORTED;
                     }
                 }
             }
@@ -355,6 +369,8 @@ public:
     void Stop() { for (unsigned i=0;i<6;i++) drawings[i].Clear(); staging.Clear(); }
     void StopHud() { drawings[6].Clear(); drawings[7].Clear(); staging.Clear(); }
     void Release() override {
+        Menus.RequestFrame=0; Menus.LogRequestFrame=0; menus.Stop(Menus); menus.StopLog(Menus); Menus.Supported=0;
+        History.Supported=0; History.RequestFrame=0; History.Count=0; historyServed=0;
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
         Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat();
@@ -364,11 +380,20 @@ public:
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
         ++Shared.Frame;
-        Hud.Frame=Chat.Frame=Shared.Frame;
+        Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
         chat.Sample(Chat,Shared.Frame);
         SampleChatWindows(windowRoutes,Chat,Shared.Frame);
         chat.SampleLines(Chat,Shared.Frame);
+        History.Frame=Shared.Frame;
+        // a read of the first window's history, once for each request
+        if (History.Supported && History.RequestFrame && History.RequestFrame!=historyServed) {
+            historyServed=History.RequestFrame;
+            if (!ChatReadHistory(chat.FirstRing(),History)) History.Count=History.Used=0;
+            History.ReadFrame=Shared.Frame; History.Serial++;
+        }
         SampleChatColors(colorTables,Chat,Shared.Frame);
+        if (!MenuFresh(Menus,Chat,Shared.Frame)) menus.Stop(Menus);
+        if (!LogFresh(Menus,Shared.Frame)) menus.StopLog(Menus);
         // As namehook: no cross-frame state blocks holding client resources across a reset.
         ReleaseStates();
         for (auto& d:drawings) if (!d.Fresh()) d.Clear();
@@ -398,6 +423,34 @@ public:
         return ok;
     }
     bool HandleCommand(int32_t,const char* command,bool) override {
+        if (command && _stricmp(command,"/uihook menus")==0) {
+            char line[256];
+            snprintf(line,sizeof(line),"[uihook:menus] supported %u; frame/request %u/%u, host %u; applied/restored %u/%u; last %.16s at %u.",
+                Menus.Supported,Menus.Frame,Menus.RequestFrame,Menus.HostSlot,Menus.Applied,Menus.Restored,Menus.LastName,Menus.MenuFrame);
+            core->GetChatManager()->Write(0,false,line);
+            snprintf(line,sizeof(line),"[uihook:menus] expanded log: request %u at %.0f,%.0f; applied/restored %u/%u, last at %u.",
+                Menus.LogRequestFrame,Menus.LogPlace[0],Menus.LogPlace[1],Menus.LogApplied,Menus.LogRestored,Menus.LogFrame);
+            core->GetChatManager()->Write(0,false,line); return true;
+        }
+        if (command && _stricmp(command,"/uihook chat history")==0) {
+            // the newest lines of the first window's history, as read now: each line's header fields and its start
+            char line[256];
+            static ChatHistoryShared dump;
+            if (!History.Supported || !ChatReadHistory(chat.FirstRing(),dump)) {
+                core->GetChatManager()->Write(0,false,"[uihook:history] the first log window's history could not be read.");
+                return true;
+            }
+            snprintf(line,sizeof(line),"[uihook:history] %u lines, %u bytes; the newest 12 (mode, serial, flags, +38, text):",dump.Count,dump.Used);
+            core->GetChatManager()->Write(0,false,line);
+            for (uint32_t i=dump.Count>12 ? dump.Count-12 : 0;i<dump.Count;i++) {
+                const ChatHistoryLine& l=dump.Lines[i];
+                char text[64]={}; uint32_t n=0;
+                for (uint32_t j=0;j<l.Length && n<48;j++) { const char c=dump.Text[l.Offset+j]; text[n++]=(c==0x1e || c==0x1f) ? '^' : c; }
+                snprintf(line,sizeof(line),"[uihook:history] %04X %u %02X %08X %s",l.Mode,l.Serial,l.Flags,l.Extra,text);
+                core->GetChatManager()->Write(0,false,line);
+            }
+            return true;
+        }
         if (command && _stricmp(command,"/uihook chat")==0) {
             char line[256];
             snprintf(line,sizeof(line),"[uihook:chat] ABI 13, mask %u, frame %u; primary native/drawn %u/%u, split %u/%u, input %u/%u.",
@@ -406,7 +459,7 @@ public:
             snprintf(line,sizeof(line),"[uihook:chat] state 0x%x at %u, full bounds at %u; history scroll %u, cursor %u/%u, filter %u (browsing/filter menus remain native).",
                 Chat.StateFlags,Chat.StateFrame,Chat.ExpandedRectFrame,Chat.FullScroll,Chat.FullCursor,Chat.FullPageRows,Chat.FullFilter);
             core->GetChatManager()->Write(0,false,line);
-            snprintf(line,sizeof(line),"[uihook:chat] replacing %u (1 tabs, 2 scrollbar, 4 text); %u tabs measured at %u; scrollbar page %u of %u rows, %u above, at %u.",
+            snprintf(line,sizeof(line),"[uihook:chat] replacing %u (1 tabs, 2 scrollbar, 4 text, 8 all); %u tabs measured at %u; scrollbar page %u of %u rows, %u above, at %u.",
                 replaceControls,Chat.TabCount,Chat.TabFrame,Chat.ScrollPage,Chat.ScrollCount,Chat.ScrollTop,Chat.ScrollFrame);
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:chat] text: row site %s; %u rows at %u, serial %u, %u bytes.",
@@ -518,13 +571,10 @@ public:
         out.vertices.swap(staging.vertices); out.runs.swap(staging.runs);
         out.width=staging.width; out.height=staging.height; out.font=staging.font; out.submitted=Shared.Frame;
         Shared.CapturedVertices=static_cast<uint32_t>(out.vertices.size());
-        if (index==8 && !out.vertices.empty()) {
+        if ((index==8 || index==9) && !out.vertices.empty()) {
             const ImVec2 pos=gui->GetWindowPos(), size=gui->GetWindowSize();
-            if (std::isfinite(pos.x) && std::isfinite(pos.y) && std::isfinite(size.x) && std::isfinite(size.y) && size.x>0 && size.y>0) {
-                Chat.ReplacementRect[0]=pos.x; Chat.ReplacementRect[1]=pos.y;
-                Chat.ReplacementRect[2]=pos.x+size.x; Chat.ReplacementRect[3]=pos.y+size.y;
-                Chat.ReplacementRectFrame=Shared.Frame;
-            }
+            const float rect[]={pos.x,pos.y,pos.x+size.x,pos.y+size.y};
+            ChatClockAnchor(Chat,index-8,rect);
         }
         // Keep ImGui's layout and hit-testing; consume only its GPU commands, after making a complete copy.
         for (int c=0;c<list->CmdBuffer.Size;c++) list->CmdBuffer[c].ElemCount=0;
@@ -686,8 +736,8 @@ public:
             expandedCapture=capture==2;
             controlsValid=expandedCapture && (Chat.SupportedMask & CHAT_CONTROLS_SUPPORTED) && controlStyle.Read(Chat);
             // the addon's own tabs, scrollbar and text stand in only while its frame does, and only where the hooks are
-            replaceControls=controlsValid && (Chat.SupportedMask & CHAT_REPLACE_SUPPORTED) ? Chat.ReplaceControls & (CHAT_REPLACE_TABS|CHAT_REPLACE_SCROLL) : 0;
-            if (controlsValid && (Chat.SupportedMask & CHAT_TEXT_SUPPORTED)) replaceControls |= Chat.ReplaceControls & CHAT_REPLACE_TEXT;
+            replaceControls=controlsValid ? ChatReplaceGranted(Chat.ReplaceControls,(Chat.SupportedMask & CHAT_REPLACE_SUPPORTED)!=0,
+                (Chat.SupportedMask & CHAT_TEXT_SUPPORTED)!=0) : 0;
         }
         if (!result) drawings[index+8].Clear(); // failed capture restores native even after an empty Begin
         return result;
@@ -696,6 +746,11 @@ public:
         if (index==-1) { StopHud(); return 1; }
         if (index<0 || index>1) return 0;
         return Capture(index+6,capture);
+    }
+    // Whether Replay would draw a drawing (or its empty replacement) now
+    bool Replayable(unsigned index) {
+        const Drawing& drawing=drawings[index];
+        return drawing.Fresh() && (drawing.vertices.empty() || drawing.font==Font());
     }
     bool ReplayTargets() {
         // Validate the whole target group before drawing any of it; no fresh submission means
@@ -735,6 +790,8 @@ public:
         frame=result.Frame;
     }
     bool ControlsActive() const { return expandedSkin && controlsValid; }
+    // The whole full log left undrawn, the addon drawing all of it: asked and granted with this frame's capture
+    bool Mirrored() const { return expandedSkin && controlsValid && (replaceControls & CHAT_REPLACE_ALL); }
     // The whole tab strip: measured tab by tab in a skinned full log, and left undrawn (art and labels alike)
     // where the addon draws its own tabs; the game's hit-tests and Square selection are untouched either way.
     void ChatTabs(void* owner,uint32_t filter) {
@@ -765,8 +822,12 @@ public:
         if (chatMeasure) { if (chatMeasure->vertices) tabCount++; chatMeasure=nullptr; }
     }
     void ChatWindowArt(bool cursor,void* sprite,uint32_t x,uint32_t y,uint32_t sx,uint32_t sy,uint32_t color,uint32_t a,uint32_t b,uint32_t c) {
+        // the selection art in a skinned full log measured (drawn or not), so its rows are published lit
+        const bool measure=expandedSkin && !cursor && ChatSelectionColor(color) && !chatMeasure && selectionCount<8;
+        if (measure) { selectionBounds[selectionCount]=ChatBounds(); chatMeasure=&selectionBounds[selectionCount]; }
         ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
-            expandedSkin,ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
+            expandedSkin && !Mirrored(),ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
+        if (measure) { if (chatMeasure->vertices) selectionCount++; chatMeasure=nullptr; }
     }
     // The scrollbar: its page, count and rows above the view read and its bounds measured in a skinned full
     // log, and left undrawn where the addon draws its own; the native object is never written.
@@ -814,7 +875,12 @@ public:
         } else if (info.words) row.Flags|=CHAT_ROW_CUT; // words that could not be read, or more than a row holds: none published
         // its place: its glyphs', or, for a row that drew none, where the game would have drawn them (a 16-pixel cell from x, y)
         ChatBounds empty; empty.Add(float(x)-0.5f,float(y)-0.5f); empty.Add(float(x)+15.5f,float(y)+15.5f);
-        if (NormalizeChat(rowBounds.vertices ? rowBounds : empty,row.Rect)) row.Flags|=CHAT_ROW_PLACED;
+        if (NormalizeChat(rowBounds.vertices ? rowBounds : empty,row.Rect)) {
+            row.Flags|=CHAT_ROW_PLACED;
+            float lit[4];
+            for (unsigned i=0;i<selectionCount;i++)
+                if (NormalizeChat(selectionBounds[i],lit) && ChatRowLit(row.Rect,lit)) { row.Flags|=CHAT_ROW_LIT; break; }
+        }
         rowCount++;
     }
     // The rows drawn in this content Draw published together, the serial moved only where they differ from the last
@@ -828,7 +894,7 @@ public:
         Chat.TextCount=rowCount; Chat.TextFrame=rowCount ? Shared.Frame : 0;
     }
     void ExpandedContent(void* owner) {
-        ChatNativeContent(expandedSkin,blocking);
+        ChatNativeContent(expandedSkin,Mirrored(),blocking);
         ChatOwnerScope ownerScope(expandedOwner,expandedSkin ? owner : nullptr);
         rowCount=0; textUsed=0;
         reinterpret_cast<void(__fastcall*)(void*,void*)>(ExpandedChatDetour.trampoline)(owner,nullptr);
@@ -845,6 +911,18 @@ public:
         blocking=false; // replacement GPU calls must not be caught by our own callbacks
         const int chatIndex=chat.Identify(window);
         const int chatSlot=chatIndex==3 ? 0 : chatIndex;
+        if (Menus.Supported) {
+            int dimensions[2]={}; D3DVIEWPORT8 viewport={};
+            auto* device=core->GetDirect3DDevice();
+            const uint32_t host=Menus.HostSlot;
+            const bool wantMenus=host<2 && MenuFresh(Menus,Chat,Shared.Frame);
+            const bool wantLog=chatIndex==3 && LogFresh(Menus,Shared.Frame); // the full log placed where the addon asks
+            const bool screen=(wantMenus || wantLog) && device && SUCCEEDED(device->GetViewport(&viewport)) && menuManager
+                && ChatRead(menuManager+0x80,dimensions,sizeof(dimensions));
+            const bool active=wantMenus && screen && drawings[host+8].Fresh() && !drawings[host+8].vertices.empty();
+            menus.Before(window,Menus,active,dimensions,viewport.Width,viewport.Height);
+            if (chatIndex==3) menus.BeforeLog(window,Menus,wantLog && screen,dimensions,viewport.Width,viewport.Height);
+        }
         bool chatReady=true;
         if (chatIndex>=0) {
             chat.Sample(Chat,Shared.Frame);
@@ -855,16 +933,22 @@ public:
                 && (expandedCapture ? chatIndex==3 && !drawings[8].vertices.empty() : chatIndex==0);
             else chatReady=!(Chat.StateFlags & CHAT_EXPANDED); // no stale input/split captures over expanded native UI
         }
-        bool replaced=chatIndex>=0 ? chatReady && Replay(static_cast<unsigned>(chatSlot+8))
+        // The first log held back for a second log stacked over it, drawn once the second is
+        const bool defer=chatIndex==0 && chatReady && Replayable(8)
+            && ChatDeferPrimary(Chat,drawings[9].Fresh() && !drawings[9].vertices.empty());
+        bool replaced=defer ? true : chatIndex>=0 ? chatReady && Replay(static_cast<unsigned>(chatSlot+8))
             : index==3 ? ReplayTargets() : index>=0 && Replay(static_cast<unsigned>(index));
+        if (defer) primaryDeferred=Shared.Frame;
+        else if (chatIndex==1 && primaryDeferred==Shared.Frame) { Replay(8); primaryDeferred=0; }
         blocking=replaced;
         expandedSkin=chatIndex==3 && replaced && expandedCapture;
         // a full log drawn afresh: its tabs, scrollbar and rows measured again, or not at all if the game leaves them out
-        if (chatIndex==3) { Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; chatViewportKnown=false; chatMeasure=nullptr; measuringTabs=false; rowCount=0; textUsed=0; }
+        if (chatIndex==3) { Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; chatViewportKnown=false; chatMeasure=nullptr; measuringTabs=false; rowCount=0; textUsed=0; selectionCount=0; }
         targetScope=index==3 && replaced;
         reinterpret_cast<void(__fastcall*)(void*,void*)>(WindowDetour.trampoline)(window,nullptr);
         // Read after the client's animation/layout update, even when this window is not replaced.
-        // No native positioning/state writes: Lua uses this geometry for its next submission.
+        // Read-only capture geometry for Lua's next submission. Registered action menus alone
+        // may have been retargeted above, before the native layout update.
         if (index>=0) RecordRect(static_cast<unsigned>(index),window);
         if (chatIndex>=0) RecordChatRect(chatIndex,window);
         blocking=was; targetScope=wasTarget; expandedSkin=wasExpanded;

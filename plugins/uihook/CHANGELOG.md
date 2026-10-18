@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.6
+
+- Independent menu ABI 1: chat-owned panel bounds published only with successful compact capture.
+  Registered native command/magic/ability/inventory/item-use/control menus can anchor above it.
+- Verified Window::Render→Update call and target-field copy signatures; live registry ownership,
+  header, writable-field and scaled-coordinate checks. Native layout target is changed before its
+  own Update; no render-only offset, mouse remapping, selection or input interception.
+- Restore owned positions on expired replay/request, expanded chat, opt-out, zoning and unload;
+  never restore a freed/replaced owner or overwrite a newer native-written origin. Oversized menus
+  and unknown clients/owners stay native. `/uihook menus` reports readiness/apply/restore counts.
+- An event's choices (`query`, an NPC's Yes/No under its message) join the moved family; a unique
+  in-module registry global, as the others.
+- The first log window over a second stacked above it: the game draws the second after the first, so the
+  second's replacement covered the half of the first's title above its top edge. While the second is
+  replaced (drawn last frame, with a capture), the first's replay is held back and drawn straight after the
+  second's. Side by side, or the second drawn first, nothing changes.
+- The full log mirrored: ReplaceControls bit 8 (CHAT_REPLACE_ALL, granted only with tabs and text)
+  keeps the full log's GPU submissions blocked through its content Draw and Window::Render's cursor,
+  scrollbar and row-selection art, so the marked rows' sprites and anything else it draws are left
+  undrawn too; every control and row is still measured and published, and all navigation, hover and
+  Confirm stay native. SupportedMask bit 11 (2048) advertises it, with the row site. Menus over the
+  log are other windows and stay native.
+- `/uihook chat history` and `/uihook menus` reach their reports: the command dispatcher read only two
+  words and had no `menus` case, so the first gave `/uihook chat`'s report and the second the help.
+- The first log window's history read on request: an independent history ABI 1 (magic UIHOOK-HISTORY,
+  16 + 36 + 2400 + 65536 bytes). On an addon's request, uihook reads the window's ring (its owner's +18:
+  +14 newest, +16 oldest, +1A count, 100 lines of 2 KB from +20) oldest to newest, each line's 60-byte
+  header and words, decoded with the expanded log's decoder, and publishes each line's text, whole mode
+  word, serial (+0C), flags (+15) and +38 (cleared, with flags masked to 0xB0, on a message's lines after
+  its first); read only, once a request. `/uihook chat history` prints the newest 12 with those fields.
+  tests/history: order round the ring's end, decoding, the fields, bad indices, a full ring.
+- The full log's row highlight measured: each row-selection art call in a skinned full log (drawn or
+  not) is measured from its vertices, and a published row whose middle it covers gets Rows flag 32
+  (CHAT_ROW_LIT), so the addon lights what the game highlights. No ABI change.
+- The expanded chat log placed where the addon asks: menu ABI 1 grows to 108 bytes (LogRequestFrame,
+  LogPlace[2] bottom-left in pixels, LogFrame, LogApplied, LogRestored; unreleased, so still 1). The
+  full log's Window target is moved before its own Update, as the menus' are, its size kept, kept on
+  the screen; a stale request, release and unload give the game's place back. `/uihook menus` says it.
+- Chat ABI stays 13; older addons behave as before. Needs live cursor/mouse/artwork validation.
+
 ## 0.5
 
 - Chat ABI 13 (71684 bytes): the game's chat colours as configured (ColorFrame, ColorSerial, InlineColors[17],

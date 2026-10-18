@@ -163,6 +163,8 @@ int main() {
         && std::fabs(rect[2]-0.2005f)<1e-5f && std::fabs(rect[3]-0.161f)<1e-5f,"bounds normalized to the viewport, the half pixel added");
     Check(ChatNormalize(bounds,100,50,1000,500,rect) && std::fabs(rect[0]-0.0005f)<1e-5f && std::fabs(rect[1]-0.001f)<1e-5f,"a viewport not at the origin is taken off first");
     Check(!ChatNormalize(bounds,0,0,0,500,rect),"an empty viewport gives no bounds");
+    { const float lit[4]={0.1f,0.40f,0.9f,0.45f},inside[4]={0.12f,0.41f,0.5f,0.44f},edge[4]={0.12f,0.43f,0.5f,0.47f},below[4]={0.12f,0.46f,0.5f,0.49f};
+      Check(ChatRowLit(inside,lit) && ChatRowLit(edge,lit) && !ChatRowLit(below,lit),"a row is lit where the selection art covers its middle"); }
     Check(ChatHidden(CHAT_REPLACE_TABS|CHAT_REPLACE_SCROLL,CHAT_REPLACE_TABS,true) && !ChatHidden(CHAT_REPLACE_SCROLL,CHAT_REPLACE_TABS,true)
         && !ChatHidden(CHAT_REPLACE_TABS,CHAT_REPLACE_TABS,false),"a control is hidden only when asked, and only in a skinned full log");
     void* current=chosen;

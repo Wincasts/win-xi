@@ -188,7 +188,36 @@ int main() {
     shared.ReplacementRect[0]=100; shared.ReplacementRect[1]=300; shared.ReplacementRect[2]=700; shared.ReplacementRect[3]=900;
     float dx=0,dy=0;
     Check(ChatClockOffset(shared,1000,1000,dx,dy) && dx==0 && dy==-200,"whole clock follows replacement top, preserving stock gap");
-    shared.StateFlags=CHAT_EXPANDED;
+    const float primaryBox[]={100,300,700,900}, upperBox[]={120,100,620,300};
+    ChatClockAnchor(shared,0,primaryBox);
+    ChatClockAnchor(shared,1,upperBox);
+    Check(shared.ReplacementRect[0]==120 && shared.ReplacementRect[1]==100 && shared.ReplacementRect[2]==620,
+        "stacked split supplies the clock top edge and width");
+    shared.SplitRectFrame=shared.NativeFrame[1]=shared.DrawnFrame[1]=10;
+    shared.SplitRect[0]=0.1f; shared.SplitRect[1]=0.25f; shared.SplitRect[2]=0.7f; shared.SplitRect[3]=0.5f;
+    Check(ChatClockOffset(shared,1000,1000,dx,dy) && dx==20 && dy==-150,
+        "clock preserves gap from upper native log, not lower primary");
+    ChatClockAnchor(shared,0,primaryBox);
+    Check(shared.ReplacementRect[1]==300,"primary recapture resets vanished split anchor");
+    const float beside[]={710,100,900,300}, below[]={100,900,700,1000};
+    ChatClockAnchor(shared,1,beside);
+    Check(shared.ReplacementRect[0]==100 && shared.ReplacementRect[1]==300,"side-by-side log leaves primary anchor");
+    ChatClockAnchor(shared,1,below);
+    Check(shared.ReplacementRect[1]==300,"split below primary leaves primary anchor");
+    shared.Frame=11; ChatClockAnchor(shared,1,upperBox);
+    Check(shared.ReplacementRectFrame==10,"split cannot revive a missing primary capture"); shared.Frame=10;
+    shared.SplitRectFrame=shared.NativeFrame[1]=shared.DrawnFrame[1]=0;
+    Check(!ChatDeferPrimary(shared,true),"no second log drawn: the first is not held back");
+    shared.NativeFrame[1]=9;
+    Check(ChatDeferPrimary(shared,true),"second log replaced last frame: the first waits to be drawn over it");
+    Check(!ChatDeferPrimary(shared,false),"second log not captured: the first drawn in its turn");
+    shared.NativeFrame[1]=10;
+    Check(!ChatDeferPrimary(shared,true),"second log already drawn this frame: the first is on top in its turn");
+    shared.NativeFrame[1]=8;
+    Check(!ChatDeferPrimary(shared,true),"second log gone a frame: the first not held for it");
+    shared.NativeFrame[1]=9; shared.StateFlags=CHAT_EXPANDED;
+    Check(!ChatDeferPrimary(shared,true),"full log open: nothing held back");
+    shared.NativeFrame[1]=0;
     Check(!ChatClockOffset(shared,1000,1000,dx,dy),"expanded log cannot relocate the compact clock group");
     Check(!ChatReplayAllowed(shared,false),"compact capture cannot cover a newly expanded native log");
     Check(!ChatReplayAllowed(shared,true),"missing content capability cannot hide native expanded rows");
@@ -199,8 +228,17 @@ int main() {
     shared.StateFlags=CHAT_EXPANDED|CHAT_NATIVE_BROWSE;
     Check(!ChatReplayAllowed(shared,true) && !ChatReplayAllowed(shared,false),"nested native menus cannot be suppressed");
     bool blocked=true;
-    ChatNativeContent(false,blocked); Check(blocked,"non-expanded rendering stays blocked");
-    ChatNativeContent(true,blocked); Check(!blocked,"native expanded content, then cursor and scrollbar, draw unblocked");
+    ChatNativeContent(false,false,blocked); Check(blocked,"non-expanded rendering stays blocked");
+    ChatNativeContent(true,true,blocked); Check(blocked,"a mirrored full log stays blocked: its content, cursor and scrollbar undrawn");
+    ChatNativeContent(true,false,blocked); Check(!blocked,"native expanded content, then cursor and scrollbar, draw unblocked");
+    Check(ChatReplaceGranted(CHAT_REPLACE_TABS|CHAT_REPLACE_SCROLL|CHAT_REPLACE_TEXT|CHAT_REPLACE_ALL,true,true)==15,"all of it granted with every hook");
+    Check(ChatReplaceGranted(CHAT_REPLACE_TABS|CHAT_REPLACE_TEXT|CHAT_REPLACE_ALL,true,true)==(CHAT_REPLACE_TABS|CHAT_REPLACE_TEXT|CHAT_REPLACE_ALL),
+        "the whole log without the scrollbar asked: the game draws none where every row fits");
+    Check(ChatReplaceGranted(CHAT_REPLACE_TABS|CHAT_REPLACE_SCROLL|CHAT_REPLACE_TEXT|CHAT_REPLACE_ALL,true,false)==(CHAT_REPLACE_TABS|CHAT_REPLACE_SCROLL),
+        "no row site: neither the text nor the whole log");
+    Check(ChatReplaceGranted(CHAT_REPLACE_SCROLL|CHAT_REPLACE_TEXT|CHAT_REPLACE_ALL,true,true)==(CHAT_REPLACE_SCROLL|CHAT_REPLACE_TEXT),
+        "the whole log only with the addon's tabs as well");
+    Check(ChatReplaceGranted(CHAT_REPLACE_TABS|CHAT_REPLACE_TEXT|CHAT_REPLACE_ALL,false,true)==CHAT_REPLACE_TEXT,"no control hooks: the text alone");
     shared.StateFlags=0;
     shared.Frame=13;
     Check(!ChatClockOffset(shared,1000,1000,dx,dy) && dx==0 && dy==0,"stale log cannot move clock"); shared.Frame=10;
