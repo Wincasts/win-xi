@@ -2,6 +2,12 @@
 
 ## 0.11.2
 
+- Lighter each frame: a row's coloured parts are measured once and kept with it, not every frame (the
+  game's colours still looked up each time); the expanded log measures only its cursor's row and its tab
+  names once in their font; the Linkshell title reads the pearl from the inventory once a second, or as a
+  pearl is equipped, not every frame; the expanded status line is made only as it changes; and a mouse
+  message chatbox would never take (a move without a drag, a release without a press) is let by before
+  the game's state is read.
 - The attached panel moves under chat: it takes the bottom of the logs' place and every drawn log
   (both, stacked or side by side) is lifted by its height to sit wholly above it. The lowest log owns
   it; Window 2 only while it is the one shown. No room to lift chat: no panel that frame.

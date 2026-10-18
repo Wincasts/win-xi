@@ -48,22 +48,44 @@ function M.Text(list, pos, color, text)
 end
 -- Draw ordered byte spans without exposing protocol escapes to ImGui or wrapping.
 -- Source timestamp colours are preserved just like every other inline span.
-function M.Rich(list, pos, color, text, spans)
-    if not spans or #spans == 0 then return M.Text(list, pos, color, text) end
-    local palette = require('palette')
-    local at, x = 1, pos[1]
-    local function Draw(first, last, tint)
+-- keep (optional): a table that lasts as long as the row, with font and size the font it is drawn in: its parts and
+-- where each starts are kept on it, measured once rather than every frame (their colours are still looked up each
+-- time, so a change to the game's colours shows at once).
+local palette -- required on first use: this module also stands alone
+local function Parts(text, spans)
+    local parts, at, x = {}, 1, 0
+    local function Add(first, last, span)
         if first > last then return end
         local part = text:sub(first, last)
-        M.Text(list, {x,pos[2]}, tint, part)
+        parts[#parts + 1] = { text = part, x = x, span = span }
         x = x + M.Measure(part)
     end
     for _, span in ipairs(spans) do
-        Draw(at, span.first - 1, color)
-        local tint = palette.Color(span.bank, span.slot)
-        Draw(span.first, span.last, tint and imgui.GetColorU32(tint) or color)
+        Add(at, span.first - 1, nil)
+        Add(span.first, span.last, span)
         at = span.last + 1
     end
-    Draw(at, #text, color)
+    Add(at, #text, nil)
+    return parts
+end
+function M.Rich(list, pos, color, text, spans, keep, font, size)
+    if not spans or #spans == 0 then return M.Text(list, pos, color, text) end
+    local parts
+    if keep and keep.richText == text and keep.richFont == font and keep.richSize == size and keep.richParts then
+        parts = keep.richParts
+    else
+        parts = Parts(text, spans)
+        if keep and font ~= nil and size ~= nil then keep.richText, keep.richFont, keep.richSize, keep.richParts = text, font, size, parts end
+    end
+    palette = palette or require('palette')
+    local x, y = pos[1], pos[2]
+    for _, part in ipairs(parts) do
+        local tint = color
+        if part.span then
+            local found = palette.Color(part.span.bank, part.span.slot)
+            if found then tint = imgui.GetColorU32(found) end
+        end
+        M.Text(list, { x + part.x, y }, tint, part.text)
+    end
 end
 return M

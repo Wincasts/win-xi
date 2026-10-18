@@ -1,6 +1,7 @@
 -- Bounded message history and a UTF-8-safe tail layout (ten rows in compact mode). No Ashita/ImGui dependency.
 local M = { Rows = 10, Capacity = 256, MaxBytes = 8192 }
 local npcModes = { [142] = true, [144] = true, [150] = true, [151] = true, [210] = true }
+local rich = require('richtext')
 
 -- Remove FFXI formatting before CP932 conversion, without eating Shift-JIS trail bytes.
 -- With icons enabled, return CP932 text runs interleaved with UTF-8 icon records.
@@ -77,7 +78,6 @@ function M.Add(log, text, mode, now, originalMode, spans, raw)
         local name, separator, rest = body:match('^([^:\n]+)(:%s*)(.*)$')
         if not name then name, separator, rest = body:match('^([^\n]-)(：%s*)(.*)$') end
         if name and #name <= 96 then
-            local rich = require('richtext')
             local tagStart, tagEnd = name:find('%[[Nn][Pp][Cc]%]')
             local first
             if tagStart then
@@ -302,7 +302,7 @@ function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffs
             -- first: the message's first row, where a timestamp would be
             if skip > 0 then skip = skip - 1
             elseif #rows < rowCount then rows[#rows + 1] = { text = text, mode = group.mode, first = line == 1, index = group.index, message = group.message,
-                spans = require('richtext').Slice(group.message.spans, group.offsets[line], #text) } end
+                spans = rich.Slice(group.message.spans, group.offsets[line], #text) } end
         end
     end
     local overflow = remaining or count > rowCount

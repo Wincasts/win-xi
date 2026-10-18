@@ -506,7 +506,7 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
     for _, row in ipairs(rows) do
         if row.text ~= '' then
             local color = imgui.GetColorU32(style.textColor or palette.Mode(row.message.mode) or theme.Get().TextColor)
-            render.Rich(list, { x, y }, color, row.text, row.spans)
+            render.Rich(list, { x, y }, color, row.text, row.spans, row, font, size)
         end
         y = y + step
     end
@@ -546,6 +546,18 @@ local expandedBox = { 0, 0, 0, 0 } -- the full log's rectangle, which its rows a
 -- the expanded log's scrollbar thumb's left, as the compact log's: inside its right edge
 local function ExpandedThumbLeft() return expandedBox[3] - 3 - scrollbar.Width end
 local stripColors, stripButton = {}, { 0, 0, 0, 0 }
+local expandedStatus, expandedStatusKey -- the expanded log's status line, and what it was made from
+-- The tabs' names measured once in the font and size they are drawn in, not every frame
+local tabSizes, tabFont, tabSize = {}, nil, nil
+local function MeasureTab(words)
+    local known = tabSizes[words]
+    if not known then
+        local width, height = render.Measure(words)
+        known = { width, height }
+        tabSizes[words] = known
+    end
+    return known[1], known[2]
+end
 local origin = { 0, 0 }
 -- The game's rows of text, decoded once each (CP932 with the game's colour codes to UTF-8 and colour spans)
 -- and kept by their bytes: 512 at most, then forgotten together
@@ -631,6 +643,7 @@ local function DrawExpandedRows(list, rows)
     if #lines == 0 then return 0 end
     local chatFont = fonts.Get(app.options.fontFile)
     imgui.PushFont(chatFont, size)
+    local font = imgui.GetFont() -- what the rows' kept layouts are measured in
     list:PushClipRect({ expandedBox[1], expandedBox[2] }, { expandedBox[3], expandedBox[4] }, true)
     local left = expandedBox[1] + app.options.leftPadding[1]
     if expandedReplace.all then DrawExpandedLights(list, lines, left, size) end
@@ -642,8 +655,8 @@ local function DrawExpandedRows(list, rows)
             local entry = DecodeRow(row.text)
             if entry.text ~= '' then
                 local color = expandedOptions.textColor or palette.Mode(row.mode) or fallback
-                render.Rich(list, { x, line.y }, imgui.GetColorU32(color), entry.text, entry.spans)
-                x = x + render.Measure(entry.text)
+                render.Rich(list, { x, line.y }, imgui.GetColorU32(color), entry.text, entry.spans, entry, font, size)
+                if row.cursor then x = x + render.Measure(entry.text) end -- only the cursor's row needs its end
                 drawn = drawn + 1
             end
         end
@@ -671,8 +684,11 @@ local function DrawExpandedControls()
         stripColors.background = expandedOptions.background or look.BackgroundColor
         stripColors.right, stripColors.foot = expandedBox[3] - 4, expandedBox[2] -- on the fitted frame's top
         -- the tabs' names a little smaller than the log's text
-        imgui.PushFont(chatFont, math.max(8, math.floor(app.options.fontSize[1] * TAB_TEXT_SCALE + 0.5)))
-        strip.Draw(list, expandedTabs, channels.Filters, channels.Art, stripColors, render.Measure)
+        local tabTextSize = math.max(8, math.floor(app.options.fontSize[1] * TAB_TEXT_SCALE + 0.5))
+        imgui.PushFont(chatFont, tabTextSize)
+        local font = imgui.GetFont()
+        if font ~= tabFont or tabTextSize ~= tabSize then tabSizes, tabFont, tabSize = {}, font, tabTextSize end
+        strip.Draw(list, expandedTabs, channels.Filters, channels.Art, stripColors, MeasureTab)
         imgui.PopFont()
     end
     if expandedScroll then
@@ -747,17 +763,24 @@ local function DrawExpanded(state, sw, sh)
     lastDrawn = { frame = frame, expanded = true, left = rect[1], top = top, width = size[1], bottom = bottom,
         rows = state.pageRows or 0, drawn = 0, firstY = top, title = expandedRows and 'WinXI text' or 'native content', overflow = false }
     window.Plain('winxi.chatbox.expanded', open, flags, DrawExpandedControls, expandedOptions)
-    local parts = {}
-    if expandedTabs then parts[#parts + 1] = 'tabs' end
-    if expandedScroll then parts[#parts + 1] = 'scrollbar' end
-    if expandedRows then parts[#parts + 1] = 'text' end
-    if expandedReplace.all then parts[#parts + 1] = 'cursor' end
-    local own = #parts > 0 and ('WinXI ' .. table.concat(parts, ', '):gsub(', ([^,]+)$', ' and %1')) or nil
-    anchorStatus = own and ((expandedRows and 'Expanded native actions; WinXI frame and ' or 'Expanded native rows and actions; WinXI frame and ') .. own .. ' where the game\'s are.')
-        or state.nativeControls and 'Expanded native rows and actions; WinXI frame and theme-tinted native controls.'
-        or 'Expanded native rows and actions; WinXI frame (control artwork hooks unavailable).'
-    if opened then anchorStatus = anchorStatus .. ' Opened where the chat log stands.' end
-    if state.nested then anchorStatus = anchorStatus .. ' A menu of the game\'s is open over it.' end
+    -- the status line, made again only when what it says changes
+    local key = (expandedTabs and 1 or 0) + (expandedScroll and 2 or 0) + (expandedRows and 4 or 0) + (expandedReplace.all and 8 or 0)
+        + (state.nativeControls and 16 or 0) + (opened and 32 or 0) + (state.nested and 64 or 0)
+    if key ~= expandedStatusKey then
+        local parts = {}
+        if expandedTabs then parts[#parts + 1] = 'tabs' end
+        if expandedScroll then parts[#parts + 1] = 'scrollbar' end
+        if expandedRows then parts[#parts + 1] = 'text' end
+        if expandedReplace.all then parts[#parts + 1] = 'cursor' end
+        local own = #parts > 0 and ('WinXI ' .. table.concat(parts, ', '):gsub(', ([^,]+)$', ' and %1')) or nil
+        expandedStatus = own and ((expandedRows and 'Expanded native actions; WinXI frame and ' or 'Expanded native rows and actions; WinXI frame and ') .. own .. ' where the game\'s are.')
+            or state.nativeControls and 'Expanded native rows and actions; WinXI frame and theme-tinted native controls.'
+            or 'Expanded native rows and actions; WinXI frame (control artwork hooks unavailable).'
+        if opened then expandedStatus = expandedStatus .. ' Opened where the chat log stands.' end
+        if state.nested then expandedStatus = expandedStatus .. ' A menu of the game\'s is open over it.' end
+        expandedStatusKey = key
+    end
+    anchorStatus = expandedStatus
 end
 
 -- The game's routing between its two log windows, as functions of a message, one each, kept while the routing
@@ -1018,6 +1041,14 @@ local function Scroll(view, box, e, x, y)
 end
 ashita.events.register('mouse', 'chatbox_scroll', function(e)
     if e.blocked or not app.options.enabled[1] or zoning then return end
+    -- Only the wheel, a left press, its release and a scrollbar's drag are ever taken: anything else, most of all the
+    -- mouse moving, is let by before the game's state is read
+    local message = e.message
+    if message == 0x0200 then
+        if not (views[1].drag or views[2].drag) then return end
+    elseif message == 0x0202 then
+        if not (views[1].pressed or views[2].pressed) then return end
+    elseif message ~= 0x0201 and message ~= 0x020a then return end
     local state = primary.State()
     if state and (state.expanded or state.nativeBrowse) then
         for _, view in ipairs(views) do view.drag, view.pressed = nil, nil end

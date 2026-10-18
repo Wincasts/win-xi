@@ -77,12 +77,16 @@ end
 -- The 0x0E0 equipped-linkshell packet identifies the bag/slot for each pearl.
 -- These are NOT equipment slots in Ashita's inventory API (which has only 16).
 local pearls = {}
-function M.ResetLinkshells() pearls = {} end
+-- Each pearl's title as last read: the inventory is read again when its pearl changes, and otherwise once a second
+-- (its item may not be loaded yet, or be changed in its place), not every frame the log is titled with it
+local titles = {}
+function M.ResetLinkshells() pearls, titles = {}, {} end
 function M.LinkshellPacket(data)
     if type(data) ~= 'string' or #data < 7 then return end
     local number, index, bag = data:byte(5, 7)
     if number == 1 or number == 2 then
         pearls[number] = index ~= 0 and { bag = bag, index = index } or nil
+        titles[number] = nil
     end
 end
 
@@ -112,10 +116,15 @@ end
 function M.Title(channel)
     local number = channel == 'Linkshell' and 1 or channel == 'Linkshell 2' and 2
     if not number then return channel end
-    local ok, name = pcall(function()
-        return M.LinkshellName(AshitaCore:GetMemoryManager():GetInventory(), number)
-    end)
-    return ('Linkshell %d'):format(number) .. (ok and name and (': ' .. name) or '')
+    local known, now = titles[number], os.clock()
+    if not known or now - known.time >= 1 or now < known.time then
+        local ok, name = pcall(function()
+            return M.LinkshellName(AshitaCore:GetMemoryManager():GetInventory(), number)
+        end)
+        known = { title = ('Linkshell %d'):format(number) .. (ok and name and (': ' .. name) or ''), time = now }
+        titles[number] = known
+    end
+    return known.title
 end
 
 return M
