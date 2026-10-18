@@ -59,7 +59,9 @@ hidechatbg or other native-chat visibility writers alongside it.
 
 Load chat formatting and filtering addons, SimpleLog among them, **before** chatbox. It reads
 `text_in`'s modified text and mode and ignores blocked messages, but cannot see changes made by
-handlers that run after its own. It never blocks or rewrites a message, so the game's history keeps
+handlers that run after its own. An alphabetical `scripts/default.txt` loads chatbox before
+simplelog: move simplelog's line above chatbox's, or every game start puts them back in that order
+(SimpleLog's timestamps then reach the game's log but not chatbox's; `/chatbox bytes` says so). It never blocks or rewrites a message, so the game's history keeps
 everything and is there if replacement stops. SimpleLog's multi-hit and critical tags, aggregation,
 actor filters, timestamps and job profiles come through that way; there is no second combat
 formatter or filter.

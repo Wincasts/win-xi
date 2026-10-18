@@ -8,6 +8,11 @@
   expanded log, each line laid out and coloured without its own; the messages keep them (every
   stamped line of a joined message), so turning it on shows them again at once, the game's history
   read at start among them. Kept for each character and applied as settings load.
+- `/chatbox bytes` reports one line: the sample is held for the whole report, where before each line
+  the report said went through text_in itself and took the sample's place, so the stages came from
+  different lines of the report. It says whether the line is an addon's own and whether a timestamp
+  stands in front of it, and when none does, that an addon loaded after chatbox never reaches it.
+  The README says an alphabetical `scripts/default.txt` loads chatbox before simplelog.
 
 ## 0.11.2
 
