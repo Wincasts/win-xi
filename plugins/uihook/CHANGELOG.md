@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8
+
+- Each line given to the game's chat log, recorded for addons as it stands at uihook's turn (the
+  independent text ABI 1, magic `UIHOOK-TEXT`; `winxi.nativetext`): Ashita's own incoming-text event
+  (PluginFlags::UseText), the bytes the game was given and the bytes it will keep, both modes, and
+  whether the line is injected, blocked, indented, changed or cut; a ring of 64, the line with serial s
+  at (s - 1) % 64, written whole before its serial. Loaded after `addons`, uihook sees each line after
+  every addon, so an addon reading lines here no longer depends on its place in the load order
+  (chatbox before SimpleLog). Nothing is read from the game or written to it, no line changed or blocked.
+  tests/texttap: untouched, changed, injected, blocked, same bytes, missing pointers, a cut line, round
+  the ring.
+
 ## 0.7
 
 - Lighter every frame: each guarded read of the client's memory (every window the game draws has its

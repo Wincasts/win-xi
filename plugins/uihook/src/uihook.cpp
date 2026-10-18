@@ -15,9 +15,10 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "Modular native UI replacement: buffs, party/alliance, targets, clock, compass and chat."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.7; }
-    // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one
-    uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
+    double GetVersion() const override { return 0.8; }
+    // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one; UseText: each line given
+    // to the game's chat log, recorded for addons as it stands at uihook's turn
+    uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseText | Ashita::PluginFlags::UseDirect3D); }
     bool Initialize(IAshitaCore* core, ILogManager* log, uint32_t id) override {
         m_Core = core;
         if (core->GetPluginManager()->IsLoaded("buffhook") || core->GetPluginManager()->IsLoaded("partyhook")
@@ -39,6 +40,9 @@ public:
         if (party) { party->Release(); party.reset(); }
         if (buffs) { buffs->Release(); buffs.reset(); }
     }
+    bool HandleIncomingText(int32_t mode, bool indent, const char* message, int32_t* modifiedMode, bool* modifiedIndent, char* modifiedMessage, bool injected, bool blocked) override {
+        return party && party->HandleIncomingText(mode, indent, message, modifiedMode, modifiedIndent, modifiedMessage, injected, blocked);
+    }
     bool HandleCommand(int32_t mode, const char* command, bool injected) override {
         char words[3][16] = {};
         if (!command || sscanf_s(command, "%15s %15s %15s", words[0], 16u, words[1], 16u, words[2], 16u) < 1 || _stricmp(words[0], "/uihook") != 0) return false;
@@ -47,7 +51,7 @@ public:
         if (_stricmp(words[1], "chat") == 0) return party && party->HandleCommand(mode, "/uihook chat", injected);
         if (_stricmp(words[1], "menus") == 0) return party && party->HandleCommand(mode, "/uihook menus", injected);
         if (!words[1][0] || _stricmp(words[1], "addons") == 0) { Addons(); return true; }
-        Say("0.7. /uihook (or /uihook addons) lists addons handing it something now; /uihook hud reports clock hooks; /uihook chat reports chat replacement; /uihook chat history prints the game's newest chat lines as it keeps them; /uihook menus reports native action-menu and expanded-log placement.");
+        Say("0.8./uihook (or /uihook addons) lists addons handing it something now; /uihook hud reports clock hooks; /uihook chat reports chat replacement; /uihook chat history prints the game's newest chat lines as it keeps them; /uihook menus reports native action-menu and expanded-log placement.");
         return true;
     }
     void Say(const std::string& text) const { m_Core->GetChatManager()->Write(0, false, ("[uihook] " + text).c_str()); }
@@ -64,7 +68,7 @@ public:
             list += name;
             if (empty) list += " (hidden)";
         };
-        Say("0.7. Addons handing it something now:");
+        Say("0.8.Addons handing it something now:");
         int shown = 0;
         if (buff.fresh) {
             Say("  buff: its bar, in place of the game's status icons (" + std::to_string(buff.quads) + " quads)");

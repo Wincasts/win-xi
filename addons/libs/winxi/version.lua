@@ -49,6 +49,7 @@
 --     background/border/shadow drawing on a host window's captured list
 -- 23: nameplates.Each, Find, Count and Screen take the plugin's block, as Claim does; the FFXI-inspired
 --     background's lines from a tile (assets/backgrounds/lines.png) over its gradient
+-- 24: nativetext, each chat line as uihook 0.8 records it after every addon (text ABI 1): Ready, Drain, Status
 return {
-    Number = 23,
+    Number = 24,
 };

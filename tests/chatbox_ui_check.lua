@@ -33,6 +33,14 @@ local linesState={} -- each window's lines as the game has them, by slot
 local gameColors -- the game's colours, as uihook reads them
 -- the game's own history as uihook reads it: nothing to start with, so the tests' messages are their own
 local gameLines, historyRequests = {}, 0
+-- each chat line as uihook records it after every addon: not there until a test says so, then whatever lines the
+-- test puts in tapLines are drained at the next frame
+local tapReady,tapLines=false,nil
+package.loaded['winxi.nativetext']={new=function() return {
+    Ready=function() return tapReady end,
+    Drain=function() if not tapReady then return nil end; local l=tapLines or {}; tapLines=nil; return l end,
+    Status=function() return tapReady and 'test tap' or 'Load uihook 0.8 or newer to read each chat line after every addon.' end,
+} end}
 package.loaded['winxi.nativehistory']={new=function() local asked=false; return {
     Request=function() asked=true; historyRequests=historyRequests+1; return true end,
     Lines=function() if not asked then return nil end; asked=false; return gameLines end,
@@ -1206,5 +1214,38 @@ assert(text[#text].text=='settings loaded','a settings load applies the saved ch
 app.options.timestamps=nil; spec.onSettings(app.options)
 assert(app.options.timestamps[1]==true,'a missing option is repaired to shown')
 frame(); message('[01:00:04] repaired'); frame(); assert(text[#text].text=='[01:00:04] repaired','and shows them')
+app.Say=function() end
+-- Each line read through uihook after every addon (uihook 0.8): chatbox's own copy held for the frame and the line
+-- kept as uihook has it, so a formatter or filter loaded after chatbox still reaches it
+local said7={}; app.Say=function(_,line) said7[#said7+1]=line end
+spec.commands.status(); assert(table.concat(said7,'\n'):find('Lines: chatbox\'s own text_in: load formatting addons before it (Load uihook 0.8',1,true),'without the tap, status says lines are chatbox\'s own and why')
+spec.commands.clear(); tapReady=true; frame()
+local function tapped(l) tapLines=tapLines or {}; tapLines[#tapLines+1]=l end
+message('Ann : hi',{mode=9}); frame()
+assert(#text==0,'a line arriving is held for uihook\'s copy, not kept as chatbox\'s own')
+tapped({serial=1,mode=9,finalMode=9,original='Ann : hi',text='[12:00:00] Ann : hi',modified=true}); frame()
+assert(#text==1 and text[1].text=='[12:00:00] Ann : hi','kept as uihook has it: stamped by an addon loaded after chatbox')
+said7={}; spec.commands.status(); assert(table.concat(said7,'\n'):find('Lines: read through uihook after every addon; the load order does not matter',1,true),'status says so')
+message('The Crab hits you.',{mode=20}); tapped({serial=2,mode=20,finalMode=20,original='The Crab hits you.',text='The Crab hits you.',blocked=true}); frame()
+assert(#text==1,'a line a filter loaded after chatbox blocks is not kept')
+message('Bob : yo',{mode=9,message_modified='[12:00:01] Bob : yo'}); tapped({serial=3,mode=9,finalMode=9,original='Bob : yo',text='Bob : yo',modified=false}); frame()
+assert(text[#text].text=='[12:00:01] Bob : yo','uihook loaded before the addons: its copy the original, chatbox\'s own formatted one kept instead')
+message('party line',{mode=1}); tapped({serial=4,mode=1,finalMode=5,original='party line',text='party line',modified=false}); frame()
+assert(text[#text].text=='party line' and text[#text].color==require('palette').Mode(5),'a mode an addon changed after chatbox: the line in that mode')
+tapped({serial=5,mode=9,finalMode=9,original='unseen',text='unseen',modified=false}); frame()
+assert(text[#text].text=='unseen','a line uihook saw and chatbox\'s handler did not is kept too')
+message('Ann : hi',{mode=9}); message('Ann : hi',{mode=9})
+tapped({serial=6,mode=9,finalMode=9,original='Ann : hi',text='[12:00:02] Ann : hi',modified=true}); tapped({serial=7,mode=9,finalMode=9,original='Ann : hi',text='[12:00:03] Ann : hi',modified=true}); frame()
+assert(text[#text-1].text=='[12:00:02] Ann : hi' and text[#text].text=='[12:00:03] Ann : hi','two alike lines in a frame: each matched to its own, in order')
+byteReport={}; app.Say=function(_,line) byteReport[#byteReport+1]=line end; spec.commands.bytes()
+assert(byteReport[1]:find('final: as uihook read it',1,true) and #byteReport==6 and byteReport[4]:find('^final: 5B 31 32 3A 30 30 3A 30 33'),'the bytes report shows the final stage, uihook\'s copy')
+app.Say=function() end
+local count=#text
+local tapClock,tapRealClock=100,os.clock; os.clock=function() return tapClock end
+message('never tapped',{mode=9}); frame(); assert(#text==count,'a held copy uihook has not matched waits')
+tapClock=tapClock+1; frame(); assert(text[#text].text=='never tapped','and is kept as chatbox\'s own after half a second')
+os.clock=tapRealClock
+tapReady=false; message('tap gone',{mode=9}); frame(); assert(text[#text].text=='tap gone','without the tap, each line is kept as it arrives again')
+said7={}; app.Say=function(_,line) said7[#said7+1]=line end; spec.commands.status(); assert(table.concat(said7,'\n'):find('Lines: chatbox\'s own',1,true),'status says lines are chatbox\'s own again')
 app.Say=function() end
 print('Chatbox UI: compact/expanded chat, routing, failure/lifecycle and chat-owned info-panel capture/settings passed')

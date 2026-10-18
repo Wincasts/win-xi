@@ -18,6 +18,7 @@
 #include "../chat/colors.h"
 #include "../chat/menus.h"
 #include "../chat/history.h"
+#include "../chat/texttap.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -33,6 +34,10 @@ static MenuShared Menus = { "UIHOOK-MENUS", 1, sizeof(MenuShared), 1, 0, 0, 0, {
 // The first log window's history, read when an addon asks (independent history ABI 1)
 static ChatHistoryShared History = { "UIHOOK-HISTORY", 1, sizeof(ChatHistoryShared), 0, 0, 0, 0, 0, 0, 0, {}, {} };
 static uint32_t historyServed = 0; // the request last served
+// Every line given to the game's chat log, as it stands after every plugin and addon before uihook (independent text
+// ABI 1): Ashita's own text event, nothing read from the game
+// Zero to begin with, its magic written as the module initializes: half a megabyte of ring that is not in the DLL's file
+static TextTapShared TextTap;
 static void __fastcall RenderCompass(void*,void*);
 static void __fastcall RenderClock(void*,void*,int32_t,int32_t);
 static void __cdecl DrawClockText(int32_t,int32_t,const char*,uint32_t);
@@ -290,6 +295,7 @@ public:
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseDirect3D); }
     bool Initialize(IAshitaCore* c, ILogManager*, uint32_t) override {
         core=c; Instance=this;
+        memcpy(TextTap.Magic,"UIHOOK-TEXT",12); TextTap.Version=1; TextTap.Size=sizeof(TextTapShared);
         Shared.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&Submit));
         Hud.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&SubmitHud));
         Chat.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&SubmitChat));
@@ -386,6 +392,7 @@ public:
         SampleChatWindows(windowRoutes,Chat,Shared.Frame);
         chat.SampleLines(Chat,Shared.Frame);
         History.Frame=Shared.Frame;
+        TextTap.Frame=Shared.Frame;
         // a read of the first window's history, once for each request
         if (History.Supported && History.RequestFrame && History.RequestFrame!=historyServed) {
             historyServed=History.RequestFrame;
@@ -425,6 +432,11 @@ public:
         const bool ok=SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,scaledVertices.data(),stride));
         scaling=false;
         return ok;
+    }
+    // Each line given to the game's chat log, recorded as it stands at uihook's turn; never changed or blocked
+    bool HandleIncomingText(int32_t mode,bool indent,const char* message,int32_t* modifiedMode,bool* modifiedIndent,char* modifiedMessage,bool injected,bool blocked) override {
+        ChatTapRecord(TextTap,mode,indent,message,modifiedMode,modifiedIndent,modifiedMessage,injected,blocked);
+        return false;
     }
     bool HandleCommand(int32_t,const char* command,bool) override {
         if (command && _stricmp(command,"/uihook menus")==0) {

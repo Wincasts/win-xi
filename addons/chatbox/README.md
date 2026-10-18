@@ -42,9 +42,9 @@ each where the game's are.
 
 ```text
 addons/chatbox/          this directory
-addons/libs/winxi/       WinXI 22 or newer (including infopanel code and bundled icons)
+addons/libs/winxi/       WinXI 24 or newer (including infopanel code and bundled icons)
 addons/winxisettings/    shared theme settings (optional)
-plugins/uihook.dll       0.5 or newer, chat ABI 13 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing and lines, the game's colours)
+plugins/uihook.dll       0.5 or newer, chat ABI 13 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing and lines, the game's colours); 0.8 or newer reads each chat line after every addon, so the addon load order does not matter
 ```
 
 Build uihook with `plugins/uihook/build.sh`; the output is `plugins/uihook/build/uihook.dll`. Turn
@@ -57,11 +57,17 @@ hidechatbg or other native-chat visibility writers alongside it.
 /addon load chatbox
 ```
 
-Load chat formatting and filtering addons, SimpleLog among them, **before** chatbox. It reads
-`text_in`'s modified text and mode and ignores blocked messages, but cannot see changes made by
-handlers that run after its own. An alphabetical `scripts/default.txt` loads chatbox before
-simplelog: move simplelog's line above chatbox's, or every game start puts them back in that order
-(SimpleLog's timestamps then reach the game's log but not chatbox's; `/chatbox bytes` says so). It never blocks or rewrites a message, so the game's history keeps
+With uihook 0.8 or newer loaded after `addons` (as `/load addons` then `/load uihook`), the addon
+load order does not matter: chatbox reads each chat line through uihook as it stands after every
+addon, so SimpleLog's timestamps and a filter's blocks reach it whether SimpleLog is loaded before or
+after it (`/chatbox status` says "Lines: read through uihook after every addon"). Where uihook is
+loaded before `addons`, its copy is the game's original, and chatbox keeps its own copy of a line an
+earlier addon changed instead. Without that uihook, load chat formatting and filtering addons,
+SimpleLog among them, **before** chatbox: it then reads `text_in`'s modified text and mode and ignores
+blocked messages, but cannot see changes made by handlers that run after its own; an alphabetical
+`scripts/default.txt` loads chatbox before simplelog, so move simplelog's line above chatbox's, or
+every game start puts them back (SimpleLog's timestamps then reach the game's log but not chatbox's;
+`/chatbox bytes` says so). It never blocks or rewrites a message, so the game's history keeps
 everything and is there if replacement stops. SimpleLog's multi-hit and critical tags, aggregation,
 actor filters, timestamps and job profiles come through that way; there is no second combat
 formatter or filter.
