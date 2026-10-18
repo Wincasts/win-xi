@@ -42,6 +42,11 @@
 -- 18: nativechat ABI 12, each log window's lines as the game grows and shrinks it: Lines, State().nativeLines
 -- 19: nativechat ABI 13, the game's chat colours as configured: Colors (Mode, Inline), State().nativeColors
 -- 20: mapdat.Texture and mapdat.Load take a mask, how much of the picture shows at each place
+-- 22: Native action-menu layout anchor bridge (winxi.nativemenus), capture-owned publication,
+--     flush chat info-panel seam with the parent title/border above it. Requires matching uihook
+--     for native menu placement; older plugins leave menus untouched.
+-- 21: shared infopanel data/layout/settings, chat-owned attachments, frame.Draw and explicit-rect
+--     background/border/shadow drawing on a host window's captured list
 return {
-    Number = 20,
+    Number = 22,
 };

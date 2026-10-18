@@ -44,6 +44,10 @@ luajit tests/chatbox_layout_check.lua || exit 1
 luajit tests/chatbox_browse_check.lua || exit 1
 luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.lua || exit 1
 run clock      tests/clock_stand_in.lua clock_check.lua
+luajit tests/infopanel_source_check.lua || exit 1
+luajit tests/winxi_frame_check.lua || exit 1
+luajit tests/nativemenus_check.lua || exit 1
+luajit tests/nativehistory_check.lua || exit 1
 run sct        addons/sct/sct.lua       sct_check.lua
 run mapoverlay addons/mapoverlay/mapoverlay.lua mapoverlay_check.lua
 luajit tests/tcrossbar_shadow_check.lua

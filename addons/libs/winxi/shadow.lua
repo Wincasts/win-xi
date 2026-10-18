@@ -33,7 +33,8 @@ local function Exterior(drawList, left, top, right, bottom, x, y, w, h, offset, 
 end
 
 -- captured=true keeps the exterior shadow on this window's list for native HUD replay.
-function shadow.Draw(captured)
+-- rect optionally supplies an attachment's bounds on the current window's captured list.
+function shadow.Draw(captured, rect)
     local current = theme.Get();
     if not current.ShadowEnabled or (not captured and imgui.GetBackgroundDrawList == nil) then
         return;
@@ -44,8 +45,9 @@ function shadow.Draw(captured)
         return;
     end
 
-    local x, y = imgui.GetWindowPos();
-    local w, h = imgui.GetWindowSize();
+    local x, y, w, h;
+    if rect then x, y, w, h = rect.left, rect.top, rect.width, rect.height;
+    else x, y = imgui.GetWindowPos(); w, h = imgui.GetWindowSize(); end
     local offset = current.ShadowOffset;
     local blur = current.ShadowBlur;
     local layers = math.max(1, math.min(maxLayers, blur));

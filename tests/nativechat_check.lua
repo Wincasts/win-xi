@@ -41,6 +41,21 @@ assert(not primary.Begin() and primary.Status():find('ABI mismatch'))
 block.Version=13; now=2
 assert(primary.Begin() and primary.Capture())
 assert(calls[#calls][1]==0 and calls[#calls][2]==1)
+block.ReplacementRect = {[0]=8,[1]=800,[2]=648,[3]=1000}
+block.ReplacementRectFrame = 10
+local observer = native.new(native.Primary)
+local count = #calls
+local l,t,r,b = observer.ClockAnchor()
+assert(l==8 and t==800 and r==648 and b==1000 and #calls==count, 'clock observes actual replacement pixels without submitting')
+assert(split.ClockAnchor()==nil and input.ClockAnchor()==nil)
+block.StateFlags=4; assert(observer.ClockAnchor()==nil, 'expanded log does not attach clock'); block.StateFlags=0
+for _, stamp in ipairs({'PrimaryRectFrame','ReplacementRectFrame'}) do
+    block[stamp]=7; assert(observer.ClockAnchor()==nil, 'stale anchor expires'); block[stamp]=10
+end
+block.DrawnFrame[0]=7; assert(observer.ClockAnchor()==nil); block.DrawnFrame[0]=10
+block.NativeFrame[0]=7; assert(observer.ClockAnchor()==nil); block.NativeFrame[0]=10
+block.ReplacementRect[2]=8; assert(observer.ClockAnchor()==nil); block.ReplacementRect[2]=648
+block.ReplacementRect[0]=0/0; assert(observer.ClockAnchor()==nil); block.ReplacementRect[0]=8
 assert(primary.Capture(true) and calls[#calls][1]==0 and calls[#calls][2]==2,
     'expanded capture explicitly requests frame-only native content')
 local controls={{0.2,0.4,0.8,0.6},{1,0.9,0.8,1},{0.7,0.8,1,1},{1,1,1,0.7}}
@@ -67,6 +82,13 @@ assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true}) and b
 block.SupportedMask=2047
 assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true}) and block.ReplaceControls==7,'the text as well')
 assert(primary.Capture(true,controls,{text=true}) and block.ReplaceControls==4,'the text alone')
+assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true,all=true}) and block.ReplaceControls==7 and not primary.State().nativeMirror,'an older uihook: the whole log not asked for')
+block.SupportedMask=4095
+assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,text=true,all=true}) and block.ReplaceControls==15 and primary.State().nativeMirror,'all of it')
+assert(primary.Capture(true,controls,{tabs=true,text=true,all=true}) and block.ReplaceControls==13,'all of it with no scrollbar to draw')
+assert(primary.Capture(true,controls,{scrollbar=true,text=true,all=true}) and block.ReplaceControls==6,'not the whole log without the addon\'s tabs')
+assert(primary.Capture(true,controls,{tabs=true,scrollbar=true,all=true}) and block.ReplaceControls==3,'nor without its text')
+block.SupportedMask=2047
 block.SupportedMask=127
 assert(primary.Capture(true,controls,{tabs=true,text=true}) and block.ReplaceControls==1 and not primary.State().nativeText,'without the row site the text is not asked for')
 block.SupportedMask=2047
@@ -101,14 +123,14 @@ block.TextFrame=10; block.TextCount=3; block.TextSerial=1
 ffi.copy(block.Text,'hello\31\2world'); ffi.copy(block.Text+12,'older')
 block.Rows[0].Offset,block.Rows[0].Length,block.Rows[0].Mode,block.Rows[0].Flags=0,12,1,1+16
 block.Rows[0].Rect[0],block.Rows[0].Rect[1],block.Rows[0].Rect[2],block.Rows[0].Rect[3]=0.02,0.5,0.2,0.515
-block.Rows[1].Offset,block.Rows[1].Length,block.Rows[1].Mode,block.Rows[1].Flags=12,5,12,4+8+16
+block.Rows[1].Offset,block.Rows[1].Length,block.Rows[1].Mode,block.Rows[1].Flags=12,5,12,4+8+16+32
 block.Rows[1].Rect[0],block.Rows[1].Rect[1],block.Rows[1].Rect[2],block.Rows[1].Rect[3]=0.02,0.485,0.1,0.5
-block.Rows[2].Offset,block.Rows[2].Length,block.Rows[2].Mode,block.Rows[2].Flags=17,0,1,0
+block.Rows[2].Offset,block.Rows[2].Length,block.Rows[2].Mode,block.Rows[2].Flags=17,0,1,2
 local rows=primary.Rows(1920,1080)
 assert(#rows==3 and rows[1].text=='hello\31\2world' and rows[1].mode==1 and rows[1].cursor and not rows[1].marked and not rows[1].cut,'the newest first, its bytes with the colour code, its mode, the cursor on it')
 assert(rows[1].left==38.4 and rows[1].top==540 and rows[1].right==384 and rows[1].bottom==556.2,'its place in display pixels')
-assert(rows[2].text=='older' and rows[2].mode==12 and rows[2].marked and rows[2].cut and not rows[2].cursor and rows[2].top==523.8,'the older one, marked and cut')
-assert(rows[3].text=='' and rows[3].left==nil and rows[3].mode==1,'an empty row without a place')
+assert(rows[2].text=='older' and rows[2].mode==12 and rows[2].marked and rows[2].cut and not rows[2].cursor and rows[2].top==523.8 and rows[2].lit and not rows[1].lit,'the older one, marked, cut and under the game\'s highlight')
+assert(rows[3].text=='' and rows[3].left==nil and rows[3].mode==1 and rows[3].pressed and not rows[1].pressed,'an empty row without a place, pressed')
 assert(primary.Rows(1920,1080)==rows,'the same table while the rows are what they were')
 assert(primary.Rows(1280,720)~=rows and primary.Rows(1280,720)[1].left==25.6,'another display, scaled anew')
 block.TextSerial=2; assert(primary.Rows(1920,1080)~=rows,'rows changed: a new table')
