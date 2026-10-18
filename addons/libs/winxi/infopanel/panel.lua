@@ -105,13 +105,27 @@ function M.Build(p, fields, context)
     Icon('day',context.dayIcon); Icon('weather',context.weatherIcon)
     return slots
 end
+-- Required on first draw: the geometry above needs no ImGui
+local imgui, theme, outlined
+-- A slot's words measured once in the font and size they are drawn in, kept on its segments (made afresh as the
+-- fields are read again), not every frame
+local function TextWidths(segments, font, size)
+    if segments.widthsFont == font and segments.widthsSize == size and segments.widths then return segments.widths end
+    local widths = {}
+    for j, s in ipairs(segments) do
+        if type(s) == 'string' then widths[j] = imgui.CalcTextSize(s) end
+    end
+    segments.widthsFont, segments.widthsSize, segments.widths = font, size, widths
+    return widths
+end
 function M.Draw(p, slots, rect, options)
-    local imgui = require('imgui')
-    local theme = require('winxi.theme')
-    local outlined = require('winxi.text')
+    imgui = imgui or require('imgui')
+    theme = theme or require('winxi.theme')
+    outlined = outlined or require('winxi.text')
     local list = imgui.GetWindowDrawList()
     local bounds = M.Layout(p,rect.left,rect.top,rect.width,rect.height)
     local size = imgui.GetFontSize()
+    local font = imgui.GetFont and imgui.GetFont() or nil
     local tint = theme.GameBorderColor()
     local function Divider(x, top, bottom)
         if bottom<=top then return end
@@ -126,12 +140,13 @@ function M.Draw(p, slots, rect, options)
         end
     end
     for i=1,3 do
-        local b, widths, width = bounds[i], {}, 0
         local segments = slots[i]
+        local b, widths, width = bounds[i], TextWidths(segments, font, size), 0
         for j, s in ipairs(segments) do
-            local w = type(s)=='string' and imgui.CalcTextSize(s) or
-                s.separator and 8 or size*options.iconScale[1]*(s.kind=='weather' and options.weatherScale[1] or 1)
-            widths[j], width = w, width+w
+            if type(s)~='string' then
+                widths[j] = s.separator and 8 or size*options.iconScale[1]*(s.kind=='weather' and options.weatherScale[1] or 1)
+            end
+            width = width+widths[j]
         end
         local left = math.min(b.right,b.left+4)
         local right = math.max(left,b.right-4)

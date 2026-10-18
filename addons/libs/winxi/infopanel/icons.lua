@@ -67,7 +67,11 @@ function icons.Root(path)
     if root ~= path then icons.Forget(); root = path end
 end
 
+-- Listed at most once a second: the settings ask every frame their list is open
+local listed, listedAt = nil, nil
 function icons.Sets()
+    local now = os.clock()
+    if listed and listedAt and now >= listedAt and now - listedAt < 1 then return listed end
     local sets = {}
     local ok, entries = pcall(ashita.fs.get_directory, Root())
     for _, entry in ipairs(ok and type(entries) == 'table' and entries or {}) do
@@ -78,6 +82,7 @@ function icons.Sets()
         end
     end
     table.sort(sets, function(a, b) return a.label:lower() < b.label:lower() end)
+    listed, listedAt = sets, now
     return sets
 end
 
@@ -101,7 +106,7 @@ end
 -- Another set chosen: what was loaded is looked for again (and a picture added since is found).
 -- Letting the textures go is safe: uihook holds its own reference to any it is still drawing.
 function icons.Forget()
-    handles, kept = {}, {}
+    handles, kept, listed = {}, {}, nil
 end
 
 return icons
