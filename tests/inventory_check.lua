@@ -87,10 +87,14 @@ do
     H.command('/inv toggle'); H.frames(8)
     H.print('attached, it goes with the window', Begun() == 0)
     o.treasureDetached[1] = true
-    H.print('detached, it stays', Begun() == 1)
+    H.print('detached, it goes with the window too', Begun() == 0)
+    o.treasurePinned[1] = true
+    H.print('detached and pinned, it stays', Begun() == 1)
+    o.treasureDetached[1] = false
+    H.print('attached and pinned, it stays, in the window\'s place', Begun() == 1)
     o.treasurePool[1] = false
-    H.print('switched off, it is gone', Begun() == 0)
-    o.treasurePool[1], o.treasureDetached[1] = true, false
+    H.print('switched off, it is gone, pinned or not', Begun() == 0)
+    o.treasurePool[1], o.treasureDetached[1], o.treasurePinned[1] = true, false, false
     H.command('/inv toggle'); H.pool(0); H.frames(8)
 end
 
