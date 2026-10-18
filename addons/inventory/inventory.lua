@@ -209,6 +209,11 @@ local tabGroups = { 'bag', 'satchel', 'wardrobe', 'house' }
 local shownBag = { }
 local bagTabs = { }
 
+-- A tab's name: the bag's, with a capital first letter
+local function Capitalized(text)
+    return (text:gsub('^%l', string.upper))
+end
+
 -- What is put together from the list: each bag by the game's number for it, the bags of each group,
 -- those an item can be moved to, what is in each (as read, and each group's all together) and how
 -- many slots each has
@@ -220,7 +225,7 @@ for _, group in ipairs(tabGroups) do
 end
 for _, bag in ipairs(bagList) do
     bag.slots, bag.hasAccess = 0, false -- filled in as the bags are read
-    bag.tabId = ('%s##inv.bags.sub.%s'):format(bag.tab or bag.name, bag.key)
+    bag.tabId = ('%s##inv.bags.sub.%s'):format(Capitalized(bag.tab or bag.name), bag.key)
     bagsById[bag.id] = bag
     local inGroup = groupBags[bag.group]
     inGroup[#inGroup + 1] = bag
@@ -1640,7 +1645,7 @@ for _, group in ipairs(tabGroups) do
     allTabIds[group] = {
         region = '##inv.bags.sub.region.' .. group,
         bar = '##inv.bags.sub.' .. group,
-        all = 'all##inv.bags.sub.all.' .. group,
+        all = 'All##inv.bags.sub.all.' .. group,
     }
 end
 local bagTabsRow = {
@@ -1828,7 +1833,7 @@ end
 
 -- The tabs, one for each group: its bags one under another, each with its title, or (unified) all
 -- of them together in one grid. The ids are made once, for each kind of tab bar.
-local tabLabels = { 'bag', 'satchel', 'ward', 'house' }
+local tabLabels = { 'Bag', 'Satchel', 'Ward', 'House' }
 local tabBars = { }
 for _, kind in ipairs({ 'all', 'unified' }) do
     local ids = { bar = '##inv.bags.' .. kind }
