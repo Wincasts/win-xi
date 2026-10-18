@@ -143,6 +143,8 @@ theme.BarTextures = {
     { key = 'runic', label = 'Runic' }, { key = 'classic', label = 'Classic FF' },
     { key = 'radiant', label = 'Radiant (Bright)' }, { key = 'chrome', label = 'Chrome' },
     { key = 'flat', label = 'Flat' }, { key = 'segmented', label = 'Segmented' }, { key = 'ember', label = 'Ember' },
+    { key = 'kingdom', label = 'Kingdom' }, { key = 'magitek', label = 'Magitek' },
+    { key = 'aether', label = 'Aether' }, { key = 'elven', label = 'Elven' }, { key = 'gothic', label = 'Gothic' },
 };
 theme.TitleStyles = {
     { key = 'outline', label = 'Outlined Text' }, { key = 'break', label = 'Break In Border' },
@@ -152,6 +154,10 @@ theme.TitleStyles = {
 theme.BookendStyles = { { key = 'texture', label = 'Bar Texture' }, { key = 'match', label = 'Match Border' } };
 for index = 2, #theme.BorderStyles do
     theme.BookendStyles[#theme.BookendStyles + 1] = theme.BorderStyles[index];
+end
+
+for _, style in ipairs({ 'kingdom', 'magitek', 'aether', 'elven', 'gothic' }) do
+    theme.BookendStyles[#theme.BookendStyles + 1] = { key = style, label = style:sub(1, 1):upper() .. style:sub(2) };
 end
 
 local colorKeys = { 'BackgroundColor', 'BorderColor', 'TextColor', 'ThemeTabColor', 'HighlightColor', 'TitleColor',

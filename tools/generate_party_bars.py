@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1] / 'addons/party/assets/bars'
 S = 4
-STYLES = ('glass', 'detailed', 'crystal', 'satin', 'runic', 'classic', 'radiant', 'chrome', 'flat', 'segmented', 'ember')
+STYLES = ('glass', 'detailed', 'crystal', 'satin', 'runic', 'classic', 'radiant', 'chrome', 'flat', 'segmented', 'ember', 'kingdom', 'magitek', 'aether', 'elven', 'gothic')
 LABELS = {'classic': 'CLASSIC FF'}
 
 
@@ -68,6 +68,16 @@ def generate(style, kind, width, height, cap_height):
             v = 205
         elif style == 'segmented':
             v = 175 + 45 * math.exp(-((t - .2) / .2) ** 2) - 30 * t ** 2
+        elif style == 'kingdom':
+            v = 245 - 110 * t  # crisp, old-school menu bevel
+        elif style == 'magitek':
+            v = 205 - 55 * t + 30 * math.cos(t * math.pi * 4)
+        elif style == 'aether':
+            v = 145 + 105 * math.exp(-((t - .5) / .22) ** 2)
+        elif style == 'elven':
+            v = 185 + 55 * math.sin(math.pi * t)
+        elif style == 'gothic':
+            v = 100 + 115 * math.sin(math.pi * t)
         elif style == 'ember':
             # Bright at the core, glowing out to darker edges.
             v = 120 + 130 * math.exp(-((t - .45) / .28) ** 2)
@@ -93,6 +103,17 @@ def generate(style, kind, width, height, cap_height):
             cy = (top + bottom) / 2
             d.line([(x*S, (cy-2)*S), ((x+3)*S, cy*S), (x*S, (cy+2)*S)],
                    fill=(235, 235, 235, 65), width=S)
+    if style == 'aether':
+        for x in range(0, width - 16, 22):
+            d.polygon([(x*S, bottom*S), ((x+10)*S, top*S), ((x+18)*S, bottom*S)],
+                      fill=(245, 245, 245, 65))
+    elif style == 'magitek':
+        for x in range(6, width - 16, 16):
+            box(d, (x, top + 1, x + .5, bottom - 1), (45, 45, 45, 150))
+    elif style == 'elven':
+        for x in range(0, width - 16, 24):
+            d.arc((x*S, (top+1)*S, (x+30)*S, (bottom+4)*S), 190, 340,
+                  fill=(255, 255, 255, 80), width=S)
     save(fill, folder / f'{kind}_fill.png')
 
     front = canvas(width + 6, height)
@@ -157,6 +178,37 @@ def generate(style, kind, width, height, cap_height):
             box(d, (x, top - 1.4, x + .6, top + 1), (255, 255, 255, 210))
             box(d, (x - 1, top - 1.4, x + 1.6, top - .8), (255, 255, 255, 210))
             box(d, (x, bottom - 1, x + .6, bottom + 1.4), (225, 225, 225, 160))
+    if style == 'kingdom':
+        # Square double rails: a classic console-menu silhouette, not copied game artwork.
+        front = canvas(width + 6, height)
+        d = ImageDraw.Draw(front)
+        for inset, value in ((3, 20), (4, 240), (5, 95), (6, 200)):
+            box(d, (inset, top - 5 + inset, width - inset, bottom + 5 - inset), (value, value, value, 255))
+        box(d, (7, top + 2, width - 7, bottom - 2), (0, 0, 0, 0))
+    elif style == 'magitek':
+        for x in range(10, width - 10, 18):
+            box(d, (x, top - 2, x + 7, top - 1), (245, 245, 245, 255))
+            box(d, (x, bottom + 1, x + 4, bottom + 2), (110, 110, 110, 255))
+        for x in (5, width - 7):
+            box(d, (x, top - 1, x + 2, bottom + 1), (230, 230, 230, 255))
+    elif style == 'aether':
+        for x in range(12, width - 12, 30):
+            cy = top - .5
+            d.polygon([(x*S, (cy-2)*S), ((x+3)*S, cy*S), (x*S, (cy+2)*S), ((x-3)*S, cy*S)],
+                      fill=(245, 245, 245, 230))
+        box(d, (7, bottom, width - 7, bottom + .7), (255, 255, 255, 230))
+    elif style == 'elven':
+        for x in range(10, width - 18, 26):
+            d.arc((x*S, (top-4)*S, (x+24)*S, (top+2)*S), 0, 180,
+                  fill=(245, 245, 245, 240), width=S)
+            d.arc((x*S, (bottom-2)*S, (x+24)*S, (bottom+4)*S), 180, 360,
+                  fill=(200, 200, 200, 230), width=S)
+    elif style == 'gothic':
+        for x in range(10, width - 10, 20):
+            for y, direction in ((top - 1, -1), (bottom + 1, 1)):
+                d.polygon([((x-3)*S, y*S), (x*S, (y+3*direction)*S), ((x+3)*S, y*S)],
+                          fill=(190, 190, 190, 255))
+        box(d, (7, top + 1, width - 7, top + 1.5), (255, 255, 255, 120))
     # Cap atlas: x=width+2..width+6, y=0..cap_height.
     box(d, (width + 2, 0, width + 5.75, cap_height - .25), (35, 35, 35, 255), .7)
     box(d, (width + 2.7, .5, width + 4.8, cap_height - .75), (155, 155, 155, 255), .4)

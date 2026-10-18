@@ -66,6 +66,7 @@ run party      addons/party/party.lua party_solo_state_check.lua
 run party      addons/party/party.lua party_performance_check.lua
 run party      addons/party/party.lua party_optimization_check.lua
 run party      addons/party/party.lua party_customization_check.lua
+run party      addons/party/party.lua party_fantasy_styles_check.lua
 run party      addons/party/party.lua party_tracking_check.lua
 run party      addons/party/party.lua party_borders_check.lua
 run party      addons/party/party.lua party_resolution_check.lua
