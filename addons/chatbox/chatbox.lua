@@ -1,6 +1,6 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.11.2'
+addon.version = '0.11.3'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
 local winxiNeeded = 22
 do
@@ -229,13 +229,13 @@ local function HideHud(options, args, key, name)
         or ('Game %s shown.'):format(name))
 end
 app = shell.New({
-    defaults = T{ enabled = T{ true }, width = T{ 640 }, matchGameLogSize = T{ true }, matchGameInputSize = T{ false }, fontSize = T{ 12 },
+    defaults = T{ enabled = T{ true }, timestamps = T{ true }, width = T{ 640 }, matchGameLogSize = T{ true }, matchGameInputSize = T{ false }, fontSize = T{ 12 },
         replaceTabs = T{ true }, replaceScrollbar = T{ true }, replaceText = T{ true }, replaceCursor = T{ true }, expandInPlace = T{ true }, expandedHeight = T{ 75 },
         appearance = appearance.Defaults(T, theme.Get()), fontFile = '', infoPanel = panelModel.Defaults(),
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 } },
     command = '/chatbox',
     configTitle = 'Chatbox Settings',
-    help = '/chatbox opens settings; /chatbox on, off, clear, status, modes, bytes; /chatbox panel [on|off|reset] controls the optional info panel; /chatbox clock and /chatbox compass [hide|show] the game\'s. Native selection, expansion and input controls.',
+    help = '/chatbox opens settings; /chatbox on, off, clear, status, modes, bytes; /chatbox timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write; /chatbox panel [on|off|reset] controls the optional info panel; /chatbox clock and /chatbox compass [hide|show] the game\'s. Native selection, expansion and input controls.',
     drawSettings = function(options)
         if widgets.Header('Chatbox', true) then
             widgets.Label('Replace Native Chat')
@@ -244,6 +244,9 @@ app = shell.New({
                 app.save()
             end
             Tip('Draws the WinXI log and input bar in place of the game\'s own.\nOff, the game\'s chat log and input come back at once. /chatbox on and off do the same.')
+            widgets.Label('Timestamps')
+            if imgui.Checkbox('##chatbox.timestamps', options.timestamps) then model.ShowStamps(history, options.timestamps[1]); app.save() end
+            Tip('Shows the time in front of each line as SimpleLog\'s Timestamps or the timestamp addon writes it (chatbox adds none of its own).\nOff, those are hidden in the compact, second and expanded logs; the messages keep them, so they come back at once. /chatbox timestamps on and off do the same.')
             widgets.Label('Chat History')
             if imgui.SmallButton('Clear##chatbox.clear') then ClearHistory() end
             Tip('Forgets the messages kept for the compact log, 256 at most and never written to disk.\nThe game\'s own history, which the expanded log shows, is left alone.')
@@ -334,6 +337,17 @@ app = shell.New({
         end,
         clock = function(options, args) HideHud(options, args, 'hideClock', 'clock') end,
         compass = function(options, args) HideHud(options, args, 'hideCompass', 'compass') end,
+        timestamps = function(options, args)
+            local verb = args[3] and args[3]:lower()
+            local shown = options.timestamps
+            if verb == nil then shown[1] = not shown[1]
+            elseif verb == 'on' or verb == 'show' then shown[1] = true
+            elseif verb == 'off' or verb == 'hide' then shown[1] = false
+            else app:Say('/chatbox timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write.'); return end
+            model.ShowStamps(history, shown[1])
+            app.save()
+            app:Say(shown[1] and 'Timestamps shown.' or 'Timestamps hidden; the messages keep them.')
+        end,
         on = function(options) options.enabled[1] = true; app.save() end,
         off = function(options) options.enabled[1] = false; Release(); app.save() end,
         clear = ClearHistory,
@@ -388,6 +402,9 @@ app = shell.New({
             if app then app.save() end -- the first load runs before app exists; the next save keeps it
         end
         options.infoPanel = panelModel.Complete(options.infoPanel)
+        if type(options.timestamps) ~= 'table' then options.timestamps = T{ true } end
+        options.timestamps[1] = options.timestamps[1] ~= false
+        model.ShowStamps(history, options.timestamps[1])
         if type(options.expandedHeight) ~= 'table' then options.expandedHeight = T{ 75 } end
         options.expandedHeight[1] = math.max(25, math.min(100, math.floor(tonumber(options.expandedHeight[1]) or 75)))
         Reset() -- a new character must never inherit another character's private chat
@@ -560,13 +577,18 @@ local function MeasureTab(words)
 end
 local origin = { 0, 0 }
 -- The game's rows of text, decoded once each (CP932 with the game's colour codes to UTF-8 and colour spans)
--- and kept by their bytes: 512 at most, then forgotten together
-local decodedRows, decodedCount = {}, 0
+-- and kept by their bytes: 512 at most, then forgotten together, and forgotten as Timestamps changes (a row is kept
+-- as it is shown, its stamp taken off while they are hidden)
+local decodedRows, decodedCount, decodedStamps = {}, 0, true
 local function DecodeRow(raw)
+    local stamps = app.options.timestamps[1] ~= false
+    if stamps ~= decodedStamps then decodedRows, decodedCount, decodedStamps = {}, 0, stamps end
     local entry = decodedRows[raw]
     if entry == nil then
         local ok, text, _, spans = pcall(encoding.Decode, raw, true, true)
-        entry = { text = ok and type(text) == 'string' and text or '', spans = ok and spans or nil }
+        text, spans = ok and type(text) == 'string' and text or '', ok and spans or nil
+        if not stamps then text, spans = model.Unstamp(text, spans) end
+        entry = { text = text, spans = spans }
         if decodedCount >= 512 then decodedRows, decodedCount = {}, 0 end
         decodedRows[raw], decodedCount = entry, decodedCount + 1
     end

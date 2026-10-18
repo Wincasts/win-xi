@@ -201,13 +201,61 @@ local function Wrapped(log, width, font, size, measure)
     if #layouts > LAYOUTS then table.remove(layouts) end
     return messages
 end
-local function Lines(cache, message, width, measure)
+local function Lines(cache, message, text, width, measure)
     local wrapped = cache[message]
     if not wrapped then
-        wrapped = { lines = M.Wrap(message.text, width, measure) }
+        wrapped = { lines = M.Wrap(text, width, measure) }
         cache[message] = wrapped
     end
     return wrapped
+end
+-- A message's text and spans without the timestamp at the start of each of its lines (and the spaces after it),
+-- the spans moved up by as much; the same text and spans back where there is none, or nothing but stamps.
+function M.Unstamp(text, spans)
+    if type(text) ~= 'string' or not text:find('[', 1, true) then return text, spans end
+    local out, moved, length, at, changed = {}, {}, 0, 1, false
+    repeat
+        local stop = text:find('\n', at, true)
+        local last = stop or #text
+        local paragraph = text:sub(at, last)
+        local stamp = M.Stamp(paragraph)
+        local cut = stamp and (#stamp + #paragraph:match('^[ \t]*', #stamp + 1)) or 0
+        if cut > 0 then changed = true end
+        local piece = paragraph:sub(cut + 1)
+        if #piece > 0 then
+            out[#out + 1] = piece
+            for _, span in ipairs(rich.Slice(spans, at + cut, #piece) or {}) do
+                moved[#moved + 1] = { first = span.first + length, last = span.last + length, bank = span.bank, slot = span.slot }
+            end
+            length = length + #piece
+        end
+        at = last + 1
+    until not stop
+    if not changed then return text, spans end
+    local body = table.concat(out)
+    if not body:find('%S') then return text, spans end
+    return body, #moved > 0 and moved or nil
+end
+-- Whether the timestamps at the start of lines are shown (they are to begin with). A change forgets the layouts
+-- and views, which hold each message as it is shown; the messages keep their stamps throughout.
+function M.ShowStamps(log, shown)
+    local hide = shown == false
+    if (log.hideStamps == true) == hide then return end
+    log.hideStamps = hide
+    log.cache, log.metrics, log.wraps = nil, nil, nil
+    log.revision = log.revision + 1
+end
+-- A message's text and spans as they are shown: without their stamps while those are hidden (worked out once
+-- for each message, and kept on it)
+local function Shown(log, message)
+    if not log.hideStamps then return message.text, message.spans end
+    local shown = message.shown
+    if not shown then
+        local text, spans = M.Unstamp(message.text, message.spans)
+        shown = { text = text, spans = spans }
+        message.shown = shown
+    end
+    return shown.text, shown.spans
 end
 local function Offsets(wrapped, text)
     if wrapped.offsets then return wrapped.offsets end
@@ -245,7 +293,7 @@ function M.Metrics(log, width, font, size, measure, modes)
         local message = log.messages[i]
         if Shows(modes, message) then
             index = index+1
-            local count = #Lines(wrapped, message, width, measure).lines
+            local count = #Lines(wrapped, message, (Shown(log, message)), width, measure).lines
             metrics.counts[message] = count
             metrics.total = metrics.total + count
             metrics.newer[index] = metrics.total
@@ -280,9 +328,10 @@ function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffs
         if Shows(modes, message) then
             index = index + 1
             if index > newer then
-                local entry = Lines(wrapped, message, width, measure)
-                local lines, offsets = entry.lines, Offsets(entry, message.text)
-                groups[#groups + 1] = { lines = lines, offsets = offsets, mode = message.mode, index = index, message = message }
+                local text, spans = Shown(log, message)
+                local entry = Lines(wrapped, message, text, width, measure)
+                local lines, offsets = entry.lines, Offsets(entry, text)
+                groups[#groups + 1] = { lines = lines, offsets = offsets, spans = spans, mode = message.mode, index = index, message = message }
                 count = count + #lines
                 if count >= rowCount + rowOffset then
                     for j = i - 1, 1, -1 do
@@ -302,7 +351,7 @@ function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffs
             -- first: the message's first row, where a timestamp would be
             if skip > 0 then skip = skip - 1
             elseif #rows < rowCount then rows[#rows + 1] = { text = text, mode = group.mode, first = line == 1, index = group.index, message = group.message,
-                spans = rich.Slice(group.message.spans, group.offsets[line], #text) } end
+                spans = rich.Slice(group.spans, group.offsets[line], #text) } end
         end
     end
     local overflow = remaining or count > rowCount

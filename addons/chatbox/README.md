@@ -36,7 +36,7 @@ each where the game's are.
 - The mouse wheel scrolls an overflowing compact log three visual rows a notch, and a slim scrollbar
   appears on its right: drag the thumb or click the track to page.
 - No dragging or mouse resizing. Combat formatting, filters and timestamps are left to the game or
-  SimpleLog.
+  SimpleLog; **Timestamps** hides the stamps they write, in every log, and shows them again at once.
 
 ## Install
 
@@ -151,6 +151,7 @@ the updated chatbox and Winxi 22 directories. The existing chat ABI remains 13.
 /chatbox on       Replace Native Chat on
 /chatbox off      Replace Native Chat off: the game's logs come back at once
 /chatbox clear    forget the messages this addon keeps
+/chatbox timestamps   toggle the Timestamps option (on or off to set it)
 /chatbox status   bridge status, the last box drawn, kept-message and decode-error counts
 /chatbox modes    the last ten lines kept and their chat modes (to find a channel's)
 /chatbox bytes    the last incoming line: original, modified, expanded and UTF-8 bytes (hex, first 256 of each)
@@ -171,6 +172,10 @@ Settings are kept for each character.
 **Chatbox**
 
 - **Replace Native Chat**: the WinXI log and input bar in place of the game's (on to begin with).
+- **Timestamps** (on to begin with): the time in front of each line as SimpleLog's Timestamps or
+  Ashita's timestamp addon writes it; chatbox adds none of its own. Off, those are hidden in the
+  compact log, Window 2 and the expanded log; the messages keep them, so turning it on shows them
+  again at once. `/chatbox timestamps on` and `off` do the same.
 - **Chat History**: **Clear** forgets the messages kept for the compact log; the game's own history
   stays.
 - Under them, how to select and expand the log, and the bridge's status.
