@@ -5,9 +5,15 @@
 --                                   a buffer and its length, or nil and why not
 --   mapdat.Header(buffer, length)   what the picture in a file is: { width, height, kind, bits, at },
 --                                   or nil and why not
---   mapdat.Texture(device, buffer, length)   the picture as a texture, or nil and why not
---   mapdat.Load(dat)                the picture of a map's file as a texture and the handle imgui
+--   mapdat.Texture(device, buffer, length, mask)   the picture as a texture, or nil and why not
+--   mapdat.Load(dat, mask)          the picture of a map's file as a texture and the handle imgui
 --                                   draws it by, or nil and why not
+--
+-- A mask, where one is given, is how much of the picture shows at each place: { width, height,
+-- values }, values width * height bytes, rows from the top, 0 none of it to 255 all of it, laid over
+-- the whole picture whatever its size and read at the nearest of its own pixels. It multiplies the
+-- picture's own alpha: a bitmap's, and a DXT3's four bits a pixel. A DXT1 or DXT5 picture cannot
+-- take one.
 --
 -- A map is opened by its place under the game's folder, with fopen_s where there is one, as boussole
 -- opens its maps and name its area lists: that is the opening pivot turns towards its overlays. With
@@ -21,6 +27,7 @@
 -- (their bytes the other way round from a DDS's) is compressed blocks, 8 more bytes on; 10 is a
 -- bitmap, rows from the bottom up, through a palette of 256 colours where there are 8 bits to a pixel.
 local ffi = require('ffi');
+local bit = require('bit');
 local mapdat = {};
 
 local HEADER    = 0x41;
@@ -159,12 +166,39 @@ function mapdat.Header(buffer, length)
     return header;
 end
 
+-- The mask's value for the picture's pixel (x, y)
+local function Sample(mask, header, x, y)
+    local mx = math.floor(x * mask.width / header.width);
+    local my = math.floor(y * mask.height / header.height);
+    return mask.values[my * mask.width + mx];
+end
+
+-- A DXT3 block's alpha, its first 8 bytes, four bits a pixel along each row, multiplied by the mask
+local function MaskBlock(block, mask, header, left, top)
+    for row = 0, 3 do
+        local word = block[row * 2] + block[row * 2 + 1] * 256;
+        local out = 0;
+        local y = math.min(top + row, header.height - 1);
+        for column = 0, 3 do
+            local nibble = bit.band(bit.rshift(word, column * 4), 15);
+            local x = math.min(left + column, header.width - 1);
+            out = bit.bor(out, bit.lshift(math.floor(nibble * Sample(mask, header, x, y) / 255 + 0.5), column * 4));
+        end
+        block[row * 2], block[row * 2 + 1] = bit.band(out, 255), bit.rshift(out, 8);
+    end
+end
+
 -- Into a texture the device has made and locked: compressed blocks row by row as they are; a bitmap's
--- rows turned the right way up, each pixel its palette's colour where it has one
-local function Fill(header, bytes, bits, pitch)
+-- rows turned the right way up, each pixel its palette's colour where it has one; then the mask
+local function Fill(header, bytes, bits, pitch, mask)
     if header.palette == nil and header.pixels == nil then
         for row = 0, header.rows - 1 do
             ffi.copy(bits + row * pitch, bytes + header.at + row * header.row, header.row);
+            if mask ~= nil then
+                for block = 0, header.row / 16 - 1 do
+                    MaskBlock(bits + row * pitch + block * 16, mask, header, block * 4, row * 4);
+                end
+            end
         end
         return;
     end
@@ -175,15 +209,22 @@ local function Fill(header, bytes, bits, pitch)
         for x = 0, header.width - 1 do
             local colour = palette and palette + from[x] * 4 or from + x * 4;
             to[x * 4], to[x * 4 + 1], to[x * 4 + 2] = colour[0], colour[1], colour[2];
-            to[x * 4 + 3] = (palette or colour[3] > 0) and 255 or 0;
+            local alpha = (palette or colour[3] > 0) and 255 or 0;
+            if mask ~= nil and alpha > 0 then
+                alpha = Sample(mask, header, x, row);
+            end
+            to[x * 4 + 3] = alpha;
         end
     end
 end
 
-function mapdat.Texture(device, buffer, length)
+function mapdat.Texture(device, buffer, length, mask)
     local header, why = mapdat.Header(buffer, length);
     if header == nil then
         return nil, why;
+    end
+    if mask ~= nil and (header.kind == DXT1 or header.kind == DXT5) then
+        return nil, 'a DXT1 or DXT5 picture cannot take a mask';
     end
     local format = FORMATS[header.kind] or ARGB;
     local made, texture = device:CreateTexture(header.width, header.height, 1, 0, format, MANAGED);
@@ -195,7 +236,7 @@ function mapdat.Texture(device, buffer, length)
         texture:Release();
         return nil, 'the texture could not be locked';
     end
-    local ok, failed = pcall(Fill, header, ffi.cast('const uint8_t*', buffer), ffi.cast('uint8_t*', rect.pBits), rect.Pitch);
+    local ok, failed = pcall(Fill, header, ffi.cast('const uint8_t*', buffer), ffi.cast('uint8_t*', rect.pBits), rect.Pitch, mask);
     texture:UnlockRect(0);
     if not ok then
         texture:Release();
@@ -204,7 +245,7 @@ function mapdat.Texture(device, buffer, length)
     return texture;
 end
 
-function mapdat.Load(dat)
+function mapdat.Load(dat, mask)
     local d3d8 = require('d3d8');
     local device = d3d8.get_device();
     if device == nil then
@@ -214,7 +255,7 @@ function mapdat.Load(dat)
     if buffer == nil then
         return nil, nil, length;
     end
-    local texture, why = mapdat.Texture(device, buffer, length);
+    local texture, why = mapdat.Texture(device, buffer, length, mask);
     if texture == nil then
         return nil, nil, why;
     end
