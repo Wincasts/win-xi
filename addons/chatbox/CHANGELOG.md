@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The Linkshell title no longer ends a name of 2, 6, 10, 14 or 18 letters with a stray o: the server pads the name's last byte with ones, which read as that letter when four were left.
 - Font and Font Size, the log's and the info panel's, are winxi's own controls (widgets.FontFile, FontSize); every tooltip is drawn by winxi.tooltip, so winxisettings' Tooltips tab applies. Needs winxi 25.
 
 ## 0.11.3

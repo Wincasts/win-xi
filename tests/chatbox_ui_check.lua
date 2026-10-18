@@ -611,16 +611,22 @@ message('one-off say',{mode=1}); frame()
 assert(rendered['winxi.chatbox'].style.title=='Party','one-off outgoing channel does not replace /cm mode')
 events.command({command='/cm s',blocked=true}); frame()
 assert(rendered['winxi.chatbox'].style.title=='Party','blocked mode commands are ignored')
+-- The pearl's extra data as the server's EncodeStringLinkshell writes it: six bits a letter from byte 9,
+-- then ones to the end of the byte (a whole code of six where none are left, or two), then zeros.
+-- FirstShell's ten letters leave four bits, which read as an o with nothing after it.
 local function pearl(name)
     local extra, alphabet = {}, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     for i=0,27 do extra[i]=0 end
-    for i=1,#name+1 do
-        local code=i>#name and 63 or assert(alphabet:find(name:sub(i,i),1,true))
-        local offset,shift=9+math.floor((i-1)*6/8),((i-1)*6)%8
-        local value=code*2^shift
+    local function put(code,bitOffset,length)
+        local offset,shift=9+math.floor(bitOffset/8),bitOffset%8
+        local value=(code%2^length)*2^shift
         extra[offset]=extra[offset]+value%256
         extra[offset+1]=extra[offset+1]+math.floor(value/256)
     end
+    for i=1,#name do put(assert(alphabet:find(name:sub(i,i),1,true)),(i-1)*6,6) end
+    local leftover=8-(#name*6)%8
+    if leftover==8 or leftover==2 then leftover=6 end
+    put(0xFF,#name*6,leftover)
     return {Id=515,Extra=extra}
 end
 local shells={[1]=pearl('FirstShell'),[2]=pearl('SecondShell')}
