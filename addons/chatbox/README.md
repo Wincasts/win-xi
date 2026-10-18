@@ -94,8 +94,9 @@ of an existing clock panel.
   **Window 2** subtab; font, text colour and icon set follow the first panel. Attached panels
   share the taller one's height so both logs keep one bottom. Stacked logs keep one panel.
 - Day/weather icons can be placed before/after any slot, offset independently, or inserted as data
-  tokens for exact order. Icon sets are under `addons/libs/winxi/infopanel/icons`; `gems` is bundled
-  and supplies missing custom pictures. Hidden/Native placement does not auto-insert an icon;
+  tokens for exact order. Icon sets are under `addons/libs/winxi/infopanel/icons`: `gems` (the days cut
+  as gemstones) and `classic` (drawn after the game's own: its mottled day balls and soft weather sprites,
+  made by `tools/generate_classic_icons.py`) are bundled, and `gems` supplies missing custom pictures. Hidden/Native placement does not auto-insert an icon;
   native HUD visibility is never changed by chatbox.
 - Background, border art and shadow follow the shared/local Winxi theme, captured together with
   the owning log. The panel is an attachment on that log's draw list, **not a separate floating

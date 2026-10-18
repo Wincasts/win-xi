@@ -90,7 +90,7 @@ function M.Draw(options,service,save)
                 end
                 imgui.EndCombo()
             end
-            Tip('Icon sets live in addons\\libs\\winxi\\infopanel\\icons. Missing pictures use bundled gems.')
+            Tip('Gems: the days cut as gemstones, the weather drawn bold. Classic: drawn after the game\'s own, its mottled day\nballs and soft weather sprites. Sets live in addons\\libs\\winxi\\infopanel\\icons; a picture a set lacks is the Gems one.')
             widgets.Label('Icon Scale')
             if imgui.SliderFloat('##chatbox.panel.iconScale',options.iconScale,0.5,3,'%.2fx') then Changed() end
             widgets.Label('Icon Offset')

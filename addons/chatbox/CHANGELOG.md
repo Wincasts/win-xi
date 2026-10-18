@@ -2,6 +2,11 @@
 
 ## 0.11.2
 
+- A second icon set for the info panel, Classic (Icons tab, Icon Set): days and weather drawn after the
+  game's own, its flat mottled day balls and its soft weather sprites (a pale drop, a teal funnel, a purple
+  vortex, a periwinkle sphere, a white glow, a fireball, a tilted slab, a violet bolt), in colours sampled
+  from them, with a sun in the same manner for a clear sky. Drawn afresh by tools/generate_classic_icons.py;
+  none of the game's pixels are used. The sets are listed in Title Case.
 - The info panel's Map Grid stays while the game hides its clock (fishing, events, its HUD hidden): the
   grid is then worked out by the game's own grid function, the one its clock asks, found through the
   clock's call to it, so it is the clock's grid, there or not as the zone has one. Time never depended on
