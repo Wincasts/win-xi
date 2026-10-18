@@ -38,7 +38,7 @@ it. A floor with no traced map draws nothing.
 
 - **Visible**: whether the overlay shows.
 - **Centered**: in the middle of the screen (on to start). Off, it stays where it is put:
-  **Locked** off lets it be dragged, its edge drawn; on, clicks go through it. **Position** is its
+  **Lock Window** off lets it be dragged, its edge drawn; on, clicks go through it. **Position** is its
   top left corner.
 - **Size**: how wide and tall the overlay is, 150 to 1600 pixels.
 - **Map Opacity**: how solid the ground is, 0.05 to 1 (0.85 to start).

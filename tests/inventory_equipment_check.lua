@@ -20,7 +20,8 @@ icons.Frame = function() atlasFrames = atlasFrames + 1; return 123 end
 icons.Place = function(id) images[#images + 1] = id; return { 0, 0, 1, 1 } end
 window.Full = function(name, open, f, draw, style)
     if name == 'winxi.inventory.equipment' then
-        windows, flags, background, alpha = windows + 1, f, style.background, style.alpha
+        -- Lock, and being attached, is winxi.window's locked option: counted with the flags
+        windows, flags, background, alpha = windows + 1, bit.bor(f, style.locked and ImGuiWindowFlags_NoMove or 0), style.background, style.alpha
         title = style.title
     end
     return full(name, open, f, draw, style)

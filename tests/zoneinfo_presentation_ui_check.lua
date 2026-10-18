@@ -72,7 +72,7 @@ check('existing banner retains its timing snapshot', state.visible_until == 106 
 built, measured = row_builds, measurements;
 check('expired banner draws no window', not p.draw(state, nil, 106));
 check('expired banner skips row construction and measurement', row_builds == built and measurements == measured);
-d.outline[1] = 0;
+require('winxi.theme').Get().TextOutline = 0; -- the theme's Text Outline, every addon's alike
 local texts = H.calls['draw.AddText'] or 0;
 p.draw(state, nil, 100.4);
 check('zero outline draws one glyph pass per row', H.calls['draw.AddText'] - texts == 3);
@@ -92,13 +92,13 @@ d.enabled[1], d.chat[1] = true, false;
 local printed = #H.printed;
 check('test command remains blocked', H.command('/zone test')); H.frames(1);
 check('chat can be disabled independently of banner', #H.printed == printed);
-d.hold[1], d.fadeOut[1], d.titleSize[1], d.position[1], d.outlineColor[1], d.alignment = 0 / 0, -10, math.huge, 0 / 0, 9, 'bad';
+d.hold[1], d.fadeOut[1], d.titleSize[1], d.position[1], d.alignment = 0 / 0, -10, math.huge, 0 / 0, 'bad';
 H.resettle();
-check('bad saved settings repaired and clamped', d.hold[1] == 5 and d.fadeOut[1] == 0 and d.titleSize[1] == 32 and d.position[1] == 0 and d.outlineColor[1] == 1 and d.alignment == 'center');
+check('bad saved settings repaired and clamped', d.hold[1] == 5 and d.fadeOut[1] == 0 and d.titleSize[1] == 32 and d.position[1] == 0 and d.alignment == 'center');
 require('settings').reload = H.resettle;
 check('reload command reloads and previews', H.command('/zone reload')); H.frames(1);
 check('no GDI font dependency added', not package.loaded['gdifonts.include']);
-d.mode, d.outline[1], d.perLineTiming[1] = 'floating', 0, true;
+d.mode, d.perLineTiming[1] = 'floating', true;
 d.zoneRegionHold[1], d.zoneRegionFadeOut[1] = 1, 0;
 d.zoneTitleDelay[1], d.zoneTitleHold[1], d.zoneTitleFadeOut[1] = 2, 1, 0;
 d.zoneWeatherDelay[1], d.zoneWeatherHold[1], d.zoneWeatherFadeOut[1] = 4, 2, 1;

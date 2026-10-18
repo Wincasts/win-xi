@@ -2152,7 +2152,7 @@ ashita.events.register('d3d_present', 'inv_present', function()
     local zone, mx, my = scrollBar.zone, imgui.GetMousePos()
     local overBar = scrollBar.grab ~= nil or (zone.shown and mx ~= nil
         and mx >= zone[1] and mx < zone[3] and my >= zone[2] and my < zone[4])
-    windowExtra.flags = (options.lockMovement[1] or overBar) and ImGuiWindowFlags_NoMove or 0
+    windowExtra.locked = options.lockMovement[1] or overBar
     zone.shown = false
     local shown = attached.shown[1]
     app:Window(attached.shown, DrawWindow, windowExtra)

@@ -272,7 +272,6 @@ local function Draw(options)
     local flags = bit.bor(style.TitlelessFlags(), ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoFocusOnAppearing,
         ImGuiWindowFlags_NoNav, ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse, ImGuiWindowFlags_NoBackground);
     local fixed = options.locked[1] or options.centered[1];
-    if fixed then flags = bit.bor(flags, ImGuiWindowFlags_NoMove, ImGuiWindowFlags_NoInputs); end
 
     if options.centered[1] then
         local display = imgui.GetIO().DisplaySize;
@@ -283,6 +282,7 @@ local function Draw(options)
     end
     place = false;
     windowOptions.alpha = alpha;
+    windowOptions.locked, windowOptions.clickThrough = fixed, fixed; -- Lock Window, or centred: held still, the mouse through it
     window.Plain(windowName, open, flags, function()
         DrawMap(options, alpha);
         if not fixed then
@@ -332,9 +332,7 @@ local function DrawSettings(options)
         imgui.Checkbox('##mapoverlay.centered', options.centered);
         Tip('In the middle of the screen. Off, it stays where it is put.');
         if not options.centered[1] then
-            widgets.Label('Locked');
-            imgui.Checkbox('##mapoverlay.locked', options.locked);
-            Tip('Unlocked, the overlay can be dragged (its edge drawn). Locked, clicks go through it.');
+            widgets.Lock(options.locked, '##mapoverlay.locked', { tooltip = 'Unlocked, the overlay can be dragged (its edge drawn). Locked, clicks go through it.' });
             widgets.Label('Position');
             if imgui.InputInt2('##mapoverlay.position', options.pos) then place = true; end
         end

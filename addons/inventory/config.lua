@@ -56,9 +56,7 @@ function config.General(options)
         if imgui.InputInt2('##inv.position', options.pos) then
             imgui.SetWindowPos(windowName, options.pos)
         end
-        widgets.Label('Lock')
-        imgui.Checkbox('##inv.lockMovement', options.lockMovement)
-        tooltip.Hover('Prevent dragging the inventory window. The Position fields can still move it.\nWhile it is locked, items can be dragged with the mouse: onto another item to swap their places, or onto another tab\'s name to move them to that tab\'s bags.')
+        widgets.Lock(options.lockMovement, '##inv.lockMovement', { label = 'Lock', tooltip = 'Prevent dragging the inventory window. The Position fields can still move it.\nWhile it is locked, items can be dragged with the mouse: onto another item to swap their places, or onto another tab\'s name to move them to that tab\'s bags.' })
         widgets.Label('Fade In And Out')
         imgui.Checkbox('##inv.fade', options.fadeInOut)
         tooltip.Hover('The window fades in as it is shown and out as it is hidden, in place of appearing and going at once. The treasure pool and equipment monitor fade with it.')

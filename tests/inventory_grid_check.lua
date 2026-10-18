@@ -154,9 +154,10 @@ check('full slots keep their square behind the icon', #slotRects == 3
 
 local window = require('winxi.window')
 local full, flags = window.Full, nil
-window.Full = function(name, wanted, windowFlags, ...)
-    if name == 'winxi.inventory' then flags = windowFlags end
-    return full(name, wanted, windowFlags, ...)
+window.Full = function(name, wanted, windowFlags, draw, style, ...)
+    -- Lock is winxi.window's locked option: counted with the flags, as the window has it
+    if name == 'winxi.inventory' then flags = require('bit').bor(windowFlags, style and style.locked and ImGuiWindowFlags_NoMove or 0) end
+    return full(name, wanted, windowFlags, draw, style, ...)
 end
 check('drag movement unlocked by default', o.lockMovement[1] == false)
 frame()

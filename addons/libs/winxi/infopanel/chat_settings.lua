@@ -66,8 +66,7 @@ function M.Draw(options,service,save)
             if widgets.FontSize(options,'fontSize','##chatbox.panel.fontSize',{max=48,theme='Chat Size',tooltip='How large the panel\'s text is, in pixels; Chat Size (0) is the chat\'s.'}) then Changed() end
             widgets.Label('Text Color')
             if imgui.ColorEdit4('##chatbox.panel.textColor',options.textColor,ImGuiColorEditFlags_NoInputs) then Changed() end
-            widgets.Label('Outline')
-            if imgui.SliderInt('##chatbox.panel.outline',options.outline,0,3,'%d px') then Changed() end
+            imgui.TextDisabled('The dark edge round the text is Winxi Theme\'s Text Outline, in winxisettings.')
         end
     end)
     Tab('Icons',function()

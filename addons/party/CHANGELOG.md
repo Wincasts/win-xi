@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Name Font and Value Font are winxi's own control (widgets.FontFile), and the settings' tooltips are winxi.tooltip's, so winxisettings' Tooltips tab applies. Needs winxi 25.
+- Name Font and Value Font are winxi's own control (widgets.FontFile), Clickthrough too (widgets.Lock), and the settings' tooltips are winxi.tooltip's, so winxisettings' Tooltips tab applies. Outline Text is gone: the names' and values' dark edge is Winxi Theme's Text Outline, scaled with the frames, and its colour the theme's Outline Color; the Minimal profile no longer turns it off. Needs winxi 25.
 
 ## 0.2 — first release
 

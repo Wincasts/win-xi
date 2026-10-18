@@ -40,8 +40,9 @@ function draw:AddRectFilledMultiColor(...)
     washes = washes + 1
     return gradient(self, ...)
 end
-local setTooltip = imgui.SetTooltip
-imgui.SetTooltip = function(value) tooltip = value; return setTooltip(value) end
+local tips = require('winxi.tooltip') -- shown through winxi.tooltip
+local showTooltip = tips.Show
+tips.Show = function(value) tooltip = value; return showTooltip(value) end
 local function frame()
     borders, markers, washes, tooltip = {}, {}, 0, nil
     H.frames(1)

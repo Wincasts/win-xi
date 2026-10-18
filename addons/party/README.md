@@ -18,7 +18,8 @@ addon [XivParty](https://github.com/Tylas11/XivParty)'s compact one.
 ## usage
 `/pt` (or `/xif`) opens the settings. `/party` is left alone for the game's own party chat;
 `/xiframes` is no longer used. Its Style tab sets how every frame is drawn (sizes,
-where the values sit, the outline); Party, Target and Pets have what is each one's own.
+where the values sit); Party, Target and Pets have what is each one's own. The dark edge round names
+and values is Winxi Theme's Text Outline, set in winxisettings for every addon.
 **Behavior** contains mouse interaction, optional **Automatic Positioning**, hiding rules,
 **Fade When Idle**, and which windows fade.
 There is no Winxi Theme tab in Party; use **winxisettings** for shared colours, padding, shadows,
@@ -259,7 +260,7 @@ restore the default party frames—not the chat/menu name. This covers party-ord
 and party-member selection with `<stpt>`/`<stal>`. The labels appear in all three party lists,
 including Alliance 2 and Alliance 3. Labels use `[WAR15/RDM7]`; unknown halves use `---`, so
 an entirely unknown member shows `[---/---]`. Members in another zone also get a label.
-Labels stay outlined even when general text outlines are disabled. Buffs return when the party cursor
+Labels stay outlined even with Winxi Theme's Text Outline at 0. Buffs return when the party cursor
 closes. Role sorting is suspended and idle fading is paused while the party cursor is active.
 This is separate from the addon's Organize mode and does not modify target or pet frames.
 

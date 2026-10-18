@@ -1,6 +1,7 @@
 -- Experimental Zonename-style full-string textures. No ImGui glyph/atlas access.
 local bit = require('bit');
 local background = require('banner_background');
+local text = require('winxi.text');
 local M = {};
 
 local function argb(color)
@@ -51,7 +52,7 @@ function M.new(loader)
         local lib = self:library();
         local x = (d.centered[1] and width / 2 or 0) + d.position[1];
         local y = d.position[2];
-        local title_packed, detail_packed, outline_packed = argb(title_color), argb(detail_color), argb(d.outlineColor);
+        local title_packed, detail_packed, outline_packed = argb(title_color), argb(detail_color), argb(text.EdgeColor()); -- the theme's Outline Color
         -- Hide lines from the previous popup before enabling this popup's rows.
         for _, obj in pairs(self.objects) do obj:set_visible(false); end
         for _, row in ipairs(rows) do
@@ -72,7 +73,7 @@ function M.new(loader)
             local bold = row.title and d.gdiTitleBold[1] or (not row.title and d.gdiDetailBold[1]);
             apply(obj, style, 'font_flags', bold and lib.FontFlags.Bold or lib.FontFlags.None);
             apply(obj, style, 'font_color', row.title and title_packed or detail_packed);
-            apply(obj, style, 'outline_width', d.outline[1]);
+            apply(obj, style, 'outline_width', text.Edge()); -- the theme's Text Outline
             apply(obj, style, 'outline_color', outline_packed);
             apply(obj, style, 'font_alignment', d.alignment == 'left' and lib.Alignment.Left or
                 (d.alignment == 'right' and lib.Alignment.Right or lib.Alignment.Center));

@@ -33,7 +33,7 @@
 --     buffSpacing, buffDistance                room between buff icons, and between them and the window
 --     ffxivIcons               false for the game's own status icons in place of winxi's
 --     hpOffset, mpOffset, tpOffset             { x, y } to move that figure from its place
---     outline, bookends, tpFlash               false to leave each out
+--     bookends, tpFlash                        false to leave each out
 --     nameFont, valueFont      a font file of C:\Windows\Fonts for the names or the values; nil or '' for the theme's
 --     bookendOpacity                           0 to 100: how solid the bookends are (100 unless given)
 --     showMp, showTp           false to leave the MP or the TP figure out; the MP bar is drawn either way
@@ -708,7 +708,7 @@ function frames.Draw(members, kind, StatusTexture, style)
         end
     end
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = style.hpOffset, style.mpOffset, style.tpOffset
-    outlined = style.outline ~= false
+    outlined = outlinedText.Edge() > 0 -- the theme's Text Outline
     nameChars = style.nameChars
     local showMp, showTp = style.showMp ~= false, style.showTp ~= false
     textColor = theme.Get().TextColor
@@ -755,9 +755,10 @@ function frames.Draw(members, kind, StatusTexture, style)
     drawList:PushClipRect(clipMin, clipMax, false)
     draw.Use(drawList)
 
-    outlineEdge = math.max(1, math.floor(scale + 0.5))
+    -- the theme's Text Outline, scaled with the frames; at least a pixel where anything is outlined
+    outlineEdge = math.max(1, math.floor(outlinedText.Edge() * scale + 0.5))
     if outlined then
-        outlinePacked = draw.Packed(outlinedText.OutlineColor, 1)
+        outlinePacked = draw.Packed(outlinedText.EdgeColor(), 1)
     end
 
     itemX = math.floor(windowX)
@@ -844,7 +845,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     -- including alliance members and members in another zone. Always outline these labels.
     if style.showJobs and (kind == 'party' or kind == 'alliance') then
         local right = imgui.GetWindowPos() - layout.buffs.gap - (tonumber(style.buffDistance) or 0) * scale
-        local dark = draw.Packed(outlinedText.OutlineColor, 1)
+        local dark = draw.Packed(outlinedText.EdgeColor(), 1)
         imgui.PushFont(nameFace, nameFont)
         for index, member in ipairs(members) do
             local words = member.jobText or '[---/---]'
