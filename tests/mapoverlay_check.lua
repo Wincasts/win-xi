@@ -1,5 +1,5 @@
 -- mapoverlay: the zone's ground painted flat where it is traced, fitted to the ground, the game's grid
--- over it with its letters and numbers, the player marked where the client's map table puts them,
+-- lines over it, the player marked where the client's map table puts them,
 -- the floor chosen in a zone of several, nothing in a zone with no ground traced, painted again when
 -- its colours change, the map's own picture with Map Art, and the overlay switched off
 local o = H.options()
@@ -32,7 +32,7 @@ local loads, pictures = {}, {}
 flat.Load = function(mask, fill, edge) loads[#loads + 1] = { mask = mask, fill = { fill[1], fill[2], fill[3] }, edge = { edge[1], edge[2], edge[3] } } return {}, 500 + #loads end
 mapdat.Load = function(dat, mask) pictures[#pictures + 1] = { dat = dat, mask = mask } return {}, 900 + #pictures end
 local function lines() local n = 0 for _, d in ipairs(drawn) do if d.kind == 'line' then n = n + 1 end end return n end
-local function labels() local t = {} for _, d in ipairs(drawn) do if d.kind == 'text' then t[d.words] = (t[d.words] or 0) + 1 end end return t end
+local function texts() local n = 0 for _, d in ipairs(drawn) do if d.kind == 'text' then n = n + 1 end end return n end
 
 -- the zone the player is in
 local zone = 0
@@ -105,8 +105,6 @@ H.print('fitted to the ground, a square round its middle', near(image.uvA[1], (c
 
 -- the grid: the game's lines, 16 + 32k map units, only where they cross the ground, at their places
 local vx, vy, vs = cx - half, cy - half, 2 * half
-local firstLetter = nil
-for k = 0, 14 do local m = 16 + 32 * (k + 0.5) if m >= vx and m <= vx + vs then firstLetter = firstLetter or string.char(65 + k) end end
 local function toMap(sx, sy) return vx + (sx - image.a[1]) / o.size[1] * vs, vy + (sy - image.a[2]) / o.size[1] * vs end
 local onGround, onLine, full, expected = true, true, 0, 0
 for k = 0, 15 do
@@ -127,15 +125,11 @@ for _, d in ipairs(drawn) do
 end
 H.print('the grid: a line for each stretch on the ground in view, each on a grid line, its middle on the ground, none across the whole overlay',
     lines() == expected, expected > 4, onLine, onGround, full == 0)
-local said = labels()
-H.print('its squares named: the first letter in view along the top, outlined', said[firstLetter] ~= nil and said[firstLetter] >= 2)
-o.gridLabels[1] = false
-frame()
-H.print('Grid Labels off: lines, no letters', lines() == expected, next(labels()) == nil)
+H.print('no letters or numbers', texts() == 0)
 o.showGrid[1] = false
 frame()
 H.print('Show Grid off: no lines', lines() == 0)
-o.showGrid[1], o.gridLabels[1] = true, true
+o.showGrid[1] = true
 
 -- the player at world (400, -300): map (400 * 2/5 - 100, 300 * 2/5 + 50) = (60, 170): left of Qufim's ground, off the view
 H.print('the player off the part shown: no marker', triangles() == 0)

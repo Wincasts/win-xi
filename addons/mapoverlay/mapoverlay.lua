@@ -39,7 +39,6 @@ local window = require('winxi.window');
 local fade = require('winxi.fade');
 local style = require('winxi.style');
 local mapdat = require('winxi.mapdat');
-local text = require('winxi.text');
 local masks = require('masks');
 local flat = require('flat');
 local position = require('position');
@@ -64,7 +63,6 @@ local defaults = T{
     showGrid = T{ true },
     gridColor = T{ 0.0, 0.0, 0.0 },
     gridOpacity = T{ 0.6 },
-    gridLabels = T{ true },
     fit = T{ true },
     zoom = T{ 1.0 },
     showPlayer = T{ true },
@@ -155,7 +153,7 @@ end
 
 local corner1, corner2, uv1, uv2 = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 };
 local tint, colour, dark, edge = { 1, 1, 1, 1 }, { 1, 1, 1, 1 }, { 0, 0, 0, 1 }, { 1, 1, 1, 0.6 };
-local line, label, shade, from, to = { 0, 0, 0, 1 }, { 1, 1, 1, 1 }, { 0, 0, 0, 1 }, { 0, 0, 0 }, { 0, 0, 0 };
+local line, from, to = { 0, 0, 0, 1 }, { 0, 0, 0 }, { 0, 0, 0 };
 local boxSize, outlineA, outlineB = { 0, 0 }, { 0, 0 }, { 0, 0 };
 local p1, p2, p3 = { 0, 0 }, { 0, 0 }, { 0, 0 };
 
@@ -189,15 +187,15 @@ local function Arrow(drawList, x, y, heading, size, options, alpha)
     drawList:AddTriangleFilled(p1, p2, p3, imgui.GetColorU32(colour));
 end
 
--- The game's grid over the part of the map shown: its lines only where they cross the ground, and
--- its letters along the top and numbers down the left of each square in view
+-- The game's grid over the part of the map shown: its lines only where they cross the ground
 local function Grid(drawList, options, alpha, x, y, size, vx, vy, vs, stretches)
     local opacity = options.gridOpacity[1] * alpha;
     if opacity <= 0.01 then return; end
     local c = options.gridColor;
     line[1], line[2], line[3], line[4] = c[1], c[2], c[3], opacity;
     local packed = imgui.GetColorU32(line);
-    local function Screen(u, start) return start + (u - (start == x and vx or vy)) / vs * size; end
+    local function SX(u) return x + (u - vx) / vs * size; end
+    local function SY(u) return y + (u - vy) / vs * size; end
     for k = 0, GRID_SQUARES do
         local u = GRID_FIRST + k * GRID_STEP;
         if u >= vx and u <= vx + vs then
@@ -205,7 +203,7 @@ local function Grid(drawList, options, alpha, x, y, size, vx, vy, vs, stretches)
             for i = 1, #runs, 2 do
                 local a, b = math.max(runs[i], vy), math.min(runs[i + 1], vy + vs);
                 if b > a then
-                    from[1], from[2], to[1], to[2] = Screen(u, x), Screen(a, y), Screen(u, x), Screen(b, y);
+                    from[1], from[2], to[1], to[2] = SX(u), SY(a), SX(u), SY(b);
                     drawList:AddLine(from, to, packed, 1);
                 end
             end
@@ -215,26 +213,10 @@ local function Grid(drawList, options, alpha, x, y, size, vx, vy, vs, stretches)
             for i = 1, #runs, 2 do
                 local a, b = math.max(runs[i], vx), math.min(runs[i + 1], vx + vs);
                 if b > a then
-                    from[1], from[2], to[1], to[2] = Screen(a, x), Screen(u, y), Screen(b, x), Screen(u, y);
+                    from[1], from[2], to[1], to[2] = SX(a), SY(u), SX(b), SY(u);
                     drawList:AddLine(from, to, packed, 1);
                 end
             end
-        end
-    end
-    if not options.gridLabels[1] then return; end
-    label[4], shade[4] = opacity, opacity;
-    local light, darkPacked = imgui.GetColorU32(label), imgui.GetColorU32(shade);
-    for k = 0, GRID_SQUARES - 1 do
-        local middle = GRID_FIRST + (k + 0.5) * GRID_STEP;
-        if middle >= vx and middle <= vx + vs then
-            local letter = string.char(65 + k);
-            local w = imgui.CalcTextSize(letter);
-            text.Packed(drawList, Screen(middle, x) - w / 2, y + 2, light, letter, 1, darkPacked);
-        end
-        if middle >= vy and middle <= vy + vs then
-            local number = tostring(k + 1);
-            local _, h = imgui.CalcTextSize(number);
-            text.Packed(drawList, x + 3, Screen(middle, y) - h / 2, light, number, 1, darkPacked);
         end
     end
 end
@@ -380,16 +362,13 @@ local function DrawSettings(options)
     if widgets.Header('Grid') then
         widgets.Label('Show Grid');
         imgui.Checkbox('##mapoverlay.showGrid', options.showGrid);
-        Tip('The game\'s map squares, A to O across and 1 to 15 down, as the clock names them, drawn on the ground only.');
+        Tip('The lines of the game\'s map squares, the ones the clock names, drawn on the ground only.');
         widgets.Label('Grid Color');
         imgui.ColorEdit3('##mapoverlay.gridColor', options.gridColor, ImGuiColorEditFlags_NoInputs);
         widgets.PushControlWidth();
         widgets.Label('Grid Opacity');
         imgui.SliderFloat('##mapoverlay.gridOpacity', options.gridOpacity, 0.0, 1.0, '%.2f');
         widgets.PopControlWidth();
-        widgets.Label('Grid Labels');
-        imgui.Checkbox('##mapoverlay.gridLabels', options.gridLabels);
-        Tip('Each square\'s letter along the top and number down the left.');
     end
 
     if widgets.Header('View') then
@@ -432,6 +411,7 @@ app = shell.New({
     onSettings = function(options)
         place = true;
         if options.style ~= 'flat' and options.style ~= 'art' then options.style = 'flat'; end
+        options.gridLabels = nil; -- 0.2's letters and numbers, gone
     end,
 });
 
