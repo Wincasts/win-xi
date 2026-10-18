@@ -131,6 +131,45 @@ local function BeginSettings(name, flags)
     return flags, state;
 end
 
+-- The window itself, from its Begin to the end of its content, run under pcall so that a failed draw
+-- cannot leave a window or a fading Alpha on the shared imgui context. What it is given and what it got
+-- done go in a job table, one for each depth of nesting (a window drawn inside another's content),
+-- reused frame after frame: no closure is made for it.
+local jobs, depth = {}, 0;
+
+local function Body(job)
+    local name, open, flags, draw, options = job.name, job.open, job.flags, job.draw, job.options;
+    local settingsKind, state, title, border = job.settingsKind, job.state, job.title, job.border;
+    local growFrom = options and options.growFrom;
+    if growFrom then
+        anchor.Measure(name, growFrom, draw);
+        anchor.Place(name, growFrom);
+    end
+
+    job.bordered = borders.Push(border, titles.Breaks(title) or (options and options.border ~= nil));
+    local drawn = imgui.Begin(name, open, flags);
+    job.drawn, job.begun = drawn, true;
+    imgui.PopStyleVar(job.bordered);
+    job.bordered = 0;
+    if drawn then
+        if growFrom then anchor.Track(name, growFrom); end
+        if not settingsKind and not (options and options.shadow == false) then shadow.Draw(options ~= nil and options.capture ~= nil); end
+        backgrounds.Draw(job.background, options and options.background or theme.Get().BackgroundColor);
+        if state ~= nil then
+            state.x, state.y = imgui.GetWindowPos();
+            state.w, state.h = imgui.GetWindowSize();
+            resized = state.resized;
+        end
+        draw();
+        resized = false;
+        local gapLeft, gapRight = titles.Gap(title);
+        borders.Draw(border, gapLeft, gapRight, options and options.border);
+        titles.Draw(title, options);
+        if options and options.controller then controller.Highlight(options.controller); end
+        if options and options.capture then options.capture(); end
+    end
+end
+
 local function Draw(full, name, open, flags, draw, options)
     local alpha = options and options.alpha;
     if alpha and alpha <= 0.01 then
@@ -150,39 +189,24 @@ local function Draw(full, name, open, flags, draw, options)
         flags, state = BeginSettings(name, flags);
     end
     local font = fonts.Push(settingsKind, options and options.fontSize);
-    local border = not settingsKind and borders.Texture(theme.Get().BorderStyle) or nil;
-    local title = not settingsKind and options and options.title or nil;
-    local begun, drawn, bordered = false, false, 0;
-    local ok, err = pcall(function()
-        local growFrom = options and options.growFrom;
-        if growFrom then
-            anchor.Measure(name, growFrom, draw);
-            anchor.Place(name, growFrom);
-        end
 
-        bordered = borders.Push(border, titles.Breaks(title) or (options and options.border ~= nil));
-        drawn = imgui.Begin(name, open, flags);
-        begun = true;
-        imgui.PopStyleVar(bordered);
-        bordered = 0;
-        if drawn then
-            if growFrom then anchor.Track(name, growFrom); end
-            if not settingsKind and not (options and options.shadow == false) then shadow.Draw(options ~= nil and options.capture ~= nil); end
-            backgrounds.Draw(background, options and options.background or theme.Get().BackgroundColor);
-            if state ~= nil then
-                state.x, state.y = imgui.GetWindowPos();
-                state.w, state.h = imgui.GetWindowSize();
-                resized = state.resized;
-            end
-            draw();
-            resized = false;
-            local gapLeft, gapRight = titles.Gap(title);
-            borders.Draw(border, gapLeft, gapRight, options and options.border);
-            titles.Draw(title, options);
-            if options and options.controller then controller.Highlight(options.controller); end
-            if options and options.capture then options.capture(); end
-        end
-    end);
+    depth = depth + 1;
+    local job = jobs[depth];
+    if job == nil then
+        job = {};
+        jobs[depth] = job;
+    end
+    job.name, job.open, job.flags, job.draw, job.options = name, open, flags, draw, options;
+    job.settingsKind, job.state, job.background = settingsKind, state, background;
+    job.border = not settingsKind and borders.Texture(theme.Get().BorderStyle) or nil;
+    job.title = not settingsKind and options and options.title or nil;
+    job.begun, job.drawn, job.bordered = false, false, 0;
+    local ok, err = pcall(Body, job);
+    local begun, drawn, bordered = job.begun, job.drawn, job.bordered;
+    -- what the job held is let go of, so that nothing of the window's is kept alive by it
+    job.open, job.draw, job.options, job.state, job.background = nil, nil, nil, nil, nil;
+    depth = depth - 1;
+
     -- A failed draw must not leave a window or fading Alpha on the shared ImGui context.
     -- Callers still own any font/style stacks they push inside their callbacks.
     if bordered > 0 then imgui.PopStyleVar(bordered); end

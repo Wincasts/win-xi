@@ -59,6 +59,7 @@ echo
 run simplelog  tests/empty.lua          simplelog_ui_check.lua
 run controller tests/empty.lua          controller_check.lua
 run debuffs    tests/empty.lua          debuffs_check.lua
+run game       tests/empty.lua          winxi_game_check.lua
 luajit tests/winxi_statusdat_check.lua || exit 1
 run statusicons tests/empty.lua         winxi_statusicons_mixed_check.lua
 run party      addons/party/party.lua party_check.lua

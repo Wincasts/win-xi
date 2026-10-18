@@ -34,6 +34,11 @@ local function Find(key, pattern, offset)
     return at;
 end
 
+-- The menu on top is the same from one frame to the next, and its name is read once for as long as it
+-- is: by the header it is read from, which is where the game keeps the menu's name for good, so that
+-- the same header is the same name
+local menuHeader, menuName = nil, '';
+
 function game.MenuName()
     local base = Find('menu', '8B480C85C974??8B510885D274??3B05', 16);
     if base == 0 then
@@ -53,8 +58,13 @@ function game.MenuName()
         return '';
     end
 
-    local name = ashita.memory.read_string(header + 0x46, 16);
-    return (string.gsub(name, '\x00', ''));
+    if header ~= menuHeader then
+        menuHeader = header;
+        local name = ashita.memory.read_string(header + 0x46, 16);
+        -- its zeros taken off: %z, as a pattern of this Lua's cannot hold a zero byte itself
+        menuName = (string.gsub(name, '%z', ''));
+    end
+    return menuName;
 end
 
 -- chat expanded signature courtesy of Syllendel
@@ -71,14 +81,23 @@ function game.IsChatExpanded()
     return ashita.memory.read_uint8(pointer + 0xF1) > 2;
 end
 
+-- Whether a menu is the map, or another full-screen list of its kind: worked out once for each name,
+-- as the game has a few dozen menus and this is asked every frame
+local mapMenus = {};
+
 function game.IsMapOpen()
     local name = game.MenuName();
     if name == '' then
         return false;
     end
-    return name:find('menu%s+map') ~= nil
-        or name:find('menu%s+scanlist') ~= nil
-        or name:find('menu%s+cnqframe') ~= nil;
+    local isMap = mapMenus[name];
+    if isMap == nil then
+        isMap = name:find('menu%s+map') ~= nil
+            or name:find('menu%s+scanlist') ~= nil
+            or name:find('menu%s+cnqframe') ~= nil;
+        mapMenus[name] = isMap;
+    end
+    return isMap;
 end
 
 -- event system signature courtesy of Velyn

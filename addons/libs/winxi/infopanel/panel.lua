@@ -118,6 +118,26 @@ local function TextWidths(segments, font, size)
     segments.widthsFont, segments.widthsSize, segments.widths = font, size, widths
     return widths
 end
+-- The points and sizes handed to imgui, which copies them as it is given them: the same few tables
+-- every frame, as this is drawn every frame
+local pointA, pointB, pointC, room = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
+local shadeLine = { 0, 0, 0, 0.45 } -- the dark line beside a beveled separator
+local function Divider(list, p, tint, x, top, bottom)
+    if bottom<=top then return end
+    local color = imgui.GetColorU32(tint)
+    pointA[1], pointA[2], pointB[1], pointB[2] = x, top, x, bottom
+    list:AddLine(pointA,pointB,color,1)
+    if p.separatorStyle[1] >= 2 and bottom-top>4 then
+        pointA[1], pointA[2], pointB[1], pointB[2] = x+2, top+2, x+2, bottom-2
+        list:AddLine(pointA,pointB,imgui.GetColorU32(shadeLine),1)
+    end
+    if p.separatorStyle[1] == 3 then
+        pointA[1], pointA[2], pointB[1], pointB[2], pointC[1], pointC[2] = x, top-2, x-2, top+1, x+2, top+1
+        list:AddTriangleFilled(pointA,pointB,pointC,color)
+        pointA[1], pointA[2], pointB[1], pointB[2], pointC[1], pointC[2] = x, bottom+2, x-2, bottom-1, x+2, bottom-1
+        list:AddTriangleFilled(pointA,pointB,pointC,color)
+    end
+end
 function M.Draw(p, slots, rect, options)
     imgui = imgui or require('imgui')
     theme = theme or require('winxi.theme')
@@ -127,18 +147,6 @@ function M.Draw(p, slots, rect, options)
     local size = imgui.GetFontSize()
     local font = imgui.GetFont and imgui.GetFont() or nil
     local tint = theme.GameBorderColor()
-    local function Divider(x, top, bottom)
-        if bottom<=top then return end
-        local color = imgui.GetColorU32(tint)
-        list:AddLine({x,top},{x,bottom},color,1)
-        if p.separatorStyle[1] >= 2 and bottom-top>4 then
-            list:AddLine({x+2,top+2},{x+2,bottom-2},imgui.GetColorU32({0,0,0,0.45}),1)
-        end
-        if p.separatorStyle[1] == 3 then
-            list:AddTriangleFilled({x,top-2},{x-2,top+1},{x+2,top+1},color)
-            list:AddTriangleFilled({x,bottom+2},{x-2,bottom-1},{x+2,bottom-1},color)
-        end
-    end
     for i=1,3 do
         local segments = slots[i]
         local b, widths, width = bounds[i], TextWidths(segments, font, size), 0
@@ -152,28 +160,34 @@ function M.Draw(p, slots, rect, options)
         local right = math.max(left,b.right-4)
         local x = M.Aligned(left,right,width,p.slots[i].align[1])
         local y = rect.top+(rect.height-size)/2
-        list:PushClipRect({left,rect.top+1},{right,rect.top+rect.height-1},true)
+        pointA[1], pointA[2], pointB[1], pointB[2] = left, rect.top+1, right, rect.top+rect.height-1
+        list:PushClipRect(pointA,pointB,true)
         for j,s in ipairs(segments) do
             if type(s)=='string' then
                 if options.outline[1]>0 then outlined.Draw(list,x,y,options.textColor,s,options.outline[1])
-                else list:AddText({x,y},imgui.GetColorU32(options.textColor),s) end
-            elseif s.separator then Divider(x+4,rect.top+p.separatorInset[1],rect.top+rect.height-p.separatorInset[1])
+                else
+                    pointA[1], pointA[2] = x, y
+                    list:AddText(pointA,imgui.GetColorU32(options.textColor),s)
+                end
+            elseif s.separator then Divider(list,p,tint,x+4,rect.top+p.separatorInset[1],rect.top+rect.height-p.separatorInset[1])
             else
                 local kind = s.kind or 'weather'
                 local dx,dy = p[kind..'X'][1],p[kind..'Y'][1]+options.iconOffset[1]
                 local h = widths[j]
                 local iy = rect.top+(rect.height-h)/2+dy
-                list:AddImage(s.icon,{x+dx,iy},{x+dx+h,iy+h})
+                pointA[1], pointA[2], pointB[1], pointB[2] = x+dx, iy, x+dx+h, iy+h
+                list:AddImage(s.icon,pointA,pointB)
             end
             x=x+widths[j]
         end
         list:PopClipRect()
         if p.separators[1] and i<3 then
-            Divider(b.right,rect.top+p.separatorInset[1],rect.top+rect.height-p.separatorInset[1])
+            Divider(list,p,tint,b.right,rect.top+p.separatorInset[1],rect.top+rect.height-p.separatorInset[1])
         end
     end
     if options.reserve ~= false then
-        imgui.Dummy({math.max(0,rect.width-2*p.padding[1]),math.max(0,rect.height-2*p.padding[1])})
+        room[1], room[2] = math.max(0,rect.width-2*p.padding[1]), math.max(0,rect.height-2*p.padding[1])
+        imgui.Dummy(room)
     end
 end
 return M
