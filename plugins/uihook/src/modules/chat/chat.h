@@ -25,19 +25,29 @@ enum { CHAT_SELECTED_PRIMARY=1, CHAT_SELECTED_SPLIT=2, CHAT_EXPANDED=4, CHAT_NAT
 // 64 the tab strip and scrollbar measured as the game draws them, and hidden when the addon draws its own,
 // 128 the full log's rows of text decoded and measured as the game draws them, and hidden the same way
 // 256 the game's two log windows' routing read: which chat modes each shows, and the second window's bounds
-enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64, CHAT_TEXT_SUPPORTED=128, CHAT_WINDOWS_SUPPORTED=256, CHAT_LINES_SUPPORTED=512, CHAT_COLORS_SUPPORTED=1024 };
+enum { CHAT_FULL_SUPPORTED=8, CHAT_FULL_SKIN_SUPPORTED=16, CHAT_CONTROLS_SUPPORTED=32, CHAT_REPLACE_SUPPORTED=64, CHAT_TEXT_SUPPORTED=128, CHAT_WINDOWS_SUPPORTED=256, CHAT_LINES_SUPPORTED=512, CHAT_COLORS_SUPPORTED=1024, CHAT_MIRROR_SUPPORTED=2048 };
+// 2048 the full log mirrored: asked (CHAT_REPLACE_ALL), the game draws nothing of it, its row light, cursor and marks too
 // 1024 the game's chat colours read: each mode's category and each category's colour, and the inline palette
 // 512 the two log windows' lines read: each window's current whole lines (the game grows a row a message and shrinks
 // to its fewest), its most and its fewest
 // WindowFlags bits: 1, the second log window is shown, so the game routes each message by its filters;
 // clear, the first window shows everything (and WindowModes says so)
 enum { CHAT_SECOND_WINDOW=1 };
-// ReplaceControls bits, written by Lua: which native controls to leave undrawn, the addon drawing its own in their places
-enum { CHAT_REPLACE_TABS=1, CHAT_REPLACE_SCROLL=2, CHAT_REPLACE_TEXT=4 };
+// ReplaceControls bits, written by Lua: which native controls to leave undrawn, the addon drawing its own in their places;
+// 8, all of it: with the tabs and text, the row light, the cursor, the marked rows' sprites and anything else the full
+// log draws are left undrawn too, the addon drawing the whole log from what is measured (the game's rows, hover and
+// Confirm still the game's)
+enum { CHAT_REPLACE_TABS=1, CHAT_REPLACE_SCROLL=2, CHAT_REPLACE_TEXT=4, CHAT_REPLACE_ALL=8 };
 // A row of the full log's text as last drawn: its bounds, normalized to the viewport (where placed), its text's
 // place and length in the shared Text, its message's chat mode, and flags: 1 the game's cursor is on it, 2 pressed,
-// 4 marked by the game, 8 cut (longer than the room left), 16 placed (its Rect is where it was drawn)
-enum { CHAT_ROW_CURSOR=1, CHAT_ROW_PRESSED=2, CHAT_ROW_MARKED=4, CHAT_ROW_CUT=8, CHAT_ROW_PLACED=16 };
+// 4 marked by the game, 8 cut (longer than the room left), 16 placed (its Rect is where it was drawn), 32 lit (the
+// game's row-selection art, drawn before the rows, covers the row's middle: what the game highlights)
+enum { CHAT_ROW_CURSOR=1, CHAT_ROW_PRESSED=2, CHAT_ROW_MARKED=4, CHAT_ROW_CUT=8, CHAT_ROW_PLACED=16, CHAT_ROW_LIT=32 };
+// Whether a row (top, bottom, normalized) lies under the selection art's bounds (normalized): its middle within them
+static inline bool ChatRowLit(const float* row,const float* lit) {
+    const float middle=(row[1]+row[3])*0.5f;
+    return middle>=lit[1] && middle<=lit[3];
+}
 struct ChatTextRow { float Rect[4]; uint32_t Offset, Length, Mode, Flags; };
 #define CHAT_TEXT_ROWS 128   // rows of text published at most: a 4K screen's full log holds fewer
 #define CHAT_TEXT_BYTES 65536 // the room for their text, in all
@@ -53,7 +63,7 @@ struct ChatShared {
     uint32_t InputRectFrame;
     float PrimaryRect[4]; // native primary log bounds, independent of replacement height
     uint32_t PrimaryRectFrame;
-    float ReplacementRect[4]; // actual captured primary window, in ImGui pixels
+    float ReplacementRect[4]; // clock anchor: primary, or stacked split above it, in ImGui pixels
     uint32_t ReplacementRectFrame;
     float ExpandedRect[4]; // normalized native fulllog bounds; same primary replacement slot
     uint32_t ExpandedRectFrame;
@@ -93,10 +103,40 @@ static inline bool ChatReplayAllowed(const ChatShared& chat, bool expandedCaptur
 }
 // Re-enable native GPU submissions at content Draw, leaving them enabled for Window::Render's
 // subsequent cursor and scrollbar. The outer window scope restores the previous blocking state.
-static inline void ChatNativeContent(bool expandedSkin, bool& blocking) {
-    if (expandedSkin) blocking=false;
+// A mirrored log (CHAT_REPLACE_ALL) stays blocked throughout: measured, never drawn.
+static inline void ChatNativeContent(bool expandedSkin, bool mirror, bool& blocking) {
+    if (expandedSkin && !mirror) blocking=false;
+}
+// Which of the asked CHAT_REPLACE_* bits a capture is granted: tabs and scrollbar with their hooks (replace), the
+// text with its row site (text), and the whole log only with the tabs and text both granted, the addon drawing them
+static inline uint32_t ChatReplaceGranted(uint32_t asked,bool replace,bool text) {
+    uint32_t granted=replace ? asked & (CHAT_REPLACE_TABS|CHAT_REPLACE_SCROLL) : 0;
+    if (text) granted|=asked & CHAT_REPLACE_TEXT;
+    if ((asked & CHAT_REPLACE_ALL) && (granted & (CHAT_REPLACE_TABS|CHAT_REPLACE_TEXT))==(CHAT_REPLACE_TABS|CHAT_REPLACE_TEXT))
+        granted|=CHAT_REPLACE_ALL;
+    return granted;
 }
 
+// The first log's replacement title sits half above its top edge, over a second log stacked above
+// it, which the game draws after the first. While the second is replaced (the game drew it last
+// frame and it has a capture), the first is held back and drawn straight after it: window 1 on top.
+static inline bool ChatDeferPrimary(const ChatShared& chat,bool splitCaptured) {
+    return splitCaptured && !(chat.StateFlags & CHAT_EXPANDED)
+        && chat.NativeFrame[1] && chat.NativeFrame[1]!=chat.Frame && chat.Frame-chat.NativeFrame[1]<=1;
+}
+// Chatbox captures primary before split. Start afresh with primary each frame; a split
+// wholly above it and horizontally overlapping becomes the clock's anchor. Side-by-side
+// logs must not steal the primary's anchor. No ABI change: this is the published clock rect.
+static inline void ChatClockAnchor(ChatShared& chat,unsigned slot,const float* rect) {
+    if (slot>1) return;
+    for (unsigned i=0;i<4;i++) if (!std::isfinite(rect[i])) return;
+    if (rect[2]<=rect[0] || rect[3]<=rect[1]) return;
+    if (slot==1 && (chat.ReplacementRectFrame!=chat.Frame
+        || rect[3]>chat.ReplacementRect[1]+2
+        || rect[0]>=chat.ReplacementRect[2] || rect[2]<=chat.ReplacementRect[0])) return;
+    memcpy(chat.ReplacementRect,rect,sizeof(chat.ReplacementRect));
+    chat.ReplacementRectFrame=chat.Frame;
+}
 // Move the clock group by the same offset as the replacement log's top-left, preserving
 // the game's spacing between the stock clock and stock log. Expired/hidden logs never move it.
 static inline bool ChatClockOffset(const ChatShared& chat,float width,float height,float& x,float& y) {
@@ -107,8 +147,20 @@ static inline bool ChatClockOffset(const ChatShared& chat,float width,float heig
     for (unsigned i=0;i<4;i++) if (!std::isfinite(chat.PrimaryRect[i]) || !std::isfinite(chat.ReplacementRect[i])) return false;
     if (chat.PrimaryRect[2]<=chat.PrimaryRect[0] || chat.PrimaryRect[3]<=chat.PrimaryRect[1]
         || chat.ReplacementRect[2]<=chat.ReplacementRect[0] || chat.ReplacementRect[3]<=chat.ReplacementRect[1]) return false;
-    x=chat.ReplacementRect[0]-chat.PrimaryRect[0]*width;
-    y=chat.ReplacementRect[1]-chat.PrimaryRect[1]*height;
+    const float* stock=chat.PrimaryRect;
+    // The stock clock is already above the upper native log. Preserve its gap from
+    // that log, rather than applying the primary-to-split height a second time.
+    if (chat.SplitRectFrame && chat.Frame-chat.SplitRectFrame<=2
+        && chat.NativeFrame[1] && chat.Frame-chat.NativeFrame[1]<=2
+        && chat.DrawnFrame[1] && chat.Frame-chat.DrawnFrame[1]<=2) {
+        const float* split=chat.SplitRect;
+        bool valid=true;
+        for (unsigned i=0;i<4;i++) if (!std::isfinite(split[i])) valid=false;
+        if (valid && split[2]>split[0] && split[3]>split[1]
+            && split[3]<=stock[1]+2/height && split[0]<stock[2] && split[2]>stock[0]) stock=split;
+    }
+    x=chat.ReplacementRect[0]-stock[0]*width;
+    y=chat.ReplacementRect[1]-stock[1]*height;
     return std::isfinite(x) && std::isfinite(y);
 }
 static inline bool ChatTranslateVertices(void* data,unsigned count,unsigned stride,float x,float y) {
@@ -228,6 +280,12 @@ public:
     }
     uint8_t* ExpandedDraw() const { return ExpandedSupported() ? fullDraw : nullptr; }
     void** SplitOwner() const { return slots[1]; } // the second log window's owner global (logwin2)
+    void** FullOwner() const { return fullOwner; } // the full log's owner global (fulllog)
+    // The first log window's history ring, its owner's +18, followed afresh each time; null where it cannot be read
+    uint8_t* FirstRing() const {
+        uint8_t* owner=nullptr; uint8_t* ring=nullptr;
+        return slots[0] && ChatRead(slots[0],&owner,4) && owner && ChatRead(owner+0x18,&ring,4) ? ring : nullptr;
+    }
     bool InputSupported() const { return activeMenu!=nullptr; }
     bool ExpandedSupported() const { return activeMenu && fullOwner && sizeByte && fullVtable; }
     bool LinesSupported() const { return linesKnown && slots[0] && slots[1]; }

@@ -140,6 +140,36 @@ places the frame after, so the game's hit-tests, Square selection and wheel are 
 geometry is derived from sprite fields; nothing native is written. A frame in which the game draws
 no strip or no scrollbar publishes none, and the addon then leaves the game's drawn.
 
+## The full log's height (0.6)
+
+Open (032F76A0) sizes the log for the screen: H, the UI screen rectangle's bottom (word 037E18BA) less its top
+(037E18B6), and the page rows +58 = (H − 1C0) / 16 + 17 (toward zero), the height +5C the template's grown by
+H − 1C0, then the window's shape (032DA5A0) and its list (032D8530) from them; Update and the content Draw read
++58 every frame and nothing recomputes it from H. (Not used: shortening H there takes rows away too. The rows
+are 16 pixels apart in the drawer while the window is in scaled UI units, so on a scaled UI the rows fill only
+its lower part; chatbox fits its frame to the rows drawn instead.)
+
+## The log windows' history (0.6)
+
+Text-in (032E7C00) gives each message to the first window's ring (owner [037E193C], ring at its +18) and,
+where its filters keep it, the second's ([0373815C]), through the wrap (032E8CE0), which splits it into lines
+at the window's width. Each line is a ring entry (032E7280: +14 the newest index, +16 the oldest, +1A the
+count, 100 entries of 0x800 from +20): the message's 60-byte header copied, +0C a serial from the ring's +10
+(a line's, moved for each line), +10 the words, the words from +3C. The wrap clears +38 and masks the flags
++15 to 0xB0 on every line after a message's first, but live (`/uihook chat history`) both are already 0 on
+first lines too, so they do not tell a message's start; with Ashita's timestamps on, a first line starts with
+one and the rest do not. The steps 032E92E0 (back) and 032E9330 (on) wrap at 100.
+history.h reads the first window's ring this way, oldest to newest, on request.
+
+## The tab strip's order (0.6)
+
+The strip (032F7B80) walks the owner's table at +68, pairs of a filter and its tab's art ended by 0B, and
+draws each tab's art (+80 + art * 8, +4 chosen) left to right: a tab not chosen advances x by 1E (30 units,
+the next tab drawn over the rest of it), the chosen one by its sprite's width. 032F88D0 gives a filter's
+art. Open builds the table (032F8800) from 032F8700's pairs at 0352F940: (0,0), (8,1) only while config B4
+is set (the second log window), (3,2), (4,3), (1,4), (2,5), (7,6), then (10,8) and (9,7), swapped for a
+Japanese client, (6,9), (5,10). So a measured tab's Channel is its art, and its filter is the pair's.
+
 ## Measured text (0.9)
 
 Within a skinned full log, each row-draw call is measured from the screen-space vertices its glyphs
@@ -151,6 +181,19 @@ would have drawn them, a 16-pixel cell at its x, y, when the viewport is known. 
 bit 4, only with the row site), each row-draw call's GPU submissions are blocked, glyphs and the
 cursor's mark alike; the 0x40 marker sprites, the row highlight, the cursor and all hit-tests are
 the game's. The compact logs' rows pass through the same site untouched.
+
+## The whole log mirrored (0.6)
+
+ReplaceControls bit 8, granted only with the tabs and text (the addon drawing both), leaves the full log
+wholly undrawn: the content Draw does not unblock GPU submissions, so the tab strip, the drawer's rows,
+the 0x40 marked rows' sprites and anything else it draws stay blocked, and Window::Render's cursor,
+scrollbar and row-selection art after it stay blocked with them (the selection art is no longer let
+through the frame's suppression). Measurement is by vertices and runs whether a call is blocked or not,
+so the tabs, scrollbar and rows are published as before, each row with its cursor (1), pressed (2) and
+marked (4) state, from which the addon draws the light and cursor. The row-selection art (drawn by
+Window::Render before the content, in the selected-row colours) is measured call by call, and each row
+whose middle it covers is published lit (32): what the game highlights, whichever row the cursor is on. Nothing is written; the cursor, hover,
+scroll and Confirm are the game's. A menu over the log is another window's Render and stays native.
 
 ## The two log windows (0.5)
 
@@ -212,9 +255,10 @@ serial that moves only when they change; nothing is called or written.
   Bit 8: the two log windows' routing read and the second window's bounds published (recognition only, no site taken).
   Bit 9: each window's lines read from its owner (recognition only).
   Bit 10: the game's colour tables read (recognition only).
+  Bit 11: the full log mirrored whole (ReplaceControls 8), with bit 7's row site.
 - ControlStyleFrame and four RGBA colours are published by Lua. The plugin checks finite [0,1]
   values and a current-frame stamp, then snapshots them only with a successful expanded capture.
-  ReplaceControls (1 tabs, 2 scrollbar, 4 text) is snapshotted with it, and only with the hooks each needs.
+  ReplaceControls (1 tabs, 2 scrollbar, 4 text, 8 all) is snapshotted with it, and only with the hooks each needs.
   Missing/invalid styles never suppress or recolour native message text.
 - Primary capture mode 1: compact contents; mode 2: expanded frame only, requires bit 4.
 - Compact captures never cover full-log windows, and expanded captures never cover compact

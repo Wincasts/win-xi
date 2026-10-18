@@ -9,7 +9,7 @@ from pathlib import Path
 
 modules = Path(__file__).resolve().parents[1] / 'src/modules'
 source = '\n'.join((modules / name).read_text() for name in (
-    'chat/chat.h', 'chat/controls.h', 'chat/windows.h', 'chat/colors.h', 'party/game.h', 'party/target.h'))
+    'chat/chat.h', 'chat/controls.h', 'chat/windows.h', 'chat/colors.h', 'chat/menus.h', 'party/game.h', 'party/target.h'))
 data = Path(sys.argv[1]).read_bytes()
 base = int(re.search(r'base (0x[0-9A-Fa-f]+)', Path(sys.argv[2]).read_text())[1], 16)
 
@@ -132,4 +132,22 @@ unique('CHAT_LINES_GROW_PATTERN')
 assert data.count(bytes.fromhex('66C7465414006689465066C7464E0800')) == 1
 print(f'Log window routing: {entries} mode entries, category bits {bits}, {len(readers)} config readers; line fields pinned; {categories} category colours.')
 print('Native full-log vtable/content, tab strip, tab/selection/cursor/scrollbar and row-drawing CALL graph cross-check passed.')
+# Menu placement: the render's first call is exactly the verified layout updater. The
+# four target shorts are copied into the native shape and subsequently become Window::GetRect.
+update = unique('MENU_UPDATE_PATTERN')
+proof = unique('MENU_TARGET_PROOF')
+assert callee(window + 9) == update and update <= proof < update + 0x230
+menu_source = (modules / 'chat/menus.h').read_text()
+menu_names = re.findall(r'\{"(menu    [^\"]+)"\}', menu_source)
+assert menu_names and menu_names[0] == 'menu    playermo'
+for name in menu_names:
+    assert len(name) == 16
+    globals_found = set()
+    for match in re.finditer(re.escape(name.encode() + bytes(16)), data):
+        address = struct.unpack_from('<I', data, match.start() + 32)[0]
+        if base <= address <= base + len(data) - 4 and address % 4 == 0:
+            globals_found.add(address)
+    assert len(globals_found) == 1, (name, globals_found)
+    print(f'Menu owner {name[8:].strip()}: unique in-module registry global')
+print('Menu layout caller/field proof and action-family registry cross-check passed.')
 print('Static verification only: live artwork, pulse/fades, hit-tests, menu actions and GPU resets still need validation.')

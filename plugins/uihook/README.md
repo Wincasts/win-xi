@@ -1,4 +1,4 @@
-# uihook — experimental 0.2
+# uihook — experimental 0.6
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
@@ -203,7 +203,7 @@ u32 StateFlags, StateFrame
 u32 FullScroll, FullCursor, FullPageRows, FullFilter
 u32 ControlStyleFrame
 float ControlColors[4][4]  // highlight, tab, cursor, scrollbar; RGBA [0,1]
-u32 ReplaceControls         // Lua-owned: 1 tabs, 2 scrollbar, 4 text left undrawn, the addon drawing its own
+u32 ReplaceControls         // Lua-owned: 1 tabs, 2 scrollbar, 4 text left undrawn, the addon drawing its own; 8 all of it
 u32 TabFrame, TabCount
 struct { float Rect[4]; u32 Channel, Selected; } Tabs[12]  // the game's tab strip as last drawn
 u32 ScrollFrame, ScrollPage, ScrollCount, ScrollTop        // its scrollbar: page rows, rows, rows above the view
@@ -236,7 +236,10 @@ to its fewest while none come, its most and its fewest), the fields pinned by th
 grow signatures and checked for sense each frame. Bit 10 that the game's chat colours are read, as
 configured: each mode's category, each category's colour (what the game draws a message of that mode
 in, and what a 1E code past the palette or a 1F code names) and the inline palette's seventeen colours
-(`Colors()`: `Mode(mode)`, `Inline(bank, slot)`). None is an additional submission slot. `Submit` is render-thread-only
+(`Colors()`: `Mode(mode)`, `Inline(bank, slot)`). Bit 11 that the full log can be mirrored whole
+(`State().nativeMirror`; `replace.all`, ReplaceControls 8, granted only with the tabs and text): its
+content and Window::Render's cursor, scrollbar and row-selection art all left undrawn, still measured,
+the rows' cursor, pressed and marked flags saying what the addon draws in their place. None is an additional submission slot. `Submit` is render-thread-only
 `cdecl int(index, capture)`: 0 renews empty, 1 captures compact/input contents, 2 captures a
 **frame-only expanded skin** (primary slot only, requires bit 4), and -1 releases that slot.
 `primary.Capture(true, colors, replace)` requests mode 2, optionally publishing the four RGBA control
@@ -279,7 +282,7 @@ and nil when the game drew none, so an addon asks for a control to be left undra
 a place to draw its own. `State().nativeText` reports bit 7, and `primary.Rows(w, h)` the game's rows
 of text as last drawn there, newest first: each its bounds in ImGui pixels (nil where it drew nothing
 and its place was not known), its text as the game was given it (CP932 bytes with the game's 1E/1F
-colour codes), its chat mode, and whether the game's cursor is on it, whether the game marks it and
+colour codes), its chat mode, and whether the game's cursor is on it, whether it is held down, whether the game marks it and
 whether it was cut; the same table again while the rows are what they were.
 
 Full-log discovery cross-checks the three adjacent logwindo/logwin2/fulllog registry entries
@@ -351,6 +354,53 @@ scroll/filter continuity and menu handoff; Lua fixtures check ABI,
 slot isolation, capture failure and unload/reload. **Live GPU validation is still needed**:
 primary/split, expand/collapse, input/mode changes, zoning, UI hide/show, resolution/font
 changes, device recovery, stale submissions and addon/plugin unload/reload.
+
+## Chat-owned panel / native action-menu anchor (0.6)
+
+Chatbox 0.11.1 / Winxi 22 optionally publishes its completed panel bounds after a successful compact
+chat capture. `winxi.nativemenus` uses the independent **menu ABI 1**, magic `UIHOOK-MENUS`:
+108 bytes: Magic[16], Version, Size, Frame, Supported, RequestFrame, HostSlot, Panel[4] in pixels,
+MenuFrame, Applied, Restored, LastName[16], LogRequestFrame, LogPlace[2] in pixels, LogFrame,
+LogApplied, LogRestored. Chat ABI remains 13. No publisher means no menu changes.
+
+The **expanded chat log** (`fulllog`, the owner global the chat module recognises) is placed the same
+way: while LogRequestFrame is fresh (two frames), its target is moved before its own Update so its
+bottom-left is at LogPlace, its size the game's; moved left or down as far as keeps it on the screen,
+and left where the game puts it when taller than the screen. Its rows, tabs, scrollbar, cursor and
+hit-tests are laid out there by the game. It has its own request and restore, independent of the
+menus' (expanded chat does not stop it); a stale request, release or unload gives the game's place back
+to a still-live matching window. `PlaceLog(left, bottom)` and `StopLog()` in `winxi.nativemenus`.
+
+The plugin verifies Window::Render's first CALL is the unique Window::Update and pins its four
+short target fields (+8C/+8E origin, +90/+92 size) against native shape writes. It discovers only the
+registered command (`playermo`), magic, ability, inventory/item-use, associated control and event-choice (`query`) owners;
+no fixed process addresses. Live owner→Window (+8), header identity/prefix, writable fields, bounds,
+scale mode and menu-manager dimensions are checked. Before the native renderer, it changes the
+native origin target to align left with the panel and end 2px above it. Native Update rebuilds the
+frame, sprites and row origins, so native cursor/hit geometry uses the same coordinates. No GPU
+translation, mouse remapping, selection writes or fake input. Positional animations may snap.
+
+Requests expire after two frames without fresh capture/replay; expanded chat also disallows them.
+Opt-out, zoning, disabled/failed chat replacement and plugin unload restore only owned origins in
+still-live matching windows and rebuild native geometry. Newer game-written targets are preserved.
+Unknown client signatures/owners, invalid bounds and menus too tall to fit above the panel remain
+native. `/uihook menus` reports support, source frame/host, apply/restore counts and the last owner,
+and the expanded log's request, place and apply/restore counts.
+
+This is experimental. Static client-signature checks and fixture tests do not replace in-game
+mouse/controller, action selection, open/close, scale, cutscene and unload checks. Unload uihook
+before copying the rebuilt DLL; never overwrite a loaded plugin.
+
+## The game's chat history (0.6)
+
+`winxi.nativehistory` uses the independent **history ABI 1**, magic `UIHOOK-HISTORY`: Magic[16],
+Version, Size, Frame, Supported, RequestFrame (Lua's), Serial and ReadFrame (moved with each read),
+Count, Used, Lines[100] (Offset, Length, Mode, Serial, Flags, Extra) and Text[65536]. Asked, uihook reads
+the first log window's ring once (its owner's +18; +14 newest, +16 oldest, +1A count, 100 lines of 2 KB
+from +20) oldest to newest, each line decoded with the expanded log's decoder to the bytes the game was
+given (CP932 with its 1E/1F colour codes), with its whole mode word, serial (+0C), flags (+15) and +38 (on a
+message's lines after its first the game clears +38 and masks the flags to 0xB0). Nothing is called or
+written. `/uihook chat history` prints the newest 12 lines with those fields.
 
 ## Architecture
 
