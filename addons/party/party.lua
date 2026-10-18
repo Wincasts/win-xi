@@ -338,7 +338,8 @@ local function Present()
         return
     end
 
-    details.BeginFrame(not saved.clickThrough[1] and not windows.BlockNativeInputs)
+    -- Native menus block clicks, not read-only buff/debuff hover (including in combat).
+    details.BeginFrame(not saved.clickThrough[1] and not hidden)
     if saved.automaticPositioning[1] then
         local count = 0
         if saved.pets.enabled[1] then

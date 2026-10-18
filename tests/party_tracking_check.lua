@@ -42,6 +42,8 @@ imgui.SetTooltip = function() error('party details must use Winxi tooltips') end
 imgui.Text = function(text) tooltip = text end
 details.Status(134, 900)
 assert(tooltip:find('Estimated remaining:', 1, true) and tooltip:find('Observed effects only', 1, true))
+details.Job({ name = 'Member', jobText = '[WAR30/RDM15]' })
+assert(tooltip == '[WAR30/RDM15]', 'basic member hover shows job and level without extra details')
 details.Member({ name = 'Pet', owner = 'Owner', jobText = '[WAR99/SAM49]', statusIds = { 4 } })
 assert(tooltip:find('Owner: Owner', 1, true) and tooltip:find('Effect 4', 1, true))
 tooltip = nil
