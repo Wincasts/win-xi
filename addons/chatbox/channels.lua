@@ -90,7 +90,10 @@ function M.LinkshellPacket(data)
     end
 end
 
--- Extra data stores a little-endian six-bit alphabet at byte offset 9.
+-- Extra data stores a little-endian six-bit alphabet at byte offset 9: a (1) to z, A to Z, 0 to 9 (62).
+-- After the last letter the server writes ones to the end of the byte, then zeros. Where that is a
+-- whole code (63) the name ends there; where it is four bits, they read as a letter (15, o) with a
+-- zero after it, so as the server's own decoder does, a zero drops the letter before it.
 function M.LinkshellName(inventory, number)
     local bit = require('bit')
     local entry = pearls[number]
@@ -106,7 +109,8 @@ function M.LinkshellName(inventory, number)
     for i = 0, 19 do
         local offset, shift = 9 + math.floor(i * 6 / 8), (i * 6) % 8
         local code = bit.band(bit.rshift(byte(offset) + byte(offset + 1) * 256, shift), 63)
-        if code == 0 or code == 63 then break end
+        if code == 63 then break end
+        if code == 0 then name[#name] = nil; break end
         name[#name + 1] = alphabet:sub(code, code)
     end
     local value = table.concat(name)
