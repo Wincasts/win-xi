@@ -28,6 +28,9 @@ function details.Hover(left, top, right, bottom)
     return type(mouseX) == 'number' and type(mouseY) == 'number'
         and mouseX >= left and mouseX < right and mouseY >= top and mouseY < bottom
 end
+function details.Job(member)
+    if member.jobText then tooltip.Show(member.jobText) end
+end
 function details.Member(member)
     local text = member.petName or member.name or 'Unknown'
     if member.owner then text = text .. '\nOwner: ' .. member.owner end

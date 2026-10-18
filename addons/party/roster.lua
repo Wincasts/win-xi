@@ -292,6 +292,16 @@ local sampleJobs = { 'WAR', 'WHM', 'BLM', 'THF', 'RDM', 'BRD' }
 -- A made-up party member for the sample windows, standing in for an empty slot
 ---@return PartyMember
 local function GetSampleMember(slot, place)
+    -- Keep buffs ahead of sample ailments so Debuffs First visibly changes their order.
+    local statusIds = { 40, 41, 33 } -- Protect, Shell, Haste
+    if slot == 2 then
+        statusIds[#statusIds + 1] = 4 -- Paralysis
+    elseif slot == 4 then
+        statusIds[#statusIds + 1] = 3 -- Poison
+        statusIds[#statusIds + 1] = 13 -- Slow
+    elseif slot == 6 then
+        statusIds[#statusIds + 1] = 5 -- Blindness
+    end
     return {
         targetIndex = nil,
         name = ('Sample %d'):format(slot),
@@ -311,7 +321,7 @@ local function GetSampleMember(slot, place)
         mp = 800 - (slot - 1) * 96,
         tp = (slot - 1) * 500,
         noMp = slot == 4, -- the thief: a grey MP bar
-        statusIds = { 40, 41, 33 }, -- Protect, Shell, Haste
+        statusIds = statusIds,
     }
 end
 

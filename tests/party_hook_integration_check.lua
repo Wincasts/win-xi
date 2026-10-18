@@ -61,6 +61,21 @@ game.IsHidden=function() return false end
 organize.IsActive=function() return false end
 H.frames(1)
 for i=1,3 do assert(captured['xiframes.us.'..i]==1,'each real party/alliance list captured exactly once') end
+-- Combat menus must suppress clicks without suppressing read-only status hover.
+local menuName, mousePos = game.MenuName, imgui.GetMousePos
+local details = require('details')
+local clickThrough = options.clickThrough[1]
+options.clickThrough[1] = false
+imgui.GetMousePos = function() return 20, 30 end
+game.MenuName = function() return 'menu battle' end
+H.frames(1)
+assert(windows.BlockNativeInputs, 'combat menu still blocks native window clicks')
+assert(details.Hover(0, 0, 40, 50), 'combat menu must not block status tooltip hover')
+options.clickThrough[1] = true
+H.frames(1)
+assert(not details.Hover(0, 0, 40, 50), 'explicit clickthrough still disables hover')
+options.clickThrough[1] = clickThrough
+game.MenuName, imgui.GetMousePos = menuName, mousePos
 windows.Draw(windows.List.main, function() end)
 assert(captured['xiframes.tgt.main']==nil and #stack==0,'target untouched, ImGui stack balanced')
 assert(shadowed['xiframes.tgt.main']=='ordinary', 'unhooked target retains the background-list shadow')
