@@ -1,4 +1,4 @@
-## a party, pets, two alliance parties and a target (bare): 349 calls
+## a party, pets, two alliance parties and a target (bare): 333 calls
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (245,343)
 window PushClipRect (0,0) (1920,1080) false
@@ -211,10 +211,6 @@ window AddText (208,84) #FFFFFFFF 37%
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Alliance
-window AddText (382,194) #000000E6 Alliance
-window AddText (384,192) #000000E6 Alliance
-window AddText (384,194) #000000E6 Alliance
 window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
@@ -276,10 +272,6 @@ window AddText (167,163) #F3F37CFF 650
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Alliance 2
-window AddText (382,194) #000000E6 Alliance 2
-window AddText (384,192) #000000E6 Alliance 2
-window AddText (384,194) #000000E6 Alliance 2
 window AddText (383,193) #F0E6C2FF Alliance 2
 window PopClipRect
 imgui End
@@ -317,10 +309,6 @@ window AddText (167,71) #FFFFFFFF 1000
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Alliance 3
-window AddText (382,194) #000000E6 Alliance 3
-window AddText (384,192) #000000E6 Alliance 3
-window AddText (384,194) #000000E6 Alliance 3
 window AddText (383,193) #F0E6C2FF Alliance 3
 window PopClipRect
 imgui End
@@ -341,14 +329,10 @@ window AddText (98,48) #FFFFFFFF 4.0m
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Target
-window AddText (382,194) #000000E6 Target
-window AddText (384,192) #000000E6 Target
-window AddText (384,194) #000000E6 Target
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## with an alliance invite and treasure waiting (bare): 369 calls
+## with an alliance invite and treasure waiting (bare): 353 calls
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (245,343)
 window PushClipRect (0,0) (1920,1080) false
@@ -581,10 +565,6 @@ over AddImage treasure.png (119,395.5) (140,416.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,397.5) (140,418.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,396.5) (140,417.5) (0,0) (1,1) #FFFFFFD9
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Alliance
-window AddText (382,194) #000000E6 Alliance
-window AddText (384,192) #000000E6 Alliance
-window AddText (384,194) #000000E6 Alliance
 window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
@@ -646,10 +626,6 @@ window AddText (167,163) #F3F37CFF 650
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Alliance 2
-window AddText (382,194) #000000E6 Alliance 2
-window AddText (384,192) #000000E6 Alliance 2
-window AddText (384,194) #000000E6 Alliance 2
 window AddText (383,193) #F0E6C2FF Alliance 2
 window PopClipRect
 imgui End
@@ -687,10 +663,6 @@ window AddText (167,71) #FFFFFFFF 1000
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Alliance 3
-window AddText (382,194) #000000E6 Alliance 3
-window AddText (384,192) #000000E6 Alliance 3
-window AddText (384,194) #000000E6 Alliance 3
 window AddText (383,193) #F0E6C2FF Alliance 3
 window PopClipRect
 imgui End
@@ -711,14 +683,10 @@ window AddText (98,48) #FFFFFFFF 4.0m
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Target
-window AddText (382,194) #000000E6 Target
-window AddText (384,192) #000000E6 Target
-window AddText (384,194) #000000E6 Target
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (bare): 646 calls
+## filled with sample data, the settings open (bare): 630 calls
 imgui Begin Party Settings
 imgui TextColored (1,0.75,0.55,1) [-] Mouse Interaction
 imgui Text Clickthrough:
@@ -1142,10 +1110,6 @@ over AddImage treasure.png (119,395.5) (140,416.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,397.5) (140,418.5) (0,0) (1,1) #00000082
 over AddImage treasure.png (119,396.5) (140,417.5) (0,0) (1,1) #FFFFFFD9
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Alliance
-window AddText (382,194) #000000E6 Alliance
-window AddText (384,192) #000000E6 Alliance
-window AddText (384,194) #000000E6 Alliance
 window AddText (383,193) #F0E6C2FF Alliance
 window PopClipRect
 imgui End
@@ -1233,10 +1197,6 @@ window AddText (167,255) #F3F37CFF 650
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Alliance 2
-window AddText (382,194) #000000E6 Alliance 2
-window AddText (384,192) #000000E6 Alliance 2
-window AddText (384,194) #000000E6 Alliance 2
 window AddText (383,193) #F0E6C2FF Alliance 2
 window PopClipRect
 imgui End
@@ -1324,10 +1284,6 @@ window AddText (167,255) #F8BA80FF 560
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Alliance 3
-window AddText (382,194) #000000E6 Alliance 3
-window AddText (384,192) #000000E6 Alliance 3
-window AddText (384,194) #000000E6 Alliance 3
 window AddText (383,193) #F0E6C2FF Alliance 3
 window PopClipRect
 imgui End
@@ -1354,10 +1310,6 @@ window AddText (30,30) #FFFFFFFF +2
 imgui PopFont
 window PopClipRect
 window PushClipRect (377,191) (396,209) false
-window AddText (382,192) #000000E6 Target
-window AddText (382,194) #000000E6 Target
-window AddText (384,192) #000000E6 Target
-window AddText (384,194) #000000E6 Target
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End

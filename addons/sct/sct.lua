@@ -64,7 +64,6 @@ local defaults = T{
     align = 'left',        -- 'left', 'center' or 'right'
     fontFile = '',         -- empty inherits the Winxi theme font
     fontSize = T{ 0 },     -- zero inherits the theme size
-    outline = T{ 1 },
     showGained = T{ true },
     showLost = T{ true },
     buffColor = T{ 0.40, 0.68, 1.00, 1.00 },
@@ -195,7 +194,7 @@ local function DrawLines(options, x, y, now)
     local drawList = imgui.GetWindowDrawList();
     local width, height = options.width[1], options.height[1];
     local iconHeight = options.iconSize[1];
-    local edge = options.outline[1];
+    local edge = text.Edge(); -- the theme's Text Outline
     local useOwn = theme.Get().StatusIcons;
 
     local font, size = imgui.GetFont(), imgui.GetFontSize();
@@ -231,7 +230,8 @@ local function DrawLines(options, x, y, now)
 
             local color = Color(line, options);
             tint[1], tint[2], tint[3], tint[4] = color[1], color[2], color[3], color[4] * alpha;
-            shade[1], shade[2], shade[3], shade[4] = text.OutlineColor[1], text.OutlineColor[2], text.OutlineColor[3], text.OutlineColor[4] * alpha;
+            local edgeColor = text.EdgeColor();
+            shade[1], shade[2], shade[3], shade[4] = edgeColor[1], edgeColor[2], edgeColor[3], edgeColor[4] * alpha;
             local packed, dark = imgui.GetColorU32(tint), imgui.GetColorU32(shade);
             local textTop = top + (lineHeight - textHeight) / 2;
 
@@ -294,10 +294,10 @@ local function Draw(options, now)
 
     local flags = bit.bor(style.TitlelessFlags(), ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoFocusOnAppearing,
         ImGuiWindowFlags_NoNav, ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse);
-    if options.locked[1] then flags = bit.bor(flags, ImGuiWindowFlags_NoMove, ImGuiWindowFlags_NoInputs); end
     local box = options.boxStyle == 'background';
     if not box then flags = bit.bor(flags, ImGuiWindowFlags_NoBackground); end
     windowOptions.alpha = alpha;
+    windowOptions.locked, windowOptions.clickThrough = options.locked[1], options.locked[1]; -- Lock Window
     windowOptions.background = not box and transparent or nil;
     windowOptions.border = not box and transparent or nil;
     windowOptions.padding = not box and 0 or nil;
@@ -347,9 +347,7 @@ local function DrawSettings(options)
         widgets.Label('Visible');
         imgui.Checkbox('##sct.visible', options.isVisible);
         Tip('Whether the text shows. /sct switches this.');
-        widgets.Label('Locked');
-        imgui.Checkbox('##sct.locked', options.locked);
-        Tip('Unlocked, the box can be dragged (its edge drawn, with Text Only and Show Outline). Locked, clicks go through it.');
+        widgets.Lock(options.locked, '##sct.locked', { tooltip = 'Unlocked, the box can be dragged (its edge drawn, with Text Only and Show Outline). Locked, clicks go through it.' });
         widgets.Label('Position');
         if imgui.InputInt2('##sct.position', options.pos) then place = true; end
         widgets.Label('Box Style');
@@ -395,8 +393,6 @@ local function DrawSettings(options)
         widgets.FontFile(options, 'fontFile', '##sct.fontFile', { tooltip = 'The lines\' font: Theme Font follows Winxi Theme, or one of C:\\Windows\\Fonts.' });
         widgets.PushControlWidth();
         widgets.FontSize(options, 'fontSize', '##sct.fontSize', { tooltip = 'How large the lines are, in pixels; Theme Size (0) follows Winxi Theme.' });
-        widgets.Label('Outline');
-        imgui.SliderInt('##sct.outline', options.outline, 0, 3, '%d px');
         widgets.PopControlWidth();
         if imgui.Button('Test##sct.test') then
             Add(33, true); Add(4, true); Add(33, false);

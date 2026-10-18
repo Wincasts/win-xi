@@ -18,9 +18,10 @@ imgui.GetWindowSize = function() if depth > 0 then return 232, 400 end return 25
 local scrolledTo = nil
 imgui.SetScrollY = function(y) scrolledTo = y end
 local full, flags = window.Full, 0
-window.Full = function(name, wanted, windowFlags, ...)
-    if name == 'winxi.inventory' then flags = windowFlags end
-    return full(name, wanted, windowFlags, ...)
+window.Full = function(name, wanted, windowFlags, draw, style, ...)
+    -- Lock is winxi.window's locked option: counted with the flags, as the window has it
+    if name == 'winxi.inventory' then flags = require('bit').bor(windowFlags, style and style.locked and ImGuiWindowFlags_NoMove or 0) end
+    return full(name, wanted, windowFlags, draw, style, ...)
 end
 local pressed = false
 imgui.IsMouseClicked = function(button) return button == 0 and pressed end

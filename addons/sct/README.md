@@ -23,7 +23,7 @@ does the same.
 **Box**
 
 - **Visible**: whether the text shows.
-- **Locked**: unlocked, the box can be dragged (its edge drawn, with Text Only and Show Outline on); locked, clicks go through it.
+- **Lock Window**: unlocked, the box can be dragged (its edge drawn, with Text Only and Show Outline on); locked, clicks go through it.
   It starts unlocked, to be placed.
 - **Position**: where the box's top left corner is.
 - **Box Style**: **Text Only** (to start) is the scrolling lines and nothing else: no background,
@@ -42,7 +42,7 @@ does the same.
 - **Buff Color**, **Enfeeble Color**, **Lost Color**: the colour of each kind of line.
 - **Icon Size**: how tall the icon is.
 - **Font**, **Font Size**: the lines' font; Theme Font and 0 (Theme Size) follow Winxi Theme.
-- **Outline**: the dark edge round the text, 0 to 3 pixels.
+- The dark edge round the text is Winxi Theme's Text Outline, set in winxisettings for every addon.
 
 Lines that come at once wait for the one before to move its height and the Line Spacing down, so
 they never overlap. A Scroll Time set before Scroll Speed is brought over as the speed that took as long.

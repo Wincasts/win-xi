@@ -177,7 +177,7 @@ Timing is captured when a popup starts; changes apply to the next popup.
 - Independent zone-entry and sub-zone title/detail font selectors and pixel
   sizes. Choose Default or an installed `.ttf` file from `C:\\Windows\\Fonts`.
   Font choices are cached, with Default used when a font cannot be loaded.
-  Line spacing, outline width/color, and theme or title/detail colors are shared.
+  Line spacing and theme or title/detail colors are shared; the outline is Winxi Theme's Text Outline.
   No separate GDI engine is required.
 - Left/center/right alignment. With **Centered On Screen** enabled, X is an
   offset from screen center and Y is measured from the top; otherwise X/Y are

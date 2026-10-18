@@ -31,7 +31,7 @@ local presets = {
     Healer = { style = { buffSize = { 110 }, buffRows = { 2 }, buffLimit = { 32 }, debuffsFirst = { true },
         priorityStatuses = { '0,2,7,6,4,5,1' }, lowHp = { 25 } } },
     ['Pet job'] = { pets = { enabled = { true }, showParty = { true }, reserve = { 6 }, nameFormat = 'ownerPet' } },
-    Minimal = { style = { barShadows = 'off', outline = { false }, showMp = { false }, showTp = { false },
+    Minimal = { style = { barShadows = 'off', showMp = { false }, showTp = { false },
         tpFlash = { false }, buffLimit = { 8 }, buffRows = { 1 } }, pets = { showParty = { false } } },
 }
 local function Copy(value)

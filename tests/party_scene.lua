@@ -15,6 +15,7 @@ if CAPTURE.loading then
             us.sortByRole[1] = true
             us.inviteCorner = 'BottomLeft'
             saved.tools.tgt.mainWindow.showStatus[1] = true
+            require('winxi.theme').Get().TextOutline = 0 -- the outline is the theme's now: off, as xivOutline had it
         end
     end
     return

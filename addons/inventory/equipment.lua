@@ -95,7 +95,7 @@ local function Colors(alpha)
     if packed.alpha == alpha then return end
     packed.alpha = alpha
     packed.tint, packed.cross = imgui.GetColorU32(white), imgui.GetColorU32(blocked)
-    packed.outline = imgui.GetColorU32(text.OutlineColor)
+    packed.outline = imgui.GetColorU32(text.EdgeColor())
     for i, color in ipairs(backdropColors) do backdropTints[i] = imgui.GetColorU32(color) end
     packed.hq = imgui.GetColorU32(hqColor)
     for i, color in ipairs(wardrobeColors) do
@@ -185,7 +185,7 @@ local function DrawWardrobeMark(draw, left, top, size, wardrobe, font, fontSize,
     local label = wardrobeLabels[wardrobe]
     local width = Measure(badgeMetrics, wardrobe, label, font, fontSize)
     text.Packed(draw, right - width - math.floor(2 * scale + 0.5), top + math.floor(2 * scale + 0.5),
-        packed.tint, label, 1, packed.outline)
+        packed.tint, label, nil, packed.outline)
 end
 
 local function DrawContent()
@@ -309,15 +309,15 @@ function equipment.Draw(options, sheet, at, invShown)
         -- Restore per-character positioning even when ImGui remembers the old window.
         imgui.SetNextWindowPos(o.pos, positionSettings ~= o.pos and ImGuiCond_Always or ImGuiCond_FirstUseEver)
         positionSettings = o.pos
-        if o.lockMovement[1] then flags = bit.bor(flags, ImGuiWindowFlags_NoMove) end
     else
         placed[1], placed[2] = at[1], at[2]
         imgui.SetNextWindowPos(placed, ImGuiCond_Always)
         positionSettings = nil -- detached again, it goes back where it was
-        flags = bit.bor(flags, ImGuiWindowFlags_NoMove)
     end
     if not o.background[1] then flags = bit.bor(flags, ImGuiWindowFlags_NoBackground) end
     windowStyle.alpha = alpha
+    -- held still by Lock, and always while attached to the inventory window
+    windowStyle.locked = not detached or o.lockMovement[1] == true
     windowStyle.background = not o.background[1] and transparent or nil
     window.Full(windowName, open, flags, DrawContent, windowStyle)
 end
@@ -347,9 +347,7 @@ function equipment.DrawSettings(options)
             widgets.Label('Position')
             imgui.SetNextItemWidth(widgets.NumberWidth(2))
             if imgui.InputInt2('##inv.equipment.pos', o.pos) then imgui.SetWindowPos(windowName, o.pos) end
-            widgets.Label('Lock')
-            imgui.Checkbox('##inv.equipment.lock', o.lockMovement)
-            tooltip.Hover('Prevent dragging the monitor. The Position fields can still move it.')
+            widgets.Lock(o.lockMovement, '##inv.equipment.lock', { label = 'Lock', tooltip = 'Prevent dragging the monitor. The Position fields can still move it.' })
         end
     end
     if not o.enabled[1] then return end

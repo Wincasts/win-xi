@@ -245,9 +245,7 @@ end
 local function DrawGlobal(saved)
     widgets.BeginLabels('xiframes.global')
     if widgets.Header('Mouse Interaction', true) then
-        widgets.Label('Clickthrough')
-        imgui.Checkbox('##xiframes.clickThrough', saved.clickThrough)
-        Tooltip('The windows let the mouse through to the game. Ignored while organizing, so they can be dragged.')
+        widgets.Lock(saved.clickThrough, '##xiframes.clickThrough', { label = 'Clickthrough', tooltip = 'The windows let the mouse through to the game. Ignored while organizing, so they can be dragged.' })
         widgets.Label('Hover Details')
         Checkbox('##party.hoverDetails', saved.style.hoverDetails, saved.clickThrough[1])
         Tooltip('Full names, jobs, pet owners and status names. Enemy durations are estimates.')

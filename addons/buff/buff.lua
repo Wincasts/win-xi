@@ -460,7 +460,7 @@ local function WriteHooked(options, found, alpha)
     local nudgeX, nudgeY = options.anchorAdjustment[1], options.anchorAdjustment[2];
     local iconColor = ARGB(opaque, alpha);
     local textColor = ARGB(theme.Get().TextColor, alpha);
-    local edgeColor = ARGB(text.OutlineColor, alpha);
+    local edgeColor = ARGB(text.EdgeColor(), alpha);
 
     local baked, texture = nil, nil;
     if showTimers then

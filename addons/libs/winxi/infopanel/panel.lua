@@ -164,11 +164,7 @@ function M.Draw(p, slots, rect, options)
         list:PushClipRect(pointA,pointB,true)
         for j,s in ipairs(segments) do
             if type(s)=='string' then
-                if options.outline[1]>0 then outlined.Draw(list,x,y,options.textColor,s,options.outline[1])
-                else
-                    pointA[1], pointA[2] = x, y
-                    list:AddText(pointA,imgui.GetColorU32(options.textColor),s)
-                end
+                outlined.Draw(list,x,y,options.textColor,s) -- its edge the theme's Text Outline
             elseif s.separator then Divider(list,p,tint,x+4,rect.top+p.separatorInset[1],rect.top+rect.height-p.separatorInset[1])
             else
                 local kind = s.kind or 'weather'

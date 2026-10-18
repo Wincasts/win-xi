@@ -68,8 +68,6 @@ options.Tabs = {
           tooltip = 'Moves the MP value from its usual place: X to the right, Y down. Less than 0 moves it left or up.' .. unitsNote },
         { kind = 'offset', section = 'style', key = 'tpOffset', label = 'TP Value Offset', default = { -3, -2 }, reach = 40,
           tooltip = 'Moves the TP value from its usual place: X to the right, Y down. Less than 0 moves it left or up.\nA target\'s distance and HP percentage go up and down with it.' .. unitsNote },
-        { kind = 'check', section = 'style', key = 'outline', label = 'Outline Text', default = true,
-          tooltip = 'Gives the names and the HP, MP and TP values a dark edge, so they can be read where they are written over a bar.' },
         { kind = 'check', section = 'style', key = 'showMp', label = 'Show MP Values', default = true,
           tooltip = 'Writes each member\'s MP beside their MP bar. Off leaves the bar alone.' },
         { kind = 'check', section = 'style', key = 'showTp', label = 'Show TP Values', default = true,
@@ -174,7 +172,7 @@ end
 -- Presentation order is separate from the setting definitions so regrouping never changes defaults.
 local groups = {
     Style = {
-        { 'Appearance', 'scale', 'outline', 'barShadows' },
+        { 'Appearance', 'scale', 'barShadows' },
         { 'Names', 'nameFont', 'nameSize' },
         { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
         { 'Status Display', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow' },
@@ -337,7 +335,7 @@ end
 local styleKeys = {
     scale = 'xivScale', nameSize = 'xivNameSize', valueSize = 'xivValueSize', buffSize = 'xivBuffSize',
     buffSpacing = 'xivBuffSpacing', buffDistance = 'xivBuffDistance', hpOffset = 'xivHpOffset', mpOffset = 'xivMpOffset',
-    tpOffset = 'xivTpOffset', outline = 'xivOutline', bookends = 'xivBookends', showMp = 'xivShowMp', showTp = 'xivShowTp',
+    tpOffset = 'xivTpOffset', bookends = 'xivBookends', showMp = 'xivShowMp', showTp = 'xivShowTp',
     tpFlash = 'xivTpFlash',
 }
 local partyKeys = {
@@ -508,7 +506,7 @@ function options.Style(saved)
     Pixels(style.hpOffset, kept.hpOffset)
     Pixels(style.mpOffset, kept.mpOffset)
     Pixels(style.tpOffset, kept.tpOffset)
-    style.outline, style.tpFlash = kept.outline[1], kept.tpFlash[1]
+    style.tpFlash = kept.tpFlash[1]
     style.showMp, style.showTp = kept.showMp[1], kept.showTp[1]
     style.nameFont, style.valueFont = kept.nameFont, kept.valueFont
     style.barShadows = kept.barShadows

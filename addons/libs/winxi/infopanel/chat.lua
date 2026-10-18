@@ -18,7 +18,7 @@ function M.Defaults()
     local p=panel.Defaults()
     p.enabled[1]=false -- opt in; installing an update never adds a duplicate clock panel
     p.slots[1].format='{time} | {zone}'
-    return {layout=p,window2=M.Window2Defaults(),anchor={2},anchorMenus={true},hideClock={false},hideCompass={false},fontFile='',fontSize={0},textColor={1,1,1,1},outline={1},
+    return {layout=p,window2=M.Window2Defaults(),anchor={2},anchorMenus={true},hideClock={false},hideCompass={false},fontFile='',fontSize={0},textColor={1,1,1,1},
         iconSet='gems',iconScale={1},iconOffset={0},weatherScale={1}}
 end
 local function Number(value,low,high,fallback)
@@ -45,11 +45,12 @@ function M.Complete(options)
     options.anchorMenus[1]=options.anchorMenus[1]~=false
     if type(options.fontFile)~='string' then options.fontFile='' end
     if type(options.iconSet)~='string' then options.iconSet='gems' end
-    for key,range in pairs({fontSize={0,48},outline={0,3},iconScale={0.5,3},iconOffset={-10,10},weatherScale={0.5,3}}) do
+    for key,range in pairs({fontSize={0,48},iconScale={0.5,3},iconOffset={-10,10},weatherScale={0.5,3}}) do
         if type(options[key])~='table' then options[key]=defaults[key] end
         options[key][1]=Number(options[key][1],range[1],range[2],defaults[key][1])
     end
-    options.fontSize[1]=math.floor(options.fontSize[1]); options.outline[1]=math.floor(options.outline[1])
+    options.fontSize[1]=math.floor(options.fontSize[1])
+    options.outline=nil -- the text's edge is the theme's Text Outline now
     if type(options.textColor)~='table' then options.textColor=defaults.textColor end
     for i=1,4 do options.textColor[i]=Number(options.textColor[i],0,1,1) end
     return options
@@ -233,7 +234,7 @@ function M.New(deps)
             if drawn.slot==slot then
                 frame.Draw(drawn.rect,function()
                     imgui.PushFont(fonts.Get(attachment.fontFile),attachment.size)
-                    drawOptions.textColor,drawOptions.outline,drawOptions.iconScale=options.textColor,options.outline,options.iconScale
+                    drawOptions.textColor,drawOptions.iconScale=options.textColor,options.iconScale
                     drawOptions.iconOffset,drawOptions.weatherScale=options.iconOffset,options.weatherScale
                     local ok,err=pcall(panel.Draw,drawn.p,drawn.samples,drawn.rect,drawOptions)
                     imgui.PopFont()

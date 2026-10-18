@@ -42,7 +42,6 @@ local function defaults()
         perLineTiming = T{ false },
         hold = T{ 5 }, fadeIn = T{ .2 }, fadeOut = T{ 1 }, opacity = T{ 1 },
         themeText = T{ true }, titleColor = T{ 1, 1, 1, 1 }, detailColor = T{ 1, 1, 1, 1 },
-        outline = T{ 1 }, outlineColor = T{ 0, 0, 0, .9 },
     } };
     for _, line in ipairs(lines) do
         result.display[line[1] .. 'Delay'] = T{ 0 };
@@ -55,7 +54,7 @@ end
 local ranges = { titleSize = { 14, 96 }, detailSize = { 10, 40 }, zoneTitleSize = { 14, 96 },
     zoneDetailSize = { 10, 40 }, areaTitleSize = { 14, 96 }, areaDetailSize = { 10, 40 },
     spacing = { 0, 30 }, hold = { .1, 60 }, fadeIn = { 0, 3 }, fadeOut = { 0, 10 },
-    opacity = { 0, 1 }, outline = { 0, 3 }, approachYalms = { 0, 100 }, locationSize = { 10, 40 } };
+    opacity = { 0, 1 }, approachYalms = { 0, 100 }, locationSize = { 10, 40 } };
 for _, line in ipairs(lines) do
     ranges[line[1] .. 'Delay'] = { 0, 60 };
     ranges[line[1] .. 'Hold'] = { .1, 60 };
@@ -82,7 +81,7 @@ function M.complete(options)
         'locationSize', 'approachYalms' }) do
         d[key][1] = math.floor(d[key][1] + .5);
     end
-    for _, key in ipairs({ 'titleColor', 'detailColor', 'outlineColor' }) do
+    for _, key in ipairs({ 'titleColor', 'detailColor' }) do
         for i = 1, 4 do d[key][i] = math.max(0, math.min(1, d[key][i])); end
     end
     for i = 1, 2 do
@@ -196,7 +195,8 @@ local function draw_settings(options)
     widgets.Gap();
     if widgets.Header('Location Line') then
         checkbox(d, 'Show Location Line', 'locationEnabled');
-        checkbox(d, 'Lock Position', 'locationLocked');
+        changed(widgets.Lock(d.locationLocked, '##zone.locationLocked', { label = 'Lock Position',
+            tooltip = 'Keeps the line where it is, and lets the mouse through it to the game. Off, it can be dragged.' }));
         widgets.Label('Position (X, Y)');
         if imgui.InputInt2('##zone.locationPosition', d.locationPosition) then changed(true); location_place = true; end
         widgets.PushControlWidth();
@@ -303,8 +303,7 @@ local function draw_appearance(options)
             widgets.Label('Title Color'); changed(imgui.ColorEdit4('##zone.titleColor', d.titleColor));
             widgets.Label('Detail Color'); changed(imgui.ColorEdit4('##zone.detailColor', d.detailColor));
         end
-        slider(d, 'Outline Width', 'outline', '%.1f px');
-        widgets.Label('Outline Color'); changed(imgui.ColorEdit4('##zone.outlineColor', d.outlineColor));
+        imgui.TextDisabled('The dark edge round the text is Winxi Theme\'s Text Outline and Outline Color, in winxisettings.');
     end
     widgets.PopControlWidth();
     if d.renderer == 'gdi' then
@@ -486,7 +485,8 @@ function M.draw(state, tracking, now)
 
             local x, y = imgui.GetCursorScreenPos();
             local draw = imgui.GetWindowDrawList();
-            local edge = d.outline[1];
+            local edge = text.Edge(); -- the theme's Text Outline
+            local outline = text.EdgeColor();
             for i, row in ipairs(rows) do
                 if row.alpha > .01 then
                     imgui.PushFont(row.font, row.size);
@@ -497,7 +497,6 @@ function M.draw(state, tracking, now)
                         or (row.title and d.titleColor or d.detailColor);
                     local ratio = row.alpha / alpha;
                     local packed = imgui.GetColorU32({ color[1], color[2], color[3], color[4] * ratio });
-                    local outline = d.outlineColor;
                     local dark = imgui.GetColorU32({ outline[1], outline[2], outline[3], outline[4] * ratio });
                     if edge > 0 then
                         text.Packed(draw, x + edge + offset, y + edge, packed, row.words, edge, dark);
@@ -534,7 +533,7 @@ function M.draw_location(words)
     local locked = d.locationLocked[1];
     local flags = bit.bor(style.TitlelessFlags(), ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoBackground,
         ImGuiWindowFlags_NoFocusOnAppearing);
-    if locked then flags = bit.bor(flags, ImGuiWindowFlags_NoMove, ImGuiWindowFlags_NoInputs); end
+    location_options.locked, location_options.clickThrough = locked, locked; -- Lock Position
     imgui.SetNextWindowPos(d.locationPosition, (locked or location_place) and ImGuiCond_Always or ImGuiCond_FirstUseEver);
     location_place = false;
     return window.Plain('##zone_location', location_open, flags, function()
@@ -542,9 +541,10 @@ function M.draw_location(words)
         local ok, err = pcall(function()
             local width, height = imgui.CalcTextSize(words);
             local x, y = imgui.GetCursorScreenPos();
-            -- Over the game itself: winxi's outlined text.
-            text.Draw(imgui.GetWindowDrawList(), x + 1, y + 1, theme.Get().TextColor, words, 1);
-            imgui.Dummy({ width + 2, height + 2 });
+            -- Over the game itself: winxi's outlined text, its edge the theme's Text Outline.
+            local edge = text.Edge();
+            text.Draw(imgui.GetWindowDrawList(), x + edge, y + edge, theme.Get().TextColor, words);
+            imgui.Dummy({ width + 2 * edge, height + 2 * edge });
             if not locked then
                 -- Where it has been dragged to is kept, and saved with the other settings.
                 local wx, wy = imgui.GetWindowPos();

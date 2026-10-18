@@ -127,7 +127,9 @@ end
 -- The main window, drawn with the theme. wanted is the window's own switch (a table holding true or
 -- false): switched off, the window goes on being drawn until it has faded out. draw draws its content.
 -- extra, if given: constraints = { min, max } for imgui's size constraints,
--- flags = additional ImGui window flags (for example, NoMove),
+-- flags = additional ImGui window flags,
+-- locked = true for a window held where it is, clickThrough = true for one the mouse goes through
+-- (winxi.window's options of those names: an addon's Lock Window setting, widgets.Lock),
 -- size = { width, height } to apply this frame (after the fade/visibility check).
 function App:Window(wanted, draw, extra)
     local options = self.options;
@@ -149,6 +151,8 @@ function App:Window(wanted, draw, extra)
     end
 
     self.windowStyle.alpha = alpha;
+    self.windowStyle.locked = extra ~= nil and extra.locked or nil;
+    self.windowStyle.clickThrough = extra ~= nil and extra.clickThrough or nil;
     self.lingering[1] = true;
     self.draw = draw;
 
