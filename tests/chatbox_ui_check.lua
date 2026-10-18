@@ -21,6 +21,7 @@ setmetatable(_G, {__index=function(_, key)
 end})
 local ready, captureOK, drawn, throwing = true, true, true, false
 local hooks, sequence = {}, {}
+local currentPanelDrawn=false
 local nativeRect, lastWindowStyle
 local rendered = {}
 local nativeLogRect = {20,700,660,1018}
@@ -30,14 +31,29 @@ local tabsGeometry, scrollGeometry, rowsGeometry -- where the game drew its tabs
 local splitRect, routes -- the game's second log window, and its routing between the two, as uihook reads them
 local linesState={} -- each window's lines as the game has them, by slot
 local gameColors -- the game's colours, as uihook reads them
+-- the game's own history as uihook reads it: nothing to start with, so the tests' messages are their own
+local gameLines, historyRequests = {}, 0
+package.loaded['winxi.nativehistory']={new=function() local asked=false; return {
+    Request=function() asked=true; historyRequests=historyRequests+1; return true end,
+    Lines=function() if not asked then return nil end; asked=false; return gameLines end,
+    Status=function() return 'test history' end,
+} end}
+-- the full log placed where chatbox asks (Expand In Place): its bottom-left, or nil once given back
+local logPlace, logStops = nil, 0
+package.loaded['winxi.nativemenus']={new=function() return {
+    Set=function() return true end, Stop=function() end, Status=function() return 'test menus' end,
+    PlaceLog=function(left,bottom) logPlace={left,bottom}; return true end,
+    StopLog=function() if logPlace then logStops=logStops+1 end; logPlace=nil end,
+} end}
 package.loaded['winxi.nativechat'] = { Primary=0,Secondary=1,Input=2,new=function(index)
     local hook = {begins=0,stops=0,captures=0}
     function hook.Begin() hook.begins=hook.begins+1; return ready end
     function hook.Stop() hook.stops=hook.stops+1 end
     function hook.Capture(expanded,controls,replace)
         hook.expanded,hook.controls=expanded,controls
-        hook.replace=replace and {tabs=replace.tabs,scrollbar=replace.scrollbar,text=replace.text} or nil
-        assert(sequence[#sequence] == 'border', 'complete decoration captured')
+        hook.replace=replace and {tabs=replace.tabs,scrollbar=replace.scrollbar,text=replace.text,all=replace.all} or nil
+        assert(sequence[#sequence] == 'border', 'parent title/border drawn after attachment, before capture')
+        hook.panel = currentPanelDrawn
         hook.captures=hook.captures+1; return captureOK
     end
     function hook.Status() return 'test hook' end
@@ -71,7 +87,7 @@ end, Shows=function(r, window, mode)
 end }
 local look = { Padding=12,TextColor={1,1,1,1},HighlightColor={0.2,0.4,0.8,0.6} }
 package.loaded['winxi.theme'] = { Get=function() return look end }
-local fontDepth, pushedFonts = 0, {}
+local fontDepth, pushedFonts, pushedSizes = 0, {}, {}
 package.loaded['winxi.fonts'] = {Push=function() return false end,Pop=function() end,
     Get=function(file) if file and file~='' then return 'font:'..file end end, Files=function() return {'arial.ttf'} end}
 local headers = {}
@@ -108,7 +124,7 @@ local list = { AddText=function(_,pos,color,value) text[#text+1]={pos=pos,color=
     AddLine=function() end,PushClipRect=function() end,PopClipRect=function() end }
 local fontSize, screen = 14, {x=1920,y=1080}
 local imgui = {
-    GetIO=function() return { DisplaySize=screen } end,
+    GetIO=function() return { DisplaySize=screen, MousePos=mouseAt and {x=mouseAt[1],y=mouseAt[2]} or nil } end,
     GetFontSize=function() return fontSize end,
     GetFont=function() return 'font' end,
     CalcTextSize=function(value) measured=measured+1; return #value*7, fontSize end,
@@ -119,7 +135,7 @@ local imgui = {
     SetNextWindowSize=function(size) measuredSize={size[1],size[2]} end,
     Dummy=function(size) dummy={size[1],size[2]} end,
     PushStyleVar=function() styleDepth=styleDepth+1 end,
-    PushFont=function(font) fontDepth=fontDepth+1; pushedFonts[#pushedFonts+1]=font end,
+    PushFont=function(font,size) fontDepth=fontDepth+1; pushedFonts[#pushedFonts+1]=font; pushedSizes[#pushedSizes+1]=size end,
     PopFont=function() fontDepth=fontDepth-1 end,
     IsItemHovered=function() return false end,
     PopStyleVar=function(n) styleDepth=styleDepth-(n or 1) end,
@@ -132,6 +148,7 @@ local function Window(name,_,_,draw,options)
     fontSize=options.fontSize or fontSize
     if throwing then error('draw failed') end
     if not drawn then return false end
+    currentPanelDrawn=false
     sequence[#sequence+1]='background'
     draw()
     sequence[#sequence+1]='border'
@@ -220,7 +237,9 @@ frame(); assert(measuredPos[1]==20 and measuredSize[1]==640 and measuredSize[2]=
 inputRaw=string.rep('x',200); inputDisplay=inputRaw; inputCaret=#inputRaw
 frame(); assert(text[#text].pos[1]<0,'long input scrolls to keep caret visible')
 inputCaret=0; frame(); assert(text[#text].pos[1]>=32,'Home/left edits scroll back')
-inputOpen=false; stops=hooks[2].stops; frame(); assert(hooks[2].stops>stops,'closed input releases slot')
+inputOpen=false; stops=hooks[2].stops; local inputBegins,inputCaps=hooks[2].begins,hooks[2].captures; frame()
+assert(hooks[2].stops==stops and hooks[2].begins==inputBegins+1 and hooks[2].captures==inputCaps,
+    'closed input keeps the slot armed, empty: the game\'s bar never shows the frame it opens')
 inputOpen=true; inputRaw='bad'; inputDisplay='bad'
 stops=hooks[2].stops; frame(); assert(hooks[2].stops>stops,'decode failure restores native input')
 inputOpen=false
@@ -232,8 +251,11 @@ assert(#filled==2 and filled[1].a[2]==1018-150 and filled[1].b[2]==1018 and fill
 assert(#images==1 and images[1].handle==99 and images[1].b[1]<=20+3 and images[1].a[2]==1018-3-12-1,'the game\'s cursor at the newest line, pointing in from the left edge')
 chatState.selected=false; frame(); assert(#filled==1 and #images==0,'cursor leaving chat removes light and cursor but keeps the scrollbar')
 chatState.expanded=true; nativeLogRect=nil; frame()
-assert(measuredPos[2]==1020 and measuredSize[2]==920,'native expansion takes the full log\'s height, not stale compact geometry')
+assert(measuredPos[2]==1020 and measuredSize[2]==1020-270,'native expansion takes the full log\'s foot, not stale compact geometry, three quarters up the screen')
 assert(measuredPos[1]==0 and measuredSize[1]==1920,'expanded frame matches native bounds exactly, not compact width')
+do local e, c = rendered['winxi.chatbox.expanded'].style, rendered['winxi.chatbox'].style
+    assert(e.padding==c.padding and e.fontSize==c.fontSize and e.shadow==c.shadow and e.background==c.background and e.border==c.border,
+        'the compact log\'s window: its padding, font size, shadow and colours') end
 assert(#text==0 and #filled==0 and #images==0,'no addon rows, highlight, scrollbar or cursor over native content')
 assert(hooks[0].expanded==true and rendered['winxi.chatbox.expanded'].style.title==nil,
     'capture is explicitly frame-only; native tabs replace the custom title')
@@ -273,56 +295,72 @@ for filter=0,15 do
 end
 chatState.filter=0; chatState.scroll=0
 -- The game's tabs and scrollbar replaced: WinXI tabs named for their channels where the game drew its own,
--- square boxes stacked as the game stacks them (each over the ones drawn before it) with the chosen one on
--- top, each the window's background then the highlight (solid for the chosen one), the tab style over it,
--- an edge, and its name centred in what is left uncovered; a thumb in the game's bar; and the game asked
--- to leave both undrawn, only while there is a fresh place to draw them in
+-- side by side as a winxi tab bar's (each overlap split at its middle, a gap between neighbours), each the
+-- window's background then the theme's tab colour (the Highlight Color for the chosen one), rounded at the
+-- top, the tab style over it and its name centred; winxi's tab line under the row; a thumb in the game's
+-- bar; and the game asked to leave both undrawn, only while there is a fresh place to draw them in
 look.BackgroundColor, look.BorderColor = {0.1,0.1,0.2,0.8}, {0.5,0.5,0.5,1}
 tabsGeometry={{left=10,top=100,right=64,bottom=116,channel=0,selected=false},
-    {left=60,top=100,right=114,bottom=116,channel=3,selected=true},{left=110,top=100,right=160,bottom=116,channel=nil,selected=false}}
+    {left=60,top=100,right=114,bottom=116,channel=2,selected=true},{left=110,top=100,right=160,bottom=116,channel=nil,selected=false}}
 scrollGeometry={left=2,top=120,right=6,bottom=1020,page=20,count=100,above=80}
 frame()
 assert(hooks[0].replace.tabs and hooks[0].replace.scrollbar,'the game asked to leave its tabs and scrollbar undrawn')
-assert(#labels==3 and labels[1].text=='Window' and labels[2].text=='Tab 3' and labels[3].text=='Say','drawn in the game\'s order with the chosen tab last; a part of the strip named by channel, an unknown one by its place')
-assert(labels[3].x==60+(54-3*7)/2 and labels[3].y>100 and labels[3].y<108 and labels[3].color==look.TextColor,'the chosen tab on top, its name centred in the whole of it, in the title colour')
-assert(labels[1].x==10+(50-6*7)/2 and labels[2].x==114+(46-5*7)/2,'the others\' names centred in what the tab over them leaves uncovered')
-assert(#filled==8 and filled[1].color==look.BackgroundColor and filled[1].a[1]==10 and filled[1].b[1]==64 and filled[2].color[4]==filled[4].color[4] and filled[6].color[4]>filled[2].color[4],
-    'each tab the background then the highlight where the game drew it, the chosen one solid and the rest faint')
-assert(#outlines==3 and outlines[3].a[1]==60 and outlines[3].b[1]==114 and outlines[3].color==look.BorderColor,'an edge round each in the border colour, the chosen one\'s last')
-assert(#overs==3 and overs[3][1]==60 and overs[3][3]==114 and overs[3][5]==0 and #lines==0,
-    'the tab style over each, square-cornered, and no line under the row')
-assert(filled[7].a[1]==2 and filled[7].a[2]==120 and filled[7].b[1]==6 and filled[7].b[2]==1020 and filled[8].a[2]==840 and filled[8].b[2]==1020 and filled[8].b[1]==6,
-    'the track where the game\'s bar is and, at the newest, the thumb at its foot, as wide as the bar')
+assert(#labels==3 and labels[1].text=='Win 1' and labels[2].text=='Say' and labels[3].text=='Tab 3','left to right, each named by its art\'s filter (its short name), an unknown one by its place')
+assert(pushedSizes[#pushedSizes-1]==10 or pushedSizes[#pushedSizes]==10,'the names a little smaller than Font Size 12')
+assert(labels[1].x==10+(55-5*7)/2 and labels[2].x==69+(55-3*7)/2 and labels[3].x==128+(55-5*7)/2 and labels[2].y>250 and labels[2].y<270
+    and labels[2].color==look.TextColor,'each whole, side by side from the strip\'s start, all as wide as the longest name needs, a gap of four, each name centred')
+assert(#filled==7 and filled[1].color==look.BackgroundColor and filled[1].a[1]==10 and filled[1].b[1]==65 and filled[3].a[1]==69 and filled[3].b[1]==124
+    and filled[5].a[1]==128 and filled[5].b[1]==183 and filled[1].a[2]==250 and filled[1].b[2]==270,'each over the log\'s background, four taller than the game\'s strip, standing on the frame\'s top')
+assert(filled[2].color[4]==0.25 and filled[6].color[4]==0.25 and filled[4].color~=filled[2].color and filled[4].color[4]~=0.25,
+    'a winxi button\'s colour, the border faint, and the chosen one the Highlight Color')
+assert(#outlines==0 and #overs==0 and #lines==0,'a button: no edge, no tab style, no tab line')
+mouseAt={20,108}; frame(); assert(filled[2].color[4]==0.25,'no mouse light: the game\'s clicks are at its own places')
+mouseAt=nil; frame()
+assert(filled[7].a[1]==1920-3-2 and filled[7].b[1]==1920-3 and math.abs(filled[7].a[2]-(1017-744*0.2))<0.01 and filled[7].b[2]==1017 and filled[7].color==require('scrollbar').White,
+    'the compact log\'s thumb, no track: inside the log\'s right edge, over the game\'s bar\'s height, at the newest at its foot')
+mouseAt={4,500}; frame(); assert(filled[7].color==require('scrollbar').Bright,'brighter with the mouse on the game\'s bar, which it drags')
+mouseAt={1916,500}; frame(); assert(filled[7].color==require('scrollbar').Bright,'or on the thumb')
+mouseAt=nil; frame(); assert(filled[7].color==require('scrollbar').White)
 assert(#text==0 and #images==0,'still no addon rows or cursor over the native content')
 scrollGeometry.above=0; frame()
-assert(filled[8].a[2]==120 and filled[8].b[2]==300,'scrolled to the oldest, the thumb at the top')
-tabsGeometry[2].channel=10; frame()
-assert(labels[3].text=='Assist' or labels[3].text=='Assist (E)','a long name cut to what fits the tab')
-tabsGeometry[2].channel=2; frame(); assert(#labels[3].text>0 and ('Linkshell 1'):sub(1,#labels[3].text)==labels[3].text,'the first linkshell\'s tab says Linkshell 1, cut to fit')
+assert(filled[7].a[2]==273 and math.abs(filled[7].b[2]-(273+744*0.2))<0.01,'scrolled to the oldest, the thumb at the top, within the frame')
+tabsGeometry[2].channel=8; frame()
+assert(labels[2].text=='A (E)' and labels[1].text=='Win 1','the whole name')
+local savedRect=expandedRect; expandedRect={0,100,120,1020}; frame()
+assert(labels[2].text=='A (' and labels[1].text=='Win' and filled[5].b[1]<=116.01,'narrowed to fit the log, the names cut to fit')
+expandedRect=savedRect
+tabsGeometry[2].channel=2
 local channels=require('channels')
 local places={}
 for filter, tab in pairs(channels.Filters) do places[tab.place]=tab.name end
-assert(table.concat(places,',')=='Window,Say,Tell,Party,Linkshell 1,Linkshell 2,Assist (J),Assist (E),Unity,Shout','the tabs in the game\'s order, named as the game names them')
-tabsGeometry[2].channel=3
+assert(table.concat(places,',')=='Window,Window 2,Say,Tell,Party,Linkshell 1,Linkshell 2,Assist (E),Assist (J),Unity,Shout','the tabs in the client\'s order')
 tabsGeometry[1].selected, tabsGeometry[2].selected = true, false; frame()
-assert(labels[3].text=='Window' and labels[3].x==10+(54-6*7)/2 and labels[1].text=='Say' and labels[1].x==64+(46-3*7)/2,
-    'another tab chosen: it is drawn last, whole, and the one that lay over it now gives way to it')
+assert(labels[1].text=='Win 1' and labels[1].x==10+(55-5*7)/2 and filled[2].color[4]~=0.25 and filled[4].color[4]==0.25,
+    'another tab chosen as the game chooses it: lit in its place, nothing moved')
 tabsGeometry[1].selected, tabsGeometry[2].selected = false, true
--- the whole strip: named by where each stands, left to right, whatever channel its sprite was matched to
-local whole={}
-for i=1,10 do whole[i]={left=i*50-40+(i>1 and -4 or 0),top=100,right=i*50+10,bottom=116,channel=(i*3)%11,selected=i==4} end
-whole[3],whole[7]=whole[7],whole[3] -- drawn in another order than they stand
-local before=tabsGeometry; tabsGeometry=whole; frame()
-local byLeft={}
-for _, l in ipairs(labels) do byLeft[#byLeft+1]=l end
-table.sort(byLeft,function(a,b) return a.x<b.x end)
-local seen={}
-for i, l in ipairs(byLeft) do seen[i]=l.text end
-local wanted={'Window','Say','Tell','Party','Linkshell 1','Linkshell 2','Assist (J)','Assist (E)','Unity','Shout'}
-for i=1,10 do
-    assert(#seen[i]>=3 and wanted[i]:sub(1,#seen[i])==seen[i], 'all ten from the left, each cut to fit: '..i..' is '..seen[i]..', not '..wanted[i])
+-- the game's English strip, each tab drawn with its art, as the client's table orders them (its draw order
+-- scrambled here: the order is by where each stands), with and without the Window 2 tab
+local function Strip(arts)
+    local list={}
+    for i, a in ipairs(arts) do list[i]={left=10+(i-1)*30,top=100,right=10+(i-1)*30+60,bottom=116,channel=a,selected=i==4} end
+    list[3],list[7]=list[7],list[3]
+    return list
 end
-assert(labels[10].text=='Party','the chosen fourth tab drawn last, named for its place')
+local function Seen()
+    local byLeft={}
+    for _, l in ipairs(labels) do byLeft[#byLeft+1]=l end
+    table.sort(byLeft,function(a,b) return a.x<b.x end)
+    local seen={}
+    for i, l in ipairs(byLeft) do seen[i]=l.text end
+    return table.concat(seen,',')
+end
+local before=tabsGeometry
+tabsGeometry=Strip({0,2,3,4,5,6,8,7,9,10}); frame()
+assert(Seen()=='Win 1,Say,Tell,Party,LS 1,LS 2,A (E),A (J),Unity,Shout','the game\'s order, by the short names, whole')
+tabsGeometry=Strip({0,1,2,3,4,5,6,8,7,9,10}); frame()
+assert(Seen()=='Win 1,Win 2,Say,Tell,Party,LS 1,LS 2,A (E),A (J),Unity,Shout','with the second log window\'s tab')
+tabsGeometry=Strip({0,1,2,3,4,5,6,7,8,9,10}); frame()
+assert(Seen()=='Win 1,Win 2,Say,Tell,Party,LS 1,LS 2,A (J),A (E),Unity,Shout','a client with Assist (J) first: as the game orders them')
 tabsGeometry=before
 -- the game's rows of text replaced: each drawn where the game drew it, in the chat's font no taller than the
 -- row and centred in it, in its mode's colour; the cursor after the cursor row's text; decoded once each; and
@@ -332,20 +370,75 @@ rowsGeometry={{left=40,top=820,right=300,bottom=836,text='newest line',mode=1,cu
     {text='nowhere',mode=1,cursor=false}}
 pushedFonts={}; app.options.fontFile='arial.ttf'; decodes=0; frame()
 assert(hooks[0].replace.text,'the game asked to leave its text undrawn')
-assert(#text==2 and text[1].text=='newest line' and text[1].pos[1]==40 and text[1].pos[2]==822 and text[1].color==require('palette').Mode(1),
-    'the newest row where the game drew it, 12px text centred in the 16px row, in its mode\'s colour')
-assert(text[2].text=='older' and text[2].pos[2]==806 and text[2].color==require('palette').Mode(12),'the older row in a tell\'s colour')
-assert(#images==1 and images[1].a[1]==40+5*7+4 and images[1].a[2]==805,'the cursor after the cursor row\'s text')
+assert(#text==2 and text[1].text=='newest line' and text[1].pos[1]==3 and text[1].pos[2]==1020-3-12 and text[1].color==require('palette').Mode(1),
+    'laid out as the compact log: the newest from Left Padding, its text ending at the Bottom Padding, in its mode\'s colour')
+assert(text[2].text=='older' and text[2].pos[2]==1005-14 and text[2].color==require('palette').Mode(12),'the older row Font Size and the row gap above, in a tell\'s colour')
+assert(#images==1 and images[1].a[1]==3+5*7+4 and images[1].a[2]==990,'the cursor after the cursor row\'s text')
 assert(pushedFonts[1]=='font:arial.ttf' and decodes==2,'the chat\'s font; the two rows with text decoded, the empty and the unplaced not')
 frame(); assert(decodes==2,'the rows decoded once, not every frame')
 rowsGeometry[1].text='older'; frame(); assert(decodes==2,'a row already decoded is known by its bytes')
 rowsGeometry[1].text='newest line'
+-- Expanded Height: the frame reaches three quarters of the way up the screen (1080 high: its top at 270), the tabs
+-- standing on it, the scrollbar within it; 100% the game's window
+local fitted=rendered['winxi.chatbox.expanded']
+assert(fitted.pos[2]==1020 and fitted.size[2]==1020-270,'three quarters up the screen: from 270, to the game\'s window\'s foot')
+local standing=0
+for _, f in ipairs(filled) do if f.b[2]==270 then standing=standing+1 end end
+assert(standing>=2,'the tabs standing on its top')
+assert(filled[#filled].a[2]>=273,'the thumb within it')
+app.options.expandedHeight[1]=100; frame()
+assert(rendered['winxi.chatbox.expanded'].size[2]==1020-100,'100%: the game\'s window, no higher')
+app.options.expandedHeight[1]=75
+-- the log's Default Text, as the compact log takes it, over the modes' colours
+app.options.appearance.log.own.textColor[1]=true; app.options.appearance.log.colors.textColor={0.1,0.8,0.2,1}; frame()
+assert(text[1].color==app.options.appearance.log.colors.textColor and text[2].color==text[1].color,'the log\'s own Default Text, as the compact log\'s')
+app.options.appearance.log.own.textColor[1]=false; frame()
+assert(text[1].color==require('palette').Mode(1),'without it, the modes\' colours')
+-- the whole log mirrored: with uihook able to leave all of it undrawn, the addon draws the light on the cursor's
+-- row (a row's pitch tall about its glyphs, across the log), brighter held down, and a marked row faintly
+local function Lights()
+    local found={}
+    for _, f in ipairs(filled) do if f.a[1]==1 then found[#found+1]=f end end
+    return found
+end
+assert(not hooks[0].replace.all and #Lights()==0,'an older uihook: the game\'s light and cursor, none of the addon\'s')
+chatState.nativeMirror=true; frame()
+local lit=Lights()
+assert(hooks[0].replace.all and hooks[0].replace.text and #lit==1 and lit[1].a[2]==991-1 and lit[1].b[2]==991+12+1 and lit[1].b[1]==1920-3-2-2,
+    'the whole log asked for: the cursor\'s row lit across the log, a line tall with half the gap either side')
+assert(#images==1 and #text==2,'the cursor after its text and the rows as before')
+rowsGeometry[1].marked=true; rowsGeometry[2].pressed=true; frame(); lit=Lights()
+assert(#lit==2 and lit[1].a[2]==1004 and lit[1].color~=lit[2].color,'a marked row lit faintly, the held row brighter')
+rowsGeometry[1].marked=nil; rowsGeometry[2].pressed=nil
+-- where uihook measured the game's highlight: those rows lit, whatever row the cursor flag is on
+rowsGeometry[1].lit=true; frame(); lit=Lights()
+assert(#lit==1 and lit[1].a[2]==1004 and lit[1].b[2]==1018,'the row under the game\'s highlight lit, not the cursor flag\'s')
+rowsGeometry[3].lit=true; frame(); lit=Lights()
+assert(#lit==2 and lit[2].a[2]==976,'every row the game highlights')
+rowsGeometry[1].lit=nil; rowsGeometry[3].lit=nil
+-- the game's chosen row past what fits: the view moves up to keep it at the top
+local many={}
+for i=1,80 do many[i]={left=40,top=1000-i*16,right=200,bottom=1016-i*16,text='row '..i,mode=1,cursor=i==70} end
+local savedRows=rowsGeometry; rowsGeometry=many; frame()
+assert(#text==math.floor((1017-273+2)/14) and text[#text].text=='row 70' and text[#text].pos[2]>=273,'the cursor\'s row kept in view, at the top')
+rowsGeometry=savedRows
+local said3={}; app.Say=function(_,line) said3[#said3+1]=line end
+spec.commands.status()
+assert(table.concat(said3,'\n'):find('WinXI tabs, scrollbar, text and cursor where the game\'s are',1,true),'/chatbox status says the cursor is the addon\'s')
+app.Say=function() end
+app.options.replaceCursor[1]=false; frame()
+assert(not hooks[0].replace.all and hooks[0].replace.text and #Lights()==0,'Replace Cursor off: the game\'s light and cursor')
+app.options.replaceCursor[1]=true
+app.options.replaceScrollbar[1]=false; frame()
+assert(not hooks[0].replace.all,'the game\'s scrollbar kept: not the whole log, which would leave it undrawn')
+app.options.replaceScrollbar[1]=true
+chatState.nativeMirror=false; frame()
 local said2={}; app.Say=function(_,line) said2[#said2+1]=line end
 spec.commands.status()
 assert(table.concat(said2,'\n'):find('WinXI tabs, scrollbar and text where the game\'s are',1,true) and table.concat(said2,'\n'):find('2 drawn',1,true),'/chatbox status says the text is the addon\'s and how many rows were drawn')
 app.Say=function() end
-app.options.fontSize[1]=24; frame()
-assert(text[1].pos[2]==820 and labels[1].y>100,'Font Size past the row\'s height: the row\'s height, the text at the row\'s top')
+app.options.fontSize[1]=24; pushedSizes={}; frame()
+assert(text[1].pos[2]==1017-24 and text[2].pos[2]==1017-24-26 and pushedSizes[1]==24 and labels[1].y<270,'Font Size past the game\'s row spacing: still Font Size and the compact log\'s spacing')
 app.options.fontSize[1]=12
 app.options.fontFile=''; pushedFonts={}; frame(); assert(#pushedFonts==0 and #text==2,'the theme\'s font at the row\'s size: nothing named')
 app.options.replaceText[1]=false; frame()
@@ -357,7 +450,7 @@ chatState.nativeText=true
 rowsGeometry=nil; frame()
 assert(not hooks[0].replace.text and #text==0 and hooks[0].replace.tabs,'no fresh rows: the game\'s text is left drawn')
 app.options.replaceTabs[1]=false; frame()
-assert(not hooks[0].replace.tabs and hooks[0].replace.scrollbar and #labels==0 and #filled==2,'Replace Tabs off: the game\'s tabs stay, the scrollbar still the addon\'s')
+assert(not hooks[0].replace.tabs and hooks[0].replace.scrollbar and #labels==0 and #filled==1,'Replace Tabs off: the game\'s tabs stay, the scrollbar still the addon\'s')
 app.options.replaceScrollbar[1]=false; frame()
 assert(not hooks[0].replace.scrollbar and #filled==0,'Replace Scrollbar off: the game\'s')
 app.options.replaceTabs[1], app.options.replaceScrollbar[1]=true, true
@@ -434,7 +527,8 @@ spec.drawSettings(app.options)
 assert(table.concat(opened,',')=='Chatbox,Size,Text,Padding,Expanded,Window Colors,Chat Log Window,Input Text Box','open: every section drawn')
 for k in pairs(headers) do headers[k]=nil end
 package.loaded['winxi.widgets'].Header=function(name) return headers[name] end
-assert(spec.tabs == nil and app.options.colors == nil and app.options.combat == nil, 'no channel colour controls or Combat Log tab')
+assert(#spec.tabs == 1 and spec.tabs[1].label == 'Info Panel' and app.options.colors == nil and app.options.combat == nil,
+    'Info Panel tab added without channel colour controls or Combat Log tab')
 -- Font, Left Padding and source timestamps
 pushedFonts={}; app.options.fontFile='arial.ttf'; inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; frame()
 assert(#pushedFonts==2 and pushedFonts[1]=='font:arial.ttf' and pushedFonts[2]=='font:arial.ttf','the chosen font for the log and the input bar')
@@ -819,4 +913,247 @@ assert(text[1].color[1]==1 and text[1].color[2]==1 and math.abs(text[1].color[3]
 package.loaded.encoding.Decode=function(raw,...) decodes=decodes+1; return plainDecodeStub(raw,...) end
 imgui.GetIO=oldIO
 os.clock=realClock
-print('Chatbox UI: compact rows, two log windows routed as the game routes them, native expanded frame/content separation, no custom selection/input, mouse pass-through, menu handoff, failure and lifecycle passed')
+-- Optional info-panel attachment: same native chat capture, never the clock slot.
+assert(app.options.infoPanel.layout.enabled[1]==false,'panel opt-in by default')
+local fakeTime={get_game_time_raw=function() return 1 end}
+for key,value in pairs({hours=3,minutes=32,weekday=3,year=900,month=12,day=30,moon_percent=42}) do
+    fakeTime['get_game_'..key]=function() return value end
+end
+package.loaded['ffxi.time']=fakeTime
+local hudBegins=0
+package.loaded['winxi.nativehud']={Clock=0,new=function() return {
+    Begin=function() hudBegins=hudBegins+1; return false end,
+    Grid=function() return nil end,Weather=function() return nil end,
+} end}
+package.loaded['winxi.infopanel.icons']={Day=function() return 991 end,Weather=function() return nil end,
+    Sets=function() return {} end,Forget=function() end}
+package.loaded['winxi.theme'].GameBorderColor=function() return {1,1,1,1} end
+local panelDraws={}
+local menuBounds,menuSlot,menuStops=nil,nil,0
+package.loaded['winxi.nativemenus']={new=function() return {
+    Set=function(rect,slot) menuBounds,menuSlot=rect,slot; return true end,
+    Stop=function() menuBounds,menuSlot=nil,nil; menuStops=menuStops+1 end,
+    Status=function() return 'test menu anchor' end,
+} end}
+package.loaded['winxi.frame']={Draw=function(rect,draw)
+    panelDraws[#panelDraws+1]=rect; draw(); currentPanelDrawn=true; sequence[#sequence+1]='panel'
+end}
+app.options.fontSize[1]=12; app.options.matchGameLogSize[1]=false
+chatState.expanded=false; chatState.nativeBrowse=false; ready=true; inputOpen=false
+routes=nil; splitRect=nil; nativeLogRect={20,700,660,1018}
+spec.commands.panel(app.options,{'/chatbox','panel','on'})
+frame()
+assert(hooks[0].panel and not hooks[1].panel and #panelDraws==1,'panel joins primary capture')
+local panelRect=panelDraws[1]
+assert(panelRect.left==20 and panelRect.width==640 and panelRect.height==18 and panelRect.top==1018-18,
+    'panel where the log\'s bottom was, input height and chat width')
+assert(rendered['winxi.chatbox'].pos[2]==1018-18 and rendered['winxi.chatbox'].size[2]==150,'the log lifted wholly above the panel, its size unchanged')
+assert(menuSlot==0 and menuBounds.left==20 and menuBounds.top==1018-18-150 and menuBounds.width==640,
+    'menu anchor above the lifted log, committed only with the completed primary capture')
+-- Typing: the panel stays at the bottom, the input on it, the log over the input
+local savedNative=nativeRect; nativeRect={20,1000,660,1018} -- the game's input where the closed log ends
+inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; panelDraws={}; frame()
+local typed=panelDraws[1]
+assert(typed.top==1018-18 and typed.height==18,'the panel keeps the bottom while typing')
+assert(rendered['winxi.chatbox.input'].pos[2]==1018-18,'the input sits on the panel')
+assert(rendered['winxi.chatbox'].pos[2]==1018-18-18,'the log over the input')
+assert(menuBounds.top==1018-18-18-150,'menus over the log')
+nativeRect={20,1042,660,1060} -- the game's input lower than the log: the log lifted only clear of it
+panelDraws={}; frame()
+assert(panelDraws[1].top==1060-18 and rendered['winxi.chatbox.input'].pos[2]==1060-18,'the panel at the input\'s bottom, the input on it')
+assert(rendered['winxi.chatbox'].pos[2]==1018,'the log already clear of the lifted input stays')
+nativeRect=savedNative
+inputOpen=false; panelDraws={}; frame()
+assert(panelDraws[1].top==1018-18 and rendered['winxi.chatbox'].pos[2]==1018-18,'closed: the panel where it was, the log back on it')
+assert(hudBegins==0,'native clock can be unavailable without stopping panel')
+local function PanelFrame() panelDraws={}; frame(); return panelDraws[1] end
+routes={split=true,first={[1]=true},second={[4]=true}}
+splitRect={20,520,660,700}
+local rect=PanelFrame()
+assert(#panelDraws==1 and hooks[0].panel and not hooks[1].panel,'stacked split: the lower log owns one panel')
+assert(rect.top==1018-18 and rendered['winxi.chatbox'].pos[2]==1018-18,'under the lower log, which is lifted')
+local split=rendered['winxi.chatbox.split']
+assert(split.pos[2]==1018-18-150,'the upper log lifted with it, still flush over the lower')
+assert(menuSlot==0 and menuBounds.top==split.pos[2]-split.size[2],'native menus above the whole lifted stack')
+splitRect={660,700,1000,1018}; rect=PanelFrame()
+assert(hooks[0].panel and not hooks[1].panel and rect.left==20,'horizontal logs keep primary anchor')
+assert(rendered['winxi.chatbox.split'].pos[2]==1018-18,'both side-by-side logs lifted over the panel')
+assert(app.options.infoPanel.window2.enabled[1]==false,'Window 2 Panel off to start')
+-- Window 2 Panel: its own panel under the second log beside the first, its own slots, one shared height
+local window2=app.options.infoPanel.window2
+window2.enabled[1]=true; window2.height[1]=26
+rect=PanelFrame()
+assert(#panelDraws==2 and hooks[0].panel and hooks[1].panel,'side by side: a panel on each log\'s capture')
+local first,secondRect=panelDraws[1],panelDraws[2]
+assert(secondRect.left==660 and secondRect.width==340 and secondRect.top==1018-26 and secondRect.height==26,'Window 2\'s under it, its width')
+assert(first.top==1018-26 and first.height==26,'the first takes the taller one\'s height')
+assert(rendered['winxi.chatbox'].pos[2]==1018-26 and rendered['winxi.chatbox.split'].pos[2]==1018-26,'both logs lifted by it, one bottom')
+assert(menuSlot==0 and menuBounds.left==20,'menus still anchor on the first log')
+splitRect={20,520,660,700}; PanelFrame()
+assert(#panelDraws==1 and hooks[0].panel,'stacked: one panel only, under the lower log')
+window2.height[1]=0; window2.enabled[1]=false; splitRect={660,700,1000,1018}
+PanelFrame(); assert(#panelDraws==1,'Window 2 Panel off: one panel')
+-- Anchor Top: as before the bottom anchor, flush over the upper log; chat, input and menus as the game has them
+assert(app.options.infoPanel.anchor[1]==2,'Bottom to start')
+app.options.infoPanel.anchor[1]=1
+routes=nil; splitRect=nil
+rect=PanelFrame()
+assert(hooks[0].panel and rect.left==20 and rect.width==640 and rect.height==18 and rect.top==1018-150-18,'top: flush over the log')
+assert(rendered['winxi.chatbox'].pos[2]==1018 and menuBounds==rect and menuSlot==0,'top: the log in place, menus above the panel')
+local savedTopNative=nativeRect; nativeRect={20,1000,660,1018}
+inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; rect=PanelFrame()
+assert(rendered['winxi.chatbox.input'].pos[2]==1018 and rendered['winxi.chatbox'].pos[2]==1000 and rect.top==1000-150-18,
+    'top, typing: the input where the game puts it, the log over it, the panel over the log')
+inputOpen=false; nativeRect=savedTopNative
+routes={split=true,first={[1]=true},second={[4]=true}}
+splitRect={20,520,660,700}; rect=PanelFrame()
+local upper=rendered['winxi.chatbox.split']
+assert(#panelDraws==1 and hooks[1].panel and not hooks[0].panel and menuSlot==1,'top, stacked: the upper log owns it')
+assert(rect.top==upper.pos[2]-upper.size[2]-18 and menuBounds==rect,'flush over the upper log')
+splitRect={660,700,1000,1018}; window2.enabled[1]=true; window2.height[1]=26; rect=PanelFrame()
+assert(#panelDraws==2 and panelDraws[1].top==1018-150-26 and panelDraws[2].left==660
+    and panelDraws[2].top==rendered['winxi.chatbox.split'].pos[2]-rendered['winxi.chatbox.split'].size[2]-26,'top, side by side: one over each log, one height')
+window2.enabled[1]=false; window2.height[1]=0
+app.options.infoPanel.anchor[1]=2
+app.options.matchGameLogSize[1]=true
+linesState[0]={shown=0,most=8,fewest=0}; linesState[1]={shown=2,most=6,fewest=0}
+splitRect={20,520,660,700}; rect=PanelFrame()
+assert(#panelDraws==1 and hooks[1].panel and rect.left==20 and rect.top==700-18,'split alone can own the panel')
+assert(rendered['winxi.chatbox.split'].pos[2]==700-18,'and is lifted over it')
+linesState[1].shown=0; PanelFrame(); assert(#panelDraws==0 and menuBounds==nil,'zero-line logs release the panel and native menu anchor')
+linesState={}; app.options.matchGameLogSize[1]=false; routes=nil; splitRect=nil
+chatState.expanded=true; PanelFrame(); assert(#panelDraws==0 and menuBounds==nil,'expanded chat suspends panel/menu anchor')
+chatState.expanded=false
+-- Expand In Place: the game asked, from the compact log, to open its full log on the first log's bottom-left (before
+-- its lift over the panel), so it lays it out there from its first frame; the panel hidden while it is open
+local savedExpanded=expandedRect
+PanelFrame()
+assert(#panelDraws==1 and logPlace and logPlace[1]==20 and logPlace[2]==1018,'asked to open on the log\'s own bottom-left, the panel\'s place too')
+chatState.expanded=true; expandedRect={20,600,660,1018}; PanelFrame()
+assert(logPlace[2]==1018 and #panelDraws==0 and menuBounds==nil,'opened there: the panel hidden')
+assert(rendered['winxi.chatbox.expanded'].pos[1]==20 and rendered['winxi.chatbox.expanded'].pos[2]==1018,'the frame on the moved log')
+local said4={}; app.Say=function(_,line) said4[#said4+1]=line end
+spec.commands.status(); app.Say=function() end
+assert(table.concat(said4,'\n'):find('Opened where the chat log stands',1,true),'/chatbox status says so')
+chatState.expanded=false; PanelFrame(); assert(#panelDraws==1,'collapsed: the panel back')
+app.options.infoPanel.anchor[1]=1; PanelFrame()
+assert(logPlace[2]==1018,'Top: on the log\'s own bottom as well')
+chatState.expanded=true; PanelFrame(); assert(#panelDraws==0,'Top: hidden while expanded')
+chatState.expanded=false; app.options.infoPanel.anchor[1]=2
+app.options.expandInPlace[1]=false; local stops=logStops; PanelFrame()
+assert(logPlace==nil and logStops==stops+1,'Expand In Place off: given back, the game\'s place')
+chatState.expanded=true; PanelFrame(); assert(#panelDraws==0 and logPlace==nil,'off: still no panel while expanded')
+chatState.expanded=false; app.options.expandInPlace[1]=true; PanelFrame(); assert(logPlace,'on again')
+app.options.enabled[1]=false; frame(); assert(logPlace==nil,'chatbox off gives the log back')
+app.options.enabled[1]=true; expandedRect=savedExpanded
+app.options.infoPanel.layout.width[1]=800; app.options.infoPanel.layout.height[1]=32
+rect=PanelFrame(); assert(rect.width==800 and rect.height==32,'custom panel sizing')
+app.options.infoPanel.layout.attached[1]=false
+app.options.infoPanel.layout.x[1]=100; app.options.infoPanel.layout.y[1]=50
+rect=PanelFrame(); assert(rect.left==100 and rect.top==50,'custom panel position on host capture')
+assert(rendered['winxi.chatbox'].pos[2]==1018 and menuBounds==rect,'a detached panel leaves chat in place; menus above the panel')
+events.packet_in({id=0x00b}); PanelFrame(); assert(#panelDraws==0,'zoning releases attachment')
+events.packet_in({id=0x00a}); PanelFrame(); assert(#panelDraws==1,'zone-in restores attachment with chat')
+app.options.infoPanel.anchorMenus[1]=false
+PanelFrame(); assert(#panelDraws==1 and menuBounds==nil,'native menu placement can be disabled independently')
+app.options.infoPanel.anchorMenus[1]=true
+captureOK=false
+PanelFrame(); assert(menuBounds==nil,'failed capture never publishes native menu geometry')
+captureOK=true
+spec.commands.panel(app.options,{'/chatbox','panel','off'})
+PanelFrame(); assert(#panelDraws==0 and menuBounds==nil and menuStops>0,'panel off restores native menu placement')
+spec.commands.panel(app.options,{'/chatbox','panel','on'})
+-- Hide Game Clock: an empty clock replacement renewed each frame, icons with it; off, chatbox off or
+-- zoning gives the game's clock back. Works with the panel off.
+local clockBegins,clockStops,clockMask=0,0,nil
+local compassBegins,compassStops=0,0
+package.loaded['winxi.nativehud']={Clock=0,Compass=1,HideDay=1,HideWeather=2,new=function(index)
+    if index==1 then return {Begin=function() compassBegins=compassBegins+1; return true end,
+        Stop=function() compassStops=compassStops+1 end,Status=function() return 'test compass' end} end
+    return {Begin=function() clockBegins=clockBegins+1; return true end,
+        Stop=function() clockStops=clockStops+1 end,HideIcons=function(mask) clockMask=mask end,
+        Status=function() return 'test clock' end,Grid=function() return nil end,Weather=function() return nil end}
+end}
+assert(app.options.infoPanel.hideClock[1]==false,'Hide Game Clock off to start')
+PanelFrame(); assert(clockBegins==0,'the game\'s clock left alone while off')
+assert(app.options.infoPanel.hideCompass[1]==false and compassBegins==0,'Hide Compass off to start, the compass left alone')
+spec.commands.clock(app.options,{'/chatbox','clock'})
+assert(app.options.infoPanel.hideClock[1]==true,'/chatbox clock toggles it')
+PanelFrame(); assert(clockBegins==1 and clockMask==3,'hidden: its text and both icons')
+assert(compassBegins==0,'hiding the clock leaves the compass')
+spec.commands.compass(app.options,{'/chatbox','compass','hide'})
+PanelFrame(); assert(app.options.infoPanel.hideCompass[1]==true and compassBegins==1 and clockBegins==2,'/chatbox compass hide: both hidden')
+spec.commands.compass(app.options,{'/chatbox','compass'}); local cs=compassStops; PanelFrame()
+assert(app.options.infoPanel.hideCompass[1]==false and compassStops>cs and compassBegins==1 and clockBegins==3,'toggled back: the compass shown, the clock still hidden')
+spec.commands.compass(app.options,{'/chatbox','compass','hide'}); PanelFrame(); assert(compassBegins==2)
+spec.commands.panel(app.options,{'/chatbox','panel','off'})
+PanelFrame(); assert(clockBegins==5 and compassBegins==3,'with the panel off as well')
+spec.commands.panel(app.options,{'/chatbox','panel','on'})
+events.packet_in({id=0x00b}); local stops=clockStops; cs=compassStops; PanelFrame()
+assert(clockStops>stops and compassStops>cs and clockBegins==5 and compassBegins==3,'zoning gives both back')
+events.packet_in({id=0x00a}); PanelFrame(); assert(clockBegins==6 and compassBegins==4,'and hides them again after')
+spec.commands.off(app.options); stops=clockStops; cs=compassStops; PanelFrame()
+assert(clockStops>stops and compassStops>cs and clockBegins==6 and compassBegins==4,'chatbox off gives both back')
+spec.commands.compass(app.options,{'/chatbox','compass','show'})
+spec.commands.on(app.options)
+spec.commands.clock(app.options,{'/chatbox','clock','show'}); stops=clockStops; PanelFrame()
+assert(app.options.infoPanel.hideClock[1]==false and clockStops>stops and clockBegins==6,'/chatbox clock show: the game\'s again')
+spec.commands.off(app.options); PanelFrame(); assert(#panelDraws==0,'chatbox off stops panel')
+spec.commands.on(app.options)
+-- Info Panel owns focused subtabs without changing ordinary chat settings.
+local activeTab,editors='General',0
+imgui.BeginTabBar=function() return true end; imgui.EndTabBar=function() end
+imgui.BeginTabItem=function(label) return label:match('^[^#]+')==activeTab end
+imgui.EndTabItem=function() end
+imgui.InputText=function() editors=editors+1; return false end
+imgui.IsAnyItemActive=function() return false end
+imgui.SetNextItemWidth=function() end
+imgui.SliderFloat=function() return false end
+local oldHeader=package.loaded['winxi.widgets'].Header
+package.loaded['winxi.widgets'].Header=function() return true end
+app.options.infoPanel.window2.enabled[1]=true
+for _,name in ipairs({'General','Layout','Data','Window 2','Text','Icons'}) do
+    activeTab=name; editors=0
+    spec.tabs[1].draw(app.options)
+    assert(editors==((name=='Data' or name=='Window 2') and 3 or 0),'Info Panel data editors isolated to the Data and Window 2 subtabs')
+end
+app.options.infoPanel.window2.enabled[1]=false
+package.loaded['winxi.widgets'].Header=oldHeader
+-- The game's own history put before chatbox's as it starts: each of the game's lines a message, oldest first, with
+-- its colour codes and whole mode word; the newest that chatbox already has left out; once until the next reset
+gameLines={{text='[01:00:00] Old say',mode=1},{text='\x1f\x05(Ann) party',mode=0x8005},{text='',mode=1},
+    {text='npc replay',mode=190},{text='Already here',mode=1}}
+events.unload(); message('Already here',{mode=1}); local requests=historyRequests
+chatState.expanded=false; chatState.selected=false; ready=true; inputOpen=false; nativeLogRect={20,700,660,1018}
+app.options.infoPanel.layout.enabled[1]=false
+frame(); frame()
+local texts={}
+for _, t in ipairs(text) do texts[#texts+1]=t.text end
+local party=select(2,pcall(require('encoding').Decode,'\x1f\x05(Ann) party',false,true))
+assert(historyRequests==requests+1 and table.concat(texts,'|')=='[01:00:00] Old say|'..party..'|Already here',
+    'the game\'s lines before chatbox\'s, the empty and the replayed left out, the one it has already not twice: '..table.concat(texts,'|'))
+assert(text[2].color==require('palette').Mode(5),'in its mode\'s colour')
+frame(); assert(historyRequests==requests+1,'read once')
+local said5={}; app.Say=function(_,line) said5[#said5+1]=line end; spec.commands.status(); app.Say=function() end
+assert(table.concat(said5,'\n'):find('Game history: 2 of the game\'s lines put before chatbox\'s own',1,true),'/chatbox status says so')
+events.unload(); frame(); frame(); assert(historyRequests==requests+2,'read again after a reset')
+-- timestamps on: a line without one is the rest of the message before it in the same mode, joined back to it
+gameLines={{text='[01:00:00] [uihook:party] Party/target',mode=0},{text='[target] on; unload hideparty first.',mode=0},
+    {text='[01:00:01] Beet caught a',mode=0x28e},{text='moorish idol!',mode=0x28e},{text='[01:00:02] Doom says hi',mode=1}}
+events.unload(); frame(); frame()
+texts={}
+for _, t in ipairs(text) do texts[#texts+1]=t.text end
+assert(table.concat(texts,'|')=='[01:00:00] [uihook:party] Party/target [target] on; unload hideparty first.|[01:00:01] Beet caught a moorish idol!|[01:00:02] Doom says hi',
+    'each message whole again: '..table.concat(texts,'|'))
+gameLines={{text='[01:00:00] one',mode=1},{text='two',mode=4}}
+events.unload(); frame(); frame()
+texts={}
+for _, t in ipairs(text) do texts[#texts+1]=t.text end
+assert(table.concat(texts,'|')=='[01:00:00] one|two','another mode is another message, timestamp or none')
+gameLines={{text='no stamp',mode=1},{text='nor here',mode=1},{text='[01:00:00] once',mode=1}}
+events.unload(); frame(); frame()
+texts={}
+for _, t in ipairs(text) do texts[#texts+1]=t.text end
+assert(table.concat(texts,'|')=='no stamp|nor here|[01:00:00] once','timestamps mostly off: each line stays a message')
+gameLines={}
+print('Chatbox UI: compact/expanded chat, routing, failure/lifecycle and chat-owned info-panel capture/settings passed')

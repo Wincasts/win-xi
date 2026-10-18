@@ -1,4 +1,4 @@
-# Chatbox — experimental 0.10
+# Chatbox — experimental 0.11
 
 A **WinXI-styled chat log the game still drives**. The compact log takes the native primary log's
 place and **size** (it follows the game's chat size setting), in WinXI's background and border art,
@@ -16,8 +16,13 @@ each where the game's are.
 - Native and SimpleLog inline colours are always kept; uncoloured text takes its native chat-mode
   colour. The colours are the game's own, as configured, read through uihook; without that, close
   approximations.
-- The last 256 messages seen are kept **in memory only**. No chat is written to disk. Compact history
-  begins when the addon loads; the expanded log is the game's own, from before it loaded too.
+- The last 256 messages seen are kept **in memory only**. No chat is written to disk. As it starts
+  (and after a reset or a new character), chatbox reads the game's own history once through uihook,
+  the first log window's last 100 lines, and puts them before its own, so a reload or a late load
+  does not begin empty; lines it already has are left out. The game keeps a message as the lines it
+  wrapped it into; with timestamps on, a line without one is joined back to the message before it, so
+  each message is whole again (with timestamps off, each of the game's lines stays a message).
+  `/chatbox status` says how many were read. The expanded log is the game's own.
 - The log lifts above the input bar while typing, and the game's clock and its icons follow the top
   of the log.
 - With **Log Window 2** on in the game's settings, a second box stands where the game puts its second
@@ -37,7 +42,7 @@ each where the game's are.
 
 ```text
 addons/chatbox/          this directory
-addons/libs/winxi/       WinXI 19 or newer
+addons/libs/winxi/       WinXI 22 or newer (including infopanel code and bundled icons)
 addons/winxisettings/    shared theme settings (optional)
 plugins/uihook.dll       0.5 or newer, chat ABI 13 (native content, the tab strip, scrollbar and rows of text measured, the two log windows' routing and lines, the game's colours)
 ```
@@ -59,6 +64,85 @@ everything and is there if replacement stops. SimpleLog's multi-hit and critical
 actor filters, timestamps and job profiles come through that way; there is no second combat
 formatter or filter.
 
+## Optional Info Panel
+
+The **Info Panel** tab in `/chatbox` has General, Layout, Data, Window 2, Text and Icons subtabs. Enable it
+there or with `/chatbox panel on`. It is **off by default**, so updating does not add a duplicate
+of an existing clock panel.
+
+- Three independent **Left/Middle/Right** slots, each with a format, field picker, Left/Center/Right
+  alignment, and relative-width weight. Literal `|` characters become Winxi Fine/Beveled/Ornament
+  dividers; the two slot boundaries can be styled or hidden too.
+- Fields: `{time}`, `{zone}`, `{grid}`, `{day}`, `{date}`, `{moon}`, `{weather}`, `{dayicon}`,
+  `{weathericon}`, `{level}`, `{exp}`, `{tnl}`, `{rate}`. For example, Left: `{time} | {zone}`,
+  Middle: `{day} | {date}`, Right: `{tnl} | {rate}`. Empty fields take their preceding divider away.
+- Width 0 follows the owning chatbox; Height 0 matches the prepared input-bar height or grows to fit
+  the panel font/icons and padding. Font/size can follow chat or be overridden. Text/icons are
+  vertically centred; fixed-size overflow is clipped inside its own slot.
+- Attach To Chat (with offsets), or use a custom position and size, which leaves chat where the game
+  puts it. Attached, **Anchor** (Layout tab) chooses where:
+  - **Bottom** (default): the panel takes the bottom of the logs' place and every drawn log is lifted
+    by its height, so chat sits wholly above it. While typing the panel stays at the bottom (the
+    input's own bottom): the input is lifted to sit on it, and the logs above the input as ever. The
+    lowest visible log owns it: the primary, under a stacked or beside a side-by-side Window 2.
+  - **Top**: flush over the upper log, its channel title drawn last at their shared seam; chat and
+    the input stay where the game puts them. The upper visible log owns it: a stacked Window 2, or
+    the primary beside a side-by-side one.
+  If only Window 2 is visible, it owns the panel either way.
+- **Window 2 Panel** (General, off by default) adds a second panel on Window 2 (by Anchor, over or under it) while the game
+  shows the two log windows side by side. Its slots, layout and icon placement are set in the
+  **Window 2** subtab; font, text colour and icon set follow the first panel. Attached panels
+  share the taller one's height so both logs keep one bottom. Stacked logs keep one panel.
+- Day/weather icons can be placed before/after any slot, offset independently, or inserted as data
+  tokens for exact order. Icon sets are under `addons/libs/winxi/infopanel/icons`; `gems` is bundled
+  and supplies missing custom pictures. Hidden/Native placement does not auto-insert an icon;
+  native HUD visibility is never changed by chatbox.
+- Background, border art and shadow follow the shared/local Winxi theme, captured together with
+  the owning log. The panel is an attachment on that log's draw list, **not a separate floating
+  ImGui window**. Attached, it lifts the drawn logs (and their scroll regions) by its height; it
+  never changes their size or the game's own log rectangles.
+- Visibility follows **compact chat**, not the native clock: action/combat menus hiding the game's
+  clock no longer stop the panel. It hides during expanded history, zoning, chatbox off, or when
+  neither compact log is visible. Custom positioning does not override these rules.
+- Time, zone and EXP data do not require native clock rendering. Weather uses login/weather packets,
+  with a fresh native read as fallback. `{grid}` is optional native-clock data: omitted when that
+  source is stale/hidden rather than freezing an old position. Weather may be unknown after loading
+  mid-session until a native sample or weather/login packet arrives; it is never guessed as clear.
+
+**Switching from clock:** install this chatbox and the full updated Winxi library, including the
+shared panel icons. `/addon unload clock`, `/addon reload chatbox`, then `/chatbox panel on`.
+The clock addon/folder is not required by chatbox; existing clock settings remain untouched and
+are not automatically imported. Use `/chatbox panel off` before returning to clock.
+
+**Hide Game Clock** (Info Panel → General, off by default; `/chatbox clock [hide|show]`) hides the
+game's clock, its time and its day and weather icons, while chatbox runs, with the panel on or off.
+Each frame chatbox renews an empty replacement in uihook's clock slot and names both icons hidden,
+so the game still runs its clock: `{grid}` and the weather stay readable for the panel. Turning it
+off, chatbox off, zoning or unloading gives the game's clock back at once. Needs uihook with clock
+support; unload the clock addon and hidecompass, which use the same object. `/chatbox status`
+reports it as Game Clock.
+
+**Hide Compass** (Info Panel → General, off by default; `/chatbox compass [hide|show]`) does the same
+for the game's compass and its radar, through uihook's compass slot; the clock is not affected
+either way, and each can be hidden alone. It is given back on the same terms as the clock.
+
+**Native Menus → Anchor Above Chat** (General, on by default) moves the registered command,
+magic, ability, inventory/item-use and related control menus, and an event's choices (an NPC's Yes/No),
+above the top of the lifted chat when anchored to the bottom, and above the panel itself when anchored
+to the top or given a custom position, with a 2px clearance.
+Requires **uihook 0.6** (independent menu ABI 1); `/uihook menus` reports recognition and relocation
+counts. Older/unrecognised DLLs leave menus untouched and the panel still works. The plugin sets
+native layout targets before the game's own Window update, so its frame/rows/cursor/hit geometry
+share coordinates—no render-only offset or mouse remapping. Positional opening animations may
+snap to the new anchor. Unrelated menus remain native; a list too tall to fit above that anchor is
+left in its original position. This is experimental and needs live mouse/controller validation.
+
+Disabling menu anchoring, the panel or chatbox, expanding history, losing fresh host captures,
+zoning or unloading restores owned native positions. A newer game-written target is never
+blindly overwritten. **Unload uihook before replacing its DLL**, or close the game; do not overwrite
+a loaded plugin. Deploy `plugins/uihook/build/uihook.dll` to Ashita's `plugins/uihook.dll`, plus
+the updated chatbox and Winxi 22 directories. The existing chat ABI remains 13.
+
 ## Commands
 
 ```text
@@ -69,14 +153,19 @@ formatter or filter.
 /chatbox status   bridge status, the last box drawn, kept-message and decode-error counts
 /chatbox modes    the last ten lines kept and their chat modes (to find a channel's)
 /chatbox bytes    the last incoming line: original, modified, expanded and UTF-8 bytes (hex, first 256 of each)
+/chatbox panel on     enable the optional info panel (off by default)
+/chatbox panel off    hide the info panel without affecting chat
+/chatbox panel reset  reset the panel's EXP-per-hour tracker
+/chatbox clock        toggle hiding the game's clock (hide or show to set it)
+/chatbox compass      toggle hiding the game's compass (hide or show to set it)
 /uihook chat      native recognition, focus/expansion flags, cursor, page, scroll and filter
 /winxi            the shared WinXI look, with winxisettings installed
 ```
 
 ## Settings
 
-`/chatbox` opens the settings: six sections, each folding away, and a Winxi Theme tab. Settings
-are kept for each character.
+`/chatbox` opens Settings (six collapsible sections), Info Panel, and Winxi Theme tabs.
+Settings are kept for each character.
 
 **Chatbox**
 
@@ -105,7 +194,7 @@ are kept for each character.
 - **Font**: the log's and input bar's font, the theme's (to begin with) or any `.ttf` in
   `C:\Windows\Fonts`. Japanese and other non-Latin text need a font with those glyphs.
 - **Font Size**: 8 to 24 pixels (12 to begin with); both boxes grow with it. The expanded log's text
-  is this size too, with Replace Text, though no taller than the game's rows.
+  is this size too, with Replace Text, laid out as the compact log's.
 
 **Padding**
 
@@ -119,16 +208,32 @@ are kept for each character.
 
 **Expanded**
 
-- **Replace Tabs** (on to begin with): the expanded log's channel tabs drawn in WinXI's tab style and
-  the chat's font, each where the game draws its own, so Square and the mouse still choose among
-  them. Off, the game's own tabs are drawn, tinted.
+- **Replace Tabs** (on to begin with): the expanded log's channel tabs drawn as WinXI buttons, each
+  whole and in the game's order, the chosen one lit as the game chooses it (Square, the arrows). The
+  game's mouse clicks on its tabs stay at its own places. Off, the game's own tabs are drawn, tinted.
 - **Replace Scrollbar** (on to begin with): the expanded log's scrollbar drawn as the compact log's,
-  a faint track and a thumb, where the game's is; scrolling is still the game's. Off, the game's own
+  a thin thumb and no track inside the log's right edge, over the game's bar's height and where its
+  page is; scrolling, and dragging the game's bar, are still the game's. Off, the game's own
   is drawn, tinted.
 - **Replace Text** (experimental, on to begin with): the expanded log's rows of text drawn in the
-  chat's Font, at Font Size or the game's row height if that is less, each row where the game draws
+  chat's Font at Font Size, each row centred where the game draws
   its own and in the game's colours, so the cursor, hovering, Confirm and scrolling are still the
   game's. Off, the game's own font.
+- The expanded log's window is the compact log's: the same padding, Font Size, shadow and **Window
+  Colors**, its foot where the newest row's text and Bottom Padding end, and its rows from Left
+  Padding in the chat's Font at Font Size.
+- **Expanded Height** (75% to begin with, 25 to 100): how far up the screen the expanded log reaches,
+  its top that share of the screen's height up from the bottom and never above the game's own window;
+  the tabs stand on its top and the scrollbar keeps within it. The game's rows above it are cut off.
+  100% is the game's own.
+- **Expand In Place** (on to begin with): the expanded log opens where the chat log stands, its
+  bottom-left on the first log's; the info panel is hidden while the log is expanded, so with Anchor
+  Bottom the log takes the panel's place as well. Its rows, hovering, Confirm and scrolling move with it, as the game lays them
+  out there. Off, where the game puts it.
+- **Replace Cursor** (on to begin with): with the three above on, the expanded log mirrored whole:
+  the game draws nothing of it, and chatbox draws its cursor, the light on the cursor's row and the
+  game's marked rows as well. The game still moves the cursor, follows the mouse and takes Confirm.
+  Off, the game's own, tinted.
 
 **Window Colors**
 
@@ -186,31 +291,42 @@ message-action menus) and Cancel are all native; no tell is made up, and every t
 own filter. The **tabs, scrollbar and text** are the addon's: uihook measures the game's tab strip,
 scrollbar and rows of text as the game draws them and, with Replace Tabs, Replace Scrollbar and
 Replace Text on, leaves them undrawn, and the addon draws its own in exactly those places the frame
-after. The game's tabs
-overlap at their edges and are stacked; the addon draws them in the game's order, each over the ones
-before it, and the chosen one last, on top of all. Each is a square-cornered box, as winxi's windows
-are: the log's **Background** colour, then WinXI's **Highlight Color** over it, solid for the chosen
-tab and faint for the rest, the theme's **Tab Style** over both, and an edge in the **Border / Art
-Tint**, so the joins show where one lies over another. The tab's name, in the chat's **Font** and **Font
-Size** and the log's **Title** colour with winxi's dark edge, is centred in the part of the tab left
-uncovered and cut to what fits there: with the whole strip drawn the tabs are named by where they
-stand, left to right, Window, Say, Tell, Party, Linkshell 1, Linkshell 2, Assist (J), Assist (E),
-Unity and Shout; with fewer, by the channel each was drawn for where that is known. No line under the row, the frame's border being there. The
-scrollbar is a faint track and a white thumb, as wide as the
-game's bar, the thumb where the game's page is among its rows. A tab that cannot be named is named for
+after. The game draws each tab not chosen only its first 30 units wide, the next over the rest; the
+addon draws every tab whole, as **WinXI buttons** side by side from where the game's strip starts, all
+as wide as the longest name needs (narrowed only to fit the log): rounded, over the log's
+**Background** colour, in a game window's button colour (the **Border / Art Tint**, faint), the
+**Highlight Color** for the tab the game has chosen, its short name (Win 1, Win 2, Say, Tell, Party,
+LS 1, LS 2, A (J), A (E), Unity, Shout) in the chat's **Font** at 85% of **Font Size** and the log's
+**Title** colour with winxi's dark edge, centred and cut only where the log is too
+narrow. Which tabs there are and their order are the game's, as its strip is drawn: Window, Window 2
+(only with the game's second log window setting on), Say, Tell, Party, Linkshell 1, Linkshell 2,
+Assist (E), Assist (J), Unity and Shout, each named by the art the game draws it with, through the
+client's own pairing of art and filter. The game's mouse clicks on its tabs stay at its own places,
+so the buttons have no mouse light. The
+scrollbar is the compact log's: a thin white thumb, no track, inside the log's right edge, as tall as the
+game's bar and where the game's page is among its rows, brighter while the mouse is on it or on the
+game's bar, which the game still drags. A tab that cannot be named is named for
 its place. Nothing is moved, so Square, the mouse and the wheel still work on the
 game's own controls. With either off, or without a fresh place from uihook (the first frame, or a
 build without the hooks), the game's own are drawn: the selected tab and row highlight in the
 Highlight Color, other tabs the Title colour, the cursor and scrollbar the **Border / Art Tint**,
-native fade and pulse kept. The row highlight and cursor are always the game's, tinted so.
+native fade and pulse kept. The row highlight and cursor are the game's, tinted so, unless Replace
+Cursor mirrors the whole log: then uihook leaves the full log wholly undrawn (with uihook 0.6) and the
+addon lights the row the game highlights (uihook measures the game's highlight as it is drawn and
+flags the rows under it; the cursor's row with an older uihook) from the left of its text to the scrollbar, a row's pitch tall, in the
+Highlight Color (brighter while held down), lights a row the game marks faintly, and draws the cursor
+after the cursor row's text; which row that is, is the game's, read as it draws.
 The **text** is the addon's with Replace Text on: uihook decodes each of the game's rows as the
 game draws it (its glyph words back to the bytes the game was given, colour codes and all) and
-measures the row, and the addon draws the row's text where the game drew it, in the chat's **Font**
-at **Font Size** or the game's row height if that is less, centred in the row, in its message's
-chat-mode colour with the game's inline colours kept and auto-translate brackets as shapes, clipped
+measures the row, and the addon lays the rows out as the compact log does: the chat's **Font** at
+**Font Size**, Font Size + 2 apart, the newest ending at the **Bottom Padding** and older ones up from
+it, from the log's left edge in by **Left Padding**, in the log's Default Text colour when it
+has its own, otherwise its message's chat-mode colour with the game's inline colours kept and auto-translate brackets as shapes, clipped
 to the log's box; the game's cursor is drawn after the cursor row's text, where the game puts its
-mark. The rows themselves, their wrapping and spacing, the cursor, hovering, Confirm and its menus
-and the wheel are still the game's. A font wider than the game's can run past the right edge, where
+mark. Which rows there are and their wrapping, the cursor, Confirm and its menus and the wheel are
+still the game's, followed by the rows' order (when the row the game has chosen is past what fits,
+the view moves up to keep it in sight); the game's mouse hover and clicks stay at its own rows'
+places, 16 of its units apart, which no longer line up with these. A font wider than the game's can run past the right edge, where
 it is clipped. Off, or without a fresh set of rows from uihook, the game's own bitmap font is drawn.
 Padding, Width and Default Text apply to the compact log and input only, and there is no WinXI
 title over the tabs. Missing control signatures leave the art untinted and the game's tabs,
@@ -246,6 +362,11 @@ luajit tests/chatbox_inline_check.lua
 luajit tests/chatbox_appearance_check.lua
 luajit tests/chatbox_scrollbar_check.lua
 luajit tests/chatbox_ui_check.lua
+luajit tests/infopanel_source_check.lua
+luajit tests/winxi_frame_check.lua
+luajit tests/nativemenus_check.lua
+luajit tests/nativehistory_check.lua
+luajit tests/clock_panel_check.lua
 luajit tests/chatbox_input_check.lua
 luajit tests/chatbox_layout_check.lua
 luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.lua
