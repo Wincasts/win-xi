@@ -78,7 +78,7 @@ function icons.Sets()
         entry = tostring(entry)
         -- folders alone: a name with no extension, that is a folder
         if not entry:find('%.%w+$') and ashita.fs.exists(Root() .. entry .. '\\') then
-            sets[#sets + 1] = { key = entry, label = entry }
+            sets[#sets + 1] = { key = entry, label = entry:gsub('^%l', string.upper) } -- classic: Classic
         end
     end
     table.sort(sets, function(a, b) return a.label:lower() < b.label:lower() end)
