@@ -45,6 +45,13 @@
 local ffi = require('ffi');
 local d3d = require('d3d8');
 local theme = require('winxi.theme');
+local statusdat = require('winxi.statusdat');
+
+-- Every game-artwork path uses the same Pivot-aware source. Ashita's cached
+-- bitmap is a fallback only when the installed DAT cannot be read or decoded.
+local function GameIcon(id, resources)
+    return statusdat.Get(id) or resources:GetStatusIconByIndex(id);
+end
 
 local statusicons = {};
 
@@ -256,7 +263,7 @@ end
 
 local function LoadGame(id)
     local device = d3d.get_device();
-    local icon = AshitaCore:GetResourceManager():GetStatusIconByIndex(id);
+    local icon = GameIcon(id, AshitaCore:GetResourceManager());
     if device == nil or icon == nil then
         return false;
     end
@@ -427,7 +434,7 @@ local function FillGameSheet()
             last = id - 1;
             break;
         end
-        local icon = resources:GetStatusIconByIndex(id);
+        local icon = GameIcon(id, resources);
         if icon ~= nil and icon.ImageSize > 0 then
             local x, y = id % GAME.Columns * GAME.Icon, math.floor(id / GAME.Columns) * GAME.Icon;
             rect.left, rect.top, rect.right, rect.bottom = x, y, x + GAME.Icon, y + GAME.Icon;
@@ -539,7 +546,7 @@ local function FillMixed()
             end
         end
         if not placed then
-            local icon = resources:GetStatusIconByIndex(id);
+            local icon = GameIcon(id, resources);
             if icon ~= nil and icon.ImageSize > 0 then
                 rect.left, rect.top, rect.right, rect.bottom = x, y, x + MIXED.Game, y + MIXED.Game;
                 -- the game's icons are bitmaps with black where nothing is
