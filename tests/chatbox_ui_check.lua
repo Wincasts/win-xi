@@ -422,6 +422,15 @@ for i=1,80 do many[i]={left=40,top=1000-i*16,right=200,bottom=1016-i*16,text='ro
 local savedRows=rowsGeometry; rowsGeometry=many; frame()
 assert(#text==math.floor((1017-273+2)/14) and text[#text].text=='row 70' and text[#text].pos[2]>=273,'the cursor\'s row kept in view, at the top')
 rowsGeometry=savedRows
+-- Timestamps off: the game's rows shown without theirs, back with them as it is turned on
+rowsGeometry[1].text='[12:00:00] newest line'; frame()
+assert(text[1].text=='[12:00:00] newest line','the game\'s stamp shown to begin with')
+app.options.timestamps[1]=false; frame()
+assert(text[1].text=='newest line' and text[2].text=='older','the stamp hidden in the expanded log: '..text[1].text)
+frame(); assert(text[1].text=='newest line','and stays hidden from the kept row')
+app.options.timestamps[1]=true; frame()
+assert(text[1].text=='[12:00:00] newest line','shown again as Timestamps goes on')
+rowsGeometry[1].text='newest line'; frame()
 local said3={}; app.Say=function(_,line) said3[#said3+1]=line end
 spec.commands.status()
 assert(table.concat(said3,'\n'):find('WinXI tabs, scrollbar, text and cursor where the game\'s are',1,true),'/chatbox status says the cursor is the addon\'s')
@@ -1158,4 +1167,33 @@ texts={}
 for _, t in ipairs(text) do texts[#texts+1]=t.text end
 assert(table.concat(texts,'|')=='no stamp|nor here|[01:00:00] once','timestamps mostly off: each line stays a message')
 gameLines={}
+-- Timestamps, the option: the stamps SimpleLog or the timestamp addon wrote hidden from the compact log, the
+-- messages keeping them; /chatbox timestamps [on|off], or none to toggle; kept across a settings load
+assert(app.options.timestamps[1]==true,'shown to begin with')
+gameLines={{text='[01:00:00] from the game',mode=1}}
+events.unload(); frame(); frame()
+message('[01:00:01] Hamelin : live'); frame()
+texts={}
+for _, t in ipairs(text) do texts[#texts+1]=t.text end
+assert(table.concat(texts,'|')=='[01:00:00] from the game|[01:00:01] Hamelin : live','with their stamps: '..table.concat(texts,'|'))
+local said6={}; app.Say=function(_,line) said6[#said6+1]=line end
+local savesBefore=saves
+spec.commands.timestamps(app.options,{'/chatbox','timestamps','off'}); frame()
+texts={}
+for _, t in ipairs(text) do texts[#texts+1]=t.text end
+assert(table.concat(texts,'|')=='from the game|Hamelin : live','/chatbox timestamps off: hidden at once, the game\'s history and live lines alike: '..table.concat(texts,'|'))
+assert(app.options.timestamps[1]==false and saves==savesBefore+1 and said6[1]:find('hidden',1,true),'the option saved and said')
+message('[01:00:02] another'); frame()
+assert(text[#text].text=='another','a line arriving while they are hidden')
+spec.commands.timestamps(app.options,{'/chatbox','timestamps'}); frame()
+assert(app.options.timestamps[1]==true and text[#text].text=='[01:00:02] another' and text[1].text=='[01:00:00] from the game','no verb toggles; the messages kept their stamps')
+spec.commands.timestamps(app.options,{'/chatbox','timestamps','sideways'})
+assert(app.options.timestamps[1]==true and said6[#said6]:find('[on|off]',1,true),'an unknown verb says how')
+app.options.timestamps[1]=false; spec.onSettings(app.options); frame()
+message('[01:00:03] settings loaded'); frame()
+assert(text[#text].text=='settings loaded','a settings load applies the saved choice')
+app.options.timestamps=nil; spec.onSettings(app.options)
+assert(app.options.timestamps[1]==true,'a missing option is repaired to shown')
+frame(); message('[01:00:04] repaired'); frame(); assert(text[#text].text=='[01:00:04] repaired','and shows them')
+app.Say=function() end
 print('Chatbox UI: compact/expanded chat, routing, failure/lifecycle and chat-owned info-panel capture/settings passed')

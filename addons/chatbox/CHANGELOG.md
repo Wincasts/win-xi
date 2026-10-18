@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.3
+
+- Timestamps, an option in the Chatbox section (on to begin with) and `/chatbox timestamps [on|off]`:
+  the time in front of each line as SimpleLog's Timestamps or Ashita's timestamp addon writes it,
+  chatbox adding none of its own. Off, the stamps are hidden in the compact log, Window 2 and the
+  expanded log, each line laid out and coloured without its own; the messages keep them (every
+  stamped line of a joined message), so turning it on shows them again at once, the game's history
+  read at start among them. Kept for each character and applied as settings load.
+
 ## 0.11.2
 
 - A second icon set for the info panel, Classic (Icons tab, Icon Set): days and weather drawn after the
