@@ -103,10 +103,11 @@ local bookend = { width = 3.6, over = 1.8 } -- how wide a cap is, and how far pa
 -- frontPart is how far across the image the front itself goes, and cap the part that is the cap, as
 -- left, top, right and bottom, each from 0 to 1.
 local barTextureSets = { glass = true, detailed = true, crystal = true, satin = true, runic = true, classic = true, radiant = true,
-    chrome = true, flat = true, segmented = true, ember = true }
+    chrome = true, flat = true, segmented = true, ember = true,
+    kingdom = true, magitek = true, aether = true, elven = true, gothic = true }
 local bookendFiles = {}  -- one to match each of winxi's window borders, by its name
 for _, style in ipairs({ 'silver', 'bronze', 'ffxi', 'crystal', 'royal', 'obsidian', 'royal_silver', 'royal_platinum',
-    'mythril', 'adaman', 'jade', 'amethyst' }) do
+    'mythril', 'adaman', 'jade', 'amethyst', 'kingdom', 'magitek', 'aether', 'elven', 'gothic' }) do
     bookendFiles[style] = 'bookends/' .. style .. '.png'
 end
 local wholeCap = { 0, 0, 1, 1 }

@@ -138,7 +138,7 @@ do
         assert(image, 'no bookend for ' .. choice)
         image:close()
     end
-    assert(#styles == 12)
+    assert(#styles == 17) -- the border styles but the first, and kingdom, magitek, aether, elven and gothic
     for _, choice in ipairs(styles) do
         look.BookendStyle = choice
         capCount, requested = 0, nil

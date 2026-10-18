@@ -325,6 +325,13 @@ In **winxisettings → Styles → Bar Texture**, choose:
 - **Flat** — one even colour in a thin square frame.
 - **Segmented** — ten cells, marked on the frame so that they stay put as the bar empties.
 - **Ember** — a glowing core fading to darker edges, with fine sparks.
+- **Kingdom** — square double-rail bevels inspired by classic Final Fantasy console menus.
+- **Magitek** — industrial ribs, alternating metal highlights and mechanical rail markings; a nod to Final Fantasy's machinery.
+- **Aether** — luminous crystal facets and diamond rail accents, inspired by the series' crystal motifs.
+- **Elven** — soft satin light, curved filigree rails and flowing leaf-like reflections; high-fantasy metalwork.
+- **Gothic** — dark iron edging with pointed tracery and a luminous interior; dark-fantasy ornament.
+
+These are original procedural designs, not extracted or reproduced game assets.
 
 The choice applies to HP and MP across party, target and pet frames.
 Colours, range fading, bar sizes and the optional bookends still work as before.
@@ -342,6 +349,9 @@ Enable **winxisettings → Styles → Bar Bookends**, then select **Bookend Styl
 - Any border's name selects its ornament independently of the border: rods with studs (Brushed
   Silver, Bronze, Mythril), riveted plates set with a jewel (FFXI-inspired, Obsidian, Adaman), jewelled
   spines (Royal Gold, Royal Silver, Royal Platinum) and cut stones (Crystal, Jade, Amethyst).
+- Five additional independent ornaments: **Kingdom** (gold crown and blue jewel), **Magitek**
+  (steel coupling and cyan core), **Aether** (violet floating shards), **Elven** (gilt green leaf),
+  and **Gothic** (dark lance and ruby). Pair with their namesake bars or mix freely.
 
 The slim ornaments are not tinted by HP/MP, so silver stays silver and gold stays gold.
 **Bookend Opacity** (under Bookend Style) makes them see-through: 100 is solid, 0 hides them.
