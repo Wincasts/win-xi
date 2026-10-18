@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.34';
+addon.version = '1.35';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -27,6 +27,7 @@ local custom     = require('custom');
 local statuses   = require('statuses');
 local controls   = require('controls');
 local diag       = require('diag');
+local builder    = require('builder');
 
 local Category = nameplates.Category;
 
@@ -45,7 +46,7 @@ local rows = {
       tooltip = 'Your own pet.' },
     { key = 'showPets',     category = Category.Pet,      label = 'Other Pets',
       tooltip = 'Anyone else\'s pet, trust or adventuring fellow.' },
-    { key = 'showNpcs',     category = Category.Npc,      label = 'NPCs',             group = 'NPCs And Monsters',
+    { key = 'showNpcs',     category = Category.Npc,      label = 'NPCs',             group = 'NPCs & Monsters',
       tooltip = 'What cannot be fought: townspeople, doors, and the rest.' },
     { key = 'showMonsters', category = Category.Monster,  label = 'Monsters',
       tooltip = 'What can be fought, charmed players among them.' },
@@ -157,10 +158,20 @@ local function DrawSettings(options)
         app:Save();
     end
 
-    -- what the plugin has to say of the frame just drawn, and with diagnostics on, what name has been doing
-    local hooked = nameplates.Hook() ~= nil;
     controls.EndSection();
-    if ((hooked or diag.Enabled()) and controls.Section('Status', '##name.filter.status')) then
+    controls.EndLayout();
+end
+
+-- Troubleshooting is separate from visibility controls and collapsed until needed.
+local function DrawDiagnostics(options)
+    local hooked = nameplates.Hook() ~= nil;
+    controls.BeginLayout('diagnostics', nil, 'Enable Diagnostics');
+    if (controls.Section('Diagnostics', '##name.diagnostics', true, true)) then
+        if (controls.Checkbox('Enable Diagnostics', '##name.diagnosticsEnabled', options.diagnostics,
+                'Record renderer problems and write a log when custom names stop.')) then
+            diag.Enable(options.diagnostics[1]);
+            app:Save();
+        end
         if (hooked) then
             local shown, hidden = 0, 0;
             for _, name in nameplates.Each() do
@@ -203,15 +214,19 @@ app = shell.New({
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
-    help         = 'Use /name to open the Names, Filters, Statuses and NM Tracking menu.',
+    help         = 'Use /name to open Names, Visibility, Statuses, NM Tracking and Experimental Builder. Diagnostics is under Names.',
     drawSettings = DrawSettings,
-    settingsLabel = 'Filters',
+    settingsLabel = 'Visibility',
     leadingTabs  = {
-        { label = 'Names', draw = function (options) custom.DrawSettings(options, app.save); end },
+        { label = 'Names', draw = function (options)
+            custom.DrawSettings(options, app.save);
+            DrawDiagnostics(options);
+        end },
     },
     tabs         = {
         { label = 'Statuses', draw = function (options) statuses.DrawSettings(options, app.save); end },
         { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end },
+        { label = 'Experimental Builder', draw = function (options) builder.Draw(options, app.save); end },
     },
 
     -- for testers: /name diag on or off, /name diag log
@@ -299,10 +314,10 @@ ashita.events.register('d3d_present', 'present_cb', function ()
 
     -- with diagnostics off, nothing in the way
     if (not diag.Enabled()) then
-        custom.Frame(options, hook, preferredDefaults);
+        custom.Frame(options, hook);
         return;
     end
-    local ok, result, detail = xpcall(custom.Frame, failed, options, hook, preferredDefaults);
+    local ok, result, detail = xpcall(custom.Frame, failed, options, hook);
     if (not ok) then
         diag.Frame('error');
         error(result, 0);

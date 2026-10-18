@@ -77,11 +77,11 @@ options.huntScale[1] = 999; custom.Settle(options)
 H.print('kept within 100 to 200', options.huntScale[1] == 200)
 options.huntScale[1] = 100; render()
 
-options.showAggroIcons[1] = false; render()
+options.monsterFormat[1] = '[name]'; render()
 local any = false
 for i = 0, quads(1) - 1 do any = any or draw.Quads[draw.Entities[1].First + i].Texture == 6 end
-H.print('Show Aggro Icons off: no sign at all, the placeholder still named', quads(1) == 4, not any, quads(2) == #'Placeholder')
-options.showAggroIcons[1] = true
+H.print('Aggro token omitted: no sign, placeholder still named', quads(1) == 4, not any, quads(2) == #'Placeholder')
+options.monsterFormat[1] = '[aggro][name]'
 
 levels.Set({ Names = {}, Indices = {} }, {}, nil, nil); render()
 H.print('not in the tables, still tracked by name: the hunt sign; no lots, no placeholder', quads(1) == 5, first(1).Texture == 6, quads(2) == 4)

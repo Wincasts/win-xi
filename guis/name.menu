@@ -1,30 +1,129 @@
-Name Appearance
-"Font:" [dropdown] tooltip: Choose the font from the list of found installed fonts on your system. This is the font that will be used for everythingin the nameplate.
-"Bold:" [Checkbox] tooltip: Render nameplates in a bold version of your selected font.
-"Max Font Size:" [textbox] tooltip: The maximum size a nameplate will be. Nameplates closer to the camera will approach this size.
-"Min Font Size:" [textbox] tooltip: The minimum size a nameplate wil be. Nameplates further from the camera will never get smaller than this size.
-"Outline thickness: " [radio buttons, 0-3] tooltip: Choose the thickness of the outline effect on nameplate fonts. 0 is no outline.
+Tabs: Names -> Visibility -> Statuses -> NM Tracking -> Experimental Builder
+All sections use aligned labels, common control widths and shared (?) help.
+Existing per-character settings migrate once; format strings own token visibility.
 
-Player Icons
-"Show Icons:" [check box] tooldtip: Checked shows icons next to player names. These include icons like linkshells, levelsync and lfp.
-"Scale:" [percentage slider] tooltip: Set the scale of all icons in player nameplates.
-"Padding:" [textbox] tooldtip: Defines the gap between the icon and player name.
+Names
+  General Name Appearance
+    Font [dropdown]
+    Bold [checkbox]
+    Maximum Name Size (px) [integer, 6-48; shared by every entity type]
+    Minimum Name Size (px) [integer, 6 to maximum; shared by every entity type]
+    Subtarget Size (%) [slider, 50-200]
+    Outline (px) [radio, 0-3]
+    Health Bars [checkbox; shared by all entity types, including pets/trusts and NPCs]
+    Combat Only [checkbox; defaults off, disabled while bars off]
+      Requires each entity's own Engaged status (1), valid server ID and HP > 0.
+      Claimed/targeted alone is insufficient. Missing status hides the bar.
+    Health Bar Width (px) [integer, 12-300, default 60; shared]
+    Health Bar Height (px) [integer, 3-40, default 6; shared]
+  Player Names
+    Player Format [text; default [icons: space=4][name]]
+      (?) lists [name], [icons], [distance], options, example format and sample output.
+      Example: [icons: space=4][name] ([distance: decimals=1, color=yellow]y)
+      Output: [status icons] Player Name (12.4y)
+    Reset Format [button, only this category]
+    Colour Overrides [collapsed; each state has enable + RGB picker; defaults off]
+      Normal / In Combat / Targeted / Dead
+      Use Game Colours [button; disable category overrides, keep picker choices]
+    Includes player-style pets/trusts. [icons] owns icon placement/visibility.
+  Enemy Names
+    Enemy Format [text; baseline [aggro] Lv [level]. [name]]
+      (?) lists [name], [distance], [level], [aggro], [checked], [letters], options and example.
+      Example: [aggro: space=4]Lv [level]. [name] [letters: type=double] ([distance: decimals=1]y)
+      Output: [aggro icon] Lv 80-82. Goblin Butcher AA (12.4y)
+    Reset Format [button, only this category]
+    Colour Overrides [collapsed; each state has enable + RGB picker; defaults off]
+      Unclaimed / Claimed: You-Party-Alliance / Claimed: Others / Targeted / Dead
+      Use Game Colours [button]
+    Help / Examples [collapsed letter caveats]
+    Check Details [collapsed tree]
+      Enabled [checkbox]
+      Size (%) [slider, 50-125, while enabled]
+      Abbreviate Difficulty [checkbox, while enabled]
+      Display Style [dropdown, Icons & Text / Text Only, while enabled]
+      Help / Examples [collapsed help, while enabled]
+    No Show Level, Show Aggro, Mob Letters or Double Letters checkboxes.
+    [level], [aggro], [letters] display whenever present in the format.
+    [letters: type=double] continues AA, AB, etc. after Z; type=single repeats A-Z.
+    Legacy [letter] remains an alias. Missing token means no letters; no automatic suffix.
+  NPC Names
+    NPC Format [text; default [name]]
+      (?) lists [name], [distance], [icons] (when supplied), options and example.
+      Example: [name: color=cyan] ([distance: decimals=1]y)
+      Output: Mog House (4.2y)
+    Reset Format [button, only this category]
+    Colour Overrides [collapsed; each state has enable + RGB picker; defaults off]
+      Normal / Targeted
+      Use Game Colours [button]
+  Diagnostics [collapsed]
+    Enable Diagnostics [checkbox; also /name diag on/off]
+    Names In View [counts, while plugin is connected]
+    Custom Names, Write Log, Last Log [while diagnostics is enabled]
 
-Mob Nameplates
-"Show Level / Range:" [checkbox] tooltip: Show the checked level or known level range. Off hides [level] and the standard Lv prefix without changing saved formats.
-"Show Aggro Icons:" [checkbox] tooltip: Show inline [aggro] icons beside mob names. Check-detail detection/link icons are controlled separately by Text Only.
-"Mob Letters:" [experimental checkbox] tooltip: Label zone spawn slots a-z, wrapping after 26; deterministic by exact mob name and entity-index order in the bundled zone table, not encounter order. Off by default. Requires matching zone tables across users. Unknown/renamed slots are unlabelled. Adds a suffix unless [letter] is placed explicitly.
-"Double Letters:" [checkbox, shown while Mob Letters is on] tooltip: Where an area has more than 26 slots of one name, go on from Z to AA, AB and so on, in one wider badge, in place of starting again at A. Off by default.
-"Mob Format:" [textbox] tooltip: Custom mob nameplate string. Tokens: [name], [level], [aggro], [distance], [checked], [letter]. Default: [aggro] Lv [level]. [name].
+Name sizes, health-bar enable, dimensions and combat filter are shared across all types.
+Bar dimensions include the border and stay visible but disabled while Health Bars is off.
+One-time bar migration: enabled if any category enabled; dimensions use the first enabled Enemy -> Player -> NPC (Enemy if all off). Legacy per-type bars remain archived, not live.
+Colours apply jointly to name, spawn letters and HP fill, overriding explicit name/letter token tints while enabled. Icons retain their colours; other explicit coloured text is unchanged.
+Colour priority: Dead -> Targeted -> combat/claim -> Normal -> game/format. Dead never inherits live overrides. Opacity/fading remains client-controlled.
+No separate Health Bars section, health-bar previews or Tokens & Examples dropdowns.
 
-Check
-"Show Check:" [check box] tooltip: When enabled performing a /check on a mob will display check information on the nameplate.
-"Check Scale:" [slider] tooltip: Set the scale of the /check info.
-"Brief Difficulty:" [checkbox] tooltip: When enabled mob difficulties such as Easy Prey or Incredibly Tough will appear in a shortened form such as EP or IT.
-"Text Only" [checkbox] tooltip: When enabled check details will not include icons. The default is disabled so icons will be shown.
+Token options
+  All tokens: color=yellow or #RRGGBB; space=0-64 pixels after non-empty output.
+  Icons: size=25-300 percent of name height; gap=0-24 pixels between icons.
+  Distance: decimals=0-2, default 1.
+  Letters: type=single or type=double, default single.
+  Mob fields: display=raw/names/both (saved/manual formats default raw).
+  Every block: when=target+checked+nm+relevant [any subset, AND]; within=1-100 yalms.
+  Conditional Text blocks use generated percent-encoded [text: value=...] tokens.
+  Options may be comma/semicolon/space-separated; old colour shorthand remains supported.
+  Invalid options remain literal; numeric values are clamped.
 
-NM Tracking (a tab of its own, after Filters)
-Tracked Monster
-"Tracked NM:" [experimental dropdown] tooltip: Choose a notorious monster of the current area to hunt, or None. Its nameplate and its placeholders' show the hunt icon (assets/special/hunt.png) in place of the [aggro] icon. The choice is kept when leaving the area.
-"Hunt Target Scale:" [percentage slider, 100-200, shown only while an NM is tracked] tooltip: Enlarge the tracked monster's nameplate. 100% is the size of every other name. Placeholders are not enlarged.
-"Label Placeholders:" [checkbox, shown only when the tracked NM has placeholders] tooltip: Name the tracked monster's placeholders "Placeholder" in place of their own name. On by default.
+Visibility
+  Players: Own Name, Party Members, Alliance Members, Other Players [checkboxes]
+  Pets: My Pet, Other Pets [checkboxes]
+  NPCs & Monsters: NPCs, Monsters [checkboxes]
+  Target: Always Show Target [checkbox]
+
+Statuses
+  Display: Enabled, Size (%), Position, Alignment, Timers, Preview
+  Selected Statuses: Search, Selected Only, scrollable checkbox list with icon previews
+  Help / Examples [collapsed]
+
+NM Tracking
+  Tracked Monster: Tracked NM, Target Size (%)
+  Placeholder Options: Label Placeholders [when tracked monster has placeholders]
+
+Experimental Builder [enemy names only; existing menus unchanged]
+  Example [top preview; approximate badges/icons]
+    Preview mob [current-zone mobdb entries, including index variants; explicit demo fallback]
+    Checked, Targeted, Distant size [simulation toggles]; Distance (y)
+    Uses shared General font/bold/outline/name sizes, with draft colours/check-line size. Preview /check level/difficulty are simulated.
+  Builder [above block list]
+    Name line [drag to reorder, insertion marker, click to select]
+    Check information [same block editing, anchored below name, normal /check fade]
+    Dropping outside cancels. Workspace wrapping is not live multiline rendering.
+  Blocks [drag upward into matching row; click also adds]
+    Name: Aggro, Level, Enemy name, Letters, Distance, Checked, Text
+    Check: Difficulty, Checked level, Detection, Link information, Text
+    All mobdb fields [expandable catalog]
+      Name, Family, Job/SubJob IDs, MinLevel/MaxLevel, Notorious, Aggro, Link
+      Sight, Sound, Blood, Magic, JA, Scent, TrueSight, Immunities, Respawn
+      Drops, Steal, Despoil, Spells, Modifiers
+      Individual Slashing/Piercing/H2H/Impact/Fire/Ice/Wind/Earth/Lightning/Water/Light/Dark modifiers
+    Text may move between rows. Other blocks are restricted to their matching row.
+  Selected block
+    Tokens: Space after, inherited/named/custom colour, Remove, Move left/right
+    Mob fields: Database values [raw / names / both; new blocks default names]
+    Every block: Target only, Checked only, Notorious monsters only, Relevant values only, Within (y)
+      Conditions combine with AND; relevant suppresses false/zero/empty and neutral modifiers.
+    Text: Literal text/punctuation, colour, Remove, Move left/right
+    Letters: Single A-Z / Double AA-ZZ
+    Distance: Decimal places
+  Check line: Enabled, Size (%), Abbreviate difficulty
+  Name sizes [read from General Name Appearance; no builder overrides]
+  Generated name and check formats [readable text]
+  Apply to Enemy Names [explicit save; player/NPC and health-bar settings untouched]
+  Reload Current [discard draft; required if live enemy settings changed]
+  Session-only drafts; normal settings persistence after Apply. 24-block addition limit per row.
+  Health-bar options remain in Names > Enemy Names, not in the builder.
+  Empty checkFormat preserves original check renderer; regular Check Details has Restore Original Check Line.

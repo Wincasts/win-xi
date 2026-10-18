@@ -7,10 +7,10 @@ local Category, Flag = nameplates.Category, nameplates.Flag
 local renderer = require('custom')
 local frameForTests = renderer.Frame
 local suppliedFormats
--- Exercise arbitrary renderer formats as fixtures; production fixes only the player-name baseline.
+-- Capture the production settings passed to the renderer; all categories use saved formats.
 renderer.Frame = function(options, hook, formats)
-    suppliedFormats = formats
-    return frameForTests(options, hook)
+    suppliedFormats = formats or options
+    return frameForTests(options, hook, formats)
 end
 local o = H.options()
 H.print('preferred live defaults loaded', o.font == 'trebucbi.ttf', o.fontSize[1] == 32, not o.fontBold[1], o.checkSize[1] == 90,
@@ -47,9 +47,9 @@ H.print('nothing is written', block.Hidden == 0)
 -- the plugin loaded: found, and given the settings
 loaded = true
 H.frames(1)
-H.print('production supplies preferred baseline formats', suppliedFormats ~= nil and suppliedFormats.nameFormat[1] == '[name]',
-    suppliedFormats ~= nil and suppliedFormats.monsterFormat[1] == '[aggro] Lv [level]. [name]',
-    suppliedFormats ~= nil and suppliedFormats.targetFormat == nil and suppliedFormats.checkedFormat == nil)
+assert(suppliedFormats == o, 'production must use editable character formats, not fixed preferred defaults')
+H.print('production uses saved category formats', suppliedFormats.nameFormat[1] == '[icons: space=4][name]',
+    suppliedFormats.monsterFormat[1] == '[name]', suppliedFormats.npcFormat[1] == '[name]')
 H.print('plugin loaded: hook', nameplates.Hook() ~= nil, '| no problem', nameplates.Problem() == nil, '| hidden is players', block.Hidden == Category.Player)
 
 -- a change in the plugin, as by its own command, is taken into the settings and saved
@@ -218,8 +218,7 @@ H.print('full size that lasts: not yet at three frames', waiting == far, '| take
 block.Names[0].Scale = 0.9; H.frames(1)
 H.print('a step of a walk: followed at once', letterHeight() < 12 and letterHeight() > far)
 block.Names[0].Scale = 1; H.frames(1)
--- a pulse towards white and back, as the game gives the target's name, is not followed: the name
--- keeps the colour the pulse starts from
+-- The client's RGB pulse is allowed on name text; icon independence is checked below.
 H.frames(8)
 local function pulse(base, frames)
     for i = 1, frames do
@@ -228,13 +227,13 @@ local function pulse(base, frames)
         block.Names[0].NameColor = 0x80000000 + math.min(0x80, r + toWhite) * 0x10000 + math.min(0x80, g + toWhite) * 0x100 + math.min(0x80, b + toWhite)
         H.frames(1)
     end
-    return draw.Quads[buddy.First].Color
+    return draw.Quads[buddy.First + buddy.Count - 5].Color
 end
-H.print(('pulsing: still drawn %08X'):format(pulse(0x408020, 120)))
--- the name goes red as the fight begins, pulsing all the while: taken up within a pulse
+H.print(('name text follows the client pulse: %08X'):format(pulse(0x408020, 120)))
+-- Claim colour changes are reflected without holding the previous live colour.
 H.print(('pulsing in another colour: drawn %08X'):format(pulse(0x800000, 12)))
 H.print(('and kept %08X'):format(pulse(0x800000, 120)))
--- and back to a weaker colour: taken up once the stronger has not been seen for a while
+-- A weaker claim colour is not suppressed by an earlier saturated sample.
 H.print(('pulsing in a weaker colour: drawn %08X'):format(pulse(0x606020, 120)))
 block.Names[0].NameColor = 0x80101010; H.frames(5)
 H.print(('a colour that stays: taken up at once %08X'):format(draw.Quads[buddy.First].Color))
@@ -276,14 +275,71 @@ do
     H.print('outline zero disables player icon edges too', buddy.Edge == 0)
     o.outline[1] = edge; H.frames(1)
 end
-o.iconSpacing[1] = 10
-H.print('Icon Spacing 10: between the icons, and before the name', gapToName())
-o.iconSpacing[1] = 0
-H.print('Icon Spacing 0:', gapToName())
-o.iconSpacing[1] = 2
+o.nameFormat[1] = '[icons: space=10][name]'
+local between, after = gapToName()
+assert(between == 3 and after == 15, 'token spacing must be measured and drawn in scaled pixels')
+o.nameFormat[1] = '[icons: space=0][name]'
+between, after = gapToName()
+assert(after == 0, 'zero token spacing must be respected')
+o.nameFormat[1] = '[name][icons: size=200, gap=6, space=0, color=cyan]'; H.frames(1)
+local firstInline = draw.Quads[buddy.First + 8] -- three stars, five letters, then icons
+local secondInline = draw.Quads[buddy.First + 9]
+assert(firstInline.Texture == 1 and draw.Quads[buddy.First + 3].Texture == 0,
+    'icons must render at their token position, not always before the name')
+assert(secondInline.X0 - firstInline.X1 == 9 and firstInline.Color == 0xFF60E0E0,
+    'icon gap and colour parameters must be applied')
+o.nameFormat[1] = '[name]'; H.frames(1)
+assert(buddy.Count == 8, 'omitting icons hides them without changing mastery stars')
+o.nameFormat[1] = '[icons: space=2][name]'
+H.print('inline icons: ordering, omission, scaled spacing, gap, colour and size parameters', true)
 icons.Has = function(byte) return byte == 0xAC end
 ffi.copy(block.Names[0].Text, '\172 Buddy'); H.frames(1)
-H.print('both halves of two-part player icon outlined', draw.Quads[buddy.First + 3].Flags == 3, draw.Quads[buddy.First + 4].Flags == 3)
+local seeking, badge = draw.Quads[buddy.First + 3], draw.Quads[buddy.First + 4]
+assert(seeking.Flags == 3 and badge.Flags == 3)
+assert(math.abs(2*(badge.X1-badge.X0)-(seeking.X1-seeking.X0)) < 0.001,
+    'composite status star must be half-size, not painted over the full seeking-party icon')
+assert(math.abs(badge.X0-seeking.X0+(seeking.X1-seeking.X0)/16) < 0.001)
+local stars = o.showStars[1]
+o.showStars[1] = false; H.frames(1)
+assert(buddy.Count == 7, 'composite status badge is independent of the three mastery stars')
+ffi.copy(block.Names[0].Text, '\145 Buddy'); H.frames(1)
+assert(buddy.Count == 6, 'ordinary seeking-party icon must not get a star badge')
+o.showStars[1] = stars
+H.print('composite seeking-party badge: proper size/offset, outlined, independent of mastery stars; plain seeking has no badge', true)
+-- Target text may pulse; icons, composite layers, mastery stars and their outlines must not.
+local savedFlags, savedColor = block.Names[0].Flags, block.Names[0].NameColor
+local savedBold, savedEdge = o.fontBold[1], o.outline[1]
+block.Names[0].Flags = savedFlags + Flag.Target
+block.Names[0].NameColor = 0x80808080
+o.outline[1] = 1
+ffi.copy(block.Names[0].Text, '\172 Buddy'); H.frames(1)
+for i = 1, 160 do
+    local opacity = i <= 110 and 0x20 or (i % 3 == 1 and 0 or (i % 2 == 1 and 0x20 or 0x80))
+    local dim = opacity < 0x80
+    local glyphAlpha = math.floor(255 * opacity / 0x80 + 0.5)
+    block.Names[0].NameColor = opacity * 0x1000000 + (dim and 0x800000 or 0x808080)
+    o.fontBold[1] = i % 3 == 0
+    H.frames(1)
+    assert(math.abs(buddy.Alpha - 1) < 0.001, 'target icon opacity must not follow the text pulse')
+    for j = 0, 4 do
+        local q = draw.Quads[buddy.First + j]
+        assert(q.Color == 0xFFFFFFFF, 'stars, status icon and overlay retain their colours')
+        if j >= 3 then assert(q.Reserved == 191, 'icon outlines must not pulse') end
+    end
+    local glyph = draw.Quads[buddy.First + 5]
+    assert(glyph.Color == glyphAlpha * 0x1000000 + (dim and 0xFF0000 or 0xFFFFFF), 'text follows live RGB and alpha')
+    assert(glyph.Reserved == 0 and glyph.Flags == 1,
+        'outline follows glyph alpha in namehook; do not apply the pulse twice as edge opacity')
+    if o.fontBold[1] then
+        assert(draw.Quads[buddy.First + 6].Color == glyph.Color, 'bold stroke must pulse with its glyph')
+    end
+end
+-- Untargeting releases the icon envelope immediately; it is not a permanent opacity override.
+block.Names[0].Flags, block.Names[0].NameColor = savedFlags, 0x40808080
+H.frames(1); assert(math.abs(buddy.Alpha - 0.5) < 0.001)
+block.Names[0].NameColor = savedColor
+o.fontBold[1], o.outline[1] = savedBold, savedEdge
+H.print('target text fill/outline pulse independently of steady icons, overlays and stars, including long/transparent phases', true)
 icons.Has, icons.Place, icons.Texture = realHas, realPlace, realTexture
 ffi.copy(block.Names[0].Text, 'Buddy'); H.frames(1)
 
@@ -326,8 +382,21 @@ o.targetFormat = T{ '' }
 -- a player's line: the distance there too, if asked for
 o.nameFormat[1] = '[distance] [name]'; H.frames(1)
 H.print('a player with a distance before the name: quads', buddy.Count)
-o.nameFormat[1] = '[name]'
+o.nameFormat[1] = '[name]'; H.frames(1)
+local basePlayerCount = buddy.Count
+-- Independent formats are selected by category, including the production event path.
+o.nameFormat[1], o.monsterFormat[1], o.npcFormat[1] = 'P[name]', 'E[name]', 'NPC: [name]'
+H.frames(1)
+assert(buddy.Count == basePlayerCount + 1 and goblin.Count == 7, 'player/enemy formats must be independent')
+block.Names[1].Category = Category.Npc; H.frames(1)
+assert(goblin.Count == 11 and buddy.Count == basePlayerCount + 1, 'NPCs must use their own format')
+o.npcFormat[1] = '[name] [distance:yellow]y'; H.frames(1)
+assert(goblin.Count == 12, 'NPC format supports distance and colour tokens')
+assert(draw.Quads[goblin.First + 7].Color == format.Compile('[distance:yellow]')[1].color, 'NPC token colours must render')
+o.nameFormat[1], o.monsterFormat[1], o.npcFormat[1] = '[name]', '[name]', '[name]'
+block.Names[1].Category = Category.Monster
 block.Count = 1
+H.print('player, enemy and NPC formats render independently, including distance and colour', true)
 
 -- [level]: the levels a monster can be, from the area's tables: by its index, or failing that its name
 local levels = require('levels')
@@ -366,11 +435,94 @@ local alive = { [300] = { id = 0x1000 + 300, hp = 100 } }
 memory.GetEntity = function() return {
     GetDistance = function() return 4 end,
     GetServerId = function(_, index) return alive[index] and alive[index].id or 0 end,
+    GetRenderFlags0 = function(_, index) return alive[index] and alive[index].flags or 0x200 end,
     GetHPPercent = function(_, index) return alive[index] and alive[index].hp or 0 end } end
 o.showCheckDetails[1] = false -- looked at by itself further down
 levels.Set({ Indices = { [300] = { MinLevel = 8, MaxLevel = 10 } }, Names = {} })
-put(1, 300, Category.Monster, Flag.Wanted, 'Goblin'); block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80808080
+put(1, 300, Category.Monster, Flag.Wanted, 'Goblin'); block.Names[1].Scale, block.Names[1].NameColor = 1, 0x80800000
 H.frames(1)
+-- A claimed red monster turns grey at death, even before the client supplies corpse grey.
+local function goblinColor()
+    local drawing = draw.Entities[300]
+    return tonumber(draw.Quads[drawing.First].Color), drawing
+end
+local livingColor = goblinColor()
+assert(livingColor == 0xFFFF0000, 'test starts from a claimed red name')
+alive[300].hp = 0
+block.Names[1].NameColor = 0x40800000
+H.frames(1)
+assert(goblinColor() == 0xFF808080, 'corpse must immediately turn grey, never hold live red')
+local savedMonsterFormat = o.monsterFormat[1]
+o.monsterFormat[1] = '[name: color=red]'; H.frames(1)
+assert(goblinColor() == 0xFF808080, 'explicit live name colour must not keep a corpse red')
+o.monsterFormat[1] = savedMonsterFormat
+block.Names[1].NameColor = 0x40505050; H.frames(1)
+local grey = goblinColor()
+assert(grey == 0xFFA0A0A0, 'client corpse grey takes precedence over the fallback')
+block.Names[1].NameColor = 0x40800000
+H.frames(60)
+local corpseColor, corpseDrawing = goblinColor()
+assert(corpseColor == grey, 'late claim red must not overwrite an observed corpse grey')
+assert(math.abs(corpseDrawing.Alpha - 0.5) < 0.001, 'corpse must still follow client fade')
+block.Names[1].Flags = Flag.Wanted + Flag.Target
+block.Names[1].NameColor = 0x20800000
+H.frames(1)
+assert(math.abs(draw.Entities[300].Alpha - 0.25) < 0.001, 'targeted corpse must also fade')
+block.Names[1].NameColor = 0x00800000
+block.Frame = block.Frame + 1
+H.frames(1)
+assert(draw.Entities[300].Frame ~= draw.Frame or draw.Entities[300].Count == 0, 'fully faded corpse must not linger')
+alive[300].hp = 100
+block.Names[1].Flags = Flag.Wanted
+block.Names[1].NameColor = 0x80800000
+H.frames(1)
+assert(goblinColor() == livingColor, 'respawn with the same server ID must release corpse grey')
+alive[300].hp = 0
+H.frames(1)
+alive[300].id = 0x2000 + 300
+block.Names[1].ServerId = alive[300].id
+block.Names[1].NameColor = 0x80808080
+H.frames(1)
+assert(goblinColor() == 0xFF808080, 'entity reuse must not inherit the previous corpse grey')
+alive[300].id, alive[300].hp = 0x1000 + 300, 100
+block.Names[1].ServerId = alive[300].id
+H.frames(1)
+H.print('claimed red becomes corpse grey; late-red protection, targeted fade, respawn and entity reuse reset: true')
+-- Visible corpses may remain on the ground; fade only once the model disappears.
+do
+    local n = block.Names[1]
+    local oldFlags, oldColor = n.Flags, n.NameColor
+    n.Flags, n.NameColor = Flag.Wanted + Flag.Target, 0x80800000
+    alive[300].hp, alive[300].flags = 0, 0x200
+    H.frames(10)
+    assert(math.abs(draw.Entities[300].Alpha - 1) < 0.001, 'visible corpse must not time out early')
+    alive[300].flags = 0
+    H.frames(1)
+    local firstAlpha = draw.Entities[300].Alpha
+    H.frames(2)
+    local fadingAlpha = draw.Entities[300].Alpha
+    assert(fadingAlpha > 0 and fadingAlpha < firstAlpha, 'hidden model starts a quick smooth name fade')
+    alive[300].id = 0 -- entity data can disappear before the final target-name calls
+    H.frames(1)
+    assert(goblinColor() == 0xFF808080 and draw.Entities[300].Alpha < fadingAlpha,
+        'entity removal must preserve corpse grey and the existing fade deadline')
+    n.Flags = 0; H.frames(1)
+    n.Flags = Flag.Wanted + Flag.Target; H.frames(1)
+    assert(draw.Entities[300].Alpha < fadingAlpha, 'a late drawing gap must not restart the fade')
+    H.frames(10)
+    block.Frame = block.Frame + 1; H.frames(1) -- advance the mock plugin's output stamp too
+    assert(draw.Entities[300].Frame ~= draw.Frame or draw.Entities[300].Count == 0,
+        'vanished mob name must disappear within the short fade, even while targeted')
+    alive[300].id, alive[300].hp, alive[300].flags = 0x1000 + 300, 100, 0x200
+    n.Flags, n.NameColor = oldFlags, oldColor
+    H.frames(1)
+    assert(math.abs(draw.Entities[300].Alpha - 1) < 0.001, 'respawn must release the disappearance fade')
+    alive[300].id = 0x2000 + 300; block.Frame = block.Frame + 1; H.frames(1)
+    assert(draw.Entities[300].Frame ~= draw.Frame or draw.Entities[300].Count == 0,
+        'stale snapshots must not label a replacement entity')
+    alive[300].id = 0x1000 + 300; H.frames(1)
+end
+H.print('model disappearance: quick fade, lost entity data, late name calls/gaps, respawn and reuse', true)
 -- "Goblin L8-10", then checked and found to be 9: "Goblin L9"
 H.print('before it is checked: the range, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
 o.monsterFormat[1] = '[name] L[level][checked:yellow]'; H.frames(1)
@@ -486,6 +638,55 @@ H.frames(25); local gone = lineAlpha()
 H.print('after 4.9s: still there', still == 255, '| after 5.4: going', going > 0 and going < 255, '| after 6.1: gone, the name alone, quads', gone == 0 and goblin.Count == 6, '| still known as checked', levels.IsChecked(300, 0x1000 + 300))
 H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(20)
 H.print('checked again: back', lineAlpha() == 255)
+do
+    o.checkFormat[1] = '[mob: field=family, color=cyan]'; H.frames(1)
+    assert(goblin.Count == 6 + #'Family: Goblin', 'builder check format must render mobdb values live')
+    local q = draw.Quads[goblin.First + 6]
+    assert(q.Color == 0xFF60E0E0 and q.Y0 > draw.Quads[goblin.First].Y0, 'custom check colour and lower row placement')
+    o.checkFormat[1] = '[difficulty]'; H.frames(1)
+    local shortCount = goblin.Count
+    o.abbreviateDifficulty[1] = false; H.frames(1)
+    assert(goblin.Count == shortCount + 8, 'custom check cache responds to difficulty abbreviation changes')
+    o.abbreviateDifficulty[1] = true
+    o.checkFormat[1] = '[mob: field=subjob]'; H.frames(1)
+    assert(goblin.Count == 6, 'missing mobdb fields must omit the item without fake values')
+    o.checkFormat[1] = ''; H.frames(1)
+    assert(goblin.Count > 6, 'empty checkFormat restores the unchanged original check renderer')
+    local flags, getEntity = tonumber(block.Names[1].Flags), memory.GetEntity
+    o.checkFormat[1] = '[mob: field=family, when=target, within=3]'
+    block.Names[1].Flags = Flag.Wanted; H.frames(1)
+    assert(goblin.Count == 6, 'target condition hides check data without reserving spacing')
+    block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
+    assert(goblin.Count == 6 + #'Family: Goblin', 'target change must affect cached check data immediately')
+    memory.GetEntity = function() local e = getEntity(); e.GetDistance = function() return 25 end; return e end
+    H.frames(1); assert(goblin.Count == 6, 'distance changes hide cached check blocks')
+    memory.GetEntity = getEntity; H.frames(1)
+    assert(goblin.Count == 6 + #'Family: Goblin', 'distance condition updates without recompiling the format')
+    o.checkFormat[1] = '[mob: field=notorious, when=relevant]'; H.frames(1)
+    assert(goblin.Count == 6, 'irrelevant false data is suppressed only when requested')
+    o.checkFormat[1] = '[mob: field=family, when=nm]'; H.frames(1)
+    assert(goblin.Count == 6)
+    local monster = levels.Monster(300, 'Goblin')
+    monster.Notorious = true; H.frames(1)
+    assert(goblin.Count == 6 + #'Family: Goblin')
+    monster.Notorious = false
+    o.showCheckDetails[1] = false
+    o.monsterFormat[1] = format.Serialize({ { kind = 'text', text = 'Lv ', when = 'target' }, { kind = 'name' } })
+    block.Names[1].Flags = Flag.Wanted; H.frames(1)
+    assert(goblin.Count == 6, 'literal labels can be conditional too')
+    block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
+    assert(goblin.Count == 9, 'conditional labels draw only when their condition is met')
+    o.monsterFormat[1] = '[name: when=target, within=3]'
+    block.Names[1].Flags = Flag.Wanted; H.frames(1)
+    assert(goblin.Count == 1 and draw.Quads[goblin.First].Color == 0,
+        'fully hidden conditional names use a transparent marker, not client fallback')
+    block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
+    assert(goblin.Count == 6, 'inline token conditions affect both measurement and drawing')
+    block.Names[1].Flags = flags
+    o.showCheckDetails[1], o.monsterFormat[1], o.checkFormat[1] = true, '[name]', ''
+    H.frames(1)
+    H.print('builder check line: native mobdb data/colours, cached text, dynamic target/distance/NM/relevance and inline conditions', true)
+end
 o.showCheckDetails[1] = false; H.frames(1)
 H.print('Show Check Details off: the name alone, quads', goblin.Count)
 -- [aggro]: the sign that it is aggressive, before its name, whether or not it has been checked
@@ -494,22 +695,42 @@ local first = draw.Quads[goblin.First]
 -- letters 23 high: the sign 29 square, three above the line's top and three below its foot, with the edge letters have
 H.print('[aggro] is a thing:', parts('[aggro][name]'), '| quads', goblin.Count, ('| the sign first: texture %d, at %.2f,%.2f, %d square, from %d down'):format(first.Texture, first.U0, first.V0, first.X1 - first.X0, first.Y0), '| softer edge', first.Flags == 3 and first.Reserved == 191,
     '| the name after it', draw.Quads[goblin.First + 1].X0 >= first.X1)
--- Exercise the production path (fixed player profile supplied), not just the fixture wrapper.
+-- Aggro and inline /check icons also stay steady on a pulsing monster target.
+do
+    local flags, color = block.Names[1].Flags, block.Names[1].NameColor
+    block.Names[1].Flags = require('bit').bor(flags, Flag.Target)
+    block.Names[1].NameColor = 0x80800000
+    o.monsterFormat[1] = '[aggro][checked][name]'
+    H.packetData(0x029, message(0x1000 + 300, 9, 0x43, 300, 173)); H.frames(1)
+    for i = 1, 32 do
+        block.Names[1].NameColor = i % 2 == 1 and 0x20800000 or 0x80808080
+        H.frames(1)
+        assert(goblin.Count == 8 and math.abs(goblin.Alpha - 1) < 0.001)
+        for j = 0, 1 do
+            local q = draw.Quads[goblin.First + j]
+            assert(q.Color == 0xFFFFFFFF and q.Reserved == 191,
+                'aggro and /check icon fills/outlines must not follow name RGB or alpha pulses')
+        end
+    end
+    block.Names[1].Flags, block.Names[1].NameColor = flags, color
+    o.monsterFormat[1] = '[aggro][name]'; H.frames(1)
+end
+-- Exercise the production path with saved per-category formats.
 frameForTests(o, block, suppliedFormats)
-assert(goblin.Count == 7, 'editable mob format must override the fixed profile')
+assert(goblin.Count == 7, 'editable enemy format must be used in production')
 o.showAggroIcons[1] = false
 frameForTests(o, block, suppliedFormats)
-assert(goblin.Count == 6, 'aggro toggle must remove the inline icon')
+assert(goblin.Count == 7, 'aggro token must render regardless of the obsolete toggle')
 o.monsterFormat[1] = '[aggro] Lv [level]. [name]'
 o.showMobLevel[1] = false
 frameForTests(o, block, suppliedFormats)
-assert(goblin.Count == 6, 'level toggle must remove the level and standard Lv punctuation')
+assert(goblin.Count > 7, 'level/aggro tokens and literals must render regardless of obsolete toggles')
 assert(o.monsterFormat[1] == '[aggro] Lv [level]. [name]', 'toggles must not rewrite saved formats')
 o.showMobLevel[1], o.showAggroIcons[1] = true, true
 o.monsterFormat[1] = '[aggro][name]'
 H.frames(1)
 assert(goblin.Count == 7, 're-enabling aggro must restore the icon')
-H.print('production mob format is editable; level and aggro toggles preserve saved strings', true)
+H.print('production enemy format owns level/aggro visibility; obsolete toggles are ignored', true)
 -- which of the twelve signs: six for one that is not aggressive and six for one that is, the first
 -- five of each by level and the sixth a notorious monster's
 local function sign(monster, checkedAs)
@@ -752,6 +973,7 @@ custom.Defaults(o)
 o.showCheckDetails[1], o.showIcons[1], o.showStars[1] = false, false, false
 o.outline[1] = 0
 levels.Set({ Indices = { [299] = { Name = 'Goblin' }, [300] = { Name = 'Goblin' } }, Names = {} })
+alive[300] = { id = 0x1000 + 300, hp = 100, flags = 0x200 }
 put(0, 300, Category.Monster, Flag.Wanted + Flag.Target, 'Goblin')
 block.Count = 1
 o.monsterFormat[1] = '[name][letter:yellow]'
@@ -781,10 +1003,56 @@ assert(math.abs(badgeQuad.Y1 - draw.Quads[labelled.First].Y1) < 0.001,
     'box bottom must align with the name font lowercase baseline')
 assert(math.abs(badgeQuad.X1 + draw.Quads[labelled.First].X0) <= 1,
     'measured badge width must keep the complete nameplate centred')
+-- Default letter tint follows the displayed name, including explicit [name] tint,
+-- regardless of token ordering. Palette/opacity changes must not move the badge.
+do
+    local color = block.Names[0].NameColor
+    block.Names[0].NameColor = 0x80800000
+    o.monsterFormat[1] = '[name: color=cyan][letters]'; H.frames(1)
+    assert(draw.Quads[labelled.First + 6].Color == 0xFF60E0E0)
+    o.monsterFormat[1] = '[letters][name: color=cyan]'; H.frames(1)
+    assert(draw.Quads[labelled.First].Color == 0xFF60E0E0, 'inheritance must also work before the name token')
+    o.monsterFormat[1] = '[name: color=cyan][letters: color=yellow]'; H.frames(1)
+    assert(draw.Quads[labelled.First + 6].Color == 0xFFFFE040, 'explicit letter tint remains authoritative')
+    o.monsterFormat[1] = '[name][letters]'; H.frames(1)
+    local q = draw.Quads[labelled.First + 6]
+    local x0, y0, x1, y1 = q.X0, q.Y0, q.X1, q.Y1
+    for i = 1, 16 do
+        block.Names[0].NameColor = i % 2 == 1 and 0x20800000 or 0x80808080
+        H.frames(1)
+        q = draw.Quads[labelled.First + 6]
+        assert(q.Color == draw.Quads[labelled.First].Color, 'letter inherits live name RGB and pulse opacity')
+        assert(q.X0 == x0 and q.Y0 == y0 and q.X1 == x1 and q.Y1 == y1, 'tint/pulse must not shift the letter')
+        assert(math.abs(q.Y1 - draw.Quads[labelled.First].Y1) < 0.001, 'letter retains the name baseline')
+    end
+    -- Enabled state overrides are authoritative across explicit name/letter tokens and HP fill.
+    local state = o.nameColours.enemyNames.targeted
+    state.enabled[1], state.color = true, { 0, 1, 0, 1 }
+    block.Names[0].NameColor = 0x80800000
+    o.monsterFormat[1] = '[name: color=cyan][letters: color=yellow]'
+    o.showHealthBar[1], alive[300].hp = true, 50
+    local whiteUV = imgui.GetFontTexUvWhitePixel
+    imgui.GetFontTexUvWhitePixel = function() return 0, 0 end
+    H.frames(1)
+    assert(labelled.Count == 10, 'name, letter and shared bar all render')
+    for _, offset in ipairs({ 0, 6, 9 }) do
+        assert(draw.Quads[labelled.First + offset].Color == 0xFF00FF00,
+            'state override must colour the name, letter and matching HP fill together')
+    end
+    block.Names[0].NameColor = 0x20800000; H.frames(1)
+    assert(draw.Quads[labelled.First].Color == 0x4000FF00
+        and draw.Quads[labelled.First + 6].Color == 0x4000FF00,
+        'state RGB overrides must preserve live name/letter pulse opacity')
+    state.enabled[1], o.showHealthBar[1], alive[300].hp = false, false, 100
+    imgui.GetFontTexUvWhitePixel = whiteUV
+    block.Names[0].NameColor = color
+    o.monsterFormat[1] = '[name][letter:yellow]'; H.frames(1)
+end
 local closeBadgeHeight = badgeQuad.Y1 - badgeQuad.Y0
 local closeU, closeV = badgeQuad.U0, badgeQuad.V0
 block.Names[0].Scale = 0.2
 block.Names[0].ServerId = block.Names[0].ServerId + 1 -- reset distance stabilization for this fixture
+alive[300].id = tonumber(block.Names[0].ServerId)
 frameForTests(o, block, suppliedFormats)
 local farBadge = draw.Quads[labelled.First + 6]
 assert(farBadge.Y1 - farBadge.Y0 < closeBadgeHeight, 'same close-up artwork must scale down at distance')
@@ -794,17 +1062,20 @@ assert(farBadge.U0 == closeU and farBadge.V0 == closeV,
     'distance must retain the master badge UVs')
 block.Names[0].Scale = 1
 block.Names[0].ServerId = block.Names[0].ServerId + 1
+alive[300].id = tonumber(block.Names[0].ServerId)
 badges.Prepare = function() return nil end
 frameForTests(o, block, suppliedFormats)
 assert(labelled.Count == 7 and draw.Quads[labelled.First + 6].Texture == 4,
     'failed badge preparation must fall back to the fixed indicator font on the ImGui texture')
+assert(math.abs(draw.Quads[labelled.First + 6].Y1 - draw.Quads[labelled.First].Y1) < 0.001,
+    'plain fallback letter must retain the badge/name baseline rather than jump vertically')
 badges.Prepare = originalBadgePrepare
 o.showMobLetter[1] = false
 frameForTests(o, block, suppliedFormats)
-assert(labelled.Count == 6, 'toggle off must suppress explicit letter tokens')
-o.showMobLetter[1], o.monsterFormat[1] = true, '[name]'
+assert(labelled.Count == 7, 'explicit letter token must ignore the obsolete toggle')
+o.showMobLetter[1], o.monsterFormat[1] = true, '[name] [letters]'
 frameForTests(o, block, suppliedFormats)
-assert(labelled.Count == 8, 'toggle on must append a spaced letter without editing Mob Format')
+assert(labelled.Count == 8, 'explicit letters token must render at its chosen position')
 levels.Set({ Indices = { [300] = { Name = 'Goblin' } }, Names = {} })
 assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'a', 'new zone/table must reset letter ranks')
 -- Double Letters: the twenty-seventh of a name is AA in one wider badge, and A again with it off
@@ -815,14 +1086,19 @@ levels.Set({ Indices = crowd, Names = {} })
 o.monsterFormat[1] = '[name][letter]'
 frameForTests(o, block, suppliedFormats)
 assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'a' and pairsWanted == 0, 'off: a again, and no double badges made')
-o.doubleMobLetters[1] = true
+o.monsterFormat[1] = '[name][letters: type=double]'
 frameForTests(o, block, suppliedFormats)
 assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'aa' and pairsWanted == 1, 'on: as many double badges as the area needs')
 local doubleQuad = draw.Quads[labelled.First + 6]
 assert(labelled.Count == 7 and doubleQuad.Texture == 5, 'a double letter is one badge')
 assert(math.abs((doubleQuad.X1 - doubleQuad.X0) - 1.5 * (doubleQuad.Y1 - doubleQuad.Y0)) < 0.001, 'half as wide again as it is tall')
 assert(math.abs(doubleQuad.X1 + draw.Quads[labelled.First].X0) <= 1, 'and the nameplate still centred')
-o.doubleMobLetters[1] = false
+o.monsterFormat[1] = '[name][letters: type=single][letters: type=double]'
+frameForTests(o, block, suppliedFormats)
+assert(labelled.Count == 8 and draw.Quads[labelled.First + 7].X1 - draw.Quads[labelled.First + 7].X0
+    > draw.Quads[labelled.First + 6].X1 - draw.Quads[labelled.First + 6].X0,
+    'single/double letter mode must be per token, not global')
+o.monsterFormat[1] = '[name][letters: type=single]'
 frameForTests(o, block, suppliedFormats)
 assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'a' and pairsWanted == 0, 'off again: as it was')
 badges.Prepare = originalBadgePrepare

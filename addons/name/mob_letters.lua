@@ -19,11 +19,12 @@ local stale = nil;   -- { count, index, name, expected = the list's name, or nil
 
 -- What is written for the slot at this place among those of its name, the first being 0. Past the
 -- twenty-sixth it is a again, or with double letters aa, ab and on to zz, and then aa again.
-local function label(place)
-    local kept = labels[double];
+local function label(place, mode)
+    if (mode == nil) then mode = double; end
+    local kept = labels[mode];
     local text = kept[place];
     if (text == nil) then
-        if (place < 26 or not double) then
+        if (place < 26 or not mode) then
             text = string.char(97 + place % 26);
         else
             local pair = (place - 26) % 676;
@@ -100,14 +101,14 @@ function letters.Problem()
     return ('Mob Letters: this area\'s names in the game\'s files differ from what the game shows (%s%s). Those have no letter, and letters here may not match other players\'.'):format(first, more);
 end
 
-function letters.Of(index, name, id)
+function letters.Of(index, name, id, mode)
     local known = assigned[index];
     if (id == nil or id == 0) then return ''; end
     check(index, name, id, known);
     -- Do not label missing/renamed entries by guessing from their ID. Respawns
     -- with the same name in the same slot deliberately keep the same letter.
     if (known == nil or known.name ~= name) then return ''; end
-    return label(known.place);
+    return label(known.place, mode);
 end
 
 return letters;

@@ -22,7 +22,7 @@ return T{
     statusAlign = T{ 'left' },
     abbreviateDifficulty = T{ true },
     checkDetailsInWords = T{ false },
-    nameFormat = T{ '[name]' },
+    nameFormat = T{ '[icons: space=4][name]' },
     monsterFormat = T{ '[aggro] Lv [level]. [name]' },
     showSelf = T{ false },
     showParty = T{ true },

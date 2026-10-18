@@ -19,7 +19,10 @@ assert(icons.Texture() == texture and icons.Has(0x92))
 local pearl, star = icons.Place(0x92), icons.Place(0xAD)
 assert(pearl[1] == 0 and pearl[2] == 0.25 and pearl[3] == 0.125 and pearl[4] == 0.375)
 assert(star[1] == 0.75 and star[2] == 0.25 and star[3] == 0.875 and star[4] == 0.375)
-assert(icons.Has(0xAC) and icons.Has(0xAD), 'two-part base and overlay must remain mapped')
+assert(icons.Has(0xAC) and icons.Has(0xAD), 'composite status base and standalone star remain mapped')
+local badge = icons.Overlays(0xAC)[1]
+assert(badge[1] == -1/16 and badge[2] == -1/16 and badge[3]-badge[1] == 0.5 and badge[4]-badge[2] == 0.5)
+assert(not icons.Overlays(0x91) and not icons.Overlays(0xAD), 'ordinary seeking-party and mastery stars have no extra layer')
 assert(not icons.Has(0x20) and not icons.Has(0xFF))
 local count = 0
 for byte = 0x8E, 0xB1 do
@@ -37,6 +40,16 @@ icons.Draw({ AddImage = function(_, handle, a, b, u, v, color)
     assert(u[1] == pearl[1] and v[2] == pearl[4])
 end }, 0x92, 10, 20, 32, 0xFFAABBCC)
 assert(images == 1, 'draw must preserve pearl tint')
+local composite = 0
+icons.Draw({ AddImage = function(_, handle, a, b)
+    composite = composite+1
+    if composite == 1 then
+        assert(a[1] == 10 and a[2] == 20 and b[1] == 42 and b[2] == 52)
+    else
+        assert(a[1] == 8 and a[2] == 18 and b[1] == 24 and b[2] == 34, 'status badge must retain half-size geometry and offset')
+    end
+end }, 0xAC, 10, 20, 32, 0xFFFFFFFF)
+assert(composite == 2)
 texture = 0
 assert(not icons.Begin(sheet) and not icons.Has(0x92))
 texture = 0x5678

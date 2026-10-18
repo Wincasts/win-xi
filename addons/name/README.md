@@ -12,7 +12,7 @@ Shows and hides the names over characters' heads, by what they are over. A setti
 ```
 
 - `/name`: opens or closes the settings. It is the only command, but for `/name diag` (see
-  [Diagnostics](#diagnostics)): anything else after it only brings up this help. Use Filters to choose which names appear; unload Name to restore the game's names.
+  [Diagnostics](#diagnostics)): anything else after it only brings up this help. Use Visibility to choose which names appear; unload Name to restore the game's names.
 
 ## Settings
 
@@ -30,22 +30,54 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Trigger's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-The tabs are **Names → Filters → Statuses → NM Tracking**.
+The tabs are **Names → Visibility → Statuses → NM Tracking → Experimental Builder**.
 
-- **Names:** follows `guis/name.menu`: Name Appearance, Player Icons,
-  Mob Nameplates, and Check. Options boxes measure the longest option row and share a width fitted
-  to that row plus its help marker and padding. Every `(?)` sits in the same
-  right-aligned column. Measurements exclude help and window width, preventing
-  auto-size feedback; widths can shrink when content becomes shorter. Font sizes and icon padding use numeric
-  inputs; outline thickness uses radio buttons 0–3. Font selection comes first.
-  **Mob Nameplates** exposes Show Level / Range, Show Aggro Icons, experimental Mob Letters,
-  and Mob Format.
-  Target Format and Checked Format controls are hidden. Mob strings are saved per character;
-  the baseline is `[aggro] Lv [level]. [name]`. Mob Format applies to ordinary,
-  targeted, and checked mobs alike. Target and checked formats saved by earlier versions are dropped as the settings load.
-  The general player-name format remains fixed at `[name]`.
-- **Filters:** Players, Pets, NPCs And Monsters, Target, and Status, using the
-  same bordered sections, content-fitted widths, and aligned help column.
+- **General Name Appearance:** common Font, Bold, Maximum/Minimum Name Size,
+  Subtarget Size and Outline. One maximum/minimum pair applies to every entity type,
+  including players, pets, enemies and NPCs.
+- **Player Names:** a directly editable **Player Format**, including inline player
+  icons through `[icons]` instead of a separate checkbox. The format applies to your
+  own name, other players and player-style pets/trusts.
+  Default: `[icons: space=4][name]`. Omit `[icons]` to hide icons or move it anywhere
+  in the string. Existing icon visibility, size and spacing are migrated once.
+- **Enemy Names:** a directly editable **Enemy Format** and expandable Check Details (Enabled, Size, Abbreviate Difficulty and
+  Display Style: Icons & Text / Text Only). Existing enemy strings are preserved;
+  Reset Format restores `[aggro] Lv [level]. [name]` for ordinary, targeted and
+  checked enemies alike.
+- **NPC Names:** a directly editable **NPC Format** for non-combat NPCs, independent
+  of player/enemy formats. Default: `[name]`.
+- Each category has **Reset Format**. Hover the format editor's **(?)** for its
+  token list, token options, a complete example format and sample output; there is
+  no separate Tokens & Examples dropdown. Player/NPC strings support `[name]`,
+  `[distance]`, `[icons]`, literal text and colours; enemies additionally support
+  `[level]`, `[aggro]`, `[checked]`, `[letters]`.
+- **General Name Appearance → Health Bars** has one shared **Health Bars** toggle,
+  **Combat Only**, and **Health Bar Width/Height** for every entity, including pets,
+  trusts and NPCs. Dimensions and Combat Only stay visible but disabled while bars
+  are off. Bars require valid live HP/server-ID data; full-health entities have none.
+  Combat Only requires that particular entity to be alive and Engaged (status 1).
+  Targeting/claiming alone is not combat; missing status data hides the bar.
+- Existing General name sizes remain authoritative. Health-bar consolidation
+  migrates once: enabled if any old category enabled bars; dimensions come from the
+  first enabled category in **Enemy → Player → NPC** order (Enemy if all were off).
+  Old per-type bar tables remain archived but no longer drive rendering. Shared
+  settings are never re-migrated during later edits. Diagnostics remains collapsed.
+- Each format section has expandable **Colour Overrides**, disabled by default.
+  An enabled state applies its RGB jointly to the name, spawn letters and matching
+  HP fill, taking precedence over explicit name/letter token colours. Other coloured
+  text and icons keep their own explicit colours; client opacity and fades remain intact.
+- **Visibility:** Players, Pets, NPCs & Monsters, and Target. No diagnostic controls.
+- **Statuses:** Display and Selected Statuses, with expandable help about status
+  sources and estimated timers.
+- **NM Tracking:** Tracked Monster and conditional Placeholder Options.
+- **Experimental Builder:** enemy-only visual block editor with a sample preview,
+  draggable components, per-block appearance controls and explicit Apply/Reload.
+  Existing settings and format editors remain available unchanged.
+
+Controls retain common widths and aligned `(?)` markers. Measurements exclude help
+and window width to prevent auto-size feedback. Format token references and examples
+live in the editor's tooltip; longer status/NM caveats remain in expandable help.
+Existing character settings are preserved.
 
 | Setting | Whose names |
 |---|---|
@@ -59,34 +91,37 @@ The tabs are **Names → Filters → Statuses → NM Tracking**.
 | Monsters | What can be fought, charmed players among them |
 | Always Show Target | Your target's name is shown though names like it are hidden. Your own is not: with Own Name off it stays hidden while you have yourself targeted |
 
-Names In View, under them, is how many names the game had to draw last frame, and how many of them
-are hidden.
+Names In View, under Names → Diagnostics, counts names shown and hidden last frame.
+Diagnostics is collapsed by default and includes an Enable Diagnostics checkbox.
 
 ## Custom names
 
 Rendering is always enabled while Name and its compatible plugin are loaded.
 In the first tab, Names, configure how the names are drawn in winxi's
-outlined text and not by the game: each in the colour the game gives it, with the game's icons before
-it. Which names are shown is still set in the Filters tab; only how they look changes. It needs
+outlined text and not by the game: each in the colour the game gives it, with icons wherever
+`[icons]` appears in its format. Which names are shown is still set in the Visibility tab; only how they look changes. It needs
 namehook 1.10 or later.
 
 | Setting | What it does |
 |---|---|
+| Health Bars (General, shared) | Off by default. Shows a bar matching the name's colour for damaged names of every type when HP is available. Full-health names have no bar. Bars follow visibility/fading and leave room for check details and statuses |
+| Health Bar Width / Height (px, General, shared) | One pair for all types, independent of name size. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
 | Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars are unchanged |
-| Maximum Font Size | The height of a nearby name, 6 to 48 pixels. Names automatically shrink with distance |
-| Minimum Font Size | The height of a name at the distance it is no longer drawn at; never more than the maximum |
-| Subtarget Scale | The size of the name under the sub-target cursor (`<st>`, `<stpc>`, `<stnpc>` and the like) while you choose, 50% to 200% of the others'; 100% to begin with. The game's own changes to that name's size as the choice begins and ends are ignored, at any setting, so it changes size once each way. Above 100% its letters are the largest size's drawn larger, so they are slightly softer |
-| Outline Thickness | The dark edge round each name, 0 to 4 pixels; rounded down to whole render-target pixels to keep nearby names thinner. As letters shrink, it becomes thinner and slightly less opaque so distant names stay readable. Nearby names retain the original outline. At 0 the names are written plain |
+| Combat Only (General) | Off by default. Requires each entity's own Engaged status (1) and HP above zero. Missing/invalid data hides the bar; applies to players, enemies, pets/trusts and NPCs |
+| Maximum Name Size (px, General) | Shared nearby text height, 6–48 pixels, for every entity type; independent of bar dimensions |
+| Minimum Name Size (px, General) | Shared distant text height for every type, never more than the maximum |
+| Subtarget Size (%) | The size of the name under the sub-target cursor (`<st>`, `<stpc>`, `<stnpc>` and the like) while you choose, 50% to 200% of the others'; 100% to begin with. The game's own changes to that name's size as the choice begins and ends are ignored, at any setting, so it changes size once each way. Above 100% its letters are the largest size's drawn larger, so they are slightly softer |
+| Outline (px) | The dark edge round each name, 0 to 4 pixels; rounded down to whole render-target pixels to keep nearby names thinner. As letters shrink, it becomes thinner and slightly less opaque so distant names stay readable. Nearby names retain the original outline. At 0 the names are written plain |
 | Font (experimental) | A font of Windows' own, chosen by its file in `C:\Windows\Fonts`; Default is the font everything else is written in |
-| Name Format | How every name but a monster's is written: see [How a name is written](#how-a-name-is-written) |
-| Monster Format | How a monster's name is written |
-| Show Icons | The game's icons before a name |
-| Icon Size | An icon's side, as a percentage of the height of the names |
-| Icon Spacing | The space between a name's icons and the name itself, 0 to 24 pixels |
-| Show Check Details | Under the name of a monster you have checked: how hard a fight it is, what it does, and what it links with. See [What a check shows](#what-a-check-shows) |
-| Check Size | Scale check-detail text and icons from 50% to 125% of the name size; 75% in the preferred defaults. Applies to either layout |
+| Player Format | How player-style names are written; NPCs and enemies have their own formats. See [How a name is written](#how-a-name-is-written) |
+| NPC Format | How non-combat NPC names are written, independently of players and enemies |
+| Enemy Format | How an enemy's name is written |
+| `[icons]` | The game's player icons at this position in the string. Omit to hide them; mastery stars are independent |
+| `[icons: size=90, gap=2, space=4]` | Icons at 90% of name height, with 2 px between icons and 4 px after the group. No spacing is reserved when there are no icons |
+| Check Details → Enabled | Under the name of a monster you have checked: how hard a fight it is, what it does, and what it links with. See [What a check shows](#what-a-check-shows) |
+| Check Details → Size (%) | Scale check-detail text and icons from 50% to 125% of the name size; 75% in the preferred defaults. Applies to either layout |
 | Abbreviate Difficulty | On by default: TW, IEP, EP, DC, EM, T, VT and IT alongside aggro/link information. Difficulty alone uses full words; Impossible to Gauge stays ???. Off restores full difficulty names in either layout |
-| Check Details In Words | A leading magnifying glass followed by a sentence without aggro/link signs, such as `TW, Sight Aggro, Link: Goblin (Sight)`. There while Show Check Details is on |
+| Display Style → Text Only | A sentence without icons, such as `TW, Sight Aggro, Link: Goblin (Sight)`. Available while Check Details is enabled |
 | Show Mastery Stars | The three stars over the name of a player with a job mastered |
 
 ### Rendering optimizations
@@ -138,32 +173,135 @@ This does not change the ordering or depth passes of visible names.
 
 Inline aggro and magnifying-glass icons, and the check line's sense/link icons,
 use approximately 25% less outline opacity than text. Their fill stays unchanged;
-player-name icons use the same softened outline, including both halves of two-part
-icons. Mastery stars remain unoutlined. Outline Thickness 0 disables all of these
+player-name icons use the same softened outline, including the base and small
+badges of composite status icons. Composite badges retain the exported font-shape
+size/offset: the seeking-party variant's star badge is half-size at the upper left,
+not a full-size star over the icon. Plain seeking-party status has no added badge.
+These status badges are independent of the three job-mastery stars, which remain unoutlined. Outline Thickness 0 disables all of these
 outlines. This per-quad effect requires the
 updated plugin as well as `libs/winxi`.
 
 ### How a name is written
 
-Edit **Mob Format** in Names → Mob Nameplates. It applies to every mob nameplate,
+Edit **Player Format**, **Enemy Format**, or **NPC Format** directly in the matching
+section of Names. Player/NPC formats support `[name]`, `[distance]`, `[icons]` and colours;
+Enemy Format also supports `[level]`, `[aggro]`, `[checked]` and `[letters]`.
+Enemy Format applies to every mob nameplate,
 including targeted and checked mobs. Checking a mob still updates
 its known level and check-detail line; targeting still applies the usual targeting behaviour.
 
-**Show Level / Range** suppresses `[level]` in the mob format, including the standard
-`Lv ` prefix and following dot. **Show Aggro Icons** suppresses inline `[aggro]` icons.
-Both default to on, and neither rewrites the saved strings. Other custom literal labels or
-punctuation remain as typed. These toggles do not change player icons or detection/link icons
-in the check-detail line (use Check → Text Only for those).
+Formats are authoritative: `[level]` and `[aggro]` display whenever present, and
+omitting them hides that information. There are no separate level/aggro toggles.
+Literal labels and punctuation remain exactly as typed, so remove `Lv ` and its dot
+as well if you do not want that label. Check-detail icons are separate (Check Details
+→ Display Style → Text Only).
+
+### Experimental enemy nameplate builder
+
+Open **Experimental Builder** in `/name`. The example at the top updates as you
+edit a session-only draft; it uses the current shared font, bold and outline.
+**Preview mob** selects a real database entry from the current zone, including
+per-index stat variants. When zone data is unavailable a clearly labelled
+demonstration mob is used; it can also be selected explicitly. Preview selections
+refresh when the zone changes and never modify the database or saved layout.
+
+**Checked**, **Targeted**, **Distant size** and **Distance (y)** let you exercise
+conditions and text sizes without finding/checking a live mob. The checked preview
+simulates Very Tough and a level at the midpoint of a known database range; these
+are not actual /check results or inferred live difficulty. Game icons/letters are
+illustrative rather than a pixel-perfect in-game capture.
+
+The page is ordered **Example → Builder → Blocks**, followed by the selected-block
+inspector and Apply/Reload controls. The builder has separate **Name line** and
+**Check information** rows, both edited with draggable blocks.
+
+1. Drag name components from the block list upward into the name row. Drag
+   difficulty, checked level, detection, link information or mobdb fields into the
+   check row. Clicking a block adds it to its corresponding row. Text is available
+   for either row, including dragging Text blocks between rows.
+2. Drag existing blocks to reorder either line; an insertion marker shows the
+   destination. Releasing outside cancels. Click a block to select it; Move Left /
+   Right buttons are also available. New tokens have 4 px of trailing space.
+3. Use the inspector to set inherited/named/custom colours, spacing, letter mode
+   or distance precision. Text blocks handle labels, punctuation and units; use
+   actual blocks rather than typing format tokens inside Text blocks.
+4. Enable/disable the check line and adjust its size and difficulty abbreviation.
+   It uses the existing /check visibility duration and fade, below the name.
+5. **Apply to Enemy Names** saves both generated formats and check-line appearance.
+   The preview uses General's shared maximum/minimum name sizes; the builder has no
+   separate name-size overrides and never overwrites the General sizes.
+   **Reload Current** discards the draft. Health bars are not edited, imported or
+   overwritten by this tab; keep using Names → Enemy Names for their settings.
+
+Nothing is applied while dragging or adjusting the preview. Player/NPC formats
+and type settings are untouched. If enemy formats or check-line settings change
+elsewhere while a draft is open, Apply refuses to overwrite them until Reload
+Current is used. Shared General size changes update the preview without conflict. Drafts are
+not saved across addon reloads; applied layouts use the normal saved enemy settings.
+
+Expand **All mobdb fields** to select any field in the bundled database:
+
+- Database name, family, job/subjob IDs, minimum/maximum level, notorious flag.
+- Aggro, linking, sight, sound, blood, magic, ability detection, scent, true sight.
+- Immunity bitmask, respawn seconds, drop/steal/despoil item IDs, spell IDs.
+- All damage modifiers together, or individual Slashing, Piercing, H2H, Impact,
+  Fire, Ice, Wind, Earth, Lightning, Water, Light and Dark multipliers.
+
+Unknown fields are omitted, not guessed. By default explicit false values display
+**No**, and zero/known empty values remain visible. The selected mobdb block's
+**Database values** control offers:
+
+- **raw**: the original database IDs, job codes, immunity mask and respawn seconds.
+- **names**: resource-backed item/spell names, job abbreviations, known immunity
+  labels and readable respawn time. Unavailable names fall back to explicit IDs;
+  unknown immunity bits remain labelled in hexadecimal rather than being discarded.
+- **both**: readable names with their original IDs/mask for reference.
+
+New mobdb blocks default to names; existing saved blocks/formats remain raw unless
+changed explicitly. Resource lookups are cached and reset with zone data. Lists
+show up to 32 entries followed by an omitted count; very long lines also remain
+subject to the renderer's normal quad limits. These are database facts, not live
+measurements, and names depend on the installed client resources.
+
+Every block, including literal labels, can have visibility conditions:
+**Target only**, **Checked only**, **Notorious monsters only**, **Relevant values
+only**, and an optional **Within (y)** limit. Enabled conditions combine with AND.
+Relevant hides missing/false/zero/empty values and neutral damage modifiers; it
+never changes the underlying database. Checked means cached /check knowledge;
+the check row still follows its normal brief visibility/fade. Conditions are
+re-evaluated as target, distance and check state change, without reloading layouts.
+Set matching conditions on accompanying Text labels/separators when needed.
+Conditional Text blocks are saved as generated `[text: value=%..., when=...]`
+tokens so punctuation, case and spaces survive; edit their content in the builder.
+Unconditional text remains ordinary literal format text.
+
+Builder check lines use text blocks, for example:
+
+```text
+[difficulty: space=6][mob: field=family, space=6][mob: field=immunities, display=names, when=target+relevant, within=20]
+```
+
+`[checklevel]` uses the actual /check level; mobdb minimum/maximum level blocks
+show the database range. `[senses]` and `[links]` provide convenient summaries.
+The saved `checkFormat` defaults to empty, preserving the original icon/text check
+renderer until a builder layout is applied. **Restore Original Check Line** in
+Names → Enemy Names → Check Details switches back to that renderer and its usual
+Display Style control.
+
+This builds two ordered text runs, not arbitrary free-position nameplates.
+Workspace wrapping is for editing only; each live row remains one line. Additions
+are limited to 24 blocks per row; longer imported formats are not truncated. Both
+generated formats remain visible in the builder.
 
 ### Experimental: tracked notorious monster
 
 This feature is experimental and has a tab of its own, **NM Tracking**. **Tracked NM** there lists
 the notorious monsters of the area you are in
 (and None). The one chosen, and each of its placeholders, has `assets/special/hunt.png` drawn in place
-of its `[aggro]` icon, so it needs `[aggro]` in Mob Format and Show Aggro Icons on. The choice is kept by name when you leave the
+of its `[aggro]` icon, so it needs `[aggro]` in Enemy Format. The choice is kept by name when you leave the
 area and does nothing elsewhere.
 
-**Hunt Target Scale** (100–200%, shown while a monster is tracked) enlarges the tracked monster's
+**Target Size (%)** (100–200%, shown while a monster is tracked) enlarges the tracked monster's
 whole nameplate at every distance; its placeholders stay the usual size. Above 100% the letters are
 the largest size's drawn larger, so they are slightly softer.
 
@@ -190,13 +328,13 @@ with its `statusicons` folder. The set's icons are as narrow as the set has them
 | Setting | What it does |
 |---|---|
 | Show Statuses | The row of icons, for names that are shown |
-| Scale | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is as wide as the set's icons are for that height (three quarters for FFXIV's), and shrinks with its name |
+| Size (%) | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is as wide as the set's icons are for that height (three quarters for FFXIV's), and shrinks with its name |
 | Position | Above, to begin with: over the name, and over the mastery stars where it has them. Below: under the name, and under the line a checked monster's details are written on while they are shown |
 | Alignment | Center, to begin with: the row's middle on the name's. Left: level with the name's left, where its icons begin. Right: level with its right |
 | [Experimental] Timers | Off to begin with. Writes under each icon how long the status has left, in the names' letters: seconds, then minutes (m), then hours (h), as the buff addon does. The row is raised to make room above a name. Your own are to the second, as the game keeps them, and what the game writes no time for has none; your party's are not known and have none; everyone else's are the server's base duration from when it was seen to land, so a guess (see below) |
 | Preview | Puts the first four ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: off again when the addon is loaded |
 | Search | Narrows the list under it by part of a status's name, or its number |
-| Chosen Only | Lists only the ticked statuses |
+| Selected Only | Lists only the ticked statuses |
 | The list | Every status the game has a name for, by name with its number. Hovering one shows its icon. Ticked to begin with: what ails a character, and what can be told of an enemy |
 
 A name has at most twelve icons, each status once. How much is known depends on whose name it is:
@@ -213,14 +351,35 @@ from one, put together the first time it is wanted, 32 statuses a frame: the set
 another set, its icons one by one, and the game's icons in the places the set leaves. With Custom
 Icons off it is a sheet of the game's icons alone.
 
+### State colour overrides
+
+Open **Colour Overrides** under Player Names, Enemy Names or NPC Names. Each state
+has an enable checkbox and RGB picker. **Use Game Colours** disables that category's
+overrides without discarding its chosen picker colours or changing format strings.
+
+| Category | States |
+|---|---|
+| Players (also self, party/alliance, pets/trusts) | Normal, In Combat, Targeted, Dead |
+| Enemies | Unclaimed, Claimed: You / Party / Alliance, Claimed: Others, Targeted, Dead |
+| NPCs | Normal, Targeted |
+
+Priority is **Dead → Targeted → combat/claim state → Normal**. A disabled live state
+falls back to an enabled underlying state, then to the usual game/format colour.
+Death never falls back to a live/target override: with Dead disabled, the normal
+corpse colour remains. Claims use validated entity IDs and active party/alliance
+server IDs; unknown ownership data is not guessed. State is evaluated every frame.
+Opacity is not configurable here: name/letter text still pulses normally, status
+icons stay independent, and corpse/distance/disappearance fades still apply.
+The Experimental Builder owns formats, not these live state overrides or shared bars.
+
 ### Experimental mob letters
 
-Enable **Mob Letters** in Names → Mob Nameplates (off by default). It adds a compact rounded letter
-badge after the mob nameplate, or uses an explicit `[letter]` token wherever you put it:
+Add `[letters]` to Enemy Format wherever a compact rounded letter badge belongs.
+There is no separate enable or double-letter checkbox. `[letter]` remains a legacy alias.
 
 ```text
-[aggro] Lv [level]. [name] [letter:yellow]
-[letter:cyan] - [name]
+[aggro] Lv [level]. [name] [letters: color=yellow]
+[letters: type=double, color=cyan, space=4][name]
 ```
 
 The badge is a filled square with subtly rounded, antialiased corners and an **uppercase,
@@ -230,16 +389,20 @@ style in `references/letter_example.png`. The box is about 78% of the nameplate 
 All distances use the same close-up badge artwork, scaled down smoothly rather than switching
 to separately rasterized smaller letters. This keeps the letter shape consistent as you approach.
 The game scene shows through the letter. The fill uses the nameplate colour, or the explicit
-token colour; the entire badge scales and fades with the nameplate. The badge uses the same
+token colour, unless an enabled state override sets their joint colour. Default inheritance also follows an explicitly coloured `[name]`, even when the
+letter appears before it in the format. Letters share the name text's pulse/opacity rather than
+the independent status-icon opacity. The entire badge scales and fades with the nameplate and
+retains its saved token position. The badge uses the same
 outline effect as the nameplate, including its thickness and colour. This outlines both the
 outside edge and the letter cutout; the cutout's centre remains transparent where the outline
 leaves room. Size/indicator-atlas changes rebuild the cached badge atlas; unchanged frames reuse
 it. If texture preparation fails, an uppercase letter in the same fixed indicator font is used
-and preparation is retried once per second. If Windows' Arial file cannot be loaded, the regular
+and preparation is retried once per second. The plain fallback shares the badge's name-font
+lowercase baseline, avoiding a vertical jump as the badge atlas becomes ready.
+If Windows' Arial file cannot be loaded, the regular
 ImGui default font is the recovery fallback. No updated plugin DLL is required.
 
-Turning the toggle off hides the token without changing the saved string. Player, pet and NPC
-nameplates are unaffected. All mobs, including targeted and checked mobs, use the same format.
+Remove the token to hide letters. Player, pet and NPC nameplates are unaffected. All mobs, including targeted and checked mobs, use the same format.
 
 **Consistency across users:** the addon reads the game's own list of the area's names from the client's
 files as the area is entered (`zone_names.lua`), groups it by exact name, sorts each group by stable
@@ -263,18 +426,20 @@ a name with many unused slots wraps past `z` sooner.
 
 **Differences are reported, not repaired.** When one of the zone's own monsters stands in a slot the
 list lacks, or under a different name than the list's, the addon says so once in the chat log for that
-zone visit and shows the same warning under Mob Letters in the settings: the server has renamed it, or
+zone visit and shows the same warning under Enemy Names when its format includes letters: the server has renamed it, or
 the files read are not the ones the game uses. Such a slot has no letter. Letters are never renumbered
 from what a client has met: no client sees a whole zone, so that would differ between players. Where
 the file cannot be read at all there are no letters in that area, and the settings say why.
 
-**Double Letters** (shown under Mob Letters while it is on, off by default) goes on past `z` in place
-of starting again: the twenty-seventh slot of a name is `aa`, then `ab`, and so on to `zz`, drawn as one
-wider badge with both letters cut out of it. The first 26 are unchanged. Only as many double badges
-are made as the area's most numerous name needs. Two players comparing letters need the same choice.
+**`[letters: type=double]`** continues after `z`: the twenty-seventh slot is `aa`,
+then `ab`, up to `zz`, in one wider badge. The first 26 stay unchanged.
+`[letters]` or `[letters: type=single]` repeats A–Z. Type is per token, so both
+variants can appear in one format. Only needed double badges are made; users
+comparing letters need the same token type. Old automatic/double-letter settings
+migrate into explicit tokens once, without re-adding tokens removed afterward.
 
 These are labels for spawn slots, not unique identities across deaths or separate instances. After 26
-same-name slots, letters repeat and are not unique unless Double Letters is on (then after 702). Dynamic spawns and names that do not match their
+same-name slots, letters repeat unless the token uses `type=double` (then after 702). Dynamic spawns and names that do not match their
 slot are left unlabelled: there is no encounter-order fallback. Clients whose game files differ can
 rank differently.
 
@@ -282,7 +447,8 @@ rank differently.
 
 Each format is a line of text. In it `[name]` stands for the name, `[distance]` for how
 far the character is from you, in yalms to a tenth, as the game measures it, and `[level]` for the
-levels a monster can be. Everything else is written as you type it.
+levels a monster can be. `[icons]` draws player icons at that point in the string.
+Everything else is written as you type it.
 
 | Format | Written |
 |---|---|
@@ -301,6 +467,36 @@ A thing is in the colour the game gives the name unless you give it another. A c
 | `[name] [distance:yellow]` | The distance |
 | `[name:#FF8000] [distance]` | The name |
 | `[name] [grey]([distance]y)[/]` | Everything from `[grey]` to `[/]`, or to the end of the line if there is no `[/]` |
+
+#### Token options
+
+Use `key=value` options after a colon, separated by commas, semicolons or spaces.
+The older `[name:yellow]` colour shorthand remains supported.
+
+| Applies to | Option | Meaning |
+|---|---|---|
+| Every token | `color=yellow` or `color=#FF8000` | Override this token's colour |
+| Every token | `space=0`–`64` | Screen-pixel gap after the token, scaled with render resolution. Omitted when the token produces nothing |
+| Every token | `when=target+checked+nm+relevant` | Any subset, combined with AND; omitted / `always` means unconditional |
+| Every token | `within=1`–`100` | Only within this distance in yalms; unavailable distance hides the block |
+| `[mob]` | `display=raw` / `names` / `both` | Raw by default in saved/manual formats; builder offers readable names and optional IDs |
+| `[icons]` | `size=25`–`300` | Icon height as a percentage of name height; defaults to the profile's previous icon size (90% in preferred defaults) |
+| `[icons]` | `gap=0`–`24` | Screen pixels between icons; default 2 |
+| `[distance]` | `decimals=0`–`2` | Decimal places; default 1 |
+| `[letters]` / `[letter]` | `type=single` / `type=double` | Repeat A–Z, or continue AA, AB, etc. after Z; default single |
+
+```text
+[icons: space=4][name]
+[name: space=8][icons: size=100, gap=3, space=0]
+[icons: space=4][name] ([distance: decimals=2, color=yellow]y)
+[aggro: space=4]Lv [level: color=yellow, space=6][name]
+```
+
+With no explicit `space`, icons use the profile's previous icon spacing (4 px in
+preferred defaults); other tokens use zero. Colours on icons override pearl tint;
+otherwise the linkshell pearl retains its own colour and two-part icons remain overlaid.
+Out-of-range numeric options are clamped; unknown or malformed options leave the
+whole bracketed token literal, rather than breaking the nameplate.
 
 Square brackets round anything else are written as they are, so a format such as `[NM] [name]` writes
 `[NM] Goblin`. Only the letters, figures and signs of plain English can be written.
@@ -356,13 +552,13 @@ With Show Check Details on, a monster you check has a second line under its name
 at the configured Check Size (75% in the preferred defaults), with its
 middle under the name's. It fades in as you check, is there for five seconds, and fades out; checking
 the monster again brings it back. The magnifying glass leads this line in icon mode, scales with
-Check Scale, and fades with the details. When Show Check Details is enabled, an
+Check Details → Size (%), and fades with the details. When Show Check Details is enabled, an
 explicit `[checked]` in the name format no longer repeats it beside the name.
 
 - Difficulty is abbreviated by default: **TW** (Too Weak), **IEP** (Incredibly
   Easy Prey), **EP** (Easy Prey), **DC** (Decent Challenge), **EM** (Even Match),
   **T** (Tough), **VT** (Very Tough), **IT** (Incredibly Tough), and **???**
-  (Impossible to Gauge). Turn off **Abbreviate Difficulty** under Names → Check
+  (Impossible to Gauge). Turn off **Abbreviate Difficulty** under Names → Enemy Names → Check Details
   Details to restore the full names. In abbreviated mode, a difficulty shown
   without any aggro/link information is still spelled out (for example, Very Tough).
   Impossible to Gauge remains ???. This applies to both icon and words layouts.
@@ -422,9 +618,28 @@ and outline proportions. Native tests verify aspect-aware bounds and cache inval
 are CPU/geometry tests, not an in-game GPU certification: check live resizing, depth occlusion,
 font-atlas changes and device resets in the client before treating a configuration as verified.
 
-A name is drawn exactly when the game would have drawn it, and fades with its character as the game's
-does. The game shrinks a name to nothing over the last of its distance; here it shrinks from the
-maximum size to the minimum and fades out, or keeps its size and fades out over the last third.
+Name visibility follows the game. The game shrinks a name to nothing over the last of its
+distance; here it shrinks from the maximum size to the minimum and fades out, or keeps its
+size and fades out over the last third.
+
+Living target text may pulse in colour and opacity as the client does. That pulse applies to
+both glyph fills and their outlines, not to icons: status icons, composite overlays, aggro/check
+icons and mastery stars hold their peak opacity while targeted. Spawn letters remain part of
+the name text and inherit its colour/pulse unless their token has an explicit colour. Default icon
+colours do not inherit the pulsing text colour; explicit token colours still apply. Distance
+fading remains active. The opacity hold resets on untargeting, respawn, entity reuse or a gap
+in drawing. The current namehook plugin applies each glyph's alpha to its outline too, so a
+fully faded text pulse does not leave a dark outline behind.
+
+By default a dead monster's name turns grey immediately, including when its live `[name]`
+token has an explicit colour. An enabled Dead state colour overrides that default grey. A neutral corpse grey supplied by the client replaces the fallback grey;
+subsequent stale red/white claim samples cannot recolour it. Corpse opacity still follows the
+client directly, even while targeted, so icons and text fade away together. Once the client's
+render flags say the mob is no longer shown (or its entity has been removed), any remaining
+nameplate fades out in about **0.2 seconds**, including target icons and letters. The fade does
+not start just because HP reaches zero while the corpse is still visible. Late name calls do
+not restart it, respawning releases it, and an index reused by a different entity immediately
+suppresses the stale label. Missing render-flag data alone does not trigger a disappearance.
 
 Player icons and mastery stars use the bundled `assets/player-icons.png`, loaded through the same
 owned Direct3D file-texture cache as the mob icon sheets. `assets/player-icons.lua` contains the fixed
@@ -467,7 +682,7 @@ Off unless turned on, for testers:
 /name diag log      writes a log now, on or off (with diagnostics off it has no history)
 ```
 
-While they are on, Filters → Status shows whether Name is drawing the names (**Custom Names**).
+While they are on, Names → Diagnostics shows whether Name is drawing the names (**Custom Names**).
 When Name stops claiming the names for more than 30 frames, about half a second, the game draws
 its own names again. The reason is said once in the chat log and a log is written, once a session for each reason.
 The reasons:

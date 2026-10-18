@@ -1,5 +1,50 @@
 # Changelog
 
+## 1.35
+
+- Health bars now use one shared enable toggle and width/height under **General Name Appearance**, for every entity type. One-time migration enables them if any old category enabled bars, taking dimensions from the first enabled Enemy → Player → NPC (Enemy if all were off). Old per-type tables remain archived, not active.
+- Added **Combat Only** (off by default): each entity must have valid live identity/HP data, HP above zero and Engaged status 1. Targeting/claiming alone is not combat; unknown status hides bars, and the same filter applies to all types.
+- Added optional per-category/state RGB overrides, applying jointly to name text, spawn letters and HP fill, including explicit name/letter token tints while enabled. Players: Normal/Combat/Targeted/Dead; enemies: Unclaimed/You-Party-Alliance Claim/Other Claim/Targeted/Dead; NPCs: Normal/Targeted. All default off. Dead takes precedence over target/live states; disabled live states fall back to underlying state/game colours. Claim classification uses active party/alliance server IDs, without guessing missing ownership data. Opacity, fading, independent icons and builder Apply ownership are unchanged.
+
+- Added a roughly 0.2-second whole-nameplate fade once a monster is no longer rendered or its entity is removed, without timing out visible corpses. Preserves the disappearance deadline through late name calls/drawing gaps and lost entity data; respawn clears it, and a different entity reusing the index suppresses the stale label immediately.
+- Restored spawn letters inheriting the displayed name colour and text opacity, including an explicitly coloured `[name]` before or after the letter. Explicit letter colours still override ordinary inheritance unless a state colour override is enabled. Plain fallback letters now share the prepared badge's name-font baseline to avoid a vertical jump when the atlas becomes ready; saved token ordering/spacing remain unchanged.
+
+- Dead monsters now turn grey immediately instead of retaining their last live claim colour. Adopt the client's corpse grey when available, ignore subsequent stale red/white samples, and preserve the actual corpse fade. Default corpse grey overrides live `[name]` token colours unless a Dead state colour is enabled and resets on respawn, server-ID reuse or a break in drawing.
+- Separated target text pulsing from icon opacity. Name glyphs follow the client's current RGB/alpha, with glyph alpha also fading their outlines; icons, overlays and mastery stars retain steady target opacity with their explicit/default icon colours. Spawn letters follow the name text instead. Distance and corpse fading still apply; the opacity hold resets when targeting ends, on respawn/reuse, or after a drawing gap.
+
+- Removed Preview Health Bar from all three entity sections and retired session preview state. Health bars now always use validated live HP; shared dimensions are disabled while Health Bars is off.
+- Removed the three Tokens & Examples dropdowns. Each format editor's (?) now lists its tokens/options and a complete example format with sample output, including Player Format's name/status-icon/distance tokens.
+
+- Maximum/Minimum Name Size are back in **General Name Appearance**, shared by all entity types. Removed category and enemy-builder size overrides; the builder preview follows General immediately, and Apply leaves shared sizes untouched. Existing General values remain authoritative, with health-bar controls shared across every type.
+
+- Fixed the composite seeking-party status icon drawing a full-size star over its base. Exported font-shape overlay geometry now preserves the game's half-size badge and small upper-left offset instead of drawing the next icon byte at full size. Ordinary seeking-party status has no badge; this is separate from the three job-mastery stars. Existing status visibility and mastery preferences are unchanged.
+
+- Extended the enemy builder with a current-zone mobdb preview selector, including per-index variants, checked/targeted/distant-size toggles and a distance control. Preview /check results are explicitly simulated; source database entries and saved settings are never modified.
+- Added readable mobdb values (`display=names` or `both`): resource-backed item/spell names with ID fallbacks, job abbreviations, verified immunity-mask labels (unknown bits retained) and readable respawn times. Resource names are cached with zone resets. Existing formats remain raw; newly added builder mobdb blocks use names.
+- Added per-block AND conditions (`when=target+checked+nm+relevant`) and distance limits (`within=20`) for both rows, including literal labels. Conditions update dynamically in native rendering and preview, with hidden spacing suppressed. Relevant hides false/empty/zero data and neutral modifiers. Ordinary text stays unchanged; conditional Text blocks use generated, encoded text tokens. Expanded format-editor buffers to preserve long generated layouts.
+
+- Added an **Experimental Builder** tab for enemy nameplates, ordered **Example → Builder → Blocks**. Both the name and check-information rows support draggable, reorderable blocks with colours, spacing and a selected-block inspector. All bundled mobdb fields, including drop/steal/despoil/spell IDs, immunity masks, detection, jobs, respawn and individual damage modifiers, are available as check items. Applied check formats use the normal /check duration/fade; an empty `checkFormat` preserves the original renderer. Health bars remain exclusively in regular settings and are never overwritten by builder Apply. Drafts are isolated until explicit Apply, with Reload/conflict protection. This builds two ordered lines, not arbitrary free-position rendering.
+
+- Enemy formats now directly control level, aggro and letter visibility. Removed Show Level / Range, Show Aggro Icons, Mob Letters and Double Letters controls. `[letters: type=double]` continues AA, AB, etc. after Z; `[letters]` / `type=single` repeats A–Z. `[letter]` remains an alias, and single/double tokens can coexist. Old automatic/double-letter preferences migrate once into explicit tokens.
+
+- Player icons are now an inline `[icons]` format token instead of a Show Icons checkbox. The default player format is `[icons: space=4][name]`; move or omit the token to position/hide icons. Existing icon visibility, size and spacing migrate into the player format once.
+- Added per-token `space=` and `color=` options, icon `size=`/`gap=` options, and distance `decimals=`. For example: `[icons: size=90, gap=2, space=4][name] ([distance: decimals=2, color=yellow]y)`. Old colour shorthand remains supported; invalid options remain literal and numeric values are bounded.
+
+- The Names tab now groups Font through Outline under General Name Appearance, followed by Player Names, Enemy Names and NPC Names. Each category exposes its own format editor, reset button and token examples. Player icons and enemy check options live in their matching categories; shared health-bar controls remain separate.
+- Player formats now use saved character settings in production rather than a fixed baseline. Added a separately saved NPC format, defaulting to `[name]`; existing player/enemy format strings remain intact.
+
+- Reorganized menus into Appearance, Visibility, Statuses and NM Tracking without changing saved settings. Appearance separates Text, Player Icons, Health Bars, Monster Names and Check Details; Diagnostics is a collapsed section there instead of part of visibility.
+- Standardized labels and px/% units. Health-bar dimensions stay visible but disabled until shared Health Bars is on. Check Details uses an Icons & Text / Text Only dropdown backed by the existing setting.
+- Moved monster formatting into collapsed Advanced Formatting with Reset Format and token examples. Long caveats/examples use expandable help; Statuses and NM Tracking have focused Display/Selected Statuses and Placeholder Options sections.
+
+- Added saved Health Bar Width and Height controls under Name Appearance, defaulting to 60 × 6 screen pixels. Bars now use that fixed size rather than following name width/font height.
+
+- Health-bar fill now matches the name's displayed colour rather than always being green.
+
+
+- Added an opt-in Health Bar toggle in Names → Name Appearance. Damaged mob and player nameplates show a basic HP bar below check details, with below-name statuses moved beneath it. Full-health nameplates stay unchanged.
+
+
 ## 1.34
 
 - Subtarget Scale, under Name Appearance: the name under the sub-target cursor (`<st>`, `<stpc>` and the like) can be drawn from 50% to 200% of the size of the others while you choose. 100% to begin with, as before.
