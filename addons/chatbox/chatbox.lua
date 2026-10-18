@@ -2,7 +2,7 @@ addon.name = 'chatbox'
 addon.author = 'win'
 addon.version = '0.11.3'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
-local winxiNeeded = 22
+local winxiNeeded = 24
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -172,12 +172,14 @@ local function Reset()
     decodeErrors, decodeSample = 0, nil
     anchorStatus = 'Waiting for native primary chat geometry.'
 end
+local TapStatus -- where each line is read from, defined with the text tap below
 local function Status()
     local size = app.options.matchGameLogSize[1] and 'the game log\'s size' or '10 rows'
     app:Say((app.options.enabled[1] and 'On' or 'Off') .. '. Compact at ' .. size .. ', native-controlled expansion; ' .. #history.messages .. ' messages retained.')
     app:Say(primary.Status())
     app:Say(anchorStatus)
     app:Say('Input: ' .. input.Status())
+    app:Say('Lines: ' .. TapStatus() .. '.')
     app:Say('Game history: ' .. import.status .. '.')
     app:Say('Info Panel: ' .. (app.options.infoPanel.layout.enabled[1] and infoPanel.Status() or 'off'))
     app:Say('Game Clock: ' .. infoPanel.HudStatus(app.options.infoPanel, 'clock'))
@@ -357,12 +359,14 @@ app = shell.New({
             local sample = decodeSample
             if not sample then app:Say('No decode sample yet. Receive a chat line, then /chatbox bytes.'); return end
             -- Hex is ASCII-only: printing the diagnostic cannot reinterpret the bad character.
-            app:Say(('Chat bytes, original mode %d / display mode %d%s, %s (first 256 bytes per stage):')
+            app:Say(('Chat bytes, original mode %d / display mode %d%s, %s (first 256 bytes per stage%s):')
                 :format(sample.originalMode, sample.mode, sample.injected and ', an addon\'s own line' or '',
-                    sample.stamp and 'a timestamp in front' or 'no timestamp in front (one written by an addon loaded after chatbox never reaches it)'))
-            for _, key in ipairs({'original','modified','expanded','utf8'}) do
-                local text = sample[key] or ''
-                app:Say(key .. ': ' .. (text:gsub('.', function(c) return ('%02X '):format(c:byte()) end)))
+                    sample.stamp and 'a timestamp in front' or sample.final and 'no timestamp in front'
+                        or 'no timestamp in front (one written by an addon loaded after chatbox never reaches it without uihook 0.8)',
+                    sample.final and '; final: as uihook read it after every addon' or ''))
+            for _, key in ipairs({'original','modified','final','expanded','utf8'}) do
+                local text = sample[key]
+                if text then app:Say(key .. ': ' .. (text:gsub('.', function(c) return ('%02X '):format(c:byte()) end))) end
             end
         end,
         -- the last lines kept and their chat modes, to learn a channel's mode from the game
@@ -419,25 +423,83 @@ ashita.events.register('command', 'chatbox_mode', function(e)
     selectedMode = channels.ModeCommand(e.command_modified or e.command) or selectedMode
 end)
 
-ashita.events.register('text_in', 'chatbox_text', function(e)
-    -- Observe, never block or rewrite: the game keeps its own history and fallback rendering.
-    -- Load filtering/formatting addons before chatbox to observe their modified text.
-    if e.blocked then return end
-    local originalMode = bit.band(e.mode or 0, 0xff)
-    local mode = bit.band(e.mode_modified or e.mode or 0, 0xff)
+-- A line kept: { originalMode, mode (both whole mode words), raw (the bytes kept), original (the bytes the game was
+-- given), injected, final (uihook's copy of the bytes kept, where it is the source) }. Observed, never blocked or
+-- rewritten: the game keeps its own history and fallback rendering.
+local function Keep(line)
+    local originalMode = bit.band(line.originalMode or 0, 0xff)
+    local mode = bit.band(line.mode or line.originalMode or 0, 0xff)
     -- 190 replays NPC text into the native log; it is not another dialogue line.
     -- Check the original mode too, before another addon's formatting remaps it.
     if originalMode == 190 or mode == 190 or mode == 152 then return end
     spoken = channels.Sent(mode) or spoken
-    local raw = e.message_modified or e.message
+    local raw = line.raw
     if type(raw) ~= 'string' or #raw > model.MaxBytes then return end
     local ok, text, expanded, spans = pcall(encoding.Decode, raw, false, true)
     if not ok or not text then decodeErrors = decodeErrors + 1; return end
-    decodeSample = { originalMode=originalMode, mode=mode, injected=e.injected == true, stamp=model.Stamp(text) ~= nil,
-        original=type(e.message)=='string' and e.message:sub(1,256) or '',
-        modified=raw:sub(1,256), expanded=type(expanded)=='string' and expanded:sub(1,256) or '',
-        utf8=text:sub(1,256) }
-    model.Add(history, text, mode, nil, originalMode, spans, e.mode_modified or e.mode)
+    decodeSample = { originalMode=originalMode, mode=mode, injected=line.injected == true, stamp=model.Stamp(text) ~= nil,
+        original=type(line.original)=='string' and line.original:sub(1,256) or '',
+        modified=raw:sub(1,256), final=type(line.final)=='string' and line.final:sub(1,256) or nil,
+        expanded=type(expanded)=='string' and expanded:sub(1,256) or '', utf8=text:sub(1,256) }
+    model.Add(history, text, mode, nil, originalMode, spans, line.mode or line.originalMode)
+end
+-- Each line read through uihook after every addon (winxi.nativetext, uihook 0.8 or newer): chatbox's own text_in
+-- copy of a line is held until the frame's lines are drained, and the line is kept as uihook has it, so a formatter
+-- loaded after chatbox (SimpleLog's timestamps, a filter's block) still reaches it and the load order does not
+-- matter. Where uihook runs before the addons (loaded before the addons plugin), its copy is the game's original:
+-- chatbox's own, which may have been formatted, is kept instead. Without the tap, each line is kept as it arrives.
+-- A held copy uihook never matches (a line it did not see) is kept as it is after HOLD seconds.
+local HOLD = 0.5
+local tap = { reader = nil, pending = {}, used = false }
+local function TapReady()
+    if tap.reader == nil then
+        local ok, found = pcall(require, 'winxi.nativetext')
+        tap.reader = ok and type(found) == 'table' and found.new and found.new() or false
+    end
+    return tap.reader and tap.reader.Ready() or false
+end
+TapStatus = function()
+    if tap.used then return 'read through uihook after every addon; the load order does not matter' end
+    return 'chatbox\'s own text_in: load formatting addons before it (' .. (tap.reader and tap.reader.Status() or 'winxi.nativetext is missing') .. ')'
+end
+local function DrainTap()
+    local lines = tap.reader and tap.reader.Drain() or nil
+    if lines then
+        tap.used = true
+        for _, got in ipairs(lines) do
+            -- chatbox's own copy of the same line: the first still held with the same original bytes and mode
+            local own
+            for i, held in ipairs(tap.pending) do
+                if held.original == got.original and bit.band(held.originalMode, 0xff) == bit.band(got.mode, 0xff) then
+                    own = table.remove(tap.pending, i); break
+                end
+            end
+            if not got.blocked and not (own and own.blocked) then
+                local line = { originalMode = got.mode, mode = got.finalMode, raw = got.text, original = got.original,
+                    injected = got.injected, final = got.text }
+                -- uihook's copy the game's original while chatbox's own was changed: uihook ran before the addons
+                if not got.modified and own and own.raw ~= own.original then line.mode, line.raw = own.mode, own.raw end
+                Keep(line)
+            end
+        end
+    elseif tap.used then tap.used = false end
+    if #tap.pending > 0 then
+        local now, kept = os.clock(), {}
+        for _, held in ipairs(tap.pending) do
+            if lines == nil or now - held.time > HOLD then
+                if not held.blocked then Keep(held) end
+            else kept[#kept + 1] = held end
+        end
+        tap.pending = kept
+    end
+end
+ashita.events.register('text_in', 'chatbox_text', function(e)
+    local raw = e.message_modified or e.message
+    if type(raw) ~= 'string' then return end
+    local line = { originalMode = e.mode or 0, mode = e.mode_modified or e.mode or 0, raw = raw, original = e.message,
+        injected = e.injected == true, blocked = e.blocked == true, time = os.clock() }
+    if TapReady() then tap.pending[#tap.pending + 1] = line; return end
+    if not line.blocked then Keep(line) end
 end)
 ashita.events.register('packet_in', 'chatbox_zone', function(e)
     if e.blocked then return end
@@ -825,6 +887,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
     for _, view in ipairs(views) do view.target = nil end -- rearmed only after this frame captures a complete replacement
     app:BeginFrame() -- configures WinXI's shared/local theme and draws settings
     infoPanel.BeginFrame() -- renew menu placement only with this frame's successful host capture
+    DrainTap() -- the frame's lines as uihook has them after every addon, or chatbox's own copies
     if not app.options.enabled[1] or zoning then Release(); return end
     infoPanel.Hud(app.options.infoPanel) -- Hide Game Clock and Hide Compass, with or without the panel or chat's capture
     ImportHistory() -- the game's history before chatbox's own, once

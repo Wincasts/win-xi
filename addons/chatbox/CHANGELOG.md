@@ -13,6 +13,14 @@
   different lines of the report. It says whether the line is an addon's own and whether a timestamp
   stands in front of it, and when none does, that an addon loaded after chatbox never reaches it.
   The README says an alphabetical `scripts/default.txt` loads chatbox before simplelog.
+- The addon load order no longer matters, with uihook 0.8 or newer loaded after `addons`: each chat
+  line is read through uihook (winxi.nativetext) as it stands after every addon, chatbox's own text_in
+  copy held for the frame and the line kept as uihook has it, so SimpleLog's timestamps and a filter's
+  blocks reach chatbox whether SimpleLog is loaded before or after it. Where uihook is loaded before
+  `addons`, its copy is the game's original and chatbox's own copy of a line an earlier addon changed is
+  kept instead; a held copy uihook never matches is kept as it is after half a second; without that
+  uihook, each line is kept as it arrives, as before. `/chatbox status` says where lines are read from
+  (Lines:), and `/chatbox bytes` shows uihook's copy as a final stage. Needs winxi 24.
 
 ## 0.11.2
 

@@ -1,4 +1,4 @@
-# uihook — experimental 0.7
+# uihook — experimental 0.8
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
@@ -401,6 +401,21 @@ from +20) oldest to newest, each line decoded with the expanded log's decoder to
 given (CP932 with its 1E/1F colour codes), with its whole mode word, serial (+0C), flags (+15) and +38 (on a
 message's lines after its first the game clears +38 and masks the flags to 0xB0). Nothing is called or
 written. `/uihook chat history` prints the newest 12 lines with those fields.
+
+## Each chat line after every addon (0.8)
+
+`winxi.nativetext` uses the independent **text ABI 1**, magic `UIHOOK-TEXT`: Magic[16], Version, Size,
+Frame, Serial and Events[64], each Serial, Mode, FinalMode, Flags (1 injected, 2 blocked, 4 indent, 8
+modified, 16 cut), OriginalLength, FinalLength, Original[4096] and Final[4096]. uihook takes Ashita's
+own incoming-text event (PluginFlags::UseText) and records each line given to the game's chat log as
+it stands at its turn: the bytes the game was given and the bytes it will keep, with both modes. Ashita
+hands plugins the event in load order and the Addons plugin runs the Lua addons inside its own turn,
+so a uihook loaded after `addons` sees each line after every addon, whatever their order. An addon
+whose own `text_in` handler runs before a formatter's (chatbox loaded before SimpleLog) reads the line
+here instead. The line with serial s is at Events[(s - 1) % 64], written whole before its serial is;
+a reader keeps the last serial it read and takes the ones after, at most a ring's worth. The block is
+zero in the DLL's file, its magic written as the plugin initializes, so the half-megabyte ring costs
+the file nothing. Nothing is read from the game or written to it, and no line is changed or blocked.
 
 ## Architecture
 
