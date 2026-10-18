@@ -1,5 +1,7 @@
 -- Data for a chat-owned panel. Native HUD access is optional and READ-ONLY: it supplies
--- the native map grid when fresh, never gates time/zone/EXP or panel rendering.
+-- the native map grid when fresh, never gates time/zone/EXP or panel rendering. While the game
+-- does not draw its clock (fishing, events, its HUD hidden) the grid is asked of the game's
+-- own grid function (winxi.infopanel.grid), so it stays as the time does.
 local fields = require('winxi.infopanel.fields')
 local exp = require('winxi.infopanel.exp')
 local M = {}
@@ -41,6 +43,9 @@ function M.New(deps)
             grid=hud.Grid()
             currentWeather=hud.Weather()
         end)
+        if grid==nil and fields.Has(format,'grid') then
+            pcall(function() grid=(deps.grid or require('winxi.infopanel.grid')).Read() end)
+        end
         local id=weather or currentWeather
         local name
         if id and id>0 and fields.Has(format,'weather') then

@@ -8,7 +8,8 @@ local nativeVisible=true
 local hud={Grid=function() return nativeVisible and '(H-9)' or nil end,
     Weather=function() return nativeVisible and 6 or nil end,
     Begin=function() error('must not claim clock slot') end,Stop=function() error('must not stop clock slot') end}
-local source=sourceModel.New({time=time,native={Clock=0,new=function() return hud end}})
+local gameGrid='(H-10)'
+local source=sourceModel.New({time=time,native={Clock=0,new=function() return hud end},grid={Read=function() return gameGrid end}})
 AshitaCore={GetMemoryManager=function() return {GetParty=function() return {
     GetMemberServerId=function() return 123 end,GetMemberZone=function() return 100 end,
 } end} end,GetResourceManager=function() return {GetString=function(_,kind,id)
@@ -20,6 +21,11 @@ assert(c.raw==1 and c.grid=='(H-9)' and c.weatherId==6 and c.weather=='Rain')
 nativeVisible=false; raw=2
 c=source.Context('{time} {zone}',101)
 assert(c.raw==2 and c.grid==nil and c.weekday==3,'hidden native clock never gates time/context')
+c=source.Context('{time} {grid}',101)
+assert(c.raw==2 and c.grid=='(H-10)','with the clock hidden (fishing), the grid is the game\'s own, worked out')
+gameGrid=nil
+assert(source.Context('{time} {grid}',101).grid==nil,'a zone without a grid has none')
+gameGrid='(H-10)'
 assert(require('winxi.infopanel.fields').Line(c,'{zone}')=='West Ronfaure')
 local function Packet(size,offset,value)
     return string.rep('\0',offset)..string.char(value%256,math.floor(value/256))..string.rep('\0',size-offset-2)
@@ -45,4 +51,19 @@ source.Packet(0x02D,gain,'{time}',true)
 assert(select(2,exp.Since())==1,'no counting for disabled/non-EXP panel')
 source.Reset(); assert(select(2,exp.Since())==0,'character reset clears EXP/private source state')
 assert(source.Status()==nil)
-print('Info panel source: hidden-clock independence, fresh grid omission, zone name, weather packets, EXP and reset passed')
+-- The grid function is found through the clock's own call to it, and refused where it is not the one known
+do
+    local finds, start = 0, 0x10
+    ashita={memory={find=function() finds=finds+1; return finds==1 and 0 or 0x1000 end,
+        read_uint32=function(at) assert(at==0x1000+12); return 0xFFFFFFF0 end, -- back 16 from the call's end
+        read_uint8=function(at) return at==0x1000+16-16 and start or 0 end}}
+    package.loaded['winxi.infopanel.grid']=nil
+    local grid=require('winxi.infopanel.grid')
+    local clock=os.clock; local now=0; os.clock=function() return now end
+    assert(grid.Read()==nil and grid.Status():find('not found'),'no clock call: no grid, said why')
+    assert(grid.Read()==nil and finds==1,'not looked for again at once')
+    now=6
+    assert(grid.Read()==nil and finds==2 and grid.Status():find('not the one known'),'a call to some other function is refused')
+    os.clock=clock; ashita=nil
+end
+print('Info panel source: hidden-clock independence, the grid kept while the clock is hidden, zone name, weather packets, EXP and reset passed')

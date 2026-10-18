@@ -2,6 +2,10 @@
 
 ## 0.11.2
 
+- The info panel's Map Grid stays while the game hides its clock (fishing, events, its HUD hidden): the
+  grid is then worked out by the game's own grid function, the one its clock asks, found through the
+  clock's call to it, so it is the clock's grid, there or not as the zone has one. Time never depended on
+  the clock and stays as ever.
 - Lighter each frame: a row's coloured parts are measured once and kept with it, not every frame (the
   game's colours still looked up each time); the expanded log measures only its cursor's row and its tab
   names once in their font; the Linkshell title reads the pearl from the inventory once a second, or as a
