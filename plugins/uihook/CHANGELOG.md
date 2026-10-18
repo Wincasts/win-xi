@@ -2,6 +2,8 @@
 
 ## 0.6
 
+- Lighter for every window the game draws: a window's own name is read first, so one that is none of the
+  chat's costs two guarded reads, not eight; a chat menu's name still has its owner followed afresh.
 - Independent menu ABI 1: chat-owned panel bounds published only with successful compact capture.
   Registered native command/magic/ability/inventory/item-use/control menus can anchor above it.
 - Verified Window::Render→Update call and target-field copy signatures; live registry ownership,

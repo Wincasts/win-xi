@@ -344,26 +344,30 @@ public:
         // log opening, not a menu.
         shared.StateFlags=CHAT_EXPANDED | (active && active!=child && index!=0 && index!=1 ? CHAT_NESTED_MENU : 0);
     }
+    // Called for every window the game draws: the window's own name is read first, so a window that is none of the
+    // chat's costs two reads, and only a chat menu's name has its owner followed to be sure it is the one
     int Identify(void* window) const {
         if (!window) return -1;
+        uint8_t* header=nullptr; char name[16];
+        if (!ChatRead(static_cast<uint8_t*>(window)+4,&header,4) || !header || !ChatRead(header+0x46,name,sizeof(name))) return -1;
         // Input remains the game's editor: only replace this menu's GPU submissions.
-        void* active=nullptr; uint8_t* inputHeader=nullptr; char inputName[16];
-        if (window && activeMenu && ChatRead(activeMenu,&active,4) && active==window
-            && ChatRead(static_cast<uint8_t*>(window)+4,&inputHeader,4) && inputHeader
-            && ChatRead(inputHeader+0x46,inputName,16)
-            && !memcmp(inputName,"menu    inline",14)
-            && (inputName[14]==0 || inputName[14]==' ') && (inputName[15]==0 || inputName[15]==' ')) return 2;
-        void* owner=nullptr; void* full=nullptr;
-        if (ExpandedSupported() && Full(owner,full) && window==full && Named(window,"menu    fulllog ")) return 3;
+        if (!memcmp(name,"menu    inline",14) && (name[14]==0 || name[14]==' ') && (name[15]==0 || name[15]==' ')) {
+            void* active=nullptr;
+            return activeMenu && ChatRead(activeMenu,&active,4) && active==window ? 2 : -1;
+        }
+        if (!memcmp(name,"menu    fulllog ",16)) {
+            void* owner=nullptr; void* full=nullptr;
+            return ExpandedSupported() && Full(owner,full) && window==full ? 3 : -1;
+        }
+        const bool first=!memcmp(name,"menu    logwindo",16), second=!memcmp(name,"menu    logwin2 ",16);
+        if (!first && !second) return -1;
         // Re-follow each slot every draw: chatdiag saw null/recreated children during zoning,
         // expand/collapse and split changes. Never cache live window/menu addresses.
         for (unsigned i=0;i<2;i++) {
-            uint8_t* owner=nullptr; void* child=nullptr; uint8_t* header=nullptr; char name[16];
+            uint8_t* owner=nullptr; void* child=nullptr;
             if (!slots[i] || !ChatRead(slots[i],&owner,4) || !owner
-                || !ChatRead(owner+8,&child,4) || child!=window
-                || !ChatRead(static_cast<uint8_t*>(window)+4,&header,4) || !header
-                || !ChatRead(header+0x46,name,sizeof(name))) continue;
-            if (!memcmp(name,"menu    logwindo",16) || (i==1 && !memcmp(name,"menu    logwin2 ",16))) return static_cast<int>(i);
+                || !ChatRead(owner+8,&child,4) || child!=window) continue;
+            if (first || i==1) return static_cast<int>(i);
         }
         return -1;
     }
