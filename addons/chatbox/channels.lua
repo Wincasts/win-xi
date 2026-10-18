@@ -17,30 +17,31 @@ local unity = Set{ 211, 212 }
 -- The game's full log has a tab for each channel, Square moving between them left to right. Its filter
 -- is the channel's number, not the tab's place: as seen in the game (Square through every tab, the
 -- title each showed), Window 0, Party 1, Linkshell 2, Say 3, Tell 4, Shout 5, Unity 6, Linkshell 2 7,
--- Assist J 9. Assist E was not one of these; 10 is taken for it. The tabs run, left to right, Window,
--- Say, Tell, Party, Linkshell 1, Linkshell 2, Assist (J), Assist (E), Unity and Shout: place is that,
--- for the title, and name what the tab says. Each shows the modes of its channel, sent and received;
--- Window shows everything. Which Assist channel has modes 220/221 and which 222/223 is a guess,
--- FancyChat listing 220 and 222 as assist without saying which is which.
+-- Window 2 8, Assist J 9, Assist E 10. The order is the client's own table (032F8700, the pairs at
+-- 0352F940 of a filter and its tab's art): Window, Window 2 (only while the game's second log window
+-- setting, config B4, is on), Say, Tell, Party, Linkshell 1, Linkshell 2, Assist (E) and Assist (J)
+-- (Assist (J) first in a Japanese client), Unity and Shout; place is that, for the title, and name what
+-- the tab says (tab, where given, what chatbox's tab says, short). Each shows the modes of its channel, sent and received; Window shows everything. Which
+-- Assist channel has modes 220/221 and which 222/223 is a guess, FancyChat listing 220 and 222 as
+-- assist without saying which is which.
 M.Filters = {
-    [0] = { name = 'Window', place = 1 },
-    [3] = { name = 'Say', place = 2, modes = say },
-    [4] = { name = 'Tell', place = 3, modes = tell },
-    [1] = { name = 'Party', place = 4, modes = party },
-    [2] = { name = 'Linkshell 1', place = 5, modes = linkshell },
-    [7] = { name = 'Linkshell 2', place = 6, modes = linkshell2 },
-    [9] = { name = 'Assist (J)', place = 7, modes = Set{ 222, 223 } },
-    [10] = { name = 'Assist (E)', place = 8, modes = Set{ 220, 221 } },
-    [6] = { name = 'Unity', place = 9, modes = unity },
-    [5] = { name = 'Shout', place = 10, modes = Set{ 2, 10, 3, 11 } }, -- yells too: the game has no Yell tab
+    [0] = { name = 'Window', tab = 'Win 1', place = 1 },
+    [8] = { name = 'Window 2', tab = 'Win 2', place = 2 },
+    [3] = { name = 'Say', place = 3, modes = say },
+    [4] = { name = 'Tell', place = 4, modes = tell },
+    [1] = { name = 'Party', place = 5, modes = party },
+    [2] = { name = 'Linkshell 1', tab = 'LS 1', place = 6, modes = linkshell },
+    [7] = { name = 'Linkshell 2', tab = 'LS 2', place = 7, modes = linkshell2 },
+    [10] = { name = 'Assist (E)', tab = 'A (E)', place = 8, modes = Set{ 220, 221 } },
+    [9] = { name = 'Assist (J)', tab = 'A (J)', place = 9, modes = Set{ 222, 223 } },
+    [6] = { name = 'Unity', place = 10, modes = unity },
+    [5] = { name = 'Shout', place = 11, modes = Set{ 2, 10, 3, 11 } }, -- yells too: the game has no Yell tab
 }
 local tabCount = 0
 for _ in pairs(M.Filters) do tabCount = tabCount + 1 end
--- The tabs' names by place along the top, left to right: what each tab says in the game. The strip
--- names the game's tabs by where they stand, which is sure; which channel's sprite a tab is drawn with
--- (above) did not line up with where the game draws it.
-M.TabNames = {}
-for _, filter in pairs(M.Filters) do M.TabNames[filter.place] = filter.name end
+-- Each tab's art (the owner's sprites at +80 + art * 8, which uihook names a measured tab by) to its filter,
+-- as the client's table pairs them: whatever order the game draws them in, a tab is named by its art.
+M.Art = { [0] = 0, [1] = 8, [2] = 3, [3] = 4, [4] = 1, [5] = 2, [6] = 7, [7] = 9, [8] = 10, [9] = 6, [10] = 5 }
 
 -- The expanded title: the tab's name and its place along the top, 'Window 1/10'; made once each.
 local titles = {}

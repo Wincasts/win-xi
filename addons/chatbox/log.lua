@@ -116,6 +116,26 @@ function M.Add(log, text, mode, now, originalMode, spans, raw)
     return true
 end
 
+-- Older messages put before the ones kept (the game's history, read as chatbox starts): entries oldest first, each
+-- { text, mode, originalMode, spans, raw }; as many of the newest as fit beside what is kept. Returns how many.
+function M.Prepend(log, entries)
+    local room = M.Capacity - #log.messages
+    if room <= 0 or #entries == 0 then return 0 end
+    local merged = {}
+    for i = math.max(1, #entries - room + 1), #entries do
+        local e = entries[i]
+        if type(e.text) == 'string' and #e.text <= M.MaxBytes and e.text:find('%S') then
+            merged[#merged + 1] = { text = e.text, mode = e.mode, originalMode = e.originalMode or e.mode, time = 0,
+                spans = e.spans, raw = tonumber(e.raw) or e.mode, imported = true }
+        end
+    end
+    local added = #merged
+    for _, message in ipairs(log.messages) do merged[#merged + 1] = message end
+    log.messages, log.cache, log.metrics = merged, nil, nil
+    log.revision = log.revision + 1
+    return added
+end
+
 -- Each boundary is a whole UTF-8 code point. Incoming text has already been decoded by Windows.
 local function Boundaries(text)
     local at, boundaries = 1, { 0 }

@@ -66,7 +66,7 @@ function M.New()
         local layout = M.Layout(width, display.x or display[1], screenHeight, fontSize, padding, matchGameSize and rect or nil, top, bottom)
         layout.sourceRect = rect
         local ok, snapshot = pcall(M.Snapshot, AshitaCore:GetChatManager(), encoding.Decode)
-        layout.active, layout.snapshot = ok and snapshot ~= nil, ok and snapshot or nil
+        layout.active, layout.snapshot, layout.failed = ok and snapshot ~= nil, ok and snapshot or nil, not ok
         problem = not ok and tostring(snapshot) or nil
         if matchGameSize and layout.active and not layout.matched then
             problem = 'Native input size unavailable; using compact WinXI size until fresh geometry is available.'
@@ -75,7 +75,12 @@ function M.New()
     end
     function bar.Draw(width, screenHeight, fontSize, padding, flags, matchGameSize, prepared)
         local layout = prepared or bar.Measure(width, screenHeight, fontSize, padding, matchGameSize)
-        if not layout.active then bar.Stop(); return false end
+        -- Closed, the slot stays armed with an empty replacement: the frame the game opens its input it
+        -- draws nothing, rather than its own bar in its own place (under an info panel) before ours is
+        -- captured where it belongs. The slot acts only while the game draws its input. A failed read
+        -- gives the game's input back.
+        if layout.failed then bar.Stop(); return false end
+        if not layout.active then scroll = 0; hook.Begin(); return false end
         if not hook.Begin() then return false end
         local snapshot = layout.snapshot
         local captured, minSizePushed = false, false
