@@ -83,8 +83,9 @@ function M.new(index)
     -- Copy/consume this ImGui window's GPU commands, leaving its layout/hit testing intact.
     -- For the expanded log: controls, the theme's colours for the game's own controls (highlight, tab,
     -- cursor, scrollbar), and replace, which of them the addon draws itself, { tabs = true, scrollbar = true,
-    -- text = true }: those the game leaves undrawn, their hit-tests still its own. Tabs(), Scrollbar() and
-    -- Rows() say where.
+    -- text = true, all = true }: those the game leaves undrawn, their hit-tests still its own; all, with the tabs
+    -- and text, leaves nothing of the full log drawn (its row light, cursor and marks as well). Tabs(), Scrollbar()
+    -- and Rows() say where.
     function hook.Capture(expandedFrame, controls, replace)
         local found = Find()
         if not found or not owned then return false end
@@ -102,6 +103,8 @@ function M.new(index)
                 local bits = 0
                 if bit.band(found.SupportedMask,64) ~= 0 then bits = (replace.tabs and 1 or 0) + (replace.scrollbar and 2 or 0) end
                 if bit.band(found.SupportedMask,128) ~= 0 and replace.text then bits = bits + 4 end
+                -- all of it: the row light, cursor and marks too, only with the addon's tabs and text
+                if bit.band(found.SupportedMask,2048) ~= 0 and replace.all and bit.band(bits,5) == 5 then bits = bits + 8 end
                 found.ReplaceControls = bits
             end
             if expandedFrame and bit.band(found.SupportedMask,32) ~= 0 and type(controls) == 'table' then
@@ -154,6 +157,7 @@ function M.new(index)
             nativeControls = bit.band(found.SupportedMask,32) ~= 0,
             nativeReplace = bit.band(found.SupportedMask,64) ~= 0,
             nativeText = bit.band(found.SupportedMask,128) ~= 0,
+            nativeMirror = bit.band(found.SupportedMask,2048) ~= 0,
             nativeWindows = bit.band(found.SupportedMask,256) ~= 0,
             nativeLines = bit.band(found.SupportedMask,512) ~= 0,
             nativeColors = bit.band(found.SupportedMask,1024) ~= 0,
@@ -176,6 +180,25 @@ function M.new(index)
         end
         if r[2] <= r[0] or r[3] <= r[1] then return nil end
         return tonumber(r[0]) * width, tonumber(r[1]) * height, tonumber(r[2]) * width, tonumber(r[3]) * height
+    end
+    -- Topmost stacked compact replacement frame in display pixels (primary for side-by-side
+    -- logs; the upper split for stacked logs), only while it is also eligible to
+    -- relocate the native clock (same freshness/visibility rules as ChatClockOffset in uihook).
+    -- Read-only: observing the primary slot never claims or stops its replacement.
+    function hook.ClockAnchor()
+        local found = Find()
+        if not found or index ~= M.Primary or bit.band(found.StateFlags, 4) ~= 0 then return nil end
+        for _, stamp in ipairs({ found.PrimaryRectFrame, found.ReplacementRectFrame, found.NativeFrame[0], found.DrawnFrame[0] }) do
+            if not Fresh(found, stamp) then return nil end
+        end
+        for _, r in ipairs({ found.PrimaryRect, found.ReplacementRect }) do
+            for i = 0, 3 do
+                if r[i] ~= r[i] or math.abs(r[i]) == math.huge then return nil end
+            end
+            if r[2] <= r[0] or r[3] <= r[1] then return nil end
+        end
+        local r = found.ReplacementRect
+        return tonumber(r[0]), tonumber(r[1]), tonumber(r[2]), tonumber(r[3])
     end
     -- Native primary/split/input bounds; expanded=true selects fulllog on the primary slot. The split log's
     -- bounds (the game's second log window) need uihook's window routing.
@@ -315,7 +338,7 @@ function M.new(index)
     -- newest first): each with its bounds in display pixels (left, top, right, bottom; nil where the row drew
     -- nothing and the game's place for it was not known), its text as the game was given it (CP932 bytes with
     -- the game's 1E/1F colour codes; '' for an empty row), its chat mode, and cursor (the game's cursor is on
-    -- it), marked (the game marks it) and cut (longer than the room to publish it). The same table again while
+    -- it), pressed (held down on it), lit (under the game's row highlight), marked (the game marks it) and cut (longer than the room to publish it). The same table again while
     -- the rows are what they were. nil when there are none, or none fresh.
     local rowsSerial, rowsWidth, rowsHeight, rowsList
     function hook.Rows(width, height)
@@ -331,7 +354,8 @@ function M.new(index)
             local text = ''
             if length > 0 and offset + length <= 65536 then text = ffi.string(found.Text + offset, length) end
             local entry = { text = text, mode = tonumber(row.Mode), cursor = bit.band(flags, 1) ~= 0,
-                marked = bit.band(flags, 4) ~= 0, cut = bit.band(flags, 8) ~= 0 }
+                pressed = bit.band(flags, 2) ~= 0, marked = bit.band(flags, 4) ~= 0, cut = bit.band(flags, 8) ~= 0,
+                lit = bit.band(flags, 32) ~= 0 }
             if bit.band(flags, 16) ~= 0 then entry.left, entry.top, entry.right, entry.bottom = Scaled(row.Rect, width, height) end
             list[#list + 1] = entry
         end

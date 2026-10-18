@@ -80,12 +80,14 @@ local function Shade(into, color, amount)
     return into;
 end
 
-function backgrounds.Draw(entry, color)
+-- rect optionally draws an attachment on the current window's list without changing its layout.
+function backgrounds.Draw(entry, color, rect)
     if entry == nil or color == nil or color[4] <= 0 then
         return;
     end
-    local x, y = imgui.GetWindowPos();
-    local width, height = imgui.GetWindowSize();
+    local x, y, width, height;
+    if rect then x, y, width, height = rect.left, rect.top, rect.width, rect.height;
+    else x, y = imgui.GetWindowPos(); width, height = imgui.GetWindowSize(); end
     if width <= 0 or height <= 0 then
         return;
     end

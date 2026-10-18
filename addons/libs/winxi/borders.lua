@@ -155,12 +155,14 @@ local function ArtEdge(list, texture, tint, x, y, width, height, gapA, gapB)
     end
 end
 
-function borders.Draw(texture, gapLeft, gapRight, override)
-    if not texture and not gapLeft and not override then
+-- rect optionally draws a frame attachment; plain borders are then drawn explicitly too.
+function borders.Draw(texture, gapLeft, gapRight, override, rect)
+    if not texture and not gapLeft and not override and not rect then
         return;
     end
-    local x, y = imgui.GetWindowPos();
-    local width, height = imgui.GetWindowSize();
+    local x, y, width, height;
+    if rect then x, y, width, height = rect.left, rect.top, rect.width, rect.height;
+    else x, y = imgui.GetWindowPos(); width, height = imgui.GetWindowSize(); end
     if width <= 0 or height <= 0 then
         return;
     end
