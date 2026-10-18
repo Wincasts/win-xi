@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.36
+
+- The health bar scales with its name. Health Bar Width and Height are the bar's size under a name at its largest, and the bar shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one, where it had stayed one size at every distance.
+
 ## 1.35
 
 - Health bars now use one shared enable toggle and width/height under **General Name Appearance**, for every entity type. One-time migration enables them if any old category enabled bars, taking dimensions from the first enabled Enemy → Player → NPC (Enemy if all were off). Old per-type tables remain archived, not active.

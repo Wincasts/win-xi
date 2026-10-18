@@ -14,8 +14,8 @@ Names
     Combat Only [checkbox; defaults off, disabled while bars off]
       Requires each entity's own Engaged status (1), valid server ID and HP > 0.
       Claimed/targeted alone is insufficient. Missing status hides the bar.
-    Health Bar Width (px) [integer, 12-300, default 60; shared]
-    Health Bar Height (px) [integer, 3-40, default 6; shared]
+    Health Bar Width (px) [integer, 12-300, default 60; shared; the size under a name at its largest]
+    Health Bar Height (px) [integer, 3-40, default 6; shared; shrinks with the name by distance]
   Player Names
     Player Format [text; default [icons: space=4][name]]
       (?) lists [name], [icons], [distance], options, example format and sample output.

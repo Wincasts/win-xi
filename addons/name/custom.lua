@@ -1485,8 +1485,10 @@ function custom.Frame(options, hook, formats)
                     end
 
                     if (options.showHealthBar[1] and (not options.healthBarsCombatOnly[1] or nameColours.InCombat(name, entities))) then
+                        -- the bar is its saved size under a name at its largest, and shrinks with the name
+                        -- as it goes further away (or grows with it, hunted or under the sub-target cursor)
                         under = healthbar.Write(name, entities, nameLeft, nameLeft + width,
-                            under, scale, fill, options.healthBarWidth[1], options.healthBarHeight[1]);
+                            under, scale * height / fullHeight, fill, options.healthBarWidth[1], options.healthBarHeight[1]);
                     end
 
                     -- the row of statuses over all of it, or under it

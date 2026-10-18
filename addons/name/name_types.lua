@@ -85,9 +85,9 @@ function types.Draw(options)
     controls.Checkbox('Combat Only', '##name.healthBarsCombatOnly', options.healthBarsCombatOnly,
         'Show bars only for the entity whose status is Engaged (1) and HP is above zero. Being targeted or claimed alone is not combat. Missing status data hides the bar. Applies to every type.');
     controls.Input('Health Bar Width (px)', '##name.healthBarWidth', options.healthBarWidth, 12, 300,
-        'Shared width including the border, independent of name size.');
+        'Shared width including the border, under a name at its largest size; it shrinks with the name as it goes further away.');
     controls.Input('Health Bar Height (px)', '##name.healthBarHeight', options.healthBarHeight, 3, 40,
-        'Shared height including the border, independent of name size.');
+        'Shared height including the border, under a name at its largest size; it shrinks with the name as it goes further away.');
     imgui.EndDisabled();
 end
 
