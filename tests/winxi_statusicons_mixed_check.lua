@@ -4,6 +4,7 @@
 local ffi = require('ffi')
 for _, def in ipairs({
     'typedef struct IDirect3DSurface8 IDirect3DSurface8;',
+    'typedef struct IDirect3DTexture8 IDirect3DTexture8;',
     'typedef struct { long left, top, right, bottom; } RECT;',
     'typedef struct { int Pitch; void* pBits; } D3DLOCKED_RECT;',
     'typedef struct { unsigned Width, Height; } D3DXIMAGE_INFO;',
@@ -27,16 +28,21 @@ d3d.get_device = function() return {
 d3d.gc_safe_release = function() return ffi.cast('void*', 0x5000 + #made) end
 
 -- what is put on it: whole files, the set's icons and the game's
-local loads, memoryLoads = {}, {}
+local loads, memoryLoads, singleLoads = {}, {}, {}
 local originalC = ffi.C
 ffi.C = setmetatable({
-    S_OK = 0, D3DFMT_A8R8G8B8 = 21, D3DPOOL_MANAGED = 1,
+    S_OK = 0, D3DFMT_A8R8G8B8 = 21, D3DPOOL_MANAGED = 1, D3DX_DEFAULT = 0xFFFFFFFF,
     D3DXLoadSurfaceFromFileA = function(surface, _, rect, path, from)
         loads[#loads + 1] = { path = path, left = rect.left, top = rect.top, right = rect.right, bottom = rect.bottom, cropped = from ~= nil }
         return 0
     end,
-    D3DXLoadSurfaceFromFileInMemory = function(surface, _, rect)
-        memoryLoads[#memoryLoads + 1] = { left = rect.left, top = rect.top, right = rect.right, bottom = rect.bottom }
+    D3DXLoadSurfaceFromFileInMemory = function(surface, _, rect, bitmap)
+        memoryLoads[#memoryLoads + 1] = { left = rect.left, top = rect.top, right = rect.right, bottom = rect.bottom, bitmap = bitmap }
+        return 0
+    end,
+    D3DXCreateTextureFromFileInMemoryEx = function(_, bitmap, _, _, _, _, _, _, _, _, _, _, _, _, out)
+        singleLoads[#singleLoads + 1] = bitmap
+        out[0] = ffi.cast('IDirect3DTexture8*', 0x7000)
         return 0
     end,
     D3DXGetImageInfoFromFileA = function(_, info) info[0].Width, info[0].Height = 64, 64 return 0 end,
@@ -54,6 +60,17 @@ local manager = AshitaCore.GetResourceManager()
 manager.GetStatusIconByIndex = function(_, id) return id ~= 7 and { Bitmap = 0, ImageSize = 1 } or nil end
 AshitaCore.GetResourceManager = function() return manager end
 
+local pivotBitmap = ffi.new('uint8_t[4]', { 1, 2, 3, 4 })
+local pivotRequests, resourceRequests = {}, {}
+package.loaded['winxi.statusdat'] = { Get = function(id)
+    pivotRequests[id] = true
+    return id == 5 and { Bitmap = pivotBitmap, ImageSize = 4 } or nil
+end }
+local originalGet = manager.GetStatusIconByIndex
+manager.GetStatusIconByIndex = function(self, id)
+    resourceRequests[id] = true
+    return originalGet(self, id)
+end
 local statusicons = require('winxi.statusicons')
 local look = require('winxi.theme').Get()
 local function close(a, b) return math.abs(a - b) < 1e-6 end
@@ -110,4 +127,18 @@ os.clock = realClock
 ffi.C.D3DXLoadSurfaceFromFileInMemory = inMemory
 look.StatusIconSet = 'ffxiv'
 
+-- All three game-artwork paths must prefer Pivot and retain resource fallback.
+local function sawPivot()
+    for _, load in ipairs(memoryLoads) do if load.bitmap == pivotBitmap then return true end end
+    return false
+end
+assert(pivotRequests[5] and not resourceRequests[5], 'mixed sheet must prefer Pivot artwork')
+assert(not pivotRequests[1], 'explicit custom artwork must retain precedence')
+assert(resourceRequests[6], 'missing DAT artwork must use resources')
+memoryLoads = {}
+for _ = 1, 100 do statusicons.GameSheet() end
+assert(sawPivot() and not resourceRequests[5], 'game sheet must prefer Pivot artwork')
+assert(statusicons.Game(5) ~= nil and singleLoads[#singleLoads] == pivotBitmap, 'individual game icon must prefer Pivot artwork')
+assert(statusicons.Game(6) ~= nil and singleLoads[#singleLoads] == 0, 'individual game icon must retain resource fallback')
+H.print('Pivot artwork preferred by individual icons, game sheet and mixed sheet; resource fallback retained', true)
 ffi.C = originalC
