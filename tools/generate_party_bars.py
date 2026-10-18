@@ -36,11 +36,21 @@ def generate(style, kind, width, height, cap_height):
     top, bottom = 6, height - 6
     back = canvas(width, height)
     d = ImageDraw.Draw(back)
-    box(d, (5, top - 1, width - 5, bottom + 1), (12, 12, 12, 245), 2)
-    for y in range(top * S, bottom * S):
-        t = (y / S - top) / (bottom - top)
-        v = int(22 + 18 * t + 8 * math.exp(-((t - .12) / .15) ** 2))
-        d.line((6 * S, y, (width - 6) * S, y), fill=(v, v, v, 235))
+    if style == 'kingdom':
+        # A flat, square field with no highlight, so the empty part of the bar reads as one plain
+        # void under the rail, with a shadow line under the top rail.
+        box(d, (5, top - 1, width - 5, bottom + 1), (8, 8, 8, 250))
+        for y in range(top * S, bottom * S):
+            t = (y / S - top) / (bottom - top)
+            v = int(18 + 10 * t)
+            d.line((6 * S, y, (width - 6) * S, y), fill=(v, v, v, 240))
+        box(d, (6, top, width - 6, top + .75), (4, 4, 4, 255))
+    else:
+        box(d, (5, top - 1, width - 5, bottom + 1), (12, 12, 12, 245), 2)
+        for y in range(top * S, bottom * S):
+            t = (y / S - top) / (bottom - top)
+            v = int(22 + 18 * t + 8 * math.exp(-((t - .12) / .15) ** 2))
+            d.line((6 * S, y, (width - 6) * S, y), fill=(v, v, v, 235))
     save(back, folder / f'{kind}_back.png')
 
     fill = canvas(width - 16, height)
@@ -179,12 +189,14 @@ def generate(style, kind, width, height, cap_height):
             box(d, (x - 1, top - 1.4, x + 1.6, top - .8), (255, 255, 255, 210))
             box(d, (x, bottom - 1, x + .6, bottom + 1.4), (225, 225, 225, 160))
     if style == 'kingdom':
-        # Square double rails: a classic console-menu silhouette, not copied game artwork.
+        # A square console-menu rail, not copied game artwork: one dark line, one bright rail and
+        # one shade line, and nothing drawn inside, so that the empty part stays plain. At the
+        # party addon's scale the earlier four alternating rails smeared into a second inner frame.
         front = canvas(width + 6, height)
         d = ImageDraw.Draw(front)
-        for inset, value in ((3, 20), (4, 240), (5, 95), (6, 200)):
+        for inset, value in ((3, 20), (4, 240), (5, 70)):
             box(d, (inset, top - 5 + inset, width - inset, bottom + 5 - inset), (value, value, value, 255))
-        box(d, (7, top + 2, width - 7, bottom - 2), (0, 0, 0, 0))
+        box(d, (7, top + 1, width - 7, bottom - 1), (0, 0, 0, 0))
     elif style == 'magitek':
         for x in range(10, width - 10, 18):
             box(d, (x, top - 2, x + 7, top - 1), (245, 245, 245, 255))

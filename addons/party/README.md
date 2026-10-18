@@ -326,7 +326,7 @@ In **winxisettings → Styles → Bar Texture**, choose:
 - **Flat** — one even colour in a thin square frame.
 - **Segmented** — ten cells, marked on the frame so that they stay put as the bar empties.
 - **Ember** — a glowing core fading to darker edges, with fine sparks.
-- **Kingdom** — square double-rail bevels inspired by classic Final Fantasy console menus.
+- **Kingdom** — a single square bright rail over a plain dark field, inspired by classic Final Fantasy console menus.
 - **Magitek** — industrial ribs, alternating metal highlights and mechanical rail markings; a nod to Final Fantasy's machinery.
 - **Aether** — luminous crystal facets and diamond rail accents, inspired by the series' crystal motifs.
 - **Elven** — soft satin light, curved filigree rails and flowing leaf-like reflections; high-fantasy metalwork.
