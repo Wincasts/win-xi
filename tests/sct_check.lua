@@ -152,8 +152,28 @@ H.print('Scroll Time of 2 s brought over as a speed', o.duration == nil, o.speed
 -- Show Outline: the edge is drawn unlocked, and not with it off or locked
 local rects = 0
 list.AddRect = function() rects = rects + 1 end
-o.locked[1], o.showBox[1], o.showOutline[1] = false, false, true
+o.locked[1], o.boxStyle, o.showOutline[1] = false, 'text', true
 frame(); local on = rects
 o.showOutline[1] = false; rects = 0; frame(); local off = rects
 o.showOutline[1], o.locked[1] = true, true; rects = 0; frame()
 H.print('outline drawn unlocked', on > 0, '| hidden with Show Outline off', off == 0, '| and locked', rects == 0)
+
+-- Text Only: no background, border or shadow; Full Background: the theme's
+local window = require('winxi.window')
+local plain, seen = window.Plain, nil
+window.Plain = function(name, open, flags, draw, options)
+    seen = { background = options.background, border = options.border, shadow = options.shadow, padding = options.padding }
+    return plain(name, open, flags, draw, options)
+end
+H.command('/sct test'); o.boxStyle = 'text'; seen = nil; frame()
+local function clear(c) return c ~= nil and c[4] == 0 end
+H.print('Text Only: no background', clear(seen.background), '| no border', clear(seen.border), '| no shadow', seen.shadow == false, '| no padding', seen.padding == 0)
+o.boxStyle = 'background'; seen = nil; frame()
+H.print('Full Background: the theme\'s background, border and shadow', seen.background == nil and seen.border == nil and seen.shadow == nil)
+window.Plain = plain
+
+
+-- Show Box, from before Box Style, comes over
+o.showBox = { true }; H.resettle(); local was = o.boxStyle
+o.showBox = { false }; H.resettle()
+H.print('Show Box on brought over as Full Background', was == 'background', '| off as Text Only', o.boxStyle == 'text', o.showBox == nil)

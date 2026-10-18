@@ -1,6 +1,6 @@
 addon.name    = 'sct';
 addon.author  = 'win';
-addon.version = '0.3';
+addon.version = '0.4';
 addon.desc    = 'Scrolling text for the statuses you gain and lose.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -54,7 +54,7 @@ local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 300 },
     locked = T{ false },
-    showBox = T{ false },
+    boxStyle = 'text',     -- 'text': the lines alone; 'background': the theme's window behind them
     showOutline = T{ true }, -- the box's edge, while it is unlocked
     width = T{ 260 },
     height = T{ 300 },
@@ -72,6 +72,7 @@ local defaults = T{
     lostColor = T{ 0.62, 0.62, 0.62, 1.00 },
 };
 
+local boxStyles = { { key = 'text', label = 'Text Only' }, { key = 'background', label = 'Full Background' } };
 local aligns = { { key = 'left', label = 'Left' }, { key = 'center', label = 'Center' }, { key = 'right', label = 'Right' } };
 
 -- What the player was under last frame, by status: how many of each (some can be on twice)
@@ -258,7 +259,7 @@ local function DrawBox(options, now)
     boxSize[1], boxSize[2] = options.width[1], options.height[1];
     imgui.Dummy(boxSize);
     -- unlocked with no box to see, its edge shows where it is, to be dragged
-    if not options.locked[1] and not options.showBox[1] and options.showOutline[1] then
+    if not options.locked[1] and options.boxStyle ~= 'background' and options.showOutline[1] then
         outlineMin[1], outlineMin[2], outlineMax[1], outlineMax[2] = x, y, x + boxSize[1], y + boxSize[2];
         imgui.GetWindowDrawList():AddRect(outlineMin, outlineMax, imgui.GetColorU32(theme.Get().TextColor), 0, 0, 1);
     end
@@ -294,10 +295,11 @@ local function Draw(options, now)
     local flags = bit.bor(style.TitlelessFlags(), ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoFocusOnAppearing,
         ImGuiWindowFlags_NoNav, ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse);
     if options.locked[1] then flags = bit.bor(flags, ImGuiWindowFlags_NoMove, ImGuiWindowFlags_NoInputs); end
-    local box = options.showBox[1];
+    local box = options.boxStyle == 'background';
     if not box then flags = bit.bor(flags, ImGuiWindowFlags_NoBackground); end
     windowOptions.alpha = alpha;
     windowOptions.background = not box and transparent or nil;
+    windowOptions.border = not box and transparent or nil;
     windowOptions.padding = not box and 0 or nil;
     if box then windowOptions.shadow = nil; else windowOptions.shadow = false; end
 
@@ -349,15 +351,17 @@ local function DrawSettings(options)
         Tip('Whether the text shows. /sct switches this.');
         widgets.Label('Locked');
         imgui.Checkbox('##sct.locked', options.locked);
-        Tip('Unlocked, the box\'s edge shows and it can be dragged. Locked, clicks go through it.');
+        Tip('Unlocked, the box can be dragged (its edge drawn, with Text Only and Show Outline). Locked, clicks go through it.');
         widgets.Label('Position');
         if imgui.InputInt2('##sct.position', options.pos) then place = true; end
-        widgets.Label('Show Box');
-        imgui.Checkbox('##sct.showBox', options.showBox);
-        Tip('Draws the theme\'s window behind the text while lines are moving.');
-        widgets.Label('Show Outline');
-        imgui.Checkbox('##sct.showOutline', options.showOutline);
-        Tip('Draws the box\'s edge while it is unlocked, to see where it is. Locked, the edge is never drawn.\nOff, the box can still be dragged where it is while unlocked.');
+        widgets.Label('Box Style');
+        options.boxStyle = Combo('##sct.boxStyle', options.boxStyle, boxStyles);
+        Tip('Text Only: the scrolling lines and nothing else, no background, border or shadow.\nFull Background: the theme\'s window behind the lines while they are moving.');
+        if options.boxStyle ~= 'background' then
+            widgets.Label('Show Outline');
+            imgui.Checkbox('##sct.showOutline', options.showOutline);
+            Tip('Draws the box\'s edge while it is unlocked, to see where it is. Locked, the edge is never drawn.\nOff, the box can still be dragged where it is while unlocked.');
+        end
         widgets.PushControlWidth();
         widgets.Label('Box Width');
         imgui.SliderInt('##sct.width', options.width, 80, 800);
@@ -424,6 +428,12 @@ app = shell.New({
     },
     onSettings = function(options)
         place = true;
+        -- Show Box, before Box Style
+        if options.showBox ~= nil then
+            local shown = type(options.showBox) == 'table' and options.showBox[1];
+            options.boxStyle = shown and 'background' or 'text';
+            options.showBox = nil;
+        end
         -- Scroll Time, before Scroll Speed: the speed that took the same time down the box
         if options.duration ~= nil then
             local seconds = type(options.duration) == 'table' and tonumber(options.duration[1]) or nil;
