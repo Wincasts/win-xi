@@ -59,7 +59,7 @@ o.showEmptySlots[1] = false
 H.bag(0, 80, { { 1 }, { 2 }, { 3 } })
 o.gridRows[1], o.gridColumns[1] = 5, 6
 frame()
-check('four tabs enabled by default', table.concat(labels, ',') == 'bag,satchel,ward,house')
+check('four tabs enabled by default', table.concat(labels, ',') == 'Bag,Satchel,Ward,House')
 -- exactly the slots' 232 by 176, so the window, its tabs and its foot are as wide as the slots
 check('grid viewport follows rows and columns', #children == 1 and children[1][2] == 232 and children[1][3] == 176)
 o.maxHeight[1] = 100
@@ -75,32 +75,32 @@ for _, unified in ipairs({ true, false }) do
     o.isUnified[1] = unified
     o.bagTabs.satchel[1], o.bagTabs.wardrobe[1] = false, false
     frame()
-    check('hidden groups omitted (' .. tostring(unified) .. ')', table.concat(labels, ',') == 'bag,house')
+    check('hidden groups omitted (' .. tostring(unified) .. ')', table.concat(labels, ',') == 'Bag,House')
     check('same viewport in both bag layouts', #children == 1 and children[1][3] == 176)
 end
 
 o.controller[1] = true
 frame()
 H.tap(H.Button.RB)
-check('controller next skips disabled groups', selected == 'house')
+check('controller next skips disabled groups', selected == 'House')
 -- The harness chooses tabs by ordinal; make House the showing tab.
 H.tab(2); frame()
 H.tap(H.Button.RB)
-check('controller wraps to enabled bag', selected == 'bag')
+check('controller wraps to enabled bag', selected == 'Bag')
 H.tab(1); frame()
 H.tap(H.Button.LB)
-check('controller previous skips disabled groups', selected == 'house')
+check('controller previous skips disabled groups', selected == 'House')
 
 o.controller[1] = false
 o.bagTabs.bag[1] = false
 frame()
-check('hiding active tab selects an enabled replacement', selected == 'house')
+check('hiding active tab selects an enabled replacement', selected == 'House')
 o.bagTabs.house[1] = false
 frame()
 check('all tabs can be hidden safely', #labels == 0 and #children == 0)
 o.bagTabs.bag[1] = true
 frame()
-check('a hidden tab can be restored', #labels == 1 and labels[1] == 'bag' and #children == 1)
+check('a hidden tab can be restored', #labels == 1 and labels[1] == 'Bag' and #children == 1)
 o.isUnified[1] = true
 frame()
 check('closed settings allow grid to collapse', children[1][4] == 1)
