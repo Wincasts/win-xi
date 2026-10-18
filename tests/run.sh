@@ -45,6 +45,7 @@ luajit tests/chatbox_browse_check.lua || exit 1
 luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.lua || exit 1
 run clock      tests/clock_stand_in.lua clock_check.lua
 run sct        addons/sct/sct.lua       sct_check.lua
+luajit tests/tcrossbar_shadow_check.lua
 luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
 luajit tests/mark_data_check.lua
