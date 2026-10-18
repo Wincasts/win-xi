@@ -181,11 +181,30 @@ static bool ChatReadable(const MEMORY_BASIC_INFORMATION& page) {
         && (access==PAGE_READONLY || access==PAGE_READWRITE || access==PAGE_WRITECOPY
             || access==PAGE_EXECUTE_READ || access==PAGE_EXECUTE_READWRITE || access==PAGE_EXECUTE_WRITECOPY);
 }
+// The regions reads have found readable this frame, so that a read inside one of them is made without
+// asking Windows again: VirtualQuery is a system call, and the client's windows are read many times a
+// frame (every window the game draws has its name read, and a chat window its owner followed). A
+// handful of regions is enough, the game's windows all being in its heap. Cleared each frame, from
+// Present (ChatReadReset), so that a region the game has let go of is asked about afresh.
+#define CHAT_READ_REGIONS 8
+struct ChatReadRegion { uintptr_t begin, end; };
+static ChatReadRegion ChatReadRegions[CHAT_READ_REGIONS];
+static unsigned ChatReadRegionCount=0, ChatReadRegionNext=0;
+static inline void ChatReadReset() { ChatReadRegionCount=ChatReadRegionNext=0; }
 static bool ChatRead(const void* at,void* out,size_t size) {
-    MEMORY_BASIC_INFORMATION page={};
     const uintptr_t address=reinterpret_cast<uintptr_t>(at);
-    if (!address || !size || address+size<address || !VirtualQuery(at,&page,sizeof(page)) || !ChatReadable(page)
-        || address+size>reinterpret_cast<uintptr_t>(page.BaseAddress)+page.RegionSize) return false;
+    if (!address || !size || address+size<address) return false;
+    for (unsigned i=0;i<ChatReadRegionCount;i++) {
+        const ChatReadRegion& region=ChatReadRegions[i];
+        if (address>=region.begin && address+size<=region.end) { memcpy(out,at,size); return true; }
+    }
+    MEMORY_BASIC_INFORMATION page={};
+    if (!VirtualQuery(at,&page,sizeof(page)) || !ChatReadable(page)) return false;
+    const uintptr_t begin=reinterpret_cast<uintptr_t>(page.BaseAddress), end=begin+page.RegionSize;
+    if (address+size>end) return false;
+    ChatReadRegions[ChatReadRegionNext]={begin,end};
+    ChatReadRegionNext=(ChatReadRegionNext+1)%CHAT_READ_REGIONS;
+    if (ChatReadRegionCount<CHAT_READ_REGIONS) ChatReadRegionCount++;
     memcpy(out,at,size);
     return true;
 }

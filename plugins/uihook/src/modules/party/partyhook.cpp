@@ -373,7 +373,7 @@ public:
         History.Supported=0; History.RequestFrame=0; History.Count=0; historyServed=0;
         Shared.Hooked=0; Shared.Submit=0; Shared.GeometryReady=0;
         Hud.SupportedMask=0; Hud.Submit=0;
-        Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat();
+        Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat(); ChatReadReset();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
@@ -381,6 +381,7 @@ public:
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
         ++Shared.Frame;
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
+        ChatReadReset(); // the regions found readable last frame are asked about again
         chat.Sample(Chat,Shared.Frame);
         SampleChatWindows(windowRoutes,Chat,Shared.Frame);
         chat.SampleLines(Chat,Shared.Frame);
@@ -391,7 +392,10 @@ public:
             if (!ChatReadHistory(chat.FirstRing(),History)) History.Count=History.Used=0;
             History.ReadFrame=Shared.Frame; History.Serial++;
         }
-        SampleChatColors(colorTables,Chat,Shared.Frame);
+        // the colours change seldom, and are a few thousand bytes to read and compare: read every fourth
+        // frame once they have been read, and vouched for as current between
+        if (!colorTables.cached || (Shared.Frame & 3)==0) SampleChatColors(colorTables,Chat,Shared.Frame);
+        else if (Chat.ColorFrame) Chat.ColorFrame=Shared.Frame;
         if (!MenuFresh(Menus,Chat,Shared.Frame)) menus.Stop(Menus);
         if (!LogFresh(Menus,Shared.Frame)) menus.StopLog(Menus);
         // As namehook: no cross-frame state blocks holding client resources across a reset.
