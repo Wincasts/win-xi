@@ -105,6 +105,10 @@ function SingleDisplay:Render(macroState)
 
     local group = self.ElementGroups[macroState];
     if group then
+        -- winxi: every shadow under every frame
+        for _,element in ipairs(group) do
+            element:RenderShadow(sprite);
+        end
         for _,element in ipairs(group) do
             element:RenderIcon(sprite);
         end

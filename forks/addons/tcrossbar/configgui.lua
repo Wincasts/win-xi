@@ -249,6 +249,8 @@ function exposed:Render()
                     imgui.ShowHelp('Display empty macro elements.');
                     CheckBox('Frame', 'ShowFrame');
                     imgui.ShowHelp('Display frame for macro elements.');
+                    CheckBox('Frame Shadow', 'ShowFrameShadow'); -- winxi
+                    imgui.ShowHelp('Display the Winxi Theme\'s drop shadow under each frame. Its Shadow settings (Opacity, Offset, Blur) say how it looks; switched off there, none is drawn.');
                     CheckBox('Cost', 'ShowCost');
                     imgui.ShowHelp('Display action cost indicators.');
                     CheckBox('Trigger', 'ShowTrigger');

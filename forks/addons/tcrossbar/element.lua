@@ -1,6 +1,7 @@
 local d3d8     = require('d3d8');
 local encoding = require('gdifonts.encoding');
 local ffi      = require('ffi');
+local frameshadow = require('frameshadow'); -- winxi: the theme's drop shadow
 local gdi      = require('gdifonts.include');
 local updaters = {
     ['Ability']     = require('updaters.ability'),
@@ -168,6 +169,18 @@ end
 -- drawn. Nothing in it changes that fast, so it is now worked out this often, and at once when the
 -- slot is given another binding.
 local tickInterval = 0.1;
+
+-- winxi: the theme's drop shadow under the frame, drawn for every element before any frame, so that
+-- one element's shadow does not fall over the next one's frame
+function Element:RenderShadow(sprite)
+    if ((self.Binding) or (gSettings.ShowEmpty)) and (gSettings.ShowFrame) and (gSettings.ShowFrameShadow) then
+        local layout = self.Layout;
+        local component = layout.Textures.Frame;
+        if component then
+            frameshadow.Draw(sprite, component, self.PositionX + layout.Frame.OffsetX, self.PositionY + layout.Frame.OffsetY);
+        end
+    end
+end
 
 function Element:RenderIcon(sprite)
     local now = os.clock();

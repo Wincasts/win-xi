@@ -34,6 +34,7 @@ local defaultSettings = T{
     TriggerDuration = 0.25,
     ShowEmpty = true,
     ShowFrame = true,
+    ShowFrameShadow = true, -- winxi: the theme's drop shadow under each frame
     ShowCost = true,
     ShowCross = true,
     ShowFade = true,

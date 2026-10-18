@@ -112,6 +112,10 @@ function DoubleDisplay:Render(macroState, forceSingle)
         end
     end
 
+    -- winxi: every shadow under every frame
+    for _,element in ipairs(renderElements) do
+        element:RenderShadow(sprite);
+    end
     for _,element in ipairs(renderElements) do
         element:RenderIcon(sprite);
     end
