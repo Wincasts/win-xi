@@ -52,6 +52,7 @@ luajit tests/nativehistory_check.lua || exit 1
 luajit tests/nativetext_check.lua || exit 1
 run sct        addons/sct/sct.lua       sct_check.lua
 run mapoverlay addons/mapoverlay/mapoverlay.lua mapoverlay_check.lua
+run atlas      addons/atlas/atlas.lua   atlas_check.lua
 luajit tests/tcrossbar_shadow_check.lua
 luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
