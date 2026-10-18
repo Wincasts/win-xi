@@ -4,6 +4,7 @@ local bit = require('bit');
 local settings = require('settings');
 local shell = require('winxi.shell');
 local widgets = require('winxi.widgets');
+local tips = require('winxi.tooltip');
 local window = require('winxi.window');
 local style = require('winxi.style');
 local theme = require('winxi.theme');
@@ -163,7 +164,7 @@ local function gdi_family_choice(d, label, key)
         end
         imgui.EndCombo();
     end
-    if problem and imgui.IsItemHovered() then imgui.SetTooltip('Font family enumeration failed: ' .. problem); end
+    if problem then tips.Hover('Font family enumeration failed: ' .. problem); end
 end
 local function commit(options)
     if dirty then M.complete(options); end
@@ -186,7 +187,7 @@ local function draw_settings(options)
         widgets.PushControlWidth();
         slider(d, 'Approach Distance', 'approachYalms', '%.0f yalms');
         widgets.PopControlWidth();
-        if imgui.IsItemHovered() then imgui.SetTooltip('How near a feature is announced, measured from its outline. 0 announces only inside it.'); end
+        tips.Hover('How near a feature is announced, measured from its outline. 0 announces only inside it.');
     end
     widgets.Gap();
     if widgets.Header('Weather Popup') then
@@ -261,7 +262,7 @@ local function draw_appearance(options)
     choice(d, 'Text Alignment', 'alignment', { 'left', 'center', 'right' });
     checkbox(d, 'Centered On Screen', 'centered');
     widgets.Label('Position / Offset'); changed(imgui.InputInt2('##zone.position', d.position));
-    if imgui.IsItemHovered() then imgui.SetTooltip('With Centered On Screen on: X is an offset from screen center; Y is from the top. Otherwise X/Y are absolute pixels. Alignment anchors the whole banner at this position.'); end
+    tips.Hover('With Centered On Screen on: X is an offset from screen center; Y is from the top. Otherwise X/Y are absolute pixels. Alignment anchors the whole banner at this position.');
     if widgets.Header('Zone Entry Text', true) then
         slider(d, 'Zone Title Size', 'zoneTitleSize', '%.0f px'); slider(d, 'Zone Detail Size', 'zoneDetailSize', '%.0f px');
         if d.renderer == 'imgui' then

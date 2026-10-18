@@ -19,7 +19,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 -- moments there is taken as it is, not as gained.
 
 -- The winxi this addon was made with, or a newer one (winxi.version)
-local winxiNeeded = 4;
+local winxiNeeded = 25; -- widgets.FontFile, FontSize
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -340,9 +340,7 @@ local function Combo(id, value, choices)
     return chosen;
 end
 
-local function Tip(words)
-    if imgui.IsItemHovered() then imgui.SetTooltip(words); end
-end
+local Tip = require('winxi.tooltip').Hover;
 
 local function DrawSettings(options)
     if widgets.Header('Box', true) then
@@ -394,18 +392,9 @@ local function DrawSettings(options)
         imgui.SliderInt('##sct.iconSize', options.iconSize, 12, 64);
         Tip('How tall an icon is, in pixels. Custom Icons (Winxi Theme) says whose icons they are.');
         widgets.PopControlWidth();
-        widgets.Label('Font');
-        local file = options.fontFile;
-        if imgui.BeginCombo('##sct.fontFile', file ~= '' and file or 'Theme Font') then
-            if imgui.Selectable('Theme Font##sct.font.theme', file == '') then options.fontFile = ''; end
-            for _, choice in ipairs(fonts.Files()) do
-                if imgui.Selectable(choice .. '##sct.font.' .. choice, file == choice) then options.fontFile = choice; end
-            end
-            imgui.EndCombo();
-        end
+        widgets.FontFile(options, 'fontFile', '##sct.fontFile', { tooltip = 'The lines\' font: Theme Font follows Winxi Theme, or one of C:\\Windows\\Fonts.' });
         widgets.PushControlWidth();
-        widgets.Label('Font Size');
-        imgui.SliderInt('##sct.fontSize', options.fontSize, 0, theme.MaxFontSize, options.fontSize[1] > 0 and '%d px' or 'Theme Size');
+        widgets.FontSize(options, 'fontSize', '##sct.fontSize', { tooltip = 'How large the lines are, in pixels; Theme Size (0) follows Winxi Theme.' });
         widgets.Label('Outline');
         imgui.SliderInt('##sct.outline', options.outline, 0, 3, '%d px');
         widgets.PopControlWidth();

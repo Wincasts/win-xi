@@ -42,6 +42,7 @@ require('common');
 local bit = require('bit');
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
+local tips = require('winxi.tooltip');
 local window = require('winxi.window');
 local style = require('winxi.style');
 local shell = require('winxi.shell');
@@ -832,9 +833,7 @@ local function DrawMap(options)
     if imgui.Checkbox('Pin Map##mark.mapPin', options.pinMap) then
         app:Save();
     end
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Keeps this map open when Mark\'s main window is closed. Drag outside the map canvas to move the window.');
-    end
+    tips.Hover('Keeps this map open when Mark\'s main window is closed. Drag outside the map canvas to move the window.');
     imgui.SameLine();
     if imgui.Button('x##mark.mapClose') then
         options.showMap[1] = false;
@@ -992,7 +991,7 @@ local function DrawMap(options)
         if mouseX ~= nil and mouseY ~= nil then
             local px, py = (mouseX - originX) / scale, (mouseY - originY) / scale;
             local x, z = maps.ToWorld(entry, px, py);
-            imgui.SetTooltip(('%s (%d, %d)'):format(maps.Square(px, py), x, z));
+            tips.Show(('%s (%d, %d)'):format(maps.Square(px, py), x, z));
         end
     end
 
@@ -1075,9 +1074,7 @@ local function Presence(row)
         else
             imgui.TextColored(amber, timer.short);
         end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(timer.text);
-        end
+        tips.Hover(timer.text);
     else
         imgui.TextDisabled('Unknown');
     end
@@ -1133,7 +1130,7 @@ local function DrawMarks(options)
         imgui.AlignTextToFramePadding();
         imgui.TextColored(row.mark and gold or widgets.HeaderColor, row.name);
         if not row.mark and imgui.IsItemHovered() then
-            imgui.SetTooltip('Not a mark: here for its time of death.');
+            tips.Show('Not a mark: here for its time of death.');
         end
         imgui.TableNextColumn();
         imgui.Text(row.zoneName);
@@ -1149,9 +1146,7 @@ local function DrawMarks(options)
             SetTod(options, row.zone, row.name, os.time());
             live.checked = 0;
         end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('It died just now: its window is counted from here. For a death some time ago, Report TOD on the Database tab, or /mark tod.');
-        end
+        tips.Hover('It died just now: its window is counted from here. For a death some time ago, Report TOD on the Database tab, or /mark tod.');
         if row.timer ~= nil then
             imgui.SameLine();
             if imgui.SmallButton('Clear TOD') then
@@ -1319,9 +1314,7 @@ local function DrawPicker(options, width)
     imgui.SameLine();
     imgui.SetNextItemWidth(TextBaseWidth * 16 * scale);
     imgui.InputText('##mark.find', find, 64);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Type a part of a name: the monsters dropdown then lists every monster with it, in any zone.');
-    end
+    tips.Hover('Type a part of a name: the monsters dropdown then lists every monster with it, in any zone.');
 end
 
 local function Lines(lines)
@@ -1357,9 +1350,7 @@ local function DrawMonster(options)
         minutesAgo[1] = 0;
         live.checked = 0;
     end
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Keeps a time of death for this monster, from which its window is counted: now, or as many minutes ago as the box says.\n/mark tod does the same for the mark.');
-    end
+    tips.Hover('Keeps a time of death for this monster, from which its window is counted: now, or as many minutes ago as the box says.\n/mark tod does the same for the mark.');
     imgui.SameLine();
     imgui.SetNextItemWidth(TextBaseWidth * 12);
     imgui.InputInt('Minutes Ago##mark.todAgo', minutesAgo);
@@ -1408,18 +1399,14 @@ local function DrawMonster(options)
                         chart.focus = placeholder.place;
                         options.showMap[1] = true;
                     end
-                    if imgui.IsItemHovered() then
-                        imgui.SetTooltip('The map, with this placeholder alone beside the monster: all the ground it can spawn on, and its route if it walks one.');
-                    end
+                    tips.Hover('The map, with this placeholder alone beside the monster: all the ground it can spawn on, and its route if it walks one.');
                     if here then
                         imgui.SameLine();
                         if imgui.SmallButton(placeholder.todId) then
                             SetPlaceholderTod(options, placeholder.index, os.time());
                             live.checked = 0;
                         end
-                        if imgui.IsItemHovered() then
-                            imgui.SetTooltip('This placeholder died just now: its respawn is timed from here. One seen dead is timed without being told.\n/mark ph <ID> does the same, and /mark ph <ID> 2 says it died two minutes ago.');
-                        end
+                        tips.Hover('This placeholder died just now: its respawn is timed from here. One seen dead is timed without being told.\n/mark ph <ID> does the same, and /mark ph <ID> 2 says it died two minutes ago.');
                         if live.deaths[placeholder.index] ~= nil then
                             imgui.SameLine();
                             if imgui.SmallButton(placeholder.clearId) then
@@ -1542,9 +1529,7 @@ local function DrawHeader(options)
         app:Save();
     end
     header.button = imgui.GetItemRectSize() or header.button;
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Closes the window. /mark brings it back; the marks are watched meanwhile.');
-    end
+    tips.Hover('Closes the window. /mark brings it back; the marks are watched meanwhile.');
 end
 
 local function Draw(options)
@@ -1608,64 +1593,44 @@ local windowName = 'winxi.mark';
 local function DrawSettings(options)
     widgets.Label('Visible');
     imgui.Checkbox('##mark.visible', options.isVisible);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Whether the window shows. /mark switches this.');
-    end
+    tips.Hover('Whether the window shows. /mark switches this.');
     widgets.Label('Position');
     if imgui.InputInt2('##mark.position', options.pos) then
         imgui.SetWindowPos(windowName, options.pos);
     end
     widgets.Label('Compact Window');
     imgui.Checkbox('##mark.compact', options.compact);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Only the marks, with no header and no tabs: whether each and its placeholders are in range, and what is known of its return. /mark compact switches this.');
-    end
+    tips.Hover('Only the marks, with no header and no tabs: whether each and its placeholders are in range, and what is known of its return. /mark compact switches this.');
 
     widgets.Gap();
     widgets.Label('Show Map');
     imgui.Checkbox('##mark.showMap', options.showMap);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The zone\'s map in a window of its own, with where the monster on show (red) and its placeholders (blue) can spawn laid over it: the deeper the colour, the more can spawn there. /mark map switches this.');
-    end
+    tips.Hover('The zone\'s map in a window of its own, with where the monster on show (red) and its placeholders (blue) can spawn laid over it: the deeper the colour, the more can spawn there. /mark map switches this.');
     widgets.Label('Pin Map');
     imgui.Checkbox('##mark.pinMap', options.pinMap);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Keeps the map open when Mark\'s main window is closed; the usual loading and cutscene hiding rules still apply.');
-    end
+    tips.Hover('Keeps the map open when Mark\'s main window is closed; the usual loading and cutscene hiding rules still apply.');
     widgets.Label('Map Size');
     imgui.SliderInt('##mark.mapSize', options.mapSize, 256, 1024);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The viewport size in pixels, independent of zoom. Native-resolution map pictures preserve more detail when enlarged; some source maps are only 512 pixels.');
-    end
+    tips.Hover('The viewport size in pixels, independent of zoom. Native-resolution map pictures preserve more detail when enlarged; some source maps are only 512 pixels.');
 
     widgets.Gap();
     widgets.Label('Show Scripted Spawns');
     imgui.Checkbox('##mark.scripted', options.showScripted);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Lists the notorious monsters a quest, a battlefield or an event brings as well: the server\'s data has their drops, and nothing of how they are brought.');
-    end
+    tips.Hover('Lists the notorious monsters a quest, a battlefield or an event brings as well: the server\'s data has their drops, and nothing of how they are brought.');
     widgets.Label('Highest Treasure Hunter');
     imgui.SliderInt('##mark.maxTh', options.maxTh, 0, hunts.MaxTreasureHunter);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('The drops are worked out for every level of Treasure Hunter up to this one.\nThe server takes up to 4 from a job that is not a thief\'s, up to 8 from a thief, and more only as a thief\'s blows raise it during the fight.');
-    end
+    tips.Hover('The drops are worked out for every level of Treasure Hunter up to this one.\nThe server takes up to 4 from a job that is not a thief\'s, up to 8 from a thief, and more only as a thief\'s blows raise it during the fight.');
 
     widgets.Gap();
     widgets.Label('Announce Mark');
     imgui.Checkbox('##mark.announce', options.announce);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Says in the chat log that the mark has come into range, how far and which way, and that it has been seen dead.');
-    end
+    tips.Hover('Says in the chat log that the mark has come into range, how far and which way, and that it has been seen dead.');
     widgets.Label('Announce Placeholders');
     imgui.Checkbox('##mark.announcePh', options.announcePlaceholders);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Says in the chat log that a placeholder being timed is due to respawn, and that it has been seen up again.');
-    end
+    tips.Hover('Says in the chat log that a placeholder being timed is due to respawn, and that it has been seen up again.');
     widgets.Label('Sound When Up');
     imgui.Checkbox('##mark.sound', options.sound);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Plays a sound as the mark comes into range: open.wav in libs\\winxi\\sounds.');
-    end
+    tips.Hover('Plays a sound as the mark comes into range: open.wav in libs\\winxi\\sounds.');
 end
 
 app = shell.New({

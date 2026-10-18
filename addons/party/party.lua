@@ -14,7 +14,7 @@ addon.desc    = 'Party, target and pet frames in the style of XivParty'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 1
+local winxiNeeded = 25 -- widgets.FontFile
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0

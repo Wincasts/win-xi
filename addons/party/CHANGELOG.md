@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Name Font and Value Font are winxi's own control (widgets.FontFile), and the settings' tooltips are winxi.tooltip's, so winxisettings' Tooltips tab applies. Needs winxi 25.
+
 ## 0.2 — first release
 
 - Restore outer window shadows for native-rendered party/alliance and target windows. Capture the exterior shadow on the window's own draw list rather than leaking it onto ImGui's background list; preserve theme opacity/offset/blur, disabled shadows and ordinary/Organize rendering. Update Party and Winxi's shadow module only; no uihook/legacy partyhook DLL or ABI change. Offline geometry/routing checks pass; live appearance/layering still needs validation.

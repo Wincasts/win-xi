@@ -1,6 +1,7 @@
 local imgui = require('imgui');
 local chat = require('chat');
 local settings = require('settings');
+local tips = require('winxi.tooltip');
 
 local defaultSettings = T {
     filter = 'All', -- /targetlines filters: All, Alliance or Party
@@ -167,9 +168,7 @@ config.drawWindow = function()
             if (imgui.Button('Save Settings')) then
                 saveSettings();
             end
-            if (imgui.IsItemHovered()) then
-                imgui.SetTooltip('Applies the changes made in this window and writes them to disk.\nNothing changed here takes effect until it is saved.\n/targetlines save');
-            end
+            tips.Hover('Applies the changes made in this window and writes them to disk.\nNothing changed here takes effect until it is saved.\n/targetlines save');
             if (hasPending()) then
                 imgui.SameLine();
                 imgui.TextColored({ 1, 1, 0, 1 }, 'Unsaved changes');
@@ -183,9 +182,7 @@ config.drawWindow = function()
                 local filter = shown('filter');
                 local filtersOpen = imgui.BeginCombo('##filters', filter);
                 imgui.PopItemWidth();
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip('Whose lines are drawn: everyone\'s, or only those connected to your alliance or party.\n/targetlines filters|f [all|alliance|party]');
-                end
+                tips.Hover('Whose lines are drawn: everyone\'s, or only those connected to your alliance or party.\n/targetlines filters|f [all|alliance|party]');
                 if (filtersOpen) then
                     for i = 1, 3 do
                         local isSelected = filters[i] == filter;
@@ -205,25 +202,19 @@ config.drawWindow = function()
                 if (imgui.Checkbox('Quiet Mode', quietMode)) then
                     stage('quietMode', quietMode[1]);
                 end
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip('Draws only the lines to or from you and your pet, and the line from the mob you are targeting.\n/targetlines quietmode|q [on|off]');
-                end
+                tips.Hover('Draws only the lines to or from you and your pet, and the line from the mob you are targeting.\n/targetlines quietmode|q [on|off]');
 
                 local persistentMob = { not shown('mobBrief') };
                 if (imgui.Checkbox('Persistent Enemy Targets', persistentMob)) then
                     stage('mobBrief', not persistentMob[1]);
                 end
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip('On keeps a mob\'s line up for as long as it applies.\nOff shows it for a few seconds when the mob changes target, like player lines.\n/targetlines persistentenemy|pe [on|off]');
-                end
+                tips.Hover('On keeps a mob\'s line up for as long as it applies.\nOff shows it for a few seconds when the mob changes target, like player lines.\n/targetlines persistentenemy|pe [on|off]');
 
                 local petLine = { shown('petLine') and true or false };
                 if (imgui.Checkbox('Show Pet Enmity', petLine)) then
                     stage('petLine', petLine[1]);
                 end
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip('Draws a line from your pet to whatever it is attacking.\n/targetlines petenmity|p [on|off]');
-                end
+                tips.Hover('Draws a line from your pet to whatever it is attacking.\n/targetlines petenmity|p [on|off]');
 
                 -- "[Experimental] Enmity Mode", with the tag in yellow, so the label is drawn in pieces
                 local newThreatMode = { shown('mobThreat') and true or false };
@@ -238,7 +229,7 @@ config.drawWindow = function()
                 imgui.Text('Enmity Mode');
                 enmityHovered = enmityHovered or imgui.IsItemHovered();
                 if (enmityHovered) then
-                    imgui.SetTooltip('On draws mob lines to whoever the mob is judged to be on while it stays engaged.\nOff draws them only when the mob takes an action.\n/targetlines enmitymode|em [on|off]');
+                    tips.Show('On draws mob lines to whoever the mob is judged to be on while it stays engaged.\nOff draws them only when the mob takes an action.\n/targetlines enmitymode|em [on|off]');
                 end
             end
 
@@ -247,9 +238,7 @@ config.drawWindow = function()
                 if (imgui.Checkbox('Show Test Line', showTest)) then
                     testLine[1] = showTest[1];
                 end
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip('Draws a line from you to your target, over and over, to set the look of the lines by. While it is on, every line is drawn as this window has it, before saving.\nIt is not saved, and goes off when the addon is reloaded.\n/targetlines test|t [on|off]');
-                end
+                tips.Hover('Draws a line from you to your target, over and over, to set the look of the lines by. While it is on, every line is drawn as this window has it, before saving.\nIt is not saved, and goes off when the addon is reloaded.\n/targetlines test|t [on|off]');
 
                 -- Shown as opacity (90% by default); stored as its complement, transparency
                 local opacity = { 100 - (tonumber(shown('transparency')) or 20) };
@@ -260,9 +249,7 @@ config.drawWindow = function()
                 if (opacityChanged) then
                     stage('transparency', 100 - opacity[1]);
                 end
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip('How solid the lines are. 100%% is fully solid.\n/targetlines opacity|o <10-100>');
-                end
+                tips.Hover('How solid the lines are. 100%% is fully solid.\n/targetlines opacity|o <10-100>');
 
                 local curve = { tonumber(shown('curve')) or 100 };
                 leftLabel('Curve');
@@ -272,9 +259,7 @@ config.drawWindow = function()
                 if (curveChanged) then
                     stage('curve', curve[1]);
                 end
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip('How far each line bows out from the straight way between its ends. 100%% is the normal curve; less is flatter, more is rounder.\n/targetlines curve|c <' .. minCurve .. '-' .. maxCurve .. '>');
-                end
+                tips.Hover('How far each line bows out from the straight way between its ends. 100%% is the normal curve; less is flatter, more is rounder.\n/targetlines curve|c <' .. minCurve .. '-' .. maxCurve .. '>');
 
                 local orbScale = { tonumber(shown('orbScale')) or 80 };
                 leftLabel('Orb Size');
@@ -284,9 +269,7 @@ config.drawWindow = function()
                 if (orbScaleChanged) then
                     stage('orbScale', orbScale[1]);
                 end
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip('Size of the orb at the tip of a line while it draws in. 100%% is the normal size.\n/targetlines orbsize|os <' .. minOrbScale .. '-' .. maxOrbScale .. '>');
-                end
+                tips.Hover('Size of the orb at the tip of a line while it draws in. 100%% is the normal size.\n/targetlines orbsize|os <' .. minOrbScale .. '-' .. maxOrbScale .. '>');
 
                 -- "[Experimental] Anchor To Nameplate", with the tag in yellow, so the label is drawn in pieces
                 local nameplateAnchor = { shown('nameplateAnchor') and true or false };
@@ -301,7 +284,7 @@ config.drawWindow = function()
                 imgui.Text('Anchor To Nameplate');
                 nameplateHovered = nameplateHovered or imgui.IsItemHovered();
                 if (nameplateHovered) then
-                    imgui.SetTooltip('Starts and ends each line where the game puts the name of the character at that end, in place of the middle of the body, and stops the line a little short of each end.\nTicking it shows the Anchor Height and Anchor Gap options.\n/targetlines nameplate|n [on|off]');
+                    tips.Show('Starts and ends each line where the game puts the name of the character at that end, in place of the middle of the body, and stops the line a little short of each end.\nTicking it shows the Anchor Height and Anchor Gap options.\n/targetlines nameplate|n [on|off]');
                 end
 
                 -- Only offered while the nameplate anchor is ticked, saved or not
@@ -314,9 +297,7 @@ config.drawWindow = function()
                     if (nameplateRaiseChanged) then
                         stage('nameplateRaise', nameplateRaise[1]);
                     end
-                    if (imgui.IsItemHovered()) then
-                        imgui.SetTooltip('How far above the name each line starts and ends, or below it for less than 0. Each step is a tenth of a yalm.\n0 is where the game puts the name, whatever the size of the character.\n/targetlines anchorheight|ah <' .. minNameplateRaise .. ' to ' .. maxNameplateRaise .. '>');
-                    end
+                    tips.Hover('How far above the name each line starts and ends, or below it for less than 0. Each step is a tenth of a yalm.\n0 is where the game puts the name, whatever the size of the character.\n/targetlines anchorheight|ah <' .. minNameplateRaise .. ' to ' .. maxNameplateRaise .. '>');
 
                     local nameplateInset = { tonumber(shown('nameplateInset')) or 5 };
                     leftLabel('Anchor Gap');
@@ -326,9 +307,7 @@ config.drawWindow = function()
                     if (nameplateInsetChanged) then
                         stage('nameplateInset', nameplateInset[1]);
                     end
-                    if (imgui.IsItemHovered()) then
-                        imgui.SetTooltip('How far short of each anchor a line starts and ends. Each step is a tenth of a yalm.\n0 runs the line the whole way. Higher values make it shorter, by at most a tenth of its length at each end.\n/targetlines anchorgap|ag <' .. minNameplateInset .. '-' .. maxNameplateInset .. '>');
-                    end
+                    tips.Hover('How far short of each anchor a line starts and ends. Each step is a tenth of a yalm.\n0 runs the line the whole way. Higher values make it shorter, by at most a tenth of its length at each end.\n/targetlines anchorgap|ag <' .. minNameplateInset .. '-' .. maxNameplateInset .. '>');
                 end
 
                 -- "[Experimental] Hide Behind Objects", with the tag in yellow, so the label is drawn in pieces
@@ -344,7 +323,7 @@ config.drawWindow = function()
                 imgui.Text('Hide Behind Objects');
                 occludeHovered = occludeHovered or imgui.IsItemHovered();
                 if (occludeHovered) then
-                    imgui.SetTooltip('Hides each part of a line that has a wall, the ground or a character in front of it, as if the line were in the game world.\n/targetlines occlude|oc [on|off]');
+                    tips.Show('Hides each part of a line that has a wall, the ground or a character in front of it, as if the line were in the game world.\n/targetlines occlude|oc [on|off]');
                 end
 
                 -- One colour swatch per kind of line. Click a swatch to pick a colour.
@@ -370,9 +349,7 @@ config.drawWindow = function()
                 if (imgui.Checkbox('Enmity Alert Sound', aggroSound)) then
                     stage('aggroSound', aggroSound[1]);
                 end
-                if (imgui.IsItemHovered()) then
-                    imgui.SetTooltip('Plays a sound when a mob turns on you or your pet, and when someone else newly switches to you or your pet with a green line (a heal or buff).\nAt most once a second.\n/targetlines alertsound|as [on|off]');
-                end
+                tips.Hover('Plays a sound when a mob turns on you or your pet, and when someone else newly switches to you or your pet with a green line (a heal or buff).\nAt most once a second.\n/targetlines alertsound|as [on|off]');
             end
             imgui.EndChild();
         end

@@ -23,7 +23,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 4; -- fonts.Texture's mark
+local winxiNeeded = 25; -- widgets.FontFile, FontSize
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -37,6 +37,7 @@ end
 require('common');
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
+local tips = require('winxi.tooltip');
 local shell = require('winxi.shell');
 local theme = require('winxi.theme');
 local text = require('winxi.text');
@@ -126,17 +127,18 @@ end
 local function Tooltip(id)
     local resources = AshitaCore:GetResourceManager();
     local icon = resources:GetStatusIconByIndex(id);
-    imgui.BeginTooltip();
-    imgui.Text(('%s (%d)'):format(resources:GetString('buffs.names', id) or '?', id));
-    if icon ~= nil then
-        if icon.Description ~= nil and icon.Description[1] ~= nil then
-            imgui.Text(icon.Description[1]);
+    if tips.Begin() then
+        imgui.Text(('%s (%d)'):format(resources:GetString('buffs.names', id) or '?', id));
+        if icon ~= nil then
+            if icon.Description ~= nil and icon.Description[1] ~= nil then
+                imgui.Text(icon.Description[1]);
+            end
+            if icon.CanCancel ~= 0 then
+                imgui.TextDisabled(selecting and 'Click, or A, to remove.' or 'Right click to remove.');
+            end
         end
-        if icon.CanCancel ~= 0 then
-            imgui.TextDisabled(selecting and 'Click, or A, to remove.' or 'Right click to remove.');
-        end
+        tips.End();
     end
-    imgui.EndTooltip();
     return icon ~= nil and icon.CanCancel ~= 0;
 end
 
@@ -644,14 +646,10 @@ local controllerTip = 'In the game\'s buff selector, A (confirm) removes the sta
 local function DrawSettings(options)
     widgets.Label('Visible');
     imgui.Checkbox('##buff.visible', options.isVisible);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Whether the window shows while you are under a status. /buff switches this.');
-    end
+    tips.Hover('Whether the window shows while you are under a status. /buff switches this.');
     widgets.Label('Anchor To Default Location');
     imgui.Checkbox('##buff.anchorToDefault', options.anchorToDefault);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Puts the bar where the game puts its own status icons, in their place.\nWith uihook (or legacy buffhook) loaded, the game draws its menus over the bar as it does over its icons, and the bar goes when they would.\nWithout it the bar is drawn over everything.');
-    end
+    tips.Hover('Puts the bar where the game puts its own status icons, in their place.\nWith uihook (or legacy buffhook) loaded, the game draws its menus over the bar as it does over its icons, and the bar goes when they would.\nWithout it the bar is drawn over everything.');
     if options.anchorToDefault[1] then
         local problem = hook.Problem();
         if problem ~= nil then
@@ -661,9 +659,7 @@ local function DrawSettings(options)
         end
         widgets.Label('Anchor Adjustment');
         imgui.InputInt2('##buff.anchorAdjustment', options.anchorAdjustment);
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip('Optional pixel nudge from where the game puts its first icon. Zero puts the bar there.\nThe nudge is in screen pixels, independent of native UI scaling.');
-        end
+        tips.Hover('Optional pixel nudge from where the game puts its first icon. Zero puts the bar there.\nThe nudge is in screen pixels, independent of native UI scaling.');
     else
         widgets.Label('Position');
         if imgui.InputInt2('##buff.position', options.pos) then
@@ -675,39 +671,16 @@ local function DrawSettings(options)
     widgets.Label('Icon Size');
     widgets.PushControlWidth();
     imgui.SliderInt('##buff.iconSize', options.iconSize, 16, 96);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('How tall an icon is, in pixels. The icons are 64 tall as made: at 64, or 32, they are at their sharpest.');
-    end
+    tips.Hover('How tall an icon is, in pixels. The icons are 64 tall as made: at 64, or 32, they are at their sharpest.');
     widgets.Label('Icons Per Row');
     imgui.SliderInt('##buff.perRow', options.perRow, 1, 32);
     widgets.PopControlWidth();
     widgets.Label('Show Time Left');
     imgui.Checkbox('##buff.showTimers', options.showTimers);
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Writes under each icon how long the status has left: seconds, then minutes (m), then hours (h).');
-    end
+    tips.Hover('Writes under each icon how long the status has left: seconds, then minutes (m), then hours (h).');
 
-    widgets.Label('Font');
-    local file = options.fontFile;
-    local opened = imgui.BeginCombo('##buff.fontFile', file ~= '' and file or 'Theme Font');
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Font for countdowns and status tooltips. Theme Font follows Winxi Theme.');
-    end
-    if opened then
-        if imgui.Selectable('Theme Font##buff.font.theme', file == '') then options.fontFile = ''; end
-        for _, choice in ipairs(fonts.Files()) do
-            if imgui.Selectable(choice .. '##buff.font.' .. choice, file == choice) then
-                options.fontFile = choice;
-            end
-        end
-        imgui.EndCombo();
-    end
-    widgets.Label('Font Size');
-    imgui.SliderInt('##buff.fontSize', options.fontSize, 0, theme.MaxFontSize,
-        options.fontSize[1] > 0 and '%d px' or 'Theme Size');
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Countdown and tooltip font size in pixels. Zero inherits the theme size.\nDoes not resize the icons.');
-    end
+    widgets.FontFile(options, 'fontFile', '##buff.fontFile', { tooltip = 'Font for countdowns and status tooltips. Theme Font follows Winxi Theme.' });
+    widgets.FontSize(options, 'fontSize', '##buff.fontSize', { tooltip = 'Countdown and tooltip font size in pixels. Zero inherits the theme size.\nDoes not resize the icons.' });
 
     widgets.Gap();
     widgets.Label('Hide Game\'s Icons');
@@ -715,9 +688,7 @@ local function DrawSettings(options)
         hideFailed = false;
         ApplyGameIcons(options);
     end
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Stops the game drawing its own status icons, which this window stands in for.\nThey come back when this is switched off, or the addon is unloaded.\nAnchored with uihook (or legacy buffhook), the bar takes the place of the game\'s row of icons whatever this says.');
-    end
+    tips.Hover('Stops the game drawing its own status icons, which this window stands in for.\nThey come back when this is switched off, or the addon is unloaded.\nAnchored with uihook (or legacy buffhook), the bar takes the place of the game\'s row of icons whatever this says.');
 
     if widgets.Header('Controller') then
         shell.ControllerSettings(options, controllerTip);

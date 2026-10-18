@@ -6,7 +6,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 
 | Module | What it gives |
 |---|---|
-| `winxi.theme` | The shared theme (background, border, text, chosen-tab highlight and Winxi Theme tab colours, padding, drop shadow, the base font and its size, and the styles: window border art and its opacity, window background, tab style, bar texture, bar bookends, custom status icons), saved in `config\addons\winxi\theme.lua` and kept in step across addons; or an addon's own |
+| `winxi.theme` | The shared theme (background, border, text, chosen-tab highlight and Winxi Theme tab colours, padding, drop shadow, the base font and its size, the outline round text over bars and the game, and the styles: window border art and its opacity, window background, tab style, bar texture, bar bookends, custom status icons), saved in `config\addons\winxi\theme.lua` and kept in step across addons; or an addon's own |
 | `winxi.style` | Puts the theme on imgui's style stack around a window: `PushPlain` (text and icons) or `PushFull` (controls), then `Pop` |
 | `winxi.window` | A themed window in one call: `window.Plain` / `window.Full` |
 | `winxi.nativemenus` | Winxi 22: `new()` → `Set(panelRect, hostSlot)`, `Stop()`, `Status()`; `PlaceLog(left, bottom)` and `StopLog()` place the game's expanded chat log by its bottom-left, renewed each frame. Publish only after successful compact chat capture; renew each frame. Independent menu ABI 1 in uihook 0.6; checked registry/native layout moves, not render-only offsets. Unknown clients/menus unchanged. |
@@ -19,7 +19,7 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.organize` | Arranging an addon's windows: an Organize button, labels, an alignment grid, and linking one window against another |
 | `winxi.controller` | Working an addon's windows with a controller (XInput, or DirectInput by make): taking button presses, a highlight that moves over things drawn in rows, and a menu of choices |
 | `winxi.anchor` | "Grow from": which corner of a self-sizing window stays put |
-| `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`), the Winxi Theme tab that holds it (`BeginThemeTab`), a corner picker (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`) |
+| `winxi.widgets` | Ready-made settings controls: the theme with its "Use Shared Theme" checkbox (`Appearance`), the Winxi Theme tab that holds it (`BeginThemeTab`), a corner picker (`GrowFrom`), the fade settings (`Fade`) and the rules for hiding (`Hide`), an addon's own font and its size as a file name and pixels (`FontFile`, `FontSize`), and Lock Window (`Lock`) |
 | `winxi.sound` | The small sounds a menu makes, off until an addon turns them on |
 | `winxi.game` | What is asked of the game itself: the menu on top, whether the map is open or an event running, bag access, and the rules for when windows hide |
 | `winxi.packets` | The packets addons send and read, set out once |
@@ -77,7 +77,7 @@ end);
 ```
 
 Use `window.Full` for a window with tabs, tables, buttons or inputs: it also tints those from the
-border colour. Options (padding, background, border, textColor, titleColor, fontSize, alpha, shadow, growFrom, kind, capture) are described at the top
+border colour. Options (padding, background, border, textColor, titleColor, fontSize, alpha, shadow, growFrom, kind, capture, locked, clickThrough) are described at the top
 of `window.lua`.
 
 Every window is one of two kinds, given as `kind` in its options:
@@ -119,7 +119,8 @@ text.Draw(drawList, x, y, color, '1250', edge);     -- anywhere, on a draw list 
 ```
 
 `text.Outlined` uses the theme's text colour unless given one. `edge` is the edge's thickness in
-pixels, 1 unless given. The edge is `text.OutlineColor`.
+pixels: the theme's Text Outline unless given, which every addon should leave it at, so that one setting
+changes them all (`text.Edge()`); 0 is none. The edge is the theme's Outline Color (`text.EdgeColor()`).
 
 ## The theme in a settings window
 

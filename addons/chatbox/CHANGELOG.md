@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Font and Font Size, the log's and the info panel's, are winxi's own controls (widgets.FontFile, FontSize); every tooltip is drawn by winxi.tooltip, so winxisettings' Tooltips tab applies. Needs winxi 25.
+
 ## 0.11.3
 
 - Timestamps, an option in the Chatbox section (on to begin with) and `/chatbox timestamps [on|off]`:

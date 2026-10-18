@@ -60,7 +60,7 @@ rawset(imgui, 'Checkbox', function(label, value)
     if label == 'Pin Map##mark.mapPin' and togglePin then value[1] = not value[1]; return true end
     return false
 end)
-rawset(imgui, 'SetTooltip', function(text) tooltip = text end)
+require('winxi.tooltip').Show = function(text) tooltip = text end -- shown through winxi.tooltip
 rawset(imgui, 'SetNextWindowPos', function(pos, condition)
     if condition == ImGuiCond_Always then
         positioned = positioned + 1

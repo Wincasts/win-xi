@@ -32,6 +32,7 @@ require('common')
 local bit = require('bit')
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
+local tooltip = require('winxi.tooltip')
 local game = require('winxi.game')
 local shell = require('winxi.shell')
 local packets = require('winxi.packets')
@@ -778,9 +779,10 @@ local function DrawItemInfo(item)
 end
 
 local function AddTooltip(item)
-    imgui.BeginTooltip()
-    DrawItemInfo(item)
-    imgui.EndTooltip()
+    if tooltip.Begin() then
+        DrawItemInfo(item)
+        tooltip.End()
+    end
 end
 
 -- The right-click menu. There is one for the whole window, opened on the item under the mouse; what it

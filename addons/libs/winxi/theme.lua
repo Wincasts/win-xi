@@ -1,7 +1,8 @@
 -- winxi.theme: the look shared by every addon that draws with winxi.
 --
 -- There is one theme for the whole client: the background, border and text colours, the padding, the
--- drop shadow, the font every window is written in (winxi.fonts), and the styles: the window border's art, window titles, its tabs' texture, the bars' texture and their bookends, and
+-- drop shadow, the font every window is written in (winxi.fonts), the dark edge round text written over
+-- a bar or the game (winxi.text), and the styles: the window border's art, window titles, its tabs' texture, the bars' texture and their bookends, and
 -- the custom status icons (which set, if any). Tooltips (winxi.tooltip) have values of their own, the Tooltip
 -- keys, and they are always the shared theme's: theme.Shared().
 --
@@ -40,6 +41,8 @@ theme.Defaults = {
     BorderOpacity   = 40,  -- percent: a game window's border, plain or art
     FontFile        = '',     -- a font of C:\Windows\Fonts, or '' for imgui's own
     FontSize        = 0,      -- pixels, or 0 for the base size
+    TextOutline     = 1,      -- pixels: the dark edge round text written over a bar, an image or the game (winxi.text); 0 for none
+    TextOutlineColor = { 0, 0, 0, 0.9 },
     BorderStyle     = 'ffxi',     -- one of theme.BorderStyles: 'theme' is the plain border in BorderColor
     BackgroundStyle = 'ffxi',     -- one of theme.BackgroundStyles: 'plain' is the flat BackgroundColor
     TabStyle        = 'glass',    -- one of theme.TabStyles, over the tabs of a window (winxi.tabs): 'plain' is imgui's own
@@ -160,12 +163,13 @@ for _, style in ipairs({ 'kingdom', 'magitek', 'aether', 'elven', 'gothic' }) do
     theme.BookendStyles[#theme.BookendStyles + 1] = { key = style, label = style:sub(1, 1):upper() .. style:sub(2) };
 end
 
-local colorKeys = { 'BackgroundColor', 'BorderColor', 'TextColor', 'ThemeTabColor', 'HighlightColor', 'TitleColor',
+local colorKeys = { 'BackgroundColor', 'BorderColor', 'TextColor', 'ThemeTabColor', 'HighlightColor', 'TitleColor', 'TextOutlineColor',
     'SettingsBackgroundColor', 'SettingsBorderColor', 'SettingsTextColor', 'SettingsHighlightColor', 'SettingsHeaderColor',
     'TooltipBackgroundColor', 'TooltipBorderColor', 'TooltipTextColor' };
 theme.MaxFontSize = 40;
+theme.MaxTextOutline = 4;
 
-local numberKeys = { FontSize = { 0, theme.MaxFontSize }, Padding = { 0, theme.MaxPadding }, ShadowOffset = { 0, 20 }, ShadowBlur = { 0, 20 }, ShadowOpacity = { 0, 100 }, BorderOpacity = { 0, 100 }, BookendOpacity = { 0, 100 }, TitleSize = { 0, theme.MaxFontSize },
+local numberKeys = { FontSize = { 0, theme.MaxFontSize }, TextOutline = { 0, theme.MaxTextOutline }, Padding = { 0, theme.MaxPadding }, ShadowOffset = { 0, 20 }, ShadowBlur = { 0, 20 }, ShadowOpacity = { 0, 100 }, BorderOpacity = { 0, 100 }, BookendOpacity = { 0, 100 }, TitleSize = { 0, theme.MaxFontSize },
     TitleOffsetX = { -50, theme.MaxTitleOffsetX }, TitleOffsetY = { -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY },
     TitleShadowOffset = { 1, 6 }, TitleShadowOpacity = { 0, 100 },
     SettingsPadding = { 0, theme.MaxSettingsPadding }, SettingsFontSize = { 0, theme.MaxFontSize },
@@ -396,7 +400,7 @@ function theme.Save()
         local color = current[key];
         file:write(string.format('    %s = { %f, %f, %f, %f },\n', key, color[1], color[2], color[3], color[4]));
     end
-    for _, key in ipairs({ 'FontSize', 'Padding', 'ShadowOffset', 'ShadowBlur', 'ShadowOpacity', 'BorderOpacity', 'BookendOpacity', 'TitleSize', 'TitleOffsetX', 'TitleOffsetY', 'TitleShadowOffset', 'TitleShadowOpacity', 'SettingsPadding', 'SettingsFontSize', 'TooltipDelay', 'TooltipMaxWidth', 'TooltipPadding', 'TooltipFontSize' }) do
+    for _, key in ipairs({ 'FontSize', 'TextOutline', 'Padding', 'ShadowOffset', 'ShadowBlur', 'ShadowOpacity', 'BorderOpacity', 'BookendOpacity', 'TitleSize', 'TitleOffsetX', 'TitleOffsetY', 'TitleShadowOffset', 'TitleShadowOpacity', 'SettingsPadding', 'SettingsFontSize', 'TooltipDelay', 'TooltipMaxWidth', 'TooltipPadding', 'TooltipFontSize' }) do
         file:write(string.format('    %s = %d,\n', key, math.floor(current[key] + 0.5)));
     end
     for _, key in ipairs(booleanKeys) do

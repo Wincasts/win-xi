@@ -17,6 +17,7 @@ require('common')
 local bit = require('bit')
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
+local tips = require('winxi.tooltip')
 local shell = require('winxi.shell')
 local debuffs = require('winxi.debuffs')
 local packets = require('winxi.packets')
@@ -354,9 +355,7 @@ local defaults = T{
 local function DrawSettings(options)
     widgets.Label('Visible')
     imgui.Checkbox('##puppet.visible', options.isVisible)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Whether the window shows at all. /puppet switches this.')
-    end
+    tips.Hover('Whether the window shows at all. /puppet switches this.');
     widgets.Label('Position')
     if imgui.InputInt2('##puppet.position', options.pos) then
         imgui.SetWindowPos(windowName, options.pos)
@@ -365,29 +364,19 @@ local function DrawSettings(options)
     widgets.Gap()
     widgets.Label('Always Show')
     imgui.Checkbox('##puppet.alwaysShow', options.alwaysShow)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.')
-    end
+    tips.Hover('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.');
     widgets.Label('Show Priority List')
     imgui.Checkbox('##puppet.showPriority', options.showPriority)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('Everything the automaton might do next, in the order it tries them: shield bash, its spells, weapon skill, ranged attack.\nEach shows what it is waiting on: Ready, the seconds left of a timer, or - when there is nothing for it to do. The one marked > comes next.\nA timer is only known once the automaton has been seen to act.')
-    end
+    tips.Hover('Everything the automaton might do next, in the order it tries them: shield bash, its spells, weapon skill, ranged attack.\nEach shows what it is waiting on: Ready, the seconds left of a timer, or - when there is nothing for it to do. The one marked > comes next.\nA timer is only known once the automaton has been seen to act.');
     widgets.Label('Show Burden')
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('A small bar for the burden of each element: fire, ice, wind and earth, then thunder, water, light and dark.\nThe figure is the burden. It is yellow when one more maneuver of that element might overload, and red when it is likely to.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.')
-    end
+    tips.Hover('A small bar for the burden of each element: fire, ice, wind and earth, then thunder, water, light and dark.\nThe figure is the burden. It is yellow when one more maneuver of that element might overload, and red when it is likely to.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.');
     widgets.Label('Show Dummy Data')
     imgui.Checkbox('##puppet.showDummy', dummy.on)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('For seeing how the window looks: every part of it filled with made-up data, whether there is an automaton out or not.\nThe parts switched off above stay off. It is not kept: it is off again when the addon is next loaded.')
-    end
+    tips.Hover('For seeing how the window looks: every part of it filled with made-up data, whether there is an automaton out or not.\nThe parts switched off above stay off. It is not kept: it is off again when the addon is next loaded.');
     widgets.Label('Show Debug Information')
     imgui.Checkbox('##puppet.showDebug', options.showDebug)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip('For finding out what is wrong: what the addon knows, under the window\'s own lines.\nThe automaton as the server described it, whether it is out and what it is fighting,\nhow many of the pet\'s packets have come, and the maneuvers up.')
-    end
+    tips.Hover('For finding out what is wrong: what the addon knows, under the window\'s own lines.\nThe automaton as the server described it, whether it is out and what it is fighting,\nhow many of the pet\'s packets have come, and the maneuvers up.');
 end
 
 app = shell.New({

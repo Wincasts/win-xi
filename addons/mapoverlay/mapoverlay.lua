@@ -294,9 +294,7 @@ end
 
 -- Settings
 
-local function Tip(words)
-    if imgui.IsItemHovered() then imgui.SetTooltip(words); end
-end
+local Tip = require('winxi.tooltip').Hover;
 
 local function Combo(id, value, choices)
     local shown = choices[1].label;

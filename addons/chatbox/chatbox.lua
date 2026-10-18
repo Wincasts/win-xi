@@ -2,7 +2,7 @@ addon.name = 'chatbox'
 addon.author = 'win'
 addon.version = '0.11.3'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
-local winxiNeeded = 24
+local winxiNeeded = 25
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -212,9 +212,7 @@ local PADDING_SIDES = {
     { key = 'bottomPadding', label = 'Bottom Padding', tip = 'Room kept below the log\'s rows, in pixels. Input height uses both vertical paddings, with its text always centred.' },
 }
 
-local function Tip(text)
-    if imgui.IsItemHovered() then imgui.SetTooltip(text) end
-end
+local Tip = require('winxi.tooltip').Hover;
 -- Forget the kept messages, the decode sample and where the log was scrolled to: the settings' Clear and /chatbox clear alike.
 local function ClearHistory() model.Clear(history); decodeSample = nil; for _, view in ipairs(views) do view.offset, view.pending = 0, 0 end end
 
@@ -268,26 +266,12 @@ app = shell.New({
             Tip('Uses the native input width for both boxes and its height/position for the input.\nOff: both boxes use Width (or the game log\'s, with Match Game Log Size). Font Size applies to both.')
         end
         if widgets.Header('Text') then
-            widgets.Label('Font')
-            local file = options.fontFile
-            if imgui.BeginCombo('##chatbox.fontFile', file ~= '' and file or 'Theme\'s Font') then
-                if imgui.Selectable('Theme\'s Font##chatbox.font.theme', file == '') and file ~= '' then
-                    options.fontFile = ''
-                    app.save()
-                end
-                for _, choice in ipairs(fonts.Files()) do
-                    if imgui.Selectable(choice .. '##chatbox.font', file == choice) and file ~= choice then
-                        options.fontFile = choice
-                        app.save()
-                    end
-                end
-                imgui.EndCombo()
+            if widgets.FontFile(options, 'fontFile', '##chatbox.fontFile', { tooltip = 'The chat\'s font: one of C:\\Windows\\Fonts, or the theme\'s.' }) then
+                app.save()
             end
-            Tip('The chat\'s font: one of C:\\Windows\\Fonts, or the theme\'s.')
-            widgets.Label('Font Size')
-            imgui.SliderInt('##chatbox.fontSize', options.fontSize, 8, 24, '%d px')
-            if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-            Tip('How large the log\'s and the input bar\'s text is, in pixels; both boxes grow with it.\nThe expanded log\'s text too, with Replace Text, centred on the game\'s rows, whose spacing is the game\'s.')
+            local _, done = widgets.FontSize(options, 'fontSize', '##chatbox.fontSize', { min = 8, max = 24,
+                tooltip = 'How large the log\'s and the input bar\'s text is, in pixels; both boxes grow with it.\nThe expanded log\'s text too, with Replace Text, centred on the game\'s rows, whose spacing is the game\'s.' })
+            if done then app.save() end
         end
         if widgets.Header('Padding') then
             for _, side in ipairs(PADDING_SIDES) do

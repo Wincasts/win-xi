@@ -99,7 +99,7 @@ local fontDepth, pushedFonts, pushedSizes = 0, {}, {}
 package.loaded['winxi.fonts'] = {Push=function() return false end,Pop=function() end,
     Get=function(file) if file and file~='' then return 'font:'..file end end, Files=function() return {'arial.ttf'} end}
 local headers = {}
-package.loaded['winxi.widgets'] = {Header=function(name) return headers[name] end, Label=function() end}
+package.loaded['winxi.widgets'] = {Header=function(name) return headers[name] end, Label=function() end, FontFile=function() return false end, FontSize=function() return false, false end}
 local binding
 package.loaded['winxi.controller'] = {HighlightColor={0.23,0.67,0.91,1}, RepeatDelay=0.35, RepeatRate=0.08,
     Button={DpadUp=0,DpadDown=1,A=12}, Bind=function(spec) binding=spec; return spec end}
