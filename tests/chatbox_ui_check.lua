@@ -669,8 +669,19 @@ local report=table.concat(byteReport,'\n')
 assert(report:find('48 69 6C 6C 3F 4C',1,true) and report:find('48 69 6C 6C A0 4C',1,true),
     'byte diagnostic distinguishes original question marks from modified non-ASCII separators')
 assert(not report:find('\160',1,true),'diagnostic prints safe ASCII hex, not control bytes')
+assert(byteReport[1]:find('no timestamp in front',1,true) and byteReport[1]:find('loaded after chatbox',1,true),'the report says the line reached chatbox without a stamp, and why that can be')
 byteReport={}; spec.commands.clear(); spec.commands.bytes()
 assert(#byteReport==1 and byteReport[1]:find('No decode sample',1,true),'clear removes captured diagnostic data')
+-- as in the game, each line the report says goes through text_in itself: the sample is held for the whole report
+byteReport={}
+app.Say=function(_,line) byteReport[#byteReport+1]=line; events.text_in({mode=11,message='[chatbox] '..line,injected=true}) end
+message('[12:00:00] Yeller[Jeuno]: stamped by simplelog',{mode=11})
+spec.commands.bytes()
+assert(#byteReport==5 and byteReport[1]:find('a timestamp in front',1,true) and not byteReport[1]:find('addon\'s own',1,true),'the game\'s line, with its stamp')
+assert(byteReport[2]:find('5B 31 32 3A 30 30 3A 30 30 5D 20 59 65',1,true) and byteReport[3]:find('5B 31 32 3A 30 30 3A 30 30 5D 20 59 65',1,true) and byteReport[5]:find('5B 31 32',1,true),
+    'every stage is that line\'s, not one of the report\'s own')
+byteReport={}; spec.commands.bytes()
+assert(byteReport[1]:find('an addon\'s own line',1,true),'the report\'s last line is now the sample, and said to be an addon\'s')
 app.Say=function() end
 app.options.combat=false; spec.onSettings(app.options)
 assert(app.options.combat == nil, 'legacy combat settings are retired')

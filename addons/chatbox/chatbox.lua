@@ -353,12 +353,15 @@ app = shell.New({
         clear = ClearHistory,
         status = Status,
         bytes = function()
-            if not decodeSample then app:Say('No decode sample yet. Receive a chat line, then /chatbox bytes.'); return end
+            -- held: each line said here goes through text_in itself and would take the sample's place
+            local sample = decodeSample
+            if not sample then app:Say('No decode sample yet. Receive a chat line, then /chatbox bytes.'); return end
             -- Hex is ASCII-only: printing the diagnostic cannot reinterpret the bad character.
-            app:Say(('Chat bytes, original mode %d / display mode %d (first 256 bytes per stage):')
-                :format(decodeSample.originalMode, decodeSample.mode))
+            app:Say(('Chat bytes, original mode %d / display mode %d%s, %s (first 256 bytes per stage):')
+                :format(sample.originalMode, sample.mode, sample.injected and ', an addon\'s own line' or '',
+                    sample.stamp and 'a timestamp in front' or 'no timestamp in front (one written by an addon loaded after chatbox never reaches it)'))
             for _, key in ipairs({'original','modified','expanded','utf8'}) do
-                local text = decodeSample[key] or ''
+                local text = sample[key] or ''
                 app:Say(key .. ': ' .. (text:gsub('.', function(c) return ('%02X '):format(c:byte()) end)))
             end
         end,
@@ -430,7 +433,7 @@ ashita.events.register('text_in', 'chatbox_text', function(e)
     if type(raw) ~= 'string' or #raw > model.MaxBytes then return end
     local ok, text, expanded, spans = pcall(encoding.Decode, raw, false, true)
     if not ok or not text then decodeErrors = decodeErrors + 1; return end
-    decodeSample = { originalMode=originalMode, mode=mode,
+    decodeSample = { originalMode=originalMode, mode=mode, injected=e.injected == true, stamp=model.Stamp(text) ~= nil,
         original=type(e.message)=='string' and e.message:sub(1,256) or '',
         modified=raw:sub(1,256), expanded=type(expanded)=='string' and expanded:sub(1,256) or '',
         utf8=text:sub(1,256) }
