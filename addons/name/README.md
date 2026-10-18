@@ -105,7 +105,7 @@ namehook 1.10 or later.
 | Setting | What it does |
 |---|---|
 | Health Bars (General, shared) | Off by default. Shows a bar matching the name's colour for damaged names of every type when HP is available. Full-health names have no bar. Bars follow visibility/fading and leave room for check details and statuses |
-| Health Bar Width / Height (px, General, shared) | One pair for all types, independent of name size. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
+| Health Bar Width / Height (px, General, shared) | One pair for all types, the bar's size under a name at its largest; it shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
 | Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars are unchanged |
 | Combat Only (General) | Off by default. Requires each entity's own Engaged status (1) and HP above zero. Missing/invalid data hides the bar; applies to players, enemies, pets/trusts and NPCs |
 | Maximum Name Size (px, General) | Shared nearby text height, 6–48 pixels, for every entity type; independent of bar dimensions |

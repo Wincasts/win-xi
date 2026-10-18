@@ -99,6 +99,20 @@ assert(render() == live)
 local bar = draw.Quads[draw.Entities[1].First + draw.Entities[1].Count - 3]
 assert(bar.X1 - bar.X0 == 100 and bar.Y1 - bar.Y0 == 10,
     'renderer forwards saved width and height')
+-- a name further away is drawn smaller, and its bar shrinks with it by the same factor
+local keptMax, keptMin = options.fontSize[1], options.minSize[1]
+options.fontSize[1], options.minSize[1] = 20, 10
+hook.Names[1].Scale = 0.5
+for _ = 1, 30 do render() end -- a leap in size is held for a few frames before it is believed
+local nearName, farName = draw.Quads[draw.Entities[1].First], draw.Quads[draw.Entities[2].First]
+local nearBar = draw.Quads[draw.Entities[1].First + draw.Entities[1].Count - 3]
+local farBar = draw.Quads[draw.Entities[2].First + draw.Entities[2].Count - 3]
+local shrunk = (farName.Y1 - farName.Y0) / (nearName.Y1 - nearName.Y0)
+assert(shrunk < 0.95 and math.abs((farBar.X1 - farBar.X0) / (nearBar.X1 - nearBar.X0) - shrunk) < 0.03
+    and math.abs((farBar.Y1 - farBar.Y0) / (nearBar.Y1 - nearBar.Y0) - shrunk) < 0.12,
+    'the bar shrinks with the name as it goes further away')
+hook.Names[1].Scale = 1
+options.fontSize[1], options.minSize[1] = keptMax, keptMin
 hp = 100
 assert(render() == baseline, 'full HP removes all bars')
 options.showHealthBar[1] = false
