@@ -2,6 +2,7 @@
 -- No signature scans, borrowed game textures, or runtime font/shape memory reads.
 -- The mapping was exported with the PNG from the client's high-resolution fontshp.
 local rectangles = require('assets.player-icons');
+local overlays = require('assets.player-icon-overlays');
 local icons = {};
 local places = {};
 local handle = nil;
@@ -33,6 +34,12 @@ function icons.Place(byte)
     return handle ~= nil and (places[byte] or false) or false;
 end
 
+-- Composite status badges have their own geometry; a neighbouring byte is not
+-- another full-size layer. The caller draws these only when the base texture is ready.
+function icons.Overlays(byte)
+    return overlays[byte];
+end
+
 function icons.Has(byte)
     return icons.Place(byte) ~= false;
 end
@@ -47,6 +54,15 @@ function icons.Draw(drawList, byte, x, y, size, color)
     cornerA[1], cornerA[2], cornerB[1], cornerB[2] = x, y, x + size, y + size;
     uvA[1], uvA[2], uvB[1], uvB[2] = at[1], at[2], at[3], at[4];
     drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, color);
+    local layers = overlays[byte];
+    if (layers) then
+        for _, layer in ipairs(layers) do
+            cornerA[1], cornerA[2] = x+layer[1]*size, y+layer[2]*size;
+            cornerB[1], cornerB[2] = x+layer[3]*size, y+layer[4]*size;
+            uvA[1], uvA[2], uvB[1], uvB[2] = layer[5], layer[6], layer[7], layer[8];
+            drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, color);
+        end
+    end
 end
 
 return icons;

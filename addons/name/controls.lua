@@ -39,8 +39,8 @@ end
 -- controls.EndSection follows either way.
 local sectionOpen = false;
 
-function controls.Section(label, id, first)
-    sectionOpen = widgets.Header(label, first);
+function controls.Section(label, id, first, defaultCollapsed)
+    sectionOpen = widgets.Header(label, first, defaultCollapsed);
     if (not sectionOpen) then return false; end
     helpX = layout.right + 8;
     imgui.BeginGroup();
@@ -54,6 +54,20 @@ function controls.EndSection()
     helpX = nil;
 end
 
+-- Compact expandable help/advanced content within the current section.
+function controls.More(label, id)
+    return imgui.TreeNode(label .. id);
+end
+
+function controls.Help(label, id, text)
+    if (controls.More(label, id)) then
+        imgui.PushTextWrapPos((layout and layout.right or 400) + 24);
+        imgui.Text(text);
+        imgui.PopTextWrapPos();
+        imgui.TreePop();
+    end
+end
+
 function controls.Input(label, id, value, minimum, maximum, help)
     widgets.Label(label);
     controls.Width();
@@ -64,7 +78,7 @@ function controls.Input(label, id, value, minimum, maximum, help)
 end
 
 function controls.Outline(value)
-    widgets.Label('Outline Thickness');
+    widgets.Label('Outline (px)');
     for thickness = 0, 3 do
         if thickness > 0 then imgui.SameLine(); end
         if imgui.RadioButton(tostring(thickness) .. '##name.outline' .. thickness, value[1] == thickness) then value[1] = thickness; end

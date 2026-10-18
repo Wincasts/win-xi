@@ -1,108 +1,176 @@
--- The settings menu, following guis/name.menu.
+-- Per-type settings layout and legacy-setting compatibility.
 local imgui, widgets = require('imgui'), require('winxi.widgets')
-local custom, controls = require('custom'), require('controls')
+local custom, controls, types = require('custom'), require('controls'), require('name_types')
 local options = H.options()
 AshitaCore.GetPluginManager = function() return { IsLoaded = function() return false end } end
-local headers, tabs, ids, boxes, marks, widths = {}, {}, {}, {}, {}, {}
-local inside, lastOffset = false, nil
-local originalHeader, originalTab = widgets.Header, imgui.BeginTabItem
-widgets.Header = function(text, first) headers[#headers + 1] = text; return originalHeader(text, first) end
+local headers, tabs, ids, marks, widths, disabledIds = {}, {}, {}, {}, {}, {}
+local section, locations = nil, {}
+local expanded = { ['Check Details##name.checkOptions'] = true }
+local inside, offset, disabled = false, nil, false
+widgets.Header = function(text, first, collapsed)
+    section = text
+    headers[#headers + 1] = text
+    return not collapsed or expanded[text] == true
+end
+local originalTab = imgui.BeginTabItem
 imgui.BeginTabItem = function(label, ...) tabs[#tabs + 1] = label; return originalTab(label, ...) end
-imgui.BeginGroup = function() boxes[#boxes + 1] = true; inside = true end
-imgui.EndGroup = function() inside = false end
-imgui.Checkbox = function(id) ids[id] = true; return false end
-imgui.InputInt = function(id) ids[id] = true; return false end
-imgui.SliderInt = function(id) ids[id] = true; return false end
-imgui.InputText = function(id) ids[id] = true; return false end
-imgui.BeginCombo = function(id) ids[id] = true; return false end
-imgui.RadioButton = function(id) ids[id] = true; return false end
+imgui.BeginGroup, imgui.EndGroup = function() inside = true end, function() inside = false end
+local lastId, help = nil, {}
+local mark = controls.Mark
+controls.Mark = function(text) help[lastId or ''] = text; mark(text) end
+local function record(id)
+    lastId = id; ids[id] = true; disabledIds[id] = disabled; locations[id] = section; return false
+end
+imgui.Checkbox, imgui.InputInt, imgui.SliderInt = record, record, record
+imgui.InputText, imgui.BeginCombo, imgui.RadioButton, imgui.Button = record, record, record, record
+imgui.TreeNode = function(id) ids[id] = true; return expanded[id] == true end
+imgui.TreePop = function() end
+imgui.BeginDisabled, imgui.EndDisabled = function(value) disabled = value end, function() disabled = false end
 imgui.GetFontSize = function() return 14 end
-local contentRight = 400
+local right = 400
 imgui.GetWindowPos = function() return 100, 200 end
-imgui.GetItemRectMax = function() return 100 + contentRight, 220 end
-imgui.SetNextItemWidth = function(width) widths[#widths + 1] = width end
-imgui.SameLine = function(offset) lastOffset = offset end
-imgui.TextDisabled = function(text) if text == '(?)' and inside then marks[#marks + 1] = lastOffset end end
-imgui.GetContentRegionAvail = function() error('Auto-size must not feed back into option widths') end
+imgui.GetItemRectMax = function() return 100 + right, 220 end
+imgui.SetNextItemWidth = function(value) widths[#widths + 1] = value end
+imgui.SameLine = function(value) offset = value end
+imgui.TextDisabled = function(text) if text == '(?)' and inside then marks[#marks + 1] = offset end end
+imgui.GetContentRegionAvail = function() error('Window widths must not feed back into auto-sizing') end
+local function clear() headers, tabs, ids, marks, disabledIds, locations = {}, {}, {}, {}, {}, {} end
 H.tab(1); H.command('/name'); H.frames(1)
-headers, tabs, boxes, marks = {}, {}, {}, {}
-H.frames(1); H.command('/name')
-H.print('public tabs: Names, Filters, Statuses and NM Tracking', table.concat(tabs, '|') == 'Names|Filters|Statuses|NM Tracking')
-H.print('mockup sections', table.concat(headers, '|') == 'Name Appearance|Player Icons|Mob Nameplates|Check')
-H.print('each section open, its settings in a group', #boxes == 4)
-local aligned = #marks == 17
-for _, position in ipairs(marks) do aligned = aligned and position == marks[1] end
-H.print('all tooltip markers in one column, past the widest option', aligned, (marks[1] or 0) > contentRight)
-H.print('font selector, bold, numeric sizes and four outline choices', ids['##name.font'], ids['##name.fontBold'], ids['##name.fontSize'], ids['##name.minSize'], ids['0##name.outline0'], ids['3##name.outline3'])
-assert(ids['##name.showMobLevel'] and ids['##name.showAggroIcons'] and ids['##name.showMobLetter'])
-assert(not options.showMobLetter[1], 'experimental letters must start disabled')
-assert(ids['##name.doubleMobLetters'] == nil and not options.doubleMobLetters[1], 'Double Letters is hidden while Mob Letters is off, and starts off')
-assert(ids['##name.monsterFormat'])
-assert(ids['##name.trackedNm'] == nil, 'NM tracking has a tab of its own')
-assert(ids['##name.targetFormat'] == nil and ids['##name.checkedFormat'] == nil)
-H.print('mob toggles and format exposed; player, target and checked formats hidden', ids['##name.nameFormat'] == nil,
-    ids['##name.showMobLevel'], ids['##name.showAggroIcons'], ids['##name.monsterFormat'], ids['##name.targetFormat'] == nil, ids['##name.checkedFormat'] == nil)
-H.print('preferred baseline retained', options.font == 'trebucbi.ttf', not options.fontBold[1], options.checkSize[1] == 90)
-local oldPlayers = options.showPlayers[1]
-H.command('/name custom off'); H.command('/name show all')
-H.print('verbs only say the help', options.showPlayers[1] == oldPlayers)
-headers, tabs = {}, {}
-H.tab(2); H.command('/name'); H.frames(1)
-headers, boxes, marks = {}, {}, {}
-H.frames(1); H.command('/name')
-H.print('Filters retained', table.concat(headers, '|') == 'Players|Pets|NPCs And Monsters|Target')
-local filterAligned = #boxes == 4 and #marks == 9
-for _, position in ipairs(marks) do filterAligned = filterAligned and position == marks[1] end
-H.print('Filters use groups and one help column', filterAligned)
--- with diagnostics on, Status is there without the plugin: the custom names' state and the log
-H.command('/name diag on')
-headers, boxes, marks = {}, {}, {}
-H.frames(1); H.command('/name')
-headers, boxes, marks = {}, {}, {}
-H.frames(1); H.command('/name')
-local diagAligned = #boxes == 5 and #marks == 11
-for _, position in ipairs(marks) do diagAligned = diagAligned and position == marks[1] end
-H.print('diagnostics on: Status with its rows, in the one help column', table.concat(headers, '|') == 'Players|Pets|NPCs And Monsters|Target|Status', diagAligned)
-H.command('/name diag off')
-contentRight = 320
-custom.DrawSettings(options)
-boxes, marks = {}, {}
-for frame = 1, 10 do custom.DrawSettings(options) end
-local compact = #boxes == 40
-for _, position in ipairs(marks) do compact = compact and position == 328 end
-H.print('content can shrink; repeated frames do not expand window', compact)
-local realCheckbox, realInputText = imgui.Checkbox, imgui.InputText
-imgui.Checkbox = function(id, value)
-    if id == '##name.showMobLevel' or id == '##name.showAggroIcons' then value[1] = false; return true end
-    return realCheckbox(id, value)
+clear(); H.frames(1); H.command('/name')
+assert(table.concat(tabs, '|') == 'Names|Visibility|Statuses|NM Tracking|Experimental Builder')
+assert(table.concat(headers, '|') == 'General Name Appearance|Player Names|Enemy Names|NPC Names|Diagnostics')
+assert(ids['##name.font'] and ids['##name.fontBold'] and ids['##name.subtargetScale'])
+assert(ids['##name.fontSize'] and ids['##name.minSize'], 'shared size controls belong in General')
+for _, removed in ipairs({ 'showIcons', 'showMobLevel', 'showAggroIcons',
+    'showMobLetter', 'doubleMobLetters' }) do
+    assert(not ids['##name.' .. removed], 'obsolete global/toggle control must be absent: ' .. removed)
 end
-imgui.InputText = function(id, value)
-    if id == '##name.monsterFormat' then value[1] = '[name] ([distance]y)'; return true end
-    return realInputText(id, value)
+for _, key in ipairs(types.List) do
+    for _, field in ipairs({ 'showHealthBar', 'healthBarWidth', 'healthBarHeight' }) do
+        local id = '##name.' .. key .. '.' .. field
+        assert(not ids[id], 'obsolete per-type bar control must be absent')
+    end
+    assert(ids['Colour Overrides##name.colours.' .. key], 'each category has colour overrides')
+    assert(not ids['##name.' .. key .. '.healthBarPreview'], 'preview controls must be absent')
+    assert(not ids['##name.' .. key .. '.fontSize'] and not ids['##name.' .. key .. '.minSize'], 'category size controls must be absent')
 end
+assert(locations['##name.nameFormat'] == 'Player Names'
+    and locations['##name.monsterFormat'] == 'Enemy Names' and locations['##name.npcFormat'] == 'NPC Names',
+    'category format editors remain in their own sections')
+assert(not ids['##name.diagnosticsEnabled'])
+for _, position in ipairs(marks) do assert(position == marks[1] and position > right) end
+for _, field in ipairs({ 'showHealthBar', 'healthBarsCombatOnly', 'healthBarWidth', 'healthBarHeight' }) do
+    assert(locations['##name.' .. field] == 'General Name Appearance', 'shared bar control missing from General')
+end
+assert(disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'])
+H.print('Names: shared General text/bar controls, per-category colour overrides, no obsolete toggles', true)
+
+for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
+    assert(not ids['Tokens & Examples##name.formatHelp.' .. key], 'token dropdown must be absent')
+    local tip = assert(help['##name.' .. key], 'format editor must have (?) help')
+    assert(tip:find('[name]', 1, true) and tip:find('[distance]', 1, true))
+    local example = assert(tip:match('Example format:\n([^\n]+)\nExample result:'))
+    local compiled = require('format').Compile(example)
+    assert(compiled.distance, 'each category has a usable example format')
+    for _, part in ipairs(compiled) do
+        assert(part.kind ~= 'text' or not part.text:find('[', 1, true), 'example tokens must parse')
+    end
+end
+assert(help['##name.nameFormat']:find('[icons]', 1, true))
+assert(help['##name.monsterFormat']:find('[letters]', 1, true))
+assert(help['##name.npcFormat']:find('Mog House (4.2y)', 1, true))
+controls.Mark = mark
+options.showHealthBar[1] = true
+clear(); custom.DrawSettings(options)
+assert(not disabledIds['##name.healthBarWidth'] and not disabledIds['##name.healthBarsCombatOnly'])
+options.showHealthBar[1] = false
+local input = imgui.InputInt
+imgui.InputInt = function(id, value)
+    if id == '##name.fontSize' then value[1] = 28; return true end
+    if id == '##name.healthBarHeight' then value[1] = 11; return true end
+    return input(id, value)
+end
+local barWidth = options.healthBarWidth[1]
 custom.DrawSettings(options)
-assert(not options.showMobLevel[1] and not options.showAggroIcons[1])
-assert(options.monsterFormat[1] == '[name] ([distance]y)', 'format editor must update character settings')
+imgui.InputInt = input
 custom.Settle(options)
-assert(not options.showMobLevel[1] and not options.showAggroIcons[1], 'saved false toggles must survive settling')
-assert(options.monsterFormat[1] == '[name] ([distance]y)')
-imgui.Checkbox, imgui.InputText = realCheckbox, realInputText
-H.print('mob controls edit saved settings; off toggles and custom strings survive reload settling', true)
-ids, widths = {}, {}
-options.showIcons[1], options.showStars[1], options.showCheckDetails[1] = false, false, false
+assert(options.fontSize[1] == 28 and options.healthBarHeight[1] == 11 and options.healthBarWidth[1] == barWidth)
+H.print('Shared name-size and bar dimensions remain independent', true)
+
+imgui.ColorEdit4 = record
+for _, key in ipairs(types.List) do expanded['Colour Overrides##name.colours.' .. key] = true end
+clear(); custom.DrawSettings(options)
+for _, key in ipairs(types.List) do
+    for _, state in ipairs(require('name_colours').States[key]) do
+        local id = '##name.colours.' .. key .. '.' .. state[1]
+        assert(ids[id .. '.enabled'] and ids[id .. '.color'] and disabledIds[id .. '.color'])
+    end
+end
+options.nameColours.enemyNames.targeted.enabled[1] = true
+clear(); custom.DrawSettings(options)
+assert(not disabledIds['##name.colours.enemyNames.targeted.color'])
+imgui.Button = function(id) return id == 'Use Game Colours##name.colours.reset.enemyNames' end
 custom.DrawSettings(options)
-H.print('dependent settings hidden', ids['##name.iconSize'] == nil, ids['##name.iconSpacing'] == nil, ids['##name.checkSize'] == nil, ids['##name.abbreviateDifficulty'] == nil, ids['##name.checkDetailsInWords'] == nil)
-controls.Width()
-H.print('option width scope does not leak', widths[#widths] == 260)
+assert(not options.nameColours.enemyNames.targeted.enabled[1], 'reset restores game colours')
+imgui.Button = record
+for _, key in ipairs(types.List) do expanded['Colour Overrides##name.colours.' .. key] = false end
+
+imgui.InputText = function(id, value)
+    if id == '##name.nameFormat' then value[1] = 'Player: [name]'; return true end
+    if id == '##name.monsterFormat' then value[1] = '[level] [name] [letters: type=double]'; return true end
+    if id == '##name.npcFormat' then value[1] = '[name] ([distance]y)'; return true end
+    return record(id)
+end
+custom.DrawSettings(options); custom.Settle(options)
+assert(options.monsterFormat[1] == '[level] [name] [letters: type=double]')
+imgui.InputText = record
+imgui.Button = function(id) return id == 'Reset##name.resetFormat' end
+local saves = 0
+custom.DrawSettings(options, function() saves = saves + 1 end)
+assert(saves == 1 and options.monsterFormat[1] == '[aggro] Lv [level]. [name]')
+assert(options.nameFormat[1] == 'Player: [name]' and options.npcFormat[1] == '[name] ([distance]y)')
+imgui.Button = record
+imgui.BeginCombo = function(id) return id == '##name.checkDetailsInWords' end
+imgui.Selectable = function(id) return id:find('Text Only', 1, true) ~= nil end
+custom.DrawSettings(options); assert(options.checkDetailsInWords[1])
+imgui.BeginCombo = record
+options.checkFormat[1] = '[difficulty]'
+imgui.Button = function(id) return id == 'Restore Original Check Line##name.resetCheckFormat' end
+custom.DrawSettings(options)
+assert(options.checkFormat[1] == '', 'normal settings can restore the original check renderer')
+imgui.Button = record
+H.print('Category format editors/reset preserve each other; builder check line can restore original display style', true)
+
+H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target')
+H.command('/name diag on')
+expanded.Diagnostics = true
+H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(ids['##name.diagnosticsEnabled'] and ids['Write Log##name.diag.write'])
+H.command('/name diag off')
+right = 320
+custom.DrawSettings(options)
+for frame = 1, 10 do
+    marks = {}; custom.DrawSettings(options)
+    for _, position in ipairs(marks) do assert(position == 328) end
+end
+controls.Width(); assert(widths[#widths] == 260)
 local wraps = H.calls.PushTextWrapPos or 0
 imgui.IsItemHovered = function() return true end
 controls.Mark('Wrapped help')
-H.print('tooltips stay wrapped', (H.calls.PushTextWrapPos or 0) == wraps + 1)
+assert((H.calls.PushTextWrapPos or 0) == wraps + 1)
 imgui.IsItemHovered = function() return false end
-local tagged, realLabel = {}, widgets.Label
-widgets.Label = function(text, experimental) tagged[text] = experimental == true; return realLabel(text, experimental) end
-headers, boxes, ids = {}, {}, {}
-H.tab(4); H.command('/name'); H.frames(1); H.command('/name')
-widgets.Label = realLabel
-H.print('NM Tracking tab: one box, the dropdown, marked experimental', table.concat(headers, '|') == 'Tracked Monster', #boxes == 1,
-    ids['##name.trackedNm'], tagged['Tracked NM'], ids['##name.huntScale'] == nil, ids['##name.labelPlaceholders'] == nil)
+imgui.GetFrameHeightWithSpacing = function() return 20 end
+AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
+H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(table.concat(headers, '|') == 'Display|Selected Statuses')
+H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(table.concat(headers, '|') == 'Tracked Monster')
+local levels = require('levels')
+local original = levels.Placeholders
+levels.Placeholders = function() return {} end
+options.trackedNm[1] = 'Test NM'
+clear(); custom.DrawTracking(options)
+assert(table.concat(headers, '|') == 'Tracked Monster|Placeholder Options')
+levels.Placeholders = original
+H.print('Visibility, diagnostics, statuses/tracking and stable aligned/wrapped layouts retained', true)

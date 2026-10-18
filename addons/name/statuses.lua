@@ -490,13 +490,13 @@ function statuses.DrawSettings(options, save)
     local changed = false;
 
     controls.BeginLayout('statuses', 360, '[Experimental] Timers');
-    if (controls.Section('Status Icons', '##name.statusOptions', true)) then
-        if (controls.Checkbox('Show Statuses', '##name.showStatuses', options.showStatuses,
-                'A row of icons above a name, for the statuses ticked below.\nYour own and your party\'s are as the game has them. Anyone else\'s are worked out from what the server is seen to say took hold on them, by spell, ability, weapon skill, monster\'s move or additional effect, each lasting its usual time unless the server says it wore off. One that landed out of sight, or before you entered the area, is not known.\nThe icons are as the party and buff addons draw them: with Custom Icons on in winxisettings (/wxi), the chosen set\'s where it has one and the game\'s where it has not; off, the game\'s.')) then
+    if (controls.Section('Display', '##name.statusOptions', true)) then
+        if (controls.Checkbox('Enabled', '##name.showStatuses', options.showStatuses,
+                'Show the statuses selected below on visible nameplates. Icon style follows Custom Icons in /wxi.')) then
             changed = true;
         end
         if (options.showStatuses[1]) then
-            if (controls.Slider('Scale', '##name.statusSize', options.statusSize, 50, 300, '%d%%',
+            if (controls.Slider('Size (%)', '##name.statusSize', options.statusSize, 50, 300, '%d%%',
                     'An icon\'s height, as a percentage of the height of the names. With custom icons, each is as wide as the set\'s icons are for that height; the game\'s are square.')) then
                 changed = true;
             end
@@ -509,7 +509,7 @@ function statuses.DrawSettings(options, save)
                 changed = true;
             end
             if (controls.Checkbox('Timers', '##name.statusTimers', options.statusTimers,
-                    'Writes under each icon how long the status has left: seconds, then minutes (m), then hours (h).\nYour own are to the second, as the game keeps them. Your party\'s are not known, and have none. Anyone else\'s are the usual time from when it was seen to land, which is a guess: a status partly resisted, or lengthened by gear, runs out before or after it says, and one that wears off out of sight is not seen to.', true)) then
+                    'Show remaining time under icons. Other players\' and monsters\' times are estimates; see Help / Examples.', true)) then
                 changed = true;
             end
             controls.Checkbox('Preview', '##name.statusPreview', preview,
@@ -518,12 +518,12 @@ function statuses.DrawSettings(options, save)
     end
     controls.EndSection();
 
-    if (controls.Section('Shown Statuses', '##name.statusChoice')) then
+    if (controls.Section('Selected Statuses', '##name.statusChoice')) then
         widgets.Label('Search');
         controls.Width();
         imgui.InputText('##name.statusSearch', search, 64);
         controls.Mark('Part of a status\'s name, or its number. Only a ticked status is drawn over a name.');
-        controls.Checkbox('Chosen Only', '##name.statusChosenOnly', chosenOnly, 'Lists only the statuses that are ticked.');
+        controls.Checkbox('Selected Only', '##name.statusChosenOnly', chosenOnly, 'Lists only the statuses that are ticked.');
 
         local wanted = search[1]:lower();
         listSize[2] = imgui.GetFrameHeightWithSpacing() * LIST_ROWS;
@@ -557,6 +557,8 @@ function statuses.DrawSettings(options, save)
     end
     controls.EndSection();
     controls.EndLayout();
+    controls.Help('Help / Examples', '##name.statusHelp',
+        'Your own and party statuses come from the game. Everyone else\'s come from effects observed in server messages; effects applied out of sight or before entering the area may be unknown.\nTimers show seconds, minutes (m), then hours (h). Your own times are exact; party times are unavailable. Other times use base duration and can differ with resists or gear.\nCustom Icons in /wxi selects the icon set, with game icons as fallback.');
 
     if (changed and save ~= nil) then
         save();

@@ -132,6 +132,7 @@ echo
 run name addons/name/name.lua name_check.lua
 run name addons/name/name.lua name_token_options_check.lua
 run name addons/name/name.lua name_types_check.lua
+run name addons/name/name.lua name_colours_check.lua
 run name-builder addons/name/name.lua name_builder_check.lua
 run name-extensions addons/name/name.lua name_extensions_check.lua
 run name addons/name/name.lua name_healthbar_check.lua

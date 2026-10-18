@@ -57,7 +57,7 @@ local function render()
     custom.Frame(options, hook)
 end
 for _, letters in ipairs({ false, true }) do
-    options.showMobLetter[1] = letters
+    options.monsterFormat[1] = letters and '[aggro][name] [letters]' or '[aggro][name]'
     for _, count in ipairs({ 0, 32, 128, 256 }) do
         hook.Count = count
         for _ = 1, 20 do render() end

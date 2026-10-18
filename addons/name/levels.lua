@@ -35,6 +35,8 @@
 local levels = {};
 local mobLetters = require('mob_letters');
 local zoneNames = require('zone_names');
+local readable = require('mob_readable');
+local previewMobs;
 
 local data = nil;      -- the area's tables: { Indices = { [index] = monster }, Names = { [name] = monster } }
 local zoneKnown = false;
@@ -85,6 +87,8 @@ end
 
 function levels.Set(tables, spawnNames, zone, lots)
     data = tables;
+    previewMobs = nil;
+    readable.Clear();
     placeholders, notorious = {}, nil;
     for name, indices in pairs(lots or {}) do
         local set = {};
@@ -179,6 +183,28 @@ local function ensure()
     end
 end
 
+-- Current-zone database entries, including per-index stat variants. Never scans live entities.
+function levels.PreviewMobs()
+    ensure();
+    if (previewMobs == nil) then
+        previewMobs = {};
+        for _, group in ipairs({ 'Names', 'Indices' }) do
+            for key, monster in pairs(data and data[group] or {}) do
+                if (type(monster) == 'table') then
+                    local name = monster.Name or (group == 'Names' and tostring(key) or ('Index ' .. key));
+                    local label = name .. (group == 'Indices' and (' [index %s]'):format(key) or '');
+                    previewMobs[#previewMobs+1] = { id = group .. ':' .. key, name = name, label = label, monster = monster };
+                end
+            end
+        end
+        table.sort(previewMobs, function(a, b)
+            if (a.label:lower() == b.label:lower()) then return a.id < b.id; end
+            return a.label:lower() < b.label:lower();
+        end);
+    end
+    return previewMobs;
+end
+
 function levels.Notorious()
     ensure();
     if (notorious == nil) then
@@ -220,9 +246,9 @@ end
 
 -- Uses the full zone catalogue, including spawn slots no client has seen yet.
 -- Checking, death, draw order and respawning do not renumber those slots.
-function levels.Letter(index, name, id)
+function levels.Letter(index, name, id, double)
     levels.Monster(index, name); -- ensure the current zone tables have been loaded
-    return mobLetters.Of(index, name, id);
+    return mobLetters.Of(index, name, id, double);
 end
 
 -- What levels.Letter says changes with this, so the generation does too
