@@ -119,6 +119,41 @@ check('a picture cut short is refused, with no texture made', select(2, mapdat.T
 check('a kind not read is refused', (select(2, mapdat.Header(File(Picture(4, 4, 16, 10, string.rep('\0', 32))))) or ''):find('not read') ~= nil);
 check('nonsense is refused', select(2, mapdat.Header(File(string.rep('x', 200)))) == 'not a picture');
 
+-- A mask: 2x1, the left half shown, the right half at a third, laid over each picture whatever its size
+local mask = { width = 2, height = 1, values = ffi.new('uint8_t[2]', { 255, 85 }) };
+local function Masked(device, bytes, with)
+    local buffer, length = File(bytes);
+    return mapdat.Texture(device, buffer, length, with);
+end
+device = Device();
+Masked(device, bitmap, mask);
+made = device.made[1];
+check('a masked bitmap keeps its colours, its left half whole, its right a third',
+    select(1, Pixel(made, 0, 0)) == 5, select(4, Pixel(made, 1, 0)) == 255, select(4, Pixel(made, 2, 1)) == 85, select(4, Pixel(made, 3, 0)) == 85);
+
+-- DXT3 8x4 with every alpha 15: the first block (left) whole, the second (right) at a third, 5 a pixel
+local opaque = string.rep('\255', 8) .. string.rep('\0', 8);
+dxt = Picture(8, 4, 8, 0x44585433, string.rep('\255', 8) .. opaque .. opaque);
+device = Device();
+Masked(device, dxt, mask);
+made = device.made[1];
+local left, right, colours = true, true, true;
+for i = 0, 7 do
+    left = left and made.bits[i] == 0xFF;
+    right = right and made.bits[16 + i] == 0x55;
+    colours = colours and made.bits[8 + i] == 0 and made.bits[24 + i] == 0;
+end
+check('a masked DXT3 has its alpha multiplied, its colours as they were', left, right, colours);
+
+-- A mask of 1x2 over a DXT3 of 4x4: the top two rows whole, the bottom two none
+local tall = { width = 1, height = 2, values = ffi.new('uint8_t[2]', { 255, 0 }) };
+device = Device();
+Masked(device, Picture(4, 4, 8, 0x44585433, string.rep('\255', 8) .. opaque), tall);
+made = device.made[1];
+check('a mask is laid over the rows too', made.bits[0] == 0xFF, made.bits[3] == 0xFF, made.bits[4] == 0, made.bits[7] == 0);
+
+check('a DXT1 cannot take a mask', select(2, Masked(Device(), Picture(4, 4, 8, 0x44585431, string.rep('\0', 16)), mask)) == 'a DXT1 or DXT5 picture cannot take a mask');
+
 -- The real maps, where they are here
 local function Slurp(path)
     local file = io.open(path, 'rb');

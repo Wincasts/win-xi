@@ -41,6 +41,7 @@
 --     routing as the game decides it: Routes, Shows, State().selectedWindow, State().nativeWindows
 -- 18: nativechat ABI 12, each log window's lines as the game grows and shrinks it: Lines, State().nativeLines
 -- 19: nativechat ABI 13, the game's chat colours as configured: Colors (Mode, Inline), State().nativeColors
+-- 20: mapdat.Texture and mapdat.Load take a mask, how much of the picture shows at each place
 return {
-    Number = 19,
+    Number = 20,
 };

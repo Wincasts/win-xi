@@ -45,9 +45,11 @@ luajit tests/chatbox_browse_check.lua || exit 1
 luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.lua || exit 1
 run clock      tests/clock_stand_in.lua clock_check.lua
 run sct        addons/sct/sct.lua       sct_check.lua
+run mapoverlay addons/mapoverlay/mapoverlay.lua mapoverlay_check.lua
 luajit tests/tcrossbar_shadow_check.lua
 luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
+(cd tools && python3 -m unittest test_trace_walkable_maps)
 luajit tests/mark_data_check.lua
 echo
 run simplelog  tests/empty.lua          simplelog_ui_check.lua
