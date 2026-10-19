@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.45
+
+- The mob letter is smaller: its badge is about 68% of the name's height, where it was 78%, still sitting on the name's baseline. The plain letter drawn while the badges are not ready shrinks with it.
+
 ## 1.44
 
 - Health Bars and Statuses each have **Entity Types**: which kinds of name have a bar, or a row of statuses — Yourself, Party Members, Alliance Members, Other Players, My Pet, Other Pets, NPCs and Monsters, all ticked to begin with. Status Preview keeps to them too.

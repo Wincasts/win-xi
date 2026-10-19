@@ -4,7 +4,7 @@ local ffi = require('ffi');
 local image = require('gdi.image');
 local atlas = require('gdi.atlas');
 local diag = require('diag');
-local badges = { Slot = 5, Font = 'arialbd.ttf', Scale = 0.78, Pair = 1.5 }; -- Pair: a double letter's box, in sides
+local badges = { Slot = 5, Font = 'arialbd.ttf', Scale = 0.68, Pair = 1.5 }; -- Pair: a double letter's box, in sides
 local cached, pendingKey, failedKey, nextRetry, warned = nil, nil, nil, 0, false;
 local identity;
 

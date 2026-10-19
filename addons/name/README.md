@@ -310,7 +310,7 @@ There is no separate enable or double-letter checkbox. `[letter]` remains a lega
 The badge is a filled square with subtly rounded, antialiased corners and an **uppercase,
 transparent letter cutout**. Indicators always use **Arial Bold** (`arialbd.ttf`), independently
 of the nameplate font or Bold setting, matching the clean sans-serif
-style in `references/letter_example.png`. The box is about 78% of the nameplate font height, with a subtle corner radius of about 8% of its side.
+style in `references/letter_example.png`. The box is about 68% of the nameplate font height, with a subtle corner radius of about 8% of its side.
 All distances use the same close-up badge artwork, scaled down smoothly rather than switching
 to separately rasterized smaller letters. This keeps the letter shape consistent as you approach.
 The game scene shows through the letter. The fill uses the nameplate colour, or the explicit
