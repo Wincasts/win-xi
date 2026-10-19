@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.26 — loads after TrueFPS
+
+- namehook loads when TrueFPS loaded first and has already patched the client's frame-step accessor, the function namehook finds gGame through. TrueFPS turns the accessor's first two bytes into a short jump to the padding after it, and the signature no longer matched: namehook failed with `Plugin Load Error: "-4"`, or loaded, depending on how soon after TrueFPS it ran. A second signature takes the accessor as TrueFPS leaves it; the address of gGame in it is unchanged.
+
 ## namehook 1.25 — imgui's font texture read by the plugin
 
 - A texture of `1` (`HOOK_TEXTURE_FONT`), in the names' textures or the bubbles', is imgui's font texture, which the plugin reads itself each frame from Ashita's imgui. Its id is 64 bits and a Lua integer in this client 32: once the texture is above 2 GB, as it can be after a while on Windows, Ashita could not hand it to the addon at all, and Name's names were the client's for the rest of the session. `FontTexture` says which texture it drew from.
