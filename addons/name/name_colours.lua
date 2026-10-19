@@ -6,9 +6,10 @@ local controls = require('controls');
 local widgets = require('winxi.widgets');
 local imgui = require('imgui');
 local colours = {};
--- The states the game colours a name by, each with the colour the picker starts from
+-- The states the game colours a name by, each with the colour the picker starts from; and Looking For
+-- Party, which the game shows only by its icon
 colours.States = {
-    playerNames = { { 'normal', 'Normal', 0xFFFFFF }, { 'party', 'Party', 0x80D0FF }, { 'alliance', 'Alliance', 0xB0E0FF }, { 'dead', 'Dead', 0x808080 } },
+    playerNames = { { 'normal', 'Normal', 0xFFFFFF }, { 'party', 'Party', 0x80D0FF }, { 'alliance', 'Alliance', 0xB0E0FF }, { 'seeking', 'Looking For Party', 0xFFC060 }, { 'dead', 'Dead', 0x808080 } },
     enemyNames = { { 'unclaimed', 'Unclaimed', 0xFFFF40 }, { 'claimedParty', 'Claimed: You / Party / Alliance', 0xFF4040 }, { 'claimedOther', 'Claimed: Others', 0xC080FF }, { 'callForHelp', 'Call For Help', 0xFFA040 }, { 'dead', 'Dead', 0x808080 } },
     npcNames = { { 'normal', 'Normal', 0x80FF80 }, { 'dead', 'Dead', 0x808080 } },
 };
@@ -116,7 +117,16 @@ local function dead(key, name, entities, corpse)
     end
     return hp(name, entities) == 0;
 end
-function colours.Resolve(options, name, entities, partyIds, corpse)
+-- Whether a player's icons say they are looking for a party: the icon alone, or with its star
+local SEEKING, SEEKING_STAR = 0x91, 0xAC;
+local function seeking(icons)
+    if icons == nil then return false; end
+    for index = 1, #icons do
+        if icons[index] == SEEKING or icons[index] == SEEKING_STAR then return true; end
+    end
+    return false;
+end
+function colours.Resolve(options, name, entities, partyIds, corpse, icons)
     local key = types.Key(name.Category);
     local profile = options.nameColours and options.nameColours[key];
     if profile == nil then return nil; end
@@ -132,6 +142,8 @@ function colours.Resolve(options, name, entities, partyIds, corpse)
         return picked(profile, partyIds[claim] and 'claimedParty' or 'claimedOther');
     end
     if key == 'playerNames' then
+        -- the game has no colour for it: off, the name is coloured as its other state would be
+        if profile.seeking.enabled[1] and seeking(icons) then return picked(profile, 'seeking'); end
         if name.Category == PARTY then return picked(profile, 'party'); end
         if name.Category == ALLIANCE then return picked(profile, 'alliance'); end
     end

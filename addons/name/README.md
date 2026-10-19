@@ -287,13 +287,15 @@ The states are the ones the game colours names by:
 
 | Category | States |
 |---|---|
-| Players (also yourself, pets and trusts) | Normal, Party, Alliance, Dead |
+| Players (also yourself, pets and trusts) | Normal, Party, Alliance, Looking For Party, Dead |
 | Enemies | Unclaimed, Claimed: You / Party / Alliance, Claimed: Others, Call For Help, Dead |
 | NPCs | Normal, Dead |
 
 Each state replaces only the game's colour for that state: one left off keeps the game's
 colour, and never falls to another override. Party and Alliance are the other members of
-your party and alliance; you, your pet and everyone else's are Normal. **Dead** comes first,
+your party and alliance; you, your pet and everyone else's are Normal. **Looking For Party** is a player whose
+icons show they are seeking a party (with or without the star); the game has no colour of its
+own for it, so with it off the name is coloured as Normal, Party or Alliance would colour it. **Dead** comes first,
 so a corpse or a dead player never keeps a live colour; an NPC is dead by its status, since
 the server always gives NPCs full HP. **Call For Help** comes next: it is read from the
 entity update (0x0E), whose flags have 0x20 while the call stands, and is forgotten on the

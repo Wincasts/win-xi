@@ -1424,7 +1424,7 @@ function custom.Frame(options, hook, formats)
                         letter = written.letter;
                     end
                     height = math.floor(height + 0.5);
-                    local override = nameColours.Resolve(options, name, entities, colourContext, dead);
+                    local override = nameColours.Resolve(options, name, entities, colourContext, dead, written.icons);
                     local own = override or nameColor(displayColor);
                     local nameTint = own;
                     local width, iconsHeight = 0, 0;
