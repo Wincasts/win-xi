@@ -10,39 +10,14 @@
   and a phrase's category and kind. Off, only the name and the facts are drawn, and no gap is left for them.
   links.Tooltip takes it as its second argument. Tests: chatbox_links_check an item and a phrase without their notes;
   chatbox_ui_check the switch passed through, in the Chatbox section while Chat Tooltips is on, and made whole.
-- The expanded log's rows are drawn where the game draws them. With Replace Expanded Log on, each row's text is
-  centred in the game's own row (uihook measures their rectangles), in the chat's Font at Font Size or, where the
-  game's row is shorter, that height, and the lights on highlighted rows are the game's rows tall. The game hit-tests
-  the mouse against those rows, so the row under the mouse is now the row it lights and chooses; before, the rows
-  were laid out at the compact log's pitch from the bottom, and the highlighted row drifted from the mouse the
-  further up the log it was. Rows above the frame's top (Expanded Height) are clipped by it. Tests:
-  chatbox_ui_check expects each row at the game's place, the lights the game's rows tall, every placed row drawn,
-  and a Font Size past the row's height brought down to it.
-- **Chat Tooltips**, in the Chatbox section (on to begin with): the mouse resting on something named in the
-  compact log or Window 2 shows what it is in a Winxi tooltip, drawn after the log is captured and outside it, so
-  it is never part of the game's chat. Items, key items and auto-translate phrases are known by the codes the game
-  sends with the line (kept with each message, read from the game's history too); spells, abilities, weapon skills,
-  quests and places by their names, so an ordinary word that is also a name may show one. While it is on, a switch
-  for each kind: Items, Spells And Abilities, Weapon Skills, Quests, Places and Auto-Translate. The shared Winxi
-  tooltip settings apply. Nothing over imgui's own windows, while the log or its scrollbar is dragged, in the
-  expanded log, while zoning, or when a lookup fails. The lookups are links.lua's. log.lua keeps a message's tokens
-  (Add's and Prepend's), gives each row its offset in the message's text as shown, and lets the shown text be
-  read (Shown). Tests: chatbox_ui_check the tokens kept, a wrapped message's second row given its own tokens, the
-  word under the mouse looked up after the capture with the row, the offset and the kinds, and each case of
-  nothing; the controls and the settings made whole; chatbox_log_check the rows' offsets with stamps shown and
-  hidden, and the tokens kept.
-
-- Lock Window and Position, in Layout (WinXI Skin). Lock Window off, the log can be taken hold of with the left
-  button anywhere on it but its scrollbar and dragged wherever you want; let go, its bottom-left is kept for the
-  character and Position becomes Custom (At the Game's Chat to begin with; Custom chosen by hand takes the place the
-  log stands at, and the Place under it can be typed). The box is kept on the screen; the input bar stands on its
-  bottom and the log lifts above the bar while typing; the second window, the info panel, Expand In Place and the
-  game's clock (which uihook keeps at its distance from the log) go with it; the wheel and the scrollbar still work.
-  The game's own log must still be drawn for the box to be. Locked, or in Follow Game, the mouse goes through to
-  the game. `/chatbox status` says when the log is at its own place. Tests: chatbox_layout_check the custom place,
-  the input bar on it, the lift while typing and the screen's edges; chatbox_ui_check the drag through the mouse
-  hook, the save on letting go, the scrollbar and the wheel still their own, Follow Game and Lock Window ignoring
-  the mouse, the Position combo and the place's editor, and the settings made whole.
+- The expanded log's rows stay at the chat's own pitch, and the mouse over it is kept from the game while the rows are
+  the addon's (Replace Expanded Log). The game's own rows stand 16 of its units apart, so its hover and clicks landed on
+  other rows than the ones shown; the mouse's moves and buttons over the log are now blocked there (the wheel goes
+  through and scrolls as ever; Square, the arrows and Confirm choose rows; a menu of the game's open over the log keeps
+  its mouse), and the text is never brought down to the game's row height. With Replace Expanded Log off the game
+  draws its own rows and has its mouse. Chat Tooltips work on the expanded log's rows as well, by name (the game keeps
+  no tokens in its history). Tests: chatbox_ui_check the mouse kept over the mirrored log and not beside it, with the
+  game's rows or over a menu of the game's, the wheel through, and a word in an expanded row looked up and shown.
 - Two modes in place of Follow Native Settings and the sections round it: **Mode**, in the Chatbox section, is
   Follow Game (to begin with) or WinXI Skin. The mode is how the boxes behave and where they stand; the look is
   WinXI's in both. Follow Game: the log, the second window, the input bar and the expanded log where the game puts
