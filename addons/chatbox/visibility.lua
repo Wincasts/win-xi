@@ -24,6 +24,49 @@ function M.Complete(options)
     end
     return options
 end
+-- The window's messages with a time of their own, in the history's order: filtered once for each revision of the
+-- history and each filter, not every frame. Imported history has time zero, not new-message activity.
+local function Timed(state, history, filter)
+    local cache = state.timed
+    if cache and cache.history == history and cache.messages == history.messages
+        and cache.revision == history.revision and cache.filter == filter then
+        return cache
+    end
+    local list = {}
+    for _, message in ipairs(history.messages) do
+        if (not filter or filter(message)) and message.time > 0 then list[#list + 1] = message end
+    end
+    cache = { history = history, messages = history.messages, revision = history.revision, filter = filter, list = list }
+    state.timed = cache
+    return cache
+end
+-- The messages of the last idle seconds (in order) and the newest time not after now. Kept, list and all, while
+-- nothing can have changed: the same timed list and idle, time not gone back, the oldest recent message still
+-- inside idle and no later message yet reached. A subtraction rounds monotonically, so if the oldest is still
+-- recent every other one is, and a message once past idle stays past it. A new list is made each time, never
+-- one changed in place, since state.log may hold the last.
+local function Recent(state, timed, now, idle)
+    local cache = state.recent
+    if cache and cache.timed == timed and cache.idle == idle and now >= cache.now
+        and (cache.oldest == nil or now - cache.oldest < idle) and (cache.upcoming == nil or cache.upcoming > now) then
+        return cache.list, cache.latest
+    end
+    local list, latest, oldest, upcoming = {}, nil, nil, nil
+    for _, message in ipairs(timed.list) do
+        local time = message.time
+        if time <= now then
+            latest = math.max(latest or time, time)
+            if now - time < idle then
+                list[#list + 1] = message
+                oldest = math.min(oldest or time, time)
+            end
+        else
+            upcoming = math.min(upcoming or time, time)
+        end
+    end
+    state.recent = { timed = timed, idle = idle, now = now, list = list, latest = latest, oldest = oldest, upcoming = upcoming }
+    return list, latest
+end
 function M.Apply(state, options, history, filter, box, maximum, now, active, measure)
     if not box then state.height, state.resizeTarget = nil, nil; return nil, maximum, 1 end
     options = options or M.Defaults()
@@ -33,16 +76,7 @@ function M.Apply(state, options, history, filter, box, maximum, now, active, mea
         return box, maximum, 1
     end
     local idle = Number(options.idle, 15, 1, 300)
-    local recent, latest = {}, nil
-    for _, message in ipairs(history.messages) do
-        if not filter or filter(message) then
-            -- Imported history has time zero, not new-message activity.
-            if message.time > 0 and message.time <= now then
-                latest = math.max(latest or message.time, message.time)
-                if now - message.time < idle then recent[#recent + 1] = message end
-            end
-        end
-    end
+    local recent, latest = Recent(state, Timed(state, history, filter), now, idle)
     if active then state.lastActive = now end
     latest = math.max(latest or -math.huge, state.lastActive or -math.huge)
     local awake = active or now - latest < idle
