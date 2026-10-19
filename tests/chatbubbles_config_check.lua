@@ -118,4 +118,13 @@ button = 'Parchment bubbles'; config.Draw(); button = nil;
 assert(config.options.appearance.border[1] == 'ffxi' and config.options.appearance.borderColor[1] == 1);
 config.Preset(false);
 assert(config.options.appearance.border[1] == 'none', 'the plain presets have no border');
-print('chatbubbles config: saved settings, tabs, colors, presets, the skin, the border, the font, padding, the arrow, all channel switches and reload normalization passed');
+-- Preview is a button beside Skin, off to begin with, and off again as the settings close
+assert(config.preview[1] == false);
+button = 'Preview'; config.Draw(); button = nil;
+assert(config.preview[1] == true);
+button = 'Stop Preview'; config.Draw(); button = nil;
+assert(config.preview[1] == false);
+button = 'Preview'; config.Draw(); button = nil;
+config.Toggle(); config.Draw();
+assert(config.open[1] == false and config.preview[1] == false, 'closing the settings stops the preview');
+print('chatbubbles config: saved settings, tabs, colors, presets, the skin, the border, the font, padding, the arrow, the preview, all channel switches and reload normalization passed');

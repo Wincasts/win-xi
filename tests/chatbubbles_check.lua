@@ -109,6 +109,7 @@ local globallyEnabled = true;
 local npcAllowed = { [150] = true, [151] = true };
 local toggles = 0;
 package.loaded.config = {
+    preview = { false },
     options = { appearance = { background = { 1, 1, 1, 1 }, text = { 0, 0, 0, 1 } } },
     Allows = function(mode) return allowed[mode] == true; end,
     AllowsNpc = function(mode) return npcAllowed[mode] == true; end,
@@ -322,6 +323,21 @@ events.text_in({ mode = 151, message = 'Moogle : Arrow off.\127\49\3' });
 assert(frame() == 'bubble|Arrow off.' and lastMessage.waiting == false);
 eventHappening = false;
 command('clear');
+-- Preview: a sample over the player's own name while it is on, the arrow with it if that is on,
+-- whatever the channels allow; gone a second after it is turned off
+records = { { name = 'Tester', Category = 1, x = 400, y = 300 } };
+allowed[0] = false;
+package.loaded.config.preview[1] = true;
+appearance.arrow = { true };
+assert(frame():find('bubble|The quick brown fox', 1, true) and lastMessage.waiting == true and lastMessage.preview == true);
+appearance.arrow = { false };
+now = now + 30;
+assert(frame():find('bubble|The quick brown fox', 1, true) and lastMessage.waiting == false, 'kept while the preview is on');
+package.loaded.config.preview[1] = false;
+now = now + 2;
+assert(frame() == '', 'gone after');
+allowed[0] = true;
+command('clear');
 command('clear');
 os.clock = originalClock;
-print('chatbubbles: packet filtering, expiry, UTF-8 wrapping, anchoring, on-screen drawing, fonts, the click-through arrow, coexistence, zoning and commands passed');
+print('chatbubbles: packet filtering, expiry, UTF-8 wrapping, anchoring, on-screen drawing, fonts, the click-through arrow, the preview, coexistence, zoning and commands passed');

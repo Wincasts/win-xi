@@ -3,7 +3,7 @@ local imgui = require('imgui');
 local settings = require('settings');
 local modes = require('modes');
 local skin = require('skin');
-local M = { open = { false } };
+local M = { open = { false }, preview = { false } }; -- preview: a sample bubble over the player while the settings are open
 local function defaults()
     local channels = T{};
     for _, mode in ipairs(modes.All) do channels[mode.key] = T{ mode.default == true }; end
@@ -115,7 +115,7 @@ end);
 ashita.events.register('unload', 'chatbubbles_save', M.Save);
 
 function M.Draw()
-    if (not M.open[1]) then return; end
+    if (not M.open[1]) then M.preview[1] = false; return; end
     if (imgui.Begin('Chat Bubbles Settings', M.open)) then
         if (imgui.Checkbox('Enable bubbles', M.options.enabled)) then M.Save(); end
         if (imgui.BeginTabBar('##chatbubbles.settings')) then
@@ -131,6 +131,11 @@ function M.Draw()
                 imgui.Text('Skin');
                 imgui.SameLine();
                 if (Choice('##chatbubbles.skin', appearance.skin, skin.Keys, skin.Labels)) then M.Save(); end
+                imgui.SameLine();
+                if (imgui.Button(M.preview[1] and 'Stop Preview' or 'Preview')) then M.preview[1] = not M.preview[1]; end
+                if (M.preview[1]) then
+                    imgui.TextWrapped('A sample bubble over your character while these settings are open, with the click-through arrow if it is on, drawn as the settings say.');
+                end
                 if (appearance.skin[1] == 'parchment') then
                     if (imgui.ColorEdit4('Skin Top', appearance.skinTop)) then M.Save(); end
                     if (imgui.ColorEdit4('Skin Bottom', appearance.skinBottom)) then M.Save(); end

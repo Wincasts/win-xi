@@ -1,6 +1,6 @@
 addon.name = 'chatbubbles';
 addon.author = 'win';
-addon.version = '0.92';
+addon.version = '0.93';
 addon.desc = 'Configurable chat bubbles anchored by namehook, in the world or on the screen.';
 
 require('common');
@@ -180,6 +180,17 @@ ashita.events.register('d3d_present', 'chatbubbles_present', function ()
             if (message.prompt) then message.expires = math.max(message.expires, now + 1); end
         end
     end
+    -- Preview, in the settings: a sample over the player's own name, kept a second past each frame
+    -- it is wanted, drawn whatever the channel switches say and with the arrow, if that is on
+    if (config.preview ~= nil and config.preview[1]) then
+        local speaker = ownName();
+        local message = speaker and state.messages[speaker];
+        if (speaker and (message == nil or not message.preview)) then
+            message = bubbles.Add(state, speaker, 'The quick brown fox jumps over the lazy dog: a preview of the bubbles.', now);
+            if (message) then message.synthetic, message.preview = true, true; end
+        end
+        if (message) then message.expires = math.max(message.expires, now + 1); end
+    end
     local active = prune(now);
     local hook = nameplates.Hook();
     if (hook == nil) then clear(); return; end
@@ -208,7 +219,8 @@ ashita.events.register('d3d_present', 'chatbubbles_present', function ()
         -- packet chat still cannot attach to arbitrary same-named NPCs.
         if (message and not seen[message] and (synthetic or dialogue or name.Category <= nameplates.Category.Player)) then
             stats.matched = stats.matched + 1;
-            message.waiting = dialogue ~= nil and message.prompt == true and waiting;
+            message.waiting = (dialogue ~= nil and message.prompt == true and waiting)
+                or (message.preview == true and appearance.arrow ~= nil and appearance.arrow[1] == true);
             local x, y = nameplates.Screen(name);
             if (x and x >= 0 and x <= display.x and y >= 0 and y <= display.y) then
                 seen[message] = true;

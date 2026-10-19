@@ -81,6 +81,9 @@ No DLL change is needed for these settings if namehook 1.24+ is already installe
   for you to press a key: one the game sends with its prompt escape (DEL `1`) while
   an event is running. The bubble stays while the game waits, and goes a second
   after the event ends or the next line comes.
+  **Preview**, beside Skin, keeps a sample bubble over your character while the
+  settings are open, drawn as they say, with the click-through arrow if it is on;
+  it goes with the settings window, or with Stop Preview.
   **Draw On Screen** (off by default) draws the bubbles with imgui over everything
   on the screen, at one size whatever the distance, instead of in the world where
   walls and characters in front hide them. The same colours, wrapping and fade
