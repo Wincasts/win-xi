@@ -146,12 +146,24 @@ imgui.Button = record
 H.print('Category format editors/reset preserve each other; a saved check line can restore original display style', true)
 
 H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(headers, '|') == 'Health Bars')
+assert(table.concat(headers, '|') == 'Health Bars|Entity Types')
+for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 'npcs', 'monsters' }) do
+    local id = '##name.healthBarTypes.' .. key
+    assert(ids[id] and locations[id] == 'Entity Types' and disabledIds[id], 'Entity Types has ' .. key .. ', waiting for Enabled')
+end
 for _, id in ipairs({ '##name.showHealthBar', '##name.healthBarsCombatOnly', '##name.healthBarWidth', '##name.healthBarHeight' }) do
     assert(ids[id] and locations[id] == 'Health Bars', 'Health Bars tab has ' .. id)
 end
 assert(disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'], 'the rest wait for Enabled')
-H.print('Health Bars: a tab of its own, third, with Enabled, Combat Only, width and height', true)
+local et = require('entity_types')
+local mask = T{ 0xFF }
+imgui.Checkbox = function(id, value) if id == '##name.healthBarTypes.monsters' then value[1] = false; return true end; return false end
+assert(et.Draw('healthBarTypes', mask) and mask[1] == 0x7F, 'unticking Monsters takes its bit out')
+imgui.Checkbox = function(id, value) if id == '##name.healthBarTypes.monsters' then value[1] = true; return true end; return false end
+assert(et.Draw('healthBarTypes', mask) and mask[1] == 0xFF, 'and ticking it puts it back')
+imgui.Checkbox = record
+assert(et.Settle(T{ 'bad' })[1] == 0xFF and et.Settle(nil)[1] == 0xFF and et.Settle(T{ 0x1FF })[1] == 0xFF and et.Settle(T{ 0x12 })[1] == 0x12, 'a bad mask is every kind')
+H.print('Health Bars: a tab of its own, third, with Enabled, Combat Only, width and height, and Entity Types', true)
 
 -- General: the preset, Custom Nameplates, and the health bars' and statuses' switches
 local general = require('general')
@@ -206,7 +218,10 @@ imgui.IsItemHovered = function() return false end
 imgui.GetFrameHeightWithSpacing = function() return 20 end
 AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
 H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(headers, '|') == 'Display|Selected Statuses')
+assert(table.concat(headers, '|') == 'Display|Entity Types|Selected Statuses')
+for _, key in ipairs({ 'self', 'party', 'alliance', 'players', 'myPet', 'pets', 'npcs', 'monsters' }) do
+    assert(ids['##name.statusTypes.' .. key] and locations['##name.statusTypes.' .. key] == 'Entity Types', 'statuses\' Entity Types has ' .. key)
+end
 assert(ids['##name.statusOffsetX'] and ids['##name.statusOffsetY'] and not ids['##name.statusTimers'], 'X and Y Offset in Display, and no Timers')
 assert(ids['##name.statusIcons'] and locations['##name.statusIcons'] == 'Display', 'Icons is in Statuses → Display')
 H.command('/name dev'); H.tab(6); H.command('/name'); clear(); H.frames(1); H.command('/name')

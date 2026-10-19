@@ -74,6 +74,9 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   are off. Bars require valid live HP/server-ID data; full-health entities have none.
   Combat Only requires that particular entity to be alive and Engaged (status 1).
   Targeting/claiming alone is not combat; missing status data hides the bar.
+  **Entity Types** under it says which kinds of name have a bar: Yourself, Party
+  Members, Alliance Members, Other Players, My Pet, Other Pets, NPCs and Monsters,
+  all ticked to begin with.
 - Existing General name sizes remain authoritative. Health-bar consolidation
   migrates once: enabled if any old category enabled bars; dimensions come from the
   first enabled category in **Enemy → Player → NPC** order (Enemy if all were off).
@@ -84,8 +87,9 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   HP fill, taking precedence over explicit name/letter token colours. Other coloured
   text and icons keep their own explicit colours; client opacity and fades remain intact.
 - **Visibility:** Players, Pets, NPCs & Monsters, and Target. No diagnostic controls.
-- **Statuses:** Display and Selected Statuses, with expandable help about status
-  sources.
+- **Statuses:** Display, Entity Types (the same eight kinds of name as for health
+  bars, all ticked to begin with) and Selected Statuses, with expandable help about
+  status sources.
 - **NM Tracking:** Tracked Monster and conditional Placeholder Options. The tab is
   shown only after `/name dev`, until the addon is reloaded; `/name dev` again hides it.
 
@@ -253,6 +257,7 @@ with its `statusicons` folder. The set's icons are as narrow as the set has them
 | Alignment | Center, to begin with: the row's middle on the name's. Left: level with the name's left, where its icons begin. Right: level with its right |
 | X Offset (px) | 0 to begin with. Moves the row right from where Position and Alignment put it, in screen pixels, -200 to 200; below 0, left |
 | Y Offset (px) | 0 to begin with. Moves the row down, -200 to 200; below 0, up |
+| Entity Types | Which kinds of name have a row: Yourself, Party Members, Alliance Members, Other Players, My Pet, Other Pets, NPCs and Monsters. All ticked to begin with; Preview keeps to them too |
 | Preview | Puts the first four ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: off again when the addon is loaded |
 | Search | Narrows the list under it by part of a status's name, or its number |
 | Selected Only | Lists only the ticked statuses |

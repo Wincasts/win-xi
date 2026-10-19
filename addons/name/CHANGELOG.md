@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.44
+
+- Health Bars and Statuses each have **Entity Types**: which kinds of name have a bar, or a row of statuses — Yourself, Party Members, Alliance Members, Other Players, My Pet, Other Pets, NPCs and Monsters, all ticked to begin with. Status Preview keeps to them too.
+
 ## 1.43
 
 - The presets are Default, Minimal, **Robust** and **Immersive**. Robust has everything: enemy aggro, level, spawn letters and distance, health bars at all times, status icons and check details. Immersive is near the game's own: names with player icons, health bars only in combat, and no levels, letters, status icons or check details. Hunter and Retail-Like are gone.

@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.43';
+addon.version = '1.44';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -227,7 +227,7 @@ app = shell.New({
             custom.DrawSettings(options, app.save);
             DrawDiagnostics(options);
         end },
-        { label = 'Health Bars', draw = function (options) custom.DrawHealthBars(options); end },
+        { label = 'Health Bars', draw = function (options) custom.DrawHealthBars(options, app.save); end },
         { label = 'Statuses', draw = function (options) statuses.DrawSettings(options, app.save); end },
     },
     tabs         = { },

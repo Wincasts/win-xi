@@ -309,3 +309,18 @@ do
     assert(places(0x400)[1].X0 == plain[1].X0 and places(0x400)[1].Y0 == plain[1].Y0, 'and back')
     H.print('offsets: the row moved right and up together, in proportion, kept within 200 pixels, and back', true)
 end
+
+-- Entity Types: only the kinds ticked have a row
+do
+    local Category = require('winxi.nameplates').Category
+    H.print('Entity Types: every kind to begin with', o.statusCategories[1] == Category.All)
+    block.Frame = 75; H.frames(1)
+    local own, partyRow = #icons(0x400), #icons(0x401)
+    assert(own > 0 and partyRow > 0, 'yours and a party member\'s')
+    o.statusCategories[1] = Category.All - Category.Self; block.Frame = 76; H.frames(1)
+    assert(#icons(0x400) == 0 and #icons(0x401) == partyRow, 'Yourself unticked: your row gone, the party\'s kept')
+    o.statusCategories[1] = Category.Self; block.Frame = 77; H.frames(1)
+    assert(#icons(0x400) == own and #icons(0x401) == 0, 'Yourself alone: yours back, the party\'s gone')
+    o.statusCategories[1] = Category.All; block.Frame = 78; H.frames(1)
+    H.print('statuses\' Entity Types: rows only over the kinds ticked', true)
+end
