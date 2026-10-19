@@ -942,11 +942,47 @@ do (function()
     assert(#text==1 and text[1].text=='mirrored row','the row the addon\'s')
     local inside=rendered['winxi.chatbox.expanded']
     mouse.x,mouse.y=inside.pos[1]+100,inside.pos[2]-50
-    assert(press(0x0200).blocked and press(0x0201).blocked and press(0x0202).blocked and press(0x0204).blocked,
-        'over the mirrored expanded log: the mouse\'s moves and buttons kept from the game')
+    assert(press(0x0200).blocked and press(0x0201).blocked and press(0x0202).blocked and press(0x0204).blocked
+        and press(0x0205).blocked, 'over the mirrored expanded log: the mouse\'s moves and buttons kept from the game')
     assert(not wheel(120).blocked,'the wheel goes through to the game\'s scrolling')
-    mouse.x,mouse.y=inside.pos[1]+inside.size[1]+20,inside.pos[2]-50
-    assert(not press(0x0200).blocked and not press(0x0201).blocked,'beside the log: the game\'s')
+    assert(not press(0x020e).blocked,'the side wheel as well')
+    assert(press(0x0206).blocked and press(0x0205).blocked,'a right double-click kept, and its release')
+    assert(press(0x0207).blocked and press(0x0200).blocked and press(0x0208).blocked and press(0x0209).blocked
+        and press(0x0208).blocked,'the middle button kept: its press, release and double-click')
+    local outside={inside.pos[1]+inside.size[1]+20,inside.pos[2]-50}
+    local over={inside.pos[1]+100,inside.pos[2]-50}
+    -- a press kept over the log is let go outside it: its release kept too, and the moves while it is held
+    mouse.x,mouse.y=over[1],over[2]; assert(press(0x0201).blocked)
+    mouse.x,mouse.y=outside[1],outside[2]
+    assert(press(0x0200).blocked and press(0x0202).blocked,'a press kept: its drag and release kept, wherever let go')
+    assert(not press(0x0200).blocked,'and once let go, the mouse beside the log the game\'s again')
+    -- a press the game had beside the log (the camera turned) let go over it: the drag and release the game's
+    assert(not press(0x0204).blocked)
+    mouse.x,mouse.y=over[1],over[2]
+    assert(not press(0x0200).blocked and not press(0x0205).blocked,'a press the game had: its drag and release go through over the log')
+    assert(press(0x0200).blocked,'and once let go, the moves over the rows kept again')
+    -- the game's scrollbar and tabs inside the frame: still the game's, the rows round them kept
+    local top=inside.pos[2]-inside.size[2]
+    scrollGeometry={left=inside.pos[1]+inside.size[1]-12,top=top+20,right=inside.pos[1]+inside.size[1]-6,bottom=inside.pos[2]-4,page=20,count=100,above=80}
+    tabsGeometry={{left=inside.pos[1]+10,top=top,right=inside.pos[1]+64,bottom=top+16,channel=0,selected=true}}
+    frame()
+    mouse.x,mouse.y=scrollGeometry.left+2,scrollGeometry.top+40
+    assert(not press(0x0201).blocked,'a press on the game\'s scrollbar: the game\'s')
+    mouse.x=over[1]; mouse.y=mouse.y+60
+    assert(not press(0x0200).blocked and not press(0x0202).blocked,'its drag off the bar and release the game\'s')
+    mouse.x,mouse.y=scrollGeometry.right+2,scrollGeometry.top+40
+    assert(not press(0x0200).blocked and not press(0x0201).blocked and not press(0x0202).blocked,'a few pixels beside the bar: the game\'s')
+    mouse.x,mouse.y=tabsGeometry[1].left+5,tabsGeometry[1].top+5
+    assert(not press(0x0200).blocked and not press(0x0201).blocked and not press(0x0202).blocked,'a click on a tab: the game\'s')
+    mouse.x,mouse.y=over[1],over[2]
+    assert(press(0x0201).blocked and press(0x0202).blocked,'the rows beside them kept')
+    scrollGeometry,tabsGeometry=nil,nil; frame()
+    -- a row's action menu of the game's (nested) open over the log: its mouse the game's
+    chatState.nested=true
+    assert(not press(0x0200).blocked and not press(0x0201).blocked and not press(0x0202).blocked,'a menu of the game\'s open over the log: the mouse the game\'s')
+    chatState.nested=false
+    mouse.x,mouse.y=outside[1],outside[2]
+    assert(not press(0x0200).blocked and not press(0x0201).blocked and not press(0x0202).blocked,'beside the log: the game\'s')
     app.options.replaceExpanded[1]=false; frame(); mouse.x,mouse.y=inside.pos[1]+100,inside.pos[2]-50
     assert(not press(0x0200).blocked and not press(0x0201).blocked,'the game\'s own rows drawn: its mouse too')
     app.options.replaceExpanded[1]=true
@@ -1115,6 +1151,18 @@ mouse.x, mouse.y = shown.pos[1] + 12*7 + 2, shown.pos[2] + 3; L.at, L.tips = {},
 assert(#L.at == 1 and L.at[1].text == 'an expanded gamma row' and L.at[1].offset == 13 and L.at[1].tokens == nil and L.at[1].captures > before,
     'expanded, the addon\'s rows: the row\'s text and the offset under the mouse, no tokens, after the capture')
 assert(#L.tips == 1 and L.tips[1].reference.name == 'gamma', 'and the tooltip shown')
+-- the gap under a row's text is the row's (its step, as the compact log's), so the hover holds from row to row
+do (function()
+    rowsGeometry = {{left=40,top=380,right=300,bottom=396,text='the newer row',mode=1,cursor=true},
+        {left=40,top=364,right=300,bottom=380,text='an older gamma row',mode=1,cursor=false}}
+    frame(); local newer, older = Part('the newer row'), Part('an older gamma row')
+    assert(newer and older and newer.pos[2] > older.pos[2], 'two rows, the newest lowest')
+    local step = newer.pos[2] - older.pos[2]
+    mouse.x, mouse.y = older.pos[1] + 2, older.pos[2] + step - 1; L.at = {}; frame()
+    assert(#L.at == 1 and L.at[1].text == 'an older gamma row', 'the pixel just above the next row, in the gap: still the row\'s')
+    mouse.y = older.pos[2] + step; L.at = {}; frame()
+    assert(#L.at == 1 and L.at[1].text == 'the newer row', 'and the next row\'s from its top')
+end)() end
 rowsGeometry = nil; mouse.x, mouse.y = gamma.pos[1] + 2, gamma.pos[2] + 3
 chatState.expanded = false; frame()
 -- a lookup that raises: the frame goes on

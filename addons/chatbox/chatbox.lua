@@ -1005,8 +1005,10 @@ local function DrawExpandedRows(list, rows)
     local fallback = theme.Get().TextColor
     local drawn = 0
     -- Chat Tooltips here too: the row and character under the mouse, as the compact log finds its own (the game's
-    -- rows carry no tokens: a bracketed phrase or link is known by its words)
+    -- rows carry no tokens: a bracketed phrase or link is known by its words), each row's its step tall, the gap
+    -- under its text included, so the hover holds from one row to the next
     local tipX, tipY = TipMouse(expandedBox[1], expandedBox[3] - expandedBox[1], expandedBox[2], expandedBox[4])
+    local step = size + ROW_GAP
     for _, line in ipairs(lines) do
         local row, x = line.row, left
         if row.text ~= '' then
@@ -1014,7 +1016,7 @@ local function DrawExpandedRows(list, rows)
             if entry.text ~= '' then
                 local color = expandedOptions.textColor or palette.Mode(row.mode) or fallback
                 render.Rich(list, { x, line.y }, imgui.GetColorU32(color), entry.text, entry.spans, entry, font, size)
-                if tipY and tipY >= line.y and tipY < line.y + size then
+                if tipY and tipY >= line.y and tipY < line.y + step then
                     local offset = CharacterAt(entry.text, tipX - x)
                     if offset then hovered.text, hovered.offset, hovered.row, hovered.view, hovered.expanded = entry.text, offset, nil, nil, true end
                 end
@@ -1056,7 +1058,8 @@ local function DrawExpandedControls()
     end
     if expandedScroll then
         -- the compact log's: a thin thumb and no track, inside the log's right edge, over the game's bar's
-        -- height and where its page is; brighter while the mouse is on the game's bar (which it drags) or it
+        -- height and where its page is; brighter while the mouse is on the game's bar or it. The game's bar (and a
+        -- few pixels round it) is left the game's by the mouse hook, so the game still takes its presses and drags
         local s = expandedScroll
         local bar = scrollbar.Layout(ExpandedThumbLeft(), math.max(s.top, expandedBox[2] + pad.top),
             math.min(s.bottom, expandedBox[4] - pad.bottom),
@@ -1549,33 +1552,93 @@ local function Drag(e, x, y, captured)
     return true
 end
 -- The expanded log with its rows the addon's (Replace Expanded Log): they stand at the chat's own pitch, not the
--- game's 16 units, so the game's hover and clicks would land on other rows than the ones shown. The mouse's moves and
--- its buttons are kept from the game while it is over the log; the wheel, which scrolls whatever the rows' places,
--- goes through, and Square, the arrows and Confirm still choose rows. A menu of the game's open over it is the game's.
-local expandedMouse = { [0x0200] = true, [0x0201] = true, [0x0202] = true, [0x0203] = true, [0x0204] = true, [0x0205] = true }
+-- game's 16 units, so the game's hover and clicks would land on other rows than the ones shown. Every mouse message
+-- but the wheels (0x020a, 0x020e) is kept from the game over the rows: its moves, and the presses and double-clicks
+-- of each button (left, right, middle and the side ones), along with the release of every press kept, wherever it
+-- is let go; a release of a press the game had goes to it, wherever it is let go, and a move goes through while a
+-- press the game had is held (its scrollbar dragged off the bar, or the camera turned across the log). The game's
+-- scrollbar (a few pixels round it) and its tabs are its own, and so is the mouse while a menu of the game's (a
+-- row's action menu, the input line) is open over the log. The wheel scrolls whatever the rows' places, and Square,
+-- the arrows and Confirm still choose rows. The game's state is read only for a move or press over the log's box.
+local MOUSE_BUTTON = { [0x0201] = 1, [0x0202] = 1, [0x0203] = 1, [0x0204] = 2, [0x0205] = 2, [0x0206] = 2,
+    [0x0207] = 3, [0x0208] = 3, [0x0209] = 3, [0x020b] = 4, [0x020c] = 4, [0x020d] = 4 }
+local MOUSE_UP = { [0x0202] = true, [0x0205] = true, [0x0208] = true, [0x020c] = true }
+local MOUSE_DOUBLE = { [0x0203] = true, [0x0206] = true, [0x0209] = true, [0x020d] = true }
+local MOUSE_HELD = { 0x0001, 0x0002, 0x0010, 0x0060 } -- each button's MK_ bits in a move's wparam
+local SCROLL_MARGIN = 4 -- round the game's scrollbar, still the game's
+-- by button: its press kept from the game and still held; whether its last press was kept; a press the game had, held
+local keptHeld, keptLast, passedHeld = { false, false, false, false }, { false, false, false, false }, { false, false, false, false }
+local keptCount, passedCount = 0, 0
+local function Inside(x, y, left, top, right, bottom) return x >= left and x < right and y >= top and y < bottom end
+-- The mouse over the mirrored log's rows, and the game's state lets it be kept: the box first, then the game's
+-- scrollbar and tabs, and only then the state
+local function OverMirror()
+    if not hovered.mirror then return false end
+    local mouse = imgui.GetIO().MousePos
+    local x, y = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+    if not x or not y or not Inside(x, y, expandedBox[1], expandedBox[2], expandedBox[3], expandedBox[4]) then return false end
+    local s = expandedScroll
+    if s and Inside(x, y, s.left - SCROLL_MARGIN, s.top - SCROLL_MARGIN, s.right + SCROLL_MARGIN, s.bottom + SCROLL_MARGIN) then return false end
+    if expandedTabs then
+        for _, tab in ipairs(expandedTabs) do
+            if Inside(x, y, tab.left, tab.top, tab.right, tab.bottom) then return false end
+        end
+    end
+    local state = primary.State()
+    return state ~= nil and state.expanded == true and not state.nativeBrowse and not state.nested
+end
+-- a button pressed (kept from the game, or let through to it) or let go (neither)
+local function Hold(button, kept, through)
+    if keptHeld[button] then keptCount = keptCount - 1 end
+    if passedHeld[button] then passedCount = passedCount - 1 end
+    keptHeld[button], passedHeld[button] = kept, through and not kept
+    if kept then keptCount = keptCount + 1 elseif through then passedCount = passedCount + 1 end
+end
+-- true when the event was kept from the game
+local function KeepExpandedMouse(e, message)
+    if message == 0x0200 then
+        if keptCount > 0 then
+            local held = tonumber(e.wparam)
+            if held then -- a release missed (let go outside the game's window): forgotten
+                for button = 1, 4 do
+                    if keptHeld[button] and bit.band(held, MOUSE_HELD[button]) == 0 then Hold(button, false, false) end
+                end
+            end
+            if keptCount > 0 then e.blocked = true; return true end
+        end
+        if passedCount > 0 or e.blocked or not OverMirror() then return false end
+        e.blocked = true
+        return true
+    end
+    local button = MOUSE_BUTTON[message]
+    if MOUSE_UP[message] then
+        local kept = keptHeld[button]
+        Hold(button, false, false)
+        if kept then e.blocked = true end
+        return kept
+    end
+    -- a press, or a double-click (the second press of one): kept over the rows, and a double-click as its first press was
+    local kept = not e.blocked and (OverMirror() or (MOUSE_DOUBLE[message] and keptLast[button])) or false
+    Hold(button, kept, not e.blocked)
+    keptLast[button] = kept
+    if kept then e.blocked = true end
+    return kept
+end
 ashita.events.register('mouse', 'chatbox_scroll', function(e)
+    local message = e.message
+    if (MOUSE_BUTTON[message] or (message == 0x0200 and (hovered.mirror or keptCount > 0))) and KeepExpandedMouse(e, message) then return end
     if e.blocked or not app.options.enabled[1] or zoning then return end
     -- Only the wheel, a left press, its release and a drag (the scrollbar's, or the log's) are ever taken: anything
-    -- else, most of all the mouse moving, is let by before the game's state is read; over the mirrored expanded log,
-    -- the mouse's moves and buttons as well
-    local message = e.message
-    local mirror = hovered.mirror
+    -- else, most of all the mouse moving, is let by before the game's state is read
     if message == 0x0200 then
-        if not (moving or views[1].drag or views[2].drag or mirror) then return end
+        if not (moving or views[1].drag or views[2].drag) then return end
     elseif message == 0x0202 then
-        if not (moving or views[1].pressed or views[2].pressed or mirror) then return end
-    elseif message ~= 0x0201 and message ~= 0x020a and not (mirror and expandedMouse[message]) then return end
+        if not (moving or views[1].pressed or views[2].pressed) then return end
+    elseif message ~= 0x0201 and message ~= 0x020a then return end
     local state = primary.State()
     if state and (state.expanded or state.nativeBrowse) then
         for _, view in ipairs(views) do view.drag, view.pressed = nil, nil end
         moving = nil
-        if mirror and state.expanded and not state.nativeBrowse and expandedMouse[message] then
-            local mouse = imgui.GetIO().MousePos
-            local x, y = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
-            if x and y and x >= expandedBox[1] and x < expandedBox[3] and y >= expandedBox[2] and y < expandedBox[4] then
-                e.blocked = true
-            end
-        end
         return
     end
     local io = imgui.GetIO()
