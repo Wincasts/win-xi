@@ -734,16 +734,28 @@ local hovered = { text = nil, offset = 0, row = nil, view = nil, expanded = fals
 -- The bytes of the UTF-8 character a lead byte starts (a stray continuation byte counts as one)
 local function CharacterBytes(b) return b >= 0xf0 and 4 or b >= 0xe0 and 3 or b >= 0xc0 and 2 or 1 end
 -- The 1-based byte offset of the character dx pixels into text as it is drawn, or nil before it or past its end:
--- each character's right edge is the width of the text up to it, measured as render.Rich draws it
+-- each character's right edge is the width of the text up to it, measured as render.Rich draws it. The edges only
+-- grow from one character to the next, so the first past dx is found by halving: the characters' ends walked once,
+-- then a handful of the text's beginnings measured, not one for every character. (Each character measured alone and
+-- the widths added would not do: imgui rounds every width it measures up to a whole pixel, and the sum drifts right
+-- of the text as it is drawn.)
+local characterEnds = {} -- the last byte of each character of the text being walked, refilled each call
 local function CharacterAt(text, dx)
     if dx < 0 or render.Measure(text) <= dx then return nil end
-    local at = 1
+    local count, at = 0, 1
     while at <= #text do
         local after = at + CharacterBytes(text:byte(at))
-        if render.Measure(text:sub(1, after - 1)) > dx then return at end
+        count = count + 1
+        characterEnds[count] = after - 1
         at = after
     end
-    return nil
+    -- the whole text reaches past dx, so the last character's edge does: the first edge past it lies from low to high
+    local low, high = 1, count
+    while low < high do
+        local middle = math.floor((low + high) / 2)
+        if render.Measure(text:sub(1, characterEnds[middle])) > dx then high = middle else low = middle + 1 end
+    end
+    return low == 1 and 1 or characterEnds[low - 1] + 1
 end
 -- Where the mouse is for Chat Tooltips in a box, or nil: with them on, the mouse not over a window of imgui's own
 -- (the settings), no scrollbar or log being dragged, and the mouse inside the box's rows
@@ -757,6 +769,19 @@ local function TipMouse(left, width, areaTop, areaBottom)
     return x, y
 end
 
+-- What DrawLog says of the box it drew (view.drawn): which rows, where, and its scrollbar, as the mouse hook matches
+-- it (view.target) and /chatbox status tells it (lastDrawn, lastSplit). Each window has three tables for it, and a
+-- frame fills one that none of those holds, so a box once handed out stays as it was drawn, whatever later frames do.
+local function DrawnTable(view)
+    local pool = view.drawnPool
+    if not pool then pool = { {}, {}, {} }; view.drawnPool = pool end
+    for i = 1, #pool do
+        local t = pool[i]
+        if t ~= view.drawn and t ~= view.target and t ~= lastDrawn and t ~= lastSplit then return t end
+    end
+end
+-- the points and corners DrawLog hands imgui, which copies them: filled afresh for each row, not made anew
+local rowPos, logClipMin, logClipMax = { 0, 0 }, { 0, 0 }, { 0, 0 }
 -- The log's rows, in the window being drawn (with the chat's font pushed): the light and cursor when the
 -- game has it selected (lit), then the rows at the bottom, preserving all source inline colours. Native-sized
 -- boxes centre their whole rows within the configured vertical padding. view: the window's own scrolling; filter: which messages it
@@ -786,8 +811,6 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
     view.offset = math.max(0, view.offset + movement)
     view.pending = view.pending - movement
     rows, view.offset, overflow = model.Tail(visible, width, font, size, render.Measure, rowCount, modes, 0, view.offset)
-    local drawn = { frame = frame, expanded = false, left = left, top = top, width = box.width, bottom = box.bottom,
-        rows = rowCount, drawn = #rows, title = style.title, firstY = 0, overflow = overflow }
     -- The rows centred between the configured top and bottom padding; the
     -- newest at the foot of them, as the game's.
     local step = fontSize + ROW_GAP
@@ -798,17 +821,19 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
     local x, y = left + inset, areaTop + (spare < 0 and spare or math.floor(spare / 2))
     y = y + (rowCount - #rows) * step
     -- During animated resizing, reveal/hide rows at the top without moving the newest row.
-    list:PushClipRect({ left, math.min(areaTop, areaBottom) },
-        { left + box.width, areaBottom }, true)
+    logClipMin[1], logClipMin[2] = left, math.min(areaTop, areaBottom)
+    logClipMax[1], logClipMax[2] = left + box.width, areaBottom
+    list:PushClipRect(logClipMin, logClipMax, true)
     if lit then
         DrawCursor(list, left, y + (#rows - 1) * step, fontSize)
     end
-    drawn.firstY = y
+    local firstY = y
     local tipX, tipY = TipMouse(left, box.width, areaTop, areaBottom)
     for _, row in ipairs(rows) do
         if row.text ~= '' then
             local color = imgui.GetColorU32(style.textColor or palette.Mode(row.message.mode) or theme.Get().TextColor)
-            render.Rich(list, { x, y }, color, row.text, row.spans, row, font, size)
+            rowPos[1], rowPos[2] = x, y
+            render.Rich(list, rowPos, color, row.text, row.spans, row, font, size)
             -- the one row under the mouse is walked for the character; every other row is two comparisons
             if tipY and tipY >= y and tipY < y + step then
                 local offset = CharacterAt(row.text, tipX - x)
@@ -819,7 +844,6 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
     end
     list:PopClipRect()
     local bar = scrollbar.Layout(left+box.width-3-scrollbar.Width,areaTop,areaBottom,metrics.total,rowCount,view.offset)
-    drawn.scrollbar = bar
     if bar then
         local io = imgui.GetIO()
         local mouse = io.MousePos
@@ -832,6 +856,10 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
     end
     contentSize[1], contentSize[2] = width, box.height - padding * 2
     imgui.Dummy(contentSize)
+    -- the box drawn written only now, all of it, as it was made only once the rows were drawn
+    local drawn = DrawnTable(view)
+    drawn.frame, drawn.expanded, drawn.left, drawn.top, drawn.width, drawn.bottom = frame, false, left, top, box.width, box.bottom
+    drawn.rows, drawn.drawn, drawn.title, drawn.firstY, drawn.overflow, drawn.scrollbar = rowCount, #rows, style.title, firstY, overflow, bar
     view.drawn = drawn
     return drawn
 end
@@ -944,13 +972,15 @@ end
 -- are the addon's (the mouse hook below); the wheel still scrolls, and Square, the arrows and Confirm choose rows.
 -- Should the row the game has chosen be past what fits, the view moves up to keep it at the top. Returns { row, y }
 -- for each line shown, the newest first.
-local expandedLines = {}
+-- The lists and each line's table are kept and filled afresh every frame (they are read only as the frame draws).
+local expandedLines, expandedPlaced, expandedLinePool = {}, {}, {}
 local function ExpandedLines(rows, size)
     for i = #expandedLines, 1, -1 do expandedLines[i] = nil end
+    for i = #expandedPlaced, 1, -1 do expandedPlaced[i] = nil end
     local step = size + ROW_GAP
     local areaTop, areaBottom = expandedBox[2] + pad.top, expandedBox[4] - pad.bottom
     local fits = math.max(1, math.floor((areaBottom - areaTop + ROW_GAP) / step))
-    local placed, measured = {}, false
+    local placed, measured = expandedPlaced, false
     for _, row in ipairs(rows) do
         if row.top then placed[#placed + 1] = row; measured = measured or row.lit end
     end
@@ -960,8 +990,12 @@ local function ExpandedLines(rows, size)
     end
     local first = math.max(1, chosen - fits + 1)
     for i = first, math.min(#placed, first + fits - 1) do
-        expandedLines[#expandedLines + 1] = { row = placed[i], y = areaBottom - size - (i - first) * step,
-            chosen = (measured and placed[i].lit) or (not measured and placed[i].cursor) }
+        local n = #expandedLines + 1
+        local line = expandedLinePool[n]
+        if not line then line = {}; expandedLinePool[n] = line end
+        line.row, line.y = placed[i], areaBottom - size - (i - first) * step
+        line.chosen = (measured and placed[i].lit) or (not measured and placed[i].cursor)
+        expandedLines[n] = line
     end
     return expandedLines
 end
@@ -1077,6 +1111,16 @@ local function DrawExpandedControls()
     list:PopClipRect()
     if chatFont then imgui.PopFont() end
 end
+-- A rectangle the game's log gives (primary.Rect and the like, up to four numbers or none) in a table kept for it, as
+-- { ... } had it: #t is 4 only when all four came
+local function Fill(t, a, b, c, d, e)
+    t[1], t[2], t[3], t[4], t[5] = a, b, c, d, e
+    return t
+end
+-- the full log's rectangle as the game gives it, and the box it is drawn in as lastDrawn has it: one table each,
+-- filled afresh every frame the log is expanded (only lastDrawn holds the box past its frame, for /chatbox status,
+-- and the mouse hook never matches it)
+local fullRect, expandedDrawn = {}, {}
 local function DrawExpanded(state, sw, sh)
     held = nil
     PlaceLog(app.options) -- kept where it was asked to open, or given back
@@ -1090,7 +1134,7 @@ local function DrawExpanded(state, sw, sh)
         anchorStatus = 'Expanded chat remains native: nested menu or native-content skin unavailable.'
         return
     end
-    local rect = { primary.Rect(sw, sh, true) }
+    local rect = Fill(fullRect, primary.Rect(sw, sh, true))
     if #rect ~= 4 or rect[1] < 0 or rect[2] < 0 or rect[3] > sw or rect[4] > sh
         or rect[3] <= rect[1] or rect[4] <= rect[2] then
         anchorStatus = 'Waiting for native expanded bounds; full native log left visible.'
@@ -1135,8 +1179,10 @@ local function DrawExpanded(state, sw, sh)
     size[1], size[2] = right-rect[1], bottom-top
     imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
     imgui.SetNextWindowSize(size, ImGuiCond_Always)
-    lastDrawn = { frame = frame, expanded = true, left = rect[1], top = top, width = size[1], bottom = bottom,
-        rows = state.pageRows or 0, drawn = 0, firstY = top, title = expandedRows and 'WinXI text' or 'native content', overflow = false }
+    local d = expandedDrawn
+    d.frame, d.expanded, d.left, d.top, d.width, d.bottom = frame, true, rect[1], top, size[1], bottom
+    d.rows, d.drawn, d.firstY, d.title, d.overflow = state.pageRows or 0, 0, top, expandedRows and 'WinXI text' or 'native content', false
+    lastDrawn = d
     window.Plain('winxi.chatbox.expanded', open, flags, DrawExpandedControls, expandedOptions)
     hovered.mirror = expandedRows ~= nil and captured
     -- the status line, made again only when what it says changes
@@ -1172,45 +1218,49 @@ local function Filter(routes, window)
     return routeFilters[window]
 end
 
-ashita.events.register('d3d_present', 'chatbox_present', function()
-    for _, view in ipairs(views) do view.target = nil end -- rearmed only after this frame captures a complete replacement
-    hovered.text, hovered.row, hovered.view, hovered.expanded, hovered.mirror = nil, nil, nil, false, false -- found again as this frame's logs are drawn
-    app:BeginFrame() -- configures WinXI's shared/local theme and draws settings
-    infoPanel.BeginFrame() -- renew menu placement only with this frame's successful host capture
-    DrainTap() -- the frame's lines as uihook has them after every addon, or chatbox's own copies
-    if not app.options.enabled[1] or zoning then Release(); return end
-    infoPanel.Hud(app.options.infoPanel) -- Hide Game Clock and Hide Compass, with or without the panel or chat's capture
-    ImportHistory() -- the game's history before chatbox's own, once
-    if not primary.Begin() then
-        ResetViews(false)
-        secondary.Stop(); input.Stop(); return
+do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows it 200 locals)
+    -- The compact frame, in phases, each a function of its own called in turn from DrawFrame: MeasureFirst (the first
+    -- box), MeasureSecond (the game's second log window), HoldBox (the last box kept a moment while the game's log
+    -- settles), Activity (Auto Resize and Fade When Idle), PanelAndLift (the info panel, the lift over it and where the
+    -- expanded log will open) and DrawBoxes (the windows themselves), then the input bar. What one phase finds and those
+    -- after it use is kept here, every field written afresh each frame before it is read: one table, not a closure's
+    -- dozens of locals made anew every frame. firstHidden (the game's log at 0 lines, nothing drawn in its place),
+    -- splitDrawn and compactMinSize are read by the handler after the frame, and set false by it before.
+    local compact = {}
+    local logRect, splitRect = {}, {} -- the game's first and second log windows, as Fill keeps them
+    local MIN_SIZE = { 1, 1 }
+    local WINDOW_KEYS = { 'window1', 'window2' } -- each window's Activity settings
+    local splitPlace, splitSize, panelPlace, panelSize = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
+    local liftedFirst, liftedSecond = {}, {} -- the boxes lifted over the panel, drawn this frame and held by nothing after
+    local heldBox = {} -- held, when there is one: filled afresh with each box drawn
+    -- Rows and height for a box from the game's window: its lines now (0 rows at 0 lines), the box no shorter than the
+    -- window; or, with a uihook that does not say, as many rows as fit the window; nil without a window
+    local function Sized(rect, lines, fontSize, above, below)
+        if lines then
+            if lines.shown < 1 then return 0 end
+            local height = lines.shown * fontSize + (lines.shown - 1) * ROW_GAP + above + below
+            if rect then height = math.max(height, rect[4] - rect[2]) end
+            return lines.shown, height
+        end
+        if not rect then return nil end
+        local fit = layout.Fit(rect[4] - rect[2] - above - below, fontSize, 0, ROW_GAP)
+        if fit < 1 then return 0 end
+        return fit, rect[4] - rect[2]
     end
-    captured, capturedSplit, selectedWindow, panelAttachment = false, false, nil, nil
-    palette.Source(primary.Colors and primary.Colors() or nil) -- the game's chat colours as configured, where uihook reads them
-    local splitDrawn, firstHidden = false, false -- firstHidden: the game's log at 0 lines, nothing drawn in its place
-    local compactMinSize = false
-    local ok, err = pcall(function()
-        local display = imgui.GetIO().DisplaySize
-        local sw, sh = display.x or display[1], display.y or display[2]
-        if not sw or not sh or sw < 100 or sh < 100 then input.Stop(); return end
-        local state = primary.State()
-        local expanded = state and state.expanded
-        frame = frame + 1
-        if expanded then DrawExpanded(state, sw, sh); return end
-        -- ImGui's normal minimum is taller than a one-row log or panel-only host.
-        imgui.PushStyleVar(ImGuiStyleVar_WindowMinSize, { 1, 1 })
-        compactMinSize = true
-        -- Follow Game: the game log's own size (its lines now, as it grows a row a message and shrinks to its fewest
-        -- while none come: at 0, nothing drawn), the box no shorter than the game's window and tall enough for those
-        -- rows at Font Size (or, with a uihook that does not say, as many rows as fit the game's window), the input
-        -- bar's place and size the game's, and the second window where the game puts its own. WinXI Skin: Width and
-        -- ten rows, or Window 1 Rows and Window 2 Rows. The WinXI look either way.
+    -- Follow Game: the game log's own size (its lines now, as it grows a row a message and shrinks to its fewest
+    -- while none come: at 0, nothing drawn), the box no shorter than the game's window and tall enough for those
+    -- rows at Font Size (or, with a uihook that does not say, as many rows as fit the game's window), the input
+    -- bar's place and size the game's, and the second window where the game puts its own. WinXI Skin: Width and
+    -- ten rows, or Window 1 Rows and Window 2 Rows. The WinXI look either way.
+    local function MeasureFirst(c, sw, sh)
         local game = Game(app.options)
+        c.game = game
         Paddings(app.options)
-        local logRect = { primary.Rect(sw, sh) }
+        Fill(logRect, primary.Rect(sw, sh))
         local lines = game and primary.Lines and primary.Lines() or nil
         if game then GameFontSize(#logRect == 4 and logRect or nil, lines) end
         local fontSize, padding = FontSize(), PADDING_DEFAULT
+        c.fontSize, c.padding = fontSize, padding
         windowOptions.fontSize, windowOptions.padding = fontSize, padding
         appearance.Apply(windowOptions, app.options.appearance.log)
         splitOptions.fontSize, splitOptions.padding = fontSize, padding
@@ -1218,24 +1268,13 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         local rowCount = model.Rows
         -- Exact row heights and inter-row gaps, with only the room above and below around them.
         local above, below = pad.top, pad.bottom
+        c.above, c.below = above, below
         local frameHeight = model.Rows * fontSize + (model.Rows - 1) * ROW_GAP + above + below
         size[1] = math.min(app.options.width[1], sw - 40)
-        local function Sized(rect, lines)
-            if lines then
-                if lines.shown < 1 then return 0 end
-                local height = lines.shown * fontSize + (lines.shown - 1) * ROW_GAP + above + below
-                if rect then height = math.max(height, rect[4] - rect[2]) end
-                return lines.shown, height
-            end
-            if not rect then return nil end
-            local fit = layout.Fit(rect[4] - rect[2] - above - below, fontSize, 0, ROW_GAP)
-            if fit < 1 then return 0 end
-            return fit, rect[4] - rect[2]
-        end
         if game then
-            local rows, height = Sized(#logRect == 4 and logRect or nil, lines)
+            local rows, height = Sized(#logRect == 4 and logRect or nil, lines, fontSize, above, below)
             if rows == 0 then
-                firstHidden = true -- the game's log at 0 lines: nothing to draw, nothing shown
+                c.firstHidden = true -- the game's log at 0 lines: nothing to draw, nothing shown
             elseif rows and #logRect == 4 then
                 rowCount, frameHeight, size[1] = rows, height, logRect[3] - logRect[1]
             end
@@ -1251,27 +1290,32 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         appearance.Apply(plan, app.options.appearance.input)
         plan.font = fonts.Get(app.options.fontFile)
         plan.leftPadding, plan.rightPadding = pad.left, pad.right
-        local box, placeKnown, panelBase
-        placeKnown = #logRect == 4
+        c.plan = plan
+        c.placeKnown = #logRect == 4
         -- Position Custom (the skin's): the box where it was dragged to, the input bar with it; the game's log must still be drawn
         local custom = not game and app.options.position[1] == 'custom' and app.options.pos or nil
-        box = layout.Arrange(layoutState, logRect, plan, size[1], sw, sh, size[2], padding, game, custom)
-        panelBase = box
+        local box = layout.Arrange(layoutState, logRect, plan, size[1], sw, sh, size[2], padding, game, custom)
+        c.panelBase = box
         anchorStatus = box and (custom and 'At its own place (Position Custom); the input bar with it.' or 'Anchored to native chat; log and input share one width.')
             or 'Native chat anchor unavailable or the log does not fit; native log left visible.'
-        if firstHidden then box = nil; anchorStatus = 'The game\'s log is at 0 lines: nothing drawn, and nothing of the game\'s shown.' end
-        -- The game's second log window, where it shows one: a box where the game puts its own beside the first,
-        -- stacked over it (the game's vertical layout: its own width in Follow Game, over the first's top) or beside it
-        -- (horizontal: the game's width for it, the game's gap from the first, the first's bottom); as tall as the
-        -- game's (as many rows as fit) or ten rows; its messages the ones the game's Log Window settings route to it,
-        -- the first's the ones routed there.
+        if c.firstHidden then box = nil; anchorStatus = 'The game\'s log is at 0 lines: nothing drawn, and nothing of the game\'s shown.' end
+        c.box, c.rowCount = box, rowCount
+    end
+    -- The game's second log window, where it shows one: a box where the game puts its own beside the first,
+    -- stacked over it (the game's vertical layout: its own width in Follow Game, over the first's top) or beside it
+    -- (horizontal: the game's width for it, the game's gap from the first, the first's bottom); as tall as the
+    -- game's (as many rows as fit) or ten rows; its messages the ones the game's Log Window settings route to it,
+    -- the first's the ones routed there. A new table for the box each frame: held keeps it.
+    local function MeasureSecond(c, sw, sh)
         local routes = primary.Routes and primary.Routes() or nil
-        local splitRect = { secondary.Rect(sw, sh) }
+        c.routes = routes
+        Fill(splitRect, secondary.Rect(sw, sh))
+        local box, game, fontSize, above, below = c.box, c.game, c.fontSize, c.above, c.below
         local second
         if routes and routes.split and #splitRect == 4 then
             local rows, height, secondHidden = model.Rows, model.Rows * fontSize + (model.Rows - 1) * ROW_GAP + above + below, false
             if game then
-                local sized, tall = Sized(splitRect, secondary.Lines and secondary.Lines() or nil)
+                local sized, tall = Sized(splitRect, secondary.Lines and secondary.Lines() or nil, fontSize, above, below)
                 if sized == 0 then secondHidden = true elseif sized then rows, height = sized, tall end
             else
                 local customSecondRows = app.options.window2Rows[1]
@@ -1282,7 +1326,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
             end
             if secondHidden then
                 splitStatus = 'Second window: the game\'s is at 0 lines; nothing drawn, and nothing of the game\'s shown.'
-            elseif firstHidden then
+            elseif c.firstHidden then
                 -- the first at 0 lines: the second where the game draws its own, as it is the one log window shown
                 second = { left = splitRect[1], width = splitRect[3] - splitRect[1], bottom = splitRect[4], top = splitRect[4] - height, height = height, rows = rows }
                 splitStatus = ('Second window: in the game\'s place, %d rows, the first at 0 lines; the game\'s Log Window settings route its messages.'):format(rows)
@@ -1318,46 +1362,62 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         else
             splitStatus = 'Second window: none; the game shows one log window.'
         end
-        if box then
-            held = { box = box, rows = rowCount, second = second, frame = frame }
-        elseif not firstHidden and held and not placeKnown and frame - held.frame <= HOLD_FRAMES and held.box.bottom <= sh then
-            -- Opening or closing the full log, the game's new place is not known for a frame or two:
-            -- the last box stays rather than the game's own log showing through.
-            box, rowCount, second = held.box, held.rows, held.second
+        c.second = second
+    end
+    -- The boxes kept (held) as they are drawn; opening or closing the full log, the game's new place is not known for
+    -- a frame or two: the last box stays rather than the game's own log showing through.
+    local function HoldBox(c, sh)
+        if c.box then
+            held = heldBox
+            held.box, held.rows, held.second, held.frame = c.box, c.rowCount, c.second, frame
+        elseif not c.firstHidden and held and not c.placeKnown and frame - held.frame <= HOLD_FRAMES and held.box.bottom <= sh then
+            c.box, c.rowCount, c.second = held.box, held.rows, held.second
             anchorStatus = 'Waiting a moment for the game\'s log to settle.'
         end
-        -- Activity (the skin's) runs only on compact boxes; native capture remains armed even at zero opacity.
-        local stacked = second and box and #splitRect == 4 and #logRect == 4 and splitRect[4] <= logRect[2] + 2
-        panelBase = box or panelBase
-        local oldTop, oldBottom = box and box.top, box and box.bottom
-        local now = os.clock()
-        local function Smart(number, b, capacity, style)
-            local view = views[number]
-            view.visibility = view.visibility or {}
-            local settings = not game and app.options.visibility and app.options.visibility['window' .. number] or nil
-            local active = plan.active or (state and state.selected and (not state.selectedWindow or state.selectedWindow == number))
-                or view.offset > 0 or view.drag ~= nil or view.pressed ~= nil
-            local function Measure(recent, rows)
-                if not recent then return rows * fontSize + (rows - 1) * ROW_GAP + above + below end
-                model.ShowStamps(recent, app.options.timestamps[1])
-                local width = math.max(1, b.width - pad.left - pad.right)
-                if plan.font then imgui.PushFont(plan.font, fontSize) end
-                local ok, total = pcall(function()
-                    local metrics = model.Metrics(recent, width, plan.font, fontSize, render.Measure)
-                    if metrics.total > capacity then
-                        metrics = model.Metrics(recent, math.max(1, width - scrollbar.Reserve), plan.font, fontSize, render.Measure)
-                    end
-                    return metrics.total
-                end)
-                if plan.font then imgui.PopFont() end
-                if not ok then error(total, 0) end
-                return total
-            end
-            local result, rows, alpha = visibility.Apply(view.visibility, settings, history, Filter(routes, number), b, capacity, now, active, Measure)
-            style.alpha = alpha
-            return result, rows
+    end
+    -- Activity's measure of a window's recent messages (the rows they wrap to in the box being sized, the scrollbar's
+    -- room taken where they overflow it) or of a number of rows (the height they take)
+    local function RecentTotal(recent, width, font, fontSize, capacity)
+        local metrics = model.Metrics(recent, width, font, fontSize, render.Measure)
+        if metrics.total > capacity then
+            metrics = model.Metrics(recent, math.max(1, width - scrollbar.Reserve), font, fontSize, render.Measure)
         end
-        box, rowCount = Smart(1, box, rowCount, windowOptions)
+        return metrics.total
+    end
+    local function MeasureRecent(recent, rows)
+        local c = compact
+        local fontSize, plan = c.fontSize, c.plan
+        if not recent then return rows * fontSize + (rows - 1) * ROW_GAP + c.above + c.below end
+        model.ShowStamps(recent, app.options.timestamps[1])
+        local width = math.max(1, c.measureBox.width - pad.left - pad.right)
+        if plan.font then imgui.PushFont(plan.font, fontSize) end
+        local ok, total = pcall(RecentTotal, recent, width, plan.font, fontSize, c.measureCapacity)
+        if plan.font then imgui.PopFont() end
+        if not ok then error(total, 0) end
+        return total
+    end
+    -- One window's Activity: the box as Auto Resize sizes it (nil while hidden) and its rows, its alpha on its style
+    local function Smart(c, number, b, capacity, style)
+        local view = views[number]
+        view.visibility = view.visibility or {}
+        local settings = not c.game and app.options.visibility and app.options.visibility[WINDOW_KEYS[number]] or nil
+        local state = c.state
+        local active = c.plan.active or (state and state.selected and (not state.selectedWindow or state.selectedWindow == number))
+            or view.offset > 0 or view.drag ~= nil or view.pressed ~= nil
+        c.measureBox, c.measureCapacity = b, capacity -- for MeasureRecent, which visibility.Apply calls before it returns
+        local result, rows, alpha = visibility.Apply(view.visibility, settings, history, Filter(c.routes, number), b, capacity, c.now, active, MeasureRecent)
+        style.alpha = alpha
+        return result, rows
+    end
+    -- Activity (the skin's) runs only on compact boxes; native capture remains armed even at zero opacity. The second
+    -- box stacked over the first moves with the first's top (a copy: the box held, or one a panel keeps, is not moved).
+    local function Activity(c)
+        local box, second = c.box, c.second
+        local stacked = second and box and #splitRect == 4 and #logRect == 4 and splitRect[4] <= logRect[2] + 2
+        c.panelBase = box or c.panelBase
+        local oldTop, oldBottom = box and box.top, box and box.bottom
+        c.now = os.clock()
+        box, c.rowCount = Smart(c, 1, box, c.rowCount, windowOptions)
         if second then
             if stacked then
                 local shifted = {}
@@ -1367,11 +1427,30 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
                 second = shifted
             end
             local rows
-            second, rows = Smart(2, second, second.rows, splitOptions)
+            second, rows = Smart(c, 2, second, second.rows, splitOptions)
             if second then second.rows = rows end
         end
-        if oldTop and not box then firstHidden = true; lastDrawn = nil end
-        -- Open, the input is lifted onto the panel, which keeps the input's bottom; the logs above the input
+        if oldTop and not box then c.firstHidden = true; lastDrawn = nil end
+        c.box, c.second = box, second
+    end
+    -- A box lifted over the panel, into a table of its own (cleared first), or nil
+    local function Lifted(b, lift, into)
+        if not b then return nil end
+        for k in pairs(into) do into[k] = nil end
+        for k, v in pairs(b) do into[k] = v end
+        into.top, into.bottom = b.top - lift, b.bottom - lift
+        return into
+    end
+    -- The expanded log's place, kept in one table
+    local function SetExpandPlace(left, bottom)
+        if not expandPlace then expandPlace = {} end
+        expandPlace.left, expandPlace.bottom = left, bottom
+    end
+    -- Open, the input is lifted onto the panel, which keeps the input's bottom; the logs above the input. An attached
+    -- panel takes the bottom of the logs' place: both boxes drawn wholly above it (copies, so a held box is not lifted
+    -- twice). Where the expanded log will open is asked for already, so the game lays it out there from its first frame.
+    local function PanelAndLift(c)
+        local box, second, plan, panelBase = c.box, c.second, c.plan, c.panelBase
         local open = plan.active and box ~= nil
         local panelOnly = not box and not second and panelBase ~= nil
         local panelHost, panelSplit = box, second
@@ -1379,114 +1458,173 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
             -- Keep only a zero-height layout anchor, not the old chat height or padding.
             panelHost = { left = panelBase.left, width = panelBase.width, top = panelBase.bottom,
                 bottom = panelBase.bottom, height = 0 }
+            local routes = c.routes
             if routes and routes.split and #splitRect == 4 and #logRect == 4 and splitRect[4] > logRect[2] + 2 then
                 panelSplit = { left = splitRect[1], width = splitRect[3] - splitRect[1], top = panelBase.bottom,
                     bottom = panelBase.bottom, height = 0 }
             end
         end
-        panelAttachment = infoPanel.Prepare(app.options.infoPanel, panelHost, panelSplit, plan.height, fontSize, app.options.fontFile,
+        panelAttachment = infoPanel.Prepare(app.options.infoPanel, panelHost, panelSplit, plan.height, c.fontSize, app.options.fontFile,
             open and plan.bottom or nil)
         if panelOnly and panelAttachment then
             -- A zero-height log is not a valid native menu rectangle. Anchor to the actual visible panel.
             panelAttachment.menus = panelAttachment.rect
         end
-        -- An attached panel takes the bottom of the logs' place: both boxes drawn wholly above it (copies, so a held box is not lifted twice)
         local lift = panelAttachment and panelAttachment.lift or 0
         if panelAttachment then plan.bottom = plan.bottom - panelAttachment.inputLift end -- this frame's plan, measured afresh each frame
-        if lift > 0 then
-            local function Lifted(b)
-                if not b then return nil end
-                local moved = {}
-                for k, v in pairs(b) do moved[k] = v end
-                moved.top, moved.bottom = b.top - lift, b.bottom - lift
-                return moved
-            end
-            box, second = Lifted(box), Lifted(second)
-        end
-        -- where the expanded log will open, asked for already, so the game lays it out there from its first frame
-        if box and not open then expandPlace = { left = box.left, bottom = box.bottom + lift }
-        elseif panelOnly and not open then expandPlace = { left = panelHost.left, bottom = panelHost.bottom } end
+        if lift > 0 then box, second = Lifted(box, lift, liftedFirst), Lifted(second, lift, liftedSecond) end
+        if box and not open then SetExpandPlace(box.left, box.bottom + lift)
+        elseif panelOnly and not open then SetExpandPlace(panelHost.left, panelHost.bottom) end
         PlaceLog(app.options)
+        c.box, c.second, c.open, c.panelOnly = box, second, open, panelOnly
+    end
+    -- Each window's contents, drawn inside it (with the chat's font pushed round the log), then its panel slot
+    local function DrawFirstWindow()
+        local c = compact
+        local chatFont = c.chatFont
+        if chatFont then imgui.PushFont(chatFont, c.fontSize) end
+        local drawn, drawError = pcall(DrawLog, c.box, c.rowCount, c.fontSize, c.padding, views[1], Filter(c.routes, 1), c.litFirst, windowOptions)
+        if chatFont then imgui.PopFont() end
+        if not drawn then error(drawError, 0) end
+        infoPanel.Draw(panelAttachment, 0) -- under the lifted log, on its capture
+    end
+    local function DrawSecondWindow()
+        local c = compact
+        local chatFont, second = c.chatFont, c.second
+        if chatFont then imgui.PushFont(chatFont, c.fontSize) end
+        local drawn, drawError = pcall(DrawLog, second, second.rows, c.fontSize, c.padding, views[2], Filter(c.routes, 2), selectedWindow == 2, splitOptions)
+        if chatFont then imgui.PopFont() end
+        if not drawn then error(drawError, 0) end
+        infoPanel.Draw(panelAttachment, 1)
+    end
+    -- a panel drawn on its own (no log above it), by its slot, and its window's name: each made once
+    local panelDraws, panelNames = {}, {}
+    local function PanelDraw(slot)
+        local draw = panelDraws[slot]
+        if not draw then
+            draw = function() infoPanel.Draw(panelAttachment, slot) end
+            panelDraws[slot], panelNames[slot] = draw, 'winxi.chatbox.panel.' .. slot
+        end
+        return draw, panelNames[slot]
+    end
+    -- The windows: the first box, the second with the first's or on its own while the first is at 0 lines, or the
+    -- panel alone
+    local function DrawBoxes(c)
+        local box, second, state = c.box, c.second, c.state
         if box then
             place[1], place[2] = box.left, box.bottom
             size[1], size[2] = box.width, box.height
             selectedWindow = state ~= nil and state.selectedWindow or nil
             -- the light and cursor on the window the game's focus is on; on the first while the second is not drawn
-            local litFirst = selectedWindow ~= nil and (selectedWindow == 1 or not second)
+            c.litFirst = selectedWindow ~= nil and (selectedWindow == 1 or not second)
+            local plan = c.plan
             windowOptions.title = OwnTitle(app.options.windowTitle) or channels.Title(plan.snapshot and channels.Typed(plan.snapshot.text) or selectedMode or spoken)
             imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
             imgui.SetNextWindowSize(size, ImGuiCond_Always)
-            local chatFont = plan.font
-            window.Plain('winxi.chatbox', open, flags, function()
-                if chatFont then imgui.PushFont(chatFont, fontSize) end
-                local drawn, drawError = pcall(DrawLog, box, rowCount, fontSize, padding, views[1], Filter(routes, 1), litFirst, windowOptions)
-                if chatFont then imgui.PopFont() end
-                if not drawn then error(drawError, 0) end
-                infoPanel.Draw(panelAttachment, 0) -- under the lifted log, on its capture
-            end, windowOptions)
+            c.chatFont = plan.font
+            window.Plain('winxi.chatbox', c.open, flags, DrawFirstWindow, windowOptions)
             lastDrawn = views[1].drawn
         end
-        if firstHidden then lastDrawn = nil; selectedWindow = state ~= nil and state.selectedWindow or nil end
-        -- the second box, with the first's or on its own while the first is at 0 lines
-        if second and (captured or firstHidden) and secondary.Begin() then
-            local chatFont = plan.font
+        if c.firstHidden then lastDrawn = nil; selectedWindow = state ~= nil and state.selectedWindow or nil end
+        if second and (captured or c.firstHidden) and secondary.Begin() then
+            c.chatFont = c.plan.font
             splitOptions.title = OwnTitle(app.options.splitTitle) or 'Window 2'
-            imgui.SetNextWindowPos({ second.left, second.bottom }, ImGuiCond_Always, pivot)
-            imgui.SetNextWindowSize({ second.width, second.height }, ImGuiCond_Always)
-            window.Plain('winxi.chatbox.split', open, flags, function()
-                if chatFont then imgui.PushFont(chatFont, fontSize) end
-                local drawn, drawError = pcall(DrawLog, second, second.rows, fontSize, padding, views[2], Filter(routes, 2), selectedWindow == 2, splitOptions)
-                if chatFont then imgui.PopFont() end
-                if not drawn then error(drawError, 0) end
-                infoPanel.Draw(panelAttachment, 1)
-            end, splitOptions)
-            splitDrawn = capturedSplit
+            splitPlace[1], splitPlace[2] = second.left, second.bottom
+            imgui.SetNextWindowPos(splitPlace, ImGuiCond_Always, pivot)
+            splitSize[1], splitSize[2] = second.width, second.height
+            imgui.SetNextWindowSize(splitSize, ImGuiCond_Always)
+            window.Plain('winxi.chatbox.split', c.open, flags, DrawSecondWindow, splitOptions)
+            c.splitDrawn = capturedSplit
             lastSplit = views[2].drawn
         end
-        if panelOnly and panelAttachment then
+        if c.panelOnly and panelAttachment then
             lastDrawn, lastSplit = nil, nil
             for _, panel in ipairs(panelAttachment.panels) do
                 local slot, rect = panel.slot, panel.rect
                 if slot == 0 or secondary.Begin() then
-                    imgui.SetNextWindowPos({ rect.left, rect.top + rect.height }, ImGuiCond_Always, pivot)
-                    imgui.SetNextWindowSize({ rect.width, rect.height }, ImGuiCond_Always)
-                    window.Plain('winxi.chatbox.panel.' .. slot, false, flags, function()
-                        infoPanel.Draw(panelAttachment, slot)
-                    end, panelOnlyOptions[slot + 1])
-                    if slot == 1 then splitDrawn = capturedSplit end
+                    panelPlace[1], panelPlace[2] = rect.left, rect.top + rect.height
+                    imgui.SetNextWindowPos(panelPlace, ImGuiCond_Always, pivot)
+                    panelSize[1], panelSize[2] = rect.width, rect.height
+                    imgui.SetNextWindowSize(panelSize, ImGuiCond_Always)
+                    local draw, name = PanelDraw(slot)
+                    window.Plain(name, false, flags, draw, panelOnlyOptions[slot + 1])
+                    if slot == 1 then c.splitDrawn = capturedSplit end
                 end
             end
         end
+    end
+    -- The frame's drawing, called through pcall: the expanded log, or the compact boxes phase by phase and the input bar
+    local function DrawFrame()
+        local display = imgui.GetIO().DisplaySize
+        local sw, sh = display.x or display[1], display.y or display[2]
+        if not sw or not sh or sw < 100 or sh < 100 then input.Stop(); return end
+        local state = primary.State()
+        local expanded = state and state.expanded
+        frame = frame + 1
+        if expanded then DrawExpanded(state, sw, sh); return end
+        -- ImGui's normal minimum is taller than a one-row log or panel-only host.
+        imgui.PushStyleVar(ImGuiStyleVar_WindowMinSize, MIN_SIZE)
+        local c = compact
+        c.compactMinSize = true
+        c.state = state
+        MeasureFirst(c, sw, sh)
+        MeasureSecond(c, sw, sh)
+        HoldBox(c, sh)
+        Activity(c)
+        PanelAndLift(c)
+        DrawBoxes(c)
         -- Input is independent: keep it working while waiting for the log's first geometry sample.
-        input.Draw(plan.width, sh, fontSize, padding, flags, game, plan)
-    end)
-    if compactMinSize then imgui.PopStyleVar() end
-    if not ok then Release(); error(err, 0) end
-    -- The first log at 0 lines keeps Begin's empty hide, so nothing of the game's shows in its place either
-    if not captured and not firstHidden then
-        ResetViews(false)
-        primary.Stop()
-        secondary.Stop()
-        return
+        input.Draw(c.plan.width, sh, c.fontSize, c.padding, flags, c.game, c.plan)
     end
-    -- One box or two: the game's second log window is drawn as the second box where the game shows one and
-    -- uihook says how the game routes between them; otherwise it is hidden rather than left as a duplicate
-    -- under the first. Only hide it after a complete primary capture succeeded (or the first is at 0 lines).
-    if firstHidden or (lastDrawn and not lastDrawn.expanded) then
-        if not splitDrawn then secondary.Begin() end
-        views[1].target = captured and lastDrawn or nil
-        views[2].target = splitDrawn and lastSplit or nil
-    end
-    -- The tooltips are drawn here, past every window, where no font of winxi's is pushed: the theme's goes round them,
-    -- as a tooltip in a themed window has it (winxi.tooltip keeps the font it finds unless Tooltip Font Size says otherwise)
-    local themeFont = fonts.Push(false)
-    local ok, err = pcall(function()
+    -- The tooltips, drawn past every window
+    local function Tooltips()
         infoPanel.Tooltip()
         ChatTooltip()
-    end)
-    fonts.Pop(themeFont)
-    if not ok then error(err, 0) end
-end)
+    end
+    local function Present()
+        for _, view in ipairs(views) do view.target = nil end -- rearmed only after this frame captures a complete replacement
+        hovered.text, hovered.row, hovered.view, hovered.expanded, hovered.mirror = nil, nil, nil, false, false -- found again as this frame's logs are drawn
+        app:BeginFrame() -- configures WinXI's shared/local theme and draws settings
+        infoPanel.BeginFrame() -- renew menu placement only with this frame's successful host capture
+        DrainTap() -- the frame's lines as uihook has them after every addon, or chatbox's own copies
+        if not app.options.enabled[1] or zoning then Release(); return end
+        infoPanel.Hud(app.options.infoPanel) -- Hide Game Clock and Hide Compass, with or without the panel or chat's capture
+        ImportHistory() -- the game's history before chatbox's own, once
+        if not primary.Begin() then
+            ResetViews(false)
+            secondary.Stop(); input.Stop(); return
+        end
+        captured, capturedSplit, selectedWindow, panelAttachment = false, false, nil, nil
+        palette.Source(primary.Colors and primary.Colors() or nil) -- the game's chat colours as configured, where uihook reads them
+        local c = compact
+        c.splitDrawn, c.firstHidden, c.compactMinSize = false, false, false
+        local ok, err = pcall(DrawFrame)
+        if c.compactMinSize then imgui.PopStyleVar() end
+        if not ok then Release(); error(err, 0) end
+        -- The first log at 0 lines keeps Begin's empty hide, so nothing of the game's shows in its place either
+        if not captured and not c.firstHidden then
+            ResetViews(false)
+            primary.Stop()
+            secondary.Stop()
+            return
+        end
+        -- One box or two: the game's second log window is drawn as the second box where the game shows one and
+        -- uihook says how the game routes between them; otherwise it is hidden rather than left as a duplicate
+        -- under the first. Only hide it after a complete primary capture succeeded (or the first is at 0 lines).
+        if c.firstHidden or (lastDrawn and not lastDrawn.expanded) then
+            if not c.splitDrawn then secondary.Begin() end
+            views[1].target = captured and lastDrawn or nil
+            views[2].target = c.splitDrawn and lastSplit or nil
+        end
+        -- The tooltips are drawn here, past every window, where no font of winxi's is pushed: the theme's goes round them,
+        -- as a tooltip in a themed window has it (winxi.tooltip keeps the font it finds unless Tooltip Font Size says otherwise)
+        local themeFont = fonts.Push(false)
+        ok, err = pcall(Tooltips)
+        fonts.Pop(themeFont)
+        if not ok then error(err, 0) end
+    end
+    ashita.events.register('d3d_present', 'chatbox_present', Present)
+end
 
 -- Only the wheel over an overflowing box and left-button interactions with its scrollbar are taken; each box
 -- has its own. All other mouse input stays native. true when the event was taken.

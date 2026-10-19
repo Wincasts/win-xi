@@ -3,48 +3,59 @@
 local imgui = require('imgui')
 local M = {}
 local open, close = '❮', '❯'
-local function Parts(text, emit)
-    local at = 1
-    while true do
-        local a = text:find(open, at, true)
-        local b = text:find(close, at, true)
-        local first = a and b and math.min(a, b) or a or b
-        if not first then
-            if at <= #text then emit(text:sub(at), false) end
-            return
-        end
-        if first > at then emit(text:sub(at, first - 1), false) end
-        emit(text:sub(first, first + 2), true)
-        at = first + 3
-    end
+-- The part of text that starts at byte at: its first and last bytes and whether it is a bracket; nil past the end.
+-- Walked part by part (Measure and Text), with no function made for each call.
+local function Part(text, at)
+    if at > #text then return nil end
+    local a = text:find(open, at, true)
+    local b = text:find(close, at, true)
+    local first = a and b and math.min(a, b) or a or b
+    if not first then return at, #text, false end
+    if first > at then return at, first - 1, false end
+    return first, first + 2, true
 end
 function M.Measure(text)
     if not text:find(open, 1, true) and not text:find(close, 1, true) then return imgui.CalcTextSize(text) end
     local width, size = 0, imgui.GetFontSize()
-    Parts(text, function(part, icon)
-        width = width + (icon and size * 0.65 or imgui.CalcTextSize(part))
-    end)
+    local at = 1
+    while true do
+        local first, last, icon = Part(text, at)
+        if not first then break end
+        width = width + (icon and size * 0.65 or imgui.CalcTextSize(text:sub(first, last)))
+        at = last + 1
+    end
     return width, size
 end
+-- The points handed to imgui, which copies them: one table each, filled afresh for every call, not made anew
+local textPos, lineFrom, lineTo, richPos = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
+local OPENING, CLOSING = { 0.3, 1, 0.35, 1 }, { 1, 0.3, 0.3, 1 }
 function M.Text(list, pos, color, text)
     if not text:find(open, 1, true) and not text:find(close, 1, true) then
         list:AddText(pos, color, text); return
     end
     local x, y, size = pos[1], pos[2], imgui.GetFontSize()
-    Parts(text, function(part, icon)
+    local at = 1
+    while true do
+        local first, last, icon = Part(text, at)
+        if not first then break end
+        local part = text:sub(first, last)
         if icon then
             local opening = part == open
-            local tint = imgui.GetColorU32(opening and {0.3, 1, 0.35, 1} or {1, 0.3, 0.3, 1})
+            local tint = imgui.GetColorU32(opening and OPENING or CLOSING)
             local left, right = x + size * 0.15, x + size * 0.5
             local tip, edge = opening and left or right, opening and right or left
-            list:AddLine({edge, y + size * 0.2}, {tip, y + size * 0.5}, tint, math.max(1, size * 0.14))
-            list:AddLine({tip, y + size * 0.5}, {edge, y + size * 0.8}, tint, math.max(1, size * 0.14))
+            lineFrom[1], lineFrom[2], lineTo[1], lineTo[2] = edge, y + size * 0.2, tip, y + size * 0.5
+            list:AddLine(lineFrom, lineTo, tint, math.max(1, size * 0.14))
+            lineFrom[1], lineFrom[2], lineTo[1], lineTo[2] = tip, y + size * 0.5, edge, y + size * 0.8
+            list:AddLine(lineFrom, lineTo, tint, math.max(1, size * 0.14))
             x = x + size * 0.65
         else
-            list:AddText({x, y}, color, part)
+            textPos[1], textPos[2] = x, y
+            list:AddText(textPos, color, part)
             x = x + imgui.CalcTextSize(part)
         end
-    end)
+        at = last + 1
+    end
 end
 -- Draw ordered byte spans without exposing protocol escapes to ImGui or wrapping.
 -- Source timestamp colours are preserved just like every other inline span.
@@ -85,7 +96,8 @@ function M.Rich(list, pos, color, text, spans, keep, font, size)
             local found = palette.Color(part.span.bank, part.span.slot)
             if found then tint = imgui.GetColorU32(found) end
         end
-        M.Text(list, { x + part.x, y }, tint, part.text)
+        richPos[1], richPos[2] = x + part.x, y
+        M.Text(list, richPos, tint, part.text)
     end
 end
 return M
