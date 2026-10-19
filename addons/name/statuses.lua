@@ -27,6 +27,7 @@ local statusicons = require('winxi.statusicons');
 local debuffs     = require('winxi.debuffs');
 local theme       = require('winxi.theme');
 local controls    = require('controls');
+local entityTypes = require('entity_types');
 
 local statuses = {};
 
@@ -57,6 +58,7 @@ local settings = {
     statusAlign  = function () return T{ 'center' }; end, -- and level with its left, its middle or its right
     statusOffsetX = function () return T{ 0 }; end, -- then moved right (or left, below 0), in screen pixels
     statusOffsetY = function () return T{ 0 }; end, -- and down (or up, below 0)
+    statusCategories = function () return T{ 0xFF }; end, -- which kinds of name have a row: entity_types
     statusIcons  = function () return T{ 'theme' }; end,  -- the icons: as the winxi theme has them, the game's, or the custom set's
     statusList   = function ()
         return T{ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 128, 129, 130, 131, 132, 133, 134, 135, 156, 192, 194, 217 };
@@ -184,6 +186,7 @@ local size = 1.25;    -- an icon's height, as a part of the name's
 local below = false;  -- the row under the name, not over it
 local align = 'center';
 local offsetX, offsetY = 0, 0; -- screen pixels the row is moved by
+local categories = 0xFF; -- the kinds of name that have a row
 local SELF = nameplates.Category.Self;
 -- The player's and the party's statuses are read the first time a name this frame wants them, and
 -- not at all in a frame with no name that does; and the time, for what is tracked, once a frame
@@ -210,6 +213,7 @@ function statuses.Begin(options)
     below = options.statusPlace ~= nil and options.statusPlace[1] == 'below';
     align = options.statusAlign ~= nil and options.statusAlign[1] or 'center';
     offsetX = math.max(-MOST_OFFSET, math.min(MOST_OFFSET, tonumber(options.statusOffsetX ~= nil and options.statusOffsetX[1]) or 0));
+    categories = options.statusCategories ~= nil and tonumber(options.statusCategories[1]) or 0xFF;
     offsetY = math.max(-MOST_OFFSET, math.min(MOST_OFFSET, tonumber(options.statusOffsetY ~= nil and options.statusOffsetY[1]) or 0));
     shownWith = options;
     ownRead, partyRead, seconds = false, false, os.time();
@@ -304,7 +308,7 @@ local function Gather(name, options)
 end
 
 function statuses.Write(name, nameLeft, nameRight, above, under, height, scale)
-    if (sheet == 0) then
+    if (sheet == 0 or bit.band(categories, name.Category or 0) == 0) then
         return;
     end
     Gather(name, shownWith);
@@ -415,6 +419,15 @@ function statuses.DrawSettings(options, save)
             controls.Checkbox('Preview', '##name.statusPreview', preview,
                 'Puts the first few ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: it is off again when the addon is loaded.');
         end
+    end
+    controls.EndSection();
+
+    if (controls.Section('Entity Types', '##name.statusTypes')) then
+        imgui.BeginDisabled(not options.showStatuses[1]);
+        if (entityTypes.Draw('statusTypes', options.statusCategories, 'Whether names of this kind have a row of statuses.')) then
+            changed = true;
+        end
+        imgui.EndDisabled();
     end
     controls.EndSection();
 

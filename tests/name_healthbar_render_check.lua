@@ -99,6 +99,13 @@ assert(render() == live)
 local bar = draw.Quads[draw.Entities[1].First + draw.Entities[1].Count - 3]
 assert(bar.X1 - bar.X0 == 100 and bar.Y1 - bar.Y0 == 10,
     'renderer forwards saved width and height')
+-- Entity Types: only the kinds ticked have a bar
+assert(options.healthBarCategories[1] == plates.Category.All, 'every kind to begin with')
+options.healthBarCategories[1] = plates.Category.All - plates.Category.Player
+assert(render() == baseline, 'Other Players unticked: no bar over a player')
+options.healthBarCategories[1] = plates.Category.Player
+assert(render() == live, 'Other Players alone: the bars back')
+options.healthBarCategories[1] = plates.Category.All
 -- a name further away is drawn smaller, and its bar shrinks with it by the same factor
 local keptMax, keptMin = options.fontSize[1], options.minSize[1]
 options.fontSize[1], options.minSize[1] = 20, 10

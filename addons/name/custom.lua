@@ -37,6 +37,7 @@ local healthbar = require('healthbar');
 local nameColours = require('name_colours');
 local inline = require('inline_tokens');
 local nameTypes = require('name_types');
+local entityTypes = require('entity_types');
 local mobFields = require('mob_fields');
 local rules = require('block_rules');
 local diag = require('diag');
@@ -110,6 +111,7 @@ local settings = {
     healthBarsCombatOnly = function () return T{ false }; end,
     healthBarWidth = function () return T{ 60 }; end,
     healthBarHeight = function () return T{ 6 }; end,
+    healthBarCategories = function () return T{ 0xFF }; end, -- which kinds of name have one: entity_types
     showMobLevel = function () return T{ true }; end, -- obsolete; token presence is authoritative
     showAggroIcons = function () return T{ true }; end, -- obsolete; token presence is authoritative
     showMobLetter = function () return T{ false }; end, -- legacy migration input
@@ -227,6 +229,8 @@ function custom.Settle(options)
         options.showDistance, options.distanceTargetOnly = nil, nil;
     end
     nameTypes.Settle(options);
+    options.healthBarCategories = entityTypes.Settle(options.healthBarCategories);
+    options.statusCategories = entityTypes.Settle(options.statusCategories);
     nameColours.Settle(options);
 end
 
@@ -384,10 +388,18 @@ function custom.DrawTracking(options, save)
 end
 
 -- The bars under the names: a tab of their own
-function custom.DrawHealthBars(options)
+function custom.DrawHealthBars(options, save)
     controls.BeginLayout('healthBars', 360, 'Health Bar Height (px)');
     if (controls.Section('Health Bars', '##name.healthBarOptions', true)) then
         nameTypes.Draw(options);
+    end
+    controls.EndSection();
+    if (controls.Section('Entity Types', '##name.healthBarTypes')) then
+        imgui.BeginDisabled(not options.showHealthBar[1]);
+        if (entityTypes.Draw('healthBarTypes', options.healthBarCategories, 'Whether names of this kind have a health bar.') and save ~= nil) then
+            save();
+        end
+        imgui.EndDisabled();
     end
     controls.EndSection();
     controls.EndLayout();
@@ -1523,7 +1535,8 @@ function custom.Frame(options, hook, formats)
                             top + math.max(0, under - top - height), scale, now) or under);
                     end
 
-                    if (options.showHealthBar[1] and (not options.healthBarsCombatOnly[1] or nameColours.InCombat(name, entities))) then
+                    if (options.showHealthBar[1] and bit.band(options.healthBarCategories[1], name.Category) ~= 0
+                            and (not options.healthBarsCombatOnly[1] or nameColours.InCombat(name, entities))) then
                         -- the bar is its saved size under a name at its largest, and shrinks with the name
                         -- as it goes further away (or grows with it, hunted or under the sub-target cursor)
                         under = healthbar.Write(name, entities, nameLeft, nameLeft + width,
