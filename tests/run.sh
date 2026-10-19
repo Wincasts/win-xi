@@ -25,6 +25,13 @@ run mark       addons/mark/mark.lua     mark_database_check.lua
 luajit tests/mark_stats_check.lua
 luajit tests/winxi_version_check.lua
 luajit tests/winxi_gamedata_check.lua
+luajit tests/winxi_items_check.lua || exit 1
+python3 tools/test_build_item_data.py || exit 1
+python3 tools/test_build_catalog_data.py || exit 1
+luajit tests/winxi_catalogs_check.lua || exit 1
+luajit tests/winxi_autotranslate_check.lua || exit 1
+python3 tools/test_build_quest_data.py || exit 1
+luajit tests/winxi_quests_check.lua || exit 1
 luajit tests/parse_check.lua || exit 1
 luajit tests/parse_accuracy_check.lua || exit 1
 luajit tests/harness.lua parse tests/parse_stand_in.lua tests/parse_ui_check.lua || exit 1
@@ -96,6 +103,10 @@ luajit tests/winxi_mapdat_check.lua
 luajit tests/winxi_cursor_check.lua
 luajit tests/winxi_font_texture_check.lua
 luajit tests/chatbubbles_world_check.lua
+luajit tests/chatbubbles_check.lua
+luajit tests/chatbubbles_npc_check.lua
+luajit tests/chatbubbles_colors_check.lua
+run chatbubbles addons/chatbubbles/chatbubbles.lua chatbubbles_config_check.lua
 luajit tests/hideparty_cursor_check.lua
 luajit tests/map_files_check.lua
 echo
