@@ -79,7 +79,7 @@ function types.Maximum(options)
 end
 
 function types.Draw(options)
-    controls.Checkbox('Health Bars', '##name.showHealthBar', options.showHealthBar,
+    controls.Checkbox('Enabled', '##name.showHealthBar', options.showHealthBar,
         'One shared health-bar setting for every entity, including pets/trusts and NPCs. Requires valid HP data; full-health entities have no bar.');
     imgui.BeginDisabled(not options.showHealthBar[1]);
     controls.Checkbox('Combat Only', '##name.healthBarsCombatOnly', options.healthBarsCombatOnly,

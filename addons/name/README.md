@@ -30,7 +30,7 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Trigger's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-The tabs are **Names → Visibility → Statuses**, and **NM Tracking** after `/name dev`.
+The tabs are **Names → Health Bars → Statuses → Visibility**, and **NM Tracking** after `/name dev`.
 
 - **General Name Appearance:** common Font, Bold, Maximum/Minimum Name Size,
   Subtarget Size and Outline. One maximum/minimum pair applies to every entity type,
@@ -51,7 +51,7 @@ The tabs are **Names → Visibility → Statuses**, and **NM Tracking** after `/
   no separate Tokens & Examples dropdown. Player/NPC strings support `[name]`,
   `[distance]`, `[icons]`, literal text and colours; enemies additionally support
   `[level]`, `[aggro]`, `[checked]`, `[letters]`.
-- **General Name Appearance → Health Bars** has one shared **Health Bars** toggle,
+- **Health Bars**, a tab of its own, has one shared **Enabled** toggle,
   **Combat Only**, and **Health Bar Width/Height** for every entity, including pets,
   trusts and NPCs. Dimensions and Combat Only stay visible but disabled while bars
   are off. Bars require valid live HP/server-ID data; full-health entities have none.
@@ -102,10 +102,10 @@ namehook 1.10 or later.
 
 | Setting | What it does |
 |---|---|
-| Health Bars (General, shared) | Off by default. Shows a bar matching the name's colour for damaged names of every type when HP is available. Full-health names have no bar. Bars follow visibility/fading and leave room for check details and statuses |
-| Health Bar Width / Height (px, General, shared) | One pair for all types, the bar's size under a name at its largest; it shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
+| Health Bars → Enabled (shared) | Off by default. Shows a bar matching the name's colour for damaged names of every type when HP is available. Full-health names have no bar. Bars follow visibility/fading and leave room for check details and statuses |
+| Health Bar Width / Height (px, Health Bars, shared) | One pair for all types, the bar's size under a name at its largest; it shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
 | Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars are unchanged |
-| Combat Only (General) | Off by default. Requires each entity's own Engaged status (1) and HP above zero. Missing/invalid data hides the bar; applies to players, enemies, pets/trusts and NPCs |
+| Combat Only (Health Bars) | Off by default. Requires each entity's own Engaged status (1) and HP above zero. Missing/invalid data hides the bar; applies to players, enemies, pets/trusts and NPCs |
 | Maximum Name Size (px, General) | Shared nearby text height, 6–48 pixels, for every entity type; independent of bar dimensions |
 | Minimum Name Size (px, General) | Shared distant text height for every type, never more than the maximum |
 | Subtarget Size (%) | The size of the name under the sub-target cursor (`<st>`, `<stpc>`, `<stnpc>` and the like) while you choose, 50% to 200% of the others'; 100% to begin with. The game's own changes to that name's size as the choice begins and ends are ignored, at any setting, so it changes size once each way. Above 100% its letters are the largest size's drawn larger, so they are slightly softer |
