@@ -1,6 +1,7 @@
 -- Per-type settings layout and legacy-setting compatibility.
 local imgui, widgets = require('imgui'), require('winxi.widgets')
 local custom, controls, types = require('custom'), require('controls'), require('name_types')
+local customSettings = require('custom_settings')
 local options = H.options()
 AshitaCore.GetPluginManager = function() return { IsLoaded = function() return false end } end
 local headers, tabs, ids, marks, widths, disabledIds = {}, {}, {}, {}, {}, {}
@@ -84,7 +85,7 @@ assert(help['##name.monsterFormat']:find('[letters]', 1, true))
 assert(help['##name.npcFormat']:find('Mog House (4.2y)', 1, true))
 controls.Mark = mark
 options.showHealthBar[1] = true
-clear(); custom.DrawHealthBars(options)
+clear(); customSettings.DrawHealthBars(options)
 assert(not disabledIds['##name.healthBarWidth'] and not disabledIds['##name.healthBarsCombatOnly'])
 options.showHealthBar[1] = false
 local input = imgui.InputInt
@@ -94,8 +95,8 @@ imgui.InputInt = function(id, value)
     return input(id, value)
 end
 local barWidth = options.healthBarWidth[1]
-custom.DrawSettings(options)
-custom.DrawHealthBars(options)
+customSettings.DrawSettings(options)
+customSettings.DrawHealthBars(options)
 imgui.InputInt = input
 custom.Settle(options)
 assert(options.fontSize[1] == 28 and options.healthBarHeight[1] == 11 and options.healthBarWidth[1] == barWidth)
@@ -103,7 +104,7 @@ H.print('Shared name-size and bar dimensions remain independent', true)
 
 imgui.ColorEdit4 = record
 for _, key in ipairs(types.List) do expanded['Colour Overrides##name.colours.' .. key] = true end
-clear(); custom.DrawSettings(options)
+clear(); customSettings.DrawSettings(options)
 for _, key in ipairs(types.List) do
     for _, state in ipairs(require('name_colours').States[key]) do
         local id = '##name.colours.' .. key .. '.' .. state[1]
@@ -112,10 +113,10 @@ for _, key in ipairs(types.List) do
     end
 end
 options.nameColours.enemyNames.callForHelp.enabled[1] = true
-clear(); custom.DrawSettings(options)
+clear(); customSettings.DrawSettings(options)
 assert(not disabledIds['##name.colours.enemyNames.callForHelp.color'])
 imgui.Button = function(id) return id == 'Use Game Colours##name.colours.reset.enemyNames' end
-custom.DrawSettings(options)
+customSettings.DrawSettings(options)
 assert(not options.nameColours.enemyNames.callForHelp.enabled[1], 'reset restores game colours')
 imgui.Button = record
 for _, key in ipairs(types.List) do expanded['Colour Overrides##name.colours.' .. key] = false end
@@ -126,18 +127,18 @@ imgui.InputText = function(id, value)
     if id == '##name.npcFormat' then value[1] = '[name] ([distance]y)'; return true end
     return record(id)
 end
-custom.DrawSettings(options); custom.Settle(options)
+customSettings.DrawSettings(options); custom.Settle(options)
 assert(options.monsterFormat[1] == '[level] [name] [letters: type=double]')
 imgui.InputText = record
 imgui.Button = function(id) return id == 'Reset##name.resetFormat' end
 local saves = 0
-custom.DrawSettings(options, function() saves = saves + 1 end)
+customSettings.DrawSettings(options, function() saves = saves + 1 end)
 assert(saves == 1 and options.monsterFormat[1] == '[aggro] [name] [letters]')
 assert(options.nameFormat[1] == 'Player: [name]' and options.npcFormat[1] == '[name] ([distance]y)')
 imgui.Button = record
 imgui.BeginCombo = function(id) return id == '##name.checkDetailsInWords' end
 imgui.Selectable = function(id) return id:find('Text Only', 1, true) ~= nil end
-custom.DrawSettings(options); assert(options.checkDetailsInWords[1])
+customSettings.DrawSettings(options); assert(options.checkDetailsInWords[1])
 imgui.BeginCombo = record
 H.print('Category format editors/reset preserve each other', true)
 
@@ -200,9 +201,9 @@ H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(ids['##name.diagnosticsEnabled'] and ids['Write Log##name.diag.write'])
 H.command('/name diag off')
 right = 320
-custom.DrawSettings(options)
+customSettings.DrawSettings(options)
 for frame = 1, 10 do
-    marks = {}; custom.DrawSettings(options)
+    marks = {}; customSettings.DrawSettings(options)
     for _, position in ipairs(marks) do assert(position == 328) end
 end
 controls.Width(); assert(widths[#widths] == 260)
@@ -226,7 +227,7 @@ local levels = require('levels')
 local original = levels.Placeholders
 levels.Placeholders = function() return {} end
 options.trackedNm[1] = 'Test NM'
-clear(); custom.DrawTracking(options)
+clear(); customSettings.DrawTracking(options)
 assert(table.concat(headers, '|') == 'Tracked Monster|Placeholder Options')
 levels.Placeholders = original
 H.print('Visibility, diagnostics, statuses/tracking and stable aligned/wrapped layouts retained', true)
