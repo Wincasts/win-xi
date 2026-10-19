@@ -17,7 +17,7 @@ struct MenuShared {
 static_assert(sizeof(MenuShared)==108,"menu ABI");
 static bool MenuFresh(const MenuShared& menu,const ChatShared& chat,uint32_t frame) {
     const uint32_t request=menu.RequestFrame,host=menu.HostSlot;
-    return menu.Supported && request && frame-request<=2 && host<2
+    return menu.Supported && request && frame-request<=CHAT_REQUEST_FRAMES && host<2
         && chat.DrawnFrame[host] && frame-chat.DrawnFrame[host]<=2
         && !(chat.StateFlags & CHAT_EXPANDED);
 }
@@ -64,7 +64,7 @@ static bool LogPosition(const int16_t* target,bool scaled,const int* dimensions,
 }
 static bool LogFresh(const MenuShared& menu,uint32_t frame) {
     const uint32_t request=menu.LogRequestFrame;
-    return menu.Supported && request && frame-request<=2;
+    return menu.Supported && request && frame-request<=CHAT_REQUEST_FRAMES;
 }
 class MenuModule {
     struct Entry {

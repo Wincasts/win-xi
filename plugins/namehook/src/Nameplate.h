@@ -62,7 +62,7 @@ enum : uint8_t {
 #define HOOK_VERSION 3
 #define HOOK_NAMES_MAX 256
 #define HOOK_ENTITIES 0x900     // the client's entities, by index
-#define HOOK_CLAIM_FRAMES 30    // how long a claim lasts without being made again
+#define HOOK_CLAIM_TIME 500000  // microseconds a claim lasts without being made again: half a second, at any frame rate
 #define HOOK_NAME_SIZE 28
 #define HOOK_TEXT_SIZE 48
 #define HOOK_QUADS_MAX 16384    // the quads of every name an addon has drawn, together
@@ -108,7 +108,7 @@ struct HookShared {
     uint32_t Hidden;     // the categories whose names are hidden
     uint32_t Options;    // OPTION_*
     uint32_t Claimed;    // the categories an addon draws itself: wanted, listed, and not drawn by the client
-    uint32_t ClaimFrame; // the Frame the claim was last made in; it lapses HOOK_CLAIM_FRAMES later
+    uint32_t ClaimFrame; // the Frame the claim was last made in; it lapses HOOK_CLAIM_TIME after the plugin sees it
 
     // Written by the plugin
     uint32_t Frame;      // counts the frames drawn

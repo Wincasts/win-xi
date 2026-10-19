@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.91
+
+- What an addon asks for is good for eight frames, as what it hands over has been since 0.9
+  (`CHAT_REQUEST_FRAMES`): the action menus' place above chatbox's panel (`MenuFresh`), the expanded log's
+  place (`LogFresh`), and the replacement log's place that the clock follows (`ChatClockOffset`, and
+  `winxi.nativechat`'s `ClockAnchor`). With two, a few frames the game presented before the addons ran
+  again sent the menus and the clock back to the game's places for a frame, as the windows had been at
+  more than 60 frames a second. What the game draws itself is still held to two.
+
 ## 0.9
 
 - A submission is good for eight frames, not two: the party, alliance and target windows, the clock and

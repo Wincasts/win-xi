@@ -364,7 +364,7 @@ MenuFrame, Applied, Restored, LastName[16], LogRequestFrame, LogPlace[2] in pixe
 LogApplied, LogRestored. Chat ABI remains 13. No publisher means no menu changes.
 
 The **expanded chat log** (`fulllog`, the owner global the chat module recognises) is placed the same
-way: while LogRequestFrame is fresh (two frames), its target is moved before its own Update so its
+way: while LogRequestFrame is fresh (eight frames), its target is moved before its own Update so its
 bottom-left is at LogPlace, its size the game's; moved left or down as far as keeps it on the screen,
 and left where the game puts it when taller than the screen. Its rows, tabs, scrollbar, cursor and
 hit-tests are laid out there by the game. It has its own request and restore, independent of the
@@ -380,7 +380,7 @@ native origin target to align left with the panel and end 2px above it. Native U
 frame, sprites and row origins, so native cursor/hit geometry uses the same coordinates. No GPU
 translation, mouse remapping, selection writes or fake input. Positional animations may snap.
 
-Requests expire after two frames without fresh capture/replay; expanded chat also disallows them.
+Requests expire after eight frames (`CHAT_REQUEST_FRAMES`), and the host log's replay after two; expanded chat also disallows them.
 Opt-out, zoning, disabled/failed chat replacement and plugin unload restore only owned origins in
 still-live matching windows and rebuild native geometry. Newer game-written targets are preserved.
 Unknown client signatures/owners, invalid bounds and menus too tall to fit above the panel remain

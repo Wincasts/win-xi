@@ -17,7 +17,9 @@ int main() {
     MenuShared state={"UIHOOK-MENUS",1,sizeof(MenuShared),100,1,100,0,{20,700,660,718},0,0,0,{},0,{},0,0,0};
     ChatShared chat={}; chat.DrawnFrame[0]=100;
     Check(MenuFresh(state,chat,100),"fresh successful host capture");
-    Check(!MenuFresh(state,chat,103),"expired source cannot move menus");
+    Check(!MenuFresh(state,chat,103),"a host the game has not drawn lately cannot move menus");
+    chat.DrawnFrame[0]=108; Check(MenuFresh(state,chat,108),"a request eight frames old still moves them, as the addon may miss a few");
+    chat.DrawnFrame[0]=109; Check(!MenuFresh(state,chat,109),"expired request cannot move menus"); chat.DrawnFrame[0]=100;
     state.HostSlot=3; Check(!MenuFresh(state,chat,100),"invalid host rejected"); state.HostSlot=0;
     chat.StateFlags=CHAT_EXPANDED; Check(!MenuFresh(state,chat,100),"expanded chat restores menus"); chat.StateFlags=0;
     chat.DrawnFrame[0]=0; Check(!MenuFresh(state,chat,100),"no native capture replay, no anchor"); chat.DrawnFrame[0]=100;
@@ -79,7 +81,7 @@ int main() {
     place[0]=1200; Check(LogPosition(logTarget,false,dimensions,1280,960,place,placed) && placed[0]==960,"moved left to stay on the screen"); place[0]=20;
     logTarget[3]=1000; Check(!LogPosition(logTarget,false,dimensions,1280,960,place,placed),"taller than the screen: left where the game puts it"); logTarget[3]=400;
     place[1]=NAN; Check(!LogPosition(logTarget,false,dimensions,1280,960,place,placed),"NaN rejected"); place[1]=700;
-    state.LogRequestFrame=100; Check(LogFresh(state,102) && !LogFresh(state,103),"a request two frames old at most");
+    state.LogRequestFrame=100; Check(LogFresh(state,108) && !LogFresh(state,109),"a request eight frames old at most");
     uint8_t logOwner[128]={},logWindow[0xa0]={},logHeader[128]={};
     auto** logGlobal=reinterpret_cast<void**>(image+2060); *logGlobal=logOwner;
     ptr=logWindow; memcpy(logOwner+8,&ptr,4); ptr=logHeader; memcpy(logWindow+4,&ptr,4);

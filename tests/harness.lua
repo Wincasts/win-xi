@@ -195,6 +195,7 @@ H = {
     gil = function(count) gil = count; sizes[0] = sizes[0] or 30 end,
     reads = function() local r = reads reads = {} return r end,  -- how many slots of each bag were read, since last asked
     frames = function(count) for _ = 1, count or 1 do clock = clock + 0.03; fire('d3d_present') end end,
+    wait = function(seconds) clock = clock + seconds end, -- time going by without a frame, as for a check that draws its own
     command = function(text) return fire('command', { command = text, blocked = false }).blocked end,
     packet = function(id) fire('packet_in', { id = id, data = '' }) end,
     packetData = function(id, data) fire('packet_in', { id = id, data = data, data_raw = data }) end, -- a packet with its bytes

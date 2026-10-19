@@ -104,8 +104,8 @@ end
 -- one before in the same mode and is joined to it, so each message is whole again (without timestamps each line
 -- stays a message). Lines chatbox has already had since it started are left out: from the newest back, those found
 -- in the first messages it kept. Tried for a while, then given up (no uihook, or an old one).
-local IMPORT_TRIES = 600 -- frames
-local import = { wanted = true, asked = false, tries = 0, reader = nil, count = 0, status = 'not yet read' }
+local IMPORT_TIME = 10 -- seconds, at any frame rate
+local import = { wanted = true, asked = false, since = nil, reader = nil, count = 0, status = 'not yet read' }
 local function ImportLines(lines)
     local recent = {}
     for i = 1, math.min(#history.messages, 40) do recent[#recent + 1] = history.messages[i].text end
@@ -148,8 +148,8 @@ local function ImportHistory()
         local ok, found = pcall(require, 'winxi.nativehistory')
         import.reader = ok and type(found) == 'table' and found.new and found.new() or false
     end
-    import.tries = import.tries + 1
-    if not import.reader or import.tries > IMPORT_TRIES then
+    import.since = import.since or os.clock()
+    if not import.reader or os.clock() - import.since > IMPORT_TIME then
         import.wanted, import.status = false, import.reader and import.reader.Status() or 'winxi.nativehistory is missing'
         return
     end
@@ -164,7 +164,7 @@ local function Reset()
     Release()
     infoPanel.Reset()
     model.Clear(history)
-    import.wanted, import.asked, import.tries, import.count, import.status = true, false, 0, 0, 'not yet read'
+    import.wanted, import.asked, import.since, import.count, import.status = true, false, nil, 0, 'not yet read'
     ResetViews(true)
     spoken, selectedMode = 'Say', nil
     channels.ResetLinkshells()

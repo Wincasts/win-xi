@@ -15,6 +15,12 @@
 
 static int failures = 0;
 
+// The plugin's clock, a frame further on each time it is read (once a frame): 1/60 s a frame to begin
+// with, a little under, so that half a second is 30 frames as it always was
+static uint64_t fakeTime = 0, fakeStep = 16666;
+static uint64_t FakeClock() { return fakeTime += fakeStep; }
+#define FRAMES_IN(time) static_cast<int>((time) / fakeStep)
+
 #define CHECK(what) do { if (!(what)) { failures++; printf("FAILED line %d: %s\n", __LINE__, #what); } } while (0)
 
 struct TestPlugin : public Nameplate {
@@ -129,6 +135,7 @@ static uint32_t CategoryOf(const XiModel* model) {
 }
 
 int main() {
+	Clock = FakeClock;
 	static_assert(offsetof(Entity, Name) == 0x7C);
 	static_assert(offsetof(Entity, Flags0) == 0x120);
 
@@ -534,12 +541,23 @@ int main() {
 	CHECK(!Drawn(buddy) && !Drawn(stranger) && Drawn(mob));
 	plugin.Publish(nullptr, nullptr, true);
 	CHECK(Shared.Count == 3 && Shared.Names[0].Flags == NAME_WANTED && Shared.Names[1].Flags == NAME_TARGET && Shared.Names[2].Flags == (NAME_WANTED | NAME_DRAWN));
-	for (int i = 0; i < HOOK_CLAIM_FRAMES - 1; i++) {
+	for (int i = 0; i < FRAMES_IN(HOOK_CLAIM_TIME) - 1; i++) {
 		plugin.Publish(nullptr, nullptr, true);
 	}
 	CHECK(!Drawn(buddy));
 	plugin.Publish(nullptr, nullptr, true);
 	CHECK(Drawn(buddy));
+	// at 144 frames a second the claim still lasts half a second: 72 frames, not 30
+	fakeStep = 6944;
+	Shared.ClaimFrame = Shared.Frame;
+	CHECK(!Drawn(buddy));
+	for (int i = 0; i < FRAMES_IN(HOOK_CLAIM_TIME); i++) {
+		plugin.Publish(nullptr, nullptr, true);
+	}
+	CHECK(FRAMES_IN(HOOK_CLAIM_TIME) == 72 && !Drawn(buddy));
+	plugin.Publish(nullptr, nullptr, true);
+	CHECK(Drawn(buddy));
+	fakeStep = 16666;
 	Shared.Claimed = 0;
 	plugin.Publish(nullptr, nullptr, true);
 
@@ -715,8 +733,8 @@ int main() {
 		plugin.Publish(nullptr, nullptr, true);
 		CHECK(Shared.Count == 1 && Shared.Names[0].X == there[0] && Globals.RepeatsMainLast == 1);
 
-		// the lower alone for longer than LIFT_FRAMES is the name's own place: drawn where it is
-		for (int frame = 0; frame <= LIFT_FRAMES; frame++) {
+		// the lower alone for longer than LIFT_TIME is the name's own place: drawn where it is
+		for (int frame = 0; frame <= FRAMES_IN(LIFT_TIME); frame++) {
 			setOut();
 			DrawNameLineFrom(mainSite, buddy, where, "Buddy", one, 0, 0);
 			plugin.Publish(nullptr, nullptr, true);

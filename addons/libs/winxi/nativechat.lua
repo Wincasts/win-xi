@@ -164,10 +164,10 @@ function M.new(index)
             scroll = tonumber(found.FullScroll), cursor = tonumber(found.FullCursor),
             pageRows = tonumber(found.FullPageRows), filter = tonumber(found.FullFilter) }
     end
-    -- Fresh: stamped within the last two frames. Display: a size to scale normalized bounds to.
-    local function Fresh(found, stamp)
+    -- Fresh: stamped within the last two frames, or as many as given. Display: a size to scale normalized bounds to.
+    local function Fresh(found, stamp, frames)
         stamp = tonumber(stamp)
-        return stamp ~= 0 and (tonumber(found.Frame) - stamp) % 4294967296 <= 2
+        return stamp ~= 0 and (tonumber(found.Frame) - stamp) % 4294967296 <= (frames or 2)
     end
     local function Display(width, height)
         return type(width) == 'number' and type(height) == 'number' and width == width and height == height
@@ -188,9 +188,11 @@ function M.new(index)
     function hook.ClockAnchor()
         local found = Find()
         if not found or index ~= M.Primary or bit.band(found.StateFlags, 4) ~= 0 then return nil end
-        for _, stamp in ipairs({ found.PrimaryRectFrame, found.ReplacementRectFrame, found.NativeFrame[0], found.DrawnFrame[0] }) do
+        for _, stamp in ipairs({ found.PrimaryRectFrame, found.NativeFrame[0], found.DrawnFrame[0] }) do
             if not Fresh(found, stamp) then return nil end
         end
+        -- the replacement's place is sent with it: good for uihook's CHAT_REQUEST_FRAMES (8)
+        if not Fresh(found, found.ReplacementRectFrame, 8) then return nil end
         for _, r in ipairs({ found.PrimaryRect, found.ReplacementRect }) do
             for i = 0, 3 do
                 if r[i] ~= r[i] or math.abs(r[i]) == math.huge then return nil end

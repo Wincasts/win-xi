@@ -291,15 +291,16 @@ static uint32_t NamesFrame = 0xFFFFFFFF;
 // once, it is the highest of them that is taken, and not the first: the client draws them in an order
 // that changes as the camera moves. A name is drawn for an addon as the client draws it, before the
 // rest are known, so the first of them is taken whatever its height, and one in the lower half of the
-// last frame that had more than one, within LIFT_FRAMES, is drawn where the highest was: lifted by
+// last frame that had more than one, within LIFT_TIME, is drawn where the highest was: lifted by
 // how far the highest was from the lowest, with the highest's size and colours. Waiting for the
 // higher let the name vanish when it did not come, as the count changed from frame to frame; and
 // taking a lower as it was had the name jump. Frames are kept as Shared.Frame + 1, so that 0 is never.
-#define LIFT_FRAMES 30
+#define LIFT_TIME 500000 // microseconds: half a second
 #define SEEN_NONE 0xFFFF
 static struct {
 	uint32_t Frame;     // the frame its name was first drawn in
 	uint32_t MainFrame; // and drawn by the call that draws all the names in
+	uint64_t MainTime;  // when MainFrame began
 	uint16_t Slot;      // where it is in Filling, or SEEN_NONE
 	bool Main;          // whether that was by the call that draws all the names
 	uint16_t MainCount; // how many times that call drew it in MainFrame
@@ -308,6 +309,7 @@ static struct {
 	float LowAt[3], HighAt[3]; // and where they were
 	uint32_t HighScale, HighNameColor, HighIconColor; // the highest's size and colours
 	uint32_t MultiFrame; // the last frame that call drew it more than once in, or 0
+	uint64_t MultiTime;  // and when that frame began
 	float Middle;       // halfway between the lowest and highest of MultiFrame
 	float Lift[3];      // from its lowest to its highest
 	uint32_t LiftScale, LiftNameColor, LiftIconColor; // its highest's size and colours
@@ -475,10 +477,37 @@ static bool IsWanted(const Entity* pEntity, uint32_t category, uint32_t& flags) 
 	return (Shared.Hidden & category) == 0;
 }
 
+// The time, in microseconds, by the system's steady clock. What lasts a while is timed by it and not
+// by frames, which come two and a half times as often at 144 a second as at 60.
+static uint64_t SteadyMicroseconds() {
+	static LARGE_INTEGER frequency = {};
+	if (frequency.QuadPart == 0) {
+		QueryPerformanceFrequency(&frequency);
+	}
+	LARGE_INTEGER count;
+	QueryPerformanceCounter(&count);
+	const uint64_t ticks = static_cast<uint64_t>(count.QuadPart), rate = static_cast<uint64_t>(frequency.QuadPart);
+	return ticks / rate * 1000000 + ticks % rate * 1000000 / rate;
+}
+static uint64_t (*Clock)() = SteadyMicroseconds;
+static uint64_t FrameTime = 0; // when the frame being drawn began, by Clock
+
+// The claim last seen made, and when
+static uint32_t ClaimSeen = 0xFFFFFFFF;
+static uint64_t ClaimTime = 0;
+
+static void NoteClaim() {
+	if (Shared.ClaimFrame != ClaimSeen) {
+		ClaimSeen = Shared.ClaimFrame;
+		ClaimTime = FrameTime;
+	}
+}
+
 // Whether an addon is drawing this category's names itself. A claim has to be made again every frame
 // or so: an addon that stops without a word costs half a second without names, and no more.
 static bool IsClaimed(uint32_t category) {
-	return (Shared.Claimed & category) != 0 && Shared.Frame - Shared.ClaimFrame <= HOOK_CLAIM_FRAMES;
+	NoteClaim();
+	return (Shared.Claimed & category) != 0 && FrameTime - ClaimTime <= HOOK_CLAIM_TIME;
 }
 
 // Whether an addon has drawn names lately enough for them to be the ones to draw
@@ -546,6 +575,7 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 					// the frame before had more than one: what is lifted by is taken from it
 					if (last && seen.MainCount > 1) {
 						seen.MultiFrame = seen.MainFrame;
+						seen.MultiTime = seen.MainTime;
 						seen.Middle = (seen.Low + seen.High) * 0.5f;
 						for (int i = 0; i < 3; i++) {
 							seen.Lift[i] = seen.HighAt[i] - seen.LowAt[i];
@@ -556,6 +586,7 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 					}
 					seen.MainCount = 0;
 					seen.MainFrame = now;
+					seen.MainTime = FrameTime;
 				}
 				seen.MainCount++;
 				if (pPosition != nullptr && (seen.MainCount == 1 || height < seen.Low)) {
@@ -576,7 +607,7 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 					// it takes the place of another call's, if that came first
 					replace = seen.Frame == now;
 					// a lower one, while the name has lately been drawn higher too: drawn there
-					if (pPosition != nullptr && seen.MultiFrame != 0 && now - seen.MultiFrame <= LIFT_FRAMES && height < seen.Middle) {
+					if (pPosition != nullptr && seen.MultiFrame != 0 && FrameTime - seen.MultiTime <= LIFT_TIME && height < seen.Middle) {
 						for (int i = 0; i < 3; i++) {
 							lifted[i] = pPosition[i] + seen.Lift[i];
 						}
@@ -1732,6 +1763,7 @@ int Nameplate::Init() {
 	Bubbles.Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1);
 	Draw.QuadsMax = HOOK_QUADS_MAX;
 	Draw.Frame = 0 - (HOOK_DRAW_FRAMES + 1); // nothing drawn yet
+	FrameTime = Clock();
 	Shared.Draw = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (&Draw));
 
 	Instance = this;
@@ -1826,7 +1858,9 @@ void Nameplate::Publish(const float* view, const float* projection, bool frameDo
 		Filling.Count = 0;
 		Filling.Changed = false;
 		Filling.Published = false;
+		NoteClaim(); // a claim made last frame is timed from then
 		Shared.Frame++;
+		FrameTime = Clock();
 
 		// Everybody's pets are looked for now and then, and what was found kept in between
 		const bool withPets = (Shared.Frame % FACTS_PETS_EVERY) == 1;
