@@ -139,12 +139,7 @@ imgui.BeginCombo = function(id) return id == '##name.checkDetailsInWords' end
 imgui.Selectable = function(id) return id:find('Text Only', 1, true) ~= nil end
 custom.DrawSettings(options); assert(options.checkDetailsInWords[1])
 imgui.BeginCombo = record
-options.checkFormat[1] = '[difficulty]'
-imgui.Button = function(id) return id == 'Restore Original Check Line##name.resetCheckFormat' end
-custom.DrawSettings(options)
-assert(options.checkFormat[1] == '', 'normal settings can restore the original check renderer')
-imgui.Button = record
-H.print('Category format editors/reset preserve each other; a saved check line can restore original display style', true)
+H.print('Category format editors/reset preserve each other', true)
 
 H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Health Bars|Entity Types')

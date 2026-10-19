@@ -426,7 +426,6 @@ The older `[name:yellow]` colour shorthand remains supported.
 | Every token | `space=0`–`64` | Screen-pixel gap after the token, scaled with render resolution. Omitted when the token produces nothing |
 | Every token | `when=target+checked+nm+relevant` | Any subset, combined with AND; omitted / `always` means unconditional |
 | Every token | `within=1`–`100` | Only within this distance in yalms; unavailable distance hides the block |
-| `[mob]` | `display=raw` / `names` / `both` | Raw by default; `names` gives readable names, `both` adds the IDs |
 | `[icons]` | `size=25`–`300` | Icon height as a percentage of name height; defaults to the profile's previous icon size (90% in preferred defaults) |
 | `[icons]` | `gap=0`–`24` | Screen pixels between icons; default 2 |
 | `[distance]` | `decimals=0`–`2` | Decimal places; default 1 |

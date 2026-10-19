@@ -32,16 +32,16 @@ end
 local PLAYER = '[icons: space=4][name]';
 general.Presets = {
     { key = 'default', label = 'Default', help = 'Player icons, enemy aggro and spawn letters, status icons and check details; no health bars.',
-        values = { nameFormat = PLAYER, monsterFormat = '[aggro] [name] [letters]', npcFormat = '[name]', checkFormat = '',
+        values = { nameFormat = PLAYER, monsterFormat = '[aggro] [name] [letters]', npcFormat = '[name]',
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
     { key = 'minimal', label = 'Minimal', help = 'Names alone: no icons, levels, bars, statuses or check details.',
-        values = { nameFormat = '[name]', monsterFormat = '[name]', npcFormat = '[name]', checkFormat = '',
+        values = { nameFormat = '[name]', monsterFormat = '[name]', npcFormat = '[name]',
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = false, showCheckDetails = false } },
     { key = 'robust', label = 'Robust', help = 'Everything there is to know: enemy aggro, level, spawn letters and distance, health bars at all times, status icons and check details.',
-        values = { nameFormat = PLAYER, monsterFormat = '[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)', npcFormat = '[name]', checkFormat = '',
+        values = { nameFormat = PLAYER, monsterFormat = '[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)', npcFormat = '[name]',
             showHealthBar = true, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
     { key = 'immersive', label = 'Immersive', help = 'Close to the game\'s own: names with player icons, and health bars only in combat; no levels, letters, status icons or check details.',
-        values = { nameFormat = PLAYER, monsterFormat = '[name]', npcFormat = '[name]', checkFormat = '',
+        values = { nameFormat = PLAYER, monsterFormat = '[name]', npcFormat = '[name]',
             showHealthBar = true, healthBarsCombatOnly = true, showStatuses = false, showCheckDetails = false } },
 };
 
