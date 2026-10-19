@@ -53,6 +53,7 @@
 -- 25: widgets.FontFile, FontSize and Lock, the controls every addon had written for itself; the theme's Text
 --     Outline and Outline Color, winxi.text's edge where an addon gives none (text.Edge, text.EdgeColor); a
 --     window's locked and clickThrough options
+-- 26: shell's App:Window takes extra.alpha, the addon's own fade of its window beside fading in and out
 return {
-    Number = 25,
+    Number = 26,
 };
