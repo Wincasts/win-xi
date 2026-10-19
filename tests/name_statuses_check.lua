@@ -203,6 +203,15 @@ H.print('game icons: from their sheet', draw.Textures[7] == 0x6666, '| square', 
     '| one the game has no icon for is left out', #square == 1)
 look.StatusIcons = true; block.Frame = 42; H.frames(1)
 H.print('custom icons again', draw.Textures[7] == 0x7777, #icons(0x400) == 2)
+-- Icons in the Statuses tab, over the theme's Custom Icons
+H.print('Icons: Winxi Theme to begin with', o.statusIcons[1] == 'theme')
+o.statusIcons[1] = 'game'; block.Frame = 44; H.frames(1)
+H.print('Icons: Game Icons, though the theme has custom ones', draw.Textures[7] == 0x6666)
+look.StatusIcons = false; o.statusIcons[1] = 'custom'; block.Frame = 45; H.frames(1)
+H.print('Icons: Custom Icons, though the theme has none', draw.Textures[7] == 0x7777)
+o.statusIcons[1] = 'theme'; block.Frame = 46; H.frames(1)
+H.print('Icons: Winxi Theme follows the theme again', draw.Textures[7] == 0x6666)
+look.StatusIcons = true; block.Frame = 47; H.frames(1)
 setLacks[13] = true; block.Frame = 43; H.frames(1)
 local mixedRow = icons(0x400)
 H.print('a status the set has no icon for: the game\'s, square', #mixedRow == 2, math.abs(mixedRow[2].U0 - 0.9) < 1e-4 and mixedRow[2].X1 - mixedRow[2].X0 == mixedRow[2].Y1 - mixedRow[2].Y0,

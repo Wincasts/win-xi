@@ -66,6 +66,7 @@ local settings = {
     statusSize   = function () return T{ 125 }; end, -- an icon's height, as a percentage of the height of the names
     statusPlace  = function () return T{ 'above' }; end,  -- the row above the name or below it
     statusAlign  = function () return T{ 'center' }; end, -- and level with its left, its middle or its right
+    statusIcons  = function () return T{ 'theme' }; end,  -- the icons: as the winxi theme has them, the game's, or the custom set's
     statusList   = function ()
         return T{ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 128, 129, 130, 131, 132, 133, 134, 135, 156, 192, 194, 217 };
     end,
@@ -217,6 +218,14 @@ local function ReadParty()
     end
 end
 
+-- Whether the custom set's icons are drawn: as Icons says, or as the winxi theme's Custom Icons does
+local function UseOwn(options)
+    local icons = options.statusIcons ~= nil and options.statusIcons[1] or 'theme';
+    if (icons == 'game') then return false; end
+    if (icons == 'custom') then return true; end
+    return theme.Get().StatusIcons == true;
+end
+
 local sheet = 0;      -- the sheet's address this frame, or 0
 local placeOf = statusicons.MixedPlace; -- where a status's icon is in it, and whether it is the set's
 local aspect = statusicons.OwnAspect;    -- how wide one of the set's is, for how tall: the game's are square
@@ -238,7 +247,7 @@ function statuses.Begin(options)
         nameplates.SetTexture(statuses.Slot, 0);
         return false;
     end
-    if (theme.Get().StatusIcons) then
+    if (UseOwn(options)) then
         sheet, placeOf, aspect = statusicons.MixedSheet() or 0, statusicons.MixedPlace, statusicons.OwnAspect;
     else
         sheet, placeOf, aspect = statusicons.GameSheet() or 0, statusicons.GameSheetPlace, 1;
@@ -483,6 +492,7 @@ local function Known()
 end
 
 local PLACES = { { key = 'above', label = 'Above' }, { key = 'below', label = 'Below' } };
+local ICONS = { { key = 'theme', label = 'Winxi Theme' }, { key = 'game', label = 'Game Icons' }, { key = 'custom', label = 'Custom Icons' } };
 local ALIGNMENTS = { { key = 'left', label = 'Left' }, { key = 'center', label = 'Center' }, { key = 'right', label = 'Right' } };
 
 function statuses.DrawSettings(options, save)
@@ -492,10 +502,14 @@ function statuses.DrawSettings(options, save)
     controls.BeginLayout('statuses', 360, '[Experimental] Timers');
     if (controls.Section('Display', '##name.statusOptions', true)) then
         if (controls.Checkbox('Enabled', '##name.showStatuses', options.showStatuses,
-                'Show the statuses selected below on visible nameplates. Icon style follows Custom Icons in /wxi.')) then
+                'Show the statuses selected below on visible nameplates.')) then
             changed = true;
         end
         if (options.showStatuses[1]) then
+            if (controls.Choice('Icons', '##name.statusIcons', options.statusIcons, ICONS,
+                    'Which icons the statuses are drawn with. Winxi Theme follows Custom Icons in /wxi; Game Icons are the game\'s own; Custom Icons are the custom set\'s (the one chosen in /wxi, FFXIV to begin with), and the game\'s for a status the set has none for.')) then
+                changed = true;
+            end
             if (controls.Slider('Size (%)', '##name.statusSize', options.statusSize, 50, 300, '%d%%',
                     'An icon\'s height, as a percentage of the height of the names. With custom icons, each is as wide as the set\'s icons are for that height; the game\'s are square.')) then
                 changed = true;
@@ -528,7 +542,7 @@ function statuses.DrawSettings(options, save)
         local wanted = search[1]:lower();
         listSize[2] = imgui.GetFrameHeightWithSpacing() * LIST_ROWS;
         imgui.BeginChild('##name.statusList', listSize, ImGuiChildFlags_Borders or 1);
-        local useOwn = theme.Get().StatusIcons;
+        local useOwn = UseOwn(options);
         for _, status in ipairs(Known()) do
             local on = chosen[status.id] == true;
             if ((on or not chosenOnly[1]) and (wanted == '' or status.lower:find(wanted, 1, true) ~= nil or tostring(status.id) == wanted)) then
