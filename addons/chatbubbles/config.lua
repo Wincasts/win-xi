@@ -2,6 +2,7 @@
 local imgui = require('imgui');
 local settings = require('settings');
 local modes = require('modes');
+local skin = require('skin');
 local M = { open = { false } };
 local function defaults()
     local channels = T{};
@@ -10,6 +11,8 @@ local function defaults()
         background = T{ 1, 1, 1, 0.96 }, text = T{ 0.05, 0.05, 0.05, 1 },
         gameTextColors = T{ true },
         onScreen = T{ false }, -- drawn on the screen over everything, not in the world
+        skin = T{ 'plain' },   -- one of skin.Keys: the rounded rectangle, or the parchment
+        skinTop = T{ unpack(skin.Top) }, skinBottom = T{ unpack(skin.Bottom) }, -- the parchment's gradient
     } };
 end
 local function settle(options)
@@ -28,7 +31,9 @@ local function settle(options)
             options.appearance[key] = base.appearance[key];
         end
     end
-    for _, key in ipairs({ 'background', 'text' }) do
+    local chosen = options.appearance.skin;
+    if (type(chosen) ~= 'table' or skin.Labels[chosen[1]] == nil) then options.appearance.skin = base.appearance.skin; end
+    for _, key in ipairs({ 'background', 'text', 'skinTop', 'skinBottom' }) do
         local color = options.appearance[key];
         if (type(color) ~= 'table') then color = base.appearance[key]; end
         for i = 1, 4 do
@@ -59,6 +64,16 @@ function M.Preset(white)
         M.options.appearance.background[i] = bg[i];
         M.options.appearance.text[i] = text[i];
     end
+    M.options.appearance.skin[1] = 'plain';
+    M.Save();
+end
+-- The parchment skin with its own colours, and dark text
+function M.Parchment()
+    local appearance = M.options.appearance;
+    for i = 1, 4 do
+        appearance.skinTop[i], appearance.skinBottom[i], appearance.text[i] = skin.Top[i], skin.Bottom[i], skin.Text[i];
+    end
+    appearance.skin[1] = 'parchment';
     M.Save();
 end
 settings.register('settings', 'chatbubbles_config', function(options)
@@ -76,8 +91,28 @@ function M.Draw()
                 if (imgui.Button('White bubbles')) then M.Preset(true); end
                 imgui.SameLine();
                 if (imgui.Button('Dark bubbles')) then M.Preset(false); end
+                imgui.SameLine();
+                if (imgui.Button('Parchment bubbles')) then M.Parchment(); end
                 imgui.Separator();
-                if (imgui.ColorEdit4('Background', M.options.appearance.background)) then M.Save(); end
+                local appearance = M.options.appearance;
+                imgui.Text('Skin');
+                imgui.SameLine();
+                if (imgui.BeginCombo('##chatbubbles.skin', skin.Labels[appearance.skin[1]] or 'Plain')) then
+                    for _, key in ipairs(skin.Keys) do
+                        if (imgui.Selectable(skin.Labels[key] .. '##chatbubbles.skin.' .. key, appearance.skin[1] == key) and appearance.skin[1] ~= key) then
+                            appearance.skin[1] = key;
+                            M.Save();
+                        end
+                    end
+                    imgui.EndCombo();
+                end
+                if (appearance.skin[1] == 'parchment') then
+                    if (imgui.ColorEdit4('Skin Top', appearance.skinTop)) then M.Save(); end
+                    if (imgui.ColorEdit4('Skin Bottom', appearance.skinBottom)) then M.Save(); end
+                    imgui.TextWrapped('Parchment is winxi\'s FFXI-inspired window look round the bubble: a gradient from Skin Top to Skin Bottom with the fine dark lines over it, and the FFXI-inspired border. Background is the plain skin\'s.');
+                else
+                    if (imgui.ColorEdit4('Background', appearance.background)) then M.Save(); end
+                end
                 if (imgui.Checkbox('Match in-game chat text colors', M.options.appearance.gameTextColors)) then M.Save(); end
                 if (imgui.ColorEdit4('Text (manual / fallback)', M.options.appearance.text)) then M.Save(); end
                 imgui.TextWrapped('Game colors follow FFXI Config > Font Colors and update while bubbles are visible. Manual RGB applies when matching is off, to local tests, or if lookup is unavailable. Text opacity always applies. Game-colored text gets a dark outline on light backgrounds.');

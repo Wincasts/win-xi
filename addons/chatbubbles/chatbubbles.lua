@@ -1,6 +1,6 @@
 addon.name = 'chatbubbles';
 addon.author = 'win';
-addon.version = '0.9';
+addon.version = '0.91';
 addon.desc = 'Configurable chat bubbles anchored by namehook, in the world or on the screen.';
 
 require('common');

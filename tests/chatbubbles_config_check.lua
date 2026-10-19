@@ -18,6 +18,7 @@ package.loaded.imgui = {
     Text = function() end, TextWrapped = function() end,
     SameLine = function() end, Separator = function() end,
     Button = function(label) return label == button; end,
+    BeginCombo = function() return false; end, EndCombo = function() end, Selectable = function() return false; end,
     Checkbox = function(label, value)
         labels[label] = true;
         if label == checkbox then value[1] = not value[1]; return true; end
@@ -92,4 +93,13 @@ callback({ enabled = { true }, modes = {}, appearance = { gameTextColors = { fal
 assert(config.options.appearance.gameTextColors[1] == false); -- saved manual preference survives reload
 config.Preset(false);
 assert(config.options.appearance.background[1] == 0.08);
-print('chatbubbles config: saved settings, tabs, colors, presets, all channel switches and reload normalization passed');
+-- the skin: plain to begin with, a saved one that is none of them made plain, the parchment's colours kept in range
+assert(config.options.appearance.skin[1] == 'plain' and config.options.appearance.skinTop[1] == 0.93);
+callback({ appearance = { skin = { 'velvet' }, skinTop = { 2, 0.5 }, skinBottom = 'no' } });
+assert(config.options.appearance.skin[1] == 'plain' and config.options.appearance.skinTop[1] == 1
+    and config.options.appearance.skinTop[2] == 0.5 and config.options.appearance.skinBottom[2] == 0.62);
+button = 'Parchment bubbles'; config.Draw(); button = nil;
+assert(config.options.appearance.skin[1] == 'parchment' and config.options.appearance.text[1] == 0.22 and config.options.appearance.skinTop[1] == 0.93);
+config.Preset(true);
+assert(config.options.appearance.skin[1] == 'plain', 'a preset is the plain skin');
+print('chatbubbles config: saved settings, tabs, colors, presets, the skin, all channel switches and reload normalization passed');

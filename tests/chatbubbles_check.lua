@@ -64,6 +64,8 @@ ashita = { events = { register = function(event, _, callback) events[event] = ca
 local font = {};
 local draw = {};
 function draw:AddRectFilled() draws[#draws + 1] = 'bubble'; end
+function draw:AddRectFilledMultiColor() draws[#draws + 1] = 'parchment'; end
+function draw:AddImage() end
 function draw:AddTriangleFilled() end
 function draw:AddText(_, _, s) draws[#draws + 1] = s; end
 package.loaded.imgui = {
@@ -269,6 +271,13 @@ assert(frame() == 'bubble|On the screen');
 records[1].y = 20;
 assert(frame() == '');
 records[1].y = 300;
+-- the parchment skin on the screen: the gradient and the art in place of the rectangle
+local skin = require('skin');
+skin.LoadBorder = function() return 0x7001; end;
+skin.LoadLines = function() return 0x7002; end;
+appearance.skin, appearance.skinTop, appearance.skinBottom = { 'parchment' }, { 0.9, 0.8, 0.7, 1 }, { 0.7, 0.6, 0.4, 1 };
+assert(frame() == 'parchment|On the screen');
+appearance.skin = { 'plain' };
 appearance.onScreen = { false };
 assert(frame() == 'bubble|On the screen'); -- the world's again
 command('clear');

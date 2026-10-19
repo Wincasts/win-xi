@@ -60,6 +60,13 @@ No DLL change is needed for these settings if namehook 1.24+ is already installe
   dialogue. Text RGBA is the manual/fallback color when matching is off, for
   local test bubbles, or when the client lookup cannot be resolved. Its opacity
   applies even when using game RGB colors. Changes apply to active bubbles.
+  **Skin** chooses the bubble's look: **Plain**, the rounded rectangle in the
+  Background colour, or **Parchment**, winxi's FFXI-inspired window look made
+  lighter: a gradient from **Skin Top** to **Skin Bottom** (a parchment beige to a
+  browner shade to begin with) with the theme's fine dark lines over it, and the
+  FFXI-inspired border round it, in the world and on the screen alike. The
+  **Parchment bubbles** preset chooses it with dark text. The art is winxi's own
+  (`libs\winxi\assets`), so `libs/winxi` has to be deployed with it.
   **Draw On Screen** (off by default) draws the bubbles with imgui over everything
   on the screen, at one size whatever the distance, instead of in the world where
   walls and characters in front hide them. The same colours, wrapping and fade

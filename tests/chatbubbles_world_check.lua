@@ -85,6 +85,24 @@ assert(block.Draw.Quads[0].Color == 0xFFFFFFFF and block.Draw.Quads[9].Color == 
 assert(block.Draw.Quads[0].Flags == 0 and block.Draw.Quads[9].Flags == 1);
 assert(block.Draw.Entities[5].Edge > 0); -- contrast outline without changing the selected RGB
 colors.ForMessage = oldColor;
+-- The parchment skin: a gradient in strips, the lines tile and the border's nine slices from the
+-- textures winxi loads, in the plugin's slots 1 and 2, before the pointer and the text
+local skin = require('skin');
+skin.LoadBorder = function() return 0x7001; end;
+skin.LoadLines = function() return 0x7002; end;
+local parchment = { background = { 1, 1, 1, 1 }, text = { 0.2, 0.1, 0.1, 1 }, skin = { 'parchment' },
+    skinTop = { 0.9, 0.8, 0.7, 1 }, skinBottom = { 0.7, 0.6, 0.4, 1 } };
+world.Begin(hook);
+assert(world.Draw(name, { text = 'Hi', expires = 108 }, 100, scale, parchment));
+assert(block.Draw.Textures[1] == 0x7001 and block.Draw.Textures[2] == 0x7002);
+assert(block.Draw.QuadCount == 12 + 1 + 8 + 8 + 2, 'twelve strips, one tile, eight slices, the pointer and two letters');
+local first, last = block.Draw.Quads[0], block.Draw.Quads[11];
+assert(first.Color == 0xFFE3CAAF and last.Color == 0xFFB59B69, 'the strips go from the top colour to the bottom');
+assert(block.Draw.Quads[12].Texture == 2 and block.Draw.Quads[13].Texture == 1 and block.Draw.Quads[20].Texture == 1);
+assert(block.Draw.Quads[21].Color == 0xFFB39966 and block.Draw.Quads[21].Texture == 0, 'the pointer is the bottom colour');
+assert(block.Draw.Quads[29].Color == 0xFF331A1A, 'the text its own colour');
+world.Begin(hook);
+assert(not world.Draw(name, { text = ('a'):rep(228), expires = 108 }, 100, scale, parchment), 'the skin counts against the budget');
 -- UTF-8 decoded to glyph codepoints, not one glyph per byte.
 hook.Frame = 101;
 world.Begin(hook);
@@ -132,4 +150,4 @@ assert(world.Begin(hook));
 loaded = false;
 world.Clear(); -- must not dereference plugin memory after it is unloaded
 ffi.C.munmap(low, size);
-print('chatbubbles world: independent ABI, UTF-8 glyphs, quads, aspect, alpha, limits and compatibility checks passed');
+print('chatbubbles world: independent ABI, UTF-8 glyphs, quads, the parchment skin, aspect, alpha, limits and compatibility checks passed');

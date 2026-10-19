@@ -11,6 +11,7 @@ local imgui = require('imgui');
 local bubbles = require('bubbles');
 local colors = require('colors');
 local text = require('winxi.text');
+local skin = require('skin');
 
 local M = {};
 
@@ -58,15 +59,20 @@ function M.Draw(name, message, now, x, y, display, appearance)
     if (top < MARGIN) then return false; end
 
     local fade = math.min(1, math.max(0, (message.expires - now) / FADE));
-    local background = packed(appearance.background, fade);
+    local skinned = appearance.skin ~= nil and appearance.skin[1] == 'parchment';
+    -- the plain skin's rectangle is the background colour; the parchment's pointer its bottom colour
+    local background = packed(skinned and appearance.skinBottom or appearance.background, fade);
     local gameColor = colors.ForMessage(message, appearance);
     local foreground = gameColor and repacked(gameColor, fade) or packed(appearance.text, fade);
     -- a game colour over a light background keeps its RGB and gets a dark edge, as in the world
-    local outline = gameColor ~= nil and (appearance.background[1] * 0.2126
-        + appearance.background[2] * 0.7152 + appearance.background[3] * 0.0722) > 0.6;
+    local outline = gameColor ~= nil and skin.Light(appearance, skinned);
 
     local draw = imgui.GetBackgroundDrawList();
-    draw:AddRectFilled({ left, top }, { left + width, bottom }, background, 6);
+    if (skinned) then
+        skin.Screen(draw, left, top, width, height, fade, appearance);
+    else
+        draw:AddRectFilled({ left, top }, { left + width, bottom }, background, 6);
+    end
     local tip = math.max(left + 9, math.min(left + width - 9, x));
     draw:AddTriangleFilled({ tip - 6, bottom - 1 }, { tip + 6, bottom - 1 }, { x, bottom + 10 }, background);
     local dark = outline and imgui.GetColorU32({ 0, 0, 0, 0.8 * fade }) or nil;

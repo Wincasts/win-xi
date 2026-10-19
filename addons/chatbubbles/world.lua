@@ -5,6 +5,7 @@ local nameplates = require('winxi.nameplates');
 local fonts = require('winxi.fonts');
 local bubbles = require('bubbles');
 local colors = require('colors');
+local skin = require('skin');
 ffi.cdef[[
     typedef struct {
         char Magic[16];
@@ -108,12 +109,17 @@ function M.Draw(name, message, now, scale, appearance)
         runs[#runs + 1] = run;
         width = math.max(width, run.width);
     end
-    -- Reserve background + 8 stepped pointer quads. Never publish truncated text.
-    if (glyphCount + 9 > 256) then
+    -- Reserve the background (the skin's quads, or one) + 8 stepped pointer quads. Never publish
+    -- truncated text.
+    local skinned = appearance ~= nil and appearance.skin ~= nil and appearance.skin[1] == 'parchment';
+    local borderTexture, linesTexture;
+    if (skinned) then borderTexture, linesTexture = skin.Textures(); end
+    local reserved = 8 + (skinned and skin.Quads(width + 20, #runs * size + 16, borderTexture, linesTexture) or 1);
+    if (glyphCount + reserved > 256) then
         problem = 'Bubble text exceeds the 256-quad per-entity budget';
         return false;
     end
-    if (glyphCount + 9 > remaining) then
+    if (glyphCount + reserved > remaining) then
         problem = 'World bubble buffer is full this frame';
         return false;
     end
@@ -135,20 +141,29 @@ function M.Draw(name, message, now, scale, appearance)
     local left, bottom = -(width + 20) / 2, -34;
     local top = bottom - height;
     local alpha = math.min(1, math.max(0, (message.expires - now) / 0.6));
-    local background = appearance and color(appearance.background) or 0xEB15171F;
+    -- the plain skin's rectangle is the background colour; the parchment's pointer its bottom colour
+    local background = appearance and color(skinned and appearance.skinBottom or appearance.background) or 0xEB15171F;
     local gameColor = colors.ForMessage(message, appearance);
     local foreground = gameColor or (appearance and color(appearance.text) or 0xFFFFFFFF);
     -- Preserve the selected RGB even on white bubbles; outline the glyphs rather
     -- than silently changing light chat colors to dark colors for contrast.
-    local outline = gameColor ~= nil and (appearance.background[1] * 0.2126
-        + appearance.background[2] * 0.7152 + appearance.background[3] * 0.0722) > 0.6;
+    local outline = gameColor ~= nil and skin.Light(appearance, skinned);
     nameplates.SetTexture(0, id);
+    if (skinned) then
+        nameplates.SetTexture(1, borderTexture or 0);
+        nameplates.SetTexture(2, linesTexture or 0);
+    end
     if (not nameplates.BeginName(name.EntityIndex, alpha, outline and fit or 0, 0xD0000000)) then return false; end
     block.ServerIds[name.EntityIndex] = name.ServerId;
-    local function quad(x0, y0, x1, y1, u0, v0, u1, v1, color, edged)
-        nameplates.Quad(x0 * fit, y0 * fit, x1 * fit, y1 * fit, u0, v0, u1, v1, color, 0, edged or false);
+    local function quad(x0, y0, x1, y1, u0, v0, u1, v1, color, edged, slot)
+        nameplates.Quad(x0 * fit, y0 * fit, x1 * fit, y1 * fit, u0, v0, u1, v1, color, slot or 0, edged or false);
     end
-    quad(left, top, left + width + 20, bottom, u, v, u, v, background);
+    if (skinned) then
+        skin.World(function (x0, y0, x1, y1, u0, v0, u1, v1, color, slot) quad(x0, y0, x1, y1, u0, v0, u1, v1, color, false, slot); end,
+            u, v, left, top, width + 20, height, appearance, borderTexture and 1 or nil, linesTexture and 2 or nil);
+    else
+        quad(left, top, left + width + 20, bottom, u, v, u, v, background);
+    end
     for i = 0, 7 do
         local half = (8 - i) * 0.75;
         quad(-half, bottom + i, half, bottom + i + 1, u, v, u, v, background);
@@ -161,7 +176,7 @@ function M.Draw(name, message, now, scale, appearance)
         end
     end
     nameplates.EndName();
-    remaining = remaining - glyphCount - 9;
+    remaining = remaining - glyphCount - reserved;
     return true;
 end
 
