@@ -110,12 +110,12 @@ for _, key in ipairs(types.List) do
         assert(ids[id .. '.enabled'] and ids[id .. '.color'] and disabledIds[id .. '.color'])
     end
 end
-options.nameColours.enemyNames.targeted.enabled[1] = true
+options.nameColours.enemyNames.callForHelp.enabled[1] = true
 clear(); custom.DrawSettings(options)
-assert(not disabledIds['##name.colours.enemyNames.targeted.color'])
+assert(not disabledIds['##name.colours.enemyNames.callForHelp.color'])
 imgui.Button = function(id) return id == 'Use Game Colours##name.colours.reset.enemyNames' end
 custom.DrawSettings(options)
-assert(not options.nameColours.enemyNames.targeted.enabled[1], 'reset restores game colours')
+assert(not options.nameColours.enemyNames.callForHelp.enabled[1], 'reset restores game colours')
 imgui.Button = record
 for _, key in ipairs(types.List) do expanded['Colour Overrides##name.colours.' .. key] = false end
 
