@@ -5,22 +5,24 @@ For every notorious monster of every zone: how it comes to be there (a lottery o
 placeholders, a timed respawn, a trade to a ???, or a script the data says no more
 of), its placeholders and where they stand, its own spawn points, and what it drops
 with the chance of each roll. Read from the server's zone data and scripts; names
-are resolved by the MobDB importer (addons/mobdb/mobdb/import_phoenix.py).
+are resolved by the MobDB importer (forks/addons/mobdb/mobdb/import_phoenix.py).
 
 The mob scripts are run in LuaJIT against stand-ins for the server's globals (as
 tools/build_name_placeholders.py runs them), for their placeholder lists, spawn
 points and respawn windows. What the placeholders' scripts and the modules say of
 the lottery is read off the text.
 
-Requires PyYAML and luajit. Defaults to the checked-in Phoenix reference checkout.
+Requires PyYAML and luajit. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub
+(tools/phoenix).
 """
 import argparse
-import importlib.util
 import re
 import subprocess
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
+
+from phoenix import importer, lotteries, source
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -268,12 +270,9 @@ def lua(value):
 class Builder:
     def __init__(self, server, output):
         self.server, self.output = Path(server), Path(output)
-        spec = importlib.util.spec_from_file_location('mark_phoenix_import', ROOT / 'addons/mobdb/mobdb/import_phoenix.py')
-        self.importer = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(self.importer)
-        self.generator = self.importer.Generator(SimpleNamespace(
-            server=str(server), out=str(output), set=[], no_module_data=False,
-            names=str(ROOT / 'addons/mobdb/mobdb/client_names.json'), elements='rank'))
+        self.slot_lottery = {}  # (zone, NM id) -> { chance, cooldown }, from the zones' slots as they are read
+        self.importer = importer.load('mark_phoenix_import')
+        self.generator = importer.generator(server, output, module=self.importer)
         DROP_RATES.update(self.importer.load_yaml(str(self.server / 'data/enums/drop_rate.yaml'))['values'])
         self.item_enum = dict((name, int(number)) for name, number in re.findall(
             r'^\s*(\w+)\s*=\s*(\d+)\s*,', (self.server / 'scripts/enum/item.lua').read_text(errors='replace'), re.M))
@@ -330,6 +329,13 @@ class Builder:
                     info.npcs.setdefault(name, npc)
         self.zones[zone] = info
         self.by_squash[squash(zone)] = zone
+        # the lotteries the zone's data sets out: its slots, each NM with its placeholders, chance and cooldown
+        for nm, placeholders, rule in lotteries.from_slots(document):
+            if nm not in info.shown:
+                continue
+            info.ph.setdefault(nm, set()).update(ph for ph in placeholders if ph in info.shown and ph != nm)
+            entry = {'chance': float(rule['chance']), 'cooldown': int(rule['cooldown'] or 0)}
+            self.slot_lottery[(zone, nm)] = entry
         if info.folder is None:
             return
 
@@ -396,8 +402,11 @@ class Builder:
         return info, mob_id
 
     def read_lotteries(self):
-        """xi.mob.phOnDespawn(ph, NM, chance, cooldown, params): the chance in percent, the wait in seconds."""
-        self.lottery = {}       # (zone, NM id) -> { chance, cooldown, immediate, day, night }
+        """xi.mob.phOnDespawn(ph, NM, chance, cooldown, params): the chance in percent, the wait in seconds.
+        Where the zone's data has the lottery as a slot (lotteries.from_slots), that stands."""
+        # (zone, NM id) -> { chance, cooldown, immediate, day, night }: the zone data's slots first, which
+        # a script's word does not replace and a module's does
+        self.lottery = dict(self.slot_lottery)
         sources = []
         for zone, info in sorted(self.zones.items()):
             if info.folder is not None:
@@ -711,7 +720,9 @@ class Builder:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--server', type=Path, default=ROOT / 'references/Phoenix')
+    source.add_arguments(parser)
     parser.add_argument('--output', type=Path, default=ROOT / 'addons/mark/data')
     args = parser.parse_args()
-    Builder(args.server, args.output).run()
+    found = source.from_arguments(args)
+    print(f'Server: {found.describe()}')
+    Builder(found.path, args.output).run()

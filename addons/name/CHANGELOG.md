@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.50
+
+- The monster tables and notorious monsters' placeholders are winxi's now (`libs/winxi/data`, read through `winxi.mobs`), where any addon can use them; the addon's own `data` and `placeholders` folders are gone. Name needs winxi 27.
+- Both are made again from the Phoenix server's live branch as it is on GitHub (commit 9a4494d, 18 October): 27 monsters' level ranges in 14 areas are new, and 8 notorious monsters have more placeholders. Sea Horror on the ferries has none now, the ferries choosing their deck's monsters another way.
+- Placeholders are read from the server's lottery slots in each area's data, where the server now keeps them, as well as from the scripts that still list theirs.
+
 ## 1.49
 
 - Player Colour Overrides have **Looking For Party**: a player whose icons show they are seeking a party, with or without the star. After Dead, before Party and Alliance. The game has no colour of its own for it, so with it off the name keeps the colour its other state gives it.

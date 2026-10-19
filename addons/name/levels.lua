@@ -20,10 +20,10 @@
 --   levels.RosterProblem()   what to tell the user while the area's names could not be read from the game's
 --                            files, or differ from what the game shows, or nil
 --
--- The game does not tell the client a monster's level. The tables in the data folder say what levels
--- each of an area's monsters can be: they are mobdb's, made from the server's own, and are a copy,
--- so that mobdb need not be there. A monster is looked for by its index, and failing that by its
--- name: two of one name in an area can be of different levels.
+-- The game does not tell the client a monster's level. winxi.mobs' tables say what levels each of an
+-- area's monsters can be: mobdb's, made from the server's own (libs\winxi\data, by
+-- tools/build_winxi_data.py), so that mobdb need not be there. A monster is looked for by its index,
+-- and failing that by its name: two of one name in an area can be of different levels.
 --
 -- The area's tables are read as the area is entered, and that is all the reading there is.
 --
@@ -36,6 +36,7 @@ local levels = {};
 local mobLetters = require('mob_letters');
 local zoneNames = require('zone_names');
 local readable = require('mob_readable');
+local mobs = require('winxi.mobs');
 
 local data = nil;      -- the area's tables: { Indices = { [index] = monster }, Names = { [name] = monster } }
 local zoneKnown = false;
@@ -105,28 +106,7 @@ end
 
 -- The tables of an area, and of the part of it the player is in if that has tables of its own
 local function load(zone, subZone)
-    local tables = nil;
-
-    local function read(number, folder)
-        local path = ('%s%s/%u.lua'):format(addon.path, folder or 'data', number);
-        if (not ashita.fs.exists(path)) then
-            return nil;
-        end
-        local chunk = loadfile(path);
-        if (chunk == nil) then
-            return nil;
-        end
-        local ok, result = pcall(chunk);
-        return ok and type(result) == 'table' and result or nil;
-    end
-
-    -- as mobdb has it: a part of an area is numbered from 1000
-    if (subZone ~= nil and subZone >= 1000 and subZone <= 1299) then
-        tables = read(subZone);
-    end
-    if (tables == nil and zone ~= nil and zone ~= 0) then
-        tables = read(zone);
-    end
+    local tables = mobs.Zone(zone, subZone);
 
     -- The game's own list, read from its files. One that cannot be read must never silently fall
     -- back to sparse exception indices: there are then no letters, and the reason is kept to be told.
@@ -134,7 +114,7 @@ local function load(zone, subZone)
     if (zone ~= nil and zone ~= 0) then
         spawnNames, why = zoneNames.Read(zone);
     end
-    levels.Set(tables, spawnNames or {}, zone, (zone ~= nil and zone ~= 0) and read(zone, 'placeholders') or nil);
+    levels.Set(tables, spawnNames or {}, zone, mobs.Placeholders(zone));
     if (spawnNames == nil and why ~= nil and zone ~= nil and zone ~= 0) then
         unread = ('Mob Letters: this area\'s names could not be read from the game\'s files (%s). There are no letters here.'):format(why);
     end
@@ -217,7 +197,7 @@ function levels.Monster(index, name)
         return nil;
     end
 
-    return (data.Indices ~= nil and data.Indices[index]) or (data.Names ~= nil and name ~= nil and data.Names[name]) or nil;
+    return mobs.Find(data, index, name);
 end
 
 -- Uses the full zone catalogue, including spawn slots no client has seen yet.

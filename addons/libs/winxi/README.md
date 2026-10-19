@@ -37,6 +37,8 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.tooltip` | Tooltips in winxi's look: `Hover(text)` after a control, `Show(text)`, or `Begin()` / `End()` around anything else. Whether they show, their delay, colours, padding, text size and width are the shared theme's Tooltip values, set in winxisettings' Tooltips tab, whether or not the addon follows the shared theme |
 | `winxi.nativechat` | The `uihook` plugin's chat slots (primary log, split log, input): `new(slot)` gives `Begin`, `Capture` (inside a window, from its `capture` option, after its border and title; for the expanded log, with the theme colours for the game's controls and which of them, tabs, scrollbar or text, the addon draws itself), `Stop`, `Rect`, `Tabs`, `Scrollbar` and `Rows` (where the game drew its own, as uihook measured them; the rows with their text, as the game was given it), `Routes` and `Shows` (which of the game's two log windows shows a message of a chat mode, as the game's Log Window settings route it; `Rect` on the split slot is the second window's place), `Lines` (a window's lines as the game grows and shrinks it), `Colors` (the game's chat colours as configured: a mode's, and what a 1E or 1F code names), `State` and `Status`, for an addon that draws its own chat in the game's place, as chatbox does |
 | `winxi.debounce` | Running a function once things have gone quiet |
+| `winxi.gamedata` | What is known of the game that the client does not say, made from the Phoenix server's data and kept in `data\<set>\<key>.lua`: `Read(set, key)`, `Manifest()` (the repository, branch and commit it was made from, and each set's files), `Root(path)`. Winxi 27. See [Game data](#game-data) |
+| `winxi.mobs` | An area's monsters as the server has them (levels, aggro and senses, links, family, drops, spells), from `gamedata`'s `mobs` set: `Zone(zone, subZone)`, `Find(tables, index, name)`, and each notorious monster's placeholders, `Placeholders(zone)`. Winxi 27 |
 | `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
 | `winxi.shell` | Everything an addon with one main window would otherwise write for itself: settings, the settings window, the command, the window's frame |
 
@@ -291,6 +293,38 @@ plain tones made by `sounds/generate.py`, not the game's.
 
 Ashita plays one sound at a time, at the volume of the file.
 
+## Game data
+
+`data/` holds what addons know of the game that the client never says, made from the Phoenix
+server's own data, one folder to each set:
+
+| Set | What it is | Read with |
+|---|---|---|
+| `mobs` | Each area's monsters, `<zoneId>.lua` (or a part of an area's, numbered from 1000): `Names` and `Indices` of monsters as mobdb has them | `winxi.mobs.Zone`, `Find` |
+| `placeholders` | Each area's notorious monsters and the entity indices each is drawn by lot from | `winxi.mobs.Placeholders` |
+
+`data/manifest.lua` says what it was made from: the repository, branch and commit, when, and each
+set's file count (`winxi.gamedata.Manifest()`).
+
+It is made from the server's live branch on GitHub, never a local copy, by one script:
+
+```sh
+python3 tools/build_winxi_data.py                 # fetch live, make every set, write the manifest
+python3 tools/build_winxi_data.py --only mobs     # one set; the others are kept
+python3 tools/build_winxi_data.py --offline       # from the copy fetched last time
+python3 tools/build_winxi_data.py --server PATH   # another checkout, for a change not on GitHub yet
+```
+
+`tools/phoenix` does the fetching: a shallow, sparse clone of only what the scripts read (`data`,
+`scripts`, `modules`, `settings`, `sql`) into `.cache/phoenix-live`, moved to the branch's newest
+commit each time. Each set is made beside the old one and put in its place only once it is whole,
+so a zone the server no longer has is gone from it, and a set that fails leaves the old one.
+
+To add a set: an entry in `SETS` in `tools/build_winxi_data.py` (its folder, what it is, and a
+function given the server checkout and the folder to fill), and a module that reads it through
+`winxi.gamedata.Read`. A data file is read with nothing of an addon's to reach: it must only return
+a table.
+
 ## The game, packets and bursts
 
 Three small modules hold what an addon would otherwise copy from another:
@@ -361,7 +395,7 @@ debuffs.StatusRemaining(serverId, status);            -- seconds left, or nil wh
 
 How long each lasts is the server's base duration for the spell or monster's move that put it there,
 or the usual one for the status, from `winxi.debuff_durations` (`tools/build_debuff_durations.py`
-makes it from `references/Phoenix`), or 180 seconds where nothing says. Merits, gear and partial
+makes it from the Phoenix server's live branch on GitHub), or 180 seconds where nothing says. Merits, gear and partial
 resists are not known.
 
 `debuffs.On` is for an addon that asks about many enemies every frame. An entry in it may have run

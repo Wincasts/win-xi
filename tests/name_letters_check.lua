@@ -87,7 +87,7 @@ none, why = names.Read(300)
 assert(none == nil and asked[#asked] == 86491 + 44 and why:find('did not say', 1, true), 'areas past 255 are numbered from 86491')
 assert(names.Read(0) == nil and names.Parse(record('Wild Rabbit', slot(101, 6)), 100) == nil)
 local levels = require('levels')
-local sparse = dofile('addons/name/data/100.lua')
+local sparse = dofile('addons/libs/winxi/data/mobs/100.lua')
 assert(sparse.Indices[6] == nil and sparse.Indices[7] == nil,
     'regression fixture must be absent from the level exception table')
 assert(levels.Letter(6, 'Wild Rabbit', 0x1064006) == 'a')

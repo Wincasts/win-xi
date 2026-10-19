@@ -2,6 +2,9 @@
 /Phoenix-beta/
 /references/
 
+# The Phoenix server's live branch as tools/phoenix fetches it for the build scripts, and their scratch
+/.cache/
+
 # Copies of live files replaced by ./deploy.sh push
 /deploy-backups/
 

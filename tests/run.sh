@@ -24,6 +24,7 @@ run mark       addons/mark/mark.lua     mark_stats_ui_check.lua
 run mark       addons/mark/mark.lua     mark_database_check.lua
 luajit tests/mark_stats_check.lua
 luajit tests/winxi_version_check.lua
+luajit tests/winxi_gamedata_check.lua
 luajit tests/parse_check.lua || exit 1
 luajit tests/parse_accuracy_check.lua || exit 1
 luajit tests/harness.lua parse tests/parse_stand_in.lua tests/parse_ui_check.lua || exit 1
@@ -39,6 +40,7 @@ luajit tests/chatbox_appearance_check.lua || exit 1
 luajit tests/chatbox_scrollbar_check.lua || exit 1
 luajit tests/chatbox_render_check.lua || exit 1
 luajit tests/chatbox_ui_check.lua || exit 1
+luajit tests/chatbox_visibility_check.lua || exit 1
 luajit tests/chatbox_input_check.lua || exit 1
 luajit tests/chatbox_layout_check.lua || exit 1
 luajit tests/chatbox_browse_check.lua || exit 1

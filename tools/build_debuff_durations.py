@@ -2,7 +2,8 @@
 """Write addons/libs/winxi/debuff_durations.lua: how long a status put on something usually lasts,
 for winxi.debuffs, which is told that a status took hold but never for how long.
 
-Read from the server's scripts (references/Phoenix, the `live` branch):
+Read from the server's scripts: the live branch of phoenixffxi/Phoenix, fetched from GitHub
+(tools/phoenix), or --server's checkout:
 
   spells     the enfeebling spells' and songs' tables of base durations, and each blue
              magic spell's table of additional effects: spell number -> status -> seconds
@@ -23,6 +24,8 @@ import collections
 import csv
 import re
 from pathlib import Path
+
+from phoenix import source
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -53,10 +56,12 @@ def enum_block(text, name):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--server', type=Path, default=ROOT / 'references/Phoenix')
+    source.add_arguments(parser)
     parser.add_argument('--out', type=Path, default=ROOT / 'addons/libs/winxi/debuff_durations.lua')
     args = parser.parse_args()
-    scripts = args.server / 'scripts'
+    found = source.from_arguments(args)
+    print(f'Server: {found.describe()}')
+    scripts = found.path / 'scripts'
 
     numbers = status_numbers(ROOT / 'tools/status_icons.csv')
     spell_ids = enum_block((scripts / 'enum/magic.lua').read_text(), 'xi.magic.spell')
@@ -97,7 +102,7 @@ def main():
 
     # a monster's moves: a file for each name, which several moves can have
     moves = collections.defaultdict(list)
-    for m in re.finditer(r"INSERT INTO `mob_skills` VALUES \((\d+),\d+,'([^']*)'", (args.server / 'sql/mob_skills.sql').read_text()):
+    for m in re.finditer(r"INSERT INTO `mob_skills` VALUES \((\d+),\d+,'([^']*)'", (found.path / 'sql/mob_skills.sql').read_text()):
         moves[m.group(2).lower()].append(int(m.group(1)))
     for path in sorted((scripts / 'actions/mobskills').glob('*.lua')):
         text = path.read_text()

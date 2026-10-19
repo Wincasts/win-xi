@@ -229,14 +229,9 @@ the largest size's drawn larger, so they are slightly softer.
 
 When the tracked monster has placeholders, **Label Placeholders** appears (on by default): each
 placeholder's `[name]` is written as `Placeholder`. The rest of its nameplate, its level and letter
-included, is unchanged. Placeholders are the spawn slots the server's scripts list in the
-monster's `phList`, bundled per area in `placeholders/<zone>.lua` and regenerated with:
-
-```sh
-python tools/build_name_placeholders.py
-```
-
-Requires PyYAML and luajit; defaults to `references/Phoenix`. A monster that appears by some other
+included, is unchanged. Placeholders are the members of the monster's lottery slot in the server's
+zone data (or, for the few that still have one, its script's `phList`), from winxi's game data
+(`winxi.mobs.Placeholders`; see [Monster data](#monster-data)). A monster that appears by some other
 means than a placeholder (timed, forced, or scripted spawns) has none listed.
 
 ### Statuses over a name
@@ -276,6 +271,23 @@ from one, put together the first time it is wanted, 32 statuses a frame: the set
 (`statusicons\ffxiv\sheet.png`, which `tools/build_status_icons.py` makes with the icons) or, for
 another set, its icons one by one, and the game's icons in the places the set leaves. With Custom
 Icons off it is a sheet of the game's icons alone.
+
+### Monster data
+
+What name knows of monsters that the game does not say (the levels each can be, whether it is
+aggressive and what it notices by, its family, and which monsters a notorious monster is drawn
+from) is winxi's, in `addons/libs/winxi/data`, read through `winxi.mobs`; until 1.50 it was in this
+addon's `data` and `placeholders` folders. It is made from the live branch of the Phoenix server on
+GitHub, never a local copy:
+
+```sh
+python3 tools/build_winxi_data.py
+```
+
+That fetches the branch's newest commit into `.cache/phoenix-live`, makes every set again and writes
+`data/manifest.lua`, which says the commit it was made from. Deploy `libs/winxi` afterwards. Requires
+PyYAML and luajit. After a client update nothing need be made again: each area's spawn names are read
+from the game's own files as it is entered.
 
 ### State colour overrides
 
@@ -436,11 +448,8 @@ Square brackets round anything else are written as they are, so a format such as
 `[NM] Goblin`. Only the letters, figures and signs of plain English can be written.
 
 `[level]` is not the level of the one monster, which the game does not tell: it is the levels that
-monster can be, as `5-6`, or as `8` where it can only be the one. They are from the tables in this
-addon's `data` folder, one for each area, which are mobdb's, made from the server's own, and copied
-here so that mobdb need not be installed. To bring them up to date, copy mobdb's `data` folder over
-this one. They are made by mobdb's `import_phoenix.py`, which since this addon's 1.17 also writes
-each monster's family: tables made before that have none, and no family is then written. For what the tables do not have (a player, an NPC, a monster the server makes as it goes)
+monster can be, as `5-6`, or as `8` where it can only be the one. They are from winxi's game data
+(`winxi.mobs`), one table for each area, made from the server's own; see [Monster data](#monster-data). For what the tables do not have (a player, an NPC, a monster the server makes as it goes)
 `[level]` writes nothing, and what was typed round it is still written.
 
 When you `/check` a monster, the game's answer has its level in it, and from then on `[level]` writes
