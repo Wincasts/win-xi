@@ -33,6 +33,7 @@ diag.Reasons = {
     texture  = 'imgui\'s font texture was not ready, or could not be read',
     draw     = 'the namehook plugin had no drawing buffer',
     error    = 'a Lua error in the frame',
+    off      = 'Custom Nameplates is off, in General',
 };
 
 local SEEN_AFTER = 30;    -- frames: the plugin's HOOK_CLAIM_FRAMES, after which the game's names are back
@@ -134,7 +135,7 @@ function diag.Frame(now, said)
             count(reason).seen = count(reason).seen + 1;
             diag.Note('Custom names stopped, the game draws its own: %s', Describe());
             -- one the player chose is not worth a word or a file
-            if (reason ~= 'unloaded' and not told[reason]) then
+            if (reason ~= 'unloaded' and reason ~= 'off' and not told[reason]) then
                 told[reason] = true;
                 local path = diag.Write('custom names stopped: ' .. reason .. (detail ~= nil and (' (' .. detail .. ')') or ''));
                 print(('\30\81[%s]\30\01 Custom names stopped: %s.%s'):format(addon.name, Describe(),

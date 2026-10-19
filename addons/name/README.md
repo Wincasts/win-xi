@@ -30,7 +30,24 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Trigger's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-The tabs are **Names → Health Bars → Statuses → Visibility**, and **NM Tracking** after `/name dev`.
+The tabs are **General → Names → Health Bars → Statuses → Visibility**, and **NM Tracking** after `/name dev`.
+
+- **General:** **Preset**, a premade look to start from, and the switches for what Name draws.
+  A preset sets the three formats, the check line, Health Bars and Combat Only, Status Icons and
+  Check Details; font, sizes, colours, visibility and the chosen statuses are left as they are. The
+  list says **Custom** when the settings are none of them.
+
+  | Preset | Players | Enemies | Bars | Status icons | Check details |
+  |---|---|---|---|---|---|
+  | Default | `[icons: space=4][name]` | `[aggro] Lv [level]. [name]` | Off | On | On |
+  | Minimal | `[name]` | `[name]` | Off | Off | Off |
+  | Hunter | `[icons: space=4][name]` | `[aggro: space=4]Lv [level]. [name] [letters]` | In combat | On | On |
+  | Retail-Like | `[icons: space=4][name]` | `[name]` | Off | Off | Off |
+
+  NPCs are `[name]` in each. **Custom Nameplates**, on to begin with, is Name drawing the names; off,
+  Name lets them go at once and the game draws its own as namehook sizes them (`/namehook fontsize`),
+  unstretched, Visibility still saying which are shown. Name's health bars and status icons are not
+  drawn while it is off. **Health Bars** and **Status Icons** are the same switches as in their own tabs.
 
 - **General Name Appearance:** common Font, Bold, Maximum/Minimum Name Size,
   Subtarget Size and Outline. One maximum/minimum pair applies to every entity type,

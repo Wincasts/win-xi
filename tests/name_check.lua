@@ -67,7 +67,7 @@ H.resettle(); H.frames(1)
 H.print('/names is left alone', H.command('/names') == false)
 
 -- a checkbox in Filters (the second tab): the fourth, Other Players
-H.tab(2)
+H.tab(5)
 local before = H.calls.Begin or 0
 H.command('/name'); H.frames(1)
 H.print('settings window drawn', (H.calls.Begin or 0) > before, '| checkboxes', H.calls.Checkbox)
@@ -157,6 +157,11 @@ block.Frame = 78
 H.frames(1)
 local buddy = draw.Entities[0x401]
 H.print('custom on: all claimed', block.Claimed == Category.All, '| set out in frame', draw.Frame, '| font texture: the mark', draw.Textures[0] == 1)
+o.drawNames[1] = false; block.Frame = 79; H.frames(1)
+assert(block.Claimed == 0 and draw.Frame == 78, 'Custom Nameplates off: nothing claimed or set out, the game draws its names')
+o.drawNames[1] = true; block.Frame = 78; H.frames(1)
+assert(block.Claimed == Category.All and draw.Frame == 78, 'and on again, claimed')
+H.print('Custom Nameplates off: the claim let go at once; on: claimed again', true)
 -- five letters; the hidden name is not set out
 H.print('the wanted name: quads', buddy.Count, '| of this frame', buddy.Frame == draw.Frame, '| the hidden one: none', draw.Entities[0x402].Frame ~= draw.Frame, '| in all', draw.QuadCount)
 -- 15 pixels on the screen is 23 of the game's picture, the largest of the three sizes letters are kept
@@ -883,7 +888,7 @@ replacementGlyph.AdvanceX = glyph.AdvanceX * 2
 local replacementSet = { glyphs = {}, baked = { FindGlyph = function() return replacementGlyph end } }
 H.print('replacement font set never reuses stale glyph runs', measure(replacementSet, 'AAA', 1) == firstWidth * 2)
 block.Count = 1
-H.tab(1); H.command('/name'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/name'); H.tab(2)
+H.tab(2); H.command('/name'); local sliders = H.calls.SliderInt or 0; H.frames(1); H.command('/name'); H.tab(5)
 H.print('its tab drawn: sliders', (H.calls.SliderInt or 0) - sliders)
 
 H.print('ImGui signs retain their own texture: the font\'s mark', draw.Textures[4] == 1)
