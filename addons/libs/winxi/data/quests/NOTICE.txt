@@ -1,0 +1,3 @@
+Generated from Phoenix (https://github.com/phoenixffxi/Phoenix).
+Embedded scripts retain the upstream GPL v3 license; see LICENSE-Phoenix.
+Not relicensed under winxi's MIT license. index.lua records revision and script evidence paths/hashes.

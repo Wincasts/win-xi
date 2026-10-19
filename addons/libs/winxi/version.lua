@@ -56,6 +56,10 @@
 -- 26: shell's App:Window takes extra.alpha, the addon's own fade of its window beside fading in and out
 -- 27: winxi.gamedata (data made from the server's, in libs\winxi\data) and winxi.mobs (an area's
 --     monsters and its notorious monsters' placeholders, which name kept for itself until now)
+-- 28: winxi.items: shared Phoenix item definitions, SQL changes, food, script evidence and tooltip models
+-- 29: shared spells, abilities, weaponskills, traits, jobs, skills/elements and client auto-translate catalogs
+-- 30: winxi.quests: composite quest-log identities, hidden interactions, NPC/zone references,
+--     declared rewards, factory metadata and enabled module/source evidence
 return {
-    Number = 27,
+    Number = 30,
 };

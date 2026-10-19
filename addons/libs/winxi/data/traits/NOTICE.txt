@@ -1,0 +1,3 @@
+Derived from Phoenix (https://github.com/phoenixffxi/Phoenix).
+Server script sources retain the upstream GPL v3 license; see LICENSE-Phoenix.
+Not relicensed under winxi's MIT license. Source revision and original paths are in index.lua.
