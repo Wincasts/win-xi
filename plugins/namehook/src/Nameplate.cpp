@@ -31,6 +31,9 @@ If not, see <https://www.gnu.org/licenses/>.
 // No copyright is claimed on the following "fair use for interoperability" section.
 /* Begin "fair use for interoperability" section */
 #define GETFRAMEDELTA "8B0D????????D94128D81D????????DFE0F6C4057A07D905????????C3"
+// The same accessor as TrueFPS leaves it: its first two bytes are a short jump to the padding after it,
+// the operand that names gGame kept as it was
+#define GETFRAMEDELTA_TRUEFPS "EB??????????D94128D81D????????DFE0F6C4057A07D905????????C3"
 #define INITAPPLICATIONDEFAULTS "B90002000033C0890D????????890D????????B901000000A3????????C705????????80020000C705????????E0010000"
 #define GETPLAYERENTITY "66A1????????6685C0740E0FBFC08B0485????????85C0750233C0C3"
 
@@ -56,6 +59,7 @@ static constexpr size_t nameplate_strlen(const char* text) {
 }
 
 static constexpr auto getFrameDeltaSig = MakeSig<GETFRAMEDELTA>();
+static constexpr auto getFrameDeltaTrueFpsSig = MakeSig<GETFRAMEDELTA_TRUEFPS>();
 static constexpr auto initApplicationDefaultsSig = MakeSig<INITAPPLICATIONDEFAULTS>();
 static constexpr auto getPlayerEntitySig = MakeSig<GETPLAYERENTITY>();
 
@@ -1528,6 +1532,9 @@ int Nameplate::Init() {
 
 	// GetFrameDelta
 	uintptr_t pGetFrameDelta = (uintptr_t) getFrameDeltaSig.Find();
+	if (pGetFrameDelta == 0) {
+		pGetFrameDelta = (uintptr_t) getFrameDeltaTrueFpsSig.Find();
+	}
 	if (pGetFrameDelta == 0) {
 		return -4;
 	}
