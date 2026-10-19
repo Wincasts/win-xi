@@ -99,7 +99,8 @@ local fontDepth, pushedFonts, pushedSizes = 0, {}, {}
 package.loaded['winxi.fonts'] = {Push=function() return false end,Pop=function() end,
     Get=function(file) if file and file~='' then return 'font:'..file end end, Files=function() return {'arial.ttf'} end}
 local headers = {}
-package.loaded['winxi.widgets'] = {Header=function(name) return headers[name] end, Label=function() end, FontFile=function() return false end, FontSize=function() return false, false end}
+package.loaded['winxi.widgets'] = {Header=function(name) return headers[name] end, Label=function() end, FontFile=function() return false end, FontSize=function() return false, false end,
+    Lock=function(box,id) return package.loaded.imgui.Checkbox(id,box) end}
 local binding
 package.loaded['winxi.controller'] = {HighlightColor={0.23,0.67,0.91,1}, RepeatDelay=0.35, RepeatRate=0.08,
     Button={DpadUp=0,DpadDown=1,A=12}, Bind=function(spec) binding=spec; return spec end}
@@ -554,6 +555,7 @@ imgui.SliderInt=function() return false end
 imgui.SliderFloat=function() return false end
 imgui.SmallButton=function() return false end
 imgui.InputText=function() return false end
+imgui.InputInt2=function() return false end
 imgui.SetTooltip=function() end
 imgui.BeginDisabled=function() end; imgui.EndDisabled=function() end
 imgui.Button=function() return false end
@@ -586,7 +588,7 @@ imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=recordControl,recordControl,rec
 spec.drawSettings(app.options)
 assert(controlGroups['##chatbox.enabled']=='Chatbox' and controlGroups['##chatbox.timestamps']=='Chatbox',
     'the switches in the Chatbox section (the font is winxi\'s widget, not recorded here)')
-for _,id in ipairs({'##chatbox.width','##chatbox.window1Rows','##chatbox.window2Rows','##chatbox.expandInPlace','##chatbox.expandedHeight'}) do
+for _,id in ipairs({'##chatbox.locked','##chatbox.width','##chatbox.window1Rows','##chatbox.window2Rows','##chatbox.expandInPlace','##chatbox.expandedHeight'}) do
     assert(controlGroups[id]=='Layout','a Layout control: '..id)
 end
 for _,id in ipairs({'##chatbox.visibility.1.resize','##chatbox.visibility.2.resize','##chatbox.visibility.1.fade','##chatbox.visibility.2.fade'}) do
@@ -615,7 +617,7 @@ end
 do
 local oldCombo,oldSelectable=imgui.BeginCombo,imgui.Selectable
 local comboLabel
-imgui.BeginCombo=function(id,label) comboLabel=label; return id=='##chatbox.mode' end
+imgui.BeginCombo=function(id,label) if id=='##chatbox.mode' then comboLabel=label end; return id=='##chatbox.mode' end
 imgui.Selectable=function(label) return label:find('##chatbox.mode.game',1,true)~=nil end
 local savesBefore=saves
 spec.drawSettings(app.options)
@@ -623,7 +625,23 @@ assert(comboLabel=='WinXI Skin' and app.options.mode[1]=='game' and saves==saves
 spec.drawSettings(app.options)
 assert(comboLabel=='Follow Game' and saves==savesBefore+1,'the mode shown; choosing it again saves nothing')
 app.options.mode[1]='skin'
+-- Position, a combo in Layout: Custom chosen takes the log's place as it stands; the place's editor shown only then
+local placeEditors=0
+imgui.InputInt2=function(id) if id=='##chatbox.pos' then placeEditors=placeEditors+1 end; return false end
+imgui.BeginCombo=function(id,label) if id=='##chatbox.position' then comboLabel=label end; return id=='##chatbox.position' end
+imgui.Selectable=function(label) return label:find('##chatbox.position.custom',1,true)~=nil end
+headers['Layout']=true; savesBefore=saves
+spec.drawSettings(app.options)
+assert(comboLabel=='At the Game\'s Chat' and app.options.position[1]=='custom' and app.options.pos[1]==20 and app.options.pos[2]==1018 and saves==savesBefore+1,
+    'Custom chosen: the place where the log stood, saved')
+spec.drawSettings(app.options)
+assert(comboLabel=='Custom' and placeEditors==2,'shown as Custom, with the place to edit (drawn from the frame it was chosen)')
+imgui.Selectable=function(label) return label:find('##chatbox.position.game',1,true)~=nil end
+spec.drawSettings(app.options)
+assert(app.options.position[1]=='game' and placeEditors==2,'At the Game\'s Chat again: no editor')
+headers['Layout']=nil
 imgui.BeginCombo,imgui.Selectable=oldCombo,oldSelectable
+imgui.InputInt2=function() return false end
 end
 for k in pairs(headers) do headers[k]=nil end
 package.loaded['winxi.widgets'].Header=function(name) return headers[name] end
@@ -924,6 +942,46 @@ assert(#filled == 0, 'scrollbar disappears when all rows fit')
 assert(not wheel(120).blocked, 'no overflowing rows means no wheel interception')
 app.options.enabled[1]=false; frame()
 assert(not wheel(120).blocked, 'disabled replacement releases mouse wheel')
+-- Lock Window off (WinXI Skin): the log taken hold of and dragged wherever you want, its place kept as Position
+-- Custom; the input bar goes with it; the scrollbar is still the scrollbar and the wheel the wheel; locked, or in
+-- Follow Game, the mouse goes through to the game
+do (function()
+app.options.enabled[1]=true
+assert(app.options.locked[1]==true and app.options.position[1]=='game','locked, at the game\'s chat, to begin with')
+for i=1,80 do message('drag '..i) end; frame(); hover()
+assert(not mouseEvent(0x0201).blocked,'locked: a press on the log goes to the game')
+app.options.locked[1]=false
+hover(); assert(mouseEvent(0x0201).blocked,'unlocked: taken hold of')
+assert(app.options.position[1]=='custom' and app.options.pos[1]==20 and app.options.pos[2]==1018,'Custom from where it stood')
+mouse.x,mouse.y=mouse.x+300,mouse.y-200; assert(mouseEvent(0x0200).blocked); frame()
+assert(app.options.pos[1]==320 and app.options.pos[2]==818 and rendered['winxi.chatbox'].pos[1]==320 and rendered['winxi.chatbox'].pos[2]==818,'dragged 300 right and 200 up: drawn there')
+local savesBefore=saves
+assert(mouseEvent(0x0202).blocked and saves==savesBefore+1,'let go: saved')
+mouse.x=mouse.x+50; assert(not mouseEvent(0x0200).blocked); frame()
+assert(app.options.pos[1]==320,'the mouse moving after is the game\'s')
+local said8={}; app.Say=function(_,line) said8[#said8+1]=line end; spec.commands.status(); app.Say=function() end
+assert(table.concat(said8,'\n'):find('At its own place',1,true),'/chatbox status says so')
+inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; frame()
+assert(rendered['winxi.chatbox.input'].pos[1]==320 and rendered['winxi.chatbox.input'].pos[2]==818 and rendered['winxi.chatbox'].pos[2]==818-18,'the input bar at the log\'s place, the log lifted above it')
+inputOpen=false; frame()
+assert(rendered['winxi.chatbox'].pos[2]==818,'closed: back on its place')
+local track,thumb=scrollbarRects()
+mouse.x,mouse.y=thumb.a[1]+1,(thumb.a[2]+thumb.b[2])/2
+assert(mouseEvent(0x0201).blocked); mouse.y=mouse.y-40; assert(mouseEvent(0x0200).blocked); frame()
+assert(app.options.pos[2]==818 and text[#text].text~='drag 80','a drag on the scrollbar scrolls; the log stays')
+assert(mouseEvent(0x0202).blocked)
+hover(); assert(wheel(120).blocked,'the wheel still scrolls it')
+app.options.pos[1],app.options.pos[2]=-100,5000; frame()
+assert(rendered['winxi.chatbox'].pos[1]==0 and rendered['winxi.chatbox'].pos[2]==1080,'a place off the screen: kept on it')
+app.options.mode[1]='game'; frame()
+assert(rendered['winxi.chatbox'].pos[1]==20 and rendered['winxi.chatbox'].pos[2]==1018,'Follow Game: at the game\'s chat, whatever Position')
+hover(); assert(not mouseEvent(0x0201).blocked,'and not taken hold of')
+app.options.mode[1]='skin'; app.options.position[1]='game'; frame()
+assert(rendered['winxi.chatbox'].pos[2]==1018,'At the Game\'s Chat again')
+app.options.locked[1]=true
+spec.commands.clear(); frame()
+app.options.enabled[1]=false; frame()
+end)() end
 -- The game's two log windows mirrored: a second box stacked over the first, with its own game width and
 -- height; each shows the messages the game's Log Window settings route to it; each scrolls on its
 -- own; the focus light and cursor go to the window the game's focus is on
@@ -1606,6 +1664,12 @@ do (function()
     spec.onSettings(app.options)
     assert(app.options.appearance.log.override[1]==true and app.options.appearance.log.own==nil,'an Own Color box on: Override Colours on')
     app.options.appearance.log.override[1]=false
+    -- Lock Window, Position and the place made whole
+    app.options.locked=nil; app.options.position={'sideways'}; app.options.pos={'x',0/0}
+    spec.onSettings(app.options)
+    assert(app.options.locked[1]==true and app.options.position[1]=='game' and app.options.pos[1]==20 and app.options.pos[2]==1000,'locked, at the game\'s chat, a place')
+    app.options.pos={300.7,-20.2}; spec.onSettings(app.options)
+    assert(app.options.pos[1]==300 and app.options.pos[2]==-21,'a place of one\'s own kept, whole')
     -- Font Size: 0 is Automatic; 1 to 7 are 8; above 24, 24
     app.options.fontSize[1]=5; spec.onSettings(app.options); assert(app.options.fontSize[1]==8,'too small: 8')
     app.options.fontSize[1]=0; spec.onSettings(app.options); assert(app.options.fontSize[1]==0,'0 kept: Automatic')

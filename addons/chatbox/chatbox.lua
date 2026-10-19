@@ -71,6 +71,10 @@ local TAB_TEXT_SCALE = 0.85 -- the expanded log's tab names, of Font Size
 -- height. WinXI Skin: Width, rows, activity and the expanded log's place and height of the addon's own.
 local MODES = { { key = 'game', label = 'Follow Game' }, { key = 'skin', label = 'WinXI Skin' } }
 local function Game(options) return options.mode[1] == 'game' end
+-- Position (WinXI Skin): the log at the game's chat, or Custom, its bottom-left wherever it was dragged to with Lock
+-- Window off (or typed), the input bar and the second window with it
+local POSITIONS = { { key = 'game', label = 'At the Game\'s Chat' }, { key = 'custom', label = 'Custom' } }
+local moving -- while the log is dragged: how far the mouse is from the box's bottom-left
 -- The room between each edge and the text this frame: the four Padding settings
 local pad = { left = 3, right = 3, top = 3, bottom = 3 }
 local function Paddings(options)
@@ -118,7 +122,7 @@ local function ResetViews(scroll)
     end
 end
 local function Release()
-    held, panelAttachment = nil, nil
+    held, panelAttachment, moving = nil, nil, nil
     if logMenus then logMenus.StopLog() end -- the full log back where the game puts it
     infoPanel.Hud(nil) -- the game's clock and compass back
     ResetViews(false)
@@ -302,6 +306,7 @@ local function VisibilitySettings(options, number)
 end
 app = shell.New({
     defaults = T{ enabled = T{ true }, mode = T{ 'game' }, timestamps = T{ true }, width = T{ 640 }, fontSize = T{ 12 },
+        locked = T{ true }, position = T{ 'game' }, pos = T{ 20, 1000 },
         replaceExpanded = T{ true }, expandInPlace = T{ true }, expandedHeight = T{ 75 },
         appearance = appearance.Defaults(T, theme.Get()), fontFile = '', infoPanel = panelModel.Defaults(),
         visibility = { window1 = visibility.Defaults(), window2 = visibility.Defaults() },
@@ -345,6 +350,27 @@ app = shell.New({
             imgui.TextDisabled(primary.Status())
         end
         if not game and widgets.Header('Layout') then
+            widgets.Lock(options.locked, '##chatbox.locked', { tooltip = 'Off, the log can be taken hold of with the mouse and dragged wherever you want (Position becomes Custom); the wheel and the scrollbar\nstill work. On, it stays where it is, the mouse going through it to the game.' })
+            widgets.Label('Position')
+            if imgui.BeginCombo('##chatbox.position', options.position[1] == 'custom' and POSITIONS[2].label or POSITIONS[1].label) then
+                for _, entry in ipairs(POSITIONS) do
+                    if imgui.Selectable(entry.label .. '##chatbox.position.' .. entry.key, options.position[1] == entry.key) and options.position[1] ~= entry.key then
+                        options.position[1] = entry.key
+                        if entry.key == 'custom' and layoutState.left and layoutState.closedBottom then
+                            options.pos[1], options.pos[2] = math.floor(layoutState.left), math.floor(layoutState.closedBottom)
+                        end
+                        app.save()
+                    end
+                end
+                imgui.EndCombo()
+            end
+            Tip('Where the log stands. At the Game\'s Chat: where the game puts its own log. Custom: wherever it was dragged to, or the place typed below;\nthe input bar and the second window go with it, and so does the game\'s clock, which uihook keeps at its distance from the log.')
+            if options.position[1] == 'custom' then
+                widgets.Label('Place')
+                imgui.InputInt2('##chatbox.pos', options.pos)
+                if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+                Tip('The log\'s bottom-left corner, in pixels from the screen\'s top-left; kept on the screen.')
+            end
             widgets.Label('Width')
             imgui.SliderInt('##chatbox.width', options.width, 240, 1200, '%d px')
             if imgui.IsItemDeactivatedAfterEdit() then app.save() end
@@ -496,6 +522,16 @@ app = shell.New({
             options.followNativeSettings, options.matchGameLogSize, options.matchGameInputSize = nil, nil, nil
         end
         if type(options.mode) ~= 'table' or (options.mode[1] ~= 'game' and options.mode[1] ~= 'skin') then options.mode = T{ 'game' } end
+        -- Lock Window, Position and the place
+        if type(options.locked) ~= 'table' then options.locked = T{ true } end
+        options.locked[1] = options.locked[1] ~= false
+        if type(options.position) ~= 'table' or (options.position[1] ~= 'game' and options.position[1] ~= 'custom') then options.position = T{ 'game' } end
+        if type(options.pos) ~= 'table' then options.pos = T{} end
+        for i = 1, 2 do
+            local n = tonumber(options.pos[i])
+            if not n or n ~= n or math.abs(n) == math.huge then n = i == 1 and 20 or 1000 end
+            options.pos[i] = math.floor(n)
+        end
         -- Replace Expanded Log, from the four switches before it (tabs, scrollbar, text and cursor): on where all were
         local legacyReplace, allOn = false, true
         for _, key in ipairs({ 'replaceTabs', 'replaceScrollbar', 'replaceText', 'replaceCursor' }) do
@@ -1089,9 +1125,11 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         plan.leftPadding, plan.rightPadding = pad.left, pad.right
         local box, placeKnown, panelBase
         placeKnown = #logRect == 4
-        box = layout.Arrange(layoutState, logRect, plan, size[1], sw, sh, size[2], padding, game)
+        -- Position Custom (the skin's): the box where it was dragged to, the input bar with it; the game's log must still be drawn
+        local custom = not game and app.options.position[1] == 'custom' and app.options.pos or nil
+        box = layout.Arrange(layoutState, logRect, plan, size[1], sw, sh, size[2], padding, game, custom)
         panelBase = box
-        anchorStatus = box and 'Anchored to native chat; log and input share one width.'
+        anchorStatus = box and (custom and 'At its own place (Position Custom); the input bar with it.' or 'Anchored to native chat; log and input share one width.')
             or 'Native chat anchor unavailable or the log does not fit; native log left visible.'
         if firstHidden then box = nil; anchorStatus = 'The game\'s log is at 0 lines: nothing drawn, and nothing of the game\'s shown.' end
         -- The game's second log window, where it shows one: a box where the game puts its own beside the first,
@@ -1348,24 +1386,55 @@ local function Scroll(view, box, e, x, y)
     e.blocked = true -- never scroll native history underneath the themed viewport
     return true
 end
+-- Lock Window off (WinXI Skin): the log taken hold of with the left button anywhere on it but its scrollbar and dragged
+-- wherever you want, its bottom-left (before any lift over the input bar or the panel) kept as the place and Position
+-- made Custom from the first drag; the second window and the input bar go with it. Let go, the place is saved. true
+-- when the event was taken.
+local function Drag(e, x, y, captured)
+    local message = e.message
+    if moving then
+        if message == 0x0200 then
+            if x and y then app.options.pos[1], app.options.pos[2] = math.floor(x - moving[1] + 0.5), math.floor(y - moving[2] + 0.5) end
+        elseif message == 0x0202 then
+            moving = nil
+            app.save()
+        else return false end
+        e.blocked = true
+        return true
+    end
+    if message ~= 0x0201 or captured or Game(app.options) or app.options.locked[1] then return false end
+    local box = views[1].target
+    if not box or not x or not y or x < box.left or x >= box.left + box.width or y < box.top or y >= box.bottom
+        or scrollbar.Hit(box.scrollbar, x, y) then return false end
+    local pos = app.options.pos
+    if app.options.position[1] ~= 'custom' then
+        pos[1], pos[2] = math.floor(layoutState.left or box.left), math.floor(layoutState.closedBottom or box.bottom)
+        app.options.position[1] = 'custom'
+    end
+    moving = { x - pos[1], y - pos[2] }
+    e.blocked = true
+    return true
+end
 ashita.events.register('mouse', 'chatbox_scroll', function(e)
     if e.blocked or not app.options.enabled[1] or zoning then return end
-    -- Only the wheel, a left press, its release and a scrollbar's drag are ever taken: anything else, most of all the
-    -- mouse moving, is let by before the game's state is read
+    -- Only the wheel, a left press, its release and a drag (the scrollbar's, or the log's) are ever taken: anything
+    -- else, most of all the mouse moving, is let by before the game's state is read
     local message = e.message
     if message == 0x0200 then
-        if not (views[1].drag or views[2].drag) then return end
+        if not (moving or views[1].drag or views[2].drag) then return end
     elseif message == 0x0202 then
-        if not (views[1].pressed or views[2].pressed) then return end
+        if not (moving or views[1].pressed or views[2].pressed) then return end
     elseif message ~= 0x0201 and message ~= 0x020a then return end
     local state = primary.State()
     if state and (state.expanded or state.nativeBrowse) then
         for _, view in ipairs(views) do view.drag, view.pressed = nil, nil end
+        moving = nil
         return
     end
     local io = imgui.GetIO()
     local mouse = io.MousePos
     local x, y = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+    if Drag(e, x, y, io.WantCaptureMouse) then return end
     for _, view in ipairs(views) do
         if view.target and (not io.WantCaptureMouse or view.pressed) and Scroll(view, view.target, e, x, y) then return end
     end

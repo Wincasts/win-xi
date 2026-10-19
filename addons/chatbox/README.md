@@ -36,7 +36,8 @@ each where the game's are.
   tall enough for those rows at Font Size. A window at 0 lines shows nothing, the other still drawn.
 - The mouse wheel scrolls an overflowing compact log three visual rows a notch, and a slim scrollbar
   appears on its right: drag the thumb or click the track to page.
-- No dragging or mouse resizing. Combat formatting, filters and timestamps are left to the game or
+- In WinXI Skin, with **Lock Window** off, the log can be dragged wherever you want (Position Custom); the
+  input bar and the second window go with it. No mouse resizing. Combat formatting, filters and timestamps are left to the game or
   SimpleLog; **Timestamps** hides the stamps they write, in every log, and shows them again at once.
 
 ## Install
@@ -220,6 +221,18 @@ the mode is how the boxes behave and where they stand.
 
 **Layout** (WinXI Skin)
 
+- **Lock Window** (on to begin with): off, the log can be taken hold of with the left button anywhere on
+  it but its scrollbar and dragged wherever you want; let go, the place is kept for the character and
+  Position becomes Custom. The wheel and the scrollbar still work. On, it stays where it is, the mouse
+  going through it to the game.
+- **Position**: **At the Game's Chat** (to begin with), where the game puts its own log, or **Custom**,
+  wherever it was dragged to or the **Place** typed under it (the log's bottom-left in pixels from the
+  screen's top-left, kept on the screen). Choosing Custom takes the place the log stands at. The input
+  bar stands on that bottom (the log lifts above it while typing, as ever), a stacked or side-by-side
+  second window keeps its place beside the first, the info panel attaches as before, and Expand In
+  Place opens the expanded log there. The game's clock, which uihook keeps at its distance from the
+  log, goes with it; Hide Game Clock in the Info Panel tab takes it away. The game's own log must still
+  be drawn (its place known) for the box to be drawn at all, wherever the box stands.
 - **Width**: 240 to 1200 pixels (640 to begin with). Also the expanded view's width, capped at its native
   bounds; its tabs, scrollbar and text clipping follow that width. The game still controls history row
   wrapping, selection and hit-tests: narrowing the view clips long native rows rather than rewrapping them.
@@ -309,7 +322,8 @@ than floating the box elsewhere, while the input bar carries on. A character or 
 clears the kept messages. Windows stay click-through except for the wheel over an overflowing log
 and its scrollbar, and the box is kept within the screen's width.
 
-**Anchoring.** The log follows the native primary chat base, and sits above the input bar while
+**Anchoring.** The log follows the native primary chat base (or, in WinXI Skin with Position Custom,
+stands at its own place, the input bar on its bottom), and sits above the input bar while
 typing: the game's own upward movement is kept, with only a no-overlap clamp, never the input's
 height again. Log and input bar always share width and left edge. Uihook moves the native clock
 text, day icon and weather icons by the difference between the replacement's top-left and the

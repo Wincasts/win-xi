@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Lock Window and Position, in Layout (WinXI Skin). Lock Window off, the log can be taken hold of with the left
+  button anywhere on it but its scrollbar and dragged wherever you want; let go, its bottom-left is kept for the
+  character and Position becomes Custom (At the Game's Chat to begin with; Custom chosen by hand takes the place the
+  log stands at, and the Place under it can be typed). The box is kept on the screen; the input bar stands on its
+  bottom and the log lifts above the bar while typing; the second window, the info panel, Expand In Place and the
+  game's clock (which uihook keeps at its distance from the log) go with it; the wheel and the scrollbar still work.
+  The game's own log must still be drawn for the box to be. Locked, or in Follow Game, the mouse goes through to
+  the game. `/chatbox status` says when the log is at its own place. Tests: chatbox_layout_check the custom place,
+  the input bar on it, the lift while typing and the screen's edges; chatbox_ui_check the drag through the mouse
+  hook, the save on letting go, the scrollbar and the wheel still their own, Follow Game and Lock Window ignoring
+  the mouse, the Position combo and the place's editor, and the settings made whole.
 - Two modes in place of Follow Native Settings and the sections round it: **Mode**, in the Chatbox section, is
   Follow Game (to begin with) or WinXI Skin. The mode is how the boxes behave and where they stand; the look is
   WinXI's in both. Follow Game: the log, the second window, the input bar and the expanded log where the game puts

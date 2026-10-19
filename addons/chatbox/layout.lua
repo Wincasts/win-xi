@@ -7,7 +7,9 @@ local function Valid(rect, sw, sh)
     for _, n in ipairs(rect) do if type(n) ~= 'number' or n ~= n or math.abs(n)==math.huge then return false end end
     return rect[1]>=0 and rect[2]>=0 and rect[3]<=sw and rect[4]<=sh and rect[3]>rect[1] and rect[4]>rect[2]
 end
-function M.Arrange(state, primary, input, width, sw, sh, height, padding, match)
+-- custom, optional: { x, y }, the box's bottom-left where it was dragged to (Position Custom), kept on the screen; the
+-- input bar stands on that bottom and the log above the bar while typing. The game's log must still be drawn.
+function M.Arrange(state, primary, input, width, sw, sh, height, padding, match, custom)
     if not Valid(primary,sw,sh) then return nil end
     local nativeWidth=primary[3]-primary[1]
     local source=Valid(input.sourceRect,sw,sh) and input.sourceRect or nil
@@ -15,21 +17,26 @@ function M.Arrange(state, primary, input, width, sw, sh, height, padding, match)
         state.widthRatio=(source[3]-source[1])/nativeWidth
         state.leftRatio=(source[1]-primary[1])/nativeWidth
     end
-    local left=primary[1]
+    local left,base=primary[1],primary[4]
     if match then
         width=nativeWidth*(state.widthRatio or 1)
         left=left+nativeWidth*(state.leftRatio or 0)
+    end
+    if custom then
+        width=math.min(width,sw)
+        left=math.max(0,math.min(custom[1],sw-width))
+        base=math.max(height+(input.active and input.height or 0),math.min(custom[2],sh))
     end
     width=math.min(width,sw-left)
     if left<0 or width<2*padding+32 then return nil end
     -- Both boxes always share their horizontal edges, including native-size mode.
     input.x,input.width=left,width
     state.left,state.width=left,width -- the expanded log keeps these edges
-    if not input.active then state.closedBottom=primary[4] end
+    if custom or not input.active then state.closedBottom=base end
     if not (match and input.matched) then
-        input.bottom=source and source[4] or state.closedBottom or primary[4]
+        input.bottom=(not custom and source and source[4]) or state.closedBottom or base
     end
-    local bottom=primary[4]
+    local bottom=base
     if input.active then bottom=math.min(bottom,input.bottom-input.height) end
     if bottom<height then return nil end
     return {left=left,bottom=bottom,width=width,height=height,top=bottom-height}
