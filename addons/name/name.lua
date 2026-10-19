@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.46';
+addon.version = '1.47';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -28,6 +28,7 @@ local statuses   = require('statuses');
 local controls   = require('controls');
 local diag       = require('diag');
 local general    = require('general');
+local nameColours = require('name_colours');
 
 local Category = nameplates.Category;
 
@@ -294,8 +295,10 @@ ashita.events.register('load', 'load_cb', function ()
     custom.Find();
 end);
 
--- what lands on an enemy is kept count of only while statuses are shown over names
+-- which monsters were called for help on, for their colour; what lands on an enemy is kept count of
+-- only while statuses are shown over names
 ashita.events.register('packet_in', 'name_statuses_packet', function (e)
+    nameColours.HandlePacket(e);
     if (app.options.showStatuses[1]) then
         statuses.HandlePacket(e);
     end

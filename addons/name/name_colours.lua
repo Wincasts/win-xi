@@ -6,11 +6,17 @@ local controls = require('controls');
 local widgets = require('winxi.widgets');
 local imgui = require('imgui');
 local colours = {};
+-- The states the game colours a name by, each with the colour the picker starts from
 colours.States = {
-    playerNames = { { 'normal', 'Normal', 0xFFFFFF }, { 'combat', 'In Combat', 0xFF8000 }, { 'targeted', 'Targeted', 0xFFFFFF }, { 'dead', 'Dead', 0x808080 } },
-    enemyNames = { { 'unclaimed', 'Unclaimed', 0xFFFF40 }, { 'claimedParty', 'Claimed: You / Party / Alliance', 0xFF4040 }, { 'claimedOther', 'Claimed: Others', 0xC080FF }, { 'targeted', 'Targeted', 0xFFFFFF }, { 'dead', 'Dead', 0x808080 } },
-    npcNames = { { 'normal', 'Normal', 0x80FF80 }, { 'targeted', 'Targeted', 0xFFFFFF } },
+    playerNames = { { 'normal', 'Normal', 0xFFFFFF }, { 'party', 'Party', 0x80D0FF }, { 'alliance', 'Alliance', 0xB0E0FF }, { 'dead', 'Dead', 0x808080 } },
+    enemyNames = { { 'unclaimed', 'Unclaimed', 0xFFFF40 }, { 'claimedParty', 'Claimed: You / Party / Alliance', 0xFF4040 }, { 'claimedOther', 'Claimed: Others', 0xC080FF }, { 'callForHelp', 'Call For Help', 0xFFA040 }, { 'dead', 'Dead', 0x808080 } },
+    npcNames = { { 'normal', 'Normal', 0x80FF80 }, { 'dead', 'Dead', 0x808080 } },
 };
+
+-- Monsters a call for help was made on, by server id: told by the entity update (0x0E), whose flags
+-- at 0x21 have 0x20 while it stands, sent with its HP (mask 0x04)
+local calledFor = {};
+local CALL_FOR_HELP = 0x20;
 local function rgb(value)
     return T{ math.floor(value / 65536) % 256 / 255, math.floor(value / 256) % 256 / 255, value % 256 / 255, 1 };
 end
@@ -27,6 +33,11 @@ function colours.Settle(options)
     if type(options.nameColours) ~= 'table' then options.nameColours = T{}; end
     for _, key in ipairs(types.List) do
         if type(options.nameColours[key]) ~= 'table' then options.nameColours[key] = T{}; end
+        local kept = {};
+        for _, state in ipairs(colours.States[key]) do kept[state[1]] = true; end
+        for state in pairs(options.nameColours[key]) do
+            if not kept[state] then options.nameColours[key][state] = nil; end -- In Combat and Targeted, no longer kept
+        end
         for _, state in ipairs(colours.States[key]) do
             local entry = options.nameColours[key][state[1]];
             if type(entry) ~= 'table' then entry = T{}; options.nameColours[key][state[1]] = entry; end
@@ -41,6 +52,22 @@ function colours.Settle(options)
             entry.color[4] = 1; -- opacity always follows the client, not a saved picker alpha
         end
     end
+end
+local function u32(data, at)
+    local a, b, c, d = data:byte(at + 1, at + 4);
+    return a + b * 256 + c * 65536 + d * 16777216;
+end
+function colours.HandlePacket(e)
+    if e.id == 0x0A then calledFor = {}; return; end -- another area
+    if e.id ~= 0x0E or e.data == nil or #e.data < 0x25 then return; end
+    local id, mask = u32(e.data, 0x04), e.data:byte(0x0A + 1);
+    if bit.band(mask, 0x20) ~= 0 then calledFor[id] = nil; return; end -- gone
+    if bit.band(mask, 0x04) ~= 0 then
+        calledFor[id] = bit.band(e.data:byte(0x21 + 1), CALL_FOR_HELP) ~= 0 or nil;
+    end
+end
+function colours.CalledFor(serverId)
+    return calledFor[serverId] == true;
 end
 function colours.Valid(name, entities)
     return name.ServerId ~= 0 and entities ~= nil and entities.GetServerId ~= nil
@@ -77,22 +104,25 @@ function colours.Context(options, memory)
     end
     return next(ids) ~= nil and ids or nil;
 end
+-- Each state is the game's own, and the game's colour stands for any not overridden. Dead is first:
+-- a corpse never keeps a live state's colour.
+local PARTY, ALLIANCE = plates.Category.Party, plates.Category.Alliance;
+local function dead(key, name, entities, corpse)
+    if corpse then return true; end
+    if not colours.Valid(name, entities) then return false; end
+    if key == 'npcNames' then -- an NPC's HP is always 100: its status says
+        local status = entities.GetStatus ~= nil and entities:GetStatus(name.EntityIndex) or nil;
+        return status == 2 or status == 3;
+    end
+    return hp(name, entities) == 0;
+end
 function colours.Resolve(options, name, entities, partyIds, corpse)
     local key = types.Key(name.Category);
     local profile = options.nameColours and options.nameColours[key];
     if profile == nil then return nil; end
-    -- Death is terminal: never fall through to a live/target override on a corpse.
-    if corpse or (profile.dead ~= nil and profile.dead.enabled[1] and hp(name, entities) == 0) then
-        return picked(profile, 'dead');
-    end
-    -- Do not apply normal/combat overrides to dead players either.
-    if key == 'playerNames' and (profile.normal.enabled[1] or profile.combat.enabled[1] or profile.targeted.enabled[1])
-            and hp(name, entities) == 0 then return picked(profile, 'dead'); end
-    if bit.band(name.Flags, plates.Flag.Target) ~= 0 then
-        local target = picked(profile, 'targeted');
-        if target ~= nil then return target; end
-    end
+    if dead(key, name, entities, corpse) then return picked(profile, 'dead'); end
     if key == 'enemyNames' then
+        if colours.CalledFor(name.ServerId) then return picked(profile, 'callForHelp'); end
         if not (profile.unclaimed.enabled[1] or profile.claimedParty.enabled[1] or profile.claimedOther.enabled[1]) then return nil; end
         if not colours.Valid(name, entities) or entities.GetClaimStatus == nil then return nil; end
         local claim = entities:GetClaimStatus(name.EntityIndex);
@@ -101,20 +131,21 @@ function colours.Resolve(options, name, entities, partyIds, corpse)
         if partyIds == nil then return nil; end -- unknown party data is not proof of an outside claim
         return picked(profile, partyIds[claim] and 'claimedParty' or 'claimedOther');
     end
-    if profile.combat ~= nil and profile.combat.enabled[1] and colours.InCombat(name, entities) then
-        return picked(profile, 'combat');
+    if key == 'playerNames' then
+        if name.Category == PARTY then return picked(profile, 'party'); end
+        if name.Category == ALLIANCE then return picked(profile, 'alliance'); end
     end
     return picked(profile, 'normal');
 end
 function colours.Draw(options, key)
     local open = controls.More('Colour Overrides', '##name.colours.' .. key);
-    controls.Mark('Applies together to name text, spawn letters and HP fill. Dead > Targeted > combat/claim > Normal. Disabled live states fall back to the underlying state or game colour. Icons and client opacity are unchanged.');
+    controls.Mark('The states the game colours names by. An override applies together to name text, spawn letters and HP fill; a state not overridden keeps the game\'s colour. Icons and client opacity are unchanged.');
     if not open then return; end
     for _, state in ipairs(colours.States[key]) do
         local entry = options.nameColours[key][state[1]];
         local id = '##name.colours.' .. key .. '.' .. state[1];
         controls.Checkbox(state[2] .. ' Override', id .. '.enabled', entry.enabled,
-            'Override this state for the name, letters and matching health-bar fill, including explicit name/letter token colours. Off preserves the underlying state or game colour.');
+            'Override this state for the name, letters and matching health-bar fill, including explicit name/letter token colours. Off: the game\'s colour for it.');
         imgui.BeginDisabled(not entry.enabled[1]);
         widgets.Label(state[2] .. ' Colour'); controls.Width();
         imgui.ColorEdit4(id .. '.color', entry.color, ImGuiColorEditFlags_NoAlpha or 0);

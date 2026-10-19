@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.47
+
+- Colour Overrides follow the states the game colours names by. Players: Normal, **Party**, **Alliance** and Dead. Enemies: Unclaimed, Claimed: You / Party / Alliance, Claimed: Others, **Call For Help** and Dead. NPCs: Normal and **Dead**. In Combat and Targeted are gone, and saved overrides for them are dropped.
+- A state left off keeps the game's colour for it, where it fell to another override before: a monster called for help on is not coloured as Unclaimed, nor an alliance member as Normal.
+- Call For Help is read from the entity update packet (0x0E): its flags have 0x20 while the call stands.
+
 ## 1.46
 
 - Statuses' list leaves out the game's stand-ins, whose names are wholly in brackets — (None), (N/A) and the five (Imagery) — and the numbers the server has no status for (24–27, 224–226, 372–374, 514, 520, 521, and everything past 635). They were at the top of the list, and nothing is ever under them.

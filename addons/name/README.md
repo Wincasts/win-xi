@@ -283,19 +283,25 @@ Open **Colour Overrides** under Player Names, Enemy Names or NPC Names. Each sta
 has an enable checkbox and RGB picker. **Use Game Colours** disables that category's
 overrides without discarding its chosen picker colours or changing format strings.
 
+The states are the ones the game colours names by:
+
 | Category | States |
 |---|---|
-| Players (also self, party/alliance, pets/trusts) | Normal, In Combat, Targeted, Dead |
-| Enemies | Unclaimed, Claimed: You / Party / Alliance, Claimed: Others, Targeted, Dead |
-| NPCs | Normal, Targeted |
+| Players (also yourself, pets and trusts) | Normal, Party, Alliance, Dead |
+| Enemies | Unclaimed, Claimed: You / Party / Alliance, Claimed: Others, Call For Help, Dead |
+| NPCs | Normal, Dead |
 
-Priority is **Dead → Targeted → combat/claim state → Normal**. A disabled live state
-falls back to an enabled underlying state, then to the usual game/format colour.
-Death never falls back to a live/target override: with Dead disabled, the normal
-corpse colour remains. Claims use validated entity IDs and active party/alliance
-server IDs; unknown ownership data is not guessed. State is evaluated every frame.
-Opacity is not configurable here: a target's name and letters keep a steady opacity, status
-icons stay independent, and corpse/distance/disappearance fades still apply.
+Each state replaces only the game's colour for that state: one left off keeps the game's
+colour, and never falls to another override. Party and Alliance are the other members of
+your party and alliance; you, your pet and everyone else's are Normal. **Dead** comes first,
+so a corpse or a dead player never keeps a live colour; an NPC is dead by its status, since
+the server always gives NPCs full HP. **Call For Help** comes next: it is read from the
+entity update (0x0E), whose flags have 0x20 while the call stands, and is forgotten on the
+next update without it, a despawn, or a change of area. Claims use validated entity IDs and
+active party/alliance server IDs; unknown ownership data is not guessed. Being targeted or in
+combat no longer has a colour of its own. Opacity is not configurable here: a target's name
+and letters keep a steady opacity, status icons stay independent, and
+corpse/distance/disappearance fades still apply.
 
 ### Experimental mob letters
 
