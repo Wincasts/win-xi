@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.37
+
+- A target's name no longer pulses. The game takes the targeted name's colour toward white or dark and dips its opacity; the name, its outline and its spawn letters now keep the colour the pulse starts from at full opacity, as the icons already did. A change of colour that is no pulse, such as a monster turning red as it is claimed, shows at once.
+
 ## 1.36
 
 - The health bar scales with its name. Health Bar Width and Height are the bar's size under a name at its largest, and the bar shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one, where it had stayed one size at every distance.

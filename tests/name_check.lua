@@ -306,7 +306,8 @@ ffi.copy(block.Names[0].Text, '\145 Buddy'); H.frames(1)
 assert(buddy.Count == 6, 'ordinary seeking-party icon must not get a star badge')
 o.showStars[1] = stars
 H.print('composite seeking-party badge: proper size/offset, outlined, independent of mastery stars; plain seeking has no badge', true)
--- Target text may pulse; icons, composite layers, mastery stars and their outlines must not.
+-- The game's target pulse (brightening toward white, opacity dipping) moves nothing: not the text,
+-- the icons, composite layers, mastery stars or their outlines.
 local savedFlags, savedColor = block.Names[0].Flags, block.Names[0].NameColor
 local savedBold, savedEdge = o.fontBold[1], o.outline[1]
 block.Names[0].Flags = savedFlags + Flag.Target
@@ -316,7 +317,6 @@ ffi.copy(block.Names[0].Text, '\172 Buddy'); H.frames(1)
 for i = 1, 160 do
     local opacity = i <= 110 and 0x20 or (i % 3 == 1 and 0 or (i % 2 == 1 and 0x20 or 0x80))
     local dim = opacity < 0x80
-    local glyphAlpha = math.floor(255 * opacity / 0x80 + 0.5)
     block.Names[0].NameColor = opacity * 0x1000000 + (dim and 0x800000 or 0x808080)
     o.fontBold[1] = i % 3 == 0
     H.frames(1)
@@ -327,19 +327,25 @@ for i = 1, 160 do
         if j >= 3 then assert(q.Reserved == 191, 'icon outlines must not pulse') end
     end
     local glyph = draw.Quads[buddy.First + 5]
-    assert(glyph.Color == glyphAlpha * 0x1000000 + (dim and 0xFF0000 or 0xFFFFFF), 'text follows live RGB and alpha')
+    assert(glyph.Color == 0xFFFF0000, 'target text holds its brightest opacity and its own colour, not the pulse')
     assert(glyph.Reserved == 0 and glyph.Flags == 1,
-        'outline follows glyph alpha in namehook; do not apply the pulse twice as edge opacity')
+        'outline follows glyph alpha in namehook; it is not given an edge opacity of its own')
     if o.fontBold[1] then
-        assert(draw.Quads[buddy.First + 6].Color == glyph.Color, 'bold stroke must pulse with its glyph')
+        assert(draw.Quads[buddy.First + 6].Color == glyph.Color, 'bold stroke must match its glyph')
     end
 end
+-- a pulse toward dark is held back as one toward white is; a claim's colour is taken at once, and
+-- its own pulse held back in turn
+local function glyphAfter(color) block.Names[0].NameColor = color; H.frames(1); return draw.Quads[buddy.First + 5].Color end
+H.print('target: toward dark held', glyphAfter(0x80400000) == 0xFFFF0000, glyphAfter(0x80100000) == 0xFFFF0000,
+    '| a claim taken at once', glyphAfter(0x80408020) == 0xFF80FF40,
+    '| its pulse held', glyphAfter(0x80608050) == 0xFF80FF40, glyphAfter(0x80204010) == 0xFF80FF40, glyphAfter(0x80408020) == 0xFF80FF40)
 -- Untargeting releases the icon envelope immediately; it is not a permanent opacity override.
 block.Names[0].Flags, block.Names[0].NameColor = savedFlags, 0x40808080
 H.frames(1); assert(math.abs(buddy.Alpha - 0.5) < 0.001)
 block.Names[0].NameColor = savedColor
 o.fontBold[1], o.outline[1] = savedBold, savedEdge
-H.print('target text fill/outline pulse independently of steady icons, overlays and stars, including long/transparent phases', true)
+H.print('target text fill/outline steady through the pulse, as icons, overlays and stars are, including long/transparent phases', true)
 icons.Has, icons.Place, icons.Texture = realHas, realPlace, realTexture
 ffi.copy(block.Names[0].Text, 'Buddy'); H.frames(1)
 
@@ -1021,7 +1027,7 @@ do
         block.Names[0].NameColor = i % 2 == 1 and 0x20800000 or 0x80808080
         H.frames(1)
         q = draw.Quads[labelled.First + 6]
-        assert(q.Color == draw.Quads[labelled.First].Color, 'letter inherits live name RGB and pulse opacity')
+        assert(q.Color == draw.Quads[labelled.First].Color, 'letter inherits the name\'s colour and opacity')
         assert(q.X0 == x0 and q.Y0 == y0 and q.X1 == x1 and q.Y1 == y1, 'tint/pulse must not shift the letter')
         assert(math.abs(q.Y1 - draw.Quads[labelled.First].Y1) < 0.001, 'letter retains the name baseline')
     end
@@ -1040,9 +1046,9 @@ do
             'state override must colour the name, letter and matching HP fill together')
     end
     block.Names[0].NameColor = 0x20800000; H.frames(1)
-    assert(draw.Quads[labelled.First].Color == 0x4000FF00
-        and draw.Quads[labelled.First + 6].Color == 0x4000FF00,
-        'state RGB overrides must preserve live name/letter pulse opacity')
+    assert(draw.Quads[labelled.First].Color == 0xFF00FF00
+        and draw.Quads[labelled.First + 6].Color == 0xFF00FF00,
+        'state RGB overrides keep the target\'s steady opacity through the pulse, on the name and letter')
     state.enabled[1], o.showHealthBar[1], alive[300].hp = false, false, 100
     imgui.GetFontTexUvWhitePixel = whiteUV
     block.Names[0].NameColor = color
