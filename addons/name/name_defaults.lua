@@ -23,7 +23,7 @@ return T{
     abbreviateDifficulty = T{ true },
     checkDetailsInWords = T{ false },
     nameFormat = T{ '[icons: space=4][name]' },
-    monsterFormat = T{ '[aggro] Lv [level]. [name]' },
+    monsterFormat = T{ '[aggro] [name] [letters]' },
     showSelf = T{ false },
     showParty = T{ true },
     showAlliance = T{ true },
