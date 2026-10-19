@@ -72,6 +72,7 @@ private:
     IDirect3DDevice8* m_Device; // the device, for the frame's names
     DWORD m_NameStates;   // the device's state as names are drawn with it
     DWORD m_SavedStates;  // the same states as the client had them, to put back
+    bool m_StatesCaptured; // and whether what it holds is still the client's: nothing of the client's has drawn since
     D3DVIEWPORT8 m_Viewport;
     float m_ViewProjection[16];
     bool m_CanDraw;
@@ -110,6 +111,9 @@ public:
 
     virtual void GetFrameFacts(FrameFacts& facts, bool withPets) override;
     virtual void ProbeScene() override;
+    virtual void ClientDrew() override {
+        m_StatesCaptured = false;
+    }
     virtual void BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight, uint32_t& fontTexture) override;
     virtual void DrawCustom(uint32_t entityIndex, const HookDrawing& drawing, const HookQuad* quads, const float* position) override;
     virtual void BeginBubbles(const HookDraw& draw, bool fresh) override;
@@ -147,7 +151,7 @@ public:
 };
 
 AshitaNameplate::AshitaNameplate() : m_AshitaCore(nullptr), m_LogManager(nullptr), m_PluginId(0),
-        m_Textures{}, m_Device(nullptr), m_NameStates(0), m_SavedStates(0), m_Viewport{}, m_ViewProjection{}, m_CanDraw(false) {
+        m_Textures{}, m_Device(nullptr), m_NameStates(0), m_SavedStates(0), m_StatesCaptured(false), m_Viewport{}, m_ViewProjection{}, m_CanDraw(false) {
 }
 
 const char* AshitaNameplate::GetName(void) const {
@@ -370,6 +374,7 @@ void AshitaNameplate::ReleaseNameStates() {
     }
     m_NameStates = 0;
     m_SavedStates = 0;
+    m_StatesCaptured = false;
     m_Device = nullptr;
     m_CanDraw = false;
 }
@@ -461,6 +466,7 @@ static void SetNameStates(IDirect3DDevice8* device) {
 
 void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& targetWidth, float& targetHeight, uint32_t& fontTexture) {
     m_CanDraw = false;
+    m_StatesCaptured = false; // a scene's names begin: whatever was captured was another's
     m_HorizontalFit = draw.HorizontalFit();
 
     IDirect3DDevice8* device = m_AshitaCore->GetDirect3DDevice();
@@ -644,7 +650,13 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
 
     IDirect3DDevice8* device = m_Device;
 
-    device->CaptureStateBlock(m_SavedStates);
+    // The client's state is captured before the first name of a run, and put back after each; while the
+    // client draws nothing itself between two names (ClientDrew), what was captured is still its state,
+    // and is not captured again. Off (keepstates off), it is captured before every name as it was.
+    if (!m_StatesCaptured || !KeepsStates()) {
+        device->CaptureStateBlock(m_SavedStates);
+        m_StatesCaptured = true;
+    }
     device->ApplyStateBlock(m_NameStates);
 
     // most names are letters alone, from the one texture, which is then set once for both passes
@@ -699,6 +711,10 @@ static void AshitaLongHelp(IChatManager* chat) {
     chat->Write(0, true , "Show or hide the names of a category, or of several:\x1e\x6a self party alliance players mypet pets npcs monsters\x1e\x01, or\x1e\x6a all");
     chat->Write(0, false, "\x1e\x6a/namehook target on\x1e\x01 |\x1e\x6a off");
     chat->Write(0, true , "Always show your target's name, whatever its category; your own stays hidden if own names are");
+    chat->Write(0, false, "\x1e\x6a/namehook othercalls on\x1e\x01 |\x1e\x6a off");
+    chat->Write(0, true , "Take every place the client draws a name from, or only the one that draws all the names");
+    chat->Write(0, false, "\x1e\x6a/namehook keepstates on\x1e\x01 |\x1e\x6a off");
+    chat->Write(0, true , "Capture the device's state once for a run of names an addon draws, or before each one");
     chat->Write(0, false, "\x1e\x6a/namehook status");
     chat->Write(0, true , "Say which categories are shown and hidden, and how many names were listed for addons last frame");
     chat->Write(0, false, "\x1e\x6a/namehook whitelist add\x1e\x6a <name>...");

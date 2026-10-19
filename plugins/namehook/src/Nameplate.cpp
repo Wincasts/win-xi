@@ -316,6 +316,14 @@ static bool ProbeWanted = false;
 // names: kept with the settings
 static int OtherCalls = 1;
 
+// Whether the device's state is captured once for a run of names an addon has drawn, and not before
+// each: kept with the settings
+static int KeepStates = 1;
+
+bool Nameplate::KeepsStates() const {
+	return KeepStates != 0;
+}
+
 // Players whose names are drawn in every mode that hides players.
 #define WHITELIST_MAX 512
 #define WHITELIST_NAME_SIZE 24
@@ -698,6 +706,9 @@ static void DrawNameLineFrom(uintptr_t site, const XiModel* pModel, const float*
 
 	if (Globals.LineDrawn && Globals.DrawNameLineOrig != nullptr) {
 		Globals.DrawNameLineOrig(pModel, nullptr, pPosition, text, scale, nameColor, iconColor);
+		if (Instance != nullptr) {
+			Instance->ClientDrew();
+		}
 	}
 }
 
@@ -726,6 +737,9 @@ static void __fastcall DrawNameLine2(const XiModel* pModel, [[maybe_unused]] voi
 
 	if (drawn && Globals.DrawNameLine2Orig != nullptr) {
 		Globals.DrawNameLine2Orig(pModel, nullptr, pPosition, text, scale);
+		if (Instance != nullptr) {
+			Instance->ClientDrew();
+		}
 	}
 }
 
@@ -956,6 +970,7 @@ int NameplateSettings::Load(const wchar_t* basePath) {
 	Shared.Hidden = GetPrivateProfileIntW(L"Settings", L"Hidden", 0, path) & CATEGORY_ALL;
 	Shared.Options = (GetPrivateProfileIntW(L"Settings", L"AlwaysTarget", 0, path) != 0) ? OPTION_ALWAYS_TARGET : 0;
 	OtherCalls = (GetPrivateProfileIntW(L"Settings", L"OtherCalls", 1, path) != 0) ? 1 : 0;
+	KeepStates = (GetPrivateProfileIntW(L"Settings", L"KeepStates", 1, path) != 0) ? 1 : 0;
 
 	Normalize();
 
@@ -989,6 +1004,9 @@ int NameplateSettings::Save(const wchar_t* basePath) {
 
 	StringCbPrintfW(buf, sizeof(buf), L"%d", OtherCalls);
 	WritePrivateProfileStringW(L"Settings", L"OtherCalls", buf, path);
+
+	StringCbPrintfW(buf, sizeof(buf), L"%d", KeepStates);
+	WritePrivateProfileStringW(L"Settings", L"KeepStates", buf, path);
 
 	return 0;
 }
@@ -1083,6 +1101,8 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 	// show|hide|toggle <category>...
 	// target on|off
 	// status
+	// othercalls on|off
+	// keepstates on|off
 	// whitelist add|remove <name>...
 	// whitelist list|clear
 
@@ -1205,6 +1225,20 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		} else {
 			CommandError("othercalls");
 		}
+	} else if (eat_space_token_match_and_advance(cmd, "keepstates")) {
+		int keepStates = -1;
+
+		if (eat_space_token_match_and_advance(cmd, "on")) {
+			keepStates = 1;
+		} else if (eat_space_token_match_and_advance(cmd, "off")) {
+			keepStates = 0;
+		}
+
+		if (keepStates >= 0 && eat_space_and_is_end(cmd)) {
+			KeepStates = keepStates;
+		} else {
+			CommandError("keepstates");
+		}
 	} else if (eat_space_token_match_and_advance(cmd, "status")) {
 		if (eat_space_and_is_end(cmd)) {
 			SayStatus();
@@ -1287,6 +1321,7 @@ void Nameplate::SayStatus() {
 			static_cast<unsigned>(Globals.UnownedLast));
 		Sayf(this, "%u names last frame were drawn again after their first time (%u of those by the call that draws all the names), and were listed and drawn for an addon once; %u were taken from a lower line and drawn where the higher had been.",
 			static_cast<unsigned>(Globals.RepeatsLast), static_cast<unsigned>(Globals.RepeatsMainLast), static_cast<unsigned>(Globals.LiftedLast));
+		Sayf(this, "The device's state is %s (keepstates %s).", KeepStates != 0 ? "captured once for a run of names an addon has drawn" : "captured before each name an addon has drawn", KeepStates != 0 ? "on" : "off");
 	}
 }
 

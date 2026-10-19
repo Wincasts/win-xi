@@ -48,6 +48,7 @@ A name that is shown may still not be drawn by the game: an addon that draws nam
 | `/namehook target on` / `off` | Always shows your target's name, whatever its category. Your own name is the exception: hidden, it stays hidden while you have yourself targeted. Off by default. |
 | `/namehook status` | Says which categories are shown and hidden, how many names were listed last frame, from how many places the client draws names, and how many names it drew more than once, and how many of those it moved up to where they were drawn highest. |
 | `/namehook othercalls on` / `off` | Whether every place the client draws a name from is taken, or only the one that draws all the names. On by default; turn it off if something that is no name over a head goes missing. |
+| `/namehook keepstates on` / `off` | Whether the device's state is captured once for a run of names an addon has drawn, or before each one. On by default; turn it off if what the client draws after the names looks wrong. |
 | `/namehook whitelist add <name>...` | Always shows these players' names. `wl` is short for `whitelist`. Names are matched without regard to case, and the list is saved as it changes, to `config\namehook\whitelist.txt`, one name to a line. |
 | `/namehook whitelist remove <name>...` | Takes them off the whitelist. |
 | `/namehook whitelist list` / `clear` | Says the names on the whitelist, or takes them all off. |
@@ -173,6 +174,8 @@ The quads are in pixels of the client's picture, not of its window. `BeginDrawin
 The plugin draws a name when all of these hold: its category is claimed, it is wanted, and the addon set it out within the last 8 frames. It is then listed with the custom flag. A claimed name that was not set out is not drawn at all. What is set out in one frame is drawn in the next, where the client then puts the name: the name's place is never a frame behind, only what it looks like.
 
 Each name is drawn twice: once blended into the picture and tested against its depth, and once more to the depth alone where the name is solid, so that what the client draws afterwards, and behind the name, is not drawn over it. Everything of the device's state that this changes is put back before the client goes on.
+
+The device's state is captured before the first name of a run and put back after each one; while the client draws nothing itself between two names, what was captured is still its state and is not captured again (`keepstates`, on by default). The client drawing a line of a name with its own functions, a new scene's names and the frame's end each have it captured afresh. With `keepstates off` it is captured before every name, as it was up to 1.28.
 
 ### Additive world-space speech bubbles (1.24+)
 
