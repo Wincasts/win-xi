@@ -167,7 +167,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 1.28;
+    return NAMEHOOK_VERSION;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
@@ -690,7 +690,7 @@ void AshitaNameplate::PublishNames(bool frameDone) {
 }
 
 static void AshitaLongHelp(IChatManager* chat) {
-    chat->Write(0, false, "\x1e\x05namehook v1.24, from Nameplate v0.51 by way of nameplatew v0.60");
+    chat->Write(0, false, "\x1e\x05namehook v" NAMEHOOK_VERSION_TEXT ", from Nameplate v0.51 by way of nameplatew v0.60");
     chat->Write(0, false, "\x1e\x05https://www.github.com/Shirk/Nameplate");
     chat->Write(0, false, "\x1e\x6aUsage (\x1e\x6a/nh\x1e\x6a is short for\x1e\x6a /namehook\x1e\x6a):");
     chat->Write(0, false, "\x1e\x6a/namehook help");

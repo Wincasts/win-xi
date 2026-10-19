@@ -24,8 +24,6 @@ If not, see <https://www.gnu.org/licenses/>.
 
 #include "Nameplate.h"
 
-#include "bytes/bytes.h"
-
 #include "findsignature.h"
 
 // No copyright is claimed on the following "fair use for interoperability" section.
@@ -40,22 +38,32 @@ If not, see <https://www.gnu.org/licenses/>.
 #define DRAWNAME_PATCH0_LOCATION "E8????????25FFFF000089442410DB442410D80D????????D88C24E0060000D95C244CE8????????8BBC24DC06000025FFFF00008944241083C9FFDB44241033C0F2AED80D????????D88C24E0060000F7D14983F924894C2418D95C24507E09B924000000894C2418"
 #define DRAWNAME_PATCH1_LOCATION "E8????????25FFFF000089442410DB442410D80D????????D88C24D4060000D95C2438E8????????25FFFF00008BAC24D0060000894424108BFDDB44241083C9FF33C0F2AED80D????????D88C24D4060000F7D14983F924"
 #define DRAWNAME2_PATCH_LOCATION "6683B9B20000000075178B44240C8B4C2408"
-#define DRAWNAME3_PATCH_LOCATION "A0????????84C0745E8B4E7033C0A0????????83F803774FFF2485????????F74178000000FF753F8B168BCEFF92CC0000005F5E81C418010000C38B517881E2000000FF81FA00000001751B8B8120010000C1E80DA801EBCD8B8920010000C1E90DF6C10175C1"
 #define DRAWNAME3_V2_PATCH_LOCATION "A0????????84C0747A8B7E7033C0A0????????83F804776BFF2485????????F74778000000FF755B8B168BCEFF92CC0000005F5E81C418010000C38B4F7881E1000000FF81F90000000175378B9720010000C1EA0DF6C201EBCC8B8720010000C1E80DA801EB1AF74778000000FF7513E8????????85C0740A8B48788B47783BC875A5"
 
 #define DRAWDAMAGE_PATCH_LOCATION "A1????????8B88C80D0000E8????????8B5008A1????????8954240CDB44240CD84C2408D80D????????D95C24208B88C80D0000E8????????8B400C8B0D????????8944240C8BF1DB44240C8BD681E2FFFFFF00D84C240881FA80808000D80D????????D95C2424750E8B879401000081E6000000FF0BF0"
 /* End "fair use for interoperability" section */
 
 
-// MSVC does not provide GCC/Clang's nameplate_strlen.  Keep this tiny
-// constexpr helper so the patch-size constants and command parser lengths
-// work with Visual Studio/MSVC as well as Clang.
+// The length of a signature's text at compile time, for the size of the patch it is
 static constexpr size_t nameplate_strlen(const char* text) {
     size_t len = 0;
     while (text[len] != '\0') {
         ++len;
     }
     return len;
+}
+
+// A 32-bit operand of the client's code, as it lies: an address, little-endian
+static uint32_t ReadOperand(uintptr_t at) {
+    uint32_t value;
+    memcpy(&value, reinterpret_cast<const void*> (at), sizeof(value));
+    return value;
+}
+
+// A function's address written over the placeholder in a patch, byte by byte
+static void WriteAddress(uint8_t* pLoc, const void* function) {
+    const uint32_t address = static_cast<uint32_t>(reinterpret_cast<uintptr_t> (function));
+    memcpy(pLoc, &address, sizeof(address));
 }
 
 static constexpr auto getFrameDeltaSig = MakeSig<GETFRAMEDELTA>();
@@ -66,14 +74,12 @@ static constexpr auto getPlayerEntitySig = MakeSig<GETPLAYERENTITY>();
 static constexpr auto drawNamePatch0LocationSig = MakeSig<DRAWNAME_PATCH0_LOCATION>();
 static constexpr auto drawNamePatch1LocationSig = MakeSig<DRAWNAME_PATCH1_LOCATION>();
 static constexpr auto drawName2PatchLocationSig = MakeSig<DRAWNAME2_PATCH_LOCATION>();
-static constexpr auto drawName3PatchLocationSig = MakeSig<DRAWNAME3_PATCH_LOCATION>();
 static constexpr auto drawName3V2PatchLocationSig = MakeSig<DRAWNAME3_V2_PATCH_LOCATION>();
 static constexpr auto drawDamagePatchLocationSig = MakeSig<DRAWDAMAGE_PATCH_LOCATION>();
 
 static constexpr size_t DRAWNAME_PATCH0_SIZE = nameplate_strlen(DRAWNAME_PATCH0_LOCATION) / 2;
 static constexpr size_t DRAWNAME_PATCH1_SIZE = nameplate_strlen(DRAWNAME_PATCH1_LOCATION) / 2;
 static constexpr size_t DRAWNAME2_PATCH_SIZE = nameplate_strlen(DRAWNAME2_PATCH_LOCATION) / 2;
-static constexpr size_t DRAWNAME3_PATCH_SIZE = nameplate_strlen(DRAWNAME3_PATCH_LOCATION) / 2;
 static constexpr size_t DRAWNAME3_V2_PATCH_SIZE = nameplate_strlen(DRAWNAME3_V2_PATCH_LOCATION) / 2;
 static constexpr size_t DRAWDAMAGE_PATCH_SIZE = nameplate_strlen(DRAWDAMAGE_PATCH_LOCATION) / 2;
 
@@ -116,19 +122,6 @@ static constexpr uint8_t DrawName_Patch1[DRAWNAME_PATCH1_SIZE] = {
 #define DRAWNAME_LINE2_CALL_OFFSET 0x137
 #define DRAWNAME_LINE2_RET_OFFSET 0x21  // RET 0x0C
 #define DRAWNAME_STARS '\xD2'           // what the second line holds for a player with a job mastered
-
-static constexpr uint8_t DrawName3_Patch[DRAWNAME3_PATCH_SIZE] = {
-  0x89, 0xf1, 0xb8, 0x78, 0x56, 0x34, 0x12, 0xff, 0xd0, 0x84, 0xc0, 0x75,
-  0x5a, 0x74, 0x19, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-  0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-  0x90, 0x90, 0x90, 0x90, 0x8b, 0x16, 0x89, 0xf1, 0xff, 0x92, 0xcc, 0x00,
-  0x00, 0x00, 0x5f, 0x5e, 0x81, 0xc4, 0x18, 0x01, 0x00, 0x00, 0xc3, 0x90,
-  0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-  0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-  0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-  0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90
-};
-#define DRAWNAME3_PATCH_ADDRESS_LOCATION 3
 
 static constexpr uint8_t DrawName3_V2_Patch[DRAWNAME3_V2_PATCH_SIZE] = {
   0x89, 0xf1, 0xb8, 0x78, 0x56, 0x34, 0x12, 0xff, 0xd0, 0x84, 0xc0, 0x75,
@@ -209,9 +202,6 @@ static struct {
 	uintptr_t DrawName2PatchAddr;
 	uint8_t DrawName2PatchOrig[DRAWNAME2_PATCH_SIZE];
 
-	uintptr_t DrawName3PatchAddr;
-	uint8_t DrawName3PatchOrig[DRAWNAME3_PATCH_SIZE];
-
 	uintptr_t DrawName3V2PatchAddr;
 	uint8_t DrawName3V2PatchOrig[DRAWNAME3_V2_PATCH_SIZE];
 
@@ -255,6 +245,7 @@ static struct {
 	bool LineDrawn;
 } Globals;
 
+// The sizes and the stars, as the client's patched code reads them
 static struct {
 	int FontSize;
 	int DamageFontSize;
@@ -927,85 +918,46 @@ static bool __fastcall ShouldDrawNameplate(const XiModel* pModel) {
 	return IsWanted(pEntity, Classify(pEntity, flags), flags);
 }
 
-void NameplateSettings::Flush() {
-	AsmSettings.FontSize = FontSize;
-	AsmSettings.DamageFontSize = DamageFontSize;
-	AsmSettings.HideStars = HideStars;
-}
-
 void NameplateSettings::Normalize() {
-	if (FontSize < 1) {
-		FontSize = 1;
+	if (AsmSettings.FontSize < 1) {
+		AsmSettings.FontSize = 1;
 	}
-	if (FontSize > 256) {
-		FontSize = 256;
-	}
-
-	if (DamageFontSize < 1) {
-		DamageFontSize = 1;
-	}
-	if (DamageFontSize > 256) {
-		DamageFontSize = 256;
+	if (AsmSettings.FontSize > 256) {
+		AsmSettings.FontSize = 256;
 	}
 
-	HideStars = (HideStars != 0) ? 1 : 0;
+	if (AsmSettings.DamageFontSize < 1) {
+		AsmSettings.DamageFontSize = 1;
+	}
+	if (AsmSettings.DamageFontSize > 256) {
+		AsmSettings.DamageFontSize = 256;
+	}
+
+	AsmSettings.HideStars = (AsmSettings.HideStars != 0) ? 1 : 0;
 }
 
 int NameplateSettings::Init() {
-
-	FontSize = 22;
-	DamageFontSize = 22;
-	HideStars = 0;
+	AsmSettings.FontSize = 22;
+	AsmSettings.DamageFontSize = 22;
+	AsmSettings.HideStars = 0;
 
 	return 0;
-}
-
-// The categories that one of nameplatew's name modes hid
-static uint32_t HiddenFromNameMode(int nameMode, bool includeAlliance) {
-	const uint32_t players = CATEGORY_SELF | CATEGORY_PARTY | CATEGORY_ALLIANCE | CATEGORY_PLAYER;
-	const uint32_t others = CATEGORY_MY_PET | CATEGORY_PET | CATEGORY_NPC | CATEGORY_MONSTER;
-	const uint32_t strangers = CATEGORY_PLAYER | (includeAlliance ? 0 : CATEGORY_ALLIANCE);
-
-	switch (nameMode) {
-		case 1: return CATEGORY_ALL;             // none
-		case 2: return CATEGORY_SELF;            // hideself
-		case 3:                                  // hidepc
-		case 4: return players;                  // hidepcself
-		case 5: return others;                   // hidenpc
-		case 6: return others | CATEGORY_SELF;   // hidenpcself
-		case 7: return strangers;                // hidepcparty
-		case 8: return strangers | CATEGORY_SELF; // hidepcpartyself
-		default: return 0;                       // all
-	}
 }
 
 int NameplateSettings::Load(const wchar_t* basePath) {
 	wchar_t path[UNICODE_MAX_PATH];
 	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook\\defaults.ini", basePath);
 
-	// Before the first save, start from the settings this plugin had under its old name, nameplatehook,
-	// and failing those from the settings of the plugin it replaces
-	uint32_t hidden = 0;
-	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
-		StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook\\defaults.ini", basePath);
-	}
-	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
-		StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatew\\defaults.ini", basePath);
-		hidden = HiddenFromNameMode(GetPrivateProfileIntW(L"Settings", L"NameMode", 0, path),
-			GetPrivateProfileIntW(L"Settings", L"IncludeAlliance", 0, path) != 0);
-	}
-
-	FontSize = GetPrivateProfileIntW(L"Settings", L"FontSizeInPx", 22, path);
-	DamageFontSize = GetPrivateProfileIntW(L"Settings", L"DamageFontSizeInPx", 22, path);
-	HideStars = GetPrivateProfileIntW(L"Settings", L"HideStars", 0, path);
+	AsmSettings.FontSize = GetPrivateProfileIntW(L"Settings", L"FontSizeInPx", 22, path);
+	AsmSettings.DamageFontSize = GetPrivateProfileIntW(L"Settings", L"DamageFontSizeInPx", 22, path);
+	AsmSettings.HideStars = GetPrivateProfileIntW(L"Settings", L"HideStars", 0, path);
 
 	// Which names are hidden is kept where addons can change it
-	Shared.Hidden = GetPrivateProfileIntW(L"Settings", L"Hidden", static_cast<int>(hidden), path) & CATEGORY_ALL;
+	Shared.Hidden = GetPrivateProfileIntW(L"Settings", L"Hidden", 0, path) & CATEGORY_ALL;
 	Shared.Options = (GetPrivateProfileIntW(L"Settings", L"AlwaysTarget", 0, path) != 0) ? OPTION_ALWAYS_TARGET : 0;
 	OtherCalls = (GetPrivateProfileIntW(L"Settings", L"OtherCalls", 1, path) != 0) ? 1 : 0;
 
 	Normalize();
-	Flush();
 
 	return 0;
 }
@@ -1020,13 +972,13 @@ int NameplateSettings::Save(const wchar_t* basePath) {
 
 	wchar_t buf[256];
 
-	StringCbPrintfW(buf, sizeof(buf), L"%d", FontSize);
+	StringCbPrintfW(buf, sizeof(buf), L"%d", AsmSettings.FontSize);
 	WritePrivateProfileStringW(L"Settings", L"FontSizeInPx", buf, path);
 
-	StringCbPrintfW(buf, sizeof(buf), L"%d", DamageFontSize);
+	StringCbPrintfW(buf, sizeof(buf), L"%d", AsmSettings.DamageFontSize);
 	WritePrivateProfileStringW(L"Settings", L"DamageFontSizeInPx", buf, path);
 
-	StringCbPrintfW(buf, sizeof(buf), L"%d", HideStars);
+	StringCbPrintfW(buf, sizeof(buf), L"%d", AsmSettings.HideStars);
 	WritePrivateProfileStringW(L"Settings", L"HideStars", buf, path);
 
 	StringCbPrintfW(buf, sizeof(buf), L"%u", Shared.Hidden & CATEGORY_ALL);
@@ -1064,28 +1016,25 @@ static bool eat_space_and_is_end(const char*& cmd) {
 	return is_end(cmd);
 }
 
+// Whether the command goes on with this word, whole: if so it is passed over
 static bool token_match_and_advance(const char*& cmd, const char* token, size_t token_length) {
-	if (_strnicmp(cmd, token, token_length) == 0) {
-		if (isspace_or_end(cmd[token_length])) {
-			cmd += token_length;
-			return true;
-		}
+	if (_strnicmp(cmd, token, token_length) == 0 && isspace_or_end(cmd[token_length])) {
+		cmd += token_length;
+		return true;
 	}
 
 	return false;
 }
 
-static bool eat_space_token_match_and_advance(const char*& cmd, const char* token, size_t token_length) {
+template <size_t N>
+static bool token_match_and_advance(const char*& cmd, const char (&token)[N]) {
+	return token_match_and_advance(cmd, token, N - 1);
+}
+
+template <size_t N>
+static bool eat_space_token_match_and_advance(const char*& cmd, const char (&token)[N]) {
 	eat_space(cmd);
-
-	if (_strnicmp(cmd, token, token_length) == 0) {
-		if (isspace_or_end(cmd[token_length])) {
-			cmd += token_length;
-			return true;
-		}
-	}
-
-	return false;
+	return token_match_and_advance(cmd, token, N - 1);
 }
 
 static void Sayf(Nameplate* plugin, const char* format, ...);
@@ -1115,9 +1064,9 @@ static const struct {
 
 bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 	if (includesName) {
-		if (token_match_and_advance(cmd, "/namehook", nameplate_strlen("/namehook"))) {
+		if (token_match_and_advance(cmd, "/namehook")) {
 			// skip
-		} else if (token_match_and_advance(cmd, "/nh", nameplate_strlen("/nh"))) {
+		} else if (token_match_and_advance(cmd, "/nh")) {
 			// skip
 		} else {
 			return false;
@@ -1139,9 +1088,9 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 
 	int ret = 0;
 
-	if (eat_space_token_match_and_advance(cmd, "help", nameplate_strlen("help"))) {
+	if (eat_space_token_match_and_advance(cmd, "help")) {
 		ShowMessage(MESSAGE::LONG_HELP);
-	} else if (eat_space_token_match_and_advance(cmd, "load", nameplate_strlen("load"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "load")) {
 		if (eat_space_and_is_end(cmd)) {
 			ret = LoadSettings();
 			if (ret < 0) {
@@ -1152,7 +1101,7 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		} else {
 			CommandError("load");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "save", nameplate_strlen("save"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "save")) {
 		if (eat_space_and_is_end(cmd)) {
 			ret = SaveSettings();
 			if (ret < 0) {
@@ -1161,8 +1110,8 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		} else {
 			CommandError("save");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "fontsizeinpx", nameplate_strlen("fontsizeinpx"))
-			|| eat_space_token_match_and_advance(cmd, "fontsize", nameplate_strlen("fontsize"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "fontsizeinpx")
+			|| eat_space_token_match_and_advance(cmd, "fontsize")) {
 		errno = 0;
 
 		char* cmd_end = const_cast<char*>(cmd);
@@ -1174,13 +1123,12 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		if (val == 0 || val > 256 || errno != 0 || !eat_space_and_is_end(cmd)) {
 			CommandError("fontsize");
 		} else {
-			Settings.SetFontSize(static_cast<int>(val));
-			Settings.Flush();
+			AsmSettings.FontSize = static_cast<int>(val);
 			// update not necessary in this path
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "damagefontsizeinpx", nameplate_strlen("damagefontsizeinpx"))
-			|| eat_space_token_match_and_advance(cmd, "damagefontsize", nameplate_strlen("damagefontsize"))
-			|| eat_space_token_match_and_advance(cmd, "dmgfontsize", nameplate_strlen("dmgfontsize"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "damagefontsizeinpx")
+			|| eat_space_token_match_and_advance(cmd, "damagefontsize")
+			|| eat_space_token_match_and_advance(cmd, "dmgfontsize")) {
 		errno = 0;
 
 		char* cmd_end = const_cast<char*>(cmd);
@@ -1192,38 +1140,35 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		if (val == 0 || val > 256 || errno != 0 || !eat_space_and_is_end(cmd)) {
 			CommandError("damagefontsize");
 		} else {
-			Settings.SetDamageFontSize(static_cast<int>(val));
-			Settings.Flush();
+			AsmSettings.DamageFontSize = static_cast<int>(val);
 			// update not necessary in this path
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "showstars", nameplate_strlen("showstars"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "showstars")) {
 		if (eat_space_and_is_end(cmd)) {
-			Settings.SetHideStars(0);
-			Settings.Flush();
+			AsmSettings.HideStars = 0;
 			Update();
 		} else {
 			CommandError("showstars");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "hidestars", nameplate_strlen("hidestars"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "hidestars")) {
 		if (eat_space_and_is_end(cmd)) {
-			Settings.SetHideStars(1);
-			Settings.Flush();
+			AsmSettings.HideStars = 1;
 			Update();
 		} else {
 			CommandError("hidestars");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "show", nameplate_strlen("show"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "show")) {
 		ParseCategoryCommand(cmd, 1);
-	} else if (eat_space_token_match_and_advance(cmd, "hide", nameplate_strlen("hide"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "hide")) {
 		ParseCategoryCommand(cmd, 0);
-	} else if (eat_space_token_match_and_advance(cmd, "toggle", nameplate_strlen("toggle"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "toggle")) {
 		ParseCategoryCommand(cmd, -1);
-	} else if (eat_space_token_match_and_advance(cmd, "target", nameplate_strlen("target"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "target")) {
 		int alwaysTarget = -1;
 
-		if (eat_space_token_match_and_advance(cmd, "on", nameplate_strlen("on"))) {
+		if (eat_space_token_match_and_advance(cmd, "on")) {
 			alwaysTarget = 1;
-		} else if (eat_space_token_match_and_advance(cmd, "off", nameplate_strlen("off"))) {
+		} else if (eat_space_token_match_and_advance(cmd, "off")) {
 			alwaysTarget = 0;
 		}
 
@@ -1236,19 +1181,19 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		} else {
 			CommandError("target");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "probe", nameplate_strlen("probe"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "probe")) {
 		// not in the help: for finding out how the client draws
 		if (Shared.Hooked != 0) {
 			ProbeWanted = true;
 		} else {
 			Debug("This client's name drawing was not recognised: there is nothing to look at.");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "othercalls", nameplate_strlen("othercalls"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "othercalls")) {
 		int otherCalls = -1;
 
-		if (eat_space_token_match_and_advance(cmd, "on", nameplate_strlen("on"))) {
+		if (eat_space_token_match_and_advance(cmd, "on")) {
 			otherCalls = 1;
-		} else if (eat_space_token_match_and_advance(cmd, "off", nameplate_strlen("off"))) {
+		} else if (eat_space_token_match_and_advance(cmd, "off")) {
 			otherCalls = 0;
 		}
 
@@ -1260,14 +1205,14 @@ bool Nameplate::ParseCommand(const char* cmd, bool includesName) {
 		} else {
 			CommandError("othercalls");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "status", nameplate_strlen("status"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "status")) {
 		if (eat_space_and_is_end(cmd)) {
 			SayStatus();
 		} else {
 			CommandError("status");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "whitelist", nameplate_strlen("whitelist"))
-			|| eat_space_token_match_and_advance(cmd, "wl", nameplate_strlen("wl"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "whitelist")
+			|| eat_space_token_match_and_advance(cmd, "wl")) {
 		ParseWhitelistCommand(cmd);
 	} else {
 		ShowMessage(MESSAGE::SHORT_HELP);
@@ -1389,7 +1334,7 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 	char name[WHITELIST_NAME_SIZE];
 	bool tooLong = false;
 
-	if (eat_space_token_match_and_advance(cmd, "add", nameplate_strlen("add"))) {
+	if (eat_space_token_match_and_advance(cmd, "add")) {
 		int named = 0;
 		bool changed = false;
 
@@ -1412,8 +1357,8 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 		if (changed && SaveWhitelist() < 0) {
 			Sayf(this, "The whitelist could not be saved.");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "remove", nameplate_strlen("remove"))
-			|| eat_space_token_match_and_advance(cmd, "del", nameplate_strlen("del"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "remove")
+			|| eat_space_token_match_and_advance(cmd, "del")) {
 		int named = 0;
 		bool changed = false;
 
@@ -1441,7 +1386,7 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 		if (changed && SaveWhitelist() < 0) {
 			Sayf(this, "The whitelist could not be saved.");
 		}
-	} else if (eat_space_token_match_and_advance(cmd, "clear", nameplate_strlen("clear"))) {
+	} else if (eat_space_token_match_and_advance(cmd, "clear")) {
 		if (eat_space_and_is_end(cmd)) {
 			size_t count = Whitelist.Count;
 			Whitelist.Count = 0;
@@ -1454,7 +1399,7 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 		} else {
 			CommandError("whitelist");
 		}
-	} else if (eat_space_and_is_end(cmd) || eat_space_token_match_and_advance(cmd, "list", nameplate_strlen("list"))) {
+	} else if (eat_space_and_is_end(cmd) || eat_space_token_match_and_advance(cmd, "list")) {
 		if (!eat_space_and_is_end(cmd)) {
 			CommandError("whitelist");
 		} else if (Whitelist.Count == 0) {
@@ -1481,9 +1426,7 @@ void Nameplate::ParseWhitelistCommand(const char* cmd) {
 	}
 }
 
-// One name to a line in config/namehook/whitelist.txt. Before that file exists, the one this plugin
-// had under its old name, nameplatehook, is read, and failing that nameplatew's; with none of them,
-// the whitelist is empty.
+// One name to a line in config/namehook/whitelist.txt; without the file, the whitelist is empty.
 int Nameplate::LoadWhitelist() {
 	wchar_t basePath[UNICODE_MAX_PATH];
 	if (!this->GetConfigPath(basePath)) {
@@ -1492,12 +1435,6 @@ int Nameplate::LoadWhitelist() {
 
 	wchar_t path[UNICODE_MAX_PATH];
 	StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\namehook\\whitelist.txt", basePath);
-	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
-		StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatehook\\whitelist.txt", basePath);
-	}
-	if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
-		StringCchPrintfW(path, UNICODE_MAX_PATH, L"%s\\nameplatew\\whitelist.txt", basePath);
-	}
 
 	Whitelist.Count = 0;
 	Whitelist.IndexDirty = true;
@@ -1547,12 +1484,6 @@ int Nameplate::SaveWhitelist() {
 	return 0;
 }
 
-void Nameplate::Debug(const wchar_t* text) {
-	char buf[1024];
-	StringCbPrintfA(buf, sizeof(buf), "%ls", text);
-	Debug(buf);
-}
-
 int Nameplate::Init() {
 	ZeroMemory(&Globals, sizeof(Globals));
 	ZeroMemory(&Seen, sizeof(Seen));
@@ -1574,7 +1505,7 @@ int Nameplate::Init() {
 	uintptr_t pppObj = pGetFrameDelta + 2;
 
 	// pointer to gGame
-	uintptr_t ppObj = lsb32_i((uint8_t*) pppObj, 0);
+	uintptr_t ppObj = ReadOperand(pppObj);
 	if (ppObj == 0) {
 		return -5;
 	}
@@ -1591,13 +1522,13 @@ int Nameplate::Init() {
 	uintptr_t ppWindowHeight = pInitApplicationDefaults + 41;
 
 	// pWindowWidth
-	uintptr_t pWindowWidth = lsb32_i((uint8_t*) ppWindowWidth, 0);
+	uintptr_t pWindowWidth = ReadOperand(ppWindowWidth);
 	if (pWindowWidth == 0) {
 		return -7;
 	}
 
 	// pWindowHeight
-	uintptr_t pWindowHeight = lsb32_i((uint8_t*) ppWindowHeight, 0);
+	uintptr_t pWindowHeight = ReadOperand(ppWindowHeight);
 	if (pWindowHeight == 0) {
 		return -8;
 	}
@@ -1609,7 +1540,7 @@ int Nameplate::Init() {
 	}
 
 	uintptr_t ppPlayerEntityIndex = pGetPlayerEntity + 2;
-	uintptr_t pPlayerEntityIndex = lsb32_i((uint8_t*) ppPlayerEntityIndex, 0);
+	uintptr_t pPlayerEntityIndex = ReadOperand(ppPlayerEntityIndex);
 	if (pPlayerEntityIndex == 0) {
 		return -16;
 	}
@@ -1632,18 +1563,13 @@ int Nameplate::Init() {
 		return -11;
 	}
 
-	// DrawName3 (display mode)
-	// either use the original or the new version, depending on what's found
-	uintptr_t pDrawName3Patch = (uintptr_t) drawName3PatchLocationSig.Find();
+	// DrawName3 (display mode): the function that decides whether a name is drawn, and draws it
 	uintptr_t pDrawName3V2Patch = (uintptr_t) drawName3V2PatchLocationSig.Find();
-	if (pDrawName3Patch == 0 && pDrawName3V2Patch == 0) {
+	if (pDrawName3V2Patch == 0) {
 		return -14;
 	}
 
-	uintptr_t ppNamesOff = (pDrawName3Patch != 0)
-		? pDrawName3Patch + 1
-		: pDrawName3V2Patch + 1;
-	uintptr_t pNamesOff = lsb32_i((uint8_t*) ppNamesOff, 0);
+	uintptr_t pNamesOff = ReadOperand(pDrawName3V2Patch + 1);
 	if (pNamesOff == 0) {
 		return -17;
 	}
@@ -1660,19 +1586,13 @@ int Nameplate::Init() {
 	CopyMemory(reinterpret_cast<void*> (pDrawNamePatch0), &DrawName_Patch0[0], DRAWNAME_PATCH0_SIZE);
 
 	pLoc = reinterpret_cast<uint8_t*> (pDrawNamePatch0 + DRAWNAME_PATCH0_ADDRESS_LOCATION);
-	pLoc[0] = (((uintptr_t) GetNameplateScale) >> 0) & 0xFF;
-	pLoc[1] = (((uintptr_t) GetNameplateScale) >> 8) & 0xFF;
-	pLoc[2] = (((uintptr_t) GetNameplateScale) >> 16) & 0xFF;
-	pLoc[3] = (((uintptr_t) GetNameplateScale) >> 24) & 0xFF;
+	WriteAddress(pLoc, reinterpret_cast<const void*> (&GetNameplateScale));
 
 	CopyMemory(&Globals.DrawNamePatch1Orig[0], reinterpret_cast<const void*> (pDrawNamePatch1), DRAWNAME_PATCH1_SIZE);
 	CopyMemory(reinterpret_cast<void*> (pDrawNamePatch1), &DrawName_Patch1[0], DRAWNAME_PATCH1_SIZE);
 
 	pLoc = reinterpret_cast<uint8_t*> (pDrawNamePatch1 + DRAWNAME_PATCH1_ADDRESS_LOCATION);
-	pLoc[0] = (((uintptr_t) GetNameplateScale) >> 0) & 0xFF;
-	pLoc[1] = (((uintptr_t) GetNameplateScale) >> 8) & 0xFF;
-	pLoc[2] = (((uintptr_t) GetNameplateScale) >> 16) & 0xFF;
-	pLoc[3] = (((uintptr_t) GetNameplateScale) >> 24) & 0xFF;
+	WriteAddress(pLoc, reinterpret_cast<const void*> (&GetNameplateScale));
 
 	CopyMemory(&Globals.DrawName2PatchOrig[0], reinterpret_cast<const void*> (pDrawName2Patch), DRAWNAME2_PATCH_SIZE);
 
@@ -1681,36 +1601,15 @@ int Nameplate::Init() {
 	// Stick a JMP there.
 	pLoc[0] = (AsmSettings.HideStars != 0) ? 0xEB : 0x75;
 
-	if (pDrawName3Patch != 0) {
-		CopyMemory(&Globals.DrawName3PatchOrig[0], reinterpret_cast<const void*> (pDrawName3Patch), DRAWNAME3_PATCH_SIZE);
-		CopyMemory(reinterpret_cast<void*> (pDrawName3Patch), &DrawName3_Patch, DRAWNAME3_PATCH_SIZE);
-
-		pLoc = reinterpret_cast<uint8_t*> (pDrawName3Patch + DRAWNAME3_PATCH_ADDRESS_LOCATION);
-		pLoc[0] = (((uintptr_t) ShouldDrawNameplate) >> 0) & 0xFF;
-		pLoc[1] = (((uintptr_t) ShouldDrawNameplate) >> 8) & 0xFF;
-		pLoc[2] = (((uintptr_t) ShouldDrawNameplate) >> 16) & 0xFF;
-		pLoc[3] = (((uintptr_t) ShouldDrawNameplate) >> 24) & 0xFF;
-	}
-
-	if (pDrawName3V2Patch != 0) {
-		CopyMemory(&Globals.DrawName3V2PatchOrig[0], reinterpret_cast<const void*> (pDrawName3V2Patch), DRAWNAME3_V2_PATCH_SIZE);
-		CopyMemory(reinterpret_cast<void*> (pDrawName3V2Patch), &DrawName3_V2_Patch, DRAWNAME3_V2_PATCH_SIZE);
-
-		pLoc = reinterpret_cast<uint8_t*> (pDrawName3V2Patch + DRAWNAME3_V2_PATCH_ADDRESS_LOCATION);
-		pLoc[0] = (((uintptr_t) ShouldDrawNameplate) >> 0) & 0xFF;
-		pLoc[1] = (((uintptr_t) ShouldDrawNameplate) >> 8) & 0xFF;
-		pLoc[2] = (((uintptr_t) ShouldDrawNameplate) >> 16) & 0xFF;
-		pLoc[3] = (((uintptr_t) ShouldDrawNameplate) >> 24) & 0xFF;
-	}
+	CopyMemory(&Globals.DrawName3V2PatchOrig[0], reinterpret_cast<const void*> (pDrawName3V2Patch), DRAWNAME3_V2_PATCH_SIZE);
+	CopyMemory(reinterpret_cast<void*> (pDrawName3V2Patch), &DrawName3_V2_Patch, DRAWNAME3_V2_PATCH_SIZE);
+	WriteAddress(reinterpret_cast<uint8_t*> (pDrawName3V2Patch + DRAWNAME3_V2_PATCH_ADDRESS_LOCATION), reinterpret_cast<const void*> (&ShouldDrawNameplate));
 
 	CopyMemory(&Globals.DrawDamagePatchOrig[0], reinterpret_cast<const void*> (pDrawDamagePatch), DRAWDAMAGE_PATCH_SIZE);
 	CopyMemory(reinterpret_cast<void*> (pDrawDamagePatch), &DrawDamage_Patch, DRAWDAMAGE_PATCH_SIZE);
 
 	pLoc = reinterpret_cast<uint8_t*> (pDrawDamagePatch + DRAWDAMAGE_PATCH_CALL_ADDRESS_LOCATION);
-	pLoc[0] = (((uintptr_t) GetDamageNumberScale) >> 0) & 0xFF;
-	pLoc[1] = (((uintptr_t) GetDamageNumberScale) >> 8) & 0xFF;
-	pLoc[2] = (((uintptr_t) GetDamageNumberScale) >> 16) & 0xFF;
-	pLoc[3] = (((uintptr_t) GetDamageNumberScale) >> 24) & 0xFF;
+	WriteAddress(pLoc, reinterpret_cast<const void*> (&GetDamageNumberScale));
 
 	pLoc = reinterpret_cast<uint8_t*> (pDrawDamagePatch + DRAWDAMAGE_PATCH_COLOR_ADDRESS_LOCATION);
 	const uint8_t* pOldLoc = &Globals.DrawDamagePatchOrig[DRAWDAMAGE_PATCH_OLD_COLOR_ADDRESS_LOCATION];
@@ -1728,14 +1627,13 @@ int Nameplate::Init() {
 	Globals.DrawNamePatch0Addr = pDrawNamePatch0;
 	Globals.DrawNamePatch1Addr = pDrawNamePatch1;
 	Globals.DrawName2PatchAddr = pDrawName2Patch;
-	Globals.DrawName3PatchAddr = pDrawName3Patch;
 	Globals.DrawName3V2PatchAddr = pDrawName3V2Patch;
 	Globals.DrawDamagePatchAddr = pDrawDamagePatch;
 
-	// The calls that draw a name's two lines, where names are listed for addons. They are only known
-	// in the V2 function, and only taken if both go where they are expected to; without them names are
-	// shown and hidden all the same, and there is no list.
-	if (pDrawName3V2Patch != 0) {
+	// The calls that draw a name's two lines, where names are listed for addons: taken only if both go
+	// where they are expected to; without them names are shown and hidden all the same, and there is
+	// no list.
+	{
 		uintptr_t pLineCall = pDrawName3V2Patch + DRAWNAME_LINE_CALL_OFFSET;
 		uintptr_t pLine2Call = pDrawName3V2Patch + DRAWNAME_LINE2_CALL_OFFSET;
 		uintptr_t pLine = CallTarget(pLineCall);
@@ -1941,10 +1839,6 @@ int Nameplate::Deinit() {
 
 	if (Globals.DrawName3V2PatchAddr != 0) {
 		CopyMemory(reinterpret_cast<void*> (Globals.DrawName3V2PatchAddr), &Globals.DrawName3V2PatchOrig[0], DRAWNAME3_V2_PATCH_SIZE);
-	}
-
-	if (Globals.DrawName3PatchAddr != 0) {
-		CopyMemory(reinterpret_cast<void*> (Globals.DrawName3PatchAddr), &Globals.DrawName3PatchOrig[0], DRAWNAME3_PATCH_SIZE);
 	}
 
 	if (Globals.DrawName2PatchAddr != 0) {

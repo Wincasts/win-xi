@@ -60,7 +60,7 @@ A name that is shown may still not be drawn by the game: an addon that draws nam
 
 For example, to see only your party's names among players: `/nh hide players alliance`.
 
-Settings changed by a command last until the plugin is unloaded, unless saved. It was called nameplatehook up to 1.11, and until `defaults.ini` exists the settings and the whitelist it kept under that name, in `config\nameplatehook`, are read. Failing those the settings are read from nameplatew's, in `config\nameplatew`: its `mode` becomes the categories that mode hid, and its whitelist is read until this one's is first changed.
+Settings changed by a command last until the plugin is unloaded, unless saved. The settings and the whitelist are read from `config\namehook` alone: what the plugin kept under its old name, nameplatehook, and nameplatew's, were read until 1.28; `/namehook save` writes `defaults.ini` where it is wanted, and `whitelist add` the list.
 
 The `name` addon, in `addons/name` of this project, is a settings window for the categories, which keeps them for each character.
 
@@ -199,7 +199,7 @@ at present and drawn at the next frame's current world anchor.
 
 The client decides, for each character, whether its name is drawn at all, and then calls two functions of its own to draw the name's two lines: the name, and the Job Mastery stars. Nameplate patched the first decision. This plugin lets every name through it and stands in the way of the two calls instead, where the client has already worked out the name's place, its colours and what it writes: there the name is sorted, listed, and drawn or not.
 
-The two calls are found beside Nameplate's patch, and taken only if both lead where they are expected to. The client calls the same two functions from other places as well, and those calls are found by going through its code for every call that goes to either: they are taken too, unless `othercalls` is off. On a client where they do not, `Hooked` stays 0, names are shown and hidden at the first decision as nameplatew did it, and `/namehook status` says so. Everything is put back as it was when the plugin is unloaded.
+The two calls are found beside Nameplate's patch, in the one version of that function the plugin knows (the older one, which Nameplate also patched, is not: a client with it does not load the plugin), and taken only if both lead where they are expected to. The client calls the same two functions from other places as well, and those calls are found by going through its code for every call that goes to either: they are taken too, unless `othercalls` is off. On a client where they do not, `Hooked` stays 0, names are shown and hidden at the first decision as nameplatew did it, and `/namehook status` says so. Everything is put back as it was when the plugin is unloaded.
 
 ## Building
 
