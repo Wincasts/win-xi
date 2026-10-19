@@ -37,7 +37,11 @@ imgui.GetContentRegionAvail = function() error('Window widths must not feed back
 local function clear() headers, tabs, ids, marks, disabledIds, locations = {}, {}, {}, {}, {}, {} end
 H.tab(1); H.command('/name'); H.frames(1)
 clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'Names|Visibility|Statuses|NM Tracking|Experimental Builder')
+assert(table.concat(tabs, '|') == 'Names|Visibility|Statuses', 'NM Tracking waits for /name dev')
+H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(table.concat(tabs, '|') == 'Names|Visibility|Statuses|NM Tracking', '/name dev shows NM Tracking')
+H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(table.concat(tabs, '|') == 'Names|Visibility|Statuses', 'a second /name dev hides it')
 assert(table.concat(headers, '|') == 'General Name Appearance|Player Names|Enemy Names|NPC Names|Diagnostics')
 assert(ids['##name.font'] and ids['##name.fontBold'] and ids['##name.subtargetScale'])
 assert(ids['##name.fontSize'] and ids['##name.minSize'], 'shared size controls belong in General')
@@ -139,7 +143,7 @@ imgui.Button = function(id) return id == 'Restore Original Check Line##name.rese
 custom.DrawSettings(options)
 assert(options.checkFormat[1] == '', 'normal settings can restore the original check renderer')
 imgui.Button = record
-H.print('Category format editors/reset preserve each other; builder check line can restore original display style', true)
+H.print('Category format editors/reset preserve each other; a saved check line can restore original display style', true)
 
 H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target')
@@ -164,7 +168,7 @@ imgui.GetFrameHeightWithSpacing = function() return 20 end
 AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
 H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Display|Selected Statuses')
-H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.command('/name dev'); H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Tracked Monster')
 local levels = require('levels')
 local original = levels.Placeholders

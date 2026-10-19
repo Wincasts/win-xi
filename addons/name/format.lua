@@ -235,7 +235,7 @@ function format.Mob(text, showLevel, showAggro, showLetter)
     return parts;
 end
 
--- Serialize copied compiler parts for migrations and the visual builder, without mutating caches.
+-- Serialize copied compiler parts for migrations, without mutating caches.
 function format.Serialize(parts, doubleLetters)
     local out = {};
     for _, part in ipairs(parts) do

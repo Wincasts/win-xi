@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.37';
+addon.version = '1.38';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -27,7 +27,6 @@ local custom     = require('custom');
 local statuses   = require('statuses');
 local controls   = require('controls');
 local diag       = require('diag');
-local builder    = require('builder');
 
 local Category = nameplates.Category;
 
@@ -207,6 +206,9 @@ local function DrawDiagnostics(options)
     controls.EndLayout();
 end
 
+-- NM Tracking is a tab only after /name dev, for the session
+local trackingTab = { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end };
+
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
     defaults     = defaults,
@@ -214,7 +216,7 @@ app = shell.New({
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
-    help         = 'Use /name to open Names, Visibility, Statuses, NM Tracking and Experimental Builder. Diagnostics is under Names.',
+    help         = 'Use /name to open Names, Visibility and Statuses. Diagnostics is under Names.',
     drawSettings = DrawSettings,
     settingsLabel = 'Visibility',
     leadingTabs  = {
@@ -225,12 +227,20 @@ app = shell.New({
     },
     tabs         = {
         { label = 'Statuses', draw = function (options) statuses.DrawSettings(options, app.save); end },
-        { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end },
-        { label = 'Experimental Builder', draw = function (options) builder.Draw(options, app.save); end },
     },
 
-    -- for testers: /name diag on or off, /name diag log
+    -- for testers: /name diag on or off, /name diag log; /name dev shows or hides NM Tracking
     commands     = {
+        dev = function ()
+            local tabs = app.spec.tabs;
+            if (tabs[#tabs] == trackingTab) then
+                tabs[#tabs] = nil;
+                app:Say('NM Tracking hidden.');
+            else
+                tabs[#tabs + 1] = trackingTab;
+                app:Say('NM Tracking is a tab in /name until the addon is reloaded; /name dev hides it.');
+            end
+        end,
         diag = function (options, args)
             local what = args[3] and args[3]:lower() or nil;
             if (what == 'log') then

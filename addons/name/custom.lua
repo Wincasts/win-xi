@@ -473,10 +473,10 @@ function custom.DrawSettings(options, save)
                 imgui.BeginDisabled(options.checkFormat[1] ~= '');
                 controls.Choice('Display Style', '##name.checkDetailsInWords', options.checkDetailsInWords,
                     { { key = false, label = 'Icons & Text' }, { key = true, label = 'Text Only' } },
-                    'Choose icons with text, or a text-only description. A builder check format uses its own text blocks instead.');
+                    'Choose icons with text, or a text-only description. A saved check format uses its own text blocks instead.');
                 imgui.EndDisabled();
                 if (options.checkFormat[1] ~= '') then
-                    imgui.TextWrapped('Custom check information is configured in Experimental Builder.');
+                    imgui.TextWrapped('A saved check format sets the check information.');
                     if (imgui.Button('Restore Original Check Line##name.resetCheckFormat')) then
                         options.checkFormat[1] = '';
                         if (save) then save(); end
