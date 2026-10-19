@@ -248,15 +248,20 @@ local function Fitted(text, room)
 end
 
 -- An area's name as it is written, in brackets and cut short, by the area's number: the game's own
--- name for it, asked for once. False where the game has none.
-local zoneTexts = { }
+-- name for it, or with Short Zone Names its short form (the whole name where it has none), asked for
+-- once each. False where the game has neither.
+local zoneTexts = { [true] = { }, [false] = { } }
 
 local function ZoneText(id, maxChars)
-    local text = zoneTexts[id]
+    local short = activeStyle.zoneAbbr == true
+    local known = zoneTexts[short]
+    local text = known[id]
     if text == nil then
-        local name = AshitaCore:GetResourceManager():GetString('zones.names', id)
+        local resources = AshitaCore:GetResourceManager()
+        local name = short and resources:GetString('zones.names_abbr', id)
+        if type(name) ~= 'string' or name == '' then name = resources:GetString('zones.names', id) end
         text = (type(name) == 'string' and name ~= '') and Trimmed(('(%s)'):format(name), maxChars) or false
-        zoneTexts[id] = text
+        known[id] = text
     end
     return text
 end

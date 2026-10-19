@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Short Zone Names (Style → Names, on to begin with): a member in another zone has the game's own short form of the zone's name where their bars would be, as Ashita's `zones.names_abbr` reads it from the game, or the whole name where there is none. Off, the whole name as before, cut short where it does not fit.
+
 - The Kingdom bar texture is plainer: one dark line, one bright rail and one shade line, with nothing drawn inside the frame, over a flat dark back without the other styles' highlight. At the party frames' scale the earlier four alternating rails smeared into a second frame inside the empty part of the bar.
 
 - Name Font and Value Font are winxi's own control (widgets.FontFile), Clickthrough too (widgets.Lock), and the settings' tooltips are winxi.tooltip's, so winxisettings' Tooltips tab applies. Outline Text is gone: the names' and values' dark edge is Winxi Theme's Text Outline, scaled with the frames, and its colour the theme's Outline Color; the Minimal profile no longer turns it off. Needs winxi 25.
