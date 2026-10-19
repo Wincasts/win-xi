@@ -3,24 +3,21 @@
 ## Unreleased
 
 - Two modes in place of Follow Native Settings and the sections round it: **Mode**, in the Chatbox section, is
-  Follow Game (to begin with) or WinXI Skin. Follow Game is the game's own chat as closely as the addon can draw
-  it: the log, the second window, the input bar and the expanded log where the game puts them, at its sizes, growing
-  and shrinking as its do; a plain translucent dark rectangle (an approximation of the game's colour, to be checked
-  in game) with no border art, title, shadow or scrollbar (the wheel still scrolls); the text in the game's colours
-  4 px in from the sides and 1 px above and below; the expanded log at the game's place and full height with its
-  tabs, scrollbar, cursor and lights the game's own and untinted, only its rows in the chat's font. Font Size at 0 is
-  Automatic there: the size the game's rows give, read from the first window's row pitch where sound and kept until
-  another reading. WinXI Skin is the theme's look, and alone has the Layout (Width, Window 1 Rows, Window 2 Rows,
-  Expand In Place, Expanded Height), Activity (each window's Auto Resize and Fade When Idle, their own controls
-  shown only while on, Idle Time with either) and Look (Window Title, Window 2 Title, the four paddings, Replace
-  Expanded Log, and each window's colours) sections; its settings are kept, and ignored, in Follow Game. Replace
-  Expanded Log, one switch, replaces Replace Tabs, Replace Scrollbar, Replace Text and Replace Cursor (on where all
-  four were). Each window's Own Color boxes and Follow WinXI Theme button are one Override Colours switch that shows
-  the pickers while on (on where any box was). Settings from before migrate once: Follow Native Settings on, or
-  either match switch before it, is Follow Game; the old keys are dropped. `/chatbox status` names the mode.
-  Tests: chatbox_ui_check runs both modes through the compact, second, input and expanded boxes, the plain look,
-  Automatic Font Size, the sections and their controls, the Mode combo and every migration;
-  chatbox_appearance_check the Override Colours switch and its migration.
+  Follow Game (to begin with) or WinXI Skin. The mode is how the boxes behave and where they stand; the look is
+  WinXI's in both. Follow Game: the log, the second window, the input bar and the expanded log where the game puts
+  them, at its sizes, growing and shrinking as its do, the expanded log at the game's place and full height. Font
+  Size at 0 is Automatic there: the size the game's rows give, read from the first window's row pitch where sound
+  and kept until another reading. WinXI Skin alone has the Layout (Width, Window 1 Rows, Window 2 Rows, Expand In
+  Place, Expanded Height) and Activity (each window's Auto Resize and Fade When Idle, their own controls shown only
+  while on, Idle Time with either) sections; their settings are kept, and ignored, in Follow Game. Look (Window
+  Title, Window 2 Title, the four paddings, Replace Expanded Log, and each window's colours) applies in both.
+  Replace Expanded Log, one switch, replaces Replace Tabs, Replace Scrollbar, Replace Text and Replace Cursor (on
+  where all four were). Each window's Own Color boxes and Follow WinXI Theme button are one Override Colours switch
+  that shows the pickers while on (on where any box was). Settings from before migrate once: Follow Native Settings
+  on, or either match switch before it, is Follow Game; the old keys are dropped. `/chatbox status` names the mode.
+  Tests: chatbox_ui_check runs both modes through the compact, second, input and expanded boxes, Automatic Font
+  Size, the sections and their controls, the Mode combo and every migration; chatbox_appearance_check the Override
+  Colours switch and its migration.
 - Replaced Match Game Log Size and Match Game Input Size with Follow Native Settings. Native mode follows both geometry paths and ignores custom rows, resizing, animation and fading; all Custom Behaviour controls are disabled while retaining their saved values. Existing settings migrate to native mode if either former match switch was on.
 - Removed the chat-history Clear button from Settings; `/chatbox clear` remains available. Clarified that Timestamps shows/hides the original timestamps supplied by either SimpleLog or the timestamp addon, with regression coverage for both coloured provider formats and lossless toggling.
 

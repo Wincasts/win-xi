@@ -66,23 +66,15 @@ local app
 local open, place, pivot, size, contentSize = { true }, { 20, 0 }, { 0, 1 }, { 0, 0 }, { 0, 0 }
 local ROW_GAP = 2
 local TAB_TEXT_SCALE = 0.85 -- the expanded log's tab names, of Font Size
--- Mode. Follow Game: the boxes where the game puts its own, at its sizes, growing and shrinking as its do, in its
--- plain look (a translucent dark rectangle with no border art, title or shadow, as the game draws its log and input;
--- GAME_BACKGROUND an approximation of the game's colour), the text in from the edges as the game's is
--- (GAME_PADDING), and the expanded log the game's own, only its text in the chat's font. WinXI Skin: the theme's look,
--- with Width, rows, activity, paddings and colours of the addon's own.
+-- Mode: how the boxes behave and where they stand, in the WinXI look either way. Follow Game: the boxes where the game
+-- puts its own, at its sizes, growing and shrinking as its do, the expanded log where the game puts it at its full
+-- height. WinXI Skin: Width, rows, activity and the expanded log's place and height of the addon's own.
 local MODES = { { key = 'game', label = 'Follow Game' }, { key = 'skin', label = 'WinXI Skin' } }
-local GAME_BACKGROUND, NONE = { 0, 0, 0, 0.55 }, { 0, 0, 0, 0 }
-local GAME_PADDING = { left = 4, right = 4, top = 1, bottom = 1 }
 local function Game(options) return options.mode[1] == 'game' end
--- The room between each edge and the text this frame: the game's in Follow Game, the four Padding settings in WinXI Skin
+-- The room between each edge and the text this frame: the four Padding settings
 local pad = { left = 3, right = 3, top = 3, bottom = 3 }
 local function Paddings(options)
-    if Game(options) then
-        pad.left, pad.right, pad.top, pad.bottom = GAME_PADDING.left, GAME_PADDING.right, GAME_PADDING.top, GAME_PADDING.bottom
-    else
-        pad.left, pad.right, pad.top, pad.bottom = options.leftPadding[1], options.rightPadding[1], options.topPadding[1], options.bottomPadding[1]
-    end
+    pad.left, pad.right, pad.top, pad.bottom = options.leftPadding[1], options.rightPadding[1], options.topPadding[1], options.bottomPadding[1]
 end
 -- Font Size at 0, Automatic (Follow Game): the size the game's rows give, their pitch the first window's height (less
 -- the room above and below the rows, plus a gap) over the lines it shows, less the row gap; taken where the reading is
@@ -338,7 +330,7 @@ app = shell.New({
                 end
                 imgui.EndCombo()
             end
-            Tip('Follow Game: the log, input bar and expanded log where the game puts its own, at its sizes, growing and shrinking as its do, in its plain look;\nonly the font is the addon\'s. WinXI Skin: the theme\'s look, with the Layout, Activity and Look sections below.')
+            Tip('How the boxes behave and where they stand, in the WinXI look either way. Follow Game: the log, input bar and expanded log where the game puts\nits own, at its sizes, growing and shrinking as its do. WinXI Skin: Width, rows, activity and the expanded log\'s place, in the Layout and Activity sections.')
             widgets.Label('Timestamps')
             if imgui.Checkbox('##chatbox.timestamps', options.timestamps) then model.ShowStamps(history, options.timestamps[1]); app.save() end
             Tip('Shows timestamps supplied by either SimpleLog or the timestamp addon, including their original format and colours.\nEnable timestamps in one of those addons; chatbox adds none of its own. Avoid enabling both providers to prevent duplicates.\nOff, timestamps are hidden in the compact, second and expanded logs without deleting them. /chatbox timestamps on and off do the same.')
@@ -352,8 +344,7 @@ app = shell.New({
             imgui.TextDisabled('Native Square/window selection, confirm to expand, cancel to close.')
             imgui.TextDisabled(primary.Status())
         end
-        if game then return end
-        if widgets.Header('Layout') then
+        if not game and widgets.Header('Layout') then
             widgets.Label('Width')
             imgui.SliderInt('##chatbox.width', options.width, 240, 1200, '%d px')
             if imgui.IsItemDeactivatedAfterEdit() then app.save() end
@@ -373,7 +364,7 @@ app = shell.New({
             if imgui.IsItemDeactivatedAfterEdit() then app.save() end
             Tip('How far up the screen the expanded log reaches: its top that share of the screen\'s height up from the bottom, and never above\nthe game\'s own window. The game\'s rows above it are cut off; the rest of the log, its scrolling and Confirm are as ever. 100% is the game\'s own.')
         end
-        if widgets.Header('Activity') then
+        if not game and widgets.Header('Activity') then
             imgui.TextDisabled('Each window grows with its recent messages or fades while idle; off, it stands at its rows.')
             VisibilitySettings(options.visibility.window1, 1)
             VisibilitySettings(options.visibility.window2, 2)
@@ -643,18 +634,6 @@ local panelOnlyOptions = {
     { padding = 0, background = {0,0,0,0}, border = {0,0,0,0}, capture = splitOptions.capture },
 } -- the second log window's box
 local white, light = { 1, 1, 1, 1 }, { 1, 1, 1, 0.07 }
--- A box's look by the mode. Follow Game: plain, a flat translucent dark rectangle drawn first in the box, no theme
--- art, border, title or shadow, the text in the game's colours. WinXI Skin: the theme's, with the window's Override
--- Colours. The title is set as the box is drawn.
-local function Look(target, game, section)
-    if game then
-        target.background, target.border, target.textColor, target.titleColor = NONE, NONE, nil, nil
-        target.shadow, target.plain, target.game = false, GAME_BACKGROUND, true
-    else
-        appearance.Apply(target, section)
-        target.shadow, target.plain, target.game = nil, nil, false
-    end
-end
 
 -- The game's right-pointing cursor (as party's), its point at the box's left edge on the given row;
 -- drawn out past the window's edge, so the clip is opened. '>' where the art cannot be read.
@@ -681,9 +660,6 @@ end
 local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, style)
     local list = imgui.GetWindowDrawList()
     local left, top = box.left, box.bottom - box.height
-    if style.plain then
-        list:AddRectFilled({ left, top }, { left + box.width, box.bottom }, imgui.GetColorU32(style.plain))
-    end
     if lit then
         list:AddRectFilled({ left, top }, { left + box.width, box.bottom }, imgui.GetColorU32(light))
     end
@@ -732,8 +708,7 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
         y = y + step
     end
     list:PopClipRect()
-    -- the slim scrollbar is the skin's: the game's log has none (the wheel still scrolls)
-    local bar = not style.game and scrollbar.Layout(left+box.width-3-scrollbar.Width,areaTop,areaBottom,metrics.total,rowCount,view.offset) or nil
+    local bar = scrollbar.Layout(left+box.width-3-scrollbar.Width,areaTop,areaBottom,metrics.total,rowCount,view.offset)
     drawn.scrollbar = bar
     if bar then
         local io = imgui.GetIO()
@@ -940,14 +915,6 @@ local function DrawExpandedControls()
     list:PopClipRect()
     if chatFont then imgui.PopFont() end
 end
--- The expanded window's content: in Follow Game the plain background first, then whatever is the addon's
-local function DrawExpandedWindow()
-    if expandedOptions.plain then
-        imgui.GetWindowDrawList():AddRectFilled({ expandedBox[1], expandedBox[2] }, { expandedBox[3], expandedBox[4] },
-            imgui.GetColorU32(expandedOptions.plain))
-    end
-    DrawExpandedControls()
-end
 local function DrawExpanded(state, sw, sh)
     held = nil
     PlaceLog(app.options) -- kept where it was asked to open, or given back
@@ -967,26 +934,22 @@ local function DrawExpanded(state, sw, sh)
         anchorStatus = 'Waiting for native expanded bounds; full native log left visible.'
         return
     end
-    -- Follow Game: the game's own expanded log in its plain look, its tabs, scrollbar, cursor and lights its own and
-    -- untinted (white), only its text the chat's font; where the game puts it, at its full height. WinXI Skin: the
-    -- theme's frame and colours, and with Replace Expanded Log the tabs, scrollbar, text and cursor the addon's
+    -- The theme's frame and colours in both modes, and with Replace Expanded Log the tabs, scrollbar, text and cursor
+    -- the addon's. Follow Game: where the game puts the log, at its full height; WinXI Skin: Width, Expanded Height and
+    -- Expand In Place.
     local game = Game(app.options)
     Paddings(app.options)
-    Look(expandedOptions, game, app.options.appearance.log)
+    appearance.Apply(expandedOptions, app.options.appearance.log)
     local look = theme.Get()
-    if game then
-        expandedColors[1], expandedColors[2], expandedColors[3], expandedColors[4] = white, white, white, white
-    else
-        expandedColors[1] = look.HighlightColor or controller.HighlightColor
-        expandedColors[2] = expandedOptions.titleColor or look.TitleColor or look.TextColor or white
-        expandedColors[3] = expandedOptions.border or look.BorderColor or white
-        expandedColors[4] = expandedOptions.border or look.BorderColor or white
-    end
+    expandedColors[1] = look.HighlightColor or controller.HighlightColor
+    expandedColors[2] = expandedOptions.titleColor or look.TitleColor or look.TextColor or white
+    expandedColors[3] = expandedOptions.border or look.BorderColor or white
+    expandedColors[4] = expandedOptions.border or look.BorderColor or white
     -- where the game drew its tabs, scrollbar and rows of text last, to draw the addon's own there and ask the game to leave its undrawn
-    local replace = state.nativeReplace and not game and app.options.replaceExpanded[1]
+    local replace = state.nativeReplace and app.options.replaceExpanded[1]
     expandedTabs = replace and primary.Tabs(sw, sh) or nil
     expandedScroll = replace and primary.Scrollbar(sw, sh) or nil
-    expandedRows = state.nativeText and (game or app.options.replaceExpanded[1]) and primary.Rows(sw, sh) or nil
+    expandedRows = state.nativeText and app.options.replaceExpanded[1] and primary.Rows(sw, sh) or nil
     expandedReplace.tabs, expandedReplace.scrollbar, expandedReplace.text = expandedTabs ~= nil, expandedScroll ~= nil, expandedRows ~= nil
     -- the whole log, once the addon draws the tabs and text; the scrollbar too, unless the game draws none
     expandedReplace.all = state.nativeMirror == true and replace == true and expandedTabs ~= nil and expandedRows ~= nil
@@ -1012,7 +975,7 @@ local function DrawExpanded(state, sw, sh)
     imgui.SetNextWindowSize(size, ImGuiCond_Always)
     lastDrawn = { frame = frame, expanded = true, left = rect[1], top = top, width = size[1], bottom = bottom,
         rows = state.pageRows or 0, drawn = 0, firstY = top, title = expandedRows and 'WinXI text' or 'native content', overflow = false }
-    window.Plain('winxi.chatbox.expanded', open, flags, DrawExpandedWindow, expandedOptions)
+    window.Plain('winxi.chatbox.expanded', open, flags, DrawExpandedControls, expandedOptions)
     -- the status line, made again only when what it says changes
     local key = (expandedTabs and 1 or 0) + (expandedScroll and 2 or 0) + (expandedRows and 4 or 0) + (expandedReplace.all and 8 or 0)
         + (state.nativeControls and 16 or 0) + (opened and 32 or 0) + (state.nested and 64 or 0)
@@ -1077,7 +1040,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         -- while none come: at 0, nothing drawn), the box no shorter than the game's window and tall enough for those
         -- rows at Font Size (or, with a uihook that does not say, as many rows as fit the game's window), the input
         -- bar's place and size the game's, and the second window where the game puts its own. WinXI Skin: Width and
-        -- ten rows, or Window 1 Rows and Window 2 Rows.
+        -- ten rows, or Window 1 Rows and Window 2 Rows. The WinXI look either way.
         local game = Game(app.options)
         Paddings(app.options)
         local logRect = { primary.Rect(sw, sh) }
@@ -1085,9 +1048,9 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         if game then GameFontSize(#logRect == 4 and logRect or nil, lines) end
         local fontSize, padding = FontSize(), PADDING_DEFAULT
         windowOptions.fontSize, windowOptions.padding = fontSize, padding
-        Look(windowOptions, game, app.options.appearance.log)
+        appearance.Apply(windowOptions, app.options.appearance.log)
         splitOptions.fontSize, splitOptions.padding = fontSize, padding
-        Look(splitOptions, game, app.options.appearance.log)
+        appearance.Apply(splitOptions, app.options.appearance.log)
         local rowCount = model.Rows
         -- Exact row heights and inter-row gaps, with only the room above and below around them.
         local above, below = pad.top, pad.bottom
@@ -1121,7 +1084,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         end
         size[2] = frameHeight
         local plan = input.Measure(size[1], sh, fontSize, padding, game, above, below)
-        Look(plan, game, app.options.appearance.input)
+        appearance.Apply(plan, app.options.appearance.input)
         plan.font = fonts.Get(app.options.fontFile)
         plan.leftPadding, plan.rightPadding = pad.left, pad.right
         local box, placeKnown, panelBase
@@ -1284,9 +1247,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
             selectedWindow = state ~= nil and state.selectedWindow or nil
             -- the light and cursor on the window the game's focus is on; on the first while the second is not drawn
             local litFirst = selectedWindow ~= nil and (selectedWindow == 1 or not second)
-            -- the title, the skin's: the channel, or Window Title
-            windowOptions.title = not game and (OwnTitle(app.options.windowTitle)
-                or channels.Title(plan.snapshot and channels.Typed(plan.snapshot.text) or selectedMode or spoken)) or nil
+            windowOptions.title = OwnTitle(app.options.windowTitle) or channels.Title(plan.snapshot and channels.Typed(plan.snapshot.text) or selectedMode or spoken)
             imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
             imgui.SetNextWindowSize(size, ImGuiCond_Always)
             local chatFont = plan.font
@@ -1303,7 +1264,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         -- the second box, with the first's or on its own while the first is at 0 lines
         if second and (captured or firstHidden) and secondary.Begin() then
             local chatFont = plan.font
-            splitOptions.title = not game and (OwnTitle(app.options.splitTitle) or 'Window 2') or nil
+            splitOptions.title = OwnTitle(app.options.splitTitle) or 'Window 2'
             imgui.SetNextWindowPos({ second.left, second.bottom }, ImGuiCond_Always, pivot)
             imgui.SetNextWindowSize({ second.width, second.height }, ImGuiCond_Always)
             window.Plain('winxi.chatbox.split', open, flags, function()
