@@ -137,9 +137,9 @@ assert(levels.Letter(7, 'Wild Rabbit', 0x1064007) == 'b' and levels.RosterProble
 assert(levels.Letter(517, 'Bull', 0x1064205) == '' and levels.RosterProblem() ~= nil)
 -- an area whose file cannot be read has no letters, and says why
 struct = { unpack = function(_, data, at) return data:byte(at) + data:byte(at + 1) * 256 end }
-events.name_levels_packet({ id = 0x00A, data = ('\0'):rep(0x30) .. string.char(101, 0) .. ('\0'):rep(0x100) })
+levels.HandlePacket({ id = 0x00A, data = ('\0'):rep(0x30) .. string.char(101, 0) .. ('\0'):rep(0x100) })
 assert(levels.Letter(6, 'Wild Rabbit', slot(101, 6)) == '' and levels.RosterProblem():find('could not be read', 1, true))
-events.name_levels_packet({ id = 0x00A, data = ('\0'):rep(0x30) .. string.char(100, 0) .. ('\0'):rep(0x100) })
+levels.HandlePacket({ id = 0x00A, data = ('\0'):rep(0x30) .. string.char(100, 0) .. ('\0'):rep(0x100) })
 assert(levels.Letter(7, 'Wild Rabbit', slot(100, 7)) == 'b' and levels.RosterProblem() == nil)
 os.remove(listPath)
 print('name mob letters: independent clients/order, per-name rank, unseen slots, wrap, respawn, zone reset, double letters, the game\'s own list read and a differing one reported\ttrue')

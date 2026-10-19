@@ -36,8 +36,6 @@ return T{
     showNpcs = T{ true },
     showMonsters = T{ true },
     alwaysTarget = T{ false },
-    fadeInOut = T{ true },
-    useSharedTheme = true,
     -- only the states given here; the others keep name_colours' own
     nameColours = T{
         playerNames = T{

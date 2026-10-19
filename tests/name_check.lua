@@ -251,13 +251,11 @@ fontTexture.Status, fontTexture.UniqueID = 0, 3; H.frames(1)
 H.print('imgui made it again: taken up, the mark still', draw.Textures[0] == 1, draw.Frame == 90)
 -- two icons before a name: 2 pixels of the screen between them, and Icon Spacing between the last and the name
 local icons = require('icons')
-local realHas, realPlace, realTexture = icons.Has, icons.Place, icons.Texture
-icons.Has = function() return false end
+local realPlace, realTexture = icons.Place, icons.Texture
 icons.Place = function() return false end
 icons.Texture = function() return 0x4321 end
 ffi.copy(block.Names[0].Text, '\146\147 Buddy'); H.frames(1)
 local withoutIcons = buddy.Count
-icons.Has = function(byte) return byte == 0x92 or byte == 0x93 end
 icons.Place = function() return { 0, 0, 0.125, 0.125 } end
 H.frames(1)
 -- Neither the text nor texture changed: parsing must not permanently discard unavailable icons.
@@ -297,7 +295,6 @@ o.nameFormat[1] = '[name]'; H.frames(1)
 assert(buddy.Count == 8, 'omitting icons hides them without changing mastery stars')
 o.nameFormat[1] = '[icons: space=2][name]'
 H.print('inline icons: ordering, omission, scaled spacing, gap, colour and size parameters', true)
-icons.Has = function(byte) return byte == 0xAC end
 ffi.copy(block.Names[0].Text, '\172 Buddy'); H.frames(1)
 local seeking, badge = draw.Quads[buddy.First + 3], draw.Quads[buddy.First + 4]
 assert(seeking.Flags == 3 and badge.Flags == 3)
@@ -351,7 +348,7 @@ H.frames(1); assert(math.abs(buddy.Alpha - 0.5) < 0.001)
 block.Names[0].NameColor = savedColor
 o.fontBold[1], o.outline[1] = savedBold, savedEdge
 H.print('target text fill/outline steady through the pulse, as icons, overlays and stars are, including long/transparent phases', true)
-icons.Has, icons.Place, icons.Texture = realHas, realPlace, realTexture
+icons.Place, icons.Texture = realPlace, realTexture
 ffi.copy(block.Names[0].Text, 'Buddy'); H.frames(1)
 
 -- how a name is written is a line of its player's: [name], [distance], and the rest as typed
@@ -546,7 +543,7 @@ H.packetData(0x029, message(0x1000 + 300, 9, 0x43, 300, 173)); H.frames(1)
 local goblin = draw.Entities[300]
 local glass = draw.Quads[goblin.First + goblin.Count - 1]
 -- "Goblin L9" and the magnifying glass after it, in yellow, from where the font keeps it
-H.print('checked: its level and the glass, quads', goblin.Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300), '| is checked', levels.IsChecked(300, 0x1000 + 300))
+H.print('checked: its level and the glass, quads', goblin.Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300), '| is checked', levels.Checked(300, 0x1000 + 300) ~= nil)
 -- as the font has it the glass is 12 wide and 12 high, from 1 to 13 of a line of 23: drawn at seven
 -- tenths of that, about the middle of the line
 H.print(('the glass: wide %.1f, high %.1f, from %.2f down | colour %08X | where in the texture %.1f'):format(glass.X1 - glass.X0, glass.Y1 - glass.Y0, glass.Y0, glass.Color, glass.U0))
@@ -653,7 +650,7 @@ H.print('just checked: faint', coming > 0 and coming < 64, '| coming', halfIn > 
 H.frames(150); local still = lineAlpha()
 H.frames(15); local going = lineAlpha()
 H.frames(25); local gone = lineAlpha()
-H.print('after 4.9s: still there', still == 255, '| after 5.4: going', going > 0 and going < 255, '| after 6.1: gone, the name alone, quads', gone == 0 and goblin.Count == 6, '| still known as checked', levels.IsChecked(300, 0x1000 + 300))
+H.print('after 4.9s: still there', still == 255, '| after 5.4: going', going > 0 and going < 255, '| after 6.1: gone, the name alone, quads', gone == 0 and goblin.Count == 6, '| still known as checked', levels.Checked(300, 0x1000 + 300) ~= nil)
 H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(20)
 H.print('checked again: back', lineAlpha() == 255)
 do
@@ -772,8 +769,8 @@ H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 249)); H.frames(1)
 H.print('not in the tables, and impossible to gauge:', levels.Checked(300, 0x1000 + 300).hard, '| no level', levels.Of(300, 'Goblin', 0x1000 + 300) == nil, '| quads', goblin.Count)
 H.print('impossible to gauge defaults to ???', levels.Checked(300, 0x1000 + 300).hardShort == '???', goblin.Count == 10)
 -- five minutes after it was checked it is forgotten, alive or not
-H.frames(9990); H.print('after 4m59s: still known', levels.IsChecked(300, 0x1000 + 300))
-H.frames(20); H.print('after 5m: forgotten', levels.IsChecked(300, 0x1000 + 300) == false)
+H.frames(9990); H.print('after 4m59s: still known', levels.Checked(300, 0x1000 + 300) ~= nil)
+H.frames(20); H.print('after 5m: forgotten', levels.Checked(300, 0x1000 + 300) == nil)
 H.packetData(0x029, message(0x1000 + 300, 0, 0, 300, 249)); H.frames(1)
 alive[300].hp = 0; H.frames(1)
 H.print('dead: the name alone again, quads', goblin.Count)

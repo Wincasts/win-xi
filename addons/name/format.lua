@@ -171,59 +171,6 @@ function format.Compile(text)
     return found;
 end
 
--- Legacy filtering utility retained for compatibility/tests. The production renderer
--- compiles the string directly: there are no level/aggro/letter visibility toggles.
-function format.Mob(text, showLevel, showAggro, showLetter)
-    local base = format.Compile(text);
-    -- The toggle works without editing a format; an explicit token controls its position/colour.
-    if (showLetter and not base.letter) then
-        base.withLetter = base.withLetter or format.Compile(text .. ' [letter]');
-        base = base.withLetter;
-    end
-    if (showLevel and showAggro and (showLetter or not base.letter)) then return base; end
-    local key = (showLevel and 1 or 0) + (showAggro and 2 or 0) + (showLetter and 4 or 0);
-    base.mobVariants = base.mobVariants or {};
-    if (base.mobVariants[key] ~= nil) then return base.mobVariants[key]; end
-    local parts = { distance = base.distance, checked = base.checked,
-        level = showLevel and base.level or false, aggro = showAggro and base.aggro or false,
-        letter = showLetter and base.letter or false, icons = base.icons,
-        doubleLetters = showLetter and base.doubleLetters or false, rules = base.rules, ruleDistance = base.ruleDistance };
-    local stripDot = false;
-    for _, part in ipairs(base) do
-        if (part.kind == 'level' and not showLevel) then
-            local previous = parts[#parts];
-            if (previous ~= nil and previous.kind == 'text') then
-                previous.text = previous.text:gsub('%f[%a][Ll][Vv]%.?%s*$', '');
-            end
-            stripDot = true;
-        elseif ((part.kind ~= 'aggro' or showAggro) and (part.kind ~= 'letter' or showLetter)) then
-            local copy = {};
-            for field, value in pairs(part) do copy[field] = value; end;
-            if (copy.kind == 'text') then
-                if (stripDot) then copy.text = copy.text:gsub('^%.%s*', ''); end
-                local previous = parts[#parts];
-                if (previous ~= nil and previous.kind == 'text' and previous.color == copy.color
-                        and previous.when == copy.when and previous.within == copy.within and previous.space == copy.space) then
-                    previous.text = (previous.text .. copy.text):gsub(' +', ' ');
-                else
-                    parts[#parts + 1] = copy;
-                end
-            else
-                parts[#parts + 1] = copy;
-            end
-            stripDot = false;
-        end
-    end
-    if (parts[1] ~= nil and parts[1].kind == 'text') then
-        parts[1].text = parts[1].text:gsub('^ +', '');
-    end
-    if (parts[#parts] ~= nil and parts[#parts].kind == 'text') then
-        parts[#parts].text = parts[#parts].text:gsub(' +$', '');
-    end
-    base.mobVariants[key] = parts;
-    return parts;
-end
-
 -- A line written back from its parts, as a migration rewrites a saved one: the caches are not touched.
 function format.Serialize(parts, doubleLetters)
     local out = {};
