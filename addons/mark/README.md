@@ -217,11 +217,12 @@ memory and asks the server nothing.
 
 ## Where the data comes from
 
-`data/` is written by `tools/build_mark_data.py` from the Phoenix server's source
-(`references/Phoenix`), and is to be written again when the server changes:
+`data/` is written by `tools/build_mark_data.py` from the Phoenix server's source, the live branch
+on GitHub (fetched by `tools/phoenix` into `.cache/phoenix-live`; `--server` reads another checkout),
+and is to be written again when the server changes:
 
 ```sh
-python tools/build_mark_data.py
+python3 tools/build_mark_data.py
 ```
 
 Requires PyYAML and luajit. It reads each zone's `mobs.yaml` (with the modules' changes laid over it, as

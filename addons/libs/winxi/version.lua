@@ -54,6 +54,8 @@
 --     Outline and Outline Color, winxi.text's edge where an addon gives none (text.Edge, text.EdgeColor); a
 --     window's locked and clickThrough options
 -- 26: shell's App:Window takes extra.alpha, the addon's own fade of its window beside fading in and out
+-- 27: winxi.gamedata (data made from the server's, in libs\winxi\data) and winxi.mobs (an area's
+--     monsters and its notorious monsters' placeholders, which name kept for itself until now)
 return {
-    Number = 26,
+    Number = 27,
 };

@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
 """Export each zone's notorious-monster placeholders for the name addon.
 
-A lottery NM's script on the server lists its placeholders: entity.phList =
-{ [placeholder id] = NM id }. The scripts are run in LuaJIT against stand-ins
-for the server's globals, with the zone's real IDs, and the lists read off.
-Names are resolved by the MobDB importer (addons/mobdb/mobdb/import_phoenix.py).
-Requires PyYAML and luajit. Defaults to the checked-in Phoenix reference checkout.
+A lottery NM is a member of one of its zone's slots (data/zones/<zone>/mobs.yaml)
+with a chance and a cooldown, drawn from the slot's other members. Some NMs' scripts
+still list theirs instead, entity.phList = { [placeholder id] = NM id }: those are run
+in LuaJIT against stand-ins for the server's globals, with the zone's real IDs, and
+the lists read off. Both are taken.
+Names are resolved by the MobDB importer (forks/addons/mobdb/mobdb/import_phoenix.py).
+Requires PyYAML and luajit. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub
+(tools/phoenix), and writes winxi's placeholders set (addons/libs/winxi/data/placeholders);
+tools/build_winxi_data.py runs it with the other sets.
 """
 import argparse
 import hashlib
-import importlib.util
 import re
 import subprocess
 import tempfile
 from pathlib import Path
-from types import SimpleNamespace
+from phoenix import importer, lotteries, source
 
 ROOT = Path(__file__).resolve().parents[1]
+OUTPUT = ROOT / 'addons/libs/winxi/data/placeholders'
 
 # Prints "placeholder id<TAB>NM id" for every phList entry of a zone's mob scripts.
 READER = r'''
@@ -69,13 +73,14 @@ def squash(name):
     return re.sub(r'[^a-z0-9]', '', name.lower())
 
 
-def build(server, output):
-    spec = importlib.util.spec_from_file_location('name_phoenix_import', ROOT / 'addons/mobdb/mobdb/import_phoenix.py')
-    importer = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(importer)
-    generator = importer.Generator(SimpleNamespace(
-        server=str(server), out=str(output), set=[], no_module_data=False,
-        names=str(ROOT / 'addons/mobdb/mobdb/client_names.json'), elements='rank'))
+def slot_pairs(document):
+    """(placeholder id, NM id) for each lottery of the zone's slots."""
+    return [(ph, nm) for nm, placeholders, _ in lotteries.from_slots(document) for ph in placeholders]
+
+
+def build(server, output=OUTPUT, settings=()):
+    module = importer.load('name_phoenix_import')
+    generator = importer.generator(server, output, settings, module=module)
     server, output = Path(server), Path(output)
     output.mkdir(parents=True, exist_ok=True)
     for stale in output.glob('*.lua'):
@@ -93,9 +98,10 @@ def build(server, output):
             if zone_id is None or folder is None:
                 continue
             files = sorted(str(file) for file in (folder / 'mobs').glob('*.lua') if 'phList' in file.read_text(errors='replace'))
-            if not files:
-                continue
             document = generator.load_zone(zone)
+            lotteries = slot_pairs(document)
+            if not files and not lotteries:
+                continue
             templates = document.get('templates') or {}
             by_template, shown = {}, {}
             for mob_id, spawn in sorted((document.get('spawns') or {}).items()):
@@ -108,21 +114,23 @@ def build(server, output):
                 by_template.setdefault(spawn.get('script') or template.get('script') or template_name, []).append(int(mob_id))
                 if generator.content_enabled(template.get('content')):
                     shown[int(mob_id)] = generator.client_name(zone_id, template_name, template, spawn)[0]
-            npcs = server / 'data/zones' / zone / 'npcs.yaml'
-            if npcs.exists():  # IDs.lua looks NPCs up too; the scripts only need the lookups not to fail
-                for npc_id, npc in sorted(((importer.load_yaml(str(npcs)) or {}).get('npcs') or {}).items()):
-                    name = (npc or {}).get('script')
-                    if name:
-                        by_template.setdefault(name, []).append(int(npc_id))
-            ids = Path(scratch) / 'ids.lua'
-            ids.write_text('return {\n' + ''.join(
-                f'    [{importer.lua_string(name)}] = {{ {", ".join(map(str, found))} }},\n' for name, found in by_template.items()) + '}\n')
-            ran = subprocess.run(['luajit', str(reader), str(folder), str(ids)], input='\n'.join(files) + '\n',
-                                 capture_output=True, text=True, check=True)
-            problems += [f'{zone}: {line}' for line in ran.stderr.splitlines()]
+            pairs = list(lotteries)
+            if files:
+                npcs = server / 'data/zones' / zone / 'npcs.yaml'
+                if npcs.exists():  # IDs.lua looks NPCs up too; the scripts only need the lookups not to fail
+                    for npc_id, npc in sorted(((module.load_yaml(str(npcs)) or {}).get('npcs') or {}).items()):
+                        name = (npc or {}).get('script')
+                        if name:
+                            by_template.setdefault(name, []).append(int(npc_id))
+                ids = Path(scratch) / 'ids.lua'
+                ids.write_text('return {\n' + ''.join(
+                    f'    [{module.lua_string(name)}] = {{ {", ".join(map(str, found))} }},\n' for name, found in by_template.items()) + '}\n')
+                ran = subprocess.run(['luajit', str(reader), str(folder), str(ids)], input='\n'.join(files) + '\n',
+                                     capture_output=True, text=True, check=True)
+                problems += [f'{zone}: {line}' for line in ran.stderr.splitlines()]
+                pairs += [tuple(map(int, line.split('\t'))) for line in ran.stdout.splitlines()]
             found = {}
-            for line in ran.stdout.splitlines():
-                ph, nm = map(int, line.split('\t'))
+            for ph, nm in pairs:
                 # only slots of this zone that the roster also has: the addon knows a monster by its index
                 if ph in shown and nm in shown and ph != nm:
                     found.setdefault(shown[nm], set()).add(ph & 0xfff)
@@ -130,7 +138,7 @@ def build(server, output):
                     problems.append(f'{zone}: placeholder {ph} of {nm} is not a spawn of this zone')
             if not found:
                 continue
-            rows = [f'    [{importer.lua_string(name)}] = {{ {", ".join(map(str, sorted(indices)))} }},'
+            rows = [f'    [{module.lua_string(name)}] = {{ {", ".join(map(str, sorted(indices)))} }},'
                     for name, indices in sorted(found.items())]
             digest = hashlib.sha256('\n'.join(rows).encode()).hexdigest()
             (output / f'{zone_id}.lua').write_text(
@@ -146,7 +154,9 @@ def build(server, output):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--server', type=Path, default=ROOT / 'references/Phoenix')
-    parser.add_argument('--output', type=Path, default=ROOT / 'addons/name/placeholders')
+    source.add_arguments(parser)
+    parser.add_argument('--output', type=Path, default=OUTPUT)
     args = parser.parse_args()
-    build(args.server, args.output)
+    found = source.from_arguments(args)
+    print(f'Server: {found.describe()}')
+    build(found.path, args.output)
