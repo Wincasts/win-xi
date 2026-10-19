@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9
+
+- A submission is good for eight frames, not two: the party, alliance and target windows, the clock and
+  compass, the chat logs and input (`PARTY_FRESH_FRAMES`) and the buff bar (`BUFF_DRAW_FRAMES`). Under
+  TrueFPS the game can present a few frames before the addons are next run, and with two its own windows
+  showed for a frame now and then, along with namehook's names. Stopping a replacement still gives the
+  game's back at once; an addon that stops without a word gives it back within eight frames (about 90 ms
+  at 90 fps).
+
 ## 0.8
 
 - Each line given to the game's chat log, recorded for addons as it stands at uihook's turn (the

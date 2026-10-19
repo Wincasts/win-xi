@@ -22,4 +22,6 @@ struct PartyShared {
 #define PARTY_VERSION 3
 #define PARTY_MAX_VERTICES 196608
 #define PARTY_MAX_COMMANDS 4096
-#define PARTY_FRESH_FRAMES 2
+// How long a submission is replayed without another. Eight frames, not two: under TrueFPS the game can
+// present a few frames before the addons are next run, and two let the game's own windows through for one.
+#define PARTY_FRESH_FRAMES 8

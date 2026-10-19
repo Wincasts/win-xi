@@ -72,7 +72,9 @@ enum : uint8_t {
 // as it draws. Its id is 64 bits, and a Lua integer in this client 32: once the texture is above
 // 2 GB, as it can be after a while on Windows, Ashita cannot hand it to Lua at all.
 #define HOOK_TEXTURE_FONT 1
-#define HOOK_DRAW_FRAMES 2      // how long what an addon has drawn is good for
+// How long what an addon has drawn is good for. Eight frames, not two: under TrueFPS the game can
+// present a few frames before the addons are next run, and two let the client's names through for one.
+#define HOOK_DRAW_FRAMES 8
 
 // One name the client was about to draw last frame.
 struct HookName {

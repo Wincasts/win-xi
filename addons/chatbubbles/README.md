@@ -183,7 +183,7 @@ coverage depends on the current ImGui font.
 - `drawn` in the status output counts submissions to the native buffer. A submitted
   bubble can still be hidden by scene depth or culled by the native renderer.
 - Area changes, disabling/unloading, and missing namehook clear current messages.
-  If the addon stops updating unexpectedly, native drawings expire after 2 frames.
+  If the addon stops updating unexpectedly, native drawings expire after 8 frames.
 
 ## If nothing appears
 

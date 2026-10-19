@@ -168,7 +168,7 @@ const char* AshitaNameplate::GetLink(void) const {
 }
 
 double AshitaNameplate::GetVersion(void) const {
-    return 1.26;
+    return 1.27;
 }
 
 double AshitaNameplate::GetInterfaceVersion(void) const {
