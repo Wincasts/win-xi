@@ -114,6 +114,11 @@ package.loaded['winxi.shell'] = {New=function(s)
     spec=s
     app={options=s.defaults,save=function() saves=saves+1 end,Say=function() end,BeginFrame=function() end}
     s.onSettings(app.options)
+    assert(app.options.followNativeSettings[1] and app.options.matchGameLogSize[1]
+        and app.options.matchGameInputSize[1],'default native mode unifies log and input matching')
+    -- Exercise legacy geometry combinations separately; unified-mode coverage follows below.
+    app.options.followNativeSettings[1]=false
+    app.options.matchGameInputSize[1]=false
     return app
 end}
 package.loaded.encoding = { Decode=function(raw) if raw=='bad' then error('bad encoding') end; return raw end }
@@ -128,7 +133,7 @@ local filled={}
 local list = { AddText=function(_,pos,color,value) text[#text+1]={pos=pos,color=color,text=value} end,
     AddRect=function(_,a,b,color) outlines[#outlines+1]={a=a,b=b,color=color} end,
     AddRectFilled=function(_,a,b,color) filled[#filled+1]={a=a,b=b,color=color} end,
-    AddImage=function(_,handle,a,b) images[#images+1]={handle=handle,a=a,b=b} end,
+    AddImage=function(_,handle,a,b) images[#images+1]={handle=handle,a={a[1],a[2]},b={b[1],b[2]}} end,
     AddLine=function() end,PushClipRect=function() end,PopClipRect=function() end }
 local fontSize, screen = 14, {x=1920,y=1080}
 local imgui = {
@@ -182,13 +187,13 @@ app.options.matchGameLogSize[1]=false
 for i=1,12 do message('line '..i) end
 frame()
 assert(#text==10 and text[1].text=='line 3' and text[10].text=='line 12')
-assert(app.options.fontSize[1]==12 and measuredSize[2]==12*10+2*9+6+6 and dummy[2]==144,'compact 12px text, ten rows, 3px padding and half a row for the title')
+assert(app.options.fontSize[1]==12 and measuredSize[2]==12*10+2*9+6 and dummy[2]==138,'compact 12px text, ten rows and exactly 3px padding')
 assert(rendered['winxi.chatbox'].style.title=='Say','titled with the game\'s first channel, Say')
 assert(text[10].pos[2]==1018-3-12,'rows centred between the paddings, clear of the title')
 assert(measuredPos[1]==20 and measuredPos[2]==1018 and measuredPos[4]==1,'native log bottom-left anchor')
 nativeLogRect={80,400,720,900}; frame()
 assert(measuredPos[1]==80 and measuredPos[2]==900 and measuredPos[4]==1,'follows native log moves, not screen/input offset')
-assert(measuredSize[2]==150,'native anchor does not change the ten-row height')
+assert(measuredSize[2]==144,'native anchor does not change the ten-row height')
 nativeLogRect={20,700,660,1018}; frame()
 assert(hooks[0].captures==3 and hooks[1].begins==3)
 local count=measured; frame(); assert(measured==count,'unchanged frame reuses wrapped rows')
@@ -197,9 +202,9 @@ assert(text[10].text=='modified' and text[10].color==require('palette').Mode(12)
 local e={message='blocked',mode=1,blocked=true}; events.text_in(e); assert(e.blocked)
 message('internal',{mode=152}); frame(); assert(text[10].text=='modified')
 message('bad'); frame(); assert(text[10].text=='modified','decoding error contained')
-fontSize=20; frame(); assert(measuredSize[2]==150,'theme font size does not enlarge compact chat text')
-look.Padding=20; frame(); assert(measuredSize[2]==150,'compact padding independent of theme')
-app.options.fontSize[1]=16; frame(); assert(measuredSize[2]==186+6,'Font Size applies without changing ten rows')
+fontSize=20; frame(); assert(measuredSize[2]==144,'theme font size does not enlarge compact chat text')
+look.Padding=20; frame(); assert(measuredSize[2]==144,'compact padding independent of theme')
+app.options.fontSize[1]=16; frame(); assert(measuredSize[2]==184,'Font Size applies without changing ten rows')
 app.options.fontSize[1]=12
 ready=false; count=hooks[0].captures; frame(); assert(hooks[0].captures==count)
 ready=true; captureOK=false; count=hooks[1].begins; local stops=hooks[0].stops
@@ -213,7 +218,7 @@ spec.commands.off(app.options); stops=hooks[0].stops; frame(); assert(hooks[0].s
 spec.commands.on(app.options)
 events.packet_in({id=0x00b}); count=hooks[0].captures; frame(); assert(hooks[0].captures==count)
 events.packet_in({id=0x00a}); frame(); assert(hooks[0].captures==count+1)
-spec.commands.clear(); frame(); assert(#text==0 and dummy[2]==144,'empty log still reserves ten rows')
+spec.commands.clear(); frame(); assert(#text==0 and dummy[2]==138,'empty log still reserves ten rows')
 message('private'); spec.onSettings(app.options); frame(); assert(#text==0,'character/settings swap clears private history')
 message('retained'); events.unload(); frame(); assert(#text==0)
 inputOpen=true; inputRaw='hello'; inputDisplay='hello'; inputCaret=5
@@ -255,12 +260,22 @@ app.options.matchGameInputSize[1]=false
 for i=1,50 do message('history '..i) end
 chatState.selected=true; frame()
 assert(#outlines==0,'no blue outline')
-assert(#filled==2 and filled[1].a[2]==1018-150 and filled[1].b[2]==1018 and filled[1].color[4]<0.1,'native Square focus lights the whole box')
+assert(#filled==2 and filled[1].a[2]==1018-144 and filled[1].b[2]==1018 and filled[1].color[4]<0.1,'native Square focus lights the whole box')
 assert(#images==1 and images[1].handle==99 and images[1].b[1]<=20+3 and images[1].a[2]==1018-3-12-1,'the game\'s cursor at the newest line, pointing in from the left edge')
 chatState.selected=false; frame(); assert(#filled==1 and #images==0,'cursor leaving chat removes light and cursor but keeps the scrollbar')
 chatState.expanded=true; nativeLogRect=nil; frame()
 assert(measuredPos[2]==1020 and measuredSize[2]==1020-270,'native expansion takes the full log\'s foot, not stale compact geometry, three quarters up the screen')
-assert(measuredPos[1]==0 and measuredSize[1]==1920,'expanded frame matches native bounds exactly, not compact width')
+assert(measuredPos[1]==0 and measuredSize[1]==640,'expanded view follows the custom log width')
+app.options.width[1]=900; frame()
+assert(rendered['winxi.chatbox.expanded'].size[1]==900,'changing custom width updates expanded view immediately')
+app.options.matchGameLogSize[1]=true; frame()
+assert(rendered['winxi.chatbox.expanded'].size[1]==1920,'game log sizing preserves native expanded width')
+app.options.matchGameLogSize[1]=false; app.options.matchGameInputSize[1]=true; frame()
+assert(rendered['winxi.chatbox.expanded'].size[1]==1920,'game input sizing preserves native expanded width')
+app.options.matchGameInputSize[1]=false
+expandedRect={1700,100,1920,1020}; frame()
+assert(rendered['winxi.chatbox.expanded'].size[1]==220,'custom expanded width is clamped to remaining screen space')
+expandedRect={0,100,1920,1020}; app.options.width[1]=640; frame()
 do local e, c = rendered['winxi.chatbox.expanded'].style, rendered['winxi.chatbox'].style
     assert(e.padding==c.padding and e.fontSize==c.fontSize and e.shadow==c.shadow and e.background==c.background and e.border==c.border,
         'the compact log\'s window: its padding, font size, shadow and colours') end
@@ -324,10 +339,10 @@ assert(filled[2].color[4]==0.25 and filled[6].color[4]==0.25 and filled[4].color
 assert(#outlines==0 and #overs==0 and #lines==0,'a button: no edge, no tab style, no tab line')
 mouseAt={20,108}; frame(); assert(filled[2].color[4]==0.25,'no mouse light: the game\'s clicks are at its own places')
 mouseAt=nil; frame()
-assert(filled[7].a[1]==1920-3-2 and filled[7].b[1]==1920-3 and math.abs(filled[7].a[2]-(1017-744*0.2))<0.01 and filled[7].b[2]==1017 and filled[7].color==require('scrollbar').White,
+assert(filled[7].a[1]==640-3-2 and filled[7].b[1]==640-3 and math.abs(filled[7].a[2]-(1017-744*0.2))<0.01 and filled[7].b[2]==1017 and filled[7].color==require('scrollbar').White,
     'the compact log\'s thumb, no track: inside the log\'s right edge, over the game\'s bar\'s height, at the newest at its foot')
 mouseAt={4,500}; frame(); assert(filled[7].color==require('scrollbar').Bright,'brighter with the mouse on the game\'s bar, which it drags')
-mouseAt={1916,500}; frame(); assert(filled[7].color==require('scrollbar').Bright,'or on the thumb')
+mouseAt={636,500}; frame(); assert(filled[7].color==require('scrollbar').Bright,'or on the custom-width thumb')
 mouseAt=nil; frame(); assert(filled[7].color==require('scrollbar').White)
 assert(#text==0 and #images==0,'still no addon rows or cursor over the native content')
 scrollGeometry.above=0; frame()
@@ -412,7 +427,7 @@ end
 assert(not hooks[0].replace.all and #Lights()==0,'an older uihook: the game\'s light and cursor, none of the addon\'s')
 chatState.nativeMirror=true; frame()
 local lit=Lights()
-assert(hooks[0].replace.all and hooks[0].replace.text and #lit==1 and lit[1].a[2]==991-1 and lit[1].b[2]==991+12+1 and lit[1].b[1]==1920-3-2-2,
+assert(hooks[0].replace.all and hooks[0].replace.text and #lit==1 and lit[1].a[2]==991-1 and lit[1].b[2]==991+12+1 and lit[1].b[1]==640-3-2-2,
     'the whole log asked for: the cursor\'s row lit across the log, a line tall with half the gap either side')
 assert(#images==1 and #text==2,'the cursor after its text and the rows as before')
 rowsGeometry[1].marked=true; rowsGeometry[2].pressed=true; frame(); lit=Lights()
@@ -488,17 +503,17 @@ assert(hooks[0].captures==count,'unsupported expanded recognition leaves native 
 chatState.expandedSupported=true; chatState.nativeContent=false; frame()
 assert(hooks[0].captures==count,'missing content hook cannot hide native glyphs')
 chatState.nativeContent=true; chatState.expanded=false; nativeLogRect={20,700,660,1018}; frame()
-assert(#text==10 and text[1].text=='history 45' and measuredSize[2]==150,'native cancel restores ten compact rows and placement')
+assert(#text==10 and text[1].text=='history 45' and measuredSize[2]==144,'native cancel restores ten compact rows and placement')
 assert(rendered['winxi.chatbox'].style.title=='Party','compact: titled with the channel last spoken in, a line sent to the party')
 -- Match Game Log Size: the game log's width and height, as many rows as fit, at the bottom
 app.options.matchGameLogSize[1]=true; nativeLogRect={20,700,820,1018}; frame()
 assert(measuredSize[1]==800 and measuredSize[2]==318 and measuredPos[2]==1018,'the game log\'s width and height')
-assert(#text==22 and text[22].text=='to the party' and text[22].pos[2]==1018-3-12,'22 rows of 12px fit in 318 below the title, newest at the foot')
+assert(#text==22 and text[22].text=='to the party' and text[22].pos[2]==1018-3-3-12,'22 rows of 12px fit in 318, spare pixels centred between paddings')
 nativeLogRect={20,850,820,1018}; frame()
 assert(measuredSize[2]==168 and #text==11,'a smaller game log: fewer rows')
-assert(text[#text].pos[2]==850+6+3+2+10*14,'the 11 rows centred: 4 spare pixels, 2 above and 2 below')
+assert(text[#text].pos[2]==850+3+5+10*14,'the 11 rows centred: 10 spare pixels, 5 above and 5 below')
 app.options.matchGameLogSize[1]=false; nativeLogRect={20,700,660,1018}; frame()
-assert(measuredSize[1]==640 and measuredSize[2]==150 and #text==10,'off: Width and ten rows again')
+assert(measuredSize[1]==640 and measuredSize[2]==144 and #text==10,'off: Width and ten rows again')
 screen={x=1920,y=180}; stops=hooks[0].stops; frame(); assert(hooks[0].stops>stops,'too-small screen leaves native')
 -- Source colours are always preserved; uncoloured messages use native chat-mode colours.
 screen={x=1920,y=1080}; chatState.expanded=false; chatState.selected=false; nativeLogRect={20,700,660,1018}
@@ -530,24 +545,44 @@ imgui.IsItemDeactivatedAfterEdit=function() return false end
 imgui.SameLine=function() end
 imgui.TextDisabled=function() end
 imgui.SliderInt=function() return false end
+imgui.SliderFloat=function() return false end
 imgui.SmallButton=function() return false end
 imgui.InputText=function() return false end
 imgui.SetTooltip=function() end
 imgui.BeginDisabled=function() end; imgui.EndDisabled=function() end
 imgui.Button=function() return false end
--- the settings window: five sections, each folding away, drawn whole when open
+-- The settings sections fold away and draw whole when open.
 local opened = {}
 package.loaded['winxi.widgets'].Header=function(name) opened[#opened+1]=name; return headers[name] end
 imgui.Selectable=function() return false end
 imgui.EndCombo=function() end
 imgui.BeginCombo=function() return true end
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox,Size,Text,Padding,Expanded,Window Colors','collapsed: only the six section titles')
+assert(table.concat(opened,',')=='Chatbox,Native Behaviour,Custom Behaviour,Text (Shared),Padding (Shared),Expanded (Shared),Window Colors (Shared)','collapsed: native/custom controls and shared sections')
 for _,name in ipairs(opened) do headers[name]=true end
 headers['Chat Log Window'], headers['Input Text Box'] = true, true
 opened={}
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox,Size,Text,Padding,Expanded,Window Colors,Chat Log Window,Input Text Box','open: every section drawn')
+assert(table.concat(opened,',')=='Chatbox,Native Behaviour,Custom Behaviour,Text (Shared),Padding (Shared),Expanded (Shared),Window Colors (Shared),Chat Log Window,Input Text Box','open: every section drawn')
+-- Sizing controls and activity overrides belong to the intended behaviour group.
+do
+local controlGroups,currentGroup={},nil
+local oldCheckbox,oldSliderInt,oldSliderFloat=imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat
+package.loaded['winxi.widgets'].Header=function(name) currentGroup=name; return headers[name] end
+local function recordControl(id) controlGroups[id]=currentGroup; return false end
+imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=recordControl,recordControl,recordControl
+spec.drawSettings(app.options)
+assert(controlGroups['##chatbox.followNativeSettings']=='Native Behaviour'
+    and not controlGroups['##chatbox.matchGameLogSize'] and not controlGroups['##chatbox.matchGameInputSize'],
+    'one native toggle replaces both matching controls')
+for _,id in ipairs({'##chatbox.width','##chatbox.window1Rows','##chatbox.window2Rows',
+    '##chatbox.visibility.1.resize','##chatbox.visibility.2.animate','##chatbox.visibility.1.fade'}) do
+    assert(controlGroups[id]=='Custom Behaviour','custom sizing/activity control grouped correctly: '..id)
+end
+assert(controlGroups['##chatbox.topPadding']=='Padding (Shared)'
+    and controlGroups['##chatbox.expandInPlace']=='Expanded (Shared)','shared controls remain available in both behaviours')
+imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=oldCheckbox,oldSliderInt,oldSliderFloat
+end
 for k in pairs(headers) do headers[k]=nil end
 package.loaded['winxi.widgets'].Header=function(name) return headers[name] end
 assert(#spec.tabs == 1 and spec.tabs[1].label == 'Info Panel' and app.options.colors == nil and app.options.combat == nil,
@@ -568,7 +603,7 @@ local belowText=inputBox.pos[2]-(text[#text].pos[2]+12)
 assert(text[#text].text=='hi' and aboveText==15 and belowText==15,
     'input has equal space above and below text, even with asymmetric padding settings')
 inputOpen=false; frame()
-assert(measuredSize[2]==120+18+6+10+20,'the log: ten rows, the title\'s half and both paddings')
+assert(measuredSize[2]==120+18+10+20,'the log: ten rows and both paddings')
 assert(text[#text].pos[2]==1018-20-12,'the newest row above the bottom padding')
 app.options.topPadding[1], app.options.bottomPadding[1] = 4, 4
 app.options.rightPadding[1]=600; message(string.rep('w',20),{mode=1}); frame()
@@ -617,17 +652,17 @@ message('one-off say',{mode=1}); frame()
 assert(rendered['winxi.chatbox'].style.title=='Party','one-off outgoing channel does not replace /cm mode')
 events.command({command='/cm s',blocked=true}); frame()
 assert(rendered['winxi.chatbox'].style.title=='Party','blocked mode commands are ignored')
--- The pearl's extra data as the server's EncodeStringLinkshell writes it: six bits a letter from byte 9,
--- then ones to the end of the byte (a whole code of six where none are left, or two), then zeros.
--- FirstShell's ten letters leave four bits, which read as an o with nothing after it.
+-- Retail pearl data: six bits a letter MSB-first from byte 9, then one-bit padding and zeros.
+-- FirstShell's ten letters leave four padding bits, not another complete letter.
 local function pearl(name)
     local extra, alphabet = {}, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     for i=0,27 do extra[i]=0 end
     local function put(code,bitOffset,length)
-        local offset,shift=9+math.floor(bitOffset/8),bitOffset%8
-        local value=(code%2^length)*2^shift
-        extra[offset]=extra[offset]+value%256
-        extra[offset+1]=extra[offset+1]+math.floor(value/256)
+        for j=0,length-1 do
+            local position=bitOffset+j
+            local offset,shift=9+math.floor(position/8),7-position%8
+            extra[offset]=extra[offset]+(math.floor(code/2^(length-1-j))%2)*2^shift
+        end
     end
     for i=1,#name do put(assert(alphabet:find(name:sub(i,i),1,true)),(i-1)*6,6) end
     local leftover=8-(#name*6)%8
@@ -635,6 +670,24 @@ local function pearl(name)
     put(0xFF,#name*6,leftover)
     return {Id=515,Extra=extra}
 end
+-- Fixed bytes independent of the test encoder: the old little-endian decoder garbled Omgroom.
+local channels = require('channels')
+channels.LinkshellPacket('\0\0\0\0\1\1\1\0')
+local fixture='\0\0\0\0\0\0\0\0\3' .. string.char(0xA4,0xD1,0xD2,0x3C,0xF3,0x7F) .. string.rep('\0',13)
+local function inventoryFor(extra)
+    return {GetContainerItem=function() return {Id=515,Extra=extra} end}
+end
+assert(channels.LinkshellName(inventoryFor(fixture),1)=='Omgroom','retail MSB-first regression fixture')
+local ffi=require('ffi')
+local nativeExtra=ffi.new('uint8_t[28]')
+ffi.copy(nativeExtra,fixture,28)
+assert(channels.LinkshellName(inventoryFor(nativeExtra),1)=='Omgroom','native inventory extra data')
+for length=1,20 do
+    local name=('aAzZ09OmgroomFirstShell'):sub(1,length)
+    assert(channels.LinkshellName(inventoryFor(pearl(name).Extra),1)==name,'name length and padding: '..length)
+end
+assert(channels.LinkshellName(inventoryFor(string.rep('\0',28)),1)==nil,'empty name')
+channels.ResetLinkshells()
 local shells={[1]=pearl('FirstShell'),[2]=pearl('SecondShell')}
 AshitaCore.GetMemoryManager=function() return {GetInventory=function() return {
     GetContainerItem=function(_,bag,index) assert(bag==1); return shells[index] end,
@@ -767,11 +820,13 @@ frame()
 assert(text[1].text == 'wheel 68' and text[10].text == 'wheel 77', 'one notch scrolls three visual rows')
 assert(wheel(120*100).blocked); frame()
 assert(text[1].text == 'wheel 1' and text[10].text == 'wheel 10', 'scroll clamps at oldest full viewport')
--- The settings' Clear forgets the scroll too, as /chatbox clear does: new lines after it show at the bottom
-do local oldSmall=imgui.SmallButton; imgui.SmallButton=function(label) return label:find('chatbox.clear',1,true)~=nil end
+-- No destructive clear button in settings; the explicit command still resets scrolling.
+do local oldSmall=imgui.SmallButton; imgui.SmallButton=function(label)
+        assert(not label:find('chatbox.clear',1,true),'history clear button removed'); return false end
     headers['Chatbox']=true; spec.drawSettings(app.options); headers['Chatbox']=nil; imgui.SmallButton=oldSmall end
+spec.commands.clear()
 for i=1,80 do message('wheel ' .. i) end; frame() -- no frame between: nothing has clamped the old scroll away
-assert(text[10].text == 'wheel 80', 'the settings\' Clear forgets the scroll as well, so the newest line is at the bottom again')
+assert(text[10].text == 'wheel 80', 'the clear command forgets the scroll as well, so the newest line is at the bottom again')
 assert(wheel(120*100).blocked); frame()
 assert(text[1].text == 'wheel 1' and text[10].text == 'wheel 10')
 assert(wheel(-120*100).blocked); frame()
@@ -828,8 +883,8 @@ assert(#filled == 0, 'scrollbar disappears when all rows fit')
 assert(not wheel(120).blocked, 'no overflowing rows means no wheel interception')
 app.options.enabled[1]=false; frame()
 assert(not wheel(120).blocked, 'disabled replacement releases mouse wheel')
--- The game's two log windows mirrored: a second box stacked over the first, of the first's width and the game's
--- second window's height; each shows the messages the game's Log Window settings route to it; each scrolls on its
+-- The game's two log windows mirrored: a second box stacked over the first, with its own game width and
+-- height; each shows the messages the game's Log Window settings route to it; each scrolls on its
 -- own; the focus light and cursor go to the window the game's focus is on
 app.options.enabled[1]=true
 spec.commands.clear()
@@ -843,6 +898,16 @@ local first,split=rendered['winxi.chatbox'],rendered['winxi.chatbox.split']
 assert(split and split.pos[1]==20 and split.pos[2]==700 and split.pos[4]==1 and split.size[1]==640 and split.size[2]==180,'the second box stacked over the first, the first\'s width, the game\'s second window\'s height')
 assert(split.style.title=='Window 2' and first.style.title~='Window 2' and split.style.fontSize==12,'titled Window 2, in the chat\'s font size; the first still by its channel')
 assert(hooks[1].captures==1 and hooks[1].begins==begins+1,'the second window captured, once begun, not hidden again after')
+-- Stacked windows retain independent game widths and heights, including changes made while open.
+splitRect={40,490,500,700}; frame()
+assert(rendered['winxi.chatbox.split'].pos[1]==40 and rendered['winxi.chatbox.split'].size[1]==460 and rendered['winxi.chatbox.split'].size[2]==210,'stacked Window 2 uses its own game size and horizontal offset')
+assert(rendered['winxi.chatbox'].size[1]==640 and rendered['winxi.chatbox'].size[2]==318,'Window 2 sizing does not change Window 1')
+nativeLogRect={20,700,740,1018}; frame()
+assert(rendered['winxi.chatbox'].size[1]==720 and rendered['winxi.chatbox.split'].size[1]==460 and rendered['winxi.chatbox.split'].size[2]==210,'changing Window 1 does not resize Window 2')
+app.options.matchGameLogSize[1]=false; frame()
+assert(rendered['winxi.chatbox.split'].size[1]==rendered['winxi.chatbox'].size[1] and rendered['winxi.chatbox.split'].size[2]==144,'manual stacked layout still shares configured width and ten rows')
+app.options.matchGameLogSize[1]=true
+nativeLogRect={20,700,660,1018}; splitRect={20,520,660,700}; frame()
 app.options.splitTitle[1]='Combat'; frame()
 assert(rendered['winxi.chatbox.split'].style.title=='Combat','Window 2 Title: the words typed in place of Window 2')
 app.options.splitTitle[1]=''
@@ -874,7 +939,7 @@ assert(hooks[1].captures==captures+1,'its place known again: drawn again')
 local said3={}; app.Say=function(_,line) said3[#said3+1]=line end; spec.commands.status(); app.Say=function() end
 assert(table.concat(said3,'\n'):find('Second window: over the first',1,true) and table.concat(said3,'\n'):find('12 rows of room',1,true),'/chatbox status describes the second window')
 app.options.matchGameLogSize[1]=false; frame()
-assert(rendered['winxi.chatbox.split'].size[2]==150 and rendered['winxi.chatbox.split'].pos[2]==1018-150,'Match Game Log Size off: ten rows each, the second still stacked over the first')
+assert(rendered['winxi.chatbox.split'].size[2]==144 and rendered['winxi.chatbox.split'].pos[2]==1018-144,'Match Game Log Size off: ten rows each, the second still stacked over the first')
 app.options.matchGameLogSize[1]=true
 -- the game's horizontal layout: its second window beside the first, which the second box follows, the game's gap
 -- and its width kept, the first's bottom shared, lifting with it over the input
@@ -887,7 +952,7 @@ assert(rendered['winxi.chatbox'].pos[2]==1000 and rendered['winxi.chatbox.split'
 inputOpen=false; nativeRect=savedInputRect
 app.options.matchGameLogSize[1]=false; frame()
 split=rendered['winxi.chatbox.split']
-assert(split.pos[1]==680 and split.pos[2]==1018 and split.size[1]==320 and split.size[2]==150,'Match Game Log Size off: the game\'s width and gap, ten rows, the first\'s bottom')
+assert(split.pos[1]==680 and split.pos[2]==1018 and split.size[1]==320 and split.size[2]==144,'Match Game Log Size off: the game\'s width and gap, ten rows, the first\'s bottom')
 splitRect={0,700,16,1018}; frame(); assert(rendered['winxi.chatbox.split'].pos[1]==0 and rendered['winxi.chatbox.split'].size[1]==16,'to the first\'s left: there')
 splitRect={1700,700,1950,1018}; captures=hooks[1].captures; frame(); assert(hooks[1].captures==captures,'no room on the screen for it: the game\'s is left')
 said3={}; app.Say=function(_,line) said3[#said3+1]=line end; spec.commands.status(); app.Say=function() end
@@ -901,7 +966,7 @@ assert(hooks[1].captures==captures+1 and text[#text].text=='party 40','back to t
 -- of the game's shown there, the other window still drawn; both at 0: nothing, the input still working
 splitRect={20,520,660,700}; routes={split=true,first={[1]=true,[5]=true},second={[5]=true}}; frame()
 captures=hooks[1].captures; local firstCaptures=hooks[0].captures; local firstStops=hooks[0].stops
-nativeLogRect={20,1000,660,1018}; frame()
+nativeLogRect={20,1001,660,1018}; frame()
 assert(hooks[0].captures==firstCaptures and hooks[0].stops==firstStops,'the first at 0 lines: not drawn, its empty hide kept, not released')
 assert(hooks[1].captures==captures+1 and rendered['winxi.chatbox.split'].pos[2]==700 and rendered['winxi.chatbox.split'].pos[1]==20 and rendered['winxi.chatbox.split'].size[2]==180,'the second drawn alone, where the game draws it')
 assert(text[1].text=='party 29' and #text==12,'only the second\'s rows')
@@ -911,28 +976,28 @@ assert(table.concat(said3,'\n'):find('at 0 lines: nothing drawn',1,true),'/chatb
 nativeLogRect={20,700,660,1018}; splitRect={20,690,660,700}; local begins2=hooks[1].begins; captures=hooks[1].captures; frame()
 assert(hooks[1].captures==captures and hooks[1].begins==begins2+1 and #text==22 and text[#text].text=='party 40','the second at 0 lines: not drawn, hidden; the first drawn, still routed')
 assert(table.concat((function() said3={}; app.Say=function(_,line) said3[#said3+1]=line end; spec.commands.status(); app.Say=function() end; return said3 end)(),'\n'):find('is at 0 lines; nothing drawn',1,true),'status says the second is at 0 lines')
-nativeLogRect={20,1000,660,1018}; inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; local inputCaptures=hooks[2].captures; firstCaptures=hooks[0].captures; frame()
+nativeLogRect={20,1001,660,1018}; inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; local inputCaptures=hooks[2].captures; firstCaptures=hooks[0].captures; frame()
 assert(hooks[0].captures==firstCaptures and hooks[1].captures==captures and hooks[2].captures==inputCaptures+1 and text[#text].text=='hi','both at 0 lines: no box, the input bar still drawn')
 inputOpen=false
 app.options.matchGameLogSize[1]=false; frame()
-assert(hooks[0].captures==firstCaptures+1 and rendered['winxi.chatbox'].size[2]==150,'Match Game Log Size off: ten rows whatever the game\'s size')
+assert(hooks[0].captures==firstCaptures+1 and rendered['winxi.chatbox'].size[2]==144,'Match Game Log Size off: ten rows whatever the game\'s size')
 app.options.matchGameLogSize[1]=true; nativeLogRect={20,700,660,1018}
 -- The game's lines, where uihook says them: the box has as many rows as the game shows now, whatever fits its
 -- window (the game grows a row a message and shrinks while none come), no shorter than the game's window and tall
 -- enough for its rows at Font Size; at 0 lines nothing; the second window the same
 nativeLogRect={20,1002,660,1018}; linesState[0]={shown=1,most=8,fewest=0}; firstCaptures=hooks[0].captures; frame()
-assert(hooks[0].captures==firstCaptures+1 and rendered['winxi.chatbox'].pos[2]==1018 and rendered['winxi.chatbox'].size[2]==24 and #text==1 and text[1].text=='party 40','one line in a 16px window: one row, the box tall enough for it, over the game\'s bottom')
+assert(hooks[0].captures==firstCaptures+1 and rendered['winxi.chatbox'].pos[2]==1018 and rendered['winxi.chatbox'].size[2]==18 and #text==1 and text[1].text=='party 40','one line in a 16px window: one row, the box tall enough for it, over the game\'s bottom')
 linesState[0]={shown=3,most=8,fewest=0}; frame()
-assert(rendered['winxi.chatbox'].size[2]==3*12+2*2+12 and #text==3,'three lines: three rows, the box grown for them')
+assert(rendered['winxi.chatbox'].size[2]==3*12+2*2+6 and #text==3,'three lines: three rows, the box grown for them')
 nativeLogRect={20,700,660,1018}; frame()
 assert(rendered['winxi.chatbox'].size[2]==318 and #text==3,'the game\'s window taller than three rows need: its height, three rows')
 linesState[0]={shown=0,most=8,fewest=0}; firstCaptures=hooks[0].captures; frame()
 assert(hooks[0].captures==firstCaptures,'at 0 lines: nothing, whatever the window\'s height')
 nativeLogRect=nil; frame(); assert(hooks[0].captures==firstCaptures,'and no hold while the game says 0 lines')
 linesState[0]={shown=2,most=8,fewest=0}; nativeLogRect={20,1000,660,1018}; frame()
-assert(hooks[0].captures==firstCaptures+1 and #text==2 and rendered['winxi.chatbox'].size[2]==2*12+2+12,'a message: back, two rows in an 18px window')
+assert(hooks[0].captures==firstCaptures+1 and #text==2 and rendered['winxi.chatbox'].size[2]==2*12+2+6,'a message: back, two rows in an 18px window')
 splitRect={20,520,660,700}; linesState[1]={shown=1,most=6,fewest=0}; frame()
-assert(rendered['winxi.chatbox.split'].size[2]==180 and rendered['winxi.chatbox.split'].pos[2]==1018-(2*12+2+12),'the second at one line in a tall window: the game\'s height, over the first')
+assert(rendered['winxi.chatbox.split'].size[2]==180 and rendered['winxi.chatbox.split'].pos[2]==1018-(2*12+2+6),'the second at one line in a tall window: the game\'s height, over the first')
 local splitText=0; for _,entry in ipairs(text) do if entry.text:find('party',1,true) then splitText=splitText+1 end end
 assert(#text==3,'one row in it')
 linesState[1]={shown=0,most=6,fewest=0}; captures=hooks[1].captures; frame(); assert(hooks[1].captures==captures,'the second at 0 lines: nothing')
@@ -992,9 +1057,9 @@ assert(hooks[0].panel and not hooks[1].panel and #panelDraws==1,'panel joins pri
 local panelRect=panelDraws[1]
 assert(panelRect.left==20 and panelRect.width==640 and panelRect.height==18 and panelRect.top==1018-18,
     'panel where the log\'s bottom was, input height and chat width')
-assert(rendered['winxi.chatbox'].pos[2]==1018-18 and rendered['winxi.chatbox'].size[2]==150,'the log lifted wholly above the panel, its size unchanged')
-assert(menuSlot==0 and menuBounds.left==20 and menuBounds.top==1018-18-150 and menuBounds.width==640,
-    'menu anchor above the lifted log, committed only with the completed primary capture')
+assert(rendered['winxi.chatbox'].pos[2]==1018-18 and rendered['winxi.chatbox'].size[2]==144,'the log lifted wholly above the panel, its size unchanged')
+assert(menuSlot==0 and menuBounds==panelRect and menuBounds.top==1018-18 and menuBounds.width==640,
+    'menu anchor uses the visible panel, not the lifted chat frame; committed only after primary capture')
 -- Typing: the panel stays at the bottom, the input on it, the log over the input
 local savedNative=nativeRect; nativeRect={20,1000,660,1018} -- the game's input where the closed log ends
 inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; panelDraws={}; frame()
@@ -1002,7 +1067,7 @@ local typed=panelDraws[1]
 assert(typed.top==1018-18 and typed.height==18,'the panel keeps the bottom while typing')
 assert(rendered['winxi.chatbox.input'].pos[2]==1018-18,'the input sits on the panel')
 assert(rendered['winxi.chatbox'].pos[2]==1018-18-18,'the log over the input')
-assert(menuBounds.top==1018-18-18-150,'menus over the log')
+assert(menuBounds==typed and menuBounds.top==1018-18,'typing does not lift combat menus above the invisible chat frame')
 nativeRect={20,1042,660,1060} -- the game's input lower than the log: the log lifted only clear of it
 panelDraws={}; frame()
 assert(panelDraws[1].top==1060-18 and rendered['winxi.chatbox.input'].pos[2]==1060-18,'the panel at the input\'s bottom, the input on it')
@@ -1018,8 +1083,8 @@ local rect=PanelFrame()
 assert(#panelDraws==1 and hooks[0].panel and not hooks[1].panel,'stacked split: the lower log owns one panel')
 assert(rect.top==1018-18 and rendered['winxi.chatbox'].pos[2]==1018-18,'under the lower log, which is lifted')
 local split=rendered['winxi.chatbox.split']
-assert(split.pos[2]==1018-18-150,'the upper log lifted with it, still flush over the lower')
-assert(menuSlot==0 and menuBounds.top==split.pos[2]-split.size[2],'native menus above the whole lifted stack')
+assert(split.pos[2]==1018-18-144,'the upper log lifted with it, still flush over the lower')
+assert(menuSlot==0 and menuBounds==rect and menuBounds.top==1018-18,'native combat menus ignore the stacked chat frames and follow the visible panel')
 splitRect={660,700,1000,1018}; rect=PanelFrame()
 assert(hooks[0].panel and not hooks[1].panel and rect.left==20,'horizontal logs keep primary anchor')
 assert(rendered['winxi.chatbox.split'].pos[2]==1018-18,'both side-by-side logs lifted over the panel')
@@ -1043,11 +1108,11 @@ assert(app.options.infoPanel.anchor[1]==2,'Bottom to start')
 app.options.infoPanel.anchor[1]=1
 routes=nil; splitRect=nil
 rect=PanelFrame()
-assert(hooks[0].panel and rect.left==20 and rect.width==640 and rect.height==18 and rect.top==1018-150-18,'top: flush over the log')
+assert(hooks[0].panel and rect.left==20 and rect.width==640 and rect.height==18 and rect.top==1018-144-18,'top: flush over the log')
 assert(rendered['winxi.chatbox'].pos[2]==1018 and menuBounds==rect and menuSlot==0,'top: the log in place, menus above the panel')
 local savedTopNative=nativeRect; nativeRect={20,1000,660,1018}
 inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; rect=PanelFrame()
-assert(rendered['winxi.chatbox.input'].pos[2]==1018 and rendered['winxi.chatbox'].pos[2]==1000 and rect.top==1000-150-18,
+assert(rendered['winxi.chatbox.input'].pos[2]==1018 and rendered['winxi.chatbox'].pos[2]==1000 and rect.top==1000-144-18,
     'top, typing: the input where the game puts it, the log over it, the panel over the log')
 inputOpen=false; nativeRect=savedTopNative
 routes={split=true,first={[1]=true},second={[4]=true}}
@@ -1056,7 +1121,7 @@ local upper=rendered['winxi.chatbox.split']
 assert(#panelDraws==1 and hooks[1].panel and not hooks[0].panel and menuSlot==1,'top, stacked: the upper log owns it')
 assert(rect.top==upper.pos[2]-upper.size[2]-18 and menuBounds==rect,'flush over the upper log')
 splitRect={660,700,1000,1018}; window2.enabled[1]=true; window2.height[1]=26; rect=PanelFrame()
-assert(#panelDraws==2 and panelDraws[1].top==1018-150-26 and panelDraws[2].left==660
+assert(#panelDraws==2 and panelDraws[1].top==1018-144-26 and panelDraws[2].left==660
     and panelDraws[2].top==rendered['winxi.chatbox.split'].pos[2]-rendered['winxi.chatbox.split'].size[2]-26,'top, side by side: one over each log, one height')
 window2.enabled[1]=false; window2.height[1]=0
 app.options.infoPanel.anchor[1]=2
@@ -1065,7 +1130,10 @@ linesState[0]={shown=0,most=8,fewest=0}; linesState[1]={shown=2,most=6,fewest=0}
 splitRect={20,520,660,700}; rect=PanelFrame()
 assert(#panelDraws==1 and hooks[1].panel and rect.left==20 and rect.top==700-18,'split alone can own the panel')
 assert(rendered['winxi.chatbox.split'].pos[2]==700-18,'and is lifted over it')
-linesState[1].shown=0; PanelFrame(); assert(#panelDraws==0 and menuBounds==nil,'zero-line logs release the panel and native menu anchor')
+linesState[1].shown=0; rect=PanelFrame()
+assert(#panelDraws==1 and menuBounds==rect and menuBounds.height>0,'zero-line logs keep the panel and a valid native menu anchor')
+local panelHost=rendered['winxi.chatbox.panel.0']
+assert(panelHost.size[2]==rect.height and panelHost.pos[2]==rect.top+rect.height,'collapsed native logs capture only the visible panel height')
 linesState={}; app.options.matchGameLogSize[1]=false; routes=nil; splitRect=nil
 chatState.expanded=true; PanelFrame(); assert(#panelDraws==0 and menuBounds==nil,'expanded chat suspends panel/menu anchor')
 chatState.expanded=false
@@ -1263,4 +1331,221 @@ os.clock=tapRealClock
 tapReady=false; message('tap gone',{mode=9}); frame(); assert(text[#text].text=='tap gone','without the tap, each line is kept as it arrives again')
 said7={}; app.Say=function(_,line) said7[#said7+1]=line end; spec.commands.status(); assert(table.concat(said7,'\n'):find('Lines: chatbox\'s own',1,true),'status says lines are chatbox\'s own again')
 app.Say=function() end
-print('Chatbox UI: compact/expanded chat, routing, failure/lifecycle and chat-owned info-panel capture/settings passed')
+-- Explicit row counts are independent of game sizing and each other.
+chatState.expanded=false; chatState.selected=false; chatState.selectedWindow=nil
+inputOpen=false; routes={split=true,first={[1]=true},second={[5]=true}}
+nativeLogRect={20,700,660,1018}; splitRect={20,520,480,700}
+app.options.matchGameLogSize[1]=true
+app.options.infoPanel.layout.enabled[1]=false
+app.options.window1Rows[1],app.options.window2Rows[1]=4,7
+frame()
+assert(rendered['winxi.chatbox'].size[2]==60 and rendered['winxi.chatbox.split'].size[2]==102,'custom row counts override native heights independently')
+assert(rendered['winxi.chatbox'].size[1]==640 and rendered['winxi.chatbox.split'].size[1]==460,'custom rows preserve individual game widths')
+app.options.matchGameLogSize[1]=false; frame()
+assert(rendered['winxi.chatbox'].size[2]==60 and rendered['winxi.chatbox.split'].size[2]==102,'custom counts also work with manual sizing')
+app.options.window2Rows[1]=0; frame()
+assert(rendered['winxi.chatbox'].size[2]==60 and rendered['winxi.chatbox.split'].size[2]==144,'automatic Window 2 does not inherit custom Window 1 height')
+-- Exact custom heights preserve asymmetric padding in both windows, with no title headroom.
+spec.commands.clear()
+for i=1,10 do
+    message('fit say '..i,{mode=1})
+    message('fit party '..i,{mode=5})
+end
+app.options.window2Rows[1]=7
+app.options.topPadding[1],app.options.bottomPadding[1]=9,5
+frame()
+local firstFit,secondFit=rendered['winxi.chatbox'],rendered['winxi.chatbox.split']
+assert(firstFit.size[2]==4*12+3*2+9+5 and secondFit.size[2]==7*12+6*2+9+5,'both custom boxes fit exact rows plus asymmetric padding')
+assert(#text==11 and text[1].pos[2]==firstFit.pos[2]-firstFit.size[2]+9
+    and text[4].pos[2]+12==firstFit.pos[2]-5,'first box preserves exact top and bottom padding')
+assert(text[5].pos[2]==secondFit.pos[2]-secondFit.size[2]+9
+    and text[11].pos[2]+12==secondFit.pos[2]-5,'second box preserves exact top and bottom padding')
+app.options.topPadding[1],app.options.bottomPadding[1]=3,3
+app.options.window1Rows[1],app.options.window2Rows[1]=0,0
+-- Smart visibility never releases native capture when a compact log goes idle.
+spec.commands.clear()
+chatState.expanded=false; chatState.selected=false; chatState.selectedWindow=nil
+inputOpen=false; routes={split=true,first={[1]=true},second={[5]=true}}
+nativeLogRect={20,700,660,1018}; splitRect={20,520,480,700}
+app.options.matchGameLogSize[1]=false
+app.options.infoPanel.layout.enabled[1]=false
+local smartClock,smartRealClock=1000,os.clock
+os.clock=function() return smartClock end
+local smart1,smart2=app.options.visibility.window1,app.options.visibility.window2
+smart1.resize[1],smart2.resize[1]=true,true
+smart1.minimum[1],smart2.minimum[1]=0,0
+local function SmartFrame()
+    rendered['winxi.chatbox'],rendered['winxi.chatbox.split']=nil,nil
+    frame()
+end
+SmartFrame()
+assert(rendered['winxi.chatbox']==nil and rendered['winxi.chatbox.split']==nil,'idle smart logs hidden without native duplicates')
+message('smart say',{mode=1}); SmartFrame()
+assert(rendered['winxi.chatbox'] and rendered['winxi.chatbox'].size[2]==18 and not rendered['winxi.chatbox.split'],'new line grows only its routed log')
+smartClock=smartClock+1
+message('smart party',{mode=5}); SmartFrame()
+assert(rendered['winxi.chatbox.split'] and rendered['winxi.chatbox.split'].size[2]==18,'other routed log grows independently')
+smartClock=smartClock+14; SmartFrame()
+assert(not rendered['winxi.chatbox'] and rendered['winxi.chatbox.split'],'first expires while second still has recent activity')
+assert(hooks[0].begins>0 and hooks[1].begins>0,'hidden logs retain native hide requests')
+smartClock=smartClock+1; SmartFrame()
+assert(not rendered['winxi.chatbox'] and not rendered['winxi.chatbox.split'],'both expire')
+inputOpen=true; inputRaw=''; inputDisplay=''; inputCaret=0; SmartFrame()
+assert(rendered['winxi.chatbox'] and rendered['winxi.chatbox.split'],'typing reveals both logs at full capacity')
+app.options.window1Rows[1],app.options.window2Rows[1]=3,6
+SmartFrame()
+assert(rendered['winxi.chatbox'].size[2]==46 and rendered['winxi.chatbox.split'].size[2]==88,'smart visibility uses custom row capacities when interacting')
+inputOpen=false
+for i=1,5 do message('custom capacity '..i,{mode=1}) end
+SmartFrame()
+assert(rendered['winxi.chatbox'].size[2]==46,'incoming messages cannot grow past the custom row limit')
+smart1.animate[1]=true
+smart2.minimum[1]=1
+SmartFrame() -- establish the current animated height
+smartClock=smartClock+16; SmartFrame()
+smartClock=smartClock+0.1; SmartFrame()
+local movingFirst,movingSecond=rendered['winxi.chatbox'],rendered['winxi.chatbox.split']
+assert(math.abs(movingFirst.size[2]-23)<0.001,'resize animation draws intermediate pixel heights')
+assert(math.abs(movingSecond.pos[2]-(movingFirst.pos[2]-movingFirst.size[2]))<0.001,'stacked window follows animated top edge')
+smartClock=smartClock+0.1; SmartFrame()
+assert(not rendered['winxi.chatbox'] and rendered['winxi.chatbox.split'].pos[2]==1018,'completed animation collapses to zero without a stack gap')
+smart1.animate[1],smart2.minimum[1]=false,0
+app.options.window1Rows[1],app.options.window2Rows[1]=0,0
+inputOpen=false
+smart1.resize[1],smart2.resize[1]=false,false
+smart1.fade[1]=true
+smartClock=2000; SmartFrame()
+assert(not rendered['winxi.chatbox'] and rendered['winxi.chatbox.split'],'fade-only window hides independently')
+local smartStops=hooks[0].stops
+message('fade in',{mode=1}); SmartFrame()
+smartClock=smartClock+0.1; SmartFrame()
+assert(rendered['winxi.chatbox'] and math.abs(rendered['winxi.chatbox'].style.alpha-0.5)<0.001,'new message fades window back in')
+smartClock=smartClock+0.1; SmartFrame()
+assert(rendered['winxi.chatbox'].style.alpha>0.99,'fade-in reaches full opacity')
+smartClock=smartClock+15.3; SmartFrame()
+assert(math.abs(rendered['winxi.chatbox'].style.alpha-0.5)<0.001,'fade-out begins after idle delay')
+smartClock=smartClock+1; SmartFrame()
+assert(not rendered['winxi.chatbox'] and hooks[0].stops==smartStops,'fully faded log does not reveal native chat')
+chatState.selected=true; chatState.selectedWindow=1; SmartFrame()
+assert(rendered['winxi.chatbox'] and rendered['winxi.chatbox'].style.alpha==1,'selecting faded log reveals it immediately')
+smart1.fade[1]=false
+-- Both empty smart logs keep the panel, with real panel-sized captures and menu bounds.
+chatState.selected=false; chatState.selectedWindow=nil
+smart1.resize[1],smart2.resize[1]=true,true
+app.options.infoPanel.layout.enabled[1]=true
+app.options.infoPanel.layout.attached[1]=true
+app.options.infoPanel.layout.offsetX[1],app.options.infoPanel.layout.offsetY[1]=0,0
+app.options.infoPanel.layout.width[1],app.options.infoPanel.layout.height[1]=0,0
+app.options.infoPanel.anchor[1]=2
+smartClock=3000
+local function PanelSmartFrame() panelDraws={}; SmartFrame() end
+PanelSmartFrame()
+local idlePanel=panelDraws[1]
+assert(#panelDraws==1 and idlePanel and menuBounds==idlePanel,'both empty smart logs preserve panel and menu anchoring')
+local idleHost=rendered['winxi.chatbox.panel.0']
+assert(idleHost and idleHost.size[2]==idlePanel.height and idleHost.pos[2]==idlePanel.top+idlePanel.height,'idle capture really shrinks to the panel instead of retaining chat height')
+assert(not rendered['winxi.chatbox'] and not rendered['winxi.chatbox.split'],'no empty chat frames, titles or padding remain')
+message('one actual row',{mode=1}); PanelSmartFrame()
+assert(rendered['winxi.chatbox'].size[2]==18 and menuBounds==panelDraws[1],'one-row chat does not add a menu gap above the panel')
+smartClock=smartClock+16; PanelSmartFrame()
+assert(menuBounds==panelDraws[1] and rendered['winxi.chatbox']==nil,'idle anchor drops back to the panel after the last row disappears')
+splitRect={660,700,1000,1018}
+app.options.infoPanel.window2.enabled[1]=true
+PanelSmartFrame()
+assert(#panelDraws==2 and rendered['winxi.chatbox.panel.0'] and rendered['winxi.chatbox.panel.1'],'both side-by-side panels remain with empty logs')
+assert(rendered['winxi.chatbox.panel.1'].size[2]==panelDraws[2].height,'second capture is panel-sized too')
+app.options.infoPanel.anchor[1]=1
+PanelSmartFrame()
+assert(menuBounds==panelDraws[1] and menuBounds.height>0,'top anchor also uses actual panel bounds when logs collapse')
+smart1.resize[1],smart2.resize[1]=false,false
+smart1.fade[1],smart2.fade[1]=true,true
+smartClock=4000; PanelSmartFrame()
+assert(#panelDraws==2 and rendered['winxi.chatbox']==nil and rendered['winxi.chatbox.split']==nil and menuBounds==panelDraws[1],'fully faded logs also preserve unfaded panels and actual menu bounds')
+captureOK=false; PanelSmartFrame()
+assert(menuBounds==nil,'failed panel-only capture cannot publish a menu anchor')
+captureOK=true
+app.options.infoPanel.layout.enabled[1]=false
+PanelSmartFrame()
+assert(#panelDraws==0 and menuBounds==nil,'disabled panel does not leave idle geometry behind')
+-- Icon tooltips are ordinary Winxi tooltips, shown after capture and without native input items.
+app.options.infoPanel.layout.enabled[1]=true
+app.options.infoPanel.window2.enabled[1]=false
+local tipLayout=app.options.infoPanel.layout
+tipLayout.dayPlace[1]=3; tipLayout.dayAfter[1]=false
+tipLayout.dayX[1],tipLayout.dayY[1]=0,0
+for _,slot in ipairs(tipLayout.slots) do slot.format='' end
+smartClock=smartClock+1; mouseAt=nil
+PanelSmartFrame()
+local dayImage
+for _,image in ipairs(images) do if image.handle==991 then dayImage=image end end
+assert(dayImage,'day icon available for hover test')
+local tooltip=require('winxi.tooltip')
+local oldShow=tooltip.Show
+local shownTips={}
+local beforeTipCapture=hooks[0].captures
+tooltip.Show=function(text)
+    assert(hooks[0].captures>beforeTipCapture,'tooltip appears after panel capture, not inside it')
+    shownTips[#shownTips+1]=text
+end
+mouseAt={(dayImage.a[1]+dayImage.b[1])/2,(dayImage.a[2]+dayImage.b[2])/2}
+PanelSmartFrame()
+assert(#shownTips==1 and shownTips[1]:find('Vana\'diel day:',1,true),'hovering day icon shows identifying tooltip')
+app.options.infoPanel.anchorMenus[1]=false
+PanelSmartFrame()
+assert(#shownTips==2,'icon tooltips are independent of native menu anchoring')
+captureOK=false; PanelSmartFrame()
+assert(#shownTips==2,'failed native capture never shows stale tooltip')
+captureOK=true; mouseAt={0,0}; PanelSmartFrame()
+assert(#shownTips==2,'moving away clears tooltip')
+chatState.expanded=true; PanelSmartFrame()
+assert(#shownTips==2,'expanded history does not retain panel tooltip')
+tooltip.Show=oldShow
+os.clock=smartRealClock
+-- The single native switch disables editing AND bypasses saved custom overrides at runtime.
+do (function()
+    chatState.expanded,chatState.selected=false,false
+    inputOpen=false; ready=true; captureOK=true
+    app.options.infoPanel.layout.enabled[1]=false
+    routes={split=true,first={[1]=true},second={[5]=true}}
+    nativeLogRect,splitRect,nativeRect={20,700,660,1018},{20,520,480,700},nil
+    linesState={}
+    app.options.window1Rows[1],app.options.window2Rows[1]=4,7
+    smart1.resize[1],smart1.fade[1],smart1.animate[1]=true,true,true
+    smart2.resize[1],smart2.fade[1]=true,true
+    local oldCheck,oldBegin,oldEnd=imgui.Checkbox,imgui.BeginDisabled,imgui.EndDisabled
+    local disabled,begins,ends=nil,0,0
+    imgui.BeginDisabled=function(value) disabled=value; begins=begins+1 end
+    imgui.EndDisabled=function() ends=ends+1 end
+    headers['Native Behaviour'],headers['Custom Behaviour']=true,true
+    imgui.Checkbox=function(id,value)
+        if id=='##chatbox.followNativeSettings' then value[1]=not value[1]; return true end
+        return false
+    end
+    spec.drawSettings(app.options)
+    assert(disabled==true and begins==1 and ends==1,'all custom controls disabled in native mode')
+    assert(app.options.followNativeSettings[1] and app.options.matchGameLogSize[1]
+        and app.options.matchGameInputSize[1],'single toggle enables both native geometry paths')
+    SmartFrame()
+    assert(rendered['winxi.chatbox'].size[2]==318 and rendered['winxi.chatbox.split'].size[2]==180,
+        'native mode ignores custom row counts, auto resize and idle fading')
+    assert(rendered['winxi.chatbox'].style.alpha==1,'native mode does not retain custom fade opacity')
+    spec.drawSettings(app.options)
+    assert(disabled==false and not app.options.matchGameLogSize[1] and not app.options.matchGameInputSize[1],
+        'turning native mode off re-enables custom controls and disables both native matches')
+    inputOpen=true; SmartFrame()
+    assert(rendered['winxi.chatbox'].size[2]==60 and rendered['winxi.chatbox.split'].size[2]==102,
+        'saved custom row settings resume without being discarded')
+    assert(smart1.resize[1] and smart1.fade[1] and smart1.animate[1],'custom activity settings retained')
+    imgui.Checkbox,imgui.BeginDisabled,imgui.EndDisabled=oldCheck,oldBegin,oldEnd
+    headers['Native Behaviour'],headers['Custom Behaviour']=nil,nil
+    app.options.followNativeSettings=nil
+    app.options.matchGameLogSize[1],app.options.matchGameInputSize[1]=false,true
+    spec.onSettings(app.options)
+    assert(app.options.followNativeSettings[1] and app.options.matchGameLogSize[1],
+        'legacy input matching migrates to unified native mode')
+    app.options.followNativeSettings[1]=false
+    spec.onSettings(app.options)
+    assert(not app.options.matchGameLogSize[1] and not app.options.matchGameInputSize[1],
+        'saved unified setting takes precedence over legacy switches')
+end)() end
+print('Chatbox UI: compact/expanded chat, native/custom settings, routing, smart visibility, failure/lifecycle and chat-owned info-panel capture/settings passed')

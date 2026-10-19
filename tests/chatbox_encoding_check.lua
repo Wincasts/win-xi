@@ -74,5 +74,31 @@ assert(encoding.Decode('\239\31\239\32\239\38') == '[fire][ice][dark]', 'element
 assert(encoding.Decode('ok\127\49\1!\30', false, true) == 'ok!', 'prompt controls and truncated escapes are safe')
 local _, _, newlineSlot = encoding.Decode('\31\10hello world', false, true)
 assert(newlineSlot[1].slot == 10, 'a palette operand is not a paragraph break')
+-- Both providers' coloured prefixes survive decoding, and the display toggle retains them losslessly.
+do
+    local model=require('log')
+    local log=model.New()
+    local sources={
+        '\30\81[02:13:24]\30\1 SimpleLog line',
+        '\31\5[11:55 PM]\30\1 Timestamp addon line',
+    }
+    for _,raw in ipairs(sources) do
+        local value,_,colors=encoding.Decode(raw,false,true)
+        assert(model.Stamp(value),'provider timestamp detected after decoding palette controls')
+        model.Add(log,value,1,nil,1,colors)
+    end
+    local function measure(value) return #value end
+    local shown=model.Tail(log,1000,'font',12,measure,10)
+    assert(shown[1].text=='[02:13:24] SimpleLog line' and shown[2].text=='[11:55 PM] Timestamp addon line',
+        'enabled timestamps show either provider without generating a second stamp')
+    model.ShowStamps(log,false)
+    local hidden=model.Tail(log,1000,'font',12,measure,10)
+    assert(hidden[1].text=='SimpleLog line' and hidden[2].text=='Timestamp addon line',
+        'disabled timestamps hide both provider formats')
+    model.ShowStamps(log,true)
+    local restored=model.Tail(log,1000,'font',12,measure,10)
+    assert(restored[1].text==shown[1].text and restored[2].text==shown[2].text,
+        're-enabling restores the original provider timestamps')
+end
 fail=true; assert(encoding.Decode('bad')==nil, 'failed Windows conversion is rejected')
 print('Chatbox encoding: auto-translate before control removal, CP932/UTF-8 conversion contract and failure passed')
