@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.2';
+addon.version = '0.3';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -58,6 +58,7 @@ local defaults = T{
     askServer = T{ true },
     controller = T{ true },
     controllerSounds = T{ false },
+    stickScrolls = T{ false },
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
 };
 
@@ -308,8 +309,8 @@ local function Show(label, key, colourKey, tip)
 end
 
 local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game\'s own map has it:\n'
-    .. 'the d-pad and left stick scroll, RB zooms in and LB out, A follows you again, X shows the next floor, and B gives it back.\n'
-    .. 'Your character does not walk while the map has the stick. The stick is read from XInput controllers only.';
+    .. 'the d-pad scrolls, RB zooms in and LB out, A follows you again, X shows the next floor, and B gives it back.\n'
+    .. 'The left stick still walks your character, unless Stick Scrolls Map is on.';
 
 local function DrawSettings(options)
     if widgets.Header('Window') then
@@ -344,7 +345,11 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Controller') then
-        shell.ControllerSettings(options, controllerTip);
+        shell.ControllerSettings(options, controllerTip, function()
+            widgets.Label('Stick Scrolls Map');
+            imgui.Checkbox('##atlas.stickScrolls', options.stickScrolls);
+            tips.Hover('While browsing, the left stick scrolls the map, faster the further it is pushed, and your character does not walk.\nOff, the stick walks your character as ever while the d-pad scrolls. The stick is read from XInput controllers only.');
+        end);
     end
 
     imgui.TextWrapped(Status());

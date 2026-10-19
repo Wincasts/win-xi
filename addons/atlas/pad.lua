@@ -11,8 +11,9 @@
 --
 -- While browsing: the d-pad and the left stick scroll, RB zooms in and LB out, A follows you again,
 -- X shows the zone's next floor, and B gives the controller back (hiding the map again, if browsing
--- opened it). The left stick is kept from the game while browsing, so you do not walk off; it is let
--- through as it comes back to the middle, and centred for the game as browsing begins.
+-- opened it). The left stick walks your character as ever, unless Stick Scrolls Map is on: then it
+-- scrolls, and is kept from the game while browsing, so you do not walk off; it is let through as it
+-- comes back to the middle, and centred for the game as browsing begins.
 --
 -- The buttons go through winxi.controller, XInput or DirectInput by Controller Type. The stick is
 -- read from XInput only: Ashita reports its axes as buttons 18 (across) and 19 (up and down), each
@@ -49,6 +50,12 @@ local function Active()
     return options.controller[1] and options.isVisible[1] and os.clock() - drawn < FRESH or false;
 end
 
+-- whether the left stick is the map's while browsing, not the character's
+local function StickScrolls()
+    local option = spec.options().stickScrolls;
+    return option ~= nil and option[1] == true;
+end
+
 local function Span()
     return view.Size / spec.state.zoom;
 end
@@ -72,7 +79,7 @@ function pad.Browse(on)
         browsing, opened = true, not options.isVisible[1];
         if opened then spec.shown(true); end
         drawn = os.clock(); -- has the controller from now, before the map is first drawn
-        if stick[STICK_X] ~= 0 or stick[STICK_Y] ~= 0 then Centre(); end
+        if StickScrolls() and (stick[STICK_X] ~= 0 or stick[STICK_Y] ~= 0) then Centre(); end
     else
         browsing = false;
         if opened then spec.shown(false); end
@@ -123,6 +130,9 @@ function pad.Frame(dt)
         return;
     end
     controller.Highlight(binding);
+    if not StickScrolls() then
+        return;
+    end
     local x, y = Push(stick[STICK_X]), Push(stick[STICK_Y]);
     if x ~= 0 or y ~= 0 then
         local reach = Span() * STICK_SPEED * math.min(dt, 0.1);
@@ -131,6 +141,9 @@ function pad.Frame(dt)
 end
 
 function pad.Hint()
+    if not StickScrolls() then
+        return 'D-Pad: Scroll   LB/RB: Zoom   A: Follow   X: Floor   B: Done';
+    end
     return 'D-Pad, Stick: Scroll   LB/RB: Zoom   A: Follow   X: Floor   B: Done';
 end
 
@@ -144,7 +157,7 @@ ashita.events.register('xinput_button', 'atlas_stick', function(e)
     end
     stick[e.button] = e.state;
     -- kept from the game while browsing, but for its coming back to the middle
-    if e.state ~= 0 and Active() then
+    if e.state ~= 0 and Active() and StickScrolls() then
         e.blocked = true;
     end
 end);

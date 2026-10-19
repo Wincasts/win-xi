@@ -2,8 +2,8 @@
 -- of maps puts them; the floor followed in a zone of several, and another chosen; members out of
 -- sight placed by the server's word (0x0A0), and the server asked (0x0D2) only while one is; the
 -- wheel zooming round the place under the mouse, a drag panning and no longer following; nothing
--- known for a zone with no map; /atlas browse giving the map the controller: the stick (kept from the
--- game) and d-pad scrolling, the shoulders zooming, A following, X the floors, B giving it back
+-- known for a zone with no map; /atlas browse giving the map the controller: the d-pad scrolling,
+-- the stick walking the character, or with Stick Scrolls Map scrolling (kept from the game), the shoulders zooming, A following, X the floors, B giving it back
 local o = H.options()
 local imgui = require('imgui')
 local mapdat = require('winxi.mapdat')
@@ -244,6 +244,24 @@ local queued = {}
 AshitaCore.GetInputManager = function() return { GetXInput = function() return { QueueButtonData = function(_, b, v) queued[#queued + 1] = b .. '=' .. v end } end } end
 zone = 126
 entities[1] = { x = 100, y = -20, z = 5, heading = 1.0, name = 'Tester' }
+-- Stick Scrolls Map off, as it begins: the stick still walks the character, the d-pad has the map
+H.button(18, 20000)
+H.command('/atlas browse')
+frame()
+H.print('browse, the stick the character\'s: not centred, let through', o.isVisible[1], #queued == 0, H.button(18, 32767) == false)
+H.print('the d-pad still the map\'s', H.tap(H.Button.DpadLeft) == true)
+local hint = nil
+local textDisabled = imgui.TextDisabled
+imgui.TextDisabled = function(t, ...) hint = t; return textDisabled(t, ...) end
+frame()
+imgui.TextDisabled = textDisabled
+H.print('the hint names no stick', hint ~= nil and hint:find('Stick', 1, true) == nil)
+H.button(18, 0)
+H.tap(H.Button.B)
+frame()
+H.print('B: given back, the map hidden again', not o.isVisible[1])
+-- Stick Scrolls Map on: the stick the map's while browsing
+o.stickScrolls[1] = true
 H.button(18, 20000) -- walking east as browsing begins
 H.command('/atlas browse')
 H.print('browse: the map shown, and the game told the stick is centred', o.isVisible[1], queued[1] == '18=0', queued[2] == '19=0')

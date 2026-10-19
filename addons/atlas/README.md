@@ -25,22 +25,25 @@ The game's `/map` is left to the game: this is `/atlas`.
 
 ## With a controller
 
-`/atlas browse` gives the map the controller, as the game's own map takes it while open:
+`/atlas browse` gives the map the controller's buttons, as the game's own map takes them while open.
+Your character still walks with the left stick while you browse:
 
 | Button | Does |
 | --- | --- |
 | D-pad | scrolls a tenth of the view, repeating while held |
-| Left stick | scrolls, faster the further it is pushed |
+| Left stick | walks your character; with **Stick Scrolls Map** on, scrolls, faster the further it is pushed |
 | RB / LB | zooms in / out |
 | A | follows you again |
 | X | the zone's next floor, then back to yours |
 | B | gives the controller back, and hides the map again if browsing opened it |
 
 The buttons go through winxi's controller handling: they are kept from the game while the map has
-them, and **Controller Type** picks XInput or a DirectInput layout. While browsing, the left stick is
-kept from the game so you don't walk off. As browsing begins, the game is told the stick is centred,
-so if you were running you stop. The stick is read only from XInput controllers, which Ashita reports
-as buttons 18 and 19. A DirectInput controller scrolls with the d-pad.
+them, and **Controller Type** picks XInput or a DirectInput layout. The left stick is left to the
+game, so you can keep moving with the map open. Turn on **Stick Scrolls Map** (Controller, in
+`/atlas config`) to scroll with it instead: the stick is then kept from the game while browsing so you
+don't walk off, and as browsing begins the game is told the stick is centred, so if you were running
+you stop. The stick is read only from XInput controllers, which Ashita reports as buttons 18 and 19.
+A DirectInput controller scrolls with the d-pad.
 
 ## Markers
 
