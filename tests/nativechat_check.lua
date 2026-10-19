@@ -106,6 +106,13 @@ local tabs=primary.Tabs(1920,1080)
 assert(#tabs==3 and tabs[1].channel==3 and tabs[2].channel==0 and tabs[3].channel==nil,'in the game\'s draw order, the channel of each, none for an unknown sprite')
 assert(tabs[1].left==192 and tabs[1].top==54 and tabs[1].right==288 and tabs[1].bottom==86.4 and tabs[1].selected and not tabs[2].selected,'display pixels; the chosen one')
 assert(split.Tabs(1920,1080)==nil and input.Tabs(1920,1080)==nil,'the primary slot\'s alone')
+assert(primary.Tabs(1920,1080)==tabs and #tabs==3,'the same list again while the stamp, the display and the tabs hold')
+assert(primary.Tabs(1280,720)~=tabs and primary.Tabs(1280,720)[1].left==128,'another display, scaled anew')
+local again=primary.Tabs(1920,1080); assert(again~=tabs and again==primary.Tabs(1920,1080),'back to the first display: a new list, kept after')
+block.TabFrame=11; block.Frame=11; local stamped=primary.Tabs(1920,1080)
+assert(stamped~=again and #stamped==3 and stamped[1].left==192,'a new stamp: a new list'); block.TabFrame=10; block.Frame=10
+local chosen=primary.Tabs(1920,1080); block.Tabs[1].Selected=1
+assert(primary.Tabs(1920,1080)~=chosen and primary.Tabs(1920,1080)[2].selected,'a tab chosen under the same stamp: read again'); block.Tabs[1].Selected=0
 block.Tabs[1].Rect[2]=0.0; assert(#primary.Tabs(1920,1080)==2,'a tab that is no rectangle is left out')
 block.TabCount=0; assert(primary.Tabs(1920,1080)==nil,'no tabs, nothing'); block.TabCount=3
 block.Frame=13; assert(primary.Tabs(1920,1080)==nil,'stale tabs expire'); block.Frame=10
@@ -222,6 +229,11 @@ block.StateFlags=0; assert(primary.State().selectedWindow==nil and primary.State
 block.StateFlags=4; state=primary.State(); assert(state.expanded and not state.nativeBrowse and state.pageRows==20)
 block.StateFlags=12; assert(primary.State().nativeBrowse, 'native history/menu fallback')
 block.StateFlags=20; state=primary.State(); assert(state.expanded and state.nested and not state.nativeBrowse, 'a menu open over the live full log')
+local held=primary.State(); block.StateFlags=1; block.FullCursor=7
+assert(primary.State()==held and held.selected and held.selectedWindow==1 and not held.expanded and not held.nested and held.cursor==7,
+    'one table each call, its fields written afresh')
+block.StateFlags=0; assert(primary.State()==held and held.selectedWindow==nil and not held.selected,'a field gone nil is nil')
+assert(split.State() and split.State()~=held,'each slot its own table'); block.FullCursor=20
 block.Frame=13; assert(primary.State()==nil and primary.Rect(1920,1080,true)==nil, 'state/full bounds expire')
 block.Frame=10; block.StateFlags=0
 assert(split.Rect(1920,1080)==nil and input.Rect(0,1080)==nil, 'no split geometry without a fresh place; invalid display rejected')
