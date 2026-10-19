@@ -30,7 +30,7 @@ Kept for each character. Each is on for names that are shown.
 The menus follow Trigger's layout: named sections, aligned controls, and visible
 `(?)` help marks with wrapped explanations.
 
-The tabs are **Names → Visibility → Statuses → NM Tracking → Experimental Builder**.
+The tabs are **Names → Visibility → Statuses**, and **NM Tracking** after `/name dev`.
 
 - **General Name Appearance:** common Font, Bold, Maximum/Minimum Name Size,
   Subtarget Size and Outline. One maximum/minimum pair applies to every entity type,
@@ -69,10 +69,8 @@ The tabs are **Names → Visibility → Statuses → NM Tracking → Experimenta
 - **Visibility:** Players, Pets, NPCs & Monsters, and Target. No diagnostic controls.
 - **Statuses:** Display and Selected Statuses, with expandable help about status
   sources and estimated timers.
-- **NM Tracking:** Tracked Monster and conditional Placeholder Options.
-- **Experimental Builder:** enemy-only visual block editor with a sample preview,
-  draggable components, per-block appearance controls and explicit Apply/Reload.
-  Existing settings and format editors remain available unchanged.
+- **NM Tracking:** Tracked Monster and conditional Placeholder Options. The tab is
+  shown only after `/name dev`, until the addon is reloaded; `/name dev` again hides it.
 
 Controls retain common widths and aligned `(?)` markers. Measurements exclude help
 and window width to prevent auto-size feedback. Format token references and examples
@@ -196,106 +194,9 @@ Literal labels and punctuation remain exactly as typed, so remove `Lv ` and its 
 as well if you do not want that label. Check-detail icons are separate (Check Details
 → Display Style → Text Only).
 
-### Experimental enemy nameplate builder
-
-Open **Experimental Builder** in `/name`. The example at the top updates as you
-edit a session-only draft; it uses the current shared font, bold and outline.
-**Preview mob** selects a real database entry from the current zone, including
-per-index stat variants. When zone data is unavailable a clearly labelled
-demonstration mob is used; it can also be selected explicitly. Preview selections
-refresh when the zone changes and never modify the database or saved layout.
-
-**Checked**, **Targeted**, **Distant size** and **Distance (y)** let you exercise
-conditions and text sizes without finding/checking a live mob. The checked preview
-simulates Very Tough and a level at the midpoint of a known database range; these
-are not actual /check results or inferred live difficulty. Game icons/letters are
-illustrative rather than a pixel-perfect in-game capture.
-
-The page is ordered **Example → Builder → Blocks**, followed by the selected-block
-inspector and Apply/Reload controls. The builder has separate **Name line** and
-**Check information** rows, both edited with draggable blocks.
-
-1. Drag name components from the block list upward into the name row. Drag
-   difficulty, checked level, detection, link information or mobdb fields into the
-   check row. Clicking a block adds it to its corresponding row. Text is available
-   for either row, including dragging Text blocks between rows.
-2. Drag existing blocks to reorder either line; an insertion marker shows the
-   destination. Releasing outside cancels. Click a block to select it; Move Left /
-   Right buttons are also available. New tokens have 4 px of trailing space.
-3. Use the inspector to set inherited/named/custom colours, spacing, letter mode
-   or distance precision. Text blocks handle labels, punctuation and units; use
-   actual blocks rather than typing format tokens inside Text blocks.
-4. Enable/disable the check line and adjust its size and difficulty abbreviation.
-   It uses the existing /check visibility duration and fade, below the name.
-5. **Apply to Enemy Names** saves both generated formats and check-line appearance.
-   The preview uses General's shared maximum/minimum name sizes; the builder has no
-   separate name-size overrides and never overwrites the General sizes.
-   **Reload Current** discards the draft. Health bars are not edited, imported or
-   overwritten by this tab; keep using Names → Enemy Names for their settings.
-
-Nothing is applied while dragging or adjusting the preview. Player/NPC formats
-and type settings are untouched. If enemy formats or check-line settings change
-elsewhere while a draft is open, Apply refuses to overwrite them until Reload
-Current is used. Shared General size changes update the preview without conflict. Drafts are
-not saved across addon reloads; applied layouts use the normal saved enemy settings.
-
-Expand **All mobdb fields** to select any field in the bundled database:
-
-- Database name, family, job/subjob IDs, minimum/maximum level, notorious flag.
-- Aggro, linking, sight, sound, blood, magic, ability detection, scent, true sight.
-- Immunity bitmask, respawn seconds, drop/steal/despoil item IDs, spell IDs.
-- All damage modifiers together, or individual Slashing, Piercing, H2H, Impact,
-  Fire, Ice, Wind, Earth, Lightning, Water, Light and Dark multipliers.
-
-Unknown fields are omitted, not guessed. By default explicit false values display
-**No**, and zero/known empty values remain visible. The selected mobdb block's
-**Database values** control offers:
-
-- **raw**: the original database IDs, job codes, immunity mask and respawn seconds.
-- **names**: resource-backed item/spell names, job abbreviations, known immunity
-  labels and readable respawn time. Unavailable names fall back to explicit IDs;
-  unknown immunity bits remain labelled in hexadecimal rather than being discarded.
-- **both**: readable names with their original IDs/mask for reference.
-
-New mobdb blocks default to names; existing saved blocks/formats remain raw unless
-changed explicitly. Resource lookups are cached and reset with zone data. Lists
-show up to 32 entries followed by an omitted count; very long lines also remain
-subject to the renderer's normal quad limits. These are database facts, not live
-measurements, and names depend on the installed client resources.
-
-Every block, including literal labels, can have visibility conditions:
-**Target only**, **Checked only**, **Notorious monsters only**, **Relevant values
-only**, and an optional **Within (y)** limit. Enabled conditions combine with AND.
-Relevant hides missing/false/zero/empty values and neutral damage modifiers; it
-never changes the underlying database. Checked means cached /check knowledge;
-the check row still follows its normal brief visibility/fade. Conditions are
-re-evaluated as target, distance and check state change, without reloading layouts.
-Set matching conditions on accompanying Text labels/separators when needed.
-Conditional Text blocks are saved as generated `[text: value=%..., when=...]`
-tokens so punctuation, case and spaces survive; edit their content in the builder.
-Unconditional text remains ordinary literal format text.
-
-Builder check lines use text blocks, for example:
-
-```text
-[difficulty: space=6][mob: field=family, space=6][mob: field=immunities, display=names, when=target+relevant, within=20]
-```
-
-`[checklevel]` uses the actual /check level; mobdb minimum/maximum level blocks
-show the database range. `[senses]` and `[links]` provide convenient summaries.
-The saved `checkFormat` defaults to empty, preserving the original icon/text check
-renderer until a builder layout is applied. **Restore Original Check Line** in
-Names → Enemy Names → Check Details switches back to that renderer and its usual
-Display Style control.
-
-This builds two ordered text runs, not arbitrary free-position nameplates.
-Workspace wrapping is for editing only; each live row remains one line. Additions
-are limited to 24 blocks per row; longer imported formats are not truncated. Both
-generated formats remain visible in the builder.
-
 ### Experimental: tracked notorious monster
 
-This feature is experimental and has a tab of its own, **NM Tracking**. **Tracked NM** there lists
+This feature is experimental and has a tab of its own, **NM Tracking**, shown after `/name dev`. **Tracked NM** there lists
 the notorious monsters of the area you are in
 (and None). The one chosen, and each of its placeholders, has `assets/special/hunt.png` drawn in place
 of its `[aggro]` icon, so it needs `[aggro]` in Enemy Format. The choice is kept by name when you leave the
@@ -370,7 +271,6 @@ corpse colour remains. Claims use validated entity IDs and active party/alliance
 server IDs; unknown ownership data is not guessed. State is evaluated every frame.
 Opacity is not configurable here: a target's name and letters keep a steady opacity, status
 icons stay independent, and corpse/distance/disappearance fades still apply.
-The Experimental Builder owns formats, not these live state overrides or shared bars.
 
 ### Experimental mob letters
 
@@ -479,7 +379,7 @@ The older `[name:yellow]` colour shorthand remains supported.
 | Every token | `space=0`–`64` | Screen-pixel gap after the token, scaled with render resolution. Omitted when the token produces nothing |
 | Every token | `when=target+checked+nm+relevant` | Any subset, combined with AND; omitted / `always` means unconditional |
 | Every token | `within=1`–`100` | Only within this distance in yalms; unavailable distance hides the block |
-| `[mob]` | `display=raw` / `names` / `both` | Raw by default in saved/manual formats; builder offers readable names and optional IDs |
+| `[mob]` | `display=raw` / `names` / `both` | Raw by default; `names` gives readable names, `both` adds the IDs |
 | `[icons]` | `size=25`–`300` | Icon height as a percentage of name height; defaults to the profile's previous icon size (90% in preferred defaults) |
 | `[icons]` | `gap=0`–`24` | Screen pixels between icons; default 2 |
 | `[distance]` | `decimals=0`–`2` | Decimal places; default 1 |

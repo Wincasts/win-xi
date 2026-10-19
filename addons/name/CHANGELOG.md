@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.38
+
+- NM Tracking is a tab only after `/name dev`, for the session; `/name dev` again hides it. Tracking a monster chosen before goes on as it was.
+- The Experimental Builder is gone. Enemy and check formats it saved are kept and drawn as before; Restore Original Check Line, under Enemy Names → Check Details, still takes a saved check format away.
+
 ## 1.37
 
 - A target's name no longer pulses. The game takes the targeted name's colour toward white or dark and dips its opacity; the name, its outline and its spawn letters now keep the colour the pulse starts from at full opacity, as the icons already did. A change of colour that is no pulse, such as a monster turning red as it is claimed, shows at once.
