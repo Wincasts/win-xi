@@ -226,6 +226,19 @@ check('place tooltip', shown and drawn[1] == 'West Ronfaure' and has(text, 'Mons
 shown, text = show({ kind = 'phrase', id = phrase, name = 'Nice to meet you.' })
 check('phrase tooltip', shown and drawn[1] == 'Nice to meet you.' and has(text, '初めまして。') and has(text, 'Category: '))
 
+-- Without the notes: the dimmed lines left out, and no gap left for them
+shown, text = show({ kind = 'item', id = 12306, name = 'Kite Shield' })
+local withNotes = #drawn
+for k in pairs(drawn) do drawn[k] = nil end
+shown = links.Tooltip({ kind = 'item', id = 12306, name = 'Kite Shield' }, false)
+check('notes off: no dimmed line', shown and drawn.dim == nil and #drawn < withNotes and drawn[1] == 'Kite Shield' and has(table.concat(drawn, '\n'), 'DEF:22'))
+for k in pairs(drawn) do drawn[k] = nil end
+shown = links.Tooltip({ kind = 'phrase', id = phrase, name = 'Nice to meet you.' }, false)
+check('notes off: a phrase without its category and kind', shown and drawn.dim == nil and has(table.concat(drawn, '\n'), '初めまして。'))
+for k in pairs(drawn) do drawn[k] = nil end
+shown = links.Tooltip({ kind = 'item', id = 12306, name = 'Kite Shield' }, true)
+check('notes on again', shown and drawn.dim ~= nil)
+
 -- Made once: drawing it again asks nothing of the client
 before = calls
 show({ kind = 'item', id = 12306, name = 'Kite Shield' })

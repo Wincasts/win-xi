@@ -218,7 +218,9 @@ the mode is how the boxes behave and where they stand.
 - **Chat Tooltips** (on to begin with): resting the mouse on an item, key item, auto-translate phrase,
   spell, ability, weapon skill, quest or place in the compact log or Window 2 shows a tooltip of it. While
   it is on, one switch for each kind, all on to begin with: **Items**, **Spells And Abilities**, **Weapon
-  Skills**, **Quests**, **Places** and **Auto-Translate**. The shared Winxi tooltip settings (whether
+  Skills**, **Quests**, **Places** and **Auto-Translate**; and **Tooltip Notes** (on to begin with), the
+  dimmed lines: what the catalogs cannot vouch for (presence is not availability, modifiers in server
+  units) and a phrase's category and kind; off, only the name and the facts. The shared Winxi tooltip settings (whether
   tooltips show, their delay and their look) apply. Nothing shows while the mouse is over the settings or
   another imgui window, while the log or its scrollbar is dragged, or in the expanded log.
 - **Font**: the log's and input bar's font, the theme's (to begin with) or any `.ttf` in

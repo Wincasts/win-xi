@@ -5,7 +5,8 @@
 --   links.At(text, offset, tokens, enabled)
 --                                   the item, key item, spell, ability, weapon skill, quest, place or
 --                                   phrase under one byte of a drawn row, or nil
---   links.Tooltip(reference)        that reference's tooltip, now, through winxi.tooltip
+--   links.Tooltip(reference, notes) that reference's tooltip, now, through winxi.tooltip; notes false leaves
+--                                   out the dimmed lines (the catalogs' caveats, a phrase's category and kind)
 --   links.Reset()                   drops every name map and every row's results
 --
 -- A bracketed phrase or link is known by its token where chatbox gives the row's tokens; anything else is
@@ -593,7 +594,7 @@ local makers = {
     quest = QuestTip, place = PlaceTip, phrase = PhraseTip,
 }
 
-local function Draw(imgui, tip)
+local function Draw(imgui, tip, notes)
     if tip.icon ~= nil then
         local icons = Load('winxi.itemicons')
         if icons ~= nil then
@@ -611,18 +612,20 @@ local function Draw(imgui, tip)
     local look = theme and theme.Get() or {}
     local colour = look.TitleColor or look.TextColor
     if colour and imgui.TextColored then imgui.TextColored(colour, tip.title or '') else imgui.Text(tip.title or '') end
+    -- a gap is drawn only before a line that follows it; without the notes, none may
+    local gap = false
     for _, line in ipairs(tip.lines) do
         if line.gap then
-            if imgui.Spacing then imgui.Spacing() end
-        elseif line.dim and imgui.TextDisabled then
-            imgui.TextDisabled(line.text)
-        else
-            imgui.Text(line.text)
+            gap = true
+        elseif not line.dim or notes then
+            if gap and imgui.Spacing then imgui.Spacing() end
+            gap = false
+            if line.dim and imgui.TextDisabled then imgui.TextDisabled(line.text) else imgui.Text(line.text) end
         end
     end
 end
 
-function links.Tooltip(reference)
+function links.Tooltip(reference, notes)
     if type(reference) ~= 'table' or makers[reference.kind] == nil or type(reference.id) ~= 'number' then return false end
     local key = ('%s:%s:%d'):format(reference.kind, tostring(reference.log), reference.id)
     local tip = tips[key]
@@ -637,7 +640,7 @@ function links.Tooltip(reference)
     if imgui == nil or tooltip == nil then return false end
     local ok, shown = pcall(tooltip.Begin)
     if not ok or not shown then return false end
-    pcall(Draw, imgui, tip)
+    pcall(Draw, imgui, tip, notes ~= false)
     pcall(tooltip.End)
     return true
 end

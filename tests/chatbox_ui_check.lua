@@ -190,7 +190,7 @@ package.loaded.links = {
         if word then a, b = text:find(word, 1, true) end
         if a and offset >= a and offset <= b then return { kind='items', id=1, name=word, first=a, last=b } end
     end,
-    Tooltip = function(reference) linkStub.tips[#linkStub.tips+1] = { reference=reference, captures=hooks[0].captures }; return true end,
+    Tooltip = function(reference, notes) linkStub.tips[#linkStub.tips+1] = { reference=reference, notes=notes, captures=hooks[0].captures }; return true end,
     Reset = function() linkStub.resets = linkStub.resets + 1 end,
 }
 dofile('addons/chatbox/chatbox.lua')
@@ -609,13 +609,13 @@ imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=recordControl,recordControl,rec
 spec.drawSettings(app.options)
 assert(controlGroups['##chatbox.enabled']=='Chatbox' and controlGroups['##chatbox.timestamps']=='Chatbox',
     'the switches in the Chatbox section (the font is winxi\'s widget, not recorded here)')
-assert(controlGroups['##chatbox.chatTooltips']=='Chatbox','Chat Tooltips in the Chatbox section')
+assert(controlGroups['##chatbox.chatTooltips']=='Chatbox' and controlGroups['##chatbox.tooltipNotes']=='Chatbox','Chat Tooltips and Tooltip Notes in the Chatbox section')
 for _,kind in ipairs(package.loaded.links.Kinds) do
     assert(controlGroups['##chatbox.tooltips.'..kind.key]=='Chatbox','a kind\'s switch under Chat Tooltips while it is on: '..kind.key)
 end
 app.options.chatTooltips[1]=false; controlGroups={}
 spec.drawSettings(app.options)
-assert(controlGroups['##chatbox.chatTooltips']=='Chatbox' and controlGroups['##chatbox.tooltips.items']==nil,'Chat Tooltips off: no kinds')
+assert(controlGroups['##chatbox.chatTooltips']=='Chatbox' and controlGroups['##chatbox.tooltips.items']==nil and controlGroups['##chatbox.tooltipNotes']==nil,'Chat Tooltips off: no kinds, no notes switch')
 app.options.chatTooltips[1]=true; controlGroups={}
 spec.drawSettings(app.options)
 for _,id in ipairs({'##chatbox.locked','##chatbox.width','##chatbox.window1Rows','##chatbox.window2Rows','##chatbox.expandInPlace','##chatbox.expandedHeight'}) do
@@ -1041,7 +1041,10 @@ assert(call.tokens and #call.tokens == 2 and call.tokens[1] == tokens[2] and cal
     'the second row\'s tokens: one skipped for the ❮ before it, two for its own pairs (the message\'s tokens kept on it)')
 for _, kind in ipairs(package.loaded.links.Kinds) do assert(call.enabled[kind.key] == true, 'every kind on to begin with: ' .. kind.key) end
 assert(call.captures > before, 'looked up after the log\'s capture')
-assert(#L.tips == 1 and L.tips[1].reference.name == 'gamma' and L.tips[1].captures > before, 'the tooltip shown after the capture, outside the log')
+assert(#L.tips == 1 and L.tips[1].reference.name == 'gamma' and L.tips[1].captures > before and L.tips[1].notes == true, 'the tooltip shown after the capture, outside the log, with its notes')
+app.options.tooltipNotes[1] = false; L.tips = {}; frame()
+assert(#L.tips == 1 and L.tips[1].notes == false, 'Tooltip Notes off: told to leave them out')
+app.options.tooltipNotes[1] = true
 -- the first row: no token skipped, its own one
 mouse.x, mouse.y = alpha.pos[1] + 2, alpha.pos[2] + 3; L.at = {}; frame()
 assert(#L.at == 1 and L.at[1].offset == L.at[1].text:find('alpha', 1, true) and #L.at[1].tokens == 1 and L.at[1].tokens[1] == tokens[1], 'the first row: the first token')
@@ -1095,7 +1098,10 @@ app.options.chatTooltips = nil; app.options.tooltipKinds = { items = 'x', action
 spec.onSettings(app.options)
 assert(app.options.chatTooltips[1] == true and app.options.tooltipKinds.items[1] == true and app.options.tooltipKinds.actions[1] == false
     and app.options.tooltipKinds.quests[1] == true and app.options.tooltipKinds.autotranslate[1] == true, 'Chat Tooltips and its kinds made whole')
-app.options.chatTooltips = { false }; app.options.tooltipKinds = 'garbage'; spec.onSettings(app.options)
+app.options.chatTooltips = { false }; app.options.tooltipKinds = 'garbage'; app.options.tooltipNotes = 'x'; spec.onSettings(app.options)
+assert(app.options.tooltipNotes[1] == true, 'notes of garbage: on')
+app.options.tooltipNotes = { false }; spec.onSettings(app.options); assert(app.options.tooltipNotes[1] == false, 'notes off kept')
+app.options.tooltipNotes[1] = true
 assert(app.options.chatTooltips[1] == false and app.options.tooltipKinds.weaponskills[1] == true, 'kept off; kinds of garbage all on')
 assert(L.resets > resets, 'the links\' caches dropped with the character\'s settings')
 app.options.chatTooltips[1] = true

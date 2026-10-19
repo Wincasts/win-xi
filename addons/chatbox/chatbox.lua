@@ -330,7 +330,7 @@ app = shell.New({
         visibility = { window1 = visibility.Defaults(), window2 = visibility.Defaults() },
         window1Rows = T{ 0 }, window2Rows = T{ 0 },
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 },
-        windowTitle = T{ '' }, splitTitle = T{ '' }, chatTooltips = T{ true }, tooltipKinds = TooltipKinds() },
+        windowTitle = T{ '' }, splitTitle = T{ '' }, chatTooltips = T{ true }, tooltipNotes = T{ true }, tooltipKinds = TooltipKinds() },
     command = '/chatbox',
     configTitle = 'Chatbox Settings',
     help = '/chatbox opens settings; /chatbox on, off, clear, status, modes, bytes; /chatbox timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write; /chatbox panel [on|off|reset] controls the optional info panel; /chatbox clock and /chatbox compass [hide|show] the game\'s. Native selection, expansion and input controls.',
@@ -361,6 +361,9 @@ app = shell.New({
             if imgui.Checkbox('##chatbox.chatTooltips', options.chatTooltips) then app.save() end
             Tip('Resting the mouse on an item, key item, auto-translate phrase, spell, ability, weapon skill, quest or place named in the\ncompact log or Window 2 shows what it is, in a tooltip. The shared Winxi tooltip settings (whether they show, the delay and\nthe look) apply. The expanded log is the game\'s own and shows none.')
             if options.chatTooltips[1] then
+                widgets.Label('Tooltip Notes')
+                if imgui.Checkbox('##chatbox.tooltipNotes', options.tooltipNotes) then app.save() end
+                Tip('The dimmed lines of a tooltip: what the catalogs cannot vouch for (presence is not availability, server units), and a\nphrase\'s category and kind. Off, only the name and the facts.')
                 imgui.TextDisabled('Shown for:')
                 for _, kind in ipairs(links.Kinds) do
                     widgets.Label(kind.label)
@@ -582,6 +585,8 @@ app = shell.New({
         model.ShowStamps(history, options.timestamps[1])
         if type(options.chatTooltips) ~= 'table' then options.chatTooltips = T{ true } end
         options.chatTooltips[1] = options.chatTooltips[1] ~= false
+        if type(options.tooltipNotes) ~= 'table' then options.tooltipNotes = T{ true } end
+        options.tooltipNotes[1] = options.tooltipNotes[1] ~= false
         options.tooltipKinds = TooltipKinds(options.tooltipKinds)
         for _, key in ipairs({ 'windowTitle', 'splitTitle' }) do
             local words = type(options[key]) == 'table' and options[key][1]
@@ -861,7 +866,7 @@ local function ChatTooltip()
     end
     local ok, slice = pcall(RowTokens, row)
     local found, reference = pcall(links.At, row.text, hovered.offset, ok and slice or nil, tipKinds)
-    if found and reference then pcall(links.Tooltip, reference) end
+    if found and reference then pcall(links.Tooltip, reference, app.options.tooltipNotes[1]) end
 end
 
 -- Keep the native rectangle exactly: drawing elsewhere would break mouse hit-tests. Expand In Place moves the
