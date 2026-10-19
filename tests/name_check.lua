@@ -536,6 +536,10 @@ end
 H.print('model disappearance: quick fade, lost entity data, late name calls/gaps, respawn and reuse', true)
 -- "Goblin L8-10", then checked and found to be 9: "Goblin L9"
 H.print('before it is checked: the range, quads', draw.Entities[300].Count, '|', levels.Of(300, 'Goblin', 0x1000 + 300))
+o.monsterFormat[1] = '[name] L'; H.frames(1)
+local bare = draw.Entities[300].Count
+o.monsterFormat[1] = '[name] L[level: exact]'; H.frames(1)
+H.print('[level: exact] before a check: no range, as [name] L', draw.Entities[300].Count == bare, '| written back', format.Serialize(format.Compile('[level: exact, space=2]')))
 o.monsterFormat[1] = '[name] L[level][checked:yellow]'; H.frames(1)
 H.print('[checked] is a thing:', parts('[checked:yellow]'), '| not yet checked: nothing more written, quads', draw.Entities[300].Count)
 H.packetData(0x029, message(0x1000 + 300, 9, 0x43, 300, 173)); H.frames(1)
@@ -554,6 +558,9 @@ H.print(('a name half way off: the glass high %.2f beside a letter high %.2f, st
 block.Names[1].Scale = 1; H.frames(5)
 o.monsterFormat[1] = '[name] L[level]'; H.frames(1)
 H.print('without it: quads', goblin.Count)
+local withLevel = goblin.Count
+o.monsterFormat[1] = '[name] L[level: exact]'; H.frames(1)
+H.print('[level: exact] once checked: its level, as [level]', goblin.Count == withLevel)
 -- Legacy checked/targeted overrides must be ignored, even when both apply.
 o.monsterFormat[1] = '[name]'; H.frames(1)
 H.print('Checked Monster Format empty: the monster as any other, quads', goblin.Count)

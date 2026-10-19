@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.48
+
+- `[level]` takes **exact**: `[level: exact]` writes the monster's level only once a check has told it, and nothing before then or for one impossible to gauge, where plain `[level]` writes the database's range. Text around it, such as `Lv `, stays.
+
 ## 1.47
 
 - Colour Overrides follow the states the game colours names by. Players: Normal, **Party**, **Alliance** and Dead. Enemies: Unclaimed, Claimed: You / Party / Alliance, Claimed: Others, **Call For Help** and Dead. NPCs: Normal and **Dead**. In Combat and Targeted are gone, and saved overrides for them are dropped.

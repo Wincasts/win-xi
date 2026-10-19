@@ -408,7 +408,7 @@ end
 -- Keep format reference/examples on the editor's (?) rather than separate dropdowns.
 local formatHelp = {
     nameFormat = 'Format for player names. Tokens:\n[name] - player name.\n[icons] - available game status icons.\n[distance] - distance in yalms.\n\nExample format:\n[icons: space=4][name] ([distance: decimals=1, color=yellow]y)\nExample result: [status icons] Player Name (12.4y)',
-    monsterFormat = 'Format for all enemy names, including targeted and checked enemies. Tokens:\n[name] - enemy name.\n[distance] - distance in yalms.\n[level] - database level range, or exact level after /check.\n[aggro] - aggression/difficulty icon when known.\n[checked] - magnifying glass when the exact level is known from /check.\n[letters] - stable spawn-slot letter; [letter] is an alias.\nUse type=double for AA, AB after Z, or type=single to repeat A-Z.\n\nExample format:\n[aggro: space=4]Lv [level]. [name] [letters: type=double] ([distance: decimals=1]y)\nExample result: [aggro icon] Lv 80-82. Goblin Butcher AA (12.4y)\nRemove a token to hide its information; unknown values are omitted.',
+    monsterFormat = 'Format for all enemy names, including targeted and checked enemies. Tokens:\n[name] - enemy name.\n[distance] - distance in yalms.\n[level] - database level range, or exact level after /check. [level: exact] - only the exact level, once checked.\n[aggro] - aggression/difficulty icon when known.\n[checked] - magnifying glass when the exact level is known from /check.\n[letters] - stable spawn-slot letter; [letter] is an alias.\nUse type=double for AA, AB after Z, or type=single to repeat A-Z.\n\nExample format:\n[aggro: space=4]Lv [level]. [name] [letters: type=double] ([distance: decimals=1]y)\nExample result: [aggro icon] Lv 80-82. Goblin Butcher AA (12.4y)\nRemove a token to hide its information; unknown values are omitted.',
     npcFormat = 'Format for NPC names. Tokens:\n[name] - NPC name.\n[distance] - distance in yalms.\n[icons] - game-supplied icons, when present.\n\nExample format:\n[name: color=cyan] ([distance: decimals=1]y)\nExample result: Mog House (4.2y)',
 };
 local formatOptions = '\n\nOptions: color=yellow (or #RRGGBB), space=0-64 pixels after non-empty tokens.\n[distance]: decimals=0-2. [icons]: size=25-300 (% of name height), gap=0-24 pixels.\nSeparate options with commas, spaces or semicolons. Literal text stays where you type it.\nEnabled state colour overrides take precedence over name/spawn-letter token colours; other explicit token colours are unchanged.\nLegacy [name:yellow] and [#FF8000]text[/] still work.';
@@ -1366,6 +1366,7 @@ function custom.Frame(options, hook, formats)
                         written.level = levels.Of(name.EntityIndex, plain, name.ServerId) or '';
                         written.found = levels.Checked(name.EntityIndex, name.ServerId);
                         written.isChecked = written.found ~= nil;
+                        written.exactLevel = written.found ~= nil and written.found.text or ''; -- impossible to gauge: none
                         written.monster = levels.Monster(name.EntityIndex, plain);
                     end
                     -- how far off it is, to a tenth: written afresh only as that changes
@@ -1443,7 +1444,7 @@ function custom.Frame(options, hook, formats)
                             if (kind == 'checked' and not showDetails) then
                                 width = width + (sign and sign[9] * fit * SIGN_SIZE or 0);
                             end
-                            local words = kind == 'name' and nameWords or (kind == 'distance' and inline.Distance(part, written)) or (kind == 'level' and (written.level or '')) or (kind == 'letter' and (part.type == 'double' and written.doubleLetter or letter)) or part.text or '';
+                            local words = kind == 'name' and nameWords or (kind == 'distance' and inline.Distance(part, written)) or (kind == 'level' and (part.exact and written.exactLevel or written.level or '')) or (kind == 'letter' and (part.type == 'double' and written.doubleLetter or letter)) or part.text or '';
                             if (kind == 'name' and words ~= '') then nameTint = override or (dead and own) or part.color or own; end
                             width = width + (kind == 'letter' and letterBadges.Width(set, words, fit)
                                 or wordsWidth(set, words, fit));
@@ -1486,7 +1487,7 @@ function custom.Frame(options, hook, formats)
                         if (not parts.rules or rules.Visible(part, written)) then
                             local kind = part.kind;
                             local start = pen;
-                            local words = kind == 'name' and nameWords or (kind == 'distance' and inline.Distance(part, written)) or (kind == 'level' and (written.level or '')) or (kind == 'letter' and (part.type == 'double' and written.doubleLetter or letter)) or part.text or '';
+                            local words = kind == 'name' and nameWords or (kind == 'distance' and inline.Distance(part, written)) or (kind == 'level' and (part.exact and written.exactLevel or written.level or '')) or (kind == 'letter' and (part.type == 'double' and written.doubleLetter or letter)) or part.text or '';
                             local color = kind == 'name' and (override or (dead and own) or part.color or own) or part.color or own;
                             if (kind == 'name') then fill = color; end
                             if (kind == 'icons') then

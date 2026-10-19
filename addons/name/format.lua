@@ -10,7 +10,8 @@
 --                          ('letter' and 'icons' are also kinds)
 --                          with .distance, .level, .checked, .aggro, .letter and .icons set if present
 -- Options: space=N and color=NAME/#RGB on all tokens; size=N/gap=N on icons;
--- decimals=0..2 on distance; type=single/double on [letters] (legacy alias [letter]).
+-- decimals=0..2 on distance; type=single/double on [letters] (legacy alias [letter]); exact on [level],
+-- the level only once a check has told it, never the database's range.
 -- Check formats also support [difficulty], [checklevel], [senses], [links] and
 -- [mob: field=family] / [mob: field=modifiers.fire] (see mob_fields.lua).
 -- Options may be separated by commas, semicolons or spaces.
@@ -62,8 +63,12 @@ local function parameters(kind, typed, inherited)
     for entry in typed:gmatch('[^,;%s]+') do
         any = true;
         local key, value = entry:match('^(%a+)=(.+)$');
+        if (key == nil and kind == 'level' and entry == 'exact') then key, value = 'exact', 'true'; end
         if (key == nil) then key, value = 'color', entry; end
-        if (key == 'color') then
+        if (kind == 'level' and key == 'exact') then
+            if (value ~= 'true' and value ~= 'false') then return nil; end
+            part.exact = value == 'true' or nil;
+        elseif (key == 'color') then
             part.color = color(value);
             if (part.color == nil) then return nil; end
         elseif (kind == 'text' and key == 'value') then
@@ -248,6 +253,7 @@ function format.Serialize(parts, doubleLetters)
                 args[#args+1] = 'value=' .. (encoded ~= '' and encoded or 'empty');
             end
             if (part.color ~= nil) then args[#args + 1] = ('color=#%06X'):format(part.color % 0x1000000); end
+            if (part.exact) then args[#args + 1] = 'exact'; end
             for _, field in ipairs({ 'space', 'size', 'gap', 'decimals', 'type', 'field', 'display', 'when', 'within' }) do
                 local value = field == 'type' and part.kind == 'letter' and doubleLetters and 'double' or part[field];
                 if (value ~= nil) then args[#args + 1] = field .. '=' .. tostring(value); end
