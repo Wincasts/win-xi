@@ -24,6 +24,7 @@ local shell      = require('winxi.shell');
 local widgets    = require('winxi.widgets');
 local nameplates = require('winxi.nameplates');
 local custom     = require('custom');
+local customSettings = require('custom_settings');
 local statuses   = require('statuses');
 local controls   = require('controls');
 local diag       = require('diag');
@@ -220,7 +221,7 @@ local function DrawDiagnostics(options)
 end
 
 -- NM Tracking is a tab only after /name dev, for the session
-local trackingTab = { label = 'NM Tracking', draw = function (options) custom.DrawTracking(options, app.save); end };
+local trackingTab = { label = 'NM Tracking', draw = function (options) customSettings.DrawTracking(options, app.save); end };
 
 -- The settings, the settings window and the command are the shell's
 app = shell.New({
@@ -235,10 +236,10 @@ app = shell.New({
     leadingTabs  = {
         { label = 'General', draw = function (options) general.DrawSettings(options, app.save); end },
         { label = 'Names', draw = function (options)
-            custom.DrawSettings(options, app.save);
+            customSettings.DrawSettings(options, app.save);
             DrawDiagnostics(options);
         end },
-        { label = 'Health Bars', draw = function (options) custom.DrawHealthBars(options, app.save); end },
+        { label = 'Health Bars', draw = function (options) customSettings.DrawHealthBars(options, app.save); end },
         { label = 'Statuses', draw = function (options) statuses.DrawSettings(options, app.save); end },
     },
     tabs         = { },

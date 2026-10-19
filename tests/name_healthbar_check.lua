@@ -3,6 +3,7 @@ local plates = require('winxi.nameplates')
 local healthbar = require('healthbar')
 local types = require('name_types')
 local custom = require('custom')
+local customSettings = require('custom_settings')
 local o = H.options()
 local style = o
 assert(not style.showHealthBar[1] and style.healthBarWidth[1] == 120 and style.healthBarHeight[1] == 7)
@@ -56,7 +57,7 @@ imgui.Checkbox = function(label)
     assert(not label:find('healthBarPreview', 1, true), 'preview controls must be removed')
     return false
 end
-custom.DrawSettings(o)
+customSettings.DrawSettings(o)
 imgui.Checkbox = originalCheckbox
 assert(types.Preview == nil, 'no hidden session preview state')
 hp = 100

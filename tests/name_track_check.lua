@@ -2,6 +2,7 @@
 local ffi = require('ffi')
 local imgui = require('imgui')
 local custom = require('custom')
+local customSettings = require('custom_settings')
 local plates = require('winxi.nameplates')
 local levels = require('levels')
 -- the plugin is 32-bit and keeps its drawing's address in 32: somewhere low is asked for
@@ -109,13 +110,13 @@ imgui.EndCombo = function() end
 imgui.Selectable = function(label) listed[#listed + 1] = label; return label == pick end
 local realCheckbox = imgui.Checkbox
 imgui.Checkbox = function(id, ...) boxes[id] = true; return false end
-custom.DrawTracking(options, function() saved = saved + 1 end)
+customSettings.DrawTracking(options, function() saved = saved + 1 end)
 H.print('dropdown: None and the area\'s notorious monsters; none tracked, no scale', table.concat(listed, '|') == 'None|Bomb|Jack', boxes['##name.labelPlaceholders'] == nil, boxes['##name.huntScale'] == nil)
-pick = 'Bomb'; custom.DrawTracking(options, function() saved = saved + 1 end)
+pick = 'Bomb'; customSettings.DrawTracking(options, function() saved = saved + 1 end)
 H.print('chosen and saved; one with no placeholders has no toggle', options.trackedNm[1] == 'Bomb', saved == 1, boxes['##name.labelPlaceholders'] == nil)
-pick = 'Jack'; custom.DrawTracking(options, function() saved = saved + 1 end)
+pick = 'Jack'; customSettings.DrawTracking(options, function() saved = saved + 1 end)
 H.print('one with placeholders has the toggle, and any tracked the scale', options.trackedNm[1] == 'Jack', saved == 2, boxes['##name.labelPlaceholders'] == true, boxes['##name.huntScale'] == true)
-pick = 'None'; custom.DrawTracking(options, function() saved = saved + 1 end)
+pick = 'None'; customSettings.DrawTracking(options, function() saved = saved + 1 end)
 H.print('None ends it', options.trackedNm[1] == '', saved == 3)
 imgui.Checkbox, imgui.SliderInt = realCheckbox, realSlider
 
