@@ -414,6 +414,7 @@ The older `[name:yellow]` colour shorthand remains supported.
 | `[icons]` | `size=25`–`300` | Icon height as a percentage of name height; defaults to the profile's previous icon size (90% in preferred defaults) |
 | `[icons]` | `gap=0`–`24` | Screen pixels between icons; default 2 |
 | `[distance]` | `decimals=0`–`2` | Decimal places; default 1 |
+| `[level]` | `exact` | Only the exact level, once the monster is checked: nothing before then, nor for one impossible to gauge, where `[level]` writes the database's range. Text around it stays |
 | `[letters]` / `[letter]` | `type=single` / `type=double` | Repeat A–Z, or continue AA, AB, etc. after Z; default single |
 
 ```text
