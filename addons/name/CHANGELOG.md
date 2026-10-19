@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.46
+
+- Statuses' list leaves out the game's stand-ins, whose names are wholly in brackets — (None), (N/A) and the five (Imagery) — and the numbers the server has no status for (24–27, 224–226, 372–374, 514, 520, 521, and everything past 635). They were at the top of the list, and nothing is ever under them.
+
 ## 1.45
 
 - The mob letter is smaller: its badge is about 68% of the name's height, where it was 78%, still sitting on the name's baseline. The plain letter drawn while the badges are not ready shrinks with it.

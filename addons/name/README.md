@@ -261,7 +261,7 @@ with its `statusicons` folder. The set's icons are as narrow as the set has them
 | Preview | Puts the first four ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: off again when the addon is loaded |
 | Search | Narrows the list under it by part of a status's name, or its number |
 | Selected Only | Lists only the ticked statuses |
-| The list | Every status the game has a name for, by name with its number. Hovering one shows its icon. Ticked to begin with: what ails a character, and what can be told of an enemy |
+| The list | Every status the game has a name for, by name with its number, leaving out the game's stand-ins — (None), (N/A), (Imagery) and the like, whose names are wholly in brackets — and the numbers the server has no status for. Hovering one shows its icon. Ticked to begin with: what ails a character, and what can be told of an enemy |
 
 A name has at most twelve icons, each status once. How much is known depends on whose name it is:
 

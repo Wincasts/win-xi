@@ -40,7 +40,7 @@ local RISE         = 3;    -- pixels between the row and what is under it
 local PARTY_OTHERS = 5;    -- the others of the player's party, whose statuses the game keeps
 local SLOTS        = 32;   -- statuses the game keeps for each
 local MEMBER_SIZE  = 0x30; -- one member of the party's statuses, as the game keeps them
-local LAST_STATUS  = 671;  -- the highest number the sheet has a place for
+local LAST_STATUS  = 635;  -- the highest number the server has a status for
 local LIST_ROWS    = 14;   -- rows of the settings' list to be seen at once
 local PREVIEW_MOST = 4;    -- icons over each name while previewing
 local MOST_OFFSET  = 200;  -- screen pixels the row can be moved each way
@@ -355,6 +355,12 @@ local listSize = { 0, 0 };
 local previewSize, previewA, previewB = { 36, 48 }, { 0, 0 }, { 1, 1 }; -- filled in from the set as it is drawn
 local gameSize, gameA, gameB = { 48, 48 }, { 0, 0 }, { 1, 1 };
 
+-- Numbers the server has no status for, which the game still names: no name is ever under them
+local UNUSED = { [24] = true, [25] = true, [26] = true, [27] = true, [224] = true, [225] = true, [226] = true,
+    [372] = true, [373] = true, [374] = true, [514] = true, [520] = true, [521] = true };
+
+-- The statuses the list offers, by name: not the numbers above, nor the game's stand-ins, whose
+-- names are wholly in brackets, (None), (N/A) and (Imagery)
 local function Known()
     if (known ~= nil) then
         return known;
@@ -363,7 +369,7 @@ local function Known()
     local resources = AshitaCore:GetResourceManager();
     for id = 1, LAST_STATUS do
         local name = resources:GetString('buffs.names', id);
-        if (type(name) == 'string' and name ~= '') then
+        if (type(name) == 'string' and name ~= '' and not UNUSED[id] and name:match('^%(.*%)$') == nil) then
             name = name:sub(1, 1):upper() .. name:sub(2);
             known[#known + 1] = { id = id, lower = name:lower(), label = ('%s (%d)##name.status.%d'):format(name, id, id) };
         end

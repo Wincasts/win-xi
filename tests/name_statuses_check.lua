@@ -21,7 +21,8 @@ local manager = AshitaCore.GetMemoryManager()
 manager.GetPlayer = function() return { GetIsZoning = function() return 0 end, GetStatusIcons = function() return own end,
     GetMainJob = function() return 18 end, GetLoginStatus = function() return 2 end } end
 AshitaCore.GetMemoryManager = function() return manager end
-AshitaCore.GetResourceManager = function() return { GetString = function(_, _, id) return id == 77 and '' or ('status ' .. id) end } end
+local standIns = { [232] = '(N/A)', [244] = '(Imagery)', [255] = '(None)' }
+AshitaCore.GetResourceManager = function() return { GetString = function(_, _, id) return id == 77 and '' or standIns[id] or ('status ' .. id) end } end
 local BASE = 0x5000
 local memory = { [0x4000] = BASE, [BASE + 0x30] = 0x1401, [BASE + 0x30 + 8] = 0x04, [BASE + 0x30 + 16] = 13, [BASE + 0x30 + 17] = 300 - 256 }
 for slot = 2, 31 do memory[BASE + 0x30 + 16 + slot] = 255 end
@@ -235,6 +236,13 @@ local named = 0
 local firstStatus = nil
 for _, id in ipairs(boxes) do if id:find('##name.status.', 1, true) then named = named + 1; firstStatus = firstStatus or id end end
 H.print('settings: Show Statuses first', boxes[1] == '##name.showStatuses', '| statuses listed', named, '| by name, with the number', firstStatus)
+local unlisted = {}
+for _, id in ipairs(boxes) do
+    for _, gone in ipairs({ 24, 232, 244, 255, 514, 636, 671 }) do
+        if id:match('##name%.status%.' .. gone .. '$') then unlisted[#unlisted + 1] = gone end
+    end
+end
+H.print('not listed: the game\'s stand-ins, in brackets, nor numbers the server has no status for', #unlisted == 0, table.concat(unlisted, ' '), '| 618 listed', named == 618)
 imgui.Checkbox = function(id, value)
     if id:find('##name.status.41', 1, true) and id:match('%.41$') then value[1] = not value[1] return true end
     return false
