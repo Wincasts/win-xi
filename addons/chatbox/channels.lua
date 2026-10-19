@@ -90,10 +90,9 @@ function M.LinkshellPacket(data)
     end
 end
 
--- Extra data stores a little-endian six-bit alphabet at byte offset 9: a (1) to z, A to Z, 0 to 9 (62).
--- After the last letter the server writes ones to the end of the byte, then zeros. Where that is a
--- whole code (63) the name ends there; where it is four bits, they read as a letter (15, o) with a
--- zero after it, so as the server's own decoder does, a zero drops the letter before it.
+-- Extra data stores six-bit letters MSB-first from byte offset 9: a (1) to z, A to Z, 0 to 9 (62).
+-- Ignore trailing zero bytes and incomplete six-bit groups: padding with ones to a byte boundary
+-- must not be combined with the next zero byte and mistaken for another letter. A full 63 ends it.
 function M.LinkshellName(inventory, number)
     local bit = require('bit')
     local entry = pearls[number]
@@ -105,12 +104,13 @@ function M.LinkshellName(inventory, number)
         if type(extra) == 'string' then return extra:byte(offset + 1) or 0 end
         return tonumber(extra[offset]) or 0
     end
+    local last = 23 -- at most twenty letters (fifteen bytes)
+    while last >= 9 and byte(last) == 0 do last = last - 1 end
     local alphabet, name = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', {}
-    for i = 0, 19 do
+    for i = 0, math.min(20, math.floor((last - 8) * 8 / 6)) - 1 do
         local offset, shift = 9 + math.floor(i * 6 / 8), (i * 6) % 8
-        local code = bit.band(bit.rshift(byte(offset) + byte(offset + 1) * 256, shift), 63)
-        if code == 63 then break end
-        if code == 0 then name[#name] = nil; break end
+        local code = bit.band(bit.rshift(byte(offset) * 256 + byte(offset + 1), 10 - shift), 63)
+        if code == 63 or code == 0 then break end
         name[#name + 1] = alphabet:sub(code, code)
     end
     local value = table.concat(name)

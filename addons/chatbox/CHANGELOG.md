@@ -2,12 +2,37 @@
 
 ## Unreleased
 
+- Replaced Match Game Log Size and Match Game Input Size with Follow Native Settings. Native mode follows both geometry paths and ignores custom rows, resizing, animation and fading; all Custom Behaviour controls are disabled while retaining their saved values. Existing settings migrate to native mode if either former match switch was on.
+- Removed the chat-history Clear button from Settings; `/chatbox clear` remains available. Clarified that Timestamps shows/hides the original timestamps supplied by either SimpleLog or the timestamp addon, with regression coverage for both coloured provider formats and lossless toggling.
+
+- Reorganized Settings into Native Behaviour (game log/input matching), Custom Behaviour (width, rows, auto-resize, animation and fading), and shared text, padding, expanded-history and color sections. Explains which custom controls override native sizing; no saved values or runtime behaviour changed.
+
+- Added per-window Animate Resize and Resize Duration options for Auto Resize. Content-driven growth and shrinking smoothly animate from the bottom edge, including collapse to zero; stacked logs stay attached. Off by default, with a 0.2-second duration. Interaction still restores full size immediately.
+
+- Compact logs no longer reserve an extra half-row above the configured top padding for the title. Independently sized windows and auto-resized heights now fit exactly their rows, inter-row gaps and configured padding; game-height matching still centres whole rows within the native height.
+
+- Weather icons remain available when the native clock stops rendering (fishing/events/hidden HUD), like the map-grid fallback. The info panel can read the game's current weather directly, including when loaded mid-session, and retains the last valid weather during temporary read loss. Zoning clears cached weather; malformed weather packets no longer erase a known valid value.
+
 - The game's chat history is asked for for ten seconds after loading, at any frame rate, and then given up on (it was 600 frames: ten seconds at 60, four at 144).
+
+- Info-panel icon tooltips: hover a day icon for its weekday/element, or a weather icon for its condition, element and single/double strength. Works with automatic placement and icon tokens, including collapsed panel-only mode. Uses shared Winxi tooltip styling/delay, does not intercept clicks, and only shows after a successful panel capture.
+
+- Custom Width now applies to expanded chat too when both Match Game Log Size and Match Game Input Size are off. The replacement frame, tabs, scrollbar, highlights and text clipping follow it, capped at native expanded bounds. Native history wrapping and hit-tests remain unchanged.
+
+- Native combat/action menus and their supported submenus now anchor directly above the visible info panel, not above the full chat stack. Empty/invisible chat frames no longer reserve a gap beneath them. Renamed the setting to Native Menus → Anchor Above Info Panel; the existing toggle is preserved.
+
+- The info panel stays visible when both compact logs collapse or reach zero native lines. Empty logs reserve zero layout height; a panel-only capture publishes the panel's actual bounds for native menu anchoring. Small logs/panels now bypass ImGui's default minimum height, so a one-row box really shrinks to its requested size.
+
+- Window 1 Rows and Window 2 Rows, under Size: independently set 1–50 compact rows, or leave 0 (Automatic) for existing game/manual sizing. Custom counts override height only and set each window's maximum with Auto Resize enabled.
+
+- Smart Visibility: independent Window 1/2 Auto Resize and Fade When Idle settings, both off by default. Recent routed messages grow each compact log up to its normal capacity; Idle Time, Fade Duration and Minimum Rows control shrinking and fading. Typing or selecting restores visibility, scrolling keeps history visible, and hidden logs keep native capture active. Expanded history is unchanged.
+
+- With Match Game Log Size on, stacked Window 2 now uses its own game window's width instead of inheriting Window 1's. Both logs follow their individual game sizes in stacked and side-by-side layouts.
 
 - Window Title and Window 2 Title, in the Chatbox section: the words typed there stand on the compact log's
   and the second log window's top edge. Left empty (or only spaces), the compact log is titled by its channel
   and the second Window 2, as before.
-- The Linkshell title no longer ends a name of 2, 6, 10, 14 or 18 letters with a stray o: the server pads the name's last byte with ones, which read as that letter when four were left.
+- Fixed garbled Linkshell titles (for example, `Omgroom` appearing as random letters): equipped pearl names are decoded MSB-first, matching the game's packed name data. Incomplete padding bits no longer add a stray letter.
 - Font and Font Size, the log's and the info panel's, are winxi's own controls (widgets.FontFile, FontSize); every tooltip is drawn by winxi.tooltip, so winxisettings' Tooltips tab applies. Needs winxi 25.
 
 ## 0.11.3

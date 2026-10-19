@@ -27,7 +27,7 @@ each where the game's are.
 - The log lifts above the input bar while typing, and the game's clock and its icons follow the top
   of the log.
 - With **Log Window 2** on in the game's settings, a second box stands where the game puts its second
-  window, over the first (the same width, the game's height for it) or beside it (the game's width and
+  window, over the first (its own game width and height with Follow Native Settings) or beside it (the game's width and
   gap, the first's bottom), titled Window 2 (or **Window 2 Title**). Each box shows the messages the
   game's Log Window settings route to its window, read from the game, and scrolls on its own; the
   focus light follows the game's focus between them.
@@ -107,17 +107,27 @@ of an existing clock panel.
   as gemstones) and `classic` (drawn after the game's own: its mottled day balls and soft weather sprites,
   made by `tools/generate_classic_icons.py`) are bundled, and `gems` supplies missing custom pictures. Hidden/Native placement does not auto-insert an icon;
   native HUD visibility is never changed by chatbox.
+- Hover a **day icon** to see the Vana'diel weekday and its element, or a **weather icon** to
+  see the weather name, element and single/double strength (or no elemental weather for clear skies,
+  clouds and fog). Both automatically placed icons and `{dayicon}` / `{weathericon}` tokens support
+  this, including panel-only mode when the logs are empty. Tooltips use the shared Winxi tooltip
+  enable switch, delay and styling. Icons remain click-through; hovering does not consume game input.
 - Background, border art and shadow follow the shared/local Winxi theme, captured together with
-  the owning log. The panel is an attachment on that log's draw list, **not a separate floating
-  ImGui window**. Attached, it lifts the drawn logs (and their scroll regions) by its height; it
-  never changes their size or the game's own log rectangles.
+  the owning log. The panel normally shares that log's draw list. When both logs collapse, a
+  panel-sized capture keeps it visible without an empty chat frame or full-size invisible hit area.
+  Attached, it lifts the drawn logs (and their scroll regions) by its height; it never changes
+  the game's own log rectangles.
 - Visibility follows **compact chat**, not the native clock: action/combat menus hiding the game's
-  clock no longer stop the panel. It hides during expanded history, zoning, chatbox off, or when
-  neither compact log is visible. Custom positioning does not override these rules.
+  clock no longer stop the panel. When both compact logs are empty, at zero native lines, or
+  hidden by Smart Visibility, the enabled panel stays visible. Menu anchors use its actual bounds,
+  with no space reserved for the collapsed logs. It still hides during expanded history, zoning,
+  chatbox off, or when valid native layout/capture is unavailable. Custom positioning does not override these rules.
 - Time, zone and EXP data do not require native clock rendering. Weather uses login/weather packets,
-  with a fresh native read as fallback. `{grid}` is optional native-clock data: omitted when that
-  source is stale/hidden rather than freezing an old position. Weather may be unknown after loading
-  mid-session until a native sample or weather/login packet arrives; it is never guessed as clear.
+  then fresh native data or a direct read of the game's weather state. Its icon stays available while
+  fishing, in events, or when the native clock is hidden—even when Chatbox loads mid-session.
+  Temporary read failures retain the last known weather; zone departure and character resets clear it.
+  Clear skies are a valid value, never a guessed fallback. `{grid}` likewise falls back to the game's
+  own grid function while the clock is hidden; zones without a grid still omit it.
 
 **Switching from clock:** install this chatbox and the full updated Winxi library, including the
 shared panel icons. `/addon unload clock`, `/addon reload chatbox`, then `/chatbox panel on`.
@@ -136,10 +146,11 @@ reports it as Game Clock.
 for the game's compass and its radar, through uihook's compass slot; the clock is not affected
 either way, and each can be hidden alone. It is given back on the same terms as the clock.
 
-**Native Menus → Anchor Above Chat** (General, on by default) moves the registered command,
+**Native Menus → Anchor Above Info Panel** (General, on by default) moves the registered command,
 magic, ability, inventory/item-use and related control menus, and an event's choices (an NPC's Yes/No),
-above the top of the lifted chat when anchored to the bottom, and above the panel itself when anchored
-to the top or given a custom position, with a 2px clearance.
+directly above the visible info panel with a 2px clearance. Combat menus and their supported submenus
+use the panel's actual edge, not the top of the full chat stack or its empty/invisible rows. The same
+anchor is used while chat grows, shrinks, fades or collapses, including already-open submenus.
 Requires **uihook 0.6** (independent menu ABI 1); `/uihook menus` reports recognition and relocation
 counts. Older/unrecognised DLLs leave menus untouched and the panel still works. The plugin sets
 native layout targets before the game's own Window update, so its frame/rows/cursor/hit geometry
@@ -175,8 +186,11 @@ the updated chatbox and Winxi 22 directories. The existing chat ABI remains 13.
 
 ## Settings
 
-`/chatbox` opens Settings (six collapsible sections), Info Panel, and Winxi Theme tabs.
-Settings are kept for each character.
+`/chatbox` opens Settings (seven collapsible sections), Info Panel, and Winxi Theme tabs.
+Settings are kept for each character. **Follow Native Settings** selects native sizing for both
+log and input. While enabled, the **Custom Behaviour** controls are greyed out and ignored, but
+retain their saved values for switching back. Chatbox's general controls and the sections marked
+**Shared** apply to both behaviours.
 
 **Chatbox**
 
@@ -184,44 +198,90 @@ Settings are kept for each character.
 - **Timestamps** (on to begin with): the time in front of each line as SimpleLog's Timestamps or
   Ashita's timestamp addon writes it; chatbox adds none of its own. Off, those are hidden in the
   compact log, Window 2 and the expanded log; the messages keep them, so turning it on shows them
-  again at once. `/chatbox timestamps on` and `off` do the same.
-- **Chat History**: **Clear** forgets the messages kept for the compact log; the game's own history
-  stays.
+  again at once. Enable timestamps in either SimpleLog or the timestamp addon to supply them;
+  avoid enabling both providers at once to prevent duplicate stamps. `/chatbox timestamps on`
+  and `off` do the same. There is no history-clear button; `/chatbox clear` remains available.
 - Under them, how to select and expand the log, and the bridge's status.
 
-**Size**
+**Native Behaviour**
 
-- **Match Game Log Size** (on to begin with): the box takes the width and height of the game's own
-  log, read by uihook after the game lays it out, and fits as many whole rows as that height holds
-  at Font Size, at the bottom. Resize the game's log in its settings and the box follows the next
-  frame. Off, the box is **Width** wide and ten rows tall.
-- **Width**: 240 to 1200 pixels (640 to begin with), with both Match options off.
-- **Match Game Input Size** (off to begin with): both boxes take the native input's width and left
-  edge, and the input bar its height and place, its text centred. A Font Size too large for that
-  height grows the bar upward from the native bar's foot. The last native width ratio is kept while
-  input is closed, following the primary log's UI scale. Off, both boxes use Width (or the game
-  log's, with Match Game Log Size), and the input sits on the native chat base. When input first
-  opens it can take a frame to find the bounds; missing or stale input geometry falls back to
-  compact sizing, keeping the native width when known, and `/chatbox status` says so.
+- **Follow Native Settings** (on to begin with): combines the former log-size and input-size
+  switches. Each log follows its own native window size and native content-driven growth/shrinking;
+  the input follows native width, height and placement, with text centred. A font too large for the
+  native height grows the frame enough to fit. Custom rows, resizing, animation and fading do not
+  override native behaviour while enabled.
+- The last native input width ratio is retained while input is closed. Missing/stale geometry
+  falls back safely, and `/chatbox status` reports it. Existing configurations migrate to native
+  mode if either old match switch was enabled; the new setting takes precedence thereafter.
+- Off, both boxes use custom Width and row counts, and the input sits on the native chat base.
 
-**Text**
+**Custom Behaviour — Sizing**
+
+- **Width**: 240 to 1200 pixels (640 to begin with), with Follow Native Settings off. Also sets the
+  expanded view's width, capped at its native bounds; its replacement tabs, scrollbar and text clipping
+  follow that width. With Follow Native Settings on, the expanded view retains its native width.
+- **Window 1 Rows / Window 2 Rows**: independently choose 1–50 rows for either compact log.
+  **0 (Automatic)**, the default, uses ten rows. A custom count sets only that window's height,
+  preserving its width.
+  With Auto Resize enabled, this becomes its maximum row count. Expanded history is unaffected.
+- The same section contains the activity controls described below.
+
+**Text (Shared)**
 
 - **Font**: the log's and input bar's font, the theme's (to begin with) or any `.ttf` in
   `C:\Windows\Fonts`. Japanese and other non-Latin text need a font with those glyphs.
 - **Font Size**: 8 to 24 pixels (12 to begin with); both boxes grow with it. The expanded log's text
   is this size too, with Replace Text, laid out as the compact log's.
 
-**Padding**
+**Padding (Shared)**
 
 - **Left Padding**, **Right Padding**, **Top Padding** and **Bottom Padding**: 0 to 40 pixels each
   (3 to begin with), for the log and the input bar. Long lines wrap between the left and right
-  padding. The log fits as many whole rows as go between the top padding (below half a row kept for
-  the title) and the bottom padding, two pixels apart and centred, any spare part of a row shared
-  above and below. The input bar is Font Size plus both vertical paddings tall, its text and caret
+  padding. Independently sized logs fit exactly their row count plus top and bottom padding, with
+  two pixels between rows and no extra title headroom. When matching the game's height, whole rows
+  are centred between the paddings, any spare part of a row shared above and below. The input bar is Font Size plus both vertical paddings tall, its text and caret
   always centred in the whole bar, and has a plain `> ` prompt. Settings still at the first default
   of 4 on every side become 3 once; paddings set by hand are kept.
 
-**Expanded**
+**Custom Behaviour — Activity (Smart Visibility)**
+
+Window 1 and Window 2 have independent settings. All automatic behavior is **off by default**
+and applies only with **Follow Native Settings off**.
+
+- **Auto Resize**: grows the compact log to fit recent wrapped messages routed to that window,
+  up to its normal capacity, then shrinks as messages age out. The ten-row manual layout remains
+  its maximum unless **Window 1 Rows** or **Window 2 Rows** supplies a custom maximum.
+- **Animate Resize**: optional smooth growth and shrinkage with Auto Resize, anchored at the
+  bottom edge. Stacked windows follow the animated edge; rows are revealed/clipped at the top.
+  Once settled, the box fits its exact row count and padding. Off by default.
+- **Resize Duration**: 0.05–2 seconds, **0.2** by default, for each size transition. New content
+  arriving during a transition smoothly retargets it from its current height.
+- **Fade When Idle**: fades the log away after no messages reach it
+  for **Idle Time**. A new routed message fades it back in over 0.2 seconds. This can be used
+  alone for a fixed-size log, or together with Auto Resize.
+- **Idle Time**: 1–300 seconds, **15** by default. Also determines how long messages contribute
+  rows to Auto Resize. Activity in the other window does not reset this timer.
+- **Fade Duration**: 0.1–10 seconds, **1** by default, for fading out.
+- **Minimum Rows**: 0–50, **0** by default, capped at the log's normal capacity. Auto Resize
+  keeps this many rows while idle; zero hides it entirely.
+
+Typing restores both available compact logs to full size and opacity immediately, bypassing resize animation. Selecting a log, scrolling
+back in it, or dragging its scrollbar keeps that log visible. The fade idle delay restarts after
+interaction. Expanded history is unaffected. Messages stay in history when hidden; opening or
+scrolling the log still lets you read them. Imported history does not count as new activity.
+Native log capture remains active while hidden, so the game's original log does not show through.
+When both logs disappear, the info panel stays visible on its own. Collapsed logs reserve zero
+layout height; the panel-only capture and native menu anchor use the visible panel's actual bounds.
+One-row logs and small panels also bypass ImGui's normal minimum window height, so their actual
+window geometry matches the requested size.
+
+**Expanded (Shared)**
+
+With **Follow Native Settings** off, the expanded frame uses the
+custom **Width** from Size, capped at the native expanded window's bounds. Its replacement tabs,
+scrollbar, row highlights and text clipping use the same width. The game still controls history row
+wrapping, selection and hit-tests: narrowing the replacement view clips long native rows rather
+than rewrapping them. Native controls left unreplaced still use their native positions.
 
 - **Replace Tabs** (on to begin with): the expanded log's channel tabs drawn as WinXI buttons, each
   whole and in the game's order, the chosen one lit as the game chooses it (Square, the arrows). The
@@ -250,7 +310,7 @@ Settings are kept for each character.
   game's marked rows as well. The game still moves the cursor, follows the mouse and takes Confirm.
   Off, the game's own, tinted.
 
-**Window Colors**
+**Window Colors (Shared)**
 
 **Chat Log Window** and **Input Text Box** each have an **Own Color** box and colour picker for:
 
