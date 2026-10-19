@@ -60,6 +60,7 @@ end
 local function render(capacity)
     draw.QuadsMax = capacity or 16384
     hook.Frame = hook.Frame + 1
+    H.wait(0.03) -- a frame's time, as H.frames: a leap in size is believed after a tenth of a second
     assert(custom.Frame(options, hook) == nil)
     assert(draw.QuadCount <= draw.QuadsMax, 'global quad capacity exceeded')
     for i = 1, 256 do
