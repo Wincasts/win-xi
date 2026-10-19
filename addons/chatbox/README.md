@@ -383,20 +383,19 @@ Highlight Color, other tabs the Title colour, the cursor and scrollbar the **Bor
 native fade and pulse kept. The row highlight and cursor are the game's, tinted so, unless Replace
 Expanded Log mirrors the whole log: then uihook leaves the full log wholly undrawn (with uihook 0.6) and the
 addon lights the row the game highlights (uihook measures the game's highlight as it is drawn and
-flags the rows under it; the cursor's row with an older uihook) from the left of its text to the scrollbar, a row's pitch tall, in the
+flags the rows under it; the cursor's row with an older uihook) from the left of its text to the scrollbar, the game's row tall, in the
 Highlight Color (brighter while held down), lights a row the game marks faintly, and draws the cursor
 after the cursor row's text; which row that is, is the game's, read as it draws.
 The **text** is the addon's with Replace Expanded Log on: uihook decodes each of the game's rows as the
 game draws it (its glyph words back to the bytes the game was given, colour codes and all) and
-measures the row, and the addon lays the rows out as the compact log does: the chat's **Font** at
-**Font Size**, Font Size + 2 apart, the newest ending at the **Bottom Padding** and older ones up from
-it, from the log's left edge in by **Left Padding**, in the log's Default Text colour when it
-has its own, otherwise its message's chat-mode colour with the game's inline colours kept and auto-translate brackets as shapes, clipped
-to the log's box; the game's cursor is drawn after the cursor row's text, where the game puts its
-mark. Which rows there are and their wrapping, the cursor, Confirm and its menus and the wheel are
-still the game's, followed by the rows' order (when the row the game has chosen is past what fits,
-the view moves up to keep it in sight); the game's mouse hover and clicks stay at its own rows'
-places, 16 of its units apart, which no longer line up with these. A font wider than the game's can run past the right edge, where
+measures the row, and the addon draws each row where the game draws it: centred in the game's own row, in the
+chat's **Font** at **Font Size** or, where the game's row is shorter, that height, so rows never overlap;
+from the log's left edge in by **Left Padding**, in the log's Default Text colour when it has its own,
+otherwise its message's chat-mode colour with the game's inline colours kept and auto-translate brackets
+as shapes, clipped to the log's box; the game's cursor is drawn after the cursor row's text, where the
+game puts its mark. The game hit-tests the mouse against those same rows, so the row under the mouse is
+the row it lights and chooses. Which rows there are and their wrapping, the cursor, Confirm and its
+menus and the wheel are still the game's. A font wider than the game's can run past the right edge, where
 it is clipped. Off, or without a fresh set of rows from uihook, the game's own bitmap font is drawn.
 Padding, Width and Default Text apply to the compact log and input only, and there is no WinXI
 title over the tabs. Missing control signatures leave the art untinted and the game's tabs,

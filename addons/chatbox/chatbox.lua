@@ -925,34 +925,33 @@ local function DrawMark(list, x, rowTop, fontSize)
         list:AddText({ x, rowTop }, imgui.GetColorU32(controller.HighlightColor), '>')
     end
 end
--- The game's rows laid out as the compact log lays out its own: Font Size + ROW_GAP apart, the newest with its text
--- ending at the Bottom Padding, older ones up from it, as many as fit between the paddings. Which rows they are,
--- which the game highlights and where its cursor is are the game's, by their order (newest first); the game's own
--- places (16 of its units apart) are left to its mouse. Should the row the game has chosen be past what fits, the
--- view moves up to keep it at the top. Returns { row, y } for each line shown, the newest first.
+-- The game's rows of text each where the game draws it: uihook measures each row's rectangle as the game lays it out,
+-- and the game hit-tests the mouse against those same places, so the row under the mouse is the row the game lights
+-- and chooses. Each row's text is centred in the game's row, in the chat's font at Font Size or, where the game's row
+-- is shorter, that height (ExpandedSize), so rows never overlap. Which rows there are, which the game highlights and
+-- where its cursor is are the game's; rows above the frame's top (Expanded Height) are clipped by it. Returns
+-- { row, y, chosen } for each row the game placed.
 local expandedLines = {}
+local function ExpandedSize(rows, size)
+    for _, row in ipairs(rows) do
+        if row.top and row.bottom and row.bottom > row.top then size = math.min(size, math.floor(row.bottom - row.top)) end
+    end
+    return math.max(1, size)
+end
 local function ExpandedLines(rows, size)
     for i = #expandedLines, 1, -1 do expandedLines[i] = nil end
-    local step = size + ROW_GAP
-    local areaTop, areaBottom = expandedBox[2] + pad.top, expandedBox[4] - pad.bottom
-    local fits = math.max(1, math.floor((areaBottom - areaTop + ROW_GAP) / step))
-    local placed, measured = {}, false
+    local measured = false
+    for _, row in ipairs(rows) do measured = measured or row.lit == true end
     for _, row in ipairs(rows) do
-        if row.top then placed[#placed + 1] = row; measured = measured or row.lit end
-    end
-    local chosen = 1
-    for i, row in ipairs(placed) do
-        if (measured and row.lit) or (not measured and row.cursor) then chosen = i end
-    end
-    local first = math.max(1, chosen - fits + 1)
-    for i = first, math.min(#placed, first + fits - 1) do
-        expandedLines[#expandedLines + 1] = { row = placed[i], y = areaBottom - size - (i - first) * step,
-            chosen = (measured and placed[i].lit) or (not measured and placed[i].cursor) }
+        if row.top and row.bottom and row.bottom > row.top then
+            expandedLines[#expandedLines + 1] = { row = row, y = row.top + (row.bottom - row.top - size) / 2,
+                chosen = (measured and row.lit) or (not measured and row.cursor) }
+        end
     end
     return expandedLines
 end
 -- With the whole log the addon's, the lights the game would have drawn under its rows: across the log (to the
--- scrollbar), a line tall with half the row gap either side, each row the game highlights (lit, where uihook
+-- scrollbar), the game's row's own height, each row the game highlights (lit, where uihook
 -- measured its highlight; without that, the cursor's row) in the highlight colour, brighter held down, and a row it
 -- marks faintly
 local rowLight = { 1, 1, 1, 0.25 }
@@ -970,7 +969,7 @@ local function DrawExpandedLights(list, lines, x, size)
             end
             -- short of the scrollbar's thumb
             local edge = expandedScroll and math.min(right, ExpandedThumbLeft() - 2) or right
-            list:AddRectFilled({ math.max(expandedBox[1] + 1, x - 4), line.y - ROW_GAP / 2 }, { edge, line.y + size + ROW_GAP / 2 },
+            list:AddRectFilled({ math.max(expandedBox[1] + 1, x - 4), row.top }, { edge, row.bottom },
                 imgui.GetColorU32(color), 2)
         end
     end
@@ -979,7 +978,7 @@ end
 -- log's left edge in by Left Padding, in the Default Text colour or the chat mode's with the game's inline colours
 -- kept; the game's cursor row gets the cursor after its text. Clipped to the full log's box.
 local function DrawExpandedRows(list, rows)
-    local size = FontSize()
+    local size = ExpandedSize(rows, FontSize())
     local lines = ExpandedLines(rows, size)
     if #lines == 0 then return 0 end
     local chatFont = fonts.Get(app.options.fontFile)
