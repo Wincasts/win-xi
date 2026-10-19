@@ -254,12 +254,10 @@ int main() {
 	CreateDirectoryW(plugin.configPath, NULL);
 
 	// wine gives one run the process number of another: what an earlier run left in the folder is taken away
-	for (const wchar_t* folder : { L"namehook", L"nameplatehook", L"nameplatew" }) {
-		for (const wchar_t* file : { L"defaults.ini", L"whitelist.txt" }) {
-			wchar_t left[MAX_PATH];
-			StringCchPrintfW(left, MAX_PATH, L"%s\\%s\\%s", plugin.configPath, folder, file);
-			DeleteFileW(left);
-		}
+	for (const wchar_t* file : { L"defaults.ini", L"whitelist.txt" }) {
+		wchar_t left[MAX_PATH];
+		StringCchPrintfW(left, MAX_PATH, L"%s\\namehook\\%s", plugin.configPath, file);
+		DeleteFileW(left);
 	}
 
 	static bool namesOff = false;
@@ -287,7 +285,6 @@ int main() {
 	const XiModel* trust = Make(10, 0x703, 0x01009999, "Kupipi");
 
 	plugin.Settings.Init();
-	plugin.Settings.Flush();
 
 	// the party, the target and the pets are asked for as a frame ends
 	plugin.Publish(nullptr, nullptr, true);
@@ -839,59 +836,25 @@ int main() {
 	plugin.ParseCommand("/namehook status", true);
 	CHECK(plugin.said.size() == 4 && plugin.said[0] == "Shown: self, party, alliance, mypet, pets, monsters" && plugin.said[1] == "Hidden: players, npcs");
 
-	// before its own settings are first saved, it starts from nameplatew's: its mode, and its whitelist
+	// before its own settings are first saved there is nothing to read: the defaults, and no whitelist
 	wchar_t path[MAX_PATH];
 	StringCchPrintfW(path, MAX_PATH, L"%s\\namehook\\defaults.ini", plugin.configPath);
 	DeleteFileW(path);
 	StringCchPrintfW(path, MAX_PATH, L"%s\\namehook\\whitelist.txt", plugin.configPath);
 	DeleteFileW(path);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatew", plugin.configPath);
-	CreateDirectoryW(path, NULL);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatew\\defaults.ini", plugin.configPath);
-	WritePrivateProfileStringW(L"Settings", L"NameMode", L"8", path);
-	WritePrivateProfileStringW(L"Settings", L"FontSizeInPx", L"17", path);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatew\\whitelist.txt", plugin.configPath);
-	FILE* file = _wfopen(path, L"w");
-	fprintf(file, "Oldfriend\n");
-	fclose(file);
 	plugin.ParseCommand("/namehook load", true);
-	CHECK(Shared.Hidden == (CATEGORY_SELF | CATEGORY_ALLIANCE | CATEGORY_PLAYER) && Shared.Options == 0 && AsmSettings.FontSize == 17);
-	CHECK(Whitelist.Count == 1 && strcmp(Whitelist.Names[0], "Oldfriend") == 0);
-	CHECK(HiddenFromNameMode(7, true) == CATEGORY_PLAYER && HiddenFromNameMode(1, false) == CATEGORY_ALL && HiddenFromNameMode(0, false) == 0);
-	CHECK(HiddenFromNameMode(3, false) == (CATEGORY_SELF | CATEGORY_PARTY | CATEGORY_ALLIANCE | CATEGORY_PLAYER));
-	CHECK(HiddenFromNameMode(5, false) == (CATEGORY_MY_PET | CATEGORY_PET | CATEGORY_NPC | CATEGORY_MONSTER));
-
-	// under the name it had before, nameplatehook, its settings are found too, and come before nameplatew's
-	plugin.ParseCommand("/namehook wl clear", true);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\namehook\\defaults.ini", plugin.configPath);
-	DeleteFileW(path);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\namehook\\whitelist.txt", plugin.configPath);
-	DeleteFileW(path);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatehook", plugin.configPath);
-	CreateDirectoryW(path, NULL);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatehook\\defaults.ini", plugin.configPath);
-	WritePrivateProfileStringW(L"Settings", L"Hidden", L"130", path);
-	WritePrivateProfileStringW(L"Settings", L"AlwaysTarget", L"1", path);
-	WritePrivateProfileStringW(L"Settings", L"FontSizeInPx", L"19", path);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatehook\\whitelist.txt", plugin.configPath);
-	file = _wfopen(path, L"w");
-	fprintf(file, "Newerfriend\n");
-	fclose(file);
-	plugin.ParseCommand("/namehook load", true);
-	CHECK(Shared.Hidden == (CATEGORY_PARTY | CATEGORY_MONSTER) && Shared.Options == OPTION_ALWAYS_TARGET && AsmSettings.FontSize == 19);
-	CHECK(Whitelist.Count == 1 && strcmp(Whitelist.Names[0], "Newerfriend") == 0);
-	plugin.ParseCommand("/namehook target off", true);
-	plugin.ParseCommand("/namehook hide self alliance players", true);
-	plugin.ParseCommand("/namehook show party monsters", true);
-	plugin.ParseCommand("/namehook save", true);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatew\\whitelist.txt", plugin.configPath);
+	CHECK(Shared.Hidden == 0 && Shared.Options == 0 && AsmSettings.FontSize == 22 && AsmSettings.HideStars == 0 && OtherCalls == 1);
+	CHECK(Whitelist.Count == 0);
 
 	// that load saved them as its own, which are read from then on
-	WritePrivateProfileStringW(L"Settings", L"NameMode", L"1", path);
-	StringCchPrintfW(path, MAX_PATH, L"%s\\nameplatew\\defaults.ini", plugin.configPath);
-	WritePrivateProfileStringW(L"Settings", L"NameMode", L"1", path);
+	plugin.ParseCommand("/namehook hide self alliance players", true);
+	plugin.ParseCommand("/namehook target on", true);
+	plugin.ParseCommand("/namehook fontsize 19", true);
+	plugin.ParseCommand("/namehook save", true);
+	plugin.ParseCommand("/namehook show all", true);
 	plugin.ParseCommand("/namehook load", true);
-	CHECK(Shared.Hidden == (CATEGORY_SELF | CATEGORY_ALLIANCE | CATEGORY_PLAYER));
+	CHECK(Shared.Hidden == (CATEGORY_SELF | CATEGORY_ALLIANCE | CATEGORY_PLAYER) && Shared.Options == OPTION_ALWAYS_TARGET && AsmSettings.FontSize == 19);
+	plugin.ParseCommand("/namehook target off", true);
 	plugin.ParseCommand("/namehook show all", true);
 
 	// other plugins' commands are not this one's

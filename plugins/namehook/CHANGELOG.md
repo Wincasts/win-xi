@@ -1,5 +1,11 @@
 # Changelog
 
+## namehook 1.29 — its own settings, one client, tidier
+
+- The settings and the whitelist are read from `config\namehook` alone. Those the plugin kept under its old name, nameplatehook, and nameplatew's (its `mode` made into hidden categories, its whitelist) were read before the first save; from nameplatew the categories are set by hand once, or with the name addon.
+- Only the newer version of the client's name-drawing function is patched, the one the two line calls are hooked in; the older one, which Nameplate also patched and which gave a plugin that showed and hid names but listed none, is not looked for: a client with it does not load the plugin (`Plugin Load Error: "-14"`).
+- Tidier, with nothing changed: the version is said in one place (`NAMEHOOK_VERSION` in `Nameplate.h`: the help said 1.24 while the plugin was 1.28), the sizes and the stars are kept once where the client's patched code reads them, a function's address is written into a patch by one helper, a command's words are matched by their text alone, the operand reader of `bytes.h` is one function, and a wide-character `Debug` nothing called is gone. tests/test.cpp follows.
+
 ## namehook 1.28 — timed, not counted
 
 - A claim lasts half a second without being made again, and a name the client draws more than once a frame is lifted for half a second after the last frame it did: timed by the system's steady clock (`HOOK_CLAIM_TIME`, `LIFT_TIME`, in microseconds), read once a frame. Both were 30 frames, half a second at 60 frames a second and a fifth of one at 144. tests/test.cpp: a clock that goes a frame on each time it is read; a claim lasts 72 frames at 144.

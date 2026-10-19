@@ -18,6 +18,10 @@ If not, see <https://www.gnu.org/licenses/>.
 
 #define UNICODE_MAX_PATH 32768
 
+// The plugin's version, as Ashita shows it and as the help says it
+#define NAMEHOOK_VERSION 1.29
+#define NAMEHOOK_VERSION_TEXT "1.29"
+
 // What a name is over. Every name is in exactly one category, and a category's names are shown or
 // hidden together.
 enum : uint32_t {
@@ -210,41 +214,23 @@ enum class MESSAGE : uint32_t {
     MESSAGE_MAX,
 };
 
+// The settings file, defaults.ini: the sizes and the stars (kept where the client's patched code reads
+// them), the hidden categories and the target option (kept in HookShared, where addons change them),
+// and whether every call that draws a name is taken
 class NameplateSettings {
     friend class Nameplate;
     public:
-        NameplateSettings() :
-            FontSize(0),
-            DamageFontSize(0),
-            HideStars(0) {}
-
         int Init();
         int Load(const wchar_t* basePath);
         int Save(const wchar_t* basePath);
 
-        void SetFontSize(int fontSize) {
-            FontSize = fontSize;
-        }
-        void SetDamageFontSize(int fontSize) {
-            DamageFontSize = fontSize;
-        }
-        void SetHideStars(int hideStars) {
-            HideStars = hideStars;
-        }
-
     private:
-        void Flush();
         void Normalize();
-
-        int FontSize;
-        int DamageFontSize;
-        int HideStars;
 };
 
 class Nameplate {
     public:
         virtual void Debug(const char* text) = 0;
-        virtual void Debug(const wchar_t* text);
 
         virtual void ShowMessage(MESSAGE message, int param = 0) = 0;
         // A command that was not understood: command is its first word after the plugin's name
