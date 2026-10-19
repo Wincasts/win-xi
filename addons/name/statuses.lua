@@ -4,12 +4,10 @@
 --   statuses.HandlePacket(e)          every packet in goes by this: what lands on an enemy is kept count of
 --   statuses.Begin(options)           each frame, before any name is set out: whether there is anything
 --                                     to draw this frame, the sheet of icons given to the plugin
---   statuses.Write(name, left, right, above, below, height, scale, set, fit)   between the plugin's
+--   statuses.Write(name, left, right, above, below, height, scale)   between the plugin's
 --                                     BeginName and EndName: the row, for a name whose letters are height
 --                                     high, drawn from left to right, with nothing yet above above or below
---                                     below; set and fit the name's letters, for the time left under each
---   statuses.SetWords(width, write)   how the names' letters are measured and written, from custom: width(set,
---                                     words, fit) and write(set, words, pen, top, fit, color)
+--                                     below, moved by the X and Y offsets
 --   statuses.DrawSettings(options, save)         the settings tab
 --
 -- What is known of who is under what is not the same for everyone. The game keeps the player's own
@@ -17,11 +15,6 @@
 -- anyone else it is told nothing: winxi.debuffs keeps count of every status the server is seen to say
 -- took hold on them, by spell, ability, weapon skill, monster's move or additional effect, for as long
 -- as the server's scripts say it usually lasts, or until the server says it wore off.
---
--- How long each has left is known as well as what it is: to the second for the player's own, as the
--- game keeps them; not at all for the party's, of which the game keeps only what they are; and for
--- anyone else, the usual time from when it landed, which is a guess (winxi.debuffs). With Timers on,
--- it is written under each icon that has one, as the buff addon writes it.
 --
 -- The icons are as party and buff draw them (winxi.statusicons): with Custom Icons on in winxisettings,
 -- the chosen set's where it has one and the game's where it has not; off, the game's. All are from
@@ -49,10 +42,7 @@ local MEMBER_SIZE  = 0x30; -- one member of the party's statuses, as the game ke
 local LAST_STATUS  = 671;  -- the highest number the sheet has a place for
 local LIST_ROWS    = 14;   -- rows of the settings' list to be seen at once
 local PREVIEW_MOST = 4;    -- icons over each name while previewing
-local TIMER_SIZE   = 0.5;  -- the time left's letters, as a part of an icon's height
-local NO_TIMER     = 0x7FFFFFFF; -- what the game keeps for a status of the player's that does not run out
-local VANA_EPOCH   = 0x3C307D70; -- when the game's count of time starts, in seconds of ours
-local PREVIEW_LEFT = { 45, 150, 12, 3700 }; -- the times written under the icons of a preview
+local MOST_OFFSET  = 200;  -- screen pixels the row can be moved each way
 
 -- Preview: every shown name has a few of the chosen statuses over it, whatever it is under, to see
 -- how the row looks. Not kept: it is off again when the addon is loaded.
@@ -62,10 +52,11 @@ local preview = T{ false };
 -- ails a character and what winxi.debuffs can tell of an enemy.
 local settings = {
     showStatuses = function () return T{ true }; end,
-    statusTimers = function () return T{ false }; end, -- the time left written under each icon
     statusSize   = function () return T{ 125 }; end, -- an icon's height, as a percentage of the height of the names
     statusPlace  = function () return T{ 'above' }; end,  -- the row above the name or below it
     statusAlign  = function () return T{ 'center' }; end, -- and level with its left, its middle or its right
+    statusOffsetX = function () return T{ 0 }; end, -- then moved right (or left, below 0), in screen pixels
+    statusOffsetY = function () return T{ 0 }; end, -- and down (or up, below 0)
     statusIcons  = function () return T{ 'theme' }; end,  -- the icons: as the winxi theme has them, the game's, or the custom set's
     statusList   = function ()
         return T{ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 128, 129, 130, 131, 132, 133, 134, 135, 156, 192, 194, 217 };
@@ -117,67 +108,26 @@ local function Choose(options, id, on)
 end
 
 -- The player's own statuses and the party's, read once a frame into lists kept from frame to frame
-local own = { count = 0, left = {} };
+local own = { count = 0 };
 local party = {};
 for member = 1, PARTY_OTHERS do
     party[member] = { id = 0, count = 0 };
 end
 local partyPointer = nil;
 
--- Where the game keeps the time it goes by, as the buff addon finds it: looked for the first time
--- the player's timers are wanted
-local stampPointer = nil;
-
-local function Stamp()
-    if (stampPointer == nil) then
-        stampPointer = ashita.memory.find('FFXiMain.dll', 0, '8B0D????????8B410C8B49108D04808D04808D04808D04C1C3', 2, 0) or 0;
-    end
-    if (stampPointer == 0) then
-        return nil;
-    end
-    local pointer = ashita.memory.read_uint32(stampPointer);
-    pointer = pointer ~= 0 and ashita.memory.read_uint32(pointer) or 0;
-    if (pointer == 0) then
-        return nil;
-    end
-    return ashita.memory.read_uint32(pointer + 0x0C);
-end
-
--- The seconds one of the player's statuses has left, from what the game keeps for it (sixtieths of a
--- second, on its own count of time): nil for one that does not run out, or while the time cannot be read
-local function OwnSeconds(raw, stamp)
-    if (raw == nil or raw == NO_TIMER or stamp == nil) then
-        return nil;
-    end
-    local left = raw - (stamp - VANA_EPOCH) * 60;
-    -- the count wraps round every few years
-    while (left < -2147483648) do
-        left = left + 0xFFFFFFFF;
-    end
-    if (left < 1) then
-        return 0;
-    end
-    return math.ceil(left / 60);
-end
-
-local function ReadOwn(memory, withTimers)
+local function ReadOwn(memory)
     own.count = 0;
     local player = memory:GetPlayer();
     if (player == nil or player:GetIsZoning() ~= 0) then
         return;
     end
     local ids = player:GetStatusIcons();
-    local timers, stamp = nil, nil;
-    if (withTimers) then
-        timers, stamp = player:GetStatusTimers(), Stamp();
-    end
     local count = 0;
     for slot = 1, SLOTS do
         local id = ids[slot];
         if (id ~= nil and id > 0 and id ~= 255 and id < 0x400) then
             count = count + 1;
             own[count] = id;
-            own.left[count] = timers ~= nil and OwnSeconds(timers[slot], stamp) or false;
         end
     end
     own.count = count;
@@ -233,7 +183,7 @@ local shownWith = nil; -- the settings of this frame
 local size = 1.25;    -- an icon's height, as a part of the name's
 local below = false;  -- the row under the name, not over it
 local align = 'center';
-local timers = false; -- the time left written under each icon
+local offsetX, offsetY = 0, 0; -- screen pixels the row is moved by
 local SELF = nameplates.Category.Self;
 -- The player's and the party's statuses are read the first time a name this frame wants them, and
 -- not at all in a frame with no name that does; and the time, for what is tracked, once a frame
@@ -259,7 +209,8 @@ function statuses.Begin(options)
     size = math.max(50, math.min(300, options.statusSize[1])) / 100;
     below = options.statusPlace ~= nil and options.statusPlace[1] == 'below';
     align = options.statusAlign ~= nil and options.statusAlign[1] or 'center';
-    timers = options.statusTimers ~= nil and options.statusTimers[1] == true;
+    offsetX = math.max(-MOST_OFFSET, math.min(MOST_OFFSET, tonumber(options.statusOffsetX ~= nil and options.statusOffsetX[1]) or 0));
+    offsetY = math.max(-MOST_OFFSET, math.min(MOST_OFFSET, tonumber(options.statusOffsetY ~= nil and options.statusOffsetY[1]) or 0));
     shownWith = options;
     ownRead, partyRead, seconds = false, false, os.time();
     return true;
@@ -267,27 +218,23 @@ end
 
 -- The row for one name: what it is under that is chosen, each status once, and whether each icon is
 -- one of the set's
--- one, and the seconds it has left or false when they are not known
-local row, rowOwn, rowLeft, rowCount = {}, {}, {}, 0;
-local ids = {}; -- each icon's status, for its time
+local row, rowOwn, rowCount = {}, {}, 0;
 local taken, mark = {}, 0;
 
-local function Take(id, left)
+local function Take(id)
     if (chosen[id] and taken[id] ~= mark and rowCount < MOST) then
         local place, own = placeOf(id);
         if (place ~= nil) then
             taken[id] = mark;
             rowCount = rowCount + 1;
-            row[rowCount], rowOwn[rowCount], rowLeft[rowCount] = place, own == true, left or false;
-            ids[rowCount] = id;
+            row[rowCount], rowOwn[rowCount] = place, own == true;
         end
     end
 end
 
 local function TakeAll(list)
-    local left = list.left;
     for index = 1, list.count do
-        Take(list[index], left ~= nil and left[index]);
+        Take(list[index]);
     end
 end
 
@@ -313,8 +260,7 @@ local function TakeTracked(serverId)
         table.sort(tracked);
     end
     for index = 1, count do
-        local id = tracked[index];
-        Take(id, on[id].expires - seconds);
+        Take(tracked[index]);
     end
 end
 
@@ -325,7 +271,7 @@ local function TakePreview(options)
         if (rowCount >= PREVIEW_MOST) then
             return;
         end
-        Take(list[index], PREVIEW_LEFT[rowCount + 1]);
+        Take(list[index]);
     end
 end
 
@@ -338,7 +284,7 @@ local function Gather(name, options)
     if (name.Category == SELF) then
         if (not ownRead) then
             ownRead = true;
-            ReadOwn(AshitaCore:GetMemoryManager(), timers);
+            ReadOwn(AshitaCore:GetMemoryManager());
         end
         TakeAll(own);
         return;
@@ -357,71 +303,13 @@ local function Gather(name, options)
     TakeTracked(serverId);
 end
 
--- How the names' letters are measured and written: custom's, handed over as it is loaded
-local wordsWidth, writeWords = nil, nil;
-
-function statuses.SetWords(width, write)
-    wordsWidth, writeWords = width, write;
-end
-
--- The time left as the buff addon writes it: seconds under a minute, then minutes, then hours. Each
--- is made once.
-local labels = {};
-
-local function Label(left)
-    local key, form, value;
-    if (left >= 3600) then
-        value = math.floor(left / 3600);
-        key, form = 20000 + value, '%dh';
-    elseif (left >= 60) then
-        value = math.floor(left / 60);
-        key, form = 10000 + value, '%dm';
-    else
-        value = math.max(0, left);
-        key, form = value, '%d';
-    end
-    local label = labels[key];
-    if (label == nil) then
-        label = form:format(value);
-        labels[key] = label;
-    end
-    return label;
-end
-
--- The statuses the game does not write a time under, as the buff addon leaves them without one
-local timerHidden = {};
-
-local function HidesTimer(id)
-    local hidden = timerHidden[id];
-    if (hidden == nil) then
-        local icon = AshitaCore:GetResourceManager():GetStatusIconByIndex(id);
-        hidden = icon ~= nil and icon.HideTimer ~= 0;
-        -- one not loaded yet is asked again
-        if (icon ~= nil) then
-            timerHidden[id] = hidden;
-        end
-    end
-    return hidden;
-end
-
-function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, set, fit)
+function statuses.Write(name, nameLeft, nameRight, above, under, height, scale)
     if (sheet == 0) then
         return;
     end
     Gather(name, shownWith);
     if (rowCount == 0) then
         return;
-    end
-
-    -- the times written under the icons, where any is known: the row is raised to make room for them
-    local timed = false;
-    if (timers and set ~= nil and writeWords ~= nil) then
-        for index = 1, rowCount do
-            if (rowLeft[index] and preview[1] == false and HidesTimer(ids[index])) then
-                rowLeft[index] = false;
-            end
-            timed = timed or rowLeft[index] ~= false;
-        end
     end
 
     local tall = math.max(1, math.floor(height * size + 0.5));
@@ -440,22 +328,16 @@ function statuses.Write(name, nameLeft, nameRight, above, under, height, scale, 
         left = math.floor((nameLeft + nameRight - across) * 0.5);
     end
     local rise = math.floor(RISE * scale + 0.5);
-    local timeTall = timed and math.max(1, math.floor(tall * TIMER_SIZE + 0.5)) or 0;
-    local timeFit = fit ~= nil and fit * timeTall / height or 0;
-    local top = below and (under + rise) or (above - rise - timeTall - tall);
+    local top = below and (under + rise) or (above - rise - tall);
+    -- the offsets are the screen's pixels, as the gap is
+    left = left + math.floor(offsetX * scale + 0.5);
+    top = top + math.floor(offsetY * scale + 0.5);
     for index = 1, rowCount do
         local place = row[index];
         -- the set's icons are narrower than the game's, which are square, as party draws them
         local width = rowOwn[index] and wide or tall;
         -- the icons have an edge of their own: none is drawn round them
         nameplates.Quad(left, top, left + width, top + tall, place[1], place[2], place[3], place[4], WHITE, statuses.Slot, false);
-        -- the time left under it, its middle under the icon's, outlined as the names' letters are
-        local remaining = timed and rowLeft[index];
-        if (remaining) then
-            local label = Label(remaining);
-            local labelWidth = wordsWidth(set, label, timeFit);
-            writeWords(set, label, math.floor(left + (width - labelWidth) * 0.5 + 0.5), top + tall, timeFit, WHITE);
-        end
         left = left + width + gap;
     end
 end
@@ -499,7 +381,7 @@ function statuses.DrawSettings(options, save)
     Chosen(options);
     local changed = false;
 
-    controls.BeginLayout('statuses', 360, '[Experimental] Timers');
+    controls.BeginLayout('statuses', 360, 'Y Offset (px)');
     if (controls.Section('Display', '##name.statusOptions', true)) then
         if (controls.Checkbox('Enabled', '##name.showStatuses', options.showStatuses,
                 'Show the statuses selected below on visible nameplates.')) then
@@ -522,8 +404,12 @@ function statuses.DrawSettings(options, save)
                     'Which side of the name the row is level with: its left, where its icons begin, its middle, or its right.')) then
                 changed = true;
             end
-            if (controls.Checkbox('Timers', '##name.statusTimers', options.statusTimers,
-                    'Show remaining time under icons. Other players\' and monsters\' times are estimates; see Help / Examples.', true)) then
+            if (controls.Input('X Offset (px)', '##name.statusOffsetX', options.statusOffsetX, -MOST_OFFSET, MOST_OFFSET,
+                    'Moves the row right from where Position and Alignment put it, in screen pixels; below 0, left.')) then
+                changed = true;
+            end
+            if (controls.Input('Y Offset (px)', '##name.statusOffsetY', options.statusOffsetY, -MOST_OFFSET, MOST_OFFSET,
+                    'Moves the row down from where Position and Alignment put it, in screen pixels; below 0, up.')) then
                 changed = true;
             end
             controls.Checkbox('Preview', '##name.statusPreview', preview,
@@ -572,7 +458,7 @@ function statuses.DrawSettings(options, save)
     controls.EndSection();
     controls.EndLayout();
     controls.Help('Help / Examples', '##name.statusHelp',
-        'Your own and party statuses come from the game. Everyone else\'s come from effects observed in server messages; effects applied out of sight or before entering the area may be unknown.\nTimers show seconds, minutes (m), then hours (h). Your own times are exact; party times are unavailable. Other times use base duration and can differ with resists or gear.\nCustom Icons in /wxi selects the icon set, with game icons as fallback.');
+        'Your own and party statuses come from the game. Everyone else\'s come from effects observed in server messages; effects applied out of sight or before entering the area may be unknown.\nCustom Icons in /wxi selects the icon set, with game icons as fallback.');
 
     if (changed and save ~= nil) then
         save();

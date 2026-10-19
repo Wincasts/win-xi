@@ -41,8 +41,8 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   |---|---|---|---|---|---|
   | Default | `[icons: space=4][name]` | `[aggro] [name] [letters]` | Off | On | On |
   | Minimal | `[name]` | `[name]` | Off | Off | Off |
-  | Hunter | `[icons: space=4][name]` | `[aggro: space=4]Lv [level]. [name] [letters]` | In combat | On | On |
-  | Retail-Like | `[icons: space=4][name]` | `[name]` | Off | Off | Off |
+  | Robust | `[icons: space=4][name]` | `[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)` | Always | On | On |
+  | Immersive | `[icons: space=4][name]` | `[name]` | In combat | Off | Off |
 
   NPCs are `[name]` in each. **Custom Nameplates**, on to begin with, is Name drawing the names; off,
   Name lets them go at once and the game draws its own as namehook sizes them (`/namehook fontsize`),
@@ -85,7 +85,7 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   text and icons keep their own explicit colours; client opacity and fades remain intact.
 - **Visibility:** Players, Pets, NPCs & Monsters, and Target. No diagnostic controls.
 - **Statuses:** Display and Selected Statuses, with expandable help about status
-  sources and estimated timers.
+  sources.
 - **NM Tracking:** Tracked Monster and conditional Placeholder Options. The tab is
   shown only after `/name dev`, until the addon is reloaded; `/name dev` again hides it.
 
@@ -251,7 +251,8 @@ with its `statusicons` folder. The set's icons are as narrow as the set has them
 | Size (%) | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is as wide as the set's icons are for that height (three quarters for FFXIV's), and shrinks with its name |
 | Position | Above, to begin with: over the name, and over the mastery stars where it has them. Below: under the name, and under the line a checked monster's details are written on while they are shown |
 | Alignment | Center, to begin with: the row's middle on the name's. Left: level with the name's left, where its icons begin. Right: level with its right |
-| [Experimental] Timers | Off to begin with. Writes under each icon how long the status has left, in the names' letters: seconds, then minutes (m), then hours (h), as the buff addon does. The row is raised to make room above a name. Your own are to the second, as the game keeps them, and what the game writes no time for has none; your party's are not known and have none; everyone else's are the server's base duration from when it was seen to land, so a guess (see below) |
+| X Offset (px) | 0 to begin with. Moves the row right from where Position and Alignment put it, in screen pixels, -200 to 200; below 0, left |
+| Y Offset (px) | 0 to begin with. Moves the row down, -200 to 200; below 0, up |
 | Preview | Puts the first four ticked statuses over every name that is shown, whatever it is really under, to see how the row looks. Not kept: off again when the addon is loaded |
 | Search | Narrows the list under it by part of a status's name, or its number |
 | Selected Only | Lists only the ticked statuses |

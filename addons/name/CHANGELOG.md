@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.43
+
+- The presets are Default, Minimal, **Robust** and **Immersive**. Robust has everything: enemy aggro, level, spawn letters and distance, health bars at all times, status icons and check details. Immersive is near the game's own: names with player icons, health bars only in combat, and no levels, letters, status icons or check details. Hunter and Retail-Like are gone.
+- Statuses → Display has **X Offset** and **Y Offset**, in screen pixels from -200 to 200, moving the row from where Position and Alignment put it.
+- Statuses' Timers is gone, with the time written under the icons; a saved Timers setting is dropped.
+
 ## 1.42
 
 - The Default preset's enemy format is `[aggro] [name] [letters]`: no level range, and the spawn letter at the end. Reset Format and a new character's settings give the same; saved formats are kept.

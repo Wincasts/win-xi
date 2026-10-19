@@ -37,12 +37,12 @@ general.Presets = {
     { key = 'minimal', label = 'Minimal', help = 'Names alone: no icons, levels, bars, statuses or check details.',
         values = { nameFormat = '[name]', monsterFormat = '[name]', npcFormat = '[name]', checkFormat = '',
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = false, showCheckDetails = false } },
-    { key = 'hunter', label = 'Hunter', help = 'Enemy aggro, level and spawn letters, health bars in combat, status icons and check details.',
-        values = { nameFormat = PLAYER, monsterFormat = '[aggro: space=4]Lv [level]. [name] [letters]', npcFormat = '[name]', checkFormat = '',
-            showHealthBar = true, healthBarsCombatOnly = true, showStatuses = true, showCheckDetails = true } },
-    { key = 'retail', label = 'Retail-Like', help = 'As the game writes them: names, with player icons; nothing else.',
+    { key = 'robust', label = 'Robust', help = 'Everything there is to know: enemy aggro, level, spawn letters and distance, health bars at all times, status icons and check details.',
+        values = { nameFormat = PLAYER, monsterFormat = '[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)', npcFormat = '[name]', checkFormat = '',
+            showHealthBar = true, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
+    { key = 'immersive', label = 'Immersive', help = 'Close to the game\'s own: names with player icons, and health bars only in combat; no levels, letters, status icons or check details.',
         values = { nameFormat = PLAYER, monsterFormat = '[name]', npcFormat = '[name]', checkFormat = '',
-            showHealthBar = false, healthBarsCombatOnly = false, showStatuses = false, showCheckDetails = false } },
+            showHealthBar = true, healthBarsCombatOnly = true, showStatuses = false, showCheckDetails = false } },
 };
 
 function general.Matching(options)
