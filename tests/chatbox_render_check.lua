@@ -7,7 +7,7 @@ package.loaded.imgui = {
 }
 local render=dofile('addons/chatbox/render.lua')
 local list={
-    AddText=function(_,pos,color,text) drawn[#drawn+1]={pos=pos,text=text} end,
+    AddText=function(_,pos,color,text) drawn[#drawn+1]={pos={pos[1],pos[2]},text=text} end, -- the point copied, as imgui copies it: render fills one table for its parts
     AddLine=function(_,a,b,color,thickness) lines[#lines+1]={a=a,b=b,color=color} end,
 }
 assert(render.Measure('a❮word❯b')==86, 'text width includes geometric brackets')

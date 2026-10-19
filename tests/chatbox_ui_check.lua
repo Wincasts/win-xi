@@ -131,7 +131,7 @@ local dummy
 local outlines={}
 local styleDepth = 0
 local filled={}
-local list = { AddText=function(_,pos,color,value) text[#text+1]={pos=pos,color=color,text=value} end,
+local list = { AddText=function(_,pos,color,value) text[#text+1]={pos={pos[1],pos[2]},color=color,text=value} end, -- the point copied, as imgui copies it
     AddRect=function(_,a,b,color) outlines[#outlines+1]={a=a,b=b,color=color} end,
     AddRectFilled=function(_,a,b,color) filled[#filled+1]={a=a,b=b,color=color} end,
     AddImage=function(_,handle,a,b) images[#images+1]={handle=handle,a={a[1],a[2]},b={b[1],b[2]}} end,

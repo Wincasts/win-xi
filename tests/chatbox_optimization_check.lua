@@ -83,4 +83,26 @@ frames()
 assert(calls == before and filtered == 0, 'two boxes keep each other\'s wrapping, metrics and rows')
 model.Clear(log)
 assert(log.wraps == nil and #tail(20, 0) == 0, 'clear discards cached private history')
-print('Chatbox optimization: shared wrapping, scrolling, filters, spans, eviction, layout invalidation, two boxes and clear passed')
+-- Measuring and drawing a line with auto-translate brackets and colour spans, as every row is each frame, makes
+-- nothing a call once its parts are known: no function for the parts walked, no table for each point handed imgui
+-- (which copies them). Before, 2000 calls of each made close to 3 MB.
+package.loaded.imgui = { GetFontSize = function() return 12 end, CalcTextSize = function(text) return #text * 7, 12 end,
+    GetColorU32 = function(color) return color end }
+package.loaded.palette = package.loaded.palette or { Color = function() return nil end }
+local render = require('render')
+local sink = { AddText = function() end, AddLine = function() end }
+local bracketed = 'say \226\157\174Hello\226\157\175 to \226\157\174everyone\226\157\175 now'
+local at, kept, coloured = { 10, 20 }, {}, { { first = 5, last = 14, bank = 1, slot = 1 } }
+local function draws()
+    for _ = 1, 2000 do
+        render.Measure(bracketed); render.Text(sink, at, 1, bracketed); render.Rich(sink, at, 1, bracketed, coloured, kept, 'font', 12)
+    end
+end
+draws()
+collectgarbage(); collectgarbage('stop')
+local used = collectgarbage('count')
+draws()
+used = collectgarbage('count') - used
+collectgarbage('restart')
+assert(used < 64, ('measuring and drawing bracketed rows makes nothing each call (%.1f KB)'):format(used))
+print('Chatbox optimization: shared wrapping, scrolling, filters, spans, eviction, layout invalidation, two boxes, clear and drawing without allocating passed')

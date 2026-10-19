@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Less made each frame, with the same results. The frame is drawn by named functions, one for each phase (the
+  first box, the second window, the box held while the game's log settles, activity, the panel and the lift, the
+  windows), sharing one table, rather than one closure of some 60 upvalues and four inner ones made anew every frame.
+  The box each log draws is filled into a table kept for its window (three each, so the one the mouse is matched
+  against and the one /chatbox status tells of are never written over), the rows' places, the clip rectangles, the
+  game's rectangles, the second window's and the panel's places, the boxes lifted over the panel, the expanded
+  log's lines and the box it is drawn in into tables kept for them; render measures and draws a bracketed line part
+  by part with no function and no point made for each. Chat Tooltips find the character under the mouse by halving,
+  a handful of the line's beginnings measured rather than one for each character (which made the hover's cost grow
+  with the square of the line's length); each character measured alone would not do, as imgui rounds every width up
+  to a whole pixel. Tests: chatbox_optimization_check render's measuring and drawing of a bracketed row with colour
+  spans making nothing a call; the ui and render checks' draw lists copy the points they are given, as imgui does.
 - The expanded log's mouse kept from the game more exactly while its rows are the addon's (Replace Expanded Log).
   A menu of the game's open over the log (a row's action menu, the input line) keeps its mouse, so its entries can
   be clicked; the game's scrollbar (a few pixels round it) and its tabs are its own to press and drag. Every mouse
