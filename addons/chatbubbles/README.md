@@ -44,15 +44,19 @@ The normal chat log is unchanged. `/s` is the game's abbreviation for `/say`.
 | `/chatbubbles on` | Enable bubbles (the default) |
 | `/chatbubbles off` | Disable and clear bubbles |
 | `/chatbubbles clear` | Clear current messages |
+| `/chatbubbles` | Open or close the settings; any other word says the help |
 | `/addon unload chatbubbles` | Remove bubbles without changing name filters |
 
 The test's fixed label is intentionally still a UI overlay; speech bubbles are not, unless Draw On Screen is on.
 
 ## Settings
 
-Open `/chatbubbles`. Settings are saved per character using Ashita's settings
-library, including the global enable switch, colors and individual channel switches.
-No DLL change is needed for these settings if namehook 1.24+ is already installed.
+Open `/chatbubbles`. The settings window is winxi's (`winxi.shell`), in the shared
+theme, with two tabs, **Appearance** and **Chat Modes**, each section of which
+collapses with its `[-]`; every control is named on its left and has a `(?)` at
+its end that says what it is for. Settings are saved per character, including the
+enable switch, colours and individual channel switches. No DLL change is needed
+for these settings if namehook 1.24+ is already installed. The addon needs winxi 30.
 
 - **Appearance:** White bubbles and Dark bubbles presets, a Background RGBA
   picker, and **Match in-game chat text colors** (on by default). Real chat uses

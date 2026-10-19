@@ -4,7 +4,9 @@ ffi.cdef[[
     int __stdcall MultiByteToWideChar(unsigned int, unsigned long, const char*, int, unsigned short*, int);
     int __stdcall WideCharToMultiByte(unsigned int, unsigned long, const unsigned short*, int, char*, int, const char*, int*);
 ]];
-local kernel = ffi.load('kernel32');
+-- Windows' own converter; without it (a check on another system) the text is left as it is
+local loaded, kernel = pcall(ffi.load, 'kernel32');
+if (not loaded) then kernel = nil; end
 local M = {};
 
 function M.Decode(text, dialogue)
@@ -12,6 +14,7 @@ function M.Decode(text, dialogue)
     text = AshitaCore:GetChatManager():ParseAutoTranslate(text, true);
     if (dialogue) then text = require('npc').CleanRaw(text); end
     text = text:gsub('[\30\31].', ''):gsub('[%z\1-\31\127]', ' ');
+    if (kernel == nil) then return text:gsub('%s+', ' '):match('^%s*(.-)%s*$'); end
     local count = kernel.MultiByteToWideChar(932, 0, text, #text, nil, 0);
     if (count <= 0) then return ''; end
     local wide = ffi.new('unsigned short[?]', count);

@@ -59,6 +59,7 @@ AshitaCore = { GetMemoryManager = function()
     };
 end };
 package.loaded.common = {};
+package.loaded['winxi.version'] = { Number = 30 };
 package.loaded.encoding = { Decode = function(s, dialogue) return dialogue and require('npc').CleanRaw(s) or s; end };
 ashita = { events = { register = function(event, _, callback) events[event] = callback; end } };
 local pushedFonts = {};
@@ -116,8 +117,29 @@ package.loaded.config = {
     Enabled = function() return globallyEnabled; end,
     SetEnabled = function(value) globallyEnabled = value; end,
     Toggle = function() toggles = toggles + 1; end,
-    Draw = function() end,
+    Defaults = function() return {}; end,
+    Settle = function(options) return options; end,
+    Attach = function() end,
+    DrawAppearance = function() end, DrawModes = function() end,
 };
+-- A stand-in for winxi.shell: the command's verbs go to the spec's, and the bare command toggles the settings
+local said = {};
+package.loaded['winxi.shell'] = { New = function(spec)
+    local app = { options = {}, spec = spec, showConfig = { false },
+        Say = function(_, text) said[#said + 1] = text; end, Save = function() end, BeginFrame = function() return true; end,
+        ToggleConfig = function(self) self.showConfig[1] = not self.showConfig[1]; package.loaded.config.Toggle(); end };
+    events.command = function(e)
+        local args = e.command:args();
+        if (args[1] ~= spec.command) then return; end
+        e.blocked = true;
+        local verb = args[2] and args[2]:lower();
+        if (verb == nil) then app:ToggleConfig();
+        elseif (spec.commands[verb]) then spec.commands[verb](app.options, args);
+        else said[#said + 1] = spec.help; end
+    end;
+    package.loaded['winxi.shell'].app = app;
+    return app;
+end };
 local originalClock = os.clock;
 os.clock = function() return now; end;
 dofile('addons/chatbubbles/chatbubbles.lua');
@@ -234,8 +256,10 @@ assert(frame() == 'bubble|Outgoing tell');
 allowed[3] = false;
 assert(frame() == '');
 command(nil);
-command('settings');
+command(nil);
 assert(toggles == 2);
+command('settings');
+assert(said[#said]:find('opens or closes the settings', 1, true), 'a verb that is not one says the help');
 command('clear');
 -- Real NPC text uses the separate text channel controls, not player packet IDs.
 npcActors[77] = { id = 0x0100004D, name = 'Moogle' };
@@ -327,15 +351,16 @@ command('clear');
 -- whatever the channels allow; gone a second after it is turned off
 records = { { name = 'Tester', Category = 1, x = 400, y = 300 } };
 allowed[0] = false;
+package.loaded['winxi.shell'].app.showConfig[1] = true; -- the settings are open, as they are while the preview is wanted
 package.loaded.config.preview[1] = true;
 appearance.arrow = { true };
 assert(frame():find('bubble|The quick brown fox', 1, true) and lastMessage.waiting == true and lastMessage.preview == true);
 appearance.arrow = { false };
 now = now + 30;
 assert(frame():find('bubble|The quick brown fox', 1, true) and lastMessage.waiting == false, 'kept while the preview is on');
-package.loaded.config.preview[1] = false;
+package.loaded['winxi.shell'].app.showConfig[1] = false;
 now = now + 2;
-assert(frame() == '', 'gone after');
+assert(frame() == '' and package.loaded.config.preview[1] == false, 'gone after the settings close, and the preview with them');
 allowed[0] = true;
 command('clear');
 command('clear');

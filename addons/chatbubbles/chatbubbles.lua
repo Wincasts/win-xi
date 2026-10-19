@@ -1,10 +1,24 @@
 addon.name = 'chatbubbles';
 addon.author = 'win';
-addon.version = '0.93';
+addon.version = '0.94';
 addon.desc = 'Configurable chat bubbles anchored by namehook, in the world or on the screen.';
+
+-- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
+-- older one may have been put over it (winxi.version)
+local winxiNeeded = 30;
+do
+    local ok, found = pcall(require, 'winxi.version');
+    local number = ok and type(found) == 'table' and found.Number or 0;
+    if number < winxiNeeded then
+        local text = ('%s needs winxi %d or newer, and addons/libs/winxi is %d: install the newest release of any winxi addon.'):format(addon.name, winxiNeeded, number);
+        print(('\30\68[%s]\30\01 %s'):format(addon.name, text));
+        error(text, 0);
+    end
+end
 
 require('common');
 local imgui = require('imgui');
+local shell = require('winxi.shell');
 local nameplates = require('winxi.nameplates');
 local bubbles = require('bubbles');
 local encoding = require('encoding');
@@ -19,7 +33,7 @@ local bit = require('bit');
 local colors = require('colors');
 local state = bubbles.New();
 local npcState = npc.New();
-local wasEnabled = config.Enabled();
+local wasEnabled; -- whether the bubbles were on last frame, once the settings are loaded
 local targetMessage;
 local diagnosticUntil = 0;
 local stats = { incoming = 0, outgoing = 0, anchors = 0, matched = 0, drawn = 0,
@@ -43,12 +57,14 @@ local function prune(now)
     return bubbles.Prune(state, now) + npc.Prune(npcState, now) + (targetMessage and 1 or 0);
 end
 
+local app; -- the shell's: the settings, their window and the command
+
 local function report(text)
-    print('[chatbubbles] ' .. text);
+    app:Say(text);
 end
 
 ashita.events.register('load', 'chatbubbles_load', function ()
-    report('Requires namehook 1.24+. /chatbubbles opens settings; Say and NPC dialogue are enabled by default.');
+    report('Requires namehook 1.24+. /chatbubbles opens the settings; Say and NPC dialogue are enabled by default.');
 end);
 
 ashita.events.register('unload', 'chatbubbles_unload', clear);
@@ -113,39 +129,8 @@ ashita.events.register('packet_out', 'chatbubbles_outgoing', function (e)
     end
 end);
 
-ashita.events.register('command', 'chatbubbles_command', function (e)
-    local args = e.command:args();
-    if (not args[1] or args[1]:lower() ~= '/chatbubbles') then return; end
-    e.blocked = true;
-    local command = args[2] and args[2]:lower();
-    if (command == nil or command == 'settings') then config.Toggle(); return;
-    elseif (command == 'on') then config.SetEnabled(true);
-    elseif (command == 'off') then config.SetEnabled(false); clear();
-    elseif (command == 'clear') then clear();
-    elseif (command == 'target') then
-        local memory = AshitaCore:GetMemoryManager();
-        local target = memory:GetTarget();
-        local index = target:GetTargetIndex(target:GetIsSubTargetActive());
-        local id = index and index > 0 and index < 0x900 and memory:GetEntity():GetServerId(index) or 0;
-        if (id == 0) then report('Select a nearby target first.'); return; end
-        local text = args[3] and encoding.Decode(table.concat(args, ' ', 3)) or 'Test speech bubble';
-        if (text == '' or not text:find('%S')) then report('Test text cannot be empty.'); return; end
-        config.SetEnabled(true);
-        targetMessage = { text = text, expires = os.clock() + 8, index = index, id = id };
-        report('Local test bubble created for your target (8 seconds). No chat was sent.');
-    elseif (command == 'test') then
-        config.SetEnabled(true);
-        diagnosticUntil = os.clock() + 8;
-        local speaker = ownName();
-        if (speaker) then
-            bubbles.Add(state, speaker, 'Test speech bubble', os.clock());
-            state.messages[speaker].synthetic = true;
-        end
-        report('8-second test: a fixed label should appear at the top, plus a bubble above your head if an anchor exists.');
-    elseif (command ~= nil and command ~= 'status') then
-        report('Usage: /chatbubbles [settings|on|off|clear|status|test|target [text]]');
-        return;
-    end
+-- What every command says after: whether the bubbles are on, what is wrong, and the counts
+local function status()
     local problem = nameplates.Problem() or world.Problem();
     report((config.Enabled() and 'On' or 'Off') .. '. ' .. (problem or 'namehook ready.')
         .. ' /chatbubbles on | off | clear | status | test | target [text]');
@@ -154,10 +139,60 @@ ashita.events.register('command', 'chatbubbles_command', function (e)
     if (colors.Problem()) then report(colors.Problem()); end
     report(('NPC text received/attributed: %d/%d; last skipped line: %s')
         :format(stats.npcText, stats.npcAttributed, stats.npcReason));
-end);
+end
+
+-- The settings, the settings window and the command are the shell's; the verbs here are its own
+app = shell.New({
+    defaults     = config.Defaults(),
+    configTitle  = 'Chat Bubbles Settings',
+    hideAppearance = true,
+    menuOnlyCommands = true,
+    command      = '/chatbubbles',
+    help         = '/chatbubbles opens or closes the settings; /chatbubbles on | off | clear | status | test | target [text].',
+    settingsLabel = 'Appearance',
+    drawSettings = config.DrawAppearance,
+    tabs         = { { label = 'Chat Modes', draw = config.DrawModes } },
+    commands     = {
+        on = function () config.SetEnabled(true); status(); end,
+        off = function () config.SetEnabled(false); clear(); status(); end,
+        clear = function () clear(); status(); end,
+        status = status,
+        target = function (_, args)
+            local memory = AshitaCore:GetMemoryManager();
+            local target = memory:GetTarget();
+            local index = target:GetTargetIndex(target:GetIsSubTargetActive());
+            local id = index and index > 0 and index < 0x900 and memory:GetEntity():GetServerId(index) or 0;
+            if (id == 0) then report('Select a nearby target first.'); return; end
+            local text = args[3] and encoding.Decode(table.concat(args, ' ', 3)) or 'Test speech bubble';
+            if (text == '' or not text:find('%S')) then report('Test text cannot be empty.'); return; end
+            config.SetEnabled(true);
+            targetMessage = { text = text, expires = os.clock() + 8, index = index, id = id };
+            report('Local test bubble created for your target (8 seconds). No chat was sent.');
+            status();
+        end,
+        test = function ()
+            config.SetEnabled(true);
+            diagnosticUntil = os.clock() + 8;
+            local speaker = ownName();
+            if (speaker) then
+                bubbles.Add(state, speaker, 'Test speech bubble', os.clock());
+                state.messages[speaker].synthetic = true;
+            end
+            report('8-second test: a fixed label should appear at the top, plus a bubble above your head if an anchor exists.');
+            status();
+        end,
+    },
+    onSettings   = function (options)
+        config.Settle(options);
+    end,
+});
+config.Attach(app);
+if (config.options == nil) then config.Settle(app.options); end
+wasEnabled = config.Enabled();
 
 ashita.events.register('d3d_present', 'chatbubbles_present', function ()
-    config.Draw();
+    app:BeginFrame(); -- the settings window, while it is open
+    if (not app.showConfig[1]) then config.preview[1] = false; end
     if (not config.Enabled()) then
         if (wasEnabled) then clear(); end
         wasEnabled = false;
