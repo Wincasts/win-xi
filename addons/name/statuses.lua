@@ -1,6 +1,7 @@
 -- The statuses over a name: a row of icons above it or below it, for the statuses its player has chosen to see.
 --
 --   statuses.Defaults(defaults)       adds the settings below to an addon's own
+--   statuses.Settle(options)          the settings have been loaded: a new character's statuses chosen
 --   statuses.HandlePacket(e)          every packet in goes by this: what lands on an enemy is kept count of
 --   statuses.Begin(options)           each frame, before any name is set out: whether there is anything
 --                                     to draw this frame, the sheet of icons given to the plugin
@@ -60,16 +61,49 @@ local settings = {
     statusOffsetY = function () return T{ 0 }; end, -- and down (or up, below 0)
     statusCategories = function () return T{ 0xFF }; end, -- which kinds of name have a row: entity_types
     statusIcons  = function () return T{ 'theme' }; end,  -- the icons: as the winxi theme has them, the game's, or the custom set's
-    statusList   = function ()
-        return T{ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 128, 129, 130, 131, 132, 133, 134, 135, 156, 192, 194, 217 };
-    end,
+    -- Empty here, and the chosen statuses given by Settle: Ashita fills each place a saved list lacks
+    -- from the default list, so a list saved shorter than this came back with this one's tail, and
+    -- statuses taken off came back on
+    statusList   = function () return T{ }; end,
+    statusListVersion = function () return 0; end,
 };
+
+-- The statuses ticked to begin with: what ails a character, and what can be told of an enemy
+local function Preset()
+    return T{ 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 19, 132, 133, 134, 135, 156, 192, 194, 217 };
+end
 
 function statuses.Defaults(defaults)
     for key, make in pairs(settings) do
         defaults[key] = make();
     end
     return defaults;
+end
+
+-- A new character's list is the preset. A list saved before has each status once, in order: the
+-- merge had added the default list's tail to it, some statuses more than once.
+function statuses.Settle(options)
+    local list = options.statusList;
+    if (type(list) ~= 'table') then
+        list = T{ };
+    end
+    if (options.statusListVersion ~= 1) then
+        if (#list == 0) then
+            list = Preset();
+        else
+            local seen, kept = {}, T{ };
+            for _, id in ipairs(list) do
+                if (type(id) == 'number' and not seen[id]) then
+                    seen[id] = true;
+                    kept[#kept + 1] = id;
+                end
+            end
+            table.sort(kept);
+            list = kept;
+        end
+        options.statusListVersion = 1;
+    end
+    options.statusList = list;
 end
 
 function statuses.HandlePacket(e)
