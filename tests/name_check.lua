@@ -918,9 +918,10 @@ H.print('a long name: quads', draw.Entities[5].Count, '| in all', draw.QuadCount
 nameplates.SetTexture(9, 1); nameplates.SetTexture(7, 77)
 H.print('texture slots', draw.Textures[7])
 
--- Do not reserve 256 slots for a short name: fill every remaining slot safely.
-nameplates.BeginDrawing(block)
+-- Do not reserve 256 slots for a short name: fill every remaining slot safely. The room there is
+-- is read as drawing begins: the plugin's never changes.
 draw.QuadsMax = 3
+nameplates.BeginDrawing(block)
 nameplates.BeginName(5, 1, 0, 0)
 nameplates.Quad(0, 0, 1, 1, 0, 0, 1, 1, 0xFFFFFFFF, 0, false)
 nameplates.EndName()

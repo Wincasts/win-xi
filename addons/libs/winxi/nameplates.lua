@@ -372,6 +372,7 @@ end
 local draw = nil;      -- the plugin's place for them, between BeginDrawing and the frame's end
 local drawing = nil;   -- the name being drawn
 local horizontalFit = 1; -- opt-in correction from vertical layout pixels to target X pixels
+local quadLimit = 0;   -- how many quads the plugin has room for, as BeginDrawing found it
 local QUADS_PER_NAME = 256;
 local QUADS_MAX = 16384;
 local TEXTURES = 8;
@@ -389,6 +390,7 @@ function nameplates.BeginDrawing(hook, correctAspect)
     draw.Frame = hook.Frame;
     draw.QuadCount = 0;
     draw.Reserved = 0; -- legacy outlines: equal target-pixel X/Y offsets
+    quadLimit = math.min(draw.QuadsMax, QUADS_MAX);
 
     -- Name's layouts are uniform in vertical target pixels. Convert their X coordinates
     -- separately when submitting quads. The live display is the final output, not the
@@ -424,7 +426,7 @@ end
 
 function nameplates.BeginName(entityIndex, alpha, edge, edgeColor)
     drawing = nil;
-    if (draw == nil or entityIndex < 0 or entityIndex >= ENTITIES or draw.QuadCount >= math.min(draw.QuadsMax, QUADS_MAX)) then
+    if (draw == nil or entityIndex < 0 or entityIndex >= ENTITIES or draw.QuadCount >= quadLimit) then
         return false;
     end
 
@@ -439,22 +441,22 @@ function nameplates.BeginName(entityIndex, alpha, edge, edgeColor)
 end
 
 function nameplates.Quad(x0, y0, x1, y1, u0, v0, u1, v1, color, slot, edged, edgeOpacity)
-    if (drawing == nil or drawing.Count >= QUADS_PER_NAME
-            or drawing.First + drawing.Count >= math.min(draw.QuadsMax, QUADS_MAX)) then
+    if (drawing == nil or drawing.Count >= QUADS_PER_NAME or drawing.First + drawing.Count >= quadLimit) then
         return;
     end
 
+    local flags, reserved = edged and 1 or 0, 0;
+    if (edged and edgeOpacity ~= nil) then
+        -- edged, with explicit edge opacity in Reserved's low byte
+        flags, reserved = 3, math.floor(math.max(0, math.min(1, edgeOpacity)) * 255 + 0.5);
+    end
     local quad = draw.Quads[drawing.First + drawing.Count];
     quad.X0, quad.Y0, quad.X1, quad.Y1 = x0 * horizontalFit, y0, x1 * horizontalFit, y1;
     quad.U0, quad.V0, quad.U1, quad.V1 = u0, v0, u1, v1;
     quad.Color = color;
     quad.Texture = slot or 0;
-    quad.Flags = edged and 1 or 0;
-    quad.Reserved = 0;
-    if (edged and edgeOpacity ~= nil) then
-        quad.Flags = 3; -- edged, with explicit edge opacity in Reserved's low byte
-        quad.Reserved = math.floor(math.max(0, math.min(1, edgeOpacity)) * 255 + 0.5);
-    end
+    quad.Flags = flags;
+    quad.Reserved = reserved;
     drawing.Count = drawing.Count + 1;
 end
 

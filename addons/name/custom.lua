@@ -857,6 +857,58 @@ local function writeDetails(options, written, set, sign, own, fit, height, rungH
     return bottom;
 end
 
+-- The entity manager as the names ask it, each answer read once a frame for each entity: the steady
+-- colour, the colour overrides, the health bar and Combat Only each ask after the same name's id, HP,
+-- status and claim, and the game is asked once. It answers with the manager's own methods, those the
+-- manager has, and none it has not.
+local NONE = {}; -- an answer of nil, kept apart from one not yet asked for
+local answers = {}; -- entity index -> { frame, and the answers of that frame }
+local MIRRORED = { GetServerId = 'id', GetHPPercent = 'hp', GetRenderFlags0 = 'flags', GetStatus = 'status',
+    GetClaimStatus = 'claim', GetDistance = 'distance' };
+local asked = { real = nil };
+
+local function answering(method, field)
+    return function (self, index)
+        local kept = answers[index];
+        if (kept == nil) then
+            kept = {};
+            answers[index] = kept;
+        end
+        if (kept.frame ~= frame) then
+            kept.frame = frame;
+            kept.id, kept.hp, kept.flags, kept.status, kept.claim, kept.distance = nil, nil, nil, nil, nil, nil;
+        end
+        local value = kept[field];
+        if (value == nil) then
+            local real = self.real;
+            value = real[method](real, index);
+            kept[field] = value == nil and NONE or value;
+            return value;
+        end
+        if (value == NONE) then
+            return nil;
+        end
+        return value;
+    end
+end
+
+local answerers = {};
+for method, field in pairs(MIRRORED) do
+    answerers[method] = answering(method, field);
+end
+
+-- The manager's answers for this frame: nil where there is no manager
+local function askedOnce(real)
+    if (real == nil) then
+        return nil;
+    end
+    asked.real = real;
+    for method, answer in pairs(answerers) do
+        asked[method] = real[method] ~= nil and answer or nil;
+    end
+    return asked;
+end
+
 -- What a part of a line writes: the name (or Placeholder), the distance, the level (the exact one if
 -- asked for), the letter (the double one if asked for), or its own text
 local function partWords(part, kind, written, nameWords, letter)
@@ -1034,8 +1086,9 @@ function custom.Frame(options, hook, formats)
     -- The entity manager supplies monster death state; distance is read only when a format needs it.
     local MONSTER = nameplates.Category.Monster;
     local memory = AshitaCore:GetMemoryManager();
-    local entities = memory.GetEntity ~= nil and memory:GetEntity() or nil;
+    local entities = askedOnce(memory.GetEntity ~= nil and memory:GetEntity() or nil);
     local colourContext = nameColours.Context(options, memory);
+    healthbar.Begin();
 
     -- a monster that was checked and has died is forgotten before any level is written; what is
     -- written of a level is kept until what is known of levels changes
