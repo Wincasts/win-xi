@@ -150,7 +150,7 @@ Entities are known by index, and an index belongs to another entity after a chan
 
 An addon that draws names itself sets `Claimed` to the categories it draws and `ClaimFrame` to the block's `Frame`, every frame (`nameplates.Claim(categories)`). While it does, a name of those categories that is shown is listed with the wanted flag and without the drawn flag, and the client does not draw it or its stars. A name that is hidden stays hidden: the addon draws what is wanted.
 
-A claim that is not made again lapses 30 frames later, and the client draws the names as before. So an addon that stops, or is unloaded, need do nothing.
+A claim that is not made again lapses half a second after the plugin last saw it made, at any frame rate, and the client draws the names as before. So an addon that stops, or is unloaded, need do nothing.
 
 ### Having the plugin draw the names
 

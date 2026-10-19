@@ -2,6 +2,9 @@
 local imgui = require('imgui')
 local custom = require('custom')
 local diag = require('diag')
+-- a 60th of a second goes by with each frame: a pause is seen after half a second, 30 of them
+local frame = diag.Frame
+diag.Frame = function(...) H.wait(1 / 60); return frame(...) end
 local ffi = require('ffi')
 -- the plugin as not loaded: what is written of it must not stop the rest
 AshitaCore.GetPluginManager = function() return { IsLoaded = function() return false end } end

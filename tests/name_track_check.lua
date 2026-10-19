@@ -35,7 +35,7 @@ local function put(i, index, name, category)
 end
 put(0, 1, 'Jack'); put(1, 2, 'Hare'); put(2, 3, 'Hare'); put(3, 0x401, 'Jack', plates.Category.Player)
 hook.Count = 4
-local function render() hook.Frame = hook.Frame + 1; custom.Frame(options, hook) end
+local function render() hook.Frame = hook.Frame + 1; H.wait(0.03); custom.Frame(options, hook) end -- a frame's time, as H.frames
 local function quads(index) return draw.Entities[index].Count end
 local function first(index) return draw.Quads[draw.Entities[index].First] end
 
@@ -170,6 +170,15 @@ subFlags = 0xFFFFFFFF; hook.Names[2].Scale = 0; render(); hook.Names[2].Scale = 
 H.print('nor its leaps as the choice ends: its own size, without our scale', math.abs(tall(3) - far) < 0.01)
 hook.Names[2].Scale = 0.5; frames(31); hook.Names[2].Scale = 1; frames(6)
 H.print('once settled, the game\'s sizes are followed again', tall(3) == plain)
+-- At 144 frames a second, the game's leap for one frame of its own (a 30th of a second) lasts five
+-- of ours: it is timed, not counted, so it is still not taken; a leap that lasts is, a tenth on
+local function fast(n) for _ = 1, n do hook.Frame = hook.Frame + 1; H.wait(1 / 144); custom.Frame(options, hook) end end
+hook.Names[2].Scale = 0.5; fast(30); local before = tall(3)
+hook.Names[2].Scale = 1; fast(5); local during = tall(3)
+hook.Names[2].Scale = 0.5; fast(1)
+H.print('144 fps: a leap for one of the game\'s frames, five of ours, not taken', during == before, tall(3) == before)
+hook.Names[2].Scale = 1; fast(12); local early = tall(3); fast(4)
+H.print('144 fps: one that lasts is taken a tenth of a second on, and not before', early == before, tall(3) == plain)
 options.subtargetScale[1] = 999; custom.Settle(options)
 H.print('kept within 50 to 200', options.subtargetScale[1] == 200)
 options.subtargetScale = 'big'; custom.Settle(options)

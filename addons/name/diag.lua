@@ -13,8 +13,8 @@
 --   diag.Write(why)           writes a log file, and returns its path or nil and why not
 --   diag.LastPath()           the last file written, or nil
 --
--- The plugin draws the game's names again when a claim is not made for HOOK_CLAIM_FRAMES (30)
--- frames. A pause shorter than that is not seen and is only counted; a longer one is put in the
+-- The plugin draws the game's names again when a claim is not made for HOOK_CLAIM_TIME (half a
+-- second). A pause shorter than that is not seen and is only counted; a longer one is put in the
 -- history, said once in the chat log, and written to a file of its own, once a session for each reason.
 -- Logs go to config\addons\name\logs.
 local bit = require('bit');
@@ -36,7 +36,7 @@ diag.Reasons = {
     off      = 'Custom Nameplates is off, in General',
 };
 
-local SEEN_AFTER = 30;    -- frames: the plugin's HOOK_CLAIM_FRAMES, after which the game's names are back
+local SEEN_AFTER = 0.5;   -- seconds: the plugin's HOOK_CLAIM_TIME, after which the game's names are back
 local HISTORY    = 300;   -- lines kept
 
 local history = {};
@@ -130,7 +130,7 @@ function diag.Frame(now, said)
     frame = frame + 1;
     if (now == reason) then
         if (said ~= nil) then detail = said; end
-        if (reason ~= nil and not seen and frame - since >= SEEN_AFTER) then
+        if (reason ~= nil and not seen and os.clock() - sinceClock >= SEEN_AFTER) then
             seen = true;
             count(reason).seen = count(reason).seen + 1;
             diag.Note('Custom names stopped, the game draws its own: %s', Describe());
@@ -209,7 +209,7 @@ local function snapshot(lines)
     if (hook ~= nil) then
         try(lines, 'Hooked', function () return hook.Hooked; end);
         try(lines, 'Frame / ClaimFrame', function ()
-            return ('%d / %d (%d frames since the claim; it lapses after %d)'):format(hook.Frame, hook.ClaimFrame,
+            return ('%d / %d (%d frames since the claim; it lapses %.1fs after the last)'):format(hook.Frame, hook.ClaimFrame,
                 bit.band(hook.Frame - hook.ClaimFrame, 0xFFFFFFFF), SEEN_AFTER);
         end);
         try(lines, 'Claimed', function () return ('0x%02X'):format(hook.Claimed); end);
@@ -288,7 +288,7 @@ function diag.Write(why)
     snapshot(lines);
 
     lines[#lines + 1] = '';
-    lines[#lines + 1] = '== Pauses since loading (short ones are not seen: the game\'s names come back after 30 frames)';
+    lines[#lines + 1] = '== Pauses since loading (short ones are not seen: the game\'s names come back after half a second)';
     local any = false;
     for key, known in pairs(counts) do
         any = true;

@@ -628,7 +628,7 @@ Off unless turned on, for testers:
 ```
 
 While they are on, Names → Diagnostics shows whether Name is drawing the names (**Custom Names**).
-When Name stops claiming the names for more than 30 frames, about half a second, the game draws
+When Name stops claiming the names for more than half a second, at any frame rate, the game draws
 its own names again. The reason is said once in the chat log and a log is written, once a session for each reason.
 The reasons:
 

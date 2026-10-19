@@ -84,9 +84,9 @@ local TEMPERS       = 6;
 local TEMPER_TOP    = 75;   -- the level from which an ordinary monster has the fifth
 local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
 local SIZE_JUMP     = 0.15; -- a change in the game's size for a name, from one frame to the next, that is no step of a walk
-local SIZE_HOLD     = 4;    -- frames such a change has to last to be believed
+local SIZE_HOLD     = 0.1;  -- seconds such a change has to last to be believed: longer than a frame of the game's own (a 30th)
 local PULSE_SLACK   = 3;    -- of the game's 0x80: how far a channel may stray from a pulse's mix and be counted in it
-local SUB_SETTLE    = 30;   -- frames after a character stops being the sub target that its name's size is still held
+local SUB_SETTLE    = 0.5;  -- seconds after a character stops being the sub target that its name's size is still held
 local SIGN_SIZE     = 0.7;  -- how large the magnifying glass is beside the letters it is written among
 local MAGNIFIER     = 0xF002; -- the magnifying glass, among the icons Ashita's own font has with its letters
 local PROBE         = 65;   -- the letter looked at each frame to see that the font's letters are where they were
@@ -910,7 +910,7 @@ end
 -- held, while the character is the sub target being chosen and for a little after: the game sizes
 -- that name its own way as the choice begins and ends, and none of its leaps is believed then, only
 -- the steps of a walk; Subtarget Scale is the one change of size it has.
-local function steadySize(known, name, held)
+local function steadySize(known, name, held, now)
     local size = math.max(0, math.min(1, name.Scale));
 
     if (held and known.sizeOf == name.ServerId) then
@@ -923,11 +923,11 @@ local function steadySize(known, name, held)
         known.sizeOf, known.size, known.sizeRun = name.ServerId, size, 0;
     elseif (known.sizeRun > 0 and math.abs(size - known.sizeLeap) <= SIZE_JUMP) then
         known.sizeRun = known.sizeRun + 1;
-        if (known.sizeRun >= SIZE_HOLD) then
+        if (now - known.sizeLeapAt >= SIZE_HOLD) then
             known.size, known.sizeRun = size, 0;
         end
     else
-        known.sizeLeap, known.sizeRun = size, 1;
+        known.sizeLeap, known.sizeLeapAt, known.sizeRun = size, now, 1;
     end
 
     known.sizeSeen = frame;
@@ -1284,8 +1284,8 @@ function custom.Frame(options, hook, formats)
             -- same distance, from its largest to its smallest rather than to nothing,
             -- and fades out over the last of it.
             local isSubtarget = subtarget ~= 0 and name.EntityIndex == subtarget;
-            if (isSubtarget) then written.subUntil = frame + SUB_SETTLE; end
-            local nearness = steadySize(written, name, written.subUntil ~= nil and frame <= written.subUntil);
+            if (isSubtarget) then written.subUntil = now + SUB_SETTLE; end
+            local nearness = steadySize(written, name, written.subUntil ~= nil and now <= written.subUntil, now);
             local size = minimumSize + (maximumSize - minimumSize) * nearness;
 
             -- whether it is the notorious monster being hunted, or one of its placeholders: looked

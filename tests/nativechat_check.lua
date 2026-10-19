@@ -49,9 +49,10 @@ local l,t,r,b = observer.ClockAnchor()
 assert(l==8 and t==800 and r==648 and b==1000 and #calls==count, 'clock observes actual replacement pixels without submitting')
 assert(split.ClockAnchor()==nil and input.ClockAnchor()==nil)
 block.StateFlags=4; assert(observer.ClockAnchor()==nil, 'expanded log does not attach clock'); block.StateFlags=0
-for _, stamp in ipairs({'PrimaryRectFrame','ReplacementRectFrame'}) do
-    block[stamp]=7; assert(observer.ClockAnchor()==nil, 'stale anchor expires'); block[stamp]=10
-end
+block.PrimaryRectFrame=7; assert(observer.ClockAnchor()==nil, 'stale anchor expires'); block.PrimaryRectFrame=10
+-- the replacement's place is the addon's, good for eight frames as uihook has it
+block.ReplacementRectFrame=2; assert(observer.ClockAnchor()~=nil, 'a place sent eight frames ago still holds')
+block.ReplacementRectFrame=1; assert(observer.ClockAnchor()==nil, 'past eight it expires'); block.ReplacementRectFrame=10
 block.DrawnFrame[0]=7; assert(observer.ClockAnchor()==nil); block.DrawnFrame[0]=10
 block.NativeFrame[0]=7; assert(observer.ClockAnchor()==nil); block.NativeFrame[0]=10
 block.ReplacementRect[2]=8; assert(observer.ClockAnchor()==nil); block.ReplacementRect[2]=648

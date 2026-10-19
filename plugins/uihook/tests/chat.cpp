@@ -246,6 +246,12 @@ int main() {
     Check(!ChatClockOffset(shared,1000,1000,dx,dy),"log not replayed cannot move clock"); shared.DrawnFrame[0]=10;
     shared.ReplacementRectFrame=0;
     Check(!ChatClockOffset(shared,1000,1000,dx,dy),"released/empty log restores native clock"); shared.ReplacementRectFrame=10;
+    // the game's own stamps are fresh; the addon's place for its log is eight frames old, then nine
+    shared.Frame=18; shared.PrimaryRectFrame=shared.NativeFrame[0]=shared.DrawnFrame[0]=18;
+    Check(ChatClockOffset(shared,1000,1000,dx,dy),"the clock still follows a log the addon placed a few frames ago");
+    shared.Frame=19; shared.PrimaryRectFrame=shared.NativeFrame[0]=shared.DrawnFrame[0]=19;
+    Check(!ChatClockOffset(shared,1000,1000,dx,dy),"nor past eight");
+    shared.Frame=shared.PrimaryRectFrame=shared.NativeFrame[0]=shared.DrawnFrame[0]=10;
     shared.ReplacementRect[1]=NAN;
     Check(!ChatClockOffset(shared,1000,1000,dx,dy),"invalid bounds cannot move clock");
     float verts[]={10,20,123,30,40,456};

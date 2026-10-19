@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.54
+
+- Timed, not counted, so that 144 frames a second is as 60: a leap in a name's size is believed once it has lasted a tenth of a second (it was 4 frames), which is longer than the game's own frame of a 30th under TrueFPS, where the game's full size for a target that has just been taken lasts five frames at 144; the sub target's size is held for half a second after (it was 30 frames); and Diagnostics sees a pause after half a second, as namehook 1.28 does. Needs namehook 1.28 for the game's names to be back after half a second at every frame rate.
+
 ## 1.53
 
 - Settings nothing reads any more are no longer kept. Show Mob Level and Show Aggro Icons are gone, as is an unused one for status icons. Show Icons, Mob Letters and Double Letters, and the per-type health bar tables, are read once more from a file saved before the formats and shared bars took their place, brought over as before, and then let go of. A new character's settings, and a settled character's, are otherwise as they were.

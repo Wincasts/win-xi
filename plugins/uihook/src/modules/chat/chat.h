@@ -6,6 +6,10 @@
 #include <cmath>
 #include <algorithm>
 
+// How long what an addon asks for (a menu's place, the log's) or sends (its replacement's place) is
+// good for: as PARTY_FRESH_FRAMES, so that a few frames the game presents before the addons run again
+// change nothing. What the game itself draws is stamped every frame and held to two.
+#define CHAT_REQUEST_FRAMES 8
 #define CHAT_INPUT_PATTERN "8B 48 0C 85 C9 74 ?? 8B 51 08 85 D2 74 ?? 3B 05"
 #define CHAT_STATE_PATTERN "83 EC ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 0F BF 4C 24 ?? 84 C0"
 // Phoenix full-log constructor: cross-check the vtable before reading its cursor/page fields.
@@ -142,8 +146,9 @@ static inline void ChatClockAnchor(ChatShared& chat,unsigned slot,const float* r
 static inline bool ChatClockOffset(const ChatShared& chat,float width,float height,float& x,float& y) {
     x=y=0;
     if ((chat.StateFlags & CHAT_EXPANDED) || !(chat.SupportedMask & 1) || !std::isfinite(width) || !std::isfinite(height) || width<=0 || height<=0) return false;
-    const uint32_t stamps[]={chat.PrimaryRectFrame,chat.ReplacementRectFrame,chat.NativeFrame[0],chat.DrawnFrame[0]};
+    const uint32_t stamps[]={chat.PrimaryRectFrame,chat.NativeFrame[0],chat.DrawnFrame[0]};
     for (auto stamp:stamps) if (!stamp || chat.Frame-stamp>2) return false;
+    if (!chat.ReplacementRectFrame || chat.Frame-chat.ReplacementRectFrame>CHAT_REQUEST_FRAMES) return false;
     for (unsigned i=0;i<4;i++) if (!std::isfinite(chat.PrimaryRect[i]) || !std::isfinite(chat.ReplacementRect[i])) return false;
     if (chat.PrimaryRect[2]<=chat.PrimaryRect[0] || chat.PrimaryRect[3]<=chat.PrimaryRect[1]
         || chat.ReplacementRect[2]<=chat.ReplacementRect[0] || chat.ReplacementRect[3]<=chat.ReplacementRect[1]) return false;

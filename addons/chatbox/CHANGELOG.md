@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The game's chat history is asked for for ten seconds after loading, at any frame rate, and then given up on (it was 600 frames: ten seconds at 60, four at 144).
+
 - Window Title and Window 2 Title, in the Chatbox section: the words typed there stand on the compact log's
   and the second log window's top edge. Left empty (or only spaces), the compact log is titled by its channel
   and the second Window 2, as before.

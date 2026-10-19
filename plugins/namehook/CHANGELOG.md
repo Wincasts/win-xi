@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.28 — timed, not counted
+
+- A claim lasts half a second without being made again, and a name the client draws more than once a frame is lifted for half a second after the last frame it did: timed by the system's steady clock (`HOOK_CLAIM_TIME`, `LIFT_TIME`, in microseconds), read once a frame. Both were 30 frames, half a second at 60 frames a second and a fifth of one at 144. tests/test.cpp: a clock that goes a frame on each time it is read; a claim lasts 72 frames at 144.
+
 ## namehook 1.27 — eight frames' grace
 
 - What an addon has drawn (names and bubbles) is good for eight frames, not two (`HOOK_DRAW_FRAMES`). Under TrueFPS the game can present a few frames before the addons are next run, and with two the client's own names showed for a frame now and then, along with everything uihook replaces. An addon that stops without a word gives the names back within eight frames: about 90 ms at 90 fps.
