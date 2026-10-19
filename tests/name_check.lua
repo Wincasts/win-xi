@@ -657,53 +657,33 @@ H.print('after 4.9s: still there', still == 255, '| after 5.4: going', going > 0
 H.packetData(0x029, message(0x1000 + 300, 9, 0x46, 300, 174)); H.frames(20)
 H.print('checked again: back', lineAlpha() == 255)
 do
-    o.checkFormat[1] = '[mob: field=family, color=cyan]'; H.frames(1)
-    assert(goblin.Count == 6 + #'Family: Goblin', 'builder check format must render mobdb values live')
-    local q = draw.Quads[goblin.First + 6]
-    assert(q.Color == 0xFF60E0E0 and q.Y0 > draw.Quads[goblin.First].Y0, 'custom check colour and lower row placement')
-    o.checkFormat[1] = '[difficulty]'; H.frames(1)
-    local shortCount = goblin.Count
-    o.abbreviateDifficulty[1] = false; H.frames(1)
-    assert(goblin.Count == shortCount + 8, 'custom check cache responds to difficulty abbreviation changes')
-    o.abbreviateDifficulty[1] = true
-    o.checkFormat[1] = '[mob: field=subjob]'; H.frames(1)
-    assert(goblin.Count == 6, 'missing mobdb fields must omit the item without fake values')
-    o.checkFormat[1] = ''; H.frames(1)
-    assert(goblin.Count > 6, 'empty checkFormat restores the unchanged original check renderer')
+    -- when= and within= on the tokens of a name's own line
     local flags, getEntity = tonumber(block.Names[1].Flags), memory.GetEntity
-    o.checkFormat[1] = '[mob: field=family, when=target, within=3]'
-    block.Names[1].Flags = Flag.Wanted; H.frames(1)
-    assert(goblin.Count == 6, 'target condition hides check data without reserving spacing')
-    block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
-    assert(goblin.Count == 6 + #'Family: Goblin', 'target change must affect cached check data immediately')
-    memory.GetEntity = function() local e = getEntity(); e.GetDistance = function() return 25 end; return e end
-    H.frames(1); assert(goblin.Count == 6, 'distance changes hide cached check blocks')
-    memory.GetEntity = getEntity; H.frames(1)
-    assert(goblin.Count == 6 + #'Family: Goblin', 'distance condition updates without recompiling the format')
-    o.checkFormat[1] = '[mob: field=notorious, when=relevant]'; H.frames(1)
-    assert(goblin.Count == 6, 'irrelevant false data is suppressed only when requested')
-    o.checkFormat[1] = '[mob: field=family, when=nm]'; H.frames(1)
-    assert(goblin.Count == 6)
-    local monster = levels.Monster(300, 'Goblin')
-    monster.Notorious = true; H.frames(1)
-    assert(goblin.Count == 6 + #'Family: Goblin')
-    monster.Notorious = false
     o.showCheckDetails[1] = false
-    o.monsterFormat[1] = format.Serialize({ { kind = 'text', text = 'Lv ', when = 'target' }, { kind = 'name' } })
-    block.Names[1].Flags = Flag.Wanted; H.frames(1)
-    assert(goblin.Count == 6, 'literal labels can be conditional too')
-    block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
-    assert(goblin.Count == 9, 'conditional labels draw only when their condition is met')
     o.monsterFormat[1] = '[name: when=target, within=3]'
     block.Names[1].Flags = Flag.Wanted; H.frames(1)
     assert(goblin.Count == 1 and draw.Quads[goblin.First].Color == 0,
         'fully hidden conditional names use a transparent marker, not client fallback')
     block.Names[1].Flags = Flag.Wanted + Flag.Target; H.frames(1)
     assert(goblin.Count == 6, 'inline token conditions affect both measurement and drawing')
+    memory.GetEntity = function() local e = getEntity(); e.GetDistance = function() return 25 end; return e end
+    H.frames(1); assert(goblin.Count == 1, 'a distance past within= hides the token at once')
+    memory.GetEntity = getEntity; H.frames(1)
+    assert(goblin.Count == 6, 'and within it again, written again, the format not recompiled')
+    o.monsterFormat[1] = 'Lv [level: when=nm] [name]'; H.frames(1)
+    assert(goblin.Count == 10, 'an unmet condition writes nothing for the token; the text round it stays')
+    local monster = levels.Monster(300, 'Goblin')
+    monster.Notorious = true; H.frames(1)
+    assert(goblin.Count == 11, 'met: the token is written, the level the check found, 9')
+    monster.Notorious = false
+    o.monsterFormat[1] = '[name] [letters: when=relevant]'; H.frames(1)
+    assert(goblin.Count == 7, 'relevant: a monster with no letter has none written')
+    o.monsterFormat[1] = '[name] [level: when=checked]'; H.frames(1)
+    assert(goblin.Count == 8, 'checked: this monster was checked above, and found to be 9')
     block.Names[1].Flags = flags
-    o.showCheckDetails[1], o.monsterFormat[1], o.checkFormat[1] = true, '[name]', ''
+    o.showCheckDetails[1], o.monsterFormat[1] = true, '[name]'
     H.frames(1)
-    H.print('builder check line: native mobdb data/colours, cached text, dynamic target/distance/NM/relevance and inline conditions', true)
+    H.print('token conditions: target, within, nm, relevant and checked, on the name\'s own line', true)
 end
 o.showCheckDetails[1] = false; H.frames(1)
 H.print('Show Check Details off: the name alone, quads', goblin.Count)

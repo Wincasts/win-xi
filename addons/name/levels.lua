@@ -35,7 +35,6 @@
 local levels = {};
 local mobLetters = require('mob_letters');
 local zoneNames = require('zone_names');
-local readable = require('mob_readable');
 local mobs = require('winxi.mobs');
 
 local data = nil;      -- the area's tables: { Indices = { [index] = monster }, Names = { [name] = monster } }
@@ -87,7 +86,6 @@ end
 
 function levels.Set(tables, spawnNames, zone, lots)
     data = tables;
-    readable.Clear();
     placeholders, notorious = {}, nil;
     for name, indices in pairs(lots or {}) do
         local set = {};

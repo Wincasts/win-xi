@@ -9,12 +9,10 @@
 --                            what a 'text' part says, color = 0xAARRGGBB, or nil for the name's own }
 --                          ('letter' and 'icons' are also kinds)
 --                          with .distance, .level, .checked, .aggro, .letter and .icons set if present
--- Options: space=N and color=NAME/#RGB on all tokens; size=N/gap=N on icons;
--- decimals=0..2 on distance; type=single/double on [letters] (legacy alias [letter]); exact on [level],
--- the level only once a check has told it, never the database's range.
--- Check formats also support [difficulty], [checklevel], [senses], [links] and
--- [mob: field=family] / [mob: field=modifiers.fire] (see mob_fields.lua).
--- Options may be separated by commas, semicolons or spaces.
+-- Options: space=N and color=NAME/#RGB on all tokens, and when=target+checked+nm+relevant and
+-- within=N (block_rules.lua); size=N/gap=N on icons; decimals=0..2 on distance; type=single/double on
+-- [letters] (legacy alias [letter]); exact on [level], the level only once a check has told it, never
+-- the database's range. Options may be separated by commas, semicolons or spaces.
 --
 -- A colour is #RRGGBB, #RGB or one of the names below.
 --   [name:#FF8000]  [distance:yellow]   that one thing in that colour
@@ -24,7 +22,6 @@
 -- Square brackets round anything else are not taken for anything, and are written as they are. Only
 -- the letters, figures and signs of plain English can be written: the font has no others.
 local format = {};
-local mobFields = require('mob_fields');
 local rules = require('block_rules');
 
 format.Colors = {
@@ -33,8 +30,7 @@ format.Colors = {
     orange = 0xFF9030, purple = 0xC070FF, pink   = 0xFF80C0, cyan   = 0x60E0E0,
 };
 
-format.Things = { name = true, distance = true, level = true, checked = true, aggro = true, letter = true, letters = true, icons = true,
-    mob = true, difficulty = true, checklevel = true, senses = true, links = true, text = true };
+format.Things = { name = true, distance = true, level = true, checked = true, aggro = true, letter = true, letters = true, icons = true };
 
 -- A colour as it is typed, as 0xFFRRGGBB, or nil if it is not one
 local function color(typed)
@@ -57,7 +53,7 @@ end
 -- Legacy [name:yellow] remains shorthand for color=yellow.
 local function parameters(kind, typed, inherited)
     local part = { kind = kind, color = inherited };
-    if (typed == nil) then return kind ~= 'mob' and kind ~= 'text' and part or nil; end
+    if (typed == nil) then return part; end
     local any = false;
     typed = typed:gsub('%s*=%s*', '=');
     for entry in typed:gmatch('[^,;%s]+') do
@@ -71,21 +67,10 @@ local function parameters(kind, typed, inherited)
         elseif (key == 'color') then
             part.color = color(value);
             if (part.color == nil) then return nil; end
-        elseif (kind == 'text' and key == 'value') then
-            if (value == 'empty') then part.text = '';
-            elseif (value:gsub('%%%x%x', '') == '') then
-                part.text = value:gsub('%%(%x%x)', function(hex) return string.char(tonumber(hex, 16)); end);
-            else return nil; end
         elseif (key == 'when') then
             local normalized = rules.Normalize(value);
             if (normalized == nil) then return nil; end
             part.when = normalized ~= '' and normalized or nil;
-        elseif (kind == 'mob' and key == 'display') then
-            if (value ~= 'raw' and value ~= 'names' and value ~= 'both') then return nil; end
-            part.display = value;
-        elseif (kind == 'mob' and key == 'field') then
-            if (not mobFields.ByKey[value]) then return nil; end
-            part.field = value;
         elseif (kind == 'letter' and key == 'type') then
             if (value ~= 'single' and value ~= 'double') then return nil; end
             part.type = value;
@@ -102,7 +87,6 @@ local function parameters(kind, typed, inherited)
             part[key] = math.max(low, math.min(high, math.floor(number)));
         end
     end
-    if ((kind == 'mob' and not part.field) or (kind == 'text' and part.text == nil)) then return nil; end
     return any and part or nil;
 end
 
@@ -240,21 +224,17 @@ function format.Mob(text, showLevel, showAggro, showLetter)
     return parts;
 end
 
--- Serialize copied compiler parts for migrations, without mutating caches.
+-- A line written back from its parts, as a migration rewrites a saved one: the caches are not touched.
 function format.Serialize(parts, doubleLetters)
     local out = {};
     for _, part in ipairs(parts) do
-        if (part.kind == 'text' and not part.when and not part.within and not part.space) then
+        if (part.kind == 'text') then
             out[#out + 1] = part.color and ('[#%06X]%s[/]'):format(part.color % 0x1000000, part.text) or part.text;
         else
             local args = {};
-            if (part.kind == 'text') then
-                local encoded = part.text:gsub('.', function(char) return ('%%%02X'):format(char:byte()); end);
-                args[#args+1] = 'value=' .. (encoded ~= '' and encoded or 'empty');
-            end
             if (part.color ~= nil) then args[#args + 1] = ('color=#%06X'):format(part.color % 0x1000000); end
             if (part.exact) then args[#args + 1] = 'exact'; end
-            for _, field in ipairs({ 'space', 'size', 'gap', 'decimals', 'type', 'field', 'display', 'when', 'within' }) do
+            for _, field in ipairs({ 'space', 'size', 'gap', 'decimals', 'type', 'when', 'within' }) do
                 local value = field == 'type' and part.kind == 'letter' and doubleLetters and 'double' or part[field];
                 if (value ~= nil) then args[#args + 1] = field .. '=' .. tostring(value); end
             end

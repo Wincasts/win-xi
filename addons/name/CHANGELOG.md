@@ -2,6 +2,7 @@
 
 ## 1.55
 
+- What the Experimental Builder alone could make, which went in 1.38, is gone with it: a saved check line (`checkFormat`) is let go of as the settings are loaded, and the original check line is drawn; its tokens `[mob]`, `[difficulty]`, `[checklevel]`, `[senses]`, `[links]` and `[text: value=]` are written as typed, like any other brackets; `mob_fields.lua` and `mob_readable.lua` are gone. `when=` and `within=` on a format's own tokens stay as they were.
 - Colour Overrides with no state ticked ask nothing of the entity. The colour was the game's either way, but the name's HP, and an enemy's claim, were read first for every name every frame.
 - Tests: three checks had been failing unnoticed, as `tests/run.sh` does not stop at a name check. `name_letters_check` runs on its own again (since 1.50 it needs winxi on its path, and an install path for winxi.mobs to look under); `name_healthbar_render_check` follows the shared bars (it set per-type tables the defaults have not had since 1.53) and no longer counts an HP read with bars off that the overrides made; `name_check` colours its enemy by Unclaimed, Targeted having gone in 1.47.
 

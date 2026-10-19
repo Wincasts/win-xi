@@ -38,7 +38,6 @@ local nameColours = require('name_colours');
 local inline = require('inline_tokens');
 local nameTypes = require('name_types');
 local entityTypes = require('entity_types');
-local mobFields = require('mob_fields');
 local rules = require('block_rules');
 local diag = require('diag');
 
@@ -116,7 +115,6 @@ local settings = {
     labelPlaceholders = function () return T{ true }; end, -- its placeholders are named Placeholder
     huntScale = function () return T{ 100 }; end, -- its name's size, as a percentage of the others'
     subtargetScale = function () return T{ 100 }; end, -- the sub target's name's size, as a percentage of the others'
-    checkFormat = function () return T{ '' }; end, -- empty preserves the original icon/text check line
     checkSize = function () return T{ 90 }; end, -- percent of the name's size
     abbreviateDifficulty = function () return T{ true }; end, -- compact difficulty by default
     showCheckDetails = function () return T{ true }; end, -- under a checked monster's name: how hard, what it does
@@ -145,6 +143,7 @@ function custom.Settle(options)
     options.customNames, options.shrink, options.gdiFonts, options.gdiFamily = nil, nil, nil, nil;
     options.targetFormat, options.checkedFormat, options.statusTimers = nil, nil, nil;
     options.showMobLevel, options.showAggroIcons, options.statusFfxivIcons = nil, nil, nil;
+    options.checkFormat = nil; -- the Experimental Builder's check line, which went in 1.38: the original line is drawn
     if (type(options.checkSize) ~= 'table' or type(options.checkSize[1]) ~= 'number' or options.checkSize[1] ~= options.checkSize[1]) then
         options.checkSize = settings.checkSize();
     end
@@ -182,7 +181,7 @@ function custom.Settle(options)
     if (type(options.fontBold) ~= 'table' or type(options.fontBold[1]) ~= 'boolean') then
         options.fontBold = settings.fontBold();
     end
-    for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat', 'checkFormat' }) do
+    for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
         if (type(options[key]) ~= 'table' or type(options[key][1]) ~= 'string') then
             options[key] = settings[key]();
         end
@@ -490,18 +489,9 @@ function custom.DrawSettings(options, save)
                     'Size of check text and icons relative to the name. Applies to both display styles.');
                 controls.Checkbox('Abbreviate Difficulty', '##name.abbreviateDifficulty', options.abbreviateDifficulty,
                     'Use short difficulty labels beside detection/link details. Impossible to Gauge stays ???.');
-                imgui.BeginDisabled(options.checkFormat[1] ~= '');
                 controls.Choice('Display Style', '##name.checkDetailsInWords', options.checkDetailsInWords,
                     { { key = false, label = 'Icons & Text' }, { key = true, label = 'Text Only' } },
-                    'Choose icons with text, or a text-only description. A saved check format uses its own text blocks instead.');
-                imgui.EndDisabled();
-                if (options.checkFormat[1] ~= '') then
-                    imgui.TextWrapped('A saved check format sets the check information.');
-                    if (imgui.Button('Restore Original Check Line##name.resetCheckFormat')) then
-                        options.checkFormat[1] = '';
-                        if (save) then save(); end
-                    end
-                end
+                    'Choose icons with text, or a text-only description.');
                 controls.Help('Help / Examples', '##name.checkHelp',
                     'Text-only example: TW, Sight Aggro, Link: Goblin (Sight).\nAbbreviations: TW, IEP, EP, DC, EM, T, VT and IT. When difficulty is shown alone, full words are used.\nDetection can include Sight, Sound, Blood, Magic, JA, Scent and true senses. Multiple senses are separated by a slash. Link names the monster family and its known Sight/Hearing detection.');
             end
@@ -993,33 +983,6 @@ local function writeDetails(options, written, set, sign, own, fit, height, rungH
     local detailHeight = math.floor(height * detailScale + 0.5);
     local gap = math.floor(detailHeight * DETAIL.Gap + 0.5);
     local monster = written.monster;
-    local source = options.checkFormat and options.checkFormat[1] or '';
-    if (source ~= '') then
-        if (written.checkSource ~= source or written.checkMonster ~= monster or written.checkFound ~= written.found
-                or written.checkLevelAt ~= written.levelAt or written.checkShort ~= options.abbreviateDifficulty[1]) then
-            written.checkSource, written.checkMonster, written.checkFound = source, monster, written.found;
-            written.checkShort, written.checkLevelAt = options.abbreviateDifficulty[1], written.levelAt;
-            local resolved = {};
-            for _, part in ipairs(format.Compile(source)) do
-                local text = mobFields.Value(part, monster, written.found, written.checkShort);
-                if (text ~= '') then resolved[#resolved+1] = { text = text, color = part.color, space = part.space or 0, rule = part }; end
-            end
-            written.checkParts = resolved;
-        end
-        local across = 0;
-        for _, part in ipairs(written.checkParts) do
-            if (rules.Visible(part.rule, written)) then across = across + wordsWidth(set, part.text, detail) + part.space*scale; end
-        end
-        local below = top + height + math.floor(DETAIL.Below*scale+0.5);
-        local at = math.floor(-across*0.5);
-        for _, part in ipairs(written.checkParts) do
-            if (rules.Visible(part.rule, written)) then
-                local color = part.color and part.color%0x1000000+solidity or own;
-                at = writeWords(set, part.text, at, below, detail, color) + part.space*scale;
-            end
-        end
-        return across > 0 and below+detailHeight or top+height;
-    end
     local sheet = (not detailsInWords and monster ~= nil) and sensesTexture() or 0;
     local signs = (monster ~= nil and sheet ~= 0) and signsOf(monster) or nil;
     local links = not detailsInWords and monster ~= nil and monster.Link;
@@ -1160,7 +1123,6 @@ function custom.Frame(options, hook, formats)
 
     local font = getFont(options.font);
     local monsterFormat = format.Compile(options.monsterFormat[1]);
-    local checkFormat = format.Compile(options.checkFormat and options.checkFormat[1] or '');
     local badgeFont = monsterFormat.letter and getFont(letterBadges.Font) or nil;
     levels.DoubleLetters(monsterFormat.doubleLetters == true);
     local fullSize, leastSize = nameTypes.Bounds(options);
@@ -1373,7 +1335,7 @@ function custom.Frame(options, hook, formats)
                     written.ruleTarget = bit.band(name.Flags, TARGET) ~= 0;
                     written.ruleChecked = written.isChecked == true;
                     written.ruleDistance = nil;
-                    if ((parts.distance or parts.ruleDistance or (showDetails and name.Category == MONSTER and checkFormat.ruleDistance)) and entities ~= nil) then
+                    if ((parts.distance or parts.ruleDistance) and entities ~= nil) then
                         -- the game keeps the distance squared
                         local squared = entities:GetDistance(name.EntityIndex);
                         if (type(squared) == 'number' and squared >= 0 and squared < math.huge) then
