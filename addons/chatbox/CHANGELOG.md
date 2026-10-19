@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- The expanded log's rows are drawn where the game draws them. With Replace Expanded Log on, each row's text is
+  centred in the game's own row (uihook measures their rectangles), in the chat's Font at Font Size or, where the
+  game's row is shorter, that height, and the lights on highlighted rows are the game's rows tall. The game hit-tests
+  the mouse against those rows, so the row under the mouse is now the row it lights and chooses; before, the rows
+  were laid out at the compact log's pitch from the bottom, and the highlighted row drifted from the mouse the
+  further up the log it was. Rows above the frame's top (Expanded Height) are clipped by it. Tests:
+  chatbox_ui_check expects each row at the game's place, the lights the game's rows tall, every placed row drawn,
+  and a Font Size past the row's height brought down to it.
 - **Chat Tooltips**, in the Chatbox section (on to begin with): the mouse resting on something named in the
   compact log or Window 2 shows what it is in a Winxi tooltip, drawn after the log is captured and outside it, so
   it is never part of the game's chat. Items, key items and auto-translate phrases are known by the codes the game

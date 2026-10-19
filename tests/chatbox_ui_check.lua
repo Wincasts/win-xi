@@ -420,10 +420,10 @@ rowsGeometry={{left=40,top=820,right=300,bottom=836,text='newest line',mode=1,cu
     {text='nowhere',mode=1,cursor=false}}
 pushedFonts={}; app.options.fontFile='arial.ttf'; decodes=0; frame()
 assert(hooks[0].replace.text,'the game asked to leave its text undrawn')
-assert(#text==2 and text[1].text=='newest line' and text[1].pos[1]==3 and text[1].pos[2]==1020-3-12 and text[1].color==require('palette').Mode(1),
-    'laid out as the compact log: the newest from Left Padding, its text ending at the Bottom Padding, in its mode\'s colour')
-assert(text[2].text=='older' and text[2].pos[2]==1005-14 and text[2].color==require('palette').Mode(12),'the older row Font Size and the row gap above, in a tell\'s colour')
-assert(#images==1 and images[1].a[1]==3+5*7+4 and images[1].a[2]==990,'the cursor after the cursor row\'s text')
+assert(#text==2 and text[1].text=='newest line' and text[1].pos[1]==3 and text[1].pos[2]==820+2 and text[1].color==require('palette').Mode(1),
+    'each row where the game draws it: from Left Padding, centred in the game\'s 16px row, in its mode\'s colour')
+assert(text[2].text=='older' and text[2].pos[2]==804+2 and text[2].color==require('palette').Mode(12),'the older row in the game\'s row above, in a tell\'s colour')
+assert(#images==1 and images[1].a[1]==3+5*7+4 and images[1].a[2]==806-1,'the cursor after the cursor row\'s text, on the game\'s row')
 assert(pushedFonts[1]=='font:arial.ttf' and decodes==2,'the chat\'s font; the two rows with text decoded, the empty and the unplaced not')
 frame(); assert(decodes==2,'the rows decoded once, not every frame')
 rowsGeometry[1].text='older'; frame(); assert(decodes==2,'a row already decoded is known by its bytes')
@@ -454,23 +454,23 @@ end
 assert(not hooks[0].replace.all and #Lights()==0,'an older uihook: the game\'s light and cursor, none of the addon\'s')
 chatState.nativeMirror=true; frame()
 local lit=Lights()
-assert(hooks[0].replace.all and hooks[0].replace.text and #lit==1 and lit[1].a[2]==991-1 and lit[1].b[2]==991+12+1 and lit[1].b[1]==640-3-2-2,
-    'the whole log asked for: the cursor\'s row lit across the log, a line tall with half the gap either side')
+assert(hooks[0].replace.all and hooks[0].replace.text and #lit==1 and lit[1].a[2]==804 and lit[1].b[2]==820 and lit[1].b[1]==640-3-2-2,
+    'the whole log asked for: the cursor\'s row lit across the log, the game\'s row tall')
 assert(#images==1 and #text==2,'the cursor after its text and the rows as before')
 rowsGeometry[1].marked=true; rowsGeometry[2].pressed=true; frame(); lit=Lights()
-assert(#lit==2 and lit[1].a[2]==1004 and lit[1].color~=lit[2].color,'a marked row lit faintly, the held row brighter')
+assert(#lit==2 and lit[1].a[2]==820 and lit[1].color~=lit[2].color,'a marked row lit faintly, the held row brighter')
 rowsGeometry[1].marked=nil; rowsGeometry[2].pressed=nil
 -- where uihook measured the game's highlight: those rows lit, whatever row the cursor flag is on
 rowsGeometry[1].lit=true; frame(); lit=Lights()
-assert(#lit==1 and lit[1].a[2]==1004 and lit[1].b[2]==1018,'the row under the game\'s highlight lit, not the cursor flag\'s')
+assert(#lit==1 and lit[1].a[2]==820 and lit[1].b[2]==836,'the row under the game\'s highlight lit, not the cursor flag\'s')
 rowsGeometry[3].lit=true; frame(); lit=Lights()
-assert(#lit==2 and lit[2].a[2]==976,'every row the game highlights')
+assert(#lit==2 and lit[2].a[2]==788,'every row the game highlights')
 rowsGeometry[1].lit=nil; rowsGeometry[3].lit=nil
--- the game's chosen row past what fits: the view moves up to keep it at the top
+-- every row the game placed is drawn where the game has it, those above the frame's top left to its clip
 local many={}
 for i=1,80 do many[i]={left=40,top=1000-i*16,right=200,bottom=1016-i*16,text='row '..i,mode=1,cursor=i==70} end
 local savedRows=rowsGeometry; rowsGeometry=many; frame()
-assert(#text==math.floor((1017-273+2)/14) and text[#text].text=='row 70' and text[#text].pos[2]>=273,'the cursor\'s row kept in view, at the top')
+assert(#text==80 and text[70].text=='row 70' and text[70].pos[2]==1000-70*16+2 and text[1].pos[2]==1000-16+2,'each row at the game\'s place, the mouse\'s row the game\'s')
 rowsGeometry=savedRows
 -- Timestamps off: the game's rows shown without theirs, back with them as it is turned on
 rowsGeometry[1].text='[12:00:00] newest line'; frame()
@@ -495,7 +495,7 @@ assert(hooks[0].replace.all and hooks[0].replace.text and hooks[0].replace.tabs 
 app.options.mode[1]='game'; frame()
 assert(hooks[0].replace.all and hooks[0].replace.text and hooks[0].replace.tabs and hooks[0].replace.scrollbar
     and #Lights()==1 and #text==2 and #labels==3,'Follow Game: the whole log the addon\'s as well')
-assert(text[1].pos[1]==3 and text[1].pos[2]==1020-3-12,'the rows at the paddings')
+assert(text[1].pos[1]==3 and text[1].pos[2]==820+2,'the rows from Left Padding, at the game\'s places')
 app.options.mode[1]='skin'; frame()
 chatState.nativeMirror=false; frame()
 local said2={}; app.Say=function(_,line) said2[#said2+1]=line end
@@ -503,7 +503,7 @@ spec.commands.status()
 assert(table.concat(said2,'\n'):find('WinXI tabs, scrollbar and text where the game\'s are',1,true) and table.concat(said2,'\n'):find('2 drawn',1,true),'/chatbox status says the text is the addon\'s and how many rows were drawn')
 app.Say=function() end
 app.options.fontSize[1]=24; pushedSizes={}; frame()
-assert(text[1].pos[2]==1017-24 and text[2].pos[2]==1017-24-26 and pushedSizes[1]==24 and labels[1].y<270,'Font Size past the game\'s row spacing: still Font Size and the compact log\'s spacing')
+assert(text[1].pos[2]==820 and text[2].pos[2]==804 and pushedSizes[1]==16 and labels[1].y<270,'Font Size past the game\'s row height: brought down to the row, 16')
 app.options.fontSize[1]=12
 app.options.fontFile=''; pushedFonts={}; frame(); assert(#pushedFonts==0 and #text==2,'the theme\'s font at the row\'s size: nothing named')
 chatState.nativeText=false; frame()
