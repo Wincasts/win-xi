@@ -3,12 +3,12 @@
 --   levels.Of(index, name, id)   what to write for the entity with this index, name and server id:
 --                            the level it was found to be when its player checked it; or the levels it
 --                            can be, '5-6', or '8' where it can only be the one; or nil if neither is known
---   levels.IsChecked(index, id)  whether its player has checked it
 --   levels.Checked(index, id)    what the check found: { text = its level, or nil for one whose strength
 --                            is impossible to gauge, hard = how hard a fight it was said to be, at =
 --                            when, by os.clock, hardShort = difficulty abbreviation (or '???') }, or nil
 --   levels.Monster(index, name)  what the tables say of it, as mobdb has it (Aggro, Link, Sight, Sound,
 --                            Blood, Magic, JA, Scent, TrueSight, Notorious, Family), or nil
+--   levels.HandlePacket(e)   every packet in goes by this: the area entered, checks and deaths
 --   levels.Generation()      a number that changes whenever what levels.Of would say may have
 --   levels.Tidy()            each frame: what was checked and has since died is forgotten
 --   levels.Set(data)         the tables to look in, for whoever has them some other way
@@ -145,10 +145,6 @@ function levels.Checked(index, id)
     return nil;
 end
 
-function levels.IsChecked(index, id)
-    return levels.Checked(index, id) ~= nil;
-end
-
 -- loaded after the area was entered: the area is asked of the game, the once
 local function ensure()
     if (not zoneKnown) then
@@ -248,7 +244,7 @@ function levels.Of(index, name, id)
     return found or nil;
 end
 
-ashita.events.register('packet_in', 'name_levels_packet', function (e)
+function levels.HandlePacket(e)
     -- the area being entered, and the part of it: nothing that was checked is there any more
     if (e.id == 0x00A) then
         forgetAll();
@@ -284,6 +280,6 @@ ashita.events.register('packet_in', 'name_levels_packet', function (e)
         checked[index] = { id = struct.unpack('I', e.data, MESSAGE_TARGET + 1), text = nil, hard = HARD_NO_GAUGE, hardShort = '???', at = os.clock() };
         generation = generation + 1;
     end
-end);
+end
 
 return levels;

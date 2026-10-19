@@ -2,7 +2,6 @@
 --
 --   custom.Defaults(defaults)     adds the settings below to an addon's own
 --   custom.Settle(options)        the settings have been loaded: what an older version kept is brought over
---   custom.Find()                 once, on loading: the bundled player-icon mapping
 --   custom.DrawSettings(options)  the settings tab
 --   custom.Frame(options, hook)   each frame: claims the names and draws them;
 --                                 hook is the plugin's block, as nameplates.Hook gave it this frame.
@@ -127,6 +126,15 @@ local settings = {
     monsterFormat = function () return T{ '[name]' }; end,
 };
 
+-- What Settle makes good: the setting, the kind of value it holds, and for a number its bounds
+local settled = {
+    { 'checkSize', 'number', 50, 125 }, { 'healthBarWidth', 'number', 12, 300 }, { 'healthBarHeight', 'number', 3, 40 },
+    { 'huntScale', 'number', 100, 200 }, { 'subtargetScale', 'number', 50, 200 },
+    { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' },
+    { 'abbreviateDifficulty', 'boolean' }, { 'fontBold', 'boolean' },
+    { 'trackedNm', 'string' }, { 'nameFormat', 'string' }, { 'monsterFormat', 'string' }, { 'npcFormat', 'string' },
+};
+
 function custom.Defaults(defaults)
     nameTypes.Defaults(defaults);
     nameColours.Defaults(defaults);
@@ -144,46 +152,16 @@ function custom.Settle(options)
     options.targetFormat, options.checkedFormat, options.statusTimers = nil, nil, nil;
     options.showMobLevel, options.showAggroIcons, options.statusFfxivIcons = nil, nil, nil;
     options.checkFormat = nil; -- the Experimental Builder's check line, which went in 1.38: the original line is drawn
-    if (type(options.checkSize) ~= 'table' or type(options.checkSize[1]) ~= 'number' or options.checkSize[1] ~= options.checkSize[1]) then
-        options.checkSize = settings.checkSize();
-    end
-    options.checkSize[1] = math.max(50, math.min(125, math.floor(options.checkSize[1])));
-    for _, size in ipairs({ { 'healthBarWidth', 12, 300 }, { 'healthBarHeight', 3, 40 } }) do
-        local value = options[size[1]];
-        if (type(value) ~= 'table' or type(value[1]) ~= 'number' or value[1] ~= value[1]) then
-            value = settings[size[1]]();
-            options[size[1]] = value;
+    -- each setting a file may have otherwise is made its default, and a number kept within its bounds
+    for _, spec in ipairs(settled) do
+        local key, kind = spec[1], spec[2];
+        local value = options[key];
+        if (type(value) ~= 'table' or type(value[1]) ~= kind or value[1] ~= value[1]) then
+            value = settings[key]();
+            options[key] = value;
         end
-        value[1] = math.max(size[2], math.min(size[3], math.floor(value[1])));
-    end
-    for _, key in ipairs({ 'showHealthBar', 'healthBarsCombatOnly' }) do
-        if (type(options[key]) ~= 'table' or type(options[key][1]) ~= 'boolean') then
-            options[key] = settings[key]();
-        end
-    end
-    if (type(options.trackedNm) ~= 'table' or type(options.trackedNm[1]) ~= 'string') then
-        options.trackedNm = settings.trackedNm();
-    end
-    if (type(options.huntScale) ~= 'table' or type(options.huntScale[1]) ~= 'number' or options.huntScale[1] ~= options.huntScale[1]) then
-        options.huntScale = settings.huntScale();
-    end
-    options.huntScale[1] = math.max(100, math.min(200, math.floor(options.huntScale[1])));
-    if (type(options.subtargetScale) ~= 'table' or type(options.subtargetScale[1]) ~= 'number' or options.subtargetScale[1] ~= options.subtargetScale[1]) then
-        options.subtargetScale = settings.subtargetScale();
-    end
-    options.subtargetScale[1] = math.max(50, math.min(200, math.floor(options.subtargetScale[1])));
-    if (type(options.labelPlaceholders) ~= 'table' or type(options.labelPlaceholders[1]) ~= 'boolean') then
-        options.labelPlaceholders = settings.labelPlaceholders();
-    end
-    if (type(options.abbreviateDifficulty) ~= 'table' or type(options.abbreviateDifficulty[1]) ~= 'boolean') then
-        options.abbreviateDifficulty = settings.abbreviateDifficulty();
-    end
-    if (type(options.fontBold) ~= 'table' or type(options.fontBold[1]) ~= 'boolean') then
-        options.fontBold = settings.fontBold();
-    end
-    for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
-        if (type(options[key]) ~= 'table' or type(options[key][1]) ~= 'string') then
-            options[key] = settings[key]();
+        if (kind == 'number') then
+            value[1] = math.max(spec[3], math.min(spec[4], math.floor(value[1])));
         end
     end
 
@@ -236,10 +214,6 @@ function custom.Settle(options)
     options.healthBarCategories = entityTypes.Settle(options.healthBarCategories);
     options.statusCategories = entityTypes.Settle(options.statusCategories);
     nameColours.Settle(options);
-end
-
-function custom.Find()
-    icons.Find();
 end
 
 -- Colours as the plugin takes them, 0xAARRGGBB, all of them solid: a name's fading is told apart.
@@ -519,6 +493,12 @@ local glyphFont = nil;  -- the font they are of
 local glyphTexture = nil; -- imgui's unique id for the font's texture they are in
 local frame = 0;
 
+-- Every size's letters let go of, to be read again as they are asked for: the texture has been made
+-- again or the letters moved in it, the font or the largest size has changed
+local function forgetGlyphs()
+    glyphSets = {};
+end
+
 local function readGlyph(baked, byte)
     local glyph = baked:FindGlyph(byte);
     if (glyph == nil) then
@@ -791,7 +771,7 @@ local function glyphSet(font, height, key)
     local was = set.glyphs[PROBE];
     if (was and now and (was[5] ~= now[5] or was[6] ~= now[6] or was[7] ~= now[7] or was[8] ~= now[8])) then
         -- the letters have been moved: every size's are read again
-        glyphSets = {};
+        forgetGlyphs();
         set = { glyphs = {} };
         glyphSets[key] = set;
     end
@@ -934,7 +914,7 @@ local function fontRungs(height)
         for rung = 1, #RUNGS do
             cachedRungs[rung] = math.max(1, math.floor(height * RUNGS[rung] + 0.5));
         end
-        glyphSets = {};
+        forgetGlyphs();
     end
     return cachedRungs;
 end
@@ -1082,7 +1062,7 @@ function custom.Frame(options, hook, formats)
             diag.Note('Font texture %s (was %s)', tostring(which), tostring(glyphTexture));
         end
         glyphTexture, glyphFont = which, options.font;
-        glyphSets = {};
+        forgetGlyphs();
     end
 
     -- how many pixels of the game's picture there are to one of the screen's: the names are set out
@@ -1426,7 +1406,6 @@ function custom.Frame(options, hook, formats)
                     local left = math.floor(-width * 0.5);
                     local nameLeft = left;
                     local top = 0;
-                    height = math.floor(height + 0.5);
                     local iconTop = math.floor((height - iconSize) * 0.5);
 
                     -- the stars over the middle of it: a small one, a large one, a small one

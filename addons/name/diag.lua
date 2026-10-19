@@ -9,6 +9,7 @@
 --   diag.Error(message)       a Lua error in the frame, with its traceback; the same one is kept once,
 --                             with a count
 --   diag.Note(text, ...)      a line for the history, formatted as string.format would
+--   diag.HandlePacket(e)      every packet in goes by this: the area entered is noted
 --   diag.Status()             a sentence for the settings: drawing, or paused and why
 --   diag.Write(why)           writes a log file, and returns its path or nil and why not
 --   diag.LastPath()           the last file written, or nil
@@ -178,13 +179,13 @@ function diag.LastPath()
     return lastPath;
 end
 
--- the area entered, from the packet that says so
-ashita.events.register('packet_in', 'name_diag_packet', function (e)
+-- every packet in goes by this: the area entered is noted
+function diag.HandlePacket(e)
     if (e.id == 0x00A) then
         zone = struct.unpack('H', e.data, 0x30 + 1);
         diag.Note('Zone in: %d', zone);
     end
-end);
+end
 
 -- What is known now, a line each; nothing here may stop the rest being written
 local function try(lines, label, read)

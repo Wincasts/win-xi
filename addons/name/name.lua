@@ -27,6 +27,7 @@ local custom     = require('custom');
 local statuses   = require('statuses');
 local controls   = require('controls');
 local diag       = require('diag');
+local levels     = require('levels');
 local general    = require('general');
 local nameColours = require('name_colours');
 
@@ -289,25 +290,18 @@ app = shell.New({
         diag.Note('Settings loaded');
     end,
 });
-if (type(app.options.diagnostics) ~= 'table') then
-    app.options.diagnostics = T{ false };
-end
-diag.Options = app.options;
-diag.Enable(app.options.diagnostics[1]);
-
 -- A Lua error in drawing the names is kept for the log, then raised as before
 local function failed(message)
     diag.Error(message, debug.traceback(tostring(message), 2));
     return message;
 end
 
-ashita.events.register('load', 'load_cb', function ()
-    custom.Find();
-end);
-
--- which monsters were called for help on, for their colour; what lands on an enemy is kept count of
--- only while statuses are shown over names
-ashita.events.register('packet_in', 'name_statuses_packet', function (e)
+-- Every packet in, handed to each part that reads them: the area entered, checks and deaths for
+-- levels and the diagnostics' history; which monsters were called for help on, for their colour; and
+-- what lands on an enemy, kept count of only while statuses are shown over names
+ashita.events.register('packet_in', 'name_packet_in', function (e)
+    levels.HandlePacket(e);
+    diag.HandlePacket(e);
     nameColours.HandlePacket(e);
     if (app.options.showStatuses[1]) then
         statuses.HandlePacket(e);
