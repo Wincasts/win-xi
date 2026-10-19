@@ -156,10 +156,9 @@ hook.Names[1].Category, hook.Names[2].Category = plates.Category.Monster, plates
 hp = 50
 options.fontSize[1], options.minSize[1] = 30, 30
 for i, key in ipairs(types.List) do
-    local style = options[key]
-    style.fontSize, style.minSize = { 10 + 10*i }, { 10 + 10*i } -- stale overrides must be ignored
-    style.healthBarWidth[1], style.healthBarHeight[1] = 30 + 30*i, 2 + 2*i
-    style.showHealthBar[1] = false
+    -- the per-type tables a file saved before 1.35 had: stale, and ignored
+    options[key] = { fontSize = { 10 + 10*i }, minSize = { 10 + 10*i },
+        healthBarWidth = { 30 + 30*i }, healthBarHeight = { 2 + 2*i }, showHealthBar = { false } }
 end
 assert(render() == 18)
 for i = 1, 3 do

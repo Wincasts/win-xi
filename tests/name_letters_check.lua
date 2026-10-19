@@ -1,4 +1,4 @@
-package.path = 'addons/name/?.lua;' .. package.path
+package.path = 'addons/name/?.lua;addons/libs/?.lua;' .. package.path -- levels reads winxi.mobs
 local letters = require('mob_letters')
 local indices = {}
 for ordinal = 28, 1, -1 do indices[ordinal * 3] = { Name = 'Goblin' } end
@@ -69,7 +69,8 @@ ashita = { fs = { exists = function(path)
     if file then file:close(); return true end
     return false
 end }, events = { register = function(_, name, callback) events[name] = callback end } }
-AshitaCore = { GetMemoryManager = function() return { GetParty = function() return {
+-- winxi.mobs looks for the area's tables under the install path: none here, so the roster is the game's list alone
+AshitaCore = { GetInstallPath = function() return 'C:\\ashita' end, GetMemoryManager = function() return { GetParty = function() return {
     GetMemberZone = function() return 100 end,
 } end } end, GetResourceManager = function() return { GetFilePath = function(_, id)
     asked[#asked + 1] = id

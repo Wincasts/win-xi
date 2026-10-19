@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.55
+
+- Colour Overrides with no state ticked ask nothing of the entity. The colour was the game's either way, but the name's HP, and an enemy's claim, were read first for every name every frame.
+- Tests: three checks had been failing unnoticed, as `tests/run.sh` does not stop at a name check. `name_letters_check` runs on its own again (since 1.50 it needs winxi on its path, and an install path for winxi.mobs to look under); `name_healthbar_render_check` follows the shared bars (it set per-type tables the defaults have not had since 1.53) and no longer counts an HP read with bars off that the overrides made; `name_check` colours its enemy by Unclaimed, Targeted having gone in 1.47.
+
 ## 1.54
 
 - Timed, not counted, so that 144 frames a second is as 60: a leap in a name's size is believed once it has lasted a tenth of a second (it was 4 frames), which is longer than the game's own frame of a 30th under TrueFPS, where the game's full size for a target that has just been taken lasts five frames at 144; the sub target's size is held for half a second after (it was 30 frames); and Diagnostics sees a pause after half a second, as namehook 1.28 does. Needs namehook 1.28 for the game's names to be back after half a second at every frame rate.

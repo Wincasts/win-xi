@@ -1038,8 +1038,11 @@ do
         assert(math.abs(q.Y1 - draw.Quads[labelled.First].Y1) < 0.001, 'letter retains the name baseline')
     end
     -- Enabled state overrides are authoritative across explicit name/letter tokens and HP fill.
-    local state = o.nameColours.enemyNames.targeted
+    -- Unclaimed, the monster's state here (Targeted was a state until 1.47)
+    local state = o.nameColours.enemyNames.unclaimed
     state.enabled[1], state.color = true, { 0, 1, 0, 1 }
+    local getEntity = memory.GetEntity
+    memory.GetEntity = function() local e = getEntity(); e.GetClaimStatus = function() return 0 end; return e end
     block.Names[0].NameColor = 0x80800000
     o.monsterFormat[1] = '[name: color=cyan][letters: color=yellow]'
     o.showHealthBar[1], alive[300].hp = true, 50
@@ -1056,6 +1059,7 @@ do
         and draw.Quads[labelled.First + 6].Color == 0xFF00FF00,
         'state RGB overrides keep the target\'s steady opacity through the pulse, on the name and letter')
     state.enabled[1], o.showHealthBar[1], alive[300].hp = false, false, 100
+    memory.GetEntity = getEntity
     imgui.GetFontTexUvWhitePixel = whiteUV
     block.Names[0].NameColor = color
     o.monsterFormat[1] = '[name][letter:yellow]'; H.frames(1)

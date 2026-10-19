@@ -126,10 +126,17 @@ local function seeking(icons)
     end
     return false;
 end
+-- Whether any state of a profile is overridden: with none, nothing is asked of the entity
+local function overridden(profile)
+    for _, entry in pairs(profile) do
+        if type(entry) == 'table' and type(entry.enabled) == 'table' and entry.enabled[1] then return true; end
+    end
+    return false;
+end
 function colours.Resolve(options, name, entities, partyIds, corpse, icons)
     local key = types.Key(name.Category);
     local profile = options.nameColours and options.nameColours[key];
-    if profile == nil then return nil; end
+    if profile == nil or not overridden(profile) then return nil; end
     if dead(key, name, entities, corpse) then return picked(profile, 'dead'); end
     if key == 'enemyNames' then
         if colours.CalledFor(name.ServerId) then return picked(profile, 'callForHelp'); end
