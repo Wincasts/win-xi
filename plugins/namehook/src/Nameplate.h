@@ -265,6 +265,14 @@ class Nameplate {
         // Asked for by the probe command, and called from the client's name drawing code, once.
         virtual void ProbeScene() {}
 
+        // The client has drawn a line of a name itself, with its own functions, since the host last
+        // drew for an addon: whatever the host kept of the device's state is no longer the client's
+        virtual void ClientDrew() {}
+
+        // Whether the host may keep the device's state it captured for one addon-drawn name, and put it
+        // back after the next, while the client has drawn nothing between: /namehook keepstates
+        bool KeepsStates() const;
+
         int Init();
         int Deinit();
 

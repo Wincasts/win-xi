@@ -48,6 +48,10 @@ struct TestPlugin : public Nameplate {
 		lastCount = drawing.Count;
 	}
 
+	int clientDrew = 0;
+	void ClientDrew() override {
+		clientDrew++;
+	}
 	void DrawBubble(uint32_t, const HookDrawing& drawing, const HookQuad* quads, const float*) override {
 		bubbles++;
 		CHECK(drawing.Count == 1 && quads == &Bubbles.Draw.Quads[0]);
@@ -918,16 +922,42 @@ int main() {
 	plugin.ParseCommand("/namehook othercalls sometimes", true);
 	CHECK(plugin.errors.size() == 1 && plugin.errors[0] == "othercalls");
 	plugin.errors.clear();
+
+	// the device's state is captured once a run of names unless told otherwise, and the choice is kept
+	CHECK(plugin.KeepsStates());
+	plugin.ParseCommand("/namehook keepstates off", true);
+	CHECK(!plugin.KeepsStates());
+	plugin.ParseCommand("/namehook save", true);
+	KeepStates = 1;
+	plugin.ParseCommand("/namehook load", true);
+	CHECK(!plugin.KeepsStates());
+	plugin.ParseCommand("/namehook keepstates on", true);
+	CHECK(plugin.KeepsStates());
+	plugin.ParseCommand("/namehook keepstates later", true);
+	CHECK(plugin.errors.size() == 1 && plugin.errors[0] == "keepstates");
+	plugin.errors.clear();
+	plugin.ParseCommand("/namehook save", true);
 	Globals.DrawNameLineCallCount = 0;
 	Shared.Hooked = 0;
 	OtherCalls = 1;
 
-	// a line that is nobody's is the client's to draw, and is counted
+	// a line that is nobody's is the client's to draw, and is counted; the host is told each time the
+	// client draws a line itself, and not when it does not
 	plugin.Publish(nullptr, nullptr, true);
 	lines = 0;
+	plugin.clientDrew = 0;
 	DrawNameLine(nullptr, nullptr, where, "Nobody", one, 0, 0);
 	plugin.Publish(nullptr, nullptr, true);
-	CHECK(lines == 1 && Globals.UnownedLast == 1);
+	CHECK(lines == 1 && Globals.UnownedLast == 1 && plugin.clientDrew == 1);
+	plugin.ParseCommand("/namehook show all", true);
+	Shared.Claimed = 0;
+	Fresh();
+	CHECK(Drawn(buddy) && plugin.clientDrew == 3);
+	Shared.Claimed = CATEGORY_ALL;
+	Shared.ClaimFrame = Shared.Frame;
+	Fresh();
+	CHECK(!Drawn(buddy) && plugin.clientDrew == 3);
+	Shared.Claimed = 0;
 
 	// the game's own "names off" still wins
 	namesOff = true;
