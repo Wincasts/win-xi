@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Tooltip Notes, under Chat Tooltips (on to begin with): the dimmed lines of a chat tooltip, the catalogs' caveats
+  and a phrase's category and kind. Off, only the name and the facts are drawn, and no gap is left for them.
+  links.Tooltip takes it as its second argument. Tests: chatbox_links_check an item and a phrase without their notes;
+  chatbox_ui_check the switch passed through, in the Chatbox section while Chat Tooltips is on, and made whole.
 - The expanded log's rows are drawn where the game draws them. With Replace Expanded Log on, each row's text is
   centred in the game's own row (uihook measures their rectangles), in the chat's Font at Font Size or, where the
   game's row is shorter, that height, and the lights on highlighted rows are the game's rows tall. The game hit-tests
