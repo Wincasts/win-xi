@@ -10,7 +10,7 @@ local o = H.options()
 imgui.GetFrameHeightWithSpacing = function() return 20 end
 require('custom').Defaults(o)
 for _, key in ipairs({ 'showSelf', 'showParty', 'showAlliance', 'showPlayers', 'showMyPet', 'showPets', 'showNpcs', 'showMonsters' }) do o[key][1] = true end
-o.showStars[1], o.showIcons[1], o.fontSize[1], o.monsterFormat[1] = true, false, 16, '[name]'
+o.showStars[1], o.fontSize[1], o.monsterFormat[1] = true, 16, '[name]'
 
 H.print('settings: shown, at 100%, moved 2 px right and 5 up', o.showStatuses[1], o.statusSize[1] == 100 and o.statusOffsetX[1] == 2 and o.statusOffsetY[1] == -5, '| what ails a character chosen to begin with', #o.statusList, o.statusList[1], o.statusList[#o.statusList])
 -- the rows below are measured from the module's own baseline: 125%, not moved
