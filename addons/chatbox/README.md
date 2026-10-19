@@ -1,8 +1,8 @@
 # Chatbox — experimental 0.11
 
 A **WinXI-styled chat log the game still drives**. The compact log takes the native primary log's
-place and **size** (it follows the game's chat size setting), in WinXI's background and border art,
-with **12px text** and **3px padding** to begin with. New messages appear at the bottom; long ones
+place and **size** (it follows the game's chat size setting), in the game's own plain look or in WinXI's
+background and border art (**Mode**: Follow Game or WinXI Skin), with **12px text** to begin with. New messages appear at the bottom; long ones
 wrap and count as rows. A WinXI title on the top edge names the channel. Typing goes into a WinXI
 input bar over the game's own editor, and confirming on the log opens the game's own expanded log
 in a WinXI frame, its channel tabs and scrollbar drawn in WinXI's look and its text in the chat's font,
@@ -27,8 +27,8 @@ each where the game's are.
 - The log lifts above the input bar while typing, and the game's clock and its icons follow the top
   of the log.
 - With **Log Window 2** on in the game's settings, a second box stands where the game puts its second
-  window, over the first (its own game width and height with Follow Native Settings) or beside it (the game's width and
-  gap, the first's bottom), titled Window 2 (or **Window 2 Title**). Each box shows the messages the
+  window, over the first (its own game width and height in Follow Game) or beside it (the game's width and
+  gap, the first's bottom), titled Window 2 (or **Window 2 Title**) in WinXI Skin. Each box shows the messages the
   game's Log Window settings route to its window, read from the game, and scrolls on its own; the
   focus light follows the game's focus between them.
 - Each box has as many rows as the game's window shows at the moment: the game grows its window a
@@ -186,143 +186,116 @@ the updated chatbox and Winxi 22 directories. The existing chat ABI remains 13.
 
 ## Settings
 
-`/chatbox` opens Settings (seven collapsible sections), Info Panel, and Winxi Theme tabs.
-Settings are kept for each character. **Follow Native Settings** selects native sizing for both
-log and input. While enabled, the **Custom Behaviour** controls are greyed out and ignored, but
-retain their saved values for switching back. Chatbox's general controls and the sections marked
-**Shared** apply to both behaviours.
+`/chatbox` opens Settings, Info Panel and Winxi Theme tabs. Settings are kept for each character. The
+Chatbox section applies in both modes; the Layout, Activity and Look sections are the WinXI Skin's and
+are shown only in it (their settings are kept, and ignored, in Follow Game).
 
 **Chatbox**
 
 - **Replace Native Chat**: the WinXI log and input bar in place of the game's (on to begin with).
+- **Mode**: **Follow Game** (to begin with) or **WinXI Skin**.
+  - *Follow Game*: the log, the input bar and the expanded log where the game puts its own, at its sizes,
+    in its look. Each log follows its game window's size and its lines, as the game grows its window a row
+    for each message and shrinks it to its fewest while none come (at 0 lines nothing is drawn); the second
+    window stands where the game shows it, with the game's width and gap; the input bar takes the game's
+    place, width and height (a font too large for that height grows the bar enough to fit, its text
+    centred). The look is the game's: a plain translucent dark rectangle (an approximation of the game's
+    colour, to be checked in game), no border art, title, shadow or scrollbar (the wheel still scrolls),
+    the text in the game's colours 4 px in from the sides and 1 px above and below, as the game's. The
+    expanded log opens where the game puts it, at its full height, its tabs, scrollbar, cursor and lights
+    the game's own and untinted; only its rows are drawn, in the chat's font.
+  - *WinXI Skin*: the theme's background and border art, a title on the top edge, the theme's shadow and
+    the slim scrollbar, sized and coloured by the three sections below.
 - **Timestamps** (on to begin with): the time in front of each line as SimpleLog's Timestamps or
   Ashita's timestamp addon writes it; chatbox adds none of its own. Off, those are hidden in the
   compact log, Window 2 and the expanded log; the messages keep them, so turning it on shows them
   again at once. Enable timestamps in either SimpleLog or the timestamp addon to supply them;
   avoid enabling both providers at once to prevent duplicate stamps. `/chatbox timestamps on`
   and `off` do the same. There is no history-clear button; `/chatbox clear` remains available.
-- Under them, how to select and expand the log, and the bridge's status.
-
-**Native Behaviour**
-
-- **Follow Native Settings** (on to begin with): combines the former log-size and input-size
-  switches. Each log follows its own native window size and native content-driven growth/shrinking;
-  the input follows native width, height and placement, with text centred. A font too large for the
-  native height grows the frame enough to fit. Custom rows, resizing, animation and fading do not
-  override native behaviour while enabled.
-- The last native input width ratio is retained while input is closed. Missing/stale geometry
-  falls back safely, and `/chatbox status` reports it. Existing configurations migrate to native
-  mode if either old match switch was enabled; the new setting takes precedence thereafter.
-- Off, both boxes use custom Width and row counts, and the input sits on the native chat base.
-
-**Custom Behaviour — Sizing**
-
-- **Width**: 240 to 1200 pixels (640 to begin with), with Follow Native Settings off. Also sets the
-  expanded view's width, capped at its native bounds; its replacement tabs, scrollbar and text clipping
-  follow that width. With Follow Native Settings on, the expanded view retains its native width.
-- **Window 1 Rows / Window 2 Rows**: independently choose 1–50 rows for either compact log.
-  **0 (Automatic)**, the default, uses ten rows. A custom count sets only that window's height,
-  preserving its width.
-  With Auto Resize enabled, this becomes its maximum row count. Expanded history is unaffected.
-- The same section contains the activity controls described below.
-
-**Text (Shared)**
-
 - **Font**: the log's and input bar's font, the theme's (to begin with) or any `.ttf` in
   `C:\Windows\Fonts`. Japanese and other non-Latin text need a font with those glyphs.
-- **Font Size**: 8 to 24 pixels (12 to begin with); both boxes grow with it. The expanded log's text
-  is this size too, with Replace Text, laid out as the compact log's.
+- **Font Size**: 8 to 24 pixels (12 to begin with); the boxes grow with it, and the expanded log's text
+  is this size too. In Follow Game, **Automatic** (0) takes the size the game's rows give: the first
+  window's row pitch (its height over the lines it shows) less the row gap, read where the reading is
+  sound and kept until another is, 12 until the first; so the rows stand where the game's do.
+- Under them, how to select and expand the log, and the bridge's status.
 
-**Padding (Shared)**
+**Layout** (WinXI Skin)
 
-- **Left Padding**, **Right Padding**, **Top Padding** and **Bottom Padding**: 0 to 40 pixels each
-  (3 to begin with), for the log and the input bar. Long lines wrap between the left and right
-  padding. Independently sized logs fit exactly their row count plus top and bottom padding, with
-  two pixels between rows and no extra title headroom. When matching the game's height, whole rows
-  are centred between the paddings, any spare part of a row shared above and below. The input bar is Font Size plus both vertical paddings tall, its text and caret
-  always centred in the whole bar, and has a plain `> ` prompt. Settings still at the first default
-  of 4 on every side become 3 once; paddings set by hand are kept.
-
-**Custom Behaviour — Activity (Smart Visibility)**
-
-Window 1 and Window 2 have independent settings. All automatic behavior is **off by default**
-and applies only with **Follow Native Settings off**.
-
-- **Auto Resize**: grows the compact log to fit recent wrapped messages routed to that window,
-  up to its normal capacity, then shrinks as messages age out. The ten-row manual layout remains
-  its maximum unless **Window 1 Rows** or **Window 2 Rows** supplies a custom maximum.
-- **Animate Resize**: optional smooth growth and shrinkage with Auto Resize, anchored at the
-  bottom edge. Stacked windows follow the animated edge; rows are revealed/clipped at the top.
-  Once settled, the box fits its exact row count and padding. Off by default.
-- **Resize Duration**: 0.05–2 seconds, **0.2** by default, for each size transition. New content
-  arriving during a transition smoothly retargets it from its current height.
-- **Fade When Idle**: fades the log away after no messages reach it
-  for **Idle Time**. A new routed message fades it back in over 0.2 seconds. This can be used
-  alone for a fixed-size log, or together with Auto Resize.
-- **Idle Time**: 1–300 seconds, **15** by default. Also determines how long messages contribute
-  rows to Auto Resize. Activity in the other window does not reset this timer.
-- **Fade Duration**: 0.1–10 seconds, **1** by default, for fading out.
-- **Minimum Rows**: 0–50, **0** by default, capped at the log's normal capacity. Auto Resize
-  keeps this many rows while idle; zero hides it entirely.
-
-Typing restores both available compact logs to full size and opacity immediately, bypassing resize animation. Selecting a log, scrolling
-back in it, or dragging its scrollbar keeps that log visible. The fade idle delay restarts after
-interaction. Expanded history is unaffected. Messages stay in history when hidden; opening or
-scrolling the log still lets you read them. Imported history does not count as new activity.
-Native log capture remains active while hidden, so the game's original log does not show through.
-When both logs disappear, the info panel stays visible on its own. Collapsed logs reserve zero
-layout height; the panel-only capture and native menu anchor use the visible panel's actual bounds.
-One-row logs and small panels also bypass ImGui's normal minimum window height, so their actual
-window geometry matches the requested size.
-
-**Expanded (Shared)**
-
-With **Follow Native Settings** off, the expanded frame uses the
-custom **Width** from Size, capped at the native expanded window's bounds. Its replacement tabs,
-scrollbar, row highlights and text clipping use the same width. The game still controls history row
-wrapping, selection and hit-tests: narrowing the replacement view clips long native rows rather
-than rewrapping them. Native controls left unreplaced still use their native positions.
-
-- **Replace Tabs** (on to begin with): the expanded log's channel tabs drawn as WinXI buttons, each
-  whole and in the game's order, the chosen one lit as the game chooses it (Square, the arrows). The
-  game's mouse clicks on its tabs stay at its own places. Off, the game's own tabs are drawn, tinted.
-- **Replace Scrollbar** (on to begin with): the expanded log's scrollbar drawn as the compact log's,
-  a thin thumb and no track inside the log's right edge, over the game's bar's height and where its
-  page is; scrolling, and dragging the game's bar, are still the game's. Off, the game's own
-  is drawn, tinted.
-- **Replace Text** (experimental, on to begin with): the expanded log's rows of text drawn in the
-  chat's Font at Font Size, each row centred where the game draws
-  its own and in the game's colours, so the cursor, hovering, Confirm and scrolling are still the
-  game's. Off, the game's own font.
-- The expanded log's window is the compact log's: the same padding, Font Size, shadow and **Window
-  Colors**, its foot where the newest row's text and Bottom Padding end, and its rows from Left
-  Padding in the chat's Font at Font Size.
+- **Width**: 240 to 1200 pixels (640 to begin with). Also the expanded view's width, capped at its native
+  bounds; its tabs, scrollbar and text clipping follow that width. The game still controls history row
+  wrapping, selection and hit-tests: narrowing the view clips long native rows rather than rewrapping them.
+- **Window 1 Rows / Window 2 Rows**: independently choose 1–50 rows for either compact log.
+  **0 (Automatic)**, the default, uses ten rows. A custom count sets only that window's height,
+  preserving its width. With Auto Resize enabled, this is its maximum row count. Expanded history is
+  unaffected.
+- **Expand In Place** (on to begin with): the expanded log opens where the chat log stands, its
+  bottom-left on the first log's; the info panel is hidden while the log is expanded, so with Anchor
+  Bottom the log takes the panel's place as well. Its rows, hovering, Confirm and scrolling move with it, as
+  the game lays them out there. Off, where the game puts it.
 - **Expanded Height** (75% to begin with, 25 to 100): how far up the screen the expanded log reaches,
   its top that share of the screen's height up from the bottom and never above the game's own window;
   the tabs stand on its top and the scrollbar keeps within it. The game's rows above it are cut off.
   100% is the game's own.
-- **Expand In Place** (on to begin with): the expanded log opens where the chat log stands, its
-  bottom-left on the first log's; the info panel is hidden while the log is expanded, so with Anchor
-  Bottom the log takes the panel's place as well. Its rows, hovering, Confirm and scrolling move with it, as the game lays them
-  out there. Off, where the game puts it.
-- **Replace Cursor** (on to begin with): with the three above on, the expanded log mirrored whole:
-  the game draws nothing of it, and chatbox draws its cursor, the light on the cursor's row and the
-  game's marked rows as well. The game still moves the cursor, follows the mouse and takes Confirm.
-  Off, the game's own, tinted.
 
-**Window Colors (Shared)**
+**Activity** (WinXI Skin)
 
-**Chat Log Window** and **Input Text Box** each have an **Own Color** box and colour picker for:
+Window 1 and Window 2 have independent settings, all **off by default**. Each switch shows its own
+controls only while it is on.
 
-- **Background**, with its opacity, over the chosen WinXI background style.
-- **Border / Art Tint**, with its opacity: a plain border's colour or the border art's tint (the
-  art keeps its shading). Its alpha replaces Border Opacity for that window.
-- **Default Text**: the log's base text colour (inline colours, source timestamps among them, still
-  win), or the input's text, prompt and caret.
-- **Title**, on the log only.
+- **Auto Resize**: grows the compact log to fit recent wrapped messages routed to that window,
+  up to its rows, then shrinks as messages age out. With it on:
+  - **Animate Resize**: smooth growth and shrinkage, anchored at the bottom edge. Stacked windows
+    follow the animated edge; rows are revealed/clipped at the top. Once settled, the box fits its exact
+    row count and padding. With it on, **Resize Duration**: 0.05–2 seconds, **0.2** by default, for each
+    size transition; new content arriving during a transition retargets it from its current height.
+  - **Minimum Rows**: 0–50, **0** by default, capped at the log's rows. Rows left while idle; zero
+    hides the log entirely.
+- **Fade When Idle**: fades the log away after no messages reach it for Idle Time. A new routed
+  message fades it back in over 0.2 seconds. Alone, for a fixed-size log, or with Auto Resize. With it
+  on, **Fade Duration**: 0.1–10 seconds, **1** by default, for fading out.
+- **Idle Time**, with either on: 1–300 seconds, **15** by default. How long a message counts as recent:
+  Auto Resize keeps rows for it, and Fade When Idle starts fading after it. Activity in the other
+  window does not reset this timer.
 
-Unchecked colours follow the shared or local WinXI theme. **Follow WinXI Theme** turns a window's
-boxes off and keeps the colours chosen. None of these change the theme or other addons.
+Typing restores both available compact logs to full size and opacity immediately, bypassing resize
+animation. Selecting a log, scrolling back in it, or dragging its scrollbar keeps that log visible. The
+fade idle delay restarts after interaction. Expanded history is unaffected. Messages stay in history
+when hidden; opening or scrolling the log still lets you read them. Imported history does not count as
+new activity. Native log capture remains active while hidden, so the game's original log does not show
+through. When both logs disappear, the info panel stays visible on its own. Collapsed logs reserve zero
+layout height; the panel-only capture and native menu anchor use the visible panel's actual bounds.
+One-row logs and small panels also bypass ImGui's normal minimum window height, so their actual
+window geometry matches the requested size.
+
+**Look** (WinXI Skin)
+
+- **Window Title** and **Window 2 Title**: your own words on each box's top edge; left empty, the
+  channel and Window 2.
+- **Left Padding**, **Right Padding**, **Top Padding** and **Bottom Padding**: 0 to 40 pixels each
+  (3 to begin with), for the log and the input bar. Long lines wrap between the left and right
+  padding. Independently sized logs fit exactly their row count plus top and bottom padding, with
+  two pixels between rows and no extra title headroom. The input bar is Font Size plus both vertical
+  paddings tall, its text and caret always centred in the whole bar, and has a plain `> ` prompt.
+  Settings still at the first default of 4 on every side become 3 once; paddings set by hand are kept.
+- **Replace Expanded Log** (on to begin with): the expanded log's channel tabs drawn as WinXI buttons,
+  each whole and in the game's order, the chosen one lit as the game chooses it; its scrollbar drawn
+  as the compact log's, where the game's is; its rows of text in the chat's Font at Font Size, each
+  row centred where the game draws its own and in the game's colours; and, with uihook 0.6, its
+  cursor, the light on the cursor's row and the game's marked rows, so that nothing of the game's is
+  drawn in it. The game still moves the cursor, follows the mouse on its own places and takes Confirm,
+  Square and the wheel. Off, the game's own are drawn in the WinXI frame, tinted to the theme.
+- **Chat Log Window** and **Input Text Box**: **Override Colours** and, with it on, **Background**
+  (with its opacity, over the chosen WinXI background style), **Border / Art Tint** (a plain border's
+  colour or the border art's tint, the art keeping its shading; its alpha the border's opacity),
+  **Default Text** (the log's base text colour, inline colours still winning, or the input's text,
+  prompt and caret) and, on the log, **Title**. Off, the shared or local WinXI theme's; the colours
+  chosen are kept. None of these change the theme or other addons.
+
+Settings from before these: Follow Native Settings on (or, before it, either of Match Game Log Size and
+Match Game Input Size) becomes Follow Game, off WinXI Skin; the four Replace switches of the expanded
+log become Replace Expanded Log, on where all were; each window's Own Color boxes become Override
+Colours, on where any was. The old keys are dropped.
 
 ## Native behaviour and limitations
 
@@ -364,9 +337,10 @@ browser**, at its full-log rectangle: uihook replaces the decoration and lets th
 rows, selection and cursor where its mouse hit-tests are. Browsing, tabs, wheel, Confirm (with its
 message-action menus) and Cancel are all native; no tell is made up, and every tab uses the game's
 own filter. The **tabs, scrollbar and text** are the addon's: uihook measures the game's tab strip,
-scrollbar and rows of text as the game draws them and, with Replace Tabs, Replace Scrollbar and
-Replace Text on, leaves them undrawn, and the addon draws its own in exactly those places the frame
-after. The game draws each tab not chosen only its first 30 units wide, the next over the rest; the
+scrollbar and rows of text as the game draws them and, with Replace Expanded Log on (WinXI Skin),
+leaves them undrawn, and the addon draws its own in exactly those places the frame after. In Follow
+Game only the rows are left undrawn and drawn again in the chat's font; the rest is the game's own,
+untinted. The game draws each tab not chosen only its first 30 units wide, the next over the rest; the
 addon draws every tab whole, as **WinXI buttons** side by side from where the game's strip starts, all
 as wide as the longest name needs (narrowed only to fit the log): rounded, over the log's
 **Background** colour, in a game window's button colour (the **Border / Art Tint**, faint), the
@@ -382,20 +356,20 @@ scrollbar is the compact log's: a thin white thumb, no track, inside the log's r
 game's bar and where the game's page is among its rows, brighter while the mouse is on it or on the
 game's bar, which the game still drags. A tab that cannot be named is named for
 its place. Nothing is moved, so Square, the mouse and the wheel still work on the
-game's own controls. With either off, or without a fresh place from uihook (the first frame, or a
+game's own controls. With Replace Expanded Log off, or without a fresh place from uihook (the first frame, or a
 build without the hooks), the game's own are drawn: the selected tab and row highlight in the
 Highlight Color, other tabs the Title colour, the cursor and scrollbar the **Border / Art Tint**,
 native fade and pulse kept. The row highlight and cursor are the game's, tinted so, unless Replace
-Cursor mirrors the whole log: then uihook leaves the full log wholly undrawn (with uihook 0.6) and the
+Expanded Log mirrors the whole log: then uihook leaves the full log wholly undrawn (with uihook 0.6) and the
 addon lights the row the game highlights (uihook measures the game's highlight as it is drawn and
 flags the rows under it; the cursor's row with an older uihook) from the left of its text to the scrollbar, a row's pitch tall, in the
 Highlight Color (brighter while held down), lights a row the game marks faintly, and draws the cursor
 after the cursor row's text; which row that is, is the game's, read as it draws.
-The **text** is the addon's with Replace Text on: uihook decodes each of the game's rows as the
+The **text** is the addon's with Replace Expanded Log on, and in Follow Game: uihook decodes each of the game's rows as the
 game draws it (its glyph words back to the bytes the game was given, colour codes and all) and
 measures the row, and the addon lays the rows out as the compact log does: the chat's **Font** at
 **Font Size**, Font Size + 2 apart, the newest ending at the **Bottom Padding** and older ones up from
-it, from the log's left edge in by **Left Padding**, in the log's Default Text colour when it
+it, from the log's left edge in by **Left Padding** (the game's own room in Follow Game), in the log's Default Text colour when it
 has its own, otherwise its message's chat-mode colour with the game's inline colours kept and auto-translate brackets as shapes, clipped
 to the log's box; the game's cursor is drawn after the cursor row's text, where the game puts its
 mark. Which rows there are and their wrapping, the cursor, Confirm and its menus and the wheel are
