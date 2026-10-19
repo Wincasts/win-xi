@@ -367,13 +367,13 @@ function controller.IsActive(binding)
     return binding ~= nil and binding.active() and true or false;
 end
 
--- Marks the window being drawn as the one the controller is working: a bright line around its edge.
+-- Marks the window being drawn as the one the controller is working: a thin, soft line around its
+-- edge, enough to tell which window the buttons act in without drawing the eye.
 -- Called between the window's Begin and End, and not from inside a child of it; it draws nothing
 -- unless the binding has the controller. winxi.window does this itself, given the binding as its
 -- controller option.
-controller.HighlightColor = { 0.23, 0.67, 0.91, 1.0 };
+controller.HighlightColor = { 0.55, 0.75, 0.90, 0.55 };
 
-local highlightGlow = { 0, 0, 0, 0 };
 local highlightMin, highlightMax = { 0, 0 }, { 0, 0 };
 local clipMin, clipMax = { 0, 0 }, { 0, 0 };
 
@@ -405,25 +405,17 @@ function controller.Highlight(binding)
     local w, h = imgui.GetWindowSize();
     local rounding = WindowRounding();
 
-    -- the colours are worked out each time, as they take in the window's fade
-    local color = controller.HighlightColor;
-    highlightGlow[1], highlightGlow[2], highlightGlow[3] = color[1], color[2], color[3];
-    highlightGlow[4] = color[4] * 0.35;
-
     -- the window's own list, so that the line sits with the window among the others, opened up to
-    -- take in its very edge and a little past it
+    -- take in its very edge; the colour is worked out each time, as it takes in the window's fade
     local drawList = imgui.GetWindowDrawList();
-    clipMin[1], clipMin[2] = x - 3, y - 3;
-    clipMax[1], clipMax[2] = x + w + 3, y + h + 3;
+    clipMin[1], clipMin[2] = x - 1, y - 1;
+    clipMax[1], clipMax[2] = x + w + 1, y + h + 1;
     drawList:PushClipRect(clipMin, clipMax, false);
 
-    highlightMin[1], highlightMin[2] = x - 2, y - 2;
-    highlightMax[1], highlightMax[2] = x + w + 2, y + h + 2;
-    drawList:AddRect(highlightMin, highlightMax, imgui.GetColorU32(highlightGlow), rounding + 2, 0, 2);
-
-    highlightMin[1], highlightMin[2] = x, y;
-    highlightMax[1], highlightMax[2] = x + w, y + h;
-    drawList:AddRect(highlightMin, highlightMax, imgui.GetColorU32(color), rounding, 0, 2);
+    -- one pixel, laid half a pixel in so it falls on the edge's own pixels and is not smeared over two
+    highlightMin[1], highlightMin[2] = x + 0.5, y + 0.5;
+    highlightMax[1], highlightMax[2] = x + w - 0.5, y + h - 0.5;
+    drawList:AddRect(highlightMin, highlightMax, imgui.GetColorU32(controller.HighlightColor), rounding, 0, 1);
 
     drawList:PopClipRect();
     return true;
