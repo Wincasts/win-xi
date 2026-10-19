@@ -101,8 +101,19 @@ function M.New(deps)
     local samples,nextSample=nil,0
     local menus,menuReason=deps.menus,nil
     local service={}
+    local hoveredText,hoveredSlot,drawingSlot
+    local captures={}
+    local function IconTooltip(text) hoveredText,hoveredSlot=text,drawingSlot end
     function service.Invalidate() samples,nextSample,menuReason=nil,0,nil end
-    function service.BeginFrame() if menus then menus.Stop() end end
+    function service.BeginFrame()
+        hoveredText,hoveredSlot=nil,nil
+        captures[0],captures[1]=false,false
+        if menus then menus.Stop() end
+    end
+    -- Shown after the native captures, never inside a captured log/panel draw list.
+    function service.Tooltip()
+        if hoveredText and captures[hoveredSlot] then require('winxi.tooltip').Show(hoveredText) end
+    end
     function service.Reset() service.BeginFrame(); service.Invalidate(); source.Reset() end
     -- Hide Game Clock and Hide Compass: an empty replacement in uihook's clock or compass slot, renewed
     -- each frame. The clock's takes its text, and HideIcons its day and weather icons with it; the game
@@ -137,8 +148,12 @@ function M.New(deps)
     end
     function service.Status() return source.Status() or menuReason or 'Panel follows compact chat, independently of native clock visibility.' end
     function service.Captured(attachment,slot,captured)
+        captures[slot]=captured
         if not attachment or attachment.slot~=slot then return end -- the menu anchor's slot: the first panel's
-        if not captured or not attachment.options.anchorMenus[1] then service.BeginFrame(); return end
+        if not captured or not attachment.options.anchorMenus[1] then
+            if menus then menus.Stop() end
+            return
+        end
         if not menus then
             local ok,module=pcall(require,'winxi.nativemenus')
             if not ok then menuReason='Update Winxi/uihook for native menu anchoring.'; return end
@@ -147,7 +162,7 @@ function M.New(deps)
         local ok,ready=pcall(menus.Set,attachment.menus,slot)
         if not ok then menuReason='Native menu anchor unavailable; menus unchanged.'
         elseif not ready then menuReason=menus.Status()
-        else menuReason='Native action menus anchor above chat.' end
+        else menuReason='Native action menus anchor above the info panel.' end
     end
     function service.Packet(options,id,data)
         local enabled=options.layout.enabled[1]
@@ -203,8 +218,8 @@ function M.New(deps)
                 fontFile=options.fontFile~='' and options.fontFile or chatFontFile,options=options}
         end
         -- Attached panels share one height, so side-by-side logs keep one bottom; every drawn log is
-        -- lifted by it to sit wholly above them, and native menus anchor above the lifted stack.
-        -- None attached: chat stays, menus anchor above the first panel.
+        -- lifted by it to sit wholly above them. Native menus always anchor to the visible first
+        -- panel, never the chat stack's reserved/empty height. None attached: chat stays.
         local first,anchor,logLift=panels[1],panels[1].rect,lift
         if lift>0 then
             for i,l in ipairs(layouts) do
@@ -217,7 +232,8 @@ function M.New(deps)
             if primary and split then top=math.min(primary.top,split.top) end
             top=top-logLift
             if top<0 then return nil end -- no room to lift chat over the panel: no panel
-            anchor={left=host.left,top=top,width=host.width,height=host.bottom-logLift-top}
+            -- Keep anchor pointing at first.rect: lifting chat must not lift combat submenus
+            -- above its full frame (including rows which are empty or fading away).
         end
         -- lift: the logs'; inputLift: the open input's, onto the panels
         return {slot=first.slot,rect=first.rect,panels=panels,lift=logLift,inputLift=floor and lift or 0,menus=anchor,size=size,
@@ -234,6 +250,8 @@ function M.New(deps)
             if drawn.slot==slot then
                 frame.Draw(drawn.rect,function()
                     imgui.PushFont(fonts.Get(attachment.fontFile),attachment.size)
+                    drawingSlot=slot
+                    drawOptions.iconTooltip=IconTooltip
                     drawOptions.textColor,drawOptions.iconScale=options.textColor,options.iconScale
                     drawOptions.iconOffset,drawOptions.weatherScale=options.iconOffset,options.weatherScale
                     local ok,err=pcall(panel.Draw,drawn.p,drawn.samples,drawn.rect,drawOptions)

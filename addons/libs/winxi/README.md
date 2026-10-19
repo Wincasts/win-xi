@@ -37,6 +37,11 @@ Lives in `addons/libs/winxi/`, so any addon can `require('winxi.<module>')`.
 | `winxi.tooltip` | Tooltips in winxi's look: `Hover(text)` after a control, `Show(text)`, or `Begin()` / `End()` around anything else. Whether they show, their delay, colours, padding, text size and width are the shared theme's Tooltip values, set in winxisettings' Tooltips tab, whether or not the addon follows the shared theme |
 | `winxi.nativechat` | The `uihook` plugin's chat slots (primary log, split log, input): `new(slot)` gives `Begin`, `Capture` (inside a window, from its `capture` option, after its border and title; for the expanded log, with the theme colours for the game's controls and which of them, tabs, scrollbar or text, the addon draws itself), `Stop`, `Rect`, `Tabs`, `Scrollbar` and `Rows` (where the game drew its own, as uihook measured them; the rows with their text, as the game was given it), `Routes` and `Shows` (which of the game's two log windows shows a message of a chat mode, as the game's Log Window settings route it; `Rect` on the split slot is the second window's place), `Lines` (a window's lines as the game grows and shrinks it), `Colors` (the game's chat colours as configured: a mode's, and what a 1E or 1F code names), `State` and `Status`, for an addon that draws its own chat in the game's place, as chatbox does |
 | `winxi.debounce` | Running a function once things have gone quiet |
+| `winxi.quests` | Quest identities by log/ID, hidden interactions, NPC/zone references, declared reward tables, factory metadata and enabled module/source evidence. `Get`, `GetBySymbol`, `Search`, `ForZone`, `ForNpc`, `ForReward`, `Tooltip`. Winxi 30. See [Quest catalog](quests.md) |
+| `winxi.spells`, `abilities`, `weaponskills`, `traits` | Phoenix action definitions, job requirements, charge/trait variants, SQL changes and Lua source evidence. `Get`, `Ids`, `ForJob`, `ForSkill`, `Search`, `Tooltip`, `ClientResource`. Winxi 29. See [Shared catalogs](catalogs.md) |
+| `winxi.jobs`, `skills`, `elements` | Server reference enums; jobs' related actions; skill ranks/caps including enabled YAML overlays. Winxi 29. See [Shared catalogs](catalogs.md) |
+| `winxi.autotranslate` | Installed-client English/Japanese phrase dictionary, categories, search, exact phrase/item/key-item tokens, decoding and game expansion. Winxi 29. See [Shared catalogs](catalogs.md#auto-translate) |
+| `winxi.items` | Shared Phoenix item catalog: `Get(id)`, `Ids()`, `Tooltip(id, optionalClientResource)`, `Index()`, `Script(path)`, `ModName(id)`, `Clear()`. Winxi 28. See [Item data](items.md) for fields, units, provenance and coverage limits |
 | `winxi.gamedata` | What is known of the game that the client does not say, made from the Phoenix server's data and kept in `data\<set>\<key>.lua`: `Read(set, key)`, `Manifest()` (the repository, branch and commit it was made from, and each set's files), `Root(path)`. Winxi 27. See [Game data](#game-data) |
 | `winxi.mobs` | An area's monsters as the server has them (levels, aggro and senses, links, family, drops, spells), from `gamedata`'s `mobs` set: `Zone(zone, subZone)`, `Find(tables, index, name)`, and each notorious monster's placeholders, `Placeholders(zone)`. Winxi 27 |
 | `winxi.legacy` | Bringing settings over for a tool of xitools that has become an addon of its own |
@@ -295,18 +300,25 @@ Ashita plays one sound at a time, at the volume of the file.
 
 ## Game data
 
-`data/` holds what addons know of the game that the client never says, made from the Phoenix
-server's own data, one folder to each set:
+`data/` holds shared game definitions, primarily made from Phoenix's server data, plus an
+independently generated installed-client auto-translate dictionary, one folder to each set:
 
 | Set | What it is | Read with |
 |---|---|---|
 | `mobs` | Each area's monsters, `<zoneId>.lua` (or a part of an area's, numbered from 1000): `Names` and `Indices` of monsters as mobdb has them | `winxi.mobs.Zone`, `Find` |
 | `placeholders` | Each area's notorious monsters and the entity indices each is drawn by lot from | `winxi.mobs.Placeholders` |
+| `items` | Every server item ID; base stats plus enabled module SQL, conditional modifiers, food definitions and Lua source evidence. Includes a portable `catalog.json` list | `winxi.items.Get`, `Tooltip`, `Ids` |
+| `spells`, `abilities`, `weaponskills`, `traits` | Base SQL plus enabled module SQL, job requirements, blue magic, charges/trait variants, source evidence and portable catalogs | `winxi.<set>.Get`, `ForJob`, `Tooltip` |
+| `jobs`, `skills`, `elements` | Server enums; job names; skill ranks/caps with enabled YAML overlays | `winxi.<set>.Get` |
+| `autotranslate` | Independently generated from installed-client dictionaries, with its own provenance in `index.lua` | `winxi.autotranslate` |
+| `quests` | Numbered quest-log identities and separate hidden interactions; source coverage, NPC/zone references, base reward declarations and enabled module associations | `winxi.quests.Get`, `Search`, `ForZone` |
 
 `data/manifest.lua` says what it was made from: the repository, branch and commit, when, and each
 set's file count (`winxi.gamedata.Manifest()`).
 
-It is made from the server's live branch on GitHub, never a local copy, by one script:
+Server sets are made from Phoenix's live branch on GitHub by default, or an explicitly supplied
+checkout. The independent client-data build is described in [Shared catalogs](catalogs.md#auto-translate).
+To rebuild server sets:
 
 ```sh
 python3 tools/build_winxi_data.py                 # fetch live, make every set, write the manifest
