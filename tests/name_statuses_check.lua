@@ -108,6 +108,19 @@ H.print('the sheet is the plugin\'s eighth picture', draw.Textures[7] == 0x7777)
 H.print('own: what is chosen, each once, in the game\'s order:', listed(0x400), '| Protect is not chosen')
 H.print('a party member\'s, as the game keeps them:', listed(0x401), '| 300 is not chosen')
 H.print('an enemy nothing was seen to land on: none', listed(300) == '', '| a stranger: none', listed(0x402) == '')
+-- read a member at a time where Ashita can read a block: the same row, from the same bytes
+local byteRow = listed(0x401)
+ashita.memory.read_array = function(at, count)
+    local bytes = {}
+    for i = 0, count - 1 do bytes[i + 1] = i < 4 and math.floor((memory[at] or 0) / 256 ^ i) % 256 or (memory[at + i] or 0) end
+    return bytes
+end
+H.frames(1)
+H.print('read in one block: the same row', listed(0x401) == byteRow and byteRow ~= '')
+ashita.memory.read_array = function() error('no block reads here') end
+H.frames(1)
+H.print('and a byte at a time again where the block cannot be read', listed(0x401) == byteRow)
+ashita.memory.read_array = nil
 
 -- where the row is: over the name, its middle on the name's, three quarters as wide as it is tall
 local row = icons(0x400)

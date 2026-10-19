@@ -89,10 +89,13 @@ local function picked(profile, state)
     local c = entry.color;
     return 0xFF000000 + math.floor(c[1]*255+0.5)*65536 + math.floor(c[2]*255+0.5)*256 + math.floor(c[3]*255+0.5);
 end
+-- The server ids of the party and alliance, for whose claim a monster is under: one table, filled
+-- again each frame it is wanted, and good for that frame
+local ids = {};
 function colours.Context(options, memory)
     local profile = options.nameColours and options.nameColours.enemyNames;
     if profile == nil or not (profile.claimedParty.enabled[1] or profile.claimedOther.enabled[1]) then return nil; end
-    local ids = {};
+    for id in pairs(ids) do ids[id] = nil; end
     local party = memory.GetParty ~= nil and memory:GetParty() or nil;
     if party ~= nil and party.GetMemberServerId ~= nil then
         for slot = 0, 17 do

@@ -169,6 +169,20 @@ local function ReadOwn(memory)
     own.count = count;
 end
 
+-- A member's entry, MEMBER_SIZE bytes, read in one as a table of them from 1 where Ashita can
+-- (ashita.memory.read_array), or nil, to be read a byte at a time instead
+local function ReadEntry(at)
+    local read = ashita.memory.read_array;
+    if (read == nil) then
+        return nil;
+    end
+    local ok, bytes = pcall(read, at, MEMBER_SIZE);
+    if (not ok or type(bytes) ~= 'table' or #bytes < MEMBER_SIZE or type(bytes[1]) ~= 'number') then
+        return nil;
+    end
+    return bytes;
+end
+
 -- As the game keeps them: who, then two bits of each status's number four to a byte, then the rest
 -- of each number a byte each
 local function ReadParty()
@@ -184,16 +198,18 @@ local function ReadParty()
     end
     for member = 1, PARTY_OTHERS do
         local at = base + MEMBER_SIZE * (member - 1);
-        local id = ashita.memory.read_uint32(at);
+        local bytes = ReadEntry(at);
+        local id = bytes ~= nil and (bytes[1] + bytes[2] * 0x100 + bytes[3] * 0x10000 + bytes[4] * 0x1000000) or ashita.memory.read_uint32(at);
         if (id ~= 0) then
             local list = party[member];
             local count, high = 0, 0;
             for slot = 0, SLOTS - 1 do
                 local pair = slot % 4;
                 if (pair == 0) then
-                    high = ashita.memory.read_uint8(at + 8 + slot / 4);
+                    high = bytes ~= nil and bytes[9 + slot / 4] or ashita.memory.read_uint8(at + 8 + slot / 4);
                 end
-                local status = bit.band(bit.rshift(high, pair * 2), 0x03) * 256 + ashita.memory.read_uint8(at + 16 + slot);
+                local low = bytes ~= nil and bytes[17 + slot] or ashita.memory.read_uint8(at + 16 + slot);
+                local status = bit.band(bit.rshift(high, pair * 2), 0x03) * 256 + low;
                 if (status > 0 and status ~= 255) then
                     count = count + 1;
                     list[count] = status;
