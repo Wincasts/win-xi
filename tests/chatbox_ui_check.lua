@@ -172,6 +172,27 @@ local function Window(name,_,_,draw,options)
     return true
 end
 package.loaded['winxi.window'] = {Plain=Window, Full=Window}
+-- links stands in for the real lookups: Tokens gives the tokens set for a line's bytes, At a reference while the
+-- offset is in the chosen word of the row (or raises, when told to), and every call is recorded, with how many times
+-- the first log had been captured by then
+local linkStub = { tokens = {}, word = nil, fail = false, tokenCalls = {}, at = {}, tips = {}, resets = 0 }
+package.loaded.links = {
+    Kinds = { {key='items',label='Items'},{key='actions',label='Spells And Abilities'},{key='weaponskills',label='Weapon Skills'},
+        {key='quests',label='Quests'},{key='places',label='Places'},{key='autotranslate',label='Auto-Translate'} },
+    Tokens = function(raw) linkStub.tokenCalls[#linkStub.tokenCalls+1]=raw; return linkStub.tokens[raw] or {} end,
+    At = function(text, offset, tokens, enabled)
+        if linkStub.fail then error('lookup failed') end
+        local kinds = {}
+        for k, v in pairs(enabled) do kinds[k] = v end
+        linkStub.at[#linkStub.at+1] = { text=text, offset=offset, tokens=tokens, enabled=kinds, captures=hooks[0].captures }
+        local word = linkStub.word
+        local a, b
+        if word then a, b = text:find(word, 1, true) end
+        if a and offset >= a and offset <= b then return { kind='items', id=1, name=word, first=a, last=b } end
+    end,
+    Tooltip = function(reference) linkStub.tips[#linkStub.tips+1] = { reference=reference, captures=hooks[0].captures }; return true end,
+    Reset = function() linkStub.resets = linkStub.resets + 1 end,
+}
 dofile('addons/chatbox/chatbox.lua')
 local function frame()
     text={}; outlines={}; filled={}; images={}; labels={}; overs={}; lines={}
@@ -588,6 +609,15 @@ imgui.Checkbox,imgui.SliderInt,imgui.SliderFloat=recordControl,recordControl,rec
 spec.drawSettings(app.options)
 assert(controlGroups['##chatbox.enabled']=='Chatbox' and controlGroups['##chatbox.timestamps']=='Chatbox',
     'the switches in the Chatbox section (the font is winxi\'s widget, not recorded here)')
+assert(controlGroups['##chatbox.chatTooltips']=='Chatbox','Chat Tooltips in the Chatbox section')
+for _,kind in ipairs(package.loaded.links.Kinds) do
+    assert(controlGroups['##chatbox.tooltips.'..kind.key]=='Chatbox','a kind\'s switch under Chat Tooltips while it is on: '..kind.key)
+end
+app.options.chatTooltips[1]=false; controlGroups={}
+spec.drawSettings(app.options)
+assert(controlGroups['##chatbox.chatTooltips']=='Chatbox' and controlGroups['##chatbox.tooltips.items']==nil,'Chat Tooltips off: no kinds')
+app.options.chatTooltips[1]=true; controlGroups={}
+spec.drawSettings(app.options)
 for _,id in ipairs({'##chatbox.locked','##chatbox.width','##chatbox.window1Rows','##chatbox.window2Rows','##chatbox.expandInPlace','##chatbox.expandedHeight'}) do
     assert(controlGroups[id]=='Layout','a Layout control: '..id)
 end
@@ -981,6 +1011,97 @@ assert(rendered['winxi.chatbox'].pos[2]==1018,'At the Game\'s Chat again')
 app.options.locked[1]=true
 spec.commands.clear(); frame()
 app.options.enabled[1]=false; frame()
+end)() end
+-- Chat Tooltips: each line's tokens kept with its message; the word under the mouse looked up after the log's
+-- capture, with the row's text, the character's offset, the tokens of the row's bracket pairs and the kinds shown;
+-- nothing off the rows, with Chat Tooltips off, over imgui's own windows, in the expanded log, or when a lookup fails
+do (function()
+local L = linkStub
+app.options.enabled[1]=true; app.options.mode[1]='skin'
+spec.commands.clear(); frame()
+local raw = 'first \226\157\174alpha\226\157\175 ' .. string.rep('word ', 16) .. 'second \226\157\174beta\226\157\175 and \226\157\174gamma\226\157\175 end'
+local tokens = { {kind='phrase',id=1}, {kind='item',id=2}, {kind='keyitem',id=3} }
+L.tokens[raw] = tokens
+L.tokenCalls = {}
+message(raw); frame()
+assert(L.tokenCalls[#L.tokenCalls] == raw, 'the line\'s bytes as the game gave them asked for their tokens')
+local function Part(word) for _, t in ipairs(text) do if t.text == word then return t end end end
+local alpha, gamma = Part('alpha'), Part('gamma')
+assert(alpha and gamma and gamma.pos[2] > alpha.pos[2], 'the message wrapped: alpha on one row, gamma on a later one')
+-- hovering gamma: At with the row, the offset of its g, the second and third tokens, every kind on
+L.word = 'gamma'; L.at, L.tips = {}, {}
+local before = hooks[0].captures
+mouse.x, mouse.y = gamma.pos[1] + 2, gamma.pos[2] + 3
+frame()
+assert(#L.at == 1, 'one lookup for the word under the mouse: ' .. #L.at)
+local call = L.at[1]
+assert(call.text:find('second', 1, true) and call.text:find('gamma', 1, true) and not call.text:find('alpha', 1, true), 'At given the row\'s text: ' .. call.text)
+assert(call.offset == call.text:find('gamma', 1, true), 'the offset of the character under the mouse: ' .. call.offset)
+assert(call.tokens and #call.tokens == 2 and call.tokens[1] == tokens[2] and call.tokens[2] == tokens[3],
+    'the second row\'s tokens: one skipped for the ❮ before it, two for its own pairs (the message\'s tokens kept on it)')
+for _, kind in ipairs(package.loaded.links.Kinds) do assert(call.enabled[kind.key] == true, 'every kind on to begin with: ' .. kind.key) end
+assert(call.captures > before, 'looked up after the log\'s capture')
+assert(#L.tips == 1 and L.tips[1].reference.name == 'gamma' and L.tips[1].captures > before, 'the tooltip shown after the capture, outside the log')
+-- the first row: no token skipped, its own one
+mouse.x, mouse.y = alpha.pos[1] + 2, alpha.pos[2] + 3; L.at = {}; frame()
+assert(#L.at == 1 and L.at[1].offset == L.at[1].text:find('alpha', 1, true) and #L.at[1].tokens == 1 and L.at[1].tokens[1] == tokens[1], 'the first row: the first token')
+-- a word of no link: looked up, nothing shown
+local plain = Part('first '); mouse.x, mouse.y = plain.pos[1] + 2, plain.pos[2] + 3; L.at, L.tips = {}, {}; frame()
+assert(#L.at == 1 and #L.tips == 0, 'a reference of none: no tooltip')
+-- off the rows: past a row's end, beside the box, between the boxes
+local tail = Part(' end'); mouse.x, mouse.y = tail.pos[1] + 4*7 + 10, tail.pos[2] + 3; L.at = {}; frame()
+assert(#L.at == 0, 'past the end of the row\'s text: nothing looked up')
+mouse.x, mouse.y = 0, 0; frame(); assert(#L.at == 0, 'outside the log: nothing')
+-- Chat Tooltips off; a kind off
+mouse.x, mouse.y = gamma.pos[1] + 2, gamma.pos[2] + 3
+app.options.chatTooltips[1] = false; frame()
+assert(#L.at == 0, 'Chat Tooltips off: nothing looked up')
+app.options.chatTooltips[1] = true; app.options.tooltipKinds.items[1] = false; L.tips = {}; frame()
+assert(#L.at == 1 and L.at[1].enabled.items == false and L.at[1].enabled.places == true, 'a kind off is false to At, the rest on')
+app.options.tooltipKinds.items[1] = true
+-- over imgui's own window (the settings)
+local plainIO = imgui.GetIO
+imgui.GetIO = function() local io = plainIO(); io.WantCaptureMouse = true; return io end
+L.at = {}; frame(); assert(#L.at == 0, 'the mouse imgui\'s own: nothing')
+imgui.GetIO = plainIO
+-- the scrollbar or the log being dragged
+L.at = {}; app.options.locked[1] = false
+assert(mouseEvent(0x0201).blocked, 'the log taken hold of'); frame()
+assert(#L.at == 0, 'while the log is dragged: nothing')
+assert(mouseEvent(0x0202).blocked); app.options.locked[1] = true; app.options.position[1] = 'game'; frame()
+gamma = Part('gamma'); mouse.x, mouse.y = gamma.pos[1] + 2, gamma.pos[2] + 3
+-- hidden timestamps: the rows' offsets in the text as shown, the slice the same
+spec.commands.clear(); local stamped = '[12:00:00] ' .. raw; L.tokens[stamped] = tokens; message(stamped)
+spec.commands.timestamps(app.options, { nil, nil, 'off' }); frame()
+gamma = Part('gamma'); mouse.x, mouse.y = gamma.pos[1] + 2, gamma.pos[2] + 3; L.at = {}; frame()
+assert(#L.at == 1 and not L.at[1].text:find('12:00', 1, true) and L.at[1].offset == L.at[1].text:find('gamma', 1, true)
+    and #L.at[1].tokens == 2 and L.at[1].tokens[1] == tokens[2], 'stamps hidden: the same row\'s tokens')
+spec.commands.timestamps(app.options, { nil, nil, 'on' })
+-- the expanded log: the game's rows, nothing
+chatState.expanded = true; chatState.filter = 0; L.at = {}; frame()
+assert(#L.at == 0, 'expanded: nothing looked up')
+chatState.expanded = false; frame()
+-- a lookup that raises: the frame goes on
+gamma = Part('gamma'); mouse.x, mouse.y = gamma.pos[1] + 2, gamma.pos[2] + 3
+L.fail = true; L.tips = {}; frame(); L.fail = false
+assert(#L.tips == 0, 'a failing lookup shows nothing and breaks nothing')
+frame(); assert(#L.tips == 1, 'and the next frame looks up again')
+-- zoning or off: nothing
+events.packet_in({id=0x00b}); L.at = {}; frame(); assert(#L.at == 0, 'zoning: nothing'); events.packet_in({id=0x00a})
+app.options.enabled[1] = false; frame(); assert(#L.at == 0, 'chatbox off: nothing'); app.options.enabled[1] = true
+-- the settings made whole: Chat Tooltips and each kind a switch, missing or not one on
+local resets = L.resets
+app.options.chatTooltips = nil; app.options.tooltipKinds = { items = 'x', actions = { false }, quests = { 7 } }
+spec.onSettings(app.options)
+assert(app.options.chatTooltips[1] == true and app.options.tooltipKinds.items[1] == true and app.options.tooltipKinds.actions[1] == false
+    and app.options.tooltipKinds.quests[1] == true and app.options.tooltipKinds.autotranslate[1] == true, 'Chat Tooltips and its kinds made whole')
+app.options.chatTooltips = { false }; app.options.tooltipKinds = 'garbage'; spec.onSettings(app.options)
+assert(app.options.chatTooltips[1] == false and app.options.tooltipKinds.weaponskills[1] == true, 'kept off; kinds of garbage all on')
+assert(L.resets > resets, 'the links\' caches dropped with the character\'s settings')
+app.options.chatTooltips[1] = true
+L.word = nil; mouse.x, mouse.y = 0, 0
+spec.commands.clear(); frame()
+app.options.enabled[1] = false; frame()
 end)() end
 -- The game's two log windows mirrored: a second box stacked over the first, with its own game width and
 -- height; each shows the messages the game's Log Window settings route to it; each scrolls on its
@@ -1676,4 +1797,4 @@ do (function()
     app.options.fontSize[1]=40; spec.onSettings(app.options); assert(app.options.fontSize[1]==24,'too large: 24')
     app.options.fontSize[1]=12
 end)() end
-print('Chatbox UI: compact/expanded chat in Follow Game and WinXI Skin, the settings and their migration, routing, smart visibility, failure/lifecycle and chat-owned info-panel capture/settings passed')
+print('Chatbox UI: compact/expanded chat in Follow Game and WinXI Skin, the settings and their migration, routing, smart visibility, failure/lifecycle, chat tooltips and chat-owned info-panel capture/settings passed')

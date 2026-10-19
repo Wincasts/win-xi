@@ -118,4 +118,26 @@ model.ShowStamps(stampLog, false)
 model.Clear(stampLog)
 model.Add(stampLog, '[00:00:01] after a clear', 1)
 assert(model.Tail(stampLog, 40, 'font', 12, measure, 10)[1].text == 'after a clear', 'the choice outlives a clear')
-print('Chatbox model: 10-row tail, bounds, CP932 controls, wrapping, UTF-8, cache invalidation, hidden timestamps passed')
+-- Each row's offset: where its text starts in the message's text as shown, with the stamps or without them; the
+-- message's tokens kept on it, from Add and from Prepend
+local linkLog = model.New()
+local linkTokens = { { kind = 'item', id = 1 } }
+model.Add(linkLog, '[01:02:03] abcd efgh ijkl', 1, nil, nil, nil, nil, linkTokens)
+assert(linkLog.messages[1].tokens == linkTokens, 'the tokens kept on the message')
+model.Add(linkLog, 'no links', 1)
+assert(linkLog.messages[2].tokens == nil, 'none given: none kept')
+local offsetRows = model.Tail(linkLog, 4, 'font', 12, measure, 10)
+for _, row in ipairs(offsetRows) do
+    local whole = row.message.text
+    assert(whole:sub(row.offset, row.offset + #row.text - 1) == row.text, 'stamped: the row at its offset: ' .. row.text)
+end
+assert(#offsetRows == 9 and offsetRows[4].text == 'abcd' and offsetRows[4].offset == 12, 'past the stamp and the space after it')
+model.ShowStamps(linkLog, false)
+offsetRows = model.Tail(linkLog, 4, 'font', 12, measure, 10)
+local shownText = model.Shown(linkLog, linkLog.messages[1])
+assert(shownText == 'abcd efgh ijkl' and offsetRows[1].text == 'abcd' and offsetRows[1].offset == 1
+    and offsetRows[2].offset == 6 and offsetRows[3].offset == 11, 'stamps hidden: the offsets in the text as shown')
+assert(model.Shown(linkLog, linkLog.messages[2]) == 'no links', 'a message without a stamp shown whole')
+model.Prepend(linkLog, { { text = 'older', mode = 1, tokens = linkTokens }, { text = 'oldest', mode = 1, tokens = 'x' } })
+assert(linkLog.messages[1].tokens == linkTokens and linkLog.messages[2].tokens == nil, 'the history\'s tokens kept; anything else not')
+print('Chatbox model: 10-row tail, bounds, CP932 controls, wrapping, UTF-8, cache invalidation, hidden timestamps, row offsets and tokens passed')

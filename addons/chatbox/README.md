@@ -39,6 +39,11 @@ each where the game's are.
 - In WinXI Skin, with **Lock Window** off, the log can be dragged wherever you want (Position Custom); the
   input bar and the second window go with it. No mouse resizing. Combat formatting, filters and timestamps are left to the game or
   SimpleLog; **Timestamps** hides the stamps they write, in every log, and shows them again at once.
+- Resting the mouse on something named in the compact log or Window 2 shows what it is in a Winxi tooltip
+  (**Chat Tooltips**). Items, key items and auto-translate phrases are known by the codes the game sends with
+  the line, so they are found exactly; spells, abilities, weapon skills, quests and places written as plain
+  text are found by their names. Names are matched by text, so an ordinary word that is also the name of an
+  item or a place may show one. The expanded log is the game's own and shows none.
 
 ## Install
 
@@ -210,6 +215,12 @@ the mode is how the boxes behave and where they stand.
   again at once. Enable timestamps in either SimpleLog or the timestamp addon to supply them;
   avoid enabling both providers at once to prevent duplicate stamps. `/chatbox timestamps on`
   and `off` do the same. There is no history-clear button; `/chatbox clear` remains available.
+- **Chat Tooltips** (on to begin with): resting the mouse on an item, key item, auto-translate phrase,
+  spell, ability, weapon skill, quest or place in the compact log or Window 2 shows a tooltip of it. While
+  it is on, one switch for each kind, all on to begin with: **Items**, **Spells And Abilities**, **Weapon
+  Skills**, **Quests**, **Places** and **Auto-Translate**. The shared Winxi tooltip settings (whether
+  tooltips show, their delay and their look) apply. Nothing shows while the mouse is over the settings or
+  another imgui window, while the log or its scrollbar is dragged, or in the expanded log.
 - **Font**: the log's and input bar's font, the theme's (to begin with) or any `.ttf` in
   `C:\Windows\Fonts`. Japanese and other non-Latin text need a font with those glyphs.
 - **Font Size**: 8 to 24 pixels (12 to begin with); the boxes grow with it, and the expanded log's text

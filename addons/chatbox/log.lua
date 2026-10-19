@@ -68,8 +68,10 @@ function M.Clear(log)
     log.messages, log.cache, log.lastNpc, log.metrics, log.wraps = {}, nil, nil, nil, nil
     log.revision = log.revision + 1
 end
--- raw: the chat mode as the game gave it, whole (its low byte is mode; its bit 15 the game's own routing mark)
-function M.Add(log, text, mode, now, originalMode, spans, raw)
+-- raw: the chat mode as the game gave it, whole (its low byte is mode; its bit 15 the game's own routing mark).
+-- tokens (optional): the line's links (its auto-translate phrases, items and key items) in the order of its bracket
+-- pairs, kept on the message for the chat's tooltips.
+function M.Add(log, text, mode, now, originalMode, spans, raw, tokens)
     if type(text) ~= 'string' or #text > M.MaxBytes or not text:find('%S') then return false end
     if npcModes[mode] or npcModes[originalMode] then
         local stamp = M.Stamp(text) or ''
@@ -107,7 +109,7 @@ function M.Add(log, text, mode, now, originalMode, spans, raw)
         log.lastNpc = { text = text, time = now }
     end
     log.messages[#log.messages + 1] = { text = text, mode = mode, originalMode = originalMode,
-        time = now or os.clock(), spans = spans, raw = tonumber(raw) or mode }
+        time = now or os.clock(), spans = spans, raw = tonumber(raw) or mode, tokens = type(tokens) == 'table' and tokens or nil }
     if #log.messages > M.Capacity then
         local removed = table.remove(log.messages, 1)
         for _, layout in ipairs(log.wraps or {}) do layout.messages[removed] = nil end
@@ -117,7 +119,7 @@ function M.Add(log, text, mode, now, originalMode, spans, raw)
 end
 
 -- Older messages put before the ones kept (the game's history, read as chatbox starts): entries oldest first, each
--- { text, mode, originalMode, spans, raw }; as many of the newest as fit beside what is kept. Returns how many.
+-- { text, mode, originalMode, spans, raw, tokens }; as many of the newest as fit beside what is kept. Returns how many.
 function M.Prepend(log, entries)
     local room = M.Capacity - #log.messages
     if room <= 0 or #entries == 0 then return 0 end
@@ -126,7 +128,7 @@ function M.Prepend(log, entries)
         local e = entries[i]
         if type(e.text) == 'string' and #e.text <= M.MaxBytes and e.text:find('%S') then
             merged[#merged + 1] = { text = e.text, mode = e.mode, originalMode = e.originalMode or e.mode, time = 0,
-                spans = e.spans, raw = tonumber(e.raw) or e.mode, imported = true }
+                spans = e.spans, raw = tonumber(e.raw) or e.mode, imported = true, tokens = type(e.tokens) == 'table' and e.tokens or nil }
         end
     end
     local added = #merged
@@ -257,6 +259,7 @@ local function Shown(log, message)
     end
     return shown.text, shown.spans
 end
+M.Shown = Shown
 local function Offsets(wrapped, text)
     if wrapped.offsets then return wrapped.offsets end
     local offsets, at = {}, 1
@@ -308,7 +311,8 @@ end
 -- modes, if given, chooses the messages shown (a set of chat modes, or a function of the message, as above);
 -- nil shows them all. newer: how many of the newest of those to leave out, to look further back (0 for the newest).
 -- Each row has its message: index, its place counting back from the newest shown by modes (1 the
--- newest), and message itself (text and mode).
+-- newest), and message itself (text and mode); offset, where the row's text starts in the message's text as shown
+-- (M.Shown: without its stamps while they are hidden), 1-based in bytes.
 function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffset)
     rowCount = math.max(1, math.min(2048, math.floor(tonumber(rowCount) or M.Rows)))
     newer = math.max(0, math.floor(tonumber(newer) or 0))
@@ -351,7 +355,7 @@ function M.Tail(log, width, font, size, measure, rowCount, modes, newer, rowOffs
             -- first: the message's first row, where a timestamp would be
             if skip > 0 then skip = skip - 1
             elseif #rows < rowCount then rows[#rows + 1] = { text = text, mode = group.mode, first = line == 1, index = group.index, message = group.message,
-                spans = rich.Slice(group.spans, group.offsets[line], #text) } end
+                offset = group.offsets[line], spans = rich.Slice(group.spans, group.offsets[line], #text) } end
         end
     end
     local overflow = remaining or count > rowCount
