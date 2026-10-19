@@ -96,6 +96,11 @@ function M.New()
                 local ok, failure = pcall(function()
                     local theme = require('winxi.theme').Get()
                     local list = imgui.GetWindowDrawList()
+                    -- Follow Game: the game's plain look, a flat colour over the whole bar in place of the theme's art
+                    if layout.plain then
+                        list:AddRectFilled({ layout.x, layout.bottom - layout.height }, { layout.x + width, layout.bottom },
+                            imgui.GetColorU32(layout.plain))
+                    end
                     local inset = layout.leftPadding or padding
                     local x = layout.x + inset
                     local y = layout.bottom - layout.height + (layout.height - fontSize) / 2
@@ -120,7 +125,7 @@ function M.New()
                 if layout.font then imgui.PopFont() end
                 if not ok then error(failure, 0) end
             end, { padding = padding, fontSize = fontSize,
-                background = layout.background, border = layout.border, textColor = layout.textColor,
+                background = layout.background, border = layout.border, textColor = layout.textColor, shadow = layout.shadow,
                 capture = function() captured = hook.Capture() end })
         end)
         if minSizePushed then imgui.PopStyleVar() end
