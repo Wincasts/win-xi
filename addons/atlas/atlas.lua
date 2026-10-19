@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.3';
+addon.version = '0.4';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -19,7 +19,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 -- markers.lua who is where, and view.lua draws a map into a square, knowing nothing of the window:
 -- the square can later be where the game draws its own map.
 
-local winxiNeeded = 25;
+local winxiNeeded = 26;
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -39,12 +39,15 @@ local maps = require('maps');
 local markers = require('markers');
 local view = require('view');
 local pad = require('pad');
+local moving = require('moving');
 
 local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 },
     locked = T{ false },
     size = T{ 512 },
+    fadeWhileMoving = T{ false },
+    movingOpacity = T{ 30 },
     showPlayer = T{ true },
     playerColor = T{ 1.00, 0.85, 0.20, 1.00 },
     showParty = T{ true },
@@ -239,9 +242,21 @@ end
 
 local lastFrame = nil;
 
+-- where the window was last drawn, so that the mouse over it brings back a map faded out of sight
+local windowRect = { nil, nil, nil, nil };
+
+local function MouseOverWindow()
+    if windowRect[1] == nil then return false; end
+    local mx, my = imgui.GetMousePos();
+    return mx ~= nil and my ~= nil and mx >= windowRect[1] and my >= windowRect[2] and mx < windowRect[3] and my < windowRect[4];
+end
+
 local function Draw()
     local options = app.options;
     local now = os.clock();
+    local wx, wy = imgui.GetWindowPos();
+    local ww, wh = imgui.GetWindowSize();
+    windowRect[1], windowRect[2], windowRect[3], windowRect[4] = wx, wy, wx + ww, wy + wh;
     pad.Frame(lastFrame and now - lastFrame or 0);
     lastFrame = now;
     Look();
@@ -322,6 +337,16 @@ local function DrawSettings(options)
         widgets.Label('Map Size');
         imgui.SliderInt('##atlas.size', options.size, 256, 1024, '%d px');
         widgets.PopControlWidth();
+        widgets.Label('Fade While Moving');
+        imgui.Checkbox('##atlas.fadeWhileMoving', options.fadeWhileMoving);
+        tips.Hover('The map fades while your character moves, and comes back as you stop.\nThe mouse over the map, or browsing it with the controller, shows it whole.');
+        if options.fadeWhileMoving[1] then
+            widgets.PushControlWidth();
+            widgets.Label('Moving Opacity');
+            imgui.SliderInt('##atlas.movingOpacity', options.movingOpacity, 0, 100, '%d%%');
+            tips.Hover('How much of the map shows while you move. At 0% it is gone until you stop.');
+            widgets.PopControlWidth();
+        end
     end
 
     if widgets.Header('Markers') then
@@ -359,6 +384,7 @@ app = shell.New({
     defaults = defaults,
     window = 'winxi.atlas',
     configTitle = 'Atlas Settings',
+    hideHeader = 'Visibility',
     command = '/atlas',
     help = '/atlas shows or hides the map; /atlas config opens the settings; /atlas status says which map is drawn; /atlas browse gives it the controller.',
     drawSettings = DrawSettings,
@@ -388,6 +414,7 @@ ashita.events.register('d3d_present', 'atlas_present', function()
     if pad.Browsing() and not app.options.isVisible[1] then pad.Browse(false); end
     if not app:BeginFrame() then return; end
     extra.locked = app.options.locked[1];
+    extra.alpha = moving.Update(app.options, pad.Browsing() or MouseOverWindow());
     app:Window(app.options.isVisible, Draw, extra);
 end);
 

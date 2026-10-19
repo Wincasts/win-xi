@@ -347,3 +347,41 @@ frame()
 o.isVisible[1] = true
 frame()
 H.print('hidden while browsing: given back', H.tap(H.Button.DpadLeft) == false)
+
+-- Fade While Moving: the map faded as the player walks, whole again as they stop, or with the mouse
+-- over it or the controller browsing it; off, never faded
+local pushedAlpha = 1
+local pushStyleVar = imgui.PushStyleVar
+imgui.PushStyleVar = function(var, value, ...) if var == ImGuiStyleVar_Alpha then pushedAlpha = value end return pushStyleVar(var, value, ...) end
+local function alphaAfter(count, walk)
+    for _ = 1, count do
+        if walk then entities[1].x = entities[1].x + 0.2 end
+        pushedAlpha = 1
+        H.frames(1)
+    end
+    return pushedAlpha
+end
+rawset(imgui, 'GetMousePos', function() return 0, 0 end)
+zone = 126
+entities[1] = { x = 100, y = -20, z = 5, heading = 1.0, name = 'Tester' }
+o.isVisible[1] = true
+H.print('off: walking leaves the map whole', alphaAfter(20, true) == 1)
+o.fadeWhileMoving[1] = true
+H.print('standing: whole', alphaAfter(5) == 1)
+H.print('walking: down to Moving Opacity, a step at a time', alphaAfter(2, true) < 1 and pushedAlpha > 0.3, math.abs(alphaAfter(20, true) - 0.3) < 0.001)
+H.print('stopped a moment: still faded', math.abs(alphaAfter(5) - 0.3) < 0.001)
+H.print('stood still: whole again', alphaAfter(30) == 1)
+alphaAfter(20, true)
+rawset(imgui, 'GetMousePos', function() return 150, 250 end) -- inside the window, at 100, 200 and 300 by 150
+H.print('the mouse over it: whole while walking', alphaAfter(20, true) == 1)
+rawset(imgui, 'GetMousePos', function() return 0, 0 end)
+H.command('/atlas browse')
+H.print('browsing: whole while walking', alphaAfter(20, true) == 1)
+H.tap(H.Button.B)
+o.movingOpacity[1] = 0
+local begun = H.calls.Begin or 0
+alphaAfter(30, true)
+local walking = (H.calls.Begin or 0) - begun
+H.print('at 0%: the window not drawn while walking', walking < 30)
+o.fadeWhileMoving[1], o.movingOpacity[1] = false, 30
+imgui.PushStyleVar = pushStyleVar

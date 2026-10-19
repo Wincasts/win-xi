@@ -130,13 +130,17 @@ end
 -- flags = additional ImGui window flags,
 -- locked = true for a window held where it is, clickThrough = true for one the mouse goes through
 -- (winxi.window's options of those names: an addon's Lock Window setting, widgets.Lock),
--- size = { width, height } to apply this frame (after the fade/visibility check).
+-- size = { width, height } to apply this frame (after the fade/visibility check),
+-- alpha = 0 to 1, how much of the window shows beside its fading in and out (the addon's own fade).
 function App:Window(wanted, draw, extra)
     local options = self.options;
     local isWanted = wanted[1] and true or false;
     local alpha = isWanted and 1 or 0;
     if options.fadeInOut[1] then
         alpha = fade.Presence(self.spec.window, isWanted);
+    end
+    if extra ~= nil and extra.alpha ~= nil then
+        alpha = alpha * extra.alpha;
     end
     if alpha <= 0.01 then
         return false;

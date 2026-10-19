@@ -59,6 +59,10 @@ A DirectInput controller scrolls with the d-pad.
 - **Visible**: whether the map shows.
 - **Lock Window**: keeps the window where it is. The map can still be panned and zoomed.
 - **Map Size**: 256 to 1024 pixels (512 to start).
+- **Fade While Moving** (off): the map fades while your character moves and comes back about half
+  a second after you stop. The mouse over the map, or browsing it with the controller, shows it whole.
+- **Moving Opacity**: how much of the map shows while you move, 0% to 100% (30% to start). At 0% it
+  is gone until you stop.
 
 **Markers**
 
@@ -70,12 +74,18 @@ A DirectInput controller scrolls with the d-pad.
 
 - **Controller Navigation** (on): whether `/atlas browse` can give the map the controller.
 - **Controller Sounds** and **Controller Type**, as in winxi's other addons.
+- **Stick Scrolls Map** (off): the left stick scrolls the map while browsing, in place of walking.
 
 **Party**
 
 - **Party Across Zone** (on): while one of your party is in the zone but out of sight, asks the server
   where your party is every three seconds. The request is 0x0D2 and the server answers each member
   with 0x0A0, the same exchange the game's own map makes while it is open.
+
+**Visibility**
+
+- **Hide While Map Open**, **Hide While Chat Open**, **Hide While Loading**, **Hide During Events** and
+  **Hide With Game Interface**, as in winxi's other addons.
 
 ## How it knows where things are
 
@@ -108,6 +118,7 @@ window is one such square. The plan is to hand it the square where the game draw
 | `markers.lua` | who is where: memory, and the server's 0x0A0 |
 | `view.lua` | a map drawn into a square: pan, zoom, markers |
 | `pad.lua` | the controller while browsing: buttons, the stick |
+| `moving.lua` | how much of the map shows while you move |
 | `data/maps.lua` | generated: zone → its maps |
 
 `tests/atlas_check.lua` runs it against the stand-in for Ashita.
