@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.50';
+addon.version = '1.51';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -67,7 +67,16 @@ general.Defaults(defaults);
 -- Preferred baseline captured from the live profile; settings.load still gives
 -- existing character settings precedence over these defaults.
 local preferredDefaults = require('name_defaults');
-for key, value in pairs(preferredDefaults) do defaults[key] = value; end
+local function Prefer(into, from)
+    for key, value in pairs(from) do
+        if (type(value) == 'table' and value[1] == nil and type(into[key]) == 'table') then
+            Prefer(into[key], value);
+        else
+            into[key] = value;
+        end
+    end
+end
+Prefer(defaults, preferredDefaults);
 
 -- The settings are this addon's, kept for each character; what the plugin does with names is the
 -- plugin's, and can be changed there by its own command or by another addon. The two are kept the

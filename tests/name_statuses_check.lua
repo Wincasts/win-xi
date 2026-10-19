@@ -12,7 +12,9 @@ require('custom').Defaults(o)
 for _, key in ipairs({ 'showSelf', 'showParty', 'showAlliance', 'showPlayers', 'showMyPet', 'showPets', 'showNpcs', 'showMonsters' }) do o[key][1] = true end
 o.showStars[1], o.showIcons[1], o.fontSize[1], o.monsterFormat[1] = true, false, 16, '[name]'
 
-H.print('settings: shown, at 125%', o.showStatuses[1], o.statusSize[1], '| what ails a character chosen to begin with', #o.statusList, o.statusList[1], o.statusList[#o.statusList])
+H.print('settings: shown, at 100%, moved 2 px right and 5 up', o.showStatuses[1], o.statusSize[1] == 100 and o.statusOffsetX[1] == 2 and o.statusOffsetY[1] == -5, '| what ails a character chosen to begin with', #o.statusList, o.statusList[1], o.statusList[#o.statusList])
+-- the rows below are measured from the module's own baseline: 125%, not moved
+o.statusSize[1], o.statusOffsetX[1], o.statusOffsetY[1] = 125, 0, 0
 
 -- the game: the player under paralysis, Protect, paralysis again and slow; one other of the party
 -- under slow and status 300, whose number takes two of the bits kept apart

@@ -13,8 +13,8 @@ renderer.Frame = function(options, hook, formats)
     return frameForTests(options, hook, formats)
 end
 local o = H.options()
-H.print('preferred live defaults loaded', o.font == 'trebucbi.ttf', o.fontSize[1] == 32, not o.fontBold[1], o.checkSize[1] == 90,
-    not o.showSelf[1], not o.showPlayers[1], not o.showPets[1], o.alwaysTarget[1], o.gdiFonts == nil)
+H.print('preferred live defaults loaded', o.font == 'trebucbi.ttf', o.fontSize[1] == 30, not o.fontBold[1], o.checkSize[1] == 90,
+    not o.showSelf[1], o.showPlayers[1], o.showPets[1], not o.alwaysTarget[1], o.gdiFonts == nil)
 -- Use a deterministic rendering fixture independent of preferred user defaults.
 require('custom').Defaults(o)
 for _, key in ipairs({ 'showSelf', 'showParty', 'showAlliance', 'showPlayers', 'showMyPet', 'showPets', 'showNpcs', 'showMonsters' }) do o[key][1] = true end

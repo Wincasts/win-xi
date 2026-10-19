@@ -107,7 +107,8 @@ clear(); custom.DrawSettings(options)
 for _, key in ipairs(types.List) do
     for _, state in ipairs(require('name_colours').States[key]) do
         local id = '##name.colours.' .. key .. '.' .. state[1]
-        assert(ids[id .. '.enabled'] and ids[id .. '.color'] and disabledIds[id .. '.color'])
+        -- a colour is greyed out while its state is off; Normal and Alliance are on in the preferred defaults
+        assert(ids[id .. '.enabled'] and ids[id .. '.color'] and not disabledIds[id .. '.color'] == options.nameColours[key][state[1]].enabled[1])
     end
 end
 options.nameColours.enemyNames.callForHelp.enabled[1] = true
