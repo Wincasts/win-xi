@@ -112,9 +112,13 @@ function M.Draw(name, message, now, scale, appearance)
     -- Reserve the background (the skin's quads, or one) + 8 stepped pointer quads. Never publish
     -- truncated text.
     local skinned = appearance ~= nil and appearance.skin ~= nil and appearance.skin[1] == 'parchment';
+    local padding = appearance ~= nil and appearance.padding ~= nil and appearance.padding[1] or 10;
     local borderTexture, linesTexture;
-    if (skinned) then borderTexture, linesTexture = skin.Textures(); end
-    local reserved = 8 + (skinned and skin.Quads(width + 20, #runs * size + 16, borderTexture, linesTexture) or 1);
+    if (appearance ~= nil) then borderTexture, linesTexture = skin.Textures(appearance); end
+    local arrow = message.waiting == true;
+    local height = #runs * size + 2 * padding + (arrow and skin.ArrowSize + 2 or 0);
+    local reserved = 8 + (appearance ~= nil and skin.Quads(width + 2 * padding, height, appearance, borderTexture, linesTexture) or 1)
+        + (arrow and skin.ArrowQuads or 0);
     if (glyphCount + reserved > 256) then
         problem = 'Bubble text exceeds the 256-quad per-entity budget';
         return false;
@@ -137,8 +141,7 @@ function M.Draw(name, message, now, scale, appearance)
         return false;
     end
     local fit = scale * math.max(0.65, math.min(1, tonumber(name.Scale)));
-    local height = #runs * size + 16;
-    local left, bottom = -(width + 20) / 2, -34;
+    local left, bottom = -(width + 2 * padding) / 2, -34;
     local top = bottom - height;
     local alpha = math.min(1, math.max(0, (message.expires - now) / 0.6));
     -- the plain skin's rectangle is the background colour; the parchment's pointer its bottom colour
@@ -149,20 +152,18 @@ function M.Draw(name, message, now, scale, appearance)
     -- than silently changing light chat colors to dark colors for contrast.
     local outline = gameColor ~= nil and skin.Light(appearance, skinned);
     nameplates.SetTexture(0, id);
-    if (skinned) then
-        nameplates.SetTexture(1, borderTexture or 0);
-        nameplates.SetTexture(2, linesTexture or 0);
-    end
+    nameplates.SetTexture(1, borderTexture or 0);
+    nameplates.SetTexture(2, linesTexture or 0);
     if (not nameplates.BeginName(name.EntityIndex, alpha, outline and fit or 0, 0xD0000000)) then return false; end
     block.ServerIds[name.EntityIndex] = name.ServerId;
     local function quad(x0, y0, x1, y1, u0, v0, u1, v1, color, edged, slot)
         nameplates.Quad(x0 * fit, y0 * fit, x1 * fit, y1 * fit, u0, v0, u1, v1, color, slot or 0, edged or false);
     end
-    if (skinned) then
-        skin.World(function (x0, y0, x1, y1, u0, v0, u1, v1, color, slot) quad(x0, y0, x1, y1, u0, v0, u1, v1, color, false, slot); end,
-            u, v, left, top, width + 20, height, appearance, borderTexture and 1 or nil, linesTexture and 2 or nil);
+    local function plain(x0, y0, x1, y1, u0, v0, u1, v1, color, slot) quad(x0, y0, x1, y1, u0, v0, u1, v1, color, false, slot); end
+    if (appearance ~= nil) then
+        skin.World(plain, u, v, left, top, width + 2 * padding, height, appearance, borderTexture and 1 or nil, linesTexture and 2 or nil);
     else
-        quad(left, top, left + width + 20, bottom, u, v, u, v, background);
+        quad(left, top, left + width + 2 * padding, bottom, u, v, u, v, background);
     end
     for i = 0, 7 do
         local half = (8 - i) * 0.75;
@@ -170,10 +171,13 @@ function M.Draw(name, message, now, scale, appearance)
     end
     for i, run in ipairs(runs) do
         for _, glyph in ipairs(run.glyphs) do
-            local x, y = left + 10, top + 8 + (i - 1) * size;
+            local x, y = left + padding, top + padding + (i - 1) * size;
             quad(x + glyph[1], y + glyph[2], x + glyph[3], y + glyph[4],
                 glyph[5], glyph[6], glyph[7], glyph[8], foreground, outline);
         end
+    end
+    if (arrow and skin.ArrowShown(now)) then
+        skin.ArrowWorld(plain, u, v, left + width + 2 * padding - math.max(2, padding), bottom - 2, foreground);
     end
     nameplates.EndName();
     remaining = remaining - glyphCount - reserved;

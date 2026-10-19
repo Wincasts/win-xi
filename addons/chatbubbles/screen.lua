@@ -50,8 +50,10 @@ function M.Draw(name, message, now, x, y, display, appearance)
         message.screenFont, message.screenSize, message.screenWidth = font, fontSize, maxWidth;
     end
     local lines = message.screenLines;
-    local width = message.screenWide + 20;
-    local height = #lines * lineHeight + 16;
+    local padding = appearance.padding ~= nil and appearance.padding[1] or 10;
+    local arrow = message.waiting == true;
+    local width = message.screenWide + 2 * padding;
+    local height = #lines * lineHeight + 2 * padding + (arrow and skin.ArrowSize + 2 or 0);
     local left = math.max(MARGIN, math.min(display.x - width - MARGIN, x - width / 2));
     local bottom = y - RISE;
     local top = bottom - height;
@@ -68,16 +70,16 @@ function M.Draw(name, message, now, x, y, display, appearance)
     local outline = gameColor ~= nil and skin.Light(appearance, skinned);
 
     local draw = imgui.GetBackgroundDrawList();
-    if (skinned) then
-        skin.Screen(draw, left, top, width, height, fade, appearance);
-    else
-        draw:AddRectFilled({ left, top }, { left + width, bottom }, background, 6);
-    end
+    local border, linesTexture = skin.Textures(appearance);
+    skin.Screen(draw, left, top, width, height, fade, appearance, border, linesTexture);
     local tip = math.max(left + 9, math.min(left + width - 9, x));
     draw:AddTriangleFilled({ tip - 6, bottom - 1 }, { tip + 6, bottom - 1 }, { x, bottom + 10 }, background);
     local dark = outline and imgui.GetColorU32({ 0, 0, 0, 0.8 * fade }) or nil;
     for i, line in ipairs(lines) do
-        text.Packed(draw, left + 10, top + 8 + (i - 1) * lineHeight, foreground, line, outline and 1 or 0, dark);
+        text.Packed(draw, left + padding, top + padding + (i - 1) * lineHeight, foreground, line, outline and 1 or 0, dark);
+    end
+    if (arrow and skin.ArrowShown(now)) then
+        skin.ArrowScreen(draw, left + width - math.max(2, padding), bottom - 2, foreground, imgui.GetColorU32({ 0, 0, 0, 0.8 * fade }));
     end
     return true;
 end

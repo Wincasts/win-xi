@@ -1,6 +1,6 @@
 addon.name = 'chatbubbles';
 addon.author = 'win';
-addon.version = '0.91';
+addon.version = '0.92';
 addon.desc = 'Configurable chat bubbles anchored by namehook, in the world or on the screen.';
 
 require('common');
@@ -10,6 +10,8 @@ local bubbles = require('bubbles');
 local encoding = require('encoding');
 local world = require('world');
 local screen = require('screen');
+local fonts = require('winxi.fonts');
+local game = require('winxi.game');
 local config = require('config');
 local npc = require('npc');
 local modes = require('modes');
@@ -93,7 +95,10 @@ ashita.events.register('text_in', 'chatbubbles_npc_text', function (e)
         end
     end
     local message, reason = npc.Resolve(npcState, text, mode, os.clock(), candidates, lookupNpc);
-    if (message) then stats.npcAttributed = stats.npcAttributed + 1;
+    if (message) then
+        stats.npcAttributed = stats.npcAttributed + 1;
+        -- a line that waits for a key before the next carries the game's prompt escape, DEL '1'
+        message.prompt = e.message:find('\127\49', 1, true) ~= nil;
     else stats.npcReason = reason or 'unknown'; end
 end);
 
@@ -166,17 +171,30 @@ ashita.events.register('d3d_present', 'chatbubbles_present', function ()
         testDraw:AddRectFilled({ 20, 60 }, { 370, 100 }, imgui.GetColorU32({ 0.08, 0.09, 0.12, 1 }), 6);
         testDraw:AddText({ 30, 70 }, imgui.GetColorU32({ 1, 1, 1, 1 }), 'chatbubbles: overlay drawing works');
     end
+    -- an NPC's line that waits for a key stays while the game waits, with the arrow on it: held a
+    -- second past each frame the game is in an event, and let go a second after it ends
+    local appearance = config.options.appearance;
+    local waiting = appearance.arrow ~= nil and appearance.arrow[1] == true and game.IsEventHappening();
+    if (waiting) then
+        for _, message in pairs(npcState.messages) do
+            if (message.prompt) then message.expires = math.max(message.expires, now + 1); end
+        end
+    end
     local active = prune(now);
     local hook = nameplates.Hook();
     if (hook == nil) then clear(); return; end
     -- Publish an empty frame too, so expired speech disappears immediately: and with Draw On Screen
     -- every frame is empty, the world's bubbles gone the frame it is turned on
-    local appearance = config.options.appearance;
     local onScreen = appearance.onScreen ~= nil and appearance.onScreen[1] == true;
     local scale = world.Begin(hook);
     if ((not scale and not onScreen) or active == 0) then return; end
     local display = imgui.GetIO().DisplaySize;
     local seen = {};
+    -- the bubbles' font and size, where they are not everything else's
+    local font = fonts.Get(appearance.font ~= nil and appearance.font[1] or '');
+    local fontSize = appearance.fontSize ~= nil and appearance.fontSize[1] or 0;
+    local pushed = font ~= nil or fontSize > 0;
+    if (pushed) then imgui.PushFont(font, fontSize > 0 and fontSize or imgui.GetFontSize()); end
     for _, name in nameplates.Each() do
         stats.anchors = stats.anchors + 1;
         local speaker = nameplates.Name(name):lower();
@@ -190,6 +208,7 @@ ashita.events.register('d3d_present', 'chatbubbles_present', function ()
         -- packet chat still cannot attach to arbitrary same-named NPCs.
         if (message and not seen[message] and (synthetic or dialogue or name.Category <= nameplates.Category.Player)) then
             stats.matched = stats.matched + 1;
+            message.waiting = dialogue ~= nil and message.prompt == true and waiting;
             local x, y = nameplates.Screen(name);
             if (x and x >= 0 and x <= display.x and y >= 0 and y <= display.y) then
                 seen[message] = true;
@@ -203,4 +222,5 @@ ashita.events.register('d3d_present', 'chatbubbles_present', function ()
             end
         end
     end
+    if (pushed) then imgui.PopFont(); end
 end);

@@ -1,42 +1,67 @@
--- The parchment skin: winxi's FFXI-inspired window look round a bubble, lighter. The background is a
--- gradient from one colour at the top to another at the bottom, with the theme's fine dark lines over
--- it (libs\winxi\assets\backgrounds\lines.png, a dark row and a clear row), and the border is the
--- theme's FFXI-inspired art (libs\winxi\assets\borders\ffxi.png), nine slices with corners of 3 pixels.
+-- The bubble's look: its skin, its border and the click-through arrow, drawn on an imgui draw list
+-- (Draw On Screen) or set out as the plugin's quads (in the world).
 --
---   skin.Keys, skin.Labels     the skins there are to choose from: 'plain', today's rounded rectangle,
---                              and 'parchment'
---   skin.Top, skin.Bottom, skin.Text   the parchment's colours to begin with
---   skin.Textures()            the border's and the lines' textures, as addresses the plugin and imgui
---                              can draw from, or nil for either not loaded; tried for again each second
---   skin.Screen(list, left, top, width, height, fade, appearance)
---                              the skin on an imgui draw list, faded
+-- The parchment skin is winxi's FFXI-inspired window look, lighter: a gradient from one colour at the
+-- top to another at the bottom, with the theme's fine dark lines over it
+-- (libs\winxi\assets\backgrounds\lines.png, a dark row and a clear row). The plain skin is a rounded
+-- rectangle in the Background colour. The border is any of the theme's border art
+-- (libs\winxi\assets\borders, nine slices with corners of 3 pixels, tinted the Border Colour), a plain
+-- line of a pixel in that colour, or none.
+--
+--   skin.Keys, skin.Labels           the skins: 'plain' and 'parchment'
+--   skin.Borders                     the borders, { key, label } each: none, plain, and the theme's art
+--   skin.Top, skin.Bottom, skin.Text the parchment's colours to begin with
+--   skin.Textures(appearance)        the border's and the lines' textures for this look, as addresses
+--                                   the plugin and imgui can draw from, or nil for one not wanted or not
+--                                   loaded (tried for again each second)
+--   skin.Light(appearance, skinned)  whether what is behind the text is light, for the text's dark edge
+--   skin.Screen(list, left, top, width, height, fade, appearance, border, lines)
+--                                   the skin and the border on an imgui draw list, faded
 --   skin.World(quad, u, v, left, top, width, height, appearance, border, lines)
---                              the skin as the plugin's quads, through quad(x0, y0, x1, y1, u0, v0, u1,
---                              v1, color, slot); u, v the font's white pixel; border and lines the
---                              texture slots the two are in, or nil where one is not loaded. The fade
---                              is the name's (BeginName), not the quads'
---   skin.Quads(width, height, border, lines)   how many quads World sets out, for the budget
---   skin.Light(appearance, skinned)   whether what is behind the text is light, for the text's dark edge
---   skin.LoadBorder(), skin.LoadLines()   load the two textures, fields for the checks to stand in for
+--                                   the same as the plugin's quads, through quad(x0, y0, x1, y1, u0, v0,
+--                                   u1, v1, color, slot); u, v the font's white pixel; border and lines
+--                                   the texture slots the two are in, or nil where one is not drawn. The
+--                                   fade is the name's (BeginName), not the quads'
+--   skin.Quads(width, height, appearance, border, lines)   how many quads World sets out, for the budget
+--   skin.ArrowShown(now)             whether the click-through arrow is in its lit half of its flash
+--   skin.ArrowSize                   its side, in pixels
+--   skin.ArrowScreen(list, right, bottom, color, dark)     the arrow on a draw list, its point at right, bottom
+--   skin.ArrowWorld(quad, u, v, right, bottom, color)      the arrow as quads; skin.ArrowQuads of them
+--   skin.LoadBorder(style), skin.LoadLines()   load the textures: fields for the checks to stand in for
 local imgui = require('imgui');
 
 local skin = {};
 
 skin.Keys = { 'plain', 'parchment' };
 skin.Labels = { plain = 'Plain', parchment = 'Parchment' };
+skin.Borders = {
+    { key = 'none', label = 'None' }, { key = 'plain', label = 'Plain Line' },
+    { key = 'silver', label = 'Brushed Silver' }, { key = 'bronze', label = 'Bronze' },
+    { key = 'ffxi', label = 'FFXI-inspired' }, { key = 'crystal', label = 'Crystal' },
+    { key = 'royal', label = 'Royal Gold' }, { key = 'obsidian', label = 'Obsidian' },
+    { key = 'royal_silver', label = 'Royal Silver' }, { key = 'royal_platinum', label = 'Royal Platinum' },
+    { key = 'mythril', label = 'Mythril' }, { key = 'adaman', label = 'Adaman' },
+    { key = 'jade', label = 'Jade' }, { key = 'amethyst', label = 'Amethyst' },
+};
+skin.BorderLabels = {};
+for _, entry in ipairs(skin.Borders) do skin.BorderLabels[entry.key] = entry.label; end
 skin.Top = { 0.93, 0.87, 0.72, 0.96 };
 skin.Bottom = { 0.74, 0.62, 0.44, 0.96 };
 skin.Text = { 0.22, 0.16, 0.10, 1 };
+skin.ArrowSize = 9;
 
 local TILE   = 128;         -- the lines tile's side
-local EDGE   = 3;           -- the border's corners, in pixels, whatever the bubble's size
+local EDGE   = 3;           -- the border art's corners, in pixels, whatever the bubble's size
 local STRIPS = 12;          -- the gradient, as the plugin draws it: strips of one colour each
-local UV     = { 0, 8 / 64, 56 / 64, 1 }; -- the border's nine slices in its image, as winxi.borders has them
+local UV     = { 0, 8 / 64, 56 / 64, 1 }; -- the art's nine slices in its image, as winxi.borders has them
 local RETRY  = 1;           -- seconds between one try for a texture and the next
+local FLASH  = 0.4;         -- seconds the arrow is lit, and then dark
+local ARROW_ROWS = 6;       -- the arrow as the plugin draws it: rows of one quad each
+skin.ArrowQuads = ARROW_ROWS;
 
-function skin.LoadBorder()
+function skin.LoadBorder(style)
     local ok, borders = pcall(require, 'winxi.borders');
-    return ok and borders.Texture('ffxi') or nil;
+    return ok and borders.Texture(style) or nil;
 end
 
 function skin.LoadLines()
@@ -45,19 +70,37 @@ function skin.LoadLines()
     return handle or nil;
 end
 
-local border, lines = nil, nil;
-local triedAt = -math.huge;
+local borders = {}; -- style -> its texture, while loaded
+local lines = nil;
+local triedAt = {};
 
-function skin.Textures()
-    if (border == nil or lines == nil) then
-        local now = os.clock();
-        if (now - triedAt >= RETRY) then
-            triedAt = now;
-            if (border == nil) then border = skin.LoadBorder(); end
-            if (lines == nil) then lines = skin.LoadLines(); end
+local function Retry(key)
+    local now = os.clock();
+    if (now - (triedAt[key] or -math.huge) < RETRY) then return false; end
+    triedAt[key] = now;
+    return true;
+end
+
+-- Whether the border is one of the art, and not none or the plain line
+local function Art(style)
+    return style ~= nil and style ~= 'none' and style ~= 'plain' and skin.BorderLabels[style] ~= nil;
+end
+
+function skin.Textures(appearance)
+    local style = appearance.border ~= nil and appearance.border[1] or 'none';
+    local border = nil;
+    if (Art(style)) then
+        border = borders[style];
+        if (border == nil and Retry(style)) then
+            border = skin.LoadBorder(style);
+            borders[style] = border;
         end
     end
-    return border, lines;
+    local wantsLines = appearance.skin ~= nil and appearance.skin[1] == 'parchment';
+    if (wantsLines and lines == nil and Retry('lines')) then
+        lines = skin.LoadLines();
+    end
+    return border, wantsLines and lines or nil;
 end
 
 -- The lines tile over the bubble, side by side at its own size, the last column and row cut to what
@@ -76,7 +119,7 @@ local function TileCount(width, height)
     return math.ceil(width / TILE) * math.ceil(height / TILE);
 end
 
--- The border's nine slices, less the middle: each(x0, y0, x1, y1, u0, v0, u1, v1) for each
+-- The border art's nine slices, less the middle: each(x0, y0, x1, y1, u0, v0, u1, v1) for each
 local xx, yy = { 0, 0, 0, 0 }, { 0, 0, 0, 0 };
 local function Slices(x, y, width, height, each)
     local edge = math.min(EDGE, width / 2, height / 2);
@@ -111,26 +154,35 @@ local function packed(rgba, fade)
     return imgui.GetColorU32({ rgba[1], rgba[2], rgba[3], rgba[4] * fade });
 end
 
-function skin.Screen(list, left, top, width, height, fade, appearance)
-    local borderTexture, linesTexture = skin.Textures();
-    local topColor, bottomColor = packed(appearance.skinTop, fade), packed(appearance.skinBottom, fade);
+function skin.Screen(list, left, top, width, height, fade, appearance, border, linesTexture)
+    local style = appearance.border ~= nil and appearance.border[1] or 'none';
     a[1], a[2], b[1], b[2] = left, top, left + width, top + height;
-    list:AddRectFilledMultiColor(a, b, topColor, topColor, bottomColor, bottomColor);
-    tint[4] = fade;
-    local white = imgui.GetColorU32(tint);
-    if (linesTexture) then
-        Tiles(left, top, width, height, function (x0, y0, x1, y1, u1, v1)
-            a[1], a[2], b[1], b[2] = x0, y0, x1, y1;
-            uvA[1], uvA[2], uvB[1], uvB[2] = 0, 0, u1, v1;
-            list:AddImage(linesTexture, a, b, uvA, uvB, white);
-        end);
+    if (appearance.skin ~= nil and appearance.skin[1] == 'parchment') then
+        local topColor, bottomColor = packed(appearance.skinTop, fade), packed(appearance.skinBottom, fade);
+        list:AddRectFilledMultiColor(a, b, topColor, topColor, bottomColor, bottomColor);
+        if (linesTexture) then
+            tint[4] = fade;
+            local white = imgui.GetColorU32(tint);
+            Tiles(left, top, width, height, function (x0, y0, x1, y1, u1, v1)
+                a[1], a[2], b[1], b[2] = x0, y0, x1, y1;
+                uvA[1], uvA[2], uvB[1], uvB[2] = 0, 0, u1, v1;
+                list:AddImage(linesTexture, a, b, uvA, uvB, white);
+            end);
+        end
+    else
+        -- the corners rounded as the art's are where there is art, and as before where there is none
+        list:AddRectFilled(a, b, packed(appearance.background, fade), border and 3 or 6);
     end
-    if (borderTexture) then
+    if (border) then
+        local color = packed(appearance.borderColor, fade);
         Slices(left, top, width, height, function (x0, y0, x1, y1, u0, v0, u1, v1)
             a[1], a[2], b[1], b[2] = x0, y0, x1, y1;
             uvA[1], uvA[2], uvB[1], uvB[2] = u0, v0, u1, v1;
-            list:AddImage(borderTexture, a, b, uvA, uvB, white);
+            list:AddImage(border, a, b, uvA, uvB, color);
         end);
+    elseif (style == 'plain') then
+        a[1], a[2], b[1], b[2] = left, top, left + width, top + height;
+        list:AddRect(a, b, packed(appearance.borderColor, fade), 6, 0, 1);
     end
 end
 
@@ -142,30 +194,81 @@ end
 
 local mixed = { 0, 0, 0, 0 };
 
-function skin.Quads(width, height, border, lines)
-    return STRIPS + (lines and TileCount(width, height) or 0) + (border and 8 or 0);
+function skin.Quads(width, height, appearance, border, linesSlot)
+    local style = appearance.border ~= nil and appearance.border[1] or 'none';
+    local count = appearance.skin ~= nil and appearance.skin[1] == 'parchment'
+        and (STRIPS + (linesSlot and TileCount(width, height) or 0)) or 1;
+    if (border) then count = count + 8; elseif (style == 'plain') then count = count + 4; end
+    return count;
 end
 
-function skin.World(quad, u, v, left, top, width, height, appearance, border, lines)
-    local above, below = appearance.skinTop, appearance.skinBottom;
-    for strip = 0, STRIPS - 1 do
-        local share = (strip + 0.5) / STRIPS;
-        for channel = 1, 4 do
-            mixed[channel] = above[channel] + (below[channel] - above[channel]) * share;
+function skin.World(quad, u, v, left, top, width, height, appearance, border, linesSlot)
+    local style = appearance.border ~= nil and appearance.border[1] or 'none';
+    if (appearance.skin ~= nil and appearance.skin[1] == 'parchment') then
+        local above, below = appearance.skinTop, appearance.skinBottom;
+        for strip = 0, STRIPS - 1 do
+            local share = (strip + 0.5) / STRIPS;
+            for channel = 1, 4 do
+                mixed[channel] = above[channel] + (below[channel] - above[channel]) * share;
+            end
+            local y0 = top + height * strip / STRIPS;
+            local y1 = top + height * (strip + 1) / STRIPS;
+            quad(left, y0, left + width, y1, u, v, u, v, argb(mixed), 0);
         end
-        local y0 = top + height * strip / STRIPS;
-        local y1 = top + height * (strip + 1) / STRIPS;
-        quad(left, y0, left + width, y1, u, v, u, v, argb(mixed), 0);
-    end
-    if (lines) then
-        Tiles(left, top, width, height, function (x0, y0, x1, y1, u1, v1)
-            quad(x0, y0, x1, y1, 0, 0, u1, v1, 0xFFFFFFFF, lines);
-        end);
+        if (linesSlot) then
+            Tiles(left, top, width, height, function (x0, y0, x1, y1, u1, v1)
+                quad(x0, y0, x1, y1, 0, 0, u1, v1, 0xFFFFFFFF, linesSlot);
+            end);
+        end
+    else
+        quad(left, top, left + width, top + height, u, v, u, v, argb(appearance.background), 0);
     end
     if (border) then
+        local color = argb(appearance.borderColor);
         Slices(left, top, width, height, function (x0, y0, x1, y1, u0, v0, u1, v1)
-            quad(x0, y0, x1, y1, u0, v0, u1, v1, 0xFFFFFFFF, border);
+            quad(x0, y0, x1, y1, u0, v0, u1, v1, color, border);
         end);
+    elseif (style == 'plain') then
+        local color = argb(appearance.borderColor);
+        quad(left, top, left + width, top + 1, u, v, u, v, color, 0);
+        quad(left, top + height - 1, left + width, top + height, u, v, u, v, color, 0);
+        quad(left, top + 1, left + 1, top + height - 1, u, v, u, v, color, 0);
+        quad(left + width - 1, top + 1, left + width, top + height - 1, u, v, u, v, color, 0);
+    end
+end
+
+-- The click-through arrow, as the game's dialogue cursor: a small triangle pointing down, lit and
+-- dark by turns
+function skin.ArrowShown(now)
+    return math.floor(now / FLASH) % 2 == 0;
+end
+
+local p1, p2, p3 = { 0, 0 }, { 0, 0 }, { 0, 0 };
+
+function skin.ArrowScreen(list, right, bottom, color, dark)
+    local size = skin.ArrowSize;
+    local left, top = right - size, bottom - size;
+    p1[1], p1[2], p2[1], p2[2], p3[1], p3[2] = left, top, right, top, left + size / 2, bottom;
+    if (dark) then
+        -- the dark edge: the same triangle, a pixel out each way
+        for dx = -1, 1, 2 do
+            for dy = -1, 1, 2 do
+                p1[1], p1[2], p2[1], p2[2], p3[1], p3[2] = left + dx, top + dy, right + dx, top + dy, left + size / 2 + dx, bottom + dy;
+                list:AddTriangleFilled(p1, p2, p3, dark);
+            end
+        end
+        p1[1], p1[2], p2[1], p2[2], p3[1], p3[2] = left, top, right, top, left + size / 2, bottom;
+    end
+    list:AddTriangleFilled(p1, p2, p3, color);
+end
+
+function skin.ArrowWorld(quad, u, v, right, bottom, color)
+    local size = skin.ArrowSize;
+    local top = bottom - size;
+    for row = 0, ARROW_ROWS - 1 do
+        local half = size / 2 * (1 - row / ARROW_ROWS);
+        local middle = right - size / 2;
+        quad(middle - half, top + size * row / ARROW_ROWS, middle + half, top + size * (row + 1) / ARROW_ROWS, u, v, u, v, color, 0);
     end
 end
 

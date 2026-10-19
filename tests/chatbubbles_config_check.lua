@@ -4,6 +4,7 @@ T = function(value) return value; end;
 local saves, callback, loadDefaults = 0;
 local button, checkbox, changedColor;
 local labels, ends = {}, 0;
+package.loaded['winxi.fonts'] = { Files = function() return {}; end, Get = function() return nil; end };
 package.loaded.settings = {
     load = function(defaults) loadDefaults = defaults; return defaults; end,
     save = function() saves = saves + 1; end,
@@ -19,6 +20,7 @@ package.loaded.imgui = {
     SameLine = function() end, Separator = function() end,
     Button = function(label) return label == button; end,
     BeginCombo = function() return false; end, EndCombo = function() end, Selectable = function() return false; end,
+    InputInt = function() return false; end,
     Checkbox = function(label, value)
         labels[label] = true;
         if label == checkbox then value[1] = not value[1]; return true; end
@@ -102,4 +104,18 @@ button = 'Parchment bubbles'; config.Draw(); button = nil;
 assert(config.options.appearance.skin[1] == 'parchment' and config.options.appearance.text[1] == 0.22 and config.options.appearance.skinTop[1] == 0.93);
 config.Preset(true);
 assert(config.options.appearance.skin[1] == 'plain', 'a preset is the plain skin');
-print('chatbubbles config: saved settings, tabs, colors, presets, the skin, all channel switches and reload normalization passed');
+-- the border, the font, its size, the padding and the arrow: settled, kept in range, and the presets' border
+assert(config.options.appearance.border[1] == 'none' and config.options.appearance.font[1] == '' and config.options.appearance.fontSize[1] == 0
+    and config.options.appearance.padding[1] == 10 and config.options.appearance.arrow[1] == true);
+callback({ appearance = { border = { 'lace' }, borderColor = { 2, 0.5 }, font = { 7 }, fontSize = { 99 }, padding = { -3 }, arrow = { 'yes' } } });
+assert(config.options.appearance.border[1] == 'none' and config.options.appearance.borderColor[1] == 1 and config.options.appearance.borderColor[2] == 0.5
+    and config.options.appearance.font[1] == '' and config.options.appearance.fontSize[1] == 72 and config.options.appearance.padding[1] == 0
+    and config.options.appearance.arrow[1] == true);
+callback({ appearance = { border = { 'jade' }, font = { 'arial.ttf' }, fontSize = { 18.7 }, padding = { 12 }, arrow = { false } } });
+assert(config.options.appearance.border[1] == 'jade' and config.options.appearance.font[1] == 'arial.ttf' and config.options.appearance.fontSize[1] == 18
+    and config.options.appearance.padding[1] == 12 and config.options.appearance.arrow[1] == false);
+button = 'Parchment bubbles'; config.Draw(); button = nil;
+assert(config.options.appearance.border[1] == 'ffxi' and config.options.appearance.borderColor[1] == 1);
+config.Preset(false);
+assert(config.options.appearance.border[1] == 'none', 'the plain presets have no border');
+print('chatbubbles config: saved settings, tabs, colors, presets, the skin, the border, the font, padding, the arrow, all channel switches and reload normalization passed');

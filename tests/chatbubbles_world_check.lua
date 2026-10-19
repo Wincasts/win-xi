@@ -19,6 +19,7 @@ package.loaded.imgui = {
     GetFontSize = function() return 16; end,
     GetFontBaked = function() return baked; end,
     CalcTextSize = function(s) return #s * 8, 16; end,
+    GetColorU32 = function(color) return color; end,
 };
 local nameplates = require('winxi.nameplates');
 local world = require('world');
@@ -64,7 +65,7 @@ assert(block.Draw.Textures[0] == 1 and block.Draw.Entities[5].Alpha == 1);
 assert(codes[72] and codes[105]);
 local bg = block.Draw.Quads[0];
 assert(math.abs((bg.X1 - bg.X0) * 1920 / 2048 - 36) < 0.01);
-assert(math.abs((bg.Y1 - bg.Y0) * 1080 / 2048 - 32) < 0.01);
+assert(math.abs((bg.Y1 - bg.Y0) * 1080 / 2048 - 36) < 0.01); -- the text's 16 and the padding of 10 above and below
 assert(bg.Color == 0xEB15171F and bg.U0 == bg.U1 and bg.V0 == bg.V1);
 -- Appearance is supplied independently of layout, ready for future style fields.
 world.Begin(hook);
@@ -91,7 +92,7 @@ local skin = require('skin');
 skin.LoadBorder = function() return 0x7001; end;
 skin.LoadLines = function() return 0x7002; end;
 local parchment = { background = { 1, 1, 1, 1 }, text = { 0.2, 0.1, 0.1, 1 }, skin = { 'parchment' },
-    skinTop = { 0.9, 0.8, 0.7, 1 }, skinBottom = { 0.7, 0.6, 0.4, 1 } };
+    skinTop = { 0.9, 0.8, 0.7, 1 }, skinBottom = { 0.7, 0.6, 0.4, 1 }, border = { 'ffxi' }, borderColor = { 1, 1, 1, 1 } };
 world.Begin(hook);
 assert(world.Draw(name, { text = 'Hi', expires = 108 }, 100, scale, parchment));
 assert(block.Draw.Textures[1] == 0x7001 and block.Draw.Textures[2] == 0x7002);
@@ -103,6 +104,33 @@ assert(block.Draw.Quads[21].Color == 0xFFB39966 and block.Draw.Quads[21].Texture
 assert(block.Draw.Quads[29].Color == 0xFF331A1A, 'the text its own colour');
 world.Begin(hook);
 assert(not world.Draw(name, { text = ('a'):rep(228), expires = 108 }, 100, scale, parchment), 'the skin counts against the budget');
+-- the border's tint, a plain line of a pixel, and none; the padding round the text
+parchment.borderColor = { 0.5, 0.25, 0, 1 };
+world.Begin(hook);
+assert(world.Draw(name, { text = 'Hi', expires = 108 }, 100, scale, parchment) and block.Draw.Quads[13].Color == 0xFF804000);
+parchment.border = { 'plain' };
+world.Begin(hook);
+assert(world.Draw(name, { text = 'Hi', expires = 108 }, 100, scale, parchment) and block.Draw.QuadCount == 12 + 1 + 4 + 8 + 2);
+assert(block.Draw.Quads[13].Color == 0xFF804000 and block.Draw.Quads[13].Texture == 0 and block.Draw.Textures[1] == 0);
+parchment.border = { 'none' };
+world.Begin(hook);
+assert(world.Draw(name, { text = 'Hi', expires = 108 }, 100, scale, parchment) and block.Draw.QuadCount == 12 + 1 + 8 + 2);
+local plainBordered = { background = { 1, 1, 1, 1 }, text = { 0, 0, 0, 1 }, skin = { 'plain' }, border = { 'ffxi' }, borderColor = { 1, 1, 1, 1 }, padding = { 20 } };
+world.Begin(hook);
+assert(world.Draw(name, { text = 'Hi', expires = 108 }, 100, scale, plainBordered) and block.Draw.QuadCount == 1 + 8 + 8 + 2);
+local wide = block.Draw.Quads[0];
+assert(math.abs((wide.X1 - wide.X0) * 1920 / 2048 - 56) < 0.01 and math.abs((wide.Y1 - wide.Y0) * 1080 / 2048 - 56) < 0.01, 'padding of 20 each side');
+assert(block.Draw.Quads[1].Texture == 1, 'the art round the plain skin');
+-- an NPC's line that waits for a key: the arrow's rows in the bubble's bottom right, in the text's colour,
+-- while it is lit; the bubble taller for it
+world.Begin(hook);
+assert(skin.ArrowShown(100) and not skin.ArrowShown(100.4));
+assert(world.Draw(name, { text = 'Hi', expires = 108, waiting = true }, 100, scale, plainBordered) and block.Draw.QuadCount == 1 + 8 + 8 + 2 + 6);
+local tall = block.Draw.Quads[0];
+assert(math.abs((tall.Y1 - tall.Y0) * 1080 / 2048 - 67) < 0.01, 'room for the arrow');
+assert(block.Draw.Quads[24].Color == 0xFF000000 and block.Draw.Quads[24].X1 > block.Draw.Quads[24].X0);
+world.Begin(hook);
+assert(world.Draw(name, { text = 'Hi', expires = 108, waiting = true }, 100.4, scale, plainBordered) and block.Draw.QuadCount == 1 + 8 + 8 + 2, 'dark: no arrow this frame');
 -- UTF-8 decoded to glyph codepoints, not one glyph per byte.
 hook.Frame = 101;
 world.Begin(hook);
@@ -150,4 +178,4 @@ assert(world.Begin(hook));
 loaded = false;
 world.Clear(); -- must not dereference plugin memory after it is unloaded
 ffi.C.munmap(low, size);
-print('chatbubbles world: independent ABI, UTF-8 glyphs, quads, the parchment skin, aspect, alpha, limits and compatibility checks passed');
+print('chatbubbles world: independent ABI, UTF-8 glyphs, quads, the parchment skin, borders, padding, the arrow, aspect, alpha, limits and compatibility checks passed');

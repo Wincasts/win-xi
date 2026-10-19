@@ -67,6 +67,20 @@ No DLL change is needed for these settings if namehook 1.24+ is already installe
   FFXI-inspired border round it, in the world and on the screen alike. The
   **Parchment bubbles** preset chooses it with dark text. The art is winxi's own
   (`libs\winxi\assets`), so `libs/winxi` has to be deployed with it.
+  **Border** puts one of the theme's border arts round the bubble (Brushed Silver,
+  Bronze, FFXI-inspired, Crystal, Royal Gold, Obsidian, Royal Silver, Royal
+  Platinum, Mythril, Adaman, Jade or Amethyst), tinted **Border Colour**, or a
+  **Plain Line** of a pixel in that colour, or **None**. It goes with either skin;
+  the Parchment preset chooses the FFXI-inspired art, the others none.
+  **Font** is a font of Windows' own, by its file in `C:\Windows\Fonts`, or Default,
+  the font everything else is written in; **Font Size (px)** its size, or 0 for the
+  size everything else is. **Padding (px)** is the room between the text and the
+  bubble's edge, 10 to begin with.
+  **Click-Through Arrow** (on by default) puts a small arrow in the bubble's bottom
+  right, flashing as the game's dialogue cursor does, on an NPC's line that waits
+  for you to press a key: one the game sends with its prompt escape (DEL `1`) while
+  an event is running. The bubble stays while the game waits, and goes a second
+  after the event ends or the next line comes.
   **Draw On Screen** (off by default) draws the bubbles with imgui over everything
   on the screen, at one size whatever the distance, instead of in the world where
   walls and characters in front hide them. The same colours, wrapping and fade

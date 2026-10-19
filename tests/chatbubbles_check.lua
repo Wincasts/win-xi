@@ -59,8 +59,9 @@ AshitaCore = { GetMemoryManager = function()
     };
 end };
 package.loaded.common = {};
-package.loaded.encoding = { Decode = function(s) return s; end };
+package.loaded.encoding = { Decode = function(s, dialogue) return dialogue and require('npc').CleanRaw(s) or s; end };
 ashita = { events = { register = function(event, _, callback) events[event] = callback; end } };
+local pushedFonts = {};
 local font = {};
 local draw = {};
 function draw:AddRectFilled() draws[#draws + 1] = 'bubble'; end
@@ -76,8 +77,13 @@ package.loaded.imgui = {
     CalcTextSize = function(s) return #s * 8, 16; end,
     GetBackgroundDrawList = function() return draw; end,
     GetColorU32 = function(color) return color; end,
+    PushFont = function(font, size) pushedFonts[#pushedFonts + 1] = { font = font, size = size }; end,
+    PopFont = function() pushedFonts[#pushedFonts + 1] = 'pop'; end,
 };
 package.loaded['winxi.text'] = { Packed = function(list, _, _, _, words) list:AddText(nil, nil, words); end };
+local eventHappening = false;
+package.loaded['winxi.game'] = { IsEventHappening = function() return eventHappening; end };
+package.loaded['winxi.fonts'] = { Get = function(file) return file ~= '' and { file = file } or nil; end, Files = function() return {}; end };
 package.loaded['winxi.nameplates'] = {
     Category = { Player = 8 },
     Hook = function() return hook and {} or nil; end,
@@ -280,6 +286,42 @@ assert(frame() == 'parchment|On the screen');
 appearance.skin = { 'plain' };
 appearance.onScreen = { false };
 assert(frame() == 'bubble|On the screen'); -- the world's again
+-- the bubbles' own font and size are pushed round the frame, and popped after; none when neither is set
+appearance.font, appearance.fontSize = { 'arial.ttf' }, { 0 };
+pushedFonts = {};
+frame();
+assert(#pushedFonts == 2 and pushedFonts[1].font.file == 'arial.ttf' and pushedFonts[1].size == 16 and pushedFonts[2] == 'pop');
+appearance.font, appearance.fontSize = { '' }, { 20 };
+pushedFonts = {};
+frame();
+assert(#pushedFonts == 2 and pushedFonts[1].font == nil and pushedFonts[1].size == 20);
+appearance.fontSize = { 0 };
+pushedFonts = {};
+frame();
+assert(#pushedFonts == 0, 'the font everything else is in, at its size: nothing pushed');
+-- an NPC's line with the game's prompt escape waits for a key: with the arrow on and an event running
+-- the bubble stays and says so; without the event, or the escape, it does not
+command('clear');
+npcActors[77] = { id = 0x0100004D, name = 'Moogle' };
+records = { { name = 'Moogle', EntityIndex = 77, ServerId = npcActors[77].id, Category = 64, x = 400, y = 300 } };
+appearance.arrow = { true };
+eventHappening = true;
+events.text_in({ mode = 151, message = 'Moogle : Press a key.\127\49\3' });
+assert(frame() == 'bubble|Press a key.' and lastMessage.waiting == true and lastMessage.prompt == true);
+now = now + 20;
+assert(frame() == 'bubble|Press a key.', 'it stays while the game waits');
+eventHappening = false;
+assert(frame() == 'bubble|Press a key.' and lastMessage.waiting == false, 'the event over: no longer waiting');
+now = now + 2;
+assert(frame() == '', 'and gone soon after');
+eventHappening = true;
+events.text_in({ mode = 151, message = 'Moogle : No prompt here.' });
+assert(frame() == 'bubble|No prompt here.' and lastMessage.waiting == false and lastMessage.prompt == false);
+appearance.arrow = { false };
+events.text_in({ mode = 151, message = 'Moogle : Arrow off.\127\49\3' });
+assert(frame() == 'bubble|Arrow off.' and lastMessage.waiting == false);
+eventHappening = false;
+command('clear');
 command('clear');
 os.clock = originalClock;
-print('chatbubbles: packet filtering, expiry, UTF-8 wrapping, anchoring, on-screen drawing, coexistence, zoning and commands passed');
+print('chatbubbles: packet filtering, expiry, UTF-8 wrapping, anchoring, on-screen drawing, fonts, the click-through arrow, coexistence, zoning and commands passed');
