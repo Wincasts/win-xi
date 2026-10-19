@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.49
+
+- Player Colour Overrides have **Looking For Party**: a player whose icons show they are seeking a party, with or without the star. After Dead, before Party and Alliance. The game has no colour of its own for it, so with it off the name keeps the colour its other state gives it.
+
 ## 1.48
 
 - `[level]` takes **exact**: `[level: exact]` writes the monster's level only once a check has told it, and nothing before then or for one impossible to gauge, where plain `[level]` writes the database's range. Text around it, such as `Lv `, stays.

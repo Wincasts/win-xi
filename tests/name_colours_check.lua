@@ -75,7 +75,16 @@ hp = 0; assert(colours.Resolve(o, name, entities, ids, false) == 0xFF808080)
 o.nameColours.playerNames.dead.enabled[1] = false
 assert(colours.Resolve(o, name, entities, ids, false) == nil, 'a dead player never takes a live colour')
 name.Category = plates.Category.Player; assert(colours.Resolve(o, name, entities, ids, false) == nil)
+assert(colours.Resolve(o, name, entities, ids, false, { 0x91 }) == nil, 'a dead seeker is dead')
 hp = 50
+-- looking for party, by its icon (0x91, or 0xAC with the star); the game has no colour for it
+enable('playerNames', 'seeking', 1, 1, 0)
+assert(colours.Resolve(o, name, entities, ids, false, { 0x91 }) == 0xFFFFFF00)
+assert(colours.Resolve(o, name, entities, ids, false, { 0x9E, 0xAC }) == 0xFFFFFF00, 'the starred icon too')
+assert(colours.Resolve(o, name, entities, ids, false, { 0x9E }) == 0xFFFF0000, 'other icons: Normal')
+assert(colours.Resolve(o, name, entities, ids, false) == 0xFFFF0000, 'no icons: Normal')
+o.nameColours.playerNames.seeking.enabled[1] = false
+assert(colours.Resolve(o, name, entities, ids, false, { 0x91 }) == 0xFFFF0000, 'off: coloured as Normal, the game having no colour of its own for it')
 for _, category in ipairs({ plates.Category.Self, plates.Category.MyPet, plates.Category.Pet }) do
     name.Category = category; assert(colours.Resolve(o, name, entities, ids, false) == 0xFFFF0000)
 end
@@ -91,4 +100,4 @@ custom.Settle(o)
 local c = o.nameColours.npcNames.normal.color
 assert(c[1] == 128/255 and c[2] == 0 and c[3] == 1 and c[4] == 1, 'sanitize RGB and never override live alpha')
 assert(o.nameColours.playerNames.combat == nil and o.nameColours.npcNames.targeted == nil, 'In Combat and Targeted dropped')
-H.print('state colours: the game\'s states, claims, call for help from 0x0E, party and alliance, dead first, NPCs dead by status, old states dropped, RGB validation', true)
+H.print('state colours: the game\'s states, claims, call for help from 0x0E, party and alliance, looking for party by its icon, dead first, NPCs dead by status, old states dropped, RGB validation', true)
