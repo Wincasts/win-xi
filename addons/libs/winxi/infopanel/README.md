@@ -1,8 +1,11 @@
 # Shared info panel (Winxi 22)
 
 `chat` supplies defaults/validation, chooses the owning compact chat window and samples/draws its
-panel. `source` supplies time/zone/EXP and weather without requiring native clock rendering;
-only the optional map grid uses a fresh native HUD read. It never claims or stops a HUD slot.
+panel. `source` supplies time/zone/EXP and weather without requiring native clock rendering.
+Weather uses packets, fresh native HUD data, then `weather.Read()` (the game's current weather word).
+The last valid weather survives temporary HUD/read loss; zoning and character resets clear it.
+The optional map grid uses native HUD data or `grid.Read()` (the game's own grid function).
+Neither fallback requires the clock to render, and neither claims or stops a HUD slot.
 `panel`, `fields`, `exp`, `icons` and `panel_settings` are also used by the legacy clock addon
 through compatibility imports. Each addon still has its own Lua state, settings and EXP tracker.
 

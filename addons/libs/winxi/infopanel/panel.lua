@@ -92,7 +92,8 @@ function M.Build(p, fields, context)
         if place < 3 or not handle then return end
         -- A manually placed token takes precedence over automatic placement.
         if fields.Has(M.Format(p),kind..'icon') then return end
-        local segment = { icon=handle, kind=kind }
+        local segment = { icon=handle, kind=kind,
+            tooltip=fields.IconTooltip and fields.IconTooltip(kind,context) or nil }
         local slot = slots[place-2]
         if p[kind..'After'][1] then
             if #slot>0 then slot[#slot+1]='  ' end
@@ -173,6 +174,17 @@ function M.Draw(p, slots, rect, options)
                 local iy = rect.top+(rect.height-h)/2+dy
                 pointA[1], pointA[2], pointB[1], pointB[2] = x+dx, iy, x+dx+h, iy+h
                 list:AddImage(s.icon,pointA,pointB)
+                -- Draw-list icons are not ImGui items. Test only their visible, slot-clipped area;
+                -- do not create buttons/invisible items which would steal native chat/menu input.
+                if s.tooltip and options.iconTooltip then
+                    local io = imgui.GetIO()
+                    local mouse = io.MousePos
+                    local mx, my = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+                    if not io.WantCaptureMouse and mx and my and mx >= math.max(left,x+dx) and mx < math.min(right,x+dx+h)
+                        and my >= math.max(rect.top+1,iy) and my < math.min(rect.top+rect.height-1,iy+h) then
+                        options.iconTooltip(s.tooltip)
+                    end
+                end
             end
             x=x+widths[j]
         end
