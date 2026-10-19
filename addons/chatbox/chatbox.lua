@@ -1456,8 +1456,15 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         views[1].target = captured and lastDrawn or nil
         views[2].target = splitDrawn and lastSplit or nil
     end
-    infoPanel.Tooltip()
-    ChatTooltip()
+    -- The tooltips are drawn here, past every window, where no font of winxi's is pushed: the theme's goes round them,
+    -- as a tooltip in a themed window has it (winxi.tooltip keeps the font it finds unless Tooltip Font Size says otherwise)
+    local themeFont = fonts.Push(false)
+    local ok, err = pcall(function()
+        infoPanel.Tooltip()
+        ChatTooltip()
+    end)
+    fonts.Pop(themeFont)
+    if not ok then error(err, 0) end
 end)
 
 -- Only the wheel over an overflowing box and left-button interactions with its scrollbar are taken; each box

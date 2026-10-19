@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The chat tooltips and the info panel's icon tooltips are drawn in the theme's font. They are drawn at the end of
+  the frame, past every window, where no font of winxi's was pushed, so they took imgui's own; the theme's font now
+  goes round them, as winxi.tooltip has it in a themed window (Tooltip Font Size in winxisettings still sets the
+  size). Tests: chatbox_ui_check the tooltip shown with the theme's font pushed, and popped after.
 - Tooltip Notes, under Chat Tooltips (on to begin with): the dimmed lines of a chat tooltip, the catalogs' caveats
   and a phrase's category and kind. Off, only the name and the facts are drawn, and no gap is left for them.
   links.Tooltip takes it as its second argument. Tests: chatbox_links_check an item and a phrase without their notes;

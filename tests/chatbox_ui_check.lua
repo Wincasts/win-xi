@@ -96,7 +96,8 @@ end }
 local look = { Padding=12,TextColor={1,1,1,1},HighlightColor={0.2,0.4,0.8,0.6} }
 package.loaded['winxi.theme'] = { Get=function() return look end }
 local fontDepth, pushedFonts, pushedSizes = 0, {}, {}
-package.loaded['winxi.fonts'] = {Push=function() return false end,Pop=function() end,
+local themeFontDepth=0 -- the theme's font pushed round the end-of-frame tooltips
+package.loaded['winxi.fonts'] = {Push=function() themeFontDepth=themeFontDepth+1; return true end,Pop=function(pushed) if pushed then themeFontDepth=themeFontDepth-1 end end,
     Get=function(file) if file and file~='' then return 'font:'..file end end, Files=function() return {'arial.ttf'} end}
 local headers = {}
 package.loaded['winxi.widgets'] = {Header=function(name) return headers[name] end, Label=function() end, FontFile=function() return false end, FontSize=function() return false, false end,
@@ -190,13 +191,13 @@ package.loaded.links = {
         if word then a, b = text:find(word, 1, true) end
         if a and offset >= a and offset <= b then return { kind='items', id=1, name=word, first=a, last=b } end
     end,
-    Tooltip = function(reference, notes) linkStub.tips[#linkStub.tips+1] = { reference=reference, notes=notes, captures=hooks[0].captures }; return true end,
+    Tooltip = function(reference, notes) linkStub.tips[#linkStub.tips+1] = { reference=reference, notes=notes, captures=hooks[0].captures, themeFont=themeFontDepth>0 }; return true end,
     Reset = function() linkStub.resets = linkStub.resets + 1 end,
 }
 dofile('addons/chatbox/chatbox.lua')
 local function frame()
     text={}; outlines={}; filled={}; images={}; labels={}; overs={}; lines={}
-    events.d3d_present(); assert(styleDepth==0, 'input minimum-size override balanced'); assert(fontDepth==0, 'chat font pushes balanced')
+    events.d3d_present(); assert(styleDepth==0, 'input minimum-size override balanced'); assert(fontDepth==0, 'chat font pushes balanced'); assert(themeFontDepth==0, 'the theme font round the tooltips popped')
 end
 local function message(value, extra)
     local e=extra or {}; e.message=value; e.mode=e.mode or 1
@@ -1041,7 +1042,7 @@ assert(call.tokens and #call.tokens == 2 and call.tokens[1] == tokens[2] and cal
     'the second row\'s tokens: one skipped for the ❮ before it, two for its own pairs (the message\'s tokens kept on it)')
 for _, kind in ipairs(package.loaded.links.Kinds) do assert(call.enabled[kind.key] == true, 'every kind on to begin with: ' .. kind.key) end
 assert(call.captures > before, 'looked up after the log\'s capture')
-assert(#L.tips == 1 and L.tips[1].reference.name == 'gamma' and L.tips[1].captures > before and L.tips[1].notes == true, 'the tooltip shown after the capture, outside the log, with its notes')
+assert(#L.tips == 1 and L.tips[1].reference.name == 'gamma' and L.tips[1].captures > before and L.tips[1].notes == true and L.tips[1].themeFont, 'the tooltip shown after the capture, outside the log, with its notes, in the theme\'s font')
 app.options.tooltipNotes[1] = false; L.tips = {}; frame()
 assert(#L.tips == 1 and L.tips[1].notes == false, 'Tooltip Notes off: told to leave them out')
 app.options.tooltipNotes[1] = true
