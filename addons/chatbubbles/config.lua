@@ -9,6 +9,7 @@ local function defaults()
     return T{ enabled = T{ true }, modes = channels, appearance = T{
         background = T{ 1, 1, 1, 0.96 }, text = T{ 0.05, 0.05, 0.05, 1 },
         gameTextColors = T{ true },
+        onScreen = T{ false }, -- drawn on the screen over everything, not in the world
     } };
 end
 local function settle(options)
@@ -21,9 +22,11 @@ local function settle(options)
         if (type(value) ~= 'table' or type(value[1]) ~= 'boolean') then options.modes[mode.key] = base.modes[mode.key]; end
     end
     if (type(options.appearance) ~= 'table') then options.appearance = base.appearance; end
-    local gameColors = options.appearance.gameTextColors;
-    if (type(gameColors) ~= 'table' or type(gameColors[1]) ~= 'boolean') then
-        options.appearance.gameTextColors = base.appearance.gameTextColors;
+    for _, key in ipairs({ 'gameTextColors', 'onScreen' }) do
+        local switch = options.appearance[key];
+        if (type(switch) ~= 'table' or type(switch[1]) ~= 'boolean') then
+            options.appearance[key] = base.appearance[key];
+        end
     end
     for _, key in ipairs({ 'background', 'text' }) do
         local color = options.appearance[key];
@@ -78,6 +81,9 @@ function M.Draw()
                 if (imgui.Checkbox('Match in-game chat text colors', M.options.appearance.gameTextColors)) then M.Save(); end
                 if (imgui.ColorEdit4('Text (manual / fallback)', M.options.appearance.text)) then M.Save(); end
                 imgui.TextWrapped('Game colors follow FFXI Config > Font Colors and update while bubbles are visible. Manual RGB applies when matching is off, to local tests, or if lookup is unavailable. Text opacity always applies. Game-colored text gets a dark outline on light backgrounds.');
+                imgui.Separator();
+                if (imgui.Checkbox('Draw On Screen', M.options.appearance.onScreen)) then M.Save(); end
+                imgui.TextWrapped('Off: bubbles are drawn in the world by namehook, where walls and characters in front hide them, as names are. On: they are drawn over everything on the screen, at one size whatever the distance, as chatbubbles drew them up to 0.3.');
                 imgui.EndTabItem();
             end
             if (imgui.BeginTabItem('Chat Modes')) then

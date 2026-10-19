@@ -1,7 +1,7 @@
 addon.name = 'chatbubbles';
 addon.author = 'win';
-addon.version = '0.8';
-addon.desc = 'Configurable world-space chat bubbles anchored by namehook.';
+addon.version = '0.9';
+addon.desc = 'Configurable chat bubbles anchored by namehook, in the world or on the screen.';
 
 require('common');
 local imgui = require('imgui');
@@ -9,6 +9,7 @@ local nameplates = require('winxi.nameplates');
 local bubbles = require('bubbles');
 local encoding = require('encoding');
 local world = require('world');
+local screen = require('screen');
 local config = require('config');
 local npc = require('npc');
 local modes = require('modes');
@@ -168,9 +169,12 @@ ashita.events.register('d3d_present', 'chatbubbles_present', function ()
     local active = prune(now);
     local hook = nameplates.Hook();
     if (hook == nil) then clear(); return; end
-    -- Publish an empty frame too, so expired speech disappears immediately.
+    -- Publish an empty frame too, so expired speech disappears immediately: and with Draw On Screen
+    -- every frame is empty, the world's bubbles gone the frame it is turned on
+    local appearance = config.options.appearance;
+    local onScreen = appearance.onScreen ~= nil and appearance.onScreen[1] == true;
     local scale = world.Begin(hook);
-    if (not scale or active == 0) then return; end
+    if ((not scale and not onScreen) or active == 0) then return; end
     local display = imgui.GetIO().DisplaySize;
     local seen = {};
     for _, name in nameplates.Each() do
@@ -189,7 +193,13 @@ ashita.events.register('d3d_present', 'chatbubbles_present', function ()
             local x, y = nameplates.Screen(name);
             if (x and x >= 0 and x <= display.x and y >= 0 and y <= display.y) then
                 seen[message] = true;
-                if (world.Draw(name, message, now, scale, config.options.appearance)) then stats.drawn = stats.drawn + 1; end
+                local drawn;
+                if (onScreen) then
+                    drawn = screen.Draw(name, message, now, x, y, display, appearance);
+                else
+                    drawn = world.Draw(name, message, now, scale, appearance);
+                end
+                if (drawn) then stats.drawn = stats.drawn + 1; end
             end
         end
     end

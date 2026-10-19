@@ -3,6 +3,8 @@
 Standalone Ashita v4 **configurable chat bubbles**, rendered by namehook in the world's
 nameplate pass. They follow the speaker's current above-head position and are
 depth-tested against the scene, like the names, instead of drawing on top of walls.
+**Draw On Screen**, in Appearance, draws them over everything on the screen instead,
+as the addon did up to 0.3.
 
 ## Install / upgrade
 
@@ -44,7 +46,7 @@ The normal chat log is unchanged. `/s` is the game's abbreviation for `/say`.
 | `/chatbubbles clear` | Clear current messages |
 | `/addon unload chatbubbles` | Remove bubbles without changing name filters |
 
-The test's fixed label is intentionally still a UI overlay; speech bubbles are not.
+The test's fixed label is intentionally still a UI overlay; speech bubbles are not, unless Draw On Screen is on.
 
 ## Settings
 
@@ -58,6 +60,11 @@ No DLL change is needed for these settings if namehook 1.24+ is already installe
   dialogue. Text RGBA is the manual/fallback color when matching is off, for
   local test bubbles, or when the client lookup cannot be resolved. Its opacity
   applies even when using game RGB colors. Changes apply to active bubbles.
+  **Draw On Screen** (off by default) draws the bubbles with imgui over everything
+  on the screen, at one size whatever the distance, instead of in the world where
+  walls and characters in front hide them. The same colours, wrapping and fade
+  apply; a bubble that would not fit above the speaker is not drawn. namehook is
+  still needed for the speaker's place on the screen.
   Presets change manual colors but do not turn game-color matching on/off.
   Game-colored text gets a thin dark outline on light backgrounds, preserving
   the selected RGB while keeping white text readable on white bubbles.
@@ -93,8 +100,9 @@ mappings or unsupported clients safely retain the manual color, with lookup
 failures reported by `/chatbubbles status`. This follows the **native FFXI palette**,
 not custom palettes configured separately in FancyChat or another chat replacement,
 and uses one channel color per bubble rather than reproducing inline item colors. `config.lua`
-owns settings/UI, `modes.lua` owns channel metadata, and `world.lua` owns rendering,
-so additional appearance controls or channel policies can be added independently.
+owns settings/UI, `modes.lua` owns channel metadata, and `world.lua` owns rendering
+in the world (`screen.lua` on the screen), so additional appearance controls or
+channel policies can be added independently.
 Local `test`/`target` commands bypass channel switches so tests still work when
 all real chat channels are disabled.
 

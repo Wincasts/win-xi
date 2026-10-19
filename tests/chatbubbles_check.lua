@@ -75,6 +75,7 @@ package.loaded.imgui = {
     GetBackgroundDrawList = function() return draw; end,
     GetColorU32 = function(color) return color; end,
 };
+package.loaded['winxi.text'] = { Packed = function(list, _, _, _, words) list:AddText(nil, nil, words); end };
 package.loaded['winxi.nameplates'] = {
     Category = { Player = 8 },
     Hook = function() return hook and {} or nil; end,
@@ -258,5 +259,18 @@ events.packet_in({ id = 0x00A });
 assert(frame() == '');
 events.text_in({ mode = 151, message = 'A stale continuation after zoning.' });
 assert(frame() == '');
+-- Draw On Screen: the bubble is imgui's, over everything, from the name's place on the screen; the
+-- world gets an empty frame; one that would not fit above the name is not drawn
+local appearance = package.loaded.config.options.appearance;
+appearance.onScreen = { true };
+records = { { name = 'Tester', Category = 1, x = 400, y = 300 } };
+say('Tester', 'On the screen');
+assert(frame() == 'bubble|On the screen');
+records[1].y = 20;
+assert(frame() == '');
+records[1].y = 300;
+appearance.onScreen = { false };
+assert(frame() == 'bubble|On the screen'); -- the world's again
+command('clear');
 os.clock = originalClock;
-print('chatbubbles: packet filtering, expiry, UTF-8 wrapping, anchoring, coexistence, zoning and commands passed');
+print('chatbubbles: packet filtering, expiry, UTF-8 wrapping, anchoring, on-screen drawing, coexistence, zoning and commands passed');

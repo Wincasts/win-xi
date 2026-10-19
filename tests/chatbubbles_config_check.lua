@@ -38,7 +38,7 @@ assert(#modes.All == 42 and config.Enabled());
 for _, mode in ipairs(modes.All) do assert(allows(mode) == mode.default); end
 assert(config.AllowsNpc(150) and config.AllowsNpc(151) and not config.Allows(150));
 assert(not config.Allows(255));
-assert(loadDefaults.appearance.background[1] < 0.1);
+assert(loadDefaults.appearance.background[1] > 0.9, 'white bubbles to begin with, since the shared defaults');
 assert(config.options.appearance.gameTextColors[1] == true);
 config.Toggle();
 config.Draw();
@@ -86,7 +86,7 @@ callback({ enabled = { true }, modes = { ['3'] = { true } },
 assert(config.Enabled() and config.Allows(3) and config.Allows(0));
 assert(config.AllowsNpc(150) and config.AllowsNpc(151)); -- old settings gain NPC defaults
 assert(config.options.appearance.background[1] == 1 and config.options.appearance.background[2] == 0);
-assert(config.options.appearance.background[3] == 0.12 and config.options.appearance.text[1] == 1);
+assert(config.options.appearance.background[3] == 1 and config.options.appearance.text[1] == 0.05); -- the defaults' white and dark
 assert(config.options.appearance.gameTextColors[1] == true); -- migration defaults to matching
 callback({ enabled = { true }, modes = {}, appearance = { gameTextColors = { false } } });
 assert(config.options.appearance.gameTextColors[1] == false); -- saved manual preference survives reload
