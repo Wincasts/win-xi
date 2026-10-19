@@ -242,20 +242,16 @@ assert(hooks[2].captures==inputCount+32,'working input independent of missing lo
 throwing=true; stops=hooks[2].stops; frame(); assert(hooks[2].stops>stops and styleDepth==0,'failed input draw restores minimum-size override')
 throwing=false
 nativeLogRect={20,700,660,1018}
--- Follow Game: the input bar where the game's is, at its size, in the game's plain look; the log sharing its width
+-- Follow Game: the input bar where the game's is, at its size, in the WinXI look; the log sharing its width
 app.options.mode[1]='game'; nativeRect={0,1020,1920,1060}
 frame(); assert(measuredPos[1]==0 and measuredPos[2]==1060 and measuredSize[1]==1920 and measuredSize[2]==40)
 assert(lastWindowStyle.fontSize==12 and lastWindowStyle.padding==3 and look.Padding==20,'native input outer size keeps compact text')
 assert(text[#text].pos[2]==1020+(40-12)/2,'text stays centred in a taller native-sized input box')
 assert(rendered['winxi.chatbox'].size[1]==1920 and rendered['winxi.chatbox'].pos[1]==0,'log shares native input width and left edge')
-do local bar=rendered['winxi.chatbox.input'].style
-    assert(bar.background[4]==0 and bar.border[4]==0 and bar.shadow==false and bar.textColor==nil,'the input bar in the game\'s plain look: no theme art, border or shadow')
-    assert(filled[#filled].color[4]==0.55 and filled[#filled].a[1]==0 and filled[#filled].b[1]==1920 and filled[#filled].a[2]==1020 and filled[#filled].b[2]==1060,
-        'a flat translucent dark rectangle over the whole bar') end
-nativeRect=nil; frame(); assert(measuredSize[1]==1920 and measuredSize[2]==14,'native width retained when input geometry expires; the bar a line and the game\'s room tall')
+assert(rendered['winxi.chatbox.input'].style.background==nil and rendered['winxi.chatbox.input'].style.shadow==nil,'the theme\'s look, as in the skin')
+nativeRect=nil; frame(); assert(measuredSize[1]==1920 and measuredSize[2]==18,'native width retained when input geometry expires')
 app.options.mode[1]='skin'; nativeRect={0,1020,1920,1060}
-frame(); assert(measuredPos[1]==20 and measuredSize[1]==640 and measuredSize[2]==18,'WinXI Skin: Width and the paddings again')
-assert(rendered['winxi.chatbox.input'].style.shadow==nil and rendered['winxi.chatbox.input'].style.background==nil,'and the theme\'s look')
+frame(); assert(measuredPos[1]==20 and measuredSize[1]==640 and measuredSize[2]==18,'WinXI Skin: Width again')
 inputRaw=string.rep('x',200); inputDisplay=inputRaw; inputCaret=#inputRaw
 frame(); assert(text[#text].pos[1]<0,'long input scrolls to keep caret visible')
 inputCaret=0; frame(); assert(text[#text].pos[1]>=32,'Home/left edits scroll back')
@@ -279,10 +275,7 @@ assert(rendered['winxi.chatbox.expanded'].size[1]==900,'changing custom width up
 app.options.mode[1]='game'; frame()
 assert(rendered['winxi.chatbox.expanded'].size[1]==1920 and rendered['winxi.chatbox.expanded'].size[2]==1020-100,
     'Follow Game: the game\'s expanded width and its full height, whatever Width and Expanded Height')
-do local e=rendered['winxi.chatbox.expanded'].style
-    assert(e.background[4]==0 and e.border[4]==0 and e.shadow==false and e.title==nil,'in the game\'s plain look')
-    assert(filled[1].color[4]==0.55 and filled[1].a[2]==100 and filled[1].b[2]==1020,'the flat rectangle over the whole log')
-    assert(hooks[0].controls[1][1]==1 and hooks[0].controls[1][4]==1 and hooks[0].controls[3][1]==1,'the game\'s controls untinted (white)') end
+assert(rendered['winxi.chatbox.expanded'].style.background==nil and hooks[0].controls[1]==look.HighlightColor,'in the theme\'s look, its controls tinted as in the skin')
 app.options.mode[1]='skin'; frame()
 assert(rendered['winxi.chatbox.expanded'].size[1]==900 and rendered['winxi.chatbox.expanded'].size[2]==1020-270,'WinXI Skin: Width (900 now) and Expanded Height again')
 expandedRect={1700,100,1920,1020}; frame()
@@ -476,11 +469,11 @@ assert(not hooks[0].replace.all and not hooks[0].replace.text and not hooks[0].r
     and #Lights()==0 and #text==0 and #labels==0 and #filled==0,'Replace Expanded Log off: nothing of the game\'s left undrawn, nothing of the addon\'s drawn')
 app.options.replaceExpanded[1]=true; frame()
 assert(hooks[0].replace.all and hooks[0].replace.text and hooks[0].replace.tabs and hooks[0].replace.scrollbar and #Lights()==1,'on: the whole log again, the cursor\'s row lit')
--- Follow Game: only the text replaced, the game's tabs, scrollbar, light and cursor its own
+-- Follow Game: the same, the look being the skin's in both modes
 app.options.mode[1]='game'; frame()
-assert(not hooks[0].replace.all and hooks[0].replace.text and not hooks[0].replace.tabs and not hooks[0].replace.scrollbar
-    and #Lights()==0 and #text==2 and #labels==0,'Follow Game: the rows in the chat\'s font, the rest the game\'s')
-assert(text[1].pos[1]==4 and text[1].pos[2]==1020-1-12,'the rows in from the edges as the game\'s are')
+assert(hooks[0].replace.all and hooks[0].replace.text and hooks[0].replace.tabs and hooks[0].replace.scrollbar
+    and #Lights()==1 and #text==2 and #labels==3,'Follow Game: the whole log the addon\'s as well')
+assert(text[1].pos[1]==3 and text[1].pos[2]==1020-3-12,'the rows at the paddings')
 app.options.mode[1]='skin'; frame()
 chatState.nativeMirror=false; frame()
 local said2={}; app.Say=function(_,line) said2[#said2+1]=line end
@@ -515,21 +508,18 @@ assert(hooks[0].captures==count,'missing content hook cannot hide native glyphs'
 chatState.nativeContent=true; chatState.expanded=false; nativeLogRect={20,700,660,1018}; frame()
 assert(#text==10 and text[1].text=='history 45' and measuredSize[2]==144,'native cancel restores ten compact rows and placement')
 assert(rendered['winxi.chatbox'].style.title=='Party','compact: titled with the channel last spoken in, a line sent to the party')
--- Follow Game: the game log's width and height, as many rows as fit, at the bottom, in the game's plain look (a flat
--- translucent dark rectangle, no border art, title, shadow or scrollbar), the text in from the edges as the game's
+-- Follow Game: the game log's width and height, as many rows as fit, at the bottom, in the WinXI look (the theme's
+-- art, the title, the paddings and the scrollbar as in the skin)
 app.options.mode[1]='game'; nativeLogRect={20,700,820,1018}; nativeRect={20,1020,820,1060}; frame() -- the game's input bar as wide as its log
 assert(measuredSize[1]==800 and measuredSize[2]==318 and measuredPos[2]==1018,'the game log\'s width and height')
-assert(#text==22 and text[22].text=='to the party' and text[22].pos[2]==1018-1-5-12 and text[22].pos[1]==24,'22 rows of 12px fit in 318, spare pixels centred between the game\'s room above and below')
-do local s=rendered['winxi.chatbox'].style
-    assert(s.background[4]==0 and s.border[4]==0 and s.shadow==false and s.title==nil and s.textColor==nil,'no theme art, border, shadow or title')
-    assert(#filled==1 and filled[1].color[4]==0.55 and filled[1].a[1]==20 and filled[1].a[2]==700 and filled[1].b[1]==820 and filled[1].b[2]==1018,
-        'the flat rectangle over the whole box, and no scrollbar') end
+assert(#text==22 and text[22].text=='to the party' and text[22].pos[2]==1018-3-3-12 and text[22].pos[1]==23,'22 rows of 12px fit in 318, spare pixels centred between paddings')
+assert(rendered['winxi.chatbox'].style.title=='Party' and rendered['winxi.chatbox'].style.background==nil and #filled==1 and filled[1].b[1]-filled[1].a[1]==2,
+    'the title, the theme\'s look and the slim scrollbar, as in the skin')
 nativeLogRect={20,850,820,1018}; frame()
-assert(measuredSize[2]==168 and #text==12,'a smaller game log: fewer rows')
-assert(text[#text].pos[2]==850+1+11*14,'the 12 rows filling it exactly')
+assert(measuredSize[2]==168 and #text==11,'a smaller game log: fewer rows')
+assert(text[#text].pos[2]==850+3+5+10*14,'the 11 rows centred: 10 spare pixels, 5 above and 5 below')
 app.options.mode[1]='skin'; nativeLogRect={20,700,660,1018}; nativeRect=nil; frame()
 assert(measuredSize[1]==640 and measuredSize[2]==144 and #text==10,'WinXI Skin: Width and ten rows again')
-assert(rendered['winxi.chatbox'].style.shadow==nil and rendered['winxi.chatbox'].style.background==nil and rendered['winxi.chatbox'].style.title=='Party','and the theme\'s look and the title')
 screen={x=1920,y=180}; stops=hooks[0].stops; frame(); assert(hooks[0].stops>stops,'too-small screen leaves native')
 -- Source colours are always preserved; uncoloured messages use native chat-mode colours.
 screen={x=1920,y=1080}; chatState.expanded=false; chatState.selected=false; nativeLogRect={20,700,660,1018}
@@ -582,7 +572,7 @@ spec.drawSettings(app.options)
 assert(table.concat(opened,',')=='Chatbox,Layout,Activity,Look,Chat Log Window,Input Text Box','open: every section drawn, the colours in Look')
 app.options.mode[1]='game'; opened={}
 spec.drawSettings(app.options)
-assert(table.concat(opened,',')=='Chatbox','Follow Game: the Chatbox section alone; nothing of the skin\'s')
+assert(table.concat(opened,',')=='Chatbox,Look,Chat Log Window,Input Text Box','Follow Game: the Chatbox and Look sections; no Layout or Activity')
 app.options.mode[1]='skin'
 -- Each control in its section: Layout the sizes and the expanded log's place, Activity each window's, Look the rest.
 -- A window's Animate Resize, Resize Duration, Minimum Rows and Fade Duration are drawn only with their switch on,
@@ -947,7 +937,7 @@ local begins=hooks[1].begins
 frame()
 local first,split=rendered['winxi.chatbox'],rendered['winxi.chatbox.split']
 assert(split and split.pos[1]==20 and split.pos[2]==700 and split.pos[4]==1 and split.size[1]==640 and split.size[2]==180,'the second box stacked over the first, the first\'s width, the game\'s second window\'s height')
-assert(split.style.title==nil and first.style.title==nil and split.style.fontSize==12,'Follow Game: no titles, in the chat\'s font size')
+assert(split.style.title=='Window 2' and first.style.title~='Window 2' and split.style.fontSize==12,'titled Window 2, in the chat\'s font size; the first still by its channel')
 assert(hooks[1].captures==1 and hooks[1].begins==begins+1,'the second window captured, once begun, not hidden again after')
 -- Stacked windows retain independent game widths and heights, including changes made while open.
 splitRect={40,490,500,700}; frame()
@@ -1001,7 +991,7 @@ split=rendered['winxi.chatbox.split']
 assert(split.pos[1]==680 and split.pos[2]==1018 and split.size[1]==320 and split.size[2]==318 and text[#text].text=='party 37','beside the first: the game\'s place and size for it, its scroll kept')
 local savedInputRect=nativeRect; nativeRect=nil -- the input over the log's foot: both boxes lift above it
 inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; frame()
-assert(rendered['winxi.chatbox'].pos[2]==1018-14 and rendered['winxi.chatbox.split'].pos[2]==1018-14,'both lift above the input (a line and the game\'s room tall)')
+assert(rendered['winxi.chatbox'].pos[2]==1000 and rendered['winxi.chatbox.split'].pos[2]==1000,'both lift above the input')
 inputOpen=false; nativeRect=savedInputRect
 app.options.mode[1]='skin'; frame()
 split=rendered['winxi.chatbox.split']
@@ -1039,28 +1029,28 @@ app.options.mode[1]='game'; nativeLogRect={20,700,660,1018}
 -- window (the game grows a row a message and shrinks while none come), no shorter than the game's window and tall
 -- enough for its rows at Font Size; at 0 lines nothing; the second window the same
 nativeLogRect={20,1002,660,1018}; linesState[0]={shown=1,most=8,fewest=0}; firstCaptures=hooks[0].captures; frame()
-assert(hooks[0].captures==firstCaptures+1 and rendered['winxi.chatbox'].pos[2]==1018 and rendered['winxi.chatbox'].size[2]==16 and #text==1 and text[1].text=='party 40','one line in a 16px window: one row, the box the game\'s height, over the game\'s bottom')
+assert(hooks[0].captures==firstCaptures+1 and rendered['winxi.chatbox'].pos[2]==1018 and rendered['winxi.chatbox'].size[2]==18 and #text==1 and text[1].text=='party 40','one line in a 16px window: one row, the box tall enough for it, over the game\'s bottom')
 linesState[0]={shown=3,most=8,fewest=0}; frame()
-assert(rendered['winxi.chatbox'].size[2]==3*12+2*2+2 and #text==3,'three lines: three rows, the box grown for them')
+assert(rendered['winxi.chatbox'].size[2]==3*12+2*2+6 and #text==3,'three lines: three rows, the box grown for them')
 nativeLogRect={20,700,660,1018}; frame()
 assert(rendered['winxi.chatbox'].size[2]==318 and #text==3,'the game\'s window taller than three rows need: its height, three rows')
 linesState[0]={shown=0,most=8,fewest=0}; firstCaptures=hooks[0].captures; frame()
 assert(hooks[0].captures==firstCaptures,'at 0 lines: nothing, whatever the window\'s height')
 nativeLogRect=nil; frame(); assert(hooks[0].captures==firstCaptures,'and no hold while the game says 0 lines')
 linesState[0]={shown=2,most=8,fewest=0}; nativeLogRect={20,1000,660,1018}; frame()
-assert(hooks[0].captures==firstCaptures+1 and #text==2 and rendered['winxi.chatbox'].size[2]==2*12+2+2,'a message: back, two rows in an 18px window')
+assert(hooks[0].captures==firstCaptures+1 and #text==2 and rendered['winxi.chatbox'].size[2]==2*12+2+6,'a message: back, two rows in an 18px window')
 splitRect={20,520,660,700}; linesState[1]={shown=1,most=6,fewest=0}; frame()
-assert(rendered['winxi.chatbox.split'].size[2]==180 and rendered['winxi.chatbox.split'].pos[2]==1018-(2*12+2+2),'the second at one line in a tall window: the game\'s height, over the first')
+assert(rendered['winxi.chatbox.split'].size[2]==180 and rendered['winxi.chatbox.split'].pos[2]==1018-(2*12+2+6),'the second at one line in a tall window: the game\'s height, over the first')
 local splitText=0; for _,entry in ipairs(text) do if entry.text:find('party',1,true) then splitText=splitText+1 end end
 assert(#text==3,'one row in it')
 linesState[1]={shown=0,most=6,fewest=0}; captures=hooks[1].captures; frame(); assert(hooks[1].captures==captures,'the second at 0 lines: nothing')
--- Font Size at 0, Automatic: the size the game's rows give (a 16px window of one line: 14, with the row gap), taken
--- where the reading is sound and kept until another is; in WinXI Skin, 12
+-- Font Size at 0, Automatic: the size the game's rows give (a 16px window of one line, less the paddings and the row
+-- gap: 10), taken where the reading is sound and kept until another is; in WinXI Skin, 12
 app.options.fontSize[1]=0; linesState[0]={shown=1,most=8,fewest=0}; nativeLogRect={20,1002,660,1018}; frame()
-assert(rendered['winxi.chatbox'].style.fontSize==14 and rendered['winxi.chatbox'].size[2]==16 and rendered['winxi.chatbox.split'].style.fontSize==14,
-    'Automatic: 14px from a 16px row, the box the game\'s height exactly')
+assert(rendered['winxi.chatbox'].style.fontSize==10 and rendered['winxi.chatbox'].size[2]==16 and rendered['winxi.chatbox.split'].style.fontSize==10,
+    'Automatic: 10px from a 16px row, the box the game\'s height exactly')
 linesState[0]={shown=1,most=8,fewest=0}; nativeLogRect={20,700,660,1018}; frame()
-assert(rendered['winxi.chatbox'].style.fontSize==14,'a window far taller than its lines: no reading taken, 14 kept')
+assert(rendered['winxi.chatbox'].style.fontSize==10,'a window far taller than its lines: no reading taken, 10 kept')
 linesState[0]={shown=0,most=8,fewest=0}; frame()
 app.options.mode[1]='skin'; frame()
 assert(rendered['winxi.chatbox'].style.fontSize==12 and rendered['winxi.chatbox'].size[2]==144,'WinXI Skin at 0: 12')
