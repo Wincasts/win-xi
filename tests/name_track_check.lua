@@ -23,7 +23,7 @@ imgui.GetIO = function() return { DisplaySize = { x = 1920, y = 1080 } } end
 custom.SetSheets(0x7777, 0x8888, 0x9999)
 local options = {}
 custom.Defaults(options)
-options.showCheckDetails[1], options.showIcons[1], options.showStars[1] = false, false, false
+options.showCheckDetails[1], options.showStars[1] = false, false
 options.monsterFormat[1] = '[aggro][name]'
 local function put(i, index, name, category)
     local entry = hook.Names[i]

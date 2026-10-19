@@ -14,13 +14,6 @@ end
 function rules.Has(part, key)
     return part.when ~= nil and ('+' .. part.when .. '+'):find('+' .. key .. '+', 1, true) ~= nil;
 end
-function rules.Set(part, key, on)
-    local out = {};
-    for _, name in ipairs(rules.Order) do
-        if ((name == key and on) or (name ~= key and rules.Has(part, name))) then out[#out+1] = name; end
-    end
-    part.when = #out > 0 and table.concat(out, '+') or nil;
-end
 function rules.Visible(part, context)
     if (part.within and (context.ruleDistance == nil or context.ruleDistance > part.within)) then return false; end
     if (not part.when) then return true; end

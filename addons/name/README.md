@@ -82,7 +82,7 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
 - Existing General name sizes remain authoritative. Health-bar consolidation
   migrates once: enabled if any old category enabled bars; dimensions come from the
   first enabled category in **Enemy → Player → NPC** order (Enemy if all were off).
-  Old per-type bar tables remain archived but no longer drive rendering. Shared
+  The old per-type bar tables are then let go of. Shared
   settings are never re-migrated during later edits. Diagnostics remains collapsed.
 - Each format section has expandable **Colour Overrides**, disabled by default.
   An enabled state applies its RGB jointly to the name, spawn letters and matching

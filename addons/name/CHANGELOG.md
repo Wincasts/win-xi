@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.53
+
+- Settings nothing reads any more are no longer kept. Show Mob Level and Show Aggro Icons are gone, as is an unused one for status icons. Show Icons, Mob Letters and Double Letters, and the per-type health bar tables, are read once more from a file saved before the formats and shared bars took their place, brought over as before, and then let go of. A new character's settings, and a settled character's, are otherwise as they were.
+- Functions nothing called are gone: `custom.PreviewFont`, `block_rules.Set`, `entity_types.Has`, `name_types.Get` and `Maximum`, and the badge image's `set`.
+
 ## 1.52
 
 - Statuses taken off the list no longer come back. Ashita fills each place a saved list lacks from the default list, so a list saved shorter than the default came back with the default's tail on it, statuses unticked among them, some twice; a list emptied came back full. The default list is empty now, and a new character's ticked statuses are given once, as the settings are loaded (`statusListVersion`). A list saved before is kept with each status once, in order: what the merge had already added to it cannot be told from what was ticked, and stays until taken off again.

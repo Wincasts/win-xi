@@ -24,7 +24,6 @@ If not, see <https://www.gnu.org/licenses/>.
 #include "exports.h"
 
 
-#define LogLevel_Info ((uint32_t) Ashita::LogLevel::Info)
 #define LogLevel_Critcal ((uint32_t) Ashita::LogLevel::Critical)
 
 #define CHAT_HEADER "\x1e\x51[\x1e\x06namehook\x1e\x51]\x1e\x01 "

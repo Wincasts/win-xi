@@ -24,7 +24,7 @@ hook.Hooked, hook.Draw = 1, tonumber(ffi.cast('uintptr_t', low))
 hook.Width, hook.Height, hook.TargetWidth, hook.TargetHeight = 1920, 1080, 1920, 1080
 local options = {}
 custom.Defaults(options)
-options.showCheckDetails[1], options.showIcons[1], options.showStars[1] = false, false, false
+options.showCheckDetails[1], options.showStars[1] = false, false
 -- [aggro] is in the preferred format: its sign must not cost the names their compiled loop
 custom.SetSheets(0x7777, 0x8888)
 options.monsterFormat[1] = '[aggro][name] [letter]'

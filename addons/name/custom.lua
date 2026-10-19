@@ -102,7 +102,6 @@ local settings = {
     minSize     = function () return T{ 10 }; end,    -- shared distant name size for every entity category
     outline     = function () return T{ 1 }; end,     -- how thick the dark edge round them is, in pixels
     font        = function () return ''; end,         -- a file of FONT_FOLDER, or nothing for the font everything else is in
-    showIcons   = function () return T{ true }; end, -- legacy migration only; visibility is [icons]
     iconFormatVersion = function () return 0; end,
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
@@ -112,11 +111,7 @@ local settings = {
     healthBarWidth = function () return T{ 60 }; end,
     healthBarHeight = function () return T{ 6 }; end,
     healthBarCategories = function () return T{ 0xFF }; end, -- which kinds of name have one: entity_types
-    showMobLevel = function () return T{ true }; end, -- obsolete; token presence is authoritative
-    showAggroIcons = function () return T{ true }; end, -- obsolete; token presence is authoritative
-    showMobLetter = function () return T{ false }; end, -- legacy migration input
     tokenFormatVersion = function () return 0; end,
-    doubleMobLetters = function () return T{ false }; end, -- legacy migration input; now [letters: type=double]
     trackedNm = function () return T{ '' }; end, -- the notorious monster being hunted, by name, or nothing
     labelPlaceholders = function () return T{ true }; end, -- its placeholders are named Placeholder
     huntScale = function () return T{ 100 }; end, -- its name's size, as a percentage of the others'
@@ -149,6 +144,7 @@ function custom.Settle(options)
     -- settings of earlier versions that are no longer kept
     options.customNames, options.shrink, options.gdiFonts, options.gdiFamily = nil, nil, nil, nil;
     options.targetFormat, options.checkedFormat, options.statusTimers = nil, nil, nil;
+    options.showMobLevel, options.showAggroIcons, options.statusFfxivIcons = nil, nil, nil;
     if (type(options.checkSize) ~= 'table' or type(options.checkSize[1]) ~= 'number' or options.checkSize[1] ~= options.checkSize[1]) then
         options.checkSize = settings.checkSize();
     end
@@ -161,7 +157,7 @@ function custom.Settle(options)
         end
         value[1] = math.max(size[2], math.min(size[3], math.floor(value[1])));
     end
-    for _, key in ipairs({ 'showMobLevel', 'showAggroIcons', 'showMobLetter', 'doubleMobLetters', 'showHealthBar', 'healthBarsCombatOnly' }) do
+    for _, key in ipairs({ 'showHealthBar', 'healthBarsCombatOnly' }) do
         if (type(options[key]) ~= 'table' or type(options[key][1]) ~= 'boolean') then
             options[key] = settings[key]();
         end
@@ -192,12 +188,20 @@ function custom.Settle(options)
         end
     end
 
+    -- What the formats say was once said by switches, which a file saved before then still has: each
+    -- is brought into its format once, and let go of
+    local function was(key)
+        local value = options[key];
+        if (type(value) ~= 'table') then return nil; end
+        return value[1] == true;
+    end
     if (options.iconFormatVersion ~= 1) then
         -- Preserve old visibility and layout once, then let the string own placement/visibility.
-        if (options.showIcons ~= nil and not options.showIcons[1]
+        local showIcons = was('showIcons');
+        if (showIcons == false
                 and options.nameFormat[1] == '[icons: space=4][name]') then
             options.nameFormat[1] = '[name]';
-        elseif (not format.Compile(options.nameFormat[1]).icons and options.showIcons ~= nil and options.showIcons[1]) then
+        elseif (not format.Compile(options.nameFormat[1]).icons and showIcons) then
             local size = tonumber(options.iconSize and options.iconSize[1]) or 125;
             local space = tonumber(options.iconSpacing and options.iconSpacing[1]) or 2;
             if (size ~= size) then size = 125; end
@@ -210,16 +214,17 @@ function custom.Settle(options)
 
     if (options.tokenFormatVersion ~= 1) then
         local parts = format.Compile(options.monsterFormat[1]);
-        if (options.showMobLetter ~= nil and options.showMobLetter[1]) then
+        if (was('showMobLetter')) then
             if (not parts.letter) then
-                options.monsterFormat[1] = options.monsterFormat[1] .. (options.doubleMobLetters[1]
+                options.monsterFormat[1] = options.monsterFormat[1] .. (was('doubleMobLetters')
                     and ' [letters: type=double]' or ' [letters]');
-            elseif (options.doubleMobLetters[1]) then
+            elseif (was('doubleMobLetters')) then
                 options.monsterFormat[1] = format.Serialize(parts, true);
             end
         end
         options.tokenFormatVersion = 1;
     end
+    options.showIcons, options.showMobLetter, options.doubleMobLetters = nil, nil, nil;
 
     local was = options.showDistance;
     if (type(was) == 'table') then
@@ -322,11 +327,6 @@ local function getFont(file)
         end
     end
     return found or nil;
-end
-
--- Share the live font cache with the experimental preview; do not add a duplicate atlas font.
-function custom.PreviewFont(options)
-    return getFont(options.font);
 end
 
 -- The files there are to choose a font from, looked for once

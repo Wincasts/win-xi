@@ -26,14 +26,6 @@ function image.new(w, h)
     return self;
 end
 
----@param x integer
----@param y integer
----@param argb integer
----argb may be a signed bit-op result; it's wrapped to unsigned (see set_alpha).
-function image:set(x, y, argb)
-    self.px[y * self.w + x] = argb % 4294967296;
-end
-
 ---@return integer
 function image:get(x, y)
     return self.px[y * self.w + x];

@@ -1,7 +1,6 @@
 -- Which kinds of name a feature is drawn for: a mask of winxi.nameplates' categories, kept as T{ mask }.
 --
 --   types.Settle(value)               the mask made good: a number of the categories, all where it is not
---   types.Has(value, category)        whether a name of that category has the feature
 --   types.Draw(prefix, value, help)   a checkbox for each, under Players, Pets and NPCs & Monsters;
 --                                     returns whether any changed
 local bit = require('bit');
@@ -31,10 +30,6 @@ function types.Settle(value)
     local mask = tonumber(value[1]);
     value[1] = mask ~= nil and mask == mask and bit.band(math.floor(mask), Category.All) or Category.All;
     return value;
-end
-
-function types.Has(value, category)
-    return value == nil or bit.band(value[1] or Category.All, category or 0) ~= 0;
 end
 
 local tick = { false };

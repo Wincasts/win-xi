@@ -18,7 +18,7 @@ hook.Width, hook.Height, hook.TargetWidth, hook.TargetHeight = 1920, 1080, 1920,
 hook.Count = 256
 local options = {}
 custom.Defaults(options)
-options.showCheckDetails[1], options.showIcons[1], options.showStars[1] = false, false, false
+options.showCheckDetails[1], options.showStars[1] = false, false
 options.monsterFormat[1] = '[name]'
 local glyph = { X0 = 0, Y0 = 0, X1 = 8, Y1 = 12, U0 = 0, V0 = 0, U1 = 1, V1 = 1, AdvanceX = 8, Visible = 1 }
 local font = { ContainerAtlas = { TexData = { UniqueID = 2, Status = 0, Width = 512, Height = 256 },

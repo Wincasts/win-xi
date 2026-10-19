@@ -736,18 +736,13 @@ end
 -- Exercise the production path with saved per-category formats.
 frameForTests(o, block, suppliedFormats)
 assert(goblin.Count == 7, 'editable enemy format must be used in production')
-o.showAggroIcons[1] = false
-frameForTests(o, block, suppliedFormats)
-assert(goblin.Count == 7, 'aggro token must render regardless of the obsolete toggle')
 o.monsterFormat[1] = '[aggro] Lv [level]. [name]'
-o.showMobLevel[1] = false
 frameForTests(o, block, suppliedFormats)
-assert(goblin.Count > 7, 'level/aggro tokens and literals must render regardless of obsolete toggles')
-assert(o.monsterFormat[1] == '[aggro] Lv [level]. [name]', 'toggles must not rewrite saved formats')
-o.showMobLevel[1], o.showAggroIcons[1] = true, true
+assert(goblin.Count > 7, 'level/aggro tokens and literals render as the format says')
+assert(o.monsterFormat[1] == '[aggro] Lv [level]. [name]', 'drawing must not rewrite saved formats')
 o.monsterFormat[1] = '[aggro][name]'
 H.frames(1)
-assert(goblin.Count == 7, 're-enabling aggro must restore the icon')
+assert(goblin.Count == 7, 'the aggro icon back with its token')
 H.print('production enemy format owns level/aggro visibility; obsolete toggles are ignored', true)
 -- which of the twelve signs: six for one that is not aggressive and six for one that is, the first
 -- five of each by level and the sixth a notorious monster's
@@ -988,14 +983,13 @@ end
 local preparedBadges = badges.Prepare
 block.FontTexture = 0x7000000 -- as the plugin says it drew the font's mark from: the badges are cut from it
 custom.Defaults(o)
-o.showCheckDetails[1], o.showIcons[1], o.showStars[1] = false, false, false
+o.showCheckDetails[1], o.showStars[1] = false, false
 o.outline[1] = 0
 levels.Set({ Indices = { [299] = { Name = 'Goblin' }, [300] = { Name = 'Goblin' } }, Names = {} })
 alive[300] = { id = 0x1000 + 300, hp = 100, flags = 0x200 }
 put(0, 300, Category.Monster, Flag.Wanted + Flag.Target, 'Goblin')
 block.Count = 1
 o.monsterFormat[1] = '[name][letter:yellow]'
-o.showMobLetter[1] = true
 frameForTests(o, block, suppliedFormats)
 local labelled = draw.Entities[300]
 assert(levels.Letter(300, 'Goblin', block.Names[0].ServerId) == 'b')
@@ -1088,10 +1082,9 @@ assert(labelled.Count == 7 and draw.Quads[labelled.First + 6].Texture == 4,
 assert(math.abs(draw.Quads[labelled.First + 6].Y1 - draw.Quads[labelled.First].Y1) < 0.001,
     'plain fallback letter must retain the badge/name baseline rather than jump vertically')
 badges.Prepare = originalBadgePrepare
-o.showMobLetter[1] = false
 frameForTests(o, block, suppliedFormats)
-assert(labelled.Count == 7, 'explicit letter token must ignore the obsolete toggle')
-o.showMobLetter[1], o.monsterFormat[1] = true, '[name] [letters]'
+assert(labelled.Count == 7, 'explicit letter token drawn')
+o.monsterFormat[1] = '[name] [letters]'
 frameForTests(o, block, suppliedFormats)
 assert(labelled.Count == 8, 'explicit letters token must render at its chosen position')
 levels.Set({ Indices = { [300] = { Name = 'Goblin' } }, Names = {} })
@@ -1123,7 +1116,6 @@ badges.Prepare = originalBadgePrepare
 levels.Set(nil)
 frameForTests(o, block, suppliedFormats)
 assert(labelled.Count == 6, 'missing zone catalogue must not invent an encounter-based letter')
-o.showMobLetter[1] = false
 H.print('experimental mob letters: square cutout badge, centring, tint, fallback, suffix, toggle, double letters and zone-table reset', true)
 
 -- Exercise the actual shared file loader: bounded startup retries, then success caching.

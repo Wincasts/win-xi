@@ -6,7 +6,7 @@ local icons = require('icons')
 local function old(shown)
     local options = {}
     custom.Defaults(options)
-    options.nameFormat[1], options.showIcons[1] = '[name] ([distance]y)', shown
+    options.nameFormat[1], options.showIcons = '[name] ([distance]y)', { shown } -- as a file saved before the formats has it
     options.iconSize[1], options.iconSpacing[1] = 90, 7
     return options
 end
