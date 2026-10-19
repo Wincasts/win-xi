@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.39
+
+- Health Bars is a tab of its own, second, with Enabled (the Health Bars switch that was under General Name Appearance), Combat Only and Health Bar Width and Height. The tabs are Names, Health Bars, Statuses and Visibility, and NM Tracking after `/name dev`.
+
 ## 1.38
 
 - NM Tracking is a tab only after `/name dev`, for the session; `/name dev` again hides it. Tracking a monster chosen before goes on as it was.

@@ -383,6 +383,16 @@ function custom.DrawTracking(options, save)
     controls.EndLayout();
 end
 
+-- The bars under the names: a tab of their own
+function custom.DrawHealthBars(options)
+    controls.BeginLayout('healthBars', 360, 'Health Bar Height (px)');
+    if (controls.Section('Health Bars', '##name.healthBarOptions', true)) then
+        nameTypes.Draw(options);
+    end
+    controls.EndSection();
+    controls.EndLayout();
+end
+
 -- Keep format reference/examples on the editor's (?) rather than separate dropdowns.
 local formatHelp = {
     nameFormat = 'Format for player names. Tokens:\n[name] - player name.\n[icons] - available game status icons.\n[distance] - distance in yalms.\n\nExample format:\n[icons: space=4][name] ([distance: decimals=1, color=yellow]y)\nExample result: [status icons] Player Name (12.4y)',
@@ -443,8 +453,6 @@ function custom.DrawSettings(options, save)
         controls.Slider('Subtarget Size (%)', '##name.subtargetScale', options.subtargetScale, 50, 200, '%d%%',
             'Size of the name under the subtarget cursor while choosing a target. 100% is normal size.');
         controls.Outline(options.outline);
-        widgets.Gap();
-        nameTypes.Draw(options);
     end
     controls.EndSection();
 

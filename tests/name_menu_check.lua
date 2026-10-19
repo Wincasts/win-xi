@@ -37,11 +37,11 @@ imgui.GetContentRegionAvail = function() error('Window widths must not feed back
 local function clear() headers, tabs, ids, marks, disabledIds, locations = {}, {}, {}, {}, {}, {} end
 H.tab(1); H.command('/name'); H.frames(1)
 clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'Names|Visibility|Statuses', 'NM Tracking waits for /name dev')
+assert(table.concat(tabs, '|') == 'Names|Health Bars|Statuses|Visibility', 'NM Tracking waits for /name dev')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'Names|Visibility|Statuses|NM Tracking', '/name dev shows NM Tracking')
+assert(table.concat(tabs, '|') == 'Names|Health Bars|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'Names|Visibility|Statuses', 'a second /name dev hides it')
+assert(table.concat(tabs, '|') == 'Names|Health Bars|Statuses|Visibility', 'a second /name dev hides it')
 assert(table.concat(headers, '|') == 'General Name Appearance|Player Names|Enemy Names|NPC Names|Diagnostics')
 assert(ids['##name.font'] and ids['##name.fontBold'] and ids['##name.subtargetScale'])
 assert(ids['##name.fontSize'] and ids['##name.minSize'], 'shared size controls belong in General')
@@ -64,10 +64,9 @@ assert(locations['##name.nameFormat'] == 'Player Names'
 assert(not ids['##name.diagnosticsEnabled'])
 for _, position in ipairs(marks) do assert(position == marks[1] and position > right) end
 for _, field in ipairs({ 'showHealthBar', 'healthBarsCombatOnly', 'healthBarWidth', 'healthBarHeight' }) do
-    assert(locations['##name.' .. field] == 'General Name Appearance', 'shared bar control missing from General')
+    assert(not ids['##name.' .. field], 'the health bars have a tab of their own, not a place under General')
 end
-assert(disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'])
-H.print('Names: shared General text/bar controls, per-category colour overrides, no obsolete toggles', true)
+H.print('Names: shared General text controls, per-category colour overrides, no obsolete toggles', true)
 
 for _, key in ipairs({ 'nameFormat', 'monsterFormat', 'npcFormat' }) do
     assert(not ids['Tokens & Examples##name.formatHelp.' .. key], 'token dropdown must be absent')
@@ -85,7 +84,7 @@ assert(help['##name.monsterFormat']:find('[letters]', 1, true))
 assert(help['##name.npcFormat']:find('Mog House (4.2y)', 1, true))
 controls.Mark = mark
 options.showHealthBar[1] = true
-clear(); custom.DrawSettings(options)
+clear(); custom.DrawHealthBars(options)
 assert(not disabledIds['##name.healthBarWidth'] and not disabledIds['##name.healthBarsCombatOnly'])
 options.showHealthBar[1] = false
 local input = imgui.InputInt
@@ -96,6 +95,7 @@ imgui.InputInt = function(id, value)
 end
 local barWidth = options.healthBarWidth[1]
 custom.DrawSettings(options)
+custom.DrawHealthBars(options)
 imgui.InputInt = input
 custom.Settle(options)
 assert(options.fontSize[1] == 28 and options.healthBarHeight[1] == 11 and options.healthBarWidth[1] == barWidth)
@@ -146,6 +146,13 @@ imgui.Button = record
 H.print('Category format editors/reset preserve each other; a saved check line can restore original display style', true)
 
 H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(table.concat(headers, '|') == 'Health Bars')
+for _, id in ipairs({ '##name.showHealthBar', '##name.healthBarsCombatOnly', '##name.healthBarWidth', '##name.healthBarHeight' }) do
+    assert(ids[id] and locations[id] == 'Health Bars', 'Health Bars tab has ' .. id)
+end
+assert(disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'], 'the rest wait for Enabled')
+H.print('Health Bars: a tab of its own, second, with Enabled, Combat Only, width and height', true)
+H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target')
 H.command('/name diag on')
 expanded.Diagnostics = true
@@ -168,7 +175,7 @@ imgui.GetFrameHeightWithSpacing = function() return 20 end
 AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
 H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Display|Selected Statuses')
-H.command('/name dev'); H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.command('/name dev'); H.tab(5); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Tracked Monster')
 local levels = require('levels')
 local original = levels.Placeholders
