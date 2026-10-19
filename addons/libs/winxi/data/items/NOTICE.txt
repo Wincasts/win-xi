@@ -1,0 +1,4 @@
+Generated from Phoenix (https://github.com/phoenixffxi/Phoenix).
+Embedded server script sources retain their upstream GNU GPL v3 license; see LICENSE-Phoenix.
+This is not a relicensing of upstream sources under winxi's MIT license.
+index.lua records the source revision; script evidence records original paths and SHA256.

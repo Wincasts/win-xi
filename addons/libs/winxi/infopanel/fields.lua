@@ -25,6 +25,26 @@ local fields = {}
 
 fields.Default = '{time}  {grid}  {day}  {date}  {moon}'
 
+local dayElements = { 'Fire', 'Earth', 'Water', 'Wind', 'Ice', 'Lightning', 'Light', 'Dark' }
+local weatherElements = { 'Fire', 'Water', 'Earth', 'Wind', 'Ice', 'Lightning', 'Light', 'Dark' }
+local weatherNames = { [0]='Clear skies', 'Sunshine', 'Clouds', 'Fog', 'Hot spells', 'Heat waves',
+    'Rain', 'Squalls', 'Dust storms', 'Sandstorms', 'Winds', 'Gales', 'Snow', 'Blizzards',
+    'Thunder', 'Thunderstorms', 'Auroras', 'Stellar glare', 'Gloom', 'Darkness' }
+function fields.IconTooltip(kind, context)
+    if kind == 'day' then
+        local weekday = tonumber(context.weekday)
+        if weekday == nil and context.time then weekday = tonumber(context.time.get_game_weekday(context.raw)) end
+        local index = (weekday or -1) + 1
+        return ('Vana\'diel day: %s\nElement: %s'):format(days[index] or 'Unknown', dayElements[index] or 'Unknown')
+    end
+    local id = tonumber(context.weatherId)
+    if not id or id < 0 or id > 19 or id % 1 ~= 0 then return 'Weather: Unknown' end
+    local name = context.weather or weatherNames[id]
+    if id < 4 then return ('Weather: %s\nNo elemental weather'):format(name) end
+    return ('Weather: %s\nElement: %s\nStrength: %s'):format(name,
+        weatherElements[math.floor((id - 4) / 2) + 1], id % 2 == 0 and 'Single' or 'Double')
+end
+
 fields.All = {
     { token = 'time', label = 'Time',
         tip = 'Vana\'diel time, as the game writes it: 3:32.',
@@ -161,7 +181,10 @@ function fields.Segments(context, format)
             else
                 Words(pending)
                 pending, written = '', true
-                if field.Icon then segments[#segments + 1] = { icon = value, kind = field.token == 'dayicon' and 'day' or 'weather' } else Words(value) end
+                if field.Icon then
+                    local kind = field.token == 'dayicon' and 'day' or 'weather'
+                    segments[#segments + 1] = { icon = value, kind = kind, tooltip = fields.IconTooltip(kind, context) }
+                else Words(value) end
             end
         end
     end

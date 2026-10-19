@@ -17,8 +17,8 @@ function M.Draw(options,service,save)
     Tab('General',function()
         controls(options.layout,fields,Changed,'general','chatbox')
         widgets.Label('Native Menus')
-        if imgui.Checkbox('Anchor Above Chat##chatbox.panel.menus',options.anchorMenus) then Changed() end
-        Tip('Moves the native action-menu family using its own layout, including cursor/hit regions. Requires updated uihook; unsupported menus remain native.')
+        if imgui.Checkbox('Anchor Above Info Panel##chatbox.panel.menus',options.anchorMenus) then Changed() end
+        Tip('Anchors native combat/action menus and their supported submenus directly above the visible info panel, not above the chat frame. Uses the game\'s layout, including cursor/hit regions. Requires updated uihook; unsupported menus remain native.')
         widgets.Label('Hide Game Clock')
         if imgui.Checkbox('##chatbox.panel.hideClock',options.hideClock) then Changed() end
         Tip('Hides the game\'s clock, its day and weather icons with it, while chatbox runs; works with the panel on or off. Needs uihook; unload the clock addon and hidecompass, which use the same object.')
@@ -29,7 +29,7 @@ function M.Draw(options,service,save)
         if imgui.Checkbox('##chatbox.panel.window2',options.window2.enabled) then Changed() end
         Tip('A second panel under Window 2 while the game shows the two log windows side by side. Its slots and layout are in the Window 2 tab; text and icons follow this panel.')
         if widgets.Header('About',true) then
-            imgui.TextDisabled('Drawn on top of or under the compact chatbox (Layout, Anchor); hidden with chat or expanded history.')
+            imgui.TextDisabled('Drawn above or below compact chat (Layout, Anchor); stays when both logs collapse, hides during expanded history.')
             imgui.TextDisabled('Unload the clock addon to avoid displaying two panels.')
             imgui.TextDisabled('Native action-menu anchoring requires the updated uihook DLL; /uihook menus reports readiness.')
             imgui.TextDisabled(service.Status())

@@ -8,8 +8,8 @@
 --     gamedata.Root(path)       the folder data is read from, ending in a separator; a path given
 --                               reads from there instead (nil goes back to libs\winxi\data)
 --
--- The sets are winxi.mobs': mobs (an area's monsters, as mobdb has them) and placeholders (the
--- monsters each of an area's notorious monsters is drawn by lot from). Nothing is kept here: a set's
+-- Sets include mobs/placeholders, items, quests, spells/abilities/weaponskills/traits, jobs/skills/elements,
+-- and the independently generated client auto-translate dictionary. Nothing is kept here: a set's
 -- own module keeps what it reads, for as long as it wants it.
 local gamedata = {};
 

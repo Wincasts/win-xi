@@ -145,24 +145,33 @@ function M.new(index)
     end
     -- Native focus/expansion only: no button interception or native menu/state writes. nested: a menu (a
     -- row's actions, the input line) is open over the live full log, which is still drawn under it.
-    -- selectedWindow: which log window the game's focus is on, 1 or 2, or nil.
+    -- selectedWindow: which log window the game's focus is on, 1 or 2, or nil. The same table every call, its
+    -- fields written afresh, so that a frame (and each mouse event) makes none: read what is needed from it, and
+    -- keep no hold of it past the call after.
+    local state = {}
     function hook.State()
         local found = Find()
         if not found or found.StateFrame == 0 or (tonumber(found.Frame)-tonumber(found.StateFrame)) % 4294967296 > 2 then return nil end
-        local flags = tonumber(found.StateFlags)
-        return { selected = bit.band(flags,3) ~= 0, selectedWindow = bit.band(flags,1) ~= 0 and 1 or bit.band(flags,2) ~= 0 and 2 or nil,
-            expanded = bit.band(flags,4) ~= 0,
-            nativeBrowse = bit.band(flags,8) ~= 0, nested = bit.band(flags,16) ~= 0, expandedSupported = bit.band(found.SupportedMask,8) ~= 0,
-            nativeContent = bit.band(found.SupportedMask,16) ~= 0,
-            nativeControls = bit.band(found.SupportedMask,32) ~= 0,
-            nativeReplace = bit.band(found.SupportedMask,64) ~= 0,
-            nativeText = bit.band(found.SupportedMask,128) ~= 0,
-            nativeMirror = bit.band(found.SupportedMask,2048) ~= 0,
-            nativeWindows = bit.band(found.SupportedMask,256) ~= 0,
-            nativeLines = bit.band(found.SupportedMask,512) ~= 0,
-            nativeColors = bit.band(found.SupportedMask,1024) ~= 0,
-            scroll = tonumber(found.FullScroll), cursor = tonumber(found.FullCursor),
-            pageRows = tonumber(found.FullPageRows), filter = tonumber(found.FullFilter) }
+        local flags, supported = tonumber(found.StateFlags), found.SupportedMask
+        state.selected = bit.band(flags,3) ~= 0
+        state.selectedWindow = bit.band(flags,1) ~= 0 and 1 or bit.band(flags,2) ~= 0 and 2 or nil
+        state.expanded = bit.band(flags,4) ~= 0
+        state.nativeBrowse = bit.band(flags,8) ~= 0
+        state.nested = bit.band(flags,16) ~= 0
+        state.expandedSupported = bit.band(supported,8) ~= 0
+        state.nativeContent = bit.band(supported,16) ~= 0
+        state.nativeControls = bit.band(supported,32) ~= 0
+        state.nativeReplace = bit.band(supported,64) ~= 0
+        state.nativeText = bit.band(supported,128) ~= 0
+        state.nativeMirror = bit.band(supported,2048) ~= 0
+        state.nativeWindows = bit.band(supported,256) ~= 0
+        state.nativeLines = bit.band(supported,512) ~= 0
+        state.nativeColors = bit.band(supported,1024) ~= 0
+        state.scroll = tonumber(found.FullScroll)
+        state.cursor = tonumber(found.FullCursor)
+        state.pageRows = tonumber(found.FullPageRows)
+        state.filter = tonumber(found.FullFilter)
+        return state
     end
     -- Fresh: stamped within the last two frames, or as many as given. Display: a size to scale normalized bounds to.
     local function Fresh(found, stamp, frames)
@@ -305,14 +314,35 @@ function M.new(index)
     -- The game's tab strip as it last drew it in the skinned full log: each tab's bounds in display pixels,
     -- in the order the game drew them (they overlap at their edges, each drawn over the ones before it),
     -- its channel (the filter's number, 0 to 10; nil where the sprite was none of the known tabs) and
-    -- whether it was drawn chosen. nil when there is none, or none fresh.
+    -- whether it was drawn chosen. nil when there is none, or none fresh. The same table again while the
+    -- strip's stamp, the display and every tab (its bounds, channel and choosing, as the game wrote them) are
+    -- what they were: the tabs have no serial of their own, so they are read and compared, not made again.
+    local tabsFrame, tabsWidth, tabsHeight, tabsCount, tabsRaw, tabsList = nil, nil, nil, nil, {}, false
     function hook.Tabs(width, height)
         local found = Find()
         if not found or index ~= M.Primary or bit.band(found.SupportedMask,64) == 0 then return nil end
         if not Fresh(found, found.TabFrame) or not Display(width, height) then return nil end
+        local frame, count = tonumber(found.TabFrame), math.min(tonumber(found.TabCount), 12)
+        local raw = tabsRaw
+        local same = tabsFrame == frame and tabsWidth == width and tabsHeight == height and tabsCount == count
+        if same then
+            for i = 0, count - 1 do
+                local tab, at = found.Tabs[i], i * 6
+                local r = tab.Rect
+                if raw[at + 1] ~= tonumber(r[0]) or raw[at + 2] ~= tonumber(r[1]) or raw[at + 3] ~= tonumber(r[2])
+                    or raw[at + 4] ~= tonumber(r[3]) or raw[at + 5] ~= tonumber(tab.Channel) or raw[at + 6] ~= tonumber(tab.Selected) then
+                    same = false
+                    break
+                end
+            end
+        end
+        if same then return tabsList or nil end
         local list = {}
-        for i = 0, math.min(tonumber(found.TabCount), 12) - 1 do
-            local tab = found.Tabs[i]
+        for i = 0, count - 1 do
+            local tab, at = found.Tabs[i], i * 6
+            local r = tab.Rect
+            raw[at + 1], raw[at + 2], raw[at + 3], raw[at + 4] = tonumber(r[0]), tonumber(r[1]), tonumber(r[2]), tonumber(r[3])
+            raw[at + 5], raw[at + 6] = tonumber(tab.Channel), tonumber(tab.Selected)
             local left, top, right, bottom = Scaled(tab.Rect, width, height)
             if left then
                 local channel = tonumber(tab.Channel)
@@ -320,8 +350,8 @@ function M.new(index)
                     channel = channel <= 10 and channel or nil, selected = tab.Selected ~= 0 }
             end
         end
-        if #list == 0 then return nil end
-        return list
+        tabsFrame, tabsWidth, tabsHeight, tabsCount, tabsList = frame, width, height, count, #list > 0 and list
+        return tabsList or nil
     end
     -- The game's scrollbar as it last drew it there: its bounds in display pixels, and its rows, page
     -- (shown at once), count (in all) and above (scrolled past, above the view). nil when the game drew

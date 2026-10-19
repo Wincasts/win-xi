@@ -1,0 +1,3 @@
+Auto-translate text extracted from an installed Final Fantasy XI client.
+Final Fantasy XI and its text belong to Square Enix; not relicensed under winxi's MIT license.
+index.lua records dictionary file hashes; Version is optional user-supplied metadata.
