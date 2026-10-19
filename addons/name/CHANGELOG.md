@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.40
+
+- Statuses → Display has **Icons**: Winxi Theme, to begin with, follows Custom Icons in `/wxi` as before; Game Icons and Custom Icons draw the game's or the custom set's whatever the theme has. The set is still the one chosen in `/wxi`.
+
 ## 1.39
 
 - Health Bars is a tab of its own, second, with Enabled (the Health Bars switch that was under General Name Appearance), Combat Only and Health Bar Width and Height. The tabs are Names, Health Bars, Statuses and Visibility, and NM Tracking after `/name dev`.

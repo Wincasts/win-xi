@@ -221,14 +221,16 @@ means than a placeholder (timed, forced, or scripted spawns) has none listed.
 ### Statuses over a name
 
 The **Statuses** tab puts a row of status icons above or below a name, for the statuses ticked there and no
-others. The icons are drawn as the party and buff addons draw them, by Custom Icons in winxisettings
+others. To begin with the icons are drawn as the party and buff addons draw them, by Custom Icons in winxisettings
 (`/wxi`): on, the chosen set's (FFXIV, `libs\winxi\statusicons\ffxiv`, to start) where it has an
 icon for the status and the game's where it has not; off, the game's. `libs/winxi` has to be deployed
 with its `statusicons` folder. The set's icons are as narrow as the set has them, the game's square.
+**Icons** takes this choice over for name alone.
 
 | Setting | What it does |
 |---|---|
 | Show Statuses | The row of icons, for names that are shown |
+| Icons | Winxi Theme, to begin with: as Custom Icons in `/wxi` has them. Game Icons: the game's own, whatever the theme has. Custom Icons: the custom set's, the one chosen in `/wxi` (FFXIV to begin with), and the game's where it has none, whatever the theme has |
 | Size (%) | An icon's height, as a percentage of the height of the names: 50% to 300%, 125% to begin with. An icon is as wide as the set's icons are for that height (three quarters for FFXIV's), and shrinks with its name |
 | Position | Above, to begin with: over the name, and over the mastery stars where it has them. Below: under the name, and under the line a checked monster's details are written on while they are shown |
 | Alignment | Center, to begin with: the row's middle on the name's. Left: level with the name's left, where its icons begin. Right: level with its right |
