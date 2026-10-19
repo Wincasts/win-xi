@@ -17,12 +17,14 @@ Shows and hides the names over characters' heads, by what they are over. A setti
 ## Settings
 
 The preferred baseline is in `name_defaults.lua`, taken from the author's own settings.
-It uses **trebucbi.ttf**, not bold, maximum/minimum font sizes **32/9**,
-**90% check size**, **90% icon size**, **4 px icon spacing**, **1 px outline**, a hunted
-monster's name at **120%**, and statuses level with the name's left.
-Difficulty abbreviations and check details are enabled, mastery stars and words
-mode are off. Own Name, Other Players, and Other Pets are hidden; Always Show
-Target is on. Appearance/hide preferences are captured too.
+It uses **trebucbi.ttf**, not bold, maximum/minimum font sizes **30/10**, the sub-target's
+name at **125%**, **90% check size**, **90% icon size**, **4 px icon spacing**, **1 px outline**,
+a hunted monster's name at **120%**, and health bars (off) **120 × 7 px**. Statuses are
+**100%**, level with the name's left and moved **2 px right and 5 up**, with fewer ticked:
+2–8, 10–13, 19, 132–135, 156, 192, 194 and 217. Difficulty abbreviations and check details
+are enabled, mastery stars and words mode are off. Own Name is hidden, Other Players and
+Other Pets shown; Always Show Target is off. Players' **Normal** (pale blue) and
+**Alliance** (amber) Colour Overrides are on. Appearance/hide preferences are captured too.
 Existing character settings take precedence over this baseline.
 
 Kept for each character. Each is on for names that are shown.

@@ -5,7 +5,7 @@ local types = require('name_types')
 local custom = require('custom')
 local o = H.options()
 local style = o
-assert(not style.showHealthBar[1] and style.healthBarWidth[1] == 60 and style.healthBarHeight[1] == 6)
+assert(not style.showHealthBar[1] and style.healthBarWidth[1] == 120 and style.healthBarHeight[1] == 7)
 style.healthBarWidth[1], style.healthBarHeight[1] = 999, -1
 custom.Settle(o)
 assert(style.healthBarWidth[1] == 300 and style.healthBarHeight[1] == 3, 'shared dimensions clamped')

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.51
+
+- The preferred defaults, those a new character starts with, are the author's settings as they are now: names 30 px at most and 10 at least, the sub-target's at 125%; health bars, while off, 120 × 7 px; statuses at 100%, 2 px right and 5 up, with 9, 14, 15 and 128–131 no longer ticked; Other Players and Other Pets shown, Always Show Target off; players' Normal and Alliance Colour Overrides on, pale blue and amber. A character's saved settings still come first.
+- `name_defaults.lua` can give part of a table of named keys, as it does `nameColours`: the rest keeps the addon's own defaults. A list, or a setting's `T{ value }`, still takes their place whole.
+
 ## 1.50
 
 - The monster tables and notorious monsters' placeholders are winxi's now (`libs/winxi/data`, read through `winxi.mobs`), where any addon can use them; the addon's own `data` and `placeholders` folders are gone. Name needs winxi 27.
