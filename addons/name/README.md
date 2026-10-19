@@ -39,7 +39,7 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
 
   | Preset | Players | Enemies | Bars | Status icons | Check details |
   |---|---|---|---|---|---|
-  | Default | `[icons: space=4][name]` | `[aggro] Lv [level]. [name]` | Off | On | On |
+  | Default | `[icons: space=4][name]` | `[aggro] [name] [letters]` | Off | On | On |
   | Minimal | `[name]` | `[name]` | Off | Off | Off |
   | Hunter | `[icons: space=4][name]` | `[aggro: space=4]Lv [level]. [name] [letters]` | In combat | On | On |
   | Retail-Like | `[icons: space=4][name]` | `[name]` | Off | Off | Off |
@@ -59,7 +59,7 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   in the string. Existing icon visibility, size and spacing are migrated once.
 - **Enemy Names:** a directly editable **Enemy Format** and expandable Check Details (Enabled, Size, Abbreviate Difficulty and
   Display Style: Icons & Text / Text Only). Existing enemy strings are preserved;
-  Reset Format restores `[aggro] Lv [level]. [name]` for ordinary, targeted and
+  Reset Format restores `[aggro] [name] [letters]` for ordinary, targeted and
   checked enemies alike.
 - **NPC Names:** a directly editable **NPC Format** for non-combat NPCs, independent
   of player/enemy formats. Default: `[name]`.

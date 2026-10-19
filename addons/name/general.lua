@@ -31,8 +31,8 @@ end
 
 local PLAYER = '[icons: space=4][name]';
 general.Presets = {
-    { key = 'default', label = 'Default', help = 'Player icons, enemy aggro and level, status icons and check details; no health bars.',
-        values = { nameFormat = PLAYER, monsterFormat = '[aggro] Lv [level]. [name]', npcFormat = '[name]', checkFormat = '',
+    { key = 'default', label = 'Default', help = 'Player icons, enemy aggro and spawn letters, status icons and check details; no health bars.',
+        values = { nameFormat = PLAYER, monsterFormat = '[aggro] [name] [letters]', npcFormat = '[name]', checkFormat = '',
             showHealthBar = false, healthBarsCombatOnly = false, showStatuses = true, showCheckDetails = true } },
     { key = 'minimal', label = 'Minimal', help = 'Names alone: no icons, levels, bars, statuses or check details.',
         values = { nameFormat = '[name]', monsterFormat = '[name]', npcFormat = '[name]', checkFormat = '',

@@ -402,7 +402,7 @@ local formatHelp = {
 local formatOptions = '\n\nOptions: color=yellow (or #RRGGBB), space=0-64 pixels after non-empty tokens.\n[distance]: decimals=0-2. [icons]: size=25-300 (% of name height), gap=0-24 pixels.\nSeparate options with commas, spaces or semicolons. Literal text stays where you type it.\nEnabled state colour overrides take precedence over name/spawn-letter token colours; other explicit token colours are unchanged.\nLegacy [name:yellow] and [#FF8000]text[/] still work.';
 local function DrawFormat(label, key, options, save)
     local enemy = key == 'monsterFormat';
-    local baseline = enemy and '[aggro] Lv [level]. [name]' or (key == 'nameFormat' and '[icons: space=4][name]' or '[name]');
+    local baseline = enemy and '[aggro] [name] [letters]' or (key == 'nameFormat' and '[icons: space=4][name]' or '[name]');
     widgets.Label(label);
     controls.Width();
     imgui.InputText('##name.' .. key, options[key], math.max(1024, #options[key][1]+256));

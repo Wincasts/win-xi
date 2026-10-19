@@ -131,7 +131,7 @@ imgui.InputText = record
 imgui.Button = function(id) return id == 'Reset##name.resetFormat' end
 local saves = 0
 custom.DrawSettings(options, function() saves = saves + 1 end)
-assert(saves == 1 and options.monsterFormat[1] == '[aggro] Lv [level]. [name]')
+assert(saves == 1 and options.monsterFormat[1] == '[aggro] [name] [letters]')
 assert(options.nameFormat[1] == 'Player: [name]' and options.npcFormat[1] == '[name] ([distance]y)')
 imgui.Button = record
 imgui.BeginCombo = function(id) return id == '##name.checkDetailsInWords' end

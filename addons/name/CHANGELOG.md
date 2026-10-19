@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.42
+
+- The Default preset's enemy format is `[aggro] [name] [letters]`: no level range, and the spawn letter at the end. Reset Format and a new character's settings give the same; saved formats are kept.
+
 ## 1.41
 
 - A **General** tab, first. **Preset** gives the settings a premade look, Default, Minimal, Hunter or Retail-Like: the formats, the check line, health bars, status icons and check details, leaving font, sizes, colours, visibility and the chosen statuses; it says Custom when they are none of them. **Custom Nameplates** (on) is Name drawing the names: off, it lets them go at once and the game draws its own as namehook sizes them, Visibility still applying. **Health Bars** and **Status Icons** are there too. Diagnostics take Custom Nameplates off as chosen, with no log.
