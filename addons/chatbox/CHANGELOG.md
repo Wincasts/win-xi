@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Chat Tooltips**, in the Chatbox section (on to begin with): the mouse resting on something named in the
+  compact log or Window 2 shows what it is in a Winxi tooltip, drawn after the log is captured and outside it, so
+  it is never part of the game's chat. Items, key items and auto-translate phrases are known by the codes the game
+  sends with the line (kept with each message, read from the game's history too); spells, abilities, weapon skills,
+  quests and places by their names, so an ordinary word that is also a name may show one. While it is on, a switch
+  for each kind: Items, Spells And Abilities, Weapon Skills, Quests, Places and Auto-Translate. The shared Winxi
+  tooltip settings apply. Nothing over imgui's own windows, while the log or its scrollbar is dragged, in the
+  expanded log, while zoning, or when a lookup fails. The lookups are links.lua's. log.lua keeps a message's tokens
+  (Add's and Prepend's), gives each row its offset in the message's text as shown, and lets the shown text be
+  read (Shown). Tests: chatbox_ui_check the tokens kept, a wrapped message's second row given its own tokens, the
+  word under the mouse looked up after the capture with the row, the offset and the kinds, and each case of
+  nothing; the controls and the settings made whole; chatbox_log_check the rows' offsets with stamps shown and
+  hidden, and the tokens kept.
+
 - Lock Window and Position, in Layout (WinXI Skin). Lock Window off, the log can be taken hold of with the left
   button anywhere on it but its scrollbar and dragged wherever you want; let go, its bottom-left is kept for the
   character and Position becomes Custom (At the Game's Chat to begin with; Custom chosen by hand takes the place the

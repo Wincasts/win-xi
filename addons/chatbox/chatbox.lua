@@ -36,6 +36,13 @@ local input = inputModel.New()
 local layout = require('layout')
 local layoutState = layout.New()
 local visibility = require('visibility')
+local links = require('links')
+-- The links in a line's bytes as the game gave them (before auto-translate is expanded), for Chat Tooltips; nil
+-- where there are none or the lookup fails
+local function Tokens(raw)
+    local ok, tokens = pcall(links.Tokens, raw)
+    return ok and type(tokens) == 'table' and #tokens > 0 and tokens or nil
+end
 local panelModel = require('winxi.infopanel.chat')
 local infoPanel = panelModel.New()
 local panelAttachment -- current frame only, appended to its owning chat capture
@@ -166,7 +173,7 @@ local function ImportLines(lines)
         if mode ~= 190 and mode ~= 152 then
             local ok, text, _, spans = pcall(encoding.Decode, message.raw, false, true)
             if ok and type(text) == 'string' and text:find('%S') then
-                entries[#entries + 1] = { text = text, mode = mode, originalMode = mode, spans = spans, raw = message.mode }
+                entries[#entries + 1] = { text = text, mode = mode, originalMode = mode, spans = spans, raw = message.mode, tokens = Tokens(message.raw) }
             end
         end
     end
@@ -195,6 +202,7 @@ end
 local function Reset()
     Release()
     infoPanel.Reset()
+    pcall(links.Reset)
     model.Clear(history)
     import.wanted, import.asked, import.since, import.count, import.status = true, false, nil, 0, 'not yet read'
     ResetViews(true)
@@ -245,6 +253,16 @@ local PADDING_SIDES = {
 }
 
 local Tip = require('winxi.tooltip').Hover;
+-- Chat Tooltips' kinds, each a switch of its own, all on to begin with; missing or not a switch, on
+local function TooltipKinds(kinds)
+    kinds = type(kinds) == 'table' and kinds or T{}
+    for _, kind in ipairs(links.Kinds) do
+        local value = kinds[kind.key]
+        if type(value) ~= 'table' then kinds[kind.key] = T{ true }
+        else value[1] = value[1] ~= false end
+    end
+    return kinds
+end
 -- Window Title and Window 2 Title: the words typed for each box's top edge, empty for the channel or 'Window 2'
 local TITLE_LONGEST = 64
 local function OwnTitle(value)
@@ -312,7 +330,7 @@ app = shell.New({
         visibility = { window1 = visibility.Defaults(), window2 = visibility.Defaults() },
         window1Rows = T{ 0 }, window2Rows = T{ 0 },
         leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 },
-        windowTitle = T{ '' }, splitTitle = T{ '' } },
+        windowTitle = T{ '' }, splitTitle = T{ '' }, chatTooltips = T{ true }, tooltipKinds = TooltipKinds() },
     command = '/chatbox',
     configTitle = 'Chatbox Settings',
     help = '/chatbox opens settings; /chatbox on, off, clear, status, modes, bytes; /chatbox timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write; /chatbox panel [on|off|reset] controls the optional info panel; /chatbox clock and /chatbox compass [hide|show] the game\'s. Native selection, expansion and input controls.',
@@ -339,6 +357,17 @@ app = shell.New({
             widgets.Label('Timestamps')
             if imgui.Checkbox('##chatbox.timestamps', options.timestamps) then model.ShowStamps(history, options.timestamps[1]); app.save() end
             Tip('Shows timestamps supplied by either SimpleLog or the timestamp addon, including their original format and colours.\nEnable timestamps in one of those addons; chatbox adds none of its own. Avoid enabling both providers to prevent duplicates.\nOff, timestamps are hidden in the compact, second and expanded logs without deleting them. /chatbox timestamps on and off do the same.')
+            widgets.Label('Chat Tooltips')
+            if imgui.Checkbox('##chatbox.chatTooltips', options.chatTooltips) then app.save() end
+            Tip('Resting the mouse on an item, key item, auto-translate phrase, spell, ability, weapon skill, quest or place named in the\ncompact log or Window 2 shows what it is, in a tooltip. The shared Winxi tooltip settings (whether they show, the delay and\nthe look) apply. The expanded log is the game\'s own and shows none.')
+            if options.chatTooltips[1] then
+                imgui.TextDisabled('Shown for:')
+                for _, kind in ipairs(links.Kinds) do
+                    widgets.Label(kind.label)
+                    if imgui.Checkbox('##chatbox.tooltips.' .. kind.key, options.tooltipKinds[kind.key]) then app.save() end
+                    Tip(('Tooltips for %s in the log.'):format(kind.label))
+                end
+            end
             if widgets.FontFile(options, 'fontFile', '##chatbox.fontFile', { tooltip = 'The chat\'s font: one of C:\\Windows\\Fonts, or the theme\'s.' }) then
                 app.save()
             end
@@ -551,6 +580,9 @@ app = shell.New({
         if type(options.timestamps) ~= 'table' then options.timestamps = T{ true } end
         options.timestamps[1] = options.timestamps[1] ~= false
         model.ShowStamps(history, options.timestamps[1])
+        if type(options.chatTooltips) ~= 'table' then options.chatTooltips = T{ true } end
+        options.chatTooltips[1] = options.chatTooltips[1] ~= false
+        options.tooltipKinds = TooltipKinds(options.tooltipKinds)
         for _, key in ipairs({ 'windowTitle', 'splitTitle' }) do
             local words = type(options[key]) == 'table' and options[key][1]
             options[key] = T{ type(words) == 'string' and words:sub(1, TITLE_LONGEST - 1) or '' }
@@ -584,7 +616,7 @@ local function Keep(line)
         original=type(line.original)=='string' and line.original:sub(1,256) or '',
         modified=raw:sub(1,256), final=type(line.final)=='string' and line.final:sub(1,256) or nil,
         expanded=type(expanded)=='string' and expanded:sub(1,256) or '', utf8=text:sub(1,256) }
-    model.Add(history, text, mode, nil, originalMode, spans, line.mode or line.originalMode)
+    model.Add(history, text, mode, nil, originalMode, spans, line.mode or line.originalMode, Tokens(raw))
 end
 -- Each line read through uihook after every addon (winxi.nativetext, uihook 0.8 or newer): chatbox's own text_in
 -- copy of a line is held until the frame's lines are drained, and the line is kept as uihook has it, so a formatter
@@ -689,6 +721,36 @@ local function DrawCursor(list, edge, rowTop, fontSize)
     list:PopClipRect()
 end
 
+-- Chat Tooltips: the row and the character under the mouse this frame, found as a compact log is drawn (in the font
+-- it is drawn in) and shown after that log's capture, outside its window, so the tooltip is never part of the replay
+-- in the game's chat. Cleared as each frame starts; the last box drawn under the mouse wins.
+local hovered = { row = nil, offset = 0, view = nil }
+-- The bytes of the UTF-8 character a lead byte starts (a stray continuation byte counts as one)
+local function CharacterBytes(b) return b >= 0xf0 and 4 or b >= 0xe0 and 3 or b >= 0xc0 and 2 or 1 end
+-- The 1-based byte offset of the character dx pixels into text as it is drawn, or nil before it or past its end:
+-- each character's right edge is the width of the text up to it, measured as render.Rich draws it
+local function CharacterAt(text, dx)
+    if dx < 0 or render.Measure(text) <= dx then return nil end
+    local at = 1
+    while at <= #text do
+        local after = at + CharacterBytes(text:byte(at))
+        if render.Measure(text:sub(1, after - 1)) > dx then return at end
+        at = after
+    end
+    return nil
+end
+-- Where the mouse is for Chat Tooltips in a box, or nil: with them on, the mouse not over a window of imgui's own
+-- (the settings), no scrollbar or log being dragged, and the mouse inside the box's rows
+local function TipMouse(left, width, areaTop, areaBottom)
+    if not app.options.chatTooltips[1] or moving or views[1].drag or views[2].drag then return nil end
+    local io = imgui.GetIO()
+    local mouse = not io.WantCaptureMouse and io.MousePos
+    if not mouse then return nil end
+    local x, y = mouse.x or mouse[1], mouse.y or mouse[2]
+    if not x or not y or x < left or x >= left + width or y < areaTop or y >= areaBottom then return nil end
+    return x, y
+end
+
 -- The log's rows, in the window being drawn (with the chat's font pushed): the light and cursor when the
 -- game has it selected (lit), then the rows at the bottom, preserving all source inline colours. Native-sized
 -- boxes centre their whole rows within the configured vertical padding. view: the window's own scrolling; filter: which messages it
@@ -736,10 +798,16 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
         DrawCursor(list, left, y + (#rows - 1) * step, fontSize)
     end
     drawn.firstY = y
+    local tipX, tipY = TipMouse(left, box.width, areaTop, areaBottom)
     for _, row in ipairs(rows) do
         if row.text ~= '' then
             local color = imgui.GetColorU32(style.textColor or palette.Mode(row.message.mode) or theme.Get().TextColor)
             render.Rich(list, { x, y }, color, row.text, row.spans, row, font, size)
+            -- the one row under the mouse is walked for the character; every other row is two comparisons
+            if tipY and tipY >= y and tipY < y + step then
+                local offset = CharacterAt(row.text, tipX - x)
+                if offset then hovered.row, hovered.offset, hovered.view = row, offset, view end
+            end
         end
         y = y + step
     end
@@ -760,6 +828,40 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
     imgui.Dummy(contentSize)
     view.drawn = drawn
     return drawn
+end
+
+-- The tokens whose bracket pairs open in a row, for links.At: as many skipped as there are ❮ in the message's shown
+-- text before the row, then as many as the row has; nil where it has none. Kept on the row, which lasts as long as
+-- the log's layout does.
+local function RowTokens(row)
+    if row.tokenSlice == nil then
+        local tokens, slice = row.message.tokens, false
+        if tokens and row.offset then
+            local _, before = model.Shown(history, row.message):sub(1, row.offset - 1):gsub('❮', '')
+            local _, within = row.text:gsub('❮', '')
+            if within > 0 and before < #tokens then
+                slice = {}
+                for i = before + 1, math.min(#tokens, before + within) do slice[#slice + 1] = tokens[i] end
+            end
+        end
+        row.tokenSlice = slice
+    end
+    return row.tokenSlice or nil
+end
+-- The tooltip of what the mouse is on in a compact log, after that log is captured (and never in the expanded
+-- log, whose rows are the game's): the kinds shown are Chat Tooltips' own; a failed lookup shows nothing
+local tipKinds = {}
+local function ChatTooltip()
+    local row, view = hovered.row, hovered.view
+    if not row or not ((view == views[1] and captured) or (view == views[2] and capturedSplit)) then return end
+    if lastDrawn and lastDrawn.expanded then return end
+    for _, kind in ipairs(links.Kinds) do
+        local box = app.options.tooltipKinds[kind.key]
+        tipKinds[kind.key] = type(box) == 'table' and box[1] == true
+    end
+    local ok, slice = pcall(RowTokens, row)
+    local found, reference = pcall(links.At, row.text, hovered.offset, ok and slice or nil, tipKinds)
+    if found and reference then pcall(links.Tooltip, reference) end
 end
 
 -- Keep the native rectangle exactly: drawing elsewhere would break mouse hit-tests. Expand In Place moves the
@@ -1047,6 +1149,7 @@ end
 
 ashita.events.register('d3d_present', 'chatbox_present', function()
     for _, view in ipairs(views) do view.target = nil end -- rearmed only after this frame captures a complete replacement
+    hovered.row, hovered.view = nil, nil -- found again as this frame's logs are drawn
     app:BeginFrame() -- configures WinXI's shared/local theme and draws settings
     infoPanel.BeginFrame() -- renew menu placement only with this frame's successful host capture
     DrainTap() -- the frame's lines as uihook has them after every addon, or chatbox's own copies
@@ -1350,6 +1453,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         views[2].target = splitDrawn and lastSplit or nil
     end
     infoPanel.Tooltip()
+    ChatTooltip()
 end)
 
 -- Only the wheel over an overflowing box and left-button interactions with its scrollbar are taken; each box
