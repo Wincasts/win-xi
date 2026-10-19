@@ -69,6 +69,27 @@ style.showJobs = false
 labels, buffRequests = {}, 0
 frames.Draw(members,'party',statusTexture,style)
 assert(buffRequests > 0 and next(labels) == nil, 'buffs restored outside rearrangement')
+-- Short Zone Names: the game's own short form of a member's area, its whole name where it has none, or off
+local zoneNames = { ['zones.names'] = { [230] = 'Southern San d\'Oria', [231] = 'Northern San d\'Oria' },
+    ['zones.names_abbr'] = { [230] = 'S.Sandy', [231] = '' } }
+AshitaCore.GetResourceManager = function() return {GetString=function(_, table, id) return zoneNames[table][id] end} end
+local written = {}
+draw.Text = function(x,y,color,words,...) written[words] = true; return originalText(x,y,color,words,...) end
+local away = {
+    {name='Known',serverId=1,isInZone=true,hpp=80,hp=1000,mpp=60,mp=500,tp=1000,statusIds={}},
+    {name='South',serverId=3,isInZone=false,zoneId=230,statusIds={}},
+    {name='North',serverId=4,isInZone=false,zoneId=231,statusIds={}},
+}
+local saved = H.options()
+assert(saved.style.zoneAbbr[1] == true, 'Short Zone Names on to begin with')
+frames.Draw(away,'party',statusTexture,options.Style(saved))
+assert(written['(S.Sandy)'] and written['(Northern San d...'],
+    'Short Zone Names: the game\'s short form, the whole name where it has none')
+assert(not written['(Southern San d\'Oria)'], 'the whole name not written where the short form is')
+saved.style.zoneAbbr[1], written = false, {}
+frames.Draw(away,'party',statusTexture,options.Style(saved))
+assert(not written['(S.Sandy)'] and next(written) ~= nil, 'Short Zone Names off: the whole name')
+saved.style.zoneAbbr[1] = true
 draw.Text = originalText
 AshitaCore.GetResourceManager = originalResources
 assert(options.Style(H.options()).showJobs == false, 'temporary job-label flag never leaks into other frame kinds')

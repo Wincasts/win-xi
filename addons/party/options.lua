@@ -74,6 +74,8 @@ options.Tabs = {
           tooltip = 'Writes each member\'s TP on their line. TP has no bar, so off leaves TP out altogether.' },
         { kind = 'check', section = 'style', key = 'tpFlash', label = 'Flash TP When Ready', default = true,
           tooltip = 'TP at or above TP Ready Threshold pulses between a light blue and a deeper one. Off, ready TP is simply blue.' },
+        { kind = 'check', section = 'style', key = 'zoneAbbr', label = 'Short Zone Names', default = true,
+          tooltip = 'A member in another area has that area written where their bars would be, in the game\'s own short form for it\n(as its search list writes it). Off, the area\'s whole name, cut short where it does not fit.' },
     } },
     { name = 'Party', entries = {
         { kind = 'check', section = 'party', key = 'enabled', label = 'Enabled', default = true },
@@ -173,7 +175,7 @@ end
 local groups = {
     Style = {
         { 'Appearance', 'scale', 'barShadows' },
-        { 'Names', 'nameFont', 'nameSize' },
+        { 'Names', 'nameFont', 'nameSize', 'zoneAbbr' },
         { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
         { 'Status Display', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow' },
         { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses' },
@@ -507,6 +509,7 @@ function options.Style(saved)
     Pixels(style.mpOffset, kept.mpOffset)
     Pixels(style.tpOffset, kept.tpOffset)
     style.tpFlash = kept.tpFlash[1]
+    style.zoneAbbr = kept.zoneAbbr[1]
     style.showMp, style.showTp = kept.showMp[1], kept.showTp[1]
     style.nameFont, style.valueFont = kept.nameFont, kept.valueFont
     style.barShadows = kept.barShadows

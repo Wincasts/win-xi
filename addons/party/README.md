@@ -57,6 +57,9 @@ calls per category; averages and maxima cover the full interval.
   Tooltips follow **winxisettings → Tooltips**, including visibility, delay and appearance.
   Enemy duration tooltips explicitly describe estimates, not exact server timers.
   No click-to-target behavior is introduced.
+- **Style → Names → Short Zone Names**, on by default: a member in another zone has the game's own short
+  form of its name where their bars would be (`zones.names_abbr`), or the whole name where
+  the game has none. Off, the whole name, cut short where it does not fit.
 - **Pets → Layout → Pet Names**: `Pet`, `Owner: Pet` (default), or `Pet (Owner)`.
 - **Profiles [Experimental]** offers Compact, Healer, Pet job, and Minimal presets plus up to 20 named profiles.
   Profiles and presets are still being tested.
