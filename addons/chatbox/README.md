@@ -43,7 +43,8 @@ each where the game's are.
   (**Chat Tooltips**). Items, key items and auto-translate phrases are known by the codes the game sends with
   the line, so they are found exactly; spells, abilities, weapon skills, quests and places written as plain
   text are found by their names. Names are matched by text, so an ordinary word that is also the name of an
-  item or a place may show one. The expanded log is the game's own and shows none.
+  item or a place may show one. In the expanded log they work on the rows the addon draws (Replace Expanded
+  Log), by name, as the game keeps no tokens in its history.
 
 ## Install
 
@@ -222,7 +223,8 @@ the mode is how the boxes behave and where they stand.
   dimmed lines: what the catalogs cannot vouch for (presence is not availability, modifiers in server
   units) and a phrase's category and kind; off, only the name and the facts. The shared Winxi tooltip settings (whether
   tooltips show, their delay and their look) apply. Nothing shows while the mouse is over the settings or
-  another imgui window, while the log or its scrollbar is dragged, or in the expanded log.
+  another imgui window, while the log or its scrollbar is dragged, or in the expanded log while the game
+  draws its own rows.
 - **Font**: the log's and input bar's font, the theme's (to begin with) or any `.ttf` in
   `C:\Windows\Fonts`. Japanese and other non-Latin text need a font with those glyphs.
 - **Font Size**: 8 to 24 pixels (12 to begin with); the boxes grow with it, and the expanded log's text
@@ -307,8 +309,10 @@ window geometry matches the requested size.
   as the compact log's, where the game's is; its rows of text in the chat's Font at Font Size, each
   row centred where the game draws its own and in the game's colours; and, with uihook 0.6, its
   cursor, the light on the cursor's row and the game's marked rows, so that nothing of the game's is
-  drawn in it. The game still moves the cursor, follows the mouse on its own places and takes Confirm,
-  Square and the wheel. Off, the game's own are drawn in the WinXI frame, tinted to the theme.
+  drawn in it. The rows stand at the chat's own pitch, not the game's, so the mouse's moves and buttons
+  over the log are kept from the game, whose hover and clicks would land on other rows; the wheel goes
+  through, and Square, the arrows and Confirm choose rows. Off, the game's own are drawn in the WinXI
+  frame, tinted to the theme, and the mouse is the game's.
 - **Chat Log Window** and **Input Text Box**: **Override Colours** and, with it on, **Background**
   (with its opacity, over the chosen WinXI background style), **Border / Art Tint** (a plain border's
   colour or the border art's tint, the art keeping its shading; its alpha the border's opacity),
@@ -385,20 +389,24 @@ Highlight Color, other tabs the Title colour, the cursor and scrollbar the **Bor
 native fade and pulse kept. The row highlight and cursor are the game's, tinted so, unless Replace
 Expanded Log mirrors the whole log: then uihook leaves the full log wholly undrawn (with uihook 0.6) and the
 addon lights the row the game highlights (uihook measures the game's highlight as it is drawn and
-flags the rows under it; the cursor's row with an older uihook) from the left of its text to the scrollbar, the game's row tall, in the
+flags the rows under it; the cursor's row with an older uihook) from the left of its text to the scrollbar, a row's pitch tall, in the
 Highlight Color (brighter while held down), lights a row the game marks faintly, and draws the cursor
 after the cursor row's text; which row that is, is the game's, read as it draws.
 The **text** is the addon's with Replace Expanded Log on: uihook decodes each of the game's rows as the
 game draws it (its glyph words back to the bytes the game was given, colour codes and all) and
-measures the row, and the addon draws each row where the game draws it: centred in the game's own row, in the
-chat's **Font** at **Font Size** or, where the game's row is shorter, that height, so rows never overlap;
-from the log's left edge in by **Left Padding**, in the log's Default Text colour when it has its own,
-otherwise its message's chat-mode colour with the game's inline colours kept and auto-translate brackets
-as shapes, clipped to the log's box; the game's cursor is drawn after the cursor row's text, where the
-game puts its mark. The game hit-tests the mouse against those same rows, so the row under the mouse is
-the row it lights and chooses. Which rows there are and their wrapping, the cursor, Confirm and its
-menus and the wheel are still the game's. A font wider than the game's can run past the right edge, where
-it is clipped. Off, or without a fresh set of rows from uihook, the game's own bitmap font is drawn.
+measures the row, and the addon lays the rows out as the compact log does: the chat's **Font** at
+**Font Size**, Font Size + 2 apart, the newest ending at the **Bottom Padding** and older ones up from
+it, from the log's left edge in by **Left Padding**, in the log's Default Text colour when it
+has its own, otherwise its message's chat-mode colour with the game's inline colours kept and auto-translate brackets as shapes, clipped
+to the log's box; the game's cursor is drawn after the cursor row's text, where the game puts its
+mark. Which rows there are and their wrapping, the cursor, Confirm and its menus and the wheel are
+still the game's, followed by the rows' order (when the row the game has chosen is past what fits,
+the view moves up to keep it in sight). The game's own rows stand 16 of its units apart, which do not line
+up with these, so while the rows are the addon's the mouse's moves and buttons over the log are kept from
+the game: its hover and clicks would land on other rows than the ones shown. The wheel goes through and
+scrolls as ever; Square, the arrows and Confirm choose rows; Chat Tooltips work on these rows. With
+Replace Expanded Log off the game draws its own rows and has its mouse. A font wider than the game's can
+run past the right edge, where it is clipped. Off, or without a fresh set of rows from uihook, the game's own bitmap font is drawn.
 Padding, Width and Default Text apply to the compact log and input only, and there is no WinXI
 title over the tabs. Missing control signatures leave the art untinted and the game's tabs,
 scrollbar and text drawn; missing content signatures, geometry or a failed capture leave the

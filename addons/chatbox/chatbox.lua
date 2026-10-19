@@ -359,7 +359,7 @@ app = shell.New({
             Tip('Shows timestamps supplied by either SimpleLog or the timestamp addon, including their original format and colours.\nEnable timestamps in one of those addons; chatbox adds none of its own. Avoid enabling both providers to prevent duplicates.\nOff, timestamps are hidden in the compact, second and expanded logs without deleting them. /chatbox timestamps on and off do the same.')
             widgets.Label('Chat Tooltips')
             if imgui.Checkbox('##chatbox.chatTooltips', options.chatTooltips) then app.save() end
-            Tip('Resting the mouse on an item, key item, auto-translate phrase, spell, ability, weapon skill, quest or place named in the\ncompact log or Window 2 shows what it is, in a tooltip. The shared Winxi tooltip settings (whether they show, the delay and\nthe look) apply. The expanded log is the game\'s own and shows none.')
+            Tip('Resting the mouse on an item, key item, auto-translate phrase, spell, ability, weapon skill, quest or place named in the\ncompact log, Window 2 or the expanded log (with Replace Expanded Log) shows what it is, in a tooltip. The shared Winxi tooltip\nsettings (whether they show, the delay and the look) apply.')
             if options.chatTooltips[1] then
                 widgets.Label('Tooltip Notes')
                 if imgui.Checkbox('##chatbox.tooltipNotes', options.tooltipNotes) then app.save() end
@@ -444,7 +444,7 @@ app = shell.New({
             end
             widgets.Label('Replace Expanded Log')
             if imgui.Checkbox('##chatbox.replaceExpanded', options.replaceExpanded) then app.save() end
-            Tip('Draws the expanded log\'s channel tabs as WinXI buttons, its scrollbar as the compact log\'s, its rows of text in the chat\'s Font at Font Size\nand its cursor and the light on its row, each where the game draws its own, so Square, the mouse, Confirm and scrolling are still the game\'s.\nOff, the game\'s own are drawn in the WinXI frame, tinted to the theme.')
+            Tip('Draws the expanded log\'s channel tabs as WinXI buttons, its scrollbar as the compact log\'s, its rows of text in the chat\'s Font at Font Size\nand its cursor and the light on its row. The rows stand at the chat\'s own pitch, not the game\'s, so the mouse over the log is kept from the game;\nthe wheel still scrolls, and Square, the arrows and Confirm choose rows. Off, the game\'s own are drawn in the WinXI frame, tinted, with its mouse.')
             appearance.Draw(options.appearance, app.save)
         end
     end,
@@ -729,7 +729,8 @@ end
 -- Chat Tooltips: the row and the character under the mouse this frame, found as a compact log is drawn (in the font
 -- it is drawn in) and shown after that log's capture, outside its window, so the tooltip is never part of the replay
 -- in the game's chat. Cleared as each frame starts; the last box drawn under the mouse wins.
-local hovered = { row = nil, offset = 0, view = nil }
+local hovered = { text = nil, offset = 0, row = nil, view = nil, expanded = false, mirror = false }
+-- mirror: the expanded log was drawn this frame with its rows the addon's and captured, so the mouse over it is kept from the game
 -- The bytes of the UTF-8 character a lead byte starts (a stray continuation byte counts as one)
 local function CharacterBytes(b) return b >= 0xf0 and 4 or b >= 0xe0 and 3 or b >= 0xc0 and 2 or 1 end
 -- The 1-based byte offset of the character dx pixels into text as it is drawn, or nil before it or past its end:
@@ -811,7 +812,7 @@ local function DrawLog(box, rowCount, fontSize, padding, view, filter, lit, styl
             -- the one row under the mouse is walked for the character; every other row is two comparisons
             if tipY and tipY >= y and tipY < y + step then
                 local offset = CharacterAt(row.text, tipX - x)
-                if offset then hovered.row, hovered.offset, hovered.view = row, offset, view end
+                if offset then hovered.text, hovered.offset, hovered.row, hovered.view, hovered.expanded = row.text, offset, row, view, false end
             end
         end
         y = y + step
@@ -853,19 +854,25 @@ local function RowTokens(row)
     end
     return row.tokenSlice or nil
 end
--- The tooltip of what the mouse is on in a compact log, after that log is captured (and never in the expanded
--- log, whose rows are the game's): the kinds shown are Chat Tooltips' own; a failed lookup shows nothing
+-- The tooltip of what the mouse is on in a compact log, or in the expanded log while its rows are the addon's, after
+-- that log is captured: the kinds shown are Chat Tooltips' own; a failed lookup shows nothing
 local tipKinds = {}
 local function ChatTooltip()
-    local row, view = hovered.row, hovered.view
-    if not row or not ((view == views[1] and captured) or (view == views[2] and capturedSplit)) then return end
-    if lastDrawn and lastDrawn.expanded then return end
+    if not hovered.text then return end
+    local view = hovered.view
+    local shown = hovered.expanded and captured and lastDrawn ~= nil and lastDrawn.expanded
+        or (view == views[1] and captured) or (view == views[2] and capturedSplit)
+    if not shown then return end
     for _, kind in ipairs(links.Kinds) do
         local box = app.options.tooltipKinds[kind.key]
         tipKinds[kind.key] = type(box) == 'table' and box[1] == true
     end
-    local ok, slice = pcall(RowTokens, row)
-    local found, reference = pcall(links.At, row.text, hovered.offset, ok and slice or nil, tipKinds)
+    local slice = nil
+    if hovered.row then
+        local ok, found = pcall(RowTokens, hovered.row)
+        slice = ok and found or nil
+    end
+    local found, reference = pcall(links.At, hovered.text, hovered.offset, slice, tipKinds)
     if found and reference then pcall(links.Tooltip, reference, app.options.tooltipNotes[1]) end
 end
 
@@ -930,33 +937,36 @@ local function DrawMark(list, x, rowTop, fontSize)
         list:AddText({ x, rowTop }, imgui.GetColorU32(controller.HighlightColor), '>')
     end
 end
--- The game's rows of text each where the game draws it: uihook measures each row's rectangle as the game lays it out,
--- and the game hit-tests the mouse against those same places, so the row under the mouse is the row the game lights
--- and chooses. Each row's text is centred in the game's row, in the chat's font at Font Size or, where the game's row
--- is shorter, that height (ExpandedSize), so rows never overlap. Which rows there are, which the game highlights and
--- where its cursor is are the game's; rows above the frame's top (Expanded Height) are clipped by it. Returns
--- { row, y, chosen } for each row the game placed.
+-- The game's rows laid out as the compact log lays out its own: Font Size + ROW_GAP apart, the newest with its text
+-- ending at the Bottom Padding, older ones up from it, as many as fit between the paddings. Which rows they are,
+-- which the game highlights and where its cursor is are the game's, by their order (newest first). The game's own
+-- places (16 of its units apart) do not line up with these, so the mouse is kept from the game's log while the rows
+-- are the addon's (the mouse hook below); the wheel still scrolls, and Square, the arrows and Confirm choose rows.
+-- Should the row the game has chosen be past what fits, the view moves up to keep it at the top. Returns { row, y }
+-- for each line shown, the newest first.
 local expandedLines = {}
-local function ExpandedSize(rows, size)
-    for _, row in ipairs(rows) do
-        if row.top and row.bottom and row.bottom > row.top then size = math.min(size, math.floor(row.bottom - row.top)) end
-    end
-    return math.max(1, size)
-end
 local function ExpandedLines(rows, size)
     for i = #expandedLines, 1, -1 do expandedLines[i] = nil end
-    local measured = false
-    for _, row in ipairs(rows) do measured = measured or row.lit == true end
+    local step = size + ROW_GAP
+    local areaTop, areaBottom = expandedBox[2] + pad.top, expandedBox[4] - pad.bottom
+    local fits = math.max(1, math.floor((areaBottom - areaTop + ROW_GAP) / step))
+    local placed, measured = {}, false
     for _, row in ipairs(rows) do
-        if row.top and row.bottom and row.bottom > row.top then
-            expandedLines[#expandedLines + 1] = { row = row, y = row.top + (row.bottom - row.top - size) / 2,
-                chosen = (measured and row.lit) or (not measured and row.cursor) }
-        end
+        if row.top then placed[#placed + 1] = row; measured = measured or row.lit end
+    end
+    local chosen = 1
+    for i, row in ipairs(placed) do
+        if (measured and row.lit) or (not measured and row.cursor) then chosen = i end
+    end
+    local first = math.max(1, chosen - fits + 1)
+    for i = first, math.min(#placed, first + fits - 1) do
+        expandedLines[#expandedLines + 1] = { row = placed[i], y = areaBottom - size - (i - first) * step,
+            chosen = (measured and placed[i].lit) or (not measured and placed[i].cursor) }
     end
     return expandedLines
 end
 -- With the whole log the addon's, the lights the game would have drawn under its rows: across the log (to the
--- scrollbar), the game's row's own height, each row the game highlights (lit, where uihook
+-- scrollbar), a line tall with half the row gap either side, each row the game highlights (lit, where uihook
 -- measured its highlight; without that, the cursor's row) in the highlight colour, brighter held down, and a row it
 -- marks faintly
 local rowLight = { 1, 1, 1, 0.25 }
@@ -974,7 +984,7 @@ local function DrawExpandedLights(list, lines, x, size)
             end
             -- short of the scrollbar's thumb
             local edge = expandedScroll and math.min(right, ExpandedThumbLeft() - 2) or right
-            list:AddRectFilled({ math.max(expandedBox[1] + 1, x - 4), row.top }, { edge, row.bottom },
+            list:AddRectFilled({ math.max(expandedBox[1] + 1, x - 4), line.y - ROW_GAP / 2 }, { edge, line.y + size + ROW_GAP / 2 },
                 imgui.GetColorU32(color), 2)
         end
     end
@@ -983,7 +993,7 @@ end
 -- log's left edge in by Left Padding, in the Default Text colour or the chat mode's with the game's inline colours
 -- kept; the game's cursor row gets the cursor after its text. Clipped to the full log's box.
 local function DrawExpandedRows(list, rows)
-    local size = ExpandedSize(rows, FontSize())
+    local size = FontSize()
     local lines = ExpandedLines(rows, size)
     if #lines == 0 then return 0 end
     local chatFont = fonts.Get(app.options.fontFile)
@@ -994,6 +1004,9 @@ local function DrawExpandedRows(list, rows)
     if expandedReplace.all then DrawExpandedLights(list, lines, left, size) end
     local fallback = theme.Get().TextColor
     local drawn = 0
+    -- Chat Tooltips here too: the row and character under the mouse, as the compact log finds its own (the game's
+    -- rows carry no tokens: a bracketed phrase or link is known by its words)
+    local tipX, tipY = TipMouse(expandedBox[1], expandedBox[3] - expandedBox[1], expandedBox[2], expandedBox[4])
     for _, line in ipairs(lines) do
         local row, x = line.row, left
         if row.text ~= '' then
@@ -1001,6 +1014,10 @@ local function DrawExpandedRows(list, rows)
             if entry.text ~= '' then
                 local color = expandedOptions.textColor or palette.Mode(row.mode) or fallback
                 render.Rich(list, { x, line.y }, imgui.GetColorU32(color), entry.text, entry.spans, entry, font, size)
+                if tipY and tipY >= line.y and tipY < line.y + size then
+                    local offset = CharacterAt(entry.text, tipX - x)
+                    if offset then hovered.text, hovered.offset, hovered.row, hovered.view, hovered.expanded = entry.text, offset, nil, nil, true end
+                end
                 if row.cursor then x = x + render.Measure(entry.text) end -- only the cursor's row needs its end
                 drawn = drawn + 1
             end
@@ -1118,6 +1135,7 @@ local function DrawExpanded(state, sw, sh)
     lastDrawn = { frame = frame, expanded = true, left = rect[1], top = top, width = size[1], bottom = bottom,
         rows = state.pageRows or 0, drawn = 0, firstY = top, title = expandedRows and 'WinXI text' or 'native content', overflow = false }
     window.Plain('winxi.chatbox.expanded', open, flags, DrawExpandedControls, expandedOptions)
+    hovered.mirror = expandedRows ~= nil and captured
     -- the status line, made again only when what it says changes
     local key = (expandedTabs and 1 or 0) + (expandedScroll and 2 or 0) + (expandedRows and 4 or 0) + (expandedReplace.all and 8 or 0)
         + (state.nativeControls and 16 or 0) + (opened and 32 or 0) + (state.nested and 64 or 0)
@@ -1153,7 +1171,7 @@ end
 
 ashita.events.register('d3d_present', 'chatbox_present', function()
     for _, view in ipairs(views) do view.target = nil end -- rearmed only after this frame captures a complete replacement
-    hovered.row, hovered.view = nil, nil -- found again as this frame's logs are drawn
+    hovered.text, hovered.row, hovered.view, hovered.expanded, hovered.mirror = nil, nil, nil, false, false -- found again as this frame's logs are drawn
     app:BeginFrame() -- configures WinXI's shared/local theme and draws settings
     infoPanel.BeginFrame() -- renew menu placement only with this frame's successful host capture
     DrainTap() -- the frame's lines as uihook has them after every addon, or chatbox's own copies
@@ -1530,20 +1548,34 @@ local function Drag(e, x, y, captured)
     e.blocked = true
     return true
 end
+-- The expanded log with its rows the addon's (Replace Expanded Log): they stand at the chat's own pitch, not the
+-- game's 16 units, so the game's hover and clicks would land on other rows than the ones shown. The mouse's moves and
+-- its buttons are kept from the game while it is over the log; the wheel, which scrolls whatever the rows' places,
+-- goes through, and Square, the arrows and Confirm still choose rows. A menu of the game's open over it is the game's.
+local expandedMouse = { [0x0200] = true, [0x0201] = true, [0x0202] = true, [0x0203] = true, [0x0204] = true, [0x0205] = true }
 ashita.events.register('mouse', 'chatbox_scroll', function(e)
     if e.blocked or not app.options.enabled[1] or zoning then return end
     -- Only the wheel, a left press, its release and a drag (the scrollbar's, or the log's) are ever taken: anything
-    -- else, most of all the mouse moving, is let by before the game's state is read
+    -- else, most of all the mouse moving, is let by before the game's state is read; over the mirrored expanded log,
+    -- the mouse's moves and buttons as well
     local message = e.message
+    local mirror = hovered.mirror
     if message == 0x0200 then
-        if not (moving or views[1].drag or views[2].drag) then return end
+        if not (moving or views[1].drag or views[2].drag or mirror) then return end
     elseif message == 0x0202 then
-        if not (moving or views[1].pressed or views[2].pressed) then return end
-    elseif message ~= 0x0201 and message ~= 0x020a then return end
+        if not (moving or views[1].pressed or views[2].pressed or mirror) then return end
+    elseif message ~= 0x0201 and message ~= 0x020a and not (mirror and expandedMouse[message]) then return end
     local state = primary.State()
     if state and (state.expanded or state.nativeBrowse) then
         for _, view in ipairs(views) do view.drag, view.pressed = nil, nil end
         moving = nil
+        if mirror and state.expanded and not state.nativeBrowse and expandedMouse[message] then
+            local mouse = imgui.GetIO().MousePos
+            local x, y = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+            if x and y and x >= expandedBox[1] and x < expandedBox[3] and y >= expandedBox[2] and y < expandedBox[4] then
+                e.blocked = true
+            end
+        end
         return
     end
     local io = imgui.GetIO()
