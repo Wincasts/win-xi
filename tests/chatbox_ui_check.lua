@@ -519,6 +519,11 @@ assert(text[#text-2].text=='base' and text[#text-2].color==require('palette').Mo
     'SimpleLog inline overrides native colour, then resets to the native channel colour')
 message('yelled',{mode=3}); frame()
 assert(rendered['winxi.chatbox'].style.title=='Yell','a line yelled: the title says Yell')
+app.options.windowTitle[1]='My Chat'; frame()
+assert(rendered['winxi.chatbox'].style.title=='My Chat','Window Title: the words typed in place of the channel')
+app.options.windowTitle[1]='   '; frame()
+assert(rendered['winxi.chatbox'].style.title=='Yell','Window Title of only spaces: the channel again')
+app.options.windowTitle[1]=''
 imgui.Checkbox=function() return false end
 imgui.ColorEdit4=function() return false end
 imgui.IsItemDeactivatedAfterEdit=function() return false end
@@ -526,6 +531,7 @@ imgui.SameLine=function() end
 imgui.TextDisabled=function() end
 imgui.SliderInt=function() return false end
 imgui.SmallButton=function() return false end
+imgui.InputText=function() return false end
 imgui.SetTooltip=function() end
 imgui.BeginDisabled=function() end; imgui.EndDisabled=function() end
 imgui.Button=function() return false end
@@ -837,6 +843,9 @@ local first,split=rendered['winxi.chatbox'],rendered['winxi.chatbox.split']
 assert(split and split.pos[1]==20 and split.pos[2]==700 and split.pos[4]==1 and split.size[1]==640 and split.size[2]==180,'the second box stacked over the first, the first\'s width, the game\'s second window\'s height')
 assert(split.style.title=='Window 2' and first.style.title~='Window 2' and split.style.fontSize==12,'titled Window 2, in the chat\'s font size; the first still by its channel')
 assert(hooks[1].captures==1 and hooks[1].begins==begins+1,'the second window captured, once begun, not hidden again after')
+app.options.splitTitle[1]='Combat'; frame()
+assert(rendered['winxi.chatbox.split'].style.title=='Combat','Window 2 Title: the words typed in place of Window 2')
+app.options.splitTitle[1]=''
 local function texts() local t={} for _,entry in ipairs(text) do t[#t+1]=entry.text end return table.concat(t,'|') end
 assert(texts()=='said|marked|said|partied','the first shows what is routed to it, and a line the game marks for it alone; the second its own; the tell neither')
 chatState.selected=true; chatState.selectedWindow=2; frame()

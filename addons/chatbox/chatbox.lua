@@ -213,6 +213,12 @@ local PADDING_SIDES = {
 }
 
 local Tip = require('winxi.tooltip').Hover;
+-- Window Title and Window 2 Title: the words typed for each box's top edge, empty for the channel or 'Window 2'
+local TITLE_LONGEST = 64
+local function OwnTitle(value)
+    local words = type(value) == 'table' and value[1]
+    return type(words) == 'string' and words:match('%S') and words or nil
+end
 -- Forget the kept messages, the decode sample and where the log was scrolled to: the settings' Clear and /chatbox clear alike.
 local function ClearHistory() model.Clear(history); decodeSample = nil; for _, view in ipairs(views) do view.offset, view.pending = 0, 0 end end
 
@@ -232,7 +238,8 @@ app = shell.New({
     defaults = T{ enabled = T{ true }, timestamps = T{ true }, width = T{ 640 }, matchGameLogSize = T{ true }, matchGameInputSize = T{ false }, fontSize = T{ 12 },
         replaceTabs = T{ true }, replaceScrollbar = T{ true }, replaceText = T{ true }, replaceCursor = T{ true }, expandInPlace = T{ true }, expandedHeight = T{ 75 },
         appearance = appearance.Defaults(T, theme.Get()), fontFile = '', infoPanel = panelModel.Defaults(),
-        leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 } },
+        leftPadding = T{ 3 }, rightPadding = T{ 3 }, topPadding = T{ 3 }, bottomPadding = T{ 3 }, paddingVersion = T{ 0 },
+        windowTitle = T{ '' }, splitTitle = T{ '' } },
     command = '/chatbox',
     configTitle = 'Chatbox Settings',
     help = '/chatbox opens settings; /chatbox on, off, clear, status, modes, bytes; /chatbox timestamps [on|off] shows or hides the timestamps SimpleLog or the timestamp addon write; /chatbox panel [on|off|reset] controls the optional info panel; /chatbox clock and /chatbox compass [hide|show] the game\'s. Native selection, expansion and input controls.',
@@ -247,6 +254,14 @@ app = shell.New({
             widgets.Label('Timestamps')
             if imgui.Checkbox('##chatbox.timestamps', options.timestamps) then model.ShowStamps(history, options.timestamps[1]); app.save() end
             Tip('Shows the time in front of each line as SimpleLog\'s Timestamps or the timestamp addon writes it (chatbox adds none of its own).\nOff, those are hidden in the compact, second and expanded logs; the messages keep them, so they come back at once. /chatbox timestamps on and off do the same.')
+            widgets.Label('Window Title')
+            imgui.InputText('##chatbox.windowTitle', options.windowTitle, TITLE_LONGEST)
+            if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+            Tip('The words on the compact log\'s top edge. Left empty, the channel you are speaking in, as /cm and /p, /l, /t and the like set it.')
+            widgets.Label('Window 2 Title')
+            imgui.InputText('##chatbox.splitTitle', options.splitTitle, TITLE_LONGEST)
+            if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+            Tip('The words on the second log window\'s top edge, with the game\'s Log Window 2 on. Left empty, Window 2.')
             widgets.Label('Chat History')
             if imgui.SmallButton('Clear##chatbox.clear') then ClearHistory() end
             Tip('Forgets the messages kept for the compact log, 256 at most and never written to disk.\nThe game\'s own history, which the expanded log shows, is left alone.')
@@ -396,6 +411,10 @@ app = shell.New({
         if type(options.timestamps) ~= 'table' then options.timestamps = T{ true } end
         options.timestamps[1] = options.timestamps[1] ~= false
         model.ShowStamps(history, options.timestamps[1])
+        for _, key in ipairs({ 'windowTitle', 'splitTitle' }) do
+            local words = type(options[key]) == 'table' and options[key][1]
+            options[key] = T{ type(words) == 'string' and words:sub(1, TITLE_LONGEST - 1) or '' }
+        end
         if type(options.expandedHeight) ~= 'table' then options.expandedHeight = T{ 75 } end
         options.expandedHeight[1] = math.max(25, math.min(100, math.floor(tonumber(options.expandedHeight[1]) or 75)))
         Reset() -- a new character must never inherit another character's private chat
@@ -1026,7 +1045,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
             selectedWindow = state ~= nil and state.selectedWindow or nil
             -- the light and cursor on the window the game's focus is on; on the first while the second is not drawn
             local litFirst = selectedWindow ~= nil and (selectedWindow == 1 or not second)
-            windowOptions.title = channels.Title(plan.snapshot and channels.Typed(plan.snapshot.text) or selectedMode or spoken)
+            windowOptions.title = OwnTitle(app.options.windowTitle) or channels.Title(plan.snapshot and channels.Typed(plan.snapshot.text) or selectedMode or spoken)
             imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
             imgui.SetNextWindowSize(size, ImGuiCond_Always)
             local chatFont = plan.font
@@ -1043,7 +1062,7 @@ ashita.events.register('d3d_present', 'chatbox_present', function()
         -- the second box, with the first's or on its own while the first is at 0 lines
         if second and (captured or firstHidden) and secondary.Begin() then
             local chatFont = plan.font
-            splitOptions.title = 'Window 2'
+            splitOptions.title = OwnTitle(app.options.splitTitle) or 'Window 2'
             imgui.SetNextWindowPos({ second.left, second.bottom }, ImGuiCond_Always, pivot)
             imgui.SetNextWindowSize({ second.width, second.height }, ImGuiCond_Always)
             window.Plain('winxi.chatbox.split', open, flags, function()
