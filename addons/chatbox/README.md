@@ -217,7 +217,8 @@ the mode is how the boxes behave and where they stand.
   avoid enabling both providers at once to prevent duplicate stamps. `/chatbox timestamps on`
   and `off` do the same. There is no history-clear button; `/chatbox clear` remains available.
 - **Chat Tooltips** (on to begin with): resting the mouse on an item, key item, auto-translate phrase,
-  spell, ability, weapon skill, quest or place in the compact log or Window 2 shows a tooltip of it. While
+  spell, ability, weapon skill, quest or place in the compact log, Window 2 or (with Replace Expanded Log)
+  the expanded log's rows shows a tooltip of it, the gap between two rows counted as the row above. While
   it is on, one switch for each kind, all on to begin with: **Items**, **Spells And Abilities**, **Weapon
   Skills**, **Quests**, **Places** and **Auto-Translate**; and **Tooltip Notes** (on to begin with), the
   dimmed lines: what the catalogs cannot vouch for (presence is not availability, modifiers in server
@@ -309,10 +310,11 @@ window geometry matches the requested size.
   as the compact log's, where the game's is; its rows of text in the chat's Font at Font Size, each
   row centred where the game draws its own and in the game's colours; and, with uihook 0.6, its
   cursor, the light on the cursor's row and the game's marked rows, so that nothing of the game's is
-  drawn in it. The rows stand at the chat's own pitch, not the game's, so the mouse's moves and buttons
-  over the log are kept from the game, whose hover and clicks would land on other rows; the wheel goes
-  through, and Square, the arrows and Confirm choose rows. Off, the game's own are drawn in the WinXI
-  frame, tinted to the theme, and the mouse is the game's.
+  drawn in it. The rows stand at the chat's own pitch, not the game's, so the mouse over the rows is kept
+  from the game, whose hover and clicks would land on other rows; the game's tabs and scrollbar are still
+  its own to click and drag, a menu of the game's open over the log keeps its mouse, the wheel goes
+  through and scrolls, and Square, the arrows and Confirm choose rows. Off, the game's own are drawn in
+  the WinXI frame, tinted to the theme, and the mouse is the game's.
 - **Chat Log Window** and **Input Text Box**: **Override Colours** and, with it on, **Background**
   (with its opacity, over the chosen WinXI background style), **Border / Art Tint** (a plain border's
   colour or the border art's tint, the art keeping its shading; its alpha the border's opacity),
@@ -382,8 +384,8 @@ so the buttons have no mouse light. The
 scrollbar is the compact log's: a thin white thumb, no track, inside the log's right edge, as tall as the
 game's bar and where the game's page is among its rows, brighter while the mouse is on it or on the
 game's bar, which the game still drags. A tab that cannot be named is named for
-its place. Nothing is moved, so Square, the mouse and the wheel still work on the
-game's own controls. With Replace Expanded Log off, or without a fresh place from uihook (the first frame, or a
+its place. Nothing is moved, so Square, the wheel and the mouse on the tabs and the scrollbar still work on
+the game's own controls. With Replace Expanded Log off, or without a fresh place from uihook (the first frame, or a
 build without the hooks), the game's own are drawn: the selected tab and row highlight in the
 Highlight Color, other tabs the Title colour, the cursor and scrollbar the **Border / Art Tint**,
 native fade and pulse kept. The row highlight and cursor are the game's, tinted so, unless Replace
@@ -402,10 +404,18 @@ to the log's box; the game's cursor is drawn after the cursor row's text, where 
 mark. Which rows there are and their wrapping, the cursor, Confirm and its menus and the wheel are
 still the game's, followed by the rows' order (when the row the game has chosen is past what fits,
 the view moves up to keep it in sight). The game's own rows stand 16 of its units apart, which do not line
-up with these, so while the rows are the addon's the mouse's moves and buttons over the log are kept from
-the game: its hover and clicks would land on other rows than the ones shown. The wheel goes through and
-scrolls as ever; Square, the arrows and Confirm choose rows; Chat Tooltips work on these rows. With
-Replace Expanded Log off the game draws its own rows and has its mouse. A font wider than the game's can
+up with these, so while the rows are the addon's the mouse over the rows is kept from the game: its hover
+and clicks would land on other rows than the ones shown. Every mouse message but the wheels is kept there
+(moves, and every button's presses and double-clicks), and the release of a press kept is kept wherever
+it is let go, while a press the game had (the camera turned across the log, its scrollbar dragged) keeps
+its drag and its release wherever they land. The game's tabs and scrollbar (a few pixels round it) are
+still its own, and so is the mouse while a menu of the game's (a row's action menu, or the input line) is
+open over the log. The wheel goes through and scrolls as ever; Square, the arrows and Confirm choose
+rows; Chat Tooltips work on these rows. With Replace Expanded Log off the game draws its own rows and
+has its mouse. With a Font Size larger than the game's own row pitch, fewer rows fit than the game
+pages: only as many as fit are shown, from the newest of the page up, and the rows at the top of a page
+are reached by walking the cursor up with the arrows (the view follows it); the text is never shrunk to
+the game's rows. A font wider than the game's can
 run past the right edge, where it is clipped. Off, or without a fresh set of rows from uihook, the game's own bitmap font is drawn.
 Padding, Width and Default Text apply to the compact log and input only, and there is no WinXI
 title over the tabs. Missing control signatures leave the art untinted and the game's tabs,

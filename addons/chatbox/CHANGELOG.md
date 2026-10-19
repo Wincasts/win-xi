@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- The expanded log's mouse kept from the game more exactly while its rows are the addon's (Replace Expanded Log).
+  A menu of the game's open over the log (a row's action menu, the input line) keeps its mouse, so its entries can
+  be clicked; the game's scrollbar (a few pixels round it) and its tabs are its own to press and drag. Every mouse
+  message but the two wheels is kept over the rows, the right double-click, the middle and the side buttons among
+  them. A release is kept exactly when its press was, wherever it is let go: a press the game had beside the log (the
+  camera turned) is no longer left held by a release over it, and a press kept over the log no longer reaches the
+  game as a lone release outside it; the moves are kept while a press kept is held, and go through while one the
+  game had is. The box is tested before the game's state is read, so a move beside the log reads nothing. Chat
+  Tooltips hold across the gap between two expanded rows, each row its step tall as in the compact log, so the
+  tooltip's delay no longer starts again. The README says what is kept, and that with a Font Size larger than the
+  game's rows only as many as fit are shown, the top of a page reached by walking the cursor up. Tests:
+  chatbox_ui_check a menu over the log, the game's scrollbar pressed and dragged off it, a tab clicked, a press kept
+  let go outside and one the game had let go over the log, the right double-click, the middle button and the side
+  wheel, and the hover in the gap between two rows.
 - The chat tooltips and the info panel's icon tooltips are drawn in the theme's font. They are drawn at the end of
   the frame, past every window, where no font of winxi's was pushed, so they took imgui's own; the theme's font now
   goes round them, as winxi.tooltip has it in a themed window (Tooltip Font Size in winxisettings still sets the
