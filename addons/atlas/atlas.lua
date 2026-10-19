@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.1';
+addon.version = '0.2';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -12,6 +12,8 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --   /atlas           shows or hides the map
 --   /atlas config    opens or closes the settings
 --   /atlas status    says which map is drawn, or why none is
+--   /atlas browse    takes the controller for the map, as the game's own map does, or gives it back;
+--                    opens the map if it is hidden (pad.lua)
 --
 -- The game's own /map is left to the game. maps.lua knows the zone's maps and how they lie over it,
 -- markers.lua who is where, and view.lua draws a map into a square, knowing nothing of the window:
@@ -36,6 +38,7 @@ local tips = require('winxi.tooltip');
 local maps = require('maps');
 local markers = require('markers');
 local view = require('view');
+local pad = require('pad');
 
 local defaults = T{
     isVisible = T{ true },
@@ -53,6 +56,9 @@ local defaults = T{
     markerSize = T{ 9 },
     showNames = T{ true },
     askServer = T{ true },
+    controller = T{ true },
+    controllerSounds = T{ false },
+    controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
 };
 
 local app;
@@ -170,23 +176,46 @@ local function Status()
     return said;
 end
 
+-- The floor picked: one of the zone's, or nil to follow the player's again
+local function Choose(floor)
+    current.chosen = floor;
+    view.Reset(state);
+    if floor ~= nil then view.Follow(state, false); end
+    Place();
+end
+
+-- The zone's next floor after the one picked, then back to following the player's
+local function NextFloor()
+    local floors = current.zone and maps.Floors(current.zone) or nil;
+    if floors == nil or #floors < 2 then
+        return;
+    end
+    if current.chosen == nil then
+        Choose(floors[1].floor);
+        return;
+    end
+    for i, map in ipairs(floors) do
+        if map.floor == current.chosen then
+            Choose(floors[i + 1] and floors[i + 1].floor or nil);
+            return;
+        end
+    end
+    Choose(nil);
+end
+
 local function Floors(floors, shown)
     if floors == nil or #floors < 2 then
         return;
     end
     if imgui.SmallButton(current.chosen == nil and '[Auto]##atlas.auto' or 'Auto##atlas.auto') then
-        current.chosen = nil;
-        view.Reset(state);
+        Choose(nil);
     end
     tips.Hover('Follow the floor you are on.');
     for i, map in ipairs(floors) do
         imgui.SameLine();
         local label = shown ~= nil and map.floor == shown.floor and ('[%d]'):format(i) or tostring(i);
         if imgui.SmallButton(('%s##atlas.floor%d'):format(label, i)) then
-            current.chosen = map.floor;
-            view.Reset(state);
-            view.Follow(state, false);
-            Place();
+            Choose(map.floor);
         end
     end
 end
@@ -207,8 +236,13 @@ local function Hovered(mx, my, entry, size)
     tips.Show(table.concat(lines, '\n'));
 end
 
+local lastFrame = nil;
+
 local function Draw()
     local options = app.options;
+    local now = os.clock();
+    pad.Frame(lastFrame and now - lastFrame or 0);
+    lastFrame = now;
     Look();
     local zone = current.zone;
     if zone == nil or zone == 0 then
@@ -257,6 +291,9 @@ local function Draw()
     if shown == nil then
         imgui.TextDisabled('No map is known for this zone.');
     end
+    if pad.Browsing() then
+        imgui.TextDisabled(pad.Hint());
+    end
 end
 
 -- Settings
@@ -269,6 +306,10 @@ local function Show(label, key, colourKey, tip)
     imgui.SameLine();
     imgui.ColorEdit4('##atlas.' .. colourKey, options[colourKey], ImGuiColorEditFlags_NoInputs);
 end
+
+local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game\'s own map has it:\n'
+    .. 'the d-pad and left stick scroll, RB zooms in and LB out, A follows you again, X shows the next floor, and B gives it back.\n'
+    .. 'Your character does not walk while the map has the stick. The stick is read from XInput controllers only.';
 
 local function DrawSettings(options)
     if widgets.Header('Window') then
@@ -302,6 +343,10 @@ local function DrawSettings(options)
         tips.Hover('Asks the server where your party is while one of them is in the zone and out of sight, as the game\'s own map does while it is open, every few seconds.');
     end
 
+    if widgets.Header('Controller') then
+        shell.ControllerSettings(options, controllerTip);
+    end
+
     imgui.TextWrapped(Status());
 end
 
@@ -310,16 +355,32 @@ app = shell.New({
     window = 'winxi.atlas',
     configTitle = 'Atlas Settings',
     command = '/atlas',
-    help = '/atlas shows or hides the map; /atlas config opens the settings; /atlas status says which map is drawn.',
+    help = '/atlas shows or hides the map; /atlas config opens the settings; /atlas status says which map is drawn; /atlas browse gives it the controller.',
     drawSettings = DrawSettings,
     commands = {
         status = function() Look(); app:Say(Status()); end,
+        browse = function(options)
+            if not options.controller[1] then
+                app:Say('Controller Navigation is off in /atlas config.');
+                return;
+            end
+            pad.Browse();
+        end,
     },
+});
+
+pad.Attach({
+    options = function() return app.options; end,
+    state = state,
+    floor = NextFloor,
+    shown = function(on) app.options.isVisible[1] = on; end,
 });
 
 local extra = { locked = false };
 
 ashita.events.register('d3d_present', 'atlas_present', function()
+    -- hidden with the controller in hand: given back
+    if pad.Browsing() and not app.options.isVisible[1] then pad.Browse(false); end
     if not app:BeginFrame() then return; end
     extra.locked = app.options.locked[1];
     app:Window(app.options.isVisible, Draw, extra);

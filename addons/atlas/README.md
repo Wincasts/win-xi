@@ -10,6 +10,8 @@ The game's `/map` is left to the game: this is `/atlas`.
 - `/atlas` shows or hides the map
 - `/atlas config` opens or closes the settings
 - `/atlas status` says which map is drawn, or why none is
+- `/atlas browse` gives the map the controller, or gives it back; it opens the map if hidden. Put it in a
+  game macro to open the map from the controller.
 
 ## The map
 
@@ -20,6 +22,25 @@ The game's `/map` is left to the game: this is `/atlas`.
   the one you are on.
 - Over the map, the tooltip gives the grid square, the place in the zone and who is under the mouse.
 - The grid square you are in is under the map.
+
+## With a controller
+
+`/atlas browse` gives the map the controller, as the game's own map takes it while open:
+
+| Button | Does |
+| --- | --- |
+| D-pad | scrolls a tenth of the view, repeating while held |
+| Left stick | scrolls, faster the further it is pushed |
+| RB / LB | zooms in / out |
+| A | follows you again |
+| X | the zone's next floor, then back to yours |
+| B | gives the controller back, and hides the map again if browsing opened it |
+
+The buttons go through winxi's controller handling: they are kept from the game while the map has
+them, and **Controller Type** picks XInput or a DirectInput layout. While browsing, the left stick is
+kept from the game so you don't walk off. As browsing begins, the game is told the stick is centred,
+so if you were running you stop. The stick is read only from XInput controllers, which Ashita reports
+as buttons 18 and 19. A DirectInput controller scrolls with the d-pad.
 
 ## Markers
 
@@ -41,6 +62,11 @@ The game's `/map` is left to the game: this is `/atlas`.
 - **Show Player**, **Show Party**, **Show Alliance** and **Show Target**, each with its colour.
 - **Show Names**: names beside the party, the alliance and the target.
 - **Marker Size**: 4 to 24 pixels.
+
+**Controller**
+
+- **Controller Navigation** (on): whether `/atlas browse` can give the map the controller.
+- **Controller Sounds** and **Controller Type**, as in winxi's other addons.
 
 **Party**
 
@@ -78,6 +104,7 @@ window is one such square. The plan is to hand it the square where the game draw
 | `maps.lua` | the zone's maps, the client's map table and floor, the pictures |
 | `markers.lua` | who is where: memory, and the server's 0x0A0 |
 | `view.lua` | a map drawn into a square: pan, zoom, markers |
+| `pad.lua` | the controller while browsing: buttons, the stick |
 | `data/maps.lua` | generated: zone → its maps |
 
 `tests/atlas_check.lua` runs it against the stand-in for Ashita.

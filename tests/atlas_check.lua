@@ -2,7 +2,8 @@
 -- of maps puts them; the floor followed in a zone of several, and another chosen; members out of
 -- sight placed by the server's word (0x0A0), and the server asked (0x0D2) only while one is; the
 -- wheel zooming round the place under the mouse, a drag panning and no longer following; nothing
--- known for a zone with no map
+-- known for a zone with no map; /atlas browse giving the map the controller: the stick (kept from the
+-- game) and d-pad scrolling, the shoulders zooming, A following, X the floors, B giving it back
 local o = H.options()
 local imgui = require('imgui')
 local mapdat = require('winxi.mapdat')
@@ -237,3 +238,94 @@ H.print('a new zone: the whole map again, the player on it', image ~= nil and im
 H.command('/atlas')
 frame()
 H.print('/atlas hides it', not o.isVisible[1], count('image') == 0)
+
+-- the controller: /atlas browse opens the map with the controller in hand
+local queued = {}
+AshitaCore.GetInputManager = function() return { GetXInput = function() return { QueueButtonData = function(_, b, v) queued[#queued + 1] = b .. '=' .. v end } end } end
+zone = 126
+entities[1] = { x = 100, y = -20, z = 5, heading = 1.0, name = 'Tester' }
+H.button(18, 20000) -- walking east as browsing begins
+H.command('/atlas browse')
+H.print('browse: the map shown, and the game told the stick is centred', o.isVisible[1], queued[1] == '18=0', queued[2] == '19=0')
+frame()
+H.print('the buttons said under the map', H.calls.TextDisabled ~= nil)
+-- the stick: kept from the game while pushed, let through as it comes back
+H.print('the stick kept from the game', H.button(18, 32767) == true, H.button(19, 0) == false)
+frame()
+image = first('image')
+H.print('pushed east at 1x: the whole map shown, nothing to scroll', image ~= nil and image.uvA[1] == 0)
+H.tap(H.Button.RB)
+H.tap(H.Button.RB)
+for i = #drawn, 1, -1 do drawn[i] = nil end
+H.button(18, 0)
+H.frames(1)
+image = first('image')
+local zoomed = image and (image.uvB[1] - image.uvA[1]) or 0
+H.print('RB twice: 1.5625x', math.abs(zoomed - 1 / 1.5625) < 0.001)
+local before = image and image.uvA[1] or 0
+H.button(18, 32767)
+H.frames(10)
+H.button(18, 0)
+for i = #drawn, 1, -1 do drawn[i] = nil end
+H.frames(1)
+image = first('image')
+H.print('the stick east scrolls east, no longer following', image ~= nil and image.uvA[1] > before)
+before = image.uvA[1]
+H.print('the d-pad kept from the game', H.tap(H.Button.DpadLeft) == true)
+for i = #drawn, 1, -1 do drawn[i] = nil end
+H.frames(1)
+image = first('image')
+H.print('d-pad left: a tenth of the view west', image ~= nil and math.abs((before - image.uvA[1]) - zoomed * 0.1) < 0.001)
+H.tap(H.Button.A)
+for i = #drawn, 1, -1 do drawn[i] = nil end
+H.frames(1)
+image = first('image')
+H.print('A: following the player again (100 of 512, as near the middle as the edge lets)', image ~= nil and math.abs(image.uvA[1]) < 0.001)
+H.tap(H.Button.LB)
+H.tap(H.Button.LB)
+for i = #drawn, 1, -1 do drawn[i] = nil end
+H.frames(1)
+image = first('image')
+H.print('LB twice: the whole map', image ~= nil and math.abs(image.uvB[1] - image.uvA[1] - 1) < 0.001)
+
+-- X: the next floor, in a zone of several; then back to the player's
+zone = 184
+entities[1] = { x = 0, y = 10, z = 0, heading = 0, name = 'Tester' }
+frame()
+H.tap(H.Button.X)
+frame()
+H.print('X: the zone\'s first floor, the player (on floor 2) not on it', count('arrow') == 0, count('image') == 1)
+H.tap(H.Button.X)
+H.tap(H.Button.X)
+H.tap(H.Button.X)
+H.tap(H.Button.X)
+frame()
+H.print('past the last: the player\'s floor again', count('arrow') == 2)
+
+-- B: given back, and the map hidden again, as browsing opened it
+H.print('B kept from the game', H.tap(H.Button.B) == true)
+frame()
+H.print('B: the controller given back and the map hidden', not o.isVisible[1], H.tap(H.Button.DpadLeft) == false, H.button(18, 30000) == false)
+H.button(18, 0)
+
+-- shown already: B leaves it shown
+o.isVisible[1] = true
+frame()
+H.command('/atlas browse')
+frame()
+H.tap(H.Button.B)
+frame()
+H.print('browsing an open map: B leaves it open', o.isVisible[1])
+o.controller[1] = false
+H.command('/atlas browse')
+frame()
+H.print('Controller Navigation off: not browsing', H.tap(H.Button.DpadLeft) == false, (H.printed[#H.printed] or ''):find('Controller Navigation is off', 1, true) ~= nil)
+o.controller[1] = true
+-- hidden while browsing: the controller given back
+H.command('/atlas browse')
+frame()
+H.command('/atlas')
+frame()
+o.isVisible[1] = true
+frame()
+H.print('hidden while browsing: given back', H.tap(H.Button.DpadLeft) == false)
