@@ -162,12 +162,14 @@ for _, id in ipairs({ '##name.preset', '##name.drawNames', '##name.general.showH
 end
 local presets = {}
 for _, preset in ipairs(general.Presets) do presets[#presets + 1] = preset.label end
-assert(table.concat(presets, '|') == 'Default|Minimal|Hunter|Retail-Like')
+assert(table.concat(presets, '|') == 'Default|Minimal|Robust|Immersive')
 local fontBefore, sizeBefore = options.font, options.fontSize[1]
 assert(general.Apply(options, 'minimal') and general.Matching(options).key == 'minimal')
 assert(options.monsterFormat[1] == '[name]' and not options.showHealthBar[1] and not options.showStatuses[1] and not options.showCheckDetails[1])
-assert(general.Apply(options, 'hunter') and general.Matching(options).key == 'hunter')
-assert(options.showHealthBar[1] and options.healthBarsCombatOnly[1] and options.monsterFormat[1]:find('[letters]', 1, true))
+assert(general.Apply(options, 'robust') and general.Matching(options).key == 'robust')
+assert(options.showHealthBar[1] and not options.healthBarsCombatOnly[1] and options.monsterFormat[1]:find('[letters]', 1, true) and options.monsterFormat[1]:find('[distance', 1, true))
+assert(general.Apply(options, 'immersive') and general.Matching(options).key == 'immersive')
+assert(options.showHealthBar[1] and options.healthBarsCombatOnly[1] and options.monsterFormat[1] == '[name]' and not options.showStatuses[1])
 assert(options.font == fontBefore and options.fontSize[1] == sizeBefore, 'a preset leaves the font and sizes')
 options.npcFormat[1] = '[name] ([distance]y)'
 assert(general.Matching(options) == nil, 'an edit away from every preset is Custom')
@@ -205,6 +207,7 @@ imgui.GetFrameHeightWithSpacing = function() return 20 end
 AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
 H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Display|Selected Statuses')
+assert(ids['##name.statusOffsetX'] and ids['##name.statusOffsetY'] and not ids['##name.statusTimers'], 'X and Y Offset in Display, and no Timers')
 assert(ids['##name.statusIcons'] and locations['##name.statusIcons'] == 'Display', 'Icons is in Statuses → Display')
 H.command('/name dev'); H.tab(6); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Tracked Monster')

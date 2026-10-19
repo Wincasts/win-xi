@@ -146,7 +146,7 @@ end
 function custom.Settle(options)
     -- settings of earlier versions that are no longer kept
     options.customNames, options.shrink, options.gdiFonts, options.gdiFamily = nil, nil, nil, nil;
-    options.targetFormat, options.checkedFormat = nil, nil;
+    options.targetFormat, options.checkedFormat, options.statusTimers = nil, nil, nil;
     if (type(options.checkSize) ~= 'table' or type(options.checkSize[1]) ~= 'number' or options.checkSize[1] ~= options.checkSize[1]) then
         options.checkSize = settings.checkSize();
     end
@@ -628,8 +628,6 @@ local function writeLetterFallback(set, words, pen, top, fit, color)
     if (reference ~= nil and bottom ~= nil) then top = top + reference[4] * fit - bottom * badgeFit; end
     return writeWords(font, words:upper(), pen, top, badgeFit, color, SLOT.Sign);
 end
-
-statuses.SetWords(wordsWidth, writeWords);
 
 -- A sheet of signs from the assets folder, loaded the first time one of its signs is to be drawn:
 -- its address for the plugin, or 0 if it would not load
@@ -1534,7 +1532,7 @@ function custom.Frame(options, hook, formats)
 
                     -- the row of statuses over all of it, or under it
                     if (statusRows) then
-                        statuses.Write(name, nameLeft, nameLeft + width, clear, under, height, scale, set, fit);
+                        statuses.Write(name, nameLeft, nameLeft + width, clear, under, height, scale);
                     end
 
                     nameplates.EndName();
