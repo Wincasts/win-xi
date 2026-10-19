@@ -368,7 +368,7 @@ falls back to an enabled underlying state, then to the usual game/format colour.
 Death never falls back to a live/target override: with Dead disabled, the normal
 corpse colour remains. Claims use validated entity IDs and active party/alliance
 server IDs; unknown ownership data is not guessed. State is evaluated every frame.
-Opacity is not configurable here: name/letter text still pulses normally, status
+Opacity is not configurable here: a target's name and letters keep a steady opacity, status
 icons stay independent, and corpse/distance/disappearance fades still apply.
 The Experimental Builder owns formats, not these live state overrides or shared bars.
 
@@ -390,7 +390,7 @@ All distances use the same close-up badge artwork, scaled down smoothly rather t
 to separately rasterized smaller letters. This keeps the letter shape consistent as you approach.
 The game scene shows through the letter. The fill uses the nameplate colour, or the explicit
 token colour, unless an enabled state override sets their joint colour. Default inheritance also follows an explicitly coloured `[name]`, even when the
-letter appears before it in the format. Letters share the name text's pulse/opacity rather than
+letter appears before it in the format. Letters share the name text's colour and opacity rather than
 the independent status-icon opacity. The entire badge scales and fades with the nameplate and
 retains its saved token position. The badge uses the same
 outline effect as the nameplate, including its thickness and colour. This outlines both the
@@ -622,14 +622,14 @@ Name visibility follows the game. The game shrinks a name to nothing over the la
 distance; here it shrinks from the maximum size to the minimum and fades out, or keeps its
 size and fades out over the last third.
 
-Living target text may pulse in colour and opacity as the client does. That pulse applies to
-both glyph fills and their outlines, not to icons: status icons, composite overlays, aggro/check
-icons and mastery stars hold their peak opacity while targeted. Spawn letters remain part of
-the name text and inherit its colour/pulse unless their token has an explicit colour. Default icon
-colours do not inherit the pulsing text colour; explicit token colours still apply. Distance
-fading remains active. The opacity hold resets on untargeting, respawn, entity reuse or a gap
-in drawing. The current namehook plugin applies each glyph's alpha to its outline too, so a
-fully faded text pulse does not leave a dark outline behind.
+The game pulses a living target's name, its colour going toward white or toward dark and its
+opacity dipping. Here the target's name does not pulse: its text, outline, spawn letters, status
+icons, composite overlays, aggro/check icons and mastery stars all hold the peak opacity, and the
+text keeps the colour the pulse starts from. A change of colour that is no pulse, such as a
+monster's name turning red as it is claimed, is taken at once. Spawn letters inherit the name's
+colour unless their token has an explicit colour; explicit token colours and enabled state
+overrides still apply. Distance fading remains active. The hold resets on untargeting, respawn,
+entity reuse or a gap in drawing.
 
 By default a dead monster's name turns grey immediately, including when its live `[name]`
 token has an explicit colour. An enabled Dead state colour overrides that default grey. A neutral corpse grey supplied by the client replaces the fallback grey;

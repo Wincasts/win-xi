@@ -118,7 +118,7 @@ function colours.Draw(options, key)
         imgui.BeginDisabled(not entry.enabled[1]);
         widgets.Label(state[2] .. ' Colour'); controls.Width();
         imgui.ColorEdit4(id .. '.color', entry.color, ImGuiColorEditFlags_NoAlpha or 0);
-        controls.Mark('RGB only. Opacity, distance fading, target text pulse and disappearance fading remain controlled by the renderer.');
+        controls.Mark('RGB only. Opacity, distance fading and disappearance fading remain controlled by the renderer; a target\'s name does not pulse.');
         imgui.EndDisabled();
     end
     if imgui.Button('Use Game Colours##name.colours.reset.' .. key) then

@@ -84,6 +84,7 @@ local TEMPER_TOP    = 75;   -- the level from which an ordinary monster has the 
 local RUNGS         = { 1, 0.75, 0.5 }; -- the sizes letters are kept at, as parts of the largest: see below
 local SIZE_JUMP     = 0.15; -- a change in the game's size for a name, from one frame to the next, that is no step of a walk
 local SIZE_HOLD     = 4;    -- frames such a change has to last to be believed
+local PULSE_SLACK   = 3;    -- of the game's 0x80: how far a channel may stray from a pulse's mix and be counted in it
 local SUB_SETTLE    = 30;   -- frames after a character stops being the sub target that its name's size is still held
 local SIGN_SIZE     = 0.7;  -- how large the magnifying glass is beside the letters it is written among
 local MAGNIFIER     = 0xF002; -- the magnifying glass, among the icons Ashita's own font has with its letters
@@ -794,12 +795,34 @@ local function glyphSet(font, height, key)
     return set;
 end
 
--- Per-entity appearance state: identity/frame, corpse grey, target icon opacity,
--- and a short disappearance deadline. Live text follows the client directly.
+-- Per-entity appearance state: identity/frame, corpse grey, the target's steady colour and
+-- opacity, and a short disappearance deadline.
 local steady = {};
 
--- Keep icon opacity independent of the target's pulsing text. Corpses use grey,
--- never the last live claim colour, and always follow the client's current fade.
+-- whether colour a is colour b gone toward white or toward dark, as the game's pulse takes a name:
+-- each channel the same share of the way, give or take PULSE_SLACK
+local function pulseOf(a, b)
+    local ar, ag, ab = math.min(0x80, bit.rshift(a, 16)), math.min(0x80, bit.band(bit.rshift(a, 8), 0xFF)), math.min(0x80, bit.band(a, 0xFF));
+    local br, bg, bb = math.min(0x80, bit.rshift(b, 16)), math.min(0x80, bit.band(bit.rshift(b, 8), 0xFF)), math.min(0x80, bit.band(b, 0xFF));
+    for _, toward in ipairs({ 0, 0x80 }) do
+        -- the share of the way, from the channel with furthest to go
+        local far, near = br, ar;
+        if (math.abs(toward - bg) > math.abs(toward - far)) then far, near = bg, ag; end
+        if (math.abs(toward - bb) > math.abs(toward - far)) then far, near = bb, ab; end
+        local share = far == toward and 0 or (near - far) / (toward - far);
+        if (share >= -0.05 and share <= 1.05
+                and math.abs(ar - (br + (toward - br) * share)) <= PULSE_SLACK
+                and math.abs(ag - (bg + (toward - bg) * share)) <= PULSE_SLACK
+                and math.abs(ab - (bb + (toward - bb) * share)) <= PULSE_SLACK) then
+            return true;
+        end
+    end
+    return false;
+end
+
+-- The game pulses the target's name, its colour brightening toward white and its opacity dipping;
+-- the name is drawn steady instead, at its brightest opacity and the colour the pulse starts from. Corpses use
+-- grey, never the last live claim colour, and always follow the client's current fade.
 local function steadyColor(name, entities, now)
     local index = name.EntityIndex;
     local monster = name.Category == nameplates.Category.Monster and name.ServerId ~= 0;
@@ -844,8 +867,19 @@ local function steadyColor(name, entities, now)
         -- mid-target: a slow/low-FPS pulse must not make the icons blink again.
         known.alphaPeak = math.max(known.alphaPeak or opacity, opacity);
         iconOpacity = known.alphaPeak;
+        -- The colour the pulse starts from is kept. A colour that is the kept one gone toward white
+        -- or dark is the pulse; one the kept colour is a pulse of is truer, and taken; any other (a
+        -- claim's) is taken at once.
+        local rgb = color % 0x1000000;
+        local base = known.base or known.plain or rgb;
+        if (not pulseOf(rgb, base) and (pulseOf(base, rgb) or known.base ~= nil)) then
+            base = rgb;
+        end
+        known.base = base;
+        color = known.alphaPeak * 0x1000000 + known.base;
     else
-        known.alphaPeak = nil;
+        known.alphaPeak, known.base = nil, nil;
+        known.plain = color % 0x1000000;
     end
     known.dead, known.frame = dead, frame;
     return color, dead, iconOpacity / 0x80, fade;
@@ -1262,9 +1296,8 @@ function custom.Frame(options, hook, formats)
             local displayColor, dead, solid, despawn = steadyColor(name, entities, now);
             local near = nearness / FADE_SHRUNK;
             local alpha = math.max(0, math.min(1, solid, near)) * despawn;
-            -- Icons retain distance/death fading, but not the target text pulse.
-            -- Put that pulse on glyph fill AND outline instead of shared opacity.
-            local textAlpha = math.max(0, math.min(1, bit.rshift(name.NameColor, 24) / 0x80, near)) * despawn;
+            -- Glyph fill and outline take the name's opacity (the target's held steady), not shared opacity.
+            local textAlpha = math.max(0, math.min(1, bit.rshift(displayColor, 24) / 0x80, near)) * despawn;
             local textOpacity = alpha > 0 and math.min(1, textAlpha / alpha) or 0;
 
             if (alpha > 0 and (written.words ~= '' or iconCount > 0)) then
