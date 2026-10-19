@@ -160,7 +160,7 @@ What is set out goes in `HookDraw` (`src/Nameplate.h`), at the address in the bl
 
 | Field | Meaning |
 |---|---|
-| `Frame` | Set by the addon to the block's `Frame` each time it sets names out. What was set out more than 2 frames ago is not drawn. |
+| `Frame` | Set by the addon to the block's `Frame` each time it sets names out. What was set out more than 8 frames ago is not drawn. |
 | `QuadCount` | How many of `Quads` are in use. Set to 0 by the addon each frame, and raised as it adds them. |
 | `QuadsMax` | 16384 |
 | `Reserved` | Optional unsigned 16.16 horizontal outline ratio. 0 preserves legacy equal X/Y target-pixel offsets; otherwise X offsets are multiplied by `Reserved / 65536`. Older plugins ignore it. The shared layout/version is unchanged. |
@@ -170,7 +170,7 @@ What is set out goes in `HookDraw` (`src/Nameplate.h`), at the address in the bl
 
 The quads are in pixels of the client's picture, not of its window. `BeginDrawing(hook, true)` returns `TargetHeight / DisplaySize.y` for uniform vertical layout; `Quad` separately fits X coordinates by `(TargetWidth / DisplaySize.x) / (TargetHeight / DisplaySize.y)`. It also publishes that ratio for native outline offsets and bounds. This keeps text, icons, spacing and outlines proportional on nonuniform background targets, independently of menu resolution. The corrected outlines require the updated plugin; older plugins still draw corrected quads but ignore the outline ratio. Calls without the opt-in retain the legacy horizontal scale and unmodified target coordinates. `winxi.nameplates` does the bookkeeping (`BeginDrawing`, `SetTexture`, `BeginName`, `Quad`, `EndName`), and `addons/name/custom.lua` sets names out this way, from imgui's font.
 
-The plugin draws a name when all of these hold: its category is claimed, it is wanted, and the addon set it out within the last 2 frames. It is then listed with the custom flag. A claimed name that was not set out is not drawn at all. What is set out in one frame is drawn in the next, where the client then puts the name: the name's place is never a frame behind, only what it looks like.
+The plugin draws a name when all of these hold: its category is claimed, it is wanted, and the addon set it out within the last 8 frames. It is then listed with the custom flag. A claimed name that was not set out is not drawn at all. What is set out in one frame is drawn in the next, where the client then puts the name: the name's place is never a frame behind, only what it looks like.
 
 Each name is drawn twice: once blended into the picture and tested against its depth, and once more to the depth alone where the name is solid, so that what the client draws afterwards, and behind the name, is not drawn over it. Everything of the device's state that this changes is put back before the client goes on.
 

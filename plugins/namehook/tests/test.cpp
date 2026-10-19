@@ -574,13 +574,16 @@ int main() {
 	Draw.Entities[0x401] = { Draw.Frame, 0, 4, 1.0f, 0.0f, 0 };
 	Fresh();
 	CHECK(!Drawn(buddy) && plugin.custom == 2);
+	// what was drawn is drawn again while the addon misses a few frames, as under TrueFPS
+	for (int frame = 1; frame < HOOK_DRAW_FRAMES; frame++) {
+		plugin.Publish(nullptr, nullptr, true);
+		Shared.ClaimFrame = Shared.Frame;
+		CHECK(!Drawn(buddy) && plugin.custom == 2 + frame);
+	}
 	// nor what was drawn too long ago: the addon has stopped
 	plugin.Publish(nullptr, nullptr, true);
 	Shared.ClaimFrame = Shared.Frame;
-	CHECK(!Drawn(buddy) && plugin.custom == 3);
-	plugin.Publish(nullptr, nullptr, true);
-	Shared.ClaimFrame = Shared.Frame;
-	CHECK(!Drawn(buddy) && plugin.custom == 3);
+	CHECK(!Drawn(buddy) && plugin.custom == 1 + HOOK_DRAW_FRAMES);
 	// the first name of each frame, and no other, begins the frame's names
 	int begun = plugin.begun;
 	Drawn(buddy);

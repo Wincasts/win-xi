@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.27 — eight frames' grace
+
+- What an addon has drawn (names and bubbles) is good for eight frames, not two (`HOOK_DRAW_FRAMES`). Under TrueFPS the game can present a few frames before the addons are next run, and with two the client's own names showed for a frame now and then, along with everything uihook replaces. An addon that stops without a word gives the names back within eight frames: about 90 ms at 90 fps.
+
 ## namehook 1.26 — loads after TrueFPS
 
 - namehook loads when TrueFPS loaded first and has already patched the client's frame-step accessor, the function namehook finds gGame through. TrueFPS turns the accessor's first two bytes into a short jump to the padding after it, and the signature no longer matched: namehook failed with `Plugin Load Error: "-4"`, or loaded, depending on how soon after TrueFPS it ran. A second signature takes the accessor as TrueFPS leaves it; the address of gGame in it is unchanged.

@@ -6,7 +6,7 @@
 #define BUFF_VERSION 4
 #define BUFF_TEXTURES 48   // the textures a bar can be drawn from
 #define BUFF_QUADS 1024    // and the rectangles it can be drawn with
-#define BUFF_DRAW_FRAMES 2 // how long what the addon wrote is good for, in frames
+#define BUFF_DRAW_FRAMES 8 // how long what the addon wrote is good for, in frames: eight, as uihook's other modules
 #define BUFF_SOLID 0xFFFFFFFF // a quad's Texture for one of its colour alone
 // A texture's address the addon cannot give: imgui's font texture, which the plugin reads for itself
 // as it draws. Its id is 64 bits, and a Lua integer in this game 32: once the texture is above 2 GB,

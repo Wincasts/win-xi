@@ -468,7 +468,7 @@ In game, `/uihook` (or `/uihook addons`) lists the addons handing uihook somethi
 buff's bar, party's party, alliance and target windows, clock's line and its hidden compass, each
 marked "(hidden)" where the addon hands over an intentionally empty replacement. A plugin cannot see
 which Lua addon calls it, so this is read from the slots, each filled by one addon only, while the
-last submission is fresh (two frames). It also says which parts this client was not recognised for.
+last submission is fresh (eight frames). It also says which parts this client was not recognised for.
 
 `/uihook hud` prints what the clock replacement was drawn into: Clock::Draw's calls and
 position, the replayed vertices' bounds, the viewport, the render target against the back buffer,
