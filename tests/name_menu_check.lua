@@ -35,13 +35,13 @@ imgui.SameLine = function(value) offset = value end
 imgui.TextDisabled = function(text) if text == '(?)' and inside then marks[#marks + 1] = offset end end
 imgui.GetContentRegionAvail = function() error('Window widths must not feed back into auto-sizing') end
 local function clear() headers, tabs, ids, marks, disabledIds, locations = {}, {}, {}, {}, {}, {} end
-H.tab(1); H.command('/name'); H.frames(1)
+H.tab(2); H.command('/name'); H.frames(1)
 clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'Names|Health Bars|Statuses|Visibility', 'NM Tracking waits for /name dev')
+assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Statuses|Visibility', 'NM Tracking waits for /name dev')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'Names|Health Bars|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
+assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Statuses|Visibility|NM Tracking', '/name dev shows NM Tracking')
 H.command('/name dev'); H.command('/name'); clear(); H.frames(1); H.command('/name')
-assert(table.concat(tabs, '|') == 'Names|Health Bars|Statuses|Visibility', 'a second /name dev hides it')
+assert(table.concat(tabs, '|') == 'General|Names|Health Bars|Statuses|Visibility', 'a second /name dev hides it')
 assert(table.concat(headers, '|') == 'General Name Appearance|Player Names|Enemy Names|NPC Names|Diagnostics')
 assert(ids['##name.font'] and ids['##name.fontBold'] and ids['##name.subtargetScale'])
 assert(ids['##name.fontSize'] and ids['##name.minSize'], 'shared size controls belong in General')
@@ -145,18 +145,48 @@ assert(options.checkFormat[1] == '', 'normal settings can restore the original c
 imgui.Button = record
 H.print('Category format editors/reset preserve each other; a saved check line can restore original display style', true)
 
-H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Health Bars')
 for _, id in ipairs({ '##name.showHealthBar', '##name.healthBarsCombatOnly', '##name.healthBarWidth', '##name.healthBarHeight' }) do
     assert(ids[id] and locations[id] == 'Health Bars', 'Health Bars tab has ' .. id)
 end
 assert(disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'], 'the rest wait for Enabled')
-H.print('Health Bars: a tab of its own, second, with Enabled, Combat Only, width and height', true)
-H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.print('Health Bars: a tab of its own, third, with Enabled, Combat Only, width and height', true)
+
+-- General: the preset, Custom Nameplates, and the health bars' and statuses' switches
+local general = require('general')
+H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
+assert(table.concat(headers, '|') == 'General')
+for _, id in ipairs({ '##name.preset', '##name.drawNames', '##name.general.showHealthBar', '##name.general.showStatuses' }) do
+    assert(ids[id] and locations[id] == 'General', 'General has ' .. id)
+end
+local presets = {}
+for _, preset in ipairs(general.Presets) do presets[#presets + 1] = preset.label end
+assert(table.concat(presets, '|') == 'Default|Minimal|Hunter|Retail-Like')
+local fontBefore, sizeBefore = options.font, options.fontSize[1]
+assert(general.Apply(options, 'minimal') and general.Matching(options).key == 'minimal')
+assert(options.monsterFormat[1] == '[name]' and not options.showHealthBar[1] and not options.showStatuses[1] and not options.showCheckDetails[1])
+assert(general.Apply(options, 'hunter') and general.Matching(options).key == 'hunter')
+assert(options.showHealthBar[1] and options.healthBarsCombatOnly[1] and options.monsterFormat[1]:find('[letters]', 1, true))
+assert(options.font == fontBefore and options.fontSize[1] == sizeBefore, 'a preset leaves the font and sizes')
+options.npcFormat[1] = '[name] ([distance]y)'
+assert(general.Matching(options) == nil, 'an edit away from every preset is Custom')
+local applied = 0
+imgui.BeginCombo = function(id) return id == '##name.preset' end
+imgui.Selectable = function(id) return id == 'Default##name.preset.default' end
+general.DrawSettings(options, function() applied = applied + 1 end)
+imgui.BeginCombo, imgui.Selectable = record, function() return false end
+assert(applied == 1 and general.Matching(options).key == 'default', 'choosing a preset in the list applies and saves it')
+assert(options.drawNames[1] and general.Drawing(options))
+options.drawNames[1] = false; clear(); general.DrawSettings(options)
+assert(disabledIds['##name.general.showHealthBar'] and disabledIds['##name.general.showStatuses'], 'bars and statuses wait for Custom Nameplates')
+options.drawNames[1] = true
+H.print('General: presets apply, match and leave the rest; Custom Nameplates and the bars\' and statuses\' switches', true)
+H.tab(5); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Players|Pets|NPCs & Monsters|Target')
 H.command('/name diag on')
 expanded.Diagnostics = true
-H.tab(1); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(2); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(ids['##name.diagnosticsEnabled'] and ids['Write Log##name.diag.write'])
 H.command('/name diag off')
 right = 320
@@ -173,10 +203,10 @@ assert((H.calls.PushTextWrapPos or 0) == wraps + 1)
 imgui.IsItemHovered = function() return false end
 imgui.GetFrameHeightWithSpacing = function() return 20 end
 AshitaCore.GetResourceManager = function() return { GetString = function() return '' end } end
-H.tab(3); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.tab(4); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Display|Selected Statuses')
 assert(ids['##name.statusIcons'] and locations['##name.statusIcons'] == 'Display', 'Icons is in Statuses → Display')
-H.command('/name dev'); H.tab(5); H.command('/name'); clear(); H.frames(1); H.command('/name')
+H.command('/name dev'); H.tab(6); H.command('/name'); clear(); H.frames(1); H.command('/name')
 assert(table.concat(headers, '|') == 'Tracked Monster')
 local levels = require('levels')
 local original = levels.Placeholders

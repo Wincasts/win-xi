@@ -184,7 +184,7 @@ o.showStatuses[1] = true
 local previewBox
 local realBox = imgui.Checkbox
 imgui.Checkbox = function(id, value) if id == '##name.statusPreview' then previewBox = value end return false end
-H.tab(3); H.command('/name'); H.frames(1); H.command('/name')
+H.tab(4); H.command('/name'); H.frames(1); H.command('/name')
 imgui.Checkbox = realBox
 previewBox[1] = true; block.Frame = 30; H.frames(1)
 H.print('preview: the same four over every name', listed(0x400), '|', listed(300) == listed(0x400), listed(0x402) == listed(0x400))
@@ -230,7 +230,7 @@ local boxes, saves = {}, H.saves()
 local realCheckbox = imgui.Checkbox
 imgui.Checkbox = function(id, value) boxes[#boxes + 1] = id return false end
 imgui.GetFrameHeightWithSpacing = function() return 20 end
-H.tab(3); H.command('/name'); H.frames(1)
+H.tab(4); H.command('/name'); H.frames(1)
 local named = 0
 local firstStatus = nil
 for _, id in ipairs(boxes) do if id:find('##name.status.', 1, true) then named = named + 1; firstStatus = firstStatus or id end end

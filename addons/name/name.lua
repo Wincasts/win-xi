@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.40';
+addon.version = '1.41';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -27,6 +27,7 @@ local custom     = require('custom');
 local statuses   = require('statuses');
 local controls   = require('controls');
 local diag       = require('diag');
+local general    = require('general');
 
 local Category = nameplates.Category;
 
@@ -61,6 +62,7 @@ for _, row in ipairs(rows) do
 end
 custom.Defaults(defaults);
 statuses.Defaults(defaults);
+general.Defaults(defaults);
 -- Preferred baseline captured from the live profile; settings.load still gives
 -- existing character settings precedence over these defaults.
 local preferredDefaults = require('name_defaults');
@@ -216,10 +218,11 @@ app = shell.New({
     hideAppearance = true,
     menuOnlyCommands = true,
     command      = '/name',
-    help         = 'Use /name to open Names, Health Bars, Statuses and Visibility. Diagnostics is under Names.',
+    help         = 'Use /name to open General, Names, Health Bars, Statuses and Visibility. Diagnostics is under Names.',
     drawSettings = DrawSettings,
     settingsLabel = 'Visibility',
     leadingTabs  = {
+        { label = 'General', draw = function (options) general.DrawSettings(options, app.save); end },
         { label = 'Names', draw = function (options)
             custom.DrawSettings(options, app.save);
             DrawDiagnostics(options);
@@ -320,6 +323,13 @@ ashita.events.register('d3d_present', 'present_cb', function ()
         Push(options);
     elseif (Pull(options, hook)) then
         app:Save();
+    end
+
+    -- Custom Nameplates off: no claim, and the game draws its names as namehook sizes them
+    if (not general.Drawing(options)) then
+        nameplates.Claim(0, hook);
+        diag.Frame('off');
+        return;
     end
 
     -- with diagnostics off, nothing in the way
