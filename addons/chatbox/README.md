@@ -13,6 +13,7 @@ each where the game's are.
   to begin with). Linkshells show `Linkshell 1: Name` or `Linkshell 2: Name`, from the equipped
   pearl; loaded mid-session, re-equip your pearls if names are missing, as the game sends their
   slots on login and equip.
+  **Window Title** in the Chatbox section puts your own words there instead; left empty, the channel.
 - Native and SimpleLog inline colours are always kept; uncoloured text takes its native chat-mode
   colour. The colours are the game's own, as configured, read through uihook; without that, close
   approximations.
@@ -27,7 +28,7 @@ each where the game's are.
   of the log.
 - With **Log Window 2** on in the game's settings, a second box stands where the game puts its second
   window, over the first (the same width, the game's height for it) or beside it (the game's width and
-  gap, the first's bottom), titled Window 2. Each box shows the messages the
+  gap, the first's bottom), titled Window 2 (or **Window 2 Title**). Each box shows the messages the
   game's Log Window settings route to its window, read from the game, and scrolls on its own; the
   focus light follows the game's focus between them.
 - Each box has as many rows as the game's window shows at the moment: the game grows its window a

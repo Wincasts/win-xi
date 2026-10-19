@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Window Title and Window 2 Title, in the Chatbox section: the words typed there stand on the compact log's
+  and the second log window's top edge. Left empty (or only spaces), the compact log is titled by its channel
+  and the second Window 2, as before.
 - The Linkshell title no longer ends a name of 2, 6, 10, 14 or 18 letters with a stray o: the server pads the name's last byte with ones, which read as that letter when four were left.
 - Font and Font Size, the log's and the info panel's, are winxi's own controls (widgets.FontFile, FontSize); every tooltip is drawn by winxi.tooltip, so winxisettings' Tooltips tab applies. Needs winxi 25.
 
