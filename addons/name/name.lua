@@ -1,6 +1,6 @@
 addon.name    = 'name';
 addon.author  = 'win';
-addon.version = '1.51';
+addon.version = '1.52';
 addon.desc    = 'Shows and hides the names over characters\' heads by what they are over, and draws them in winxi\'s style, through the namehook plugin.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -280,6 +280,7 @@ app = shell.New({
     onSettings   = function (options)
         connected = false;
         custom.Settle(options);
+        statuses.Settle(options);
         if (type(options.diagnostics) ~= 'table') then
             options.diagnostics = T{ false };
         end

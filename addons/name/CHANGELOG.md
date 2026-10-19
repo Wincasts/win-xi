@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.52
+
+- Statuses taken off the list no longer come back. Ashita fills each place a saved list lacks from the default list, so a list saved shorter than the default came back with the default's tail on it, statuses unticked among them, some twice; a list emptied came back full. The default list is empty now, and a new character's ticked statuses are given once, as the settings are loaded (`statusListVersion`). A list saved before is kept with each status once, in order: what the merge had already added to it cannot be told from what was ticked, and stays until taken off again.
+
 ## 1.51
 
 - The preferred defaults, those a new character starts with, are the author's settings as they are now: names 30 px at most and 10 at least, the sub-target's at 125%; health bars, while off, 120 × 7 px; statuses at 100%, 2 px right and 5 up, with 9, 14, 15 and 128–131 no longer ticked; Other Players and Other Pets shown, Always Show Target off; players' Normal and Alliance Colour Overrides on, pale blue and amber. A character's saved settings still come first.

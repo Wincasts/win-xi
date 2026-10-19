@@ -334,3 +334,37 @@ do
     o.statusCategories[1] = Category.All; block.Frame = 78; H.frames(1)
     H.print('statuses\' Entity Types: rows only over the kinds ticked', true)
 end
+
+-- The list kept: Ashita fills each place a saved list lacks from the default list (table.merge, the
+-- saved settings the destination), so the default list is empty and Settle chooses a new character's
+do
+    local statuses = require('statuses')
+    local function merge(into, from)
+        for k, v in pairs(from) do
+            if type(v) == 'table' then
+                if rawget(into, k) == nil then into[k] = v else merge(into[k], v) end
+            elseif rawget(into, k) == nil then
+                into[k] = v
+            end
+        end
+        return into
+    end
+    local function defaults() return statuses.Defaults(T{}) end
+    local function same(list, ids)
+        if #list ~= #ids then return false end
+        for i, id in ipairs(ids) do if list[i] ~= id then return false end end
+        return true
+    end
+
+    local new = merge(T{}, defaults()); statuses.Settle(new)
+    H.print('a new character: the preset, settled once', #new.statusList == 20 and new.statusList[1] == 2 and new.statusList[20] == 217, new.statusListVersion == 1)
+
+    local saved = merge(T{ statusList = T{ 4, 13 }, statusListVersion = 1 }, defaults()); statuses.Settle(saved)
+    H.print('a shorter list saved: kept as it is, nothing of the default\'s added', same(saved.statusList, { 4, 13 }))
+
+    local none = merge(T{ statusList = T{}, statusListVersion = 1 }, defaults()); statuses.Settle(none)
+    H.print('every status taken off: none, not the preset', #none.statusList == 0)
+
+    local padded = merge(T{ statusList = T{ 2, 3, 135, 156, 194, 134, 135, 156, 194, 132, 133, 134, 135 } }, defaults()); statuses.Settle(padded)
+    H.print('a list the merge had padded: each status once, in order', same(padded.statusList, { 2, 3, 132, 133, 134, 135, 156, 194 }), padded.statusListVersion == 1)
+end

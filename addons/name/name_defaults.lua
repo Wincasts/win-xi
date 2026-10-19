@@ -1,6 +1,7 @@
 -- Preferred Name defaults, taken from the author's own settings.
 -- Existing character settings take precedence. A table of named keys is merged into the defaults'
--- own; a list (statusList, or a setting's T{ value }) takes their place whole.
+-- own; a list (a setting's T{ value }) takes their place whole. The statuses ticked to begin with
+-- are statuses.lua's, as a default list is filled into a shorter saved one.
 require('common');
 
 return T{
@@ -25,7 +26,6 @@ return T{
     statusSize = T{ 100 },
     statusOffsetX = T{ 2 },
     statusOffsetY = T{ -5 },
-    statusList = T{ 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 19, 132, 133, 134, 135, 156, 192, 194, 217 },
     healthBarWidth = T{ 120 },
     healthBarHeight = T{ 7 },
     abbreviateDifficulty = T{ true },
