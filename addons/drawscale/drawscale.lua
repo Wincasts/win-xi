@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '0.2';
+addon.version = '0.3';
 addon.desc    = 'Lists every place the client scales a distance by the draw distance, and lets one of them be re-scaled on its own, to find where the fog is set.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -21,8 +21,8 @@ local ok, chat = pcall(require, 'chat');
 if (not ok) then chat = nil; end
 
 local PATTERN   = '8BC1487408D80D'; -- mov eax, ecx; dec eax; jz +8; fmul dword [world]
-local REACH     = 16;               -- a call may land this far before the pattern (a prologue)
-local CHUNK     = 16384;
+local REACH     = 512;              -- a call may land this far before the pattern (the function's entry)
+local CHUNK     = 4096;
 local MAX_STUBS = 8;
 
 local state = T{
@@ -86,15 +86,31 @@ end
 local function eachChunk(module, fn)
     local at = module.base;
     local stop = module.base + module.size;
+    local stats = { read = 0, failed = 0, bytes = 0, calls = 0, patternSeen = false, firstError = nil };
     while (at < stop) do
         local count = math.min(CHUNK, stop - at);
         local readOk, bytes = pcall(ashita.memory.read_array, at, count + 8);
         if (not (readOk and type(bytes) == 'table')) then
+            if (not readOk and stats.firstError == nil) then stats.firstError = tostring(bytes); end
             readOk, bytes = pcall(ashita.memory.read_array, at, count);
         end
-        if (readOk and type(bytes) == 'table') then fn(bytes, at, count); end
+        if (readOk and type(bytes) == 'table') then
+            stats.read = stats.read + 1;
+            stats.bytes = stats.bytes + count;
+            -- self-checks: the calls seen at all, and the function's own bytes where it is
+            for i = 1, count do if (bytes[i] == 0xE8) then stats.calls = stats.calls + 1; end end
+            if (state.fn >= at and state.fn < at + count) then
+                local i = state.fn - at + 1;
+                stats.patternSeen = bytes[i] == 0x8B and bytes[i + 1] == 0xC1 and bytes[i + 2] == 0x48;
+            end
+            fn(bytes, at, count);
+        else
+            stats.failed = stats.failed + 1;
+            if (not readOk and stats.firstError == nil) then stats.firstError = tostring(bytes); end
+        end
         at = at + CHUNK;
     end
+    state.scanStats = stats;
 end
 
 -- Every call to the scale function in the module holding it: direct calls, then calls through a
@@ -164,6 +180,29 @@ local function report(toChat)
         state.fn, world, state.world, entity, state.entity, #state.callers));
     lines:append(m and (('scanned module 0x%08X-0x%08X (%d KB); %d jump thunks; %d pointers to the function'):format(
         m.base, m.base + m.size, math.floor(m.size / 1024), #state.thunks, #state.pointers)) or 'no module scanned');
+    local st = state.scanStats;
+    if (st) then
+        lines:append(('chunks read %d, failed %d (%d KB read); %d call opcodes seen; the function\'s bytes seen in the scan: %s%s'):format(
+            st.read, st.failed, math.floor(st.bytes / 1024), st.calls, tostring(st.patternSeen),
+            st.firstError and (('; first read error: %s'):format(st.firstError)) or ''));
+        local deltas = {};
+        for _, c in ipairs(state.callers) do deltas[c.delta] = (deltas[c.delta] or 0) + 1; end
+        local parts = {};
+        for d, n in pairs(deltas) do parts[#parts + 1] = ('%d call(s) land %d before the pattern'):format(n, d); end
+        if (#parts > 0) then lines:append(table.concat(parts, '; ')); end
+    end
+    if (state.fn ~= 0) then
+        local okB, before = pcall(ashita.memory.read_array, state.fn - 64, 64);
+        local okA, after = pcall(ashita.memory.read_array, state.fn, 48);
+        if (okB and type(before) == 'table') then
+            lines:append(('64 bytes before the function: %s'):format(scan.hex(before, 1, 64)));
+            lines:append(('  ending in: %s'):format(table.concat(scan.backward(before, 64, 6), '; ')));
+        end
+        if (okA and type(after) == 'table') then
+            lines:append(('48 bytes from the function: %s'):format(scan.hex(after, 1, 48)));
+            lines:append(('  reading as: %s'):format(table.concat(scan.forward(after, 1, 10), '; ')));
+        end
+    end
     for n, c in ipairs(state.callers) do
         lines:append(lineFor(n, c));
         lines:append(detailFor(c));
@@ -174,6 +213,7 @@ local function report(toChat)
     if (toChat) then
         say(lines[1]);
         say(lines[2]);
+        if (lines[3] and lines[3]:match('^chunks read')) then say(lines[3]); end
         for n, c in ipairs(state.callers) do say(lineFor(n, c)); end
         if (#state.callers == 0 and #state.pointers > 0) then
             say(('No direct calls; the function is reached through %d pointer(s), listed in the report file.'):format(#state.pointers));
