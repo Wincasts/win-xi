@@ -24,6 +24,9 @@
   than the days gone (winxi.infopanel.calendar holds them as minus their day; style.faint).
 - The weather tooltip's forecast is the five days alone: the lines about fog from 2:00 to 7:00 and the weather
   rolling again every 3 to 30 Earth minutes are gone (forecast.Lines).
+- The panel's tooltips are as wide as their longest line: the theme's tooltip width, which winxi.tooltip wraps
+  words at, is set aside for them (wrapping off between tooltip.Begin and End), the text ones (the day, the
+  weather and its forecast) drawn the same way as the calendar and the timetable.
 - Tests: infopanel_tooltips_check the generated runs whole and the ferry's hours against the server's own
   timetable, the seconds into a cycle, the door open and shut, a crossing past the end of the cycle, the
   Vana'diel clock and the spans, the rows and groups built, the nearer of two runs, the aboard lines, the
