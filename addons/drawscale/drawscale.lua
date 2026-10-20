@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '1.1';
+addon.version = '1.2';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: three multipliers, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -199,12 +199,10 @@ end
 -- objects out by sqrt(w); the stub multiplies the scale again so they go out by the objects setting.
 local function findObjects()
     state.objectSite = nil;
+    local found = scan.objectCaller(state.callers);
+    if (found == nil) then return false; end
     for n, c in ipairs(state.callers) do
-        local sink = c.info and c.info.sink or '';
-        if (sink:match('^fstp dword %[ebp%+0x39428%]$') and (c.info.ecx == 0 or c.info.ecx == nil)) then
-            if (state.objectSite ~= nil) then state.objectSite = nil; return false; end
-            state.objectSite = n;
-        end
+        if (c == found) then state.objectSite = n; end
     end
     return state.objectSite ~= nil;
 end

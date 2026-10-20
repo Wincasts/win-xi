@@ -174,3 +174,28 @@ H.print('/drawscale vis off', H.command('/drawscale vis off') == true, H.options
     '| vis alone toggles', H.command('/drawscale vis') == true, H.options().vis == true, '| a bad word refused', H.command('/drawscale vis maybe') == true, H.options().vis == true)
 H.print('/drawscale square on', H.command('/drawscale square on') == true, H.options().square == true, lastSaid():find('square on', 1, true) ~= nil)
 H.print('help lists the extras', H.command('/drawscale help') == true, table.concat(H.printed, '\n'):find('/drawscale square on|off', 1, true) ~= nil)
+
+-- the real bytes, from the game's report of 2026-10-20 (drawscale 0.3): the fog's calls and the object
+-- range's, recognised as they lie, the fog end's push 0 four instructions before its call
+local function hexBytes(s) local t = {} for b in s:gmatch('%x%x') do t[#t + 1] = tonumber(b, 16) end return t end
+local function real(address, delta, before, after)
+    return { address = address, delta = delta, pattern = 0x0334930C, info = scan.describe(hexBytes(before), hexBytes(after)) }
+end
+local realCallers = {
+    real(0x0333BF53, 92, '95 20 94 03 00 D9 C0 D8 C9 53 D9 9D 24 94 03 00 8B 0D 04 CB 81 03 DD D8', 'D9 9D 28 94 03 00 A1 FC 68 61 03 8B 8D 20 94 03 00 D9 05 98 A6 4E 03 D8'),
+    real(0x0333D436, 492, '00 8D 85 3C 93 03 00 8D 9D 38 93 03 00 6A 00 8D B5 34 93 03 00 50 53 56', '8B 15 6C 66 61 03 8B 42 0C 8B 16 52 6A 22 8B 08 50 FF 91 C8 00 00 00 8B'),
+    real(0x033491EB, 92, 'C6 44 24 1B 00 8B 44 24 18 89 01 8B CE E8 5B DD FF FF 8B 10 6A 01 89 17', 'D8 0F 8B CE D9 1F E8 55 DD FF FF 6A 01 EB 76 8B CE E8 8A DD FF FF D9 40'),
+    real(0x03349263, 92, 'C6 44 24 1B 00 8B 44 24 18 89 01 8B CE E8 53 DD FF FF 8B 10 6A 00 89 17', 'D8 0F 8B CE D9 1F E8 4D DD FF FF 6A 00 8B 00 8B CE 89 45 00 E8 2F 00 00'),
+    real(0x0334927C, 92, '48 00 00 00 D8 0F 8B CE D9 1F E8 4D DD FF FF 6A 00 8B 00 8B CE 89 45 00', 'D8 4D 00 D9 5D 00 D9 07 D8 5D 00 DF E0 F6 C4 41 7A 0B D9 45 00 D8 05 1C'),
+    real(0x0334B901, 92, '6E 69 FF 50 18 C3 90 51 8B 44 24 08 56 50 8B F1 C7 44 24 08 00 00 C8 42', '8B 46 1C D9 5C 24 0C 85 C0 74 0B 8B CE E8 08 B7 FF FF D9 5C 24 04 D9 44'),
+    real(0x0334BA52, 492, '8B C6 8B 4C 24 14 8B 54 24 10 51 8B 4C 24 10 52 8B 54 24 10 51 52 8B C8', '5E C2 14 00 90 90 90 90 90 8B 0D 24 1F 7F 03 E9 15 CD FE FF 90 90 90 90'),
+}
+H.print('real: the fog end reads push 0 four back', realCallers[5].info.push == '0', realCallers[5].info.selector == 'world',
+    '| the fog start', realCallers[4].info.push == '0', realCallers[4].info.selector == 'world',
+    '| the entity branch', realCallers[3].info.push == '1', realCallers[3].info.selector == 'entity')
+local realFog = scan.fogCallers(realCallers, 512)
+H.print('real: the fog is callers at 0x03349263 and 0x0334927C', realFog ~= nil and #realFog == 2, realFog and realFog[1].address == 0x03349263, realFog and realFog[2].address == 0x0334927C)
+local realObject = scan.objectCaller(realCallers)
+H.print('real: the object range is the caller at 0x0333BF53', realObject ~= nil and realObject.address == 0x0333BF53,
+    '| whose selector is not an immediate there', tonumber(realCallers[1].info.push or '') == nil,
+    '| two of them is none', scan.objectCaller({ realCallers[1], realCallers[1] }) == nil)
