@@ -17,7 +17,8 @@ It needs nothing else. It changes nothing until told to, and unloading puts ever
   stock whatever the world multiplier is. `1` is stock. Up to eight callers at once.
 - `/drawscale unpatch [n]` puts caller `n`, or all of them, back.
 
-The full report, with the bytes before and after each call and what they decode to, is written to
+The full report, with the module scanned, the bytes before and after each call and what they decode to,
+any jump thunks and any pointers holding the function, is written to
 `config/addons/drawscale/callers.txt` whenever the callers are listed.
 
 ## Finding the fog

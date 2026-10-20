@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '0.1';
+addon.version = '0.2';
 addon.desc    = 'Lists every place the client scales a distance by the draw distance, and lets one of them be re-scaled on its own, to find where the fog is set.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -29,7 +29,10 @@ local state = T{
     fn      = 0,      -- the scale function, where the pattern matched
     world   = 0,      -- address of the world multiplier float
     entity  = 0,      -- address of the entity multiplier float
-    callers = T{},    -- { address, delta, info, before, after }
+    module  = nil,    -- { base, size } of the module holding the function
+    thunks  = T{},    -- jumps to the function a call may go through
+    pointers = T{},   -- addresses holding the function's address
+    callers = T{},    -- { address, delta, via, info, before, after }
     mem     = 0,      -- the stubs
     patches = T{},    -- caller index -> { site, backup, stub, mult, ratio }
     report  = T{},    -- the lines last printed
@@ -48,57 +51,78 @@ local function reportPath()
     return dir .. 'callers.txt';
 end
 
--- The executable sections of a module in memory, from its PE header: { address, size }.
-local function codeSections(base)
-    local sections = T{};
-    local peOk, pe = pcall(ashita.memory.read_uint32, base + 0x3C);
-    if (not peOk or pe == 0 or pe > 0x1000) then return sections; end
-    local header = base + pe;
-    local count = ashita.memory.read_uint16(header + 6);
-    local optional = ashita.memory.read_uint16(header + 20);
-    local first = header + 24 + optional;
-    for i = 0, count - 1 do
-        local s = first + i * 40;
-        local vsize = ashita.memory.read_uint32(s + 8);
-        local va = ashita.memory.read_uint32(s + 12);
-        local flags = ashita.memory.read_uint32(s + 36);
-        if (bit.band(flags, 0x20000000) ~= 0 and vsize > 0) then
-            sections:append({ address = base + va, size = vsize });
-        end
+-- The module holding addr: its PE header is the nearest 'MZ' at a page boundary below it whose
+-- 'PE' header follows, and its size is the header's. The client's code is not laid out in memory as
+-- the file's sections say (the DLL is packed), so the whole module is scanned, not its code section.
+local function moduleOf(addr)
+    -- FFXiMain.dll first, from Ashita's own knowledge of it; the header walk below only when the
+    -- function is somewhere else, since it reads pages that may not be mapped
+    local known = ashita.memory.get_base('FFXiMain.dll');
+    local knownSize = ashita.memory.get_size('FFXiMain.dll');
+    if (known ~= nil and known ~= 0 and knownSize ~= nil and addr >= known and addr < known + knownSize) then
+        return { base = known, size = knownSize };
     end
-    return sections;
+    local page = addr - (addr % 0x1000);
+    for _ = 1, 16384 do
+        local ok, magic = pcall(ashita.memory.read_uint16, page);
+        if (ok and magic == 0x5A4D) then
+            local peOk, pe = pcall(ashita.memory.read_uint32, page + 0x3C);
+            if (peOk and pe > 0 and pe < 0x1000) then
+                local sigOk, sig = pcall(ashita.memory.read_uint32, page + pe);
+                if (sigOk and sig == 0x4550) then
+                    local size = ashita.memory.read_uint32(page + pe + 24 + 56);
+                    if (page + size > addr) then return { base = page, size = size }; end
+                end
+            end
+        end
+        page = page - 0x1000;
+        if (page <= 0) then break; end
+    end
+    return nil;
 end
 
--- Every call to the scale function in the client's code.
-local function findCallers()
-    local base = ashita.memory.get_base('FFXiMain.dll');
-    local size = ashita.memory.get_size('FFXiMain.dll');
-    if (base == nil or base == 0) then
-        fail('FFXiMain.dll is not loaded; nothing to scan.');
-        return T{};
+-- Runs fn over the module in chunks: fn(bytes, address, count), bytes having a margin past count
+-- where there was one to read.
+local function eachChunk(module, fn)
+    local at = module.base;
+    local stop = module.base + module.size;
+    while (at < stop) do
+        local count = math.min(CHUNK, stop - at);
+        local readOk, bytes = pcall(ashita.memory.read_array, at, count + 8);
+        if (not (readOk and type(bytes) == 'table')) then
+            readOk, bytes = pcall(ashita.memory.read_array, at, count);
+        end
+        if (readOk and type(bytes) == 'table') then fn(bytes, at, count); end
+        at = at + CHUNK;
     end
-    local sections = codeSections(base);
-    if (#sections == 0) then sections:append({ address = base, size = size }); end
+end
+
+-- Every call to the scale function in the module holding it: direct calls, then calls through a
+-- jump thunk, and the places holding its address, which a call through a register or a vtable reads.
+local function findCallers()
     local found = T{};
-    for _, section in ipairs(sections) do
-        local at = section.address;
-        local stop = section.address + section.size;
-        while (at < stop) do
-            local count = math.min(CHUNK, stop - at);
-            -- a few bytes past the chunk let a call that begins at its end be read whole; a chunk at the
-            -- very end of readable memory is read without them
-            local readOk, bytes = pcall(ashita.memory.read_array, at, count + 8);
-            if (not (readOk and type(bytes) == 'table')) then
-                readOk, bytes = pcall(ashita.memory.read_array, at, count);
-            end
-            if (readOk and type(bytes) == 'table') then
-                for _, hit in ipairs(scan.callers(bytes, at, state.fn, count, REACH)) do
+    state.thunks, state.pointers = T{}, T{};
+    state.module = moduleOf(state.fn);
+    if (state.module == nil) then
+        fail('The module holding the scale function was not found; nothing to scan.');
+        return found;
+    end
+    eachChunk(state.module, function (bytes, at, count)
+        for _, hit in ipairs(scan.callers(bytes, at, state.fn, count, REACH)) do found:append(hit); end
+        for _, hit in ipairs(scan.jumps(bytes, at, state.fn, count, REACH)) do state.thunks:append(hit.address); end
+        for _, addr in ipairs(scan.references(bytes, at, state.fn, count)) do state.pointers:append(addr); end
+    end);
+    if (#state.thunks > 0) then
+        eachChunk(state.module, function (bytes, at, count)
+            for _, thunk in ipairs(state.thunks) do
+                for _, hit in ipairs(scan.callers(bytes, at, thunk, count, 0)) do
+                    hit.via = thunk;
                     found:append(hit);
                 end
             end
-            at = at + CHUNK;
-        end
+        end);
     end
+    found:sort(function (a, b) return a.address < b.address; end);
     return found;
 end
 
@@ -118,8 +142,9 @@ local function lineFor(n, c)
     if (info.sink and info.sink:match('ebp%+0x39428')) then what = '  <- zone-object range (drawcull patches this one)'; end
     local patched = state.patches[n];
     local mark = patched and (('  [patched x%.2f]'):format(patched.mult)) or '';
-    return ('#%d 0x%08X %s%s | ecx %s, pushes %s, then %s%s%s'):format(
-        n, c.address, info.selector or '?', c.delta ~= 0 and ((' (call lands %d before the pattern)'):format(c.delta)) or '',
+    local via = c.via and ((' via thunk 0x%08X'):format(c.via)) or '';
+    return ('#%d 0x%08X %s%s%s | ecx %s, pushes %s, then %s%s%s'):format(
+        n, c.address, info.selector or '?', c.delta ~= 0 and ((' (call lands %d before the pattern)'):format(c.delta)) or '', via,
         tostring(info.ecx == nil and '?' or info.ecx), info.push or '?', info.sink or (info.after and info.after[1]) or '?', what, mark);
 end
 
@@ -134,16 +159,25 @@ local function report(toChat)
     local lines = T{};
     local world = state.world ~= 0 and ashita.memory.read_float(state.world) or 0;
     local entity = state.entity ~= 0 and ashita.memory.read_float(state.entity) or 0;
+    local m = state.module;
     lines:append(('scale function 0x%08X; world x%.2f at 0x%08X; entity x%.2f at 0x%08X; %d callers'):format(
         state.fn, world, state.world, entity, state.entity, #state.callers));
+    lines:append(m and (('scanned module 0x%08X-0x%08X (%d KB); %d jump thunks; %d pointers to the function'):format(
+        m.base, m.base + m.size, math.floor(m.size / 1024), #state.thunks, #state.pointers)) or 'no module scanned');
     for n, c in ipairs(state.callers) do
         lines:append(lineFor(n, c));
         lines:append(detailFor(c));
     end
+    for _, t in ipairs(state.thunks) do lines:append(('thunk: jmp at 0x%08X'):format(t)); end
+    for _, p in ipairs(state.pointers) do lines:append(('pointer: 0x%08X holds the function'):format(p)); end
     state.report = lines;
     if (toChat) then
         say(lines[1]);
+        say(lines[2]);
         for n, c in ipairs(state.callers) do say(lineFor(n, c)); end
+        if (#state.callers == 0 and #state.pointers > 0) then
+            say(('No direct calls; the function is reached through %d pointer(s), listed in the report file.'):format(#state.pointers));
+        end
         say('Details are in config/addons/drawscale/callers.txt.');
     end
     local f = io.open(reportPath(), 'w');
