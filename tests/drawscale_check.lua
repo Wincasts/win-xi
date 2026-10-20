@@ -154,12 +154,23 @@ H.print('fog: three world calls there is not the fog', scan.fogCallers(three, 51
     '| nor one beyond the window', scan.fogCallers({ records[4], rec(entry - 600, 92, 0, fmulEdi) }, 512) == nil)
 
 -- the settings commands, without the client: saved and said, the fog calls reported not found
+local function lastSaid() return table.concat({ H.printed[#H.printed - 1] or '', H.printed[#H.printed] or '' }, '\n') end
 H.print('status without the client', H.command('/drawscale') == true, table.concat(H.printed, '\n'):find('fog calls not found', 1, true) ~= nil)
 local saves = H.saves()
 H.print('/drawscale fog 1.5 is saved', H.command('/drawscale fog 1.5') == true, H.saves() == saves + 1, H.options().fog == 1.5,
-    '| and said', H.printed[#H.printed]:find('fog x1.50', 1, true) ~= nil)
-H.print('/drawscale world 2', H.command('/drawscale world 2') == true, H.options().world == 2, H.printed[#H.printed]:find('world x2.00', 1, true) ~= nil)
+    '| and said', lastSaid():find('fog x1.50', 1, true) ~= nil)
+H.print('/drawscale world 2', H.command('/drawscale world 2') == true, H.options().world == 2, lastSaid():find('world x2.00', 1, true) ~= nil)
 H.print('/drawscale entity 3', H.command('/drawscale entity 3') == true, H.options().entity == 3)
-H.print('a bad value is refused', H.command('/drawscale fog x') == true, H.options().fog == 1.5, H.printed[#H.printed]:find('Usage: /drawscale fog', 1, true) ~= nil,
+H.print('a bad value is refused', H.command('/drawscale fog x') == true, H.options().fog == 1.5, lastSaid():find('Usage: /drawscale fog', 1, true) ~= nil,
     '| so is zero', H.command('/drawscale world 0') == true, H.options().world == 2)
-H.print('/drawscale fog alone shows the values', H.command('/drawscale fog') == true, H.printed[#H.printed]:find('fog x1.50', 1, true) ~= nil)
+H.print('/drawscale fog alone shows the values', H.command('/drawscale fog') == true, lastSaid():find('fog x1.50', 1, true) ~= nil)
+
+-- the extras: objects and detail (0 = the same as world), vis and square (toggles), saved and said
+H.print('/drawscale objects 3', H.command('/drawscale objects 3') == true, H.options().objects == 3, lastSaid():find('objects x3.00', 1, true) ~= nil)
+H.print('/drawscale objects 0 is the same as world', H.command('/drawscale objects 0') == true, H.options().objects == 0, lastSaid():find('objects x2.00 (same as world)', 1, true) ~= nil)
+H.print('/drawscale detail 4', H.command('/drawscale detail 4') == true, H.options().detail == 4, lastSaid():find('detail x4.00', 1, true) ~= nil,
+    '| too much refused', H.command('/drawscale detail 101') == true, H.options().detail == 4)
+H.print('/drawscale vis off', H.command('/drawscale vis off') == true, H.options().vis == false, lastSaid():find('vis off', 1, true) ~= nil,
+    '| vis alone toggles', H.command('/drawscale vis') == true, H.options().vis == true, '| a bad word refused', H.command('/drawscale vis maybe') == true, H.options().vis == true)
+H.print('/drawscale square on', H.command('/drawscale square on') == true, H.options().square == true, lastSaid():find('square on', 1, true) ~= nil)
+H.print('help lists the extras', H.command('/drawscale help') == true, table.concat(H.printed, '\n'):find('/drawscale square on|off', 1, true) ~= nil)
