@@ -270,7 +270,8 @@ end
 -- answer goes first. before: the bytes preceding the call (before[#before] is the byte just before
 -- it); after: the bytes following it.
 function M.describe(before, after)
-    local pre = M.backward(before, #before, 3)
+    -- six back: the fog end's push 0 sits four instructions before its call in the game
+    local pre = M.backward(before, #before, 6)
     local post = M.forward(after, 1, 3)
     local ecx, push, sink
     for _, text in ipairs(pre) do
@@ -327,6 +328,21 @@ function M.fogCallers(callers, window)
         end
     end
     return nil
+end
+
+-- The zone-object range's call: the one that stores the answer straight to the renderer's field for
+-- it (fstp dword [ebp+0x39428]). Its selector is pushed too early to read, so only the store is
+-- asked for. nil unless exactly one.
+function M.objectCaller(callers)
+    local found = nil
+    for _, c in ipairs(callers) do
+        local sink = c.info and c.info.sink or ''
+        if sink == 'fstp dword [ebp+0x39428]' then
+            if found ~= nil then return nil end
+            found = c
+        end
+    end
+    return found
 end
 
 -- The stub a patched caller is sent through instead of the scale function: it calls the function
