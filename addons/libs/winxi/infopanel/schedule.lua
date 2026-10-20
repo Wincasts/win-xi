@@ -22,7 +22,7 @@
 --                                         title     'Ships and airships'
 --                                         aboard    lines for a player on a crossing ('Bound for Jeuno: ashore
 --                                                   in 2:14'), or nil
---                                         columns   the headings: From, To, Boarding, Leaves, At, Trip
+--                                         columns   the headings: From, To, Boarding, Leaves, At, Trip Time
 --                                         rows      the next Count ships to leave, the soonest first, each
 --                                                   { cells = { ... }, here = bool, key }: a line's two runs
 --                                                   (the barge from the central landing by day and by night)
@@ -30,18 +30,16 @@
 --                                                   the player's zone
 --                                         here      whether any row is the zone's
 --                                         empty     what to say where no line is shown, or nil
---                                         note      what the columns are
 --   schedule.Draw(imgui, data, style)   draws it, inside a tooltip: the title, the aboard lines, the headings
 --                                       in style.dim, the rows in columns, the zone's own rows over
---                                       style.highlight, the note in style.dim
+--                                       style.highlight
 local M = {}
 
 M.SecondsPerDay = 3456 -- Earth seconds in a Vana'diel day
-M.Columns = { 'From', 'To', 'Boarding', 'Leaves', 'At', 'Trip' }
+M.Columns = { 'From', 'To', 'Boarding', 'Leaves', 'At', 'Trip Time' }
 M.Title = 'Ships and airships'
 M.Count = 4
 M.Empty = 'No lines are shown: tick some in the Timetable tab of the Info Panel settings.'
-M.Note = 'The next %d to leave. Earth minutes:seconds until the door opens and shuts; At is the Vana\'diel time it leaves; Trip the crossing.'
 
 local data = nil
 local function Data()
@@ -115,7 +113,7 @@ function M.Build(zone, raw, shown)
     local tables = Data()
     raw, zone = tonumber(raw), tonumber(zone)
     if not tables or not raw or raw ~= raw then return nil end
-    local built = { title = M.Title, columns = M.Columns, rows = {}, note = M.Note:format(M.Count), here = false }
+    local built = { title = M.Title, columns = M.Columns, rows = {}, here = false }
     local rows, byLine = {}, {}
     local aboard = {}
     local any = false
@@ -210,9 +208,6 @@ function M.Draw(imgui, built, style)
         end
         Cells(row.cells)
     end
-    if style.dim then imgui.PushStyleColor(ImGuiCol_Text, style.dim) end
-    imgui.Text(built.note)
-    if style.dim then imgui.PopStyleColor() end
 end
 
 return M
