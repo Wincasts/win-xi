@@ -63,6 +63,14 @@ int main() {
     menus.Before(magicWindow,state,true,dimensions,1280,960);
     memcpy(target,magicWindow+0x8c,8);
     Check(target[0]==20 && target[1]==498 && target[2]==160 && target[3]==200,"submenu keeps native dimensions and independently clears panel");
+    // Collapsing chat publishes the actual lower panel edge, not the old full chat frame.
+    // Both an already-open command menu and its live submenu must follow that new anchor.
+    state.Panel[1]=900; state.Panel[3]=918;
+    menus.Before(window,state,true,dimensions,1280,960); memcpy(target,window+0x8c,8);
+    Check(target[1]==798 && target[3]==100,"open combat menu follows the visible panel, without the old chat gap");
+    menus.Before(magicWindow,state,true,dimensions,1280,960); memcpy(target,magicWindow+0x8c,8);
+    Check(target[1]==698 && target[3]==200,"open combat submenu follows the changed panel anchor too");
+    state.Panel[1]=700; state.Panel[3]=718;
     menus.Stop(state); memcpy(target,window+0x8c,8);
     Check(target[0]==0 && target[1]==700 && state.Restored==2,"stop restores native target and rebuilds native geometry");
     menus.Before(window,state,true,dimensions,1280,960);
