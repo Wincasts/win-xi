@@ -311,12 +311,13 @@ assert(frame() == 'parchment|On the screen');
 appearance.skin = { 'plain' };
 appearance.onScreen = { false };
 assert(frame() == 'bubble|On the screen'); -- the world's again
--- the bubbles' own font and size are pushed round the frame, and popped after; none when neither is set
-appearance.font, appearance.fontSize = { 'arial.ttf' }, { 0 };
+-- the bubbles' own font and size are pushed round the frame, and popped after; none when neither is set.
+-- The font is the file name itself, as the settings keep it since 0.94: a table of one is not read.
+appearance.font, appearance.fontSize = 'arial.ttf', { 0 };
 pushedFonts = {};
 frame();
 assert(#pushedFonts == 2 and pushedFonts[1].font.file == 'arial.ttf' and pushedFonts[1].size == 16 and pushedFonts[2] == 'pop');
-appearance.font, appearance.fontSize = { '' }, { 20 };
+appearance.font, appearance.fontSize = '', { 20 };
 pushedFonts = {};
 frame();
 assert(#pushedFonts == 2 and pushedFonts[1].font == nil and pushedFonts[1].size == 20);

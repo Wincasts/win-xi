@@ -1,6 +1,6 @@
 addon.name = 'chatbubbles';
 addon.author = 'win';
-addon.version = '0.94';
+addon.version = '0.95';
 addon.desc = 'Configurable chat bubbles anchored by namehook, in the world or on the screen.';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
@@ -236,8 +236,9 @@ ashita.events.register('d3d_present', 'chatbubbles_present', function ()
     if ((not scale and not onScreen) or active == 0) then return; end
     local display = imgui.GetIO().DisplaySize;
     local seen = {};
-    -- the bubbles' font and size, where they are not everything else's
-    local font = fonts.Get(appearance.font ~= nil and appearance.font[1] or '');
+    -- the bubbles' font and size, where they are not everything else's: the font is a file name, as
+    -- widgets.FontFile keeps it (a table of one up to 0.93, which config.Settle brings over)
+    local font = fonts.Get(appearance.font);
     local fontSize = appearance.fontSize ~= nil and appearance.fontSize[1] or 0;
     local pushed = font ~= nil or fontSize > 0;
     if (pushed) then imgui.PushFont(font, fontSize > 0 and fontSize or imgui.GetFontSize()); end
