@@ -1,4 +1,4 @@
-# Chatbox — experimental 0.11
+# Chatbox — experimental 0.12
 
 A **WinXI-styled chat log the game still drives**. The compact log takes the native primary log's
 place and **size** (it follows the game's chat size setting), in WinXI's background and border art,
@@ -179,6 +179,7 @@ the updated chatbox and Winxi 22 directories. The existing chat ABI remains 13.
 /chatbox off      Replace Native Chat off: the game's logs come back at once
 /chatbox clear    forget the messages this addon keeps
 /chatbox timestamps   toggle the Timestamps option (on or off to set it)
+/chatbox translate    toggle Auto-Translate, chatbox's own phrase list on Tab (on or off to set it)
 /chatbox status   bridge status, the last box drawn, kept-message and decode-error counts
 /chatbox modes    the last ten lines kept and their chat modes (to find a channel's)
 /chatbox bytes    the last incoming line: original, modified, expanded and UTF-8 bytes (hex, first 256 of each)
@@ -201,6 +202,12 @@ the mode is how the boxes behave and where they stand.
 **Chatbox**
 
 - **Replace Native Chat**: the WinXI log and input bar in place of the game's (on to begin with).
+- **Auto-Translate** (on to begin with): Tab while typing opens chatbox's own list of auto-translate
+  phrases, from the installed client's dictionary, for the word at the caret (with no word, the 42
+  categories), drawn above the input bar. Tab, Shift+Tab, Up and Down move, Page Up and Page Down move a
+  page, Enter puts the phrase in (on a category, opens it), Escape closes (in a category, back to the
+  categories). Typing goes on narrowing the list. Off, Tab is the game's, whose own menu takes the input
+  bar back for as long as it is open. `/chatbox translate on` and `off` do the same.
 - **Mode**: **Follow Game** (to begin with) or **WinXI Skin**.
   - *Follow Game*: the log, the input bar and the expanded log where the game puts its own, at its sizes.
     Each log follows its game window's size and its lines, as the game grows its window a row for each
@@ -353,13 +360,19 @@ or expanding it, restores ordinary clock placement.
 **Input.** Open chat as ever: Enter, `/`, Space or your shortcut. Cursor keys, Home/End, editing,
 history, Enter and Escape are the **same native editor's**, as are the chat mode, commands and
 sending; the bar draws its text and blinking caret and scrolls to keep the caret in view.
-Auto-translate previews use the game's display buffer, otherwise the raw-byte caret. No keystrokes
-are intercepted or made up, no second draft is kept, and no `+69`/`+6A` flag, chat timer or
-input-buffer write is used. Uihook draws the captured bar at the `menu inline` boundary in place of
-the game's background, text and caret. Input is its own slot: closing input, a decode, API or
-capture failure or a missing signature releases only it, and the game's editor shows. Clicking in
-the bar does not place the caret or select. Completion and IME menus stay the game's and want live
-testing.
+Auto-translate phrases already in the line use the game's display buffer, otherwise the raw-byte caret.
+With Auto-Translate on, chatbox takes Tab while the game's input is open (its press, repeats, release
+and character, through both Ashita's `key` and `key_data`), so the game's own auto-translate menu is
+never opened: that menu would become the game's active menu and take the input bar back. While
+chatbox's list is open it also takes Up, Down, Page Up, Page Down, Enter and Escape, each until it is
+let go, so Enter on a phrase never also sends the line; every other key is the game's. The one write to
+the input buffer is the chosen phrase's six-byte token, put in place of the word through Ashita's
+`SetInputText` (`/chatbox status` says whether the game kept it). Nothing else is made up, no second
+draft is kept, and no `+69`/`+6A` flag or chat timer is used. Uihook draws the captured bar at the
+`menu inline` boundary in place of the game's background, text and caret; the list is ImGui's own
+window above it, not captured. Input is its own slot: closing input, a decode, API or capture failure
+or a missing signature releases only it (and closes the list), and the game's editor shows. Clicking in
+the bar does not place the caret or select. IME menus stay the game's and want live testing.
 
 **Expanded log.** Use the game's Square/window selection on the log, then Confirm: a faint light
 over the box and the game's hand cursor at its newest line show the selection. The addon binds no
@@ -457,6 +470,7 @@ luajit tests/nativemenus_check.lua
 luajit tests/nativehistory_check.lua
 luajit tests/clock_panel_check.lua
 luajit tests/chatbox_input_check.lua
+luajit tests/chatbox_translate_check.lua
 luajit tests/chatbox_layout_check.lua
 luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.lua
 luajit tests/winxi_version_check.lua
@@ -465,7 +479,7 @@ plugins/uihook/tests/run.sh
 
 These are offline checks, not proof of live rendering. Still to check in game: primary and split
 logs, wrapping, Enter, slash and mode shortcuts, history, editing and caret scrolling,
-auto-translate and IME, non-Latin glyphs, input fallback, expanded history, selection and focus
+the Auto-Translate list (Tab never reaching the game, Enter's phrase kept and not sent) and IME, non-Latin glyphs, input fallback, expanded history, selection and focus
 changes, confirm and cancel, menu hiding, shared widths, input lift and close, clock anchoring,
 zoning, UI hide, theme and font changes, device recovery and unloading and reloading the addon and
 plugin. `/chatbox off` returns to the game's chat at once.

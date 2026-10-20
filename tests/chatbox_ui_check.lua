@@ -1,5 +1,7 @@
 -- Standalone addon integration: real model, stub UI/native callbacks. No FFXI needed.
 package.path = 'addons/chatbox/?.lua;addons/libs/?.lua;' .. package.path
+-- the real auto-translate dictionary for Auto-Translate's picker, read from the repository rather than the game's install
+require('winxi.gamedata').Root('addons/libs/winxi/data/')
 addon = {}
 T = function(t) return t end
 package.loaded.common = true
@@ -13,7 +15,7 @@ AshitaCore = { GetChatManager=function() return {
     GetInputTextRaw=function() return inputRaw end,
     GetInputTextDisplay=function() return inputDisplay end,
     GetInputTextRawCaretPosition=function() return inputCaret end,
-    SetInputText=function(_,value) inputSet=value end,
+    SetInputText=function(_,value) inputSet=value; inputRaw=value end, -- the game's buffer then holds it, as read back
 } end }
 local flags = 0
 setmetatable(_G, {__index=function(_, key)
@@ -168,7 +170,7 @@ local function Window(name,_,_,draw,options)
     sequence[#sequence+1]='border'
     -- winxi.window draws the controller highlight with the border, before capture
     if options.controller and options.controller.active() then outlines[#outlines+1]='highlight' end
-    options.capture()
+    if options.capture then options.capture() end -- a window of ImGui's own, not captured (Auto-Translate's list)
     fontSize=previousFont
     return true
 end
@@ -1884,4 +1886,93 @@ do (function()
     app.options.fontSize[1]=40; spec.onSettings(app.options); assert(app.options.fontSize[1]==24,'too large: 24')
     app.options.fontSize[1]=12
 end)() end
-print('Chatbox UI: compact/expanded chat in Follow Game and WinXI Skin, the settings and their migration, routing, smart visibility, failure/lifecycle, chat tooltips and chat-owned info-panel capture/settings passed')
+-- Auto-Translate: while typing, Tab is kept from the game in every form and opens chatbox's own list of phrases for
+-- the word at the caret; Enter puts the phrase's token in the game's buffer, and its character after is kept too
+do (function()
+    chatState.expanded,chatState.selected,chatState.nativeBrowse,chatState.nested=false,false,false,false
+    ready,captureOK,drawn,throwing=true,true,true,false
+    nativeRect=nil
+    app.options.enabled[1]=true; app.options.autoTranslate[1]=true
+    events.packet_in({id=0x00a})
+    local RELEASE=0xC0000001 -- a key let go: bit 31, with bit 30 (it was down) and a repeat count of 1
+    local REPEAT=0x40000001
+    local function key(wparam,lparam) local e={wparam=wparam,lparam=lparam or 1,blocked=false}; events.key(e); return e end
+    -- a press, the character it types (the same wparam and lparam) and its release, each blocked or not
+    local function tap(wparam)
+        local down,char,up=key(wparam),key(wparam),key(wparam,RELEASE)
+        return down.blocked,char.blocked,up.blocked
+    end
+    local function dik(id,down) local e={key=id,down=down~=false,blocked=false}; events.key_data(e); return e.blocked end
+    local said={}; app.Say=function(_,line) said[#said+1]=line end
+    local function status() said={}; spec.commands.status(); for _,line in ipairs(said) do if line:find('^Auto%-Translate: ') then return line end end end
+    local HELLO=string.char(0xFD,2,2,1,11,0xFD)
+    inputOpen=false; inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
+    local a,b,c=tap(9); assert(not a and not b and not c,'Tab with the input closed: the game\'s')
+    assert(not dik(0x0F),'DIK_TAB with the input closed: the game\'s')
+    inputOpen=true
+    assert(not key(38).blocked and not key(13).blocked,'no list open: Up and Enter are the game\'s')
+    a,b,c=tap(9); assert(a and b and c,'Tab while typing: press, character and release kept from the game')
+    assert(key(9,REPEAT).blocked and key(9,RELEASE).blocked,'and its auto-repeat')
+    assert(dik(0x0F) and dik(0x0F,false),'DIK_TAB kept from the game while typing')
+    assert(dik(0xC8) and dik(0x1C),'the list open: DirectInput\'s Up and Enter kept as well')
+    rendered['winxi.chatbox.translate']=nil; frame()
+    assert(rendered['winxi.chatbox.translate'],'the list drawn with the input bar')
+    local line=status(); assert(line and line~='Auto-Translate: off' and line~='Auto-Translate: closed','/chatbox status says the list is open: '..tostring(line))
+    a,b,c=tap(13)
+    assert(a and b and c,'Enter on the list kept from the game, its character and release too, though the list closed at the press')
+    assert(inputSet==HELLO,'Enter puts Hello! in as its token, the word replaced')
+    assert(not key(13).blocked,'the list closed: the next Enter is the game\'s')
+    key(13,RELEASE)
+    assert(not dik(0x1C),'and DirectInput\'s Enter')
+    rendered['winxi.chatbox.translate']=nil; frame()
+    assert(not rendered['winxi.chatbox.translate'],'closed: no list drawn')
+    -- Tab, Down and Up move; Shift+Tab moves back
+    inputRaw='hel'; inputSet=nil
+    tap(9); assert(key(40).blocked and key(40,RELEASE).blocked and key(40,REPEAT).blocked,'Down moves, on every repeat')
+    assert(key(38).blocked and key(38).blocked and key(38,RELEASE).blocked,'Up moves')
+    assert(key(34).blocked and key(33).blocked,'Page Down and Page Up')
+    tap(9); key(16); tap(9); key(16,RELEASE); tap(13)
+    assert(inputSet==HELLO,'Tab then Shift+Tab: back on the first, Hello!')
+    -- Escape closes; with no word, the categories, Enter into one, Escape back to them and again to close
+    inputRaw='hel'; inputSet=nil
+    tap(9); a,b,c=tap(27); assert(a and b and c,'Escape kept from the game, its character and release too')
+    assert(not key(40).blocked and not key(13).blocked and inputSet==nil,'Escape closed the list, nothing put in')
+    key(13,RELEASE)
+    inputRaw='say '; inputDisplay=inputRaw; inputCaret=4
+    tap(9); tap(13); assert(inputSet==nil and key(40).blocked,'no word: the categories; Enter opens one')
+    key(40,RELEASE)
+    tap(27); assert(key(40).blocked,'Escape in a category: back to the categories, still open')
+    key(40,RELEASE)
+    tap(27); assert(not key(40).blocked,'Escape again: closed')
+    tap(9); tap(13); tap(13)
+    assert(type(inputSet)=='string' and #inputSet==10 and inputSet:sub(1,4)=='say ' and inputSet:sub(5,8)==string.char(0xFD,2,2,1) and inputSet:sub(10)==string.char(0xFD),
+        'a Greetings phrase put in at the caret: '..tostring(inputSet and inputSet:gsub('.',function(ch) return ('%02X '):format(ch:byte()) end)))
+    -- the input closing closes the list
+    inputRaw='hel'; inputDisplay='hel'; inputCaret=3; inputSet=nil
+    tap(9); inputOpen=false; frame(); inputOpen=true
+    assert(not key(40).blocked,'the input closed: the list with it')
+    -- off: Tab, and DirectInput's, are the game's; /chatbox translate says and saves
+    local before=saves; said={}
+    spec.commands.translate(app.options,{nil,nil,'off'})
+    assert(app.options.autoTranslate[1]==false and saves==before+1 and said[1] and said[1]:find('Auto-Translate off',1,true),'/chatbox translate off saves and says')
+    a,b,c=tap(9); assert(not a and not b and not c and not dik(0x0F),'Auto-Translate off: Tab is the game\'s')
+    assert(status()=='Auto-Translate: off','/chatbox status says off')
+    spec.commands.translate(app.options,{nil,nil})
+    assert(app.options.autoTranslate[1]==true and saves==before+2,'/chatbox translate alone turns it back on')
+    -- chatbox off or zoning: the game's
+    app.options.enabled[1]=false
+    assert(not key(9).blocked and not dik(0x0F),'chatbox off: Tab is the game\'s'); key(9,RELEASE)
+    app.options.enabled[1]=true
+    events.packet_in({id=0x00b})
+    assert(not key(9).blocked and not dik(0x0F),'zoning: Tab is the game\'s'); key(9,RELEASE)
+    events.packet_in({id=0x00a})
+    local blocked={wparam=9,lparam=1,blocked=true}; events.key(blocked); key(9,RELEASE)
+    assert(not key(40).blocked,'a Tab another addon blocked opens nothing')
+    -- the setting made whole on load: missing, on; off kept
+    app.options.autoTranslate=nil; spec.onSettings(app.options); assert(app.options.autoTranslate[1]==true,'Auto-Translate missing: on')
+    app.options.autoTranslate={false}; spec.onSettings(app.options); assert(app.options.autoTranslate[1]==false,'off kept')
+    app.options.autoTranslate[1]=true
+    app.Say=function() end
+    inputOpen=false; inputRaw=''; inputDisplay=''; inputCaret=0; inputSet=nil
+end)() end
+print('Chatbox UI: Auto-Translate\'s Tab list, compact/expanded chat in Follow Game and WinXI Skin, the settings and their migration, routing, smart visibility, failure/lifecycle, chat tooltips and chat-owned info-panel capture/settings passed')
