@@ -12,9 +12,8 @@
 --   forecast.City(zone)                 whether the fog rule leaves the zone alone
 --   forecast.Lines(zone, raw, weekday, dayOfMonth, days)
 --                                       the forecast as lines of text: today and the days after it (5
---                                       in all unless days says otherwise), each day's odds, then the
---                                       fog rule where it applies and how often the weather rolls; nil
---                                       where the zone is not known or raw is not a number
+--                                       in all unless days says otherwise), each day's odds; nil where
+--                                       the zone is not known or raw is not a number
 local M = {}
 
 M.Names = { [0] = 'Clear skies', 'Sunshine', 'Clouds', 'Fog', 'Hot spells', 'Heat waves',
@@ -99,8 +98,6 @@ function M.Lines(zone, raw, weekday, dayOfMonth, count)
         end
         lines[#lines + 1] = ('%s: %s'):format(label, odds and not odds.fixed and Said(odds) or 'unknown')
     end
-    if not M.City(zone) then lines[#lines + 1] = 'Fog from 2:00 to 7:00 whenever the roll is a clear sky.' end
-    lines[#lines + 1] = 'The weather is rolled again every 3 to 30 Earth minutes.'
     return lines
 end
 

@@ -15,8 +15,9 @@
 --   fields.Line(context, format)        its words alone
 --   fields.Tooltip(hover, context)      a field's tooltip: 'weather' the text of IconTooltip('weather'),
 --                                       'calendar' { calendar = calendar.Build(context) }, 'schedule'
---                                       { schedule = schedule.Build(zone, raw) } (the ships' and airships'
---                                       timetable, winxi.infopanel.schedule), made once for each context
+--                                       { schedule = schedule.Build(zone, raw, context.timetable) } (the
+--                                       ships' and airships' timetable, winxi.infopanel.schedule, of the
+--                                       lines the host puts in context.timetable), made once for each context
 --   fields.IconTooltip(kind, context)   the text over the day's icon, or the weather's with the zone's
 --                                       forecast (winxi.infopanel.forecast) after it
 --   fields.FromList(order, shown, modules)  0.6's ordered, ticked list as a line
@@ -97,7 +98,7 @@ function fields.Tooltip(hover, context)
     if hover == 'schedule' then
         if context.scheduleTooltip == nil then
             local zone = Zone(context)
-            local ok, built = pcall(schedule.Build, zone, context.raw)
+            local ok, built = pcall(schedule.Build, zone, context.raw, context.timetable)
             context.scheduleTooltip = ok and built and { schedule = built } or false
         end
         return context.scheduleTooltip or nil
@@ -113,7 +114,7 @@ fields.All = {
         tip = 'Where you are on the zone\'s map, as the game writes it: (H-9).\nThere is none where the zone has no map.',
         Text = function(c) return c.grid ~= nil and #c.grid > 0 and c.grid or nil end },
     { token = 'zone', label = 'Zone Name', hover = 'schedule',
-        tip = 'The current zone name, such as West Ronfaure. None while the zone is unavailable.\nResting the mouse on it shows the ships\' and airships\' timetable, the zone\'s own lines marked.',
+        tip = 'The current zone name, such as West Ronfaure. None while the zone is unavailable.\nResting the mouse on it shows the next ships and airships to leave (the Timetable tab), the zone\'s own marked.',
         Text = function(c) local _, name = Zone(c); return name end },
     { token = 'day', label = 'Day', hover = 'calendar',
         tip = 'The day of the week: Windsday.\nThe game\'s icon for the day stays to the left of the line.\nResting the mouse on it shows the month\'s calendar.',

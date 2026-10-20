@@ -49,17 +49,14 @@ p('three weathers: the normal 50, the common 35, the rare 15', #odds == 3, odds[
 p('the cycle wraps', forecast.Odds(5, 2160)[1].weather == 6, forecast.Odds(5, 2162)[1].weather == 0)
 p('a fixed zone', forecast.Odds(7, 0).fixed == 1, forecast.Odds(8, 400).fixed == 0)
 local lines = forecast.Lines(5, 3456 * 2 + 100, 3, 30) -- day 2 of the cycle, a Windsday the 30th
-p('five days from today, named', #lines == 7,
+p('five days from today, named, and nothing else', #lines == 5,
     lines[1] == 'Today, Windsday 30: 50% Clear skies, 35% Sunshine, 15% Clouds',
     lines[2] == 'Tomorrow, Iceday 1: 50% Sunshine, 35% Rain, 15% Thunderstorms',
     lines[3] == 'Lightningday 2: 85% Rain, 15% Squalls', lines[4] == 'Lightsday 3: 85% Rain, 15% Squalls',
     lines[5] == 'Darksday 4: 50% Clear skies, 35% Sunshine, 15% Clouds')
-p('the fog rule outside a city, and the rolls', lines[6] == 'Fog from 2:00 to 7:00 whenever the roll is a clear sky.',
-    lines[7] == 'The weather is rolled again every 3 to 30 Earth minutes.')
-lines = forecast.Lines(9, 3456 * 2, 3, 30)
-p('a city: no fog line', #lines == 6, lines[6]:find('rolled again', 1, true) ~= nil)
+p('a city the same five', #forecast.Lines(9, 3456 * 2, 3, 30) == 5)
 lines = forecast.Lines(5, 0, nil, nil, 2)
-p('without the weekday: counted', #lines == 4, lines[1]:find('^Today: 85%% Rain') ~= nil, lines[2]:find('^Tomorrow: 85%% Rain') ~= nil)
+p('without the weekday: counted', #lines == 2, lines[1]:find('^Today: 85%% Rain') ~= nil, lines[2]:find('^Tomorrow: 85%% Rain') ~= nil)
 p('a fixed zone, said once', #forecast.Lines(7, 0, 3, 30) == 1, forecast.Lines(7, 0, 3, 30)[1] == 'Always sunshine: the weather never changes here.',
     forecast.Lines(8, 0)[1] == 'Always clear skies: the weather never changes here.')
 p('unknown: nothing', forecast.Lines(6, 0) == nil, forecast.Lines(5, nil) == nil)
@@ -75,7 +72,7 @@ local time = { get_game_day = function() return 30 end }
 local context = { weatherId = 7, weekday = 3, raw = 3456 * 2 + 100, time = time }
 local text = fields.IconTooltip('weather', context)
 p('the weather, its element and strength, then the forecast', text:find('^Weather: Squalls\nElement: Water\nStrength: Double\n\nForecast for Testing Grounds:\nToday, Windsday 30: 50%% Clear skies') ~= nil,
-    text:find('rolled again every 3 to 30 Earth minutes.$') ~= nil)
+    text:find('Darksday 4: 50%% Clear skies, 35%% Sunshine, 15%% Clouds$') ~= nil)
 p('a clear sky too', fields.IconTooltip('weather', { weatherId = 0, raw = 0, time = time }):find('No elemental weather\n\nForecast for Testing Grounds:\nToday: 85%% Rain', 1) ~= nil)
 p('the same text again for the context, the zone read once', fields.Tooltip('weather', context) == fields.Tooltip('weather', context), lookups == 2)
 p('no timestamp: no forecast', fields.IconTooltip('weather', { weatherId = 6 }) == 'Weather: Rain\nElement: Water\nStrength: Single')
@@ -105,14 +102,20 @@ moons[raw], moons[raw + 3456] = 42, 45
 local built = calendar.Build({ time = time, raw = raw, weekday = game.weekday })
 p('the title', built.title == ('%s, 900/12/30  3:32'):format(calendar.Days[game.weekday + 1]), built.day == 30, built.month == 12)
 p('the first of the month on its weekday, the 30th on today\'s', built.first == (game.weekday - 29) % 8, built.rows[1][built.first + 1] == 1)
-local seen, cells = {}, 0
+local seen, cells, others = {}, 0, {}
 for r, row in ipairs(built.rows) do
     assert(#row == 8, 'eight cells to a week')
     for col, cell in ipairs(row) do
-        if cell then seen[#seen + 1] = cell; cells = cells + 1; assert((col - 1) == (built.first + cell - 1) % 8, 'each day under its weekday') end
+        if cell > 0 then seen[#seen + 1] = cell; cells = cells + 1; assert((col - 1) == (built.first + cell - 1) % 8, 'each day under its weekday')
+        else others[#others + 1] = -cell end
     end
 end
 p('the thirty days once each, in order, in the weeks', cells == 30, seen[1] == 1, seen[30] == 30, #built.rows == math.ceil((built.first + 30) / 8))
+-- the cells before the first hold the end of the month before (its 30th last), those after the 30th the start of the next
+local last = built.rows[#built.rows]
+p('the neighbouring months\' days fill the weeks, as minus their day', #others == #built.rows * 8 - 30,
+    built.first == 0 or built.rows[1][built.first] == -30, built.first < 2 or built.rows[1][1] == -(30 - built.first + 1),
+    last[8] == 30 or last[8] < 0, (function() local n = 0; for c = 8, 1, -1 do if last[c] < 0 then n = n + 1; if last[c] ~= -n then return false end end end; return true end)())
 p('the moon, waxing when fuller tomorrow', built.moon == 'First Quarter, 42%')
 moons[raw + 3456] = 40
 p('waning when less', calendar.Build({ time = time, raw = raw }).moon == 'Last Quarter, 42%')
@@ -123,37 +126,44 @@ p('the phases by fullness', calendar.Phase(0, true) == 'New Moon', calendar.Phas
     calendar.Phase(60, true) == 'Waxing Gibbous', calendar.Phase(89, false) == 'Waning Gibbous', calendar.Phase(90, true) == 'Full Moon', calendar.Phase(100, false) == 'Full Moon')
 p('without a time or a timestamp: nothing', calendar.Build({}) == nil, calendar.Build({ time = time }) == nil, calendar.Build({ time = {}, raw = 1 }) == nil)
 p('the first of a month that begins the week', calendar.Build({ time = time, raw = 0 }).first == 0, calendar.Build({ time = time, raw = 30 * 3456 }).first == 6)
+local shifted = calendar.Build({ time = time, raw = 30 * 3456 }) -- the first a Lightsday: six days of the month before, then 1 to 30, then four of the next
+p('six days of the month before, 25 to 30, and the next month\'s 1 to 4 after', shifted.rows[1][1] == -25, shifted.rows[1][6] == -30, shifted.rows[1][7] == 1,
+    shifted.rows[5][4] == 30, shifted.rows[5][5] == -1, shifted.rows[5][8] == -4)
 
 -- drawing: the title, the eight days (pictures where the set has them), each day under its weekday, today marked,
--- the days gone dimmed, the moon and the next day
-local texts, images, rects, pushes, pops, cursor = {}, {}, {}, 0, 0, 0
+-- the days gone dimmed, the neighbouring months' faint, the moon and the next day
+local texts, images, rects, pushes, pops, cursor, pushed = {}, {}, {}, 0, 0, 0, {}
 local imgui = {
-    Text = function(s) texts[#texts + 1] = { s, cursor } end, GetFontSize = function() return 14 end,
+    Text = function(s) texts[#texts + 1] = { s, cursor, pushed[#pushed] } end, GetFontSize = function() return 14 end,
     CalcTextSize = function(s) return #s * 7 end, GetCursorPosX = function() return 10 end,
     SetCursorPosX = function(x) cursor = x end, SameLine = function() end, NewLine = function() end,
     Image = function(handle, size) images[#images + 1] = { handle, size[1], cursor } end,
     GetCursorScreenPos = function() return cursor + 100, 50 end,
     GetWindowDrawList = function() return { AddRectFilled = function(_, a, b, color, rounding) rects[#rects + 1] = { a[1], a[2], b[1], b[2], color, rounding } end } end,
     GetColorU32 = function() return 777 end,
-    PushStyleColor = function() pushes = pushes + 1 end, PopStyleColor = function() pops = pops + 1 end,
+    PushStyleColor = function(_, color) pushes = pushes + 1; pushed[#pushed + 1] = color end, PopStyleColor = function() pops = pops + 1; pushed[#pushed] = nil end,
 }
 ImGuiCol_Text = 0
-calendar.Draw(imgui, built, { icon = function(weekday) return weekday < 4 and 500 + weekday or nil end, dim = { 1, 1, 1, 0.5 }, highlight = { 1, 1, 1, 1 } })
+local dimColor, faintColor = { 1, 1, 1, 0.5 }, { 1, 1, 1, 0.3 }
+calendar.Draw(imgui, built, { icon = function(weekday) return weekday < 4 and 500 + weekday or nil end, dim = dimColor, faint = faintColor, highlight = { 1, 1, 1, 1 } })
 local cell = 14 + 8
 p('the title first, the moon and the next day last', texts[1][1] == built.title, texts[#texts - 1][1] == built.moon, texts[#texts][1] == built.next)
 p('four pictures then four names across the top, a cell apart', #images == 4, images[1][1] == 500 and images[1][3] == 10, images[4][3] == 10 + 3 * cell,
     texts[2][1] == 'Ice' and texts[2][2] == 10 + 4 * cell, texts[5][1] == 'Dark' and texts[5][2] == 10 + 7 * cell)
-local placed = 0
-for _, t in ipairs(texts) do
+local placed, faint, dimmed, plain = 0, 0, 0, 0
+for i, t in ipairs(texts) do
     local day = tonumber(t[1])
-    if day then placed = placed + 1; assert(t[2] == 10 + ((built.first + day - 1) % 8) * cell, 'day ' .. day .. ' under its weekday') end
+    if day and i > 5 and i < #texts - 1 then
+        placed = placed + 1
+        if t[3] == faintColor then faint = faint + 1 elseif t[3] == dimColor then dimmed = dimmed + 1 else plain = plain + 1; assert(t[2] == 10 + ((built.first + day - 1) % 8) * cell, 'day ' .. day .. ' under its weekday') end
+    end
 end
-p('thirty days placed', placed == 30)
+p('every cell of the weeks placed: the thirty days, the neighbouring months\' faint', placed == #built.rows * 8, faint == #built.rows * 8 - 30, plain == 1, dimmed == 29)
 p('today marked once, rounded, in the highlight', #rects == 1, rects[1][1] == 100 + 10 + ((built.first + 29) % 8) * cell - 3, rects[1][5] == 777, rects[1][6] == 3)
-p('the 29 days gone dimmed, each push popped', pushes == 29, pops == 29)
+p('the 29 days gone and the other months\' days tinted, each push popped', pushes == 29 + #built.rows * 8 - 30, pops == pushes)
 texts, images, rects, pushes = {}, {}, {}, 0
 calendar.Draw(imgui, built, {})
-p('without a style: names, no mark, nothing dimmed', #images == 0, texts[2][1] == 'Fire', #rects == 0, pushes == 0)
+p('without a style: names, no mark, nothing tinted', #images == 0, texts[2][1] == 'Fire', #rects == 0, pushes == 0)
 
 -- the words' tooltips through the segments: a word with one stands alone, the words round it their own
 local ctx = { time = time, raw = raw, weekday = game.weekday, weather = 'Rain', weatherId = 6, grid = '(H-9)' }
@@ -209,10 +219,11 @@ p('without a tooltip function (the legacy clock): nothing asked', #tips == 1)
 
 -- the timetable: the generated runs whole, then the server's cycle on runs of this check's own
 local transports = require('winxi.infopanel.transports')
-local runs, zonesWithRuns, groupKeys = 0, {}, {}
+local runs, zonesWithRuns, groupKeys, lineKeys = 0, {}, {}, {}
 for _, g in ipairs(transports.groups) do groupKeys[g.key] = true end
+for _, line in ipairs(transports.lines) do assert(groupKeys[line.group] and not lineKeys[line.key], 'a line in a known group, once'); lineKeys[line.key] = true end
 for _, run in ipairs(transports.runs) do
-    assert(groupKeys[run.group], 'a known group: ' .. tostring(run.group))
+    assert(groupKeys[run.group] and lineKeys[run.line], 'a known group and line: ' .. tostring(run.group) .. ' ' .. tostring(run.line))
     assert(type(run.from) == 'string' and type(run.to) == 'string' and run.zone > 0, 'labels and a zone')
     assert(run.every > 0 and run.boards < run.leaves and run.leaves <= run.departs and run.departs <= run.every, 'the door opens, shuts, then it departs, within the cycle')
     assert(run.disembark >= 0 and run.disembark < run.every and #run.crossings > 0, 'put ashore within the cycle, a crossing named')
@@ -220,8 +231,11 @@ for _, run in ipairs(transports.runs) do
 end
 local bastok
 for _, run in ipairs(transports.runs) do if run.name == 'bastok_jeuno_airship' then bastok = run end end
-p('the generated runs are whole', runs >= 20, zonesWithRuns[236] and zonesWithRuns[246] and zonesWithRuns[248] and zonesWithRuns[249],
-    bastok and bastok.every == 864 and bastok.crossings[1] == 224)
+p('the generated runs are whole', runs >= 20, #transports.lines == runs - 1, zonesWithRuns[236] and zonesWithRuns[246] and zonesWithRuns[248] and zonesWithRuns[249],
+    bastok and bastok.every == 864 and bastok.crossings[1] == 224 and bastok.line == 'bastok_jeuno')
+local lines = schedule.Lines()
+p('the lines for the settings, in order, with their group\'s label', #lines == #transports.lines, lines[1].key == 'sandoria_jeuno' and lines[1].group == 'Airships' and lines[1].from == 'San d\'Oria' and lines[1].to == 'Jeuno',
+    lines[#lines].group == 'Barge: Carpenters\' Landing')
 -- the Selbina ferry leaves on the hours the server's own timetable (scripts/globals/transport.lua) says:
 -- 8:00, 16:00 and 24:00 Vana'diel
 local selbina
@@ -230,18 +244,25 @@ local leaving = selbina.offset + selbina.leaves
 p('the ferry leaves Selbina at 8:00, 16:00 and 0:00', schedule.Clock(leaving) == '8:00', schedule.Clock(leaving + 1152) == '16:00', schedule.Clock(leaving + 2304) == '0:00')
 
 -- runs of this check's own: a cycle of 100 from offset 10, the door open from 20 to 50, ashore at 70 (a
--- crossing of 20); a second run with the same ends, offset 60, so the row is the nearer; a ferry whose
--- riders go ashore after the cycle wraps
+-- crossing of 20); a second run of the same line, offset 60, so the row is the nearer; a ferry whose
+-- riders go ashore after the cycle wraps; six lines in all, so that the next four leave two out
 schedule.Use({
-    groups = { { key = 'air', label = 'Airships' }, { key = 'sea', label = 'Ferries' }, { key = 'none', label = 'Nothing' } },
+    groups = { { key = 'air', label = 'Airships' }, { key = 'sea', label = 'Ferries' } },
+    lines = { { key = 'ht', group = 'air', from = 'Here', to = 'There' }, { key = 'th', group = 'air', from = 'There', to = 'Here' },
+        { key = 'pi', group = 'sea', from = 'Port', to = 'Isle' }, { key = 'xy', group = 'sea', from = 'X', to = 'Y' },
+        { key = 'ab', group = 'sea', from = 'A', to = 'B' }, { key = 'cd', group = 'sea', from = 'C', to = 'D' } },
     runs = {
-        { name = 'a', group = 'air', from = 'Here', to = 'There', zone = 5, every = 100, offset = 10, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 9 } },
-        { name = 'b', group = 'air', from = 'There', to = 'Here', zone = 6, every = 100, offset = 60, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 9 } },
-        { name = 'c', group = 'air', from = 'There', to = 'Here', zone = 6, every = 100, offset = 10, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 9 } },
-        { name = 'd', group = 'sea', from = 'Port', to = 'Isle', zone = 7, every = 1152, offset = 920, boards = 41, leaves = 233, departs = 234, disembark = 25, crossings = { 11, 12 } },
-        { name = 'e', group = 'other', from = 'X', to = 'Y', zone = 8, every = 100, offset = 0, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 13 } },
+        { name = 'a', group = 'air', line = 'ht', from = 'Here', to = 'There', zone = 5, every = 100, offset = 10, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 9 } },
+        { name = 'b', group = 'air', line = 'th', from = 'There', to = 'Here', zone = 6, every = 100, offset = 60, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 9 } },
+        { name = 'c', group = 'air', line = 'th', from = 'There', to = 'Here', zone = 6, every = 100, offset = 10, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 9 } },
+        { name = 'd', group = 'sea', line = 'pi', from = 'Port', to = 'Isle', zone = 7, every = 1152, offset = 920, boards = 41, leaves = 233, departs = 234, disembark = 25, crossings = { 11, 12 } },
+        { name = 'e', group = 'sea', line = 'xy', from = 'X', to = 'Y', zone = 8, every = 100, offset = 0, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 13 } },
+        { name = 'f', group = 'sea', line = 'ab', from = 'A', to = 'B', zone = 8, every = 100, offset = 5, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 13 } },
+        { name = 'g', group = 'sea', line = 'cd', from = 'C', to = 'D', zone = 8, every = 100, offset = 7, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 13 } },
     },
 })
+lines = schedule.Lines()
+p('the check\'s lines', #lines == 6, lines[3].key == 'pi' and lines[3].group == 'Ferries')
 local run = { every = 100, offset = 10, boards = 20, leaves = 50, departs = 52, disembark = 70 }
 p('seconds into the cycle from the offset, wrapping', schedule.Into(run, 10) == 0, schedule.Into(run, 109) == 99, schedule.Into(run, 110) == 0, schedule.Into(run, 5) == 95)
 local status = schedule.Status(run, 40) -- 30 in: the door open
@@ -260,19 +281,26 @@ p('and carrying still at 10 into the next cycle, ashore in 15', status.carrying,
 p('the Vana\'diel clock of a timestamp', schedule.Clock(0) == '0:00', schedule.Clock(144 * 8) == '8:00', schedule.Clock(144 * 23 + 143) == '23:59', schedule.Clock(3456 * 5 + 144 + 24) == '1:10')
 p('spans in minutes and seconds, hours past one', schedule.Span(0) == '0:00', schedule.Span(59) == '0:59', schedule.Span(265) == '4:25', schedule.Span(3600) == '1:00:00', schedule.Span(3725.7) == '1:02:05', schedule.Span(-3) == '0:00')
 
+-- at 40: a (offset 10) 30 in, leaves in 20; c (offset 10) the same; b (offset 60) 80 in, leaves in 70; e (offset 0) 40 in,
+-- leaves in 10; f (offset 5) 35 in, leaves in 15; g (offset 7) 33 in, leaves in 17; d the ferry 272 in, leaves in 1113
 local built = schedule.Build(5, 40)
-p('the title, the columns and the groups in order; a group with no runs is empty, an unknown group dropped', built.title == 'Ships and airships', #built.columns == 6, built.columns[1] == 'From' and built.columns[5] == 'At',
-    #built.groups == 3, built.groups[1].label == 'Airships' and #built.groups[1].rows == 2, built.groups[2].label == 'Ferries' and #built.groups[2].rows == 1, #built.groups[3].rows == 0)
-local row = built.groups[1].rows[1]
+p('the title, the columns, the next four to leave soonest first, the rest left out', built.title == 'Ships and airships', #built.columns == 6, built.columns[1] == 'From' and built.columns[5] == 'At',
+    #built.rows == 4, built.rows[1].key == 'xy', built.rows[2].key == 'ab', built.rows[3].key == 'cd', built.rows[4].key == 'ht', built.empty == nil)
+local row = built.rows[4]
 p('the zone\'s own run: boarding now, leaves in 0:20 at the Vana\'diel time of 60, a crossing of 0:20, marked', row.here, built.here,
     row.cells[1] == 'Here' and row.cells[2] == 'There', row.cells[3] == 'now', row.cells[4] == '0:20', row.cells[5] == schedule.Clock(60), row.cells[6] == '0:20')
-row = built.groups[1].rows[2]
--- at 40: run c (offset 10) is 30 in, leaves in 20; run b (offset 60) is 80 in, leaves in 70: the row is c's
-p('two runs with the same ends: one row, the nearer leaving, not the zone\'s', not row.here, row.cells[1] == 'There' and row.cells[2] == 'Here', row.cells[3] == 'now', row.cells[4] == '0:20')
-built = schedule.Build(5, 95) -- run c is 85 in (leaves in 65), run b 35 in (leaves in 15): b's turn
-p('and the other when it is nearer', built.groups[1].rows[2].cells[3] == 'now', built.groups[1].rows[2].cells[4] == '0:15',
-    built.groups[1].rows[1].cells[3] == '0:35' and built.groups[1].rows[1].cells[4] == '1:05')
+p('the note says how many', built.note:find('^The next 4 to leave%.') ~= nil)
+built = schedule.Build(5, 40, { xy = false, ab = { false }, cd = { true } })
+p('lines left out of the whitelist, as false or { false }: the next four of the rest, the two alike ordered as the tables are', #built.rows == 4,
+    built.rows[1].key == 'cd', built.rows[2].key == 'ht' and built.rows[2].here, built.rows[3].key == 'th' and not built.rows[3].here, built.rows[4].key == 'pi')
+-- the line with two runs: at 40, c leaves in 20 and b in 70: the row is c's; at 95, c 85 in (65 to go), b 35 in (15 to go): b's
+p('two runs of one line: one row, the nearer leaving', built.rows[3].cells[1] == 'There' and built.rows[3].cells[2] == 'Here', built.rows[3].cells[3] == 'now', built.rows[3].cells[4] == '0:20')
+built = schedule.Build(5, 95, { xy = false, ab = false, cd = false })
+p('and the other when it is nearer', built.rows[1].key == 'th' and built.rows[1].cells[3] == 'now' and built.rows[1].cells[4] == '0:15',
+    built.rows[2].key == 'ht' and built.rows[2].cells[3] == '0:35' and built.rows[2].cells[4] == '1:05', #built.rows == 3)
 p('no aboard lines ashore', built.aboard == nil)
+built = schedule.Build(5, 40, { xy = false, ab = false, cd = false, ht = false, th = false, pi = false })
+p('nothing shown: no rows and a word about the Timetable tab', #built.rows == 0, built.empty and built.empty:find('Timetable tab', 1, true) ~= nil, not built.here)
 built = schedule.Build(9, 70) -- the crossing of a and c, both 60 in: both carrying
 p('aboard: a line for each run carrying through the zone', built.aboard and #built.aboard == 2, built.aboard[1] == 'Bound for There: ashore in 0:10', built.aboard[2] == 'Bound for Here: ashore in 0:10', not built.here)
 built = schedule.Build(12, 920 + 10) -- the ferry's second crossing zone, 10 into the next cycle
@@ -280,28 +308,31 @@ p('the ferry\'s riders ashore in 15 in either of its crossings', built.aboard an
 built = schedule.Build(9, 95) -- in the crossing with nothing carried
 p('in a crossing with nothing carried: arriving', built.aboard and #built.aboard == 1 and built.aboard[1]:find('^Arriving') ~= nil)
 built = schedule.Build(100, 40)
-p('a zone of no runs: the whole timetable, nothing marked, no aboard lines', built and not built.here and built.aboard == nil and #built.groups[1].rows == 2)
+p('a zone of no runs: the next four still, nothing marked, no aboard lines', built and not built.here and built.aboard == nil and #built.rows == 4)
 p('without a zone: the timetable still', schedule.Build(nil, 40) ~= nil and not schedule.Build(nil, 40).here)
 p('without a timestamp: nothing', schedule.Build(5, nil) == nil, schedule.Build(5, 'x') == nil, schedule.Build(5, 0 / 0) == nil)
 
--- drawing: the title, the aboard lines, the headings dimmed, each group's label and its rows in columns as
--- wide as their widest words, the zone's rows marked, the note dimmed
+-- drawing: the title, the aboard lines, the headings dimmed, the rows in columns as wide as their widest words,
+-- the zone's rows marked, the note dimmed
 texts, rects, pushes, pops, cursor = {}, {}, 0, 0, 0
-built = schedule.Build(9, 70) -- aboard, with run a's zone 5 not here
-schedule.Draw(imgui, built, { dim = { 1, 1, 1, 0.5 }, highlight = { 1, 1, 1, 1 } })
+built = schedule.Build(9, 70, { xy = false, ab = false, cd = false }) -- aboard; ht (zone 5), th, pi: not here
+schedule.Draw(imgui, built, { dim = dimColor, highlight = { 1, 1, 1, 1 } })
 p('the title then the two aboard lines', texts[1][1] == 'Ships and airships', texts[2][1] == built.aboard[1], texts[3][1] == built.aboard[2])
 p('the headings next, the note last, both dimmed (a push and a pop each)', texts[4][1] == 'From', texts[9][1] == 'Trip', texts[#texts][1] == built.note, pushes == 2, pops == 2)
-p('the group labels and rows, the empty group left out', texts[10][1] == 'Airships', texts[11][1] == 'Here', texts[17][1] == 'There', texts[23][1] == 'Ferries', texts[24][1] == 'Port', texts[#texts - 1][1] == '15:44')
+p('the rows, no group labels', #texts == 9 + 3 * 6 + 1, texts[10][1] == built.rows[1].cells[1], texts[16][1] == built.rows[2].cells[1], texts[22][1] == built.rows[3].cells[1])
 -- the first column holds 'From', 'Here', 'There', 'Port': 'There' the widest at 35; the gap 14 (two spaces at 7)
 local gap = 14
-p('columns as wide as their widest words', texts[4][2] == 10, texts[5][2] == 10 + 35 + gap, texts[12][2] == 10 + 35 + gap)
+p('columns as wide as their widest words', texts[4][2] == 10, texts[5][2] == 10 + 35 + gap, texts[11][2] == 10 + 35 + gap)
 p('nothing marked away from the zone', #rects == 0)
 texts, rects, pushes, pops = {}, {}, 0, 0
-schedule.Draw(imgui, schedule.Build(5, 40), { dim = { 1, 1, 1, 0.5 }, highlight = { 1, 1, 1, 1 } })
+schedule.Draw(imgui, schedule.Build(5, 40), { dim = dimColor, highlight = { 1, 1, 1, 1 } })
 p('the zone\'s row marked once, the width of the table, rounded', #rects == 1, rects[1][5] == 777 and rects[1][6] == 3, rects[1][1] == 100 + 10 - 3)
 texts, rects, pushes = {}, {}, 0
 schedule.Draw(imgui, schedule.Build(5, 40), {})
 p('without a style: nothing dimmed or marked', pushes == 0, #rects == 0, texts[1][1] == 'Ships and airships')
+texts = {}
+schedule.Draw(imgui, schedule.Build(5, 40, { xy = false, ab = false, cd = false, ht = false, th = false, pi = false }), {})
+p('nothing shown: the title and the word, no columns', #texts == 2, texts[2][1]:find('Timetable tab', 1, true) ~= nil)
 schedule.Use(nil)
 
 -- the zone's words carry the timetable, built once for the context
@@ -310,11 +341,14 @@ AshitaCore = {
     GetResourceManager = function() return { GetString = function() return 'Port Bastok' end } end,
 }
 ctx = { time = time, raw = raw, weekday = game.weekday }
+ctx.timetable = { bastok_jeuno = { true } }
+for _, line in ipairs(schedule.Lines()) do if line.key ~= 'bastok_jeuno' then ctx.timetable[line.key] = { false } end end
 segments = fields.Segments(ctx, '{zone} {time}')
-p('the zone\'s words stand alone with the timetable, Port Bastok\'s airship marked', segments[1] == 'Port Bastok', segments.tooltips[1] and segments.tooltips[1].schedule ~= nil,
-    segments.tooltips[1].schedule.here == true, segments.tooltips[1].schedule.groups[1].rows[3].here and segments.tooltips[1].schedule.groups[1].rows[3].cells[1] == 'Bastok',
+p('the zone\'s words stand alone with the timetable of the lines the context shows, Port Bastok\'s airship marked', segments[1] == 'Port Bastok', segments.tooltips[1] and segments.tooltips[1].schedule ~= nil,
+    segments.tooltips[1].schedule.here == true, #segments.tooltips[1].schedule.rows == 1, segments.tooltips[1].schedule.rows[1].here and segments.tooltips[1].schedule.rows[1].cells[1] == 'Bastok',
     segments.tooltips[3].calendar ~= nil)
 p('the same timetable again for the context', fields.Tooltip('schedule', ctx) == segments.tooltips[1])
+p('without a whitelist in the context: four rows', #fields.Tooltip('schedule', { time = time, raw = raw }).schedule.rows == 4)
 p('without a timestamp: no tooltip, the words still', fields.Segments({ time = time }, '{zone}')[1] == 'Port Bastok', fields.Tooltip('schedule', { time = time }) == nil)
 AshitaCore = core
 print('Info panel tooltips: the forecast, the calendar, the timetable, the words\' tooltips and hovering them passed')

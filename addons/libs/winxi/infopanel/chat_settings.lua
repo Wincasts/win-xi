@@ -69,6 +69,25 @@ function M.Draw(options,service,save)
             imgui.TextDisabled('The dark edge round the text is Winxi Theme\'s Text Outline, in winxisettings.')
         end
     end)
+    Tab('Timetable',function()
+        local schedule=require('winxi.infopanel.schedule')
+        local lines=schedule.Lines()
+        if widgets.Header('Ships And Airships',true) then
+            imgui.TextDisabled(('Resting the mouse on the {zone} words shows the next %d ships and airships to leave, of the lines ticked here.'):format(schedule.Count))
+            if not lines then imgui.TextDisabled('The timetable\'s tables are missing: update Winxi.'); return end
+            local group
+            for _,line in ipairs(lines) do
+                if line.group~=group then group=line.group; imgui.TextDisabled(group) end
+                local value=options.timetable[line.key]
+                if not value then value={true}; options.timetable[line.key]=value end
+                widgets.Label(('%s To %s'):format(line.from,line.to))
+                if imgui.Checkbox('##chatbox.panel.timetable.'..line.key,value) then Changed() end
+            end
+            if imgui.Button('All##chatbox.panel.timetable') then for _,line in ipairs(lines) do options.timetable[line.key][1]=true end; Changed() end
+            imgui.SameLine()
+            if imgui.Button('None##chatbox.panel.timetable') then for _,line in ipairs(lines) do options.timetable[line.key][1]=false end; Changed() end
+        end
+    end)
     Tab('Icons',function()
         if widgets.Header('Icon Appearance',true) then
             local icons=require('winxi.infopanel.icons')
