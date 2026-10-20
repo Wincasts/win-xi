@@ -4,14 +4,28 @@
 local o = H.options()
 local imgui = require('imgui')
 local icons = require('winxi.statusicons')
+local itemicons = require('winxi.itemicons')
+local itemFrames, itemRequests = 0, {}
+local itemUV = { 0.25, 0.50, 0.28125, 0.53125 }
+itemicons.Frame = function() itemFrames = itemFrames + 1; return 9000 end
+itemicons.Place = function(id)
+    itemRequests[#itemRequests + 1] = id
+    return id == 4096 and itemUV or nil
+end
 
 -- a player under Protect (40) as the addon loads
 local ids = {}
 for slot = 1, 32 do ids[slot] = 255 end
 local serverId, zoning = 1, 0
+local bags, keyItems = { [0] = { [1] = { Id = 100, Count = 2 } } }, { [123] = true }
+local inventory = {
+    GetContainerCountMax = function() return 4 end,
+    GetContainerItem = function(_, bag, slot) return bags[bag] and bags[bag][slot] end,
+}
 local memory = { GetParty = function() return { GetMemberServerId = function() return serverId end } end,
     GetPlayer = function() return { GetIsZoning = function() return zoning end, GetStatusIcons = function() return ids end,
-        GetLoginStatus = function() return 2 end } end }
+        GetLoginStatus = function() return 2 end, HasKeyItem = function(_, id) return keyItems[id] == true end } end,
+    GetInventory = function() return inventory end }
 AshitaCore.GetMemoryManager = function() return memory end
 AshitaCore.GetResourceManager = function() return { GetString = function(_, _, id) return 'Status ' .. id end,
     GetStatusIconByIndex = function() return nil end } end
@@ -21,7 +35,11 @@ icons.Get = function(id, useOwn) return 1000 + id, useOwn end
 local drawn = {}
 local list = {
     AddText = function(_, pos, color, words) drawn[#drawn + 1] = { kind = 'text', y = pos[2], color = color, words = words } end,
-    AddImage = function(_, handle, a) drawn[#drawn + 1] = { kind = 'image', handle = handle, y = a[2] } end,
+    AddImage = function(_, handle, a, b, uvA, uvB, color)
+        drawn[#drawn + 1] = { kind = 'image', handle = handle, y = a[2],
+            width = b[1] - a[1], height = b[2] - a[2], color = color,
+            uv = { uvA[1], uvA[2], uvB[1], uvB[2] } }
+    end,
     AddRect = function() end,
 }
 rawset(imgui, 'GetWindowDrawList', function() return list end)
@@ -177,3 +195,94 @@ window.Plain = plain
 o.showBox = { true }; H.resettle(); local was = o.boxStyle
 o.showBox = { false }; H.resettle()
 H.print('Show Box on brought over as Full Background', was == 'background', '| off as Text Only', o.boxStyle == 'text', o.showBox == nil)
+
+-- Actual acquisitions share the status queue or use an independent popup.
+H.command('/sct config') -- stop showing placement outlines for the settings window
+local resources = AshitaCore:GetResourceManager()
+resources.GetItemById = function(_, id)
+    if id == 4096 then return { Name = { 'Fire Crystal' } } end
+end
+AshitaCore.GetResourceManager = function() return resources end
+local function receive(id, quantity)
+    local old = bags[0][2]
+    bags[0][2] = { Id = id, Count = (old and old.Id == id and old.Count or 0) + quantity }
+    H.packet(0x01F)
+end
+local windows = {}
+window.Plain = function(name, open, flags, draw, options)
+    windows[name] = true
+    return plain(name, open, flags, draw, options)
+end
+local function empty()
+    for _ = 1, 400 do frame() end
+    windows = {}
+end
+o.locked[1], o.dropsLocked[1] = true, true
+empty()
+receive(4096, 3); frame()
+w = words()
+H.print('received item in current area with quantity and color', #w == 1 and w[1].words == 'Fire Crystal x3' and w[1].color[1] == o.dropColor[1], '| no separate popup', not windows['winxi.sct.drops'])
+local picture
+for _, d in ipairs(drawn) do if d.kind == 'image' then picture = d end end
+H.print('received item uses its own picture', picture and picture.handle == 9000,
+    '| size follows Icon Size', picture and picture.width == o.iconSize[1] and picture.height == o.iconSize[1],
+    '| correct atlas UVs', picture and table.concat(picture.uv, ',') == table.concat(itemUV, ','))
+local fadedPicture = false
+for _ = 1, 120 do
+    frame()
+    for _, d in ipairs(drawn) do
+        if d.kind == 'image' and d.handle == 9000 then
+            local c = colors[d.color]
+            if c and c[4] > 0 and c[4] < 1 then fadedPicture = true end
+        end
+    end
+end
+H.print('item picture fades with the line', fadedPicture)
+empty()
+H.packetData(0x0D2, string.rep('\0', 0x1C)); frame()
+H.print('treasure pool never triggers notification', #words() == 0)
+bags[1] = { [1] = bags[0][2] }; bags[0][2] = nil
+H.packet(0x020); frame()
+H.print('moving between bags is not an acquisition', #words() == 0)
+o.showDrops[1] = false
+receive(4096, 1); frame()
+H.print('item tracking can be disabled', #words() == 0)
+o.showDrops[1], o.dropsSeparate[1] = true, true
+windows = {}; receive(4096, 1); for _ = 1, 10 do frame() end
+H.print('separate drop popup', windows['winxi.sct.drops'] == true, '| status area stays empty', not windows['winxi.sct'], '| item name', words()[1] and words()[1].words == 'Fire Crystal')
+empty(); frame()
+H.print('locked popup disappears when empty', not windows['winxi.sct.drops'])
+receive(65500, 1); frame()
+H.print('unknown item fallback', words()[1] and words()[1].words == 'Item 65500')
+local missingPicture = true
+for _, d in ipairs(drawn) do if d.kind == 'image' then missingPicture = false end end
+H.print('missing item picture falls back to text', missingPicture)
+empty()
+local beforeKey = #itemRequests
+keyItems[124] = true; H.packet(0x055); frame()
+H.print('new key item shown', words()[1] and words()[1].words == 'Key Item: Status 124')
+H.print('key items never use a regular item picture with the same ID', #itemRequests == beforeKey)
+empty()
+H.packet(0x055); frame()
+H.print('key item refresh does not replay gains', #words() == 0)
+keyItems[124] = nil; H.packet(0x055); frame()
+H.print('key item loss is silent', #words() == 0)
+keyItems[124] = true; H.packet(0x055); frame()
+H.print('key item can be gained again', words()[1] and words()[1].words == 'Key Item: Status 124')
+empty()
+H.packet(0x00A); bags[0][3] = { Id = 4096, Count = 12 }; keyItems[125] = true; frame()
+H.print('zoning refresh establishes baseline only', #words() == 0)
+H.print('/sct testdrop taken', H.command('/sct testdrop')); frame()
+H.print('test drop uses popup', words()[1] and words()[1].words == 'Fire Crystal x2')
+-- Drawing items in both areas still starts the atlas only once per present.
+o.dropsSeparate[1] = false
+H.command('/sct testdrop')
+local beforeFrame = itemFrames
+frame()
+H.print('item atlas started once across both areas', itemFrames == beforeFrame + 1)
+empty()
+H.command('/sct test'); frame()
+local statusUV
+for _, d in ipairs(drawn) do if d.kind == 'image' then statusUV = d.uv end end
+H.print('status icon UVs restored after drawing items', statusUV and statusUV[2] == 0 and statusUV[4] == 1)
+window.Plain = plain

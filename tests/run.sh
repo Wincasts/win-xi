@@ -60,6 +60,7 @@ luajit tests/nativemenus_check.lua || exit 1
 luajit tests/nativehistory_check.lua || exit 1
 luajit tests/nativetext_check.lua || exit 1
 run sct        addons/sct/sct.lua       sct_check.lua
+luajit tests/sct_acquisitions_check.lua || exit 1
 run mapoverlay addons/mapoverlay/mapoverlay.lua mapoverlay_check.lua
 run atlas      addons/atlas/atlas.lua   atlas_check.lua
 run atlas      addons/atlas/atlas.lua   shell_logout_check.lua
