@@ -112,7 +112,9 @@ of an existing clock panel.
 - Day/weather icons can be placed before/after any slot, offset independently, or inserted as data
   tokens for exact order. Icon sets are under `addons/libs/winxi/infopanel/icons`: `gems` (the days cut
   as gemstones) and `classic` (drawn after the game's own: its mottled day balls and soft weather sprites,
-  made by `tools/generate_classic_icons.py`) are bundled, and `gems` supplies missing custom pictures. Hidden/Native placement does not auto-insert an icon;
+  made by `tools/generate_classic_icons.py`) are bundled, each with a picture for every weather, the skies the
+  game draws no icon for among them (a sun for a clear sky, a pair of clouds, a bank of fog), and `gems`
+  supplies missing custom pictures. Hidden/Native placement does not auto-insert an icon;
   native HUD visibility is never changed by chatbox.
 - Hover a **day icon** to see the Vana'diel weekday and its element, or a **weather icon** to
   see the weather name, element and single/double strength (or no elemental weather for clear skies,

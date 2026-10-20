@@ -5,7 +5,7 @@ The game's day circles (menu colorbal in ROM/119/51.DAT) are flat, mottled marbl
 highlight and a darker rim; its weather icons (font el* there) are small soft sprites: a pale teardrop, a teal
 funnel, a purple vortex, a periwinkle sphere, a white glow, a fireball with a gold heart, an olive block and a
 violet bolt. These are drawn afresh in that manner, in colours sampled from them (none of the game's pixels are
-used), with a sun in the same manner for a clear sky, which the game draws none for.
+used), with a sun, a pair of clouds and a bank of fog in the same manner for the skies the game draws none for.
 
 Usage: python3 tools/generate_classic_icons.py [--output addons/libs/winxi/infopanel/icons/classic]
 Requires Pillow and numpy. Drawn at 256 pixels and brought down to 32, twice the game's 16.
@@ -253,9 +253,52 @@ def clear():
     return edge(img, (70, 34, 6))
 
 
+def clouds():
+    """No icon of the game's: two mottled clouds in the same manner"""
+    img = canvas()
+    noise = mottle(22, 10, 3)
+
+    def cloud(puffs, base, colors, level):
+        mask = Image.new('L', (BIG, BIG), 0)
+        d = ImageDraw.Draw(mask)
+        for cx, cy, r in puffs:
+            d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=255)
+        x0, y0, x1, y1 = base
+        d.rounded_rectangle((x0, y0, x1, y1), radius=(y1 - y0) // 2, fill=255)
+        # lit along its top, grey beneath, blotched as the game's sprites are
+        t = level + 0.45 * np.clip((y1 - 20 - YY) / (y1 - y0 + 60), -1, 1) + (noise - 0.5) * 0.5
+        return image(ramp(t, *colors), shape_alpha(mask, 3))
+    img.alpha_composite(cloud(((150, 58, 30), (186, 70, 36), (216, 86, 26)), (120, 76, 240, 112),
+                              ((96, 104, 124), (160, 168, 186), (224, 228, 236)), 0.35))
+    front = cloud(((66, 148, 36), (104, 118, 50), (150, 128, 44), (190, 152, 36)), (26, 150, 226, 206),
+                  ((110, 118, 140), (186, 192, 206), (250, 250, 255)), 0.45)
+    img.alpha_composite(front)
+    soft_spot(img, 104, 118, 18, 190)
+    return edge(img, (44, 48, 64), 4)
+
+
+def fog():
+    """No icon of the game's: a bank of fog in soft bands, a dim sun behind, in the same manner"""
+    img = canvas()
+    disc = Image.new('L', (BIG, BIG), 0)
+    ImageDraw.Draw(disc).ellipse((C - 62, 32, C + 62, 156), fill=255)
+    lit, _ = sphere_light(C, 94, 62)
+    img.alpha_composite(image(ramp(0.3 + 0.5 * lit + (mottle(23) - 0.5) * 0.3, (170, 120, 40), (222, 180, 90), (255, 236, 170)), shape_alpha(disc, 6)))
+    noise = mottle(24, 10, 3)
+    bands = [(20, 92, 236, 134, 0.7), (10, 126, 246, 170, 0.8), (20, 162, 236, 204, 0.9), (34, 196, 222, 234, 0.96)]
+    for i, (x0, y0, x1, y1, strength) in enumerate(bands):
+        sway = (-1) ** i * 8
+        band = Image.new('L', (BIG, BIG), 0)
+        ImageDraw.Draw(band).rounded_rectangle((x0 + sway, y0, x1 + sway, y1), radius=(y1 - y0) // 2, fill=int(255 * strength))
+        t = 0.4 + 0.4 * np.clip(((y0 + y1) / 2 - YY) / ((y1 - y0) / 2), -1, 1) + (noise - 0.5) * 0.4 - i * 0.03
+        img.alpha_composite(image(ramp(t, (118, 124, 144), (180, 186, 200), (240, 242, 248)), shape_alpha(band, 7)))
+    return img  # the game's glow has no hard edge; nor has fog
+
+
 WEATHER = {
     'fire': fire, 'ice': ice, 'wind': wind, 'earth': earth,
-    'thunder': thunder, 'water': water, 'light': light, 'dark': dark, 'clear': clear,
+    'thunder': thunder, 'water': water, 'light': light, 'dark': dark,
+    'clear': clear, 'clouds': clouds, 'fog': fog,
 }
 
 

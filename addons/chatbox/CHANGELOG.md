@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.1
+
+- Pictures for clouds and fog in both bundled icon sets, the two weathers neither had one for, so the info
+  panel's weather icon is never missing: the loader already looked for `clouds.png` and `fog.png` (the game's
+  weather 2 and 3, which it draws no icon for) and found none. Gems has a pair of clouds and a bank of fog with a
+  dim sun behind, bold and outlined like its sun; Classic the same, mottled and soft like its sprites, the fog
+  with no hard edge. Drawn by tools/generate_clock_icons.py and tools/generate_classic_icons.py; the clock
+  addon's own copy of gems has them too. A custom set without them gets the Gems ones, as for any picture it lacks.
+
 ## 0.12.0
 
 - Auto-Translate (Chatbox section, on to begin with; `/chatbox translate [on|off]`): chatbox's own list of
