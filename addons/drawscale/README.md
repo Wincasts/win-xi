@@ -2,8 +2,9 @@
 
 Draw distance for the world and for entities, with the fog kept where you want it and the zone
 drawn to match: objects that do not pop in, that keep their detail, and distant terrain the zone
-would otherwise hide. Every value is saved per character and applied at load. It replaces the stock
-`drawdistance` addon: unload that one and take its lines out of your startup script.
+would otherwise hide. Every value is saved per character and applied at load, and a zone can have
+values of its own, applied as you arrive. It replaces the stock `drawdistance` addon: unload that
+one and take its lines out of your startup script.
 
 It needs nothing else.
 
@@ -29,6 +30,23 @@ It needs nothing else.
   client builds its projection with a fixed constant that stretches the 3D view about 5.5% wider
   than the window, so people look broad and round things oval; on fixes the constant, and the view
   shows a little more at the sides. The menus and HUD do not change.
+
+## Per zone
+
+The values above are the general ones. A zone can have its own, so a town can draw everything
+while a big field keeps its frames:
+
+- `/drawscale zone` says which zone you are in and whether it has values of its own.
+- `/drawscale zone on` gives the zone you are in its own values, starting as a copy of the general
+  ones. From then on the settings above set this zone's, whenever you are in it, until
+  `/drawscale zone off` drops them and the general values apply again.
+- `/drawscale zone list` lists every zone with values of its own.
+- `/drawscale general <setting> <value>` sets a general value from inside a zone that has its own,
+  for example `/drawscale general world 2`.
+
+The zone is read from the game at load and from the zone-in packet after, so the values change as
+the new zone loads; a line in the chat says so when the zone has its own. `/drawscale` always says
+which zone you are in and whose values are in force.
 
 ## How it works
 
