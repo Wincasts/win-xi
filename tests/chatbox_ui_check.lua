@@ -1802,17 +1802,25 @@ PanelSmartFrame()
 local dayImage
 for _,image in ipairs(images) do if image.handle==991 then dayImage=image end end
 assert(dayImage,'day icon available for hover test')
+-- The panel's tooltips are drawn through tooltip.Begin and End, their words as imgui text with wrapping off, so
+-- each is as wide as its longest line whatever the theme's tooltip width
 local tooltip=require('winxi.tooltip')
-local oldShow=tooltip.Show
-local shownTips={}
+local tipOld={tooltip.Show,tooltip.Begin,tooltip.End,imgui.Text,imgui.PushTextWrapPos,imgui.PopTextWrapPos}
+local shownTips,wraps,inTip={},{},false
 local beforeTipCapture=hooks[0].captures
-tooltip.Show=function(text)
+tooltip.Show=function() error('the panel draws its text tooltips itself') end
+tooltip.Begin=function()
     assert(hooks[0].captures>beforeTipCapture,'tooltip appears after panel capture, not inside it')
-    shownTips[#shownTips+1]=text
+    inTip=true; return true
 end
+tooltip.End=function() assert(inTip,'End after Begin'); inTip=false end
+imgui.PushTextWrapPos=function(x) if inTip then wraps[#wraps+1]=x end end
+imgui.PopTextWrapPos=function() end
+imgui.Text=function(words) if inTip then shownTips[#shownTips+1]=words end end
 mouseAt={(dayImage.a[1]+dayImage.b[1])/2,(dayImage.a[2]+dayImage.b[2])/2}
 PanelSmartFrame()
 assert(#shownTips==1 and shownTips[1]:find('Vana\'diel day:',1,true),'hovering day icon shows identifying tooltip')
+assert(#wraps==1 and wraps[1]==-1 and not inTip,'drawn with wrapping off inside Begin and End, as wide as its longest line')
 app.options.infoPanel.anchorMenus[1]=false
 PanelSmartFrame()
 assert(#shownTips==2,'icon tooltips are independent of native menu anchoring')
@@ -1832,14 +1840,16 @@ local realCalendar=package.loaded['winxi.infopanel.calendar']
 package.loaded['winxi.infopanel.calendar']={Build=realCalendar.Build,Draw=function(_,data,style) calendarsDrawn[#calendarsDrawn+1]={data=data,style=style} end}
 local oldBegin,oldEnd=tooltip.Begin,tooltip.End
 local begun,ended=0,0
-tooltip.Begin=function() assert(hooks[0].captures>beforeTipCapture,'the calendar after the capture'); begun=begun+1; return true end
-tooltip.End=function() ended=ended+1 end
+tooltip.Begin=function() assert(hooks[0].captures>beforeTipCapture,'the calendar after the capture'); begun=begun+1; inTip=true; return true end
+tooltip.End=function() ended=ended+1; inTip=false end
+wraps={}
 smartClock=smartClock+1; mouseAt=nil; PanelSmartFrame()
 local dateLabel
 for _,label in ipairs(labels) do if label.text=='900/12/30' then dateLabel=label end end
 assert(dateLabel,'the date drawn in the panel')
 mouseAt={dateLabel.x+4,dateLabel.y+4}; PanelSmartFrame()
 assert(begun==1 and ended==1 and #calendarsDrawn==1 and #shownTips==2,'over the date: a calendar tooltip, no words')
+assert(#wraps==1 and wraps[1]==-1,'the calendar too with wrapping off')
 local drawnCalendar=calendarsDrawn[1]
 assert(drawnCalendar.data.title=='Windsday, 900/12/30  3:32' and drawnCalendar.data.day==30,'the month from the game\'s time')
 assert(drawnCalendar.style.icon(0)==991 and drawnCalendar.style.dim[4]<1,'the set\'s day pictures and dimmed days')
@@ -1879,14 +1889,16 @@ local realSchedule=package.loaded['winxi.infopanel.schedule']
 package.loaded['winxi.infopanel.schedule']={Build=realSchedule.Build,Draw=function(_,data,style) drawnSchedules[#drawnSchedules+1]={data=data,style=style} end}
 local oldBegin,oldEnd=tooltip.Begin,tooltip.End
 local begun,ended=0,0
-tooltip.Begin=function() assert(hooks[0].captures>beforeTipCapture,'the timetable after the capture'); begun=begun+1; return true end
-tooltip.End=function() ended=ended+1 end
+tooltip.Begin=function() assert(hooks[0].captures>beforeTipCapture,'the timetable after the capture'); begun=begun+1; inTip=true; return true end
+tooltip.End=function() ended=ended+1; inTip=false end
+wraps={}
 smartClock=smartClock+1; mouseAt=nil; PanelSmartFrame()
 local zoneLabel
 for _,label in ipairs(labels) do if label.text=='Port Jeuno' then zoneLabel=label end end
 assert(zoneLabel,'the zone drawn in the panel')
 mouseAt={zoneLabel.x+4,zoneLabel.y+4}; PanelSmartFrame()
 assert(begun==1 and ended==1 and #drawnSchedules==1 and #shownTips==2,'over the zone: a timetable tooltip, no words')
+assert(#wraps==1 and wraps[1]==-1,'the timetable too with wrapping off')
 local drawn=drawnSchedules[1]
 assert(drawn.data.title=='Ships and airships' and drawn.data.here==true and #drawn.data.rows==4,'the timetable: the next four of the lines ticked')
 for _,row in ipairs(drawn.data.rows) do assert(row.here and row.cells[1]=='Jeuno','every row one of Port Jeuno\'s airships, marked') end
@@ -1900,7 +1912,7 @@ for _,value in pairs(timetable) do value[1]=true end
 AshitaCore.GetMemoryManager,AshitaCore.GetResourceManager=oldMemory,oldResources
 tipLayout.slots[1].format=''
 end)() end
-tooltip.Show=oldShow
+tooltip.Show,tooltip.Begin,tooltip.End,imgui.Text,imgui.PushTextWrapPos,imgui.PopTextWrapPos=tipOld[1],tipOld[2],tipOld[3],tipOld[4],tipOld[5],tipOld[6]
 os.clock=smartRealClock
 -- Follow Game leaves the skin's settings as they are and ignores them; back in WinXI Skin they are as they were.
 do (function()

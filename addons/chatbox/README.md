@@ -145,7 +145,9 @@ of an existing clock panel.
   `winxi/infopanel/transports.lua`, built by `tools/build_transports.py`; the Aht Urhgan ferries run
   only where the server has `ENABLE_TOAU` on, as the live branch does. Both automatically placed icons and `{dayicon}` / `{weathericon}` tokens support
   this, including panel-only mode when the logs are empty. Tooltips use the shared Winxi tooltip
-  enable switch, delay and styling. Icons and words remain click-through; hovering does not consume game input.
+  enable switch, delay and styling, but not its width: each is as wide as its longest line, so the
+  forecast's days and the timetable's rows never wrap. Icons and words remain click-through; hovering
+  does not consume game input.
 - Background, border art and shadow follow the shared/local Winxi theme, captured together with
   the owning log. The panel normally shares that log's draw list. When both logs collapse, a
   panel-sized capture keeps it visible without an empty chat frame or full-size invisible hit area.
