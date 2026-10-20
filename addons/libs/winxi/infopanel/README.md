@@ -8,6 +8,11 @@ The optional map grid uses native HUD data or `grid.Read()` (the game's own grid
 Neither fallback requires the clock to render, and neither claims or stops a HUD slot.
 `panel`, `fields`, `exp`, `icons` and `panel_settings` are also used by the legacy clock addon
 through compatibility imports. Each addon still has its own Lua state, settings and EXP tracker.
+`forecast` gives the zone's weather odds as the Phoenix server rolls them, from `zone_weather.lua`
+(built by `tools/build_zone_weather.py` from the server's `sql/zone_weather.sql` and zone types);
+`calendar` builds and draws the Vana'diel month for the tooltip over the time, day, date and moon.
+Words with a tooltip stand alone in the segments, their tooltips in `segments.tooltips[i]`; the host's
+`options.tooltip` is given the hovered word's or icon's tooltip, text or `{ calendar = month }`.
 
 The attachment is drawn on its host's existing draw list before the host border/title; it uses
 `winxi.frame` for an explicit-rectangle background/border/shadow and sits flush against chat by

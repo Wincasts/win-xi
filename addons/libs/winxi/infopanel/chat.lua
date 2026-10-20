@@ -103,16 +103,36 @@ function M.New(deps)
     local service={}
     local hoveredText,hoveredSlot,drawingSlot
     local captures={}
-    local function IconTooltip(text) hoveredText,hoveredSlot=text,drawingSlot end
+    local hoveredOptions
+    local function Tooltip(text) hoveredText,hoveredSlot=text,drawingSlot end
     function service.Invalidate() samples,nextSample,menuReason=nil,0,nil end
     function service.BeginFrame()
         hoveredText,hoveredSlot=nil,nil
         captures[0],captures[1]=false,false
         if menus then menus.Stop() end
     end
-    -- Shown after the native captures, never inside a captured log/panel draw list.
+    -- Shown after the native captures, never inside a captured log/panel draw list: words as they are, a
+    -- calendar ({ calendar = month }) drawn by winxi.infopanel.calendar, the day pictures of the Icon Set
+    -- across its top and the theme's tooltip colours for today and the days gone.
+    local calendarStyle={}
     function service.Tooltip()
-        if hoveredText and captures[hoveredSlot] then require('winxi.tooltip').Show(hoveredText) end
+        if not hoveredText or not captures[hoveredSlot] then return end
+        local tooltip=require('winxi.tooltip')
+        if type(hoveredText)~='table' then tooltip.Show(hoveredText); return end
+        if not hoveredText.calendar or not tooltip.Begin() then return end
+        local imgui=require('imgui')
+        local calendar=deps.calendar or require('winxi.infopanel.calendar')
+        local icons=deps.icons or require('winxi.infopanel.icons')
+        local theme=require('winxi.theme')
+        local shared=theme.Shared and theme.Shared() or {}
+        local set=hoveredOptions and hoveredOptions.iconSet or 'gems'
+        local text=shared.TooltipTextColor or {1,1,1,1}
+        calendarStyle.icon=function(weekday) return icons.Day(set,weekday) or icons.Day('gems',weekday) end
+        calendarStyle.dim={text[1],text[2],text[3],(text[4] or 1)*0.55}
+        calendarStyle.highlight=shared.TooltipBorderColor
+        local ok,err=pcall(calendar.Draw,imgui,hoveredText.calendar,calendarStyle)
+        tooltip.End()
+        if not ok then error(err,0) end
     end
     function service.Reset() service.BeginFrame(); service.Invalidate(); source.Reset() end
     -- Hide Game Clock and Hide Compass: an empty replacement in uihook's clock or compass slot, renewed
@@ -251,7 +271,8 @@ function M.New(deps)
                 frame.Draw(drawn.rect,function()
                     imgui.PushFont(fonts.Get(attachment.fontFile),attachment.size)
                     drawingSlot=slot
-                    drawOptions.iconTooltip=IconTooltip
+                    hoveredOptions=options
+                    drawOptions.tooltip=Tooltip
                     drawOptions.textColor,drawOptions.iconScale=options.textColor,options.iconScale
                     drawOptions.iconOffset,drawOptions.weatherScale=options.iconOffset,options.weatherScale
                     local ok,err=pcall(panel.Draw,drawn.p,drawn.samples,drawn.rect,drawOptions)

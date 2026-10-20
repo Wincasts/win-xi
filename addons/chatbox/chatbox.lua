@@ -1,8 +1,8 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.12.1'
+addon.version = '0.13.0'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
-local winxiNeeded = 25
+local winxiNeeded = 31
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0

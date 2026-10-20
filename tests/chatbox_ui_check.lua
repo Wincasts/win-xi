@@ -1822,6 +1822,36 @@ captureOK=true; mouseAt={0,0}; PanelSmartFrame()
 assert(#shownTips==2,'moving away clears tooltip')
 chatState.expanded=true; PanelSmartFrame()
 assert(#shownTips==2,'expanded history does not retain panel tooltip')
+-- The date's words: resting on them shows the month's calendar, drawn by winxi.infopanel.calendar inside a
+-- Winxi tooltip after the capture, with the Icon Set's day pictures and the theme's tooltip colours
+do (function()
+chatState.expanded=false
+tipLayout.slots[1].format='{date}'
+local calendarsDrawn={}
+local realCalendar=package.loaded['winxi.infopanel.calendar']
+package.loaded['winxi.infopanel.calendar']={Build=realCalendar.Build,Draw=function(_,data,style) calendarsDrawn[#calendarsDrawn+1]={data=data,style=style} end}
+local oldBegin,oldEnd=tooltip.Begin,tooltip.End
+local begun,ended=0,0
+tooltip.Begin=function() assert(hooks[0].captures>beforeTipCapture,'the calendar after the capture'); begun=begun+1; return true end
+tooltip.End=function() ended=ended+1 end
+smartClock=smartClock+1; mouseAt=nil; PanelSmartFrame()
+local dateLabel
+for _,label in ipairs(labels) do if label.text=='900/12/30' then dateLabel=label end end
+assert(dateLabel,'the date drawn in the panel')
+mouseAt={dateLabel.x+4,dateLabel.y+4}; PanelSmartFrame()
+assert(begun==1 and ended==1 and #calendarsDrawn==1 and #shownTips==2,'over the date: a calendar tooltip, no words')
+local drawnCalendar=calendarsDrawn[1]
+assert(drawnCalendar.data.title=='Windsday, 900/12/30  3:32' and drawnCalendar.data.day==30,'the month from the game\'s time')
+assert(drawnCalendar.style.icon(0)==991 and drawnCalendar.style.dim[4]<1,'the set\'s day pictures and dimmed days')
+tooltip.Begin=function() begun=begun+1; return false end
+PanelSmartFrame()
+assert(begun==2 and ended==1 and #calendarsDrawn==1,'the tooltip not yet due: nothing drawn, nothing ended')
+mouseAt={0,0}; PanelSmartFrame()
+assert(begun==2,'away from the date: nothing asked')
+package.loaded['winxi.infopanel.calendar']=realCalendar
+tooltip.Begin,tooltip.End=oldBegin,oldEnd
+tipLayout.slots[1].format=''
+end)() end
 tooltip.Show=oldShow
 os.clock=smartRealClock
 -- Follow Game leaves the skin's settings as they are and ignores them; back in WinXI Skin they are as they were.

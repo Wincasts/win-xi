@@ -56,6 +56,7 @@ luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.
 run clock      tests/clock_stand_in.lua clock_check.lua
 luajit tests/clock_panel_check.lua || exit 1
 luajit tests/infopanel_source_check.lua || exit 1
+luajit tests/infopanel_tooltips_check.lua || exit 1
 luajit tests/winxi_frame_check.lua || exit 1
 luajit tests/nativemenus_check.lua || exit 1
 luajit tests/nativehistory_check.lua || exit 1

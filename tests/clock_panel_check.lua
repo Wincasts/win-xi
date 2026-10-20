@@ -102,7 +102,7 @@ panel.Draw(p,{{{icon=101,kind='day'}},{},{}},{left=10,top=20,width=306,height=24
 assert(images[1][1]==101); Near(images[1][2],21); Near(images[1][3],23)
 local tips={}
 local opts={textColor={1,1,1,1},iconScale={1},weatherScale={1},iconOffset={0},reserve=false,
-    iconTooltip=function(text) tips[#tips+1]=text end}
+    tooltip=function(text) tips[#tips+1]=text end}
 local iconSlots={{{icon=101,kind='day',tooltip='Firesday'}},{},{}}
 mouse.x,mouse.y=22,24
 panel.Draw(p,iconSlots,{left=10,top=20,width=306,height=24},opts)
