@@ -2,10 +2,11 @@
 -- it and does with the answer, and a stub that re-scales one caller's answer. Pure: works on tables
 -- of bytes and addresses, so the check can drive it without the game.
 --
--- The function (found by the bytes 8B C1 48 74 08 D8 0D, as the drawdistance addon finds it) takes a
--- distance on the stack and a selector in ecx (1: the entity multiplier, anything else: the world
--- multiplier), answers in st(0) and does ret 4. Everything that scales with the draw distance (the far
--- clip, the fog, the zone-object ranges, the entity cull) goes through it.
+-- The function (its entry 92 bytes before the bytes 8B C1 48 74 08 D8 0D the drawdistance addon
+-- finds, as seen in the game on 2026-10-20) takes a selector on the stack (1: the entity multiplier,
+-- anything else: the world multiplier), answers the scale in st(0) for the caller to multiply by, and
+-- does ret 4. Everything that scales with the draw distance (the far clip, the fog, the zone-object
+-- ranges, the entity cull) goes through it.
 local M = {}
 
 local floor = math.floor
@@ -285,6 +286,10 @@ function M.describe(before, after)
             sink = text
         end
     end
+    -- The selector is the stack argument: in the game it is pushed as an immediate. ecx is what the
+    -- caller left there, kept as a hint when nothing was pushed.
+    local pushed = push and tonumber(push:match('^(%-?%d+)$'))
+    if pushed ~= nil then ecx = pushed end
     local selector
     if ecx == 1 then selector = 'entity'
     elseif type(ecx) == 'number' then selector = 'world'
