@@ -1,7 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.12.0
 
+- Auto-Translate (Chatbox section, on to begin with; `/chatbox translate [on|off]`): chatbox's own list of
+  auto-translate phrases on Tab while typing. Tab used to open the game's own menu, which became the game's active
+  menu, so uihook no longer took the input as the menu it replaces and the game's input bar came back for as long as
+  the menu was open. Now, while the game's input is open, Tab is kept from the game in every form (its press,
+  repeats, release and the character it types, through Ashita's key and key_data events) and opens translate.lua's
+  picker above the input bar, in WinXI's look and the chat's font: the phrases from the installed client's dictionary
+  for the word at the caret, those beginning with it first, or with no word the 42 categories. Tab, Shift+Tab, Up and
+  Down move, Page Up and Page Down move a page, Enter puts the phrase in or opens a category, Escape closes or goes
+  back to the categories. The phrase replaces the word in the game's own buffer as its six-byte token through
+  Ashita's SetInputText, the one write chatbox makes to it; typing stays the game's and the list follows the word as
+  it changes, read again from the buffer each frame. While the list is open its keys are its own, each kept from the
+  game until it is let go, so Enter's character never reaches the game after the phrase is in and sends the line.
+  The list closes whenever the input bar is not drawn (the input closed, the expanded log, a failed capture,
+  zoning, chatbox off). Off, Tab is the game's as before. `/chatbox status` says whether the list is open, the last
+  phrase put in and whether the game kept it. Tests: chatbox_translate_check the word at the caret, the lists, the
+  moves, Enter and Escape, the bytes written and the drawing; chatbox_ui_check Tab kept while typing and not with the
+  input closed, the setting off, chatbox off or zoning, Enter putting Hello! in as `FD 02 02 01 0B FD` with its
+  character and release kept, Shift+Tab, a category's phrase put in at the caret, Escape closing and going back, the
+  list closing with the input, DirectInput's Tab kept only while typing, `/chatbox translate` said and saved, the
+  status line and the setting made whole on load.
 - Less made each frame, with the same results. The frame is drawn by named functions, one for each phase (the
   first box, the second window, the box held while the game's log settles, activity, the panel and the lift, the
   windows), sharing one table, rather than one closure of some 60 upvalues and four inner ones made anew every frame.

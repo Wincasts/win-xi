@@ -49,6 +49,7 @@ luajit tests/chatbox_render_check.lua || exit 1
 luajit tests/chatbox_ui_check.lua || exit 1
 luajit tests/chatbox_visibility_check.lua || exit 1
 luajit tests/chatbox_input_check.lua || exit 1
+luajit tests/chatbox_translate_check.lua || exit 1
 luajit tests/chatbox_layout_check.lua || exit 1
 luajit tests/chatbox_browse_check.lua || exit 1
 luajit tests/harness.lua party addons/party/party.lua tests/winxi_capture_check.lua || exit 1
