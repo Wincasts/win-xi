@@ -196,7 +196,8 @@ def package(addon, output):
         release_notes + f"\nComes with {', '.join(bundled[:-1])} and {bundled[-1]}."
         + f' Extract into your Ashita folder; see addons/{addon}/INSTALL.txt.\n')
 
-    print(f'{archive.relative_to(ROOT)}: {len(names)} files, {archive.stat().st_size:,} bytes, sha256 {digest}')
+    shown = archive.relative_to(ROOT) if archive.is_relative_to(ROOT) else archive
+    print(f'{shown}: {len(names)} files, {archive.stat().st_size:,} bytes, sha256 {digest}')
     print(f'  gh release create {name} -R {REPOSITORY} --target {commit} --prerelease '
           f'--title "{addon} {version}" --notes-file dist/{name}.notes.md '
           f'dist/{name}.zip dist/{name}.zip.sha256')
