@@ -298,6 +298,37 @@ function M.describe(before, after)
     return { before = pre, after = post, ecx = ecx, selector = selector, push = push, sink = sink }
 end
 
+-- The fog's two calls among the callers found: the fog function sits just before the scale function
+-- and asks it twice for the world scale, multiplying a distance by the answer each time (the fog start
+-- and the fog end; seen in the game on 2026-10-20 as the two calls at 0x4D and 0x34 bytes before the
+-- entry, after push 0, each followed by fmul dword [reg]). callers: { address, delta, info } with info
+-- from M.describe; given back are those with the entry's delta, lying within window bytes before the
+-- entry, selecting the world multiplier by a pushed 0, and multiplying first. nil unless exactly two.
+function M.fogCallers(callers, window)
+    window = window or 512
+    local byDelta = {}
+    for _, c in ipairs(callers) do
+        byDelta[c.delta] = byDelta[c.delta] or {}
+        table.insert(byDelta[c.delta], c)
+    end
+    for _, group in pairs(byDelta) do
+        local fog = {}
+        for _, c in ipairs(group) do
+            local info = c.info or {}
+            local first = info.after and info.after[1] or ''
+            local e = c.pattern and (c.pattern - c.delta) -- the entry: the pattern less how far before it the call lands
+            if e and c.address < e and c.address >= e - window and info.ecx == 0 and info.push == '0' and first:match('^fmul dword ') then
+                fog[#fog + 1] = c
+            end
+        end
+        if #fog == 2 then
+            table.sort(fog, function(a, b) return a.address < b.address end)
+            return fog
+        end
+    end
+    return nil
+end
+
 -- The stub a patched caller is sent through instead of the scale function: it calls the function
 -- with the same operand and multiplies the answer by the float at stub+24, so the caller sees
 -- distance x stock scale x (ratio / world). 18 bytes of code; the float lives at +24.

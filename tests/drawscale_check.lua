@@ -125,3 +125,41 @@ H.print('unloads cleanly', true)
 H.print('a pushed selector: 1 is entity', scan.describe({ 0x8B, 0xCE, 0x6A, 0x01, 0x89, 0x17 }, {}).selector == 'entity',
     '| 0 is world', scan.describe({ 0x8B, 0xCE, 0x6A, 0x00, 0x89, 0x17 }, {}).selector == 'world',
     '| ecx alone is only a hint', scan.describe({ 0x8B, 0xCE }, {}).selector == 'from esi')
+
+-- the fog's two calls, by their shape: in the function before the entry, push 0, fmul after; as seen
+-- in the game, the entry 92 before the pattern, the calls 0x4D and 0x34 before the entry, and a
+-- push 1 call before them that is not the fog, plus a group landing 492 before that is another function
+local pattern = 0x0334930C
+local entry = pattern - 92
+local function rec(address, delta, push, after)
+    local before = push and { 0x6A, push, 0x89, 0x17 } or { 0x8B, 0xCE }
+    return { address = address, delta = delta, pattern = pattern, info = scan.describe(before, after) }
+end
+local fmulEdi, fmulEbp, fstp = { 0xD8, 0x0F, 0x8B, 0xCE }, { 0xD8, 0x4D, 0x00, 0xD9 }, { 0xD9, 0x9D, 0x28, 0x94, 0x03, 0x00 }
+local records = {
+    rec(0x0333BF53, 92, nil, fstp),                 -- the object range, after the entry's own neighbourhood
+    rec(0x0333D436, 492, nil, { 0x8B, 0x15 }),      -- the other function's callers
+    rec(entry - 0xC5, 92, 1, fmulEdi),              -- push 1: the entity branch, not the fog
+    rec(entry - 0x4D, 92, 0, fmulEdi),              -- fog start
+    rec(entry - 0x34, 92, 0, fmulEbp),              -- fog end
+    rec(0x0334B901, 92, nil, { 0x8B, 0x46, 0x1C }), -- the helper
+    rec(0x0334BA52, 492, nil, { 0x5E }),
+}
+local fog = scan.fogCallers(records, 512)
+H.print('fog: two calls found', fog ~= nil and #fog == 2, '| the start', fog and fog[1].address == entry - 0x4D, '| the end', fog and fog[2].address == entry - 0x34)
+local three = { records[3], records[4], records[5], rec(entry - 0x20, 92, 0, fmulEdi) }
+H.print('fog: three world calls there is not the fog', scan.fogCallers(three, 512) == nil,
+    '| one is not either', scan.fogCallers({ records[4] }, 512) == nil,
+    '| a call after the entry is not counted', scan.fogCallers({ records[4], rec(entry + 0x10, 92, 0, fmulEdi) }, 512) == nil,
+    '| nor one beyond the window', scan.fogCallers({ records[4], rec(entry - 600, 92, 0, fmulEdi) }, 512) == nil)
+
+-- the settings commands, without the client: saved and said, the fog calls reported not found
+H.print('status without the client', H.command('/drawscale') == true, table.concat(H.printed, '\n'):find('fog calls not found', 1, true) ~= nil)
+local saves = H.saves()
+H.print('/drawscale fog 1.5 is saved', H.command('/drawscale fog 1.5') == true, H.saves() == saves + 1, H.options().fog == 1.5,
+    '| and said', H.printed[#H.printed]:find('fog x1.50', 1, true) ~= nil)
+H.print('/drawscale world 2', H.command('/drawscale world 2') == true, H.options().world == 2, H.printed[#H.printed]:find('world x2.00', 1, true) ~= nil)
+H.print('/drawscale entity 3', H.command('/drawscale entity 3') == true, H.options().entity == 3)
+H.print('a bad value is refused', H.command('/drawscale fog x') == true, H.options().fog == 1.5, H.printed[#H.printed]:find('Usage: /drawscale fog', 1, true) ~= nil,
+    '| so is zero', H.command('/drawscale world 0') == true, H.options().world == 2)
+H.print('/drawscale fog alone shows the values', H.command('/drawscale fog') == true, H.printed[#H.printed]:find('fog x1.50', 1, true) ~= nil)
