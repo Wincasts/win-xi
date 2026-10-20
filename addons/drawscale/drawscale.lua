@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '0.3';
+addon.version = '0.4';
 addon.desc    = 'Lists every place the client scales a distance by the draw distance, and lets one of them be re-scaled on its own, to find where the fog is set.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 

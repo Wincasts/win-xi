@@ -121,3 +121,7 @@ H.print('/drawscale unpatch 3 with nothing patched', H.command('/drawscale unpat
 H.print('another command is left alone', H.command('/other') == false)
 H.unload()
 H.print('unloads cleanly', true)
+-- the selector is what is pushed: push 1 is the entity multiplier, push 0 the world one, whatever ecx holds
+H.print('a pushed selector: 1 is entity', scan.describe({ 0x8B, 0xCE, 0x6A, 0x01, 0x89, 0x17 }, {}).selector == 'entity',
+    '| 0 is world', scan.describe({ 0x8B, 0xCE, 0x6A, 0x00, 0x89, 0x17 }, {}).selector == 'world',
+    '| ecx alone is only a hint', scan.describe({ 0x8B, 0xCE }, {}).selector == 'from esi')
