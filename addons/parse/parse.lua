@@ -2,7 +2,7 @@ addon.name = 'parse'
 addon.author = 'win'
 addon.version = '0.5.0'
 addon.desc = 'Packet-based combat damage, observed hit rates and manual encounter DPS.'
-local winxiNeeded = 6
+local winxiNeeded = 25
 do
     local ok, version = pcall(require, 'winxi.version')
     local number = ok and type(version) == 'table' and version.Number or 0
@@ -19,6 +19,7 @@ local bit = require('bit')
 local previewData = require('parse_preview')
 local columns = require('parse_columns')
 local controls = require('parse_controls')
+local minimal = require('parse_minimal')
 local ws = require('parse_ws')
 local wsLive = require('parse_ws_live')
 local shell = require('winxi.shell')
@@ -112,8 +113,10 @@ local function Report(_, args)
         end
     end
     if not preview then
-        app:Say(('Unclassified %d; unresolved identities %d; malformed %d; duplicate packets %d.'):format(
-            UnknownCount(), session.diagnostics.unresolved, session.diagnostics.malformed, duplicates))
+        app:Say(('Decoded actions %d; unclassified %d; unresolved identities %d; malformed %d; duplicate packets %d.'):format(
+            session.diagnostics.packets, UnknownCount(), session.diagnostics.unresolved, session.diagnostics.malformed, duplicates))
+        if not session.core.running then app:Say('Recording paused. Use /parse resume, or /parse clear for a new encounter.'); end
+        if session.error then app:Say('Last parser error: ' .. session.error) end
     end
 end
 local function Capture(_, args)
@@ -173,12 +176,42 @@ local function DrawColumnEditor(options)
         app.save()
     end
 end
+local function DrawMinimalSettings(options)
+    if widgets.Header('Minimal overlay', true) then
+        if imgui.Checkbox('Minimal mode##parse.minimal', options.minimal) then app.save() end
+        if imgui.SliderFloat('Text opacity##parse.minimal', options.minimalOpacity, 0.2, 1, '%.2f') then app.save() end
+        if imgui.SliderInt('Rows##parse.minimal', options.minimalRows, 1, 18) then app.save() end
+        if widgets.FontFile(options, 'minimalFontFile', '##parse.minimal.fontFile', { tooltip = 'The overlay\'s font: Theme Font follows Winxi Theme, or one of C:\\Windows\\Fonts.' }) then app.save() end
+        if widgets.FontSize(options, 'minimalFontSize', '##parse.minimal.fontSize', { min = 10, max = 18, tooltip = 'How large the overlay\'s text is, in pixels.' }) then app.save() end
+        imgui.TextDisabled('The dark edge round the text is Winxi Theme\'s Text Outline, in winxisettings.')
+        if widgets.Lock(options.minimalLocked, '##parse.minimal.locked') then app.save() end
+        if imgui.SliderInt('Name width##parse.minimal', options.minimalNameWidth, 60, 220) then app.save() end
+        if imgui.SliderInt('Row spacing##parse.minimal', options.minimalRowSpacing, 0, 6) then app.save() end
+        for _, item in ipairs({
+            { 'Encounter summary', 'minimalSummary' }, { 'Damage share', 'minimalShare' },
+            { 'Damage total', 'minimalDamage' }, { 'DPS', 'minimalDPS' },
+            { 'Rank numbers', 'minimalRanks' }, { 'Compact numbers (K / M)', 'minimalCompact' },
+            { 'Show remaining actor count', 'minimalMore' }, { 'Hide when empty', 'minimalHideEmpty' },
+        }) do
+            if imgui.Checkbox(item[1] .. '##parse.minimal', options[item[2]]) then app.save() end
+        end
+        imgui.TextWrapped('No background, border, title or grid. Drag the text to move while unlocked. Unlock here to move a click-through overlay. Full View settings are independent.')
+    end
+end
 local function DrawSettings(options)
-    if widgets.Header('Accounting', true) then
+    if widgets.Header('Encounter', true) then
+        if imgui.Checkbox('Minimal mode##parse.mode', options.minimal) then app.save() end
         widgets.Label('Combine Pets')
         if imgui.Checkbox('##parse.pets', options.combinePets) then app.save(); Refresh() end
         widgets.Label('Include Skillchains')
         if imgui.Checkbox('##parse.sc', options.includeSkillchains) then app.save(); Refresh() end
+        if imgui.SmallButton(preview and 'Stop test preview' or 'Test 18 people') then Test(nil, {}) end
+        imgui.TextWrapped('Grouping changes the view, not the observations. DPS uses one shared encounter clock; pauses are excluded. Zoning pauses recording.')
+        if imgui.Checkbox('Fade in / out##parse.fade', options.fadeInOut) then app.save() end
+    end
+end
+local function DrawFullSettings(options)
+    if widgets.Header('Window', true) then
         widgets.Label('Visible Rows (preset)')
         if imgui.SliderInt('##parse.rows', options.maxRows, 1, 18) then
             options.size[2] = (options.maxRows[1] + 1) * (imgui.GetFontSize() + 6) + 110
@@ -186,10 +219,11 @@ local function DrawSettings(options)
             app.save()
         end
         imgui.TextWrapped('Drag an edge or the bottom-right corner to resize. The table fills the window; scroll to see everyone. The row preset adjusts its height.')
-        if imgui.SmallButton(preview and 'Stop test preview' or 'Test 18 people') then Test(nil, {}) end
-        imgui.TextWrapped('Grouping changes the view, not the observations. DPS uses one shared encounter clock; pauses are excluded. Zoning pauses recording.')
     end
-    if widgets.Header('Accuracy / experimental WS TP') then
+    if widgets.Header('Columns', true) then DrawColumnEditor(options) end
+end
+local function DrawAccuracySettings(options)
+    if widgets.Header('Accuracy / experimental WS TP', true) then
         imgui.TextWrapped('Melee includes auto-attack outcomes plus accepted TP-inferred WS strikes. WS Hit % uses inferred strikes only. WS Count counts recognized WS actions. Unknown samples never add guessed misses.')
         imgui.TextWrapped('Magic Land % counts recognized successful spell outcomes versus explicit resists, including enfeebles. Partial damage resists count as landed; no-effect results are excluded. This is not the Magic Accuracy stat.')
         imgui.TextWrapped('WS TP inference is opt-in, for your own character and controlled single-weapon physical WS only. Configure /parse wsprofile <WS ID> <first-hit TP after Store TP> <total Store TP %> <known attempts>. Do not use with multi-attack, Conserve/Save TP or hidden TP sources. WAR/THF/BLU/RNG/DRG/DNC main/sub are conservatively excluded. Hypothetical example: /parse wsprofile 80 120 0 3')
@@ -207,8 +241,9 @@ local function DrawSettings(options)
             if imgui.SmallButton('Remove##parse.wsprofile.' .. id) then options.wsProfiles[id] = nil; CancelWS('profile removed'); app.save(); break end
         end
     end
-    if widgets.Header('Columns') then DrawColumnEditor(options) end
-    if widgets.Header('Diagnostics') then
+end
+local function DrawDiagnostics()
+    if widgets.Header('Diagnostics', true) then
         imgui.TextWrapped('Unknown messages may be harmless utility actions or unsupported damage. Periodic damage and defensive rates are not measured.')
         if imgui.SmallButton('Print status') then Report() end
         if session.error then imgui.TextWrapped(session.error) end
@@ -221,11 +256,30 @@ end
 app = shell.New({
     defaults = T{ isVisible = T{ true }, pos = T{ 500, 200 }, size = T{ 800, 400 }, combinePets = T{ true },
         includeSkillchains = T{ true }, maxRows = T{ 12 },
-        columnOrder = columns.DefaultOrder(), columnShown = columns.DefaultShown(), wsProfiles = T{} },
+        columnOrder = columns.DefaultOrder(), columnShown = columns.DefaultShown(), wsProfiles = T{},
+        minimal = T{ false }, minimalPos = T{ 500, 200 }, minimalOpacity = T{ 0.75 },
+        minimalRows = T{ 6 }, minimalFontSize = T{ 12 }, minimalLocked = T{ false },
+        minimalFontFile = '',
+        minimalNameWidth = T{ 112 }, minimalRowSpacing = T{ 0 }, minimalSummary = T{ true },
+        minimalShare = T{ true }, minimalDamage = T{ true }, minimalDPS = T{ true },
+        minimalRanks = T{ false }, minimalCompact = T{ false }, minimalMore = T{ true }, minimalHideEmpty = T{ false } },
     window = 'winxi.parse', title = 'Parse', resizable = true, configTitle = 'Parse Settings', command = '/parse',
-    help = '/parse: clear, pause (toggle), resume, test [on|off|1-18], config, wsprofile <id> <base TP> <Store TP %> <attempts>|off, report [detail], capture <name|off>.',
-    drawSettings = DrawSettings,
+    help = '/parse: minimal [on|off], clear, pause (toggle), resume, test [on|off|1-18], config, wsprofile <id> <base TP> <Store TP %> <attempts>|off, report [detail], capture <name|off>.',
+    drawSettings = DrawSettings, settingsLabel = 'General', hideHeader = 'Visibility', hideAppearance = true,
+    tabs = {
+        { label = 'Full View', draw = DrawFullSettings },
+        { label = 'Minimal', draw = DrawMinimalSettings },
+        { label = 'Accuracy', draw = DrawAccuracySettings },
+        { label = 'Diagnostics', draw = DrawDiagnostics },
+    },
     commands = {
+        minimal = function(options, args)
+            local value = args[3] and args[3]:lower()
+            if value and value ~= 'on' and value ~= 'off' then app:Say('Use /parse minimal [on|off].'); return end
+            options.minimal[1] = value == 'on' or (not value and not options.minimal[1])
+            options.isVisible[1] = true
+            app.save()
+        end,
         test = Test,
         wsprofile = WSProfile,
         clear = function() Change('reset') end,
@@ -239,6 +293,12 @@ app = shell.New({
     },
     onSettings = function(options)
         columns.Normalize(options)
+        if type(options.minimalFontFile) ~= 'string' or options.minimalFontFile:find('[/\\:]') then options.minimalFontFile = '' end
+        options.minimalNameWidth[1] = math.max(60, math.min(220, math.floor(tonumber(options.minimalNameWidth[1]) or 112)))
+        options.minimalRowSpacing[1] = math.max(0, math.min(6, math.floor(tonumber(options.minimalRowSpacing[1]) or 0)))
+        options.minimalOpacity[1] = math.max(0.2, math.min(1, tonumber(options.minimalOpacity[1]) or 0.75))
+        options.minimalRows[1] = math.max(1, math.min(18, math.floor(tonumber(options.minimalRows[1]) or 6)))
+        options.minimalFontSize[1] = math.max(10, math.min(18, math.floor(tonumber(options.minimalFontSize[1]) or 12)))
         if type(options.wsProfiles) ~= 'table' then options.wsProfiles = {} end
         for id, p in pairs(options.wsProfiles) do
             local n = tonumber(id)
@@ -350,6 +410,11 @@ end)
 ashita.events.register('d3d_present', 'parse_present', function()
     if wsTracker.pending then wsTracker:Tick(Now(), WSContext()) end
     if app:BeginFrame() then
+        if app.options.minimal[1] then
+            if not snapshot or Now() >= nextRefresh then Refresh() end
+            minimal.Draw(app.options, snapshot, preview ~= nil)
+            return
+        end
         app:Window(app.options.isVisible, Draw, {
             size = resizePending and app.options.size or nil,
             constraints = { { 480, 200 }, { 10000, 10000 } },
