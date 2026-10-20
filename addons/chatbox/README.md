@@ -128,7 +128,20 @@ of an existing clock panel.
 - Hover the `{time}`, `{day}`, `{date}` or `{moon}` words for the **Vana'diel calendar**: the month,
   its thirty days in weeks of eight under the Icon Set's day pictures (or the days' names), today
   marked and the days gone dimmed, the moon's phase and fullness, and when the next day begins in
-  Earth minutes. Both automatically placed icons and `{dayicon}` / `{weathericon}` tokens support
+  Earth minutes.
+- Hover the `{zone}` words for the **ships' and airships' timetable**, as the Phoenix server runs them:
+  the airships between Jeuno and San d'Oria, Bastok, Windurst and Kazham, the ferry between Selbina
+  and Mhaura, the Aht Urhgan ferries, the Manaclipper and the Carpenters' Landing barge, a line for each
+  place one leaves from and goes to, with how long until its door opens (**Boarding**, or `now` while it
+  is open) and shuts (**Leaves**), the Vana'diel time it leaves (**At**) and how long the crossing takes
+  (**Trip**), in Earth minutes:seconds. The lines that board in the zone you are in are marked in the
+  theme's tooltip border colour; aboard a ship or airship, a line on top says where you are bound and
+  how long until you are put ashore. The server runs every ship on a cycle from its zone's
+  `data/zones/<name>/zone.yaml` (`src/map/transports/ship_handler.cpp`): the seconds into the cycle
+  are the raw game time less the run's offset, modulo its length, the door open through the docked
+  phase and the riders put ashore at the run's disembark second. The runs are
+  `winxi/infopanel/transports.lua`, built by `tools/build_transports.py`; the Aht Urhgan ferries run
+  only where the server has `ENABLE_TOAU` on, as the live branch does. Both automatically placed icons and `{dayicon}` / `{weathericon}` tokens support
   this, including panel-only mode when the logs are empty. Tooltips use the shared Winxi tooltip
   enable switch, delay and styling. Icons and words remain click-through; hovering does not consume game input.
 - Background, border art and shadow follow the shared/local Winxi theme, captured together with

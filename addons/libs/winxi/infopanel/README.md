@@ -10,9 +10,13 @@ Neither fallback requires the clock to render, and neither claims or stops a HUD
 through compatibility imports. Each addon still has its own Lua state, settings and EXP tracker.
 `forecast` gives the zone's weather odds as the Phoenix server rolls them, from `zone_weather.lua`
 (built by `tools/build_zone_weather.py` from the server's `sql/zone_weather.sql` and zone types);
-`calendar` builds and draws the Vana'diel month for the tooltip over the time, day, date and moon.
+`calendar` builds and draws the Vana'diel month for the tooltip over the time, day, date and moon;
+`schedule` builds and draws the ships' and airships' timetable for the tooltip over the zone name, from
+`transports.lua` (built by `tools/build_transports.py` from the server's `data/zones/<name>/zone.yaml`
+transport runs, as `src/map/transports/ship_handler.cpp` cycles them).
 Words with a tooltip stand alone in the segments, their tooltips in `segments.tooltips[i]`; the host's
-`options.tooltip` is given the hovered word's or icon's tooltip, text or `{ calendar = month }`.
+`options.tooltip` is given the hovered word's or icon's tooltip, text, `{ calendar = month }` or
+`{ schedule = timetable }`.
 
 The attachment is drawn on its host's existing draw list before the host border/title; it uses
 `winxi.frame` for an explicit-rectangle background/border/shadow and sits flush against chat by

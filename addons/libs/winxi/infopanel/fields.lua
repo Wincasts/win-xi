@@ -14,21 +14,23 @@
 --                                       of its own, its tooltip in segments.tooltips[i]
 --   fields.Line(context, format)        its words alone
 --   fields.Tooltip(hover, context)      a field's tooltip: 'weather' the text of IconTooltip('weather'),
---                                       'calendar' { calendar = calendar.Build(context) }, made once for
---                                       each context
+--                                       'calendar' { calendar = calendar.Build(context) }, 'schedule'
+--                                       { schedule = schedule.Build(zone, raw) } (the ships' and airships'
+--                                       timetable, winxi.infopanel.schedule), made once for each context
 --   fields.IconTooltip(kind, context)   the text over the day's icon, or the weather's with the zone's
 --                                       forecast (winxi.infopanel.forecast) after it
 --   fields.FromList(order, shown, modules)  0.6's ordered, ticked list as a line
 --
 -- A field is { token, label, tip, Text(context) } or, for a picture, Icon(context) in place of Text;
--- module = 'exp' for experience, counted only while one is in the line; hover = 'calendar' or
--- 'weather' for a field with a tooltip. Text gives its words (Icon its handle), or nil when there are
+-- module = 'exp' for experience, counted only while one is in the line; hover = 'calendar', 'weather'
+-- or 'schedule' for a field with a tooltip. Text gives its words (Icon its handle), or nil when there are
 -- none (no grid where the zone has no map). A field with none takes the divider before it away with
 -- it, so that '{time} | {grid} | {day}' is '3:32 | Windsday' where there is no grid; the first in the
 -- line takes the one after it instead.
 local exp = require('winxi.infopanel.exp')
 local forecast = require('winxi.infopanel.forecast')
 local calendar = require('winxi.infopanel.calendar')
+local schedule = require('winxi.infopanel.schedule')
 local days = { 'Firesday', 'Earthsday', 'Watersday', 'Windsday', 'Iceday', 'Lightningday', 'Lightsday', 'Darksday' }
 
 local fields = {}
@@ -92,6 +94,14 @@ function fields.Tooltip(hover, context)
         end
         return context.calendarTooltip or nil
     end
+    if hover == 'schedule' then
+        if context.scheduleTooltip == nil then
+            local zone = Zone(context)
+            local ok, built = pcall(schedule.Build, zone, context.raw)
+            context.scheduleTooltip = ok and built and { schedule = built } or false
+        end
+        return context.scheduleTooltip or nil
+    end
     return nil
 end
 
@@ -102,8 +112,8 @@ fields.All = {
     { token = 'grid', label = 'Map Grid',
         tip = 'Where you are on the zone\'s map, as the game writes it: (H-9).\nThere is none where the zone has no map.',
         Text = function(c) return c.grid ~= nil and #c.grid > 0 and c.grid or nil end },
-    { token = 'zone', label = 'Zone Name',
-        tip = 'The current zone name, such as West Ronfaure. None while the zone is unavailable.',
+    { token = 'zone', label = 'Zone Name', hover = 'schedule',
+        tip = 'The current zone name, such as West Ronfaure. None while the zone is unavailable.\nResting the mouse on it shows the ships\' and airships\' timetable, the zone\'s own lines marked.',
         Text = function(c) local _, name = Zone(c); return name end },
     { token = 'day', label = 'Day', hover = 'calendar',
         tip = 'The day of the week: Windsday.\nThe game\'s icon for the day stays to the left of the line.\nResting the mouse on it shows the month\'s calendar.',
