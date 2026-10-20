@@ -23,6 +23,7 @@
   is taken again; a slot released on purpose reports nothing. tests/party: `TextureAddress` for a pointer
   below 2 GB, one above zero- and sign-extended, ones over a low pointer, a 33-bit value, the font mark,
   a null and a low address.
+- `/uihook`'s first line no longer begins with a stray `0.8.`, left from 0.8's help text.
 
 ## 0.91
 
