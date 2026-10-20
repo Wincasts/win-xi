@@ -46,8 +46,9 @@ Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first; fo
 `party`, `/load uihook` first. Uihook replaces `buffhook` and `partyhook`; unload those before loading
 it and remove their startup commands. Party native rendering remains opt-in; unload `hideparty`
 before enabling it. The experimental [clock addon](addons/clock/README.md) uses uihook 0.2 to
-write the game's clock on one line in place of its text, keeping its day and weather icons, and can
-hide the compass; unload `hidecompass` first. Clock requires winxi 5.
+draw a configurable three-slot info panel with movable day/weather icons and themed dividers,
+with the original single-line clock available as a legacy mode. It can hide the compass;
+unload `hidecompass` first. Clock requires winxi 21.
 [Chatbox](addons/chatbox/README.md) includes a native-backed WinXI input bar and requires
 winxi 22 and uihook 0.5 with chat ABI 13 (0.6 for native action-menu anchoring above the panel, and
 for the expanded log drawn wholly by chatbox, opened in place, and the game's history read at start).
