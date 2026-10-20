@@ -1,20 +1,25 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '0.4';
-addon.desc    = 'Lists every place the client scales a distance by the draw distance, and lets one of them be re-scaled on its own, to find where the fog is set.';
+addon.version = '1.0';
+addon.desc    = 'World and entity draw distance with the fog kept where you want it: three multipliers, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
 --[[
-A diagnostic. The client multiplies its far clip, fog, zone-object ranges and entity cull distance by
-two floats, world and entity, which the drawdistance and drawcull addons set; they all go through one
-small function. This addon finds that function, scans the client's code for every call to it, and
-says what each caller hands it and does with the answer, in the chat and in
-config/addons/drawscale/callers.txt. Then /drawscale patch <n> <mult> sends caller n through a stub
-that multiplies its answer by mult / world, so that one distance sits at mult times stock while the
-world multiplier stays where drawdistance put it. Unloading puts every call back.
+The client multiplies its far clip, fog, zone-object ranges and entity cull distance by two floats,
+world and entity, which the drawdistance addon sets; every distance asks one small function for the
+scale. The fog asks it twice, for its start and its end, from a function just before it. This addon
+sets the two floats and sends the fog's two calls through a stub that multiplies their answer by
+fog / world, so the fog sits at fog times stock whatever the world multiplier is. A fog of 1 with a
+world of 2 is stock fog in front of twice the terrain.
+
+The finding is done in the running game: the client DLL is packed on disk. The scale function is
+found by drawdistance's bytes, its entry by the calls to it, and the fog's calls by their shape: in
+the function before, pushing the world selector, multiplying by the answer. /drawscale callers lists
+every call for the record, and /drawscale patch <n> <mult> still re-scales any one of them by number.
 --]]
 
 require 'common';
+local settings = require('settings');
 local scan = require('scan');
 
 local ok, chat = pcall(require, 'chat');
@@ -25,17 +30,25 @@ local REACH     = 512;              -- a call may land this far before the patte
 local CHUNK     = 4096;
 local MAX_STUBS = 8;
 
+local defaults = T{
+    world  = 1.0,
+    entity = 1.0,
+    fog    = 1.0,
+};
+
 local state = T{
-    fn      = 0,      -- the scale function, where the pattern matched
-    world   = 0,      -- address of the world multiplier float
-    entity  = 0,      -- address of the entity multiplier float
-    module  = nil,    -- { base, size } of the module holding the function
-    thunks  = T{},    -- jumps to the function a call may go through
-    pointers = T{},   -- addresses holding the function's address
-    callers = T{},    -- { address, delta, via, info, before, after }
-    mem     = 0,      -- the stubs
-    patches = T{},    -- caller index -> { site, backup, stub, mult, ratio }
-    report  = T{},    -- the lines last printed
+    settings = nil,
+    fn       = 0,      -- the scale function, where the pattern matched
+    world    = 0,      -- address of the world multiplier float
+    entity   = 0,      -- address of the entity multiplier float
+    module   = nil,    -- { base, size } of the module holding the function
+    thunks   = T{},
+    pointers = T{},
+    callers  = T{},    -- { address, delta, via, info, before, after, pattern }
+    fogSites = T{},    -- the fog's two calls, as indexes into callers
+    mem      = 0,      -- the stubs
+    patches  = T{},    -- caller index -> { site, backup, stub, slot, mult, ratio, fog }
+    scanStats = nil,
 };
 
 local function say(s)
@@ -51,12 +64,10 @@ local function reportPath()
     return dir .. 'callers.txt';
 end
 
--- The module holding addr: its PE header is the nearest 'MZ' at a page boundary below it whose
--- 'PE' header follows, and its size is the header's. The client's code is not laid out in memory as
--- the file's sections say (the DLL is packed), so the whole module is scanned, not its code section.
+-- The module holding addr: FFXiMain.dll by Ashita's own knowledge of it when the address is inside,
+-- else the nearest PE header below it. The client's code is not laid out in memory as the file's
+-- sections say (the DLL is packed), so the whole module is scanned, not its code section.
 local function moduleOf(addr)
-    -- FFXiMain.dll first, from Ashita's own knowledge of it; the header walk below only when the
-    -- function is somewhere else, since it reads pages that may not be mapped
     local known = ashita.memory.get_base('FFXiMain.dll');
     local knownSize = ashita.memory.get_size('FFXiMain.dll');
     if (known ~= nil and known ~= 0 and knownSize ~= nil and addr >= known and addr < known + knownSize) then
@@ -64,8 +75,8 @@ local function moduleOf(addr)
     end
     local page = addr - (addr % 0x1000);
     for _ = 1, 16384 do
-        local ok, magic = pcall(ashita.memory.read_uint16, page);
-        if (ok and magic == 0x5A4D) then
+        local okMagic, magic = pcall(ashita.memory.read_uint16, page);
+        if (okMagic and magic == 0x5A4D) then
             local peOk, pe = pcall(ashita.memory.read_uint32, page + 0x3C);
             if (peOk and pe > 0 and pe < 0x1000) then
                 local sigOk, sig = pcall(ashita.memory.read_uint32, page + pe);
@@ -82,7 +93,7 @@ local function moduleOf(addr)
 end
 
 -- Runs fn over the module in chunks: fn(bytes, address, count), bytes having a margin past count
--- where there was one to read.
+-- where there was one to read. Counts what was read, for the report.
 local function eachChunk(module, fn)
     local at = module.base;
     local stop = module.base + module.size;
@@ -97,7 +108,6 @@ local function eachChunk(module, fn)
         if (readOk and type(bytes) == 'table') then
             stats.read = stats.read + 1;
             stats.bytes = stats.bytes + count;
-            -- self-checks: the calls seen at all, and the function's own bytes where it is
             for i = 1, count do if (bytes[i] == 0xE8) then stats.calls = stats.calls + 1; end end
             if (state.fn >= at and state.fn < at + count) then
                 local i = state.fn - at + 1;
@@ -114,7 +124,7 @@ local function eachChunk(module, fn)
 end
 
 -- Every call to the scale function in the module holding it: direct calls, then calls through a
--- jump thunk, and the places holding its address, which a call through a register or a vtable reads.
+-- jump thunk, and the places holding its address.
 local function findCallers()
     local found = T{};
     state.thunks, state.pointers = T{}, T{};
@@ -149,19 +159,31 @@ local function describeCallers()
         c.before = okBefore and before or {};
         c.after = okAfter and after or {};
         c.info = scan.describe(c.before, c.after);
+        c.pattern = state.fn;
     end
+end
+
+local function findFog()
+    state.fogSites = T{};
+    local fog = scan.fogCallers(state.callers, REACH);
+    if (fog == nil) then return false; end
+    for n, c in ipairs(state.callers) do
+        if (c == fog[1] or c == fog[2]) then state.fogSites:append(n); end
+    end
+    return #state.fogSites == 2;
 end
 
 local function lineFor(n, c)
     local info = c.info or {};
     local what = '';
-    if (info.sink and info.sink:match('ebp%+0x39428')) then what = '  <- zone-object range (drawcull patches this one)'; end
+    if (info.sink and info.sink:match('ebp%+0x39428')) then what = '  <- zone-object range'; end
+    for _, f in ipairs(state.fogSites) do if (f == n) then what = '  <- fog'; end end
     local patched = state.patches[n];
-    local mark = patched and (('  [patched x%.2f]'):format(patched.mult)) or '';
+    local mark = patched and (patched.fog and '  [fog stub]' or (('  [patched x%.2f]'):format(patched.mult))) or '';
     local via = c.via and ((' via thunk 0x%08X'):format(c.via)) or '';
-    return ('#%d 0x%08X %s%s%s | ecx %s, pushes %s, then %s%s%s'):format(
+    return ('#%d 0x%08X %s%s%s | pushes %s, then %s%s%s'):format(
         n, c.address, info.selector or '?', c.delta ~= 0 and ((' (call lands %d before the pattern)'):format(c.delta)) or '', via,
-        tostring(info.ecx == nil and '?' or info.ecx), info.push or '?', info.sink or (info.after and info.after[1]) or '?', what, mark);
+        info.push or '?', info.sink or (info.after and info.after[1]) or '?', what, mark);
 end
 
 local function detailFor(c)
@@ -185,39 +207,21 @@ local function report(toChat)
         lines:append(('chunks read %d, failed %d (%d KB read); %d call opcodes seen; the function\'s bytes seen in the scan: %s%s'):format(
             st.read, st.failed, math.floor(st.bytes / 1024), st.calls, tostring(st.patternSeen),
             st.firstError and (('; first read error: %s'):format(st.firstError)) or ''));
-        local deltas = {};
-        for _, c in ipairs(state.callers) do deltas[c.delta] = (deltas[c.delta] or 0) + 1; end
-        local parts = {};
-        for d, n in pairs(deltas) do parts[#parts + 1] = ('%d call(s) land %d before the pattern'):format(n, d); end
-        if (#parts > 0) then lines:append(table.concat(parts, '; ')); end
+    else
+        lines:append('no scan');
     end
-    if (state.fn ~= 0) then
-        local okB, before = pcall(ashita.memory.read_array, state.fn - 64, 64);
-        local okA, after = pcall(ashita.memory.read_array, state.fn, 48);
-        if (okB and type(before) == 'table') then
-            lines:append(('64 bytes before the function: %s'):format(scan.hex(before, 1, 64)));
-            lines:append(('  ending in: %s'):format(table.concat(scan.backward(before, 64, 6), '; ')));
-        end
-        if (okA and type(after) == 'table') then
-            lines:append(('48 bytes from the function: %s'):format(scan.hex(after, 1, 48)));
-            lines:append(('  reading as: %s'):format(table.concat(scan.forward(after, 1, 10), '; ')));
-        end
-    end
+    lines:append(#state.fogSites == 2 and (('fog: callers #%d and #%d'):format(state.fogSites[1], state.fogSites[2])) or 'fog: its two calls were not recognised');
     for n, c in ipairs(state.callers) do
         lines:append(lineFor(n, c));
         lines:append(detailFor(c));
     end
     for _, t in ipairs(state.thunks) do lines:append(('thunk: jmp at 0x%08X'):format(t)); end
     for _, p in ipairs(state.pointers) do lines:append(('pointer: 0x%08X holds the function'):format(p)); end
-    state.report = lines;
     if (toChat) then
         say(lines[1]);
         say(lines[2]);
-        if (lines[3] and lines[3]:match('^chunks read')) then say(lines[3]); end
+        say(lines[4]);
         for n, c in ipairs(state.callers) do say(lineFor(n, c)); end
-        if (#state.callers == 0 and #state.pointers > 0) then
-            say(('No direct calls; the function is reached through %d pointer(s), listed in the report file.'):format(#state.pointers));
-        end
         say('Details are in config/addons/drawscale/callers.txt.');
     end
     local f = io.open(reportPath(), 'w');
@@ -228,20 +232,6 @@ local function report(toChat)
     end
 end
 
-local function rescan()
-    state.fn = ashita.memory.find(0, 0, PATTERN, 0, 0);
-    if (state.fn == 0) then
-        fail('The scale function was not found; is this the usual client?');
-        state.callers = T{};
-        return false;
-    end
-    state.world = ashita.memory.read_uint32(state.fn + 0x07);
-    state.entity = ashita.memory.read_uint32(state.fn + 0x0F);
-    state.callers = findCallers();
-    describeCallers();
-    return true;
-end
-
 local function writeBytes(addr, bytes)
     local unOk, prot = ashita.memory.unprotect(addr, #bytes);
     if (not unOk) then return false; end
@@ -250,11 +240,14 @@ local function writeBytes(addr, bytes)
     return true;
 end
 
+-- Keeps each stub's ratio right for the world multiplier as it is now: a manual patch wants
+-- mult x stock, the fog wants the fog setting x stock.
 local function applyRatios()
-    if (next(state.patches) == nil) then return; end
+    if (next(state.patches) == nil or state.world == 0) then return; end
     local world = ashita.memory.read_float(state.world);
     for _, p in pairs(state.patches) do
-        local ratio = scan.ratio(p.mult, world);
+        local mult = p.fog and state.settings.fog or p.mult;
+        local ratio = scan.ratio(mult, world);
         if (ratio ~= p.ratio) then
             p.ratio = ratio;
             ashita.memory.write_float(p.stub + scan.RATIO_OFFSET, ratio);
@@ -262,40 +255,43 @@ local function applyRatios()
     end
 end
 
-local function patchCaller(n, mult)
-    local c = state.callers[n];
-    if (c == nil) then fail(('There is no caller #%d.'):format(n)); return; end
-    local existing = state.patches[n];
-    if (existing) then
-        existing.mult = mult;
-        existing.ratio = nil;
-        applyRatios();
-        say(('#%d now at x%.2f of stock.'):format(n, mult));
-        return;
-    end
-    local used = 0;
-    for _ in pairs(state.patches) do used = used + 1; end
-    if (used >= MAX_STUBS) then fail(('Only %d callers can be patched at once.'):format(MAX_STUBS)); return; end
-    if (state.mem == 0) then
-        state.mem = ashita.memory.alloc(scan.STUB_SIZE * MAX_STUBS);
-        if (state.mem == nil or state.mem == 0) then state.mem = 0; fail('Could not allocate memory for the stub.'); return; end
-    end
-    local slot;
+local function freeSlot()
     for i = 0, MAX_STUBS - 1 do
         local taken = false;
         for _, p in pairs(state.patches) do if (p.slot == i) then taken = true; end end
-        if (not taken) then slot = i; break; end
+        if (not taken) then return i; end
     end
+    return nil;
+end
+
+-- Sends caller n through a stub; fog marks the fog's own, whose multiplier is the fog setting.
+local function patchCaller(n, mult, fog)
+    local c = state.callers[n];
+    if (c == nil) then fail(('There is no caller #%d.'):format(n)); return false; end
+    local existing = state.patches[n];
+    if (existing) then
+        existing.mult = mult;
+        existing.fog = fog or existing.fog;
+        existing.ratio = nil;
+        applyRatios();
+        return true;
+    end
+    if (state.mem == 0) then
+        state.mem = ashita.memory.alloc(scan.STUB_SIZE * MAX_STUBS);
+        if (state.mem == nil or state.mem == 0) then state.mem = 0; fail('Could not allocate memory for the stub.'); return false; end
+    end
+    local slot = freeSlot();
+    if (slot == nil) then fail(('Only %d callers can be patched at once.'):format(MAX_STUBS)); return false; end
     local stub = state.mem + slot * scan.STUB_SIZE;
     local target = (c.address + 5 + ashita.memory.read_int32(c.address + 1)) % 4294967296;
     ashita.memory.write_array(stub, scan.stub(stub, target));
     ashita.memory.write_float(stub + scan.RATIO_OFFSET, 1.0);
     local site = c.address + 1;
     local backup = ashita.memory.read_array(site, 4);
-    if (not writeBytes(site, scan.rel32(c.address, stub))) then fail('Could not write the call.'); return; end
-    state.patches[n] = { site = site, backup = backup, stub = stub, slot = slot, mult = mult, ratio = nil };
+    if (not writeBytes(site, scan.rel32(c.address, stub))) then fail('Could not write the call.'); return false; end
+    state.patches[n] = { site = site, backup = backup, stub = stub, slot = slot, mult = mult, ratio = nil, fog = fog == true };
     applyRatios();
-    say(('#%d goes through a stub now: x%.2f of stock, whatever the world multiplier.'):format(n, mult));
+    return true;
 end
 
 local function unpatchCaller(n)
@@ -306,19 +302,87 @@ local function unpatchCaller(n)
     return true;
 end
 
-local function help()
-    say('/drawscale - the callers of the draw-distance scale function, again.');
-    say('/drawscale scan - find them afresh.');
-    say('/drawscale patch <n> <mult> - send caller n through a stub so its distance is mult x stock (1 = stock).');
-    say('/drawscale unpatch [n] - put caller n (or all of them) back.');
+-- The settings, into the game: the two floats, and the fog's calls through their stubs.
+local function apply()
+    if (state.fn == 0 or state.settings == nil) then return; end
+    ashita.memory.write_float(state.world, state.settings.world);
+    ashita.memory.write_float(state.entity, state.settings.entity);
+    for _, n in ipairs(state.fogSites) do
+        if (state.patches[n] == nil) then patchCaller(n, state.settings.fog, true); end
+    end
+    applyRatios();
 end
 
+local function rescan()
+    state.fn = ashita.memory.find(0, 0, PATTERN, 0, 0);
+    if (state.fn == 0) then
+        fail('The scale function was not found; is this the usual client?');
+        state.callers = T{};
+        state.fogSites = T{};
+        return false;
+    end
+    state.world = ashita.memory.read_uint32(state.fn + 0x07);
+    state.entity = ashita.memory.read_uint32(state.fn + 0x0F);
+    state.callers = findCallers();
+    describeCallers();
+    if (not findFog()) then
+        fail('The fog\'s two calls were not recognised; world and entity work, the fog setting does not. /drawscale callers shows what was found.');
+    end
+    return true;
+end
+
+local function status()
+    local s = state.settings or defaults;
+    local fogState = #state.fogSites == 2 and 'found' or 'not found';
+    say(('world x%.2f, entity x%.2f, fog x%.2f of stock (fog calls %s).'):format(s.world, s.entity, s.fog, fogState));
+end
+
+local function help()
+    say('/drawscale - the current values.');
+    say('/drawscale world <n> - terrain, objects and far clip: n times stock (1 = stock).');
+    say('/drawscale entity <n> - players, NPCs and mobs: n times stock. The server sends entities within about 50 yalms.');
+    say('/drawscale fog <n> - the fog: n times stock, whatever world is. 1 keeps the stock fog.');
+    say('/drawscale callers - every call to the scale function, for the record (also in config/addons/drawscale/callers.txt).');
+    say('/drawscale patch <n> <mult> - re-scale caller n by hand; /drawscale unpatch [n] puts it (or all) back.');
+end
+
+local function settle(s)
+    if (s ~= nil) then state.settings = s; end
+    if (state.settings == nil) then state.settings = T{}; end
+    for k, v in pairs(defaults) do
+        if (type(state.settings[k]) ~= 'number' or state.settings[k] <= 0) then state.settings[k] = v; end
+    end
+end
+
+local function setValue(key, text)
+    local v = tonumber(text);
+    if (v == nil or v <= 0 or v > 100) then fail(('Usage: /drawscale %s <n>, n from 0.1 to 100.'):format(key)); return; end
+    state.settings[key] = v;
+    settings.save();
+    apply();
+    status();
+end
+
+settings.register('settings', 'settings_update', function (s)
+    settle(s);
+    apply();
+end);
+
 ashita.events.register('load', 'load_cb', function ()
-    if (rescan()) then report(true); end
+    settle(settings.load(defaults));
+    if (rescan()) then
+        report(false);
+        apply();
+        status();
+    end
 end);
 
 ashita.events.register('unload', 'unload_cb', function ()
     for n in pairs(state.patches) do unpatchCaller(n); end
+    if (state.fn ~= 0) then
+        ashita.memory.write_float(state.world, 1.0);
+        ashita.memory.write_float(state.entity, 1.0);
+    end
     -- The stubs stay allocated: the render thread may be inside one as we go.
 end);
 
@@ -331,15 +395,20 @@ ashita.events.register('command', 'command_cb', function (e)
     if (#args == 0 or args[1] ~= '/drawscale') then return; end
     e.blocked = true;
     local verb = (args[2] or ''):lower();
-    if (verb == '' ) then
+    if (verb == '') then
+        status();
+    elseif (verb == 'world' or verb == 'entity' or verb == 'fog') then
+        if (args[3] == nil) then status(); else setValue(verb, args[3]); end
+    elseif (verb == 'callers') then
         if (state.fn == 0) then rescan(); end
         if (state.fn ~= 0) then report(true); end
     elseif (verb == 'scan') then
-        if (rescan()) then report(true); end
+        for n in pairs(state.patches) do unpatchCaller(n); end
+        if (rescan()) then report(true); apply(); end
     elseif (verb == 'patch') then
         local n, mult = tonumber(args[3]), tonumber(args[4]);
         if (n == nil or mult == nil or mult <= 0) then fail('Usage: /drawscale patch <n> <mult>'); return; end
-        patchCaller(n, mult);
+        if (patchCaller(n, mult)) then say(('#%d goes through a stub now: x%.2f of stock, whatever the world multiplier.'):format(n, mult)); end
     elseif (verb == 'unpatch') then
         local n = tonumber(args[3]);
         if (n ~= nil) then
@@ -349,6 +418,7 @@ ashita.events.register('command', 'command_cb', function (e)
             for k in pairs(state.patches) do if (unpatchCaller(k)) then count = count + 1; end end
             say(('%d caller(s) back to normal.'):format(count));
         end
+        apply();
     else
         help();
     end
