@@ -36,17 +36,36 @@ end
 -- target is within reach bytes before target or target itself: { address, delta }, delta being how
 -- far before target the call lands (0 when exact). The margin lets a call that begins in the last
 -- bytes scanned still be read whole.
-function M.callers(bytes, base, target, count, reach)
+function M.callers(bytes, base, target, count, reach, opcode)
     reach = reach or 0
+    opcode = opcode or 0xE8
     local found = {}
     for i = 1, count or #bytes do
-        if bytes[i] == 0xE8 and bytes[i + 4] ~= nil then
+        if bytes[i] == opcode and bytes[i + 4] ~= nil then
             local site = base + i - 1
             local to = u32(site + 5 + M.readInt32(bytes, i + 1))
             local delta = u32(target) - to
             if delta >= 0 and delta <= reach then
                 found[#found + 1] = { address = site, delta = delta }
             end
+        end
+    end
+    return found
+end
+
+-- The 5-byte jumps (E9) in bytes reaching target, as M.callers finds calls: a thunk a call may go
+-- through instead of reaching the function itself.
+function M.jumps(bytes, base, target, count, reach)
+    return M.callers(bytes, base, target, count, reach, 0xE9)
+end
+
+-- The addresses in bytes holding target as a dword: a pointer table or vtable a call may read.
+function M.references(bytes, base, target, count)
+    local t = M.le32(target)
+    local found = {}
+    for i = 1, count or #bytes do
+        if bytes[i] == t[1] and bytes[i + 1] == t[2] and bytes[i + 2] == t[3] and bytes[i + 3] == t[4] then
+            found[#found + 1] = base + i - 1
         end
     end
     return found

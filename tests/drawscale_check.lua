@@ -49,6 +49,23 @@ H.print('callers: none beyond reach', #scan.callers(code, base, target, #code, 2
     '| a call in the margin is still read', #scan.callers(code, base, target, third - base, 16) == 2,
     '| and read whole when the count reaches its first byte', #scan.callers(code, base, target, third - base + 1, 16) == 3)
 
+-- a thunk that jumps to the function, and a pointer table holding its address
+local thunkCode, thunkBase = {}, 0x00600000
+local function emitT(bytes) for _, b in ipairs(bytes) do thunkCode[#thunkCode + 1] = b end end
+local thunk = thunkBase
+do local rel = scan.rel32(thunkBase, target) emitT({ 0xE9, rel[1], rel[2], rel[3], rel[4] }) end
+local pointerAt = thunkBase + #thunkCode
+emitT(scan.le32(target))
+emitT(scan.le32(0x00450000))
+local viaThunk = thunkBase + #thunkCode
+do local rel = scan.rel32(viaThunk, thunk) emitT({ 0xE8, rel[1], rel[2], rel[3], rel[4] }) end
+local jumps = scan.jumps(thunkCode, thunkBase, target, #thunkCode, 16)
+H.print('jumps: the thunk found', #jumps == 1, jumps[1] and jumps[1].address == thunk, '| no calls to the function here', #scan.callers(thunkCode, thunkBase, target, #thunkCode, 16) == 0,
+    '| a call to the thunk', #scan.callers(thunkCode, thunkBase, thunk, #thunkCode, 0) == 1 and scan.callers(thunkCode, thunkBase, thunk, #thunkCode, 0)[1].address == viaThunk)
+local refs = scan.references(thunkCode, thunkBase, target, #thunkCode)
+H.print('references: the pointer found', #refs == 1, refs[1] == pointerAt, '| not the other', #scan.references(thunkCode, thunkBase, 0x00450000, #thunkCode) == 1,
+    '| none in plain code', #scan.references(code, base, target, #code) == 0)
+
 local function around(address)
     local before, after = {}, {}
     for i = 1, 24 do before[i] = code[address - base - 24 + i] or 0x90 end
