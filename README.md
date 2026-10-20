@@ -11,6 +11,7 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | [chatbox](addons/chatbox) | Experimental WinXI chat log the game still drives: the game log's place and size (both log windows, routed as the game routes them), a native-backed input bar, native selection, and the expanded log in WinXI tabs, scrollbar and font; needs `uihook` | `/chatbox` |
 | [hidecompass](addons/hidecompass) | Hides the game's compass | `/hidecompass` |
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
+| [mobcast](addons/mobcast) | What the enemies about you are casting, readying and using, in a small window, as the chat log says it | `/mobcast` |
 | [name](addons/name) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style; needs the `namehook` plugin | `/name` |
 | [parse](addons/parse) | Experimental packet-based damage, observed hit rates and manual encounter DPS, with capture/replay diagnostics | `/parse` |
 | [puppet](addons/puppet) | The next enfeebles and weapon skill an automaton will use | `/puppet` |
