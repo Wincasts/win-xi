@@ -1,7 +1,7 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '1.2';
-addon.desc    = 'World and entity draw distance with the fog kept where you want it: three multipliers, saved per character.';
+addon.version = '1.3';
+addon.desc    = 'World and entity draw distance with the fog kept where you want it, saved per character and, where a zone has its own, per zone.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
 --[[
@@ -11,6 +11,11 @@ scale. The fog asks it twice, for its start and its end, from a function just be
 sets the two floats and sends the fog's two calls through a stub that multiplies their answer by
 fog / world, so the fog sits at fog times stock whatever the world multiplier is. A fog of 1 with a
 world of 2 is stock fog in front of twice the terrain.
+
+The values are general, and a zone can have its own: /drawscale zone on copies the values in force
+into a set for the zone the player is in, which the settings then change until /drawscale zone off.
+The zone is read from the game at load and from the zone-in packet after, and the set for it is
+applied as it arrives, so a town can draw everything and a big field keep its frames.
 
 The finding is done in the running game: the client DLL is packed on disk. The scale function is
 found by drawdistance's bytes, its entry by the calls to it, and the fog's calls by their shape: in
@@ -40,10 +45,13 @@ local defaults = T{
     detail  = 0,      -- how much further objects keep their detailed mesh; 0 = the same as world
     vis     = true,   -- draw distant terrain the zone's visibility lists would hide
     square  = false,  -- the world at the window's true proportions
+    zones   = T{},    -- zone id (as a string) -> the same seven values, for the zones with their own
 };
+local VALUES = { 'world', 'entity', 'fog', 'objects', 'detail', 'vis', 'square' };
 
 local state = T{
     settings = nil,
+    zone     = 0,      -- the zone the player is in; 0 until known
     fn       = 0,      -- the scale function, where the pattern matched
     world    = 0,      -- address of the world multiplier float
     entity   = 0,      -- address of the entity multiplier float
@@ -78,6 +86,24 @@ end
 local function fail(s)
     if (chat) then print(chat.header(addon.name):append(chat.error(s))); else print('[drawscale] error: ' .. s); end
 end
+
+-- The game's name for a zone, where it has one.
+local function zoneName(id)
+    local ok, name = pcall(function () return AshitaCore:GetResourceManager():GetString('zones.names', id); end);
+    if (ok and type(name) == 'string' and name ~= '') then return name; end
+    return ('zone %d'):format(id);
+end
+
+-- The zone the player is in, from the game; nil before there is one.
+local function zoneFromGame()
+    local ok, id = pcall(function () return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0); end);
+    if (ok and type(id) == 'number' and id > 0) then return id; end
+    return nil;
+end
+
+-- The values in force: the zone's own where it has them, else the general ones.
+local function ownValues() local s = state.settings; return (s and state.zone ~= 0 and s.zones) and s.zones[tostring(state.zone)] or nil; end
+local function active() return ownValues() or state.settings or defaults; end
 
 local function reportPath()
     local dir = ('%s\\config\\addons\\drawscale\\'):format(AshitaCore:GetInstallPath());
@@ -282,8 +308,8 @@ end
 mem.write = writeBytes;
 
 -- The objects and detail settings as used: 0 means the same as world.
-local function objectsValue() local s = state.settings; return (s.objects ~= nil and s.objects > 0) and s.objects or s.world; end
-local function detailValue() local s = state.settings; return (s.detail ~= nil and s.detail > 0) and s.detail or s.world; end
+local function objectsValue() local s = active(); return (s.objects ~= nil and s.objects > 0) and s.objects or s.world; end
+local function detailValue() local s = active(); return (s.detail ~= nil and s.detail > 0) and s.detail or s.world; end
 
 -- Keeps each stub's ratio right for the world multiplier as it is now: a manual patch wants
 -- mult x stock, the fog wants the fog setting x stock, and the object range wants its setting
@@ -292,7 +318,7 @@ local function applyRatios()
     if (next(state.patches) == nil or state.world == 0) then return; end
     local world = ashita.memory.read_float(state.world);
     for _, p in pairs(state.patches) do
-        local mult = p.fog and state.settings.fog or p.objects and (objectsValue() ^ 2) or p.mult;
+        local mult = p.fog and active().fog or p.objects and (objectsValue() ^ 2) or p.mult;
         local ratio = scan.ratio(mult, world);
         if (ratio ~= p.ratio) then
             p.ratio = ratio;
@@ -354,7 +380,7 @@ end
 -- their stubs, the mesh-detail factor, the visibility lists, and the projection constant.
 local function apply()
     if (state.fn == 0 or state.settings == nil) then return; end
-    local s = state.settings;
+    local s = active();
     ashita.memory.write_float(state.world, s.world);
     ashita.memory.write_float(state.entity, s.entity);
     for _, n in ipairs(state.fogSites) do
@@ -406,7 +432,12 @@ local function rescan()
 end
 
 local function status()
-    local s = state.settings or defaults;
+    local s = active();
+    if (state.zone == 0) then
+        say('No zone known yet; the general values.');
+    else
+        say(('In %s (%d): %s.'):format(zoneName(state.zone), state.zone, ownValues() and 'its own values' or 'the general values'));
+    end
     local fogState = #state.fogSites == 2 and '' or ' (fog calls not found)';
     local objectsState = state.objectSite and '' or ' (range call not found)';
     say(('world x%.2f, entity x%.2f, fog x%.2f%s of stock.'):format(s.world, s.entity, s.fog, fogState));
@@ -425,6 +456,10 @@ local function help()
     say('/drawscale detail <n> - how much further objects keep their detailed mesh. 0 = the same as world.');
     say('/drawscale vis on|off - on: draw distant terrain the zone would hide from your area. off: stock.');
     say('/drawscale square on|off - on: the world at the window\'s true proportions. off: stock.');
+    say('/drawscale zone - this zone, and whether it has values of its own.');
+    say('/drawscale zone on|off - give this zone its own values, which the settings above then set; off drops them.');
+    say('/drawscale zone list - every zone with values of its own.');
+    say('/drawscale general <setting> <value> - set a general value from a zone that has its own.');
     say('/drawscale callers - every call to the scale function, for the record (also in config/addons/drawscale/callers.txt).');
     say('/drawscale patch <n> <mult> - re-scale caller n by hand; /drawscale unpatch [n] puts it (or all) back.');
 end
@@ -432,38 +467,102 @@ end
 local numeric = { world = true, entity = true, fog = true, objects = true, detail = true };
 local toggles = { vis = true, square = true };
 
-local function settle(s)
-    if (s ~= nil) then state.settings = s; end
-    if (state.settings == nil) then state.settings = T{}; end
-    for k, v in pairs(defaults) do
+-- Every value in t a number or boolean in range, else the fallback's (the defaults' for the general
+-- values, the general values' for a zone's own).
+local function settleValues(t, fallback)
+    for _, k in ipairs(VALUES) do
+        local v = fallback[k];
         if (numeric[k]) then
             local min = (k == 'objects' or k == 'detail') and 0 or 0.1;
-            if (type(state.settings[k]) ~= 'number' or state.settings[k] < min or state.settings[k] > 100) then state.settings[k] = v; end
-        elseif (type(state.settings[k]) ~= 'boolean') then
-            state.settings[k] = v;
+            if (type(t[k]) ~= 'number' or t[k] < min or t[k] > 100) then t[k] = v; end
+        elseif (type(t[k]) ~= 'boolean') then
+            t[k] = v;
         end
     end
 end
 
-local function setValue(key, text)
+local function settle(s)
+    if (s ~= nil) then state.settings = s; end
+    if (state.settings == nil) then state.settings = T{}; end
+    settleValues(state.settings, defaults);
+    if (type(state.settings.zones) ~= 'table') then state.settings.zones = T{}; end
+    for id, own in pairs(state.settings.zones) do
+        if (type(own) ~= 'table' or tonumber(id) == nil) then state.settings.zones[id] = nil; else settleValues(own, state.settings); end
+    end
+end
+
+-- The values a setting changes: the zone's own where it has them, the general ones otherwise or
+-- when asked for them.
+local function target(general)
+    if (general) then return state.settings; end
+    return active();
+end
+
+local function setValue(key, text, general)
     local v = tonumber(text);
     local min = (key == 'objects' or key == 'detail') and 0 or 0.1;
     if (v == nil or v < min or v > 100) then fail(('Usage: /drawscale %s <n>, n from %s to 100.'):format(key, min == 0 and '0 (same as world)' or '0.1')); return; end
-    state.settings[key] = v;
+    target(general)[key] = v;
     settings.save();
     apply();
     status();
 end
 
-local function setToggle(key, text)
+local function setToggle(key, text, general)
+    local t = target(general);
     local on;
-    if (text == nil) then on = not (state.settings[key] == true);
+    if (text == nil) then on = not (t[key] == true);
     elseif (text:lower() == 'on') then on = true;
     elseif (text:lower() == 'off') then on = false;
     else fail(('Usage: /drawscale %s on|off'):format(key)); return; end
-    state.settings[key] = on;
+    t[key] = on;
     settings.save();
     apply();
+    status();
+end
+
+-- The zone the player has come into: its values, where it has its own, into the game.
+local function enterZone(id)
+    if (id == nil or id == 0 or id == state.zone) then return; end
+    state.zone = id;
+    apply();
+    if (ownValues()) then say(('%s: its own values.'):format(zoneName(id))); end
+end
+
+local function zoneCommand(what)
+    what = (what or ''):lower();
+    if (what == 'list') then
+        local ids = T{};
+        for id in pairs(state.settings.zones) do ids:append(tonumber(id)); end
+        if (#ids == 0) then say('No zone has values of its own.'); return; end
+        ids:sort();
+        for _, id in ipairs(ids) do
+            local z = state.settings.zones[tostring(id)];
+            say(('%s (%d): world x%.2f, entity x%.2f, fog x%.2f, objects %s, detail %s, vis %s, square %s.'):format(
+                zoneName(id), id, z.world, z.entity, z.fog,
+                z.objects > 0 and (('x%.2f'):format(z.objects)) or 'as world', z.detail > 0 and (('x%.2f'):format(z.detail)) or 'as world',
+                z.vis and 'on' or 'off', z.square and 'on' or 'off'));
+        end
+        return;
+    end
+    if (what ~= '' and what ~= 'on' and what ~= 'off') then fail('Usage: /drawscale zone [on|off|list]'); return; end
+    if (what ~= '' and state.zone == 0) then fail('No zone known yet; try once you are in the world.'); return; end
+    local key = tostring(state.zone);
+    if (what == 'on') then
+        if (ownValues() == nil) then
+            local own = T{};
+            for _, k in ipairs(VALUES) do own[k] = state.settings[k]; end
+            state.settings.zones[key] = own;
+            settings.save();
+            say(('%s has its own values now, starting from the general ones; the settings set this zone\'s until /drawscale zone off.'):format(zoneName(state.zone)));
+        end
+    elseif (what == 'off') then
+        if (ownValues() == nil) then fail(('%s has no values of its own.'):format(zoneName(state.zone))); return; end
+        state.settings.zones[key] = nil;
+        settings.save();
+        apply();
+        say(('%s is back on the general values.'):format(zoneName(state.zone)));
+    end
     status();
 end
 
@@ -474,6 +573,7 @@ end);
 
 ashita.events.register('load', 'load_cb', function ()
     settle(settings.load(defaults));
+    state.zone = zoneFromGame() or 0;
     if (rescan()) then
         report(false);
         apply();
@@ -495,7 +595,14 @@ end);
 ashita.events.register('d3d_present', 'present_cb', function ()
     applyRatios();
     -- the game object may not exist at load; the constant is set once it does, and kept
-    if (state.view ~= nil and state.settings ~= nil) then view.setSquare(mem, state.view, state.settings.square == true); end
+    if (state.view ~= nil and state.settings ~= nil) then view.setSquare(mem, state.view, active().square == true); end
+end);
+
+-- The zone-in packet carries the zone's id at 0x30.
+ashita.events.register('packet_in', 'packet_in_cb', function (e)
+    if (e.id ~= 0x00A or type(e.data) ~= 'string' or #e.data < 0x32) then return; end
+    local lo, hi = e.data:byte(0x31, 0x32);
+    enterZone(lo + hi * 256);
 end);
 
 ashita.events.register('command', 'command_cb', function (e)
@@ -509,6 +616,13 @@ ashita.events.register('command', 'command_cb', function (e)
         if (args[3] == nil) then status(); else setValue(verb, args[3]); end
     elseif (toggles[verb]) then
         setToggle(verb, args[3]);
+    elseif (verb == 'zone') then
+        zoneCommand(args[3]);
+    elseif (verb == 'general') then
+        local key = (args[3] or ''):lower();
+        if (numeric[key] and args[4] ~= nil) then setValue(key, args[4], true);
+        elseif (toggles[key]) then setToggle(key, args[4], true);
+        else fail('Usage: /drawscale general <setting> <value>, the setting one of world, entity, fog, objects, detail, vis, square.'); end
     elseif (verb == 'callers') then
         if (state.fn == 0) then rescan(); end
         if (state.fn ~= 0) then report(true); end
