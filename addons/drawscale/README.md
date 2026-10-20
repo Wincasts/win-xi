@@ -2,9 +2,10 @@
 
 Draw distance for the world and for entities, with the fog kept where you want it and the zone
 drawn to match: objects that do not pop in, that keep their detail, and distant terrain the zone
-would otherwise hide. Every value is saved per character and applied at load, and a zone can have
-values of its own, applied as you arrive. It replaces the stock `drawdistance` addon: unload that
-one and take its lines out of your startup script.
+would otherwise hide. Every value is saved per character and applied at load; cities, the outdoors
+and dungeons can each have a preset, and a zone values of its own, applied as you arrive. It
+replaces the stock `drawdistance` addon: unload that one and take its lines out of your startup
+script.
 
 It needs nothing else.
 
@@ -31,22 +32,30 @@ It needs nothing else.
   than the window, so people look broad and round things oval; on fixes the constant, and the view
   shows a little more at the sides. The menus and HUD do not change.
 
-## Per zone
+## Per kind of zone, and per zone
 
-The values above are the general ones. A zone can have its own, so a town can draw everything
-while a big field keeps its frames:
+The values above are the general ones. Over them sit two more layers, each holding only what you
+set in it, and every value in force comes from the most particular layer that has it:
 
-- `/drawscale zone` says which zone you are in and whether it has values of its own.
-- `/drawscale zone on` gives the zone you are in its own values, starting as a copy of the general
-  ones. From then on the settings above set this zone's, whenever you are in it, until
-  `/drawscale zone off` drops them and the general values apply again.
-- `/drawscale zone list` lists every zone with values of its own.
-- `/drawscale general <setting> <value>` sets a general value from inside a zone that has its own,
-  for example `/drawscale general world 2`.
+- A preset for each kind of zone. Every zone the server has is a city, outdoors or a dungeon
+  (its dungeons, instanced areas, Dynamis and battlefields), by `zones.lua`, built from the
+  Phoenix server's zone data with `tools/build_zone_kinds.py`. `/drawscale dungeon world 2` sets
+  the world for every dungeon; `/drawscale city vis off`, `/drawscale outdoors fog 1.5` and the
+  rest likewise. `/drawscale dungeon` alone shows the preset, `/drawscale dungeon world clear`
+  takes one value out of it, and `/drawscale dungeon clear` empties it. To begin with, cities and
+  dungeons have world x2 in their presets and the outdoors preset is empty, so the outdoors draw
+  with the general values.
+- A zone's own values. `/drawscale zone world 3` sets the world for the zone you stand in alone;
+  `/drawscale zone world clear` takes it out, `/drawscale zone clear` takes out all of them, and
+  `/drawscale zone list` lists every zone with values of its own.
 
-The zone is read from the game at load and from the zone-in packet after, so the values change as
-the new zone loads; a line in the chat says so when the zone has its own. `/drawscale` always says
-which zone you are in and whose values are in force.
+So in a dungeon with the presets as they start, world is 2 from the dungeon preset and everything
+else is the general value, and a dungeon given its own world of 3 draws with that. The zone is
+read from the game at load and from the zone-in packet after, so the values change as the new
+zone loads; a line in the chat says what the zone gets from its own values and from its kind's
+preset. `/drawscale` says which zone you are in, its kind, the values in force and where each
+override comes from. A zone the server has no data for is of no known kind and draws with the
+general values, plus its own if it has any.
 
 ## How it works
 
