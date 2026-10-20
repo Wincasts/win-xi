@@ -223,8 +223,8 @@ icon and as large; once the game has drawn a weather icon, exactly where it drew
 
 **gems** comes with the addon: the game's marbled day circles, in their colours and at their size,
 cut as gemstones, and weather icons after the game's own (a fireball, an ice crystal, a whirlwind, an earth
-block, a bolt, a drop, a glow and a dark swirl), with a sun for a clear sky. Each is 32 pixels, twice
-the game's 16. `tools/generate_clock_icons.py` makes them.
+block, a bolt, a drop, a glow and a dark swirl), with a sun for a clear sky, a pair of clouds and a bank
+of fog, which the game has none for. Each is 32 pixels, twice the game's 16. `tools/generate_clock_icons.py` makes them.
 
 ## Commands
 

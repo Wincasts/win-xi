@@ -372,11 +372,12 @@ H.unload()
 seen = Since(mark)
 p('unloaded: the clock and the compass given back', Has(seen, 'clock.stop'), Has(seen, 'compass.stop'))
 
--- the set that comes with the addon: every day, every element, and the clear sky
+-- the set that comes with the addon: every day, every element, and the skies the game draws none for
 local missing = {}
 for _, name in ipairs({ 'days/firesday', 'days/earthsday', 'days/watersday', 'days/windsday', 'days/iceday',
     'days/lightningday', 'days/lightsday', 'days/darksday', 'weather/fire', 'weather/ice', 'weather/wind',
-    'weather/earth', 'weather/thunder', 'weather/water', 'weather/light', 'weather/dark', 'weather/clear' }) do
+    'weather/earth', 'weather/thunder', 'weather/water', 'weather/light', 'weather/dark', 'weather/clear', 'weather/clouds',
+    'weather/fog' }) do
     local file = io.open('addons/clock/icons/gems/' .. name .. '.png', 'rb')
     if file then file:close() else missing[#missing + 1] = name end
 end

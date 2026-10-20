@@ -1,8 +1,8 @@
 Icon sets for the clock's day and weather icons.
 
 Each folder here is a set, chosen under Icon Set in /clock. gems comes with the addon: round cut
-gemstones for the days, and weather icons after the game's own, with a sun for a clear sky. It is
-made by tools/generate_clock_icons.py.
+gemstones for the days, and weather icons after the game's own, with a sun for a clear sky, a pair of
+clouds and a bank of fog. It is made by tools/generate_clock_icons.py.
 
 A set holds any of these, as .png:
 

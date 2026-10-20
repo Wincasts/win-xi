@@ -1,6 +1,6 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.11.0'
+addon.version = '0.11.1'
 addon.desc = 'Winxi info panel: three configurable data slots, themed separators, movable icons and native HUD layering.'
 local winxiNeeded = 25
 do

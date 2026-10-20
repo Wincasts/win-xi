@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """The clock addon's 'gems' icon set: the game's marbled day circles cut as gemstones for the days, and weather icons after the
 game's own (font el* in ROM/119/51.DAT: a fireball, an ice sphere, a whirlwind, an earth block, a
-bolt, a drop, a glow and a dark swirl), with a sun for a clear sky, which the game has none for.
+bolt, a drop, a glow and a dark swirl), with a sun for a clear sky, a pair of clouds and a bank of
+fog, which the game has none for.
 
 Usage: python3 tools/generate_clock_icons.py [--output addons/clock/icons/gems]
 Requires Pillow and numpy. Each is drawn at 256 pixels and brought down to 32, twice the game's 16,
@@ -300,9 +301,61 @@ def sun():
     return outlined(img, 10, (70, 34, 10, 255))
 
 
+def clouds():
+    img = canvas()
+    # two clouds, a smaller one behind to the top right, each a row of puffs on a flat base, lit from the
+    # top left with a grey underside
+    def cloud(puffs, base, color_in, color_out):
+        mask = Image.new('L', (BIG, BIG), 0)
+        d = ImageDraw.Draw(mask)
+        for cx, cy, r in puffs:
+            d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=255)
+        x0, y0, x1, y1 = base
+        d.rounded_rectangle((x0, y0, x1, y1), radius=(y1 - y0) // 2, fill=255)
+        mask = mask.filter(ImageFilter.GaussianBlur(3)).point(lambda a: 255 if a > 128 else 0)
+        art = masked(radial(color_in, color_out, center=(x0 + (x1 - x0) * 0.35, y0 - 30), radius=(x1 - x0) * 0.8, power=1.1), mask)
+        return art, mask
+    back, _ = cloud(((150, 58, 30), (186, 70, 36), (216, 86, 26)), (120, 76, 240, 112), (214, 220, 232), (124, 134, 158))
+    img.alpha_composite(back)
+    front, mask = cloud(((66, 148, 36), (104, 118, 50), (150, 128, 44), (190, 152, 36)), (26, 150, 226, 206), (255, 255, 255), (150, 162, 188))
+    # a shadow under its puffs, so the front stands off the back
+    under = Image.new('L', (BIG, BIG), 0)
+    ImageDraw.Draw(under).rounded_rectangle((30, 176, 222, 212), radius=18, fill=120)
+    under = under.filter(ImageFilter.GaussianBlur(10))
+    shade_img = Image.new('RGBA', (BIG, BIG), (120, 130, 156, 255))
+    shade_img.putalpha(Image.fromarray(np.minimum(np.array(under), np.array(mask)).astype(np.uint8)))
+    front.alpha_composite(shade_img)
+    glint(front, 104, 118, 26, 200)
+    img.alpha_composite(front)
+    return outlined(img, 10, (54, 60, 80, 255))
+
+
+def fog():
+    img = canvas()
+    # a dim sun low behind, and a bank of fog over it in soft bands, each lighter along its top
+    disc = Image.new('L', (BIG, BIG), 0)
+    ImageDraw.Draw(disc).ellipse((C - 64, 22, C + 64, 150), fill=255)
+    img.alpha_composite(masked(radial((255, 236, 190), (214, 178, 120), center=(C - 16, 62), radius=96, power=0.9), disc))
+    bands = [(20, 92, 236, 134, 0.78), (10, 126, 246, 170, 0.86), (20, 162, 236, 204, 0.94), (34, 196, 222, 234, 1.0)]
+    for i, (x0, y0, x1, y1, t) in enumerate(bands):
+        sway = (-1) ** i * 8
+        band = Image.new('L', (BIG, BIG), 0)
+        ImageDraw.Draw(band).rounded_rectangle((x0 + sway, y0, x1 + sway, y1), radius=(y1 - y0) // 2, fill=int(255 * t))
+        band = band.filter(ImageFilter.GaussianBlur(6))
+        fill = radial((236, 238, 244), (170, 178, 196), center=((x0 + x1) / 2 - 40, y0 - 10), radius=(x1 - x0) * 0.9, power=0.8)
+        img.alpha_composite(masked(fill, band))
+    # the bands' top edges, lit
+    d = ImageDraw.Draw(img)
+    for i, (x0, y0, x1, y1, _) in enumerate(bands):
+        sway = (-1) ** i * 8
+        d.arc((x0 + sway + 12, y0 + 4, x1 + sway - 12, y1 - 4), 200, 340, fill=(255, 255, 255, 150), width=5)
+    return outlined(img, 10, (64, 68, 86, 255))
+
+
 WEATHER = {
     'fire': fireball, 'ice': ice, 'wind': whirlwind, 'earth': earth,
-    'thunder': bolt, 'water': drop, 'light': glow, 'dark': swirl, 'clear': sun,
+    'thunder': bolt, 'water': drop, 'light': glow, 'dark': swirl,
+    'clear': sun, 'clouds': clouds, 'fog': fog,
 }
 
 

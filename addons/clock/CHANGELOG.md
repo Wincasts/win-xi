@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1
+
+- The gems set has pictures for clouds and fog, the two skies it had none for (the game draws no icon for
+  either): a pair of clouds and a bank of fog with a dim sun behind, drawn as the sun for a clear sky is, by
+  tools/generate_clock_icons.py. Each goes where the game's weather icon would be, as the clear sky does.
+  tests/clock_check counts them in the set.
+
 ## 0.11.0
 
 - Reusable panel/fields/EXP/icon modules now live in Winxi 21; clock keeps compatibility imports
