@@ -60,6 +60,8 @@
 -- 29: shared spells, abilities, weaponskills, traits, jobs, skills/elements and client auto-translate catalogs
 -- 30: winxi.quests: composite quest-log identities, hidden interactions, NPC/zone references,
 --     declared rewards, factory metadata and enabled module/source evidence
+-- 31: winxi.infopanel.forecast (the zone's weather odds from the Phoenix server's tables) and
+--     winxi.infopanel.calendar (the Vana'diel month); words with tooltips in the panel's segments
 return {
-    Number = 30,
+    Number = 31,
 };

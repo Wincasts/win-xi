@@ -65,11 +65,16 @@ end
 function M.Aligned(left, right, width, align)
     return left + math.max(0,right-left-width) * ((align-1)/2)
 end
--- Turn literal pipes into styled separator segments without changing the field grammar.
+-- Turn literal pipes into styled separator segments without changing the field grammar. A word with a
+-- tooltip (out.tooltips[i]) is kept whole.
 function M.Segments(fields, context, format)
-    local out = {}
-    for _, segment in ipairs(fields.Segments(context,format)) do
+    local out = { tooltips = {} }
+    local segments = fields.Segments(context,format)
+    for i, segment in ipairs(segments) do
         if type(segment) ~= 'string' then out[#out+1] = segment
+        elseif segments.tooltips and segments.tooltips[i] then
+            out[#out+1] = segment
+            out.tooltips[#out] = segments.tooltips[i]
         else
             local at = 1
             while true do
@@ -93,14 +98,22 @@ function M.Build(p, fields, context)
         -- A manually placed token takes precedence over automatic placement.
         if fields.Has(M.Format(p),kind..'icon') then return end
         local segment = { icon=handle, kind=kind,
-            tooltip=fields.IconTooltip and fields.IconTooltip(kind,context) or nil }
+            tooltip=kind=='weather' and fields.Tooltip and fields.Tooltip('weather',context)
+                or fields.IconTooltip and fields.IconTooltip(kind,context) or nil }
         local slot = slots[place-2]
         if p[kind..'After'][1] then
             if #slot>0 then slot[#slot+1]='  ' end
             slot[#slot+1]=segment
         else
+            -- put before the words: their tooltips move along with them
+            local shift = #slot>0 and 2 or 1
             if #slot>0 then table.insert(slot,1,'  ') end
             table.insert(slot,1,segment)
+            if slot.tooltips then
+                local moved = {}
+                for index, tooltip in pairs(slot.tooltips) do moved[index+shift] = tooltip end
+                slot.tooltips = moved
+            end
         end
     end
     Icon('day',context.dayIcon); Icon('weather',context.weatherIcon)
@@ -139,6 +152,17 @@ local function Divider(list, p, tint, x, top, bottom)
         list:AddTriangleFilled(pointA,pointB,pointC,color)
     end
 end
+-- Draw-list text and icons are not ImGui items: the mouse is tested against their visible, slot-clipped
+-- area; no buttons or invisible items, which would take native chat and menu input. options.tooltip is
+-- given the hovered one's tooltip (words, or a table for the panel's owner to draw).
+local function Hovered(options, left, right, top, bottom, x0, y0, x1, y1)
+    if not options.tooltip then return false end
+    local io = imgui.GetIO()
+    local mouse = io.MousePos
+    local mx, my = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+    return not io.WantCaptureMouse and mx ~= nil and my ~= nil
+        and mx >= math.max(left,x0) and mx < math.min(right,x1) and my >= math.max(top,y0) and my < math.min(bottom,y1)
+end
 function M.Draw(p, slots, rect, options)
     imgui = imgui or require('imgui')
     theme = theme or require('winxi.theme')
@@ -163,9 +187,13 @@ function M.Draw(p, slots, rect, options)
         local y = rect.top+(rect.height-size)/2
         pointA[1], pointA[2], pointB[1], pointB[2] = left, rect.top+1, right, rect.top+rect.height-1
         list:PushClipRect(pointA,pointB,true)
+        local tooltips = segments.tooltips
         for j,s in ipairs(segments) do
             if type(s)=='string' then
                 outlined.Draw(list,x,y,options.textColor,s) -- its edge the theme's Text Outline
+                if tooltips and tooltips[j] and Hovered(options,left,right,rect.top+1,rect.top+rect.height-1,x,y,x+widths[j],y+size) then
+                    options.tooltip(tooltips[j])
+                end
             elseif s.separator then Divider(list,p,tint,x+4,rect.top+p.separatorInset[1],rect.top+rect.height-p.separatorInset[1])
             else
                 local kind = s.kind or 'weather'
@@ -174,16 +202,8 @@ function M.Draw(p, slots, rect, options)
                 local iy = rect.top+(rect.height-h)/2+dy
                 pointA[1], pointA[2], pointB[1], pointB[2] = x+dx, iy, x+dx+h, iy+h
                 list:AddImage(s.icon,pointA,pointB)
-                -- Draw-list icons are not ImGui items. Test only their visible, slot-clipped area;
-                -- do not create buttons/invisible items which would steal native chat/menu input.
-                if s.tooltip and options.iconTooltip then
-                    local io = imgui.GetIO()
-                    local mouse = io.MousePos
-                    local mx, my = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
-                    if not io.WantCaptureMouse and mx and my and mx >= math.max(left,x+dx) and mx < math.min(right,x+dx+h)
-                        and my >= math.max(rect.top+1,iy) and my < math.min(rect.top+rect.height-1,iy+h) then
-                        options.iconTooltip(s.tooltip)
-                    end
+                if s.tooltip and Hovered(options,left,right,rect.top+1,rect.top+rect.height-1,x+dx,iy,x+dx+h,iy+h) then
+                    options.tooltip(s.tooltip)
                 end
             end
             x=x+widths[j]

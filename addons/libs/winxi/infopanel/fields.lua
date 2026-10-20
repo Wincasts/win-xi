@@ -9,16 +9,26 @@
 --   fields.Has(format, token)           whether a field is in it
 --   fields.Context(time, grid, weather) what the fields are written from, read once; the clock adds
 --                                       weatherIcon (a set's picture) and exp (exp.Snapshot) to it
---   fields.Segments(context, format)    the line to draw: words (strings) and icons ({ icon = handle })
+--   fields.Segments(context, format)    the line to draw: words (strings) and icons ({ icon = handle,
+--                                       tooltip = text }); a word with a tooltip of its own is a segment
+--                                       of its own, its tooltip in segments.tooltips[i]
 --   fields.Line(context, format)        its words alone
+--   fields.Tooltip(hover, context)      a field's tooltip: 'weather' the text of IconTooltip('weather'),
+--                                       'calendar' { calendar = calendar.Build(context) }, made once for
+--                                       each context
+--   fields.IconTooltip(kind, context)   the text over the day's icon, or the weather's with the zone's
+--                                       forecast (winxi.infopanel.forecast) after it
 --   fields.FromList(order, shown, modules)  0.6's ordered, ticked list as a line
 --
 -- A field is { token, label, tip, Text(context) } or, for a picture, Icon(context) in place of Text;
--- module = 'exp' for experience, counted only while one is in the line. Text gives its words (Icon its
--- handle), or nil when there are none (no grid where the zone has no map). A field with none takes
--- the divider before it away with it, so that '{time} | {grid} | {day}' is '3:32 | Windsday' where
--- there is no grid; the first in the line takes the one after it instead.
+-- module = 'exp' for experience, counted only while one is in the line; hover = 'calendar' or
+-- 'weather' for a field with a tooltip. Text gives its words (Icon its handle), or nil when there are
+-- none (no grid where the zone has no map). A field with none takes the divider before it away with
+-- it, so that '{time} | {grid} | {day}' is '3:32 | Windsday' where there is no grid; the first in the
+-- line takes the one after it instead.
 local exp = require('winxi.infopanel.exp')
+local forecast = require('winxi.infopanel.forecast')
+local calendar = require('winxi.infopanel.calendar')
 local days = { 'Firesday', 'Earthsday', 'Watersday', 'Windsday', 'Iceday', 'Lightningday', 'Lightsday', 'Darksday' }
 
 local fields = {}
@@ -27,9 +37,34 @@ fields.Default = '{time}  {grid}  {day}  {date}  {moon}'
 
 local dayElements = { 'Fire', 'Earth', 'Water', 'Wind', 'Ice', 'Lightning', 'Light', 'Dark' }
 local weatherElements = { 'Fire', 'Water', 'Earth', 'Wind', 'Ice', 'Lightning', 'Light', 'Dark' }
-local weatherNames = { [0]='Clear skies', 'Sunshine', 'Clouds', 'Fog', 'Hot spells', 'Heat waves',
-    'Rain', 'Squalls', 'Dust storms', 'Sandstorms', 'Winds', 'Gales', 'Snow', 'Blizzards',
-    'Thunder', 'Thunderstorms', 'Auroras', 'Stellar glare', 'Gloom', 'Darkness' }
+local weatherNames = forecast.Names
+
+-- The zone the player is in, read once for each context: its id in c.zoneId and its name in c.zoneName
+-- (nil while the zone is unavailable)
+local function Zone(c)
+    if c.zoneRead then return c.zoneId, c.zoneName end
+    c.zoneRead = true
+    local ok, id = pcall(function() return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0) end)
+    id = ok and tonumber(id) or nil
+    if not id or id ~= id or id <= 0 or id > 65535 or id % 1 ~= 0 then return nil end
+    local found, name = pcall(function() return AshitaCore:GetResourceManager():GetString('zones.names', id) end)
+    c.zoneId = id
+    c.zoneName = found and type(name) == 'string' and name ~= '' and name or ('Zone %d'):format(id)
+    return c.zoneId, c.zoneName
+end
+
+local function Forecast(context)
+    local zone, name = Zone(context)
+    if not zone or not tonumber(context.raw) then return '' end
+    local ok, lines = pcall(function()
+        local time = context.time
+        local day = type(time) == 'table' and type(time.get_game_day) == 'function' and tonumber(time.get_game_day(context.raw)) or nil
+        return forecast.Lines(zone, context.raw, context.weekday, day)
+    end)
+    if not ok or not lines then return '' end
+    return ('\n\nForecast for %s:\n%s'):format(name, table.concat(lines, '\n'))
+end
+
 function fields.IconTooltip(kind, context)
     if kind == 'day' then
         local weekday = tonumber(context.weekday)
@@ -40,49 +75,55 @@ function fields.IconTooltip(kind, context)
     local id = tonumber(context.weatherId)
     if not id or id < 0 or id > 19 or id % 1 ~= 0 then return 'Weather: Unknown' end
     local name = context.weather or weatherNames[id]
-    if id < 4 then return ('Weather: %s\nNo elemental weather'):format(name) end
+    if id < 4 then return ('Weather: %s\nNo elemental weather'):format(name) .. Forecast(context) end
     return ('Weather: %s\nElement: %s\nStrength: %s'):format(name,
-        weatherElements[math.floor((id - 4) / 2) + 1], id % 2 == 0 and 'Single' or 'Double')
+        weatherElements[math.floor((id - 4) / 2) + 1], id % 2 == 0 and 'Single' or 'Double') .. Forecast(context)
+end
+
+function fields.Tooltip(hover, context)
+    if hover == 'weather' then
+        context.weatherTooltip = context.weatherTooltip or fields.IconTooltip('weather', context)
+        return context.weatherTooltip
+    end
+    if hover == 'calendar' then
+        if context.calendarTooltip == nil then
+            local built = calendar.Build(context)
+            context.calendarTooltip = built and { calendar = built } or false
+        end
+        return context.calendarTooltip or nil
+    end
+    return nil
 end
 
 fields.All = {
-    { token = 'time', label = 'Time',
-        tip = 'Vana\'diel time, as the game writes it: 3:32.',
+    { token = 'time', label = 'Time', hover = 'calendar',
+        tip = 'Vana\'diel time, as the game writes it: 3:32.\nResting the mouse on it shows the month\'s calendar.',
         Text = function(c) return ('%d:%02d'):format(c.time.get_game_hours(c.raw), c.time.get_game_minutes(c.raw)) end },
     { token = 'grid', label = 'Map Grid',
         tip = 'Where you are on the zone\'s map, as the game writes it: (H-9).\nThere is none where the zone has no map.',
         Text = function(c) return c.grid ~= nil and #c.grid > 0 and c.grid or nil end },
     { token = 'zone', label = 'Zone Name',
         tip = 'The current zone name, such as West Ronfaure. None while the zone is unavailable.',
-        Text = function(c)
-            if c.zoneRead then return c.zoneName end
-            c.zoneRead = true
-            local ok, id = pcall(function() return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0) end)
-            id = ok and tonumber(id) or nil
-            if not id or id ~= id or id <= 0 or id > 65535 or id % 1 ~= 0 then return nil end
-            local found, name = pcall(function() return AshitaCore:GetResourceManager():GetString('zones.names', id) end)
-            c.zoneName = found and type(name) == 'string' and name ~= '' and name or ('Zone %d'):format(id)
-            return c.zoneName
-        end },
-    { token = 'day', label = 'Day',
-        tip = 'The day of the week: Windsday.\nThe game\'s icon for the day stays to the left of the line.',
+        Text = function(c) local _, name = Zone(c); return name end },
+    { token = 'day', label = 'Day', hover = 'calendar',
+        tip = 'The day of the week: Windsday.\nThe game\'s icon for the day stays to the left of the line.\nResting the mouse on it shows the month\'s calendar.',
         Text = function(c) return days[tonumber(c.time.get_game_weekday(c.raw)) + 1] or 'Unknown day' end },
-    { token = 'date', label = 'Date',
-        tip = 'Vana\'diel\'s year, month and day: 900/12/30.',
+    { token = 'date', label = 'Date', hover = 'calendar',
+        tip = 'Vana\'diel\'s year, month and day: 900/12/30.\nResting the mouse on it shows the month\'s calendar.',
         Text = function(c)
             return ('%d/%02d/%02d'):format(c.time.get_game_year(c.raw), c.time.get_game_month(c.raw), c.time.get_game_day(c.raw))
         end },
-    { token = 'moon', label = 'Moon',
-        tip = 'How full the moon is: Moon 42%.',
+    { token = 'moon', label = 'Moon', hover = 'calendar',
+        tip = 'How full the moon is: Moon 42%.\nResting the mouse on it shows the moon\'s phase and the month\'s calendar.',
         Text = function(c) return ('Moon %d%%'):format(c.time.get_game_moon_percent(c.raw)) end },
-    { token = 'weather', label = 'Weather',
-        tip = 'The weather by name: Rain. None when the sky is clear.',
+    { token = 'weather', label = 'Weather', hover = 'weather',
+        tip = 'The weather by name: Rain. None when the sky is clear.\nResting the mouse on it shows the weather\'s element and the zone\'s forecast.',
         Text = function(c) return c.weather end },
     { token = 'dayicon', label = 'Day Icon',
         tip = 'The day icon inside an info panel slot; its position follows the token.',
         Icon = function(c) return c.dayIcon end },
     { token = 'weathericon', label = 'Weather Icon',
-        tip = 'The weather\'s icon in the line, from the Icon Set, in place of the game\'s above the clock.\nWhere the set has no picture for the weather, the game\'s own stays above.',
+        tip = 'The weather\'s icon in the line, from the Icon Set, in place of the game\'s above the clock.\nWhere the set has no picture for the weather, the game\'s own stays above.\nResting the mouse on it shows the weather\'s element and the zone\'s forecast.',
         Icon = function(c) return c.weatherIcon end },
     { token = 'level', module = 'exp', label = 'Level',
         tip = 'Your main job\'s level: Lv75.',
@@ -161,12 +202,17 @@ function fields.Context(time, grid, weather)
 end
 
 function fields.Segments(context, format)
-    local segments = {}
+    local segments = { tooltips = {} }
     local pending, written, skipNext = '', false, false
-    local function Words(words)
+    -- a word with a tooltip stands alone: the words before it and after it are segments of their own
+    local function Words(words, tooltip)
         if words == '' then return end
-        if type(segments[#segments]) == 'string' then segments[#segments] = segments[#segments] .. words
-        else segments[#segments + 1] = words end
+        if tooltip == nil and type(segments[#segments]) == 'string' and segments.tooltips[#segments] == nil then
+            segments[#segments] = segments[#segments] .. words
+        else
+            segments[#segments + 1] = words
+            segments.tooltips[#segments] = tooltip
+        end
     end
     for _, piece in ipairs(fields.Parse(format)) do
         if piece.literal then
@@ -183,8 +229,8 @@ function fields.Segments(context, format)
                 pending, written = '', true
                 if field.Icon then
                     local kind = field.token == 'dayicon' and 'day' or 'weather'
-                    segments[#segments + 1] = { icon = value, kind = kind, tooltip = fields.IconTooltip(kind, context) }
-                else Words(value) end
+                    segments[#segments + 1] = { icon = value, kind = kind, tooltip = kind == 'weather' and fields.Tooltip('weather', context) or fields.IconTooltip(kind, context) }
+                else Words(value, field.hover and fields.Tooltip(field.hover, context) or nil) end
             end
         end
     end

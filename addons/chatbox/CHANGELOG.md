@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.13.0
+
+- The zone's forecast under the weather. Resting the mouse on the weather icon, or on the `{weather}` words,
+  shows after the weather's element and strength what the zone may roll today and on the four days after it,
+  with the odds, as the Phoenix server rolls it (src/map/zone.cpp, UpdateWeather): each zone has a table of
+  2160 Vana'diel days (sql/zone_weather.sql), three weathers a day, and the day of the cycle is the Vana'diel
+  days since the epoch (the client's raw game time over 3456 Earth seconds) modulo 2160; every 3 to 30 Earth
+  minutes the zone rolls again, 15% the rare weather, 35% the common, 50% the normal, the same weather's odds
+  added up (rain, rain, squalls is 85% rain); from 2:00 to 7:00, outside cities, a roll of a clear sky is fog
+  instead; a zone with one entry or none never changes, which the tooltip says in one line. The tables are
+  winxi/infopanel/zone_weather.lua, built by tools/build_zone_weather.py from the live branch (189 rolling zones
+  over 50 distinct tables, 111 fixed, 42 cities for the fog rule); winxi.infopanel.forecast reads them.
+- The Vana'diel calendar under the time. Resting the mouse on the `{time}`, `{day}`, `{date}` or `{moon}` words
+  shows the month: the weekday, date and time on top, the Icon Set's day pictures across (or the days' names),
+  the thirty days in weeks of eight each under its weekday, today marked in the theme's tooltip border colour
+  and the days gone dimmed, then the moon's phase and fullness (waxing or waning by tomorrow's) and the next day
+  in Earth minutes. Built by winxi.infopanel.calendar from the game's own time functions of the one timestamp
+  the sample was read with.
+- Words with a tooltip are segments of their own in the line (fields.Segments and panel.Segments keep each
+  one's tooltip beside it, moved along when an icon is put before the words); the panel tests the mouse against
+  a word's drawn, slot-clipped width as it does an icon's, and asks the owner for the tooltip (options.tooltip,
+  iconTooltip until now) with the words or the calendar, shown after the capture as before. The legacy clock
+  draws the same strings and asks for nothing. Needs Winxi 31.
+- Tests: infopanel_tooltips_check (in run.sh) the day of the cycle, the generated tables whole, the rolls and
+  their odds on tables of its own, the lines for five days, the city and fixed cases, the weather tooltip with
+  the forecast and the zone read once, the calendar's title, weeks, moon, phases and next day, its drawing, the
+  words' tooltips through the segments and round icons put before them, and hovering a word; chatbox_ui_check
+  the date's calendar drawn inside a Winxi tooltip after the capture with the set's day pictures.
+
 ## 0.12.1
 
 - Pictures for clouds and fog in both bundled icon sets, the two weathers neither had one for, so the info
