@@ -11,8 +11,9 @@ through compatibility imports. Each addon still has its own Lua state, settings 
 `forecast` gives the zone's weather odds as the Phoenix server rolls them, from `zone_weather.lua`
 (built by `tools/build_zone_weather.py` from the server's `sql/zone_weather.sql` and zone types);
 `calendar` builds and draws the Vana'diel month for the tooltip over the time, day, date and moon;
-`schedule` builds and draws the ships' and airships' timetable for the tooltip over the zone name, from
-`transports.lua` (built by `tools/build_transports.py` from the server's `data/zones/<name>/zone.yaml`
+`schedule` builds and draws the ships' and airships' timetable (the next four to leave, of the lines the host
+puts in `context.timetable`; `schedule.Lines()` lists them for a settings whitelist) for the tooltip over the
+zone name, from `transports.lua` (built by `tools/build_transports.py` from the server's `data/zones/<name>/zone.yaml`
 transport runs, as `src/map/transports/ship_handler.cpp` cycles them).
 Words with a tooltip stand alone in the segments, their tooltips in `segments.tooltips[i]`; the host's
 `options.tooltip` is given the hovered word's or icon's tooltip, text, `{ calendar = month }` or

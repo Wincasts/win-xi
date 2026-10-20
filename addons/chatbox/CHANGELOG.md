@@ -2,28 +2,36 @@
 
 ## 0.14.0
 
-- The ships' and airships' timetable under the zone name. Resting the mouse on the `{zone}` words shows every
-  passenger line the Phoenix server runs (the airships between Jeuno and San d'Oria, Bastok, Windurst and
-  Kazham, the Selbina and Mhaura ferry, the Aht Urhgan ferries, the Manaclipper, the Carpenters' Landing
-  barge), a row for each place a line leaves from and goes to: how long until its door opens (Boarding, or
-  `now` while it is open) and shuts (Leaves), the Vana'diel time it leaves (At) and how long the crossing
-  takes (Trip), in Earth minutes:seconds; the rows that board in the zone you are in are marked in the theme's
-  tooltip border colour, and aboard a ship or airship a line on top says where you are bound and how long
-  until you are put ashore. As the server has it (src/map/transports/ship_handler.cpp): every run is a cycle of
+- The ships' and airships' timetable under the zone name. Resting the mouse on the `{zone}` words shows the
+  next four to leave, soonest first, of the passenger lines the Phoenix server runs (the airships between
+  Jeuno and San d'Oria, Bastok, Windurst and Kazham, the Selbina and Mhaura ferry, the Aht Urhgan ferries,
+  the Manaclipper, the Carpenters' Landing barge) that are ticked in the Info Panel settings' new Timetable
+  tab, each place a line leaves from and goes to a switch of its own (`infoPanel.timetable`, all on to begin
+  with; All and None buttons): how long until its door opens (Boarding, or `now` while it is open) and shuts
+  (Leaves), the Vana'diel time it leaves (At) and how long the crossing takes (Trip), in Earth
+  minutes:seconds; the rows that board in the zone you are in are marked in the theme's tooltip border
+  colour, and aboard a ship or airship a line on top says where you are bound and how long until you are
+  put ashore; with no line ticked the tooltip says where to tick some. As the server has it (src/map/transports/ship_handler.cpp): every run is a cycle of
   so many seconds from an offset in its zone's data/zones/<name>/zone.yaml, the seconds into it the raw game
   time (the Earth seconds since the Vana'diel epoch, the server's Vana'diel timestamp) less the offset, modulo
   the cycle; the door is open through the docked phase, and the riders are put ashore at the run's disembark
   second, so the crossing takes (disembark - the door shutting) modulo the cycle. Two runs with the same ends
   (the barge from the central landing, by day and by night) are one row, the nearer leaving. The runs are
   winxi/infopanel/transports.lua, built by tools/build_transports.py from the live branch (22 passenger runs
-  from 11 zones; a run the server adds that the script does not name stops the build); winxi.infopanel.schedule
-  builds and draws the timetable. Needs Winxi 32.
+  from 11 zones, 21 lines; a run the server adds that the script does not name stops the build);
+  winxi.infopanel.schedule builds and draws the timetable and lists the lines for the settings. Needs Winxi 32.
+- The calendar fills out its first and last weeks with the days of the month before and the month after, fainter
+  than the days gone (winxi.infopanel.calendar holds them as minus their day; style.faint).
+- The weather tooltip's forecast is the five days alone: the lines about fog from 2:00 to 7:00 and the weather
+  rolling again every 3 to 30 Earth minutes are gone (forecast.Lines).
 - Tests: infopanel_tooltips_check the generated runs whole and the ferry's hours against the server's own
   timetable, the seconds into a cycle, the door open and shut, a crossing past the end of the cycle, the
   Vana'diel clock and the spans, the rows and groups built, the nearer of two runs, the aboard lines, the
-  drawing in columns with the zone's rows marked, and the zone's words carrying the timetable once for the
-  context; chatbox_ui_check the zone's timetable drawn inside a Winxi tooltip after the capture with Port
-  Jeuno's four airships marked.
+  next four soonest first, the whitelist as false or { false }, nothing ticked, the drawing in columns with the
+  zone's rows marked, the zone's words carrying the timetable of the context's lines once, the calendar's
+  neighbouring days built and drawn faint, and the forecast's five lines; chatbox_ui_check a switch for every
+  line, on to begin with, and the zone's timetable drawn inside a Winxi tooltip after the capture with the
+  four airships from Port Jeuno alone ticked, every row marked.
 
 ## 0.13.0
 

@@ -6,16 +6,16 @@
 --                                         year, month, day, weekday, hours, minutes
 --                                         first     the weekday of the month's first day, 0 to 7
 --                                         rows      the month in weeks: each a list of 8 cells, a
---                                                   day number or false before the first and after
---                                                   the 30th
+--                                                   day number, or minus the day of the month before
+--                                                   or after where the week runs past this one
 --                                         moon      'Waxing Gibbous, 62%'
 --                                         next      'Iceday in 23 Earth minutes'
 --   calendar.Phase(percent, waxing)     the moon's phase by its fullness and whether it is waxing
 --   calendar.Draw(imgui, data, style)   draws it, inside a tooltip: the title, a header of the eight
 --                                       days (style.icon(weekday) gives a day's picture, or nil for its
---                                       name), the weeks with today marked (style.highlight behind it)
---                                       and the days before it in style.dim, then the moon and the
---                                       next day
+--                                       name), the weeks with today marked (style.highlight behind it),
+--                                       the days before it in style.dim and the neighbouring months'
+--                                       days in style.faint, then the moon and the next day
 local M = {}
 
 local days = { 'Firesday', 'Earthsday', 'Watersday', 'Windsday', 'Iceday', 'Lightningday', 'Lightsday', 'Darksday' }
@@ -48,13 +48,15 @@ function M.Build(context)
         if not (weekday and day and month and year and hours and minutes) then return nil end
         local first = (weekday - (day - 1)) % 8
         local rows, row = {}, {}
-        for _ = 1, first do row[#row + 1] = false end
+        -- the month before ends the day before the first; the one after begins the day after the 30th
+        for col = 1, first do row[#row + 1] = -(M.DaysPerMonth - first + col) end
         for d = 1, M.DaysPerMonth do
             row[#row + 1] = d
             if #row == 8 then rows[#rows + 1] = row; row = {} end
         end
         if #row > 0 then
-            while #row < 8 do row[#row + 1] = false end
+            local after = 0
+            while #row < 8 do after = after + 1; row[#row + 1] = -after end
             rows[#rows + 1] = row
         end
         local waxing = tomorrow > moon or (tomorrow == moon and moon < 50)
@@ -93,26 +95,22 @@ function M.Draw(imgui, data, style)
         end
     end
     for _, row in ipairs(data.rows) do
-        local drawn = false
         for col = 0, 7 do
             local day = row[col + 1]
-            if day then
-                if drawn then imgui.SameLine() end
-                drawn = true
-                imgui.SetCursorPosX(left + col * cell)
-                local today = day == data.day
-                if today and style.highlight then
-                    local x, y = imgui.GetCursorScreenPos()
-                    cellMin[1], cellMin[2], cellMax[1], cellMax[2] = x - 3, y - 1, x + digits + 3, y + size + 1
-                    imgui.GetWindowDrawList():AddRectFilled(cellMin, cellMax, imgui.GetColorU32(style.highlight), 3)
-                end
-                local dim = day < data.day and style.dim
-                if dim then imgui.PushStyleColor(ImGuiCol_Text, dim) end
-                imgui.Text(tostring(day))
-                if dim then imgui.PopStyleColor() end
+            if col > 0 then imgui.SameLine() end
+            imgui.SetCursorPosX(left + col * cell)
+            local today = day == data.day
+            if today and style.highlight then
+                local x, y = imgui.GetCursorScreenPos()
+                cellMin[1], cellMin[2], cellMax[1], cellMax[2] = x - 3, y - 1, x + digits + 3, y + size + 1
+                imgui.GetWindowDrawList():AddRectFilled(cellMin, cellMax, imgui.GetColorU32(style.highlight), 3)
             end
+            -- another month's day the faintest, a day gone dim
+            local tint = day < 0 and style.faint or day < data.day and style.dim or nil
+            if tint then imgui.PushStyleColor(ImGuiCol_Text, tint) end
+            imgui.Text(tostring(math.abs(day)))
+            if tint then imgui.PopStyleColor() end
         end
-        if not drawn then imgui.NewLine() end
     end
     imgui.Text(data.moon)
     imgui.Text(data.next)

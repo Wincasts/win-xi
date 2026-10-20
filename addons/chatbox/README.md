@@ -121,22 +121,24 @@ of an existing clock panel.
   weather for clear skies, clouds and fog) and then the **zone's forecast**: today and the four days
   after it, each with what the zone may roll and the odds, as the Phoenix server rolls it. The server
   keeps a table of 2160 Vana'diel days for each zone, three weathers a day; every 3 to 30 Earth minutes
-  it rolls again, the rare weather 15% of the time, the common 35%, the normal the rest; from 2:00 to
-  7:00, outside cities, a roll that gives a clear sky is fog instead; a zone with one entry or none
-  never changes. The tables are `winxi/infopanel/zone_weather.lua`, built from the server's
+  it rolls again, the rare weather 15% of the time, the common 35%, the normal the rest (from 2:00 to
+  7:00, outside cities, a roll that gives a clear sky is fog instead, which the tooltip leaves unsaid);
+  a zone with one entry or none never changes. The tables are `winxi/infopanel/zone_weather.lua`, built from the server's
   `sql/zone_weather.sql` and zone types by `tools/build_zone_weather.py`.
 - Hover the `{time}`, `{day}`, `{date}` or `{moon}` words for the **Vana'diel calendar**: the month,
   its thirty days in weeks of eight under the Icon Set's day pictures (or the days' names), today
-  marked and the days gone dimmed, the moon's phase and fullness, and when the next day begins in
-  Earth minutes.
+  marked, the days gone dimmed and the neighbouring months' days that fill out the first and last
+  weeks fainter still, the moon's phase and fullness, and when the next day begins in Earth minutes.
 - Hover the `{zone}` words for the **ships' and airships' timetable**, as the Phoenix server runs them:
-  the airships between Jeuno and San d'Oria, Bastok, Windurst and Kazham, the ferry between Selbina
-  and Mhaura, the Aht Urhgan ferries, the Manaclipper and the Carpenters' Landing barge, a line for each
-  place one leaves from and goes to, with how long until its door opens (**Boarding**, or `now` while it
-  is open) and shuts (**Leaves**), the Vana'diel time it leaves (**At**) and how long the crossing takes
-  (**Trip**), in Earth minutes:seconds. The lines that board in the zone you are in are marked in the
-  theme's tooltip border colour; aboard a ship or airship, a line on top says where you are bound and
-  how long until you are put ashore. The server runs every ship on a cycle from its zone's
+  the next four to leave, soonest first, of the lines ticked in the **Timetable** tab (the airships
+  between Jeuno and San d'Oria, Bastok, Windurst and Kazham, the ferry between Selbina and Mhaura,
+  the Aht Urhgan ferries, the Manaclipper and the Carpenters' Landing barge, each place one leaves
+  from and goes to a line of its own, all on to begin with, with All and None buttons). Each row has
+  how long until its door opens (**Boarding**, or `now` while it is open) and shuts (**Leaves**), the
+  Vana'diel time it leaves (**At**) and how long the crossing takes (**Trip**), in Earth
+  minutes:seconds. The rows that board in the zone you are in are marked in the theme's tooltip border
+  colour; aboard a ship or airship, a line on top says where you are bound and how long until you are
+  put ashore. The server runs every ship on a cycle from its zone's
   `data/zones/<name>/zone.yaml` (`src/map/transports/ship_handler.cpp`): the seconds into the cycle
   are the raw game time less the run's offset, modulo its length, the door open through the docked
   phase and the riders put ashore at the run's disembark second. The runs are

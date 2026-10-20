@@ -18,8 +18,9 @@ out. Each passenger run is named here with its kind, where it leaves from and wh
 the data holds only the server's run names; a run the server adds that is not named here stops
 the build, so the table is never missing a line without anyone knowing.
 
-Writes addons/libs/winxi/infopanel/transports.lua: the groups in the order they are shown and
-each run's zone, labels, cycle and phase seconds and voyage zones; winxi.infopanel.schedule
+Writes addons/libs/winxi/infopanel/transports.lua: the kinds of line, the lines (each place a ship
+leaves from and goes to, by the key the settings' whitelist knows it by) and each run's zone, labels,
+cycle and phase seconds and voyage zones; winxi.infopanel.schedule
 reads it. Reads the live branch of phoenixffxi/Phoenix, fetched from GitHub (tools/phoenix).
 """
 import argparse
@@ -45,31 +46,31 @@ GROUPS = [
     ('barge', "Barge: Carpenters' Landing"),
 ]
 
-# run name -> (group, from, to). Two runs with the same labels are one line of the timetable with the
-# nearer departure (the barge from the central landing runs by day and by night).
+# run name -> (group, line, from, to). Two runs with the same line are one line of the timetable (the barge
+# from the central landing runs by day and by night); the line's key names it in the settings' whitelist.
 RUNS = {
-    'sandoria_jeuno_airship': ('airships', "San d'Oria", 'Jeuno'),
-    'jeuno_sandoria_airship': ('airships', 'Jeuno', "San d'Oria"),
-    'bastok_jeuno_airship': ('airships', 'Bastok', 'Jeuno'),
-    'jeuno_bastok_airship': ('airships', 'Jeuno', 'Bastok'),
-    'windurst_jeuno_airship': ('airships', 'Windurst', 'Jeuno'),
-    'jeuno_windurst_airship': ('airships', 'Jeuno', 'Windurst'),
-    'kazham_jeuno_airship': ('airships', 'Kazham', 'Jeuno'),
-    'jeuno_kazham_airship': ('airships', 'Jeuno', 'Kazham'),
-    'selbina_mhaura_boat': ('ferry', 'Selbina', 'Mhaura'),
-    'mhaura_selbina_boat': ('ferry', 'Mhaura', 'Selbina'),
-    'mhaura_whitegate_boat': ('aht_urhgan', 'Mhaura', 'Al Zahbi'),
-    'whitegate_mhaura_boat': ('aht_urhgan', 'Al Zahbi', 'Mhaura'),
-    'whitegate_nashmau_boat': ('aht_urhgan', 'Al Zahbi', 'Nashmau'),
-    'nashmau_whitegate_boat': ('aht_urhgan', 'Nashmau', 'Al Zahbi'),
-    'manaclip_bibiki_purgonorgo': ('manaclipper', 'Bibiki Bay', 'Purgonorgo Isle'),
-    'manaclip_purgonorgo_bibiki': ('manaclipper', 'Purgonorgo Isle', 'Bibiki Bay'),
-    'manaclip_bibiki_tours': ('manaclipper', 'Bibiki Bay', 'Tour of the bay'),
-    'barge_south_central': ('barge', 'South landing', 'Central landing'),
-    'barge_central_south_day': ('barge', 'Central landing', 'South landing'),
-    'barge_central_south_night': ('barge', 'Central landing', 'South landing'),
-    'barge_south_north': ('barge', 'South landing', 'North landing'),
-    'barge_north_central': ('barge', 'North landing', 'Central landing'),
+    'sandoria_jeuno_airship': ('airships', 'sandoria_jeuno', "San d'Oria", 'Jeuno'),
+    'jeuno_sandoria_airship': ('airships', 'jeuno_sandoria', 'Jeuno', "San d'Oria"),
+    'bastok_jeuno_airship': ('airships', 'bastok_jeuno', 'Bastok', 'Jeuno'),
+    'jeuno_bastok_airship': ('airships', 'jeuno_bastok', 'Jeuno', 'Bastok'),
+    'windurst_jeuno_airship': ('airships', 'windurst_jeuno', 'Windurst', 'Jeuno'),
+    'jeuno_windurst_airship': ('airships', 'jeuno_windurst', 'Jeuno', 'Windurst'),
+    'kazham_jeuno_airship': ('airships', 'kazham_jeuno', 'Kazham', 'Jeuno'),
+    'jeuno_kazham_airship': ('airships', 'jeuno_kazham', 'Jeuno', 'Kazham'),
+    'selbina_mhaura_boat': ('ferry', 'selbina_mhaura', 'Selbina', 'Mhaura'),
+    'mhaura_selbina_boat': ('ferry', 'mhaura_selbina', 'Mhaura', 'Selbina'),
+    'mhaura_whitegate_boat': ('aht_urhgan', 'mhaura_alzahbi', 'Mhaura', 'Al Zahbi'),
+    'whitegate_mhaura_boat': ('aht_urhgan', 'alzahbi_mhaura', 'Al Zahbi', 'Mhaura'),
+    'whitegate_nashmau_boat': ('aht_urhgan', 'alzahbi_nashmau', 'Al Zahbi', 'Nashmau'),
+    'nashmau_whitegate_boat': ('aht_urhgan', 'nashmau_alzahbi', 'Nashmau', 'Al Zahbi'),
+    'manaclip_bibiki_purgonorgo': ('manaclipper', 'bibiki_purgonorgo', 'Bibiki Bay', 'Purgonorgo Isle'),
+    'manaclip_purgonorgo_bibiki': ('manaclipper', 'purgonorgo_bibiki', 'Purgonorgo Isle', 'Bibiki Bay'),
+    'manaclip_bibiki_tours': ('manaclipper', 'bibiki_tour', 'Bibiki Bay', 'Tour of the bay'),
+    'barge_south_central': ('barge', 'barge_south_central', 'South landing', 'Central landing'),
+    'barge_central_south_day': ('barge', 'barge_central_south', 'Central landing', 'South landing'),
+    'barge_central_south_night': ('barge', 'barge_central_south', 'Central landing', 'South landing'),
+    'barge_south_north': ('barge', 'barge_south_north', 'South landing', 'North landing'),
+    'barge_north_central': ('barge', 'barge_north_central', 'North landing', 'Central landing'),
 }
 
 ORDER = list(RUNS)
@@ -137,21 +138,31 @@ def build(server, output):
         sys.exit('Runs this script names that the server no longer has: ' + ', '.join(missing))
     lines = ['-- Generated by tools/build_transports.py; do not edit.',
              "-- The Phoenix server's ship and airship timetable, for the info panel (winxi.infopanel.schedule):",
-             '-- groups: the lines of the timetable in the order they are shown; runs: each passenger run as the',
-             '-- server cycles it, in seconds: every (the cycle), offset, boards (the door opens: the docked phase',
-             '-- begins), leaves (the door shuts: it ends), departs (the riders are carried off), disembark (they',
-             '-- are put ashore), the seconds into the cycle being (raw game time - offset) mod every; zone is',
-             '-- where it boards, crossings the zones the riders cross.',
+             '-- groups: the kinds of line, in order; lines: each place a ship leaves from and goes to, in order,',
+             '-- by the key the settings know it by; runs: each passenger run as the server cycles it, in seconds:',
+             '-- every (the cycle), offset, boards (the door opens: the docked phase begins), leaves (the door',
+             '-- shuts: it ends), departs (the riders are carried off), disembark (they are put ashore), the',
+             '-- seconds into the cycle being (raw game time - offset) mod every; zone is where it boards,',
+             '-- crossings the zones the riders cross, line the line it is a run of.',
              'return {',
              '    groups = {']
     for key, label in GROUPS:
         lines.append("        { key = '%s', label = %s }," % (key, lua_string(label)))
     lines.append('    },')
+    lines.append('    lines = {')
+    seen = set()
+    for name in ORDER:
+        group, line, origin, destination = RUNS[name]
+        if line in seen:
+            continue
+        seen.add(line)
+        lines.append("        { key = '%s', group = '%s', from = %s, to = %s }," % (line, group, lua_string(origin), lua_string(destination)))
+    lines.append('    },')
     lines.append('    runs = {')
     for name in ORDER:
-        group, origin, destination = RUNS[name]
+        group, line, origin, destination = RUNS[name]
         run = runs[name]
-        lines.append("        { name = '%s', group = '%s', from = %s, to = %s," % (name, group, lua_string(origin), lua_string(destination)))
+        lines.append("        { name = '%s', group = '%s', line = '%s', from = %s, to = %s," % (name, group, line, lua_string(origin), lua_string(destination)))
         lines.append('            zone = %d, every = %d, offset = %d, boards = %d, leaves = %d, departs = %d, disembark = %d,'
                      % (run['zone'], run['every'], run['offset'], run['boards'], run['leaves'], run['departs'], run['disembark']))
         lines.append('            crossings = { %s } }, -- %s to %s' % (', '.join(str(c) for c in run['crossings']), ids[run['zone']],

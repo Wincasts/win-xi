@@ -19,7 +19,19 @@ function M.Defaults()
     p.enabled[1]=false -- opt in; installing an update never adds a duplicate clock panel
     p.slots[1].format='{time} | {zone}'
     return {layout=p,window2=M.Window2Defaults(),anchor={2},anchorMenus={true},hideClock={false},hideCompass={false},fontFile='',fontSize={0},textColor={1,1,1,1},
-        iconSet='gems',iconScale={1},iconOffset={0},weatherScale={1}}
+        iconSet='gems',iconScale={1},iconOffset={0},weatherScale={1},timetable=M.TimetableDefaults()}
+end
+-- Which lines of the ships' and airships' timetable are shown: every line the tables have, on to begin with,
+-- each a { bool } the settings' checkbox binds to
+function M.TimetableDefaults(found)
+    local lines={}
+    local ok,schedule=pcall(require,'winxi.infopanel.schedule')
+    for _,line in ipairs(ok and schedule.Lines() or {}) do
+        local value=type(found)=='table' and found[line.key] or nil
+        if type(value)=='table' then value=value[1] end
+        lines[line.key]={value~=false}
+    end
+    return lines
 end
 local function Number(value,low,high,fallback)
     value=tonumber(value)
@@ -53,6 +65,7 @@ function M.Complete(options)
     options.outline=nil -- the text's edge is the theme's Text Outline now
     if type(options.textColor)~='table' then options.textColor=defaults.textColor end
     for i=1,4 do options.textColor[i]=Number(options.textColor[i],0,1,1) end
+    options.timetable=M.TimetableDefaults(options.timetable)
     return options
 end
 -- Anchored to the bottom, the lowest log owns the attachment: the primary (under a stacked split, or
@@ -113,9 +126,9 @@ function M.New(deps)
     end
     -- Shown after the native captures, never inside a captured log/panel draw list: words as they are, a
     -- calendar ({ calendar = month }) drawn by winxi.infopanel.calendar, the day pictures of the Icon Set
-    -- across its top and the theme's tooltip colours for today and the days gone, or the ships' and
-    -- airships' timetable ({ schedule = timetable }) drawn by winxi.infopanel.schedule, the zone's own
-    -- lines over the same colour.
+    -- across its top and the theme's tooltip colours for today, the days gone and the neighbouring months'
+    -- days, or the ships' and airships' timetable ({ schedule = timetable }) drawn by winxi.infopanel.schedule,
+    -- the zone's own lines over the same colour.
     local calendarStyle={}
     function service.Tooltip()
         if not hoveredText or not captures[hoveredSlot] then return end
@@ -127,6 +140,7 @@ function M.New(deps)
         local shared=theme.Shared and theme.Shared() or {}
         local text=shared.TooltipTextColor or {1,1,1,1}
         calendarStyle.dim={text[1],text[2],text[3],(text[4] or 1)*0.55}
+        calendarStyle.faint={text[1],text[2],text[3],(text[4] or 1)*0.3}
         calendarStyle.highlight=shared.TooltipBorderColor
         local ok,err
         if hoveredText.calendar then
@@ -214,6 +228,7 @@ function M.New(deps)
             local icons=deps.icons or require('winxi.infopanel.icons')
             context.dayIcon=icons.Day(options.iconSet,context.weekday) or icons.Day('gems',context.weekday)
             context.weatherIcon=icons.Weather(options.iconSet,context.weatherId) or icons.Weather('gems',context.weatherId)
+            context.timetable=options.timetable
             samples={}
             for i,l in ipairs(layouts) do samples[i]=panel.Build(l.p,fields,context) end
         end

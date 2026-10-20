@@ -1856,6 +1856,11 @@ end)() end
 -- inside a Winxi tooltip after the capture, the zone's own lines marked in the theme's tooltip border colour
 do (function()
 tipLayout.slots[1].format='{zone}'
+local timetable=app.options.infoPanel.timetable
+local lineCount=0
+for key,value in pairs(timetable) do assert(type(value)=='table' and value[1]==true,'every line on to begin with: '..key); lineCount=lineCount+1 end
+assert(lineCount==#require('winxi.infopanel.schedule').Lines() and timetable.jeuno_bastok and timetable.barge_central_south,'a switch for each line of the tables')
+for key,value in pairs(timetable) do value[1]=key:find('^jeuno_')~=nil end -- the four airships from Jeuno alone
 local oldMemory,oldResources=AshitaCore.GetMemoryManager,AshitaCore.GetResourceManager
 AshitaCore.GetMemoryManager=function(...)
     local memory=oldMemory(...)
@@ -1883,15 +1888,15 @@ assert(zoneLabel,'the zone drawn in the panel')
 mouseAt={zoneLabel.x+4,zoneLabel.y+4}; PanelSmartFrame()
 assert(begun==1 and ended==1 and #drawnSchedules==1 and #shownTips==2,'over the zone: a timetable tooltip, no words')
 local drawn=drawnSchedules[1]
-assert(drawn.data.title=='Ships and airships' and drawn.data.here==true and #drawn.data.groups>=2,'the timetable, Port Jeuno\'s lines marked')
-local jeunoRows=0
-for _,row in ipairs(drawn.data.groups[1].rows) do if row.here then jeunoRows=jeunoRows+1; assert(row.cells[1]=='Jeuno','a marked row leaves from Jeuno') end end
-assert(jeunoRows==4,'the four airships from Port Jeuno marked')
+assert(drawn.data.title=='Ships and airships' and drawn.data.here==true and #drawn.data.rows==4,'the timetable: the next four of the lines ticked')
+for _,row in ipairs(drawn.data.rows) do assert(row.here and row.cells[1]=='Jeuno','every row one of Port Jeuno\'s airships, marked') end
+assert(drawn.data.rows[1].key:find('^jeuno_') and drawn.data.rows[4].key:find('^jeuno_'),'the lines ticked alone')
 assert(drawn.style.dim[4]<1,'the headings dimmed from the theme\'s tooltip text colour')
 mouseAt={0,0}; PanelSmartFrame()
 assert(begun==1,'away from the zone: nothing asked')
 package.loaded['winxi.infopanel.schedule']=realSchedule
 tooltip.Begin,tooltip.End=oldBegin,oldEnd
+for _,value in pairs(timetable) do value[1]=true end
 AshitaCore.GetMemoryManager,AshitaCore.GetResourceManager=oldMemory,oldResources
 tipLayout.slots[1].format=''
 end)() end
