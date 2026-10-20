@@ -1,8 +1,10 @@
 -- The info panel's tooltips over its words: the zone's forecast as the Phoenix server rolls the weather,
--- and the calendar of the Vana'diel month; and the words' tooltips carried through the segments.
+-- the calendar of the Vana'diel month and the ships' and airships' timetable as the server runs them; and
+-- the words' tooltips carried through the segments.
 package.path = 'addons/libs/?.lua;' .. package.path
 local forecast = require('winxi.infopanel.forecast')
 local calendar = require('winxi.infopanel.calendar')
+local schedule = require('winxi.infopanel.schedule')
 local fields = require('winxi.infopanel.fields')
 local panel = require('winxi.infopanel.panel')
 
@@ -204,4 +206,115 @@ mouse.x, mouse.y = 30, 20; panel.Draw(pp, drawn, { left = 10, top = 20, width = 
 p('above the panel: nothing', #tips == 1)
 options.tooltip = nil; mouse.x, mouse.y = 30, 30; panel.Draw(pp, drawn, { left = 10, top = 20, width = 306, height = 24 }, options)
 p('without a tooltip function (the legacy clock): nothing asked', #tips == 1)
-print('Info panel tooltips: the forecast, the calendar, the words\' tooltips and hovering them passed')
+
+-- the timetable: the generated runs whole, then the server's cycle on runs of this check's own
+local transports = require('winxi.infopanel.transports')
+local runs, zonesWithRuns, groupKeys = 0, {}, {}
+for _, g in ipairs(transports.groups) do groupKeys[g.key] = true end
+for _, run in ipairs(transports.runs) do
+    assert(groupKeys[run.group], 'a known group: ' .. tostring(run.group))
+    assert(type(run.from) == 'string' and type(run.to) == 'string' and run.zone > 0, 'labels and a zone')
+    assert(run.every > 0 and run.boards < run.leaves and run.leaves <= run.departs and run.departs <= run.every, 'the door opens, shuts, then it departs, within the cycle')
+    assert(run.disembark >= 0 and run.disembark < run.every and #run.crossings > 0, 'put ashore within the cycle, a crossing named')
+    runs = runs + 1; zonesWithRuns[run.zone] = true
+end
+local bastok
+for _, run in ipairs(transports.runs) do if run.name == 'bastok_jeuno_airship' then bastok = run end end
+p('the generated runs are whole', runs >= 20, zonesWithRuns[236] and zonesWithRuns[246] and zonesWithRuns[248] and zonesWithRuns[249],
+    bastok and bastok.every == 864 and bastok.crossings[1] == 224)
+-- the Selbina ferry leaves on the hours the server's own timetable (scripts/globals/transport.lua) says:
+-- 8:00, 16:00 and 24:00 Vana'diel
+local selbina
+for _, run in ipairs(transports.runs) do if run.name == 'selbina_mhaura_boat' then selbina = run end end
+local leaving = selbina.offset + selbina.leaves
+p('the ferry leaves Selbina at 8:00, 16:00 and 0:00', schedule.Clock(leaving) == '8:00', schedule.Clock(leaving + 1152) == '16:00', schedule.Clock(leaving + 2304) == '0:00')
+
+-- runs of this check's own: a cycle of 100 from offset 10, the door open from 20 to 50, ashore at 70 (a
+-- crossing of 20); a second run with the same ends, offset 60, so the row is the nearer; a ferry whose
+-- riders go ashore after the cycle wraps
+schedule.Use({
+    groups = { { key = 'air', label = 'Airships' }, { key = 'sea', label = 'Ferries' }, { key = 'none', label = 'Nothing' } },
+    runs = {
+        { name = 'a', group = 'air', from = 'Here', to = 'There', zone = 5, every = 100, offset = 10, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 9 } },
+        { name = 'b', group = 'air', from = 'There', to = 'Here', zone = 6, every = 100, offset = 60, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 9 } },
+        { name = 'c', group = 'air', from = 'There', to = 'Here', zone = 6, every = 100, offset = 10, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 9 } },
+        { name = 'd', group = 'sea', from = 'Port', to = 'Isle', zone = 7, every = 1152, offset = 920, boards = 41, leaves = 233, departs = 234, disembark = 25, crossings = { 11, 12 } },
+        { name = 'e', group = 'other', from = 'X', to = 'Y', zone = 8, every = 100, offset = 0, boards = 20, leaves = 50, departs = 52, disembark = 70, crossings = { 13 } },
+    },
+})
+local run = { every = 100, offset = 10, boards = 20, leaves = 50, departs = 52, disembark = 70 }
+p('seconds into the cycle from the offset, wrapping', schedule.Into(run, 10) == 0, schedule.Into(run, 109) == 99, schedule.Into(run, 110) == 0, schedule.Into(run, 5) == 95)
+local status = schedule.Status(run, 40) -- 30 in: the door open
+p('the door open: boarding, leaves in 20, the crossing 20', status.boarding, status.boardsIn == 0, status.leavesIn == 20, status.trip == 20, not status.carrying)
+status = schedule.Status(run, 15) -- 5 in: before the door opens
+p('before the door: opens in 15, leaves in 45', not status.boarding, status.boardsIn == 15, status.leavesIn == 45)
+status = schedule.Status(run, 70) -- 60 in: under way
+p('under way: carrying, ashore in 10, the next door in 60', status.carrying, status.ashoreIn == 10, status.boardsIn == 60, status.leavesIn == 90)
+status = schedule.Status(run, 95) -- 85 in: ashore, waiting for the next
+p('ashore: nothing carried', not status.carrying, not status.boarding, status.boardsIn == 35)
+local ferry = { every = 1152, offset = 920, boards = 41, leaves = 233, departs = 234, disembark = 25 }
+status = schedule.Status(ferry, 920 + 233) -- the door just shut
+p('a crossing past the end of the cycle: carrying, 944 to go', status.carrying, status.ashoreIn == 944, status.trip == 944)
+status = schedule.Status(ferry, 920 + 10)
+p('and carrying still at 10 into the next cycle, ashore in 15', status.carrying, status.ashoreIn == 15, not status.boarding)
+p('the Vana\'diel clock of a timestamp', schedule.Clock(0) == '0:00', schedule.Clock(144 * 8) == '8:00', schedule.Clock(144 * 23 + 143) == '23:59', schedule.Clock(3456 * 5 + 144 + 24) == '1:10')
+p('spans in minutes and seconds, hours past one', schedule.Span(0) == '0:00', schedule.Span(59) == '0:59', schedule.Span(265) == '4:25', schedule.Span(3600) == '1:00:00', schedule.Span(3725.7) == '1:02:05', schedule.Span(-3) == '0:00')
+
+local built = schedule.Build(5, 40)
+p('the title, the columns and the groups in order; a group with no runs is empty, an unknown group dropped', built.title == 'Ships and airships', #built.columns == 6, built.columns[1] == 'From' and built.columns[5] == 'At',
+    #built.groups == 3, built.groups[1].label == 'Airships' and #built.groups[1].rows == 2, built.groups[2].label == 'Ferries' and #built.groups[2].rows == 1, #built.groups[3].rows == 0)
+local row = built.groups[1].rows[1]
+p('the zone\'s own run: boarding now, leaves in 0:20 at the Vana\'diel time of 60, a crossing of 0:20, marked', row.here, built.here,
+    row.cells[1] == 'Here' and row.cells[2] == 'There', row.cells[3] == 'now', row.cells[4] == '0:20', row.cells[5] == schedule.Clock(60), row.cells[6] == '0:20')
+row = built.groups[1].rows[2]
+-- at 40: run c (offset 10) is 30 in, leaves in 20; run b (offset 60) is 80 in, leaves in 70: the row is c's
+p('two runs with the same ends: one row, the nearer leaving, not the zone\'s', not row.here, row.cells[1] == 'There' and row.cells[2] == 'Here', row.cells[3] == 'now', row.cells[4] == '0:20')
+built = schedule.Build(5, 95) -- run c is 85 in (leaves in 65), run b 35 in (leaves in 15): b's turn
+p('and the other when it is nearer', built.groups[1].rows[2].cells[3] == 'now', built.groups[1].rows[2].cells[4] == '0:15',
+    built.groups[1].rows[1].cells[3] == '0:35' and built.groups[1].rows[1].cells[4] == '1:05')
+p('no aboard lines ashore', built.aboard == nil)
+built = schedule.Build(9, 70) -- the crossing of a and c, both 60 in: both carrying
+p('aboard: a line for each run carrying through the zone', built.aboard and #built.aboard == 2, built.aboard[1] == 'Bound for There: ashore in 0:10', built.aboard[2] == 'Bound for Here: ashore in 0:10', not built.here)
+built = schedule.Build(12, 920 + 10) -- the ferry's second crossing zone, 10 into the next cycle
+p('the ferry\'s riders ashore in 15 in either of its crossings', built.aboard and #built.aboard == 1 and built.aboard[1] == 'Bound for Isle: ashore in 0:15', schedule.Build(11, 930).aboard[1] == built.aboard[1])
+built = schedule.Build(9, 95) -- in the crossing with nothing carried
+p('in a crossing with nothing carried: arriving', built.aboard and #built.aboard == 1 and built.aboard[1]:find('^Arriving') ~= nil)
+built = schedule.Build(100, 40)
+p('a zone of no runs: the whole timetable, nothing marked, no aboard lines', built and not built.here and built.aboard == nil and #built.groups[1].rows == 2)
+p('without a zone: the timetable still', schedule.Build(nil, 40) ~= nil and not schedule.Build(nil, 40).here)
+p('without a timestamp: nothing', schedule.Build(5, nil) == nil, schedule.Build(5, 'x') == nil, schedule.Build(5, 0 / 0) == nil)
+
+-- drawing: the title, the aboard lines, the headings dimmed, each group's label and its rows in columns as
+-- wide as their widest words, the zone's rows marked, the note dimmed
+texts, rects, pushes, pops, cursor = {}, {}, 0, 0, 0
+built = schedule.Build(9, 70) -- aboard, with run a's zone 5 not here
+schedule.Draw(imgui, built, { dim = { 1, 1, 1, 0.5 }, highlight = { 1, 1, 1, 1 } })
+p('the title then the two aboard lines', texts[1][1] == 'Ships and airships', texts[2][1] == built.aboard[1], texts[3][1] == built.aboard[2])
+p('the headings next, the note last, both dimmed (a push and a pop each)', texts[4][1] == 'From', texts[9][1] == 'Trip', texts[#texts][1] == built.note, pushes == 2, pops == 2)
+p('the group labels and rows, the empty group left out', texts[10][1] == 'Airships', texts[11][1] == 'Here', texts[17][1] == 'There', texts[23][1] == 'Ferries', texts[24][1] == 'Port', texts[#texts - 1][1] == '15:44')
+-- the first column holds 'From', 'Here', 'There', 'Port': 'There' the widest at 35; the gap 14 (two spaces at 7)
+local gap = 14
+p('columns as wide as their widest words', texts[4][2] == 10, texts[5][2] == 10 + 35 + gap, texts[12][2] == 10 + 35 + gap)
+p('nothing marked away from the zone', #rects == 0)
+texts, rects, pushes, pops = {}, {}, 0, 0
+schedule.Draw(imgui, schedule.Build(5, 40), { dim = { 1, 1, 1, 0.5 }, highlight = { 1, 1, 1, 1 } })
+p('the zone\'s row marked once, the width of the table, rounded', #rects == 1, rects[1][5] == 777 and rects[1][6] == 3, rects[1][1] == 100 + 10 - 3)
+texts, rects, pushes = {}, {}, 0
+schedule.Draw(imgui, schedule.Build(5, 40), {})
+p('without a style: nothing dimmed or marked', pushes == 0, #rects == 0, texts[1][1] == 'Ships and airships')
+schedule.Use(nil)
+
+-- the zone's words carry the timetable, built once for the context
+AshitaCore = {
+    GetMemoryManager = function() return { GetParty = function() return { GetMemberZone = function() return 236 end } end } end,
+    GetResourceManager = function() return { GetString = function() return 'Port Bastok' end } end,
+}
+ctx = { time = time, raw = raw, weekday = game.weekday }
+segments = fields.Segments(ctx, '{zone} {time}')
+p('the zone\'s words stand alone with the timetable, Port Bastok\'s airship marked', segments[1] == 'Port Bastok', segments.tooltips[1] and segments.tooltips[1].schedule ~= nil,
+    segments.tooltips[1].schedule.here == true, segments.tooltips[1].schedule.groups[1].rows[3].here and segments.tooltips[1].schedule.groups[1].rows[3].cells[1] == 'Bastok',
+    segments.tooltips[3].calendar ~= nil)
+p('the same timetable again for the context', fields.Tooltip('schedule', ctx) == segments.tooltips[1])
+p('without a timestamp: no tooltip, the words still', fields.Segments({ time = time }, '{zone}')[1] == 'Port Bastok', fields.Tooltip('schedule', { time = time }) == nil)
+AshitaCore = core
+print('Info panel tooltips: the forecast, the calendar, the timetable, the words\' tooltips and hovering them passed')

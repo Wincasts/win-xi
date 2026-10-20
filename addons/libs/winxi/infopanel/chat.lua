@@ -113,24 +113,32 @@ function M.New(deps)
     end
     -- Shown after the native captures, never inside a captured log/panel draw list: words as they are, a
     -- calendar ({ calendar = month }) drawn by winxi.infopanel.calendar, the day pictures of the Icon Set
-    -- across its top and the theme's tooltip colours for today and the days gone.
+    -- across its top and the theme's tooltip colours for today and the days gone, or the ships' and
+    -- airships' timetable ({ schedule = timetable }) drawn by winxi.infopanel.schedule, the zone's own
+    -- lines over the same colour.
     local calendarStyle={}
     function service.Tooltip()
         if not hoveredText or not captures[hoveredSlot] then return end
         local tooltip=require('winxi.tooltip')
         if type(hoveredText)~='table' then tooltip.Show(hoveredText); return end
-        if not hoveredText.calendar or not tooltip.Begin() then return end
+        if not (hoveredText.calendar or hoveredText.schedule) or not tooltip.Begin() then return end
         local imgui=require('imgui')
-        local calendar=deps.calendar or require('winxi.infopanel.calendar')
-        local icons=deps.icons or require('winxi.infopanel.icons')
         local theme=require('winxi.theme')
         local shared=theme.Shared and theme.Shared() or {}
-        local set=hoveredOptions and hoveredOptions.iconSet or 'gems'
         local text=shared.TooltipTextColor or {1,1,1,1}
-        calendarStyle.icon=function(weekday) return icons.Day(set,weekday) or icons.Day('gems',weekday) end
         calendarStyle.dim={text[1],text[2],text[3],(text[4] or 1)*0.55}
         calendarStyle.highlight=shared.TooltipBorderColor
-        local ok,err=pcall(calendar.Draw,imgui,hoveredText.calendar,calendarStyle)
+        local ok,err
+        if hoveredText.calendar then
+            local calendar=deps.calendar or require('winxi.infopanel.calendar')
+            local icons=deps.icons or require('winxi.infopanel.icons')
+            local set=hoveredOptions and hoveredOptions.iconSet or 'gems'
+            calendarStyle.icon=function(weekday) return icons.Day(set,weekday) or icons.Day('gems',weekday) end
+            ok,err=pcall(calendar.Draw,imgui,hoveredText.calendar,calendarStyle)
+        else
+            local schedule=deps.schedule or require('winxi.infopanel.schedule')
+            ok,err=pcall(schedule.Draw,imgui,hoveredText.schedule,calendarStyle)
+        end
         tooltip.End()
         if not ok then error(err,0) end
     end

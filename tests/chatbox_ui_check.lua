@@ -1852,6 +1852,49 @@ package.loaded['winxi.infopanel.calendar']=realCalendar
 tooltip.Begin,tooltip.End=oldBegin,oldEnd
 tipLayout.slots[1].format=''
 end)() end
+-- The zone's words: resting on them shows the ships' and airships' timetable, drawn by winxi.infopanel.schedule
+-- inside a Winxi tooltip after the capture, the zone's own lines marked in the theme's tooltip border colour
+do (function()
+tipLayout.slots[1].format='{zone}'
+local oldMemory,oldResources=AshitaCore.GetMemoryManager,AshitaCore.GetResourceManager
+AshitaCore.GetMemoryManager=function(...)
+    local memory=oldMemory(...)
+    local oldParty=memory.GetParty
+    memory.GetParty=function(...) local party=oldParty and oldParty(...) or {}; party.GetMemberZone=function() return 246 end; return party end
+    return memory
+end
+AshitaCore.GetResourceManager=function(...)
+    local resources=oldResources and oldResources(...) or {}
+    local oldString=resources.GetString
+    resources.GetString=function(self,key,id) if key=='zones.names' then assert(id==246,'the zone\'s name asked'); return 'Port Jeuno' end; return oldString and oldString(self,key,id) or nil end
+    return resources
+end
+local drawnSchedules={}
+local realSchedule=package.loaded['winxi.infopanel.schedule']
+package.loaded['winxi.infopanel.schedule']={Build=realSchedule.Build,Draw=function(_,data,style) drawnSchedules[#drawnSchedules+1]={data=data,style=style} end}
+local oldBegin,oldEnd=tooltip.Begin,tooltip.End
+local begun,ended=0,0
+tooltip.Begin=function() assert(hooks[0].captures>beforeTipCapture,'the timetable after the capture'); begun=begun+1; return true end
+tooltip.End=function() ended=ended+1 end
+smartClock=smartClock+1; mouseAt=nil; PanelSmartFrame()
+local zoneLabel
+for _,label in ipairs(labels) do if label.text=='Port Jeuno' then zoneLabel=label end end
+assert(zoneLabel,'the zone drawn in the panel')
+mouseAt={zoneLabel.x+4,zoneLabel.y+4}; PanelSmartFrame()
+assert(begun==1 and ended==1 and #drawnSchedules==1 and #shownTips==2,'over the zone: a timetable tooltip, no words')
+local drawn=drawnSchedules[1]
+assert(drawn.data.title=='Ships and airships' and drawn.data.here==true and #drawn.data.groups>=2,'the timetable, Port Jeuno\'s lines marked')
+local jeunoRows=0
+for _,row in ipairs(drawn.data.groups[1].rows) do if row.here then jeunoRows=jeunoRows+1; assert(row.cells[1]=='Jeuno','a marked row leaves from Jeuno') end end
+assert(jeunoRows==4,'the four airships from Port Jeuno marked')
+assert(drawn.style.dim[4]<1,'the headings dimmed from the theme\'s tooltip text colour')
+mouseAt={0,0}; PanelSmartFrame()
+assert(begun==1,'away from the zone: nothing asked')
+package.loaded['winxi.infopanel.schedule']=realSchedule
+tooltip.Begin,tooltip.End=oldBegin,oldEnd
+AshitaCore.GetMemoryManager,AshitaCore.GetResourceManager=oldMemory,oldResources
+tipLayout.slots[1].format=''
+end)() end
 tooltip.Show=oldShow
 os.clock=smartRealClock
 -- Follow Game leaves the skin's settings as they are and ignores them; back in WinXI Skin they are as they were.

@@ -62,6 +62,8 @@
 --     declared rewards, factory metadata and enabled module/source evidence
 -- 31: winxi.infopanel.forecast (the zone's weather odds from the Phoenix server's tables) and
 --     winxi.infopanel.calendar (the Vana'diel month); words with tooltips in the panel's segments
+-- 32: winxi.infopanel.schedule (the ships' and airships' timetable from the Phoenix server's runs,
+--     winxi.infopanel.transports); the zone name's tooltip
 return {
-    Number = 31,
+    Number = 32,
 };
