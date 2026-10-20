@@ -18,7 +18,7 @@ versions can record, but display a warning because duplicate packets may inflate
 | Command | Effect |
 |---|---|
 | `/parse` | Show/hide the overlay; does not stop recording |
-| `/parse config` | Settings, shared theme, visibility rules and diagnostics |
+| `/parse config` | General, Full View, Minimal, Accuracy and Diagnostics settings |
 | `/parse test` | Toggle an isolated 18-person dummy-data preview |
 | `/parse test on` or `/parse test off` | Explicitly enable/disable the preview |
 | `/parse test 6` | Preview a chosen number of people (1–18) |
@@ -36,6 +36,59 @@ versions can record, but display a warning because duplicate packets may inflate
 
 Zoning/logging out pauses the encounter. Use `start` for a new encounter after zoning, or `resume`
 to accumulate across zones deliberately. There is no automatic encounter detection in this version.
+
+## Minimal overlay
+
+`/parse minimal` toggles a second, quieter presentation; `/parse minimal on` and
+`/parse minimal off` select it explicitly. The original full view stays the default,
+with its window size, position, columns and widths unchanged.
+
+Minimal mode has **no background, border, shadow, title, table headers, grid or buttons**.
+It uses 12px text at 75% opacity, zero row spacing, and shows the top six actors by
+recorded damage. The four columns are **actor / share / damage / DPS**. A faint summary
+shows total damage, encounter seconds and paused status; hidden actors are indicated
+by a `+N more` line. Shares are still relative to the whole encounter, not just visible rows.
+
+In `/parse config` → **Minimal**, change text opacity (20–100%), row count
+(1–18), font size (10–18px), name-column width (60–220 at 12px), and row spacing (0–6px).
+Choose a font from **Windows Fonts**, or keep **Theme Font**. Missing/unloadable fonts
+fall back to the theme font. The dark edge round all minimal text, summaries and status labels
+included, is Winxi Theme's **Text Outline** (winxisettings, Game Windows), shared by every addon;
+it fades with the text opacity. The font choice is saved per character and does not affect the
+full view or settings window.
+
+Widths scale with the font size. Toggle the encounter summary, damage share, damage total,
+DPS, rank numbers, compact K/M numbers, remaining actor count, and hiding when empty.
+Names always remain visible; numeric columns can all be hidden independently. TEST and
+PAUSED indicators remain visible even with the summary disabled.
+
+Drag the text to move the overlay while unlocked; **Lock Window** lets mouse
+input pass to the game. Unlock it in settings to move it again. Minimal mode keeps its
+own position and saves its preferences per character.
+It follows the same visibility rules as the full window and never changes recording.
+Diagnostics and column editing remain in settings or the full view.
+
+To preview without fighting:
+
+```text
+/parse test 6
+/parse minimal on
+```
+
+Return to live data with `/parse test off`; return to the full layout with
+`/parse minimal off`. The preview is labeled TEST in either view.
+
+## Settings tabs
+
+- **General:** display mode, pet grouping, skillchains, test preview, fading and visibility rules.
+- **Full View:** window row-height preset and the full table's column visibility/order.
+- **Minimal:** compact overlay layout, text, displayed statistics and click-through lock.
+- **Accuracy:** magic/WS accuracy explanations, experimental TP profile instructions and saved profiles.
+- **Diagnostics:** status report, last error and unknown message counters.
+
+There is no Winxi Theme tab in Parse's menu. The full view still follows the configured
+Winxi theme; hiding its editor does not overwrite existing theme preferences. Minimal
+mode retains its own transparent appearance.
 
 ## Preview and scrolling
 
@@ -60,7 +113,7 @@ Magic Land %, Magic Resists**, then use **Up/Down** to set their left-to-right o
 Changes apply immediately and are saved per character, including across reloads. Hidden columns
 remain in the editor so they can be restored or moved. **Reset columns** restores the original
 six-column visible layout, with the other optional columns hidden by default. The same editor is available
-under **Columns** in `/parse config`.
+under **Full View → Columns** in `/parse config`.
 If every column is hidden, the cog button stays available to restore them. Live and test views
 use the same choices; these settings never alter recorded combat data or reports.
 
@@ -74,7 +127,7 @@ accidentally attach to a different statistic after editing. A new layout starts 
 returning to a previously used layout restores its widths. A horizontal scrollbar keeps columns
 accessible if they exceed the window width.
 
-In `/parse config`, **Visible Rows (preset)** (1–18, default 12) provides a quick height adjustment;
+In `/parse config` → **Full View**, **Visible Rows (preset)** (1–18, default 12) provides a quick height adjustment;
 you can then resize freely. Neither resizing nor the preset discards lower-ranked participants:
 all rows remain reachable by scrolling, including separate pets. There is also a test-preview
 button in settings.
@@ -266,6 +319,7 @@ before making accuracy claims.
 - `parse_preview.lua`: deterministic dummy observations isolated from the live session.
 - `parse_columns.lua`: column definitions, visibility/order normalization and cell formatting.
 - `parse_controls.lua`: font-independent cog button drawing.
+- `parse_minimal.lua`: compact transparent overlay with independent position and click-through lock.
 - `parse_ws.lua`: pure calibrated TP solver and conservative observation/settling state machine.
 - `parse_ws_live.lua`: local equipment/buff/job context guards and party TP packet fields.
 - `parse.lua`: Ashita lifecycle, commands and winxi presentation.

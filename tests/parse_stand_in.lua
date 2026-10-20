@@ -29,7 +29,8 @@ local memory = AshitaCore.GetMemoryManager
 AshitaCore.GetMemoryManager = function(...)
     local result = memory(...)
     local party = result:GetParty()
-    party.GetMemberIsActive = function(_, index) return index == 0 and 1 or 0 end
+    -- Solo local player: slot zero need not have the party-active flag.
+    party.GetMemberIsActive = function() return 0 end
     party.GetMemberServerId = function() return 1 end
     party.GetMemberTargetIndex = function() return 1 end
     result.GetParty = function() return party end

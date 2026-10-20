@@ -232,4 +232,83 @@ check('unconfigured live WS recorded as unknown, not guessed accuracy', observed
     and require('parse_columns').Value('melee', observed) == '60.0%')
 H.command('/parse wsprofile off')
 check('profile inference can be disabled without clearing combat totals', next(H.options().wsProfiles) == nil and total() == 1100)
+local windows = require('winxi.window')
+local plain, minimalStyle, minimalFlags = windows.Plain, nil, nil
+windows.Plain = function(name, open, flags, draw, options)
+    if name == 'winxi.parse.minimal' then minimalStyle, minimalFlags = options, flags end
+    return plain(name, open, flags, draw, options)
+end
+H.command('/parse test on')
+local fullSize = { H.options().size[1], H.options().size[2] }
+H.command('/parse minimal on'); H.frames(20)
+check('minimal mode uses a separate transparent borderless window', H.options().minimal[1]
+    and minimalStyle.background[4] == 0 and minimalStyle.border[4] == 0 and minimalStyle.shadow == false
+    and minimalStyle.title == nil and minimalStyle.alpha <= 0.75)
+check('minimal window removes background and uses smaller text', require('bit').band(minimalFlags, ImGuiWindowFlags_NoBackground) ~= 0
+    and minimalStyle.fontSize == 12)
+H.options().minimalLocked[1] = true; H.frames(1)
+check('minimal lock passes input through to the game', minimalStyle.locked == true and minimalStyle.clickThrough == true) -- winxi.window's options: NoMove and NoInputs
+check('minimal mode preserves full window dimensions and live totals', H.options().size[1] == fullSize[1]
+    and H.options().size[2] == fullSize[2] and total() == 1100)
+H.resettle(); H.frames(1)
+check('minimal preferences survive settings reload', H.options().minimal[1] and H.options().minimalLocked[1])
+local minimalModule = require('parse_minimal')
+check('compact numbers are optional and preserve small values', minimalModule.Number(1234, true) == '1.2K'
+    and minimalModule.Number(2345678, true) == '2.3M' and minimalModule.Number(1234, false) == '1234'
+    and minimalModule.Number(42, true) == '42')
+local minimalColumns, minimalRows, minimalWords = nil, 0, {}
+local currentBegin, currentRow, currentText = imgui.BeginTable, imgui.TableNextRow, minimalModule.Text
+local badges = {}
+imgui.BeginTable = function(id, count, ...)
+    if id == '##parse.minimal.rows' then minimalColumns, minimalRows, minimalWords = count, 0, {} end
+    return currentBegin(id, count, ...)
+end
+imgui.TableNextRow = function(...) minimalRows = minimalRows + 1; return currentRow(...) end
+minimalModule.Text = function(value, color, edge)
+    minimalWords[#minimalWords + 1] = value; badges[value] = true
+    return currentText(value, color, edge)
+end
+H.options().minimalShare[1], H.options().minimalDamage[1], H.options().minimalDPS[1] = false, false, false
+H.options().minimalRanks[1], H.options().minimalSummary[1], H.options().minimalRows[1] = true, false, 3
+H.frames(1)
+check('minimal columns can be hidden independently and row limit applied', minimalColumns == 1 and minimalRows == 3
+    and minimalWords[1]:find('1. ', 1, true) == 1)
+H.frames(1)
+check('test label remains visible with encounter summary disabled', badges.TEST)
+local fontLibrary, outlineLibrary = require('winxi.fonts'), require('winxi.text')
+local getFont, pushFont, outlineDraw = fontLibrary.Get, imgui.PushFont, outlineLibrary.Draw
+local selectedFont, selectedSize, outlines = nil, nil, 0
+fontLibrary.Get = function(file) if file == 'test.ttf' then return 'test-font' end; return getFont(file) end
+imgui.PushFont = function(font, size) selectedFont, selectedSize = font, size; return pushFont(font, size) end
+outlineLibrary.Draw = function(...) outlines = outlines + 1; return outlineDraw(...) end
+local look = require('winxi.theme').Get() -- the outline is the theme's Text Outline, every addon's alike
+H.options().minimalFontFile, look.TextOutline = 'test.ttf', 2
+H.frames(1)
+check('minimal custom font and the theme\'s outline apply to every rendered line', selectedFont == 'test-font'
+    and selectedSize == 12 and outlines >= 4)
+outlines = 0; look.TextOutline = 0; H.frames(1)
+check('zero outline uses plain text without outline draws', outlines == 0)
+H.resettle(); H.frames(1)
+check('font preference survives settings reload', H.options().minimalFontFile == 'test.ttf' and H.options().minimalOutline == nil)
+look.TextOutline = 1
+fontLibrary.Get, imgui.PushFont, outlineLibrary.Draw = getFont, pushFont, outlineDraw
+H.options().minimalFontFile = ''
+local draws = 0
+windows.Plain = function(...) draws = draws + 1; return plain(...) end
+local o = H.options()
+local oldFade = o.fadeInOut[1]
+o.fadeInOut[1], o.minimalHideEmpty[1] = false, true
+minimalModule.Draw(o, { rows = {}, total = 0, duration = 0, running = true }, false)
+check('hide when empty suppresses the minimal window', draws == 0)
+o.fadeInOut[1] = oldFade
+imgui.BeginTable, imgui.TableNextRow, minimalModule.Text = currentBegin, currentRow, currentText
+H.command('/parse minimal off'); H.frames(20)
+check('full layout restored without changing preview or live recording', not H.options().minimal[1] and submitted == 18 and total() == 1100)
+H.command('/parse minimal invalid')
+check('invalid minimal command leaves mode unchanged', not H.options().minimal[1])
+local tab, tabs = imgui.BeginTabItem, {}
+imgui.BeginTabItem = function(label, ...) tabs[label] = true; return tab(label, ...) end
+H.command('/parse config'); H.frames(1)
+check('settings organized into focused tabs without Winxi Theme', tabs.General and tabs['Full View'] and tabs.Minimal
+    and tabs.Accuracy and tabs.Diagnostics and not tabs['Winxi Theme'])
 H.unload()

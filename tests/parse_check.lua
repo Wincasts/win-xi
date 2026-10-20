@@ -160,6 +160,15 @@ local identify = require('parse_identity').Resolver(memory, 7)
 check('fallback lookup verifies server IDs without entity-zero fallback', identify(100).kind == 'mob' and identify(999).kind == 'other')
 check('roster distinguishes player, trust and alliance', identify(200).kind == 'me' and identify(201).kind == 'trust' and identify(202).kind == 'alliance')
 check('pet ownership takes precedence over monster spawn flags', identify(203).kind == 'pet' and identify(203).owner_key == '7:200')
+local active = party.GetMemberIsActive
+party.GetMemberIsActive = function() return 0 end
+local solo = require('parse_identity').Resolver(memory, 7)
+check('solo player and pet resolve without party-active flag', solo(200).kind == 'me'
+    and solo(203).kind == 'pet' and solo(203).owner_key == '7:200' and solo(201).kind == 'other')
+local soloSession = session.New()
+assert(soloSession:Process(fixture.Single(200, 1, 1, 123, 100), 1, solo))
+check('solo damage reaches accounting without party-active flag', soloSession.core:Snapshot(2).total == 123)
+party.GetMemberIsActive = active
 local nextZone = require('parse_identity').Resolver(memory, 8)
 check('entity keys scope server IDs to zone epochs', nextZone(203).key ~= identify(203).key)
 local endCaptureText = {}

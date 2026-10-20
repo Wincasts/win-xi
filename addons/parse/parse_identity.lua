@@ -7,7 +7,9 @@ function M.Resolver(memory, epoch)
     local roster, companions, cache = {}, {}, {}
     local function key(id) return tostring(epoch) .. ':' .. string.format('%.0f', id) end
     for i = 0, 17 do
-        if party:GetMemberIsActive(i) == 1 then
+        -- Slot zero is the local player even when solo; its party-active flag
+        -- is not required (the party overlay follows the same rule).
+        if i == 0 or party:GetMemberIsActive(i) == 1 then
             local id, index = party:GetMemberServerId(i), party:GetMemberTargetIndex(i)
             if id and id ~= 0 and index and index > 0 then
                 local name = party:GetMemberName(i)
