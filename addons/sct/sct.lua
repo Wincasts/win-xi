@@ -1,7 +1,7 @@
 addon.name    = 'sct';
 addon.author  = 'win';
-addon.version = '0.4';
-addon.desc    = 'Scrolling text for the statuses you gain and lose.';
+addon.version = '0.8';
+addon.desc    = 'Scrolling text for statuses, received items and key items.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
 -- Scrolling combat text for the player's own statuses: as one is gained, "+ [icon] Name" starts at
@@ -39,6 +39,7 @@ local theme = require('winxi.theme');
 local text = require('winxi.text');
 local fonts = require('winxi.fonts');
 local icons = require('winxi.statusicons');
+local itemicons = require('winxi.itemicons');
 local window = require('winxi.window');
 local fade = require('winxi.fade');
 local style = require('winxi.style');
@@ -66,6 +67,11 @@ local defaults = T{
     fontSize = T{ 0 },     -- zero inherits the theme size
     showGained = T{ true },
     showLost = T{ true },
+    showDrops = T{ true },
+    dropsSeparate = T{ false },
+    dropsPos = T{ 380, 300 },
+    dropsLocked = T{ false },
+    dropColor = T{ 1.00, 0.82, 0.35, 1.00 },
     buffColor = T{ 0.40, 0.68, 1.00, 1.00 },
     enfeebleColor = T{ 0.76, 0.50, 1.00, 1.00 },
     lostColor = T{ 0.62, 0.62, 0.62, 1.00 },
@@ -83,7 +89,8 @@ local settleUntil = nil; -- until when what is read is taken as it is
 -- The lines: each { id, gained, words, start }, start when it leaves the top (later than now while
 -- it waits for the line before it to move out of the way), oldest first
 local lines = {};
-local nextStart = 0; -- the soonest the next line may leave the top
+local statusStream = { lines = lines, nextStart = 0 };
+local dropStream = { lines = {}, nextStart = 0 };
 
 local names = {}; -- status -> its name, looked up once
 local function Name(id)
@@ -117,19 +124,40 @@ local function Spacing(options)
     return (lineHeight + options.spacing[1]) / math.max(1, options.speed[1]);
 end
 
+local function Enqueue(stream, line)
+    local start = math.max(os.clock(), stream.nextStart);
+    stream.nextStart = start + Spacing(app.options);
+    line.start = start;
+    stream.lines[#stream.lines + 1] = line;
+    while #stream.lines > MOST_LINES do table.remove(stream.lines, 1); end
+end
+
+local function AddDrop(id, quantity, keyItem)
+    local options = app.options;
+    if not options.showDrops[1] or (id == 0 and not keyItem) then return; end
+    local resources = AshitaCore:GetResourceManager();
+    local name;
+    if keyItem then
+        name = resources:GetString('keyitems.names', id);
+    else
+        local item = resources:GetItemById(id);
+        name = item and item.Name and item.Name[1];
+    end
+    if type(name) ~= 'string' or name == '' then name = ('%s %d'):format(keyItem and 'Key Item' or 'Item', id); end
+    local words = quantity > 1 and ('%s x%d'):format(name, quantity) or name;
+    if keyItem then words = 'Key Item: ' .. words; end
+    Enqueue(options.dropsSeparate[1] and dropStream or statusStream,
+        { id = id, gained = true, drop = true, keyItem = keyItem, words = words });
+end
+
+local acquisitions = require('acquisitions').New(AddDrop);
+
 local function Add(id, gained)
     local options = app.options;
     if (gained and not options.showGained[1]) or (not gained and not options.showLost[1]) then
         return;
     end
-    local now = os.clock();
-    local start = math.max(now, nextStart);
-    nextStart = start + Spacing(options);
-    lines[#lines + 1] = { id = id, gained = gained, words = Name(id), start = start };
-    -- a flood (a zone's worth of statuses wearing at once) is not kept waiting for ever
-    while #lines > MOST_LINES do
-        table.remove(lines, 1);
-    end
+    Enqueue(statusStream, { id = id, gained = gained, words = Name(id) });
 end
 
 -- Reads what the player is under into counts; false while there is no player, or between areas
@@ -184,13 +212,16 @@ local tint = { 1, 1, 1, 1 };
 local shade = { 0, 0, 0, 0 };
 local outlineMin, outlineMax = { 0, 0 }, { 0, 0 };
 local signWidths, measuredFont, measuredSize = {}, nil, nil;
+local itemSheet, itemFramed;
 
 local function Color(line, options)
+    if line.drop then return options.dropColor; end
     if not line.gained then return options.lostColor; end
     return enfeebles[line.id] and options.enfeebleColor or options.buffColor;
 end
 
-local function DrawLines(options, x, y, now)
+local function DrawLines(options, x, y, now, stream)
+    local lines = stream.lines;
     local drawList = imgui.GetWindowDrawList();
     local width, height = options.width[1], options.height[1];
     local iconHeight = options.iconSize[1];
@@ -201,7 +232,9 @@ local function DrawLines(options, x, y, now)
     if font ~= measuredFont or size ~= measuredSize then
         measuredFont, measuredSize = font, size;
         signWidths['+'], signWidths['-'] = imgui.CalcTextSize('+'), imgui.CalcTextSize('-');
-        for _, line in ipairs(lines) do line.width = nil; end
+        for _, source in ipairs({ statusStream, dropStream }) do
+            for _, line in ipairs(source.lines) do line.width = nil; end
+        end
     end
     local _, textHeight = imgui.CalcTextSize('A');
     lineHeight = math.max(iconHeight, textHeight);
@@ -210,12 +243,21 @@ local function DrawLines(options, x, y, now)
 
     for _, line in ipairs(lines) do
         local progress = (now - line.start) / duration;
-        if progress >= 0 and progress < 1 then
+        if progress >= 0 and progress < 1 and (not line.drop or options.showDrops[1]) then
             local alpha = progress < FADE_FROM and 1 or (1 - progress) / (1 - FADE_FROM);
             local top = y + travel * progress;
             local sign = line.gained and '+' or '-';
 
-            local handle, own = icons.Get(line.id, useOwn);
+            local handle, own, itemUV;
+            if not line.drop then
+                handle, own = icons.Get(line.id, useOwn);
+            elseif not line.keyItem then
+                if not itemFramed then
+                    itemSheet, itemFramed = itemicons.Frame(), true;
+                end
+                if itemSheet ~= nil then itemUV = itemicons.Place(line.id); end
+                if itemUV ~= nil then handle = itemSheet; end
+            end
             local iconWidth = handle == nil and 0 or (own and math.floor(iconHeight * icons.OwnAspect + 0.5) or iconHeight);
             if line.width == nil then
                 line.width = imgui.CalcTextSize(line.words);
@@ -240,10 +282,12 @@ local function DrawLines(options, x, y, now)
             if handle ~= nil then
                 local iconTop = top + (lineHeight - iconHeight) / 2;
                 cornerA[1], cornerA[2], cornerB[1], cornerB[2] = left, iconTop, left + iconWidth, iconTop + iconHeight;
-                if own then
-                    uvA[1], uvB[1] = icons.OwnLeft, icons.OwnRight;
+                if itemUV ~= nil then
+                    uvA[1], uvA[2], uvB[1], uvB[2] = itemUV[1], itemUV[2], itemUV[3], itemUV[4];
+                elseif own then
+                    uvA[1], uvA[2], uvB[1], uvB[2] = icons.OwnLeft, 0, icons.OwnRight, 1;
                 else
-                    uvA[1], uvB[1] = 0, 1;
+                    uvA[1], uvA[2], uvB[1], uvB[2] = 0, 0, 1, 1;
                 end
                 tint[1], tint[2], tint[3], tint[4] = 1, 1, 1, alpha;
                 drawList:AddImage(handle, cornerA, cornerB, uvA, uvB, imgui.GetColorU32(tint));
@@ -254,7 +298,7 @@ local function DrawLines(options, x, y, now)
     end
 end
 
-local function DrawBox(options, now)
+local function DrawBox(options, now, stream)
     local x, y = imgui.GetCursorScreenPos();
     boxSize[1], boxSize[2] = options.width[1], options.height[1];
     imgui.Dummy(boxSize);
@@ -267,7 +311,7 @@ local function DrawBox(options, now)
     local face, size = fonts.Get(options.fontFile), options.fontSize[1];
     local pushed = face ~= nil or size > 0;
     if pushed then imgui.PushFont(face, size > 0 and size or imgui.GetFontSize()); end
-    local ok, err = pcall(DrawLines, options, x, y, now);
+    local ok, err = pcall(DrawLines, options, x, y, now, stream);
     if pushed then imgui.PopFont(); end
     if not ok then error(err, 0); end
 
@@ -277,20 +321,20 @@ local function DrawBox(options, now)
     end
 end
 
-local place = true; -- the window is put where the settings say, next frame
+local place = true; -- the windows are put where the settings say, next frame
 local windowOptions = { alpha = 1 };
 local transparent = { 0, 0, 0, 0 };
 local open = { true };
 
-local function Draw(options, now)
+local function Draw(options, now, stream, name)
     local wanted = options.isVisible[1];
     local alpha = wanted and 1 or 0;
-    if options.fadeInOut[1] then alpha = fade.Presence(windowName, wanted); end
+    if options.fadeInOut[1] then alpha = fade.Presence(name, wanted); end
     if alpha <= 0.01 then return; end
 
     -- nothing to show: no window, unless it is there to be placed or set
     local placing = not options.locked[1] or app.showConfig[1];
-    if #lines == 0 and not placing then return; end
+    if #stream.lines == 0 and not placing then return; end
 
     local flags = bit.bor(style.TitlelessFlags(), ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoFocusOnAppearing,
         ImGuiWindowFlags_NoNav, ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse);
@@ -304,12 +348,12 @@ local function Draw(options, now)
     if box then windowOptions.shadow = nil; else windowOptions.shadow = false; end
 
     imgui.SetNextWindowPos(options.pos, (options.locked[1] or place) and ImGuiCond_Always or ImGuiCond_FirstUseEver);
-    place = false;
-    window.Plain(windowName, open, flags, function() DrawBox(options, now); end, windowOptions);
+    window.Plain(name, open, flags, function() DrawBox(options, now, stream); end, windowOptions);
 end
 
 -- Lines that have reached the bottom are let go
-local function Prune(options, now)
+local function Prune(options, now, stream)
+    local lines = stream.lines;
     local duration = Duration(options);
     local kept = 0;
     for index = 1, #lines do
@@ -320,7 +364,7 @@ local function Prune(options, now)
             lines[kept] = line;
         end
     end
-    if kept == 0 then nextStart = 0; end
+    if kept == 0 then stream.nextStart = 0; end
 end
 
 -- Settings
@@ -374,6 +418,24 @@ local function DrawSettings(options)
         options.align = Combo('##sct.align', options.align, aligns);
     end
 
+    if widgets.Header('Received Items') then
+        widgets.Label('Show Received Items');
+        imgui.Checkbox('##sct.showDrops', options.showDrops);
+        Tip('Shows newly received items added to your main Inventory and key items you gain. Wardrobe/storage updates, treasure-pool entries and transfers from your other bags do not count.');
+        widgets.Label('Separate Popup');
+        if imgui.Checkbox('##sct.dropsSeparate', options.dropsSeparate) then place = true; end
+        Tip('Off: received items scroll with statuses. On: they have their own movable area, which disappears when empty while locked. New notifications use the selected area.');
+        if options.dropsSeparate[1] then
+            widgets.Lock(options.dropsLocked, '##sct.dropsLocked', { tooltip = 'Unlock to move the item-drop area; lock to hide it when empty and let clicks through.' });
+            widgets.Label('Drop Position');
+            if imgui.InputInt2('##sct.dropsPos', options.dropsPos) then place = true; end
+        end
+        widgets.Label('Drop Color');
+        imgui.ColorEdit4('##sct.dropColor', options.dropColor, ImGuiColorEditFlags_NoInputs);
+        if imgui.Button('Test Drop##sct.testDrop') then AddDrop(4096, 2); end
+        Tip('/sct testdrop also sends a sample drop. Both areas share size, speed, font and box style.');
+    end
+
     if widgets.Header('Lines') then
         widgets.Label('Show Gained');
         imgui.Checkbox('##sct.showGained', options.showGained);
@@ -406,10 +468,11 @@ app = shell.New({
     window = windowName,
     configTitle = 'SCT Settings',
     command = '/sct',
-    help = '/sct shows or hides the text; /sct config opens or closes the settings; /sct test sends some lines down the box.',
+    help = '/sct shows or hides the text; /sct config opens or closes the settings; /sct test sends status lines; /sct testdrop sends a sample item drop.',
     drawSettings = DrawSettings,
     commands = {
         test = function() Add(33, true); Add(4, true); Add(33, false); end,
+        testdrop = function() AddDrop(4096, 2); end,
     },
     onSettings = function(options)
         place = true;
@@ -430,11 +493,33 @@ app = shell.New({
     end,
 });
 
+ashita.events.register('packet_in', 'sct_items', function(e)
+    acquisitions:Packet(e.id, e.data);
+end);
+
+ashita.events.register('packet_out', 'sct_item_moves', function(e)
+    if e.blocked then return; end
+    acquisitions:Outgoing(e.id, e.data, AshitaCore:GetMemoryManager());
+end);
+
 ashita.events.register('d3d_present', 'sct_present', function()
     Track();
+    -- Initial bag/key-item snapshots and zone refreshes are baselines, not gains.
+    if not ready or settleUntil ~= nil then
+        acquisitions:Reset();
+    else
+        acquisitions:Update(AshitaCore:GetMemoryManager());
+    end
     local options = app.options;
     local now = os.clock();
-    Prune(options, now);
+    Prune(options, now, statusStream);
+    Prune(options, now, dropStream);
     if not app:BeginFrame() then return; end
-    Draw(options, now);
+    itemFramed = false;
+    Draw(options, now, statusStream, windowName);
+    if options.showDrops[1] and (options.dropsSeparate[1] or #dropStream.lines > 0) then
+        local dropOptions = setmetatable({ pos = options.dropsPos, locked = options.dropsLocked }, { __index = options });
+        Draw(dropOptions, now, dropStream, windowName .. '.drops');
+    end
+    place = false;
 end);
