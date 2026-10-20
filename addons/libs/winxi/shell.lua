@@ -234,6 +234,13 @@ end
 -- Once a frame, first: the theme, and the settings window if it is open. Returns false while the
 -- addon's windows should not be drawn (the map is open, an event is running, and so on).
 function App:BeginFrame()
+    -- no one logged in: nothing is drawn, the settings window neither. Ashita's settings library gives
+    -- every addon the defaults as the character logs out, in which a window is open and at its first
+    -- place, and the addons run on for half a second more as the game shuts down: without this, a
+    -- window kept closed showed in that time, and at the title screen.
+    if self.loggedOut then
+        return false;
+    end
     local options = self.options;
 
     -- every frame, cheaply: nothing happens unless the choice of theme or the settings table has changed
@@ -369,6 +376,7 @@ function shell.New(spec)
     local app = setmetatable({
         spec = spec,
         options = settings.load(defaults),
+        loggedOut = not settings.logged_in, -- loaded at the title screen: nothing drawn until a character's settings come
         showConfig = { false },
         windowStyle = { alpha = 1, title = spec.title },
         lingering = { true }, -- stands in for the window's own switch while it fades out
@@ -416,6 +424,8 @@ function shell.New(spec)
         if s ~= nil then
             app.options = s;
         end
+        -- the defaults, as the character logs out: held closed until a character's settings come
+        app.loggedOut = not settings.logged_in;
         Prepare(app);
         settings.save();
     end);
