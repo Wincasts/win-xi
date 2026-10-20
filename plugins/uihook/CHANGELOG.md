@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.92
+
+- A capture is no longer refused for a texture whose id is a 32-bit pointer sign-extended to 64
+  (`TextureAddress`, partyhook.h): the id's low 32 bits are the address, as `Font()` has always taken
+  them, where before the whole id was held to `UINT32_MAX` and any ones in its upper half refused the
+  capture. A pointer above 2 GB, as imgui's font texture's can be after a while (the renderer makes the
+  texture again as the atlas grows), carries them once it has been read as a signed integer. With the
+  font texture refused, every window with text in it was refused: the party, alliance and target windows
+  and the chat logs drawn by imgui over the game's own, chatbox's second box not drawn at all (it is
+  drawn only after the first's capture), and no reload of uihook or of an addon helping, as the texture
+  stays; buff's bar, which reads the texture through `Font()`, kept working. The evening of the 19th
+  from about 22:50, with nothing said anywhere: the reason is inferred from what was seen and from the
+  checks each capture makes, as no command reported them. Hence the next point.
+- What a capture was refused for is said. Each slot keeps its last refusal (`PartyRefusal`, slots.h: no
+  window or display, a draw command that cannot be replayed, too many draw commands, imgui's texture not
+  ready, a texture id that is no 32-bit pointer, a clip rectangle or a vertex that is not a number, a
+  vertex index past the buffer, too many vertices, the capture threw), the frame of it and how many in a
+  row; `/uihook` lists the slots refused now with the reason, the run and the age, and the count of
+  captures refused since loading. Ashita's log gets a warning the first time a slot is refused and when
+  its reason changes (`uihook | party list: capture refused at frame N, ...`), and a line when a capture
+  is taken again; a slot released on purpose reports nothing. tests/party: `TextureAddress` for a pointer
+  below 2 GB, one above zero- and sign-extended, ones over a low pointer, a 33-bit value, the font mark,
+  a null and a low address.
+
 ## 0.91
 
 - What an addon asks for is good for eight frames, as what it hands over has been since 0.9

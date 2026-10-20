@@ -83,8 +83,12 @@ struct Drawing {
 
 class PartyHook : public IPlugin {
     IAshitaCore* core = nullptr;
+    ILogManager* log = nullptr;
     void** globals[4] = {};
     Drawing drawings[11]; // Party 0..5, HUD 6..7, chat logs/input 8..10; independent ABIs
+    // Each slot's last refusal (PartyRefusal), the frame of it and how many in a row: for /uihook, and
+    // Ashita's log the first time and when the reason changes, so that a refusal leaves a trace
+    uint8_t refusal[11] = {}; uint32_t refusedFrame[11] = {}, refusedRun[11] = {};
     ChatModule chat;
     MenuModule menus;
     ChatWindowRoutes windowRoutes; // the two log windows' routing, read from the game's config each frame
@@ -293,8 +297,8 @@ public:
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
     double GetVersion() const override { return 0.3; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseDirect3D); }
-    bool Initialize(IAshitaCore* c, ILogManager*, uint32_t) override {
-        core=c; Instance=this;
+    bool Initialize(IAshitaCore* c, ILogManager* l, uint32_t) override {
+        core=c; log=l; Instance=this;
         memcpy(TextTap.Magic,"UIHOOK-TEXT",12); TextTap.Version=1; TextTap.Size=sizeof(TextTapShared);
         Shared.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&Submit));
         Hud.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&SubmitHud));
@@ -372,8 +376,30 @@ public:
             "[uihook:hud] Clock/compass replacement unavailable or partial; unsupported HUD unchanged.");
         return true;
     }
-    void Stop() { for (unsigned i=0;i<6;i++) drawings[i].Clear(); staging.Clear(); }
-    void StopHud() { drawings[6].Clear(); drawings[7].Clear(); staging.Clear(); }
+    void Stop() { for (unsigned i=0;i<6;i++) { drawings[i].Clear(); Forgive(i); } staging.Clear(); }
+    void StopHud() { drawings[6].Clear(); drawings[7].Clear(); Forgive(6); Forgive(7); staging.Clear(); }
+    // A capture refused: counted, its reason kept for the slot, and written to Ashita's log the first time
+    // in a row and when the reason changes. Until a capture is taken the game draws its own there, and the
+    // addon's window is drawn by imgui over it.
+    int Refuse(unsigned index,uint8_t why) {
+        ++Shared.Failures;
+        const bool changed=refusal[index]!=why;
+        refusal[index]=why; refusedFrame[index]=Shared.Frame;
+        refusedRun[index]=changed ? 1 : refusedRun[index]+1;
+        if (changed && log) log->Logf(static_cast<uint32_t>(Ashita::LogLevel::Warn),"uihook",
+            "%s: capture refused at frame %u, %s; the game's own is drawn there until a capture is taken",
+            PartySlotName(index),Shared.Frame,RefusalName(why));
+        return 0;
+    }
+    // A capture taken: the slot's refusals are over, said in the log where there were any
+    void Accept(unsigned index) {
+        if (refusal[index] && log) log->Logf(static_cast<uint32_t>(Ashita::LogLevel::Info),"uihook",
+            "%s: capture taken again at frame %u, after %u refused (%s)",PartySlotName(index),Shared.Frame,refusedRun[index],RefusalName(refusal[index]));
+        refusal[index]=REFUSED_NONE; refusedRun[index]=0;
+    }
+    // A slot released on purpose has nothing to report
+    void Forgive(unsigned index) { refusal[index]=REFUSED_NONE; refusedRun[index]=0; }
+    void RefusedByException(unsigned index) { if (index<11) Refuse(index,REFUSED_EXCEPTION); }
     void Release() override {
         Menus.RequestFrame=0; Menus.LogRequestFrame=0; menus.Stop(Menus); menus.StopLog(Menus); Menus.Supported=0;
         History.Supported=0; History.RequestFrame=0; History.Count=0; historyServed=0;
@@ -530,59 +556,62 @@ public:
         if (index<0) { Stop(); return 1; }
         if (index>10) return 0;
         Drawing& out=drawings[index];
-        if (capture<0) { out.Clear(); return 1; }
+        if (capture<0) { out.Clear(); Forgive(static_cast<unsigned>(index)); return 1; }
         if (index<6 ? (!Shared.Hooked || !(Shared.SupportedMask & (index<3 ? (1u<<index) : 8u)))
                     : index<8 ? !(Hud.SupportedMask & (1u<<(index-6)))
                               : !(Chat.SupportedMask & (1u<<(index-8)))) return 0;
         if (!capture) { out.Clear(); out.submitted=Shared.Frame; return 1; }
+        const unsigned slot=static_cast<unsigned>(index);
         auto* gui=core->GetGuiManager();
         ImDrawList* list=gui ? gui->GetWindowDrawList() : nullptr;
-        if (!list) return 0;
+        if (!list) return Refuse(slot,REFUSED_NO_LIST);
         staging.Clear();
         const ImVec2 display=gui->GetIO().DisplaySize;
-        if (!(display.x>0 && display.y>0)) return 0;
+        if (!(display.x>0 && display.y>0)) return Refuse(slot,REFUSED_NO_LIST);
         staging.width=display.x; staging.height=display.y; staging.font=Font();
-        bool ok=true;
+        uint8_t why=REFUSED_NONE;
         unsigned commands=0;
-        for (int c=0;c<list->CmdBuffer.Size && ok;c++) {
+        for (int c=0;c<list->CmdBuffer.Size && !why;c++) {
             const ImDrawCmd& cmd=list->CmdBuffer[c];
             if (!cmd.ElemCount) continue;
-            if (cmd.UserCallback || cmd.ElemCount%3 || cmd.IdxOffset+uint64_t(cmd.ElemCount)>uint64_t(list->IdxBuffer.Size)
-                || ++commands>PARTY_MAX_COMMANDS) { ok=false; break; }
+            if (cmd.UserCallback || cmd.ElemCount%3 || cmd.IdxOffset+uint64_t(cmd.ElemCount)>uint64_t(list->IdxBuffer.Size)) { why=REFUSED_COMMAND; break; }
+            if (++commands>PARTY_MAX_COMMANDS) { why=REFUSED_TOO_MANY_COMMANDS; break; }
             // Resolve all textures on the C++ side, including the font atlas; never interpret mark 1 as a pointer.
             const ImTextureData* data=cmd.TexRef._TexData;
-            if (data && data->Status!=ImTextureStatus_OK && data->Status!=ImTextureStatus_WantUpdates) { ok=false; break; }
+            if (data && data->Status!=ImTextureStatus_OK && data->Status!=ImTextureStatus_WantUpdates) { why=REFUSED_TEXTURE_NOT_READY; break; }
             // Read fields, not assertion-bearing GetTexID methods (the recent namehook failure).
             const ImTextureID id=data ? data->TexID : cmd.TexRef._TexID;
-            const uintptr_t address=static_cast<uintptr_t>(id);
-            if (address<0x10000 || uint64_t(id)>UINT32_MAX) { ok=false; break; }
-            auto* texture=reinterpret_cast<IDirect3DBaseTexture8*>(address);
+            // The id's low 32 bits, sign-extended or not: a texture above 2 GB is drawn with as any other
+            const uint32_t address=TextureAddress(static_cast<uint64_t>(id));
+            if (!address) { why=REFUSED_TEXTURE_ID; break; }
+            auto* texture=reinterpret_cast<IDirect3DBaseTexture8*>(static_cast<uintptr_t>(address));
             uint32_t first=static_cast<uint32_t>(staging.vertices.size());
             PartyClip clip={cmd.ClipRect.x,cmd.ClipRect.y,cmd.ClipRect.z,cmd.ClipRect.w};
-            if (!std::isfinite(clip.left)||!std::isfinite(clip.top)||!std::isfinite(clip.right)||!std::isfinite(clip.bottom)) { ok=false; break; }
+            if (!std::isfinite(clip.left)||!std::isfinite(clip.top)||!std::isfinite(clip.right)||!std::isfinite(clip.bottom)) { why=REFUSED_CLIP; break; }
             if (clip.right<=clip.left || clip.bottom<=clip.top) continue;
-            for (unsigned i=0;i<cmd.ElemCount && ok;i+=3) {
+            for (unsigned i=0;i<cmd.ElemCount && !why;i+=3) {
                 PartyVertex triangle[3], polygon[12];
                 for (unsigned j=0;j<3;j++) {
                     uint64_t at=uint64_t(cmd.VtxOffset)+list->IdxBuffer[cmd.IdxOffset+i+j];
-                    if (at>=uint64_t(list->VtxBuffer.Size)) { ok=false; break; }
+                    if (at>=uint64_t(list->VtxBuffer.Size)) { why=REFUSED_INDEX; break; }
                     const ImDrawVert& v=list->VtxBuffer[static_cast<int>(at)];
                     // ImGui ABGR -> Direct3D ARGB.
                     uint32_t color=(v.col&0xff00ff00)|((v.col&255)<<16)|((v.col>>16)&255);
                     triangle[j]={v.pos.x,v.pos.y,0,1,color,v.uv.x,v.uv.y};
-                    if (!std::isfinite(v.pos.x)||!std::isfinite(v.pos.y)||!std::isfinite(v.uv.x)||!std::isfinite(v.uv.y)) ok=false;
+                    if (!std::isfinite(v.pos.x)||!std::isfinite(v.pos.y)||!std::isfinite(v.uv.x)||!std::isfinite(v.uv.y)) why=REFUSED_VERTEX;
                 }
-                if (!ok) break;
+                if (why) break;
                 unsigned n=ClipTriangle(triangle,clip,polygon);
                 if (n<3) continue;
-                if (staging.vertices.size()+(n-2)*3>PARTY_MAX_VERTICES) { ok=false; break; }
+                if (staging.vertices.size()+(n-2)*3>PARTY_MAX_VERTICES) { why=REFUSED_TOO_MANY_VERTICES; break; }
                 for (unsigned j=1;j+1<n;j++) {
                     staging.vertices.push_back(polygon[0]); staging.vertices.push_back(polygon[j]); staging.vertices.push_back(polygon[j+1]);
                 }
             }
             AppendRun(staging.runs,texture,first,static_cast<uint32_t>(staging.vertices.size())-first);
         }
-        if (!ok) { staging.Clear(); out.Clear(); ++Shared.Failures; return 0; }
+        if (why) { staging.Clear(); out.Clear(); return Refuse(slot,why); }
+        Accept(slot);
         out.Clear();
         out.vertices.swap(staging.vertices); out.runs.swap(staging.runs);
         out.width=staging.width; out.height=staging.height; out.font=staging.font; out.submitted=Shared.Frame;
@@ -739,8 +768,14 @@ public:
             else if (i<8) { out.hudFresh|=bit; if (empty) out.hudEmpty|=bit; }
             else { out.chatFresh|=bit; if (empty) out.chatEmpty|=bit; }
         }
+        out.failures=Shared.Failures;
+        for (unsigned i=0;i<11;i++) {
+            out.refusal[i]=refusal[i];
+            out.refusalAge[i]=refusal[i] ? Shared.Frame-refusedFrame[i] : 0;
+            out.refusalRun[i]=refusedRun[i];
+        }
     }
-    void StopChat() { drawings[8].Clear(); drawings[9].Clear(); drawings[10].Clear(); staging.Clear(); Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; replaceControls=0; Chat.ControlStyleFrame=0; Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; }
+    void StopChat() { drawings[8].Clear(); drawings[9].Clear(); drawings[10].Clear(); Forgive(8); Forgive(9); Forgive(10); staging.Clear(); Chat.ReplacementRectFrame=0; expandedCapture=controlsValid=false; replaceControls=0; Chat.ControlStyleFrame=0; Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; }
     int CaptureChat(int index,int capture) {
         if (index==-1) { StopChat(); return 1; }
         if (index<0 || index>2 || capture>2) return 0;
@@ -1010,7 +1045,7 @@ static void __fastcall DrawTargetArrow(void* sprite,void*,uint32_t x,uint32_t y,
 static int32_t __cdecl Submit(int32_t index,int32_t capture) {
     if (!PartyHook::Instance || index < -1 || index > 5) return 0;
     try { return PartyHook::Instance->Capture(index,capture); }
-    catch (...) { PartyHook::Instance->Stop(); ++Shared.Failures; return 0; }
+    catch (...) { PartyHook::Instance->Stop(); if (index>=0) PartyHook::Instance->RefusedByException(static_cast<unsigned>(index)); else ++Shared.Failures; return 0; }
 }
 static void __fastcall RenderCompass(void* object,void*) {
     if (PartyHook::Instance) PartyHook::Instance->Compass(object);
@@ -1031,12 +1066,12 @@ static void __cdecl DrawClockText(int32_t x,int32_t y,const char* text,uint32_t 
 static int32_t __cdecl SubmitHud(int32_t index,int32_t capture) {
     if (!PartyHook::Instance) return 0;
     try { return PartyHook::Instance->CaptureHud(index,capture); }
-    catch (...) { PartyHook::Instance->StopHud(); ++Shared.Failures; return 0; }
+    catch (...) { PartyHook::Instance->StopHud(); if (index>=0 && index<2) PartyHook::Instance->RefusedByException(static_cast<unsigned>(index)+6); else ++Shared.Failures; return 0; }
 }
 static int32_t __cdecl SubmitChat(int32_t index,int32_t capture) {
     if (!PartyHook::Instance) return 0;
     try { return PartyHook::Instance->CaptureChat(index,capture); }
-    catch (...) { PartyHook::Instance->StopChat(); ++Shared.Failures; return 0; }
+    catch (...) { PartyHook::Instance->StopChat(); if (index>=0 && index<3) PartyHook::Instance->RefusedByException(static_cast<unsigned>(index)+8); else ++Shared.Failures; return 0; }
 }
 IPlugin* CreatePartyModule() { return new PartyHook(); }
 

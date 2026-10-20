@@ -251,7 +251,12 @@ Older bridges/DLLs are rejected; interpreting a frame-only capture as whole-wind
 would hide text. Index -1 releases all three **chat slots only**. Party/HUD release-all
 cannot release chat slots. Frames use the same clock as Party/HUD; the bridge validates
 DLL/ABI/capability and exposes `Ages()` and `Status()`. `/uihook chat` reports recognition
-and last native/drawn frames; `/uihook` includes fresh chat replacements.
+and last native/drawn frames; `/uihook` includes fresh chat replacements, and any slot whose
+capture is being refused, with the reason (`PartyRefusal`, `src/slots.h`), how many in a row and how
+long ago; the first refusal in a row, and each change of reason, is a warning in Ashita's log, and a
+capture taken again after refusals an info line. A refused slot is drawn by the game, with the addon's
+window drawn by imgui over it, until a capture is taken; chatbox draws its second box only after the
+first's capture, so it is missing while the first is refused.
 `InputRect` and `PrimaryRect` are the viewport-normalized native input and primary log
 rectangles (left/top/right/bottom), each read after its layout update using the verified
 `Window::GetRect` coordinate source. `ExpandedRect` uses the same normalized format and
