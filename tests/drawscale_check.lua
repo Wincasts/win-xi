@@ -154,7 +154,7 @@ H.print('fog: three world calls there is not the fog', scan.fogCallers(three, 51
     '| nor one beyond the window', scan.fogCallers({ records[4], rec(entry - 600, 92, 0, fmulEdi) }, 512) == nil)
 
 -- the settings commands, without the client: saved and said, the fog calls reported not found
-local function lastSaid() return table.concat({ H.printed[#H.printed - 1] or '', H.printed[#H.printed] or '' }, '\n') end
+local function lastSaid() local n = #H.printed return table.concat({ H.printed[n - 3] or '', H.printed[n - 2] or '', H.printed[n - 1] or '', H.printed[n] or '' }, '\n') end -- the status is four lines
 H.print('status without the client', H.command('/drawscale') == true, table.concat(H.printed, '\n'):find('fog calls not found', 1, true) ~= nil)
 local saves = H.saves()
 H.print('/drawscale fog 1.5 is saved', H.command('/drawscale fog 1.5') == true, H.saves() == saves + 1, H.options().fog == 1.5,
@@ -200,57 +200,80 @@ H.print('real: the object range is the caller at 0x0333BF53', realObject ~= nil 
     '| whose selector is not an immediate there', tonumber(realCallers[1].info.push or '') == nil,
     '| two of them is none', scan.objectCaller({ realCallers[1], realCallers[1] }) == nil)
 
--- a zone's own values: the zone from the zone-in packet, on and off, the settings going to the
--- zone's own while it has them and to the general ones through /drawscale general
+-- three layers: the general values, a preset for the zone's kind (every zone a city, outdoors or
+-- a dungeon by zones.lua), and the zone's own; the zone from the zone-in packet
 local function said() return table.concat(H.printed, '\n') end
 local function zoneIn(id) H.packetData(0x00A, ('\0'):rep(0x30) .. string.char(id % 256, math.floor(id / 256)) .. ('\0'):rep(0x80)) end
 local store = H.options()
-H.print('settings: a zones table to begin with', type(store.zones) == 'table', next(store.zones) == nil)
+H.print('settings: the layers to begin with', type(store.zones) == 'table', next(store.zones) == nil, type(store.kinds) == 'table',
+    '| cities and dungeons seeded with world x2', store.kinds.city.world == 2, store.kinds.dungeon.world == 2, next(store.kinds.outdoors) == nil, store.seeded == true)
 H.command('/drawscale')
-H.print('status before a zone: no zone known', said():find('No zone known yet; the general values', 1, true) ~= nil)
-H.print('/drawscale zone on before a zone is refused', H.command('/drawscale zone on') == true, said():find('No zone known yet; try once', 1, true) ~= nil)
-zoneIn(230)
-H.command('/drawscale')
-H.print('status in zone 230: the general values', said():find('In zone 230 (230): the general values', 1, true) ~= nil)
-H.print('/drawscale zone list with none', H.command('/drawscale zone list') == true, said():find('No zone has values of its own', 1, true) ~= nil)
+H.print('status before a zone: no zone known', said():find('No zone known yet', 1, true) ~= nil, said():find('All from the general values', 1, true) ~= nil)
+H.print('/drawscale zone world 2 before a zone is refused', H.command('/drawscale zone world 2') == true, said():find('No zone known yet; try once', 1, true) ~= nil)
 H.command('/drawscale world 3')
 H.command('/drawscale square off')
-H.print('world 3 before zone on sets the general value', store.world == 3, store.square == false, store.zones['230'] == nil)
-local savesBefore = H.saves()
-H.print('/drawscale zone on copies the general values', H.command('/drawscale zone on') == true, store.zones['230'] ~= nil,
-    store.zones['230'] and store.zones['230'].world == 3, store.zones['230'] and store.zones['230'].vis == true, '| saved', H.saves() == savesBefore + 1,
-    '| says so', said():find('zone 230 has its own values now', 1, true) ~= nil, said():find('In zone 230 (230): its own values', 1, true) ~= nil)
-H.command('/drawscale world 2')
-H.command('/drawscale vis off')
-H.print('the settings set the zone\'s own', store.zones['230'].world == 2, store.zones['230'].vis == false, '| not the general', store.world == 3, store.vis == true)
-H.command('/drawscale general world 1.5')
-H.command('/drawscale general square on')
-H.print('/drawscale general sets the general values', store.world == 1.5, store.square == true, '| not the zone\'s', store.zones['230'].world == 2, store.zones['230'].square == false)
-H.print('/drawscale general without a setting complains', H.command('/drawscale general') == true, said():find('Usage: /drawscale general', 1, true) ~= nil)
-H.command('/drawscale zone list')
-H.print('/drawscale zone list names the zone', said():find('zone 230 (230): world x2.00, entity x', 1, true) ~= nil, said():find('objects as world, detail x4.00, vis off, square off', 1, true) ~= nil)
+H.print('the general values', store.world == 3, store.square == false)
 zoneIn(100)
 H.command('/drawscale')
-H.print('another zone: the general values', said():find('In zone 100 (100): the general values', 1, true) ~= nil, said():find('world x1.50', 1, true) ~= nil)
+H.print('in 100, outdoors: the general values', said():find('In zone 100 (100), outdoors', 1, true) ~= nil, said():find('world x3.00', 1, true) ~= nil,
+    said():find('All from the general values', 1, true) ~= nil)
 zoneIn(230)
-H.print('back in 230: its own, and said as it arrives', said():find('zone 230: its own values', 1, true) ~= nil)
+H.print('into 230, a city: said as it arrives', said():find('zone 230: the city preset world x2.00', 1, true) ~= nil)
 H.command('/drawscale')
-H.print('status shows the zone\'s own', said():find('world x2.00', 1, true) ~= nil, said():find('vis off', 1, true) ~= nil)
-H.print('the same zone again is not re-entered', (function() local n = #H.printed zoneIn(230) return #H.printed == n end)())
-H.print('/drawscale zone off in a zone without its own', (function() zoneIn(100) H.command('/drawscale zone off') return said():find('zone 100 has no values of its own', 1, true) ~= nil end)())
+H.print('in 230: world x2 from the city preset', said():find('In zone 230 (230), a city', 1, true) ~= nil, said():find('world x2.00', 1, true) ~= nil,
+    said():find('From the city preset: world x2.00', 1, true) ~= nil)
+H.command('/drawscale world 4')
+H.print('the general value set from a city stays beneath the preset', store.world == 4, said():find('world x2.00', 1, true) ~= nil, said():find('From the city preset: world x2.00', 1, true) ~= nil)
+local savesBefore = H.saves()
+H.print('/drawscale city world 1.5', H.command('/drawscale city world 1.5') == true, store.kinds.city.world == 1.5, H.saves() == savesBefore + 1,
+    '| shown', said():find('The city preset: world x1.50; the rest from the general values', 1, true) ~= nil, said():find('world x1.50', 1, true) ~= nil)
+local before = #H.printed
+H.print('/drawscale dungeon vis off from a city', H.command('/drawscale dungeon vis off') == true, store.kinds.dungeon.vis == false,
+    said():find('The dungeon preset: world x2.00, vis off', 1, true) ~= nil, '| not in force here, so no status', #H.printed == before + 1)
+H.print('/drawscale outdoors alone shows it empty', H.command('/drawscale outdoors') == true, said():find('The outdoors preset holds nothing; the outdoors draws with the general values', 1, true) ~= nil)
+H.print('/drawscale zone world 3 gives 230 its own', H.command('/drawscale zone world 3') == true, store.zones['230'] ~= nil and store.zones['230'].world == 3,
+    said():find('From its own: world x3.00. From the city preset: world x1.50', 1, true) ~= nil, said():find('world x3.00', 1, true) ~= nil)
+H.print('/drawscale zone vis toggles from the value in force', H.command('/drawscale zone vis') == true, store.zones['230'].vis == false,
+    said():find('From its own: world x3.00, vis off', 1, true) ~= nil)
+H.command('/drawscale zone list')
+H.print('/drawscale zone list', said():find('zone 230 (230, a city): world x3.00, vis off', 1, true) ~= nil)
+H.print('/drawscale zone world clear takes one out', H.command('/drawscale zone world clear') == true, store.zones['230'].world == nil, store.zones['230'].vis == false,
+    said():find('From its own: vis off. From the city preset: world x1.50', 1, true) ~= nil)
+H.print('clearing the last one drops the set', H.command('/drawscale zone vis clear') == true, store.zones['230'] == nil)
+H.command('/drawscale zone world 3')
+zoneIn(39)
+H.print('into 39, a dungeon: its preset said', said():find('zone 39: the dungeon preset world x2.00, vis off', 1, true) ~= nil)
+H.command('/drawscale')
+H.print('in 39: the dungeon preset over the general', said():find('In zone 39 (39), a dungeon', 1, true) ~= nil, said():find('world x2.00', 1, true) ~= nil, said():find('vis off', 1, true) ~= nil,
+    said():find('From the dungeon preset: world x2.00, vis off', 1, true) ~= nil)
+H.print('/drawscale dungeon clear empties it', H.command('/drawscale dungeon clear') == true, next(store.kinds.dungeon) == nil, said():find('The dungeon preset holds nothing; every dungeon draws with the general values', 1, true) ~= nil)
+H.command('/drawscale')
+H.print('then the general values apply in 39', said():find('world x4.00', 1, true) ~= nil, said():find('All from the general values', 1, true) ~= nil)
+zoneIn(999)
+H.command('/drawscale')
+H.print('a zone of no known kind: the general values', said():find('In zone 999 (999), of no known kind', 1, true) ~= nil, said():find('world x4.00', 1, true) ~= nil)
 zoneIn(230)
-H.print('/drawscale zone off drops them', H.command('/drawscale zone off') == true, store.zones['230'] == nil, said():find('zone 230 is back on the general values', 1, true) ~= nil,
-    said():find('In zone 230 (230): the general values', 1, true) ~= nil)
-H.print('/drawscale zone with something else complains', H.command('/drawscale zone sideways') == true, said():find('Usage: /drawscale zone', 1, true) ~= nil)
-H.print('/drawscale zone alone is the status', H.command('/drawscale zone') == true, said():find('In zone 230 (230): the general values', 1, true) ~= nil)
-H.print('a short zone packet is ignored', (function() local z = 230 H.packetData(0x00A, 'abc') return true end)())
+H.print('back in 230: its own and the preset said', said():find('zone 230: its own world x3.00; the city preset world x1.50', 1, true) ~= nil)
+H.print('the same zone again is not re-entered', (function() local n = #H.printed zoneIn(230) return #H.printed == n end)())
+H.print('/drawscale zone clear drops the set', H.command('/drawscale zone clear') == true, store.zones['230'] == nil, said():find('zone 230 has nothing of its own now', 1, true) ~= nil)
+H.print('/drawscale zone clear with none is quiet about it', H.command('/drawscale zone clear') == true, store.zones['230'] == nil)
+H.print('/drawscale zone list with none', H.command('/drawscale zone list') == true, said():find('No zone has values of its own', 1, true) ~= nil)
+H.print('/drawscale zone sideways complains', H.command('/drawscale zone sideways') == true, said():find('Usage: /drawscale zone <setting>', 1, true) ~= nil)
+H.print('/drawscale city sideways complains', H.command('/drawscale city sideways') == true, said():find('Usage: /drawscale city <setting>', 1, true) ~= nil)
+H.print('/drawscale city world 200 refused', H.command('/drawscale city world 200') == true, said():find('Usage: /drawscale city world <n>, n from 0.1 to 100, or clear', 1, true) ~= nil, store.kinds.city.world == 1.5)
+H.print('/drawscale world clear refused on the general values', H.command('/drawscale world clear') == true, said():find('Usage: /drawscale world <n>, n from 0.1 to 100.', 1, true) ~= nil, store.world == 4)
+H.print('/drawscale zone alone is the status', H.command('/drawscale zone') == true, said():find('In zone 230 (230), a city', 1, true) ~= nil)
+H.print('a short zone packet is ignored', (function() H.packetData(0x00A, 'abc') return true end)())
+H.print('help names the layers', H.command('/drawscale help') == true, said():find('/drawscale city|outdoors|dungeon <setting> <value>', 1, true) ~= nil, said():find('/drawscale zone <setting> <value>', 1, true) ~= nil)
 
--- a saved file with a zone's own values, some out of range, and one that is not a table
-store.zones = { ['230'] = { world = 4, entity = 'x', fog = 1, vis = 'yes', square = true }, ['abc'] = { world = 2 }, ['5'] = 7 }
+-- a saved file: a zone's set with a value out of range and one that is not a table, a preset
+-- with a bad value, and seeded already so the presets are left as they are
+store.zones = { ['230'] = { world = 4, entity = 'x', vis = 'yes', square = true }, ['abc'] = { world = 2 }, ['5'] = 7 }
+store.kinds = { city = {}, dungeon = { world = 300, fog = 0.5 }, outdoors = 'no' }
 store.world = 1.5
 H.resettle()
-H.print('settled: the zone\'s own kept', store.zones['230'] ~= nil and store.zones['230'].world == 4, '| bad values take the general', store.zones['230'].entity == store.entity, store.zones['230'].vis == true,
-    '| kept booleans', store.zones['230'].square == true, '| missing numbers fall to the general', store.zones['230'].objects == store.objects and store.zones['230'].detail == store.detail,
-    '| not a zone', store.zones['abc'] == nil, '| not a table', store.zones['5'] == nil)
+H.print('settled: the zone\'s set kept', store.zones['230'] ~= nil and store.zones['230'].world == 4, '| bad values dropped', store.zones['230'].entity == nil, store.zones['230'].vis == nil,
+    '| kept booleans', store.zones['230'].square == true, '| not a zone', store.zones['abc'] == nil, '| not a table', store.zones['5'] == nil,
+    '| presets: the bad value dropped', store.kinds.dungeon.world == nil, store.kinds.dungeon.fog == 0.5, '| not reseeded', next(store.kinds.city) == nil, '| a preset that was not a table', type(store.kinds.outdoors) == 'table')
 H.command('/drawscale')
-H.print('after settling, in 230, the zone\'s own apply', said():find('In zone 230 (230): its own values', 1, true) ~= nil, said():find('world x4.00', 1, true) ~= nil)
+H.print('after settling, in 230, its own apply', said():find('In zone 230 (230), a city', 1, true) ~= nil, said():find('world x4.00', 1, true) ~= nil, said():find('square on', 1, true) ~= nil)
