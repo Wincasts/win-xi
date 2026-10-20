@@ -115,6 +115,12 @@ int main() {
     Check(inside,"all emitted vertices obey command clipping"); Check(interpolated,"clipping interpolates texture UVs and colour");
     Check(ClipTriangle(t,{100,100,200,200},out)==0,"fully clipped triangle emits nothing");
     Check(sizeof(PartyShared)==168,"shared ABI size matches Lua (no 64-bit texture IDs in Lua)");
+    Check(TextureAddress(0x12345678ull)==0x12345678u,"a texture id below 2 GB is its address");
+    Check(TextureAddress(0x8ABC0000ull)==0x8ABC0000u,"a texture id above 2 GB, zero-extended, is its address");
+    Check(TextureAddress(0xFFFFFFFF8ABC0000ull)==0x8ABC0000u,"a texture id above 2 GB, sign-extended, is its address");
+    Check(TextureAddress(0xFFFFFFFF12345678ull)==0,"ones over a pointer below 2 GB are no sign extension: refused");
+    Check(TextureAddress(0x100000000ull)==0 && TextureAddress(1)==0 && TextureAddress(0)==0 && TextureAddress(0xFFFFull)==0,
+        "a 33-bit value, the font mark, a null and a low address are refused");
     int16_t rect[4]={400,300,620,460}; NativeRect native={};
     Check(MakeNativeRect(rect,true,1280,960,1920,1080,17,native),"native menu-scaled HUD rectangle captured");
     Check(std::fabs(native.Right-1240.0f/1920)<0.0001f && std::fabs(native.Bottom-920.0f/1080)<0.0001f && native.Frame==17,

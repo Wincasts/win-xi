@@ -15,7 +15,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "Modular native UI replacement: buffs, party/alliance, targets, clock, compass and chat."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.91; }
+    double GetVersion() const override { return 0.92; }
     // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one; UseText: each line given
     // to the game's chat log, recorded for addons as it stands at uihook's turn
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseText | Ashita::PluginFlags::UseDirect3D); }
@@ -90,6 +90,15 @@ public:
         if (!chat.empty()) { Say("  chat replacement: " + chat); ++shown; }
         if (!shown) Say("  none");
         if (!none.empty()) Say("Not now: " + none + " (not loaded, switched off, or waiting for the game to draw that part).");
+        // What was refused, and why: the game draws its own there, and the addon's window is drawn by imgui over it
+        std::string refused;
+        for (unsigned i = 0; i < 11; ++i) if (slots.refusal[i]) {
+            if (!refused.empty()) refused += "; ";
+            refused += std::string(PartySlotName(i)) + ": " + RefusalName(slots.refusal[i]) + ", " + std::to_string(slots.refusalRun[i])
+                + " in a row, the last " + std::to_string(slots.refusalAge[i]) + " frames ago";
+        }
+        if (!refused.empty()) Say("Refused, so the game draws its own there and the addon's window is over it: " + refused + ".");
+        if (slots.failures) Say(std::to_string(slots.failures) + " captures refused since uihook loaded (each is in Ashita's log the first time, with its reason).");
         std::string missing;
         auto lack = [&](bool there, const char* name) { if (!there) missing += missing.empty() ? name : std::string(", ") + name; };
         lack(buff.loaded && buff.hooked, "status icons");
