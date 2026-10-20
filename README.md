@@ -9,6 +9,7 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 |---|---|---|
 | [buff](addons/buff) | The statuses you are under, in a window, with FFXIV's icons and the time each has left | `/buff` |
 | [chatbox](addons/chatbox) | Experimental WinXI chat log the game still drives: the game log's place and size (both log windows, routed as the game routes them), a native-backed input bar, native selection, and the expanded log in WinXI tabs, scrollbar and font; needs `uihook` | `/chatbox` |
+| [drawscale](addons/drawscale) | Diagnostic: lists every place the client scales a distance by the draw distance and lets one be re-scaled on its own, to find the fog | `/drawscale` |
 | [hidecompass](addons/hidecompass) | Hides the game's compass | `/hidecompass` |
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
 | [mobcast](addons/mobcast) | What the enemies about you are casting, readying and using, in a small window, as the chat log says it | `/mobcast` |

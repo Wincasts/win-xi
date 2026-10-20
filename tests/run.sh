@@ -63,6 +63,7 @@ run sct        addons/sct/sct.lua       sct_check.lua
 luajit tests/sct_acquisitions_check.lua || exit 1
 run mapoverlay addons/mapoverlay/mapoverlay.lua mapoverlay_check.lua
 run mobcast    addons/mobcast/mobcast.lua mobcast_check.lua
+run drawscale  addons/drawscale/drawscale.lua drawscale_check.lua
 run atlas      addons/atlas/atlas.lua   atlas_check.lua
 run atlas      addons/atlas/atlas.lua   shell_logout_check.lua
 luajit tests/tcrossbar_shadow_check.lua
