@@ -135,7 +135,7 @@ of an existing clock panel.
   the Aht Urhgan ferries, the Manaclipper and the Carpenters' Landing barge, each place one leaves
   from and goes to a line of its own, all on to begin with, with All and None buttons). Each row has
   how long until its door opens (**Boarding**, or `now` while it is open) and shuts (**Leaves**), the
-  Vana'diel time it leaves (**At**) and how long the crossing takes (**Trip**), in Earth
+  Vana'diel time it leaves (**At**) and how long the crossing takes (**Trip Time**), in Earth
   minutes:seconds. The rows that board in the zone you are in are marked in the theme's tooltip border
   colour; aboard a ship or airship, a line on top says where you are bound and how long until you are
   put ashore. The server runs every ship on a cycle from its zone's

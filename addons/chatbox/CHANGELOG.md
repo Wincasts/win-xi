@@ -8,8 +8,8 @@
   the Manaclipper, the Carpenters' Landing barge) that are ticked in the Info Panel settings' new Timetable
   tab, each place a line leaves from and goes to a switch of its own (`infoPanel.timetable`, all on to begin
   with; All and None buttons): how long until its door opens (Boarding, or `now` while it is open) and shuts
-  (Leaves), the Vana'diel time it leaves (At) and how long the crossing takes (Trip), in Earth
-  minutes:seconds; the rows that board in the zone you are in are marked in the theme's tooltip border
+  (Leaves), the Vana'diel time it leaves (At) and how long the crossing takes (Trip Time), in Earth
+  minutes:seconds, the headings and the rows and nothing more; the rows that board in the zone you are in are marked in the theme's tooltip border
   colour, and aboard a ship or airship a line on top says where you are bound and how long until you are
   put ashore; with no line ticked the tooltip says where to tick some. As the server has it (src/map/transports/ship_handler.cpp): every run is a cycle of
   so many seconds from an offset in its zone's data/zones/<name>/zone.yaml, the seconds into it the raw game

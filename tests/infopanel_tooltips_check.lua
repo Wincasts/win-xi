@@ -285,11 +285,10 @@ p('spans in minutes and seconds, hours past one', schedule.Span(0) == '0:00', sc
 -- leaves in 10; f (offset 5) 35 in, leaves in 15; g (offset 7) 33 in, leaves in 17; d the ferry 272 in, leaves in 1113
 local built = schedule.Build(5, 40)
 p('the title, the columns, the next four to leave soonest first, the rest left out', built.title == 'Ships and airships', #built.columns == 6, built.columns[1] == 'From' and built.columns[5] == 'At',
-    #built.rows == 4, built.rows[1].key == 'xy', built.rows[2].key == 'ab', built.rows[3].key == 'cd', built.rows[4].key == 'ht', built.empty == nil)
+    #built.rows == 4, built.rows[1].key == 'xy', built.rows[2].key == 'ab', built.rows[3].key == 'cd', built.rows[4].key == 'ht', built.empty == nil, built.note == nil)
 local row = built.rows[4]
 p('the zone\'s own run: boarding now, leaves in 0:20 at the Vana\'diel time of 60, a crossing of 0:20, marked', row.here, built.here,
     row.cells[1] == 'Here' and row.cells[2] == 'There', row.cells[3] == 'now', row.cells[4] == '0:20', row.cells[5] == schedule.Clock(60), row.cells[6] == '0:20')
-p('the note says how many', built.note:find('^The next 4 to leave%.') ~= nil)
 built = schedule.Build(5, 40, { xy = false, ab = { false }, cd = { true } })
 p('lines left out of the whitelist, as false or { false }: the next four of the rest, the two alike ordered as the tables are', #built.rows == 4,
     built.rows[1].key == 'cd', built.rows[2].key == 'ht' and built.rows[2].here, built.rows[3].key == 'th' and not built.rows[3].here, built.rows[4].key == 'pi')
@@ -318,8 +317,8 @@ texts, rects, pushes, pops, cursor = {}, {}, 0, 0, 0
 built = schedule.Build(9, 70, { xy = false, ab = false, cd = false }) -- aboard; ht (zone 5), th, pi: not here
 schedule.Draw(imgui, built, { dim = dimColor, highlight = { 1, 1, 1, 1 } })
 p('the title then the two aboard lines', texts[1][1] == 'Ships and airships', texts[2][1] == built.aboard[1], texts[3][1] == built.aboard[2])
-p('the headings next, the note last, both dimmed (a push and a pop each)', texts[4][1] == 'From', texts[9][1] == 'Trip', texts[#texts][1] == built.note, pushes == 2, pops == 2)
-p('the rows, no group labels', #texts == 9 + 3 * 6 + 1, texts[10][1] == built.rows[1].cells[1], texts[16][1] == built.rows[2].cells[1], texts[22][1] == built.rows[3].cells[1])
+p('the headings next, dimmed (a push and a pop), no note after the rows', texts[4][1] == 'From', texts[9][1] == 'Trip Time', pushes == 1, pops == 1)
+p('the rows, no group labels, nothing after', #texts == 9 + 3 * 6, texts[10][1] == built.rows[1].cells[1], texts[16][1] == built.rows[2].cells[1], texts[22][1] == built.rows[3].cells[1])
 -- the first column holds 'From', 'Here', 'There', 'Port': 'There' the widest at 35; the gap 14 (two spaces at 7)
 local gap = 14
 p('columns as wide as their widest words', texts[4][2] == 10, texts[5][2] == 10 + 35 + gap, texts[11][2] == 10 + 35 + gap)
