@@ -610,9 +610,87 @@ local ProcLands = { [160] = true, [164] = true };
 local Removes = { [83] = true, [123] = true, [159] = true, [204] = true, [206] = true, [321] = true, [341] = true, [378] = true };
 local ProcRemoves = { [168] = true };
 
+-- Being hurt wakes a sleeper, and so does being cured. The server takes sleep off anyone who takes
+-- damage (takeDamage's wakeUp, true unless the script says not, as Bio's own tick does and Nightmare's)
+-- or is cured, and says it wore off only to the one who put it there and to the sleeper, when a player:
+-- everyone else sees it in the blow, or not at all. The messages of an action's result that say the
+-- target took damage, param the amount (a blow for 0 wakes nothing), as the server numbers them:
+local Hurts = {
+    [1] = true,   [2] = true,   [67] = true,  [110] = true, [185] = true, [187] = true, [227] = true,
+    [252] = true, [264] = true, [317] = true, [352] = true, [353] = true, [379] = true, [522] = true,
+    [576] = true, [577] = true, [747] = true,
+};
+-- and that it was healed, param the amount
+local Heals = { [7] = true, [24] = true, [238] = true, [263] = true, [318] = true, [373] = true };
+-- and the same said of an additional effect, the amount its param
+local ProcHurts = { [161] = true, [163] = true, [229] = true };
+-- the sleeps, by number
+local Sleeps = { 2, 19 };
+-- A sleeper whose HP something eats wakes at the server's next regen tick, three seconds away at most:
+-- it takes sleep off with the damage of Poison, Dia, Bio, the elemental debuffs and Requiem, and says
+-- nothing of it to anyone.
+local Bleeds = {
+    [3] = true, [128] = true, [129] = true, [130] = true, [131] = true, [132] = true, [133] = true,
+    [134] = true, [135] = true, [192] = true,
+};
+local TICK_SECONDS = 3;
+
 local function Seconds(category, param, status)
     local by = (category == SPELL and durations.spells[param]) or (category == MOVE and durations.mobskills[param]) or nil;
     return (by and by[status]) or durations.statuses[status] or DEFAULT_SECONDS;
+end
+
+local function Has(target, set)
+    local on = statuses[target];
+    if on == nil then
+        return false;
+    end
+    local now = os.time();
+    for status in pairs(set) do
+        local entry = on[status];
+        if entry ~= nil and now < entry.expires then
+            return true;
+        end
+    end
+    return false;
+end
+
+local Asleep = {};
+for _, status in ipairs(Sleeps) do
+    Asleep[status] = true;
+end
+
+-- The sleep on a target runs out at the next regen tick: by number and by kind
+local function WakeSoon(target)
+    local limit = os.time() + TICK_SECONDS;
+    local on = statuses[target];
+    if on ~= nil then
+        for _, status in ipairs(Sleeps) do
+            local entry = on[status];
+            if entry ~= nil and entry.expires > limit then
+                entry.expires = limit;
+            end
+        end
+    end
+    local kinds = tracked[target];
+    local entry = kinds and kinds[StatusType.Sleep];
+    if entry ~= nil and entry.expires > limit then
+        entry.expires = limit;
+    end
+end
+
+-- The target is hurt or cured: its sleep is over, by number and by kind
+local function Wake(target)
+    local on = statuses[target];
+    if on ~= nil then
+        for _, status in ipairs(Sleeps) do
+            on[status] = nil;
+        end
+    end
+    local kinds = tracked[target];
+    if kinds ~= nil then
+        kinds[StatusType.Sleep] = nil;
+    end
 end
 
 local function Put(target, status, seconds, actor, category, param)
@@ -625,6 +703,10 @@ local function Put(target, status, seconds, actor, category, param)
         statuses[target] = on;
     end
     on[status] = { id = status, expires = os.time() + seconds, by = actor, category = category, param = param };
+    -- sleep on one that bleeds, or bleeding on one asleep: the next tick wakes it
+    if (Asleep[status] and Has(target, Bleeds)) or (Bleeds[status] and Has(target, Asleep)) then
+        WakeSoon(target);
+    end
 end
 
 local function Take(target, status)
@@ -648,12 +730,17 @@ local function Statuses(action)
     for _, target in pairs(action.targets) do
         for _, result in pairs(target.actions) do
             local message = result.message;
+            local proc = result.proc_message;
+            -- hurt or cured first: a move that hurts and then sleeps leaves the sleep
+            if ((Hurts[message] or Heals[message]) and (result.param or 0) > 0)
+                or (proc ~= nil and ProcHurts[proc] and (result.proc_param or 0) > 0) then
+                Wake(target.id);
+            end
             if Lands[message] then
                 Put(target.id, result.param, Seconds(action.category, action.param, result.param), action.actor_id, action.category, action.param);
             elseif Removes[message] then
                 Take(target.id, result.param);
             end
-            local proc = result.proc_message;
             if proc ~= nil then
                 if ProcLands[proc] then
                     Put(target.id, result.proc_param, Seconds(nil, nil, result.proc_param), action.actor_id, action.category, action.param);

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.56
+
+- Sleep over a name is taken off when its owner is hit, hurt by a spell, weapon skill, ability or additional effect, or cured, as the server wakes them then and tells only the one who put the sleep there; it stayed its whole length before. One with Poison, Dia, Bio, an elemental debuff or Requiem on them is woken by the server's next regen tick, so their sleep is given three seconds at most (winxi.debuffs).
+
 ## 1.55
 
 - What the Experimental Builder alone could make, which went in 1.38, is gone with it: a saved check line (`checkFormat`) is let go of as the settings are loaded, and the original check line is drawn; its tokens `[mob]`, `[difficulty]`, `[checklevel]`, `[senses]`, `[links]` and `[text: value=]` are written as typed, like any other brackets; `mob_fields.lua` and `mob_readable.lua` are gone. `when=` and `within=` on a format's own tokens stay as they were.

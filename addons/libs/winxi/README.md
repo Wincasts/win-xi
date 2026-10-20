@@ -410,6 +410,13 @@ or the usual one for the status, from `winxi.debuff_durations` (`tools/build_deb
 makes it from the Phoenix server's live branch on GitHub), or 180 seconds where nothing says. Merits, gear and partial
 resists are not known.
 
+Sleep ends with a blow or a cure. The server wakes anyone who takes damage or is cured, and says so
+only to the one who put the sleep there (and to the sleeper, when a player), so the tracker takes it
+off when an action's result says the target took damage or recovered HP, by its message number and an
+amount above 0, an additional effect's damage among them. A sleeper with Poison, Dia, Bio, an
+elemental debuff or Requiem on them is woken by the server's next regen tick, which nothing announces:
+the sleep is given three seconds at most from when the two meet.
+
 `debuffs.On` is for an addon that asks about many enemies every frame. An entry in it may have run
 out: `os.time() < entry.expires` says whether it is still on.
 
