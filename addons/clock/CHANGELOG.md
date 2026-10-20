@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.11.0
+
+- Reusable panel/fields/EXP/icon modules now live in Winxi 21; clock keeps compatibility imports
+  and its original icon-set folder. Chatbox's opt-in panel can run without this addon loaded.
+
+- `{zone}` / Zone Name data field for any panel slot or the legacy clock line, with safe zoning
+  handling and a numeric fallback if zone-name resources are unavailable.
+
+- Clock evolves into a Winxi info panel, still loaded as `clock` and configured with `/clock`.
+- Settings organized into General, Layout, Data, Text and Icons tabs, with collapsible sections
+  and legacy-only controls hidden in panel mode.
+- Three independently formatted data slots, with weighted widths and Left/Center/Right alignment.
+- Shared Winxi drop shadow, captured with the panel for native HUD layering; follows the theme's
+  shadow enable, opacity, blur and offset settings.
+- Adjustable panel width/height, custom top-left placement, or offsets above the topmost stacked chat.
+- Day/weather icons can be hidden, left native, or positioned before/after any slot, with X/Y offsets.
+  `{dayicon}` and `{weathericon}` allow exact ordering; missing panel icon art falls back to gems.
+- Fine, Beveled and Ornament vertical separators, coloured from the Winxi border theme. Pipes in
+  slot formats use the same artwork instead of a font glyph.
+- Original single-line mode and saved format remain available with Enable Info Panel off.
+- No new plugin ABI or DLL update for this version beyond the existing stacked-chat anchor build.
+
 ## 0.10.0
 
 - Weather Scale: the weather icon 0.5x to 3x as large, the game's own (uihook draws it so) and the

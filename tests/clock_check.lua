@@ -67,15 +67,61 @@ local options = H.options()
 local texts = H.calls['draw.AddText'] or 0
 H.frames(1)
 p('Outline 1: the words and their edge, four times over', (H.calls['draw.AddText'] or 0) - texts == 5)
-options.outline[1] = 0
+require('winxi.theme').Get().TextOutline = 0 -- the theme's, for every addon
 texts = H.calls['draw.AddText'] or 0
 H.frames(1)
 p('Outline 0: the words alone', (H.calls['draw.AddText'] or 0) - texts == 1)
-options.outline[1] = 1
+require('winxi.theme').Get().TextOutline = 1
 options.fontSize[1] = 28
 H.frames(1)
 p('Font Size 28', sized == 28)
 options.fontSize[1] = 0
+
+-- Attached chat: the full Winxi frame is captured, with the chat's width and top edge.
+local setSize, requested = imgui.SetNextWindowSize, nil
+imgui.SetNextWindowSize = function(size, ...)
+    requested = { size[1], size[2] }; return setSize(size, ...)
+end
+local window = require('winxi.window')
+local plain, stripOptions = window.Plain, nil
+window.Plain = function(name, open, flags, draw, options)
+    if name == 'clock.native' then stripOptions = options end
+    return plain(name, open, flags, draw, options)
+end
+local outlined = require('winxi.text')
+local drawText, textAt = outlined.Draw, nil
+outlined.Draw = function(list, x, y, color, words, ...)
+    textAt = { x, y, imgui.CalcTextSize(words) }
+    return drawText(list, x, y, color, words, ...)
+end
+CLOCK.chat = { 8, 1080, 648, 1200 }
+mark = #CLOCK.log
+H.frames(1)
+p('attached: frame bottom on chat top, left aligned', placed[1] == 8, placed[2] == 1080,
+    placed[3][1] == 0 and placed[3][2] == 1)
+p('attached: chat width, input-style line height', requested[1] == 640, requested[2] == 20)
+p('attached: contents centered horizontally and vertically', textAt[1] == 8 + (640 - textAt[3]) / 2,
+    textAt[2] == 1080 - 20 + (20 - 14) / 2)
+CLOCK.input = { 8, 1200, 648, 1224 }
+H.frames(1)
+p('attached: native input height matched', requested[2] == 24)
+CLOCK.input = nil
+H.frames(1)
+p('attached: input height retained when typing closes', requested[2] == 24)
+outlined.Draw = drawText
+p('attached: themed background, capture after drawing', bit.band(windows['clock.native'], ImGuiWindowFlags_NoBackground) == 0,
+    Has(Since(mark), 'clock.capture'))
+CLOCK.chat[3] = 808
+H.frames(1)
+p('attached: resized chat width followed', requested[1] == 800)
+p('attached: compact padding and no exterior shadow', stripOptions.padding == 3, stripOptions.shadow == false)
+p('attached: explicit width wins over auto resize', bit.band(windows['clock.native'], ImGuiWindowFlags_AlwaysAutoResize) == 0)
+window.Plain = plain
+CLOCK.chat = nil
+H.frames(1)
+p('detached: transparent native placement restored', placed[1] == 26, placed[2] == 1103,
+    bit.band(windows['clock.native'], ImGuiWindowFlags_NoBackground) ~= 0)
+imgui.SetNextWindowSize = setSize
 
 -- the icons: the game's, unless the chosen set has a picture for the day or the weather
 local icons = require('icons')
@@ -152,6 +198,7 @@ imgui.Checkbox = function(label, value, ...)
     if label == '##clock.showAll' and TURN_ALL ~= nil then value[1] = TURN_ALL; TURN_ALL = nil; return true end
     return check(label, value, ...)
 end
+H.tab(5) -- Icons
 H.command('/clock')
 TURN_ALL = true
 drawn = {}
@@ -244,13 +291,20 @@ p('/clock status says the clock and the compass', H.command('/clock status'), #H
 local widgets = require('winxi.widgets')
 local themeTab, themeTabs = widgets.BeginThemeTab, 0
 widgets.BeginThemeTab = function(...) themeTabs = themeTabs + 1; return themeTab(...) end
+H.tab(1)
 p('/clock opens the settings', H.command('/clock'))
+local generalInputs = H.calls.InputText or 0
+H.frames(1)
+p('General keeps data editors out of visibility controls', (H.calls.InputText or 0) == generalInputs)
+H.tab(5)
 local sliders = H.calls.SliderFloat or 0
 H.frames(1)
 p('the settings: Icon Scale among them, and no Winxi Theme tab', (H.calls.SliderFloat or 0) > sliders, themeTabs == 0)
+H.tab(4)
 local headers, combos, colors = H.calls.CollapsingHeader or 0, H.calls.BeginCombo or 0, H.calls.ColorEdit4 or 0
 H.frames(1)
-p('the font in the settings: Font, Font Size, Text Color', (H.calls.BeginCombo or 0) - combos >= 3, (H.calls.ColorEdit4 or 0) - colors == 1)
+p('Text tab: Font, Font Size, Text Color', (H.calls.BeginCombo or 0) - combos == 1, (H.calls.ColorEdit4 or 0) - colors == 1)
+H.tab(3)
 local smalls, inputs = H.calls.SmallButton or 0, H.calls.InputText or 0
 local setWidth, widths = imgui.SetNextItemWidth, {}
 imgui.SetNextItemWidth = function(width, ...) widths[#widths + 1] = width; return setWidth(width, ...) end
@@ -385,6 +439,7 @@ p('in the line: written, after the clock\'s own fields', measured ~= nil and mea
 H.packetData(0x02D, Message(CLOCK.id, 500, 8))
 p('and counted', select(2, exp.Since()) == before + 1)
 p('/clock exp reset', H.command('/clock exp reset'), select(2, exp.Since()) == 0)
+H.tab(3)
 H.command('/clock')
 local smalls2 = H.calls.SmallButton or 0
 H.frames(1)
@@ -398,3 +453,62 @@ H.resettle()
 options = H.options()
 p('0.6 settings brought over', options.format == '{moon}  {time}  {level}  {rate}', options.order == nil and options.shown == nil,
     options.experience == nil and options.expWindow == nil)
+
+-- Full info panel: legacy mode above remains unchanged and can be selected again.
+local panel = require('panel')
+options.panel = panel.Defaults()
+local shadow = require('winxi.shadow')
+local drawShadow, capturedShadow = shadow.Draw, nil
+shadow.Draw = function(captured) capturedShadow = captured; return drawShadow(captured) end
+options.panel.slots[1].format = '{level}'
+options.replace[1] = true
+CLOCK.chat = { 8, 1080, 648, 1200 }
+CLOCK.input = { 8, 1200, 648, 1224 }
+local panelSize, originalSize = nil, imgui.SetNextWindowSize
+imgui.SetNextWindowSize = function(size, ...)
+    panelSize = {size[1],size[2]}; return originalSize(size,...)
+end
+mark = #CLOCK.log
+H.frames(1)
+p('full panel: attached to upper chat with input height', windows['clock.panel'] ~= nil,
+    placed[1] == 8, placed[2] == 1056, panelSize[1] == 640, panelSize[2] == 24,
+    Has(Since(mark),'clock.capture'))
+p('full panel: shared shadow included in native capture', capturedShadow == true)
+shadow.Draw = drawShadow
+local beforePanelEXP = select(2,exp.Since())
+options.format = '{time}'
+H.packetData(0x02D, Message(CLOCK.id, 500, 8))
+p('full panel: experience counted from slot formats, not legacy line',select(2,exp.Since())==beforePanelEXP+1)
+options.panel.width[1],options.panel.height[1] = 900,40
+H.frames(1)
+p('full panel: custom width and height',panelSize[1]==900,panelSize[2]==40,placed[2]==1040)
+options.panel.attached[1]=false
+options.panel.x[1],options.panel.y[1]=50,70
+H.frames(1)
+p('full panel: custom top-left position',placed[1]==50,placed[2]==70)
+options.panel.dayPlace[1],options.panel.weatherPlace[1]=2,2
+H.frames(1)
+p('full panel: native icon placement leaves icons alone',CLOCK.hidden==0)
+options.panel.slots[1].format='{dayicon} {level}'
+H.frames(1)
+p('full panel: inline token takes precedence over native placement',bit.band(CLOCK.hidden,1)~=0)
+H.command('/clock')
+local checkbox, labels = imgui.Checkbox, {}
+imgui.Checkbox = function(label, ...) labels[label]=true; return checkbox(label,...) end
+for tab=1,5 do
+    H.tab(tab)
+    local inputCount = H.calls.InputText or 0
+    H.frames(1)
+    p('full panel: data editors isolated to Data tab '..tab,
+        (H.calls.InputText or 0)-inputCount == (tab==3 and 3 or 0))
+end
+imgui.Checkbox = checkbox
+p('full panel: legacy weather preview hidden',not labels['##clock.showAll'])
+p('full panel: mode and icon controls remain accessible',labels['##panel.enabled'],labels['##panel.dayAfter'])
+H.command('/clock'); H.tab(1)
+p('full panel: settings render',windows['clock.panel'] ~= nil)
+options.panel.enabled[1]=false
+H.frames(1)
+p('full panel: legacy line still available',windows['clock.native'] ~= nil)
+imgui.SetNextWindowSize = originalSize
+CLOCK.chat,CLOCK.input=nil,nil

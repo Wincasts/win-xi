@@ -16,11 +16,17 @@ Near(panel.Aligned(10,110,40,1),10)
 Near(panel.Aligned(10,110,40,2),40)
 Near(panel.Aligned(10,110,40,3),70)
 Near(panel.Aligned(10,110,200,3),10) -- overflow clips from left
-local context = {dayIcon=101,weatherIcon=102,exp={level=75}}
+local context = {dayIcon=101,weatherIcon=102,weekday=0,weatherId=7,exp={level=75}}
+assert(fields.IconTooltip('day',context):find('Firesday',1,true) and fields.IconTooltip('day',context):find('Fire',1,true))
+assert(fields.IconTooltip('weather',context):find('Squalls',1,true) and fields.IconTooltip('weather',context):find('Water',1,true) and fields.IconTooltip('weather',context):find('Double',1,true))
+assert(fields.IconTooltip('weather',{weatherId=6}):find('Single',1,true))
+assert(fields.IconTooltip('weather',{weatherId=0}):find('No elemental weather',1,true))
+assert(fields.IconTooltip('weather',{}):find('Unknown',1,true))
 p.slots[1].format='{dayicon} | {level}'
 p.slots[2].format='Center'; p.slots[3].format='Right'
 local slots=panel.Build(p,fields,context)
-assert(slots[1][1].icon==101 and slots[1][1].kind=='day')
+assert(slots[1][1].icon==101 and slots[1][1].kind=='day' and slots[1][1].tooltip:find('Firesday',1,true))
+assert(slots[3][#slots[3]].tooltip:find('Squalls',1,true),'automatically placed icons also carry tooltip metadata')
 local dividers,days=0,0
 for _,s in ipairs(slots[1]) do
     if type(s)=='table' then
@@ -79,7 +85,9 @@ local list = {
     AddTriangleFilled=function() end,
     PushClipRect=function() clips=clips+1 end, PopClipRect=function() end,
 }
-package.loaded.imgui = { GetWindowDrawList=function() return list end, GetFontSize=function() return 14 end,
+local mouse={x=-1,y=-1}
+package.loaded.imgui = { GetIO=function() return {MousePos=mouse} end,
+    GetWindowDrawList=function() return list end, GetFontSize=function() return 14 end,
     GetColorU32=function() return 123 end, CalcTextSize=function(text) return #text*7 end, Dummy=function() end }
 package.loaded['winxi.theme'] = { GameBorderColor=function() return {1,1,1,1} end }
 package.loaded['winxi.text'] = {Draw=function(list,x,y,color,words) list:AddText({x,y},123,words) end} -- the edge is the theme's
@@ -92,4 +100,21 @@ p.dayX[1]=4; p.dayY[1]=-2
 panel.Draw(p,{{{icon=101,kind='day'}},{},{}},{left=10,top=20,width=306,height=24},
     {textColor={1,1,1,1},iconScale={1},weatherScale={1},iconOffset={0},outline={0}})
 assert(images[1][1]==101); Near(images[1][2],21); Near(images[1][3],23)
-print('Info panel: slots, weights, alignment, styled pipes, rendering, icon offsets and settings validation passed')
+local tips={}
+local opts={textColor={1,1,1,1},iconScale={1},weatherScale={1},iconOffset={0},reserve=false,
+    iconTooltip=function(text) tips[#tips+1]=text end}
+local iconSlots={{{icon=101,kind='day',tooltip='Firesday'}},{},{}}
+mouse.x,mouse.y=22,24
+panel.Draw(p,iconSlots,{left=10,top=20,width=306,height=24},opts)
+assert(#tips==1 and tips[1]=='Firesday','hover follows actual icon offsets')
+mouse.x,mouse.y=18,24
+panel.Draw(p,iconSlots,{left=10,top=20,width=306,height=24},opts)
+assert(#tips==1,'old unshifted area does not trigger tooltip')
+p.dayX[1]=-10
+mouse.x,mouse.y=10,24
+panel.Draw(p,iconSlots,{left=10,top=20,width=306,height=24},opts)
+assert(#tips==1,'clipped-off icon area does not trigger tooltip')
+mouse.x,mouse.y=18,24
+panel.Draw(p,iconSlots,{left=10,top=20,width=306,height=24},opts)
+assert(#tips==2,'visible clipped icon area can still trigger tooltip')
+print('Info panel: slots, weights, alignment, styled pipes, rendering, icon offsets, tooltip metadata/hit regions and settings validation passed')

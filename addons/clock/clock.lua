@@ -1,8 +1,8 @@
 addon.name = 'clock'
 addon.author = 'win'
-addon.version = '0.10.0'
-addon.desc = 'Vana\'diel clock on one line in place of the game\'s, its icons kept, the compass hidden (uihook).'
-local winxiNeeded = 5
+addon.version = '0.11.0'
+addon.desc = 'Winxi info panel: three configurable data slots, themed separators, movable icons and native HUD layering.'
+local winxiNeeded = 25
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -20,12 +20,24 @@ local widgets = require('winxi.widgets')
 local fonts = require('winxi.fonts')
 local outlined = require('winxi.text')
 local native = require('winxi.nativehud')
+local chat = require('winxi.nativechat')
+local window = require('winxi.window')
 local fields = require('fields')
 local icons = require('icons')
 local exp = require('exp')
+local panel = require('panel')
+local panelSettings = require('panel_settings')
+local panelSamples = nil
 
 local hook = native.new(native.Clock)
 local compass = native.new(native.Compass)
+local chatAnchor = chat.new(chat.Primary) -- read-only; chatbox owns this slot
+local chatInput = chat.new(chat.Input) -- geometry only; never claim the input slot
+local inputHeight = nil
+local boxSize, boxPivot = { 0, 0 }, { 0, 1 }
+local BOX_PADDING = 3 -- compact status strip; independent of full-size window padding
+local boxOptions = { padding = BOX_PADDING, shadow = false, capture = function() hook.Capture() end }
+local boxMinimum = { 1, 1 }
 local time, timeError
 local nextSample, segments = 0, nil -- the line, as fields.Segments last gave it
 local preview = ''                  -- and in words, for the settings
@@ -51,7 +63,6 @@ local flags = bit.bor(ImGuiWindowFlags_NoTitleBar, ImGuiWindowFlags_NoResize, Im
     ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus, ImGuiWindowFlags_NoBackground)
 local SCALE_MIN, SCALE_MAX = 0.5, 3
 local FONT_MOST = 48    -- pixels the line's font can be
-local OUTLINE_MOST = 3  -- pixels its dark edge can be
 local OFFSET_MOST = 10  -- pixels the set's icons can be moved up or down
 local ICON_GAP = 4      -- pixels between the day icon and the line
 local WEATHER_MOST = 40 -- pixels the weather icon can be moved up or down
@@ -89,12 +100,11 @@ local function Release()
     hook.Stop()
     compass.Stop()
     nextSample, segments = 0, nil
+    inputHeight, panelSamples = nil, nil
 end
 
 local app
-local function Tip(text)
-    if imgui.IsItemHovered() then imgui.SetTooltip(text) end
-end
+local Tip = require('winxi.tooltip').Hover;
 
 -- Something added to the end of the line from the settings: a field two spaces after what is there,
 -- or a divider in place of the spaces at the end
@@ -111,40 +121,28 @@ local function Append(options, text, divider)
     app.save()
 end
 
-local fieldsOpen = false -- the Add Field list, as last drawn
 
 -- The clock's own font: a file of C:\Windows\Fonts or the theme's (''), at a size or the theme's (0)
 local function FontChoice(options)
-    widgets.Label('Font')
-    local file = options.fontFile
-    if imgui.BeginCombo('##clock.fontFile', file ~= '' and file or 'Theme\'s Font') then
-        if imgui.Selectable('Theme\'s Font##clock.font.theme', file == '') and file ~= '' then
-            options.fontFile = ''
-            app.save()
-        end
-        for _, choice in ipairs(fonts.Files()) do
-            if imgui.Selectable(choice .. '##clock.font', file == choice) and file ~= choice then
-                options.fontFile = choice
-                app.save()
-            end
-        end
-        imgui.EndCombo()
+    if widgets.FontFile(options, 'fontFile', '##clock.fontFile', { tooltip = 'The line\'s font: one of C:\\Windows\\Fonts, or the theme\'s.' }) then
+        app.save()
     end
-    Tip('The line\'s font: one of C:\\Windows\\Fonts, or the theme\'s.')
-    widgets.Label('Font Size')
-    imgui.SliderInt('##clock.fontSize', options.fontSize, 0, FONT_MOST, options.fontSize[1] > 0 and '%d px' or 'Theme\'s')
-    if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-    Tip('How large the line is, in pixels; 0 for the theme\'s size.')
+    local _, done = widgets.FontSize(options, 'fontSize', '##clock.fontSize', { max = FONT_MOST, tooltip = 'How large the line is, in pixels; Theme Size (0) is the theme\'s.' })
+    if done then app.save() end
 end
 
-local function DrawSettings(options)
-    if widgets.Header('Clock', true) then
+local function PanelControls(options, section)
+    panelSettings(options.panel, fields, function() nextSample = 0; panelSamples = nil; app.save() end, section)
+end
+
+local function DrawGeneral(options)
+    if widgets.Header('Visibility', true) then
         widgets.Label('Replace Game\'s Clock')
         if imgui.Checkbox('##clock.replace', options.replace) then
             if not options.replace[1] then hook.Stop() end
             app.save()
         end
-        Tip('Writes the line below where the game writes its clock.\nThe game\'s day and weather icons stay where it puts them.\nOff, the game\'s own clock comes back.')
+        Tip('Shows the info panel (or legacy line) through the native clock slot.\nOff, the game\'s own clock and icons come back.')
         widgets.Label('Hide Compass')
         if imgui.Checkbox('##clock.hideCompass', options.hideCompass) then
             if not options.hideCompass[1] then compass.Stop() end
@@ -154,7 +152,21 @@ local function DrawSettings(options)
         imgui.TextDisabled(timeError and ('Time unavailable: ' .. timeError) or hook.Status())
     end
 
-    if widgets.Header('Line') then
+    PanelControls(options, 'general')
+    if widgets.Header('About', true) then
+        imgui.TextDisabled('Layout: size, position and separators. Data: slot content and alignment.')
+        imgui.TextDisabled('Text: font and colour. Icons: artwork, scale and placement.')
+        imgui.TextDisabled('Frame and shadow follow the shared Winxi theme.')
+    end
+end
+
+local function DrawLayout(options)
+    PanelControls(options, 'layout')
+end
+
+local function DrawData(options)
+    PanelControls(options, 'data')
+    if not options.panel.enabled[1] and widgets.Header('Legacy Line', true) then
         if format[1] ~= options.format and not imgui.IsAnyItemActive() then format[1] = options.format end
         widgets.Label('Line')
         -- a width of its own, wider as the line grows: the settings window fits itself to what is
@@ -209,30 +221,31 @@ local function DrawSettings(options)
                 or 'None gained yet')
         end
     end
+end
 
-    if widgets.Header('Text') then
+local function DrawText(options)
+    if widgets.Header('Text', true) then
         FontChoice(options)
         widgets.Label('Text Color')
         if imgui.ColorEdit4('##clock.textColor', options.textColor, ImGuiColorEditFlags_NoInputs) then nextSample = 0 end
         if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('The line\'s colour, and how solid it is.')
-        widgets.Label('Outline')
-        imgui.SliderInt('##clock.outline', options.outline, 0, OUTLINE_MOST, options.outline[1] > 0 and '%d px' or 'None')
-        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('How thick the dark edge round the letters is, in pixels, so the line reads over anything.')
+        Tip('The line\'s colour, and how solid it is. The dark edge round the letters is Winxi Theme\'s Text Outline.')
     end
+end
 
-    if widgets.Header('Icons') then
+local function DrawIcons(options)
+    if widgets.Header('Icon Appearance', true) then
         widgets.Label('Icon Set')
         local chosen = options.iconSet
-        if imgui.BeginCombo('##clock.iconSet', chosen == icons.None and 'Game\'s Icons' or chosen) then
+        local defaultLabel = options.panel.enabled[1] and 'Default (Gems)' or 'Game\'s Icons'
+        if imgui.BeginCombo('##clock.iconSet', chosen == icons.None and defaultLabel or chosen) then
             if not setsOpen then sets, setsOpen = icons.Sets(), true end
             local function Choose(key)
                 options.iconSet = key
                 icons.Forget()
                 app.save()
             end
-            if imgui.Selectable('Game\'s Icons##clock.set.none', chosen == icons.None) then Choose(icons.None) end
+            if imgui.Selectable(defaultLabel .. '##clock.set.none', chosen == icons.None) then Choose(icons.None) end
             for _, set in ipairs(sets) do
                 if imgui.Selectable(set.label .. '##clock.set.' .. set.key, chosen == set.key) then Choose(set.key) end
             end
@@ -240,7 +253,9 @@ local function DrawSettings(options)
         else
             setsOpen = false
         end
-        Tip('Pictures of your own for the day and weather icons: a folder of addons\\clock\\icons.\nWhere the set has no picture for the day or the weather, the game\'s own icon is drawn.')
+        Tip(options.panel.enabled[1]
+            and 'Panel icon artwork; missing pictures fall back to the bundled gems set.'
+            or 'Pictures from addons\\clock\\icons; missing artwork keeps the game\'s own icon.')
         widgets.Label('Icon Scale')
         imgui.SliderFloat('##clock.iconScale', options.iconScale, SCALE_MIN, SCALE_MAX, '%.2fx')
         if imgui.IsItemDeactivatedAfterEdit() then app.save() end
@@ -249,14 +264,17 @@ local function DrawSettings(options)
         imgui.SliderInt('##clock.iconOffset', options.iconOffset, -OFFSET_MOST, OFFSET_MOST, '%d px')
         if imgui.IsItemDeactivatedAfterEdit() then app.save() end
         Tip('Moves the Icon Set\'s icons up (less than 0) or down (more than 0), in pixels, where the game\ndraws its own and in the line. The game\'s own icons stay where they are.')
-        widgets.Label('Weather Offset')
-        imgui.SliderInt('##clock.weatherOffset', options.weatherOffset, -WEATHER_MOST, WEATHER_MOST, '%d px')
-        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
-        Tip('Moves the weather icon above the clock up (less than 0) or down (more than 0), in pixels:\nthe game\'s own and the Icon Set\'s alike.')
         widgets.Label('Weather Scale')
         imgui.SliderFloat('##clock.weatherScale', options.weatherScale, SCALE_MIN, SCALE_MAX, '%.2fx')
         if imgui.IsItemDeactivatedAfterEdit() then app.save() end
         Tip('How large the weather icon is, about its middle: the game\'s own, which uihook draws that large,\nand the Icon Set\'s, on top of Icon Scale.')
+    end
+    PanelControls(options, 'icons')
+    if not options.panel.enabled[1] and widgets.Header('Native Weather', true) then
+        widgets.Label('Weather Offset')
+        imgui.SliderInt('##clock.weatherOffset', options.weatherOffset, -WEATHER_MOST, WEATHER_MOST, '%d px')
+        if imgui.IsItemDeactivatedAfterEdit() then app.save() end
+        Tip('Moves the native weather icon above the clock, in pixels.')
         widgets.Label('Show All Weather')
         imgui.Checkbox('##clock.showAll', showAll)
         Tip('Draws every weather icon in a row from the weather icon\'s place, to see them and where they sit:\nfire, ice, wind, earth, thunder, water, light and dark, then the clear sky.\nThe Icon Set\'s where it has them, the game\'s own where not. Until it is turned off, or the game is restarted.')
@@ -272,13 +290,20 @@ end
 
 app = shell.New({
     defaults = T{ replace = T{ true }, hideCompass = T{ true }, fontFile = '', fontSize = T{ 0 }, textColor = T{ 1, 1, 1, 1 },
-        outline = T{ 1 }, iconScale = T{ 1 }, iconOffset = T{ 0 }, weatherOffset = T{ 0 }, weatherScale = T{ 1 }, iconSet = icons.None,
-        format = fields.Default },
-    hideAppearance = true, -- the clock has its own font and colour: no Winxi Theme tab
-    configTitle = 'Clock Settings',
+        iconScale = T{ 1 }, iconOffset = T{ 0 }, weatherOffset = T{ 0 }, weatherScale = T{ 1 }, iconSet = icons.None,
+        format = fields.Default, panel = panel.Defaults() },
+    hideAppearance = true, -- panel chrome follows the shared Winxi theme; text has its own controls
+    configTitle = 'Info Panel Settings',
     command = '/clock',
     help = '/clock opens or closes the settings; /clock on, /clock off, /clock status, /clock exp reset.',
-    drawSettings = DrawSettings,
+    settingsLabel = 'General',
+    drawSettings = DrawGeneral,
+    tabs = {
+        { label = 'Layout', draw = DrawLayout },
+        { label = 'Data', draw = DrawData },
+        { label = 'Text', draw = DrawText },
+        { label = 'Icons', draw = DrawIcons },
+    },
     commands = {
         on = function(options) options.replace[1] = true; app.save() end,
         off = function(options) options.replace[1] = false; hook.Stop(); app.save() end,
@@ -310,6 +335,8 @@ app = shell.New({
         options.order, options.shown, options.experience, options.expWindow = nil, nil, nil, nil
         if type(options.format) ~= 'string' then options.format = fields.Default end
         format[1] = options.format
+        if type(options.panel) ~= 'table' then options.panel = panel.Defaults() end
+        panel.Complete(options.panel)
         if type(options.iconSet) ~= 'string' then options.iconSet = icons.None end
         icons.Forget()
         local function Clamp(value, low, high, default) return math.min(high, math.max(low, tonumber(value) or default)) end
@@ -321,7 +348,6 @@ app = shell.New({
         end
         if type(options.fontFile) ~= 'string' then options.fontFile = '' end
         options.fontSize[1] = math.floor(Clamp(options.fontSize[1], 0, FONT_MOST, 0))
-        options.outline[1] = math.floor(Clamp(options.outline[1], 0, OUTLINE_MOST, 1))
         for i = 1, 4 do options.textColor[i] = Clamp(options.textColor[i], 0, 1, 1) end
         options.iconScale[1] = Clamp(options.iconScale[1], SCALE_MIN, SCALE_MAX, 1)
         options.iconOffset[1] = math.floor(Clamp(options.iconOffset[1], -OFFSET_MOST, OFFSET_MOST, 0))
@@ -339,8 +365,81 @@ end)
 ashita.events.register('unload', 'clock_unload', Release)
 -- experience gained, counted only while an experience field is in the line
 ashita.events.register('packet_in', 'clock_packet', function(e)
-    if fields.Uses(app.options.format, 'exp') then exp.Packet(e.id, e.data) end
+    local options = app.options
+    local format = options.panel.enabled[1] and panel.Format(options.panel) or options.format
+    if fields.Uses(format, 'exp') then exp.Packet(e.id, e.data) end
 end)
+
+-- The full panel shares the clock's native visibility/capture slot, but owns its layout.
+local function DrawInfoPanel(options)
+    local p, now = options.panel, os.clock()
+    local left, top, right, bottom = hook.ClockRect()
+    if not left then hook.Stop(); return end
+    local format = panel.Format(p)
+    if not panelSamples or now >= nextSample then
+        nextSample = now + 0.25
+        local ok, sampled = pcall(function()
+            local c = fields.Context(time, hook.Grid(), fields.Has(format,'weather') and WeatherName() or nil)
+            weekday = time.get_game_weekday(c.raw)
+            local set = options.iconSet
+            c.dayIcon = icons.Day(set,weekday) or icons.Day('gems',weekday)
+            c.weatherIcon = icons.Weather(set,hook.Weather()) or icons.Weather('gems',hook.Weather())
+            c.exp = fields.Uses(format,'exp') and exp.Snapshot(now,RATE_OVER) or nil
+            return panel.Build(p,fields,c)
+        end)
+        if not ok then timeError=tostring(sampled); panelSamples=nil; hook.Stop(); return end
+        panelSamples, timeError = sampled, nil
+    end
+    if not hook.Begin() then return end
+    hook.ShiftWeather(0); hook.ScaleWeather(1); hook.PreviewWeather(0)
+    -- Hidden/slot placement suppresses the native icon. Native placement explicitly
+    -- leaves it alone; an inline token takes precedence over that choice.
+    local hideDay = p.dayPlace[1]~=2 or fields.Has(format,'dayicon')
+    local hideWeather = p.weatherPlace[1]~=2 or fields.Has(format,'weathericon')
+    hook.HideIcons((hideDay and native.HideDay or 0)+(hideWeather and native.HideWeather or 0))
+    local chatLeft, chatTop, chatRight = chatAnchor.ClockAnchor()
+    local display = imgui.GetIO().DisplaySize
+    local _, inputTop, _, inputBottom = chatInput.Rect(display.x or display[1],display.y or display[2])
+    if inputTop and inputBottom and inputBottom-inputTop>=8 and inputBottom-inputTop<=256 then inputHeight=inputBottom-inputTop end
+    local pushed = fonts.Push()
+    if scaleWas then
+        if scaleWas~=1 then options.fontSize[1]=math.min(FONT_MOST,math.floor(imgui.GetFontSize()*scaleWas+0.5)) end
+        scaleWas=nil; app.save()
+    end
+    local fontSize = options.fontSize[1]>0 and options.fontSize[1] or imgui.GetFontSize()
+    fonts.Pop(pushed)
+    local contentHeight = fontSize
+    for _,slot in ipairs(panelSamples) do
+        for _,segment in ipairs(slot) do
+            if type(segment)=='table' and segment.icon then
+                local size=fontSize*options.iconScale[1]*(segment.kind=='weather' and options.weatherScale[1] or 1)
+                contentHeight=math.max(contentHeight,size)
+            end
+        end
+    end
+    local width = p.width[1]>0 and p.width[1] or chatLeft and chatRight-chatLeft or 640
+    width = math.max(32,width)
+    local height = p.height[1]>0 and math.max(8,p.height[1]) or math.max(inputHeight or 0,contentHeight+2*p.padding[1])
+    local x,y = p.x[1],p.y[1]
+    if p.attached[1] then
+        x=(chatLeft or left)+p.offsetX[1]
+        y=(chatTop or bottom)-height+p.offsetY[1]
+    end
+    local rect = {left=x,top=y,width=width,height=height}
+    imgui.SetNextWindowPos({x,y},ImGuiCond_Always)
+    imgui.SetNextWindowSize({width,height},ImGuiCond_Always)
+    local panelFlags = bit.band(flags,bit.bnot(bit.bor(ImGuiWindowFlags_NoBackground,ImGuiWindowFlags_AlwaysAutoResize)))
+    panelFlags=bit.bor(panelFlags,ImGuiWindowFlags_NoScrollbar,ImGuiWindowFlags_NoScrollWithMouse)
+    imgui.PushStyleVar(ImGuiStyleVar_WindowMinSize,boxMinimum)
+    local drawn, failure = pcall(window.Plain,'clock.panel',{true},panelFlags,function()
+        imgui.PushFont(fonts.Get(options.fontFile),fontSize)
+        local ok, err = pcall(panel.Draw,p,panelSamples,rect,options)
+        imgui.PopFont()
+        if not ok then error(err,0) end
+    end,{padding=p.padding[1],capture=function() hook.Capture() end})
+    imgui.PopStyleVar(1)
+    if not drawn then hook.Stop(); error(failure,0) end
+end
 
 ashita.events.register('d3d_present', 'clock_present', function()
     app:BeginFrame()
@@ -348,6 +447,8 @@ ashita.events.register('d3d_present', 'clock_present', function()
     -- an empty compass, renewed each frame; the clock inside it is drawn all the same
     if options.hideCompass[1] then compass.Begin() else compass.Stop() end
     if not options.replace[1] or not time then hook.Stop(); return end
+
+    if options.panel.enabled[1] then DrawInfoPanel(options); return end
 
     local now = os.clock()
     local set = type(options.iconSet) == 'string' and options.iconSet or icons.None
@@ -438,10 +539,8 @@ ashita.events.register('d3d_present', 'clock_present', function()
     local dayDrawn = day and Placed(dayAt, iconScale, iconOffset) or (dayAt[1] and dayAt)
     if dayDrawn then left = math.max(left, dayDrawn[3] + ICON_GAP) end
     place[1], place[2] = left, (top + bottom) / 2
-    imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
-    imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, noPadding)
-    local pushed = fonts.Push()
-    if imgui.Begin('clock.native', { true }, flags) then
+    local chatLeft, chatTop, chatRight = chatAnchor.ClockAnchor()
+    local function DrawLine()
         if scaleWas then
             -- the old Text Scale, against the theme's size, as a size of its own
             if scaleWas ~= 1 then options.fontSize[1] = math.min(FONT_MOST, math.floor(imgui.GetFontSize() * scaleWas + 0.5)) end
@@ -465,18 +564,26 @@ ashita.events.register('d3d_present', 'clock_present', function()
             width = width + widths[i]
         end
         local x, y = imgui.GetCursorScreenPos()
-        room[1], room[2] = width, height
+        if chatLeft then
+            -- Centre the entire measured line (including inline weather icons), not
+            -- each field separately. Oversized lines stay left-aligned and clipped.
+            local available = math.max(0, boxSize[1] - 2 * BOX_PADDING)
+            x = chatLeft + BOX_PADDING + math.max(0, (available - width) / 2)
+            y = chatTop - boxSize[2] + (boxSize[2] - height) / 2
+            imgui.SetCursorScreenPos({ chatLeft + BOX_PADDING, chatTop - boxSize[2] + BOX_PADDING })
+            room[1] = available
+            list:PushClipRect({ chatLeft + 1, chatTop - boxSize[2] + 1 },
+                { chatRight - 1, chatTop - 1 }, true)
+        else
+            room[1] = width
+        end
+        room[2] = chatLeft and math.max(0, boxSize[2] - 2 * BOX_PADDING) or height
         imgui.Dummy(room)
-        local color, edge = options.textColor, options.outline[1]
+        local color = options.textColor
         for i, segment in ipairs(segments) do
             if type(segment) == 'string' then
-                -- the dark edge winxi writes over the game with, as thick as Outline; none at 0
-                if edge > 0 then
-                    outlined.Draw(list, x, y + (height - fontSize) / 2, color, segment, edge)
-                else
-                    iconMin[1], iconMin[2] = x, y + (height - fontSize) / 2
-                    list:AddText(iconMin, imgui.GetColorU32(color), segment)
-                end
+                -- the dark edge winxi writes over the game with: the theme's Text Outline
+                outlined.Draw(list, x, y + (height - fontSize) / 2, color, segment)
             else
                 iconMin[1], iconMin[2] = x, y + (height - iconSize) / 2 + iconOffset
                 iconMax[1], iconMax[2] = x + iconSize, iconMin[2] + iconSize
@@ -484,6 +591,7 @@ ashita.events.register('d3d_present', 'clock_present', function()
             end
             x = x + widths[i]
         end
+        if chatLeft then list:PopClipRect() end
         imgui.PopFont()
         if day or weather or all then
             -- the icons are away from the line: drawn unclipped by the window
@@ -508,9 +616,43 @@ ashita.events.register('d3d_present', 'clock_present', function()
             for _, entry in ipairs(all or {}) do Icon(entry[1], entry[2], true) end
             list:PopClipRect()
         end
-        hook.Capture() -- current window's text and icons, never a pointer passed from Lua
     end
-    imgui.End()
-    fonts.Pop(pushed)
-    imgui.PopStyleVar(1)
+    if chatLeft then
+        -- Same sizing rule as chatbox's input: one font line plus 3px above/below,
+        -- at least the native input height. Remember the last fresh native height
+        -- so opening/closing typing does not resize the clock strip.
+        local display = imgui.GetIO().DisplaySize
+        local _, inputTop, _, inputBottom = chatInput.Rect(display.x or display[1], display.y or display[2])
+        if inputTop and inputBottom and inputBottom - inputTop >= 8 and inputBottom - inputTop <= 256 then
+            inputHeight = inputBottom - inputTop
+        end
+        local pushed = fonts.Push()
+        local size = options.fontSize[1] > 0 and options.fontSize[1] or imgui.GetFontSize()
+        if scaleWas and scaleWas ~= 1 then size = math.min(FONT_MOST, math.floor(size * scaleWas + 0.5)) end
+        fonts.Pop(pushed)
+        local height = size
+        for _, segment in ipairs(segments) do
+            if type(segment) ~= 'string' then height = math.max(height, size * iconScale * weatherScale) end
+        end
+        place[1], place[2] = chatLeft, chatTop
+        boxSize[1], boxSize[2] = chatRight - chatLeft, math.max(inputHeight or 0, height + 2 * BOX_PADDING)
+        imgui.SetNextWindowPos(place, ImGuiCond_Always, boxPivot)
+        imgui.SetNextWindowSize(boxSize, ImGuiCond_Always)
+        local boxFlags = bit.band(flags, bit.bnot(bit.bor(ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_AlwaysAutoResize)))
+        boxFlags = bit.bor(boxFlags, ImGuiWindowFlags_NoScrollbar, ImGuiWindowFlags_NoScrollWithMouse)
+        imgui.PushStyleVar(ImGuiStyleVar_WindowMinSize, boxMinimum)
+        window.Plain('clock.native', { true }, boxFlags, DrawLine, boxOptions)
+        imgui.PopStyleVar(1)
+    else
+        imgui.SetNextWindowPos(place, ImGuiCond_Always, pivot)
+        imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, noPadding)
+        local pushed = fonts.Push()
+        if imgui.Begin('clock.native', { true }, flags) then
+            DrawLine()
+            hook.Capture() -- current window's text and icons, never a pointer passed from Lua
+        end
+        imgui.End()
+        fonts.Pop(pushed)
+        imgui.PopStyleVar(1)
+    end
 end)

@@ -2,6 +2,13 @@
 --     luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 -- CLOCK holds what the check sets (the game's clock's place, its grid) and what the addon asked.
 package.path = 'addons/clock/?.lua;' .. package.path
+-- Real bit flags: the generic harness otherwise invents sequential (overlapping) values.
+for i, name in ipairs({ 'NoTitleBar', 'NoResize', 'NoMove', 'NoScrollbar', 'NoScrollWithMouse',
+    'NoCollapse', 'AlwaysAutoResize', 'NoBackground', 'NoSavedSettings', 'NoMouseInputs',
+    'MenuBar', 'HorizontalScrollbar', 'NoFocusOnAppearing', 'NoBringToFrontOnFocus' }) do
+    _G['ImGuiWindowFlags_' .. name] = 2 ^ (i - 1)
+end
+ImGuiWindowFlags_NoInputs = bit.bor(ImGuiWindowFlags_NoMouseInputs, 65536, 131072)
 
 CLOCK = { rect = nil, grid = '(H-9)', ready = { true, true }, log = {}, status = 'Drawn in place of the game\'s clock.',
     icons = {}, weather = nil, hidden = 0, files = {}, loads = 0, shift = 0, preview = 0, scale = 0 }
@@ -35,6 +42,13 @@ local function Slot(index)
 end
 package.loaded['winxi.nativehud'] = { Clock = 0, Compass = 1, DayIcon = 0, WeatherIcon = 1, SecondWeatherIcon = 2,
     HideDay = 1, HideWeather = 2, new = function(index) return Slot(index) end }
+
+package.loaded['winxi.nativechat'] = { Primary = 0, Input = 2, new = function()
+    return {
+        ClockAnchor = function() if CLOCK.chat then return unpack(CLOCK.chat) end end,
+        Rect = function() if CLOCK.input then return unpack(CLOCK.input) end end,
+    }
+end }
 
 -- an icon set, 'mine', holding the pictures CLOCK.files names (days\windsday, weather\water, ...),
 -- each loaded as a handle numbered from 1000
@@ -87,6 +101,6 @@ AshitaCore.GetMemoryManager = function(self)
 end
 
 -- a character's settings as clock 0.1 saved them
-HARNESS_SAVED = { enabled = true, x = 20, y = -1 }
+HARNESS_SAVED = { enabled = true, x = 20, y = -1, panel = { enabled = { false } } }
 
 dofile('addons/clock/clock.lua')
