@@ -484,7 +484,11 @@ end);
 ```
 
 `app.options` is the settings table; read it from `app` each time, as it is another table after a change
-of character. Optional in the spec: `drawAppearance` (more for the Winxi Theme tab's Addon section),
+of character. `BeginFrame` is false, and nothing of the addon's is drawn, from the moment a character
+logs out until a character's settings are loaded again: Ashita's settings library hands every addon the
+defaults at the logout, in which the window is open and at its first place, and the addons run on for
+half a second as the game shuts down, so a window kept closed showed over the black screen until then.
+An addon loaded at the title screen draws nothing until the login, by the same rule. Optional in the spec: `drawAppearance` (more for the Winxi Theme tab's Addon section),
 `commands` (more verbs), `onSettings` (called when the settings are loaded or swapped), `toggleSays`
 (`{ shown = '...', hidden = '...' }`, said in the chat log as the command shows or hides the window: for
 a window that is only there some of the time, where the change cannot otherwise be seen) and `import` (a
