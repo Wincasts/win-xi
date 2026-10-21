@@ -29,25 +29,30 @@ The game's `/map` is left to the game: this is `/atlas`.
 
 ## With a controller
 
-`/atlas browse` gives the map the controller's buttons, as the game's own map takes them while open.
-Your character still walks with the left stick while you browse:
+`/atlas browse` (or the open step of `/atlas cycle`) gives the map the controller, as the game's own
+map takes it while open:
 
 | Button | Does |
 | --- | --- |
+| Left stick | scrolls, faster the further it is pushed |
 | D-pad | scrolls a tenth of the view, repeating while held |
-| Left stick | walks your character; with **Stick Scrolls Map** on, scrolls, faster the further it is pushed |
-| RB / LB | zooms in / out |
+| RB / LB | zooms in / out a step: 1x, 1.5x, 2x, 3x, 4x, 6x, 8x |
+| Right stick | moves a reticle over the map |
+| Y | puts a waypoint at the reticle (moving the one there was); on the waypoint, takes it away |
 | A | follows you again |
 | X | the zone's next floor, then back to yours |
 | B | gives the controller back, and hides the map again if browsing opened it |
 
 The buttons go through winxi's controller handling: they are kept from the game while the map has
-them, and **Controller Type** picks XInput or a DirectInput layout. The left stick is left to the
-game, so you can keep moving with the map open. Turn on **Stick Scrolls Map** (Controller, in
-`/atlas config`) to scroll with it instead: the stick is then kept from the game while browsing so you
-don't walk off, and as browsing begins the game is told the stick is centred, so if you were running
-you stop. The stick is read from the kind of controller **Controller Type** names: an XInput
-controller's as Ashita's buttons 18 and 19, a DirectInput one's as its axes 0 and 4.
+them, and **Controller Type** picks XInput or a DirectInput layout. Both sticks are kept from the game
+while the map has the controller, so you don't walk off or turn the camera, and as browsing begins the
+game is told they are centred, so if you were running you stop. To walk with the map up, use
+passthrough (`/atlas cycle`). The sticks are read from the kind of controller **Controller Type**
+names: an XInput controller's as Ashita's buttons 18 and 19 (left) and 20 and 21 (right), a DirectInput
+one's as its axes 0 and 4 (left) and 8 and 20 (right).
+
+The waypoint is drawn on its floor's map as a ring round a dot, and its grid square shows under the
+map. There is one at a time, and it is forgotten as you change zone. For now it only marks the place.
 
 The triggers are not the map's. With tcrossbar loaded they stay its while you browse: hold L2 or R2
 and the crossbar comes up, and the buttons you press while holding it fire its macros rather than
@@ -85,7 +90,6 @@ the triggers to the game.)
 
 - **Controller Navigation** (on): whether `/atlas browse` can give the map the controller.
 - **Controller Sounds** and **Controller Type**, as in winxi's other addons.
-- **Stick Scrolls Map** (off): the left stick scrolls the map while browsing, in place of walking.
 
 **Party**
 

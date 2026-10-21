@@ -3,7 +3,7 @@
 -- sight placed by the server's word (0x0A0), and the server asked (0x0D2) only while one is; the
 -- wheel zooming round the place under the mouse, a drag panning and no longer following; nothing
 -- known for a zone with no map; /atlas browse giving the map the controller: the d-pad scrolling,
--- the stick walking the character, or with Stick Scrolls Map scrolling (kept from the game), the shoulders zooming, A following, X the floors, B giving it back
+-- the left stick scrolling (kept from the game), the shoulders stepping the zoom, the right stick's reticle and Y's waypoint, A following, X the floors, B giving it back
 local o = H.options()
 local imgui = require('imgui')
 local mapdat = require('winxi.mapdat')
@@ -24,6 +24,7 @@ local list = setmetatable({
     AddTriangleFilled = function(_, p1) drawn[#drawn + 1] = { kind = 'arrow', x = p1[1], y = p1[2] } end,
     AddCircleFilled = function(_, c, r) drawn[#drawn + 1] = { kind = 'dot', x = c[1], y = c[2] } end,
     AddCircle = function(_, c) drawn[#drawn + 1] = { kind = 'ring', x = c[1], y = c[2] } end,
+    AddLine = function(_, a) drawn[#drawn + 1] = { kind = 'line', x = a[1], y = a[2] } end,
     AddQuadFilled = function(_, a, b, c) drawn[#drawn + 1] = { kind = 'diamond', x = a[1], y = b[2] } end,
     AddText = function(_, pos, color, words) drawn[#drawn + 1] = { kind = 'text', words = words } end,
 }, { __index = function() return function() end end })
@@ -244,29 +245,15 @@ local queued = {}
 AshitaCore.GetInputManager = function() return { GetXInput = function() return { QueueButtonData = function(_, b, v) queued[#queued + 1] = b .. '=' .. v end } end } end
 zone = 126
 entities[1] = { x = 100, y = -20, z = 5, heading = 1.0, name = 'Tester' }
--- Stick Scrolls Map off, as it begins: the stick still walks the character, the d-pad has the map
-H.button(18, 20000)
-H.command('/atlas browse')
-frame()
-H.print('browse, the stick the character\'s: not centred, let through', o.isVisible[1], #queued == 0, H.button(18, 32767) == false)
-H.print('the d-pad still the map\'s', H.tap(H.Button.DpadLeft) == true)
 local hint = nil
 local textDisabled = imgui.TextDisabled
 imgui.TextDisabled = function(t, ...) hint = t; return textDisabled(t, ...) end
-frame()
-imgui.TextDisabled = textDisabled
-H.print('the hint names no stick', hint ~= nil and hint:find('Stick', 1, true) == nil)
-H.button(18, 0)
-H.tap(H.Button.B)
-frame()
-H.print('B: given back, the map hidden again', not o.isVisible[1])
--- Stick Scrolls Map on: the stick the map's while browsing
-o.stickScrolls[1] = true
 H.button(18, 20000) -- walking east as browsing begins
 H.command('/atlas browse')
-H.print('browse: the map shown, and the game told the stick is centred', o.isVisible[1], queued[1] == '18=0', queued[2] == '19=0')
+H.print('browse: the map shown, and the game told the stick is centred', o.isVisible[1], queued[1] == '18=0', #queued == 1)
 frame()
-H.print('the buttons said under the map', H.calls.TextDisabled ~= nil)
+imgui.TextDisabled = textDisabled
+H.print('the buttons said under the map, the sticks among them', hint ~= nil and hint:find('L Stick', 1, true) ~= nil and hint:find('Y: Waypoint', 1, true) ~= nil)
 -- the stick: kept from the game while pushed, let through as it comes back
 H.print('the stick kept from the game', H.button(18, 32767) == true, H.button(19, 0) == false)
 frame()
@@ -279,7 +266,7 @@ H.button(18, 0)
 H.frames(1)
 image = first('image')
 local zoomed = image and (image.uvB[1] - image.uvA[1]) or 0
-H.print('RB twice: 1.5625x', math.abs(zoomed - 1 / 1.5625) < 0.001)
+H.print('RB twice: a step each, 1.5x then 2x', math.abs(zoomed - 1 / 2) < 0.001)
 local before = image and image.uvA[1] or 0
 H.button(18, 32767)
 H.frames(10)
@@ -305,6 +292,41 @@ for i = #drawn, 1, -1 do drawn[i] = nil end
 H.frames(1)
 image = first('image')
 H.print('LB twice: the whole map', image ~= nil and math.abs(image.uvB[1] - image.uvA[1] - 1) < 0.001)
+-- the steps from a zoom the wheel left between them
+for i = #drawn, 1, -1 do drawn[i] = nil end
+H.tap(H.Button.RB)
+H.frames(1)
+image = first('image')
+local stepped = image and (image.uvB[1] - image.uvA[1]) or 0
+H.print('LB at 1x stays at 1x, RB from 1x is 1.5x', math.abs(stepped - 1 / 1.5) < 0.001)
+H.tap(H.Button.LB)
+
+-- the right stick: a reticle at the middle, moved by the stick and kept from the game; Y puts a
+-- waypoint there, and Y on it takes it away
+frame()
+H.print('a reticle while browsing', count('line') == 8)
+local ring = nil
+for _, d in ipairs(drawn) do if d.kind == 'ring' then ring = d end end
+local startX = ring and ring.x or 0
+H.print('the right stick kept from the game', H.button(20, 32767) == true, H.button(21, 0) == false)
+H.frames(10)
+H.button(20, 0)
+frame()
+ring = nil
+for _, d in ipairs(drawn) do if d.kind == 'ring' then ring = d end end
+H.print('pushed right: the reticle moves right, the map stays', ring ~= nil and ring.x > startX)
+H.tap(H.Button.Y)
+frame()
+H.print('Y: a waypoint where the reticle is', count('ring') == 4)
+H.tap(H.Button.Y)
+frame()
+H.print('Y on it again: gone', count('ring') == 2)
+H.tap(H.Button.Y)
+H.command('/atlas cycle') -- to passthrough: the controller given back, the map left up
+frame()
+H.print('given back: no reticle, the waypoint still shown', count('line') == 0, count('ring') == 2)
+H.command('/atlas cycle')
+H.command('/atlas browse')
 
 -- X: the next floor, in a zone of several; then back to the player's
 zone = 184
@@ -356,14 +378,13 @@ AshitaCore.GetInputManager = function() return {
     GetController = function() return { QueueButtonData = function(_, b, v) dqueued[#dqueued + 1] = b .. '=' .. v end } end,
 } end
 o.controllerType = 'playstation'
-o.stickScrolls[1] = true
 zone = 126
 entities[1] = { x = 100, y = -20, z = 5, heading = 1.0, name = 'Tester' }
 H.frames(1)
 H.dinput(0, 100) -- walking east as browsing begins
 local xqueued = #queued
 H.command('/atlas browse')
-H.print('DirectInput: the game told its stick is centred, not XInput\'s', dqueued[1] == '0=0', dqueued[2] == '4=0', #queued == xqueued)
+H.print('DirectInput: the game told its stick is centred, not XInput\'s', dqueued[1] == '0=0', #dqueued == 1, #queued == xqueued)
 frame()
 local function dtap(button) H.dinput(button, 128) H.dinput(button, 0) H.frames(1) end
 dtap(53) dtap(53) -- R1: zoomed in twice
@@ -386,6 +407,7 @@ H.dinput(4, 0)
 frame()
 image = first('image')
 H.print('DirectInput stick up scrolls north', image ~= nil and image.uvA[2] < beforeY, image ~= nil and image.uvA[1] == before)
+H.print('DirectInput right stick (8, 20) kept from the game', H.dinput(8, 127) == true, H.dinput(8, 0) == false, H.dinput(20, -128) == true, H.dinput(20, 0) == false)
 H.print('XInput\'s stick left alone while DirectInput is in use', H.button(18, 32767) == false)
 H.frames(10)
 H.button(18, 0)
@@ -408,7 +430,6 @@ H.print('L2 let go: R1 the map\'s again', H.dinput(53, 128) == true) H.dinput(53
 dtap(50)
 frame()
 o.controllerType = 'xinput'
-o.stickScrolls[1] = false
 H.frames(1)
 
 -- Fade While Moving: the map faded as the player walks, whole again as they stop, or with the mouse

@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.7';
+addon.version = '0.8';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -64,7 +64,6 @@ local defaults = T{
     askServer = T{ true },
     controller = T{ true },
     controllerSounds = T{ false },
-    stickScrolls = T{ false },
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
 };
 
@@ -74,6 +73,10 @@ local state = view.New();
 -- Whether the map is in passthrough, as /atlas cycle leaves it: shown, with the controller the game's
 local passing = false;
 
+-- The waypoint put down with the controller's reticle (Y while browsing): its zone, floor and place
+-- on that floor's map, or nil. Forgotten as the zone changes.
+local waypoint = nil;
+
 -- Which map
 
 -- zone: the zone the player is in; chosen: a floor's id picked over the map, or nil to follow the
@@ -81,6 +84,7 @@ local passing = false;
 local current = { zone = nil, chosen = nil, here = nil, why = 'not looked yet' };
 local scene = { picture = nil, markers = {} };
 local playerAt = { mx = nil, my = nil }; -- the player's place on the map shown, or nil
+local reticleAt = { mx = nil, my = nil }; -- the controller's reticle, while browsing
 
 local function Zone()
     local ok, zone = pcall(function() return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0); end);
@@ -152,6 +156,7 @@ local function Look()
     local zone = Zone();
     if zone ~= current.zone then
         current.zone, current.chosen, current.here = zone, nil, nil;
+        waypoint = nil;
         markers.Forget();
         view.Reset(state);
     end
@@ -289,6 +294,16 @@ local function Draw()
         view.Track(state, playerAt.mx, playerAt.my);
     end
     scene.picture = shown and maps.Texture(shown) or nil;
+    scene.waypoint = nil;
+    if waypoint ~= nil and shown ~= nil and waypoint.zone == zone and waypoint.floor == shown.floor then
+        scene.waypoint = waypoint;
+    end
+    scene.reticle = nil;
+    local rx, ry = pad.Reticle();
+    if rx ~= nil then
+        reticleAt.mx, reticleAt.my = rx, ry;
+        scene.reticle = reticleAt;
+    end
     local mx, my = view.Draw(imgui.GetWindowDrawList(), state, x, y, size, scene, options);
     if hovered and mx ~= nil and shown ~= nil then
         Hovered(mx, my, maps.Entry(shown, zone), size);
@@ -310,6 +325,10 @@ local function Draw()
         imgui.SameLine();
         imgui.Text(maps.Square(playerAt.mx, playerAt.my));
     end
+    if scene.waypoint ~= nil then
+        imgui.SameLine();
+        imgui.Text('Waypoint ' .. maps.Square(scene.waypoint.mx, scene.waypoint.my));
+    end
     if shown == nil then
         imgui.TextDisabled('No map is known for this zone.');
     end
@@ -330,8 +349,8 @@ local function Show(label, key, colourKey, tip)
 end
 
 local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game\'s own map has it:\n'
-    .. 'the d-pad scrolls, RB zooms in and LB out, A follows you again, X shows the next floor, and B gives it back.\n'
-    .. 'The left stick still walks your character, unless Stick Scrolls Map is on.';
+    .. 'the left stick and the d-pad scroll, RB zooms in a step and LB out, the right stick moves a reticle and Y puts a waypoint there,\n'
+    .. 'A follows you again, X shows the next floor, and B gives it back. To walk with the map up, use passthrough (/atlas cycle).';
 
 local function DrawSettings(options)
     if widgets.Header('Window') then
@@ -381,11 +400,7 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Controller') then
-        shell.ControllerSettings(options, controllerTip, function()
-            widgets.Label('Stick Scrolls Map');
-            imgui.Checkbox('##atlas.stickScrolls', options.stickScrolls);
-            tips.Hover('While browsing, the left stick scrolls the map, faster the further it is pushed, and your character does not walk.\nOff, the stick walks your character as ever while the d-pad scrolls. The stick is read from the kind of controller Controller Type names.');
-        end);
+        shell.ControllerSettings(options, controllerTip);
     end
 
     imgui.TextWrapped(Status());
@@ -431,6 +446,22 @@ pad.Attach({
     state = state,
     floor = NextFloor,
     shown = function(on) app.options.isVisible[1] = on; end,
+    -- Y: a waypoint at the reticle, or none if the reticle is on the one there is
+    mark = function(mx, my)
+        local shown = Shown();
+        if mx == nil or shown == nil then
+            return;
+        end
+        if waypoint ~= nil and waypoint.zone == current.zone and waypoint.floor == shown.floor then
+            local reach = 8 * view.Size / app.options.size[1] / state.zoom; -- REACH pixels, in map units
+            local dx, dy = waypoint.mx - mx, waypoint.my - my;
+            if dx * dx + dy * dy <= reach * reach then
+                waypoint = nil;
+                return;
+            end
+        end
+        waypoint = { zone = current.zone, floor = shown.floor, mx = mx, my = my };
+    end,
 });
 
 local extra = { locked = false };

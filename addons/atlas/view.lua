@@ -16,7 +16,8 @@
 --                                              following
 --   view.Draw(drawList, state, x, y, size, scene, options, alpha)   the map in the square at x, y;
 --                                              scene is { picture, markers = { { kind, mx, my,
---                                              heading, name, near } } }, places in map units;
+--                                              heading, name, near } }, waypoint = { mx, my } or nil,
+--                                              reticle = { mx, my } or nil }, places in map units;
 --                                              returns the place on the map under the mouse, or nil
 local imgui = require('imgui');
 local text = require('winxi.text');
@@ -136,6 +137,33 @@ local function Diamond(drawList, x, y, size, fill, edge)
     drawList:AddQuadFilled(p1, p2, p3, p4, fill);
 end
 
+local WAYPOINT = { 0.95, 0.45, 0.95, 1 };
+local RETICLE = { 1, 1, 1, 0.9 };
+
+-- The waypoint: a dot in a ring, with a dark edge
+local function Waypoint(drawList, x, y, size, fill, edge)
+    p1[1], p1[2] = x, y;
+    drawList:AddCircle(p1, size * 0.9, edge, 16, 4);
+    drawList:AddCircle(p1, size * 0.9, fill, 16, 2);
+    drawList:AddCircleFilled(p1, size * 0.3 + 1.5, edge, 12);
+    drawList:AddCircleFilled(p1, size * 0.3, fill, 12);
+end
+
+-- The reticle: a ring with four ticks pointing in at its middle, with a dark edge
+local function Reticle(drawList, x, y, size, fill, edge)
+    local r = size;
+    p1[1], p1[2] = x, y;
+    drawList:AddCircle(p1, r, edge, 20, 3);
+    drawList:AddCircle(p1, r, fill, 20, 1.5);
+    for i = 0, 3 do
+        local angle = i * math.pi / 2;
+        Point(p2, x, y, angle, r * 1.5);
+        Point(p3, x, y, angle, r * 0.5);
+        drawList:AddLine(p2, p3, edge, 3);
+        drawList:AddLine(p2, p3, fill, 1.5);
+    end
+end
+
 local colourOf = { player = 'playerColor', party = 'partyColor', alliance = 'allianceColor', target = 'targetColor' };
 local shownOf = { player = 'showPlayer', party = 'showParty', alliance = 'showAlliance', target = 'showTarget' };
 -- drawn in this order, so the player is on top of the rest
@@ -181,6 +209,14 @@ function view.Draw(drawList, state, x, y, size, scene, options, alpha)
                 end
             end
         end
+    end
+    if scene.waypoint ~= nil then
+        local w = scene.waypoint;
+        Waypoint(drawList, x + (w.mx - left) * unit, y + (w.my - top) * unit, markerSize, Packed(WAYPOINT, alpha), edge);
+    end
+    if scene.reticle ~= nil then
+        local r = scene.reticle;
+        Reticle(drawList, x + (r.mx - left) * unit, y + (r.my - top) * unit, markerSize, Packed(RETICLE, alpha), edge);
     end
     drawList:PopClipRect();
 
