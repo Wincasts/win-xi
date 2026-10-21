@@ -1,4 +1,4 @@
-# lens — experimental 0.4
+# lens — experimental 0.5
 
 FFXI's world through a Panini or cylindrical projection, either of which keeps a wide view without
 the stretching a flat projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
@@ -76,6 +76,17 @@ exported as `LensWarp` for a plugin to find with GetProcAddress). `winxi.lens` f
 mapping, ScreenOf being the reverse of the warp's own: where it shows a point of the flat picture.
 `Counter` in `src/warp.h` undoes the warp's stretch around a point, for what is drawn into the picture
 and should come out at its own shape.
+
+### Finding the mouse
+
+`/lens mouse` is for finding where the game keeps the cursor's place, so that the place it picks
+things in the world by can be moved through the warp while its menus keep theirs. With the cursor
+over the game, it looks for the cursor's place in the window in writable memory, as a pair in four
+forms (32-bit and 16-bit integers, floats, and floats as a fraction of the window). Each later
+`/lens mouse`, with the cursor somewhere else, keeps only the places that moved with it. Once 32 or
+fewer are left, `config/lens/mouse-<time>.txt` lists them with the client's code that reads them,
+directly or through a global pointing at the object they are in, and the bytes around it.
+`/lens mouse reset` starts again.
 
 ### Capture
 

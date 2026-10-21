@@ -12,6 +12,7 @@
 #include "stack.h"
 #include "warp.h"
 #include "shared.h"
+#include "mousescan.h"
 
 // Exported, so that the compiler keeps it although nothing here reads it, and so that another plugin
 // (namehook) can find it by name
@@ -39,12 +40,15 @@ class Lens : public IPlugin {
     uint32_t m_Warped = 0;      // frames warped, for the status
     static const int Cols = 128, Rows = 64;
 
+    std::vector<lens::Candidate> m_Mouse;   // where the cursor's place may be kept, from /lens mouse
+    uint32_t m_MouseLooks = 0;
+
 public:
     const char* GetName() const override { return "lens"; }
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.4; }
+    double GetVersion() const override { return 0.5; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -130,6 +134,11 @@ public:
             Status();
             return true;
         }
+        if (_stricmp(words[1], "mouse") == 0) {
+            if (_stricmp(words[2], "reset") == 0) { m_Mouse.clear(); m_MouseLooks = 0; Say("Forgot the mouse's places; /lens mouse looks afresh."); return true; }
+            MouseScan();
+            return true;
+        }
         if (_stricmp(words[1], "capture") == 0) {
             int frames = words[2][0] ? atoi(words[2]) : 2;
             if (frames < 1 || frames > 10) { Say("Usage: /lens capture [frames], 1 to 10 (2 to start)."); return true; }
@@ -168,6 +177,128 @@ public:
     }
 
 private:
+    static bool SafeRead(uintptr_t address, void* buffer, size_t size) {
+        __try { memcpy(buffer, reinterpret_cast<const void*>(address), size); return true; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+    static bool SafeScan(const MEMORY_BASIC_INFORMATION& m, int x, int y, int w, int h, std::vector<lens::Candidate>& out, size_t cap) {
+        __try {
+            lens::FindPairs(static_cast<const uint8_t*>(m.BaseAddress), m.RegionSize, m.RegionSize, reinterpret_cast<uintptr_t>(m.BaseAddress), x, y, w, h, out, cap);
+            return true;
+        } __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+    static bool SafeDwords(uintptr_t base, size_t size, uint32_t low, uint32_t high, std::vector<uintptr_t>& out, size_t cap) {
+        __try { lens::FindDwords(reinterpret_cast<const uint8_t*>(base), size, base, low, high, out, cap); return true; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+    std::string Bytes(uintptr_t at, size_t n) const {
+        std::vector<uint8_t> b(n);
+        if (!SafeRead(at, b.data(), n)) return "(unreadable)";
+        std::string out;
+        char hex[4];
+        for (uint8_t v : b) { snprintf(hex, sizeof(hex), "%02X ", v); out += hex; }
+        return out;
+    }
+    std::string Where(uintptr_t address) const {
+        char text[96];
+        if (m_Base && address >= m_Base && address < m_Base + m_Size) { snprintf(text, sizeof(text), "FFXiMain+%06X", static_cast<unsigned>(address - m_Base)); return text; }
+        HMODULE module = nullptr;
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCSTR>(address), &module) && module) {
+            char name[MAX_PATH] = {};
+            GetModuleFileNameA(module, name, MAX_PATH);
+            const char* base = strrchr(name, '\\');
+            snprintf(text, sizeof(text), "%s+%X", base ? base + 1 : name, static_cast<unsigned>(address - reinterpret_cast<uintptr_t>(module)));
+            return text;
+        }
+        return "heap";
+    }
+
+    // /lens mouse: where the cursor's place in the game's window is kept. The first look finds every
+    // place in writable memory holding it; each later one, with the cursor elsewhere, keeps those that
+    // moved with it. Once few are left, the client's code reading them (or the globals pointing at the
+    // objects they are in) is listed with the bytes around it, all in config/lens/mouse-<time>.txt.
+    void MouseScan() {
+        HWND window = m_Core->GetProperties()->GetFinalFantasyHwnd();
+        POINT p = {};
+        RECT client = {};
+        if (!window || !GetCursorPos(&p) || !ScreenToClient(window, &p) || !GetClientRect(window, &client)) { Say("The game's window or the cursor was not found."); return; }
+        const int w = client.right - client.left, h = client.bottom - client.top;
+        if (p.x < 8 || p.y < 8 || p.x >= w - 8 || p.y >= h - 8) { Say("Put the cursor over the game, away from its edges, and use /lens mouse again."); return; }
+        if (p.x == p.y) { Say("The cursor is as far across as down; move it a little and try again."); return; }
+        const int x = p.x, y = p.y;
+        if (m_Mouse.empty()) {
+            // this thread's own stack holds the point just read: not the game's
+            NT_TIB* tib = reinterpret_cast<NT_TIB*>(NtCurrentTeb());
+            uintptr_t stackLow = reinterpret_cast<uintptr_t>(tib->StackLimit), stackHigh = reinterpret_cast<uintptr_t>(tib->StackBase);
+            MEMORY_BASIC_INFORMATION m;
+            for (uintptr_t at = 0x10000; at < 0x7FFF0000 && VirtualQuery(reinterpret_cast<LPCVOID>(at), &m, sizeof(m)) == sizeof(m); at = reinterpret_cast<uintptr_t>(m.BaseAddress) + m.RegionSize) {
+                const DWORD writable = PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+                uintptr_t region = reinterpret_cast<uintptr_t>(m.BaseAddress);
+                if (m.State != MEM_COMMIT || !(m.Protect & writable) || (m.Protect & (PAGE_GUARD | PAGE_NOACCESS))) continue;
+                if (region + m.RegionSize > stackLow && region < stackHigh) continue;
+                SafeScan(m, x, y, w, h, m_Mouse, 500000);
+                if (m_Mouse.size() >= 500000) break;
+            }
+        } else {
+            lens::KeepPairs(m_Mouse, [](uintptr_t a, void* b, size_t n) { return SafeRead(a, b, n); }, x, y, w, h);
+        }
+        ++m_MouseLooks;
+
+        std::string report;
+        char line[256];
+        snprintf(line, sizeof(line), "lens %.2f, look %u, cursor %d,%d in a %dx%d window, FFXiMain.dll at %08X: %u places\n",
+            GetVersion(), m_MouseLooks, x, y, w, h, static_cast<unsigned>(m_Base), static_cast<unsigned>(m_Mouse.size()));
+        report += line;
+        if (m_Mouse.size() <= 200) {
+            for (const lens::Candidate& c : m_Mouse) {
+                snprintf(line, sizeof(line), "  %08X %s %s\n", static_cast<unsigned>(c.address), lens::PairKindNames[c.kind], Where(c.address).c_str());
+                report += line;
+            }
+        }
+        if (m_Mouse.size() <= 32 && m_Base) {
+            report += "\nthe client's references:\n";
+            for (const lens::Candidate& c : m_Mouse) {
+                const bool global = c.address >= m_Base && c.address < m_Base + m_Size;
+                std::vector<uintptr_t> refs;
+                // a global is read by its address, or a field's, up to 0x40 in; an object's field through
+                // a global pointing at the object, up to 0x1000 before the field
+                SafeDwords(m_Base, m_Size, static_cast<uint32_t>(c.address - (global ? 0x40 : 0x1000)), static_cast<uint32_t>(c.address), refs, 64);
+                snprintf(line, sizeof(line), "%08X (%s, %s): %u dwords in the client point at or before it\n", static_cast<unsigned>(c.address),
+                    lens::PairKindNames[c.kind], global ? "a global" : "not in the client", static_cast<unsigned>(refs.size()));
+                report += line;
+                for (uintptr_t r : refs) {
+                    uint32_t v = 0;
+                    SafeRead(r, &v, 4);
+                    snprintf(line, sizeof(line), "  at %s holds %08X (%+d from it)\n    -48: %s\n    +4:  %s\n", Where(r).c_str(), v,
+                        static_cast<int>(static_cast<int64_t>(v) - static_cast<int64_t>(c.address)), Bytes(r - 48, 48).c_str(), Bytes(r + 4, 48).c_str());
+                    report += line;
+                    if (!global) {
+                        // the code reading that pointer: its address as an operand
+                        std::vector<uintptr_t> code;
+                        SafeDwords(m_Base, m_Size, static_cast<uint32_t>(r), static_cast<uint32_t>(r), code, 16);
+                        for (uintptr_t k : code) {
+                            snprintf(line, sizeof(line), "    read at %s\n      -48: %s\n      +4:  %s\n", Where(k).c_str(), Bytes(k - 48, 48).c_str(), Bytes(k + 4, 48).c_str());
+                            report += line;
+                        }
+                    }
+                }
+            }
+        }
+        std::string dir = std::string(m_Core->GetInstallPath()) + "\\config\\lens\\";
+        CreateDirectoryA((std::string(m_Core->GetInstallPath()) + "\\config").c_str(), nullptr);
+        CreateDirectoryA(dir.c_str(), nullptr);
+        char name[64];
+        time_t now = time(nullptr);
+        tm local;
+        localtime_s(&local, &now);
+        strftime(name, sizeof(name), "mouse-%Y%m%d-%H%M%S.txt", &local);
+        FILE* f = nullptr;
+        if (fopen_s(&f, (dir + name).c_str(), "wb") == 0 && f) { fwrite(report.data(), 1, report.size(), f); fclose(f); }
+        if (m_Mouse.empty()) Say("No place holds the cursor's place now; /lens mouse reset and look again.");
+        else if (m_Mouse.size() > 32) Say(std::to_string(m_Mouse.size()) + " places hold the cursor's place. Move the cursor somewhere else over the game and /lens mouse again.");
+        else Say(std::to_string(m_Mouse.size()) + " places left; their code is in config/lens/" + name + ". Once more elsewhere to be sure, or send that.");
+    }
+
     // The game's copy of its world to the screen: a strip of two triangles of screen-space vertices
     // (FVF 0x144) onto the back buffer, nearly all of it, from a render-target texture. Drawn as a
     // warped grid with the same state, and the quad blocked; true when so.
