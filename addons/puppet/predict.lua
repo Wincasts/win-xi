@@ -44,17 +44,24 @@ predict.Heads = {
 local castingFrames = { [0x20] = true, [0x23] = true } -- Harlequin, Stormwaker
 
 -- kind: the debuff it leaves. skill: the magic skill it needs. unless: a debuff it will not be cast over.
-local BioII    = { name = 'Bio II',   kind = 'bio',     skill = 111, unless = 'dia' }
-local DiaII    = { name = 'Dia II',   kind = 'dia',     skill =  96, unless = 'bio' }
-local Bio      = { name = 'Bio',      kind = 'bio',     skill =  33, unless = 'dia' }
-local Dia      = { name = 'Dia',      kind = 'dia',     skill =   0, unless = 'bio' }
-local Poison   = { name = 'Poison',   kind = 'poison',  skill =  18 }
-local Silence  = { name = 'Silence',  kind = 'silence', skill =  57 }
-local Slow     = { name = 'Slow',     kind = 'slow',    skill =  42 }
-local Blind    = { name = 'Blind',    kind = 'blind',   skill =  27 }
-local Paralyze = { name = 'Paralyze', kind = 'para',    skill =  21 }
-local Aspir    = { name = 'Aspir',    skill = 78 }
-local Drain    = { name = 'Drain',    skill = 45 }
+-- element: the maneuver that brings the spell forward, which the window colours its name with
+local BioII    = { name = 'Bio II',   kind = 'bio',     skill = 111, unless = 'dia', element = 'dark' }
+local DiaII    = { name = 'Dia II',   kind = 'dia',     skill =  96, unless = 'bio', element = 'light' }
+local Bio      = { name = 'Bio',      kind = 'bio',     skill =  33, unless = 'dia', element = 'dark' }
+local Dia      = { name = 'Dia',      kind = 'dia',     skill =   0, unless = 'bio', element = 'light' }
+local Poison   = { name = 'Poison',   kind = 'poison',  skill =  18, element = 'water' }
+local Silence  = { name = 'Silence',  kind = 'silence', skill =  57, element = 'wind' }
+local Slow     = { name = 'Slow',     kind = 'slow',    skill =  42, element = 'earth' }
+local Blind    = { name = 'Blind',    kind = 'blind',   skill =  27, element = 'dark' }
+local Paralyze = { name = 'Paralyze', kind = 'para',    skill =  21, element = 'ice' }
+local Aspir    = { name = 'Aspir',    skill = 78, element = 'dark' }
+local Drain    = { name = 'Drain',    skill = 45, element = 'dark' }
+
+-- The element a spell answers to, by its name: for the window
+predict.SpellElements = {}
+for _, spell in ipairs({ BioII, DiaII, Bio, Dia, Poison, Silence, Slow, Blind, Paralyze, Aspir, Drain }) do
+    predict.SpellElements[spell.name] = spell.element
+end
 
 -- Each head's order, and for each spell the element whose maneuver brings it forward
 local usualOrder = {
@@ -174,10 +181,11 @@ local weaponskills = {
     [0x23] = harlequinSkills, -- a Stormwaker has the Harlequin's
 }
 
+-- Returns the weapon skill's name and the element whose maneuvers it answers to
 function predict.Weaponskill(state)
     local skills = state.frame and weaponskills[state.frame]
     if skills == nil then
-        return nil, 'Not told about the automaton yet. Change area or an attachment.'
+        return nil, nil, 'Not told about the automaton yet. Change area or an attachment.'
     end
 
     local maneuvers = state.maneuvers or {}
@@ -194,7 +202,7 @@ function predict.Weaponskill(state)
             end
         end
     end
-    return best and best.name or nil, nil
+    return best and best.name or nil, best and best.element or nil, nil
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -202,25 +210,28 @@ end
 ---------------------------------------------------------------------------------------------------
 
 -- Every three seconds or so the automaton tries one thing after another and does the first it can:
--- a shield bash, a spell, a weapon skill, a shot, then whatever its attachments do. Which spell it
--- tries first is the head's to say, and the maneuvers'. The rows are named short, for a small window:
--- Bash, Heal, Enfeeble, Nuke, Erase (a status removal) and Shot. The weapon skill is not a row: the
--- window names it on its own line, and it comes whenever the automaton has the TP.
+-- a shield bash, a spell, a weapon skill, a shot, then whatever its attachments do of their own
+-- accord. Which spell it tries first is the head's to say, and the maneuvers'. The rows are named
+-- short, for a small window: Bash, Heal, Enfeeble, Nuke, Erase (a status removal), WS (the weapon
+-- skill), Shot, and then one for each attachment fitted that acts on a timer of its own (Provoke for a
+-- Strobe, Flash for a Flashbulb, and so on).
 --
 --     local rows = predict.Priority({
 --         head = 1, frame = 0x20, maneuvers = { light = 1 },
---         enfeeble = 'Bio',                                 -- from Queue: nil where there is none
---         masterHpp = 82, hpp = 100, mpp = 60,             -- the master's HP, and the automaton's own
+--         enfeebles = { 'Bio', 'Poison' },                  -- from Queue: the spells, next first; nil or empty for none
+--         weaponskill = 'Slapstick', weaponskillElement = 'thunder', -- from Weaponskill: nil where there is none
+--         masterHpp = 82, hpp = 100, mpp = 60, tp = 640,   -- the master's HP, and the automaton's own
 --         since = function(kind) ... end,                   -- seconds since it last did a thing: tracker.Since
 --         attachments = { [33] = true },                    -- those fitted, by the server's number for each
 --     })
 --
--- Each row is { name, state, wait, ready }: state is 'ready', 'waiting' (on a timer, wait seconds of
--- it left) or 'idle' (nothing for it to do as things stand), and ready marks the one row the automaton
--- will act on next. The timers are Phoenix's for this era.
---
--- What is not known: whether the enemy is casting, for a shield bash; a Stormwaker's nuke to finish an
--- enemy nearly dead; which ailments a Soulsoother would remove; and the three seconds between tries.
+-- Each row is { name, element, detail, state, wait, ready, unsure }: element is the maneuver the
+-- thing answers to, if any, for the window to colour its name with; detail is what it would do (the
+-- spells, each { name, element }, or the weapon skill's name), or nil; state is 'ready', 'waiting' (on
+-- a timer, wait seconds of it left) or 'idle' (nothing for it to do as things stand); ready marks the
+-- one row the automaton will act on next; unsure marks a row whose condition the game is not told of
+-- (an enemy casting, an ailment to remove), which is never called next. The timers are Phoenix's for
+-- this era.
 
 local cooldowns = { -- by head: between any two spells, and between two of a kind
     [1] = { magic = 30, heal = 20, enfeeble = 20 },
@@ -238,9 +249,33 @@ local bashCooldown = 180
 local attachmentManaBooster, attachmentDrumMagazine = 33, 69
 local attachmentDamageGauge, attachmentDamageGaugeII = 195, 207
 local attachmentBarrierModule, attachmentBarrierModuleII = 107, 104
+local attachmentHammermill = 103
 
 local healAt = { [0] = 30, [1] = 40, [2] = 50, [3] = 75 } -- the master's HP it heals at, by Light maneuvers
 local healSelfAt = 50
+
+-- The attachments that act on their own, each on a timer of its own, as the server scripts them: the
+-- attachments that give the action (by the server's number for each), its name, the maneuver it waits
+-- for, its recast in seconds, the kind tracker.lua knows it by, and what else it needs. More than one
+-- attachment giving the same action (a Strobe and a Strobe II) share the one row.
+--
+-- mp: the automaton's MP, as a percentage, it must be at or under, by maneuvers of its element; hp the
+-- same of its HP (75 instead of 50 with a Damage Gauge); unsure where the game is not told the condition.
+local attachmentActions = {
+    { fitted = { 1, 9 },         name = 'Provoke',      element = 'fire',  cooldown = 30,  kind = 'provoke' },
+    { fitted = { 194 },          name = 'Flash',        element = 'light', cooldown = 45,  kind = 'flash' },
+    { fitted = { 97, 105, 109 }, name = 'Stoneskin',    element = 'earth', cooldown = 180, kind = 'stoneskin' },
+    { fitted = { 6 },            name = 'Blaze Spikes', element = 'fire',  cooldown = 60,  kind = 'spikes' },
+    { fitted = { 71 },           name = 'Blink',        element = 'wind',  cooldown = 60,  kind = 'blink', hp = 50 },
+    { fitted = { 197 },          name = 'Eraser',       element = 'light', cooldown = 30,  kind = 'eraser', unsure = true },
+    { fitted = { 230 },          name = 'Economizer',   element = 'dark',  cooldown = 180, kind = 'economizer', mp = { 40, 50, 60 }, needsMp = true },
+    { fitted = { 226 },          name = 'Mana Conv.',   element = 'dark',  cooldown = 180, kind = 'converter', mp = { 40, 60, 70 }, needsMp = true },
+    { fitted = { 72 },           name = 'Barrage',      element = 'wind',  cooldown = 180, kind = 'barrage' },
+    { fitted = { 8, 13 },        name = 'Heat Cap.',    element = 'fire',  cooldown = 90,  kind = 'capacitor' },
+    { fitted = { 232 },          name = 'Disruptor',    element = 'dark',  cooldown = 60,  kind = 'disruptor', unsure = true },
+    { fitted = { 234 },          name = 'Regulator',    element = 'dark',  cooldown = 60,  kind = 'regulator', unsure = true },
+}
+predict.AttachmentActions = attachmentActions
 
 function predict.Priority(state)
     local rows = {}
@@ -260,19 +295,20 @@ function predict.Priority(state)
         end
         return math.max(0, cooldown - since)
     end
-    local function add(name, needed, wait)
-        rows[#rows + 1] = { name = name, wait = wait or 0,
+    local function add(name, element, detail, needed, wait, unsure)
+        rows[#rows + 1] = { name = name, element = element, detail = detail, wait = wait or 0, unsure = unsure or nil,
             state = (not needed and 'idle') or ((wait or 0) > 0 and 'waiting') or 'ready' }
     end
 
-    -- a shield bash, on a Valoredge frame: only when the enemy is doing something it would break
+    -- a shield bash, on a Valoredge frame: only when the enemy is doing something it would break. An
+    -- Earth maneuver shortens it with a Barrier Module, and strengthens it with a Hammermill.
     if state.frame == 0x21 then
         local cooldown = bashCooldown
-        if fitted[attachmentBarrierModule] or fitted[attachmentBarrierModuleII] then
+        local earthy = fitted[attachmentBarrierModule] or fitted[attachmentBarrierModuleII]
+        if earthy then
             cooldown = cooldown - 5 * up('earth')
         end
-        local wait = left('bash', cooldown)
-        add('Bash', true, wait)
+        add('Bash', (earthy or fitted[attachmentHammermill]) and 'earth' or nil, nil, true, left('bash', cooldown), true)
     end
 
     -- spells, on the frames that cast
@@ -296,22 +332,31 @@ function predict.Priority(state)
         end
         threshold = math.max(30, math.min(90, threshold))
 
+        local enfeebles = state.enfeebles or {}
+        local spells = nil
+        if #enfeebles > 0 then
+            spells = {}
+            for i, name in ipairs(enfeebles) do
+                spells[i] = { name = name, element = predict.SpellElements[name] }
+            end
+        end
+
         local function heal()
             if healTimer == nil then return end
             local needed = (state.masterHpp or 100) <= threshold or (state.hpp or 100) <= healSelfAt
-            add('Heal', needed, math.max(magicLeft, left('heal', healTimer)))
+            add('Heal', 'light', nil, needed, math.max(magicLeft, left('heal', healTimer)))
         end
         local function enfeeble()
             if timers.enfeeble == nil then return end
-            add('Enfeeble', state.enfeeble ~= nil, math.max(magicLeft, left('enfeeble', timers.enfeeble)))
+            add('Enfeeble', nil, spells, spells ~= nil, math.max(magicLeft, left('enfeeble', timers.enfeeble)))
         end
         local function nuke()
             if timers.elemental == nil then return end
-            add('Nuke', (state.mpp or 100) > 0, math.max(magicLeft, left('elemental', timers.elemental)))
+            add('Nuke', 'ice', nil, (state.mpp or 100) > 0, math.max(magicLeft, left('elemental', timers.elemental)))
         end
         local function cleanse()
             if timers.status == nil then return end
-            add('Erase', true, math.max(magicLeft, left('status', timers.status)))
+            add('Erase', 'water', nil, true, math.max(magicLeft, left('status', timers.status)), true)
         end
 
         local light, ice = up('light') > 0, up('ice') > 0
@@ -339,20 +384,46 @@ function predict.Priority(state)
         end
     end
 
-    -- a shot, on a Sharpshot frame
+    -- the weapon skill, once it has the TP: the one named is the maneuvers' choice
+    if state.weaponskill ~= nil then
+        add('WS', nil, { name = state.weaponskill, element = state.weaponskillElement }, (state.tp or 0) >= 1000, 0)
+    end
+
+    -- a shot, on a Sharpshot frame: a Wind maneuver quickens it with a Drum Magazine
     if state.frame == frameSharpshot then
         local cooldown = rangedCooldown[state.head] or 36
-        if fitted[attachmentDrumMagazine] then
+        local drummed = fitted[attachmentDrumMagazine]
+        if drummed then
             cooldown = cooldown - 2 * (up('wind') + 1)
         end
         cooldown = math.max(cooldown, rangedLeast[state.head] or 10)
-        add('Shot', true, left('ranged', cooldown))
+        add('Shot', drummed and 'wind' or nil, nil, true, left('ranged', cooldown))
     end
 
-    -- the first with something to do and nothing to wait for is what comes next. A status removal
-    -- may have nothing to remove and a shield bash nothing to break, so neither is ever called next.
+    -- what the attachments fitted do of their own accord, each while a maneuver of its element is up
+    local gauged = fitted[attachmentDamageGauge] or fitted[attachmentDamageGaugeII]
+    for _, action in ipairs(attachmentActions) do
+        local present = false
+        for _, id in ipairs(action.fitted) do
+            if fitted[id] then present = true end
+        end
+        if present then
+            local count = up(action.element)
+            local needed = count > 0
+            if needed and action.hp then
+                needed = (state.hpp or 100) <= (gauged and 75 or action.hp)
+            end
+            if needed and action.mp then
+                needed = castingFrames[state.frame] == true and (state.mpp or 100) <= action.mp[count]
+            end
+            add(action.name, action.element, nil, needed, left(action.kind, action.cooldown), action.unsure)
+        end
+    end
+
+    -- the first with something to do and nothing to wait for is what comes next, unless its condition
+    -- is one the game is not told of: an enemy casting, an ailment or a buff to take off
     for _, row in ipairs(rows) do
-        if row.state == 'ready' and row.name ~= 'Erase' and row.name ~= 'Bash' then
+        if row.state == 'ready' and not row.unsure then
             row.ready = true
             break
         end

@@ -1,45 +1,65 @@
 # puppet
 
-For a puppetmaster: the next three spells the automaton will enfeeble with, and the weapon skill it will
-use, in a small window. It needs only the `winxi` library (`addons/libs/winxi`).
+For a puppetmaster: the burden of each element, and everything the automaton might do next in the order
+it tries them, each with its timer, in a small window. It needs only the `winxi` library
+(`addons/libs/winxi`).
 
-    Enfeeble  Dia II, Poison, Silence
-    WS        Slapstick
+    35  35  35  35  33  35  35  35
+      Heal                               -
+    > Enfeeble  Dia II, Poison, Silence  Next
+      WS        Slapstick                -
+      Provoke                            12s
 
 - `/puppet` shows or hides the window
 - `/puppet config` opens or closes the settings
 
-Both are worked out the way the Phoenix server chooses. Each head has a set order of spells, every
-maneuver up moves the spells of its element to the front, and a spell is passed over when the automaton
-lacks the magic skill for it or the target already has its effect. The weapon skill is the one of the frame's with the most maneuvers of its element up, and between two with
-as many, the one needing more skill.
+The spells and the weapon skill are worked out the way the Phoenix server chooses. Each head has a set
+order of spells, every maneuver up moves the spells of its element to the front, and a spell is passed
+over when the automaton lacks the magic skill for it or the target already has its effect; the Enfeeble
+row names the next three. The weapon skill is the one of the frame's with the most maneuvers of its
+element up, and between two with as many, the one needing more skill; the WS row names it. A name that
+answers to a maneuver is written in the maneuver's colour: each spell, the weapon skill, Heal (Light
+raises the HP it heals at), Nuke (Ice brings it forward), Erase (Water has it reach the party), Bash
+and Shot where an attachment ties them to Earth or Wind, and every attachment's action.
 
 With Always Show off, the window is there while the automaton is fighting an enemy, and fades out when
 it is not. What it is
 fighting is told to its master alone, in the packet that keeps the two in step. A line with
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
-Under those two lines is the **priority list**: everything the automaton might do next, in the order it
-tries them, each with its timer. The rows are named short: Bash (a shield bash), Heal, Enfeeble, Nuke,
-Erase (a status removal) and Shot (a ranged attack). The weapon skill is not a row: it is named on top,
-and comes whenever the automaton has the TP.
+The **priority list** is everything the automaton might do next, in the order it tries them, each with
+its timer. The rows are named short: Bash (a shield bash), Heal, Enfeeble, Nuke, Erase (a status
+removal), WS (the weapon skill) and Shot (a ranged attack), and then one for each attachment fitted that
+acts on a timer of its own, there only while it is fitted:
 
-    > Enfeeble  Next
-      Heal      -
-      Shot      12s
+| Attachment | Row | Maneuver | Recast | Also needs |
+|---|---|---|---|---|
+| Strobe, Strobe II | Provoke | Fire | 30 s | |
+| Flashbulb | Flash | Light | 45 s | |
+| Shock Absorber I to III | Stoneskin | Earth | 180 s | |
+| Reactive Shield | Blaze Spikes | Fire | 60 s | |
+| Replicator | Blink | Wind | 60 s | the automaton at 50% HP or less (75% with a Damage Gauge) |
+| Eraser | Eraser | Light | 30 s | an ailment on the automaton or you |
+| Economizer | Economizer | Dark | 180 s | MP at or under 40, 50 or 60% by Dark maneuvers |
+| Mana Converter | Mana Conv. | Dark | 180 s | MP at or under 40, 60 or 70% by Dark maneuvers |
+| Barrage Turbine | Barrage | Wind | 180 s | |
+| Heat Capacitor I, II | Heat Cap. | Fire | 90 s | |
+| Disruptor | Disruptor | Dark | 60 s | a buff on the enemy to take off |
+| Regulator | Regulator | Dark | 60 s | a buff on the enemy to take off |
 
 Every three seconds or so the automaton tries a shield bash, then its spells in the head's order (which
-Light and Ice maneuvers change), then a weapon skill, then a shot, and does the first it can. A row says
-`Ready`, the seconds left of the timer it is waiting on, or `-` when there is nothing for it to do as
-things stand (nobody to heal, nothing to cast). The row marked `>` is the one that comes next. The timers are
-Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier Module counted where
-fitted. A timer is known only once the automaton has been seen to act, so a row may say Ready when the
-addon was loaded part way through a fight and it is not.
+Light and Ice maneuvers change), then a weapon skill, then a shot, then what its attachments do, and does
+the first it can. A row says `Ready`, the seconds left of the timer it is waiting on, or `-` when there is
+nothing for it to do as things stand (nobody to heal, nothing to cast, no TP, the maneuver it waits for
+down). The row marked `>` is the one that comes next; a row whose condition the game is not told of (an
+enemy casting for Bash, an ailment for Erase and Eraser, a buff for Disruptor and Regulator) is never
+marked. The timers are Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier
+Module counted where fitted. A timer is known only once the automaton has been seen to act, so a row
+may say Ready when the addon was loaded part way through a fight and it is not.
 
-Between the two lines and the list is the **burden**: one line of eight figures, the burden of each
-element in the element's colour, in the maneuvers' order (fire, ice, wind, earth, thunder, water, light,
-dark). Resting the mouse on a figure names its element and gives the chance of one more maneuver of it
-overloading.
+Above the list is the **burden**: one line of eight figures, the burden of each element in the element's
+colour, in the maneuvers' order (fire, ice, wind, earth, thunder, water, light, dark). Resting the mouse
+on a figure names its element and gives the chance of one more maneuver of it overloading.
 
 The burden is reckoned as the server reckons it: 35 of each element when the automaton is activated,
 one off each every three seconds (two with a Heatsink), and what each maneuver adds, which Cooldown
@@ -53,7 +73,7 @@ line as winxi's outlined text (the theme's Text Outline, a dark edge round the l
 straight over the game; the dimmed words are the theme's text colour at a little over half strength. It starts
 off. **Show Burden** switches the figures off. **Show Priority List** switches that list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
 a fight it shows what the automaton would open with on an enemy with nothing on it. It starts on. **Show Dummy Data** fills every part of the window with made-up data, automaton or no, for seeing how
-it looks: a row of the priority list in each state, and a figure in each element's colour. It is not kept,
+it looks: a row of the priority list in each state and names in the maneuvers' colours, and a figure in each element's colour. It is not kept,
 and is off again when the addon is next loaded. **Show Debug Information** is for finding out what is wrong: under the
 window's own lines, what the addon knows (the automaton as described, whether a pet is out and what it is
 fighting, how many of the pet's packets have come, the maneuvers up).
@@ -77,6 +97,9 @@ What it cannot know:
 - **Immunity.** An enemy immune to a spell is passed over by the automaton and not by this.
 - **A skillchain to close.** With an Inhibitor the automaton may hold its TP, or close a skillchain
   that is open with whichever weapon skill does so. The window shows the usual choice all the same.
+- **What an attachment waits for besides its maneuver**, where the game is not told: an ailment for an
+  Eraser, a buff on the enemy for a Disruptor or Regulator. Their rows say Ready whenever the maneuver is
+  up and the timer has run, and are never marked as next.
 
 `predict.lua` holds the choosing, apart from the game, `tracker.lua` when the automaton last did each
 kind of thing, `burden.lua` the burden, and `tests/puppet_check.lua` works them through.

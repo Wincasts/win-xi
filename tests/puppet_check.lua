@@ -1,27 +1,40 @@
--- puppet: loads, and names the spells and the weapon skill an automaton will use next, from its
--- maneuvers and its target
+-- puppet: loads, and lists what an automaton will do next, the spells and the weapon skill named, from
+-- its maneuvers, its attachments and its target
 local debuffs = require('winxi.debuffs')
 local imgui = require('imgui')
 local o = H.options()
 H.print('Always Show starts on', o.alwaysShow[1], '| the priority list on', o.showPriority[1], '| debug information off', o.showDebug[1] == false)
-o.alwaysShow[1] = false; o.showPriority[1] = false -- each is looked at by itself further down
+o.alwaysShow[1] = false; o.showBurden[1] = false -- each is looked at by itself further down
 H.print('settings: visible', o.isVisible[1])
 
--- what the window says: every line of text drawn in a frame
-local said = {}
+-- what the window says: every line of text drawn in a frame, and the colour of each coloured one
+local said, colored = {}, {}
 imgui.Text = function(text) said[#said + 1] = text end
 imgui.TextDisabled = function(text) said[#said + 1] = '(' .. text .. ')' end
+imgui.TextColored = function(color, text) said[#said + 1] = text; colored[#colored + 1] = { text, { color[1], color[2], color[3], color[4] } } end -- the colour copied: the addon reuses its tables
+-- the colour a word was last written in
+local function colorOf(word)
+    for i = #colored, 1, -1 do
+        if colored[i][1]:find(word, 1, true) then return colored[i][2] end
+    end
+    return nil
+end
+local function same(a, b) return a ~= nil and b ~= nil and math.abs(a[1] - b[1]) < 0.01 and math.abs(a[2] - b[2]) < 0.01 and math.abs(a[3] - b[3]) < 0.01 and math.abs(a[4] - b[4]) < 0.01 end
+local fire, ice, thunder, dark = { 1.00, 0.54, 0.48, 1 }, { 0.65, 0.89, 1.00, 1 }, { 0.85, 0.65, 1.00, 1 }, { 0.60, 0.56, 0.72, 1 }
+local function dimmed(color) return { color[1], color[2], color[3], color[4] * 0.5 } end
 local function shown()
     H.frames(10) -- time enough to have faded in, or out
     for i = #said, 1, -1 do said[i] = nil end
+    for i = #colored, 1, -1 do colored[i] = nil end
     H.frames(1)
-    return table.concat(said, ' ')
+    return (table.concat(said, ' '):gsub(' , ', ', '))
 end
 -- the same without the wait: what is there the frame after a change
 local function atOnce()
     for i = #said, 1, -1 do said[i] = nil end
+    for i = #colored, 1, -1 do colored[i] = nil end
     H.frames(1)
-    return table.concat(said, ' ')
+    return (table.concat(said, ' '):gsub(' , ', ', '))
 end
 
 -- the game: a puppetmaster (entity 1) with an automaton (2), and two enemies (7 and 8)
@@ -54,12 +67,13 @@ local function number(value) return string.char(value % 256, math.floor(value / 
 local function fight(enemy, master)
     H.packetData(0x068, ('\0'):rep(8) .. number(master or 1) .. ('\0'):rep(8) .. number(enemy) .. ('\0'):rep(20))
 end
--- the server's account of the automaton: the job at 0x04, head at 0x08, frame at 0x09, and its melee,
--- ranged and magic skill at 0x70, 0x74 and 0x78 (all three the same here)
-local function describe(head, frame, skill, job)
+-- the server's account of the automaton: the job at 0x04, head at 0x08, frame at 0x09, the attachments
+-- fitted from 0x0A, and its melee, ranged and magic skill at 0x70, 0x74 and 0x78 (all three the same here)
+local function describe(head, frame, skill, job, attachments)
     local bytes = {}
     for i = 0, 0x9B do bytes[i] = 0 end
     bytes[0x04], bytes[0x08], bytes[0x09] = job or 18, head, frame
+    for slot, attachment in ipairs(attachments or {}) do bytes[0x0A + slot - 1] = attachment end
     for _, at in ipairs({ 0x70, 0x74, 0x78 }) do bytes[at], bytes[at + 1] = skill % 256, math.floor(skill / 256) end
     local out = {}
     for i = 0, 0x9B do out[#out + 1] = string.char(bytes[i]) end
@@ -76,6 +90,7 @@ H.print('the automaton fighting nothing: nothing drawn', shown() == '')
 fight(900, 55); H.print('nor when it is someone else\'s pet that fights', shown() == '')
 fight(900)
 H.print('Harlequin, no maneuvers:', shown())
+H.print('Bio II in dark', same(colorOf('Bio II'), dark), '| Slapstick, no TP, in dimmed thunder', same(colorOf('Slapstick'), dimmed(thunder)), '| Heal in dimmed light', same(colorOf('Heal'), dimmed({ 1, 1, 1, 1 })))
 game.buffs = { 306 }; H.print('Light:', shown())
 game.buffs = { 306, 307 }; H.print('Light and Dark:', shown())
 game.buffs = { 305, 301, 255, 255 }; H.print('Water and Ice:', shown())
@@ -97,6 +112,16 @@ game.buffs = { 300, 304, 304 }; H.print('Fire and two Thunder:', shown())
 describe(2, 0x20, 120); game.buffs = {}; H.print('Valoredge head on a Harlequin frame: no spells named', shown())
 describe(3, 0x22, 200); game.buffs = { 302 }; H.print('Sharpshot frame, Wind:', shown())
 describe(1, 0x20, 120, 4); H.print('another job\'s packet is not read', shown():find('Daze') ~= nil)
+-- the attachments that act on their own: a row each while fitted, in the maneuver's colour
+describe(2, 0x21, 200, nil, { 1, 194, 97, 71, 6 }); game.buffs = {}
+H.print('Valoredge with Strobe, Flashbulb, Shock Absorber, Replicator and Reactive Shield, no maneuvers:', shown())
+game.buffs = { 300 }; H.print('Fire: Provoke and Blaze Spikes ready', shown(), '| Provoke in fire', same(colorOf('Provoke'), fire))
+game.buffs = { 302 }; H.print('Wind, the automaton whole: Blink waits on its HP', shown())
+pet.HPPercent = 40; H.print('at 40%:', shown()); pet.HPPercent = 100
+describe(2, 0x21, 200, nil, { 230, 226, 197, 232 }); game.buffs = { 307 }
+H.print('Economizer, Mana Converter, Eraser and Disruptor on a frame with no MP, Dark up: the two MP ones never, Disruptor ready but not next', shown())
+describe(1, 0x20, 120, nil, { 230, 226 }); game.petMpp = 35; H.print('on a Harlequin at 35% MP, one Dark: Economizer at 40, Mana Converter at 40', shown()); game.petMpp = 100
+describe(1, 0x20, 120); game.buffs = {}
 
 describe(1, 0x20, 120); game.buffs = {}; shown()
 fight(0); H.print('the fight is over: still there the frame after, as it was', atOnce())
@@ -115,24 +140,27 @@ o.isVisible[1] = false; H.print('Always Show, but not Visible: nothing drawn', s
 -- the priority list: what the automaton might do, in its order, and how each stands
 local tracker = require('tracker')
 local function did(category, param, spell) tracker.Action({ actor_id = 2, category = category, param = param, targets = { { id = 900, actions = { { param = spell or 0 } } } } }, 2) end
-local function list() return (shown():gsub('%(Enfeeble%).-%(WS%) %a+ ?%a* ?', '', 1)) end
-o.showPriority[1] = true; entities[1].PetTargetIndex = 2; H.frames(2); fight(900); now = now + 400
+local function list() return shown() end
+entities[1].PetTargetIndex = 2; H.frames(2); fight(900); now = now + 400
 describe(1, 0x20, 120); H.print('Harlequin, fresh:', list())
 did(8, 24931, 231); cast(231, 900); H.print('it casts Bio II:', list())
 H.frames(400); H.print('twelve seconds on:', list())
 game.hp = 25; H.print('the master at 25%:', list())
 H.frames(700); H.print('the timers run out:', list()); game.hp = 100
 game.buffs = { 306 }; game.hp = 35; H.print('Light, the master at 35%: heal comes first:', list()); game.buffs = {}; game.hp = 100
-game.petTp = 1200; H.print('TP ready: no row for it, the spell comes next:', list())
-did(8, 24931, 220); H.print('the spell just cast: nothing next while it waits:', list()); game.petTp = 300
+game.petTp = 1200; H.print('TP ready, a spell ready too: the spell comes first:', list(), '| Slapstick ready but not next, in dimmed thunder', same(colorOf('Slapstick'), dimmed(thunder)))
+did(8, 24931, 220); H.print('the spell just cast: the weapon skill is next:', list()); game.petTp = 300
 did(8, 28787, 0); did(8, 24931, 1); tracker.Action({ actor_id = 77, category = 8, param = 24931, targets = { { id = 900, actions = { { param = 23 } } } } }, 2)
 H.print('a casting broken off, and someone else\'s, change nothing; a cure starts the heal timer:', list())
 tracker.Clear(); describe(3, 0x22, 200); H.print('Sharpshot frame:', list()); did(11, 1949); H.print('it shoots:', list())
 describe(2, 0x21, 200); H.print('Valoredge frame:', list()); did(11, 1944); H.print('it bashes:', list())
+describe(2, 0x21, 200, nil, { 1, 97 }); game.buffs = { 300, 303 }; H.print('Strobe and Shock Absorber, Fire and Earth up:', list())
+did(11, 1945); did(11, 1946); H.print('it provokes and puts up stoneskin:', list()); H.frames(1100); H.print('33 seconds on:', list()); game.buffs = {}
 describe(4, 0x23, 120); game.buffs = { 301 }; tracker.Clear(); H.print('Stormwaker, Ice:', list()); game.buffs = {}
 describe(5, 0x23, 120); H.print('Soulsoother:', list())
 describe(6, 0x23, 120); H.print('Spiritreaver, no Dark:', list())
 describe(1, 0x20, 120); o.showPriority[1] = false; entities[1].PetTargetIndex = 0; fight(0); tracker.Clear(); shown()
+o.showBurden[1] = true
 -- the burden of each element: 35 of each to start, one off every three seconds, and what a maneuver adds
 local burden = require('burden')
 local harlequin, valoredge, heatsink = { frame = 0x20 }, { frame = 0x21 }, { frame = 0x20, attachments = { [162] = true } }
@@ -152,19 +180,17 @@ maneuver(8, 0, { frame = 0x20, overdrive = true }, 0); H.print('a Dark maneuver 
 burden.Action({ actor_id = 1, category = 6, param = 309, targets = {} }, harlequin, 0); H.print('Cooldown halves it', at(8, 0), at(2, 0))
 burden.Action({ actor_id = 1, category = 4, param = 141, targets = {} }, harlequin, 0); H.print('a spell with a maneuver\'s number changes nothing', at(8, 0))
 -- and in the addon: the figures are drawn with the automaton out, one for each element in its colour,
--- from what the master does
-local figures = {} -- what was drawn in a frame: the figure and the colour it was in
-imgui.TextColored = function(color, text) figures[#figures + 1] = { text, color } end
+-- from what the master does (the priority list is off here: the figures are all that is coloured)
+local figures = colored
 local function drawn()
+    for i = #said, 1, -1 do said[i] = nil end
     for i = #figures, 1, -1 do figures[i] = nil end
     H.frames(1)
     local out = {}
     for _, figure in ipairs(figures) do out[#out + 1] = figure[1] end
     return table.concat(out, ' ')
 end
-local ice = { 0.65, 0.89, 1.00, 1 }
-local fire, faint = { 1.00, 0.54, 0.48, 1 }, { 1, 1, 1, 0.5 }
-local function same(a, b) return a ~= nil and a[1] == b[1] and a[2] == b[2] and a[3] == b[3] and a[4] == b[4] end
+local faint = { 1, 1, 1, 0.5 }
 burden.Clear(); entities[1].PetTargetIndex = 2; o.alwaysShow[1] = true; shown()
 H.print('the figures are drawn with the automaton out, none known yet:', drawn(), '| faint', same(figures[1] and figures[1][2], faint))
 burden.Action({ actor_id = 1, category = 6, param = 136, targets = {} }, harlequin); burden.Action({ actor_id = 1, category = 6, param = 141, targets = { { id = 1, actions = { { param = 26 } } } } }, harlequin)
@@ -180,7 +206,7 @@ entities[2].ServerId = 2; entities[1].PetTargetIndex = 0; o.alwaysShow[1] = fals
 local realCheckbox = imgui.Checkbox
 local function setDummy(on) imgui.Checkbox = function(id, value) if id == '##puppet.showDummy' then value[1] = on end return false end; H.command('/puppet config'); H.frames(1); H.command('/puppet config'); imgui.Checkbox = realCheckbox end
 o.showPriority[1] = true; setDummy(true)
-H.print('dummy data, no automaton out:', shown(), '| and the figures', drawn())
+H.print('dummy data, no automaton out:', shown(), '| Provoke, not the next row, in dimmed fire', same(colorOf('Provoke'), dimmed(fire)), '| and the figures', drawn())
 setDummy(false); H.print('switched off: gone', shown() == ''); o.showPriority[1] = false
 -- transparent: nothing of the window's own, and every word outlined over the game instead of imgui's text
 o.transparent[1] = true; o.alwaysShow[1] = true; entities[1].PetTargetIndex = 2; fight(900)

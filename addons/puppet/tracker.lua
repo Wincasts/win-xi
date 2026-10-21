@@ -4,17 +4,34 @@
 --     tracker.Since(kind, now)         seconds since it last did that, or nil if it has not been seen to
 --     tracker.Clear()                  forget everything: another automaton, another area
 --
--- The kinds are magic (any spell), heal, enfeeble, elemental and status (each kind of spell), ranged
--- and bash. The server times each from the moment the automaton begins, so a spell is counted from
--- the start of its casting, whether or not it is finished.
+-- The kinds are magic (any spell), heal, enfeeble, elemental and status (each kind of spell), ranged,
+-- bash, and one for each thing an attachment does of its own accord (provoke, flash, stoneskin, spikes,
+-- blink, eraser, economizer, converter, barrage, capacitor, disruptor, regulator). The server times each
+-- from the moment the automaton begins, so a spell is counted from the start of its casting, whether or
+-- not it is finished.
 local tracker = {}
 
 local categorySpellStart = 8
 local categoryMobSkill = 11
 local spellBegins = 24931 -- the start of a casting, as against one broken off
 
-local skillRanged = 1949
-local skillBash = 1944
+-- The kind of each thing the automaton does as a mob skill, by the server's number for it
+local skillKinds = {
+    [1949] = 'ranged',
+    [1944] = 'bash',
+    [1945] = 'provoke',    -- Strobe
+    [1946] = 'stoneskin',  -- Shock Absorber
+    [1947] = 'flash',      -- Flashbulb
+    [1948] = 'converter',  -- Mana Converter
+    [2021] = 'eraser',     -- Eraser
+    [2031] = 'spikes',     -- Reactive Shield
+    [2068] = 'economizer', -- Economizer
+    [2132] = 'blink',      -- Replicator
+    [2745] = 'capacitor',  -- Heat Capacitor
+    [2746] = 'barrage',    -- Barrage Turbine
+    [2747] = 'disruptor',  -- Disruptor
+    [3485] = 'regulator',  -- Regulator
+}
 
 -- The kind of each spell an automaton casts
 local spellKinds = {}
@@ -43,10 +60,9 @@ function tracker.Action(action, petId)
             last[kind] = now
         end
     elseif action.category == categoryMobSkill then
-        if action.param == skillRanged then
-            last.ranged = now
-        elseif action.param == skillBash then
-            last.bash = now
+        local kind = skillKinds[action.param]
+        if kind then
+            last[kind] = now
         end
     end
 end

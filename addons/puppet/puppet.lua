@@ -1,15 +1,16 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.2'
-addon.desc    = 'The enfeebling spells and the weapon skill an automaton will use next, from the maneuvers up and what is on its target.'
+addon.version = '1.3'
+addon.desc    = 'Everything an automaton might do next, in the order it tries them, with the timer on each: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
--- A small window for a puppetmaster: the next three spells the automaton will enfeeble with, the
--- weapon skill it will use, and the order of everything it might do next with how each stands. The
--- choosing is predict.lua's, which follows the server's; this gathers what it needs to know (the
--- automaton's parts and skills, the maneuvers up, the debuffs on the target) and shows the answer.
--- Under those, the burden of each element as a figure in the element's colour, which burden.lua
--- reckons. With Transparent on the window has no backdrop, border or shadow, and every line is winxi's
+-- A small window for a puppetmaster: the burden of each element as a figure in the element's colour,
+-- which burden.lua reckons, and under it the order of everything the automaton might do next with the
+-- timer on each: its shield bash, spells (the next three enfeebles named), weapon skill, shot, and what
+-- its attachments do of their own accord. A thing that answers to a maneuver has its name in the
+-- maneuver's colour. The choosing is predict.lua's, which follows the server's; this gathers what it
+-- needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the target) and
+-- shows the answer. With Transparent on the window has no backdrop, border or shadow, and every line is winxi's
 -- outlined text, so that it reads over the game.
 --
 --   /puppet           shows or hides the window
@@ -162,10 +163,10 @@ local function GetTarget(pet)
     return fighting
 end
 
--- What the window shows: the spells in order and the weapon skill, either nil when there is none to
--- name, and the rows of the priority list. It is left as it was once the fight is over, for the window
--- to fade out with. burden is the figures, one for each element, or nil with no automaton out.
-local showing = { enfeebles = nil, weaponskill = nil, priority = { }, burden = nil }
+-- What the window shows: the rows of the priority list, worked out from the spells in order and the
+-- weapon skill (kept here too, for the dummy data). It is left as it was once the fight is over, for
+-- the window to fade out with. burden is the figures, one for each element, or nil with no automaton out.
+local showing = { enfeebles = nil, weaponskill = nil, weaponskillElement = nil, priority = { }, burden = nil }
 
 -- The burden figures: one for each element, in the elements' order, each the burden in the element's
 -- colour. The chance of one more maneuver of it overloading is told when the mouse rests on it.
@@ -181,6 +182,11 @@ local elementColors = {
     { 0.60, 0.56, 0.72, 1 }, -- dark
 }
 local figureUnknown = { 1, 1, 1, 0.5 } -- a burden not known
+-- the same colours by the elements' names, for the name of a thing that answers to a maneuver
+local maneuverColors = { }
+for element, name in ipairs(burden.Elements) do
+    maneuverColors[name] = elementColors[element]
+end
 local burdenFigures = { }
 for element = 1, #burden.Elements do
     burdenFigures[element] = { name = elementNames[element], color = elementColors[element] }
@@ -219,9 +225,9 @@ local function Work(pet, id)
     for i = 1, math.min(#queue, enfeeblesShown) do
         names[i] = queue[i]
     end
-    showing.enfeebles = #names > 0 and table.concat(names, ', ') or nil
+    showing.enfeebles = #names > 0 and names or nil
 
-    showing.weaponskill = predict.Weaponskill({
+    showing.weaponskill, showing.weaponskillElement = predict.Weaponskill({
         frame = automaton.frame,
         melee = automaton.melee,
         ranged = automaton.ranged,
@@ -233,10 +239,13 @@ local function Work(pet, id)
         head = automaton.head,
         frame = automaton.frame,
         maneuvers = maneuvers,
-        enfeeble = queue[1],
+        enfeebles = showing.enfeebles,
+        weaponskill = showing.weaponskill,
+        weaponskillElement = showing.weaponskillElement,
         masterHpp = memory:GetParty():GetMemberHPPercent(0),
         hpp = pet.HPPercent,
         mpp = memory:GetPlayer():GetPetMPPercent(),
+        tp = memory:GetPlayer():GetPetTP(),
         since = tracker.Since,
         attachments = automaton.attachments,
     })
@@ -244,15 +253,21 @@ end
 
 -- Dummy data, for seeing how the window looks with every part of it filled: switched on in the
 -- settings, and not kept, so that it is off again the next time the addon is loaded. The rows show
--- every state a row can be in, and the figures every element's colour, and one not known.
+-- every state a row can be in and a name in a maneuver's colour, and the figures every element's
+-- colour, and one not known.
 local dummy = { on = { false }, was = false }
 dummy.priority = {
-    { name = 'Bash', state = 'waiting', wait = 142 },
-    { name = 'Heal', state = 'idle', wait = 0 },
-    { name = 'Enfeeble', state = 'ready', wait = 0, ready = true },
-    { name = 'Nuke', state = 'waiting', wait = 12 },
-    { name = 'Erase', state = 'ready', wait = 0 },
-    { name = 'Shot', state = 'waiting', wait = 7 },
+    { name = 'Bash', element = 'earth', state = 'waiting', wait = 142 },
+    { name = 'Heal', element = 'light', state = 'idle', wait = 0 },
+    { name = 'Enfeeble', detail = { { name = 'Dia II', element = 'light' }, { name = 'Poison', element = 'water' }, { name = 'Silence', element = 'wind' } },
+        state = 'ready', wait = 0, ready = true },
+    { name = 'Nuke', element = 'ice', state = 'waiting', wait = 12 },
+    { name = 'Erase', element = 'water', state = 'ready', wait = 0 },
+    { name = 'WS', detail = { name = 'Slapstick', element = 'thunder' }, state = 'idle', wait = 0 },
+    { name = 'Shot', element = 'wind', state = 'waiting', wait = 7 },
+    { name = 'Provoke', element = 'fire', state = 'ready', wait = 0 },
+    { name = 'Flash', element = 'light', state = 'waiting', wait = 31 },
+    { name = 'Stoneskin', element = 'earth', state = 'idle', wait = 0 },
 }
 dummy.burden = { }
 for element, figure in ipairs({ { 0, 0 }, { 8, 0 }, { 22, 17 }, { 35, 24 }, { 51, 46 }, { 78, 73 }, { 100, 95 }, { nil } }) do
@@ -261,7 +276,7 @@ for element, figure in ipairs({ { 0, 0 }, { 8, 0 }, { 22, 17 }, { 35, 24 }, { 51
 end
 
 local function ShowDummy()
-    showing.enfeebles, showing.weaponskill = 'Dia II, Poison, Silence', 'Slapstick'
+    showing.enfeebles, showing.weaponskill, showing.weaponskillElement = { 'Dia II', 'Poison', 'Silence' }, 'Slapstick', 'thunder'
     showing.priority, showing.burden = dummy.priority, dummy.burden
 end
 
@@ -291,6 +306,15 @@ local function WriteFaint(words)
         imgui.TextDisabled(words)
     end
 end
+-- a dimmed row's words in a maneuver's colour: the colour at half strength
+local dim = { 1, 1, 1, 0.5 }
+local function WriteDim(words, color)
+    if color == nil then
+        return WriteFaint(words)
+    end
+    dim[1], dim[2], dim[3], dim[4] = color[1], color[2], color[3], color[4] * 0.5
+    Write(words, dim)
+end
 
 -- The window's tables share one padding and one left edge: no outer padding, the same gap between
 -- columns and rows, and the lines' and the list's first column as wide as the widest label, so that
@@ -301,15 +325,17 @@ local widestLabel = '> Enfeeble'
 local labelWidth = 0 -- measured each frame, for the font may change
 
 -- The priority list: everything the automaton might do, in the order it tries them, and how each
--- stands: the name and the timer. The one it will do next is marked and in full colour; the rest are
--- dimmed.
+-- stands: the name, what it would do (the spells, the weapon skill) and the timer. A name that answers
+-- to a maneuver is in the maneuver's colour, and so is each spell and the weapon skill. The row it will
+-- do next is marked and in full colour; the rest are dimmed.
+local comma = ', '
 local function DrawPriority()
-    if #showing.priority == 0 or not imgui.BeginTable('##puppet.priority', 2, tableFlags) then
+    if #showing.priority == 0 or not imgui.BeginTable('##puppet.priority', 3, tableFlags) then
         return
     end
     imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, labelWidth)
     for _, row in ipairs(showing.priority) do
-        local write = row.ready and Write or WriteFaint
+        local write, plain = row.ready and Write or WriteDim, row.ready and Write or WriteFaint
         local state = 'Ready'
         if row.state == 'waiting' then
             state = ('%ds'):format(math.ceil(row.wait))
@@ -319,8 +345,26 @@ local function DrawPriority()
             state = 'Next'
         end
         imgui.TableNextRow()
-        imgui.TableNextColumn(); write((row.ready and '> ' or '  ') .. row.name)
-        imgui.TableNextColumn(); write(state)
+        imgui.TableNextColumn(); write((row.ready and '> ' or '  ') .. row.name, maneuverColors[row.element])
+        imgui.TableNextColumn()
+        local detail = row.detail
+        if detail ~= nil then
+            if detail.name ~= nil then
+                write(detail.name, maneuverColors[detail.element])
+            else
+                for i, part in ipairs(detail) do
+                    if i > 1 then
+                        plain(comma)
+                        imgui.SameLine(0, 0)
+                    end
+                    write(part.name, maneuverColors[part.element])
+                    if i < #detail then
+                        imgui.SameLine(0, 0)
+                    end
+                end
+            end
+        end
+        imgui.TableNextColumn(); plain(state)
     end
     imgui.EndTable()
 end
@@ -359,23 +403,6 @@ local function DrawBurden()
     imgui.EndTable()
 end
 
--- The two lines on top, the labels in one column and what they name in the other, so that the two
--- line up whatever the labels' widths
-local function DrawLines()
-    if (showing.enfeebles == nil and showing.weaponskill == nil) or not imgui.BeginTable('##puppet.lines', 2, tableFlags) then
-        return
-    end
-    imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, labelWidth)
-    for _, line in ipairs({ { 'Enfeeble', showing.enfeebles }, { 'WS', showing.weaponskill } }) do
-        if line[2] ~= nil then
-            imgui.TableNextRow()
-            imgui.TableNextColumn(); WriteFaint(line[1])
-            imgui.TableNextColumn(); Write(line[2])
-        end
-    end
-    imgui.EndTable()
-end
-
 -- What the addon knows, shown as the debug information: why the window says what it does, or nothing
 local known = { pet = false, maneuvers = '' }
 
@@ -396,16 +423,15 @@ end
 local function DrawWindow(options)
     labelWidth = imgui.CalcTextSize(widestLabel)
     imgui.PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding)
-    DrawLines()
-    -- the window is there with nothing to name while it is always shown: it is not left empty
-    if showing.enfeebles == nil and showing.weaponskill == nil then
-        WriteFaint('Nothing to show.')
-    end
     if options.showBurden[1] and showing.burden ~= nil then
         DrawBurden()
     end
     if options.showPriority[1] then
         DrawPriority()
+    end
+    -- the window is there with nothing to say while it is always shown: it is not left empty
+    if #showing.priority == 0 and (showing.burden == nil or not options.showBurden[1]) then
+        WriteFaint('Nothing to show.')
     end
     imgui.PopStyleVar()
     if options.showDebug[1] then
@@ -442,7 +468,7 @@ local function DrawSettings(options)
     tips.Hover('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.');
     widgets.Label('Show Priority List')
     imgui.Checkbox('##puppet.showPriority', options.showPriority)
-    tips.Hover('Everything the automaton might do next, in the order it tries them: Bash (shield bash), its spells, Shot (ranged attack), each with its timer.\nA row says Ready, the seconds left of its timer, or - when there is nothing for it to do. The one marked > comes next.\nThe weapon skill is not a row: it is named on top, and comes whenever the automaton has the TP.\nA timer is only known once the automaton has been seen to act.');
+    tips.Hover('Everything the automaton might do next, in the order it tries them: Bash (shield bash), its spells (the next three enfeebles named), WS (the weapon skill, named), Shot (ranged attack),\nthen what each attachment fitted does of its own accord (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), each with its timer.\nA row says Ready, the seconds left of its timer, or - when there is nothing for it to do. The one marked > comes next.\nA name in a colour answers to the maneuver of that colour. A timer is only known once the automaton has been seen to act.');
     widgets.Label('Show Burden')
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
     tips.Hover('The burden of each element as a figure in its colour, in one line: fire, ice, wind, earth, thunder, water, light, dark.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.\nResting the mouse on a figure names its element and gives the chance of one more maneuver of it overloading.');
@@ -563,7 +589,7 @@ ashita.events.register('d3d_present', 'puppet_present', function()
     if dummy.on[1] then
         ShowDummy()
     elseif dummy.was then
-        showing.enfeebles, showing.weaponskill, showing.priority = nil, nil, { }
+        showing.enfeebles, showing.weaponskill, showing.weaponskillElement, showing.priority = nil, nil, nil, { }
         if target ~= nil or (pet ~= nil and options.alwaysShow[1]) then
             Work(pet, target)
         end
@@ -595,6 +621,6 @@ ashita.events.register('d3d_present', 'puppet_present', function()
     end
 
     wanted[1] = options.isVisible[1]
-        and (dummy.on[1] or options.alwaysShow[1] or (target ~= nil and (showing.enfeebles ~= nil or showing.weaponskill ~= nil)))
+        and (dummy.on[1] or options.alwaysShow[1] or (target ~= nil and #showing.priority > 0))
     app:Window(wanted, DrawWindow)
 end)
