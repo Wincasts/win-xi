@@ -252,6 +252,8 @@ function exposed:Render()
                     imgui.ShowHelp('Display frame for macro elements.');
                     CheckBox('Frame Shadow', 'ShowFrameShadow'); -- winxi
                     imgui.ShowHelp('Display the Winxi Theme\'s drop shadow under each frame. Its Shadow settings (Opacity, Offset, Blur) say how it looks; switched off there, none is drawn.');
+                    CheckBox('Gloss', 'ShowGloss'); -- winxi
+                    imgui.ShowHelp('Display a glossy light over each icon, as on a glass button: bright at the top, fading to a curved edge, with a faint shade at the foot.');
                     CheckBox('Cost', 'ShowCost');
                     imgui.ShowHelp('Display action cost indicators.');
                     CheckBox('Trigger', 'ShowTrigger');

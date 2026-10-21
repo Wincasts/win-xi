@@ -4,6 +4,7 @@ local ffi      = require('ffi');
 local frameborder = require('frameborder'); -- winxi: the theme's border art
 local frameshadow = require('frameshadow'); -- winxi: the theme's drop shadow
 local gdi      = require('gdifonts.include');
+local gloss    = require('gloss'); -- winxi: the light over each icon
 local updaters = {
     ['Ability']     = require('updaters.ability'),
     ['Command']     = require('updaters.command'),
@@ -272,6 +273,10 @@ function Element:RenderIcon(sprite)
             opacity = layout.FadeOpacity;
         end
         sprite:Draw(icon.Texture, icon.Rect, icon.Scale, nil, 0.0, vec_position, opacity);
+        -- winxi: the gloss over the icon, under the overlays below
+        if (gSettings.ShowGloss) then
+            gloss.Draw(sprite, vec_position.x, vec_position.y, layout.Icon.Width, layout.Icon.Height);
+        end
     end
 
     --Draw skillchain animation if applicable..
