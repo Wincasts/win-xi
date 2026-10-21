@@ -83,6 +83,13 @@ For the record, and for the next time the client changes:
   `config/addons/drawscale/callers.txt`.
 - `/drawscale patch <n> <mult>` sends caller `n` through a stub by hand, `/drawscale unpatch [n]`
   puts it (or all of them) back, and `/drawscale scan` finds everything afresh.
+- `/drawscale fov [label]` is for finding the field of view, to make it a setting. It appends to
+  `config/addons/drawscale/fov.txt` the projection the device holds (and the horizontal and vertical
+  field of view in it), the game object's fields from +0x200 to +0x3FF as floats, the function the
+  aspect addon patches with the constants it reads, and every instruction in the client addressing
+  the fields from +0x2D0 to +0x300, with the code around those reading k (+0x2E8) and a (+0x2F0).
+  Run it with the camera zoomed all the way in and all the way out, each with a label, to see which
+  values change with the view.
 
 Unloading restores every patched byte and puts both multipliers back to 1. The stubs stay allocated,
 since the render thread may be inside one at that moment.

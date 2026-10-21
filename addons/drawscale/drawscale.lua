@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '1.4';
+addon.version = '1.5';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: general values, a preset for cities, the outdoors and dungeons, and a zone\'s own, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -31,6 +31,7 @@ local settings = require('settings');
 local scan = require('scan');
 local detail = require('detail');
 local view = require('view');
+local fov = require('fov');
 
 local ok, chat = pcall(require, 'chat');
 if (not ok) then chat = nil; end
@@ -81,6 +82,7 @@ local state = T{
     detail   = nil,    -- the mesh-detail sites, from detail.find
     detailMem = 0,     -- their stubs
     view     = nil,    -- the visibility-list site and the game pointer, from view.find
+    fovRefs  = nil,    -- the instructions addressing the game object's fields near k, from fov.fieldRefs
 };
 
 -- The client's memory, as the detail and view modules see it.
@@ -137,10 +139,10 @@ local function resolve()
 end
 local function active() return state.active or resolve(); end
 
-local function reportPath()
+local function reportPath(name)
     local dir = ('%s\\config\\addons\\drawscale\\'):format(AshitaCore:GetInstallPath());
     if (ashita.fs and ashita.fs.create_directory) then ashita.fs.create_directory(dir); end
-    return dir .. 'callers.txt';
+    return dir .. (name or 'callers.txt');
 end
 
 -- The module holding addr: FFXiMain.dll by Ashita's own knowledge of it when the address is inside,
@@ -463,6 +465,94 @@ local function rescan()
     return true;
 end
 
+-- The bytes at addr, or an empty table where they cannot be read.
+local function readSafe(addr, n)
+    local ok, bytes = pcall(ashita.memory.read_array, addr, n);
+    return (ok and type(bytes) == 'table') and bytes or {};
+end
+
+-- The projection the device holds now: its m11 and m22, or nil.
+local function projection()
+    local ok, m11, m22 = pcall(function ()
+        local device = require('d3d8').get_device();
+        local _, m = device:GetTransform(3); -- D3DTS_PROJECTION
+        return m._11, m._22;
+    end);
+    if (ok) then return m11, m22; end
+    return nil;
+end
+
+-- /drawscale fov [label]: what is needed to find the field of view, appended to fov.txt. The
+-- projection as the device has it and the field of view it holds, the game object's fields around
+-- k and a, the function the aspect addon finds with the constants it reads, and every instruction
+-- in the client addressing the fields near k, those reading k or a with the code around them. Run it
+-- twice with the camera at either end of its zoom, and once in a menu, to see what moves.
+local function fovReport(label)
+    local global = state.view and state.view.gamePointer or 0;
+    local aspectSite = ashita.memory.find(0, 0, fov.ASPECT_PATTERN, 0, 0) or 0;
+    if (global == 0 and aspectSite == 0) then
+        fail('Neither the game pointer nor the aspect function was found; nothing to write to fov.txt.');
+        return;
+    end
+    local lines = T{};
+    lines:append(('== drawscale %s, %s%s'):format(addon.version, os.date('%Y-%m-%d %H:%M:%S'), label and (' [' .. label .. ']') or ''));
+    local m11, m22 = projection();
+    local h, v = fov.fromProjection(m11, m22);
+    lines:append(m11 and (('projection m11 %.6f, m22 %.6f: horizontal %.2f, vertical %.2f degrees'):format(m11, m22, h or 0, v or 0)) or 'projection: not read');
+    local object = global ~= 0 and (ashita.memory.read_uint32(global) or 0) or 0;
+    lines:append(('game global 0x%08X, object 0x%08X'):format(global, object));
+    if (object ~= 0) then
+        lines:append('fields +0x200 to +0x3FF:');
+        for _, l in ipairs(fov.fieldLines(readSafe(object + 0x200, 0x200), 0x200)) do lines:append('  ' .. l); end
+    end
+    if (aspectSite ~= 0) then
+        local aspectGlobal = ashita.memory.read_uint32(aspectSite + 1);
+        lines:append(('aspect pattern at 0x%08X, its global 0x%08X (%s the game global)'):format(aspectSite, aspectGlobal, aspectGlobal == global and 'the same as' or 'not'));
+        local before, after = readSafe(aspectSite - 128, 128), readSafe(aspectSite, 192);
+        lines:append(('  0x%08X: %s'):format(aspectSite - 128, scan.hex(before, 1, #before)));
+        lines:append(('  0x%08X: %s'):format(aspectSite, scan.hex(after, 1, #after)));
+        for _, addr in ipairs(fov.absoluteRefs(after)) do
+            local ok, f = pcall(ashita.memory.read_float, addr);
+            lines:append(('  constant 0x%08X = %s'):format(addr, ok and ('%.6g'):format(f) or 'unreadable'));
+        end
+    else
+        lines:append('aspect pattern: not found');
+    end
+    if (state.fovRefs == nil) then
+        state.fovRefs = T{};
+        local base, size = ashita.memory.get_base('FFXiMain.dll'), ashita.memory.get_size('FFXiMain.dll');
+        if (base ~= nil and base ~= 0 and size ~= nil and size > 0) then
+            local kept = state.scanStats;
+            eachChunk({ base = base, size = size }, function (bytes, at, count)
+                for _, r in ipairs(fov.fieldRefs(bytes, at, count, fov.FIRST, fov.LAST)) do state.fovRefs:append(r); end
+            end);
+            state.scanStats = kept;
+        end
+    end
+    lines:append(('%d instructions address +0x%X to +0x%X:'):format(#state.fovRefs, fov.FIRST, fov.LAST));
+    local shown = 0;
+    for _, r in ipairs(state.fovRefs) do
+        lines:append(('  0x%08X %02X /%d +0x%X'):format(r.address, r.opcode, r.reg, r.offset));
+        if ((r.offset == view.K_OFFSET or r.offset == 0x2F0) and shown < 48) then
+            shown = shown + 1;
+            local before, after = readSafe(r.address - 160, 160), readSafe(r.address, 96);
+            lines:append(('    0x%08X: %s'):format(r.address - 160, scan.hex(before, 1, #before)));
+            lines:append(('    0x%08X: %s'):format(r.address, scan.hex(after, 1, #after)));
+            for _, addr in ipairs(fov.absoluteRefs(before)) do
+                local ok, f = pcall(ashita.memory.read_float, addr);
+                if (ok) then lines:append(('    constant 0x%08X = %.6g'):format(addr, f)); end
+            end
+        end
+    end
+    local f = io.open(reportPath('fov.txt'), 'a');
+    if (f) then
+        f:write(table.concat(lines, '\n'), '\n\n');
+        f:close();
+    end
+    say(lines[2]);
+    say(('%d instructions address the fields near k; written to config/addons/drawscale/fov.txt.'):format(#state.fovRefs));
+end
+
 local function valueText(k, v)
     if (k == 'vis' or k == 'square') then return ('%s %s'):format(k, v and 'on' or 'off'); end
     if ((k == 'objects' or k == 'detail') and v <= 0) then return ('%s as world'):format(k); end
@@ -512,6 +602,7 @@ local function help()
     say('/drawscale zone <setting> <value> - this zone\'s own; <setting> clear takes it out, clear alone all of them; zone list is every zone with its own.');
     say('/drawscale callers - every call to the scale function, for the record (also in config/addons/drawscale/callers.txt).');
     say('/drawscale patch <n> <mult> - re-scale caller n by hand; /drawscale unpatch [n] puts it (or all) back.');
+    say('/drawscale fov [label] - the projection and what builds it, for finding the field of view (appended to config/addons/drawscale/fov.txt).');
 end
 
 local numeric = { world = true, entity = true, fog = true, objects = true, detail = true };
@@ -716,6 +807,8 @@ ashita.events.register('command', 'command_cb', function (e)
         if (state.detail ~= nil) then detail.restore(mem, state.detail); state.detailMem = 0; end
         if (state.view ~= nil) then view.restore(mem, state.view); end
         if (rescan()) then report(true); apply(); end
+    elseif (verb == 'fov') then
+        fovReport(args[3]);
     elseif (verb == 'patch') then
         local n, mult = tonumber(args[3]), tonumber(args[4]);
         if (n == nil or mult == nil or mult <= 0) then fail('Usage: /drawscale patch <n> <mult>'); return; end

@@ -118,6 +118,7 @@ H.print('load without the client: says the function was not found', said:find('n
 H.print('/drawscale help is taken', H.command('/drawscale help') == true, '| and lists the commands', table.concat(H.printed, '\n'):find('/drawscale patch <n> <mult>', 1, true) ~= nil)
 H.print('/drawscale patch without a number complains', H.command('/drawscale patch') == true, table.concat(H.printed, '\n'):find('Usage: /drawscale patch', 1, true) ~= nil)
 H.print('/drawscale unpatch 3 with nothing patched', H.command('/drawscale unpatch 3') == true, table.concat(H.printed, '\n'):find('#3 was not patched', 1, true) ~= nil)
+H.print('/drawscale fov without the client says so', H.command('/drawscale fov zoomed') == true, table.concat(H.printed, '\n'):find('nothing to write to fov.txt', 1, true) ~= nil)
 H.print('another command is left alone', H.command('/other') == false)
 H.unload()
 H.print('unloads cleanly', true)
