@@ -189,7 +189,7 @@ end
 
 local function GetSpellRecast(resource)
     local timer = AshitaCore:GetMemoryManager():GetRecast():GetSpellTimer(resource.Index);
-    return (timer == 0), RecastToString(timer);
+    return (timer == 0), RecastToString(timer), timer; -- winxi: the timer, for the cooldown swipe
 end
 
 local function CheckAddendum(updater)
@@ -333,6 +333,7 @@ function Updater:Initialize(element, binding)
             return '', true;
         end
     else
+        self.CostKind = 'MP'; -- winxi: for the low MP tint
         self.CostFunction = ManaCost:bind1(self.Resource);
     end
 
@@ -389,7 +390,7 @@ end
 
 function Updater:Tick()
     --RecastReady will hold number of charges for charged abilities.
-    local recastReady, recastDisplay  = GetSpellRecast(self.Resource);
+    local recastReady, recastDisplay, recastTimer = GetSpellRecast(self.Resource);
     local spellKnown, spellAvailable  = GetSpellAvailable(self);
     local spellCostDisplay, costMet   = self:CostFunction();
     
@@ -402,6 +403,9 @@ function Updater:Tick()
         self.State.Recast = '';
     end
     self.State.Skillchain = self:UpdateSkillchain();
+    -- winxi: the recast in seconds for the swipe, and whether the MP cost is not met for its tint
+    self.State.RecastLeft = (recastTimer or 0) / 60;
+    self.State.LowMP = (self.CostKind == 'MP') and (costMet ~= true);
 end
 
 function Updater:UpdateSkillchain()

@@ -160,12 +160,13 @@ end
 --This call returns two values.
 --First value is true/false for whether ability can be used based on current recast, to be used for dimming icons.
 --Second value is a string to be displayed on recast element, or nil if the element should not be shown.
+--winxi: a third, the timer itself (in 60ths of a second), for the cooldown swipe.
 local function GetRecastData(resource)
     local timer = GetRecastTimer(resource.RecastTimerId);
     if (timer == 0) then
-        return true, '';
+        return true, '', 0;
     else
-        return false, RecastToString(timer);
+        return false, RecastToString(timer), timer;
     end
 end
 
@@ -173,48 +174,49 @@ end
 --Each of these calls returns two values.
 --First value is number of charges available.
 --Second value is time until next charge.
+--winxi: then that time and a charge's whole time (in 60ths of a second), for the cooldown swipe.
 local function GetStratagemData()
     local maxCount = GetMaxStratagems();
     if (maxCount == 0) then
-        return 0, '';
+        return 0, '', 0;
     end
 
     local data = GetAbilityTimerData(231);
     if (data.Recast == 0) then
-        return maxCount, '';
+        return maxCount, '', 0;
     end
     
     local baseRecast = 60 * (240 + data.Modifier);
     local chargeValue = baseRecast / maxCount;
     local remainingCharges = math.floor((baseRecast - data.Recast) / chargeValue);
     local timeUntilNextCharge = math.fmod(data.Recast, chargeValue);
-    return remainingCharges, RecastToString(timeUntilNextCharge);
+    return remainingCharges, RecastToString(timeUntilNextCharge), timeUntilNextCharge, chargeValue;
 end
 
 local function GetQuickDrawData()
     local data = GetAbilityTimerData(195);
     if (data.Recast == 0) then
-        return 2, '';
+        return 2, '', 0;
     end
     
     local baseRecast = 60 * (120 + data.Modifier);
     local chargeValue = baseRecast / 2;
     local remainingCharges = math.floor((baseRecast - data.Recast) / chargeValue);
     local timeUntilNextCharge = math.fmod(data.Recast, chargeValue);
-    return remainingCharges, RecastToString(timeUntilNextCharge);
+    return remainingCharges, RecastToString(timeUntilNextCharge), timeUntilNextCharge, chargeValue;
 end
 
 local function GetReadyData()
     local data = GetAbilityTimerData(102);
     if (data.Recast == 0) then
-        return 3, '';
+        return 3, '', 0;
     end
 
     local baseRecast = 60 * (90 + data.Modifier);
     local chargeValue = baseRecast / 3;
     local remainingCharges = math.floor((baseRecast - data.Recast) / chargeValue);
     local timeUntilNextCharge = math.fmod(data.Recast, chargeValue);
-    return remainingCharges, RecastToString(timeUntilNextCharge);
+    return remainingCharges, RecastToString(timeUntilNextCharge), timeUntilNextCharge, chargeValue;
 end
 
 function Updater:New()
@@ -241,6 +243,7 @@ function Updater:Initialize(element, binding)
     else
         self.RecastFunction = GetRecastData;
         if (self.Resource.ManaCost > 0) then
+            self.CostKind = 'MP'; -- winxi: for the low MP tint
             self.CostFunction = (function(a)
                 return tostring(a), (AshitaCore:GetMemoryManager():GetParty():GetMemberMP(0) >= a);
             end):bind1(self.Resource.ManaCost);
@@ -249,6 +252,7 @@ function Updater:Initialize(element, binding)
                 return '', true;
             end
         else
+            self.CostKind = 'TP'; -- winxi: for the low TP tint
             self.CostFunction = (function(a)
                 return tostring(a), (AshitaCore:GetMemoryManager():GetParty():GetMemberTP(0) >= a);
             end):bind1(self.Resource.TPCost);
@@ -271,22 +275,27 @@ function Updater:Initialize(element, binding)
 
     --Custom (for use with jugs and such)
     if (binding.CostOverride) then
+        self.CostKind = nil; -- winxi: the cost is no longer MP or TP
         self.CostFunction = ItemCost:bind2(binding.CostOverride);
 
     --Angon
     elseif (binding.Id == 682) then
+        self.CostKind = nil;
         self.CostFunction = ItemCost:bind2(T{18259});
 
     --Tomahawk
     elseif (binding.Id == 662) then
+        self.CostKind = nil;
         self.CostFunction = ItemCost:bind2(T{18258});
 
     --Finishing Moves
     elseif flourish ~= nil then
+        self.CostKind = nil;
         self.CostFunction = FinishingMoveCost:bind2(flourish);
 
     --Rune Enchantment
     elseif T{ 856, 878, 880, 881, 883, 884, 885, 887, 888 }:contains(binding.Id) then
+        self.CostKind = nil;
         self.CostFunction = RuneEnchantmentCost;
     end
 end
@@ -297,7 +306,7 @@ end
 
 function Updater:Tick()
     --RecastReady will hold number of charges for charged abilities.
-    local recastReady, recastDisplay  = self.RecastFunction(self.Resource);
+    local recastReady, recastDisplay, recastTimer, recastLength = self.RecastFunction(self.Resource);
     local abilityAvailable            = player:KnowsAbility(self.Resource.Id);
     local abilityCostDisplay, costMet = self:CostFunction(recastReady);
     if (type(recastReady) == 'number') then
@@ -309,6 +318,11 @@ function Updater:Tick()
     self.State.Ready = (costMet == true) and (recastReady == true);
     self.State.Recast = recastDisplay;
     self.State.Skillchain = nil;
+    -- winxi: the recast in seconds for the swipe, and which cost is not met for the tints
+    self.State.RecastLeft = (recastTimer or 0) / 60;
+    self.State.RecastLength = recastLength and (recastLength / 60) or nil;
+    self.State.LowMP = (self.CostKind == 'MP') and (costMet ~= true);
+    self.State.LowTP = (self.CostKind == 'TP') and (costMet ~= true);
 end
 
 return Updater;

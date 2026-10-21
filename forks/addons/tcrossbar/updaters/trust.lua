@@ -62,7 +62,7 @@ end
 
 local function GetSpellRecast(resource)
     local timer = AshitaCore:GetMemoryManager():GetRecast():GetSpellTimer(resource.Index);
-    return (timer == 0), RecastToString(timer);
+    return (timer == 0), RecastToString(timer), timer; -- winxi: the timer, for the cooldown swipe
 end
 
 function Updater:New()
@@ -91,7 +91,7 @@ end
 
 function Updater:Tick()
     --RecastReady will hold number of charges for charged abilities.
-    local recastReady, recastDisplay  = GetSpellRecast(self.Resource);
+    local recastReady, recastDisplay, recastTimer = GetSpellRecast(self.Resource);
     local spellKnown                  = player:HasSpell(self.Resource)
     local spellCostDisplay, costMet   = self:CostFunction();    
 
@@ -104,6 +104,7 @@ function Updater:Tick()
         self.State.Recast = '';
     end
     self.State.Skillchain = nil;
+    self.State.RecastLeft = (recastTimer or 0) / 60; -- winxi: for the cooldown swipe
 end
 
 return Updater;

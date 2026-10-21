@@ -83,7 +83,7 @@ local function GetEquipmentRecast(itemResource)
         end
     end
 
-    return itemCount, RecastToString(lowestRecast);
+    return itemCount, RecastToString(lowestRecast), math.max(0, lowestRecast); -- winxi: seconds, for the swipe
 end
 
 
@@ -110,7 +110,8 @@ function Updater:Destroy()
 end
 
 function Updater:Tick()
-    local count, recastTimer = self.RecastFunction();
+    local count, recastTimer, recastSeconds = self.RecastFunction();
+    self.State.RecastLeft = recastSeconds or 0; -- winxi: for the cooldown swipe
     
     self.State.Available = true;
     if (bit.band(self.Resource.Flags, 0x800) == 0) then

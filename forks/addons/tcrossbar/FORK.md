@@ -29,6 +29,18 @@ author as plain files rather than a submodule. `readme.md` is the original's. Wh
   drawn over the icon and under the cross, trigger and skillchain overlays, faded by Gloss Opacity (0 to
   100%, 100 to start).
 
+- **A cooldown swipe and cost tints.** Cooldown Swipe (Components tab, on to start) darkens the part
+  of each icon still to come back while it recasts: a wedge from 12 o'clock shrinking clockwise, at
+  Swipe Opacity (60% to start), run down smoothly between the slot's ticks. Charges (Ready, Quick Draw,
+  stratagems) swipe for the next charge, their length known; for the rest the length is the most left
+  seen since the recast began. Low MP and Low TP (on to start, each with its colour and alpha) lay a
+  colour over a spell or ability whose MP cost is not met, or a weapon skill under 1000 TP or ability
+  whose TP cost is not met. The updaters give the recast in seconds and which cost is short
+  (`State.RecastLeft`, `RecastLength`, `LowMP`, `LowTP`, marked `winxi:`); `cooldown.lua` makes a
+  texture for each of 60 steps of the turn and each size of icon as it is first wanted, and one white
+  texture for the tints. Over the icon: tint, swipe, then gloss; the cross, trigger and skillchain over
+  those.
+
 - **Less work each frame.** The set blue magic is read only for a blue mage and a few times a second,
   not every frame for every job (`state/player.lua`). A slot's state is worked out ten times a second
   instead of every frame (`element.lua`). The double display no longer lists its slots afresh each frame

@@ -1,5 +1,6 @@
 local d3d8     = require('d3d8');
 local encoding = require('gdifonts.encoding');
+local cooldown = require('cooldown'); -- winxi: the cooldown swipe and the low MP and TP tints
 local ffi      = require('ffi');
 local frameborder = require('frameborder'); -- winxi: the theme's border art
 local frameshadow = require('frameshadow'); -- winxi: the theme's drop shadow
@@ -136,6 +137,9 @@ function Element:UpdateBinding(binding)
 
     self.Icon = nil;
     self.Binding = binding;
+    -- winxi: nothing of the last binding's recast or costs kept for this one
+    self.State.RecastLeft, self.State.RecastLength, self.State.LowMP, self.State.LowTP = 0, nil, false, false;
+    self.SwipeLeft, self.SwipeLength = 0, nil;
     local updater = updaters.Empty;
     self.State.Name = '';
     if (type(self.Binding) == 'table') then
@@ -209,11 +213,37 @@ function Element:RenderBorder(sprite)
     end
 end
 
+-- winxi: after each tick, the recast left and its whole length, for the swipe. Where the updater does
+-- not know the length (all but charges), it is the most left seen since the recast began: the whole
+-- of it from when it began, or of what was left when the addon was loaded.
+function Element:TrackRecast(now)
+    local left = tonumber(self.State.RecastLeft) or 0;
+    if (left <= 0) then
+        self.SwipeLeft, self.SwipeLength = 0, nil;
+        return;
+    end
+    local length = tonumber(self.State.RecastLength);
+    if (length == nil) or (length <= 0) then
+        length = math.max(self.SwipeLength or 0, left);
+    end
+    self.SwipeLeft, self.SwipeLength, self.SwipeAt = left, length, now;
+end
+
+-- winxi: how much of the recast is left, 0 to 1, run down smoothly between ticks
+function Element:SwipeFraction(now)
+    if (self.SwipeLength == nil) or (self.SwipeLeft <= 0) then
+        return 0;
+    end
+    local left = self.SwipeLeft - (now - (self.SwipeAt or now));
+    return math.max(0, math.min(1, left / self.SwipeLength));
+end
+
 function Element:RenderIcon(sprite)
     local now = os.clock();
     if (now >= (self.NextTick or 0)) then
         self.NextTick = now + tickInterval;
         self.Updater:Tick();
+        self:TrackRecast(now); -- winxi
     end
 
     local positionX = self.PositionX;
@@ -280,9 +310,19 @@ function Element:RenderIcon(sprite)
             opacity = layout.FadeOpacity;
         end
         sprite:Draw(icon.Texture, icon.Rect, icon.Scale, nil, 0.0, vec_position, opacity);
-        -- winxi: the gloss over the icon, under the overlays below
+        -- winxi: the low MP or TP tint, then the swipe, then the gloss over them all, under the
+        -- overlays below
+        local iconX, iconY, iconW, iconH = vec_position.x, vec_position.y, layout.Icon.Width, layout.Icon.Height;
+        if (gSettings.ShowLowMP) and (self.State.LowMP) then
+            cooldown.DrawTint(sprite, iconX, iconY, iconW, iconH, gSettings.LowMPColor);
+        elseif (gSettings.ShowLowTP) and (self.State.LowTP) then
+            cooldown.DrawTint(sprite, iconX, iconY, iconW, iconH, gSettings.LowTPColor);
+        end
+        if (gSettings.ShowSwipe) then
+            cooldown.DrawSwipe(sprite, iconX, iconY, iconW, iconH, self:SwipeFraction(now), gSettings.SwipeOpacity);
+        end
         if (gSettings.ShowGloss) then
-            gloss.Draw(sprite, vec_position.x, vec_position.y, layout.Icon.Width, layout.Icon.Height, gSettings.GlossOpacity);
+            gloss.Draw(sprite, iconX, iconY, iconW, iconH, gSettings.GlossOpacity);
         end
     end
 

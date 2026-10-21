@@ -73,6 +73,7 @@ function Updater:Tick()
     self.State.Available = known;
     self.State.Cost = self:CostFunction();
     self.State.Ready = (AshitaCore:GetMemoryManager():GetParty():GetMemberTP(0) >= 1000);
+    self.State.LowTP = (not self.State.Ready); -- winxi: for the low TP tint
     self.State.Recast = '';
     self.State.Skillchain = self:UpdateSkillchain();
 end

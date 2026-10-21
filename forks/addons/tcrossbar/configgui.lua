@@ -115,6 +115,12 @@ local shadowSliders = {
     { 'Shadow Softness', 'ShadowBlur', 20, '%d px', 'How wide the shadow\'s soft edge is.' },
 };
 
+-- winxi: the cost tints, as { label, setting, colour's setting, help }
+local costTints = {
+    { 'Low MP', 'ShowLowMP', 'LowMPColor', 'Lays Low MP Color over a spell or ability whose MP cost you do not have. The colour\'s alpha is how strong it is.' },
+    { 'Low TP', 'ShowLowTP', 'LowTPColor', 'Lays Low TP Color over a weapon skill under 1000 TP, or an ability whose TP cost you do not have. The colour\'s alpha is how strong it is.' },
+};
+
 local function CheckBox(text, member)
     if (imgui.Checkbox(string.format('%s##Config_%s', text, text), { gSettings[member] })) then
         gSettings[member] = not gSettings[member];
@@ -309,6 +315,25 @@ function exposed:Render()
                         settings.save();
                     end
                     imgui.ShowHelp('How strong the gloss over each icon is, while Gloss is on: 100 is its full light, 0 none.');
+                    -- winxi: the cooldown swipe and the low MP and TP tints
+                    imgui.TextColored(header, 'Cooldown');
+                    CheckBox('Cooldown Swipe', 'ShowSwipe');
+                    imgui.ShowHelp('Darkens the part of each icon still to come back while it recasts: a wedge from 12 o\'clock that shrinks clockwise until it is ready. For an ability with charges, the time to the next charge.');
+                    imgui.TextColored(header, 'Swipe Opacity');
+                    local swipeBuff = { gSettings.SwipeOpacity or 60 };
+                    if imgui.SliderInt('##tCrossBarSwipeOpacity', swipeBuff, 0, 100, '%d%%', ImGuiSliderFlags_AlwaysClamp) then
+                        gSettings.SwipeOpacity = swipeBuff[1];
+                        settings.save();
+                    end
+                    imgui.ShowHelp('How dark the swipe is: 100 is black, 0 none.');
+                    for _,tint in ipairs(costTints) do
+                        CheckBox(tint[1], tint[2]);
+                        imgui.ShowHelp(tint[4]);
+                        imgui.SameLine();
+                        if (imgui.ColorEdit4('##tCrossBar' .. tint[3], gSettings[tint[3]], ImGuiColorEditFlags_NoInputs)) then
+                            settings.save();
+                        end
+                    end
                     -- winxi: the frame shadow, as the theme's or tcrossbar's own
                     imgui.TextColored(header, 'Frame Shadow');
                     CheckBox('Match Theme Shadow', 'ShadowMatchTheme');
