@@ -1,14 +1,17 @@
 # puppet
 
-For a puppetmaster: the burden of each element, and everything the automaton might do next in the order
-it tries them, each with its timer, in a small window. It needs only the `winxi` library
+For a puppetmaster: the burden of each element, what the automaton will do next, and everything it might
+do in the order it tries them, each with its timer, in a small window. It needs only the `winxi` library
 (`addons/libs/winxi`).
 
     35  35  35  35  33  35  35  35
-      Heal                               -
-    > Enfeeble  Dia II, Poison, Silence  Next
-      WS        Slapstick                -
-      Provoke                            12s
+    Next Action:  Enfeeble Dia II
+    Heal                                   -
+    Enfeeble      Dia II, Poison, Silence  Next
+    WS            Slapstick                -
+
+    Provoke                                12s
+    Stoneskin                              Ready
 
 - `/puppet` shows or hides the window
 - `/puppet config` opens or closes the settings
@@ -27,10 +30,12 @@ it is not. What it is
 fighting is told to its master alone, in the packet that keeps the two in step. A line with
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
-The **priority list** is everything the automaton might do next, in the order it tries them, each with
-its timer. The rows are named short: Bash (a shield bash), Heal, Enfeeble, Nuke, Erase (a status
-removal), WS (the weapon skill) and Shot (a ranged attack), and then one for each attachment fitted that
-acts on a timer of its own, there only while it is fitted:
+The list is in three parts. **Next Action** is what the automaton will do next: the first row under it
+with something to do and nothing to wait for. Under that is its own **queue**, everything it does of
+itself in the order it tries them, each with its timer, named short: Bash (a shield bash), Heal,
+Enfeeble, Nuke, Erase (a status removal), WS (the weapon skill) and Shot (a ranged attack). After a gap
+come the **attachments**: one row for each attachment fitted that acts of its own accord when its
+maneuver is up, with its timer, there only while it is fitted:
 
 | Attachment | Row | Maneuver | Recast | Also needs |
 |---|---|---|---|---|
@@ -51,13 +56,12 @@ Every three seconds or so the automaton tries a shield bash, then its spells in 
 Light and Ice maneuvers change), then a weapon skill, then a shot, then what its attachments do, and does
 the first it can. A row says `Ready`, the seconds left of the timer it is waiting on, or `-` when there is
 nothing for it to do as things stand (nobody to heal, nothing to cast, no TP, the maneuver it waits for
-down). The row marked `>` is the one that comes next; a row whose condition the game is not told of (an
-enemy casting for Bash, an ailment for Erase and Eraser, a buff for Disruptor and Regulator) is never
-marked. The timers are Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier
+down), or `Next` on the one that comes next; a row whose condition the game is not told of (an enemy
+casting for Bash, an ailment for Erase and Eraser, a buff for Disruptor and Regulator) is never Next. The timers are Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier
 Module counted where fitted. A timer is known only once the automaton has been seen to act, so a row
 may say Ready when the addon was loaded part way through a fight and it is not.
 
-Above the list is the **burden**: one line of eight figures, the burden of each element in the element's
+Above it all is the **burden**: one line of eight figures, the burden of each element in the element's
 colour, in the maneuvers' order (fire, ice, wind, earth, thunder, water, light, dark). Resting the mouse
 on a figure names its element and gives the chance of one more maneuver of it overloading.
 

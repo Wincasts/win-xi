@@ -21,7 +21,6 @@ local function colorOf(word)
 end
 local function same(a, b) return a ~= nil and b ~= nil and math.abs(a[1] - b[1]) < 0.01 and math.abs(a[2] - b[2]) < 0.01 and math.abs(a[3] - b[3]) < 0.01 and math.abs(a[4] - b[4]) < 0.01 end
 local fire, ice, thunder, dark = { 1.00, 0.54, 0.48, 1 }, { 0.65, 0.89, 1.00, 1 }, { 0.85, 0.65, 1.00, 1 }, { 0.60, 0.56, 0.72, 1 }
-local function dimmed(color) return { color[1], color[2], color[3], color[4] * 0.5 } end
 local function shown()
     H.frames(10) -- time enough to have faded in, or out
     for i = #said, 1, -1 do said[i] = nil end
@@ -90,7 +89,7 @@ H.print('the automaton fighting nothing: nothing drawn', shown() == '')
 fight(900, 55); H.print('nor when it is someone else\'s pet that fights', shown() == '')
 fight(900)
 H.print('Harlequin, no maneuvers:', shown())
-H.print('Bio II in dark', same(colorOf('Bio II'), dark), '| Slapstick, no TP, in dimmed thunder', same(colorOf('Slapstick'), dimmed(thunder)), '| Heal in dimmed light', same(colorOf('Heal'), dimmed({ 1, 1, 1, 1 })))
+H.print('Bio II in dark', same(colorOf('Bio II'), dark), '| Slapstick in thunder', same(colorOf('Slapstick'), thunder), '| Heal in light', same(colorOf('Heal'), { 1, 1, 1, 1 }))
 game.buffs = { 306 }; H.print('Light:', shown())
 game.buffs = { 306, 307 }; H.print('Light and Dark:', shown())
 game.buffs = { 305, 301, 255, 255 }; H.print('Water and Ice:', shown())
@@ -148,7 +147,7 @@ H.frames(400); H.print('twelve seconds on:', list())
 game.hp = 25; H.print('the master at 25%:', list())
 H.frames(700); H.print('the timers run out:', list()); game.hp = 100
 game.buffs = { 306 }; game.hp = 35; H.print('Light, the master at 35%: heal comes first:', list()); game.buffs = {}; game.hp = 100
-game.petTp = 1200; H.print('TP ready, a spell ready too: the spell comes first:', list(), '| Slapstick ready but not next, in dimmed thunder', same(colorOf('Slapstick'), dimmed(thunder)))
+game.petTp = 1200; H.print('TP ready, a spell ready too: the spell comes first:', list(), '| Slapstick in thunder', same(colorOf('Slapstick'), thunder))
 did(8, 24931, 220); H.print('the spell just cast: the weapon skill is next:', list()); game.petTp = 300
 did(8, 28787, 0); did(8, 24931, 1); tracker.Action({ actor_id = 77, category = 8, param = 24931, targets = { { id = 900, actions = { { param = 23 } } } } }, 2)
 H.print('a casting broken off, and someone else\'s, change nothing; a cure starts the heal timer:', list())
@@ -206,7 +205,7 @@ entities[2].ServerId = 2; entities[1].PetTargetIndex = 0; o.alwaysShow[1] = fals
 local realCheckbox = imgui.Checkbox
 local function setDummy(on) imgui.Checkbox = function(id, value) if id == '##puppet.showDummy' then value[1] = on end return false end; H.command('/puppet config'); H.frames(1); H.command('/puppet config'); imgui.Checkbox = realCheckbox end
 o.showPriority[1] = true; setDummy(true)
-H.print('dummy data, no automaton out:', shown(), '| Provoke, not the next row, in dimmed fire', same(colorOf('Provoke'), dimmed(fire)), '| and the figures', drawn())
+H.print('dummy data, no automaton out:', shown(), '| Provoke in fire', same(colorOf('Provoke'), fire), '| and the figures', drawn())
 setDummy(false); H.print('switched off: gone', shown() == ''); o.showPriority[1] = false
 -- transparent: nothing of the window's own, and every word outlined over the game instead of imgui's text
 o.transparent[1] = true; o.alwaysShow[1] = true; entities[1].PetTargetIndex = 2; fight(900)
