@@ -182,6 +182,13 @@ local function setDummy(on) imgui.Checkbox = function(id, value) if id == '##pup
 o.showPriority[1] = true; setDummy(true)
 H.print('dummy data, no automaton out:', shown(), '| and the figures', drawn())
 setDummy(false); H.print('switched off: gone', shown() == ''); o.showPriority[1] = false
+-- transparent: nothing of the window's own, and every word outlined over the game instead of imgui's text
+o.transparent[1] = true; o.alwaysShow[1] = true; entities[1].PetTargetIndex = 2; fight(900)
+local before = H.calls['draw.AddText'] or 0
+local words = shown()
+H.print('Transparent: nothing through imgui\'s text', words == '', '| written outlined on the draw list', (H.calls['draw.AddText'] or 0) > before)
+o.transparent[1] = false; before = H.calls['draw.AddText'] or 0; H.print('off again: imgui\'s text', shown() ~= '', '| nothing more outlined', (H.calls['draw.AddText'] or 0) == before)
+entities[1].PetTargetIndex = 0; o.alwaysShow[1] = false; fight(0); shown()
 H.print('/puppet config kept from the game', H.command('/puppet config')); H.frames(1)
 H.command('/puppet'); H.print('/puppet hides it', o.isVisible[1] == false, '| and says so:', H.printed[#H.printed])
 H.command('/puppet'); H.print('and shows it again:', H.printed[#H.printed])

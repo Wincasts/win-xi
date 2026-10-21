@@ -1,6 +1,6 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.1'
+addon.version = '1.2'
 addon.desc    = 'The enfeebling spells and the weapon skill an automaton will use next, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -9,7 +9,8 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- choosing is predict.lua's, which follows the server's; this gathers what it needs to know (the
 -- automaton's parts and skills, the maneuvers up, the debuffs on the target) and shows the answer.
 -- Under those, the burden of each element as a figure in the element's colour, which burden.lua
--- reckons.
+-- reckons. With Transparent on the window has no backdrop, border or shadow, and every line is winxi's
+-- outlined text, so that it reads over the game.
 --
 --   /puppet           shows or hides the window
 --   /puppet config    opens or closes the settings
@@ -20,6 +21,8 @@ local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local tips = require('winxi.tooltip')
 local shell = require('winxi.shell')
+local theme = require('winxi.theme')
+local outlined = require('winxi.text')
 local debuffs = require('winxi.debuffs')
 local packets = require('winxi.packets')
 local predict = require('predict')
@@ -262,6 +265,33 @@ local function ShowDummy()
     showing.priority, showing.burden = dummy.priority, dummy.burden
 end
 
+-- How the words are written: imgui's own text over the backdrop, or winxi's outlined text when the
+-- window is transparent and they go straight over the game. The dimmed words are then the theme's text
+-- colour at a little over half strength, as imgui dims them.
+local transparent = false -- this frame
+local faint = { 1, 1, 1, 0.6 }
+local function Faint()
+    local color = theme.Get().TextColor
+    faint[1], faint[2], faint[3], faint[4] = color[1], color[2], color[3], color[4] * 0.6
+    return faint
+end
+local function Write(words, color)
+    if transparent then
+        outlined.Outlined(words, color)
+    elseif color ~= nil then
+        imgui.TextColored(color, words)
+    else
+        imgui.Text(words)
+    end
+end
+local function WriteFaint(words)
+    if transparent then
+        outlined.Outlined(words, Faint())
+    else
+        imgui.TextDisabled(words)
+    end
+end
+
 -- The window's tables share one padding and one left edge: no outer padding, the same gap between
 -- columns and rows, and the lines' and the list's first column as wide as the widest label, so that
 -- what each row says lines up down the window
@@ -279,7 +309,7 @@ local function DrawPriority()
     end
     imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, labelWidth)
     for _, row in ipairs(showing.priority) do
-        local text = row.ready and imgui.Text or imgui.TextDisabled
+        local write = row.ready and Write or WriteFaint
         local state = 'Ready'
         if row.state == 'waiting' then
             state = ('%ds'):format(math.ceil(row.wait))
@@ -289,8 +319,8 @@ local function DrawPriority()
             state = 'Next'
         end
         imgui.TableNextRow()
-        imgui.TableNextColumn(); text((row.ready and '> ' or '  ') .. row.name)
-        imgui.TableNextColumn(); text(state)
+        imgui.TableNextColumn(); write((row.ready and '> ' or '  ') .. row.name)
+        imgui.TableNextColumn(); write(state)
     end
     imgui.EndTable()
 end
@@ -311,7 +341,7 @@ local function DrawBurden()
     imgui.TableNextRow()
     for element, item in ipairs(showing.burden) do
         imgui.TableNextColumn()
-        imgui.TextColored(item.color, item.figure)
+        Write(item.figure, item.color)
         if imgui.IsItemHovered() then
             local words = hovered[element]
             if words == nil or words.figure ~= item.figure or words.chance ~= item.chance then
@@ -339,8 +369,8 @@ local function DrawLines()
     for _, line in ipairs({ { 'Enfeeble', showing.enfeebles }, { 'WS', showing.weaponskill } }) do
         if line[2] ~= nil then
             imgui.TableNextRow()
-            imgui.TableNextColumn(); imgui.TextDisabled(line[1])
-            imgui.TableNextColumn(); imgui.Text(line[2])
+            imgui.TableNextColumn(); WriteFaint(line[1])
+            imgui.TableNextColumn(); Write(line[2])
         end
     end
     imgui.EndTable()
@@ -369,7 +399,7 @@ local function DrawWindow(options)
     DrawLines()
     -- the window is there with nothing to name while it is always shown: it is not left empty
     if showing.enfeebles == nil and showing.weaponskill == nil then
-        imgui.TextDisabled('Nothing to show.')
+        WriteFaint('Nothing to show.')
     end
     if options.showBurden[1] and showing.burden ~= nil then
         DrawBurden()
@@ -390,6 +420,7 @@ local defaults = T{
     alwaysShow = T{ true }, -- the window whether the automaton is fighting or not
     showPriority = T{ true }, -- everything the automaton might do next, in its order, and how each stands
     showBurden = T{ true }, -- the burden of each element, as a figure in its colour
+    transparent = T{ false }, -- no backdrop, border or shadow: outlined text straight over the game
     showDebug = T{ false }, -- under it, what the addon knows: for finding out what is wrong
 }
 
@@ -403,6 +434,9 @@ local function DrawSettings(options)
     end
 
     widgets.Gap()
+    widgets.Label('Transparent')
+    imgui.Checkbox('##puppet.transparent', options.transparent)
+    tips.Hover('On, the window has no backdrop, border or shadow: its words are written straight over the game, with the theme\'s dark edge (Text Outline) round them so that they read.\nOff, it is a window of the theme\'s like any other.');
     widgets.Label('Always Show')
     imgui.Checkbox('##puppet.alwaysShow', options.alwaysShow)
     tips.Hover('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.');
@@ -448,6 +482,9 @@ app = shell.New({
         end
         if type(options.showBurden) ~= 'table' then
             options.showBurden = T{ true }
+        end
+        if type(options.transparent) ~= 'table' then
+            options.transparent = T{ false }
         end
         burden.Clear()
         automaton.attachments = { }
@@ -497,6 +534,7 @@ end)
 
 -- Whether the window is wanted this frame: a table, as the shell takes it
 local wanted = { false }
+local clear = { 0, 0, 0, 0 } -- no backdrop and no border, for a transparent window
 
 ashita.events.register('d3d_present', 'puppet_present', function()
     if not app:BeginFrame() then
@@ -545,6 +583,15 @@ ashita.events.register('d3d_present', 'puppet_present', function()
         end
         table.sort(parts)
         known.maneuvers = table.concat(parts, ', ')
+    end
+
+    -- transparent: nothing of the window's own is drawn, and the words are written outlined over the game
+    transparent = options.transparent[1] and true or false
+    local windowStyle = app.windowStyle
+    if transparent then
+        windowStyle.background, windowStyle.border, windowStyle.shadow = clear, clear, false
+    else
+        windowStyle.background, windowStyle.border, windowStyle.shadow = nil, nil, nil
     end
 
     wanted[1] = options.isVisible[1]

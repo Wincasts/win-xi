@@ -48,7 +48,10 @@ for 20, the most it can be, until it has been seen. It is seen in the chance of 
 gives with every maneuver: that is the burden less 25, so whenever there is any chance at all the figure
 is the server's own, and with none the burden is known to be 25 or less.
 
-In the settings: **Show Burden** switches the figures off. **Show Priority List** switches that list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
+In the settings: **Transparent** takes away the window's backdrop, border and shadow, and writes every
+line as winxi's outlined text (the theme's Text Outline, a dark edge round the letters), so that it reads
+straight over the game; the dimmed words are the theme's text colour at a little over half strength. It starts
+off. **Show Burden** switches the figures off. **Show Priority List** switches that list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
 a fight it shows what the automaton would open with on an enemy with nothing on it. It starts on. **Show Dummy Data** fills every part of the window with made-up data, automaton or no, for seeing how
 it looks: a row of the priority list in each state, and a figure in each element's colour. It is not kept,
 and is off again when the addon is next loaded. **Show Debug Information** is for finding out what is wrong: under the
