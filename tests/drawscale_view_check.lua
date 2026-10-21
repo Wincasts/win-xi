@@ -53,6 +53,11 @@ local function newMem()
     end
     function m.write(addr, bytes) m.writes = m.writes + 1; m.load(addr, bytes); return true end
     function m.write_u32(addr, v) m.writes = m.writes + 1; m.loadU32(addr, v); return true end
+    -- floats kept as numbers, and the game's functions called counted by address
+    m.floats, m.calls = {}, {}
+    function m.read_float(addr) return m.floats[addr] or 0 end
+    function m.write_float(addr, v) m.writes = m.writes + 1; m.floats[addr] = v; return true end
+    function m.call(addr) m.calls[#m.calls + 1] = addr end
     return m
 end
 
@@ -139,5 +144,50 @@ local m3 = build(false, false)
 local s3 = view.find(m3)
 view.restore(m3, s3)
 check('restore with nothing found', m3.writes == 0)
+
+-- fov: the build entry found with C, the focal length scaled from the game's, the projection built
+-- again each time it is written and not otherwise
+local BUILD, CONST = 0x6000, 0x7000
+local function withBuild(cBytes)
+    local m = build(false, true)
+    local bytes = {}
+    for hx in view.BUILD_PATTERN:gmatch('%S%S') do bytes[#bytes + 1] = hx == '??' and 0 or tonumber(hx, 16) end
+    m.load(BUILD, bytes)
+    m.loadU32(BUILD + view.C_AT, CONST)
+    m.load(CONST, cBytes)
+    return m
+end
+local C192 = { 0, 0, 0, 0, 0, 0, 0x68, 0x40 }
+local fm = withBuild(C192)
+local fs = view.find(fm)
+check('build found with C', fs.buildEntry == BUILD, fs.c == 192)
+check('a C not likely is refused', view.find(withBuild({ 0, 0, 0, 0, 0, 0, 0, 0 })).buildEntry == 0)
+check('no build', view.find(build(false, true)).buildEntry == 0)
+local function near(a, b) return math.abs(a - b) < 1e-3 end
+check('the game\'s 76.86 degrees', near(view.fovOf(192, 242), 76.856), view.focalScale(192, 0) == 1)
+
+local fAt = OBJECT + view.FOCAL_OFFSET
+before = fm.writes
+check('fov before the object', view.setFov(fm, fs, 60) == false, fm.writes == before, #fm.calls == 0)
+fm.loadU32(GLOBAL, OBJECT)
+fm.floats[fAt] = 242
+check('fov 60', view.setFov(fm, fs, 60) == true, near(view.fovOf(192, fm.floats[fAt]), 60), #fm.calls == 1, fm.calls[1] == BUILD)
+check('fov 60 again is a no-op', view.setFov(fm, fs, 60) == false, #fm.calls == 1)
+check('read back', near(view.currentFov(fm, fs), 60))
+-- the game sets a closer view of its own: kept as its own, and scaled the same
+fm.floats[fAt] = 900
+check('the game\'s new value scaled', view.setFov(fm, fs, 60) == true, near(fm.floats[fAt], 900 * view.focalScale(192, 60)), #fm.calls == 2)
+-- back to the usual one, then 0 puts the game's own back
+fm.floats[fAt] = 242
+view.setFov(fm, fs, 60)
+check('fov 0 restores the game\'s', view.setFov(fm, fs, 0) == true, fm.floats[fAt] == 242, #fm.calls == 4)
+check('fov 0 again is a no-op', view.setFov(fm, fs, 0) == false, #fm.calls == 4)
+check('fov without the build', view.setFov(fm, view.find(build(false, true)), 60) == false)
+view.setFov(fm, fs, 45)
+view.restore(fm, fs)
+check('restore puts the game\'s fov back', fm.floats[fAt] == 242)
+before = #fm.calls
+view.restore(fm, fs)
+check('restore twice builds nothing', #fm.calls == before)
 
 print('drawscale view: all checks passed')
