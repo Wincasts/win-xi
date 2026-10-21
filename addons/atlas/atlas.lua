@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.9';
+addon.version = '0.10';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -47,7 +47,13 @@ local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 },
     locked = T{ false },
-    size = T{ 512 },
+    -- the map's frame in each mode: open (browsing, or shown by /atlas) and passthrough
+    openWidth = T{ 512 },
+    openHeight = T{ 512 },
+    openShape = 'square',   -- 'square', 'rounded' or 'round'
+    passthroughWidth = T{ 512 },
+    passthroughHeight = T{ 512 },
+    passthroughShape = 'square',
     passthroughOpacity = T{ 30 },
     showPlayer = T{ true },
     playerColor = T{ 1.00, 0.85, 0.20, 1.00 },
@@ -233,13 +239,13 @@ local function Floors(floors, shown)
     end
 end
 
-local function Hovered(mx, my, entry, size)
+local function Hovered(mx, my, entry)
     local lines = { maps.Square(mx, my) };
     if entry ~= nil then
         local x, y = maps.ToWorld(entry, mx, my);
         lines[1] = ('%s  (%d, %d)'):format(lines[1], math.floor(x + 0.5), math.floor(y + 0.5));
     end
-    local unit = size / (view.Size / state.zoom);
+    local unit = 1 / view.Units(state, 1);
     for _, marker in ipairs(scene.markers) do
         local dx, dy = (marker.mx - mx) * unit, (marker.my - my) * unit;
         if dx * dx + dy * dy <= REACH * REACH and marker.name ~= nil and marker.name ~= '' then
@@ -282,12 +288,14 @@ local function Draw()
         Floors(floors, shown);
     end
 
-    local size = options.size[1];
+    local mode = passing and 'passthrough' or 'open';
+    local w, h = options[mode .. 'Width'][1], options[mode .. 'Height'][1];
+    view.Frame(state, w, h);
     local x, y = imgui.GetCursorScreenPos();
-    canvas[1], canvas[2] = size, size;
+    canvas[1], canvas[2] = w, h;
     imgui.InvisibleButton('##atlas.canvas', canvas);
     local hovered, active = imgui.IsItemHovered(), imgui.IsItemActive();
-    view.Input(state, x, y, size, hovered, active);
+    view.Input(state, x, y, hovered, active);
     if current.chosen == nil and playerAt.mx ~= nil then
         view.Track(state, playerAt.mx, playerAt.my);
     end
@@ -302,9 +310,9 @@ local function Draw()
         cursorAt.mx, cursorAt.my = cx, cy;
         scene.cursor = cursorAt;
     end
-    local mx, my = view.Draw(imgui.GetWindowDrawList(), state, x, y, size, scene, options);
+    local mx, my = view.Draw(imgui.GetWindowDrawList(), state, x, y, scene, options, options[mode .. 'Shape']);
     if hovered and mx ~= nil and shown ~= nil then
-        Hovered(mx, my, maps.Entry(shown, zone), size);
+        Hovered(mx, my, maps.Entry(shown, zone));
     end
 
     if imgui.SmallButton('-##atlas.zoomOut') then view.Zoom(state, state.zoom / 1.25, state.cx, state.cy); end
@@ -346,6 +354,30 @@ local function Show(label, key, colourKey, tip)
     imgui.ColorEdit4('##atlas.' .. colourKey, options[colourKey], ImGuiColorEditFlags_NoInputs);
 end
 
+local shapes = { { key = 'square', label = 'Square' }, { key = 'rounded', label = 'Rounded' }, { key = 'round', label = 'Round' } };
+
+-- A mode's frame: its width, height and shape
+local function Frame(mode, said)
+    local options = app.options;
+    widgets.PushControlWidth();
+    widgets.Label('Width');
+    imgui.SliderInt('##atlas.' .. mode .. 'Width', options[mode .. 'Width'], 128, 1024, '%d px');
+    tips.Hover(said .. ': the map\'s width.');
+    widgets.Label('Height');
+    imgui.SliderInt('##atlas.' .. mode .. 'Height', options[mode .. 'Height'], 128, 1024, '%d px');
+    tips.Hover(said .. ': the map\'s height. At 1x the longer side shows the whole map across; pan for the rest.');
+    widgets.PopControlWidth();
+    widgets.Label('Shape');
+    local key = mode .. 'Shape';
+    for index, shape in ipairs(shapes) do
+        if index > 1 then imgui.SameLine(); end
+        if imgui.RadioButton(('%s##atlas.%s%d'):format(shape.label, key, index), options[key] == shape.key) then
+            options[key] = shape.key;
+        end
+    end
+    tips.Hover(said .. ': Square; Rounded corners; or Round, a circle when Width and Height are the same and a pill when not.');
+end
+
 local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game\'s own map has it:\n'
     .. 'the left stick and the d-pad scroll, RB zooms in a step and LB out, Y puts a waypoint under the cursor in the middle,\n'
     .. 'A locks the map to you, X shows the next floor, and B gives it back. To walk with the map up, use passthrough (/atlas cycle).';
@@ -356,10 +388,14 @@ local function DrawSettings(options)
         imgui.Checkbox('##atlas.visible', options.isVisible);
         tips.Hover('Whether the map shows. /atlas switches this.');
         widgets.Lock(options.locked, '##atlas.locked', { tooltip = 'Keeps the window where it is. The map can still be panned and zoomed.' });
-        widgets.PushControlWidth();
-        widgets.Label('Map Size');
-        imgui.SliderInt('##atlas.size', options.size, 256, 1024, '%d px');
-        widgets.PopControlWidth();
+    end
+
+    if widgets.Header('Open') then
+        Frame('open', 'Open, browsing with the controller or shown by /atlas');
+    end
+
+    if widgets.Header('Passthrough') then
+        Frame('passthrough', 'Passthrough, the last step of /atlas cycle');
         widgets.PushControlWidth();
         widgets.Label('Passthrough Opacity');
         imgui.SliderInt('##atlas.passthroughOpacity', options.passthroughOpacity, 0, 100, '%d%%');
@@ -448,7 +484,7 @@ pad.Attach({
             return;
         end
         if waypoint ~= nil and waypoint.zone == current.zone and waypoint.floor == shown.floor then
-            local reach = 8 * view.Size / app.options.size[1] / state.zoom; -- REACH pixels, in map units
+            local reach = view.Units(state, REACH);
             local dx, dy = waypoint.mx - mx, waypoint.my - my;
             if dx * dx + dy * dy <= reach * reach then
                 waypoint = nil;

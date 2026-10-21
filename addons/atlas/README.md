@@ -73,10 +73,20 @@ the triggers to the game.)
 
 - **Visible**: whether the map shows.
 - **Lock Window**: keeps the window where it is. The map can still be panned and zoomed.
-- **Map Size**: 256 to 1024 pixels (512 to start).
-- **Passthrough Opacity**: in passthrough, the map fades to this while your character moves and
-  comes back about half a second after you stop, 0% to 100% (30% to start). At 0% it is gone until
-  you stop. The mouse over the map shows it whole. Open, or shown by `/atlas`, it never fades.
+
+**Open** (browsing with the controller, or shown by `/atlas`) and **Passthrough** (the last step of
+`/atlas cycle`) each have their own frame:
+
+- **Width** and **Height**: 128 to 1024 pixels (512 by 512 to start). At 1x the longer side shows the
+  whole map across; a wide or tall frame shows part of it along the shorter side, and pans to the rest.
+- **Shape**: **Square**, **Rounded** (corners rounded a little) or **Round** (a circle when Width and
+  Height are the same, a pill when not). Markers in the corners a shape cuts away are not drawn.
+
+Passthrough also has:
+
+- **Passthrough Opacity**: the map fades to this while your character moves and comes back about
+  half a second after you stop, 0% to 100% (30% to start). At 0% it is gone until you stop. The mouse
+  over the map shows it whole. Open, or shown by `/atlas`, it never fades.
 
 **Markers**
 

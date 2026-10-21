@@ -24,6 +24,7 @@ local list = setmetatable({
     AddTriangleFilled = function(_, p1) drawn[#drawn + 1] = { kind = 'arrow', x = p1[1], y = p1[2] } end,
     AddCircleFilled = function(_, c, r) drawn[#drawn + 1] = { kind = 'dot', x = c[1], y = c[2] } end,
     AddCircle = function(_, c) drawn[#drawn + 1] = { kind = 'ring', x = c[1], y = c[2] } end,
+    AddImageRounded = function(_, handle, a, b, uvA, uvB, col, rounding) drawn[#drawn + 1] = { kind = 'image', handle = handle, uvA = { uvA[1], uvA[2] }, uvB = { uvB[1], uvB[2] }, rounding = rounding, w = b[1] - a[1], h = b[2] - a[2] } end,
     AddLine = function(_, a) drawn[#drawn + 1] = { kind = 'line', x = a[1], y = a[2] } end,
     AddQuadFilled = function(_, a, b, c) drawn[#drawn + 1] = { kind = 'diamond', x = a[1], y = b[2] } end,
     AddText = function(_, pos, color, words) drawn[#drawn + 1] = { kind = 'text', words = words } end,
@@ -495,3 +496,45 @@ H.command('/atlas cycle')
 H.print('then passthrough', math.abs(alphaAfter(20, true) - 0.3) < 0.001)
 o.controller[1] = true
 imgui.PushStyleVar = pushStyleVar
+
+-- each mode's frame: open's Width, Height and Shape, and passthrough's own
+local frameSize = nil
+local invisibleButton = imgui.InvisibleButton
+rawset(imgui, 'InvisibleButton', function(id, size, ...) if id == '##atlas.canvas' then frameSize = { size[1], size[2] } end return invisibleButton(id, size, ...) end)
+zone = 126
+entities[1] = { x = 100, y = -20, z = 5, heading = 1.0, name = 'Tester' }
+o.isVisible[1] = false -- out of the passthrough the last check left
+H.frames(1)
+o.isVisible[1] = true
+zone = 184 -- and a new zone, for the view at 1x again
+frame()
+zone = 126
+o.openWidth[1], o.openHeight[1] = 512, 256
+frame()
+image = first('image')
+H.print('open 512 by 256: the frame that size', frameSize ~= nil and frameSize[1] == 512 and frameSize[2] == 256)
+H.print('at 1x the width the whole map across, half of it down', image ~= nil and image.uvA[1] == 0 and image.uvB[1] == 1 and math.abs(image.uvB[2] - image.uvA[2] - 0.5) < 0.001)
+H.print('square: no rounding', image ~= nil and image.rounding == nil)
+o.openShape = 'round'
+frame()
+image = first('image')
+H.print('round: the picture rounded by half the shorter side, a pill', image ~= nil and image.rounding == 128)
+o.openShape = 'rounded'
+frame()
+image = first('image')
+H.print('rounded: a little', image ~= nil and image.rounding ~= nil and image.rounding > 0 and image.rounding < 40)
+o.passthroughWidth[1], o.passthroughHeight[1], o.passthroughShape = 256, 256, 'round'
+o.isVisible[1] = false
+H.frames(1)
+H.command('/atlas cycle')
+H.command('/atlas cycle')
+frame()
+image = first('image')
+H.print('passthrough: its own 256 by 256, round, a circle', frameSize[1] == 256 and frameSize[2] == 256, image ~= nil and image.rounding == 128 and image.w == 256)
+H.command('/atlas cycle')
+o.isVisible[1] = true
+frame()
+H.print('shown by /atlas: open\'s frame', frameSize[1] == 512 and frameSize[2] == 256)
+o.openWidth[1], o.openHeight[1], o.openShape = 512, 512, 'square'
+o.passthroughWidth[1], o.passthroughHeight[1], o.passthroughShape = 512, 512, 'square'
+rawset(imgui, 'InvisibleButton', invisibleButton)
