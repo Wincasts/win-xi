@@ -110,6 +110,7 @@ for _, style in ipairs({ 'silver', 'bronze', 'ffxi', 'crystal', 'royal', 'obsidi
     'mythril', 'adaman', 'jade', 'amethyst', 'kingdom', 'magitek', 'aether', 'elven', 'gothic' }) do
     bookendFiles[style] = 'bookends/' .. style .. '.png'
 end
+bookendFiles.obsidian_plain = bookendFiles.obsidian -- Plain Obsidian's border matches Obsidian's bookends
 local wholeCap = { 0, 0, 1, 1 }
 local barKinds = { 'hp', 'mp' }
 local barTextureSet = false -- the set the bars' paths below were last made for: none yet (nil is the usual set)

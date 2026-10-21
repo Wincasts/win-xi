@@ -29,7 +29,7 @@ local folder = nil;
 local handles = {}; -- style -> its handle, or false where it would not load
 local kept = {};    -- the textures themselves, held so that they are not let go
 local files = {
-    silver = true, bronze = true, ffxi = true, crystal = true, royal = true, obsidian = true,
+    silver = true, bronze = true, ffxi = true, crystal = true, royal = true, obsidian = true, obsidian_plain = true,
     royal_silver = true, royal_platinum = true, mythril = true, adaman = true, jade = true, amethyst = true,
 };
 

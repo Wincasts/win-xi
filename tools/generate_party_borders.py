@@ -21,6 +21,8 @@ PALETTES = {
     'amethyst': [(20, 10, 32), (86, 52, 128), (240, 222, 255), (150, 112, 196), (56, 32, 88), (200, 168, 236), (66, 40, 104), (16, 8, 28)],
     'obsidian': [(8, 9, 17), (46, 44, 66), (169, 168, 196), (76, 74, 96), (26, 25, 40), (117, 115, 150), (44, 41, 64), (11, 10, 22)],
 }
+# Plain Obsidian: obsidian's bands without the light slash in its corners
+PALETTES['obsidian_plain'] = PALETTES['obsidian']
 
 
 def generate(name, palette):
@@ -94,9 +96,9 @@ def preview(textures):
     small = ImageFont.truetype('DejaVuSans.ttf', 14)
     d.text((24, 18), 'XIFRAMES / WINDOW BORDER CONCEPTS', font=font, fill='#d8e1ef')
     labels = {'silver':'BRUSHED SILVER', 'bronze':'BRONZE', 'ffxi':'FFXI-INSPIRED',
-              'crystal':'CRYSTAL', 'royal':'ROYAL GOLD', 'royal_silver':'ROYAL SILVER', 'royal_platinum':'ROYAL PLATINUM', 'obsidian':'OBSIDIAN',
+              'crystal':'CRYSTAL', 'royal':'ROYAL GOLD', 'royal_silver':'ROYAL SILVER', 'royal_platinum':'ROYAL PLATINUM', 'obsidian':'OBSIDIAN', 'obsidian_plain':'PLAIN OBSIDIAN',
               'mythril':'MYTHRIL', 'adaman':'ADAMAN', 'jade':'JADE', 'amethyst':'AMETHYST'}
-    backgrounds = {'crystal': (13, 38, 63), 'royal': (39, 26, 42), 'obsidian': (20, 18, 32),
+    backgrounds = {'crystal': (13, 38, 63), 'royal': (39, 26, 42), 'obsidian': (20, 18, 32), 'obsidian_plain': (20, 18, 32),
                    'adaman': (36, 18, 18), 'jade': (12, 34, 28), 'amethyst': (28, 16, 42)}
     for index, (name, im) in enumerate(textures.items()):
         col, grid_row = index % 3, index // 3
