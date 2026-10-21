@@ -36,6 +36,7 @@ local defaultSettings = T{
     ShowFrame = true,
     ShowFrameShadow = true, -- winxi: the theme's drop shadow under each frame
     ShowGloss = false, -- winxi: a glossy light over each icon (gloss.lua)
+    GlossOpacity = 100, -- winxi: how strong the gloss is, 0 to 100
     FrameBorder = 'none', -- winxi: the theme's border art round each frame (frameborder.lua)
     ShowCost = true,
     ShowCross = true,

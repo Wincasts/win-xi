@@ -275,7 +275,7 @@ function Element:RenderIcon(sprite)
         sprite:Draw(icon.Texture, icon.Rect, icon.Scale, nil, 0.0, vec_position, opacity);
         -- winxi: the gloss over the icon, under the overlays below
         if (gSettings.ShowGloss) then
-            gloss.Draw(sprite, vec_position.x, vec_position.y, layout.Icon.Width, layout.Icon.Height);
+            gloss.Draw(sprite, vec_position.x, vec_position.y, layout.Icon.Width, layout.Icon.Height, gSettings.GlossOpacity);
         end
     end
 

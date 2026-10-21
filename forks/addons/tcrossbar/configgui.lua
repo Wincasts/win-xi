@@ -294,6 +294,14 @@ function exposed:Render()
                         imgui.EndCombo();
                     end
                     imgui.ShowHelp('Draws one of the Winxi Theme\'s border styles round each macro element: round its frame, or round its icon while Frame is off. Window Border follows the theme\'s own (none while that is the plain border). Faded by the theme\'s Border Opacity.');
+                    -- winxi: how strong the gloss is
+                    imgui.TextColored(header, 'Gloss Opacity');
+                    local glossBuff = { gSettings.GlossOpacity or 100 };
+                    if imgui.SliderInt('##tCrossBarGlossOpacity', glossBuff, 0, 100, '%d%%', ImGuiSliderFlags_AlwaysClamp) then
+                        gSettings.GlossOpacity = glossBuff[1];
+                        settings.save();
+                    end
+                    imgui.ShowHelp('How strong the gloss over each icon is, while Gloss is on: 100 is its full light, 0 none.');
                     imgui.EndTabItem();
                 end
                 

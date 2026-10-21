@@ -24,7 +24,8 @@ author as plain files rather than a submodule. `readme.md` is the original's. Wh
 - **A gloss over each icon.** Gloss (Components tab, off to start) draws the light of a glass button over
   every icon: white over its upper part, brightest at the top and fading to a curved edge lowest in the
   middle, and a faint shade at the foot. Made once into a texture for each size of icon (`gloss.lua`),
-  drawn over the icon and under the cross, trigger and skillchain overlays.
+  drawn over the icon and under the cross, trigger and skillchain overlays, faded by Gloss Opacity (0 to
+  100%, 100 to start).
 
 - **Less work each frame.** The set blue magic is read only for a blue mage and a few times a second,
   not every frame for every job (`state/player.lua`). A slot's state is worked out ten times a second

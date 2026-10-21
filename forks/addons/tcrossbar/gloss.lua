@@ -3,7 +3,8 @@
 -- The light of a glass button: white over the upper part of the icon, brightest at the top and fading
 -- down to a curved lower edge, lowest in the middle; and a faint shade of black rising towards the
 -- foot. The crossbar is drawn with a D3DX sprite, so the shape is made once into a texture for each
--- size of icon, as frameshadow.lua makes its shadow, and drawn over each icon with one sprite draw.
+-- size of icon, as frameshadow.lua makes its shadow, and drawn over each icon with one sprite draw,
+-- faded by Gloss Opacity.
 local d3d8 = require('d3d8');
 local ffi = require('ffi');
 
@@ -15,7 +16,6 @@ local CENTRE_Y, RADIUS_X, RADIUS_Y = -0.35, 0.95, 0.85; -- the light's ellipse, 
 local SHADE_FROM, SHADE = 0.70, 0.18; -- the shade starts this far down, and is this dark at the foot
 
 local made = {};                   -- 'width:height' -> { Texture, Rect }, or false where it could not be made
-local d3dwhite = d3d8.D3DCOLOR_ARGB(255, 255, 255, 255);
 local unit = ffi.new('D3DXVECTOR2', { 1.0, 1.0 });
 local vec_position = ffi.new('D3DXVECTOR2', { 0, 0 });
 
@@ -78,8 +78,10 @@ local function Make(width, height)
     return { Texture = texture, Rect = ffi.new('RECT', { 0, 0, w, h }) };
 end
 
--- Draws the gloss over an icon width by height at x, y
-function gloss.Draw(sprite, x, y, width, height)
+-- Draws the gloss over an icon width by height at x, y, at opacity percent of its full light
+function gloss.Draw(sprite, x, y, width, height, opacity)
+    local alpha = math.floor(math.max(0, math.min(100, tonumber(opacity) or 100)) / 100 * 255 + 0.5);
+    if alpha <= 0 then return; end
     local size = ('%d:%d'):format(math.floor(width + 0.5), math.floor(height + 0.5));
     local shine = made[size];
     if shine == nil then
@@ -89,7 +91,7 @@ function gloss.Draw(sprite, x, y, width, height)
     end
     if not shine then return; end
     vec_position.x, vec_position.y = x, y;
-    sprite:Draw(shine.Texture, shine.Rect, unit, nil, 0.0, vec_position, d3dwhite);
+    sprite:Draw(shine.Texture, shine.Rect, unit, nil, 0.0, vec_position, d3d8.D3DCOLOR_ARGB(alpha, 255, 255, 255));
 end
 
 return gloss;
