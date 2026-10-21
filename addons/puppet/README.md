@@ -8,7 +8,7 @@ do in the order it tries them, each with its timer, in a small window. It needs 
     Next Action:  Dia II
     Heal                     12s
     Enfeeble      Dia II     Next
-    WS            Slapstick  -
+    WS            Slapstick  ~9s
 
     Bash                     142s
     Provoke                  12s
@@ -31,8 +31,11 @@ fighting is told to its master alone, in the packet that keeps the two in step. 
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
 The list is in three parts. **Next Action** is what the automaton will do next, the spell or weapon
-skill by name: whatever comes first in its order with something to do and nothing to wait for, or, with
-nothing ready, the weapon skill it will use once it has the TP. Under that is the **queue**: what the
+skill by name: whatever comes first in its order with something to do and nothing to wait for. With
+nothing ready it is whichever comes soonest: a spell waiting on its timer with something to cast, or the
+weapon skill at the time the automaton will have the TP for it, going by the rate it has gained TP over
+the last half minute (`tp.lua`); the WS row then shows that time as an estimate, `~9s`. With nothing
+waiting, or no rate known yet, the weapon skill is named. Under that is the **queue**: what the
 maneuvers choose, in the order it tries them, each with its timer, named short: Heal, Enfeeble, Nuke,
 Erase (a status removal) and WS (the weapon skill). After a gap come the **cooldowns**: what is not
 chosen but runs on a timer of its own, each row there only while its timer runs, with the seconds left.
@@ -109,4 +112,5 @@ What it cannot know:
   Eraser, a buff on the enemy for a Disruptor or Regulator. They are never called the next action.
 
 `predict.lua` holds the choosing, apart from the game, `tracker.lua` when the automaton last did each
-kind of thing, `burden.lua` the burden, and `tests/puppet_check.lua` works them through.
+kind of thing, `tp.lua` how fast it gains TP, `burden.lua` the burden, and `tests/puppet_check.lua`
+works them through.

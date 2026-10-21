@@ -152,6 +152,15 @@ H.frames(700); H.print('the timers run out:', list()); game.hp = 100
 game.buffs = { 306 }; game.hp = 35; H.print('Light, the master at 35%: heal comes first:', list()); game.buffs = {}; game.hp = 100
 game.petTp = 1200; H.print('TP ready, a spell ready too: the spell comes first:', list(), '| Slapstick in thunder', same(colorOf('Slapstick'), thunder))
 did(8, white, 220); H.print('the spell just cast: the weapon skill is next:', list()); game.petTp = 300
+-- the weapon skill against the spells' timers, at the rate the automaton gains TP, which the addon
+-- samples from the game every frame (a frame is 0.03 s here)
+local tpRate = require('tp')
+tpRate.Clear(); game.petTp = 300; H.frames(1); game.petTp = 450; H.frames(170); game.petTp = 600; H.frames(170)
+H.print('TP 300 to 600 in five seconds: the weapon skill in ~7s, before the spell:', list())
+tpRate.Clear(); game.petTp = 300; H.frames(1); game.petTp = 310; H.frames(170); game.petTp = 320; H.frames(170)
+H.print('a trickle: the spell comes first:', list())
+game.petTp = 200; H.frames(2); H.print('a fall in TP starts the rate again: no rate, the spell waiting: the spell:', list())
+tpRate.Clear()
 did(8, whiteBroken, 0); did(8, white, 1); tracker.Action({ actor_id = 77, category = 8, param = white, targets = { { id = 900, actions = { { param = 23 } } } } }, 2)
 H.print('a casting broken off, and someone else\'s, change nothing; a cure starts the heal timer:', list())
 tracker.Clear(); describe(3, 0x22, 200); H.print('Sharpshot frame:', list()); did(11, 1949); H.print('it shoots:', list())
@@ -164,6 +173,13 @@ describe(6, 0x23, 120); H.print('Spiritreaver, no Dark:', list())
 describe(1, 0x20, 120); o.showPriority[1] = false; entities[1].PetTargetIndex = 0; fight(0); tracker.Clear(); shown()
 o.showBurden[1] = true
 -- the burden of each element: 35 of each to start, one off every three seconds, and what a maneuver adds
+-- how fast the automaton gains TP, from its TP frame by frame
+tpRate.Clear(); H.print('TP rate: nothing seen', tpRate.Until(1000, 0) == nil)
+tpRate.Sample(100, 0); tpRate.Sample(100, 1); tpRate.Sample(160, 6); H.print('100 then 160 six seconds on: 10 a second', tpRate.Rate(6), '| 84 seconds to 1000', tpRate.Until(1000, 6))
+tpRate.Sample(1000, 90); H.print('with 1000: 0', tpRate.Until(1000, 90))
+tpRate.Sample(0, 91); H.print('a weapon skill, TP falls: no rate again', tpRate.Rate(91) == nil, '| nor a time', tpRate.Until(1000, 91) == nil)
+tpRate.Sample(50, 92); H.print('too soon to say', tpRate.Rate(92) == nil); tpRate.Sample(80, 95); H.print('three seconds on: 20 a second', tpRate.Rate(95))
+tpRate.Sample(80, 200); H.print('the old samples go, but a rate stays while the TP sits', tpRate.Rate(200) ~= nil); tpRate.Clear()
 local burden = require('burden')
 local harlequin, valoredge, heatsink = { frame = 0x20 }, { frame = 0x21 }, { frame = 0x20, attachments = { [162] = true } }
 local function maneuver(element, chance, state, at) burden.Action({ actor_id = 1, category = 6, param = 140 + element, targets = { { id = 1, actions = { { param = chance } } } } }, state or harlequin, at) end

@@ -1,6 +1,6 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.7'
+addon.version = '1.8'
 addon.desc    = 'What an automaton will do next and the timers on everything it might: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -9,8 +9,10 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- choose, in the order it tries them, with the timer on each (its spells with the enfeeble it would cast
 -- named, the weapon skill); then the cooldowns running on what is not chosen (its shield bash, its shot,
 -- what its attachments do when their maneuver is up), each there only while its timer runs. A thing
--- that answers to a maneuver has its name in the maneuver's colour. The choosing is predict.lua's, which follows the server's; this gathers what it
--- needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the target) and
+-- that answers to a maneuver has its name in the maneuver's colour. The weapon skill is called next
+-- when the automaton will have the TP for it, at the rate it has been gaining it (tp.lua), before any
+-- spell's timer runs out. The choosing is predict.lua's, which follows the server's; this gathers what
+-- it needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the target) and
 -- shows the answer. With Transparent on the window has no backdrop, border or shadow, and every line is winxi's
 -- outlined text, so that it reads over the game.
 --
@@ -30,6 +32,7 @@ local packets = require('winxi.packets')
 local predict = require('predict')
 local tracker = require('tracker')
 local burden = require('burden')
+local tp = require('tp')
 
 local windowName = 'winxi.puppet'
 
@@ -242,6 +245,7 @@ local function Work(pet, id)
         hpp = pet.HPPercent,
         mpp = memory:GetPlayer():GetPetMPPercent(),
         tp = memory:GetPlayer():GetPetTP(),
+        tpIn = tp.Until(1000),
         since = tracker.Since,
         attachments = automaton.attachments,
     })
@@ -258,7 +262,7 @@ dummy.priority = {
     { name = 'Enfeeble', section = 'queue', detail = { name = 'Dia II', element = 'light' }, state = 'ready', wait = 0, ready = true },
     { name = 'Nuke', section = 'queue', element = 'ice', state = 'waiting', wait = 12 },
     { name = 'Erase', section = 'queue', element = 'water', state = 'ready', wait = 0 },
-    { name = 'WS', section = 'queue', detail = { name = 'Slapstick', element = 'thunder' }, state = 'idle', wait = 0 },
+    { name = 'WS', section = 'queue', detail = { name = 'Slapstick', element = 'thunder' }, state = 'waiting', wait = 9, estimate = true },
     { name = 'Shot', section = 'cooldown', element = 'wind', state = 'waiting', wait = 7 },
     { name = 'Provoke', section = 'cooldown', element = 'fire', state = 'waiting', wait = 24 },
     { name = 'Flash', section = 'cooldown', element = 'light', state = 'waiting', wait = 31 },
@@ -317,10 +321,9 @@ local function WriteDetail(detail)
     end
 end
 
--- The list, in three parts. First the action the automaton will take next: the row that comes first
--- with something to do and nothing to wait for, or, with nothing ready, the weapon skill it would use
--- once it has the TP: the spell or the weapon skill by name, or the row's name where there is nothing
--- else to say. Then what the maneuvers choose (the spells, the weapon skill), in the order it tries them,
+-- The list, in three parts. First the action the automaton will take next, as predict.Priority marks
+-- it (the first ready, else the soonest to be, the weapon skill counted at the time it will have the
+-- TP): the spell or the weapon skill by name, or the row's name where there is nothing else to say. Then what the maneuvers choose (the spells, the weapon skill), in the order it tries them,
 -- each the name, what it would do and the timer, the seconds left whenever its timer runs. Then, after a
 -- gap, the cooldowns: what is not chosen but runs on a timer of its own (the bash, the shot, the
 -- attachments' actions), each there only while its timer runs, with the seconds left. A name that
@@ -332,16 +335,12 @@ local function DrawPriority()
     end
     imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, labelWidth)
 
-    local next, weaponskill = nil, nil
+    local next = nil
     for _, row in ipairs(showing.priority) do
         if row.ready then
             next = row
         end
-        if row.name == 'WS' then
-            weaponskill = row
-        end
     end
-    next = next or weaponskill
     imgui.TableNextRow()
     imgui.TableNextColumn(); WriteFaint('Next Action:')
     imgui.TableNextColumn()
@@ -364,7 +363,8 @@ local function DrawPriority()
         if row.section == 'queue' then
             local state = 'Ready'
             if row.state == 'waiting' then
-                state = ('%ds'):format(math.ceil(row.wait))
+                -- an estimate (the weapon skill's, from the rate of TP) is marked as one
+                state = (row.estimate and '~%ds' or '%ds'):format(math.ceil(row.wait))
             elseif row.state == 'idle' then
                 state = '-'
             elseif row.ready then
@@ -488,7 +488,7 @@ local function DrawSettings(options)
     tips.Hover('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.');
     widgets.Label('Show Priority List')
     imgui.Checkbox('##puppet.showPriority', options.showPriority)
-    tips.Hover('Next Action: what the automaton will do next, the spell or weapon skill by name. Under it, what the maneuvers choose, in the order it tries them: its spells (the enfeeble it would cast named) and WS (the weapon skill, named), each with its timer:\nthe seconds left while it runs, else Ready, Next, or - when there is nothing for it to do.\nThen the cooldowns running on what is not chosen: Bash (shield bash), Shot (ranged attack) and what each attachment fitted does when its maneuver is up (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), each there only while its timer runs.\nA name in a colour answers to the maneuver of that colour. A timer is only known once the automaton has been seen to act.');
+    tips.Hover('Next Action: what the automaton will do next, the spell or weapon skill by name: the first thing ready, else the soonest to be, the weapon skill counted at the time it will have the TP at the rate it gains it (its row then shows that time as ~).\nUnder it, what the maneuvers choose, in the order it tries them: its spells (the enfeeble it would cast named) and WS (the weapon skill, named), each with its timer:\nthe seconds left while it runs, else Ready, Next, or - when there is nothing for it to do.\nThen the cooldowns running on what is not chosen: Bash (shield bash), Shot (ranged attack) and what each attachment fitted does when its maneuver is up (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), each there only while its timer runs.\nA name in a colour answers to the maneuver of that colour. A timer is only known once the automaton has been seen to act.');
     widgets.Label('Show Burden')
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
     tips.Hover('The burden of each element as a figure in its colour, in one line: fire, ice, wind, earth, thunder, water, light, dark.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.\nResting the mouse on a figure names its element and gives the chance of one more maneuver of it overloading.');
@@ -595,10 +595,14 @@ ashita.events.register('d3d_present', 'puppet_present', function()
     if id ~= petId then
         petId = id
         tracker.Clear()
+        tp.Clear()
         if id ~= nil and newArea then
             burden.Spawned()
             newArea = false
         end
+    end
+    if pet ~= nil then
+        tp.Sample(AshitaCore:GetMemoryManager():GetPlayer():GetPetTP())
     end
     if pet ~= nil and options.showBurden[1] then
         WorkBurden()

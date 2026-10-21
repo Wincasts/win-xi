@@ -221,6 +221,7 @@ end
 --         enfeebles = { 'Bio', 'Poison' },                  -- from Queue: the spells, next first; nil or empty for none. The first is named
 --         weaponskill = 'Slapstick', weaponskillElement = 'thunder', -- from Weaponskill: nil where there is none
 --         masterHpp = 82, hpp = 100, mpp = 60, tp = 640,   -- the master's HP, and the automaton's own
+--         tpIn = 12,                                        -- seconds until it has 1000 TP, at the rate it gains it (tp.Until), or nil
 --         since = function(kind) ... end,                   -- seconds since it last did a thing: tracker.Since
 --         attachments = { [33] = true },                    -- those fitted, by the server's number for each
 --     })
@@ -236,6 +237,11 @@ end
 -- one row the automaton will act on next; unsure marks a row whose condition the game is not told of
 -- (an enemy casting, an ailment to remove), which is never called next. The timers are Phoenix's for
 -- this era.
+--
+-- What comes next is the first row ready with nothing in doubt. With none ready, it is whichever comes
+-- soonest of the rows waiting on a timer with something to do, and the weapon skill at the time it will
+-- have the TP (tpIn); the weapon skill's row then shows that time as an estimate. With no rate known,
+-- or nothing waiting, the weapon skill is named, as the thing it will do once it has the TP.
 
 local cooldowns = { -- by head: between any two spells, and between two of a kind
     [1] = { magic = 30, heal = 20, enfeeble = 20 },
@@ -302,7 +308,7 @@ function predict.Priority(state)
     local section = 'cooldown'
     local function add(name, element, detail, needed, wait, unsure)
         rows[#rows + 1] = { name = name, section = section, element = element, detail = detail, wait = wait or 0, unsure = unsure or nil,
-            state = ((wait or 0) > 0 and 'waiting') or (not needed and 'idle') or 'ready' }
+            needed = needed and true or false, state = ((wait or 0) > 0 and 'waiting') or (not needed and 'idle') or 'ready' }
     end
 
     -- a shield bash, on a Valoredge frame: only when the enemy is doing something it would break. An
@@ -426,11 +432,33 @@ function predict.Priority(state)
 
     -- the first with something to do and nothing to wait for is what comes next, unless its condition
     -- is one the game is not told of: an enemy casting, an ailment or a buff to take off
+    local weaponskill = nil
     for _, row in ipairs(rows) do
         if row.state == 'ready' and not row.unsure then
             row.ready = true
-            break
+            return rows
         end
+        if row.name == 'WS' then
+            weaponskill = row
+        end
+    end
+
+    -- none ready: the soonest of those waiting with something to do, against the weapon skill at the
+    -- time it will have the TP. The weapon skill where nothing is waiting, or no rate is known.
+    local soonest = nil
+    for _, row in ipairs(rows) do
+        if row.state == 'waiting' and row.needed and not row.unsure and (soonest == nil or row.wait < soonest.wait) then
+            soonest = row
+        end
+    end
+    local tpIn = state.tpIn
+    if weaponskill ~= nil and (soonest == nil or (tpIn ~= nil and tpIn < soonest.wait)) then
+        if tpIn ~= nil and tpIn > 0 then
+            weaponskill.state, weaponskill.wait, weaponskill.estimate = 'waiting', tpIn, true
+        end
+        weaponskill.ready = true
+    elseif soonest ~= nil then
+        soonest.ready = true
     end
     return rows
 end
