@@ -45,6 +45,11 @@ don't walk off, and as browsing begins the game is told the stick is centred, so
 you stop. The stick is read from the kind of controller **Controller Type** names: an XInput
 controller's as Ashita's buttons 18 and 19, a DirectInput one's as its axes 0 and 4.
 
+The triggers are not the map's. With tcrossbar loaded they stay its while you browse: hold L2 or R2
+and the crossbar comes up, and the buttons you press while holding it fire its macros rather than
+working the map. (This needs the tcrossbar in `forks/addons`; another crossbar addon, or none, leaves
+the triggers to the game.)
+
 ## Markers
 
 - **You**: an arrow the way you face.

@@ -22,6 +22,11 @@
 -- that changes and once a second while it has. An addon with a controller of its own listens for it
 -- and stands down; controller.OtherHasFocus() is the same asked of other winxi addons.
 --
+-- A binding made with passTriggers set leaves the triggers alone: they are not kept from the game or
+-- from other addons, and while one is held the binding takes no presses, so that a crossbar (tcrossbar,
+-- say) can have the trigger and the buttons pressed with it. Its focus event says so, as a third part
+-- of its data, ':pass', when every binding that has the controller passes the triggers.
+--
 -- The grid and the menu make the sounds of winxi.sound as they are worked, once an addon turns those on,
 -- and a binding makes the open sound as it takes the controller: as its window opens.
 --
@@ -87,6 +92,7 @@ local held = {};      -- button -> whether it is down
 local owner = {};     -- button -> the binding that took its press, until it is let go
 local since = {};     -- button -> when that press began
 local repeated = {};  -- button -> when it last repeated
+local triggerDown = {}; -- trigger (by the number the controller gives it) -> whether it is held
 local listening = false;
 
 -- The kinds of controller. XInput is read as it comes. Each DirectInput layout says which of that
@@ -97,7 +103,8 @@ controller.Layouts = {
     { key = 'playstation', label = 'DirectInput (PlayStation)', buttons = {
         [48] = B.X, [49] = B.A, [50] = B.B, [51] = B.Y,          -- square, cross, circle, triangle
         [52] = B.LB, [53] = B.RB, [56] = B.Back, [57] = B.Start, [58] = B.L3, [59] = B.R3 },
-        triggers = { [54] = true, [55] = true } },                -- L2, R2
+        triggers = { [54] = true, [55] = true },                  -- L2, R2
+        triggerAxes = { [12] = true, [16] = true } },             -- how far L2 and R2 are pulled, 0 at rest
     { key = 'switch', label = 'DirectInput (Switch Pro)', buttons = {
         [48] = B.A, [49] = B.B, [50] = B.X, [51] = B.Y,          -- B, A, Y, X: bottom, right, left, top
         [52] = B.LB, [53] = B.RB, [56] = B.Back, [57] = B.Start, [58] = B.L3, [59] = B.R3 },
@@ -124,6 +131,9 @@ function controller.SetLayout(key)
                 end
                 for button in pairs(owner) do
                     owner[button] = nil;
+                end
+                for id in pairs(triggerDown) do
+                    triggerDown[id] = nil;
                 end
             end
             break;
@@ -153,9 +163,10 @@ local function Process(button, down)
     end
 
     if down and not wasDown then
+        local trigger = next(triggerDown) ~= nil;
         for _, binding in ipairs(bindings) do
             local action = binding.actions[button];
-            if action ~= nil and binding.active() then
+            if action ~= nil and not (trigger and binding.passTriggers) and binding.active() then
                 owner[button] = binding;
                 since[button] = os.clock();
                 repeated[button] = nil;
@@ -167,20 +178,23 @@ local function Process(button, down)
     return false;
 end
 
--- Whether any binding has the controller, as of the last frame
+-- Whether any binding has the controller, as of the last frame, and whether any of those keeps the
+-- triggers
 local anyActive = false;
+local anyKeepsTriggers = false;
 
 -- A trigger is being reported (by whatever number the controller gives it). Kept from the game from
 -- when it is pulled while a binding has the controller until it is let go.
 local triggerHeld = {};
 
 local function ProcessTrigger(id, down)
+    triggerDown[id] = down or nil;
     if not down then
         local was = triggerHeld[id];
         triggerHeld[id] = nil;
         return was == true;
     end
-    if triggerHeld[id] == nil and anyActive and controller.BlockTriggers then
+    if triggerHeld[id] == nil and anyKeepsTriggers and controller.BlockTriggers then
         triggerHeld[id] = true;
     end
     return triggerHeld[id] == true;
@@ -244,6 +258,10 @@ local function OnDirectInput(e)
         if ProcessTrigger(e.button, e.state == 128) then
             e.blocked = true;
         end
+    elseif layout.triggerAxes ~= nil and layout.triggerAxes[e.button] then
+        if ProcessTrigger(e.button, e.state > 0) then
+            e.blocked = true;
+        end
     end
 end
 
@@ -260,6 +278,9 @@ local othersFocused = {};    -- addon name -> when it last said it has the contr
 
 local function TellFocus(focused, now)
     local text = ('%s:%d'):format(addon.name, focused and 1 or 0);
+    if focused and not anyKeepsTriggers then
+        text = text .. ':pass';
+    end
     AshitaCore:GetPluginManager():RaiseEvent(controller.FocusEvent, { text:byte(1, -1) });
     focusTold, focusToldAt = focused, now;
 end
@@ -297,7 +318,7 @@ local function OnPresent()
     local now = os.clock();
 
     -- a binding that has just taken the controller: its window has opened
-    local any = false;
+    local any, keeps = false, false;
     for index = 1, #bindings do
         local binding = bindings[index];
         local active = binding.active() and true or false;
@@ -308,10 +329,13 @@ local function OnPresent()
             binding.wasActive = active;
         end
         any = any or active;
+        keeps = keeps or (active and not binding.passTriggers);
     end
 
     anyActive = any;
-    if any ~= (focusTold or false) or (any and now - focusToldAt >= focusRepeat) then
+    local keptChanged = keeps ~= anyKeepsTriggers;
+    anyKeepsTriggers = keeps;
+    if any ~= (focusTold or false) or (any and (keptChanged or now - focusToldAt >= focusRepeat)) then
         TellFocus(any, now);
     end
 
@@ -341,6 +365,7 @@ function controller.Bind(spec)
         actions = spec.actions or controller.StandardActions(),
         repeats = spec.repeats or {},
         press = spec.press or function() end,
+        passTriggers = spec.passTriggers == true, -- leaves the triggers to the game and other addons
         bound = os.clock(),   -- when it was made
         wasActive = false,    -- whether it had the controller a frame ago
     };

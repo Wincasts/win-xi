@@ -396,6 +396,17 @@ dtap(50) -- circle: B (the map was open already, so it stays)
 frame()
 H.print('circle: given back, the map left open', o.isVisible[1], H.dinput(0, 127) == false)
 H.dinput(0, 0)
+-- the triggers left to a crossbar: other addons told so, both of L2's reports let through, and a
+-- button pressed while it is held not the map's
+H.command('/atlas browse')
+frame()
+H.print('browsing: the triggers left free, and told so', (H.raised[#H.raised] or ''):find('atlas:1:pass', 1, true) ~= nil,
+    H.dinput(54, 128) == false, H.dinput(12, 200) == false)
+H.print('R1 with L2 held not the map\'s', H.dinput(53, 128) == false) H.dinput(53, 0)
+H.dinput(54, 0) H.dinput(12, 0)
+H.print('L2 let go: R1 the map\'s again', H.dinput(53, 128) == true) H.dinput(53, 0)
+dtap(50)
+frame()
 o.controllerType = 'xinput'
 o.stickScrolls[1] = false
 H.frames(1)

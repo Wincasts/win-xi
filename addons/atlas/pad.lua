@@ -13,7 +13,8 @@
 -- X shows the zone's next floor, and B gives the controller back (hiding the map again, if browsing
 -- opened it). The left stick walks your character as ever, unless Stick Scrolls Map is on: then it
 -- scrolls, and is kept from the game while browsing, so you do not walk off; it is let through as it
--- comes back to the middle, and centred for the game as browsing begins.
+-- comes back to the middle, and centred for the game as browsing begins. The triggers are left alone:
+-- a crossbar (tcrossbar) keeps them, and while one is held the buttons are its, for its macros.
 --
 -- The buttons go through winxi.controller, XInput or DirectInput by Controller Type, and the stick is
 -- read from the same kind. XInput's axes come as buttons 18 (across) and 19 (up and down), each -32768
@@ -116,7 +117,7 @@ local function Press(action)
     end
 end
 
-local binding = controller.Bind({ active = Active, actions = actions, repeats = repeats, press = Press });
+local binding = controller.Bind({ active = Active, actions = actions, repeats = repeats, press = Press, passTriggers = true });
 
 -- How far the stick is pushed, past its middle: -1 to 1
 local function Push(value)
