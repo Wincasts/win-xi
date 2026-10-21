@@ -10,8 +10,8 @@ do in the order it tries them, each with its timer, in a small window. It needs 
     Enfeeble      Dia II, Poison, Silence  Next
     WS            Slapstick                -
 
+    Bash                                   142s
     Provoke                                12s
-    Stoneskin                              Ready
 
 - `/puppet` shows or hides the window
 - `/puppet config` opens or closes the settings
@@ -30,12 +30,13 @@ it is not. What it is
 fighting is told to its master alone, in the packet that keeps the two in step. A line with
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
-The list is in three parts. **Next Action** is what the automaton will do next: the first row under it
-with something to do and nothing to wait for. Under that is its own **queue**, everything it does of
-itself in the order it tries them, each with its timer, named short: Bash (a shield bash), Heal,
-Enfeeble, Nuke, Erase (a status removal), WS (the weapon skill) and Shot (a ranged attack). After a gap
-come the **attachments**: one row for each attachment fitted that acts of its own accord when its
-maneuver is up, with its timer, there only while it is fitted:
+The list is in three parts. **Next Action** is what the automaton will do next: whatever comes first
+in its order with something to do and nothing to wait for. Under that is the **queue**: what the
+maneuvers choose, in the order it tries them, each with its timer, named short: Heal, Enfeeble, Nuke,
+Erase (a status removal) and WS (the weapon skill). After a gap come the **cooldowns**: what is not
+chosen but runs on a timer of its own, each row there only while its timer runs, with the seconds left.
+Those are Bash (a shield bash, on a Valoredge frame), Shot (a ranged attack, on a Sharpshot frame) and
+the action of each attachment fitted that acts of its own accord when its maneuver is up:
 
 | Attachment | Row | Maneuver | Recast | Also needs |
 |---|---|---|---|---|
@@ -54,10 +55,10 @@ maneuver is up, with its timer, there only while it is fitted:
 
 Every three seconds or so the automaton tries a shield bash, then its spells in the head's order (which
 Light and Ice maneuvers change), then a weapon skill, then a shot, then what its attachments do, and does
-the first it can. A row says `Ready`, the seconds left of the timer it is waiting on, or `-` when there is
-nothing for it to do as things stand (nobody to heal, nothing to cast, no TP, the maneuver it waits for
-down), or `Next` on the one that comes next; a row whose condition the game is not told of (an enemy
-casting for Bash, an ailment for Erase and Eraser, a buff for Disruptor and Regulator) is never Next. The timers are Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier
+the first it can. A row of the queue says `Ready`, the seconds left of the timer it is waiting on, `-`
+when there is nothing for it to do as things stand (nobody to heal, nothing to cast, no TP), or `Next` on
+the one that comes next; a thing whose condition the game is not told of (an enemy casting for Bash, an
+ailment for Erase and Eraser, a buff for Disruptor and Regulator) is never Next. The timers are Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier
 Module counted where fitted. A timer is known only once the automaton has been seen to act, so a row
 may say Ready when the addon was loaded part way through a fight and it is not.
 
@@ -102,8 +103,7 @@ What it cannot know:
 - **A skillchain to close.** With an Inhibitor the automaton may hold its TP, or close a skillchain
   that is open with whichever weapon skill does so. The window shows the usual choice all the same.
 - **What an attachment waits for besides its maneuver**, where the game is not told: an ailment for an
-  Eraser, a buff on the enemy for a Disruptor or Regulator. Their rows say Ready whenever the maneuver is
-  up and the timer has run, and are never marked as next.
+  Eraser, a buff on the enemy for a Disruptor or Regulator. They are never called the next action.
 
 `predict.lua` holds the choosing, apart from the game, `tracker.lua` when the automaton last did each
 kind of thing, `burden.lua` the burden, and `tests/puppet_check.lua` works them through.

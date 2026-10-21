@@ -1,15 +1,15 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.4'
+addon.version = '1.5'
 addon.desc    = 'Everything an automaton might do next, in the order it tries them, with the timer on each: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- A small window for a puppetmaster: the burden of each element as a figure in the element's colour,
--- which burden.lua reckons; under it the action the automaton will take next; then its own queue in
--- the order it tries them, with the timer on each (its shield bash, spells with the next three enfeebles
--- named, the weapon skill, the shot); then what its attachments do of their own accord when their
--- maneuver is up, with their timers. A thing that answers to a maneuver has its name in the maneuver's
--- colour. The choosing is predict.lua's, which follows the server's; this gathers what it
+-- which burden.lua reckons; under it the action the automaton will take next; then what the maneuvers
+-- choose, in the order it tries them, with the timer on each (its spells with the next three enfeebles
+-- named, the weapon skill); then the cooldowns running on what is not chosen (its shield bash, its shot,
+-- what its attachments do when their maneuver is up), each there only while its timer runs. A thing
+-- that answers to a maneuver has its name in the maneuver's colour. The choosing is predict.lua's, which follows the server's; this gathers what it
 -- needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the target) and
 -- shows the answer. With Transparent on the window has no backdrop, border or shadow, and every line is winxi's
 -- outlined text, so that it reads over the game.
@@ -258,17 +258,17 @@ end
 -- colour, and one not known.
 local dummy = { on = { false }, was = false }
 dummy.priority = {
-    { name = 'Bash', section = 'queue', element = 'earth', state = 'waiting', wait = 142 },
+    { name = 'Bash', section = 'cooldown', element = 'earth', state = 'waiting', wait = 142 },
     { name = 'Heal', section = 'queue', element = 'light', state = 'idle', wait = 0 },
     { name = 'Enfeeble', section = 'queue', detail = { { name = 'Dia II', element = 'light' }, { name = 'Poison', element = 'water' }, { name = 'Silence', element = 'wind' } },
         state = 'ready', wait = 0, ready = true },
     { name = 'Nuke', section = 'queue', element = 'ice', state = 'waiting', wait = 12 },
     { name = 'Erase', section = 'queue', element = 'water', state = 'ready', wait = 0 },
     { name = 'WS', section = 'queue', detail = { name = 'Slapstick', element = 'thunder' }, state = 'idle', wait = 0 },
-    { name = 'Shot', section = 'queue', element = 'wind', state = 'waiting', wait = 7 },
-    { name = 'Provoke', section = 'attachment', element = 'fire', state = 'ready', wait = 0 },
-    { name = 'Flash', section = 'attachment', element = 'light', state = 'waiting', wait = 31 },
-    { name = 'Stoneskin', section = 'attachment', element = 'earth', state = 'idle', wait = 0 },
+    { name = 'Shot', section = 'cooldown', element = 'wind', state = 'waiting', wait = 7 },
+    { name = 'Provoke', section = 'cooldown', element = 'fire', state = 'waiting', wait = 24 },
+    { name = 'Flash', section = 'cooldown', element = 'light', state = 'waiting', wait = 31 },
+    { name = 'Stoneskin', section = 'cooldown', element = 'earth', state = 'idle', wait = 0 }, -- not shown: not running
 }
 dummy.burden = { }
 for element, figure in ipairs({ { 0, 0 }, { 8, 0 }, { 22, 17 }, { 35, 24 }, { 51, 46 }, { 78, 73 }, { 100, 95 }, { nil } }) do
@@ -342,9 +342,11 @@ local function WriteDetail(detail, firstOnly)
 end
 
 -- The list, in three parts. First the action the automaton will take next: the row that comes first
--- with something to do and nothing to wait for. Then its own queue, in the order it tries them, and
--- then what its attachments do when their maneuvers are up, each the name, what it would do (the
--- spells, the weapon skill) and the timer, a name that answers to a maneuver in the maneuver's colour.
+-- with something to do and nothing to wait for. Then what the maneuvers choose (the spells, the weapon
+-- skill), in the order it tries them, each the name, what it would do and the timer. Then, after a gap,
+-- the cooldowns: what is not chosen but runs on a timer of its own (the bash, the shot, the attachments'
+-- actions), each there only while its timer runs, with the seconds left. A name that answers to a
+-- maneuver is in the maneuver's colour.
 local sectionGap = { 0, 4 }
 local function DrawPriority()
     if #showing.priority == 0 or not imgui.BeginTable('##puppet.priority', 3, tableFlags) then
@@ -372,26 +374,36 @@ local function DrawPriority()
     end
     imgui.TableNextColumn()
 
-    local section = 'queue'
-    for _, row in ipairs(showing.priority) do
-        if row.section ~= section then
-            -- a gap between the automaton's own queue and the attachments'
-            section = row.section
-            imgui.TableNextRow()
-            imgui.TableNextColumn(); imgui.Dummy(sectionGap)
-        end
-        local state = 'Ready'
-        if row.state == 'waiting' then
-            state = ('%ds'):format(math.ceil(row.wait))
-        elseif row.state == 'idle' then
-            state = '-'
-        elseif row.ready then
-            state = 'Next'
-        end
+    local function draw(row, state)
         imgui.TableNextRow()
         imgui.TableNextColumn(); Write(row.name, maneuverColors[row.element])
         imgui.TableNextColumn(); WriteDetail(row.detail)
         imgui.TableNextColumn(); WriteFaint(state)
+    end
+    for _, row in ipairs(showing.priority) do
+        if row.section == 'queue' then
+            local state = 'Ready'
+            if row.state == 'waiting' then
+                state = ('%ds'):format(math.ceil(row.wait))
+            elseif row.state == 'idle' then
+                state = '-'
+            elseif row.ready then
+                state = 'Next'
+            end
+            draw(row, state)
+        end
+    end
+    -- the cooldowns running, after a gap when there is one
+    local gapped = false
+    for _, row in ipairs(showing.priority) do
+        if row.section == 'cooldown' and row.state == 'waiting' then
+            if not gapped then
+                gapped = true
+                imgui.TableNextRow()
+                imgui.TableNextColumn(); imgui.Dummy(sectionGap)
+            end
+            draw(row, ('%ds'):format(math.ceil(row.wait)))
+        end
     end
     imgui.EndTable()
 end
@@ -495,7 +507,7 @@ local function DrawSettings(options)
     tips.Hover('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.');
     widgets.Label('Show Priority List')
     imgui.Checkbox('##puppet.showPriority', options.showPriority)
-    tips.Hover('Next Action: what the automaton will do next. Under it, its own queue in the order it tries them: Bash (shield bash), its spells (the next three enfeebles named), WS (the weapon skill, named), Shot (ranged attack), each with its timer.\nThen what each attachment fitted does of its own accord when its maneuver is up (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), with its timer.\nA row says Ready, the seconds left of its timer, Next, or - when there is nothing for it to do. A name in a colour answers to the maneuver of that colour.\nA timer is only known once the automaton has been seen to act.');
+    tips.Hover('Next Action: what the automaton will do next. Under it, what the maneuvers choose, in the order it tries them: its spells (the next three enfeebles named) and WS (the weapon skill, named), each with its timer:\nReady, the seconds left, Next, or - when there is nothing for it to do.\nThen the cooldowns running on what is not chosen: Bash (shield bash), Shot (ranged attack) and what each attachment fitted does when its maneuver is up (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), each there only while its timer runs.\nA name in a colour answers to the maneuver of that colour. A timer is only known once the automaton has been seen to act.');
     widgets.Label('Show Burden')
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
     tips.Hover('The burden of each element as a figure in its colour, in one line: fire, ice, wind, earth, thunder, water, light, dark.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.\nResting the mouse on a figure names its element and gives the chance of one more maneuver of it overloading.');

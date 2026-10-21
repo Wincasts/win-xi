@@ -226,8 +226,9 @@ end
 --     })
 --
 -- Each row is { name, section, element, detail, state, wait, ready, unsure }: section is 'queue' for
--- what the automaton does of itself in its order (the bash, its spells, the weapon skill, the shot) and
--- 'attachment' for what an attachment fitted does when its maneuver is up; element is the maneuver the
+-- what the maneuvers choose (the spells, the weapon skill) and 'cooldown' for what runs on a timer of
+-- its own and is not chosen (the bash, the shot, what an attachment fitted does when its maneuver is
+-- up), which the window shows only while the timer runs; element is the maneuver the
 -- thing answers to, if any, for the window to colour its name with; detail is what it would do (the
 -- spells, each { name, element }, or the weapon skill's name), or nil; state is 'ready', 'waiting' (on
 -- a timer, wait seconds of it left) or 'idle' (nothing for it to do as things stand); ready marks the
@@ -297,7 +298,7 @@ function predict.Priority(state)
         end
         return math.max(0, cooldown - since)
     end
-    local section = 'queue'
+    local section = 'cooldown'
     local function add(name, element, detail, needed, wait, unsure)
         rows[#rows + 1] = { name = name, section = section, element = element, detail = detail, wait = wait or 0, unsure = unsure or nil,
             state = (not needed and 'idle') or ((wait or 0) > 0 and 'waiting') or 'ready' }
@@ -315,6 +316,7 @@ function predict.Priority(state)
     end
 
     -- spells, on the frames that cast
+    section = 'queue'
     local timers = cooldowns[state.head]
     if castingFrames[state.frame] and timers ~= nil then
         local magic = timers.magic
@@ -393,6 +395,7 @@ function predict.Priority(state)
     end
 
     -- a shot, on a Sharpshot frame: a Wind maneuver quickens it with a Drum Magazine
+    section = 'cooldown'
     if state.frame == frameSharpshot then
         local cooldown = rangedCooldown[state.head] or 36
         local drummed = fitted[attachmentDrumMagazine]
@@ -404,7 +407,6 @@ function predict.Priority(state)
     end
 
     -- what the attachments fitted do of their own accord, each while a maneuver of its element is up
-    section = 'attachment'
     local gauged = fitted[attachmentDamageGauge] or fitted[attachmentDamageGaugeII]
     for _, action in ipairs(attachmentActions) do
         local present = false
