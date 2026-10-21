@@ -3,7 +3,8 @@
 --     burden.Spawned()                     a new automaton: it starts with 35 of every element
 --     burden.Clear()                       nothing is known: another area, another character
 --     burden.Action(action, state)         an action of the master's, as winxi.packets parses it
---     burden.Get(element, state)           the burden of an element now, or nil where it is not known
+--     burden.Update(state, now)            settle elapsed ticks before changing decay modifiers
+--     burden.Get(element, state)           value (or nil), exact-at-observation flag; time is monotonic
 --     burden.Chance(element, state)        the chance in a hundred that one more maneuver of it overloads
 --
 -- An element is its place in burden.Elements, 1 to 8. state is what the reckoning needs of the game:
@@ -47,6 +48,7 @@ local costLeast, costMost = 14, 20
 -- server's own figure (or follows from one) rather than a guess
 local known = {}
 local costs = {} -- element -> what a maneuver of it adds, once seen
+local tickAt, decayRate = nil, 1
 
 local function Decay(state)
     return (state.attachments and state.attachments[attachmentHeatsink]) and 2 or 1
@@ -59,28 +61,45 @@ local function Cost(element, state)
     return costs[element] or costUnseen
 end
 
+-- Keep one decay phase for all elements; maneuvers must not restart their ticks.
+-- The exact server phase is unavailable, so values between observations remain estimates.
+function burden.Update(state, now)
+    now = now or os.clock()
+    if tickAt == nil or now < tickAt then tickAt = now end
+    local ticks = math.floor((now - tickAt) / tickSeconds)
+    if ticks > 0 then
+        for _, entry in pairs(known) do
+            entry.value = math.max(0, entry.value - decayRate * ticks)
+        end
+        tickAt = tickAt + ticks * tickSeconds
+    end
+    -- Settle elapsed ticks at the old rate before changing attachments.
+    decayRate = Decay(state)
+end
+
 local function Set(element, value, sure, now)
-    known[element] = { value = math.max(0, math.min(255, value)), at = now, sure = sure }
+    known[element] = { value = math.max(0, math.min(255, math.floor(value))), at = now, sure = sure }
 end
 
 function burden.Spawned(now)
     now = now or os.clock()
+    tickAt = now
     for element = 1, #burden.Elements do
         Set(element, spawnedWith, true, now)
     end
 end
 
 function burden.Clear()
-    known = {}
+    known, costs = {}, {}
+    tickAt, decayRate = nil, 1
 end
 
 function burden.Get(element, state, now)
+    now = now or os.clock()
+    burden.Update(state, now)
     local entry = known[element]
-    if entry == nil then
-        return nil
-    end
-    local ticks = ((now or os.clock()) - entry.at) / tickSeconds
-    return math.max(0, entry.value - Decay(state) * ticks)
+    if entry == nil then return nil end
+    return entry.value, entry.sure and now == entry.at
 end
 
 function burden.Chance(element, state, now)
@@ -122,6 +141,7 @@ function burden.Action(action, state, now)
     end
     now = now or os.clock()
 
+    burden.Update(state, now)
     local ability = action.param
     if ability == abilityActivate or ability == abilityDeusExAutomata then
         burden.Spawned(now)
@@ -133,7 +153,7 @@ function burden.Action(action, state, now)
             end
         end
     elseif ability >= abilityFireManeuver and ability < abilityFireManeuver + #burden.Elements then
-        local target = action.targets[1]
+        local target = action.targets and action.targets[1]
         local result = target and target.actions[1]
         Maneuver(ability - abilityFireManeuver + 1, result and result.param or 0, state, now)
     end

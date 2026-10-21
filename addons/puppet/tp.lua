@@ -1,62 +1,60 @@
--- tp: how fast the automaton builds TP, from its TP as the game shows it, and so how long until it has
--- the TP for a weapon skill.
---
---     tp.Sample(value, now)     the automaton's TP now: called every frame, kept when it has changed
---     tp.Rate(now)              TP a second, from the last half minute, or nil until it has been seen to gain
---     tp.Until(target, now)     seconds until it has target TP: 0 with it already, nil with no rate known
---     tp.Clear()                another automaton, another area: nothing known
---
--- The rate is the TP gained over the samples of the last window seconds, from the first of them to the
--- last. A fall in TP is a weapon skill (or Cannibal Blade, or rest), and the samples start again from
--- it, so that the rate is of the TP built since.
+-- TP gain over a rolling window. Time without gains counts too; a stalled rate expires.
 local tp = {}
 
-local window = 30     -- seconds of samples kept
-local atLeast = 3     -- seconds of gaining before a rate is given
-local samples = {}    -- { at, tp }, oldest first
+local window = 30
+local atLeast = 3
+local staleAfter = 10
+local samples = {}
+local burstUntil
 
 function tp.Sample(value, now)
     now = now or os.clock()
+    -- Pet memory can lag the action packet. Rebaseline through that update rather than counting
+    -- an attachment's burst as ordinary attack gain on the following frame.
+    if burstUntil and now <= burstUntil then
+        samples = { { at = now, tp = value } }
+        return
+    end
+    burstUntil = nil
     local last = samples[#samples]
-    if last ~= nil and value < last.tp then
+    if last ~= nil and (value < last.tp or now < last.at or now - last.at >= staleAfter) then
         samples = {}
         last = nil
     end
     if last == nil or value ~= last.tp then
         samples[#samples + 1] = { at = now, tp = value }
     end
-    -- the samples older than the window go, but the last two are kept, so that a rate can still be given
-    -- while the TP sits unchanged
-    while #samples > 2 and now - samples[1].at > window do
+    -- Keep one predecessor at the window boundary, not two arbitrarily old samples.
+    while #samples > 1 and samples[2].at <= now - window do
         table.remove(samples, 1)
     end
 end
 
 function tp.Rate(now)
+    now = now or os.clock()
     local first, last = samples[1], samples[#samples]
-    if first == nil or last == first or last.at - first.at < atLeast or last.tp <= first.tp then
+    if first == nil or first == last or now < last.at or now - last.at >= staleAfter
+        or now - first.at < atLeast or last.tp <= first.tp then
         return nil
     end
-    return (last.tp - first.tp) / (last.at - first.at)
+    return (last.tp - first.tp) / (now - first.at)
 end
 
 function tp.Until(target, now)
     local last = samples[#samples]
-    if last == nil then
-        return nil
-    end
-    if last.tp >= target then
-        return 0
-    end
+    if last == nil then return nil end
+    if last.tp >= target then return 0 end
     local rate = tp.Rate(now)
-    if rate == nil then
-        return nil
-    end
-    return (target - last.tp) / rate
+    return rate and (target - last.tp) / rate or nil
 end
 
 function tp.Clear()
-    samples = {}
+    samples, burstUntil = {}, nil
+end
+
+function tp.Burst(now)
+    tp.Clear()
+    burstUntil = (now or os.clock()) + 1
 end
 
 return tp

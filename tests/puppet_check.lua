@@ -119,7 +119,7 @@ describe(1, 0x20, 120, 4); H.print('another job\'s packet is not read', shown():
 -- the attachments that act on their own: a row each while fitted, in the maneuver's colour
 describe(2, 0x21, 200, nil, { 1, 194, 97, 71, 6 }); game.buffs = {}
 H.print('Valoredge with Strobe, Flashbulb, Shock Absorber, Replicator and Reactive Shield, no maneuvers:', shown())
-game.buffs = { 300 }; H.print('Fire: Provoke and Blaze Spikes ready', shown(), '| Provoke in fire', same(colorOf('Provoke'), fire))
+game.buffs = { 300 }; H.print('Fire: pet cooldowns now belong to cooldowns', shown(), '| Provoke absent', colorOf('Provoke') == nil)
 game.buffs = { 302 }; H.print('Wind, the automaton whole: Blink waits on its HP', shown())
 pet.HPPercent = 40; H.print('at 40%:', shown()); pet.HPPercent = 100
 describe(2, 0x21, 200, nil, { 230, 226, 197, 232 }); game.buffs = { 307 }
@@ -161,7 +161,7 @@ did(8, white, 220); H.print('the spell just cast: the weapon skill is next:', li
 -- samples from the game every frame (a frame is 0.03 s here)
 local tpRate = require('tp')
 tpRate.Clear(); game.petTp = 300; H.frames(1); game.petTp = 450; H.frames(170); game.petTp = 600; H.frames(170)
-H.print('TP 300 to 600 in five seconds: the weapon skill in ~7s, before the spell:', list())
+H.print('TP 300 to 600, including time without gains: the estimated weapon skill:', list())
 tpRate.Clear(); game.petTp = 300; H.frames(1); game.petTp = 310; H.frames(170); game.petTp = 320; H.frames(170)
 H.print('a trickle: the spell comes first:', list())
 game.petTp = 200; H.frames(2); H.print('a fall in TP starts the rate again: no rate, the spell waiting: the spell:', list())
@@ -184,7 +184,7 @@ tpRate.Sample(100, 0); tpRate.Sample(100, 1); tpRate.Sample(160, 6); H.print('10
 tpRate.Sample(1000, 90); H.print('with 1000: 0', tpRate.Until(1000, 90))
 tpRate.Sample(0, 91); H.print('a weapon skill, TP falls: no rate again', tpRate.Rate(91) == nil, '| nor a time', tpRate.Until(1000, 91) == nil)
 tpRate.Sample(50, 92); H.print('too soon to say', tpRate.Rate(92) == nil); tpRate.Sample(80, 95); H.print('three seconds on: 20 a second', tpRate.Rate(95))
-tpRate.Sample(80, 200); H.print('the old samples go, but a rate stays while the TP sits', tpRate.Rate(200) ~= nil); tpRate.Clear()
+tpRate.Sample(80, 200); H.print('a stalled TP rate expires', tpRate.Rate(200) == nil); tpRate.Clear()
 local burden = require('burden')
 local harlequin, valoredge, heatsink = { frame = 0x20 }, { frame = 0x21 }, { frame = 0x20, attachments = { [162] = true } }
 local function maneuver(element, chance, state, at) burden.Action({ actor_id = 1, category = 6, param = 140 + element, targets = { { id = 1, actions = { { param = chance } } } } }, state or harlequin, at) end
@@ -193,14 +193,21 @@ burden.Clear(); H.print('burden, the automaton out before the addon: not known',
 maneuver(1, 0, harlequin, 0); H.print('a maneuver with no chance of overloading: 25 at the most', at(1, 0))
 maneuver(2, 21, harlequin, 0); H.print('one with a chance of 21: 46', at(2, 0))
 burden.Action({ actor_id = 1, category = 6, param = 136, targets = {} }, harlequin, 0)
-H.print('Activate: 35 of each', at(1, 0), at(8, 0), '| half a minute on', at(1, 30), '| with a Heatsink', at(1, 30, heatsink), '| never below nothing', at(1, 600))
-H.print('one more maneuver, fresh: taken to add 20, a chance of', burden.Chance(1, harlequin, 0), '| once it is down to 10: none', burden.Chance(1, harlequin, 75) == 0, '| in Overdrive: none', burden.Chance(1, { frame = 0x20, overdrive = true }, 0) == 0)
+H.print('Activate: 35 of each', at(1, 0), at(8, 0))
+H.print('one more maneuver, fresh: taken to add 20, a chance of', burden.Chance(1, harlequin, 0), '| in Overdrive: none', burden.Chance(1, { frame = 0x20, overdrive = true }, 0) == 0)
+H.print('Dark adds 14, a chance of', burden.Chance(8, harlequin, 0), '| and 8 on a Valoredge frame', burden.Chance(8, valoredge, 0))
 maneuver(1, 26, harlequin, 0); H.print('a Fire maneuver, the server says 26: the burden is 51', at(1, 0), '| so a maneuver adds 16: the next has a chance of', burden.Chance(1, harlequin, 0))
 maneuver(1, 0, harlequin, 150); H.print('once it is down to 1, another, with no chance said: 17', at(1, 150))
+burden.Clear(); burden.Spawned(0)
+H.print('half a minute on', at(1, 30), '| never below nothing', at(1, 600))
+burden.Clear(); burden.Spawned(0); burden.Update(heatsink, 0)
+H.print('with a Heatsink from the start', at(1, 30, heatsink))
+burden.Clear(); burden.Spawned(0)
 maneuver(3, 0, harlequin, 60); H.print('Wind, never seen, from 15 with no chance said: 25 and not 35', at(3, 60))
-H.print('Dark adds 14, a chance of', burden.Chance(8, harlequin, 0), '| and 8 on a Valoredge frame', burden.Chance(8, valoredge, 0))
+H.print('once it is down to 10: none', burden.Chance(1, harlequin, 75) == 0)
+burden.Clear(); burden.Spawned(0)
 maneuver(8, 0, { frame = 0x20, overdrive = true }, 0); H.print('a Dark maneuver in Overdrive, no chance said: 49 all the same', at(8, 0))
-burden.Action({ actor_id = 1, category = 6, param = 309, targets = {} }, harlequin, 0); H.print('Cooldown halves it', at(8, 0), at(2, 0))
+burden.Action({ actor_id = 1, category = 6, param = 309, targets = {} }, harlequin, 0); H.print('Cooldown halves it (integer burden)', at(8, 0), at(2, 0))
 burden.Action({ actor_id = 1, category = 4, param = 141, targets = {} }, harlequin, 0); H.print('a spell with a maneuver\'s number changes nothing', at(8, 0))
 -- and in the addon: the figures are drawn with the automaton out, one for each element in its colour,
 -- from what the master does (the priority list is off here: the figures are all that is coloured)
@@ -229,7 +236,7 @@ entities[2].ServerId = 2; entities[1].PetTargetIndex = 0; o.alwaysShow[1] = fals
 local realCheckbox = imgui.Checkbox
 local function setDummy(on) imgui.Checkbox = function(id, value) if id == '##puppet.showDummy' then value[1] = on end return false end; H.command('/puppet config'); H.frames(1); H.command('/puppet config'); imgui.Checkbox = realCheckbox end
 o.showPriority[1] = true; setDummy(true)
-H.print('dummy data, no automaton out:', shown(), '| Provoke in fire', same(colorOf('Provoke'), fire), '| and the figures', drawn())
+H.print('dummy data, no automaton out:', shown(), '| Provoke absent', colorOf('Provoke') == nil, '| and the figures', drawn())
 setDummy(false); H.print('switched off: gone', shown() == ''); o.showPriority[1] = false
 -- transparent: nothing of the window's own, and every word outlined over the game instead of imgui's text
 o.transparent[1] = true; o.alwaysShow[1] = true; entities[1].PetTargetIndex = 2; fight(900)

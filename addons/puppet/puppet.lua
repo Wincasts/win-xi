@@ -1,20 +1,15 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.11'
-addon.desc    = 'What an automaton will do next and the timers on everything it might: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
+addon.version = '1.13'
+addon.desc    = 'Automaton burden, selected magic with its cooldown, and selected weapon skill with current TP.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- A small window for a puppetmaster: the burden of each element as a figure in the element's colour,
--- which burden.lua reckons; under it the action the automaton will take next; then what the maneuvers
--- choose, in the order it tries them, with the timer on each (its magic, as one, with what it would cast
--- first named; the weapon skill); then the cooldowns running on what is not chosen (its shield bash, its shot,
--- what its attachments do when their maneuver is up), each there only while its timer runs. A thing
--- that answers to a maneuver has its name in the maneuver's colour. The weapon skill is called next
--- when the automaton will have the TP for it, at the rate it has been gaining it (tp.lua), before any
--- spell's timer runs out. The choosing is predict.lua's, which follows the server's; this gathers what
--- it needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the target) and
--- shows the answer. With Transparent on the window has no backdrop, border or shadow, and every line is winxi's
--- outlined text, so that it reads over the game.
+-- which burden.lua reckons; then the chosen magic with its cooldown and weapon skill with current TP.
+-- Bash, Shot and attachment cooldowns live in the cooldowns addon. Shared prediction definitions follow the
+-- server's choices; internal predictions and TP estimates are retained for debug history.
+-- Maneuver-selected names use their element's colour. Transparent mode uses outlined text without
+-- a backdrop, border or shadow, so that it reads over the game.
 --
 --   /puppet           shows or hides the window
 --   /puppet config    opens or closes the settings
@@ -25,6 +20,10 @@ local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local tips = require('winxi.tooltip')
 local shell = require('winxi.shell')
+local window = require('winxi.window')
+local style = require('winxi.style')
+local anchor = require('winxi.anchor')
+local fade = require('winxi.fade')
 local theme = require('winxi.theme')
 local outlined = require('winxi.text')
 local debuffs = require('winxi.debuffs')
@@ -33,8 +32,15 @@ local predict = require('predict')
 local tracker = require('tracker')
 local burden = require('burden')
 local tp = require('tp')
+local settings = require('settings')
 
 local windowName = 'winxi.puppet'
+local burdenWindowName = windowName .. '.burden'
+local cooldownWindowName = windowName .. '.cooldowns'
+local splitBurden = { name = burdenWindowName, position = 'burdenPos', open = { true },
+    style = { }, place = true }
+local splitCooldown = { name = cooldownWindowName, position = 'cooldownPos', open = { true },
+    style = { title = 'Cooldowns' }, place = true }
 
 local jobPup = 18
 local extendedJobPacket = 0x044
@@ -55,6 +61,9 @@ local maneuverElements = {
 }
 
 local app -- made below, once the settings can be drawn
+local petId, newArea, pendingSpawn = nil, false, false
+local dirty, nextUpdate = true, 0
+local updateInterval = 0.1
 
 -- The automaton as the server last described it: its head and frame, and its skills. The server does
 -- so on a change of area or job and when a part is changed, and not when the addon is loaded, so what
@@ -64,9 +73,12 @@ local automatonKeys = { 'head', 'frame', 'melee', 'ranged', 'magic' }
 local attachmentSlots = 12
 
 local function ReadAutomaton(e)
+    if type(e.data) ~= 'string' or #e.data < 0x7A then return end
     if struct.unpack('B', e.data, 0x04 + 1) ~= jobPup then
         return
     end
+    burden.Update(automaton)
+    dirty = true
     automaton.head = struct.unpack('B', e.data, 0x08 + 1)
     automaton.frame = struct.unpack('B', e.data, 0x09 + 1)
     automaton.melee = struct.unpack('H', e.data, 0x70 + 1)
@@ -105,33 +117,37 @@ local fighting = 0
 local syncs = { seen = 0, own = 0, last = nil } -- for the debug information: how many of those packets have come
 
 local function ReadPetSync(e)
+    if type(e.data) ~= 'string' or #e.data < 0x18 then return end
     syncs.seen = syncs.seen + 1
     if struct.unpack('I', e.data, 0x08 + 1) ~= AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
         return
     end
     fighting = struct.unpack('I', e.data, 0x14 + 1)
+    dirty = true
+    if fighting == 0 then tp.Clear() end
     syncs.own, syncs.last = syncs.own + 1, os.clock()
 end
 
-local function CountManeuvers()
-    local up = {}
-    for _, status in pairs(AshitaCore:GetMemoryManager():GetPlayer():GetBuffs() or {}) do
+-- One snapshot per decision update, shared by prediction, burden and diagnostics.
+local function Snapshot(pet, memory)
+    memory = memory or AshitaCore:GetMemoryManager()
+    local player = memory:GetPlayer()
+    local state = { maneuvers = {}, overdrive = false,
+        hpp = pet and pet.HPPercent, masterHpp = memory:GetParty():GetMemberHPPercent(0),
+        mpp = player:GetPetMPPercent(), tp = player:GetPetTP() }
+    for _, status in pairs(player:GetBuffs() or {}) do
         local element = maneuverElements[status]
-        if element then
-            up[element] = (up[element] or 0) + 1
-        end
+        if element then state.maneuvers[element] = (state.maneuvers[element] or 0) + 1 end
+        if status == statusOverdrive then state.overdrive = true end
     end
-    return up
+    -- Player buffs describe the master, not the automaton. Only observed pet ailments may gate it.
+    state.silenced = pet ~= nil and debuffs.StatusRemaining(pet.ServerId, 6) ~= nil
+    state.amnesiac = pet ~= nil and debuffs.StatusRemaining(pet.ServerId, 16) ~= nil
+    return state
 end
 
--- The automaton as burden.lua takes it: its frame and attachments, and whether Overdrive is up
-local function BurdenState()
-    automaton.overdrive = false
-    for _, status in pairs(AshitaCore:GetMemoryManager():GetPlayer():GetBuffs() or {}) do
-        if status == statusOverdrive then
-            automaton.overdrive = true
-        end
-    end
+local function BurdenState(snapshot)
+    automaton.overdrive = (snapshot or Snapshot()).overdrive
     return automaton
 end
 
@@ -141,6 +157,7 @@ local function GetAutomaton()
     if memory:GetPlayer():GetMainJob() ~= jobPup then
         return nil
     end
+    if type(GetEntity) ~= 'function' then return nil end
     local me = GetEntity(memory:GetParty():GetMemberTargetIndex(0))
     if me == nil or me.PetTargetIndex == nil or me.PetTargetIndex == 0 then
         return nil
@@ -171,19 +188,43 @@ end
 -- the window to fade out with. burden is the figures, one for each element, or nil with no automaton out.
 local showing = { enfeebles = nil, weaponskill = nil, weaponskillElement = nil, priority = { }, burden = nil }
 
+local function ClearShowing()
+    showing.enfeebles, showing.weaponskill, showing.weaponskillElement = nil, nil, nil
+    showing.priority, showing.burden = {}, nil
+end
+
+local function Reset(reason, preserveBurden)
+    tracker.Clear()
+    tp.Clear()
+    if not preserveBurden then burden.Clear() end
+    dirty, nextUpdate = true, 0
+    if reason == 'zone' or reason == 'settings' then
+        petId, fighting, pendingSpawn = nil, 0, false
+        newArea = reason == 'zone'
+        ClearShowing()
+    end
+end
+
+local function ReconcilePet()
+    local pet = GetAutomaton()
+    local id = pet and pet.ServerId
+    if id ~= petId then
+        local previous = petId
+        Reset('pet', pendingSpawn)
+        if previous ~= nil then fighting = 0 end
+        petId = id
+        if id ~= nil then
+            if newArea and not pendingSpawn then burden.Spawned() end
+            newArea, pendingSpawn = false, false
+        end
+    end
+    return pet
+end
+
 -- The burden figures: one for each element, in the elements' order, each the burden in the element's
 -- colour. The chance of one more maneuver of it overloading is told when the mouse rests on it.
 local elementNames = { 'Fire', 'Ice', 'Wind', 'Earth', 'Thunder', 'Water', 'Light', 'Dark' }
-local elementColors = {
-    { 1.00, 0.54, 0.48, 1 }, -- fire
-    { 0.65, 0.89, 1.00, 1 }, -- ice
-    { 0.66, 0.94, 0.63, 1 }, -- wind
-    { 0.91, 0.82, 0.48, 1 }, -- earth
-    { 0.85, 0.65, 1.00, 1 }, -- thunder
-    { 0.56, 0.71, 1.00, 1 }, -- water
-    { 1.00, 1.00, 1.00, 1 }, -- light
-    { 0.60, 0.56, 0.72, 1 }, -- dark
-}
+local elementColors = require('winxi.automaton.colors')
 local figureUnknown = { 1, 1, 1, 0.5 } -- a burden not known
 -- the same colours by the elements' names, for the name of a thing that answers to a maneuver
 local maneuverColors = { }
@@ -196,10 +237,11 @@ for element = 1, #burden.Elements do
 end
 local figures = { } -- a burden -> the words for it
 
-local function WorkBurden()
-    local state = BurdenState()
+local function WorkBurden(snapshot)
+    local state = BurdenState(snapshot)
     for element, item in ipairs(burdenFigures) do
-        local value = burden.Get(element, state)
+        local value, exact = burden.Get(element, state)
+        item.estimated = value ~= nil and not exact
         if value == nil then
             item.figure, item.color, item.chance = '?', figureUnknown, nil
         else
@@ -211,8 +253,8 @@ local function WorkBurden()
     showing.burden = burdenFigures
 end
 
-local function Work(pet, id)
-    local maneuvers = CountManeuvers()
+local function Work(state, id)
+    local maneuvers = state.maneuvers
 
     local queue = predict.Queue({
         head = automaton.head,
@@ -221,8 +263,8 @@ local function Work(pet, id)
         maneuvers = maneuvers,
         -- with no enemy yet, the spells are those for one with nothing on it
         has = function(kind) return id ~= nil and debuffs.Get(id, kind) ~= nil end,
-        hpp = pet.HPPercent,
-        mpp = AshitaCore:GetMemoryManager():GetPlayer():GetPetMPPercent(),
+        hpp = state.hpp,
+        mpp = state.mpp,
     })
     showing.enfeebles = #queue > 0 and queue or nil
 
@@ -233,7 +275,6 @@ local function Work(pet, id)
         maneuvers = maneuvers,
     })
 
-    local memory = AshitaCore:GetMemoryManager()
     showing.priority = predict.Priority({
         head = automaton.head,
         frame = automaton.frame,
@@ -241,14 +282,21 @@ local function Work(pet, id)
         enfeebles = showing.enfeebles,
         weaponskill = showing.weaponskill,
         weaponskillElement = showing.weaponskillElement,
-        masterHpp = memory:GetParty():GetMemberHPPercent(0),
-        hpp = pet.HPPercent,
-        mpp = memory:GetPlayer():GetPetMPPercent(),
-        tp = memory:GetPlayer():GetPetTP(),
+        masterHpp = state.masterHpp,
+        hpp = state.hpp,
+        mpp = state.mpp,
+        tp = state.tp,
+        silenced = state.silenced,
+        amnesiac = state.amnesiac,
         tpIn = tp.Until(1000),
         since = tracker.Since,
         attachments = automaton.attachments,
     })
+    local nextAction
+    for _, row in ipairs(showing.priority) do
+        if row.ready then nextAction = row; break end
+    end
+    tracker.Predict(id ~= nil and nextAction or nil, maneuvers, id)
 end
 
 -- Dummy data, for seeing how the window looks with every part of it filled: switched on in the
@@ -258,8 +306,8 @@ end
 local dummy = { on = { false }, was = false }
 dummy.priority = {
     { name = 'Bash', section = 'cooldown', element = 'earth', state = 'waiting', wait = 142 },
-    { name = 'Magic', section = 'queue', detail = { name = 'Dia II', element = 'light' }, state = 'ready', wait = 0, ready = true },
-    { name = 'WS', section = 'queue', detail = { name = 'Slapstick', element = 'thunder' }, state = 'waiting', wait = 9, estimate = true },
+    { name = 'Magic', section = 'queue', detail = { name = 'Dia II', element = 'light' }, displayDetail = { name = 'Dia II', element = 'light' }, state = 'ready', wait = 0, ready = true },
+    { name = 'WS', section = 'queue', detail = { name = 'Slapstick', element = 'thunder' }, state = 'waiting', wait = 9, estimate = true, tp = 650 },
     { name = 'Shot', section = 'cooldown', element = 'wind', state = 'waiting', wait = 7 },
     { name = 'Provoke', section = 'cooldown', element = 'fire', state = 'waiting', wait = 24 },
     { name = 'Flash', section = 'cooldown', element = 'light', state = 'waiting', wait = 31 },
@@ -280,6 +328,8 @@ end
 -- window is transparent and they go straight over the game. The dimmed words are then the theme's text
 -- colour at a little over half strength, as imgui dims them.
 local transparent = false -- this frame
+local clear = { 0, 0, 0, 0 } -- no backdrop or border in transparent mode
+local splitSpacing = { 8, 4 }
 local faint = { 1, 1, 1, 0.6 }
 local function Faint()
     local color = theme.Get().TextColor
@@ -308,7 +358,7 @@ end
 -- what each row says lines up down the window
 local tableFlags = bit.bor(ImGuiTableFlags_SizingFixedFit, ImGuiTableFlags_NoPadOuterX)
 local cellPadding = { 6, 1 }
-local widestLabel = 'Next Action:'
+local widestLabel = 'Magic'
 local labelWidth = 0 -- measured each frame, for the font may change
 
 -- What a row would do, written in its maneuver's colour: the spell it would cast, or the weapon skill
@@ -318,68 +368,32 @@ local function WriteDetail(detail)
     end
 end
 
--- The list, in three parts. First the action the automaton will take next, as predict.Priority marks
--- it (the first ready, else the soonest to be, the weapon skill counted at the time it will have the
--- TP): the spell or the weapon skill by name, or the row's name where there is nothing else to say. Then what the maneuvers choose (the spells, the weapon skill), in the order it tries them,
--- each the name, what it would do and the timer, the seconds left whenever its timer runs. Then, after a
--- gap, the cooldowns: what is not chosen but runs on a timer of its own (the bash, the shot, the
--- attachments' actions), each there only while its timer runs, with the seconds left. A name that
--- answers to a maneuver is in the maneuver's colour.
-local sectionGap = { 0, 4 }
+-- Selected magic with its cooldown and selected weapon skill with current TP.
+-- Running Bash, Shot and attachment cooldowns are displayed by cooldowns.
 local function DrawPriority()
     if #showing.priority == 0 or not imgui.BeginTable('##puppet.priority', 3, tableFlags) then
         return
     end
     imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, labelWidth)
 
-    local next = nil
-    for _, row in ipairs(showing.priority) do
-        if row.ready then
-            next = row
-        end
-    end
-    imgui.TableNextRow()
-    imgui.TableNextColumn(); WriteFaint('Next Action:')
-    imgui.TableNextColumn()
-    if next == nil then
-        WriteFaint('-')
-    elseif next.detail ~= nil then
-        WriteDetail(next.detail)
-    else
-        Write(next.name, maneuverColors[next.element])
-    end
-    imgui.TableNextColumn()
-
     local function draw(row, state)
         imgui.TableNextRow()
         imgui.TableNextColumn(); Write(row.name, maneuverColors[row.element])
-        imgui.TableNextColumn(); WriteDetail(row.detail)
+        imgui.TableNextColumn()
+        if row.name == 'Magic' then WriteDetail(row.displayDetail) else WriteDetail(row.detail) end
         imgui.TableNextColumn(); WriteFaint(state)
     end
     for _, row in ipairs(showing.priority) do
         if row.section == 'queue' then
-            local state = 'Ready'
-            if row.state == 'waiting' then
-                -- an estimate (the weapon skill's, from the rate of TP) is marked as one
-                state = (row.estimate and '~%ds' or '%ds'):format(math.ceil(row.wait))
-            elseif row.state == 'idle' then
-                state = '-'
-            elseif row.ready then
-                state = 'Next'
+            local state
+            if row.name == 'WS' then
+                state = ('%s TP'):format(tostring(row.tp or '?'))
+            elseif row.displayUnknown or (row.displayWait == nil and row.state == 'unknown') then
+                state = 'Unknown'
+            else
+                state = ('%ds'):format(math.ceil(row.displayWait or row.wait or 0))
             end
             draw(row, state)
-        end
-    end
-    -- the cooldowns running, after a gap when there is one
-    local gapped = false
-    for _, row in ipairs(showing.priority) do
-        if row.section == 'cooldown' and row.state == 'waiting' then
-            if not gapped then
-                gapped = true
-                imgui.TableNextRow()
-                imgui.TableNextColumn(); imgui.Dummy(sectionGap)
-            end
-            draw(row, ('%ds'):format(math.ceil(row.wait)))
         end
     end
     imgui.EndTable()
@@ -392,11 +406,20 @@ end
 local hovered = { } -- an element -> the words for it when hovered, as last made
 local slotGap = 8 -- between one figure's slot and the next, in pixels
 
-local function DrawBurden()
+local function DrawBurden(intrinsic)
     local count = #showing.burden
-    local slot = imgui.CalcTextSize('100')
+    -- Three digits per slot even in proportional fonts; larger values may expand the row.
+    local slot, height = imgui.CalcTextSize('100')
+    for digit = 0, 9 do slot = math.max(slot, (imgui.CalcTextSize(tostring(digit):rep(3)))) end
+    for _, item in ipairs(showing.burden) do slot = math.max(slot, (imgui.CalcTextSize(item.figure))) end
     local width = count * slot + (count - 1) * slotGap
-    local left = imgui.GetCursorPosX() + math.max(0, (imgui.GetContentRegionAvail() - width) / 2)
+    local x, y = imgui.GetCursorPosX(), imgui.GetCursorPosY()
+    local left = x
+    if not intrinsic then left = left + math.max(0, (imgui.GetContentRegionAvail() - width) / 2) end
+    -- Reserve the full slots, not merely the final centred digit's right edge.
+    imgui.Dummy({ width, height })
+    imgui.SetCursorPosX(x)
+    imgui.SetCursorPosY(y)
     for element, item in ipairs(showing.burden) do
         local figureWidth = imgui.CalcTextSize(item.figure)
         imgui.SetCursorPosX(left + (element - 1) * (slot + slotGap) + (slot - figureWidth) / 2)
@@ -406,12 +429,13 @@ local function DrawBurden()
         end
         if imgui.IsItemHovered() then
             local words = hovered[element]
-            if words == nil or words.figure ~= item.figure or words.chance ~= item.chance then
-                words = { figure = item.figure, chance = item.chance }
+            if words == nil or words.figure ~= item.figure or words.chance ~= item.chance or words.estimated ~= item.estimated then
+                words = { figure = item.figure, chance = item.chance, estimated = item.estimated }
                 if item.chance == nil then
                     words.text = item.name .. ': not known yet. A maneuver of it says.'
                 else
-                    words.text = ('%s: burden %s, %d%% chance of overloading'):format(item.name, item.figure, item.chance)
+                    words.text = ('%s: %sburden %s, estimated %d%% chance of overloading'):format(
+                        item.name, item.estimated and 'estimated ' or '', item.figure, item.chance)
                 end
                 hovered[element] = words
             end
@@ -438,30 +462,88 @@ local function DrawKnown()
     -- what the heal and the weapon skill go by: a heal wants the master at 30% (40, 50, 75 with Light) or the automaton at 50%
     imgui.TextDisabled(('You: %s%% HP   Automaton: %s%% HP, %s TP'):format(
         tostring(known.masterHpp or '?'), tostring(known.petHpp or '?'), tostring(known.petTp or '?')))
+    local history = tracker.History()
+    if #history > 0 then imgui.TextDisabled('Recent observed actions (latest first):') end
+    for i = #history, math.max(1, #history - 4), -1 do
+        local event = history[i]
+        local guess = event.prediction
+        imgui.TextDisabled(('%.0fs: %s #%s -> %s | predicted %s (%s, %.1fs old)'):format(
+            os.clock() - event.at, event.kind, tostring(event.id or '?'), tostring(event.target or '?'),
+            guess and guess.name or '-', guess and guess.confidence or 'unknown', guess and event.at - guess.at or 0))
+    end
 end
 
-local function DrawWindow(options)
+local function DrawContent(showBurden, showCooldowns, showDebug, intrinsicBurden)
     labelWidth = imgui.CalcTextSize(widestLabel)
     imgui.PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding)
-    if options.showBurden[1] and showing.burden ~= nil then
-        DrawBurden()
-    end
-    if options.showPriority[1] then
-        DrawPriority()
-    end
-    -- the window is there with nothing to say while it is always shown: it is not left empty
-    if #showing.priority == 0 and (showing.burden == nil or not options.showBurden[1]) then
+    if showBurden and showing.burden ~= nil then DrawBurden(intrinsicBurden) end
+    if showCooldowns then DrawPriority() end
+    if (not showCooldowns or #showing.priority == 0) and (not showBurden or showing.burden == nil) then
         WriteFaint('Nothing to show.')
     end
     imgui.PopStyleVar()
-    if options.showDebug[1] then
-        DrawKnown()
+    if showDebug then DrawKnown() end
+end
+
+local function DrawWindow(options)
+    DrawContent(options.showBurden[1], options.showPriority[1], options.showDebug[1])
+end
+
+splitBurden.draw = function()
+    DrawContent(true, false, false, true)
+end
+splitCooldown.draw = function()
+    DrawContent(false, app.options.showPriority[1], app.options.showDebug[1])
+end
+
+local function CaptureSplit(trackerWindow)
+    -- window.Full's capture hook runs inside the real window, never its off-screen measure pass.
+    local options = app.options
+    local pos = options[trackerWindow.position]
+    pos[1], pos[2] = imgui.GetWindowPos()
+    if trackerWindow == splitBurden then
+        if anchor.Point(trackerWindow.name) == nil then
+            local width = imgui.GetWindowSize()
+            anchor.Set(trackerWindow.name, 'TopCenter', pos[1] + width / 2, pos[2])
+        end
+        options.burdenCenter = options.burdenCenter or T{}
+        options.burdenCenter[1], options.burdenCenter[2] = anchor.Point(trackerWindow.name)
     end
+end
+splitBurden.style.capture = function() CaptureSplit(splitBurden) end
+splitCooldown.style.capture = function() CaptureSplit(splitCooldown) end
+
+local function DrawSplit(trackerWindow, enabled, wanted)
+    local options = app.options
+    local alpha = wanted and enabled and 1 or 0
+    if options.fadeInOut[1] then alpha = fade.Presence(trackerWindow.name, wanted and enabled) end
+    if not enabled or alpha <= 0.01 then return end
+    local appearance = trackerWindow.style
+    appearance.alpha = alpha
+    appearance.background = transparent and clear or nil
+    appearance.border = transparent and clear or nil
+    if transparent then appearance.shadow = false else appearance.shadow = nil end
+    if trackerWindow == splitBurden then
+        if trackerWindow.place then
+            anchor.Reset(trackerWindow.name)
+            local center = options.burdenCenter
+            if type(center) == 'table' and type(center[1]) == 'number' and type(center[2]) == 'number' then
+                anchor.Set(trackerWindow.name, 'TopCenter', center[1], center[2])
+            end
+        end
+        appearance.growFrom = anchor.Point(trackerWindow.name) ~= nil and 'TopCenter' or nil
+    end
+    imgui.SetNextWindowPos(options[trackerWindow.position], trackerWindow.place and ImGuiCond_Always or ImGuiCond_FirstUseEver)
+    trackerWindow.place, trackerWindow.open[1] = false, true
+    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, splitSpacing)
+    window.Full(trackerWindow.name, trackerWindow.open, style.TitlelessFlags(), trackerWindow.draw, appearance)
+    imgui.PopStyleVar()
 end
 
 local defaults = T{
     isVisible = T{ true },
     pos = T{ 100, 100 },
+    splitWindows = T{ false }, -- independent burden and cooldown windows; combined layout stays available
     automaton = T{ }, -- the automaton as last described: see ReadAutomaton
     alwaysShow = T{ true }, -- the window whether the automaton is fighting or not
     showPriority = T{ true }, -- everything the automaton might do next, in its order, and how each stands
@@ -474,9 +556,24 @@ local function DrawSettings(options)
     widgets.Label('Visible')
     imgui.Checkbox('##puppet.visible', options.isVisible)
     tips.Hover('Whether the window shows at all. /puppet switches this.');
-    widgets.Label('Position')
-    if imgui.InputInt2('##puppet.position', options.pos) then
-        imgui.SetWindowPos(windowName, options.pos)
+    widgets.Label('Split Windows')
+    if imgui.Checkbox('##puppet.splitWindows', options.splitWindows) then dirty = true end
+    tips.Hover('Separate the burden tracker and cooldown tracker into independently movable windows.\nBoth follow Visible, Always Show, transparency and fade settings. Debug information stays with cooldowns.\nTurn this off to return to the combined layout; each layout keeps its positions.');
+    if options.splitWindows[1] then
+        widgets.Label('Burden Position')
+        if imgui.InputInt2('##puppet.burdenPosition', options.burdenPos) then
+            options.burdenCenter = nil -- position edits are top-left coordinates, as before
+            splitBurden.place = true
+        end
+        widgets.Label('Cooldown Position')
+        if imgui.InputInt2('##puppet.cooldownPosition', options.cooldownPos) then
+            splitCooldown.place = true
+        end
+    else
+        widgets.Label('Position')
+        if imgui.InputInt2('##puppet.position', options.pos) then
+            imgui.SetWindowPos(windowName, options.pos)
+        end
     end
 
     widgets.Gap()
@@ -486,18 +583,18 @@ local function DrawSettings(options)
     widgets.Label('Always Show')
     imgui.Checkbox('##puppet.alwaysShow', options.alwaysShow)
     tips.Hover('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.');
-    widgets.Label('Show Priority List')
+    widgets.Label('Show Cooldown Tracker')
     imgui.Checkbox('##puppet.showPriority', options.showPriority)
-    tips.Hover('Next Action: what the automaton will do next, the spell or weapon skill by name: the first thing ready, else the soonest to be, the weapon skill counted at the time it will have the TP at the rate it gains it (its row then shows that time as ~).\nUnder it, what the maneuvers choose, in the order it tries them: Magic (every spell as one: what it would cast first, Heal, an enfeeble by name, Nuke or Erase, with the timer on that) and WS (the weapon skill, named), each with its timer:\nthe seconds left while it runs, else Ready, Next, or - when there is nothing for it to do.\nThen the cooldowns running on what is not chosen: Bash (shield bash), Shot (ranged attack) and what each attachment fitted does when its maneuver is up (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), each there only while its timer runs.\nA name in a colour answers to the maneuver of that colour. A timer is only known once the automaton has been seen to act.');
+    tips.Hover('Magic shows the spell choice as if its cooldown were ready, alongside that cooldown. Unknown means a required cooldown has not been observed.\nWS shows the maneuver-selected weapon skill as if TP were full, alongside current TP.\nBash, Shot and attachment cooldowns are shown in cooldowns. Names use the colour of the maneuver they answer to.');
     widgets.Label('Show Burden')
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
-    tips.Hover('The burden of each element as a figure in its colour, in one line: fire, ice, wind, earth, thunder, water, light, dark.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.\nResting the mouse on a figure names its element and gives the chance of one more maneuver of it overloading.');
+    tips.Hover('The burden of each element as a figure in its colour, in one line: fire, ice, wind, earth, thunder, water, light, dark.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.\nResting the mouse on a figure names its element, marks estimated burden, and gives an estimated chance of one more maneuver overloading.');
     widgets.Label('Show Dummy Data')
     imgui.Checkbox('##puppet.showDummy', dummy.on)
     tips.Hover('For seeing how the window looks: every part of it filled with made-up data, whether there is an automaton out or not.\nThe parts switched off above stay off. It is not kept: it is off again when the addon is next loaded.');
     widgets.Label('Show Debug Information')
     imgui.Checkbox('##puppet.showDebug', options.showDebug)
-    tips.Hover('For finding out what is wrong: what the addon knows, under the window\'s own lines.\nThe automaton as the server described it, whether it is out and what it is fighting,\nhow many of the pet\'s packets have come, and the maneuvers up.');
+    tips.Hover('What the addon knows: parts, pet and target, packets, maneuvers, HP and TP.\nAlso the latest five observed actions, their IDs and targets, with the preceding prediction, confidence and age.\nHistory is bounded to twenty entries in memory and cleared on pet, area or character changes.');
 end
 
 app = shell.New({
@@ -532,14 +629,22 @@ app = shell.New({
         if type(options.transparent) ~= 'table' then
             options.transparent = T{ false }
         end
-        burden.Clear()
+        if type(options.splitWindows) ~= 'table' then options.splitWindows = T{ false } end
+        for _, trackerWindow in ipairs({ splitBurden, splitCooldown }) do
+            local pos = options[trackerWindow.position]
+            if type(pos) ~= 'table' or type(pos[1]) ~= 'number' or type(pos[2]) ~= 'number' then
+                options[trackerWindow.position] = T{ options.pos[1], options.pos[2] + (trackerWindow == splitCooldown and 60 or 0) }
+            end
+            trackerWindow.place = true
+        end
+        Reset('settings')
+        debuffs.Clear()
         automaton.attachments = { }
         if type(options.automaton.attachments) == 'table' then
             for _, attachment in ipairs(options.automaton.attachments) do
                 automaton.attachments[attachment] = true
             end
         end
-        tracker.Clear()
         for _, key in ipairs(automatonKeys) do
             automaton[key] = type(options.automaton[key]) == 'number' and options.automaton[key] or nil
         end
@@ -547,19 +652,24 @@ app = shell.New({
     end,
 })
 
--- The automaton's id, as last seen: its timers are another automaton's no longer
-local petId = nil
--- An automaton brought into an area is a new one to the server, with a new one's burden: the next to
--- be seen after a change of area is taken for that
-local newArea = false
-
 ashita.events.register('packet_in', 'puppet_packet_in', function(e)
+    -- Reconcile before attributing actions, including while rendering is suppressed.
+    if not settings.logged_in then return end
+    if e.id ~= packets.inbound.action.id and e.id ~= packets.inbound.message.id
+        and e.id ~= extendedJobPacket and e.id ~= petSyncPacket and e.id ~= zonePacket then return end
+    ReconcilePet()
+    dirty = true
     -- an action is parsed once, for the debuffs it leaves and for what the automaton did
     if e.id == packets.inbound.action.id then
         local action = packets.inbound.action.parse(e.data_raw)
         debuffs.Action(action)
-        tracker.Action(action, petId)
+        local observed = tracker.Action(action, petId)
+        if observed and observed.kind == 'capacitor' then tp.Burst() end
         if action.actor_id == AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0) then
+            if action.category == 6 and (action.param == 136 or action.param == 310) then
+                Reset('activation')
+                pendingSpawn = petId == nil
+            end
             burden.Action(action, BurdenState())
         end
         return
@@ -571,71 +681,62 @@ ashita.events.register('packet_in', 'puppet_packet_in', function(e)
     elseif e.id == petSyncPacket then
         ReadPetSync(e)
     elseif e.id == zonePacket then
-        fighting = 0
-        tracker.Clear()
-        burden.Clear()
-        newArea = true
+        Reset('zone')
     end
 end)
 
 -- Whether the window is wanted this frame: a table, as the shell takes it
 local wanted = { false }
-local clear = { 0, 0, 0, 0 } -- no backdrop and no border, for a transparent window
 
 ashita.events.register('d3d_present', 'puppet_present', function()
-    if not app:BeginFrame() then
-        return
+    local canDraw = app:BeginFrame()
+    if not settings.logged_in then return end
+    local options = app.options
+    local pet = ReconcilePet()
+    local target = GetTarget(pet)
+    -- Sampling and identity reconciliation continue while maps/cutscenes hide the window.
+    if pet ~= nil and target ~= nil then
+        tp.Sample(AshitaCore:GetMemoryManager():GetPlayer():GetPetTP())
+    else
+        tp.Clear()
     end
 
-    -- the window is there while the automaton is fighting something and there is something to say of
-    -- it; otherwise it fades out, showing what it last did
-    local options = app.options
-    local pet = GetAutomaton()
-    local id = pet ~= nil and pet.ServerId or nil
-    if id ~= petId then
-        petId = id
-        tracker.Clear()
-        tp.Clear()
-        if id ~= nil and newArea then
-            burden.Spawned()
-            newArea = false
-        end
-    end
-    if pet ~= nil then
-        tp.Sample(AshitaCore:GetMemoryManager():GetPlayer():GetPetTP())
-    end
-    if pet ~= nil and options.showBurden[1] then
-        WorkBurden()
-    else
-        showing.burden = nil
-    end
-    -- the dummy data goes over whatever was worked out, and is cleared away when it is switched off
-    if dummy.on[1] then
-        ShowDummy()
-    elseif dummy.was then
-        showing.enfeebles, showing.weaponskill, showing.weaponskillElement, showing.priority = nil, nil, nil, { }
-        if target ~= nil or (pet ~= nil and options.alwaysShow[1]) then
-            Work(pet, target)
-        end
+    if dummy.was ~= dummy.on[1] then
+        ClearShowing()
+        dirty = true
+        tracker.Predict(nil)
     end
     dummy.was = dummy.on[1]
-    local target = GetTarget(pet)
-    -- outside a fight, with the window always shown, it says what the automaton would open with
-    if target ~= nil or (pet ~= nil and options.alwaysShow[1]) then
-        Work(pet, target)
-    end
-
-    if options.showDebug[1] then
-        known.pet = pet ~= nil
-        known.masterHpp = AshitaCore:GetMemoryManager():GetParty():GetMemberHPPercent(0)
-        known.petHpp, known.petTp = pet ~= nil and pet.HPPercent or nil, pet ~= nil and AshitaCore:GetMemoryManager():GetPlayer():GetPetTP() or nil
-        local parts = {}
-        for element, count in pairs(CountManeuvers()) do
-            parts[#parts + 1] = element .. ' ' .. count
+    local now = os.clock()
+    if dirty or now >= nextUpdate then
+        dirty, nextUpdate = false, now + updateInterval
+        local state = Snapshot(pet)
+        burden.Update(BurdenState(state), now)
+        if dummy.on[1] then
+            ShowDummy()
+        else
+            if pet ~= nil and options.showBurden[1] then WorkBurden(state)
+            else showing.burden = nil end
+            if pet ~= nil and (target ~= nil or options.alwaysShow[1])
+                and (options.showPriority[1] or options.showDebug[1]) then
+                Work(state, target)
+            elseif pet == nil and options.alwaysShow[1] then
+                ClearShowing()
+                tracker.Predict(nil)
+            elseif target == nil then
+                tracker.Predict(nil)
+            end
         end
-        table.sort(parts)
-        known.maneuvers = table.concat(parts, ', ')
+        if options.showDebug[1] then
+            known.pet, known.masterHpp = pet ~= nil, state.masterHpp
+            known.petHpp, known.petTp = state.hpp, pet and state.tp
+            local parts = {}
+            for element, count in pairs(state.maneuvers) do parts[#parts + 1] = element .. ' ' .. count end
+            table.sort(parts)
+            known.maneuvers = table.concat(parts, ', ')
+        end
     end
+    if not canDraw then return end
 
     -- transparent: nothing of the window's own is drawn, and the words are written outlined over the game
     transparent = options.transparent[1] and true or false
@@ -647,6 +748,13 @@ ashita.events.register('d3d_present', 'puppet_present', function()
     end
 
     wanted[1] = options.isVisible[1]
-        and (dummy.on[1] or options.alwaysShow[1] or (target ~= nil and #showing.priority > 0))
-    app:Window(wanted, DrawWindow)
+        and (dummy.on[1] or options.alwaysShow[1] or (target ~= nil
+            and ((options.showPriority[1] and #showing.priority > 0)
+                or (options.showBurden[1] and showing.burden ~= nil) or options.showDebug[1])))
+    if options.splitWindows[1] then
+        DrawSplit(splitBurden, options.showBurden[1], wanted[1])
+        DrawSplit(splitCooldown, options.showPriority[1] or options.showDebug[1], wanted[1])
+    else
+        app:Window(wanted, DrawWindow)
+    end
 end)

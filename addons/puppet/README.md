@@ -1,16 +1,12 @@
 # puppet
 
-For a puppetmaster: the burden of each element, what the automaton will do next, and everything it might
-do in the order it tries them, each with its timer, in a small window. It needs only the `winxi` library
-(`addons/libs/winxi`).
+For a puppetmaster: the burden of each element, the selected magic with its cooldown, and the selected
+weapon skill with current TP. It needs the `winxi` library (`addons/libs/winxi`). Observed spell,
+Bash, Shot and attachment cooldowns are also displayed by [cooldowns](../../forks/addons/cooldowns/README.md).
 
     35  35  35  35  33  35  35  35
-    Next Action:  Dia II
-    Magic         Dia II     Next
-    WS            Slapstick  ~9s
-
-    Bash                     142s
-    Provoke                  12s
+    Magic         Dia II     12s
+    WS            Slapstick  650 TP
 
 - `/puppet` shows or hides the window
 - `/puppet config` opens or closes the settings
@@ -29,24 +25,17 @@ it is not. What it is
 fighting is told to its master alone, in the packet that keeps the two in step. A line with
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
-The list is in three parts. **Next Action** is what the automaton will do next, the spell or weapon
-skill by name: whatever comes first in its order with something to do and nothing to wait for. With
-nothing ready it is whichever comes soonest: a spell waiting on its timer with something to cast, or the
-weapon skill at the time the automaton will have the TP for it, going by the rate it has gained TP over
-the last half minute (`tp.lua`); the WS row then shows that time as an estimate, `~9s`. With nothing
-waiting, or no rate known yet, the weapon skill is named. Under that is the **queue**: what the
-maneuvers choose, each with its timer, named short: Magic and WS (the weapon skill). Magic is every
-spell as one row, since every spell waits on the one timer between any two casts and then on a timer for
-its kind (healing, enfeebling, elemental, status removal): it names what the automaton would cast first
-in the head's order (Heal, an enfeeble by name, Nuke, Erase), the first it can cast now, else the
-soonest it will be able to among those with something to cast, and shows that one's timer. With nothing
-to cast it names nothing and shows the timer alone. Heal is named, and is the next action, only while
-there is someone to heal: you at 30% HP or under (40, 50 or 75 with one, two or three Light maneuvers;
-50, 75, 80 or 90 with a Damage Gauge fitted), or the automaton itself at 50% or under. After a gap
-come the **cooldowns**: what is not
-chosen but runs on a timer of its own, each row there only while its timer runs, with the seconds left.
-Those are Bash (a shield bash, on a Valoredge frame), Shot (a ranged attack, on a Sharpshot frame) and
-the action of each attachment fitted that acts of its own accord when its maneuver is up:
+**Magic** names the head's first eligible spell as if cooldowns were ready, alongside its remaining
+cooldown (`Unknown` until the required timers have been observed). It accounts for the shared magic
+timer and the spell kind's timer. With nothing to cast it names nothing. Heal is eligible while you
+are at 30% HP or under (40, 50 or 75 with Light maneuvers; 50, 75, 80 or 90 with a Damage Gauge), or
+the automaton is at 50% or under. **WS** names the maneuver-selected weapon skill as if TP were full,
+alongside current TP, not a time-to-TP estimate. There is no Predicted heading; internal prediction
+tracking remains available in debug history.
+
+**cooldowns** shows observed running pet cooldowns below player recasts with a winxi-styled separator: the shared Magic
+and spell-type timers (Healing, Enfeebling, Elemental, Status removal), Bash (on a Valoredge frame),
+Shot (on a Sharpshot frame), and fitted attachment actions:
 
 | Attachment | Row | Maneuver | Recast | Also needs |
 |---|---|---|---|---|
@@ -63,14 +52,13 @@ the action of each attachment fitted that acts of its own accord when its maneuv
 | Disruptor | Disruptor | Dark | 60 s | a buff on the enemy to take off |
 | Regulator | Regulator | Dark | 60 s | a buff on the enemy to take off |
 
-Every three seconds or so the automaton tries a shield bash, then its spells in the head's order (which
-Light and Ice maneuvers change), then a weapon skill, then a shot, then what its attachments do, and does
-the first it can. A row of the queue says the seconds left whenever its timer runs, else `Ready`, `-` when
-there is nothing for it to do as things stand (nobody to heal, nothing to cast, no TP), or `Next` on the
-one that comes next; a thing whose condition the game is not told of (an enemy casting for Bash, an
-ailment for Erase and Eraser, a buff for Disruptor and Regulator) is never Next. The timers are Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier
-Module counted where fitted. A timer is known only once the automaton has been seen to act, so a row
-may say Ready when the addon was loaded part way through a fight and it is not.
+Every three seconds or so the automaton tries Bash, spells in the head's order, a weapon skill, a
+shot, then attachments. Internal predictions exclude unobservable conditions (an enemy casting for
+Bash, ailments for Erase/Eraser, buffs for Disruptor/Regulator). Zero MP and Silence block magic
+predictions; Amnesia blocks WS and attachment predictions. Having MP does not guarantee enough for a
+particular spell. Running timers in cooldowns remain visible even when their action is not eligible.
+The timers are Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier
+Module counted where fitted.
 
 Above it all is the **burden**: one line of eight figures centred in the window, the burden of each
 element in the element's colour, in the maneuvers' order (fire, ice, wind, earth, thunder, water, light,
@@ -82,18 +70,53 @@ one off each every three seconds (two with a Heatsink), and what each maneuver a
 halves. What a maneuver adds goes by the automaton's stats, which the game is not told, so it is taken
 for 20, the most it can be, until it has been seen. It is seen in the chance of overloading the server
 gives with every maneuver: that is the burden less 25, so whenever there is any chance at all the figure
-is the server's own, and with none the burden is known to be 25 or less.
+is derived from that report (subject to gear modifiers), and with none the burden is known to be 25
+or less. Decay uses integer three-second ticks with one shared phase: a maneuver does not restart it.
+The exact server tick phase is not transmitted, so values between observations are estimates; the
+hover text distinguishes estimated burden. Heatsink changes affect future ticks, not elapsed decay.
+Cooldown halves integer burden, rounding down. Learned costs are cleared with runtime resets.
 
-In the settings: **Transparent** takes away the window's backdrop, border and shadow, and writes every
+## Combined or split windows
+
+Open `/puppet config` and enable **Split Windows** to use two independently movable windows:
+
+1. The **burden window** has no title and contains only the eight figures and their hover details.
+   Its eight slots reserve three digits each, including the full last slot, so ordinary value changes
+   (including `?`) do not change its width. Larger values can widen the slots. Font or theme changes
+   resize the split window equally left and right around its saved top-centre point. Dragging updates
+   that centre; numeric **Burden Position** edits still use top-left coordinates.
+2. **Cooldowns** contains Magic, WS, and any enabled debug information. Running Bash, Shot and
+   attachment cooldowns live in the cooldowns addon instead.
+
+Drag either window to position it, or edit **Burden Position** and **Cooldown Position** in settings.
+Positions are saved per character. On first use, the burden window starts at the combined window's
+position and cooldowns start 60 pixels below it. Turning split mode off returns to the combined layout;
+each layout retains its own positions. Combined mode remains the default for existing installations.
+
+**Show Burden** and **Show Cooldown Tracker** independently hide their corresponding split windows.
+With debug enabled, the cooldown window stays available for diagnostics even if its action list is
+switched off. `/puppet` toggles both windows together. **Always Show**, transparency, fading, and the
+shared game-UI hiding rules apply to both. Dummy data is separated into the same two windows.
+
+## Other settings
+
+**Transparent** takes away the window's backdrop, border and shadow, and writes every
 line as winxi's outlined text (the theme's Text Outline, a dark edge round the letters), so that it reads
 straight over the game; the dimmed words are the theme's text colour at a little over half strength. It starts
-off. **Show Burden** switches the figures off. **Show Priority List** switches that list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
+off. **Show Burden** switches the figures off. **Show Cooldown Tracker** switches the action list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
 a fight it shows what the automaton would open with on an enemy with nothing on it. It starts on. **Show Dummy Data** fills every part of the window with made-up data, automaton or no, for seeing how
 it looks: a row of the priority list in each state and names in the maneuvers' colours, and a figure in each element's colour. It is not kept,
 and is off again when the addon is next loaded. **Show Debug Information** is for finding out what is wrong: under the
 window's own lines, what the addon knows (the automaton as described, whether a pet is out and what it is
 fighting, how many of the pet's packets have come, the maneuvers up, your HP and the automaton's HP and TP,
-which the heal and the weapon skill go by).
+which the heal and the weapon skill go by). It also shows the latest five observed pet actions,
+including action IDs, targets, and the preceding prediction with its confidence and age. Up to twenty
+observations are kept in memory, never written to settings; pet, zone, and character resets clear them.
+Maneuvers are captured with the prediction, rather than read retroactively when inspecting history.
+
+State collection continues while a map or cutscene hides the window. Decision and burden presentation
+updates run at 10 Hz, with relevant packets requesting an immediate refresh; rendering stays at the
+game's frame rate. Turning off both priority and debug skips priority generation.
 
 What it cannot know:
 
@@ -119,4 +142,10 @@ What it cannot know:
 
 `predict.lua` holds the choosing, apart from the game, `tracker.lua` when the automaton last did each
 kind of thing, `tp.lua` how fast it gains TP, `burden.lua` the burden, and `tests/puppet_check.lua`
-works them through.
+works them through. `tests/puppet_regression_check.lua` adds assertion-based lifecycle, uncertainty,
+burden, TP, history, split-window layout/visibility/positions, and update-budget regressions. Run both with:
+
+```sh
+luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_check.lua
+luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_regression_check.lua
+```
