@@ -37,8 +37,7 @@ It needs nothing else.
   stretches whatever is near the edges. A narrower field of view stretches the edges less and shows
   less of the world; about 60 at 21:9 sees as far across as the game does at 16:9. The game's own
   closer views stay closer by the same proportion. `/drawscale` shows the field of view in play, vertical
-  and horizontal. Nameplates, the target cursor and clicks on the world follow it, since the game
-  works them out from the same values.
+  and horizontal.
 
 ## Per kind of zone, and per zone
 
@@ -75,13 +74,15 @@ by objects² / world. The mesh-detail comparisons go through four more stubs tha
 distance by 1 / detail². The visibility-list read is replaced by a read of nothing, and the
 projection constant is swapped in the game object once it exists.
 
-The projection is built by one function from the game object's fields: the aspect from the window
-(+0x2F0) and the constant square changes (+0x2E8), and the vertical field of view as 2 atan(192 / f),
-f being a focal length at +0x2F4 that the game sets (242 in play, more for a closer view). fov
-writes f, scaled from the game's value, and calls the entry just before that function that builds
-the projection again from the fields, the game's own setter doing the same; a new value from the
-game is taken as its own and scaled in turn. The entry is found by its bytes and 192 is read from
-the constant it loads.
+Every world projection is built from the game object's fields: the aspect from the window (+0x2F0)
+and the constant square changes (+0x2E8), and the vertical field of view as 2 atan(C / f), C a
+constant of 192 and f a focal length at +0x2F4 that the game sets (242 in play, more for a closer
+view). Four places build one, each pass of the frame, each loading C just before f. fov points those
+four loads at a value of its own, 242 tan(fov / 2), so the usual view has the field of view asked for
+and the game's closer views are closer by as much, whatever the game does with f. C is found where
+one of the four loads it, and the four by their shape (C, then f from the game object or the stack,
+then the arctangent) over the whole client; a fixed view the game makes with a constant in place of
+f is left alone.
 
 The client DLL is packed on disk, so everything is found in the running game, by byte patterns. The
 scale function is found by the bytes drawdistance looks for; its entry by the calls to it (92 bytes

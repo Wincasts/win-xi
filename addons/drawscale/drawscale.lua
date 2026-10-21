@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '1.6';
+addon.version = '1.7';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: general values, a preset for cities, the outdoors and dungeons, and a zone\'s own, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -95,8 +95,6 @@ local mem = {
     write_u32 = function (addr, v) ashita.memory.write_uint32(addr, v); end,
     read_float = function (addr) return ashita.memory.read_float(addr); end,
     write_float = function (addr, v) ashita.memory.write_float(addr, v); end,
-    -- a function of the game's taking nothing and answering nothing
-    call = function (addr) require('ffi').cast('void (__cdecl *)(void)', addr)(); end,
     alloc = function (n) return ashita.memory.alloc(n) or 0; end,
 };
 
@@ -467,7 +465,14 @@ local function rescan()
     state.view = view.find(mem);
     if (state.view.visSite == 0) then fail('The visibility-list read was not found; distant terrain may still pop in.'); end
     if (state.view.gamePointer == 0) then fail('The game pointer was not found; square and fov are unavailable.'); end
-    if (state.view.buildEntry == 0) then fail('The projection\'s build was not found; fov is unavailable.'); end
+    if (state.view.c ~= nil and state.module ~= nil) then
+        local kept = state.scanStats;
+        eachChunk(state.module, function (bytes, at, count)
+            for _, site in ipairs(view.fovSites(bytes, at, count, state.view.cAddr)) do table.insert(state.view.sites, site); end
+        end);
+        state.scanStats = kept;
+    end
+    if (#state.view.sites == 0) then fail('The projection\'s field of view was not found; fov is unavailable.'); end
     return true;
 end
 
@@ -575,14 +580,14 @@ end
 
 -- The field of view as it is: what is set, and the vertical and horizontal in play now.
 local function fovText(set)
-    local v = view.currentFov(mem, state.view);
-    if (state.view == nil or state.view.buildEntry == 0) then return 'fov unavailable (the projection\'s build was not found).'; end
+    if (state.view == nil or #state.view.sites == 0) then return 'fov unavailable (the projection\'s field of view was not found).'; end
+    local v = view.currentFov(state.view);
     local what = set > 0 and ('fov %g degrees'):format(set) or 'fov the game\'s own';
-    if (v == nil) then return what .. '.'; end
-    local game = mem.read_u32(state.view.gamePointer) or 0;
+    local game = state.view.gamePointer ~= 0 and (mem.read_u32(state.view.gamePointer) or 0) or 0;
+    if (v == nil or game == 0) then return what .. '.'; end
     local ak = mem.read_float(game + 0x2F0) * mem.read_float(game + view.K_OFFSET);
     local h = ak > 0 and math.deg(2 * math.atan(math.tan(math.rad(v) / 2) / ak)) or 0;
-    return ('%s: %.1f vertical, %.1f horizontal now.'):format(what, v, h);
+    return ('%s: %.1f vertical, %.1f horizontal (%d places).'):format(what, v, h, #state.view.sites);
 end
 
 local function status()
@@ -805,7 +810,6 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     -- the game object may not exist at load; the constant is set once it does, and kept
     if (state.view ~= nil and state.settings ~= nil) then
         view.setSquare(mem, state.view, active().square == true);
-        view.setFov(mem, state.view, active().fov or 0);
     end
 end);
 
