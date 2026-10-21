@@ -1,6 +1,7 @@
-// lens: for now a diagnostic. /lens capture [frames] records every draw the game makes over a few
-// frames, with the state it is drawn in and the game's code that made it, to config\lens\, so the place
-// where the 3D world ends and the UI begins can be found before the world is drawn anywhere else.
+// lens: the game's world laid onto the screen through a Panini projection. The game draws the world to
+// a texture of its own and copies it onto the back buffer with one quad before the UI (lens 0.1's
+// captures, 2026-10-21); lens draws a warped grid in that quad's place (warp.h) and blocks the quad, so
+// the UI is drawn over it as ever. /lens capture [frames] still records every draw over a few frames.
 #include "Ashita.h"
 #include <intrin.h>
 #include <psapi.h>
@@ -9,6 +10,7 @@
 #include <time.h>
 #include "capture.h"
 #include "stack.h"
+#include "warp.h"
 
 class Lens : public IPlugin {
     IAshitaCore* m_Core = nullptr;
@@ -18,12 +20,23 @@ class Lens : public IPlugin {
     uintptr_t m_Base = 0;       // FFXiMain.dll
     size_t m_Size = 0;
 
+    bool m_On = true;           // the warp
+    int m_Strength = 50;        // the Panini distance, in hundredths
+    bool m_Drawing = false;     // our own grid is being drawn: not the game's
+    std::vector<lens::Vertex> m_Vertices;
+    std::vector<uint16_t> m_Indices;
+    lens::Quad m_Quad = {};     // what the grid was built for
+    double m_TanH = 0, m_TanV = 0;
+    int m_Built = -1;           // the strength it was built for; -1 for none
+    uint32_t m_Warped = 0;      // frames warped, for the status
+    static const int Cols = 128, Rows = 64;
+
 public:
     const char* GetName() const override { return "lens"; }
     const char* GetAuthor() const override { return "win"; }
-    const char* GetDescription() const override { return "Records what the game draws over a few frames, for finding where its 3D world ends and its UI begins."; }
+    const char* GetDescription() const override { return "The world through a Panini projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.1; }
+    double GetVersion() const override { return 0.2; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -34,9 +47,45 @@ public:
             m_Base = reinterpret_cast<uintptr_t>(info.lpBaseOfDll);
             m_Size = info.SizeOfImage;
         }
+        Load();
         return true;
     }
     void Release() override { m_Capture.reset(); }
+
+    std::string SettingsPath() const { return std::string(m_Core->GetInstallPath()) + "\\config\\lens\\lens.ini"; }
+    void Load() {
+        FILE* f = nullptr;
+        if (fopen_s(&f, SettingsPath().c_str(), "rb") != 0 || !f) return;
+        char line[64];
+        while (fgets(line, sizeof(line), f)) {
+            int v = 0;
+            if (sscanf_s(line, "on=%d", &v) == 1) m_On = v != 0;
+            if (sscanf_s(line, "strength=%d", &v) == 1 && v >= 0 && v <= 100) m_Strength = v;
+        }
+        fclose(f);
+    }
+    void Save() const {
+        CreateDirectoryA((std::string(m_Core->GetInstallPath()) + "\\config").c_str(), nullptr);
+        CreateDirectoryA((std::string(m_Core->GetInstallPath()) + "\\config\\lens").c_str(), nullptr);
+        FILE* f = nullptr;
+        if (fopen_s(&f, SettingsPath().c_str(), "wb") != 0 || !f) return;
+        fprintf(f, "on=%d\nstrength=%d\n", m_On ? 1 : 0, m_Strength);
+        fclose(f);
+    }
+    void Status() const {
+        std::string text = m_On ? "on" : "off";
+        text += ", strength " + std::to_string(m_Strength);
+        if (m_TanH > 0) {
+            char more[160];
+            const double deg = 180.0 / 3.14159265358979323846;
+            double d = m_Strength / 100.0, middle = lens::MiddleHeight(m_TanH, d);
+            snprintf(more, sizeof(more), "; the world is drawn %.0f across and %.0f up, and the middle of the screen shows %.0f up (%.0f%% of it)",
+                2 * atan(m_TanH) * deg, 2 * atan(m_TanV) * deg, 2 * atan(m_TanV * middle) * deg, middle * 100);
+            text += more;
+        }
+        text += m_On && !m_Warped ? "; the game's copy of the world to the screen has not been seen yet." : ".";
+        Say(text);
+    }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
 
     void Say(const std::string& text) const { m_Core->GetChatManager()->Write(0, false, ("[lens] " + text).c_str()); }
@@ -44,6 +93,22 @@ public:
     bool HandleCommand(int32_t, const char* command, bool) override {
         char words[3][16] = {};
         if (!command || sscanf_s(command, "%15s %15s %15s", words[0], 16u, words[1], 16u, words[2], 16u) < 1 || _stricmp(words[0], "/lens") != 0) return false;
+        if (!words[1][0]) { Status(); return true; }
+        if (_stricmp(words[1], "on") == 0 || _stricmp(words[1], "off") == 0) {
+            m_On = _stricmp(words[1], "on") == 0;
+            Save();
+            Status();
+            return true;
+        }
+        if (_stricmp(words[1], "strength") == 0) {
+            char* end = nullptr;
+            long v = strtol(words[2], &end, 10);
+            if (!words[2][0] || *end || v < 0 || v > 100) { Say("Usage: /lens strength <n>, 0 (flat, as the game) to 100 (the classic Panini)."); return true; }
+            m_Strength = static_cast<int>(v);
+            Save();
+            Status();
+            return true;
+        }
         if (_stricmp(words[1], "capture") == 0) {
             int frames = words[2][0] ? atoi(words[2]) : 2;
             if (frames < 1 || frames > 10) { Say("Usage: /lens capture [frames], 1 to 10 (2 to start)."); return true; }
@@ -54,7 +119,8 @@ public:
             Say("Recording the next " + std::to_string(frames) + " frame(s)" + (m_Base ? "." : "; FFXiMain.dll was not found, so the game's callers will be missing."));
             return true;
         }
-        Say("/lens capture [frames] - records every draw over the next frames (2 to start) to config/lens/.");
+        Say("/lens - what the warp is doing. /lens on|off - the warp. /lens strength <n> - 0 (flat, as the game) to 100 (the classic Panini), 50 to start.");
+        Say("A stronger warp shows less up and down in the middle; drawscale's fov above the game's 77 puts it back. /lens capture [frames] - records every draw over the next frames to config/lens/.");
         return true;
     }
 
@@ -69,10 +135,68 @@ public:
 
     bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE t, UINT, UINT count) override { Record(lens::DP, t, count); return false; }
     bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE t, UINT, UINT, UINT, UINT count) override { Record(lens::DIP, t, count); return false; }
-    bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t, UINT count, const void*, UINT) override { Record(lens::DPUP, t, count); return false; }
-    bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t, UINT, UINT, UINT count, const void*, D3DFORMAT, const void*, UINT) override { Record(lens::DIPUP, t, count); return false; }
+    bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t, UINT count, const void* data, UINT stride) override {
+        if (m_Drawing) return false;
+        Record(lens::DPUP, t, count);
+        return m_On && Warp(t, count, data, stride);
+    }
+    bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t, UINT, UINT, UINT count, const void*, D3DFORMAT, const void*, UINT) override {
+        if (!m_Drawing) Record(lens::DIPUP, t, count);
+        return false;
+    }
 
 private:
+    // The game's copy of its world to the screen: a strip of two triangles of screen-space vertices
+    // (FVF 0x144) onto the back buffer, nearly all of it, from a render-target texture. Drawn as a
+    // warped grid with the same state, and the quad blocked; true when so.
+    bool Warp(D3DPRIMITIVETYPE type, UINT count, const void* data, UINT stride) {
+        if (type != D3DPT_TRIANGLESTRIP || count != 2 || stride != sizeof(lens::Vertex) || !data) return false;
+        auto* device = m_Core->GetDirect3DDevice();
+        if (!device) return false;
+        DWORD shader = 0;
+        if (FAILED(device->GetVertexShader(&shader)) || shader != 0x144) return false;
+        IDirect3DBaseTexture8* base = nullptr;
+        bool renderTarget = false;
+        if (SUCCEEDED(device->GetTexture(0, &base)) && base) {
+            D3DSURFACE_DESC desc;
+            if (base->GetType() == D3DRTYPE_TEXTURE && SUCCEEDED(static_cast<IDirect3DTexture8*>(base)->GetLevelDesc(0, &desc)))
+                renderTarget = (desc.Usage & D3DUSAGE_RENDERTARGET) != 0;
+            base->Release();
+        }
+        if (!renderTarget) return false;
+        IDirect3DSurface8 *target = nullptr, *back = nullptr;
+        D3DSURFACE_DESC backDesc = {};
+        bool onBack = SUCCEEDED(device->GetRenderTarget(&target)) && SUCCEEDED(device->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &back))
+            && target == back && SUCCEEDED(back->GetDesc(&backDesc));
+        if (target) target->Release();
+        if (back) back->Release();
+        if (!onBack) return false;
+        lens::Quad q = lens::QuadOf(static_cast<const lens::Vertex*>(data));
+        if (q.right - q.left < backDesc.Width * 0.9f || q.bottom - q.top < backDesc.Height * 0.9f) return false;
+        D3DMATRIX p;
+        if (FAILED(device->GetTransform(D3DTS_PROJECTION, &p)) || p._11 <= 0 || p._22 <= 0) return false;
+        double tanH = 1.0 / p._11, tanV = 1.0 / p._22;
+        if (m_Built != m_Strength || memcmp(&q, &m_Quad, sizeof(q)) != 0 || tanH != m_TanH || tanV != m_TanV) {
+            lens::Build(q, tanH, tanV, m_Strength / 100.0, Cols, Rows, m_Vertices, m_Indices);
+            m_Quad = q; m_TanH = tanH; m_TanV = tanV; m_Built = m_Strength;
+        }
+        // sampled smoothly, as the warp reads between the picture's pixels; the game's filters put back
+        DWORD mag = 0, min = 0;
+        device->GetTextureStageState(0, D3DTSS_MAGFILTER, &mag);
+        device->GetTextureStageState(0, D3DTSS_MINFILTER, &min);
+        device->SetTextureStageState(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+        device->SetTextureStageState(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+        m_Drawing = true;
+        HRESULT hr = device->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m_Vertices.size()), static_cast<UINT>(m_Indices.size() / 3),
+            m_Indices.data(), D3DFMT_INDEX16, m_Vertices.data(), sizeof(lens::Vertex));
+        m_Drawing = false;
+        device->SetTextureStageState(0, D3DTSS_MAGFILTER, mag);
+        device->SetTextureStageState(0, D3DTSS_MINFILTER, min);
+        if (FAILED(hr)) return false;
+        ++m_Warped;
+        return true;
+    }
+
     void Callers(uint32_t* out) const {
         if (!m_Base) return;
         uint32_t here = 0;

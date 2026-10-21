@@ -37,9 +37,10 @@ struct Draw {
 // Screen-space vertices: an FVF (bit 0 clear) whose position is XYZRHW.
 inline bool ScreenSpace(uint32_t shader) { return !(shader & 1) && (shader & 0x00E) == 0x004; }
 
-// The fields of view a projection holds, in degrees; false for one that is not a perspective one.
+// The fields of view a projection holds, in degrees, left- or right-handed (the game's are right-handed);
+// false for one that is not a perspective one.
 inline bool Perspective(const Matrix& p, double& h, double& v) {
-    if (fabs(p.m[11] - 1.0f) > 1e-3f || fabs(p.m[15]) > 1e-3f || p.m[0] <= 0 || p.m[5] <= 0) return false;
+    if (fabs(fabsf(p.m[11]) - 1.0f) > 1e-3f || fabs(p.m[15]) > 1e-3f || p.m[0] <= 0 || p.m[5] <= 0) return false;
     const double deg = 180.0 / 3.14159265358979323846;
     h = 2 * atan(1.0 / p.m[0]) * deg;
     v = 2 * atan(1.0 / p.m[5]) * deg;

@@ -6,7 +6,7 @@ TOOLCHAIN="${TOOLCHAIN:-$HERE/../../.toolchain}"
 MSVC="${MSVC_PATH:-$TOOLCHAIN/msvc}"
 OUT="$HERE/build/tests"
 mkdir -p "$OUT"
-for check in capture; do
+for check in capture warp; do
     clang-cl --target=i686-pc-windows-msvc /nologo /std:c++latest /Od /MT /EHa /W4 /permissive- \
         /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS \
         /imsvc "$MSVC/crt/include" /imsvc "$MSVC/sdk/include/ucrt" /imsvc "$MSVC/sdk/include/um" /imsvc "$MSVC/sdk/include/shared" \

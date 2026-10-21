@@ -43,8 +43,8 @@ The others, or anything newer than its release, can be copied from here. Every a
 - for `name`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
 - for `buff`, `clock`, `chatbox` or native `party` replacement, also `plugins/uihook.dll` (build/install:
   [plugins/uihook](plugins/uihook))
-- `plugins/lens.dll`, for now a diagnostic recording what the game draws, the start of a wide-screen
-  projection (see [plugins/lens](plugins/lens))
+- `plugins/lens.dll`, the world through a Panini projection for wide screens (experimental, see
+  [plugins/lens](plugins/lens))
 
 Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first; for `buff` or native
 `party`, `/load uihook` first. Uihook replaces `buffhook` and `partyhook`; unload those before loading

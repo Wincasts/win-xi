@@ -52,9 +52,10 @@ M.C_AT = 0x43
 -- The game's focal length in play (at +0x2F4 in the game object).
 M.FOCAL_NORMAL = 242
 
--- The field of view a setting asks for: from 20 to 100 degrees, vertically; 0 is the game's own.
+-- The field of view a setting asks for: from 20 to 140 degrees, vertically (over 77 for lens to squeeze
+-- back); 0 is the game's own.
 M.FOV_MIN = 20
-M.FOV_MAX = 100
+M.FOV_MAX = 140
 
 -- xor eax, eax and four nops: the renderer's list read as none.
 M.VIS_PATCH = { 0x31, 0xC0, 0x90, 0x90, 0x90, 0x90 }

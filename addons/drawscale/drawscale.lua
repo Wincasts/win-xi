@@ -622,7 +622,7 @@ local function help()
     say('/drawscale detail <n> - how much further objects keep their detailed mesh. 0 = the same as world.');
     say('/drawscale vis on|off - on: draw distant terrain the zone would hide from your area. off: stock.');
     say('/drawscale square on|off - on: the world at the window\'s true proportions. off: stock.');
-    say('/drawscale fov <n> - the vertical field of view, n degrees (20 to 100; the game\'s is about 77). Narrower stretches the edges less. 0 = the game\'s own.');
+    say('/drawscale fov <n> - the vertical field of view, n degrees (20 to 140; the game\'s is about 77). Narrower stretches the edges less; wider is for the lens plugin. 0 = the game\'s own.');
     say('Those set the general values. Over them, for every zone of a kind, and over those, for one zone:');
     say('/drawscale city|outdoors|dungeon <setting> <value> - the kind\'s preset; <setting> clear takes it out again, clear alone the whole preset.');
     say('/drawscale zone <setting> <value> - this zone\'s own; <setting> clear takes it out, clear alone all of them; zone list is every zone with its own.');

@@ -31,13 +31,15 @@ It needs nothing else.
   client builds its projection with a fixed constant that stretches the 3D view about 5.5% wider
   than the window, so people look broad and round things oval; on fixes the constant, and the view
   shows a little more at the sides. The menus and HUD do not change.
-- `/drawscale fov <n>` sets the vertical field of view, in degrees, from 20 to 100. `0`, the
+- `/drawscale fov <n>` sets the vertical field of view, in degrees, from 20 to 140. `0`, the
   default, keeps the game's own, about 77 degrees. The game keeps the height of the view fixed and
   widens it to the window, so at 21:9 the view is over 120 degrees across, and the flat projection
   stretches whatever is near the edges. A narrower field of view stretches the edges less and shows
   less of the world; about 60 at 21:9 sees as far across as the game does at 16:9. The game's own
   closer views stay closer by the same proportion. `/drawscale` shows the field of view in play, vertical
-  and horizontal.
+  and horizontal. Above 77 is for the [lens](../../plugins/lens) plugin: its warp keeps the edges from
+  stretching but shows less up and down in the middle than the world is drawn with, and a wider fov
+  here gives that back.
 
 ## Per kind of zone, and per zone
 

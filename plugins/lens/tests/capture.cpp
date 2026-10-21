@@ -45,6 +45,9 @@ int main() {
     double h = 0, v = 0;
     Check(lens::Perspective(persp, h, v) && fabs(v - 90) < 1e-3 && fabs(h - 126.87) < 0.01, "a perspective's fields of view");
     Check(!lens::Perspective(ortho, h, v), "an orthographic one is not");
+    lens::Matrix rh = persp;
+    rh.m[11] = -1.0f;
+    Check(lens::Perspective(rh, h, v) && fabs(v - 90) < 1e-3, "a right-handed one, as the game's, too");
     Check(lens::ScreenSpace(0x144) && !lens::ScreenSpace(0x152) && !lens::ScreenSpace(0x145), "XYZRHW is screen space; XYZ and a shader handle are not");
 
     lens::Capture c;
