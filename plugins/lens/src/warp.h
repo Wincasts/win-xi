@@ -1,4 +1,4 @@
-// The world laid onto the screen through a Panini projection. The game draws its world to a texture
+// The world laid onto the screen through a Panini or a cylindrical projection. The game draws its world to a texture
 // with a flat (rectilinear) projection and copies it onto the back buffer with one quad; lens draws a
 // grid in its place whose texture coordinates come from the Panini mapping, so the edges are squeezed
 // back from the stretch a flat projection gives them at a wide field of view, and verticals stay
@@ -10,12 +10,20 @@
 // horizontal edge lands on the screen's, and the height follows at the source's own proportions, which
 // puts the screen's corners exactly on the source's corners. The middle is enlarged by as much as the
 // edges are squeezed, so a wider field of view in the game keeps as much in view up and down.
+//
+// Cylindrical: a ray at azimuth phi and height t lands at x = phi, y = t, every degree across the
+// same width. It squeezes the edges more than Panini, and lines running toward the middle bow. At its
+// own proportions its corners would need rays from beyond the flat picture, so it gives up a little
+// width instead: the screen's edge is at the azimuth phiE where the corner's ray is the picture's
+// corner (phiE / cos phiE = tanH). Its strength blends from the flat picture (0) to it (1).
 #pragma once
 #include <math.h>
 #include <stdint.h>
 #include <vector>
 
 namespace lens {
+
+enum Mode { Panini, Cylindrical };
 
 // The game's copy quad's vertex: XYZRHW, DIFFUSE, TEX1 (FVF 0x144).
 struct Vertex { float x, y, z, rhw; uint32_t color; float u, v; };
@@ -37,6 +45,36 @@ inline void PaniniInverse(double px, double py, double d, double& tx, double& ty
     ty = (py / s) / c;
 }
 
+// The azimuth of the cylindrical view's edge: phi / cos phi = tanH, by halving.
+inline double CylinderEdge(double tanH) {
+    double lo = 0, hi = atan(tanH);
+    for (int i = 0; i < 60; ++i) {
+        double mid = (lo + hi) / 2;
+        if (mid / cos(mid) < tanH) lo = mid; else hi = mid;
+    }
+    return lo;
+}
+
+// Where the screen point (s, t), each 0 to 1 across the quad, reads the source, each 0 to 1 across
+// the picture: tanH and tanV are the picture's half fields of view as tangents.
+inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, double strength, double& us, double& vs) {
+    double tx, ty;
+    if (mode == Panini) {
+        double xEdge = PaniniX(atan(tanH), strength);   // the source's horizontal edge on the Panini plane
+        double yEdge = xEdge * tanV / tanH;             // the screen's top, at the source's proportions
+        PaniniInverse(xEdge * (2 * s - 1), yEdge * (2 * t - 1), strength, tx, ty);
+        us = 0.5 + 0.5 * tx / tanH;
+        vs = 0.5 + 0.5 * ty / tanV;
+        return;
+    }
+    double phiE = CylinderEdge(tanH);
+    double phi = phiE * (2 * s - 1), y = phiE * tanV / tanH * (2 * t - 1);
+    tx = tan(phi);
+    ty = y / cos(phi);
+    us = s + strength * (0.5 + 0.5 * tx / tanH - s);
+    vs = t + strength * (0.5 + 0.5 * ty / tanV - t);
+}
+
 // The game's quad: its screen rectangle and the texture coordinates at its top left and bottom right,
 // with what each vertex carries besides.
 struct Quad { float left, top, right, bottom, u0, v0, u1, v1, z, rhw; uint32_t color; };
@@ -52,20 +90,16 @@ inline Quad QuadOf(const Vertex* v) {
 }
 
 // The grid in the quad's place: (cols + 1) x (rows + 1) vertices and a triangle list over them. tanH
-// and tanV are the source's half fields of view as tangents (1 / _11 and 1 / _22 of its projection),
-// d the Panini distance.
-inline void Build(const Quad& q, double tanH, double tanV, double d, int cols, int rows, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices) {
+// and tanV are the source's half fields of view as tangents (1 / _11 and 1 / _22 of its projection);
+// strength is the Panini distance, or for cylindrical how far from the flat picture to go, 0 to 1.
+inline void Build(const Quad& q, double tanH, double tanV, Mode mode, double strength, int cols, int rows, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices) {
     vertices.clear();
     indices.clear();
-    double halfH = atan(tanH);
-    double xEdge = PaniniX(halfH, d);          // the source's horizontal edge on the Panini plane
-    double yEdge = xEdge * tanV / tanH;        // the screen's top, at the source's proportions
     for (int r = 0; r <= rows; ++r) {
         for (int c = 0; c <= cols; ++c) {
             double s = double(c) / cols, t = double(r) / rows;
-            double tx, ty;
-            PaniniInverse(xEdge * (2 * s - 1), yEdge * (2 * t - 1), d, tx, ty);
-            double us = 0.5 + 0.5 * tx / tanH, vs = 0.5 + 0.5 * ty / tanV;
+            double us, vs;
+            SourceOf(s, t, tanH, tanV, mode, strength, us, vs);
             Vertex v;
             v.x = float(q.left + (q.right - q.left) * s);
             v.y = float(q.top + (q.bottom - q.top) * t);
@@ -85,9 +119,17 @@ inline void Build(const Quad& q, double tanH, double tanV, double d, int cols, i
 
 // How much of the source's height the middle of the screen shows, 1 being all of it: the price of
 // the squeezed edges.
-inline double MiddleHeight(double tanH, double d) {
-    double halfH = atan(tanH);
-    return PaniniX(halfH, d) / tanH;
+inline double MiddleHeight(double tanH, double tanV, Mode mode, double strength) {
+    double us, vs;
+    SourceOf(0.5, 0, tanH, tanV, mode, strength, us, vs);
+    return 1 - 2 * vs;
+}
+
+// How far across the screen shows, as the tangent of its half: tanH unless cylindrical gives some up.
+inline double ShownAcross(double tanH, double tanV, Mode mode, double strength) {
+    double us, vs;
+    SourceOf(1, 0.5, tanH, tanV, mode, strength, us, vs);
+    return (2 * us - 1) * tanH;
 }
 
 } // namespace lens

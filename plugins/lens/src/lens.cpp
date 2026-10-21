@@ -1,4 +1,4 @@
-// lens: the game's world laid onto the screen through a Panini projection. The game draws the world to
+// lens: the game's world laid onto the screen through a Panini or cylindrical projection. The game draws the world to
 // a texture of its own and copies it onto the back buffer with one quad before the UI (lens 0.1's
 // captures, 2026-10-21); lens draws a warped grid in that quad's place (warp.h) and blocks the quad, so
 // the UI is drawn over it as ever. /lens capture [frames] still records every draw over a few frames.
@@ -21,22 +21,24 @@ class Lens : public IPlugin {
     size_t m_Size = 0;
 
     bool m_On = true;           // the warp
-    int m_Strength = 50;        // the Panini distance, in hundredths
+    int m_Strength = 50;        // the Panini distance, or for cylindrical how far from flat, in hundredths
+    lens::Mode m_Mode = lens::Panini;
     bool m_Drawing = false;     // our own grid is being drawn: not the game's
     std::vector<lens::Vertex> m_Vertices;
     std::vector<uint16_t> m_Indices;
     lens::Quad m_Quad = {};     // what the grid was built for
     double m_TanH = 0, m_TanV = 0;
     int m_Built = -1;           // the strength it was built for; -1 for none
+    lens::Mode m_BuiltMode = lens::Panini;
     uint32_t m_Warped = 0;      // frames warped, for the status
     static const int Cols = 128, Rows = 64;
 
 public:
     const char* GetName() const override { return "lens"; }
     const char* GetAuthor() const override { return "win"; }
-    const char* GetDescription() const override { return "The world through a Panini projection, for wide screens without stretched edges."; }
+    const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.2; }
+    double GetVersion() const override { return 0.3; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -61,6 +63,7 @@ public:
             int v = 0;
             if (sscanf_s(line, "on=%d", &v) == 1) m_On = v != 0;
             if (sscanf_s(line, "strength=%d", &v) == 1 && v >= 0 && v <= 100) m_Strength = v;
+            if (sscanf_s(line, "mode=%d", &v) == 1 && (v == 0 || v == 1)) m_Mode = static_cast<lens::Mode>(v);
         }
         fclose(f);
     }
@@ -69,18 +72,19 @@ public:
         CreateDirectoryA((std::string(m_Core->GetInstallPath()) + "\\config\\lens").c_str(), nullptr);
         FILE* f = nullptr;
         if (fopen_s(&f, SettingsPath().c_str(), "wb") != 0 || !f) return;
-        fprintf(f, "on=%d\nstrength=%d\n", m_On ? 1 : 0, m_Strength);
+        fprintf(f, "on=%d\nstrength=%d\nmode=%d\n", m_On ? 1 : 0, m_Strength, static_cast<int>(m_Mode));
         fclose(f);
     }
     void Status() const {
         std::string text = m_On ? "on" : "off";
-        text += ", strength " + std::to_string(m_Strength);
+        text += std::string(", ") + (m_Mode == lens::Panini ? "panini" : "cylindrical") + ", strength " + std::to_string(m_Strength);
         if (m_TanH > 0) {
-            char more[160];
+            char more[200];
             const double deg = 180.0 / 3.14159265358979323846;
-            double d = m_Strength / 100.0, middle = lens::MiddleHeight(m_TanH, d);
-            snprintf(more, sizeof(more), "; the world is drawn %.0f across and %.0f up, and the middle of the screen shows %.0f up (%.0f%% of it)",
-                2 * atan(m_TanH) * deg, 2 * atan(m_TanV) * deg, 2 * atan(m_TanV * middle) * deg, middle * 100);
+            double k = m_Strength / 100.0;
+            double middle = lens::MiddleHeight(m_TanH, m_TanV, m_Mode, k), across = lens::ShownAcross(m_TanH, m_TanV, m_Mode, k);
+            snprintf(more, sizeof(more), "; the world is drawn %.0f across and %.0f up, and the screen shows %.0f across and %.0f up the middle (%.0f%% of the height)",
+                2 * atan(m_TanH) * deg, 2 * atan(m_TanV) * deg, 2 * atan(across) * deg, 2 * atan(m_TanV * middle) * deg, middle * 100);
             text += more;
         }
         text += m_On && !m_Warped ? "; the game's copy of the world to the screen has not been seen yet." : ".";
@@ -100,10 +104,18 @@ public:
             Status();
             return true;
         }
+        if (_stricmp(words[1], "mode") == 0) {
+            if (_stricmp(words[2], "panini") == 0) m_Mode = lens::Panini;
+            else if (_stricmp(words[2], "cylindrical") == 0) m_Mode = lens::Cylindrical;
+            else { Say("Usage: /lens mode panini|cylindrical."); return true; }
+            Save();
+            Status();
+            return true;
+        }
         if (_stricmp(words[1], "strength") == 0) {
             char* end = nullptr;
             long v = strtol(words[2], &end, 10);
-            if (!words[2][0] || *end || v < 0 || v > 100) { Say("Usage: /lens strength <n>, 0 (flat, as the game) to 100 (the classic Panini)."); return true; }
+            if (!words[2][0] || *end || v < 0 || v > 100) { Say("Usage: /lens strength <n>, 0 (flat, as the game) to 100 (the classic Panini, or fully cylindrical)."); return true; }
             m_Strength = static_cast<int>(v);
             Save();
             Status();
@@ -119,7 +131,7 @@ public:
             Say("Recording the next " + std::to_string(frames) + " frame(s)" + (m_Base ? "." : "; FFXiMain.dll was not found, so the game's callers will be missing."));
             return true;
         }
-        Say("/lens - what the warp is doing. /lens on|off - the warp. /lens strength <n> - 0 (flat, as the game) to 100 (the classic Panini), 50 to start.");
+        Say("/lens - what the warp is doing. /lens on|off - the warp. /lens mode panini|cylindrical. /lens strength <n> - 0 (flat, as the game) to 100 (the classic Panini, or fully cylindrical), 50 to start.");
         Say("A stronger warp shows less up and down in the middle; drawscale's fov above the game's 77 puts it back. /lens capture [frames] - records every draw over the next frames to config/lens/.");
         return true;
     }
@@ -176,9 +188,9 @@ private:
         D3DMATRIX p;
         if (FAILED(device->GetTransform(D3DTS_PROJECTION, &p)) || p._11 <= 0 || p._22 <= 0) return false;
         double tanH = 1.0 / p._11, tanV = 1.0 / p._22;
-        if (m_Built != m_Strength || memcmp(&q, &m_Quad, sizeof(q)) != 0 || tanH != m_TanH || tanV != m_TanV) {
-            lens::Build(q, tanH, tanV, m_Strength / 100.0, Cols, Rows, m_Vertices, m_Indices);
-            m_Quad = q; m_TanH = tanH; m_TanV = tanV; m_Built = m_Strength;
+        if (m_Built != m_Strength || m_BuiltMode != m_Mode || memcmp(&q, &m_Quad, sizeof(q)) != 0 || tanH != m_TanH || tanV != m_TanV) {
+            lens::Build(q, tanH, tanV, m_Mode, m_Strength / 100.0, Cols, Rows, m_Vertices, m_Indices);
+            m_Quad = q; m_TanH = tanH; m_TanV = tanV; m_Built = m_Strength; m_BuiltMode = m_Mode;
         }
         // sampled smoothly, as the warp reads between the picture's pixels; the game's filters put back
         DWORD mag = 0, min = 0;

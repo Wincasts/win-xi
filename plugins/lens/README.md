@@ -1,7 +1,7 @@
-# lens — experimental 0.2
+# lens — experimental 0.3
 
-FFXI's world through a Panini projection, which keeps a wide view without the stretching a flat
-projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
+FFXI's world through a Panini or cylindrical projection, either of which keeps a wide view without
+the stretching a flat projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
 its world to a texture of its own (at its 3D resolution) and copies it onto the screen with one quad
 before drawing the menus and HUD over it. lens draws a warped grid in that quad's place, so the world
 is bent and the UI is not.
@@ -10,8 +10,20 @@ is bent and the UI is not.
 /load lens
 /lens                 what the warp is doing
 /lens on|off          the warp (on to start)
-/lens strength <n>    0 (flat, as the game) to 100 (the classic Panini); 50 to start
+/lens mode panini|cylindrical   (panini to start)
+/lens strength <n>    0 (flat, as the game) to 100; 50 to start
 ```
+
+- **Panini** keeps lines running toward the middle of the view straight (a road or corridor ahead,
+  the edges of what you face) and squeezes the edges somewhat. The strength is its distance: 100 is
+  the classic Panini.
+- **Cylindrical** gives every degree across the same width on the screen, the look of a panoramic
+  photograph: the sides look the most natural, and long lines across the side of the view bow
+  a little. The strength blends from the flat picture to it. Fully cylindrical can't keep the whole
+  width with the corners inside the picture, so it gives up a few degrees at the sides; and its middle
+  keeps shrinking as the field of view grows, so stay below 100.
+
+Both keep verticals and the horizon straight.
 
 The settings are kept in `config/lens/lens.ini` under the Ashita folder.
 
@@ -19,9 +31,22 @@ The warp keeps the whole width the game draws: its left and right edges stay at 
 the screen's corners show the picture's corners. Everything between is squeezed toward the edges by
 the strength, so the middle is enlarged and shows less up and down than the world is drawn with;
 `/lens` says how much. Draw the world taller to give that back, with drawscale's `fov` above the
-game's 77 (it goes to 140). At 3440x1440, keeping the game's 77 up the middle takes about 92 at
-strength 25 and 110 at 50; past that the flat picture the warp starts from wastes its pixels at the
-edges, though the game's 3D resolution being above the screen's helps.
+game's 77 (it goes to 140). Past about 110 the flat picture the warp starts from spends most of its
+pixels on the edges, though the game's 3D resolution being above the screen's helps.
+
+Settings to try at 3440x1440 (21:9, drawscale square off), each keeping about the game's 77 up the
+middle of the screen unless it says otherwise:
+
+| | `/lens mode` | `/lens strength` | `/drawscale fov` | across the screen |
+|---|---|---|---|---|
+| Gentle | panini | 25 | 93 | 134 |
+| Balanced | panini | 50 | 110 | 146 |
+| Panoramic, cheap | cylindrical | 50 | 96 | 132 |
+| Panoramic, strong | cylindrical | 75 | 115 | 142 |
+| The game's view, less stretch (70 up the middle) | cylindrical | 25 | 0 (the game's 77) | 120 |
+
+The game's own is 122 across. At 16:9 the flat view is 106 across and stretches less, so less
+strength does.
 
 Not yet: clicks on the world are still read through the flat projection, so near the edges they land
 beside what is under the mouse, and addons drawing over the world (targetlines, name's nameplates)
@@ -31,7 +56,7 @@ are not bent with it.
 
 The game's copy is the one draw that is a strip of two screen-space triangles (FVF 0x144) onto the
 back buffer, covering it, textured from a render target; lens builds a 128 by 64 grid over the same
-rectangle, each vertex's texture coordinate found by running the Panini mapping backwards from the
+rectangle, each vertex's texture coordinate found by running the projection backwards from the
 screen to the flat picture (the game's projection, as set at the copy, gives the picture's fields of
 view), draws it with the game's own state but smooth sampling, and blocks the quad. The grid is built
 again only when the strength, the picture's fields of view or the rectangle change.
