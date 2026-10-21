@@ -17,7 +17,7 @@
 --   view.Draw(drawList, state, x, y, size, scene, options, alpha)   the map in the square at x, y;
 --                                              scene is { picture, markers = { { kind, mx, my,
 --                                              heading, name, near } }, waypoint = { mx, my } or nil,
---                                              reticle = { mx, my } or nil }, places in map units;
+--                                              cursor = { mx, my } or nil }, places in map units;
 --                                              returns the place on the map under the mouse, or nil
 local imgui = require('imgui');
 local text = require('winxi.text');
@@ -138,7 +138,7 @@ local function Diamond(drawList, x, y, size, fill, edge)
 end
 
 local WAYPOINT = { 0.95, 0.45, 0.95, 1 };
-local RETICLE = { 1, 1, 1, 0.9 };
+local CURSOR = { 1, 1, 1, 0.9 };
 
 -- The waypoint: a dot in a ring, with a dark edge
 local function Waypoint(drawList, x, y, size, fill, edge)
@@ -149,8 +149,8 @@ local function Waypoint(drawList, x, y, size, fill, edge)
     drawList:AddCircleFilled(p1, size * 0.3, fill, 12);
 end
 
--- The reticle: a ring with four ticks pointing in at its middle, with a dark edge
-local function Reticle(drawList, x, y, size, fill, edge)
+-- The cursor: a ring with four ticks pointing in at its middle, with a dark edge
+local function Cursor(drawList, x, y, size, fill, edge)
     local r = size;
     p1[1], p1[2] = x, y;
     drawList:AddCircle(p1, r, edge, 20, 3);
@@ -214,9 +214,9 @@ function view.Draw(drawList, state, x, y, size, scene, options, alpha)
         local w = scene.waypoint;
         Waypoint(drawList, x + (w.mx - left) * unit, y + (w.my - top) * unit, markerSize, Packed(WAYPOINT, alpha), edge);
     end
-    if scene.reticle ~= nil then
-        local r = scene.reticle;
-        Reticle(drawList, x + (r.mx - left) * unit, y + (r.my - top) * unit, markerSize, Packed(RETICLE, alpha), edge);
+    if scene.cursor ~= nil then
+        local c = scene.cursor;
+        Cursor(drawList, x + (c.mx - left) * unit, y + (c.my - top) * unit, markerSize, Packed(CURSOR, alpha), edge);
     end
     drawList:PopClipRect();
 

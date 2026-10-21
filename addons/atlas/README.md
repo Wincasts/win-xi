@@ -13,8 +13,8 @@ The game's `/map` is left to the game: this is `/atlas`.
 - `/atlas browse` gives the map the controller, or gives it back; it opens the map if hidden. Put it in a
   game macro to open the map from the controller.
 - `/atlas cycle` steps the map through three modes, one each time: **hidden**, **open** (shown, with
-  the controller, as `/atlas browse`) and **passthrough** (shown at **Passthrough Opacity**, with the
-  controller left to the game), then hidden again. A map shown by `/atlas` goes to open next. With
+  the controller, as `/atlas browse`) and **passthrough** (shown, with the controller left to the
+  game, fading to **Passthrough Opacity** while you move), then hidden again. A map shown by `/atlas` goes to open next. With
   Controller Navigation off, open is just shown. Put it in a game macro for one button that does all three.
 
 ## The map
@@ -37,21 +37,22 @@ map takes it while open:
 | Left stick | scrolls, faster the further it is pushed |
 | D-pad | scrolls a tenth of the view, repeating while held |
 | RB / LB | zooms in / out a step: 1x, 1.5x, 2x, 3x, 4x, 6x, 8x |
-| Right stick | moves a reticle over the map |
-| Y | puts a waypoint at the reticle (moving the one there was); on the waypoint, takes it away |
-| A | follows you again |
+| Y | puts a waypoint under the cursor (moving the one there was); on the waypoint, takes it away |
+| A | locks the map to you: back to your floor, following you, the cursor on you |
 | X | the zone's next floor, then back to yours |
 | B | gives the controller back, and hides the map again if browsing opened it |
 
 The buttons go through winxi's controller handling: they are kept from the game while the map has
-them, and **Controller Type** picks XInput or a DirectInput layout. Both sticks are kept from the game
-while the map has the controller, so you don't walk off or turn the camera, and as browsing begins the
-game is told they are centred, so if you were running you stop. To walk with the map up, use
-passthrough (`/atlas cycle`). The sticks are read from the kind of controller **Controller Type**
-names: an XInput controller's as Ashita's buttons 18 and 19 (left) and 20 and 21 (right), a DirectInput
-one's as its axes 0 and 4 (left) and 8 and 20 (right).
+them, and **Controller Type** picks XInput or a DirectInput layout. The left stick is kept from the game
+while the map has the controller, so you don't walk off, and as browsing begins the game is told it
+is centred, so if you were running you stop. The right stick stays the game's, for the camera. To
+walk with the map up, use passthrough (`/atlas cycle`). The stick is read from the kind of controller
+**Controller Type** names: an XInput controller's as Ashita's buttons 18 and 19, a DirectInput one's
+as its axes 0 and 4.
 
-The waypoint is drawn on its floor's map as a ring round a dot, and its grid square shows under the
+While the map has the controller a cursor sits in the middle of it, or on you while the map is
+locked to you (near the map's edge, where the view cannot centre on you). Scrolling stops the lock
+and moves the map under the cursor. The waypoint is drawn on its floor's map as a ring round a dot, and its grid square shows under the
 map. There is one at a time, and it is forgotten as you change zone. For now it only marks the place.
 
 The triggers are not the map's. With tcrossbar loaded they stay its while you browse: hold L2 or R2
@@ -73,12 +74,9 @@ the triggers to the game.)
 - **Visible**: whether the map shows.
 - **Lock Window**: keeps the window where it is. The map can still be panned and zoomed.
 - **Map Size**: 256 to 1024 pixels (512 to start).
-- **Passthrough Opacity**: how much of the map shows in passthrough, 10% to 100% (50% to start). The
-  mouse over the map shows it whole.
-- **Fade While Moving** (off): the map fades while your character moves and comes back about half
-  a second after you stop. The mouse over the map, or browsing it with the controller, shows it whole.
-- **Moving Opacity**: how much of the map shows while you move, 0% to 100% (30% to start). At 0% it
-  is gone until you stop.
+- **Passthrough Opacity**: in passthrough, the map fades to this while your character moves and
+  comes back about half a second after you stop, 0% to 100% (30% to start). At 0% it is gone until
+  you stop. The mouse over the map shows it whole. Open, or shown by `/atlas`, it never fades.
 
 **Markers**
 

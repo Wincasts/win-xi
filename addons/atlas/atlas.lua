@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.8';
+addon.version = '0.9';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -15,7 +15,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --   /atlas browse    takes the controller for the map, as the game's own map does, or gives it back;
 --                    opens the map if it is hidden (pad.lua)
 --   /atlas cycle     the next of hidden, open (browsing, as /atlas browse) and passthrough (shown, the
---                    controller the game's, at Passthrough Opacity), then hidden again
+--                    controller the game's, faded to Passthrough Opacity while you move), then hidden
 --
 -- The game's own /map is left to the game. maps.lua knows the zone's maps and how they lie over it,
 -- markers.lua who is where, and view.lua draws a map into a square, knowing nothing of the window:
@@ -48,9 +48,7 @@ local defaults = T{
     pos = T{ 100, 100 },
     locked = T{ false },
     size = T{ 512 },
-    fadeWhileMoving = T{ false },
-    movingOpacity = T{ 30 },
-    passthroughOpacity = T{ 50 },
+    passthroughOpacity = T{ 30 },
     showPlayer = T{ true },
     playerColor = T{ 1.00, 0.85, 0.20, 1.00 },
     showParty = T{ true },
@@ -73,7 +71,7 @@ local state = view.New();
 -- Whether the map is in passthrough, as /atlas cycle leaves it: shown, with the controller the game's
 local passing = false;
 
--- The waypoint put down with the controller's reticle (Y while browsing): its zone, floor and place
+-- The waypoint put down under the controller's cursor (Y while browsing): its zone, floor and place
 -- on that floor's map, or nil. Forgotten as the zone changes.
 local waypoint = nil;
 
@@ -84,7 +82,7 @@ local waypoint = nil;
 local current = { zone = nil, chosen = nil, here = nil, why = 'not looked yet' };
 local scene = { picture = nil, markers = {} };
 local playerAt = { mx = nil, my = nil }; -- the player's place on the map shown, or nil
-local reticleAt = { mx = nil, my = nil }; -- the controller's reticle, while browsing
+local cursorAt = { mx = nil, my = nil }; -- the controller's cursor, while browsing
 
 local function Zone()
     local ok, zone = pcall(function() return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0); end);
@@ -298,11 +296,11 @@ local function Draw()
     if waypoint ~= nil and shown ~= nil and waypoint.zone == zone and waypoint.floor == shown.floor then
         scene.waypoint = waypoint;
     end
-    scene.reticle = nil;
-    local rx, ry = pad.Reticle();
-    if rx ~= nil then
-        reticleAt.mx, reticleAt.my = rx, ry;
-        scene.reticle = reticleAt;
+    scene.cursor = nil;
+    local cx, cy = pad.Cursor();
+    if cx ~= nil then
+        cursorAt.mx, cursorAt.my = cx, cy;
+        scene.cursor = cursorAt;
     end
     local mx, my = view.Draw(imgui.GetWindowDrawList(), state, x, y, size, scene, options);
     if hovered and mx ~= nil and shown ~= nil then
@@ -349,8 +347,8 @@ local function Show(label, key, colourKey, tip)
 end
 
 local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game\'s own map has it:\n'
-    .. 'the left stick and the d-pad scroll, RB zooms in a step and LB out, the right stick moves a reticle and Y puts a waypoint there,\n'
-    .. 'A follows you again, X shows the next floor, and B gives it back. To walk with the map up, use passthrough (/atlas cycle).';
+    .. 'the left stick and the d-pad scroll, RB zooms in a step and LB out, Y puts a waypoint under the cursor in the middle,\n'
+    .. 'A locks the map to you, X shows the next floor, and B gives it back. To walk with the map up, use passthrough (/atlas cycle).';
 
 local function DrawSettings(options)
     if widgets.Header('Window') then
@@ -362,21 +360,11 @@ local function DrawSettings(options)
         widgets.Label('Map Size');
         imgui.SliderInt('##atlas.size', options.size, 256, 1024, '%d px');
         widgets.PopControlWidth();
-        widgets.Label('Fade While Moving');
-        imgui.Checkbox('##atlas.fadeWhileMoving', options.fadeWhileMoving);
-        tips.Hover('The map fades while your character moves, and comes back as you stop.\nThe mouse over the map, or browsing it with the controller, shows it whole.');
         widgets.PushControlWidth();
         widgets.Label('Passthrough Opacity');
-        imgui.SliderInt('##atlas.passthroughOpacity', options.passthroughOpacity, 10, 100, '%d%%');
-        tips.Hover('How much of the map shows in passthrough, the third step of /atlas cycle: shown, with the controller\nleft to the game. The mouse over the map shows it whole.');
+        imgui.SliderInt('##atlas.passthroughOpacity', options.passthroughOpacity, 0, 100, '%d%%');
+        tips.Hover('In passthrough, the last step of /atlas cycle (the map shown, the controller left to the game), the map fades\nto this while you move and comes back as you stop. At 0% it is gone until you stop. The mouse over the map shows it whole.');
         widgets.PopControlWidth();
-        if options.fadeWhileMoving[1] then
-            widgets.PushControlWidth();
-            widgets.Label('Moving Opacity');
-            imgui.SliderInt('##atlas.movingOpacity', options.movingOpacity, 0, 100, '%d%%');
-            tips.Hover('How much of the map shows while you move. At 0% it is gone until you stop.');
-            widgets.PopControlWidth();
-        end
     end
 
     if widgets.Header('Markers') then
@@ -446,7 +434,14 @@ pad.Attach({
     state = state,
     floor = NextFloor,
     shown = function(on) app.options.isVisible[1] = on; end,
-    -- Y: a waypoint at the reticle, or none if the reticle is on the one there is
+    -- A: back to the player's floor, the map locked to them; the zoom kept
+    follow = function()
+        current.chosen = nil;
+        view.Follow(state, true);
+        Place();
+    end,
+    player = function() return playerAt.mx, playerAt.my; end,
+    -- Y: a waypoint under the cursor, or none if the cursor is on the one there is
     mark = function(mx, my)
         local shown = Shown();
         if mx == nil or shown == nil then
@@ -474,10 +469,7 @@ ashita.events.register('d3d_present', 'atlas_present', function()
     if not app:BeginFrame() then return; end
     extra.locked = app.options.locked[1];
     local over = MouseOverWindow();
-    extra.alpha = moving.Update(app.options, pad.Browsing() or over);
-    if passing and not over then
-        extra.alpha = math.min(extra.alpha, app.options.passthroughOpacity[1] / 100);
-    end
+    extra.alpha = moving.Update(passing, app.options.passthroughOpacity[1], over);
     app:Window(app.options.isVisible, Draw, extra);
 end);
 

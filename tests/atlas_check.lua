@@ -3,7 +3,7 @@
 -- sight placed by the server's word (0x0A0), and the server asked (0x0D2) only while one is; the
 -- wheel zooming round the place under the mouse, a drag panning and no longer following; nothing
 -- known for a zone with no map; /atlas browse giving the map the controller: the d-pad scrolling,
--- the left stick scrolling (kept from the game), the shoulders stepping the zoom, the right stick's reticle and Y's waypoint, A following, X the floors, B giving it back
+-- the left stick scrolling (kept from the game), the shoulders stepping the zoom, the cursor and Y's waypoint, A locking to the player, X the floors, B giving it back
 local o = H.options()
 local imgui = require('imgui')
 local mapdat = require('winxi.mapdat')
@@ -250,10 +250,10 @@ local textDisabled = imgui.TextDisabled
 imgui.TextDisabled = function(t, ...) hint = t; return textDisabled(t, ...) end
 H.button(18, 20000) -- walking east as browsing begins
 H.command('/atlas browse')
-H.print('browse: the map shown, and the game told the stick is centred', o.isVisible[1], queued[1] == '18=0', #queued == 1)
+H.print('browse: the map shown, and the game told the stick is centred', o.isVisible[1], queued[1] == '18=0', queued[2] == '19=0')
 frame()
 imgui.TextDisabled = textDisabled
-H.print('the buttons said under the map, the sticks among them', hint ~= nil and hint:find('L Stick', 1, true) ~= nil and hint:find('Y: Waypoint', 1, true) ~= nil)
+H.print('the buttons said under the map, the sticks among them', hint ~= nil and hint:find('Stick, D-Pad', 1, true) ~= nil and hint:find('Y: Waypoint', 1, true) ~= nil)
 -- the stick: kept from the game while pushed, let through as it comes back
 H.print('the stick kept from the game', H.button(18, 32767) == true, H.button(19, 0) == false)
 frame()
@@ -301,30 +301,33 @@ local stepped = image and (image.uvB[1] - image.uvA[1]) or 0
 H.print('LB at 1x stays at 1x, RB from 1x is 1.5x', math.abs(stepped - 1 / 1.5) < 0.001)
 H.tap(H.Button.LB)
 
--- the right stick: a reticle at the middle, moved by the stick and kept from the game; Y puts a
--- waypoint there, and Y on it takes it away
+-- the cursor: on the player while following, though the edge keeps the view from centring on them;
+-- in the middle of the view once scrolled; Y puts a waypoint under it, and Y on it takes it away
+local function cursorX() local ring = nil for _, d in ipairs(drawn) do if d.kind == 'ring' then ring = d end end return ring and ring.x end
 frame()
-H.print('a reticle while browsing', count('line') == 8)
-local ring = nil
-for _, d in ipairs(drawn) do if d.kind == 'ring' then ring = d end end
-local startX = ring and ring.x or 0
-H.print('the right stick kept from the game', H.button(20, 32767) == true, H.button(21, 0) == false)
-H.frames(10)
-H.button(20, 0)
+local tip = first('arrow')
+H.print('a cursor while browsing', count('line') == 8)
+H.print('following: the cursor on the player, at the edge', tip ~= nil and cursorX() ~= nil and math.abs(cursorX() - (tip.x - math.cos(1.0) * 9 * 1.6 * 0.75)) < 0.01)
+H.tap(H.Button.RB)
+H.tap(H.Button.DpadRight)
 frame()
-ring = nil
-for _, d in ipairs(drawn) do if d.kind == 'ring' then ring = d end end
-H.print('pushed right: the reticle moves right, the map stays', ring ~= nil and ring.x > startX)
+local middle = cursorX()
+H.tap(H.Button.DpadRight)
+frame()
+H.print('scrolled: the cursor stays in the middle', middle ~= nil and cursorX() == middle)
+H.print('the right stick left to the game, for the camera', H.button(20, 32767) == false, H.button(20, 0) == false)
 H.tap(H.Button.Y)
 frame()
-H.print('Y: a waypoint where the reticle is', count('ring') == 4)
+H.print('Y: a waypoint under the cursor', count('ring') == 4)
 H.tap(H.Button.Y)
 frame()
 H.print('Y on it again: gone', count('ring') == 2)
 H.tap(H.Button.Y)
+H.tap(H.Button.LB)
+H.tap(H.Button.A)
 H.command('/atlas cycle') -- to passthrough: the controller given back, the map left up
 frame()
-H.print('given back: no reticle, the waypoint still shown', count('line') == 0, count('ring') == 2)
+H.print('given back: no cursor, the waypoint still shown', count('line') == 0, count('ring') == 2)
 H.command('/atlas cycle')
 H.command('/atlas browse')
 
@@ -384,7 +387,7 @@ H.frames(1)
 H.dinput(0, 100) -- walking east as browsing begins
 local xqueued = #queued
 H.command('/atlas browse')
-H.print('DirectInput: the game told its stick is centred, not XInput\'s', dqueued[1] == '0=0', #dqueued == 1, #queued == xqueued)
+H.print('DirectInput: the game told its stick is centred, not XInput\'s', dqueued[1] == '0=0', dqueued[2] == '4=0', #queued == xqueued)
 frame()
 local function dtap(button) H.dinput(button, 128) H.dinput(button, 0) H.frames(1) end
 dtap(53) dtap(53) -- R1: zoomed in twice
@@ -407,7 +410,7 @@ H.dinput(4, 0)
 frame()
 image = first('image')
 H.print('DirectInput stick up scrolls north', image ~= nil and image.uvA[2] < beforeY, image ~= nil and image.uvA[1] == before)
-H.print('DirectInput right stick (8, 20) kept from the game', H.dinput(8, 127) == true, H.dinput(8, 0) == false, H.dinput(20, -128) == true, H.dinput(20, 0) == false)
+H.print('DirectInput right stick (8, 20) left to the game', H.dinput(8, 127) == false, H.dinput(8, 0) == false, H.dinput(20, -128) == false, H.dinput(20, 0) == false)
 H.print('XInput\'s stick left alone while DirectInput is in use', H.button(18, 32767) == false)
 H.frames(10)
 H.button(18, 0)
@@ -432,8 +435,8 @@ frame()
 o.controllerType = 'xinput'
 H.frames(1)
 
--- Fade While Moving: the map faded as the player walks, whole again as they stop, or with the mouse
--- over it or the controller browsing it; off, never faded
+-- passthrough, the last step of /atlas cycle: the map faded to Passthrough Opacity as the player walks,
+-- whole again as they stop or with the mouse over it; in the other steps, never faded
 local pushedAlpha = 1
 local pushStyleVar = imgui.PushStyleVar
 imgui.PushStyleVar = function(var, value, ...) if var == ImGuiStyleVar_Alpha then pushedAlpha = value end return pushStyleVar(var, value, ...) end
@@ -449,55 +452,46 @@ rawset(imgui, 'GetMousePos', function() return 0, 0 end)
 zone = 126
 entities[1] = { x = 100, y = -20, z = 5, heading = 1.0, name = 'Tester' }
 o.isVisible[1] = true
-H.print('off: walking leaves the map whole', alphaAfter(20, true) == 1)
-o.fadeWhileMoving[1] = true
+H.print('shown by /atlas: walking leaves the map whole', alphaAfter(20, true) == 1)
+alphaAfter(30)
+o.isVisible[1] = false
+H.frames(1)
+H.command('/atlas cycle')
+H.print('cycle from hidden: open, with the controller, whole while walking', o.isVisible[1], H.tap(H.Button.DpadLeft) == true, alphaAfter(20, true) == 1)
+alphaAfter(30)
+H.command('/atlas cycle')
+H.print('then passthrough: still shown, the controller the game\'s', o.isVisible[1], H.tap(H.Button.DpadLeft) == false)
 H.print('standing: whole', alphaAfter(5) == 1)
-H.print('walking: down to Moving Opacity, a step at a time', alphaAfter(2, true) < 1 and pushedAlpha > 0.3, math.abs(alphaAfter(20, true) - 0.3) < 0.001)
+H.print('walking: down to Passthrough Opacity, a step at a time', alphaAfter(2, true) < 1 and pushedAlpha > 0.3, math.abs(alphaAfter(20, true) - 0.3) < 0.001)
 H.print('stopped a moment: still faded', math.abs(alphaAfter(5) - 0.3) < 0.001)
 H.print('stood still: whole again', alphaAfter(30) == 1)
-alphaAfter(20, true)
 rawset(imgui, 'GetMousePos', function() return 150, 250 end) -- inside the window, at 100, 200 and 300 by 150
 H.print('the mouse over it: whole while walking', alphaAfter(20, true) == 1)
 rawset(imgui, 'GetMousePos', function() return 0, 0 end)
-H.command('/atlas browse')
-H.print('browsing: whole while walking', alphaAfter(20, true) == 1)
-H.tap(H.Button.B)
-o.movingOpacity[1] = 0
+o.passthroughOpacity[1] = 0
 local begun = H.calls.Begin or 0
 alphaAfter(30, true)
 local walking = (H.calls.Begin or 0) - begun
 H.print('at 0%: the window not drawn while walking', walking < 30)
-o.fadeWhileMoving[1], o.movingOpacity[1] = false, 30
-
--- /atlas cycle: hidden, open with the controller, passthrough at Passthrough Opacity, hidden again
-o.isVisible[1] = false
-H.frames(1)
-H.command('/atlas cycle')
-H.print('cycle from hidden: open, with the controller, whole', o.isVisible[1], H.tap(H.Button.DpadLeft) == true, alphaAfter(1) == 1)
-H.command('/atlas cycle')
-H.print('then passthrough: still shown, the controller the game\'s, at 50%', o.isVisible[1], H.tap(H.Button.DpadLeft) == false,
-    math.abs(alphaAfter(1) - 0.5) < 0.001)
-o.passthroughOpacity[1] = 20
-H.print('Passthrough Opacity followed', math.abs(alphaAfter(1) - 0.2) < 0.001)
-rawset(imgui, 'GetMousePos', function() return 150, 250 end)
-H.print('the mouse over it: whole', alphaAfter(1) == 1)
-rawset(imgui, 'GetMousePos', function() return 0, 0 end)
+o.passthroughOpacity[1] = 30
+alphaAfter(30)
 H.command('/atlas cycle')
 H.print('then hidden', not o.isVisible[1])
 o.isVisible[1] = true
-H.print('shown by /atlas: whole, not passthrough', alphaAfter(1) == 1)
+H.frames(1)
 H.command('/atlas cycle')
-H.print('and cycle takes it to open', H.tap(H.Button.DpadLeft) == true)
+H.print('a map shown by /atlas: cycle takes it to open', H.tap(H.Button.DpadLeft) == true)
 H.command('/atlas cycle')
 H.command('/atlas browse')
-H.print('browsing ends passthrough', alphaAfter(1) == 1)
+H.print('browsing ends passthrough: whole while walking', alphaAfter(20, true) == 1)
 H.tap(H.Button.B)
+alphaAfter(30)
 o.controller[1] = false
 o.isVisible[1] = false
 H.frames(1)
 H.command('/atlas cycle')
-H.print('Controller Navigation off: open is just shown', o.isVisible[1], H.tap(H.Button.DpadLeft) == false, alphaAfter(1) == 1)
+H.print('Controller Navigation off: open is just shown', o.isVisible[1], H.tap(H.Button.DpadLeft) == false, alphaAfter(20, true) == 1)
 H.command('/atlas cycle')
-H.print('then passthrough', math.abs(alphaAfter(1) - 0.2) < 0.001)
-o.controller[1], o.passthroughOpacity[1] = true, 50
+H.print('then passthrough', math.abs(alphaAfter(20, true) - 0.3) < 0.001)
+o.controller[1] = true
 imgui.PushStyleVar = pushStyleVar
