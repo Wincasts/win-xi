@@ -218,7 +218,7 @@ end
 --
 --     local rows = predict.Priority({
 --         head = 1, frame = 0x20, maneuvers = { light = 1 },
---         enfeebles = { 'Bio', 'Poison' },                  -- from Queue: the spells, next first; nil or empty for none
+--         enfeebles = { 'Bio', 'Poison' },                  -- from Queue: the spells, next first; nil or empty for none. The first is named
 --         weaponskill = 'Slapstick', weaponskillElement = 'thunder', -- from Weaponskill: nil where there is none
 --         masterHpp = 82, hpp = 100, mpp = 60, tp = 640,   -- the master's HP, and the automaton's own
 --         since = function(kind) ... end,                   -- seconds since it last did a thing: tracker.Since
@@ -230,8 +230,9 @@ end
 -- its own and is not chosen (the bash, the shot, what an attachment fitted does when its maneuver is
 -- up), which the window shows only while the timer runs; element is the maneuver the
 -- thing answers to, if any, for the window to colour its name with; detail is what it would do (the
--- spells, each { name, element }, or the weapon skill's name), or nil; state is 'ready', 'waiting' (on
--- a timer, wait seconds of it left) or 'idle' (nothing for it to do as things stand); ready marks the
+-- spell it would cast, or the weapon skill, as { name, element }), or nil; state is 'waiting' (on a
+-- timer, wait seconds of it left, whether or not it has anything to do), 'idle' (nothing for it to do
+-- as things stand) or 'ready'; ready marks the
 -- one row the automaton will act on next; unsure marks a row whose condition the game is not told of
 -- (an enemy casting, an ailment to remove), which is never called next. The timers are Phoenix's for
 -- this era.
@@ -301,7 +302,7 @@ function predict.Priority(state)
     local section = 'cooldown'
     local function add(name, element, detail, needed, wait, unsure)
         rows[#rows + 1] = { name = name, section = section, element = element, detail = detail, wait = wait or 0, unsure = unsure or nil,
-            state = (not needed and 'idle') or ((wait or 0) > 0 and 'waiting') or 'ready' }
+            state = ((wait or 0) > 0 and 'waiting') or (not needed and 'idle') or 'ready' }
     end
 
     -- a shield bash, on a Valoredge frame: only when the enemy is doing something it would break. An
@@ -338,12 +339,9 @@ function predict.Priority(state)
         threshold = math.max(30, math.min(90, threshold))
 
         local enfeebles = state.enfeebles or {}
-        local spells = nil
+        local spell = nil
         if #enfeebles > 0 then
-            spells = {}
-            for i, name in ipairs(enfeebles) do
-                spells[i] = { name = name, element = predict.SpellElements[name] }
-            end
+            spell = { name = enfeebles[1], element = predict.SpellElements[enfeebles[1]] }
         end
 
         local function heal()
@@ -353,7 +351,7 @@ function predict.Priority(state)
         end
         local function enfeeble()
             if timers.enfeeble == nil then return end
-            add('Enfeeble', nil, spells, spells ~= nil, math.max(magicLeft, left('enfeeble', timers.enfeeble)))
+            add('Enfeeble', nil, spell, spell ~= nil, math.max(magicLeft, left('enfeeble', timers.enfeeble)))
         end
         local function nuke()
             if timers.elemental == nil then return end

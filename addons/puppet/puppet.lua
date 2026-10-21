@@ -1,12 +1,12 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.6'
-addon.desc    = 'Everything an automaton might do next, in the order it tries them, with the timer on each: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
+addon.version = '1.7'
+addon.desc    = 'What an automaton will do next and the timers on everything it might: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- A small window for a puppetmaster: the burden of each element as a figure in the element's colour,
 -- which burden.lua reckons; under it the action the automaton will take next; then what the maneuvers
--- choose, in the order it tries them, with the timer on each (its spells with the next three enfeebles
+-- choose, in the order it tries them, with the timer on each (its spells with the enfeeble it would cast
 -- named, the weapon skill); then the cooldowns running on what is not chosen (its shield bash, its shot,
 -- what its attachments do when their maneuver is up), each there only while its timer runs. A thing
 -- that answers to a maneuver has its name in the maneuver's colour. The choosing is predict.lua's, which follows the server's; this gathers what it
@@ -37,7 +37,6 @@ local jobPup = 18
 local extendedJobPacket = 0x044
 local petSyncPacket = 0x068
 local zonePacket = 0x00A
-local enfeeblesShown = 3
 local statusOverdrive = 166
 
 -- The maneuvers, by the status each shows as on the player
@@ -222,11 +221,7 @@ local function Work(pet, id)
         hpp = pet.HPPercent,
         mpp = AshitaCore:GetMemoryManager():GetPlayer():GetPetMPPercent(),
     })
-    local names = {}
-    for i = 1, math.min(#queue, enfeeblesShown) do
-        names[i] = queue[i]
-    end
-    showing.enfeebles = #names > 0 and names or nil
+    showing.enfeebles = #queue > 0 and queue or nil
 
     showing.weaponskill, showing.weaponskillElement = predict.Weaponskill({
         frame = automaton.frame,
@@ -260,8 +255,7 @@ local dummy = { on = { false }, was = false }
 dummy.priority = {
     { name = 'Bash', section = 'cooldown', element = 'earth', state = 'waiting', wait = 142 },
     { name = 'Heal', section = 'queue', element = 'light', state = 'idle', wait = 0 },
-    { name = 'Enfeeble', section = 'queue', detail = { { name = 'Dia II', element = 'light' }, { name = 'Poison', element = 'water' }, { name = 'Silence', element = 'wind' } },
-        state = 'ready', wait = 0, ready = true },
+    { name = 'Enfeeble', section = 'queue', detail = { name = 'Dia II', element = 'light' }, state = 'ready', wait = 0, ready = true },
     { name = 'Nuke', section = 'queue', element = 'ice', state = 'waiting', wait = 12 },
     { name = 'Erase', section = 'queue', element = 'water', state = 'ready', wait = 0 },
     { name = 'WS', section = 'queue', detail = { name = 'Slapstick', element = 'thunder' }, state = 'idle', wait = 0 },
@@ -316,38 +310,21 @@ local cellPadding = { 6, 1 }
 local widestLabel = 'Next Action:'
 local labelWidth = 0 -- measured each frame, for the font may change
 
--- What a row would do, written in the maneuvers' colours: the weapon skill's name, or the spells one
--- after another with commas between; in the Next Action line the first spell alone
-local comma = ', '
-local function WriteDetail(detail, firstOnly)
-    if detail == nil then
-        return
-    end
-    if detail.name ~= nil then
+-- What a row would do, written in its maneuver's colour: the spell it would cast, or the weapon skill
+local function WriteDetail(detail)
+    if detail ~= nil then
         Write(detail.name, maneuverColors[detail.element])
-        return
-    end
-    local count = firstOnly and math.min(1, #detail) or #detail
-    for i = 1, count do
-        local part = detail[i]
-        if i > 1 then
-            WriteFaint(comma)
-            imgui.SameLine(0, 0)
-        end
-        Write(part.name, maneuverColors[part.element])
-        if i < count then
-            imgui.SameLine(0, 0)
-        end
     end
 end
 
 -- The list, in three parts. First the action the automaton will take next: the row that comes first
 -- with something to do and nothing to wait for, or, with nothing ready, the weapon skill it would use
--- once it has the TP. Then what the maneuvers choose (the spells, the weapon
--- skill), in the order it tries them, each the name, what it would do and the timer. Then, after a gap,
--- the cooldowns: what is not chosen but runs on a timer of its own (the bash, the shot, the attachments'
--- actions), each there only while its timer runs, with the seconds left. A name that answers to a
--- maneuver is in the maneuver's colour.
+-- once it has the TP: the spell or the weapon skill by name, or the row's name where there is nothing
+-- else to say. Then what the maneuvers choose (the spells, the weapon skill), in the order it tries them,
+-- each the name, what it would do and the timer, the seconds left whenever its timer runs. Then, after a
+-- gap, the cooldowns: what is not chosen but runs on a timer of its own (the bash, the shot, the
+-- attachments' actions), each there only while its timer runs, with the seconds left. A name that
+-- answers to a maneuver is in the maneuver's colour.
 local sectionGap = { 0, 4 }
 local function DrawPriority()
     if #showing.priority == 0 or not imgui.BeginTable('##puppet.priority', 3, tableFlags) then
@@ -370,12 +347,10 @@ local function DrawPriority()
     imgui.TableNextColumn()
     if next == nil then
         WriteFaint('-')
+    elseif next.detail ~= nil then
+        WriteDetail(next.detail)
     else
         Write(next.name, maneuverColors[next.element])
-        if next.detail ~= nil then
-            imgui.SameLine()
-            WriteDetail(next.detail, true)
-        end
     end
     imgui.TableNextColumn()
 
@@ -513,7 +488,7 @@ local function DrawSettings(options)
     tips.Hover('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.');
     widgets.Label('Show Priority List')
     imgui.Checkbox('##puppet.showPriority', options.showPriority)
-    tips.Hover('Next Action: what the automaton will do next. Under it, what the maneuvers choose, in the order it tries them: its spells (the next three enfeebles named) and WS (the weapon skill, named), each with its timer:\nReady, the seconds left, Next, or - when there is nothing for it to do.\nThen the cooldowns running on what is not chosen: Bash (shield bash), Shot (ranged attack) and what each attachment fitted does when its maneuver is up (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), each there only while its timer runs.\nA name in a colour answers to the maneuver of that colour. A timer is only known once the automaton has been seen to act.');
+    tips.Hover('Next Action: what the automaton will do next, the spell or weapon skill by name. Under it, what the maneuvers choose, in the order it tries them: its spells (the enfeeble it would cast named) and WS (the weapon skill, named), each with its timer:\nthe seconds left while it runs, else Ready, Next, or - when there is nothing for it to do.\nThen the cooldowns running on what is not chosen: Bash (shield bash), Shot (ranged attack) and what each attachment fitted does when its maneuver is up (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), each there only while its timer runs.\nA name in a colour answers to the maneuver of that colour. A timer is only known once the automaton has been seen to act.');
     widgets.Label('Show Burden')
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
     tips.Hover('The burden of each element as a figure in its colour, in one line: fire, ice, wind, earth, thunder, water, light, dark.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.\nResting the mouse on a figure names its element and gives the chance of one more maneuver of it overloading.');

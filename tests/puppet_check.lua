@@ -1,4 +1,4 @@
--- puppet: loads, and lists what an automaton will do next, the spells and the weapon skill named, from
+-- puppet: loads, and lists what an automaton will do next, the spell and the weapon skill named, from
 -- its maneuvers, its attachments and its target
 local debuffs = require('winxi.debuffs')
 local imgui = require('imgui')
@@ -26,14 +26,14 @@ local function shown()
     for i = #said, 1, -1 do said[i] = nil end
     for i = #colored, 1, -1 do colored[i] = nil end
     H.frames(1)
-    return (table.concat(said, ' '):gsub(' , ', ', '))
+    return table.concat(said, ' ')
 end
 -- the same without the wait: what is there the frame after a change
 local function atOnce()
     for i = #said, 1, -1 do said[i] = nil end
     for i = #colored, 1, -1 do colored[i] = nil end
     H.frames(1)
-    return (table.concat(said, ' '):gsub(' , ', ', '))
+    return table.concat(said, ' ')
 end
 
 -- the game: a puppetmaster (entity 1) with an automaton (2), and two enemies (7 and 8)
@@ -144,7 +144,8 @@ entities[1].PetTargetIndex = 2; H.frames(2); fight(900); now = now + 400
 describe(1, 0x20, 120); H.print('Harlequin, fresh:', list())
 did(8, 24931, 231); cast(231, 900); H.print('it casts Bio II:', list())
 H.frames(400); H.print('twelve seconds on:', list())
-game.hp = 25; H.print('the master at 25%:', list())
+game.hp = 25; H.print('the master at 25%: the heal timer shown now it is wanted, as before:', list())
+did(8, 24931, 1); game.hp = 100; H.print('a cure cast and the master whole: Heal still shows its timer', list()); H.frames(1100); game.hp = 25
 H.frames(700); H.print('the timers run out:', list()); game.hp = 100
 game.buffs = { 306 }; game.hp = 35; H.print('Light, the master at 35%: heal comes first:', list()); game.buffs = {}; game.hp = 100
 game.petTp = 1200; H.print('TP ready, a spell ready too: the spell comes first:', list(), '| Slapstick in thunder', same(colorOf('Slapstick'), thunder))

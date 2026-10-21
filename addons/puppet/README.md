@@ -5,13 +5,13 @@ do in the order it tries them, each with its timer, in a small window. It needs 
 (`addons/libs/winxi`).
 
     35  35  35  35  33  35  35  35
-    Next Action:  Enfeeble Dia II
-    Heal                                   -
-    Enfeeble      Dia II, Poison, Silence  Next
-    WS            Slapstick                -
+    Next Action:  Dia II
+    Heal                     12s
+    Enfeeble      Dia II     Next
+    WS            Slapstick  -
 
-    Bash                                   142s
-    Provoke                                12s
+    Bash                     142s
+    Provoke                  12s
 
 - `/puppet` shows or hides the window
 - `/puppet config` opens or closes the settings
@@ -19,7 +19,7 @@ do in the order it tries them, each with its timer, in a small window. It needs 
 The spells and the weapon skill are worked out the way the Phoenix server chooses. Each head has a set
 order of spells, every maneuver up moves the spells of its element to the front, and a spell is passed
 over when the automaton lacks the magic skill for it or the target already has its effect; the Enfeeble
-row names the next three. The weapon skill is the one of the frame's with the most maneuvers of its
+row names the one it would cast now. The weapon skill is the one of the frame's with the most maneuvers of its
 element up, and between two with as many, the one needing more skill; the WS row names it. A name that
 answers to a maneuver is written in the maneuver's colour: each spell, the weapon skill, Heal (Light
 raises the HP it heals at), Nuke (Ice brings it forward), Erase (Water has it reach the party), Bash
@@ -30,9 +30,9 @@ it is not. What it is
 fighting is told to its master alone, in the packet that keeps the two in step. A line with
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
-The list is in three parts. **Next Action** is what the automaton will do next: whatever comes first
-in its order with something to do and nothing to wait for, or, with nothing ready, the weapon skill it
-will use once it has the TP. Under that is the **queue**: what the
+The list is in three parts. **Next Action** is what the automaton will do next, the spell or weapon
+skill by name: whatever comes first in its order with something to do and nothing to wait for, or, with
+nothing ready, the weapon skill it will use once it has the TP. Under that is the **queue**: what the
 maneuvers choose, in the order it tries them, each with its timer, named short: Heal, Enfeeble, Nuke,
 Erase (a status removal) and WS (the weapon skill). After a gap come the **cooldowns**: what is not
 chosen but runs on a timer of its own, each row there only while its timer runs, with the seconds left.
@@ -56,9 +56,10 @@ the action of each attachment fitted that acts of its own accord when its maneuv
 
 Every three seconds or so the automaton tries a shield bash, then its spells in the head's order (which
 Light and Ice maneuvers change), then a weapon skill, then a shot, then what its attachments do, and does
-the first it can. A row of the queue says `Ready`, the seconds left of the timer it is waiting on, `-`
-when there is nothing for it to do as things stand (nobody to heal, nothing to cast, no TP), or `Next` on
-the one that comes next; a thing whose condition the game is not told of (an enemy casting for Bash, an
+the first it can. A row of the queue says the seconds left whenever its timer runs (the head's for that
+kind of spell, or the one between any two spells, whichever is longer), else `Ready`, `-` when there is
+nothing for it to do as things stand (nobody to heal, nothing to cast, no TP), or `Next` on the one that
+comes next; a thing whose condition the game is not told of (an enemy casting for Bash, an
 ailment for Erase and Eraser, a buff for Disruptor and Regulator) is never Next. The timers are Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier
 Module counted where fitted. A timer is known only once the automaton has been seen to act, so a row
 may say Ready when the addon was loaded part way through a fight and it is not.
