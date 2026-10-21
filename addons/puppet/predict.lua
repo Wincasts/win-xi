@@ -212,9 +212,10 @@ end
 -- Every three seconds or so the automaton tries one thing after another and does the first it can:
 -- a shield bash, a spell, a weapon skill, a shot, then whatever its attachments do of their own
 -- accord. Which spell it tries first is the head's to say, and the maneuvers'. The rows are named
--- short, for a small window: Bash, Heal, Enfeeble, Nuke, Erase (a status removal), WS (the weapon
--- skill), Shot, and then one for each attachment fitted that acts on a timer of its own (Provoke for a
--- Strobe, Flash for a Flashbulb, and so on).
+-- short, for a small window: Bash, Magic (every spell as one: what it would cast first, Heal, an
+-- enfeeble by name, Nuke or Erase, with the timer on that), WS (the weapon skill), Shot, and then one
+-- for each attachment fitted that acts on a timer of its own (Provoke for a Strobe, Flash for a
+-- Flashbulb, and so on).
 --
 --     local rows = predict.Priority({
 --         head = 1, frame = 0x20, maneuvers = { light = 1 },
@@ -231,7 +232,7 @@ end
 -- its own and is not chosen (the bash, the shot, what an attachment fitted does when its maneuver is
 -- up), which the window shows only while the timer runs; element is the maneuver the
 -- thing answers to, if any, for the window to colour its name with; detail is what it would do (the
--- spell it would cast, or the weapon skill, as { name, element }), or nil; state is 'waiting' (on a
+-- spell it would cast, or Heal, Nuke or Erase, or the weapon skill, as { name, element }), or nil; state is 'waiting' (on a
 -- timer, wait seconds of it left, whether or not it has anything to do), 'idle' (nothing for it to do
 -- as things stand) or 'ready'; ready marks the
 -- one row the automaton will act on next; unsure marks a row whose condition the game is not told of
@@ -262,6 +263,7 @@ local attachmentBarrierModule, attachmentBarrierModuleII = 107, 104
 local attachmentHammermill = 103
 
 local healAt = { [0] = 30, [1] = 40, [2] = 50, [3] = 75 } -- the master's HP it heals at, by Light maneuvers
+local spellKinds = { heal = 'Heal', enfeeble = 'Enfeeble', nuke = 'Nuke', erase = 'Erase' } -- what the Magic row says it would do, by kind
 local healSelfAt = 50
 
 -- The attachments that act on their own, each on a timer of its own, as the server scripts them: the
@@ -354,20 +356,27 @@ function predict.Priority(state)
             if healTimer == nil then return end
             local needed = (state.masterHpp or 100) <= threshold or (state.hpp or 100) <= healSelfAt
             add('Heal', 'light', nil, needed, math.max(magicLeft, left('heal', healTimer)))
+            rows[#rows].kind = 'heal'
         end
         local function enfeeble()
             if timers.enfeeble == nil then return end
             add('Enfeeble', nil, spell, spell ~= nil, math.max(magicLeft, left('enfeeble', timers.enfeeble)))
+            rows[#rows].kind = 'enfeeble'
         end
         local function nuke()
             if timers.elemental == nil then return end
             add('Nuke', 'ice', nil, (state.mpp or 100) > 0, math.max(magicLeft, left('elemental', timers.elemental)))
+            rows[#rows].kind = 'nuke'
         end
         local function cleanse()
             if timers.status == nil then return end
             add('Erase', 'water', nil, true, math.max(magicLeft, left('status', timers.status)), true)
+            rows[#rows].kind = 'erase'
         end
 
+        -- the kinds of spell in the head's order, then as one row: the first that can be cast now, else
+        -- the soonest to be among those with something to cast, else the first, with its timer
+        local firstSpell = #rows + 1
         local light, ice = up('light') > 0, up('ice') > 0
         if state.head == predict.Heads.Valoredge then
             heal()
@@ -390,6 +399,31 @@ function predict.Priority(state)
             if light then heal() end
             enfeeble()
             if not light then heal() end
+        end
+
+        local spells = {}
+        for i = #rows, firstSpell, -1 do
+            table.insert(spells, 1, table.remove(rows, i))
+        end
+        local chosen = nil
+        for _, spell in ipairs(spells) do
+            if spell.state == 'ready' and not spell.unsure then
+                chosen = spell
+                break
+            end
+        end
+        if chosen == nil then
+            for _, spell in ipairs(spells) do
+                if spell.state == 'waiting' and spell.needed and not spell.unsure and (chosen == nil or spell.wait < chosen.wait) then
+                    chosen = spell
+                end
+            end
+        end
+        chosen = chosen or spells[1]
+        if chosen ~= nil then
+            chosen.name = 'Magic'
+            chosen.detail = chosen.detail or { name = spellKinds[chosen.kind], element = chosen.element }
+            rows[#rows + 1] = chosen
         end
     end
 

@@ -6,8 +6,7 @@ do in the order it tries them, each with its timer, in a small window. It needs 
 
     35  35  35  35  33  35  35  35
     Next Action:  Dia II
-    Heal                     12s
-    Enfeeble      Dia II     Next
+    Magic         Dia II     Next
     WS            Slapstick  ~9s
 
     Bash                     142s
@@ -18,8 +17,8 @@ do in the order it tries them, each with its timer, in a small window. It needs 
 
 The spells and the weapon skill are worked out the way the Phoenix server chooses. Each head has a set
 order of spells, every maneuver up moves the spells of its element to the front, and a spell is passed
-over when the automaton lacks the magic skill for it or the target already has its effect; the Enfeeble
-row names the one it would cast now. The weapon skill is the one of the frame's with the most maneuvers of its
+over when the automaton lacks the magic skill for it or the target already has its effect; the Magic row
+names what it would cast first. The weapon skill is the one of the frame's with the most maneuvers of its
 element up, and between two with as many, the one needing more skill; the WS row names it. A name that
 answers to a maneuver is written in the maneuver's colour: each spell, the weapon skill, Heal (Light
 raises the HP it heals at), Nuke (Ice brings it forward), Erase (Water has it reach the party), Bash
@@ -36,8 +35,12 @@ nothing ready it is whichever comes soonest: a spell waiting on its timer with s
 weapon skill at the time the automaton will have the TP for it, going by the rate it has gained TP over
 the last half minute (`tp.lua`); the WS row then shows that time as an estimate, `~9s`. With nothing
 waiting, or no rate known yet, the weapon skill is named. Under that is the **queue**: what the
-maneuvers choose, in the order it tries them, each with its timer, named short: Heal, Enfeeble, Nuke,
-Erase (a status removal) and WS (the weapon skill). After a gap come the **cooldowns**: what is not
+maneuvers choose, each with its timer, named short: Magic and WS (the weapon skill). Magic is every
+spell as one row, since every spell waits on the one timer between any two casts and then on a timer for
+its kind (healing, enfeebling, elemental, status removal): it names what the automaton would cast first
+in the head's order (Heal, an enfeeble by name, Nuke, Erase), the first it can cast now, else the
+soonest it will be able to among those with something to cast, and shows that one's timer. After a gap
+come the **cooldowns**: what is not
 chosen but runs on a timer of its own, each row there only while its timer runs, with the seconds left.
 Those are Bash (a shield bash, on a Valoredge frame), Shot (a ranged attack, on a Sharpshot frame) and
 the action of each attachment fitted that acts of its own accord when its maneuver is up:
@@ -59,10 +62,9 @@ the action of each attachment fitted that acts of its own accord when its maneuv
 
 Every three seconds or so the automaton tries a shield bash, then its spells in the head's order (which
 Light and Ice maneuvers change), then a weapon skill, then a shot, then what its attachments do, and does
-the first it can. A row of the queue says the seconds left whenever its timer runs (the head's for that
-kind of spell, or the one between any two spells, whichever is longer), else `Ready`, `-` when there is
-nothing for it to do as things stand (nobody to heal, nothing to cast, no TP), or `Next` on the one that
-comes next; a thing whose condition the game is not told of (an enemy casting for Bash, an
+the first it can. A row of the queue says the seconds left whenever its timer runs, else `Ready`, `-` when
+there is nothing for it to do as things stand (nobody to heal, nothing to cast, no TP), or `Next` on the
+one that comes next; a thing whose condition the game is not told of (an enemy casting for Bash, an
 ailment for Erase and Eraser, a buff for Disruptor and Regulator) is never Next. The timers are Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier
 Module counted where fitted. A timer is known only once the automaton has been seen to act, so a row
 may say Ready when the addon was loaded part way through a fight and it is not.

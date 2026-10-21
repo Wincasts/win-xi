@@ -89,7 +89,7 @@ H.print('the automaton fighting nothing: nothing drawn', shown() == '')
 fight(900, 55); H.print('nor when it is someone else\'s pet that fights', shown() == '')
 fight(900)
 H.print('Harlequin, no maneuvers:', shown())
-H.print('Bio II in dark', same(colorOf('Bio II'), dark), '| Slapstick in thunder', same(colorOf('Slapstick'), thunder), '| Heal in light', same(colorOf('Heal'), { 1, 1, 1, 1 }))
+H.print('Bio II in dark', same(colorOf('Bio II'), dark), '| Slapstick in thunder', same(colorOf('Slapstick'), thunder))
 game.buffs = { 306 }; H.print('Light:', shown())
 game.buffs = { 306, 307 }; H.print('Light and Dark:', shown())
 game.buffs = { 305, 301, 255, 255 }; H.print('Water and Ice:', shown())
@@ -149,7 +149,7 @@ H.frames(400); H.print('twelve seconds on:', list())
 game.hp = 25; H.print('the master at 25%: the heal timer shown now it is wanted, as before:', list())
 did(8, white, 1); game.hp = 100; H.print('a cure cast (white magic) and the master whole: Heal still shows its timer', list()); H.frames(1100); game.hp = 25
 H.frames(700); H.print('the timers run out:', list()); game.hp = 100
-game.buffs = { 306 }; game.hp = 35; H.print('Light, the master at 35%: heal comes first:', list()); game.buffs = {}; game.hp = 100
+game.buffs = { 306 }; game.hp = 35; H.print('Light, the master at 35%: heal comes first:', list(), '| Heal in light', same(colorOf('Heal'), { 1, 1, 1, 1 })); game.buffs = {}; game.hp = 100
 game.petTp = 1200; H.print('TP ready, a spell ready too: the spell comes first:', list(), '| Slapstick in thunder', same(colorOf('Slapstick'), thunder))
 did(8, white, 220); H.print('the spell just cast: the weapon skill is next:', list()); game.petTp = 300
 -- the weapon skill against the spells' timers, at the rate the automaton gains TP, which the addon

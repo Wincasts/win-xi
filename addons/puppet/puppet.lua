@@ -1,13 +1,13 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.8'
+addon.version = '1.9'
 addon.desc    = 'What an automaton will do next and the timers on everything it might: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- A small window for a puppetmaster: the burden of each element as a figure in the element's colour,
 -- which burden.lua reckons; under it the action the automaton will take next; then what the maneuvers
--- choose, in the order it tries them, with the timer on each (its spells with the enfeeble it would cast
--- named, the weapon skill); then the cooldowns running on what is not chosen (its shield bash, its shot,
+-- choose, in the order it tries them, with the timer on each (its magic, as one, with what it would cast
+-- first named; the weapon skill); then the cooldowns running on what is not chosen (its shield bash, its shot,
 -- what its attachments do when their maneuver is up), each there only while its timer runs. A thing
 -- that answers to a maneuver has its name in the maneuver's colour. The weapon skill is called next
 -- when the automaton will have the TP for it, at the rate it has been gaining it (tp.lua), before any
@@ -258,10 +258,7 @@ end
 local dummy = { on = { false }, was = false }
 dummy.priority = {
     { name = 'Bash', section = 'cooldown', element = 'earth', state = 'waiting', wait = 142 },
-    { name = 'Heal', section = 'queue', element = 'light', state = 'idle', wait = 0 },
-    { name = 'Enfeeble', section = 'queue', detail = { name = 'Dia II', element = 'light' }, state = 'ready', wait = 0, ready = true },
-    { name = 'Nuke', section = 'queue', element = 'ice', state = 'waiting', wait = 12 },
-    { name = 'Erase', section = 'queue', element = 'water', state = 'ready', wait = 0 },
+    { name = 'Magic', section = 'queue', detail = { name = 'Dia II', element = 'light' }, state = 'ready', wait = 0, ready = true },
     { name = 'WS', section = 'queue', detail = { name = 'Slapstick', element = 'thunder' }, state = 'waiting', wait = 9, estimate = true },
     { name = 'Shot', section = 'cooldown', element = 'wind', state = 'waiting', wait = 7 },
     { name = 'Provoke', section = 'cooldown', element = 'fire', state = 'waiting', wait = 24 },
@@ -488,7 +485,7 @@ local function DrawSettings(options)
     tips.Hover('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.');
     widgets.Label('Show Priority List')
     imgui.Checkbox('##puppet.showPriority', options.showPriority)
-    tips.Hover('Next Action: what the automaton will do next, the spell or weapon skill by name: the first thing ready, else the soonest to be, the weapon skill counted at the time it will have the TP at the rate it gains it (its row then shows that time as ~).\nUnder it, what the maneuvers choose, in the order it tries them: its spells (the enfeeble it would cast named) and WS (the weapon skill, named), each with its timer:\nthe seconds left while it runs, else Ready, Next, or - when there is nothing for it to do.\nThen the cooldowns running on what is not chosen: Bash (shield bash), Shot (ranged attack) and what each attachment fitted does when its maneuver is up (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), each there only while its timer runs.\nA name in a colour answers to the maneuver of that colour. A timer is only known once the automaton has been seen to act.');
+    tips.Hover('Next Action: what the automaton will do next, the spell or weapon skill by name: the first thing ready, else the soonest to be, the weapon skill counted at the time it will have the TP at the rate it gains it (its row then shows that time as ~).\nUnder it, what the maneuvers choose, in the order it tries them: Magic (every spell as one: what it would cast first, Heal, an enfeeble by name, Nuke or Erase, with the timer on that) and WS (the weapon skill, named), each with its timer:\nthe seconds left while it runs, else Ready, Next, or - when there is nothing for it to do.\nThen the cooldowns running on what is not chosen: Bash (shield bash), Shot (ranged attack) and what each attachment fitted does when its maneuver is up (Provoke for a Strobe, Flash for a Flashbulb, Stoneskin for a Shock Absorber, and so on), each there only while its timer runs.\nA name in a colour answers to the maneuver of that colour. A timer is only known once the automaton has been seen to act.');
     widgets.Label('Show Burden')
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
     tips.Hover('The burden of each element as a figure in its colour, in one line: fire, ice, wind, earth, thunder, water, light, dark.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.\nResting the mouse on a figure names its element and gives the chance of one more maneuver of it overloading.');
