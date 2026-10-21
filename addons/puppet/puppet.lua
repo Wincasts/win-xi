@@ -262,13 +262,22 @@ local function ShowDummy()
     showing.priority, showing.burden = dummy.priority, dummy.burden
 end
 
+-- The window's tables share one padding and one left edge: no outer padding, the same gap between
+-- columns and rows, and the lines' and the list's first column as wide as the widest label, so that
+-- what each row says lines up down the window
+local tableFlags = bit.bor(ImGuiTableFlags_SizingFixedFit, ImGuiTableFlags_NoPadOuterX)
+local cellPadding = { 6, 1 }
+local widestLabel = '> Enfeeble'
+local labelWidth = 0 -- measured each frame, for the font may change
+
 -- The priority list: everything the automaton might do, in the order it tries them, and how each
 -- stands: the name and the timer. The one it will do next is marked and in full colour; the rest are
 -- dimmed.
 local function DrawPriority()
-    if #showing.priority == 0 or not imgui.BeginTable('##puppet.priority', 2) then
+    if #showing.priority == 0 or not imgui.BeginTable('##puppet.priority', 2, tableFlags) then
         return
     end
+    imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, labelWidth)
     for _, row in ipairs(showing.priority) do
         local text = row.ready and imgui.Text or imgui.TextDisabled
         local state = 'Ready'
@@ -289,14 +298,13 @@ end
 -- The burden figures, one for each element in the elements' order, on one line, each as wide as the
 -- widest can be so that the line does not move about as they change. Resting the mouse on one names
 -- its element and says the chance of one more maneuver of it overloading.
-local figureWidth = nil
 local hovered = { } -- an element -> the words for it when hovered, as last made
 
 local function DrawBurden()
-    if not imgui.BeginTable('##puppet.burden', #showing.burden, ImGuiTableFlags_SizingFixedFit) then
+    if not imgui.BeginTable('##puppet.burden', #showing.burden, tableFlags) then
         return
     end
-    figureWidth = figureWidth or imgui.CalcTextSize('100')
+    local figureWidth = imgui.CalcTextSize('100')
     for element = 1, #showing.burden do
         imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, figureWidth)
     end
@@ -324,9 +332,10 @@ end
 -- The two lines on top, the labels in one column and what they name in the other, so that the two
 -- line up whatever the labels' widths
 local function DrawLines()
-    if (showing.enfeebles == nil and showing.weaponskill == nil) or not imgui.BeginTable('##puppet.lines', 2, ImGuiTableFlags_SizingFixedFit) then
+    if (showing.enfeebles == nil and showing.weaponskill == nil) or not imgui.BeginTable('##puppet.lines', 2, tableFlags) then
         return
     end
+    imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, labelWidth)
     for _, line in ipairs({ { 'Enfeeble', showing.enfeebles }, { 'WS', showing.weaponskill } }) do
         if line[2] ~= nil then
             imgui.TableNextRow()
@@ -355,6 +364,8 @@ local function DrawKnown()
 end
 
 local function DrawWindow(options)
+    labelWidth = imgui.CalcTextSize(widestLabel)
+    imgui.PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding)
     DrawLines()
     -- the window is there with nothing to name while it is always shown: it is not left empty
     if showing.enfeebles == nil and showing.weaponskill == nil then
@@ -366,6 +377,7 @@ local function DrawWindow(options)
     if options.showPriority[1] then
         DrawPriority()
     end
+    imgui.PopStyleVar()
     if options.showDebug[1] then
         DrawKnown()
     end
