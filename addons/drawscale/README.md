@@ -110,5 +110,10 @@ For the record, and for the next time the client changes:
   Run it with the camera zoomed all the way in and all the way out, each with a label, to see which
   values change with the view.
 
+An error in any of drawscale's events is said once in the chat and drawscale keeps going, since
+Ashita unloads an addon whose event errors without letting it put the game back; a game left patched
+that way (drawscale 1.6 could, 2026-10-21) shows as the fog, range and detail sites not found at load,
+and a restart of the game clears it.
+
 Unloading restores every patched byte and puts both multipliers back to 1. The stubs stay allocated,
 since the render thread may be inside one at that moment.
