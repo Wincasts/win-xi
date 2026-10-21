@@ -297,7 +297,8 @@ function nameplates.Text(name)
 end
 
 -- The plugin's places are in the client's window; imgui's are in the picture Ashita draws on, which
--- is the same size unless something has made it otherwise
+-- is the same size unless something has made it otherwise. The plugin projects flat, so a point is
+-- moved by lens's warp too.
 local imgui = nil; -- asked for on first use, so that this file loads where there is none
 
 function nameplates.Screen(name, hook)
@@ -308,7 +309,9 @@ function nameplates.Screen(name, hook)
 
     imgui = imgui or require('imgui');
     local display = imgui.GetIO().DisplaySize;
-    return name.ScreenX * display.x / hook.Width, name.ScreenY * display.y / hook.Height;
+    -- moved to where the lens plugin's warp shows the point, when it draws the world bent
+    local lens = require('winxi.lens');
+    return lens.Point(lens.Current(), name.ScreenX * display.x / hook.Width, name.ScreenY * display.y / hook.Height, display.x, display.y);
 end
 
 function nameplates.Hidden()
