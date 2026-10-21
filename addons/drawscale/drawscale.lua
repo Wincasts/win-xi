@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '1.7';
+addon.version = '1.8';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: general values, a preset for cities, the outdoors and dungeons, and a zone\'s own, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -778,12 +778,27 @@ local function kindCommand(kind, what, value)
     end
 end
 
-settings.register('settings', 'settings_update', function (s)
+-- Every event goes through here. Ashita unloads an addon whose event errors without running its unload
+-- event, which would leave the game patched with nothing to put it back (as 1.6 did, 2026-10-21, when
+-- its FFI casts filled LuaJIT's table); so an error is said once, the addon stays, and unloading still
+-- restores everything.
+local function guarded(name, fn)
+    local said = false;
+    return function (...)
+        local ok, err = pcall(fn, ...);
+        if (not ok and not said) then
+            said = true;
+            fail(('The %s event failed (said once; drawscale keeps going): %s'):format(name, tostring(err)));
+        end
+    end
+end
+
+settings.register('settings', 'settings_update', guarded('settings', function (s)
     settle(s);
     apply();
-end);
+end));
 
-ashita.events.register('load', 'load_cb', function ()
+ashita.events.register('load', 'load_cb', guarded('load', function ()
     settle(settings.load(defaults));
     state.zone = zoneFromGame() or 0;
     state.kind = state.zone ~= 0 and zoneKinds[state.zone] or nil;
@@ -792,9 +807,9 @@ ashita.events.register('load', 'load_cb', function ()
         apply();
         status();
     end
-end);
+end));
 
-ashita.events.register('unload', 'unload_cb', function ()
+ashita.events.register('unload', 'unload_cb', guarded('unload', function ()
     for n in pairs(state.patches) do unpatchCaller(n); end
     if (state.detail ~= nil) then detail.restore(mem, state.detail); end
     if (state.view ~= nil) then view.restore(mem, state.view); end
@@ -803,24 +818,24 @@ ashita.events.register('unload', 'unload_cb', function ()
         ashita.memory.write_float(state.entity, 1.0);
     end
     -- The stubs stay allocated: the render thread may be inside one as we go.
-end);
+end));
 
-ashita.events.register('d3d_present', 'present_cb', function ()
+ashita.events.register('d3d_present', 'present_cb', guarded('d3d_present', function ()
     applyRatios();
     -- the game object may not exist at load; the constant is set once it does, and kept
     if (state.view ~= nil and state.settings ~= nil) then
         view.setSquare(mem, state.view, active().square == true);
     end
-end);
+end));
 
 -- The zone-in packet carries the zone's id at 0x30.
-ashita.events.register('packet_in', 'packet_in_cb', function (e)
+ashita.events.register('packet_in', 'packet_in_cb', guarded('packet_in', function (e)
     if (e.id ~= 0x00A or type(e.data) ~= 'string' or #e.data < 0x32) then return; end
     local lo, hi = e.data:byte(0x31, 0x32);
     enterZone(lo + hi * 256);
-end);
+end));
 
-ashita.events.register('command', 'command_cb', function (e)
+ashita.events.register('command', 'command_cb', guarded('command', function (e)
     local args = e.command:args();
     if (#args == 0 or args[1] ~= '/drawscale') then return; end
     e.blocked = true;
@@ -862,4 +877,4 @@ ashita.events.register('command', 'command_cb', function (e)
     else
         help();
     end
-end);
+end));

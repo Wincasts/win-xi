@@ -120,6 +120,12 @@ H.print('/drawscale patch without a number complains', H.command('/drawscale pat
 H.print('/drawscale unpatch 3 with nothing patched', H.command('/drawscale unpatch 3') == true, table.concat(H.printed, '\n'):find('#3 was not patched', 1, true) ~= nil)
 H.print('/drawscale fov without the client says so', H.command('/drawscale fovscan zoomed') == true, table.concat(H.printed, '\n'):find('nothing to write to fov.txt', 1, true) ~= nil)
 H.print('another command is left alone', H.command('/other') == false)
+-- an event that errors is caught and said once, and the addon keeps going: Ashita would unload it
+-- without its unload event, leaving the game patched
+local errOk = pcall(H.command, nil)
+local errOk2 = pcall(H.command, nil)
+local _, failures = table.concat(H.printed, '\n'):gsub('The command event failed', '')
+H.print('an erroring event is caught', errOk, errOk2, '| said once', failures == 1, '| still answers', H.command('/drawscale help') == true)
 H.unload()
 H.print('unloads cleanly', true)
 -- the selector is what is pushed: push 1 is the entity multiplier, push 0 the world one, whatever ecx holds
