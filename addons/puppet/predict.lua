@@ -203,7 +203,8 @@ end
 
 -- Every three seconds or so the automaton tries one thing after another and does the first it can:
 -- a shield bash, a spell, a weapon skill, a shot, then whatever its attachments do. Which spell it
--- tries first is the head's to say, and the maneuvers'.
+-- tries first is the head's to say, and the maneuvers'. The rows are named short, for a small window:
+-- Bash, Heal, Enfeeble, Nuke, Erase (a status removal), WS (the weapon skill) and Shot.
 --
 --     local rows = predict.Priority({
 --         head = 1, frame = 0x20, maneuvers = { light = 1 },
@@ -270,7 +271,7 @@ function predict.Priority(state)
             cooldown = cooldown - 5 * up('earth')
         end
         local wait = left('bash', cooldown)
-        add('Shield Bash', 'when the enemy casts', true, wait)
+        add('Bash', 'on a cast', true, wait)
     end
 
     -- spells, on the frames that cast
@@ -309,7 +310,7 @@ function predict.Priority(state)
         end
         local function cleanse()
             if timers.status == nil then return end
-            add('Status Removal', 'if you have an ailment', true, math.max(magicLeft, left('status', timers.status)))
+            add('Erase', 'an ailment', true, math.max(magicLeft, left('status', timers.status)))
         end
 
         local light, ice = up('light') > 0, up('ice') > 0
@@ -340,7 +341,7 @@ function predict.Priority(state)
     -- a weapon skill, with the TP for it
     if state.weaponskill ~= nil then
         local tp = state.tp or 0
-        add('Weaponskill', state.weaponskill, tp >= 1000, 0)
+        add('WS', state.weaponskill, tp >= 1000, 0)
         if tp < 1000 then
             rows[#rows].detail = ('%s (TP %d)'):format(state.weaponskill, tp)
         end
@@ -353,13 +354,13 @@ function predict.Priority(state)
             cooldown = cooldown - 2 * (up('wind') + 1)
         end
         cooldown = math.max(cooldown, rangedLeast[state.head] or 10)
-        add('Ranged Attack', '', true, left('ranged', cooldown))
+        add('Shot', '', true, left('ranged', cooldown))
     end
 
     -- the first with something to do and nothing to wait for is what comes next. A status removal
     -- may have nothing to remove and a shield bash nothing to break, so neither is ever called next.
     for _, row in ipairs(rows) do
-        if row.state == 'ready' and row.name ~= 'Status Removal' and row.name ~= 'Shield Bash' then
+        if row.state == 'ready' and row.name ~= 'Erase' and row.name ~= 'Bash' then
             row.ready = true
             break
         end

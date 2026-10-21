@@ -1,14 +1,15 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.0'
+addon.version = '1.1'
 addon.desc    = 'The enfeebling spells and the weapon skill an automaton will use next, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- A small window for a puppetmaster: the next three spells the automaton will enfeeble with, the
--- weapon skill it will use, and the order of everything it might do next with how each stands. The choosing is predict.lua's, which follows the server's; this gathers
--- what it needs to know (the automaton's parts and skills, the maneuvers up, the debuffs on the
--- target) and shows the answer. Under those, a small bar for the burden of each element, which
--- burden.lua reckons.
+-- weapon skill it will use, and the order of everything it might do next with how each stands. The
+-- choosing is predict.lua's, which follows the server's; this gathers what it needs to know (the
+-- automaton's parts and skills, the maneuvers up, the debuffs on the target) and shows the answer.
+-- Under those, the burden of each element as a figure in the element's colour, which burden.lua
+-- reckons.
 --
 --   /puppet           shows or hides the window
 --   /puppet config    opens or closes the settings
@@ -24,7 +25,6 @@ local packets = require('winxi.packets')
 local predict = require('predict')
 local tracker = require('tracker')
 local burden = require('burden')
-local bars = require('bars')
 
 local windowName = 'winxi.puppet'
 
@@ -161,13 +161,13 @@ end
 
 -- What the window shows: the spells in order and the weapon skill, either nil when there is none to
 -- name, and the rows of the priority list. It is left as it was once the fight is over, for the window
--- to fade out with. burden is the bars, as bars.lua takes them, or nil with no automaton out.
+-- to fade out with. burden is the figures, one for each element, or nil with no automaton out.
 local showing = { enfeebles = nil, weaponskill = nil, priority = { }, burden = nil }
 
--- The burden bars: one for each element, in its colour. A bar is full at fullBurden; the figure over
--- it is the burden, in the colour of what one more maneuver of that element would risk.
-local fullBurden = 100
+-- The burden figures: one for each element, in the elements' order, each the burden in the element's
+-- colour, or in the colour of what one more maneuver of that element would risk.
 local riskHigh = 25 -- a chance in a hundred of overloading from which the figure is red
+local elementNames = { 'Fire', 'Ice', 'Wind', 'Earth', 'Thunder', 'Water', 'Light', 'Dark' }
 local elementColors = {
     { 1.00, 0.54, 0.48, 1 }, -- fire
     { 0.65, 0.89, 1.00, 1 }, -- ice
@@ -178,31 +178,30 @@ local elementColors = {
     { 1.00, 1.00, 1.00, 1 }, -- light
     { 0.60, 0.56, 0.72, 1 }, -- dark
 }
-local figureSafe = { 1, 1, 1, 1 }          -- one more maneuver cannot overload
-local figureRisk = { 0.95, 0.95, 0.49, 1 } -- it might
+local figureRisk = { 0.95, 0.95, 0.49, 1 } -- one more maneuver might overload
 local figureHigh = { 0.99, 0.51, 0.51, 1 } -- it is likely to
 local figureUnknown = { 1, 1, 1, 0.5 }
-local burdenBars = { }
+local burdenFigures = { }
 for element = 1, #burden.Elements do
-    burdenBars[element] = { color = elementColors[element] }
+    burdenFigures[element] = { name = elementNames[element] }
 end
 local figures = { } -- a burden -> the words for it
 
 local function WorkBurden()
     local state = BurdenState()
-    for element, item in ipairs(burdenBars) do
+    for element, item in ipairs(burdenFigures) do
         local value = burden.Get(element, state)
         if value == nil then
-            item.fraction, item.figure, item.figureColor = 0, '?', figureUnknown
+            item.figure, item.color, item.chance = '?', figureUnknown, nil
         else
             value = math.floor(value + 0.5)
             local chance = burden.Chance(element, state)
             figures[value] = figures[value] or tostring(value)
-            item.fraction, item.figure = value / fullBurden, figures[value]
-            item.figureColor = (chance >= riskHigh and figureHigh) or (chance > 0 and figureRisk) or figureSafe
+            item.figure, item.chance = figures[value], chance
+            item.color = (chance >= riskHigh and figureHigh) or (chance > 0 and figureRisk) or elementColors[element]
         end
     end
-    showing.burden = burdenBars
+    showing.burden = burdenFigures
 end
 
 local function Work(pet, id)
@@ -249,24 +248,24 @@ end
 
 -- Dummy data, for seeing how the window looks with every part of it filled: switched on in the
 -- settings, and not kept, so that it is off again the next time the addon is loaded. The rows show
--- every state a row can be in, and the bars every colour a figure can be, and one not known.
+-- every state a row can be in, and the figures every colour one can be, and one not known.
 local dummy = { on = { false }, was = false }
 dummy.priority = {
-    { name = 'Shield Bash', detail = 'when the enemy casts', state = 'waiting', wait = 142 },
+    { name = 'Bash', detail = 'on a cast', state = 'waiting', wait = 142 },
     { name = 'Heal', detail = 'you at 40%', state = 'idle', wait = 0 },
     { name = 'Enfeeble', detail = 'Dia II', state = 'ready', wait = 0, ready = true },
     { name = 'Nuke', detail = '', state = 'waiting', wait = 12 },
-    { name = 'Status Removal', detail = 'if you have an ailment', state = 'ready', wait = 0 },
-    { name = 'Weaponskill', detail = 'Slapstick (TP 640)', state = 'idle', wait = 0 },
-    { name = 'Ranged Attack', detail = '', state = 'waiting', wait = 7 },
+    { name = 'Erase', detail = 'an ailment', state = 'ready', wait = 0 },
+    { name = 'WS', detail = 'Slapstick (TP 640)', state = 'idle', wait = 0 },
+    { name = 'Shot', detail = '', state = 'waiting', wait = 7 },
 }
 dummy.burden = { }
-for element, bar in ipairs({
-    { 0, figureSafe }, { 8, figureSafe }, { 22, figureRisk }, { 35, figureRisk },
-    { 51, figureHigh }, { 78, figureHigh }, { 100, figureHigh }, { nil, figureUnknown },
+for element, figure in ipairs({
+    { 0, nil, 0 }, { 8, nil, 0 }, { 22, figureRisk, 17 }, { 35, figureRisk, 24 },
+    { 51, figureHigh, 46 }, { 78, figureHigh, 73 }, { 100, figureHigh, 95 }, { nil, figureUnknown },
 }) do
-    dummy.burden[element] = { color = elementColors[element], fraction = (bar[1] or 0) / fullBurden,
-        figure = bar[1] and tostring(bar[1]) or '?', figureColor = bar[2] }
+    dummy.burden[element] = { name = elementNames[element], figure = figure[1] and tostring(figure[1]) or '?',
+        color = figure[2] or elementColors[element], chance = figure[3] }
 end
 
 local function ShowDummy()
@@ -298,13 +297,55 @@ local function DrawPriority()
     imgui.EndTable()
 end
 
-local function DrawLine(label, value)
-    if value == nil then
+-- The burden figures, one for each element in the elements' order, on one line, each as wide as the
+-- widest can be so that the line does not move about as they change. Resting the mouse on one names
+-- its element and says the chance of one more maneuver of it overloading.
+local figureWidth = nil
+local hovered = { } -- an element -> the words for it when hovered, as last made
+
+local function DrawBurden()
+    if not imgui.BeginTable('##puppet.burden', #showing.burden, ImGuiTableFlags_SizingFixedFit) then
         return
     end
-    imgui.TextDisabled(label)
-    imgui.SameLine()
-    imgui.Text(value)
+    figureWidth = figureWidth or imgui.CalcTextSize('100')
+    for element = 1, #showing.burden do
+        imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, figureWidth)
+    end
+    imgui.TableNextRow()
+    for element, item in ipairs(showing.burden) do
+        imgui.TableNextColumn()
+        imgui.TextColored(item.color, item.figure)
+        if imgui.IsItemHovered() then
+            local words = hovered[element]
+            if words == nil or words.figure ~= item.figure or words.chance ~= item.chance then
+                words = { figure = item.figure, chance = item.chance }
+                if item.chance == nil then
+                    words.text = item.name .. ': not known yet. A maneuver of it says.'
+                else
+                    words.text = ('%s: burden %s, %d%% chance of overloading'):format(item.name, item.figure, item.chance)
+                end
+                hovered[element] = words
+            end
+            tips.Show(words.text)
+        end
+    end
+    imgui.EndTable()
+end
+
+-- The two lines on top, the labels in one column and what they name in the other, so that the two
+-- line up whatever the labels' widths
+local function DrawLines()
+    if (showing.enfeebles == nil and showing.weaponskill == nil) or not imgui.BeginTable('##puppet.lines', 2, ImGuiTableFlags_SizingFixedFit) then
+        return
+    end
+    for _, line in ipairs({ { 'Enfeeble', showing.enfeebles }, { 'WS', showing.weaponskill } }) do
+        if line[2] ~= nil then
+            imgui.TableNextRow()
+            imgui.TableNextColumn(); imgui.TextDisabled(line[1])
+            imgui.TableNextColumn(); imgui.Text(line[2])
+        end
+    end
+    imgui.EndTable()
 end
 
 -- What the addon knows, shown as the debug information: why the window says what it does, or nothing
@@ -325,14 +366,13 @@ local function DrawKnown()
 end
 
 local function DrawWindow(options)
-    DrawLine('Next Enfeeble:', showing.enfeebles)
-    DrawLine('Next Weaponskill:', showing.weaponskill)
+    DrawLines()
     -- the window is there with nothing to name while it is always shown: it is not left empty
     if showing.enfeebles == nil and showing.weaponskill == nil then
         imgui.TextDisabled('Nothing to show.')
     end
     if options.showBurden[1] and showing.burden ~= nil then
-        bars.Draw(showing.burden, #showing.burden)
+        DrawBurden()
     end
     if options.showPriority[1] then
         DrawPriority()
@@ -348,7 +388,7 @@ local defaults = T{
     automaton = T{ }, -- the automaton as last described: see ReadAutomaton
     alwaysShow = T{ true }, -- the window whether the automaton is fighting or not
     showPriority = T{ true }, -- everything the automaton might do next, in its order, and how each stands
-    showBurden = T{ true }, -- a small bar for the burden of each element
+    showBurden = T{ true }, -- the burden of each element, as a figure in its colour
     showDebug = T{ false }, -- under it, what the addon knows: for finding out what is wrong
 }
 
@@ -367,10 +407,10 @@ local function DrawSettings(options)
     tips.Hover('On, the window is there whether the automaton is fighting or not: outside a fight it shows what the automaton would open with.\nOff, it is there only while the automaton is fighting, and fades out afterwards.');
     widgets.Label('Show Priority List')
     imgui.Checkbox('##puppet.showPriority', options.showPriority)
-    tips.Hover('Everything the automaton might do next, in the order it tries them: shield bash, its spells, weapon skill, ranged attack.\nEach shows what it is waiting on: Ready, the seconds left of a timer, or - when there is nothing for it to do. The one marked > comes next.\nA timer is only known once the automaton has been seen to act.');
+    tips.Hover('Everything the automaton might do next, in the order it tries them: Bash (shield bash), its spells, WS (weapon skill), Shot (ranged attack).\nEach shows what it is waiting on: Ready, the seconds left of a timer, or - when there is nothing for it to do. The one marked > comes next.\nA timer is only known once the automaton has been seen to act.');
     widgets.Label('Show Burden')
     imgui.Checkbox('##puppet.showBurden', options.showBurden)
-    tips.Hover('A small bar for the burden of each element: fire, ice, wind and earth, then thunder, water, light and dark.\nThe figure is the burden. It is yellow when one more maneuver of that element might overload, and red when it is likely to.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.');
+    tips.Hover('The burden of each element as a figure in its colour, in one line: fire, ice, wind, earth, thunder, water, light, dark.\nA figure turns yellow when one more maneuver of that element might overload, and red when it is likely to.\nA ? is an element not known of yet: the automaton was out before the addon was loaded. A maneuver of it says.\nResting the mouse on a figure names its element and gives the chance.');
     widgets.Label('Show Dummy Data')
     imgui.Checkbox('##puppet.showDummy', dummy.on)
     tips.Hover('For seeing how the window looks: every part of it filled with made-up data, whether there is an automaton out or not.\nThe parts switched off above stay off. It is not kept: it is off again when the addon is next loaded.');

@@ -3,8 +3,8 @@
 For a puppetmaster: the next three spells the automaton will enfeeble with, and the weapon skill it will
 use, in a small window. It needs only the `winxi` library (`addons/libs/winxi`).
 
-    Next Enfeeble: Dia II, Poison, Silence
-    Next Weaponskill: Slapstick
+    Enfeeble  Dia II, Poison, Silence
+    WS        Slapstick
 
 - `/puppet` shows or hides the window
 - `/puppet config` opens or closes the settings
@@ -20,11 +20,12 @@ fighting is told to its master alone, in the packet that keeps the two in step. 
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
 Under those two lines is the **priority list**: everything the automaton might do next, in the order it
-tries them, with how each stands.
+tries them, with how each stands. The rows are named short: Bash (a shield bash), Heal, Enfeeble, Nuke,
+Erase (a status removal), WS (the weapon skill) and Shot (a ranged attack).
 
-    > Enfeeble     Bio            Next
-      Heal         you at 30%     -
-      Weaponskill  Slapstick (TP 640)  -
+    > Enfeeble  Bio                 Next
+      Heal      you at 30%          -
+      WS        Slapstick (TP 640)  -
 
 Every three seconds or so the automaton tries a shield bash, then its spells in the head's order (which
 Light and Ice maneuvers change), then a weapon skill, then a shot, and does the first it can. A row says
@@ -34,10 +35,10 @@ Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barri
 fitted. A timer is known only once the automaton has been seen to act, so a row may say Ready when the
 addon was loaded part way through a fight and it is not.
 
-Between the two lines and the list are the **burden bars**: a small bar for each element, in its
-colour, with the burden written over it. Fire, ice, wind and earth are the top row, thunder, water, light
-and dark the one under it. A bar is full at 100. The figure is white while one more maneuver of that
-element cannot overload, yellow when it might, and red when the chance is one in four or more.
+Between the two lines and the list is the **burden**: one line of eight figures, the burden of each
+element in the element's colour, in the maneuvers' order (fire, ice, wind, earth, thunder, water, light,
+dark). A figure turns yellow when one more maneuver of that element might overload, and red when the
+chance is one in four or more. Resting the mouse on a figure names its element and gives the chance.
 
 The burden is reckoned as the server reckons it: 35 of each element when the automaton is activated,
 one off each every three seconds (two with a Heatsink), and what each maneuver adds, which Cooldown
@@ -46,9 +47,9 @@ for 20, the most it can be, until it has been seen. It is seen in the chance of 
 gives with every maneuver: that is the burden less 25, so whenever there is any chance at all the figure
 is the server's own, and with none the burden is known to be 25 or less.
 
-In the settings: **Show Burden** switches the bars off. **Show Priority List** switches that list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
+In the settings: **Show Burden** switches the figures off. **Show Priority List** switches that list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
 a fight it shows what the automaton would open with on an enemy with nothing on it. It starts on. **Show Dummy Data** fills every part of the window with made-up data, automaton or no, for seeing how
-it looks: a row of the priority list in each state, and bars with a figure in each colour. It is not kept,
+it looks: a row of the priority list in each state, and a figure in each colour. It is not kept,
 and is off again when the addon is next loaded. **Show Debug Information** is for finding out what is wrong: under the
 window's own lines, what the addon knows (the automaton as described, whether a pet is out and what it is
 fighting, how many of the pet's packets have come, the maneuvers up).
@@ -60,7 +61,7 @@ What it cannot know:
   the first time the addon is ever loaded for a character does the window stay away until one of those
   happens. A part changed, or skill gained, while the addon was not loaded is not known of until then
   either.
-- **The burden of an automaton that was out before the addon was loaded.** Each bar says `?` until a
+- **The burden of an automaton that was out before the addon was loaded.** Each figure is `?` until a
   maneuver of its element is used. Gear that moves the point of overloading puts a figure taken from the
   server's chance out by as much.
 - **When the spell comes.** Healing and nuking can come first, and every kind of spell waits on its own
@@ -74,5 +75,4 @@ What it cannot know:
   that is open with whichever weapon skill does so. The window shows the usual choice all the same.
 
 `predict.lua` holds the choosing, apart from the game, `tracker.lua` when the automaton last did each
-kind of thing, `burden.lua` the burden, `bars.lua` the drawing of its bars (the images are XivParty's, in
-`assets/bars` with its licence), and `tests/puppet_check.lua` works them through.
+kind of thing, `burden.lua` the burden, and `tests/puppet_check.lua` works them through.

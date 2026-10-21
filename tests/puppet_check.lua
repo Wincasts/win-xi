@@ -115,7 +115,7 @@ o.isVisible[1] = false; H.print('Always Show, but not Visible: nothing drawn', s
 -- the priority list: what the automaton might do, in its order, and how each stands
 local tracker = require('tracker')
 local function did(category, param, spell) tracker.Action({ actor_id = 2, category = category, param = param, targets = { { id = 900, actions = { { param = spell or 0 } } } } }, 2) end
-local function list() return (shown():gsub('%(Next Enfeeble:%).-%(Next Weaponskill:%) %a+ ?%a* ?', '', 1)) end
+local function list() return (shown():gsub('%(Enfeeble%).-%(WS%) %a+ ?%a* ?', '', 1)) end
 o.showPriority[1] = true; entities[1].PetTargetIndex = 2; H.frames(2); fight(900); now = now + 400
 describe(1, 0x20, 120); H.print('Harlequin, fresh:', list())
 did(8, 24931, 231); cast(231, 900); H.print('it casts Bio II:', list())
@@ -151,21 +151,38 @@ H.print('Dark adds 14, a chance of', burden.Chance(8, harlequin, 0), '| and 8 on
 maneuver(8, 0, { frame = 0x20, overdrive = true }, 0); H.print('a Dark maneuver in Overdrive, no chance said: 49 all the same', at(8, 0))
 burden.Action({ actor_id = 1, category = 6, param = 309, targets = {} }, harlequin, 0); H.print('Cooldown halves it', at(8, 0), at(2, 0))
 burden.Action({ actor_id = 1, category = 4, param = 141, targets = {} }, harlequin, 0); H.print('a spell with a maneuver\'s number changes nothing', at(8, 0))
--- and in the addon: the bars are drawn with the automaton out, from what the master does
-local dummies = 0
-imgui.Dummy = function() dummies = dummies + 1 end
-burden.Clear(); entities[1].PetTargetIndex = 2; o.alwaysShow[1] = true; shown(); dummies = 0; H.frames(1)
-H.print('the bars are drawn with the automaton out', dummies == 1)
-o.showBurden[1] = false; dummies = 0; H.frames(1); H.print('not with Show Burden off', dummies == 0); o.showBurden[1] = true
-entities[1].PetTargetIndex = 0; dummies = 0; H.frames(1); H.print('nor with no automaton', dummies == 0)
+-- and in the addon: the figures are drawn with the automaton out, one for each element in its colour,
+-- from what the master does
+local figures = {} -- what was drawn in a frame: the figure and the colour it was in
+imgui.TextColored = function(color, text) figures[#figures + 1] = { text, color } end
+local function drawn()
+    for i = #figures, 1, -1 do figures[i] = nil end
+    H.frames(1)
+    local out = {}
+    for _, figure in ipairs(figures) do out[#out + 1] = figure[1] end
+    return table.concat(out, ' ')
+end
+local ice = { 0.65, 0.89, 1.00, 1 }
+local yellow, red, faint = { 0.95, 0.95, 0.49, 1 }, { 0.99, 0.51, 0.51, 1 }, { 1, 1, 1, 0.5 }
+local function same(a, b) return a ~= nil and a[1] == b[1] and a[2] == b[2] and a[3] == b[3] and a[4] == b[4] end
+burden.Clear(); entities[1].PetTargetIndex = 2; o.alwaysShow[1] = true; shown()
+H.print('the figures are drawn with the automaton out, none known yet:', drawn(), '| faint', same(figures[1] and figures[1][2], faint))
+burden.Action({ actor_id = 1, category = 6, param = 136, targets = {} }, harlequin); burden.Action({ actor_id = 1, category = 6, param = 141, targets = { { id = 1, actions = { { param = 26 } } } } }, harlequin)
+burden.Action({ actor_id = 1, category = 6, param = 145, targets = { { id = 1, actions = { { param = 8 } } } } }, harlequin)
+H.print('Activate, a Fire maneuver at 26 and a Thunder at 8:', drawn())
+H.print('Fire is red', same(figures[1] and figures[1][2], red), '| Thunder yellow', same(figures[5] and figures[5][2], yellow), '| Ice, fresh at 35, red too', same(figures[2] and figures[2][2], red))
+for _ = 1, 2 do burden.Action({ actor_id = 1, category = 6, param = 309, targets = {} }, harlequin) end
+H.print('two Cooldowns on:', drawn(), '| Ice, safe now, in its own colour', same(figures[2] and figures[2][2], ice))
+o.showBurden[1] = false; H.print('not with Show Burden off', drawn() == ''); o.showBurden[1] = true
+entities[1].PetTargetIndex = 0; H.print('nor with no automaton', drawn() == '')
 H.packet(0x00A); entities[1].PetTargetIndex = 2; entities[2].ServerId = 3; H.frames(1)
 H.print('an automaton brought into another area starts afresh', at(4, os.clock()))
 entities[2].ServerId = 2; entities[1].PetTargetIndex = 0; o.alwaysShow[1] = false; shown()
 -- the dummy data: every part filled, with no automaton out, and gone again when switched off
 local realCheckbox = imgui.Checkbox
 local function setDummy(on) imgui.Checkbox = function(id, value) if id == '##puppet.showDummy' then value[1] = on end return false end; H.command('/puppet config'); H.frames(1); H.command('/puppet config'); imgui.Checkbox = realCheckbox end
-o.showPriority[1] = true; setDummy(true); dummies = 0
-H.print('dummy data, no automaton out:', shown(), '| and the bars', dummies > 0)
+o.showPriority[1] = true; setDummy(true)
+H.print('dummy data, no automaton out:', shown(), '| and the figures', drawn())
 setDummy(false); H.print('switched off: gone', shown() == ''); o.showPriority[1] = false
 H.print('/puppet config kept from the game', H.command('/puppet config')); H.frames(1)
 H.command('/puppet'); H.print('/puppet hides it', o.isVisible[1] == false, '| and says so:', H.printed[#H.printed])
