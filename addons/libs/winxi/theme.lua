@@ -125,7 +125,8 @@ theme.BorderStyles = {
     { key = 'theme', label = 'Theme' }, { key = 'silver', label = 'Brushed Silver' },
     { key = 'bronze', label = 'Bronze' }, { key = 'ffxi', label = 'FFXI-inspired' },
     { key = 'crystal', label = 'Crystal' }, { key = 'royal', label = 'Royal Gold' },
-    { key = 'obsidian', label = 'Obsidian' }, { key = 'royal_silver', label = 'Royal Silver' },
+    { key = 'obsidian', label = 'Obsidian' }, { key = 'obsidian_plain', label = 'Plain Obsidian' },
+    { key = 'royal_silver', label = 'Royal Silver' },
     { key = 'royal_platinum', label = 'Royal Platinum' }, { key = 'mythril', label = 'Mythril' },
     { key = 'adaman', label = 'Adaman' }, { key = 'jade', label = 'Jade' }, { key = 'amethyst', label = 'Amethyst' },
 };
@@ -153,10 +154,13 @@ theme.TitleStyles = {
     { key = 'outline', label = 'Outlined Text' }, { key = 'break', label = 'Break In Border' },
     { key = 'breakshadow', label = 'Break With Shadow' }, { key = 'plate', label = 'Plate' },
 };
--- after Bar Texture and Match Border, one for each border but the theme's own, by the same key
+-- after Bar Texture and Match Border, one for each border but the theme's own, by the same key; Plain
+-- Obsidian has none of its own (Match Border gives it Obsidian's)
 theme.BookendStyles = { { key = 'texture', label = 'Bar Texture' }, { key = 'match', label = 'Match Border' } };
 for index = 2, #theme.BorderStyles do
-    theme.BookendStyles[#theme.BookendStyles + 1] = theme.BorderStyles[index];
+    if theme.BorderStyles[index].key ~= 'obsidian_plain' then
+        theme.BookendStyles[#theme.BookendStyles + 1] = theme.BorderStyles[index];
+    end
 end
 
 for _, style in ipairs({ 'kingdom', 'magitek', 'aether', 'elven', 'gothic' }) do

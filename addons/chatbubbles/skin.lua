@@ -39,6 +39,7 @@ skin.Borders = {
     { key = 'silver', label = 'Brushed Silver' }, { key = 'bronze', label = 'Bronze' },
     { key = 'ffxi', label = 'FFXI-inspired' }, { key = 'crystal', label = 'Crystal' },
     { key = 'royal', label = 'Royal Gold' }, { key = 'obsidian', label = 'Obsidian' },
+    { key = 'obsidian_plain', label = 'Plain Obsidian' },
     { key = 'royal_silver', label = 'Royal Silver' }, { key = 'royal_platinum', label = 'Royal Platinum' },
     { key = 'mythril', label = 'Mythril' }, { key = 'adaman', label = 'Adaman' },
     { key = 'jade', label = 'Jade' }, { key = 'amethyst', label = 'Amethyst' },

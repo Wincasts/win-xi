@@ -168,7 +168,8 @@ and actual rendering in Ashita before treating live QA as complete.
 In **winxisettings → Styles → Window Border**, choose **Theme** (the existing border), **Brushed Silver**,
 **Bronze**, **FFXI-inspired** (a cool silver/lavender bevel reminiscent of the base UI),
 **Crystal** (icy blue facets), **Royal Gold** (warm gilding with tiny inlaid corner ornaments),
-**Obsidian** (dark violet metal with platinum corner highlights), or **Royal Silver**
+**Obsidian** (dark violet metal with platinum corner highlights), **Plain Obsidian** (the same without
+the corner highlights; Match Border gives it Obsidian's bookends), or **Royal Silver**
 (the Royal Gold ornamentation in cool silver), or **Royal Platinum**
 (a lighter, near-white silver version with softer bevel shadows), **Mythril** (cool blue steel with
 corner studs), **Adaman** (dark crimson metal with riveted corner plates), **Jade** (green stone

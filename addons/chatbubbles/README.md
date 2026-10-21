@@ -72,7 +72,7 @@ for these settings if namehook 1.24+ is already installed. The addon needs winxi
   **Parchment bubbles** preset chooses it with dark text. The art is winxi's own
   (`libs\winxi\assets`), so `libs/winxi` has to be deployed with it.
   **Border** puts one of the theme's border arts round the bubble (Brushed Silver,
-  Bronze, FFXI-inspired, Crystal, Royal Gold, Obsidian, Royal Silver, Royal
+  Bronze, FFXI-inspired, Crystal, Royal Gold, Obsidian, Plain Obsidian, Royal Silver, Royal
   Platinum, Mythril, Adaman, Jade or Amethyst), tinted **Border Colour**, or a
   **Plain Line** of a pixel in that colour, or **None**. It goes with either skin;
   the Parchment preset chooses the FFXI-inspired art, the others none.

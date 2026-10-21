@@ -17,7 +17,7 @@ for _, choice in ipairs(theme.BorderStyles) do
         image:close()
     end
 end
-assert(#styles == 12)
+assert(#styles == 13)
 
 local getPos, getSize, getList, load = imgui.GetWindowPos, imgui.GetWindowSize, imgui.GetWindowDrawList, borders.Load
 local count, loaded = 0, nil
