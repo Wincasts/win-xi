@@ -41,8 +41,8 @@ its kind (healing, enfeebling, elemental, status removal): it names what the aut
 in the head's order (Heal, an enfeeble by name, Nuke, Erase), the first it can cast now, else the
 soonest it will be able to among those with something to cast, and shows that one's timer. With nothing
 to cast it names nothing and shows the timer alone. Heal is named, and is the next action, only while
-there is someone to heal: you at 30% HP or under (40, 50 or 75 with one, two or three Light maneuvers,
-more with a Damage Gauge), or the automaton itself at 50% or under. After a gap
+there is someone to heal: you at 30% HP or under (40, 50 or 75 with one, two or three Light maneuvers;
+50, 75, 80 or 90 with a Damage Gauge fitted), or the automaton itself at 50% or under. After a gap
 come the **cooldowns**: what is not
 chosen but runs on a timer of its own, each row there only while its timer runs, with the seconds left.
 Those are Bash (a shield bash, on a Valoredge frame), Shot (a ranged attack, on a Sharpshot frame) and

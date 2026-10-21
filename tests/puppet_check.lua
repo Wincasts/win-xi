@@ -112,6 +112,8 @@ describe(2, 0x20, 120); game.buffs = {}; H.print('Valoredge head on a Harlequin 
 game.buffs = { 306 }; H.print('with Light, the master whole: still nothing, not Heal', shown())
 pet.HPPercent = 45; H.print('the automaton at 45%: Heal', shown()); pet.HPPercent = 100
 game.hp = 38; H.print('the master at 38% under one Light: Heal', shown()); game.buffs = {}; H.print('and without the Light, at 38%: nothing', shown()); game.hp = 100
+describe(2, 0x20, 120, nil, { 195 }); game.hp = 60; H.print('a Damage Gauge, the master at 60%, no Light: nothing (it heals at 50)', shown())
+game.hp = 48; H.print('at 48%: Heal', shown()); game.hp = 60; game.buffs = { 306 }; H.print('at 60% under one Light: Heal (75)', shown()); game.buffs = {}; game.hp = 100
 describe(3, 0x22, 200); game.buffs = { 302 }; H.print('Sharpshot frame, Wind:', shown())
 describe(1, 0x20, 120, 4); H.print('another job\'s packet is not read', shown():find('Daze') ~= nil)
 -- the attachments that act on their own: a row each while fitted, in the maneuver's colour

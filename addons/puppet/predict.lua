@@ -262,7 +262,8 @@ local attachmentDamageGauge, attachmentDamageGaugeII = 195, 207
 local attachmentBarrierModule, attachmentBarrierModuleII = 107, 104
 local attachmentHammermill = 103
 
-local healAt = { [0] = 30, [1] = 40, [2] = 50, [3] = 75 } -- the master's HP it heals at, by Light maneuvers
+local healAt = { [0] = 30, [1] = 40, [2] = 50, [3] = 75 }       -- the master's HP it heals at, by Light maneuvers
+local gaugedHealAt = { [0] = 50, [1] = 75, [2] = 80, [3] = 90 } -- the same with a Damage Gauge or Damage Gauge II, in place of those
 local spellKinds = { heal = 'Heal', enfeeble = 'Enfeeble', nuke = 'Nuke', erase = 'Erase' } -- what the Magic row says it would do, by kind
 local healSelfAt = 50
 
@@ -334,17 +335,15 @@ function predict.Priority(state)
         end
         local magicLeft = left('magic', magic)
 
+        -- the master's HP it heals at: by Light maneuvers, or a Damage Gauge's own figures in their place
         local healTimer = timers.heal
         local threshold = healAt[up('light')]
-        if fitted[attachmentDamageGaugeII] then
-            threshold = threshold + 60 + 10 * up('light')
-        elseif fitted[attachmentDamageGauge] then
-            threshold = threshold + 50 + 10 * up('light')
+        if fitted[attachmentDamageGauge] or fitted[attachmentDamageGaugeII] then
+            threshold = gaugedHealAt[up('light')]
+            if healTimer then
+                healTimer = healTimer - 3
+            end
         end
-        if healTimer and (fitted[attachmentDamageGauge] or fitted[attachmentDamageGaugeII]) then
-            healTimer = healTimer - 3
-        end
-        threshold = math.max(30, math.min(90, threshold))
 
         local enfeebles = state.enfeebles or {}
         local spell = nil

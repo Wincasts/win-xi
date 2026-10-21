@@ -1,6 +1,6 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.10'
+addon.version = '1.11'
 addon.desc    = 'What an automaton will do next and the timers on everything it might: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
