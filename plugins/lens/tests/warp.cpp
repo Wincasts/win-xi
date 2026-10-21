@@ -72,6 +72,21 @@ int main() {
         round = round && Near(tx, tan(phi)) && Near(ty, t / cos(phi));
     }
     Check(round, "the inverse undoes the forward mapping");
+    // ScreenOf undoes SourceOf: where the warp shows a point of the flat picture, for overlays
+    bool back = true;
+    for (lens::Mode mode : { lens::Panini, lens::Cylindrical }) for (double k : { 0.0, 0.25, 0.5, 0.75 })
+        for (double s0 = 0.05; s0 < 1; s0 += 0.15) for (double t0 = 0.05; t0 < 1; t0 += 0.15) {
+            double ss, tt, us, vs;
+            lens::ScreenOf(s0, t0, tanH, tanV, mode, k, ss, tt);
+            lens::SourceOf(ss, tt, tanH, tanV, mode, k, us, vs);
+            back = back && Near(us, s0, 1e-6) && Near(vs, t0, 1e-6);
+        }
+    Check(back, "ScreenOf undoes SourceOf for both modes and every strength");
+    double ms, mt;
+    lens::ScreenOf(0.5, 0.5, tanH, tanV, lens::Panini, 0.25, ms, mt);
+    Check(Near(ms, 0.5) && Near(mt, 0.5), "the middle stays where it is");
+    lens::ScreenOf(0.95, 0.5, tanH, tanV, lens::Panini, 0.25, ms, mt);
+    Check(ms > 0.95 && Near(mt, 0.5), "a point near the edge of the picture is shown nearer the edge of the screen");
     printf(failures ? "%d FAILED\n" : "lens warp: all checks passed\n", failures);
     return failures ? 1 : 0;
 }

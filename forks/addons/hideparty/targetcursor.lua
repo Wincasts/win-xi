@@ -73,6 +73,7 @@ local ffi               = require('ffi')
 local C                 = ffi.C
 local chat              = require('chat')
 local cursor            = require('winxi.cursor')
+local lens              = require('winxi.lens')
 
 local targetcursor = {}
 
@@ -90,6 +91,7 @@ local d3d8dev
 local sprite
 local viewOut, projectionOut, viewportOut
 local width, height = 0, 0
+local warp = nil -- the lens plugin's warp this frame, when it draws the world bent
 local warned = false
 local textures = {} -- texture handle -> the pointer DrawTransform takes, cast once
 
@@ -127,9 +129,9 @@ local function worldToScreen(x, y, z)
     local ndcY = (viewProj._12 * x + viewProj._22 * y + viewProj._32 * z + viewProj._42) * rhw
     local ndcZ = (viewProj._13 * x + viewProj._23 * y + viewProj._33 * z + viewProj._43) * rhw
 
-    return math.floor((ndcX + 1) * 0.5 * width),
-        math.floor((1 - ndcY) * 0.5 * height),
-        ndcZ
+    -- moved to where lens's warp shows the point, when there is one
+    local sx, sy = lens.Point(warp, (ndcX + 1) * 0.5 * width, (1 - ndcY) * 0.5 * height, width, height)
+    return math.floor(sx), math.floor(sy), ndcZ
 end
 
 -- The base position the model is actually RENDERED at this frame, free of
@@ -434,6 +436,7 @@ function targetcursor.Draw()
     end
     width, height = tonumber(viewportOut[0].Width), tonumber(viewportOut[0].Height)
     matrixMultiply(viewProj, viewOut[0], projectionOut[0])
+    warp = lens.Current()
 
     -- Get the index of your current target or subtarget (if any)
     local targetIndex = target:GetTargetIndex(isSubTargetActive)

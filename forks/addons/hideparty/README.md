@@ -18,7 +18,8 @@ game's own: the animated `anc_l` sprites in `ROM/119/51.DAT`, read through `winx
 library must be installed), anchored over the target and the sub target. While a spell or ability is
 being aimed, the sub cursor is tinted blue, yellow or red by whether the action reaches, as the game does.
 Its size, opacity and colours are set at the top of `targetcursor.lua`; how each was measured is in
-[TARGETCURSOR.md](TARGETCURSOR.md).
+[TARGETCURSOR.md](TARGETCURSOR.md). Under the [lens](../../../plugins/lens) plugin's warp the cursor is
+placed where the warp shows the target, through `winxi.lens`.
 
 The target cursor is **targetcursor** by Hiken, a fork of Jyouya's `customtarget` as extended by yzyii
 (Rag), under the MIT licence in [targetcursor.LICENSE](targetcursor.LICENSE). Only its drawing has changed

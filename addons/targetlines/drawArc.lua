@@ -9,6 +9,9 @@ local height         = helpers.height;
 local getTexture     = helpers.getTexture;
 
 local Bezier3D_2     = require('Bezier3D_2');
+-- the lens plugin's warp, when it draws the world bent: points are moved to where it shows them
+local okLens, lens    = pcall(require, 'winxi.lens');
+if (not okLens) then lens = nil; end
 
 ffi.cdef [[
     #pragma pack(1)
@@ -52,7 +55,7 @@ local batchStart, batchTriangles, batchOrb = {}, {}, {};
 local arcTex, orbTex;
 
 -- Camera state and render-state bookkeeping shared by every arc drawn in one frame
-local frameView, frameViewProj, frameZoom;
+local frameView, frameViewProj, frameZoom, frameLens;
 local statesApplied = false;
 
 local lineWidth = 3;
@@ -88,6 +91,7 @@ local function beginFrame(opacity, orbScale, occlude, curve)
     frameView = view;
     frameViewProj = matrixMultiply(view, projection);
     frameZoom = (2.8 - projection._11) * 0.47619047619;
+    frameLens = lens and lens.Current() or nil;
     statesApplied = false;
 
     -- Left over only if the last frame was cut short by an error: start clean
@@ -99,14 +103,16 @@ local function beginFrame(opacity, orbScale, occlude, curve)
     nextVertex = 0;
 end
 
--- World position to screen x, y and depth, using this frame's combined view-projection matrix
+-- World position to screen x, y and depth, using this frame's combined view-projection matrix, then
+-- moved to where lens's warp shows it when there is one
 local function project(x, y, z)
     local m = frameViewProj;
     local rhw = 1 / (m._14 * x + m._24 * y + m._34 * z + m._44);
+    local sx = ((m._11 * x + m._21 * y + m._31 * z + m._41) * rhw + 1) * 0.5 * width;
+    local sy = (1 - (m._12 * x + m._22 * y + m._32 * z + m._42) * rhw) * 0.5 * height;
+    if (frameLens) then sx, sy = lens.Point(frameLens, sx, sy, width, height); end
 
-    return math.floor(((m._11 * x + m._21 * y + m._31 * z + m._41) * rhw + 1) * 0.5 * width),
-        math.floor((1 - (m._12 * x + m._22 * y + m._32 * z + m._42) * rhw) * 0.5 * height),
-        (m._13 * x + m._23 * y + m._33 * z + m._43) * rhw;
+    return math.floor(sx), math.floor(sy), (m._13 * x + m._23 * y + m._33 * z + m._43) * rhw;
 end
 
 local function offScreen(x, y, z)

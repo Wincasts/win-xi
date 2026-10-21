@@ -75,6 +75,37 @@ inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, do
     vs = t + strength * (0.5 + 0.5 * ty / tanV - t);
 }
 
+// Where the warp shows what the flat picture has at (s0, t0), each 0 to 1 across the picture: the
+// screen point (s, t) whose SourceOf is (s0, t0). Panini by its forward mapping; cylindrical, a blend,
+// by Newton's method from the point itself. For overlays drawn over the world, and anything else that
+// places itself by the flat projection.
+inline void ScreenOf(double s0, double t0, double tanH, double tanV, Mode mode, double strength, double& s, double& t) {
+    if (mode == Panini) {
+        double xEdge = PaniniX(atan(tanH), strength), yEdge = xEdge * tanV / tanH;
+        double tx = (2 * s0 - 1) * tanH, ty = (2 * t0 - 1) * tanV;
+        double phi = atan(tx), height = ty * cos(phi);
+        double scale = (strength + 1) / (strength + cos(phi));
+        s = 0.5 + 0.5 * scale * sin(phi) / xEdge;
+        t = 0.5 + 0.5 * scale * height / yEdge;
+        return;
+    }
+    s = s0; t = t0;
+    for (int i = 0; i < 12; ++i) {
+        double us, vs, ua, va, ub, vb;
+        const double h = 1e-5;
+        SourceOf(s, t, tanH, tanV, mode, strength, us, vs);
+        double fu = us - s0, fv = vs - t0;
+        if (fabs(fu) < 1e-9 && fabs(fv) < 1e-9) break;
+        SourceOf(s + h, t, tanH, tanV, mode, strength, ua, va);
+        SourceOf(s, t + h, tanH, tanV, mode, strength, ub, vb);
+        double a = (ua - us) / h, b = (ub - us) / h, c = (va - vs) / h, d = (vb - vs) / h;
+        double det = a * d - b * c;
+        if (fabs(det) < 1e-12) break;
+        s -= (d * fu - b * fv) / det;
+        t -= (a * fv - c * fu) / det;
+    }
+}
+
 // The game's quad: its screen rectangle and the texture coordinates at its top left and bottom right,
 // with what each vertex carries besides.
 struct Quad { float left, top, right, bottom, u0, v0, u1, v1, z, rhw; uint32_t color; };

@@ -1,4 +1,4 @@
-# lens — experimental 0.3
+# lens — experimental 0.4
 
 FFXI's world through a Panini or cylindrical projection, either of which keeps a wide view without
 the stretching a flat projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
@@ -48,9 +48,12 @@ middle of the screen unless it says otherwise:
 The game's own is 122 across. At 16:9 the flat view is 106 across and stretches less, so less
 strength does.
 
-Not yet: clicks on the world are still read through the flat projection, so near the edges they land
-beside what is under the mouse, and addons drawing over the world (targetlines, name's nameplates)
-are not bent with it.
+Over the world: targetlines, hideparty's target cursor and anything placed by winxi's
+`nameplates.Screen` (chatbubbles' bubbles drawn on the screen) move their points to where the warp
+shows them, through `winxi.lens` and the block lens publishes (below). name's nameplates and
+chatbubbles' world bubbles are drawn into the world by namehook, so they are bent with it, a little
+narrower toward the sides. Not yet: the game reads clicks on the world through the flat projection,
+so near the edges a click lands beside what is under the mouse.
 
 ### How it works
 
@@ -60,6 +63,15 @@ rectangle, each vertex's texture coordinate found by running the projection back
 screen to the flat picture (the game's projection, as set at the copy, gives the picture's fields of
 view), draws it with the game's own state but smooth sampling, and blocks the quad. The grid is built
 again only when the strength, the picture's fields of view or the rectangle change.
+
+### For addons
+
+lens publishes what it is doing in a block in lens.dll that begins with the 16 bytes `LENS-WARP` and
+zeros: version 1, its size (48), Frame (a count of Presents), WarpedFrame (the Frame the game's copy
+was last warped in; live while the two are within a frame or two), Mode (0 Panini, 1 cylindrical),
+Strength (0 to 1) and the picture's half fields of view as tangents, TanH and TanV. `winxi.lens`
+finds it and copies the mapping, ScreenOf being the reverse of the warp's own: where it shows a point
+of the flat picture.
 
 ### Capture
 

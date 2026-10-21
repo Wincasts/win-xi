@@ -377,6 +377,24 @@ end
 It also copies xitools' theme, its rules for hiding and whether the tool faded, where the addon's
 settings have `useSharedTheme`, `theme`, `hide` and `fadeInOut` to take them.
 
+## Over the world, under lens
+
+The [lens](../../../plugins/lens) plugin draws the game's world bent (Panini or cylindrical) and the
+UI flat over it. Anything an addon places over the world by the view and projection, a line to a
+target or a cursor over one, lands where the flat projection would put it, which near the edges is
+beside where the warp shows the thing. `winxi.lens` moves such a point to where the warp shows it,
+and leaves it alone without lens or with its warp off:
+
+```lua
+local lens = require('winxi.lens');
+
+local warp = lens.Current();                                  -- once a frame: nil without a warp
+x, y = lens.Point(warp, x, y, width, height);                 -- each point, in any pixels across the screen
+```
+
+`nameplates.Screen` does it already. targetlines and hideparty's target cursor use it; name's
+nameplates and chatbubbles' world bubbles are drawn into the world by namehook and are bent with it.
+
 ## Debuffs on an enemy
 
 The server never says what is on an enemy, so `winxi.debuffs` keeps count from what it does say: the

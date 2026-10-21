@@ -121,6 +121,7 @@ luajit tests/chatbubbles_npc_check.lua
 luajit tests/chatbubbles_colors_check.lua
 run chatbubbles addons/chatbubbles/chatbubbles.lua chatbubbles_config_check.lua
 luajit tests/hideparty_cursor_check.lua
+luajit tests/winxi_lens_check.lua || exit 1
 luajit tests/map_files_check.lua
 echo
 run winxisettings addons/winxisettings/winxisettings.lua winxisettings_check.lua

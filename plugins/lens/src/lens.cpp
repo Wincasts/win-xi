@@ -12,6 +12,21 @@
 #include "stack.h"
 #include "warp.h"
 
+// What the warp is doing, for addons that place things over the world by the flat projection
+// (winxi.lens finds it by its magic): they move each point to where the warp shows it. Frame counts
+// Presents; WarpedFrame is the Frame the game's copy was last warped in, so an addon can tell the warp
+// is live (the two within a frame or two of each other). Mode is lens::Mode; Strength 0 to 1; TanH and
+// TanV the picture's half fields of view as tangents.
+struct LensShared {
+    char Magic[16];
+    uint32_t Version, Size, Frame, WarpedFrame, Mode;
+    float Strength, TanH, TanV;
+};
+static_assert(sizeof(LensShared) == 48, "LENS-WARP ABI 1");
+// Exported, so that the compiler keeps it although nothing here reads it
+extern "C" __declspec(dllexport) LensShared LensWarp = { "LENS-WARP", 1, sizeof(LensShared), 0, 0, 0, 0, 0, 0 };
+static LensShared& Shared = LensWarp;
+
 class Lens : public IPlugin {
     IAshitaCore* m_Core = nullptr;
     std::unique_ptr<lens::Capture> m_Capture;
@@ -38,7 +53,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.3; }
+    double GetVersion() const override { return 0.4; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -52,7 +67,10 @@ public:
         Load();
         return true;
     }
-    void Release() override { m_Capture.reset(); }
+    void Release() override {
+        m_Capture.reset();
+        Shared.WarpedFrame = 0;
+    }
 
     std::string SettingsPath() const { return std::string(m_Core->GetInstallPath()) + "\\config\\lens\\lens.ini"; }
     void Load() {
@@ -139,6 +157,7 @@ public:
     void Direct3DBeginScene(bool back) override { if (m_Want && m_Started) m_Capture->Mark(lens::Capture::Event::BeginScene, back); }
     void Direct3DEndScene(bool back) override { if (m_Want && m_Started) m_Capture->Mark(lens::Capture::Event::EndScene, back); }
     void Direct3DPresent(const RECT*, const RECT*, HWND, const RGNDATA*) override {
+        ++Shared.Frame;
         if (!m_Want) return;
         if (!m_Started) { m_Started = true; return; }
         m_Capture->Mark(lens::Capture::Event::Present, true);
@@ -206,6 +225,11 @@ private:
         device->SetTextureStageState(0, D3DTSS_MINFILTER, min);
         if (FAILED(hr)) return false;
         ++m_Warped;
+        Shared.Mode = static_cast<uint32_t>(m_Mode);
+        Shared.Strength = m_Strength / 100.0f;
+        Shared.TanH = static_cast<float>(tanH);
+        Shared.TanV = static_cast<float>(tanV);
+        Shared.WarpedFrame = Shared.Frame ? Shared.Frame : 1;
         return true;
     }
 

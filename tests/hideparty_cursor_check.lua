@@ -59,6 +59,11 @@ package.loaded['winxi.cursor'] = { Get = function(force, group, neutral)
     return neutral and 992 or 991, { 0, 1/64, 0.5, 21/64, 32, 20, rect = { 0, 1, 32, 21 }, corners = { 10, -32, 10, 0, -10, -32, -10, 0 } }
 end }
 
+-- lens's warp: none, or one that shows every point 100 pixels to the right
+local lensWarp = nil
+package.loaded['winxi.lens'] = { Current = function() return lensWarp end,
+    Point = function(warp, x, y) if warp then return x + 100, y end return x, y end }
+
 -- the game: one target at index 5 standing at the middle of the screen
 local flags, sub = 0xFFFFFFFF, 0
 local target = { GetIsSubTargetActive = function() return sub end, GetIsActive = function() return 1 end,
@@ -94,6 +99,12 @@ check('hidden: target frame hidden and one cursor drawn', written[0x4000 + 0x69]
 check('from anc_l, the game colours untinted', asked[1].group == 'anc_l' and not asked[1].neutral, d.texture == 991,
     d.color[1] == 255 and d.color[2] == 255 and d.color[3] == 255 and d.color[4] == 255)
 check('20 wide, 32 tall, tip at the target', d.left == 950 and d.right == 970 and d.top == 508 and d.bottom == 540, d.m33 == 1)
+
+lensWarp = {}
+frame()
+d = drawn[1]
+check('lens warping: the cursor where the warp shows the target', d.left == 1050 and d.right == 1070 and d.top == 508)
+lensWarp = nil
 
 flags = 16
 frame()
