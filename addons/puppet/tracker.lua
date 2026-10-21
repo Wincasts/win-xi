@@ -9,11 +9,16 @@
 -- blink, eraser, economizer, converter, barrage, capacitor, disruptor, regulator). The server times each
 -- from the moment the automaton begins, so a spell is counted from the start of its casting, whether or
 -- not it is finished.
+local bit = require('bit')
+
 local tracker = {}
 
 local categorySpellStart = 8
 local categoryMobSkill = 11
-local spellBegins = 24931 -- the start of a casting, as against one broken off
+-- A spell-start packet's param is a four-letter code for the kind of magic and whether it begins or is
+-- broken off: "cawh" (0x68776163) for white magic beginning, "cabk" for black, "spwh" for white magic
+-- broken off, and so on. The last two letters, the low sixteen bits, say which: "ca" begins, "sp" stops.
+local spellBegins = 0x6163 -- "ca"
 
 -- The kind of each thing the automaton does as a mob skill, by the server's number for it
 local skillKinds = {
@@ -51,7 +56,7 @@ function tracker.Action(action, petId)
     end
 
     local now = os.clock()
-    if action.category == categorySpellStart and action.param == spellBegins then
+    if action.category == categorySpellStart and bit.band(action.param, 0xFFFF) == spellBegins then
         local target = action.targets[1]
         local result = target and target.actions[1]
         last.magic = now

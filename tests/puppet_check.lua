@@ -139,18 +139,20 @@ o.isVisible[1] = false; H.print('Always Show, but not Visible: nothing drawn', s
 -- the priority list: what the automaton might do, in its order, and how each stands
 local tracker = require('tracker')
 local function did(category, param, spell) tracker.Action({ actor_id = 2, category = category, param = param, targets = { { id = 900, actions = { { param = spell or 0 } } } } }, 2) end
+-- a spell's start packet says which magic begins in a four-letter code: white "cawh", black "cabk"; one broken off "spwh"
+local white, black, whiteBroken = 0x68776163, 0x6B626163, 0x68777073
 local function list() return shown() end
 entities[1].PetTargetIndex = 2; H.frames(2); fight(900); now = now + 400
 describe(1, 0x20, 120); H.print('Harlequin, fresh:', list())
-did(8, 24931, 231); cast(231, 900); H.print('it casts Bio II:', list())
+did(8, black, 231); cast(231, 900); H.print('it casts Bio II (black magic):', list())
 H.frames(400); H.print('twelve seconds on:', list())
 game.hp = 25; H.print('the master at 25%: the heal timer shown now it is wanted, as before:', list())
-did(8, 24931, 1); game.hp = 100; H.print('a cure cast and the master whole: Heal still shows its timer', list()); H.frames(1100); game.hp = 25
+did(8, white, 1); game.hp = 100; H.print('a cure cast (white magic) and the master whole: Heal still shows its timer', list()); H.frames(1100); game.hp = 25
 H.frames(700); H.print('the timers run out:', list()); game.hp = 100
 game.buffs = { 306 }; game.hp = 35; H.print('Light, the master at 35%: heal comes first:', list()); game.buffs = {}; game.hp = 100
 game.petTp = 1200; H.print('TP ready, a spell ready too: the spell comes first:', list(), '| Slapstick in thunder', same(colorOf('Slapstick'), thunder))
-did(8, 24931, 220); H.print('the spell just cast: the weapon skill is next:', list()); game.petTp = 300
-did(8, 28787, 0); did(8, 24931, 1); tracker.Action({ actor_id = 77, category = 8, param = 24931, targets = { { id = 900, actions = { { param = 23 } } } } }, 2)
+did(8, white, 220); H.print('the spell just cast: the weapon skill is next:', list()); game.petTp = 300
+did(8, whiteBroken, 0); did(8, white, 1); tracker.Action({ actor_id = 77, category = 8, param = white, targets = { { id = 900, actions = { { param = 23 } } } } }, 2)
 H.print('a casting broken off, and someone else\'s, change nothing; a cure starts the heal timer:', list())
 tracker.Clear(); describe(3, 0x22, 200); H.print('Sharpshot frame:', list()); did(11, 1949); H.print('it shoots:', list())
 describe(2, 0x21, 200); H.print('Valoredge frame:', list()); did(11, 1944); H.print('it bashes:', list())
