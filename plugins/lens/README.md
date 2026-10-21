@@ -51,8 +51,9 @@ strength does.
 Over the world: targetlines, hideparty's target cursor and anything placed by winxi's
 `nameplates.Screen` (chatbubbles' bubbles drawn on the screen) move their points to where the warp
 shows them, through `winxi.lens` and the block lens publishes (below). name's nameplates and
-chatbubbles' world bubbles are drawn into the world by namehook, so they are bent with it, a little
-narrower toward the sides. Not yet: the game reads clicks on the world through the flat projection,
+chatbubbles' world bubbles are drawn into the world by namehook (1.30), which draws each through the
+counter of the warp's stretch where it stands, so it comes out of the warp at its own shape and walls
+still hide it. Not yet: the game reads clicks on the world through the flat projection,
 so near the edges a click lands beside what is under the mouse.
 
 ### How it works
@@ -69,9 +70,11 @@ again only when the strength, the picture's fields of view or the rectangle chan
 lens publishes what it is doing in a block in lens.dll that begins with the 16 bytes `LENS-WARP` and
 zeros: version 1, its size (48), Frame (a count of Presents), WarpedFrame (the Frame the game's copy
 was last warped in; live while the two are within a frame or two), Mode (0 Panini, 1 cylindrical),
-Strength (0 to 1) and the picture's half fields of view as tangents, TanH and TanV. `winxi.lens`
-finds it and copies the mapping, ScreenOf being the reverse of the warp's own: where it shows a point
-of the flat picture.
+Strength (0 to 1) and the picture's half fields of view as tangents, TanH and TanV (`src/shared.h`;
+exported as `LensWarp` for a plugin to find with GetProcAddress). `winxi.lens` finds it and copies the
+mapping, ScreenOf being the reverse of the warp's own: where it shows a point of the flat picture.
+`Counter` in `src/warp.h` undoes the warp's stretch around a point, for what is drawn into the picture
+and should come out at its own shape.
 
 ### Capture
 

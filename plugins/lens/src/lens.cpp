@@ -11,21 +11,12 @@
 #include "capture.h"
 #include "stack.h"
 #include "warp.h"
+#include "shared.h"
 
-// What the warp is doing, for addons that place things over the world by the flat projection
-// (winxi.lens finds it by its magic): they move each point to where the warp shows it. Frame counts
-// Presents; WarpedFrame is the Frame the game's copy was last warped in, so an addon can tell the warp
-// is live (the two within a frame or two of each other). Mode is lens::Mode; Strength 0 to 1; TanH and
-// TanV the picture's half fields of view as tangents.
-struct LensShared {
-    char Magic[16];
-    uint32_t Version, Size, Frame, WarpedFrame, Mode;
-    float Strength, TanH, TanV;
-};
-static_assert(sizeof(LensShared) == 48, "LENS-WARP ABI 1");
-// Exported, so that the compiler keeps it although nothing here reads it
-extern "C" __declspec(dllexport) LensShared LensWarp = { "LENS-WARP", 1, sizeof(LensShared), 0, 0, 0, 0, 0, 0 };
-static LensShared& Shared = LensWarp;
+// Exported, so that the compiler keeps it although nothing here reads it, and so that another plugin
+// (namehook) can find it by name
+extern "C" __declspec(dllexport) lens::Shared LensWarp = { "LENS-WARP", 1, sizeof(lens::Shared), 0, 0, 0, 0, 0, 0 };
+static lens::Shared& Shared = LensWarp;
 
 class Lens : public IPlugin {
     IAshitaCore* m_Core = nullptr;

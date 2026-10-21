@@ -22,6 +22,9 @@ If not, see <https://www.gnu.org/licenses/>.
 #include "../NameBounds.h"
 
 #include "exports.h"
+// the lens plugin's warp, which bends the world picture names are drawn into (plugins/lens)
+#include "../../../lens/src/warp.h"
+#include "../../../lens/src/shared.h"
 
 
 #define LogLevel_Critcal ((uint32_t) Ashita::LogLevel::Critical)
@@ -77,6 +80,11 @@ private:
     float m_ViewProjection[16];
     bool m_CanDraw;
     float m_HorizontalFit = 1.0f;
+    // lens's warp this scene, when it bends the world: each name is drawn through the counter of the
+    // warp's stretch at its place, so that it comes out of the warp at its own shape
+    bool m_Lens = false;
+    lens::Mode m_LensMode = lens::Panini;
+    double m_LensStrength = 0, m_LensTanH = 0, m_LensTanV = 0;
     NameBoundsCache m_NameBounds[HOOK_ENTITIES]; // CPU-only; no device-reset resources
     IDirect3DBaseTexture8* m_BubbleTextures[HOOK_TEXTURES]{};
     NameBoundsCache m_BubbleBounds[HOOK_ENTITIES];
@@ -502,6 +510,18 @@ void AshitaNameplate::BeginNames(const HookDraw& draw, bool fresh, float& target
         }
     }
 
+    // lens, when loaded and warping: its mode and strength, and this picture's fields of view
+    m_Lens = false;
+    HMODULE lensModule = GetModuleHandleA("lens.dll");
+    const auto* warp = lensModule ? reinterpret_cast<const lens::Shared*>(GetProcAddress(lensModule, "LensWarp")) : nullptr;
+    if (lens::Live(warp) && warp->Strength > 0.0f && projection._11 > 0.0f && projection._22 > 0.0f) {
+        m_Lens = true;
+        m_LensMode = warp->Mode == lens::Cylindrical ? lens::Cylindrical : lens::Panini;
+        m_LensStrength = warp->Strength;
+        m_LensTanH = 1.0 / projection._11;
+        m_LensTanV = 1.0 / projection._22;
+    }
+
     // the device's states for drawing are not made until there is a name to draw with them
     m_Device = device;
     m_CanDraw = true;
@@ -588,6 +608,17 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
         return; // no vertex expansion, state capture or draw submission for invisible names
     }
 
+    // Under lens's warp the name is drawn through the counter of its stretch here, so that it comes
+    // out of the warp at its own shape; otherwise as it is
+    double counter[4] = { 1, 0, 0, 1 };
+    if (m_Lens) {
+        const double width = static_cast<double>(m_Viewport.Width), height = static_cast<double>(m_Viewport.Height);
+        lens::Counter((left + 0.5 - m_Viewport.X) / width, (top + 0.5 - m_Viewport.Y) / height, width, height,
+            m_LensTanH, m_LensTanV, m_LensMode, m_LensStrength, counter);
+    }
+    const float c0 = static_cast<float>(counter[0]), c1 = static_cast<float>(counter[1]);
+    const float c2 = static_cast<float>(counter[2]), c3 = static_cast<float>(counter[3]);
+
     uint32_t vertexCount = 0;
     uint32_t runCount = 0;
     DWORD mostSolid = 0; // of the colours of what is drawn
@@ -608,18 +639,19 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
             mostSolid = color >> 24;
         }
 
-        const float x0 = left + quad.X0 + dx;
-        const float y0 = top + quad.Y0 + dy;
-        const float x1 = left + quad.X1 + dx;
-        const float y1 = top + quad.Y1 + dy;
+        // the corners as offsets from the point, through the counter (the identity without lens)
+        const float ox0 = quad.X0 + dx, oy0 = quad.Y0 + dy, ox1 = quad.X1 + dx, oy1 = quad.Y1 + dy;
+        auto at = [&](float ox, float oy, float u, float v) -> NameVertex {
+            return { left + c0 * ox + c1 * oy, top + c2 * ox + c3 * oy, deep, rhw, color, u, v };
+        };
 
         NameVertex* v = &Vertices[vertexCount];
-        v[0] = { x0, y0, deep, rhw, color, quad.U0, quad.V0 };
-        v[1] = { x1, y0, deep, rhw, color, quad.U1, quad.V0 };
-        v[2] = { x0, y1, deep, rhw, color, quad.U0, quad.V1 };
-        v[3] = { x1, y0, deep, rhw, color, quad.U1, quad.V0 };
-        v[4] = { x1, y1, deep, rhw, color, quad.U1, quad.V1 };
-        v[5] = { x0, y1, deep, rhw, color, quad.U0, quad.V1 };
+        v[0] = at(ox0, oy0, quad.U0, quad.V0);
+        v[1] = at(ox1, oy0, quad.U1, quad.V0);
+        v[2] = at(ox0, oy1, quad.U0, quad.V1);
+        v[3] = at(ox1, oy0, quad.U1, quad.V0);
+        v[4] = at(ox1, oy1, quad.U1, quad.V1);
+        v[5] = at(ox0, oy1, quad.U0, quad.V1);
         vertexCount += 6;
     };
 

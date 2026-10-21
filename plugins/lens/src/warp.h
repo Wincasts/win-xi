@@ -106,6 +106,28 @@ inline void ScreenOf(double s0, double t0, double tanH, double tanV, Mode mode, 
     }
 }
 
+// What undoes the warp's stretch around a point of the flat picture, for something drawn into the
+// picture that should come out of the warp at its own shape (a name over a head): the 2x2 matrix m
+// (row-major) to put each offset (dx, dy) from the point through, in pixels of a width by height
+// picture, before drawing. The warp near the point is its Jacobian J; m is J's inverse. The identity
+// without a warp, and where J cannot be inverted.
+inline void Counter(double s0, double t0, double width, double height, double tanH, double tanV, Mode mode, double strength, double m[4]) {
+    m[0] = 1; m[1] = 0; m[2] = 0; m[3] = 1;
+    if (strength <= 0 || width <= 0 || height <= 0) return;
+    const double h = 1e-4;
+    double sa, ta, sb, tb, sc, tc, sd, td;
+    ScreenOf(s0 + h, t0, tanH, tanV, mode, strength, sa, ta);
+    ScreenOf(s0 - h, t0, tanH, tanV, mode, strength, sb, tb);
+    ScreenOf(s0, t0 + h, tanH, tanV, mode, strength, sc, tc);
+    ScreenOf(s0, t0 - h, tanH, tanV, mode, strength, sd, td);
+    // in pixels: x = s * width, y = t * height, on both sides
+    double a = (sa - sb) / (2 * h), b = (sc - sd) / (2 * h) * width / height;
+    double c = (ta - tb) / (2 * h) * height / width, d = (tc - td) / (2 * h);
+    double det = a * d - b * c;
+    if (fabs(det) < 1e-9) return;
+    m[0] = d / det; m[1] = -b / det; m[2] = -c / det; m[3] = a / det;
+}
+
 // The game's quad: its screen rectangle and the texture coordinates at its top left and bottom right,
 // with what each vertex carries besides.
 struct Quad { float left, top, right, bottom, u0, v0, u1, v1, z, rhw; uint32_t color; };

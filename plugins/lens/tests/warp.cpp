@@ -87,6 +87,24 @@ int main() {
     Check(Near(ms, 0.5) && Near(mt, 0.5), "the middle stays where it is");
     lens::ScreenOf(0.95, 0.5, tanH, tanV, lens::Panini, 0.25, ms, mt);
     Check(ms > 0.95 && Near(mt, 0.5), "a point near the edge of the picture is shown nearer the edge of the screen");
+    // Counter: an offset put through it, drawn in the picture, comes out of the warp as it was
+    const double W = 5160, H = 2160;
+    double cm[4];
+    lens::Counter(0.5, 0.5, W, H, tanH, tanV, lens::Panini, 0, cm);
+    Check(cm[0] == 1 && cm[1] == 0 && cm[2] == 0 && cm[3] == 1, "no warp, no counter");
+    bool kept = true;
+    for (lens::Mode mode : { lens::Panini, lens::Cylindrical }) for (double k : { 0.25, 0.5 })
+        for (double s0 : { 0.05, 0.3, 0.5, 0.9 }) for (double t0 : { 0.1, 0.5, 0.85 }) {
+            lens::Counter(s0, t0, W, H, tanH, tanV, mode, k, cm);
+            double ps, pt, qs, qt;
+            const double dx = 40, dy = -25;   // a name's corner, in picture pixels
+            lens::ScreenOf(s0, t0, tanH, tanV, mode, k, ps, pt);
+            lens::ScreenOf(s0 + (cm[0] * dx + cm[1] * dy) / W, t0 + (cm[2] * dx + cm[3] * dy) / H, tanH, tanV, mode, k, qs, qt);
+            kept = kept && Near((qs - ps) * W, dx, 1) && Near((qt - pt) * H, dy, 1);
+        }
+    Check(kept, "an offset through Counter comes out of the warp as it was, within a pixel (the warp curves over a name's width)");
+    lens::Counter(0.95, 0.5, W, H, tanH, tanV, lens::Panini, 0.5, cm);
+    Check(cm[0] > 1, "near the edge, where the warp squeezes, a name is drawn wider");
     printf(failures ? "%d FAILED\n" : "lens warp: all checks passed\n", failures);
     return failures ? 1 : 0;
 }
