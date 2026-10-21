@@ -129,5 +129,23 @@ int main() {
         "unscaled native windows retain pixel coordinates");
     Check(!MakeNativeRect(rect,true,0,960,1920,1080,18,native) && !MakeNativeRect(rect,false,0,0,0,1080,18,native),
         "invalid menu/viewport dimensions rejected without publishing geometry");
+    // lens: the arrow's tip moved to where the warp shows it, and left alone without a live warp
+    {
+        lens::Shared warp={"LENS-WARP",1,sizeof(lens::Shared),10,9,lens::Panini,0.25f,1/0.556459f,1/1.260417f};
+        int32_t x=3268,y=720;   // near the right edge of a 3440x1440 menu layer, half way down
+        Check(WarpArrow(x,y,3440,1440,&warp) && x>3268 && y==720,"lens warping: the arrow's tip moved out toward the edge, as the warp shows it");
+        double s=0,t=0; lens::ScreenOf(3268.0/3440,0.5,warp.TanH,warp.TanV,lens::Panini,warp.Strength,s,t);
+        Check(x==static_cast<int32_t>(std::lround(s*3440)),"to the warp's own ScreenOf, in menu pixels");
+        int32_t mx=1720,my=500;
+        Check(WarpArrow(mx,my,3440,1440,&warp) && mx==1720,"the middle column stays");
+        int32_t ox=3268,oy=720;
+        warp.Frame=20;
+        Check(!WarpArrow(ox,oy,3440,1440,&warp) && ox==3268 && oy==720,"a stale warp leaves the arrow alone");
+        Check(!WarpArrow(ox,oy,3440,1440,nullptr) && ox==3268,"no lens leaves the arrow alone");
+        warp.Frame=10; warp.Strength=0;
+        Check(!WarpArrow(ox,oy,3440,1440,&warp) && ox==3268,"strength 0 leaves the arrow alone");
+        warp.Strength=0.25f;
+        Check(!WarpArrow(ox,oy,0,0,&warp),"no menu size, nothing moved");
+    }
     printf("%d failures\n",failures); return failures?1:0;
 }

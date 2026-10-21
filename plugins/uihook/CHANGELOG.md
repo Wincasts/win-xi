@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.93
+
+- The game's own target and subtarget arrows follow the lens plugin's warp. lens draws the world bent
+  and the menu layer flat over it, and the game puts each arrow's tip where the flat projection puts
+  the target, so near the sides of the screen it pointed beside it. The two arrow calls uihook already
+  stands in (`DrawTargetArrow`) now move the tip, in pixels of the menu layer (the menu manager's
+  size at `+0x80`), to where the warp shows that point (`WarpArrow`, `target.h`, through lens's own
+  `ScreenOf`), before handing it to the game's sprite draw. The warp is read from the block lens.dll
+  exports as `LensWarp` (`lens/src/shared.h`); without lens, with its warp off or not live, or with no
+  menu size, the arrow is drawn where the game put it. tests/party.cpp: moved out toward the edge to
+  ScreenOf's own point, the middle column kept, and left alone for a stale warp, no lens, strength 0
+  and no menu size.
+
 ## 0.92
 
 - A capture is no longer refused for a texture whose id is a 32-bit pointer sign-extended to 64

@@ -1,6 +1,10 @@
 // Preserve the client's own overhead target/subtarget arrows while suppressing targetwi's HUD.
 // Only the TWO calls that draw anc_l in Target::Draw are redirected, not the general sprite renderer.
 #pragma once
+#include <cmath>
+// the lens plugin's warp, which bends the world under the menu layer the arrows are drawn on
+#include "../../../../lens/src/warp.h"
+#include "../../../../lens/src/shared.h"
 using SpriteDraw = void(__fastcall*)(void*,void*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
 #define TARGET_GLOBAL_AT 0x23
 #define SPRITE_PATTERN "83 EC 0C 53 55 56 8B F1 57 8B 6E 14 8D 4E 04 89 6C 24 18 89 4C 24 14 E8"
@@ -71,4 +75,23 @@ static bool TakeArrows(ArrowCalls& arrows,uint8_t* begin,size_t size,void* repla
         WriteCode(call,jump,5);
     }
     return true;
+}
+
+// Where lens's warp shows the point an arrow's tip is at: x and y in pixels of the menu layer (menuW
+// by menuH, stretched over the whole screen, as the world picture is), moved in place. The game puts
+// the arrow's tip at the target's place by the flat projection, and the anc_l sprite is drawn about
+// its tip, so moving the one point moves the arrow. Nothing changes without a live warp. True when moved.
+inline bool WarpArrow(int32_t& x,int32_t& y,int menuW,int menuH,const lens::Shared* warp) {
+    if (!lens::Live(warp) || warp->Strength<=0.0f || warp->TanH<=0.0f || warp->TanV<=0.0f || menuW<=0 || menuH<=0) return false;
+    double s=0,t=0;
+    lens::ScreenOf(double(x)/menuW,double(y)/menuH,warp->TanH,warp->TanV,
+        warp->Mode==lens::Cylindrical ? lens::Cylindrical : lens::Panini,warp->Strength,s,t);
+    x=static_cast<int32_t>(std::lround(s*menuW));
+    y=static_cast<int32_t>(std::lround(t*menuH));
+    return true;
+}
+// The block lens.dll exports, while lens is loaded; nullptr otherwise.
+inline const lens::Shared* LensBlock() {
+    HMODULE module=GetModuleHandleA("lens.dll");
+    return module ? reinterpret_cast<const lens::Shared*>(GetProcAddress(module,"LensWarp")) : nullptr;
 }
