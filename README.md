@@ -63,7 +63,7 @@ See the uihook README for migration and testing steps.
 
 - `addons/` also holds addons built on other people's work (simplelog, targetlines, inventory, party),
   and `forks/addons` copies of other people's addons with changes of ours (cbind, hideparty,
-  imrecast, mobdb, tcrossbar). Both are under their authors' terms, not the license below.
+  cooldowns (formerly imrecast), mobdb, tcrossbar). Both are under their authors' terms, not the license below.
 - `archive/` holds retired addons and their checks, including [treas](archive/addons/treas).
 - `plugins/exclude` is retired work, kept to look back on.
 - `tests/` runs addons against a stand-in for Ashita: `tests/run.sh`.
