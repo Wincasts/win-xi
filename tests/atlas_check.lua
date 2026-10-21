@@ -348,6 +348,58 @@ o.isVisible[1] = true
 frame()
 H.print('hidden while browsing: given back', H.tap(H.Button.DpadLeft) == false)
 
+-- a DirectInput controller (Controller Type PlayStation): its stick, axes 0 and 4 (down the more), scrolls
+-- in place of XInput's, and its buttons work the map
+local dqueued = {}
+AshitaCore.GetInputManager = function() return {
+    GetXInput = function() return { QueueButtonData = function(_, b, v) queued[#queued + 1] = b .. '=' .. v end } end,
+    GetController = function() return { QueueButtonData = function(_, b, v) dqueued[#dqueued + 1] = b .. '=' .. v end } end,
+} end
+o.controllerType = 'playstation'
+o.stickScrolls[1] = true
+zone = 126
+entities[1] = { x = 100, y = -20, z = 5, heading = 1.0, name = 'Tester' }
+H.frames(1)
+H.dinput(0, 100) -- walking east as browsing begins
+local xqueued = #queued
+H.command('/atlas browse')
+H.print('DirectInput: the game told its stick is centred, not XInput\'s', dqueued[1] == '0=0', dqueued[2] == '4=0', #queued == xqueued)
+frame()
+local function dtap(button) H.dinput(button, 128) H.dinput(button, 0) H.frames(1) end
+dtap(53) dtap(53) -- R1: zoomed in twice
+H.dinput(0, 0)
+frame()
+image = first('image')
+before = image and image.uvA[1] or 0
+local beforeY = image and image.uvA[2] or 0
+H.print('DirectInput stick kept from the game, let through as it centres', H.dinput(0, 127) == true, H.dinput(0, 0) == false)
+H.dinput(0, 127)
+H.frames(10)
+H.dinput(0, 0)
+frame()
+image = first('image')
+H.print('DirectInput stick east scrolls east', image ~= nil and image.uvA[1] > before)
+before = image.uvA[1]
+H.dinput(4, -128)
+H.frames(10)
+H.dinput(4, 0)
+frame()
+image = first('image')
+H.print('DirectInput stick up scrolls north', image ~= nil and image.uvA[2] < beforeY, image ~= nil and image.uvA[1] == before)
+H.print('XInput\'s stick left alone while DirectInput is in use', H.button(18, 32767) == false)
+H.frames(10)
+H.button(18, 0)
+frame()
+image = first('image')
+H.print('and does not scroll', image ~= nil and image.uvA[1] == before)
+dtap(50) -- circle: B (the map was open already, so it stays)
+frame()
+H.print('circle: given back, the map left open', o.isVisible[1], H.dinput(0, 127) == false)
+H.dinput(0, 0)
+o.controllerType = 'xinput'
+o.stickScrolls[1] = false
+H.frames(1)
+
 -- Fade While Moving: the map faded as the player walks, whole again as they stop, or with the mouse
 -- over it or the controller browsing it; off, never faded
 local pushedAlpha = 1

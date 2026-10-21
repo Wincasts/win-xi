@@ -15,16 +15,20 @@
 -- scrolls, and is kept from the game while browsing, so you do not walk off; it is let through as it
 -- comes back to the middle, and centred for the game as browsing begins.
 --
--- The buttons go through winxi.controller, XInput or DirectInput by Controller Type. The stick is
--- read from XInput only: Ashita reports its axes as buttons 18 (across) and 19 (up and down), each
--- -32768 to 32767.
+-- The buttons go through winxi.controller, XInput or DirectInput by Controller Type, and the stick is
+-- read from the same kind. XInput's axes come as buttons 18 (across) and 19 (up and down), each -32768
+-- to 32767, up the more; DirectInput's as 0 (across) and 4 (up and down), each -128 to 127, down the
+-- more.
 local controller = require('winxi.controller');
 local sound = require('winxi.sound');
 local view = require('view');
 local pad = {};
 
-local STICK_X, STICK_Y = 18, 19;
-local DEAD = 8000;         -- of 32767: the stick's middle, where it does nothing
+-- The left stick's axes on each kind of controller: their button numbers, how far each goes, and
+-- whether up is more
+local XINPUT = { x = 18, y = 19, reach = 32767, up = 1 };
+local DINPUT = { x = 0, y = 4, reach = 127, up = -1 };
+local DEAD = 0.25;         -- of the stick's reach: its middle, where it does nothing
 local STICK_SPEED = 0.9;   -- the view's width a second, at the stick's edge
 local STEP = 0.1;          -- the view's width a d-pad press scrolls
 local ZOOM_STEP = 1.25;
@@ -33,7 +37,7 @@ local FRESH = 0.25;        -- seconds the map can go undrawn and still have the 
 local spec = nil;
 local browsing, opened = false, false;
 local drawn = -1;
-local stick = { [STICK_X] = 0, [STICK_Y] = 0 };
+local stick = { x = 0, y = 0 }; -- -1 to 1, up the more, read from whichever kind is in use
 
 local B = controller.Button;
 local actions = {
@@ -60,12 +64,18 @@ local function Span()
     return view.Size / spec.state.zoom;
 end
 
+local function DirectInput()
+    return controller.GetLayout() ~= 'xinput';
+end
+
 -- The game is told the stick is in the middle, so that whoever was walking stops
 local function Centre()
     pcall(function()
-        local xinput = AshitaCore:GetInputManager():GetXInput();
-        xinput:QueueButtonData(STICK_X, 0);
-        xinput:QueueButtonData(STICK_Y, 0);
+        local input = AshitaCore:GetInputManager();
+        local kind = DirectInput() and DINPUT or XINPUT;
+        local device = DirectInput() and input:GetController() or input:GetXInput();
+        device:QueueButtonData(kind.x, 0);
+        device:QueueButtonData(kind.y, 0);
     end);
 end
 
@@ -79,7 +89,7 @@ function pad.Browse(on)
         browsing, opened = true, not options.isVisible[1];
         if opened then spec.shown(true); end
         drawn = os.clock(); -- has the controller from now, before the map is first drawn
-        if StickScrolls() and (stick[STICK_X] ~= 0 or stick[STICK_Y] ~= 0) then Centre(); end
+        if StickScrolls() and (stick.x ~= 0 or stick.y ~= 0) then Centre(); end
     else
         browsing = false;
         if opened then spec.shown(false); end
@@ -114,7 +124,7 @@ local function Push(value)
         return 0;
     end
     local sign = value > 0 and 1 or -1;
-    return sign * math.min(1, (math.abs(value) - DEAD) / (32767 - DEAD));
+    return sign * math.min(1, (math.abs(value) - DEAD) / (1 - DEAD));
 end
 
 function pad.Frame(dt)
@@ -133,7 +143,7 @@ function pad.Frame(dt)
     if not StickScrolls() then
         return;
     end
-    local x, y = Push(stick[STICK_X]), Push(stick[STICK_Y]);
+    local x, y = Push(stick.x), Push(stick.y);
     if x ~= 0 or y ~= 0 then
         local reach = Span() * STICK_SPEED * math.min(dt, 0.1);
         view.Pan(spec.state, x * reach, -y * reach); -- the stick's up is more, the map's up is less
@@ -151,15 +161,26 @@ function pad.Attach(given)
     spec = given;
 end
 
-ashita.events.register('xinput_button', 'atlas_stick', function(e)
-    if e.button ~= STICK_X and e.button ~= STICK_Y then
+-- An axis of the stick moved, on the kind of controller given
+local function Axis(kind, e)
+    local axis = (e.button == kind.x and 'x') or (e.button == kind.y and 'y') or nil;
+    if axis == nil then
         return;
     end
-    stick[e.button] = e.state;
+    local value = math.max(-1, math.min(1, e.state / kind.reach));
+    stick[axis] = axis == 'y' and value * kind.up or value;
     -- kept from the game while browsing, but for its coming back to the middle
     if e.state ~= 0 and Active() and StickScrolls() then
         e.blocked = true;
     end
+end
+
+ashita.events.register('xinput_button', 'atlas_stick', function(e)
+    if not DirectInput() then Axis(XINPUT, e); end
+end);
+
+ashita.events.register('dinput_button', 'atlas_stick_dinput', function(e)
+    if DirectInput() then Axis(DINPUT, e); end
 end);
 
 return pad;

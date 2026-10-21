@@ -210,6 +210,7 @@ H = {
         return blocked
     end,
     button = function(button, state) return fire('xinput_button', { button = button, state = state, blocked = false }).blocked end,
+    dinput = function(button, state) return fire('dinput_button', { button = button, state = state, blocked = false }).blocked end, -- a DirectInput button or axis
     plugin = function(name, data) fire('plugin_event', { name = name, data = data }) end,
     loaded = function(name, on) plugins[name] = on end,      -- whether Ashita says a plugin is loaded
     Button = { DpadUp = 0, DpadDown = 1, DpadLeft = 2, DpadRight = 3, LB = 8, RB = 9, A = 12, B = 13, X = 14, Y = 15, L2 = 16, R2 = 17 },

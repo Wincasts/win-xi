@@ -42,8 +42,8 @@ them, and **Controller Type** picks XInput or a DirectInput layout. The left sti
 game, so you can keep moving with the map open. Turn on **Stick Scrolls Map** (Controller, in
 `/atlas config`) to scroll with it instead: the stick is then kept from the game while browsing so you
 don't walk off, and as browsing begins the game is told the stick is centred, so if you were running
-you stop. The stick is read only from XInput controllers, which Ashita reports as buttons 18 and 19.
-A DirectInput controller scrolls with the d-pad.
+you stop. The stick is read from the kind of controller **Controller Type** names: an XInput
+controller's as Ashita's buttons 18 and 19, a DirectInput one's as its axes 0 and 4.
 
 ## Markers
 

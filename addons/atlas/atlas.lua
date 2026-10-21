@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.4';
+addon.version = '0.5';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -373,7 +373,7 @@ local function DrawSettings(options)
         shell.ControllerSettings(options, controllerTip, function()
             widgets.Label('Stick Scrolls Map');
             imgui.Checkbox('##atlas.stickScrolls', options.stickScrolls);
-            tips.Hover('While browsing, the left stick scrolls the map, faster the further it is pushed, and your character does not walk.\nOff, the stick walks your character as ever while the d-pad scrolls. The stick is read from XInput controllers only.');
+            tips.Hover('While browsing, the left stick scrolls the map, faster the further it is pushed, and your character does not walk.\nOff, the stick walks your character as ever while the d-pad scrolls. The stick is read from the kind of controller Controller Type names.');
         end);
     end
 
