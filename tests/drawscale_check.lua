@@ -175,8 +175,8 @@ H.print('/drawscale vis off', H.command('/drawscale vis off') == true, H.options
     '| vis alone toggles', H.command('/drawscale vis') == true, H.options().vis == true, '| a bad word refused', H.command('/drawscale vis maybe') == true, H.options().vis == true)
 H.print('/drawscale square on', H.command('/drawscale square on') == true, H.options().square == true, lastSaid():find('square on', 1, true) ~= nil)
 H.print('/drawscale fov 60', H.command('/drawscale fov 60') == true, H.options().fov == 60, lastSaid():find('fov unavailable', 1, true) ~= nil,
-    '| outside 20 to 100 refused', H.command('/drawscale fov 10') == true, H.options().fov == 60, lastSaid():find('n from 20 to 100, or 0 for the game\'s own.', 1, true) ~= nil,
-    H.command('/drawscale fov 120') == true, H.options().fov == 60,
+    '| outside 20 to 140 refused', H.command('/drawscale fov 10') == true, H.options().fov == 60, lastSaid():find('n from 20 to 140, or 0 for the game\'s own.', 1, true) ~= nil,
+    H.command('/drawscale fov 141') == true, H.options().fov == 60, '| 120 taken', H.command('/drawscale fov 120') == true, H.options().fov == 120, H.command('/drawscale fov 60') == true,
     '| 0 is the game\'s own', H.command('/drawscale fov 0') == true, H.options().fov == 0)
 H.print('a preset\'s fov said', H.command('/drawscale dungeon fov 50') == true, table.concat(H.printed, '\n'):find('fov 50 degrees', 1, true) ~= nil)
 H.command('/drawscale dungeon fov clear')
