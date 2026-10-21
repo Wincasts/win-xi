@@ -20,25 +20,26 @@ fighting is told to its master alone, in the packet that keeps the two in step. 
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
 Under those two lines is the **priority list**: everything the automaton might do next, in the order it
-tries them, with how each stands. The rows are named short: Bash (a shield bash), Heal, Enfeeble, Nuke,
-Erase (a status removal), WS (the weapon skill) and Shot (a ranged attack).
+tries them, each with its timer. The rows are named short: Bash (a shield bash), Heal, Enfeeble, Nuke,
+Erase (a status removal) and Shot (a ranged attack). The weapon skill is not a row: it is named on top,
+and comes whenever the automaton has the TP.
 
-    > Enfeeble  Bio                 Next
-      Heal      you at 30%          -
-      WS        Slapstick (TP 640)  -
+    > Enfeeble  Next
+      Heal      -
+      Shot      12s
 
 Every three seconds or so the automaton tries a shield bash, then its spells in the head's order (which
 Light and Ice maneuvers change), then a weapon skill, then a shot, and does the first it can. A row says
 `Ready`, the seconds left of the timer it is waiting on, or `-` when there is nothing for it to do as
-things stand (nobody to heal, no TP). The row marked `>` is the one that comes next. The timers are
+things stand (nobody to heal, nothing to cast). The row marked `>` is the one that comes next. The timers are
 Phoenix's for this era, with Mana Booster, Damage Gauge, Drum Magazine and Barrier Module counted where
 fitted. A timer is known only once the automaton has been seen to act, so a row may say Ready when the
 addon was loaded part way through a fight and it is not.
 
 Between the two lines and the list is the **burden**: one line of eight figures, the burden of each
 element in the element's colour, in the maneuvers' order (fire, ice, wind, earth, thunder, water, light,
-dark). A figure turns yellow when one more maneuver of that element might overload, and red when the
-chance is one in four or more. Resting the mouse on a figure names its element and gives the chance.
+dark). Resting the mouse on a figure names its element and gives the chance of one more maneuver of it
+overloading.
 
 The burden is reckoned as the server reckons it: 35 of each element when the automaton is activated,
 one off each every three seconds (two with a Heatsink), and what each maneuver adds, which Cooldown
@@ -49,7 +50,7 @@ is the server's own, and with none the burden is known to be 25 or less.
 
 In the settings: **Show Burden** switches the figures off. **Show Priority List** switches that list off. **Always Show** keeps the window there whether the automaton is fighting or not; outside
 a fight it shows what the automaton would open with on an enemy with nothing on it. It starts on. **Show Dummy Data** fills every part of the window with made-up data, automaton or no, for seeing how
-it looks: a row of the priority list in each state, and a figure in each colour. It is not kept,
+it looks: a row of the priority list in each state, and a figure in each element's colour. It is not kept,
 and is off again when the addon is next loaded. **Show Debug Information** is for finding out what is wrong: under the
 window's own lines, what the addon knows (the automaton as described, whether a pet is out and what it is
 fighting, how many of the pet's packets have come, the maneuvers up).

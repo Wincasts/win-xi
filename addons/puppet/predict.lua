@@ -204,19 +204,20 @@ end
 -- Every three seconds or so the automaton tries one thing after another and does the first it can:
 -- a shield bash, a spell, a weapon skill, a shot, then whatever its attachments do. Which spell it
 -- tries first is the head's to say, and the maneuvers'. The rows are named short, for a small window:
--- Bash, Heal, Enfeeble, Nuke, Erase (a status removal), WS (the weapon skill) and Shot.
+-- Bash, Heal, Enfeeble, Nuke, Erase (a status removal) and Shot. The weapon skill is not a row: the
+-- window names it on its own line, and it comes whenever the automaton has the TP.
 --
 --     local rows = predict.Priority({
 --         head = 1, frame = 0x20, maneuvers = { light = 1 },
---         enfeeble = 'Bio', weaponskill = 'Slapstick',      -- from Queue and Weaponskill: nil where there is none
---         masterHpp = 82, hpp = 100, mpp = 60, tp = 640,   -- the master's HP, and the automaton's own
+--         enfeeble = 'Bio',                                 -- from Queue: nil where there is none
+--         masterHpp = 82, hpp = 100, mpp = 60,             -- the master's HP, and the automaton's own
 --         since = function(kind) ... end,                   -- seconds since it last did a thing: tracker.Since
 --         attachments = { [33] = true },                    -- those fitted, by the server's number for each
 --     })
 --
--- Each row is { name, detail, state, wait, ready }: state is 'ready', 'waiting' (on a timer, wait
--- seconds of it left) or 'idle' (nothing for it to do as things stand), and ready marks the one row
--- the automaton will act on next. The timers are Phoenix's for this era.
+-- Each row is { name, state, wait, ready }: state is 'ready', 'waiting' (on a timer, wait seconds of
+-- it left) or 'idle' (nothing for it to do as things stand), and ready marks the one row the automaton
+-- will act on next. The timers are Phoenix's for this era.
 --
 -- What is not known: whether the enemy is casting, for a shield bash; a Stormwaker's nuke to finish an
 -- enemy nearly dead; which ailments a Soulsoother would remove; and the three seconds between tries.
@@ -259,8 +260,8 @@ function predict.Priority(state)
         end
         return math.max(0, cooldown - since)
     end
-    local function add(name, detail, needed, wait)
-        rows[#rows + 1] = { name = name, detail = detail or '', wait = wait or 0,
+    local function add(name, needed, wait)
+        rows[#rows + 1] = { name = name, wait = wait or 0,
             state = (not needed and 'idle') or ((wait or 0) > 0 and 'waiting') or 'ready' }
     end
 
@@ -271,7 +272,7 @@ function predict.Priority(state)
             cooldown = cooldown - 5 * up('earth')
         end
         local wait = left('bash', cooldown)
-        add('Bash', 'on a cast', true, wait)
+        add('Bash', true, wait)
     end
 
     -- spells, on the frames that cast
@@ -298,19 +299,19 @@ function predict.Priority(state)
         local function heal()
             if healTimer == nil then return end
             local needed = (state.masterHpp or 100) <= threshold or (state.hpp or 100) <= healSelfAt
-            add('Heal', ('you at %d%%'):format(threshold), needed, math.max(magicLeft, left('heal', healTimer)))
+            add('Heal', needed, math.max(magicLeft, left('heal', healTimer)))
         end
         local function enfeeble()
             if timers.enfeeble == nil then return end
-            add('Enfeeble', state.enfeeble or 'nothing to cast', state.enfeeble ~= nil, math.max(magicLeft, left('enfeeble', timers.enfeeble)))
+            add('Enfeeble', state.enfeeble ~= nil, math.max(magicLeft, left('enfeeble', timers.enfeeble)))
         end
         local function nuke()
             if timers.elemental == nil then return end
-            add('Nuke', '', (state.mpp or 100) > 0, math.max(magicLeft, left('elemental', timers.elemental)))
+            add('Nuke', (state.mpp or 100) > 0, math.max(magicLeft, left('elemental', timers.elemental)))
         end
         local function cleanse()
             if timers.status == nil then return end
-            add('Erase', 'an ailment', true, math.max(magicLeft, left('status', timers.status)))
+            add('Erase', true, math.max(magicLeft, left('status', timers.status)))
         end
 
         local light, ice = up('light') > 0, up('ice') > 0
@@ -338,15 +339,6 @@ function predict.Priority(state)
         end
     end
 
-    -- a weapon skill, with the TP for it
-    if state.weaponskill ~= nil then
-        local tp = state.tp or 0
-        add('WS', state.weaponskill, tp >= 1000, 0)
-        if tp < 1000 then
-            rows[#rows].detail = ('%s (TP %d)'):format(state.weaponskill, tp)
-        end
-    end
-
     -- a shot, on a Sharpshot frame
     if state.frame == frameSharpshot then
         local cooldown = rangedCooldown[state.head] or 36
@@ -354,7 +346,7 @@ function predict.Priority(state)
             cooldown = cooldown - 2 * (up('wind') + 1)
         end
         cooldown = math.max(cooldown, rangedLeast[state.head] or 10)
-        add('Shot', '', true, left('ranged', cooldown))
+        add('Shot', true, left('ranged', cooldown))
     end
 
     -- the first with something to do and nothing to wait for is what comes next. A status removal

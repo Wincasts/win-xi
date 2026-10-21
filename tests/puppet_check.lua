@@ -123,8 +123,8 @@ H.frames(400); H.print('twelve seconds on:', list())
 game.hp = 25; H.print('the master at 25%:', list())
 H.frames(700); H.print('the timers run out:', list()); game.hp = 100
 game.buffs = { 306 }; game.hp = 35; H.print('Light, the master at 35%: heal comes first:', list()); game.buffs = {}; game.hp = 100
-game.petTp = 1200; H.print('TP ready, a spell ready too:', list())
-did(8, 24931, 220); H.print('the spell just cast: the weapon skill is next:', list()); game.petTp = 300
+game.petTp = 1200; H.print('TP ready: no row for it, the spell comes next:', list())
+did(8, 24931, 220); H.print('the spell just cast: nothing next while it waits:', list()); game.petTp = 300
 did(8, 28787, 0); did(8, 24931, 1); tracker.Action({ actor_id = 77, category = 8, param = 24931, targets = { { id = 900, actions = { { param = 23 } } } } }, 2)
 H.print('a casting broken off, and someone else\'s, change nothing; a cure starts the heal timer:', list())
 tracker.Clear(); describe(3, 0x22, 200); H.print('Sharpshot frame:', list()); did(11, 1949); H.print('it shoots:', list())
@@ -163,16 +163,14 @@ local function drawn()
     return table.concat(out, ' ')
 end
 local ice = { 0.65, 0.89, 1.00, 1 }
-local yellow, red, faint = { 0.95, 0.95, 0.49, 1 }, { 0.99, 0.51, 0.51, 1 }, { 1, 1, 1, 0.5 }
+local fire, faint = { 1.00, 0.54, 0.48, 1 }, { 1, 1, 1, 0.5 }
 local function same(a, b) return a ~= nil and a[1] == b[1] and a[2] == b[2] and a[3] == b[3] and a[4] == b[4] end
 burden.Clear(); entities[1].PetTargetIndex = 2; o.alwaysShow[1] = true; shown()
 H.print('the figures are drawn with the automaton out, none known yet:', drawn(), '| faint', same(figures[1] and figures[1][2], faint))
 burden.Action({ actor_id = 1, category = 6, param = 136, targets = {} }, harlequin); burden.Action({ actor_id = 1, category = 6, param = 141, targets = { { id = 1, actions = { { param = 26 } } } } }, harlequin)
 burden.Action({ actor_id = 1, category = 6, param = 145, targets = { { id = 1, actions = { { param = 8 } } } } }, harlequin)
 H.print('Activate, a Fire maneuver at 26 and a Thunder at 8:', drawn())
-H.print('Fire is red', same(figures[1] and figures[1][2], red), '| Thunder yellow', same(figures[5] and figures[5][2], yellow), '| Ice, fresh at 35, red too', same(figures[2] and figures[2][2], red))
-for _ = 1, 2 do burden.Action({ actor_id = 1, category = 6, param = 309, targets = {} }, harlequin) end
-H.print('two Cooldowns on:', drawn(), '| Ice, safe now, in its own colour', same(figures[2] and figures[2][2], ice))
+H.print('each in its element\'s colour, whatever the chance: Fire', same(figures[1] and figures[1][2], fire), '| Ice', same(figures[2] and figures[2][2], ice))
 o.showBurden[1] = false; H.print('not with Show Burden off', drawn() == ''); o.showBurden[1] = true
 entities[1].PetTargetIndex = 0; H.print('nor with no automaton', drawn() == '')
 H.packet(0x00A); entities[1].PetTargetIndex = 2; entities[2].ServerId = 3; H.frames(1)
