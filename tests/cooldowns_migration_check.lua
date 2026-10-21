@@ -1,0 +1,13 @@
+local options = H.options()
+assert(addon.name == 'cooldowns' and options.windowName == 'Cooldowns', 'new addon and window names')
+assert(options.windowPos[1] == 321 and options.windowPos[2] == 654, 'legacy position imported')
+assert(options.abilityNameColor[1] == 0.2 and options.spellNameColor[1] == 0.5, 'name colors imported')
+assert(options.showPetCooldowns == false, 'disabled pet toggle preserved')
+assert(options.petAutomaton.head == 4 and options.petAutomaton.attachments[1] == 33, 'parts imported')
+assert(options.theme == nil and options.useSharedTheme == nil, 'old local theme not imported')
+assert(COOLDOWNS_IMPORTS == 1 and options.legacySettingsChecked, 'migration runs once')
+options.windowPos = { 100, 200 }
+H.resettle()
+assert(COOLDOWNS_IMPORTS == 1 and options.windowPos[1] == 100, 'reload preserves new settings, no reimport')
+assert(COOLDOWNS_LEGACY.windowName == 'Recast', 'legacy settings not modified')
+H.print('cooldowns migration: 9 assertions passed')

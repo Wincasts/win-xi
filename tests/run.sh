@@ -130,6 +130,10 @@ luajit tests/trigger_overlap_check.lua
 luajit tests/trigger_volume_check.lua
 luajit tests/trigger_wav_check.lua
 python3 tests/trigger_sound_volumes_check.py
+luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_check.lua || exit 1
+luajit tests/harness.lua cooldowns tests/cooldowns_migration_stand_in.lua tests/cooldowns_migration_check.lua || exit 1
+luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_performance_check.lua || exit 1
+luajit tests/harness.lua cooldowns tests/cooldowns_stand_in.lua tests/cooldowns_optimization_check.lua || exit 1
 run puppet     addons/puppet/puppet.lua puppet_check.lua
 luajit tests/harness.lua puppet addons/puppet/puppet.lua tests/puppet_regression_check.lua || exit 1
 run buff       addons/buff/buff.lua     buff_check.lua
