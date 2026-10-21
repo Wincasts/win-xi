@@ -93,9 +93,9 @@ package.preload['settings'] = function() return { logged_in = true, name = 'Test
 local realLoadfile = loadfile
 loadfile = function(p) if p:find('xitools') then return realLoadfile(root .. 'tests/fixtures/xitools_settings.lua') end return realLoadfile(p) end
 
--- winxi's shared theme file: kept here, in memory, so that no check reads what another saved, and none
--- leaves a file named after the Ashita folder in the project
-local winxiThemeFile = 'config\\addons\\winxi\\theme.lua'
+-- winxi's own files, the shared theme and the layouts: kept here, in memory, so that no check reads what
+-- another saved, and none leaves a file named after the Ashita folder in the project
+local winxiThemeFile = 'config\\addons\\winxi\\'
 local themeLoadfile, realOpen = loadfile, io.open
 loadfile = function(p) if p:find(winxiThemeFile, 1, true) then return nil end return themeLoadfile(p) end
 io.open = function(p, mode)

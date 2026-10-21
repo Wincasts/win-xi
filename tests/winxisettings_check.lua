@@ -278,3 +278,16 @@ H.frames(1)
 assert(#begun == 0, 'closed by /wxi')
 H.print('/winxi closes it; /wxi opens and closes it', true)
 imgui.Begin, imgui.ColorEdit4, imgui.PushStyleColor = realBegin, realColor, realPush
+
+-- the fifth, Layouts: the resolution, Switch With Resolution, and a button to keep this one's
+local buttons, checks = {}, {}
+local realButton, realCheckbox = imgui.Button, imgui.Checkbox
+imgui.Button = function(label) buttons[#buttons + 1] = label return false end
+imgui.Checkbox = function(id) checks[id] = true return false end
+H.command('/winxi')
+H.tab(5)
+H.frames(1)
+local saveShown = false
+for _, label in ipairs(buttons) do saveShown = saveShown or label == 'Save Layout for 1920x1080' end
+H.print('Layouts: the resolution, Switch With Resolution and Save Layout', saveShown and checks['##winxisettings.automatic'] == true)
+imgui.Button, imgui.Checkbox = realButton, realCheckbox
