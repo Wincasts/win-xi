@@ -118,7 +118,7 @@ H.print('load without the client: says the function was not found', said:find('n
 H.print('/drawscale help is taken', H.command('/drawscale help') == true, '| and lists the commands', table.concat(H.printed, '\n'):find('/drawscale patch <n> <mult>', 1, true) ~= nil)
 H.print('/drawscale patch without a number complains', H.command('/drawscale patch') == true, table.concat(H.printed, '\n'):find('Usage: /drawscale patch', 1, true) ~= nil)
 H.print('/drawscale unpatch 3 with nothing patched', H.command('/drawscale unpatch 3') == true, table.concat(H.printed, '\n'):find('#3 was not patched', 1, true) ~= nil)
-H.print('/drawscale fov without the client says so', H.command('/drawscale fov zoomed') == true, table.concat(H.printed, '\n'):find('nothing to write to fov.txt', 1, true) ~= nil)
+H.print('/drawscale fov without the client says so', H.command('/drawscale fovscan zoomed') == true, table.concat(H.printed, '\n'):find('nothing to write to fov.txt', 1, true) ~= nil)
 H.print('another command is left alone', H.command('/other') == false)
 H.unload()
 H.print('unloads cleanly', true)
@@ -155,7 +155,7 @@ H.print('fog: three world calls there is not the fog', scan.fogCallers(three, 51
     '| nor one beyond the window', scan.fogCallers({ records[4], rec(entry - 600, 92, 0, fmulEdi) }, 512) == nil)
 
 -- the settings commands, without the client: saved and said, the fog calls reported not found
-local function lastSaid() local n = #H.printed return table.concat({ H.printed[n - 3] or '', H.printed[n - 2] or '', H.printed[n - 1] or '', H.printed[n] or '' }, '\n') end -- the status is four lines
+local function lastSaid() local n = #H.printed return table.concat({ H.printed[n - 4] or '', H.printed[n - 3] or '', H.printed[n - 2] or '', H.printed[n - 1] or '', H.printed[n] or '' }, '\n') end -- the status is five lines
 H.print('status without the client', H.command('/drawscale') == true, table.concat(H.printed, '\n'):find('fog calls not found', 1, true) ~= nil)
 local saves = H.saves()
 H.print('/drawscale fog 1.5 is saved', H.command('/drawscale fog 1.5') == true, H.saves() == saves + 1, H.options().fog == 1.5,
@@ -174,7 +174,13 @@ H.print('/drawscale detail 4', H.command('/drawscale detail 4') == true, H.optio
 H.print('/drawscale vis off', H.command('/drawscale vis off') == true, H.options().vis == false, lastSaid():find('vis off', 1, true) ~= nil,
     '| vis alone toggles', H.command('/drawscale vis') == true, H.options().vis == true, '| a bad word refused', H.command('/drawscale vis maybe') == true, H.options().vis == true)
 H.print('/drawscale square on', H.command('/drawscale square on') == true, H.options().square == true, lastSaid():find('square on', 1, true) ~= nil)
-H.print('help lists the extras', H.command('/drawscale help') == true, table.concat(H.printed, '\n'):find('/drawscale square on|off', 1, true) ~= nil)
+H.print('/drawscale fov 60', H.command('/drawscale fov 60') == true, H.options().fov == 60, lastSaid():find('fov unavailable', 1, true) ~= nil,
+    '| outside 20 to 100 refused', H.command('/drawscale fov 10') == true, H.options().fov == 60, lastSaid():find('n from 20 to 100, or 0 for the game\'s own.', 1, true) ~= nil,
+    H.command('/drawscale fov 120') == true, H.options().fov == 60,
+    '| 0 is the game\'s own', H.command('/drawscale fov 0') == true, H.options().fov == 0)
+H.print('a preset\'s fov said', H.command('/drawscale dungeon fov 50') == true, table.concat(H.printed, '\n'):find('fov 50 degrees', 1, true) ~= nil)
+H.command('/drawscale dungeon fov clear')
+H.print('help lists the extras', H.command('/drawscale help') == true, table.concat(H.printed, '\n'):find('/drawscale square on|off', 1, true) ~= nil, table.concat(H.printed, '\n'):find('/drawscale fov <n>', 1, true) ~= nil)
 
 -- the real bytes, from the game's report of 2026-10-20 (drawscale 0.3): the fog's calls and the object
 -- range's, recognised as they lie, the fog end's push 0 four instructions before its call

@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '1.5';
+addon.version = '1.6';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: general values, a preset for cities, the outdoors and dungeons, and a zone\'s own, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -49,11 +49,12 @@ local defaults = T{
     detail  = 0,      -- how much further objects keep their detailed mesh; 0 = the same as world
     vis     = true,   -- draw distant terrain the zone's visibility lists would hide
     square  = false,  -- the world at the window's true proportions
+    fov     = 0,      -- the vertical field of view in play, in degrees; 0 = the game's own
     zones   = T{},    -- zone id (as a string) -> the values set for that zone alone
     kinds   = T{ city = T{}, outdoors = T{}, dungeon = T{} }, -- the values set for every zone of a kind
     seeded  = false,  -- whether the city and dungeon presets were given their starting world x2
 };
-local VALUES = { 'world', 'entity', 'fog', 'objects', 'detail', 'vis', 'square' };
+local VALUES = { 'world', 'entity', 'fog', 'objects', 'detail', 'vis', 'square', 'fov' };
 local KINDS = { city = 'a city', outdoors = 'outdoors', dungeon = 'a dungeon' };
 local KIND_PRESET = { city = 'the city preset', outdoors = 'the outdoors preset', dungeon = 'the dungeon preset' };
 local SEED = { city = { world = 2 }, dungeon = { world = 2 } };
@@ -92,7 +93,10 @@ local mem = {
     read_u32 = function (addr) return ashita.memory.read_uint32(addr); end,
     write = nil, -- writeBytes, below
     write_u32 = function (addr, v) ashita.memory.write_uint32(addr, v); end,
+    read_float = function (addr) return ashita.memory.read_float(addr); end,
     write_float = function (addr, v) ashita.memory.write_float(addr, v); end,
+    -- a function of the game's taking nothing and answering nothing
+    call = function (addr) require('ffi').cast('void (__cdecl *)(void)', addr)(); end,
     alloc = function (n) return ashita.memory.alloc(n) or 0; end,
 };
 
@@ -434,6 +438,7 @@ local function apply()
     if (state.view ~= nil) then
         view.setVis(mem, state.view, s.vis ~= false);
         view.setSquare(mem, state.view, s.square == true);
+        view.setFov(mem, state.view, s.fov or 0);
     end
 end
 
@@ -461,7 +466,8 @@ local function rescan()
     end
     state.view = view.find(mem);
     if (state.view.visSite == 0) then fail('The visibility-list read was not found; distant terrain may still pop in.'); end
-    if (state.view.gamePointer == 0) then fail('The game pointer was not found; square is unavailable.'); end
+    if (state.view.gamePointer == 0) then fail('The game pointer was not found; square and fov are unavailable.'); end
+    if (state.view.buildEntry == 0) then fail('The projection\'s build was not found; fov is unavailable.'); end
     return true;
 end
 
@@ -482,7 +488,7 @@ local function projection()
     return nil;
 end
 
--- /drawscale fov [label]: what is needed to find the field of view, appended to fov.txt. The
+-- /drawscale fovscan [label]: what is needed to find the field of view, appended to fov.txt. The
 -- projection as the device has it and the field of view it holds, the game object's fields around
 -- k and a, the function the aspect addon finds with the constants it reads, and every instruction
 -- in the client addressing the fields near k, those reading k or a with the code around them. Run it
@@ -556,6 +562,7 @@ end
 local function valueText(k, v)
     if (k == 'vis' or k == 'square') then return ('%s %s'):format(k, v and 'on' or 'off'); end
     if ((k == 'objects' or k == 'detail') and v <= 0) then return ('%s as world'):format(k); end
+    if (k == 'fov') then return v > 0 and ('fov %g degrees'):format(v) or 'fov the game\'s'; end
     return ('%s x%.2f'):format(k, v);
 end
 
@@ -564,6 +571,18 @@ local function layerText(t)
     local parts = T{};
     for _, k in ipairs(VALUES) do if (t ~= nil and t[k] ~= nil) then parts:append(valueText(k, t[k])); end end
     return #parts > 0 and table.concat(parts, ', ') or nil;
+end
+
+-- The field of view as it is: what is set, and the vertical and horizontal in play now.
+local function fovText(set)
+    local v = view.currentFov(mem, state.view);
+    if (state.view == nil or state.view.buildEntry == 0) then return 'fov unavailable (the projection\'s build was not found).'; end
+    local what = set > 0 and ('fov %g degrees'):format(set) or 'fov the game\'s own';
+    if (v == nil) then return what .. '.'; end
+    local game = mem.read_u32(state.view.gamePointer) or 0;
+    local ak = mem.read_float(game + 0x2F0) * mem.read_float(game + view.K_OFFSET);
+    local h = ak > 0 and math.deg(2 * math.atan(math.tan(math.rad(v) / 2) / ak)) or 0;
+    return ('%s: %.1f vertical, %.1f horizontal now.'):format(what, v, h);
 end
 
 local function status()
@@ -580,6 +599,7 @@ local function status()
         objectsValue(), (s.objects == nil or s.objects <= 0) and ' (same as world)' or '', objectsState,
         detailValue(), (s.detail == nil or s.detail <= 0) and ' (same as world)' or '',
         s.vis ~= false and 'on' or 'off', s.square == true and 'on' or 'off'));
+    say(fovText(s.fov or 0));
     local own, kind = layerText(ownValues()), layerText(kindValues());
     if (own == nil and kind == nil) then
         say('All from the general values.');
@@ -597,21 +617,29 @@ local function help()
     say('/drawscale detail <n> - how much further objects keep their detailed mesh. 0 = the same as world.');
     say('/drawscale vis on|off - on: draw distant terrain the zone would hide from your area. off: stock.');
     say('/drawscale square on|off - on: the world at the window\'s true proportions. off: stock.');
+    say('/drawscale fov <n> - the vertical field of view, n degrees (20 to 100; the game\'s is about 77). Narrower stretches the edges less. 0 = the game\'s own.');
     say('Those set the general values. Over them, for every zone of a kind, and over those, for one zone:');
     say('/drawscale city|outdoors|dungeon <setting> <value> - the kind\'s preset; <setting> clear takes it out again, clear alone the whole preset.');
     say('/drawscale zone <setting> <value> - this zone\'s own; <setting> clear takes it out, clear alone all of them; zone list is every zone with its own.');
     say('/drawscale callers - every call to the scale function, for the record (also in config/addons/drawscale/callers.txt).');
     say('/drawscale patch <n> <mult> - re-scale caller n by hand; /drawscale unpatch [n] puts it (or all) back.');
-    say('/drawscale fov [label] - the projection and what builds it, for finding the field of view (appended to config/addons/drawscale/fov.txt).');
+    say('/drawscale fovscan [label] - the projection and what builds it, for the record (appended to config/addons/drawscale/fov.txt).');
 end
 
-local numeric = { world = true, entity = true, fog = true, objects = true, detail = true };
+local numeric = { world = true, entity = true, fog = true, objects = true, detail = true, fov = true };
+
+-- A numeric setting's range: its least, its most, and whether 0 stands for another value.
+local function limits(k)
+    if (k == 'fov') then return view.FOV_MIN, view.FOV_MAX, true; end
+    if (k == 'objects' or k == 'detail') then return 0, 100, false; end
+    return 0.1, 100, false;
+end
 local toggles = { vis = true, square = true };
 
 local function inRange(k, v)
     if (numeric[k]) then
-        local min = (k == 'objects' or k == 'detail') and 0 or 0.1;
-        return type(v) == 'number' and v >= min and v <= 100;
+        local min, max, zero = limits(k);
+        return type(v) == 'number' and ((v >= min and v <= max) or (zero and v == 0));
     end
     return type(v) == 'boolean';
 end
@@ -657,9 +685,10 @@ local function setIn(layer, name, key, text)
         v = nil;
     elseif (numeric[key]) then
         v = tonumber(text);
-        local min = (key == 'objects' or key == 'detail') and 0 or 0.1;
-        if (v == nil or v < min or v > 100) then
-            fail(('Usage: /drawscale %s%s <n>, n from %s to 100%s.'):format(name, key, min == 0 and '0 (same as world)' or '0.1', layer ~= state.settings and ', or clear' or ''));
+        if (not inRange(key, v)) then
+            local min, max, zero = limits(key);
+            fail(('Usage: /drawscale %s%s <n>, n from %s to %g%s%s.'):format(name, key, min == 0 and '0 (same as world)' or ('%g'):format(min), max,
+                zero and ', or 0 for the game\'s own' or '', layer ~= state.settings and ', or clear' or ''));
             return false;
         end
     else
@@ -774,7 +803,10 @@ end);
 ashita.events.register('d3d_present', 'present_cb', function ()
     applyRatios();
     -- the game object may not exist at load; the constant is set once it does, and kept
-    if (state.view ~= nil and state.settings ~= nil) then view.setSquare(mem, state.view, active().square == true); end
+    if (state.view ~= nil and state.settings ~= nil) then
+        view.setSquare(mem, state.view, active().square == true);
+        view.setFov(mem, state.view, active().fov or 0);
+    end
 end);
 
 -- The zone-in packet carries the zone's id at 0x30.
@@ -807,7 +839,7 @@ ashita.events.register('command', 'command_cb', function (e)
         if (state.detail ~= nil) then detail.restore(mem, state.detail); state.detailMem = 0; end
         if (state.view ~= nil) then view.restore(mem, state.view); end
         if (rescan()) then report(true); apply(); end
-    elseif (verb == 'fov') then
+    elseif (verb == 'fovscan') then
         fovReport(args[3]);
     elseif (verb == 'patch') then
         local n, mult = tonumber(args[3]), tonumber(args[4]);

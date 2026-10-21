@@ -31,6 +31,14 @@ It needs nothing else.
   client builds its projection with a fixed constant that stretches the 3D view about 5.5% wider
   than the window, so people look broad and round things oval; on fixes the constant, and the view
   shows a little more at the sides. The menus and HUD do not change.
+- `/drawscale fov <n>` sets the vertical field of view, in degrees, from 20 to 100. `0`, the
+  default, keeps the game's own, about 77 degrees. The game keeps the height of the view fixed and
+  widens it to the window, so at 21:9 the view is over 120 degrees across, and the flat projection
+  stretches whatever is near the edges. A narrower field of view stretches the edges less and shows
+  less of the world; about 60 at 21:9 sees as far across as the game does at 16:9. The game's own
+  closer views stay closer by the same proportion. `/drawscale` shows the field of view in play, vertical
+  and horizontal. Nameplates, the target cursor and clicks on the world follow it, since the game
+  works them out from the same values.
 
 ## Per kind of zone, and per zone
 
@@ -67,6 +75,14 @@ by objects² / world. The mesh-detail comparisons go through four more stubs tha
 distance by 1 / detail². The visibility-list read is replaced by a read of nothing, and the
 projection constant is swapped in the game object once it exists.
 
+The projection is built by one function from the game object's fields: the aspect from the window
+(+0x2F0) and the constant square changes (+0x2E8), and the vertical field of view as 2 atan(192 / f),
+f being a focal length at +0x2F4 that the game sets (242 in play, more for a closer view). fov
+writes f, scaled from the game's value, and calls the entry just before that function that builds
+the projection again from the fields, the game's own setter doing the same; a new value from the
+game is taken as its own and scaled in turn. The entry is found by its bytes and 192 is read from
+the constant it loads.
+
 The client DLL is packed on disk, so everything is found in the running game, by byte patterns. The
 scale function is found by the bytes drawdistance looks for; its entry by the calls to it (92 bytes
 before those bytes, as of 2026-10-20); the fog's calls by their shape, in the function just before,
@@ -83,7 +99,7 @@ For the record, and for the next time the client changes:
   `config/addons/drawscale/callers.txt`.
 - `/drawscale patch <n> <mult>` sends caller `n` through a stub by hand, `/drawscale unpatch [n]`
   puts it (or all of them) back, and `/drawscale scan` finds everything afresh.
-- `/drawscale fov [label]` is for finding the field of view, to make it a setting. It appends to
+- `/drawscale fovscan [label]` is how the field of view was found, kept for the next client change. It appends to
   `config/addons/drawscale/fov.txt` the projection the device holds (and the horizontal and vertical
   field of view in it), the game object's fields from +0x200 to +0x3FF as floats, the function the
   aspect addon patches with the constants it reads, and every instruction in the client addressing
