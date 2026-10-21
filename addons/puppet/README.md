@@ -31,7 +31,8 @@ fighting is told to its master alone, in the packet that keeps the two in step. 
 nothing to name is left out: there is no line of spells for a frame that casts none.
 
 The list is in three parts. **Next Action** is what the automaton will do next: whatever comes first
-in its order with something to do and nothing to wait for. Under that is the **queue**: what the
+in its order with something to do and nothing to wait for, or, with nothing ready, the weapon skill it
+will use once it has the TP. Under that is the **queue**: what the
 maneuvers choose, in the order it tries them, each with its timer, named short: Heal, Enfeeble, Nuke,
 Erase (a status removal) and WS (the weapon skill). After a gap come the **cooldowns**: what is not
 chosen but runs on a timer of its own, each row there only while its timer runs, with the seconds left.
@@ -62,8 +63,9 @@ ailment for Erase and Eraser, a buff for Disruptor and Regulator) is never Next.
 Module counted where fitted. A timer is known only once the automaton has been seen to act, so a row
 may say Ready when the addon was loaded part way through a fight and it is not.
 
-Above it all is the **burden**: one line of eight figures, the burden of each element in the element's
-colour, in the maneuvers' order (fire, ice, wind, earth, thunder, water, light, dark). Resting the mouse
+Above it all is the **burden**: one line of eight figures centred in the window, the burden of each
+element in the element's colour, in the maneuvers' order (fire, ice, wind, earth, thunder, water, light,
+dark). Resting the mouse
 on a figure names its element and gives the chance of one more maneuver of it overloading.
 
 The burden is reckoned as the server reckons it: 35 of each element when the automaton is activated,

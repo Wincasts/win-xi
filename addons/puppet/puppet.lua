@@ -1,6 +1,6 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.5'
+addon.version = '1.6'
 addon.desc    = 'Everything an automaton might do next, in the order it tries them, with the timer on each: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -342,7 +342,8 @@ local function WriteDetail(detail, firstOnly)
 end
 
 -- The list, in three parts. First the action the automaton will take next: the row that comes first
--- with something to do and nothing to wait for. Then what the maneuvers choose (the spells, the weapon
+-- with something to do and nothing to wait for, or, with nothing ready, the weapon skill it would use
+-- once it has the TP. Then what the maneuvers choose (the spells, the weapon
 -- skill), in the order it tries them, each the name, what it would do and the timer. Then, after a gap,
 -- the cooldowns: what is not chosen but runs on a timer of its own (the bash, the shot, the attachments'
 -- actions), each there only while its timer runs, with the seconds left. A name that answers to a
@@ -354,12 +355,16 @@ local function DrawPriority()
     end
     imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, labelWidth)
 
-    local next = nil
+    local next, weaponskill = nil, nil
     for _, row in ipairs(showing.priority) do
         if row.ready then
             next = row
         end
+        if row.name == 'WS' then
+            weaponskill = row
+        end
     end
+    next = next or weaponskill
     imgui.TableNextRow()
     imgui.TableNextColumn(); WriteFaint('Next Action:')
     imgui.TableNextColumn()
@@ -408,23 +413,25 @@ local function DrawPriority()
     imgui.EndTable()
 end
 
--- The burden figures, one for each element in the elements' order, on one line, each as wide as the
--- widest can be so that the line does not move about as they change. Resting the mouse on one names
--- its element and says the chance of one more maneuver of it overloading.
+-- The burden figures, one for each element in the elements' order, on one line centred in the window,
+-- each in a slot as wide as the widest can be so that the line does not move about as they change, and
+-- centred in its slot. Resting the mouse on one names its element and says the chance of one more
+-- maneuver of it overloading.
 local hovered = { } -- an element -> the words for it when hovered, as last made
+local slotGap = 8 -- between one figure's slot and the next, in pixels
 
 local function DrawBurden()
-    if not imgui.BeginTable('##puppet.burden', #showing.burden, tableFlags) then
-        return
-    end
-    local figureWidth = imgui.CalcTextSize('100')
-    for element = 1, #showing.burden do
-        imgui.TableSetupColumn('', ImGuiTableColumnFlags_WidthFixed, figureWidth)
-    end
-    imgui.TableNextRow()
+    local count = #showing.burden
+    local slot = imgui.CalcTextSize('100')
+    local width = count * slot + (count - 1) * slotGap
+    local left = imgui.GetCursorPosX() + math.max(0, (imgui.GetContentRegionAvail() - width) / 2)
     for element, item in ipairs(showing.burden) do
-        imgui.TableNextColumn()
+        local figureWidth = imgui.CalcTextSize(item.figure)
+        imgui.SetCursorPosX(left + (element - 1) * (slot + slotGap) + (slot - figureWidth) / 2)
         Write(item.figure, item.color)
+        if element < count then
+            imgui.SameLine(0, 0)
+        end
         if imgui.IsItemHovered() then
             local words = hovered[element]
             if words == nil or words.figure ~= item.figure or words.chance ~= item.chance then
@@ -439,7 +446,6 @@ local function DrawBurden()
             tips.Show(words.text)
         end
     end
-    imgui.EndTable()
 end
 
 -- What the addon knows, shown as the debug information: why the window says what it does, or nothing
