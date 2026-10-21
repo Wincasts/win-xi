@@ -172,19 +172,15 @@ local function Waypoint(drawList, x, y, size, fill, edge)
     drawList:AddCircleFilled(p1, size * 0.3, fill, 12);
 end
 
--- The cursor: a ring with four ticks pointing in at its middle, with a dark edge
+-- The cursor: a plain +, with a dark edge
 local function Cursor(drawList, x, y, size, fill, edge)
     local r = size;
-    p1[1], p1[2] = x, y;
-    drawList:AddCircle(p1, r, edge, 20, 3);
-    drawList:AddCircle(p1, r, fill, 20, 1.5);
-    for i = 0, 3 do
-        local angle = i * math.pi / 2;
-        Point(p2, x, y, angle, r * 1.5);
-        Point(p3, x, y, angle, r * 0.5);
-        drawList:AddLine(p2, p3, edge, 3);
-        drawList:AddLine(p2, p3, fill, 1.5);
-    end
+    p1[1], p1[2], p2[1], p2[2] = x - r, y, x + r, y;
+    p3[1], p3[2], p4[1], p4[2] = x, y - r, x, y + r;
+    drawList:AddLine(p1, p2, edge, 3);
+    drawList:AddLine(p3, p4, edge, 3);
+    drawList:AddLine(p1, p2, fill, 1.5);
+    drawList:AddLine(p3, p4, fill, 1.5);
 end
 
 -- How far the shape rounds the corners of a frame w by h

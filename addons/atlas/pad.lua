@@ -15,30 +15,30 @@
 --                        middle of the view, or the player while following them
 --   pad.Hint()           what the buttons do, for under the map while browsing
 --
--- While browsing: the left stick and the d-pad scroll, RB zooms in a step and LB out (1x, 1.5x, 2x,
--- 3x, 4x, 6x, 8x), Y puts a waypoint under the cursor, A locks the map to you (your floor, following
--- you, the cursor on you), X shows the zone's next floor, and B gives the controller back (hiding the
--- map again, if browsing opened it). The left stick is kept from the game while browsing, so you do
--- not walk off; it is let through as it comes back to the middle, and the game is told it is centred
--- as browsing begins. The right stick stays the game's, for the camera. The triggers are left alone:
--- a crossbar (tcrossbar) keeps them, and while one is held the buttons are its, for its macros.
+-- While browsing: the right stick scrolls, RB zooms in a step and LB out (1x, 1.5x, 2x, 3x, 4x, 6x,
+-- 8x), Y puts a waypoint under the cursor, A locks the map to you (your floor, following you, the
+-- cursor on you), X shows the zone's next floor, and B gives the controller back (hiding the map
+-- again, if browsing opened it). The left stick and the d-pad stay the game's, so you can walk and
+-- work the game with the map open. The right stick is kept from the game while browsing, so the
+-- camera does not turn; it is let through as it comes back to the middle, and the game is told it is
+-- centred as browsing begins. The triggers are left alone: a crossbar (tcrossbar) keeps them, and
+-- while one is held the buttons are its, for its macros.
 --
 -- The buttons go through winxi.controller, XInput or DirectInput by Controller Type, and the stick is
--- read from the same kind. XInput's axes come as buttons 18 (across) and 19 (up and down), each -32768
--- to 32767, up the more; DirectInput's as 0 (across) and 4 (up and down), each -128 to 127, down the
--- more.
+-- read from the same kind. XInput's right stick comes as buttons 20 (across) and 21 (up and down),
+-- each -32768 to 32767, up the more; DirectInput's as axes 8 (Z, across) and 20 (RZ, up and down),
+-- each -128 to 127, down the more.
 local controller = require('winxi.controller');
 local sound = require('winxi.sound');
 local view = require('view');
 local pad = {};
 
--- The left stick's axes on each kind of controller: their button numbers, how far each goes, and
+-- The right stick's axes on each kind of controller: their button numbers, how far each goes, and
 -- whether up is more
-local XINPUT = { x = 18, y = 19, reach = 32767, up = 1 };
-local DINPUT = { x = 0, y = 4, reach = 127, up = -1 };
+local XINPUT = { x = 20, y = 21, reach = 32767, up = 1 };
+local DINPUT = { x = 8, y = 20, reach = 127, up = -1 };
 local DEAD = 0.25;         -- of the stick's reach: its middle, where it does nothing
 local STICK_SPEED = 0.9;   -- the view's width a second, at the stick's edge
-local STEP = 0.1;          -- the view's width a d-pad press scrolls
 local LEVELS = { 1, 1.5, 2, 3, 4, 6, 8 }; -- the zoom a bumper steps through
 local FRESH = 0.25;        -- seconds the map can go undrawn and still have the controller
 
@@ -49,10 +49,9 @@ local stick = { x = 0, y = 0 }; -- -1 to 1, up the more, read from whichever kin
 
 local B = controller.Button;
 local actions = {
-    [B.DpadUp] = 'up', [B.DpadDown] = 'down', [B.DpadLeft] = 'left', [B.DpadRight] = 'right',
     [B.RB] = 'zoomIn', [B.LB] = 'zoomOut', [B.A] = 'follow', [B.X] = 'floor', [B.B] = 'back', [B.Y] = 'mark',
 };
-local repeats = { up = true, down = true, left = true, right = true };
+local repeats = {};
 
 local function Active()
     if not browsing or spec == nil then
@@ -70,7 +69,7 @@ local function DirectInput()
     return controller.GetLayout() ~= 'xinput';
 end
 
--- The game is told the stick is in the middle, so that whoever was walking stops
+-- The game is told the stick is in the middle, so that the camera stops turning
 local function Centre()
     pcall(function()
         local input = AshitaCore:GetInputManager();
@@ -119,12 +118,7 @@ end
 
 local function Press(action)
     local state = spec.state;
-    local step = Span() * STEP;
-    if action == 'up' then view.Pan(state, 0, -step);
-    elseif action == 'down' then view.Pan(state, 0, step);
-    elseif action == 'left' then view.Pan(state, -step, 0);
-    elseif action == 'right' then view.Pan(state, step, 0);
-    elseif action == 'zoomIn' then view.Zoom(state, Level(state.zoom, 1), state.cx, state.cy);
+    if action == 'zoomIn' then view.Zoom(state, Level(state.zoom, 1), state.cx, state.cy);
     elseif action == 'zoomOut' then view.Zoom(state, Level(state.zoom, -1), state.cx, state.cy);
     elseif action == 'mark' then spec.mark(pad.Cursor()); sound.Play('confirm');
     elseif action == 'follow' then spec.follow(); sound.Play('confirm');
@@ -178,7 +172,7 @@ function pad.Cursor()
 end
 
 function pad.Hint()
-    return 'Stick, D-Pad: Scroll   LB/RB: Zoom   Y: Waypoint   A: Follow   X: Floor   B: Done';
+    return 'R Stick: Scroll   LB/RB: Zoom   Y: Waypoint   A: Follow   X: Floor   B: Done';
 end
 
 function pad.Attach(given)

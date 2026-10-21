@@ -34,8 +34,8 @@ map takes it while open:
 
 | Button | Does |
 | --- | --- |
-| Left stick | scrolls, faster the further it is pushed |
-| D-pad | scrolls a tenth of the view, repeating while held |
+| Right stick | scrolls, faster the further it is pushed |
+| Left stick, D-pad | the game's, as ever: walk and work the game with the map open |
 | RB / LB | zooms in / out a step: 1x, 1.5x, 2x, 3x, 4x, 6x, 8x |
 | Y | puts a waypoint under the cursor (moving the one there was); on the waypoint, takes it away |
 | A | locks the map to you: back to your floor, following you, the cursor on you |
@@ -43,14 +43,13 @@ map takes it while open:
 | B | gives the controller back, and hides the map again if browsing opened it |
 
 The buttons go through winxi's controller handling: they are kept from the game while the map has
-them, and **Controller Type** picks XInput or a DirectInput layout. The left stick is kept from the game
-while the map has the controller, so you don't walk off, and as browsing begins the game is told it
-is centred, so if you were running you stop. The right stick stays the game's, for the camera. To
-walk with the map up, use passthrough (`/atlas cycle`). The stick is read from the kind of controller
-**Controller Type** names: an XInput controller's as Ashita's buttons 18 and 19, a DirectInput one's
-as its axes 0 and 4.
+them, and **Controller Type** picks XInput or a DirectInput layout. The right stick is kept from the game
+while the map has the controller, so the camera doesn't turn, and as browsing begins the game is told
+it is centred. The left stick and the d-pad are left to the game. The stick is read from the kind of
+controller **Controller Type** names: an XInput controller's right stick as Ashita's buttons 20 and
+21, a DirectInput one's as its axes 8 and 20 (Z and RZ).
 
-While the map has the controller a cursor sits in the middle of it, or on you while the map is
+While the map has the controller a cursor, a plain +, sits in the middle of it, or on you while the map is
 locked to you (near the map's edge, where the view cannot centre on you). Scrolling stops the lock
 and moves the map under the cursor. The waypoint is drawn on its floor's map as a ring round a dot, and its grid square shows under the
 map. There is one at a time, and it is forgotten as you change zone. For now it only marks the place.

@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.10';
+addon.version = '0.11';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -379,8 +379,8 @@ local function Frame(mode, said)
 end
 
 local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game\'s own map has it:\n'
-    .. 'the left stick and the d-pad scroll, RB zooms in a step and LB out, Y puts a waypoint under the cursor in the middle,\n'
-    .. 'A locks the map to you, X shows the next floor, and B gives it back. To walk with the map up, use passthrough (/atlas cycle).';
+    .. 'the right stick scrolls, RB zooms in a step and LB out, Y puts a waypoint under the cursor in the middle,\n'
+    .. 'A locks the map to you, X shows the next floor, and B gives it back. The left stick and the d-pad stay the game\'s, to walk with the map open.';
 
 local function DrawSettings(options)
     if widgets.Header('Window') then
