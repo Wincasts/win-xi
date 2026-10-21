@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.30 — names kept their shape under lens
+
+- Under the lens plugin's warp (plugins/lens), which bends the world picture names are drawn into, each name and bubble an addon draws is put through the counter of the warp's stretch where it stands (`lens::Counter`, the inverse of the warp's local Jacobian), so that it comes out of the warp at its own shape and size, where before it was squeezed toward the sides of the screen. Names are still drawn in the world, so walls and terrain still hide them and their depth is still written. The warp is read from the block lens.dll exports as `LensWarp` (`lens/src/shared.h`) once a scene, with the scene's own projection for its fields of view; without lens, or with its warp off, the counter is the identity and names are placed as before. lens's tests/warp.cpp: an offset put through the counter comes out of the warp as it was, within a pixel.
+
 ## namehook 1.29 — its own settings, one client, tidier
 
 - The settings and the whitelist are read from `config\namehook` alone. Those the plugin kept under its old name, nameplatehook, and nameplatew's (its `mode` made into hidden categories, its whitelist) were read before the first save; from nameplatew the categories are set by hand once, or with the name addon.

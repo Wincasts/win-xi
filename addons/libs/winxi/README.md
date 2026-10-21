@@ -393,7 +393,8 @@ x, y = lens.Point(warp, x, y, width, height);                 -- each point, in 
 ```
 
 `nameplates.Screen` does it already. targetlines and hideparty's target cursor use it; name's
-nameplates and chatbubbles' world bubbles are drawn into the world by namehook and are bent with it.
+nameplates and chatbubbles' world bubbles are drawn into the world by namehook, which counters the
+warp's stretch for each itself (1.30).
 
 ## Debuffs on an enemy
 

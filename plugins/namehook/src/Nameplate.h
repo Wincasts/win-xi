@@ -19,8 +19,8 @@ If not, see <https://www.gnu.org/licenses/>.
 #define UNICODE_MAX_PATH 32768
 
 // The plugin's version, as Ashita shows it and as the help says it
-#define NAMEHOOK_VERSION 1.29
-#define NAMEHOOK_VERSION_TEXT "1.29"
+#define NAMEHOOK_VERSION 1.30
+#define NAMEHOOK_VERSION_TEXT "1.30"
 
 // What a name is over. Every name is in exactly one category, and a category's names are shown or
 // hidden together.
