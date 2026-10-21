@@ -71,6 +71,7 @@ luajit tests/drawscale_view_check.lua || exit 1
 run atlas      addons/atlas/atlas.lua   atlas_check.lua
 run atlas      addons/atlas/atlas.lua   shell_logout_check.lua
 luajit tests/tcrossbar_shadow_check.lua
+luajit tests/tcrossbar_border_check.lua
 luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
 (cd tools && python3 -m unittest test_trace_walkable_maps)
