@@ -4,7 +4,8 @@
 --   pad.Attach(spec)     spec = { options = function() ... end, state = <view state>,
 --                        floor = function() ... end (the next floor), shown = function(on) ... end
 --                        (shows or hides the map) }
---   pad.Browse(on)       takes the controller for the map, or gives it back; nil switches
+--   pad.Browse(on, keep) takes the controller for the map, or gives it back; nil switches. Given back
+--                        with keep, the map stays shown even if browsing opened it
 --   pad.Browsing()       whether the map has the controller
 --   pad.Frame(dt)        while drawing the map: the stick's pan for this frame, and the window marked
 --   pad.Hint()           what the buttons do, for under the map while browsing
@@ -80,7 +81,7 @@ local function Centre()
     end);
 end
 
-function pad.Browse(on)
+function pad.Browse(on, keep)
     if on == nil then on = not browsing; end
     if on == browsing then
         return;
@@ -93,7 +94,7 @@ function pad.Browse(on)
         if StickScrolls() and (stick.x ~= 0 or stick.y ~= 0) then Centre(); end
     else
         browsing = false;
-        if opened then spec.shown(false); end
+        if opened and not keep then spec.shown(false); end
         opened = false;
     end
 end

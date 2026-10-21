@@ -447,4 +447,36 @@ alphaAfter(30, true)
 local walking = (H.calls.Begin or 0) - begun
 H.print('at 0%: the window not drawn while walking', walking < 30)
 o.fadeWhileMoving[1], o.movingOpacity[1] = false, 30
+
+-- /atlas cycle: hidden, open with the controller, passthrough at Passthrough Opacity, hidden again
+o.isVisible[1] = false
+H.frames(1)
+H.command('/atlas cycle')
+H.print('cycle from hidden: open, with the controller, whole', o.isVisible[1], H.tap(H.Button.DpadLeft) == true, alphaAfter(1) == 1)
+H.command('/atlas cycle')
+H.print('then passthrough: still shown, the controller the game\'s, at 50%', o.isVisible[1], H.tap(H.Button.DpadLeft) == false,
+    math.abs(alphaAfter(1) - 0.5) < 0.001)
+o.passthroughOpacity[1] = 20
+H.print('Passthrough Opacity followed', math.abs(alphaAfter(1) - 0.2) < 0.001)
+rawset(imgui, 'GetMousePos', function() return 150, 250 end)
+H.print('the mouse over it: whole', alphaAfter(1) == 1)
+rawset(imgui, 'GetMousePos', function() return 0, 0 end)
+H.command('/atlas cycle')
+H.print('then hidden', not o.isVisible[1])
+o.isVisible[1] = true
+H.print('shown by /atlas: whole, not passthrough', alphaAfter(1) == 1)
+H.command('/atlas cycle')
+H.print('and cycle takes it to open', H.tap(H.Button.DpadLeft) == true)
+H.command('/atlas cycle')
+H.command('/atlas browse')
+H.print('browsing ends passthrough', alphaAfter(1) == 1)
+H.tap(H.Button.B)
+o.controller[1] = false
+o.isVisible[1] = false
+H.frames(1)
+H.command('/atlas cycle')
+H.print('Controller Navigation off: open is just shown', o.isVisible[1], H.tap(H.Button.DpadLeft) == false, alphaAfter(1) == 1)
+H.command('/atlas cycle')
+H.print('then passthrough', math.abs(alphaAfter(1) - 0.2) < 0.001)
+o.controller[1], o.passthroughOpacity[1] = true, 50
 imgui.PushStyleVar = pushStyleVar

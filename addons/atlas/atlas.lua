@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.6';
+addon.version = '0.7';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -14,6 +14,8 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --   /atlas status    says which map is drawn, or why none is
 --   /atlas browse    takes the controller for the map, as the game's own map does, or gives it back;
 --                    opens the map if it is hidden (pad.lua)
+--   /atlas cycle     the next of hidden, open (browsing, as /atlas browse) and passthrough (shown, the
+--                    controller the game's, at Passthrough Opacity), then hidden again
 --
 -- The game's own /map is left to the game. maps.lua knows the zone's maps and how they lie over it,
 -- markers.lua who is where, and view.lua draws a map into a square, knowing nothing of the window:
@@ -48,6 +50,7 @@ local defaults = T{
     size = T{ 512 },
     fadeWhileMoving = T{ false },
     movingOpacity = T{ 30 },
+    passthroughOpacity = T{ 50 },
     showPlayer = T{ true },
     playerColor = T{ 1.00, 0.85, 0.20, 1.00 },
     showParty = T{ true },
@@ -67,6 +70,9 @@ local defaults = T{
 
 local app;
 local state = view.New();
+
+-- Whether the map is in passthrough, as /atlas cycle leaves it: shown, with the controller the game's
+local passing = false;
 
 -- Which map
 
@@ -340,6 +346,11 @@ local function DrawSettings(options)
         widgets.Label('Fade While Moving');
         imgui.Checkbox('##atlas.fadeWhileMoving', options.fadeWhileMoving);
         tips.Hover('The map fades while your character moves, and comes back as you stop.\nThe mouse over the map, or browsing it with the controller, shows it whole.');
+        widgets.PushControlWidth();
+        widgets.Label('Passthrough Opacity');
+        imgui.SliderInt('##atlas.passthroughOpacity', options.passthroughOpacity, 10, 100, '%d%%');
+        tips.Hover('How much of the map shows in passthrough, the third step of /atlas cycle: shown, with the controller\nleft to the game. The mouse over the map shows it whole.');
+        widgets.PopControlWidth();
         if options.fadeWhileMoving[1] then
             widgets.PushControlWidth();
             widgets.Label('Moving Opacity');
@@ -386,7 +397,7 @@ app = shell.New({
     configTitle = 'Atlas Settings',
     hideHeader = 'Visibility',
     command = '/atlas',
-    help = '/atlas shows or hides the map; /atlas config opens the settings; /atlas status says which map is drawn; /atlas browse gives it the controller.',
+    help = '/atlas shows or hides the map; /atlas config opens the settings; /atlas status says which map is drawn; /atlas browse gives it the controller; /atlas cycle goes from hidden to open to passthrough.',
     drawSettings = DrawSettings,
     commands = {
         status = function() Look(); app:Say(Status()); end,
@@ -396,6 +407,21 @@ app = shell.New({
                 return;
             end
             pad.Browse();
+        end,
+        -- hidden, then open (with the controller, if Controller Navigation is on), then passthrough;
+        -- a map shown by /atlas, neither of those, is taken to open
+        cycle = function(options)
+            if not options.isVisible[1] then
+                passing = false;
+                if options.controller[1] then pad.Browse(true); else options.isVisible[1] = true; end
+            elseif passing then
+                options.isVisible[1], passing = false, false;
+            elseif pad.Browsing() or not options.controller[1] then
+                pad.Browse(false, true);
+                passing = true;
+            else
+                pad.Browse(true);
+            end
         end,
     },
 });
@@ -412,9 +438,15 @@ local extra = { locked = false };
 ashita.events.register('d3d_present', 'atlas_present', function()
     -- hidden with the controller in hand: given back
     if pad.Browsing() and not app.options.isVisible[1] then pad.Browse(false); end
+    -- passthrough ends as the map is hidden or browsed
+    if passing and (pad.Browsing() or not app.options.isVisible[1]) then passing = false; end
     if not app:BeginFrame() then return; end
     extra.locked = app.options.locked[1];
-    extra.alpha = moving.Update(app.options, pad.Browsing() or MouseOverWindow());
+    local over = MouseOverWindow();
+    extra.alpha = moving.Update(app.options, pad.Browsing() or over);
+    if passing and not over then
+        extra.alpha = math.min(extra.alpha, app.options.passthroughOpacity[1] / 100);
+    end
     app:Window(app.options.isVisible, Draw, extra);
 end);
 

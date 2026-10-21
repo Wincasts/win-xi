@@ -12,6 +12,10 @@ The game's `/map` is left to the game: this is `/atlas`.
 - `/atlas status` says which map is drawn, or why none is
 - `/atlas browse` gives the map the controller, or gives it back; it opens the map if hidden. Put it in a
   game macro to open the map from the controller.
+- `/atlas cycle` steps the map through three modes, one each time: **hidden**, **open** (shown, with
+  the controller, as `/atlas browse`) and **passthrough** (shown at **Passthrough Opacity**, with the
+  controller left to the game), then hidden again. A map shown by `/atlas` goes to open next. With
+  Controller Navigation off, open is just shown. Put it in a game macro for one button that does all three.
 
 ## The map
 
@@ -64,6 +68,8 @@ the triggers to the game.)
 - **Visible**: whether the map shows.
 - **Lock Window**: keeps the window where it is. The map can still be panned and zoomed.
 - **Map Size**: 256 to 1024 pixels (512 to start).
+- **Passthrough Opacity**: how much of the map shows in passthrough, 10% to 100% (50% to start). The
+  mouse over the map shows it whole.
 - **Fade While Moving** (off): the map fades while your character moves and comes back about half
   a second after you stop. The mouse over the map, or browsing it with the controller, shows it whole.
 - **Moving Opacity**: how much of the map shows while you move, 0% to 100% (30% to start). At 0% it
