@@ -48,7 +48,8 @@ middle of the screen unless it says otherwise:
 The game's own is 122 across. At 16:9 the flat view is 106 across and stretches less, so less
 strength does.
 
-Over the world: targetlines, hideparty's target cursor and anything placed by winxi's
+Over the world: the game's own target and subtarget arrows (through uihook 0.93), targetlines,
+hideparty's target cursor and anything placed by winxi's
 `nameplates.Screen` (chatbubbles' bubbles drawn on the screen) move their points to where the warp
 shows them, through `winxi.lens` and the block lens publishes (below). name's nameplates and
 chatbubbles' world bubbles are drawn into the world by namehook (1.30), which draws each through the

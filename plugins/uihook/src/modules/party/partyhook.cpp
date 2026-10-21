@@ -814,6 +814,12 @@ public:
     void Arrow(void* sprite,uint32_t x,uint32_t y,uint32_t sx,uint32_t sy,uint32_t color,uint32_t a,uint32_t b,uint32_t c) {
         if (targetScope && blocking) ++Shared.TargetCursorCalls;
         ArrowScope allow(blocking,targetScope);
+        // under lens's warp, the tip is put where the warp shows the target (x and y are menu-layer pixels)
+        int16_t menu[2]={};
+        if (menuManager && ChatRead(menuManager+0x80,menu,sizeof(menu))) {
+            int32_t ax=static_cast<int32_t>(x), ay=static_cast<int32_t>(y);
+            if (WarpArrow(ax,ay,menu[0],menu[1],LensBlock())) { x=static_cast<uint32_t>(ax); y=static_cast<uint32_t>(ay); }
+        }
         reinterpret_cast<SpriteDraw>(Arrows.sprite)(sprite,nullptr,x,y,sx,sy,color,a,b,c);
     }
     bool WindowRect(void* window,NativeRect& result) {
