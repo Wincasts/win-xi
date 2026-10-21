@@ -1,4 +1,5 @@
 local header = { 1.0, 0.75, 0.55, 1.0 };
+local frameborder = require('frameborder'); -- winxi
 local imgui = require('imgui');
 local scaling = require('scaling');
 local state = {
@@ -279,6 +280,18 @@ function exposed:Render()
                     CheckBox('Palette(Double)', 'ShowPalette');
                     imgui.ShowHelp('Shows selected palette on double display.');
                     imgui.EndGroup();
+                    -- winxi: the theme's border art round each element
+                    imgui.TextColored(header, 'Frame Border');
+                    if (imgui.BeginCombo('##tCrossBarFrameBorder', frameborder.Label(gSettings.FrameBorder), ImGuiComboFlags_None)) then
+                        for _,choice in ipairs(frameborder.Choices()) do
+                            if (imgui.Selectable(choice.label, gSettings.FrameBorder == choice.key)) then
+                                gSettings.FrameBorder = choice.key;
+                                settings.save();
+                            end
+                        end
+                        imgui.EndCombo();
+                    end
+                    imgui.ShowHelp('Draws one of the Winxi Theme\'s border styles round each macro element: round its frame, or round its icon while Frame is off. Window Border follows the theme\'s own (none while that is the plain border). Faded by the theme\'s Border Opacity.');
                     imgui.EndTabItem();
                 end
                 

@@ -14,6 +14,13 @@ author as plain files rather than a submodule. `readme.md` is the original's. Wh
   the theme's Shadow settings. Made once into a texture for each size of frame (`frameshadow.lua`), and
   drawn for every element before any frame. Needs `addons/libs/winxi`; without it nothing is drawn.
 
+- **Winxi's border art round each element.** Frame Border (Components tab, None to start) draws one of
+  the Winxi Theme's border styles round every macro element's frame, or round its icon while Frame is
+  off: Window Border follows the theme's own (none while that is the plain border), or any of the art by
+  name. winxi.borders' nine slices drawn with sprite draws, corners 3 pixels and edges stretched, after
+  every icon so nothing falls over it, faded by the theme's Border Opacity (`frameborder.lua`). Needs
+  `addons/libs/winxi`; without it nothing is drawn.
+
 - **Less work each frame.** The set blue magic is read only for a blue mage and a few times a second,
   not every frame for every job (`state/player.lua`). A slot's state is worked out ten times a second
   instead of every frame (`element.lua`). The double display no longer lists its slots afresh each frame

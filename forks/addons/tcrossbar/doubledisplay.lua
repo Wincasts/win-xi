@@ -119,6 +119,10 @@ function DoubleDisplay:Render(macroState, forceSingle)
     for _,element in ipairs(renderElements) do
         element:RenderIcon(sprite);
     end
+    -- winxi: every border over every icon
+    for _,element in ipairs(renderElements) do
+        element:RenderBorder(sprite);
+    end
 
     local showPalette = gSettings.ShowPalette;
     if (forceSingle) then

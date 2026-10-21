@@ -112,6 +112,10 @@ function SingleDisplay:Render(macroState)
         for _,element in ipairs(group) do
             element:RenderIcon(sprite);
         end
+        -- winxi: every border over every icon
+        for _,element in ipairs(group) do
+            element:RenderBorder(sprite);
+        end
         for _,element in ipairs(group) do
             element:RenderText(sprite);
         end

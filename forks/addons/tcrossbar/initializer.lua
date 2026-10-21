@@ -35,6 +35,7 @@ local defaultSettings = T{
     ShowEmpty = true,
     ShowFrame = true,
     ShowFrameShadow = true, -- winxi: the theme's drop shadow under each frame
+    FrameBorder = 'none', -- winxi: the theme's border art round each frame (frameborder.lua)
     ShowCost = true,
     ShowCross = true,
     ShowFade = true,

@@ -1,6 +1,7 @@
 local d3d8     = require('d3d8');
 local encoding = require('gdifonts.encoding');
 local ffi      = require('ffi');
+local frameborder = require('frameborder'); -- winxi: the theme's border art
 local frameshadow = require('frameshadow'); -- winxi: the theme's drop shadow
 local gdi      = require('gdifonts.include');
 local updaters = {
@@ -179,6 +180,24 @@ function Element:RenderShadow(sprite)
         if component then
             frameshadow.Draw(sprite, component, self.PositionX + layout.Frame.OffsetX, self.PositionY + layout.Frame.OffsetY);
         end
+    end
+end
+
+-- winxi: the chosen border art round the frame, or round the icon while no frame is shown, drawn
+-- for every element after every icon, so that no icon or overlay falls over it
+function Element:RenderBorder(sprite)
+    local style = gSettings.FrameBorder;
+    if (style == nil) or (style == 'none') or ((self.Binding == nil) and (not gSettings.ShowEmpty)) then
+        return;
+    end
+    local layout = self.Layout;
+    local component = layout.Textures.Frame;
+    if (gSettings.ShowFrame) and (component) then
+        frameborder.Draw(sprite, style, self.PositionX + layout.Frame.OffsetX, self.PositionY + layout.Frame.OffsetY,
+            tonumber(component.Rect.right) * component.Scale.x, tonumber(component.Rect.bottom) * component.Scale.y);
+    else
+        frameborder.Draw(sprite, style, self.PositionX + layout.Icon.OffsetX, self.PositionY + layout.Icon.OffsetY,
+            layout.Icon.Width, layout.Icon.Height);
     end
 end
 
