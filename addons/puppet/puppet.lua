@@ -1,6 +1,6 @@
 addon.name    = 'puppet'
 addon.author  = 'win'
-addon.version = '1.9'
+addon.version = '1.10'
 addon.desc    = 'What an automaton will do next and the timers on everything it might: its spells, weapon skill, shot and what its attachments do, from the maneuvers up and what is on its target.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -421,7 +421,7 @@ local function DrawBurden()
 end
 
 -- What the addon knows, shown as the debug information: why the window says what it does, or nothing
-local known = { pet = false, maneuvers = '' }
+local known = { pet = false, maneuvers = '', masterHpp = nil, petHpp = nil, petTp = nil }
 
 local function DrawKnown()
     imgui.Separator()
@@ -435,6 +435,9 @@ local function DrawKnown()
     imgui.TextDisabled(('Pet packets: %d seen, %d mine, last %s'):format(
         syncs.seen, syncs.own, syncs.last and ('%.0fs ago'):format(os.clock() - syncs.last) or 'never'))
     imgui.TextDisabled('Maneuvers: ' .. (known.maneuvers ~= '' and known.maneuvers or 'none'))
+    -- what the heal and the weapon skill go by: a heal wants the master at 30% (40, 50, 75 with Light) or the automaton at 50%
+    imgui.TextDisabled(('You: %s%% HP   Automaton: %s%% HP, %s TP'):format(
+        tostring(known.masterHpp or '?'), tostring(known.petHpp or '?'), tostring(known.petTp or '?')))
 end
 
 local function DrawWindow(options)
@@ -624,6 +627,8 @@ ashita.events.register('d3d_present', 'puppet_present', function()
 
     if options.showDebug[1] then
         known.pet = pet ~= nil
+        known.masterHpp = AshitaCore:GetMemoryManager():GetParty():GetMemberHPPercent(0)
+        known.petHpp, known.petTp = pet ~= nil and pet.HPPercent or nil, pet ~= nil and AshitaCore:GetMemoryManager():GetPlayer():GetPetTP() or nil
         local parts = {}
         for element, count in pairs(CountManeuvers()) do
             parts[#parts + 1] = element .. ' ' .. count

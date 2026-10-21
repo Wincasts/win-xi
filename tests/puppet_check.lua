@@ -108,7 +108,10 @@ game.petMpp = 100; game.buffs = { 307, 301, 301 }; H.print('Spiritreaver, Dark a
 describe(2, 0x21, 200); game.buffs = {}; H.print('Valoredge frame: no spells named', shown())
 game.buffs = { 300 }; H.print('Fire:', shown())
 game.buffs = { 300, 304, 304 }; H.print('Fire and two Thunder:', shown())
-describe(2, 0x20, 120); game.buffs = {}; H.print('Valoredge head on a Harlequin frame: no spells named', shown())
+describe(2, 0x20, 120); game.buffs = {}; H.print('Valoredge head on a Harlequin frame, nobody to heal: Magic names nothing', shown())
+game.buffs = { 306 }; H.print('with Light, the master whole: still nothing, not Heal', shown())
+pet.HPPercent = 45; H.print('the automaton at 45%: Heal', shown()); pet.HPPercent = 100
+game.hp = 38; H.print('the master at 38% under one Light: Heal', shown()); game.buffs = {}; H.print('and without the Light, at 38%: nothing', shown()); game.hp = 100
 describe(3, 0x22, 200); game.buffs = { 302 }; H.print('Sharpshot frame, Wind:', shown())
 describe(1, 0x20, 120, 4); H.print('another job\'s packet is not read', shown():find('Daze') ~= nil)
 -- the attachments that act on their own: a row each while fitted, in the maneuver's colour

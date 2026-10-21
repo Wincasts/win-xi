@@ -39,7 +39,10 @@ maneuvers choose, each with its timer, named short: Magic and WS (the weapon ski
 spell as one row, since every spell waits on the one timer between any two casts and then on a timer for
 its kind (healing, enfeebling, elemental, status removal): it names what the automaton would cast first
 in the head's order (Heal, an enfeeble by name, Nuke, Erase), the first it can cast now, else the
-soonest it will be able to among those with something to cast, and shows that one's timer. After a gap
+soonest it will be able to among those with something to cast, and shows that one's timer. With nothing
+to cast it names nothing and shows the timer alone. Heal is named, and is the next action, only while
+there is someone to heal: you at 30% HP or under (40, 50 or 75 with one, two or three Light maneuvers,
+more with a Damage Gauge), or the automaton itself at 50% or under. After a gap
 come the **cooldowns**: what is not
 chosen but runs on a timer of its own, each row there only while its timer runs, with the seconds left.
 Those are Bash (a shield bash, on a Valoredge frame), Shot (a ranged attack, on a Sharpshot frame) and
@@ -89,7 +92,8 @@ a fight it shows what the automaton would open with on an enemy with nothing on 
 it looks: a row of the priority list in each state and names in the maneuvers' colours, and a figure in each element's colour. It is not kept,
 and is off again when the addon is next loaded. **Show Debug Information** is for finding out what is wrong: under the
 window's own lines, what the addon knows (the automaton as described, whether a pet is out and what it is
-fighting, how many of the pet's packets have come, the maneuvers up).
+fighting, how many of the pet's packets have come, the maneuvers up, your HP and the automaton's HP and TP,
+which the heal and the weapon skill go by).
 
 What it cannot know:
 

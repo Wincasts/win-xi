@@ -419,10 +419,18 @@ function predict.Priority(state)
                 end
             end
         end
-        chosen = chosen or spells[1]
+        -- with nothing to cast, the row is the first kind's timer and names nothing: a heal is named
+        -- only while the master or the automaton is low enough to be healed
+        if chosen ~= nil then
+            chosen.detail = chosen.detail or { name = spellKinds[chosen.kind], element = chosen.element }
+        else
+            chosen = spells[1]
+            if chosen ~= nil then
+                chosen.detail, chosen.element = nil, nil
+            end
+        end
         if chosen ~= nil then
             chosen.name = 'Magic'
-            chosen.detail = chosen.detail or { name = spellKinds[chosen.kind], element = chosen.element }
             rows[#rows + 1] = chosen
         end
     end
