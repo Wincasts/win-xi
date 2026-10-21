@@ -173,13 +173,20 @@ end
 local tickInterval = 0.1;
 
 -- winxi: the theme's drop shadow under the frame, drawn for every element before any frame, so that
--- one element's shadow does not fall over the next one's frame
+-- one element's shadow does not fall over the next one's frame; tcrossbar's own settings with Match
+-- Theme Shadow off
+local ownShadow = { Opacity = 30, Offset = 2, Blur = 3 };
 function Element:RenderShadow(sprite)
     if ((self.Binding) or (gSettings.ShowEmpty)) and (gSettings.ShowFrame) and (gSettings.ShowFrameShadow) then
         local layout = self.Layout;
         local component = layout.Textures.Frame;
         if component then
-            frameshadow.Draw(sprite, component, self.PositionX + layout.Frame.OffsetX, self.PositionY + layout.Frame.OffsetY);
+            local own = nil;
+            if (gSettings.ShadowMatchTheme == false) then
+                own = ownShadow;
+                own.Opacity, own.Offset, own.Blur = gSettings.ShadowOpacity, gSettings.ShadowOffset, gSettings.ShadowBlur;
+            end
+            frameshadow.Draw(sprite, component, self.PositionX + layout.Frame.OffsetX, self.PositionY + layout.Frame.OffsetY, own);
         end
     end
 end

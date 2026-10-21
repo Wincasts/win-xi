@@ -12,7 +12,9 @@ author as plain files rather than a submodule. `readme.md` is the original's. Wh
 - **Winxi's drop shadow under each frame.** Frame Shadow (Layouts tab, on to start) draws the Winxi
   Theme's shadow, as winxi.shadow draws one behind a window, under every macro element's frame, following
   the theme's Shadow settings. Made once into a texture for each size of frame (`frameshadow.lua`), and
-  drawn for every element before any frame. Needs `addons/libs/winxi`; without it nothing is drawn.
+  drawn for every element before any frame. With Match Theme Shadow off (Components tab, on to start)
+  it takes the crossbar's own Shadow Opacity, Shadow Offset and Shadow Softness instead, and those need
+  no winxi; following the theme without `addons/libs/winxi`, nothing is drawn.
 
 - **Winxi's border art round each element.** Frame Border (Components tab, None to start) draws one of
   the Winxi Theme's border styles round every macro element's frame, or round its icon while Frame is

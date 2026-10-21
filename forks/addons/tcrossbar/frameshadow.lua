@@ -3,8 +3,9 @@
 -- winxi.shadow draws a window's shadow with imgui: a few faint rounded rectangles, each a little
 -- larger than the last, moved down and to the right. The crossbar is drawn with a D3DX sprite, so the
 -- same shape is made once into a texture, for each size of frame, and drawn under each frame with
--- one sprite draw. It follows the theme's Shadow settings (on, Opacity, Offset, Blur), made again
--- whenever one of them changes. Without winxi, nothing is drawn.
+-- one sprite draw. It follows the theme's Shadow settings (on, Opacity, Offset, Blur), or with Match
+-- Theme Shadow off tcrossbar's own (Shadow Opacity, Shadow Offset, Shadow Softness), made again
+-- whenever one of them changes. Following the theme without winxi, nothing is drawn.
 local d3d8 = require('d3d8');
 local ffi = require('ffi');
 
@@ -22,12 +23,25 @@ local d3dwhite = d3d8.D3DCOLOR_ARGB(255, 255, 255, 255);
 local unit = ffi.new('D3DXVECTOR2', { 1.0, 1.0 });
 local vec_position = ffi.new('D3DXVECTOR2', { 0, 0 });
 
--- The theme's shadow settings as one string, or nil while the shadow is off
-local function Settings()
-    if theme == nil then return nil; end
-    local current = theme.Get();
-    if not current.ShadowEnabled or current.ShadowOpacity <= 0 then return nil; end
-    return ('%d:%d:%d'):format(current.ShadowOpacity, current.ShadowOffset, current.ShadowBlur);
+local wanted = { Opacity = 0, Offset = 0, Blur = 0 };
+
+local function Clamp(value, low, high)
+    return math.max(low, math.min(high, math.floor((tonumber(value) or low) + 0.5)));
+end
+
+-- The shadow wanted, as one string with its Opacity, Offset and Blur in wanted, or nil while there is
+-- none: own, if given, is { Opacity, Offset, Blur } in place of the theme's
+local function Settings(own)
+    if own then
+        wanted.Opacity, wanted.Offset, wanted.Blur = Clamp(own.Opacity, 0, 100), Clamp(own.Offset, 0, 20), Clamp(own.Blur, 0, 20);
+    else
+        if theme == nil then return nil; end
+        local current = theme.Get();
+        if not current.ShadowEnabled then return nil; end
+        wanted.Opacity, wanted.Offset, wanted.Blur = current.ShadowOpacity, current.ShadowOffset, current.ShadowBlur;
+    end
+    if wanted.Opacity <= 0 then return nil; end
+    return ('%d:%d:%d'):format(wanted.Opacity, wanted.Offset, wanted.Blur);
 end
 
 local function PowerOfTwo(n)
@@ -47,11 +61,10 @@ end
 
 -- The shadow of a frame width by height, in a texture: the frame's top left at (Pad, Pad) in it
 local function Make(width, height)
-    local current = theme.Get();
-    local offset, blur = current.ShadowOffset, current.ShadowBlur;
+    local offset, blur = wanted.Offset, wanted.Blur;
     local layers = math.max(1, math.min(maxLayers, blur));
     local step = blur / layers;
-    local each = (current.ShadowOpacity / 100) / layers;
+    local each = (wanted.Opacity / 100) / layers;
     local pad = math.ceil(offset + (layers - 1) * step) + 1;
     local w, h = math.ceil(width) + 2 * pad, math.ceil(height) + 2 * pad;
 
@@ -93,9 +106,10 @@ local function Make(width, height)
     return { Texture = texture, Rect = ffi.new('RECT', { 0, 0, w, h }), Pad = pad };
 end
 
--- Draws the shadow of a frame of the given component (a prepared texture of the layout's) at x, y
-function frameshadow.Draw(sprite, component, x, y)
-    local key = Settings();
+-- Draws the shadow of a frame of the given component (a prepared texture of the layout's) at x, y;
+-- own as Settings takes it
+function frameshadow.Draw(sprite, component, x, y, own)
+    local key = Settings(own);
     if key == nil then return; end
     if key ~= madeFor then
         made, madeFor = {}, key;

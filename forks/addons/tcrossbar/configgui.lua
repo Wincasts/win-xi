@@ -108,6 +108,13 @@ local function GetControllers()
     end
 end
 
+-- winxi: the frame shadow's own settings, as { label, setting, most, format, help }
+local shadowSliders = {
+    { 'Shadow Opacity', 'ShadowOpacity', 100, '%d%%', 'How dark the shadow is: 0 is none.' },
+    { 'Shadow Offset', 'ShadowOffset', 20, '%d px', 'How far down and to the right the shadow falls.' },
+    { 'Shadow Softness', 'ShadowBlur', 20, '%d px', 'How wide the shadow\'s soft edge is.' },
+};
+
 local function CheckBox(text, member)
     if (imgui.Checkbox(string.format('%s##Config_%s', text, text), { gSettings[member] })) then
         gSettings[member] = not gSettings[member];
@@ -302,6 +309,21 @@ function exposed:Render()
                         settings.save();
                     end
                     imgui.ShowHelp('How strong the gloss over each icon is, while Gloss is on: 100 is its full light, 0 none.');
+                    -- winxi: the frame shadow, as the theme's or tcrossbar's own
+                    imgui.TextColored(header, 'Frame Shadow');
+                    CheckBox('Match Theme Shadow', 'ShadowMatchTheme');
+                    imgui.ShowHelp('Draws the frame shadow as the Winxi Theme\'s Shadow settings say. Switch it off to set the crossbar\'s own below.');
+                    if (gSettings.ShadowMatchTheme == false) then
+                        for _,slider in ipairs(shadowSliders) do
+                            local buff = { gSettings[slider[2]] };
+                            imgui.TextColored(header, slider[1]);
+                            if imgui.SliderInt('##tCrossBar' .. slider[2], buff, 0, slider[3], slider[4], ImGuiSliderFlags_AlwaysClamp) then
+                                gSettings[slider[2]] = buff[1];
+                                settings.save();
+                            end
+                            imgui.ShowHelp(slider[5]);
+                        end
+                    end
                     imgui.EndTabItem();
                 end
                 

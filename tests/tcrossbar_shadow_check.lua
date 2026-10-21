@@ -1,6 +1,6 @@
 -- tcrossbar's frame shadow (forks/addons/tcrossbar/frameshadow.lua): made once for each size of frame
 -- and each set of the theme's Shadow settings, as winxi.shadow's layers; none while the theme's shadow
--- is off. Run alone: luajit tests/tcrossbar_shadow_check.lua [out.pgm]
+-- is off; tcrossbar's own settings in place of the theme's, with Match Theme Shadow off. Run alone: luajit tests/tcrossbar_shadow_check.lua [out.pgm]
 local ffi = require('ffi')
 ffi.cdef[[
 typedef struct { long left, top, right, bottom; } RECT;
@@ -61,6 +61,23 @@ local before = #draws
 look.ShadowEnabled = false; frameshadow.Draw(sprite, frame, 0, 0)
 look.ShadowEnabled, look.ShadowOpacity = true, 0; frameshadow.Draw(sprite, frame, 0, 0)
 print('nothing drawn with the shadow off, or at 0%', #draws == before)
+
+-- tcrossbar's own settings: drawn though the theme's shadow is off, made for them, kept within range
+look.ShadowEnabled, look.ShadowOpacity = false, 30
+before = #draws
+local made = created
+frameshadow.Draw(sprite, frame, 0, 0, { Opacity = 60, Offset = 4, Blur = 1 })
+local own = buffers[#buffers]
+local ownPad = -draws[#draws].x
+local function ownAlpha(x, y) return math.floor(own.buffer[(y + ownPad) * own.w + (x + ownPad)] / 0x1000000) end
+print('own settings drawn with the theme\'s off', #draws == before + 1, created == made + 1, '| one layer of 60%', ownAlpha(30, 30), math.floor(0.6 * 255 + 0.5))
+print('own offset: 4px down and right', ownAlpha(46, 30) > 0, ownAlpha(49, 30) == 0)
+frameshadow.Draw(sprite, frame, 0, 0, { Opacity = 60, Offset = 4, Blur = 1 })
+print('the same own settings made once', created == made + 1)
+before = #draws; frameshadow.Draw(sprite, frame, 0, 0, { Opacity = 0, Offset = 4, Blur = 1 })
+print('own at 0%: nothing', #draws == before)
+frameshadow.Draw(sprite, frame, 0, 0, { Opacity = 500, Offset = 99, Blur = 99 })
+print('own kept within range, as the theme\'s', -draws[#draws].x <= 20 + 19 * 20 / 6 + 2)
 
 -- the image, to look at
 if arg[1] then
