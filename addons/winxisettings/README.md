@@ -5,7 +5,7 @@ drawn with winxi itself. It opens as it is loaded.
 
 - `/winxi` or `/wxi` opens or closes the window
 
-Four tabs, in this order:
+Five tabs, in this order:
 
 - **Game Windows**: the windows on the game screen. Their background, border, text and highlight
   colours, padding, drop shadow, font and font size, the text outline (the dark edge round text written
@@ -22,6 +22,29 @@ Four tabs, in this order:
   is set there does not change the window it is set in. Their background, border, text and highlight
   colours, the Sub-Category Color of the sections' [-]/[+] titles (orange to start), the Winxi Theme tab's colour, padding, font and font size.
 
-Each tab has a reset button for its own values. Every change is to the shared theme
+- **Layouts**: every addon's settings kept for each screen resolution (`winxi.layouts`). It shows the
+  resolution now, Switch With Resolution (on to start), Save Layout for it, and the saved layouts, each
+  with Use and Remove.
+
+Each appearance tab has a reset button for its own values. Every change is to the shared theme
 (`config\addons\winxi\theme.lua`), and so reaches every addon that follows it; an addon that keeps a
 theme of its own (Use Shared Theme off, in its Winxi Theme tab) is not changed.
+
+## Layouts
+
+A layout is a copy of every addon's `settings.lua` for every character
+(`config\addons\<addon>\<name>_<server>\settings.lua`) and the shared Winxi Theme, kept in
+`config\addons\winxi\layouts\<width>x<height>\`. Other files of an addon are the same at every resolution:
+tCrossBar's bindings, simplelog's filters.
+
+Each addon writes its settings back as it closes or a character logs out, so a layout is put in place
+only while no character is logged in. **Use** at the title screen or character select puts it in place at
+once; with a character logged in it is used the next time the game starts.
+
+With **Switch With Resolution** on, starting the game at another resolution than last time keeps every
+addon's settings as the layout for the old resolution, then uses the one kept for the new resolution,
+if there is one (if not, the settings stay as they were, to be moved for it). For this winxisettings has to
+be loaded as the game starts: put `/addon load winxisettings` in `scripts\default.txt`.
+
+To try another resolution: Save Layout for this one, close the game, change the resolution and start
+again. Going back to it later brings back what was saved, and the new resolution's is kept as you leave it.
