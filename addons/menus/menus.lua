@@ -77,8 +77,9 @@ local Groups = {
         { name = 'trdskill', label = 'Crafting Skills', tip = 'Your crafting skills.' .. CHECK_FIRST },
         { name = 'money', label = 'Gil', tip = 'Your gil.' .. CHECK_FIRST },
     } },
-    -- Their words are pictures the game draws as the window's elements (uihook's Element quads): drawn here as
-    -- the game's own art, in a winxi panel, with the cursor's row lit. Experimental.
+    -- Their words are spelled by the game one letter an element (uihook's Element quads), read back here as words
+    -- in the theme's font, in a winxi panel, with the cursor's row lit; what is no letter, the game's own art.
+    -- Experimental.
     { title = 'Picture Label Menus', on = false, labels = true, menus = {
         { name = 'menuwind', label = 'Main Menu', tip = 'The main menu: Status, Equipment, Items and the rest.' },
         { name = 'playermo', label = 'Command Menu', tip = 'The command menu: Attack, Magic, Abilities and the rest.' },
@@ -95,6 +96,7 @@ local Groups = {
         { name = 'commenu', label = 'Communication Menu', tip = 'The communication menu.' },
         { name = 'ut_menu', label = 'Unity Menu', tip = 'The Unity menu.' },
         { name = 'bazaar', label = 'Bazaar Menu', tip = 'The bazaar\'s choices.' },
+        { name = 'helpwind', label = 'Top Bar', tip = 'The bar across the top of the screen while a menu is open: its name, its count ("Items 5/30") and its help line.' },
     } },
     { title = 'Config', on = false, menus = {
         { name = 'cfilter', label = 'Chat Filters', tip = 'Which chat is shown.' .. CHECK_FIRST },

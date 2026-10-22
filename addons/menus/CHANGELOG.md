@@ -6,6 +6,8 @@
   are read back and set on the panel's top edge as a winxi title, in the theme's Title Style, font and
   colour, the border broken behind it where the style breaks. Every mirrored menu that has one gets
   it, the item lists too.
+- Top Bar in the Picture Label Menus: the bar across the top of the screen while a menu is open
+  (`helpwind`), with its name and count. Not yet seen mirrored; look at it in Outline first.
 - Needs winxi 38 (uihook 1.0).
 
 ## 0.5.1
