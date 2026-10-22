@@ -28,7 +28,11 @@ game draws its own.
   the game draws them, and outlines over them what uihook measured: the window (yellow), each piece of
   text (green), each icon (blue), the cursor (red), the row highlight (pink) and the scrollbar
   (white). For checking what is measured before replacing.
-- Status: what uihook says of the mirror.
+- Menu Scale (0.75x to 2x): how large the menus are drawn in Replace, each grown from the corner of the
+  screen it is nearest (the item lists from the top left, the item box from the bottom left), so it
+  stays on the screen. Its text is drawn larger, not stretched. The controller works as ever; the mouse
+  still clicks where the game's own menu is, so at any scale but 1 it does not line up yet.
+- Status: what uihook says of the mirror, and any menu given back to the game, and why.
 
 ## When the game's own comes back
 

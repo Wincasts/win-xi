@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.1'
+addon.version = '0.2'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -51,8 +51,10 @@ local Menus = {
 }
 local Modes = { 'Replace', 'Outline' }
 
+local SCALE_LOW, SCALE_HIGH = 0.75, 2
 local defaults = T{
     mode = 'Replace',
+    scale = T{ 1 },
 }
 for _, menu in ipairs(Menus) do
     defaults['mirror_' .. menu.name] = T{ true }
@@ -94,6 +96,12 @@ local function DrawSettings(options)
             end
         end
         tooltip.Hover('Replace: the game\'s menus are left undrawn and drawn again in the winxi look. Outline: the game draws its own, with what is measured of it outlined over it, to check by.')
+        widgets.PushControlWidth()
+        widgets.Label('Menu Scale')
+        imgui.SliderFloat('##menus.scale', options.scale, SCALE_LOW, SCALE_HIGH, '%.2fx')
+        if imgui.IsItemDeactivatedAfterEdit() then Save() end
+        widgets.PopControlWidth()
+        tooltip.Hover('How large the menus are drawn, each grown from the corner of the screen it is nearest, so it stays on the screen. The controller works as ever; the mouse still clicks where the game\'s own would be, so at any scale but 1 it does not line up yet.')
         widgets.Label('Status')
         imgui.TextWrapped(mirror.Status())
         local now = os.clock()
@@ -114,6 +122,8 @@ local function Complete(options)
     local known = false
     for _, mode in ipairs(Modes) do known = known or options.mode == mode end
     if not known then options.mode = 'Replace' end
+    if type(options.scale) ~= 'table' or type(options.scale[1]) ~= 'number' then options.scale = T{ 1 } end
+    options.scale[1] = math.max(SCALE_LOW, math.min(SCALE_HIGH, options.scale[1]))
 end
 
 app = shell.New({
@@ -228,6 +238,30 @@ local function DrawContents(list, window)
     end
 end
 
+-- The window grown or shrunk by scale about the corner of the display it is nearest: every place in it moved
+-- with it, so what the game measured keeps its shape. A copy; the bridge's table is left as it is.
+local function Scaled(window, scale, width, height)
+    if scale == 1 then return window end
+    local r = window.rect
+    local ax = (r[1] + r[3]) / 2 < width / 2 and r[1] or r[3]
+    local ay = (r[2] + r[4]) / 2 < height / 2 and r[2] or r[4]
+    local function Move(rect)
+        if not rect then return nil end
+        return { ax + (rect[1] - ax) * scale, ay + (rect[2] - ay) * scale, ax + (rect[3] - ax) * scale, ay + (rect[4] - ay) * scale }
+    end
+    local out = {}
+    for key, value in pairs(window) do out[key] = value end
+    out.rect, out.cursor, out.selection, out.scroll = Move(r), Move(window.cursor), Move(window.selection), Move(window.scroll)
+    out.runs, out.quads = {}, {}
+    for i, run in ipairs(window.runs) do
+        out.runs[i] = { text = run.text, raw = run.raw, route = run.route, color = run.color, rect = Move(run.rect), x = run.x, y = run.y, phase = run.phase }
+    end
+    for i, quad in ipairs(window.quads) do
+        out.quads[i] = { rect = Move(quad.rect), uv = quad.uv, texture = quad.texture, color = quad.color, phase = quad.phase }
+    end
+    return out
+end
+
 local function DrawMirror(list, window)
     local r = window.rect
     list:PushClipRect({ r[1] - 24, r[2] - 24 }, { r[3] + 24, r[4] + 24 }, true)
@@ -284,8 +318,9 @@ local function Frame()
             elseif not window.rect then
                 -- watched, and nothing to outline
             elseif window.hidden then
-                local r = window.rect
-                frame.Draw({ left = r[1], top = r[2], width = Width(r), height = Height(r) }, function() DrawMirror(list, window) end)
+                local scaled = Scaled(window, options.scale[1], width, height)
+                local r = scaled.rect
+                frame.Draw({ left = r[1], top = r[2], width = Width(r), height = Height(r) }, function() DrawMirror(list, scaled) end)
             elseif not replace then
                 DrawOutline(list, window)
             end
