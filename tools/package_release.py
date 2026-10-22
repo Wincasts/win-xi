@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Packages one addon for a release: a zip to extract into the Ashita folder, and its checksum.
 
-    tools/package_release.py <addon>          buff, inventory, name, party or trigger
+    tools/package_release.py <addon>          buff, inventory, name, occlusionfix, party or trigger
     tools/package_release.py --all            each of them
 
 Each zip holds the addon, everything it needs and nothing else:
 
     addons/<addon>/              the addon, with INSTALL.txt
-    addons/libs/winxi/           the shared library, in every zip (winxi.version says which it is)
-    addons/winxisettings/        the shared look's settings window, in every zip
+    addons/libs/winxi/           the shared library, in every zip but a standalone one (winxi.version says which it is)
+    addons/winxisettings/        the shared look's settings window, in every zip but a standalone one
     addons/hideparty/            with party
     plugins/namehook.dll         with name, built here, with its GPL license and where its source is
     plugins/uihook.dll           with buff/party, built here, with its MIT license and where its source is
@@ -33,17 +33,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = 'Wincasts/win-xi'
 
-# What each release brings besides the addon, winxi and winxisettings
+# What each release brings besides the addon, winxi and winxisettings; standalone leaves out those two
 RELEASES = {
     'buff': {'plugin': 'uihook'},
     'clock': {'plugin': 'uihook'},
     'inventory': {},
     'name': {'plugin': 'namehook'},
+    'occlusionfix': {'standalone': True},
     'party': {'plugin': 'uihook', 'addons': {'hideparty': 'forks/addons/hideparty'}},
     'trigger': {},
 }
 # MIT, as the repository's LICENSE says: each is given a copy of it. The others keep their own terms.
-MIT = {'addons/clock', 'addons/libs/winxi', 'addons/winxisettings', 'addons/buff', 'addons/name', 'addons/trigger'}
+MIT = {'addons/clock', 'addons/libs/winxi', 'addons/winxisettings', 'addons/buff', 'addons/name', 'addons/occlusionfix',
+       'addons/trigger'}
 # The terms each plugin is under: namehook is a fork of GPL code, buffhook this repository's own
 PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'buffhook': 'the MIT License', 'uihook': 'the MIT License'}
 # Kept with the addons to make their art and sounds, and of no use in the game
@@ -93,6 +95,8 @@ def install_text(addon, version, extras):
     lines.append(f'    /addon load {addon}')
     for other in extras.get('addons', {}):
         lines.append(f'    /addon load {other}          (optional: see its README)')
+    if extras.get('standalone'):
+        return '\n'.join(lines) + '\n'
     lines += [
         '',
         'and for the look every winxi addon shares: /addon load winxisettings, then /winxi.',
@@ -104,7 +108,9 @@ def install_text(addon, version, extras):
 
 
 def stage(addon, extras, staging, commit):
-    paths = ['LICENSE', f'addons/{addon}', 'addons/libs/winxi', 'addons/winxisettings']
+    paths = ['LICENSE', f'addons/{addon}']
+    if not extras.get('standalone'):
+        paths += ['addons/libs/winxi', 'addons/winxisettings']
     paths += list(extras.get('addons', {}).values())
     if extras.get('plugin'):
         paths.append(f"plugins/{extras['plugin']}")
@@ -189,12 +195,15 @@ def package(addon, output):
     digest = sha256(archive.read_bytes())
     (output / f'{name}.zip.sha256').write_text(f'{digest}  {archive.name}\n')
     winxi = re.search(r'Number = (\d+)', (ROOT / 'addons/libs/winxi/version.lua').read_text()).group(1)
-    bundled = [f'winxi {winxi}', 'winxisettings', *extras.get('addons', {})]
-    if extras.get('plugin'):
-        bundled.append(f"the {extras['plugin']} plugin")
+    if extras.get('standalone'):
+        comes = 'Needs nothing else.'
+    else:
+        bundled = [f'winxi {winxi}', 'winxisettings', *extras.get('addons', {})]
+        if extras.get('plugin'):
+            bundled.append(f"the {extras['plugin']} plugin")
+        comes = f"Comes with {', '.join(bundled[:-1])} and {bundled[-1]}."
     (output / f'{name}.notes.md').write_text(
-        release_notes + f"\nComes with {', '.join(bundled[:-1])} and {bundled[-1]}."
-        + f' Extract into your Ashita folder; see addons/{addon}/INSTALL.txt.\n')
+        release_notes + f'\n{comes} Extract into your Ashita folder; see addons/{addon}/INSTALL.txt.\n')
 
     shown = archive.relative_to(ROOT) if archive.is_relative_to(ROOT) else archive
     print(f'{shown}: {len(names)} files, {archive.stat().st_size:,} bytes, sha256 {digest}')
