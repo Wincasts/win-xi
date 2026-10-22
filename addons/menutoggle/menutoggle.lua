@@ -1,7 +1,7 @@
 addon.name    = 'menutoggle';
 addon.author  = 'win';
-addon.version = '0.1';
-addon.desc    = 'Start closes the main menu when it is open, in place of moving on to the social menu.';
+addon.version = '0.2';
+addon.desc    = 'Start closes the main menu and the social menu, in place of moving from one to the other.';
 
 require('common');
 
@@ -9,8 +9,8 @@ local chat = require('chat');
 local game = require('winxi.game');
 
 -- The game opens the main menu (menuwind) on the menu button, and on a second press moves on to the
--- social menu (socialme). While the main menu is on top the press is kept from the game and the cancel
--- button pressed for it, which closes the menu; at any other time Start reaches the game as it is.
+-- social menu (socialme). While either is on top the press is kept from the game and the cancel button
+-- pressed for it, which closes the menu; at any other time Start reaches the game as it is.
 --
 -- DirectInput numbers the buttons by their offset in the controller's state, 48 for the first; the
 -- DualSense's Options is its tenth button and Circle its third. XInput's numbers are those of
@@ -24,8 +24,11 @@ local enabled = true;
 local taken = false;  -- whether the press of Start now held was kept from the game
 local release = nil;  -- { device, button, at }: the cancel button to let go of, and when
 
-local function MainMenuOnTop()
-    return game.MenuName():match('^menu%s+menuwind%s*$') ~= nil;
+-- the menus Start closes: the main menu, and the social menu it moves on to
+local CLOSES = { menuwind = true, socialme = true };
+
+local function MenuOnTop()
+    return CLOSES[game.MenuName():match('^menu%s+(%S+)%s*$') or ''] == true;
 end
 
 local function Handle(kind, device, e)
@@ -33,7 +36,7 @@ local function Handle(kind, device, e)
         return;
     end
     if e.state == kind.down then
-        taken = enabled and release == nil and MainMenuOnTop();
+        taken = enabled and release == nil and MenuOnTop();
         if taken then
             e.blocked = true;
             device:QueueButtonData(kind.cancel, kind.down);
