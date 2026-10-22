@@ -29,8 +29,10 @@
 #define MIRROR_RUN_BYTES 255
 #define MIRROR_REQUEST_FRAMES 4 // a request holds this many frames after the addon last renewed it
 
-// What a draw belonged to
-enum MirrorPhase : uint32_t { MIRROR_FRAME, MIRROR_CONTENT, MIRROR_CURSOR, MIRROR_SELECTION, MIRROR_SCROLL, MIRROR_AFTER };
+// What a draw belonged to. An element is one of the window's own sprites, drawn by Window::Render before the
+// contents from its list of elements: the labels of a menu whose words are pictures (the main menu, the command
+// menu), its buttons and icons; the one the cursor is on drawn tinted, which makes the window's Selection.
+enum MirrorPhase : uint32_t { MIRROR_FRAME, MIRROR_CONTENT, MIRROR_CURSOR, MIRROR_ELEMENT, MIRROR_SCROLL, MIRROR_AFTER };
 // Window flags: its cursor shown (+62), it focused (+63), it left undrawn, its contents drawn this frame
 enum : uint32_t { MIRROR_HAS_CURSOR=1, MIRROR_FOCUSED=2, MIRROR_HIDDEN=4, MIRROR_DREW_CONTENT=8 };
 
@@ -53,7 +55,7 @@ struct MirrorWindow {
     uint32_t Flags;
     float Rect[4];      // the frame's bounds (else everything drawn), normalized
     float Cursor[4];    // the cursor's, where it drew one this frame (CursorFrame), normalized
-    float Selection[4]; // the row highlight's
+    float Selection[4]; // the element the cursor is on: those drawn tinted
     float Scroll[4];    // the scrollbar's
     uint32_t CursorFrame, SelectionFrame, ScrollFrame;
     uint32_t ScrollPage, ScrollCount, ScrollTop; // the scrollbar's rows shown, rows, rows above, where read
@@ -93,6 +95,7 @@ class Mirror {
     int window=-1;            // the slot of the window being drawn, or -1
     MirrorPhase phase=MIRROR_FRAME;
     unsigned depth=0;         // text calls under way
+    bool elementLit=false;    // the element being drawn is tinted: the cursor is on it
     int run=-1;               // the run being measured
     uint32_t dropped=0;
 public:
@@ -147,7 +150,15 @@ public:
     // The part of the window being drawn: the contents (from the stub), a control (from its call site)
     MirrorPhase Phase(MirrorPhase now) {
         const MirrorPhase was=phase;
+        elementLit=false;
         if (window>=0) { phase=now; if (now==MIRROR_CONTENT) building.Windows[window].Flags|=MIRROR_DREW_CONTENT; }
+        return was;
+    }
+    // One of the window's elements about to be drawn in the colour Window::Render gives it: 0x80808080 as it
+    // is, 0x30808080 greyed, any other tint (0x80805020, 0x40402810) the one the cursor is on
+    MirrorPhase Element(uint32_t colour) {
+        const MirrorPhase was=Phase(MIRROR_ELEMENT);
+        elementLit=window>=0 && (colour & 0xffffff)!=0x808080;
         return was;
     }
     void Scrollbar(const ChatScrollInfo& info) {
@@ -190,7 +201,7 @@ public:
         DWORD fvf=0;
         if (FAILED(device->GetVertexShader(&fvf)) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return;
         IDirect3DBaseTexture8* bound=nullptr;
-        if (phase==MIRROR_CONTENT && !depth && FAILED(device->GetTexture(0,&bound))) bound=nullptr;
+        if ((phase==MIRROR_CONTENT || phase==MIRROR_ELEMENT) && !depth && FAILED(device->GetTexture(0,&bound))) bound=nullptr;
         Record(fvf,bound,data,stride,count);
     }
     // The draw's vertices, as the device has them: screen-space positions first, then the diffuse colour and
@@ -216,12 +227,12 @@ public:
         switch (phase) {
         case MIRROR_FRAME: Merge(frameBounds,bounds); return;
         case MIRROR_CURSOR: Merge(cursorBounds,bounds); return;
-        case MIRROR_SELECTION: Merge(selectionBounds,bounds); return;
+        case MIRROR_ELEMENT: if (elementLit) Merge(selectionBounds,bounds); break;
         case MIRROR_SCROLL: Merge(scrollBounds,bounds); return;
         case MIRROR_AFTER: return;
         case MIRROR_CONTENT: break;
         }
-        // the contents' own art: a quad of a texture
+        // the contents' own art, or an element: a quad of a texture
         if (building.QuadCount>=MIRROR_QUADS) { dropped++; return; }
         MirrorQuad& out=building.Quads[building.QuadCount];
         memset(&out,0,sizeof(out));

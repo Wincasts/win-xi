@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.3.1'
+addon.version = '0.4'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 34
+local winxiNeeded = 35
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -77,6 +77,25 @@ local Groups = {
         { name = 'trdskill', label = 'Crafting Skills', tip = 'Your crafting skills.' .. CHECK_FIRST },
         { name = 'money', label = 'Gil', tip = 'Your gil.' .. CHECK_FIRST },
     } },
+    -- Their words are pictures the game draws as the window's elements (uihook's Element quads): drawn here as
+    -- the game's own art, in a winxi panel, with the cursor's row lit. Experimental.
+    { title = 'Picture Label Menus', on = false, labels = true, menus = {
+        { name = 'menuwind', label = 'Main Menu', tip = 'The main menu: Status, Equipment, Items and the rest.' },
+        { name = 'playermo', label = 'Command Menu', tip = 'The command menu: Attack, Magic, Abilities and the rest.' },
+        { name = 'magselec', label = 'Magic Categories', tip = 'The kinds of magic to choose from.' },
+        { name = 'abiselec', label = 'Ability Categories', tip = 'The kinds of ability to choose from.' },
+        { name = 'statcom2', label = 'Status Menu', tip = 'The menu beside your status.' },
+        { name = 'configwi', label = 'Config Menu', tip = 'The config menu.' },
+        { name = 'mogcont', label = 'Mog House Menu', tip = 'The Mog House menu.' },
+        { name = 'myroom', label = 'Mog House Options', tip = 'The Mog House\'s own options.' },
+        { name = 'itmsortw', label = 'Item Sort', tip = 'The item list\'s sorting and its other choices.' },
+        { name = 'mcrmenu', label = 'Macro Menu', tip = 'The macro menu.' },
+        { name = 'missionm', label = 'Mission Menu', tip = 'The nations and campaigns to see the missions of.' },
+        { name = 'flistmai', label = 'Friend List Menu', tip = 'The friend list\'s choices.' },
+        { name = 'commenu', label = 'Communication Menu', tip = 'The communication menu.' },
+        { name = 'ut_menu', label = 'Unity Menu', tip = 'The Unity menu.' },
+        { name = 'bazaar', label = 'Bazaar Menu', tip = 'The bazaar\'s choices.' },
+    } },
     { title = 'Config', on = false, menus = {
         { name = 'cfilter', label = 'Chat Filters', tip = 'Which chat is shown.' .. CHECK_FIRST },
         { name = 'fxfilter', label = 'Battle Message Filters', tip = 'Which battle messages are shown.' .. CHECK_FIRST },
@@ -86,10 +105,12 @@ local Groups = {
 local Menus = {} -- every menu of every group, in order
 for _, group in ipairs(Groups) do
     for _, menu in ipairs(group.menus) do
-        menu.on = group.on
+        menu.on, menu.labels = group.on, group.labels
         Menus[#Menus + 1] = menu
     end
 end
+local byName = {}
+for _, menu in ipairs(Menus) do byName[menu.name] = menu end
 local Modes = { 'Replace', 'Outline' }
 
 local SCALE_LOW, SCALE_HIGH = 0.75, 2
@@ -135,7 +156,7 @@ local function DrawSettings(options)
     for index, group in ipairs(Groups) do
         if widgets.Header(group.title, index == 1) then
             for _, menu in ipairs(group.menus) do
-                widgets.Label(menu.label)
+                widgets.Label(menu.label, menu.labels)
                 if imgui.Checkbox('##menus.' .. menu.name, options['mirror_' .. menu.name]) then Save() end
                 tooltip.Hover(menu.tip .. ' Off, the game draws its own.')
             end
@@ -266,14 +287,21 @@ local function DrawContents(list, window)
     -- own highlight where that is the shape of a row (in some windows its draws cover the whole window)
     local row = CursorRow(window)
     local lit = window.selection
-    if not row and lit and Height(lit) <= 32 and Height(lit) < Height(r) / 2 then row = lit end
+    if not row and lit and Height(lit) < Height(r) / 2 then row = lit end
     if row then
         local highlight = theme.Get().HighlightColor
         list:AddRectFilled({ r[1] + pad, row[2] - 1 }, { r[3] - pad, row[4] + 1 }, imgui.GetColorU32(highlight), 3)
     end
-    -- the game's art in the contents (icons), as the game drew it
+    -- the game's art in the contents (icons), as the game drew it; and in a menu whose words are pictures, its
+    -- elements, the labels, in their own colours (the cursor's tint left to the row lit under it; a greyed one kept
+    -- faint)
+    local labels = byName[window.name] and byName[window.name].labels
     for _, quad in ipairs(window.quads) do
-        if quad.texture then
+        local element = quad.phase == nativemirror.Element
+        if element and labels and quad.texture then
+            local q, uv, faint = quad.rect, quad.uv, quad.color[4]
+            list:AddImage(quad.texture, { q[1], q[2] }, { q[3], q[4] }, { uv[1], uv[2] }, { uv[3], uv[4] }, imgui.GetColorU32({ 1, 1, 1, faint }))
+        elseif not element and quad.texture then
             local q, uv = quad.rect, quad.uv
             list:AddImage(quad.texture, { q[1], q[2] }, { q[3], q[4] }, { uv[1], uv[2] }, { uv[3], uv[4] }, imgui.GetColorU32(quad.color))
         end
@@ -357,7 +385,9 @@ local function DrawOutline(list, window)
     local function Box(r, color) if r then list:AddRect({ r[1], r[2] }, { r[3], r[4] }, imgui.GetColorU32(color), 0, 0, 1) end end
     Box(window.rect, { 1, 0.85, 0.2, 1 })
     for _, run in ipairs(window.runs) do Box(run.rect, { 0.3, 1, 0.4, 0.9 }) end
-    for _, quad in ipairs(window.quads) do Box(quad.rect, { 0.3, 0.8, 1, 0.9 }) end
+    for _, quad in ipairs(window.quads) do
+        Box(quad.rect, quad.phase == nativemirror.Element and { 0.75, 0.45, 1, 0.9 } or { 0.3, 0.8, 1, 0.9 })
+    end
     Box(window.cursor, { 1, 0.3, 0.3, 1 })
     Box(window.selection, { 1, 0.3, 1, 1 })
     Box(window.scroll, { 1, 1, 1, 0.8 })

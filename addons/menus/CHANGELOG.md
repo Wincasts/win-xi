@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4
+
+- [Experimental] Picture Label Menus, off to start: the Main Menu, Command Menu, Magic and Ability
+  Categories, Status Menu, Config Menu, Mog House Menu and Options, Item Sort, Macro Menu, Mission Menu,
+  Friend List Menu, Communication Menu, Unity Menu and Bazaar Menu, whose words are pictures. Each is a
+  winxi panel with the game's own label art (uihook 0.98's Element quads), the cursor's row lit from
+  the element the game tints, and the hand. Outline draws elements in purple.
+- Needs uihook 0.98 and winxi 35.
+
 ## 0.3.1
 
 - Dragging works with Keep Mouse From Game Menus: the mouse's place is read from Windows (the cursor in

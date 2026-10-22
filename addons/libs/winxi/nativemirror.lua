@@ -18,15 +18,17 @@
 -- pixels (width and height the display's), the same table while nothing has changed:
 --   { name, hidden, focused, hasCursor, drewContent,
 --     rect = { left, top, right, bottom },          the window's frame
---     cursor, selection, scroll = { ... } or nil,    the game's cursor, row highlight and scrollbar where drawn
+--     cursor, selection, scroll = { ... } or nil,    the game's cursor, the element it is on, the scrollbar
 --     scrollPage, scrollCount, scrollTop,            the scrollbar's rows shown, rows and rows above, where read
 --     target = { x, y, width, height },              the game's layout target, in its own units
 --     runs = { { text, raw, route, color = { r, g, b, a }, rect = { ... } or nil, x, y, phase } },
 --     quads = { { rect, uv = { u1, v1, u2, v2 }, texture, color, phase } } }
 -- A run's text is UTF-8, its raw the game's bytes; its rect where its glyphs were drawn (nil where none were
--- measured), x and y where the game was told to print it, in its units. A quad is a draw of the game's art in
--- the contents (an item's icon): texture is the game's IDirect3DBaseTexture8 as a number, held by uihook until
--- the next frame is presented, for imgui's AddImage.
+-- measured), x and y where the game was told to print it, in its units. A quad is a draw of the game's art: in
+-- the contents (phase Content: an item's icon), or one of the window's own elements (phase Element: a label of
+-- a menu whose words are pictures, a button), the one the cursor is on drawn tinted. texture is the game's
+-- IDirect3DBaseTexture8 as a number, held by uihook for two frames presented, for imgui's AddImage; with the
+-- window's name, uv is a label's lasting key.
 local ffi = require('ffi')
 local bit = require('bit')
 ffi.cdef[[
@@ -62,7 +64,7 @@ ffi.cdef[[
     int __stdcall WideCharToMultiByte(unsigned int, unsigned long, const unsigned short*, int, char*, int, const char*, int*);
 ]]
 local M = { Bitmap = 0, Scaled = 1, Font = 2, Requests = 32, Windows = 16,
-    Frame = 0, Content = 1, Cursor = 2, Selection = 3, Scrollbar = 4, After = 5 }
+    Frame = 0, Content = 1, Cursor = 2, Element = 3, Selection = 3, Scrollbar = 4, After = 5 }
 local HAS_CURSOR, FOCUSED, HIDDEN, DREW_CONTENT = 1, 2, 4, 8
 local MAGIC = '5549484F4F4B2D4D4952524F52000000' -- "UIHOOK-MIRROR", zeros to 16
 

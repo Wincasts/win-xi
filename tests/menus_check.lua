@@ -113,6 +113,29 @@ options.mode = 'Outline'
 H.frames(1)
 check('Outline: nothing hidden', not Asked('inventor').hide)
 
+-- a menu whose words are pictures: its elements drawn as the game's art; an item list's elements are not
+options.mode = 'Replace'
+options.mirror_menuwind[1] = true
+H.frames(1)
+check('the main menu asked for once on', Asked('menuwind') and Asked('menuwind').hide)
+local function Element(top, lit)
+    return { rect = { 120, top, 200, top + 16 }, uv = { 0, 0, 0.5, 0.1 }, texture = 77, color = lit and { 1, 0.625, 0.25, 1 } or { 1, 1, 1, 1 }, phase = 3 }
+end
+local mainMenu = { name = 'menuwind', hidden = true, rect = { 100, 100, 300, 300 }, cursor = { 90, 120, 110, 132 },
+    selection = { 120, 118, 200, 134 }, runs = {}, quads = { Element(100), Element(118, true), Element(136) },
+    scrollPage = 0, scrollCount = 0, scrollTop = 0 }
+local items = Inventory()
+items.quads = { Element(160) }
+MENUS.windows = { mainMenu }
+local images = H.calls['draw.AddImage'] or 0
+H.frames(1)
+check('the main menu\'s three labels drawn', (H.calls['draw.AddImage'] or 0) - images >= 3)
+MENUS.windows = { items }
+images = H.calls['draw.AddImage'] or 0
+H.frames(1)
+check('an item list\'s element not drawn', (H.calls['draw.AddImage'] or 0) - images == 0)
+check('nothing printed for them', #H.printed == 0)
+
 -- unloaded: the mirror stopped
 local stops = MENUS.stops
 H.unload()

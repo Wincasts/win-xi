@@ -8,13 +8,14 @@ text in the theme's font (an item's name in the colour the game gives it), its i
 own textures, the row the cursor is on lit in the Highlight Color, the game's hand where the game put
 it, and the scrollbar.
 
-Needs `uihook` 0.97 or newer (its menu mirror) and winxi 34.
+Needs `uihook` 0.98 or newer (its menu mirror) and winxi 35.
 
 - `/menus` opens or closes the settings
 
 It mirrors the menus that print their words (the item lists, the ability, spell, emote and mount
 lists, currencies, missions, quests and the friend list among them); the game's other menus, whose
-labels are pictures (the main menu, the command menu, config), are drawn by the game as ever for now.
+labels are pictures (the main menu, the command menu, config), are drawn by the game unless the
+experimental Picture Label Menus are on.
 Everything is placed where the game placed it, so its hit-tests line up with what is seen, until a menu
 is scaled or moved: then Keep Mouse From Game Menus keeps the mouse from the game's own, unseen under it.
 
@@ -28,6 +29,12 @@ Which of the game's windows are mirrored, in four groups; off, the game draws it
 - **Lists** (on): Abilities And Spells, Emotes, Mounts, Currencies, Missions, Quests, Quest Pages,
   Friend List, Area List, Search Results, Help Desk.
 - **Status** (off): Status, Level And EXP, Profile, Job Levels, Combat Skills, Crafting Skills, Gil.
+- **[Experimental] Picture Label Menus** (off): Main Menu, Command Menu, Magic Categories, Ability
+  Categories, Status Menu, Config Menu, Mog House Menu, Mog House Options, Item Sort, Macro Menu,
+  Mission Menu, Friend List Menu, Communication Menu, Unity Menu, Bazaar Menu. Their words are
+  pictures the game draws; each is drawn as a winxi panel with the game's own label art, the row the
+  cursor is on lit and the hand. In Outline their labels are outlined in purple. Labels in the winxi
+  font are to come.
 - **Config** (off): Chat Filters, Battle Message Filters, Chat Colors.
 
 The Status and Config windows also draw some of their labels as pictures. Those drawn with a window's

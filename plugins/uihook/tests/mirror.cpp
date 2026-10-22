@@ -136,6 +136,34 @@ int main() {
     mirror.End(saved); mirror.Publish(12);
     Check(f.RunCount==MIRROR_RUNS && block.Dropped==4,"runs past the room dropped and counted");
 
+    // elements: each a quad of its art; the one tinted (the cursor's) the window's selection, the rest not
+    mirror.Viewport(view);
+    mirror.Begin(other.window,nullptr,saved);
+    Check(!mirror.Active(),"a window not asked for: its elements nothing");
+    mirror.End(saved);
+    memcpy(block.Requests[2],"menu    menuwind",16);
+    FakeWindow menu("menu    menuwind",true,true);
+    mirror.Begin(menu.window,nullptr,saved);
+    MirrorPhase was=mirror.Element(0x80808080);
+    icons.AddRef(); Quad(v,100,100,180,116,0x80808080,0,0,0.5f,0.0625f); mirror.Record(FVF,&icons,v,sizeof(Vertex),6);
+    mirror.Phase(was);
+    was=mirror.Element(0x80805020);
+    icons.AddRef(); Quad(v,100,118,180,134,0x80805020,0,0.0625f,0.5f,0.125f); mirror.Record(FVF,&icons,v,sizeof(Vertex),6);
+    mirror.Phase(was);
+    was=mirror.Element(0x30808080); // greyed: not the cursor's
+    icons.AddRef(); Quad(v,100,136,180,152,0x30808080); mirror.Record(FVF,&icons,v,sizeof(Vertex),6);
+    mirror.Phase(was);
+    Quad(v,90,90,200,170,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6); // after: the frame
+    mirror.End(saved); mirror.Publish(12);
+    const MirrorWindow& m=f.Windows[0];
+    Check(m.Quads==3 && f.Quads[0].Phase==MIRROR_ELEMENT && f.Quads[1].Phase==MIRROR_ELEMENT,"three elements, each a quad");
+    Check(Near(f.Quads[1].UV[1],0.0625f) && f.Quads[1].Colour==0x80805020,"the cursor's element: its corners and tint");
+    Check(m.SelectionFrame==block.Frame && Near(m.Selection[1],0.237f) && Near(m.Selection[3],0.269f),"the selection the tinted element's, not the window's");
+    Check(Near(m.Rect[1],0.181f) && Near(m.Rect[3],0.341f),"the frame the frame's, the elements apart from it");
+    mirror.Publish(12); mirror.Publish(12);
+    Check(icons.refs==1,"the elements' texture given back");
+    memset(block.Requests[2],0,16);
+
     // given back on release
     mirror.Viewport(view);
     mirror.Begin(inventor.window,nullptr,saved); mirror.Phase(MIRROR_CONTENT);

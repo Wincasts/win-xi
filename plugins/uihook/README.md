@@ -1,4 +1,4 @@
-# uihook — experimental 0.97
+# uihook — experimental 0.98
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
@@ -462,7 +462,9 @@ every frame; four frames after the last the game draws them all again. As each f
 uihook publishes what the requested windows drew in it (`Published`): for each window its name, flags
 (cursor shown, focused, hidden, contents drawn), its frame's place, the cursor's, the row highlight's
 and the scrollbar's where drawn (and the scrollbar's rows shown, rows and rows above, read), the game's
-layout target; its runs of text (the bytes the game was given, to the line's end, its colour, the
+layout target; the element the cursor is on (0.98: Window::Render draws a window's list of elements,
+its labels, buttons and icons, before the contents, the cursor's tinted, each published as a quad of
+phase Element); its runs of text (the bytes the game was given, to the line's end, its colour, the
 place it was asked for in the game's units and the place measured from its glyphs) and its quads (each
 draw of the game's art in the contents: its place, its corners in its texture, its colour, and the
 texture, an `IDirect3DBaseTexture8*` held by uihook until the next frame is published). Places are

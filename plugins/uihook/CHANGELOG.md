@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.98
+
+- The mirror publishes a window's own elements: Window::Render draws, before the contents, each sprite
+  of the window's list of elements (a menu's labels where its words are pictures, as the main and
+  command menus have them, its buttons and icons) through the one call chat calls the row-selection
+  art, in 0x80808080, 0x30808080 greyed, or tinted (0x80805020, 0x40402810) where the element's index is
+  the window's cursor's (+3A against +4C, focused +63). Each is now a quad (phase 3, Element, which was
+  Selection) with its texture and corners, and the window's Selection is the tinted one's place, the
+  element the cursor is on, rather than all of them. The kind-0 elements are the frame's nine-slice
+  panels (33F4AB0), still the frame. tests/mirror.cpp: elements as quads, the tinted one the
+  selection, apart from the frame. ABI unchanged.
+
 ## 0.97
 
 - Mirror ABI 2: an addon names up to 32 windows (`Requests[32]`, a bit of Hide each), 16 are published
