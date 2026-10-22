@@ -14,7 +14,7 @@
 #include <algorithm>
 
 // The bitmap-font text routine: cdecl (x, y, text, colour, scale x, scale y, centred), the x it ends
-// at returned. Each glyph is a Sprite::Draw. Its first eight bytes are whole instructions.
+// at returned. x and y are shorts (movsx), the rest of their stack words whatever the caller left. Each glyph is a Sprite::Draw. Its first eight bytes are whole instructions.
 #define CENSUS_TEXT_PATTERN "83 EC 08 53 8B 5C 24 18 55 56 85 DB 75 0C 0F BF 44 24 18 5E 5D 5B 83 C4 08 C3"
 #define CENSUS_TEXT_STOLEN 8
 // Its scaled sibling: cdecl (x, y, text, colour, flag, scale x, scale y). Six bytes whole.
@@ -27,12 +27,13 @@
 
 // Window fields, from Window::Render: its content owner, whose vtable +10 draws the contents, drawn
 // while +6A is set and +10 is not E; cursor enabled +62, focused +63; its name at +46; the layout
-// target's origin and size at +8C (four shorts, the game's units).
+// target's origin and size at +8C (four shorts, the game's units). Its name is its header's (+4), at +46.
 #define CENSUS_OWNER 0x0c
 #define CENSUS_KIND 0x10
 #define CENSUS_DRAWS 0x6a
 #define CENSUS_CURSOR 0x62
 #define CENSUS_FOCUS 0x63
+#define CENSUS_HEADER 0x04
 #define CENSUS_NAME 0x46
 #define CENSUS_TARGET 0x8c
 #define CENSUS_WINDOWS 512
@@ -75,8 +76,8 @@ public:
     CensusWindow* Enter(void* window) {
         if (!on || !window) return nullptr;
         auto* w=static_cast<uint8_t*>(window);
-        char name[16];
-        if (!ChatRead(w+CENSUS_NAME,name,16)) return nullptr;
+        char name[16]; uint8_t* header=nullptr;
+        if (!ChatRead(w+CENSUS_HEADER,&header,4) || !header || !ChatRead(header+CENSUS_NAME,name,16)) return nullptr;
         for (char& c:name) if (c && (c<0x20 || c>0x7e)) c='?';
         CensusWindow* entry=Find(name);
         if (!entry) return nullptr;
