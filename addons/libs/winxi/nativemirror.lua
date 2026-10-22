@@ -1,4 +1,4 @@
--- The uihook plugin's menu mirror (mirror ABI 1, uihook 0.97): a window of the game's, named here, keeps
+-- The uihook plugin's menu mirror (mirror ABI 3, uihook 1.00): a window of the game's, named here, keeps
 -- working as it is, its input, cursor and hit-tests the game's own, while what it draws is measured and,
 -- if asked, left undrawn; the addon draws its own from what the game would have.
 --
@@ -55,15 +55,15 @@ ffi.cdef[[
     } uihook_mirror_frame_t;
     typedef struct {
         char Magic[16]; uint32_t Version, Size, Frame, Supported;
-        uint32_t RequestFrame, Hide;
-        char Requests[32][16];
+        uint32_t RequestFrame, Hide[2];
+        char Requests[64][16];
         uint32_t Serial, Dropped;
         uihook_mirror_frame_t Published;
     } uihook_mirror_t;
     int __stdcall MultiByteToWideChar(unsigned int, unsigned long, const char*, int, unsigned short*, int);
     int __stdcall WideCharToMultiByte(unsigned int, unsigned long, const unsigned short*, int, char*, int, const char*, int*);
 ]]
-local M = { Bitmap = 0, Scaled = 1, Font = 2, Requests = 32, Windows = 16,
+local M = { Bitmap = 0, Scaled = 1, Font = 2, Requests = 64, Windows = 16,
     Frame = 0, Content = 1, Cursor = 2, Element = 3, Selection = 3, Scrollbar = 4, After = 5 }
 local HAS_CURSOR, FOCUSED, HIDDEN, DREW_CONTENT = 1, 2, 4, 8
 local MAGIC = '5549484F4F4B2D4D4952524F52000000' -- "UIHOOK-MIRROR", zeros to 16
@@ -254,29 +254,31 @@ function M.new()
                 local at = ashita.memory.find('uihook.dll', 0, MAGIC, 0, which)
                 if not at or at == 0 then break end
                 local found = ffi.cast('uihook_mirror_t*', at)
-                if found.Version == 2 and found.Size == ffi.sizeof('uihook_mirror_t') then block = found; break end
+                if found.Version == 3 and found.Size == ffi.sizeof('uihook_mirror_t') then block = found; break end
             end
-            if not block then reason = 'Update uihook: menu mirroring (mirror ABI 2) is unavailable.'; return nil end
+            if not block then reason = 'Update uihook: menu mirroring (mirror ABI 3) is unavailable.'; return nil end
         end
         if block.Supported == 0 then reason = 'uihook did not recognise the game\'s menu drawing; menus unchanged.'; return nil end
         return block
     end
     local hook = {}
-    -- The windows to mirror this frame: { { name = 'inventor', hide = true }, ... }, at most 32
+    -- The windows to mirror this frame: { { name = 'inventor', hide = true }, ... }, at most 64
     function hook.Request(list)
         local b = Find()
         if not b then return false end
-        local hide, count = 0, 0
+        -- the hidden bits two words of 32, summed rather than or'd: bit 31 by bit.lshift is negative, and a negative
+        -- number put in a uint32_t is not reliably that bit in a 32-bit LuaJIT (it came out as no bits at all)
+        local hide, count = { 0, 0 }, 0
         for i = 0, M.Requests - 1 do ffi.fill(b.Requests[i], 16) end
         for _, entry in ipairs(type(list) == 'table' and list or {}) do
             local name = type(entry) == 'table' and Padded(entry.name)
             if name and count < M.Requests then
                 ffi.copy(b.Requests[count], name, 16)
-                if entry.hide then hide = bit.bor(hide, bit.lshift(1, count)) end
+                if entry.hide then local word = math.floor(count / 32) + 1; hide[word] = hide[word] + 2 ^ (count % 32) end
                 count = count + 1
             end
         end
-        b.Hide = hide
+        b.Hide[0], b.Hide[1] = hide[1], hide[2]
         b.RequestFrame = count > 0 and b.Frame or 0 -- the commit, after the names
         owned = count > 0
         reason = count > 0 and ('Mirroring %d menu window%s.'):format(count, count == 1 and '' or 's') or 'Nothing asked.'

@@ -69,6 +69,7 @@
 -- 34: nativemirror on uihook 0.97's mirror ABI 2: 32 windows asked for, 16 published a frame
 -- 35: nativemirror.Element, the phase of a window's own elements (uihook 0.98): labels drawn as pictures
 -- 36: nativemirror.Letter and Words: the labels the game spells from its menu font, one element a letter, read back
+-- 37: nativemirror on uihook 1.0's mirror ABI 3: 64 windows asked for, the hidden bits past 31 written whole
 return {
-    Number = 36,
+    Number = 37,
 };
