@@ -183,6 +183,43 @@ Timing is captured when a popup starts; changes apply to the next popup.
   offset from screen center and Y is measured from the top; otherwise X/Y are
   absolute screen pixels. Alignment also anchors the whole banner at that point.
 
+### Banner styles
+
+**Appearance → Banner Style** chooses how the zone-entry popup (**Zone Entry
+Style**) and the sub-zone popup (**Sub-zone Style**) look. Weather popups take
+the sub-zone style. **Classic Text** is the banner described above; the others
+are drawn with ImGui under every winxi window, whichever Text Renderer is chosen:
+
+- **Title Card**: the region in spaced capitals, two rules growing out from a
+  diamond, and the name settling from wide letter spacing to its own, with the
+  Vana'diel day, time and weather under it.
+- **Pennant**: a banner drops from the top of the screen in the nation's
+  colours (from its flag; slate and silver for other regions), the flag at its
+  head and the name in capitals down it, as large as fits. The region, name,
+  day and weather are written beside it, at the banner position. **Pennant
+  Width**, **Pennant Length** and **Largest Letter Size** size it.
+- **Kanji Watermark**: the zone's name from the Japanese client, huge and faint,
+  beside the English name or (with **Vertical Text** off) across behind it.
+  The line above the name has the region's Japanese name too. The names are in
+  `data/zone_names_ja.lua`, made by `tools/build_zone_ja.py` from Boussole's
+  zone table, which is read out of the client's own strings. The font is the
+  **Japanese Font** chosen, or the first of IPA Mincho (which comes with Wine's
+  Japanese fonts), Yu Mincho and MS Mincho; with none of them there is no
+  watermark. ImGui cannot turn a glyph, so written top to bottom the long vowel
+  mark ー is drawn as its vertical stroke and small kana move to the top right of
+  their square, as Japanese vertical type has them. Names with Latin letters,
+  digits, brackets or a hyphen (the [S] zones, Abyssea, Mine Shaft #2716) are
+  written across.
+
+**Style Title Size** and **Style Detail Size** size all three, in the zone or
+sub-zone title and detail fonts (the theme's font when those are Default).
+**Show Day And Time** adds the Vana'diel day and time. They follow the
+banner's position, alignment, hold, fades and opacity, and **Show Region**,
+**Show Weather** and **Show Zone Context**; per-line timing is not used. Each
+entrance plays over the first second or two. `/zone test titlecard`, `pennant`,
+`kanji` or `classic` shows the zone once in that style without changing the
+setting.
+
 ### Region flags
 
 **Use Region Flags** (Appearance → Background Image, on by default) shows a
@@ -444,7 +481,7 @@ applied to position before testing polygons.
 | Command | Effect |
 | --- | --- |
 | `/zone` | Open/close display settings and Appearance tab |
-| `/zone test` | Show zone/region/weather now |
+| `/zone test [style]` | Show zone/region/weather now, once in a style if one is named |
 | `/zone reload` or `rl` | Reload character display settings and show current zone |
 | `/zone poc [on\|off]` | Toggle experimental area announcements |
 | `/zone debug [on\|off]` | Open/close the all-map browser/editor |
@@ -479,6 +516,9 @@ zone/region/weather banners remain available independently.
 - `map_catalog.lua`: groups zones/floors/variants and preserves POC defaults.
 - `data/poc_areas.lua`: original seven POC shapes.
 - `data/region_flags.lua`: which flag each nation's regions show.
+- `data/zone_names_ja.lua`: each zone's Japanese name, made by
+  `tools/build_zone_ja.py` from `references/boussole/data/zones.lua`.
+- `banner_styles.lua`: the Title Card, Pennant and Kanji Watermark styles.
 - `research/building_seeds.json`: where each city building is, for the tracer.
 - `presentation.lua`, `banner_layout.lua`: winxi display settings, text layout
   and timed fades, independent of geometry/editor persistence.
@@ -515,6 +555,7 @@ luajit tests/harness.lua zone tests/zone_fixture.lua tests/zone_check.lua
 luajit tests/harness.lua zone-presentation tests/zone_fixture.lua tests/zone_presentation_ui_check.lua
 luajit tests/harness.lua zone-subzone tests/zone_fixture.lua tests/zone_subzone_check.lua
 luajit tests/harness.lua zone-gdi tests/zone_fixture.lua tests/zone_gdi_check.lua
+luajit tests/harness.lua zone-styles tests/zoneinfo_fixture.lua tests/zoneinfo_styles_check.lua
 luajit tests/harness.lua zone-background tests/zone_background_fixture.lua tests/zone_background_check.lua
 luajit tests/zone_gdi_families_check.lua
 luajit tests/zone_height_check.lua
