@@ -553,8 +553,22 @@ public:
     void LabelsCommand() {
         char line[512];
         const MirrorFrameData& last=MirrorBlock.Published;
-        const std::string folder=std::string(core->GetInstallPath())+"\\logs\\uihook-labels";
-        CreateDirectoryA(folder.c_str(),nullptr);
+        uint32_t elements=0;
+        for (uint32_t i=0;i<last.QuadCount;i++) if (last.Quads[i].Phase==MIRROR_ELEMENT) elements++;
+        if (!elements) {
+            core->GetChatManager()->Write(0,false,"[uihook:mirror] no elements in the last frame mirrored: open a menu the menus addon mirrors first; nothing written.");
+            return;
+        }
+        // each run in a folder of its own, 01, 02 and on, so none is written over
+        const std::string base=std::string(core->GetInstallPath())+"\\logs\\uihook-labels";
+        CreateDirectoryA(base.c_str(),nullptr);
+        std::string folder;
+        for (unsigned n=1;n<1000 && folder.empty();n++) {
+            char sub[8]; snprintf(sub,sizeof(sub),"\\%02u",n);
+            if (CreateDirectoryA((base+sub).c_str(),nullptr)) folder=base+sub;
+        }
+        if (folder.empty()) { snprintf(line,sizeof(line),"[uihook:mirror] could not make a folder in %s.",base.c_str()); core->GetChatManager()->Write(0,false,line); return; }
+        std::vector<uint32_t> sheets; // each texture once whole, as sheet-XXXXXXXX.bmp
         FILE* list=fopen((folder+"\\labels.txt").c_str(),"w");
         if (!list) { snprintf(line,sizeof(line),"[uihook:mirror] could not write %s.",folder.c_str()); core->GetChatManager()->Write(0,false,line); return; }
         fprintf(list,"# n window texture WxH format uv(left top right bottom) texels(x0 y0 x1 y1) hash colour rect(normalized)\n");
@@ -566,6 +580,12 @@ public:
             LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]={}; const char* why="not held";
             const bool cut=q.Texture && MenuMirror.Holds(q.Texture)
                 && LabelCut(reinterpret_cast<IDirect3DBaseTexture8*>(uintptr_t(q.Texture)),q.UV,pixels,desc,texels,why);
+            if (cut && std::find(sheets.begin(),sheets.end(),q.Texture)==sheets.end()) {
+                sheets.push_back(q.Texture);
+                const float whole[4]={0,0,1,1}; LabelPixels sheet; D3DSURFACE_DESC d{}; uint32_t t[4]; const char* w;
+                char name[40]; snprintf(name,sizeof(name),"\\sheet-%08X.bmp",q.Texture);
+                if (LabelCut(reinterpret_cast<IDirect3DBaseTexture8*>(uintptr_t(q.Texture)),whole,sheet,d,t,w)) LabelWrite((folder+name).c_str(),sheet);
+            }
             char file[32]="-";
             if (cut) {
                 snprintf(file,sizeof(file),"%03u.bmp",i);
@@ -578,8 +598,8 @@ public:
             (file[0]!='-' ? written : skipped)++;
         }
         fclose(list);
-        snprintf(line,sizeof(line),"[uihook:mirror] %u elements written, %u not, to %s (from %u windows mirrored last frame).",
-            written,skipped,folder.c_str(),last.WindowCount);
+        snprintf(line,sizeof(line),"[uihook:mirror] %u elements and %zu textures written, %u not, to %s (from %u windows mirrored last frame).",
+            written,sheets.size(),skipped,folder.c_str(),last.WindowCount);
         core->GetChatManager()->Write(0,false,line);
     }
     bool HandleCommand(int32_t,const char* command,bool) override {
