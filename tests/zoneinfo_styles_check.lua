@@ -68,6 +68,9 @@ local state = { title = 'West Ronfaure', zone_title = 'West Ronfaure', region = 
     banner_is_area = false, zone_ja = '西ロンフォール', region_ja = 'ロンフォール', flag = 'sandoria' };
 
 -- Title Card
+local fonts_loaded = 0;
+local counting = imgui.AddFontFromFileTTF;
+imgui.AddFontFromFileTTF = function(...) fonts_loaded = fonts_loaded + 1; return counting(...); end;
 d.zoneStyle = 'titlecard';
 p.start(state, 100);
 drawn = {};
@@ -93,6 +96,8 @@ check('nothing is drawn once the banner has gone', not p.draw(state, nil, 120));
 local begun = H.calls.Begin or 0;
 p.start(state, 110); p.draw(state, nil, 111);
 check('no window is opened for a style', (H.calls.Begin or 0) == begun);
+check('Title Card loads no Japanese font', fonts_loaded == 0);
+imgui.AddFontFromFileTTF = counting;
 
 -- Pennant
 d.zoneStyle = 'pennant';

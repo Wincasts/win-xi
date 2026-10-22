@@ -529,10 +529,89 @@ local function draw_style(id, state, content, area_style, d, now, preview, timin
     c.detail_color = d.themeText[1] and theme.Get().TextColor or d.detailColor;
     c.edge, c.outline = text.Edge(), text.EdgeColor();
     c.pennant_width, c.pennant_length, c.pennant_letter = d.pennantWidth[1], d.pennantLength[1], d.pennantLetterSize[1];
-    local file = kanji_file(d);
+    -- The Japanese font (some 4 MB) is loaded only for the style that writes Japanese.
+    local file = id == 'kanji' and kanji_file(d) or nil;
     c.kanji_font = file and get_font(file) or nil;
     c.kanji_size, c.kanji_opacity, c.kanji_vertical = d.kanjiSize[1], d.kanjiOpacity[1], d.kanjiVertical[1];
     return styles.draw(id, imgui.GetBackgroundDrawList(), c);
+end
+
+-- Classic Text's window: what it draws is put in `classic` and the functions are made once, so that
+-- a frame with the banner up makes no functions or tables of its own.
+local classic = { font_pushed = false };
+local no_spacing, room, at_pos = { 0, 0 }, { 0, 0 }, { 0, 0 };
+local row_color, row_dark = { 0, 0, 0, 0 }, { 0, 0, 0, 0 };
+local function classic_rows()
+    local rows, d, area_style, alpha = classic.rows, classic.d, classic.area_style, classic.alpha;
+    if classic.image then background.draw_imgui(classic.image, d, classic.width); end
+    local maximum = 0;
+    for _, row in ipairs(rows) do
+        if row.title then
+            row.size = area_style and d.areaTitleSize[1] or d.zoneTitleSize[1];
+        else
+            row.size = area_style and d.areaDetailSize[1] or d.zoneDetailSize[1];
+        end
+        row.size = math.floor(row.size + .5);
+        if row.measured_font ~= row.font or row.measured_size ~= row.size or row.width == nil then
+            imgui.PushFont(row.font, row.size);
+            classic.font_pushed = true;
+            local width, height = imgui.CalcTextSize(row.words);
+            imgui.PopFont();
+            classic.font_pushed = false;
+            -- Commit only successful measurements so failures retry next frame.
+            row.width, row.height = width, height;
+            row.measured_font, row.measured_size = row.font, row.size;
+        end
+        maximum = math.max(maximum, row.width);
+    end
+
+    local x, y = imgui.GetCursorScreenPos();
+    local draw = imgui.GetWindowDrawList();
+    local edge = text.Edge(); -- the theme's Text Outline
+    local outline = text.EdgeColor();
+    for i, row in ipairs(rows) do
+        if row.alpha > .01 then
+            imgui.PushFont(row.font, row.size);
+            classic.font_pushed = true;
+            local offset = d.alignment == 'left' and 0
+                or (d.alignment == 'right' and maximum - row.width or (maximum - row.width) / 2);
+            local color = d.themeText[1] and theme.Get().TextColor
+                or (row.title and d.titleColor or d.detailColor);
+            local ratio = row.alpha / alpha;
+            row_color[1], row_color[2], row_color[3], row_color[4] = color[1], color[2], color[3], color[4] * ratio;
+            row_dark[1], row_dark[2], row_dark[3], row_dark[4] = outline[1], outline[2], outline[3], outline[4] * ratio;
+            local packed = imgui.GetColorU32(row_color);
+            local dark = imgui.GetColorU32(row_dark);
+            if edge > 0 then
+                text.Packed(draw, x + edge + offset, y + edge, packed, row.words, edge, dark);
+            else
+                at_pos[1], at_pos[2] = x + offset, y;
+                draw:AddText(at_pos, packed, row.words);
+            end
+            imgui.PopFont();
+            classic.font_pushed = false;
+        end
+
+        -- Keep delayed/expired lines' layout space without font/color work.
+        local height = row.height + edge * 2;
+        room[1], room[2] = maximum + edge * 2, height;
+        imgui.Dummy(room);
+        y = y + height;
+        if i < #rows then
+            room[1], room[2] = 0, d.spacing[1];
+            imgui.Dummy(room);
+            y = y + d.spacing[1];
+        end
+    end
+end
+local function classic_window()
+    imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, no_spacing);
+    classic.font_pushed = false;
+    local ok, err = pcall(classic_rows);
+    -- Restore stacks even if measurement or drawing raises an error.
+    if classic.font_pushed then imgui.PopFont(); end
+    imgui.PopStyleVar();
+    if not ok then error(err, 0); end
 end
 
 function M.draw(state, tracking, now)
@@ -598,76 +677,37 @@ function M.draw(state, tracking, now)
         row.font = get_font(d[font_key]);
     end
     -- Window alpha applies the shared fade; row colors apply only relative opacity.
-    return window.Plain('##zone_banner', open, flags, function()
-        imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 0 });
-        local font_pushed = false;
-        local ok, err = pcall(function()
-            if image then background.draw_imgui(image, d, width); end
-            local maximum = 0;
-            for _, row in ipairs(rows) do
-                if row.title then
-                    row.size = area_style and d.areaTitleSize[1] or d.zoneTitleSize[1];
-                else
-                    row.size = area_style and d.areaDetailSize[1] or d.zoneDetailSize[1];
-                end
-                row.size = math.floor(row.size + .5);
-                if row.measured_font ~= row.font or row.measured_size ~= row.size or row.width == nil then
-                    imgui.PushFont(row.font, row.size);
-                    font_pushed = true;
-                    local width, height = imgui.CalcTextSize(row.words);
-                    imgui.PopFont();
-                    font_pushed = false;
-                    -- Commit only successful measurements so failures retry next frame.
-                    row.width, row.height = width, height;
-                    row.measured_font, row.measured_size = row.font, row.size;
-                end
-                maximum = math.max(maximum, row.width);
-            end
-
-            local x, y = imgui.GetCursorScreenPos();
-            local draw = imgui.GetWindowDrawList();
-            local edge = text.Edge(); -- the theme's Text Outline
-            local outline = text.EdgeColor();
-            for i, row in ipairs(rows) do
-                if row.alpha > .01 then
-                    imgui.PushFont(row.font, row.size);
-                    font_pushed = true;
-                    local offset = d.alignment == 'left' and 0
-                        or (d.alignment == 'right' and maximum - row.width or (maximum - row.width) / 2);
-                    local color = d.themeText[1] and theme.Get().TextColor
-                        or (row.title and d.titleColor or d.detailColor);
-                    local ratio = row.alpha / alpha;
-                    local packed = imgui.GetColorU32({ color[1], color[2], color[3], color[4] * ratio });
-                    local dark = imgui.GetColorU32({ outline[1], outline[2], outline[3], outline[4] * ratio });
-                    if edge > 0 then
-                        text.Packed(draw, x + edge + offset, y + edge, packed, row.words, edge, dark);
-                    else
-                        draw:AddText({ x + offset, y }, packed, row.words);
-                    end
-                    imgui.PopFont();
-                    font_pushed = false;
-                end
-
-                -- Keep delayed/expired lines' layout space without font/color work.
-                local height = row.height + edge * 2;
-                imgui.Dummy({ maximum + edge * 2, height });
-                y = y + height;
-                if i < #rows then
-                    imgui.Dummy({ 0, d.spacing[1] });
-                    y = y + d.spacing[1];
-                end
-            end
-        end);
-        -- Restore stacks even if measurement or drawing raises an error.
-        if font_pushed then imgui.PopFont(); end
-        imgui.PopStyleVar();
-        if not ok then error(err, 0); end
-    end, window_options);
+    classic.rows, classic.d, classic.image, classic.width = rows, d, image, width;
+    classic.area_style, classic.alpha = area_style, alpha;
+    return window.Plain('##zone_banner', open, flags, classic_window, window_options);
 end
 
 -- The location line: where the player is, always shown, in a window of its own that can be dragged.
 local location_open = { true };
 local location_options = { alpha = 1, background = transparent, padding = 0, shadow = false };
+-- Its window's body, made once: the words and whether it is locked are put in `location`.
+local location = {};
+local function location_text()
+    local words, d = location.words, location.d;
+    local width, height = imgui.CalcTextSize(words);
+    local x, y = imgui.GetCursorScreenPos();
+    -- Over the game itself: winxi's outlined text, its edge the theme's Text Outline.
+    local edge = text.Edge();
+    text.Draw(imgui.GetWindowDrawList(), x + edge, y + edge, theme.Get().TextColor, words);
+    room[1], room[2] = width + 2 * edge, height + 2 * edge;
+    imgui.Dummy(room);
+    if not location.locked then
+        -- Where it has been dragged to is kept, and saved with the other settings.
+        local wx, wy = imgui.GetWindowPos();
+        d.locationPosition[1], d.locationPosition[2] = math.floor(wx + .5), math.floor(wy + .5);
+    end
+end
+local function location_window()
+    imgui.PushFont(nil, location.d.locationSize[1]);
+    local ok, err = pcall(location_text);
+    imgui.PopFont();
+    if not ok then error(err, 0); end
+end
 function M.draw_location(words)
     local options, d = M.app.options, M.app.options.display;
     if not d.locationEnabled[1] or not words or words == '' or game.IsHidden(options.hide) then return false; end
@@ -677,23 +717,7 @@ function M.draw_location(words)
     location_options.locked, location_options.clickThrough = locked, locked; -- Lock Position
     imgui.SetNextWindowPos(d.locationPosition, (locked or location_place) and ImGuiCond_Always or ImGuiCond_FirstUseEver);
     location_place = false;
-    return window.Plain('##zone_location', location_open, flags, function()
-        imgui.PushFont(nil, d.locationSize[1]);
-        local ok, err = pcall(function()
-            local width, height = imgui.CalcTextSize(words);
-            local x, y = imgui.GetCursorScreenPos();
-            -- Over the game itself: winxi's outlined text, its edge the theme's Text Outline.
-            local edge = text.Edge();
-            text.Draw(imgui.GetWindowDrawList(), x + edge, y + edge, theme.Get().TextColor, words);
-            imgui.Dummy({ width + 2 * edge, height + 2 * edge });
-            if not locked then
-                -- Where it has been dragged to is kept, and saved with the other settings.
-                local wx, wy = imgui.GetWindowPos();
-                d.locationPosition[1], d.locationPosition[2] = math.floor(wx + .5), math.floor(wy + .5);
-            end
-        end);
-        imgui.PopFont();
-        if not ok then error(err, 0); end
-    end, location_options);
+    location.words, location.d, location.locked = words, d, locked;
+    return window.Plain('##zone_location', location_open, flags, location_window, location_options);
 end
 return M;

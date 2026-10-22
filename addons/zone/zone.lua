@@ -1,6 +1,6 @@
 addon.name    = 'zone';
 addon.author  = 'win';
-addon.version = '2.6.2';
+addon.version = '2.6.3';
 addon.desc    = 'Zone, region, sub-zone and weather banners, a location line, and an all-map experimental boundary editor.';
 
 require('common');
@@ -87,10 +87,13 @@ local function build_region_lookup()
     end
 end
 
+-- Read every frame: made once, so no function is made each time.
+local function read_zone()
+    return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0);
+end
+
 local function get_zone_id()
-    local ok, zone = pcall(function()
-        return AshitaCore:GetMemoryManager():GetParty():GetMemberZone(0);
-    end);
+    local ok, zone = pcall(read_zone);
 
     if (ok and zone ~= nil and zone > 0) then
         return zone;
@@ -378,6 +381,12 @@ ashita.events.register('packet_in', 'zone_packet_in', function(e)
     end
 end);
 
+-- The banner and the location line, drawn each frame inside xpcall: made once.
+local function draw_banners()
+    presentation.draw(state, tracking.state, os.clock());
+    presentation.draw_location(location_words());
+end
+
 ashita.events.register('d3d_present', 'zone_present', function()
     presentation.begin_frame();
     check_zone_changed(false);
@@ -398,10 +407,7 @@ ashita.events.register('d3d_present', 'zone_present', function()
         if (state.banner_is_area) then state.visible_until = 0; end
     end
 
-    local ok, err = xpcall(function()
-        presentation.draw(state, tracking.state, os.clock());
-        presentation.draw_location(location_words());
-    end, debug.traceback);
+    local ok, err = xpcall(draw_banners, debug.traceback);
     if (not ok and os.clock() >= next_render_error) then
         next_render_error = os.clock() + 10;
         message('Banner render failed: ' .. tostring(err), true);
