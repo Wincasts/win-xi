@@ -47,8 +47,8 @@ static void Quad(Vertex* out,float l,float t,float r,float b,uint32_t colour,flo
 }
 
 int main() {
-    Check(sizeof(MirrorShared)==41188,"mirror ABI 1's size");
-    static MirrorShared block; memcpy(block.Magic,"UIHOOK-MIRROR",14); block.Version=1; block.Size=sizeof(block);
+    Check(sizeof(MirrorShared)==82564,"mirror ABI 2's size");
+    static MirrorShared block; memcpy(block.Magic,"UIHOOK-MIRROR",14); block.Version=2; block.Size=sizeof(block);
     block.Supported=1; block.Frame=10; block.RequestFrame=10; block.Hide=1;
     memcpy(block.Requests[0],"menu    inventor",16); memcpy(block.Requests[1],"menu    iteminfo",16);
     static Mirror mirror; mirror.shared=&block;
@@ -134,7 +134,7 @@ int main() {
     mirror.Begin(inventor.window,nullptr,saved); mirror.Phase(MIRROR_CONTENT);
     for (unsigned i=0;i<MIRROR_RUNS+3;i++) { mirror.TextBegin(CENSUS_FONT,0,0,"x",0); mirror.TextEnd(); }
     mirror.End(saved); mirror.Publish(12);
-    Check(f.RunCount==MIRROR_RUNS && block.Dropped==4,"runs past 256 dropped and counted");
+    Check(f.RunCount==MIRROR_RUNS && block.Dropped==4,"runs past the room dropped and counted");
 
     // given back on release
     mirror.Viewport(view);

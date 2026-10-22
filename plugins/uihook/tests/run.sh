@@ -20,6 +20,7 @@ cd "$HERE/../.."
 luajit tests/nativehud_check.lua
 luajit tests/nativechat_check.lua
 luajit tests/nativemirror_check.lua
+luajit tests/harness.lua menus tests/menus_stand_in.lua tests/menus_check.lua
 luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 luajit tests/party_hook_check.lua
 UIHOOK_TEST_PLUGIN=uihook luajit tests/party_hook_check.lua

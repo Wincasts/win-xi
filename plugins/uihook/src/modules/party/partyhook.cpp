@@ -77,7 +77,7 @@ static uint32_t __fastcall CensusFont(void*,void*,int32_t,int32_t,const char*,ui
 static Detour CensusBitmapDetour = { CENSUS_TEXT_PATTERN, CENSUS_TEXT_STOLEN, -1, reinterpret_cast<void*>(&CensusBitmap), nullptr, nullptr, {} };
 static Detour CensusScaledDetour = { CENSUS_SCALED_PATTERN, CENSUS_SCALED_STOLEN, -1, reinterpret_cast<void*>(&CensusScaled), nullptr, nullptr, {} };
 static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, reinterpret_cast<void*>(&CensusFont), nullptr, nullptr, {} };
-// The menu mirror (mirror ABI 1): zero in the DLL's file, its magic written as the module initializes. Its
+// The menu mirror (mirror ABI 2): zero in the DLL's file, its magic written as the module initializes. Its
 // text is heard through the census's three routes, taken with Window::Render; the contents' call in
 // Window::Render aimed at MirrorContent.
 static MirrorShared MirrorBlock;
@@ -405,7 +405,7 @@ public:
             }
         }
         // The menu mirror: zero in the file, its magic written now; supported where its four sites are found
-        memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=1; MirrorBlock.Size=sizeof(MirrorShared);
+        memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=2; MirrorBlock.Size=sizeof(MirrorShared);
         MenuMirror.shared=&MirrorBlock;
         if (module.lpBaseOfDll && TakeMirror(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) MirrorBlock.Supported=1;
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
@@ -552,7 +552,7 @@ public:
             // what the mirror was asked for, and what it published from the last frame
             char line[256]; const MirrorFrameData& last=MirrorBlock.Published;
             std::string asked;
-            for (unsigned i=0;i<MIRROR_WINDOWS;i++) if (MirrorBlock.Requests[i][0]) {
+            for (unsigned i=0;i<MIRROR_REQUESTS;i++) if (MirrorBlock.Requests[i][0]) {
                 if (!asked.empty()) asked+=", ";
                 asked+=std::string(MirrorBlock.Requests[i]+8,8)+((MirrorBlock.Hide>>i)&1 ? " (hidden)" : " (watched)");
             }
