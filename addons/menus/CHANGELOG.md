@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3
+
+- More menus, in groups: Lists (Abilities And Spells, Emotes, Mounts, Currencies, Missions, Quests,
+  Quest Pages, Friend List, Area List, Search Results, Help Desk), on to start; Status (Status, Level
+  And EXP, Profile, Job Levels, Combat Skills, Crafting Skills, Gil) and Config (Chat Filters, Battle
+  Message Filters, Chat Colors), off to start, to be looked at in Outline first.
+- Keep Mouse From Game Menus: the game given no mouse over a mirrored menu or its own place under it,
+  a kept press's release kept too; with it on, menus are dragged to where they are wanted (Lock Menu
+  Positions, Reset Positions), each kept on the screen and saved as an offset from the game's place.
+- Needs uihook 0.97 (mirror ABI 2: 32 windows asked for, 16 published a frame) and winxi 34.
+- tests/menus_check.lua (through tests/menus_stand_in.lua): what is asked, the mouse kept and given,
+  dragging, the lock, the screen's edge, the fallback and Outline.
+
 ## 0.2
 
 - Menu Scale: the mirrored menus drawn from 0.75x to 2x, each about the corner of the screen it is

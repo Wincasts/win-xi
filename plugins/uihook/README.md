@@ -1,4 +1,4 @@
-# uihook — experimental 0.96
+# uihook — experimental 0.97
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
@@ -452,11 +452,11 @@ detour, taking it only if nothing else has.
 `python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt`
 checks the routines against a private dump.
 
-## Menu mirror (0.96)
+## Menu mirror (0.96, ABI 2 in 0.97)
 
 The real menu stays open and keeps its input; an addon draws its own from what it would have drawn.
-`winxi.nativemirror` uses the independent **mirror ABI 1**, magic `UIHOOK-MIRROR`, 41188 bytes
-(`src/modules/mirror/mirror.h`): the addon writes up to eight window names (`menu    inventor`) into
+`winxi.nativemirror` uses the independent **mirror ABI 2**, magic `UIHOOK-MIRROR`, 82564 bytes
+(`src/modules/mirror/mirror.h`): the addon writes up to 32 window names (`menu    inventor`) into
 `Requests`, a bit of `Hide` for each the game is to leave undrawn, then `RequestFrame` as the commit,
 every frame; four frames after the last the game draws them all again. As each frame is presented,
 uihook publishes what the requested windows drew in it (`Published`): for each window its name, flags
@@ -466,8 +466,8 @@ layout target; its runs of text (the bytes the game was given, to the line's end
 place it was asked for in the game's units and the place measured from its glyphs) and its quads (each
 draw of the game's art in the contents: its place, its corners in its texture, its colour, and the
 texture, an `IDirect3DBaseTexture8*` held by uihook until the next frame is published). Places are
-normalized to the viewport, as the chat rectangles are. Up to 256 runs, 256 quads and 16 KB of text a
-frame; what does not fit is counted in `Dropped`.
+normalized to the viewport, as the chat rectangles are. Up to 16 windows, 512 runs, 512 quads and 32 KB
+of text a frame; what does not fit is counted in `Dropped`.
 
 Window::Render's one call to a window's contents, `mov edx,[ecx]; call [edx+10]` (five bytes), is made
 a call to uihook's, which makes the same call (the return address the game's, the owner in ecx), so

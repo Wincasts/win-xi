@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.2'
+addon.version = '0.3'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 33
+local winxiNeeded = 34
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -41,23 +41,66 @@ local text = require('winxi.text')
 local cursorArt = require('winxi.cursor')
 local nativemirror = require('winxi.nativemirror')
 
--- The menus that can be mirrored, as the settings list them: the game's name for each window, and ours.
--- The item lists share one drawer in the game, so what works for one works for the others.
-local Menus = {
-    { name = 'inventor', label = 'Inventory', tip = 'The list of what you carry.' },
-    { name = 'iteminfo', label = 'Item Info', tip = 'The box under an item list that describes the item the cursor is on.' },
-    { name = 'bank', label = 'Mog Safe', tip = 'The list of what is in your Mog Safe and the other places items are kept.' },
-    { name = 'shop', label = 'Shop', tip = 'A shop\'s list of what it sells.' },
+-- The menus that can be mirrored, as the settings list them, in groups: the game's name for each window, and ours.
+-- Each prints its words through the game's text routines, which uihook hears. The item lists share one drawer in
+-- the game, as the ability, emote and mount lists share another. The status and config windows also draw labels
+-- as pictures, which come through as the game's art where they are drawn with the contents; they start off, to
+-- be looked at in Outline first.
+local CHECK_FIRST = ' Some of its labels are pictures the game draws; look at it in Outline before replacing it.'
+local Groups = {
+    { title = 'Items', on = true, menus = {
+        { name = 'inventor', label = 'Inventory', tip = 'The list of what you carry.' },
+        { name = 'iteminfo', label = 'Item Info', tip = 'The box under an item list that describes the item the cursor is on.' },
+        { name = 'bank', label = 'Mog Safe', tip = 'The list of what is in your Mog Safe and the other places items are kept.' },
+        { name = 'shop', label = 'Shop', tip = 'A shop\'s list of what it sells.' },
+    } },
+    { title = 'Lists', on = true, menus = {
+        { name = 'ability', label = 'Abilities And Spells', tip = 'The lists of your job abilities, spells and traits.' },
+        { name = 'emote', label = 'Emotes', tip = 'The list of emotes.' },
+        { name = 'mount', label = 'Mounts', tip = 'The list of mounts.' },
+        { name = 'evitem', label = 'Currencies', tip = 'The lists of conquest points, seals, crests and the other currencies.' },
+        { name = 'miss00', label = 'Missions', tip = 'A nation\'s missions, current and completed.' },
+        { name = 'quest01', label = 'Quests', tip = 'The quests of an area, current and completed.' },
+        { name = 'quest00', label = 'Quest Pages', tip = 'The pages before the quest lists: Unity and the like.' },
+        { name = 'friend', label = 'Friend List', tip = 'Your friends and where they are.' },
+        { name = 'arealist', label = 'Area List', tip = 'The list of areas and groups to choose from, as for the Unity and search.' },
+        { name = 'scresult', label = 'Search Results', tip = 'Who a search found.' },
+        { name = 'faqsub', label = 'Help Desk', tip = 'The help desk\'s questions and answers.' },
+    } },
+    { title = 'Status', on = false, menus = {
+        { name = 'persona', label = 'Status', tip = 'Your status: level, HP, MP and attributes.' .. CHECK_FIRST },
+        { name = 'level', label = 'Level And EXP', tip = 'Your level and experience points.' .. CHECK_FIRST },
+        { name = 'profile', label = 'Profile', tip = 'Your profile: race, nation and rank.' .. CHECK_FIRST },
+        { name = 'joblevel', label = 'Job Levels', tip = 'Every job\'s level.' .. CHECK_FIRST },
+        { name = 'btlskill', label = 'Combat Skills', tip = 'Your combat and magic skills.' .. CHECK_FIRST },
+        { name = 'trdskill', label = 'Crafting Skills', tip = 'Your crafting skills.' .. CHECK_FIRST },
+        { name = 'money', label = 'Gil', tip = 'Your gil.' .. CHECK_FIRST },
+    } },
+    { title = 'Config', on = false, menus = {
+        { name = 'cfilter', label = 'Chat Filters', tip = 'Which chat is shown.' .. CHECK_FIRST },
+        { name = 'fxfilter', label = 'Battle Message Filters', tip = 'Which battle messages are shown.' .. CHECK_FIRST },
+        { name = 'textcol1', label = 'Chat Colors', tip = 'The colours of the kinds of chat.' .. CHECK_FIRST },
+    } },
 }
+local Menus = {} -- every menu of every group, in order
+for _, group in ipairs(Groups) do
+    for _, menu in ipairs(group.menus) do
+        menu.on = group.on
+        Menus[#Menus + 1] = menu
+    end
+end
 local Modes = { 'Replace', 'Outline' }
 
 local SCALE_LOW, SCALE_HIGH = 0.75, 2
 local defaults = T{
     mode = 'Replace',
     scale = T{ 1 },
+    blockMouse = T{ false },
+    lockMenus = T{ false },
+    offsets = T{},
 }
 for _, menu in ipairs(Menus) do
-    defaults['mirror_' .. menu.name] = T{ true }
+    defaults['mirror_' .. menu.name] = T{ menu.on }
 end
 
 local app
@@ -79,12 +122,28 @@ local modeIds = {}
 for _, mode in ipairs(Modes) do modeIds[mode] = mode .. '##menus.mode' end
 
 local function DrawSettings(options)
-    if widgets.Header('Menus', true) then
-        for _, menu in ipairs(Menus) do
-            widgets.Label(menu.label)
-            if imgui.Checkbox('##menus.' .. menu.name, options['mirror_' .. menu.name]) then Save() end
-            tooltip.Hover(menu.tip .. ' Off, the game draws its own.')
+    for index, group in ipairs(Groups) do
+        if widgets.Header(group.title, index == 1) then
+            for _, menu in ipairs(group.menus) do
+                widgets.Label(menu.label)
+                if imgui.Checkbox('##menus.' .. menu.name, options['mirror_' .. menu.name]) then Save() end
+                tooltip.Hover(menu.tip .. ' Off, the game draws its own.')
+            end
         end
+    end
+    if widgets.Header('Mouse') then
+        widgets.Label('Keep Mouse From Game Menus')
+        if imgui.Checkbox('##menus.blockMouse', options.blockMouse) then Save() end
+        tooltip.Hover('Over a menu drawn here, or where the game\'s own is under it, the game is given no mouse: no moving its cursor, no clicks, no wheel. The controller works as ever. With it on, a menu can be dragged where it is wanted.')
+        widgets.Label('Lock Menu Positions')
+        if imgui.Checkbox('##menus.lockMenus', options.lockMenus) then Save() end
+        tooltip.Hover('Menus cannot be dragged. Off, a menu is moved by dragging it with the left button, while the mouse is kept from the game\'s menus.')
+        widgets.Label('Positions')
+        if imgui.Button('Reset Positions##menus.reset') then
+            options.offsets = T{}
+            Save()
+        end
+        tooltip.Hover('Every menu back where the game puts it.')
     end
     if widgets.Header('Mirror') then
         widgets.Label('Mirror Mode')
@@ -124,6 +183,14 @@ local function Complete(options)
     if not known then options.mode = 'Replace' end
     if type(options.scale) ~= 'table' or type(options.scale[1]) ~= 'number' then options.scale = T{ 1 } end
     options.scale[1] = math.max(SCALE_LOW, math.min(SCALE_HIGH, options.scale[1]))
+    for _, key in ipairs({ 'blockMouse', 'lockMenus' }) do
+        if type(options[key]) ~= 'table' or type(options[key][1]) ~= 'boolean' then options[key] = T{ false } end
+    end
+    -- each menu's place, as an offset from where the game puts it, in pixels
+    if type(options.offsets) ~= 'table' then options.offsets = T{} end
+    for name, offset in pairs(options.offsets) do
+        if type(offset) ~= 'table' or type(offset[1]) ~= 'number' or type(offset[2]) ~= 'number' then options.offsets[name] = nil end
+    end
 end
 
 app = shell.New({
@@ -238,16 +305,21 @@ local function DrawContents(list, window)
     end
 end
 
--- The window grown or shrunk by scale about the corner of the display it is nearest: every place in it moved
--- with it, so what the game measured keeps its shape. A copy; the bridge's table is left as it is.
-local function Scaled(window, scale, width, height)
-    if scale == 1 then return window end
+-- The window grown or shrunk by scale about the corner of the display it is nearest, then moved by dx, dy
+-- (kept on the display): every place in it moved with it, so what the game measured keeps its shape. A copy;
+-- the bridge's table is left as it is.
+local function Placed(window, scale, dx, dy, width, height)
+    if scale == 1 and dx == 0 and dy == 0 then return window, 0, 0 end
     local r = window.rect
     local ax = (r[1] + r[3]) / 2 < width / 2 and r[1] or r[3]
     local ay = (r[2] + r[4]) / 2 < height / 2 and r[2] or r[4]
+    local left, top = ax + (r[1] - ax) * scale, ay + (r[2] - ay) * scale
+    local right, bottom = ax + (r[3] - ax) * scale, ay + (r[4] - ay) * scale
+    dx = math.max(-left, math.min(width - right, dx))
+    dy = math.max(-top, math.min(height - bottom, dy))
     local function Move(rect)
         if not rect then return nil end
-        return { ax + (rect[1] - ax) * scale, ay + (rect[2] - ay) * scale, ax + (rect[3] - ax) * scale, ay + (rect[4] - ay) * scale }
+        return { ax + (rect[1] - ax) * scale + dx, ay + (rect[2] - ay) * scale + dy, ax + (rect[3] - ax) * scale + dx, ay + (rect[4] - ay) * scale + dy }
     end
     local out = {}
     for key, value in pairs(window) do out[key] = value end
@@ -259,7 +331,7 @@ local function Scaled(window, scale, width, height)
     for i, quad in ipairs(window.quads) do
         out.quads[i] = { rect = Move(quad.rect), uv = quad.uv, texture = quad.texture, color = quad.color, phase = quad.phase }
     end
-    return out
+    return out, dx, dy
 end
 
 local function DrawMirror(list, window)
@@ -281,6 +353,82 @@ local function DrawOutline(list, window)
     Box(window.scroll, { 1, 1, 1, 0.8 })
 end
 
+---------------------------------------------------------------------------------------------------
+-- The mouse
+---------------------------------------------------------------------------------------------------
+
+-- Where the mouse is kept from the game this frame: each mirrored menu's place as drawn and the game's own
+-- place under it, by name. Empty while Keep Mouse From Game Menus is off.
+local areas = {}
+local drag = nil -- { name, x, y, dx, dy }: the menu being dragged, where the drag began and its offset then
+local MOUSE_BUTTON = { [0x0201] = 1, [0x0202] = 1, [0x0203] = 1, [0x0204] = 2, [0x0205] = 2, [0x0206] = 2,
+    [0x0207] = 3, [0x0208] = 3, [0x0209] = 3, [0x020b] = 4, [0x020c] = 4, [0x020d] = 4 }
+local MOUSE_UP = { [0x0202] = true, [0x0205] = true, [0x0208] = true, [0x020c] = true }
+local MOVE, WHEEL, HWHEEL = 0x0200, 0x020a, 0x020e
+local kept = { false, false, false, false } -- by button: its press kept from the game, so its release is too
+
+local function Inside(x, y, r) return r and x >= r[1] and x < r[3] and y >= r[2] and y < r[4] end
+-- The area under the mouse, and whether it is over the menu as drawn (which can be dragged)
+local function Over(x, y)
+    for _, area in ipairs(areas) do
+        if Inside(x, y, area.drawn) then return area, true end
+    end
+    for _, area in ipairs(areas) do
+        if Inside(x, y, area.native) then return area, false end
+    end
+    return nil
+end
+
+ashita.events.register('mouse', 'menus_mouse', function(e)
+    local message = e.message
+    local button = MOUSE_BUTTON[message]
+    -- a release of a press kept from the game is kept too, whatever has changed since; and ends a drag
+    if MOUSE_UP[message] then
+        if kept[button] then
+            kept[button] = false
+            e.blocked = true
+            if button == 1 and drag then
+                drag = nil
+                app:Save()
+            end
+        end
+        return
+    end
+    if e.blocked or #areas == 0 then return end
+    local io = imgui.GetIO()
+    local mouse = io.MousePos
+    local x, y = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+    if not x or not y then return end
+    if message == MOVE then
+        if drag then
+            local offsets = app.options.offsets
+            offsets[drag.name] = T{ drag.dx + x - drag.x, drag.dy + y - drag.y }
+            e.blocked = true
+        elseif Over(x, y) then
+            e.blocked = true
+        end
+        return
+    end
+    -- another window of imgui's under the mouse (the settings) has it
+    if io.WantCaptureMouse then return end
+    if button then
+        local area, drawn = Over(x, y)
+        if not area then return end
+        e.blocked = true
+        kept[button] = true
+        if button == 1 and drawn and not app.options.lockMenus[1] then
+            local offset = app.options.offsets[area.name]
+            drag = { name = area.name, x = x, y = y, dx = offset and offset[1] or 0, dy = offset and offset[2] or 0 }
+        end
+    elseif (message == WHEEL or message == HWHEEL) and Over(x, y) then
+        e.blocked = true
+    end
+end)
+
+---------------------------------------------------------------------------------------------------
+-- Each frame
+---------------------------------------------------------------------------------------------------
+
 local hostFlags = bit.bor(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoInputs, ImGuiWindowFlags_NoBackground,
     ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus,
     ImGuiWindowFlags_NoNav, ImGuiWindowFlags_NoMove)
@@ -295,6 +443,9 @@ local function Frame()
             wanted[#wanted + 1] = { name = menu.name, hide = replace and not (nativeUntil[menu.name] and now < nativeUntil[menu.name]) }
         end
     end
+    local blockMouse = replace and options.blockMouse[1]
+    areas = {}
+    if not blockMouse then drag = nil end
     if #wanted == 0 then mirror.Stop(); return end
     if not mirror.Request(wanted) then return end
 
@@ -318,9 +469,15 @@ local function Frame()
             elseif not window.rect then
                 -- watched, and nothing to outline
             elseif window.hidden then
-                local scaled = Scaled(window, options.scale[1], width, height)
-                local r = scaled.rect
-                frame.Draw({ left = r[1], top = r[2], width = Width(r), height = Height(r) }, function() DrawMirror(list, scaled) end)
+                -- moved only while the mouse is kept from the game's menus: else the game's, unseen where it is,
+                -- would still take the clicks
+                local offset = blockMouse and options.offsets[window.name]
+                local placed, dx, dy = Placed(window, options.scale[1], offset and offset[1] or 0, offset and offset[2] or 0, width, height)
+                -- the offset kept to what keeps it on the screen, so a drag back from past the edge moves it at once
+                if offset and (dx ~= offset[1] or dy ~= offset[2]) then options.offsets[window.name] = T{ dx, dy } end
+                local r = placed.rect
+                frame.Draw({ left = r[1], top = r[2], width = Width(r), height = Height(r) }, function() DrawMirror(list, placed) end)
+                if blockMouse then areas[#areas + 1] = { name = window.name, drawn = r, native = window.rect } end
             elseif not replace then
                 DrawOutline(list, window)
             end
@@ -335,11 +492,13 @@ local failedUntil = 0
 ashita.events.register('d3d_present', 'menus_present', function()
     if not app:BeginFrame() or os.clock() < failedUntil then
         mirror.Stop()
+        areas, drag = {}, nil
         return
     end
     local ok, err = pcall(Frame)
     if not ok then
         mirror.Stop()
+        areas, drag = {}, nil
         failedUntil = os.clock() + 10
         print(('\30\68[menus]\30\01 %s; the game draws its own menus for ten seconds.'):format(tostring(err)))
     end
@@ -347,4 +506,5 @@ end)
 
 ashita.events.register('unload', 'menus_unload', function()
     mirror.Stop()
+    areas, drag = {}, nil
 end)

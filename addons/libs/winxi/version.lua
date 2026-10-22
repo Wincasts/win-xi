@@ -66,6 +66,7 @@
 --     winxi.infopanel.transports); the zone name's tooltip
 -- 33: winxi.nativemirror, the game's menus mirrored through uihook 0.96 (mirror ABI 1): Request, Windows,
 --     Stop, Status; Decode and Color for the game's text and colours
+-- 34: nativemirror on uihook 0.97's mirror ABI 2: 32 windows asked for, 16 published a frame
 return {
-    Number = 33,
+    Number = 34,
 };

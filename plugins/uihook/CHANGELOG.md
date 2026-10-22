@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.97
+
+- Mirror ABI 2: an addon names up to 32 windows (`Requests[32]`, a bit of Hide each), 16 are published
+  a frame, with up to 512 runs, 512 quads and 32 KB of text; 82564 bytes. ABI 1 bridges are refused.
+
 ## 0.96
 
 - The menu mirror (mirror ABI 1, `UIHOOK-MIRROR`): a window of the game's, named by an addon, keeps

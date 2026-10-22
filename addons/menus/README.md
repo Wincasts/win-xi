@@ -8,20 +8,41 @@ text in the theme's font (an item's name in the colour the game gives it), its i
 own textures, the row the cursor is on lit in the Highlight Color, the game's hand where the game put
 it, and the scrollbar.
 
-Needs `uihook` 0.96 or newer (its menu mirror) and winxi 33.
+Needs `uihook` 0.97 or newer (its menu mirror) and winxi 34.
 
 - `/menus` opens or closes the settings
 
-This is the first step. It mirrors the item lists and the item description box; the game's other
-menus are drawn by the game as ever. Everything is placed where the game placed it, so the game's
-hit-tests still line up with what is seen; the mouse is not yet looked at.
+It mirrors the menus that print their words (the item lists, the ability, spell, emote and mount
+lists, currencies, missions, quests and the friend list among them); the game's other menus, whose
+labels are pictures (the main menu, the command menu, config), are drawn by the game as ever for now.
+Everything is placed where the game placed it, so its hit-tests line up with what is seen, until a menu
+is scaled or moved: then Keep Mouse From Game Menus keeps the mouse from the game's own, unseen under it.
 
 ## Settings
 
 Every section collapses with its [-]/[+].
 
-**Menus**: which of the game's windows are mirrored: Inventory, Item Info, Mog Safe, Shop. Off, the
-game draws its own.
+Which of the game's windows are mirrored, in four groups; off, the game draws its own:
+
+- **Items** (on to start): Inventory, Item Info, Mog Safe, Shop.
+- **Lists** (on): Abilities And Spells, Emotes, Mounts, Currencies, Missions, Quests, Quest Pages,
+  Friend List, Area List, Search Results, Help Desk.
+- **Status** (off): Status, Level And EXP, Profile, Job Levels, Combat Skills, Crafting Skills, Gil.
+- **Config** (off): Chat Filters, Battle Message Filters, Chat Colors.
+
+The Status and Config windows also draw some of their labels as pictures. Those drawn with a window's
+contents come through as the game's art; any drawn with its frame would be lost. Look at them in
+Outline (each label should have a blue box) before replacing them.
+
+**Mouse**
+- Keep Mouse From Game Menus: over a menu drawn here, or the game's own place under it, the game is
+  given no mouse: no cursor moving to where the mouse is, no clicks, no wheel. A press kept from the
+  game has its release kept too, so the game never sees half a click. Other imgui windows (the
+  settings) have the mouse as ever. The controller works as ever. Replace only.
+- Lock Menu Positions: off, a menu is dragged with the left button while the mouse is kept from the
+  game's menus. Each menu's place is kept as an offset from where the game puts it, kept on the
+  screen, and saved as it is let go. With Keep Mouse off the menus are drawn where the game puts them.
+- Reset Positions: every menu back where the game puts it.
 
 **Mirror**
 - Mirror Mode: Replace leaves the game's menus undrawn and draws them again. Outline leaves them as

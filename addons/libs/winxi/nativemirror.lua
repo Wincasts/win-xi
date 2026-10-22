@@ -1,4 +1,4 @@
--- The uihook plugin's menu mirror (mirror ABI 1, uihook 0.96): a window of the game's, named here, keeps
+-- The uihook plugin's menu mirror (mirror ABI 1, uihook 0.97): a window of the game's, named here, keeps
 -- working as it is, its input, cursor and hit-tests the game's own, while what it draws is measured and,
 -- if asked, left undrawn; the addon draws its own from what the game would have.
 --
@@ -46,22 +46,22 @@ ffi.cdef[[
     } uihook_mirror_window_t;
     typedef struct {
         uint32_t Frame, WindowCount, RunCount, QuadCount, TextUsed;
-        uihook_mirror_window_t Windows[8];
-        uihook_mirror_run_t Runs[256];
-        uihook_mirror_quad_t Quads[256];
-        char Text[16384];
+        uihook_mirror_window_t Windows[16];
+        uihook_mirror_run_t Runs[512];
+        uihook_mirror_quad_t Quads[512];
+        char Text[32768];
     } uihook_mirror_frame_t;
     typedef struct {
         char Magic[16]; uint32_t Version, Size, Frame, Supported;
         uint32_t RequestFrame, Hide;
-        char Requests[8][16];
+        char Requests[32][16];
         uint32_t Serial, Dropped;
         uihook_mirror_frame_t Published;
     } uihook_mirror_t;
     int __stdcall MultiByteToWideChar(unsigned int, unsigned long, const char*, int, unsigned short*, int);
     int __stdcall WideCharToMultiByte(unsigned int, unsigned long, const unsigned short*, int, char*, int, const char*, int*);
 ]]
-local M = { Bitmap = 0, Scaled = 1, Font = 2, Windows = 8,
+local M = { Bitmap = 0, Scaled = 1, Font = 2, Requests = 32, Windows = 16,
     Frame = 0, Content = 1, Cursor = 2, Selection = 3, Scrollbar = 4, After = 5 }
 local HAS_CURSOR, FOCUSED, HIDDEN, DREW_CONTENT = 1, 2, 4, 8
 local MAGIC = '5549484F4F4B2D4D4952524F52000000' -- "UIHOOK-MIRROR", zeros to 16
@@ -114,12 +114,12 @@ end
 
 function M.new()
     local block, base, looked, owned = nil, nil, -1, false
-    local reason = 'Load uihook 0.96 or newer for menu mirroring.'
+    local reason = 'Load uihook 0.97 or newer for menu mirroring.'
     local cached, cachedSerial, cachedWidth, cachedHeight = nil, -1, 0, 0
     local function Find()
         if not AshitaCore:GetPluginManager():IsLoaded('uihook') then
             block, base, looked, owned = nil, nil, -1, false
-            reason = 'Load uihook 0.96 or newer for menu mirroring.'
+            reason = 'Load uihook 0.97 or newer for menu mirroring.'
             return nil
         end
         local current = ashita.memory.get_base('uihook.dll')
@@ -133,23 +133,23 @@ function M.new()
                 local at = ashita.memory.find('uihook.dll', 0, MAGIC, 0, which)
                 if not at or at == 0 then break end
                 local found = ffi.cast('uihook_mirror_t*', at)
-                if found.Version == 1 and found.Size == ffi.sizeof('uihook_mirror_t') then block = found; break end
+                if found.Version == 2 and found.Size == ffi.sizeof('uihook_mirror_t') then block = found; break end
             end
-            if not block then reason = 'Update uihook: menu mirroring (mirror ABI 1) is unavailable.'; return nil end
+            if not block then reason = 'Update uihook: menu mirroring (mirror ABI 2) is unavailable.'; return nil end
         end
         if block.Supported == 0 then reason = 'uihook did not recognise the game\'s menu drawing; menus unchanged.'; return nil end
         return block
     end
     local hook = {}
-    -- The windows to mirror this frame: { { name = 'inventor', hide = true }, ... }, at most eight
+    -- The windows to mirror this frame: { { name = 'inventor', hide = true }, ... }, at most 32
     function hook.Request(list)
         local b = Find()
         if not b then return false end
         local hide, count = 0, 0
-        for i = 0, M.Windows - 1 do ffi.fill(b.Requests[i], 16) end
+        for i = 0, M.Requests - 1 do ffi.fill(b.Requests[i], 16) end
         for _, entry in ipairs(type(list) == 'table' and list or {}) do
             local name = type(entry) == 'table' and Padded(entry.name)
-            if name and count < M.Windows then
+            if name and count < M.Requests then
                 ffi.copy(b.Requests[count], name, 16)
                 if entry.hide then hide = bit.bor(hide, bit.lshift(1, count)) end
                 count = count + 1

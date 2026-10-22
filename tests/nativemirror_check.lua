@@ -20,8 +20,8 @@ ffi.cast = function(kind, at) if kind == 'uihook_mirror_t*' then return block en
 local function check(label, ok) print(label, ok); assert(ok, label) end
 
 ffi.copy(block.Magic, 'UIHOOK-MIRROR')
-block.Version, block.Size, block.Frame, block.Supported = 1, ffi.sizeof('uihook_mirror_t'), 50, 1
-check('the block is the size uihook\'s is (mirror ABI 1)', ffi.sizeof('uihook_mirror_t') == 41188 and ffi.sizeof('uihook_mirror_run_t') == 44 and ffi.sizeof('uihook_mirror_window_t') == 132)
+block.Version, block.Size, block.Frame, block.Supported = 2, ffi.sizeof('uihook_mirror_t'), 50, 1
+check('the block is the size uihook\'s is (mirror ABI 2)', ffi.sizeof('uihook_mirror_t') == 82564 and ffi.sizeof('uihook_mirror_run_t') == 44 and ffi.sizeof('uihook_mirror_window_t') == 132)
 local mirror = native.new()
 
 -- requests: names padded as the game keeps them, the hidden ones' bits, then the commit
@@ -98,9 +98,9 @@ check('asking nothing commits nothing', mirror.Request({}) and block.RequestFram
 loaded = false
 check('uihook not loaded: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('Load uihook'))
 loaded = true; base = 200; now = 20
-block.Version = 2
+block.Version = 1
 check('another ABI: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('Update uihook'))
-block.Version = 1; now = 30
+block.Version = 2; now = 30
 block.Supported = 0
 check('not recognised in the client: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('did not recognise'))
 print('0 failures')
