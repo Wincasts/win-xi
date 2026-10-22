@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.5'
+addon.version = '0.5.1'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 36
+local winxiNeeded = 37
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0

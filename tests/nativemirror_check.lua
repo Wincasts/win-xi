@@ -20,8 +20,8 @@ ffi.cast = function(kind, at) if kind == 'uihook_mirror_t*' then return block en
 local function check(label, ok) print(label, ok); assert(ok, label) end
 
 ffi.copy(block.Magic, 'UIHOOK-MIRROR')
-block.Version, block.Size, block.Frame, block.Supported = 2, ffi.sizeof('uihook_mirror_t'), 50, 1
-check('the block is the size uihook\'s is (mirror ABI 2)', ffi.sizeof('uihook_mirror_t') == 82564 and ffi.sizeof('uihook_mirror_run_t') == 44 and ffi.sizeof('uihook_mirror_window_t') == 132)
+block.Version, block.Size, block.Frame, block.Supported = 3, ffi.sizeof('uihook_mirror_t'), 50, 1
+check('the block is the size uihook\'s is (mirror ABI 3)', ffi.sizeof('uihook_mirror_t') == 83080 and ffi.sizeof('uihook_mirror_run_t') == 44 and ffi.sizeof('uihook_mirror_window_t') == 132)
 local mirror = native.new()
 
 -- requests: names padded as the game keeps them, the hidden ones' bits, then the commit
@@ -29,7 +29,17 @@ check('asked', mirror.Request({ { name = 'inventor', hide = true }, { name = 'it
 check('names as the game keeps them', ffi.string(block.Requests[0], 16) == 'menu    inventor' and ffi.string(block.Requests[1], 16) == 'menu    iteminfo'
     and ffi.string(block.Requests[2], 16) == 'menu    bank    ')
 check('a name past eight letters left out', block.Requests[3][0] == 0)
-check('hidden bits for the first and third', block.Hide == 5)
+check('hidden bits for the first and third', block.Hide[0] == 5 and block.Hide[1] == 0)
+check('committed at the block\'s frame', block.RequestFrame == 50)
+-- forty asked, every one hidden: the bits past 31, the 32nd too (bit 31, which bit.lshift makes negative)
+local many = {}
+for i = 1, 40 do many[i] = { name = ('m%d'):format(i), hide = true } end
+check('forty asked', mirror.Request(many) and ffi.string(block.Requests[39], 16) == 'menu    m40     ')
+check('all forty hidden: 32 bits and 8', block.Hide[0] == 0xffffffff and block.Hide[1] == 0xff)
+many[32].hide = false
+mirror.Request(many)
+check('the 32nd watched: its bit alone clear', block.Hide[0] == 0x7fffffff and block.Hide[1] == 0xff)
+check('asked again', mirror.Request({ { name = 'inventor', hide = true }, { name = 'iteminfo' }, { name = 'far too long' }, { name = 'bank', hide = true } }))
 check('committed at the block\'s frame', block.RequestFrame == 50)
 
 -- nothing published yet
@@ -100,7 +110,7 @@ check('uihook not loaded: not asked', not mirror.Request({ { name = 'inventor' }
 loaded = true; base = 200; now = 20
 block.Version = 1
 check('another ABI: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('Update uihook'))
-block.Version = 2; now = 30
+block.Version = 3; now = 30
 block.Supported = 0
 check('not recognised in the client: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('did not recognise'))
 

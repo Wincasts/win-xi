@@ -48,11 +48,21 @@ static void Quad(Vertex* out,float l,float t,float r,float b,uint32_t colour,flo
 }
 
 int main() {
-    Check(sizeof(MirrorShared)==82564,"mirror ABI 2's size");
-    static MirrorShared block; memcpy(block.Magic,"UIHOOK-MIRROR",14); block.Version=2; block.Size=sizeof(block);
-    block.Supported=1; block.Frame=10; block.RequestFrame=10; block.Hide=1;
+    Check(sizeof(MirrorShared)==83080,"mirror ABI 3's size");
+    static MirrorShared block; memcpy(block.Magic,"UIHOOK-MIRROR",14); block.Version=3; block.Size=sizeof(block);
+    block.Supported=1; block.Frame=10; block.RequestFrame=10; block.Hide[0]=1;
     memcpy(block.Requests[0],"menu    inventor",16); memcpy(block.Requests[1],"menu    iteminfo",16);
     static Mirror mirror; mirror.shared=&block;
+    {   // past the first 32 requests: the hidden bit in the second word
+        bool hide=false;
+        memcpy(block.Requests[40],"menu    menuwind",16);
+        Check(mirror.Wanted("menu    menuwind",hide) && !hide,"the 41st asked, watched");
+        block.Hide[1]=1u<<8;
+        Check(mirror.Wanted("menu    menuwind",hide) && hide,"the 41st hidden by the second word");
+        block.Hide[0]|=1u<<31; memcpy(block.Requests[31],"menu    bank    ",16);
+        Check(mirror.Wanted("menu    bank    ",hide) && hide && mirror.Wanted("menu    inventor",hide) && hide,"the 32nd hidden, the first still");
+        memset(block.Requests[40],0,16); memset(block.Requests[31],0,16); block.Hide[0]=1; block.Hide[1]=0;
+    }
     const D3DVIEWPORT8 view={0,0,1000,500,0,1};
     FakeWindow inventor("menu    inventor",true,true), info("menu    iteminfo",false,false), other("menu    playermo",true,true);
 

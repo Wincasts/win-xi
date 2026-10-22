@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0
+
+- Mirror ABI 3: an addon may ask for 64 windows (was 32), `Hide` two words of 32 bits. With every
+  menu of the menus addon on (40) the requests past the 32nd were dropped, and the bit for the 32nd,
+  which winxi's LuaJIT wrote as a negative number, left every window watched rather than hidden:
+  nothing was replaced. Needs winxi 37.
+
 ## 0.99
 
 - `/uihook mirror labels`: every element of the last frame mirrored is cut from its texture as the game

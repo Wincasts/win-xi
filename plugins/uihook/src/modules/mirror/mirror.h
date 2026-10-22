@@ -1,6 +1,6 @@
 // The menu mirror: a window of the game's, named by an addon, keeps working as it is (its input, its
 // cursor, its hit-tests the game's own), while what it draws is measured and, if the addon asks, left
-// undrawn; the addon draws its own from what the game would have. Independent mirror ABI 2.
+// undrawn; the addon draws its own from what the game would have. Independent mirror ABI 3.
 //
 // Window::Render draws a window in three parts: its frame, then its contents through its owner's
 // vtable +10, then the cursor, row highlight and scrollbar. The one call to the contents is taken
@@ -21,7 +21,7 @@
 #define MIRROR_CONTENT_PATTERN "8B 4D 0C 85 C9 74 ?? 8A 45 6A 84 C0 74 ?? 83 7D 10 0E 74 ?? 8B 11 FF 52 10"
 #define MIRROR_CONTENT_AT 20
 #define MIRROR_CONTENT_WITHIN 0x800
-#define MIRROR_REQUESTS 32 // windows an addon may name
+#define MIRROR_REQUESTS 64 // windows an addon may name
 #define MIRROR_WINDOWS 16  // windows published a frame
 #define MIRROR_RUNS 512
 #define MIRROR_QUADS 512
@@ -75,7 +75,7 @@ struct MirrorShared {
     // its bit in Hide set where the game's drawing of it is left undrawn, then RequestFrame (the
     // block's Frame) as the commit. Renewed every frame; MIRROR_REQUEST_FRAMES after the last, the
     // game draws them all again.
-    volatile uint32_t RequestFrame, Hide;
+    volatile uint32_t RequestFrame, Hide[MIRROR_REQUESTS/32];
     char Requests[MIRROR_REQUESTS][16];
     // Written by uihook as each frame is presented: what the requested windows drew in it
     uint32_t Serial, Dropped; // Serial moves with each frame published; Dropped counts runs, quads or text that did not fit
@@ -83,7 +83,7 @@ struct MirrorShared {
 };
 
 static_assert(sizeof(MirrorRun)==44 && sizeof(MirrorQuad)==48 && sizeof(MirrorWindow)==132,"mirror ABI");
-static_assert(sizeof(MirrorFrameData)==82004 && sizeof(MirrorShared)==82564,"mirror ABI");
+static_assert(sizeof(MirrorFrameData)==82004 && sizeof(MirrorShared)==83080,"mirror ABI");
 
 class Mirror {
     MirrorFrameData building{};
@@ -106,7 +106,7 @@ public:
         const uint32_t request=shared->RequestFrame;
         if (!request || shared->Frame-request>MIRROR_REQUEST_FRAMES) return false;
         for (unsigned i=0;i<MIRROR_REQUESTS;i++)
-            if (shared->Requests[i][0] && !memcmp(shared->Requests[i],name,16)) { hide=(shared->Hide>>i)&1; return true; }
+            if (shared->Requests[i][0] && !memcmp(shared->Requests[i],name,16)) { hide=(shared->Hide[i/32]>>(i%32))&1; return true; }
         return false;
     }
     bool Active() const { return window>=0; }

@@ -1,4 +1,4 @@
-# uihook — experimental 0.99
+# uihook — experimental 1.0
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
@@ -452,12 +452,12 @@ detour, taking it only if nothing else has.
 `python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt`
 checks the routines against a private dump.
 
-## Menu mirror (0.96, ABI 2 in 0.97)
+## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0)
 
 The real menu stays open and keeps its input; an addon draws its own from what it would have drawn.
-`winxi.nativemirror` uses the independent **mirror ABI 2**, magic `UIHOOK-MIRROR`, 82564 bytes
-(`src/modules/mirror/mirror.h`): the addon writes up to 32 window names (`menu    inventor`) into
-`Requests`, a bit of `Hide` for each the game is to leave undrawn, then `RequestFrame` as the commit,
+`winxi.nativemirror` uses the independent **mirror ABI 3**, magic `UIHOOK-MIRROR`, 83080 bytes
+(`src/modules/mirror/mirror.h`): the addon writes up to 64 window names (`menu    inventor`) into
+`Requests`, a bit of `Hide` (two words of 32) for each the game is to leave undrawn, then `RequestFrame` as the commit,
 every frame; four frames after the last the game draws them all again. As each frame is presented,
 uihook publishes what the requested windows drew in it (`Published`): for each window its name, flags
 (cursor shown, focused, hidden, contents drawn), its frame's place, the cursor's, the row highlight's

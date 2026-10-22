@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+- With 32 or more menus on, nothing was replaced: the mirror took 32 requests, and the hidden bit of the
+  32nd came out as no bits at all, so every menu was the game's and none drawn here. Every menu (40)
+  can now be on. Needs uihook 1.0 and winxi 37.
+
 ## 0.5
 
 - The Picture Label Menus' words in the theme's font. The game spells those labels one letter at a time,
