@@ -72,7 +72,12 @@ measure('banner: Kanji Watermark', banner('kanji'));
 measure('banner: Letter Reveal', banner('reveal'));
 measure('banner: Classic Window', banner('window'));
 measure('banner: Elemental Weather', banner('element'));
-measure('banner: Kind Frames', banner('kind'));
+measure('banner: Kind Frames (open country)', banner('kind'));
+-- The harness's zone is West Ronfaure (100, open country): Southern San d'Oria (230) a city, Davoi (149) a dungeon.
+local game = H.zoneinfo_game;
+measure('banner: Kind Frames (city)', function() game.zone = 230; H.frames(1); banner('kind')(); end);
+measure('banner: Kind Frames (dungeon)', function() game.zone = 149; H.frames(1); banner('kind')(); end);
+game.zone = 100; H.frames(1);
 -- The entrance: shown again every 50 frames (1.5 s), so every frame is in its first second and a half.
 local function entrances(count)
     for i = 1, count do
@@ -87,6 +92,20 @@ measure('banner: Letter Reveal entrance', function() d.zoneStyle = 'reveal'; end
 measure('banner: Classic Window entrance', function() d.zoneStyle = 'window'; end, entrances);
 measure('banner: Elemental Weather entrance', function() d.zoneStyle = 'element'; end, entrances);
 measure('banner: Kind Frames entrance', function() d.zoneStyle = 'kind'; end, entrances);
+
+-- What each style asks of imgui in a settled frame, by name: BENCH_CALLS=1 to see it.
+if os.getenv('BENCH_CALLS') then
+    for _, style in ipairs(require('banner_styles').ids) do
+        banner(style)();
+        local before = {};
+        for k, v in pairs(H.calls) do before[k] = v; end
+        H.frames(1);
+        local parts = {};
+        for k, v in pairs(H.calls) do if v ~= (before[k] or 0) then parts[#parts + 1] = ('%s %d'):format(k, v - (before[k] or 0)); end end
+        table.sort(parts);
+        H.print(style .. ': ' .. table.concat(parts, ', '));
+    end
+end
 
 H.print(('%-44s %10s %12s %12s'):format('frame', 'us/frame', 'bytes/frame', 'calls/frame'));
 for _, r in ipairs(results) do

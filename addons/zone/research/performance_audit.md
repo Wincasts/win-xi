@@ -216,3 +216,48 @@ Left as they are:
 - Caches added with the styles are bounded or small: letters split for at most
   64 strings; letter widths per font, size and character (the pennant's
   letter size changes with the name's length, so a few sizes a zone).
+
+## 2026-10-22: zone 2.8.2, the four new styles and the backdrop
+
+Measured as before (median of three runs, `tools/benchmark_zone_frames.lua`),
+with Kind Frames now measured in each of its looks (the harness's West Ronfaure,
+Southern San d'Oria, Davoi) and `BENCH_CALLS=1` listing each style's imgui calls
+in a settled frame by name. The Backdrop (on to start) is in every figure: ten
+`AddRectFilled` a frame, its colour packed once.
+
+| Frame | Time (µs) | Bytes | imgui calls |
+| --- | --- | --- | --- |
+| Nothing on screen | 0.74 → 0.72 | 320 → 320 | 0 → 0 |
+| Classic Text | 3.77 → 3.43 | 1403 → 1403 | 63.6 → 63.6 |
+| Title Card | 9.43 → 8.83 | 1423 → 1404 | 134.5 → 127.3 |
+| Pennant | 9.70 → 9.32 | 1438 → 1403 | 146.1 → 139.0 |
+| Kanji Watermark | 6.99 → 6.83 | 1404 → 1406 | 52.9 → 44.8 |
+| Letter Reveal | 9.64 → 6.59 | 1404 → 1403 | 87.0 → 68.1 |
+| Classic Window | 8.62 → 7.93 | 1403 → 1403 | 61.0 → 52.9 |
+| Elemental Weather | 9.28 → 6.99 | 1404 → 1403 | 109.4 → 96.8 |
+| Kind Frames, open country | 6.13 → 6.19 | 1403 → 1403 | 51.1 → 43.0 |
+| Kind Frames, city | 6.35 | 1405 | 44.8 |
+| Kind Frames, dungeon | 7.38 | 1421 | 103.1 |
+
+The bytes are the harness's stand-ins, as before; no style allocates of its own.
+
+Changed:
+
+- Every style measured its words afresh each frame, a font pushed, the size asked
+  and the font popped for each line: half of Elemental Weather's ten font pushes
+  a frame were for measuring. Measurements are kept for each font and size
+  (`measure`, beside the letter widths, a size's words let go past 64), and a
+  letter's width pushes its font itself the once it is measured, so a font is
+  pushed only to draw.
+- Letter Reveal packed its colour twice for every letter every frame, the same
+  colour once all had settled; a settled letter takes the banner's own, packed
+  once (21 `GetColorU32` a frame to 5).
+
+Left as they are:
+
+- Kind Frames' dungeon carving draws its name seven times (four for the torch's
+  glow, the cut, the lip, the stone with its outline), about 100 calls for a
+  name of 15 letters. Two glow passes in place of four would save some 30, but
+  it would look different; it is a few seconds a dungeon.
+- The backdrop's ten rounded rectangles are ten calls; ImGui makes their corners'
+  vertices, a few hundred, which is little for it.
