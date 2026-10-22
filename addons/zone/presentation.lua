@@ -485,7 +485,7 @@ end
 -- A style other than Classic Text: everything it draws from, in one table kept for it.
 local style_context = {};
 local flag_only = { backgroundFlags = { true }, backgroundEnabled = { false }, backgroundFile = { '' } };
-local meta_cache = {};
+local meta_cache = { words = '' }; -- neither day and time nor weather: no last line
 local function meta_words(vana, weather)
     local m = meta_cache;
     if m.vana ~= vana or m.weather ~= weather then
