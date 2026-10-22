@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.01
+
+- `/uihook mirror labels` writes the contents' art too (item icons, and letters the game draws one quad
+  each in a window's contents, as the top bar's help line), with a phase column: 1 content, 3 element.
+
 ## 1.0
 
 - Mirror ABI 3: an addon may ask for 64 windows (was 32), `Hide` two words of 32 bits. With every

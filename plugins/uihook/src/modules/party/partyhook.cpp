@@ -548,15 +548,15 @@ public:
         } else snprintf(line,sizeof(line),"[uihook:census] %s, %zu windows seen. /uihook census on|off|dump|clear.",MenuCensus.on ? "on" : "off",MenuCensus.windows.size());
         core->GetChatManager()->Write(0,false,line);
     }
-    // Every element of the last frame published, cut from its texture to logs\uihook-labels\N.bmp, with
+    // Every element and content quad (an icon, a letter) of the last frame published, cut from its texture to logs\uihook-labels\N.bmp, with
     // labels.txt naming each one's window, texture, place in it and the hash of its pixels
     void LabelsCommand() {
         char line[512];
         const MirrorFrameData& last=MirrorBlock.Published;
         uint32_t elements=0;
-        for (uint32_t i=0;i<last.QuadCount;i++) if (last.Quads[i].Phase==MIRROR_ELEMENT) elements++;
+        for (uint32_t i=0;i<last.QuadCount;i++) if (last.Quads[i].Phase==MIRROR_ELEMENT || last.Quads[i].Phase==MIRROR_CONTENT) elements++;
         if (!elements) {
-            core->GetChatManager()->Write(0,false,"[uihook:mirror] no elements in the last frame mirrored: open a menu the menus addon mirrors first; nothing written.");
+            core->GetChatManager()->Write(0,false,"[uihook:mirror] no elements or art in the last frame mirrored: open a menu the menus addon mirrors first; nothing written.");
             return;
         }
         // each run in a folder of its own, 01, 02 and on, so none is written over
@@ -571,11 +571,11 @@ public:
         std::vector<uint32_t> sheets; // each texture once whole, as sheet-XXXXXXXX.bmp
         FILE* list=fopen((folder+"\\labels.txt").c_str(),"w");
         if (!list) { snprintf(line,sizeof(line),"[uihook:mirror] could not write %s.",folder.c_str()); core->GetChatManager()->Write(0,false,line); return; }
-        fprintf(list,"# n window texture WxH format uv(left top right bottom) texels(x0 y0 x1 y1) hash colour rect(normalized)\n");
+        fprintf(list,"# n window texture WxH format uv(left top right bottom) texels(x0 y0 x1 y1) hash colour rect(normalized) phase(1 content, 3 element)\n");
         unsigned written=0,skipped=0;
         for (uint32_t i=0;i<last.QuadCount;i++) {
             const MirrorQuad& q=last.Quads[i];
-            if (q.Phase!=MIRROR_ELEMENT || q.Window>=last.WindowCount) continue;
+            if ((q.Phase!=MIRROR_ELEMENT && q.Phase!=MIRROR_CONTENT) || q.Window>=last.WindowCount) continue;
             const char* name=last.Windows[q.Window].Name;
             LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]={}; const char* why="not held";
             const bool cut=q.Texture && MenuMirror.Holds(q.Texture)
@@ -591,14 +591,14 @@ public:
                 snprintf(file,sizeof(file),"%03u.bmp",i);
                 if (!LabelWrite((folder+"\\"+file).c_str(),pixels)) { snprintf(file,sizeof(file),"-"); why="not written"; }
             }
-            fprintf(list,"%s %.16s %08X %ux%u %08X %.5f %.5f %.5f %.5f %u %u %u %u %08X %08X %.4f %.4f %.4f %.4f%s%s\n",
+            fprintf(list,"%s %.16s %08X %ux%u %08X %.5f %.5f %.5f %.5f %u %u %u %u %08X %08X %.4f %.4f %.4f %.4f %u%s%s\n",
                 file,name,q.Texture,desc.Width,desc.Height,uint32_t(desc.Format),q.UV[0],q.UV[1],q.UV[2],q.UV[3],
                 texels[0],texels[1],texels[2],texels[3],file[0]!='-' ? LabelHash(pixels) : 0u,q.Colour,
-                q.Rect[0],q.Rect[1],q.Rect[2],q.Rect[3],file[0]!='-' ? "" : " # ",file[0]!='-' ? "" : why);
+                q.Rect[0],q.Rect[1],q.Rect[2],q.Rect[3],q.Phase,file[0]!='-' ? "" : " # ",file[0]!='-' ? "" : why);
             (file[0]!='-' ? written : skipped)++;
         }
         fclose(list);
-        snprintf(line,sizeof(line),"[uihook:mirror] %u elements and %zu textures written, %u not, to %s (from %u windows mirrored last frame).",
+        snprintf(line,sizeof(line),"[uihook:mirror] %u pieces and %zu textures written, %u not, to %s (from %u windows mirrored last frame).",
             written,sheets.size(),skipped,folder.c_str(),last.WindowCount);
         core->GetChatManager()->Write(0,false,line);
     }

@@ -1,4 +1,4 @@
-# uihook — experimental 1.0
+# uihook — experimental 1.01
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
