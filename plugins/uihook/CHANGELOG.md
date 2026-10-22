@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.95
+
+- The menu census, the first step toward mirroring the game's menus: the real menu stays open and keeps
+  its input, and an addon draws its own from what the real one would have drawn. `/uihook census on`
+  takes over the game's three text routines, each passing straight on to the game's own (the bitmap
+  font's `(x, y, text, colour, sx, sy, centred)`, its scaled sibling and the rendered font's thiscall),
+  and keeps, for every window Window::Render draws, its name (+46), its content draw (vtable +10 of its
+  owner at +0C), its layout target (+8C), whether it showed a cursor or focus, its text calls on each
+  route, its draw calls and up to 24 distinct texts with their places and colours. `/uihook census dump`
+  writes it to `logs\uihook-census.txt` with the windows grouped by the content draw they share; `off`
+  gives the routines back, `clear` forgets what was seen. Nothing is written to the game. Off until
+  asked, and released with the plugin. tests/check_census_client.py: the three routines unique, the
+  plain text wrapper calling the bitmap route.
+
 ## 0.94
 
 - Built against lens 0.6's `warp.h`, whose cylindrical mapping finds its edge once a call instead of

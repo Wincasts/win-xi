@@ -1,4 +1,4 @@
-# uihook — experimental 0.8
+# uihook — experimental 0.95
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
@@ -422,6 +422,36 @@ a reader keeps the last serial it read and takes the ones after, at most a ring'
 zero in the DLL's file, its magic written as the plugin initializes, so the half-megabyte ring costs
 the file nothing. Nothing is read from the game or written to it, and no line is changed or blocked.
 
+## Menu census (0.95)
+
+The first step toward mirroring the game's menus. The game registers about 370 menus, all drawn by
+Window::Render: the frame first, then the menu's own content through its owner's vtable +10, then the
+cursor and scrollbar. A mirror keeps the real menu open, its input and controller handling the game's,
+blocks its drawing as the chat log's is, and hands an addon what it would have drawn: its rect, the text
+it prints and where, its icons, and where its cursor is. The census finds how many ways the menus print
+their contents, so the mirror is built for those rather than menu by menu.
+
+```text
+/uihook census on      take over the three text routines, each passing on to the game's own
+/uihook census dump    write logs\uihook-census.txt
+/uihook census off     give them back (what was seen is kept)
+/uihook census clear   forget what was seen
+```
+
+Text reaches the screen through three routines, each found by a unique prologue (`src/modules/mirror/census.h`):
+the bitmap font's `(x, y, text, colour, sx, sy, centred)`, cdecl, each glyph a Sprite::Draw, behind
+the plain `(x, y, text, colour)` wrapper with about 150 callers; its scaled sibling `(x, y, text, colour,
+flag, sx, sy)` with about 130; and the rendered font's thiscall `(x, y, text, ?, colour, flags, sx, sy)`,
+`ret 20`, reached through two thunks that load the font object. For each window the file gives its name,
+frames drawn, content draw and vtable (offsets into the client), its kind (+10), whether it showed a
+cursor (+62) or focus (+63), its layout target (+8C, four shorts), its text calls on each route, text
+calls made inside others, draw calls and those made inside text calls; then the windows grouped by the
+content draw they share; then up to 24 distinct texts for each, with route, place and colour. Off until
+asked, nothing written to the game, released with the plugin. The census shares the one Window::Render
+detour, taking it only if nothing else has.
+`python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt`
+checks the routines against a private dump.
+
 ## Architecture
 
 - `src/uihook.cpp`: sole exported plugin entry point, lifecycle dispatch and scoped GPU-filter routing.
@@ -460,6 +490,7 @@ luajit tests/nativehud_check.lua
 luajit tests/nativechat_check.lua
 luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 python3 plugins/uihook/tests/check_hud_client.py /path/to/ffximain.bin /path/to/ffximain.txt
+python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt
 luajit tests/party_hook_performance_check.lua
 luajit tests/harness.lua party addons/party/party.lua tests/party_hook_integration_check.lua
 luajit tests/harness.lua party addons/party/party.lua tests/party_native_positioning_check.lua
