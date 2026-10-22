@@ -15,6 +15,7 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | [menutoggle](addons/menutoggle) | Start opens and closes the main menu, and closes the social menu too | `/menutoggle` |
 | [mobcast](addons/mobcast) | What the enemies about you are casting, readying and using, in a small window, as the chat log says it | `/mobcast` |
 | [name](addons/name) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style; needs the `namehook` plugin | `/name` |
+| [occlusionfix](addons/occlusionfix) | Stops characters near walls, door frames and counters blinking out of view; needs nothing else | `/occlusionfix` |
 | [parse](addons/parse) | Experimental packet-based damage, observed hit rates and manual encounter DPS, with capture/replay diagnostics | `/parse` |
 | [puppet](addons/puppet) | The next enfeebles and weapon skill an automaton will use | `/puppet` |
 | [trigger](addons/trigger) | Plays a sound when something happens: a tell, an invite, a trade, an item dropping, low HP and the like | `/trigger` |
@@ -25,9 +26,10 @@ Each addon's folder has a README with all of its commands and settings.
 
 ## Installing
 
-**buff**, **inventory**, **name**, **party** and **trigger** are released one at a time, on the
+**buff**, **inventory**, **name**, **occlusionfix**, **party** and **trigger** are released one at a time, on the
 [Releases](https://github.com/Wincasts/win-xi/releases) page. Each zip has everything the addon needs:
-the `winxi` library, `winxisettings`, and with name the `namehook` plugin. New buff/party packages include
+the `winxi` library, `winxisettings`, and with name the `namehook` plugin; occlusionfix needs none of
+them and comes alone. New buff/party packages include
 `uihook` for native UI replacement; party also includes `hideparty` for the ordinary overlay mode.
 Extract it into your Ashita folder (the one holding `addons`, `plugins` and `config`), merging
 folders, and follow `addons/<the addon>/INSTALL.txt`. If an addon says it needs a newer winxi,
@@ -35,8 +37,8 @@ install the newest release of any of them.
 
 A release is made with `tools/package_release.py <addon>`, from the commit, after `tests/run.sh`.
 
-The others, or anything newer than its release, can be copied from here. Every addon above needs the
-`winxi` library. Copy into your Ashita folder, merging folders:
+The others, or anything newer than its release, can be copied from here. Every addon above but
+occlusionfix needs the `winxi` library. Copy into your Ashita folder, merging folders:
 
 - `addons/libs/winxi`
 - `addons/<the addon>` for each one you want
