@@ -175,8 +175,11 @@ end
 local function DrawContents(list, window)
     local r = window.rect
     local pad = 4
-    -- the row the cursor is on, lit across the window, under everything else
-    local row = window.selection or CursorRow(window)
+    -- the row the cursor is on, lit across the window, under everything else: found from the cursor, or the game's
+    -- own highlight where that is the shape of a row (in some windows its draws cover the whole window)
+    local row = CursorRow(window)
+    local lit = window.selection
+    if not row and lit and Height(lit) <= 32 and Height(lit) < Height(r) / 2 then row = lit end
     if row then
         local highlight = theme.Get().HighlightColor
         list:AddRectFilled({ r[1] + pad, row[2] - 1 }, { r[3] - pad, row[4] + 1 }, imgui.GetColorU32(highlight), 3)
