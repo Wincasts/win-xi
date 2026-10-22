@@ -1,10 +1,11 @@
-# lens — experimental 0.6
+# lens — experimental 0.7
 
 FFXI's world through a Panini or cylindrical projection, either of which keeps a wide view without
 the stretching a flat projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
 its world to a texture of its own (at its 3D resolution) and copies it onto the screen with one quad
 before drawing the menus and HUD over it. lens draws a warped grid in that quad's place, so the world
-is bent and the UI is not.
+is bent and the UI is not. That copy is also where the world's edges are smoothed or not, so lens
+draws it with anti-aliasing (`/lens aa`), with the warp on or off.
 
 ```text
 /load lens
@@ -12,6 +13,7 @@ is bent and the UI is not.
 /lens on|off          the warp (on to start)
 /lens mode panini|cylindrical   (panini to start)
 /lens strength <n>    0 (flat, as the game) to 100; 50 to start
+/lens aa on|off       each pixel the average of four reads over the world (on to start)
 ```
 
 - **Panini** keeps lines running toward the middle of the view straight (a road or corridor ahead,
@@ -57,13 +59,42 @@ counter of the warp's stretch where it stands, so it comes out of the warp at it
 still hide it. Not yet: the game reads clicks on the world through the flat projection,
 so near the edges a click lands beside what is under the mouse.
 
+### Anti-aliasing
+
+The game draws its world larger than the screen (its 3D resolution, 5160x2160 at 3440x1440 by
+default: 1.5 times across and down) and shrinks it onto the screen in the copy. One smooth read a
+pixel takes in only the 2 by 2 of the world's pixels nearest it, so where a screen pixel covers more
+than that the rest is skipped: edges stair-step, and fences, leaves and grass shimmer as you move. The
+warp makes it worse at the sides, where it squeezes more of the world into each pixel. Forcing MSAA in
+DXVK (`d3d9.forceSwapchainMSAA`) does not reach the world at all, as it is not drawn to the screen.
+
+With `/lens aa on`, each pixel is the average of four smooth reads spread over the patch of the
+world it covers, worked out at every point of the grid from the warp itself: wider apart where the
+edges are squeezed, closer in the enlarged middle, half a pixel apart without the warp. With the warp
+off (`/lens off`) and aa on, lens still draws the copy, flat. `/lens` says what the copy is doing, the
+world's size against the screen's, and how the game's own copy reads it.
+
+It can only average what the game drew. A 3D resolution twice the screen's each way (6880x2880 at
+3440x1440, in the launcher or the registry's 0003 and 0004) gives each pixel exactly four of the
+world's pixels, which the four reads then take in exactly: true 4x supersampling, at about 1.8 times
+the cost of drawing at 1.5. At 1.5 aa still smooths what is there.
+
+It needs pixel shader 1.1 and four textures at once, which any card since about 2001 and DXVK have;
+without them, or if the game's copy were coloured in a way lens does not know, it reads once a
+pixel as before, and `/lens` says so.
+
 ### How it works
 
 The game's copy is the one draw that is a strip of two screen-space triangles (FVF 0x144) onto the
 back buffer, covering it, textured from a render target; lens builds a 128 by 64 grid over the same
 rectangle, each vertex's texture coordinate found by running the projection backwards from the
 screen to the flat picture (the game's projection, as set at the copy, gives the picture's fields of
-view), draws it with the game's own state but smooth sampling, and blocks the quad. The grid is built
+view), draws it with the game's own state but smooth sampling, and blocks the quad. Each vertex
+carries five coordinate sets (FVF 0x544): the point by itself, and four taps around it at a quarter
+of the way across the patch the screen pixel covers in each direction, the warp's Jacobian there
+times the pixel's square (`Taps` in `src/warp.h`). With aa, the world's texture is bound in stages
+0 to 3 and a ps_1_1 shader averages them (`src/shaders.h`, written out as tokens and checked against
+Wine's d3dx9 assembler by `tests/shaders.cpp`); the game's stages, filters and shader are put back after. The grid is built
 again only when the strength, the picture's fields of view or the rectangle change, and kept on the
 card between, so a frame draws it without sending it (2026-10-21: some 330 KB a frame before). The
 game draws hundreds of other screen quads a frame for its UI; while the warp is live they are told

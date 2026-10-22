@@ -153,12 +153,22 @@ inline Quad QuadOf(const Vertex* v) {
     return { v[tl].x, v[tl].y, v[br].x, v[br].y, v[tl].u, v[tl].v, v[br].u, v[br].v, v[0].z, v[0].rhw, v[0].color };
 }
 
+// The triangle list over a (cols + 1) x (rows + 1) grid of vertices, row by row.
+inline void Indices(int cols, int rows, std::vector<uint16_t>& indices) {
+    indices.clear();
+    for (int r = 0; r < rows; ++r) {
+        for (int c = 0; c < cols; ++c) {
+            uint16_t a = uint16_t(r * (cols + 1) + c), b = uint16_t(a + 1), e = uint16_t(a + cols + 1), f = uint16_t(e + 1);
+            indices.insert(indices.end(), { a, b, e, b, f, e });
+        }
+    }
+}
+
 // The grid in the quad's place: (cols + 1) x (rows + 1) vertices and a triangle list over them. tanH
 // and tanV are the source's half fields of view as tangents (1 / _11 and 1 / _22 of its projection);
 // strength is the Panini distance, or for cylindrical how far from the flat picture to go, 0 to 1.
 inline void Build(const Quad& q, double tanH, double tanV, Mode mode, double strength, int cols, int rows, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices) {
     vertices.clear();
-    indices.clear();
     const double phiE = EdgeOf(tanH, mode);
     for (int r = 0; r <= rows; ++r) {
         for (int c = 0; c <= cols; ++c) {
@@ -174,10 +184,54 @@ inline void Build(const Quad& q, double tanH, double tanV, Mode mode, double str
             vertices.push_back(v);
         }
     }
-    for (int r = 0; r < rows; ++r) {
-        for (int c = 0; c < cols; ++c) {
-            uint16_t a = uint16_t(r * (cols + 1) + c), b = uint16_t(a + 1), e = uint16_t(a + cols + 1), f = uint16_t(e + 1);
-            indices.insert(indices.end(), { a, b, e, b, f, e });
+    Indices(cols, rows, indices);
+}
+
+// The grid as drawn: XYZRHW, DIFFUSE, TEX5 (FVF 0x544). Sets 0 to 3 are the four taps a pixel averages,
+// set 4 the point it reads by itself.
+struct Tapped { float x, y, z, rhw; uint32_t color; float tap[4][2]; float u, v; };
+
+// The grid with four taps around each point, so that a pixel is the average of the picture over the
+// patch of it the pixel covers rather than one bilinear read at its middle. The picture is drawn larger
+// than the screen (5160 by 2160 for 3440 by 1440), and the warp squeezes or enlarges it further from
+// place to place; one bilinear read takes in only the 2 by 2 texels nearest it, so where a pixel
+// covers more than that the rest is skipped, and edges stair-step and shimmer. The patch is where the
+// screen pixel's square lands in the picture: a parallelogram, the warp's Jacobian at the point (in
+// the picture's coordinates per screen pixel) times the square. The taps are at (+-spread, +-spread)
+// across it; at 0.25 each is the middle of a quarter of the patch, which at a picture twice the
+// screen's size puts each tap on a texel's middle and averages exactly the 2 by 2 texels the pixel
+// covers. 0 puts all four on the point.
+inline void Taps(const Quad& q, double tanH, double tanV, Mode mode, double strength, int cols, int rows, double spread, std::vector<Tapped>& vertices) {
+    vertices.clear();
+    const double phiE = EdgeOf(tanH, mode);
+    const double width = q.right - q.left, height = q.bottom - q.top;
+    const double du = q.u1 - q.u0, dv = q.v1 - q.v0;
+    const double h = 1e-4;
+    for (int r = 0; r <= rows; ++r) {
+        for (int c = 0; c <= cols; ++c) {
+            double s = double(c) / cols, t = double(r) / rows;
+            double us, vs, ua, va, ub, vb, uc, vc, ud, vd;
+            SourceOf(s, t, tanH, tanV, mode, strength, phiE, us, vs);
+            SourceOf(s + h, t, tanH, tanV, mode, strength, phiE, ua, va);
+            SourceOf(s - h, t, tanH, tanV, mode, strength, phiE, ub, vb);
+            SourceOf(s, t + h, tanH, tanV, mode, strength, phiE, uc, vc);
+            SourceOf(s, t - h, tanH, tanV, mode, strength, phiE, ud, vd);
+            // the picture's texture coordinates per screen pixel, across (x) and down (y)
+            double xu = (ua - ub) / (2 * h) * du / width, xv = (va - vb) / (2 * h) * dv / width;
+            double yu = (uc - ud) / (2 * h) * du / height, yv = (vc - vd) / (2 * h) * dv / height;
+            Tapped v;
+            v.x = float(q.left + width * s);
+            v.y = float(q.top + height * t);
+            v.z = q.z; v.rhw = q.rhw; v.color = q.color;
+            double u = q.u0 + du * us, w = q.v0 + dv * vs;
+            v.u = float(u); v.v = float(w);
+            static const int sign[4][2] = { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } };
+            for (int k = 0; k < 4; ++k) {
+                double a = spread * sign[k][0], b = spread * sign[k][1];
+                v.tap[k][0] = float(u + a * xu + b * yu);
+                v.tap[k][1] = float(w + a * xv + b * yv);
+            }
+            vertices.push_back(v);
         }
     }
 }

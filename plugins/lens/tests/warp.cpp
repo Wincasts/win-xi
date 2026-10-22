@@ -118,6 +118,37 @@ int main() {
     Check(kept, "an offset through Counter comes out of the warp as it was, within a pixel (the warp curves over a name's width)");
     lens::Counter(0.95, 0.5, W, H, tanH, tanV, lens::Panini, 0.5, cm);
     Check(cm[0] > 1, "near the edge, where the warp squeezes, a name is drawn wider");
+    // Taps: four reads over the patch of the picture each pixel covers
+    std::vector<lens::Tapped> tv;
+    lens::Taps(q, tanH, tanV, lens::Panini, 0, 8, 4, 0.25, tv);
+    lens::Build(q, tanH, tanV, lens::Panini, 0, 8, 4, v, idx);
+    bool same = tv.size() == v.size();
+    for (size_t i = 0; same && i < v.size(); ++i) same = tv[i].x == v[i].x && tv[i].y == v[i].y && Near(tv[i].u, v[i].u, 1e-6) && Near(tv[i].v, v[i].v, 1e-6);
+    Check(same, "set 4, the read by itself, is the grid's own point");
+    const lens::Tapped& m = tv[22];
+    Check(Near(m.tap[1][0] - m.tap[0][0], 0.5 / 3440, 1e-7) && Near(m.tap[2][1] - m.tap[0][1], 0.5 / 1440, 1e-7)
+        && Near(m.tap[1][1], m.tap[0][1], 1e-7) && Near(m.tap[2][0], m.tap[0][0], 1e-7), "flat: the taps half a screen pixel apart, square to the screen");
+    bool centred = true;
+    for (const lens::Tapped& x : tv) {
+        double cu = 0, cv = 0;
+        for (int k = 0; k < 4; ++k) { cu += x.tap[k][0] / 4; cv += x.tap[k][1] / 4; }
+        centred = centred && Near(cu, x.u, 1e-6) && Near(cv, x.v, 1e-6);
+    }
+    Check(centred, "the taps are centred on the point");
+    // a picture twice the screen's size: a pixel centre is a texel corner, and the taps the four texels' middles
+    const double px = 1000;   // a pixel's centre, x = 1000
+    double ut = (px + 0.5) / 3440 * 6880;
+    Check(Near(ut, 2001) && Near((m.tap[1][0] - m.tap[0][0]) * 6880, 1, 1e-4), "at twice the screen, each tap a texel's middle, one texel apart");
+    lens::Taps(q, tanH, tanV, lens::Panini, 0.5, 8, 4, 0.25, tv);
+    double middle = tv[22].tap[1][0] - tv[22].tap[0][0], side = tv[26].tap[1][0] - tv[26].tap[0][0];
+    Check(middle < 0.5 / 3440 && side > 0.5 / 3440, "warped: the taps closer where the middle is enlarged, further where the edges are squeezed");
+    lens::Taps(q, tanH, tanV, lens::Panini, 0.5, 8, 4, 0, tv);
+    bool one = true;
+    for (const lens::Tapped& x : tv) for (int k = 0; k < 4; ++k) one = one && x.tap[k][0] == x.u && x.tap[k][1] == x.v;
+    Check(one, "spread 0 puts every tap on the point");
+    std::vector<uint16_t> idx2;
+    lens::Indices(8, 4, idx2);
+    Check(idx2 == idx, "Indices gives Build's triangles");
     printf(failures ? "%d FAILED\n" : "lens warp: all checks passed\n", failures);
     return failures ? 1 : 0;
 }
