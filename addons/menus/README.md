@@ -34,7 +34,7 @@ group (on where every one of them is):
 - **Status** (off): Status, Level And EXP, Profile, Job Levels, Combat Skills, Crafting Skills, Gil.
 - **[Experimental] Picture Label Menus** (off): Main Menu, Command Menu, Magic Categories, Ability
   Categories, Status Menu, Config Menu, Mog House Menu, Mog House Options, Item Sort, Macro Menu,
-  Mission Menu, Friend List Menu, Communication Menu, Unity Menu, Bazaar Menu, Top Bar. The game spells their
+  Mission Menu, Friend List Menu, Communication Menu, Unity Menu, Bazaar Menu, Menu Name, Top Bar. The game spells their
   words one letter at a time from its menu font; each is drawn as a winxi panel with those words read
   back and drawn in the theme's font, the row the cursor is on lit and the hand. What is not a letter
   of that font (button bars) is the game's own art. A menu's title, in the game's serif letters, is set

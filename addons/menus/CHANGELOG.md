@@ -8,8 +8,9 @@
   it, the item lists too.
 - A smaller settings window: Mirror and Mouse first; the groups of menus collapsed to start, each with
   an All checkbox and its menus three to a row rather than one a line.
-- Top Bar in the Picture Label Menus: the bar across the top of the screen while a menu is open
-  (`helpwind`), with its name and count. Not yet seen mirrored; look at it in Outline first.
+- Menu Name and Top Bar in the Picture Label Menus: the box at the top left with the open menu's name
+  (`titlewin`) and the bar across the top with its help line (`helpwind`). Not yet seen mirrored; look
+  at them in Outline first.
 - Needs winxi 38 (uihook 1.0).
 
 ## 0.5.1

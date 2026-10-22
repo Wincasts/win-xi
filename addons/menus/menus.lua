@@ -96,7 +96,8 @@ local Groups = {
         { name = 'commenu', label = 'Communication Menu', tip = 'The communication menu.' },
         { name = 'ut_menu', label = 'Unity Menu', tip = 'The Unity menu.' },
         { name = 'bazaar', label = 'Bazaar Menu', tip = 'The bazaar\'s choices.' },
-        { name = 'helpwind', label = 'Top Bar', tip = 'The bar across the top of the screen while a menu is open: its name, its count ("Items 5/30") and its help line.' },
+        { name = 'titlewin', label = 'Menu Name', tip = 'The small box at the top left with the open menu\'s name ("Items").' },
+        { name = 'helpwind', label = 'Top Bar', tip = 'The bar across the top of the screen while a menu is open: its help line.' },
     } },
     { title = 'Config', on = false, menus = {
         { name = 'cfilter', label = 'Chat Filters', tip = 'Which chat is shown.' .. CHECK_FIRST },
