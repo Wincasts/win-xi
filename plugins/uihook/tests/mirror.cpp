@@ -6,6 +6,7 @@
 #include "../src/modules/chat/controls.h"
 #include "../src/modules/mirror/census.h"
 #include "../src/modules/mirror/mirror.h"
+#include "../src/modules/mirror/labels.h"
 static int failures=0;
 static void Check(bool ok,const char* text) { printf("%s %s\n",ok?"ok":"FAIL",text); if(!ok) ++failures; }
 static bool Near(float a,float b) { return std::fabs(a-b)<1e-4f; }
@@ -179,6 +180,21 @@ int main() {
     icons.AddRef(); mirror.Record(D3DFVF_XYZ|D3DFVF_TEX1,&icons,v,sizeof(Vertex),6);
     mirror.End(saved); mirror.Publish(12); mirror.Publish(12);
     Check(f.QuadCount==0 && icons.refs==1,"a world-space draw: no quad, its texture given back");
+    // labels: the texels of a texture decoded as ARGB
+    {
+        const uint16_t argb4[4]={0xF00F,0x8F00,0x00F0,0x1234}; // 2x2 A4R4G4B4
+        LabelPixels p;
+        Check(LabelDecode(reinterpret_cast<const uint8_t*>(argb4),4,D3DFMT_A4R4G4B4,1,0,2,2,p) && p.width==1 && p.height==2
+            && p.argb[0]==0x88FF0000 && p.argb[1]==0x11223344,"A4R4G4B4 cut and widened");
+        // DXT1, one block: colour 0 white, colour 1 black, opaque; row 0 all index 0, row 1 all index 1, row 2 index 2, row 3 index 3
+        const uint8_t dxt1[8]={0xFF,0xFF,0x00,0x00,0x00,0x55,0xAA,0xFF};
+        Check(LabelDecode(dxt1,8,MAKEFOURCC('D','X','T','1'),0,0,4,4,p) && p.argb[0]==0xFFFFFFFF && p.argb[4]==0xFF000000
+            && p.argb[8]==0xFFAAAAAA && p.argb[12]==0xFF555555,"DXT1 block");
+        // DXT3: explicit alpha, the first texel 0, the rest 15
+        uint8_t dxt3[16]; memset(dxt3,0xFF,8); dxt3[0]=0xF0; memcpy(dxt3+8,dxt1,8);
+        Check(LabelDecode(dxt3,16,MAKEFOURCC('D','X','T','3'),0,0,2,1,p) && p.argb[0]==0x00FFFFFF && p.argb[1]==0xFFFFFFFF,"DXT3 alpha");
+        Check(!LabelDecode(dxt1,8,D3DFMT_P8,0,0,1,1,p),"a format not read refused");
+    }
     printf("%d failures\n",failures);
     return failures ? 1 : 0;
 }
