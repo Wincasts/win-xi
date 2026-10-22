@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.94
+
+- Built against lens 0.6's `warp.h`, whose cylindrical mapping finds its edge once a call instead of
+  in every step, so moving the target arrows under the cylindrical warp costs a few microseconds
+  instead of about fifty. The arrows go where they did.
+
 ## 0.93
 
 - The game's own target and subtarget arrows follow the lens plugin's warp. lens draws the world bent

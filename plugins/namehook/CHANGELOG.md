@@ -1,5 +1,9 @@
 # Changelog
 
+## namehook 1.31 — names under lens's cylindrical warp cheaper
+
+- Built against lens 0.6's `warp.h`, whose cylindrical mapping finds its edge once a call instead of in every step: `lens::Counter`, worked out for each name each frame, takes about 2 µs a name in cylindrical mode where it took about 35 to 55 (some 3 ms a frame with 60 names on screen). Panini was cheap already. Nothing drawn changes.
+
 ## namehook 1.30 — names kept their shape under lens
 
 - Under the lens plugin's warp (plugins/lens), which bends the world picture names are drawn into, each name and bubble an addon draws is put through the counter of the warp's stretch where it stands (`lens::Counter`, the inverse of the warp's local Jacobian), so that it comes out of the warp at its own shape and size, where before it was squeezed toward the sides of the screen. Names are still drawn in the world, so walls and terrain still hide them and their depth is still written. The warp is read from the block lens.dll exports as `LensWarp` (`lens/src/shared.h`) once a scene, with the scene's own projection for its fields of view; without lens, or with its warp off, the counter is the identity and names are placed as before. lens's tests/warp.cpp: an offset put through the counter comes out of the warp as it was, within a pixel.
