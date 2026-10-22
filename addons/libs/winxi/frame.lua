@@ -1,11 +1,13 @@
 -- Draw a Winxi frame attachment on the CURRENT window's list. No extra ImGui window,
 -- layout item or native capture slot: its host captures background/content/border/shadow together.
 -- rect = {left,top,width,height}; draw() must not reserve space in the host's layout.
+-- options.title: words for the frame's top edge (winxi.titles), the border broken behind them where the style breaks.
 local imgui = require('imgui')
 local theme = require('winxi.theme')
 local backgrounds = require('winxi.backgrounds')
 local borders = require('winxi.borders')
 local shadow = require('winxi.shadow')
+local titles = require('winxi.titles')
 local M = {}
 function M.Draw(rect, draw, options)
     options = options or {}
@@ -20,7 +22,10 @@ function M.Draw(rect, draw, options)
         if background then backgrounds.Draw(background,color,rect)
         else list:AddRectFilled({rect.left,rect.top},{rect.left+rect.width,rect.top+rect.height},imgui.GetColorU32(color),3) end
         draw()
-        borders.Draw(borders.Texture(theme.Get().BorderStyle),nil,nil,options.border,rect)
+        local gapLeft, gapRight
+        if options.title then gapLeft, gapRight = titles.Gap(options.title, rect) end
+        borders.Draw(borders.Texture(theme.Get().BorderStyle),gapLeft,gapRight,options.border,rect)
+        if options.title then titles.Draw(options.title, { rect = rect, background = options.background, border = options.border }) end
     end)
     list:PopClipRect()
     if not ok then error(err,0) end

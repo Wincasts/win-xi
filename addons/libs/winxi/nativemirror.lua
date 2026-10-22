@@ -131,46 +131,63 @@ local LETTERS = {
     'y',50,93,59,105, 'z',61,92,67,104, '{',72,92,77,104, '}',93,92,98,104, 
     '|',3,117,6,127, '~',9,117,16,127
 }
+-- The serif italic letters of a window's title ("Commands"), from another sheet of the same size; their boxes lie
+-- apart from the menu font's, so a box is one font's or the other's
+local TITLE_LETTERS = {
+    'A',3,161,11,170, 'B',13,161,21,170, 'C',24,161,32,170, 'D',34,161,43,170, 'E',45,161,53,170, 'F',55,161,63,170,
+    'G',66,161,74,170, 'H',76,161,85,170, 'I',87,161,92,170, 'J',94,161,102,170, 'K',104,161,113,170, 'L',115,161,122,170,
+    'M',124,161,135,170, 'N',137,161,146,170, 'O',148,161,156,170, 'P',158,161,166,170, 'Q',169,161,177,172, 'R',179,161,188,170,
+    'S',191,161,198,170, 'T',201,161,208,170, 'U',211,161,219,170, 'V',221,161,230,170, 'W',231,161,242,170, 'X',243,161,253,170,
+    'Y',4,173,12,182, 'Z',13,173,21,182, 'a',23,175,29,182, 'b',32,173,38,182, 'c',41,175,47,182, 'd',50,173,56,182,
+    'e',59,175,65,182, 'f',68,173,74,182, 'g',75,174,82,184, 'h',83,173,90,182, 'i',93,173,98,182, 'j',99,173,105,184,
+    'k',107,173,114,182, 'l',116,173,121,182, 'm',123,175,133,182, 'n',136,175,143,182, 'o',146,175,153,182, 'p',155,175,162,184,
+    'q',165,175,171,184, 'r',174,175,180,182, 's',181,175,187,182, 't',191,173,195,182, 'u',198,175,204,182, 'v',207,175,215,182,
+    'w',217,175,226,182, 'x',227,175,235,182, 'y',236,175,244,184, 'z',246,175,252,182
+}
 local LETTER_SLACK = 3
 local SHEET = 256
 local letterAt, letterCache, letterCacheCount = {}, {}, 0
-for i = 1, #LETTERS, 5 do
-    local row = math.floor(LETTERS[i + 2] / 13) -- the boxes bucketed by the sheet's rows of 13
-    letterAt[row] = letterAt[row] or {}
-    table.insert(letterAt[row], { LETTERS[i], LETTERS[i + 1], LETTERS[i + 2], LETTERS[i + 3], LETTERS[i + 4] })
+for font, list in pairs({ menu = LETTERS, title = TITLE_LETTERS }) do
+    for i = 1, #list, 5 do
+        local row = math.floor(list[i + 2] / 13) -- the boxes bucketed by rows of 13
+        letterAt[row] = letterAt[row] or {}
+        table.insert(letterAt[row], { list[i], list[i + 1], list[i + 2], list[i + 3], list[i + 4], font })
+    end
 end
 
--- The letter a quad's uv cuts from the menu font, or nil
+-- The letter a quad's uv cuts from the menu font or the title font, and which ('menu' or 'title'); or nil
 function M.Letter(uv)
     local x0, y0 = math.floor(uv[1] * SHEET + 0.5), math.floor(uv[2] * SHEET + 0.5)
     local x1, y1 = math.floor(uv[3] * SHEET + 0.5), math.floor(uv[4] * SHEET + 0.5)
     if x0 < 0 or y0 < 0 or x1 > SHEET or y1 > SHEET or x1 - x0 > 16 or y1 - y0 > 16 then return nil end
     local key = ((x0 * 512 + y0) * 512 + x1) * 512 + y1
     local known = letterCache[key]
-    if known ~= nil then return known or nil end
+    if known ~= nil then if known then return known[1], known[2] end return nil end
     local found = false
     local row = math.floor(y0 / 13)
     for r = row - 1, row + 1 do
         for _, box in ipairs(letterAt[r] or {}) do
             if math.abs(box[2] - x0) <= LETTER_SLACK and math.abs(box[3] - y0) <= LETTER_SLACK
-                and math.abs(box[4] - x1) <= LETTER_SLACK and math.abs(box[5] - y1) <= LETTER_SLACK then found = box[1] end
+                and math.abs(box[4] - x1) <= LETTER_SLACK and math.abs(box[5] - y1) <= LETTER_SLACK then found = { box[1], box[6] } end
         end
     end
     if letterCacheCount >= 4096 then letterCache, letterCacheCount = {}, 0 end
     letterCache[key], letterCacheCount = found, letterCacheCount + 1
-    return found or nil
+    if found then return found[1], found[2] end
+    return nil
 end
 
 -- A window's elements spelled out: the letters among its quads (phase Element) read as lines of words, each
--- { text, rect, color, lit, tall }, in its quads' places (tall the line's tallest letter), and a set of the quads read (letters and their shadows, which
+-- { text, rect, color, lit, tall, font }, in its quads' places (tall the line's tallest letter; font 'menu', or
+-- 'title' for a window's title), and a set of the quads read (letters and their shadows, which
 -- the game draws a little down and right, fainter), for the caller to leave undrawn. lit where the game tinted
 -- it (the cursor's). Quads that are no letter (buttons, a title in another font) are left to the caller.
 function M.Words(quads)
     local letters, used = {}, {}
     for i, quad in ipairs(quads) do
         if quad.phase == M.Element and quad.rect then
-            local c = M.Letter(quad.uv)
-            if c then letters[#letters + 1] = { c = c, quad = quad, i = i } end
+            local c, font = M.Letter(quad.uv)
+            if c then letters[#letters + 1] = { c = c, font = font, quad = quad, i = i } end
         end
     end
     if #letters == 0 then return {}, used end
@@ -212,8 +229,8 @@ function M.Words(quads)
         for _, a in ipairs(line.letters) do
             local r = a.quad.rect
             local gap = word and r[1] - word.rect[3] or math.huge
-            if gap > tall * 2 then
-                word = { text = '', rect = { r[1], r[2], r[3], r[4] }, color = a.quad.color, lit = false, tall = tall }
+            if gap > tall * 2 or a.font ~= word.font then
+                word = { text = '', rect = { r[1], r[2], r[3], r[4] }, color = a.quad.color, lit = false, tall = tall, font = a.font }
                 words[#words + 1] = word
             elseif gap > tall / 10 then word.text = word.text .. ' ' end
             word.text = word.text .. a.c

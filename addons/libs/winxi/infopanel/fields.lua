@@ -62,7 +62,7 @@ local function Forecast(context)
     local ok, lines = pcall(function()
         local time = context.time
         local day = type(time) == 'table' and type(time.get_game_day) == 'function' and tonumber(time.get_game_day(context.raw)) or nil
-        return forecast.Lines(zone, context.raw, context.weekday, day)
+        return forecast.Lines(zone, context.raw, context.weekday, day, 3)
     end)
     if not ok or not lines then return '' end
     return ('\n\nForecast for %s:\n%s'):format(name, table.concat(lines, '\n'))
@@ -97,9 +97,11 @@ function fields.Tooltip(hover, context)
     end
     if hover == 'schedule' then
         if context.scheduleTooltip == nil then
-            local zone = Zone(context)
+            local zone, name = Zone(context)
             local ok, built = pcall(schedule.Build, zone, context.raw, context.timetable)
-            context.scheduleTooltip = ok and built and { schedule = built } or false
+            local area = require('winxi.infopanel.subzone').Read(zone)
+            context.scheduleTooltip = ok and built and { schedule = built,
+                location = name and ('Zone: ' .. name .. (area and ('\nSub-zone: ' .. area) or '')) } or false
         end
         return context.scheduleTooltip or nil
     end
@@ -114,7 +116,7 @@ fields.All = {
         tip = 'Where you are on the zone\'s map, as the game writes it: (H-9).\nThere is none where the zone has no map.',
         Text = function(c) return c.grid ~= nil and #c.grid > 0 and c.grid or nil end },
     { token = 'zone', label = 'Zone Name', hover = 'schedule',
-        tip = 'The current zone name, such as West Ronfaure. None while the zone is unavailable.\nResting the mouse on it shows the next ships and airships to leave (the Timetable tab), the zone\'s own marked.',
+        tip = 'The current zone name, such as West Ronfaure. None while the zone is unavailable.\nResting the mouse on it shows the zone and current named sub-zone, then the next ships and airships to leave (the Timetable tab), the zone\'s own marked.',
         Text = function(c) local _, name = Zone(c); return name end },
     { token = 'day', label = 'Day', hover = 'calendar',
         tip = 'The day of the week: Windsday.\nThe game\'s icon for the day stays to the left of the line.\nResting the mouse on it shows the month\'s calendar.',

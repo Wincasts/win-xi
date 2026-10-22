@@ -70,6 +70,8 @@
 -- 35: nativemirror.Element, the phase of a window's own elements (uihook 0.98): labels drawn as pictures
 -- 36: nativemirror.Letter and Words: the labels the game spells from its menu font, one element a letter, read back
 -- 37: nativemirror on uihook 1.0's mirror ABI 3: 64 windows asked for, the hidden bits past 31 written whole
+-- 38: nativemirror's title font (Letter's second result, a word's font 'title'); titles.Gap/Draw and frame.Draw's
+--     options.title on a given rect, for a frame drawn in a window not its own
 return {
-    Number = 37,
+    Number = 38,
 };
