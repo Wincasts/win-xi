@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+- Dragging works with Keep Mouse From Game Menus: the mouse's place is read from Windows (the cursor in
+  the game window's client area, scaled to imgui's display), not imgui's MousePos, which is fed by the
+  moves kept from the game and stopped where the first kept move was. The settings window keeps its
+  presses by its own place as last drawn, not imgui's WantCaptureMouse, which went stale the same way
+  and handed every press on a menu back as imgui's.
+
 ## 0.3
 
 - More menus, in groups: Lists (Abilities And Spells, Emotes, Mounts, Currencies, Missions, Quests,

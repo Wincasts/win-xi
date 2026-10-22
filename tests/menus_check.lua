@@ -61,10 +61,18 @@ check('its release kept though the menu has gone', Mouse(UP, 150, 150))
 MENUS.windows = { Inventory() }
 H.frames(1)
 
--- the settings window under the mouse has its presses
+-- the settings window under the mouse has its presses (drawn at 100, 200, 300 by 150 in the harness), whatever
+-- imgui says, as its word goes stale while moves are kept
+H.command('/menus')
+H.frames(1)
+check('a press on the settings window over the menu: not kept', not Mouse(DOWN, 200, 250))
+Mouse(UP, 200, 250)
+H.command('/menus')
+H.frames(1)
+H.wait(1)
 MENUS.captured = true
-check('a press with another imgui window under the mouse: not kept', not Mouse(DOWN, 150, 150))
-Mouse(UP, 150, 150)
+check('closed, imgui saying it has the mouse: a press on the menu kept still', Mouse(DOWN, 200, 250))
+Mouse(UP, 200, 250)
 MENUS.captured = false
 
 -- locked: the press kept, nothing moved

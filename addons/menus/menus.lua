@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.3'
+addon.version = '0.3.1'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -30,6 +30,7 @@ end
 
 require('common')
 local bit = require('bit')
+local ffi = require('ffi')
 local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
@@ -118,10 +119,19 @@ local FALLBACK_SECONDS = 2
 
 local function Save() app:Save() end
 
+-- The settings window's place as last drawn, and when: presses there are its own, though the mouse is kept from
+-- the game's menus under it (imgui's own word for it goes stale while moves are kept from the game)
+local settingsRect, settingsAt = nil, -1
+
 local modeIds = {}
 for _, mode in ipairs(Modes) do modeIds[mode] = mode .. '##menus.mode' end
 
 local function DrawSettings(options)
+    local x, y = imgui.GetWindowPos()
+    local w, h = imgui.GetWindowSize()
+    if type(x) == 'table' then x, y = x.x or x[1], x.y or x[2] end
+    if type(w) == 'table' then w, h = w.x or w[1], w.y or w[2] end
+    if x and y and w and h then settingsRect, settingsAt = { x, y, x + w, y + h }, os.clock() end
     for index, group in ipairs(Groups) do
         if widgets.Header(group.title, index == 1) then
             for _, menu in ipairs(group.menus) do
@@ -368,6 +378,36 @@ local MOVE, WHEEL, HWHEEL = 0x0200, 0x020a, 0x020e
 local kept = { false, false, false, false } -- by button: its press kept from the game, so its release is too
 
 local function Inside(x, y, r) return r and x >= r[1] and x < r[3] and y >= r[2] and y < r[4] end
+
+-- Where the mouse is, in imgui's display pixels: Windows' own cursor, in the game window's client area, scaled
+-- to the display. imgui's MousePos is not used while a drag is on: it is fed by the very messages kept from the
+-- game, so it stops where the first kept move was. imgui's is the fallback where Windows' cannot be had.
+pcall(ffi.cdef, [[
+    typedef struct { long x, y; } menus_point_t;
+    typedef struct { long left, top, right, bottom; } menus_rect_t;
+    int __stdcall GetCursorPos(menus_point_t*);
+    int __stdcall ScreenToClient(void*, menus_point_t*);
+    int __stdcall GetClientRect(void*, menus_rect_t*);
+]])
+local point, client = nil, nil
+local function Pointer(io)
+    local ok, x, y = pcall(function()
+        local window = AshitaCore:GetProperties():GetFinalFantasyHwnd()
+        if not window or window == 0 then return nil end
+        local handle = ffi.cast('void*', window)
+        point = point or ffi.new('menus_point_t')
+        client = client or ffi.new('menus_rect_t')
+        if ffi.C.GetCursorPos(point) == 0 or ffi.C.ScreenToClient(handle, point) == 0 or ffi.C.GetClientRect(handle, client) == 0 then return nil end
+        local width, height = client.right - client.left, client.bottom - client.top
+        local display = io.DisplaySize
+        local dw, dh = display.x or display[1], display.y or display[2]
+        if width <= 0 or height <= 0 or not dw or not dh then return nil end
+        return tonumber(point.x) * dw / width, tonumber(point.y) * dh / height
+    end)
+    if ok and x and y then return x, y end
+    local mouse = io.MousePos
+    return mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+end
 -- The area under the mouse, and whether it is over the menu as drawn (which can be dragged)
 local function Over(x, y)
     for _, area in ipairs(areas) do
@@ -396,8 +436,7 @@ ashita.events.register('mouse', 'menus_mouse', function(e)
     end
     if e.blocked or #areas == 0 then return end
     local io = imgui.GetIO()
-    local mouse = io.MousePos
-    local x, y = mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
+    local x, y = Pointer(io)
     if not x or not y then return end
     if message == MOVE then
         if drag then
@@ -409,8 +448,8 @@ ashita.events.register('mouse', 'menus_mouse', function(e)
         end
         return
     end
-    -- another window of imgui's under the mouse (the settings) has it
-    if io.WantCaptureMouse then return end
+    -- the settings window under the mouse has it, while it is open
+    if settingsRect and os.clock() - settingsAt < 0.5 and Inside(x, y, settingsRect) then return end
     if button then
         local area, drawn = Over(x, y)
         if not area then return end
