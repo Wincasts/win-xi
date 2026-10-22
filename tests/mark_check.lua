@@ -146,6 +146,26 @@ H.print('compact: the mark, its window and its placeholder\'s respawn, and no mo
 zone = 107; frames(); H.print('in another zone: where the mark is', wrote('West Ronfaure'), wrote('Forest Hare') == false)
 H.command('/mark compact')
 
+-- the timers pinned to the screen: outlined words in a window with no background, open with the main
+-- window closed (the Marks tab's buttons, clicked above, pinned them: they start unpinned here)
+local outlinedText, begun, buttons = require('winxi.text'), {}, {}
+local realOutlined, realBegin, realSmall = outlinedText.Outlined, imgui.Begin, imgui.SmallButton
+outlinedText.Outlined = function(words, color) texts[#texts + 1] = words; return realOutlined(words, color) end
+rawset(imgui, 'Begin', function(name, open, flags) begun[name] = flags or 0; return realBegin(name, open, flags) end)
+rawset(imgui, 'SmallButton', function(label) buttons[label] = true; return realSmall(label) end)
+zone = 100; o.isVisible[1], o.pinTimers[1] = false, false
+H.command('/mark timers'); frames()
+H.print('/mark timers: the mark, its window and its placeholder\'s respawn, the main window closed', o.pinTimers[1], exactly('Jaggedy-Eared Jack'), wrote('Window in '), wrote('Forest Hare (126)'), wrote('Respawns in'))
+H.print('with no background', begun['winxi.mark.timers'] ~= nil and bit.band(begun['winxi.mark.timers'], ImGuiWindowFlags_NoBackground) ~= 0)
+o.lockTimers[1] = true; begun = {}; frames()
+H.print('locked: held still and the mouse let through', bit.band(begun['winxi.mark.timers'] or 0, ImGuiWindowFlags_NoMove) ~= 0, bit.band(begun['winxi.mark.timers'] or 0, ImGuiWindowFlags_NoInputs) ~= 0)
+o.isVisible[1] = true; H.tab(2); frames(); H.tab(1)
+H.print('the Marks tab offers to unpin them', buttons['Unpin Timers'] == true, buttons['Pin Timers'] == nil)
+H.command('/mark timers'); begun = {}; frames()
+H.print('/mark timers again takes them away', o.pinTimers[1] == false, begun['winxi.mark.timers'] == nil)
+outlinedText.Outlined = realOutlined; rawset(imgui, 'Begin', realBegin); rawset(imgui, 'SmallButton', realSmall)
+o.lockTimers[1] = false; zone = 107; frames()
+
 H.command('/mark set lizz'); H.print('/mark set, by a part of a name:', H.printed[#H.printed], '|', #o.marks == 2 and o.marks[2].zone, o.viewName)
 frames(); H.print('a monster of two spawns, a lottery from a module', wrote('closed for 1 hr'), wrote('Rock Lizard'))
 H.tab(2); frames(); H.print('both marks are listed, the first with how its window stands', exactly('Jaggedy-Eared Jack'), exactly(o.marks[2].name), wrote('Window in ')); H.tab(1)

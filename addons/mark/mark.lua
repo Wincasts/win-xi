@@ -1,6 +1,6 @@
 addon.name    = 'mark';
 addon.author  = 'win';
-addon.version = '1.8';
+addon.version = '1.9';
 addon.desc    = 'Pick a notorious monster, make it your mark, and see how it appears, its placeholders and their respawns, where it spawns on the map, when its window opens and what it drops.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -25,6 +25,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 --   /mark compact         switches between the whole window and the marks' few lines
 --   /mark map             shows or hides the map
 --   /mark pin             pins or unpins the map (pinning also opens it)
+--   /mark timers          pins the Marks tab's timers to the screen, with no background, or unpins them
 --   /mark set <name>      makes a monster a mark, by its name or a part of it
 --   /mark clear           there are no marks any more (/mark clear <name>: that one is a mark no more)
 --   /mark tod             the mark (the one of the zone you are in, or the only one; failing that, the
@@ -43,6 +44,7 @@ local bit = require('bit');
 local imgui = require('imgui');
 local widgets = require('winxi.widgets');
 local tips = require('winxi.tooltip');
+local outlined = require('winxi.text');
 local window = require('winxi.window');
 local style = require('winxi.style');
 local shell = require('winxi.shell');
@@ -720,6 +722,7 @@ local chart = { zone = nil, name = nil, floor = nil, size = nil, here = nil, ent
     rects = {}, spots = {}, lines = {}, labels = {} };
 local mapState = mapView.New();
 local mapPlaced, mapMoved = false, false;
+local timersPlaced, timersMoved = false, false; -- the pinned timers: placed from the settings, and dragged since saved
 
 -- A region's outline, filled a few pixels at a time: the stretches of each row that lie inside it
 local function Fill(entry, scale, poly, color)
@@ -1106,10 +1109,47 @@ local function DrawCompact()
     return drawn;
 end
 
+-- The timers pinned to the screen: each monster of the Marks tab with how its window stands, and a
+-- mark's placeholders in the zone the player is in with their respawns, with no background, in
+-- outlined text so they can be read over the game
+local function DrawPinned()
+    local drawn = false;
+    for _, row in ipairs(live.rows) do
+        outlined.Outlined(row.name, row.mark and gold or widgets.HeaderColor);
+        imgui.SameLine();
+        local sight = row.here and live.sights[row.index or 0] or nil;
+        local timer = row.timer;
+        if sight ~= nil and sight.up then
+            outlined.Outlined(sight.text, green);
+        elseif timer ~= nil and timer.short ~= nil then
+            outlined.Outlined(timer.short, timer.open and green or amber);
+        else
+            outlined.Outlined('Unknown', dim);
+        end
+        for _, placeholder in ipairs(row.mark and row.here and row.placeholders or {}) do
+            local status = live.status[placeholder.index];
+            local tone = status ~= nil and status.tone or nil;
+            outlined.Outlined(placeholder.label, tone == nil and dim or nil);
+            imgui.SameLine();
+            outlined.Outlined(tone == nil and 'Not In Range' or status.text,
+                tone == 'up' and green or tone == 'due' and gold or tone == nil and dim or amber);
+        end
+        drawn = true;
+    end
+    if not drawn then
+        outlined.Outlined('Mark: no timers.', dim);
+    end
+end
+
 local wantTab = nil; -- a tab to be turned to: 1 for Database
 
 -- The Marks tab: every mark, and every other monster a time of death is kept for
 local function DrawMarks(options)
+    if imgui.SmallButton(options.pinTimers[1] and 'Unpin Timers' or 'Pin Timers') then
+        options.pinTimers[1] = not options.pinTimers[1];
+        app:Save();
+    end
+    tips.Hover('Pins these timers to the screen, with no background: each window, and the placeholders\' respawns in the zone you are in. They stay when the window is closed; drag them where you want them. /mark timers switches this.');
     if #live.rows == 0 then
         imgui.TextDisabled('No marks, and no times of death.');
         imgui.TextDisabled('Set As Mark or Report TOD, on the Database tab, puts a monster here.');
@@ -1586,6 +1626,9 @@ local defaults = T{
     pinMap = T{ false },         -- keep the map open when the main window is closed
     mapPos = T{ 160, 160 },      -- independent map window position
     mapSize = T{ 512 },          -- how many pixels across the map is drawn
+    pinTimers = T{ false },      -- the timers on the screen, with no background
+    lockTimers = T{ false },     -- held where they are, the mouse going through them
+    timersPos = T{ 100, 300 },
 };
 
 local windowName = 'winxi.mark';
@@ -1614,6 +1657,17 @@ local function DrawSettings(options)
     tips.Hover('The viewport size in pixels, independent of zoom. Native-resolution map pictures preserve more detail when enlarged; some source maps are only 512 pixels.');
 
     widgets.Gap();
+    widgets.Label('Pin Timers');
+    if imgui.Checkbox('##mark.pinTimers', options.pinTimers) then
+        app:Save();
+    end
+    tips.Hover('The Marks tab\'s timers on the screen with no background, whether or not the window is open: each window, and the placeholders\' respawns in the zone you are in. /mark timers switches this.');
+    widgets.Lock(options.lockTimers, '##mark.lockTimers', {
+        label = 'Lock Timers',
+        tooltip = 'Keeps the pinned timers where they are, and lets the mouse through them to the game. Off, they can be dragged.',
+    });
+
+    widgets.Gap();
     widgets.Label('Show Scripted Spawns');
     imgui.Checkbox('##mark.scripted', options.showScripted);
     tips.Hover('Lists the notorious monsters a quest, a battlefield or an event brings as well: the server\'s data has their drops, and nothing of how they are brought.');
@@ -1638,7 +1692,7 @@ app = shell.New({
     window = windowName,
     configTitle = 'Mark Settings',
     command = '/mark',
-    help = '/mark shows or hides the window; /mark config opens or closes the settings; /mark stats opens hunting statistics; /mark compact switches to the marks\' few lines and back; /mark map shows or hides the map; /mark pin keeps the map open independently; /mark set <name> makes a monster a mark; /mark clear [name] leaves none, or one fewer; /mark tod [minutes ago | hours:minutes | clear] keeps a mark\'s time of death; /mark ph <ID> [minutes ago | clear] times a placeholder.',
+    help = '/mark shows or hides the window; /mark config opens or closes the settings; /mark stats opens hunting statistics; /mark compact switches to the marks\' few lines and back; /mark map shows or hides the map; /mark pin keeps the map open independently; /mark timers pins the timers to the screen; /mark set <name> makes a monster a mark; /mark clear [name] leaves none, or one fewer; /mark tod [minutes ago | hours:minutes | clear] keeps a mark\'s time of death; /mark ph <ID> [minutes ago | clear] times a placeholder.',
     drawSettings = DrawSettings,
     onSettings = function(options)
         ResetLive(); -- reloaded settings or a different character: no observations carry over
@@ -1657,8 +1711,14 @@ app = shell.New({
             or math.abs(options.mapPos[1]) == math.huge or math.abs(options.mapPos[2]) == math.huge then
             options.mapPos = T{ options.pos[1] + 60, options.pos[2] + 60 };
         end
+        if type(options.timersPos) ~= 'table' or type(options.timersPos[1]) ~= 'number' or type(options.timersPos[2]) ~= 'number'
+            or options.timersPos[1] ~= options.timersPos[1] or options.timersPos[2] ~= options.timersPos[2]
+            or math.abs(options.timersPos[1]) == math.huge or math.abs(options.timersPos[2]) == math.huge then
+            options.timersPos = T{ defaults.timersPos[1], defaults.timersPos[2] };
+        end
+        timersPlaced, timersMoved = false, false;
         -- anything a saved file has in another shape than it should
-        for _, key in ipairs({ 'compact', 'announce', 'sound', 'announcePlaceholders', 'showScripted', 'maxTh', 'showMap', 'mapSize', 'tods', 'marks' }) do
+        for _, key in ipairs({ 'compact', 'announce', 'sound', 'announcePlaceholders', 'showScripted', 'maxTh', 'showMap', 'mapSize', 'tods', 'marks', 'pinTimers', 'lockTimers' }) do
             if type(options[key]) ~= 'table' then
                 options[key] = defaults[key];
             end
@@ -1717,6 +1777,10 @@ app = shell.New({
             if options.pinMap[1] then
                 options.showMap[1] = true;
             end
+            app:Save();
+        end,
+        timers = function(options)
+            options.pinTimers[1] = not options.pinTimers[1];
             app:Save();
         end,
         ph = function(options, args)
@@ -1849,6 +1913,18 @@ local function drawMapWindow()
     end
 end
 
+local timersWindowName = 'winxi.mark.timers';
+local clear = { 0, 0, 0, 0 };
+local function drawTimersWindow()
+    local options = app.options;
+    DrawPinned();
+    local x, y = imgui.GetWindowPos();
+    if x ~= options.timersPos[1] or y ~= options.timersPos[2] then
+        options.timersPos[1], options.timersPos[2] = x, y;
+        timersMoved = true;
+    end
+end
+
 ashita.events.register('packet_in', 'mark_hunting_packets', function(e)
     if e.id ~= 0x029 and e.id ~= 0x0D2 then return; end
     if e.blocked or e.injected or not settings.logged_in or game.IsLoading() then return; end
@@ -1906,5 +1982,21 @@ ashita.events.register('d3d_present', 'mark_present', function()
         end
     else
         mapState.mouseX, mapState.mouseY = nil, nil;
+    end
+    if options.pinTimers[1] then
+        if not timersPlaced then
+            imgui.SetNextWindowPos(options.timersPos, ImGuiCond_Always);
+            timersPlaced = true;
+        end
+        local flags = bit.bor(style.TitlelessFlags(), ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoScrollbar,
+            ImGuiWindowFlags_NoScrollWithMouse, ImGuiWindowFlags_NoFocusOnAppearing, ImGuiWindowFlags_NoBringToFrontOnFocus);
+        window.Plain(timersWindowName, options.pinTimers, flags, drawTimersWindow, {
+            background = clear, border = clear, shadow = false,
+            locked = options.lockTimers[1], clickThrough = options.lockTimers[1],
+        });
+        if timersMoved and not imgui.IsMouseDown(0) then
+            timersMoved = false;
+            app:Save();
+        end
     end
 end);

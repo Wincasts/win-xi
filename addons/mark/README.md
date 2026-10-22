@@ -14,6 +14,7 @@ without it the game's.
 - `/mark compact` switches between the whole window and the marks' few lines
 - `/mark map` shows or hides the map
 - `/mark pin` pins or unpins the map; pinning also opens it, even if the main window is closed
+- `/mark timers` pins the timers to the screen, or unpins them
 - `/mark set <name>` makes a monster a mark, by its name or a part of it (one of the zone you are in
   before any other)
 - `/mark clear` leaves no marks, and `/mark clear <name>` takes away the one with that in its name
@@ -77,6 +78,13 @@ turns to the first tab with that monster on show, **TOD** says it died just now,
 its time of death, and **Clear Mark** or **Set As Mark** takes it off the marks or puts it on them. A
 monster that is no mark and has no time of death leaves the list. Under a mark of the zone you are in
 are its placeholders, each with its own next spawn.
+
+**Pin Timers**, over the list (or `/mark timers`), puts the same timers on the screen with no
+background: each monster's name and how its window stands (or that it is up), and under a mark of the
+zone you are in its placeholders with their respawns, in outlined text so they can be read over the
+game. They stay when the window is closed. Drag them where you want them, and **Lock Timers** in the
+settings holds them there and lets the mouse through to the game. **Unpin Timers** takes them away.
+The settings have **Pin Timers** too, and the place is saved with them.
 
 There can be as many marks as are wanted. Each is watched whether or not the window is showing:
 
