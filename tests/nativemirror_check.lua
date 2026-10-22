@@ -103,4 +103,42 @@ check('another ABI: not asked', not mirror.Request({ { name = 'inventor' } }) an
 block.Version = 2; now = 30
 block.Supported = 0
 check('not recognised in the client: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('did not recognise'))
+
+-- letters: the menu font's boxes as the game cuts them, read back as words
+local function uv(x0, y0, x1, y1) return { x0 / 256, y0 / 256, x1 / 256, y1 / 256 } end
+check('a letter by the game\'s box', native.Letter(uv(22, 52, 31, 64)) == 'S')
+check('a letter within the slack', native.Letter(uv(24, 53, 32, 63)) == 'S')
+check('no letter past it', native.Letter(uv(26, 52, 35, 64)) == nil)
+check('a box larger than a letter is none', native.Letter({ 0.25, 0, 1, 0.25 }) == nil)
+local plain, faint, tint = { 1, 1, 1, 1 }, { 1, 1, 1, 0.38 }, { 1, 0.625, 0.25, 1 }
+local boxes = { S = { 22, 52, 31, 64 }, t = { 0, 92, 6, 102 }, a = { 49, 67, 57, 76 }, u = { 7, 93, 16, 102 }, s = { 106, 80, 115, 89 },
+    P = { 113, 39, 122, 50 }, r = { 98, 80, 105, 89 }, y = { 50, 93, 59, 105 }, E = { 0, 39, 9, 50 }, i = { 10, 78, 15, 89 } }
+local quads = {}
+local function spell(word, x, y, color, shadow)
+    for c in word:gmatch('.') do
+        if c ~= ' ' then
+            local b = boxes[c]
+            if shadow then quads[#quads + 1] = { phase = native.Element, uv = uv(unpack(b)), color = faint, rect = { x + 1, y + 1, x + 10, y + 13 } } end
+            quads[#quads + 1] = { phase = native.Element, uv = uv(unpack(b)), color = color, rect = { x, y + (c == 'a' and 2 or 0), x + 9, y + 12 } }
+        end
+        x = x + (c == ' ' and 6 or 8)
+    end
+end
+spell('Status', 100, 50, tint, true)
+spell('Party', 100, 64, plain, true)
+spell('Eta', 100, 78, plain, false); spell('Pi', 200, 78, plain, false) -- far apart: two runs
+spell('Pa rty', 100, 92, plain, false)
+quads[#quads + 1] = { phase = native.Element, uv = { 0.25, 0, 1, 0.25 }, color = plain, rect = { 90, 48, 180, 62 } } -- a bar
+quads[#quads + 1] = { phase = native.Content, uv = uv(22, 52, 31, 64), color = plain, rect = { 0, 0, 9, 12 } } -- contents are not labels
+local words, used = native.Words(quads)
+local texts = {}
+for _, w in ipairs(words) do texts[#texts + 1] = w.text end
+check('words read in lines, top to bottom: ' .. table.concat(texts, '|'), table.concat(texts, '|') == 'Status|Party|Eta|Pi|Pa rty')
+check('the tinted word lit, the others not', words[1].lit and not words[2].lit)
+check('a word\'s colour its letters\', not its shadow\'s', words[2].color[4] == 1)
+check('a word placed where its letters are', words[1].rect[1] == 100 and words[1].rect[2] == 50 and words[3].rect[3] == 100 + 2 * 8 + 9)
+local count = 0
+for i in pairs(used) do count = count + 1; assert(quads[i].phase == native.Element and native.Letter(quads[i].uv)) end
+check('letters and shadows read, the bar and the contents left', count == #quads - 2 and not used[#quads] and not used[#quads - 1])
+check('nothing spelled, nothing read', #native.Words({ quads[#quads - 1] }) == 0)
 print('0 failures')

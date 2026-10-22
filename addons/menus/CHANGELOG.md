@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5
+
+- The Picture Label Menus' words in the theme's font. The game spells those labels one letter at a time,
+  each letter an element cut from its menu font; winxi 36 reads the letters back into words (a table of
+  where each letter sits in the font, taken from the game's own sheet with uihook 0.99's
+  `/uihook mirror labels`), leaving out the faint shadow the game draws under each. Anything that is not
+  a letter of that font (the button bars, a title in another font) is still the game's art.
+- Needs winxi 36 (uihook 0.98 or newer).
+
 ## 0.4
 
 - [Experimental] Picture Label Menus, off to start: the Main Menu, Command Menu, Magic and Ability

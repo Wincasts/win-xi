@@ -134,6 +134,15 @@ MENUS.windows = { items }
 images = H.calls['draw.AddImage'] or 0
 H.frames(1)
 check('an item list\'s element not drawn', (H.calls['draw.AddImage'] or 0) - images == 0)
+-- its labels spelled from the game's font: drawn as words, their letters not drawn as art
+local spelled = Element(100); spelled.word = 'Status'
+mainMenu.quads = { spelled, Element(136) }
+MENUS.windows = { mainMenu }
+images = H.calls['draw.AddImage'] or 0
+local texts = H.calls['draw.AddText'] or 0
+H.frames(1)
+check('a spelled label drawn as words', (H.calls['draw.AddText'] or 0) > texts)
+check('its letters not drawn as art, the other element still', (H.calls['draw.AddImage'] or 0) - images == 1)
 check('nothing printed for them', #H.printed == 0)
 
 -- unloaded: the mirror stopped

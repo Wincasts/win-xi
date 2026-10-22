@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.4'
+addon.version = '0.5'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 35
+local winxiNeeded = 36
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -296,15 +296,27 @@ local function DrawContents(list, window)
     -- elements, the labels, in their own colours (the cursor's tint left to the row lit under it; a greyed one kept
     -- faint)
     local labels = byName[window.name] and byName[window.name].labels
-    for _, quad in ipairs(window.quads) do
+    -- the labels spelled from the game's menu font read back as words, drawn in the theme's; their letters not drawn
+    local words, spelled = {}, {}
+    if labels then words, spelled = nativemirror.Words(window.quads) end
+    for i, quad in ipairs(window.quads) do
         local element = quad.phase == nativemirror.Element
-        if element and labels and quad.texture then
+        if spelled[i] then
+            -- read as a letter of a word below
+        elseif element and labels and quad.texture then
             local q, uv, faint = quad.rect, quad.uv, quad.color[4]
             list:AddImage(quad.texture, { q[1], q[2] }, { q[3], q[4] }, { uv[1], uv[2] }, { uv[3], uv[4] }, imgui.GetColorU32({ 1, 1, 1, faint }))
         elseif not element and quad.texture then
             local q, uv = quad.rect, quad.uv
             list:AddImage(quad.texture, { q[1], q[2] }, { q[3], q[4] }, { uv[1], uv[2] }, { uv[3], uv[4] }, imgui.GetColorU32(quad.color))
         end
+    end
+    for _, word in ipairs(words) do
+        local t = word.rect
+        local size = math.max(8, math.floor(word.tall + 0.5))
+        imgui.PushFont(nil, size)
+        text.Draw(list, t[1], t[2], TextColor({ 1, 1, 1, word.color[4] }), word.text)
+        imgui.PopFont()
     end
     -- the text, each run where the game printed it, in the theme's font at the height of the game's letters
     for _, run in ipairs(window.runs) do

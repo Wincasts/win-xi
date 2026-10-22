@@ -31,10 +31,11 @@ Which of the game's windows are mirrored, in four groups; off, the game draws it
 - **Status** (off): Status, Level And EXP, Profile, Job Levels, Combat Skills, Crafting Skills, Gil.
 - **[Experimental] Picture Label Menus** (off): Main Menu, Command Menu, Magic Categories, Ability
   Categories, Status Menu, Config Menu, Mog House Menu, Mog House Options, Item Sort, Macro Menu,
-  Mission Menu, Friend List Menu, Communication Menu, Unity Menu, Bazaar Menu. Their words are
-  pictures the game draws; each is drawn as a winxi panel with the game's own label art, the row the
-  cursor is on lit and the hand. In Outline their labels are outlined in purple. Labels in the winxi
-  font are to come.
+  Mission Menu, Friend List Menu, Communication Menu, Unity Menu, Bazaar Menu. The game spells their
+  words one letter at a time from its menu font; each is drawn as a winxi panel with those words read
+  back and drawn in the theme's font, the row the cursor is on lit and the hand. What is not a letter
+  of that font (button bars, a title) is the game's own art. In Outline their elements are outlined in
+  purple.
 - **Config** (off): Chat Filters, Battle Message Filters, Chat Colors.
 
 The Status and Config windows also draw some of their labels as pictures. Those drawn with a window's
