@@ -61,6 +61,12 @@ end
 local app
 local mirror = nativemirror.new()
 
+-- A window left undrawn whose place, or whose text's, could not be measured is given back to the game for a
+-- while, so a menu is never left unseen or half drawn: its name -> the time until which it is the game's, and
+-- why, for the settings
+local nativeUntil, nativeWhy = {}, {}
+local FALLBACK_SECONDS = 2
+
 ---------------------------------------------------------------------------------------------------
 -- Settings
 ---------------------------------------------------------------------------------------------------
@@ -124,11 +130,6 @@ app = shell.New({
 -- Drawing
 ---------------------------------------------------------------------------------------------------
 
--- A window left undrawn whose place, or whose text's, could not be measured is given back to the game for a
--- while, so a menu is never left unseen or half drawn: its name -> the time until which it is the game's, and
--- why, for the settings
-local nativeUntil, nativeWhy = {}, {}
-local FALLBACK_SECONDS = 2
 local function GiveBack(name, why, now)
     nativeUntil[name] = now + FALLBACK_SECONDS
     nativeWhy[name] = why
