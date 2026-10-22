@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1
+
+- Mirror ABI 4: an addon may ask for 128 windows (was 64), `Hide` four words of 32 bits. menus has
+  80. Needs winxi 40.
+
 ## 1.01
 
 - `/uihook mirror labels` writes the contents' art too (item icons, and letters the game draws one quad

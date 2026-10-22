@@ -78,7 +78,7 @@ static uint32_t __fastcall CensusFont(void*,void*,int32_t,int32_t,const char*,ui
 static Detour CensusBitmapDetour = { CENSUS_TEXT_PATTERN, CENSUS_TEXT_STOLEN, -1, reinterpret_cast<void*>(&CensusBitmap), nullptr, nullptr, {} };
 static Detour CensusScaledDetour = { CENSUS_SCALED_PATTERN, CENSUS_SCALED_STOLEN, -1, reinterpret_cast<void*>(&CensusScaled), nullptr, nullptr, {} };
 static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, reinterpret_cast<void*>(&CensusFont), nullptr, nullptr, {} };
-// The menu mirror (mirror ABI 3): zero in the DLL's file, its magic written as the module initializes. Its
+// The menu mirror (mirror ABI 4): zero in the DLL's file, its magic written as the module initializes. Its
 // text is heard through the census's three routes, taken with Window::Render; the contents' call in
 // Window::Render aimed at MirrorContent.
 static MirrorShared MirrorBlock;
@@ -406,7 +406,7 @@ public:
             }
         }
         // The menu mirror: zero in the file, its magic written now; supported where its four sites are found
-        memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=3; MirrorBlock.Size=sizeof(MirrorShared);
+        memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=4; MirrorBlock.Size=sizeof(MirrorShared);
         MenuMirror.shared=&MirrorBlock;
         if (module.lpBaseOfDll && TakeMirror(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) MirrorBlock.Supported=1;
         core->GetChatManager()->Write(0,false, Shared.Hooked ?

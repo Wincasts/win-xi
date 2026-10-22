@@ -20,8 +20,8 @@ ffi.cast = function(kind, at) if kind == 'uihook_mirror_t*' then return block en
 local function check(label, ok) print(label, ok); assert(ok, label) end
 
 ffi.copy(block.Magic, 'UIHOOK-MIRROR')
-block.Version, block.Size, block.Frame, block.Supported = 3, ffi.sizeof('uihook_mirror_t'), 50, 1
-check('the block is the size uihook\'s is (mirror ABI 3)', ffi.sizeof('uihook_mirror_t') == 83080 and ffi.sizeof('uihook_mirror_run_t') == 44 and ffi.sizeof('uihook_mirror_window_t') == 132)
+block.Version, block.Size, block.Frame, block.Supported = 4, ffi.sizeof('uihook_mirror_t'), 50, 1
+check('the block is the size uihook\'s is (mirror ABI 4)', ffi.sizeof('uihook_mirror_t') == 84112 and ffi.sizeof('uihook_mirror_run_t') == 44 and ffi.sizeof('uihook_mirror_window_t') == 132)
 local mirror = native.new()
 
 -- requests: names padded as the game keeps them, the hidden ones' bits, then the commit
@@ -39,6 +39,10 @@ check('all forty hidden: 32 bits and 8', block.Hide[0] == 0xffffffff and block.H
 many[32].hide = false
 mirror.Request(many)
 check('the 32nd watched: its bit alone clear', block.Hide[0] == 0x7fffffff and block.Hide[1] == 0xff)
+for i = 41, 128 do many[i] = { name = ('m%d'):format(i), hide = true } end
+mirror.Request(many)
+check('128 asked, all but the 32nd hidden: every word whole', block.Hide[0] == 0x7fffffff and block.Hide[1] == 0xffffffff and block.Hide[2] == 0xffffffff and block.Hide[3] == 0xffffffff
+    and ffi.string(block.Requests[127], 16) == 'menu    m128    ')
 check('asked again', mirror.Request({ { name = 'inventor', hide = true }, { name = 'iteminfo' }, { name = 'far too long' }, { name = 'bank', hide = true } }))
 check('committed at the block\'s frame', block.RequestFrame == 50)
 
@@ -110,7 +114,7 @@ check('uihook not loaded: not asked', not mirror.Request({ { name = 'inventor' }
 loaded = true; base = 200; now = 20
 block.Version = 1
 check('another ABI: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('Update uihook'))
-block.Version = 3; now = 30
+block.Version = 4; now = 30
 block.Supported = 0
 check('not recognised in the client: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('did not recognise'))
 

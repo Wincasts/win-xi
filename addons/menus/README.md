@@ -24,7 +24,7 @@ is scaled or moved: then Keep Mouse From Game Menus keeps the mouse from the gam
 Every section collapses with its [-]/[+]. Mirror and Mouse come first and start open; the groups of menus
 start collapsed.
 
-Which of the game's windows are mirrored, in five groups; off, the game draws its own. In each group the
+Which of the game's windows are mirrored, in eleven groups; off, the game draws its own. In each group the
 menus sit three to a row, each a checkbox with its name, under an All checkbox that switches the whole
 group (on where every one of them is):
 
@@ -41,6 +41,21 @@ group (on where every one of them is):
   on the panel's top edge as a winxi title (every mirrored menu that has one). In Outline their elements are outlined in
   purple.
 - **Config** (off): Chat Filters, Battle Message Filters, Chat Colors.
+- **[Experimental] Equipment And Items** (off): Equipment, Item Quantity, Gil Amount, Use Item, Item
+  Sort Options.
+- **[Experimental] Auction House** (off): Auction House, Categories, Weapons, Armor, Scrolls, Materials,
+  Food, Ammunition, Items, Item List, Price History.
+- **[Experimental] Shops And Prompts** (off): Shop Menu, Sell, Yes Or No, Sort Yes Or No, Question,
+  Party Invitation.
+- **[Experimental] Mog House And Delivery** (off): Mog House Exit, Storage, Delivery Menu, Delivery
+  Box, Send Box, Job Change Menu, Job Select.
+- **[Experimental] Jobs** (off): Ability Menu, Ability Sort, Automaton, Automaton Status, Automaton
+  Menu, Blue Magic Spells, Blue Magic Info.
+- **[Experimental] Other Menus** (off): Map Menu, Social Menu.
+
+The six experimental groups were found in play with `/uihook census` and have not yet been looked at
+mirrored: try them in Outline first. Their names are best guesses from the game's own; the HUD and
+chat windows (the party list, target, chat log, network) are left to the addons that draw them.
 
 The Status and Config windows also draw some of their labels as pictures. Those drawn with a window's
 contents come through as the game's art; any drawn with its frame would be lost. Look at them in

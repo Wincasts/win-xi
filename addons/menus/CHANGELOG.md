@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7
+
+- 38 more windows, found in play with `/uihook census`, in six new [Experimental] groups, off to
+  start: Equipment And Items (Equipment, Item Quantity, Gil Amount, Use Item, Item Sort Options),
+  Auction House (its menus, categories, item list and price history), Shops And Prompts (Shop Menu,
+  Sell, Yes Or No, Sort Yes Or No, Question, Party Invitation), Mog House And Delivery (Mog House
+  Exit, Storage, Delivery Menu, Delivery Box, Send Box, Job Change Menu, Job Select), Jobs (Ability
+  Menu, Ability Sort, the automaton's windows, Blue Magic Spells and Info) and Other Menus (Map Menu,
+  Social Menu). A menu may spell its words as the label menus do whatever its group.
+- Needs uihook 1.1 and winxi 40: 80 menus are more than the mirror's 64.
+
 ## 0.6
 
 - Window titles: the game writes a menu's title ("Commands") in serif letters, one element each; they

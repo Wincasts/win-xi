@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.6'
+addon.version = '0.7'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 39
+local winxiNeeded = 40
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -104,11 +104,65 @@ local Groups = {
         { name = 'fxfilter', label = 'Battle Message Filters', tip = 'Which battle messages are shown.' .. CHECK_FIRST },
         { name = 'textcol1', label = 'Chat Colors', tip = 'The colours of the kinds of chat.' .. CHECK_FIRST },
     } },
+    -- Found in play with /uihook census (2026-10-22) and not yet seen mirrored, so each group is experimental. A menu
+    -- marked labels spells its words as the label menus do (most share their drawer in the game, 0011BA30); the
+    -- rest print theirs through the text routines.
+    { title = 'Equipment And Items', on = false, experimental = true, menus = {
+        { name = 'equip', label = 'Equipment', tip = 'Your equipment and the slots to change it in.' },
+        { name = 'itemctrl', label = 'Item Quantity', tip = 'How many of an item, when trading or dropping some.' },
+        { name = 'moneyctr', label = 'Gil Amount', tip = 'How much gil, when trading it.' },
+        { name = 'iuse', label = 'Use Item', labels = true, tip = 'The choices for the item the cursor is on: use it, drop it.' },
+        { name = 'itmsort2', label = 'Item Sort Options', labels = true, tip = 'The second list of the item list\'s choices.' },
+    } },
+    { title = 'Auction House', on = false, experimental = true, menus = {
+        { name = 'auc1', label = 'Auction House', labels = true, tip = 'The auction house\'s first choices: buy, sell, history.' },
+        { name = 'auc2', label = 'Categories', labels = true, tip = 'The kinds of goods to browse.' },
+        { name = 'aucweapo', label = 'Weapons', labels = true, tip = 'The kinds of weapon.' },
+        { name = 'aucarmor', label = 'Armor', labels = true, tip = 'The kinds of armor.' },
+        { name = 'aucmagic', label = 'Scrolls', labels = true, tip = 'The kinds of scroll.' },
+        { name = 'aucmater', label = 'Materials', labels = true, tip = 'The kinds of crafting material.' },
+        { name = 'aucfood', label = 'Food', labels = true, tip = 'The kinds of food.' },
+        { name = 'aucammo', label = 'Ammunition', labels = true, tip = 'The kinds of ammunition.' },
+        { name = 'aucitem', label = 'Items', labels = true, tip = 'The other kinds of goods.' },
+        { name = 'auclist', label = 'Item List', tip = 'The goods of a kind, as listed for sale.' },
+        { name = 'auchisto', label = 'Price History', tip = 'What an item sold for, and when.' },
+    } },
+    { title = 'Shops And Prompts', on = false, experimental = true, menus = {
+        { name = 'shopmain', label = 'Shop Menu', labels = true, tip = 'A shop\'s first choices: buy or sell.' },
+        { name = 'shopsell', label = 'Sell', labels = true, tip = 'Selling to a shop.' },
+        { name = 'comyn', label = 'Yes Or No', tip = 'A question asked yes or no.' },
+        { name = 'sortyn', label = 'Sort Yes Or No', labels = true, tip = 'Whether to sort the items.' },
+        { name = 'query', label = 'Question', labels = true, tip = 'A question the game asks with its choices.' },
+        { name = 'prtyjoin', label = 'Party Invitation', labels = true, tip = 'An invitation to join a party.' },
+    } },
+    { title = 'Mog House And Delivery', on = false, experimental = true, menus = {
+        { name = 'mogdoor', label = 'Mog House Exit', tip = 'Where to go from the Mog House door.' },
+        { name = 'storage', label = 'Storage', labels = true, tip = 'The Mog House\'s storage choices.' },
+        { name = 'mogpost', label = 'Delivery Menu', labels = true, tip = 'The delivery box\'s choices.' },
+        { name = 'post1', label = 'Delivery Box', tip = 'What has been delivered to you.' },
+        { name = 'post2', label = 'Send Box', tip = 'What you are sending.' },
+        { name = 'jobchang', label = 'Job Change Menu', labels = true, tip = 'The Moogle\'s job change choices.' },
+        { name = 'jobcselu', label = 'Job Select', tip = 'The jobs to change to, with their levels.' },
+    } },
+    { title = 'Jobs', on = false, experimental = true, menus = {
+        { name = 'abimenu', label = 'Ability Menu', labels = true, tip = 'The kinds of ability: job abilities, weapon skills and the rest.' },
+        { name = 'abisortw', label = 'Ability Sort', labels = true, tip = 'How the abilities are sorted.' },
+        { name = 'automato', label = 'Automaton', tip = 'Your automaton: its head, frame and attachments.' },
+        { name = 'statpup', label = 'Automaton Status', tip = 'Your automaton\'s attributes.' },
+        { name = 'pupequip', label = 'Automaton Menu', labels = true, tip = 'The choices for setting up your automaton.' },
+        { name = 'bluinven', label = 'Blue Magic Spells', tip = 'The blue magic spells to set.' },
+        { name = 'bluehelp', label = 'Blue Magic Info', tip = 'What the blue magic spell the cursor is on does.' },
+    } },
+    { title = 'Other Menus', on = false, experimental = true, menus = {
+        { name = 'map0', label = 'Map Menu', labels = true, tip = 'The map\'s choices.' },
+        { name = 'socialme', label = 'Social Menu', labels = true, tip = 'The social menu: party, linkshell, friends.' },
+    } },
 }
 local Menus = {} -- every menu of every group, in order
 for _, group in ipairs(Groups) do
     for _, menu in ipairs(group.menus) do
-        menu.on, menu.labels = group.on, group.labels
+        menu.on = group.on
+        if menu.labels == nil then menu.labels = group.labels end
         Menus[#Menus + 1] = menu
     end
 end
@@ -156,7 +210,7 @@ local GRID_COLUMNS = 3
 local function DrawGroup(options, group)
     local all = true
     for _, menu in ipairs(group.menus) do all = all and options['mirror_' .. menu.name][1] end
-    widgets.Label('All', group.labels)
+    widgets.Label('All', group.labels or group.experimental)
     local every = { all }
     if imgui.Checkbox('##menus.all.' .. group.title, every) then
         for _, menu in ipairs(group.menus) do options['mirror_' .. menu.name][1] = every[1] end
