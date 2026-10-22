@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Optional private unpacked client verification; never commit/distribute the dump.
 Usage: python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt
-The census's three text routines: each unique, the wrappers around them calling them, and the bitmap
-route drawing its glyphs through Sprite::Draw.
+The census's three text routines: each unique, and the wrappers around them calling them; and the
+mirror's call to a window's contents, unique and inside Window::Render.
 """
 import re
 import struct
@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 
 text = (Path(__file__).resolve().parents[1] / 'src/modules/mirror/census.h').read_text()
+text += (Path(__file__).resolve().parents[1] / 'src/modules/mirror/mirror.h').read_text()
+text += (Path(__file__).resolve().parents[1] / 'src/modules/party/game.h').read_text()
 data = Path(sys.argv[1]).read_bytes()
 base = int(re.search(r'base (0x[0-9A-Fa-f]+)', Path(sys.argv[2]).read_text())[1], 16)
 
@@ -43,4 +45,16 @@ assert at + len(wrapper) + 4 + struct.unpack_from('<i', data, at + len(wrapper))
 assert len(callers(font)) >= 2, 'font callers'
 for name, at in (('bitmap', bitmap), ('scaled', scaled), ('font', font)):
     print(f'{name}: {len(callers(at))} callers at {base + at:08X}')
+# the mirror's site: mov edx,[ecx]; call [edx+10] in Window::Render (its prologue may be the detour's jump in a dump
+# taken with uihook loaded, so it is found from its later bytes)
+site = unique('MIRROR_CONTENT_PATTERN')
+at = int(re.search(r'#define MIRROR_CONTENT_AT (\d+)', text)[1])
+assert data[site + at:site + at + 5] == bytes.fromhex('8B 11 FF 52 10'), 'content call'
+tail = re.search(r'#define WINDOW_PATTERN "([^"]+)"', text)[1].split()[6:]  # past the six bytes a loaded uihook's jump covers
+regex = b''.join(b'.' if token == '??' else re.escape(bytes.fromhex(token)) for token in tail)
+renders = [m.start() - 6 for m in re.finditer(regex, data, re.S)]
+assert len(renders) == 1, ('Window::Render', renders)
+render = renders[0]
+assert 0 <= site - render < 0x800, ('content call outside Window::Render', render, site)
+print(f'content call at {base + site + at:08X}')
 print('census client check passed')
