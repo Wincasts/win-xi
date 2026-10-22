@@ -68,6 +68,7 @@
 --     Stop, Status; Decode and Color for the game's text and colours
 -- 34: nativemirror on uihook 0.97's mirror ABI 2: 32 windows asked for, 16 published a frame
 -- 35: nativemirror.Element, the phase of a window's own elements (uihook 0.98): labels drawn as pictures
+-- 36: nativemirror.Letter and Words: the labels the game spells from its menu font, one element a letter, read back
 return {
-    Number = 35,
+    Number = 36,
 };

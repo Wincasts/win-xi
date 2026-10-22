@@ -27,8 +27,8 @@
 -- measured), x and y where the game was told to print it, in its units. A quad is a draw of the game's art: in
 -- the contents (phase Content: an item's icon), or one of the window's own elements (phase Element: a label of
 -- a menu whose words are pictures, a button), the one the cursor is on drawn tinted. texture is the game's
--- IDirect3DBaseTexture8 as a number, held by uihook for two frames presented, for imgui's AddImage; with the
--- window's name, uv is a label's lasting key.
+-- IDirect3DBaseTexture8 as a number, held by uihook for two frames presented, for imgui's AddImage. Where a
+-- menu spells its labels from the game's menu font, one element a letter, Words(quads) reads them back.
 local ffi = require('ffi')
 local bit = require('bit')
 ffi.cdef[[
@@ -106,6 +106,125 @@ end
 function M.Color(value)
     local function part(shift) return math.min(1, bit.band(bit.rshift(value, shift), 0xff) / 128) end
     return { part(16), part(8), part(0), part(24) }
+end
+
+-- The letters of the game's menu font (the 256x256 sheet the main and command menus spell their labels from, one
+-- element a letter): each one's box in the sheet, in texels, as the game cuts it. Read from the sheet and the
+-- game's own boxes (uihook's /uihook mirror labels); a quad whose uv is within LETTER_SLACK texels of one on
+-- every side is that letter. A sheet of another size (a font replaced) matches nothing and is drawn as art.
+local LETTERS = {
+    '!',14,0,16,10, '"',21,0,27,10, '#',30,0,38,10, '$',42,0,49,10, '%',51,0,60,10, '&',61,0,70,10,
+    '\'',74,0,77,10, '(',82,0,86,10, ')',95,0,99,10, '*',101,0,110,10, '+',112,0,118,10, ',',3,14,6,24,
+    '-',12,14,17,24, '.',24,14,27,24, '/',32,14,38,24, '0',42,14,48,24, '1',52,14,56,24, '2',62,14,68,24,
+    '3',72,14,78,24, '4',81,14,88,24, '5',92,14,98,24, '6',101,14,108,24, '7',112,14,118,24, '8',1,27,8,37,
+    '9',10,27,17,37, ':',20,27,23,37, ';',26,27,29,37, '<',32,27,36,37, '=',41,27,46,37, '>',49,27,54,37,
+    '?',57,27,64,37, '@',67,27,75,37, 'A',77,26,86,37, 'B',89,27,96,37, 'C',98,27,104,37, 'D',109,27,115,37,
+    '...',118,27,123,37, 'E',0,39,9,50, 'F',13,40,18,49, 'G',21,40,28,49, 'H',33,40,39,49, 'I',42,39,48,50,
+    'J',50,40,56,49, 'K',60,40,66,49, 'L',69,39,78,50, 'M',80,39,89,50, 'N',93,40,100,49, 'O',103,40,111,49,
+    'P',113,39,122,50, 'Q',1,53,8,63, 'R',11,52,21,63, 'S',22,52,31,64, 'T',31,52,40,63, 'U',43,53,49,63,
+    'V',53,53,60,63, 'W',64,53,71,63, 'X',78,53,85,63, 'Y',89,53,96,63, 'Z',100,53,107,63, '[',115,53,119,63,
+    '\\',3,66,8,77, ']',14,66,18,77, '^',22,66,28,77, '_',32,66,39,77, '`',43,66,47,77, 'a',49,67,57,76,
+    'b',58,65,67,76, 'c',68,67,77,76, 'd',78,65,87,76, 'e',89,67,98,76, 'f',99,65,106,76, 'g',107,67,116,79,
+    'h',0,78,9,89, 'i',10,78,15,89, 'j',18,79,22,90, 'k',25,78,34,89, 'l',35,78,41,89, 'm',42,80,51,89,
+    'n',56,80,65,89, 'o',66,80,75,89, 'p',76,80,85,92, 'q',87,80,96,92, 'r',98,80,105,89, 's',106,80,115,89,
+    '©',117,79,126,90, 't',0,92,6,102, 'u',7,93,16,102, 'v',18,92,24,104, 'w',28,92,35,104, 'x',40,92,47,104,
+    'y',50,93,59,105, 'z',61,92,67,104, '{',72,92,77,104, '}',93,92,98,104, 
+    '|',3,117,6,127, '~',9,117,16,127
+}
+local LETTER_SLACK = 3
+local SHEET = 256
+local letterAt, letterCache, letterCacheCount = {}, {}, 0
+for i = 1, #LETTERS, 5 do
+    local row = math.floor(LETTERS[i + 2] / 13) -- the boxes bucketed by the sheet's rows of 13
+    letterAt[row] = letterAt[row] or {}
+    table.insert(letterAt[row], { LETTERS[i], LETTERS[i + 1], LETTERS[i + 2], LETTERS[i + 3], LETTERS[i + 4] })
+end
+
+-- The letter a quad's uv cuts from the menu font, or nil
+function M.Letter(uv)
+    local x0, y0 = math.floor(uv[1] * SHEET + 0.5), math.floor(uv[2] * SHEET + 0.5)
+    local x1, y1 = math.floor(uv[3] * SHEET + 0.5), math.floor(uv[4] * SHEET + 0.5)
+    if x0 < 0 or y0 < 0 or x1 > SHEET or y1 > SHEET or x1 - x0 > 16 or y1 - y0 > 16 then return nil end
+    local key = ((x0 * 512 + y0) * 512 + x1) * 512 + y1
+    local known = letterCache[key]
+    if known ~= nil then return known or nil end
+    local found = false
+    local row = math.floor(y0 / 13)
+    for r = row - 1, row + 1 do
+        for _, box in ipairs(letterAt[r] or {}) do
+            if math.abs(box[2] - x0) <= LETTER_SLACK and math.abs(box[3] - y0) <= LETTER_SLACK
+                and math.abs(box[4] - x1) <= LETTER_SLACK and math.abs(box[5] - y1) <= LETTER_SLACK then found = box[1] end
+        end
+    end
+    if letterCacheCount >= 4096 then letterCache, letterCacheCount = {}, 0 end
+    letterCache[key], letterCacheCount = found, letterCacheCount + 1
+    return found or nil
+end
+
+-- A window's elements spelled out: the letters among its quads (phase Element) read as lines of words, each
+-- { text, rect, color, lit, tall }, in its quads' places (tall the line's tallest letter), and a set of the quads read (letters and their shadows, which
+-- the game draws a little down and right, fainter), for the caller to leave undrawn. lit where the game tinted
+-- it (the cursor's). Quads that are no letter (buttons, a title in another font) are left to the caller.
+function M.Words(quads)
+    local letters, used = {}, {}
+    for i, quad in ipairs(quads) do
+        if quad.phase == M.Element and quad.rect then
+            local c = M.Letter(quad.uv)
+            if c then letters[#letters + 1] = { c = c, quad = quad, i = i } end
+        end
+    end
+    if #letters == 0 then return {}, used end
+    -- shadows: a fainter copy of a letter close by it, by its left and its bottom (the game trims a shadow's top
+    -- differently)
+    local kept = {}
+    for _, a in ipairs(letters) do
+        used[a.i] = true
+        local ra, shadow = a.quad.rect, false
+        local near = (ra[4] - ra[2]) * 0.4
+        for _, b in ipairs(letters) do
+            local rb = b.quad.rect
+            if b ~= a and b.c == a.c and b.quad.color[4] > a.quad.color[4]
+                and math.abs(rb[1] - ra[1]) <= near and math.abs(rb[4] - ra[4]) <= near then shadow = true; break end
+        end
+        if not shadow then kept[#kept + 1] = a end
+    end
+    -- lines: letters whose heights overlap by half the shorter, top to bottom; in each, left to right, a gap of a
+    -- tenth of the line's height a space (the game's boxes for letters meet, its space is narrow), of two heights
+    -- a new run
+    table.sort(kept, function(a, b) return a.quad.rect[2] + a.quad.rect[4] < b.quad.rect[2] + b.quad.rect[4] end)
+    local lines = {}
+    for _, a in ipairs(kept) do
+        local r, home = a.quad.rect, nil
+        for _, line in ipairs(lines) do
+            local overlap = math.min(line.bottom, r[4]) - math.max(line.top, r[2])
+            if overlap >= math.min(line.bottom - line.top, r[4] - r[2]) / 2 then home = line; break end
+        end
+        if not home then home = { top = r[2], bottom = r[4], letters = {} }; lines[#lines + 1] = home end
+        home.top, home.bottom = math.min(home.top, r[2]), math.max(home.bottom, r[4])
+        table.insert(home.letters, a)
+    end
+    local words = {}
+    for _, line in ipairs(lines) do
+        table.sort(line.letters, function(a, b) return a.quad.rect[1] < b.quad.rect[1] end)
+        local tall = 0
+        for _, a in ipairs(line.letters) do tall = math.max(tall, a.quad.rect[4] - a.quad.rect[2]) end
+        local word
+        for _, a in ipairs(line.letters) do
+            local r = a.quad.rect
+            local gap = word and r[1] - word.rect[3] or math.huge
+            if gap > tall * 2 then
+                word = { text = '', rect = { r[1], r[2], r[3], r[4] }, color = a.quad.color, lit = false, tall = tall }
+                words[#words + 1] = word
+            elseif gap > tall / 10 then word.text = word.text .. ' ' end
+            word.text = word.text .. a.c
+            local w = word.rect
+            w[1], w[2], w[3], w[4] = math.min(w[1], r[1]), math.min(w[2], r[2]), math.max(w[3], r[3]), math.max(w[4], r[4])
+            local col = a.quad.color
+            if col[1] ~= col[3] or col[2] ~= col[3] then word.lit = true end
+            if col[4] > word.color[4] then word.color = col end
+        end
+    end
+    return words, used
 end
 
 -- A name as the game keeps it: "menu    " and the name, padded with spaces to 16
