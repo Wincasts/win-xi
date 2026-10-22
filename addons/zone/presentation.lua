@@ -50,6 +50,7 @@ local function defaults()
         styleTitleSize = T{ 52 }, styleDetailSize = T{ 18 }, zoneDayTime = T{ true }, areaDayTime = T{ false },
         pennantWidth = T{ 92 }, pennantLength = T{ 380 }, pennantLetterSize = T{ 30 },
         kanjiFont = '', kanjiSize = T{ 120 }, kanjiOpacity = T{ .3 }, kanjiVertical = T{ true },
+        backdrop = T{ true }, backdropOpacity = T{ .5 }, backdropSoftness = T{ 32 },
     } };
     for _, line in ipairs(lines) do
         result.display[line[1] .. 'Delay'] = T{ 0 };
@@ -65,7 +66,7 @@ local ranges = { titleSize = { 14, 96 }, detailSize = { 10, 40 }, zoneTitleSize 
     opacity = { 0, 1 }, approachYalms = { 0, 100 }, locationSize = { 10, 40 },
     styleTitleSize = { 16, 120 }, styleDetailSize = { 10, 48 },
     pennantWidth = { 40, 240 }, pennantLength = { 120, 1200 }, pennantLetterSize = { 10, 80 },
-    kanjiSize = { 32, 320 }, kanjiOpacity = { 0, 1 } };
+    kanjiSize = { 32, 320 }, kanjiOpacity = { 0, 1 }, backdropOpacity = { 0, 1 }, backdropSoftness = { 0, 120 } };
 for _, line in ipairs(lines) do
     ranges[line[1] .. 'Delay'] = { 0, 60 };
     ranges[line[1] .. 'Hold'] = { .1, 60 };
@@ -90,7 +91,7 @@ function M.complete(options)
     -- create new baked fonts continuously while dragging, churning the shared atlas.
     for _, key in ipairs({ 'titleSize', 'detailSize', 'zoneTitleSize', 'zoneDetailSize', 'areaTitleSize', 'areaDetailSize',
         'locationSize', 'approachYalms', 'styleTitleSize', 'styleDetailSize', 'pennantWidth', 'pennantLength',
-        'pennantLetterSize', 'kanjiSize' }) do
+        'pennantLetterSize', 'kanjiSize', 'backdropSoftness' }) do
         d[key][1] = math.floor(d[key][1] + .5);
     end
     for _, key in ipairs({ 'titleColor', 'detailColor' }) do
@@ -359,6 +360,16 @@ local function draw_appearance(options)
             widgets.Label('Detail Color'); changed(imgui.ColorEdit4('##zone.detailColor', d.detailColor));
         end
     end
+    widgets.Gap();
+    if widgets.Header('Backdrop') then
+        checkbox(d, 'Show Backdrop', 'backdrop');
+        tips.Hover('A soft shadow behind the banner, so it stands out from a bright scene. Every style, and Classic Text\'s Floating Text.');
+        if d.backdrop[1] then
+            slider(d, 'Backdrop Opacity', 'backdropOpacity', '%.2f');
+            slider(d, 'Backdrop Softness', 'backdropSoftness', '%.0f px');
+            tips.Hover('How far it fades out round the words.');
+        end
+    end
     if uses(d, 'classic') then
         widgets.Gap();
         if widgets.Header('Background Image', false, true) then
@@ -540,6 +551,7 @@ local function draw_style(id, state, content, area_style, d, now, preview, timin
     local file = id == 'kanji' and kanji_file(d) or nil;
     c.kanji_font = file and get_font(file) or nil;
     c.kanji_size, c.kanji_opacity, c.kanji_vertical = d.kanjiSize[1], d.kanjiOpacity[1], d.kanjiVertical[1];
+    c.backdrop, c.backdrop_opacity, c.backdrop_soft = d.backdrop[1], d.backdropOpacity[1], d.backdropSoftness[1];
     return styles.draw(id, imgui.GetBackgroundDrawList(), c);
 end
 
@@ -575,6 +587,15 @@ local function classic_rows()
     local x, y = imgui.GetCursorScreenPos();
     local draw = imgui.GetWindowDrawList();
     local edge = text.Edge(); -- the theme's Text Outline
+    -- Floating Text's backdrop, under every window so that a background image stays over it. Themed
+    -- Panel has its panel instead.
+    if d.backdrop[1] and d.mode == 'floating' then
+        local height = 0;
+        for i, row in ipairs(rows) do height = height + row.height + edge * 2 + (i < #rows and d.spacing[1] or 0); end
+        local pad = (area_style and d.areaDetailSize[1] or d.zoneDetailSize[1]);
+        styles.backdrop(imgui.GetBackgroundDrawList(), x - pad, y - pad * .5, x + maximum + edge * 2 + pad, y + height + pad * .5,
+            d.backdropSoftness[1], alpha * d.backdropOpacity[1]);
+    end
     local outline = text.EdgeColor();
     for i, row in ipairs(rows) do
         if row.alpha > .01 then

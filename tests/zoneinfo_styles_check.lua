@@ -9,6 +9,9 @@ local styles = require('banner_styles');
 local d = p.app.options.display;
 local checks = 0;
 local function check(label, ok) H.print(label, ok); assert(ok, label); checks = checks + 1; end
+-- The counts of what is drawn below are without the backdrop, which has checks of its own at the end.
+check('the backdrop starts on', d.backdrop[1] == true);
+d.backdrop[1] = false;
 
 -- What the styles draw, as the background draw list is asked to draw it.
 local drawn = {};
@@ -315,6 +318,43 @@ H.frames(1);
 check('/zone test kind: West Ronfaure (100) is open country', count('AddRectFilledMultiColor') == 4 and count('AddRect') == 0);
 H.command('/zone test');
 d.zoneStyle = 'classic';
+
+-- Backdrop: a soft shadow behind the words, from where they lay the frame before.
+d.zoneStyle, d.backdrop[1] = 'titlecard', true;
+p.start(new, 750);
+drawn = {};
+p.draw(new, nil, 752);
+check('Backdrop: none before the style has said where its words lie', count('AddRectFilled') == 0);
+drawn = {};
+p.draw(new, nil, 752.1);
+check('then ten layers under the words', count('AddRectFilled') == 10 and drawn[1][1] == 'AddRectFilled');
+local inner, outer = drawn[1], drawn[10];
+check('each larger and rounder', outer[2][1] < inner[2][1] and outer[3][2] > inner[3][2] and outer[5] > inner[5]);
+check('as far out as Backdrop Softness', math.abs((inner[2][1] - outer[2][1]) - d.backdropSoftness[1]) < .01);
+local other = { title = 'Bastok Mines', region = 'Republic of Bastok', weather = 'Rain', weather_id = 6, vana = 'Firesday 14:20', banner_is_area = false };
+p.start(other, 760);
+drawn = {};
+p.draw(other, nil, 762);
+check('another popup does not have the last one\'s', count('AddRectFilled') == 0);
+d.backdrop[1] = false;
+drawn = {};
+p.draw(other, nil, 762.1);
+check('Show Backdrop off: none', count('AddRectFilled') == 0);
+local bstyles = require('banner_styles');
+drawn = {};
+bstyles.backdrop(list, 0, 0, 100, 20, 30, 0);
+check('none at no opacity', #drawn == 0);
+d.zoneStyle = 'classic';
+d.backdrop[1] = true;
+p.start(other, 770);
+drawn = {};
+p.draw(other, nil, 772);
+check('Classic Text\'s Floating Text has it too, under the window', count('AddRectFilled') == 10);
+d.mode = 'panel';
+drawn = {};
+p.draw(other, nil, 772);
+check('Themed Panel has its panel instead', count('AddRectFilled') == 0);
+d.mode, d.backdrop[1] = 'floating', false;
 
 -- Appearance shows the sections for the styles in use.
 local headers = {};
