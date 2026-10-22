@@ -110,6 +110,11 @@ public:
         return false;
     }
     bool Active() const { return window>=0; }
+    // Whether a texture named in the last frame published is still held, so may be read
+    bool Holds(uint32_t texture) const {
+        for (auto* t:held) if (static_cast<uint32_t>(reinterpret_cast<uintptr_t>(t))==texture) return true;
+        return false;
+    }
     // A window about to be drawn: mirrored if the addon asks for it. Returns whether the game's drawing
     // of it is to be left undrawn. The slot it had is given back by End.
     struct Saved { int window; MirrorPhase phase; unsigned depth; int run; ChatBounds frame, all, cursor, selection, scroll; };

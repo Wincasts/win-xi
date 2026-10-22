@@ -22,6 +22,7 @@
 #include "../chat/texttap.h"
 #include "../mirror/census.h"
 #include "../mirror/mirror.h"
+#include "../mirror/labels.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -547,7 +548,42 @@ public:
         } else snprintf(line,sizeof(line),"[uihook:census] %s, %zu windows seen. /uihook census on|off|dump|clear.",MenuCensus.on ? "on" : "off",MenuCensus.windows.size());
         core->GetChatManager()->Write(0,false,line);
     }
+    // Every element of the last frame published, cut from its texture to logs\uihook-labels\N.bmp, with
+    // labels.txt naming each one's window, texture, place in it and the hash of its pixels
+    void LabelsCommand() {
+        char line[512];
+        const MirrorFrameData& last=MirrorBlock.Published;
+        const std::string folder=std::string(core->GetInstallPath())+"\\logs\\uihook-labels";
+        CreateDirectoryA(folder.c_str(),nullptr);
+        FILE* list=fopen((folder+"\\labels.txt").c_str(),"w");
+        if (!list) { snprintf(line,sizeof(line),"[uihook:mirror] could not write %s.",folder.c_str()); core->GetChatManager()->Write(0,false,line); return; }
+        fprintf(list,"# n window texture WxH format uv(left top right bottom) texels(x0 y0 x1 y1) hash colour rect(normalized)\n");
+        unsigned written=0,skipped=0;
+        for (uint32_t i=0;i<last.QuadCount;i++) {
+            const MirrorQuad& q=last.Quads[i];
+            if (q.Phase!=MIRROR_ELEMENT || q.Window>=last.WindowCount) continue;
+            const char* name=last.Windows[q.Window].Name;
+            LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]={}; const char* why="not held";
+            const bool cut=q.Texture && MenuMirror.Holds(q.Texture)
+                && LabelCut(reinterpret_cast<IDirect3DBaseTexture8*>(uintptr_t(q.Texture)),q.UV,pixels,desc,texels,why);
+            char file[32]="-";
+            if (cut) {
+                snprintf(file,sizeof(file),"%03u.bmp",i);
+                if (!LabelWrite((folder+"\\"+file).c_str(),pixels)) { snprintf(file,sizeof(file),"-"); why="not written"; }
+            }
+            fprintf(list,"%s %.16s %08X %ux%u %08X %.5f %.5f %.5f %.5f %u %u %u %u %08X %08X %.4f %.4f %.4f %.4f%s%s\n",
+                file,name,q.Texture,desc.Width,desc.Height,uint32_t(desc.Format),q.UV[0],q.UV[1],q.UV[2],q.UV[3],
+                texels[0],texels[1],texels[2],texels[3],file[0]!='-' ? LabelHash(pixels) : 0u,q.Colour,
+                q.Rect[0],q.Rect[1],q.Rect[2],q.Rect[3],file[0]!='-' ? "" : " # ",file[0]!='-' ? "" : why);
+            (file[0]!='-' ? written : skipped)++;
+        }
+        fclose(list);
+        snprintf(line,sizeof(line),"[uihook:mirror] %u elements written, %u not, to %s (from %u windows mirrored last frame).",
+            written,skipped,folder.c_str(),last.WindowCount);
+        core->GetChatManager()->Write(0,false,line);
+    }
     bool HandleCommand(int32_t,const char* command,bool) override {
+        if (command && _stricmp(command,"/uihook mirror labels")==0) { LabelsCommand(); return true; }
         if (command && _stricmp(command,"/uihook mirror")==0) {
             // what the mirror was asked for, and what it published from the last frame
             char line[256]; const MirrorFrameData& last=MirrorBlock.Published;
