@@ -53,16 +53,28 @@ local function chars(words)
     return found;
 end
 
--- How wide each character is in the font pushed, at a size: measured once.
-local widths = setmetatable({}, { __mode = 'k' });
+-- Measurements, kept for each font and size: a frame that draws what the last one did measures
+-- nothing, and pushes a font only to draw. A size's words are let go past 64, as the words change.
 local default_font = {};
-local function width_of(font, size, ch)
-    local by_font = widths[font or default_font];
-    if not by_font then by_font = {}; widths[font or default_font] = by_font; end
+local function sized(cache, font, size)
+    local by_font = cache[font or default_font];
+    if not by_font then by_font = {}; cache[font or default_font] = by_font; end
     local by_size = by_font[size];
-    if not by_size then by_size = {}; by_font[size] = by_size; end
+    if not by_size then by_size = { count = 0 }; by_font[size] = by_size; end
+    return by_size;
+end
+
+-- How wide each character is in a font at a size: measured once.
+local widths = setmetatable({}, { __mode = 'k' });
+local function width_of(font, size, ch)
+    local by_size = sized(widths, font, size);
     local w = by_size[ch];
-    if not w then w = imgui.CalcTextSize(ch); by_size[ch] = w; end
+    if not w then
+        imgui.PushFont(font, size);
+        w = imgui.CalcTextSize(ch);
+        imgui.PopFont();
+        by_size[ch] = w;
+    end
     return w;
 end
 
@@ -96,11 +108,23 @@ local function line(list, c, font, size, words, x, y, color, alpha)
     if alpha > .01 then text.Packed(list, x, y, packed(color, alpha), words, c.edge, packed(c.outline, alpha)); end
     imgui.PopFont();
 end
+-- Words' width and height in a font at a size.
+local measured = setmetatable({}, { __mode = 'k' });
 local function measure(font, size, words)
-    imgui.PushFont(font, size);
-    local w, h = imgui.CalcTextSize(words);
-    imgui.PopFont();
-    return w, h;
+    local by_size = sized(measured, font, size);
+    local m = by_size[words];
+    if not m then
+        imgui.PushFont(font, size);
+        local w, h = imgui.CalcTextSize(words);
+        imgui.PopFont();
+        if by_size.count >= 64 then
+            by_size = { count = 0 };
+            measured[font or default_font][size] = by_size;
+        end
+        m = { w, h };
+        by_size[words], by_size.count = m, by_size.count + 1;
+    end
+    return m[1], m[2];
 end
 
 -- Backdrop: a soft dark shadow behind the words, so they stand out from a bright scene. It is
@@ -131,16 +155,12 @@ local function title_card(list, c)
     local S, D, age = c.title_size, c.detail_size, c.age;
     local upper = chars(c.upper:upper());
     local name = chars(c.title);
-    imgui.PushFont(c.detail_font, D);
     local upper_gap = D * .5;
     local upper_w = #upper > 0 and tracked_width(c.detail_font, D, upper, upper_gap) or 0;
-    imgui.PopFont();
-    imgui.PushFont(c.title_font, S);
     local settle = out_cubic(age / 1.6);
     local name_gap = S * (.18 + .42 * (1 - settle));
     local final_w = tracked_width(c.title_font, S, name, S * .18);
     local name_w = tracked_width(c.title_font, S, name, name_gap);
-    imgui.PopFont();
     local width = math.max(final_w, upper_w) * 1.1;
     local cx = left_of(c, width) + width / 2;
     local y = c.y;
@@ -181,8 +201,8 @@ local function title_card(list, c)
     local shown = c.alpha * clamp(age / .8);
     imgui.PushFont(c.title_font, S);
     tracked(list, c.title_font, S, name, name_gap, cx - name_w / 2, y, packed(c.title_color, shown), packed(c.outline, shown), c.edge);
-    local _, height = imgui.CalcTextSize(c.title);
     imgui.PopFont();
+    local _, height = measure(c.title_font, S, c.title);
     y = y + height + D * .3;
 
     reach(cx - width / 2, c.y, cx + width / 2, y + (c.meta ~= '' and D * 1.2 or -D * .3));
@@ -212,9 +232,7 @@ local function pennant(list, c)
     local colors = palettes[c.flag or 'none'] or palettes.none;
     local upper_letters = chars(c.upper:upper());
     local upper_gap = D * .3;
-    imgui.PushFont(c.detail_font, D);
     local upper_w = #upper_letters > 0 and tracked_width(c.detail_font, D, upper_letters, upper_gap) or 0;
-    imgui.PopFont();
     local name_w = measure(c.title_font, S, c.title);
     local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
     local side_w = math.max(upper_w, name_w, meta_w);
@@ -391,10 +409,8 @@ end
 local function reveal(list, c)
     local S, D, age = c.title_size, c.detail_size, c.age;
     local name = chars(c.title);
-    imgui.PushFont(c.title_font, S);
     local name_w = tracked_width(c.title_font, S, name, 0);
-    local _, name_h = imgui.CalcTextSize(c.title);
-    imgui.PopFont();
+    local _, name_h = measure(c.title_font, S, c.title);
     local upper_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
     local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
     local rule, rule_gap = D * 1.5, D * .6;
@@ -402,6 +418,8 @@ local function reveal(list, c)
     local cx = left_of(c, block) + block / 2;
     local y = c.y;
 
+    -- A settled letter is at the banner's own fade: its colours are worked out once for them all.
+    local settled, settled_dark = packed(c.title_color, c.alpha), packed(c.outline, c.alpha);
     imgui.PushFont(c.title_font, S);
     local x = cx - name_w / 2;
     for i = 1, #name do
@@ -418,7 +436,11 @@ local function reveal(list, c)
                 text.Packed(list, x - spread, y + dy - S * .08 * blur, ghost, ch, 0);
                 text.Packed(list, x + spread, y + dy - S * .08 * blur, ghost, ch, 0);
             end
-            if shown > .01 then text.Packed(list, x, y + dy, packed(c.title_color, shown), ch, c.edge, packed(c.outline, shown)); end
+            if t >= 1 then
+                text.Packed(list, x, y, settled, ch, c.edge, settled_dark);
+            elseif shown > .01 then
+                text.Packed(list, x, y + dy, packed(c.title_color, shown), ch, c.edge, packed(c.outline, shown));
+            end
         end
         x = x + width_of(c.title_font, S, ch);
     end
@@ -559,9 +581,7 @@ local function elemental(list, c)
     local name_w, name_h = measure(c.title_font, S, c.title);
     local weather = c.weather and chars(c.weather:upper()) or nil;
     local weather_gap = D * .2;
-    imgui.PushFont(c.detail_font, D);
     local weather_w = weather and tracked_width(c.detail_font, D, weather, weather_gap) or 0;
-    imgui.PopFont();
     local gem = D * .45;
     local gems_w = element and (count * gem * 2 + (count - 1) * gem * .7) or 0;
     local row_w = gems_w + ((element and weather) and D * .6 or 0) + weather_w;
@@ -704,10 +724,8 @@ local function carved(list, c)
     if a <= .01 then return; end
     local name = chars(c.title:upper());
     local gap = S * .14;
-    imgui.PushFont(c.title_font, S);
     local name_w = tracked_width(c.title_font, S, name, gap);
-    local _, name_h = imgui.CalcTextSize(c.title);
-    imgui.PopFont();
+    local _, name_h = measure(c.title_font, S, c.title);
     local upper_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
     local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
     local block = math.max(name_w, upper_w, meta_w);
