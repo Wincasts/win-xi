@@ -1,6 +1,6 @@
 // The menu mirror: a window of the game's, named by an addon, keeps working as it is (its input, its
 // cursor, its hit-tests the game's own), while what it draws is measured and, if the addon asks, left
-// undrawn; the addon draws its own from what the game would have. Independent mirror ABI 3.
+// undrawn; the addon draws its own from what the game would have. Independent mirror ABI 4.
 //
 // Window::Render draws a window in three parts: its frame, then its contents through its owner's
 // vtable +10, then the cursor, row highlight and scrollbar. The one call to the contents is taken
@@ -21,7 +21,7 @@
 #define MIRROR_CONTENT_PATTERN "8B 4D 0C 85 C9 74 ?? 8A 45 6A 84 C0 74 ?? 83 7D 10 0E 74 ?? 8B 11 FF 52 10"
 #define MIRROR_CONTENT_AT 20
 #define MIRROR_CONTENT_WITHIN 0x800
-#define MIRROR_REQUESTS 64 // windows an addon may name
+#define MIRROR_REQUESTS 128 // windows an addon may name
 #define MIRROR_WINDOWS 16  // windows published a frame
 #define MIRROR_RUNS 512
 #define MIRROR_QUADS 512
@@ -83,7 +83,7 @@ struct MirrorShared {
 };
 
 static_assert(sizeof(MirrorRun)==44 && sizeof(MirrorQuad)==48 && sizeof(MirrorWindow)==132,"mirror ABI");
-static_assert(sizeof(MirrorFrameData)==82004 && sizeof(MirrorShared)==83080,"mirror ABI");
+static_assert(sizeof(MirrorFrameData)==82004 && sizeof(MirrorShared)==84112,"mirror ABI");
 
 class Mirror {
     MirrorFrameData building{};

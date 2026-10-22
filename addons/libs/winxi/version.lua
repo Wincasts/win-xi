@@ -74,6 +74,7 @@
 --     options.title on a given rect, for a frame drawn in a window not its own
 -- 39: nativemirror's text font (a grid of cells, a cell's character its code less 32: the top bar's help line, the
 --     menu's name box), and letters read from a window's contents as well as its elements (a word's element)
+-- 40: nativemirror on uihook 1.1's mirror ABI 4: 128 windows asked for
 return {
-    Number = 39,
+    Number = 40,
 };
