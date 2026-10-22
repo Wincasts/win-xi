@@ -115,6 +115,12 @@ local shadowSliders = {
     { 'Shadow Softness', 'ShadowBlur', 20, '%d px', 'How wide the shadow\'s soft edge is.' },
 };
 
+-- winxi: the backdrop's sliders, as { label, setting, least, most, help, default }
+local backdropSliders = {
+    { 'Backdrop Opacity', 'BackdropOpacity', 0, 100, 'How dark the backdrop is in the middle, while Backdrop is on: 0 is none.', 50 },
+    { 'Backdrop Size', 'BackdropSize', 50, 300, 'How far the backdrop reaches before it has faded to nothing, as a part of the crossbar\'s size.', 130 },
+};
+
 -- winxi: the cost tints, as { label, setting, colour's setting, help }
 local costTints = {
     { 'Low MP', 'ShowLowMP', 'LowMPColor', 'Lays Low MP Color over a spell or ability whose MP cost you do not have. The colour\'s alpha is how strong it is.' },
@@ -265,6 +271,8 @@ function exposed:Render()
                     imgui.ShowHelp('Display frame for macro elements.');
                     CheckBox('Frame Shadow', 'ShowFrameShadow'); -- winxi
                     imgui.ShowHelp('Display the Winxi Theme\'s drop shadow under each frame. Its Shadow settings (Opacity, Offset, Blur) say how it looks; switched off there, none is drawn.');
+                    CheckBox('Backdrop', 'ShowBackdrop'); -- winxi
+                    imgui.ShowHelp('Display a soft black backdrop behind the crossbar, darkest in the middle and fading to nothing towards its edge.');
                     CheckBox('Gloss', 'ShowGloss'); -- winxi
                     imgui.ShowHelp('Display a glossy light over each icon, as on a glass button: bright at the top, fading to a curved edge, with a faint shade at the foot.');
                     CheckBox('Cost', 'ShowCost');
@@ -307,6 +315,16 @@ function exposed:Render()
                         imgui.EndCombo();
                     end
                     imgui.ShowHelp('Draws one of the Winxi Theme\'s border styles round each macro element: round its frame, or round its icon while Frame is off. Window Border follows the theme\'s own (none while that is the plain border). Faded by the theme\'s Border Opacity.');
+                    -- winxi: the backdrop behind the crossbar
+                    for _,slider in ipairs(backdropSliders) do
+                        local buff = { gSettings[slider[2]] or slider[6] };
+                        imgui.TextColored(header, slider[1]);
+                        if imgui.SliderInt('##tCrossBar' .. slider[2], buff, slider[3], slider[4], '%d%%', ImGuiSliderFlags_AlwaysClamp) then
+                            gSettings[slider[2]] = buff[1];
+                            settings.save();
+                        end
+                        imgui.ShowHelp(slider[5]);
+                    end
                     -- winxi: how strong the gloss is
                     imgui.TextColored(header, 'Gloss Opacity');
                     local glossBuff = { gSettings.GlossOpacity or 100 };

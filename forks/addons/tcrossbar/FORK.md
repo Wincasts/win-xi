@@ -23,6 +23,12 @@ author as plain files rather than a submodule. `readme.md` is the original's. Wh
   every icon so nothing falls over it, faded by the theme's Border Opacity (`frameborder.lua`). Needs
   `addons/libs/winxi`; without it nothing is drawn.
 
+- **A soft black backdrop.** Backdrop (Components tab, on to start) draws black behind the crossbar,
+  darkest in the middle at Backdrop Opacity (50% to start) and fading smoothly to nothing towards its
+  edge, an ellipse the panel's shape reaching Backdrop Size (130% of the panel to start, 50 to 300).
+  One round gradient made once into a 128 by 128 texture and stretched over the panel with one sprite
+  draw, before anything else in either display (`backdrop.lua`).
+
 - **A gloss over each icon.** Gloss (Components tab, off to start) draws the light of a glass button over
   every icon: white over its upper part, brightest at the top and fading to a curved edge lowest in the
   middle, and a faint shade at the foot. Made once into a texture for each size of icon (`gloss.lua`),

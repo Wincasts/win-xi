@@ -1,3 +1,4 @@
+local backdrop = require('backdrop'); -- winxi
 local d3d8 = require('d3d8');
 local Element = require('element');
 local ffi = require('ffi');
@@ -95,6 +96,11 @@ function SingleDisplay:Render(macroState)
     local pos = gSettings.SinglePosition;
     local sprite = self.Sprite;
     sprite:Begin();
+
+    -- winxi: the soft black backdrop, behind everything
+    if (gSettings.ShowBackdrop) then
+        backdrop.Draw(sprite, pos[1], pos[2], self.Layout.Panel.Width, self.Layout.Panel.Height, gSettings.BackdropOpacity, gSettings.BackdropSize);
+    end
 
     for _,object in ipairs(self.Layout.FixedObjects) do
         local component = self.Layout.Textures[object.Texture];
