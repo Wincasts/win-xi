@@ -16,6 +16,8 @@ local list = setmetatable({}, { __index = function(_, k)
     -- points are tables the styles use again, so each is copied as it was
     return function(_, ...)
         local call = { k, ... };
+        -- the game's AddText takes only a string for its words, and refuses anything else
+        if k == 'AddText' then assert(type(call[4]) == 'string', 'AddText given ' .. type(call[4]) .. ' for its words'); end
         for i = 2, #call do if type(call[i]) == 'table' then call[i] = { call[i][1], call[i][2] }; end end
         drawn[#drawn + 1] = call;
     end;
@@ -44,6 +46,15 @@ local function letters(words)
     for ch in words:gmatch('[%z\1-\127\194-\244][\128-\191]*') do found[#found + 1] = ch; end
     return found;
 end
+
+-- Neither day and time nor weather, in a style, from the first popup: no last line, and no error.
+d.zoneStyle, d.zoneWeather[1], d.zoneDayTime[1] = 'titlecard', false, false;
+local bare = { title = 'Metalworks', region = 'Republic of Bastok', weather = 'Sunshine', banner_is_area = false };
+p.start(bare, 50);
+drawn = {};
+check('a style with no day, time or weather draws', p.draw(bare, nil, 53));
+check('without a last line', not texts()['Sunshine']);
+d.zoneStyle, d.zoneWeather[1], d.zoneDayTime[1] = 'classic', true, true;
 
 -- Settings: the style names and sizes are kept within what there is.
 check('styles start as Classic Text', d.zoneStyle == 'classic' and d.areaStyle == 'classic');
