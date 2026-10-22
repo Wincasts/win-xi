@@ -989,7 +989,7 @@ public:
         // the selection art in a skinned full log measured (drawn or not), so its rows are published lit
         const bool measure=expandedSkin && !cursor && ChatSelectionColor(color) && !chatMeasure && selectionCount<8;
         if (measure) { selectionBounds[selectionCount]=ChatBounds(); chatMeasure=&selectionBounds[selectionCount]; }
-        const MirrorPhase mirrorWas=MenuMirror.Phase(cursor ? MIRROR_CURSOR : MIRROR_SELECTION);
+        const MirrorPhase mirrorWas=cursor ? MenuMirror.Phase(MIRROR_CURSOR) : MenuMirror.Element(color);
         ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
             expandedSkin && !Mirrored(),ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
         MenuMirror.Phase(mirrorWas);
