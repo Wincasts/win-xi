@@ -76,6 +76,7 @@ luajit tests/tcrossbar_shadow_check.lua
 luajit tests/tcrossbar_border_check.lua
 luajit tests/tcrossbar_gloss_check.lua
 luajit tests/tcrossbar_cooldown_check.lua
+luajit tests/tcrossbar_backdrop_check.lua
 luajit tests/mark_map_view_check.lua
 python3 tools/test_build_mark_maps.py
 (cd tools && python3 -m unittest test_trace_walkable_maps)
