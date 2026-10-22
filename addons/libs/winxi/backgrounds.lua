@@ -32,9 +32,21 @@ local folder = nil;
 local handles = {}; -- style -> its handle, or false where it would not load
 local kept = {};    -- the textures themselves, held so that they are not let go
 
+-- Where the art is: assets\backgrounds beside this file, in libs\winxi or in the copy of winxi an addon
+-- released on its own carries in its folder. If this file's place is not known: the addon's own
+-- copy's, if it has one, or libs\winxi's.
+function backgrounds.Folder()
+    local info = debug.getinfo(1, 'S');
+    local here = info and info.source and info.source:match('^@(.*[\\/])');
+    if here then return here .. 'assets\\backgrounds\\'; end
+    local own = type(addon) == 'table' and type(addon.path) == 'string' and (addon.path .. 'winxi\\assets\\backgrounds\\');
+    if own and ashita and ashita.fs and ashita.fs.exists(own) then return own; end
+    return ('%s\\addons\\libs\\winxi\\assets\\backgrounds\\'):format(AshitaCore:GetInstallPath());
+end
+
 -- Loads one of the tiles: a handle imgui can draw, or false. A field, so the checks can stand in for it.
 function backgrounds.Load(style)
-    folder = folder or ('%s\\addons\\libs\\winxi\\assets\\backgrounds\\'):format(AshitaCore:GetInstallPath());
+    folder = folder or backgrounds.Folder();
     local device = d3d.get_device();
     if device == nil then
         return false;

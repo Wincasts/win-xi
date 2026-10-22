@@ -33,9 +33,21 @@ local files = {
     royal_silver = true, royal_platinum = true, mythril = true, adaman = true, jade = true, amethyst = true,
 };
 
+-- Where the art is: assets\borders beside this file, in libs\winxi or in the copy of winxi an addon
+-- released on its own carries in its folder. If this file's place is not known: the addon's own
+-- copy's, if it has one, or libs\winxi's.
+function borders.Folder()
+    local info = debug.getinfo(1, 'S');
+    local here = info and info.source and info.source:match('^@(.*[\\/])');
+    if here then return here .. 'assets\\borders\\'; end
+    local own = type(addon) == 'table' and type(addon.path) == 'string' and (addon.path .. 'winxi\\assets\\borders\\');
+    if own and ashita and ashita.fs and ashita.fs.exists(own) then return own; end
+    return ('%s\\addons\\libs\\winxi\\assets\\borders\\'):format(AshitaCore:GetInstallPath());
+end
+
 -- Loads one of the images: a handle imgui can draw, or false. A field, so the checks can stand in for it.
 function borders.Load(style)
-    folder = folder or ('%s\\addons\\libs\\winxi\\assets\\borders\\'):format(AshitaCore:GetInstallPath());
+    folder = folder or borders.Folder();
     local device = d3d.get_device();
     if device == nil then
         return false;
