@@ -128,10 +128,15 @@ The `/zone test` command shows the current zone immediately;
 reloads character settings and shows the current zone again.
 
 **Settings** controls banner/chat visibility, the zone-entry and **Sub-zone**
-popup content, banner X/Y position and alignment, opacity, timing, and winxi's
-game-UI hiding rules. Zone-entry popups never include a sub-zone line. Sub-zone
+popup content, opacity, timing, and winxi's game-UI hiding rules. **Appearance**
+holds how the banner looks: its style, fonts, position and colours. Zone-entry popups never include a sub-zone line. Sub-zone
 popups show the area's name as the title, without a separate category label.
 **Show Sub-zone Popups** is enabled by default; no POC command is needed.
+
+**Show Day And Time**, under Zone Entry Popup and under Sub-zone Popup, adds the
+Vana'diel day and time the popup came up at, such as `Firesday 14:20`: a line
+of its own in Classic Text, the last line in the other styles. It starts on for
+zone entry and off for sub-zones; weather popups follow the sub-zone's.
 
 **Approach Distance** (under Sub-zone Popup) is how near a feature is announced,
 0 to 100 yalms from its outline. It is saved per character, as is the map chosen
@@ -168,7 +173,11 @@ until its last enabled line expires. Hidden lines do not extend its lifetime,
 and expired/delayed lines keep their layout space so other text does not jump.
 Timing is captured when a popup starts; changes apply to the next popup.
 
-**Appearance** offers:
+**Appearance** has a section for each part, and shows only those for the styles
+in use: **Banner Style**, **Pennant** and **Kanji Watermark** (when chosen),
+**Classic Text** (renderer, display style, sizes and line spacing), **Fonts**,
+**Position**, **Colors** and **Background Image** (Classic Text only; it starts
+collapsed). Classic Text offers:
 
 - **Floating Text** (default): large outlined title, smaller region above and
   optional context/weather below; no background and no interception of clicks.
@@ -213,9 +222,10 @@ are drawn with ImGui under every winxi window, whichever Text Renderer is chosen
 
 **Style Title Size** and **Style Detail Size** size all three, in the zone or
 sub-zone title and detail fonts (the theme's font when those are Default).
-**Show Day And Time** adds the Vana'diel day and time. They follow the
+They follow the
 banner's position, alignment, hold, fades and opacity, and **Show Region**,
-**Show Weather** and **Show Zone Context**; per-line timing is not used. Each
+**Show Weather**, **Show Zone Context** and **Show Day And Time**; per-line
+timing is not used. Each
 entrance plays over the first second or two. `/zone test titlecard`, `pennant`,
 `kanji` or `classic` shows the zone once in that style without changing the
 setting.

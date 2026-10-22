@@ -27,11 +27,16 @@ function M.rows(state, tracking, options)
     local area_context = options.areaZoneContext or options.zoneContext;
     local area_weather = options.areaWeather or options.weather;
     local area_experimental = options.areaExperimental or options.experimental;
+    -- The Vana'diel day and time the popup started at, where it is wanted: 'Firesday 14:20'.
+    local function day_time(key)
+        if options[key] and options[key][1] and state.vana then add(state.vana, false, key); end
+    end
 
     -- A change of weather: the weather itself as the title, in the sub-zone popup's style.
     if state.banner_is_weather then
         add(state.title, true, 'areaTitle');
         if area_context[1] then add(state.zone_title, false, 'areaContext'); end
+        day_time('areaDayTime');
         return rows;
     end
 
@@ -47,6 +52,7 @@ function M.rows(state, tracking, options)
     if ((state.banner_is_area and area_weather[1]) or (not state.banner_is_area and zone_weather[1])) then
         add('Weather: ' .. state.weather, false, state.banner_is_area and 'areaWeather' or 'zoneWeather');
     end
+    day_time(state.banner_is_area and 'areaDayTime' or 'zoneDayTime');
     return rows;
 end
 

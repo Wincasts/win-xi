@@ -1,6 +1,10 @@
 -- zone's banner styles: Title Card, Pennant and Kanji Watermark, drawn on the background draw list.
 local imgui = require('imgui');
+-- Vana'diel time: Firesday 14:20.
+package.loaded['ffxi.time'] = { get_game_time_raw = function() return 0; end, get_game_weekday = function() return 0; end,
+    get_game_hours = function() return 14; end, get_game_minutes = function() return 20; end };
 local p = require('presentation');
+local layout = require('banner_layout');
 local styles = require('banner_styles');
 local d = p.app.options.display;
 local checks = 0;
@@ -172,5 +176,53 @@ drawn = {};
 H.command('/zone test');
 H.frames(1);
 check('/zone test alone uses the setting again', count('AddTriangleFilled') == 0 and not texts()['西']);
+
+-- Day and time: a line of its own in Classic Text, on the last line in a style; each popup has its own toggle.
+local function keys(rows) local found = {}; for _, row in ipairs(rows) do found[row.key] = row.words; end return found; end
+check('day and time start on for zone entry, off for sub-zones', d.zoneDayTime[1] and not d.areaDayTime[1]);
+local zone_state = { title = 'West Ronfaure', region = 'Ronfaure', weather = 'Clear', banner_is_area = false };
+p.start(zone_state, 600);
+check('the popup takes the day and time it starts at', zone_state.vana == 'Firesday 14:20');
+check('Classic Text has a day and time line', keys(layout.rows(zone_state, nil, d)).zoneDayTime == 'Firesday 14:20');
+d.zoneDayTime[1] = false;
+check('which goes when it is turned off', keys(layout.rows(zone_state, nil, d)).zoneDayTime == nil);
+local area_state = { title = 'Knightwell', zone_title = 'West Ronfaure', weather = 'Clear', banner_is_area = true, vana = 'Firesday 14:20' };
+check('a sub-zone has none to start', keys(layout.rows(area_state, nil, d)).areaDayTime == nil);
+d.areaDayTime[1] = true;
+check('and has it when turned on', keys(layout.rows(area_state, nil, d)).areaDayTime == 'Firesday 14:20');
+local weather_state = { title = 'Weather: Rain', zone_title = 'West Ronfaure', banner_is_weather = true, vana = 'Firesday 14:20' };
+check('a weather popup follows the sub-zone toggle', keys(layout.rows(weather_state, nil, d)).areaDayTime == 'Firesday 14:20');
+d.zoneStyle, d.renderer = 'titlecard', 'imgui';
+p.start(zone_state, 700);
+drawn = {};
+p.draw(zone_state, nil, 703);
+check('a style leaves the day and time out when it is off', texts()['Clear'] ~= nil and not texts()['Firesday 14:20  ·  Clear']);
+d.zoneDayTime[1] = true;
+drawn = {};
+p.draw(zone_state, nil, 703);
+check('and has it on its last line when on', texts()['Firesday 14:20  ·  Clear'] ~= nil);
+d.areaDayTime[1] = false;
+
+-- Appearance shows the sections for the styles in use.
+local headers = {};
+local realcolored = imgui.TextColored;
+imgui.TextColored = function(color, words) headers[(words:gsub('^%[[-+]%] ', ''))] = true; return realcolored(color, words); end;
+local function appearance(zone_style, area_style)
+    d.zoneStyle, d.areaStyle = zone_style, area_style;
+    headers = {};
+    if not p.app.showConfig[1] then H.command('/zone'); end
+    H.tab(2); H.frames(1);
+    return headers;
+end
+local shown = appearance('classic', 'classic');
+check('Classic Text only: no Pennant or Kanji Watermark sections', shown['Classic Text'] and not shown['Pennant'] and not shown['Kanji Watermark']);
+check('every style has Banner Style, Position and Colors', shown['Banner Style'] and shown['Position'] and shown['Colors'] and shown['Fonts']);
+shown = appearance('pennant', 'classic');
+check('a pennant in use shows its section', shown['Pennant'] and shown['Classic Text'] and not shown['Kanji Watermark']);
+shown = appearance('kanji', 'titlecard');
+check('no Classic Text in use: no Classic Text or Background Image sections', shown['Kanji Watermark'] and not shown['Classic Text'] and not shown['Background Image']);
+H.command('/zone'); H.tab(1);
+imgui.TextColored = realcolored;
+d.zoneStyle, d.areaStyle = 'classic', 'classic';
 
 H.print(('zone banner styles: %d assertions passed'):format(checks));
