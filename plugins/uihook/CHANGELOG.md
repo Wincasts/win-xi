@@ -13,6 +13,9 @@
   gives the routines back, `clear` forgets what was seen. Nothing is written to the game. Off until
   asked, and released with the plugin. tests/check_census_client.py: the three routines unique, the
   plain text wrapper calling the bitmap route.
+- The census reads each window's name from its header (+4, then +46), as the chat module does, not
+  from the window itself; and the bitmap and scaled routes' x and y as the shorts they are, the upper
+  halves of their stack words being whatever the caller left.
 
 ## 0.94
 

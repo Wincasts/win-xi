@@ -1091,12 +1091,12 @@ static void __fastcall DrawExpandedChat(void* owner,void*) {
 }
 // Each text route heard, then the game's own, unchanged; a text call within one counted as nested
 static int32_t __cdecl CensusBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
-    MenuCensus.Text(CENSUS_BITMAP,x,y,text,colour); MenuCensus.depth++;
+    MenuCensus.Text(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
     MenuCensus.depth--; return end;
 }
 static int32_t __cdecl CensusScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
-    MenuCensus.Text(CENSUS_SCALED,x,y,text,colour); MenuCensus.depth++;
+    MenuCensus.Text(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
     MenuCensus.depth--; return end;
 }
