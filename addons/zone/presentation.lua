@@ -22,7 +22,8 @@ local gdi_backend;
 
 -- Settings defaults and validation.
 local lines = { { 'zoneRegion', 'Zone: Region' }, { 'zoneTitle', 'Zone: Title' }, { 'zoneWeather', 'Zone: Weather' },
-    { 'areaTitle', 'Sub-zone: Title' }, { 'areaContext', 'Sub-zone: Zone Context' }, { 'areaWeather', 'Sub-zone: Weather' } };
+    { 'zoneDayTime', 'Zone: Day And Time' }, { 'areaTitle', 'Sub-zone: Title' }, { 'areaContext', 'Sub-zone: Zone Context' },
+    { 'areaWeather', 'Sub-zone: Weather' }, { 'areaDayTime', 'Sub-zone: Day And Time' } };
 local function defaults()
     local result = T{ display = T{
         enabled = T{ true }, chat = T{ true }, region = T{ true }, weather = T{ true },
@@ -46,7 +47,7 @@ local function defaults()
         hold = T{ 5 }, fadeIn = T{ .2 }, fadeOut = T{ 1 }, opacity = T{ 1 },
         themeText = T{ true }, titleColor = T{ 1, 1, 1, 1 }, detailColor = T{ 1, 1, 1, 1 },
         zoneStyle = 'classic', areaStyle = 'classic',
-        styleTitleSize = T{ 52 }, styleDetailSize = T{ 18 }, styleDayTime = T{ true },
+        styleTitleSize = T{ 52 }, styleDetailSize = T{ 18 }, zoneDayTime = T{ true }, areaDayTime = T{ false },
         pennantWidth = T{ 92 }, pennantLength = T{ 380 }, pennantLetterSize = T{ 30 },
         kanjiFont = '', kanjiSize = T{ 120 }, kanjiOpacity = T{ .3 }, kanjiVertical = T{ true },
     } };
@@ -209,11 +210,15 @@ local function draw_settings(options)
     widgets.Gap();
     if widgets.Header('Zone Entry Popup') then
         checkbox(d, 'Show Region', 'zoneRegion'); checkbox(d, 'Show Weather', 'zoneWeather');
+        checkbox(d, 'Show Day And Time', 'zoneDayTime');
+        tips.Hover('The Vana\'diel day and time you arrived, such as Firesday 14:20.');
     end
     widgets.Gap();
     if widgets.Header('Sub-zone Popup') then
         checkbox(d, 'Show Sub-zone Popups', 'areaEnabled');
         checkbox(d, 'Show Zone Context', 'areaZoneContext'); checkbox(d, 'Show Weather', 'areaWeather');
+        checkbox(d, 'Show Day And Time', 'areaDayTime');
+        tips.Hover('The Vana\'diel day and time you came to it, such as Firesday 14:20.');
         checkbox(d, 'Show Experimental Label', 'areaExperimental');
         widgets.PushControlWidth();
         slider(d, 'Approach Distance', 'approachYalms', '%.0f yalms');
@@ -223,10 +228,12 @@ local function draw_settings(options)
     widgets.Gap();
     if widgets.Header('Weather Popup') then
         checkbox(d, 'Show Weather Popups', 'weatherEnabled');
+        tips.Hover('A popup when the weather changes. It looks like a sub-zone popup and has its Zone Context and Day And Time.');
     end
     widgets.Gap();
     if widgets.Header('Location Line') then
         checkbox(d, 'Show Location Line', 'locationEnabled');
+        tips.Hover('The zone and sub-zone you are in, always shown. Drag it while unlocked.');
         changed(widgets.Lock(d.locationLocked, '##zone.locationLocked', { label = 'Lock Position',
             tooltip = 'Keeps the line where it is, and lets the mouse through it to the game. Off, it can be dragged.' }));
         widgets.Label('Position (X, Y)');
@@ -234,14 +241,6 @@ local function draw_settings(options)
         widgets.PushControlWidth();
         slider(d, 'Text Size', 'locationSize', '%.0f px');
         widgets.PopControlWidth();
-        imgui.Text('The zone and sub-zone you are in, always shown. Drag it while unlocked.');
-    end
-    widgets.Gap();
-    if widgets.Header('Banner Position') then
-        checkbox(d, 'Centered On Screen', 'centered');
-        widgets.Label('Position / Offset (X, Y)'); changed(imgui.InputInt2('##zone.settingsPosition', d.position));
-        choice(d, 'Text Alignment', 'alignment', { 'left', 'center', 'right' });
-        imgui.Text('Centered: X offsets screen center. Otherwise X/Y are absolute pixels.');
     end
     widgets.Gap();
     if widgets.Header('Timing') then
@@ -249,6 +248,7 @@ local function draw_settings(options)
         slider(d, 'Hold Seconds', 'hold'); slider(d, 'Fade In Seconds', 'fadeIn'); slider(d, 'Fade Out Seconds', 'fadeOut');
         slider(d, 'Opacity', 'opacity', '%.2f');
         checkbox(d, 'Use Per-Line Timing', 'perLineTiming');
+        tips.Hover('Classic Text only: each line its own delay, hold and fades. The other styles use the timing above.');
         if d.perLineTiming[1] then
             for _, line in ipairs(lines) do
                 widgets.Gap();
@@ -273,103 +273,112 @@ local function draw_settings(options)
     if widgets.Header('Hide Banner') then widgets.Hide(options.hide, M.app.save); end
     commit(options);
 end
+local function uses(d, id) return d.zoneStyle == id or d.areaStyle == id; end
 local function draw_appearance(options)
     local d = options.display;
+    local styled = d.zoneStyle ~= 'classic' or d.areaStyle ~= 'classic';
     widgets.PushControlWidth();
     if widgets.Header('Banner Style', true) then
         choice(d, 'Zone Entry Style', 'zoneStyle', styles.ids);
+        tips.Hover('/zone test titlecard, pennant, kanji or classic shows the zone once in that style.');
         choice(d, 'Sub-zone Style', 'areaStyle', styles.ids);
-        imgui.Text('Weather popups use the sub-zone style. Try one with /zone test titlecard, pennant or kanji.');
-        slider(d, 'Style Title Size', 'styleTitleSize', '%.0f px'); slider(d, 'Style Detail Size', 'styleDetailSize', '%.0f px');
-        checkbox(d, 'Show Day And Time', 'styleDayTime');
-        imgui.TextDisabled('Styles use the zone or sub-zone fonts below, and are drawn with ImGui whichever renderer is chosen.');
-    end
-    widgets.Gap();
-    if widgets.Header('Pennant') then
-        slider(d, 'Pennant Width', 'pennantWidth', '%.0f px'); slider(d, 'Pennant Length', 'pennantLength', '%.0f px');
-        slider(d, 'Largest Letter Size', 'pennantLetterSize', '%.0f px');
-        imgui.TextDisabled('It hangs from the top of the screen; the words beside it are at the banner position.');
-    end
-    widgets.Gap();
-    if widgets.Header('Kanji Watermark') then
-        font_choice(d, 'Japanese Font', 'kanjiFont', 'Automatic');
-        local file = kanji_file(d);
-        if file then imgui.TextDisabled('Writing Japanese in ' .. file .. '.');
-        else imgui.Text('No Japanese font was found (IPA Mincho, Yu Mincho, MS Mincho): the watermark is left out.'); end
-        slider(d, 'Watermark Size', 'kanjiSize', '%.0f px'); slider(d, 'Watermark Opacity', 'kanjiOpacity', '%.2f');
-        checkbox(d, 'Vertical Text', 'kanjiVertical');
-        imgui.TextDisabled('Names with Latin letters, digits or brackets, such as the [S] zones, are written across.');
-    end
-    widgets.Gap();
-    choice(d, 'Text Renderer', 'renderer', { 'imgui', 'gdi' });
-    if d.renderer == 'gdi' then
-        imgui.Text('Experimental native DLL. Banner text bypasses the ImGui font atlas.');
-        imgui.Text('GDI uses floating text only; Themed Panel is not applied.');
-        for _, field in ipairs({ { 'zoneTitleGdiFamily', 'Zone Title Family' }, { 'zoneDetailGdiFamily', 'Zone Detail Family' },
-            { 'areaTitleGdiFamily', 'Sub-zone Title Family' }, { 'areaDetailGdiFamily', 'Sub-zone Detail Family' } }) do
-            gdi_family_choice(d, field[2], field[1]);
+        tips.Hover('Weather popups use this style too.');
+        if styled then
+            slider(d, 'Style Title Size', 'styleTitleSize', '%.0f px');
+            slider(d, 'Style Detail Size', 'styleDetailSize', '%.0f px');
+            tips.Hover('Sizes for Title Card, Pennant and Kanji Watermark. Classic Text has its own below.');
         end
-        local families, problem = require('gdi_families').List();
-        if #families == 0 then imgui.Text('Windows font families could not be listed; saved selections are retained.'); end
-        if problem then imgui.Text('Font enumeration error: ' .. problem); end
-        checkbox(d, 'Bold Titles', 'gdiTitleBold'); checkbox(d, 'Bold Details', 'gdiDetailBold');
-    else
-        choice(d, 'Display Style', 'mode', { 'floating', 'panel' });
     end
-    choice(d, 'Text Alignment', 'alignment', { 'left', 'center', 'right' });
-    checkbox(d, 'Centered On Screen', 'centered');
-    widgets.Label('Position / Offset'); changed(imgui.InputInt2('##zone.position', d.position));
-    tips.Hover('With Centered On Screen on: X is an offset from screen center; Y is from the top. Otherwise X/Y are absolute pixels. Alignment anchors the whole banner at this position.');
-    if widgets.Header('Zone Entry Text', true) then
-        slider(d, 'Zone Title Size', 'zoneTitleSize', '%.0f px'); slider(d, 'Zone Detail Size', 'zoneDetailSize', '%.0f px');
-        if d.renderer == 'imgui' then
+    if uses(d, 'pennant') then
+        widgets.Gap();
+        if widgets.Header('Pennant') then
+            slider(d, 'Pennant Width', 'pennantWidth', '%.0f px');
+            slider(d, 'Pennant Length', 'pennantLength', '%.0f px');
+            tips.Hover('It hangs from the top of the screen; the words beside it are at the banner position.');
+            slider(d, 'Largest Letter Size', 'pennantLetterSize', '%.0f px');
+            tips.Hover('Long names are written smaller, to fit.');
+        end
+    end
+    if uses(d, 'kanji') then
+        widgets.Gap();
+        if widgets.Header('Kanji Watermark') then
+            font_choice(d, 'Japanese Font', 'kanjiFont', 'Automatic');
+            local file = kanji_file(d);
+            tips.Hover(file and ('Writing Japanese in ' .. file .. '.')
+                or 'No Japanese font was found (IPA Mincho, Yu Mincho, MS Mincho): the watermark is left out.');
+            if not file then imgui.TextDisabled('No Japanese font found: the watermark is left out.'); end
+            slider(d, 'Watermark Size', 'kanjiSize', '%.0f px'); slider(d, 'Watermark Opacity', 'kanjiOpacity', '%.2f');
+            checkbox(d, 'Vertical Text', 'kanjiVertical');
+            tips.Hover('Names with Latin letters, digits or brackets, such as the [S] zones, are written across.');
+        end
+    end
+    if uses(d, 'classic') then
+        widgets.Gap();
+        if widgets.Header('Classic Text') then
+            choice(d, 'Text Renderer', 'renderer', { 'imgui', 'gdi' });
+            tips.Hover('GDI draws the text with a native DLL, outside the ImGui font atlas. A failure in it can crash the client.');
+            if d.renderer == 'gdi' then
+                for _, field in ipairs({ { 'zoneTitleGdiFamily', 'Zone Title Family' }, { 'zoneDetailGdiFamily', 'Zone Detail Family' },
+                    { 'areaTitleGdiFamily', 'Sub-zone Title Family' }, { 'areaDetailGdiFamily', 'Sub-zone Detail Family' } }) do
+                    gdi_family_choice(d, field[2], field[1]);
+                end
+                local families, problem = require('gdi_families').List();
+                if #families == 0 then imgui.Text('Windows font families could not be listed; saved selections are kept.'); end
+                if problem then imgui.Text('Font enumeration error: ' .. problem); end
+                checkbox(d, 'Bold Titles', 'gdiTitleBold'); checkbox(d, 'Bold Details', 'gdiDetailBold');
+            else
+                choice(d, 'Display Style', 'mode', { 'floating', 'panel' });
+                tips.Hover('Themed Panel puts the theme\'s background, border and shadow behind the text.');
+            end
+            slider(d, 'Zone Title Size', 'zoneTitleSize', '%.0f px'); slider(d, 'Zone Detail Size', 'zoneDetailSize', '%.0f px');
+            slider(d, 'Sub-zone Title Size', 'areaTitleSize', '%.0f px'); slider(d, 'Sub-zone Detail Size', 'areaDetailSize', '%.0f px');
+            slider(d, 'Line Spacing', 'spacing', '%.0f px');
+        end
+    end
+    if styled or d.renderer == 'imgui' then
+        widgets.Gap();
+        if widgets.Header('Fonts') then
             font_choice(d, 'Zone Title Font', 'zoneTitleFont'); font_choice(d, 'Zone Detail Font', 'zoneDetailFont');
-        end
-    end
-    widgets.Gap();
-    if widgets.Header('Sub-zone Text') then
-        slider(d, 'Sub-zone Title Size', 'areaTitleSize', '%.0f px'); slider(d, 'Sub-zone Detail Size', 'areaDetailSize', '%.0f px');
-        if d.renderer == 'imgui' then
             font_choice(d, 'Sub-zone Title Font', 'areaTitleFont'); font_choice(d, 'Sub-zone Detail Font', 'areaDetailFont');
+            tips.Hover('From C:\\Windows\\Fonts. Default is the theme\'s font.');
         end
     end
     widgets.Gap();
-    if widgets.Header('Background Image') then
-        checkbox(d, 'Use Region Flags', 'backgroundFlags');
-        imgui.Text('A nation\'s own regions show its flag, fitted inside Image Size, in place of the image.');
-        checkbox(d, 'Show Background Image', 'backgroundEnabled');
-        widgets.Label('Image Filename');
-        changed(imgui.InputText('##zone.backgroundFile', d.backgroundFile, 256));
-        imgui.Text('Place PNG/JPG/BMP images in zone/assets/backgrounds/.');
-        widgets.Label('Image Size (Width, Height)');
-        changed(imgui.InputInt2('##zone.backgroundSize', d.backgroundSize));
-        widgets.Label('Image Offset (X, Y)');
-        changed(imgui.InputInt2('##zone.backgroundOffset', d.backgroundOffset));
-        widgets.Label('Image Opacity');
-        changed(imgui.SliderFloat('##zone.backgroundOpacity', d.backgroundOpacity, 0, 1, '%.2f'));
-        imgui.Text('Image stretches to this size and follows banner alignment and fade.');
-        if background_cache.error then imgui.Text(background_cache.error); end
-        if imgui.Button('Reload Background Image') then background_cache:clear(); end
+    if widgets.Header('Position') then
+        checkbox(d, 'Centered On Screen', 'centered');
+        widgets.Label('Position / Offset (X, Y)'); changed(imgui.InputInt2('##zone.position', d.position));
+        tips.Hover('Centered: X is an offset from the middle of the screen and Y is from the top. Otherwise both are screen pixels.');
+        choice(d, 'Text Alignment', 'alignment', { 'left', 'center', 'right' });
     end
-
     widgets.Gap();
-    if widgets.Header('Shared Text') then
-        slider(d, 'Line Spacing', 'spacing', '%.0f px');
+    if widgets.Header('Colors') then
         checkbox(d, 'Use Theme Text Color', 'themeText');
+        tips.Hover('The dark edge round the text is Winxi Theme\'s Text Outline and Outline Color, in winxisettings.');
         if not d.themeText[1] then
             widgets.Label('Title Color'); changed(imgui.ColorEdit4('##zone.titleColor', d.titleColor));
             widgets.Label('Detail Color'); changed(imgui.ColorEdit4('##zone.detailColor', d.detailColor));
         end
-        imgui.TextDisabled('The dark edge round the text is Winxi Theme\'s Text Outline and Outline Color, in winxisettings.');
+    end
+    if uses(d, 'classic') then
+        widgets.Gap();
+        if widgets.Header('Background Image', false, true) then
+            checkbox(d, 'Use Region Flags', 'backgroundFlags');
+            tips.Hover('A nation\'s own regions show its flag, fitted inside Image Size, in place of the image.');
+            checkbox(d, 'Show Background Image', 'backgroundEnabled');
+            widgets.Label('Image Filename');
+            changed(imgui.InputText('##zone.backgroundFile', d.backgroundFile, 256));
+            tips.Hover('A PNG, JPG or BMP in zone/assets/backgrounds/.');
+            widgets.Label('Image Size (Width, Height)');
+            changed(imgui.InputInt2('##zone.backgroundSize', d.backgroundSize));
+            widgets.Label('Image Offset (X, Y)');
+            changed(imgui.InputInt2('##zone.backgroundOffset', d.backgroundOffset));
+            widgets.Label('Image Opacity');
+            changed(imgui.SliderFloat('##zone.backgroundOpacity', d.backgroundOpacity, 0, 1, '%.2f'));
+            if background_cache.error then imgui.Text(background_cache.error); end
+            if imgui.Button('Reload Background Image') then background_cache:clear(); end
+        end
     end
     widgets.PopControlWidth();
-    if d.renderer == 'gdi' then
-        imgui.Text('Select an installed Windows font family from each dropdown.');
-        imgui.Text('Unavailable GDI families fall back to Arial. Native DLL failures may crash the client.');
-    else
-        imgui.Text('Floating Text uses winxi outlines; Themed Panel also uses theme background, border and shadow.');
-        imgui.Text('Fonts are loaded from C:\\Windows\\Fonts. Unavailable fonts fall back to Default.');
-    end
     commit(options);
 end
 M.app = shell.New({
@@ -461,12 +470,14 @@ local function cached_rows(content, tracking, d)
     if not c.rows or c.title ~= content.title or c.zone ~= content.zone_title
         or c.region ~= content.region or c.weather ~= content.weather or c.area ~= content.banner_is_area
         or c.is_weather ~= (content.banner_is_weather or false)
-        or c.show_region ~= region or c.show_weather ~= weather or c.context ~= context or c.experimental ~= experimental then
+        or c.show_region ~= region or c.show_weather ~= weather or c.context ~= context or c.experimental ~= experimental
+        or c.vana ~= content.vana or c.zone_day ~= d.zoneDayTime[1] or c.area_day ~= d.areaDayTime[1] then
         c.rows = layout.rows(content, tracking, d);
         c.title, c.zone = content.title, content.zone_title;
         c.region, c.weather, c.area = content.region, content.weather, content.banner_is_area;
         c.is_weather = content.banner_is_weather or false;
         c.show_region, c.show_weather, c.context, c.experimental = region, weather, context, experimental;
+        c.vana, c.zone_day, c.area_day = content.vana, d.zoneDayTime[1], d.areaDayTime[1];
     end
     return c.rows;
 end
@@ -505,7 +516,7 @@ local function draw_style(id, state, content, area_style, d, now, preview, timin
         if not d.zoneWeather[1] then weather = nil; end
     end
     c.upper = c.upper or '';
-    c.meta = meta_words(d.styleDayTime[1] and content.vana or nil, weather);
+    c.meta = meta_words(d[area_style and 'areaDayTime' or 'zoneDayTime'][1] and content.vana or nil, weather);
     c.zone_ja, c.flag = content.zone_ja, content.flag;
     if id == 'pennant' and content.flag then flag_cache = flag_cache or background.new(); end
     c.flag_image = (id == 'pennant' and content.flag) and flag_cache:get(flag_only, now, content.flag) or nil;

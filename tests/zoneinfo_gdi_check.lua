@@ -55,7 +55,7 @@ H.command('/zone'); H.tab(2);
 local textboxes = H.calls.InputText or 0;
 H.frames(1);
 local combo_count = 0; for _ in pairs(combos) do combo_count = combo_count + 1; end
-check('four family dropdowns and only the background filename textbox', combo_count == 4 and (H.calls.InputText or 0) == textboxes + 1);
+check('four family dropdowns and no textboxes (Background Image starts collapsed)', combo_count == 4 and (H.calls.InputText or 0) == textboxes);
 check('dropdown selection updates saved family', selections == 1 and d.zoneTitleGdiFamily[1] == 'Calibri' and H.saves() > 0);
 H.command('/zone');
 imgui.BeginCombo, imgui.Selectable = original_combo, original_selectable;
