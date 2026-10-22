@@ -10,9 +10,12 @@ local style = require('winxi.style');
 local theme = require('winxi.theme');
 local text = require('winxi.text');
 local game = require('winxi.game');
+local fonts_lib = require('winxi.fonts');
 local layout = require('banner_layout');
 local background = require('banner_background');
+local styles = require('banner_styles');
 local background_cache = background.new();
+local flag_cache; -- the pennant's flag, whether or not flags are shown behind Classic Text: made when first wanted
 local M = { preview = { false } };
 local dirty = false;
 local gdi_backend;
@@ -42,6 +45,10 @@ local function defaults()
         perLineTiming = T{ false },
         hold = T{ 5 }, fadeIn = T{ .2 }, fadeOut = T{ 1 }, opacity = T{ 1 },
         themeText = T{ true }, titleColor = T{ 1, 1, 1, 1 }, detailColor = T{ 1, 1, 1, 1 },
+        zoneStyle = 'classic', areaStyle = 'classic',
+        styleTitleSize = T{ 52 }, styleDetailSize = T{ 18 }, styleDayTime = T{ true },
+        pennantWidth = T{ 92 }, pennantLength = T{ 380 }, pennantLetterSize = T{ 30 },
+        kanjiFont = '', kanjiSize = T{ 120 }, kanjiOpacity = T{ .3 }, kanjiVertical = T{ true },
     } };
     for _, line in ipairs(lines) do
         result.display[line[1] .. 'Delay'] = T{ 0 };
@@ -54,7 +61,10 @@ end
 local ranges = { titleSize = { 14, 96 }, detailSize = { 10, 40 }, zoneTitleSize = { 14, 96 },
     zoneDetailSize = { 10, 40 }, areaTitleSize = { 14, 96 }, areaDetailSize = { 10, 40 },
     spacing = { 0, 30 }, hold = { .1, 60 }, fadeIn = { 0, 3 }, fadeOut = { 0, 10 },
-    opacity = { 0, 1 }, approachYalms = { 0, 100 }, locationSize = { 10, 40 } };
+    opacity = { 0, 1 }, approachYalms = { 0, 100 }, locationSize = { 10, 40 },
+    styleTitleSize = { 16, 120 }, styleDetailSize = { 10, 48 },
+    pennantWidth = { 40, 240 }, pennantLength = { 120, 1200 }, pennantLetterSize = { 10, 80 },
+    kanjiSize = { 32, 320 }, kanjiOpacity = { 0, 1 } };
 for _, line in ipairs(lines) do
     ranges[line[1] .. 'Delay'] = { 0, 60 };
     ranges[line[1] .. 'Hold'] = { .1, 60 };
@@ -78,7 +88,8 @@ function M.complete(options)
     -- SliderFloat's %.0f label does not round its value. Fractional sizes otherwise
     -- create new baked fonts continuously while dragging, churning the shared atlas.
     for _, key in ipairs({ 'titleSize', 'detailSize', 'zoneTitleSize', 'zoneDetailSize', 'areaTitleSize', 'areaDetailSize',
-        'locationSize', 'approachYalms' }) do
+        'locationSize', 'approachYalms', 'styleTitleSize', 'styleDetailSize', 'pennantWidth', 'pennantLength',
+        'pennantLetterSize', 'kanjiSize' }) do
         d[key][1] = math.floor(d[key][1] + .5);
     end
     for _, key in ipairs({ 'titleColor', 'detailColor' }) do
@@ -96,6 +107,9 @@ function M.complete(options)
     if d.alignment ~= 'left' and d.alignment ~= 'center' and d.alignment ~= 'right' then d.alignment = 'center'; end
     if d.mode ~= 'floating' and d.mode ~= 'panel' then d.mode = 'floating'; end
     if d.renderer ~= 'imgui' and d.renderer ~= 'gdi' then d.renderer = 'imgui'; end
+    if not styles.valid(d.zoneStyle) then d.zoneStyle = 'classic'; end
+    if not styles.valid(d.areaStyle) then d.areaStyle = 'classic'; end
+    if #d.kanjiFont > 255 or d.kanjiFont:find('[/\\:]') then d.kanjiFont = ''; end
     for i = 1, 2 do
         d.backgroundSize[i] = math.max(1, math.min(4096, d.backgroundSize[i]));
         d.backgroundOffset[i] = math.max(-4096, math.min(4096, d.backgroundOffset[i]));
@@ -120,6 +134,7 @@ local function choice(d, label, key, values)
     widgets.Label(label);
     local labels = { floating = 'Floating Text', panel = 'Themed Panel', left = 'Left', center = 'Center', right = 'Right',
         imgui = 'ImGui (Default)', gdi = 'GDI Fonts (Experimental)' };
+    for id, name in pairs(styles.labels) do labels[id] = name; end
     if imgui.BeginCombo('##zone.' .. key, labels[d[key]] or d[key]) then
         for _, value in ipairs(values) do
             if imgui.Selectable(labels[value] or value, d[key] == value) then d[key] = value; changed(true); end
@@ -137,7 +152,7 @@ local function get_font(file)
     end
     return fonts[file] or nil;
 end
-local function font_choice(d, label, key)
+local function font_choice(d, label, key, default_label)
     if not font_files then
         font_files = { '' };
         local ok, files = pcall(function() return ashita.fs.get_directory('C:\\Windows\\Fonts\\', '.*\\.ttf'); end);
@@ -147,9 +162,10 @@ local function font_choice(d, label, key)
         end
     end
     widgets.Label(label);
-    if imgui.BeginCombo('##zone.' .. key, d[key] == '' and 'Default' or d[key]) then
+    default_label = default_label or 'Default';
+    if imgui.BeginCombo('##zone.' .. key, d[key] == '' and default_label or d[key]) then
         for _, file in ipairs(font_files) do
-            if imgui.Selectable(file == '' and 'Default' or file, d[key] == file) then d[key] = file; changed(true); end
+            if imgui.Selectable(file == '' and default_label or file, d[key] == file) then d[key] = file; changed(true); end
         end
         imgui.EndCombo();
     end
@@ -164,6 +180,22 @@ local function gdi_family_choice(d, label, key)
         imgui.EndCombo();
     end
     if problem then tips.Hover('Font family enumeration failed: ' .. problem); end
+end
+-- The Japanese font for the Kanji Watermark: the one chosen, or the first of these in C:\Windows\Fonts.
+-- IPA Mincho comes with Wine's Japanese fonts, Yu Mincho and MS Mincho with Windows. Every Japanese
+-- zone and region name is in each of them.
+local kanji_candidates = { 'ipam-mona.ttf', 'ipamp-mona.ttf', 'yumin.ttf', 'msmincho.ttc' };
+local kanji_found;
+local function kanji_file(d)
+    if d.kanjiFont ~= '' then return d.kanjiFont; end
+    if kanji_found == nil then
+        kanji_found = false;
+        for _, file in ipairs(kanji_candidates) do
+            local ok, there = pcall(function() return ashita.fs.exists('C:\\Windows\\Fonts\\' .. file); end);
+            if ok and there then kanji_found = file; break; end
+        end
+    end
+    return kanji_found or nil;
 end
 local function commit(options)
     if dirty then M.complete(options); end
@@ -244,6 +276,31 @@ end
 local function draw_appearance(options)
     local d = options.display;
     widgets.PushControlWidth();
+    if widgets.Header('Banner Style', true) then
+        choice(d, 'Zone Entry Style', 'zoneStyle', styles.ids);
+        choice(d, 'Sub-zone Style', 'areaStyle', styles.ids);
+        imgui.Text('Weather popups use the sub-zone style. Try one with /zone test titlecard, pennant or kanji.');
+        slider(d, 'Style Title Size', 'styleTitleSize', '%.0f px'); slider(d, 'Style Detail Size', 'styleDetailSize', '%.0f px');
+        checkbox(d, 'Show Day And Time', 'styleDayTime');
+        imgui.TextDisabled('Styles use the zone or sub-zone fonts below, and are drawn with ImGui whichever renderer is chosen.');
+    end
+    widgets.Gap();
+    if widgets.Header('Pennant') then
+        slider(d, 'Pennant Width', 'pennantWidth', '%.0f px'); slider(d, 'Pennant Length', 'pennantLength', '%.0f px');
+        slider(d, 'Largest Letter Size', 'pennantLetterSize', '%.0f px');
+        imgui.TextDisabled('It hangs from the top of the screen; the words beside it are at the banner position.');
+    end
+    widgets.Gap();
+    if widgets.Header('Kanji Watermark') then
+        font_choice(d, 'Japanese Font', 'kanjiFont', 'Automatic');
+        local file = kanji_file(d);
+        if file then imgui.TextDisabled('Writing Japanese in ' .. file .. '.');
+        else imgui.Text('No Japanese font was found (IPA Mincho, Yu Mincho, MS Mincho): the watermark is left out.'); end
+        slider(d, 'Watermark Size', 'kanjiSize', '%.0f px'); slider(d, 'Watermark Opacity', 'kanjiOpacity', '%.2f');
+        checkbox(d, 'Vertical Text', 'kanjiVertical');
+        imgui.TextDisabled('Names with Latin letters, digits or brackets, such as the [S] zones, are written across.');
+    end
+    widgets.Gap();
     choice(d, 'Text Renderer', 'renderer', { 'imgui', 'gdi' });
     if d.renderer == 'gdi' then
         imgui.Text('Experimental native DLL. Banner text bypasses the ImGui font atlas.');
@@ -334,8 +391,20 @@ end
 function M.total()
     local d = M.app.options.display; return d.hold[1] + d.fadeOut[1];
 end
+-- The Vana'diel day and time a popup starts at, for the styles' last line: 'Firesday 14:20'.
+local days = { 'Firesday', 'Earthsday', 'Watersday', 'Windsday', 'Iceday', 'Lightningday', 'Lightsday', 'Darksday' };
+local function vana_words()
+    local ok, words = pcall(function()
+        local time = require('ffxi.time');
+        local raw = time.get_game_time_raw();
+        return ('%s %d:%02d'):format(days[tonumber(time.get_game_weekday(raw)) + 1],
+            time.get_game_hours(raw), time.get_game_minutes(raw));
+    end);
+    return ok and words or nil;
+end
 function M.start(state, now)
     local d = M.app.options.display;
+    state.vana = vana_words();
     state.started_at, state.visible_until = now, now + M.total();
     state.banner_timing = { hold = { d.hold[1] }, fadeIn = { d.fadeIn[1] }, fadeOut = { d.fadeOut[1] }, opacity = d.opacity };
     state.line_timing = nil;
@@ -349,6 +418,7 @@ function M.start(state, now)
         end
     end
 end
+function M.valid_style(id) return styles.valid(id); end
 function M.chat_enabled() return M.app.options.display.chat[1]; end
 function M.area_enabled() return M.app.options.display.areaEnabled[1]; end
 function M.weather_enabled() return M.app.options.display.weatherEnabled[1]; end
@@ -362,6 +432,7 @@ function M.toggle_config()
 end
 function M.shutdown()
     background_cache:clear();
+    if flag_cache then flag_cache:clear(); end
     if gdi_backend then gdi_backend:shutdown(); gdi_backend = nil; end
 end
 function M.reload()
@@ -373,7 +444,8 @@ end
 local transparent = { 0, 0, 0, 0 };
 local open = { true };
 local sample = { title = 'West Ronfaure', region = 'Ronfaure', weather = 'Clear',
-    zone_title = 'West Ronfaure', banner_is_area = false };
+    zone_title = 'West Ronfaure', banner_is_area = false, zone_ja = '西ロンフォール', region_ja = 'ロンフォール',
+    flag = 'sandoria', vana = 'Firesday 14:20' };
 local window_options = {};
 local pivot, position = { .5, 0 }, { 0, 0 };
 -- One bounded cache for the current banner/preview. Compare live scalar values so
@@ -399,6 +471,59 @@ local function cached_rows(content, tracking, d)
     return c.rows;
 end
 
+-- A style other than Classic Text: everything it draws from, in one table kept for it.
+local style_context = {};
+local flag_only = { backgroundFlags = { true }, backgroundEnabled = { false }, backgroundFile = { '' } };
+local meta_cache = {};
+local function meta_words(vana, weather)
+    local m = meta_cache;
+    if m.vana ~= vana or m.weather ~= weather then
+        m.vana, m.weather = vana, weather;
+        m.words = (vana and weather) and (vana .. '  ·  ' .. weather) or (vana or weather or '');
+    end
+    return m.words;
+end
+local function draw_style(id, state, content, area_style, d, now, preview, timing)
+    local alpha = preview and d.opacity[1] or layout.alpha(state.started_at, now, timing);
+    if alpha <= .01 then return false; end
+    local c = style_context;
+    local io = imgui.GetIO();
+    c.alpha = alpha;
+    -- Entrances play while a popup is up; a preview kept up while configuring is shown as it ends.
+    c.age = (state.started_at and state.visible_until > now) and (now - state.started_at) or 1000;
+    c.x = (d.centered[1] and (io.DisplaySize.x or io.DisplaySize[1] or 0) / 2 or 0) + d.position[1];
+    c.y, c.alignment = d.position[2], d.alignment;
+    c.title = content.title or '';
+    local weather = content.weather ~= nil and content.weather ~= '' and content.weather or nil;
+    if area_style then
+        c.upper = d.areaZoneContext[1] and content.zone_title or '';
+        c.upper_ja = content.zone_ja;
+        if content.banner_is_weather or not d.areaWeather[1] then weather = nil; end
+    else
+        c.upper = d.zoneRegion[1] and content.region or '';
+        c.upper_ja = content.region_ja;
+        if not d.zoneWeather[1] then weather = nil; end
+    end
+    c.upper = c.upper or '';
+    c.meta = meta_words(d.styleDayTime[1] and content.vana or nil, weather);
+    c.zone_ja, c.flag = content.zone_ja, content.flag;
+    if id == 'pennant' and content.flag then flag_cache = flag_cache or background.new(); end
+    c.flag_image = (id == 'pennant' and content.flag) and flag_cache:get(flag_only, now, content.flag) or nil;
+    local kind = area_style and 'area' or 'zone';
+    local theme_font = fonts_lib.Get(theme.Get().FontFile);
+    c.title_font = get_font(d[kind .. 'TitleFont']) or theme_font;
+    c.detail_font = get_font(d[kind .. 'DetailFont']) or theme_font;
+    c.title_size, c.detail_size = d.styleTitleSize[1], d.styleDetailSize[1];
+    c.title_color = d.themeText[1] and theme.Get().TextColor or d.titleColor;
+    c.detail_color = d.themeText[1] and theme.Get().TextColor or d.detailColor;
+    c.edge, c.outline = text.Edge(), text.EdgeColor();
+    c.pennant_width, c.pennant_length, c.pennant_letter = d.pennantWidth[1], d.pennantLength[1], d.pennantLetterSize[1];
+    local file = kanji_file(d);
+    c.kanji_font = file and get_font(file) or nil;
+    c.kanji_size, c.kanji_opacity, c.kanji_vertical = d.kanjiSize[1], d.kanjiOpacity[1], d.kanjiVertical[1];
+    return styles.draw(id, imgui.GetBackgroundDrawList(), c);
+end
+
 function M.draw(state, tracking, now)
     local options, d = M.app.options, M.app.options.display;
     local preview = M.app.showConfig[1] and M.preview[1];
@@ -412,9 +537,14 @@ function M.draw(state, tracking, now)
     if state.banner_timing then timing.opacity = d.opacity; end
     if game.IsHidden(options.hide) then return false; end
     local content = preview and (state.title ~= '' and state or sample) or state;
-    local rows = cached_rows(content, tracking, d);
     -- A weather popup is styled as a sub-zone popup is.
     local area_style = content.banner_is_area or content.banner_is_weather or false;
+    local style_id = state.style_override or (area_style and d.areaStyle or d.zoneStyle);
+    if style_id ~= 'classic' and styles.valid(style_id) then
+        if gdi_backend then M.shutdown(); end
+        return draw_style(style_id, state, content, area_style, d, now, preview, timing);
+    end
+    local rows = cached_rows(content, tracking, d);
     local alpha = 0;
     for _, row in ipairs(rows) do
         local line = state.line_timing and state.line_timing[row.key];

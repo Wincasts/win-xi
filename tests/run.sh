@@ -159,6 +159,7 @@ run zoneinfo-zoom tests/zoneinfo_fixture.lua zoneinfo_zoom_ui_check.lua
 run zoneinfo-performance tests/zoneinfo_fixture.lua zoneinfo_performance_ui_check.lua
 run zoneinfo-subzone tests/zoneinfo_fixture.lua zoneinfo_subzone_check.lua
 run zoneinfo-gdi tests/zoneinfo_fixture.lua zoneinfo_gdi_check.lua
+run zoneinfo-styles tests/zoneinfo_fixture.lua zoneinfo_styles_check.lua
 luajit tests/zoneinfo_gdi_families_check.lua
 luajit tests/zoneinfo_height_check.lua
 luajit tests/zoneinfo_exact_check.lua

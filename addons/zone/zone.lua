@@ -1,6 +1,6 @@
 addon.name    = 'zone';
 addon.author  = 'win';
-addon.version = '2.5.0';
+addon.version = '2.6.0';
 addon.desc    = 'Zone, region, sub-zone and weather banners, a location line, and an all-map experimental boundary editor.';
 
 require('common');
@@ -9,6 +9,7 @@ local chat    = require('chat');
 local regions = require('data.regions');
 local rz      = require('data.regionZones');
 local region_flags = require('data.region_flags');
+local zone_names_ja = require('data.zone_names_ja');
 local map_position = require('map_position');
 local debug_view   = require('debug_view');
 local presentation = require('presentation');
@@ -41,6 +42,9 @@ local state = {
     next_weather = 0,
     banner_is_weather = false,
     flag = nil,
+    zone_ja = nil,
+    region_ja = nil,
+    style_override = nil,
 };
 
 local weather_fallback = {
@@ -68,10 +72,12 @@ local weather_fallback = {
 
 local zone_to_region = {};
 local region_names = {};
+local region_names_ja = {};
 
 local function build_region_lookup()
     for _, r in ipairs(regions) do
         region_names[r.id] = r.en;
+        region_names_ja[r.id] = r.ja;
     end
 
     for region_id, zones in pairs(rz.map) do
@@ -156,6 +162,14 @@ local function get_flag(zone)
     return region_flags[zone_to_region[zone or 0] or -1];
 end
 
+-- The zone's and its region's names in the Japanese client, for the Kanji Watermark, and no
+-- /zone test style carried over: set for every banner.
+local function set_banner_names(zone)
+    state.zone_ja = zone_names_ja[zone or 0];
+    state.region_ja = region_names_ja[zone_to_region[zone or 0] or -1];
+    state.style_override = nil;
+end
+
 local function show_zone(zone)
     state.last_zone = zone;
     state.title = get_zone_name(zone);
@@ -165,6 +179,7 @@ local function show_zone(zone)
     state.weather_id, state.weather = get_weather_id(), get_weather_name();
     state.weather_pending, state.weather_quiet_until = false, os.clock() + WEATHER_SETTLE;
     state.flag = get_flag(zone);
+    set_banner_names(zone);
     presentation.start(state, os.clock());
     tracking.announce_after = state.visible_until;
     if (presentation.chat_enabled()) then
@@ -235,6 +250,7 @@ local function show_area(area)
     state.banner_is_area, state.banner_is_weather, state.area_preview = true, false, false;
     state.region, state.weather = get_region_name(state.last_zone), get_weather_name();
     state.flag = get_flag(state.last_zone);
+    set_banner_names(state.last_zone);
     presentation.start(state, os.clock());
     if (presentation.chat_enabled()) then
         message(('Sub-zone: %s - %s - %s - %s'):format(state.title, state.zone_title, state.region, state.weather));
@@ -253,6 +269,7 @@ local function show_weather()
     state.banner_is_area, state.banner_is_weather, state.area_preview = false, true, false;
     state.region = get_region_name(state.last_zone);
     state.flag = get_flag(state.last_zone);
+    set_banner_names(state.last_zone);
     presentation.start(state, os.clock());
     if (presentation.chat_enabled()) then
         message(('Weather: %s - %s'):format(state.weather, state.zone_title));
@@ -399,7 +416,13 @@ ashita.events.register('command', 'zone_command', function(e)
     if (command == '') then
         presentation.toggle_config();
     elseif (command == 'test') then
+        local style = args[3] and args[3]:lower();
+        if (style and not presentation.valid_style(style)) then
+            message('Usage: /zone test [classic|titlecard|pennant|kanji]', true);
+            return;
+        end
         check_zone_changed(true);
+        state.style_override = style;
     elseif (command == 'reload' or command == 'rl') then
         if (presentation.reload()) then
             message('Display settings reloaded.'); check_zone_changed(true);
@@ -465,7 +488,7 @@ ashita.events.register('command', 'zone_command', function(e)
             message('Session-only manual transform set; verify alignment at several separated landmarks.');
         end
     else
-        message('/zone [test|reload] | poc [on|off] | debug [on|off] | approach <0..100 yalms> | sample | livemap auto | transform <scale> <offset_x> <offset_y> | transform reset');
+        message('/zone [test [style]|reload] | poc [on|off] | debug [on|off] | approach <0..100 yalms> | sample | livemap auto | transform <scale> <offset_x> <offset_y> | transform reset');
     end
 end);
 
