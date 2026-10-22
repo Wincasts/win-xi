@@ -82,6 +82,19 @@ int main() {
             back = back && Near(us, s0, 1e-6) && Near(vs, t0, 1e-6);
         }
     Check(back, "ScreenOf undoes SourceOf for both modes and every strength");
+    // the edge worked out once and handed in maps as it does worked out each time
+    bool edge = Near(lens::EdgeOf(tanH, lens::Cylindrical), phiE, 1e-12) && lens::EdgeOf(tanH, lens::Panini) == 0;
+    for (lens::Mode mode : { lens::Panini, lens::Cylindrical }) for (double s0 : { 0.1, 0.5, 0.9 }) {
+        const double e = lens::EdgeOf(tanH, mode);
+        double a, b, c, d;
+        lens::SourceOf(s0, 0.3, tanH, tanV, mode, 0.5, a, b);
+        lens::SourceOf(s0, 0.3, tanH, tanV, mode, 0.5, e, c, d);
+        edge = edge && a == c && b == d;
+        lens::ScreenOf(s0, 0.3, tanH, tanV, mode, 0.5, a, b);
+        lens::ScreenOf(s0, 0.3, tanH, tanV, mode, 0.5, e, c, d);
+        edge = edge && a == c && b == d;
+    }
+    Check(edge, "EdgeOf handed to SourceOf and ScreenOf maps as without it");
     double ms, mt;
     lens::ScreenOf(0.5, 0.5, tanH, tanV, lens::Panini, 0.25, ms, mt);
     Check(Near(ms, 0.5) && Near(mt, 0.5), "the middle stays where it is");

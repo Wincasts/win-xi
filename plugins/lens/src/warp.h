@@ -55,9 +55,14 @@ inline double CylinderEdge(double tanH) {
     return lo;
 }
 
+// The cylindrical view's edge for tanH, or 0 for Panini, which has none. Sixty halvings, so a caller
+// mapping many points works it out once and hands it to SourceOf and ScreenOf (namehook's Counter for
+// every name each frame took some 50 times as long without).
+inline double EdgeOf(double tanH, Mode mode) { return mode == Cylindrical ? CylinderEdge(tanH) : 0; }
+
 // Where the screen point (s, t), each 0 to 1 across the quad, reads the source, each 0 to 1 across
-// the picture: tanH and tanV are the picture's half fields of view as tangents.
-inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, double strength, double& us, double& vs) {
+// the picture: tanH and tanV are the picture's half fields of view as tangents, phiE EdgeOf them.
+inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, double strength, double phiE, double& us, double& vs) {
     double tx, ty;
     if (mode == Panini) {
         double xEdge = PaniniX(atan(tanH), strength);   // the source's horizontal edge on the Panini plane
@@ -67,19 +72,21 @@ inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, do
         vs = 0.5 + 0.5 * ty / tanV;
         return;
     }
-    double phiE = CylinderEdge(tanH);
     double phi = phiE * (2 * s - 1), y = phiE * tanV / tanH * (2 * t - 1);
     tx = tan(phi);
     ty = y / cos(phi);
     us = s + strength * (0.5 + 0.5 * tx / tanH - s);
     vs = t + strength * (0.5 + 0.5 * ty / tanV - t);
 }
+inline void SourceOf(double s, double t, double tanH, double tanV, Mode mode, double strength, double& us, double& vs) {
+    SourceOf(s, t, tanH, tanV, mode, strength, EdgeOf(tanH, mode), us, vs);
+}
 
 // Where the warp shows what the flat picture has at (s0, t0), each 0 to 1 across the picture: the
 // screen point (s, t) whose SourceOf is (s0, t0). Panini by its forward mapping; cylindrical, a blend,
 // by Newton's method from the point itself. For overlays drawn over the world, and anything else that
-// places itself by the flat projection.
-inline void ScreenOf(double s0, double t0, double tanH, double tanV, Mode mode, double strength, double& s, double& t) {
+// places itself by the flat projection. phiE is EdgeOf(tanH, mode).
+inline void ScreenOf(double s0, double t0, double tanH, double tanV, Mode mode, double strength, double phiE, double& s, double& t) {
     if (mode == Panini) {
         double xEdge = PaniniX(atan(tanH), strength), yEdge = xEdge * tanV / tanH;
         double tx = (2 * s0 - 1) * tanH, ty = (2 * t0 - 1) * tanV;
@@ -93,17 +100,20 @@ inline void ScreenOf(double s0, double t0, double tanH, double tanV, Mode mode, 
     for (int i = 0; i < 12; ++i) {
         double us, vs, ua, va, ub, vb;
         const double h = 1e-5;
-        SourceOf(s, t, tanH, tanV, mode, strength, us, vs);
+        SourceOf(s, t, tanH, tanV, mode, strength, phiE, us, vs);
         double fu = us - s0, fv = vs - t0;
         if (fabs(fu) < 1e-9 && fabs(fv) < 1e-9) break;
-        SourceOf(s + h, t, tanH, tanV, mode, strength, ua, va);
-        SourceOf(s, t + h, tanH, tanV, mode, strength, ub, vb);
+        SourceOf(s + h, t, tanH, tanV, mode, strength, phiE, ua, va);
+        SourceOf(s, t + h, tanH, tanV, mode, strength, phiE, ub, vb);
         double a = (ua - us) / h, b = (ub - us) / h, c = (va - vs) / h, d = (vb - vs) / h;
         double det = a * d - b * c;
         if (fabs(det) < 1e-12) break;
         s -= (d * fu - b * fv) / det;
         t -= (a * fv - c * fu) / det;
     }
+}
+inline void ScreenOf(double s0, double t0, double tanH, double tanV, Mode mode, double strength, double& s, double& t) {
+    ScreenOf(s0, t0, tanH, tanV, mode, strength, EdgeOf(tanH, mode), s, t);
 }
 
 // What undoes the warp's stretch around a point of the flat picture, for something drawn into the
@@ -115,11 +125,12 @@ inline void Counter(double s0, double t0, double width, double height, double ta
     m[0] = 1; m[1] = 0; m[2] = 0; m[3] = 1;
     if (strength <= 0 || width <= 0 || height <= 0) return;
     const double h = 1e-4;
+    const double phiE = EdgeOf(tanH, mode);
     double sa, ta, sb, tb, sc, tc, sd, td;
-    ScreenOf(s0 + h, t0, tanH, tanV, mode, strength, sa, ta);
-    ScreenOf(s0 - h, t0, tanH, tanV, mode, strength, sb, tb);
-    ScreenOf(s0, t0 + h, tanH, tanV, mode, strength, sc, tc);
-    ScreenOf(s0, t0 - h, tanH, tanV, mode, strength, sd, td);
+    ScreenOf(s0 + h, t0, tanH, tanV, mode, strength, phiE, sa, ta);
+    ScreenOf(s0 - h, t0, tanH, tanV, mode, strength, phiE, sb, tb);
+    ScreenOf(s0, t0 + h, tanH, tanV, mode, strength, phiE, sc, tc);
+    ScreenOf(s0, t0 - h, tanH, tanV, mode, strength, phiE, sd, td);
     // in pixels: x = s * width, y = t * height, on both sides
     double a = (sa - sb) / (2 * h), b = (sc - sd) / (2 * h) * width / height;
     double c = (ta - tb) / (2 * h) * height / width, d = (tc - td) / (2 * h);
@@ -148,11 +159,12 @@ inline Quad QuadOf(const Vertex* v) {
 inline void Build(const Quad& q, double tanH, double tanV, Mode mode, double strength, int cols, int rows, std::vector<Vertex>& vertices, std::vector<uint16_t>& indices) {
     vertices.clear();
     indices.clear();
+    const double phiE = EdgeOf(tanH, mode);
     for (int r = 0; r <= rows; ++r) {
         for (int c = 0; c <= cols; ++c) {
             double s = double(c) / cols, t = double(r) / rows;
             double us, vs;
-            SourceOf(s, t, tanH, tanV, mode, strength, us, vs);
+            SourceOf(s, t, tanH, tanV, mode, strength, phiE, us, vs);
             Vertex v;
             v.x = float(q.left + (q.right - q.left) * s);
             v.y = float(q.top + (q.bottom - q.top) * t);

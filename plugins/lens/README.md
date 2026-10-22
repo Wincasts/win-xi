@@ -1,4 +1,4 @@
-# lens — experimental 0.5
+# lens — experimental 0.6
 
 FFXI's world through a Panini or cylindrical projection, either of which keeps a wide view without
 the stretching a flat projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
@@ -64,7 +64,10 @@ back buffer, covering it, textured from a render target; lens builds a 128 by 64
 rectangle, each vertex's texture coordinate found by running the projection backwards from the
 screen to the flat picture (the game's projection, as set at the copy, gives the picture's fields of
 view), draws it with the game's own state but smooth sampling, and blocks the quad. The grid is built
-again only when the strength, the picture's fields of view or the rectangle change.
+again only when the strength, the picture's fields of view or the rectangle change, and kept on the
+card between, so a frame draws it without sending it (2026-10-21: some 330 KB a frame before). The
+game draws hundreds of other screen quads a frame for its UI; while the warp is live they are told
+from the copy by their size alone, before anything is asked of the device.
 
 ### For addons
 
@@ -75,7 +78,8 @@ Strength (0 to 1) and the picture's half fields of view as tangents, TanH and Ta
 exported as `LensWarp` for a plugin to find with GetProcAddress). `winxi.lens` finds it and copies the
 mapping, ScreenOf being the reverse of the warp's own: where it shows a point of the flat picture.
 `Counter` in `src/warp.h` undoes the warp's stretch around a point, for what is drawn into the picture
-and should come out at its own shape.
+and should come out at its own shape. A plugin mapping many points works out `EdgeOf` once and passes
+it to `SourceOf` and `ScreenOf`: the cylindrical edge takes sixty halvings to find.
 
 ### Finding the mouse
 

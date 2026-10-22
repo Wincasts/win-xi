@@ -38,6 +38,12 @@ class Lens : public IPlugin {
     int m_Built = -1;           // the strength it was built for; -1 for none
     lens::Mode m_BuiltMode = lens::Panini;
     uint32_t m_Warped = 0;      // frames warped, for the status
+    UINT m_BackW = 0, m_BackH = 0;  // the back buffer's size at the last warp
+    // the grid, kept on the card and written only when it is built, rather than sent with every frame
+    IDirect3DDevice8* m_BufferDevice = nullptr;
+    IDirect3DVertexBuffer8* m_VertexBuffer = nullptr;
+    IDirect3DIndexBuffer8* m_IndexBuffer = nullptr;
+    bool m_Written = false;     // the buffers hold the grid as built
     static const int Cols = 128, Rows = 64;
 
     std::vector<lens::Candidate> m_Mouse;   // where the cursor's place may be kept, from /lens mouse
@@ -48,7 +54,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.5; }
+    double GetVersion() const override { return 0.6; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -64,6 +70,7 @@ public:
     }
     void Release() override {
         m_Capture.reset();
+        ReleaseBuffers();
         Shared.WarpedFrame = 0;
     }
 
@@ -164,8 +171,8 @@ public:
         if (m_Capture->frames >= m_Want) Finish();
     }
 
-    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE t, UINT, UINT count) override { Record(lens::DP, t, count); return false; }
-    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE t, UINT, UINT, UINT, UINT count) override { Record(lens::DIP, t, count); return false; }
+    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE t, UINT, UINT count) override { if (!m_Drawing) Record(lens::DP, t, count); return false; }
+    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE t, UINT, UINT, UINT, UINT count) override { if (!m_Drawing) Record(lens::DIP, t, count); return false; }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t, UINT count, const void* data, UINT stride) override {
         if (m_Drawing) return false;
         Record(lens::DPUP, t, count);
@@ -304,6 +311,10 @@ private:
     // warped grid with the same state, and the quad blocked; true when so.
     bool Warp(D3DPRIMITIVETYPE type, UINT count, const void* data, UINT stride) {
         if (type != D3DPT_TRIANGLESTRIP || count != 2 || stride != sizeof(lens::Vertex) || !data) return false;
+        // the game's UI draws some 700 such quads a frame: while the warp is live, the back buffer's
+        // size from its last frame tells them apart without asking the device anything
+        lens::Quad q = lens::QuadOf(static_cast<const lens::Vertex*>(data));
+        if (m_BackW && lens::Live(&Shared) && (q.right - q.left < m_BackW * 0.9f || q.bottom - q.top < m_BackH * 0.9f)) return false;
         auto* device = m_Core->GetDirect3DDevice();
         if (!device) return false;
         DWORD shader = 0;
@@ -324,7 +335,6 @@ private:
         if (target) target->Release();
         if (back) back->Release();
         if (!onBack) return false;
-        lens::Quad q = lens::QuadOf(static_cast<const lens::Vertex*>(data));
         if (q.right - q.left < backDesc.Width * 0.9f || q.bottom - q.top < backDesc.Height * 0.9f) return false;
         D3DMATRIX p;
         if (FAILED(device->GetTransform(D3DTS_PROJECTION, &p)) || p._11 <= 0 || p._22 <= 0) return false;
@@ -332,6 +342,7 @@ private:
         if (m_Built != m_Strength || m_BuiltMode != m_Mode || memcmp(&q, &m_Quad, sizeof(q)) != 0 || tanH != m_TanH || tanV != m_TanV) {
             lens::Build(q, tanH, tanV, m_Mode, m_Strength / 100.0, Cols, Rows, m_Vertices, m_Indices);
             m_Quad = q; m_TanH = tanH; m_TanV = tanV; m_Built = m_Strength; m_BuiltMode = m_Mode;
+            m_Written = false;
         }
         // sampled smoothly, as the warp reads between the picture's pixels; the game's filters put back
         DWORD mag = 0, min = 0;
@@ -340,12 +351,28 @@ private:
         device->SetTextureStageState(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
         device->SetTextureStageState(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
         m_Drawing = true;
-        HRESULT hr = device->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m_Vertices.size()), static_cast<UINT>(m_Indices.size() / 3),
-            m_Indices.data(), D3DFMT_INDEX16, m_Vertices.data(), sizeof(lens::Vertex));
+        const UINT vertices = static_cast<UINT>(m_Vertices.size()), triangles = static_cast<UINT>(m_Indices.size() / 3);
+        HRESULT hr;
+        if (Buffers(device)) {
+            // the game's indices put back after; stream 0 left empty, as the game's own DrawPrimitiveUP leaves it
+            IDirect3DIndexBuffer8* indices = nullptr;
+            UINT baseVertex = 0;
+            device->GetIndices(&indices, &baseVertex);
+            device->SetStreamSource(0, m_VertexBuffer, sizeof(lens::Vertex));
+            device->SetIndices(m_IndexBuffer, 0);
+            hr = device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, vertices, 0, triangles);
+            device->SetStreamSource(0, nullptr, 0);
+            device->SetIndices(indices, baseVertex);
+            if (indices) indices->Release();
+        } else {
+            hr = device->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, vertices, triangles,
+                m_Indices.data(), D3DFMT_INDEX16, m_Vertices.data(), sizeof(lens::Vertex));
+        }
         m_Drawing = false;
         device->SetTextureStageState(0, D3DTSS_MAGFILTER, mag);
         device->SetTextureStageState(0, D3DTSS_MINFILTER, min);
         if (FAILED(hr)) return false;
+        m_BackW = backDesc.Width; m_BackH = backDesc.Height;
         ++m_Warped;
         Shared.Mode = static_cast<uint32_t>(m_Mode);
         Shared.Strength = m_Strength / 100.0f;
@@ -353,6 +380,32 @@ private:
         Shared.TanV = static_cast<float>(tanV);
         Shared.WarpedFrame = Shared.Frame ? Shared.Frame : 1;
         return true;
+    }
+
+    // The grid in buffers of the card's own (managed, so they outlive a reset), made for this device and
+    // written once each time the grid is built; false when they cannot be had, and the grid is sent with
+    // the draw instead.
+    bool Buffers(IDirect3DDevice8* device) {
+        if (device != m_BufferDevice) { ReleaseBuffers(); m_BufferDevice = device; }
+        const UINT vertexBytes = static_cast<UINT>(m_Vertices.size() * sizeof(lens::Vertex)), indexBytes = static_cast<UINT>(m_Indices.size() * sizeof(uint16_t));
+        if (!m_VertexBuffer && FAILED(device->CreateVertexBuffer(vertexBytes, D3DUSAGE_WRITEONLY, 0x144, D3DPOOL_MANAGED, &m_VertexBuffer))) { m_VertexBuffer = nullptr; return false; }
+        if (!m_IndexBuffer && FAILED(device->CreateIndexBuffer(indexBytes, D3DUSAGE_WRITEONLY, D3DFMT_INDEX16, D3DPOOL_MANAGED, &m_IndexBuffer))) { m_IndexBuffer = nullptr; return false; }
+        if (m_Written) return true;
+        BYTE* to = nullptr;
+        if (FAILED(m_VertexBuffer->Lock(0, vertexBytes, &to, 0)) || !to) return false;
+        memcpy(to, m_Vertices.data(), vertexBytes);
+        m_VertexBuffer->Unlock();
+        to = nullptr;
+        if (FAILED(m_IndexBuffer->Lock(0, indexBytes, &to, 0)) || !to) return false;
+        memcpy(to, m_Indices.data(), indexBytes);
+        m_IndexBuffer->Unlock();
+        m_Written = true;
+        return true;
+    }
+    void ReleaseBuffers() {
+        if (m_VertexBuffer) m_VertexBuffer->Release();
+        if (m_IndexBuffer) m_IndexBuffer->Release();
+        m_VertexBuffer = nullptr; m_IndexBuffer = nullptr; m_BufferDevice = nullptr; m_Written = false;
     }
 
     void Callers(uint32_t* out) const {
