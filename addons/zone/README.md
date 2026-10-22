@@ -127,7 +127,8 @@ The `/zone test` command shows the current zone immediately;
 `config` / `settings` opens or closes the settings window, and `reload` / `rl`
 reloads character settings and shows the current zone again.
 
-**Settings** controls banner/chat visibility, the zone-entry and **Sub-zone**
+**Appearance** is the first tab of the settings window and **Behaviour** the
+second. **Behaviour** controls banner/chat visibility, the zone-entry and **Sub-zone**
 popup content, opacity, timing, and winxi's game-UI hiding rules. **Appearance**
 holds how the banner looks: its style, fonts, position and colours. There is no
 Winxi Theme tab: the theme, window and style settings zone follows are set in

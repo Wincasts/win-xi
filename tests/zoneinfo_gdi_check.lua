@@ -51,7 +51,7 @@ imgui.Selectable = function(label)
     return false;
 end;
 d.renderer = 'gdi';
-H.command('/zone'); H.tab(2);
+H.command('/zone'); H.tab(1); -- Appearance, the first tab
 local textboxes = H.calls.InputText or 0;
 H.frames(1);
 local combo_count = 0; for _ in pairs(combos) do combo_count = combo_count + 1; end
