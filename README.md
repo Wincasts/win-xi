@@ -12,6 +12,7 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | [drawscale](addons/drawscale) | World and entity draw distance with the fog at its own scale, objects that don't pop in or lose detail, distant terrain drawn, true proportions and a narrower field of view for wide screens; saved per character, with presets for cities, the outdoors and dungeons and a zone's own values over them; replaces drawdistance | `/drawscale` |
 | [hidecompass](addons/hidecompass) | Hides the game's compass | `/hidecompass` |
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
+| [menutoggle](addons/menutoggle) | Start opens and closes the main menu, in place of moving on to the social menu | `/menutoggle` |
 | [mobcast](addons/mobcast) | What the enemies about you are casting, readying and using, in a small window, as the chat log says it | `/mobcast` |
 | [name](addons/name) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style; needs the `namehook` plugin | `/name` |
 | [parse](addons/parse) | Experimental packet-based damage, observed hit rates and manual encounter DPS, with capture/replay diagnostics | `/parse` |
