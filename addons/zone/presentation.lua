@@ -280,13 +280,13 @@ local function draw_appearance(options)
     widgets.PushControlWidth();
     if widgets.Header('Banner Style', true) then
         choice(d, 'Zone Entry Style', 'zoneStyle', styles.ids);
-        tips.Hover('/zone test titlecard, pennant, kanji or classic shows the zone once in that style.');
+        tips.Hover('/zone test and a style (' .. table.concat(styles.ids, ', ') .. ') shows the zone once in that style.');
         choice(d, 'Sub-zone Style', 'areaStyle', styles.ids);
         tips.Hover('Weather popups use this style too.');
         if styled then
             slider(d, 'Style Title Size', 'styleTitleSize', '%.0f px');
             slider(d, 'Style Detail Size', 'styleDetailSize', '%.0f px');
-            tips.Hover('Sizes for Title Card, Pennant and Kanji Watermark. Classic Text has its own below.');
+            tips.Hover('Sizes for every style but Classic Text, which has its own below.');
         end
     end
     if uses(d, 'pennant') then
@@ -428,6 +428,7 @@ function M.start(state, now)
     end
 end
 function M.valid_style(id) return styles.valid(id); end
+function M.style_ids() return styles.ids; end
 function M.chat_enabled() return M.app.options.display.chat[1]; end
 function M.area_enabled() return M.app.options.display.areaEnabled[1]; end
 function M.weather_enabled() return M.app.options.display.weatherEnabled[1]; end
@@ -454,7 +455,7 @@ local transparent = { 0, 0, 0, 0 };
 local open = { true };
 local sample = { title = 'West Ronfaure', region = 'Ronfaure', weather = 'Clear',
     zone_title = 'West Ronfaure', banner_is_area = false, zone_ja = '西ロンフォール', region_ja = 'ロンフォール',
-    flag = 'sandoria', vana = 'Firesday 14:20' };
+    flag = 'sandoria', vana = 'Firesday 14:20', weather_id = 0, kind = 'outdoors' };
 local window_options = {};
 local pivot, position = { .5, 0 }, { 0, 0 };
 -- One bounded cache for the current banner/preview. Compare live scalar values so
@@ -516,7 +517,13 @@ local function draw_style(id, state, content, area_style, d, now, preview, timin
         if not d.zoneWeather[1] then weather = nil; end
     end
     c.upper = c.upper or '';
-    c.meta = meta_words(d[area_style and 'areaDayTime' or 'zoneDayTime'][1] and content.vana or nil, weather);
+    local vana = d[area_style and 'areaDayTime' or 'zoneDayTime'][1] and content.vana or nil;
+    c.meta = meta_words(vana, weather);
+    -- Elemental Weather has the day and the weather apart, and the weather's element even when its
+    -- words are left out of a weather popup, whose title says it.
+    c.vana, c.weather = vana, weather;
+    c.weather_id = (weather or content.banner_is_weather) and content.weather_id or nil;
+    c.kind = content.kind;
     c.zone_ja, c.flag = content.zone_ja, content.flag;
     if id == 'pennant' and content.flag then flag_cache = flag_cache or background.new(); end
     c.flag_image = (id == 'pennant' and content.flag) and flag_cache:get(flag_only, now, content.flag) or nil;

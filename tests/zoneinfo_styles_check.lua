@@ -219,6 +219,103 @@ p.draw(zone_state, nil, 703);
 check('and has it on its last line when on', texts()['Firesday 14:20  ·  Clear'] ~= nil);
 d.areaDayTime[1] = false;
 
+-- Letter Reveal: a letter at a time, blurred as each comes, the region between two rules once all are in.
+d.zoneStyle, d.zoneWeather[1], d.zoneDayTime[1] = 'reveal', true, true;
+local new = { title = 'Davoi', region = 'Norvallen', weather = 'Rain', weather_id = 6, vana = 'Firesday 14:20',
+    banner_is_area = false, kind = 'dungeon' };
+p.start(new, 700);
+drawn = {};
+p.draw(new, nil, 700.1);
+words = texts();
+check('Letter Reveal: the first letters come first', words['D'] ~= nil and words['i'] == nil);
+check('with faint copies either side while they settle', words['D'] > 5);
+check('the region waits for the name', words['Norvallen'] == nil and count('AddLine') == 0);
+drawn = {};
+p.draw(new, nil, 702);
+words = texts();
+check('every letter in, settled', words['i'] == 5 and words['D'] == 5);
+check('the region between two rules, with their shadows', words['Norvallen'] ~= nil and count('AddLine') == 4);
+
+-- Classic Window: a window opening from a line, the words once it is open, the pointer by the name.
+d.zoneStyle = 'window';
+p.start(new, 710);
+drawn = {};
+p.draw(new, nil, 710.1);
+check('Classic Window: the window, still opening, has no words yet', count('AddRectFilledMultiColor') == 1 and next(texts()) == nil);
+drawn = {};
+p.draw(new, nil, 712);
+words = texts();
+check('open: frame, shadow and body', count('AddRectFilled') == 2 and count('AddRectFilledMultiColor') == 1 and count('AddRect') == 1);
+check('the words in it', words['Davoi'] ~= nil and words['Norvallen'] ~= nil and words['Firesday 14:20  ·  Rain'] ~= nil);
+check('the pointer, outlined', count('AddTriangleFilled') == 2 and count('AddLine') == 5);
+
+-- Elemental Weather: each weather's element, single or double.
+local element, n = styles.weather_element(4);
+check('weather 4 is single fire', element == 'fire' and n == 1);
+element, n = styles.weather_element(7);
+check('weather 7 is double water', element == 'water' and n == 2);
+element, n = styles.weather_element(19);
+check('weather 19 is double dark', element == 'dark' and n == 2);
+check('clear, sunshine, clouds and fog have none', styles.weather_element(0) == nil and styles.weather_element(3) == nil);
+d.zoneStyle = 'element';
+p.start(new, 720);
+drawn = {};
+p.draw(new, nil, 722);
+words = texts();
+check('Elemental Weather: one crystal for rain', count('AddQuadFilled') == 1 and count('AddQuad') == 1);
+check('the weather in capitals', words['R'] ~= nil and words['N'] ~= nil and words['Firesday 14:20  ·  Rain'] == nil);
+check('the day apart from the time, for its colour', words['Firesday'] ~= nil and words[' 14:20'] ~= nil);
+check('the band and its glow', count('AddRectFilledMultiColor') == 10);
+new.weather_id, new.weather = 7, 'Squall';
+drawn = {};
+p.draw(new, nil, 722);
+check('two crystals for double weather', count('AddQuadFilled') == 2);
+new.weather_id, new.weather = 0, 'Clear';
+drawn = {};
+p.draw(new, nil, 722);
+check('no crystal for clear weather, its words still', count('AddQuadFilled') == 0 and texts()['C'] ~= nil);
+d.zoneWeather[1], new.weather_id, new.weather = false, 6, 'Rain';
+drawn = {};
+p.draw(new, nil, 722);
+check('weather not shown: no crystal and no words', count('AddQuadFilled') == 0 and texts()['R'] == nil);
+d.zoneWeather[1] = true;
+local weather_popup = { title = 'Weather: Rain', zone_title = 'Davoi', region = 'Norvallen', weather = 'Rain', weather_id = 6,
+    banner_is_area = false, banner_is_weather = true, vana = 'Firesday 14:20' };
+d.areaStyle = 'element';
+p.start(weather_popup, 730);
+drawn = {};
+p.draw(weather_popup, nil, 732);
+check('a weather popup has its crystal, its words in the title only', count('AddQuadFilled') == 1 and texts()['R'] == nil);
+d.areaStyle = 'classic';
+
+-- Kind Frames: a plaque for a city, a carving for a dungeon, a horizon for the rest.
+d.zoneStyle = 'kind';
+p.start(new, 740);
+drawn = {};
+p.draw(new, nil, 740.1);
+check('Kind Frames: a dungeon is dark before the torch catches', #drawn == 0);
+drawn = {};
+p.draw(new, nil, 742);
+words = texts();
+check('then carved in capitals: glow, cut, lip and edge round the stone', words['D'] == 11 and words['Davoi'] == nil);
+new.kind = 'city';
+drawn = {};
+p.draw(new, nil, 742);
+check('a city on a plaque with a double border', count('AddRect') == 2 and texts()['Davoi'] ~= nil);
+new.kind = nil;
+drawn = {};
+p.draw(new, nil, 742);
+check('no known kind: open country, over a horizon line', count('AddRect') == 0 and count('AddRectFilledMultiColor') == 4 and texts()['Davoi'] ~= nil);
+local kinds = require('data.zone_kinds');
+check('the kinds are drawscale\'s', kinds[230] == 'city' and kinds[100] == 'outdoors' and kinds[149] == 'dungeon');
+drawn = {};
+H.command('/zone test kind');
+H.wait(1); drawn = {};
+H.frames(1);
+check('/zone test kind: West Ronfaure (100) is open country', count('AddRectFilledMultiColor') == 4 and count('AddRect') == 0);
+H.command('/zone test');
+d.zoneStyle = 'classic';
+
 -- Appearance shows the sections for the styles in use.
 local headers = {};
 local realcolored = imgui.TextColored;
