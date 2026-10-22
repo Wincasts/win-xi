@@ -64,6 +64,8 @@
 --     winxi.infopanel.calendar (the Vana'diel month); words with tooltips in the panel's segments
 -- 32: winxi.infopanel.schedule (the ships' and airships' timetable from the Phoenix server's runs,
 --     winxi.infopanel.transports); the zone name's tooltip
+-- 33: winxi.nativemirror, the game's menus mirrored through uihook 0.96 (mirror ABI 1): Request, Windows,
+--     Stop, Status; Decode and Color for the game's text and colours
 return {
-    Number = 32,
+    Number = 33,
 };

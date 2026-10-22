@@ -1,4 +1,4 @@
-# uihook — experimental 0.95
+# uihook — experimental 0.96
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
@@ -451,6 +451,33 @@ asked, nothing written to the game, released with the plugin. The census shares 
 detour, taking it only if nothing else has.
 `python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt`
 checks the routines against a private dump.
+
+## Menu mirror (0.96)
+
+The real menu stays open and keeps its input; an addon draws its own from what it would have drawn.
+`winxi.nativemirror` uses the independent **mirror ABI 1**, magic `UIHOOK-MIRROR`, 41188 bytes
+(`src/modules/mirror/mirror.h`): the addon writes up to eight window names (`menu    inventor`) into
+`Requests`, a bit of `Hide` for each the game is to leave undrawn, then `RequestFrame` as the commit,
+every frame; four frames after the last the game draws them all again. As each frame is presented,
+uihook publishes what the requested windows drew in it (`Published`): for each window its name, flags
+(cursor shown, focused, hidden, contents drawn), its frame's place, the cursor's, the row highlight's
+and the scrollbar's where drawn (and the scrollbar's rows shown, rows and rows above, read), the game's
+layout target; its runs of text (the bytes the game was given, to the line's end, its colour, the
+place it was asked for in the game's units and the place measured from its glyphs) and its quads (each
+draw of the game's art in the contents: its place, its corners in its texture, its colour, and the
+texture, an `IDirect3DBaseTexture8*` held by uihook until the next frame is published). Places are
+normalized to the viewport, as the chat rectangles are. Up to 256 runs, 256 quads and 16 KB of text a
+frame; what does not fit is counted in `Dropped`.
+
+Window::Render's one call to a window's contents, `mov edx,[ecx]; call [edx+10]` (five bytes), is made
+a call to uihook's, which makes the same call (the return address the game's, the owner in ecx), so
+each draw is known to be the frame's (before), the contents' (in it) or a control's (after: the cursor,
+row highlight and scrollbar, told apart by the chat controls' call sites where those were found). The
+three text routines the census found say what is printed. A hidden window's draws are blocked through
+the same GPU filter the other replacements use, after being measured. No input, cursor, selection or
+layout is touched. `/uihook mirror` reports what is asked and the last frame published. Only
+screen-space `DrawPrimitiveUP` draws are measured. The `menus` addon draws the item lists and the item
+description box in the winxi look.
 
 ## Architecture
 

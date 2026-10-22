@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.96
+
+- The menu mirror (mirror ABI 1, `UIHOOK-MIRROR`): a window of the game's, named by an addon, keeps
+  working as it is (its input, cursor and hit-tests the game's) while what it draws is measured and, if
+  the addon asks, left undrawn, so the addon draws its own from what the game would have. Window::Render's
+  call to a window's contents (`mov edx,[ecx]; call [edx+10]`, five bytes, `MIRROR_CONTENT_PATTERN`) is a
+  call to ours making the same call, so each draw is known to be the frame's, the contents' or a
+  control's (the cursor, row highlight and scrollbar, from the chat controls' call sites). In the
+  contents, each text call is a run (its bytes to the line's end, colour, the place it was asked for and
+  the place measured from its glyphs), and every other draw a quad of the game's art with its texture,
+  held by a reference until the next frame is published, and its corners in it. Published whole as each
+  frame is presented, in viewport-normalized places: up to eight windows, 256 runs, 256 quads and 16 KB
+  of text, what does not fit counted as dropped. A request holds four frames, and each texture is held
+  for two frames published, as an addon may draw the last frame's after the next is published. The census's three text
+  routes are now taken with Window::Render as uihook loads, all four sites or none, each passing on to
+  the game's own while nothing is mirrored and the census is off. `/uihook mirror` says what is asked and
+  what the last frame published. tests/mirror.cpp: phases, runs (nested calls part of the outer), quads
+  and their textures held once and given back, the watched and nested windows, staleness, no viewport,
+  overflow, release, world-space draws; tests/nativemirror_check.lua the bridge; check_census_client.py
+  the content call unique and in Window::Render.
+
 ## 0.95
 
 - The menu census, the first step toward mirroring the game's menus: the real menu stays open and keeps

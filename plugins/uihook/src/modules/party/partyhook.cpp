@@ -21,6 +21,7 @@
 #include "../chat/history.h"
 #include "../chat/texttap.h"
 #include "../mirror/census.h"
+#include "../mirror/mirror.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -76,6 +77,32 @@ static uint32_t __fastcall CensusFont(void*,void*,int32_t,int32_t,const char*,ui
 static Detour CensusBitmapDetour = { CENSUS_TEXT_PATTERN, CENSUS_TEXT_STOLEN, -1, reinterpret_cast<void*>(&CensusBitmap), nullptr, nullptr, {} };
 static Detour CensusScaledDetour = { CENSUS_SCALED_PATTERN, CENSUS_SCALED_STOLEN, -1, reinterpret_cast<void*>(&CensusScaled), nullptr, nullptr, {} };
 static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, reinterpret_cast<void*>(&CensusFont), nullptr, nullptr, {} };
+// The menu mirror (mirror ABI 1): zero in the DLL's file, its magic written as the module initializes. Its
+// text is heard through the census's three routes, taken with Window::Render; the contents' call in
+// Window::Render aimed at MirrorContent.
+static MirrorShared MirrorBlock;
+static Mirror MenuMirror;
+static void __fastcall MirrorContent(void*,void*);
+struct MirrorContentCall { uint8_t* call=nullptr; uint8_t saved[5]={}; };
+static MirrorContentCall ContentCall;
+// The five bytes mov edx,[ecx]; call [edx+10] made a call to ours, which makes the same call: the
+// return address the game's own, the owner still in ecx
+static bool TakeMirrorContent(uint8_t* begin,size_t size,uint8_t* render) {
+    auto* site=UniquePattern(begin,size,MIRROR_CONTENT_PATTERN);
+    if (!site || !render || site<render || size_t(site-render)>MIRROR_CONTENT_WITHIN) return false;
+    uint8_t* call=site+MIRROR_CONTENT_AT;
+    static const uint8_t expected[5]={0x8b,0x11,0xff,0x52,0x10};
+    if (memcmp(call,expected,5)) return false;
+    ContentCall.call=call; memcpy(ContentCall.saved,call,5);
+    uint8_t jump[5]={0xe8,0,0,0,0};
+    const int32_t distance=Distance(call+5,reinterpret_cast<void*>(&MirrorContent)); memcpy(jump+1,&distance,4);
+    WriteCode(call,jump,5);
+    return true;
+}
+static void GiveMirrorContent() {
+    if (ContentCall.call) WriteCode(ContentCall.call,ContentCall.saved,5);
+    ContentCall=MirrorContentCall();
+}
 
 using Run = TextureRun<IDirect3DBaseTexture8>;
 struct Drawing {
@@ -377,6 +404,10 @@ public:
                 } else globals[3]=nullptr; // party mode still works if target discovery fails
             }
         }
+        // The menu mirror: zero in the file, its magic written now; supported where its four sites are found
+        memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=1; MirrorBlock.Size=sizeof(MirrorShared);
+        MenuMirror.shared=&MirrorBlock;
+        if (module.lpBaseOfDll && TakeMirror(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) MirrorBlock.Supported=1;
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
             (Shared.SupportedMask & 8 ? "[uihook:party] Party/target hooks ready (native arrows preserved). /pt native [target] on; unload hideparty first." :
              "[uihook:party] Party hook ready; target/cursor signatures unavailable. /pt native on; unload hideparty first.") :
@@ -417,13 +448,14 @@ public:
         Hud.SupportedMask=0; Hud.Submit=0;
         Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat(); ChatReadReset();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
-        StopCensus();
+        GiveMirror();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
+        MenuMirror.Publish(Shared.Frame);
         ++Shared.Frame;
-        MenuCensus.frame=Shared.Frame;
+        MenuCensus.frame=Shared.Frame; MirrorBlock.Frame=Shared.Frame;
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
         ChatReadReset(); // the regions found readable last frame are asked about again
         chat.Sample(Chat,Shared.Frame);
@@ -453,7 +485,8 @@ public:
     bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { MenuCensus.Draw(); Native(false,nullptr,0,0); return Block(); }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
         if (scaling) return false;
-        MenuCensus.Draw(); // our own scaled copy, on its way to the device
+        MenuCensus.Draw();
+        if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0); // our own scaled copy, on its way to the device
         Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
         if (Block()) return true;
         return ScaleIcon(t,count,data,stride);
@@ -461,6 +494,7 @@ public:
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
         if (scaling) return false;
         MenuCensus.Draw();
+        if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
         Native(true,data,stride,vertices);
         if (Block()) return true;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0;
@@ -478,40 +512,65 @@ public:
         ChatTapRecord(TextTap,mode,indent,message,modifiedMode,modifiedIndent,modifiedMessage,injected,blocked);
         return false;
     }
-    // The census's three text routes taken, all or none, and Window::Render too if nothing else has it
-    bool StartCensus() {
-        MODULEINFO module={};
-        if (!GetModuleInformation(GetCurrentProcess(),GetModuleHandleA("FFXiMain.dll"),&module,sizeof(module))) return false;
-        auto* begin=static_cast<uint8_t*>(module.lpBaseOfDll);
-        if (!WindowDetour.trampoline && !Take(WindowDetour,begin,module.SizeOfImage)) return false;
-        if (!Take(CensusBitmapDetour,begin,module.SizeOfImage) || !Take(CensusScaledDetour,begin,module.SizeOfImage)
-            || !Take(CensusFontDetour,begin,module.SizeOfImage)) { StopCensus(); return false; }
-        MenuCensus.base=reinterpret_cast<uintptr_t>(begin); MenuCensus.on=true;
+    // The three text routes and the contents' call, all or none, with Window::Render if nothing else has
+    // taken it: the mirror's, and the census's. Each passes straight on to the game's own while no window
+    // is mirrored and the census is off.
+    bool TakeMirror(uint8_t* begin,size_t size) {
+        if (!WindowDetour.trampoline && !Take(WindowDetour,begin,size)) return false;
+        if (!Take(CensusBitmapDetour,begin,size) || !Take(CensusScaledDetour,begin,size) || !Take(CensusFontDetour,begin,size)
+            || !TakeMirrorContent(begin,size,static_cast<uint8_t*>(WindowDetour.target))) { GiveMirror(); return false; }
+        MenuCensus.base=reinterpret_cast<uintptr_t>(begin);
         return true;
     }
-    void StopCensus() {
+    void GiveMirror() {
+        MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; MenuMirror.Clear();
         MenuCensus.on=false; MenuCensus.current=nullptr;
-        Give(CensusBitmapDetour); Give(CensusScaledDetour); Give(CensusFontDetour);
+        GiveMirrorContent(); Give(CensusBitmapDetour); Give(CensusScaledDetour); Give(CensusFontDetour);
     }
+    bool StartCensus() { if (!MirrorBlock.Supported) return false; MenuCensus.on=true; return true; }
+    void StopCensus() { MenuCensus.on=false; MenuCensus.current=nullptr; }
     void CensusCommand(const char* word) {
         char line[256];
         const std::string path=std::string(core->GetInstallPath())+"\\logs\\uihook-census.txt";
         if (!_stricmp(word,"on")) {
             snprintf(line,sizeof(line),MenuCensus.on ? "[uihook:census] already on." : StartCensus()
-                ? "[uihook:census] on: open the menus you use, then /uihook census dump." : "[uihook:census] the text routines were not found; nothing taken.");
+                ? "[uihook:census] on: open the menus you use, then /uihook census dump." : "[uihook:census] the text routines were not found in this client.");
         } else if (!_stricmp(word,"off")) {
             StopCensus(); snprintf(line,sizeof(line),"[uihook:census] off; %zu windows kept until /uihook census clear.",MenuCensus.windows.size());
         } else if (!_stricmp(word,"clear")) {
             MenuCensus.Clear(); snprintf(line,sizeof(line),"[uihook:census] cleared.");
         } else if (!_stricmp(word,"dump")) {
-            const bool hooked=CensusBitmapDetour.trampoline && CensusScaledDetour.trampoline && CensusFontDetour.trampoline;
-            if (MenuCensus.Write(path.c_str(),hooked ? "heard" : "not heard (census off)"))
+            const bool hooked=MirrorBlock.Supported!=0;
+            if (MenuCensus.Write(path.c_str(),hooked ? "heard" : "not found in this client"))
                 snprintf(line,sizeof(line),"[uihook:census] %zu windows written to %s.",MenuCensus.windows.size(),path.c_str());
             else snprintf(line,sizeof(line),"[uihook:census] could not write %s.",path.c_str());
         } else snprintf(line,sizeof(line),"[uihook:census] %s, %zu windows seen. /uihook census on|off|dump|clear.",MenuCensus.on ? "on" : "off",MenuCensus.windows.size());
         core->GetChatManager()->Write(0,false,line);
     }
     bool HandleCommand(int32_t,const char* command,bool) override {
+        if (command && _stricmp(command,"/uihook mirror")==0) {
+            // what the mirror was asked for, and what it published from the last frame
+            char line[256]; const MirrorFrameData& last=MirrorBlock.Published;
+            std::string asked;
+            for (unsigned i=0;i<MIRROR_WINDOWS;i++) if (MirrorBlock.Requests[i][0]) {
+                if (!asked.empty()) asked+=", ";
+                asked+=std::string(MirrorBlock.Requests[i]+8,8)+((MirrorBlock.Hide>>i)&1 ? " (hidden)" : " (watched)");
+            }
+            const bool fresh=MirrorBlock.RequestFrame && MirrorBlock.Frame-MirrorBlock.RequestFrame<=MIRROR_REQUEST_FRAMES;
+            snprintf(line,sizeof(line),"[uihook:mirror] %s; asked %s: %s.",MirrorBlock.Supported ? "supported" : "not found in this client",
+                fresh ? "now" : "nothing now",asked.empty() ? "none" : asked.c_str());
+            core->GetChatManager()->Write(0,false,line);
+            snprintf(line,sizeof(line),"[uihook:mirror] the last frame published (%u): %u windows, %u runs of text, %u quads, %u bytes; %u dropped since loading.",
+                last.Frame,last.WindowCount,last.RunCount,last.QuadCount,last.TextUsed,MirrorBlock.Dropped);
+            core->GetChatManager()->Write(0,false,line);
+            for (uint32_t i=0;i<last.WindowCount;i++) {
+                const MirrorWindow& w=last.Windows[i];
+                snprintf(line,sizeof(line),"[uihook:mirror]   %.16s: flags %X, %.3f,%.3f to %.3f,%.3f; %u runs, %u quads; cursor %s, scrollbar %u of %u.",
+                    w.Name,w.Flags,w.Rect[0],w.Rect[1],w.Rect[2],w.Rect[3],w.Runs,w.Quads,w.CursorFrame ? "drawn" : "none",w.ScrollPage,w.ScrollCount);
+                core->GetChatManager()->Write(0,false,line);
+            }
+            return true;
+        }
         if (command && !_strnicmp(command,"/uihook census",14)) { CensusCommand(command[14]==' ' ? command+15 : ""); return true; }
         if (command && _stricmp(command,"/uihook menus")==0) {
             char line[256];
@@ -930,8 +989,10 @@ public:
         // the selection art in a skinned full log measured (drawn or not), so its rows are published lit
         const bool measure=expandedSkin && !cursor && ChatSelectionColor(color) && !chatMeasure && selectionCount<8;
         if (measure) { selectionBounds[selectionCount]=ChatBounds(); chatMeasure=&selectionBounds[selectionCount]; }
+        const MirrorPhase mirrorWas=MenuMirror.Phase(cursor ? MIRROR_CURSOR : MIRROR_SELECTION);
         ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
             expandedSkin && !Mirrored(),ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
+        MenuMirror.Phase(mirrorWas);
         if (measure) { if (chatMeasure->vertices) selectionCount++; chatMeasure=nullptr; }
     }
     // The scrollbar: its page, count and rows above the view read and its bounds measured in a skinned full
@@ -943,7 +1004,11 @@ public:
         const bool was=blocking;
         if (ChatHidden(replaceControls,CHAT_REPLACE_SCROLL,measure && controlsValid)) blocking=true;
         if (measure) { scrollBounds=ChatBounds(); chatMeasure=&scrollBounds; }
+        ChatScrollInfo mirrorInfo;
+        if (MenuMirror.Active() && ChatScrollRead(object,mirrorInfo)) MenuMirror.Scrollbar(mirrorInfo);
+        const MirrorPhase mirrorWas=MenuMirror.Phase(MIRROR_SCROLL);
         ForwardChatScroll(reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL]),ControlsActive(),controlStyle,object);
+        MenuMirror.Phase(mirrorWas);
         chatMeasure=nullptr; blocking=was;
         if (!measure) return;
         Chat.ScrollFrame=0;
@@ -1007,6 +1072,8 @@ public:
     }
     void Render(void* window) {
         CensusScope censusScope(MenuCensus,window);
+        Mirror::Saved mirrorSaved;
+        const bool mirrorHidden=MenuMirror.Begin(window,core->GetDirect3DDevice(),mirrorSaved);
         int index=-1;
         for (int i=0;i<4;i++) {
             void* object=globals[i] ? *globals[i] : nullptr;
@@ -1046,7 +1113,7 @@ public:
             : index==3 ? ReplayTargets() : index>=0 && Replay(static_cast<unsigned>(index));
         if (defer) primaryDeferred=Shared.Frame;
         else if (chatIndex==1 && primaryDeferred==Shared.Frame) { Replay(8); primaryDeferred=0; }
-        blocking=replaced;
+        blocking=replaced || mirrorHidden;
         expandedSkin=chatIndex==3 && replaced && expandedCapture;
         // a full log drawn afresh: its tabs, scrollbar and rows measured again, or not at all if the game leaves them out
         if (chatIndex==3) { Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; chatViewportKnown=false; chatMeasure=nullptr; measuringTabs=false; rowCount=0; textUsed=0; selectionCount=0; }
@@ -1057,6 +1124,7 @@ public:
         // may have been retargeted above, before the native layout update.
         if (index>=0) RecordRect(static_cast<unsigned>(index),window);
         if (chatIndex>=0) RecordChatRect(chatIndex,window);
+        MenuMirror.End(mirrorSaved);
         blocking=was; targetScope=wasTarget; expandedSkin=wasExpanded;
     }
 };
@@ -1092,18 +1160,28 @@ static void __fastcall DrawExpandedChat(void* owner,void*) {
 // Each text route heard, then the game's own, unchanged; a text call within one counted as nested
 static int32_t __cdecl CensusBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
     MenuCensus.Text(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++;
+    MenuMirror.TextBegin(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
-    MenuCensus.depth--; return end;
+    MenuCensus.depth--; MenuMirror.TextEnd(); return end;
 }
 static int32_t __cdecl CensusScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
     MenuCensus.Text(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++;
+    MenuMirror.TextBegin(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
-    MenuCensus.depth--; return end;
+    MenuCensus.depth--; MenuMirror.TextEnd(); return end;
 }
 static uint32_t __fastcall CensusFont(void* font,void*,int32_t x,int32_t y,const char* text,uint32_t a,uint32_t colour,uint32_t flags,uint32_t sx,uint32_t sy) {
     MenuCensus.Text(CENSUS_FONT,x,y,text,colour); MenuCensus.depth++;
+    MenuMirror.TextBegin(CENSUS_FONT,x,y,text,colour);
     const uint32_t result=reinterpret_cast<uint32_t(__fastcall*)(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusFontDetour.trampoline)(font,nullptr,x,y,text,a,colour,flags,sx,sy);
-    MenuCensus.depth--; return result;
+    MenuCensus.depth--; MenuMirror.TextEnd(); return result;
+}
+// A window's contents drawn, as Window::Render would, with the mirror told they are being drawn
+static void __fastcall MirrorContent(void* owner,void*) {
+    void* draw=(*static_cast<void***>(owner))[4];
+    MenuMirror.Phase(MIRROR_CONTENT);
+    reinterpret_cast<void(__fastcall*)(void*,void*)>(draw)(owner,nullptr);
+    MenuMirror.Phase(MIRROR_AFTER);
 }
 static void __fastcall RenderWindow(void* window,void*) {
     if (PartyHook::Instance) PartyHook::Instance->Render(window);
