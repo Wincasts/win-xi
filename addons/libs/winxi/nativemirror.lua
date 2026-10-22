@@ -155,8 +155,25 @@ for font, list in pairs({ menu = LETTERS, title = TITLE_LETTERS }) do
     end
 end
 
--- The letter a quad's uv cuts from the menu font or the title font, and which ('menu' or 'title'); or nil
+-- The game's text font, drawn a cell a letter from a sheet of 32x32 cells, 64 to a row (2048x4096), the cell of a
+-- character its code less 32: the top bar's help line and the menu's name box ("Items"). A space is a cell too.
+local GRID_COLUMNS, GRID_ROWS = 64, 128
+local function GridLetter(uv)
+    local du, dv = (uv[3] - uv[1]) * GRID_COLUMNS, (uv[4] - uv[2]) * GRID_ROWS
+    if math.abs(du - 1) > 0.02 or math.abs(dv - 1) > 0.02 then return nil end
+    local column, row = uv[1] * GRID_COLUMNS, uv[2] * GRID_ROWS
+    local c, r = math.floor(column + 0.5), math.floor(row + 0.5)
+    if math.abs(column - c) > 0.05 or math.abs(row - r) > 0.05 then return nil end
+    local code = 32 + r * GRID_COLUMNS + c
+    if code < 32 or code > 126 then return nil end
+    return string.char(code)
+end
+
+-- The letter a quad's uv cuts from the menu font, the title font or the text font, and which ('menu', 'title' or
+-- 'text'); or nil
 function M.Letter(uv)
+    local grid = GridLetter(uv)
+    if grid then return grid, 'text' end
     local x0, y0 = math.floor(uv[1] * SHEET + 0.5), math.floor(uv[2] * SHEET + 0.5)
     local x1, y1 = math.floor(uv[3] * SHEET + 0.5), math.floor(uv[4] * SHEET + 0.5)
     if x0 < 0 or y0 < 0 or x1 > SHEET or y1 > SHEET or x1 - x0 > 16 or y1 - y0 > 16 then return nil end
@@ -177,17 +194,17 @@ function M.Letter(uv)
     return nil
 end
 
--- A window's elements spelled out: the letters among its quads (phase Element) read as lines of words, each
--- { text, rect, color, lit, tall, font }, in its quads' places (tall the line's tallest letter; font 'menu', or
--- 'title' for a window's title), and a set of the quads read (letters and their shadows, which
+-- A window's letters spelled out: those among its quads (its elements and its contents) read as lines of words, each
+-- { text, rect, color, lit, tall, font, element }, in its quads' places (tall the line's tallest letter; font
+-- 'menu', 'title' for a window's title, or 'text'; element where any of its letters is an element, not contents), and a set of the quads read (letters and their shadows, which
 -- the game draws a little down and right, fainter), for the caller to leave undrawn. lit where the game tinted
 -- it (the cursor's). Quads that are no letter (buttons, a title in another font) are left to the caller.
 function M.Words(quads)
     local letters, used = {}, {}
     for i, quad in ipairs(quads) do
-        if quad.phase == M.Element and quad.rect then
+        if (quad.phase == M.Element or quad.phase == M.Content) and quad.rect then
             local c, font = M.Letter(quad.uv)
-            if c then letters[#letters + 1] = { c = c, font = font, quad = quad, i = i } end
+            if c then letters[#letters + 1] = { c = c, font = font, quad = quad, i = i, element = quad.phase == M.Element } end
         end
     end
     if #letters == 0 then return {}, used end
@@ -232,8 +249,9 @@ function M.Words(quads)
             if gap > tall * 2 or a.font ~= word.font then
                 word = { text = '', rect = { r[1], r[2], r[3], r[4] }, color = a.quad.color, lit = false, tall = tall, font = a.font }
                 words[#words + 1] = word
-            elseif gap > tall / 10 then word.text = word.text .. ' ' end
-            word.text = word.text .. a.c
+            elseif gap > tall / 10 and a.c ~= ' ' and word.text:sub(-1) ~= ' ' then word.text = word.text .. ' ' end
+            if a.c ~= ' ' or word.text:sub(-1) ~= ' ' then word.text = word.text .. a.c end
+            if a.element then word.element = true end
             local w = word.rect
             w[1], w[2], w[3], w[4] = math.min(w[1], r[1]), math.min(w[2], r[2]), math.max(w[3], r[3]), math.max(w[4], r[4])
             local col = a.quad.color
@@ -241,7 +259,13 @@ function M.Words(quads)
             if col[4] > word.color[4] then word.color = col end
         end
     end
-    return words, used
+    -- the spaces drawn as cells at either end let go, and a word of nothing but them
+    local spelled = {}
+    for _, word in ipairs(words) do
+        word.text = word.text:match('^%s*(.-)%s*$')
+        if word.text ~= '' then spelled[#spelled + 1] = word end
+    end
+    return spelled, used
 end
 
 -- A name as the game keeps it: "menu    " and the name, padded with spaces to 16

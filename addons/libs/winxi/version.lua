@@ -72,6 +72,8 @@
 -- 37: nativemirror on uihook 1.0's mirror ABI 3: 64 windows asked for, the hidden bits past 31 written whole
 -- 38: nativemirror's title font (Letter's second result, a word's font 'title'); titles.Gap/Draw and frame.Draw's
 --     options.title on a given rect, for a frame drawn in a window not its own
+-- 39: nativemirror's text font (a grid of cells, a cell's character its code less 32: the top bar's help line, the
+--     menu's name box), and letters read from a window's contents as well as its elements (a word's element)
 return {
-    Number = 38,
+    Number = 39,
 };

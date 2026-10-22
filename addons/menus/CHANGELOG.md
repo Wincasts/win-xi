@@ -9,9 +9,11 @@
 - A smaller settings window: Mirror and Mouse first; the groups of menus collapsed to start, each with
   an All checkbox and its menus three to a row rather than one a line.
 - Menu Name and Top Bar in the Picture Label Menus: the box at the top left with the open menu's name
-  (`titlewin`) and the bar across the top with its help line (`helpwind`). Not yet seen mirrored; look
-  at them in Outline first.
-- Needs winxi 38 (uihook 1.0).
+  ("Items", `titlewin`) and the bar across the top with its help line ("Select an item.", `helpwind`)
+  and its title ("Help"), in the theme's font. The game writes them a cell a letter from its text font,
+  a grid read by its cells (winxi 39); words spelled in any mirrored window's contents are read and
+  drawn so, not only in the Picture Label Menus.
+- Needs winxi 39 (uihook 1.0).
 
 ## 0.5.1
 

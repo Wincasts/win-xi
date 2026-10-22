@@ -139,16 +139,30 @@ spell('Party', 100, 64, plain, true)
 spell('Eta', 100, 78, plain, false); spell('Pi', 200, 78, plain, false) -- far apart: two runs
 spell('Pa rty', 100, 92, plain, false)
 quads[#quads + 1] = { phase = native.Element, uv = { 0.25, 0, 1, 0.25 }, color = plain, rect = { 90, 48, 180, 62 } } -- a bar
-quads[#quads + 1] = { phase = native.Content, uv = uv(22, 52, 31, 64), color = plain, rect = { 0, 0, 9, 12 } } -- contents are not labels
+quads[#quads + 1] = { phase = native.Content, uv = uv(22, 52, 31, 64), color = plain, rect = { 0, 0, 9, 12 } } -- a letter of the contents, read too
 local words, used = native.Words(quads)
 local texts = {}
 for _, w in ipairs(words) do texts[#texts + 1] = w.text end
-check('words read in lines, top to bottom: ' .. table.concat(texts, '|'), table.concat(texts, '|') == 'Status|Party|Eta|Pi|Pa rty')
-check('the tinted word lit, the others not', words[1].lit and not words[2].lit)
-check('a word\'s colour its letters\', not its shadow\'s', words[2].color[4] == 1)
-check('a word placed where its letters are', words[1].rect[1] == 100 and words[1].rect[2] == 50 and words[3].rect[3] == 100 + 2 * 8 + 9)
+check('words read in lines, top to bottom: ' .. table.concat(texts, '|'), table.concat(texts, '|') == 'S|Status|Party|Eta|Pi|Pa rty')
+check('the contents\' letter a word of the contents, the labels words of elements', not words[1].element and words[2].element)
+check('the tinted word lit, the others not', words[2].lit and not words[3].lit)
+check('a word\'s colour its letters\', not its shadow\'s', words[3].color[4] == 1)
+check('a word placed where its letters are', words[2].rect[1] == 100 and words[2].rect[2] == 50 and words[4].rect[3] == 100 + 2 * 8 + 9)
 local count = 0
-for i in pairs(used) do count = count + 1; assert(quads[i].phase == native.Element and native.Letter(quads[i].uv)) end
-check('letters and shadows read, the bar and the contents left', count == #quads - 2 and not used[#quads] and not used[#quads - 1])
+for i in pairs(used) do count = count + 1; assert(native.Letter(quads[i].uv)) end
+check('letters and shadows read, the contents\' letter too, the bar left', count == #quads - 1 and used[#quads] and not used[#quads - 1])
 check('nothing spelled, nothing read', #native.Words({ quads[#quads - 1] }) == 0)
+-- the text font: a grid of cells 64 to a row, 128 rows, a cell's character its code less 32; spaces drawn as cells
+local function cell(c) local n = c:byte() - 32; return { (n % 64) / 64, math.floor(n / 64) / 128, (n % 64 + 1) / 64, (math.floor(n / 64) + 1) / 128 } end
+check('a grid cell is its character', native.Letter(cell('S')) == 'S' and select(2, native.Letter(cell('S'))) == 'text' and native.Letter(cell('.')) == '.')
+check('a cell off the grid is none', native.Letter({ 0.5 / 64, 0, 1.5 / 64, 1 / 128 }) == nil)
+local grid, x = {}, 300
+for c in ('Select an item. '):gmatch('.') do
+    grid[#grid + 1] = { phase = native.Content, uv = cell(c), color = plain, rect = { x, 20, x + 16, 36 } }
+    x = x + 9 -- the cells overlap: the game moves on less than a cell
+end
+grid[#grid + 1] = { phase = native.Content, uv = { 0, 0, 1, 1 }, color = plain, rect = { 0, 0, 32, 32 } } -- an icon
+local read, readUsed = native.Words(grid)
+check('the contents\' letters read, the drawn spaces kept once, the trailing one let go', #read == 1 and read[1].text == 'Select an item.' and read[1].font == 'text' and not read[1].element)
+check('the icon left', not readUsed[#grid] and readUsed[1])
 print('0 failures')

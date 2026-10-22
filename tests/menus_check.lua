@@ -151,6 +151,13 @@ MENUS.windows = { mainMenu, items }
 images, texts = H.calls['draw.AddImage'] or 0, H.calls['draw.AddText'] or 0
 H.frames(1)
 check('titles drawn as words, no art', (H.calls['draw.AddText'] or 0) - texts >= 3 and (H.calls['draw.AddImage'] or 0) - images == 0)
+-- an item list's words spelled in its contents (as the top bar's help line): drawn, though its elements are not
+items = Inventory(); items.quads = { { rect = { 120, 160, 200, 176 }, uv = { 0, 0, 1 / 64, 1 / 128 }, texture = 77, color = { 1, 1, 1, 1 }, phase = 1, word = 'Select an item.', font = 'text' },
+    Element(180) }
+MENUS.windows = { items }
+images, texts = H.calls['draw.AddImage'] or 0, H.calls['draw.AddText'] or 0
+H.frames(1)
+check('an item list\'s contents\' words drawn, no art', (H.calls['draw.AddText'] or 0) > texts and (H.calls['draw.AddImage'] or 0) - images == 0)
 check('nothing printed for them', #H.printed == 0)
 
 -- unloaded: the mirror stopped

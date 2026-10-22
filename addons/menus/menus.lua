@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 38
+local winxiNeeded = 39
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -330,12 +330,16 @@ local function DrawContents(list, window, words, spelled)
             list:AddImage(quad.texture, { q[1], q[2] }, { q[3], q[4] }, { uv[1], uv[2] }, { uv[3], uv[4] }, imgui.GetColorU32(quad.color))
         end
     end
-    for _, word in ipairs(labels and words or {}) do
-        local t = word.rect
-        local size = math.max(8, math.floor(word.tall + 0.5))
-        imgui.PushFont(nil, size)
-        text.Draw(list, t[1], t[2], TextColor({ 1, 1, 1, word.color[4] }), word.text)
-        imgui.PopFont()
+    for _, word in ipairs(words) do
+        -- a word of elements only where the elements are drawn (the label menus); one of the contents' letters always,
+        -- those letters not drawn as art
+        if labels or not word.element then
+            local t = word.rect
+            local size = math.max(8, math.floor(word.tall + 0.5))
+            imgui.PushFont(nil, size)
+            text.Draw(list, t[1], t[2], TextColor({ 1, 1, 1, word.color[4] }), word.text)
+            imgui.PopFont()
+        end
     end
     -- the text, each run where the game printed it, in the theme's font at the height of the game's letters
     for _, run in ipairs(window.runs) do
