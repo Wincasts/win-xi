@@ -4,6 +4,7 @@
 #include <psapi.h>
 #include <stdint.h>
 #include <vector>
+#include <string>
 #include <cmath>
 #include <cstdio>
 #include "Ashita.h"
@@ -19,6 +20,7 @@
 #include "../chat/menus.h"
 #include "../chat/history.h"
 #include "../chat/texttap.h"
+#include "../mirror/census.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -66,6 +68,14 @@ static ChatControlCalls ChatControls;
 // The one call in the log drawer that draws a row of text, aimed at DrawChatRow while uihook is loaded
 static void __cdecl DrawChatRow(const uint16_t*,ChatRowHeader,int32_t,int32_t,uint32_t,uint32_t,void*,uint32_t);
 static ChatTextSite ChatText;
+// The menu census (/uihook census): the windows drawn and the text they print, heard while it is on
+static Census MenuCensus;
+static int32_t __cdecl CensusBitmap(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
+static int32_t __cdecl CensusScaled(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
+static uint32_t __fastcall CensusFont(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
+static Detour CensusBitmapDetour = { CENSUS_TEXT_PATTERN, CENSUS_TEXT_STOLEN, -1, reinterpret_cast<void*>(&CensusBitmap), nullptr, nullptr, {} };
+static Detour CensusScaledDetour = { CENSUS_SCALED_PATTERN, CENSUS_SCALED_STOLEN, -1, reinterpret_cast<void*>(&CensusScaled), nullptr, nullptr, {} };
+static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, reinterpret_cast<void*>(&CensusFont), nullptr, nullptr, {} };
 
 using Run = TextureRun<IDirect3DBaseTexture8>;
 struct Drawing {
@@ -407,11 +417,13 @@ public:
         Hud.SupportedMask=0; Hud.Submit=0;
         Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat(); ChatReadReset();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
+        StopCensus();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
         ++Shared.Frame;
+        MenuCensus.frame=Shared.Frame;
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
         ChatReadReset(); // the regions found readable last frame are asked about again
         chat.Sample(Chat,Shared.Frame);
@@ -437,16 +449,18 @@ public:
     }
     void Direct3DBeginScene(bool) override { inScene=true; }
     void Direct3DEndScene(bool) override { inScene=false; }
-    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { Native(false,nullptr,0,0); return Block(); }
-    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { Native(false,nullptr,0,0); return Block(); }
+    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { MenuCensus.Draw(); Native(false,nullptr,0,0); return Block(); }
+    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { MenuCensus.Draw(); Native(false,nullptr,0,0); return Block(); }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
-        if (scaling) return false; // our own scaled copy, on its way to the device
+        if (scaling) return false;
+        MenuCensus.Draw(); // our own scaled copy, on its way to the device
         Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
         if (Block()) return true;
         return ScaleIcon(t,count,data,stride);
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
         if (scaling) return false;
+        MenuCensus.Draw();
         Native(true,data,stride,vertices);
         if (Block()) return true;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0;
@@ -464,7 +478,41 @@ public:
         ChatTapRecord(TextTap,mode,indent,message,modifiedMode,modifiedIndent,modifiedMessage,injected,blocked);
         return false;
     }
+    // The census's three text routes taken, all or none, and Window::Render too if nothing else has it
+    bool StartCensus() {
+        MODULEINFO module={};
+        if (!GetModuleInformation(GetCurrentProcess(),GetModuleHandleA("FFXiMain.dll"),&module,sizeof(module))) return false;
+        auto* begin=static_cast<uint8_t*>(module.lpBaseOfDll);
+        if (!WindowDetour.trampoline && !Take(WindowDetour,begin,module.SizeOfImage)) return false;
+        if (!Take(CensusBitmapDetour,begin,module.SizeOfImage) || !Take(CensusScaledDetour,begin,module.SizeOfImage)
+            || !Take(CensusFontDetour,begin,module.SizeOfImage)) { StopCensus(); return false; }
+        MenuCensus.base=reinterpret_cast<uintptr_t>(begin); MenuCensus.on=true;
+        return true;
+    }
+    void StopCensus() {
+        MenuCensus.on=false; MenuCensus.current=nullptr;
+        Give(CensusBitmapDetour); Give(CensusScaledDetour); Give(CensusFontDetour);
+    }
+    void CensusCommand(const char* word) {
+        char line[256];
+        const std::string path=std::string(core->GetInstallPath())+"\\logs\\uihook-census.txt";
+        if (!_stricmp(word,"on")) {
+            snprintf(line,sizeof(line),MenuCensus.on ? "[uihook:census] already on." : StartCensus()
+                ? "[uihook:census] on: open the menus you use, then /uihook census dump." : "[uihook:census] the text routines were not found; nothing taken.");
+        } else if (!_stricmp(word,"off")) {
+            StopCensus(); snprintf(line,sizeof(line),"[uihook:census] off; %zu windows kept until /uihook census clear.",MenuCensus.windows.size());
+        } else if (!_stricmp(word,"clear")) {
+            MenuCensus.Clear(); snprintf(line,sizeof(line),"[uihook:census] cleared.");
+        } else if (!_stricmp(word,"dump")) {
+            const bool hooked=CensusBitmapDetour.trampoline && CensusScaledDetour.trampoline && CensusFontDetour.trampoline;
+            if (MenuCensus.Write(path.c_str(),hooked ? "heard" : "not heard (census off)"))
+                snprintf(line,sizeof(line),"[uihook:census] %zu windows written to %s.",MenuCensus.windows.size(),path.c_str());
+            else snprintf(line,sizeof(line),"[uihook:census] could not write %s.",path.c_str());
+        } else snprintf(line,sizeof(line),"[uihook:census] %s, %zu windows seen. /uihook census on|off|dump|clear.",MenuCensus.on ? "on" : "off",MenuCensus.windows.size());
+        core->GetChatManager()->Write(0,false,line);
+    }
     bool HandleCommand(int32_t,const char* command,bool) override {
+        if (command && !_strnicmp(command,"/uihook census",14)) { CensusCommand(command[14]==' ' ? command+15 : ""); return true; }
         if (command && _stricmp(command,"/uihook menus")==0) {
             char line[256];
             snprintf(line,sizeof(line),"[uihook:menus] supported %u; frame/request %u/%u, host %u; applied/restored %u/%u; last %.16s at %u.",
@@ -958,6 +1006,7 @@ public:
         if (expandedSkin) PublishChatText();
     }
     void Render(void* window) {
+        CensusScope censusScope(MenuCensus,window);
         int index=-1;
         for (int i=0;i<4;i++) {
             void* object=globals[i] ? *globals[i] : nullptr;
@@ -1039,6 +1088,22 @@ static void __cdecl DrawChatRow(const uint16_t* text,ChatRowHeader header,int32_
 static void __fastcall DrawExpandedChat(void* owner,void*) {
     if (PartyHook::Instance) PartyHook::Instance->ExpandedContent(owner);
     else reinterpret_cast<void(__fastcall*)(void*,void*)>(ExpandedChatDetour.trampoline)(owner,nullptr);
+}
+// Each text route heard, then the game's own, unchanged; a text call within one counted as nested
+static int32_t __cdecl CensusBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
+    MenuCensus.Text(CENSUS_BITMAP,x,y,text,colour); MenuCensus.depth++;
+    const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
+    MenuCensus.depth--; return end;
+}
+static int32_t __cdecl CensusScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
+    MenuCensus.Text(CENSUS_SCALED,x,y,text,colour); MenuCensus.depth++;
+    const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
+    MenuCensus.depth--; return end;
+}
+static uint32_t __fastcall CensusFont(void* font,void*,int32_t x,int32_t y,const char* text,uint32_t a,uint32_t colour,uint32_t flags,uint32_t sx,uint32_t sy) {
+    MenuCensus.Text(CENSUS_FONT,x,y,text,colour); MenuCensus.depth++;
+    const uint32_t result=reinterpret_cast<uint32_t(__fastcall*)(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusFontDetour.trampoline)(font,nullptr,x,y,text,a,colour,flags,sx,sy);
+    MenuCensus.depth--; return result;
 }
 static void __fastcall RenderWindow(void* window,void*) {
     if (PartyHook::Instance) PartyHook::Instance->Render(window);
