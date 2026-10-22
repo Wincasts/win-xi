@@ -393,8 +393,8 @@ local function draw_appearance(options)
     commit(options);
 end
 M.app = shell.New({
-    defaults = defaults(), configTitle = 'Zone Settings', drawSettings = draw_settings,
-    tabs = { { label = 'Appearance', draw = draw_appearance } }, hideAppearance = true,
+    defaults = defaults(), configTitle = 'Zone Settings', drawSettings = draw_settings, settingsLabel = 'Behaviour',
+    leadingTabs = { { label = 'Appearance', draw = draw_appearance } }, hideAppearance = true,
     onSettings = function(options)
         M.complete(options); dirty = false; M.preview[1] = false;
         background_cache:clear();

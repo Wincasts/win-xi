@@ -1,6 +1,6 @@
 addon.name    = 'zone';
 addon.author  = 'win';
-addon.version = '2.8';
+addon.version = '2.8.1';
 addon.desc    = 'Zone, region, sub-zone and weather banners, a location line, and an all-map experimental boundary editor.';
 
 require('common');

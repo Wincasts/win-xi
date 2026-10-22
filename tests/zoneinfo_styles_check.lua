@@ -364,7 +364,7 @@ local function appearance(zone_style, area_style)
     d.zoneStyle, d.areaStyle = zone_style, area_style;
     headers = {};
     if not p.app.showConfig[1] then H.command('/zone'); end
-    H.tab(2); H.frames(1);
+    H.tab(1); H.frames(1); -- Appearance, the first tab
     return headers;
 end
 local shown = appearance('classic', 'classic');
