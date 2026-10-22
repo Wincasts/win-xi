@@ -1,18 +1,49 @@
-# Zone: all-map boundary editor
+# Zone
 
-## Renamed from zoneinfo
+An Ashita v4 addon for FFXI that announces where you are. Entering a zone shows a
+banner with its name, region, weather and the Vana'diel day and time; walking into a
+named part of it (a square, a bridge, a shop, a guild) shows a smaller one, and so does
+a change of weather. An always-on location line can say where you are, and every map
+has an editor for the areas it announces.
 
-Unload `zoneinfo` before installing this addon as `addons/zone`, then load it with
-`/addon load zone`. Use `/zone` to open settings and `/zone test` to preview the zone banner.
-While both addons are unloaded, copy your character settings and boundary overrides from
-`config/addons/zoneinfo/` to `config/addons/zone/` to preserve them. Copy any custom
-background images into `addons/zone/assets/backgrounds/` as well. The saved boundary
-file format is unchanged; do not run both addons together.
+The banner comes in eight styles: **Classic Text**, **Title Card**, **Pennant**,
+**Kanji Watermark** (the Japanese client's name, huge and faint), **Letter Reveal**,
+**Classic Window** (the game's own blue window), **Elemental Weather** and **Kind
+Frames** (a look for cities, open country and dungeons), with a soft **Backdrop**
+behind it so it reads over a bright scene.
 
-Ashita v4 winxi-styled zone/region/weather banners with nation flags, a popup
-when the weather changes, an always-on location line, experimental same-zone
-area detection, and an offline-capable map browser with draggable polygon
-vertices.
+## Install
+
+Extract the release zip into your Ashita folder (the one holding `addons`, `plugins`
+and `config`), then in game:
+
+    /addon load zone
+
+Zone needs nothing else. `addons/zone/winxi` is its own copy of the parts of winxi it
+uses, the library behind the winxi addons; if you use other winxi addons, the look
+they share (set with winxisettings and `/winxi`) is zone's too.
+
+## Using it
+
+- `/zone` opens the settings. **Appearance** is how the banner looks (its style for
+  zone entry and for sub-zones, sizes, fonts, position, colours, backdrop);
+  **Behaviour** is what it says and when (each popup's lines, the location line,
+  timing, and when to hide it).
+- `/zone test` shows the zone now; `/zone test titlecard` (or `pennant`, `kanji`,
+  `reveal`, `window`, `element`, `kind`, `classic`) shows it once in that style.
+- **Preview While Configuring** (Behaviour → Preview) keeps a banner up while you
+  change things.
+
+The rest of this file is the detail: how the areas were made, every setting, the
+map editor and the commands.
+
+### Coming from zoneinfo
+
+Zone was called zoneinfo. Unload `zoneinfo` before installing zone, and while both
+are unloaded copy your character settings and boundary overrides from
+`config/addons/zoneinfo/` to `config/addons/zone/`, and any background images of your
+own into `addons/zone/assets/backgrounds/`. The saved boundary file format is
+unchanged; do not run both addons together.
 
 ## Coverage and what is guessed
 
@@ -53,7 +84,7 @@ maps: eight outposts (named for their region, as the player named Ronfaure
 Outpost), Giddeus's second spring and the Metalworks' second cannonry.
 
 These shapes are judged from the map artwork, **not walked or terrain-traced in
-game**. See [`research/boundary_authoring_style.md`](research/boundary_authoring_style.md)
+game**. See [`research/boundary_authoring_style.md`](https://github.com/Wincasts/win-xi/blob/main/addons/zone/research/boundary_authoring_style.md)
 for how the player's edits were read and applied. The map art writes Port
 Bastok's river as "Dalba River"; the name used is the game's, Dalha River.
 
@@ -546,6 +577,10 @@ banners. Missing position/map selection clears stale area state. Ordinary
 zone/region/weather banners remain available independently.
 
 ## Files, generation and tests
+
+The release zip leaves out `research/`, the `.webp` flags the PNGs were made from and
+the data no code loads (`data/king_ranperres_tomb_*.lua`, `data/map_subregions.lua`):
+they are in the repository, for making the data again.
 
 - `data/all_maps.lua`: generated all-raster identities and polygons.
 - `research/boundary_refinements.json`: canonical player examples/visual drafts.
