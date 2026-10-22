@@ -1,6 +1,6 @@
 addon.name    = 'zone';
 addon.author  = 'win';
-addon.version = '2.6.4';
+addon.version = '2.7';
 addon.desc    = 'Zone, region, sub-zone and weather banners, a location line, and an all-map experimental boundary editor.';
 
 require('common');
@@ -10,6 +10,7 @@ local regions = require('data.regions');
 local rz      = require('data.regionZones');
 local region_flags = require('data.region_flags');
 local zone_names_ja = require('data.zone_names_ja');
+local zone_kinds = require('data.zone_kinds');
 local map_position = require('map_position');
 local debug_view   = require('debug_view');
 local presentation = require('presentation');
@@ -44,6 +45,7 @@ local state = {
     flag = nil,
     zone_ja = nil,
     region_ja = nil,
+    kind = nil,
     style_override = nil,
 };
 
@@ -165,10 +167,11 @@ local function get_flag(zone)
     return region_flags[zone_to_region[zone or 0] or -1];
 end
 
--- The zone's and its region's names in the Japanese client, for the Kanji Watermark, and no
--- /zone test style carried over: set for every banner.
+-- The zone's and its region's names in the Japanese client, for the Kanji Watermark, the zone's kind
+-- (city, outdoors or dungeon) for Kind Frames, and no /zone test style carried over: set for every banner.
 local function set_banner_names(zone)
     state.zone_ja = zone_names_ja[zone or 0];
+    state.kind = zone_kinds[zone or 0];
     state.region_ja = region_names_ja[zone_to_region[zone or 0] or -1];
     state.style_override = nil;
 end
@@ -424,7 +427,7 @@ ashita.events.register('command', 'zone_command', function(e)
     elseif (command == 'test') then
         local style = args[3] and args[3]:lower();
         if (style and not presentation.valid_style(style)) then
-            message('Usage: /zone test [classic|titlecard|pennant|kanji]', true);
+            message('Usage: /zone test [' .. table.concat(presentation.style_ids(), '|') .. ']', true);
             return;
         end
         check_zone_changed(true);

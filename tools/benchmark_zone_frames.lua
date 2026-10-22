@@ -69,6 +69,10 @@ measure('banner: Classic Text', banner('classic'));
 measure('banner: Title Card', banner('titlecard'));
 measure('banner: Pennant', banner('pennant'));
 measure('banner: Kanji Watermark', banner('kanji'));
+measure('banner: Letter Reveal', banner('reveal'));
+measure('banner: Classic Window', banner('window'));
+measure('banner: Elemental Weather', banner('element'));
+measure('banner: Kind Frames', banner('kind'));
 -- The entrance: shown again every 50 frames (1.5 s), so every frame is in its first second and a half.
 local function entrances(count)
     for i = 1, count do
@@ -79,6 +83,10 @@ end
 measure('banner: Title Card entrance', function() d.zoneStyle = 'titlecard'; end, entrances);
 measure('banner: Pennant entrance', function() d.zoneStyle = 'pennant'; end, entrances);
 measure('banner: Kanji Watermark entrance', function() d.zoneStyle = 'kanji'; end, entrances);
+measure('banner: Letter Reveal entrance', function() d.zoneStyle = 'reveal'; end, entrances);
+measure('banner: Classic Window entrance', function() d.zoneStyle = 'window'; end, entrances);
+measure('banner: Elemental Weather entrance', function() d.zoneStyle = 'element'; end, entrances);
+measure('banner: Kind Frames entrance', function() d.zoneStyle = 'kind'; end, entrances);
 
 H.print(('%-44s %10s %12s %12s'):format('frame', 'us/frame', 'bytes/frame', 'calls/frame'));
 for _, r in ipairs(results) do

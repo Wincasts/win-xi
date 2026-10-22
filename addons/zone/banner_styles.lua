@@ -1,4 +1,5 @@
--- The banner's styles other than Classic Text: Title Card, Pennant and Kanji Watermark.
+-- The banner's styles other than Classic Text: Title Card, Pennant, Kanji Watermark, Letter Reveal,
+-- Classic Window, Elemental Weather and Kind Frames.
 --
 --   styles.ids, styles.labels      the styles there are, Classic Text first, and their names
 --   styles.valid(id)               whether id is one of them
@@ -6,6 +7,8 @@
 --                                  fills it): the words, fonts, sizes, colours, fade and how long
 --                                  the banner has been up, which the entrances follow
 --   styles.vertical(chars)         whether Japanese words can be written top to bottom here
+--   styles.weather_element(id)     the element of a weather id and 1 or 2 for single or double weather
+--   styles.elements                each element's colour
 --
 -- Each is drawn straight onto the draw list, under every imgui window, and fades with the banner as
 -- a whole; its entrance plays over the first second or two. Text has winxi.text's dark edge.
@@ -14,8 +17,9 @@ local text = require('winxi.text');
 
 local M = {};
 
-M.ids = { 'classic', 'titlecard', 'pennant', 'kanji' };
-M.labels = { classic = 'Classic Text', titlecard = 'Title Card', pennant = 'Pennant', kanji = 'Kanji Watermark' };
+M.ids = { 'classic', 'titlecard', 'pennant', 'kanji', 'reveal', 'window', 'element', 'kind' };
+M.labels = { classic = 'Classic Text', titlecard = 'Title Card', pennant = 'Pennant', kanji = 'Kanji Watermark',
+    reveal = 'Letter Reveal', window = 'Classic Window', element = 'Elemental Weather', kind = 'Kind Frames' };
 
 function M.valid(id)
     return M.labels[id] ~= nil;
@@ -356,7 +360,357 @@ local function kanji(list, c)
     end
 end
 
-local draws = { titlecard = title_card, pennant = pennant, kanji = kanji };
+-- Letter Reveal: the name a letter at a time, each dropping in out of a blur (two faint copies
+-- either side, closing on it, as imgui has no blur), then the region between two short rules.
+local function reveal(list, c)
+    local S, D, age = c.title_size, c.detail_size, c.age;
+    local name = chars(c.title);
+    imgui.PushFont(c.title_font, S);
+    local name_w = tracked_width(c.title_font, S, name, 0);
+    local _, name_h = imgui.CalcTextSize(c.title);
+    imgui.PopFont();
+    local upper_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
+    local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
+    local rule, rule_gap = D * 1.5, D * .6;
+    local block = math.max(name_w, upper_w + (rule + rule_gap) * 2, meta_w);
+    local cx = left_of(c, block) + block / 2;
+    local y = c.y;
+
+    imgui.PushFont(c.title_font, S);
+    local x = cx - name_w / 2;
+    for i = 1, #name do
+        local ch = name[i];
+        if ch ~= ' ' then
+            local t = (age - (i - 1) * .055) / .7;
+            local settle = out_cubic(t);
+            local dy = -S * .25 * (1 - settle);
+            local shown = c.alpha * clamp(t);
+            local blur = 1 - settle;
+            if blur > .01 and shown > .01 then
+                local ghost = packed(c.title_color, c.alpha * .35 * blur * clamp(t * 3));
+                local spread = S * .06 * blur;
+                text.Packed(list, x - spread, y + dy - S * .08 * blur, ghost, ch, 0);
+                text.Packed(list, x + spread, y + dy - S * .08 * blur, ghost, ch, 0);
+            end
+            if shown > .01 then text.Packed(list, x, y + dy, packed(c.title_color, shown), ch, c.edge, packed(c.outline, shown)); end
+        end
+        x = x + width_of(c.title_font, S, ch);
+    end
+    imgui.PopFont();
+    y = y + name_h + D * .4;
+
+    local later = c.alpha * clamp((age - (#name - 1) * .055 - .5) / .8);
+    if c.upper ~= '' then
+        line(list, c, c.detail_font, D, c.upper, cx - upper_w / 2, y, c.detail_color, later);
+        if later > .01 then
+            local mid, thick = y + D * .6, math.max(1, D / 16);
+            local color, dark = packed(c.detail_color, later * .7), packed(c.outline, later * .7);
+            for side = -1, 1, 2 do
+                local near = cx + side * (upper_w / 2 + rule_gap);
+                local far = near + side * rule;
+                list:AddLine(at(p1, near, mid + 1), at(p2, far, mid + 1), dark, thick);
+                list:AddLine(at(p1, near, mid), at(p2, far, mid), color, thick);
+            end
+        end
+        y = y + D * 1.4;
+    end
+    if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, y, c.detail_color, later); end
+end
+
+-- Classic Window: the banner in the game's own blue menu window, silver edged, opening from a line,
+-- with the menu's pointer beside the name.
+local window_colors = { top = { .18, .24, .48, 1 }, bottom = { .06, .08, .20, 1 }, frame = { .66, .67, .75, 1 },
+    inner = { .10, .12, .24, 1 }, shine = { 1, 1, 1, .16 }, pointer = { .91, .91, .95, 1 } };
+local function classic_window(list, c)
+    local S, D, age, a = c.title_size, c.detail_size, c.age, c.alpha;
+    local upper_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
+    local name_w, name_h = measure(c.title_font, S, c.title);
+    local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
+    local pad_x, pad_y = S * 1.1, D * .8;
+    local w = math.max(upper_w, name_w, meta_w, S * 6) + pad_x * 2;
+    local h = pad_y * 2 + name_h + (c.upper ~= '' and D * 1.4 or 0) + (c.meta ~= '' and D * 1.4 or 0);
+    local x0 = left_of(c, w);
+    local open = out_cubic(age / .35);
+    local mid = c.y + h / 2;
+    local top, bottom = mid - h * (.05 + .95 * open) / 2, mid + h * (.05 + .95 * open) / 2;
+    -- The frame's corners are rounded; the body inside it, square, is set in far enough to stay within them.
+    local R = math.max(3, S * .14);
+    local b = math.max(2, math.floor(R * .35 + .5));
+    list:AddRectFilled(at(p1, x0 + 3, top + 4), at(p2, x0 + w + 3, bottom + 4), packed(c.outline, a * .35), R);
+    list:AddRectFilled(at(p1, x0, top), at(p2, x0 + w, bottom), packed(window_colors.frame, a), R);
+    local high, low = packed(window_colors.top, a), packed(window_colors.bottom, a);
+    list:AddRectFilledMultiColor(at(p1, x0 + b, top + b), at(p2, x0 + w - b, bottom - b), high, high, low, low);
+    list:AddRect(at(p1, x0 + b, top + b), at(p2, x0 + w - b, bottom - b), packed(window_colors.inner, a), 0, 0, 1);
+    list:AddLine(at(p1, x0 + b + R, top + b + 2), at(p2, x0 + w - b - R, top + b + 2), packed(window_colors.shine, a), 1);
+
+    local shown = a * clamp((age - .25) / .25);
+    if shown <= .01 then return; end
+    local cx, y = x0 + w / 2, c.y + pad_y;
+    if c.upper ~= '' then
+        line(list, c, c.detail_font, D, c.upper, cx - upper_w / 2, y, c.detail_color, shown);
+        y = y + D * 1.4;
+    end
+    line(list, c, c.title_font, S, c.title, cx - name_w / 2, y, c.title_color, shown);
+
+    -- The pointer, its tip just short of the name, nodding towards it.
+    local k = S * .55 / 17;
+    local tip_x = cx - name_w / 2 - S * .2 - math.abs(math.sin(age * 4)) * S * .08;
+    local tip_y = y + name_h / 2;
+    local bx, by = tip_x - 17 * k, tip_y - 8 * k;
+    local fill, dark = packed(window_colors.pointer, shown), packed(c.outline, shown);
+    list:AddTriangleFilled(at(p1, tip_x, tip_y), at(p2, bx, by), at(p3, bx + 5 * k, tip_y), fill);
+    list:AddTriangleFilled(at(p1, tip_x, tip_y), at(p2, bx + 5 * k, tip_y), at(p3, bx, by + 16 * k), fill);
+    list:AddLine(at(p1, tip_x, tip_y), at(p2, bx, by), dark, 1);
+    list:AddLine(at(p1, bx, by), at(p2, bx + 5 * k, tip_y), dark, 1);
+    list:AddLine(at(p1, bx + 5 * k, tip_y), at(p2, bx, by + 16 * k), dark, 1);
+    list:AddLine(at(p1, bx, by + 16 * k), at(p2, tip_x, tip_y), dark, 1);
+    y = y + name_h + D * .4;
+
+    if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, y, c.detail_color, shown); end
+end
+
+-- The eight elements' colours, the weathers' elements in the order of their ids (4 Fire, 5 Fire x2,
+-- 6 Water and so on to 19 Dark x2) and the days'.
+local elements = {
+    fire = { .93, .36, .25, 1 }, ice = { .56, .85, .96, 1 }, wind = { .40, .82, .50, 1 }, earth = { .82, .65, .30, 1 },
+    thunder = { .71, .54, .96, 1 }, water = { .31, .58, .90, 1 }, light = { .96, .94, .86, 1 }, dark = { .55, .39, .72, 1 },
+};
+M.elements = elements;
+local weather_order = { 'fire', 'water', 'earth', 'wind', 'ice', 'thunder', 'light', 'dark' };
+local day_elements = { Firesday = 'fire', Earthsday = 'earth', Watersday = 'water', Windsday = 'wind', Iceday = 'ice',
+    Lightningday = 'thunder', Lightsday = 'light', Darksday = 'dark' };
+function M.weather_element(id)
+    if type(id) ~= 'number' or id < 4 or id > 19 then return nil, 0; end
+    return weather_order[math.floor((id - 4) / 2) + 1], id % 2 == 1 and 2 or 1;
+end
+-- 'Firesday 14:20' as 'Firesday' and ' 14:20', kept for the words last asked for.
+local day_split = {};
+local function day_parts(vana)
+    if day_split.vana ~= vana then
+        day_split.vana = vana;
+        day_split.day, day_split.rest = nil, nil;
+        if vana then day_split.day, day_split.rest = vana:match('^(%a+)(.*)$'); end
+    end
+    return day_split.day, day_split.rest;
+end
+local pale = { 0, 0, 0, 1 };
+local function paler(color)
+    for i = 1, 3 do pale[i] = color[i] + (1 - color[i]) * .6; end
+    return pale;
+end
+
+-- A crystal: a diamond turned by an angle, its upper left face lighter, outlined.
+local q = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } };
+local function corner(p, x, y, dx, dy, cos, sin) p[1], p[2] = x + dx * cos - dy * sin, y + dx * sin + dy * cos; end
+local function crystal(list, x, y, w, h, angle, color, alpha, outline)
+    local cos, sin = math.cos(angle), math.sin(angle);
+    corner(q[1], x, y, 0, -h, cos, sin); corner(q[2], x, y, w, 0, cos, sin);
+    corner(q[3], x, y, 0, h, cos, sin); corner(q[4], x, y, -w, 0, cos, sin);
+    list:AddQuadFilled(q[1], q[2], q[3], q[4], packed(color, alpha));
+    list:AddTriangleFilled(q[1], q[4], at(p1, x, y), packed(paler(color), alpha));
+    list:AddQuad(q[1], q[2], q[3], q[4], packed(outline, alpha * .8), 1);
+end
+
+-- A band across, clear at its ends and of a colour in the middle: two gradients from the middle out.
+local function band(list, cx, y, half, thick, color, alpha)
+    local solid, clear = packed(color, alpha), packed(color, 0);
+    list:AddRectFilledMultiColor(at(p1, cx - half, y - thick / 2), at(p2, cx, y + thick / 2), clear, solid, solid, clear);
+    list:AddRectFilledMultiColor(at(p1, cx, y - thick / 2), at(p2, cx + half, y + thick / 2), solid, clear, clear, solid);
+end
+
+-- Elemental Weather: the name over a glowing band in the weather's element's colour (the day's when
+-- the weather has none or is not shown), a crystal for single weather and two for double beside the
+-- weather in capitals, and the day in its element's colour.
+local function elemental(list, c)
+    local S, D, age, a = c.title_size, c.detail_size, c.age, c.alpha;
+    local element, count = M.weather_element(c.weather_id);
+    local day, rest = day_parts(c.vana);
+    local tint = elements[element or (day and day_elements[day]) or ''] or c.detail_color;
+    local upper_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
+    local name_w, name_h = measure(c.title_font, S, c.title);
+    local weather = c.weather and chars(c.weather:upper()) or nil;
+    local weather_gap = D * .2;
+    imgui.PushFont(c.detail_font, D);
+    local weather_w = weather and tracked_width(c.detail_font, D, weather, weather_gap) or 0;
+    imgui.PopFont();
+    local gem = D * .45;
+    local gems_w = element and (count * gem * 2 + (count - 1) * gem * .7) or 0;
+    local row_w = gems_w + ((element and weather) and D * .6 or 0) + weather_w;
+    local day_w = day and measure(c.detail_font, D, day) or 0;
+    local rest_w = day and measure(c.detail_font, D, rest) or (c.vana and measure(c.detail_font, D, c.vana) or 0);
+    local bar_w = math.max(name_w * 1.1, S * 6);
+    local block = math.max(upper_w, name_w, bar_w, row_w, day_w + rest_w);
+    local cx = left_of(c, block) + block / 2;
+    local y = c.y;
+
+    local shown = a * clamp(age / .6);
+    if c.upper ~= '' then
+        line(list, c, c.detail_font, D, c.upper, cx - upper_w / 2, y, c.detail_color, shown);
+        y = y + D * 1.4;
+    end
+    line(list, c, c.title_font, S, c.title, cx - name_w / 2, y, c.title_color, shown);
+    y = y + name_h + D * .4;
+
+    -- The band, growing from the middle, with a glow of wider faint bands round it and a pale heart.
+    local half = bar_w / 2 * out_cubic(age / 1.2);
+    local thick = math.max(2, math.floor(S * .06 + .5));
+    if half > 1 then
+        for k = 3, 1, -1 do band(list, cx, y + thick / 2, half * (1 + k * .04), thick + k * D * .3, tint, a * .1); end
+        band(list, cx, y + thick / 2, half, thick, tint, a);
+        band(list, cx, y + thick / 2, half * .45, math.max(1, thick / 2), paler(tint), a);
+    end
+    y = y + thick + D * .7;
+
+    local later = a * clamp((age - .5) / .8);
+    if element or weather then
+        local x = cx - row_w / 2;
+        local my = y + D * .6;
+        if element then
+            for j = 1, count do
+                local t = (age - .2 - (j - 1) * .2) / .8;
+                local grow = out_back(t);
+                if grow > .01 then
+                    crystal(list, x + gem, my, gem * grow, gem * 1.4 * grow, -2.36 * (1 - out_cubic(t)), elements[element], a * clamp(t * 2), c.outline);
+                end
+                x = x + gem * 2.7;
+            end
+            x = x - gem * .7 + (weather and D * .6 or 0);
+        end
+        if weather then
+            imgui.PushFont(c.detail_font, D);
+            tracked(list, c.detail_font, D, weather, weather_gap, x, y, packed(c.detail_color, later), packed(c.outline, later), c.edge);
+            imgui.PopFont();
+        end
+        y = y + D * 1.5;
+    end
+    if day then
+        local x = cx - (day_w + rest_w) / 2;
+        line(list, c, c.detail_font, D, day, x, y, elements[day_elements[day]] or c.detail_color, later);
+        if rest ~= '' then line(list, c, c.detail_font, D, rest, x + day_w, y, c.detail_color, later); end
+    elseif c.vana then
+        line(list, c, c.detail_font, D, c.vana, cx - rest_w / 2, y, c.detail_color, later);
+    end
+end
+
+-- Kind Frames: a look for each kind of zone. A city's name on a framed plaque, open country's over a
+-- horizon line, a dungeon's carved in stone and lit as by a torch, flickering in. A zone of no known
+-- kind is open country.
+local plaque_colors = { top = { .17, .20, .28, 1 }, bottom = { .10, .12, .18, 1 }, gold = { .79, .66, .37, 1 } };
+local function plaque(list, c)
+    local S, D, age, a = c.title_size, c.detail_size, c.age, c.alpha;
+    local upper_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
+    local name_w, name_h = measure(c.title_font, S, c.title);
+    local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
+    local pad_x, pad_y = S * .9, S * .25;
+    local w, h = name_w + pad_x * 2, name_h + pad_y * 2;
+    local block = math.max(w, upper_w, meta_w);
+    local cx = left_of(c, block) + block / 2;
+    local y = c.y;
+    local later = a * clamp((age - .3) / .5);
+
+    if c.upper ~= '' then
+        line(list, c, c.detail_font, D, c.upper, cx - upper_w / 2, y, c.detail_color, later);
+        y = y + D * 1.5;
+    end
+    local half = w / 2 * out_cubic(age / .5);
+    if half > 1 then
+        local border = math.max(1, math.floor(S / 32 + .5));
+        list:AddRectFilled(at(p1, cx - half + 4, y + 5), at(p2, cx + half + 4, y + h + 5), packed(c.outline, a * .4));
+        list:AddRectFilled(at(p1, cx - half - 3, y - 3), at(p2, cx + half + 3, y + h + 3), packed(plaque_colors.bottom, a));
+        local high, low = packed(plaque_colors.top, a), packed(plaque_colors.bottom, a);
+        list:AddRectFilledMultiColor(at(p1, cx - half, y), at(p2, cx + half, y + h), high, high, low, low);
+        local gold = packed(plaque_colors.gold, a);
+        list:AddRect(at(p1, cx - half, y), at(p2, cx + half, y + h), gold, 0, 0, border);
+        local inset = border + 2;
+        if half > inset * 2 then
+            list:AddRect(at(p1, cx - half + inset, y + inset), at(p2, cx + half - inset, y + h - inset), gold, 0, 0, 1);
+        end
+    end
+    line(list, c, c.title_font, S, c.title, cx - name_w / 2, y + pad_y, c.title_color, later);
+    y = y + h + D * .6;
+    if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, y, c.detail_color, later); end
+end
+
+local function open_country(list, c)
+    local S, D, age, a = c.title_size, c.detail_size, c.age, c.alpha;
+    local upper_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
+    local name_w, name_h = measure(c.title_font, S, c.title);
+    local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
+    local block = math.max(name_w * 1.2, upper_w, meta_w);
+    local cx = left_of(c, block) + block / 2;
+    local y = c.y;
+    local later = a * clamp((age - .5) / .8);
+
+    if c.upper ~= '' then
+        line(list, c, c.detail_font, D, c.upper, cx - upper_w / 2, y, c.detail_color, later);
+        y = y + D * 1.4;
+    end
+    local shown, off = a * clamp(age / .9), (1 - out_cubic(age / .9)) * S * .3;
+    line(list, c, c.title_font, S, c.title, cx - name_w / 2, y + off, c.title_color, shown);
+    y = y + name_h + D * .3;
+    local half = name_w * .6 * out_cubic(age / 1.2);
+    if half > 1 then
+        local thick = math.max(1, math.floor(S / 40 + .5));
+        band(list, cx, y + 1, half, thick, c.outline, a * .8);
+        band(list, cx, y, half, thick, c.title_color, a);
+    end
+    y = y + D * .6;
+    if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, y, c.detail_color, later); end
+end
+
+-- The torchlight's flicker: how lit the carving is from each time on, in seconds.
+local flicker = { { 0, 0 }, { .24, .6 }, { .34, .2 }, { .53, .9 }, { .72, .7 }, { .96, 1 } };
+local function lit(age)
+    local v = 0;
+    for i = 1, #flicker do if age >= flicker[i][1] then v = flicker[i][2]; end end
+    return v;
+end
+local stone_colors = { stone = { .72, .67, .57, 1 }, ember = { 1, .55, .16, 1 }, chip = { 1, .92, .75, 1 }, cut = { 0, 0, 0, 1 } };
+local function carved(list, c)
+    local S, D = c.title_size, c.detail_size;
+    local a = c.alpha * lit(c.age);
+    if a <= .01 then return; end
+    local name = chars(c.title:upper());
+    local gap = S * .14;
+    imgui.PushFont(c.title_font, S);
+    local name_w = tracked_width(c.title_font, S, name, gap);
+    local _, name_h = imgui.CalcTextSize(c.title);
+    imgui.PopFont();
+    local upper_w = c.upper ~= '' and measure(c.detail_font, D, c.upper) or 0;
+    local meta_w = c.meta ~= '' and measure(c.detail_font, D, c.meta) or 0;
+    local block = math.max(name_w, upper_w, meta_w);
+    local cx = left_of(c, block) + block / 2;
+    local y = c.y;
+
+    if c.upper ~= '' then
+        line(list, c, c.detail_font, D, c.upper, cx - upper_w / 2, y, stone_colors.stone, a * .85);
+        y = y + D * 1.5;
+    end
+    -- The torch's glow round it, the cut's shadow above and its lit lip below, then the stone.
+    local x = cx - name_w / 2;
+    imgui.PushFont(c.title_font, S);
+    local ember = packed(stone_colors.ember, a * .12);
+    local spread = math.max(2, S / 20);
+    tracked(list, c.title_font, S, name, gap, x - spread, y, ember, nil, 0);
+    tracked(list, c.title_font, S, name, gap, x + spread, y, ember, nil, 0);
+    tracked(list, c.title_font, S, name, gap, x, y - spread, ember, nil, 0);
+    tracked(list, c.title_font, S, name, gap, x, y + spread, ember, nil, 0);
+    tracked(list, c.title_font, S, name, gap, x, y - 1, packed(stone_colors.cut, a * .9), nil, 0);
+    tracked(list, c.title_font, S, name, gap, x, y + 1, packed(stone_colors.chip, a * .25), nil, 0);
+    tracked(list, c.title_font, S, name, gap, x, y, packed(stone_colors.stone, a), packed(c.outline, a * .6), c.edge);
+    imgui.PopFont();
+    y = y + name_h + D * .5;
+    if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, y, stone_colors.stone, a * .85); end
+end
+
+local function kind_frames(list, c)
+    if c.kind == 'city' then return plaque(list, c); end
+    if c.kind == 'dungeon' then return carved(list, c); end
+    return open_country(list, c);
+end
+
+local draws = { titlecard = title_card, pennant = pennant, kanji = kanji,
+    reveal = reveal, window = classic_window, element = elemental, kind = kind_frames };
 
 function M.draw(id, list, c)
     local draw = draws[id];

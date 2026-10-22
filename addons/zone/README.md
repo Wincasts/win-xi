@@ -221,15 +221,31 @@ are drawn with ImGui under every winxi window, whichever Text Renderer is chosen
   their square, as Japanese vertical type has them. Names with Latin letters,
   digits, brackets or a hyphen (the [S] zones, Abyssea, Mine Shaft #2716) are
   written across.
+- **Letter Reveal**: the name a letter at a time, each dropping in out of a
+  blur (faint copies either side closing on it, since ImGui has no blur), then
+  the region between two short rules and the day and weather under it.
+- **Classic Window**: the banner in the game's own blue menu window with its
+  silver edge, opening from a line, the menu's pointer nodding at the name.
+- **Elemental Weather**: the name over a glowing band in the colour of the
+  weather's element, or of the day's when the weather has none (clear,
+  sunshine, clouds, fog) or is not shown; one crystal for single weather and
+  two for double beside the weather in capitals, and the day in its element's
+  colour. A weather popup shows its crystal under the title.
+- **Kind Frames**: a look for each kind of zone. A city's name on a framed
+  plaque, open country's over a horizon line, a dungeon's carved in stone in
+  capitals, lit as by a torch and flickering in. The kinds are drawscale's
+  (`data/zone_kinds.lua`, made with drawscale's by `tools/build_zone_kinds.py`
+  from the Phoenix server's zone data); a zone of no known kind is open country.
+  The stone's colour is its own whatever the text colour.
 
-**Style Title Size** and **Style Detail Size** size all three, in the zone or
+**Style Title Size** and **Style Detail Size** size them all, in the zone or
 sub-zone title and detail fonts (the theme's font when those are Default).
 They follow the
 banner's position, alignment, hold, fades and opacity, and **Show Region**,
 **Show Weather**, **Show Zone Context** and **Show Day And Time**; per-line
 timing is not used. Each
 entrance plays over the first second or two. `/zone test titlecard`, `pennant`,
-`kanji` or `classic` shows the zone once in that style without changing the
+`kanji`, `reveal`, `window`, `element`, `kind` or `classic` shows the zone once in that style without changing the
 setting.
 
 ### Region flags
@@ -530,7 +546,9 @@ zone/region/weather banners remain available independently.
 - `data/region_flags.lua`: which flag each nation's regions show.
 - `data/zone_names_ja.lua`: each zone's Japanese name, made by
   `tools/build_zone_ja.py` from `references/boussole/data/zones.lua`.
-- `banner_styles.lua`: the Title Card, Pennant and Kanji Watermark styles.
+- `banner_styles.lua`: every style but Classic Text.
+- `data/zone_kinds.lua`: each zone's kind (city, outdoors or dungeon) for Kind Frames, the
+  same table as drawscale's, made by `tools/build_zone_kinds.py`.
 - `research/building_seeds.json`: where each city building is, for the tracer.
 - `presentation.lua`, `banner_layout.lua`: winxi display settings, text layout
   and timed fades, independent of geometry/editor persistence.
