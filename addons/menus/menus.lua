@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.5.1'
+addon.version = '0.6'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -17,7 +17,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 37
+local winxiNeeded = 38
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -280,7 +280,7 @@ local function CursorRow(window)
     return best < 12 and row or nil
 end
 
-local function DrawContents(list, window)
+local function DrawContents(list, window, words, spelled)
     local r = window.rect
     local pad = 4
     -- the row the cursor is on, lit across the window, under everything else: found from the cursor, or the game's
@@ -296,9 +296,8 @@ local function DrawContents(list, window)
     -- elements, the labels, in their own colours (the cursor's tint left to the row lit under it; a greyed one kept
     -- faint)
     local labels = byName[window.name] and byName[window.name].labels
-    -- the labels spelled from the game's menu font read back as words, drawn in the theme's; their letters not drawn
-    local words, spelled = {}, {}
-    if labels then words, spelled = nativemirror.Words(window.quads) end
+    -- the labels spelled from the game's menu font read back as words (Spelled), drawn in the theme's below; their
+    -- letters not drawn
     for i, quad in ipairs(window.quads) do
         local element = quad.phase == nativemirror.Element
         if spelled[i] then
@@ -311,7 +310,7 @@ local function DrawContents(list, window)
             list:AddImage(quad.texture, { q[1], q[2] }, { q[3], q[4] }, { uv[1], uv[2] }, { uv[3], uv[4] }, imgui.GetColorU32(quad.color))
         end
     end
-    for _, word in ipairs(words) do
+    for _, word in ipairs(labels and words or {}) do
         local t = word.rect
         local size = math.max(8, math.floor(word.tall + 0.5))
         imgui.PushFont(nil, size)
@@ -384,10 +383,21 @@ local function Placed(window, scale, dx, dy, width, height)
     return out, dx, dy
 end
 
-local function DrawMirror(list, window)
+-- A window's elements read back as words: its title (the game's serif letters), joined, for the frame's edge; the
+-- rest, its labels; and the quads read, not to be drawn as art
+local function Spelled(window)
+    local words, spelled = nativemirror.Words(window.quads)
+    local title, labels = {}, {}
+    for _, word in ipairs(words) do
+        if word.font == 'title' then title[#title + 1] = word.text else labels[#labels + 1] = word end
+    end
+    return #title > 0 and table.concat(title, ' ') or nil, labels, spelled
+end
+
+local function DrawMirror(list, window, words, spelled)
     local r = window.rect
     list:PushClipRect({ r[1] - 24, r[2] - 24 }, { r[3] + 24, r[4] + 24 }, true)
-    local ok, err = pcall(DrawContents, list, window)
+    local ok, err = pcall(DrawContents, list, window, words, spelled)
     list:PopClipRect()
     if not ok then error(err, 0) end
 end
@@ -557,7 +567,8 @@ local function Frame()
                 -- the offset kept to what keeps it on the screen, so a drag back from past the edge moves it at once
                 if offset and (dx ~= offset[1] or dy ~= offset[2]) then options.offsets[window.name] = T{ dx, dy } end
                 local r = placed.rect
-                frame.Draw({ left = r[1], top = r[2], width = Width(r), height = Height(r) }, function() DrawMirror(list, placed) end)
+                local title, words, spelled = Spelled(placed)
+                frame.Draw({ left = r[1], top = r[2], width = Width(r), height = Height(r) }, function() DrawMirror(list, placed, words, spelled) end, { title = title })
                 if blockMouse then areas[#areas + 1] = { name = window.name, drawn = r, native = window.rect } end
             elseif not replace then
                 DrawOutline(list, window)

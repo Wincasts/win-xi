@@ -7,6 +7,9 @@
 --   titles.Draw(words)     inside the window, after its content and border: words sit across the top
 --                          edge, half over the window and half above it, at its right
 --
+-- Gap and Draw take a rect ({ left, top, width, height }, as winxi.frame's) for a frame drawn inside a window
+-- that is not its own (Gap(words, rect), Draw(words, { rect = rect })): the title goes on that frame's edge.
+--
 -- It follows the theme: Frame Titles switches every title on or off, Title Style is how it is drawn,
 -- Title Color its colour, Title Font and Title Size its font and size in pixels (the window's own where
 -- unset), Title Position X how far in from the window's right edge the words end, Title Position Y how
@@ -59,10 +62,15 @@ local function PushSize()
     return true;
 end
 
--- Where the words go in the window being drawn: left, top, width, height; or nothing
-local function Place(words)
-    local x, y = imgui.GetWindowPos();
-    local width = imgui.GetWindowSize();
+-- Where the words go in the window being drawn, or on rect where one is given: left, top, width, height; or nothing
+local function Place(words, rect)
+    local x, y, width;
+    if rect then
+        x, y, width = rect.left, rect.top, rect.width;
+    else
+        x, y = imgui.GetWindowPos();
+        width = imgui.GetWindowSize();
+    end
     if x == nil or width == nil or width <= 0 then
         return nil;
     end
@@ -78,12 +86,12 @@ function titles.Breaks(words)
     return Shown(words) and (titleStyle == 'break' or titleStyle == 'breakshadow') or false;
 end
 
-function titles.Gap(words)
+function titles.Gap(words, rect)
     if not titles.Breaks(words) then
         return nil;
     end
     local pushed = PushSize();
-    local left, _, w = Place(Written(words));
+    local left, _, w = Place(Written(words), rect);
     if pushed then
         imgui.PopFont();
     end
@@ -107,7 +115,7 @@ function titles.Draw(words, options)
     end
     words = Written(words);
     local pushed = PushSize();
-    local left, top, w, h = Place(words);
+    local left, top, w, h = Place(words, options and options.rect);
     if left == nil then
         if pushed then imgui.PopFont(); end
         return;

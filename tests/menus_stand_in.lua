@@ -5,7 +5,7 @@ MENUS = { requests = {}, stops = 0, windows = {}, handlers = {}, mouse = { x = 0
 local function Words(quads)
     local words, used = {}, {}
     for i, quad in ipairs(quads) do
-        if quad.word then words[#words + 1] = { text = quad.word, rect = quad.rect, color = quad.color, lit = false, tall = 12 }; used[i] = true end
+        if quad.word then words[#words + 1] = { text = quad.word, rect = quad.rect, color = quad.color, lit = false, tall = 12, font = quad.font or 'menu' }; used[i] = true end
     end
     return words, used
 end

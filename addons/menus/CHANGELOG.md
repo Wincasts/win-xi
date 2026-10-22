@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6
+
+- Window titles: the game writes a menu's title ("Commands") in serif letters, one element each; they
+  are read back and set on the panel's top edge as a winxi title, in the theme's Title Style, font and
+  colour, the border broken behind it where the style breaks. Every mirrored menu that has one gets
+  it, the item lists too.
+- Needs winxi 38 (uihook 1.0).
+
 ## 0.5.1
 
 - With 32 or more menus on, nothing was replaced: the mirror took 32 requests, and the hidden bit of the

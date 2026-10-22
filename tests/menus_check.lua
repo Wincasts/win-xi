@@ -143,6 +143,14 @@ local texts = H.calls['draw.AddText'] or 0
 H.frames(1)
 check('a spelled label drawn as words', (H.calls['draw.AddText'] or 0) > texts)
 check('its letters not drawn as art, the other element still', (H.calls['draw.AddImage'] or 0) - images == 1)
+-- a title in the game's serif letters: on the frame's edge, in an item list too, its letters not drawn
+local titled = Element(80); titled.word, titled.font = 'Commands', 'title'
+mainMenu.quads = { titled, spelled }
+items = Inventory(); items.quads = { (function() local q = Element(80); q.word, q.font = 'Items', 'title'; return q end)() }
+MENUS.windows = { mainMenu, items }
+images, texts = H.calls['draw.AddImage'] or 0, H.calls['draw.AddText'] or 0
+H.frames(1)
+check('titles drawn as words, no art', (H.calls['draw.AddText'] or 0) - texts >= 3 and (H.calls['draw.AddImage'] or 0) - images == 0)
 check('nothing printed for them', #H.printed == 0)
 
 -- unloaded: the mirror stopped

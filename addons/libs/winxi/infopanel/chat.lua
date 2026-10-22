@@ -157,7 +157,10 @@ function M.New(deps)
                 ok,err=pcall(calendar.Draw,imgui,hoveredText.calendar,calendarStyle)
             else
                 local schedule=deps.schedule or require('winxi.infopanel.schedule')
-                ok,err=pcall(schedule.Draw,imgui,hoveredText.schedule,calendarStyle)
+                ok,err=pcall(function()
+                    if hoveredText.location then imgui.Text(hoveredText.location); imgui.Separator() end
+                    schedule.Draw(imgui,hoveredText.schedule,calendarStyle)
+                end)
             end
         end
         imgui.PopTextWrapPos()

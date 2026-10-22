@@ -34,7 +34,8 @@ Which of the game's windows are mirrored, in four groups; off, the game draws it
   Mission Menu, Friend List Menu, Communication Menu, Unity Menu, Bazaar Menu. The game spells their
   words one letter at a time from its menu font; each is drawn as a winxi panel with those words read
   back and drawn in the theme's font, the row the cursor is on lit and the hand. What is not a letter
-  of that font (button bars, a title) is the game's own art. In Outline their elements are outlined in
+  of that font (button bars) is the game's own art. A menu's title, in the game's serif letters, is set
+  on the panel's top edge as a winxi title (every mirrored menu that has one). In Outline their elements are outlined in
   purple.
 - **Config** (off): Chat Filters, Battle Message Filters, Chat Colors.
 
