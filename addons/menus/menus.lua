@@ -149,36 +149,36 @@ local settingsRect, settingsAt = nil, -1
 local modeIds = {}
 for _, mode in ipairs(Modes) do modeIds[mode] = mode .. '##menus.mode' end
 
+-- A group's menus, three to a row, each its checkbox and its name; above them one for the whole group, on where
+-- every one is, which switches them all
+local GRID_COLUMNS = 3
+local function DrawGroup(options, group)
+    local all = true
+    for _, menu in ipairs(group.menus) do all = all and options['mirror_' .. menu.name][1] end
+    widgets.Label('All', group.labels)
+    local every = { all }
+    if imgui.Checkbox('##menus.all.' .. group.title, every) then
+        for _, menu in ipairs(group.menus) do options['mirror_' .. menu.name][1] = every[1] end
+        Save()
+    end
+    tooltip.Hover('Every menu of ' .. group.title .. ' on or off.')
+    if imgui.BeginTable('##menus.grid.' .. group.title, GRID_COLUMNS, ImGuiTableFlags_SizingFixedFit) then
+        for _, menu in ipairs(group.menus) do
+            imgui.TableNextColumn()
+            if imgui.Checkbox(menu.label .. '##menus.' .. menu.name, options['mirror_' .. menu.name]) then Save() end
+            tooltip.Hover(menu.tip .. ' Off, the game draws its own.')
+        end
+        imgui.EndTable()
+    end
+end
+
 local function DrawSettings(options)
     local x, y = imgui.GetWindowPos()
     local w, h = imgui.GetWindowSize()
     if type(x) == 'table' then x, y = x.x or x[1], x.y or x[2] end
     if type(w) == 'table' then w, h = w.x or w[1], w.y or w[2] end
     if x and y and w and h then settingsRect, settingsAt = { x, y, x + w, y + h }, os.clock() end
-    for index, group in ipairs(Groups) do
-        if widgets.Header(group.title, index == 1) then
-            for _, menu in ipairs(group.menus) do
-                widgets.Label(menu.label, menu.labels)
-                if imgui.Checkbox('##menus.' .. menu.name, options['mirror_' .. menu.name]) then Save() end
-                tooltip.Hover(menu.tip .. ' Off, the game draws its own.')
-            end
-        end
-    end
-    if widgets.Header('Mouse') then
-        widgets.Label('Keep Mouse From Game Menus')
-        if imgui.Checkbox('##menus.blockMouse', options.blockMouse) then Save() end
-        tooltip.Hover('Over a menu drawn here, or where the game\'s own is under it, the game is given no mouse: no moving its cursor, no clicks, no wheel. The controller works as ever. With it on, a menu can be dragged where it is wanted.')
-        widgets.Label('Lock Menu Positions')
-        if imgui.Checkbox('##menus.lockMenus', options.lockMenus) then Save() end
-        tooltip.Hover('Menus cannot be dragged. Off, a menu is moved by dragging it with the left button, while the mouse is kept from the game\'s menus.')
-        widgets.Label('Positions')
-        if imgui.Button('Reset Positions##menus.reset') then
-            options.offsets = T{}
-            Save()
-        end
-        tooltip.Hover('Every menu back where the game puts it.')
-    end
-    if widgets.Header('Mirror') then
+    if widgets.Header('Mirror', true) then
         widgets.Label('Mirror Mode')
         for index, mode in ipairs(Modes) do
             if index > 1 then imgui.SameLine() end
@@ -202,6 +202,23 @@ local function DrawSettings(options)
                 imgui.TextWrapped(('%s was given back to the game: %s.'):format(menu.label, nativeWhy[menu.name] or 'not measured'))
             end
         end
+    end
+    if widgets.Header('Mouse') then
+        widgets.Label('Keep Mouse From Game Menus')
+        if imgui.Checkbox('##menus.blockMouse', options.blockMouse) then Save() end
+        tooltip.Hover('Over a menu drawn here, or where the game\'s own is under it, the game is given no mouse: no moving its cursor, no clicks, no wheel. The controller works as ever. With it on, a menu can be dragged where it is wanted.')
+        widgets.Label('Lock Menu Positions')
+        if imgui.Checkbox('##menus.lockMenus', options.lockMenus) then Save() end
+        tooltip.Hover('Menus cannot be dragged. Off, a menu is moved by dragging it with the left button, while the mouse is kept from the game\'s menus.')
+        widgets.Label('Positions')
+        if imgui.Button('Reset Positions##menus.reset') then
+            options.offsets = T{}
+            Save()
+        end
+        tooltip.Hover('Every menu back where the game puts it.')
+    end
+    for _, group in ipairs(Groups) do
+        if widgets.Header(group.title, false, true) then DrawGroup(options, group) end
     end
 end
 

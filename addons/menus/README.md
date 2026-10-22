@@ -21,9 +21,12 @@ is scaled or moved: then Keep Mouse From Game Menus keeps the mouse from the gam
 
 ## Settings
 
-Every section collapses with its [-]/[+].
+Every section collapses with its [-]/[+]. Mirror and Mouse come first and start open; the groups of menus
+start collapsed.
 
-Which of the game's windows are mirrored, in four groups; off, the game draws its own:
+Which of the game's windows are mirrored, in five groups; off, the game draws its own. In each group the
+menus sit three to a row, each a checkbox with its name, under an All checkbox that switches the whole
+group (on where every one of them is):
 
 - **Items** (on to start): Inventory, Item Info, Mog Safe, Shop.
 - **Lists** (on): Abilities And Spells, Emotes, Mounts, Currencies, Missions, Quests, Quest Pages,
