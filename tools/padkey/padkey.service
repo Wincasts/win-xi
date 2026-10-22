@@ -1,0 +1,10 @@
+[Unit]
+Description=padkey: controller PS button presses F19 (Discord Toggle Mute)
+
+[Service]
+ExecStart=/usr/bin/python3 -I %h/Projects/FFXI/tools/padkey/padkey.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target
