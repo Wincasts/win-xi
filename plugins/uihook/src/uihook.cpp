@@ -44,16 +44,20 @@ public:
         return party && party->HandleIncomingText(mode, indent, message, modifiedMode, modifiedIndent, modifiedMessage, injected, blocked);
     }
     bool HandleCommand(int32_t mode, const char* command, bool injected) override {
-        char words[3][16] = {};
-        if (!command || sscanf_s(command, "%15s %15s %15s", words[0], 16u, words[1], 16u, words[2], 16u) < 1 || _stricmp(words[0], "/uihook") != 0) return false;
+        char words[4][16] = {};
+        if (!command || sscanf_s(command, "%15s %15s %15s %15s", words[0], 16u, words[1], 16u, words[2], 16u, words[3], 16u) < 1 || _stricmp(words[0], "/uihook") != 0) return false;
         if (_stricmp(words[1], "hud") == 0) return party && party->HandleCommand(mode, "/uihook hud", injected);
         if (_stricmp(words[1], "chat") == 0 && _stricmp(words[2], "history") == 0) return party && party->HandleCommand(mode, "/uihook chat history", injected);
         if (_stricmp(words[1], "chat") == 0) return party && party->HandleCommand(mode, "/uihook chat", injected);
         if (_stricmp(words[1], "census") == 0) { std::string line = "/uihook census"; if (words[2][0]) line += std::string(" ") + words[2]; return party && party->HandleCommand(mode, line.c_str(), injected); }
-        if (_stricmp(words[1], "mirror") == 0) return party && party->HandleCommand(mode, _stricmp(words[2], "labels") == 0 ? "/uihook mirror labels" : "/uihook mirror", injected);
+        if (_stricmp(words[1], "mirror") == 0) {
+            std::string line = _stricmp(words[2], "labels") == 0 ? "/uihook mirror labels" : "/uihook mirror";
+            if (_stricmp(words[2], "labels") == 0 && words[3][0]) line += std::string(" ") + words[3];
+            return party && party->HandleCommand(mode, line.c_str(), injected);
+        }
         if (_stricmp(words[1], "menus") == 0) return party && party->HandleCommand(mode, "/uihook menus", injected);
         if (!words[1][0] || _stricmp(words[1], "addons") == 0) { Addons(); return true; }
-        Say("/uihook (or /uihook addons) lists addons handing it something now; /uihook hud reports clock hooks; /uihook chat reports chat replacement; /uihook chat history prints the game's newest chat lines as it keeps them; /uihook menus reports native action-menu and expanded-log placement; /uihook mirror reports the menus an addon mirrors; /uihook mirror labels writes the picture labels of the menus mirrored to logs\\uihook-labels; /uihook census on|off|dump|clear lists every window the game draws and the text it prints, to logs\\uihook-census.txt.");
+        Say("/uihook (or /uihook addons) lists addons handing it something now; /uihook hud reports clock hooks; /uihook chat reports chat replacement; /uihook chat history prints the game's newest chat lines as it keeps them; /uihook menus reports native action-menu and expanded-log placement; /uihook mirror reports the menus an addon mirrors; /uihook mirror labels [seconds] writes the art of the menus mirrored, letters and icons, to logs\\uihook-labels (after that many seconds, for the chat line to close); /uihook census on|off|dump|clear lists every window the game draws and the text it prints, to logs\\uihook-census.txt.");
         return true;
     }
     void Say(const std::string& text) const { m_Core->GetChatManager()->Write(0, false, ("[uihook] " + text).c_str()); }

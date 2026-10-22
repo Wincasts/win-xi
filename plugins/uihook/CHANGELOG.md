@@ -4,6 +4,8 @@
 
 - `/uihook mirror labels` writes the contents' art too (item icons, and letters the game draws one quad
   each in a window's contents, as the top bar's help line), with a phase column: 1 content, 3 element.
+- `/uihook mirror labels 5` writes them five seconds on (at most 60), once the chat line the command was
+  typed in has closed: typing it changes what the menus show.
 
 ## 1.0
 

@@ -455,6 +455,7 @@ public:
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
         MenuMirror.Publish(Shared.Frame);
+        if (labelsAt && int32_t(GetTickCount()-labelsAt)>=0) { labelsAt=0; LabelsCommand(); }
         ++Shared.Frame;
         MenuCensus.frame=Shared.Frame; MirrorBlock.Frame=Shared.Frame;
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
@@ -550,6 +551,7 @@ public:
     }
     // Every element and content quad (an icon, a letter) of the last frame published, cut from its texture to logs\uihook-labels\N.bmp, with
     // labels.txt naming each one's window, texture, place in it and the hash of its pixels
+    DWORD labelsAt=0; // when a /uihook mirror labels asked for later is to be written, or 0
     void LabelsCommand() {
         char line[512];
         const MirrorFrameData& last=MirrorBlock.Published;
@@ -603,7 +605,16 @@ public:
         core->GetChatManager()->Write(0,false,line);
     }
     bool HandleCommand(int32_t,const char* command,bool) override {
-        if (command && _stricmp(command,"/uihook mirror labels")==0) { LabelsCommand(); return true; }
+        if (command && !_strnicmp(command,"/uihook mirror labels",21)) {
+            // at once, or after the seconds given, so the chat line the command was typed in has closed and the
+            // menus are drawn as they are while played
+            const int seconds=command[21]==' ' ? atoi(command+22) : 0;
+            if (seconds<=0) { LabelsCommand(); return true; }
+            labelsAt=GetTickCount()+DWORD((std::min)(seconds,60))*1000;
+            char line[96]; snprintf(line,sizeof(line),"[uihook:mirror] writing the menus' art in %d seconds.",(std::min)(seconds,60));
+            core->GetChatManager()->Write(0,false,line);
+            return true;
+        }
         if (command && _stricmp(command,"/uihook mirror")==0) {
             // what the mirror was asked for, and what it published from the last frame
             char line[256]; const MirrorFrameData& last=MirrorBlock.Published;
