@@ -47,6 +47,7 @@ local defaultSettings = T{
     LowTPColor = { 1.00, 0.45, 0.10, 0.40 },
     ShowGloss = false, -- winxi: a glossy light over each icon (gloss.lua)
     GlossOpacity = 100, -- winxi: how strong the gloss is, 0 to 100
+    RecastSize = 16, -- winxi: the recast timer's size in pixels, centred on the icon in the theme's text (recasttext.lua)
     ShowBackdrop = true, -- winxi: a soft black backdrop behind the crossbar (backdrop.lua)
     BackdropOpacity = 50, -- winxi: how dark its middle is, 0 to 100
     BackdropSize = 130, -- winxi: how far it reaches, percent of the panel

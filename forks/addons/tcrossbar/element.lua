@@ -6,6 +6,7 @@ local frameborder = require('frameborder'); -- winxi: the theme's border art
 local frameshadow = require('frameshadow'); -- winxi: the theme's drop shadow
 local gdi      = require('gdifonts.include');
 local gloss    = require('gloss'); -- winxi: the light over each icon
+local recasttext = require('recasttext'); -- winxi: the recast timer in the theme's outlined text
 local updaters = {
     ['Ability']     = require('updaters.ability'),
     ['Command']     = require('updaters.command'),
@@ -373,6 +374,13 @@ function Element:RenderText(sprite)
             if obj then
                 local text = self.State[entry];
                 if entry == 'Hotkey' then text = self.State.HotkeyLabel; end
+                if (type(text) == 'string') and (text ~= '') and (entry == 'Recast') then
+                    -- winxi: centred on the icon in the theme's outlined text, or the layout's without winxi
+                    local icon = self.Layout.Icon;
+                    if recasttext.Draw(text, positionX + icon.OffsetX + icon.Width / 2, positionY + icon.OffsetY + icon.Height / 2, gSettings.RecastSize) then
+                        text = nil;
+                    end
+                end
                 if (type(text) == 'string') and (text ~= '') then
                     obj:set_text(text);
                     local texture, rect = obj:get_texture();

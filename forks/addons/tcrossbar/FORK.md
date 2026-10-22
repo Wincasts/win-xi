@@ -23,6 +23,13 @@ author as plain files rather than a submodule. `readme.md` is the original's. Wh
   every icon so nothing falls over it, faded by the theme's Border Opacity (`frameborder.lua`). Needs
   `addons/libs/winxi`; without it nothing is drawn.
 
+- **The recast timer in winxi's text.** Each slot's recast timer is written centred on its icon in the
+  Winxi Theme's font and Text Color with winxi.text's dark outline, at Recast Size (Components tab, 8
+  to 40 px, 16 to start), in place of the layout's small text in its corner. gdifonts has neither the
+  theme's font nor its outline, so it is drawn with imgui on the background draw list: over the
+  crossbar, under every imgui window (`recasttext.lua`). Without `addons/libs/winxi` the layout's own
+  Recast text is drawn as before.
+
 - **A soft black backdrop.** Backdrop (Components tab, on to start) draws black behind the crossbar,
   darkest in the middle at Backdrop Opacity (50% to start) and fading smoothly to nothing towards its
   edge, an ellipse the panel's shape reaching Backdrop Size (130% of the panel to start, 50 to 300).

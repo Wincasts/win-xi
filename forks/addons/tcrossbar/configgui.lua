@@ -1,5 +1,6 @@
 local header = { 1.0, 0.75, 0.55, 1.0 };
 local frameborder = require('frameborder'); -- winxi
+local recasttext = require('recasttext'); -- winxi
 local imgui = require('imgui');
 local scaling = require('scaling');
 local state = {
@@ -315,6 +316,14 @@ function exposed:Render()
                         imgui.EndCombo();
                     end
                     imgui.ShowHelp('Draws one of the Winxi Theme\'s border styles round each macro element: round its frame, or round its icon while Frame is off. Window Border follows the theme\'s own (none while that is the plain border). Faded by the theme\'s Border Opacity.');
+                    -- winxi: the recast timer's size
+                    imgui.TextColored(header, 'Recast Size');
+                    local recastBuff = { gSettings.RecastSize or 16 };
+                    if imgui.SliderInt('##tCrossBarRecastSize', recastBuff, recasttext.MinSize, recasttext.MaxSize, '%d px', ImGuiSliderFlags_AlwaysClamp) then
+                        gSettings.RecastSize = recastBuff[1];
+                        settings.save();
+                    end
+                    imgui.ShowHelp('How big the recast timer is, while Recast is on. It is written in the Winxi Theme\'s font and Text Color with its dark outline, centred on the icon.');
                     -- winxi: the backdrop behind the crossbar
                     for _,slider in ipairs(backdropSliders) do
                         local buff = { gSettings[slider[2]] or slider[6] };
