@@ -90,13 +90,14 @@ function M.new(memory)
     end
     return reader;
 end
+local function read_position()
+    local player = GetPlayerEntity();
+    if not player or not player.Movement or not player.Movement.LocalPosition then return nil; end
+    local p = player.Movement.LocalPosition;
+    return p.X, p.Y, p.Z;
+end
 function M.player_position()
-    local ok, x, y, z = pcall(function()
-        local player = GetPlayerEntity();
-        if not player or not player.Movement or not player.Movement.LocalPosition then return nil; end
-        local p = player.Movement.LocalPosition;
-        return p.X, p.Y, p.Z;
-    end);
+    local ok, x, y, z = pcall(read_position);
     if not ok or not geometry.finite(x) or not geometry.finite(y) or not geometry.finite(z) then return nil, 'Player position unavailable.'; end
     return { x = x, y = y, z = z }; -- X/Y horizontal, Z elevation, matching Boussole.
 end

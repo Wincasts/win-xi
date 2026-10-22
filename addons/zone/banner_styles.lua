@@ -281,6 +281,12 @@ function M.vertical(letters)
     return #letters > 0;
 end
 
+-- The i-th line of the Kanji Watermark's words: how far it has faded in, and how far below its place.
+local function rise(c, age, S, i)
+    local t = (age - i * .25) / .9;
+    return c.alpha * clamp(t), (1 - out_cubic(t)) * S * .4;
+end
+
 -- Kanji Watermark: the zone's Japanese name huge and faint behind the English, top to bottom beside it
 -- or across behind it; above the English name the Japanese of the line over it.
 local function kanji(list, c)
@@ -336,17 +342,16 @@ local function kanji(list, c)
 
     -- The words, rising in one after another.
     local y = c.y;
-    local function rise(i) return c.alpha * clamp((age - i * .25) / .9), (1 - out_cubic((age - i * .25) / .9)) * S * .4; end
     if upper ~= '' then
-        local shown, off = rise(0);
+        local shown, off = rise(c, age, S, 0);
         line(list, c, upper_font, D, upper, bx, y + off, c.detail_color, shown);
         y = y + D * 1.5;
     end
-    local shown, off = rise(1);
+    local shown, off = rise(c, age, S, 1);
     line(list, c, c.title_font, S, c.title, bx, y + off, c.title_color, shown);
     y = y + name_h + D * .3;
     if c.meta ~= '' then
-        shown, off = rise(2);
+        shown, off = rise(c, age, S, 2);
         line(list, c, c.detail_font, D, c.meta, bx, y + off, c.detail_color, shown);
     end
 end

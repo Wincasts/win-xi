@@ -155,3 +155,64 @@ wait for evidence of a real client bottleneck.
 Regression tests include UI assertions for per-area invalidation, palette reuse,
 offscreen line suppression and the closed-debug fast path, plus all existing
 zone-entry, editing, zoom, map isolation, persistence and migration checks.
+
+## Frame cost audit, 2.6.3 (banner styles)
+
+`tools/benchmark_zone_frames.lua` runs the addon in the test stand-in for
+Ashita and measures each kind of frame: Lua time, Lua memory allocated and
+imgui calls a frame, 2,000 frames after 200 to warm up, GC stopped while
+measuring. imgui and the game are stand-ins, so this is the addon's own Lua
+work, not the game's frame time. The stand-ins' own allocations (game objects,
+winxi's hide checks, the harness's events) are in the bytes; about 320 bytes a
+frame of them are left in every row. The addon's own were found with a line
+hook on the GC count.
+
+```sh
+luajit tests/harness.lua zone tests/zoneinfo_fixture.lua tools/benchmark_zone_frames.lua
+```
+
+Median of three runs, before → after:
+
+| Frame | µs/frame | bytes/frame | imgui calls |
+| --- | --- | --- | --- |
+| idle: nothing up | 0.91 → 0.72 | 449 → 320 | 0 |
+| location line | 4.27 → 3.74 | 1841 → 1304 | 25 |
+| banner: Classic Text | 3.84 → 3.47 | 2134 → 1403 | 53 |
+| banner: Title Card | 5.86 → 5.53 | 1533 → 1404 | 125 |
+| banner: Pennant | 8.00 → 7.24 | 1532 → 1403 | 136 |
+| banner: Kanji Watermark | 4.51 → 3.91 | 1733 → 1403 | 43 |
+| Title Card entrance | 7.06 → 6.47 | 1692 → 1563 | 136 |
+| Pennant entrance | 7.38 → 7.88 | 1692 → 1562 | 146 |
+| Kanji Watermark entrance | 5.25 → 4.55 | 1917 → 1563 | 44 |
+
+Times move by a microsecond between runs; the bytes are steady.
+
+Changed:
+
+- Every frame, nothing up or not, made two functions: the zone ID read
+  (`pcall(function() ... end)`) and the banner draw inside `xpcall`. Both are
+  made once now. Idle frames make no garbage of the addon's own.
+- Classic Text made two functions, colour tables for every line, a spacing
+  table and a Dummy size table a line, each frame it was up; the location line
+  a function and a Dummy table each frame. Their window bodies are made once
+  and given what to draw in a table; colours and sizes reuse tables.
+- The Kanji Watermark made a function each frame for its rising lines.
+- The player's position read (4 times a second) made a function each time.
+- **Every styled banner loaded the Japanese font** (IPA Mincho, some 4 MB) into
+  ImGui the first time it showed, Title Card and Pennant included, though only
+  the Kanji Watermark writes Japanese. It is loaded only for that style now.
+  `tests/zoneinfo_styles_check` checks Title Card loads no font.
+
+Left as they are:
+
+- Title Card and Pennant make 125 to 146 imgui calls a frame while up, nearly
+  all AddText: each letter is drawn by itself (the spacing animation, the
+  letters down the pennant) and winxi's outline is five passes. That is a few
+  hundred glyphs, little for ImGui, and only for the banner's few seconds.
+- The zone ID is read from the game every frame (three API calls), so the
+  banner comes up the frame the zone changes. The objects Ashita hands back
+  for those calls, `imgui.GetIO()` and winxi's hide checks are the remaining
+  per-frame allocations; they are the API's, not the addon's.
+- Caches added with the styles are bounded or small: letters split for at most
+  64 strings; letter widths per font, size and character (the pennant's
+  letter size changes with the name's length, so a few sizes a zone).
