@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Packages one addon for a release: a zip to extract into the Ashita folder, and its checksum.
 
-    tools/package_release.py <addon>          buff, inventory, name, occlusionfix, party or trigger
+    tools/package_release.py <addon>          buff, clock, inventory, name, occlusionfix, party, trigger or zone
     tools/package_release.py --all            each of them
 
 Each zip holds the addon, everything it needs and nothing else:
 
     addons/<addon>/              the addon, with INSTALL.txt
+    addons/<addon>/winxi/        for an addon released for people who use no other winxi addon (zone):
+                                 its own copy of the parts of winxi it loads and their art, used by it alone
+                                 (Ashita looks in the addon's folder before addons/libs), checked by running
+                                 the addon's checks against the packaged files with no addons/libs/winxi
     addons/libs/winxi/           the shared library, in every zip but a standalone one (winxi.version says which it is)
     addons/winxisettings/        the shared look's settings window, in every zip but a standalone one
     addons/hideparty/            with party
@@ -21,6 +25,7 @@ the addon's CHANGELOG.md, for the release. The command that makes the release is
 import argparse
 import hashlib
 import io
+import os
 import re
 import shutil
 import struct
@@ -42,10 +47,22 @@ RELEASES = {
     'occlusionfix': {'standalone': True},
     'party': {'plugin': 'uihook', 'addons': {'hideparty': 'forks/addons/hideparty'}},
     'trigger': {},
+    # Released for people who use no other winxi addon, so it carries its own winxi. Its research notes
+    # and the data and flag copies no code loads are left out.
+    'zone': {'standalone': True, 'private_winxi': True,
+             'leave_out': ['research', 'assets/flags', 'assets/backgrounds/flags/*.webp',
+                           'data/king_ranperres_tomb_map_labels.lua', 'data/king_ranperres_tomb_poi.lua',
+                           'data/map_subregions.lua'],
+             'checks': [('zone', 'tests/zoneinfo_fixture.lua', 'zoneinfo_check.lua'),
+                        ('zoneinfo-presentation', 'tests/zoneinfo_fixture.lua', 'zoneinfo_presentation_ui_check.lua'),
+                        ('zoneinfo-gdi', 'tests/zoneinfo_fixture.lua', 'zoneinfo_gdi_check.lua'),
+                        ('zoneinfo-styles', 'tests/zoneinfo_fixture.lua', 'zoneinfo_styles_check.lua')]},
 }
 # MIT, as the repository's LICENSE says: each is given a copy of it. The others keep their own terms.
 MIT = {'addons/clock', 'addons/libs/winxi', 'addons/winxisettings', 'addons/buff', 'addons/name', 'addons/occlusionfix',
-       'addons/trigger'}
+       'addons/trigger', 'addons/zone', 'addons/zone/winxi'}
+# The art a winxi module draws, which goes with it into an addon's own copy
+WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders'}
 # The terms each plugin is under: namehook is a fork of GPL code, buffhook this repository's own
 PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'buffhook': 'the MIT License', 'uihook': 'the MIT License'}
 # Kept with the addons to make their art and sounds, and of no use in the game
@@ -81,6 +98,64 @@ def notes(addon, version):
     return '## ' + top.strip() + '\n'
 
 
+def winxi_modules(tree, addon):
+    """The winxi modules the addon loads, and those they load, as paths under libs/winxi: version.lua too."""
+    winxi = tree / 'addons/libs/winxi'
+    wanted = set()
+    for source in (tree / 'addons' / addon).rglob('*.lua'):
+        wanted |= set(re.findall(r"require\(['\"]winxi\.([\w.]+)['\"]\)", source.read_text(encoding='utf-8', errors='replace')))
+    found, queue = {}, ['version', *wanted]
+    while queue:
+        name = queue.pop()
+        if name in found:
+            continue
+        path = winxi / (name.replace('.', '/') + '.lua')
+        if not path.is_file():
+            path = winxi / name.replace('.', '/') / 'init.lua'
+        if not path.is_file():
+            raise FileNotFoundError(f'{addon} loads winxi.{name}, which libs/winxi does not have')
+        found[name] = path.relative_to(winxi)
+        queue += re.findall(r"require\(['\"]winxi\.([\w.]+)['\"]\)", path.read_text(encoding='utf-8'))
+    return sorted(found), [found[name] for name in sorted(found)]
+
+
+def private_winxi(addon, tree, staging):
+    """The addon's own copy of what it needs of winxi, in addons/<addon>/winxi."""
+    winxi = tree / 'addons/libs/winxi'
+    names, paths = winxi_modules(tree, addon)
+    target = staging / 'addons' / addon / 'winxi'
+    for path in paths:
+        (target / path).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(winxi / path, target / path)
+    for name, art in WINXI_ART.items():
+        if name in names:
+            shutil.copytree(winxi / art, target / art, ignore=shutil.ignore_patterns(*LEFT_OUT))
+    number = re.search(r'Number = (\d+)', (winxi / 'version.lua').read_text()).group(1)
+    (target / 'README.txt').write_text(
+        f'The parts of winxi {number} that {addon} uses, and their art: its own copy, used by {addon} alone.\n'
+        f'Ashita looks in addons/{addon} before addons/libs, so a winxi installed by another addon is left\n'
+        f'to that addon. The look follows the shared theme (config/addons/winxi) where winxisettings has\n'
+        f'set one, and winxi\'s own otherwise. winxi is at https://github.com/{REPOSITORY}/tree/main/addons/libs/winxi\n')
+    return names
+
+
+def check_private(addon, extras, staging):
+    """Runs the addon's checks against the packaged files alone: no addons/libs/winxi to fall back on."""
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        shutil.copytree(ROOT / 'tests', root / 'tests')
+        shutil.copytree(staging / 'addons', root / 'addons')
+        if (root / 'addons/libs/winxi').exists():
+            raise RuntimeError('addons/libs/winxi got into a release that carries its own')
+        for name, target, check in extras['checks']:
+            # the addon's folder searched from the start, as Ashita has it, and before addons/libs
+            run = subprocess.run(['luajit', 'tests/harness.lua', name, target, f'tests/{check}'], cwd=root,
+                                 capture_output=True, text=True, env={**os.environ, 'LUA_PATH': f'addons/{addon}/?.lua;;'})
+            if run.returncode != 0:
+                raise RuntimeError(f'{check} fails against the packaged {addon}:\n{run.stdout[-2000:]}{run.stderr[-2000:]}')
+            print(f'  {check}: passes against the packaged files')
+
+
 def install_text(addon, version, extras):
     lines = [
         f'{addon} {version}, from https://github.com/{REPOSITORY}',
@@ -95,6 +170,12 @@ def install_text(addon, version, extras):
     lines.append(f'    /addon load {addon}')
     for other in extras.get('addons', {}):
         lines.append(f'    /addon load {other}          (optional: see its README)')
+    if extras.get('private_winxi'):
+        lines += [
+            '',
+            f'{addon} needs nothing else: addons/{addon}/winxi is its own copy of the parts of winxi it uses.',
+            f'If you use other winxi addons, the look they share (set with winxisettings and /winxi) is {addon}\'s too.',
+        ]
     if extras.get('standalone'):
         return '\n'.join(lines) + '\n'
     lines += [
@@ -111,6 +192,8 @@ def stage(addon, extras, staging, commit):
     paths = ['LICENSE', f'addons/{addon}']
     if not extras.get('standalone'):
         paths += ['addons/libs/winxi', 'addons/winxisettings']
+    elif extras.get('private_winxi'):
+        paths += ['addons/libs/winxi']
     paths += list(extras.get('addons', {}).values())
     if extras.get('plugin'):
         paths.append(f"plugins/{extras['plugin']}")
@@ -125,6 +208,15 @@ def stage(addon, extras, staging, commit):
         tar.extractall(tree, filter='data')
 
     shutil.copytree(tree / 'addons', staging / 'addons', ignore=shutil.ignore_patterns(*LEFT_OUT))
+    if extras.get('private_winxi'):
+        shutil.rmtree(staging / 'addons/libs')
+        private_winxi(addon, tree, staging)
+    for pattern in extras.get('leave_out', []):
+        matched = list((staging / 'addons' / addon).glob(pattern))
+        if not matched:
+            raise FileNotFoundError(f'Nothing in addons/{addon} is {pattern}: take it out of leave_out')
+        for path in matched:
+            shutil.rmtree(path) if path.is_dir() else path.unlink()
     for name, source in extras.get('addons', {}).items():
         if source != f'addons/{name}':
             shutil.copytree(tree / source, staging / 'addons' / name, ignore=shutil.ignore_patterns(*LEFT_OUT))
@@ -173,6 +265,8 @@ def package(addon, output):
         staging.mkdir()
         stage(addon, extras, staging, commit)
         (staging / 'addons' / addon / 'INSTALL.txt').write_text(install_text(addon, version, extras))
+        if extras.get('private_winxi'):
+            check_private(addon, extras, staging)
 
         files = sorted(path for path in staging.rglob('*') if path.is_file())
         for path in files:
@@ -195,7 +289,9 @@ def package(addon, output):
     digest = sha256(archive.read_bytes())
     (output / f'{name}.zip.sha256').write_text(f'{digest}  {archive.name}\n')
     winxi = re.search(r'Number = (\d+)', (ROOT / 'addons/libs/winxi/version.lua').read_text()).group(1)
-    if extras.get('standalone'):
+    if extras.get('private_winxi'):
+        comes = f'Needs nothing else: it carries its own copy of the parts of winxi {winxi} it uses.'
+    elif extras.get('standalone'):
         comes = 'Needs nothing else.'
     else:
         bundled = [f'winxi {winxi}', 'winxisettings', *extras.get('addons', {})]
