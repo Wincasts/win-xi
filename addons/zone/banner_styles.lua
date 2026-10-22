@@ -9,6 +9,7 @@
 --   styles.vertical(chars)         whether Japanese words can be written top to bottom here
 --   styles.weather_element(id)     the element of a weather id and 1 or 2 for single or double weather
 --   styles.elements                each element's colour
+--   styles.backdrop(list, x0, y0, x1, y1, soft, alpha)   a soft shadow round a box, fading out over soft
 --
 -- Each is drawn straight onto the draw list, under every imgui window, and fades with the banner as
 -- a whole; its entrance plays over the first second or two. Text has winxi.text's dark edge.
@@ -102,6 +103,28 @@ local function measure(font, size, words)
     return w, h;
 end
 
+-- Backdrop: a soft dark shadow behind the words, so they stand out from a bright scene. It is
+-- rounded rectangles laid one over another, each larger and rounder and as faint as needed for the
+-- middle, where all of them lie, to come to the opacity asked for; outwards fewer lie, and it fades.
+local LAYERS = 10;
+local shade = { 0, 0, 0, 1 };
+function M.backdrop(list, x0, y0, x1, y1, soft, alpha, color)
+    if alpha <= .01 then return; end
+    local each = 1 - (1 - math.min(alpha, .99)) ^ (1 / LAYERS);
+    local layer = packed(color or shade, each);
+    for k = 0, LAYERS - 1 do
+        local e = soft * k / (LAYERS - 1);
+        list:AddRectFilled(at(p1, x0 - e, y0 - e), at(p2, x1 + e, y1 + e), layer, e + 2);
+    end
+end
+
+-- Where a style's words lay, as it drew them: the backdrop goes behind them on the next frame, kept
+-- with the style and words it was for so that another popup's is never drawn.
+local box = { x0 = 0, y0 = 0, x1 = 0, y1 = 0, set = false };
+local function reach(x0, y0, x1, y1) box.x0, box.y0, box.x1, box.y1, box.set = x0, y0, x1, y1, true; end
+local last = { set = false };
+M.last_box = last;
+
 -- Title Card: region in spaced capitals, two rules growing out from a diamond, the name settling from
 -- wide spacing to its own, and the day and weather under it.
 local function title_card(list, c)
@@ -162,6 +185,7 @@ local function title_card(list, c)
     imgui.PopFont();
     y = y + height + D * .3;
 
+    reach(cx - width / 2, c.y, cx + width / 2, y + (c.meta ~= '' and D * 1.2 or -D * .3));
     if c.meta ~= '' then
         local w = measure(c.detail_font, D, c.meta);
         line(list, c, c.detail_font, D, c.meta, cx - w / 2, y, c.detail_color, later);
@@ -266,6 +290,7 @@ local function pennant(list, c)
     end
     line(list, c, c.title_font, S, c.title, sx + slide, y, c.title_color, beside);
     y = y + S * 1.2;
+    reach(sx, c.y, sx + side_w, y + (c.meta ~= '' and D * 1.2 or -S * .2));
     if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, sx + slide, y, c.detail_color, beside); end
 end
 
@@ -354,6 +379,7 @@ local function kanji(list, c)
     local shown, off = rise(c, age, S, 1);
     line(list, c, c.title_font, S, c.title, bx, y + off, c.title_color, shown);
     y = y + name_h + D * .3;
+    reach(bx, c.y, bx + block_w, y + (c.meta ~= '' and D * 1.2 or -D * .3));
     if c.meta ~= '' then
         shown, off = rise(c, age, S, 2);
         line(list, c, c.detail_font, D, c.meta, bx, y + off, c.detail_color, shown);
@@ -414,6 +440,7 @@ local function reveal(list, c)
         end
         y = y + D * 1.4;
     end
+    reach(cx - block / 2, c.y, cx + block / 2, y + (c.meta ~= '' and D * 1.2 or 0));
     if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, y, c.detail_color, later); end
 end
 
@@ -442,6 +469,8 @@ local function classic_window(list, c)
     list:AddRectFilledMultiColor(at(p1, x0 + b, top + b), at(p2, x0 + w - b, bottom - b), high, high, low, low);
     list:AddRect(at(p1, x0 + b, top + b), at(p2, x0 + w - b, bottom - b), packed(window_colors.inner, a), 0, 0, 1);
     list:AddLine(at(p1, x0 + b + R, top + b + 2), at(p2, x0 + w - b - R, top + b + 2), packed(window_colors.shine, a), 1);
+
+    reach(x0, c.y, x0 + w, c.y + h);
 
     local shown = a * clamp((age - .25) / .25);
     if shown <= .01 then return; end
@@ -590,6 +619,7 @@ local function elemental(list, c)
     elseif c.vana then
         line(list, c, c.detail_font, D, c.vana, cx - rest_w / 2, y, c.detail_color, later);
     end
+    reach(cx - block / 2, c.y, cx + block / 2, y + ((day or c.vana) and D * 1.2 or 0));
 end
 
 -- Kind Frames: a look for each kind of zone. A city's name on a framed plaque, open country's over a
@@ -628,6 +658,7 @@ local function plaque(list, c)
     end
     line(list, c, c.title_font, S, c.title, cx - name_w / 2, y + pad_y, c.title_color, later);
     y = y + h + D * .6;
+    reach(cx - block / 2, c.y, cx + block / 2, y + (c.meta ~= '' and D * 1.2 or -D * .6));
     if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, y, c.detail_color, later); end
 end
 
@@ -655,6 +686,7 @@ local function open_country(list, c)
         band(list, cx, y, half, thick, c.title_color, a);
     end
     y = y + D * .6;
+    reach(cx - block / 2, c.y, cx + block / 2, y + (c.meta ~= '' and D * 1.2 or -D * .6));
     if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, y, c.detail_color, later); end
 end
 
@@ -700,6 +732,7 @@ local function carved(list, c)
     tracked(list, c.title_font, S, name, gap, x, y, packed(stone_colors.stone, a), packed(c.outline, a * .6), c.edge);
     imgui.PopFont();
     y = y + name_h + D * .5;
+    reach(cx - block / 2, c.y, cx + block / 2, y + (c.meta ~= '' and D * 1.2 or -D * .5));
     if c.meta ~= '' then line(list, c, c.detail_font, D, c.meta, cx - meta_w / 2, y, stone_colors.stone, a * .85); end
 end
 
@@ -715,7 +748,17 @@ local draws = { titlecard = title_card, pennant = pennant, kanji = kanji,
 function M.draw(id, list, c)
     local draw = draws[id];
     if not draw then return false; end
+    if c.backdrop and last.set and last.id == id and last.title == c.title and last.upper == c.upper and last.meta == c.meta then
+        local D = c.detail_size;
+        M.backdrop(list, last.x0 - D, last.y0 - D * .5, last.x1 + D, last.y1 + D * .5, c.backdrop_soft, c.alpha * c.backdrop_opacity);
+    end
+    box.set = false;
     draw(list, c);
+    last.set = box.set;
+    if box.set then
+        last.x0, last.y0, last.x1, last.y1 = box.x0, box.y0, box.x1, box.y1;
+        last.id, last.title, last.upper, last.meta = id, c.title, c.upper, c.meta;
+    end
     return true;
 end
 

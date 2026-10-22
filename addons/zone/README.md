@@ -178,8 +178,8 @@ Timing is captured when a popup starts; changes apply to the next popup.
 **Appearance** has a section for each part, and shows only those for the styles
 in use: **Banner Style**, **Pennant** and **Kanji Watermark** (when chosen),
 **Classic Text** (renderer, display style, sizes and line spacing), **Fonts**,
-**Position**, **Colors** and **Background Image** (Classic Text only; it starts
-collapsed). Classic Text offers:
+**Position**, **Colors**, **Backdrop** and **Background Image** (Classic Text
+only; it starts collapsed). Classic Text offers:
 
 - **Floating Text** (default): large outlined title, smaller region above and
   optional context/weather below; no background and no interception of clicks.
@@ -237,6 +237,14 @@ are drawn with ImGui under every winxi window, whichever Text Renderer is chosen
   (`data/zone_kinds.lua`, made with drawscale's by `tools/build_zone_kinds.py`
   from the Phoenix server's zone data); a zone of no known kind is open country.
   The stone's colour is its own whatever the text colour.
+
+**Appearance → Backdrop** puts a soft dark shadow behind the banner so it stands
+out from a bright scene (**Show Backdrop**, on to start): **Backdrop Opacity**
+(0.5 to start) is how dark it is in the middle and **Backdrop Softness** (32 px)
+how far it fades out round the words. It is behind every style and Classic
+Text's Floating Text; Themed Panel has its panel instead, and GDI text has none.
+A style says where its words lay as it draws them, so the backdrop follows from
+its second frame.
 
 **Style Title Size** and **Style Detail Size** size them all, in the zone or
 sub-zone title and detail fonts (the theme's font when those are Default).

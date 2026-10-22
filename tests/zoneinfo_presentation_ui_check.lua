@@ -8,6 +8,8 @@ mt.__index = function(t, key)
 end;
 local p = require('presentation');
 local d = p.app.options.display;
+-- The backdrop (zoneinfo_styles_check has its checks) is left out of the drawing counted here.
+d.backdrop[1] = false;
 local checks = 0;
 local function check(label, ok) H.print(label, ok); assert(ok, label); checks = checks + 1; end
 check('display settings use per-character settings store', H.options() == p.app.options and d.hold[1] == 5);
