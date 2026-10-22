@@ -210,12 +210,17 @@ local function DrawContents(list, window)
         local bottom = s[2] + Height(s) * math.min(1, (window.scrollTop + window.scrollPage) / window.scrollCount)
         list:AddRectFilled({ left, top }, { s[3], bottom }, imgui.GetColorU32({ thumb[1], thumb[2], thumb[3], 1 }), 2)
     end
-    -- the game's hand where the game drew it
+    -- the hand where the game drew its own: at the art's own shape, as tall as the row it points at (the game's
+    -- cursor draws cover more than the hand), from the left of where the game drew it, on its middle
     local c = window.cursor
     if c then
         local handle, art = cursorArt.Get()
         if handle then
-            list:AddImage(handle, { c[1], c[2] }, { c[3], c[4] }, { art[1], art[2] }, { art[3], art[4] }, imgui.GetColorU32(white))
+            local tall = row and Height(row) + 2 or math.min(Height(c), 18)
+            local wide = tall * art[5] / art[6]
+            local middle = (c[2] + c[4]) / 2
+            list:AddImage(handle, { c[1], middle - tall / 2 }, { c[1] + wide, middle + tall / 2 },
+                { art[1], art[2] }, { art[3], art[4] }, imgui.GetColorU32(white))
         end
     end
 end
