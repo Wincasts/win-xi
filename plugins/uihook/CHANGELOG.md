@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.99
+
+- `/uihook mirror labels`: every element of the last frame mirrored is cut from its texture as the game
+  drew it and written to `logs\uihook-labels\NNN.bmp`, with `labels.txt` naming each one's window, its
+  texture's size and format, its place in it (uv and texels) and a hash of its pixels. It is the dump
+  the table of the picture labels' words is built from. DXT1–5, A8R8G8B8, X8R8G8B8, R5G6B5, X1R5G5B5,
+  A1R5G5B5, A4R4G4B4 and A8 are read; any other format, or a texture that cannot be locked, gets a line
+  saying why.
+
 ## 0.98
 
 - The mirror publishes a window's own elements: Window::Render draws, before the contents, each sprite

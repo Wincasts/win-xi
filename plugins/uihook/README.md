@@ -1,4 +1,4 @@
-# uihook — experimental 0.98
+# uihook — experimental 0.99
 
 One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
@@ -477,7 +477,8 @@ each draw is known to be the frame's (before), the contents' (in it) or a contro
 row highlight and scrollbar, told apart by the chat controls' call sites where those were found). The
 three text routines the census found say what is printed. A hidden window's draws are blocked through
 the same GPU filter the other replacements use, after being measured. No input, cursor, selection or
-layout is touched. `/uihook mirror` reports what is asked and the last frame published. Only
+layout is touched. `/uihook mirror` reports what is asked and the last frame published; `/uihook mirror labels` writes
+its elements, cut from their textures, to `logs\uihook-labels`. Only
 screen-space `DrawPrimitiveUP` draws are measured. The `menus` addon draws the item lists and the item
 description box in the winxi look.
 
