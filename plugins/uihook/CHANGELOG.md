@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.35
+
+- The texture census keeps up to 48 pieces of each texture as drawn (each quad of a draw: its window, part, place
+  and size on the screen, the texture places at its top-left and bottom-right corners, so a mirrored piece shows,
+  and its colour), written under the texture in `index.txt`: how the game cuts a texture, for a skin's pictures.
+
 ## 1.34
 
 - A skin's `skin.txt` says what colours the game's vertices are drawn in for a picture of its, a line each:

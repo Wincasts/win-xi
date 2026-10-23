@@ -44,6 +44,23 @@ int main() {
         && hasColour && colour==0xff808080 && uv[0]==0.25f && uv[1]==0.125f && uv[2]==0.75f && uv[3]==0.5f,"texture places and colour by the FVF");
     Check(!TextureVertices(v,2,sizeof(V),D3DFVF_XYZRHW|D3DFVF_DIFFUSE,uv,&colour,hasColour) && hasColour,"no texture places, the colour still");
     Check(!TextureVertices(v,2,sizeof(V),D3DFVF_XYZ|D3DFVF_TEX1,uv,&colour,hasColour),"not screen space");
+    // a draw's pieces: two quads of indexed vertices, the second mirrored
+    V q[8]={{10,10,0,1,0xff808080,0,0},{20,10,0,1,0,1,0},{10,15,0,1,0,0,1},{20,15,0,1,0,1,1},
+            {30,10,0,1,0x61808080,1,0},{40,10,0,1,0,0,0},{30,15,0,1,0,1,1},{40,15,0,1,0,0,1}};
+    unsigned pieces=0; float pa[4]={},pb[4]={},where[4]={};
+    TexturePieces(q,8,sizeof(V),D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1,4,[&](const float* rect,const float* t,uint32_t c) {
+        if (!pieces) { memcpy(pa,t,sizeof(pa)); memcpy(where,rect,sizeof(where)); } else memcpy(pb,t,sizeof(pb));
+        if (pieces==1) Check(c==0x61808080,"each piece's first colour");
+        pieces++;
+    });
+    Check(pieces==2 && where[0]==10 && where[3]==15 && pa[0]==0 && pa[2]==1 && pb[0]==1 && pb[2]==0,"pieces with their places, a mirrored one shown so");
+    census.Window("menu    menuwind");
+    census.Sample(first,TEXTURE_FRAME,where,pa,0);
+    census.Sample(first,TEXTURE_FRAME,where,pa,0);
+    const float elsewhere[4]={100,100,110,105};
+    census.Sample(first,TEXTURE_FRAME,elsewhere,pa,0);
+    census.Sample(first,TEXTURE_FRAME,where,pb,0);
+    Check(census.entries[first].samples.size()==2 && census.entries[first].samples[0].count==3,"pieces alike wherever they are kept once, counted");
     printf("textures: %d failures\n",failures);
     return failures ? 1 : 0;
 }
