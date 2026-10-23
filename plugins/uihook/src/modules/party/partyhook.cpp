@@ -315,6 +315,18 @@ class PartyHook : public IPlugin {
     // A screen-space draw of a window named: counted into its bounds; then, where it is moved or its frame tinted,
     // drawn so in its place (its vertices copied and moved; a second texture stage multiplying the game's own result by
     // the tint, put back after). vertices: from min, as an indexed draw's are.
+    // The screen's size: the render target's the draw is made to (read each draw: the scene may be drawn to a larger
+    // one first), the viewport's where it cannot be read
+    bool ScreenSize(IDirect3DDevice8* device,const D3DVIEWPORT8& viewport,float* out) {
+        out[0]=out[1]=0;
+        IDirect3DSurface8* target=nullptr; D3DSURFACE_DESC desc{};
+        if (SUCCEEDED(device->GetRenderTarget(&target)) && target) {
+            if (SUCCEEDED(target->GetDesc(&desc))) { out[0]=float(desc.Width); out[1]=float(desc.Height); }
+            target->Release();
+        }
+        if (!out[0] || !out[1]) { out[0]=float(viewport.X+viewport.Width); out[1]=float(viewport.Y+viewport.Height); }
+        return out[0]>0 && out[1]>0;
+    }
     bool NativeDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
         if (!data || !vertices || stride<8 || (!NativeMenus.current && !(NativeMenus.inset>0 || NativeMenus.groupOn))) return false;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0,pixel=0;
@@ -327,10 +339,13 @@ class PartyHook : public IPlugin {
         if (orphan) NativeMenus.current=e;
         const UINT used=min+vertices;
         if (!orphan) NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
+        // the screen's size, not the viewport's: the game clips some text to its window with a viewport (the title
+        // box's), which taken for the screen made its middle the box's and its words pinched there
         D3DVIEWPORT8 viewport={};
+        float screen[2]={};
         float place[4]={},pinch=-1; bool whole=false;
-        bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport))
-            && NativeMenus.Placing(float(viewport.Width),float(viewport.Height),place,&pinch,&whole);
+        bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport)) && ScreenSize(device,viewport,screen)
+            && NativeMenus.Placing(screen[0],screen[1],place,&pinch,&whole);
         // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it, but
         // where the whole side is moved
         if (placing && pinch<0 && !whole && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
@@ -367,10 +382,30 @@ class PartyHook : public IPlugin {
             device->GetTextureStageState(2,D3DTSS_COLOROP,&third);
             device->SetTextureStageState(2,D3DTSS_COLOROP,D3DTOP_DISABLE);
         }
+        // a viewport clipping the draw to its window moved with it, so what is moved is not clipped away
+        const bool clipped=placing && (viewport.X>0 || viewport.Y>0 || float(viewport.Width)<screen[0] || float(viewport.Height)<screen[1]);
+        D3DVIEWPORT8 moved=viewport;
+        if (clipped) {
+            float corners[4]={float(viewport.X),float(viewport.Y),float(viewport.X+viewport.Width),float(viewport.Y+viewport.Height)};
+            for (int i=0;i<4;i+=2) {
+                if (pinch>=0) { corners[i]+=corners[i]<pinch ? NativeMenus.inset : -NativeMenus.inset; corners[i+1]+=place[3]; }
+                else {
+                    corners[i]=place[0]+(corners[i]-place[0])*e->scale+place[2];
+                    corners[i+1]=place[1]+(corners[i+1]-place[1])*e->scale+place[3];
+                }
+            }
+            const float x0=(std::max)(0.0f,corners[0]),y0=(std::max)(0.0f,corners[1]);
+            const float x1=(std::min)(screen[0],corners[2]),y1=(std::min)(screen[1],corners[3]);
+            if (x1>x0 && y1>y0) {
+                moved.X=DWORD(x0+0.5f); moved.Y=DWORD(y0+0.5f); moved.Width=DWORD(x1-x0+0.5f); moved.Height=DWORD(y1-y0+0.5f);
+                device->SetViewport(&moved);
+            }
+        }
         scaling=true;
         const bool ok=indices ? SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,drawn,stride))
             : SUCCEEDED(device->DrawPrimitiveUP(t,count,drawn,stride));
         scaling=false;
+        if (clipped) device->SetViewport(&viewport);
         if (tinting) {
             device->SetTextureStageState(2,D3DTSS_COLOROP,third);
             for (unsigned i=0;i<6;i++) device->SetTextureStageState(1,kinds[i],saved[i]);
