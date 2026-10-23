@@ -15,7 +15,8 @@
 #        - the frame the Border Style's art (borders\<style>.png) as winxi.borders draws it, a nine-slice whose
 #          corners and edges are the art's outer 8 of 64 texels in 3 pixels: the game's three frame textures are
 #          exactly a 3-pixel line 1 pixel in from the edge, clear about it, so the slice is laid there, as wide as
-#          --frame-width (2 by default; 3 the game's whole line)
+#          --frame-width (1 by default; 3 the game's whole line), drawn at --frame-alpha (15 hex by default, or
+#          'theme' for the Border Opacity)
 #          (--frame-scale times the game's size, 1 by default: the game draws its frame a texel to a pixel, and a
 #          larger one is shrunk unsmoothed). skin.txt draws every piece of it at the theme's Border
 #          Opacity: the game fades its frame by its vertices' alpha (its sides near 0, its top and bottom 0x61),
@@ -237,13 +238,13 @@ def frames(art, scale=1, size=32, width=3):
 # to a Menu Scale of 2 there is always one to draw a texel to a pixel, crisp
 SIZES = (0.5, 0.75, 1, 1.25, 1.5, 1.75, 2)
 
-def winxi_skin(census, theme, frame_scale=1, font=None, frame_width=2, sizes=SIZES):
+def winxi_skin(census, theme, frame_scale=1, font=None, frame_width=1, sizes=SIZES, frame_alpha='15'):
     made = {}
     glyphs = winxi_glyphs(census, theme)
     for r in sizes:
         for name, im in winxi_size(census, theme, font, frame_width, r, glyphs).items():
             made.setdefault(name, {})[r] = im
-    return made, winxi_colours(theme)
+    return made, winxi_colours(theme, frame_alpha)
 
 def winxi_glyphs(census, theme):
     lines = []
@@ -271,11 +272,16 @@ def winxi_size(census, theme, font, frame_width, r, glyphs):
         if im: pictures[name] = how(im)
     return pictures
 
-def winxi_colours(theme):
+# The frame's vertices' alpha: faint by default (0x15), as a winxi window's border is over the game; 'theme' for the
+# theme's Border Opacity
+FRAME_ALPHA = '15'
+
+def winxi_colours(theme, frame_alpha=FRAME_ALPHA):
     plain = tab_colour(theme, 'BorderColor', 0.18)
     chosen = tab_colour(theme, 'HighlightColor', theme['HighlightColor'][3])
-    opacity = int(round(float(theme.get('BorderOpacity', 40)) / 100 * 255))
-    frame_lines = ''.join(f'{name} * {opacity:02X}808080   # {what}, even all round at the Border Opacity\n'
+    if frame_alpha == 'theme': opacity = int(round(float(theme.get('BorderOpacity', 40)) / 100 * 255))
+    else: opacity = int(frame_alpha, 16)
+    frame_lines = ''.join(f'{name} * {opacity:02X}808080   # {what}, even all round\n'
                           for name, what in [('72D3D795', 'the frame\'s corners'), ('3C8984C5', 'its top and bottom'), ('1023C0C5', 'its sides')])
     txt = ('# winxi (made by tools/uihook_skin.py)\n'
            '# <texture> <the game\'s colour, or *> <drawn as: RRGGBB, its alpha the game\'s, or AARRGGBB>\n'
@@ -580,7 +586,8 @@ def main():
     ap.add_argument('--scale', type=int, default=1)
     ap.add_argument('--frame-scale', type=int, default=1)
     ap.add_argument('--font')
-    ap.add_argument('--frame-width', type=int, default=2, choices=(1, 2, 3))
+    ap.add_argument('--frame-width', type=int, default=1, choices=(1, 2, 3))
+    ap.add_argument('--frame-alpha', default=FRAME_ALPHA, help='the frame\'s alpha, two hex digits, or theme')
     args = ap.parse_args()
     out = os.path.normpath(args.out or os.path.join(HERE, '..', 'plugins', 'uihook', 'build', 'skins', args.style))
     if os.path.normpath(args.census) == out: sys.exit('the output folder is the census folder')
@@ -592,7 +599,7 @@ def main():
             print(f'{name}: not in the census, left'); return None
         im = read_bmp(path)
         return im
-    pictures, txt = winxi_skin(census, theme, args.frame_scale, args.font, args.frame_width) if args.style == 'winxi' else STYLES[args.style](census, theme)
+    pictures, txt = winxi_skin(census, theme, args.frame_scale, args.font, args.frame_width, frame_alpha=args.frame_alpha) if args.style == 'winxi' else STYLES[args.style](census, theme)
     os.makedirs(out, exist_ok=True)
     # sizes made before, of a skin made again: gone, so none is left of an older one
     for f in os.listdir(out):
