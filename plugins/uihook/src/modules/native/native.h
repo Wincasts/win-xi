@@ -42,6 +42,7 @@
 #define NATIVE_ENTRIES 128
 #define NATIVE_GROUP_REACH 150   // how far right of the log's left a window of the group may start, in its units
 #define NATIVE_GROUP_SLACK 8     // how far above the log's top its bottom may be
+#define NATIVE_BAR_HEIGHT 80      // the tallest frame the inset takes for the bar across the top, in pixels
 #define NATIVE_GROUP_STALE 600   // frames an entry of the group goes undrawn before its place is given to another
 #define NATIVE_SCALE_LOW 0.5f
 #define NATIVE_SCALE_HIGH 3.0f
@@ -271,12 +272,15 @@ public:
         // one made for the group, placed elsewhere this frame: as any other
         const bool grouped=e.group && e.member,away=e.group && !e.member;
         float dx=away ? 0 : e.dx; const float dy=away ? 0 : e.dy;
-        if (inset>0 && !grouped && !e.noInset && bounds[2]>bounds[0]) {
+        // only a window with a frame of its own: one without (the target's arrow, over the world) is the game's to
+        // place, as is a framed one over the middle unless it is a bar (short, wider than half the screen)
+        if (inset>0 && !grouped && !e.noInset && e.frameKnown && e.frame[2]>e.frame[0]) {
+            const float* f=e.frame;
             const float middle=width/2;
             if (whole) *whole=dx==0 && dy==0 && e.scale==1;
-            if (bounds[2]<=middle) dx+=inset;
-            else if (bounds[0]>=middle) dx-=inset;
-            else if (bounds[2]-bounds[0]>width/2 && e.scale==1 && pinch) {
+            if (f[2]<=middle) dx+=inset;
+            else if (f[0]>=middle) dx-=inset;
+            else if (f[2]-f[0]>width/2 && f[3]-f[1]<=NATIVE_BAR_HEIGHT && e.scale==1 && pinch) {
                 *pinch=middle; place[0]=place[1]=place[2]=0; place[3]=dy;
                 return true;
             }

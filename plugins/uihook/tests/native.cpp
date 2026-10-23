@@ -133,6 +133,20 @@ int main() {
     saved=sides.Enter("menu    logwindo",2);
     Check(!sides.Placing(3440,1440,place,&pinch),"the chat log: left, chatbox placing it");
     sides.Leave(saved);
+    // a window with no frame over the world (the target's arrow), and a tall one over the middle (the map): left
+    {
+        NativeLook::Saved was=sides.Enter("menu    cursor  ",5);
+        sides.Phase(MIRROR_CONTENT); V arrow[2]={{2400,300,0,1,0,0,0},{2416,316,0,1,0,0,0}}; sides.Gather(arrow,2,sizeof(V)); sides.Leave(was);
+        frameOf("menu    mapframe",400,3000,5);
+        V tall[2]={{400,900,0,1,0,0,0},{3000,1200,0,1,0,0,0}};
+        was=sides.Enter("menu    mapframe",5); sides.Gather(tall,2,sizeof(V)); sides.Leave(was);
+        was=sides.Enter("menu    cursor  ",6);
+        Check(!sides.Placing(3440,1440,place,&pinch),"a window with no frame: left where the game puts it");
+        sides.Leave(was);
+        was=sides.Enter("menu    mapframe",6);
+        Check(!sides.Placing(3440,1440,place,&pinch),"a tall framed one over the middle: left, not pinched");
+        sides.Leave(was);
+    }
     bool whole=false;
     saved=sides.Enter("menu    netstat ",2);
     Check(sides.Placing(3440,1440,place,&pinch,&whole) && whole,"moved by the inset alone: every draw of it moved, none kept back");
