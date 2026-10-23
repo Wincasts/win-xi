@@ -9,73 +9,55 @@
 #include "../src/modules/native/native.h"
 static int failures=0;
 static void Check(bool ok,const char* text) { printf("%s %s\n",ok?"ok":"FAIL",text); if(!ok) ++failures; }
+static bool Near(float a,float b) { return fabsf(a-b)<0.01f; }
 int main() {
-    // the move in the window's units
-    int dimensions[2]={1280,960}; int16_t original[2]={100,200},out[2]={};
-    Check(NativeOffset(original,false,dimensions,30,-40,out) && out[0]==130 && out[1]==160,"a raw window moved by pixels");
-    Check(NativeOffset(original,true,dimensions,30,-40,out) && out[0]==115 && out[1]==180,"a scaled one by pixels in 640x480 units");
-    Check(NativeOffset(original,false,dimensions,-150,-300,out) && out[0]==0 && out[1]==0,"kept from going past the top and left");
-    Check(!NativeOffset(original,false,dimensions,40000,0,out),"not past the units' range");
-    int bad[2]={0,0}; Check(!NativeOffset(original,true,bad,1,1,out),"no menu manager dimensions, no scaled move");
+    // where a window's draws go, on a 1000x800 display
+    const float topLeft[4]={100,50,300,250}; float place[4]={};
+    Check(NativePlace(topLeft,40,30,1,1000,800,place) && Near(place[2],40) && Near(place[3],30),"moved as asked");
+    Check(NativePlace(topLeft,0,0,2,1000,800,place) && Near(place[0],100) && Near(place[1],50),"grown from its top left, the corner it is nearest");
+    const float bottomRight[4]={700,600,900,780};
+    Check(NativePlace(bottomRight,0,0,2,1000,800,place) && Near(place[0],900) && Near(place[1],780),"one near the bottom right grown from there");
+    Check(NativePlace(topLeft,-500,-500,1,1000,800,place) && Near(place[2],-100) && Near(place[3],-50),"kept on the display");
+    Check(NativePlace(topLeft,2000,0,1,1000,800,place) && Near(place[2],700),"not past the right edge");
+    const float none[4]={0,0,0,0}; Check(!NativePlace(none,10,10,1,1000,800,place),"no bounds, no place");
+
+    struct V { float x,y,z,w; uint32_t colour; float u,v; } vertices[2]={{100,50,0,1,0x80808080,0,0},{300,250,0,1,0x80808080,1,1}};
+    NativePlace(topLeft,10,20,2,1000,800,place);
+    NativeMoveVertices(vertices,2,sizeof(V),place,2);
+    Check(Near(vertices[0].x,110) && Near(vertices[0].y,70) && Near(vertices[1].x,510) && Near(vertices[1].y,470),"vertices grown about the corner and moved");
+    Check(vertices[0].colour==0x80808080 && Near(vertices[1].u,1),"their colours and texture places kept");
+
     char name[16]; Check(NativeName("iuse",name) && !memcmp(name,"menu    iuse    ",16),"a name padded as the game keeps it");
     Check(!NativeName("toolongname",name) && !NativeName("",name),"too long or empty refused");
 
-    // a window: its header's name at +46, its target at +8C, its dirty mark at +94, scaled at +99
-    alignas(4) uint8_t header[0x60]={}; memcpy(header+0x46,"menu    inventor",16);
-    alignas(4) uint8_t window[0x9a]={}; void* h=header; memcpy(window+4,&h,4);
-    const int16_t target[4]={100,200,120,80}; memcpy(window+0x8c,target,8);
+    // a window named: its draws' bounds gathered each frame, placed by the frame before's
     NativeLook look;
     Check(look.Move("inventor",50,-20),"asked to move");
-    look.Before(window,header,window,dimensions,10);
-    int16_t now[2]; int32_t dirty=0; memcpy(now,window+0x8c,4); memcpy(&dirty,window+0x94,4);
-    Check(now[0]==150 && now[1]==180 && dirty==-1 && look.applied==1,"moved before the game lays it out, marked for it");
-    memset(window+0x94,0,4);
-    look.Before(window,header,window,dimensions,11);
-    memcpy(&dirty,window+0x94,4); Check(dirty==0 && look.applied==1,"already there: not written again");
-    // the game lays it out afresh (opened again): the new place is the one moved from
-    const int16_t fresh[2]={300,400}; memcpy(window+0x8c,fresh,4);
-    look.Before(window,header,window,dimensions,12);
-    memcpy(now,window+0x8c,4); Check(now[0]==350 && now[1]==380,"laid out afresh by the game: moved from there");
-    // another window of another name: left alone
-    alignas(4) uint8_t other[0x60]={}; memcpy(other+0x46,"menu    equip   ",16);
-    alignas(4) uint8_t second[0x9a]={}; void* o=other; memcpy(second+4,&o,4); memcpy(second+0x8c,target,8);
-    look.Before(second,other,second,dimensions,12);
-    memcpy(now,second+0x8c,4); Check(now[0]==100 && now[1]==200,"a window not named: not moved");
-    // cleared: put back the next time it is drawn, and the entry done with
-    Check(look.Clear("inventor")==1,"cleared");
-    look.Before(window,header,window,dimensions,13);
-    memcpy(now,window+0x8c,4); Check(now[0]==300 && now[1]==400 && look.restored==1,"put back where the game had it");
-    Check(!look.Any(),"nothing left once put back");
-
-    // an item list: its owner's origin (+28) moved by as much as its target, the game's own placing kept, and put back
-    alignas(4) uint8_t owner[0x40]={}; const int16_t origin[2]={121,54}; memcpy(owner+0x28,origin,4);
-    memcpy(window+0x8c,target,8);
-    Check(look.Move("inventor",50,-20),"asked to move a list");
-    look.Before(window,header,window,dimensions,20,owner,NATIVE_LIST_DRAWER);
-    memcpy(now,owner+0x28,4); Check(now[0]==171 && now[1]==34 && look.entries[0].ownerMoved,"its contents' origin moved with it");
-    const int16_t placed[2]={200,60}; memcpy(owner+0x28,placed,4); // the game places the list afresh
-    look.Before(window,header,window,dimensions,21,owner,NATIVE_LIST_DRAWER);
-    memcpy(now,owner+0x28,4); Check(now[0]==250 && now[1]==40,"placed afresh by the game: moved from there");
-    look.Clear("inventor");
-    look.Before(window,header,window,dimensions,22,owner,NATIVE_LIST_DRAWER);
-    memcpy(now,owner+0x28,4); Check(now[0]==200 && now[1]==60 && !look.Any(),"put back where the game had it");
-    // a window whose owner is of another kind: the frame moved, its drawer said
-    Check(look.Move("inventor",10,10),"asked again");
-    look.Before(window,header,window,dimensions,23,nullptr,0x132F60);
-    Check(look.entries[0].moved && !look.entries[0].ownerMoved && look.entries[0].unknownDrawer==0x132F60,"another owner: frame only, its drawer kept for the status");
-    look.Clear(nullptr); look.Before(window,header,window,dimensions,24,nullptr,0x132F60);
+    Check(!look.Scale("inventor",5) && look.Scale("inventor",1.5f),"a scale from 0.5 to 3");
+    NativeLook::Saved saved=look.Enter("menu    inventor",1);
+    Check(!look.Placing(1000,800,place),"the first frame: no bounds yet, drawn as the game does");
+    V drawn[2]={{100,50,0,1,0,0,0},{300,250,0,1,0,0,0}};
+    look.Gather(drawn,2,sizeof(V));
+    look.Leave(saved);
+    saved=look.Enter("menu    inventor",2);
+    Check(look.Placing(1000,800,place) && Near(place[0],100) && Near(place[2],50) && Near(place[3],-20),"the next: placed by the frame before's bounds");
+    NativeLook::Saved inner=look.Enter("menu    equip   ",2);
+    Check(!look.Placing(1000,800,place),"a window inside it not named: drawn as the game does");
+    look.Unmoved(); look.Leave(inner);
+    look.Unmoved(); Check(look.entries[0].unmoved==1,"a vertex buffer draw in it counted, the other window's not");
+    look.Leave(saved);
+    Check(!look.Placing(1000,800,place),"outside any window: nothing placed");
 
     // the tint: only the frame of the window named, not its contents, elements or text
-    Check(look.Tint("inventor",0xff8080ff),"asked to tint");
+    Check(look.Tint("inventor",0xffff4040),"asked to tint");
     uint32_t colour=0;
-    NativeLook::Saved saved=look.Enter("menu    inventor");
-    Check(look.Tinting(colour) && colour==0xff8080ff,"its frame tinted");
-    MirrorPhase was=look.Phase(MIRROR_CONTENT); Check(!look.Tinting(colour),"not its contents");
+    saved=look.Enter("menu    inventor",3);
+    Check(look.Tinting(colour) && colour==0xffff4040,"its frame tinted");
+    MirrorPhase was=look.Phase(MIRROR_CONTENT); Check(!look.Tinting(colour) && look.Placing(1000,800,place),"its contents not tinted, but moved");
     look.Phase(MIRROR_ELEMENT); Check(!look.Tinting(colour),"not its elements"); look.Phase(was);
-    look.text++; Check(!look.Tinting(colour),"not text in its frame"); look.text--;
-    NativeLook::Saved inner=look.Enter("menu    equip   "); Check(!look.Tinting(colour),"a window inside it not named: not tinted");
-    look.Leave(inner); Check(look.Tinting(colour),"back in it after");
-    look.Leave(saved); Check(!look.Tinting(colour),"outside any window: nothing");
+    look.text++; Check(!look.Tinting(colour) && look.Placing(1000,800,place),"text in its frame moved, not tinted"); look.text--;
+    look.Leave(saved);
+    Check(look.Clear("inventor")==1 && !look.Any(),"cleared");
     printf("%d failures\n",failures);
     return failures ? 1 : 0;
 }

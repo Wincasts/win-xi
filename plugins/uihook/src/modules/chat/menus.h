@@ -147,12 +147,6 @@ public:
         return true;
     }
     void Stop(MenuShared& state) { for (auto& entry:entries) Restore(entry,state); }
-    // Whether this window's target is the action menus' now (another must not move it), and Window::Update
-    bool Moves(const void* window) const {
-        for (auto& entry:entries) if (entry.moved && entry.window==window) return true;
-        return log.moved && log.window==window;
-    }
-    auto Updater() const { return update; }
     // The full log's owner global (the fulllog registry row's, from the chat module); null disables placing it
     void Log(void** global) { if (!log.moved) log.global=global; }
     void StopLog(MenuShared& state) { Restore(log,state.LogRestored); }
