@@ -303,8 +303,13 @@ class PartyHook : public IPlugin {
         void* header=nullptr; char name[16];
         if (!window || !ChatRead(static_cast<uint8_t*>(window)+4,&header,4) || !header
             || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return NativeMenus.Enter(nullptr,Shared.Frame);
-        int16_t target[4];
-        if (NativeMenus.groupOn && ChatRead(static_cast<uint8_t*>(window)+CENSUS_TARGET,target,sizeof(target))) NativeMenus.Note(name,target,Shared.Frame);
+        // where the game draws it (+3A: left, top, right, bottom), not its layout target (+8C), which for some is over the
+        // chat log while they are drawn elsewhere (the Master and Automaton menu, beside the main menu)
+        int16_t drawn[4];
+        if (NativeMenus.groupOn && ChatRead(static_cast<uint8_t*>(window)+0x3a,drawn,sizeof(drawn)) && drawn[2]>drawn[0] && drawn[3]>drawn[1]) {
+            const int16_t place[4]={drawn[0],drawn[1],int16_t(drawn[2]-drawn[0]),int16_t(drawn[3]-drawn[1])};
+            NativeMenus.Note(name,place,Shared.Frame);
+        }
         return NativeMenus.Enter(name,Shared.Frame);
     }
     // A screen-space draw of a window named: counted into its bounds; then, where it is moved or its frame tinted,
