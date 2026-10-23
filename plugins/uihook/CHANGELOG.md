@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.28
+
+- A moved item list's contents go with it. 1.27 moved the inventory's frame, but its rows stayed: the item
+  lists' owner (contents drawn at the client's +1F6A60, as for the inventory, area list, search results,
+  linkshell lists and synthesis history) keeps its own origin at +28, +2A, in the target's units, which
+  the game sets where it places the window, not in Update. That origin is moved by as much as the target
+  and put back with it. An owner of any other kind is left alone, and the status says its contents were
+  not moved and which drawer they are (frame only, until its origin is found).
+
 ## 1.27
 
 - The tint is a second texture stage after the game's own, multiplying what it made by the colour (the

@@ -47,6 +47,24 @@ int main() {
     memcpy(now,window+0x8c,4); Check(now[0]==300 && now[1]==400 && look.restored==1,"put back where the game had it");
     Check(!look.Any(),"nothing left once put back");
 
+    // an item list: its owner's origin (+28) moved by as much as its target, the game's own placing kept, and put back
+    alignas(4) uint8_t owner[0x40]={}; const int16_t origin[2]={121,54}; memcpy(owner+0x28,origin,4);
+    memcpy(window+0x8c,target,8);
+    Check(look.Move("inventor",50,-20),"asked to move a list");
+    look.Before(window,header,window,dimensions,20,owner,NATIVE_LIST_DRAWER);
+    memcpy(now,owner+0x28,4); Check(now[0]==171 && now[1]==34 && look.entries[0].ownerMoved,"its contents' origin moved with it");
+    const int16_t placed[2]={200,60}; memcpy(owner+0x28,placed,4); // the game places the list afresh
+    look.Before(window,header,window,dimensions,21,owner,NATIVE_LIST_DRAWER);
+    memcpy(now,owner+0x28,4); Check(now[0]==250 && now[1]==40,"placed afresh by the game: moved from there");
+    look.Clear("inventor");
+    look.Before(window,header,window,dimensions,22,owner,NATIVE_LIST_DRAWER);
+    memcpy(now,owner+0x28,4); Check(now[0]==200 && now[1]==60 && !look.Any(),"put back where the game had it");
+    // a window whose owner is of another kind: the frame moved, its drawer said
+    Check(look.Move("inventor",10,10),"asked again");
+    look.Before(window,header,window,dimensions,23,nullptr,0x132F60);
+    Check(look.entries[0].moved && !look.entries[0].ownerMoved && look.entries[0].unknownDrawer==0x132F60,"another owner: frame only, its drawer kept for the status");
+    look.Clear(nullptr); look.Before(window,header,window,dimensions,24,nullptr,0x132F60);
+
     // the tint: only the frame of the window named, not its contents, elements or text
     Check(look.Tint("inventor",0xff8080ff),"asked to tint");
     uint32_t colour=0;

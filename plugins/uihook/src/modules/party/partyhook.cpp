@@ -304,7 +304,15 @@ class PartyHook : public IPlugin {
             : menus.Moves(window) ? "chatbox is moving it"
             : data[0x99] && !(menuManager && ChatRead(menuManager+0x80,dimensions,sizeof(dimensions))) ? "no menu manager for its units" : nullptr;
         NativeMenus.Seen(name,Shared.Frame,why);
-        if (!why) NativeMenus.Before(window,header,data,dimensions,Shared.Frame);
+        if (!why) {
+            // its owner, where its origin is known to move with it (the item lists'), else its drawer for the status
+            void* owner=nullptr; uint32_t vtable=0,draw=0;
+            memcpy(&owner,data+0x0c,4);
+            if (owner && ChatRead(owner,&vtable,4) && vtable) ChatRead(reinterpret_cast<void*>(static_cast<uintptr_t>(vtable)+0x10),&draw,4);
+            const uint32_t drawer=draw && MenuCensus.base ? draw-static_cast<uint32_t>(MenuCensus.base) : 0;
+            void* moving=drawer==NATIVE_LIST_DRAWER && MenuWritable(static_cast<uint8_t*>(owner)+NATIVE_OWNER_ORIGIN,4) ? owner : nullptr;
+            NativeMenus.Before(window,header,data,dimensions,Shared.Frame,moving,owner ? drawer : 0);
+        }
         return NativeMenus.Enter(name);
     }
     // A draw of a tinted window's frame: drawn with a second texture stage multiplying the game's own result by the
@@ -351,8 +359,9 @@ class PartyHook : public IPlugin {
             if (!e.moved || Shared.Frame-e.frame>1 || !ChatRead(e.window,data,sizeof(data))
                 || (memcpy(&header,data+4,4),header!=e.header) || !MenuWritable(static_cast<uint8_t*>(e.window)+0x8c,12)) continue;
             int16_t target[2]; memcpy(target,data+0x8c,4);
-            void* window=e.window;
-            NativeMenus.Restore(e,window,target);
+            void* window=e.window; void* owner=nullptr; memcpy(&owner,data+0x0c,4);
+            if (owner!=e.owner || !MenuWritable(static_cast<uint8_t*>(owner)+NATIVE_OWNER_ORIGIN,4)) owner=nullptr;
+            NativeMenus.Restore(e,window,target,owner);
             if (update) update(window,nullptr);
         }
         for (auto& e:NativeMenus.entries) e=NativeEntry();
@@ -380,10 +389,14 @@ class PartyHook : public IPlugin {
                 else snprintf(seen,sizeof(seen),"drawn %u frames ago",Shared.Frame-e.seen);
                 snprintf(line,sizeof(line),"  %.8s: %s; move %s %d,%d (%s), tint %s %08X (frame draws %u tinted, %u refused, format %X, stage %u %X %X)",
                     e.name+8,seen,e.move ? "on" : "off",e.dx,e.dy,
-                    e.moved ? (Shared.Frame-e.frame<=2 ? "drawn there now" : "moved, not drawn lately") : e.why ? e.why : "not moved",
+                    e.moved ? (Shared.Frame-e.frame<=2 ? (e.ownerMoved ? "drawn there now, contents with it" : "drawn there now, frame only") : "moved, not drawn lately") : e.why ? e.why : "not moved",
                     e.tint ? "on" : "off",e.colour,e.tinted,e.refused,static_cast<unsigned>(e.lastFormat),
                     static_cast<unsigned>(e.stage[0]),static_cast<unsigned>(e.stage[1]),static_cast<unsigned>(e.stage[2]));
                 chat->Write(0,false,line);
+                if (e.moved && !e.ownerMoved && e.unknownDrawer) {
+                    snprintf(line,sizeof(line),"    its contents not moved: drawn by %08X, whose origin is not known yet",static_cast<unsigned>(e.unknownDrawer));
+                    chat->Write(0,false,line);
+                }
             }
             return;
         } else {

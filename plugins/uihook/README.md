@@ -508,7 +508,9 @@ For trying a skin on the game's own menus rather than drawing them again: the me
 
 The move is the action menus' (above): the layout target (+8C) written before Window::Render calls
 Window::Update, and the window marked for it (+94), so the game lays out its frame, rows, cursor and
-hit-tests there itself; a move past the top or left edge stops at it. The tint draws the frame's draws
+hit-tests there itself; a move past the top or left edge stops at it. That moves the frame; an item list's
+contents are drawn from its owner's own origin (+28), which is moved by as much (lists only, so far:
+another kind of owner keeps its contents where they were, and `/uihook native` says which drawer it is). The tint draws the frame's draws
 with a second texture stage after the game's own, multiplying what it made by the colour (the texture
 factor), put back after each; not where the game uses that stage or a pixel shader. The contents, the
 elements (picture labels, buttons), the cursor, the scrollbar and text are left as they are. Nothing is
