@@ -4,7 +4,9 @@
 // Windows' own font drawing. The skin's own pictures stand where no font is chosen, or one cannot be drawn.
 //
 // fonts.txt, a line each, in the game's texels (a size's are times its factor):
-//   font <hash> kind=<menu|title> fill=<AARRGGBB> edge=<texels> edgecolour=<AARRGGBB> widen=<share>
+//   font <hash> kind=<menu|title> fill=<AARRGGBB> edge=<texels> edgecolour=<AARRGGBB> [shadow=<AARRGGBB> shadowx=<texels>
+//       shadowy=<texels>] widen=<share>       the style of the clears and glyphs after it (one texture may hold several
+//                                             fonts: 30CDD9D4 the menus' small one and a large one)
 //   clear <hash> <x0> <y0> <x1> <y1>          cleared before the glyphs are drawn
 //   glyph <hash> line <a> <b> <cx0> <cx1> <top> <bottom> <baseline> <height> <ref> <text>
 //       on baseline, at the size whose ref is height tall, centred on a..b and no wider than it less the edges
@@ -22,9 +24,9 @@
 #include <cmath>
 #include <algorithm>
 
-struct SkinFontStyle { uint32_t hash=0; std::string kind; uint32_t fill=0xffffffff, edgeColour=0; float edge=0, widen=0; };
-struct SkinClear { uint32_t hash=0; float x0=0, y0=0, x1=0, y1=0; };
-struct SkinGlyph { uint32_t hash=0; bool fit=false; float a=0, b=0, cx0=0, cx1=0, top=0, bottom=0, baseline=0, height=0; wchar_t ref=L'E'; std::wstring text; };
+struct SkinFontStyle { uint32_t hash=0; std::string kind; uint32_t fill=0xffffffff, edgeColour=0, shadow=0; float edge=0, widen=0, shadowX=0, shadowY=0; };
+struct SkinClear { uint32_t hash=0; size_t style=0; float x0=0, y0=0, x1=0, y1=0; };
+struct SkinGlyph { uint32_t hash=0; size_t style=0; bool fit=false; float a=0, b=0, cx0=0, cx1=0, top=0, bottom=0, baseline=0, height=0; wchar_t ref=L'E'; std::wstring text; };
 
 static std::wstring SkinWide(const char* text,int length=-1) {
     const int n=MultiByteToWideChar(CP_UTF8,0,text,length,nullptr,0);
@@ -38,7 +40,7 @@ struct SkinFonts {
     std::vector<SkinFontStyle> styles;
     std::vector<SkinClear> clears;
     std::vector<SkinGlyph> glyphs;
-    const SkinFontStyle* Style(uint32_t hash) const { for (auto& s:styles) if (s.hash==hash) return &s; return nullptr; }
+    bool Has(uint32_t hash) const { for (auto& s:styles) if (s.hash==hash) return true; return false; }
     void Clear() { styles.clear(); clears.clear(); glyphs.clear(); }
     // fonts.txt read: the lines not understood
     unsigned Parse(const char* text) {
@@ -73,15 +75,19 @@ struct SkinFonts {
                     else if (key=="edgecolour") s.edgeColour=static_cast<uint32_t>(strtoul(value.c_str(),nullptr,16));
                     else if (key=="edge") s.edge=float(atof(value.c_str()));
                     else if (key=="widen") s.widen=float(atof(value.c_str()));
+                    else if (key=="shadow") s.shadow=static_cast<uint32_t>(strtoul(value.c_str(),nullptr,16));
+                    else if (key=="shadowx") s.shadowX=float(atof(value.c_str()));
+                    else if (key=="shadowy") s.shadowY=float(atof(value.c_str()));
                 }
                 if (s.kind.empty()) { bad++; continue; }
                 styles.push_back(s);
+            } else if (styles.empty()) { bad++; continue;   // a clear or a glyph before any style
             } else if (words[0]=="clear" && words.size()==6) {
-                SkinClear c; c.hash=hash;
+                SkinClear c; c.hash=hash; c.style=styles.size()-1;
                 c.x0=float(atof(words[2].c_str())); c.y0=float(atof(words[3].c_str())); c.x1=float(atof(words[4].c_str())); c.y1=float(atof(words[5].c_str()));
                 clears.push_back(c);
             } else if (words[0]=="glyph" && words.size()==13 && (words[2]=="line" || words[2]=="fit")) {
-                SkinGlyph g; g.hash=hash; g.fit=words[2]=="fit";
+                SkinGlyph g; g.hash=hash; g.style=styles.size()-1; g.fit=words[2]=="fit";
                 float* v[8]={&g.a,&g.b,&g.cx0,&g.cx1,&g.top,&g.bottom,&g.baseline,&g.height};
                 for (int i=0;i<8;i++) *v[i]=float(atof(words[3+i].c_str()));
                 const std::wstring ref=SkinWide(words[11].c_str());
@@ -236,15 +242,19 @@ static void SkinOver(uint32_t& dst,uint32_t colour,uint32_t coverage) {
     dst=out;
 }
 
-// A skin's font texture of one size (factor times the game's) drawn again: its clears made, each glyph drawn in the face
+// The kinds of a skin's fonts a font may be chosen for
+static int SkinFontKind(const std::string& kind) { return kind=="menu" ? 0 : kind=="title" ? 1 : -1; }
+
+// A skin's font texture of one size (factor times the game's) drawn again: for each font in it with a face chosen
+// for its kind, its clears made and each glyph drawn in the face
 class SkinFontDrawer {
 public:
-    const SkinFontFace* face=nullptr;
-    // the em, in pixels, whose ref is height pixels tall; kept for each the same asked
-    struct Size { wchar_t ref; int height; int px; };
+    const SkinFontFace* faces[2]={};
+    // the em, in pixels, whose ref is height pixels tall in a face; kept for each the same asked
+    struct Size { const SkinFontFace* face; wchar_t ref; int height; int px; };
     std::vector<Size> sizes;
-    int SizeFor(wchar_t ref,int height) {
-        for (auto& s:sizes) if (s.ref==ref && s.height==height) return s.px;
+    int SizeFor(const SkinFontFace* face,wchar_t ref,int height) {
+        for (auto& s:sizes) if (s.face==face && s.ref==ref && s.height==height) return s.px;
         int px=0;
         SkinCoverage c; int base=0,box[4];
         const std::wstring one(1,ref);
@@ -257,22 +267,28 @@ public:
                 if (got<height) px++; else if (px>2 && face->Draw(one,px-1,c,base) && SkinInk(c,box) && box[3]-box[1]>=height) px--; else break;
             }
         }
-        sizes.push_back({ref,height,px});
+        sizes.push_back({face,ref,height,px});
         return px;
     }
+    const SkinFontFace* FaceOf(const SkinFonts& fonts,size_t style) const {
+        if (style>=fonts.styles.size()) return nullptr;
+        const int k=SkinFontKind(fonts.styles[style].kind);
+        return k>=0 && faces[k] && faces[k]->added ? faces[k] : nullptr;
+    }
     unsigned Draw(const SkinFonts& fonts,uint32_t hash,float factor,std::vector<uint32_t>& argb,int width,int height) {
-        const SkinFontStyle* style=fonts.Style(hash);
-        if (!face || !style) return 0;
         auto at=[&](float v) { return int(std::floor(v*factor+0.5f)); };
-        for (auto& c:fonts.clears) if (c.hash==hash)
+        for (auto& c:fonts.clears) if (c.hash==hash && FaceOf(fonts,c.style))
             for (int y=(std::max)(0,at(c.y0));y<(std::min)(height,at(c.y1));y++)
                 for (int x=(std::max)(0,at(c.x0));x<(std::min)(width,at(c.x1));x++) argb[size_t(y)*width+x]=0;
-        const int edge=style->edge>0 ? (std::max)(1,at(style->edge)) : 0;
         unsigned drawn=0;
         for (auto& g:fonts.glyphs) {
-            if (g.hash!=hash) continue;
+            const SkinFontFace* face=g.hash==hash ? FaceOf(fonts,g.style) : nullptr;
+            if (!face) continue;
+            const SkinFontStyle& style=fonts.styles[g.style];
+            const int edge=style.edge>0 ? (std::max)(1,at(style.edge)) : 0;
+            const int sx=style.shadow ? at(style.shadowX) : 0,sy=style.shadow ? at(style.shadowY) : 0;
             SkinCoverage c; int base=0,box[4];
-            int px=g.fit ? (std::max)(4,int((g.bottom-g.top)*(std::max)(1.0f,factor)*2)) : SizeFor(g.ref,(std::max)(1,at(g.height)));
+            int px=g.fit ? (std::max)(4,int((g.bottom-g.top)*(std::max)(1.0f,factor)*2)) : SizeFor(face,g.ref,(std::max)(1,at(g.height)));
             if (px<2 || !face->Draw(g.text,px,c,base) || !SkinInk(c,box)) continue;
             SkinCoverage ink=SkinCrop(c,box);
             int gx,gy;
@@ -285,25 +301,31 @@ public:
             } else {
                 const int above=base-box[1];
                 const int room=at(g.b)-at(g.a)-2*edge;
-                const int want=(std::min)(room,(std::max)(ink.width,int(room*style->widen)));
+                const int want=(std::min)(room,(std::max)(ink.width,int(room*style.widen)));
                 if (want>0 && want!=ink.width) ink=SkinResample(ink,want,ink.height);
                 gx=at((g.a+g.b)/2)-ink.width/2; gy=at(g.baseline)-above;
                 if (gy<0) gy=0;
             }
-            // the edge (the ink spread by edge each way), then the fill, within the glyph's own bounds
+            // the edge (the ink spread by edge each way), the shadow (the ink moved), then the fill, within the glyph's bounds
             const int cx0=(std::max)(0,at(g.cx0)),cx1=(std::min)(width,at(g.cx1)),cy0=(std::max)(0,at(g.top)),cy1=(std::min)(height,at(g.bottom));
-            for (int pass=edge ? 0 : 1;pass<2;pass++) {
-                for (int y=-edge;y<ink.height+edge;y++) for (int x=-edge;x<ink.width+edge;x++) {
+            const int reach=edge+(std::max)(sx,sy);
+            for (int pass=0;pass<3;pass++) {
+                if ((pass==0 && !edge) || (pass==1 && !style.shadow)) continue;
+                const uint32_t colour=pass==0 ? style.edgeColour : pass==1 ? style.shadow : style.fill;
+                for (int y=-reach;y<ink.height+reach;y++) for (int x=-reach;x<ink.width+reach;x++) {
                     const int tx=gx+x,ty=gy+y;
                     if (tx<cx0 || tx>=cx1 || ty<cy0 || ty>=cy1) continue;
                     uint32_t v=0;
                     if (pass==0) {
                         for (int dy=-edge;dy<=edge;dy++) for (int dx=-edge;dx<=edge;dx++) {
-                            const int sx=x+dx,sy=y+dy;
-                            if (sx>=0 && sy>=0 && sx<ink.width && sy<ink.height) v=(std::max)(v,uint32_t(ink.At(sx,sy)));
+                            const int ex=x+dx,ey=y+dy;
+                            if (ex>=0 && ey>=0 && ex<ink.width && ey<ink.height) v=(std::max)(v,uint32_t(ink.At(ex,ey)));
                         }
-                    } else if (x>=0 && y>=0 && x<ink.width && y<ink.height) v=ink.At(x,y);
-                    if (v) SkinOver(argb[size_t(ty)*width+tx],pass==0 ? style->edgeColour : style->fill,v);
+                    } else {
+                        const int ex=pass==1 ? x-sx : x,ey=pass==1 ? y-sy : y;
+                        if (ex>=0 && ey>=0 && ex<ink.width && ey<ink.height) v=ink.At(ex,ey);
+                    }
+                    if (v) SkinOver(argb[size_t(ty)*width+tx],colour,v);
                 }
             }
             drawn++;

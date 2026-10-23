@@ -239,30 +239,27 @@ SIZES = (0.5, 0.75, 1, 1.25, 1.5, 1.75, 2)
 
 def winxi_skin(census, theme, frame_scale=1, font=None, frame_width=2, sizes=SIZES):
     made = {}
+    glyphs = winxi_glyphs(census, theme)
     for r in sizes:
-        for name, im in winxi_size(census, theme, font, frame_width, r).items():
+        for name, im in winxi_size(census, theme, font, frame_width, r, glyphs).items():
             made.setdefault(name, {})[r] = im
     return made, winxi_colours(theme)
 
 def winxi_glyphs(census, theme):
     lines = []
     im = census('30CDD9D4')
-    if im: lines += menu_layout(im)
+    if im: lines += small_layout(im) + menu_layout(im)
     im, title = census('5218C635'), font_file(theme.get('TitleFontFile') or 'trebucbi.ttf')
     if im and title: lines += title_layout(im, title)
     return lines
 
-def winxi_size(census, theme, font, frame_width, r):
+def winxi_size(census, theme, font, frame_width, r, glyphs):
     pictures = {}
     name = font or theme.get('FontFile') or 'trebuc.ttf'
-    path = font_file(name)
-    im = census('30CDD9D4')
-    if im and path: pictures['30CDD9D4'] = menu_font(im, path, r)
-    elif im: print(f'font {name} not found; the menu font left')
-    title = font_file(theme.get('TitleFontFile') or 'trebucbi.ttf')
-    im = census('5218C635')
-    if im and title: pictures['5218C635'] = title_font(im, title, r)
-    elif im: print('title font not found; the title font left')
+    faces = {'menu': font_file(name), 'title': font_file(theme.get('TitleFontFile') or 'trebucbi.ttf')}
+    for hsh in ('30CDD9D4', '5218C635'):
+        im = census(hsh)
+        if im: pictures[hsh] = draw_layout(im, glyphs, faces, hsh, r)
     style = theme.get('BorderStyle', 'ffxi')
     line = border_line(style)
     steel = steel_of(line)
@@ -321,52 +318,6 @@ def font_file(name):
             for f in files:
                 if f.lower() == name.lower(): return os.path.join(root, f)
     return None
-
-def menu_font(im, path, r=1):
-    # the game's large font cleared and drawn again in the font at path, each glyph in the place of the game's; the
-    # whole r times the game's size (the rest of the texture, the small font and the damage digits, enlarged as it is)
-    out = resized(im, r).copy()
-    po = out.load()
-    size = 4
-    while size < 80 * max(1, r):   # the size whose capitals are as tall as the game's
-        b = ImageFont.truetype(path, size).getbbox('E', anchor='ls')
-        if b[3] - b[1] >= MENU_CAPS * r: break
-        size += 1
-    font = ImageFont.truetype(path, size)
-    edge, row = at(MENU_EDGE, r), at(24, r)
-    for top0, chars in MENU_FONT_ROWS:
-        boxes = glyph_boxes(im, top0, chars)
-        if not boxes:
-            print(f'menu font row {top0}: its glyphs could not be told apart, left'); continue
-        top = at(top0, r)
-        boxes = [(at(a, r), at(b, r)) for a, b in boxes]
-        for i, (ch, (a, b)) in enumerate(zip(chars, boxes)):
-            # the room it has: to halfway to its neighbours, inside the row
-            left = 0 if i == 0 else (boxes[i - 1][1] + a) // 2
-            right = out.width if i == len(boxes) - 1 else (b + boxes[i + 1][0]) // 2
-            for y in range(top, top + row):
-                for x in range(left, right): po[x, y] = (0, 0, 0, 0)
-            # the glyph drawn large enough for its edge, cut to its ink, squeezed to the game's ink width if wider
-            mask = Image.new('L', (at(96, max(1, r)), at(64, max(1, r)))); ImageDraw.Draw(mask).text((at(24, max(1, r)), at(44, max(1, r))), ch, font=font, fill=255, anchor='ls')
-            ink = mask.getbbox()
-            if not ink: continue
-            glyph = mask.crop(ink); baseline = at(44, max(1, r)) - ink[1]
-            room = (b - a) - 2 * edge
-            want = min(room, max(glyph.width, int(room * MENU_FILL)))
-            if want > 0 and want != glyph.width: glyph = glyph.resize((want, glyph.height), Image.LANCZOS)
-            gx = (a + b) // 2 - glyph.width // 2; gy = top + at(MENU_BASELINE, r) - baseline
-            pad = edge + 1
-            tile = Image.new('L', (glyph.width + 2 * pad, glyph.height + 2 * pad)); tile.paste(glyph, (pad, pad))
-            ring = tile.filter(ImageFilter.MaxFilter(2 * edge + 1))
-            piece = Image.new('RGBA', tile.size, (0, 0, 0, 0))
-            piece.paste(Image.new('RGBA', tile.size, MENU_EDGE_COLOUR[:3] + (255,)), (0, 0), ring.point(lambda v: v * MENU_EDGE_COLOUR[3] // 255))
-            piece.paste(Image.new('RGBA', tile.size, (255, 255, 255, 255)), (0, 0), tile)
-            # kept within its room, so no neighbour is drawn over
-            px0, py0 = gx - pad, gy - pad
-            crop = (max(0, left - px0), max(0, top - py0), min(piece.width, right - px0), min(piece.height, top + row - py0))
-            if crop[2] > crop[0] and crop[3] > crop[1]:
-                out.alpha_composite(piece.crop(crop), (px0 + crop[0], py0 + crop[1]))
-    return out
 
 # ---- the title font ----
 # 5218C635's italic font (the windows' titles on their top edges, "Commands", "Network"), in rows: each piece a
@@ -448,65 +399,6 @@ def title_pieces(im, top, bottom, pieces, font_path):
             found, least = out[::-1], cost[n][m]
     return found
 
-def title_font(im, path, r=1):
-    out = resized(im, r).copy()
-    px = im.load()
-    solid = [px[x, y] for y in range(161, 172) for x in range(im.width) if px[x, y][3] >= 120]
-    solid.sort(key=lambda p: sum(p[:3]))
-    fill = solid[len(solid) // 2] if solid else (200, 200, 200, 136)
-    for top, bottom, pieces, *known in TITLE_ROWS:
-        runs = known[0] if known else title_pieces(im, top, bottom, pieces, path)
-        if not runs:
-            print(f'title font row {top}: its pieces could not be told apart, left'); continue
-        # the row cleared whole, the faint edges between its pieces too
-        out.paste((0, 0, 0, 0), (0, at(top, r), out.width, at(bottom, r)))
-        if all(len(p) == 1 for p in pieces):
-            # letters: on the row's baseline (the bottom most of its letters share), the size whose capitals (or
-            # x-height, a row of small letters) are as tall as most of the game's
-            spans = []
-            for a, b in runs:
-                ys = [y for y in range(top, bottom) if any(px[x, y][3] >= 40 for x in range(a, b))]
-                if ys: spans.append((ys[0], ys[-1] + 1))
-            baseline = max(set(e for _, e in spans), key=[e for _, e in spans].count)
-            tall = baseline - max(set(t for t, _ in spans), key=[t for t, _ in spans].count)
-            sample = 'x' if pieces[-1].islower() else 'E'
-            size = 4
-            while size < 200:
-                g = ImageFont.truetype(path, size).getbbox(sample, anchor='ls')
-                if g[3] - g[1] >= tall * r: break
-                size += 1
-            font = ImageFont.truetype(path, size)
-            for text, (a, b) in zip(pieces, runs):
-                mask = Image.new('L', (size * 3, size * 3)); ImageDraw.Draw(mask).text((size, size * 2), text, font=font, fill=255, anchor='ls')
-                ink = mask.getbbox()
-                if not ink: continue
-                glyph = mask.crop(ink); above = size * 2 - ink[1]
-                room = at(b - a + 1, r)
-                if glyph.width > room: glyph = glyph.resize((room, glyph.height), Image.LANCZOS)
-                piece = Image.new('RGBA', glyph.size, fill[:3] + (255,))
-                piece.putalpha(glyph.point(lambda v: v * fill[3] // 255))
-                out.alpha_composite(piece, (at((a + b) / 2, r) - glyph.width // 2, max(0, at(baseline, r) - above)))
-            continue
-        for text, (a, b) in zip(pieces, runs):
-            # the game's piece's ink: where the new one goes, as tall and no wider
-            ys = [y for y in range(top, bottom) if any(px[x, y][3] >= 40 for x in range(max(0, a - 1), min(im.width, b + 1)))]
-            if not ys: continue
-            y0, y1 = ys[0], ys[-1] + 1
-            box = (at(a, r), at(y0, r), at(b, r), at(y1, r))
-            font = ImageFont.truetype(path, max(4, int((y1 - y0) * max(1, r) * 2)))
-            mask = Image.new('L', (font.size * (len(text) + 2), font.size * 3))
-            ImageDraw.Draw(mask).text((font.size, font.size), text, font=font, fill=255)
-            ink = mask.getbbox()
-            if not ink: continue
-            glyph = mask.crop(ink)
-            h = box[3] - box[1]
-            w = max(1, min(box[2] - box[0], round(glyph.width * h / glyph.height)))
-            glyph = glyph.resize((w, h), Image.LANCZOS)
-            piece = Image.new('RGBA', glyph.size, fill[:3] + (255,))
-            piece.putalpha(glyph.point(lambda v: v * fill[3] // 255))
-            out.alpha_composite(piece, ((box[0] + box[2]) // 2 - w // 2, box[1]))
-    return out
-
 # ---- the glyph map (fonts.txt) ----
 # Where each glyph of the two fonts goes, for uihook 1.52 to draw them itself from a font chosen in game (/uihook skin
 # font), at each size, in place of the skin's own: in the game's texels (a size's are times its factor), a line each:
@@ -555,6 +447,127 @@ def title_layout(im, path):
             if not ys: continue
             lines.append(f'glyph 5218C635 fit {a} {b} 0 {im.width} {ys[0]} {ys[-1] + 1} 0 0 - {text}')
     return lines
+
+# ---- the small font ----
+# 30CDD9D4's small grey font, top left (the menus' buttons: Status, Equipment, Magic...): in rows of 13 texels, each
+# glyph a near-white fill, a dark grey shadow a texel down and right, and a faint black edge about it, drawn a texel
+# to a pixel; capitals 9 texels tall on a baseline 10 below the row's top. Its signs (an ellipsis, the copyright, the
+# hand, the circle, triangle, square and cross of a controller) are left as the game's.
+SMALL_ROWS = [(0, 12, '!"#$%&\'()*+'), (13, 25, ',-./01234567'), (26, 38, '89:;<=>?@ABCD…'), (39, 51, 'EFGHIJKLMNOP'),
+              (52, 64, 'QRSTUVWXYZ['), (65, 78, '\\]^_`abcdefg'), (78, 91, 'hijklmnopqrs©'), (91, 104, 'tuvwxyz{↖}○△'),
+              (104, 116, '□×0123456789'), (117, 128, '|~0123456789')]
+SMALL_SIGNS = set('…©↖○△□×')
+
+def small_layout(im):
+    px = im.load()
+    lines = ['font 30CDD9D4 kind=menu fill=99F6F6F6 edge=1 edgecolour=66000000 shadow=99525052 shadowx=1 shadowy=1 widen=0.85']
+    for top, bottom, chars in SMALL_ROWS:
+        cols = [max(px[x, y][3] for y in range(top, bottom)) for x in range(128)]
+        runs, x = [], 0
+        while x < 128:
+            if cols[x] >= 120:
+                a = x
+                while x < 128 and cols[x] >= 120: x += 1
+                runs.append((a, x))
+            else: x += 1
+        if len(runs) != len(chars): print(f'small font row {top}: its glyphs could not be told apart, left'); continue
+        bottoms = []
+        for a, b in runs:
+            ys = [y for y in range(top, bottom) if any(px[x, y][3] >= 120 for x in range(a, b))]
+            if ys: bottoms.append(ys[-1] + 1)
+        baseline = max(set(bottoms), key=bottoms.count)
+        for i, (ch, (a, b)) in enumerate(zip(chars, runs)):
+            if ch in SMALL_SIGNS: continue
+            left = 0 if i == 0 else (runs[i - 1][1] + a) // 2
+            right = 128 if i == len(runs) - 1 else (b + runs[i + 1][0]) // 2
+            lines.append(f'clear 30CDD9D4 {left} {top} {right} {bottom}')
+            # the fill's columns and the edge each side: the room it has
+            lines.append(f'glyph 30CDD9D4 line {a - 1} {b + 1} {left} {right} {top} {bottom} {baseline} 9 E {ch}')
+    return lines
+
+# ---- drawing from the glyph map ----
+# As uihook draws a skin's fonts (skinfont.h), so the skin's own pictures and a font chosen in game are drawn alike:
+# a font line's style for the lines after it; each glyph on its baseline at the size whose ref is its height, or its
+# ink fitted to its box; edge, shadow and fill, within its bounds
+def parse_layout(lines):
+    styles, items = [], []
+    for line in lines:
+        w = line.split(' ')
+        if w[0] == 'font':
+            st = {'hash': w[1], 'kind': '', 'fill': 0xFFFFFFFF, 'edge': 0, 'edgecolour': 0, 'shadow': 0, 'shadowx': 0, 'shadowy': 0, 'widen': 0}
+            for kv in w[2:]:
+                k, v = kv.split('=')
+                st[k] = v if k == 'kind' else (int(v, 16) if k in ('fill', 'edgecolour', 'shadow') else float(v))
+            styles.append(st)
+        elif w[0] == 'clear':
+            items.append(('clear', styles[-1], w[1], [float(v) for v in w[2:6]]))
+        elif w[0] == 'glyph':
+            rest = line.split(' ', 12)
+            items.append(('glyph', styles[-1], w[1], rest[2], [float(v) for v in rest[3:11]], rest[11], rest[12]))
+    return items
+
+def argb(c): return ((c >> 16) & 255, (c >> 8) & 255, c & 255, c >> 24)
+
+def draw_layout(im, lines, faces, hashname, r):
+    out = resized(im, r).copy()
+    sizes = {}
+    def size_for(path, ref, height):
+        key = (path, ref, height)
+        if key not in sizes:
+            size = 2
+            while size < 400:
+                m = Image.new('L', (size * 3, size * 3)); ImageDraw.Draw(m).text((size, size * 2), ref, font=ImageFont.truetype(path, size), fill=255, anchor='ls')
+                b = m.getbbox()
+                if b and b[3] - b[1] >= height: break
+                size += 1
+            sizes[key] = size
+        return sizes[key]
+    for item in parse_layout(lines):
+        style, hsh = item[1], item[2]
+        path = faces.get(style['kind'])
+        if hsh != hashname or not path: continue
+        if item[0] == 'clear':
+            x0, y0, x1, y1 = item[3]
+            out.paste((0, 0, 0, 0), (at(x0, r), at(y0, r), at(x1, r), at(y1, r)))
+            continue
+        mode, (a, b, cx0, cx1, top, bottom, baseline, height), ref, text = item[3], item[4], item[5], item[6]
+        if mode == 'fit':
+            px = max(4, int((bottom - top) * max(1, r) * 2))
+        else:
+            px = size_for(path, ref if ref != '-' else 'E', max(1, at(height, r)))
+        font = ImageFont.truetype(path, px)
+        mask = Image.new('L', (px * (len(text) + 2), px * 3)); ImageDraw.Draw(mask).text((px, px * 2), text, font=font, fill=255, anchor='ls')
+        ink = mask.getbbox()
+        if not ink: continue
+        glyph = mask.crop(ink)
+        edge = max(1, at(style['edge'], r)) if style['edge'] > 0 else 0
+        if mode == 'fit':
+            bx0, by0, bx1, by1 = at(a, r), at(top, r), at(b, r), at(bottom, r)
+            h = max(1, by1 - by0); w = max(1, min(bx1 - bx0, round(glyph.width * h / glyph.height)))
+            glyph = glyph.resize((w, h), Image.LANCZOS)
+            gx, gy = (bx0 + bx1) // 2 - w // 2, by0
+        else:
+            above = px * 2 - ink[1]
+            room = at(b, r) - at(a, r) - 2 * edge
+            want = min(room, max(glyph.width, int(room * style['widen'])))
+            if want > 0 and want != glyph.width: glyph = glyph.resize((want, glyph.height), Image.LANCZOS)
+            gx, gy = at((a + b) / 2, r) - glyph.width // 2, max(0, at(baseline, r) - above)
+        sx, sy = (at(style['shadowx'], r), at(style['shadowy'], r)) if style['shadow'] else (0, 0)
+        pad = edge + max(sx, sy) + 1
+        tile = Image.new('L', (glyph.width + 2 * pad, glyph.height + 2 * pad)); tile.paste(glyph, (pad, pad))
+        piece = Image.new('RGBA', tile.size, (0, 0, 0, 0))
+        def lay(mask, colour):
+            c = argb(colour)
+            piece.alpha_composite(Image.composite(Image.new('RGBA', tile.size, c[:3] + (c[3],)), Image.new('RGBA', tile.size, (0, 0, 0, 0)), mask))
+        if edge: lay(tile.filter(ImageFilter.MaxFilter(2 * edge + 1)), style['edgecolour'])
+        if style['shadow']:
+            shifted = Image.new('L', tile.size); shifted.paste(glyph, (pad + sx, pad + sy)); lay(shifted, style['shadow'])
+        lay(tile, style['fill'])
+        x0, y0 = gx - pad, gy - pad
+        clip = (max(0, at(cx0, r) - x0), max(0, at(top, r) - y0), min(piece.width, at(cx1, r) - x0), min(piece.height, at(bottom, r) - y0))
+        if clip[2] > clip[0] and clip[3] > clip[1]:
+            out.alpha_composite(piece.crop(clip), (x0 + clip[0], y0 + clip[1]))
+    return out
 
 STYLES = {'test': test_skin, 'winxi': winxi_skin}
 
