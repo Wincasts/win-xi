@@ -8,6 +8,7 @@
 #include "../src/modules/mirror/mirror.h"
 #include "../src/modules/mirror/labels.h"
 #include "../src/modules/mirror/mouse.h"
+#include "../src/modules/mirror/watch.h"
 static int failures=0;
 static void Check(bool ok,const char* text) { printf("%s %s\n",ok?"ok":"FAIL",text); if(!ok) ++failures; }
 static bool Near(float a,float b) { return std::fabs(a-b)<1e-4f; }
@@ -240,6 +241,36 @@ int main() {
         // the game's handler, its first bytes as the client has them: the pattern fits, and only what is stolen is whole instructions
         uint8_t handler[40]={0x83,0xEC,0x2C,0x53,0x8B,0x5C,0x24,0x38,0x55,0x56,0x8B,0x74,0x24,0x44,0x57,0x8B,0x7C,0x24,0x4C,0x81,0xFB,0x0F,0x01,0x00,0x00};
         Check(FindPattern(handler,sizeof(handler),MIRROR_INPUT_PATTERN)==handler && MIRROR_INPUT_STOLEN==8,"the mouse handler's pattern");
+    }
+    {
+        // the watch: each window drawn, asked for or not, mirrored or not, and how it drew; written as it changes
+        MirrorWatch watch; static MirrorFrameData none{};
+        FakeWindow asked("menu    auc1    ",true,true), seen("menu    partywin",false,false);
+        watch.Start();
+        int was=watch.Enter(asked.window,true,false,false);
+        watch.Draw(MirrorWatch::BUFFER); watch.Draw(MirrorWatch::BUFFER);
+        const int outer=watch.Enter(seen.window,false,false,false); watch.Draw(MirrorWatch::UP); watch.Leave(outer);
+        watch.Draw(MirrorWatch::OTHER);
+        watch.Leave(was);
+        std::string text=watch.Present(none,3,10,5000,"12:00:00.000");
+        Check(text.find("== 12:00:00.000 frame 10: 2 drawn, 0 published, 3 dropped")==0,"the watch: a frame's heading");
+        Check(text.find("menu    auc1     kind 0 draws 0 depth 0: asked NOT MIRRORED; draws: 0 measured, 1 not screen space, 2 from buffers")!=std::string::npos,
+            "an asked window not mirrored, its draws counted by kind, a nested window's not among them");
+        Check(text.find("menu    partywin kind 0 draws 0 depth 1: -; draws: 1 measured")!=std::string::npos,"a window drawn within it, not asked for");
+        was=watch.Enter(asked.window,true,false,false); watch.Draw(MirrorWatch::BUFFER);
+        { const int inner=watch.Enter(seen.window,false,false,false); watch.Draw(MirrorWatch::UP); watch.Draw(MirrorWatch::UP); watch.Leave(inner); }
+        watch.Leave(was);
+        Check(watch.Present(none,3,11,5300,"").empty(),"the same windows: nothing written, whatever their draws");
+        was=watch.Enter(asked.window,true,true,true); watch.Leave(was);
+        Check(watch.Present(none,3,12,5600,"").empty(),"a change within the second: not yet");
+        was=watch.Enter(asked.window,true,true,true); watch.Leave(was);
+        text=watch.Present(none,3,13,6100,"t");
+        Check(text.find("asked hidden mirrored (no draws)")==std::string::npos && text.find("asked hidden mirrored; draws: 0 measured")!=std::string::npos,"and after it, written");
+        watch.Renew();
+        was=watch.Enter(asked.window,true,true,true); watch.Leave(was);
+        Check(!watch.Present(none,3,14,6200,"t").empty(),"after a mark: the next frame written");
+        watch.Stop();
+        Check(watch.Enter(asked.window,true,true,true)==-1 && watch.Present(none,0,15,20000,"").empty(),"stopped: nothing kept or written");
     }
     printf("%d failures\n",failures);
     return failures ? 1 : 0;
