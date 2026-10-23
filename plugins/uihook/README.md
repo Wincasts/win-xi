@@ -452,6 +452,30 @@ detour, taking it only if nothing else has.
 `python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt`
 checks the routines against a private dump.
 
+## Texture census (1.32)
+
+Whether the menus could be reskinned once for them all, by the pieces they are made of (frame, title bar,
+highlight, hand, scrollbar, font), rather than each one drawn again. While on, every screen-space draw's
+texture (stage 0) is read the first time it is seen and counted with the window drawing it and the part of
+the window it is drawn in.
+
+```text
+/uihook textures on      start counting; open the menus to be counted
+/uihook textures off     stop, writing logs\uihook-textures\NN (what was seen is kept)
+/uihook textures dump    write logs\uihook-textures\NN now
+/uihook textures clear   forget what was seen
+```
+
+Each run is a folder of its own: `index.txt` and each texture read once as `tex-<hash>.bmp`. The index gives
+the textures by how many windows draw them, each with its size, format and pool, its draws by part (frame,
+content, cursor, element, scroll, after, text: drawn in a text routine; outside: in no window), how many of
+them came from a vertex buffer, the texture places used (all draws together, so an atlas shows how much of it
+the menus take), up to eight vertex colours and the windows drawing it; then each window with the textures it
+draws. Textures with the same pixels are one, wherever the game keeps them; a pointer unseen for 120 frames is
+read again, as the game may have made another there. One that cannot be locked (the default pool) is
+counted by its size and format. At most 128 MB of pixels are kept. Off until asked, nothing written to the
+game (`src/modules/mirror/textures.h`).
+
 ## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1, ABI 5 in 1.2)
 
 The real menu stays open and keeps its input; an addon draws its own from what it would have drawn.

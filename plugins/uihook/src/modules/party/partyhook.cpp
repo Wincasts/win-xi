@@ -24,6 +24,7 @@
 #include "../mirror/mirror.h"
 #include "../native/native.h"
 #include "../mirror/labels.h"
+#include "../mirror/textures.h"
 #include "../mirror/mouse.h"
 #include "../mirror/watch.h"
 #include "../../slots.h"
@@ -87,6 +88,7 @@ static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, 
 static MirrorShared MirrorBlock;
 static Mirror MenuMirror;
 static NativeLook NativeMenus; // /uihook native: windows' draws moved and scaled, their frames tinted (native.h)
+static TextureCensus Textures; // /uihook textures: every texture the screen-space drawing uses, by window and part (textures.h)
 static MirrorWatch MenuWatch; // every window drawn, kept in WatchBlock; with /uihook mirror watch, to logs\uihook-mirror-watch.txt
 // exported, as nothing in the DLL reads it back: a block private to it would have every write to it optimized away
 extern "C" __declspec(dllexport) MirrorWatchShared UihookWatch{};
@@ -362,6 +364,59 @@ class PartyHook : public IPlugin {
         if (placing && ok) e->moved++;
         return ok;
     }
+    // /uihook textures: a screen-space draw's texture (stage 0), read the first time it is seen, counted with the
+    // window and part drawing it. data: its vertices, from min; none from a vertex buffer.
+    void TextureDraw(const void* data,unsigned vertices,unsigned stride,bool buffered) {
+        if (!Textures.on) return;
+        auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
+        if (!device || FAILED(device->GetVertexShader(&fvf)) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return;
+        IDirect3DBaseTexture8* base=nullptr;
+        if (FAILED(device->GetTexture(0,&base))) base=nullptr;
+        const uintptr_t key=reinterpret_cast<uintptr_t>(base);
+        size_t at=Textures.Known(key,Shared.Frame);
+        if (at==SIZE_MAX) {
+            LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]={}; const char* why="";
+            static const float whole[4]={0,0,1,1};
+            const bool read=base && LabelCut(base,whole,pixels,desc,texels,why);
+            at=Textures.Add(key,Shared.Frame,desc.Width,desc.Height,uint32_t(desc.Format),uint32_t(desc.Pool),read ? &pixels : nullptr,read || !base ? "" : why);
+        }
+        if (base) base->Release();
+        float uv[4]; uint32_t colour=0; bool hasColour=false;
+        const bool hasUV=!buffered && TextureVertices(data,vertices,stride,fvf,uv,&colour,hasColour);
+        const TexturePart part=!Textures.window[0] ? TEXTURE_OUTSIDE : NativeMenus.text ? TEXTURE_TEXT : TexturePart(NativeMenus.phase);
+        Textures.Count(at,part,hasUV ? uv : nullptr,hasColour ? &colour : nullptr,buffered);
+    }
+    void TexturesWrite(char* line,size_t size) {
+        const std::string base=std::string(core->GetInstallPath())+"\\logs\\uihook-textures";
+        CreateDirectoryA(base.c_str(),nullptr);
+        std::string folder;
+        for (unsigned n=1;n<1000 && folder.empty();n++) {
+            char sub[8]; snprintf(sub,sizeof(sub),"\\%02u",n);
+            if (CreateDirectoryA((base+sub).c_str(),nullptr)) folder=base+sub;
+        }
+        unsigned images=0;
+        if (folder.empty() || !Textures.Write(folder,images)) snprintf(line,size,"[uihook:textures] could not write to %s.",base.c_str());
+        else snprintf(line,size,"[uihook:textures] %zu textures (%u as pictures) written to %s\\index.txt.",Textures.entries.size(),images,folder.c_str());
+    }
+    void TexturesCommand(const char* word) {
+        char line[512];
+        if (!_stricmp(word,"on")) {
+            snprintf(line,sizeof(line),Textures.on ? "[uihook:textures] already on."
+                : "[uihook:textures] on: open the menus you want counted, then /uihook textures off to write them to logs\\uihook-textures.");
+            Textures.on=true;
+        } else if (!_stricmp(word,"off")) {
+            Textures.on=false;
+            if (Textures.entries.empty()) snprintf(line,sizeof(line),"[uihook:textures] off; nothing seen.");
+            else TexturesWrite(line,sizeof(line));
+        } else if (!_stricmp(word,"dump")) {
+            if (Textures.entries.empty()) snprintf(line,sizeof(line),"[uihook:textures] nothing seen yet: /uihook textures on, then open some menus.");
+            else TexturesWrite(line,sizeof(line));
+        } else if (!_stricmp(word,"clear")) {
+            Textures.Clear(); snprintf(line,sizeof(line),"[uihook:textures] cleared.");
+        } else snprintf(line,sizeof(line),"[uihook:textures] %s, %zu textures seen (%zu bytes of pixels kept). /uihook textures on|off|dump|clear.",
+            Textures.on ? "on" : "off",Textures.entries.size(),Textures.memory);
+        core->GetChatManager()->Write(0,false,line);
+    }
     void NativeCommand(const char* command) {
         char verb[16]={},name[16]={},a[16]={},b[16]={}; char line[256];
         const int words=sscanf_s(command,"/uihook native %15s %15s %15s %15s",verb,16u,name,16u,a,16u,b,16u);
@@ -573,6 +628,7 @@ public:
         Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat(); ChatReadReset();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         AutoCensus(true);
+        Textures.on=false; Textures.Clear(); Textures.window[0]=0;
         GiveMirror();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
@@ -612,10 +668,11 @@ public:
     }
     void Direct3DBeginScene(bool) override { inScene=true; }
     void Direct3DEndScene(bool) override { inScene=false; }
-    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return Block(); }
-    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return Block(); }
+    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { TextureDraw(nullptr,0,0,true); MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return Block(); }
+    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { TextureDraw(nullptr,0,0,true); MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return Block(); }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
         if (scaling) return false;
+        TextureDraw(data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride,false);
         MenuCensus.Draw();
         if (MenuWatch.Inside()) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0); // our own scaled copy, on its way to the device
@@ -626,6 +683,7 @@ public:
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
         if (scaling) return false;
+        TextureDraw(data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr,vertices,stride,false);
         MenuCensus.Draw();
         if (MenuWatch.Inside()) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
@@ -855,6 +913,7 @@ public:
             return true;
         }
         if (command && !_strnicmp(command,"/uihook census",14)) { CensusCommand(command[14]==' ' ? command+15 : ""); return true; }
+        if (command && !_strnicmp(command,"/uihook textures",16)) { TexturesCommand(command[16]==' ' ? command+17 : ""); return true; }
         if (command && _stricmp(command,"/uihook menus")==0) {
             char line[256];
             snprintf(line,sizeof(line),"[uihook:menus] supported %u; frame/request %u/%u, host %u; applied/restored %u/%u; last %.16s at %u.",
@@ -1359,6 +1418,13 @@ public:
         Mirror::Saved mirrorSaved;
         const bool mirrorHidden=MenuMirror.Begin(window,core->GetDirect3DDevice(),mirrorSaved);
         struct NativeScope { NativeLook::Saved was; ~NativeScope() { NativeMenus.Leave(was); } } nativeScope{NativeEnter(window)};
+        struct TextureScope { char was[17]; ~TextureScope() { memcpy(Textures.window,was,sizeof(was)); } } textureScope;
+        memcpy(textureScope.was,Textures.window,sizeof(textureScope.was));
+        if (Textures.on) {
+            void* header=nullptr; char name[16];
+            const bool named=window && ChatRead(static_cast<uint8_t*>(window)+4,&header,4) && header && ChatRead(static_cast<uint8_t*>(header)+0x46,name,16);
+            Textures.Window(named ? name : "?");
+        }
         struct WatchScope { int was; ~WatchScope() { MenuWatch.Leave(was); } } watchScope{MenuWatch.on ? WatchEnter(window,mirrorHidden) : -1};
         int index=-1;
         for (int i=0;i<4;i++) {
