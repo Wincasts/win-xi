@@ -494,6 +494,7 @@ pictures must tile.
 /uihook skin reload     load the same again, as its pictures are changed
 /uihook skin off        the game's own textures
 /uihook skin            what is loaded, how many of its pictures the game has drawn, and those not drawn yet
+/uihook skin font <menu|title> <file|off>   the skin's menu or title font drawn in a font of Windows' Fonts, or its own
 ```
 
 Some of the game's art is coloured by its vertices, one texture in several colours (the button bars blue-grey or

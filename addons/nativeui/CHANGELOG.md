@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5
+
+- Fonts: Menu Font and Title Font, each Follow Winxi Theme (the theme's Font and Title Font, changing with them),
+  Skin's Own, or any font of C:\\Windows\\Fonts, drawn by uihook 1.52 into the skin's fonts as it loads
+  (`/uihook skin font`).
+
 ## 0.4
 
 - Screen (was Sides): Menu Scale, 0.75 to 2, every framed window of the game's drawn that much larger, each from

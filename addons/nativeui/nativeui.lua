@@ -1,6 +1,6 @@
 addon.name    = 'nativeui'
 addon.author  = 'win'
-addon.version = '0.4'
+addon.version = '0.5'
 addon.desc    = 'The game\'s own interface in a uihook skin, and the menus it stacks over the chat log moved where you want them.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -15,6 +15,8 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- (/uihook native group). Only their drawing is moved: the controller works them as ever, but the mouse clicks
 -- where the game put them.
 --
+-- Fonts: the skin's two fonts (the menus' words, the windows' titles) drawn in a font of C:\Windows\Fonts by uihook as
+-- the skin loads (/uihook skin font), following the winxi theme's Font and Title Font, the skin's own, or any chosen.
 -- Menu Scale: every framed window of the game's drawn this much larger, each from its quarter's corner of the
 -- screen so they keep their places to each other: the bar across the top from its ends, the menus over the chat
 -- log from its top left (/uihook native size).
@@ -22,7 +24,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- half of the screen moved in with it, keeping their size and their places to each other (/uihook native inset).
 -- The chat log and the menus stacked on it stay where they are.
 --
--- Needs uihook 1.47 or newer.
+-- Needs uihook 1.52 or newer.
 
 local winxiNeeded = 41
 do
@@ -40,6 +42,15 @@ local imgui = require('imgui')
 local widgets = require('winxi.widgets')
 local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
+local fonts = require('winxi.fonts')
+local theme = require('winxi.theme')
+
+local THEME_FONT, SKIN_FONT = 'Follow Winxi Theme', 'Skin\'s Own'
+-- each kind of the skin's fonts: its setting, its label, and the theme's font it follows
+local FONT_KINDS = {
+    { kind = 'menu', key = 'menuFont', label = 'Menu Font', themeKey = 'FontFile', tip = 'The menus\' words: their commands, lists and buttons.' },
+    { kind = 'title', key = 'titleFont', label = 'Title Font', themeKey = 'TitleFontFile', tip = 'The windows\' titles on their top edges, and the jobs\' and races\' names.' },
+}
 
 local NONE = 'None'
 local OFFSET_LIMIT = 4000   -- pixels either way
@@ -51,12 +62,14 @@ local defaults = T{
     offset = T{ 0, 0 },      -- the menus over the chat log: pixels right and down from where the game puts them
     inset = T{ 0 },          -- the sides brought in, pixels at each
     scale = T{ 1 },          -- every framed window drawn this much larger
+    menuFont = THEME_FONT,   -- the skin's menu font: the theme's Font, the skin's own, or a file of C:\Windows\Fonts
+    titleFont = THEME_FONT,  -- the skin's title font: the theme's Title Font, the skin's own, or a file
 }
 
 local app
 -- What uihook was last given: sent again only as it changes, and all of it once the game draws (uihook may load
 -- after this, and a skin needs the game's device)
-local sent = { skin = nil, offset = nil, inset = nil, scale = nil }
+local sent = { skin = nil, offset = nil, inset = nil, scale = nil, menu = nil, title = nil }
 
 local function Uihook()
     local ok, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('uihook') end)
@@ -79,12 +92,25 @@ local function Skins()
     return found
 end
 
+-- The font file a kind is drawn in: the theme's (its font, '' where the theme has imgui's own), none for the skin's own,
+-- or the one chosen
+local function FontFile(options, f)
+    local chosen = options[f.key]
+    if chosen == SKIN_FONT then return '' end
+    if chosen == THEME_FONT then
+        local ok, t = pcall(theme.Get)
+        local file = ok and type(t) == 'table' and t[f.themeKey] or ''
+        return type(file) == 'string' and file or ''
+    end
+    return chosen
+end
+
 -- whether uihook was loaded at the last look: loaded again since, it has none of what was given it
 local uihookWas = false
 local function Apply(force)
     local options = app and app.options
     local loaded = Uihook()
-    if loaded and not uihookWas then sent.skin, sent.offset, sent.inset, sent.scale = nil, nil, nil, nil end
+    if loaded and not uihookWas then sent.skin, sent.offset, sent.inset, sent.scale, sent.menu, sent.title = nil, nil, nil, nil, nil, nil end
     uihookWas = loaded
     if not options or not loaded then return end
     local skin = options.skin
@@ -97,6 +123,14 @@ local function Apply(force)
     if force or sent.offset ~= offset then
         Send((x == 0 and y == 0) and '/uihook native group off quiet' or ('/uihook native group %d %d quiet'):format(x, y))
         sent.offset = offset
+    end
+    -- the fonts before the skin's loading is asked again: uihook draws them as it loads, and on each change
+    for _, f in ipairs(FONT_KINDS) do
+        local file = FontFile(options, f)
+        if force or sent[f.kind] ~= file then
+            Send(('/uihook skin font %s %s quiet'):format(f.kind, file == '' and 'off' or file))
+            sent[f.kind] = file
+        end
     end
     local scale = ('%.2f'):format(options.scale[1])
     if force or sent.scale ~= scale then
@@ -136,6 +170,26 @@ local function DrawSettings(options)
         widgets.Label('Reload Skin')
         if imgui.Button('Reload##nativeui.reload') and options.skin ~= NONE and Uihook() then Send('/uihook skin reload') end
         tooltip.Hover('The skin\'s pictures read again, after they have been changed.')
+    end
+    if widgets.Header('Fonts') then
+        widgets.PushControlWidth()
+        for _, f in ipairs(FONT_KINDS) do
+            widgets.Label(f.label)
+            if imgui.BeginCombo('##nativeui.' .. f.key, options[f.key]) then
+                local choices = { THEME_FONT, SKIN_FONT }
+                for _, file in ipairs(fonts.Files()) do choices[#choices + 1] = file end
+                for _, choice in ipairs(choices) do
+                    if imgui.Selectable(choice .. '##nativeui.' .. f.key .. '.' .. choice, options[f.key] == choice) then
+                        options[f.key] = choice
+                        app:Save()
+                        Apply()
+                    end
+                end
+                imgui.EndCombo()
+            end
+            tooltip.Hover(f.tip .. ' Follow Winxi Theme: the theme\'s ' .. (f.kind == 'menu' and 'Font' or 'Title Font') .. ', changing with it. Skin\'s Own: as the skin was made. Any other: that font of C:\\Windows\\Fonts, drawn by uihook as the skin loads.')
+        end
+        widgets.PopControlWidth()
     end
     if widgets.Header('Screen') then
         widgets.PushControlWidth()
@@ -187,7 +241,10 @@ local function Complete(options)
     if type(options.inset) ~= 'table' then options.inset = T{ 0 } end
     options.inset[1] = math.max(0, math.min(INSET_LIMIT, math.floor((tonumber(options.inset[1]) or 0) + 0.5)))
     -- another character's settings: all of it given again
-    sent.skin, sent.offset, sent.inset, sent.scale = nil, nil, nil, nil
+    for _, f in ipairs(FONT_KINDS) do
+        if type(options[f.key]) ~= 'string' or options[f.key] == '' then options[f.key] = THEME_FONT end
+    end
+    sent.skin, sent.offset, sent.inset, sent.scale, sent.menu, sent.title = nil, nil, nil, nil, nil, nil
 end
 
 app = shell.New({

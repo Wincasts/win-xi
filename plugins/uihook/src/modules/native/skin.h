@@ -35,7 +35,7 @@
 struct SkinColour { uint32_t from=SKIN_ANY, to=0; bool alpha=false; };    // RGB, or SKIN_ANY for every colour; alpha: to's own, not the game's
 
 // One size of a picture: tex-<hash>.png is the game's size, tex-<hash>@<factor>.png that many times it
-struct SkinSize { float factor=1; uint32_t width=0, height=0; void* texture=nullptr; };
+struct SkinSize { float factor=1; uint32_t width=0, height=0; void* texture=nullptr; std::vector<uint32_t> base; };   // base: the file's pixels, kept for a font's picture, to draw its glyphs again on
 
 struct SkinTexture {
     uint32_t hash=0, width=0, height=0;
