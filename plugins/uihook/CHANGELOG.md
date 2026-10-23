@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.55
+
+- What the bar across the top shows is moved for the whole bar alike: its help text is drawn a letter or a few at a
+  time, and 1.50, moving each by where it lay, slid the start of a sentence over its end. All of it goes with the
+  left end, what is at the right end (its title) with that end; while the bar showed something over its middle the
+  frame before (the loading screen's progress line), what is by the middle stays there.
+
 ## 1.54
 
 - A font chosen is drawn smoothed: each glyph four times as large and averaged down, as a font's own hints turn

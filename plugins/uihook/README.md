@@ -520,7 +520,7 @@ copied to `config\uihook\skins\test\`; `--style winxi` makes `skins/winxi` from 
 (`config\addons\winxi\theme.lua`, or `--theme`) and winxi's own images: the frame the Border Style's art as winxi
 draws it (a nine-slice, its outer 8 of 64 texels in 3 pixels) laid on the game's 3-pixel line 1 pixel in from
 the edge, as wide as `--frame-width` (1 pixel by default, 3 the game's whole line), at the game's size, its alpha
-`--frame-alpha` (15 hex by default, `theme` for the Border Opacity), at the Border Opacity all round; the Background Style (the Background Color with
+`--frame-alpha` (20 hex by default, `theme` for the Border Opacity), at the Border Opacity all round; the Background Style (the Background Color with
 `lines.png` over it for FFXI-inspired, a tinted tile for the others); the buttons in the Tab Style's art, and a
 `skin.txt` colouring the game's blue-grey bars as a tab not chosen and its orange ones as the chosen tab; the hand
 and item boxes in the border's steel; the menu font (`30CDD9D4`'s large font, the menus' labels

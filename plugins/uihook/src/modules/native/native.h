@@ -96,7 +96,10 @@ struct NativeEntry {
     char name[16]={};
     bool place=false,tint=false;
     bool group=false,member=false;   // made for the group; and, this frame, one of it
-    bool automatic=false,noInset=false;  // made as it was drawn (for the group or the inset), its place given up when long undrawn; never brought in
+    bool automatic=false,noInset=false;
+    // the bar across the top: whether it drew something over its middle (what the game centres while loading, its
+    // progress line) this frame, and the frame before, which says how what it shows is moved
+    bool barSpanning=false,barCentred=false;  // made as it was drawn (for the group or the inset), its place given up when long undrawn; never brought in
     float dx=0,dy=0,scale=1; uint32_t colour=0;
     // the window's draws' bounds as the game made them, in display pixels: those of the frame being drawn, and the
     // last whole frame's, which each frame's draws are placed by
@@ -235,6 +238,7 @@ public:
                 if (e->gathered) { memcpy(e->bounds,e->gather,sizeof(e->bounds)); e->known=true; }
                 if (e->frameGathered) { memcpy(e->frame,e->frameGather,sizeof(e->frame)); e->frameKnown=true; }
                 e->gathered=e->frameGathered=false; e->gatherFrame=frame;
+                e->barCentred=e->barSpanning; e->barSpanning=false;
             }
             current=e;
         }
@@ -325,19 +329,21 @@ public:
         }
         return true;
     }
-    // A draw on the bar across the top that is not its frame (what the bar shows): moved with the end it is near
-    // (within the inset and a little more of it: the help text at its left, its title at its right), else left in
-    // the middle with the bar (what the game centres there while loading: "Downloading data...", the progress line),
-    // not pinched by each vertex's side, which pulled such a line's ends apart from its words
-    bool OnBar(const void* data,unsigned count,unsigned stride,NativeTransform& t) const {
+    // A draw on the bar across the top that is not its frame (what the bar shows), moved for the whole bar alike: its
+    // help text is drawn a letter or a few at a time, and each moved by where it lay (1.50) slid the sentence's start
+    // over its end. What is at its right end (its title) goes with that end; the rest with its left end, but while
+    // the bar shows something over its middle (the frame before: the loading screen's progress line, with
+    // "Downloading data..." centred by it) it stays in the middle with the bar, but what is near the left end.
+    bool OnBar(const void* data,unsigned count,unsigned stride,NativeTransform& t) {
         if (!t.pinch || !current || (phase==MIRROR_FRAME && !text) || !current->frameKnown) return false;
         float b[4];
         if (!Bounds(data,count,stride,b)) return false;
         const float* f=current->frame;
         const float reach=t.inset+NATIVE_BAR_REACH;
+        if (b[0]<t.middle && b[2]>t.middle) current->barSpanning=true;
         t.pinch=false;
-        if (b[0]<f[0]+reach) { t.ax=0; t.dx=t.inset; }
-        else if (b[2]>f[2]-reach) { t.ax=t.width; t.dx=-t.inset; }
+        if (b[0]>=t.middle && b[2]>f[2]-reach) { t.ax=t.width; t.dx=-t.inset; }
+        else if (!current->barCentred || b[0]<f[0]+reach) { t.ax=0; t.dx=t.inset; }
         else { t.ax=t.middle; t.dx=0; }
         return true;
     }
