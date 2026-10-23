@@ -472,7 +472,10 @@ content, cursor, element, scroll, after, text: drawn in a text routine; outside:
 them came from a vertex buffer, the texture places used (all draws together, so an atlas shows how much of it
 the menus take), up to eight vertex colours and the windows drawing it; then each window with the textures it
 draws. Under each texture, up to 48 of its pieces as drawn (1.35): window, part, place and size on the screen,
-the texture places at the piece's top-left and bottom-right corners, colour, and how many were alike. Textures with the same pixels are one, wherever the game keeps them; a pointer unseen for 120 frames is
+the texture places at the piece's top-left and bottom-right corners, colour, and how many were alike.
+`glyphs.txt` (1.37): each print matched to the pieces it drew, where they are as many as its characters (spaces
+drawn or not) or a whole number of times as many, gives each font texture's glyphs by character, with their
+texels and size on the screen. Textures with the same pixels are one, wherever the game keeps them; a pointer unseen for 120 frames is
 read again, as the game may have made another there. One that cannot be locked (the default pool) is
 counted by its size and format. At most 128 MB of pixels are kept. Off until asked, nothing written to the
 game (`src/modules/mirror/textures.h`).

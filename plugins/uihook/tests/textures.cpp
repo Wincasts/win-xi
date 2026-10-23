@@ -61,6 +61,26 @@ int main() {
     census.Sample(first,TEXTURE_FRAME,elsewhere,pa,0);
     census.Sample(first,TEXTURE_FRAME,where,pb,0);
     Check(census.entries[first].samples.size()==2 && census.entries[first].samples[0].count==3,"pieces alike wherever they are kept once, counted");
+    // prints matched to their glyphs
+    std::vector<uint16_t> tokens;
+    const uint8_t said[]={'A',' ','b',0x1e,0x02,0x82,0xa0,'c'};
+    GlyphTokens(said,sizeof(said),false,tokens);
+    Check(tokens.size()==4 && tokens[0]=='A' && tokens[1]=='b' && tokens[2]==0x82a0 && tokens[3]=='c',"a print's characters, codes skipped, a Shift-JIS pair one");
+    TextureCensus fonts; fonts.on=true;
+    LabelPixels fp=Pixels(0xff000000); LabelPixels big; big.width=100; big.height=100; big.argb.assign(10000,1);
+    const size_t font=fonts.Add(0x7000,1,100,100,D3DFMT_A8R8G8B8,1,&big,"");
+    auto piece=[&](float u) { const float r[4]={0,0,8,12},t[4]={u,0,u+0.08f,0.12f}; fonts.PrintPiece(font,r,t); };
+    const uint8_t ab[]={'A',' ','B'};
+    fonts.PrintBegin(ab,3); piece(0.1f); piece(0.1f); piece(0.3f); piece(0.3f); fonts.PrintEnd();
+    Check(fonts.matched==1 && fonts.entries[font].glyphs.size()==2 && fonts.entries[font].glyphs[0].token=='A' && fonts.entries[font].glyphs[0].texels[0]==10
+        && fonts.entries[font].glyphs[1].token=='B' && fonts.entries[font].glyphs[1].texels[0]==30,"each drawn twice, a shadow with it: its glyph");
+    fonts.PrintBegin(ab,3); piece(0.1f); piece(0.2f); piece(0.3f); fonts.PrintEnd();
+    Check(fonts.matched==2 && fonts.entries[font].glyphs.size()==3 && fonts.entries[font].glyphs[2].token==' ',"a space drawn: matched with spaces");
+    fonts.PrintBegin(ab,3); piece(0.1f); fonts.PrintEnd();
+    Check(fonts.matched==2 && fonts.runs==3,"pieces that do not match the print: nothing kept");
+    const uint8_t outer[]={'X'};
+    fonts.PrintBegin(outer,1); fonts.PrintBegin(ab,3); piece(0.5f); fonts.PrintEnd(); fonts.PrintEnd();
+    Check(fonts.matched==3 && fonts.entries[font].glyphs.back().token=='X',"a print within a print: the outer's");
     printf("textures: %d failures\n",failures);
     return failures ? 1 : 0;
 }
