@@ -423,6 +423,7 @@ public:
         if (module.lpBaseOfDll && TakeMirror(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) {
             MirrorBlock.Supported=MIRROR_SUPPORTED;
             if (Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) MirrorBlock.Supported|=MIRROR_SUPPORTED_MOUSE;
+            StartAutoCensus();
         }
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
             (Shared.SupportedMask & 8 ? "[uihook:party] Party/target hooks ready (native arrows preserved). /pt native [target] on; unload hideparty first." :
@@ -464,6 +465,7 @@ public:
         Hud.SupportedMask=0; Hud.Submit=0;
         Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat(); ChatReadReset();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
+        AutoCensus(true);
         GiveMirror();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
@@ -475,6 +477,7 @@ public:
             if (WatchFile) WatchPresent(); else MenuWatch.Next();
         }
         if (labelsAt && int32_t(GetTickCount()-labelsAt)>=0) { labelsAt=0; LabelsCommand(); }
+        AutoCensus(false);
         ++Shared.Frame;
         MenuCensus.frame=Shared.Frame; MirrorBlock.Frame=Shared.Frame;
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
@@ -553,6 +556,29 @@ public:
         MenuCensus.on=false; MenuCensus.current=nullptr; MenuWatch.Stop(); WatchFile=false; WatchBlock.Count=0;
         GiveMirrorContent(); Give(CensusBitmapDetour); Give(CensusScaledDetour); Give(CensusFontDetour);
     }
+    // The census kept from load, every session its own file in logs\uihook-census (named for when it began),
+    // written a few seconds after a window is first seen, each minute while windows are drawn, and as uihook
+    // is unloaded: every menu opened while playing is documented without a command. /uihook census off stops it.
+    std::string censusAuto; DWORD censusWrittenAt=0, censusNewAt=0; size_t censusWritten=0; uint32_t censusFrame=0;
+    void StartAutoCensus() {
+        if (!StartCensus()) return;
+        const std::string folder=std::string(core->GetInstallPath())+"\\logs\\uihook-census";
+        CreateDirectoryA(folder.c_str(),nullptr);
+        SYSTEMTIME t; GetLocalTime(&t); char name[48];
+        snprintf(name,sizeof(name),"\\%04u-%02u-%02u_%02u%02u%02u.txt",t.wYear,t.wMonth,t.wDay,t.wHour,t.wMinute,t.wSecond);
+        censusAuto=folder+name; censusWrittenAt=GetTickCount(); censusNewAt=0; censusWritten=0; censusFrame=0;
+    }
+    void AutoCensus(bool now) {
+        if (censusAuto.empty() || !MenuCensus.on || MenuCensus.windows.empty()) return;
+        const DWORD tick=GetTickCount();
+        if (MenuCensus.windows.size()!=censusWritten && !censusNewAt) censusNewAt=tick ? tick : 1;
+        uint32_t last=0; for (auto& w:MenuCensus.windows) last=(std::max)(last,w.last);
+        const bool fresh=censusNewAt && tick-censusNewAt>=5000;
+        const bool minute=tick-censusWrittenAt>=60000 && last!=censusFrame;
+        if (!now && !fresh && !minute) return;
+        if (MenuCensus.Write(censusAuto.c_str(),"heard")) { censusWritten=MenuCensus.windows.size(); censusFrame=last; }
+        censusWrittenAt=tick; censusNewAt=0;
+    }
     bool StartCensus() { if (!MirrorBlock.Supported) return false; MenuCensus.on=true; return true; }
     void StopCensus() { MenuCensus.on=false; MenuCensus.current=nullptr; }
     void CensusCommand(const char* word) {
@@ -562,6 +588,7 @@ public:
             snprintf(line,sizeof(line),MenuCensus.on ? "[uihook:census] already on." : StartCensus()
                 ? "[uihook:census] on: open the menus you use, then /uihook census dump." : "[uihook:census] the text routines were not found in this client.");
         } else if (!_stricmp(word,"off")) {
+            AutoCensus(true); censusAuto.clear();
             StopCensus(); snprintf(line,sizeof(line),"[uihook:census] off; %zu windows kept until /uihook census clear.",MenuCensus.windows.size());
         } else if (!_stricmp(word,"clear")) {
             MenuCensus.Clear(); snprintf(line,sizeof(line),"[uihook:census] cleared.");
