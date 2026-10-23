@@ -328,17 +328,12 @@ class PartyHook : public IPlugin {
         return out[0]>0 && out[1]>0;
     }
     bool NativeDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
-        if (!data || !vertices || stride<8 || (!NativeMenus.current && !(NativeMenus.inset>0 || NativeMenus.groupOn))) return false;
+        NativeEntry* e=NativeMenus.current;
+        if (!e || !data || !vertices || stride<8) return false;
+        const UINT used=min+vertices;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0,pixel=0;
         if (!device || FAILED(device->GetVertexShader(&shader)) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) { NativeMenus.Unmoved(); return false; }
-        // a draw outside any window, within one moved (the title box's words, drawn after it): moved with it
-        NativeEntry* e=NativeMenus.current;
-        const bool orphan=!e && (e=NativeMenus.Orphan(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride,Shared.Frame))!=nullptr;
-        if (!e) return false;
-        struct Adopted { bool on; ~Adopted() { if (on) NativeMenus.current=nullptr; } } adopted{orphan};
-        if (orphan) NativeMenus.current=e;
-        const UINT used=min+vertices;
-        if (!orphan) NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
+        NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
         // the screen's size, not the viewport's: the game clips some text to its window with a viewport (the title
         // box's), which taken for the screen made its middle the box's and its words pinched there
         D3DVIEWPORT8 viewport={};

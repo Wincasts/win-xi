@@ -154,6 +154,8 @@ public:
         if (!memcmp(name,"menu    logwindo",16)) { logLeft=target[0]; logTop=target[1]; logFrame=frame; return; }
         NativeEntry* e=Find(name,false);
         const bool member=GroupMember(name,target);
+        // one made as it was drawn (for the inset) before it was one of the group: the group's now
+        if (e && member && e->automatic && !e->group) { e->group=true; e->dx=groupX; e->dy=groupY; }
         if (e) { e->member=member; return; }
         if (!member) return;
         e=Make(name,frame);
@@ -286,23 +288,6 @@ public:
     bool Tinting(uint32_t& colour) const {
         if (!current || !current->tint || phase!=MIRROR_FRAME || text) return false;
         colour=current->colour; return true;
-    }
-    // A draw made outside any window that lies within one moved, drawn since the frame before (the title box's words,
-    // drawn after the box): that window, the smallest such, to be moved with; none while nothing is moved by the
-    // inset or the group
-    NativeEntry* Orphan(const void* data,unsigned count,unsigned stride,uint32_t frame) {
-        if (current || !(inset>0 || groupOn)) return nullptr;
-        float b[4];
-        if (!Bounds(data,count,stride,b)) return nullptr;
-        NativeEntry* best=nullptr; float area=0;
-        for (auto& e:entries) {
-            if (!e.name[0] || !e.place || !e.frameKnown || frame-e.seen>1) continue;
-            const float* f=e.frame;
-            if (b[0]<f[0]-2 || b[1]<f[1]-2 || b[2]>f[2]+2 || b[3]>f[3]+2) continue;
-            const float a=(f[2]-f[0])*(f[3]-f[1]);
-            if (!best || a<area) { best=&e; area=a; }
-        }
-        return best;
     }
     // A draw of a window moved that could not be (from a vertex buffer)
     void Unmoved() { if (current && current->place) current->unmoved++; }

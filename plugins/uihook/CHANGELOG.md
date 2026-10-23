@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.43
+
+- A window given an entry for the inset before it was found to be one of the group over the chat log (drawn
+  before the log was seen) is the group's once it is: it was moved sideways with the inset, not by the group's
+  offset.
+- 1.41's draws outside any window moved with the window they lie within are gone: the mouse pointer, drawn outside
+  any window, jumped with each window it was over. (The title box's words were clipped by a viewport, 1.42.)
+
 ## 1.42
 
 - The native look places by the screen's size (the render target's), not the viewport's: the game clips some text
