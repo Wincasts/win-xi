@@ -26,6 +26,9 @@ check('the sides brought in as it changes', Sent('/uihook native inset 100 quiet
 options.skin = 'None'
 H.frames(1)
 check('no skin: the game\'s own', Sent('/uihook skin off'))
+queued = {}
+H.loaded('uihook', false); H.frames(1); H.loaded('uihook', true); H.frames(1)
+check('uihook loaded again: given it all again', Sent('/uihook skin off') and Sent('/uihook native inset 100 quiet'))
 check('the command opens the settings', H.command('/nativeui'))
 H.frames(2)
 check('the settings drawn', (H.calls['BeginCombo'] or 0) > 0 and (H.calls['DragInt'] or 0) > 0 and (H.calls['SliderInt'] or 0) > 0)

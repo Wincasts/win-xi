@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3
+
+- uihook unloaded and loaded again is given the skin, the menus' offset and the sides again: it had none of them
+  until the game was started again.
+
 ## 0.2
 
 - Sides: Bring Sides In, the bar across the top shorter at each end by as many pixels, staying centred, and every

@@ -1,6 +1,6 @@
 addon.name    = 'nativeui'
 addon.author  = 'win'
-addon.version = '0.2'
+addon.version = '0.3'
 addon.desc    = 'The game\'s own interface in a uihook skin, and the menus it stacks over the chat log moved where you want them.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -74,9 +74,14 @@ local function Skins()
     return found
 end
 
+-- whether uihook was loaded at the last look: loaded again since, it has none of what was given it
+local uihookWas = false
 local function Apply(force)
     local options = app and app.options
-    if not options or not Uihook() then return end
+    local loaded = Uihook()
+    if loaded and not uihookWas then sent.skin, sent.offset, sent.inset = nil, nil, nil end
+    uihookWas = loaded
+    if not options or not loaded then return end
     local skin = options.skin
     if force or sent.skin ~= skin then
         Send(skin == NONE and '/uihook skin off' or ('/uihook skin %s'):format(skin))
