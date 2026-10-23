@@ -137,11 +137,16 @@ int main() {
     saved=sides.Enter("menu    netstat ",2);
     Check(sides.Placing(3440,1440,place,&pinch,&whole) && whole,"moved by the inset alone: every draw of it moved, none kept back");
     sides.Leave(saved);
-    V words[2]={{40,20,0,1,0,0,0},{90,32,0,1,0,0,0}},world[2]={{500,500,0,1,0,0,0},{540,520,0,1,0,0,0}};
-    NativeEntry* owner=sides.Orphan(words,2,sizeof(V),2);
-    Check(owner && !memcmp(owner->name,"menu    titlewin",16),"words drawn after the title box, within it: its");
-    Check(!sides.Orphan(world,2,sizeof(V),2),"a draw within no window moved: none");
-    Check(!sides.Orphan(words,2,sizeof(V),9),"a window not drawn lately: none");
+    // a window given an entry for the inset before the log was seen, then found to be of the group: the group's
+    sides.Group(30,-200);
+    saved=sides.Enter("menu    shopmain",3); sides.Leave(saved);
+    NativeEntry* shop=sides.Find("menu    shopmain",false);
+    Check(shop && shop->automatic && !shop->group,"drawn before the log was seen: an entry for the inset");
+    sides.Note("menu    logwindo",log,4);
+    const int16_t buysell[4]={16,1248,112,40};
+    sides.Note("menu    shopmain",buysell,4);
+    Check(shop->group && shop->member && shop->dx==30 && shop->dy==-200,"then over the log: the group's, its offset given");
+    sides.GroupOff();
     sides.Inset(0);
     saved=sides.Enter("menu    titlewin",3);
     Check(!sides.Placing(3440,1440,place,&pinch),"no inset: as the game puts it");
