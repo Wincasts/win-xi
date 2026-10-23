@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.23
+
+- The watch's block is kept: in 1.22 nothing in the DLL read it back, so the compiler left out every write to
+  it and it was never there. It is exported now (`UihookWatch`).
+
 ## 1.22
 
 - The watch is always kept, in memory: each frame, every window drawn (its name, kind, whether it was asked
