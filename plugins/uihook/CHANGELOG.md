@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.53
+
+- The skin's fonts.txt may hold several fonts in one texture, each font line the style of the lines after it:
+  30CDD9D4 holds the menus' buttons' small font (Status, Equipment, Magic: what the menu font is chosen for) as well
+  as the large one, and 1.52 drew only the large. A style may have a shadow (a colour, moved by texels), drawn
+  between its edge and its fill, as the small font's is; a font with no face chosen is left as the skin drew it.
+
 ## 1.52
 
 - `/uihook skin font <menu|title> <file|off> [quiet]`: the skin's fonts drawn in a font chosen in game. A skin's

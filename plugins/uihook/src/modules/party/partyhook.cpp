@@ -527,7 +527,6 @@ class PartyHook : public IPlugin {
     SkinFonts skinFonts;
     std::string skinFontFile[2];
     SkinFontFace skinFace[2];
-    static int SkinFontKind(const std::string& kind) { return kind=="menu" ? 0 : kind=="title" ? 1 : -1; }
     // A font file's path: as given where it is one, else in Windows' Fonts folder
     static std::string SkinFontPath(const std::string& file) {
         if (file.find('\\')!=std::string::npos || file.find(':')!=std::string::npos) return file;
@@ -544,17 +543,19 @@ class PartyHook : public IPlugin {
             if (skinFace[k].path!=SkinWide(path.c_str()) || !skinFace[k].added)
                 if (!skinFace[k].Open(path.c_str()) && why) *why+=(why->empty() ? "" : "; ")+path+" could not be opened";
         }
+        // each texture holding fonts once (one may hold several: the menus' small font and a large one)
+        std::vector<uint32_t> done;
         for (auto& style:skinFonts.styles) {
-            const int k=SkinFontKind(style.kind);
+            if (std::find(done.begin(),done.end(),style.hash)!=done.end()) continue;
+            done.push_back(style.hash);
             const int32_t at=Skin.Find(style.hash);
-            if (k<0 || at<0) continue;
+            if (at<0) continue;
             for (auto& z:Skin.textures[size_t(at)].sizes) {
                 if (z.base.empty() || !z.texture) continue;
                 std::vector<uint32_t> argb=z.base;
-                if (!skinFontFile[k].empty() && skinFace[k].added) {
-                    SkinFontDrawer drawer; drawer.face=&skinFace[k];
-                    drawn+=drawer.Draw(skinFonts,style.hash,z.factor,argb,int(z.width),int(z.height));
-                }
+                SkinFontDrawer drawer;
+                for (int k=0;k<2;k++) drawer.faces[k]=!skinFontFile[k].empty() && skinFace[k].added ? &skinFace[k] : nullptr;
+                drawn+=drawer.Draw(skinFonts,style.hash,z.factor,argb,int(z.width),int(z.height));
                 SkinUpload(static_cast<IDirect3DTexture8*>(z.texture),argb,z.width,z.height);
             }
         }
@@ -592,7 +593,7 @@ class PartyHook : public IPlugin {
                     || FAILED(device->CreateTexture(width,height,0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,&texture))) { failed++; continue; }
                 if (!SkinUpload(texture,argb,width,height)) { texture->Release(); failed++; continue; }
                 SkinSize size; size.factor=factor; size.width=width; size.height=height; size.texture=texture;
-                if (hasFonts && skinFonts.Style(hash)) size.base=std::move(argb);
+                if (hasFonts && skinFonts.Has(hash)) size.base=std::move(argb);
                 if (had>=0) SkinLook::AddSize(Skin.textures[size_t(had)],size);
                 else { SkinTexture t; t.hash=hash; SkinLook::AddSize(t,size); Skin.textures.push_back(t); }
             } while (FindNextFileA(find,&found));
