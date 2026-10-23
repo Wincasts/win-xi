@@ -26,13 +26,17 @@
 #          colouring them as the theme colours its tabs: the game's blue-grey bars as a tab not chosen, its
 #          orange ones as the chosen tab, in the Highlight Color
 #        - the hand and item boxes in the steel of the border
+#        - the menu font (30CDD9D4's large font: the menus' labels and lists) in the theme's Font, each glyph drawn
+#          where the game's was (the game places and spaces them as ever), on its baseline at its height, white with
+#          the game's dark edge; --font names another (a file of the game's C:\Windows\Fonts, or a path)
 import argparse, colorsys, math, os, re, struct, sys
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(HERE, '..', 'addons', 'libs', 'winxi', 'assets')
 LIVE_THEME = os.path.expanduser('~/Games/PhoenixXI/config/addons/winxi/theme.lua')
 DEFAULT_THEME = os.path.join(HERE, '..', 'addons', 'libs', 'winxi', 'theme.lua')
+GAME_FONTS = os.path.expanduser('~/.local/share/com.phoenixxi.launcher/prefix/0/drive_c/windows/Fonts')
 
 # The census's pictures: 32-bit, alpha kept, which PIL reads as opaque
 def read_bmp(path):
@@ -207,8 +211,13 @@ def frames(art, scale=1, size=32):
             cp[i, j] = gp[i, n // 2] if i < inset + edge or i >= n - inset - edge else (0, 0, 0, 0)
     return ring, rows, columns
 
-def winxi_skin(census, theme, frame_scale=1):
+def winxi_skin(census, theme, frame_scale=1, font=None):
     pictures = {}
+    name = font or theme.get('FontFile') or 'trebuc.ttf'
+    path = font_file(name)
+    im = census('30CDD9D4')
+    if im and path: pictures['30CDD9D4'] = menu_font(im, path)
+    elif im: print(f'font {name} not found; the menu font left')
     style = theme.get('BorderStyle', 'ffxi')
     line = border_line(style)
     steel = steel_of(line)
@@ -230,6 +239,82 @@ def winxi_skin(census, theme, frame_scale=1):
            f'9E2854A3 613C20 {chosen[0]:02X}{chosen[1]:02X}{chosen[2]:02X}   # its orange ones: the chosen tab, in the Highlight Color\n')
     return pictures, txt
 
+# ---- the menu font ----
+# 30CDD9D4's large font, in rows of 24 texels from 131 (as the census's glyphs and the texture's own ink show):
+# each glyph white with a dark edge 2 texels wide, drawn half size; its baseline 19 texels down its row, capitals
+# 17 tall
+MENU_FONT_ROWS = [(131, '/0123456789AB'), (155, 'CDEFGHIJKLMN'), (179, 'OPQRSTUVWXY'), (203, 'Zabcdefghijklm'), (227, 'nopqrstuvwxyz')]
+MENU_BASELINE, MENU_CAPS, MENU_EDGE = 19, 17, 2
+MENU_EDGE_COLOUR = (8, 16, 8, 150)
+MENU_FILL = 0.85   # each glyph widened to at least this share of the game's glyph's width: the game spaces them as its own
+
+def glyph_boxes(im, top, chars):
+    # each glyph's columns in its row: runs of ink, the threshold raised until there are as many as the characters
+    px = im.load()
+    for threshold in (40, 80, 120, 160, 200):
+        cols = [max(px[x, y][3] for y in range(top, top + 24)) for x in range(im.width)]
+        runs, x = [], 0
+        while x < im.width:
+            if cols[x] >= threshold:
+                a = x
+                while x < im.width and cols[x] >= threshold: x += 1
+                runs.append((a, x))
+            else: x += 1
+        if len(runs) == len(chars):
+            # told apart only above their edges' strength: the edges given back
+            grow = 0 if threshold == 40 else MENU_EDGE
+            return [(max(0, a - grow), min(im.width, b + grow)) for a, b in runs]
+    return None
+
+def font_file(name):
+    if os.path.isabs(name) and os.path.exists(name): return name
+    for folder in (GAME_FONTS, '/usr/share/fonts'):
+        for root, _, files in os.walk(folder):
+            for f in files:
+                if f.lower() == name.lower(): return os.path.join(root, f)
+    return None
+
+def menu_font(im, path):
+    # the game's large font cleared and drawn again in the font at path, each glyph in the place of the game's
+    out = im.copy(); po = out.load()
+    size = 10
+    while size < 80:   # the size whose capitals are as tall as the game's
+        b = ImageFont.truetype(path, size).getbbox('E', anchor='ls')
+        if b[3] - b[1] >= MENU_CAPS: break
+        size += 1
+    font = ImageFont.truetype(path, size)
+    for top, chars in MENU_FONT_ROWS:
+        boxes = glyph_boxes(im, top, chars)
+        if not boxes:
+            print(f'menu font row {top}: its glyphs could not be told apart, left'); continue
+        for i, (ch, (a, b)) in enumerate(zip(chars, boxes)):
+            # the room it has: to halfway to its neighbours, inside the row
+            left = 0 if i == 0 else (boxes[i - 1][1] + a) // 2
+            right = im.width if i == len(boxes) - 1 else (b + boxes[i + 1][0]) // 2
+            for y in range(top, top + 24):
+                for x in range(left, right): po[x, y] = (0, 0, 0, 0)
+            # the glyph drawn large enough for its edge, cut to its ink, squeezed to the game's ink width if wider
+            mask = Image.new('L', (96, 64)); ImageDraw.Draw(mask).text((24, 44), ch, font=font, fill=255, anchor='ls')
+            ink = mask.getbbox()
+            if not ink: continue
+            glyph = mask.crop(ink); baseline = 44 - ink[1]
+            room = (b - a) - 2 * MENU_EDGE
+            want = min(room, max(glyph.width, int(room * MENU_FILL)))
+            if want > 0 and want != glyph.width: glyph = glyph.resize((want, glyph.height), Image.LANCZOS)
+            gx = (a + b) // 2 - glyph.width // 2; gy = top + MENU_BASELINE - baseline
+            pad = MENU_EDGE + 1
+            tile = Image.new('L', (glyph.width + 2 * pad, glyph.height + 2 * pad)); tile.paste(glyph, (pad, pad))
+            edge = tile.filter(ImageFilter.MaxFilter(2 * MENU_EDGE + 1))
+            piece = Image.new('RGBA', tile.size, (0, 0, 0, 0))
+            piece.paste(Image.new('RGBA', tile.size, MENU_EDGE_COLOUR[:3] + (255,)), (0, 0), edge.point(lambda v: v * MENU_EDGE_COLOUR[3] // 255))
+            piece.paste(Image.new('RGBA', tile.size, (255, 255, 255, 255)), (0, 0), tile)
+            # kept within its room, so no neighbour is drawn over
+            px0, py0 = gx - pad, gy - pad
+            crop = (max(0, left - px0), max(0, top - py0), min(piece.width, right - px0), min(piece.height, top + 24 - py0))
+            if crop[2] > crop[0] and crop[3] > crop[1]:
+                out.alpha_composite(piece.crop(crop), (px0 + crop[0], py0 + crop[1]))
+    return out
+
 STYLES = {'test': test_skin, 'winxi': winxi_skin}
 
 def main():
@@ -240,6 +325,7 @@ def main():
     ap.add_argument('--theme')
     ap.add_argument('--scale', type=int, default=1)
     ap.add_argument('--frame-scale', type=int, default=1)
+    ap.add_argument('--font')
     args = ap.parse_args()
     out = os.path.normpath(args.out or os.path.join(HERE, '..', 'plugins', 'uihook', 'build', 'skins', args.style))
     if os.path.normpath(args.census) == out: sys.exit('the output folder is the census folder')
@@ -251,7 +337,7 @@ def main():
             print(f'{name}: not in the census, left'); return None
         im = read_bmp(path)
         return im
-    pictures, txt = winxi_skin(census, theme, args.frame_scale) if args.style == 'winxi' else STYLES[args.style](census, theme)
+    pictures, txt = winxi_skin(census, theme, args.frame_scale, args.font) if args.style == 'winxi' else STYLES[args.style](census, theme)
     os.makedirs(out, exist_ok=True)
     for name, im in pictures.items():
         if args.scale > 1 and im.width <= 64: im = im.resize((im.width * args.scale, im.height * args.scale), Image.NEAREST)

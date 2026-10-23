@@ -516,7 +516,9 @@ draws it (a nine-slice, its outer 8 of 64 texels in 3 pixels) laid on the game's
 the edge, at the game's size, at the Border Opacity all round; the Background Style (the Background Color with
 `lines.png` over it for FFXI-inspired, a tinted tile for the others); the buttons in the Tab Style's art, and a
 `skin.txt` colouring the game's blue-grey bars as a tab not chosen and its orange ones as the chosen tab; the hand
-and item boxes in the border's steel. The game's art stays out of the repository (`src/modules/native/skin.h`).
+and item boxes in the border's steel; the menu font (`30CDD9D4`'s large font, the menus' labels
+and lists) in the theme's Font (`--font` for another, from the game's `C:\Windows\Fonts`), each glyph drawn where the
+game's was, on its baseline at its height with the game's dark edge, the game placing and spacing them as ever. The game's art stays out of the repository (`src/modules/native/skin.h`).
 
 ## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1, ABI 5 in 1.2)
 
