@@ -16,9 +16,6 @@ function M.Draw(options,service,save)
     end
     Tab('General',function()
         controls(options.layout,fields,Changed,'general','chatbox')
-        widgets.Label('Native Menus')
-        if imgui.Checkbox('Anchor Above Info Panel##chatbox.panel.menus',options.anchorMenus) then Changed() end
-        Tip('Anchors native combat/action menus and their supported submenus directly above the visible info panel, not above the chat frame. Uses the game\'s layout, including cursor/hit regions. Requires updated uihook; unsupported menus remain native.')
         widgets.Label('Hide Game Clock')
         if imgui.Checkbox('##chatbox.panel.hideClock',options.hideClock) then Changed() end
         Tip('Hides the game\'s clock, its day and weather icons with it, while chatbox runs; works with the panel on or off. Needs uihook; unload the clock addon and hidecompass, which use the same object.')

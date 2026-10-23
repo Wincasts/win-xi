@@ -1,6 +1,6 @@
 addon.name = 'chatbox'
 addon.author = 'win'
-addon.version = '0.14.0'
+addon.version = '0.15.0'
 addon.desc = 'WinXI native-backed chat, input and expanded history, with an optional chat-owned three-slot info panel.'
 local winxiNeeded = 32
 do
@@ -1553,10 +1553,6 @@ do -- the frame's helpers are this block's, not the main chunk's (LuaJIT allows 
         end
         panelAttachment = infoPanel.Prepare(app.options.infoPanel, panelHost, panelSplit, plan.height, c.fontSize, app.options.fontFile,
             open and plan.bottom or nil)
-        if panelOnly and panelAttachment then
-            -- A zero-height log is not a valid native menu rectangle. Anchor to the actual visible panel.
-            panelAttachment.menus = panelAttachment.rect
-        end
         local lift = panelAttachment and panelAttachment.lift or 0
         if panelAttachment then plan.bottom = plan.bottom - panelAttachment.inputLift end -- this frame's plan, measured afresh each frame
         if lift > 0 then box, second = Lifted(box, lift, liftedFirst), Lifted(second, lift, liftedSecond) end
