@@ -1,0 +1,56 @@
+#include <stdio.h>
+#include <d3d8.h>
+#include "../src/modules/native/skin.h"
+#include "../src/modules/native/skinfile.h"
+static int failures=0;
+static void Check(bool ok,const char* text) { printf("%s %s\n",ok?"ok":"FAIL",text); if(!ok) ++failures; }
+int main() {
+    uint32_t hash=0;
+    Check(SkinLook::FileHash("tex-72D3D795.png",hash) && hash==0x72D3D795u,"a picture named for its texture");
+    Check(SkinLook::FileHash("TEX-c4ddaeb2.BMP",hash) && hash==0xC4DDAEB2u,"either case");
+    Check(!SkinLook::FileHash("tex-72D3D795.jpg",hash) && !SkinLook::FileHash("tex-72D3.png",hash) && !SkinLook::FileHash("frame.png",hash),"anything else left");
+
+    SkinLook skin; int ours=1;
+    Check(!skin.On() && skin.Lookup(0x1000,1,[](uint32_t&) { return true; })==-1,"no skin: nothing swapped");
+    SkinTexture a; a.hash=0xAAAA; a.texture=&ours; skin.textures.push_back(a);
+    SkinTexture b; b.hash=0xBBBB; b.texture=&ours+1; skin.textures.push_back(b);
+    unsigned reads=0;
+    auto as=[&](uint32_t h) { return [&reads,h](uint32_t& out) { reads++; out=h; return true; }; };
+    Check(skin.Lookup(0x1000,1,as(0xBBBB))==1 && reads==1,"a game texture known by its pixels");
+    Check(skin.Lookup(0x1000,2,as(0xAAAA))==1 && reads==1,"seen again: not read again");
+    Check(skin.Lookup(0x2000,2,as(0x1234))==-1 && reads==2,"one the skin has no picture for");
+    Check(skin.Lookup(0x2000,3,as(0x1234))==-1 && reads==2,"and it not read again either");
+    Check(skin.Lookup(0x1000,3+TEXTURE_STALE+1,as(0xAAAA))==0 && reads==3,"unseen a while: read again, as the game may have made another there");
+    Check(skin.Lookup(reinterpret_cast<uintptr_t>(&ours),4,as(0xAAAA))==-1 && reads==3,"the skin's own pictures never swapped");
+    Check(skin.Lookup(0,4,as(0xAAAA))==-1,"no texture: nothing");
+    Check(skin.textures[0].matched==1 && skin.textures[1].matched==1,"game textures found counted");
+    auto failing=[](uint32_t&) { return false; };
+    Check(skin.Lookup(0x3000,5,failing)==-1,"one that cannot be read: left");
+    Check(skin.Clear().size()==2 && !skin.On() && skin.pointers.empty(),"cleared, its textures handed back");
+
+    SkinLook full; full.textures.push_back(a);
+    for (uint32_t i=0;i<SKIN_POINTERS;i++) full.Lookup(0x10000+i*16,i,as(0x1));
+    full.Lookup(0x9999990,SKIN_POINTERS,as(0xAAAA));
+    Check(full.pointers.size()==SKIN_POINTERS && full.pointers.back().index==0 && full.pointers.front().texture==0x10010,"full: the one longest unseen made room");
+
+    // a 2x2 32-bit bmp, bottom-up, written and read back
+    const char* path="skin-test.bmp";
+    FILE* f=fopen(path,"wb");
+    uint8_t header[54]={'B','M'}; auto put=[&](int at,uint32_t v) { memcpy(header+at,&v,4); };
+    put(2,54+16); put(10,54); put(14,40); put(18,2); put(22,2); header[26]=1; header[28]=32; put(34,16);
+    const uint32_t pixels[4]={0x80FF0000,0x8000FF00,0x800000FF,0x80FFFFFF}; // bottom row first
+    fwrite(header,1,54,f); fwrite(pixels,4,4,f); fclose(f);
+    uint32_t w=0,h=0; std::vector<uint32_t> argb;
+    Check(SkinReadPicture(path,w,h,argb) && w==2 && h==2 && argb[0]==0x800000FF && argb[3]==0x8000FF00 && argb[2]==0x80FF0000,"a bmp read the right way up, its alpha kept");
+    put(22,uint32_t(-2)); const uint32_t opaque[4]={0x00102030,0,0,0};
+    f=fopen(path,"wb"); fwrite(header,1,54,f); fwrite(opaque,4,4,f); fclose(f);
+    Check(SkinReadPicture(path,w,h,argb) && argb[0]==0xFF102030,"top-down, and no alpha made opaque");
+    remove(path);
+    // a 2x1 png (half-clear red, blue), by Windows' imaging component
+    static const uint8_t png[]={0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x0d,0x49,0x48,0x44,0x52,0x00,0x00,0x00,0x02,0x00,0x00,0x00,0x01,0x08,0x06,0x00,0x00,0x00,0xf4,0x22,0x7f,0x8a,0x00,0x00,0x00,0x11,0x49,0x44,0x41,0x54,0x78,0x9c,0x63,0xf8,0xcf,0xc0,0xd0,0xc0,0xc0,0xf0,0xff,0x3f,0x00,0x0d,0x7e,0x03,0x7e,0xea,0x1e,0x17,0x21,0x00,0x00,0x00,0x00,0x49,0x45,0x4e,0x44,0xae,0x42,0x60,0x82};
+    f=fopen("skin-test.png","wb"); fwrite(png,1,sizeof(png),f); fclose(f);
+    Check(SkinReadPicture("skin-test.png",w,h,argb) && w==2 && h==1 && argb[0]==0x80FF0000 && argb[1]==0xFF0000FF,"a png read, its alpha kept");
+    remove("skin-test.png");
+    printf("skin: %d failures\n",failures);
+    return failures ? 1 : 0;
+}

@@ -476,6 +476,30 @@ read again, as the game may have made another there. One that cannot be locked (
 counted by its size and format. At most 128 MB of pixels are kept. Off until asked, nothing written to the
 game (`src/modules/mirror/textures.h`).
 
+## Skin (1.33)
+
+The game's own interface drawn with other pictures in place of its textures: every menu at once, its layout,
+input and places the game's own. A skin is a folder, `config\uihook\skins\<name>\`, of pictures named for
+the game textures they stand for as the texture census names them, `tex-<hash>.png` (or `.bmp`, 24 or 32 bits,
+alpha kept), any size: a draw's texture places are a share of its texture, so a picture twice the size is drawn
+twice as fine in the same place. The edge and background textures are tiled (texture places past 1), so their
+pictures must tile.
+
+```text
+/uihook skin <name>     load config\uihook\skins\<name>\ and draw with it
+/uihook skin reload     load the same again, as its pictures are changed
+/uihook skin off        the game's own textures
+/uihook skin            what is loaded, how many of its pictures the game has drawn, and those not drawn yet
+```
+
+A game texture is known by its pixels (the census's hash), read the first time its pointer is seen in a
+screen-space draw, and again where it has not been seen for 120 frames. For a draw whose texture the skin has a
+picture for, stage 0 is given the picture, the draw made, and the game's texture put back; the census and the
+mirror see the game's own. A skin is loaded by command, each time uihook is loaded (an Ashita script can do it).
+`python3 tools/uihook_skin.py <census folder>` makes a test skin by recolouring the chrome the first census
+found (gold frame, red background, green hand, amber buttons) into `plugins/uihook/build/skins/test`, to be
+copied to `config\uihook\skins\test\`; the game's art stays out of the repository (`src/modules/native/skin.h`).
+
 ## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1, ABI 5 in 1.2)
 
 The real menu stays open and keeps its input; an addon draws its own from what it would have drawn.

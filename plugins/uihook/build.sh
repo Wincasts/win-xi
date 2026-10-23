@@ -54,6 +54,6 @@ ln -sf "$MSVC/sdk/lib/um/x86/psapi.lib" "$OUT/lib/Psapi.lib"
 lld-link /nologo /dll /machine:x86 /opt:ref /opt:icf \
     "/def:$HERE/src/exports.def" "/out:$OUT/uihook.dll" \
     "/libpath:$MSVC/crt/lib/x86" "/libpath:$MSVC/sdk/lib/ucrt/x86" "/libpath:$MSVC/sdk/lib/um/x86" "/libpath:$OUT/lib" \
-    "${objects[@]}" "$OUT/versioninfo.res" user32.lib
+    "${objects[@]}" "$OUT/versioninfo.res" user32.lib ole32.lib windowscodecs.lib uuid.lib
 
 echo "built $OUT/uihook.dll"
