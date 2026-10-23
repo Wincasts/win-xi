@@ -7,6 +7,13 @@
 //   /uihook native scale <name> <factor>   drawn larger or smaller, grown from the corner of the screen it is nearest
 //   /uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (0xFF808080 halves it)
 //   /uihook native clear [name]            one, or all, as the game draws them
+//   /uihook native group <x> <y> | off     every window the game stacks above the chat log moved together
+//
+// The group: the windows the game places in the bottom left over its chat log (the command menu, a shop's buy and
+// sell, a yes or no, an item's description...), told by their layout target (+8C, four shorts): its bottom on the
+// chat log's top (within a few), its left no further right than the log's left and 150. Told again each frame, as
+// one window can be placed there or elsewhere (the main menu is on the right, the command menu of the same name
+// over the log). Each gets an entry of its own while it is one.
 //
 // Only the drawing moves: every screen-space draw made while the window is drawn (its frame, elements, contents,
 // text, cursor and scrollbar alike) is copied, moved and drawn in its place, so the window moves whole without
@@ -25,7 +32,10 @@
 #include <algorithm>
 #include "../mirror/mirror.h"
 
-#define NATIVE_ENTRIES 16
+#define NATIVE_ENTRIES 64
+#define NATIVE_GROUP_REACH 150   // how far right of the log's left a window of the group may start, in its units
+#define NATIVE_GROUP_SLACK 8     // how far above the log's top its bottom may be
+#define NATIVE_GROUP_STALE 600   // frames an entry of the group goes undrawn before its place is given to another
 #define NATIVE_SCALE_LOW 0.5f
 #define NATIVE_SCALE_HIGH 3.0f
 
@@ -64,6 +74,7 @@ static bool NativeName(const char* name,char* out) {
 struct NativeEntry {
     char name[16]={};
     bool place=false,tint=false;
+    bool group=false,member=false;   // made for the group; and, this frame, one of it
     float dx=0,dy=0,scale=1; uint32_t colour=0;
     // the window's draws' bounds as the game made them, in display pixels: those of the frame being drawn, and the
     // last whole frame's, which each frame's draws are placed by
@@ -85,6 +96,41 @@ public:
     NativeEntry* current=nullptr;
     MirrorPhase phase=MIRROR_FRAME;
     unsigned text=0;
+    // the group above the chat log, and the log's layout target as last drawn (its left and top), 0 frame unknown
+    bool groupOn=false; float groupX=0,groupY=0;
+    int16_t logLeft=0,logTop=0; uint32_t logFrame=0;
+
+    // Whether a window of this name and layout target is one of the group
+    bool GroupMember(const char* name,const int16_t* target) const {
+        if (!groupOn || !logFrame || !target || target[2]<=0 || target[3]<=0) return false;
+        if (!memcmp(name+8,"logwindo",8) || !memcmp(name+8,"logwin2 ",8) || !memcmp(name+8,"fulllog ",8) || !memcmp(name+8,"inline  ",8)) return false;
+        const int bottom=target[1]+target[3];
+        return bottom<=logTop && bottom>=logTop-NATIVE_GROUP_SLACK && target[0]>=0 && target[0]<=logLeft+NATIVE_GROUP_REACH;
+    }
+    bool Group(float x,float y) {
+        groupOn=true; groupX=x; groupY=y;
+        for (auto& e:entries) if (e.group) { e.dx=x; e.dy=y; }
+        return true;
+    }
+    unsigned GroupOff() {
+        unsigned n=0; groupOn=false;
+        for (auto& e:entries) if (e.name[0] && e.group) { if (&e==current) current=nullptr; e=NativeEntry(); n++; }
+        return n;
+    }
+    // The window about to be drawn, by its name as the game keeps it and its layout target: the log's noted, and
+    // one of the group given its entry (made, or one long undrawn taken for it)
+    void Note(const char* name,const int16_t* target,uint32_t frame) {
+        if (!name || !target) return;
+        if (!memcmp(name,"menu    logwindo",16)) { logLeft=target[0]; logTop=target[1]; logFrame=frame; return; }
+        NativeEntry* e=Find(name,false);
+        const bool member=GroupMember(name,target);
+        if (e) { e->member=member; return; }
+        if (!member) return;
+        e=Find(name,true);
+        if (!e) for (auto& x:entries) if (x.group && frame-x.seen>NATIVE_GROUP_STALE && &x!=current) { x=NativeEntry(); memcpy(x.name,name,16); e=&x; break; }
+        if (!e) return;
+        e->group=true; e->member=true; e->place=true; e->dx=groupX; e->dy=groupY;
+    }
 
     NativeEntry* Find(const char* name,bool add) {
         for (auto& e:entries) if (e.name[0] && !memcmp(e.name,name,16)) return &e;
@@ -123,7 +169,7 @@ public:
         }
         return n;
     }
-    bool Any() const { for (auto& e:entries) if (e.name[0]) return true; return false; }
+    bool Any() const { if (groupOn) return true; for (auto& e:entries) if (e.name[0]) return true; return false; }
 
     // The window being drawn: its entry, if it is one named. Its draws' bounds from the frame before become the ones
     // it is placed by. Returns what to give back after it.
@@ -181,7 +227,7 @@ public:
     }
     // Whether the window's draws are moved, and where (place: as NativePlace gives it): false until its bounds are known
     bool Placing(float width,float height,float* place) const {
-        if (!current || !current->place || !current->known) return false;
+        if (!current || !current->place || !current->known || (current->group && !current->member)) return false;
         const NativeEntry& e=*current;
         if (e.dx==0 && e.dy==0 && e.scale==1) return false;
         return NativePlace(e.frameKnown ? e.frame : e.bounds,e.dx,e.dy,e.scale,width,height,place);

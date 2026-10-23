@@ -14,6 +14,7 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | [mark](addons/mark) | Pick a notorious monster and see its placeholders, their respawns, where it spawns on the map, its window and its drops | `/mark` |
 | [menutoggle](addons/menutoggle) | Start opens and closes the main menu, and closes the social menu too | `/menutoggle` |
 | [mobcast](addons/mobcast) | What the enemies about you are casting, readying and using, in a small window, as the chat log says it | `/mobcast` |
+| [nativeui](addons/nativeui) | The game's own menus in a uihook skin (the winxi look), and the menus it stacks over the chat log (the command menu, shops, yes-or-no, item descriptions) moved where you want them; needs `uihook` | `/nativeui` |
 | [name](addons/name) | Shows and hides the names over characters' heads by what they are, and draws them in winxi's style; needs the `namehook` plugin | `/name` |
 | [occlusionfix](addons/occlusionfix) | Stops characters near walls, door frames and counters blinking out of view; needs nothing else | `/occlusionfix` |
 | [parse](addons/parse) | Experimental packet-based damage, observed hit rates and manual encounter DPS, with capture/replay diagnostics | `/parse` |

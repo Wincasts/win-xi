@@ -571,9 +571,16 @@ For trying a skin on the game's own menus rather than drawing them again: the me
 /uihook native                         what is set, and how much of each was drawn so
 /uihook native move <name> <x> <y>     drawn x, y display pixels from where the game puts it (inventor, equip, ...)
 /uihook native scale <name> <factor>   drawn 0.5 to 3 times its size, from the corner of the screen it is nearest
+/uihook native group <x> <y> [quiet]   every window the game stacks over the chat log drawn x, y from its place, together
+/uihook native group off [quiet]       those as the game draws them again
 /uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (RRGGBB: opaque)
 /uihook native clear [name]            one, or all, drawn as the game draws them
 ```
+
+The group (1.38) is told each frame by each window's layout target (+8C): its bottom on the chat log's top (within 8),
+its left within 150 of the log's, the log itself and the input line not of it. That is the command menu, a shop's
+buy and sell, yes-or-no questions, an item's description and some fifty more; a window of the same name placed
+elsewhere (the main menu on the right) is left. `addons/nativeui` keeps the offset as a setting.
 
 Only the drawing moves: every screen-space draw made while the window is drawn, its frame, elements,
 contents, text, cursor and scrollbar alike, is copied, moved about the window's last frame's bounds and drawn

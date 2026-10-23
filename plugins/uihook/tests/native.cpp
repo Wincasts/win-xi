@@ -77,6 +77,33 @@ int main() {
     look.text++; Check(!look.Tinting(colour) && look.Placing(1000,800,place),"text in its frame moved, not tinted"); look.text--;
     look.Leave(saved);
     Check(look.Clear("inventor")==1 && !look.Any(),"cleared");
+    // the group over the chat log
+    NativeLook group;
+    group.Group(0,-300);
+    Check(group.Any(),"a group set: windows are looked at");
+    const int16_t log[4]={16,1290,658,134},command[4]={16,1200,112,88},yesno[4]={130,1200,252,88},right[4]={3312,47,112,202},high[4]={16,100,112,88};
+    group.Note("menu    menuwind",command,1);
+    Check(!group.Find("menu    menuwind",false),"the log not yet seen: none of the group");
+    group.Note("menu    logwindo",log,1);
+    Check(group.logFrame==1 && group.logTop==1290 && !group.Find("menu    logwindo",false),"the log's place noted, it none of the group");
+    group.Note("menu    menuwind",command,2); group.Note("menu    comyn   ",yesno,2); group.Note("menu    equip   ",high,2);
+    NativeEntry* cm=group.Find("menu    menuwind",false);
+    Check(cm && cm->group && cm->member && cm->dy==-300 && group.Find("menu    comyn   ",false) && !group.Find("menu    equip   ",false),
+        "the windows on the log's top of the group, one placed elsewhere not");
+    group.Note("menu    menuwind",right,3);
+    Check(!cm->member,"the same name placed elsewhere: not of the group this frame");
+    saved=group.Enter("menu    menuwind",3);
+    V cd[2]={{3312,47,0,1,0,0,0},{3424,249,0,1,0,0,0}}; group.Gather(cd,2,sizeof(V)); group.Leave(saved);
+    saved=group.Enter("menu    menuwind",4);
+    Check(!group.Placing(3440,1440,place),"and so not moved");
+    group.Leave(saved);
+    group.Note("menu    menuwind",command,5);
+    saved=group.Enter("menu    menuwind",5);
+    Check(group.Placing(3440,1440,place) && Near(place[3],-47),"of it again: moved, kept on the screen");
+    group.Leave(saved);
+    group.Group(10,-100);
+    Check(cm->dx==10 && cm->dy==-100,"a new offset for every one of it");
+    Check(group.GroupOff()==2 && !group.Any(),"the group off: its entries gone");
     printf("%d failures\n",failures);
     return failures ? 1 : 0;
 }

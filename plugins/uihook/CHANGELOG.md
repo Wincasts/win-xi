@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.38
+
+- `/uihook native group <x> <y> | group off`: every window the game stacks in the bottom left over its chat log
+  (the command menu, a shop's buy and sell, a yes or no, an item's description, some fifty more) drawn that far
+  from where it puts them, together. Told each frame by its layout target: its bottom on the log's top, its left
+  within 150 of the log's. `quiet` after it, as an addon sends it, says nothing. The status names them. Up to 64
+  windows set (16 before). addons/nativeui keeps it as a setting.
+
 ## 1.37
 
 - The texture census hears the glyphs: each print (a text routine) matched to the pieces drawn while it ran, where

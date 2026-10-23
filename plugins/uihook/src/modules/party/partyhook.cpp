@@ -303,6 +303,8 @@ class PartyHook : public IPlugin {
         void* header=nullptr; char name[16];
         if (!window || !ChatRead(static_cast<uint8_t*>(window)+4,&header,4) || !header
             || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return NativeMenus.Enter(nullptr,Shared.Frame);
+        int16_t target[4];
+        if (NativeMenus.groupOn && ChatRead(static_cast<uint8_t*>(window)+CENSUS_TARGET,target,sizeof(target))) NativeMenus.Note(name,target,Shared.Frame);
         return NativeMenus.Enter(name,Shared.Frame);
     }
     // A screen-space draw of a window named: counted into its bounds; then, where it is moved or its frame tinted,
@@ -547,25 +549,38 @@ class PartyHook : public IPlugin {
             const uint32_t colour=static_cast<uint32_t>(strtoul(a,nullptr,16)) | (strlen(a)<=6 ? 0xff000000u : 0);
             snprintf(line,sizeof(line),NativeMenus.Tint(name,colour) ? "[uihook:native] %s's frame tinted %08X."
                 : "[uihook:native] could not tint %s.",name,colour);
+        } else if (words>=2 && !_stricmp(verb,"group") && !_stricmp(name,"off")) {
+            // quiet: as an addon sends it, said nowhere
+            snprintf(line,sizeof(line),"[uihook:native] the windows over the chat log as the game draws them again (%u).",NativeMenus.GroupOff());
+            if (words>=3 && !_stricmp(a,"quiet")) return;
+        } else if (words>=3 && !_stricmp(verb,"group")) {
+            NativeMenus.Group(float(atof(name)),float(atof(a)));
+            snprintf(line,sizeof(line),"[uihook:native] the windows the game stacks over the chat log drawn %s, %s from where it puts them.",name,a);
+            if (words>=4 && !_stricmp(b,"quiet")) return;
         } else if (words>=1 && !_stricmp(verb,"clear")) {
             snprintf(line,sizeof(line),"[uihook:native] %u drawn as the game draws them again.",NativeMenus.Clear(words>=2 ? name : nullptr));
         } else if (words<1) {
             unsigned n=0; for (auto& e:NativeMenus.entries) if (e.name[0]) n++;
             snprintf(line,sizeof(line),"[uihook:native] %u menus set; the game's mouse hit-tests stay where it puts them.",n);
             chat->Write(0,false,line);
+            if (NativeMenus.groupOn) {
+                snprintf(line,sizeof(line),"  group over the chat log: %.0f, %.0f; the log's top %d at its left %d (%s)",NativeMenus.groupX,NativeMenus.groupY,
+                    NativeMenus.logTop,NativeMenus.logLeft,NativeMenus.logFrame ? "seen" : "not drawn yet");
+                chat->Write(0,false,line);
+            }
             for (auto& e:NativeMenus.entries) {
                 if (!e.name[0]) continue;
                 char seen[48];
                 if (!e.seen) snprintf(seen,sizeof(seen),"not drawn since asked");
                 else snprintf(seen,sizeof(seen),"drawn %u frames ago",Shared.Frame-e.seen);
-                snprintf(line,sizeof(line),"  %.8s: %s; move %.0f,%.0f scale %.2f (%u draws moved, %u outside its frame kept, %u could not be), tint %s %08X (%u tinted, %u refused, format %X, stage %u %X %X)",
-                    e.name+8,seen,e.dx,e.dy,e.scale,e.moved,e.kept,e.unmoved,e.tint ? "on" : "off",e.colour,e.tinted,e.refused,
+                snprintf(line,sizeof(line),"  %.8s%s: %s; move %.0f,%.0f scale %.2f (%u draws moved, %u outside its frame kept, %u could not be), tint %s %08X (%u tinted, %u refused, format %X, stage %u %X %X)",
+                    e.name+8,e.group ? (e.member ? " (group)" : " (group, not now)") : "",seen,e.dx,e.dy,e.scale,e.moved,e.kept,e.unmoved,e.tint ? "on" : "off",e.colour,e.tinted,e.refused,
                     static_cast<unsigned>(e.lastFormat),static_cast<unsigned>(e.stage[0]),static_cast<unsigned>(e.stage[1]),static_cast<unsigned>(e.stage[2]));
                 chat->Write(0,false,line);
             }
             return;
         } else {
-            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | scale <name> <factor> | tint <name> <AARRGGBB> | clear [name]]");
+            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | scale <name> <factor> | tint <name> <AARRGGBB> | group <x> <y> | group off | clear [name]]");
         }
         chat->Write(0,false,line);
     }
