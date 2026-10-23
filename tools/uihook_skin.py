@@ -12,9 +12,13 @@
 # test:  strong colours, plain at a glance (gold frame, red background, green hand, amber buttons).
 # winxi: the winxi theme's look, from its theme file (config\addons\winxi\theme.lua; --theme, or the Defaults of
 #        libs\winxi\theme.lua) and its own images (libs\winxi\assets):
-#        - the frame drawn anew at four times the game's size, its line across the Border Style's art
-#          (borders\<style>.png), rounded at its corners; the game's three frame textures are exactly a 3-pixel
-#          line 1 pixel in from the edge, clear about it
+#        - the frame the Border Style's art (borders\<style>.png) as winxi.borders draws it, a nine-slice whose
+#          corners and edges are the art's outer 8 of 64 texels in 3 pixels: the game's three frame textures are
+#          exactly a 3-pixel line 1 pixel in from the edge, clear about it, so the slice is laid there
+#          (--frame-scale times the game's size, 1 by default: the game draws its frame a texel to a pixel, and a
+#          larger one is shrunk unsmoothed). skin.txt draws every piece of it at the theme's Border
+#          Opacity: the game fades its frame by its vertices' alpha (its sides near 0, its top and bottom 0x61),
+#          which left the top and bottom as the game's
 #        - the background the Background Style's: the theme's Background Color with lines.png over it for
 #          'ffxi', a tile of backgrounds\<style>.png tinted by it for the others, flat for 'plain' and 'gradient'
 #          (the game tiles it across a window, so no gradient across one)
@@ -48,6 +52,8 @@ def read_theme(path):
         values.setdefault(key, [float(v) for v in body.replace(' ', '').split(',') if v])
     for key, value in re.findall(r'(\w+)\s*=\s*["\']([^"\']*)["\']', text):
         values.setdefault(key, value)
+    for key, value in re.findall(r'(\w+)\s*=\s*(-?[0-9.]+)\s*,', text):
+        values.setdefault(key, float(value))
     return values
 
 # ---- the test skin ----
@@ -110,35 +116,6 @@ def steel_of(line):
     dark, mid, light = lit[0][:3], lit[len(lit) // 2][:3], lit[-1][:3]
     return [(0, (0, 0, 0)), (40, dark), (120, mid), (230, light), (255, tuple(min(255, c + 30) for c in light))]
 
-def frame(kind, line, size=32, scale=4, radius=4.5):
-    # the line from 1 to 4 in from the edge in the game's pixels, the art's line laid across it, clear about it;
-    # scale times the size, each texel the average of 4x4 samples, colour weighted by its alpha; the ring's
-    # corners rounded to radius
-    n = size * scale
-    out = Image.new('RGBA', (n, n)); po = out.load()
-    def at(d):
-        if d < 1 or d >= 4: return (0, 0, 0, 0)
-        t = (d - 1) / 3 * len(line)
-        i = min(int(t), len(line) - 1); j = min(i + 1, len(line) - 1); f = t - int(t)
-        return tuple(line[i][k] * (1 - f) + line[j][k] * f for k in range(4))
-    for y in range(n):
-        for x in range(n):
-            acc = [0.0, 0.0, 0.0, 0.0]
-            for sy in range(4):
-                for sx in range(4):
-                    px = (x + (sx + 0.5) / 4) / scale; py = (y + (sy + 0.5) / 4) / scale
-                    dx = min(px, size - px); dy = min(py, size - py)
-                    if kind == 'rows': d = dy
-                    elif kind == 'columns': d = dx
-                    elif dx < radius and dy < radius: d = radius - math.hypot(radius - dx, radius - dy)
-                    else: d = min(dx, dy)
-                    c = at(d)
-                    for k in range(3): acc[k] += c[k] * c[3]
-                    acc[3] += c[3]
-            a = acc[3] / 16
-            po[x, y] = (*(int(acc[k] / acc[3]) if acc[3] else 0 for k in range(3)), int(a))
-    return out
-
 # The game draws its background darker than its texture (by its vertices, 0x414141 doubled): drawn this much
 # brighter, so it is seen in the theme's colour
 BACKGROUND_GAIN = 255 / (2 * 0x41)
@@ -199,13 +176,43 @@ def tab_colour(theme, key, strength):
     share = min(1.0, strength / GAME_BAR_ALPHA)
     return tuple(int(255 * (bg[k] + share * (over[k] - bg[k]))) for k in range(3))
 
-def winxi_skin(census, theme):
+def border_art(style):
+    path = os.path.join(ASSETS, 'borders', f'{style}.png')
+    if not os.path.exists(path): path = os.path.join(ASSETS, 'borders', 'ffxi.png')
+    return Image.open(path).convert('RGBA')
+
+def nine_slice(art, size, edge):
+    # as winxi.borders' ArtEdge: the art's outer 8/64 at each side in edge pixels, its middle stretched; no centre
+    cut = art.width * 8 // 64
+    xs_art = [0, cut, art.width - cut, art.width]; xs = [0, edge, size - edge, size]
+    out = Image.new('RGBA', (size, size))
+    for row in range(3):
+        for col in range(3):
+            if row == 1 and col == 1: continue
+            piece = art.crop((xs_art[col], xs_art[row], xs_art[col + 1], xs_art[row + 1]))
+            w, h = xs[col + 1] - xs[col], xs[row + 1] - xs[row]
+            if w > 0 and h > 0: out.paste(piece.resize((w, h), Image.BILINEAR), (xs[col], xs[row]))
+    return out
+
+def frames(art, scale=1, size=32):
+    # the ring a nine-slice from 1 to size-1, its line 3 pixels; the edges' textures its top and bottom rows (tiled
+    # across) or its sides (tiled down), taken from its middle
+    n, edge, inset = size * scale, 3 * scale, scale
+    ring = Image.new('RGBA', (n, n)); ring.paste(nine_slice(art, n - 2 * inset, edge), (inset, inset))
+    rows = Image.new('RGBA', (n, n)); columns = Image.new('RGBA', (n, n))
+    rp, cp, gp = rows.load(), columns.load(), ring.load()
+    for i in range(n):
+        for j in range(n):
+            rp[i, j] = gp[n // 2, j] if j < inset + edge or j >= n - inset - edge else (0, 0, 0, 0)
+            cp[i, j] = gp[i, n // 2] if i < inset + edge or i >= n - inset - edge else (0, 0, 0, 0)
+    return ring, rows, columns
+
+def winxi_skin(census, theme, frame_scale=1):
     pictures = {}
-    line = border_line(theme.get('BorderStyle', 'ffxi'))
+    style = theme.get('BorderStyle', 'ffxi')
+    line = border_line(style)
     steel = steel_of(line)
-    pictures['72D3D795'] = frame('ring', line)
-    pictures['3C8984C5'] = frame('rows', line)
-    pictures['1023C0C5'] = frame('columns', line)
+    pictures['72D3D795'], pictures['3C8984C5'], pictures['1023C0C5'] = frames(border_art(style), frame_scale)
     pictures['92C145C5'] = background(theme, (128, 128))
     for name, how in [('C4DDAEB2', lambda im: ramp(im, steel)), ('2EFCC31D', lambda im: ramp(im, steel)),
                       ('9E2854A3', lambda im: buttons(im, theme.get('TabStyle', 'glass')))]:
@@ -213,8 +220,12 @@ def winxi_skin(census, theme):
         if im: pictures[name] = how(im)
     plain = tab_colour(theme, 'BorderColor', 0.18)
     chosen = tab_colour(theme, 'HighlightColor', theme['HighlightColor'][3])
-    txt = ('# winxi: the game\'s button bars coloured as winxi colours its tabs (made by tools/uihook_skin.py)\n'
-           '# <texture> <the game\'s colour, or *> <drawn as>\n'
+    opacity = int(round(float(theme.get('BorderOpacity', 40)) / 100 * 255))
+    frame_lines = ''.join(f'{name} * {opacity:02X}808080   # {what}, even all round at the Border Opacity\n'
+                          for name, what in [('72D3D795', 'the frame\'s corners'), ('3C8984C5', 'its top and bottom'), ('1023C0C5', 'its sides')])
+    txt = ('# winxi (made by tools/uihook_skin.py)\n'
+           '# <texture> <the game\'s colour, or *> <drawn as: RRGGBB, its alpha the game\'s, or AARRGGBB>\n'
+           + frame_lines +
            f'9E2854A3 616180 {plain[0]:02X}{plain[1]:02X}{plain[2]:02X}   # the game\'s blue-grey bars: a tab not chosen\n'
            f'9E2854A3 613C20 {chosen[0]:02X}{chosen[1]:02X}{chosen[2]:02X}   # its orange ones: the chosen tab, in the Highlight Color\n')
     return pictures, txt
@@ -228,6 +239,7 @@ def main():
     ap.add_argument('--style', choices=sorted(STYLES), default='test')
     ap.add_argument('--theme')
     ap.add_argument('--scale', type=int, default=1)
+    ap.add_argument('--frame-scale', type=int, default=1)
     args = ap.parse_args()
     out = os.path.normpath(args.out or os.path.join(HERE, '..', 'plugins', 'uihook', 'build', 'skins', args.style))
     if os.path.normpath(args.census) == out: sys.exit('the output folder is the census folder')
@@ -239,7 +251,7 @@ def main():
             print(f'{name}: not in the census, left'); return None
         im = read_bmp(path)
         return im
-    pictures, txt = STYLES[args.style](census, theme)
+    pictures, txt = winxi_skin(census, theme, args.frame_scale) if args.style == 'winxi' else STYLES[args.style](census, theme)
     os.makedirs(out, exist_ok=True)
     for name, im in pictures.items():
         if args.scale > 1 and im.width <= 64: im = im.resize((im.width * args.scale, im.height * args.scale), Image.NEAREST)
