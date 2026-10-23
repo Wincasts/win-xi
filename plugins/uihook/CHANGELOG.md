@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.46
+
+- A window asked for by name (`move`, `scale`, `tint`) is kept: one the inset had given an entry was still taken
+  for one made as it was drawn, and given up to another window when long undrawn, its scale lost.
+- One asked for by name that is found over the chat log takes the group's offset and keeps its scale; the group
+  switched off leaves its scale and tint.
+
 ## 1.45
 
 - A window drawn moved (the group, the inset, `move`) is given the skin's colours from skin.txt, as one drawn in

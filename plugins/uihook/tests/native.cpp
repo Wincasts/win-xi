@@ -161,6 +161,13 @@ int main() {
     sides.Note("menu    shopmain",buysell,4);
     Check(shop->group && shop->member && shop->dx==30 && shop->dy==-200,"then over the log: the group's, its offset given");
     sides.GroupOff();
+    // scaled by name while the sides are in: brought in and scaled, kept as asked
+    Check(sides.Scale("titlewin",2),"the title box scaled");
+    saved=sides.Enter("menu    titlewin",2);
+    Check(sides.Placing(3440,1440,place,&pinch) && pinch<0 && Near(place[2],100) && Near(place[0],15),"brought in and grown from its corner");
+    sides.Leave(saved);
+    Check(!sides.Find("menu    titlewin",false)->automatic,"asked for by name: kept, never given up");
+    sides.Scale("titlewin",1);
     sides.Inset(0);
     saved=sides.Enter("menu    titlewin",3);
     Check(!sides.Placing(3440,1440,place,&pinch),"no inset: as the game puts it");
