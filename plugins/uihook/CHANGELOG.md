@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.21
+
+- `/uihook mirror watch`: while on, `logs\uihook-mirror-watch.txt` is written as what is drawn changes (at most
+  once a second): every window Window::Render draws, whether an addon asked for it, whether it was mirrored
+  (or dropped, past 16 a frame), and how its draws were made: measured (`DrawPrimitiveUP` in screen space),
+  not in screen space, or from vertex buffers, which the mirror cannot measure; then each window published,
+  with its place or NO PLACE. `/uihook mirror mark <words>` notes a moment in the file. For reading why a
+  menu is not mirrored while it is open. Mirror ABI 5 as it was.
+
 ## 1.2
 
 - The mouse on a menu the menus addon draws somewhere else, or larger: the game reads each mouse message in

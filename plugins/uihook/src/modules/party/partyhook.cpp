@@ -24,6 +24,7 @@
 #include "../mirror/mirror.h"
 #include "../mirror/labels.h"
 #include "../mirror/mouse.h"
+#include "../mirror/watch.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -84,6 +85,7 @@ static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, 
 // Window::Render aimed at MirrorContent.
 static MirrorShared MirrorBlock;
 static Mirror MenuMirror;
+static MirrorWatch MenuWatch; // /uihook mirror watch: what is drawn, to logs\uihook-mirror-watch.txt
 static void __fastcall MirrorContent(void*,void*);
 struct MirrorContentCall { uint8_t* call=nullptr; uint8_t saved[5]={}; };
 static MirrorContentCall ContentCall;
@@ -464,6 +466,7 @@ public:
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
         MenuMirror.Publish(Shared.Frame);
+        if (MenuWatch.on) WatchPresent();
         if (labelsAt && int32_t(GetTickCount()-labelsAt)>=0) { labelsAt=0; LabelsCommand(); }
         ++Shared.Frame;
         MenuCensus.frame=Shared.Frame; MirrorBlock.Frame=Shared.Frame;
@@ -492,11 +495,12 @@ public:
     }
     void Direct3DBeginScene(bool) override { inScene=true; }
     void Direct3DEndScene(bool) override { inScene=false; }
-    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { MenuCensus.Draw(); Native(false,nullptr,0,0); return Block(); }
-    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { MenuCensus.Draw(); Native(false,nullptr,0,0); return Block(); }
+    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); return Block(); }
+    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); return Block(); }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
         if (scaling) return false;
         MenuCensus.Draw();
+        if (MenuWatch.on) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0); // our own scaled copy, on its way to the device
         Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
         if (Block()) return true;
@@ -505,6 +509,7 @@ public:
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
         if (scaling) return false;
         MenuCensus.Draw();
+        if (MenuWatch.on) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
         Native(true,data,stride,vertices);
         if (Block()) return true;
@@ -536,7 +541,7 @@ public:
     void GiveMirror() {
         MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; MirrorBlock.MouseFrame=0; MenuMirror.Clear();
         Give(InputDetour);
-        MenuCensus.on=false; MenuCensus.current=nullptr;
+        MenuCensus.on=false; MenuCensus.current=nullptr; MenuWatch.Stop();
         GiveMirrorContent(); Give(CensusBitmapDetour); Give(CensusScaledDetour); Give(CensusFontDetour);
     }
     bool StartCensus() { if (!MirrorBlock.Supported) return false; MenuCensus.on=true; return true; }
@@ -614,7 +619,55 @@ public:
             written,sheets.size(),skipped,folder.c_str(),last.WindowCount);
         core->GetChatManager()->Write(0,false,line);
     }
+    // /uihook mirror watch: each window drawn, whether asked for and mirrored, and how it drew, written as it changes
+    std::string WatchPath() const { return std::string(core->GetInstallPath())+"\\logs\\uihook-mirror-watch.txt"; }
+    int WatchEnter(void* window,bool hidden) {
+        char name[16]; uint8_t* header=nullptr; bool hide=false;
+        auto* w=static_cast<uint8_t*>(window);
+        const bool wanted=w && ChatRead(w+CENSUS_HEADER,&header,4) && header && ChatRead(header+CENSUS_NAME,name,16) && MenuMirror.Wanted(name,hide);
+        return MenuWatch.Enter(window,wanted,hidden,MenuMirror.Active());
+    }
+    void WatchUp() {
+        DWORD fvf=0; auto* device=core->GetDirect3DDevice();
+        const bool screen=device && SUCCEEDED(device->GetVertexShader(&fvf)) && (fvf & D3DFVF_POSITION_MASK)==D3DFVF_XYZRHW;
+        MenuWatch.Draw(screen ? MirrorWatch::UP : MirrorWatch::OTHER);
+    }
+    void WatchWrite(const std::string& text) {
+        if (text.empty()) return;
+        if (FILE* file=fopen(WatchPath().c_str(),"a")) { fputs(text.c_str(),file); fclose(file); }
+    }
+    static std::string WatchClock() {
+        SYSTEMTIME t; GetLocalTime(&t); char clock[16];
+        snprintf(clock,sizeof(clock),"%02u:%02u:%02u.%03u",t.wHour,t.wMinute,t.wSecond,t.wMilliseconds);
+        return clock;
+    }
+    void WatchPresent() {
+        WatchWrite(MenuWatch.Present(MirrorBlock.Published,MirrorBlock.Dropped,Shared.Frame,GetTickCount(),WatchClock().c_str()));
+    }
+    void WatchCommand(const char* word) {
+        char line[320]; const std::string path=WatchPath();
+        if (word[0]) {
+            // a line of the player's own in the file, where they are and what they see, and the next frame written
+            if (!MenuWatch.on) { core->GetChatManager()->Write(0,false,"[uihook:mirror] the watch is off: /uihook mirror watch first."); return; }
+            WatchWrite("-- "+WatchClock()+" mark: "+word+"\n"); MenuWatch.Renew();
+            snprintf(line,sizeof(line),"[uihook:mirror] marked: %s",word);
+        } else if (MenuWatch.on) {
+            MenuWatch.Stop(); snprintf(line,sizeof(line),"[uihook:mirror] watch off; %s kept.",path.c_str());
+        } else if (!MirrorBlock.Supported) {
+            snprintf(line,sizeof(line),"[uihook:mirror] the menus' drawing was not found in this client; nothing to watch.");
+        } else if (FILE* file=fopen(path.c_str(),"w")) {
+            fprintf(file,"uihook mirror watch, started %s: each window drawn (asked for by an addon, hidden, mirrored), its draws, and what was published\n",WatchClock().c_str());
+            fclose(file); MenuWatch.Start();
+            snprintf(line,sizeof(line),"[uihook:mirror] watching to %s; /uihook mirror mark <words> to note a moment, /uihook mirror watch again to stop.",path.c_str());
+        } else snprintf(line,sizeof(line),"[uihook:mirror] could not write %s.",path.c_str());
+        core->GetChatManager()->Write(0,false,line);
+    }
     bool HandleCommand(int32_t,const char* command,bool) override {
+        if (command && (!_stricmp(command,"/uihook mirror watch") || !_strnicmp(command,"/uihook mirror mark ",20))) {
+            const bool mark=command[15]=='m' || command[15]=='M';
+            if (mark && !command[20]) return true;
+            WatchCommand(mark ? command+20 : ""); return true;
+        }
         if (command && !_strnicmp(command,"/uihook mirror labels",21)) {
             // at once, or after the seconds given, so the chat line the command was typed in has closed and the
             // menus are drawn as they are while played
@@ -1156,6 +1209,7 @@ public:
         CensusScope censusScope(MenuCensus,window);
         Mirror::Saved mirrorSaved;
         const bool mirrorHidden=MenuMirror.Begin(window,core->GetDirect3DDevice(),mirrorSaved);
+        struct WatchScope { int was; ~WatchScope() { MenuWatch.Leave(was); } } watchScope{MenuWatch.on ? WatchEnter(window,mirrorHidden) : -1};
         int index=-1;
         for (int i=0;i<4;i++) {
             void* object=globals[i] ? *globals[i] : nullptr;
