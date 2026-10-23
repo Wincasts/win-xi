@@ -432,9 +432,9 @@ it prints and where, its icons, and where its cursor is. The census finds how ma
 their contents, so the mirror is built for those rather than menu by menu.
 
 ```text
-/uihook census on      take over the three text routines, each passing on to the game's own
+/uihook census on      start hearing the windows, written to logs\uihook-census\<date>_<time>.txt as menus are opened
 /uihook census dump    write logs\uihook-census.txt
-/uihook census off     give them back (what was seen is kept)
+/uihook census off     stop, writing the session's file a last time (what was seen is kept)
 /uihook census clear   forget what was seen
 ```
 
@@ -488,7 +488,7 @@ double click on a drawn menu at the same place on the game's own, `lParam` and `
 is the screen's and is left as it is (the game scrolls where its cursor is). Ashita, imgui and addons see the
 message as it was. `Supported` bit 2 says the handler was found. `/uihook mirror` reports what is asked and the last frame published; `/uihook mirror labels` writes
 its elements, cut from their textures, to `logs\uihook-labels`. Only
-screen-space `DrawPrimitiveUP` draws are measured. The census is on from load, each session written to `logs\uihook-census\<date>_<time>.txt` as windows
+screen-space `DrawPrimitiveUP` draws are measured. The census is off until `/uihook census on`, each time written to `logs\uihook-census\<date>_<time>.txt` as windows
 are seen. `/uihook mirror watch` (again to stop) writes
 `logs\uihook-mirror-watch.txt` as it changes: each window drawn, whether it was asked for and mirrored, how its
 draws were made, and what was published; `/uihook mirror mark <words>` notes a moment in it. The `menus` addon draws the item lists and the item
