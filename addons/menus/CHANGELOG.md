@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12
+
+- Currencies [Experimental], a new group, on to start: the boxes the Currencies menu opens. Conquest
+  Points (`conq3pts`), Conquest Standings (`conq6sta`), Conquest Map (`cnqframe`), Imperial Standing
+  (`imperial`), Allied Notes (`allied`), Besieged (`beseige1`), Colosseum Points (`colopoin`),
+  Colosseum Rank (`colorank`) and Unity Accolades (`ut_point`).
+- Trade And Synthesis [Experimental], a new group, on to start: Trade (`handover`), Synthesis Menu
+  (`cmbmenu`), Synthesis History (`cmbhwin`), Synthesis History List (`cmbhlst`) and Crafting Skill
+  (`tskill1`). All from the census of 2026-10-23.
+- A window whose text was printed off the screen is given back to the game for a while, as one whose
+  place could not be measured is: the Conquest Map's names are printed into its picture, far off the
+  screen, so replaced it would have been hidden and drawn where it is not seen.
+
 ## 0.11
 
 - Party And Search [Experimental], a new group, on to start: Party Menu (`prty1`), Party Options

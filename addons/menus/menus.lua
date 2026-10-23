@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.11'
+addon.version = '0.12'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -191,6 +191,28 @@ local Groups = {
         { name = 'scchar', label = 'Search Details', tip = 'Probably more of what to search by.' },
         { name = 'scmlev', label = 'Search Master Level', tip = 'Probably the master levels to search for.' },
     } },
+    -- The Currencies menu's boxes, each in the small box at the top right; the Conquest Map's names were printed far off
+    -- the screen, so it is given back to the game when they are (OffScreen). The names of Colosseum Points and Rank
+    -- are guesses from the game's (colopoin, colorank).
+    { title = 'Currencies', on = true, experimental = true, added = true, menus = {
+        { name = 'conq3pts', label = 'Conquest Points', tip = 'The box with your conquest points.' },
+        { name = 'conq6sta', label = 'Conquest Standings', tip = 'The nations\' conquest standings, first to third.' },
+        { name = 'cnqframe', label = 'Conquest Map', tip = 'The conquest map, with the regions and who holds them.' },
+        { name = 'imperial', label = 'Imperial Standing', tip = 'The box with your imperial standing.' },
+        { name = 'allied', label = 'Allied Notes', labels = true, tip = 'The box with your allied notes.' },
+        { name = 'beseige1', label = 'Besieged', tip = 'Your Besieged level and the like.' },
+        { name = 'colopoin', label = 'Colosseum Points', tip = 'Probably the box with your Colosseum points.' },
+        { name = 'colorank', label = 'Colosseum Rank', tip = 'Probably your Colosseum rank.' },
+        { name = 'ut_point', label = 'Unity Accolades', tip = 'The box with your Unity accolades.' },
+    } },
+    -- Synthesis's menus print no text (labels); its history list shares the item lists' drawer (001F6A60).
+    { title = 'Trade And Synthesis', on = true, experimental = true, added = true, menus = {
+        { name = 'handover', label = 'Trade', tip = 'Trading: what is offered, and the gil.' },
+        { name = 'cmbmenu', label = 'Synthesis Menu', labels = true, tip = 'The synthesis menu\'s choices.' },
+        { name = 'cmbhwin', label = 'Synthesis History', labels = true, tip = 'Probably the box over the list of synthesis done before.' },
+        { name = 'cmbhlst', label = 'Synthesis History List', tip = 'Probably the list of synthesis done before.' },
+        { name = 'tskill1', label = 'Crafting Skill', labels = true, tip = 'Probably the crafting skill shown in the small box at the top right.' },
+    } },
     { title = 'Other Menus', on = true, experimental = true, added = true, menus = {
         { name = 'map0', label = 'Map Menu', labels = true, tip = 'The map\'s choices.' },
         { name = 'socialme', label = 'Social Menu', labels = true, tip = 'The social menu: party, linkshell, friends.' },
@@ -377,6 +399,16 @@ local function Unplaced(window)
         if not run.rect and run.text ~= '' then missing = missing + 1 end
     end
     return missing
+end
+-- How much of a window's text was printed off the screen: drawn into a picture of the game's (the conquest map), not
+-- where it is seen, so drawn here it would not be seen either
+local function OffScreen(window, width, height)
+    local off = 0
+    for _, run in ipairs(window.runs) do
+        local r = run.rect
+        if r and run.text ~= '' and (r[3] <= 0 or r[4] <= 0 or r[1] >= width or r[2] >= height) then off = off + 1 end
+    end
+    return off
 end
 
 local white = { 1, 1, 1, 1 }
@@ -698,11 +730,14 @@ local function Frame()
         local list = imgui.GetWindowDrawList()
         for _, window in ipairs(windows) do
             local missing = window.hidden and Unplaced(window) or 0
+            local off = window.hidden and OffScreen(window, width, height) or 0
             if window.hidden and not window.rect then
                 -- nothing measured of it: the game's to draw again for a while, never unseen
                 GiveBack(window.name, 'its place could not be measured', now)
             elseif window.hidden and missing > 0 then
                 GiveBack(window.name, ('%d of its %d pieces of text could not be placed'):format(missing, #window.runs), now)
+            elseif window.hidden and off > 0 then
+                GiveBack(window.name, ('%d of its %d pieces of text were printed off the screen'):format(off, #window.runs), now)
             elseif not window.rect then
                 -- watched, and nothing to outline
             elseif window.hidden then

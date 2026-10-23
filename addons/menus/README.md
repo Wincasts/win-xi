@@ -57,11 +57,17 @@ group (on where every one of them is):
 - **[Experimental] Party And Search** (on): Party Menu, Party Options, Party Alarm, Search Menu,
   Search Job, Search Level, Search Region, Comment Type, Search Name, Search Details, Search Master
   Level.
+- **[Experimental] Currencies** (on): Conquest Points, Conquest Standings, Conquest Map, Imperial
+  Standing, Allied Notes, Besieged, Colosseum Points, Colosseum Rank, Unity Accolades: the boxes the
+  Currencies menu opens.
+- **[Experimental] Trade And Synthesis** (on): Trade, Synthesis Menu, Synthesis History, Synthesis
+  History List, Crafting Skill.
 - **[Experimental] Other Menus** (on): Map Menu, Social Menu.
 
 The experimental groups were found in play with `/uihook census` and have not yet been looked at
 mirrored: try them in Outline first. Menus added in a release start on, for every character, so they are
-seen; one switched off stays off. Their names are best guesses from the game's own; the HUD and
+seen; one switched off stays off. A window whose text was printed off the screen (the Conquest Map's
+names) is given back to the game, as one whose place could not be measured is. Their names are best guesses from the game's own; the HUD and
 chat windows (the party list, target, chat log, network) are left to the addons that draw them.
 
 The Status and Config windows also draw some of their labels as pictures. Those drawn with a window's

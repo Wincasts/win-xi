@@ -30,6 +30,7 @@ check('the menus added in 0.7 on to start', Asked('auc1') and Asked('equip') and
 check('the magic group, added in 0.9, on to start', Asked('magic') and Asked('magic').hide and Asked('mgcmenu') and Asked('blusortw'))
 check('the linkshell group, added in 0.10, on to start', Asked('chatctrl') and Asked('link5') and Asked('link2'))
 check('the party and search group, added in 0.11, on to start', Asked('prty1') and Asked('searchma') and Asked('scmlev'))
+check('the currencies and trade groups, added in 0.12, on to start', Asked('conq3pts') and Asked('ut_point') and Asked('handover') and Asked('tskill1'))
 
 -- settings saved before the menus added were offered: those start on, the rest as they were saved; once offered,
 -- as the character leaves them
@@ -152,6 +153,17 @@ MENUS.windows = { Inventory() }
 H.wait(3)
 H.frames(1)
 check('two seconds on: hidden again', Asked('inventor').hide)
+-- text printed off the screen (the conquest map's names): given back too
+local map = Inventory()
+map.name = 'cnqframe'
+map.runs[1].rect = { 2227, 1874, 2300, 1886 }
+MENUS.windows = { map }
+H.frames(1)
+H.frames(1)
+check('text off the screen: the window given back to the game', Asked('cnqframe') and not Asked('cnqframe').hide)
+MENUS.windows = { Inventory() }
+H.wait(3)
+H.frames(1)
 
 -- Outline: nothing hidden
 options.mode = 'Outline'
