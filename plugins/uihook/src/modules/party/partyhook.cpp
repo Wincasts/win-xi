@@ -300,9 +300,11 @@ class PartyHook : public IPlugin {
         if (!window || !ChatRead(window,data,sizeof(data)) || (memcpy(&header,data+4,4),!header)
             || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return NativeMenus.Enter(nullptr);
         int dimensions[2]={};
-        if (MenuWritable(static_cast<uint8_t*>(window)+0x8c,12) && !menus.Moves(window)
-            && (!data[0x99] || (menuManager && ChatRead(menuManager+0x80,dimensions,sizeof(dimensions)))))
-            NativeMenus.Before(window,header,data,dimensions,Shared.Frame);
+        const char* why=!MenuWritable(static_cast<uint8_t*>(window)+0x8c,12) ? "its layout cannot be written"
+            : menus.Moves(window) ? "chatbox is moving it"
+            : data[0x99] && !(menuManager && ChatRead(menuManager+0x80,dimensions,sizeof(dimensions))) ? "no menu manager for its units" : nullptr;
+        NativeMenus.Seen(name,Shared.Frame,why);
+        if (!why) NativeMenus.Before(window,header,data,dimensions,Shared.Frame);
         return NativeMenus.Enter(name);
     }
     // A draw of a tinted window's frame: its vertices copied, their colours tinted, drawn in its place
@@ -312,14 +314,16 @@ class PartyHook : public IPlugin {
         const UINT used=min+vertices;
         if (!NativeMenus.Tinting(colour) || !data || !vertices || used>4096) return false;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0;
+        NativeEntry* e=NativeMenus.current;
         if (!device || FAILED(device->GetVertexShader(&shader)) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW
-            || !(shader & D3DFVF_DIFFUSE) || stride<20) return false;
+            || !(shader & D3DFVF_DIFFUSE) || stride<20) { e->refused++; e->lastFormat=shader; return false; }
         scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
-        if (!NativeTintVertices(scaledVertices.data(),used,stride,16,colour)) return false;
+        if (!NativeTintVertices(scaledVertices.data(),used,stride,16,colour)) { e->refused++; return false; }
         scaling=true;
         const bool ok=indices ? SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,scaledVertices.data(),stride))
             : SUCCEEDED(device->DrawPrimitiveUP(t,count,scaledVertices.data(),stride));
         scaling=false;
+        if (ok) { e->tinted++; e->lastFormat=shader; } else e->refused++;
         return ok;
     }
     // Every window moved and drawn in the last frame put back, as uihook is unloaded (one not drawn since may be gone)
@@ -354,8 +358,13 @@ class PartyHook : public IPlugin {
             chat->Write(0,false,line);
             for (auto& e:NativeMenus.entries) {
                 if (!e.name[0]) continue;
-                snprintf(line,sizeof(line),"  %.8s: move %s %d,%d (%s), tint %s %08X",e.name+8,e.move ? "on" : "off",e.dx,e.dy,
-                    e.moved ? (Shared.Frame-e.frame<=2 ? "drawn there now" : "moved, not drawn lately") : "not moved",e.tint ? "on" : "off",e.colour);
+                char seen[48];
+                if (!e.seen) snprintf(seen,sizeof(seen),"not drawn since asked");
+                else snprintf(seen,sizeof(seen),"drawn %u frames ago",Shared.Frame-e.seen);
+                snprintf(line,sizeof(line),"  %.8s: %s; move %s %d,%d (%s), tint %s %08X (frame draws %u tinted, %u refused, format %X)",
+                    e.name+8,seen,e.move ? "on" : "off",e.dx,e.dy,
+                    e.moved ? (Shared.Frame-e.frame<=2 ? "drawn there now" : "moved, not drawn lately") : e.why ? e.why : "not moved",
+                    e.tint ? "on" : "off",e.colour,e.tinted,e.refused,static_cast<unsigned>(e.lastFormat));
                 chat->Write(0,false,line);
             }
             return;
