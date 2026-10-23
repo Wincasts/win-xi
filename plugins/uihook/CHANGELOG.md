@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.24
+
+- The census is on from load: every window drawn while playing is documented without a command, each
+  session in a file of its own, `logs\uihook-census\<date>_<time>.txt` (the census's format: each window's
+  name, frames, drawer, kind, layout, text routes and the text seen in it). Written a few seconds after a
+  window is first seen, each minute while windows are drawn, and as uihook is unloaded. `/uihook census off`
+  stops it for the session; `/uihook census dump` still writes `logs\uihook-census.txt`.
+- `tools/uihook_live.py` reads the mirror and the watch from the running game, from outside it.
+
 ## 1.23
 
 - The watch's block is kept: in 1.22 nothing in the DLL read it back, so the compiler left out every write to
