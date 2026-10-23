@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
+#include <algorithm>
 
 #define SKIN_LARGEST 8192
 
@@ -66,4 +67,21 @@ static bool SkinReadPicture(const char* path,uint32_t& width,uint32_t& height,st
     if (factory) factory->Release();
     if (init==S_OK || init==S_FALSE) CoUninitialize();
     return ok;
+}
+
+// A picture halved, each texel the average of the four (or two, at an odd edge) under it, their colours weighted by
+// their alpha so the clear about a picture's edge does not darken it
+static void SkinHalve(std::vector<uint32_t>& argb,uint32_t& width,uint32_t& height) {
+    const uint32_t w=width>1 ? width/2 : 1,h=height>1 ? height/2 : 1;
+    std::vector<uint32_t> out(size_t(w)*h);
+    for (uint32_t y=0;y<h;y++) for (uint32_t x=0;x<w;x++) {
+        uint32_t a=0,r=0,g=0,b=0,n=0;
+        for (uint32_t dy=0;dy<2;dy++) for (uint32_t dx=0;dx<2;dx++) {
+            const uint32_t sx=(std::min)(x*2+dx,width-1),sy=(std::min)(y*2+dy,height-1);
+            const uint32_t c=argb[size_t(sy)*width+sx],ca=c>>24;
+            a+=ca; r+=((c>>16)&255)*ca; g+=((c>>8)&255)*ca; b+=(c&255)*ca; n++;
+        }
+        out[size_t(y)*w+x]=a ? (a/n)<<24 | (r/a)<<16 | (g/a)<<8 | (b/a) : 0;
+    }
+    argb.swap(out); width=w; height=h;
 }

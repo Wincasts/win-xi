@@ -68,6 +68,12 @@ int main() {
     f=fopen("skin-test.png","wb"); fwrite(png,1,sizeof(png),f); fclose(f);
     Check(SkinReadPicture("skin-test.png",w,h,argb) && w==2 && h==1 && argb[0]==0x80FF0000 && argb[1]==0xFF0000FF,"a png read, its alpha kept");
     remove("skin-test.png");
+    // a picture halved: alpha averaged, colours weighted by it
+    std::vector<uint32_t> four={0xFFFF0000,0x00000000,0xFFFF0000,0x00000000};
+    uint32_t hw=2,hh=2; SkinHalve(four,hw,hh);
+    Check(hw==1 && hh==1 && four.size()==1 && four[0]==0x7FFF0000,"halved: half as solid, its colour not darkened by the clear");
+    std::vector<uint32_t> odd(3*1,0xFF00FF00); uint32_t ow=3,oh=1; SkinHalve(odd,ow,oh);
+    Check(ow==1 && oh==1 && odd[0]==0xFF00FF00,"an odd size halved down to a texel");
     printf("skin: %d failures\n",failures);
     return failures ? 1 : 0;
 }

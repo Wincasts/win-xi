@@ -411,7 +411,10 @@ class PartyHook : public IPlugin {
     }
     // /uihook skin: a screen-space draw whose texture (stage 0) the skin has a picture for is given it; what was there
     // comes back to be put back by SkinEnd. Nothing where no skin is loaded.
-    struct SkinSwap { int32_t index=-1; IDirect3DBaseTexture8* was=nullptr; };
+    struct SkinSwap { int32_t index=-1; IDirect3DBaseTexture8* was=nullptr; DWORD filters[3]={}; };
+    // stage 0's filters while a skin's picture is in it: linear, with its levels, so one made larger than it is
+    // drawn shrinks smoothly and one drawn larger is not blocky
+    static constexpr D3DTEXTURESTAGESTATETYPE SkinFilters[3]={D3DTSS_MAGFILTER,D3DTSS_MINFILTER,D3DTSS_MIPFILTER};
     int32_t skinActive=-1;   // the skin's picture in stage 0 for the draw under way, for NativeDraw's colours, or -1
     SkinSwap SkinBegin() {
         SkinSwap swap;
@@ -428,6 +431,7 @@ class PartyHook : public IPlugin {
         });
         if (swap.index<0) { swap.was->Release(); swap.was=nullptr; return swap; }
         device->SetTexture(0,static_cast<IDirect3DBaseTexture8*>(Skin.textures[size_t(swap.index)].texture));
+        for (int i=0;i<3;i++) { device->GetTextureStageState(0,SkinFilters[i],&swap.filters[i]); device->SetTextureStageState(0,SkinFilters[i],D3DTEXF_LINEAR); }
         skinActive=swap.index;
         return swap;
     }
@@ -451,6 +455,7 @@ class PartyHook : public IPlugin {
             scaling=true; ok=SUCCEEDED(draw(device)); scaling=false;
             if (ok) Skin.textures[size_t(swap.index)].drawn++;
         }
+        for (int i=0;i<3;i++) device->SetTextureStageState(0,SkinFilters[i],swap.filters[i]);
         device->SetTexture(0,swap.was); swap.was->Release();
         return ok;
     }
@@ -471,12 +476,20 @@ class PartyHook : public IPlugin {
                 uint32_t hash=0;
                 if ((found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || !SkinLook::FileHash(found.cFileName,hash) || Skin.Find(hash)>=0) continue;
                 uint32_t width=0,height=0; std::vector<uint32_t> argb;
-                IDirect3DTexture8* texture=nullptr; D3DLOCKED_RECT locked;
+                // every level down to a texel, each the one above halved (SkinHalve): a picture larger than it is drawn
+                // (made for a larger Menu Scale) shrinks smoothly, drawn with the levels between
+                IDirect3DTexture8* texture=nullptr;
                 if (!SkinReadPicture((folder+"\\"+found.cFileName).c_str(),width,height,argb)
-                    || FAILED(device->CreateTexture(width,height,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,&texture))) { failed++; continue; }
-                if (FAILED(texture->LockRect(0,&locked,nullptr,0))) { texture->Release(); failed++; continue; }
-                for (uint32_t y=0;y<height;y++) memcpy(static_cast<uint8_t*>(locked.pBits)+size_t(y)*locked.Pitch,argb.data()+size_t(y)*width,size_t(width)*4);
-                texture->UnlockRect(0);
+                    || FAILED(device->CreateTexture(width,height,0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,&texture))) { failed++; continue; }
+                bool filled=true; uint32_t w=width,h=height;
+                for (DWORD level=0;level<texture->GetLevelCount() && filled;level++) {
+                    D3DLOCKED_RECT locked;
+                    if (FAILED(texture->LockRect(level,&locked,nullptr,0))) { filled=false; break; }
+                    for (uint32_t y=0;y<h;y++) memcpy(static_cast<uint8_t*>(locked.pBits)+size_t(y)*locked.Pitch,argb.data()+size_t(y)*w,size_t(w)*4);
+                    texture->UnlockRect(level);
+                    if (w>1 || h>1) SkinHalve(argb,w,h);
+                }
+                if (!filled) { texture->Release(); failed++; continue; }
                 SkinTexture t; t.hash=hash; t.width=width; t.height=height; t.texture=texture;
                 Skin.textures.push_back(t);
             } while (FindNextFileA(find,&found));

@@ -518,7 +518,10 @@ the edge, as wide as `--frame-width` (2 pixels by default, 3 the game's whole li
 `skin.txt` colouring the game's blue-grey bars as a tab not chosen and its orange ones as the chosen tab; the hand
 and item boxes in the border's steel; the menu font (`30CDD9D4`'s large font, the menus' labels
 and lists) in the theme's Font (`--font` for another, from the game's `C:\Windows\Fonts`), each glyph drawn where the
-game's was, on its baseline at its height with the game's dark edge, the game placing and spacing them as ever. The game's art stays out of the repository (`src/modules/native/skin.h`).
+game's was, on its baseline at its height with the game's dark edge, the game placing and spacing them as ever. The title font (`5218C635`: the windows' titles, the jobs' and races'
+names) in the theme's Title Font the same way, each letter on its row's baseline, each word fitted to the game's.
+Every picture is made `--resolution` times the game's size (2 by default, the largest Menu Scale); uihook 1.48 gives
+each picture every smaller level and draws it smoothed, so the menus stay crisp at any Menu Scale up to that. The game's art stays out of the repository (`src/modules/native/skin.h`).
 
 ## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1, ABI 5 in 1.2)
 
