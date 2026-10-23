@@ -86,7 +86,9 @@ static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, 
 static MirrorShared MirrorBlock;
 static Mirror MenuMirror;
 static MirrorWatch MenuWatch; // every window drawn, kept in WatchBlock; with /uihook mirror watch, to logs\uihook-mirror-watch.txt
-static MirrorWatchShared WatchBlock{};
+// exported, as nothing in the DLL reads it back: a block private to it would have every write to it optimized away
+extern "C" __declspec(dllexport) MirrorWatchShared UihookWatch{};
+static MirrorWatchShared& WatchBlock=UihookWatch;
 static bool WatchFile=false;
 static void __fastcall MirrorContent(void*,void*);
 struct MirrorContentCall { uint8_t* call=nullptr; uint8_t saved[5]={}; };
