@@ -252,6 +252,10 @@ int main() {
         const int outer=watch.Enter(seen.window,false,false,false); watch.Draw(MirrorWatch::UP); watch.Leave(outer);
         watch.Draw(MirrorWatch::OTHER);
         watch.Leave(was);
+        static MirrorWatchShared block{};
+        watch.Share(block,10);
+        Check(block.Count==2 && block.Frame==10 && !memcmp(block.Windows[0].Name,"menu    auc1    ",16) && block.Windows[0].Flags==MIRROR_WATCH_WANTED
+            && block.Windows[0].Buffer==2 && block.Windows[0].Other==1 && block.Windows[1].Depth==1 && block.Windows[1].Up==1,"the watch's block: each window drawn, its flags and draws");
         std::string text=watch.Present(none,3,10,5000,"12:00:00.000");
         Check(text.find("== 12:00:00.000 frame 10: 2 drawn, 0 published, 3 dropped")==0,"the watch: a frame's heading");
         Check(text.find("menu    auc1     kind 0 draws 0 depth 0: asked NOT MIRRORED; draws: 0 measured, 1 not screen space, 2 from buffers")!=std::string::npos,

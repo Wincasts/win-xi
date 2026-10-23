@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.22
+
+- The watch is always kept, in memory: each frame, every window drawn (its name, kind, whether it was asked
+  for, hidden and mirrored, and its draws by kind) in a block of its own, magic `UIHOOK-WATCH`, version 1, for
+  reading the running game from outside without a command. No addon uses it; the mirror ABI is as it was.
+  `/uihook mirror watch` now only switches the file.
+
 ## 1.21
 
 - `/uihook mirror watch`: while on, `logs\uihook-mirror-watch.txt` is written as what is drawn changes (at most
