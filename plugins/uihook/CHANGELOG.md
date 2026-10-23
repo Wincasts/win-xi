@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.52
+
+- `/uihook skin font <menu|title> <file|off> [quiet]`: the skin's fonts drawn in a font chosen in game. A skin's
+  `fonts.txt` (made by tools/uihook_skin.py) says where each glyph of the game's two font textures goes, on its
+  baseline at its height, or fitted to a word's ink; uihook draws each again in the font file (in Windows' Fonts, or a
+  path), by Windows' own font drawing, at each size of the skin's picture, on the picture's own pixels (kept as
+  loaded), and puts its levels back. The skin's own pictures where none is chosen or it cannot be opened; a font
+  chosen before a skin is loaded is drawn as it loads. The font's family and style read from its name table.
+
 ## 1.51
 
 - A skin's draw within its texture (its texture places 0 to 1, not tiled across it as the frame's edges are) is

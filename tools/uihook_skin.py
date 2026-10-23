@@ -244,6 +244,14 @@ def winxi_skin(census, theme, frame_scale=1, font=None, frame_width=2, sizes=SIZ
             made.setdefault(name, {})[r] = im
     return made, winxi_colours(theme)
 
+def winxi_glyphs(census, theme):
+    lines = []
+    im = census('30CDD9D4')
+    if im: lines += menu_layout(im)
+    im, title = census('5218C635'), font_file(theme.get('TitleFontFile') or 'trebucbi.ttf')
+    if im and title: lines += title_layout(im, title)
+    return lines
+
 def winxi_size(census, theme, font, frame_width, r):
     pictures = {}
     name = font or theme.get('FontFile') or 'trebuc.ttf'
@@ -499,6 +507,55 @@ def title_font(im, path, r=1):
             out.alpha_composite(piece, ((box[0] + box[2]) // 2 - w // 2, box[1]))
     return out
 
+# ---- the glyph map (fonts.txt) ----
+# Where each glyph of the two fonts goes, for uihook 1.52 to draw them itself from a font chosen in game (/uihook skin
+# font), at each size, in place of the skin's own: in the game's texels (a size's are times its factor), a line each:
+#   font <hash> kind=<menu|title> fill=<AARRGGBB> edge=<texels> edgecolour=<AARRGGBB> widen=<share>
+#   clear <hash> <x0> <y0> <x1> <y1>          cleared before the glyphs are drawn
+#   glyph <hash> line <a> <b> <cx0> <cx1> <top> <bottom> <baseline> <height> <ref> <text>
+#       on baseline, at the size whose ref is height tall, centred on a..b and no wider than it less the edges
+#       (widened to widen of that), drawn only within cx0..cx1, top..bottom
+#   glyph <hash> fit <a> <b> <cx0> <cx1> <top> <bottom> 0 0 - <text>
+#       its ink fitted to a..b, top..bottom: as tall, no wider
+def menu_layout(im):
+    lines = [f'font 30CDD9D4 kind=menu fill=FFFFFFFF edge={MENU_EDGE} edgecolour={MENU_EDGE_COLOUR[3]:02X}{MENU_EDGE_COLOUR[0]:02X}{MENU_EDGE_COLOUR[1]:02X}{MENU_EDGE_COLOUR[2]:02X} widen={MENU_FILL}']
+    for top, chars in MENU_FONT_ROWS:
+        boxes = glyph_boxes(im, top, chars)
+        if not boxes: continue
+        for i, (ch, (a, b)) in enumerate(zip(chars, boxes)):
+            left = 0 if i == 0 else (boxes[i - 1][1] + a) // 2
+            right = im.width if i == len(boxes) - 1 else (b + boxes[i + 1][0]) // 2
+            lines.append(f'clear 30CDD9D4 {left} {top} {right} {top + 24}')
+            lines.append(f'glyph 30CDD9D4 line {a} {b} {left} {right} {top} {top + 24} {top + MENU_BASELINE} {MENU_CAPS} E {ch}')
+    return lines
+
+def title_layout(im, path):
+    px = im.load()
+    solid = [px[x, y] for y in range(161, 172) for x in range(im.width) if px[x, y][3] >= 120]
+    solid.sort(key=lambda p: sum(p[:3]))
+    fill = solid[len(solid) // 2] if solid else (200, 200, 200, 136)
+    lines = [f'font 5218C635 kind=title fill={fill[3]:02X}{fill[0]:02X}{fill[1]:02X}{fill[2]:02X} edge=0 edgecolour=00000000 widen=0']
+    for top, bottom, pieces, *known in TITLE_ROWS:
+        runs = known[0] if known else title_pieces(im, top, bottom, pieces, path)
+        if not runs: continue
+        lines.append(f'clear 5218C635 0 {top} {im.width} {bottom}')
+        if all(len(p) == 1 for p in pieces):
+            spans = []
+            for a, b in runs:
+                ys = [y for y in range(top, bottom) if any(px[x, y][3] >= 40 for x in range(a, b))]
+                if ys: spans.append((ys[0], ys[-1] + 1))
+            baseline = max(set(e for _, e in spans), key=[e for _, e in spans].count)
+            tall = baseline - max(set(t for t, _ in spans), key=[t for t, _ in spans].count)
+            ref = 'x' if pieces[-1].islower() else 'E'
+            for text, (a, b) in zip(pieces, runs):
+                lines.append(f'glyph 5218C635 line {a} {b + 1} 0 {im.width} {top} {bottom} {baseline} {tall} {ref} {text}')
+            continue
+        for text, (a, b) in zip(pieces, runs):
+            ys = [y for y in range(top, bottom) if any(px[x, y][3] >= 40 for x in range(max(0, a - 1), min(im.width, b + 1)))]
+            if not ys: continue
+            lines.append(f'glyph 5218C635 fit {a} {b} 0 {im.width} {ys[0]} {ys[-1] + 1} 0 0 - {text}')
+    return lines
+
 STYLES = {'test': test_skin, 'winxi': winxi_skin}
 
 def main():
@@ -534,6 +591,11 @@ def main():
             im.save(os.path.join(out, f'tex-{name}.png' if r == 1 else f'tex-{name}@{r:g}.png'))
             files += 1
     if txt is not None: open(os.path.join(out, 'skin.txt'), 'w', newline='\r\n').write(txt)
+    if args.style == 'winxi':
+        glyphs = winxi_glyphs(census, theme)
+        with open(os.path.join(out, 'fonts.txt'), 'w', encoding='utf-8', newline='\r\n') as f:
+            f.write('# where each glyph of the skin\'s fonts goes, for uihook to draw them from a font chosen in game (made by tools/uihook_skin.py)\n')
+            f.write('\n'.join(glyphs) + '\n')
     print(f'{len(pictures)} pictures ({files} files, every size){" and skin.txt" if txt else ""} written to {out}, theme {theme_path}')
 
 if __name__ == '__main__':

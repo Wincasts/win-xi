@@ -27,6 +27,7 @@
 #include "../mirror/textures.h"
 #include "../native/skin.h"
 #include "../native/skinfile.h"
+#include "../native/skinfont.h"
 #include "../mirror/mouse.h"
 #include "../mirror/watch.h"
 #include "../../slots.h"
@@ -508,7 +509,57 @@ class PartyHook : public IPlugin {
         return ok;
     }
     // config\uihook\skins\<name>\tex-<hash>.png or .bmp, each made a texture of its own
-    void SkinRelease() { for (void* t:Skin.Clear()) static_cast<IDirect3DTexture8*>(t)->Release(); }
+    void SkinRelease() { for (void* t:Skin.Clear()) static_cast<IDirect3DTexture8*>(t)->Release(); skinFonts.Clear(); }
+    // A picture written to its texture, every level down to a texel, each the one above halved (SkinHalve): a picture
+    // larger than it is drawn shrinks smoothly, drawn with the levels between
+    static bool SkinUpload(IDirect3DTexture8* texture,std::vector<uint32_t> argb,uint32_t width,uint32_t height) {
+        uint32_t w=width,h=height;
+        for (DWORD level=0;level<texture->GetLevelCount();level++) {
+            D3DLOCKED_RECT locked;
+            if (FAILED(texture->LockRect(level,&locked,nullptr,0))) return false;
+            for (uint32_t y=0;y<h;y++) memcpy(static_cast<uint8_t*>(locked.pBits)+size_t(y)*locked.Pitch,argb.data()+size_t(y)*w,size_t(w)*4);
+            texture->UnlockRect(level);
+            if (w>1 || h>1) SkinHalve(argb,w,h);
+        }
+        return true;
+    }
+    // The skin's fonts (fonts.txt), and the font file chosen for each kind (menu, title), "" for the skin's own
+    SkinFonts skinFonts;
+    std::string skinFontFile[2];
+    SkinFontFace skinFace[2];
+    static int SkinFontKind(const std::string& kind) { return kind=="menu" ? 0 : kind=="title" ? 1 : -1; }
+    // A font file's path: as given where it is one, else in Windows' Fonts folder
+    static std::string SkinFontPath(const std::string& file) {
+        if (file.find('\\')!=std::string::npos || file.find(':')!=std::string::npos) return file;
+        char windows[MAX_PATH]={}; GetWindowsDirectoryA(windows,MAX_PATH);
+        return std::string(windows)+"\\Fonts\\"+file;
+    }
+    // Each font texture of the skin drawn again: its glyphs in the font chosen for its kind, at each of its sizes, or
+    // the skin's own picture where none is chosen or it cannot be drawn. Returns the glyphs drawn.
+    unsigned SkinApplyFonts(std::string* why=nullptr) {
+        unsigned drawn=0;
+        for (int k=0;k<2;k++) {
+            if (skinFontFile[k].empty()) { skinFace[k].Close(); continue; }
+            const std::string path=SkinFontPath(skinFontFile[k]);
+            if (skinFace[k].path!=SkinWide(path.c_str()) || !skinFace[k].added)
+                if (!skinFace[k].Open(path.c_str()) && why) *why+=(why->empty() ? "" : "; ")+path+" could not be opened";
+        }
+        for (auto& style:skinFonts.styles) {
+            const int k=SkinFontKind(style.kind);
+            const int32_t at=Skin.Find(style.hash);
+            if (k<0 || at<0) continue;
+            for (auto& z:Skin.textures[size_t(at)].sizes) {
+                if (z.base.empty() || !z.texture) continue;
+                std::vector<uint32_t> argb=z.base;
+                if (!skinFontFile[k].empty() && skinFace[k].added) {
+                    SkinFontDrawer drawer; drawer.face=&skinFace[k];
+                    drawn+=drawer.Draw(skinFonts,style.hash,z.factor,argb,int(z.width),int(z.height));
+                }
+                SkinUpload(static_cast<IDirect3DTexture8*>(z.texture),argb,z.width,z.height);
+            }
+        }
+        return drawn;
+    }
     void SkinLoad(const char* name,char* line,size_t size) {
         for (const char* c=name;*c;c++) if (!isalnum(static_cast<unsigned char>(*c)) && *c!='_' && *c!='-') {
             snprintf(line,size,"[uihook:skin] a skin's name is letters, digits, - and _."); return;
@@ -517,6 +568,14 @@ class PartyHook : public IPlugin {
         if (!device) { snprintf(line,size,"[uihook:skin] no device yet."); return; }
         const std::string folder=std::string(core->GetInstallPath())+"\\config\\uihook\\skins\\"+name;
         SkinRelease();
+        // the glyph map first, so the font pictures' own pixels are kept to draw the glyphs on again
+        bool hasFonts=false;
+        if (FILE* f=fopen((folder+"\\fonts.txt").c_str(),"rb")) {
+            std::string text; char chunk[4096]; size_t n;
+            while ((n=fread(chunk,1,sizeof(chunk),f))>0 && text.size()<(1u<<20)) text.append(chunk,n);
+            fclose(f);
+            skinFonts.Parse(text.c_str()); hasFonts=!skinFonts.styles.empty();
+        }
         WIN32_FIND_DATAA found; unsigned failed=0;
         HANDLE find=FindFirstFileA((folder+"\\tex-*").c_str(),&found);
         if (find!=INVALID_HANDLE_VALUE) {
@@ -528,21 +587,12 @@ class PartyHook : public IPlugin {
                 if (had>=0) for (auto& z:Skin.textures[size_t(had)].sizes) same|=fabsf(z.factor-factor)<0.001f;
                 if (same) continue;
                 uint32_t width=0,height=0; std::vector<uint32_t> argb;
-                // every level down to a texel, each the one above halved (SkinHalve): a picture larger than it is drawn
-                // (made for a larger Menu Scale) shrinks smoothly, drawn with the levels between
                 IDirect3DTexture8* texture=nullptr;
                 if (!SkinReadPicture((folder+"\\"+found.cFileName).c_str(),width,height,argb)
                     || FAILED(device->CreateTexture(width,height,0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,&texture))) { failed++; continue; }
-                bool filled=true; uint32_t w=width,h=height;
-                for (DWORD level=0;level<texture->GetLevelCount() && filled;level++) {
-                    D3DLOCKED_RECT locked;
-                    if (FAILED(texture->LockRect(level,&locked,nullptr,0))) { filled=false; break; }
-                    for (uint32_t y=0;y<h;y++) memcpy(static_cast<uint8_t*>(locked.pBits)+size_t(y)*locked.Pitch,argb.data()+size_t(y)*w,size_t(w)*4);
-                    texture->UnlockRect(level);
-                    if (w>1 || h>1) SkinHalve(argb,w,h);
-                }
-                if (!filled) { texture->Release(); failed++; continue; }
+                if (!SkinUpload(texture,argb,width,height)) { texture->Release(); failed++; continue; }
                 SkinSize size; size.factor=factor; size.width=width; size.height=height; size.texture=texture;
+                if (hasFonts && skinFonts.Style(hash)) size.base=std::move(argb);
                 if (had>=0) SkinLook::AddSize(Skin.textures[size_t(had)],size);
                 else { SkinTexture t; t.hash=hash; SkinLook::AddSize(t,size); Skin.textures.push_back(t); }
             } while (FindNextFileA(find,&found));
@@ -556,12 +606,37 @@ class PartyHook : public IPlugin {
             fclose(f); colours=true;
             unread=SkinColours(Skin.textures,text.c_str());
         }
+        // a font chosen before (by nativeui, or by hand) drawn into the skin's font pictures
+        std::string why;
+        const unsigned glyphs=hasFonts ? SkinApplyFonts(&why) : 0;
         if (Skin.textures.empty()) snprintf(line,size,"[uihook:skin] no pictures read in %s (tex-<hash>.png or .bmp)%s.",folder.c_str(),failed ? ", some could not be read" : "");
-        else snprintf(line,size,"[uihook:skin] %s: %zu pictures loaded%s%s%s; the game's textures are known as they are drawn.",name,Skin.textures.size(),
-            failed ? ", some could not be read" : "",colours ? ", skin.txt read" : "",unread ? " (some of its lines not understood, or of no picture)" : "");
+        else snprintf(line,size,"[uihook:skin] %s: %zu pictures loaded%s%s%s%s%s; the game's textures are known as they are drawn.",name,Skin.textures.size(),
+            failed ? ", some could not be read" : "",colours ? ", skin.txt read" : "",unread ? " (some of its lines not understood, or of no picture)" : "",
+            hasFonts ? (glyphs ? ", its fonts drawn in the fonts chosen" : ", fonts.txt read") : "",why.empty() ? "" : (" ("+why+")").c_str());
     }
     void SkinCommand(const char* word) {
         char line[512];
+        // font <menu|title> <file|off> [quiet]: the font a kind of the skin's fonts is drawn in, off its own
+        if (!_strnicmp(word,"font ",5) || !_stricmp(word,"font")) {
+            char kind[16]={},file[MAX_PATH]={},quiet[16]={};
+            const int n=sscanf_s(word+4," %15s %259s %15s",kind,16u,file,unsigned(MAX_PATH),quiet,16u);
+            const int k=n>=1 ? SkinFontKind(kind) : -1;
+            if (k<0 || n<2) {
+                snprintf(line,sizeof(line),"[uihook:skin] fonts: menu %s, title %s. /uihook skin font <menu|title> <file in C:\\Windows\\Fonts, or off>.",
+                    skinFontFile[0].empty() ? "the skin's own" : skinFontFile[0].c_str(),skinFontFile[1].empty() ? "the skin's own" : skinFontFile[1].c_str());
+                core->GetChatManager()->Write(0,false,line);
+                return;
+            }
+            skinFontFile[k]=_stricmp(file,"off") ? file : "";
+            std::string why;
+            const unsigned glyphs=SkinApplyFonts(&why);
+            if (n>=3 && !_stricmp(quiet,"quiet") && why.empty()) return;
+            if (skinFontFile[k].empty()) snprintf(line,sizeof(line),"[uihook:skin] the %s font: the skin's own.",kind);
+            else if (!skinFonts.styles.size()) snprintf(line,sizeof(line),"[uihook:skin] the %s font is %s, drawn once a skin with a fonts.txt is loaded.",kind,file);
+            else snprintf(line,sizeof(line),"[uihook:skin] the %s font: %s, %u glyphs drawn%s%s.",kind,file,glyphs,why.empty() ? "" : "; ",why.c_str());
+            core->GetChatManager()->Write(0,false,line);
+            return;
+        }
         if (!_stricmp(word,"off")) {
             const size_t n=Skin.textures.size(); SkinRelease(); Skin.name[0]=0;
             snprintf(line,sizeof(line),n ? "[uihook:skin] off; the game's own textures." : "[uihook:skin] no skin loaded.");
@@ -887,7 +962,7 @@ public:
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         AutoCensus(true);
         Textures.on=false; Textures.Clear(); Textures.window[0]=0;
-        SkinRelease(); Skin.name[0]=0;
+        SkinRelease(); Skin.name[0]=0; skinFace[0].Close(); skinFace[1].Close();
         GiveMirror();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
