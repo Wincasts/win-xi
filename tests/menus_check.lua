@@ -26,6 +26,22 @@ check('asks for the items and lists, hidden', Asked('inventor') and Asked('inven
 check('the status and config windows off to start', not Asked('persona') and not Asked('cfilter'))
 check('drawn: a frame and its text', (H.calls['draw.AddText'] or 0) > 0)
 check('nothing printed', #H.printed == 0)
+check('the menus added in 0.7 on to start', Asked('auc1') and Asked('equip') and Asked('map0'))
+
+-- settings saved before the menus added were offered: those start on, the rest as they were saved; once offered,
+-- as the character leaves them
+do
+    local saved = H.options()
+    saved.known = nil
+    saved.mirror_auc1[1], saved.mirror_persona[1] = false, false
+    H.resettle()
+    check('older settings: an added menu switched on', saved.mirror_auc1[1] == true)
+    check('and the others as saved', saved.mirror_persona[1] == false and saved.known and saved.known.persona and saved.known.auc1)
+    saved.mirror_auc1[1] = false
+    H.resettle()
+    check('switched off once offered: kept off', saved.mirror_auc1[1] == false)
+    saved.mirror_auc1[1] = true
+end
 
 -- the mouse, while it is not kept from the game's menus: the game's
 check('a press over the menu, with Keep Mouse off: the game\'s', not Mouse(DOWN, 150, 150))

@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.8'
+addon.version = '0.8.1'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -109,15 +109,16 @@ local Groups = {
     } },
     -- Found in play with /uihook census (2026-10-22) and not yet seen mirrored, so each group is experimental. A menu
     -- marked labels spells its words as the label menus do (most share their drawer in the game, 0011BA30); the
-    -- rest print theirs through the text routines.
-    { title = 'Equipment And Items', on = false, experimental = true, menus = {
+    -- rest print theirs through the text routines. Menus added in a release (added) start on, for every character,
+    -- so they are seen: in Outline, or replaced.
+    { title = 'Equipment And Items', on = true, experimental = true, added = true, menus = {
         { name = 'equip', label = 'Equipment', tip = 'Your equipment and the slots to change it in.' },
         { name = 'itemctrl', label = 'Item Quantity', tip = 'How many of an item, when trading or dropping some.' },
         { name = 'moneyctr', label = 'Gil Amount', tip = 'How much gil, when trading it.' },
         { name = 'iuse', label = 'Use Item', labels = true, tip = 'The choices for the item the cursor is on: use it, drop it.' },
         { name = 'itmsort2', label = 'Item Sort Options', labels = true, tip = 'The second list of the item list\'s choices.' },
     } },
-    { title = 'Auction House', on = false, experimental = true, menus = {
+    { title = 'Auction House', on = true, experimental = true, added = true, menus = {
         { name = 'auc1', label = 'Auction House', labels = true, tip = 'The auction house\'s first choices: buy, sell, history.' },
         { name = 'auc2', label = 'Categories', labels = true, tip = 'The kinds of goods to browse.' },
         { name = 'aucweapo', label = 'Weapons', labels = true, tip = 'The kinds of weapon.' },
@@ -130,7 +131,7 @@ local Groups = {
         { name = 'auclist', label = 'Item List', tip = 'The goods of a kind, as listed for sale.' },
         { name = 'auchisto', label = 'Price History', tip = 'What an item sold for, and when.' },
     } },
-    { title = 'Shops And Prompts', on = false, experimental = true, menus = {
+    { title = 'Shops And Prompts', on = true, experimental = true, added = true, menus = {
         { name = 'shopmain', label = 'Shop Menu', labels = true, tip = 'A shop\'s first choices: buy or sell.' },
         { name = 'shopsell', label = 'Sell', labels = true, tip = 'Selling to a shop.' },
         { name = 'comyn', label = 'Yes Or No', tip = 'A question asked yes or no.' },
@@ -138,7 +139,7 @@ local Groups = {
         { name = 'query', label = 'Question', labels = true, tip = 'A question the game asks with its choices.' },
         { name = 'prtyjoin', label = 'Party Invitation', labels = true, tip = 'An invitation to join a party.' },
     } },
-    { title = 'Mog House And Delivery', on = false, experimental = true, menus = {
+    { title = 'Mog House And Delivery', on = true, experimental = true, added = true, menus = {
         { name = 'mogdoor', label = 'Mog House Exit', tip = 'Where to go from the Mog House door.' },
         { name = 'storage', label = 'Storage', labels = true, tip = 'The Mog House\'s storage choices.' },
         { name = 'mogpost', label = 'Delivery Menu', labels = true, tip = 'The delivery box\'s choices.' },
@@ -147,7 +148,7 @@ local Groups = {
         { name = 'jobchang', label = 'Job Change Menu', labels = true, tip = 'The Moogle\'s job change choices.' },
         { name = 'jobcselu', label = 'Job Select', tip = 'The jobs to change to, with their levels.' },
     } },
-    { title = 'Jobs', on = false, experimental = true, menus = {
+    { title = 'Jobs', on = true, experimental = true, added = true, menus = {
         { name = 'abimenu', label = 'Ability Menu', labels = true, tip = 'The kinds of ability: job abilities, weapon skills and the rest.' },
         { name = 'abisortw', label = 'Ability Sort', labels = true, tip = 'How the abilities are sorted.' },
         { name = 'automato', label = 'Automaton', tip = 'Your automaton: its head, frame and attachments.' },
@@ -156,7 +157,7 @@ local Groups = {
         { name = 'bluinven', label = 'Blue Magic Spells', tip = 'The blue magic spells to set.' },
         { name = 'bluehelp', label = 'Blue Magic Info', tip = 'What the blue magic spell the cursor is on does.' },
     } },
-    { title = 'Other Menus', on = false, experimental = true, menus = {
+    { title = 'Other Menus', on = true, experimental = true, added = true, menus = {
         { name = 'map0', label = 'Map Menu', labels = true, tip = 'The map\'s choices.' },
         { name = 'socialme', label = 'Social Menu', labels = true, tip = 'The social menu: party, linkshell, friends.' },
     } },
@@ -165,6 +166,7 @@ local Menus = {} -- every menu of every group, in order
 for _, group in ipairs(Groups) do
     for _, menu in ipairs(group.menus) do
         menu.on = group.on
+        menu.added = group.added
         if menu.labels == nil then menu.labels = group.labels end
         Menus[#Menus + 1] = menu
     end
@@ -282,6 +284,20 @@ end
 
 local function Complete(options)
     options.useSharedTheme = true
+    -- the menus this character has been offered: one added since starts on, whatever was saved for it. Settings from
+    -- before this list have been offered every menu but those added.
+    if type(options.known) ~= 'table' then
+        options.known = T{}
+        for _, menu in ipairs(Menus) do
+            if not menu.added then options.known[menu.name] = true end
+        end
+    end
+    for _, menu in ipairs(Menus) do
+        if not options.known[menu.name] then
+            options['mirror_' .. menu.name] = T{ true }
+            options.known[menu.name] = true
+        end
+    end
     for _, menu in ipairs(Menus) do
         local key = 'mirror_' .. menu.name
         if type(options[key]) ~= 'table' or type(options[key][1]) ~= 'boolean' then options[key] = T{ true } end

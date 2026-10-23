@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1
+
+- Menus added in a release start on, so they are seen: the six groups added in 0.7 are on to start, and on
+  for a character whose settings were saved before (they had been saved off). Each character's settings keep
+  which menus it has been offered (`known`); one switched off after that stays off.
+
 ## 0.8
 
 - The mouse on moved and scaled menus. Keep Mouse From Game Menus is now Mouse Follows Menus
