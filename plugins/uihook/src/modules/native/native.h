@@ -9,7 +9,13 @@
 //
 // The move is the action menus' (chat/menus.h): the layout target (+8C) written before Window::Render calls
 // Window::Update and the window marked for it (+94), so its frame, rows, cursor and hit-tests are laid out there
-// by the game itself. The tint is a second texture stage after the game's own, multiplying what it made by the
+// by the game itself. That moves the frame, not what a window's owner draws in it: the item lists' owner (its
+// contents drawn at the client's +1F6A60) keeps its own origin at +28, +2A, in the target's units (the inventory's
+// text is 21, 6 from its target wherever the game puts it), set where the game places the window, not by Update.
+// So for that owner its origin is moved by as much as the target, kept and put back as the target is; any other
+// owner is left, and said to be (its contents stay where they were).
+//
+// The tint is a second texture stage after the game's own, multiplying what it made by the
 // colour (the texture factor), set for the frame's draws alone and put back after each: the game's frames do not
 // take their vertices' colours, so changing those (1.25) showed nothing. The contents, the elements, the cursor,
 // the scrollbar and any text are left as they are.
@@ -17,9 +23,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <cmath>
+#include <algorithm>
 #include "../mirror/mirror.h"
 
 #define NATIVE_ENTRIES 16
+#define NATIVE_LIST_DRAWER 0x1F6A60 // the item lists' contents draw (vtable +10), as an offset into the client
+#define NATIVE_OWNER_ORIGIN 0x28   // that owner's origin: two shorts, the target's units
 
 // The target moved by dx, dy display pixels, in the window's units: pixels, or the 640x480 units scaled to the
 // menu manager's dimensions where the window is scaled (+99). Kept from going past the top or left edge; false
@@ -52,7 +61,10 @@ struct NativeEntry {
     // for /uihook native: when a window of its name was last drawn, why it was last not moved, and its frame's draws
     uint32_t seen=0; const char* why="not drawn since asked";
     uint32_t tinted=0,refused=0,lastFormat=0;
-    uint32_t stage[3]={};  // the game's first texture stage at its frame's last draw: colour op, its two arguments
+    uint32_t stage[3]={};
+    // the owner whose origin was moved with the target, and what was written; its drawer, where it was not known
+    void* owner=nullptr; int16_t ownerOriginal[2]={},ownerApplied[2]={}; bool ownerMoved=false;
+    uint32_t unknownDrawer=0;  // the game's first texture stage at its frame's last draw: colour op, its two arguments
 };
 
 class NativeLook {
@@ -73,7 +85,7 @@ public:
     NativeEntry* Find(const char* name,bool add) {
         for (auto& e:entries) if (e.name[0] && !memcmp(e.name,name,16)) return &e;
         if (!add) return nullptr;
-        for (auto& e:entries) if (!e.name[0] && !e.moved) { e=NativeEntry(); memcpy(e.name,name,16); return &e; }
+        for (auto& e:entries) if (!e.name[0] && !e.moved && !e.ownerMoved) { e=NativeEntry(); memcpy(e.name,name,16); return &e; }
         return nullptr;
     }
     bool Move(const char* name,int dx,int dy) {
@@ -102,7 +114,9 @@ public:
 
     // Before Window::Render lays the window out: moved where asked, or put back where it was. data is its first
     // 0x9a bytes as read, target writable at window+0x8c.
-    void Before(void* window,void* header,const uint8_t* data,const int* dimensions,uint32_t frame) {
+    // owner: the window's owner where its origin moves with it (the item lists'), else null; drawer: the owner's
+    // contents draw, for saying why its contents were not moved
+    void Before(void* window,void* header,const uint8_t* data,const int* dimensions,uint32_t frame,void* owner=nullptr,uint32_t drawer=0) {
         char name[16]; if (!header || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return;
         NativeEntry* e=Find(name,false);
         if (!e) return;
@@ -114,17 +128,40 @@ public:
         if (e->move) {
             if (!e->moved) memcpy(e->original,target,4);
             else for (unsigned i=0;i<2;i++) if (target[i]!=e->applied[i]) e->original[i]=target[i]; // the game laid it out afresh
-            if (!NativeOffset(e->original,data[0x99]!=0,dimensions,e->dx,e->dy,desired)) { e->why="off the screen's range"; Restore(*e,window,target); return; }
+            if (!NativeOffset(e->original,data[0x99]!=0,dimensions,e->dx,e->dy,desired)) { e->why="off the screen's range"; Restore(*e,window,target,owner); return; }
             if (target[0]!=desired[0] || target[1]!=desired[1]) {
                 memcpy(at+0x8c,desired,4); const int32_t dirty=-1; memcpy(at+0x94,&dirty,4);
                 applied++;
             }
             memcpy(e->applied,desired,4); e->window=window; e->header=header; e->moved=true; e->frame=frame;
-        } else Restore(*e,window,target);
-        if (!e->move && !e->tint && !e->moved) *e=NativeEntry(); // done with
+            e->unknownDrawer=owner ? 0 : drawer;
+            if (owner) MoveOwner(*e,owner,desired);
+        } else Restore(*e,window,target,owner);
+        if (!e->move && !e->tint && !e->moved && !e->ownerMoved) *e=NativeEntry(); // done with
     }
-    // Put back where the game had it, where it is still where it was put
-    void Restore(NativeEntry& e,void* window,const int16_t* target) {
+    // The owner's origin moved by as much as the target is from where the game had it
+    void MoveOwner(NativeEntry& e,void* owner,const int16_t* desired) {
+        auto* origin=static_cast<uint8_t*>(owner)+NATIVE_OWNER_ORIGIN;
+        int16_t now[2]; memcpy(now,origin,4);
+        if (!e.ownerMoved || owner!=e.owner) memcpy(e.ownerOriginal,now,4);
+        else for (unsigned i=0;i<2;i++) if (now[i]!=e.ownerApplied[i]) e.ownerOriginal[i]=now[i]; // placed afresh by the game
+        int16_t want[2];
+        for (unsigned i=0;i<2;i++) {
+            const int value=e.ownerOriginal[i]+(desired[i]-e.original[i]);
+            want[i]=static_cast<int16_t>((std::max)(-32768,(std::min)(32767,value)));
+        }
+        if (now[0]!=want[0] || now[1]!=want[1]) memcpy(origin,want,4);
+        memcpy(e.ownerApplied,want,4); e.owner=owner; e.ownerMoved=true;
+    }
+    // Put back where the game had it, where it is still where it was put; the owner's origin with it
+    void Restore(NativeEntry& e,void* window,const int16_t* target,void* owner=nullptr) {
+        if (e.ownerMoved && owner && owner==e.owner) {
+            auto* origin=static_cast<uint8_t*>(owner)+NATIVE_OWNER_ORIGIN;
+            int16_t now[2]; memcpy(now,origin,4);
+            for (unsigned i=0;i<2;i++) if (now[i]==e.ownerApplied[i]) now[i]=e.ownerOriginal[i];
+            memcpy(origin,now,4);
+        }
+        if (!owner || owner==e.owner) e.ownerMoved=false;
         if (!e.moved || window!=e.window) return;
         int16_t back[2]={target[0],target[1]}; bool changed=false;
         for (unsigned i=0;i<2;i++) if (target[i]==e.applied[i]) { back[i]=e.original[i]; changed=true; }
