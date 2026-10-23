@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.44
+
+- The inset brings in only windows with a frame of their own, by that frame: one without (the target's arrow over
+  the world) is left where the game puts it, as it was pulled 100 pixels off the name it points at. Only a short
+  frame (80 pixels at most) over the middle and wider than half the screen is taken for the bar and pinched; a tall
+  one there (the map) is left.
+
 ## 1.43
 
 - A window given an entry for the inset before it was found to be one of the group over the chat log (drawn
