@@ -531,7 +531,6 @@ public:
         if (module.lpBaseOfDll && TakeMirror(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) {
             MirrorBlock.Supported=MIRROR_SUPPORTED;
             if (Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) MirrorBlock.Supported|=MIRROR_SUPPORTED_MOUSE;
-            StartAutoCensus();
         }
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
             (Shared.SupportedMask & 8 ? "[uihook:party] Party/target hooks ready (native arrows preserved). /pt native [target] on; unload hideparty first." :
@@ -666,9 +665,9 @@ public:
         MenuCensus.on=false; MenuCensus.current=nullptr; MenuWatch.Stop(); WatchFile=false; WatchBlock.Count=0;
         GiveMirrorContent(); Give(CensusBitmapDetour); Give(CensusScaledDetour); Give(CensusFontDetour);
     }
-    // The census kept from load, every session its own file in logs\uihook-census (named for when it began),
-    // written a few seconds after a window is first seen, each minute while windows are drawn, and as uihook
-    // is unloaded: every menu opened while playing is documented without a command. /uihook census off stops it.
+    // The census, from /uihook census on: each time it is switched on a file of its own in logs\uihook-census (named
+    // for when it began), written a few seconds after a window is first seen, each minute while windows are drawn,
+    // and as it is switched off or uihook is unloaded. Off from load.
     std::string censusAuto; DWORD censusWrittenAt=0, censusNewAt=0; size_t censusWritten=0; uint32_t censusFrame=0;
     void StartAutoCensus() {
         if (!StartCensus()) return;
@@ -695,8 +694,10 @@ public:
         char line[256];
         const std::string path=std::string(core->GetInstallPath())+"\\logs\\uihook-census.txt";
         if (!_stricmp(word,"on")) {
-            snprintf(line,sizeof(line),MenuCensus.on ? "[uihook:census] already on." : StartCensus()
-                ? "[uihook:census] on: open the menus you use, then /uihook census dump." : "[uihook:census] the text routines were not found in this client.");
+            const bool was=MenuCensus.on;
+            if (!was) StartAutoCensus();
+            snprintf(line,sizeof(line),was ? "[uihook:census] already on." : MenuCensus.on
+                ? "[uihook:census] on, written to logs\\uihook-census as you open menus; /uihook census off to stop." : "[uihook:census] the text routines were not found in this client.");
         } else if (!_stricmp(word,"off")) {
             AutoCensus(true); censusAuto.clear();
             StopCensus(); snprintf(line,sizeof(line),"[uihook:census] off; %zu windows kept until /uihook census clear.",MenuCensus.windows.size());

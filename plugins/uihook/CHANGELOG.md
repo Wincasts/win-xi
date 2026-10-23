@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.31
+
+- The census is off from load again, as before 1.24: `/uihook census on` starts it, each time in a file of its
+  own in `logs\uihook-census\`, written as windows are first seen, each minute and as it is switched off or
+  uihook is unloaded. Nothing heard and nothing written while it is off.
+- The help gives `native` as it is now: drawn moved or scaled, with `scale` listed.
+
 ## 1.30
 
 - A draw wholly outside a moved menu's frame is left where the game put it: the inventory's item count is
