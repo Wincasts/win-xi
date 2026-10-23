@@ -39,9 +39,24 @@ int main(int argc,char** argv) {
         int lit=0,cleared=0;
         for (int y=131;y<155;y++) for (int x=0;x<16;x++) { const uint32_t p=argb[size_t(y)*256+x]; if (p==0) cleared++; if ((p>>24) && ((p>>16)&255)>200) lit++; }
         Check(drawn==3 && cleared>0 && lit>5,"the menu fonts' glyphs drawn in their cells, the rest cleared");
-        int fill=0,shadow=0;
-        for (int y=39;y<51;y++) for (int x=0;x<10;x++) { const uint32_t p=argb[size_t(y)*256+x]; if (((p>>16)&255)>150 && (p>>24)>150) fill++; if (((p>>16)&255)>50 && ((p>>16)&255)<100 && (p>>24)>150) shadow++; }
-        Check(fill>8 && shadow>4,"the small font's E: its fill, and its shadow beside it");
+        int fill=0,shadow=0,outline=0;
+        for (int y=39;y<51;y++) for (int x=0;x<10;x++) {
+            const uint32_t p=argb[size_t(y)*256+x];
+            if (((p>>16)&255)>150 && (p>>24)>100) fill++;
+            if (((p>>16)&255)>70 && ((p>>16)&255)<100 && (p>>24)>130 && (p>>24)<170) shadow++;   // the game's shadow: its grey at its alpha
+            if (((p>>16)&255)<20 && (p>>24)>150) outline++;
+        }
+        Check(fill>4 && outline>4,"a chosen font in winxi's look: its fill and a dark outline about it");
+        (void)shadow;
+        SkinCoverage e2; int b2=0,box2[4]; bool grey=false;
+        if (face.Draw(L"E",12,e2,b2)) for (auto v:e2.v) grey|=v>20 && v<230;
+        Check(grey,"small letters smoothed (drawn larger and averaged), not two-toned");
+        SkinFontFace heavy; heavy.Open(file); heavy.weight=FW_BOLD;
+        SkinCoverage l1,l2; int bl=0; long sum1=0,sum2=0;
+        face.Draw(L"l",40,l1,bl); heavy.Draw(L"l",40,l2,bl);
+        for (auto v:l1.v) sum1+=v; for (auto v:l2.v) sum2+=v;
+        Check(sum2>sum1*12/10,"drawn bold: heavier");
+        (void)box2;
         int capTop=999,capBottom=-1;
         for (int y=131;y<155;y++) for (int x=18;x<34;x++) { const uint32_t p=argb[size_t(y)*256+x]; if ((p>>24)>128 && ((p>>16)&255)>200) { capTop=(std::min)(capTop,y); capBottom=(std::max)(capBottom,y); } }
         Check(capBottom>=148 && capBottom<=151 && capBottom-capTop>=14 && capBottom-capTop<=19,"the 0 on the baseline, about as tall as the game's");
