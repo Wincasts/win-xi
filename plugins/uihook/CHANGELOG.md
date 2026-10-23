@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.42
+
+- The native look places by the screen's size (the render target's), not the viewport's: the game clips some text
+  to its window with a viewport (the title box's words), which taken for the screen made the inset's middle the
+  box's, so the words were pinched there. A viewport smaller than the screen is moved with the draw and put back
+  after it, so what is moved is not clipped away where the window was (the title box drawn empty).
+
 ## 1.41
 
 - A window moved by the inset alone has every draw moved with it: none is kept back for lying outside its frame,
