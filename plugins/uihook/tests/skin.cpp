@@ -74,6 +74,29 @@ int main() {
     Check(hw==1 && hh==1 && four.size()==1 && four[0]==0x7FFF0000,"halved: half as solid, its colour not darkened by the clear");
     std::vector<uint32_t> odd(3*1,0xFF00FF00); uint32_t ow=3,oh=1; SkinHalve(odd,ow,oh);
     Check(ow==1 && oh==1 && odd[0]==0xFF00FF00,"an odd size halved down to a texel");
+    // sizes of a picture: named, kept smallest first, chosen by how large a texel is drawn
+    float factor=0;
+    Check(SkinLook::FileHash("tex-30CDD9D4@0.5.png",hash,&factor) && hash==0x30CDD9D4u && factor==0.5f,"a size named by its factor");
+    Check(SkinLook::FileHash("tex-30CDD9D4.png",hash,&factor) && factor==1,"no factor: the game's size");
+    Check(!SkinLook::FileHash("tex-30CDD9D4@.png",hash,&factor) && !SkinLook::FileHash("tex-30CDD9D4@99.png",hash,&factor),"a factor that is none, or too large");
+    SkinTexture font; int t1=0,t2=0,t05=0;
+    SkinSize z; z.factor=1; z.width=256; z.height=256; z.texture=&t1; SkinLook::AddSize(font,z);
+    z.factor=2; z.width=512; z.height=512; z.texture=&t2; SkinLook::AddSize(font,z);
+    z.factor=0.5f; z.width=128; z.height=128; z.texture=&t05; SkinLook::AddSize(font,z);
+    Check(font.sizes.size()==3 && font.sizes[0].factor==0.5f && font.texture==&t05,"smallest first, the first its texture");
+    bool exact=false;
+    bool levels=false;
+    const SkinSize* chosen=SkinLook::Choose(font,1.0f,exact,&levels);
+    Check(chosen && chosen->factor==0.5f && exact && !levels,"a texel of the first a pixel: the first, unfiltered");
+    chosen=SkinLook::Choose(font,2.0f,exact,&levels);
+    Check(chosen && chosen->factor==1 && exact,"drawn twice as large: the size twice as fine, unfiltered");
+    // the menu font: a texel of its first (0.5) about 0.95 pixels, none a pixel: the smallest twice as fine, no levels
+    chosen=SkinLook::Choose(font,0.95f,exact,&levels);
+    Check(chosen && chosen->factor==1 && !exact && !levels,"none a pixel: the one about twice as fine, filtered, no levels");
+    chosen=SkinLook::Choose(font,0.2f,exact,&levels);
+    Check(chosen && chosen->factor==0.5f && !exact && levels,"shrunk far: filtered with its levels");
+    chosen=SkinLook::Choose(font,8.0f,exact,&levels);
+    Check(chosen && chosen->factor==2 && !exact && !levels,"larger than any: the largest");
     printf("skin: %d failures\n",failures);
     return failures ? 1 : 0;
 }

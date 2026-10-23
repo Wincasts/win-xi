@@ -324,6 +324,15 @@ public:
         }
         return true;
     }
+    // The scale the window being drawn is drawn at (as Transform gives it), for a skin's picture of the size to suit
+    float ScaleNow() const {
+        if (!current || !current->place || !current->known) return 1;
+        const NativeEntry& e=*current;
+        if (e.scale!=1) return e.scale;
+        if (e.group && e.member) return menuScale;
+        const bool framed=e.frameKnown && e.frame[2]>e.frame[0] && e.frame[3]>e.frame[1];
+        return !e.noInset && framed ? menuScale : 1;
+    }
     // As Transform, in the terms the checks were written in: place as NativePlace gives it (corner, move), pinch the
     // bar's middle or -1
     bool Placing(float width,float height,float* place,float* pinch=nullptr,bool* whole=nullptr) const {
