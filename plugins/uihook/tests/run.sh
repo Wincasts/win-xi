@@ -7,7 +7,7 @@ MSVC="${MSVC_PATH:-$TOOLCHAIN/msvc}"
 SDK="${ASHITA_SDK_PATH:-$TOOLCHAIN/ashita/plugins/sdk}"
 OUT="$HERE/build/tests"
 mkdir -p "$OUT"
-for module in buffs party hud chat chat_controls chat_windows menus history texttap mirror native; do
+for module in buffs party hud chat chat_controls chat_windows menus history texttap mirror native textures; do
     clang-cl --target=i686-pc-windows-msvc /nologo /std:c++latest /Od /MT /EHa /W4 /permissive- \
         /DWIN32_LEAN_AND_MEAN /D_CRT_SECURE_NO_WARNINGS -Wno-keyword-macro \
         /imsvc "$MSVC/crt/include" /imsvc "$MSVC/sdk/include/ucrt" /imsvc "$MSVC/sdk/include/um" /imsvc "$MSVC/sdk/include/shared" /imsvc "$SDK/d3d8/includes" \

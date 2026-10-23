@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.32
+
+- `/uihook textures on|off|dump|clear`, the texture census: every texture the game's screen-space drawing uses,
+  counted by window and part (frame, content, cursor, element, scroll, after, text, outside), with the texture
+  places used and its vertex colours, each written once as a picture with an index to `logs\uihook-textures\NN`
+  when switched off or dumped. To tell whether the menus are made of few enough pieces to be reskinned once for
+  them all. Off until asked.
+
 ## 1.31
 
 - The census is off from load again, as before 1.24: `/uihook census on` starts it, each time in a file of its
