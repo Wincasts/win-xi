@@ -14,6 +14,9 @@
 //
 //   <hash> <RRGGBB or *> <RRGGBB>     e.g. 9E2854A3 616180 363650: a draw with that texture, its vertices of the
 //                                     game's colour (any, for *) drawn in the other; their alpha the game's
+//   <hash> <RRGGBB or *> <AARRGGBB>   the same, their alpha this one: the game fades its frame by its vertices'
+//                                     alpha (its sides near 0, its top and bottom 0x61), so a frame even all round
+//                                     sets one
 //
 // The first line that fits a vertex is used. Only for a draw from memory (a vertex buffer's are drawn as they are).
 //
@@ -28,7 +31,7 @@
 #define SKIN_POINTERS 4096
 #define SKIN_ANY 0xffffffffu
 
-struct SkinColour { uint32_t from=SKIN_ANY, to=0; };    // RGB, or SKIN_ANY for every colour
+struct SkinColour { uint32_t from=SKIN_ANY, to=0; bool alpha=false; };    // RGB, or SKIN_ANY for every colour; alpha: to's own, not the game's
 
 struct SkinTexture {
     uint32_t hash=0, width=0, height=0;
@@ -49,7 +52,7 @@ static bool SkinRecolour(const SkinTexture& t,const void* data,unsigned count,un
         uint32_t c; memcpy(&c,bytes+size_t(i)*stride+16,4);
         for (auto& m:t.colours) {
             if (m.from!=SKIN_ANY && m.from!=(c&0xffffff)) continue;
-            const uint32_t to=(c&0xff000000) | (m.to&0xffffff);
+            const uint32_t to=m.alpha ? m.to : (c&0xff000000) | (m.to&0xffffff);
             if (to!=c) {
                 if (!changed) { out.assign(bytes,bytes+size_t(count)*stride); changed=true; }
                 memcpy(out.data()+size_t(i)*stride+16,&to,4);
@@ -73,11 +76,11 @@ static unsigned SkinColours(std::vector<SkinTexture>& textures,const char* text)
         char* stop=nullptr; uint32_t hash=0,from=SKIN_ANY,to=0; bool ok=n==3;
         if (ok) { hash=strtoul(a,&stop,16); ok=*stop==0 && strlen(a)==8; }
         if (ok && strcmp(b,"*")) { from=strtoul(b,&stop,16); ok=*stop==0 && strlen(b)==6; }
-        if (ok) { to=strtoul(c,&stop,16); ok=*stop==0 && strlen(c)==6; }
+        if (ok) { to=strtoul(c,&stop,16); ok=*stop==0 && (strlen(c)==6 || strlen(c)==8); }
         SkinTexture* t=nullptr;
         if (ok) for (auto& x:textures) if (x.hash==hash) t=&x;
         if (!t) { bad++; continue; }
-        SkinColour colour; colour.from=from; colour.to=to; t->colours.push_back(colour);
+        SkinColour colour; colour.from=from; colour.to=to; colour.alpha=strlen(c)==8; t->colours.push_back(colour);
     }
     return bad;
 }

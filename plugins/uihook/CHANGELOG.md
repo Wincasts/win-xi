@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.36
+
+- `skin.txt` may give a colour of eight digits, `AARRGGBB`, for the vertices' alpha as well: the game fades its
+  frame by its vertices' alpha (its sides near 0, its top and bottom 0x61), so a frame even all round sets one.
+- `tools/uihook_skin.py --style winxi`: the frame is the Border Style's art as winxi draws it (a nine-slice, its
+  outer 8 of 64 texels in 3 pixels) laid on the game's 3-pixel line, at the game's size (it draws its frame a
+  texel to a pixel), and drawn at the theme's Border Opacity all round.
+
 ## 1.35
 
 - The texture census keeps up to 48 pieces of each texture as drawn (each quad of a draw: its window, part, place

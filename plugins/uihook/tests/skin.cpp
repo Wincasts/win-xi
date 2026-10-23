@@ -43,6 +43,10 @@ int main() {
     Check(SkinRecolour(pictures[0],cv,3,sizeof(C),D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1,out),"recoloured");
     const C* rc=reinterpret_cast<const C*>(out.data());
     Check(rc[0].colour==0xA9363650 && rc[1].colour==0x614566D0 && rc[2].colour==0x06363650 && cv[0].colour==0xA9616180,"the first line that fits, alpha the game's, the game's own left");
+    Check(SkinColours(pictures,"11111111 * 66808080\n")==0 && pictures[1].colours[0].alpha,"a colour of eight digits sets the alpha too");
+    Check(SkinRecolour(pictures[1],cv,3,sizeof(C),D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1,out)
+        && reinterpret_cast<const C*>(out.data())[0].colour==0x66808080 && reinterpret_cast<const C*>(out.data())[2].colour==0x66808080,"its alpha, not the game's");
+    pictures[1].colours.clear();
     Check(!SkinRecolour(pictures[1],cv,3,sizeof(C),D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1,out),"a picture with no colours: as they are");
     Check(!SkinRecolour(pictures[0],cv,3,sizeof(C),D3DFVF_XYZRHW|D3DFVF_TEX1,out),"vertices without colour: as they are");
 
