@@ -1,8 +1,8 @@
 // The mirror watched while played: every window Window::Render draws in a frame, whether an addon asked for it,
 // whether it was mirrored or dropped (past MIRROR_WINDOWS a frame), and how its draws were made: only
 // DrawPrimitiveUP in screen space (XYZRHW) can be measured, so a window drawn any other way is mirrored with no
-// place. Written to a file as what is drawn changes, at most once a second, with what was published; off until
-// /uihook mirror watch, for reading what a menu does while it is open from outside the game.
+// place. Kept each frame in MirrorWatchShared (magic "UIHOOK-WATCH"), to be read from outside the game while it
+// runs; and with /uihook mirror watch written to a file as it changes, at most once a second.
 #pragma once
 #include <stdint.h>
 #include <stdio.h>
@@ -19,6 +19,15 @@ struct MirrorWatchWindow {
     bool wanted, hidden, mirrored;
     uint32_t up, other, buffer; // its draws: measured (UP, screen space), UP not in screen space, from vertex buffers
 };
+
+// The last frame's windows, as drawn, in the order first drawn. Read only from outside; no addon uses it.
+enum : uint8_t { MIRROR_WATCH_WANTED=1, MIRROR_WATCH_HIDDEN=2, MIRROR_WATCH_MIRRORED=4 };
+struct MirrorWatchEntry { char Name[16]; uint32_t Kind; uint8_t Draws, Depth, Flags, Spare; uint32_t Up, Other, Buffer; };
+struct MirrorWatchShared {
+    char Magic[16]; uint32_t Version, Size, Frame, Count;
+    MirrorWatchEntry Windows[MIRROR_WATCH_WINDOWS];
+};
+static_assert(sizeof(MirrorWatchEntry)==36 && sizeof(MirrorWatchShared)==32+36*MIRROR_WATCH_WINDOWS,"watch block");
 
 class MirrorWatch {
     std::vector<MirrorWatchWindow> drawn;
@@ -54,6 +63,7 @@ public:
         current=at;
         return was;
     }
+    bool Inside() const { return on && current>=0; }
     void Leave(int was) { current=was; if (depth) depth--; }
     enum Kind { UP, OTHER, BUFFER };
     void Draw(Kind kind) {
@@ -61,6 +71,20 @@ public:
         MirrorWatchWindow& w=drawn[size_t(current)];
         (kind==UP ? w.up : kind==OTHER ? w.other : w.buffer)++;
     }
+    // At Present: the frame's windows into the block, for reading from outside
+    void Share(MirrorWatchShared& out,uint32_t frame) const {
+        if (!on) return;
+        const uint32_t count=uint32_t(drawn.size()<MIRROR_WATCH_WINDOWS ? drawn.size() : MIRROR_WATCH_WINDOWS);
+        for (uint32_t i=0;i<count;i++) {
+            const MirrorWatchWindow& w=drawn[i]; MirrorWatchEntry& e=out.Windows[i];
+            memcpy(e.Name,w.name,16); e.Kind=w.kind; e.Draws=w.draws; e.Depth=w.depth; e.Spare=0;
+            e.Flags=uint8_t((w.wanted ? MIRROR_WATCH_WANTED : 0) | (w.hidden ? MIRROR_WATCH_HIDDEN : 0) | (w.mirrored ? MIRROR_WATCH_MIRRORED : 0));
+            e.Up=w.up; e.Other=w.other; e.Buffer=w.buffer;
+        }
+        out.Count=count; out.Frame=frame;
+    }
+    // The next frame begun, nothing written
+    void Next() { drawn.clear(); current=-1; depth=0; }
     // At Present, after the frame is published: what to add to the file, or nothing where nothing has changed or
     // the last was written less than a second ago (now, ms). The frame's windows forgotten either way.
     std::string Present(const MirrorFrameData& published,uint32_t dropped,uint32_t frame,uint32_t now,const char* clock) {
