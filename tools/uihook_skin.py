@@ -166,7 +166,8 @@ def background(theme, size):
 
 def buttons(im, style):
     # each bar of the game's (its run of opaque rows in a column) a grey of 128, the tab art's middle column laid
-    # down it (white to lighten, black to darken, as the tabs are), a darker edge where it meets the clear
+    # down it (white to lighten, black to darken, as the tabs are), its top and bottom rows darker. Not its ends:
+    # the game makes a button of the ends of two bars, and a darker end showed as a line where they meet.
     path = os.path.join(ASSETS, 'tabs', f'{style}.png')
     column = []
     if os.path.exists(path):
@@ -185,9 +186,7 @@ def buttons(im, style):
                 if column:
                     c = column[min(len(column) - 1, int((row - top + 0.5) / height * len(column)))]
                     v = v + (c[0] - v) * c[3] / 255 * 1.6
-                edge = (row == top or row == y - 1 or x == 0 or x == im.width - 1
-                        or px[x - 1, row][3] < 128 or px[x + 1, row][3] < 128)
-                if edge: v *= 0.7
+                if row == top or row == y - 1: v *= 0.7
                 v = max(0, min(255, int(v)))
                 po[x, row] = (v, v, v, px[x, row][3])
     return out
