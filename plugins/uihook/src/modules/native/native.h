@@ -10,8 +10,10 @@
 //   /uihook native group <x> <y> | off     every window the game stacks above the chat log moved together
 //
 // The group: the windows the game places in the bottom left over its chat log (the command menu, a shop's buy and
-// sell, a yes or no, an item's description...), told by their layout target (+8C, four shorts): its bottom on the
-// chat log's top (within a few), its left no further right than the log's left and 150. Told again each frame, as
+// sell, a yes or no, an item's description...), told by where the game draws them (+3A, as left, top, width,
+// height): its bottom on the chat log's top (within a few), its left no further right than the log's left and 150.
+// Not by the layout target (+8C), which for some is over the log while they are drawn elsewhere (1.38 moved the
+// Master and Automaton menu, beside the main menu, so). Told again each frame, as
 // one window can be placed there or elsewhere (the main menu is on the right, the command menu of the same name
 // over the log). Each gets an entry of its own while it is one.
 //
@@ -117,7 +119,7 @@ public:
         for (auto& e:entries) if (e.name[0] && e.group) { if (&e==current) current=nullptr; e=NativeEntry(); n++; }
         return n;
     }
-    // The window about to be drawn, by its name as the game keeps it and its layout target: the log's noted, and
+    // The window about to be drawn, by its name as the game keeps it and where it is drawn: the log's noted, and
     // one of the group given its entry (made, or one long undrawn taken for it)
     void Note(const char* name,const int16_t* target,uint32_t frame) {
         if (!name || !target) return;

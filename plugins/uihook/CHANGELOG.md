@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.39
+
+- The group over the chat log is told by where the game draws each window (+3A), not by its layout target
+  (+8C): some have a target over the log while they are drawn elsewhere, and 1.38 moved the Master and
+  Automaton menu, beside the main menu at the top right, with the group.
+
 ## 1.38
 
 - `/uihook native group <x> <y> | group off`: every window the game stacks in the bottom left over its chat log

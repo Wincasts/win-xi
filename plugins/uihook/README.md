@@ -577,7 +577,8 @@ For trying a skin on the game's own menus rather than drawing them again: the me
 /uihook native clear [name]            one, or all, drawn as the game draws them
 ```
 
-The group (1.38) is told each frame by each window's layout target (+8C): its bottom on the chat log's top (within 8),
+The group (1.38) is told each frame by where the game draws each window (+3A; 1.38 read its layout target, +8C,
+which for some is over the log while they are drawn elsewhere): its bottom on the chat log's top (within 8),
 its left within 150 of the log's, the log itself and the input line not of it. That is the command menu, a shop's
 buy and sell, yes-or-no questions, an item's description and some fifty more; a window of the same name placed
 elsewhere (the main menu on the right) is left. `addons/nativeui` keeps the offset as a setting.
