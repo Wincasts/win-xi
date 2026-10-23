@@ -323,11 +323,11 @@ class PartyHook : public IPlugin {
         if (!device || FAILED(device->GetVertexShader(&shader)) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) { NativeMenus.Unmoved(); return false; }
         NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
         D3DVIEWPORT8 viewport={};
-        float place[4]={};
+        float place[4]={},pinch=-1;
         bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport))
-            && NativeMenus.Placing(float(viewport.Width),float(viewport.Height),place);
+            && NativeMenus.Placing(float(viewport.Width),float(viewport.Height),place,&pinch);
         // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it
-        if (placing && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
+        if (placing && pinch<0 && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
         uint32_t colour=0;
         bool tinting=NativeMenus.Tinting(colour);
         DWORD saved[6]={},factor=0,third=D3DTOP_DISABLE;
@@ -347,7 +347,8 @@ class PartyHook : public IPlugin {
         const void* drawn=data;
         if (placing) {
             scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
-            NativeMoveVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,place,e->scale);
+            if (pinch>=0) NativePinchVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,pinch,NativeMenus.inset,place[3]);
+            else NativeMoveVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,place,e->scale);
             drawn=scaledVertices.data();
         }
         IDirect3DBaseTexture8* texture=nullptr;
@@ -562,12 +563,21 @@ class PartyHook : public IPlugin {
             NativeMenus.Group(float(atof(name)),float(atof(a)));
             snprintf(line,sizeof(line),"[uihook:native] the windows the game stacks over the chat log drawn %s, %s from where it puts them.",name,a);
             if (words>=4 && !_stricmp(b,"quiet")) return;
+        } else if (words>=2 && !_stricmp(verb,"inset")) {
+            NativeMenus.Inset(float(atof(name)));
+            snprintf(line,sizeof(line),NativeMenus.inset>0 ? "[uihook:native] the sides brought in %.0f pixels: the bar across the top that much shorter at each end, the windows each side with it."
+                : "[uihook:native] the sides where the game puts them.",NativeMenus.inset);
+            if (words>=3 && !_stricmp(a,"quiet")) return;
         } else if (words>=1 && !_stricmp(verb,"clear")) {
             snprintf(line,sizeof(line),"[uihook:native] %u drawn as the game draws them again.",NativeMenus.Clear(words>=2 ? name : nullptr));
         } else if (words<1) {
             unsigned n=0; for (auto& e:NativeMenus.entries) if (e.name[0]) n++;
             snprintf(line,sizeof(line),"[uihook:native] %u menus set; the game's mouse hit-tests stay where it puts them.",n);
             chat->Write(0,false,line);
+            if (NativeMenus.inset>0) {
+                snprintf(line,sizeof(line),"  the sides brought in %.0f pixels",NativeMenus.inset);
+                chat->Write(0,false,line);
+            }
             if (NativeMenus.groupOn) {
                 snprintf(line,sizeof(line),"  group over the chat log: %.0f, %.0f; the log's top %d at its left %d (%s)",NativeMenus.groupX,NativeMenus.groupY,
                     NativeMenus.logTop,NativeMenus.logLeft,NativeMenus.logFrame ? "seen" : "not drawn yet");
@@ -585,7 +595,7 @@ class PartyHook : public IPlugin {
             }
             return;
         } else {
-            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | scale <name> <factor> | tint <name> <AARRGGBB> | group <x> <y> | group off | clear [name]]");
+            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | scale <name> <factor> | tint <name> <AARRGGBB> | group <x> <y> | group off | inset <pixels> | clear [name]]");
         }
         chat->Write(0,false,line);
     }

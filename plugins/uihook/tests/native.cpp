@@ -104,6 +104,39 @@ int main() {
     group.Group(10,-100);
     Check(cm->dx==10 && cm->dy==-100,"a new offset for every one of it");
     Check(group.GroupOff()==2 && !group.Any(),"the group off: its entries gone");
+    // the sides brought in
+    NativeLook sides;
+    sides.Inset(100);
+    Check(sides.Any(),"an inset set: windows are looked at");
+    auto frameOf=[&](const char* name,float l,float r,uint32_t frame) {
+        NativeLook::Saved was=sides.Enter(name,frame);
+        V f[2]={{l,10,0,1,0,0,0},{r,40,0,1,0,0,0}}; sides.Gather(f,2,sizeof(V)); sides.Leave(was);
+    };
+    frameOf("menu    titlewin",15,127,1); frameOf("menu    helpwind",129,3309,1); frameOf("menu    netstat ",3311,3423,1);
+    frameOf("menu    dialog  ",1600,1840,1); frameOf("menu    logwindo",15,674,1);
+    float pinch=-1;
+    saved=sides.Enter("menu    titlewin",2);
+    Check(sides.Placing(3440,1440,place,&pinch) && pinch<0 && Near(place[2],100),"a window on the left half: moved right");
+    sides.Leave(saved);
+    saved=sides.Enter("menu    netstat ",2);
+    Check(sides.Placing(3440,1440,place,&pinch) && Near(place[2],-100),"one on the right half: moved left");
+    sides.Leave(saved);
+    saved=sides.Enter("menu    helpwind",2);
+    Check(sides.Placing(3440,1440,place,&pinch) && Near(pinch,1720),"the bar across the top: its ends brought in");
+    sides.Leave(saved);
+    V bar[4]={{129,10,0,1,0,0,0},{3309,10,0,1,0,0,0},{200,20,0,1,0,0,0},{3000,20,0,1,0,0,0}};
+    NativePinchVertices(bar,4,sizeof(V),1720,100,0);
+    Check(Near(bar[0].x,229) && Near(bar[1].x,3209) && Near(bar[2].x,300) && Near(bar[3].x,2900),"each vertex toward the middle: the bar 200 shorter, what is on it moved with its end");
+    saved=sides.Enter("menu    dialog  ",2);
+    Check(!sides.Placing(3440,1440,place,&pinch),"a narrower one over the middle: left");
+    sides.Leave(saved);
+    saved=sides.Enter("menu    logwindo",2);
+    Check(!sides.Placing(3440,1440,place,&pinch),"the chat log: left, chatbox placing it");
+    sides.Leave(saved);
+    sides.Inset(0);
+    saved=sides.Enter("menu    titlewin",3);
+    Check(!sides.Placing(3440,1440,place,&pinch),"no inset: as the game puts it");
+    sides.Leave(saved);
     printf("%d failures\n",failures);
     return failures ? 1 : 0;
 }
