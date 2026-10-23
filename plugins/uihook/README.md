@@ -573,6 +573,7 @@ For trying a skin on the game's own menus rather than drawing them again: the me
 /uihook native scale <name> <factor>   drawn 0.5 to 3 times its size, from the corner of the screen it is nearest
 /uihook native group <x> <y> [quiet]   every window the game stacks over the chat log drawn x, y from its place, together
 /uihook native group off [quiet]       those as the game draws them again
+/uihook native inset <pixels> [quiet]  the top bar that much shorter at each end, every window either side moved in with it
 /uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (RRGGBB: opaque)
 /uihook native clear [name]            one, or all, drawn as the game draws them
 ```

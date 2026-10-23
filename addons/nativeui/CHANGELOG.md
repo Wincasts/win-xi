@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2
+
+- Sides: Bring Sides In, the bar across the top shorter at each end by as many pixels, staying centred, and every
+  window on either half of the screen moved in with it at its size (uihook 1.40's `/uihook native inset`). The
+  chat log and the menus stacked on it stay put.
+
 ## 0.1
 
 - Skin: a folder of `config\uihook\skins` chosen in the settings, loaded with `/uihook skin` each time the game

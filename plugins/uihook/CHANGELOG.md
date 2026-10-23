@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.40
+
+- `/uihook native inset <pixels> [quiet]`: the sides brought in. The bar across the top (a window over the
+  middle of the screen and wider than half of it) is drawn that much shorter at each end, every vertex of it
+  moved toward the middle, so its frame shortens and what is on it goes with its end; every window wholly on the
+  left half is drawn that far right and every one on the right half that far left, at its size, so they keep
+  their places to each other. A narrower window over the middle stays; so do the chat log and the windows stacked
+  on it (chatbox places the log). Windows are given entries as they are drawn, up to 128.
+
 ## 1.39
 
 - The group over the chat log is told by where the game draws each window (+3A), not by its layout target

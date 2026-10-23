@@ -8,6 +8,11 @@
 //   /uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (0xFF808080 halves it)
 //   /uihook native clear [name]            one, or all, as the game draws them
 //   /uihook native group <x> <y> | off     every window the game stacks above the chat log moved together
+//   /uihook native inset <pixels> | 0      the sides brought in: each window on the left half of the screen drawn
+//                                          that far right, each on the right half that far left, the bar across
+//                                          the top (one wider than half the screen, over its middle) that much
+//                                          shorter at each end; one over the middle and narrower left as it is,
+//                                          as are the chat log and the windows stacked on it (the group's)
 //
 // The group: the windows the game places in the bottom left over its chat log (the command menu, a shop's buy and
 // sell, a yes or no, an item's description...), told by where the game draws them (+3A, as left, top, width,
@@ -34,7 +39,7 @@
 #include <algorithm>
 #include "../mirror/mirror.h"
 
-#define NATIVE_ENTRIES 64
+#define NATIVE_ENTRIES 128
 #define NATIVE_GROUP_REACH 150   // how far right of the log's left a window of the group may start, in its units
 #define NATIVE_GROUP_SLACK 8     // how far above the log's top its bottom may be
 #define NATIVE_GROUP_STALE 600   // frames an entry of the group goes undrawn before its place is given to another
@@ -54,6 +59,15 @@ static bool NativePlace(const float* bounds,float dx,float dy,float scale,float 
     dy=(std::max)(-top,(std::min)(height-bottom,dy));
     out[0]=ax; out[1]=ay; out[2]=dx; out[3]=dy;
     return true;
+}
+// Each vertex's place brought in toward middle by inset (left of it right, right of it left), moved down by dy
+static void NativePinchVertices(void* data,unsigned count,unsigned stride,float middle,float inset,float dy) {
+    auto* bytes=static_cast<uint8_t*>(data);
+    for (unsigned i=0;i<count;i++) {
+        float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
+        v[0]+=v[0]<middle ? inset : -inset; v[1]+=dy;
+        memcpy(bytes+size_t(i)*stride,v,sizeof(v));
+    }
 }
 // Each vertex's place (the first two floats, screen space) moved as NativePlace says
 static void NativeMoveVertices(void* data,unsigned count,unsigned stride,const float* place,float scale) {
@@ -77,6 +91,7 @@ struct NativeEntry {
     char name[16]={};
     bool place=false,tint=false;
     bool group=false,member=false;   // made for the group; and, this frame, one of it
+    bool automatic=false,noInset=false;  // made as it was drawn (for the group or the inset), its place given up when long undrawn; never brought in
     float dx=0,dy=0,scale=1; uint32_t colour=0;
     // the window's draws' bounds as the game made them, in display pixels: those of the frame being drawn, and the
     // last whole frame's, which each frame's draws are placed by
@@ -100,12 +115,25 @@ public:
     unsigned text=0;
     // the group above the chat log, and the log's layout target as last drawn (its left and top), 0 frame unknown
     bool groupOn=false; float groupX=0,groupY=0;
+    float inset=0;   // the sides brought in by this many pixels, 0 not
     int16_t logLeft=0,logTop=0; uint32_t logFrame=0;
 
-    // Whether a window of this name and layout target is one of the group
+    // The chat log's windows: never of the group, never brought in (chatbox places the log)
+    static bool LogWindow(const char* name) {
+        return !memcmp(name+8,"logwindo",8) || !memcmp(name+8,"logwin2 ",8) || !memcmp(name+8,"fulllog ",8) || !memcmp(name+8,"inline  ",8);
+    }
+    // An entry for a window as it is drawn: a new one, or the place of one made so and long undrawn
+    NativeEntry* Make(const char* name,uint32_t frame) {
+        NativeEntry* e=Find(name,true);
+        if (!e) for (auto& x:entries) if (x.automatic && frame-x.seen>NATIVE_GROUP_STALE && &x!=current) { x=NativeEntry(); memcpy(x.name,name,16); e=&x; break; }
+        if (e) { e->automatic=true; e->place=true; e->noInset=LogWindow(name); }
+        return e;
+    }
+    bool Inset(float pixels) { inset=pixels>0 ? pixels : 0; return true; }
+    // Whether a window of this name and place is one of the group
     bool GroupMember(const char* name,const int16_t* target) const {
         if (!groupOn || !logFrame || !target || target[2]<=0 || target[3]<=0) return false;
-        if (!memcmp(name+8,"logwindo",8) || !memcmp(name+8,"logwin2 ",8) || !memcmp(name+8,"fulllog ",8) || !memcmp(name+8,"inline  ",8)) return false;
+        if (LogWindow(name)) return false;
         const int bottom=target[1]+target[3];
         return bottom<=logTop && bottom>=logTop-NATIVE_GROUP_SLACK && target[0]>=0 && target[0]<=logLeft+NATIVE_GROUP_REACH;
     }
@@ -128,10 +156,9 @@ public:
         const bool member=GroupMember(name,target);
         if (e) { e->member=member; return; }
         if (!member) return;
-        e=Find(name,true);
-        if (!e) for (auto& x:entries) if (x.group && frame-x.seen>NATIVE_GROUP_STALE && &x!=current) { x=NativeEntry(); memcpy(x.name,name,16); e=&x; break; }
+        e=Make(name,frame);
         if (!e) return;
-        e->group=true; e->member=true; e->place=true; e->dx=groupX; e->dy=groupY;
+        e->group=true; e->member=true; e->dx=groupX; e->dy=groupY;
     }
 
     NativeEntry* Find(const char* name,bool add) {
@@ -171,7 +198,7 @@ public:
         }
         return n;
     }
-    bool Any() const { if (groupOn) return true; for (auto& e:entries) if (e.name[0]) return true; return false; }
+    bool Any() const { if (groupOn || inset>0) return true; for (auto& e:entries) if (e.name[0]) return true; return false; }
 
     // The window being drawn: its entry, if it is one named. Its draws' bounds from the frame before become the ones
     // it is placed by. Returns what to give back after it.
@@ -180,6 +207,7 @@ public:
         Saved saved={current,phase,text};
         current=nullptr; phase=MIRROR_FRAME; text=0;
         NativeEntry* e=name ? Find(name,false) : nullptr;
+        if (!e && name && inset>0) e=Make(name,frame);
         if (e) {
             e->seen=frame;
             if (e->gatherFrame!=frame) {
@@ -227,12 +255,28 @@ public:
         const float* f=current->frame;
         return b[2]>=f[0] && b[0]<=f[2] && b[3]>=f[1] && b[1]<=f[3];
     }
-    // Whether the window's draws are moved, and where (place: as NativePlace gives it): false until its bounds are known
-    bool Placing(float width,float height,float* place) const {
-        if (!current || !current->place || !current->known || (current->group && !current->member)) return false;
+    // Whether the window's draws are moved, and where (place: as NativePlace gives it): false until its bounds are known.
+    // pinch, where given: the middle of the screen for the bar across it, its draws' ends brought in by inset (each
+    // vertex left of it moved right, each right of it left), else -1
+    bool Placing(float width,float height,float* place,float* pinch=nullptr) const {
+        if (pinch) *pinch=-1;
+        if (!current || !current->place || !current->known) return false;
         const NativeEntry& e=*current;
-        if (e.dx==0 && e.dy==0 && e.scale==1) return false;
-        return NativePlace(e.frameKnown ? e.frame : e.bounds,e.dx,e.dy,e.scale,width,height,place);
+        const float* bounds=e.frameKnown ? e.frame : e.bounds;
+        // one made for the group, placed elsewhere this frame: as any other
+        const bool grouped=e.group && e.member,away=e.group && !e.member;
+        float dx=away ? 0 : e.dx; const float dy=away ? 0 : e.dy;
+        if (inset>0 && !grouped && !e.noInset && bounds[2]>bounds[0]) {
+            const float middle=width/2;
+            if (bounds[2]<=middle) dx+=inset;
+            else if (bounds[0]>=middle) dx-=inset;
+            else if (bounds[2]-bounds[0]>width/2 && e.scale==1 && pinch) {
+                *pinch=middle; place[0]=place[1]=place[2]=0; place[3]=dy;
+                return true;
+            }
+        }
+        if (dx==0 && dy==0 && e.scale==1) return false;
+        return NativePlace(bounds,dx,dy,e.scale,width,height,place);
     }
     // Whether a draw now is the frame of a window tinted, and the colour
     bool Tinting(uint32_t& colour) const {

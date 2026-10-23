@@ -1,6 +1,6 @@
 addon.name    = 'nativeui'
 addon.author  = 'win'
-addon.version = '0.1'
+addon.version = '0.2'
 addon.desc    = 'The game\'s own interface in a uihook skin, and the menus it stacks over the chat log moved where you want them.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -15,7 +15,11 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- (/uihook native group). Only their drawing is moved: the controller works them as ever, but the mouse clicks
 -- where the game put them.
 --
--- Needs uihook 1.38 or newer.
+-- Sides: the bar across the top that many pixels shorter at each end, staying centred, and every window on either
+-- half of the screen moved in with it, keeping their size and their places to each other (/uihook native inset).
+-- The chat log and the menus stacked on it stay where they are.
+--
+-- Needs uihook 1.40 or newer.
 
 local winxiNeeded = 41
 do
@@ -36,16 +40,18 @@ local shell = require('winxi.shell')
 
 local NONE = 'None'
 local OFFSET_LIMIT = 4000   -- pixels either way
+local INSET_LIMIT = 800     -- pixels in from each side, at most
 
 local defaults = T{
     skin = 'winxi',          -- a folder of config\uihook\skins, or None
     offset = T{ 0, 0 },      -- the menus over the chat log: pixels right and down from where the game puts them
+    inset = T{ 0 },          -- the sides brought in, pixels at each
 }
 
 local app
 -- What uihook was last given: sent again only as it changes, and all of it once the game draws (uihook may load
 -- after this, and a skin needs the game's device)
-local sent = { skin = nil, offset = nil }
+local sent = { skin = nil, offset = nil, inset = nil }
 
 local function Uihook()
     local ok, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('uihook') end)
@@ -82,6 +88,11 @@ local function Apply(force)
         Send((x == 0 and y == 0) and '/uihook native group off quiet' or ('/uihook native group %d %d quiet'):format(x, y))
         sent.offset = offset
     end
+    local inset = options.inset[1]
+    if force or sent.inset ~= inset then
+        Send(('/uihook native inset %d quiet'):format(inset))
+        sent.inset = inset
+    end
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -110,6 +121,14 @@ local function DrawSettings(options)
         widgets.Label('Reload Skin')
         if imgui.Button('Reload##nativeui.reload') and options.skin ~= NONE and Uihook() then Send('/uihook skin reload') end
         tooltip.Hover('The skin\'s pictures read again, after they have been changed.')
+    end
+    if widgets.Header('Sides') then
+        widgets.PushControlWidth()
+        widgets.Label('Bring Sides In')
+        if imgui.SliderInt('##nativeui.inset', options.inset, 0, INSET_LIMIT, '%d px') then Apply() end
+        if imgui.IsItemDeactivatedAfterEdit() then app:Save() end
+        widgets.PopControlWidth()
+        tooltip.Hover('The bar across the top this many pixels shorter at each end, staying centred, and every window on either half of the screen moved in as far, keeping its size and its place next to the others. The chat log and the menus stacked on it stay where they are. 0: where the game puts them.')
     end
     if widgets.Header('Menus Over The Chat Log') then
         local changed = false
@@ -144,8 +163,10 @@ local function Complete(options)
         local v = tonumber(options.offset[i]) or 0
         options.offset[i] = math.max(-OFFSET_LIMIT, math.min(OFFSET_LIMIT, math.floor(v + 0.5)))
     end
+    if type(options.inset) ~= 'table' then options.inset = T{ 0 } end
+    options.inset[1] = math.max(0, math.min(INSET_LIMIT, math.floor((tonumber(options.inset[1]) or 0) + 0.5)))
     -- another character's settings: all of it given again
-    sent.skin, sent.offset = nil, nil
+    sent.skin, sent.offset, sent.inset = nil, nil, nil
 end
 
 app = shell.New({
@@ -166,4 +187,5 @@ end)
 -- unloaded: the game's own menus, where it puts them
 ashita.events.register('unload', 'nativeui_unload', function()
     if Uihook() and sent.offset and sent.offset ~= '0,0' then Send('/uihook native group off quiet') end
+    if Uihook() and sent.inset and sent.inset ~= 0 then Send('/uihook native inset 0 quiet') end
 end)
