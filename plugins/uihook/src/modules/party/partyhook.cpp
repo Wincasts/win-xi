@@ -412,7 +412,7 @@ class PartyHook : public IPlugin {
     }
     // /uihook skin: a screen-space draw whose texture (stage 0) the skin has a picture for is given it; what was there
     // comes back to be put back by SkinEnd. Nothing where no skin is loaded.
-    struct SkinSwap { int32_t index=-1; IDirect3DBaseTexture8* was=nullptr; DWORD filters[3]={}; };
+    struct SkinSwap { int32_t index=-1; IDirect3DBaseTexture8* was=nullptr; DWORD filters[3]={}; bool clamped=false; DWORD address[2]={}; };
     // stage 0's filters while a skin's picture is in it: linear, with its levels, so one made larger than it is
     // drawn shrinks smoothly and one drawn larger is not blocky
     static constexpr D3DTEXTURESTAGESTATETYPE SkinFilters[3]={D3DTSS_MAGFILTER,D3DTSS_MINFILTER,D3DTSS_MIPFILTER};
@@ -441,8 +441,27 @@ class PartyHook : public IPlugin {
         const DWORD filter=exact ? DWORD(D3DTEXF_POINT) : DWORD(D3DTEXF_LINEAR);
         const DWORD filters[3]={filter,filter,levels ? DWORD(D3DTEXF_LINEAR) : DWORD(D3DTEXF_NONE)};
         for (int i=0;i<3;i++) { device->GetTextureStageState(0,SkinFilters[i],&swap.filters[i]); device->SetTextureStageState(0,SkinFilters[i],filters[i]); }
+        // a draw within its texture (not tiled across it, as the frame's edges are) clamped at the texture's edges:
+        // filtered, a piece at its edge took in the far side wrapped round (a clear column where two button bars meet)
+        if (SkinWithin(data,count,stride,fvf)) {
+            swap.clamped=true;
+            device->GetTextureStageState(0,D3DTSS_ADDRESSU,&swap.address[0]); device->GetTextureStageState(0,D3DTSS_ADDRESSV,&swap.address[1]);
+            device->SetTextureStageState(0,D3DTSS_ADDRESSU,D3DTADDRESS_CLAMP); device->SetTextureStageState(0,D3DTSS_ADDRESSV,D3DTADDRESS_CLAMP);
+        }
         skinActive=swap.index;
         return swap;
+    }
+    // Whether every texture place of a draw lies within its texture (0 to 1 each way); false where they are not to hand
+    static bool SkinWithin(const void* data,unsigned count,unsigned stride,DWORD fvf) {
+        if (!data || !count || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return false;
+        unsigned at=16; if (fvf & D3DFVF_DIFFUSE) at+=4; if (fvf & D3DFVF_SPECULAR) at+=4;
+        if (((fvf & D3DFVF_TEXCOUNT_MASK)>>D3DFVF_TEXCOUNT_SHIFT)<1 || stride<at+8) return false;
+        const auto* bytes=static_cast<const uint8_t*>(data);
+        for (unsigned i=0;i<count;i++) {
+            float t[2]; memcpy(t,bytes+size_t(i)*stride+at,8);
+            if (!(t[0]>=-0.001f && t[0]<=1.001f && t[1]>=-0.001f && t[1]<=1.001f)) return false;
+        }
+        return true;
     }
     // How many pixels a texel of a picture's first size covers in this draw: along its first triangle's longer side
     // on the screen, as the window is drawn (its scale); the window's scale alone where the vertices are not to hand
@@ -484,6 +503,7 @@ class PartyHook : public IPlugin {
             if (ok) Skin.textures[size_t(swap.index)].drawn++;
         }
         for (int i=0;i<3;i++) device->SetTextureStageState(0,SkinFilters[i],swap.filters[i]);
+        if (swap.clamped) { device->SetTextureStageState(0,D3DTSS_ADDRESSU,swap.address[0]); device->SetTextureStageState(0,D3DTSS_ADDRESSV,swap.address[1]); }
         device->SetTexture(0,swap.was); swap.was->Release();
         return ok;
     }
