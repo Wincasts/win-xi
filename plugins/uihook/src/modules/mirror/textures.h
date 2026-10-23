@@ -18,6 +18,7 @@
 #define TEXTURE_PARTS 8
 #define TEXTURE_WINDOWS 96
 #define TEXTURE_COLOURS 8
+#define TEXTURE_SAMPLES 48              // pieces drawn of each texture, kept to show how it is cut
 #define TEXTURE_STALE 120               // frames a pointer goes unseen before it is read again
 #define TEXTURE_MEMORY (128u<<20)       // pixels kept at most, in bytes; past it a texture is counted, not kept
 enum TexturePart { TEXTURE_FRAME, TEXTURE_CONTENT, TEXTURE_CURSOR, TEXTURE_ELEMENT, TEXTURE_SCROLL, TEXTURE_AFTER, TEXTURE_TEXT, TEXTURE_OUTSIDE };
@@ -25,6 +26,10 @@ static const char* const TexturePartNames[TEXTURE_PARTS] = { "frame", "content",
 
 // A texture's name by its pixels and size, as the census writes it (tex-<hash>.bmp) and a skin names its own
 static uint32_t TextureHash(const LabelPixels& pixels,uint32_t width,uint32_t height) { return LabelHash(pixels)^(width*2654435761u)^height; }
+
+// One piece of a texture as drawn (a quad of a draw): where on the screen, the texture places at its top-left and
+// bottom-right corners (either way round, so a piece drawn mirrored shows it), its first vertex's colour
+struct TextureSample { char window[17]; uint8_t part; float rect[4], uv[4]; uint32_t colour; uint32_t count; };
 
 struct TextureEntry {
     uint32_t hash=0, width=0, height=0, format=0, pool=0;   // hash 0: none read (why says why); width 0: no texture at all
@@ -34,6 +39,7 @@ struct TextureEntry {
     std::vector<std::string> windows;                       // the windows drawing it, at most TEXTURE_WINDOWS
     float uv[4]={}; bool uvKnown=false;                     // the texture places drawn, all draws together
     uint32_t colours[TEXTURE_COLOURS]={}; unsigned colourCount=0;
+    std::vector<TextureSample> samples;
     uint32_t Total() const { uint32_t n=0; for (auto d:draws) n+=d; return n; }
 };
 
@@ -87,6 +93,23 @@ public:
         }
         if (colour && e.colourCount<TEXTURE_COLOURS && std::find(e.colours,e.colours+e.colourCount,*colour)==e.colours+e.colourCount) e.colours[e.colourCount++]=*colour;
     }
+    // A piece drawn, kept where it is unlike those kept: by window, part, size and texture places, wherever it is
+    void Sample(size_t at,TexturePart part,const float* rect,const float* uv,uint32_t colour) {
+        if (at>=entries.size()) return;
+        TextureEntry& e=entries[at];
+        const char* name=window[0] ? window : "(no window)";
+        auto same=[&](const TextureSample& s) {
+            if (s.part!=part || strcmp(s.window,name)) return false;
+            if (fabsf((s.rect[2]-s.rect[0])-(rect[2]-rect[0]))>0.5f || fabsf((s.rect[3]-s.rect[1])-(rect[3]-rect[1]))>0.5f) return false;
+            for (int i=0;i<4;i++) if (fabsf(s.uv[i]-uv[i])>0.002f) return false;
+            return true;
+        };
+        for (auto& s:e.samples) if (same(s)) { s.count++; return; }
+        if (e.samples.size()>=TEXTURE_SAMPLES) return;
+        TextureSample s={}; snprintf(s.window,sizeof(s.window),"%s",name); s.part=uint8_t(part);
+        memcpy(s.rect,rect,sizeof(s.rect)); memcpy(s.uv,uv,sizeof(s.uv)); s.colour=colour; s.count=1;
+        e.samples.push_back(s);
+    }
     void Clear() { entries.clear(); pointers.clear(); memory=0; }
     // A window's name as the game keeps it ("menu    " and its own), its own part kept
     void Window(const char* name) {
@@ -131,6 +154,9 @@ public:
                 e.why[0] ? "  # " : "",e.why);
             std::string list; for (auto& w:e.windows) { list+=list.empty() ? "" : " "; list+=w; }
             fprintf(f,"    %s\n",list.c_str());
+            for (auto& p:e.samples)
+                fprintf(f,"      %-12s %-7s at %7.1f,%7.1f size %6.1fx%-6.1f uv %7.3f,%7.3f to %7.3f,%7.3f colour %08X x%u\n",p.window,TexturePartNames[p.part],
+                    p.rect[0],p.rect[1],p.rect[2]-p.rect[0],p.rect[3]-p.rect[1],p.uv[0],p.uv[1],p.uv[2],p.uv[3],p.colour,p.count);
         }
         fprintf(f,"\nwindows and the textures they draw (file, or size/format where none was read):\n");
         for (auto& name:names) {
@@ -167,4 +193,27 @@ static bool TextureVertices(const void* data,unsigned count,unsigned stride,uint
         uv[2]=(std::max)(uv[2],t[0]); uv[3]=(std::max)(uv[3],t[1]);
     }
     return true;
+}
+
+// A draw's pieces (every group vertices of it: 6 for a list of triangles, 4 for indexed quads or a strip), each with
+// its place on the screen and the texture places at its top-left and bottom-right vertices, given to piece()
+template<class Piece> static void TexturePieces(const void* data,unsigned count,unsigned stride,uint32_t fvf,unsigned group,Piece piece) {
+    if (!data || !group || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return;
+    unsigned at=16; const bool diffuse=(fvf & D3DFVF_DIFFUSE)!=0;
+    if (diffuse) at+=4;
+    if (fvf & D3DFVF_SPECULAR) at+=4;
+    if (((fvf & D3DFVF_TEXCOUNT_MASK)>>D3DFVF_TEXCOUNT_SHIFT)<1 || stride<at+8) return;
+    const auto* bytes=static_cast<const uint8_t*>(data);
+    for (unsigned first=0;first+group<=count && first<group*64;first+=group) {
+        float rect[4]={},uv[4]={}; float low=0,high=0; uint32_t colour=0;
+        for (unsigned i=first;i<first+group;i++) {
+            float v[2],t[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v)); memcpy(t,bytes+size_t(i)*stride+at,sizeof(t));
+            if (!std::isfinite(v[0]) || !std::isfinite(v[1]) || !std::isfinite(t[0]) || !std::isfinite(t[1])) return;
+            if (i==first) { rect[0]=rect[2]=v[0]; rect[1]=rect[3]=v[1]; low=high=v[0]+v[1]; uv[0]=uv[2]=t[0]; uv[1]=uv[3]=t[1]; if (diffuse) memcpy(&colour,bytes+size_t(i)*stride+16,4); continue; }
+            rect[0]=(std::min)(rect[0],v[0]); rect[1]=(std::min)(rect[1],v[1]); rect[2]=(std::max)(rect[2],v[0]); rect[3]=(std::max)(rect[3],v[1]);
+            if (v[0]+v[1]<low) { low=v[0]+v[1]; uv[0]=t[0]; uv[1]=t[1]; }
+            if (v[0]+v[1]>high) { high=v[0]+v[1]; uv[2]=t[0]; uv[3]=t[1]; }
+        }
+        piece(rect,uv,colour);
+    }
 }

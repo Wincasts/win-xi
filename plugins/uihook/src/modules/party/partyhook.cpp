@@ -474,7 +474,7 @@ class PartyHook : public IPlugin {
     }
     // /uihook textures: a screen-space draw's texture (stage 0), read the first time it is seen, counted with the
     // window and part drawing it. data: its vertices, from min; none from a vertex buffer.
-    void TextureDraw(const void* data,unsigned vertices,unsigned stride,bool buffered) {
+    void TextureDraw(const void* data,unsigned vertices,unsigned stride,bool buffered,unsigned group=0) {
         if (!Textures.on) return;
         auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
         if (!device || FAILED(device->GetVertexShader(&fvf)) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return;
@@ -493,6 +493,7 @@ class PartyHook : public IPlugin {
         const bool hasUV=!buffered && TextureVertices(data,vertices,stride,fvf,uv,&colour,hasColour);
         const TexturePart part=!Textures.window[0] ? TEXTURE_OUTSIDE : NativeMenus.text ? TEXTURE_TEXT : TexturePart(NativeMenus.phase);
         Textures.Count(at,part,hasUV ? uv : nullptr,hasColour ? &colour : nullptr,buffered);
+        if (hasUV) TexturePieces(data,vertices,stride,fvf,group,[&](const float* rect,const float* piece,uint32_t c) { Textures.Sample(at,part,rect,piece,c); });
     }
     void TexturesWrite(char* line,size_t size) {
         const std::string base=std::string(core->GetInstallPath())+"\\logs\\uihook-textures";
@@ -794,7 +795,8 @@ public:
     }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
         if (scaling) return false;
-        TextureDraw(data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride,false);
+        TextureDraw(data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride,false,
+            t==D3DPT_TRIANGLELIST ? 6 : t==D3DPT_TRIANGLESTRIP && count==2 ? 4 : 0);
         MenuCensus.Draw();
         if (MenuWatch.Inside()) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0); // our own scaled copy, on its way to the device
@@ -808,7 +810,7 @@ public:
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
         if (scaling) return false;
-        TextureDraw(data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr,vertices,stride,false);
+        TextureDraw(data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr,vertices,stride,false,4);
         MenuCensus.Draw();
         if (MenuWatch.Inside()) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
