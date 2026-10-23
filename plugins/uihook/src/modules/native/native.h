@@ -8,6 +8,8 @@
 //   /uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (0xFF808080 halves it)
 //   /uihook native clear [name]            one, or all, as the game draws them
 //   /uihook native group <x> <y> | off     every window the game stacks above the chat log moved together
+//   /uihook native size <factor>           every framed window drawn larger or smaller, from its quarter's corner of
+//                                          the screen (the bar from its ends, the group from the chat log's top left)
 //   /uihook native inset <pixels> | 0      the sides brought in: each window on the left half of the screen drawn
 //                                          that far right, each on the right half that far left, the bar across
 //                                          the top (one wider than half the screen, over its middle) that much
@@ -61,31 +63,32 @@ static bool NativePlace(const float* bounds,float dx,float dy,float scale,float 
     out[0]=ax; out[1]=ay; out[2]=dx; out[3]=dy;
     return true;
 }
-// Each vertex's place brought in toward middle by inset (left of it right, right of it left), moved down by dy
-static void NativePinchVertices(void* data,unsigned count,unsigned stride,float middle,float inset,float dy) {
-    auto* bytes=static_cast<uint8_t*>(data);
-    for (unsigned i=0;i<count;i++) {
-        float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
-        v[0]+=v[0]<middle ? inset : -inset; v[1]+=dy;
-        memcpy(bytes+size_t(i)*stride,v,sizeof(v));
-    }
-}
-// Each vertex's place (the first two floats, screen space) moved as NativePlace says
-static void NativeMoveVertices(void* data,unsigned count,unsigned stride,const float* place,float scale) {
-    auto* bytes=static_cast<uint8_t*>(data);
-    for (unsigned i=0;i<count;i++) {
-        float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
-        v[0]=place[0]+(v[0]-place[0])*scale+place[2];
-        v[1]=place[1]+(v[1]-place[1])*scale+place[3];
-        memcpy(bytes+size_t(i)*stride,v,sizeof(v));
-    }
-}
 // A window's name as the game keeps it: "menu    " and the name, spaces to sixteen
 static bool NativeName(const char* name,char* out) {
     const size_t length=name ? strlen(name) : 0;
     if (!length || length>8) return false;
     memcpy(out,"menu            ",16); memcpy(out+8,name,length);
     return true;
+}
+
+// A window's draws as moved: x' = ax + (x - ax) * k + dx, and y likewise; for the bar across the top, ax and dx by
+// each vertex's side of the middle (0 and +inset left of it, width and -inset right)
+struct NativeTransform {
+    float ax=0,ay=0,k=1,dx=0,dy=0;
+    bool pinch=false; float middle=0,width=0,inset=0;
+    void Apply(float& x,float& y) const {
+        if (pinch) { const bool left=x<middle; const float a=left ? 0 : width; x=a+(x-a)*k+(left ? inset : -inset); }
+        else x=ax+(x-ax)*k+dx;
+        y=ay+(y-ay)*k+dy;
+    }
+};
+static void NativeTransformVertices(void* data,unsigned count,unsigned stride,const NativeTransform& t) {
+    auto* bytes=static_cast<uint8_t*>(data);
+    for (unsigned i=0;i<count;i++) {
+        float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
+        t.Apply(v[0],v[1]);
+        memcpy(bytes+size_t(i)*stride,v,sizeof(v));
+    }
 }
 
 struct NativeEntry {
@@ -117,6 +120,7 @@ public:
     // the group above the chat log, and the log's layout target as last drawn (its left and top), 0 frame unknown
     bool groupOn=false; float groupX=0,groupY=0;
     float inset=0;   // the sides brought in by this many pixels, 0 not
+    float menuScale=1;   // every framed window drawn this much larger, from its quarter's corner of the screen
     int16_t logLeft=0,logTop=0; uint32_t logFrame=0;
 
     // The chat log's windows: never of the group, never brought in (chatbox places the log)
@@ -131,6 +135,7 @@ public:
         return e;
     }
     bool Inset(float pixels) { inset=pixels>0 ? pixels : 0; return true; }
+    bool MenuScale(float k) { if (!(k>=NATIVE_SCALE_LOW && k<=NATIVE_SCALE_HIGH)) return false; menuScale=k; return true; }
     // Whether a window of this name and place is one of the group
     bool GroupMember(const char* name,const int16_t* target) const {
         if (!groupOn || !logFrame || !target || target[2]<=0 || target[3]<=0) return false;
@@ -213,7 +218,7 @@ public:
         }
         return n;
     }
-    bool Any() const { if (groupOn || inset>0) return true; for (auto& e:entries) if (e.name[0]) return true; return false; }
+    bool Any() const { if (groupOn || inset>0 || menuScale!=1) return true; for (auto& e:entries) if (e.name[0]) return true; return false; }
 
     // The window being drawn: its entry, if it is one named. Its draws' bounds from the frame before become the ones
     // it is placed by. Returns what to give back after it.
@@ -222,7 +227,7 @@ public:
         Saved saved={current,phase,text};
         current=nullptr; phase=MIRROR_FRAME; text=0;
         NativeEntry* e=name ? Find(name,false) : nullptr;
-        if (!e && name && inset>0) e=Make(name,frame);
+        if (!e && name && (inset>0 || menuScale!=1)) e=Make(name,frame);
         if (e) {
             e->seen=frame;
             if (e->gatherFrame!=frame) {
@@ -270,35 +275,64 @@ public:
         const float* f=current->frame;
         return b[2]>=f[0] && b[0]<=f[2] && b[3]>=f[1] && b[1]<=f[3];
     }
-    // Whether the window's draws are moved, and where (place: as NativePlace gives it): false until its bounds are known.
-    // pinch, where given: the middle of the screen for the bar across it, its draws' ends brought in by inset (each
-    // vertex left of it moved right, each right of it left), else -1
-    // whole, where given: true where it is moved by the inset alone, its draws all moved with it (none kept back for
-    // lying outside its frame: the whole side moves, the main menu's arrows beside it and the inventory's count too)
-    bool Placing(float width,float height,float* place,float* pinch=nullptr,bool* whole=nullptr) const {
-        if (pinch) *pinch=-1;
+    // How the window's draws are moved: false while they are not (or its bounds are not known yet).
+    //  - one asked for by name and scaled: grown from the corner of the screen it is nearest, kept on it
+    //  - one of the group over the chat log: the group's offset, scaled by the menu scale from the log's top left
+    //  - one with a frame of its own (not the chat log): scaled by the menu scale from its quarter's corner of the
+    //    screen (one over the middle from the middle), brought in by the inset; the bar across the top (short, over
+    //    the middle, wider than half the screen) each vertex by its side, so its ends stay with their neighbours
+    //  - any other (one without a frame, the target's arrow over the world): only as asked by name
+    // whole: moved with the screen, not alone, so its draws all go with it (none kept back for lying outside its
+    // frame: the main menu's arrows beside it)
+    bool Transform(float width,float height,NativeTransform& t,bool* whole=nullptr) const {
+        t=NativeTransform();
         if (whole) *whole=false;
         if (!current || !current->place || !current->known) return false;
         const NativeEntry& e=*current;
         const float* bounds=e.frameKnown ? e.frame : e.bounds;
         // one made for the group, placed elsewhere this frame: as any other
         const bool grouped=e.group && e.member,away=e.group && !e.member;
-        float dx=away ? 0 : e.dx; const float dy=away ? 0 : e.dy;
-        // only a window with a frame of its own: one without (the target's arrow, over the world) is the game's to
-        // place, as is a framed one over the middle unless it is a bar (short, wider than half the screen)
-        if (inset>0 && !grouped && !e.noInset && e.frameKnown && e.frame[2]>e.frame[0]) {
-            const float* f=e.frame;
-            const float middle=width/2;
-            if (whole) *whole=dx==0 && dy==0 && e.scale==1;
-            if (f[2]<=middle) dx+=inset;
-            else if (f[0]>=middle) dx-=inset;
-            else if (f[2]-f[0]>width/2 && f[3]-f[1]<=NATIVE_BAR_HEIGHT && e.scale==1 && pinch) {
-                *pinch=middle; place[0]=place[1]=place[2]=0; place[3]=dy;
-                return true;
-            }
+        const float dx=away ? 0 : e.dx,dy=away ? 0 : e.dy;
+        const bool framed=e.frameKnown && e.frame[2]>e.frame[0] && e.frame[3]>e.frame[1];
+        const bool screen=!grouped && !e.noInset && framed;
+        if (e.scale!=1) {
+            float extra=0;
+            if (screen && inset>0) extra=e.frame[2]<=width/2 ? inset : e.frame[0]>=width/2 ? -inset : 0;
+            float p[4];
+            if (!NativePlace(bounds,dx+extra,dy,e.scale,width,height,p)) return false;
+            t.ax=p[0]; t.ay=p[1]; t.k=e.scale; t.dx=p[2]; t.dy=p[3];
+            return true;
         }
-        if (dx==0 && dy==0 && e.scale==1) return false;
-        return NativePlace(bounds,dx,dy,e.scale,width,height,place);
+        if (grouped) {
+            t.k=menuScale; t.ax=float(logLeft); t.ay=float(logTop); t.dx=dx; t.dy=dy;
+        } else if (screen && (inset>0 || menuScale!=1)) {
+            const float* f=e.frame; const float middle=width/2;
+            t.k=menuScale; t.dx=dx; t.dy=dy;
+            t.ay=(f[1]+f[3])/2<height/2 ? 0 : height;
+            if (f[2]<=middle) { t.ax=0; t.dx+=inset; }
+            else if (f[0]>=middle) { t.ax=width; t.dx-=inset; }
+            else if (f[2]-f[0]>width/2 && f[3]-f[1]<=NATIVE_BAR_HEIGHT) { t.pinch=true; t.middle=middle; t.width=width; t.inset=inset; }
+            else t.ax=middle;
+            if (whole) *whole=dx==0 && dy==0;
+        } else { t.dx=dx; t.dy=dy; }
+        if (t.k==1 && !t.pinch) {
+            if (t.dx==0 && t.dy==0) return false;
+            // a move alone kept on the screen, as ever
+            float p[4];
+            if (!NativePlace(bounds,t.dx,t.dy,1,width,height,p)) return false;
+            t.ax=p[0]; t.ay=p[1]; t.dx=p[2]; t.dy=p[3];
+        }
+        return true;
+    }
+    // As Transform, in the terms the checks were written in: place as NativePlace gives it (corner, move), pinch the
+    // bar's middle or -1
+    bool Placing(float width,float height,float* place,float* pinch=nullptr,bool* whole=nullptr) const {
+        NativeTransform t;
+        if (pinch) *pinch=-1;
+        if (!Transform(width,height,t,whole)) return false;
+        place[0]=t.ax; place[1]=t.ay; place[2]=t.dx; place[3]=t.dy;
+        if (pinch && t.pinch) *pinch=t.middle;
+        return true;
     }
     // Whether a draw now is the frame of a window tinted, and the colour
     bool Tinting(uint32_t& colour) const {

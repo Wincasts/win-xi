@@ -23,7 +23,7 @@ int main() {
 
     struct V { float x,y,z,w; uint32_t colour; float u,v; } vertices[2]={{100,50,0,1,0x80808080,0,0},{300,250,0,1,0x80808080,1,1}};
     NativePlace(topLeft,10,20,2,1000,800,place);
-    NativeMoveVertices(vertices,2,sizeof(V),place,2);
+    { NativeTransform t; t.ax=place[0]; t.ay=place[1]; t.k=2; t.dx=place[2]; t.dy=place[3]; NativeTransformVertices(vertices,2,sizeof(V),t); }
     Check(Near(vertices[0].x,110) && Near(vertices[0].y,70) && Near(vertices[1].x,510) && Near(vertices[1].y,470),"vertices grown about the corner and moved");
     Check(vertices[0].colour==0x80808080 && Near(vertices[1].u,1),"their colours and texture places kept");
 
@@ -125,7 +125,7 @@ int main() {
     Check(sides.Placing(3440,1440,place,&pinch) && Near(pinch,1720),"the bar across the top: its ends brought in");
     sides.Leave(saved);
     V bar[4]={{129,10,0,1,0,0,0},{3309,10,0,1,0,0,0},{200,20,0,1,0,0,0},{3000,20,0,1,0,0,0}};
-    NativePinchVertices(bar,4,sizeof(V),1720,100,0);
+    { NativeTransform t; t.pinch=true; t.middle=1720; t.width=3440; t.inset=100; NativeTransformVertices(bar,4,sizeof(V),t); }
     Check(Near(bar[0].x,229) && Near(bar[1].x,3209) && Near(bar[2].x,300) && Near(bar[3].x,2900),"each vertex toward the middle: the bar 200 shorter, what is on it moved with its end");
     saved=sides.Enter("menu    dialog  ",2);
     Check(!sides.Placing(3440,1440,place,&pinch),"a narrower one over the middle: left");
@@ -168,6 +168,22 @@ int main() {
     sides.Leave(saved);
     Check(!sides.Find("menu    titlewin",false)->automatic,"asked for by name: kept, never given up");
     sides.Scale("titlewin",1);
+    // the menu scale: each framed window from its quarter's corner, the bar from its ends, the log left
+    sides.Scale("titlewin",1);
+    Check(!sides.MenuScale(4) && sides.MenuScale(1.25f),"a menu scale from 0.5 to 3");
+    NativeTransform mt;
+    saved=sides.Enter("menu    netstat ",2);
+    Check(sides.Transform(3440,1440,mt) && Near(mt.ax,3440) && Near(mt.ay,0) && Near(mt.k,1.25f) && Near(mt.dx,-100),"the network box: from the top right, brought in");
+    { float x=3311,y=15; mt.Apply(x,y); Check(Near(x,3440-129*1.25f-100) && Near(y,18.75f),"its corner where the scale and the inset put it"); }
+    sides.Leave(saved);
+    saved=sides.Enter("menu    helpwind",2);
+    Check(sides.Transform(3440,1440,mt) && mt.pinch,"the bar: by each end");
+    { float l=129,r=3309,y=15; mt.Apply(l,y); float y2=15; mt.Apply(r,y2); Check(Near(l,129*1.25f+100) && Near(r,3440-131*1.25f-100),"its ends with the title box and the network box"); }
+    sides.Leave(saved);
+    saved=sides.Enter("menu    logwindo",2);
+    Check(!sides.Transform(3440,1440,mt),"the chat log: as chatbox places it");
+    sides.Leave(saved);
+    sides.MenuScale(1);
     sides.Inset(0);
     saved=sides.Enter("menu    titlewin",3);
     Check(!sides.Placing(3440,1440,place,&pinch),"no inset: as the game puts it");

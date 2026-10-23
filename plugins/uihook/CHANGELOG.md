@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.47
+
+- `/uihook native size <factor> [quiet]` (0.5 to 3): every window with a frame drawn that much larger or smaller,
+  each from its quarter's corner of the screen (one over the middle from the middle), so windows side by side
+  keep their places to each other; the bar across the top from its ends, staying with the title and network boxes;
+  the group over the chat log from the log's top left, staying on it. The chat log and frameless windows (the
+  target's arrow) are left. The native look's moves are now one transform (a corner, a scale, a move; the bar by
+  each vertex's side), its viewport moved by the same.
+
 ## 1.46
 
 - A window asked for by name (`move`, `scale`, `tint`) is kept: one the inset had given an entry was still taken

@@ -338,12 +338,12 @@ class PartyHook : public IPlugin {
         // box's), which taken for the screen made its middle the box's and its words pinched there
         D3DVIEWPORT8 viewport={};
         float screen[2]={};
-        float place[4]={},pinch=-1; bool whole=false;
+        NativeTransform move; bool whole=false;
         bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport)) && ScreenSize(device,viewport,screen)
-            && NativeMenus.Placing(screen[0],screen[1],place,&pinch,&whole);
+            && NativeMenus.Transform(screen[0],screen[1],move,&whole);
         // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it, but
         // where the whole side is moved
-        if (placing && pinch<0 && !whole && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
+        if (placing && !move.pinch && !whole && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
         uint32_t colour=0;
         bool tinting=NativeMenus.Tinting(colour);
         DWORD saved[6]={},factor=0,third=D3DTOP_DISABLE;
@@ -363,8 +363,7 @@ class PartyHook : public IPlugin {
         const void* drawn=data;
         if (placing) {
             scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
-            if (pinch>=0) NativePinchVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,pinch,NativeMenus.inset,place[3]);
-            else NativeMoveVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,place,e->scale);
+            NativeTransformVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,move);
             // the skin's colours for its picture, as SkinEnd would have given them had it drawn it: the moved windows
             // had the game's (the bottom-left buttons blue-grey and orange, the frame faded at the sides)
             if (skinActive>=0 && SkinRecolour(Skin.textures[size_t(skinActive)],scaledVertices.data(),used,stride,shader,skinVertices)) {
@@ -387,13 +386,7 @@ class PartyHook : public IPlugin {
         D3DVIEWPORT8 moved=viewport;
         if (clipped) {
             float corners[4]={float(viewport.X),float(viewport.Y),float(viewport.X+viewport.Width),float(viewport.Y+viewport.Height)};
-            for (int i=0;i<4;i+=2) {
-                if (pinch>=0) { corners[i]+=corners[i]<pinch ? NativeMenus.inset : -NativeMenus.inset; corners[i+1]+=place[3]; }
-                else {
-                    corners[i]=place[0]+(corners[i]-place[0])*e->scale+place[2];
-                    corners[i+1]=place[1]+(corners[i+1]-place[1])*e->scale+place[3];
-                }
-            }
+            move.Apply(corners[0],corners[1]); move.Apply(corners[2],corners[3]);
             const float x0=(std::max)(0.0f,corners[0]),y0=(std::max)(0.0f,corners[1]);
             const float x1=(std::min)(screen[0],corners[2]),y1=(std::min)(screen[1],corners[3]);
             if (x1>x0 && y1>y0) {
@@ -607,6 +600,11 @@ class PartyHook : public IPlugin {
             NativeMenus.Group(float(atof(name)),float(atof(a)));
             snprintf(line,sizeof(line),"[uihook:native] the windows the game stacks over the chat log drawn %s, %s from where it puts them.",name,a);
             if (words>=4 && !_stricmp(b,"quiet")) return;
+        } else if (words>=2 && !_stricmp(verb,"size")) {
+            const bool ok=NativeMenus.MenuScale(float(atof(name)));
+            snprintf(line,sizeof(line),ok ? "[uihook:native] every framed window drawn %.2f times its size, from its corner of the screen."
+                : "[uihook:native] a size from 0.5 to 3.",NativeMenus.menuScale);
+            if (words>=3 && !_stricmp(a,"quiet")) return;
         } else if (words>=2 && !_stricmp(verb,"inset")) {
             NativeMenus.Inset(float(atof(name)));
             snprintf(line,sizeof(line),NativeMenus.inset>0 ? "[uihook:native] the sides brought in %.0f pixels: the bar across the top that much shorter at each end, the windows each side with it."
@@ -618,6 +616,10 @@ class PartyHook : public IPlugin {
             unsigned n=0; for (auto& e:NativeMenus.entries) if (e.name[0]) n++;
             snprintf(line,sizeof(line),"[uihook:native] %u menus set; the game's mouse hit-tests stay where it puts them.",n);
             chat->Write(0,false,line);
+            if (NativeMenus.menuScale!=1) {
+                snprintf(line,sizeof(line),"  every framed window drawn %.2f times its size",NativeMenus.menuScale);
+                chat->Write(0,false,line);
+            }
             if (NativeMenus.inset>0) {
                 snprintf(line,sizeof(line),"  the sides brought in %.0f pixels",NativeMenus.inset);
                 chat->Write(0,false,line);
@@ -639,7 +641,7 @@ class PartyHook : public IPlugin {
             }
             return;
         } else {
-            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | scale <name> <factor> | tint <name> <AARRGGBB> | group <x> <y> | group off | inset <pixels> | clear [name]]");
+            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | scale <name> <factor> | tint <name> <AARRGGBB> | group <x> <y> | group off | inset <pixels> | size <factor> | clear [name]]");
         }
         chat->Write(0,false,line);
     }
