@@ -54,6 +54,9 @@ group (on where every one of them is):
 - **[Experimental] Magic** (on): Spells, Magic Menu, Magic Sort, Blue Magic Sort.
 - **[Experimental] Linkshell** (on): Chat Channels, Linkshells, Linkshell Name, Member Areas,
   Linkshell Info.
+- **[Experimental] Party And Search** (on): Party Menu, Party Options, Party Alarm, Search Menu,
+  Search Job, Search Level, Search Region, Comment Type, Search Name, Search Details, Search Master
+  Level.
 - **[Experimental] Other Menus** (on): Map Menu, Social Menu.
 
 The experimental groups were found in play with `/uihook census` and have not yet been looked at

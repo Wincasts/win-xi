@@ -29,6 +29,7 @@ check('nothing printed', #H.printed == 0)
 check('the menus added in 0.7 on to start', Asked('auc1') and Asked('equip') and Asked('map0'))
 check('the magic group, added in 0.9, on to start', Asked('magic') and Asked('magic').hide and Asked('mgcmenu') and Asked('blusortw'))
 check('the linkshell group, added in 0.10, on to start', Asked('chatctrl') and Asked('link5') and Asked('link2'))
+check('the party and search group, added in 0.11, on to start', Asked('prty1') and Asked('searchma') and Asked('scmlev'))
 
 -- settings saved before the menus added were offered: those start on, the rest as they were saved; once offered,
 -- as the character leaves them

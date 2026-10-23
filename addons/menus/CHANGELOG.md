@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11
+
+- Party And Search [Experimental], a new group, on to start: Party Menu (`prty1`), Party Options
+  (`prty5us`), Party Alarm (`alarm`), Search Menu (`searchma`), Search Job (`searchjo`), Search Level
+  (`searchle`), Search Region (`region`), Comment Type (`comgenre`), Search Name (`scname`), Search
+  Details (`scchar`) and Search Master Level (`scmlev`), from the census of 2026-10-23. Their words
+  are spelled or drawn as pictures, so all are drawn as the label menus are. Search Details' and
+  Search Master Level's numbers were printed far from their windows; look at them in Outline.
+- Linkshell Info is drawn as the label menus are: it prints no text, so it would have been drawn an empty panel.
+
 ## 0.10
 
 - Linkshell [Experimental], a new group, on to start: Chat Channels (`chatctrl`), Linkshells

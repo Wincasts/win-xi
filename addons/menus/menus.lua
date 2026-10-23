@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.10'
+addon.version = '0.11'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -166,13 +166,30 @@ local Groups = {
         { name = 'blusortw', label = 'Blue Magic Sort', labels = true, tip = 'How the blue magic spells are sorted.' },
     } },
     -- The linkshell lists share the item lists' drawer (001F6A60). Linkshell Info printed no text in the census and
-    -- its place came out unmeasured: look at it in Outline.
+    -- its place came out unmeasured: look at it in Outline. A menu that prints no text is marked labels, so its
+    -- elements are drawn (as the game's art, or read back as words) and it is not left an empty panel.
     { title = 'Linkshell', on = true, experimental = true, added = true, menus = {
         { name = 'chatctrl', label = 'Chat Channels', tip = 'Your linkshells and Unity, as the chat lists them to choose from.' },
         { name = 'link5', label = 'Linkshells', tip = 'Your linkshell and linkpearl, to choose one.' },
         { name = 'link6', label = 'Linkshell Name', tip = 'The box with the linkshell\'s name.' },
         { name = 'link12', label = 'Member Areas', tip = 'Where the linkshell\'s members are.' },
-        { name = 'link2', label = 'Linkshell Info', tip = 'A linkshell window the census heard no text from, perhaps its message.' },
+        { name = 'link2', label = 'Linkshell Info', labels = true, tip = 'A linkshell window the census heard no text from, perhaps its message.' },
+    } },
+    -- The search's choices spell their words (0011BA30); the party menus and the name box print no text, so they are
+    -- marked labels too. Search Details' and Search Master Level's numbers were printed far from their windows, at
+    -- the top right: look at them in Outline.
+    { title = 'Party And Search', on = true, experimental = true, added = true, labels = true, menus = {
+        { name = 'prty1', label = 'Party Menu', tip = 'The party menu\'s choices.' },
+        { name = 'prty5us', label = 'Party Options', tip = 'Probably the choices for a party member.' },
+        { name = 'alarm', label = 'Party Alarm', tip = 'A small menu drawn beside the party\'s; what it is for is not yet known.' },
+        { name = 'searchma', label = 'Search Menu', tip = 'The search menu: what to search by.' },
+        { name = 'searchjo', label = 'Search Job', tip = 'The jobs to search for.' },
+        { name = 'searchle', label = 'Search Level', tip = 'The levels to search for.' },
+        { name = 'region', label = 'Search Region', tip = 'The regions to search in.' },
+        { name = 'comgenre', label = 'Comment Type', tip = 'The kinds of search comment: seeking a party and the rest.' },
+        { name = 'scname', label = 'Search Name', tip = 'The name to search for.' },
+        { name = 'scchar', label = 'Search Details', tip = 'Probably more of what to search by.' },
+        { name = 'scmlev', label = 'Search Master Level', tip = 'Probably the master levels to search for.' },
     } },
     { title = 'Other Menus', on = true, experimental = true, added = true, menus = {
         { name = 'map0', label = 'Map Menu', labels = true, tip = 'The map\'s choices.' },
