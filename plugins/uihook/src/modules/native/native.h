@@ -10,7 +10,8 @@
 //
 // Only the drawing moves: every screen-space draw made while the window is drawn (its frame, elements, contents,
 // text, cursor and scrollbar alike) is copied, moved and drawn in its place, so the window moves whole without
-// knowing where any of its parts keep their places. The game's own places are left as they are, so its mouse
+// knowing where any of its parts keep their places; a draw wholly outside the window's frame (the inventory's count,
+// drawn up in the menu name's bar) is left where the game put it, and the frame is what it is grown from. The game's own places are left as they are, so its mouse
 // hit-tests stay where the game put the menu; the controller works it as ever. A draw from a vertex buffer cannot
 // be moved, and is counted.
 //
@@ -68,8 +69,11 @@ struct NativeEntry {
     // last whole frame's, which each frame's draws are placed by
     float gather[4]={}; uint32_t gatherFrame=0; bool gathered=false;
     float bounds[4]={}; bool known=false;
+    // the same of its frame's draws alone: what it is placed by, and what a draw must touch to be moved
+    float frameGather[4]={}; bool frameGathered=false;
+    float frame[4]={}; bool frameKnown=false;
     // for /uihook native
-    uint32_t seen=0,moved=0,unmoved=0,tinted=0,refused=0,lastFormat=0;
+    uint32_t seen=0,moved=0,unmoved=0,kept=0,tinted=0,refused=0,lastFormat=0;
     uint32_t stage[3]={};  // the game's first texture stage at its frame's last draw: colour op, its two arguments
 };
 
@@ -132,7 +136,8 @@ public:
             e->seen=frame;
             if (e->gatherFrame!=frame) {
                 if (e->gathered) { memcpy(e->bounds,e->gather,sizeof(e->bounds)); e->known=true; }
-                e->gathered=false; e->gatherFrame=frame;
+                if (e->frameGathered) { memcpy(e->frame,e->frameGather,sizeof(e->frame)); e->frameKnown=true; }
+                e->gathered=e->frameGathered=false; e->gatherFrame=frame;
             }
             current=e;
         }
@@ -140,25 +145,46 @@ public:
     }
     void Leave(const Saved& saved) { current=saved.current; phase=saved.phase; text=saved.text; }
     MirrorPhase Phase(MirrorPhase now) { const MirrorPhase was=phase; phase=now; return was; }
-    // A screen-space draw of the window: its vertices' places counted into its bounds
-    void Gather(const void* data,unsigned count,unsigned stride) {
-        if (!current || !data || stride<8) return;
-        NativeEntry& e=*current;
+    // A draw's vertices' places as bounds; false where none is finite
+    static bool Bounds(const void* data,unsigned count,unsigned stride,float* out) {
+        if (!data || stride<8) return false;
         const auto* bytes=static_cast<const uint8_t*>(data);
+        bool any=false;
         for (unsigned i=0;i<count;i++) {
             float v[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v));
             if (!std::isfinite(v[0]) || !std::isfinite(v[1])) continue;
-            if (!e.gathered) { e.gather[0]=e.gather[2]=v[0]; e.gather[1]=e.gather[3]=v[1]; e.gathered=true; continue; }
-            e.gather[0]=(std::min)(e.gather[0],v[0]); e.gather[1]=(std::min)(e.gather[1],v[1]);
-            e.gather[2]=(std::max)(e.gather[2],v[0]); e.gather[3]=(std::max)(e.gather[3],v[1]);
+            if (!any) { out[0]=out[2]=v[0]; out[1]=out[3]=v[1]; any=true; continue; }
+            out[0]=(std::min)(out[0],v[0]); out[1]=(std::min)(out[1],v[1]);
+            out[2]=(std::max)(out[2],v[0]); out[3]=(std::max)(out[3],v[1]);
         }
+        return any;
+    }
+    static void Grow(float* into,bool& any,const float* by) {
+        if (!any) { memcpy(into,by,4*sizeof(float)); any=true; return; }
+        into[0]=(std::min)(into[0],by[0]); into[1]=(std::min)(into[1],by[1]);
+        into[2]=(std::max)(into[2],by[2]); into[3]=(std::max)(into[3],by[3]);
+    }
+    // A screen-space draw of the window: its vertices' places counted into its bounds, and its frame's if it is the frame
+    void Gather(const void* data,unsigned count,unsigned stride) {
+        float b[4];
+        if (!current || !Bounds(data,count,stride,b)) return;
+        Grow(current->gather,current->gathered,b);
+        if (phase==MIRROR_FRAME && !text) Grow(current->frameGather,current->frameGathered,b);
+    }
+    // Whether a draw touches the window's frame (as last drawn), so moves with it; every draw does until it is known
+    bool Within(const void* data,unsigned count,unsigned stride) const {
+        if (!current || !current->frameKnown) return true;
+        float b[4];
+        if (!Bounds(data,count,stride,b)) return true;
+        const float* f=current->frame;
+        return b[2]>=f[0] && b[0]<=f[2] && b[3]>=f[1] && b[1]<=f[3];
     }
     // Whether the window's draws are moved, and where (place: as NativePlace gives it): false until its bounds are known
     bool Placing(float width,float height,float* place) const {
         if (!current || !current->place || !current->known) return false;
         const NativeEntry& e=*current;
         if (e.dx==0 && e.dy==0 && e.scale==1) return false;
-        return NativePlace(e.bounds,e.dx,e.dy,e.scale,width,height,place);
+        return NativePlace(e.frameKnown ? e.frame : e.bounds,e.dx,e.dy,e.scale,width,height,place);
     }
     // Whether a draw now is the frame of a window tinted, and the colour
     bool Tinting(uint32_t& colour) const {

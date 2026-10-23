@@ -312,8 +312,10 @@ class PartyHook : public IPlugin {
         NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
         D3DVIEWPORT8 viewport={};
         float place[4]={};
-        const bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport))
+        bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport))
             && NativeMenus.Placing(float(viewport.Width),float(viewport.Height),place);
+        // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it
+        if (placing && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
         uint32_t colour=0;
         bool tinting=NativeMenus.Tinting(colour);
         DWORD saved[6]={},factor=0,third=D3DTOP_DISABLE;
@@ -385,8 +387,8 @@ class PartyHook : public IPlugin {
                 char seen[48];
                 if (!e.seen) snprintf(seen,sizeof(seen),"not drawn since asked");
                 else snprintf(seen,sizeof(seen),"drawn %u frames ago",Shared.Frame-e.seen);
-                snprintf(line,sizeof(line),"  %.8s: %s; move %.0f,%.0f scale %.2f (%u draws moved, %u could not be), tint %s %08X (%u tinted, %u refused, format %X, stage %u %X %X)",
-                    e.name+8,seen,e.dx,e.dy,e.scale,e.moved,e.unmoved,e.tint ? "on" : "off",e.colour,e.tinted,e.refused,
+                snprintf(line,sizeof(line),"  %.8s: %s; move %.0f,%.0f scale %.2f (%u draws moved, %u outside its frame kept, %u could not be), tint %s %08X (%u tinted, %u refused, format %X, stage %u %X %X)",
+                    e.name+8,seen,e.dx,e.dy,e.scale,e.moved,e.kept,e.unmoved,e.tint ? "on" : "off",e.colour,e.tinted,e.refused,
                     static_cast<unsigned>(e.lastFormat),static_cast<unsigned>(e.stage[0]),static_cast<unsigned>(e.stage[1]),static_cast<unsigned>(e.stage[2]));
                 chat->Write(0,false,line);
             }

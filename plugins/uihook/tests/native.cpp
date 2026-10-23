@@ -48,6 +48,25 @@ int main() {
     look.Leave(saved);
     Check(!look.Placing(1000,800,place),"outside any window: nothing placed");
 
+    // its frame's draws: what it is placed by; a draw wholly outside it (the inventory's count) kept back
+    NativeLook framed;
+    framed.Move("inventor",10,10); framed.Scale("inventor",2);
+    saved=framed.Enter("menu    inventor",1);
+    V frameDraw[2]={{100,50,0,1,0,0,0},{300,250,0,1,0,0,0}};
+    framed.Gather(frameDraw,2,sizeof(V));
+    framed.Phase(MIRROR_CONTENT);
+    V countDraw[2]={{90,10,0,1,0,0,0},{130,30,0,1,0,0,0}};
+    framed.Gather(countDraw,2,sizeof(V));
+    framed.Leave(saved);
+    saved=framed.Enter("menu    inventor",2);
+    Check(framed.Placing(1000,800,place) && Near(place[0],100) && Near(place[1],50),"grown from its frame's corner, not the count's");
+    framed.Phase(MIRROR_CONTENT);
+    Check(!framed.Within(countDraw,2,sizeof(V)),"the count, wholly outside its frame, kept back");
+    V rowDraw[2]={{120,60,0,1,0,0,0},{200,72,0,1,0,0,0}};
+    V edgeDraw[2]={{90,60,0,1,0,0,0},{104,72,0,1,0,0,0}};
+    Check(framed.Within(rowDraw,2,sizeof(V)) && framed.Within(edgeDraw,2,sizeof(V)),"a row, and the hand over its edge, moved");
+    framed.Leave(saved);
+
     // the tint: only the frame of the window named, not its contents, elements or text
     Check(look.Tint("inventor",0xffff4040),"asked to tint");
     uint32_t colour=0;

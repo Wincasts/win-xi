@@ -509,7 +509,9 @@ For trying a skin on the game's own menus rather than drawing them again: the me
 
 Only the drawing moves: every screen-space draw made while the window is drawn, its frame, elements,
 contents, text, cursor and scrollbar alike, is copied, moved about the window's last frame's bounds and drawn
-in its place, so it moves whole without knowing where its parts keep their places. Nothing of the game's is
+in its place, so it moves whole without knowing where its parts keep their places. A draw wholly outside the
+window's frame (the inventory's count, up in the menu name's bar) is left where it is, and the frame is what
+the window is grown from. Nothing of the game's is
 written: its mouse hit-tests stay where it put the menu, and the controller works it as ever. A draw from a
 vertex buffer cannot be moved, and is counted. The tint draws the frame's draws with a second texture stage
 after the game's own, multiplying what it made by the colour (the texture factor), put back after each; not
