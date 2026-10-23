@@ -316,18 +316,24 @@ class PartyHook : public IPlugin {
     // drawn so in its place (its vertices copied and moved; a second texture stage multiplying the game's own result by
     // the tint, put back after). vertices: from min, as an indexed draw's are.
     bool NativeDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
-        NativeEntry* e=NativeMenus.current;
-        if (!e || !data || !vertices || stride<8) return false;
-        const UINT used=min+vertices;
+        if (!data || !vertices || stride<8 || (!NativeMenus.current && !(NativeMenus.inset>0 || NativeMenus.groupOn))) return false;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0,pixel=0;
         if (!device || FAILED(device->GetVertexShader(&shader)) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) { NativeMenus.Unmoved(); return false; }
-        NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
+        // a draw outside any window, within one moved (the title box's words, drawn after it): moved with it
+        NativeEntry* e=NativeMenus.current;
+        const bool orphan=!e && (e=NativeMenus.Orphan(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride,Shared.Frame))!=nullptr;
+        if (!e) return false;
+        struct Adopted { bool on; ~Adopted() { if (on) NativeMenus.current=nullptr; } } adopted{orphan};
+        if (orphan) NativeMenus.current=e;
+        const UINT used=min+vertices;
+        if (!orphan) NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
         D3DVIEWPORT8 viewport={};
-        float place[4]={},pinch=-1;
+        float place[4]={},pinch=-1; bool whole=false;
         bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport))
-            && NativeMenus.Placing(float(viewport.Width),float(viewport.Height),place,&pinch);
-        // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it
-        if (placing && pinch<0 && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
+            && NativeMenus.Placing(float(viewport.Width),float(viewport.Height),place,&pinch,&whole);
+        // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it, but
+        // where the whole side is moved
+        if (placing && pinch<0 && !whole && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
         uint32_t colour=0;
         bool tinting=NativeMenus.Tinting(colour);
         DWORD saved[6]={},factor=0,third=D3DTOP_DISABLE;

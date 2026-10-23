@@ -258,8 +258,11 @@ public:
     // Whether the window's draws are moved, and where (place: as NativePlace gives it): false until its bounds are known.
     // pinch, where given: the middle of the screen for the bar across it, its draws' ends brought in by inset (each
     // vertex left of it moved right, each right of it left), else -1
-    bool Placing(float width,float height,float* place,float* pinch=nullptr) const {
+    // whole, where given: true where it is moved by the inset alone, its draws all moved with it (none kept back for
+    // lying outside its frame: the whole side moves, the main menu's arrows beside it and the inventory's count too)
+    bool Placing(float width,float height,float* place,float* pinch=nullptr,bool* whole=nullptr) const {
         if (pinch) *pinch=-1;
+        if (whole) *whole=false;
         if (!current || !current->place || !current->known) return false;
         const NativeEntry& e=*current;
         const float* bounds=e.frameKnown ? e.frame : e.bounds;
@@ -268,6 +271,7 @@ public:
         float dx=away ? 0 : e.dx; const float dy=away ? 0 : e.dy;
         if (inset>0 && !grouped && !e.noInset && bounds[2]>bounds[0]) {
             const float middle=width/2;
+            if (whole) *whole=dx==0 && dy==0 && e.scale==1;
             if (bounds[2]<=middle) dx+=inset;
             else if (bounds[0]>=middle) dx-=inset;
             else if (bounds[2]-bounds[0]>width/2 && e.scale==1 && pinch) {
@@ -282,6 +286,23 @@ public:
     bool Tinting(uint32_t& colour) const {
         if (!current || !current->tint || phase!=MIRROR_FRAME || text) return false;
         colour=current->colour; return true;
+    }
+    // A draw made outside any window that lies within one moved, drawn since the frame before (the title box's words,
+    // drawn after the box): that window, the smallest such, to be moved with; none while nothing is moved by the
+    // inset or the group
+    NativeEntry* Orphan(const void* data,unsigned count,unsigned stride,uint32_t frame) {
+        if (current || !(inset>0 || groupOn)) return nullptr;
+        float b[4];
+        if (!Bounds(data,count,stride,b)) return nullptr;
+        NativeEntry* best=nullptr; float area=0;
+        for (auto& e:entries) {
+            if (!e.name[0] || !e.place || !e.frameKnown || frame-e.seen>1) continue;
+            const float* f=e.frame;
+            if (b[0]<f[0]-2 || b[1]<f[1]-2 || b[2]>f[2]+2 || b[3]>f[3]+2) continue;
+            const float a=(f[2]-f[0])*(f[3]-f[1]);
+            if (!best || a<area) { best=&e; area=a; }
+        }
+        return best;
     }
     // A draw of a window moved that could not be (from a vertex buffer)
     void Unmoved() { if (current && current->place) current->unmoved++; }

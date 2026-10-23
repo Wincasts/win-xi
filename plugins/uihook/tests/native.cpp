@@ -133,6 +133,15 @@ int main() {
     saved=sides.Enter("menu    logwindo",2);
     Check(!sides.Placing(3440,1440,place,&pinch),"the chat log: left, chatbox placing it");
     sides.Leave(saved);
+    bool whole=false;
+    saved=sides.Enter("menu    netstat ",2);
+    Check(sides.Placing(3440,1440,place,&pinch,&whole) && whole,"moved by the inset alone: every draw of it moved, none kept back");
+    sides.Leave(saved);
+    V words[2]={{40,20,0,1,0,0,0},{90,32,0,1,0,0,0}},world[2]={{500,500,0,1,0,0,0},{540,520,0,1,0,0,0}};
+    NativeEntry* owner=sides.Orphan(words,2,sizeof(V),2);
+    Check(owner && !memcmp(owner->name,"menu    titlewin",16),"words drawn after the title box, within it: its");
+    Check(!sides.Orphan(world,2,sizeof(V),2),"a draw within no window moved: none");
+    Check(!sides.Orphan(words,2,sizeof(V),9),"a window not drawn lately: none");
     sides.Inset(0);
     saved=sides.Enter("menu    titlewin",3);
     Check(!sides.Placing(3440,1440,place,&pinch),"no inset: as the game puts it");

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.41
+
+- A window moved by the inset alone has every draw moved with it: none is kept back for lying outside its frame,
+  as the main menu's red arrows beside it were. (The rule is for a window moved alone, the inventory's count up in
+  the menu name's bar; with the inset the whole side moves.)
+- A draw made outside any window, while the inset or the group is on, that lies within a window moved (drawn this
+  frame or the one before) is moved with it, the smallest such: the title box's words, drawn after the box, were
+  left behind.
+
 ## 1.40
 
 - `/uihook native inset <pixels> [quiet]`: the sides brought in. The bar across the top (a window over the
