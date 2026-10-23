@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.37
+
+- The texture census hears the glyphs: each print (a text routine) matched to the pieces drawn while it ran, where
+  they are as many as its characters (spaces drawn or not) or a whole number of times as many (a shadow or edge
+  with each), written to `glyphs.txt` beside `index.txt`: each font texture's glyphs by character, with their
+  texels and size on the screen. For a skin's fonts.
+
 ## 1.36
 
 - `skin.txt` may give a colour of eight digits, `AARRGGBB`, for the vertices' alpha as well: the game fades its

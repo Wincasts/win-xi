@@ -31,6 +31,11 @@ static uint32_t TextureHash(const LabelPixels& pixels,uint32_t width,uint32_t he
 // bottom-right corners (either way round, so a piece drawn mirrored shows it), its first vertex's colour
 struct TextureSample { char window[17]; uint8_t part; float rect[4], uv[4]; uint32_t colour; uint32_t count; };
 
+// A glyph of a font texture: the character it is (a byte, or a Shift-JIS pair as lead<<8 | trail), its texels, its
+// size on the screen, and how many prints drew it so
+struct TextureGlyph { uint16_t token; uint16_t texels[4]; float size[2]; uint32_t count; };
+#define TEXTURE_GLYPHS 4096
+
 struct TextureEntry {
     uint32_t hash=0, width=0, height=0, format=0, pool=0;   // hash 0: none read (why says why); width 0: no texture at all
     const char* why="";
@@ -40,8 +45,26 @@ struct TextureEntry {
     float uv[4]={}; bool uvKnown=false;                     // the texture places drawn, all draws together
     uint32_t colours[TEXTURE_COLOURS]={}; unsigned colourCount=0;
     std::vector<TextureSample> samples;
+    std::vector<TextureGlyph> glyphs;
     uint32_t Total() const { uint32_t n=0; for (auto d:draws) n+=d; return n; }
 };
+
+// What a print (a text routine) drew, matched to what it was asked to print: its characters, as tokens (a byte, a
+// Shift-JIS pair, the game's two-byte codes skipped), and the pieces drawn while it ran. Where the pieces are as
+// many as the characters (spaces drawn or not), or a whole number of times as many (a shadow or an edge drawn
+// with each, or each pass whole), each piece is that character's glyph.
+struct GlyphPiece { size_t entry; float rect[4], uv[4]; };
+static void GlyphTokens(const uint8_t* text,size_t length,bool spaces,std::vector<uint16_t>& out) {
+    out.clear();
+    for (size_t i=0;i<length;i++) {
+        const uint8_t b=text[i];
+        if (b==0x1e || b==0x1f || b==0x7f) { i++; continue; }      // colour and other codes, with their byte
+        if (b<0x20) continue;
+        if (b==0x20 && !spaces) continue;
+        if (((b>=0x81 && b<=0x9f) || (b>=0xe0 && b<=0xfc)) && i+1<length) { out.push_back(uint16_t(b<<8 | text[i+1])); i++; continue; }
+        out.push_back(b);
+    }
+}
 
 class TextureCensus {
 public:
@@ -110,7 +133,79 @@ public:
         memcpy(s.rect,rect,sizeof(s.rect)); memcpy(s.uv,uv,sizeof(s.uv)); s.colour=colour; s.count=1;
         e.samples.push_back(s);
     }
-    void Clear() { entries.clear(); pointers.clear(); memory=0; }
+    void Clear() { entries.clear(); pointers.clear(); memory=0; runs=matched=0; }
+
+    // Prints: the one under way (the outermost, a print within it counted as its own), and how many matched
+    uint8_t runText[256]={}; size_t runLength=0; unsigned runDepth=0; bool runOn=false;
+    std::vector<GlyphPiece> runPieces;
+    uint32_t runs=0, matched=0;
+    void PrintBegin(const uint8_t* text,size_t length) {
+        if (runDepth++ || !on) return;
+        runLength=length<sizeof(runText) ? length : sizeof(runText); memcpy(runText,text,runLength);
+        runPieces.clear(); runOn=true;
+    }
+    void PrintPiece(size_t at,const float* rect,const float* uv) {
+        if (runOn && runPieces.size()<1024) { GlyphPiece p; p.entry=at; memcpy(p.rect,rect,sizeof(p.rect)); memcpy(p.uv,uv,sizeof(p.uv)); runPieces.push_back(p); }
+    }
+    void PrintEnd() {
+        if (!runDepth || --runDepth || !runOn) return;
+        runOn=false; runs++;
+        std::vector<uint16_t> tokens;
+        for (int spaces=0;spaces<2;spaces++) {
+            GlyphTokens(runText,runLength,spaces!=0,tokens);
+            const size_t n=tokens.size(),q=runPieces.size();
+            if (!n || !q || q%n || q/n>4) continue;
+            const size_t k=q/n;
+            auto same=[&](const GlyphPiece& a,const GlyphPiece& b) {
+                if (a.entry!=b.entry) return false;
+                for (int i=0;i<4;i++) if (fabsf(a.uv[i]-b.uv[i])>0.0005f) return false;
+                return true;
+            };
+            bool interleaved=true,blocked=true;
+            for (size_t i=0;i<n && (interleaved || blocked);i++) for (size_t j=1;j<k;j++) {
+                if (!same(runPieces[i*k],runPieces[i*k+j])) interleaved=false;
+                if (!same(runPieces[i],runPieces[j*n+i])) blocked=false;
+            }
+            if (!interleaved && !blocked) continue;
+            for (size_t i=0;i<n;i++) Glyph(interleaved ? runPieces[i*k] : runPieces[i],tokens[i]);
+            matched++;
+            return;
+        }
+    }
+    void Glyph(const GlyphPiece& p,uint16_t token) {
+        if (p.entry>=entries.size()) return;
+        TextureEntry& e=entries[p.entry];
+        if (!e.width || !e.height) return;
+        uint16_t texels[4];
+        for (int i=0;i<4;i++) {
+            const float t=p.uv[i]*float(i%2 ? e.height : e.width)+0.5f;
+            texels[i]=uint16_t(t<0 ? 0 : t>65535 ? 65535 : t);
+        }
+        for (auto& g:e.glyphs) if (g.token==token && !memcmp(g.texels,texels,sizeof(texels))) { g.count++; return; }
+        if (e.glyphs.size()>=TEXTURE_GLYPHS) return;
+        TextureGlyph g={}; g.token=token; memcpy(g.texels,texels,sizeof(texels));
+        g.size[0]=p.rect[2]-p.rect[0]; g.size[1]=p.rect[3]-p.rect[1]; g.count=1;
+        e.glyphs.push_back(g);
+    }
+    // glyphs.txt: each font texture's glyphs, by character
+    bool WriteGlyphs(const std::string& path) const {
+        FILE* f=fopen(path.c_str(),"w");
+        if (!f) return false;
+        fprintf(f,"uihook glyph census: %u prints heard, %u matched to what they drew\n",runs,matched);
+        fprintf(f,"# texture: token (hex; the character where it is one), texels x0 y0 x1 y1 (either way round), size on the screen, prints\n");
+        for (auto& e:entries) {
+            if (e.glyphs.empty()) continue;
+            std::vector<TextureGlyph> sorted=e.glyphs;
+            std::sort(sorted.begin(),sorted.end(),[](const TextureGlyph& a,const TextureGlyph& b) { return a.token!=b.token ? a.token<b.token : a.count>b.count; });
+            fprintf(f,"\ntex-%08X %ux%u format %08X: %zu glyphs\n",e.hash,e.width,e.height,e.format,sorted.size());
+            for (auto& g:sorted) {
+                char shown[4]="  "; if (g.token>=0x21 && g.token<0x7f) { shown[0]=char(g.token); shown[1]=0; }
+                fprintf(f,"  %04X %-2s %4u %4u %4u %4u  %5.1fx%-5.1f x%u\n",g.token,shown,g.texels[0],g.texels[1],g.texels[2],g.texels[3],g.size[0],g.size[1],g.count);
+            }
+        }
+        fclose(f);
+        return true;
+    }
     // A window's name as the game keeps it ("menu    " and its own), its own part kept
     void Window(const char* name) {
         if (!name) { window[0]=0; return; }
@@ -204,7 +299,7 @@ template<class Piece> static void TexturePieces(const void* data,unsigned count,
     if (fvf & D3DFVF_SPECULAR) at+=4;
     if (((fvf & D3DFVF_TEXCOUNT_MASK)>>D3DFVF_TEXCOUNT_SHIFT)<1 || stride<at+8) return;
     const auto* bytes=static_cast<const uint8_t*>(data);
-    for (unsigned first=0;first+group<=count && first<group*64;first+=group) {
+    for (unsigned first=0;first+group<=count && first<group*1024;first+=group) {
         float rect[4]={},uv[4]={}; float low=0,high=0; uint32_t colour=0;
         for (unsigned i=first;i<first+group;i++) {
             float v[2],t[2]; memcpy(v,bytes+size_t(i)*stride,sizeof(v)); memcpy(t,bytes+size_t(i)*stride+at,sizeof(t));

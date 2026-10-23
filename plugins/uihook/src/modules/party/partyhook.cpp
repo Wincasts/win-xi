@@ -493,7 +493,10 @@ class PartyHook : public IPlugin {
         const bool hasUV=!buffered && TextureVertices(data,vertices,stride,fvf,uv,&colour,hasColour);
         const TexturePart part=!Textures.window[0] ? TEXTURE_OUTSIDE : NativeMenus.text ? TEXTURE_TEXT : TexturePart(NativeMenus.phase);
         Textures.Count(at,part,hasUV ? uv : nullptr,hasColour ? &colour : nullptr,buffered);
-        if (hasUV) TexturePieces(data,vertices,stride,fvf,group,[&](const float* rect,const float* piece,uint32_t c) { Textures.Sample(at,part,rect,piece,c); });
+        if (hasUV) TexturePieces(data,vertices,stride,fvf,group,[&](const float* rect,const float* piece,uint32_t c) {
+            Textures.Sample(at,part,rect,piece,c);
+            if (part==TEXTURE_TEXT || NativeMenus.text) Textures.PrintPiece(at,rect,piece);
+        });
     }
     void TexturesWrite(char* line,size_t size) {
         const std::string base=std::string(core->GetInstallPath())+"\\logs\\uihook-textures";
@@ -505,7 +508,11 @@ class PartyHook : public IPlugin {
         }
         unsigned images=0;
         if (folder.empty() || !Textures.Write(folder,images)) snprintf(line,size,"[uihook:textures] could not write to %s.",base.c_str());
-        else snprintf(line,size,"[uihook:textures] %zu textures (%u as pictures) written to %s\\index.txt.",Textures.entries.size(),images,folder.c_str());
+        else {
+            Textures.WriteGlyphs(folder+"\\glyphs.txt");
+            snprintf(line,size,"[uihook:textures] %zu textures (%u as pictures) written to %s\\index.txt, glyphs of %u prints to glyphs.txt.",
+                Textures.entries.size(),images,folder.c_str(),Textures.matched);
+        }
     }
     void TexturesCommand(const char* word) {
         char line[512];
@@ -1643,30 +1650,37 @@ static void __fastcall DrawExpandedChat(void* owner,void*) {
     if (PartyHook::Instance) PartyHook::Instance->ExpandedContent(owner);
     else reinterpret_cast<void(__fastcall*)(void*,void*)>(ExpandedChatDetour.trampoline)(owner,nullptr);
 }
+// A print's text read for the texture census's glyphs, as far as its end or 255 bytes
+static void PrintBegin(const char* text) {
+    if (!Textures.on || !text) { Textures.PrintBegin(nullptr,0); return; }
+    uint8_t bytes[256]; size_t n=0;
+    while (n<sizeof(bytes)-1 && ChatRead(text+n,bytes+n,1) && bytes[n]) n++;
+    Textures.PrintBegin(bytes,n);
+}
 // Each text route heard, then the game's own, unchanged; a text call within one counted as nested
 static int32_t __cdecl CensusBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
-    MenuCensus.Text(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++;
+    MenuCensus.Text(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++; PrintBegin(text);
     MenuMirror.TextBegin(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     NativeMenus.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
     NativeMenus.text--;
-    MenuCensus.depth--; MenuMirror.TextEnd(); return end;
+    MenuCensus.depth--; MenuMirror.TextEnd(); Textures.PrintEnd(); return end;
 }
 static int32_t __cdecl CensusScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
-    MenuCensus.Text(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++;
+    MenuCensus.Text(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++; PrintBegin(text);
     MenuMirror.TextBegin(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     NativeMenus.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
     NativeMenus.text--;
-    MenuCensus.depth--; MenuMirror.TextEnd(); return end;
+    MenuCensus.depth--; MenuMirror.TextEnd(); Textures.PrintEnd(); return end;
 }
 static uint32_t __fastcall CensusFont(void* font,void*,int32_t x,int32_t y,const char* text,uint32_t a,uint32_t colour,uint32_t flags,uint32_t sx,uint32_t sy) {
-    MenuCensus.Text(CENSUS_FONT,x,y,text,colour); MenuCensus.depth++;
+    MenuCensus.Text(CENSUS_FONT,x,y,text,colour); MenuCensus.depth++; PrintBegin(text);
     MenuMirror.TextBegin(CENSUS_FONT,x,y,text,colour);
     NativeMenus.text++;
     const uint32_t result=reinterpret_cast<uint32_t(__fastcall*)(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusFontDetour.trampoline)(font,nullptr,x,y,text,a,colour,flags,sx,sy);
     NativeMenus.text--;
-    MenuCensus.depth--; MenuMirror.TextEnd(); return result;
+    MenuCensus.depth--; MenuMirror.TextEnd(); Textures.PrintEnd(); return result;
 }
 // A window's contents drawn, as Window::Render would, with the mirror told they are being drawn
 static void __cdecl MirrorInput(MSG message) {
