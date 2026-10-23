@@ -494,7 +494,25 @@ are seen. `/uihook mirror watch` (again to stop) writes
 draws were made, and what was published; `/uihook mirror mark <words>` notes a moment in it. The `menus` addon draws the item lists and the item
 description box in the winxi look.
 
-## Architecture
+## The native look, an experiment (1.25)
+
+For trying a skin on the game's own menus rather than drawing them again: the menu stays the game's whole
+(input, cursor, text, hit-tests), moved where the game lays it out, its frame recoloured as it is drawn.
+
+```
+/uihook native                         what is set, and whether each is applied
+/uihook native move <name> <x> <y>     the menu moved by x, y display pixels (inventor, equip, ...)
+/uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (RRGGBB: opaque)
+/uihook native clear [name]            one, or all, given back; a moved one goes back as it is next drawn
+```
+
+The move is the action menus' (above): the layout target (+8C) written before Window::Render calls
+Window::Update, and the window marked for it (+94), so the game lays out its frame, rows, cursor and
+hit-tests there itself; a menu the action menus are moving is left to them. The tint copies the frame's
+screen-space draws, multiplies their colours, and draws the copy in their place; the contents, the
+elements (picture labels, buttons), the cursor, the scrollbar and text are left as they are. Nothing is
+kept between loads; at unload, a menu moved and drawn in the last frame is put back.
+
 
 - `src/uihook.cpp`: sole exported plugin entry point, lifecycle dispatch and scoped GPU-filter routing.
 - `src/modules/chat/`: primary/split/input recognition and independent chat ABI; uses the shared renderer.

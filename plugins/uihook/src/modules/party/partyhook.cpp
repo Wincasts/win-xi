@@ -22,6 +22,7 @@
 #include "../chat/texttap.h"
 #include "../mirror/census.h"
 #include "../mirror/mirror.h"
+#include "../native/native.h"
 #include "../mirror/labels.h"
 #include "../mirror/mouse.h"
 #include "../mirror/watch.h"
@@ -85,6 +86,7 @@ static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, 
 // Window::Render aimed at MirrorContent.
 static MirrorShared MirrorBlock;
 static Mirror MenuMirror;
+static NativeLook NativeMenus; // /uihook native: windows moved where the game lays them out, their frames tinted (native.h)
 static MirrorWatch MenuWatch; // every window drawn, kept in WatchBlock; with /uihook mirror watch, to logs\uihook-mirror-watch.txt
 // exported, as nothing in the DLL reads it back: a block private to it would have every write to it optimized away
 extern "C" __declspec(dllexport) MirrorWatchShared UihookWatch{};
@@ -290,6 +292,78 @@ class PartyHook : public IPlugin {
         scaling=false;
         return ok;
     }
+    // /uihook native: a window named moved before the game lays it out (not one the action menus are moving), and
+    // its entry taken for tinting its frame while it is drawn
+    NativeLook::Saved NativeEnter(void* window) {
+        if (!NativeMenus.Any()) return NativeMenus.Enter(nullptr);
+        uint8_t data[0x9a]; void* header=nullptr; char name[16];
+        if (!window || !ChatRead(window,data,sizeof(data)) || (memcpy(&header,data+4,4),!header)
+            || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return NativeMenus.Enter(nullptr);
+        int dimensions[2]={};
+        if (MenuWritable(static_cast<uint8_t*>(window)+0x8c,12) && !menus.Moves(window)
+            && (!data[0x99] || (menuManager && ChatRead(menuManager+0x80,dimensions,sizeof(dimensions)))))
+            NativeMenus.Before(window,header,data,dimensions,Shared.Frame);
+        return NativeMenus.Enter(name);
+    }
+    // A draw of a tinted window's frame: its vertices copied, their colours tinted, drawn in its place
+    bool TintFrame(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
+        uint32_t colour=0;
+        // an indexed draw's vertices are min to min + vertices
+        const UINT used=min+vertices;
+        if (!NativeMenus.Tinting(colour) || !data || !vertices || used>4096) return false;
+        auto* device=core->GetDirect3DDevice(); DWORD shader=0;
+        if (!device || FAILED(device->GetVertexShader(&shader)) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW
+            || !(shader & D3DFVF_DIFFUSE) || stride<20) return false;
+        scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
+        if (!NativeTintVertices(scaledVertices.data(),used,stride,16,colour)) return false;
+        scaling=true;
+        const bool ok=indices ? SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,scaledVertices.data(),stride))
+            : SUCCEEDED(device->DrawPrimitiveUP(t,count,scaledVertices.data(),stride));
+        scaling=false;
+        return ok;
+    }
+    // Every window moved and drawn in the last frame put back, as uihook is unloaded (one not drawn since may be gone)
+    void NativeUnload() {
+        auto update=menus.Updater();
+        for (auto& e:NativeMenus.entries) {
+            void* header=nullptr; uint8_t data[0x9a];
+            if (!e.moved || Shared.Frame-e.frame>1 || !ChatRead(e.window,data,sizeof(data))
+                || (memcpy(&header,data+4,4),header!=e.header) || !MenuWritable(static_cast<uint8_t*>(e.window)+0x8c,12)) continue;
+            int16_t target[2]; memcpy(target,data+0x8c,4);
+            void* window=e.window;
+            NativeMenus.Restore(e,window,target);
+            if (update) update(window,nullptr);
+        }
+        for (auto& e:NativeMenus.entries) e=NativeEntry();
+    }
+    void NativeCommand(const char* command) {
+        char verb[16]={},name[16]={},a[16]={},b[16]={}; char line[256];
+        const int words=sscanf_s(command,"/uihook native %15s %15s %15s %15s",verb,16u,name,16u,a,16u,b,16u);
+        auto* chat=core->GetChatManager();
+        if (words>=4 && !_stricmp(verb,"move")) {
+            snprintf(line,sizeof(line),NativeMenus.Move(name,atoi(a),atoi(b)) ? "[uihook:native] %s moved by %s, %s where the game lays it out."
+                : "[uihook:native] could not move %s: a name of at most 8 letters, and at most 16 windows.",name,a,b);
+        } else if (words>=3 && !_stricmp(verb,"tint")) {
+            const uint32_t colour=static_cast<uint32_t>(strtoul(a,nullptr,16)) | (strlen(a)<=6 ? 0xff000000u : 0);
+            snprintf(line,sizeof(line),NativeMenus.Tint(name,colour) ? "[uihook:native] %s's frame tinted %08X."
+                : "[uihook:native] could not tint %s.",name,colour);
+        } else if (words>=1 && !_stricmp(verb,"clear")) {
+            snprintf(line,sizeof(line),"[uihook:native] %u given back to the game; each moved goes back as it is next drawn.",NativeMenus.Clear(words>=2 ? name : nullptr));
+        } else if (words<1) {
+            snprintf(line,sizeof(line),"[uihook:native] %u moves written, %u put back.",NativeMenus.applied,NativeMenus.restored);
+            chat->Write(0,false,line);
+            for (auto& e:NativeMenus.entries) {
+                if (!e.name[0]) continue;
+                snprintf(line,sizeof(line),"  %.8s: move %s %d,%d (%s), tint %s %08X",e.name+8,e.move ? "on" : "off",e.dx,e.dy,
+                    e.moved ? (Shared.Frame-e.frame<=2 ? "drawn there now" : "moved, not drawn lately") : "not moved",e.tint ? "on" : "off",e.colour);
+                chat->Write(0,false,line);
+            }
+            return;
+        } else {
+            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | tint <name> <AARRGGBB> | clear [name]]");
+        }
+        chat->Write(0,false,line);
+    }
     void ProbeDevice(IDirect3DDevice8* device, const D3DVIEWPORT8& viewport, const Drawing& drawing) {
         probe.replayFrame=Shared.Frame; probe.viewport=viewport; probe.scene=inScene;
         probe.width=drawing.width; probe.height=drawing.height;
@@ -466,6 +540,7 @@ public:
         Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat(); ChatReadReset();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         AutoCensus(true);
+        NativeUnload();
         GiveMirror();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
@@ -514,6 +589,7 @@ public:
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0); // our own scaled copy, on its way to the device
         Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
         if (Block()) return true;
+        if (TintFrame(t,0,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,count,nullptr,D3DFMT_UNKNOWN,data,stride)) return true;
         return ScaleIcon(t,count,data,stride);
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
@@ -523,6 +599,7 @@ public:
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
         Native(true,data,stride,vertices);
         if (Block()) return true;
+        if (TintFrame(t,min,vertices,count,indices,format,data,stride)) return true;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0;
         if (!inClock || min!=0 || (clockShiftX==0 && clockShiftY==0) || !data || stride<8 || !vertices || vertices>4096
             || !device || FAILED(device->GetVertexShader(&shader)) || !(shader & D3DFVF_XYZRHW)) return false;
@@ -699,6 +776,7 @@ public:
         core->GetChatManager()->Write(0,false,line);
     }
     bool HandleCommand(int32_t,const char* command,bool) override {
+        if (command && (!_stricmp(command,"/uihook native") || !_strnicmp(command,"/uihook native ",15))) { NativeCommand(command); return true; }
         if (command && (!_stricmp(command,"/uihook mirror watch") || !_strnicmp(command,"/uihook mirror mark ",20))) {
             const bool mark=command[15]=='m' || command[15]=='M';
             if (mark && !command[20]) return true;
@@ -1161,9 +1239,10 @@ public:
         const bool measure=expandedSkin && !cursor && ChatSelectionColor(color) && !chatMeasure && selectionCount<8;
         if (measure) { selectionBounds[selectionCount]=ChatBounds(); chatMeasure=&selectionBounds[selectionCount]; }
         const MirrorPhase mirrorWas=cursor ? MenuMirror.Phase(MIRROR_CURSOR) : MenuMirror.Element(color);
+        const MirrorPhase nativeWas=NativeMenus.Phase(cursor ? MIRROR_CURSOR : MIRROR_ELEMENT);
         ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
             expandedSkin && !Mirrored(),ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
-        MenuMirror.Phase(mirrorWas);
+        MenuMirror.Phase(mirrorWas); NativeMenus.Phase(nativeWas);
         if (measure) { if (chatMeasure->vertices) selectionCount++; chatMeasure=nullptr; }
     }
     // The scrollbar: its page, count and rows above the view read and its bounds measured in a skinned full
@@ -1177,9 +1256,9 @@ public:
         if (measure) { scrollBounds=ChatBounds(); chatMeasure=&scrollBounds; }
         ChatScrollInfo mirrorInfo;
         if (MenuMirror.Active() && ChatScrollRead(object,mirrorInfo)) MenuMirror.Scrollbar(mirrorInfo);
-        const MirrorPhase mirrorWas=MenuMirror.Phase(MIRROR_SCROLL);
+        const MirrorPhase mirrorWas=MenuMirror.Phase(MIRROR_SCROLL),nativeWas=NativeMenus.Phase(MIRROR_SCROLL);
         ForwardChatScroll(reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL]),ControlsActive(),controlStyle,object);
-        MenuMirror.Phase(mirrorWas);
+        MenuMirror.Phase(mirrorWas); NativeMenus.Phase(nativeWas);
         chatMeasure=nullptr; blocking=was;
         if (!measure) return;
         Chat.ScrollFrame=0;
@@ -1245,6 +1324,7 @@ public:
         CensusScope censusScope(MenuCensus,window);
         Mirror::Saved mirrorSaved;
         const bool mirrorHidden=MenuMirror.Begin(window,core->GetDirect3DDevice(),mirrorSaved);
+        struct NativeScope { NativeLook::Saved was; ~NativeScope() { NativeMenus.Leave(was); } } nativeScope{NativeEnter(window)};
         struct WatchScope { int was; ~WatchScope() { MenuWatch.Leave(was); } } watchScope{MenuWatch.on ? WatchEnter(window,mirrorHidden) : -1};
         int index=-1;
         for (int i=0;i<4;i++) {
@@ -1333,19 +1413,25 @@ static void __fastcall DrawExpandedChat(void* owner,void*) {
 static int32_t __cdecl CensusBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
     MenuCensus.Text(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++;
     MenuMirror.TextBegin(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
+    NativeMenus.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
+    NativeMenus.text--;
     MenuCensus.depth--; MenuMirror.TextEnd(); return end;
 }
 static int32_t __cdecl CensusScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
     MenuCensus.Text(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++;
     MenuMirror.TextBegin(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
+    NativeMenus.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
+    NativeMenus.text--;
     MenuCensus.depth--; MenuMirror.TextEnd(); return end;
 }
 static uint32_t __fastcall CensusFont(void* font,void*,int32_t x,int32_t y,const char* text,uint32_t a,uint32_t colour,uint32_t flags,uint32_t sx,uint32_t sy) {
     MenuCensus.Text(CENSUS_FONT,x,y,text,colour); MenuCensus.depth++;
     MenuMirror.TextBegin(CENSUS_FONT,x,y,text,colour);
+    NativeMenus.text++;
     const uint32_t result=reinterpret_cast<uint32_t(__fastcall*)(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusFontDetour.trampoline)(font,nullptr,x,y,text,a,colour,flags,sx,sy);
+    NativeMenus.text--;
     MenuCensus.depth--; MenuMirror.TextEnd(); return result;
 }
 // A window's contents drawn, as Window::Render would, with the mirror told they are being drawn
@@ -1359,9 +1445,9 @@ static void __cdecl MirrorInput(MSG message) {
 }
 static void __fastcall MirrorContent(void* owner,void*) {
     void* draw=(*static_cast<void***>(owner))[4];
-    MenuMirror.Phase(MIRROR_CONTENT);
+    MenuMirror.Phase(MIRROR_CONTENT); NativeMenus.Phase(MIRROR_CONTENT);
     reinterpret_cast<void(__fastcall*)(void*,void*)>(draw)(owner,nullptr);
-    MenuMirror.Phase(MIRROR_AFTER);
+    MenuMirror.Phase(MIRROR_AFTER); NativeMenus.Phase(MIRROR_AFTER);
 }
 static void __fastcall RenderWindow(void* window,void*) {
     if (PartyHook::Instance) PartyHook::Instance->Render(window);

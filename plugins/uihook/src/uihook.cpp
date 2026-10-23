@@ -15,7 +15,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "Modular native UI replacement: buffs, party/alliance, targets, clock, compass and chat."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 1.24; }
+    double GetVersion() const override { return 1.25; }
     // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one; UseText: each line given
     // to the game's chat log, recorded for addons as it stands at uihook's turn
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseText | Ashita::PluginFlags::UseDirect3D); }
@@ -55,9 +55,10 @@ public:
             if (_stricmp(words[2], "labels") == 0 && words[3][0]) line += std::string(" ") + words[3];
             return party && party->HandleCommand(mode, line.c_str(), injected);
         }
+        if (_stricmp(words[1], "native") == 0) return party && party->HandleCommand(mode, command, injected);
         if (_stricmp(words[1], "menus") == 0) return party && party->HandleCommand(mode, "/uihook menus", injected);
         if (!words[1][0] || _stricmp(words[1], "addons") == 0) { Addons(); return true; }
-        Say("/uihook (or /uihook addons) lists addons handing it something now; /uihook hud reports clock hooks; /uihook chat reports chat replacement; /uihook chat history prints the game's newest chat lines as it keeps them; /uihook menus reports native action-menu and expanded-log placement; /uihook mirror reports the menus an addon mirrors; /uihook mirror labels [seconds] writes the art of the menus mirrored, letters and icons, to logs\\uihook-labels (after that many seconds, for the chat line to close); /uihook census on|off|dump|clear lists every window the game draws and the text it prints, to logs\\uihook-census.txt.");
+        Say("/uihook (or /uihook addons) lists addons handing it something now; /uihook hud reports clock hooks; /uihook chat reports chat replacement; /uihook chat history prints the game's newest chat lines as it keeps them; /uihook menus reports native action-menu and expanded-log placement; /uihook mirror reports the menus an addon mirrors; /uihook mirror labels [seconds] writes the art of the menus mirrored, letters and icons, to logs\\uihook-labels (after that many seconds, for the chat line to close); /uihook census on|off|dump|clear lists every window the game draws and the text it prints, to logs\\uihook-census.txt; /uihook native [move <name> <x> <y> | tint <name> <AARRGGBB> | clear [name]] moves a menu of the game's where it lays it out and tints its frame (an experiment).");
         return true;
     }
     void Say(const std::string& text) const { m_Core->GetChatManager()->Write(0, false, ("[uihook] " + text).c_str()); }

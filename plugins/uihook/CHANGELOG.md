@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.25
+
+- `/uihook native`, an experiment in skinning the game's own menus rather than mirroring them: `move <name>
+  <x> <y>` moves a menu where the game lays it out (the action menus' layout target, for any menu by
+  name), so its cursor, rows and mouse hit-tests go with it; `tint <name> <AARRGGBB>` multiplies the colours
+  of its frame's draws, its contents, labels, cursor and text left as they are; `clear [name]` gives them
+  back. At most 16 menus; nothing kept between loads. The mirror ABI is as it was.
+
 ## 1.24
 
 - The census is on from load: every window drawn while playing is documented without a command, each
