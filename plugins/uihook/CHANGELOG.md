@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.29
+
+- `/uihook native move` moves a menu's drawing, not its layout: every screen-space draw made while the window is
+  drawn (frame, elements, contents, text, cursor, scrollbar) is copied, moved and drawn in its place, so the
+  menu moves whole. Moving the layout (1.25 to 1.28) moved the frame, and the list's rows once their owner's
+  origin was moved too, but the icon boxes, scrollbar and count each keep a place of their own. The game's own
+  places are left as they are: the controller works the menu as ever; its mouse hit-tests stay where the game
+  put it. `/uihook native scale <name> <factor>` (0.5 to 3) grows it from the corner of the screen it is
+  nearest, kept on the screen. Draws from vertex buffers cannot be moved and are counted in the status.
+  Nothing of the game's is written any more.
+
 ## 1.28
 
 - A moved item list's contents go with it. 1.27 moved the inventory's frame, but its rows stayed: the item

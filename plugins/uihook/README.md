@@ -494,28 +494,28 @@ are seen. `/uihook mirror watch` (again to stop) writes
 draws were made, and what was published; `/uihook mirror mark <words>` notes a moment in it. The `menus` addon draws the item lists and the item
 description box in the winxi look.
 
-## The native look, an experiment (1.25)
+## The native look, an experiment (1.25; drawn moved in 1.29)
 
 For trying a skin on the game's own menus rather than drawing them again: the menu stays the game's whole
-(input, cursor, text, hit-tests), moved where the game lays it out, its frame recoloured as it is drawn.
+(its controller input, cursor and text), drawn moved, scaled and with its frame recoloured.
 
 ```
-/uihook native                         what is set, and whether each is applied
-/uihook native move <name> <x> <y>     the menu moved by x, y display pixels (inventor, equip, ...)
+/uihook native                         what is set, and how much of each was drawn so
+/uihook native move <name> <x> <y>     drawn x, y display pixels from where the game puts it (inventor, equip, ...)
+/uihook native scale <name> <factor>   drawn 0.5 to 3 times its size, from the corner of the screen it is nearest
 /uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (RRGGBB: opaque)
-/uihook native clear [name]            one, or all, given back; a moved one goes back as it is next drawn
+/uihook native clear [name]            one, or all, drawn as the game draws them
 ```
 
-The move is the action menus' (above): the layout target (+8C) written before Window::Render calls
-Window::Update, and the window marked for it (+94), so the game lays out its frame, rows, cursor and
-hit-tests there itself; a move past the top or left edge stops at it. That moves the frame; an item list's
-contents are drawn from its owner's own origin (+28), which is moved by as much (lists only, so far:
-another kind of owner keeps its contents where they were, and `/uihook native` says which drawer it is). The tint draws the frame's draws
-with a second texture stage after the game's own, multiplying what it made by the colour (the texture
-factor), put back after each; not where the game uses that stage or a pixel shader. The contents, the
-elements (picture labels, buttons), the cursor, the scrollbar and text are left as they are. Nothing is
-kept between loads; at unload, a menu moved and drawn in the last frame is put back.
+Only the drawing moves: every screen-space draw made while the window is drawn, its frame, elements,
+contents, text, cursor and scrollbar alike, is copied, moved about the window's last frame's bounds and drawn
+in its place, so it moves whole without knowing where its parts keep their places. Nothing of the game's is
+written: its mouse hit-tests stay where it put the menu, and the controller works it as ever. A draw from a
+vertex buffer cannot be moved, and is counted. The tint draws the frame's draws with a second texture stage
+after the game's own, multiplying what it made by the colour (the texture factor), put back after each; not
+where the game uses that stage or a pixel shader. Nothing is kept between loads.
 
+## Architecture
 
 - `src/uihook.cpp`: sole exported plugin entry point, lifecycle dispatch and scoped GPU-filter routing.
 - `src/modules/chat/`: primary/split/input recognition and independent chat ABI; uses the shared renderer.

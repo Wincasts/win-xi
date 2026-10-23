@@ -86,7 +86,7 @@ static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, 
 // Window::Render aimed at MirrorContent.
 static MirrorShared MirrorBlock;
 static Mirror MenuMirror;
-static NativeLook NativeMenus; // /uihook native: windows moved where the game lays them out, their frames tinted (native.h)
+static NativeLook NativeMenus; // /uihook native: windows' draws moved and scaled, their frames tinted (native.h)
 static MirrorWatch MenuWatch; // every window drawn, kept in WatchBlock; with /uihook mirror watch, to logs\uihook-mirror-watch.txt
 // exported, as nothing in the DLL reads it back: a block private to it would have every write to it optimized away
 extern "C" __declspec(dllexport) MirrorWatchShared UihookWatch{};
@@ -292,115 +292,107 @@ class PartyHook : public IPlugin {
         scaling=false;
         return ok;
     }
-    // /uihook native: a window named moved before the game lays it out (not one the action menus are moving), and
-    // its entry taken for tinting its frame while it is drawn
+    // /uihook native: the window being drawn taken, where it is one named, for its draws to be moved and tinted
     NativeLook::Saved NativeEnter(void* window) {
-        if (!NativeMenus.Any()) return NativeMenus.Enter(nullptr);
-        uint8_t data[0x9a]; void* header=nullptr; char name[16];
-        if (!window || !ChatRead(window,data,sizeof(data)) || (memcpy(&header,data+4,4),!header)
-            || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return NativeMenus.Enter(nullptr);
-        int dimensions[2]={};
-        const char* why=!MenuWritable(static_cast<uint8_t*>(window)+0x8c,12) ? "its layout cannot be written"
-            : menus.Moves(window) ? "chatbox is moving it"
-            : data[0x99] && !(menuManager && ChatRead(menuManager+0x80,dimensions,sizeof(dimensions))) ? "no menu manager for its units" : nullptr;
-        NativeMenus.Seen(name,Shared.Frame,why);
-        if (!why) {
-            // its owner, where its origin is known to move with it (the item lists'), else its drawer for the status
-            void* owner=nullptr; uint32_t vtable=0,draw=0;
-            memcpy(&owner,data+0x0c,4);
-            if (owner && ChatRead(owner,&vtable,4) && vtable) ChatRead(reinterpret_cast<void*>(static_cast<uintptr_t>(vtable)+0x10),&draw,4);
-            const uint32_t drawer=draw && MenuCensus.base ? draw-static_cast<uint32_t>(MenuCensus.base) : 0;
-            void* moving=drawer==NATIVE_LIST_DRAWER && MenuWritable(static_cast<uint8_t*>(owner)+NATIVE_OWNER_ORIGIN,4) ? owner : nullptr;
-            NativeMenus.Before(window,header,data,dimensions,Shared.Frame,moving,owner ? drawer : 0);
-        }
-        return NativeMenus.Enter(name);
+        if (!NativeMenus.Any()) return NativeMenus.Enter(nullptr,Shared.Frame);
+        void* header=nullptr; char name[16];
+        if (!window || !ChatRead(static_cast<uint8_t*>(window)+4,&header,4) || !header
+            || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return NativeMenus.Enter(nullptr,Shared.Frame);
+        return NativeMenus.Enter(name,Shared.Frame);
     }
-    // A draw of a tinted window's frame: drawn with a second texture stage multiplying the game's own result by the
-    // tint, then the stage and the texture factor put back. Not where the game uses that stage, or a pixel shader.
-    bool TintFrame(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
-        uint32_t colour=0;
-        if (!NativeMenus.Tinting(colour) || !data || !vertices) return false;
+    // A screen-space draw of a window named: counted into its bounds; then, where it is moved or its frame tinted,
+    // drawn so in its place (its vertices copied and moved; a second texture stage multiplying the game's own result by
+    // the tint, put back after). vertices: from min, as an indexed draw's are.
+    bool NativeDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
         NativeEntry* e=NativeMenus.current;
+        if (!e || !data || !vertices || stride<8) return false;
+        const UINT used=min+vertices;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0,pixel=0;
-        if (!device || FAILED(device->GetVertexShader(&shader)) || FAILED(device->GetPixelShader(&pixel)) || pixel) { e->refused++; return false; }
-        e->lastFormat=shader;
-        DWORD first[3]={};
-        device->GetTextureStageState(0,D3DTSS_COLOROP,&first[0]);
-        device->GetTextureStageState(0,D3DTSS_COLORARG1,&first[1]);
-        device->GetTextureStageState(0,D3DTSS_COLORARG2,&first[2]);
-        for (unsigned i=0;i<3;i++) e->stage[i]=first[i];
-        DWORD saved[6]={},factor=0;
+        if (!device || FAILED(device->GetVertexShader(&shader)) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) { NativeMenus.Unmoved(); return false; }
+        NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
+        D3DVIEWPORT8 viewport={};
+        float place[4]={};
+        const bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport))
+            && NativeMenus.Placing(float(viewport.Width),float(viewport.Height),place);
+        uint32_t colour=0;
+        bool tinting=NativeMenus.Tinting(colour);
+        DWORD saved[6]={},factor=0,third=D3DTOP_DISABLE;
         static const D3DTEXTURESTAGESTATETYPE kinds[6]={D3DTSS_COLOROP,D3DTSS_COLORARG1,D3DTSS_COLORARG2,D3DTSS_ALPHAOP,D3DTSS_ALPHAARG1,D3DTSS_ALPHAARG2};
-        for (unsigned i=0;i<6;i++) device->GetTextureStageState(1,kinds[i],&saved[i]);
-        if (saved[0]!=D3DTOP_DISABLE || FAILED(device->GetRenderState(D3DRS_TEXTUREFACTOR,&factor))) { e->refused++; return false; }
-        IDirect3DBaseTexture8* texture=nullptr; device->GetTexture(1,&texture);
-        device->SetTexture(1,nullptr);
-        device->SetRenderState(D3DRS_TEXTUREFACTOR,colour);
-        static const DWORD tint[6]={D3DTOP_MODULATE,D3DTA_CURRENT,D3DTA_TFACTOR,D3DTOP_MODULATE,D3DTA_CURRENT,D3DTA_TFACTOR};
-        for (unsigned i=0;i<6;i++) device->SetTextureStageState(1,kinds[i],tint[i]);
-        DWORD third=D3DTOP_DISABLE; device->GetTextureStageState(2,D3DTSS_COLOROP,&third);
-        device->SetTextureStageState(2,D3DTSS_COLOROP,D3DTOP_DISABLE);
-        scaling=true;
-        const bool ok=indices ? SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,data,stride))
-            : SUCCEEDED(device->DrawPrimitiveUP(t,count,data,stride));
-        scaling=false;
-        device->SetTextureStageState(2,D3DTSS_COLOROP,third);
-        for (unsigned i=0;i<6;i++) device->SetTextureStageState(1,kinds[i],saved[i]);
-        device->SetRenderState(D3DRS_TEXTUREFACTOR,factor);
-        device->SetTexture(1,texture); if (texture) texture->Release();
-        if (ok) e->tinted++; else e->refused++;
-        return ok;
-    }
-    // Every window moved and drawn in the last frame put back, as uihook is unloaded (one not drawn since may be gone)
-    void NativeUnload() {
-        auto update=menus.Updater();
-        for (auto& e:NativeMenus.entries) {
-            void* header=nullptr; uint8_t data[0x9a];
-            if (!e.moved || Shared.Frame-e.frame>1 || !ChatRead(e.window,data,sizeof(data))
-                || (memcpy(&header,data+4,4),header!=e.header) || !MenuWritable(static_cast<uint8_t*>(e.window)+0x8c,12)) continue;
-            int16_t target[2]; memcpy(target,data+0x8c,4);
-            void* window=e.window; void* owner=nullptr; memcpy(&owner,data+0x0c,4);
-            if (owner!=e.owner || !MenuWritable(static_cast<uint8_t*>(owner)+NATIVE_OWNER_ORIGIN,4)) owner=nullptr;
-            NativeMenus.Restore(e,window,target,owner);
-            if (update) update(window,nullptr);
+        if (tinting) {
+            DWORD first[3]={};
+            device->GetTextureStageState(0,D3DTSS_COLOROP,&first[0]);
+            device->GetTextureStageState(0,D3DTSS_COLORARG1,&first[1]);
+            device->GetTextureStageState(0,D3DTSS_COLORARG2,&first[2]);
+            for (unsigned i=0;i<3;i++) e->stage[i]=first[i];
+            e->lastFormat=shader;
+            for (unsigned i=0;i<6;i++) device->GetTextureStageState(1,kinds[i],&saved[i]);
+            if (FAILED(device->GetPixelShader(&pixel)) || pixel || saved[0]!=D3DTOP_DISABLE
+                || FAILED(device->GetRenderState(D3DRS_TEXTUREFACTOR,&factor))) { e->refused++; tinting=false; }
         }
-        for (auto& e:NativeMenus.entries) e=NativeEntry();
+        if (!placing && !tinting) return false;
+        const void* drawn=data;
+        if (placing) {
+            scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
+            NativeMoveVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,place,e->scale);
+            drawn=scaledVertices.data();
+        }
+        IDirect3DBaseTexture8* texture=nullptr;
+        if (tinting) {
+            device->GetTexture(1,&texture);
+            device->SetTexture(1,nullptr);
+            device->SetRenderState(D3DRS_TEXTUREFACTOR,colour);
+            static const DWORD tint[6]={D3DTOP_MODULATE,D3DTA_CURRENT,D3DTA_TFACTOR,D3DTOP_MODULATE,D3DTA_CURRENT,D3DTA_TFACTOR};
+            for (unsigned i=0;i<6;i++) device->SetTextureStageState(1,kinds[i],tint[i]);
+            device->GetTextureStageState(2,D3DTSS_COLOROP,&third);
+            device->SetTextureStageState(2,D3DTSS_COLOROP,D3DTOP_DISABLE);
+        }
+        scaling=true;
+        const bool ok=indices ? SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,drawn,stride))
+            : SUCCEEDED(device->DrawPrimitiveUP(t,count,drawn,stride));
+        scaling=false;
+        if (tinting) {
+            device->SetTextureStageState(2,D3DTSS_COLOROP,third);
+            for (unsigned i=0;i<6;i++) device->SetTextureStageState(1,kinds[i],saved[i]);
+            device->SetRenderState(D3DRS_TEXTUREFACTOR,factor);
+            device->SetTexture(1,texture); if (texture) texture->Release();
+            if (ok) e->tinted++; else e->refused++;
+        }
+        if (placing && ok) e->moved++;
+        return ok;
     }
     void NativeCommand(const char* command) {
         char verb[16]={},name[16]={},a[16]={},b[16]={}; char line[256];
         const int words=sscanf_s(command,"/uihook native %15s %15s %15s %15s",verb,16u,name,16u,a,16u,b,16u);
         auto* chat=core->GetChatManager();
         if (words>=4 && !_stricmp(verb,"move")) {
-            snprintf(line,sizeof(line),NativeMenus.Move(name,atoi(a),atoi(b)) ? "[uihook:native] %s moved by %s, %s where the game lays it out."
+            snprintf(line,sizeof(line),NativeMenus.Move(name,float(atof(a)),float(atof(b))) ? "[uihook:native] %s drawn %s, %s from where the game puts it."
                 : "[uihook:native] could not move %s: a name of at most 8 letters, and at most 16 windows.",name,a,b);
+        } else if (words>=3 && !_stricmp(verb,"scale")) {
+            snprintf(line,sizeof(line),NativeMenus.Scale(name,float(atof(a))) ? "[uihook:native] %s drawn at %s times its size."
+                : "[uihook:native] could not scale %s: a factor from 0.5 to 3.",name,a);
         } else if (words>=3 && !_stricmp(verb,"tint")) {
             const uint32_t colour=static_cast<uint32_t>(strtoul(a,nullptr,16)) | (strlen(a)<=6 ? 0xff000000u : 0);
             snprintf(line,sizeof(line),NativeMenus.Tint(name,colour) ? "[uihook:native] %s's frame tinted %08X."
                 : "[uihook:native] could not tint %s.",name,colour);
         } else if (words>=1 && !_stricmp(verb,"clear")) {
-            snprintf(line,sizeof(line),"[uihook:native] %u given back to the game; each moved goes back as it is next drawn.",NativeMenus.Clear(words>=2 ? name : nullptr));
+            snprintf(line,sizeof(line),"[uihook:native] %u drawn as the game draws them again.",NativeMenus.Clear(words>=2 ? name : nullptr));
         } else if (words<1) {
-            snprintf(line,sizeof(line),"[uihook:native] %u moves written, %u put back.",NativeMenus.applied,NativeMenus.restored);
+            unsigned n=0; for (auto& e:NativeMenus.entries) if (e.name[0]) n++;
+            snprintf(line,sizeof(line),"[uihook:native] %u menus set; the game's mouse hit-tests stay where it puts them.",n);
             chat->Write(0,false,line);
             for (auto& e:NativeMenus.entries) {
                 if (!e.name[0]) continue;
                 char seen[48];
                 if (!e.seen) snprintf(seen,sizeof(seen),"not drawn since asked");
                 else snprintf(seen,sizeof(seen),"drawn %u frames ago",Shared.Frame-e.seen);
-                snprintf(line,sizeof(line),"  %.8s: %s; move %s %d,%d (%s), tint %s %08X (frame draws %u tinted, %u refused, format %X, stage %u %X %X)",
-                    e.name+8,seen,e.move ? "on" : "off",e.dx,e.dy,
-                    e.moved ? (Shared.Frame-e.frame<=2 ? (e.ownerMoved ? "drawn there now, contents with it" : "drawn there now, frame only") : "moved, not drawn lately") : e.why ? e.why : "not moved",
-                    e.tint ? "on" : "off",e.colour,e.tinted,e.refused,static_cast<unsigned>(e.lastFormat),
-                    static_cast<unsigned>(e.stage[0]),static_cast<unsigned>(e.stage[1]),static_cast<unsigned>(e.stage[2]));
+                snprintf(line,sizeof(line),"  %.8s: %s; move %.0f,%.0f scale %.2f (%u draws moved, %u could not be), tint %s %08X (%u tinted, %u refused, format %X, stage %u %X %X)",
+                    e.name+8,seen,e.dx,e.dy,e.scale,e.moved,e.unmoved,e.tint ? "on" : "off",e.colour,e.tinted,e.refused,
+                    static_cast<unsigned>(e.lastFormat),static_cast<unsigned>(e.stage[0]),static_cast<unsigned>(e.stage[1]),static_cast<unsigned>(e.stage[2]));
                 chat->Write(0,false,line);
-                if (e.moved && !e.ownerMoved && e.unknownDrawer) {
-                    snprintf(line,sizeof(line),"    its contents not moved: drawn by %08X, whose origin is not known yet",static_cast<unsigned>(e.unknownDrawer));
-                    chat->Write(0,false,line);
-                }
             }
             return;
         } else {
-            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | tint <name> <AARRGGBB> | clear [name]]");
+            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | scale <name> <factor> | tint <name> <AARRGGBB> | clear [name]]");
         }
         chat->Write(0,false,line);
     }
@@ -580,7 +572,6 @@ public:
         Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat(); ChatReadReset();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         AutoCensus(true);
-        NativeUnload();
         GiveMirror();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
@@ -620,8 +611,8 @@ public:
     }
     void Direct3DBeginScene(bool) override { inScene=true; }
     void Direct3DEndScene(bool) override { inScene=false; }
-    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); return Block(); }
-    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); return Block(); }
+    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return Block(); }
+    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return Block(); }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
         if (scaling) return false;
         MenuCensus.Draw();
@@ -629,7 +620,7 @@ public:
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0); // our own scaled copy, on its way to the device
         Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
         if (Block()) return true;
-        if (TintFrame(t,0,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,count,nullptr,D3DFMT_UNKNOWN,data,stride)) return true;
+        if (NativeDraw(t,0,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,count,nullptr,D3DFMT_UNKNOWN,data,stride)) return true;
         return ScaleIcon(t,count,data,stride);
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
@@ -639,7 +630,7 @@ public:
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
         Native(true,data,stride,vertices);
         if (Block()) return true;
-        if (TintFrame(t,min,vertices,count,indices,format,data,stride)) return true;
+        if (NativeDraw(t,min,vertices,count,indices,format,data,stride)) return true;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0;
         if (!inClock || min!=0 || (clockShiftX==0 && clockShiftY==0) || !data || stride<8 || !vertices || vertices>4096
             || !device || FAILED(device->GetVertexShader(&shader)) || !(shader & D3DFVF_XYZRHW)) return false;
