@@ -9,6 +9,14 @@
 //   /uihook skin off        the game's own textures
 //   /uihook skin            what is loaded, and how much of it the game has drawn
 //
+// The game colours some of its art by the vertices (a button bar blue-grey or orange, each the same texture), so a
+// skin may say what those colours are to be drawn as, in skin.txt beside its pictures, a line each:
+//
+//   <hash> <RRGGBB or *> <RRGGBB>     e.g. 9E2854A3 616180 363650: a draw with that texture, its vertices of the
+//                                     game's colour (any, for *) drawn in the other; their alpha the game's
+//
+// The first line that fits a vertex is used. Only for a draw from memory (a vertex buffer's are drawn as they are).
+//
 // A game texture is known by its pixels, read the first time its pointer is seen in a screen-space draw (and again
 // where it has not been seen for a while, as the game may have made another there).
 #pragma once
@@ -18,13 +26,61 @@
 #include "../mirror/textures.h"
 
 #define SKIN_POINTERS 4096
+#define SKIN_ANY 0xffffffffu
+
+struct SkinColour { uint32_t from=SKIN_ANY, to=0; };    // RGB, or SKIN_ANY for every colour
 
 struct SkinTexture {
     uint32_t hash=0, width=0, height=0;
     void* texture=nullptr;      // the picture as a texture, the device's to draw with
     uint32_t drawn=0;           // draws made with it in the game's place
     unsigned matched=0;         // game textures found with its pixels
+    std::vector<SkinColour> colours;
+    uint32_t recoloured=0;      // draws whose vertices' colours were changed
 };
+
+// A draw's vertices with their colours as the skin's picture says, in out (the whole of data, count vertices of
+// stride); false where none is changed or the vertices have no colour
+static bool SkinRecolour(const SkinTexture& t,const void* data,unsigned count,unsigned stride,uint32_t fvf,std::vector<uint8_t>& out) {
+    if (t.colours.empty() || !data || !count || !(fvf & D3DFVF_DIFFUSE) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW || stride<20) return false;
+    const auto* bytes=static_cast<const uint8_t*>(data);
+    bool changed=false;
+    for (unsigned i=0;i<count;i++) {
+        uint32_t c; memcpy(&c,bytes+size_t(i)*stride+16,4);
+        for (auto& m:t.colours) {
+            if (m.from!=SKIN_ANY && m.from!=(c&0xffffff)) continue;
+            const uint32_t to=(c&0xff000000) | (m.to&0xffffff);
+            if (to!=c) {
+                if (!changed) { out.assign(bytes,bytes+size_t(count)*stride); changed=true; }
+                memcpy(out.data()+size_t(i)*stride+16,&to,4);
+            }
+            break;
+        }
+    }
+    return changed;
+}
+// skin.txt's lines given to the skin's pictures; returns the lines not understood or of no picture loaded
+static unsigned SkinColours(std::vector<SkinTexture>& textures,const char* text) {
+    unsigned bad=0;
+    while (text && *text) {
+        const char* end=strchr(text,'\n'); const size_t length=end ? size_t(end-text) : strlen(text);
+        char line[128]={}; memcpy(line,text,length<sizeof(line)-1 ? length : sizeof(line)-1);
+        text=end ? end+1 : nullptr;
+        if (char* hash=strchr(line,'#')) *hash=0;
+        char a[16]={},b[16]={},c[16]={};
+        const int n=sscanf_s(line,"%15s %15s %15s",a,16u,b,16u,c,16u);
+        if (n<=0) continue;
+        char* stop=nullptr; uint32_t hash=0,from=SKIN_ANY,to=0; bool ok=n==3;
+        if (ok) { hash=strtoul(a,&stop,16); ok=*stop==0 && strlen(a)==8; }
+        if (ok && strcmp(b,"*")) { from=strtoul(b,&stop,16); ok=*stop==0 && strlen(b)==6; }
+        if (ok) { to=strtoul(c,&stop,16); ok=*stop==0 && strlen(c)==6; }
+        SkinTexture* t=nullptr;
+        if (ok) for (auto& x:textures) if (x.hash==hash) t=&x;
+        if (!t) { bad++; continue; }
+        SkinColour colour; colour.from=from; colour.to=to; t->colours.push_back(colour);
+    }
+    return bad;
+}
 
 class SkinLook {
 public:

@@ -387,6 +387,15 @@ class PartyHook : public IPlugin {
         device->SetTexture(0,static_cast<IDirect3DBaseTexture8*>(Skin.textures[size_t(swap.index)].texture));
         return swap;
     }
+    // A draw's vertices from memory with the colours the skin's skin.txt gives its picture, or as they were
+    std::vector<uint8_t> skinVertices;
+    const void* SkinVertices(const SkinSwap& swap,const void* data,unsigned count,unsigned stride) {
+        SkinTexture& t=Skin.textures[size_t(swap.index)];
+        auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
+        if (t.colours.empty() || count>65536 || !device || FAILED(device->GetVertexShader(&fvf)) || !SkinRecolour(t,data,count,stride,fvf,skinVertices)) return data;
+        t.recoloured++;
+        return skinVertices.data();
+    }
     // The draw made with the skin's picture, unless done already (blocked, or drawn moved), and the game's texture
     // put back. True where it was drawn here; false (the game's own then drawn by Ashita) where the draw failed.
     template<class Draw> bool SkinEnd(const SkinSwap& swap,bool done,Draw draw) {
@@ -429,9 +438,16 @@ class PartyHook : public IPlugin {
             FindClose(find);
         }
         snprintf(Skin.name,sizeof(Skin.name),"%s",name);
+        unsigned unread=0; bool colours=false;
+        if (FILE* f=fopen((folder+"\\skin.txt").c_str(),"rb")) {
+            std::string text; char chunk[4096]; size_t n;
+            while ((n=fread(chunk,1,sizeof(chunk),f))>0 && text.size()<65536) text.append(chunk,n);
+            fclose(f); colours=true;
+            unread=SkinColours(Skin.textures,text.c_str());
+        }
         if (Skin.textures.empty()) snprintf(line,size,"[uihook:skin] no pictures read in %s (tex-<hash>.png or .bmp)%s.",folder.c_str(),failed ? ", some could not be read" : "");
-        else snprintf(line,size,"[uihook:skin] %s: %zu pictures loaded%s; the game's textures are known as they are drawn.",name,Skin.textures.size(),
-            failed ? ", some could not be read" : "");
+        else snprintf(line,size,"[uihook:skin] %s: %zu pictures loaded%s%s%s; the game's textures are known as they are drawn.",name,Skin.textures.size(),
+            failed ? ", some could not be read" : "",colours ? ", skin.txt read" : "",unread ? " (some of its lines not understood, or of no picture)" : "");
     }
     void SkinCommand(const char* word) {
         char line[512];
@@ -444,10 +460,10 @@ class PartyHook : public IPlugin {
         } else if (word[0]) SkinLoad(word,line,sizeof(line));
         else if (!Skin.On()) snprintf(line,sizeof(line),"[uihook:skin] none loaded. /uihook skin <name> loads config\\uihook\\skins\\<name>\\; reload, off.");
         else {
-            unsigned matched=0; uint32_t drawn=0;
-            for (auto& t:Skin.textures) { if (t.matched) matched++; drawn+=t.drawn; }
-            snprintf(line,sizeof(line),"[uihook:skin] %s: %zu pictures, %u found in the game's textures (%u read), %u draws made with them.",
-                Skin.name,Skin.textures.size(),matched,Skin.read,drawn);
+            unsigned matched=0; uint32_t drawn=0,recoloured=0;
+            for (auto& t:Skin.textures) { if (t.matched) matched++; drawn+=t.drawn; recoloured+=t.recoloured; }
+            snprintf(line,sizeof(line),"[uihook:skin] %s: %zu pictures, %u found in the game's textures (%u read), %u draws made with them, %u of them recoloured.",
+                Skin.name,Skin.textures.size(),matched,Skin.read,drawn,recoloured);
             core->GetChatManager()->Write(0,false,line);
             std::string unseen;
             for (auto& t:Skin.textures) if (!t.matched) { char h[12]; snprintf(h,sizeof(h)," %08X",t.hash); unseen+=h; }
@@ -786,7 +802,9 @@ public:
         const SkinSwap skin=SkinBegin();
         const bool done=Block() || NativeDraw(t,0,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,count,nullptr,D3DFMT_UNKNOWN,data,stride)
             || ScaleIcon(t,count,data,stride);
-        return SkinEnd(skin,done,[&](IDirect3DDevice8* d) { return d->DrawPrimitiveUP(t,count,data,stride); });
+        return SkinEnd(skin,done,[&](IDirect3DDevice8* d) {
+            return d->DrawPrimitiveUP(t,count,SkinVertices(skin,data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride),stride);
+        });
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
         if (scaling) return false;
@@ -797,7 +815,9 @@ public:
         Native(true,data,stride,vertices);
         const SkinSwap skin=SkinBegin();
         const bool done=Block() || NativeDraw(t,min,vertices,count,indices,format,data,stride) || ClockDraw(t,min,vertices,count,indices,format,data,stride);
-        return SkinEnd(skin,done,[&](IDirect3DDevice8* d) { return d->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,data,stride); });
+        return SkinEnd(skin,done,[&](IDirect3DDevice8* d) {
+            return d->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,SkinVertices(skin,data,min+vertices,stride),stride);
+        });
     }
     // The clock's draws moved by its shift
     bool ClockDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
