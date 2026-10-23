@@ -492,17 +492,25 @@ pictures must tile.
 /uihook skin            what is loaded, how many of its pictures the game has drawn, and those not drawn yet
 ```
 
+Some of the game's art is coloured by its vertices, one texture in several colours (the button bars blue-grey or
+orange). A skin may say what those are drawn as in `skin.txt` beside its pictures, a line each:
+`<hash> <RRGGBB or *> <RRGGBB>` (`9E2854A3 616180 3C3C52`): a draw with that texture, its vertices of the game's
+colour (any, for `*`) drawn in the other, their alpha the game's; the first line that fits is used. Only for
+draws from memory; the status counts the draws recoloured.
+
 A game texture is known by its pixels (the census's hash), read the first time its pointer is seen in a
 screen-space draw, and again where it has not been seen for 120 frames. For a draw whose texture the skin has a
 picture for, stage 0 is given the picture, the draw made, and the game's texture put back; the census and the
 mirror see the game's own. A skin is loaded by command, each time uihook is loaded (an Ashita script can do it).
 `python3 tools/uihook_skin.py <census folder>` makes a test skin by recolouring the chrome the first census
 found (gold frame, red background, green hand, amber buttons) into `plugins/uihook/build/skins/test`, to be
-copied to `config\uihook\skins\test\`; `--style winxi` makes `skins/winxi`, the winxi theme's look: the frame
-drawn anew at four times the game's size (its three frame textures are exactly a 3-pixel line 1 pixel in from
-the edge) with rounded corners in the FFXI-inspired border's steel, the theme's navy in the game's stripes, a
-steel hand and item boxes, and buttons in the theme's Highlight Color. The game's art stays out of the
-repository (`src/modules/native/skin.h`).
+copied to `config\uihook\skins\test\`; `--style winxi` makes `skins/winxi` from the winxi theme file
+(`config\addons\winxi\theme.lua`, or `--theme`) and winxi's own images: the frame drawn anew at four times the
+game's size (its three frame textures are exactly a 3-pixel line 1 pixel in from the edge, clear about it) with
+rounded corners, its line across the Border Style's art; the Background Style (the Background Color with
+`lines.png` over it for FFXI-inspired, a tinted tile for the others); the buttons in the Tab Style's art, and a
+`skin.txt` colouring the game's blue-grey bars as a tab not chosen and its orange ones as the chosen tab; the hand
+and item boxes in the border's steel. The game's art stays out of the repository (`src/modules/native/skin.h`).
 
 ## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1, ABI 5 in 1.2)
 

@@ -33,6 +33,19 @@ int main() {
     full.Lookup(0x9999990,SKIN_POINTERS,as(0xAAAA));
     Check(full.pointers.size()==SKIN_POINTERS && full.pointers.back().index==0 && full.pointers.front().texture==0x10010,"full: the one longest unseen made room");
 
+    // skin.txt: a game colour (or any) drawn in another, alpha kept
+    std::vector<SkinTexture> pictures(2); pictures[0].hash=0x9E2854A3; pictures[1].hash=0x11111111;
+    Check(SkinColours(pictures,"# buttons\r\n9E2854A3 616180 363650\r\n9e2854a3 * 4566D0  # the rest\nFFFFFFFF * 000000\nnonsense\n")==2
+        && pictures[0].colours.size()==2 && pictures[0].colours[0].from==0x616180 && pictures[0].colours[1].from==SKIN_ANY && pictures[0].colours[1].to==0x4566D0,
+        "skin.txt read, a line of no picture and one not understood counted");
+    struct C { float x,y,z,w; uint32_t colour; float u,v; } cv[3]={{0,0,0,1,0xA9616180,0,0},{0,0,0,1,0x61613C20,0,0},{0,0,0,1,0x06616180,0,0}};
+    std::vector<uint8_t> out;
+    Check(SkinRecolour(pictures[0],cv,3,sizeof(C),D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1,out),"recoloured");
+    const C* rc=reinterpret_cast<const C*>(out.data());
+    Check(rc[0].colour==0xA9363650 && rc[1].colour==0x614566D0 && rc[2].colour==0x06363650 && cv[0].colour==0xA9616180,"the first line that fits, alpha the game's, the game's own left");
+    Check(!SkinRecolour(pictures[1],cv,3,sizeof(C),D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1,out),"a picture with no colours: as they are");
+    Check(!SkinRecolour(pictures[0],cv,3,sizeof(C),D3DFVF_XYZRHW|D3DFVF_TEX1,out),"vertices without colour: as they are");
+
     // a 2x2 32-bit bmp, bottom-up, written and read back
     const char* path="skin-test.bmp";
     FILE* f=fopen(path,"wb");

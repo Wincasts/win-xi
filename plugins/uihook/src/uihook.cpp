@@ -15,7 +15,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "Modular native UI replacement: buffs, party/alliance, targets, clock, compass and chat."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 1.33; }
+    double GetVersion() const override { return 1.34; }
     // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one; UseText: each line given
     // to the game's chat log, recorded for addons as it stands at uihook's turn
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseText | Ashita::PluginFlags::UseDirect3D); }

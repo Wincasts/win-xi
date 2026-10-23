@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.34
+
+- A skin's `skin.txt` says what colours the game's vertices are drawn in for a picture of its, a line each:
+  `<hash> <RRGGBB or *> <RRGGBB>`, alpha the game's. For art the game colours by its vertices, one texture in
+  several colours (the button bars). The status counts the draws recoloured.
+- `tools/uihook_skin.py --style winxi` follows the winxi theme file and winxi's own images (border, background
+  and tab styles, the tab colours), and keeps the census's alpha: the hand and frame are clear about them again.
+
 ## 1.33
 
 - `/uihook skin <name>|reload|off`: the game's interface drawn with the pictures in
