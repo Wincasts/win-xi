@@ -1,6 +1,6 @@
 -- menus with uihook's mirror stood in for: one window of the game's, measured, as the bridge would give it;
 -- the addon's event handlers kept for the check to fire (a mouse); imgui's mouse where the check puts it.
-MENUS = { requests = {}, stops = 0, windows = {}, handlers = {}, mouse = { x = 0, y = 0 }, captured = false }
+MENUS = { requests = {}, stops = 0, windows = {}, handlers = {}, mouse = { x = 0, y = 0 }, captured = false, mice = {}, mouseSupported = false }
 -- Words stood in for too: an element given a word (the check's own field) is that word read back, the rest none
 local function Words(quads)
     local words, used = {}, {}
@@ -14,6 +14,9 @@ package.loaded['winxi.nativemirror'] = { Content = 1, Element = 3, Words = Words
     Stop = function() MENUS.stops = MENUS.stops + 1 end,
     Windows = function() return MENUS.windows end,
     Status = function() return 'stood in' end,
+    -- the menus said for the mouse, last; heard only where the check says uihook can
+    Mouse = function(list) MENUS.mice = list; return MENUS.mouseSupported end,
+    MouseSupported = function() return MENUS.mouseSupported end,
 } end }
 local register = ashita.events.register
 ashita.events.register = function(event, name, f)

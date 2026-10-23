@@ -20,8 +20,8 @@ ffi.cast = function(kind, at) if kind == 'uihook_mirror_t*' then return block en
 local function check(label, ok) print(label, ok); assert(ok, label) end
 
 ffi.copy(block.Magic, 'UIHOOK-MIRROR')
-block.Version, block.Size, block.Frame, block.Supported = 4, ffi.sizeof('uihook_mirror_t'), 50, 1
-check('the block is the size uihook\'s is (mirror ABI 4)', ffi.sizeof('uihook_mirror_t') == 84112 and ffi.sizeof('uihook_mirror_run_t') == 44 and ffi.sizeof('uihook_mirror_window_t') == 132)
+block.Version, block.Size, block.Frame, block.Supported = 5, ffi.sizeof('uihook_mirror_t'), 50, 1
+check('the block is the size uihook\'s is (mirror ABI 5)', ffi.sizeof('uihook_mirror_t') == 84632 and ffi.sizeof('uihook_mirror_run_t') == 44 and ffi.sizeof('uihook_mirror_window_t') == 132)
 local mirror = native.new()
 
 -- requests: names padded as the game keeps them, the hidden ones' bits, then the commit
@@ -103,9 +103,27 @@ block.Frame = 50
 -- bitmap escapes and CP932 past ASCII (transcoded on Windows; here, a ? for each byte)
 check('a bitmap escape taken out', native.Decode('12\133\1x') == '12x')
 
+-- the mouse: where menus are drawn elsewhere, normalized, then the commit; not where uihook has not the game's handler
+check('the mouse unsupported: nothing said', not mirror.MouseSupported() and not mirror.Mouse({ { drawn = { 0, 0, 10, 10 }, native = { 0, 0, 5, 5 } } }, 1000, 500)
+    and block.MouseFrame == 0)
+block.Supported = 3
+check('the mouse supported', mirror.MouseSupported())
+check('a menu drawn elsewhere and larger said', mirror.Mouse({ { drawn = { 500, 250, 900, 450 }, native = { 100, 50, 300, 150 } }, { drawn = { 1, 2, 3 } } }, 1000, 500))
+local m = block.Mouse[0]
+check('its places normalized', math.abs(m[0] - 0.5) < 1e-6 and math.abs(m[1] - 0.5) < 1e-6 and math.abs(m[3] - 0.9) < 1e-6
+    and math.abs(m[4] - 0.1) < 1e-6 and math.abs(m[7] - 0.3) < 1e-6)
+check('one said, committed at the block\'s frame', block.MouseCount == 1 and block.MouseFrame == 50)
+local seventeen = {}
+for i = 1, 17 do seventeen[i] = { drawn = { 0, 0, 10, 10 }, native = { 0, 0, 10, 10 } } end
+check('at most sixteen', mirror.Mouse(seventeen, 1000, 500) and block.MouseCount == 16)
+check('none: no commit', mirror.Mouse({}, 1000, 500) and block.MouseFrame == 0 and block.MouseCount == 0)
+mirror.Mouse(seventeen, 1000, 500)
+
 -- stop: the commit cleared
 mirror.Stop()
 check('stopped: nothing asked', block.RequestFrame == 0)
+check('stopped: no menu said for the mouse', block.MouseFrame == 0 and block.MouseCount == 0)
+block.Supported = 1
 check('asking nothing commits nothing', mirror.Request({}) and block.RequestFrame == 0)
 
 -- unloaded, or the ABI not uihook's: nothing asked of it
@@ -114,7 +132,7 @@ check('uihook not loaded: not asked', not mirror.Request({ { name = 'inventor' }
 loaded = true; base = 200; now = 20
 block.Version = 1
 check('another ABI: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('Update uihook'))
-block.Version = 4; now = 30
+block.Version = 5; now = 30
 block.Supported = 0
 check('not recognised in the client: not asked', not mirror.Request({ { name = 'inventor' } }) and mirror.Status():find('did not recognise'))
 

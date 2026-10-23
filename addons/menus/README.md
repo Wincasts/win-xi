@@ -16,8 +16,8 @@ It mirrors the menus that print their words (the item lists, the ability, spell,
 lists, currencies, missions, quests and the friend list among them); the game's other menus, whose
 labels are pictures (the main menu, the command menu, config), are drawn by the game unless the
 experimental Picture Label Menus are on.
-Everything is placed where the game placed it, so its hit-tests line up with what is seen, until a menu
-is scaled or moved: then Keep Mouse From Game Menus keeps the mouse from the game's own, unseen under it.
+Everything is placed where the game placed it, so its hit-tests line up with what is seen. With Mouse
+Follows Menus on, a menu can be moved and scaled and the mouse still works it where it is drawn.
 
 ## Settings
 
@@ -62,13 +62,16 @@ contents come through as the game's art; any drawn with its frame would be lost.
 Outline (each label should have a blue box) before replacing them.
 
 **Mouse**
-- Keep Mouse From Game Menus: over a menu drawn here, or the game's own place under it, the game is
-  given no mouse: no cursor moving to where the mouse is, no clicks, no wheel. A press kept from the
-  game has its release kept too, so the game never sees half a click. Other imgui windows (the
-  settings) have the mouse as ever. The controller works as ever. Replace only.
-- Lock Menu Positions: off, a menu is dragged with the left button while the mouse is kept from the
-  game's menus. Each menu's place is kept as an offset from where the game puts it, kept on the
-  screen, and saved as it is let go. With Keep Mouse off the menus are drawn where the game puts them.
+- Mouse Follows Menus [Experimental]: the mouse works each menu where it is drawn here, moved or at any
+  scale. uihook 1.2 gives the game each mouse message on a drawn menu (moves, presses, releases) at the
+  same place on the game's own, so pointing at an entry moves the game's cursor to it and a click
+  chooses it; the wheel scrolls the menu the game's cursor is on. Where the game's own menu is but
+  nothing is drawn, the game is given no mouse. A press on a menu's edge (its outer 8 pixels) drags it,
+  kept from the game with its release. Ashita, imgui and other addons see the mouse where it really is.
+  With an older uihook the mouse is kept from the menus instead, and a press anywhere on one drags it.
+  Off, the menus are drawn where the game puts them and the mouse is the game's. Replace only.
+- Lock Menu Positions: menus cannot be dragged (a press on an edge is the game's). Each menu's place is
+  kept as an offset from where the game puts it, kept on the screen, and saved as it is let go.
 - Reset Positions: every menu back where the game puts it.
 
 **Mirror**
@@ -78,8 +81,8 @@ Outline (each label should have a blue box) before replacing them.
   (white). For checking what is measured before replacing.
 - Menu Scale (0.75x to 2x): how large the menus are drawn in Replace, each grown from the corner of the
   screen it is nearest (the item lists from the top left, the item box from the bottom left), so it
-  stays on the screen. Its text is drawn larger, not stretched. The controller works as ever; the mouse
-  still clicks where the game's own menu is, so at any scale but 1 it does not line up yet.
+  stays on the screen. Its text is drawn larger, not stretched. The controller works as ever; with Mouse
+  Follows Menus on, so does the mouse.
 - Status: what uihook says of the mirror, and any menu given back to the game, and why.
 
 ## When the game's own comes back

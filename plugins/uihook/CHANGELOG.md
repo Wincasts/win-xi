@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2
+
+- The mouse on a menu the menus addon draws somewhere else, or larger: the game reads each mouse message in
+  its own message loop, from the MSG, before Translate and DispatchMessage (0x31c16c0, given the MSG by
+  value; its window procedure gives mouse messages to Windows). That call is taken, and a message whose place
+  is on a menu drawn elsewhere is given to the game at the same place on its own, so pointing, clicking and
+  hit-tests work the menu where it is drawn. Ashita, imgui and addons see the message as it was.
+- Mirror ABI 5: `MouseFrame`, `MouseCount` and `Mouse[16][8]` after `Requests`, written by the addon (each
+  menu's place as drawn, then the game's own, normalized); `Supported` bit 2 where the handler was found.
+  84632 bytes. `/uihook mirror` says whether it was, how many menus are said now and how many messages were
+  moved. Needs winxi 41.
+- Links user32 (the client area's size).
+
 ## 1.1
 
 - Mirror ABI 4: an addon may ask for 128 windows (was 64), `Hide` four words of 32 bits. menus has

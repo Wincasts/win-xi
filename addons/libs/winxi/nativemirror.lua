@@ -1,4 +1,4 @@
--- The uihook plugin's menu mirror (mirror ABI 4, uihook 1.1): a window of the game's, named here, keeps
+-- The uihook plugin's menu mirror (mirror ABI 5, uihook 1.2): a window of the game's, named here, keeps
 -- working as it is, its input, cursor and hit-tests the game's own, while what it draws is measured and,
 -- if asked, left undrawn; the addon draws its own from what the game would have.
 --
@@ -7,6 +7,8 @@
 --   -- every frame, while mirroring:
 --   mirror.Request({ { name = 'inventor', hide = true }, { name = 'iteminfo', hide = false } })
 --   for _, window in ipairs(mirror.Windows(width, height) or {}) do ... end
+--   -- each menu drawn somewhere else or larger, for the mouse:
+--   mirror.Mouse({ { drawn = { l, t, r, b }, native = window.rect } }, width, height)
 --   -- when done (switched off, unloading):
 --   mirror.Stop()
 --
@@ -29,6 +31,11 @@
 -- a menu whose words are pictures, a button), the one the cursor is on drawn tinted. texture is the game's
 -- IDirect3DBaseTexture8 as a number, held by uihook for two frames presented, for imgui's AddImage. Where a
 -- menu spells its labels from the game's menu font, one element a letter, Words(quads) reads them back.
+--
+-- Mouse(list, width, height) says, each frame, where menus are drawn other than where the game puts them (at
+-- most 16, in display pixels): a mouse message on one drawn is given to the game at the same place on its own,
+-- so its hover, clicks and hit-tests work the menu where it is drawn. Ashita, imgui and addons see the message
+-- as it was. It holds four frames, as a request does. False where uihook cannot (MouseSupported).
 local ffi = require('ffi')
 local bit = require('bit')
 ffi.cdef[[
@@ -57,15 +64,18 @@ ffi.cdef[[
         char Magic[16]; uint32_t Version, Size, Frame, Supported;
         uint32_t RequestFrame, Hide[4];
         char Requests[128][16];
+        uint32_t MouseFrame, MouseCount;
+        float Mouse[16][8];
         uint32_t Serial, Dropped;
         uihook_mirror_frame_t Published;
     } uihook_mirror_t;
     int __stdcall MultiByteToWideChar(unsigned int, unsigned long, const char*, int, unsigned short*, int);
     int __stdcall WideCharToMultiByte(unsigned int, unsigned long, const unsigned short*, int, char*, int, const char*, int*);
 ]]
-local M = { Bitmap = 0, Scaled = 1, Font = 2, Requests = 128, Windows = 16,
+local M = { Bitmap = 0, Scaled = 1, Font = 2, Requests = 128, Windows = 16, Mice = 16,
     Frame = 0, Content = 1, Cursor = 2, Element = 3, Selection = 3, Scrollbar = 4, After = 5 }
 local HAS_CURSOR, FOCUSED, HIDDEN, DREW_CONTENT = 1, 2, 4, 8
+local SUPPORTED_MOUSE = 2
 local MAGIC = '5549484F4F4B2D4D4952524F52000000' -- "UIHOOK-MIRROR", zeros to 16
 
 -- The game's text to UTF-8: its colour codes (1E/1F and the byte after) and bitmap-font escapes (85 and the byte
@@ -295,9 +305,9 @@ function M.new()
                 local at = ashita.memory.find('uihook.dll', 0, MAGIC, 0, which)
                 if not at or at == 0 then break end
                 local found = ffi.cast('uihook_mirror_t*', at)
-                if found.Version == 4 and found.Size == ffi.sizeof('uihook_mirror_t') then block = found; break end
+                if found.Version == 5 and found.Size == ffi.sizeof('uihook_mirror_t') then block = found; break end
             end
-            if not block then reason = 'Update uihook: menu mirroring (mirror ABI 4) is unavailable.'; return nil end
+            if not block then reason = 'Update uihook: menu mirroring (mirror ABI 5) is unavailable.'; return nil end
         end
         if block.Supported == 0 then reason = 'uihook did not recognise the game\'s menu drawing; menus unchanged.'; return nil end
         return block
@@ -328,8 +338,35 @@ function M.new()
     function hook.Stop()
         if not owned then return end
         local b = Find()
-        if b then b.RequestFrame = 0 end
+        if b then b.RequestFrame = 0; b.MouseFrame = 0; b.MouseCount = 0 end
         owned = false
+    end
+    -- Where menus are drawn other than where the game puts them, this frame: { { drawn = rect, native = rect } },
+    -- display pixels
+    function hook.Mouse(list, width, height)
+        local b = Find()
+        if not b or bit.band(b.Supported, SUPPORTED_MOUSE) == 0 then return false end
+        if type(width) ~= 'number' or type(height) ~= 'number' or width <= 0 or height <= 0 then return false end
+        local count = 0
+        for _, entry in ipairs(type(list) == 'table' and list or {}) do
+            local d, n = type(entry) == 'table' and entry.drawn, type(entry) == 'table' and entry.native
+            if count < M.Mice and type(d) == 'table' and type(n) == 'table' then
+                local slot = b.Mouse[count]
+                for i = 0, 3 do
+                    local size = i % 2 == 0 and width or height
+                    slot[i], slot[i + 4] = (tonumber(d[i + 1]) or 0) / size, (tonumber(n[i + 1]) or 0) / size
+                end
+                count = count + 1
+            end
+        end
+        b.MouseCount = count
+        b.MouseFrame = count > 0 and b.Frame or 0 -- the commit, after the places
+        if count > 0 then owned = true end
+        return true
+    end
+    function hook.MouseSupported()
+        local b = Find()
+        return b ~= nil and bit.band(b.Supported, SUPPORTED_MOUSE) ~= 0
     end
     local function Rect(r, width, height)
         for i = 0, 3 do

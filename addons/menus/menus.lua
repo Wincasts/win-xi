@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.7'
+addon.version = '0.8'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -12,12 +12,15 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 --
 --   /menus    opens or closes the settings
 --
+-- With Mouse Follows Menus on (uihook 1.2), the mouse works each menu where it is drawn here, moved or larger:
+-- uihook gives the game each mouse message on one at the same place on the game's own.
+--
 -- Needs uihook 0.96 or newer, for its menu mirror. Which menus are mirrored, and whether in their place
 -- or as outlines over the game's (to check what is measured), is in the settings.
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 40
+local winxiNeeded = 41
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -248,7 +251,7 @@ local function DrawSettings(options)
         imgui.SliderFloat('##menus.scale', options.scale, SCALE_LOW, SCALE_HIGH, '%.2fx')
         if imgui.IsItemDeactivatedAfterEdit() then Save() end
         widgets.PopControlWidth()
-        tooltip.Hover('How large the menus are drawn, each grown from the corner of the screen it is nearest, so it stays on the screen. The controller works as ever; the mouse still clicks where the game\'s own would be, so at any scale but 1 it does not line up yet.')
+        tooltip.Hover('How large the menus are drawn, each grown from the corner of the screen it is nearest, so it stays on the screen. The controller works as ever; with Mouse Follows Menus on, so does the mouse.')
         widgets.Label('Status')
         imgui.TextWrapped(mirror.Status())
         local now = os.clock()
@@ -259,12 +262,12 @@ local function DrawSettings(options)
         end
     end
     if widgets.Header('Mouse') then
-        widgets.Label('Keep Mouse From Game Menus')
+        widgets.Label('Mouse Follows Menus', true)
         if imgui.Checkbox('##menus.blockMouse', options.blockMouse) then Save() end
-        tooltip.Hover('Over a menu drawn here, or where the game\'s own is under it, the game is given no mouse: no moving its cursor, no clicks, no wheel. The controller works as ever. With it on, a menu can be dragged where it is wanted.')
+        tooltip.Hover('The mouse works each menu where it is drawn here, moved or at any scale: pointing, clicking and the wheel are given to the game\'s own menu at the same place on it. Where the game\'s own is, but not one drawn here, the game is given no mouse. A menu is moved by dragging its edge. Off, the menus stay where the game puts them and the mouse is the game\'s. ' .. (mirror.MouseSupported() and '' or 'This uihook cannot give the game the place on its own menu (uihook 1.2 does): the mouse is kept from the menus instead, and a menu is dragged from anywhere on it.'))
         widgets.Label('Lock Menu Positions')
         if imgui.Checkbox('##menus.lockMenus', options.lockMenus) then Save() end
-        tooltip.Hover('Menus cannot be dragged. Off, a menu is moved by dragging it with the left button, while the mouse is kept from the game\'s menus.')
+        tooltip.Hover('Menus cannot be dragged. Off, a menu is moved by dragging its edge with the left button, while Mouse Follows Menus is on.')
         widgets.Label('Positions')
         if imgui.Button('Reset Positions##menus.reset') then
             options.offsets = T{}
@@ -497,9 +500,14 @@ end
 -- The mouse
 ---------------------------------------------------------------------------------------------------
 
--- Where the mouse is kept from the game this frame: each mirrored menu's place as drawn and the game's own
--- place under it, by name. Empty while Keep Mouse From Game Menus is off.
+-- Where the mouse follows the menus this frame: each mirrored menu's place as drawn and the game's own place
+-- under it, by name. Empty while Mouse Follows Menus is off. Where uihook gives the game a message on one drawn at
+-- the same place on its own (mapped), the message is the game's, but for a press on its edge, which drags it; the
+-- game's own place where nothing is drawn gets nothing. Where it cannot, the mouse is kept from both, and a press
+-- anywhere on one drawn drags it.
 local areas = {}
+local mapped = false
+local EDGE = 8 -- how far into a menu drawn its edge is, for dragging it
 local drag = nil -- { name, x, y, dx, dy }: the menu being dragged, where the drag began and its offset then
 local MOUSE_BUTTON = { [0x0201] = 1, [0x0202] = 1, [0x0203] = 1, [0x0204] = 2, [0x0205] = 2, [0x0206] = 2,
     [0x0207] = 3, [0x0208] = 3, [0x0209] = 3, [0x020b] = 4, [0x020c] = 4, [0x020d] = 4 }
@@ -538,6 +546,10 @@ local function Pointer(io)
     local mouse = io.MousePos
     return mouse and (mouse.x or mouse[1]), mouse and (mouse.y or mouse[2])
 end
+-- Whether a place on a menu drawn is on its edge
+local function OnEdge(x, y, r)
+    return x < r[1] + EDGE or x >= r[3] - EDGE or y < r[2] + EDGE or y >= r[4] - EDGE
+end
 -- The area under the mouse, and whether it is over the menu as drawn (which can be dragged)
 local function Over(x, y)
     for _, area in ipairs(areas) do
@@ -573,8 +585,10 @@ ashita.events.register('mouse', 'menus_mouse', function(e)
             local offsets = app.options.offsets
             offsets[drag.name] = T{ drag.dx + x - drag.x, drag.dy + y - drag.y }
             e.blocked = true
-        elseif Over(x, y) then
-            e.blocked = true
+        else
+            local area, drawn = Over(x, y)
+            -- on a menu drawn, mapped: the game's, at the place on its own
+            if area and not (drawn and mapped) then e.blocked = true end
         end
         return
     end
@@ -583,14 +597,17 @@ ashita.events.register('mouse', 'menus_mouse', function(e)
     if button then
         local area, drawn = Over(x, y)
         if not area then return end
+        local drags = button == 1 and drawn and not app.options.lockMenus[1] and (not mapped or OnEdge(x, y, area.drawn))
+        if drawn and mapped and not drags then return end
         e.blocked = true
         kept[button] = true
-        if button == 1 and drawn and not app.options.lockMenus[1] then
+        if drags then
             local offset = app.options.offsets[area.name]
             drag = { name = area.name, x = x, y = y, dx = offset and offset[1] or 0, dy = offset and offset[2] or 0 }
         end
-    elseif (message == WHEEL or message == HWHEEL) and Over(x, y) then
-        e.blocked = true
+    elseif message == WHEEL or message == HWHEEL then
+        local area, drawn = Over(x, y)
+        if area and not (drawn and mapped) then e.blocked = true end
     end
 end)
 
@@ -614,6 +631,7 @@ local function Frame()
     end
     local blockMouse = replace and options.blockMouse[1]
     areas = {}
+    mapped = false
     if not blockMouse then drag = nil end
     if #wanted == 0 then mirror.Stop(); return end
     if not mirror.Request(wanted) then return end
@@ -655,6 +673,8 @@ local function Frame()
     end
     imgui.End()
     fonts.Pop(pushed)
+    -- each menu drawn, for the mouse: given to the game at the place on its own, where uihook can
+    mapped = mirror.Mouse(areas, width, height) and #areas > 0
 end
 
 -- After an error the game's menus are its own for a while, the error said once

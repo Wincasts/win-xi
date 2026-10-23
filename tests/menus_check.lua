@@ -98,6 +98,32 @@ Mouse(UP, 5, 5)
 options.offsets = T{}
 check('reset', next(options.offsets) == nil)
 
+-- uihook giving the game the place on its own menu: the mouse on one drawn is the game's, its edge a drag
+MENUS.mouseSupported = true
+options.blockMouse[1] = true
+options.offsets.inventor = T{ 400, 0 }
+H.frames(1)
+check('the menu said for the mouse: drawn where it was moved, the game\'s own under it',
+    #MENUS.mice == 1 and MENUS.mice[1].drawn[1] == 500 and MENUS.mice[1].native[1] == 100)
+check('a move on it: the game\'s', not Mouse(MOVE, 600, 200))
+check('a press on it: the game\'s', not Mouse(DOWN, 600, 200))
+check('and its release', not Mouse(UP, 600, 200))
+check('the wheel on it: the game\'s', not Mouse(WHEEL, 600, 200))
+check('the game\'s own place, nothing drawn there: kept', Mouse(MOVE, 150, 150) and Mouse(WHEEL, 150, 150))
+check('a press on its edge: kept', Mouse(DOWN, 503, 200))
+Mouse(MOVE, 523, 210)
+check('and it drags the menu', options.offsets.inventor[1] == 420 and options.offsets.inventor[2] == 10)
+check('its release kept', Mouse(UP, 523, 210))
+options.lockMenus[1] = true
+check('locked: a press on its edge the game\'s', not Mouse(DOWN, 503, 200))
+Mouse(UP, 503, 200)
+options.lockMenus[1] = false
+options.blockMouse[1] = false
+H.frames(1)
+check('Mouse Follows Menus off: no menu said', #MENUS.mice == 0)
+MENUS.mouseSupported = false
+options.offsets = T{}
+
 -- text that could not be placed: given back to the game for a while, and said
 MENUS.windows = { Inventory(false) }
 H.frames(1)

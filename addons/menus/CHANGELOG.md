@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8
+
+- The mouse on moved and scaled menus. Keep Mouse From Game Menus is now Mouse Follows Menus
+  [Experimental] (the same setting, kept): with uihook 1.2, the mouse on a menu drawn here is given to
+  the game at the same place on its own, so pointing and clicking work it wherever it was moved and at
+  any Menu Scale. The game's own place, where nothing is drawn, still gets no mouse. A menu is dragged
+  by its edge (the outer 8 pixels), so a click inside it is the game's. With an older uihook it works
+  as before: the mouse kept from the menus, a drag from anywhere.
+- Needs uihook 1.2 for the mouse (mirror ABI 5) and winxi 41.
+
 ## 0.7
 
 - 38 more windows, found in play with `/uihook census`, in six new [Experimental] groups, off to

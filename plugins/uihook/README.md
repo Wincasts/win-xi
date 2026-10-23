@@ -452,10 +452,10 @@ detour, taking it only if nothing else has.
 `python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt`
 checks the routines against a private dump.
 
-## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1)
+## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1, ABI 5 in 1.2)
 
 The real menu stays open and keeps its input; an addon draws its own from what it would have drawn.
-`winxi.nativemirror` uses the independent **mirror ABI 4**, magic `UIHOOK-MIRROR`, 84112 bytes
+`winxi.nativemirror` uses the independent **mirror ABI 5**, magic `UIHOOK-MIRROR`, 84632 bytes
 (`src/modules/mirror/mirror.h`): the addon writes up to 128 window names (`menu    inventor`) into
 `Requests`, a bit of `Hide` (four words of 32) for each the game is to leave undrawn, then `RequestFrame` as the commit,
 every frame; four frames after the last the game draws them all again. As each frame is presented,
@@ -476,8 +476,17 @@ a call to uihook's, which makes the same call (the return address the game's, th
 each draw is known to be the frame's (before), the contents' (in it) or a control's (after: the cursor,
 row highlight and scrollbar, told apart by the chat controls' call sites where those were found). The
 three text routines the census found say what is printed. A hidden window's draws are blocked through
-the same GPU filter the other replacements use, after being measured. No input, cursor, selection or
-layout is touched. `/uihook mirror` reports what is asked and the last frame published; `/uihook mirror labels` writes
+the same GPU filter the other replacements use, after being measured. No cursor, selection or layout is
+touched.
+
+The mouse (1.2): the addon also writes, each frame, where up to 16 menus are drawn other than where the game
+puts them (`Mouse`, each the drawn place then the game's own, normalized; `MouseCount`, then `MouseFrame` as
+the commit, holding four frames as a request does). The game reads mouse messages in its own message loop,
+from the MSG, before Translate and DispatchMessage (its window procedure gives them to Windows); uihook takes
+that handler (`MIRROR_INPUT_PATTERN`, `src/modules/mirror/mouse.h`) and gives it a move, press, release or
+double click on a drawn menu at the same place on the game's own, `lParam` and `pt` moved. The wheel's place
+is the screen's and is left as it is (the game scrolls where its cursor is). Ashita, imgui and addons see the
+message as it was. `Supported` bit 2 says the handler was found. `/uihook mirror` reports what is asked and the last frame published; `/uihook mirror labels` writes
 its elements, cut from their textures, to `logs\uihook-labels`. Only
 screen-space `DrawPrimitiveUP` draws are measured. The `menus` addon draws the item lists and the item
 description box in the winxi look.

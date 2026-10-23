@@ -7,6 +7,7 @@
 #include "../src/modules/mirror/census.h"
 #include "../src/modules/mirror/mirror.h"
 #include "../src/modules/mirror/labels.h"
+#include "../src/modules/mirror/mouse.h"
 static int failures=0;
 static void Check(bool ok,const char* text) { printf("%s %s\n",ok?"ok":"FAIL",text); if(!ok) ++failures; }
 static bool Near(float a,float b) { return std::fabs(a-b)<1e-4f; }
@@ -48,8 +49,8 @@ static void Quad(Vertex* out,float l,float t,float r,float b,uint32_t colour,flo
 }
 
 int main() {
-    Check(sizeof(MirrorShared)==84112,"mirror ABI 4's size");
-    static MirrorShared block; memcpy(block.Magic,"UIHOOK-MIRROR",14); block.Version=4; block.Size=sizeof(block);
+    Check(sizeof(MirrorShared)==84632,"mirror ABI 5's size");
+    static MirrorShared block; memcpy(block.Magic,"UIHOOK-MIRROR",14); block.Version=5; block.Size=sizeof(block);
     block.Supported=1; block.Frame=10; block.RequestFrame=10; block.Hide[0]=1;
     memcpy(block.Requests[0],"menu    inventor",16); memcpy(block.Requests[1],"menu    iteminfo",16);
     static Mirror mirror; mirror.shared=&block;
@@ -207,6 +208,38 @@ int main() {
         uint8_t dxt3[16]; memset(dxt3,0xFF,8); dxt3[0]=0xF0; memcpy(dxt3+8,dxt1,8);
         Check(LabelDecode(dxt3,16,MAKEFOURCC('D','X','T','3'),0,0,2,1,p) && p.argb[0]==0x00FFFFFF && p.argb[1]==0xFFFFFFFF,"DXT3 alpha");
         Check(!LabelDecode(dxt1,8,D3DFMT_P8,0,0,1,1,p),"a format not read refused");
+    }
+    // the mouse: a place on a menu drawn elsewhere and larger, given to the game at the same place on its own
+    {
+        static MirrorShared m; m.Frame=100;
+        float x=0.3f,y=0.3f;
+        Check(!MirrorMapPoint(m,x,y),"nothing said: no place moved");
+        const float maps[2][8]={ { 0.5f,0.5f,0.9f,0.9f, 0.1f,0.1f,0.3f,0.3f }, { 0.0f,0.0f,0.2f,0.2f, 0.0f,0.0f,0.2f,0.2f } };
+        memcpy(m.Mouse,maps,sizeof(maps)); m.MouseCount=2; m.MouseFrame=99;
+        x=0.7f; y=0.6f;
+        Check(MirrorMapPoint(m,x,y) && Near(x,0.2f) && Near(y,0.15f),"on a menu drawn twice as large, elsewhere: the same place on the game's own");
+        x=0.4f; y=0.4f;
+        Check(!MirrorMapPoint(m,x,y) && Near(x,0.4f),"off every menu: the place as it was");
+        x=0.9f; y=0.7f;
+        Check(!MirrorMapPoint(m,x,y),"the right edge is not on it");
+        m.Frame=104; x=0.7f; y=0.6f;
+        Check(!MirrorMapPoint(m,x,y),"said five frames ago: no place moved");
+        m.Frame=100; m.MouseCount=1000; x=0.7f; y=0.6f;
+        Check(MirrorMapPoint(m,x,y),"a count past the room read as the room");
+        m.MouseCount=2;
+        // a message in a client area of 1000 by 500: lParam and the screen's pt moved as far
+        MSG message={}; message.message=WM_LBUTTONDOWN; message.lParam=MAKELPARAM(700,300); message.pt={ 1700,1300 };
+        Check(MirrorMapMessage(m,message,1000,500) && LOWORD(message.lParam)==200 && HIWORD(message.lParam)==75
+            && message.pt.x==1200 && message.pt.y==1075,"a press on the drawn menu: given at the game's own place");
+        message.message=WM_MOUSEWHEEL; message.lParam=MAKELPARAM(700,300);
+        Check(!MirrorMapMessage(m,message,1000,500) && LOWORD(message.lParam)==700,"the wheel's place (the screen's) left alone");
+        message.message=WM_KEYDOWN;
+        Check(!MirrorMouseMessage(WM_KEYDOWN) && MirrorMouseMessage(WM_MOUSEMOVE) && MirrorMouseMessage(WM_XBUTTONUP),"which messages carry a place");
+        message.message=WM_MOUSEMOVE; message.lParam=MAKELPARAM(static_cast<WORD>(-5),10);
+        Check(!MirrorMapMessage(m,message,1000,500),"a place left of the client area: on no menu");
+        // the game's handler, its first bytes as the client has them: the pattern fits, and only what is stolen is whole instructions
+        uint8_t handler[40]={0x83,0xEC,0x2C,0x53,0x8B,0x5C,0x24,0x38,0x55,0x56,0x8B,0x74,0x24,0x44,0x57,0x8B,0x7C,0x24,0x4C,0x81,0xFB,0x0F,0x01,0x00,0x00};
+        Check(FindPattern(handler,sizeof(handler),MIRROR_INPUT_PATTERN)==handler && MIRROR_INPUT_STOLEN==8,"the mouse handler's pattern");
     }
     printf("%d failures\n",failures);
     return failures ? 1 : 0;
