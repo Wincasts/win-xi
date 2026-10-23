@@ -182,23 +182,8 @@ reports it as Game Clock.
 for the game's compass and its radar, through uihook's compass slot; the clock is not affected
 either way, and each can be hidden alone. It is given back on the same terms as the clock.
 
-**Native Menus → Anchor Above Info Panel** (General, on by default) moves the registered command,
-magic, ability, inventory/item-use and related control menus, and an event's choices (an NPC's Yes/No),
-directly above the visible info panel with a 2px clearance. Combat menus and their supported submenus
-use the panel's actual edge, not the top of the full chat stack or its empty/invisible rows. The same
-anchor is used while chat grows, shrinks, fades or collapses, including already-open submenus.
-Requires **uihook 0.6** (independent menu ABI 1); `/uihook menus` reports recognition and relocation
-counts. Older/unrecognised DLLs leave menus untouched and the panel still works. The plugin sets
-native layout targets before the game's own Window update, so its frame/rows/cursor/hit geometry
-share coordinates—no render-only offset or mouse remapping. Positional opening animations may
-snap to the new anchor. Unrelated menus remain native; a list too tall to fit above that anchor is
-left in its original position. This is experimental and needs live mouse/controller validation.
-
-Disabling menu anchoring, the panel or chatbox, expanding history, losing fresh host captures,
-zoning or unloading restores owned native positions. A newer game-written target is never
-blindly overwritten. **Unload uihook before replacing its DLL**, or close the game; do not overwrite
-a loaded plugin. Deploy `plugins/uihook/build/uihook.dll` to Ashita's `plugins/uihook.dll`, plus
-the updated chatbox and Winxi 22 directories. The existing chat ABI remains 13.
+The game's own menus are left where the game puts them: chatbox no longer moves the action menus above
+the info panel (Anchor Above Info Panel, removed in 0.15.0).
 
 ## Commands
 
@@ -327,7 +312,7 @@ fade idle delay restarts after interaction. Expanded history is unaffected. Mess
 when hidden; opening or scrolling the log still lets you read them. Imported history does not count as
 new activity. Native log capture remains active while hidden, so the game's original log does not show
 through. When both logs disappear, the info panel stays visible on its own. Collapsed logs reserve zero
-layout height; the panel-only capture and native menu anchor use the visible panel's actual bounds.
+layout height; the panel-only capture uses the visible panel's actual bounds.
 One-row logs and small panels also bypass ImGui's normal minimum window height, so their actual
 window geometry matches the requested size.
 

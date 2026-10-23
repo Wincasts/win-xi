@@ -1,5 +1,5 @@
 -- Optional chatbox info-panel attachment. Draw on the host's list before its border/title;
--- publish its menu anchor only after successful native capture. Claims the clock and compass slots only to hide them.
+-- Claims the clock and compass slots only to hide them.
 local panel = require('winxi.infopanel.panel')
 local fields = require('winxi.infopanel.fields')
 local sourceModel = require('winxi.infopanel.source')
@@ -18,7 +18,7 @@ function M.Defaults()
     local p=panel.Defaults()
     p.enabled[1]=false -- opt in; installing an update never adds a duplicate clock panel
     p.slots[1].format='{time} | {zone}'
-    return {layout=p,window2=M.Window2Defaults(),anchor={2},anchorMenus={true},hideClock={false},hideCompass={false},fontFile='',fontSize={0},textColor={1,1,1,1},
+    return {layout=p,window2=M.Window2Defaults(),anchor={2},hideClock={false},hideCompass={false},fontFile='',fontSize={0},textColor={1,1,1,1},
         iconSet='gems',iconScale={1},iconOffset={0},weatherScale={1},timetable=M.TimetableDefaults()}
 end
 -- Which lines of the ships' and airships' timetable are shown: every line the tables have, on to begin with,
@@ -53,8 +53,8 @@ function M.Complete(options)
     end
     if type(options.anchor)~='table' then options.anchor={2} end
     options.anchor[1]=options.anchor[1]==1 and 1 or 2
-    if type(options.anchorMenus)~='table' then options.anchorMenus={true} end
-    options.anchorMenus[1]=options.anchorMenus[1]~=false
+    -- the game's action menus are no longer moved above the panel (Anchor Above Info Panel, removed)
+    options.anchorMenus=nil
     if type(options.fontFile)~='string' then options.fontFile='' end
     if type(options.iconSet)~='string' then options.iconSet='gems' end
     for key,range in pairs({fontSize={0,48},iconScale={0.5,3},iconOffset={-10,10},weatherScale={0.5,3}}) do
@@ -112,17 +112,15 @@ function M.New(deps)
     deps=deps or {}
     local source=deps.source or sourceModel.New(deps)
     local samples,nextSample=nil,0
-    local menus,menuReason=deps.menus,nil
     local service={}
     local hoveredText,hoveredSlot,drawingSlot
     local captures={}
     local hoveredOptions
     local function Tooltip(text) hoveredText,hoveredSlot=text,drawingSlot end
-    function service.Invalidate() samples,nextSample,menuReason=nil,0,nil end
+    function service.Invalidate() samples,nextSample=nil,0 end
     function service.BeginFrame()
         hoveredText,hoveredSlot=nil,nil
         captures[0],captures[1]=false,false
-        if menus then menus.Stop() end
     end
     -- Shown after the native captures, never inside a captured log/panel draw list: words as they are, a
     -- calendar ({ calendar = month }) drawn by winxi.infopanel.calendar, the day pictures of the Icon Set
@@ -199,23 +197,9 @@ function M.New(deps)
         if not options[h.key][1] then return 'shown.' end
         return h.reason or 'waiting for uihook.'
     end
-    function service.Status() return source.Status() or menuReason or 'Panel follows compact chat, independently of native clock visibility.' end
+    function service.Status() return source.Status() or 'Panel follows compact chat, independently of native clock visibility.' end
     function service.Captured(attachment,slot,captured)
         captures[slot]=captured
-        if not attachment or attachment.slot~=slot then return end -- the menu anchor's slot: the first panel's
-        if not captured or not attachment.options.anchorMenus[1] then
-            if menus then menus.Stop() end
-            return
-        end
-        if not menus then
-            local ok,module=pcall(require,'winxi.nativemenus')
-            if not ok then menuReason='Update Winxi/uihook for native menu anchoring.'; return end
-            menus=module.new()
-        end
-        local ok,ready=pcall(menus.Set,attachment.menus,slot)
-        if not ok then menuReason='Native menu anchor unavailable; menus unchanged.'
-        elseif not ready then menuReason=menus.Status()
-        else menuReason='Native action menus anchor above the info panel.' end
     end
     function service.Packet(options,id,data)
         local enabled=options.layout.enabled[1]
@@ -263,18 +247,16 @@ function M.New(deps)
             if l.p.attached[1] then lift=math.max(lift,panels[i].rect.height) end
         end
         if top then
-            -- Over the logs: chat and input stay where the game puts them, native menus anchor above the
-            -- first panel; attached panels share one height
+            -- Over the logs: chat and input stay where the game puts them; attached panels share one height
             for i,l in ipairs(layouts) do
                 if l.p.attached[1] then panels[i].rect.top,panels[i].rect.height=l.host.top-lift+l.p.offsetY[1],lift end
             end
-            return {slot=panels[1].slot,rect=panels[1].rect,panels=panels,lift=0,inputLift=0,menus=panels[1].rect,size=size,
+            return {slot=panels[1].slot,rect=panels[1].rect,panels=panels,lift=0,inputLift=0,size=size,
                 fontFile=options.fontFile~='' and options.fontFile or chatFontFile,options=options}
         end
         -- Attached panels share one height, so side-by-side logs keep one bottom; every drawn log is
-        -- lifted by it to sit wholly above them. Native menus always anchor to the visible first
-        -- panel, never the chat stack's reserved/empty height. None attached: chat stays.
-        local first,anchor,logLift=panels[1],panels[1].rect,lift
+        -- lifted by it to sit wholly above them. None attached: chat stays.
+        local first,logLift=panels[1],lift
         if lift>0 then
             for i,l in ipairs(layouts) do
                 if l.p.attached[1] then panels[i].rect.top,panels[i].rect.height=(floor or l.host.bottom)-lift+l.p.offsetY[1],lift end
@@ -286,11 +268,9 @@ function M.New(deps)
             if primary and split then top=math.min(primary.top,split.top) end
             top=top-logLift
             if top<0 then return nil end -- no room to lift chat over the panel: no panel
-            -- Keep anchor pointing at first.rect: lifting chat must not lift combat submenus
-            -- above its full frame (including rows which are empty or fading away).
         end
         -- lift: the logs'; inputLift: the open input's, onto the panels
-        return {slot=first.slot,rect=first.rect,panels=panels,lift=logLift,inputLift=floor and lift or 0,menus=anchor,size=size,
+        return {slot=first.slot,rect=first.rect,panels=panels,lift=logLift,inputLift=floor and lift or 0,size=size,
             fontFile=options.fontFile~='' and options.fontFile or chatFontFile,options=options}
     end
     local drawOptions={reserve=false} -- filled afresh for each panel drawn

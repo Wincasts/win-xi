@@ -574,6 +574,7 @@ imgui.Checkbox=function() return false end
 imgui.ColorEdit4=function() return false end
 imgui.IsItemDeactivatedAfterEdit=function() return false end
 imgui.SameLine=function() end
+imgui.Separator=function() end
 imgui.TextDisabled=function() end
 imgui.SliderInt=function() return false end
 imgui.SliderFloat=function() return false end
@@ -1380,8 +1381,7 @@ local panelRect=panelDraws[1]
 assert(panelRect.left==20 and panelRect.width==640 and panelRect.height==18 and panelRect.top==1018-18,
     'panel where the log\'s bottom was, input height and chat width')
 assert(rendered['winxi.chatbox'].pos[2]==1018-18 and rendered['winxi.chatbox'].size[2]==144,'the log lifted wholly above the panel, its size unchanged')
-assert(menuSlot==0 and menuBounds==panelRect and menuBounds.top==1018-18 and menuBounds.width==640,
-    'menu anchor uses the visible panel, not the lifted chat frame; committed only after primary capture')
+assert(menuBounds==nil and menuSlot==nil,'the game\'s menus are never moved above the panel')
 -- Typing: the panel stays at the bottom, the input on it, the log over the input
 local savedNative=nativeRect; nativeRect={20,1000,660,1018} -- the game's input where the closed log ends
 inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; panelDraws={}; frame()
@@ -1389,7 +1389,7 @@ local typed=panelDraws[1]
 assert(typed.top==1018-18 and typed.height==18,'the panel keeps the bottom while typing')
 assert(rendered['winxi.chatbox.input'].pos[2]==1018-18,'the input sits on the panel')
 assert(rendered['winxi.chatbox'].pos[2]==1018-18-18,'the log over the input')
-assert(menuBounds==typed and menuBounds.top==1018-18,'typing does not lift combat menus above the invisible chat frame')
+assert(menuBounds==nil,'typing does not lift combat menus above the invisible chat frame')
 nativeRect={20,1042,660,1060} -- the game's input lower than the log: the log lifted only clear of it
 panelDraws={}; frame()
 assert(panelDraws[1].top==1060-18 and rendered['winxi.chatbox.input'].pos[2]==1060-18,'the panel at the input\'s bottom, the input on it')
@@ -1406,7 +1406,7 @@ assert(#panelDraws==1 and hooks[0].panel and not hooks[1].panel,'stacked split: 
 assert(rect.top==1018-18 and rendered['winxi.chatbox'].pos[2]==1018-18,'under the lower log, which is lifted')
 local split=rendered['winxi.chatbox.split']
 assert(split.pos[2]==1018-18-144,'the upper log lifted with it, still flush over the lower')
-assert(menuSlot==0 and menuBounds==rect and menuBounds.top==1018-18,'native combat menus ignore the stacked chat frames and follow the visible panel')
+assert(menuBounds==nil,'native combat menus ignore the stacked chat frames and follow the visible panel')
 splitRect={660,700,1000,1018}; rect=PanelFrame()
 assert(hooks[0].panel and not hooks[1].panel and rect.left==20,'horizontal logs keep primary anchor')
 assert(rendered['winxi.chatbox.split'].pos[2]==1018-18,'both side-by-side logs lifted over the panel')
@@ -1420,7 +1420,7 @@ local first,secondRect=panelDraws[1],panelDraws[2]
 assert(secondRect.left==660 and secondRect.width==340 and secondRect.top==1018-26 and secondRect.height==26,'Window 2\'s under it, its width')
 assert(first.top==1018-26 and first.height==26,'the first takes the taller one\'s height')
 assert(rendered['winxi.chatbox'].pos[2]==1018-26 and rendered['winxi.chatbox.split'].pos[2]==1018-26,'both logs lifted by it, one bottom')
-assert(menuSlot==0 and menuBounds.left==20,'menus still anchor on the first log')
+assert(menuBounds==nil,'menus still anchor on the first log')
 splitRect={20,520,660,700}; PanelFrame()
 assert(#panelDraws==1 and hooks[0].panel,'stacked: one panel only, under the lower log')
 window2.height[1]=0; window2.enabled[1]=false; splitRect={660,700,1000,1018}
@@ -1431,7 +1431,7 @@ app.options.infoPanel.anchor[1]=1
 routes=nil; splitRect=nil
 rect=PanelFrame()
 assert(hooks[0].panel and rect.left==20 and rect.width==640 and rect.height==18 and rect.top==1018-144-18,'top: flush over the log')
-assert(rendered['winxi.chatbox'].pos[2]==1018 and menuBounds==rect and menuSlot==0,'top: the log in place, menus above the panel')
+assert(rendered['winxi.chatbox'].pos[2]==1018 and menuBounds==nil,'top: the log in place, menus above the panel')
 local savedTopNative=nativeRect; nativeRect={20,1000,660,1018}
 inputOpen=true; inputRaw='hi'; inputDisplay='hi'; inputCaret=2; rect=PanelFrame()
 assert(rendered['winxi.chatbox.input'].pos[2]==1018 and rendered['winxi.chatbox'].pos[2]==1000 and rect.top==1000-144-18,
@@ -1440,8 +1440,8 @@ inputOpen=false; nativeRect=savedTopNative
 routes={split=true,first={[1]=true},second={[4]=true}}
 splitRect={20,520,660,700}; rect=PanelFrame()
 local upper=rendered['winxi.chatbox.split']
-assert(#panelDraws==1 and hooks[1].panel and not hooks[0].panel and menuSlot==1,'top, stacked: the upper log owns it')
-assert(rect.top==upper.pos[2]-upper.size[2]-18 and menuBounds==rect,'flush over the upper log')
+assert(#panelDraws==1 and hooks[1].panel and not hooks[0].panel and menuSlot==nil,'top, stacked: the upper log owns it')
+assert(rect.top==upper.pos[2]-upper.size[2]-18 and menuBounds==nil,'flush over the upper log')
 splitRect={660,700,1000,1018}; window2.enabled[1]=true; window2.height[1]=26; rect=PanelFrame()
 assert(#panelDraws==2 and panelDraws[1].top==1018-144-26 and panelDraws[2].left==660
     and panelDraws[2].top==rendered['winxi.chatbox.split'].pos[2]-rendered['winxi.chatbox.split'].size[2]-26,'top, side by side: one over each log, one height')
@@ -1453,11 +1453,11 @@ splitRect={20,520,660,700}; rect=PanelFrame()
 assert(#panelDraws==1 and hooks[1].panel and rect.left==20 and rect.top==700-18,'split alone can own the panel')
 assert(rendered['winxi.chatbox.split'].pos[2]==700-18,'and is lifted over it')
 linesState[1].shown=0; rect=PanelFrame()
-assert(#panelDraws==1 and menuBounds==rect and menuBounds.height>0,'zero-line logs keep the panel and a valid native menu anchor')
+assert(#panelDraws==1 and menuBounds==nil,'zero-line logs keep the panel')
 local panelHost=rendered['winxi.chatbox.panel.0']
 assert(panelHost.size[2]==rect.height and panelHost.pos[2]==rect.top+rect.height,'collapsed native logs capture only the visible panel height')
 linesState={}; app.options.mode[1]='skin'; routes=nil; splitRect=nil
-chatState.expanded=true; PanelFrame(); assert(#panelDraws==0 and menuBounds==nil,'expanded chat suspends panel/menu anchor')
+chatState.expanded=true; PanelFrame(); assert(#panelDraws==0 and menuBounds==nil,'expanded chat suspends the panel')
 chatState.expanded=false
 -- Expand In Place: the game asked, from the compact log, to open its full log on the first log's bottom-left (before
 -- its lift over the panel), so it lays it out there from its first frame; the panel hidden while it is open
@@ -1486,17 +1486,12 @@ rect=PanelFrame(); assert(rect.width==800 and rect.height==32,'custom panel sizi
 app.options.infoPanel.layout.attached[1]=false
 app.options.infoPanel.layout.x[1]=100; app.options.infoPanel.layout.y[1]=50
 rect=PanelFrame(); assert(rect.left==100 and rect.top==50,'custom panel position on host capture')
-assert(rendered['winxi.chatbox'].pos[2]==1018 and menuBounds==rect,'a detached panel leaves chat in place; menus above the panel')
+assert(rendered['winxi.chatbox'].pos[2]==1018 and menuBounds==nil,'a detached panel leaves chat in place')
 events.packet_in({id=0x00b}); PanelFrame(); assert(#panelDraws==0,'zoning releases attachment')
 events.packet_in({id=0x00a}); PanelFrame(); assert(#panelDraws==1,'zone-in restores attachment with chat')
-app.options.infoPanel.anchorMenus[1]=false
-PanelFrame(); assert(#panelDraws==1 and menuBounds==nil,'native menu placement can be disabled independently')
-app.options.infoPanel.anchorMenus[1]=true
-captureOK=false
-PanelFrame(); assert(menuBounds==nil,'failed capture never publishes native menu geometry')
-captureOK=true
+assert(app.options.infoPanel.anchorMenus==nil,'Anchor Above Info Panel is gone from the settings')
 spec.commands.panel(app.options,{'/chatbox','panel','off'})
-PanelFrame(); assert(#panelDraws==0 and menuBounds==nil and menuStops>0,'panel off restores native menu placement')
+PanelFrame(); assert(#panelDraws==0 and menuBounds==nil,'panel off')
 spec.commands.panel(app.options,{'/chatbox','panel','on'})
 -- Hide Game Clock: an empty clock replacement renewed each frame, icons with it; off, chatbox off or
 -- zoning gives the game's clock back. Works with the panel off.
@@ -1764,14 +1759,14 @@ smartClock=3000
 local function PanelSmartFrame() panelDraws={}; SmartFrame() end
 PanelSmartFrame()
 local idlePanel=panelDraws[1]
-assert(#panelDraws==1 and idlePanel and menuBounds==idlePanel,'both empty smart logs preserve panel and menu anchoring')
+assert(#panelDraws==1 and idlePanel and menuBounds==nil,'both empty smart logs preserve the panel')
 local idleHost=rendered['winxi.chatbox.panel.0']
 assert(idleHost and idleHost.size[2]==idlePanel.height and idleHost.pos[2]==idlePanel.top+idlePanel.height,'idle capture really shrinks to the panel instead of retaining chat height')
 assert(not rendered['winxi.chatbox'] and not rendered['winxi.chatbox.split'],'no empty chat frames, titles or padding remain')
 message('one actual row',{mode=1}); PanelSmartFrame()
-assert(rendered['winxi.chatbox'].size[2]==18 and menuBounds==panelDraws[1],'one-row chat does not add a menu gap above the panel')
+assert(rendered['winxi.chatbox'].size[2]==18 and menuBounds==nil,'one-row chat does not add a menu gap above the panel')
 smartClock=smartClock+16; PanelSmartFrame()
-assert(menuBounds==panelDraws[1] and rendered['winxi.chatbox']==nil,'idle anchor drops back to the panel after the last row disappears')
+assert(menuBounds==nil and rendered['winxi.chatbox']==nil,'idle anchor drops back to the panel after the last row disappears')
 splitRect={660,700,1000,1018}
 app.options.infoPanel.window2.enabled[1]=true
 PanelSmartFrame()
@@ -1779,13 +1774,13 @@ assert(#panelDraws==2 and rendered['winxi.chatbox.panel.0'] and rendered['winxi.
 assert(rendered['winxi.chatbox.panel.1'].size[2]==panelDraws[2].height,'second capture is panel-sized too')
 app.options.infoPanel.anchor[1]=1
 PanelSmartFrame()
-assert(menuBounds==panelDraws[1] and menuBounds.height>0,'top anchor also uses actual panel bounds when logs collapse')
+assert(menuBounds==nil,'top anchor also uses actual panel bounds when logs collapse')
 smart1.resize[1],smart2.resize[1]=false,false
 smart1.fade[1],smart2.fade[1]=true,true
 smartClock=4000; PanelSmartFrame()
-assert(#panelDraws==2 and rendered['winxi.chatbox']==nil and rendered['winxi.chatbox.split']==nil and menuBounds==panelDraws[1],'fully faded logs also preserve unfaded panels and actual menu bounds')
+assert(#panelDraws==2 and rendered['winxi.chatbox']==nil and rendered['winxi.chatbox.split']==nil and menuBounds==nil,'fully faded logs also preserve unfaded panels')
 captureOK=false; PanelSmartFrame()
-assert(menuBounds==nil,'failed panel-only capture cannot publish a menu anchor')
+assert(menuBounds==nil,'failed panel-only capture')
 captureOK=true
 app.options.infoPanel.layout.enabled[1]=false
 PanelSmartFrame()
@@ -1821,9 +1816,8 @@ mouseAt={(dayImage.a[1]+dayImage.b[1])/2,(dayImage.a[2]+dayImage.b[2])/2}
 PanelSmartFrame()
 assert(#shownTips==1 and shownTips[1]:find('Vana\'diel day:',1,true),'hovering day icon shows identifying tooltip')
 assert(#wraps==1 and wraps[1]==-1 and not inTip,'drawn with wrapping off inside Begin and End, as wide as its longest line')
-app.options.infoPanel.anchorMenus[1]=false
 PanelSmartFrame()
-assert(#shownTips==2,'icon tooltips are independent of native menu anchoring')
+assert(#shownTips==2,'icon tooltips stay')
 captureOK=false; PanelSmartFrame()
 assert(#shownTips==2,'failed native capture never shows stale tooltip')
 captureOK=true; mouseAt={0,0}; PanelSmartFrame()

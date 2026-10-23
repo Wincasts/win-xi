@@ -22,10 +22,7 @@ Words with a tooltip stand alone in the segments, their tooltips in `segments.to
 The attachment is drawn on its host's existing draw list before the host border/title; it uses
 `winxi.frame` for an explicit-rectangle background/border/shadow and sits flush against chat by
 default. It does not change the host's position, size, layout cursor, scroll hit regions or native
-published bounds. Only a successful completed host capture can publish its native menu anchor.
-`winxi.nativemenus` / uihook 0.6 (menu ABI 1) move the registered action-menu family through native
-layout targets; unsupported clients/menus remain unchanged. Stopping or losing the panel restores
-owned native targets. No GPU-only translation, selection/controller or mouse-position writes.
+published bounds. The game's menus are not moved.
 
 Custom icon sets live in `icons/<set>/days` and `icons/<set>/weather`, using the filenames in the
 bundled `gems` set: the eight days, the eight elements, and `clear`, `clouds` and `fog` for the skies the game

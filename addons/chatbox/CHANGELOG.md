@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.0
+
+- Anchor Above Info Panel is removed: chatbox no longer moves the game's command, magic, ability,
+  inventory and related menus above the info panel. It never placed them well, and the game's menus are
+  to be moved by `menus` with uihook's native look instead. A setting saved on is dropped.
+
 ## 0.14.0
 
 - The ships' and airships' timetable under the zone name. Resting the mouse on the `{zone}` words shows the
