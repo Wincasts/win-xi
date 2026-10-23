@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.51
+
+- A skin's draw within its texture (its texture places 0 to 1, not tiled across it as the frame's edges are) is
+  clamped at the texture's edges, put back after: filtered, a button bar's piece starting at the texture's edge took
+  in the far side wrapped round, a clear column where two pieces meet.
+
 ## 1.50
 
 - With the sides in, only the bar across the top's frame is pinched by each vertex's side; what it shows is moved
