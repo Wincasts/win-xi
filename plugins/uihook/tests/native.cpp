@@ -186,7 +186,12 @@ int main() {
     {
         V help[2]={{145,20,0,1,0,0,0},{400,32,0,1,0,0,0}},loading[2]={{1300,20,0,1,0,0,0},{2100,32,0,1,0,0,0}},title[2]={{3236,12,0,1,0,0,0},{3262,21,0,1,0,0,0}};
         NativeTransform h; sides.Transform(3440,1440,h); Check(sides.OnBar(help,2,sizeof(V),h) && !h.pinch && Near(h.ax,0) && Near(h.dx,100),"its help text, by its left end: with that end");
-        NativeTransform l; sides.Transform(3440,1440,l); Check(sides.OnBar(loading,2,sizeof(V),l) && Near(l.ax,1720) && Near(l.dx,0),"what it centres while loading: left in the middle");
+        V word[2]={{1000,20,0,1,0,0,0},{1010,32,0,1,0,0,0}};
+        NativeTransform w; sides.Transform(3440,1440,w); Check(sides.OnBar(word,2,sizeof(V),w) && Near(w.dx,100),"a letter of its help text further along: with the left end as the rest");
+        NativeTransform l; sides.Transform(3440,1440,l); sides.OnBar(loading,2,sizeof(V),l);
+        sides.Leave(saved); saved=sides.Enter("menu    helpwind",3); sides.Phase(MIRROR_CONTENT);
+        V words[2]={{1300,20,0,1,0,0,0},{1500,32,0,1,0,0,0}};
+        NativeTransform c; sides.Transform(3440,1440,c); Check(sides.OnBar(words,2,sizeof(V),c) && Near(c.ax,1720) && Near(c.dx,0),"while it shows something over its middle (loading): what is by it left in the middle");
         NativeTransform r; sides.Transform(3440,1440,r); Check(sides.OnBar(title,2,sizeof(V),r) && Near(r.ax,3440) && Near(r.dx,-100),"its title, by its right end: with that end");
     }
     sides.Phase(MIRROR_FRAME);

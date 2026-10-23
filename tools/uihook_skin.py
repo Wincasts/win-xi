@@ -15,7 +15,7 @@
 #        - the frame the Border Style's art (borders\<style>.png) as winxi.borders draws it, a nine-slice whose
 #          corners and edges are the art's outer 8 of 64 texels in 3 pixels: the game's three frame textures are
 #          exactly a 3-pixel line 1 pixel in from the edge, clear about it, so the slice is laid there, as wide as
-#          --frame-width (1 by default; 3 the game's whole line), drawn at --frame-alpha (15 hex by default, or
+#          --frame-width (1 by default; 3 the game's whole line), drawn at --frame-alpha (20 hex by default, or
 #          'theme' for the Border Opacity)
 #          (--frame-scale times the game's size, 1 by default: the game draws its frame a texel to a pixel, and a
 #          larger one is shrunk unsmoothed). skin.txt draws every piece of it at the theme's Border
@@ -272,9 +272,9 @@ def winxi_size(census, theme, font, frame_width, r, glyphs):
         if im: pictures[name] = how(im)
     return pictures
 
-# The frame's vertices' alpha: faint by default (0x15), as a winxi window's border is over the game; 'theme' for the
+# The frame's vertices' alpha: faint by default (0x20), as a winxi window's border is over the game; 'theme' for the
 # theme's Border Opacity
-FRAME_ALPHA = '15'
+FRAME_ALPHA = '20'
 
 def winxi_colours(theme, frame_alpha=FRAME_ALPHA):
     plain = tab_colour(theme, 'BorderColor', 0.18)
