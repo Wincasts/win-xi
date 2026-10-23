@@ -23,6 +23,9 @@
 enum TexturePart { TEXTURE_FRAME, TEXTURE_CONTENT, TEXTURE_CURSOR, TEXTURE_ELEMENT, TEXTURE_SCROLL, TEXTURE_AFTER, TEXTURE_TEXT, TEXTURE_OUTSIDE };
 static const char* const TexturePartNames[TEXTURE_PARTS] = { "frame", "content", "cursor", "element", "scroll", "after", "text", "outside" };
 
+// A texture's name by its pixels and size, as the census writes it (tex-<hash>.bmp) and a skin names its own
+static uint32_t TextureHash(const LabelPixels& pixels,uint32_t width,uint32_t height) { return LabelHash(pixels)^(width*2654435761u)^height; }
+
 struct TextureEntry {
     uint32_t hash=0, width=0, height=0, format=0, pool=0;   // hash 0: none read (why says why); width 0: no texture at all
     const char* why="";
@@ -53,7 +56,7 @@ public:
     }
     // A texture read: kept by its pixels, one entry for each that are alike wherever the game keeps them
     size_t Add(uintptr_t texture,uint32_t frame,uint32_t width,uint32_t height,uint32_t format,uint32_t pool,LabelPixels* pixels,const char* why) {
-        const uint32_t hash=pixels ? LabelHash(*pixels)^(width*2654435761u)^height : 0;
+        const uint32_t hash=pixels ? TextureHash(*pixels,width,height) : 0;
         size_t at=SIZE_MAX;
         if (hash) for (size_t i=0;i<entries.size();i++)
             if (entries[i].hash==hash && entries[i].width==width && entries[i].height==height) { at=i; break; }

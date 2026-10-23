@@ -25,6 +25,8 @@
 #include "../native/native.h"
 #include "../mirror/labels.h"
 #include "../mirror/textures.h"
+#include "../native/skin.h"
+#include "../native/skinfile.h"
 #include "../mirror/mouse.h"
 #include "../mirror/watch.h"
 #include "../../slots.h"
@@ -89,6 +91,7 @@ static MirrorShared MirrorBlock;
 static Mirror MenuMirror;
 static NativeLook NativeMenus; // /uihook native: windows' draws moved and scaled, their frames tinted (native.h)
 static TextureCensus Textures; // /uihook textures: every texture the screen-space drawing uses, by window and part (textures.h)
+static SkinLook Skin; // /uihook skin: the game's textures drawn with pictures of a skin's in their place (skin.h)
 static MirrorWatch MenuWatch; // every window drawn, kept in WatchBlock; with /uihook mirror watch, to logs\uihook-mirror-watch.txt
 // exported, as nothing in the DLL reads it back: a block private to it would have every write to it optimized away
 extern "C" __declspec(dllexport) MirrorWatchShared UihookWatch{};
@@ -364,6 +367,95 @@ class PartyHook : public IPlugin {
         if (placing && ok) e->moved++;
         return ok;
     }
+    // /uihook skin: a screen-space draw whose texture (stage 0) the skin has a picture for is given it; what was there
+    // comes back to be put back by SkinEnd. Nothing where no skin is loaded.
+    struct SkinSwap { int32_t index=-1; IDirect3DBaseTexture8* was=nullptr; };
+    SkinSwap SkinBegin() {
+        SkinSwap swap;
+        if (!Skin.On()) return swap;
+        auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
+        if (!device || FAILED(device->GetVertexShader(&fvf)) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return swap;
+        if (FAILED(device->GetTexture(0,&swap.was)) || !swap.was) { swap.was=nullptr; return swap; }
+        IDirect3DBaseTexture8* game=swap.was;
+        swap.index=Skin.Lookup(reinterpret_cast<uintptr_t>(game),Shared.Frame,[&](uint32_t& hash) {
+            LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]; const char* why="";
+            static const float whole[4]={0,0,1,1};
+            if (!LabelCut(game,whole,pixels,desc,texels,why)) return false;
+            hash=TextureHash(pixels,desc.Width,desc.Height); return true;
+        });
+        if (swap.index<0) { swap.was->Release(); swap.was=nullptr; return swap; }
+        device->SetTexture(0,static_cast<IDirect3DBaseTexture8*>(Skin.textures[size_t(swap.index)].texture));
+        return swap;
+    }
+    // The draw made with the skin's picture, unless done already (blocked, or drawn moved), and the game's texture
+    // put back. True where it was drawn here; false (the game's own then drawn by Ashita) where the draw failed.
+    template<class Draw> bool SkinEnd(const SkinSwap& swap,bool done,Draw draw) {
+        if (swap.index<0) return done;
+        auto* device=core->GetDirect3DDevice();
+        bool ok=done;
+        if (!done) {
+            scaling=true; ok=SUCCEEDED(draw(device)); scaling=false;
+            if (ok) Skin.textures[size_t(swap.index)].drawn++;
+        }
+        device->SetTexture(0,swap.was); swap.was->Release();
+        return ok;
+    }
+    // config\uihook\skins\<name>\tex-<hash>.png or .bmp, each made a texture of its own
+    void SkinRelease() { for (void* t:Skin.Clear()) static_cast<IDirect3DTexture8*>(t)->Release(); }
+    void SkinLoad(const char* name,char* line,size_t size) {
+        for (const char* c=name;*c;c++) if (!isalnum(static_cast<unsigned char>(*c)) && *c!='_' && *c!='-') {
+            snprintf(line,size,"[uihook:skin] a skin's name is letters, digits, - and _."); return;
+        }
+        auto* device=core->GetDirect3DDevice();
+        if (!device) { snprintf(line,size,"[uihook:skin] no device yet."); return; }
+        const std::string folder=std::string(core->GetInstallPath())+"\\config\\uihook\\skins\\"+name;
+        SkinRelease();
+        WIN32_FIND_DATAA found; unsigned failed=0;
+        HANDLE find=FindFirstFileA((folder+"\\tex-*").c_str(),&found);
+        if (find!=INVALID_HANDLE_VALUE) {
+            do {
+                uint32_t hash=0;
+                if ((found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || !SkinLook::FileHash(found.cFileName,hash) || Skin.Find(hash)>=0) continue;
+                uint32_t width=0,height=0; std::vector<uint32_t> argb;
+                IDirect3DTexture8* texture=nullptr; D3DLOCKED_RECT locked;
+                if (!SkinReadPicture((folder+"\\"+found.cFileName).c_str(),width,height,argb)
+                    || FAILED(device->CreateTexture(width,height,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,&texture))) { failed++; continue; }
+                if (FAILED(texture->LockRect(0,&locked,nullptr,0))) { texture->Release(); failed++; continue; }
+                for (uint32_t y=0;y<height;y++) memcpy(static_cast<uint8_t*>(locked.pBits)+size_t(y)*locked.Pitch,argb.data()+size_t(y)*width,size_t(width)*4);
+                texture->UnlockRect(0);
+                SkinTexture t; t.hash=hash; t.width=width; t.height=height; t.texture=texture;
+                Skin.textures.push_back(t);
+            } while (FindNextFileA(find,&found));
+            FindClose(find);
+        }
+        snprintf(Skin.name,sizeof(Skin.name),"%s",name);
+        if (Skin.textures.empty()) snprintf(line,size,"[uihook:skin] no pictures read in %s (tex-<hash>.png or .bmp)%s.",folder.c_str(),failed ? ", some could not be read" : "");
+        else snprintf(line,size,"[uihook:skin] %s: %zu pictures loaded%s; the game's textures are known as they are drawn.",name,Skin.textures.size(),
+            failed ? ", some could not be read" : "");
+    }
+    void SkinCommand(const char* word) {
+        char line[512];
+        if (!_stricmp(word,"off")) {
+            const size_t n=Skin.textures.size(); SkinRelease(); Skin.name[0]=0;
+            snprintf(line,sizeof(line),n ? "[uihook:skin] off; the game's own textures." : "[uihook:skin] no skin loaded.");
+        } else if (!_stricmp(word,"reload")) {
+            if (!Skin.name[0]) snprintf(line,sizeof(line),"[uihook:skin] no skin to reload: /uihook skin <name>.");
+            else { char name[64]; snprintf(name,sizeof(name),"%s",Skin.name); SkinLoad(name,line,sizeof(line)); }
+        } else if (word[0]) SkinLoad(word,line,sizeof(line));
+        else if (!Skin.On()) snprintf(line,sizeof(line),"[uihook:skin] none loaded. /uihook skin <name> loads config\\uihook\\skins\\<name>\\; reload, off.");
+        else {
+            unsigned matched=0; uint32_t drawn=0;
+            for (auto& t:Skin.textures) { if (t.matched) matched++; drawn+=t.drawn; }
+            snprintf(line,sizeof(line),"[uihook:skin] %s: %zu pictures, %u found in the game's textures (%u read), %u draws made with them.",
+                Skin.name,Skin.textures.size(),matched,Skin.read,drawn);
+            core->GetChatManager()->Write(0,false,line);
+            std::string unseen;
+            for (auto& t:Skin.textures) if (!t.matched) { char h[12]; snprintf(h,sizeof(h)," %08X",t.hash); unseen+=h; }
+            if (unseen.empty()) return;
+            snprintf(line,sizeof(line),"[uihook:skin] not drawn by the game yet:%s",unseen.substr(0,400).c_str());
+        }
+        core->GetChatManager()->Write(0,false,line);
+    }
     // /uihook textures: a screen-space draw's texture (stage 0), read the first time it is seen, counted with the
     // window and part drawing it. data: its vertices, from min; none from a vertex buffer.
     void TextureDraw(const void* data,unsigned vertices,unsigned stride,bool buffered) {
@@ -629,6 +721,7 @@ public:
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         AutoCensus(true);
         Textures.on=false; Textures.Clear(); Textures.window[0]=0;
+        SkinRelease(); Skin.name[0]=0;
         GiveMirror();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
@@ -668,8 +761,21 @@ public:
     }
     void Direct3DBeginScene(bool) override { inScene=true; }
     void Direct3DEndScene(bool) override { inScene=false; }
-    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE,UINT,UINT) override { TextureDraw(nullptr,0,0,true); MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return Block(); }
-    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE,UINT,UINT,UINT,UINT) override { TextureDraw(nullptr,0,0,true); MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return Block(); }
+    // Each draw: counted and heard as it is (the skin's picture not yet in place, so what is counted and mirrored
+    // is the game's own); then, where the skin has a picture for its texture, drawn with it here, the game's put back
+    bool BufferDraw() { TextureDraw(nullptr,0,0,true); MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return false; }
+    bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE t,UINT start,UINT count) override {
+        if (scaling) return false;
+        BufferDraw();
+        const SkinSwap skin=SkinBegin();
+        return SkinEnd(skin,Block(),[&](IDirect3DDevice8* d) { return d->DrawPrimitive(t,start,count); });
+    }
+    bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT start,UINT count) override {
+        if (scaling) return false;
+        BufferDraw();
+        const SkinSwap skin=SkinBegin();
+        return SkinEnd(skin,Block(),[&](IDirect3DDevice8* d) { return d->DrawIndexedPrimitive(t,min,vertices,start,count); });
+    }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
         if (scaling) return false;
         TextureDraw(data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride,false);
@@ -677,9 +783,10 @@ public:
         if (MenuWatch.Inside()) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0); // our own scaled copy, on its way to the device
         Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
-        if (Block()) return true;
-        if (NativeDraw(t,0,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,count,nullptr,D3DFMT_UNKNOWN,data,stride)) return true;
-        return ScaleIcon(t,count,data,stride);
+        const SkinSwap skin=SkinBegin();
+        const bool done=Block() || NativeDraw(t,0,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,count,nullptr,D3DFMT_UNKNOWN,data,stride)
+            || ScaleIcon(t,count,data,stride);
+        return SkinEnd(skin,done,[&](IDirect3DDevice8* d) { return d->DrawPrimitiveUP(t,count,data,stride); });
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
         if (scaling) return false;
@@ -688,8 +795,12 @@ public:
         if (MenuWatch.Inside()) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
         Native(true,data,stride,vertices);
-        if (Block()) return true;
-        if (NativeDraw(t,min,vertices,count,indices,format,data,stride)) return true;
+        const SkinSwap skin=SkinBegin();
+        const bool done=Block() || NativeDraw(t,min,vertices,count,indices,format,data,stride) || ClockDraw(t,min,vertices,count,indices,format,data,stride);
+        return SkinEnd(skin,done,[&](IDirect3DDevice8* d) { return d->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,data,stride); });
+    }
+    // The clock's draws moved by its shift
+    bool ClockDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
         auto* device=core->GetDirect3DDevice(); DWORD shader=0;
         if (!inClock || min!=0 || (clockShiftX==0 && clockShiftY==0) || !data || stride<8 || !vertices || vertices>4096
             || !device || FAILED(device->GetVertexShader(&shader)) || !(shader & D3DFVF_XYZRHW)) return false;
@@ -913,6 +1024,7 @@ public:
             return true;
         }
         if (command && !_strnicmp(command,"/uihook census",14)) { CensusCommand(command[14]==' ' ? command+15 : ""); return true; }
+        if (command && (!_stricmp(command,"/uihook skin") || !_strnicmp(command,"/uihook skin ",13))) { SkinCommand(command[12]==' ' ? command+13 : ""); return true; }
         if (command && !_strnicmp(command,"/uihook textures",16)) { TexturesCommand(command[16]==' ' ? command+17 : ""); return true; }
         if (command && _stricmp(command,"/uihook menus")==0) {
             char line[256];

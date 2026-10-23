@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.33
+
+- `/uihook skin <name>|reload|off`: the game's interface drawn with the pictures in
+  `config\uihook\skins\<name>\` (`tex-<hash>.png` or `.bmp`, named as the texture census names the textures
+  they stand for, any size) in place of its own textures, every menu at once; layout, input and places the
+  game's. `tools/uihook_skin.py` makes a test skin from a census.
+- The texture census's hash is shared with the skin (`TextureHash`); buffer draws are left alone while uihook
+  makes a draw of its own.
+
 ## 1.32
 
 - `/uihook textures on|off|dump|clear`, the texture census: every texture the game's screen-space drawing uses,
