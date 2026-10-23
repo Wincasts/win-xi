@@ -14,7 +14,8 @@
 #        libs\winxi\theme.lua) and its own images (libs\winxi\assets):
 #        - the frame the Border Style's art (borders\<style>.png) as winxi.borders draws it, a nine-slice whose
 #          corners and edges are the art's outer 8 of 64 texels in 3 pixels: the game's three frame textures are
-#          exactly a 3-pixel line 1 pixel in from the edge, clear about it, so the slice is laid there
+#          exactly a 3-pixel line 1 pixel in from the edge, clear about it, so the slice is laid there, as wide as
+#          --frame-width (2 by default; 3 the game's whole line)
 #          (--frame-scale times the game's size, 1 by default: the game draws its frame a texel to a pixel, and a
 #          larger one is shrunk unsmoothed). skin.txt draws every piece of it at the theme's Border
 #          Opacity: the game fades its frame by its vertices' alpha (its sides near 0, its top and bottom 0x61),
@@ -198,10 +199,11 @@ def nine_slice(art, size, edge):
             if w > 0 and h > 0: out.paste(piece.resize((w, h), Image.BILINEAR), (xs[col], xs[row]))
     return out
 
-def frames(art, scale=1, size=32):
-    # the ring a nine-slice from 1 to size-1, its line 3 pixels; the edges' textures its top and bottom rows (tiled
-    # across) or its sides (tiled down), taken from its middle
-    n, edge, inset = size * scale, 3 * scale, scale
+def frames(art, scale=1, size=32, width=3):
+    # the ring a nine-slice from 1 to size-1, its line width pixels (the game's is 3: thinner, the outer part of it,
+    # clear inside); the edges' textures its top and bottom rows (tiled across) or its sides (tiled down), taken from
+    # its middle
+    n, edge, inset = size * scale, max(1, min(3, width)) * scale, scale
     ring = Image.new('RGBA', (n, n)); ring.paste(nine_slice(art, n - 2 * inset, edge), (inset, inset))
     rows = Image.new('RGBA', (n, n)); columns = Image.new('RGBA', (n, n))
     rp, cp, gp = rows.load(), columns.load(), ring.load()
@@ -211,7 +213,7 @@ def frames(art, scale=1, size=32):
             cp[i, j] = gp[i, n // 2] if i < inset + edge or i >= n - inset - edge else (0, 0, 0, 0)
     return ring, rows, columns
 
-def winxi_skin(census, theme, frame_scale=1, font=None):
+def winxi_skin(census, theme, frame_scale=1, font=None, frame_width=2):
     pictures = {}
     name = font or theme.get('FontFile') or 'trebuc.ttf'
     path = font_file(name)
@@ -221,7 +223,7 @@ def winxi_skin(census, theme, frame_scale=1, font=None):
     style = theme.get('BorderStyle', 'ffxi')
     line = border_line(style)
     steel = steel_of(line)
-    pictures['72D3D795'], pictures['3C8984C5'], pictures['1023C0C5'] = frames(border_art(style), frame_scale)
+    pictures['72D3D795'], pictures['3C8984C5'], pictures['1023C0C5'] = frames(border_art(style), frame_scale, width=frame_width)
     pictures['92C145C5'] = background(theme, (128, 128))
     for name, how in [('C4DDAEB2', lambda im: ramp(im, steel)), ('2EFCC31D', lambda im: ramp(im, steel)),
                       ('9E2854A3', lambda im: buttons(im, theme.get('TabStyle', 'glass')))]:
@@ -326,6 +328,7 @@ def main():
     ap.add_argument('--scale', type=int, default=1)
     ap.add_argument('--frame-scale', type=int, default=1)
     ap.add_argument('--font')
+    ap.add_argument('--frame-width', type=int, default=2, choices=(1, 2, 3))
     args = ap.parse_args()
     out = os.path.normpath(args.out or os.path.join(HERE, '..', 'plugins', 'uihook', 'build', 'skins', args.style))
     if os.path.normpath(args.census) == out: sys.exit('the output folder is the census folder')
@@ -337,7 +340,7 @@ def main():
             print(f'{name}: not in the census, left'); return None
         im = read_bmp(path)
         return im
-    pictures, txt = winxi_skin(census, theme, args.frame_scale, args.font) if args.style == 'winxi' else STYLES[args.style](census, theme)
+    pictures, txt = winxi_skin(census, theme, args.frame_scale, args.font, args.frame_width) if args.style == 'winxi' else STYLES[args.style](census, theme)
     os.makedirs(out, exist_ok=True)
     for name, im in pictures.items():
         if args.scale > 1 and im.width <= 64: im = im.resize((im.width * args.scale, im.height * args.scale), Image.NEAREST)
