@@ -527,6 +527,9 @@ class PartyHook : public IPlugin {
     SkinFonts skinFonts;
     std::string skinFontFile[2];
     SkinFontFace skinFace[2];
+    int skinFontWeight[2]={0,0};                       // FW_* or 0 for the file's own
+    int skinOutline[2]={1,1};                          // pixels of winxi's outline about a chosen font's letters
+    uint32_t skinOutlineColour[2]={0xE6000000,0xE6000000};
     // A font file's path: as given where it is one, else in Windows' Fonts folder
     static std::string SkinFontPath(const std::string& file) {
         if (file.find('\\')!=std::string::npos || file.find(':')!=std::string::npos) return file;
@@ -542,6 +545,7 @@ class PartyHook : public IPlugin {
             const std::string path=SkinFontPath(skinFontFile[k]);
             if (skinFace[k].path!=SkinWide(path.c_str()) || !skinFace[k].added)
                 if (!skinFace[k].Open(path.c_str()) && why) *why+=(why->empty() ? "" : "; ")+path+" could not be opened";
+            skinFace[k].weight=skinFontWeight[k];
         }
         // each texture holding fonts once (one may hold several: the menus' small font and a large one)
         std::vector<uint32_t> done;
@@ -554,7 +558,10 @@ class PartyHook : public IPlugin {
                 if (z.base.empty() || !z.texture) continue;
                 std::vector<uint32_t> argb=z.base;
                 SkinFontDrawer drawer;
-                for (int k=0;k<2;k++) drawer.faces[k]=!skinFontFile[k].empty() && skinFace[k].added ? &skinFace[k] : nullptr;
+                for (int k=0;k<2;k++) {
+                    drawer.faces[k]=!skinFontFile[k].empty() && skinFace[k].added ? &skinFace[k] : nullptr;
+                    drawer.outline[k]=skinOutline[k]; drawer.outlineColour[k]=skinOutlineColour[k];
+                }
                 drawn+=drawer.Draw(skinFonts,style.hash,z.factor,argb,int(z.width),int(z.height));
                 SkinUpload(static_cast<IDirect3DTexture8*>(z.texture),argb,z.width,z.height);
             }
@@ -617,11 +624,23 @@ class PartyHook : public IPlugin {
     }
     void SkinCommand(const char* word) {
         char line[512];
-        // font <menu|title> <file|off> [quiet]: the font a kind of the skin's fonts is drawn in, off its own
+        // font <menu|title> <file|off> [regular|bold] [outline=<pixels>] [outlinecolour=<AARRGGBB>] [quiet]: the font a
+        // kind of the skin's fonts is drawn in (in winxi's look, its weight and outline as given), off its own
         if (!_strnicmp(word,"font ",5) || !_stricmp(word,"font")) {
-            char kind[16]={},file[MAX_PATH]={},quiet[16]={};
-            const int n=sscanf_s(word+4," %15s %259s %15s",kind,16u,file,unsigned(MAX_PATH),quiet,16u);
+            char kind[16]={},file[MAX_PATH]={},more[4][32]={};
+            const int n=sscanf_s(word+4," %15s %259s %31s %31s %31s %31s",kind,16u,file,unsigned(MAX_PATH),more[0],32u,more[1],32u,more[2],32u,more[3],32u);
             const int k=n>=1 ? SkinFontKind(kind) : -1;
+            bool quietly=false;
+            if (k>=0) {
+                skinFontWeight[k]=0;
+                for (int i=0;i<4 && i+2<n;i++) {
+                    if (!_stricmp(more[i],"quiet")) quietly=true;
+                    else if (!_stricmp(more[i],"bold")) skinFontWeight[k]=FW_BOLD;
+                    else if (!_stricmp(more[i],"regular")) skinFontWeight[k]=FW_NORMAL;
+                    else if (!_strnicmp(more[i],"outline=",8)) skinOutline[k]=(std::max)(0,(std::min)(4,atoi(more[i]+8)));
+                    else if (!_strnicmp(more[i],"outlinecolour=",14)) skinOutlineColour[k]=static_cast<uint32_t>(strtoul(more[i]+14,nullptr,16));
+                }
+            }
             if (k<0 || n<2) {
                 snprintf(line,sizeof(line),"[uihook:skin] fonts: menu %s, title %s. /uihook skin font <menu|title> <file in C:\\Windows\\Fonts, or off>.",
                     skinFontFile[0].empty() ? "the skin's own" : skinFontFile[0].c_str(),skinFontFile[1].empty() ? "the skin's own" : skinFontFile[1].c_str());
@@ -631,7 +650,7 @@ class PartyHook : public IPlugin {
             skinFontFile[k]=_stricmp(file,"off") ? file : "";
             std::string why;
             const unsigned glyphs=SkinApplyFonts(&why);
-            if (n>=3 && !_stricmp(quiet,"quiet") && why.empty()) return;
+            if (quietly && why.empty()) return;
             if (skinFontFile[k].empty()) snprintf(line,sizeof(line),"[uihook:skin] the %s font: the skin's own.",kind);
             else if (!skinFonts.styles.size()) snprintf(line,sizeof(line),"[uihook:skin] the %s font is %s, drawn once a skin with a fonts.txt is loaded.",kind,file);
             else snprintf(line,sizeof(line),"[uihook:skin] the %s font: %s, %u glyphs drawn%s%s.",kind,file,glyphs,why.empty() ? "" : "; ",why.c_str());

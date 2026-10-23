@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6
+
+- Menu Weight and Title Weight (As The Font, Regular, Bold; the menu font Bold to begin with, as a regular one's
+  strokes are a pixel wide at a menu's size), and the winxi theme's Text Outline and its colour, given to uihook 1.54
+  with each font chosen.
+
 ## 0.5
 
 - Fonts: Menu Font and Title Font, each Follow Winxi Theme (the theme's Font and Title Font, changing with them),

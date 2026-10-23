@@ -26,7 +26,9 @@ Menu Font (the menus' words: commands, lists, buttons) and Title Font (the windo
 names): Follow Winxi Theme draws them in the theme's Font and Title Font, and changes with it; Skin's Own keeps the
 skin's pictures as they were made; any other is that font of `C:\Windows\Fonts`. uihook draws each glyph in the font
 where the game's goes, at every size of the skin, as the skin loads (`/uihook skin font`); the skin needs a
-`fonts.txt`, as `tools/uihook_skin.py --style winxi` makes.
+`fonts.txt`, as `tools/uihook_skin.py --style winxi` makes. A font chosen is drawn in winxi's look: smoothed, with
+the theme's Text Outline about its letters and no game shadow. Menu Weight and Title Weight draw it Regular or Bold
+(the menu font Bold to begin with: at a menu's size a regular font's strokes are a pixel wide), or as the font is.
 
 ## Screen
 
@@ -40,4 +42,4 @@ keep their size and their places next to each other and to the bar. A window ove
 (a centred question) stays put, as do the chat log and the menus stacked on it. `/uihook native inset`; only
 the drawing moves, as above.
 
-Needs uihook 1.52 or newer and the `winxi` library.
+Needs uihook 1.54 or newer and the `winxi` library.

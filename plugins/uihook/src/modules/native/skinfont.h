@@ -163,10 +163,12 @@ static SkinCoverage SkinResample(const SkinCoverage& in,int w,int h) {
 }
 
 // A font file opened for drawing: added to this process alone, drawn by its family and style
+#define SKIN_SUPERSAMPLE 4   // a glyph drawn this many times larger and averaged down: smooth whatever the font says
 class SkinFontFace {
 public:
     std::wstring path, family;
     bool bold=false, italic=false, added=false;
+    int weight=0;   // FW_* to draw at, or 0 for the file's own (bold or not)
     bool Open(const char* file) {
         Close();
         FILE* f=fopen(file,"rb"); if (!f) return false;
@@ -183,9 +185,25 @@ public:
     }
     void Close() { if (added) RemoveFontResourceExW(path.c_str(),FR_PRIVATE,nullptr); added=false; family.clear(); }
     ~SkinFontFace() { Close(); }
-    // text drawn px high (the em), its coverage and its baseline's row in it; false where nothing was drawn
+    // text drawn px high (the em), its coverage and its baseline's row in it; false where nothing was drawn. Drawn
+    // SKIN_SUPERSAMPLE times as large and each square of texels averaged: small, a font's own hints (its gasp table)
+    // turn Windows' smoothing off, and its letters came out two-toned and jagged a pixel wide
     bool Draw(const std::wstring& text,int px,SkinCoverage& out,int& baseline) const {
         if (!added || px<2 || px>2000) return false;
+        SkinCoverage big; int bigBase=0;
+        if (!DrawAt(text,px*SKIN_SUPERSAMPLE,big,bigBase)) return false;
+        const int n=SKIN_SUPERSAMPLE;
+        out.width=big.width/n; out.height=big.height/n; out.v.assign(size_t(out.width)*out.height,0);
+        for (int y=0;y<out.height;y++) for (int x=0;x<out.width;x++) {
+            uint32_t sum=0;
+            for (int dy=0;dy<n;dy++) for (int dx=0;dx<n;dx++) sum+=big.At(x*n+dx,y*n+dy);
+            out.v[size_t(y)*out.width+x]=uint8_t(sum/(n*n));
+        }
+        baseline=bigBase/n;
+        return true;
+    }
+    bool DrawAt(const std::wstring& text,int px,SkinCoverage& out,int& baseline) const {
+        if (px<2 || px>8000) return false;
         const int w=px*int(text.size()+2),h=px*3;
         HDC dc=CreateCompatibleDC(nullptr);
         if (!dc) return false;
@@ -193,7 +211,7 @@ public:
         info.bmiHeader.biPlanes=1; info.bmiHeader.biBitCount=32; info.bmiHeader.biCompression=BI_RGB;
         void* bits=nullptr;
         HBITMAP bitmap=CreateDIBSection(dc,&info,DIB_RGB_COLORS,&bits,nullptr,0);
-        HFONT font=CreateFontW(-px,0,0,0,bold ? FW_BOLD : FW_NORMAL,italic,0,0,DEFAULT_CHARSET,OUT_TT_ONLY_PRECIS,CLIP_DEFAULT_PRECIS,
+        HFONT font=CreateFontW(-px,0,0,0,weight ? weight : bold ? FW_BOLD : FW_NORMAL,italic,0,0,DEFAULT_CHARSET,OUT_TT_ONLY_PRECIS,CLIP_DEFAULT_PRECIS,
             ANTIALIASED_QUALITY,DEFAULT_PITCH,family.c_str());
         bool ok=false;
         if (bitmap && font && bits) {
@@ -250,6 +268,11 @@ static int SkinFontKind(const std::string& kind) { return kind=="menu" ? 0 : kin
 class SkinFontDrawer {
 public:
     const SkinFontFace* faces[2]={};
+    // a font chosen drawn in winxi's look in place of the game's: its fill, an outline of outline pixels in
+    // outlineColour about it (as winxi.text draws words over the game), no shadow. The outline's texels are a
+    // pixel's: the game's own edge's (1 for the small font, drawn a texel to a pixel; 2 for the large, drawn at half)
+    int outline[2]={1,1};
+    uint32_t outlineColour[2]={0xE6000000,0xE6000000};
     // the em, in pixels, whose ref is height pixels tall in a face; kept for each the same asked
     struct Size { const SkinFontFace* face; wchar_t ref; int height; int px; };
     std::vector<Size> sizes;
@@ -284,9 +307,12 @@ public:
         for (auto& g:fonts.glyphs) {
             const SkinFontFace* face=g.hash==hash ? FaceOf(fonts,g.style) : nullptr;
             if (!face) continue;
-            const SkinFontStyle& style=fonts.styles[g.style];
-            const int edge=style.edge>0 ? (std::max)(1,at(style.edge)) : 0;
-            const int sx=style.shadow ? at(style.shadowX) : 0,sy=style.shadow ? at(style.shadowY) : 0;
+            SkinFontStyle style=fonts.styles[g.style];
+            const int k=SkinFontKind(style.kind);
+            // winxi's look: the outline a pixel (as many texels as the game's own edge is), no shadow
+            const int edge=outline[k]>0 ? int(std::lround((std::max)(1.0f,style.edge)*outline[k])) : 0;
+            style.edgeColour=outlineColour[k]; style.shadow=0;
+            const int sx=0,sy=0;
             SkinCoverage c; int base=0,box[4];
             int px=g.fit ? (std::max)(4,int((g.bottom-g.top)*(std::max)(1.0f,factor)*2)) : SizeFor(face,g.ref,(std::max)(1,at(g.height)));
             if (px<2 || !face->Draw(g.text,px,c,base) || !SkinInk(c,box)) continue;
@@ -317,10 +343,14 @@ public:
                     if (tx<cx0 || tx>=cx1 || ty<cy0 || ty>=cy1) continue;
                     uint32_t v=0;
                     if (pass==0) {
+                        // outside the letter alone: under a fill less than solid (the small font's, as the game's)
+                        // it showed through, and the letters came out grey
                         for (int dy=-edge;dy<=edge;dy++) for (int dx=-edge;dx<=edge;dx++) {
                             const int ex=x+dx,ey=y+dy;
                             if (ex>=0 && ey>=0 && ex<ink.width && ey<ink.height) v=(std::max)(v,uint32_t(ink.At(ex,ey)));
                         }
+                        const uint32_t own=x>=0 && y>=0 && x<ink.width && y<ink.height ? ink.At(x,y) : 0;
+                        v=v*(255-own)/255;
                     } else {
                         const int ex=pass==1 ? x-sx : x,ey=pass==1 ? y-sy : y;
                         if (ex>=0 && ey>=0 && ex<ink.width && ey<ink.height) v=ink.At(ex,ey);

@@ -1,6 +1,6 @@
 addon.name    = 'nativeui'
 addon.author  = 'win'
-addon.version = '0.5'
+addon.version = '0.6'
 addon.desc    = 'The game\'s own interface in a uihook skin, and the menus it stacks over the chat log moved where you want them.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -24,7 +24,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- half of the screen moved in with it, keeping their size and their places to each other (/uihook native inset).
 -- The chat log and the menus stacked on it stay where they are.
 --
--- Needs uihook 1.52 or newer.
+-- Needs uihook 1.54 or newer.
 
 local winxiNeeded = 41
 do
@@ -46,10 +46,11 @@ local fonts = require('winxi.fonts')
 local theme = require('winxi.theme')
 
 local THEME_FONT, SKIN_FONT = 'Follow Winxi Theme', 'Skin\'s Own'
+local WEIGHTS = { 'As The Font', 'Regular', 'Bold' }   -- the file's own weight, or one drawn so
 -- each kind of the skin's fonts: its setting, its label, and the theme's font it follows
 local FONT_KINDS = {
-    { kind = 'menu', key = 'menuFont', label = 'Menu Font', themeKey = 'FontFile', tip = 'The menus\' words: their commands, lists and buttons.' },
-    { kind = 'title', key = 'titleFont', label = 'Title Font', themeKey = 'TitleFontFile', tip = 'The windows\' titles on their top edges, and the jobs\' and races\' names.' },
+    { kind = 'menu', key = 'menuFont', weightKey = 'menuWeight', weightLabel = 'Menu Weight', label = 'Menu Font', themeKey = 'FontFile', tip = 'The menus\' words: their commands, lists and buttons.' },
+    { kind = 'title', key = 'titleFont', weightKey = 'titleWeight', weightLabel = 'Title Weight', label = 'Title Font', themeKey = 'TitleFontFile', tip = 'The windows\' titles on their top edges, and the jobs\' and races\' names.' },
 }
 
 local NONE = 'None'
@@ -64,6 +65,8 @@ local defaults = T{
     scale = T{ 1 },          -- every framed window drawn this much larger
     menuFont = THEME_FONT,   -- the skin's menu font: the theme's Font, the skin's own, or a file of C:\Windows\Fonts
     titleFont = THEME_FONT,  -- the skin's title font: the theme's Title Font, the skin's own, or a file
+    menuWeight = 'Bold',     -- one of WEIGHTS: at a menu's size a regular font's strokes are a pixel, and faint
+    titleWeight = 'As The Font',
 }
 
 local app
@@ -127,9 +130,17 @@ local function Apply(force)
     -- the fonts before the skin's loading is asked again: uihook draws them as it loads, and on each change
     for _, f in ipairs(FONT_KINDS) do
         local file = FontFile(options, f)
-        if force or sent[f.kind] ~= file then
-            Send(('/uihook skin font %s %s quiet'):format(f.kind, file == '' and 'off' or file))
-            sent[f.kind] = file
+        -- drawn in winxi's look: its weight, and the theme's Text Outline about its letters
+        local weight = options[f.weightKey] == 'Bold' and ' bold' or options[f.weightKey] == 'Regular' and ' regular' or ''
+        local ok, t = pcall(theme.Get)
+        local width = ok and type(t) == 'table' and tonumber(t.TextOutline) or 1
+        local c = ok and type(t) == 'table' and type(t.TextOutlineColor) == 'table' and t.TextOutlineColor or { 0, 0, 0, 0.9 }
+        local byte = function(v) return math.max(0, math.min(255, math.floor((tonumber(v) or 0) * 255 + 0.5))) end
+        local look = (' outline=%d outlinecolour=%02X%02X%02X%02X'):format(math.floor(width + 0.5), byte(c[4]), byte(c[1]), byte(c[2]), byte(c[3]))
+        local command = file == '' and ('/uihook skin font %s off quiet'):format(f.kind) or ('/uihook skin font %s %s%s%s quiet'):format(f.kind, file, weight, look)
+        if force or sent[f.kind] ~= command then
+            Send(command)
+            sent[f.kind] = command
         end
     end
     local scale = ('%.2f'):format(options.scale[1])
@@ -188,6 +199,18 @@ local function DrawSettings(options)
                 imgui.EndCombo()
             end
             tooltip.Hover(f.tip .. ' Follow Winxi Theme: the theme\'s ' .. (f.kind == 'menu' and 'Font' or 'Title Font') .. ', changing with it. Skin\'s Own: as the skin was made. Any other: that font of C:\\Windows\\Fonts, drawn by uihook as the skin loads.')
+            widgets.Label(f.weightLabel)
+            if imgui.BeginCombo('##nativeui.' .. f.weightKey, options[f.weightKey]) then
+                for _, w in ipairs(WEIGHTS) do
+                    if imgui.Selectable(w .. '##nativeui.' .. f.weightKey .. '.' .. w, options[f.weightKey] == w) then
+                        options[f.weightKey] = w
+                        app:Save()
+                        Apply()
+                    end
+                end
+                imgui.EndCombo()
+            end
+            tooltip.Hover('How heavy its letters are drawn. At a menu\'s size a regular font\'s strokes are a pixel wide and faint: Bold reads more like the game\'s own. As The Font: the file\'s own weight. A font chosen is drawn smoothed, with the winxi theme\'s Text Outline about its letters.')
         end
         widgets.PopControlWidth()
     end
@@ -243,6 +266,9 @@ local function Complete(options)
     -- another character's settings: all of it given again
     for _, f in ipairs(FONT_KINDS) do
         if type(options[f.key]) ~= 'string' or options[f.key] == '' then options[f.key] = THEME_FONT end
+        local known = false
+        for _, w in ipairs(WEIGHTS) do known = known or options[f.weightKey] == w end
+        if not known then options[f.weightKey] = defaults[f.weightKey] end
     end
     sent.skin, sent.offset, sent.inset, sent.scale, sent.menu, sent.title = nil, nil, nil, nil, nil, nil
 end

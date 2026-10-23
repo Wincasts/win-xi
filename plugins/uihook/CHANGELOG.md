@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.54
+
+- A font chosen is drawn smoothed: each glyph four times as large and averaged down, as a font's own hints turn
+  Windows' smoothing off at a menu's size and its letters came out two-toned and jagged a pixel wide.
+- In winxi's look: its fill, an outline about its letters (`outline=<pixels>`, `outlinecolour=<AARRGGBB>`; a pixel
+  in the theme's Text Outline Color as nativeui gives it), outside the letters alone, and no game shadow. The
+  game's shadow and edge, laid in the gaps of a font with pixel-wide strokes, made its letters stripy and grey.
+- `regular` or `bold` after the file draws it at that weight (the family's bold face where Windows has it).
+
 ## 1.53
 
 - The skin's fonts.txt may hold several fonts in one texture, each font line the style of the lines after it:

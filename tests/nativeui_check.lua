@@ -27,7 +27,7 @@ options.scale[1] = 1.25
 options.menuFont = 'verdana.ttf'
 H.frames(1)
 check('the menu scale given as it changes', Sent('/uihook native size 1.25 quiet'))
-check('a font chosen given as it changes', Sent('/uihook skin font menu verdana.ttf quiet'))
+check('a font chosen given as it changes, bold, in the theme\'s outline', Sent('/uihook skin font menu verdana.ttf bold outline=1 outlinecolour=E6000000 quiet'))
 check('the sides brought in as it changes', Sent('/uihook native inset 100 quiet'))
 options.skin = 'None'
 H.frames(1)
