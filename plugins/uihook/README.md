@@ -498,7 +498,11 @@ picture for, stage 0 is given the picture, the draw made, and the game's texture
 mirror see the game's own. A skin is loaded by command, each time uihook is loaded (an Ashita script can do it).
 `python3 tools/uihook_skin.py <census folder>` makes a test skin by recolouring the chrome the first census
 found (gold frame, red background, green hand, amber buttons) into `plugins/uihook/build/skins/test`, to be
-copied to `config\uihook\skins\test\`; the game's art stays out of the repository (`src/modules/native/skin.h`).
+copied to `config\uihook\skins\test\`; `--style winxi` makes `skins/winxi`, the winxi theme's look: the frame
+drawn anew at four times the game's size (its three frame textures are exactly a 3-pixel line 1 pixel in from
+the edge) with rounded corners in the FFXI-inspired border's steel, the theme's navy in the game's stripes, a
+steel hand and item boxes, and buttons in the theme's Highlight Color. The game's art stays out of the
+repository (`src/modules/native/skin.h`).
 
 ## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1, ABI 5 in 1.2)
 
