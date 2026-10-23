@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.9'
+addon.version = '0.10'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -164,6 +164,15 @@ local Groups = {
         { name = 'mgcmenu', label = 'Magic Menu', labels = true, tip = 'The magic menu beside the spell list.' },
         { name = 'mgcsortw', label = 'Magic Sort', labels = true, tip = 'How the spells are sorted.' },
         { name = 'blusortw', label = 'Blue Magic Sort', labels = true, tip = 'How the blue magic spells are sorted.' },
+    } },
+    -- The linkshell lists share the item lists' drawer (001F6A60). Linkshell Info printed no text in the census and
+    -- its place came out unmeasured: look at it in Outline.
+    { title = 'Linkshell', on = true, experimental = true, added = true, menus = {
+        { name = 'chatctrl', label = 'Chat Channels', tip = 'Your linkshells and Unity, as the chat lists them to choose from.' },
+        { name = 'link5', label = 'Linkshells', tip = 'Your linkshell and linkpearl, to choose one.' },
+        { name = 'link6', label = 'Linkshell Name', tip = 'The box with the linkshell\'s name.' },
+        { name = 'link12', label = 'Member Areas', tip = 'Where the linkshell\'s members are.' },
+        { name = 'link2', label = 'Linkshell Info', tip = 'A linkshell window the census heard no text from, perhaps its message.' },
     } },
     { title = 'Other Menus', on = true, experimental = true, added = true, menus = {
         { name = 'map0', label = 'Map Menu', labels = true, tip = 'The map\'s choices.' },

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10
+
+- Linkshell [Experimental], a new group, on to start: Chat Channels (`chatctrl`), Linkshells
+  (`link5`), Linkshell Name (`link6`), Member Areas (`link12`) and Linkshell Info (`link2`), from the
+  census of 2026-10-23. Linkshell Info printed no text and its place was not measured, so it may be
+  given back to the game; look at it in Outline.
+
 ## 0.9
 
 - Magic [Experimental], a new group, on to start: Spells (`magic`), Magic Menu, Magic Sort and Blue

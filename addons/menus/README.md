@@ -52,6 +52,8 @@ group (on where every one of them is):
 - **[Experimental] Jobs** (on): Ability Menu, Ability Sort, Automaton, Automaton Status, Automaton
   Menu, Blue Magic Spells, Blue Magic Info.
 - **[Experimental] Magic** (on): Spells, Magic Menu, Magic Sort, Blue Magic Sort.
+- **[Experimental] Linkshell** (on): Chat Channels, Linkshells, Linkshell Name, Member Areas,
+  Linkshell Info.
 - **[Experimental] Other Menus** (on): Map Menu, Social Menu.
 
 The experimental groups were found in play with `/uihook census` and have not yet been looked at
