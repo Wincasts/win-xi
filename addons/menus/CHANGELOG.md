@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.13
+
+- Text and the hand are drawn no larger than a line of the window's text (the middle of its runs'
+  heights): a run the game measured far taller than its letters is drawn at most a line and a half,
+  and the hand by a lit row of icons, as in the automaton's attachment grid, a line tall where it was
+  as tall as the row. For the Master look's giant text and the automaton's large, offset hand.
+- The game's own highlight, where it is the row lit, is drawn only as wide as it is, not across the
+  window.
+- A menu given back to the game is the winxi one again once it has been measured whole for a quarter
+  of a second, not only after two: the auction house's menus have no place while a submenu over them
+  is open, and showed the game's own for up to two seconds once back in front.
+
 ## 0.12
 
 - Currencies [Experimental], a new group, on to start: the boxes the Currencies menu opens. Conquest

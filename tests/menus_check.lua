@@ -153,6 +153,27 @@ MENUS.windows = { Inventory() }
 H.wait(3)
 H.frames(1)
 check('two seconds on: hidden again', Asked('inventor').hide)
+-- given back, then measured whole while the game draws it (the auction house's menus, back in front of a submenu):
+-- taken again after a quarter of a second, not at the end of the two
+local bare = Inventory()
+bare.rect = nil
+bare.runs = {}
+MENUS.windows = { bare }
+H.frames(1)
+H.frames(1)
+check('no place: given back', Asked('inventor') and not Asked('inventor').hide)
+local shown = Inventory()
+shown.hidden = false
+MENUS.windows = { shown }
+H.frames(1)
+check('measured again: still the game\'s at first', not Asked('inventor').hide)
+H.wait(0.3)
+H.frames(1)
+H.frames(1)
+check('measured whole for a quarter second: taken again before the two are up', Asked('inventor').hide)
+MENUS.windows = { Inventory() }
+H.frames(1)
+
 -- text printed off the screen (the conquest map's names): given back too
 local map = Inventory()
 map.name = 'cnqframe'
@@ -216,6 +237,35 @@ images, texts = H.calls['draw.AddImage'] or 0, H.calls['draw.AddText'] or 0
 H.frames(1)
 check('an item list\'s contents\' words drawn, no art', (H.calls['draw.AddText'] or 0) > texts and (H.calls['draw.AddImage'] or 0) - images == 0)
 check('nothing printed for them', #H.printed == 0)
+
+-- a run the game measured far taller than its line (the Master look), and a lit row of icons (the automaton's grid):
+-- neither the text nor the hand drawn taller than the window's line
+local imguiStub, sizes = require('imgui'), {}
+local oldPush = imguiStub.PushFont
+imguiStub.PushFont = function(face, size) sizes[#sizes + 1] = size; return oldPush(face, size) end
+local cursorStub = require('winxi.cursor')
+local oldGet = cursorStub.Get
+cursorStub.Get = function() return 5, { 0, 0, 1, 1, 16, 16 } end
+local drawn = imguiStub.GetWindowDrawList()
+local hands = {}
+local oldImage = drawn.AddImage
+drawn.AddImage = function(self, texture, a, b) if texture == 5 then hands[#hands + 1] = b[2] - a[2] end end
+local status = Inventory()
+status.name = 'persona'
+options.mirror_persona[1] = true
+status.runs = {}
+for i = 1, 5 do
+    status.runs[i] = { text = 'Line ' .. i, raw = 'Line ' .. i, route = 2, color = { 1, 1, 1, 1 }, rect = { 120, 100 + i * 14, 200, 112 + i * 14 } }
+end
+status.runs[6] = { text = 'Giant', raw = 'Giant', route = 2, color = { 1, 1, 1, 1 }, rect = { 100, 100, 300, 300 } }
+status.cursor, status.selection = { 104, 200, 124, 260 }, { 110, 200, 290, 260 }
+MENUS.windows = { status }
+H.frames(1)
+local largest = 0
+for _, size in ipairs(sizes) do largest = math.max(largest, size) end
+check('a run measured far taller than the line: drawn at most a line and a half', largest > 0 and largest <= 18)
+check('the hand by a lit row of icons: no taller than a line', #hands > 0 and hands[#hands] <= 14)
+imguiStub.PushFont, cursorStub.Get, drawn.AddImage = oldPush, oldGet, oldImage
 
 -- unloaded: the mirror stopped
 local stops = MENUS.stops

@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.12'
+addon.version = '0.13'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -251,6 +251,11 @@ local mirror = nativemirror.new()
 -- why, for the settings
 local nativeUntil, nativeWhy = {}, {}
 local FALLBACK_SECONDS = 2
+-- One given back is taken again once it has been measured whole for this long, drawn by the game, rather than at the
+-- end of the while: a menu with no place while a submenu over it is open (the auction house's) is the winxi one again
+-- as soon as it is back in front. Its name -> since when it has been measured whole.
+local MEASURED_SECONDS = 0.25
+local measuredSince = {}
 
 ---------------------------------------------------------------------------------------------------
 -- Settings
@@ -439,17 +444,36 @@ local function CursorRow(window)
     return best < 12 and row or nil
 end
 
+-- A line of the window's text, as tall as the game's letters mostly are: the middle of its runs' heights. What the
+-- game measures taller (a run of a picture's text, the Master look's) or a row of icons lit (the automaton's grid)
+-- is held to it, so neither text nor the hand is drawn larger than a line.
+local function LineHeight(window)
+    local heights = {}
+    for _, run in ipairs(window.runs) do
+        if run.rect and run.text ~= '' then heights[#heights + 1] = Height(run.rect) end
+    end
+    if #heights == 0 then return nil end
+    table.sort(heights)
+    return heights[math.floor((#heights + 1) / 2)]
+end
+local LINE_SLACK = 1.5 -- how much taller than the window's line a run of its text may be drawn
+
 local function DrawContents(list, window, words, spelled)
     local r = window.rect
     local pad = 4
+    local line = LineHeight(window)
+    local most = math.min(Height(r), line and line * LINE_SLACK or math.huge)
     -- the row the cursor is on, lit across the window, under everything else: found from the cursor, or the game's
     -- own highlight where that is the shape of a row (in some windows its draws cover the whole window)
     local row = CursorRow(window)
     local lit = window.selection
     if not row and lit and Height(lit) < Height(r) / 2 then row = lit end
     if row then
+        -- a row of text lit across the window; the game's own highlight only as wide as it is (a slot of a grid)
+        local left, right = r[1] + pad, r[3] - pad
+        if row == lit then left, right = math.max(left, lit[1]), math.min(right, lit[3]) end
         local highlight = theme.Get().HighlightColor
-        list:AddRectFilled({ r[1] + pad, row[2] - 1 }, { r[3] - pad, row[4] + 1 }, imgui.GetColorU32(highlight), 3)
+        list:AddRectFilled({ left, row[2] - 1 }, { right, row[4] + 1 }, imgui.GetColorU32(highlight), 3)
     end
     -- the game's art in the contents (icons), as the game drew it; and in a menu whose words are pictures, its
     -- elements, the labels, in their own colours (the cursor's tint left to the row lit under it; a greyed one kept
@@ -474,7 +498,7 @@ local function DrawContents(list, window, words, spelled)
         -- those letters not drawn as art
         if labels or not word.element then
             local t = word.rect
-            local size = math.max(8, math.floor(word.tall + 0.5))
+            local size = math.max(8, math.floor(math.min(word.tall, most) + 0.5))
             imgui.PushFont(nil, size)
             text.Draw(list, t[1], t[2], TextColor({ 1, 1, 1, word.color[4] }), word.text)
             imgui.PopFont()
@@ -484,7 +508,7 @@ local function DrawContents(list, window, words, spelled)
     for _, run in ipairs(window.runs) do
         local t = run.rect
         if t and run.text ~= '' then
-            local size = math.max(8, math.floor(Height(t) + 0.5))
+            local size = math.max(8, math.floor(math.min(Height(t), most) + 0.5))
             imgui.PushFont(nil, size)
             text.Draw(list, t[1], t[2] + (Height(t) - size) / 2, TextColor(run.color), run.text)
             imgui.PopFont()
@@ -509,6 +533,7 @@ local function DrawContents(list, window, words, spelled)
         local handle, art = cursorArt.Get()
         if handle then
             local tall = row and Height(row) + 2 or math.min(Height(c), 18)
+            if line then tall = math.min(tall, line + 2) end
             local wide = tall * art[5] / art[6]
             local middle = (c[2] + c[4]) / 2
             list:AddImage(handle, { c[1], middle - tall / 2 }, { c[1] + wide, middle + tall / 2 },
@@ -731,6 +756,15 @@ local function Frame()
         for _, window in ipairs(windows) do
             local missing = window.hidden and Unplaced(window) or 0
             local off = window.hidden and OffScreen(window, width, height) or 0
+            local name = window.name
+            if replace and not window.hidden and nativeUntil[name] and now < nativeUntil[name] then
+                if window.rect and Unplaced(window) == 0 and OffScreen(window, width, height) == 0 then
+                    measuredSince[name] = measuredSince[name] or now
+                    if now - measuredSince[name] >= MEASURED_SECONDS then nativeUntil[name], measuredSince[name] = now, nil end
+                else
+                    measuredSince[name] = nil
+                end
+            end
             if window.hidden and not window.rect then
                 -- nothing measured of it: the game's to draw again for a while, never unseen
                 GiveBack(window.name, 'its place could not be measured', now)
