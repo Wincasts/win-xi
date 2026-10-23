@@ -75,6 +75,8 @@
 -- 39: nativemirror's text font (a grid of cells, a cell's character its code less 32: the top bar's help line, the
 --     menu's name box), and letters read from a window's contents as well as its elements (a word's element)
 -- 40: nativemirror on uihook 1.1's mirror ABI 4: 128 windows asked for
+-- 41: nativemirror on uihook 1.2's mirror ABI 5: Mouse and MouseSupported, the mouse on a menu drawn elsewhere or
+--     larger given to the game at the same place on its own
 return {
-    Number = 40,
+    Number = 41,
 };

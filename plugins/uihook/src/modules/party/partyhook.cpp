@@ -23,6 +23,7 @@
 #include "../mirror/census.h"
 #include "../mirror/mirror.h"
 #include "../mirror/labels.h"
+#include "../mirror/mouse.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -78,7 +79,7 @@ static uint32_t __fastcall CensusFont(void*,void*,int32_t,int32_t,const char*,ui
 static Detour CensusBitmapDetour = { CENSUS_TEXT_PATTERN, CENSUS_TEXT_STOLEN, -1, reinterpret_cast<void*>(&CensusBitmap), nullptr, nullptr, {} };
 static Detour CensusScaledDetour = { CENSUS_SCALED_PATTERN, CENSUS_SCALED_STOLEN, -1, reinterpret_cast<void*>(&CensusScaled), nullptr, nullptr, {} };
 static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, reinterpret_cast<void*>(&CensusFont), nullptr, nullptr, {} };
-// The menu mirror (mirror ABI 4): zero in the DLL's file, its magic written as the module initializes. Its
+// The menu mirror (mirror ABI 5): zero in the DLL's file, its magic written as the module initializes. Its
 // text is heard through the census's three routes, taken with Window::Render; the contents' call in
 // Window::Render aimed at MirrorContent.
 static MirrorShared MirrorBlock;
@@ -86,6 +87,11 @@ static Mirror MenuMirror;
 static void __fastcall MirrorContent(void*,void*);
 struct MirrorContentCall { uint8_t* call=nullptr; uint8_t saved[5]={}; };
 static MirrorContentCall ContentCall;
+// The game's mouse handler in its message loop, taken so a message on a menu drawn elsewhere is given to it at the
+// same place on the game's own (mouse.h)
+static void __cdecl MirrorInput(MSG);
+static uint32_t MirrorMapped=0; // mouse messages given to the game at the place on its own menu, since loading
+static Detour InputDetour = { MIRROR_INPUT_PATTERN, MIRROR_INPUT_STOLEN, -1, reinterpret_cast<void*>(&MirrorInput), nullptr, nullptr, {} };
 // The five bytes mov edx,[ecx]; call [edx+10] made a call to ours, which makes the same call: the
 // return address the game's own, the owner still in ecx
 static bool TakeMirrorContent(uint8_t* begin,size_t size,uint8_t* render) {
@@ -406,9 +412,12 @@ public:
             }
         }
         // The menu mirror: zero in the file, its magic written now; supported where its four sites are found
-        memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=4; MirrorBlock.Size=sizeof(MirrorShared);
+        memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=5; MirrorBlock.Size=sizeof(MirrorShared);
         MenuMirror.shared=&MirrorBlock;
-        if (module.lpBaseOfDll && TakeMirror(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) MirrorBlock.Supported=1;
+        if (module.lpBaseOfDll && TakeMirror(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) {
+            MirrorBlock.Supported=MIRROR_SUPPORTED;
+            if (Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) MirrorBlock.Supported|=MIRROR_SUPPORTED_MOUSE;
+        }
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
             (Shared.SupportedMask & 8 ? "[uihook:party] Party/target hooks ready (native arrows preserved). /pt native [target] on; unload hideparty first." :
              "[uihook:party] Party hook ready; target/cursor signatures unavailable. /pt native on; unload hideparty first.") :
@@ -525,7 +534,8 @@ public:
         return true;
     }
     void GiveMirror() {
-        MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; MenuMirror.Clear();
+        MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; MirrorBlock.MouseFrame=0; MenuMirror.Clear();
+        Give(InputDetour);
         MenuCensus.on=false; MenuCensus.current=nullptr;
         GiveMirrorContent(); Give(CensusBitmapDetour); Give(CensusScaledDetour); Give(CensusFontDetour);
     }
@@ -629,6 +639,11 @@ public:
             core->GetChatManager()->Write(0,false,line);
             snprintf(line,sizeof(line),"[uihook:mirror] the last frame published (%u): %u windows, %u runs of text, %u quads, %u bytes; %u dropped since loading.",
                 last.Frame,last.WindowCount,last.RunCount,last.QuadCount,last.TextUsed,MirrorBlock.Dropped);
+            core->GetChatManager()->Write(0,false,line);
+            const bool mouseFresh=MirrorBlock.MouseFrame && MirrorBlock.Frame-MirrorBlock.MouseFrame<=MIRROR_REQUEST_FRAMES;
+            snprintf(line,sizeof(line),"[uihook:mirror] the mouse: %s; %u menus drawn elsewhere now; %u messages moved to the game's own since loading.",
+                MirrorBlock.Supported & MIRROR_SUPPORTED_MOUSE ? "the game's handler taken" : "the game's handler not found",
+                mouseFresh ? (std::min)(uint32_t(MirrorBlock.MouseCount),uint32_t(MIRROR_MOUSE)) : 0u,MirrorMapped);
             core->GetChatManager()->Write(0,false,line);
             for (uint32_t i=0;i<last.WindowCount;i++) {
                 const MirrorWindow& w=last.Windows[i];
@@ -1244,6 +1259,14 @@ static uint32_t __fastcall CensusFont(void* font,void*,int32_t x,int32_t y,const
     MenuCensus.depth--; MenuMirror.TextEnd(); return result;
 }
 // A window's contents drawn, as Window::Render would, with the mirror told they are being drawn
+static void __cdecl MirrorInput(MSG message) {
+    if (MirrorBlock.Supported & MIRROR_SUPPORTED_MOUSE) {
+        RECT client;
+        if (MirrorMouseMessage(message.message) && GetClientRect(message.hwnd,&client))
+            if (MirrorMapMessage(MirrorBlock,message,client.right-client.left,client.bottom-client.top)) MirrorMapped++;
+    }
+    reinterpret_cast<void(__cdecl*)(MSG)>(InputDetour.trampoline)(message);
+}
 static void __fastcall MirrorContent(void* owner,void*) {
     void* draw=(*static_cast<void***>(owner))[4];
     MenuMirror.Phase(MIRROR_CONTENT);

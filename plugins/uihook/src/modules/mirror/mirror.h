@@ -1,6 +1,6 @@
 // The menu mirror: a window of the game's, named by an addon, keeps working as it is (its input, its
 // cursor, its hit-tests the game's own), while what it draws is measured and, if the addon asks, left
-// undrawn; the addon draws its own from what the game would have. Independent mirror ABI 4.
+// undrawn; the addon draws its own from what the game would have. Independent mirror ABI 5.
 //
 // Window::Render draws a window in three parts: its frame, then its contents through its owner's
 // vtable +10, then the cursor, row highlight and scrollbar. The one call to the contents is taken
@@ -28,6 +28,7 @@
 #define MIRROR_TEXT 32768
 #define MIRROR_RUN_BYTES 255
 #define MIRROR_REQUEST_FRAMES 4 // a request holds this many frames after the addon last renewed it
+#define MIRROR_MOUSE 16    // menus an addon may say it draws somewhere else, for the mouse (mouse.h)
 
 // What a draw belonged to. An element is one of the window's own sprites, drawn by Window::Render before the
 // contents from its list of elements: the labels of a menu whose words are pictures (the main menu, the command
@@ -35,6 +36,8 @@
 enum MirrorPhase : uint32_t { MIRROR_FRAME, MIRROR_CONTENT, MIRROR_CURSOR, MIRROR_ELEMENT, MIRROR_SCROLL, MIRROR_AFTER };
 // Window flags: its cursor shown (+62), it focused (+63), it left undrawn, its contents drawn this frame
 enum : uint32_t { MIRROR_HAS_CURSOR=1, MIRROR_FOCUSED=2, MIRROR_HIDDEN=4, MIRROR_DREW_CONTENT=8 };
+// Supported: the menus' drawing found and taken; the game's mouse handler too, so Mouse is heard
+enum : uint32_t { MIRROR_SUPPORTED=1, MIRROR_SUPPORTED_MOUSE=2 };
 
 struct MirrorRun {      // a piece of text as the game printed it
     float Rect[4];      // measured from its glyphs, normalized; all zero where nothing was measured
@@ -77,13 +80,19 @@ struct MirrorShared {
     // game draws them all again.
     volatile uint32_t RequestFrame, Hide[MIRROR_REQUESTS/32];
     char Requests[MIRROR_REQUESTS][16];
+    // Written by the addon: each menu it draws somewhere else or larger, where it is drawn (left, top, right,
+    // bottom) then where the game's own is (the same), normalized; MouseFrame (the block's Frame) the commit. A
+    // mouse message on one drawn is given to the game at the same place on its own; MIRROR_REQUEST_FRAMES after
+    // the last, none is.
+    volatile uint32_t MouseFrame, MouseCount;
+    float Mouse[MIRROR_MOUSE][8];
     // Written by uihook as each frame is presented: what the requested windows drew in it
     uint32_t Serial, Dropped; // Serial moves with each frame published; Dropped counts runs, quads or text that did not fit
     MirrorFrameData Published;
 };
 
 static_assert(sizeof(MirrorRun)==44 && sizeof(MirrorQuad)==48 && sizeof(MirrorWindow)==132,"mirror ABI");
-static_assert(sizeof(MirrorFrameData)==82004 && sizeof(MirrorShared)==84112,"mirror ABI");
+static_assert(sizeof(MirrorFrameData)==82004 && sizeof(MirrorShared)==84632,"mirror ABI");
 
 class Mirror {
     MirrorFrameData building{};
