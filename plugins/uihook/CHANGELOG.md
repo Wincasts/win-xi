@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.30
+
+- A draw wholly outside a moved menu's frame is left where the game put it: the inventory's item count is
+  drawn by the inventory but up in the menu name's bar, and went with it. A menu is grown from its frame's
+  corner, not from everything it draws. The status counts the draws kept back.
+
 ## 1.29
 
 - `/uihook native move` moves a menu's drawing, not its layout: every screen-space draw made while the window is
