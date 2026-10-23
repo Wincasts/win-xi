@@ -14,15 +14,9 @@ int main() {
     int dimensions[2]={1280,960}; int16_t original[2]={100,200},out[2]={};
     Check(NativeOffset(original,false,dimensions,30,-40,out) && out[0]==130 && out[1]==160,"a raw window moved by pixels");
     Check(NativeOffset(original,true,dimensions,30,-40,out) && out[0]==115 && out[1]==180,"a scaled one by pixels in 640x480 units");
-    Check(!NativeOffset(original,false,dimensions,-101,0,out),"not past the units' range");
+    Check(NativeOffset(original,false,dimensions,-150,-300,out) && out[0]==0 && out[1]==0,"kept from going past the top and left");
+    Check(!NativeOffset(original,false,dimensions,40000,0,out),"not past the units' range");
     int bad[2]={0,0}; Check(!NativeOffset(original,true,bad,1,1,out),"no menu manager dimensions, no scaled move");
-    // the tint, the game's colours multiplied
-    Check(NativeTint(0x80808080,0xffffffff)==0x80808080,"white leaves the game's colour");
-    Check(NativeTint(0x80808080,0xff808080)==0x80404040,"half the colour, the alpha kept");
-    Check(NativeTint(0x80808080,0x80ffffff)==0x40808080,"half the alpha");
-    struct V { float x,y,z,w; uint32_t colour; float u,v; } vertices[2]={{0,0,0,1,0x80808080,0,0},{1,1,0,1,0x40404040,1,1}};
-    Check(NativeTintVertices(vertices,2,sizeof(V),16,0xff00ff00) && vertices[0].colour==0x80008000 && vertices[1].colour==0x40004000,"each vertex's diffuse tinted");
-    Check(!NativeTintVertices(vertices,2,16,16,0xffffffff),"a stride without a colour refused");
     char name[16]; Check(NativeName("iuse",name) && !memcmp(name,"menu    iuse    ",16),"a name padded as the game keeps it");
     Check(!NativeName("toolongname",name) && !NativeName("",name),"too long or empty refused");
 

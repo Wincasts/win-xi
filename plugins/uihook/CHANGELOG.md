@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.27
+
+- The tint is a second texture stage after the game's own, multiplying what it made by the colour (the
+  texture factor), set for the frame's draws alone and put back after each. 1.25 multiplied the vertices'
+  colours, which the game's frames do not take: 2808 draws were tinted and nothing showed. Not where the
+  game uses that stage or a pixel shader (counted refused). The status gives the game's first stage too.
+- A move past the top or left edge is kept at the edge rather than refused: the inventory's layout starts 48
+  down, so a move up 100 was refused as off the range.
+
 ## 1.26
 
 - `/uihook native` says, for each menu, when a window of its name was last drawn, why it was not moved

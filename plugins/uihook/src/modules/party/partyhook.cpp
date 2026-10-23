@@ -307,23 +307,40 @@ class PartyHook : public IPlugin {
         if (!why) NativeMenus.Before(window,header,data,dimensions,Shared.Frame);
         return NativeMenus.Enter(name);
     }
-    // A draw of a tinted window's frame: its vertices copied, their colours tinted, drawn in its place
+    // A draw of a tinted window's frame: drawn with a second texture stage multiplying the game's own result by the
+    // tint, then the stage and the texture factor put back. Not where the game uses that stage, or a pixel shader.
     bool TintFrame(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
         uint32_t colour=0;
-        // an indexed draw's vertices are min to min + vertices
-        const UINT used=min+vertices;
-        if (!NativeMenus.Tinting(colour) || !data || !vertices || used>4096) return false;
-        auto* device=core->GetDirect3DDevice(); DWORD shader=0;
+        if (!NativeMenus.Tinting(colour) || !data || !vertices) return false;
         NativeEntry* e=NativeMenus.current;
-        if (!device || FAILED(device->GetVertexShader(&shader)) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW
-            || !(shader & D3DFVF_DIFFUSE) || stride<20) { e->refused++; e->lastFormat=shader; return false; }
-        scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
-        if (!NativeTintVertices(scaledVertices.data(),used,stride,16,colour)) { e->refused++; return false; }
+        auto* device=core->GetDirect3DDevice(); DWORD shader=0,pixel=0;
+        if (!device || FAILED(device->GetVertexShader(&shader)) || FAILED(device->GetPixelShader(&pixel)) || pixel) { e->refused++; return false; }
+        e->lastFormat=shader;
+        DWORD first[3]={};
+        device->GetTextureStageState(0,D3DTSS_COLOROP,&first[0]);
+        device->GetTextureStageState(0,D3DTSS_COLORARG1,&first[1]);
+        device->GetTextureStageState(0,D3DTSS_COLORARG2,&first[2]);
+        for (unsigned i=0;i<3;i++) e->stage[i]=first[i];
+        DWORD saved[6]={},factor=0;
+        static const D3DTEXTURESTAGESTATETYPE kinds[6]={D3DTSS_COLOROP,D3DTSS_COLORARG1,D3DTSS_COLORARG2,D3DTSS_ALPHAOP,D3DTSS_ALPHAARG1,D3DTSS_ALPHAARG2};
+        for (unsigned i=0;i<6;i++) device->GetTextureStageState(1,kinds[i],&saved[i]);
+        if (saved[0]!=D3DTOP_DISABLE || FAILED(device->GetRenderState(D3DRS_TEXTUREFACTOR,&factor))) { e->refused++; return false; }
+        IDirect3DBaseTexture8* texture=nullptr; device->GetTexture(1,&texture);
+        device->SetTexture(1,nullptr);
+        device->SetRenderState(D3DRS_TEXTUREFACTOR,colour);
+        static const DWORD tint[6]={D3DTOP_MODULATE,D3DTA_CURRENT,D3DTA_TFACTOR,D3DTOP_MODULATE,D3DTA_CURRENT,D3DTA_TFACTOR};
+        for (unsigned i=0;i<6;i++) device->SetTextureStageState(1,kinds[i],tint[i]);
+        DWORD third=D3DTOP_DISABLE; device->GetTextureStageState(2,D3DTSS_COLOROP,&third);
+        device->SetTextureStageState(2,D3DTSS_COLOROP,D3DTOP_DISABLE);
         scaling=true;
-        const bool ok=indices ? SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,scaledVertices.data(),stride))
-            : SUCCEEDED(device->DrawPrimitiveUP(t,count,scaledVertices.data(),stride));
+        const bool ok=indices ? SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,data,stride))
+            : SUCCEEDED(device->DrawPrimitiveUP(t,count,data,stride));
         scaling=false;
-        if (ok) { e->tinted++; e->lastFormat=shader; } else e->refused++;
+        device->SetTextureStageState(2,D3DTSS_COLOROP,third);
+        for (unsigned i=0;i<6;i++) device->SetTextureStageState(1,kinds[i],saved[i]);
+        device->SetRenderState(D3DRS_TEXTUREFACTOR,factor);
+        device->SetTexture(1,texture); if (texture) texture->Release();
+        if (ok) e->tinted++; else e->refused++;
         return ok;
     }
     // Every window moved and drawn in the last frame put back, as uihook is unloaded (one not drawn since may be gone)
@@ -361,10 +378,11 @@ class PartyHook : public IPlugin {
                 char seen[48];
                 if (!e.seen) snprintf(seen,sizeof(seen),"not drawn since asked");
                 else snprintf(seen,sizeof(seen),"drawn %u frames ago",Shared.Frame-e.seen);
-                snprintf(line,sizeof(line),"  %.8s: %s; move %s %d,%d (%s), tint %s %08X (frame draws %u tinted, %u refused, format %X)",
+                snprintf(line,sizeof(line),"  %.8s: %s; move %s %d,%d (%s), tint %s %08X (frame draws %u tinted, %u refused, format %X, stage %u %X %X)",
                     e.name+8,seen,e.move ? "on" : "off",e.dx,e.dy,
                     e.moved ? (Shared.Frame-e.frame<=2 ? "drawn there now" : "moved, not drawn lately") : e.why ? e.why : "not moved",
-                    e.tint ? "on" : "off",e.colour,e.tinted,e.refused,static_cast<unsigned>(e.lastFormat));
+                    e.tint ? "on" : "off",e.colour,e.tinted,e.refused,static_cast<unsigned>(e.lastFormat),
+                    static_cast<unsigned>(e.stage[0]),static_cast<unsigned>(e.stage[1]),static_cast<unsigned>(e.stage[2]));
                 chat->Write(0,false,line);
             }
             return;
