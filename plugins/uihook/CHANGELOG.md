@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.48
+
+- A skin's pictures are made with every level down to a texel (each the one above halved, colours weighted by
+  their alpha), and drawn with stage 0's filters linear, its levels between, put back after: a picture made larger
+  than it is drawn (for a larger Menu Scale) shrinks smoothly, and the menus stay crisp scaled up to its size.
+
 ## 1.47
 
 - `/uihook native size <factor> [quiet]` (0.5 to 3): every window with a frame drawn that much larger or smaller,
