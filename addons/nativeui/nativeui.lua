@@ -1,6 +1,6 @@
 addon.name    = 'nativeui'
 addon.author  = 'win'
-addon.version = '0.3'
+addon.version = '0.4'
 addon.desc    = 'The game\'s own interface in a uihook skin, and the menus it stacks over the chat log moved where you want them.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -15,11 +15,14 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- (/uihook native group). Only their drawing is moved: the controller works them as ever, but the mouse clicks
 -- where the game put them.
 --
+-- Menu Scale: every framed window of the game's drawn this much larger, each from its quarter's corner of the
+-- screen so they keep their places to each other: the bar across the top from its ends, the menus over the chat
+-- log from its top left (/uihook native size).
 -- Sides: the bar across the top that many pixels shorter at each end, staying centred, and every window on either
 -- half of the screen moved in with it, keeping their size and their places to each other (/uihook native inset).
 -- The chat log and the menus stacked on it stay where they are.
 --
--- Needs uihook 1.40 or newer.
+-- Needs uihook 1.47 or newer.
 
 local winxiNeeded = 41
 do
@@ -41,17 +44,19 @@ local shell = require('winxi.shell')
 local NONE = 'None'
 local OFFSET_LIMIT = 4000   -- pixels either way
 local INSET_LIMIT = 800     -- pixels in from each side, at most
+local SCALE_LOW, SCALE_HIGH = 0.75, 2
 
 local defaults = T{
     skin = 'winxi',          -- a folder of config\uihook\skins, or None
     offset = T{ 0, 0 },      -- the menus over the chat log: pixels right and down from where the game puts them
     inset = T{ 0 },          -- the sides brought in, pixels at each
+    scale = T{ 1 },          -- every framed window drawn this much larger
 }
 
 local app
 -- What uihook was last given: sent again only as it changes, and all of it once the game draws (uihook may load
 -- after this, and a skin needs the game's device)
-local sent = { skin = nil, offset = nil, inset = nil }
+local sent = { skin = nil, offset = nil, inset = nil, scale = nil }
 
 local function Uihook()
     local ok, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('uihook') end)
@@ -79,7 +84,7 @@ local uihookWas = false
 local function Apply(force)
     local options = app and app.options
     local loaded = Uihook()
-    if loaded and not uihookWas then sent.skin, sent.offset, sent.inset = nil, nil, nil end
+    if loaded and not uihookWas then sent.skin, sent.offset, sent.inset, sent.scale = nil, nil, nil, nil end
     uihookWas = loaded
     if not options or not loaded then return end
     local skin = options.skin
@@ -92,6 +97,11 @@ local function Apply(force)
     if force or sent.offset ~= offset then
         Send((x == 0 and y == 0) and '/uihook native group off quiet' or ('/uihook native group %d %d quiet'):format(x, y))
         sent.offset = offset
+    end
+    local scale = ('%.2f'):format(options.scale[1])
+    if force or sent.scale ~= scale then
+        Send(('/uihook native size %s quiet'):format(scale))
+        sent.scale = scale
     end
     local inset = options.inset[1]
     if force or sent.inset ~= inset then
@@ -127,8 +137,12 @@ local function DrawSettings(options)
         if imgui.Button('Reload##nativeui.reload') and options.skin ~= NONE and Uihook() then Send('/uihook skin reload') end
         tooltip.Hover('The skin\'s pictures read again, after they have been changed.')
     end
-    if widgets.Header('Sides') then
+    if widgets.Header('Screen') then
         widgets.PushControlWidth()
+        widgets.Label('Menu Scale')
+        if imgui.SliderFloat('##nativeui.scale', options.scale, SCALE_LOW, SCALE_HIGH, '%.2fx') then Apply() end
+        if imgui.IsItemDeactivatedAfterEdit() then app:Save() end
+        tooltip.Hover('Every window of the game\'s with a frame drawn this much larger, each from its corner of the screen so they keep their places to each other: the bar across the top from its ends, the menus over the chat log from its top left. The chat log stays as chatbox places it. Only the drawing grows: the mouse clicks where the game put them.')
         widgets.Label('Bring Sides In')
         if imgui.SliderInt('##nativeui.inset', options.inset, 0, INSET_LIMIT, '%d px') then Apply() end
         if imgui.IsItemDeactivatedAfterEdit() then app:Save() end
@@ -168,10 +182,12 @@ local function Complete(options)
         local v = tonumber(options.offset[i]) or 0
         options.offset[i] = math.max(-OFFSET_LIMIT, math.min(OFFSET_LIMIT, math.floor(v + 0.5)))
     end
+    if type(options.scale) ~= 'table' or type(options.scale[1]) ~= 'number' then options.scale = T{ 1 } end
+    options.scale[1] = math.max(SCALE_LOW, math.min(SCALE_HIGH, options.scale[1]))
     if type(options.inset) ~= 'table' then options.inset = T{ 0 } end
     options.inset[1] = math.max(0, math.min(INSET_LIMIT, math.floor((tonumber(options.inset[1]) or 0) + 0.5)))
     -- another character's settings: all of it given again
-    sent.skin, sent.offset, sent.inset = nil, nil, nil
+    sent.skin, sent.offset, sent.inset, sent.scale = nil, nil, nil, nil
 end
 
 app = shell.New({
@@ -193,4 +209,5 @@ end)
 ashita.events.register('unload', 'nativeui_unload', function()
     if Uihook() and sent.offset and sent.offset ~= '0,0' then Send('/uihook native group off quiet') end
     if Uihook() and sent.inset and sent.inset ~= 0 then Send('/uihook native inset 0 quiet') end
+    if Uihook() and sent.scale and sent.scale ~= '1.00' then Send('/uihook native size 1 quiet') end
 end)

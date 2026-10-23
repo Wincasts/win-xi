@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4
+
+- Screen (was Sides): Menu Scale, 0.75 to 2, every framed window of the game's drawn that much larger, each from
+  its quarter's corner of the screen, the bar from its ends and the menus over the chat log from its top left
+  (uihook 1.47's `/uihook native size`). Bring Sides In with it.
+
 ## 0.3
 
 - uihook unloaded and loaded again is given the skin, the menus' offset and the sides again: it had none of them
