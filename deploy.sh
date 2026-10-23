@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Moves addons between this project folder and the live Ashita install.
+# Moves addons, plugins and uihook's skins between this project folder and the live Ashita install.
 #
 #   ./deploy.sh [flags] status            every addon here, and how it differs from live
 #   ./deploy.sh [flags] diff <addon>      the files that differ, and their changes line by line
@@ -14,7 +14,11 @@
 #   ./deploy.sh -a push       push everything that has changed: listed, then pushed, with no question
 #
 # A shared library under addons/libs is named with its folder: ./deploy.sh push libs/winxi
-# With -a, libraries are pushed before the addons that use them.
+# A plugin is named plugins/<name>: its build, plugins/<name>/build/<name>.dll, to the live plugins/<name>.dll
+# (./deploy.sh push plugins/uihook). With -a, only the plugins live already has: a new one is pushed by name.
+# A uihook skin is named skins/<name>: plugins/uihook/build/skins/<name>/ (as tools/uihook_skin.py makes it) to the
+# live config/uihook/skins/<name>/ (./deploy.sh push skins/winxi).
+# With -a, libraries are pushed first, then plugins and skins, then the addons.
 #
 # Addons are looked for in addons/, then in forks/addons/ (other people's addons with changes of ours).
 #
@@ -31,6 +35,15 @@ LIVE="${ASHITA_LIVE:-$HOME/Games/PhoenixXI}"
 BACKUPS="${DEPLOY_BACKUPS:-$PROJECT/deploy-backups}"
 # Repository and build leftovers that have no business in a live addon folder
 EXCLUDES=(--exclude=.git/ --exclude=.github/ --exclude=.gitignore --exclude=__pycache__/ --exclude='*.pyc')
+# What of a folder a name moves: an addon, library or skin all of it; a plugin its .dll alone (its build folder and
+# the live plugins folder hold others')
+filters() {
+    if [[ "$1" == plugins/?* ]]; then
+        echo "--include=${1#plugins/}.dll --exclude=*"
+    else
+        echo "${EXCLUDES[*]}"
+    fi
+}
 
 die() { echo "deploy: $*" >&2; exit 1; }
 
@@ -41,6 +54,17 @@ ADDON_ROOTS=("$PROJECT/addons" "$PROJECT/forks/addons")
 # kept a level down beside its other material. It is the one with <name>.lua in it.
 source_dir() {
     local name="$1" root
+    # a plugin's build folder, with its .dll in it
+    if [[ "$name" == plugins/?* ]]; then
+        local plugin="${name#plugins/}"
+        [[ -f "$PROJECT/plugins/$plugin/build/$plugin.dll" ]] && { echo "$PROJECT/plugins/$plugin/build"; return 0; }
+        return 1
+    fi
+    # a uihook skin, as tools/uihook_skin.py makes it
+    if [[ "$name" == skins/?* ]]; then
+        [[ -d "$PROJECT/plugins/uihook/build/$name" ]] && { echo "$PROJECT/plugins/uihook/build/$name"; return 0; }
+        return 1
+    fi
     # a shared library is its whole folder
     if [[ "$name" == libs/?* && -d "$PROJECT/addons/$name" ]]; then
         echo "$PROJECT/addons/$name"
@@ -58,30 +82,48 @@ source_dir() {
     return 1
 }
 
-live_dir() { echo "$LIVE/addons/$1"; }
+live_dir() {
+    case "$1" in
+        plugins/?*) echo "$LIVE/plugins" ;;
+        skins/?*)   echo "$LIVE/config/uihook/$1" ;;
+        *)          echo "$LIVE/addons/$1" ;;
+    esac
+}
 
 # Files that a copy from $1 to $2 would add or replace, one per line: "new <path>" or "changed <path>"
 pending() {
-    rsync -rcn --itemize-changes "${EXCLUDES[@]}" "$1/" "$2/" 2>/dev/null |
+    local name="${3:-}" f
+    read -r -a f <<< "$(filters "$name")"
+    rsync -rcn --itemize-changes "${f[@]}" "$1/" "$2/" 2>/dev/null |
         awk '$1 ~ /^>f\+/ { $1 = ""; print "new    " substr($0, 2); next }
              $1 ~ /^>f/   { $1 = ""; print "changed" substr($0, 1) }'
 }
 
 # Files in $2 that $1 does not have
 only_in() {
-    rsync -rn --itemize-changes --ignore-existing "${EXCLUDES[@]}" "$2/" "$1/" 2>/dev/null |
+    local name="${3:-}" f
+    read -r -a f <<< "$(filters "$name")"
+    rsync -rn --itemize-changes --ignore-existing "${f[@]}" "$2/" "$1/" 2>/dev/null |
         awk '$1 ~ /^>f/ { $1 = ""; print substr($0, 2) }'
 }
 
 need_addon() {
     [[ $# -ge 1 && -n "$1" ]] || die "which addon? (see: ./deploy.sh status)"
-    SRC="$(source_dir "$1")" || die "no addon '$1' in addons/ or forks/addons/ (looked for $1.lua)"
+    case "$1" in
+        plugins/?*) SRC="$(source_dir "$1")" || die "no build of '${1#plugins/}' (looked for plugins/${1#plugins/}/build/${1#plugins/}.dll: run its build.sh)" ;;
+        skins/?*)   SRC="$(source_dir "$1")" || die "no skin '${1#skins/}' (looked for plugins/uihook/build/$1: make it with tools/uihook_skin.py)" ;;
+        *)          SRC="$(source_dir "$1")" || die "no addon '$1' in addons/ or forks/addons/ (looked for $1.lua)" ;;
+    esac
     DST="$(live_dir "$1")"
 }
 
 # What to do in game for a change to take effect
 reload_hint() {
-    if [[ "$1" == libs/* ]]; then
+    if [[ "$1" == plugins/* ]]; then
+        echo "In game: /unload ${1#plugins/} then /load ${1#plugins/} (or start the game again)"
+    elif [[ "$1" == skins/* ]]; then
+        echo "In game: Reload in /nativeui (or /uihook skin reload)"
+    elif [[ "$1" == libs/* ]]; then
         echo "In game: reload each addon that uses ${1#libs/} (/addon reload <addon>)"
     else
         echo "In game: /addon reload $1"
@@ -111,6 +153,15 @@ all_names() {
     for dir in "$PROJECT"/addons/libs/*/; do
         [[ -d "$dir" ]] && echo "libs/$(basename "$dir")"
     done
+    # the plugins built here that live has (a new one only by name), then the skins made
+    for dir in "$PROJECT"/plugins/*/; do
+        local plugin; plugin="$(basename "$dir")"
+        [[ "$plugin" == exclude ]] && continue
+        [[ -f "$dir/build/$plugin.dll" && -f "$LIVE/plugins/$plugin.dll" ]] && echo "plugins/$plugin"
+    done
+    for dir in "$PROJECT"/plugins/uihook/build/skins/*/; do
+        [[ -d "$dir" ]] && echo "skins/$(basename "$dir")"
+    done
     for dir in "$PROJECT"/addons/*/ "$PROJECT"/forks/addons/*/; do
         [[ "$(basename "$dir")" == libs ]] && continue
         [[ -d "$dir" ]] && basename "$dir"
@@ -123,7 +174,7 @@ changed_names() {
     local name src
     while read -r name; do
         src="$(source_dir "$name")" || continue
-        [[ -n "$(pending "$src" "$(live_dir "$name")")" ]] && echo "$name"
+        [[ -n "$(pending "$src" "$(live_dir "$name")" "$name")" ]] && echo "$name"
     done < <(all_names)
     return 0
 }
@@ -135,12 +186,12 @@ cmd_status() {
     while read -r name; do
         src="$(source_dir "$name")" || { printf '%-16s %s\n' "$name" "(no $name.lua here: not an addon, skipped)"; continue; }
         dst="$(live_dir "$name")"
-        if [[ ! -d "$dst" ]]; then
+        if [[ ! -d "$dst" || ( "$name" == plugins/* && ! -f "$dst/${name#plugins/}.dll" ) ]]; then
             printf '%-16s %s\n' "$name" "not in live yet"
             continue
         fi
-        changes="$(pending "$src" "$dst" | wc -l)"
-        extra="$(only_in "$src" "$dst" | wc -l)"
+        changes="$(pending "$src" "$dst" "$name" | wc -l)"
+        extra="$(only_in "$src" "$dst" "$name" | wc -l)"
         if [[ "$changes" -eq 0 ]]; then
             printf '%-16s %s' "$name" "same as live"
         else
@@ -170,7 +221,7 @@ cmd_diff() {
     [[ -d "$DST" ]] || { echo "$1 is not in live yet: a push would add all of it."; return; }
 
     local list
-    list="$(pending "$SRC" "$DST")"
+    list="$(pending "$SRC" "$DST" "$1")"
     if [[ -z "$list" ]]; then
         echo "$1: project and live are the same."
     else
@@ -188,7 +239,7 @@ cmd_diff() {
     fi
 
     local extra
-    extra="$(only_in "$SRC" "$DST")"
+    extra="$(only_in "$SRC" "$DST" "$1")"
     if [[ -n "$extra" ]]; then
         echo
         echo "Only in live (never touched by a push):"
@@ -206,7 +257,8 @@ do_push() {
     stamp="$(date +%Y%m%d-%H%M%S)"
     backup="$BACKUPS/$name/$stamp"
     mkdir -p "$backup" "$dst"
-    rsync -rc --times --backup --backup-dir="$backup" "${EXCLUDES[@]}" "$src/" "$dst/"
+    local f; read -r -a f <<< "$(filters "$name")"
+    rsync -rc --times --backup --backup-dir="$backup" "${f[@]}" "$src/" "$dst/"
 
     # what was newly added, so that a rollback can say so
     echo "$list" | awk '$1 == "new" { $1 = ""; print substr($0, 2) }' > "$backup/.added"
@@ -219,7 +271,7 @@ cmd_push() {
     [[ -d "$LIVE/addons" ]] || die "live install not found at $LIVE (set ASHITA_LIVE to change it)"
 
     local list
-    list="$(pending "$SRC" "$DST")"
+    list="$(pending "$SRC" "$DST" "$1")"
     if [[ -z "$list" ]]; then
         echo "$1: nothing to push, live already matches."
         return
@@ -247,13 +299,13 @@ cmd_push_all() {
 
     while read -r name; do
         echo "$name: about to copy into $(live_dir "$name")"
-        pending "$(source_dir "$name")" "$(live_dir "$name")" | sed 's/^/  /'
+        pending "$(source_dir "$name")" "$(live_dir "$name")" "$name" | sed 's/^/  /'
     done <<< "$names"
     echo
 
     local addons=()
     while read -r name; do
-        do_push "$name" "$(pending "$(source_dir "$name")" "$(live_dir "$name")")"
+        do_push "$name" "$(pending "$(source_dir "$name")" "$(live_dir "$name")" "$name")"
         [[ "$name" != libs/* ]] && addons+=("$name")
     done <<< "$names"
 
@@ -262,7 +314,7 @@ cmd_push_all() {
         echo "A library changed: in game, reload every addon that uses it."
     fi
     for name in "${addons[@]+"${addons[@]}"}"; do
-        echo "In game: /addon reload $name"
+        reload_hint "$name"
     done
 }
 
@@ -290,11 +342,15 @@ cmd_pull() {
     [[ $# -ge 1 && -n "$1" ]] || die "which addon?"
     local name="$1" src dst
     src="$(live_dir "$name")"
-    [[ -d "$src" ]] || die "no addon '$name' in $LIVE/addons"
-    dst="$(source_dir "$name" 2>/dev/null || echo "$PROJECT/addons/$name")"
+    [[ -d "$src" ]] || die "no '$name' in $LIVE"
+    case "$name" in
+        plugins/?*) dst="$PROJECT/plugins/${name#plugins/}/build" ;;
+        skins/?*)   dst="$PROJECT/plugins/uihook/build/$name" ;;
+        *)          dst="$(source_dir "$name" 2>/dev/null || echo "$PROJECT/addons/$name")" ;;
+    esac
 
     local list
-    list="$(pending "$src" "$dst")"
+    list="$(pending "$src" "$dst" "$name")"
     if [[ -z "$list" ]]; then
         echo "$name: the project copy already has everything live has."
         return
@@ -306,11 +362,12 @@ cmd_pull() {
     confirm "Pull these into the project?" || { echo "Nothing was changed."; return; }
 
     mkdir -p "$dst"
-    rsync -rc --times "${EXCLUDES[@]}" "$src/" "$dst/"
+    local f; read -r -a f <<< "$(filters "$name")"
+    rsync -rc --times "${f[@]}" "$src/" "$dst/"
     echo "Pulled."
 }
 
-usage() { sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 # Flags come first, before the command: ./deploy.sh -y -a push
 ASSUME_YES=0
