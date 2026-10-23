@@ -26,6 +26,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <vector>
+#include <cmath>
 #include "../mirror/textures.h"
 
 #define SKIN_POINTERS 4096
@@ -33,9 +34,13 @@
 
 struct SkinColour { uint32_t from=SKIN_ANY, to=0; bool alpha=false; };    // RGB, or SKIN_ANY for every colour; alpha: to's own, not the game's
 
+// One size of a picture: tex-<hash>.png is the game's size, tex-<hash>@<factor>.png that many times it
+struct SkinSize { float factor=1; uint32_t width=0, height=0; void* texture=nullptr; };
+
 struct SkinTexture {
     uint32_t hash=0, width=0, height=0;
-    void* texture=nullptr;      // the picture as a texture, the device's to draw with
+    void* texture=nullptr;      // the picture as a texture, the device's to draw with (its first size)
+    std::vector<SkinSize> sizes;   // every size of it, smallest first
     uint32_t drawn=0;           // draws made with it in the game's place
     unsigned matched=0;         // game textures found with its pixels
     std::vector<SkinColour> colours;
@@ -99,8 +104,35 @@ public:
         return -1;
     }
     bool Ours(uintptr_t texture) const {
-        for (auto& t:textures) if (reinterpret_cast<uintptr_t>(t.texture)==texture) return true;
+        for (auto& t:textures) {
+            if (reinterpret_cast<uintptr_t>(t.texture)==texture) return true;
+            for (auto& z:t.sizes) if (reinterpret_cast<uintptr_t>(z.texture)==texture) return true;
+        }
         return false;
+    }
+    // A size of a picture: kept smallest first, the first its texture
+    static void AddSize(SkinTexture& t,const SkinSize& size) {
+        auto at=t.sizes.begin();
+        while (at!=t.sizes.end() && at->factor<size.factor) ++at;
+        t.sizes.insert(at,size);
+        t.texture=t.sizes.front().texture; t.width=t.sizes.front().width; t.height=t.sizes.front().height;
+    }
+    // The size to draw with where a texel of its first size covers pixels pixels on the screen, and how: a size whose
+    // texels are the pixels (density, texels a pixel, within 3% of 1) unfiltered (exact), crisp, nothing of a
+    // neighbour's in the texture blurred into a piece's edge (the frame, the buttons); else the smallest at least
+    // about twice as fine (1.9), filtered without its levels (levels: false), which is how the menu font, drawn at
+    // half its texture, is sharpest (a size a texel to 1.05 pixels came out unevenly spaced, and the levels
+    // between, at twice as fine, blurred); the levels only for one shrunk further than 2.6 times, or the largest
+    static const SkinSize* Choose(const SkinTexture& t,float pixels,bool& exact,bool* levels=nullptr) {
+        exact=false;
+        if (levels) *levels=false;
+        if (t.sizes.empty()) return nullptr;
+        auto density=[&](const SkinSize& z) { return pixels>0 ? z.factor/t.sizes.front().factor/pixels : 1.0f; };
+        for (auto& z:t.sizes) if (fabsf(density(z)-1)<0.03f) { exact=true; return &z; }
+        const SkinSize* best=&t.sizes.back();
+        for (auto& z:t.sizes) if (density(z)>=1.9f) { best=&z; break; }
+        if (levels) *levels=density(*best)>2.6f;
+        return best;
     }
     // The skin's picture for a game texture, or -1. read(hash&) gives its pixels' hash, false where it cannot be read;
     // called only for a pointer not seen lately.
@@ -122,12 +154,15 @@ public:
     // Every texture forgotten; textures come back for the caller to release
     std::vector<void*> Clear() {
         std::vector<void*> held;
-        for (auto& t:textures) if (t.texture) held.push_back(t.texture);
+        for (auto& t:textures) {
+            for (auto& z:t.sizes) if (z.texture) held.push_back(z.texture);
+            if (t.sizes.empty() && t.texture) held.push_back(t.texture);
+        }
         textures.clear(); pointers.clear(); read=0;
         return held;
     }
-    // A picture's name, tex-<eight hex digits>.png or .bmp, as its hash; false for any other
-    static bool FileHash(const char* file,uint32_t& hash) {
+    // A picture's name, tex-<eight hex digits>[@<factor>].png or .bmp, as its hash and size (1 without); false for any other
+    static bool FileHash(const char* file,uint32_t& hash,float* factor=nullptr) {
         if (_strnicmp(file,"tex-",4)) return false;
         hash=0;
         for (int i=0;i<8;i++) {
@@ -135,7 +170,14 @@ public:
             if (c>='0' && c<='9') v=uint32_t(c-'0'); else if (c>='a' && c<='f') v=uint32_t(c-'a'+10); else if (c>='A' && c<='F') v=uint32_t(c-'A'+10); else return false;
             hash=hash<<4 | v;
         }
-        return !_stricmp(file+12,".png") || !_stricmp(file+12,".bmp");
+        const char* rest=file+12; float f=1;
+        if (*rest=='@') {
+            char* end=nullptr; f=strtof(rest+1,&end);
+            if (!end || end==rest+1 || !(f>=0.25f && f<=8)) return false;
+            rest=end;
+        }
+        if (factor) *factor=f;
+        return !_stricmp(rest,".png") || !_stricmp(rest,".bmp");
     }
 private:
     template<class Read> int32_t Known(Read readHash) {

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.49
+
+- A skin's picture may come in sizes, `tex-<hash>@<factor>.png` beside `tex-<hash>.png` (the game's size). Each draw
+  is measured (how many pixels a texel covers, as its window is scaled) and drawn with a size whose texels are its
+  pixels, unfiltered: crisp, and nothing of a neighbour's blurred into a piece's edge (1.48's filtering drew a
+  line where two button bars meet). Where none is, with the smallest about twice as fine, filtered without its
+  levels: the menu font, drawn at half its texture, is sharpest so (1.48's levels between blurred it). The levels
+  only for one shrunk further than 2.6 times.
+
 ## 1.48
 
 - A skin's pictures are made with every level down to a texel (each the one above halved, colours weighted by

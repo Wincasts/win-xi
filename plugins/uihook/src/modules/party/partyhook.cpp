@@ -416,7 +416,9 @@ class PartyHook : public IPlugin {
     // drawn shrinks smoothly and one drawn larger is not blocky
     static constexpr D3DTEXTURESTAGESTATETYPE SkinFilters[3]={D3DTSS_MAGFILTER,D3DTSS_MINFILTER,D3DTSS_MIPFILTER};
     int32_t skinActive=-1;   // the skin's picture in stage 0 for the draw under way, for NativeDraw's colours, or -1
-    SkinSwap SkinBegin() {
+    // data, count, stride: the draw's vertices (from memory), to tell how large its texels are drawn; none from a
+    // vertex buffer, drawn with the size suiting the window's scale
+    SkinSwap SkinBegin(const void* data=nullptr,unsigned count=0,unsigned stride=0) {
         SkinSwap swap;
         if (!Skin.On()) return swap;
         auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
@@ -430,10 +432,35 @@ class PartyHook : public IPlugin {
             hash=TextureHash(pixels,desc.Width,desc.Height); return true;
         });
         if (swap.index<0) { swap.was->Release(); swap.was=nullptr; return swap; }
-        device->SetTexture(0,static_cast<IDirect3DBaseTexture8*>(Skin.textures[size_t(swap.index)].texture));
-        for (int i=0;i<3;i++) { device->GetTextureStageState(0,SkinFilters[i],&swap.filters[i]); device->SetTextureStageState(0,SkinFilters[i],D3DTEXF_LINEAR); }
+        const SkinTexture& t=Skin.textures[size_t(swap.index)];
+        bool exact=false,levels=false;
+        const SkinSize* size=SkinLook::Choose(t,SkinPixels(t,data,count,stride,fvf),exact,&levels);
+        device->SetTexture(0,static_cast<IDirect3DBaseTexture8*>(size ? size->texture : t.texture));
+        // a texel to a pixel: unfiltered, crisp; any other: filtered, with the levels between only where much smaller
+        const DWORD filter=exact ? DWORD(D3DTEXF_POINT) : DWORD(D3DTEXF_LINEAR);
+        const DWORD filters[3]={filter,filter,levels ? DWORD(D3DTEXF_LINEAR) : DWORD(D3DTEXF_NONE)};
+        for (int i=0;i<3;i++) { device->GetTextureStageState(0,SkinFilters[i],&swap.filters[i]); device->SetTextureStageState(0,SkinFilters[i],filters[i]); }
         skinActive=swap.index;
         return swap;
+    }
+    // How many pixels a texel of a picture's first size covers in this draw: along its first triangle's longer side
+    // on the screen, as the window is drawn (its scale); the window's scale alone where the vertices are not to hand
+    float SkinPixels(const SkinTexture& t,const void* data,unsigned count,unsigned stride,DWORD fvf) const {
+        const float k=NativeMenus.ScaleNow();
+        if (!data || count<3 || t.sizes.empty() || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return k;
+        unsigned at=16; if (fvf & D3DFVF_DIFFUSE) at+=4; if (fvf & D3DFVF_SPECULAR) at+=4;
+        if (((fvf & D3DFVF_TEXCOUNT_MASK)>>D3DFVF_TEXCOUNT_SHIFT)<1 || stride<at+8) return k;
+        const auto* bytes=static_cast<const uint8_t*>(data);
+        float lo[4]={1e9f,1e9f,1e9f,1e9f},hi[4]={-1e9f,-1e9f,-1e9f,-1e9f};
+        for (unsigned i=0;i<3;i++) {
+            float v[4]; memcpy(v,bytes+size_t(i)*stride,8); memcpy(v+2,bytes+size_t(i)*stride+at,8);
+            for (int j=0;j<4;j++) { lo[j]=(std::min)(lo[j],v[j]); hi[j]=(std::max)(hi[j],v[j]); }
+        }
+        const SkinSize& first=t.sizes.front();
+        const float dx=hi[0]-lo[0],dy=hi[1]-lo[1],du=(hi[2]-lo[2])*float(first.width),dv=(hi[3]-lo[3])*float(first.height);
+        if (dx>=dy && du>0.5f) return dx*k/du;
+        if (dv>0.5f) return dy*k/dv;
+        return k;
     }
     // A draw's vertices from memory with the colours the skin's skin.txt gives its picture, or as they were
     std::vector<uint8_t> skinVertices;
@@ -473,8 +500,12 @@ class PartyHook : public IPlugin {
         HANDLE find=FindFirstFileA((folder+"\\tex-*").c_str(),&found);
         if (find!=INVALID_HANDLE_VALUE) {
             do {
-                uint32_t hash=0;
-                if ((found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || !SkinLook::FileHash(found.cFileName,hash) || Skin.Find(hash)>=0) continue;
+                uint32_t hash=0; float factor=1;
+                if ((found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || !SkinLook::FileHash(found.cFileName,hash,&factor)) continue;
+                const int32_t had=Skin.Find(hash);
+                bool same=false;
+                if (had>=0) for (auto& z:Skin.textures[size_t(had)].sizes) same|=fabsf(z.factor-factor)<0.001f;
+                if (same) continue;
                 uint32_t width=0,height=0; std::vector<uint32_t> argb;
                 // every level down to a texel, each the one above halved (SkinHalve): a picture larger than it is drawn
                 // (made for a larger Menu Scale) shrinks smoothly, drawn with the levels between
@@ -490,8 +521,9 @@ class PartyHook : public IPlugin {
                     if (w>1 || h>1) SkinHalve(argb,w,h);
                 }
                 if (!filled) { texture->Release(); failed++; continue; }
-                SkinTexture t; t.hash=hash; t.width=width; t.height=height; t.texture=texture;
-                Skin.textures.push_back(t);
+                SkinSize size; size.factor=factor; size.width=width; size.height=height; size.texture=texture;
+                if (had>=0) SkinLook::AddSize(Skin.textures[size_t(had)],size);
+                else { SkinTexture t; t.hash=hash; SkinLook::AddSize(t,size); Skin.textures.push_back(t); }
             } while (FindNextFileA(find,&found));
             FindClose(find);
         }
@@ -897,7 +929,7 @@ public:
         if (MenuWatch.Inside()) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0); // our own scaled copy, on its way to the device
         Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
-        const SkinSwap skin=SkinBegin();
+        const SkinSwap skin=SkinBegin(data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride);
         const bool done=Block() || NativeDraw(t,0,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,count,nullptr,D3DFMT_UNKNOWN,data,stride)
             || ScaleIcon(t,count,data,stride);
         return SkinEnd(skin,done,[&](IDirect3DDevice8* d) {
@@ -911,7 +943,7 @@ public:
         if (MenuWatch.Inside()) WatchUp();
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
         Native(true,data,stride,vertices);
-        const SkinSwap skin=SkinBegin();
+        const SkinSwap skin=SkinBegin(data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr,vertices,stride);
         const bool done=Block() || NativeDraw(t,min,vertices,count,indices,format,data,stride) || ClockDraw(t,min,vertices,count,indices,format,data,stride);
         return SkinEnd(skin,done,[&](IDirect3DDevice8* d) {
             return d->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,SkinVertices(skin,data,min+vertices,stride),stride);

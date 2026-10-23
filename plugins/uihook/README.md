@@ -504,6 +504,11 @@ digits, `AARRGGBB`, sets their alpha too (1.36): the game fades its frame by its
 and its top and bottom 0x61, so a frame even all round sets one. Only for
 draws from memory; the status counts the draws recoloured.
 
+A picture may come in sizes (1.49): `tex-<hash>@<factor>.png` beside `tex-<hash>.png`, the game's size. Each draw is
+measured (how many pixels a texel covers, as its window is scaled) and drawn with a size a texel to a pixel,
+unfiltered; where none is, the smallest about twice as fine, filtered without its levels; its levels only for one
+shrunk further than 2.6 times.
+
 A game texture is known by its pixels (the census's hash), read the first time its pointer is seen in a
 screen-space draw, and again where it has not been seen for 120 frames. For a draw whose texture the skin has a
 picture for, stage 0 is given the picture, the draw made, and the game's texture put back; the census and the
@@ -520,8 +525,9 @@ and item boxes in the border's steel; the menu font (`30CDD9D4`'s large font, th
 and lists) in the theme's Font (`--font` for another, from the game's `C:\Windows\Fonts`), each glyph drawn where the
 game's was, on its baseline at its height with the game's dark edge, the game placing and spacing them as ever. The title font (`5218C635`: the windows' titles, the jobs' and races'
 names) in the theme's Title Font the same way, each letter on its row's baseline, each word fitted to the game's.
-Every picture is made `--resolution` times the game's size (2 by default, the largest Menu Scale); uihook 1.48 gives
-each picture every smaller level and draws it smoothed, so the menus stay crisp at any Menu Scale up to that. The game's art stays out of the repository (`src/modules/native/skin.h`).
+Every picture is made at several sizes, `tex-<hash>@<factor>.png` (0.5 to 2 times the game's); uihook 1.49 draws
+each draw with a size whose texels are its pixels, unfiltered, or else the smallest about twice as fine, filtered,
+so the menus stay crisp at any Menu Scale up to 2. The game's art stays out of the repository (`src/modules/native/skin.h`).
 
 ## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1, ABI 5 in 1.2)
 
