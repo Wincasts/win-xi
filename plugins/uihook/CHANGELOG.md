@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.26
+
+- `/uihook native` says, for each menu, when a window of its name was last drawn, why it was not moved
+  (chatbox moving it, its layout not writable, no menu manager for its units, off the screen's range), and
+  how many of its frame's draws were tinted or refused, with the vertex format of the last.
+
 ## 1.25
 
 - `/uihook native`, an experiment in skinning the game's own menus rather than mirroring them: `move <name>

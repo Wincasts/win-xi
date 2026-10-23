@@ -66,6 +66,9 @@ struct NativeEntry {
     int16_t original[2]={},applied[2]={};
     bool moved=false;
     uint32_t frame=0;    // the frame it was last drawn moved
+    // for /uihook native: when a window of its name was last drawn, why it was last not moved, and its frame's draws
+    uint32_t seen=0; const char* why="not drawn since asked";
+    uint32_t tinted=0,refused=0,lastFormat=0;
 };
 
 class NativeLook {
@@ -77,6 +80,12 @@ public:
     MirrorPhase phase=MIRROR_FRAME;
     unsigned text=0;
 
+    // A window of an entry's name drawn, and why it could not be moved, if it could not
+    void Seen(const char* name,uint32_t frame,const char* why) {
+        NativeEntry* e=Find(name,false);
+        if (!e) return;
+        e->seen=frame; if (why) e->why=why;
+    }
     NativeEntry* Find(const char* name,bool add) {
         for (auto& e:entries) if (e.name[0] && !memcmp(e.name,name,16)) return &e;
         if (!add) return nullptr;
@@ -113,6 +122,7 @@ public:
         char name[16]; if (!header || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return;
         NativeEntry* e=Find(name,false);
         if (!e) return;
+        e->why=nullptr;
         if (e->moved && (window!=e->window || header!=e->header)) e->moved=false; // another window of that name: its own place
         int16_t target[2]; memcpy(target,data+0x8c,4);
         auto* at=static_cast<uint8_t*>(window);
@@ -120,7 +130,7 @@ public:
         if (e->move) {
             if (!e->moved) memcpy(e->original,target,4);
             else for (unsigned i=0;i<2;i++) if (target[i]!=e->applied[i]) e->original[i]=target[i]; // the game laid it out afresh
-            if (!NativeOffset(e->original,data[0x99]!=0,dimensions,e->dx,e->dy,desired)) { Restore(*e,window,target); return; }
+            if (!NativeOffset(e->original,data[0x99]!=0,dimensions,e->dx,e->dy,desired)) { e->why="off the screen's range"; Restore(*e,window,target); return; }
             if (target[0]!=desired[0] || target[1]!=desired[1]) {
                 memcpy(at+0x8c,desired,4); const int32_t dirty=-1; memcpy(at+0x94,&dirty,4);
                 applied++;
