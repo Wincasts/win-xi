@@ -44,6 +44,7 @@
 #define NATIVE_ENTRIES 128
 #define NATIVE_GROUP_REACH 150   // how far right of the log's left a window of the group may start, in its units
 #define NATIVE_GROUP_SLACK 8     // how far above the log's top its bottom may be
+#define NATIVE_BAR_REACH 48       // how far in from an end of the bar, past the inset, what it shows goes with that end
 #define NATIVE_BAR_HEIGHT 80      // the tallest frame the inset takes for the bar across the top, in pixels
 #define NATIVE_GROUP_STALE 600   // frames an entry of the group goes undrawn before its place is given to another
 #define NATIVE_SCALE_LOW 0.5f
@@ -322,6 +323,22 @@ public:
             if (!NativePlace(bounds,t.dx,t.dy,1,width,height,p)) return false;
             t.ax=p[0]; t.ay=p[1]; t.dx=p[2]; t.dy=p[3];
         }
+        return true;
+    }
+    // A draw on the bar across the top that is not its frame (what the bar shows): moved with the end it is near
+    // (within the inset and a little more of it: the help text at its left, its title at its right), else left in
+    // the middle with the bar (what the game centres there while loading: "Downloading data...", the progress line),
+    // not pinched by each vertex's side, which pulled such a line's ends apart from its words
+    bool OnBar(const void* data,unsigned count,unsigned stride,NativeTransform& t) const {
+        if (!t.pinch || !current || (phase==MIRROR_FRAME && !text) || !current->frameKnown) return false;
+        float b[4];
+        if (!Bounds(data,count,stride,b)) return false;
+        const float* f=current->frame;
+        const float reach=t.inset+NATIVE_BAR_REACH;
+        t.pinch=false;
+        if (b[0]<f[0]+reach) { t.ax=0; t.dx=t.inset; }
+        else if (b[2]>f[2]-reach) { t.ax=t.width; t.dx=-t.inset; }
+        else { t.ax=t.middle; t.dx=0; }
         return true;
     }
     // The scale the window being drawn is drawn at (as Transform gives it), for a skin's picture of the size to suit

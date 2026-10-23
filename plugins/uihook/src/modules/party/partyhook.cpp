@@ -341,6 +341,7 @@ class PartyHook : public IPlugin {
         NativeTransform move; bool whole=false;
         bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport)) && ScreenSize(device,viewport,screen)
             && NativeMenus.Transform(screen[0],screen[1],move,&whole);
+        if (placing) NativeMenus.OnBar(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride,move);
         // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it, but
         // where the whole side is moved
         if (placing && !move.pinch && !whole && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }

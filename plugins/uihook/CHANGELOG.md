@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.50
+
+- With the sides in, only the bar across the top's frame is pinched by each vertex's side; what it shows is moved
+  whole by the end it is near (the help text at its left, its title at its right, within the inset and 48 pixels of
+  that end), or left in the middle with the bar: while loading, the game centres "Downloading data..." and a
+  progress line there, and the pinch pulled the line's ends in apart from its words and cut the words off.
+
 ## 1.49
 
 - A skin's picture may come in sizes, `tex-<hash>@<factor>.png` beside `tex-<hash>.png` (the game's size). Each draw

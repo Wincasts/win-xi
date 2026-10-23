@@ -180,6 +180,21 @@ int main() {
     Check(sides.Transform(3440,1440,mt) && mt.pinch,"the bar: by each end");
     { float l=129,r=3309,y=15; mt.Apply(l,y); float y2=15; mt.Apply(r,y2); Check(Near(l,129*1.25f+100) && Near(r,3440-131*1.25f-100),"its ends with the title box and the network box"); }
     sides.Leave(saved);
+    // what the bar shows: by the end it is near, or left in the middle
+    saved=sides.Enter("menu    helpwind",2);
+    sides.Phase(MIRROR_CONTENT);
+    {
+        V help[2]={{145,20,0,1,0,0,0},{400,32,0,1,0,0,0}},loading[2]={{1300,20,0,1,0,0,0},{2100,32,0,1,0,0,0}},title[2]={{3236,12,0,1,0,0,0},{3262,21,0,1,0,0,0}};
+        NativeTransform h; sides.Transform(3440,1440,h); Check(sides.OnBar(help,2,sizeof(V),h) && !h.pinch && Near(h.ax,0) && Near(h.dx,100),"its help text, by its left end: with that end");
+        NativeTransform l; sides.Transform(3440,1440,l); Check(sides.OnBar(loading,2,sizeof(V),l) && Near(l.ax,1720) && Near(l.dx,0),"what it centres while loading: left in the middle");
+        NativeTransform r; sides.Transform(3440,1440,r); Check(sides.OnBar(title,2,sizeof(V),r) && Near(r.ax,3440) && Near(r.dx,-100),"its title, by its right end: with that end");
+    }
+    sides.Phase(MIRROR_FRAME);
+    {
+        V edge[2]={{129,15,0,1,0,0,0},{3309,20,0,1,0,0,0}};
+        NativeTransform f; sides.Transform(3440,1440,f); Check(!sides.OnBar(edge,2,sizeof(V),f) && f.pinch,"its frame: pinched by each end");
+    }
+    sides.Leave(saved);
     saved=sides.Enter("menu    logwindo",2);
     Check(!sides.Transform(3440,1440,mt),"the chat log: as chatbox places it");
     sides.Leave(saved);
