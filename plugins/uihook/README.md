@@ -508,8 +508,9 @@ For trying a skin on the game's own menus rather than drawing them again: the me
 
 The move is the action menus' (above): the layout target (+8C) written before Window::Render calls
 Window::Update, and the window marked for it (+94), so the game lays out its frame, rows, cursor and
-hit-tests there itself; a menu the action menus are moving is left to them. The tint copies the frame's
-screen-space draws, multiplies their colours, and draws the copy in their place; the contents, the
+hit-tests there itself; a move past the top or left edge stops at it. The tint draws the frame's draws
+with a second texture stage after the game's own, multiplying what it made by the colour (the texture
+factor), put back after each; not where the game uses that stage or a pixel shader. The contents, the
 elements (picture labels, buttons), the cursor, the scrollbar and text are left as they are. Nothing is
 kept between loads; at unload, a menu moved and drawn in the last frame is put back.
 

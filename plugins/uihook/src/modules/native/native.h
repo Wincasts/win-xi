@@ -4,14 +4,15 @@
 //
 //   /uihook native                         what is set, and whether each was applied
 //   /uihook native move <name> <x> <y>     the window moved by x, y display pixels
-//   /uihook native tint <name> <AARRGGBB>  its frame's draws coloured by this, as the game's colour is (0xFF808080 halves it)
+//   /uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (0xFF808080 halves it)
 //   /uihook native clear [name]            one, or all, as the game has them again
 //
 // The move is the action menus' (chat/menus.h): the layout target (+8C) written before Window::Render calls
 // Window::Update and the window marked for it (+94), so its frame, rows, cursor and hit-tests are laid out there
-// by the game itself. The tint is the clock's way (partyhook ScaleIcon): the frame's screen-space draws copied,
-// their colours multiplied, and drawn in their place; the contents, the elements, the cursor, the scrollbar and
-// any text are left as they are.
+// by the game itself. The tint is a second texture stage after the game's own, multiplying what it made by the
+// colour (the texture factor), set for the frame's draws alone and put back after each: the game's frames do not
+// take their vertices' colours, so changing those (1.25) showed nothing. The contents, the elements, the cursor,
+// the scrollbar and any text are left as they are.
 #pragma once
 #include <stdint.h>
 #include <string.h>
@@ -21,32 +22,14 @@
 #define NATIVE_ENTRIES 16
 
 // The target moved by dx, dy display pixels, in the window's units: pixels, or the 640x480 units scaled to the
-// menu manager's dimensions where the window is scaled (+99). False where it would leave the units' range.
+// menu manager's dimensions where the window is scaled (+99). Kept from going past the top or left edge; false
+// where it would leave the units' range.
 static bool NativeOffset(const int16_t* original,bool scaled,const int* dimensions,int dx,int dy,int16_t* out) {
     if (scaled && (dimensions[0]<=0 || dimensions[1]<=0 || dimensions[0]>16384 || dimensions[1]>16384)) return false;
     const float sx=scaled ? dimensions[0]/640.0f : 1.0f,sy=scaled ? dimensions[1]/480.0f : 1.0f;
-    const float x=std::floor(original[0]+dx/sx+0.5f),y=std::floor(original[1]+dy/sy+0.5f);
-    if (x<0 || y<0 || x>32767 || y>32767) return false;
+    const float x=(std::max)(0.0f,std::floor(original[0]+dx/sx+0.5f)),y=(std::max)(0.0f,std::floor(original[1]+dy/sy+0.5f));
+    if (x>32767 || y>32767) return false;
     out[0]=static_cast<int16_t>(x); out[1]=static_cast<int16_t>(y);
-    return true;
-}
-// A colour (ARGB) multiplied by a tint, each component, 0xFF as one
-static uint32_t NativeTint(uint32_t colour,uint32_t tint) {
-    uint32_t out=0;
-    for (unsigned shift=0;shift<32;shift+=8) {
-        const uint32_t c=(colour>>shift)&0xff,t=(tint>>shift)&0xff;
-        out|=((c*t+127)/255)<<shift;
-    }
-    return out;
-}
-// Each vertex's diffuse colour, at offset, tinted
-static bool NativeTintVertices(void* data,unsigned count,unsigned stride,unsigned offset,uint32_t tint) {
-    if (!data || !count || stride<offset+4) return false;
-    auto* bytes=static_cast<uint8_t*>(data);
-    for (unsigned i=0;i<count;i++) {
-        uint32_t colour=0; memcpy(&colour,bytes+size_t(i)*stride+offset,4);
-        colour=NativeTint(colour,tint); memcpy(bytes+size_t(i)*stride+offset,&colour,4);
-    }
     return true;
 }
 // A window's name as the game keeps it: "menu    " and the name, spaces to sixteen
@@ -69,6 +52,7 @@ struct NativeEntry {
     // for /uihook native: when a window of its name was last drawn, why it was last not moved, and its frame's draws
     uint32_t seen=0; const char* why="not drawn since asked";
     uint32_t tinted=0,refused=0,lastFormat=0;
+    uint32_t stage[3]={};  // the game's first texture stage at its frame's last draw: colour op, its two arguments
 };
 
 class NativeLook {
