@@ -145,7 +145,13 @@ public:
     }
     unsigned GroupOff() {
         unsigned n=0; groupOn=false;
-        for (auto& e:entries) if (e.name[0] && e.group) { if (&e==current) current=nullptr; e=NativeEntry(); n++; }
+        for (auto& e:entries) if (e.name[0] && e.group) {
+            n++;
+            // one asked for by name keeps its scale and tint, as the game places it
+            if (!e.automatic) { e.group=e.member=false; e.dx=e.dy=0; continue; }
+            if (&e==current) current=nullptr;
+            e=NativeEntry();
+        }
         return n;
     }
     // The window about to be drawn, by its name as the game keeps it and where it is drawn: the log's noted, and
@@ -155,8 +161,9 @@ public:
         if (!memcmp(name,"menu    logwindo",16)) { logLeft=target[0]; logTop=target[1]; logFrame=frame; return; }
         NativeEntry* e=Find(name,false);
         const bool member=GroupMember(name,target);
-        // one made as it was drawn (for the inset) before it was one of the group: the group's now
-        if (e && member && e->automatic && !e->group) { e->group=true; e->dx=groupX; e->dy=groupY; }
+        // one that was not of the group (made for the inset before the log was seen, or asked for by name to be scaled)
+        // and is one now: the group's offset, its scale its own
+        if (e && member && !e->group) { e->group=true; e->place=true; e->dx=groupX; e->dy=groupY; }
         if (e) { e->member=member; return; }
         if (!member) return;
         e=Make(name,frame);
@@ -170,7 +177,12 @@ public:
         for (auto& e:entries) if (!e.name[0]) { e=NativeEntry(); memcpy(e.name,name,16); return &e; }
         return nullptr;
     }
-    NativeEntry* Named(const char* name) { char full[16]; return NativeName(name,full) ? Find(full,true) : nullptr; }
+    // One asked for by name (move, scale, tint): kept, not given up when long undrawn as one made as it was drawn is
+    NativeEntry* Named(const char* name) {
+        char full[16]; NativeEntry* e=NativeName(name,full) ? Find(full,true) : nullptr;
+        if (e) e->automatic=false;
+        return e;
+    }
     bool Move(const char* name,float dx,float dy) {
         NativeEntry* e=Named(name);
         if (!e) return false;
