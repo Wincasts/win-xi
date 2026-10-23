@@ -1,6 +1,6 @@
 addon.name    = 'menus'
 addon.author  = 'win'
-addon.version = '0.8.1'
+addon.version = '0.9'
 addon.desc    = 'Draws the game\'s menus in the winxi look, mirroring the real ones, which keep working as they are.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -59,7 +59,7 @@ local Groups = {
         { name = 'shop', label = 'Shop', tip = 'A shop\'s list of what it sells.' },
     } },
     { title = 'Lists', on = true, menus = {
-        { name = 'ability', label = 'Abilities And Spells', tip = 'The lists of your job abilities, spells and traits.' },
+        { name = 'ability', label = 'Abilities', tip = 'The lists of your job abilities, weapon skills and traits.' },
         { name = 'emote', label = 'Emotes', tip = 'The list of emotes.' },
         { name = 'mount', label = 'Mounts', tip = 'The list of mounts.' },
         { name = 'evitem', label = 'Currencies', tip = 'The lists of conquest points, seals, crests and the other currencies.' },
@@ -156,6 +156,14 @@ local Groups = {
         { name = 'pupequip', label = 'Automaton Menu', labels = true, tip = 'The choices for setting up your automaton.' },
         { name = 'bluinven', label = 'Blue Magic Spells', tip = 'The blue magic spells to set.' },
         { name = 'bluehelp', label = 'Blue Magic Info', tip = 'What the blue magic spell the cursor is on does.' },
+    } },
+    -- Found with the census of 2026-10-23. The spell list is a window of its own, though drawn by the ability list's
+    -- drawer (00221F50); the sort windows' place came out of the census unmeasured, so look at them in Outline.
+    { title = 'Magic', on = true, experimental = true, added = true, menus = {
+        { name = 'magic', label = 'Spells', tip = 'The list of spells of the kind chosen, with their MP.' },
+        { name = 'mgcmenu', label = 'Magic Menu', labels = true, tip = 'The magic menu beside the spell list.' },
+        { name = 'mgcsortw', label = 'Magic Sort', labels = true, tip = 'How the spells are sorted.' },
+        { name = 'blusortw', label = 'Blue Magic Sort', labels = true, tip = 'How the blue magic spells are sorted.' },
     } },
     { title = 'Other Menus', on = true, experimental = true, added = true, menus = {
         { name = 'map0', label = 'Map Menu', labels = true, tip = 'The map\'s choices.' },

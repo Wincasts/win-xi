@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9
+
+- Magic [Experimental], a new group, on to start: Spells (`magic`), Magic Menu, Magic Sort and Blue
+  Magic Sort, found with the census of 2026-10-23. The spell list is a window of its own, not the
+  ability list's, though the game draws both with one drawer, so until now spells were left to the
+  game. Lists' Abilities And Spells is now Abilities (the same setting, kept).
+
 ## 0.8.1
 
 - Menus added in a release start on, so they are seen: the six groups added in 0.7 are on to start, and on

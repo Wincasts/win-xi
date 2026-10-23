@@ -27,6 +27,7 @@ check('the status and config windows off to start', not Asked('persona') and not
 check('drawn: a frame and its text', (H.calls['draw.AddText'] or 0) > 0)
 check('nothing printed', #H.printed == 0)
 check('the menus added in 0.7 on to start', Asked('auc1') and Asked('equip') and Asked('map0'))
+check('the magic group, added in 0.9, on to start', Asked('magic') and Asked('magic').hide and Asked('mgcmenu') and Asked('blusortw'))
 
 -- settings saved before the menus added were offered: those start on, the rest as they were saved; once offered,
 -- as the character leaves them

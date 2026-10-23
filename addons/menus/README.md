@@ -29,7 +29,7 @@ menus sit three to a row, each a checkbox with its name, under an All checkbox t
 group (on where every one of them is):
 
 - **Items** (on to start): Inventory, Item Info, Mog Safe, Shop.
-- **Lists** (on): Abilities And Spells, Emotes, Mounts, Currencies, Missions, Quests, Quest Pages,
+- **Lists** (on): Abilities, Emotes, Mounts, Currencies, Missions, Quests, Quest Pages,
   Friend List, Area List, Search Results, Help Desk.
 - **Status** (off): Status, Level And EXP, Profile, Job Levels, Combat Skills, Crafting Skills, Gil.
 - **[Experimental] Picture Label Menus** (off): Main Menu, Command Menu, Magic Categories, Ability
@@ -51,9 +51,10 @@ group (on where every one of them is):
   Box, Send Box, Job Change Menu, Job Select.
 - **[Experimental] Jobs** (on): Ability Menu, Ability Sort, Automaton, Automaton Status, Automaton
   Menu, Blue Magic Spells, Blue Magic Info.
+- **[Experimental] Magic** (on): Spells, Magic Menu, Magic Sort, Blue Magic Sort.
 - **[Experimental] Other Menus** (on): Map Menu, Social Menu.
 
-The six experimental groups were found in play with `/uihook census` and have not yet been looked at
+The experimental groups were found in play with `/uihook census` and have not yet been looked at
 mirrored: try them in Outline first. Menus added in a release start on, for every character, so they are
 seen; one switched off stays off. Their names are best guesses from the game's own; the HUD and
 chat windows (the party list, target, chat log, network) are left to the addons that draw them.
