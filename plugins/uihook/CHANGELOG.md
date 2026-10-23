@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.45
+
+- A window drawn moved (the group, the inset, `move`) is given the skin's colours from skin.txt, as one drawn in
+  place is: the moved copy of its vertices kept the game's, so the bottom-left command menu's buttons were the
+  game's blue-grey and orange, and its frame faded at the sides.
+
 ## 1.44
 
 - The inset brings in only windows with a frame of their own, by that frame: one without (the target's arrow over

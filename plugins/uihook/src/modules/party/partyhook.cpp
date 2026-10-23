@@ -365,6 +365,11 @@ class PartyHook : public IPlugin {
             scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
             if (pinch>=0) NativePinchVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,pinch,NativeMenus.inset,place[3]);
             else NativeMoveVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,place,e->scale);
+            // the skin's colours for its picture, as SkinEnd would have given them had it drawn it: the moved windows
+            // had the game's (the bottom-left buttons blue-grey and orange, the frame faded at the sides)
+            if (skinActive>=0 && SkinRecolour(Skin.textures[size_t(skinActive)],scaledVertices.data(),used,stride,shader,skinVertices)) {
+                scaledVertices.swap(skinVertices); Skin.textures[size_t(skinActive)].recoloured++;
+            }
             drawn=scaledVertices.data();
         }
         IDirect3DBaseTexture8* texture=nullptr;
@@ -414,6 +419,7 @@ class PartyHook : public IPlugin {
     // /uihook skin: a screen-space draw whose texture (stage 0) the skin has a picture for is given it; what was there
     // comes back to be put back by SkinEnd. Nothing where no skin is loaded.
     struct SkinSwap { int32_t index=-1; IDirect3DBaseTexture8* was=nullptr; };
+    int32_t skinActive=-1;   // the skin's picture in stage 0 for the draw under way, for NativeDraw's colours, or -1
     SkinSwap SkinBegin() {
         SkinSwap swap;
         if (!Skin.On()) return swap;
@@ -429,6 +435,7 @@ class PartyHook : public IPlugin {
         });
         if (swap.index<0) { swap.was->Release(); swap.was=nullptr; return swap; }
         device->SetTexture(0,static_cast<IDirect3DBaseTexture8*>(Skin.textures[size_t(swap.index)].texture));
+        skinActive=swap.index;
         return swap;
     }
     // A draw's vertices from memory with the colours the skin's skin.txt gives its picture, or as they were
@@ -443,6 +450,7 @@ class PartyHook : public IPlugin {
     // The draw made with the skin's picture, unless done already (blocked, or drawn moved), and the game's texture
     // put back. True where it was drawn here; false (the game's own then drawn by Ashita) where the draw failed.
     template<class Draw> bool SkinEnd(const SkinSwap& swap,bool done,Draw draw) {
+        skinActive=-1;
         if (swap.index<0) return done;
         auto* device=core->GetDirect3DDevice();
         bool ok=done;

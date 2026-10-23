@@ -121,9 +121,10 @@ def steel_of(line):
     dark, mid, light = lit[0][:3], lit[len(lit) // 2][:3], lit[-1][:3]
     return [(0, (0, 0, 0)), (40, dark), (120, mid), (230, light), (255, tuple(min(255, c + 30) for c in light))]
 
-# The game draws its background darker than its texture (by its vertices, 0x414141 doubled): drawn this much
-# brighter, so it is seen in the theme's colour
-BACKGROUND_GAIN = 255 / (2 * 0x41)
+# How much brighter than the theme's Background Color the texture is: the game darkens it by its vertices (0x414141
+# doubled) but draws it more solid than winxi does; measured in game against a winxi window over the same ground
+# (1.96, the vertices' darkening alone, came out 1.65 times too bright)
+BACKGROUND_GAIN = 1.2
 
 def background(theme, size):
     colour = theme['BackgroundColor']
