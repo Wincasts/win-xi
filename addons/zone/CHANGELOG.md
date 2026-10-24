@@ -1,5 +1,12 @@
 # zone changelog
 
+## 2.10
+
+- Each kind of zone announces its features from its own distance: Field Approach Distance (50 yalms to start, from 30), Town Approach Distance (10) and Dungeon Approach Distance (15). A saved Approach Distance is dropped for these.
+- Dungeon entrances are announced as you come to them, with the number the zone's map gives them: `Quicksand Caves Entrance 7`. 184 entrances in 55 zones, from the Phoenix server's zone lines; Announce Dungeon Entrances and Entrance Distance (20 yalms) set them.
+- `/zone approach town 8` and `/zone approach dungeon 12` set the town and dungeon distances; `/zone approach <yalms>` alone is open country's.
+- The map browser draws the entrances in blue, and the approach outline at the viewed zone's own distance.
+
 ## 2.9 — first release
 
 - A banner as you enter a zone: its name, region, weather and the Vana'diel day and time, each line of it optional.

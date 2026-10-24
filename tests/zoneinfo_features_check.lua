@@ -81,10 +81,18 @@ d.backgroundEnabled[1], d.backgroundFlags[1] = false, true;
 
 -- Saved detection settings
 local saves = H.saves();
+check('open country is announced from further off than a dungeon, a dungeon than a town',
+    d.fieldApproach[1] == 50 and d.dungeonApproach[1] == 15 and d.townApproach[1] == 10);
+check('dungeon entrances are announced to begin with, closer in than open country',
+    d.entrancesEnabled[1] == true and d.entranceYalms[1] < d.fieldApproach[1]);
 H.command('/zone approach 45');
-check('the approach command is saved', d.approachYalms[1] == 45 and H.saves() > saves);
-d.approachYalms[1] = 12; H.frames(1); H.command('/zone sample');
+check('the approach command is saved, for open country', d.fieldApproach[1] == 45 and H.saves() > saves);
+H.command('/zone approach town 8'); H.command('/zone approach dungeon 12');
+check('town and dungeon each have their own', d.townApproach[1] == 8 and d.dungeonApproach[1] == 12 and d.fieldApproach[1] == 45);
+d.fieldApproach[1] = 12; H.frames(1); H.command('/zone sample');
 check('the setting drives detection', count('approach=12 yalms') == 1);
+d.townApproach[1] = 33; H.frames(1); H.command('/zone sample');
+check('a town\'s distance is not open country\'s', count('approach=33 yalms') == 0);
 local primary = catalog[100].key;
 H.command('/zone livemap ' .. primary);
 check('the live map is saved for its zone', d.liveMaps.z100 == primary);
@@ -94,12 +102,15 @@ game.zone = 100; H.frames(400); H.command('/zone sample');
 check('it is used again on return', count('zone=100 | map=' .. primary) == 1);
 H.command('/zone livemap auto');
 check('automatic selection clears the saved map', d.liveMaps.z100 == nil);
-d.liveMaps.z100, d.liveMaps.bad, d.liveMaps.z7 = 'no_such_map', 'x', 5; d.approachYalms[1] = 500;
+d.liveMaps.z100, d.liveMaps.bad, d.liveMaps.z7 = 'no_such_map', 'x', 5; d.fieldApproach[1] = 500;
+d.entranceYalms[1], d.approachYalms = 0, T{ 30 };
 p.complete(p.app.options); H.resettle(); H.frames(2);
-check('saved values are validated', d.liveMaps.bad == nil and d.liveMaps.z7 == nil and d.approachYalms[1] == 100);
+check('saved values are validated', d.liveMaps.bad == nil and d.liveMaps.z7 == nil and d.fieldApproach[1] == 100
+    and d.entranceYalms[1] == 5);
+check('the one distance of before is dropped', d.approachYalms == nil);
 H.command('/zone sample');
 check('an unknown saved map is ignored', count('map=no_such_map') == 0);
-d.approachYalms[1] = 30;
+d.fieldApproach[1], d.townApproach[1], d.dungeonApproach[1], d.entranceYalms[1] = 30, 10, 15, 20;
 
 -- Location line
 check('the location line is off by default', not d.locationEnabled[1] and begun['##zone_location'] == nil);

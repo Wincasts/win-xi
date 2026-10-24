@@ -1,6 +1,6 @@
 addon.name    = 'zone';
 addon.author  = 'win';
-addon.version = '2.9';
+addon.version = '2.10';
 addon.desc    = 'Zone, region, sub-zone and weather banners, a location line, and an all-map experimental boundary editor.';
 
 require('common');
@@ -207,12 +207,16 @@ local function save_live_map(zone)
     presentation.save();
 end
 
--- The approach distance is a setting: the slider, the command and another character's settings all
--- arrive here, and membership starts afresh with the new distance.
+-- The approach distances (field, town, dungeon) and the entrances are settings: the sliders, the
+-- command and another character's settings all arrive here, and membership starts afresh with them.
+local APPROACH_KEYS = { outdoors = 'fieldApproach', city = 'townApproach', dungeon = 'dungeonApproach' };
 local function sync_approach()
-    local distance = presentation.display().approachYalms[1];
-    if (tracking.state.approach_yalms == distance) then return; end
-    tracking.state.approach_yalms = distance;
+    local d, s = presentation.display(), tracking.state;
+    local same = s.entrances.enabled == d.entrancesEnabled[1] and s.entrances.yalms == d.entranceYalms[1];
+    for kind, key in pairs(APPROACH_KEYS) do same = same and s.approach[kind] == d[key][1]; end
+    if (same) then return; end
+    for kind, key in pairs(APPROACH_KEYS) do s.approach[kind] = d[key][1]; end
+    s.entrances.enabled, s.entrances.yalms = d.entrancesEnabled[1], d.entranceYalms[1];
     local quiet_until = tracking.quiet_until;
     tracking:reset(os.clock());
     tracking.quiet_until = math.max(tracking.quiet_until, quiet_until);
@@ -369,7 +373,7 @@ ashita.events.register('load', 'zone_load', function()
     -- Seed the current zone without popping the banner on addon load.
     state.last_zone = get_zone_id();
     tracking:set_zone(state.last_zone, os.clock(), 0);
-    tracking.state.approach_yalms = presentation.display().approachYalms[1];
+    sync_approach();
     apply_live_map(state.last_zone);
     message('Use /zone for sub-zone popups and display settings, or /zone debug on to check alignment.');
 end);
@@ -450,15 +454,20 @@ ashita.events.register('command', 'zone_command', function(e)
         if (not tracking.state.enabled and state.banner_is_area) then state.visible_until = 0; end
         message(('%s: %s (unverified map alignment/boundaries).'):format(command, tracking.state[field] and 'ON' or 'OFF'));
     elseif (command == 'approach') then
-        local distance = tonumber(args[3]);
+        -- /zone approach <yalms> is open country's; /zone approach town|dungeon|field <yalms> any kind's.
+        local kinds = { field = 'outdoors', town = 'city', dungeon = 'dungeon' };
+        local kind = args[3] and kinds[args[3]:lower()];
+        local distance = tonumber(args[kind and 4 or 3]);
         if (not distance or distance ~= distance or distance < 0 or distance > 100) then
-            message('Usage: /zone approach <0..100 yalms> (default 30; 0 restores feature-only detection).', true);
+            message('Usage: /zone approach [field|town|dungeon] <0..100 yalms> (0 announces only inside a feature).', true);
             return;
         end
-        presentation.display().approachYalms[1] = distance;
+        kind = kind or 'outdoors';
+        presentation.display()[APPROACH_KEYS[kind]][1] = distance;
         sync_approach();
         presentation.save();
-        message(('Approach buffer: %.0f yalms around each feature (saved).'):format(distance));
+        local words = { outdoors = 'open country', city = 'towns', dungeon = 'dungeons' };
+        message(('Approach buffer in %s: %.0f yalms around each feature (saved).'):format(words[kind], distance));
     elseif (command == 'sample' or command == 'status') then
         sample_report();
     elseif (command == 'livemap') then
@@ -497,7 +506,7 @@ ashita.events.register('command', 'zone_command', function(e)
             message('Session-only manual transform set; verify alignment at several separated landmarks.');
         end
     else
-        message('/zone [test [style]|reload] | poc [on|off] | debug [on|off] | approach <0..100 yalms> | sample | livemap auto | transform <scale> <offset_x> <offset_y> | transform reset');
+        message('/zone [test [style]|reload] | poc [on|off] | debug [on|off] | approach [field|town|dungeon] <0..100 yalms> | sample | livemap auto | transform <scale> <offset_x> <offset_y> | transform reset');
     end
 end);
 
