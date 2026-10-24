@@ -2,8 +2,8 @@
 // detour of Window::Render. Its own part: addons' imgui drawing captured and replayed in place of the game's party
 // and alliance lists, target window, clock and compass, and chat logs (their game logic run, only its GPU
 // submissions blocked), and the chat's state read for them. Its other parts, each a module of its own it calls in
-// turn: the skin (native/skinmodule.h), the native look (native/nativemodule.h), the menu mirror (mirror/mirror.h)
-// and the diagnostics (mirror/diagnostics.h).
+// turn: the skin (native/skinmodule.h), the native look (native/nativemodule.h) and the diagnostics
+// (census/diagnostics.h), with the window hooks (window/window.h) and the game's mouse (window/mouse.h).
 #include <windows.h>
 #include <psapi.h>
 #include <stdint.h>
@@ -25,10 +25,9 @@
 #include "../chat/history.h"
 #include "../chat/texttap.h"
 #include "../window/window.h"
-#include "../mirror/census.h"
-#include "../mirror/mirror.h"
-#include "../mirror/mouse.h"
-#include "../mirror/diagnostics.h"
+#include "../window/mouse.h"
+#include "../census/census.h"
+#include "../census/diagnostics.h"
 #include "../native/skinmodule.h"
 #include "../native/nativemodule.h"
 #include "../../drawcontext.h"
@@ -80,7 +79,7 @@ static ChatControlCalls ChatControls;
 static void __cdecl DrawChatRow(const uint16_t*,ChatRowHeader,int32_t,int32_t,uint32_t,uint32_t,void*,uint32_t);
 static ChatTextSite ChatText;
 // The window hooks (window.h): the three text routes and the contents' call in Window::Render, heard by the native
-// look, the mirror and the census, each passing straight on to the game's own
+// look and the census, each passing straight on to the game's own
 static int32_t __cdecl TextBitmap(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
 static int32_t __cdecl TextScaled(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
 static uint32_t __fastcall TextFont(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
@@ -90,18 +89,13 @@ static Detour TextFontDetour = { TEXT_FONT_PATTERN, TEXT_FONT_STOLEN, -1, reinte
 static void __fastcall DrawContent(void*,void*);
 struct ContentCallSite { uint8_t* call=nullptr; uint8_t saved[5]={}; };
 static ContentCallSite ContentCall;
-// The menu mirror (mirror ABI 5): zero in the DLL's file, its magic written as the module initializes; supported
-// where the window hooks are taken
-static MirrorShared MirrorBlock;
-static Mirror MenuMirror;
 static DrawContext Draws;       // what the parts share for each draw (drawcontext.h)
 static SkinModule Skins;        // /uihook skin: the game's textures drawn with pictures of a skin's in their place
 static NativeModule Native;     // /uihook native: windows' draws moved and scaled
-static DiagnosticsModule Diag;  // /uihook census, textures, mirror labels and mirror watch
+static DiagnosticsModule Diag;  // /uihook census and textures
 // The game's mouse handler in its message loop (window/mouse.h), taken so a message on a window drawn elsewhere is
-// given to it at the same place on the game's own: by the native look, else the mirror
+// given to it at the same place on the game's own (the native look's Mouse)
 static void __cdecl GameInput(MSG);
-static uint32_t MirrorMapped=0; // mouse messages given to the game at the place on its own menu, since loading
 static Detour InputDetour = { GAME_INPUT_PATTERN, GAME_INPUT_STOLEN, -1, reinterpret_cast<void*>(&GameInput), nullptr, nullptr, {} };
 // The five bytes mov edx,[ecx]; call [edx+10] made a call to ours, which makes the same call: the
 // return address the game's own, the owner still in ecx
@@ -348,7 +342,7 @@ public:
     static PartyHook* Instance;
     const char* GetName() const override { return "partyhook"; }
     const char* GetAuthor() const override { return "win"; }
-    const char* GetDescription() const override { return "uihook's drawing: party, target, clock and chat replacement, the skin, the native look and the menu mirror."; }
+    const char* GetDescription() const override { return "uihook's drawing: party, target, clock and chat replacement, the skin and the native look."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
     double GetVersion() const override { return 0.3; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseDirect3D); }
@@ -357,7 +351,7 @@ public:
         Draws.core=c; Draws.frame=&Shared.Frame;
         Skins.Init(&Draws,&Native.look);
         Native.Init(&Draws,&Skins,nullptr);
-        Diag.Init(&Draws,&MirrorBlock,&MenuMirror,&Native.look);
+        Diag.Init(&Draws,&Native.look);
         memcpy(TextTap.Magic,"UIHOOK-TEXT",12); TextTap.Version=1; TextTap.Size=sizeof(TextTapShared);
         Shared.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&Submit));
         Hud.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&SubmitHud));
@@ -427,13 +421,9 @@ public:
                 } else globals[3]=nullptr; // party mode still works if target discovery fails
             }
         }
-        // The window hooks; the menu mirror, zero in the file, its magic written now, supported where they are taken
-        memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=5; MirrorBlock.Size=sizeof(MirrorShared);
-        MenuMirror.shared=&MirrorBlock;
-        if (module.lpBaseOfDll && TakeWindowHooks(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) {
-            MirrorBlock.Supported=MIRROR_SUPPORTED;
-            if (Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) { MirrorBlock.Supported|=MIRROR_SUPPORTED_MOUSE; Native.inputHooked=true; }
-        }
+        // The window hooks, and with them the game's mouse handler
+        if (module.lpBaseOfDll && TakeWindowHooks(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage))
+            Native.inputHooked=Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage);
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
             (Shared.SupportedMask & 8 ? "[uihook:party] Party/target hooks ready (native arrows preserved). /pt native [target] on; unload hideparty first." :
              "[uihook:party] Party hook ready; target/cursor signatures unavailable. /pt native on; unload hideparty first.") :
@@ -481,10 +471,9 @@ public:
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
-        MenuMirror.Publish(Shared.Frame);
         Diag.Present();
         ++Shared.Frame;
-        Diag.Counted(); MirrorBlock.Frame=Shared.Frame;
+        Diag.Counted();
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
         ChatReadReset(); // the regions found readable last frame are asked about again
         chat.Sample(Chat,Shared.Frame);
@@ -510,7 +499,7 @@ public:
     }
     void Direct3DBeginScene(bool) override { inScene=true; }
     void Direct3DEndScene(bool) override { inScene=false; }
-    // Each draw: counted and heard as it is (the skin's picture not yet in place, so what is counted and mirrored
+    // Each draw: counted and heard as it is (the skin's picture not yet in place, so what is counted and measured
     // is the game's own); then, where the skin has a picture for its texture, drawn with it here, the game's put back
     bool BufferDraw() { Diag.BufferDraw(); Measure(false,nullptr,0,0); Native.look.Unmoved(); return false; }
     bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE t,UINT start,UINT count) override {
@@ -532,7 +521,6 @@ public:
         Draws.NewDraw();
         const UINT n=t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0;
         Diag.MemoryDraw(data,n,stride,t==D3DPT_TRIANGLELIST ? 6 : t==D3DPT_TRIANGLESTRIP && count==2 ? 4 : 0);
-        if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,n); // our own scaled copy, on its way to the device
         Measure(true,data,stride,n);
         const SkinModule::SkinSwap skin=Skins.Begin(data,n,stride);
         const bool done=Block() || Native.Draw(t,0,n,count,nullptr,D3DFMT_UNKNOWN,data,stride) || ScaleIcon(t,count,data,stride);
@@ -543,7 +531,6 @@ public:
         Draws.NewDraw();
         const void* first=data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr;
         Diag.MemoryDraw(first,vertices,stride,4);
-        if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
         Measure(true,data,stride,vertices);
         const SkinModule::SkinSwap skin=Skins.Begin(first,vertices,stride);
         const bool done=Block() || Native.Draw(t,min,vertices,count,indices,format,data,stride) || ClockDraw(t,min,vertices,count,indices,format,data,stride);
@@ -569,7 +556,7 @@ public:
         return false;
     }
     // The window hooks: the three text routes and the contents' call, all or none, with Window::Render if nothing
-    // else has taken it. Without them the native look cannot tell a window's frame, and the mirror and the census
+    // else has taken it. Without them the native look cannot tell a window's frame, and the census
     // hear nothing.
     bool windowHooks=false;
     bool TakeWindowHooks(uint8_t* begin,size_t size) {
@@ -581,7 +568,6 @@ public:
         return true;
     }
     void GiveWindowHooks() {
-        MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; MirrorBlock.MouseFrame=0; MenuMirror.Clear();
         Give(InputDetour); Native.inputHooked=false;
         Diag.Stop();
         GiveContentCall(); Give(TextBitmapDetour); Give(TextScaledDetour); Give(TextFontDetour);
@@ -589,40 +575,6 @@ public:
     }
     bool HandleCommand(int32_t,const char* command,bool) override {
         if (command && (!_stricmp(command,"/uihook native") || !_strnicmp(command,"/uihook native ",15))) { Native.Command(command); return true; }
-        if (command && (!_stricmp(command,"/uihook mirror watch") || !_strnicmp(command,"/uihook mirror mark ",20))) {
-            const bool mark=command[15]=='m' || command[15]=='M';
-            if (mark && !command[20]) return true;
-            Diag.WatchCommand(mark ? command+20 : ""); return true;
-        }
-        if (command && !_strnicmp(command,"/uihook mirror labels",21)) { Diag.LabelsLater(command[21]==' ' ? atoi(command+22) : 0); return true; }
-        if (command && _stricmp(command,"/uihook mirror")==0) {
-            // what the mirror was asked for, and what it published from the last frame
-            char line[256]; const MirrorFrameData& last=MirrorBlock.Published;
-            std::string asked;
-            for (unsigned i=0;i<MIRROR_REQUESTS;i++) if (MirrorBlock.Requests[i][0]) {
-                if (!asked.empty()) asked+=", ";
-                asked+=std::string(MirrorBlock.Requests[i]+8,8)+((MirrorBlock.Hide[i/32]>>(i%32))&1 ? " (hidden)" : " (watched)");
-            }
-            const bool fresh=MirrorBlock.RequestFrame && MirrorBlock.Frame-MirrorBlock.RequestFrame<=MIRROR_REQUEST_FRAMES;
-            snprintf(line,sizeof(line),"[uihook:mirror] %s; asked %s: %s.",MirrorBlock.Supported ? "supported" : "not found in this client",
-                fresh ? "now" : "nothing now",asked.empty() ? "none" : asked.c_str());
-            core->GetChatManager()->Write(0,false,line);
-            snprintf(line,sizeof(line),"[uihook:mirror] the last frame published (%u): %u windows, %u runs of text, %u quads, %u bytes; %u dropped since loading.",
-                last.Frame,last.WindowCount,last.RunCount,last.QuadCount,last.TextUsed,MirrorBlock.Dropped);
-            core->GetChatManager()->Write(0,false,line);
-            const bool mouseFresh=MirrorBlock.MouseFrame && MirrorBlock.Frame-MirrorBlock.MouseFrame<=MIRROR_REQUEST_FRAMES;
-            snprintf(line,sizeof(line),"[uihook:mirror] the mouse: %s; %u menus drawn elsewhere now; %u messages moved to the game's own since loading.",
-                MirrorBlock.Supported & MIRROR_SUPPORTED_MOUSE ? "the game's handler taken" : "the game's handler not found",
-                mouseFresh ? (std::min)(uint32_t(MirrorBlock.MouseCount),uint32_t(MIRROR_MOUSE)) : 0u,MirrorMapped);
-            core->GetChatManager()->Write(0,false,line);
-            for (uint32_t i=0;i<last.WindowCount;i++) {
-                const MirrorWindow& w=last.Windows[i];
-                snprintf(line,sizeof(line),"[uihook:mirror]   %.16s: flags %X, %.3f,%.3f to %.3f,%.3f; %u runs, %u quads; cursor %s, scrollbar %u of %u.",
-                    w.Name,w.Flags,w.Rect[0],w.Rect[1],w.Rect[2],w.Rect[3],w.Runs,w.Quads,w.CursorFrame ? "drawn" : "none",w.ScrollPage,w.ScrollCount);
-                core->GetChatManager()->Write(0,false,line);
-            }
-            return true;
-        }
         if (command && !_strnicmp(command,"/uihook census",14)) { Diag.CensusCommand(command[14]==' ' ? command+15 : ""); return true; }
         if (command && (!_stricmp(command,"/uihook skin") || !_strnicmp(command,"/uihook skin ",13))) { Skins.Command(command[12]==' ' ? command+13 : ""); return true; }
         if (command && !_strnicmp(command,"/uihook textures",16)) { Diag.TexturesCommand(command[16]==' ' ? command+17 : ""); return true; }
@@ -1043,11 +995,10 @@ public:
         // the selection art in a skinned full log measured (drawn or not), so its rows are published lit
         const bool measure=expandedSkin && !cursor && ChatSelectionColor(color) && !chatMeasure && selectionCount<8;
         if (measure) { selectionBounds[selectionCount]=ChatBounds(); chatMeasure=&selectionBounds[selectionCount]; }
-        const WindowPhase mirrorWas=cursor ? MenuMirror.Phase(PHASE_CURSOR) : MenuMirror.Element(color);
         const WindowPhase nativeWas=Native.look.Phase(cursor ? PHASE_CURSOR : PHASE_ELEMENT);
         ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
             expandedSkin && !Mirrored(),ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
-        MenuMirror.Phase(mirrorWas); Native.look.Phase(nativeWas);
+        Native.look.Phase(nativeWas);
         if (measure) { if (chatMeasure->vertices) selectionCount++; chatMeasure=nullptr; }
     }
     // The scrollbar: its page, count and rows above the view read and its bounds measured in a skinned full
@@ -1059,11 +1010,9 @@ public:
         const bool was=blocking;
         if (ChatHidden(replaceControls,CHAT_REPLACE_SCROLL,measure && controlsValid)) blocking=true;
         if (measure) { scrollBounds=ChatBounds(); chatMeasure=&scrollBounds; }
-        ChatScrollInfo mirrorInfo;
-        if (MenuMirror.Active() && ChatScrollRead(object,mirrorInfo)) MenuMirror.Scrollbar(mirrorInfo);
-        const WindowPhase mirrorWas=MenuMirror.Phase(PHASE_SCROLL),nativeWas=Native.look.Phase(PHASE_SCROLL);
+        const WindowPhase nativeWas=Native.look.Phase(PHASE_SCROLL);
         ForwardChatScroll(reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL]),ControlsActive(),controlStyle,object);
-        MenuMirror.Phase(mirrorWas); Native.look.Phase(nativeWas);
+        Native.look.Phase(nativeWas);
         chatMeasure=nullptr; blocking=was;
         if (!measure) return;
         Chat.ScrollFrame=0;
@@ -1126,10 +1075,8 @@ public:
         if (expandedSkin) PublishChatText();
     }
     void Render(void* window) {
-        Mirror::Saved mirrorSaved;
-        const bool mirrorHidden=MenuMirror.Begin(window,core->GetDirect3DDevice(),mirrorSaved);
         struct NativeScope { NativeLook::Saved was; ~NativeScope() { Native.look.Leave(was); } } nativeScope{Native.Enter(window)};
-        DiagnosticsModule::Window diagnosed(Diag,window,mirrorHidden);
+        DiagnosticsModule::Window diagnosed(Diag,window);
         int index=-1;
         for (int i=0;i<4;i++) {
             void* object=globals[i] ? *globals[i] : nullptr;
@@ -1169,7 +1116,7 @@ public:
             : index==3 ? ReplayTargets() : index>=0 && Replay(static_cast<unsigned>(index));
         if (defer) primaryDeferred=Shared.Frame;
         else if (chatIndex==1 && primaryDeferred==Shared.Frame) { Replay(8); primaryDeferred=0; }
-        blocking=replaced || mirrorHidden;
+        blocking=replaced;
         expandedSkin=chatIndex==3 && replaced && expandedCapture;
         // a full log drawn afresh: its tabs, scrollbar and rows measured again, or not at all if the game leaves them out
         if (chatIndex==3) { Chat.TabFrame=Chat.ScrollFrame=Chat.TextFrame=0; chatViewportKnown=false; chatMeasure=nullptr; measuringTabs=false; rowCount=0; textUsed=0; selectionCount=0; }
@@ -1180,7 +1127,6 @@ public:
         // may have been retargeted above, before the native layout update.
         if (index>=0) RecordRect(static_cast<unsigned>(index),window);
         if (chatIndex>=0) RecordChatRect(chatIndex,window);
-        MenuMirror.End(mirrorSaved);
         blocking=was; targetScope=wasTarget; expandedSkin=wasExpanded;
     }
 };
@@ -1216,43 +1162,36 @@ static void __fastcall DrawExpandedChat(void* owner,void*) {
 // Each text route heard, then the game's own, unchanged; a text call within one counted as nested
 static int32_t __cdecl TextBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
     Diag.TextBegin(TEXT_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
-    MenuMirror.TextBegin(TEXT_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     Native.look.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(TextBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
     Native.look.text--;
-    Diag.TextEnd(); MenuMirror.TextEnd(); return end;
+    Diag.TextEnd(); return end;
 }
 static int32_t __cdecl TextScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
     Diag.TextBegin(TEXT_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
-    MenuMirror.TextBegin(TEXT_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     Native.look.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(TextScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
     Native.look.text--;
-    Diag.TextEnd(); MenuMirror.TextEnd(); return end;
+    Diag.TextEnd(); return end;
 }
 static uint32_t __fastcall TextFont(void* font,void*,int32_t x,int32_t y,const char* text,uint32_t a,uint32_t colour,uint32_t flags,uint32_t sx,uint32_t sy) {
     Diag.TextBegin(TEXT_FONT,x,y,text,colour);
-    MenuMirror.TextBegin(TEXT_FONT,x,y,text,colour);
     Native.look.text++;
     const uint32_t result=reinterpret_cast<uint32_t(__fastcall*)(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t)>(TextFontDetour.trampoline)(font,nullptr,x,y,text,a,colour,flags,sx,sy);
     Native.look.text--;
-    Diag.TextEnd(); MenuMirror.TextEnd(); return result;
+    Diag.TextEnd(); return result;
 }
-// A window's contents drawn, as Window::Render would, with the mirror told they are being drawn
+// A mouse message on its way to the game, given to it as the native look says (or kept from it)
 static void __cdecl GameInput(MSG message) {
-    if (!Native.Mouse(message)) return; // kept from the game
-    if (!Native.mouse && (MirrorBlock.Supported & MIRROR_SUPPORTED_MOUSE)) {
-        RECT client;
-        if (MouseMessage(message.message) && GetClientRect(message.hwnd,&client))
-            if (MirrorMapMessage(MirrorBlock,message,client.right-client.left,client.bottom-client.top)) MirrorMapped++;
-    }
+    if (!Native.Mouse(message)) return;
     reinterpret_cast<void(__cdecl*)(MSG)>(InputDetour.trampoline)(message);
 }
+// A window's contents drawn, as Window::Render would, with the native look told they are being drawn
 static void __fastcall DrawContent(void* owner,void*) {
     void* draw=(*static_cast<void***>(owner))[4];
-    MenuMirror.Phase(PHASE_CONTENT); Native.look.Phase(PHASE_CONTENT);
+    Native.look.Phase(PHASE_CONTENT);
     reinterpret_cast<void(__fastcall*)(void*,void*)>(draw)(owner,nullptr);
-    MenuMirror.Phase(PHASE_AFTER); Native.look.Phase(PHASE_AFTER);
+    Native.look.Phase(PHASE_AFTER);
 }
 static void __fastcall RenderWindow(void* window,void*) {
     if (PartyHook::Instance) PartyHook::Instance->Render(window);

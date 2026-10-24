@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include "../../drawcontext.h"
-#include "../mirror/labels.h"
+#include "../census/labels.h"
 #include "native.h"
 #include "skin.h"
 #include "skinfile.h"

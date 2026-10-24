@@ -2,9 +2,8 @@
 # Builds build/uihook.dll on Linux with clang-cl and lld-link, as a 32-bit Windows plugin.
 #
 #   ./build.sh                 the plugin as it is played with
-#   ./build.sh --diagnostics   with the tools the game's menus were studied with built in as well: /uihook census,
-#                              /uihook textures, /uihook mirror labels and watch, and the watch tools/uihook_live.py
-#                              reads (src/modules/mirror/diagnostics.h)
+#   ./build.sh --diagnostics   with the tools the game's menus were studied with built in as well: /uihook census
+#                              and /uihook textures (src/modules/census/diagnostics.h)
 #
 # Needs two things that are not part of this folder, both looked for under TOOLCHAIN
 # (default: <project>/.toolchain):

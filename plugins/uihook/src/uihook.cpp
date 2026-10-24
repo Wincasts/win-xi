@@ -7,21 +7,13 @@
 IPlugin* CreateBuffModule();
 IPlugin* CreatePartyModule();
 
-// The words of a command after its first n, as typed
-static const char* After(const char* command, int n) {
-    const char* c = command;
-    for (int i = 0; i < n; ++i) { while (*c == ' ') ++c; while (*c && *c != ' ') ++c; }
-    while (*c == ' ') ++c;
-    return c;
-}
-
 class UIHook : public IPlugin {
     std::unique_ptr<IPlugin> buffs, party;
     IAshitaCore* m_Core = nullptr;
 public:
     const char* GetName() const override { return "uihook"; }
     const char* GetAuthor() const override { return "win"; }
-    const char* GetDescription() const override { return "The game's own interface changed: buffs, party and alliance, target, clock, compass and chat replaced by addons' own, and its menus skinned, moved and mirrored."; }
+    const char* GetDescription() const override { return "The game's own interface changed: buffs, party and alliance, target, clock, compass and chat replaced by addons' own, and its menus skinned, moved and scaled."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
     double GetVersion() const override { return 1.58; }
     // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one; UseText: each line given
@@ -60,13 +52,6 @@ public:
         if (_stricmp(words[1], "census") == 0) { std::string line = "/uihook census"; if (words[2][0]) line += std::string(" ") + words[2]; return party && party->HandleCommand(mode, line.c_str(), injected); }
         if (_stricmp(words[1], "skin") == 0) return party && party->HandleCommand(mode, command, injected);
         if (_stricmp(words[1], "textures") == 0) { std::string line = "/uihook textures"; if (words[2][0]) line += std::string(" ") + words[2]; return party && party->HandleCommand(mode, line.c_str(), injected); }
-        if (_stricmp(words[1], "mirror") == 0) {
-            std::string line = "/uihook mirror";
-            if (_stricmp(words[2], "labels") == 0) { line += " labels"; if (words[3][0]) line += std::string(" ") + words[3]; }
-            else if (_stricmp(words[2], "watch") == 0) line += " watch";
-            else if (_stricmp(words[2], "mark") == 0) line += std::string(" mark ") + After(command, 3);
-            return party && party->HandleCommand(mode, line.c_str(), injected);
-        }
         if (_stricmp(words[1], "native") == 0) return party && party->HandleCommand(mode, command, injected);
         if (_stricmp(words[1], "menus") == 0) return party && party->HandleCommand(mode, "/uihook menus", injected);
         if (!words[1][0] || _stricmp(words[1], "addons") == 0) { Addons(); return true; }
@@ -75,15 +60,13 @@ public:
         Say("  /uihook skin <name> | reload | off: the game's interface drawn with the pictures in config\\uihook\\skins\\<name>\\ (tex-<hash>.png) in place of its textures, every menu at once.");
         Say("  /uihook skin font <menu|title> <file|off> [regular|bold] [outline=<px>]: the skin's fonts drawn in a font of C:\\Windows\\Fonts.");
         Say("  /uihook native [group <x> <y> | group off | inset <pixels> | size <factor>]: the windows the game stacks over the chat log moved together, the sides brought in, or every framed window drawn larger; the game's menus and controller input left as they are.");
-        Say("  /uihook mirror: the menus an addon mirrors, and what was published from the last frame.");
+        Say("  /uihook native mouse on|off: the game's mouse given each window where it is drawn (an experiment).");
 #if UIHOOK_DIAGNOSTICS
         Say("Diagnostics, in this build:");
         Say("  /uihook census on|off|dump|clear: every window the game draws and the text it prints, to logs\\uihook-census (off until asked).");
         Say("  /uihook textures on|off|dump|clear: every texture the screen-space drawing uses, by window and part, to logs\\uihook-textures\\NN (off until asked).");
-        Say("  /uihook mirror labels [seconds]: the art of the menus mirrored, letters and icons, to logs\\uihook-labels, after that many seconds.");
-        Say("  /uihook mirror watch | mark <words>: each window drawn and what was published, as it changes, to logs\\uihook-mirror-watch.txt.");
 #else
-        Say("The diagnostics (census, textures, mirror labels and watch) are left out of this build: plugins/uihook/build.sh --diagnostics.");
+        Say("The diagnostics (census, textures) are left out of this build: plugins/uihook/build.sh --diagnostics.");
 #endif
         return true;
     }

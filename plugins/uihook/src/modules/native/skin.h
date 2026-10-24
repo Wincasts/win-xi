@@ -27,7 +27,7 @@
 #include <string.h>
 #include <vector>
 #include <cmath>
-#include "../mirror/textures.h"
+#include "../census/textures.h"
 
 #define SKIN_POINTERS 4096
 #define SKIN_ANY 0xffffffffu

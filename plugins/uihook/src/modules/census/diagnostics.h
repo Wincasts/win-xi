@@ -1,13 +1,10 @@
 // The tools used to find out how the game draws its menus, kept apart from what changes its drawing:
 //   /uihook census on|off|dump|clear        every window drawn and the text it prints (census.h)
 //   /uihook textures on|off|dump|clear      every texture the screen-space drawing uses, by window and part (textures.h)
-//   /uihook mirror labels [seconds]         the art of the menus mirrored, cut from its textures (labels.h)
-//   /uihook mirror watch | mark <words>     each window drawn and what was published, as it changes (watch.h)
-// and the watch kept in memory for tools/uihook_live.py (UihookWatch). One of the party module's parts: it hears
-// the text routes, the windows and the draws the mirror and the native look hear.
+// One of the party module's parts: it hears the window hooks (window.h) and the draws the native look hears.
 //
 // Built only with ./build.sh --diagnostics (UIHOOK_DIAGNOSTICS=1). Without, DiagnosticsModule is the stand-in at the
-// end of this file: every call made of it does nothing, its commands say how to build them, and no watch is exported.
+// end of this file: every call made of it does nothing, and its commands say how to build them.
 #pragma once
 #ifndef UIHOOK_DIAGNOSTICS
 #define UIHOOK_DIAGNOSTICS 0
@@ -19,60 +16,37 @@
 #include <algorithm>
 #include "../../drawcontext.h"
 #include "../chat/chat.h"
+#include "../window/window.h"
 #include "../native/native.h"
 #include "census.h"
-#include "mirror.h"
 #include "labels.h"
 #include "textures.h"
-#include "watch.h"
 
 #if UIHOOK_DIAGNOSTICS
-// exported, as nothing in the DLL reads it back: a block private to it would have every write to it optimized away
-extern "C" __declspec(dllexport) MirrorWatchShared UihookWatch{};
-
 class DiagnosticsModule {
 public:
     Census census;           // /uihook census: the windows drawn and the text they print, heard while it is on
     TextureCensus textures;  // /uihook textures
-    MirrorWatch watch;       // every window drawn, kept in UihookWatch; with /uihook mirror watch, to logs\uihook-mirror-watch.txt
-    bool watchFile=false;
     bool hooked=false;       // the window hooks taken: the text routes heard
     DrawContext* ctx=nullptr;
-    MirrorShared* block=nullptr;      // the mirror's block and the mirror: what was asked for, mirrored and published
-    Mirror* mirror=nullptr;
     const NativeLook* native=nullptr; // the part of a window being drawn, and whether a text routine is under way
-    void Init(DrawContext* context,MirrorShared* mirrorBlock,Mirror* menuMirror,const NativeLook* nativeLook) {
-        ctx=context; block=mirrorBlock; mirror=menuMirror; native=nativeLook;
-    }
-    // The window hooks taken: the census told where the game's code is, the watch begun
-    void Start(uintptr_t base) {
-        census.base=base; hooked=true;
-        memcpy(UihookWatch.Magic,"UIHOOK-WATCH",13); UihookWatch.Version=1; UihookWatch.Size=sizeof(UihookWatch);
-        watch.Start();
-    }
+    void Init(DrawContext* context,const NativeLook* nativeLook) { ctx=context; native=nativeLook; }
+    // The window hooks taken: the census told where the game's code is
+    void Start(uintptr_t base) { census.base=base; hooked=true; }
     // and given back
-    void Stop() { hooked=false; census.on=false; census.current=nullptr; watch.Stop(); watchFile=false; UihookWatch.Count=0; }
+    void Stop() { hooked=false; census.on=false; census.current=nullptr; }
     // uihook unloaded: the census's file written a last time, the textures let go
     void Unload() { AutoCensus(true); textures.on=false; textures.Clear(); textures.window[0]=0; }
-    // Each Present, before the frame is counted: the watch shared, the art written where it was asked for later, the
-    // census's file written as it falls due
-    void Present() {
-        if (watch.on) {
-            watch.Share(UihookWatch,ctx->Frame());
-            if (watchFile) WatchPresent(); else watch.Next();
-        }
-        if (labelsAt && int32_t(GetTickCount()-labelsAt)>=0) { labelsAt=0; LabelsCommand(); }
-        AutoCensus(false);
-    }
+    // Each Present, before the frame is counted: the census's file written as it falls due
+    void Present() { AutoCensus(false); }
     // and after
     void Counted() { census.frame=ctx->Frame(); }
     // A draw from a vertex buffer
-    void BufferDraw() { TextureDraw(nullptr,0,0,true); census.Draw(); watch.Draw(MirrorWatch::BUFFER); }
+    void BufferDraw() { TextureDraw(nullptr,0,0,true); census.Draw(); }
     // A draw from memory: its vertices, and how many make a piece of its texture (6 a list's quad, 4 a strip's)
     void MemoryDraw(const void* data,unsigned vertices,unsigned stride,unsigned group) {
         TextureDraw(data,vertices,stride,false,group);
         census.Draw();
-        if (watch.Inside()) WatchUp();
     }
     // Each print of the three text routes heard, and its text read for the texture census's glyphs; then ended
     void TextBegin(TextRoute route,int32_t x,int32_t y,const char* text,uint32_t colour) {
@@ -86,29 +60,19 @@ public:
         while (n<sizeof(bytes)-1 && ChatRead(text+n,bytes+n,1) && bytes[n]) n++;
         textures.PrintBegin(bytes,n);
     }
-    // A window Window::Render draws, for as long as it is drawn: the census and the watch told, the texture census its
-    // name. hidden: the mirror leaves it undrawn.
+    // A window Window::Render draws, for as long as it is drawn: the census told, the texture census its name
     struct Window {
-        DiagnosticsModule& d; CensusScope scope; char was[sizeof(TextureCensus::window)]; int watchWas;
-        Window(DiagnosticsModule& m,void* window,bool hidden) : d(m), scope(m.census,window) {
+        DiagnosticsModule& d; CensusScope scope; char was[sizeof(TextureCensus::window)];
+        Window(DiagnosticsModule& m,void* window) : d(m), scope(m.census,window) {
             memcpy(was,m.textures.window,sizeof(was));
             if (m.textures.on) {
                 void* header=nullptr; char name[16];
-                const bool named=window && ChatRead(static_cast<uint8_t*>(window)+4,&header,4) && header && ChatRead(static_cast<uint8_t*>(header)+0x46,name,16);
+                const bool named=window && ChatRead(static_cast<uint8_t*>(window)+WINDOW_HEADER,&header,4) && header && ChatRead(static_cast<uint8_t*>(header)+WINDOW_NAME,name,16);
                 m.textures.Window(named ? name : "?");
             }
-            watchWas=m.watch.on ? m.WatchEnter(window,hidden) : -1;
         }
-        ~Window() { d.watch.Leave(watchWas); memcpy(d.textures.window,was,sizeof(was)); }
+        ~Window() { memcpy(d.textures.window,was,sizeof(was)); }
     };
-    // /uihook mirror labels [seconds]: at once, or after the seconds given, so the chat line the command was typed in
-    // has closed and the menus are drawn as they are while played
-    void LabelsLater(int seconds) {
-        if (seconds<=0) { LabelsCommand(); return; }
-        labelsAt=GetTickCount()+DWORD((std::min)(seconds,60))*1000;
-        char line[96]; snprintf(line,sizeof(line),"[uihook:mirror] writing the menus' art in %d seconds.",(std::min)(seconds,60));
-        ctx->core->GetChatManager()->Write(0,false,line);
-    }
     // /uihook textures: a screen-space draw's texture (stage 0), read the first time it is seen, counted with the
     // window and part drawing it. data: its vertices, from min; none from a vertex buffer.
     void TextureDraw(const void* data,unsigned vertices,unsigned stride,bool buffered,unsigned group=0) {
@@ -215,111 +179,13 @@ public:
         } else snprintf(line,sizeof(line),"[uihook:census] %s, %zu windows seen. /uihook census on|off|dump|clear.",census.on ? "on" : "off",census.windows.size());
         ctx->core->GetChatManager()->Write(0,false,line);
     }
-    // Every element and content quad (an icon, a letter) of the last frame published, cut from its texture to logs\uihook-labels\N.bmp, with
-    // labels.txt naming each one's window, texture, place in it and the hash of its pixels
-    DWORD labelsAt=0; // when a /uihook mirror labels asked for later is to be written, or 0
-    void LabelsCommand() {
-        char line[512];
-        const MirrorFrameData& last=block->Published;
-        uint32_t elements=0;
-        for (uint32_t i=0;i<last.QuadCount;i++) if (last.Quads[i].Phase==PHASE_ELEMENT || last.Quads[i].Phase==PHASE_CONTENT) elements++;
-        if (!elements) {
-            ctx->core->GetChatManager()->Write(0,false,"[uihook:mirror] no elements or art in the last frame mirrored: open a menu the menus addon mirrors first; nothing written.");
-            return;
-        }
-        // each run in a folder of its own, 01, 02 and on, so none is written over
-        const std::string base=std::string(ctx->core->GetInstallPath())+"\\logs\\uihook-labels";
-        CreateDirectoryA(base.c_str(),nullptr);
-        std::string folder;
-        for (unsigned n=1;n<1000 && folder.empty();n++) {
-            char sub[8]; snprintf(sub,sizeof(sub),"\\%02u",n);
-            if (CreateDirectoryA((base+sub).c_str(),nullptr)) folder=base+sub;
-        }
-        if (folder.empty()) { snprintf(line,sizeof(line),"[uihook:mirror] could not make a folder in %s.",base.c_str()); ctx->core->GetChatManager()->Write(0,false,line); return; }
-        std::vector<uint32_t> sheets; // each texture once whole, as sheet-XXXXXXXX.bmp
-        FILE* list=fopen((folder+"\\labels.txt").c_str(),"w");
-        if (!list) { snprintf(line,sizeof(line),"[uihook:mirror] could not write %s.",folder.c_str()); ctx->core->GetChatManager()->Write(0,false,line); return; }
-        fprintf(list,"# n window texture WxH format uv(left top right bottom) texels(x0 y0 x1 y1) hash colour rect(normalized) phase(1 content, 3 element)\n");
-        unsigned written=0,skipped=0;
-        for (uint32_t i=0;i<last.QuadCount;i++) {
-            const MirrorQuad& q=last.Quads[i];
-            if ((q.Phase!=PHASE_ELEMENT && q.Phase!=PHASE_CONTENT) || q.Window>=last.WindowCount) continue;
-            const char* name=last.Windows[q.Window].Name;
-            LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]={}; const char* why="not held";
-            const bool cut=q.Texture && mirror->Holds(q.Texture)
-                && LabelCut(reinterpret_cast<IDirect3DBaseTexture8*>(uintptr_t(q.Texture)),q.UV,pixels,desc,texels,why);
-            if (cut && std::find(sheets.begin(),sheets.end(),q.Texture)==sheets.end()) {
-                sheets.push_back(q.Texture);
-                const float whole[4]={0,0,1,1}; LabelPixels sheet; D3DSURFACE_DESC d{}; uint32_t t[4]; const char* w;
-                char name[40]; snprintf(name,sizeof(name),"\\sheet-%08X.bmp",q.Texture);
-                if (LabelCut(reinterpret_cast<IDirect3DBaseTexture8*>(uintptr_t(q.Texture)),whole,sheet,d,t,w)) LabelWrite((folder+name).c_str(),sheet);
-            }
-            char file[32]="-";
-            if (cut) {
-                snprintf(file,sizeof(file),"%03u.bmp",i);
-                if (!LabelWrite((folder+"\\"+file).c_str(),pixels)) { snprintf(file,sizeof(file),"-"); why="not written"; }
-            }
-            fprintf(list,"%s %.16s %08X %ux%u %08X %.5f %.5f %.5f %.5f %u %u %u %u %08X %08X %.4f %.4f %.4f %.4f %u%s%s\n",
-                file,name,q.Texture,desc.Width,desc.Height,uint32_t(desc.Format),q.UV[0],q.UV[1],q.UV[2],q.UV[3],
-                texels[0],texels[1],texels[2],texels[3],file[0]!='-' ? LabelHash(pixels) : 0u,q.Colour,
-                q.Rect[0],q.Rect[1],q.Rect[2],q.Rect[3],q.Phase,file[0]!='-' ? "" : " # ",file[0]!='-' ? "" : why);
-            (file[0]!='-' ? written : skipped)++;
-        }
-        fclose(list);
-        snprintf(line,sizeof(line),"[uihook:mirror] %u pieces and %zu textures written, %u not, to %s (from %u windows mirrored last frame).",
-            written,sheets.size(),skipped,folder.c_str(),last.WindowCount);
-        ctx->core->GetChatManager()->Write(0,false,line);
-    }
-    // /uihook mirror watch: each window drawn, whether asked for and mirrored, and how it drew, written as it changes
-    std::string WatchPath() const { return std::string(ctx->core->GetInstallPath())+"\\logs\\uihook-mirror-watch.txt"; }
-    int WatchEnter(void* window,bool hidden) {
-        char name[16]; uint8_t* header=nullptr; bool hide=false;
-        auto* w=static_cast<uint8_t*>(window);
-        const bool wanted=w && ChatRead(w+WINDOW_HEADER,&header,4) && header && ChatRead(header+WINDOW_NAME,name,16) && mirror->Wanted(name,hide);
-        return watch.Enter(window,wanted,hidden,mirror->Active());
-    }
-    void WatchUp() {
-        DWORD fvf=0; auto* device=ctx->Device();
-        const bool screen=device && ctx->DrawFvf(fvf) && (fvf & D3DFVF_POSITION_MASK)==D3DFVF_XYZRHW;
-        watch.Draw(screen ? MirrorWatch::UP : MirrorWatch::OTHER);
-    }
-    void WatchWrite(const std::string& text) {
-        if (text.empty()) return;
-        if (FILE* file=fopen(WatchPath().c_str(),"a")) { fputs(text.c_str(),file); fclose(file); }
-    }
-    static std::string WatchClock() {
-        SYSTEMTIME t; GetLocalTime(&t); char clock[16];
-        snprintf(clock,sizeof(clock),"%02u:%02u:%02u.%03u",t.wHour,t.wMinute,t.wSecond,t.wMilliseconds);
-        return clock;
-    }
-    void WatchPresent() {
-        WatchWrite(watch.Present(block->Published,block->Dropped,ctx->Frame(),GetTickCount(),WatchClock().c_str()));
-    }
-    void WatchCommand(const char* word) {
-        char line[320]; const std::string path=WatchPath();
-        if (word[0]) {
-            // a line of the player's own in the file, where they are and what they see, and the next frame written
-            if (!watchFile) { ctx->core->GetChatManager()->Write(0,false,"[uihook:mirror] the watch is off: /uihook mirror watch first."); return; }
-            WatchWrite("-- "+WatchClock()+" mark: "+word+"\n"); watch.Renew();
-            snprintf(line,sizeof(line),"[uihook:mirror] marked: %s",word);
-        } else if (watchFile) {
-            watchFile=false; snprintf(line,sizeof(line),"[uihook:mirror] watch off; %s kept.",path.c_str());
-        } else if (!block->Supported) {
-            snprintf(line,sizeof(line),"[uihook:mirror] the menus' drawing was not found in this client; nothing to watch.");
-        } else if (FILE* file=fopen(path.c_str(),"w")) {
-            fprintf(file,"uihook mirror watch, started %s: each window drawn (asked for by an addon, hidden, mirrored), its draws, and what was published\n",WatchClock().c_str());
-            fclose(file); watchFile=true; watch.Renew();
-            snprintf(line,sizeof(line),"[uihook:mirror] watching to %s; /uihook mirror mark <words> to note a moment, /uihook mirror watch again to stop.",path.c_str());
-        } else snprintf(line,sizeof(line),"[uihook:mirror] could not write %s.",path.c_str());
-        ctx->core->GetChatManager()->Write(0,false,line);
-    }
 };
 #else
 // The stand-in: the calls the party module makes, each nothing
 class DiagnosticsModule {
 public:
     DrawContext* ctx=nullptr;
-    void Init(DrawContext* context,MirrorShared*,Mirror*,const NativeLook*) { ctx=context; }
+    void Init(DrawContext* context,const NativeLook*) { ctx=context; }
     void Start(uintptr_t) {}
     void Stop() {}
     void Unload() {}
@@ -329,15 +195,13 @@ public:
     void MemoryDraw(const void*,unsigned,unsigned,unsigned) {}
     void TextBegin(TextRoute,int32_t,int32_t,const char*,uint32_t) {}
     void TextEnd() {}
-    struct Window { Window(DiagnosticsModule&,void*,bool) {} };
+    struct Window { Window(DiagnosticsModule&,void*) {} };
     void Absent(const char* tool) const {
         char line[160];
         snprintf(line,sizeof(line),"[uihook] %s is one of the diagnostics, left out of this build: plugins/uihook/build.sh --diagnostics builds them in.",tool);
         ctx->core->GetChatManager()->Write(0,false,line);
     }
-    void LabelsLater(int) { Absent("/uihook mirror labels"); }
     void CensusCommand(const char*) { Absent("/uihook census"); }
     void TexturesCommand(const char*) { Absent("/uihook textures"); }
-    void WatchCommand(const char*) { Absent("/uihook mirror watch"); }
 };
 #endif

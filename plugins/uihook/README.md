@@ -3,15 +3,14 @@
 One Ashita v4 plugin that changes the game's own interface. Addons hand it their own **buff**, **party/alliance**,
 **target**, **clock**, **compass** and **chat log** drawing to stand in for the game's, each independently; and it
 changes the game's **menus** themselves: drawn with a skin's textures and fonts (`/uihook skin`, set by
-`addons/nativeui`), moved and scaled (`/uihook native`, nativeui), or left undrawn for `addons/menus` to draw
-again (the mirror). Replaces loading `buffhook` and `partyhook`; the addons remain separate. Loading uihook
+`addons/nativeui`), and moved and scaled with the mouse following (`/uihook native`, nativeui). Replaces loading `buffhook` and `partyhook`; the addons remain separate. Loading uihook
 without any of that asked for leaves the game's drawing unchanged.
 
 ## Build and install
 
 ```sh
 plugins/uihook/build.sh                 # the plugin as it is played with
-plugins/uihook/build.sh --diagnostics   # with the census, texture census, label dumps and watch built in
+plugins/uihook/build.sh --diagnostics   # with the menu and texture censuses built in
 ```
 
 Uses the same clang-cl/lld-link, x86 Windows SDK/MSVC and Ashita SDK toolchain as the previous plugins
@@ -428,20 +427,16 @@ the file nothing. Nothing is read from the game or written to it, and no line is
 
 ## Diagnostics: built with `--diagnostics` (1.58)
 
-The menu census, the texture census, `/uihook mirror labels` and `/uihook mirror watch`, and the watch block
-`tools/uihook_live.py` reads, are the tools the mirror and the skin were found with. They are built in only by
-`./build.sh --diagnostics` (`src/modules/mirror/diagnostics.h`); the plugin as built by `./build.sh` answers
-their commands with how to build them, and exports no watch. A skin is made from a texture census, so
+The menu census and the texture census are the tools the window hooks and the skin were found with. They are
+built in only by `./build.sh --diagnostics` (`src/modules/census/diagnostics.h`); the plugin as built by
+`./build.sh` answers their commands with how to build them. A skin is made from a texture census, so
 `tools/uihook_skin.py`'s input needs a diagnostics build to take; the skin it makes loads in either.
 
 ## Menu census (0.95)
 
-The first step toward mirroring the game's menus. The game registers about 370 menus, all drawn by
-Window::Render: the frame first, then the menu's own content through its owner's vtable +10, then the
-cursor and scrollbar. A mirror keeps the real menu open, its input and controller handling the game's,
-blocks its drawing as the chat log's is, and hands an addon what it would have drawn: its rect, the text
-it prints and where, its icons, and where its cursor is. The census finds how many ways the menus print
-their contents, so the mirror is built for those rather than menu by menu.
+The game registers about 370 menus, all drawn by Window::Render: the frame first, then the menu's own content
+through its owner's vtable +10, then the cursor and scrollbar. The census lists every window drawn, by name,
+with the text it prints and where, and how many ways the menus print their contents.
 
 ```text
 /uihook census on      start hearing the windows, written to logs\uihook-census\<date>_<time>.txt as menus are opened
@@ -450,7 +445,7 @@ their contents, so the mirror is built for those rather than menu by menu.
 /uihook census clear   forget what was seen
 ```
 
-Text reaches the screen through three routines, each found by a unique prologue (`src/modules/mirror/census.h`):
+Text reaches the screen through three routines, each found by a unique prologue (`src/modules/window/window.h`):
 the bitmap font's `(x, y, text, colour, sx, sy, centred)`, cdecl, each glyph a Sprite::Draw, behind
 the plain `(x, y, text, colour)` wrapper with about 150 callers; its scaled sibling `(x, y, text, colour,
 flag, sx, sy)` with about 130; and the rendered font's thiscall `(x, y, text, ?, colour, flags, sx, sy)`,
@@ -490,7 +485,7 @@ drawn or not) or a whole number of times as many, gives each font texture's glyp
 texels and size on the screen. Textures with the same pixels are one, wherever the game keeps them; a pointer unseen for 120 frames is
 read again, as the game may have made another there. One that cannot be locked (the default pool) is
 counted by its size and format. At most 128 MB of pixels are kept. Off until asked, nothing written to the
-game (`src/modules/mirror/textures.h`).
+game (`src/modules/census/textures.h`).
 
 ## Skin (1.33)
 
@@ -524,8 +519,8 @@ shrunk further than 2.6 times.
 
 A game texture is known by its pixels (the census's hash), read the first time its pointer is seen in a
 screen-space draw, and again where it has not been seen for 120 frames. For a draw whose texture the skin has a
-picture for, stage 0 is given the picture, the draw made, and the game's texture put back; the census and the
-mirror see the game's own. A skin is loaded by command, each time uihook is loaded (an Ashita script can do it).
+picture for, stage 0 is given the picture, the draw made, and the game's texture put back; the censuses see the
+game's own. A skin is loaded by command, each time uihook is loaded (an Ashita script can do it).
 `python3 tools/uihook_skin.py <census folder>` makes a test skin by recolouring the chrome the first census
 found (gold frame, red background, green hand, amber buttons) into `plugins/uihook/build/skins/test`, to be
 copied to `config\uihook\skins\test\`; `--style winxi` makes `skins/winxi` from the winxi theme file
@@ -543,47 +538,25 @@ Every picture is made at several sizes, `tex-<hash>@<factor>.png` (0.5 to 2 time
 each draw with a size whose texels are its pixels, unfiltered, or else the smallest about twice as fine, filtered,
 so the menus stay crisp at any Menu Scale up to 2. The game's art stays out of the repository (`src/modules/native/skin.h`).
 
-## Menu mirror (0.96, ABI 2 in 0.97, ABI 3 in 1.0, ABI 4 in 1.1, ABI 5 in 1.2)
-
-The real menu stays open and keeps its input; an addon draws its own from what it would have drawn.
-`winxi.nativemirror` uses the independent **mirror ABI 5**, magic `UIHOOK-MIRROR`, 84632 bytes
-(`src/modules/mirror/mirror.h`): the addon writes up to 128 window names (`menu    inventor`) into
-`Requests`, a bit of `Hide` (four words of 32) for each the game is to leave undrawn, then `RequestFrame` as the commit,
-every frame; four frames after the last the game draws them all again. As each frame is presented,
-uihook publishes what the requested windows drew in it (`Published`): for each window its name, flags
-(cursor shown, focused, hidden, contents drawn), its frame's place, the cursor's, the row highlight's
-and the scrollbar's where drawn (and the scrollbar's rows shown, rows and rows above, read), the game's
-layout target; the element the cursor is on (0.98: Window::Render draws a window's list of elements,
-its labels, buttons and icons, before the contents, the cursor's tinted, each published as a quad of
-phase Element); its runs of text (the bytes the game was given, to the line's end, its colour, the
-place it was asked for in the game's units and the place measured from its glyphs) and its quads (each
-draw of the game's art in the contents: its place, its corners in its texture, its colour, and the
-texture, an `IDirect3DBaseTexture8*` held by uihook until the next frame is published). Places are
-normalized to the viewport, as the chat rectangles are. Up to 16 windows, 512 runs, 512 quads and 32 KB
-of text a frame; what does not fit is counted in `Dropped`.
+## The window hooks (0.96; their own in 1.58)
 
 Window::Render's one call to a window's contents, `mov edx,[ecx]; call [edx+10]` (five bytes), is made
 a call to uihook's, which makes the same call (the return address the game's, the owner in ecx), so
 each draw is known to be the frame's (before), the contents' (in it) or a control's (after: the cursor,
-row highlight and scrollbar, told apart by the chat controls' call sites where those were found). The
-three text routines the census found say what is printed. A hidden window's draws are blocked through
-the same GPU filter the other replacements use, after being measured. No cursor, selection or layout is
-touched.
+row highlight and scrollbar, told apart by the chat controls' call sites where those were found): its
+`WindowPhase`. The three text routines the census found say when text is being printed. The native look tells
+a window's frame by both: what it is grown from, and what a draw must touch to be moved with it. They are taken
+together, with Window::Render, or not at all (`src/modules/window/window.h`;
+`tests/check_window_client.py` checks them against a dump of the client).
 
-The mouse (1.2): the addon also writes, each frame, where up to 16 menus are drawn other than where the game
-puts them (`Mouse`, each the drawn place then the game's own, normalized; `MouseCount`, then `MouseFrame` as
-the commit, holding four frames as a request does). The game reads mouse messages in its own message loop,
-from the MSG, before Translate and DispatchMessage (its window procedure gives them to Windows); uihook takes
-that handler (`MIRROR_INPUT_PATTERN`, `src/modules/mirror/mouse.h`) and gives it a move, press, release or
-double click on a drawn menu at the same place on the game's own, `lParam` and `pt` moved. The wheel's place
-is the screen's and is left as it is (the game scrolls where its cursor is). Ashita, imgui and addons see the
-message as it was. `Supported` bit 2 says the handler was found. `/uihook mirror` reports what is asked and the last frame published; `/uihook mirror labels` writes
-its elements, cut from their textures, to `logs\uihook-labels`. Only
-screen-space `DrawPrimitiveUP` draws are measured. The census is off until `/uihook census on`, each time written to `logs\uihook-census\<date>_<time>.txt` as windows
-are seen. `/uihook mirror watch` (again to stop) writes
-`logs\uihook-mirror-watch.txt` as it changes: each window drawn, whether it was asked for and mirrored, how its
-draws were made, and what was published; `/uihook mirror mark <words>` notes a moment in it. The `menus` addon draws the item lists and the item
-description box in the winxi look.
+## The menu mirror, retired (0.96–1.57)
+
+The mirror left a menu undrawn while the game kept it open and working, and published what it would have drawn
+(mirror ABI 5, `UIHOOK-MIRROR`) for `addons/menus` to draw again in the winxi look through `winxi.nativemirror`,
+with the mouse given to the game at the same place on its own (1.2). The skin and the native look change the
+game's own menus instead, all of them at once, so 1.58 retired it with menus, nativemirror, the label dumps,
+the watch and `tools/uihook_live.py`: copies are in `archive/` (kept locally), and all of it is in the history
+up to commit `eae073d`. Its mouse mapping lives on in the native look's `mouse on`.
 
 ## The native look (1.25; drawn moved in 1.29)
 
@@ -641,9 +614,10 @@ in 1.58: nothing used them once the group, the inset and the size did it for eve
 - `src/modules/native/`: the game's own menus changed as they are drawn. `skinmodule.h` (`/uihook skin`) swaps
   their textures and fonts for a skin's; `nativemodule.h` (`/uihook native`) draws them moved and scaled. Their
   logic, checked offline, is in `skin.h`, `skinfile.h`, `skinfont.h` and `native.h`.
-- `src/modules/mirror/`: the menu mirror (`mirror.h`, `mouse.h`), which leaves a menu undrawn and publishes what
-  it would have drawn for `addons/menus`, and `diagnostics.h`: the menu and texture censuses, the label dumps and
-  the watch, the tools the mirror and the skin were found with.
+- `src/modules/window/`: the window hooks (`window.h`: the text routes, the contents' call, a draw's phase) and the
+  game's mouse handler (`mouse.h`), which the native look hears and the census lists.
+- `src/modules/census/`: `diagnostics.h`, the menu and texture censuses (`census.h`, `textures.h`), built with
+  `--diagnostics`; `labels.h` reads a texture's pixels, which the skin knows the game's textures by.
 - `src/drawcontext.h`: what those parts share for each draw (the device, the frame, the draw's vertex format, the
   screen's size, and whether a draw of uihook's own is under way).
 

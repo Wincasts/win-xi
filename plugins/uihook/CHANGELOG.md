@@ -6,15 +6,12 @@
   out, and `clear` with them: nothing used them once `group`, `inset` and `size` (nativeui's settings) did it for
   every window. Every entry the native look keeps is now one made as a window is drawn.
 - The party module's one file (`partyhook.cpp`, 2,000 lines) is split: the skin (`native/skinmodule.h`), the
-  native look (`native/nativemodule.h`) and the diagnostics (`mirror/diagnostics.h`) are modules of their own, each
+  native look (`native/nativemodule.h`) and the diagnostics (`census/diagnostics.h`) are modules of their own, each
   with its state and commands, sharing a `DrawContext` (`drawcontext.h`); `partyhook.cpp` keeps the capture and
   replay and calls each in turn. Nothing it draws or publishes changes.
-- The diagnostics (`/uihook census`, `/uihook textures`, `/uihook mirror labels`, `/uihook mirror watch` and
-  `mark`, and the watch block exported as `UihookWatch` for tools/uihook_live.py) are built only by
-  `./build.sh --diagnostics`. Without them the watch is no longer kept every frame, nor the census and texture
-  census looked at for each draw, and their commands say how to build them. 75 KB smaller.
-- `/uihook mirror watch` and `/uihook mirror mark <words>` reach the watch: uihook gave every `/uihook mirror` but
-  `labels` on as plain `/uihook mirror`, so since 1.21 they printed the mirror's report instead.
+- The diagnostics (`/uihook census` and `/uihook textures`) are built only by `./build.sh --diagnostics`. Without
+  them the census and the texture census are not looked at for each draw, and their commands say how to build
+  them.
 - The window hooks (the three text routes and the contents' call in Window::Render) are uihook's own, not the
   mirror's and the census's: `src/modules/window/window.h` holds their patterns, the window's fields and the phase
   of a draw (`WindowPhase`, was `MirrorPhase`), which the native look tells a window's frame by.
@@ -24,7 +21,12 @@
   top, of those drawn in the last two frames) is given to the game at the same place on its own window, the move
   undone; one where the game puts a window drawn elsewhere, with none drawn there, is kept from the game (a button
   let go always given). The mirror's taking of the game's mouse handler (1.2) is the game's own now
-  (`window/mouse.h`), shared by the two; the native look's comes first while it is on.
+  (`window/mouse.h`).
+- The menu mirror is retired (0.96–1.57): mirror ABI 5 (`UIHOOK-MIRROR`) is no longer published, and
+  `/uihook mirror`, `/uihook mirror labels`, `watch` and `mark` and the `UihookWatch` export are gone, with the
+  menus addon, `winxi.nativemirror` (winxi 43) and tools/uihook_live.py. The skin and the native look change the
+  game's own menus instead. Copies are in `archive/`; the history has all of it up to `eae073d`. The window hooks
+  stay (the native look needs them) and the census moves to `src/modules/census/`.
 - `/uihook` lists its commands a line each, the diagnostics only where they are built in. The plugin's description
   and its DLL's version (it said 0.3 and 0.4) say what it is now; the README no longer says it is experimental or untested.
 
