@@ -48,6 +48,7 @@ theme.Defaults = {
     TabStyle        = 'glass',    -- one of theme.TabStyles, over the tabs of a window (winxi.tabs): 'plain' is imgui's own
     BarTexture      = 'chrome',   -- one of theme.BarTextures, for an addon that draws HP and MP bars
     BarFrame        = 'texture',  -- one of theme.BarFrames: the frame round those bars, or the Bar Texture's own
+    BarFrameOpacity = 100,        -- percent: how solid that frame is
     Bookends        = true,       -- a small cap at each end of those bars
     BookendStyle    = 'texture',  -- one of theme.BookendStyles
     BookendOpacity  = 65,         -- percent: how solid those caps are
@@ -190,7 +191,7 @@ local colorKeys = { 'BackgroundColor', 'BorderColor', 'TextColor', 'ThemeTabColo
 theme.MaxFontSize = 40;
 theme.MaxTextOutline = 4;
 
-local numberKeys = { FontSize = { 0, theme.MaxFontSize }, TextOutline = { 0, theme.MaxTextOutline }, Padding = { 0, theme.MaxPadding }, ShadowOffset = { 0, 20 }, ShadowBlur = { 0, 20 }, ShadowOpacity = { 0, 100 }, BorderOpacity = { 0, 100 }, BookendOpacity = { 0, 100 }, BarGlow = { 0, 100 }, TitleSize = { 0, theme.MaxFontSize },
+local numberKeys = { FontSize = { 0, theme.MaxFontSize }, TextOutline = { 0, theme.MaxTextOutline }, Padding = { 0, theme.MaxPadding }, ShadowOffset = { 0, 20 }, ShadowBlur = { 0, 20 }, ShadowOpacity = { 0, 100 }, BorderOpacity = { 0, 100 }, BookendOpacity = { 0, 100 }, BarGlow = { 0, 100 }, BarFrameOpacity = { 0, 100 }, TitleSize = { 0, theme.MaxFontSize },
     TitleOffsetX = { -50, theme.MaxTitleOffsetX }, TitleOffsetY = { -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY },
     TitleShadowOffset = { 1, 6 }, TitleShadowOpacity = { 0, 100 },
     SettingsPadding = { 0, theme.MaxSettingsPadding }, SettingsFontSize = { 0, theme.MaxFontSize },
@@ -421,7 +422,7 @@ function theme.Save()
         local color = current[key];
         file:write(string.format('    %s = { %f, %f, %f, %f },\n', key, color[1], color[2], color[3], color[4]));
     end
-    for _, key in ipairs({ 'FontSize', 'TextOutline', 'Padding', 'ShadowOffset', 'ShadowBlur', 'ShadowOpacity', 'BorderOpacity', 'BookendOpacity', 'BarGlow', 'TitleSize', 'TitleOffsetX', 'TitleOffsetY', 'TitleShadowOffset', 'TitleShadowOpacity', 'SettingsPadding', 'SettingsFontSize', 'TooltipDelay', 'TooltipMaxWidth', 'TooltipPadding', 'TooltipFontSize' }) do
+    for _, key in ipairs({ 'FontSize', 'TextOutline', 'Padding', 'ShadowOffset', 'ShadowBlur', 'ShadowOpacity', 'BorderOpacity', 'BookendOpacity', 'BarGlow', 'BarFrameOpacity', 'TitleSize', 'TitleOffsetX', 'TitleOffsetY', 'TitleShadowOffset', 'TitleShadowOpacity', 'SettingsPadding', 'SettingsFontSize', 'TooltipDelay', 'TooltipMaxWidth', 'TooltipPadding', 'TooltipFontSize' }) do
         file:write(string.format('    %s = %d,\n', key, math.floor(current[key] + 0.5)));
     end
     for _, key in ipairs(booleanKeys) do

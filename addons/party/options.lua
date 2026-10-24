@@ -515,7 +515,7 @@ function options.Style(saved)
     local look = theme.Get()
     style.ffxivIcons, style.bookends, style.bookendOpacity = look.StatusIcons, look.Bookends, look.BookendOpacity
     style.barTexture, style.bookendStyle, style.borderStyle = look.BarTexture, look.BookendStyle, look.BorderStyle
-    style.barFrame = look.BarFrame
+    style.barFrame, style.barFrameOpacity = look.BarFrame, look.BarFrameOpacity
     style.barGlow, style.barBackdrop = look.BarGlow, look.BarBackdrop and look.BarBackdropColor or nil
     Pixels(style.hpOffset, kept.hpOffset)
     Pixels(style.mpOffset, kept.mpOffset)

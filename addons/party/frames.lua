@@ -39,6 +39,7 @@
 --     barGlow                  0 to 100: how bright the light at the end of each fill is (none unless given)
 --     barBackdrop              a colour for the empty part of the bars, over their back; nil for none
 --     barFrame                 'capsule' or 'capsule_silver' for a capsule's rim in place of the texture's frame
+--     barFrameOpacity          0 to 100: how solid that frame, or the texture's, is (100 unless given)
 --     showMp, showTp           false to leave the MP or the TP figure out; the MP bar is drawn either way
 --     nameChars                at most this many characters of a name, as well as what fits (nil: no limit)
 --     trimLast                 true for a list that is the last thing in its window: its last line is
@@ -183,6 +184,7 @@ local roundedCaps = false -- whether the caps are rounded, beyond the bar's ends
 local glowAlpha = 0       -- how bright the light at a fill's end is, 0 to 1
 local backdropColor = nil -- the empty part of a bar's colour, or nil to leave its back as it is
 local capsuleFrame = nil  -- the capsule's rim (capsuleFrames), or nil for the texture's own frame
+local frameAlpha = 1      -- how solid the frame is, 0 to 1
 local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
 local outlined = true     -- whether the names and figures have winxi's dark edge
 local nameChars = nil     -- how much of a name is written, where it is not the layout's own
@@ -392,7 +394,7 @@ end
 
 local function Front(place, bar)
     local frame = place.frame
-    Image(place.front, frame.x, frame.y, frame.width, frame.height, bar.color or place.color, 1, place.frontPart)
+    Image(place.front, frame.x, frame.y, frame.width, frame.height, bar.color or place.color, frameAlpha, place.frontPart)
 end
 
 -- A bar's two bookends. Each is the cap's image, put on whole pixels: at a scale of 100 that is the
@@ -430,7 +432,7 @@ local function CapsuleRim(place)
     -- least one pixel of each
     top, bottom = math.min(top, inTop - 1), math.max(bottom, inBottom + 1)
     local above, below = Outer(inTop - top), Outer(bottom - inBottom)
-    local dark, light = draw.Packed(capsuleFrame.dark, 1), draw.Packed(capsuleFrame.light, 1)
+    local dark, light = draw.Packed(capsuleFrame.dark, frameAlpha), draw.Packed(capsuleFrame.light, frameAlpha)
     Band(left, top, right, top + above, dark)
     Band(left, top + above, right, inTop, light)
     Band(left, inBottom, right, bottom - below, light)
@@ -496,10 +498,8 @@ local function DrawBars(count, kind, place)
     if backdropColor then Layer(count, kind, place, Backdrop) end
     Layer(count, kind, place, Fill)
     if glowAlpha > 0 then Layer(count, kind, place, Glow) end
-    if capsuleFrame then
-        Layer(count, kind, place, CapsuleRim)
-    else
-        Layer(count, kind, place, Front)
+    if frameAlpha > 0 then
+        Layer(count, kind, place, capsuleFrame and CapsuleRim or Front)
     end
     if bookends then
         Layer(count, kind, place, Bookends)
@@ -787,6 +787,7 @@ local function ConfigureBars(style)
     glowAlpha = math.max(0, math.min(100, tonumber(style.barGlow) or 0)) / 100
     backdropColor = style.barBackdrop
     capsuleFrame = capsuleFrames[style.barFrame]
+    frameAlpha = math.max(0, math.min(100, tonumber(style.barFrameOpacity) or 100)) / 100
     -- Only known sets can select asset paths; the original remains the fallback. The paths are made
     -- again only when the set changes.
     local textureSet = style.barTexture

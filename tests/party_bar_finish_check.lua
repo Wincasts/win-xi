@@ -164,3 +164,30 @@ style.bookends, style.barFrame = true, 'texture'
 paint()
 assert(#rects == 0 and #find('_front%.png$') == 2, 'the texture\'s own frame otherwise')
 H.print('bar frame: the capsule\'s rim in place of the texture\'s, from cap to cap, square ends without them', true)
+
+-- Bar Frame Opacity: the capsule's rim and the texture's frame drawn that much less solid, and at 0 not at all
+local alphas = {}
+draw.Packed = function(colour, alpha) alphas[#alphas + 1] = alpha; draw.lastAlpha = alpha; return packed(colour, alpha) end
+local function faded(value)
+    for _, alpha in ipairs(alphas) do if math.abs(alpha - value) < 1e-9 then return true end end
+end
+assert(theme.Defaults.BarFrameOpacity == 100)
+style.barFrame, style.barFrameOpacity, style.bookendStyle, style.scale = 'capsule', 30, 'rounded', 150
+alphas = {}
+paint()
+assert(#rects > 0 and faded(0.3), 'the rim at 30%')
+style.barFrame = 'texture'
+paint()
+local fronts = find('_front%.png$')
+assert(#fronts == 2 and fronts[1].alpha == 0.3, 'the texture\'s frame at 30%')
+style.barFrameOpacity = 0
+paint()
+assert(#find('_front%.png$') == 0, 'none at 0')
+style.barFrame = 'capsule'
+paint()
+assert(#rects == 0, 'no rim at 0')
+style.barFrameOpacity, style.barFrame, style.scale = nil, 'texture', 100
+paint()
+assert(find('_front%.png$')[1].alpha == 1, 'solid unless given')
+draw.Packed = packed
+H.print('bar frame opacity: the rim and the texture\'s frame, none at 0, solid unless given', true)
