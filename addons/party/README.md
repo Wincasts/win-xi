@@ -39,6 +39,9 @@ calls per category; averages and maxima cover the full interval.
   screen-edge fitting and overflow badges. Screen fitting conservatively reserves the widest icon in
   mixed sets. When needed, the last available slot becomes a `+N` badge; with no external space the
   badge uses the frame's lower-left corner. Two rows increase row height.
+- **Style → Status Display → Show Statuses**, on by default, draws the buff and debuff icons beside the
+  party and alliance. Off, every status setting (Status Display, Status Filtering, Advanced: Status IDs)
+  is greyed and kept; a target's debuffs follow the Target tab.
 - **Style → Status Filtering** has Debuffs First and two effect pickers, Priority Effects and Hidden
   Effects: search by name or ID, tick effects, and reorder priorities with Up and Down. Priority order
   follows the list, hidden effects win, and other effects keep their original order. The same lists
@@ -48,7 +51,7 @@ calls per category; averages and maxima cover the full interval.
   Effects order each kind among itself. The debuffs are those Erase or a waltz removes in Phoenix's
   `data/status_effects.yaml`, and the harmful ones that cannot be cancelled (sleep, charm, doom, helix,
   enemy songs, dazes, the Geo downs and the like).
-- **Style → Warnings** has a low-HP `!` threshold (zero disables it) and the TP-ready threshold.
+- **Style → Warnings** has a low-HP `!` threshold (zero disables it) and Flash TP When Ready; TP is ready at 1000.
   **Advanced: Range Indicators** has near range (centimeters), far range (meters) and both dimming
   levels. Far range is treated as at least near range. These are approximate distance indicators,
   not action-specific range guarantees.
@@ -207,7 +210,7 @@ Unload Party and partyhook before replacing the DLL; keep hideparty unloaded.
 - `/pt native target on|off`: independent target replacement. Captures main, sub-target and target-of-target
   windows together at the native target-box stage; normal Target settings still select which are shown.
 - `/pt native status`: concise mode/readiness status; cumulative debug counters are hidden.
-- **Behavior → uihook**, shown only while uihook (or partyhook) is loaded. **Hook Into uihook** turns the
+- **Behavior → uihook**, the last section, shown only while uihook (or partyhook) is loaded. **Hook Into uihook** turns the
   hooking on or off as a whole; while it is on, **Party** and **Target** choose which windows the plugin
   draws in the game's place, and **Follow Default UI Behavior** sits with them. Pets are rows of the
   Party windows and go with Party. The choices are kept while the plugin is not loaded. `/pt native on` turns Hook Into uihook on too.

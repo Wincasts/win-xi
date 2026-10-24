@@ -120,15 +120,73 @@ paint('off')
 assert(alphas[2] == 1)
 local tpColor
 draw.Packed = function(color) return color end
-draw.Text = function(_, _, packed, text) if text == '1000' then tpColor = packed end end
-style.tpReady, style.tpFlash = 2000, false
+local tpText = '999'
+draw.Text = function(_, _, packed, text) if text == tpText then tpColor = packed end end
+style.tpFlash = false
+member.tp = 999
 paint('off')
-assert(tpColor == theme.Get().TextColor)
-style.tpReady = 1000
+assert(tpColor == theme.Get().TextColor, 'TP under 1000 is not ready')
+member.tp, tpText = 1000, '1000'
+style.tpReady = 3000 -- a threshold of earlier versions is not read
 paint('off')
-assert(tpColor ~= theme.Get().TextColor)
+assert(tpColor ~= theme.Get().TextColor, 'TP is ready at 1000')
+style.tpReady = nil
 draw.Packed, draw.Image = pack, image
-H.print('warnings: configurable distance opacity and TP-ready threshold', true)
+o.style.tpReady = { 2000 }
+options.Complete(o)
+assert(o.style.tpReady == nil, 'the saved threshold of earlier versions is dropped')
+for _, tab in ipairs(options.Tabs) do
+    for _, entry in ipairs(tab.entries) do assert(entry.key ~= 'tpReady', 'no TP Ready Threshold setting') end
+end
+H.print('warnings: configurable distance opacity and TP ready at 1000', true)
+
+-- Show Statuses: off, the party and alliance draw no status icons and every status setting is greyed
+local partyDraws = {}
+local frameDraw = frames.Draw
+frames.Draw = function(list, kind, texture) partyDraws[kind] = texture ~= nil end
+assert(o.style.showStatuses[1] == true, 'statuses are shown to begin with')
+o.party.enabled[1], o.showConfig[1] = true, false
+local organizer, winxiGame = require('winxi.organize'), require('winxi.game')
+local isActive, isHidden = organizer.IsActive, winxiGame.IsHidden
+organizer.IsActive, winxiGame.IsHidden = function() return true end, function() return false end
+local roster = require('roster')
+local counts, rosterMembers = roster.Counts, roster.Members
+roster.Counts, roster.Members = function() return 6, 6, 6, true end, function() return { member } end
+H.frames(1)
+assert(partyDraws.party, 'statuses shown: the party has its icons')
+o.style.showStatuses[1] = false
+partyDraws = {}
+H.frames(1)
+assert(partyDraws.party == false and partyDraws.alliance == false, 'statuses off: the party and alliance have none')
+frames.Draw, organizer.IsActive, winxiGame.IsHidden = frameDraw, isActive, isHidden
+roster.Counts, roster.Members = counts, rosterMembers
+o.style.showStatuses[1] = true
+local widgets = require('winxi.widgets')
+local header, disabled, greyedLabels, label = widgets.Header, 0, {}, widgets.Label
+local begin, finish = imgui.BeginDisabled, imgui.EndDisabled
+widgets.Header = function() return true end
+widgets.Label = function(text) greyedLabels[text] = disabled > 0; return label(text) end
+imgui.BeginDisabled = function() disabled = disabled + 1 end
+imgui.EndDisabled = function() disabled = disabled - 1 end
+local styleTab
+for _, tab in ipairs(config.Tabs) do if tab.name == 'Style' then styleTab = tab end end
+styleTab.draw(o)
+assert(disabled == 0, 'every greyed setting is closed again')
+assert(greyedLabels['Buff Icon Size (%)'] == false and greyedLabels['Debuffs First'] == false,
+    'statuses on: nothing greyed')
+for k in pairs(greyedLabels) do greyedLabels[k] = nil end
+o.style.showStatuses[1] = false
+styleTab.draw(o)
+assert(disabled == 0 and greyedLabels['Show Statuses'] == false, 'the toggle itself is never greyed')
+for _, name in ipairs({ 'Buff Icon Size (%)', 'Buff Spacing', 'Buff Distance', 'Maximum Status Icons', 'Status Rows',
+    'Status Growth', 'Fit Status Icons To Screen', 'Status Overflow Count', 'Debuffs First', 'Priority Effects',
+    'Hidden Effects', 'Priority Status IDs', 'Hidden Status IDs' }) do
+    assert(greyedLabels[name] == true, name .. ' greyed while statuses are off')
+end
+assert(greyedLabels['Frame Scale (%)'] == false and greyedLabels['Low HP Warning (%)'] == false, 'other settings are not greyed')
+widgets.Header, widgets.Label, imgui.BeginDisabled, imgui.EndDisabled = header, label, begin, finish
+o.style.showStatuses[1] = true
+H.print('Show Statuses: icons left out of party windows and the status settings greyed', true)
 
 local geometry = require('geometry')
 local fullSize, calls = frames.FullSize, 0

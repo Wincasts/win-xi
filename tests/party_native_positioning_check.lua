@@ -39,7 +39,8 @@ windows.UpdatePositions(250,80,200)
 windows.Draw(windows.List.party2,function() end)
 assert(places==1 and moves==1,'old native flags do not disable ordinary automatic placement')
 local widgets=require('winxi.widgets')
-widgets.Header=function() return true end
+local headers={}
+widgets.Header=function(text) headers[#headers+1]=text; return true end
 local checks={}
 imgui.Checkbox=function(id)
     assert(not id:find('nativePositioning',1,true) and not id:find('nativeAlliance',1,true),
@@ -60,6 +61,7 @@ checks={}
 behavior(options)
 assert(checks['##party.nativeHook'] and checks['##party.nativeParty'] and checks['##party.nativeTarget'] and checks['##party.nativeBehavior'],
     'hooking on: which windows it hooks')
+assert(headers[#headers]=='uihook','uihook is the last section of Behavior')
 H.loaded('uihook',false)
 checks={}
 behavior(options)
