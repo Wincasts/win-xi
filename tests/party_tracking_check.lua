@@ -45,7 +45,7 @@ assert(tooltip:find('Estimated remaining:', 1, true) and tooltip:find('Observed 
 details.Job({ name = 'Member', jobText = '[WAR30/RDM15]' })
 assert(tooltip == '[WAR30/RDM15]', 'basic member hover shows job and level without extra details')
 details.Member({ name = 'Pet', owner = 'Owner', jobText = '[WAR99/SAM49]', statusIds = { 4 } })
-assert(tooltip:find('Owner: Owner', 1, true) and tooltip:find('Effect 4', 1, true))
+assert(tooltip:find('Owner: Owner', 1, true) and not tooltip:find('Effect 4', 1, true), 'hover details leave statuses to their icons')
 tooltip = nil
 shared.TooltipsEnabled = false
 details.Status(4)
@@ -57,7 +57,7 @@ o.style.hoverDetails[1], o.clickThrough[1] = true, true
 assert(not require('options').Style(o).hoverDetails)
 o.clickThrough[1] = false
 assert(require('options').Style(o).hoverDetails)
-H.print('hover: owner/jobs/status names, estimated durations and clickthrough opt-in', true)
+H.print('hover: owner/jobs, status names on icons, estimated durations and clickthrough opt-in', true)
 
 local perf = require('perf')
 local now, report = 0, nil
