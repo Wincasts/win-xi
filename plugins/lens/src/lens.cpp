@@ -33,7 +33,7 @@ class Lens : public IPlugin {
     uintptr_t m_Base = 0;       // FFXiMain.dll
     size_t m_Size = 0;
 
-    bool m_On = true;           // the warp
+    bool m_On = true;           // everything below; off is the game's own view, the settings kept for on
     int m_Strength = 50;        // the Panini distance, or for cylindrical how far from flat, in hundredths
     lens::Mode m_Mode = lens::Panini;
     bool m_Aa = true;           // four taps a pixel
@@ -85,7 +85,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.8; }
+    double GetVersion() const override { return 0.9; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -136,8 +136,11 @@ public:
         fclose(f);
     }
     void Status() const {
-        std::string text = m_On ? "on" : "off";
-        text += std::string(", ") + (m_Mode == lens::Panini ? "panini" : "cylindrical") + ", strength " + std::to_string(m_Strength);
+        if (!m_On) {
+            Say("off: the game's own view, flat, without aa, at its own field of view and proportions. /lens on puts back " + Settings() + ".");
+            return;
+        }
+        std::string text = std::string("on, ") + (m_Mode == lens::Panini ? "panini" : "cylindrical") + ", strength " + std::to_string(m_Strength);
         if (m_TanH > 0) {
             char more[200];
             const double deg = 180.0 / 3.14159265358979323846;
@@ -147,16 +150,24 @@ public:
                 2 * atan(m_TanH) * deg, 2 * atan(m_TanV) * deg, 2 * atan(across) * deg, 2 * atan(m_TanV * middle) * deg, middle * 100);
             text += more;
         }
-        text += m_On || m_Aa ? (m_Warped ? "." : "; the game's copy of the world to the screen has not been seen yet.") : ".";
+        text += m_Warped ? "." : "; the game's copy of the world to the screen has not been seen yet.";
         Say(text);
         Say(ProjectionText());
         Say(Smoothing());
+    }
+    // The settings /lens on puts in force, as words.
+    std::string Settings() const {
+        std::string text = std::string(m_Mode == lens::Panini ? "panini" : "cylindrical") + " at strength " + std::to_string(m_Strength) + ", aa " + (m_Aa ? "on" : "off");
+        if (m_Fov) text += ", fov " + std::to_string(m_Fov);
+        else if (m_Middle) text += ", middle " + std::to_string(m_Middle);
+        return text + ", square " + (m_Square ? "on" : "off");
     }
     // The field of view and square as they are.
     std::string ProjectionText() const {
         char text[240];
         std::string fov;
         if (!m_CAddr || m_FovSites.empty()) fov = "fov unavailable: the projection's field of view was not found";
+        else if (!m_On) fov = m_Fov ? "fov " + std::to_string(m_Fov) : m_Middle ? "middle " + std::to_string(m_Middle) : std::string("fov the game's own");
         else if (m_FovForeign) fov = "fov left alone: something else has set it (drawscale's fov before 2.0? /drawscale fov 0)";
         else if (m_FovInPlay > 0 && m_Fov) { snprintf(text, sizeof(text), "fov %d up", m_Fov); fov = text; }
         else if (m_FovInPlay > 0) {
@@ -165,12 +176,13 @@ public:
         }
         else if (m_Middle) { snprintf(text, sizeof(text), "middle %d: waiting for the game's copy of the world, to know its proportions", m_Middle); fov = text; }
         else { snprintf(text, sizeof(text), "fov the game's own, %.0f up", lens::FovOf(m_C)); fov = text; }
-        if (m_CAddr && !m_FovForeign) { snprintf(text, sizeof(text), " (%u places)", static_cast<unsigned>(m_FovSites.size())); fov += text; }
+        if (m_On && m_CAddr && !m_FovForeign) { snprintf(text, sizeof(text), " (%u places)", static_cast<unsigned>(m_FovSites.size())); fov += text; }
         fov += std::string("; square ") + (m_Square ? "on" : "off") + (m_GameGlobal ? "" : " (the game object was not found)");
-        return fov + ".";
+        return fov + (m_On ? "." : "; lens is off, so the game's own until /lens on.");
     }
     std::string Smoothing() const {
         std::string text = std::string("aa ") + (m_Aa ? "on" : "off");
+        if (!m_On) return text + ", once /lens on.";
         if (m_Aa && m_Warped) {
             if (m_Taps == Taps::Averaged) text += ": each pixel is the average of four reads over the patch of the world it covers";
             else if (m_Taps == Taps::NoShader) text += ", but this device has no pixel shader 1.1 and four textures: one smooth read a pixel";
@@ -195,6 +207,7 @@ public:
         if (_stricmp(words[1], "on") == 0 || _stricmp(words[1], "off") == 0) {
             m_On = _stricmp(words[1], "on") == 0;
             Save();
+            ApplyProjection();
             Status();
             return true;
         }
@@ -263,8 +276,8 @@ public:
             Say("Recording the next " + std::to_string(frames) + " frame(s)" + (m_Base ? "." : "; FFXiMain.dll was not found, so the game's callers will be missing."));
             return true;
         }
-        Say("/lens - what the warp is doing. /lens on|off - the warp. /lens mode panini|cylindrical. /lens strength <n> - 0 (flat, as the game) to 100 (the classic Panini, or fully cylindrical), 50 to start.");
-        Say("/lens aa on|off - each pixel the average of four reads over the patch of the world it covers, with the warp or without (on to start).");
+        Say("/lens - what the warp is doing. /lens on|off - everything lens does: off is the game's own view, and on puts your settings back. /lens mode panini|cylindrical.");
+        Say("/lens strength <n> - 0 (flat, as the game) to 100 (the classic Panini, or fully cylindrical), 50 to start. /lens aa on|off - each pixel the average of four reads over the patch of the world it covers (on to start; at strength 0 for aa alone).");
         Say("/lens middle <n> - keep n degrees up the middle of the screen (77 is the game's): lens draws the world taller to give back what the warp takes. 0 for none.");
         Say("/lens fov <n> - draw the world n degrees up instead, 20 to 140; 0 is the game's own. /lens square on|off - the world at the window's true proportions (off to start).");
         Say("/lens capture [frames] - records every draw over the next frames to config/lens/.");
@@ -287,7 +300,7 @@ public:
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t, UINT count, const void* data, UINT stride) override {
         if (m_Drawing) return false;
         Record(lens::DPUP, t, count);
-        return (m_On || m_Aa) && Warp(t, count, data, stride);
+        return m_On && Warp(t, count, data, stride);
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t, UINT, UINT, UINT count, const void*, D3DFORMAT, const void*, UINT) override {
         if (!m_Drawing) Record(lens::DIPUP, t, count);
@@ -330,9 +343,11 @@ private:
     // The field of view asked for, in degrees, 0 for the game's own: fov as set, or the one keeping middle up
     // the middle through the warp as it is (worked out again only when something it rests on changes).
     double WantedFov() {
+        if (!m_On || !m_Middle) m_Capped = false;
+        if (!m_On) return 0;
         if (m_Fov) { m_Capped = false; return m_Fov; }
-        if (!m_Middle) { m_Capped = false; return 0; }
-        const double strength = m_On ? m_Strength / 100.0 : 0;
+        if (!m_Middle) return 0;
+        const double strength = m_Strength / 100.0;
         if (strength == 0) { m_Capped = false; return m_Middle; }
         if (m_TanH <= 0 || m_TanV <= 0) return 0;
         const double aspect = m_TanH / m_TanV;
@@ -376,14 +391,15 @@ private:
             }
             m_FovInPlay = m_FovPatched ? fov : 0;
         }
-        if (m_GameGlobal && (m_Square || m_Squared)) {
+        const bool square = m_On && m_Square;
+        if (m_GameGlobal && (square || m_Squared)) {
             uint32_t object = 0, k = 0;
             if (SafeRead(m_GameGlobal, &object, 4) && object && SafeRead(object + lens::KOffset, &k, 4)) {
-                const uint32_t want = m_Square ? lens::KSquare : lens::KStock;
+                const uint32_t want = square ? lens::KSquare : lens::KStock;
                 // a k that is neither constant was set by something else, and is left to it
                 if (k != want && (k == lens::KStock || k == lens::KSquare)) SafeWrite(object + lens::KOffset, &want, 4);
             }
-            m_Squared = m_Square;
+            m_Squared = square;
         }
     }
     // The game's own projection back, at release; lens's C stays allocated.
@@ -526,7 +542,7 @@ private:
 
     // The game's copy of its world to the screen: a strip of two triangles of screen-space vertices
     // (FVF 0x144) onto the back buffer, nearly all of it, from a render-target texture. Drawn as a
-    // grid with the same state, warped while the warp is on (flat while only aa is), and the quad
+    // grid with the same state, warped by the strength (flat at 0, for aa alone), and the quad
     // blocked; true when so.
     bool Warp(D3DPRIMITIVETYPE type, UINT count, const void* data, UINT stride) {
         if (type != D3DPT_TRIANGLESTRIP || count != 2 || stride != sizeof(lens::Vertex) || !data) return false;
@@ -558,7 +574,7 @@ private:
         D3DMATRIX p;
         if (FAILED(device->GetTransform(D3DTS_PROJECTION, &p)) || p._11 <= 0 || p._22 <= 0) return false;
         double tanH = 1.0 / p._11, tanV = 1.0 / p._22;
-        const int strength = m_On ? m_Strength : 0;
+        const int strength = m_Strength;
         if (m_Built != strength || m_BuiltMode != m_Mode || memcmp(&q, &m_Quad, sizeof(q)) != 0 || tanH != m_TanH || tanV != m_TanV) {
             lens::Taps(q, tanH, tanV, m_Mode, strength / 100.0, Cols, Rows, 0.25, m_Vertices);
             lens::Indices(Cols, Rows, m_Indices);
@@ -651,7 +667,6 @@ private:
         m_GameFilter = min;
         m_CopyFrame = Shared.Frame;
         ++m_Warped;
-        if (!m_On) return true;   // the flat picture: nothing for overlays to move
         Shared.Mode = static_cast<uint32_t>(m_Mode);
         Shared.Strength = m_Strength / 100.0f;
         Shared.TanH = static_cast<float>(tanH);

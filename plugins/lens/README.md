@@ -1,4 +1,4 @@
-# lens — experimental 0.8
+# lens — experimental 0.9
 
 FFXI's world through a Panini or cylindrical projection, either of which keeps a wide view without
 the stretching a flat projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
@@ -12,7 +12,7 @@ drawscale's (now [vis](../../addons/vis)) until its 2.0.
 ```text
 /load lens
 /lens                 what the warp is doing
-/lens on|off          the warp (on to start)
+/lens on|off          everything lens does; off is the game's own view (on to start)
 /lens mode panini|cylindrical   (panini to start)
 /lens strength <n>    0 (flat, as the game) to 100; 50 to start
 /lens aa on|off       each pixel the average of four reads over the world (on to start)
@@ -20,6 +20,10 @@ drawscale's (now [vis](../../addons/vis)) until its 2.0.
 /lens fov <n>         draw the world n degrees up instead, 20 to 140 (0, the game's own, to start)
 /lens square on|off   the world at the window's true proportions (off to start)
 ```
+
+`/lens off` puts the game's own view back: flat, without aa, at the game's field of view and
+proportions. Your settings are kept, and `/lens on` puts them all back. For aa without the warp, use
+`/lens strength 0`.
 
 - **Panini** keeps lines running toward the middle of the view straight (a road or corridor ahead,
   the edges of what you face) and squeezes the edges somewhat. The strength is its distance: 100 is
@@ -41,7 +45,7 @@ the strength, so the middle is enlarged and shows less up and down than the worl
 
 - `/lens middle <n>` keeps `n` degrees up the middle of the screen, the game's own being 77: lens
   works out the field of view that gives it back for the mode, the strength and the screen's
-  proportions, and works it out again whenever one of them changes. With the warp off it is the
+  proportions, and works it out again whenever one of them changes. At strength 0 it is the
   field of view itself. Past what 140 can give, it draws at the field of view showing the most, and
   `/lens` says so.
 - `/lens fov <n>` draws the world `n` degrees up, 20 to 140, whatever the warp; `0` is the game's
@@ -92,8 +96,8 @@ DXVK (`d3d9.forceSwapchainMSAA`) does not reach the world at all, as it is not d
 
 With `/lens aa on`, each pixel is the average of four smooth reads spread over the patch of the
 world it covers, worked out at every point of the grid from the warp itself: wider apart where the
-edges are squeezed, closer in the enlarged middle, half a pixel apart without the warp. With the warp
-off (`/lens off`) and aa on, lens still draws the copy, flat. `/lens` says what the copy is doing, the
+edges are squeezed, closer in the enlarged middle, half a pixel apart without the warp. At strength
+0 with aa on, lens still draws the copy, flat. `/lens` says what the copy is doing, the
 world's size against the screen's, and how the game's own copy reads it.
 
 It can only average what the game drew. A 3D resolution twice the screen's each way (6880x2880 at
