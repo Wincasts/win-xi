@@ -30,6 +30,7 @@ local levels = require('levels');
 local letterBadges = require('letter_badges');
 local statuses = require('statuses');
 local healthbar = require('healthbar');
+local vendors = require('vendors');
 local nameColours = require('name_colours');
 local inline = require('inline_tokens');
 local nameTypes = require('name_types');
@@ -49,8 +50,9 @@ local SLOT = { Font = 0, Icon = 1, Sense = 2, Temper = 3, Sign = 4 };
 local ICON_EDGE_OPACITY = 0.75; -- soften small inline/detail icons without fading their fill
 -- A tracked notorious monster: the plugin's number for its sign's texture (letter_badges has 5), the
 -- sign it has in place of [aggro]'s, and what is written for the name of a monster it is drawn by lot
--- from. One table: the frame's function has no room for more names than it has.
-local HUNT = { Slot = 6, Sheet = 'special/hunt.png', Placeholder = 'Placeholder' };
+-- from. A vendor's coin is the sheet's other half (assets/make_special_sheet.py): every texture the
+-- plugin has is taken. One table: the frame's function has no room for more names than it has.
+local HUNT = { Slot = 6, Sheet = 'special.png', Placeholder = 'Placeholder', Coin = 0.5 };
 -- statuses.lua has 7, the last, for the sheet of status icons.
 
 -- What is written under the name of a monster its player has checked: see the frame, below
@@ -98,6 +100,7 @@ local settings = {
     iconSize    = function () return T{ 125 }; end,   -- an icon's side, as a percentage of the height of the names
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
+    showVendorIcons = function () return T{ true }; end, -- the coin before the names of NPCs that sell
     showHealthBar = function () return T{ false }; end, -- shared by every entity type
     healthBarsCombatOnly = function () return T{ false }; end,
     healthBarWidth = function () return T{ 60 }; end,
@@ -124,7 +127,7 @@ local settings = {
 local settled = {
     { 'checkSize', 'number', 50, 125 }, { 'healthBarWidth', 'number', 12, 300 }, { 'healthBarHeight', 'number', 3, 40 },
     { 'huntScale', 'number', 100, 200 }, { 'subtargetScale', 'number', 50, 200 },
-    { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' },
+    { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' }, { 'showVendorIcons', 'boolean' },
     { 'abbreviateDifficulty', 'boolean' }, { 'fontBold', 'boolean' },
     { 'trackedNm', 'string' }, { 'nameFormat', 'string' }, { 'monsterFormat', 'string' }, { 'npcFormat', 'string' },
 };
@@ -254,6 +257,7 @@ local function parse(name)
     known.fresh = false;
     known.letterOf = nil; -- a renamed monster has no letter, or another's
     known.trackOf = nil;
+    known.vendorOf = nil;
     local written = ffi.string(name.Text);
 
     -- the icons lead; the name is what follows them, less the space between
@@ -965,7 +969,9 @@ function custom.Frame(options, hook, formats)
     nameplates.SetTexture(TEMPER_SLOT, sheets['aggro.png'] and sheets['aggro.png'].at or 0);
     local trackedName = options.trackedNm ~= nil and options.trackedNm[1] or '';
     local labelPlaceholders = options.labelPlaceholders ~= nil and options.labelPlaceholders[1];
-    local huntTexture = trackedName ~= '' and sheet(HUNT.Sheet) or 0;
+    local coins = vendors.Begin(options);
+    local huntTexture = (trackedName ~= '' or coins) and sheet(HUNT.Sheet) or 0;
+    coins = coins and huntTexture ~= 0;
     local huntScale = options.huntScale ~= nil and math.max(100, math.min(200, options.huntScale[1])) / 100 or 1;
     nameplates.SetTexture(HUNT.Slot, huntTexture);
     -- the character under the sub-target cursor while one is being chosen. It is the first of the game's two targets either way: with a
@@ -1253,6 +1259,12 @@ function custom.Frame(options, hook, formats)
                     local own = override or nameColor(displayColor);
                     local nameTint = own;
                     local width, iconsHeight = 0, 0;
+                    -- a vendor's coin, before all of it, as large as a player's icons and as far from what follows
+                    local coin = coins and name.Category == nameplates.Category.Npc and vendors.Of(written, name)
+                        and math.floor(height * iconScale + 0.5) or nil;
+                    if (coin) then
+                        width = coin + math.floor(options.iconSpacing[1] * scale + 0.5);
+                    end
                     for index = 1, #parts do
                         local part = parts[index];
                         if (not parts.rules or rules.Visible(part, written)) then
@@ -1306,6 +1318,11 @@ function custom.Frame(options, hook, formats)
 
                     local fill = nameTint;
                     local pen = left;
+                    if (coin) then
+                        local coinTop = top + math.floor((height - coin) * 0.5);
+                        nameplates.Quad(pen, coinTop, pen + coin, coinTop + coin, HUNT.Coin, 0, 1, 1, WHITE, HUNT.Slot, true, ICON_EDGE_OPACITY);
+                        pen = pen + coin + math.floor(options.iconSpacing[1] * scale + 0.5);
+                    end
                     for index = 1, #parts do
                         local part = parts[index];
                         if (not parts.rules or rules.Visible(part, written)) then
@@ -1324,7 +1341,7 @@ function custom.Frame(options, hook, formats)
                                 -- with the dark edge they have
                                 local temperTop = top + math.floor((height - temperSize) * 0.5);
                                 if (huntSign) then
-                                    nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, 0, 0, 1, 1, part.color or WHITE, HUNT.Slot, true, ICON_EDGE_OPACITY);
+                                    nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, 0, 0, HUNT.Coin, 1, part.color or WHITE, HUNT.Slot, true, ICON_EDGE_OPACITY);
                                 else
                                     nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, TEMPER_SLOT, true, ICON_EDGE_OPACITY);
                                 end

@@ -65,6 +65,9 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   checked enemies alike.
 - **NPC Names:** a directly editable **NPC Format** for non-combat NPCs, independent
   of player/enemy formats. Default: `[name]`.
+  **Vendor Icons** (on) draws a coin (`assets/special/vendor.png`) before the name of every NPC that
+  sells: gil shops, guild merchants and outpost vendors. The list is `vendor_list.lua`, by area and
+  name, made from the Phoenix server's NPC scripts by `tools/build_name_vendors.py`.
 - Each category has **Reset Format**. Hover the format editor's **(?)** for its
   token list, token options, a complete example format and sample output; there is
   no separate Tokens & Examples dropdown. Player/NPC strings support `[name]`,
@@ -221,7 +224,7 @@ as well if you do not want that label. Check-detail icons are separate (Check De
 
 This feature is experimental and has a tab of its own, **NM Tracking**, shown after `/name dev`. **Tracked NM** there lists
 the notorious monsters of the area you are in
-(and None). The one chosen, and each of its placeholders, has `assets/special/hunt.png` drawn in place
+(and None). The one chosen, and each of its placeholders, has `assets/special/hunt.png` (half of `assets/special.png`, which it shares with the vendor coin) drawn in place
 of its `[aggro]` icon, so it needs `[aggro]` in Enemy Format. The choice is kept by name when you leave the
 area and does nothing elsewhere.
 

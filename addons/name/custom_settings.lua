@@ -194,6 +194,8 @@ function settings.DrawSettings(options, save)
     controls.EndSection();
     if (controls.Section('NPC Names', '##name.npcOptions')) then
         DrawFormat('NPC Format', 'npcFormat', options, save);
+        controls.Checkbox('Vendor Icons', '##name.showVendorIcons', options.showVendorIcons,
+            'A coin before the name of every NPC that sells: shops, guild merchants and outpost vendors, as the Phoenix server\'s scripts have them.');
         nameColours.Draw(options, 'npcNames');
     end
     controls.EndSection();

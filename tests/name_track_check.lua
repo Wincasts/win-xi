@@ -52,8 +52,8 @@ H.print('none tracked: the aggro sign and the name', quads(1) == 5, first(1).Tex
 
 options.trackedNm[1] = 'Jack'; render()
 local sign = first(1)
-H.print('tracked: the hunt sign, whole, in place of the aggro sign', quads(1) == 5, sign.Texture == 6,
-    sign.U0 == 0 and sign.V0 == 0 and sign.U1 == 1 and sign.V1 == 1, draw.Textures[6] == 0x9999)
+H.print('tracked: the hunt sign, the sheet\'s first half, in place of the aggro sign', quads(1) == 5, sign.Texture == 6,
+    sign.U0 == 0 and sign.V0 == 0 and sign.U1 == 0.5 and sign.V1 == 1, draw.Textures[6] == 0x9999)
 H.print('its placeholder is named Placeholder and has the hunt sign too; another of the name is as it was',
     quads(2) == 1 + #'Placeholder', first(2).Texture == 6, quads(3) == 5, first(3).Texture == 3)
 H.print('a player of the name is no monster', quads(0x401) == 4)
@@ -93,6 +93,33 @@ put(0, 1, 'Jack')
 
 options.trackedNm[1] = ''; render()
 H.print('tracking ended: as before', quads(1) == 4, draw.Textures[6] == 0)
+
+-- a vendor's coin: the sheet's other half, before the name of an NPC the area's list has
+local vendorList = require('vendor_list')
+local zoneOf, managerOf = 240, AshitaCore.GetMemoryManager
+AshitaCore.GetMemoryManager = function(...)
+    local memory = managerOf(...)
+    local party = memory.GetParty()
+    party.GetMemberZone = function() return zoneOf end
+    memory.GetParty = function() return party end
+    return memory
+end
+put(3, 0x402, 'Babubu', plates.Category.Npc); put(4, 0x403, 'Kohlo-Lakolo', plates.Category.Npc)
+hook.Count = 5; render()
+local coin = first(0x402)
+H.print('bundled Port Windurst: Babubu sells, Kohlo-Lakolo does not', vendorList[240]['Babubu'] == true, vendorList[240]['Kohlo-Lakolo'] == nil)
+H.print('Vendor Icons: the coin before a vendor\'s name, none for another NPC or a monster of the name',
+    quads(0x402) == 1 + #'Babubu', coin.Texture == 6, coin.U0 == 0.5 and coin.U1 == 1, draw.Textures[6] == 0x9999,
+    quads(0x403) == #'Kohlo-Lakolo', first(1).Texture ~= 6 or options.trackedNm[1] ~= '')
+local after = draw.Quads[draw.Entities[0x402].First + 1]
+H.print('the name follows it, the whole of it centred', after.X0 > coin.X1, math.abs(coin.X0 + draw.Quads[draw.Entities[0x402].First + quads(0x402) - 1].X1) <= 1)
+zoneOf = 1; render()
+H.print('an area with no vendors: no coin', quads(0x402) == #'Babubu', draw.Textures[6] == 0)
+zoneOf = 240; options.showVendorIcons[1] = false; render()
+H.print('Vendor Icons off: no coin, and the sheet not asked for', quads(0x402) == #'Babubu', draw.Textures[6] == 0)
+options.showVendorIcons[1] = true
+AshitaCore.GetMemoryManager = managerOf
+hook.Count = 4
 
 options.trackedNm, options.labelPlaceholders = 'Jack', nil
 custom.Settle(options)
