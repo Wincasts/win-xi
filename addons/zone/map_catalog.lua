@@ -24,6 +24,7 @@ for _, map in ipairs(require('data.all_maps')) do
             area.polygon, area.enabled, area.provenance = patch.polygon, patch.enabled, patch.method;
             if patch.name then area.name = patch.name; end
             area.exact = patch.exact or nil;
+            area.z_min, area.z_max = patch.z_min, patch.z_max;
         end
     end
     -- A feature added by a refinement is already in the generated data; the POC maps above took
@@ -38,7 +39,8 @@ for _, map in ipairs(require('data.all_maps')) do
     for _, id in ipairs(added) do
         local patch = refinements[map.key][id];
         map.areas[#map.areas + 1] = { id = id, name = patch.name, enabled = patch.enabled,
-            provenance = patch.method, polygon = patch.polygon, exact = patch.exact or nil };
+            provenance = patch.method, polygon = patch.polygon, exact = patch.exact or nil,
+            z_min = patch.z_min, z_max = patch.z_max };
     end
     catalog.maps[map.key] = map;
     catalog.list[#catalog.list + 1] = map;

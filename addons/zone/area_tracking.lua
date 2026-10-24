@@ -8,9 +8,10 @@ local EXACT_DELAY = 0.3;
 -- How near a feature is announced, by the zone's kind: open country's features are wide, a city's
 -- squares and a dungeon's rooms close together. A zone of no known kind is open country.
 M.APPROACH = { outdoors = 50, city = 10, dungeon = 15 };
--- A dungeon entrance is a circle round the server's zone line, tighter than open country's
--- features, and only at about its height, so a path above or below it is not taken for it.
-M.ENTRANCE = { enabled = true, yalms = 20 };
+-- An entrance is a circle round the server's zone line, and only at about its height, so a path
+-- above or below it is not taken for it. A dungeon's is tighter than open country's features; a
+-- town's is wider, to be told of it as you come up to the gates.
+M.ENTRANCE = { enabled = true, yalms = 20, towns = true, town_yalms = 40 };
 local ENTRANCE_HEIGHT = 15;
 local ENTRANCE_SLACK = 3; -- yalms kept on the way out
 local ENTRANCE_SIDES = 16;
@@ -33,37 +34,49 @@ function M.entrance_name(entrance)
     return name;
 end
 
--- A zone's entrances as areas on one map, made again only when the map's transform or the distance
--- changes. They are kept apart from the map's own areas, which the editor saves.
+-- A zone's entrances as areas on one map, those wanted ({ enabled, yalms, towns, town_yalms }),
+-- made again only when the map's transform or what is wanted changes. They are kept apart from the
+-- map's own areas, which the editor saves.
 local entrance_cache = setmetatable({}, { __mode = 'k' });
-function M.entrance_areas(zone, entry, yalms)
+local function entrance_area(entry, entrance, yalms)
+    local factor = math.abs(entry.scale) / 5.0;
+    local radius = yalms * factor;
+    local x, y = geometry.world_to_map(entry, entrance.x, entrance.y);
+    local polygon = {};
+    for i = 0, ENTRANCE_SIDES - 1 do
+        local a = i * 2 * math.pi / ENTRANCE_SIDES;
+        polygon[#polygon + 1] = { x + radius * math.cos(a), y + radius * math.sin(a) };
+    end
+    return { id = 'entrance_' .. entrance.id, name = M.entrance_name(entrance), enabled = true,
+        entrance = entrance.kind or 'dungeon', approach = 0, margin = ENTRANCE_SLACK * factor, polygon = polygon,
+        z_min = entrance.z - ENTRANCE_HEIGHT, z_max = entrance.z + ENTRANCE_HEIGHT,
+        provenance = 'Phoenix server zone line' };
+end
+function M.entrance_areas(zone, entry, wanted)
     local list = entrances[zone or 0];
     if not list or not entry or not geometry.finite(entry.scale) or entry.scale == 0 then return nil; end
     local cached = entrance_cache[entry];
-    if cached and cached.zone == zone and cached.yalms == yalms then return cached.areas; end
-    local factor = math.abs(entry.scale) / 5.0;
-    local radius = yalms * factor;
-    local areas = {};
-    for _, entrance in ipairs(list) do
-        local x, y = geometry.world_to_map(entry, entrance.x, entrance.y);
-        local polygon = {};
-        for i = 0, ENTRANCE_SIDES - 1 do
-            local a = i * 2 * math.pi / ENTRANCE_SIDES;
-            polygon[#polygon + 1] = { x + radius * math.cos(a), y + radius * math.sin(a) };
+    if not (cached and cached.zone == zone and cached.enabled == wanted.enabled and cached.yalms == wanted.yalms
+        and cached.towns == wanted.towns and cached.town_yalms == wanted.town_yalms) then
+        local areas = {};
+        for _, entrance in ipairs(list) do
+            if entrance.kind == 'town' then
+                if wanted.towns then areas[#areas + 1] = entrance_area(entry, entrance, wanted.town_yalms); end
+            elseif wanted.enabled then
+                areas[#areas + 1] = entrance_area(entry, entrance, wanted.yalms);
+            end
         end
-        areas[#areas + 1] = { id = 'entrance_' .. entrance.id, name = M.entrance_name(entrance), enabled = true,
-            entrance = true, approach = 0, margin = ENTRANCE_SLACK * factor, polygon = polygon,
-            z_min = entrance.z - ENTRANCE_HEIGHT, z_max = entrance.z + ENTRANCE_HEIGHT,
-            provenance = "Phoenix server zone line" };
+        cached = { zone = zone, enabled = wanted.enabled, yalms = wanted.yalms, towns = wanted.towns,
+            town_yalms = wanted.town_yalms, areas = #areas > 0 and areas or nil };
+        entrance_cache[entry] = cached;
     end
-    entrance_cache[entry] = { zone = zone, yalms = yalms, areas = areas };
-    return areas;
+    return cached.areas;
 end
 
 -- The map's areas and, when they are wanted, the zone's entrances: one list, kept while neither changes.
 local function with_entrances(state, definition, zone, entry)
     local wanted = state.entrances or M.ENTRANCE;
-    local extra = wanted.enabled and M.entrance_areas(zone, entry, wanted.yalms) or nil;
+    local extra = M.entrance_areas(zone, entry, wanted);
     if not extra then return definition.areas; end
     local merged = state.merged;
     if merged and merged.areas == definition.areas and merged.count == #definition.areas and merged.extra == extra then
@@ -81,7 +94,8 @@ function M.new(reader)
         reader = reader, tracker = geometry.new_tracker(1.0),
         state = { enabled = false, debug = false, zone = 0, approach_yalms = M.APPROACH.outdoors, approach_pixels = 0,
             approach = { outdoors = M.APPROACH.outdoors, city = M.APPROACH.city, dungeon = M.APPROACH.dungeon },
-            entrances = { enabled = M.ENTRANCE.enabled, yalms = M.ENTRANCE.yalms } },
+            entrances = { enabled = M.ENTRANCE.enabled, yalms = M.ENTRANCE.yalms, towns = M.ENTRANCE.towns,
+                town_yalms = M.ENTRANCE.town_yalms } },
         quiet_until = 0, announce_after = 0, queued = nil, next_map_retry = 0,
     };
 

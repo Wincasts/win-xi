@@ -119,13 +119,16 @@ def main():
     parser.add_argument('--addon', type=Path, default=Path('addons/zone'))
     parser.add_argument('--refinements', type=Path, default=Path('addons/zone/research/boundary_refinements.json'))
     parser.add_argument('--defaults-only', action='store_true', help='Refresh polygons/manifest without re-encoding existing previews')
+    parser.add_argument('--data-only', action='store_true',
+                        help='Refresh only data/all_maps.lua and data/boundary_refinements.lua: no previews, no manifest')
     args = parser.parse_args()
     refinements = load_refinements(args.refinements)
     maps = apply_refinements(build(json.loads(args.catalog.read_text()), floor_indices(args.floors)), refinements)
     output = args.addon / 'assets/maps/all'
-    output.mkdir(parents=True, exist_ok=True)
+    if not args.data_only:
+        output.mkdir(parents=True, exist_ok=True)
     manifest = []
-    for record in maps:
+    for record in [] if args.data_only else maps:
         destination = args.addon / 'assets' / record['image']
         if not args.defaults_only:
             data = (args.pack / record['dat']).read_bytes()
@@ -144,6 +147,8 @@ def main():
     (args.addon / 'data/boundary_refinements.lua').write_text(
         '-- Generated from research/boundary_refinements.json; raster-specific, unverified geometry.\nreturn {\n'
         + ''.join('    ' + lua(patch) + ',\n' for patch in refinements['areas']) + '};\n')
+    if args.data_only:
+        return
     summary = dict(maps=len(maps), zones=len({m['zone_id'] for m in maps}),
                    areas=sum(len(m['areas']) for m in maps),
                    located_named_drafts=sum(a['enabled'] for m in maps for a in m['areas']),

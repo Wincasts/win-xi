@@ -16950,6 +16950,34 @@
    "method": "building_footprint_traced_from_map_fill",
    "exact": true,
    "add": true
+  },
+  {
+   "map_key": "245_m_245_00_7f38def02d48",
+   "area_id": "tenshodo_hq",
+   "name": "Tenshodo H.Q.",
+   "add": true,
+   "enabled": true,
+   "polygon": [
+    [
+     298.4,
+     232.0
+    ],
+    [
+     326.4,
+     232.0
+    ],
+    [
+     326.4,
+     259.2
+    ],
+    [
+     298.4,
+     259.2
+    ]
+   ],
+   "method": "placed_from_phoenix_npc_and_door_positions",
+   "exact": true,
+   "z_min": 1.0
   }
  ]
 }

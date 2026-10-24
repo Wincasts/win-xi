@@ -85,6 +85,8 @@ check('open country is announced from further off than a dungeon, a dungeon than
     d.fieldApproach[1] == 50 and d.dungeonApproach[1] == 15 and d.townApproach[1] == 10);
 check('dungeon entrances are announced to begin with, closer in than open country',
     d.entrancesEnabled[1] == true and d.entranceYalms[1] < d.fieldApproach[1]);
+check('town entrances too, from further off than a dungeon\'s', d.townEntrancesEnabled[1] == true
+    and d.townEntranceYalms[1] > d.entranceYalms[1]);
 H.command('/zone approach 45');
 check('the approach command is saved, for open country', d.fieldApproach[1] == 45 and H.saves() > saves);
 H.command('/zone approach town 8'); H.command('/zone approach dungeon 12');
