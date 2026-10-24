@@ -261,3 +261,26 @@ Left as they are:
   it would look different; it is a few seconds a dungeon.
 - The backdrop's ten rounded rectangles are ten calls; ImGui makes their corners'
   vertices, a few hundred, which is little for it.
+
+## Check after approach by kind, entrances and Re-announce After (2026-10-24)
+
+Measured offline (LuaJIT, stand-in Ashita), against the addon before these changes in a separate
+worktree:
+
+| | Before | After |
+| --- | --- | --- |
+| Idle frame | 0.7 µs, 320 B | 0.85 µs, 320 B |
+| Location line frame | 3.0–3.3 µs, 1304 B | 3.8–4.4 µs, 1313–1321 B |
+| Classic Text banner frame | 3.0–3.6 µs | 3.8–4.0 µs |
+| Live sample (4 a second) | — | 0.6–1.3 µs, 0 B |
+
+The live sample was measured in West Ronfaure, Lower Jeuno, Southern San d'Oria, Western Altepa and
+Ru'Aun Gardens (17 entrances, the most): about a microsecond, allocating nothing once warm. A zone's
+entrance circles are made once for a map and distance and kept; the merged list of areas and
+entrances is kept until either changes; the re-announce memory makes a string only when the area
+changes. `tools/benchmark_zoneinfo.lua` now measures the sample.
+
+The 320 bytes of the idle frame are the stand-in's: its `GetMemberZone` makes tables that Ashita's
+does not. With the arguments zone passes it, the closed debug window allocates nothing. Nothing was
+found worth changing: the added cost is under a microsecond a frame, far below anything the game
+would show.

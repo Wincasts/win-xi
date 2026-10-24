@@ -31,4 +31,18 @@ bench('rebuild busiest map outlines (' .. #worst.areas .. ' areas)', 100, functi
     for _, area in ipairs(worst.areas) do lines = lines + #geometry.approach_outline(area.polygon, 30); end
 end);
 bench('cached unsaved-change check', 100000, function() editor:dirty(); end);
+-- A live sample, four a second in game: the map's areas and the zone's entrances, height, the
+-- zone's own approach distance and re-announce memory. Ru'Aun Gardens has the most entrances.
+local tracking = require('area_tracking');
+local ruaun = { scale = 1, offset_x = -256, offset_y = -256, floor_id = 0 };
+local sampler = tracking.new({ get_entry = function() return ruaun; end, get_definition = function() return catalog[130]; end });
+sampler.state.enabled = true;
+sampler:set_zone(130, 0, 0); sampler.announce_after = 0;
+local here, clock = { x = 0, y = 0, z = 0 }, 0;
+bench('live sample with entrances (Ru\'Aun Gardens)', 100000, function(i)
+    clock = clock + .25;
+    here.x, here.y = geometry.map_to_world(ruaun, i * 7 % 512, i * 13 % 512);
+    here.z = i % 40 - 20;
+    sampler:sample(130, here, clock);
+end);
 print(('checksums: matches=%d outline_segments=%d'):format(matches, lines));
