@@ -574,8 +574,6 @@ local function DrawBuffs(member, x, StatusTexture)
         imgui.PushFont(nil, math.min(14, size * 0.6) * scale)
         Write('+' .. (#ids - shown), x, y, textColor)
         imgui.PopFont()
-        if activeStyle.hoverDetails and details.Hover(itemX + x * scale, itemY + y * scale,
-            itemX + (x + size) * scale, itemY + (y + size) * scale) then details.Member(member) end
     end
 end
 

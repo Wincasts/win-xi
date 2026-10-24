@@ -35,11 +35,6 @@ function details.Member(member)
     local text = member.petName or member.name or 'Unknown'
     if member.owner then text = text .. '\nOwner: ' .. member.owner end
     if member.jobText then text = text .. '\n' .. member.jobText end
-    if member.statusIds and #member.statusIds > 0 then
-        text = text .. '\nStatuses:'
-        for _, id in ipairs(member.statusIds) do text = text .. '\n' .. details.StatusName(id) end
-        if member.statusServerId then text = text .. '\nEnemy effects are observed estimates, not a complete status list.' end
-    end
     tooltip.Show(text)
 end
 return details

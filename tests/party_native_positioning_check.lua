@@ -48,14 +48,12 @@ imgui.Checkbox=function(id)
     return false
 end
 package.loaded.hook={Status=function() return 'Native replacement ready.' end}
-local saidLoaded
-imgui.TextWrapped=function(text) if text=='uihook is loaded.' then saidLoaded=true end end
 local behavior=require('config').Tabs[1].draw
 assert(options.nativeHook[1],'settings from before the toggle keep their hooked windows hooked')
 H.loaded('uihook',true)
 options.nativeHook[1]=false
 behavior(options)
-assert(saidLoaded and checks['##party.nativeHook'] and not checks['##party.nativeParty'],
+assert(checks['##party.nativeHook'] and not checks['##party.nativeParty'],
     'uihook found: the toggle alone until it is on')
 options.nativeHook[1]=true
 checks={}
@@ -63,7 +61,8 @@ behavior(options)
 assert(checks['##party.nativeHook'] and checks['##party.nativeParty'] and checks['##party.nativeTarget'] and checks['##party.nativeBehavior'],
     'hooking on: which windows it hooks')
 H.loaded('uihook',false)
-saidLoaded=false
+checks={}
 behavior(options)
-assert(not saidLoaded,'uihook not loaded is said')
+assert(not checks['##party.nativeHook'] and not checks['##party.nativeParty'],'uihook not loaded: no uihook section')
+assert(options.nativeHook[1] and options.nativeParty[1],'its choices kept')
 H.print('Native positioning parked: saved opt-in cleared, runtime gating enforced, controls hidden, manual/automatic layout preserved')
