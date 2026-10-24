@@ -35,7 +35,9 @@
 struct SkinColour { uint32_t from=SKIN_ANY, to=0; bool alpha=false; };    // RGB, or SKIN_ANY for every colour; alpha: to's own, not the game's
 
 // One size of a picture: tex-<hash>.png is the game's size, tex-<hash>@<factor>.png that many times it
-struct SkinSize { float factor=1; uint32_t width=0, height=0; void* texture=nullptr; std::vector<uint32_t> base; };   // base: the file's pixels, kept for a font's picture, to draw its glyphs again on
+// base: the file's pixels, kept for a font's picture, to draw its glyphs again on; stale: its glyphs to be drawn again
+// (in the fonts chosen) before it is next drawn with
+struct SkinSize { float factor=1; uint32_t width=0, height=0; void* texture=nullptr; std::vector<uint32_t> base; bool stale=false; };
 
 struct SkinTexture {
     uint32_t hash=0, width=0, height=0;
@@ -136,8 +138,16 @@ public:
     }
     // The skin's picture for a game texture, or -1. read(hash&) gives its pixels' hash, false where it cannot be read;
     // called only for a pointer not seen lately.
+    // the last pointer looked up, and what it was, this frame: draws one after another are mostly of one texture
+    uintptr_t lastTexture=0; uint32_t lastFrame=0; int32_t lastIndex=-1;
     template<class Read> int32_t Lookup(uintptr_t texture,uint32_t frame,Read readHash) {
-        if (!texture || textures.empty() || Ours(texture)) return -1;
+        if (!texture || textures.empty()) return -1;
+        if (texture==lastTexture && frame==lastFrame) return lastIndex;
+        lastTexture=texture; lastFrame=frame; lastIndex=Find(texture,frame,readHash);
+        return lastIndex;
+    }
+    template<class Read> int32_t Find(uintptr_t texture,uint32_t frame,Read readHash) {
+        if (Ours(texture)) return -1;
         for (auto& p:pointers) if (p.texture==texture) {
             if (frame-p.seen<=TEXTURE_STALE) { p.seen=frame; return p.index; }
             p.seen=frame; p.index=Known(readHash); return p.index;
@@ -158,7 +168,7 @@ public:
             for (auto& z:t.sizes) if (z.texture) held.push_back(z.texture);
             if (t.sizes.empty() && t.texture) held.push_back(t.texture);
         }
-        textures.clear(); pointers.clear(); read=0;
+        textures.clear(); pointers.clear(); read=0; lastTexture=0; lastIndex=-1;
         return held;
     }
     // A picture's name, tex-<eight hex digits>[@<factor>].png or .bmp, as its hash and size (1 without); false for any other
