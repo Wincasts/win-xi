@@ -137,6 +137,29 @@ levels.Letter=letter;name.Category=plates.Category.Player;options.monsterFormat[
 options.healthBarWidth[1]=100
 assert(render()[2].w==100,'saved width is the minimum for a short name')
 options.castBarAutoWidth[1]=false
+-- Cast text: white by default, the name's colour, a custom colour; name and timer each optional.
+options.showHealthBar[1]=false
+local function captions()
+    local bars=render();local list={}
+    for i=bars[1].at+3,draw.QuadCount-1 do list[#list+1]=draw.Quads[i] end
+    return list
+end
+local function rows(list) local seen,n={},0;for _,q in ipairs(list) do if not seen[q.Y0] then seen[q.Y0]=true;n=n+1 end end;return n end
+local both=captions();assert(#both>0 and rows(both)==2)
+for _,q in ipairs(both) do assert(q.Color==0xFFFFFFFF,'cast text is white by default') end
+options.nameFormat[1]='[name:#FF8000]';options.castTextColour[1]='name'
+for _,q in ipairs(captions()) do assert(q.Color==0xFFFF8000,'cast text in the name colour') end
+options.nameFormat[1]='[name]';options.castTextColour[1]='custom';options.castTextColor={0,1,0,1}
+for _,q in ipairs(captions()) do assert(q.Color==0xFF00FF00,'cast text in the custom colour') end
+options.castTextColour[1]='white'
+options.castShowTimer[1]=false
+local nameOnly=captions();assert(rows(nameOnly)==1 and #nameOnly<#both,'timer hidden')
+options.castShowTimer[1],options.castShowName[1]=true,false
+local timerOnly=captions();assert(rows(timerOnly)==1 and #timerOnly<#both,'action name hidden')
+options.castShowTimer[1]=false
+assert(#captions()==0,'no cast text at all');
+options.castShowName[1],options.castShowTimer[1]=true,true
+options.showHealthBar[1]=true
 -- Font overshoots/descenders must not push cast text into its bar or statuses.
 glyph.Y0,glyph.Y1=-4,20;font.ContainerAtlas.TexData.UniqueID=3
 local overshoot=render()
@@ -149,6 +172,18 @@ casts.HandlePacket({id=0x028,data=packets.Packet(1001,4,144,{},2)},options)
 assert(#render()==0,'completed spell removes cast, and ordinary full HP is hidden again')
 casts.Preview[1]=true;casts.PreviewVisible(now)
 assert(#render()==2,'idle preview uses the real HP/cast stacking pipeline')
+-- Weaponskills and TP moves are text alone by default; spells keep their bar.
+options.castBarWeaponskills[1]=true
+now=now+4.5;casts.PreviewVisible(now)
+local skillOnly=render();assert(#skillOnly==1,'a TP move draws no cast bar, only the HP row')
+local skillText=0
+for i=skillOnly[1].at+3,draw.QuadCount-1 do
+    assert(draw.Quads[i].Y0>skillOnly[1].y+skillOnly[1].h);skillText=skillText+1
+end
+assert(skillText>0,'a TP move still writes its name and timer')
+options.castBarSkillTextOnly[1]=false
+assert(#render()==2,'a TP move has its bar with Text Only for Weaponskills off')
+options.castBarSkillTextOnly[1],options.castBarWeaponskills[1]=true,false
 now=now+.3;assert(#render()==0,'closed preview control expires without a fake action record')
 options.showCastBar[1]=false;hp=50
 assert(#render()==1,'disabled cast bars preserve the HP-only pipeline')

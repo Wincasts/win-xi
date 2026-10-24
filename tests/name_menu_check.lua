@@ -202,6 +202,14 @@ assert(sizes.castNameScale[1]==200 and sizes.castTimerScale[1]==75)
 assert(ids['##name.castBarWeaponskills'] and not disabledIds['##name.healthBarWidth'] and disabledIds['##name.healthBarsCombatOnly'],
     'cast-only mode enables shared dimensions, not HP-only controls')
 assert(locations['##name.healthBarWidth']=='Shared Bar Size' and locations['##name.showCastBar']=='Cast Bars')
+for _, id in ipairs({ '##name.castShowName', '##name.castShowTimer', '##name.castTextColour', '##name.castNameScale', '##name.castTimerScale' }) do
+    assert(locations[id]=='Cast Text', 'Cast Text has ' .. id)
+end
+assert(locations['##name.castBarSkillTextOnly']=='Cast Bars' and disabledIds['##name.castBarSkillTextOnly'], 'Text Only waits for Show Weaponskills')
+assert(not ids['##name.castTextColor'], 'the custom colour shows only for Custom')
+assert(options.castBarSkillTextOnly[1] and options.castShowName[1] and options.castShowTimer[1] and options.castTextColour[1]=='white')
+local text=custom.Defaults({});text.castTextColour={'pink'};text.castTextColor={2,'x',-1};custom.Settle(text)
+assert(text.castTextColour[1]=='white' and text.castTextColor[1]==1 and text.castTextColor[2]==1 and text.castTextColor[3]==0)
 options.showCastBar[1]=false
 local et = require('entity_types')
 local mask = T{ 0xFF }

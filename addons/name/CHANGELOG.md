@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.64
+
+- Add Health Bars → Cast Text: Show Action Name, Show Timer, Text Colour (White, Name Colour or Custom, with a colour picker) and the Cast Name Size and Timer Size sliders, moved here from Cast Bars. White stays the default.
+- Add Text Only for Weaponskills under Show Weaponskills, on by default: weaponskills and monster TP moves show their name and timer with no bar, starting where the bar would. Spells keep their bar.
+- Extend actual-quad tests for each text colour, hidden name/timer rows and text-only TP moves, and the menu check for the new controls and their settling.
+
 ## 1.63
 
 - Make spell/skill/preview cast-bar fills inherit the resolved entity-name colour, including explicit name-token tint and normal text fading, instead of fixed blue/orange fills.
