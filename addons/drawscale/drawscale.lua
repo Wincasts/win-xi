@@ -1,6 +1,6 @@
 addon.name    = 'drawscale';
 addon.author  = 'win';
-addon.version = '1.9';
+addon.version = '2.0';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: general values, a preset for cities, the outdoors and dungeons, and a zone\'s own, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -24,6 +24,10 @@ The finding is done in the running game: the client DLL is packed on disk. The s
 found by drawdistance's bytes, its entry by the calls to it, and the fog's calls by their shape: in
 the function before, pushing the world selector, multiplying by the answer. /drawscale callers lists
 every call for the record, and /drawscale patch <n> <mult> still re-scales any one of them by number.
+
+The field of view and the projection's aspect constant (fov and square) were here until 2.0 and are the
+lens plugin's now (/lens fov, /lens middle, /lens square); a character's saved ones are said once at load
+as the lens commands that set them, and dropped.
 --]]
 
 require 'common';
@@ -31,7 +35,6 @@ local settings = require('settings');
 local scan = require('scan');
 local detail = require('detail');
 local view = require('view');
-local fov = require('fov');
 
 local ok, chat = pcall(require, 'chat');
 if (not ok) then chat = nil; end
@@ -48,13 +51,11 @@ local defaults = T{
     objects = 0,      -- zone-object ranges: n times stock; 0 = the same as world
     detail  = 0,      -- how much further objects keep their detailed mesh; 0 = the same as world
     vis     = true,   -- draw distant terrain the zone's visibility lists would hide
-    square  = false,  -- the world at the window's true proportions
-    fov     = 0,      -- the vertical field of view in play, in degrees; 0 = the game's own
     zones   = T{},    -- zone id (as a string) -> the values set for that zone alone
     kinds   = T{ city = T{}, outdoors = T{}, dungeon = T{} }, -- the values set for every zone of a kind
     seeded  = false,  -- whether the city and dungeon presets were given their starting world x2
 };
-local VALUES = { 'world', 'entity', 'fog', 'objects', 'detail', 'vis', 'square', 'fov' };
+local VALUES = { 'world', 'entity', 'fog', 'objects', 'detail', 'vis' };
 local KINDS = { city = 'a city', outdoors = 'outdoors', dungeon = 'a dungeon' };
 local KIND_PRESET = { city = 'the city preset', outdoors = 'the outdoors preset', dungeon = 'the dungeon preset' };
 local SEED = { city = { world = 2 }, dungeon = { world = 2 } };
@@ -82,8 +83,8 @@ local state = T{
     scanStats = nil,
     detail   = nil,    -- the mesh-detail sites, from detail.find
     detailMem = 0,     -- their stubs
-    view     = nil,    -- the visibility-list site and the game pointer, from view.find
-    fovRefs  = nil,    -- the instructions addressing the game object's fields near k, from fov.fieldRefs
+    view     = nil,    -- the visibility-list site, from view.find
+    moved    = nil,    -- what to say of fov and square saved before 2.0, said once at load
 };
 
 -- The client's memory, as the detail and view modules see it.
@@ -207,8 +208,7 @@ local function eachChunk(module, fn)
 end
 
 -- Every call to the scale function in the module holding it: direct calls, then calls through a
--- jump thunk, and the places holding its address. The projection's loads of C (view.fovSites) are
--- gathered in the same pass, so the module is read once.
+-- jump thunk, and the places holding its address.
 local function findCallers()
     local found = T{};
     state.thunks, state.pointers = T{}, T{};
@@ -217,14 +217,10 @@ local function findCallers()
         fail('The module holding the scale function was not found; nothing to scan.');
         return found;
     end
-    local fovSites = (state.view ~= nil and state.view.c ~= nil) and state.view.sites or nil;
     eachChunk(state.module, function (bytes, at, count)
         for _, hit in ipairs(scan.callers(bytes, at, state.fn, count, REACH)) do found:append(hit); end
         for _, hit in ipairs(scan.jumps(bytes, at, state.fn, count, REACH)) do state.thunks:append(hit.address); end
         for _, addr in ipairs(scan.references(bytes, at, state.fn, count)) do state.pointers:append(addr); end
-        if (fovSites ~= nil) then
-            for _, site in ipairs(view.fovSites(bytes, at, count, state.view.cAddr)) do fovSites[#fovSites + 1] = site; end
-        end
     end);
     if (#state.thunks > 0) then
         eachChunk(state.module, function (bytes, at, count)
@@ -313,9 +309,8 @@ local function report(toChat)
     end
     lines:append(#state.fogSites == 2 and (('fog: callers #%d and #%d'):format(state.fogSites[1], state.fogSites[2])) or 'fog: its two calls were not recognised');
     lines:append(state.objectSite and (('objects: caller #%d'):format(state.objectSite)) or 'objects: the range call was not recognised');
-    lines:append(('detail: %d of %d sites; vis site %s; game pointer %s'):format(
-        state.detail and #state.detail.sites or 0, #detail.PATTERNS,
-        (state.view and state.view.visSite ~= 0) and 'found' or 'not found', (state.view and state.view.gamePointer ~= 0) and 'found' or 'not found'));
+    lines:append(('detail: %d of %d sites; vis site %s'):format(
+        state.detail and #state.detail.sites or 0, #detail.PATTERNS, (state.view and state.view.visSite ~= 0) and 'found' or 'not found'));
     for n, c in ipairs(state.callers) do
         lines:append(lineFor(n, c));
         lines:append(detailFor(c));
@@ -420,7 +415,7 @@ local function unpatchCaller(n)
 end
 
 -- The settings, into the game: the two floats, the fog's and the object range's calls through
--- their stubs, the mesh-detail factor, the visibility lists, and the projection constant.
+-- their stubs, the mesh-detail factor, and the visibility lists.
 local function apply()
     local s = resolve();
     if (state.fn == 0 or state.settings == nil) then return; end
@@ -440,11 +435,7 @@ local function apply()
         end
         if (state.detailMem ~= 0) then detail.set(mem, state.detail, detailValue()); end
     end
-    if (state.view ~= nil) then
-        view.setVis(mem, state.view, s.vis ~= false);
-        view.setSquare(mem, state.view, s.square == true);
-        view.setFov(mem, state.view, s.fov or 0);
-    end
+    if (state.view ~= nil) then view.setVis(mem, state.view, s.vis ~= false); end
 end
 
 local function rescan()
@@ -457,7 +448,6 @@ local function rescan()
     end
     state.world = ashita.memory.read_uint32(state.fn + 0x07);
     state.entity = ashita.memory.read_uint32(state.fn + 0x0F);
-    state.view = view.find(mem);
     state.callers = findCallers();
     describeCallers();
     if (not findFog()) then
@@ -470,104 +460,14 @@ local function rescan()
     if (state.detail.missing > 0) then
         fail(('%d of %d mesh-detail sites not found; some objects will still drop detail early.'):format(state.detail.missing, #detail.PATTERNS));
     end
+    state.view = view.find(mem);
     if (state.view.visSite == 0) then fail('The visibility-list read was not found; distant terrain may still pop in.'); end
-    if (state.view.gamePointer == 0) then fail('The game pointer was not found; square and fov are unavailable.'); end
-    if (#state.view.sites == 0) then fail('The projection\'s field of view was not found; fov is unavailable.'); end
     return true;
 end
 
--- The bytes at addr, or an empty table where they cannot be read.
-local function readSafe(addr, n)
-    local ok, bytes = pcall(ashita.memory.read_array, addr, n);
-    return (ok and type(bytes) == 'table') and bytes or {};
-end
-
--- The projection the device holds now: its m11 and m22, or nil.
-local function projection()
-    local ok, m11, m22 = pcall(function ()
-        local device = require('d3d8').get_device();
-        local _, m = device:GetTransform(3); -- D3DTS_PROJECTION
-        return m._11, m._22;
-    end);
-    if (ok) then return m11, m22; end
-    return nil;
-end
-
--- /drawscale fovscan [label]: what is needed to find the field of view, appended to fov.txt. The
--- projection as the device has it and the field of view it holds, the game object's fields around
--- k and a, the function the aspect addon finds with the constants it reads, and every instruction
--- in the client addressing the fields near k, those reading k or a with the code around them. Run it
--- twice with the camera at either end of its zoom, and once in a menu, to see what moves.
-local function fovReport(label)
-    local global = state.view and state.view.gamePointer or 0;
-    local aspectSite = ashita.memory.find(0, 0, fov.ASPECT_PATTERN, 0, 0) or 0;
-    if (global == 0 and aspectSite == 0) then
-        fail('Neither the game pointer nor the aspect function was found; nothing to write to fov.txt.');
-        return;
-    end
-    local lines = T{};
-    lines:append(('== drawscale %s, %s%s'):format(addon.version, os.date('%Y-%m-%d %H:%M:%S'), label and (' [' .. label .. ']') or ''));
-    local m11, m22 = projection();
-    local h, v = fov.fromProjection(m11, m22);
-    lines:append(m11 and (('projection m11 %.6f, m22 %.6f: horizontal %.2f, vertical %.2f degrees'):format(m11, m22, h or 0, v or 0)) or 'projection: not read');
-    local object = global ~= 0 and (ashita.memory.read_uint32(global) or 0) or 0;
-    lines:append(('game global 0x%08X, object 0x%08X'):format(global, object));
-    if (object ~= 0) then
-        lines:append('fields +0x200 to +0x3FF:');
-        for _, l in ipairs(fov.fieldLines(readSafe(object + 0x200, 0x200), 0x200)) do lines:append('  ' .. l); end
-    end
-    if (aspectSite ~= 0) then
-        local aspectGlobal = ashita.memory.read_uint32(aspectSite + 1);
-        lines:append(('aspect pattern at 0x%08X, its global 0x%08X (%s the game global)'):format(aspectSite, aspectGlobal, aspectGlobal == global and 'the same as' or 'not'));
-        local before, after = readSafe(aspectSite - 128, 128), readSafe(aspectSite, 192);
-        lines:append(('  0x%08X: %s'):format(aspectSite - 128, scan.hex(before, 1, #before)));
-        lines:append(('  0x%08X: %s'):format(aspectSite, scan.hex(after, 1, #after)));
-        for _, addr in ipairs(fov.absoluteRefs(after)) do
-            local ok, f = pcall(ashita.memory.read_float, addr);
-            lines:append(('  constant 0x%08X = %s'):format(addr, ok and ('%.6g'):format(f) or 'unreadable'));
-        end
-    else
-        lines:append('aspect pattern: not found');
-    end
-    if (state.fovRefs == nil) then
-        state.fovRefs = T{};
-        local base, size = ashita.memory.get_base('FFXiMain.dll'), ashita.memory.get_size('FFXiMain.dll');
-        if (base ~= nil and base ~= 0 and size ~= nil and size > 0) then
-            local kept = state.scanStats;
-            eachChunk({ base = base, size = size }, function (bytes, at, count)
-                for _, r in ipairs(fov.fieldRefs(bytes, at, count, fov.FIRST, fov.LAST)) do state.fovRefs:append(r); end
-            end);
-            state.scanStats = kept;
-        end
-    end
-    lines:append(('%d instructions address +0x%X to +0x%X:'):format(#state.fovRefs, fov.FIRST, fov.LAST));
-    local shown = 0;
-    for _, r in ipairs(state.fovRefs) do
-        lines:append(('  0x%08X %02X /%d +0x%X'):format(r.address, r.opcode, r.reg, r.offset));
-        if ((r.offset == view.K_OFFSET or r.offset == 0x2F0) and shown < 48) then
-            shown = shown + 1;
-            local before, after = readSafe(r.address - 160, 160), readSafe(r.address, 96);
-            lines:append(('    0x%08X: %s'):format(r.address - 160, scan.hex(before, 1, #before)));
-            lines:append(('    0x%08X: %s'):format(r.address, scan.hex(after, 1, #after)));
-            for _, addr in ipairs(fov.absoluteRefs(before)) do
-                local ok, f = pcall(ashita.memory.read_float, addr);
-                if (ok) then lines:append(('    constant 0x%08X = %.6g'):format(addr, f)); end
-            end
-        end
-    end
-    local f = io.open(reportPath('fov.txt'), 'a');
-    if (f) then
-        f:write(table.concat(lines, '\n'), '\n\n');
-        f:close();
-    end
-    say(lines[2]);
-    say(('%d instructions address the fields near k; written to config/addons/drawscale/fov.txt.'):format(#state.fovRefs));
-end
-
 local function valueText(k, v)
-    if (k == 'vis' or k == 'square') then return ('%s %s'):format(k, v and 'on' or 'off'); end
+    if (k == 'vis') then return ('vis %s'):format(v and 'on' or 'off'); end
     if ((k == 'objects' or k == 'detail') and v <= 0) then return ('%s as world'):format(k); end
-    if (k == 'fov') then return v > 0 and ('fov %g degrees'):format(v) or 'fov the game\'s'; end
     return ('%s x%.2f'):format(k, v);
 end
 
@@ -576,18 +476,6 @@ local function layerText(t)
     local parts = T{};
     for _, k in ipairs(VALUES) do if (t ~= nil and t[k] ~= nil) then parts:append(valueText(k, t[k])); end end
     return #parts > 0 and table.concat(parts, ', ') or nil;
-end
-
--- The field of view as it is: what is set, and the vertical and horizontal in play now.
-local function fovText(set)
-    if (state.view == nil or #state.view.sites == 0) then return 'fov unavailable (the projection\'s field of view was not found).'; end
-    local v = view.currentFov(state.view);
-    local what = set > 0 and ('fov %g degrees'):format(set) or 'fov the game\'s own';
-    local game = state.view.gamePointer ~= 0 and (mem.read_u32(state.view.gamePointer) or 0) or 0;
-    if (v == nil or game == 0) then return what .. '.'; end
-    local ak = mem.read_float(game + 0x2F0) * mem.read_float(game + view.K_OFFSET);
-    local h = ak > 0 and math.deg(2 * math.atan(math.tan(math.rad(v) / 2) / ak)) or 0;
-    return ('%s: %.1f vertical, %.1f horizontal (%d places).'):format(what, v, h, #state.view.sites);
 end
 
 local function status()
@@ -600,11 +488,10 @@ local function status()
     local fogState = #state.fogSites == 2 and '' or ' (fog calls not found)';
     local objectsState = state.objectSite and '' or ' (range call not found)';
     say(('world x%.2f, entity x%.2f, fog x%.2f%s of stock.'):format(s.world, s.entity, s.fog, fogState));
-    say(('objects x%.2f%s%s, detail x%.2f%s, vis %s, square %s.'):format(
+    say(('objects x%.2f%s%s, detail x%.2f%s, vis %s.'):format(
         objectsValue(), (s.objects == nil or s.objects <= 0) and ' (same as world)' or '', objectsState,
         detailValue(), (s.detail == nil or s.detail <= 0) and ' (same as world)' or '',
-        s.vis ~= false and 'on' or 'off', s.square == true and 'on' or 'off'));
-    say(fovText(s.fov or 0));
+        s.vis ~= false and 'on' or 'off'));
     local own, kind = layerText(ownValues()), layerText(kindValues());
     if (own == nil and kind == nil) then
         say('All from the general values.');
@@ -621,30 +508,27 @@ local function help()
     say('/drawscale objects <n> - buildings, trees and props: n times stock. 0 = the same as world.');
     say('/drawscale detail <n> - how much further objects keep their detailed mesh. 0 = the same as world.');
     say('/drawscale vis on|off - on: draw distant terrain the zone would hide from your area. off: stock.');
-    say('/drawscale square on|off - on: the world at the window\'s true proportions. off: stock.');
-    say('/drawscale fov <n> - the vertical field of view, n degrees (20 to 140; the game\'s is about 77). Narrower stretches the edges less; wider is for the lens plugin. 0 = the game\'s own.');
+    say('The field of view and true proportions are the lens plugin\'s: /lens fov, /lens middle and /lens square.');
     say('Those set the general values. Over them, for every zone of a kind, and over those, for one zone:');
     say('/drawscale city|outdoors|dungeon <setting> <value> - the kind\'s preset; <setting> clear takes it out again, clear alone the whole preset.');
     say('/drawscale zone <setting> <value> - this zone\'s own; <setting> clear takes it out, clear alone all of them; zone list is every zone with its own.');
     say('/drawscale callers - every call to the scale function, for the record (also in config/addons/drawscale/callers.txt).');
     say('/drawscale patch <n> <mult> - re-scale caller n by hand; /drawscale unpatch [n] puts it (or all) back.');
-    say('/drawscale fovscan [label] - the projection and what builds it, for the record (appended to config/addons/drawscale/fov.txt).');
 end
 
-local numeric = { world = true, entity = true, fog = true, objects = true, detail = true, fov = true };
+local numeric = { world = true, entity = true, fog = true, objects = true, detail = true };
 
--- A numeric setting's range: its least, its most, and whether 0 stands for another value.
+-- A numeric setting's range: its least and its most.
 local function limits(k)
-    if (k == 'fov') then return view.FOV_MIN, view.FOV_MAX, true; end
-    if (k == 'objects' or k == 'detail') then return 0, 100, false; end
-    return 0.1, 100, false;
+    if (k == 'objects' or k == 'detail') then return 0, 100; end
+    return 0.1, 100;
 end
-local toggles = { vis = true, square = true };
+local toggles = { vis = true };
 
 local function inRange(k, v)
     if (numeric[k]) then
-        local min, max, zero = limits(k);
-        return type(v) == 'number' and ((v >= min and v <= max) or (zero and v == 0));
+        local min, max = limits(k);
+        return type(v) == 'number' and v >= min and v <= max;
     end
     return type(v) == 'boolean';
 end
@@ -659,10 +543,36 @@ local function settleLayer(t)
     for _, k in ipairs(VALUES) do if (t[k] ~= nil and not inRange(k, t[k])) then t[k] = nil; end end
 end
 
+-- fov and square saved before 2.0, gone to lens: the lens commands for the general ones, said once at
+-- load, and every layer's taken out.
+local function moveToLens(s)
+    local parts = T{};
+    if (type(s.fov) == 'number' and s.fov > 0) then parts:append(('/lens fov %g'):format(s.fov)); end
+    if (s.square == true) then parts:append('/lens square on'); end
+    local layered = false;
+    local function strip(t)
+        if (type(t) ~= 'table') then return; end
+        if (t.fov ~= nil or t.square ~= nil) then layered = true; end
+        t.fov, t.square = nil, nil;
+    end
+    for _, own in pairs(type(s.zones) == 'table' and s.zones or {}) do strip(own); end
+    for _, preset in pairs(type(s.kinds) == 'table' and s.kinds or {}) do strip(preset); end
+    local had = s.fov ~= nil or s.square ~= nil or layered;
+    s.fov, s.square = nil, nil;
+    if (#parts > 0) then
+        state.moved = ('fov and square are the lens plugin\'s now; to keep yours: %s.%s'):format(table.concat(parts, ', '),
+            layered and ' A zone\'s or preset\'s own fov or square is no more.' or '');
+    elseif (layered) then
+        state.moved = 'fov and square are the lens plugin\'s now; a zone\'s or preset\'s own fov or square is no more.';
+    end
+    return had;
+end
+
 local function settle(s)
     if (s ~= nil) then state.settings = s; end
     if (state.settings == nil) then state.settings = T{}; end
     s = state.settings;
+    if (moveToLens(s)) then settings.save(); end
     settleGeneral(s);
     if (type(s.zones) ~= 'table') then s.zones = T{}; end
     for id, own in pairs(s.zones) do
@@ -691,9 +601,9 @@ local function setIn(layer, name, key, text)
     elseif (numeric[key]) then
         v = tonumber(text);
         if (not inRange(key, v)) then
-            local min, max, zero = limits(key);
-            fail(('Usage: /drawscale %s%s <n>, n from %s to %g%s%s.'):format(name, key, min == 0 and '0 (same as world)' or ('%g'):format(min), max,
-                zero and ', or 0 for the game\'s own' or '', layer ~= state.settings and ', or clear' or ''));
+            local min, max = limits(key);
+            fail(('Usage: /drawscale %s%s <n>, n from %s to %g%s.'):format(name, key, min == 0 and '0 (same as world)' or ('%g'):format(min), max,
+                layer ~= state.settings and ', or clear' or ''));
             return false;
         end
     else
@@ -796,6 +706,7 @@ end
 settings.register('settings', 'settings_update', guarded('settings', function (s)
     settle(s);
     apply();
+    if (state.moved) then say(state.moved); state.moved = nil; end
 end));
 
 ashita.events.register('load', 'load_cb', guarded('load', function ()
@@ -807,6 +718,7 @@ ashita.events.register('load', 'load_cb', guarded('load', function ()
         apply();
         status();
     end
+    if (state.moved) then say(state.moved); state.moved = nil; end
 end));
 
 ashita.events.register('unload', 'unload_cb', guarded('unload', function ()
@@ -826,15 +738,6 @@ ashita.events.register('d3d_present', 'present_cb', guarded('d3d_present', funct
     if (next(state.patches) ~= nil and state.world ~= 0) then
         local world = ashita.memory.read_float(state.world);
         if (world ~= state.ratioWorld) then applyRatios(world); end
-    end
-    -- the game object may not exist at load; the constant is set once it does, and kept. With square
-    -- off and k never set by us there is nothing to put back.
-    if (state.view ~= nil and state.settings ~= nil) then
-        local on = active().square == true;
-        if (on or state.view.squared) then
-            view.setSquare(mem, state.view, on);
-            state.view.squared = on;
-        end
     end
 end));
 
@@ -868,8 +771,8 @@ ashita.events.register('command', 'command_cb', guarded('command', function (e)
         if (state.detail ~= nil) then detail.restore(mem, state.detail); state.detailMem = 0; end
         if (state.view ~= nil) then view.restore(mem, state.view); end
         if (rescan()) then report(true); apply(); end
-    elseif (verb == 'fovscan') then
-        fovReport(args[3]);
+    elseif (verb == 'fov' or verb == 'square') then
+        say(('%s is the lens plugin\'s now: /lens %s%s.'):format(verb, verb, verb == 'fov' and ' <n>, or /lens middle <n> to keep the middle as the warp changes' or ' on|off'));
     elseif (verb == 'patch') then
         local n, mult = tonumber(args[3]), tonumber(args[4]);
         if (n == nil or mult == nil or mult <= 0) then fail('Usage: /drawscale patch <n> <mult>'); return; end
