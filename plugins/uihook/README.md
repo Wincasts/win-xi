@@ -573,21 +573,17 @@ are seen. `/uihook mirror watch` (again to stop) writes
 draws were made, and what was published; `/uihook mirror mark <words>` notes a moment in it. The `menus` addon draws the item lists and the item
 description box in the winxi look.
 
-## The native look, an experiment (1.25; drawn moved in 1.29)
+## The native look (1.25; drawn moved in 1.29)
 
-For trying a skin on the game's own menus rather than drawing them again: the menu stays the game's whole
-(its controller input, cursor and text), drawn moved, scaled and with its frame recoloured.
+The game's own menus drawn moved and scaled rather than drawn again: the menu stays the game's whole (its
+controller input, cursor and text). `addons/nativeui` gives it its settings.
 
 ```
 /uihook native                         what is set, and how much of each was drawn so
-/uihook native move <name> <x> <y>     drawn x, y display pixels from where the game puts it (inventor, equip, ...)
-/uihook native scale <name> <factor>   drawn 0.5 to 3 times its size, from the corner of the screen it is nearest
 /uihook native group <x> <y> [quiet]   every window the game stacks over the chat log drawn x, y from its place, together
 /uihook native group off [quiet]       those as the game draws them again
 /uihook native inset <pixels> [quiet]  the top bar that much shorter at each end, every window either side moved in with it
 /uihook native size <factor> [quiet]   every framed window that much larger, from its corner of the screen
-/uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (RRGGBB: opaque)
-/uihook native clear [name]            one, or all, drawn as the game draws them
 ```
 
 The group (1.38) is told each frame by where the game draws each window (+3A; 1.38 read its layout target, +8C,
@@ -602,9 +598,10 @@ in its place, so it moves whole without knowing where its parts keep their place
 window's frame (the inventory's count, up in the menu name's bar) is left where it is, and the frame is what
 the window is grown from. Nothing of the game's is
 written: its mouse hit-tests stay where it put the menu, and the controller works it as ever. A draw from a
-vertex buffer cannot be moved, and is counted. The tint draws the frame's draws with a second texture stage
-after the game's own, multiplying what it made by the colour (the texture factor), put back after each; not
-where the game uses that stage or a pixel shader. Nothing is kept between loads.
+vertex buffer cannot be moved, and is counted. Nothing is kept between loads.
+
+The first experiment's commands for one window at a time (`move`, `scale` and `tint`, 1.25–1.27) were taken out
+in 1.58: nothing used them once the group, the inset and the size did it for every window.
 
 ## Architecture
 

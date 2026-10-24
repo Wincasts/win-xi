@@ -90,7 +90,7 @@ static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, 
 // Window::Render aimed at MirrorContent.
 static MirrorShared MirrorBlock;
 static Mirror MenuMirror;
-static NativeLook NativeMenus; // /uihook native: windows' draws moved and scaled, their frames tinted (native.h)
+static NativeLook NativeMenus; // /uihook native: windows' draws moved and scaled (native.h)
 static TextureCensus Textures; // /uihook textures: every texture the screen-space drawing uses, by window and part (textures.h)
 static SkinLook Skin; // /uihook skin: the game's textures drawn with pictures of a skin's in their place (skin.h)
 static MirrorWatch MenuWatch; // every window drawn, kept in WatchBlock; with /uihook mirror watch, to logs\uihook-mirror-watch.txt
@@ -322,9 +322,6 @@ class PartyHook : public IPlugin {
         }
         return NativeMenus.Enter(name,Shared.Frame,hint ? pixels : nullptr);
     }
-    // A screen-space draw of a window named: counted into its bounds; then, where it is moved or its frame tinted,
-    // drawn so in its place (its vertices copied and moved; a second texture stage multiplying the game's own result by
-    // the tint, put back after). vertices: from min, as an indexed draw's are.
     // The draw under way's vertex format (its FVF), asked of the device once a draw for all that want it (the census,
     // the watch, the native look, the skin each asked for every draw); false where it cannot be told
     DWORD drawFvf=0; bool drawFvfKnown=false, drawFvfOk=false;
@@ -355,11 +352,13 @@ class PartyHook : public IPlugin {
         if (!out[0] || !out[1]) { out[0]=float(viewport.X+viewport.Width); out[1]=float(viewport.Y+viewport.Height); }
         return out[0]>0 && out[1]>0;
     }
+    // A screen-space draw of a window with an entry: counted into its bounds; then, where it is moved, drawn so in its
+    // place (its vertices copied and moved). vertices: from min, as an indexed draw's are.
     bool NativeDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
         NativeEntry* e=NativeMenus.current;
         if (!e || !data || !vertices || stride<8) return false;
         const UINT used=min+vertices;
-        auto* device=core->GetDirect3DDevice(); DWORD shader=0,pixel=0;
+        auto* device=core->GetDirect3DDevice(); DWORD shader=0;
         if (!device || !DrawFvf(shader) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) { NativeMenus.Unmoved(); return false; }
         NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
         // the screen's size, not the viewport's: the game clips some text to its window with a viewport (the title
@@ -373,45 +372,17 @@ class PartyHook : public IPlugin {
         // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it, but
         // where the whole side is moved
         if (placing && !move.pinch && !whole && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
-        uint32_t colour=0;
-        bool tinting=NativeMenus.Tinting(colour);
-        DWORD saved[6]={},factor=0,third=D3DTOP_DISABLE;
-        static const D3DTEXTURESTAGESTATETYPE kinds[6]={D3DTSS_COLOROP,D3DTSS_COLORARG1,D3DTSS_COLORARG2,D3DTSS_ALPHAOP,D3DTSS_ALPHAARG1,D3DTSS_ALPHAARG2};
-        if (tinting) {
-            DWORD first[3]={};
-            device->GetTextureStageState(0,D3DTSS_COLOROP,&first[0]);
-            device->GetTextureStageState(0,D3DTSS_COLORARG1,&first[1]);
-            device->GetTextureStageState(0,D3DTSS_COLORARG2,&first[2]);
-            for (unsigned i=0;i<3;i++) e->stage[i]=first[i];
-            e->lastFormat=shader;
-            for (unsigned i=0;i<6;i++) device->GetTextureStageState(1,kinds[i],&saved[i]);
-            if (FAILED(device->GetPixelShader(&pixel)) || pixel || saved[0]!=D3DTOP_DISABLE
-                || FAILED(device->GetRenderState(D3DRS_TEXTUREFACTOR,&factor))) { e->refused++; tinting=false; }
+        if (!placing) return false;
+        scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
+        NativeTransformVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,move);
+        // the skin's colours for its picture, as SkinEnd would have given them had it drawn it: the moved windows
+        // had the game's (the bottom-left buttons blue-grey and orange, the frame faded at the sides)
+        if (skinActive>=0 && SkinRecolour(Skin.textures[size_t(skinActive)],scaledVertices.data(),used,stride,shader,skinVertices)) {
+            scaledVertices.swap(skinVertices); Skin.textures[size_t(skinActive)].recoloured++;
         }
-        if (!placing && !tinting) return false;
-        const void* drawn=data;
-        if (placing) {
-            scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
-            NativeTransformVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,move);
-            // the skin's colours for its picture, as SkinEnd would have given them had it drawn it: the moved windows
-            // had the game's (the bottom-left buttons blue-grey and orange, the frame faded at the sides)
-            if (skinActive>=0 && SkinRecolour(Skin.textures[size_t(skinActive)],scaledVertices.data(),used,stride,shader,skinVertices)) {
-                scaledVertices.swap(skinVertices); Skin.textures[size_t(skinActive)].recoloured++;
-            }
-            drawn=scaledVertices.data();
-        }
-        IDirect3DBaseTexture8* texture=nullptr;
-        if (tinting) {
-            device->GetTexture(1,&texture);
-            device->SetTexture(1,nullptr);
-            device->SetRenderState(D3DRS_TEXTUREFACTOR,colour);
-            static const DWORD tint[6]={D3DTOP_MODULATE,D3DTA_CURRENT,D3DTA_TFACTOR,D3DTOP_MODULATE,D3DTA_CURRENT,D3DTA_TFACTOR};
-            for (unsigned i=0;i<6;i++) device->SetTextureStageState(1,kinds[i],tint[i]);
-            device->GetTextureStageState(2,D3DTSS_COLOROP,&third);
-            device->SetTextureStageState(2,D3DTSS_COLOROP,D3DTOP_DISABLE);
-        }
+        const void* drawn=scaledVertices.data();
         // a viewport clipping the draw to its window moved with it, so what is moved is not clipped away
-        const bool clipped=placing && (viewport.X>0 || viewport.Y>0 || float(viewport.Width)<screen[0] || float(viewport.Height)<screen[1]);
+        const bool clipped=(viewport.X>0 || viewport.Y>0 || float(viewport.Width)<screen[0] || float(viewport.Height)<screen[1]);
         D3DVIEWPORT8 moved=viewport;
         if (clipped) {
             float corners[4]={float(viewport.X),float(viewport.Y),float(viewport.X+viewport.Width),float(viewport.Y+viewport.Height)};
@@ -428,14 +399,7 @@ class PartyHook : public IPlugin {
             : SUCCEEDED(device->DrawPrimitiveUP(t,count,drawn,stride));
         scaling=false;
         if (clipped) device->SetViewport(&viewport);
-        if (tinting) {
-            device->SetTextureStageState(2,D3DTSS_COLOROP,third);
-            for (unsigned i=0;i<6;i++) device->SetTextureStageState(1,kinds[i],saved[i]);
-            device->SetRenderState(D3DRS_TEXTUREFACTOR,factor);
-            device->SetTexture(1,texture); if (texture) texture->Release();
-            if (ok) e->tinted++; else e->refused++;
-        }
-        if (placing && ok) e->moved++;
+        if (ok) e->moved++;
         return ok;
     }
     // /uihook skin: a screen-space draw whose texture (stage 0) the skin has a picture for is given it; what was there
@@ -785,17 +749,7 @@ class PartyHook : public IPlugin {
         char verb[16]={},name[16]={},a[16]={},b[16]={}; char line[256];
         const int words=sscanf_s(command,"/uihook native %15s %15s %15s %15s",verb,16u,name,16u,a,16u,b,16u);
         auto* chat=core->GetChatManager();
-        if (words>=4 && !_stricmp(verb,"move")) {
-            snprintf(line,sizeof(line),NativeMenus.Move(name,float(atof(a)),float(atof(b))) ? "[uihook:native] %s drawn %s, %s from where the game puts it."
-                : "[uihook:native] could not move %s: a name of at most 8 letters, and at most 16 windows.",name,a,b);
-        } else if (words>=3 && !_stricmp(verb,"scale")) {
-            snprintf(line,sizeof(line),NativeMenus.Scale(name,float(atof(a))) ? "[uihook:native] %s drawn at %s times its size."
-                : "[uihook:native] could not scale %s: a factor from 0.5 to 3.",name,a);
-        } else if (words>=3 && !_stricmp(verb,"tint")) {
-            const uint32_t colour=static_cast<uint32_t>(strtoul(a,nullptr,16)) | (strlen(a)<=6 ? 0xff000000u : 0);
-            snprintf(line,sizeof(line),NativeMenus.Tint(name,colour) ? "[uihook:native] %s's frame tinted %08X."
-                : "[uihook:native] could not tint %s.",name,colour);
-        } else if (words>=2 && !_stricmp(verb,"group") && !_stricmp(name,"off")) {
+        if (words>=2 && !_stricmp(verb,"group") && !_stricmp(name,"off")) {
             // quiet: as an addon sends it, said nowhere
             snprintf(line,sizeof(line),"[uihook:native] the windows over the chat log as the game draws them again (%u).",NativeMenus.GroupOff());
             if (words>=3 && !_stricmp(a,"quiet")) return;
@@ -813,11 +767,9 @@ class PartyHook : public IPlugin {
             snprintf(line,sizeof(line),NativeMenus.inset>0 ? "[uihook:native] the sides brought in %.0f pixels: the bar across the top that much shorter at each end, the windows each side with it."
                 : "[uihook:native] the sides where the game puts them.",NativeMenus.inset);
             if (words>=3 && !_stricmp(a,"quiet")) return;
-        } else if (words>=1 && !_stricmp(verb,"clear")) {
-            snprintf(line,sizeof(line),"[uihook:native] %u drawn as the game draws them again.",NativeMenus.Clear(words>=2 ? name : nullptr));
         } else if (words<1) {
             unsigned n=0; for (auto& e:NativeMenus.entries) if (e.name[0]) n++;
-            snprintf(line,sizeof(line),"[uihook:native] %u menus set; the game's mouse hit-tests stay where it puts them.",n);
+            snprintf(line,sizeof(line),"[uihook:native] %u windows looked at; the game's mouse hit-tests stay where it puts them.",n);
             chat->Write(0,false,line);
             if (NativeMenus.menuScale!=1) {
                 snprintf(line,sizeof(line),"  every framed window drawn %.2f times its size",NativeMenus.menuScale);
@@ -837,14 +789,13 @@ class PartyHook : public IPlugin {
                 char seen[48];
                 if (!e.seen) snprintf(seen,sizeof(seen),"not drawn since asked");
                 else snprintf(seen,sizeof(seen),"drawn %u frames ago",Shared.Frame-e.seen);
-                snprintf(line,sizeof(line),"  %.8s%s: %s; move %.0f,%.0f scale %.2f (%u draws moved, %u outside its frame kept, %u could not be), tint %s %08X (%u tinted, %u refused, format %X, stage %u %X %X)",
-                    e.name+8,e.group ? (e.member ? " (group)" : " (group, not now)") : "",seen,e.dx,e.dy,e.scale,e.moved,e.kept,e.unmoved,e.tint ? "on" : "off",e.colour,e.tinted,e.refused,
-                    static_cast<unsigned>(e.lastFormat),static_cast<unsigned>(e.stage[0]),static_cast<unsigned>(e.stage[1]),static_cast<unsigned>(e.stage[2]));
+                snprintf(line,sizeof(line),"  %.8s%s: %s; move %.0f,%.0f (%u draws moved, %u outside its frame kept, %u could not be)",
+                    e.name+8,e.group ? (e.member ? " (group)" : " (group, not now)") : "",seen,e.dx,e.dy,e.moved,e.kept,e.unmoved);
                 chat->Write(0,false,line);
             }
             return;
         } else {
-            snprintf(line,sizeof(line),"[uihook:native] /uihook native [move <name> <x> <y> | scale <name> <factor> | tint <name> <AARRGGBB> | group <x> <y> | group off | inset <pixels> | size <factor> | clear [name]]");
+            snprintf(line,sizeof(line),"[uihook:native] /uihook native [group <x> <y> | group off | inset <pixels> | size <factor>]");
         }
         chat->Write(0,false,line);
     }

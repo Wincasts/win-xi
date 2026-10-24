@@ -1,12 +1,7 @@
-// The native look, an experiment: a window of the game's, named, drawn moved, scaled and with its frame tinted,
-// the game's own menu kept whole (its controller input, cursor and text its own). For trying a skin on the real
-// menus rather than drawing them again (the mirror).
+// The native look: the game's own windows drawn moved and scaled, the game's own menu kept whole (its controller
+// input, cursor and text its own). nativeui gives it its settings.
 //
 //   /uihook native                         what is set, and how much of each was drawn so
-//   /uihook native move <name> <x> <y>     the window drawn x, y display pixels from where the game puts it
-//   /uihook native scale <name> <factor>   drawn larger or smaller, grown from the corner of the screen it is nearest
-//   /uihook native tint <name> <AARRGGBB>  its frame's draws multiplied by this colour (0xFF808080 halves it)
-//   /uihook native clear [name]            one, or all, as the game draws them
 //   /uihook native group <x> <y> | off     every window the game stacks above the chat log moved together
 //   /uihook native size <factor>           every framed window drawn larger or smaller, from its quarter's corner of
 //                                          the screen (the bar from its ends, the group from the chat log's top left)
@@ -31,9 +26,6 @@
 // hit-tests stay where the game put the menu; the controller works it as ever. A draw from a vertex buffer cannot
 // be moved, and is counted.
 //
-// The tint is a second texture stage after the game's own, multiplying what it made by the colour (the texture
-// factor), for the frame's draws alone. The game's frames are the texture times twice the vertex colour (stage 5
-// 2 1), so the vertices' colours would do as well; the stage leaves them as they are.
 #pragma once
 #include <stdint.h>
 #include <string.h>
@@ -64,13 +56,6 @@ static bool NativePlace(const float* bounds,float dx,float dy,float scale,float 
     out[0]=ax; out[1]=ay; out[2]=dx; out[3]=dy;
     return true;
 }
-// A window's name as the game keeps it: "menu    " and the name, spaces to sixteen
-static bool NativeName(const char* name,char* out) {
-    const size_t length=name ? strlen(name) : 0;
-    if (!length || length>8) return false;
-    memcpy(out,"menu            ",16); memcpy(out+8,name,length);
-    return true;
-}
 
 // A window's draws as moved: x' = ax + (x - ax) * k + dx, and y likewise; for the bar across the top, ax and dx by
 // each vertex's side of the middle (0 and +inset left of it, width and -inset right)
@@ -94,13 +79,12 @@ static void NativeTransformVertices(void* data,unsigned count,unsigned stride,co
 
 struct NativeEntry {
     char name[16]={};
-    bool place=false,tint=false;
     bool group=false,member=false;   // made for the group; and, this frame, one of it
-    bool automatic=false,noInset=false;
+    bool noInset=false;              // the chat log's: never brought in
     // the bar across the top: whether it drew something over its middle (what the game centres while loading, its
     // progress line) this frame, and the frame before, which says how what it shows is moved
-    bool barSpanning=false,barCentred=false;  // made as it was drawn (for the group or the inset), its place given up when long undrawn; never brought in
-    float dx=0,dy=0,scale=1; uint32_t colour=0;
+    bool barSpanning=false,barCentred=false;
+    float dx=0,dy=0;
     // the window's draws' bounds as the game made them, in display pixels: those of the frame being drawn, and the
     // last whole frame's, which each frame's draws are placed by
     float gather[4]={}; uint32_t gatherFrame=0; bool gathered=false;
@@ -109,8 +93,7 @@ struct NativeEntry {
     float frameGather[4]={}; bool frameGathered=false;
     float frame[4]={}; bool frameKnown=false;
     // for /uihook native
-    uint32_t seen=0,moved=0,unmoved=0,kept=0,tinted=0,refused=0,lastFormat=0;
-    uint32_t stage[3]={};  // the game's first texture stage at its frame's last draw: colour op, its two arguments
+    uint32_t seen=0,moved=0,unmoved=0,kept=0;
 };
 
 class NativeLook {
@@ -131,11 +114,11 @@ public:
     static bool LogWindow(const char* name) {
         return !memcmp(name+8,"logwindo",8) || !memcmp(name+8,"logwin2 ",8) || !memcmp(name+8,"fulllog ",8) || !memcmp(name+8,"inline  ",8);
     }
-    // An entry for a window as it is drawn: a new one, or the place of one made so and long undrawn
+    // An entry for a window as it is drawn: a new one, or the place of one long undrawn
     NativeEntry* Make(const char* name,uint32_t frame) {
         NativeEntry* e=Find(name,true);
-        if (!e) for (auto& x:entries) if (x.automatic && frame-x.seen>NATIVE_GROUP_STALE && &x!=current) { x=NativeEntry(); memcpy(x.name,name,16); e=&x; break; }
-        if (e) { e->automatic=true; e->place=true; e->noInset=LogWindow(name); }
+        if (!e) for (auto& x:entries) if (frame-x.seen>NATIVE_GROUP_STALE && &x!=current) { x=NativeEntry(); memcpy(x.name,name,16); e=&x; break; }
+        if (e) e->noInset=LogWindow(name);
         return e;
     }
     bool Inset(float pixels) { inset=pixels>0 ? pixels : 0; return true; }
@@ -156,8 +139,6 @@ public:
         unsigned n=0; groupOn=false;
         for (auto& e:entries) if (e.name[0] && e.group) {
             n++;
-            // one asked for by name keeps its scale and tint, as the game places it
-            if (!e.automatic) { e.group=e.member=false; e.dx=e.dy=0; continue; }
             if (&e==current) current=nullptr;
             e=NativeEntry();
         }
@@ -170,9 +151,8 @@ public:
         if (!memcmp(name,"menu    logwindo",16)) { logLeft=target[0]; logTop=target[1]; logFrame=frame; return; }
         NativeEntry* e=Find(name,false);
         const bool member=GroupMember(name,target);
-        // one that was not of the group (made for the inset before the log was seen, or asked for by name to be scaled)
-        // and is one now: the group's offset, its scale its own
-        if (e && member && !e->group) { e->group=true; e->place=true; e->dx=groupX; e->dy=groupY; }
+        // one that was not of the group (made for the inset before the log was seen) and is one now: the group's offset
+        if (e && member && !e->group) { e->group=true; e->dx=groupX; e->dy=groupY; }
         if (e) { e->member=member; return; }
         if (!member) return;
         e=Make(name,frame);
@@ -185,42 +165,6 @@ public:
         if (!add) return nullptr;
         for (auto& e:entries) if (!e.name[0]) { e=NativeEntry(); memcpy(e.name,name,16); return &e; }
         return nullptr;
-    }
-    // One asked for by name (move, scale, tint): kept, not given up when long undrawn as one made as it was drawn is
-    NativeEntry* Named(const char* name) {
-        char full[16]; NativeEntry* e=NativeName(name,full) ? Find(full,true) : nullptr;
-        if (e) e->automatic=false;
-        return e;
-    }
-    bool Move(const char* name,float dx,float dy) {
-        NativeEntry* e=Named(name);
-        if (!e) return false;
-        e->place=true; e->dx=dx; e->dy=dy;
-        return true;
-    }
-    bool Scale(const char* name,float scale) {
-        if (!(scale>=NATIVE_SCALE_LOW && scale<=NATIVE_SCALE_HIGH)) return false;
-        NativeEntry* e=Named(name);
-        if (!e) return false;
-        e->place=true; e->scale=scale;
-        return true;
-    }
-    bool Tint(const char* name,uint32_t colour) {
-        NativeEntry* e=Named(name);
-        if (!e) return false;
-        e->tint=true; e->colour=colour;
-        return true;
-    }
-    // One, or every one, as the game draws it again
-    unsigned Clear(const char* name) {
-        char full[16]; unsigned n=0;
-        if (name && !NativeName(name,full)) return 0;
-        for (auto& e:entries) {
-            if (!e.name[0] || (name && memcmp(e.name,full,16))) continue;
-            if (&e==current) current=nullptr;
-            e=NativeEntry(); n++;
-        }
-        return n;
     }
     bool Any() const { if (groupOn || inset>0 || menuScale!=1) return true; for (auto& e:entries) if (e.name[0]) return true; return false; }
 
@@ -290,18 +234,17 @@ public:
         return b[2]>=f[0] && b[0]<=f[2] && b[3]>=f[1] && b[1]<=f[3];
     }
     // How the window's draws are moved: false while they are not (or its bounds are not known yet).
-    //  - one asked for by name and scaled: grown from the corner of the screen it is nearest, kept on it
     //  - one of the group over the chat log: the group's offset, scaled by the menu scale from the log's top left
     //  - one with a frame of its own (not the chat log): scaled by the menu scale from its quarter's corner of the
     //    screen (one over the middle from the middle), brought in by the inset; the bar across the top (short, over
     //    the middle, wider than half the screen) each vertex by its side, so its ends stay with their neighbours
-    //  - any other (one without a frame, the target's arrow over the world): only as asked by name
+    //  - any other (one without a frame, the target's arrow over the world): as the game draws it
     // whole: moved with the screen, not alone, so its draws all go with it (none kept back for lying outside its
     // frame: the main menu's arrows beside it)
     bool Transform(float width,float height,NativeTransform& t,bool* whole=nullptr) const {
         t=NativeTransform();
         if (whole) *whole=false;
-        if (!current || !current->place || !current->known) return false;
+        if (!current || !current->known) return false;
         const NativeEntry& e=*current;
         const float* bounds=e.frameKnown ? e.frame : e.bounds;
         // one made for the group, placed elsewhere this frame: as any other
@@ -309,14 +252,6 @@ public:
         const float dx=away ? 0 : e.dx,dy=away ? 0 : e.dy;
         const bool framed=e.frameKnown && e.frame[2]>e.frame[0] && e.frame[3]>e.frame[1];
         const bool screen=!grouped && !e.noInset && framed;
-        if (e.scale!=1) {
-            float extra=0;
-            if (screen && inset>0) extra=e.frame[2]<=width/2 ? inset : e.frame[0]>=width/2 ? -inset : 0;
-            float p[4];
-            if (!NativePlace(bounds,dx+extra,dy,e.scale,width,height,p)) return false;
-            t.ax=p[0]; t.ay=p[1]; t.k=e.scale; t.dx=p[2]; t.dy=p[3];
-            return true;
-        }
         if (grouped) {
             t.k=menuScale; t.ax=float(logLeft); t.ay=float(logTop); t.dx=dx; t.dy=dy;
         } else if (screen && (inset>0 || menuScale!=1)) {
@@ -358,9 +293,8 @@ public:
     }
     // The scale the window being drawn is drawn at (as Transform gives it), for a skin's picture of the size to suit
     float ScaleNow() const {
-        if (!current || !current->place || !current->known) return 1;
+        if (!current || !current->known) return 1;
         const NativeEntry& e=*current;
-        if (e.scale!=1) return e.scale;
         if (e.group && e.member) return menuScale;
         const bool framed=e.frameKnown && e.frame[2]>e.frame[0] && e.frame[3]>e.frame[1];
         return !e.noInset && framed ? menuScale : 1;
@@ -375,11 +309,6 @@ public:
         if (pinch && t.pinch) *pinch=t.middle;
         return true;
     }
-    // Whether a draw now is the frame of a window tinted, and the colour
-    bool Tinting(uint32_t& colour) const {
-        if (!current || !current->tint || phase!=MIRROR_FRAME || text) return false;
-        colour=current->colour; return true;
-    }
     // A draw of a window moved that could not be (from a vertex buffer)
-    void Unmoved() { if (current && current->place) current->unmoved++; }
+    void Unmoved() { if (current) current->unmoved++; }
 };

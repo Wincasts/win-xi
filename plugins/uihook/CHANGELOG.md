@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.58
+
+- `/uihook native move`, `scale` and `tint`, the first experiment's commands for one window at a time, are taken
+  out, and `clear` with them: nothing used them once `group`, `inset` and `size` (nativeui's settings) did it for
+  every window. Every entry the native look keeps is now one made as a window is drawn.
+
 ## 1.57
 
 - A window drawn for the first time (or the first since its entry went to another) is placed at once, by where the
