@@ -54,7 +54,7 @@ local member = { name = 'Long member name', serverId = 123, hp = 500, hpp = 50, 
     tp = 1000, isInZone = true, isPlayer = true, statusIds = {} }
 local members = { member }
 style = options.Style(o)
-style.bookends, style.outline = false, false
+style.bookends, style.outline, style.barGlow = false, false, 0
 local images, texts = 0, {}
 draw.Texture = function() return 1 end
 draw.Image = function() images = images + 1 end

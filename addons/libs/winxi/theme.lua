@@ -50,6 +50,9 @@ theme.Defaults = {
     Bookends        = true,       -- a small cap at each end of those bars
     BookendStyle    = 'texture',  -- one of theme.BookendStyles
     BookendOpacity  = 65,         -- percent: how solid those caps are
+    BarGlow         = 35,         -- percent: how bright the light at the end of a bar's fill is; 0 for none
+    BarBackdrop     = false,      -- the empty part of those bars in BarBackdropColor, not their own colour darkened
+    BarBackdropColor = { 0.08, 0.08, 0.11, 0.9 },
     StatusIcons     = true,       -- custom icons (winxi.statusicons) for buffs and debuffs, where the set has one
     StatusIconSet   = 'ffxiv',    -- which set: a folder of libs\winxi\statusicons
     FrameTitles     = true,       -- a window's title on its top edge (winxi.titles), for a window that has one
@@ -149,6 +152,10 @@ theme.BarTextures = {
     { key = 'flat', label = 'Flat' }, { key = 'segmented', label = 'Segmented' }, { key = 'ember', label = 'Ember' },
     { key = 'kingdom', label = 'Kingdom' }, { key = 'magitek', label = 'Magitek' },
     { key = 'aether', label = 'Aether' }, { key = 'elven', label = 'Elven' }, { key = 'gothic', label = 'Gothic' },
+    -- smooth: shaded from top to foot only, so the fill looks the same however much of it there is
+    { key = 'enamel', label = 'Enamel' }, { key = 'enamel_rim', label = 'Enamel (Lit Rim)' },
+    { key = 'enamel_gradient', label = 'Enamel (Gradient)' }, { key = 'tube', label = 'Glass Tube' },
+    { key = 'tube_deep', label = 'Glass Tube (Deep)' }, { key = 'glass_enamel', label = 'Glass Enamel' },
 };
 theme.TitleStyles = {
     { key = 'outline', label = 'Outlined Text' }, { key = 'break', label = 'Break In Border' },
@@ -166,20 +173,23 @@ end
 for _, style in ipairs({ 'kingdom', 'magitek', 'aether', 'elven', 'gothic' }) do
     theme.BookendStyles[#theme.BookendStyles + 1] = { key = style, label = style:sub(1, 1):upper() .. style:sub(2) };
 end
+-- rounded caps after the game's own, carrying the bar on past its ends
+theme.BookendStyles[#theme.BookendStyles + 1] = { key = 'rounded', label = 'Rounded' };
+theme.BookendStyles[#theme.BookendStyles + 1] = { key = 'rounded_silver', label = 'Rounded Silver' };
 
 local colorKeys = { 'BackgroundColor', 'BorderColor', 'TextColor', 'ThemeTabColor', 'HighlightColor', 'TitleColor', 'TextOutlineColor',
     'SettingsBackgroundColor', 'SettingsBorderColor', 'SettingsTextColor', 'SettingsHighlightColor', 'SettingsHeaderColor',
-    'TooltipBackgroundColor', 'TooltipBorderColor', 'TooltipTextColor' };
+    'TooltipBackgroundColor', 'TooltipBorderColor', 'TooltipTextColor', 'BarBackdropColor' };
 theme.MaxFontSize = 40;
 theme.MaxTextOutline = 4;
 
-local numberKeys = { FontSize = { 0, theme.MaxFontSize }, TextOutline = { 0, theme.MaxTextOutline }, Padding = { 0, theme.MaxPadding }, ShadowOffset = { 0, 20 }, ShadowBlur = { 0, 20 }, ShadowOpacity = { 0, 100 }, BorderOpacity = { 0, 100 }, BookendOpacity = { 0, 100 }, TitleSize = { 0, theme.MaxFontSize },
+local numberKeys = { FontSize = { 0, theme.MaxFontSize }, TextOutline = { 0, theme.MaxTextOutline }, Padding = { 0, theme.MaxPadding }, ShadowOffset = { 0, 20 }, ShadowBlur = { 0, 20 }, ShadowOpacity = { 0, 100 }, BorderOpacity = { 0, 100 }, BookendOpacity = { 0, 100 }, BarGlow = { 0, 100 }, TitleSize = { 0, theme.MaxFontSize },
     TitleOffsetX = { -50, theme.MaxTitleOffsetX }, TitleOffsetY = { -theme.MaxTitleOffsetY, theme.MaxTitleOffsetY },
     TitleShadowOffset = { 1, 6 }, TitleShadowOpacity = { 0, 100 },
     SettingsPadding = { 0, theme.MaxSettingsPadding }, SettingsFontSize = { 0, theme.MaxFontSize },
     TooltipDelay = { 0, theme.MaxTooltipDelay }, TooltipMaxWidth = { theme.MinTooltipWidth, theme.MaxTooltipWidth },
     TooltipPadding = { 0, theme.MaxTooltipPadding }, TooltipFontSize = { 0, theme.MaxFontSize } };
-local booleanKeys = { 'ShadowEnabled', 'Bookends', 'StatusIcons', 'FrameTitles', 'TitleShadow', 'TitleAllCaps', 'TooltipsEnabled' };
+local booleanKeys = { 'ShadowEnabled', 'Bookends', 'BarBackdrop', 'StatusIcons', 'FrameTitles', 'TitleShadow', 'TitleAllCaps', 'TooltipsEnabled' };
 local choiceKeys = { BorderStyle = theme.BorderStyles, BackgroundStyle = theme.BackgroundStyles, TabStyle = theme.TabStyles, BarTexture = theme.BarTextures, BookendStyle = theme.BookendStyles, TitleStyle = theme.TitleStyles };
 
 -- Whether a value is one of a style's choices
@@ -404,7 +414,7 @@ function theme.Save()
         local color = current[key];
         file:write(string.format('    %s = { %f, %f, %f, %f },\n', key, color[1], color[2], color[3], color[4]));
     end
-    for _, key in ipairs({ 'FontSize', 'TextOutline', 'Padding', 'ShadowOffset', 'ShadowBlur', 'ShadowOpacity', 'BorderOpacity', 'BookendOpacity', 'TitleSize', 'TitleOffsetX', 'TitleOffsetY', 'TitleShadowOffset', 'TitleShadowOpacity', 'SettingsPadding', 'SettingsFontSize', 'TooltipDelay', 'TooltipMaxWidth', 'TooltipPadding', 'TooltipFontSize' }) do
+    for _, key in ipairs({ 'FontSize', 'TextOutline', 'Padding', 'ShadowOffset', 'ShadowBlur', 'ShadowOpacity', 'BorderOpacity', 'BookendOpacity', 'BarGlow', 'TitleSize', 'TitleOffsetX', 'TitleOffsetY', 'TitleShadowOffset', 'TitleShadowOpacity', 'SettingsPadding', 'SettingsFontSize', 'TooltipDelay', 'TooltipMaxWidth', 'TooltipPadding', 'TooltipFontSize' }) do
         file:write(string.format('    %s = %d,\n', key, math.floor(current[key] + 0.5)));
     end
     for _, key in ipairs(booleanKeys) do

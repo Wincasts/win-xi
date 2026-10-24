@@ -130,6 +130,8 @@ check('and on again', look.background == nil and look.border == nil and look.sha
 -- winxi.bars itself: a 200 by 14 bar (half the art's 28) half full. Each end is 12 of the art's pixels at
 -- half scale, 6 wide; the fill starts 8 art pixels in (4) and reaches half of the 192 between its ends.
 local loads = 0
+local barLook = require('winxi.theme').Get()
+barLook.BarGlow = 0 -- the light at the fill's end is looked at below
 bars.Load = function(file) loads = loads + 1; return loads end
 local images = {}
 local list = { AddImage = function(_, texture, a, b, uvA, uvB)
@@ -144,6 +146,38 @@ check('bars: the fill inside its ends, half way', fill.x1 == 104 and math.abs(fi
 images = {}
 realDraw(list, 0, 0, 200, 14, 0, { 1, 1, 1, 1 })
 check('bars: empty, no fill', #images == 6 and loads == 3)
+
+-- Fill End Glow: the light's image over the fill's last part, 0.55 of the height long (7.7 here), in white
+-- as solid as the glow is strong; where the fill is shorter, as much of the light's right end as fits.
+-- None on an empty bar. Custom Bar Backdrop: a rectangle of its colour over the fill's rows, end to end.
+local tints, rects = {}, {}
+list.AddImage = function(_, texture, a, b, uvA, uvB, packed)
+    images[#images + 1] = { texture = texture, x1 = a[1], x2 = b[1], u1 = uvA[1], u2 = uvB[1] }
+    tints[#images] = packed
+end
+list.AddRectFilled = function(_, a, b, packed) rects[#rects + 1] = { a[1], a[2], b[1], b[2], packed } end
+local imgui = require('imgui')
+local realColor = imgui.GetColorU32
+imgui.GetColorU32 = function(color) return ('%g,%g,%g,%g'):format(color[1], color[2], color[3], color[4]) end
+barLook.BarGlow, images = 40, {}
+realDraw(list, 100, 50, 200, 14, 0.5, { 1, 1, 1, 1 })
+local light = images[5]
+check('bars: the glow over the fill\'s end', #images == 8 and loads == 4 and math.abs(light.x2 - 200) < 1e-9
+    and math.abs(light.x1 - (200 - 7.7)) < 1e-9 and math.abs(light.u1) < 1e-9 and light.u2 == 1 and tints[5] == '1,1,1,0.4', light.x1, light.u1, tints[5])
+images = {}
+realDraw(list, 100, 50, 200, 14, 0.02, { 1, 1, 1, 1 })
+light = images[5]
+check('bars: a short fill, the light\'s right end', math.abs(light.x1 - 104) < 1e-9 and math.abs(light.u1 - (1 - 3.84 / 7.7)) < 1e-9 and loads == 4, light.x1, light.u1)
+images = {}
+realDraw(list, 100, 50, 200, 14, 0, { 1, 1, 1, 1 })
+check('bars: empty, no glow', #images == 6)
+check('bars: no backdrop unless asked', #rects == 0)
+barLook.BarBackdrop, barLook.BarBackdropColor = true, { 0.2, 0.3, 0.4, 0.5 }
+realDraw(list, 100, 50, 200, 14, 0.5, { 1, 1, 1, 1 })
+local r = rects[1]
+check('bars: the backdrop over the fill\'s rows', #rects == 1 and r[1] == 104 and r[2] == 53 and r[3] == 296 and r[4] == 61 and r[5] == '0.2,0.3,0.4,0.5', unpack(r))
+barLook.BarGlow, barLook.BarBackdrop = 0, false
+imgui.GetColorU32 = realColor
 
 if failed > 0 then
     H.print(('%d failed'):format(failed))

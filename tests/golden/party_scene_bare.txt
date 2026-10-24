@@ -1,4 +1,4 @@
-## a party, pets, two alliance parties and a target (bare): 333 calls
+## a party, pets, two alliance parties and a target (bare): 370 calls
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (245,343)
 window PushClipRect (0,0) (1920,1080) false
@@ -22,6 +22,11 @@ window AddImage hp_fill.png (44.2,91.4) (156.2,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,149.4) (124.98,174.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,206.4) (227.8,231.6) (0,0) (1,1) #FF9597B3
 window AddImage hp_fill.png (44.2,264.4) (84.59,289.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (199.25,34.4) (213.11,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (142.34,91.4) (156.2,116.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (111.12,149.4) (124.98,174.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (213.94,206.4) (227.8,231.6) (0,0) (1,1) #FFFFFF3E
+window AddImage glow.png (70.73,264.4) (84.59,289.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,149.4) (235,174.6) (0,0) (0.97,1) #FF9597FF
@@ -46,6 +51,10 @@ window AddImage mp_fill.png (116.2,52.4) (222.76,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,109.4) (176.14,131) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,167.4) (249.4,189) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (116.2,224.4) (249.4,246) (0,0) (1,1) #FFFF9CB3
+window AddImage glow.png (210.88,52.4) (222.76,74) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (164.26,109.4) (176.14,131) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,167.4) (249.4,189) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,224.4) (249.4,246) (0,0) (1,1) #FFFFFF3E
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,109.4) (256.6,131) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
@@ -88,12 +97,15 @@ window AddImage hp_back.png (37,34.4) (235,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (37,91.4) (235,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,34.4) (191.08,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,91.4) (112.13,116.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (177.22,34.4) (191.08,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (98.27,91.4) (112.13,116.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage mp_back.png (110.8,55.1) (258.4,76.7) (0,0) (1,1) #00000073
 window AddImage mp_back.png (112.6,56.9) (260.2,78.5) (0,0) (1,1) #00000033
 window AddImage mp_back.png (109,52.4) (256.6,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,52.4) (196.12,74) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (184.24,52.4) (196.12,74) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Carbuncle
@@ -128,6 +140,11 @@ window AddImage hp_fill.png (44.2,91.4) (156.2,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,149.4) (124.98,174.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,206.4) (227.8,231.6) (0,0) (1,1) #FF9597B3
 window AddImage hp_fill.png (44.2,264.4) (84.59,289.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (199.25,34.4) (213.11,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (142.34,91.4) (156.2,116.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (111.12,149.4) (124.98,174.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (213.94,206.4) (227.8,231.6) (0,0) (1,1) #FFFFFF3E
+window AddImage glow.png (70.73,264.4) (84.59,289.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,149.4) (235,174.6) (0,0) (0.97,1) #FF9597FF
@@ -152,6 +169,10 @@ window AddImage mp_fill.png (116.2,52.4) (222.76,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,109.4) (176.14,131) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,167.4) (249.4,189) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (116.2,224.4) (249.4,246) (0,0) (1,1) #FFFF9CB3
+window AddImage glow.png (210.88,52.4) (222.76,74) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (164.26,109.4) (176.14,131) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,167.4) (249.4,189) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,224.4) (249.4,246) (0,0) (1,1) #FFFFFF3E
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,109.4) (256.6,131) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
@@ -194,12 +215,15 @@ window AddImage hp_back.png (37,34.4) (235,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (37,91.4) (235,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,34.4) (191.08,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,91.4) (112.13,116.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (177.22,34.4) (191.08,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (98.27,91.4) (112.13,116.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage mp_back.png (110.8,55.1) (258.4,76.7) (0,0) (1,1) #00000073
 window AddImage mp_back.png (112.6,56.9) (260.2,78.5) (0,0) (1,1) #00000033
 window AddImage mp_back.png (109,52.4) (256.6,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,52.4) (196.12,74) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (184.24,52.4) (196.12,74) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Carbuncle
@@ -233,6 +257,10 @@ window AddImage hp_fill.png (37.36,31.52) (184.24,51.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,77.52) (166.61,97.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,123.52) (140.18,143.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,169.52) (118.14,189.68) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (173.15,31.52) (184.24,51.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (155.53,77.52) (166.61,97.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (129.09,123.52) (140.18,143.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (107.06,169.52) (118.14,189.68) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (31.6,31.52) (190,51.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,77.52) (190,97.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,123.52) (190,143.68) (0,0) (0.97,1) #FF9597FF
@@ -253,6 +281,10 @@ window AddImage mp_fill.png (94.96,45.92) (201.52,63.2) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (94.96,91.92) (201.52,109.2) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (94.96,137.92) (196.19,155.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,183.92) (200.45,201.2) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (192.02,45.92) (201.52,63.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (192.02,91.92) (201.52,109.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (186.69,137.92) (196.19,155.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (190.95,183.92) (200.45,201.2) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (89.2,45.92) (207.28,63.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,137.92) (207.28,155.2) (0,0) (0.96,1) #FFFF9CFF
@@ -286,6 +318,8 @@ window AddImage hp_back.png (31.6,31.52) (190,51.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (31.6,77.52) (190,97.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,31.52) (82.89,51.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,77.52) (148.99,97.68) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (71.8,31.52) (82.89,51.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (137.9,77.52) (148.99,97.68) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (31.6,31.52) (190,51.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,77.52) (190,97.68) (0,0) (0.97,1) #FF9597FF
 window AddImage mp_back.png (90.64,48.08) (208.72,65.36) (0,0) (1,1) #00000073
@@ -296,6 +330,8 @@ window AddImage mp_back.png (89.2,45.92) (207.28,63.2) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_back.png (89.2,91.92) (207.28,109.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,45.92) (201.52,63.2) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (94.96,91.92) (148.24,109.2) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (192.02,45.92) (201.52,63.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (138.74,91.92) (148.24,109.2) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (89.2,45.92) (207.28,63.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
@@ -319,6 +355,7 @@ window AddImage hp_back.png (38.8,37.1) (236.8,62.3) (0,0) (1,1) #00000073
 window AddImage hp_back.png (40.6,38.9) (238.6,64.1) (0,0) (1,1) #00000033
 window AddImage hp_back.png (37,34.4) (235,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,34.4) (124.98,59.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (111.12,34.4) (124.98,59.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Quickblade
@@ -332,7 +369,7 @@ window PushClipRect (377,191) (396,209) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## with an alliance invite and treasure waiting (bare): 353 calls
+## with an alliance invite and treasure waiting (bare): 390 calls
 imgui Begin ##winxi_measure_xiframes.us.1
 imgui Dummy (245,343)
 window PushClipRect (0,0) (1920,1080) false
@@ -356,6 +393,11 @@ window AddImage hp_fill.png (44.2,91.4) (156.2,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,149.4) (124.98,174.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,206.4) (227.8,231.6) (0,0) (1,1) #FF9597B3
 window AddImage hp_fill.png (44.2,264.4) (84.59,289.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (199.25,34.4) (213.11,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (142.34,91.4) (156.2,116.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (111.12,149.4) (124.98,174.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (213.94,206.4) (227.8,231.6) (0,0) (1,1) #FFFFFF3E
+window AddImage glow.png (70.73,264.4) (84.59,289.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,149.4) (235,174.6) (0,0) (0.97,1) #FF9597FF
@@ -380,6 +422,10 @@ window AddImage mp_fill.png (116.2,52.4) (222.76,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,109.4) (176.14,131) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,167.4) (249.4,189) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (116.2,224.4) (249.4,246) (0,0) (1,1) #FFFF9CB3
+window AddImage glow.png (210.88,52.4) (222.76,74) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (164.26,109.4) (176.14,131) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,167.4) (249.4,189) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,224.4) (249.4,246) (0,0) (1,1) #FFFFFF3E
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,109.4) (256.6,131) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
@@ -422,12 +468,15 @@ window AddImage hp_back.png (37,34.4) (235,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (37,91.4) (235,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,34.4) (191.08,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,91.4) (112.13,116.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (177.22,34.4) (191.08,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (98.27,91.4) (112.13,116.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage mp_back.png (110.8,55.1) (258.4,76.7) (0,0) (1,1) #00000073
 window AddImage mp_back.png (112.6,56.9) (260.2,78.5) (0,0) (1,1) #00000033
 window AddImage mp_back.png (109,52.4) (256.6,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,52.4) (196.12,74) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (184.24,52.4) (196.12,74) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Carbuncle
@@ -472,6 +521,11 @@ window AddImage hp_fill.png (44.2,91.4) (156.2,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,149.4) (124.98,174.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,206.4) (227.8,231.6) (0,0) (1,1) #FF9597B3
 window AddImage hp_fill.png (44.2,264.4) (84.59,289.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (199.25,34.4) (213.11,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (142.34,91.4) (156.2,116.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (111.12,149.4) (124.98,174.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (213.94,206.4) (227.8,231.6) (0,0) (1,1) #FFFFFF3E
+window AddImage glow.png (70.73,264.4) (84.59,289.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,149.4) (235,174.6) (0,0) (0.97,1) #FF9597FF
@@ -496,6 +550,10 @@ window AddImage mp_fill.png (116.2,52.4) (222.76,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,109.4) (176.14,131) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,167.4) (249.4,189) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (116.2,224.4) (249.4,246) (0,0) (1,1) #FFFF9CB3
+window AddImage glow.png (210.88,52.4) (222.76,74) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (164.26,109.4) (176.14,131) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,167.4) (249.4,189) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,224.4) (249.4,246) (0,0) (1,1) #FFFFFF3E
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,109.4) (256.6,131) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
@@ -538,12 +596,15 @@ window AddImage hp_back.png (37,34.4) (235,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (37,91.4) (235,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,34.4) (191.08,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,91.4) (112.13,116.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (177.22,34.4) (191.08,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (98.27,91.4) (112.13,116.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage mp_back.png (110.8,55.1) (258.4,76.7) (0,0) (1,1) #00000073
 window AddImage mp_back.png (112.6,56.9) (260.2,78.5) (0,0) (1,1) #00000033
 window AddImage mp_back.png (109,52.4) (256.6,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,52.4) (196.12,74) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (184.24,52.4) (196.12,74) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Carbuncle
@@ -587,6 +648,10 @@ window AddImage hp_fill.png (37.36,31.52) (184.24,51.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,77.52) (166.61,97.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,123.52) (140.18,143.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,169.52) (118.14,189.68) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (173.15,31.52) (184.24,51.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (155.53,77.52) (166.61,97.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (129.09,123.52) (140.18,143.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (107.06,169.52) (118.14,189.68) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (31.6,31.52) (190,51.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,77.52) (190,97.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,123.52) (190,143.68) (0,0) (0.97,1) #FF9597FF
@@ -607,6 +672,10 @@ window AddImage mp_fill.png (94.96,45.92) (201.52,63.2) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (94.96,91.92) (201.52,109.2) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (94.96,137.92) (196.19,155.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,183.92) (200.45,201.2) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (192.02,45.92) (201.52,63.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (192.02,91.92) (201.52,109.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (186.69,137.92) (196.19,155.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (190.95,183.92) (200.45,201.2) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (89.2,45.92) (207.28,63.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,137.92) (207.28,155.2) (0,0) (0.96,1) #FFFF9CFF
@@ -640,6 +709,8 @@ window AddImage hp_back.png (31.6,31.52) (190,51.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (31.6,77.52) (190,97.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,31.52) (82.89,51.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,77.52) (148.99,97.68) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (71.8,31.52) (82.89,51.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (137.9,77.52) (148.99,97.68) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (31.6,31.52) (190,51.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,77.52) (190,97.68) (0,0) (0.97,1) #FF9597FF
 window AddImage mp_back.png (90.64,48.08) (208.72,65.36) (0,0) (1,1) #00000073
@@ -650,6 +721,8 @@ window AddImage mp_back.png (89.2,45.92) (207.28,63.2) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_back.png (89.2,91.92) (207.28,109.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,45.92) (201.52,63.2) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (94.96,91.92) (148.24,109.2) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (192.02,45.92) (201.52,63.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (138.74,91.92) (148.24,109.2) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (89.2,45.92) (207.28,63.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
@@ -673,6 +746,7 @@ window AddImage hp_back.png (38.8,37.1) (236.8,62.3) (0,0) (1,1) #00000073
 window AddImage hp_back.png (40.6,38.9) (238.6,64.1) (0,0) (1,1) #00000033
 window AddImage hp_back.png (37,34.4) (235,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,34.4) (124.98,59.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (111.12,34.4) (124.98,59.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Quickblade
@@ -686,7 +760,7 @@ window PushClipRect (377,191) (396,209) false
 window AddText (383,193) #F0E6C2FF Target
 window PopClipRect
 imgui End
-## filled with sample data, the settings open (bare): 630 calls
+## filled with sample data, the settings open (bare): 671 calls
 imgui Begin Party Settings
 imgui TextColored (1,0.75,0.55,1) [-] Mouse Interaction
 imgui Text Clickthrough:
@@ -696,14 +770,6 @@ imgui SameLine 22
 imgui NewLine
 imgui TextColored (1,0.75,0.55,1) [-] Positioning
 imgui Text Automatic Positioning:
-imgui SameLine 22
-imgui NewLine
-imgui TextColored (1,0.75,0.55,1) [-] Native HUD Replacement (Experimental)
-imgui Text Replace Native Lists:
-imgui SameLine 22
-imgui Text Replace Native Target:
-imgui SameLine 22
-imgui Text Follow Default UI Behavior:
 imgui SameLine 22
 imgui NewLine
 imgui TextColored (1,0.75,0.55,1) [-] Visibility
@@ -899,6 +965,11 @@ window AddImage hp_fill.png (44.2,91.4) (156.2,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,149.4) (124.98,174.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,206.4) (227.8,231.6) (0,0) (1,1) #FF9597B3
 window AddImage hp_fill.png (44.2,264.4) (84.59,289.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (199.25,34.4) (213.11,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (142.34,91.4) (156.2,116.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (111.12,149.4) (124.98,174.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (213.94,206.4) (227.8,231.6) (0,0) (1,1) #FFFFFF3E
+window AddImage glow.png (70.73,264.4) (84.59,289.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,149.4) (235,174.6) (0,0) (0.97,1) #FF9597FF
@@ -923,6 +994,10 @@ window AddImage mp_fill.png (116.2,52.4) (222.76,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,109.4) (176.14,131) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,167.4) (249.4,189) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (116.2,224.4) (249.4,246) (0,0) (1,1) #FFFF9CB3
+window AddImage glow.png (210.88,52.4) (222.76,74) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (164.26,109.4) (176.14,131) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,167.4) (249.4,189) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,224.4) (249.4,246) (0,0) (1,1) #FFFFFF3E
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,109.4) (256.6,131) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
@@ -965,12 +1040,15 @@ window AddImage hp_back.png (37,34.4) (235,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (37,91.4) (235,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,34.4) (191.08,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,91.4) (112.13,116.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (177.22,34.4) (191.08,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (98.27,91.4) (112.13,116.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage mp_back.png (110.8,55.1) (258.4,76.7) (0,0) (1,1) #00000073
 window AddImage mp_back.png (112.6,56.9) (260.2,78.5) (0,0) (1,1) #00000033
 window AddImage mp_back.png (109,52.4) (256.6,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,52.4) (196.12,74) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (184.24,52.4) (196.12,74) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Carbuncle
@@ -1017,6 +1095,11 @@ window AddImage hp_fill.png (44.2,91.4) (156.2,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,149.4) (124.98,174.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,206.4) (227.8,231.6) (0,0) (1,1) #FF9597B3
 window AddImage hp_fill.png (44.2,264.4) (84.59,289.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (199.25,34.4) (213.11,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (142.34,91.4) (156.2,116.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (111.12,149.4) (124.98,174.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (213.94,206.4) (227.8,231.6) (0,0) (1,1) #FFFFFF3E
+window AddImage glow.png (70.73,264.4) (84.59,289.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,149.4) (235,174.6) (0,0) (0.97,1) #FF9597FF
@@ -1041,6 +1124,10 @@ window AddImage mp_fill.png (116.2,52.4) (222.76,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,109.4) (176.14,131) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,167.4) (249.4,189) (0,0) (1,1) #8C8C8CFF
 window AddImage mp_fill.png (116.2,224.4) (249.4,246) (0,0) (1,1) #FFFF9CB3
+window AddImage glow.png (210.88,52.4) (222.76,74) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (164.26,109.4) (176.14,131) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,167.4) (249.4,189) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (237.52,224.4) (249.4,246) (0,0) (1,1) #FFFFFF3E
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,109.4) (256.6,131) (0,0) (0.96,1) #FFFF9CFF
 window AddImage mp_front.png (109,167.4) (256.6,189) (0,0) (0.96,1) #8C8C8CFF
@@ -1083,12 +1170,15 @@ window AddImage hp_back.png (37,34.4) (235,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_back.png (37,91.4) (235,116.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,34.4) (191.08,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,91.4) (112.13,116.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (177.22,34.4) (191.08,59.6) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (98.27,91.4) (112.13,116.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (37,91.4) (235,116.6) (0,0) (0.97,1) #FF9597FF
 window AddImage mp_back.png (110.8,55.1) (258.4,76.7) (0,0) (1,1) #00000073
 window AddImage mp_back.png (112.6,56.9) (260.2,78.5) (0,0) (1,1) #00000033
 window AddImage mp_back.png (109,52.4) (256.6,74) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (116.2,52.4) (196.12,74) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (184.24,52.4) (196.12,74) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (109,52.4) (256.6,74) (0,0) (0.96,1) #FFFF9CFF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Carbuncle
@@ -1142,6 +1232,12 @@ window AddImage hp_fill.png (37.36,123.52) (74.08,143.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,169.52) (140.18,189.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,215.52) (96.11,235.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,261.52) (118.14,281.68) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (173.15,31.52) (184.24,51.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (155.53,77.52) (166.61,97.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (62.99,123.52) (74.08,143.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (129.09,169.52) (140.18,189.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (85.02,215.52) (96.11,235.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (107.06,261.52) (118.14,281.68) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (31.6,31.52) (190,51.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,77.52) (190,97.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,123.52) (190,143.68) (0,0) (0.97,1) #FF9597FF
@@ -1172,6 +1268,12 @@ window AddImage mp_fill.png (94.96,137.92) (137.58,155.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,183.92) (196.19,201.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,229.92) (150.37,247.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,275.92) (200.45,293.2) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (192.02,45.92) (201.52,63.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (192.02,91.92) (201.52,109.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (128.08,137.92) (137.58,155.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (186.69,183.92) (196.19,201.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (140.87,229.92) (150.37,247.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (190.95,275.92) (200.45,293.2) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (89.2,45.92) (207.28,63.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,137.92) (207.28,155.2) (0,0) (0.96,1) #FFFF9CFF
@@ -1229,6 +1331,12 @@ window AddImage hp_fill.png (37.36,123.52) (74.08,143.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,169.52) (140.18,189.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,215.52) (148.99,235.68) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (37.36,261.52) (96.11,281.68) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (71.8,31.52) (82.89,51.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (107.06,77.52) (118.14,97.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (62.99,123.52) (74.08,143.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (129.09,169.52) (140.18,189.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (137.9,215.52) (148.99,235.68) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (85.02,261.52) (96.11,281.68) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (31.6,31.52) (190,51.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,77.52) (190,97.68) (0,0) (0.97,1) #FF9597FF
 window AddImage hp_front.png (31.6,123.52) (190,143.68) (0,0) (0.97,1) #FF9597FF
@@ -1259,6 +1367,12 @@ window AddImage mp_fill.png (94.96,137.92) (137.58,155.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,183.92) (175.95,201.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,229.92) (148.24,247.2) (0,0) (1,1) #FFFF9CFF
 window AddImage mp_fill.png (94.96,275.92) (150.37,293.2) (0,0) (1,1) #FFFF9CFF
+window AddImage glow.png (192.02,45.92) (201.52,63.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (192.02,91.92) (201.52,109.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (128.08,137.92) (137.58,155.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (166.44,183.92) (175.95,201.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (138.74,229.92) (148.24,247.2) (0,0) (1,1) #FFFFFF59
+window AddImage glow.png (140.87,275.92) (150.37,293.2) (0,0) (1,1) #FFFFFF59
 window AddImage mp_front.png (89.2,45.92) (207.28,63.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,91.92) (207.28,109.2) (0,0) (0.96,1) #8C8C8CFF
 window AddImage mp_front.png (89.2,137.92) (207.28,155.2) (0,0) (0.96,1) #FFFF9CFF
@@ -1296,6 +1410,7 @@ window AddImage hp_back.png (38.8,37.1) (236.8,62.3) (0,0) (1,1) #00000073
 window AddImage hp_back.png (40.6,38.9) (238.6,64.1) (0,0) (1,1) #00000033
 window AddImage hp_back.png (37,34.4) (235,59.6) (0,0) (1,1) #FF9597FF
 window AddImage hp_fill.png (44.2,34.4) (181.9,59.6) (0,0) (1,1) #FF9597FF
+window AddImage glow.png (168.04,34.4) (181.9,59.6) (0,0) (1,1) #FFFFFF59
 window AddImage hp_front.png (37,34.4) (235,59.6) (0,0) (0.97,1) #FF9597FF
 imgui PushFont
 window AddText (10,20) #FFFFFFFF Sample Target
