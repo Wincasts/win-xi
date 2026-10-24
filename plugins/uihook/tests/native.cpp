@@ -239,6 +239,11 @@ int main() {
     Check(MouseMessage(WM_LBUTTONDOWN) && MouseMessage(WM_MOUSEMOVE) && !MouseMessage(WM_MOUSEWHEEL) && !MouseMessage(WM_KEYDOWN),"which messages carry a place");
     Check(MouseRelease(WM_RBUTTONUP) && !MouseRelease(WM_RBUTTONDOWN),"a button let go");
     {
+        // the game's mouse handler, its first bytes as the client has them: the pattern fits, and only what is stolen is whole instructions
+        uint8_t handler[40]={0x83,0xEC,0x2C,0x53,0x8B,0x5C,0x24,0x38,0x55,0x56,0x8B,0x74,0x24,0x44,0x57,0x8B,0x7C,0x24,0x4C,0x81,0xFB,0x0F,0x01,0x00,0x00};
+        Check(FindPattern(handler,sizeof(handler),GAME_INPUT_PATTERN)==handler && GAME_INPUT_STOLEN==8,"the mouse handler's pattern");
+    }
+    {
         MSG message={}; message.lParam=MAKELPARAM(100,200); message.pt.x=1100; message.pt.y=1200;
         MouseMove(message,40,70);
         Check(LOWORD(message.lParam)==40 && HIWORD(message.lParam)==70 && message.pt.x==1040 && message.pt.y==1070,"a message moved, its screen place as far");

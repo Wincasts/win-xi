@@ -78,6 +78,7 @@
 -- 41: nativemirror on uihook 1.2's mirror ABI 5: Mouse and MouseSupported, the mouse on a menu drawn elsewhere or
 --     larger given to the game at the same place on its own
 -- 42: bars, a bar in the theme's Bar Texture at any size (party's HP art, in assets\bars)
+-- 43: winxi.nativemirror retired with the menus addon and uihook 1.58's mirror (kept in archive/)
 return {
-    Number = 42,
+    Number = 43,
 };
