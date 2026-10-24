@@ -77,24 +77,3 @@ assert(table.concat(selectedB, ',') == '1,33', 'other cached outputs must not sh
 perf.Count = originalCount
 H.print('status cache: multiple lists, in-place edits, size changes and all ordering controls', true)
 
-local profiles, config = require('profiles'), require('config')
-local originalSort, sorts = table.sort, 0
-table.sort = function(...) sorts = sorts + 1; return originalSort(...) end
-local saved = { profiles = { Zed = {}, Alpha = {} } }
-local names = profiles.Names(saved)
-assert(table.concat(names, ',') == 'Alpha,Zed' and sorts == 1)
-for _ = 1, 100 do assert(profiles.Names(saved) == names) end
-assert(sorts == 1)
-saved.profiles.Zed, saved.profiles.Beta = nil, {}
-assert(table.concat(profiles.Names(saved), ',') == 'Alpha,Beta' and sorts == 2)
-saved.profiles.Beta = nil
-assert(table.concat(profiles.Names(saved), ',') == 'Alpha' and sorts == 3)
-saved.profiles = { NewCharacter = {} }
-assert(profiles.Names(saved)[1] == 'NewCharacter' and sorts == 4)
-table.sort = originalSort
-local originalNames, originalCombo = profiles.Names, imgui.BeginCombo
-profiles.Names = function() error('closed profile dropdown enumerated names') end
-imgui.BeginCombo = function() return false end
-config.Tabs[#config.Tabs].draw(o)
-profiles.Names, imgui.BeginCombo = originalNames, originalCombo
-H.print('profile names sorted only after membership changes and only requested by an open dropdown', true)

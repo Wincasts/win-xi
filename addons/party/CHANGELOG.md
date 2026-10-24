@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Profiles are gone: the Profiles [Experimental] tab, its four presets and the named profiles. Profiles saved by earlier versions are dropped from the settings.
+
 - Hover Details no longer list a member's statuses: the tooltip has their name, job and pet owner, and each status icon keeps its own tooltip. The +N badge of statuses that did not fit no longer has one. The uihook section of Behavior is shown only while uihook (or partyhook) is loaded.
 
 - Behavior's Native HUD Replacement section is now **uihook**: it says whether uihook (or the older partyhook) is loaded, and **Hook Into uihook** turns the hooking on or off as a whole. While it is on, **Party** and **Target** choose which windows it draws in the game's place, with Follow Default UI Behavior beside them; pets are rows of the Party windows and go with them. Greyed while the plugin is not loaded, the choices kept. Settings that had Party or Target hooked begin with Hook Into uihook on; `/pt native on` turns it on.
@@ -12,7 +14,7 @@
 
 - The Kingdom bar texture is plainer: one dark line, one bright rail and one shade line, with nothing drawn inside the frame, over a flat dark back without the other styles' highlight. At the party frames' scale the earlier four alternating rails smeared into a second frame inside the empty part of the bar.
 
-- Name Font and Value Font are winxi's own control (widgets.FontFile), Clickthrough too (widgets.Lock), and the settings' tooltips are winxi.tooltip's, so winxisettings' Tooltips tab applies. Outline Text is gone: the names' and values' dark edge is Winxi Theme's Text Outline, scaled with the frames, and its colour the theme's Outline Color; the Minimal profile no longer turns it off. Needs winxi 25.
+- Name Font and Value Font are winxi's own control (widgets.FontFile), Clickthrough too (widgets.Lock), and the settings' tooltips are winxi.tooltip's, so winxisettings' Tooltips tab applies. Outline Text is gone: the names' and values' dark edge is Winxi Theme's Text Outline, scaled with the frames, and its colour the theme's Outline Color. Needs winxi 25.
 
 ## 0.2 — first release
 

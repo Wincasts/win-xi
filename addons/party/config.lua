@@ -18,7 +18,6 @@ local organize = require('winxi.organize')
 local options = require('options')
 local windows = require('windows')
 local nativePlacement = require('nativeposition')
-local profiles = require('profiles')
 local statuspicker = require('statuspicker')
 
 local config = { }
@@ -310,54 +309,6 @@ for _, tab in ipairs(options.Tabs) do
     tab.labels = ('xiframes.%s'):format(tab.name:lower())
     table.insert(config.Tabs, { name = tab.name, draw = function(saved) DrawEntries(tab, saved) end })
 end
-
-local profileName, overwrite = { '' }, { false }
-local selectedProfile, profileMessage = nil, ''
-local function DrawProfiles(saved)
-    imgui.TextColored(widgets.ExperimentalColor, '[Experimental] Profiles and presets are still being tested.')
-    imgui.TextWrapped('Profiles and presets change Party display settings, not window positions, links, Behavior settings or the shared theme. Presets change only their relevant controls.')
-    if widgets.Header('Presets', true) then
-        for _, name in ipairs(profiles.Presets) do
-            if imgui.Button('Apply ' .. name .. '##party.preset') then
-                profiles.Preset(saved, name)
-                Save()
-                profileMessage = 'Applied ' .. name
-            end
-        end
-    end
-    if not widgets.Header('Named Profiles') then return end
-    imgui.InputText('Profile Name##party.profileName', profileName, 41)
-    imgui.Checkbox('Allow Overwrite / Delete##party.profileOverwrite', overwrite)
-    if imgui.Button('Save Current##party.profileSave') then
-        local ok
-        ok, profileMessage = profiles.Save(saved, profileName[1], overwrite[1])
-        if ok then Save(); overwrite[1] = false end
-    end
-    if selectedProfile and not saved.profiles[selectedProfile] then selectedProfile = nil end
-    if imgui.BeginCombo('Saved Profile##party.profileSelect', selectedProfile or 'Choose a profile') then
-        for _, name in ipairs(profiles.Names(saved)) do
-            if imgui.Selectable(name .. '##party.savedProfile', name == selectedProfile) then selectedProfile = name end
-        end
-        imgui.EndCombo()
-    end
-    if selectedProfile and saved.profiles[selectedProfile] then
-        if imgui.Button('Load Selected##party.profileLoad') then
-            profiles.Apply(saved, saved.profiles[selectedProfile]); Save()
-            profileMessage = 'Loaded ' .. selectedProfile
-        end
-        if overwrite[1] and imgui.Button('Delete Selected##party.profileDelete') then
-            saved.profiles[selectedProfile] = nil
-            selectedProfile, overwrite[1] = nil, false
-            profileMessage = 'Deleted profile'
-            Save()
-        end
-    end
-    if profileMessage ~= '' then
-        if imgui.TextUnformatted then imgui.TextUnformatted(profileMessage)
-        else imgui.Text((profileMessage:gsub('%%', '%%%%'))) end
-    end
-end
-config.Tabs[#config.Tabs + 1] = { name = 'Profiles [Experimental]', draw = DrawProfiles }
 
 -- The window is never narrower than this, so it does not jump about as the tabs are switched. It has
 -- the theme's settings window values, apart from the game windows' that are set in it.
