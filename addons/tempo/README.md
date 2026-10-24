@@ -3,7 +3,8 @@
 Two bars in a small window in the theme: one fills to your next auto attack while you fight, the
 other to your next resting tick while you `/heal`, with about what that tick restores and about when
 your HP and MP are full. The window shows only while one of them has something to show, or the
-settings are open. It needs only the `winxi` library (`addons/libs/winxi`).
+settings are open. The bars are drawn in Winxi Theme's Bar Texture, tinted a colour of their own. It
+needs only the `winxi` library (`addons/libs/winxi`), winxi 42 or newer.
 
     Attack  ~3.73s                 1.2
     +14 HP  +16 MP                 6.2
@@ -54,11 +55,24 @@ Every section collapses with its [-]/[+].
 - **Show Attack Timer**, **Show Resting Ticks** switch each bar.
 - **Show Time To Full** says under the resting bar about how long until HP and MP are full.
 
-**Window**
+**Bars**
 
-- **Bar Width** is how wide the bars are, 120 to 400 pixels.
-- **Attack Color** and **Rest Color** are what each bar fills with.
+- **Bar Width** (120 to 400) and **Bar Height** (8 to 48) are the bars' size in pixels. The ends of the
+  Bar Texture keep their shape at any width.
+- **Attack Color** and **Rest Color** are what each bar is tinted.
+- **Show Background** is the window's background, border and shadow, as Winxi Theme has them. Off, the
+  bars stand over the game by themselves.
 - **Lock Window** keeps it where it is, and lets the mouse through. Off, it is dragged.
+
+**Label Text** and **Timer Text**
+
+The label is what the bar is (with the delay, or what the tick restores, and the time to full under
+it); the timer is the seconds left. Each has:
+
+- **Font** and **Font Size**: Theme Font and Theme Size follow Winxi Theme.
+- **Align**: Left, Center or Right on the bar (the label starts Left, the timer Right).
+- **Offset X** and **Offset Y**: moved from there, up to 100 pixels either way. Words moved off the bar
+  make room for themselves, so the window grows to hold them.
 
 Below them are the rules for hiding the window (the map, an event, the chat log opened out) and
 whether it fades in and out.

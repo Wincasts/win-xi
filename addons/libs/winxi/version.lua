@@ -77,6 +77,7 @@
 -- 40: nativemirror on uihook 1.1's mirror ABI 4: 128 windows asked for
 -- 41: nativemirror on uihook 1.2's mirror ABI 5: Mouse and MouseSupported, the mouse on a menu drawn elsewhere or
 --     larger given to the game at the same place on its own
+-- 42: bars, a bar in the theme's Bar Texture at any size (party's HP art, in assets\bars)
 return {
-    Number = 41,
+    Number = 42,
 };

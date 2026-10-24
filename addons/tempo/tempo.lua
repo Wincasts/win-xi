@@ -1,6 +1,6 @@
 addon.name    = 'tempo'
 addon.author  = 'win'
-addon.version = '0.1'
+addon.version = '0.2'
 addon.desc    = 'Bars for when your next auto attack comes and when your next resting tick lands.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -12,7 +12,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 --   /tempo           opens or closes the settings
 --   /tempo toggle    shows or hides the window
 
-local winxiNeeded = 41
+local winxiNeeded = 42
 do
     local ok, found = pcall(require, 'winxi.version')
     local number = ok and type(found) == 'table' and found.Number or 0
@@ -31,6 +31,8 @@ local tooltip = require('winxi.tooltip')
 local shell = require('winxi.shell')
 local text = require('winxi.text')
 local theme = require('winxi.theme')
+local fonts = require('winxi.fonts')
+local bars = require('winxi.bars')
 local swing = require('swing')
 local rest = require('rest')
 
@@ -45,9 +47,29 @@ local defaults = T{
     showRest = T{ true },
     showFull = T{ true },
     barWidth = T{ 220 },
+    barHeight = T{ 22 },
+    showBackground = T{ true },
     locked = T{ false },
     pos = T{ 300, 400 },
 }
+
+-- The two kinds of words on a bar: the label (what the bar is, and the delay or the amounts) and the
+-- timer (the seconds left). Each has its own font, size, side and offset: labelFont, labelSize,
+-- labelAlign, labelX, labelY, and the same for timer.
+local textKinds = {
+    { key = 'label', name = 'Label', align = 'Left' },
+    { key = 'timer', name = 'Timer', align = 'Right' },
+}
+local aligns = { 'Left', 'Center', 'Right' }
+local alignShare = { Left = 0, Center = 0.5, Right = 1 }
+local offsetMost = 100
+for _, kind in ipairs(textKinds) do
+    defaults[kind.key .. 'Font'] = ''
+    defaults[kind.key .. 'Size'] = T{ 0 }
+    defaults[kind.key .. 'Align'] = kind.align
+    defaults[kind.key .. 'X'] = T{ 0 }
+    defaults[kind.key .. 'Y'] = T{ 0 }
+end
 for key, color in pairs(firstColors) do
     defaults[key] = T{ color[1], color[2], color[3], color[4] }
 end
@@ -228,27 +250,70 @@ end)
 local barBack = { 0, 0, 0, 0.45 }
 local from, to = { 0, 0 }, { 0, 0 }
 local room = { 0, 0 }
+local textPad = 6 -- how far in from the bar's ends the words go, before their offset
 
--- A bar the window's width, filled so far, with words at its left and right in the theme's outline
+-- A font and size of the addon's own pushed (the theme's where none is chosen); whether it was
+local function PushFont(file, size)
+    local font = fonts.Get(file)
+    size = tonumber(size) or 0
+    if font == nil and size <= 0 then return false end
+    imgui.PushFont(font, size)
+    return true
+end
+
+-- Where words of a kind go on a bar width by height, from the bar's top left, and how big they are
+local placed = { label = {}, timer = {} }
+local function Place(kind, words, width, height)
+    local options = app.options
+    local pushed = PushFont(options[kind .. 'Font'], options[kind .. 'Size'][1])
+    local w, h = imgui.CalcTextSize(words)
+    h = h or imgui.GetFontSize()
+    if pushed then imgui.PopFont() end
+    local at = placed[kind]
+    local share = alignShare[options[kind .. 'Align']] or 0
+    at.x = math.floor(textPad + (width - 2 * textPad - w) * share + options[kind .. 'X'][1])
+    at.y = math.floor((height - h) / 2 + options[kind .. 'Y'][1])
+    at.w, at.h, at.words = w, h, words
+    return at
+end
+
+local function Write(list, kind, at, x, y)
+    local options = app.options
+    local pushed = PushFont(options[kind .. 'Font'], options[kind .. 'Size'][1])
+    text.Draw(list, x + at.x, y + at.y, theme.Get().TextColor, at.words)
+    if pushed then imgui.PopFont() end
+end
+
+-- A bar in the theme's Bar Texture, filled so far, with its label and timer where they are set. Words
+-- moved off the bar make room for themselves, so the window grows to hold them.
 local function Bar(fill, left, right, color)
     local options = app.options
-    local width = options.barWidth[1]
-    local height = imgui.GetFontSize() + 6
+    local width, height = options.barWidth[1], options.barHeight[1]
+    local label = Place('label', left, width, height)
+    local timer = right ~= nil and Place('timer', right, width, height) or nil
+    local minX, minY = math.min(0, label.x), math.min(0, label.y)
+    local maxX, maxY = math.max(width, label.x + label.w), math.max(height, label.y + label.h)
+    if timer ~= nil then
+        minX, minY = math.min(minX, timer.x), math.min(minY, timer.y)
+        maxX, maxY = math.max(maxX, timer.x + timer.w), math.max(maxY, timer.y + timer.h)
+    end
+
     local x, y = imgui.GetCursorScreenPos()
+    x, y = x - minX, y - minY
     local list = imgui.GetWindowDrawList()
-    from[1], from[2], to[1], to[2] = x, y, x + width, y + height
-    list:AddRectFilled(from, to, imgui.GetColorU32(barBack), 3)
-    fill = math.max(0, math.min(1, fill or 0))
-    if fill > 0 then
-        to[1] = x + width * fill
-        list:AddRectFilled(from, to, imgui.GetColorU32(color), 3)
+    if not bars.Draw(list, x, y, width, height, fill, color) then
+        -- no art: a plain bar
+        from[1], from[2], to[1], to[2] = x, y, x + width, y + height
+        list:AddRectFilled(from, to, imgui.GetColorU32(barBack), 3)
+        fill = math.max(0, math.min(1, fill or 0))
+        if fill > 0 then
+            to[1] = x + width * fill
+            list:AddRectFilled(from, to, imgui.GetColorU32(color), 3)
+        end
     end
-    local words = theme.Get().TextColor
-    text.Draw(list, x + 5, y + 3, words, left)
-    if right ~= nil then
-        text.Draw(list, x + width - 5 - imgui.CalcTextSize(right), y + 3, words, right)
-    end
-    room[1], room[2] = width, height
+    Write(list, 'label', label, x, y)
+    if timer ~= nil then Write(list, 'timer', timer, x, y) end
+    room[1], room[2] = maxX - minX, maxY - minY
     imgui.Dummy(room)
 end
 
@@ -295,13 +360,16 @@ local function DrawRest(options, now, sample, fading)
     local label = (s.hp == nil and 'Resting') or (s.mp ~= nil and ('+%d HP  +%d MP'):format(s.hp, s.mp)) or ('+%d HP'):format(s.hp)
     Bar(s.fill, label, s.left and ('%.1f'):format(s.left) or '...', options.restColor)
     if options.showFull[1] and s.full ~= nil then
+        local pushed = PushFont(options.labelFont, options.labelSize[1])
         text.Outlined(s.full <= 0 and 'Full' or ('Full in ~%s'):format(Clock(s.full)))
+        if pushed then imgui.PopFont() end
     end
 end
 
 -- the window is wanted while it has something to show, or the settings are open
 local wanted = { false }
 local windowExtra = { }
+local transparent = { 0, 0, 0, 0 }
 
 local function Draw(options)
     local now, sample, fading = os.clock(), app.showConfig[1], not wanted[1]
@@ -323,6 +391,59 @@ local function Check(label, id, setting, tip)
     tooltip.Hover(tip)
 end
 
+local function Slider(label, id, setting, low, high, format, tip)
+    widgets.Label(label)
+    imgui.SliderInt(id, setting, low, high, format)
+    if imgui.IsItemDeactivatedAfterEdit() then Save() end
+    tooltip.Hover(tip)
+end
+
+local function Color(label, id, setting, tip)
+    widgets.Label(label)
+    imgui.ColorEdit4(id, setting, ImGuiColorEditFlags_NoInputs)
+    if imgui.IsItemDeactivatedAfterEdit() then Save() end
+    tooltip.Hover(tip)
+end
+
+-- The label's or the timer's font, size, side and offset
+local alignIds = { } -- kind -> side -> its button's label
+for _, kind in ipairs(textKinds) do
+    alignIds[kind.key] = { }
+    for _, align in ipairs(aligns) do
+        alignIds[kind.key][align] = ('%s##tempo.%sAlign'):format(align, kind.key)
+    end
+end
+
+local function DrawText(options, kind)
+    local key, lower = kind.key, kind.name:lower()
+    widgets.PushControlWidth()
+    if widgets.FontFile(options, key .. 'Font', '##tempo.' .. key .. 'Font',
+        { tooltip = ('The font the %s is written in; Theme Font follows Winxi Theme.'):format(lower) }) then
+        Save()
+    end
+    local _, done = widgets.FontSize(options, key .. 'Size', '##tempo.' .. key .. 'Size',
+        { tooltip = ('How large the %s is, in pixels; Theme Size (0) follows Winxi Theme.'):format(lower) })
+    if done then Save() end
+    widgets.PopControlWidth()
+
+    widgets.Label('Align')
+    for index, align in ipairs(aligns) do
+        if index > 1 then imgui.SameLine() end
+        if imgui.RadioButton(alignIds[key][align], options[key .. 'Align'] == align) and options[key .. 'Align'] ~= align then
+            options[key .. 'Align'] = align
+            Save()
+        end
+    end
+    tooltip.Hover(('Which part of the bar the %s goes to, before its offset.'):format(lower))
+
+    widgets.PushControlWidth()
+    Slider('Offset X', '##tempo.' .. key .. 'X', options[key .. 'X'], -offsetMost, offsetMost, '%d px',
+        ('How far the %s is moved right of where its side puts it; less than 0 moves it left.'):format(lower))
+    Slider('Offset Y', '##tempo.' .. key .. 'Y', options[key .. 'Y'], -offsetMost, offsetMost, '%d px',
+        ('How far the %s is moved down from the middle of the bar; less than 0 moves it up. Moved off the bar, the window grows to hold it.'):format(lower))
+    widgets.PopControlWidth()
+end
+
 local function DrawSettings(options)
     if widgets.Header('Timers', true) then
         Check('Show Attack Timer', '##tempo.showAttack', options.showAttack,
@@ -332,22 +453,22 @@ local function DrawSettings(options)
         Check('Show Time To Full', '##tempo.showFull', options.showFull,
             'Under the resting bar, about how long until your HP and MP are full.')
     end
-    if widgets.Header('Window') then
+    if widgets.Header('Bars') then
         widgets.PushControlWidth()
-        widgets.Label('Bar Width')
-        imgui.SliderInt('##tempo.barWidth', options.barWidth, 120, 400, '%d px')
-        if imgui.IsItemDeactivatedAfterEdit() then Save() end
-        tooltip.Hover('How wide the bars are, in pixels.')
+        Slider('Bar Width', '##tempo.barWidth', options.barWidth, 120, 400, '%d px', 'How wide the bars are, in pixels.')
+        Slider('Bar Height', '##tempo.barHeight', options.barHeight, 8, 48, '%d px',
+            'How tall the bars are, in pixels. The ends of the Bar Texture keep their shape at any width.')
         widgets.PopControlWidth()
-        widgets.Label('Attack Color')
-        imgui.ColorEdit4('##tempo.attackColor', options.attackColor, ImGuiColorEditFlags_NoInputs)
-        if imgui.IsItemDeactivatedAfterEdit() then Save() end
-        tooltip.Hover('The colour the attack bar fills with.')
-        widgets.Label('Rest Color')
-        imgui.ColorEdit4('##tempo.restColor', options.restColor, ImGuiColorEditFlags_NoInputs)
-        if imgui.IsItemDeactivatedAfterEdit() then Save() end
-        tooltip.Hover('The colour the resting bar fills with.')
+        Color('Attack Color', '##tempo.attackColor', options.attackColor, 'The colour the attack bar is tinted.')
+        Color('Rest Color', '##tempo.restColor', options.restColor, 'The colour the resting bar is tinted.')
+        Check('Show Background', '##tempo.showBackground', options.showBackground,
+            'The window\'s background, border and shadow, as Winxi Theme has them. Off, the bars stand over the game by themselves.')
         widgets.Lock(options.locked, '##tempo.locked', { onChanged = Save })
+    end
+    for _, kind in ipairs(textKinds) do
+        if widgets.Header(kind.name .. ' Text') then
+            DrawText(options, kind)
+        end
     end
 end
 
@@ -365,8 +486,22 @@ local function Complete(options)
     Boxed(options, 'showRest', 'boolean', true)
     Boxed(options, 'showFull', 'boolean', true)
     Boxed(options, 'locked', 'boolean', false)
+    Boxed(options, 'showBackground', 'boolean', true)
     Boxed(options, 'barWidth', 'number', 220)
     options.barWidth[1] = math.max(120, math.min(400, math.floor(options.barWidth[1])))
+    Boxed(options, 'barHeight', 'number', 22)
+    options.barHeight[1] = math.max(8, math.min(48, math.floor(options.barHeight[1])))
+    for _, kind in ipairs(textKinds) do
+        local key = kind.key
+        if type(options[key .. 'Font']) ~= 'string' then options[key .. 'Font'] = '' end
+        Boxed(options, key .. 'Size', 'number', 0)
+        options[key .. 'Size'][1] = math.max(0, math.min(theme.MaxFontSize, math.floor(options[key .. 'Size'][1])))
+        if alignShare[options[key .. 'Align']] == nil then options[key .. 'Align'] = kind.align end
+        for _, axis in ipairs({ 'X', 'Y' }) do
+            Boxed(options, key .. axis, 'number', 0)
+            options[key .. axis][1] = math.max(-offsetMost, math.min(offsetMost, math.floor(options[key .. axis][1])))
+        end
+    end
     if type(options.pos) ~= 'table' or type(options.pos[1]) ~= 'number' or type(options.pos[2]) ~= 'number' then
         options.pos = T{ 300, 400 }
     end
@@ -405,5 +540,14 @@ ashita.events.register('d3d_present', 'tempo_present', function()
     wanted[1] = options.isVisible[1] and (active or app.showConfig[1]) and true or false
     windowExtra.locked = options.locked[1] or nil
     windowExtra.clickThrough = windowExtra.locked
+    -- the background off: no background, border or shadow, as inventory's equipment window does it
+    local plain = not options.showBackground[1]
+    local look = app.windowStyle
+    look.background, look.border = plain and transparent or nil, plain and transparent or nil
+    if plain then look.shadow = false else look.shadow = nil end
+    windowExtra.flags = plain and ImGuiWindowFlags_NoBackground or nil
+    -- the fonts are loaded before the window opens: adding one changes the shared atlas
+    fonts.Get(options.labelFont)
+    fonts.Get(options.timerFont)
     app:Window(wanted, Draw, windowExtra)
 end)
