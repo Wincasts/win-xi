@@ -8,7 +8,7 @@ text in the theme's font (an item's name in the colour the game gives it), its i
 own textures, the row the cursor is on lit in the Highlight Color, the game's hand where the game put
 it, and the scrollbar.
 
-Needs `uihook` 0.98 or newer (its menu mirror) and winxi 35.
+Needs `uihook` 1.2 or newer (its menu mirror, ABI 5) and winxi 41.
 
 - `/menus` opens or closes the settings
 
@@ -64,8 +64,8 @@ group (on where every one of them is):
   History List, Crafting Skill.
 - **[Experimental] Other Menus** (on): Map Menu, Social Menu.
 
-The experimental groups were found in play with `/uihook census` and have not yet been looked at
-mirrored: try them in Outline first. Menus added in a release start on, for every character, so they are
+The experimental groups were found in play with `/uihook census` (in a uihook built with `--diagnostics`) and
+have not yet been looked at mirrored: try them in Outline first. Menus added in a release start on, for every character, so they are
 seen; one switched off stays off. A window whose text was printed off the screen (the Conquest Map's
 names) is given back to the game, as one whose place could not be measured is. Their names are best guesses from the game's own; the HUD and
 chat windows (the party list, target, chat log, network) are left to the addons that draw them.

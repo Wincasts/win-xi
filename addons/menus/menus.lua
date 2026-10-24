@@ -15,7 +15,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- With Mouse Follows Menus on (uihook 1.2), the mouse works each menu where it is drawn here, moved or larger:
 -- uihook gives the game each mouse message on one at the same place on the game's own.
 --
--- Needs uihook 0.96 or newer, for its menu mirror. Which menus are mirrored, and whether in their place
+-- Needs uihook 1.2 or newer, for its menu mirror (ABI 5). Which menus are mirrored, and whether in their place
 -- or as outlines over the game's (to check what is measured), is in the settings.
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an

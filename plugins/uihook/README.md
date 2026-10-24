@@ -1,13 +1,17 @@
-# uihook — experimental 1.1
+# uihook
 
-One Ashita v4 plugin for native UI replacement, with independent **buff**, **party/alliance**,
-**target**, **clock**, **compass** and **chat log** capabilities. Replaces loading `buffhook` and `partyhook`; the addons remain separate.
-Loading uihook without addon submissions leaves native drawing unchanged.
+One Ashita v4 plugin that changes the game's own interface. Addons hand it their own **buff**, **party/alliance**,
+**target**, **clock**, **compass** and **chat log** drawing to stand in for the game's, each independently; and it
+changes the game's **menus** themselves: drawn with a skin's textures and fonts (`/uihook skin`, set by
+`addons/nativeui`), moved and scaled (`/uihook native`, nativeui), or left undrawn for `addons/menus` to draw
+again (the mirror). Replaces loading `buffhook` and `partyhook`; the addons remain separate. Loading uihook
+without any of that asked for leaves the game's drawing unchanged.
 
 ## Build and install
 
 ```sh
-plugins/uihook/build.sh
+plugins/uihook/build.sh                 # the plugin as it is played with
+plugins/uihook/build.sh --diagnostics   # with the census, texture census, label dumps and watch built in
 ```
 
 Uses the same clang-cl/lld-link, x86 Windows SDK/MSVC and Ashita SDK toolchain as the previous plugins
@@ -688,7 +692,7 @@ text call was taken and the grid. It only reads.
 Live validation is required for combined buff/party/target use: menu overlap, buff selection/cursor
 restoration, target/subtarget arrows, independent toggles, Organize, addon/plugin unload/reload,
 cutscenes, zoning, UI hide/show, resolution/font changes and device recovery. Existing partyhook
-validation gaps carry over; uihook itself has not yet been live-tested. Clock/compass additionally
+validation gaps carry over. Clock/compass additionally
 need native clock/radar toggle checks, radar-disabled zones and hidecompass removal validation.
 
 MIT; see `LICENSE.md`.

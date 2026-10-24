@@ -7,13 +7,21 @@
 IPlugin* CreateBuffModule();
 IPlugin* CreatePartyModule();
 
+// The words of a command after its first n, as typed
+static const char* After(const char* command, int n) {
+    const char* c = command;
+    for (int i = 0; i < n; ++i) { while (*c == ' ') ++c; while (*c && *c != ' ') ++c; }
+    while (*c == ' ') ++c;
+    return c;
+}
+
 class UIHook : public IPlugin {
     std::unique_ptr<IPlugin> buffs, party;
     IAshitaCore* m_Core = nullptr;
 public:
     const char* GetName() const override { return "uihook"; }
     const char* GetAuthor() const override { return "win"; }
-    const char* GetDescription() const override { return "Modular native UI replacement: buffs, party/alliance, targets, clock, compass and chat."; }
+    const char* GetDescription() const override { return "The game's own interface changed: buffs, party and alliance, target, clock, compass and chat replaced by addons' own, and its menus skinned, moved and mirrored."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
     double GetVersion() const override { return 1.58; }
     // UseCommands: Ashita gives plugins commands only when they ask, and /uihook hud is one; UseText: each line given
@@ -53,14 +61,30 @@ public:
         if (_stricmp(words[1], "skin") == 0) return party && party->HandleCommand(mode, command, injected);
         if (_stricmp(words[1], "textures") == 0) { std::string line = "/uihook textures"; if (words[2][0]) line += std::string(" ") + words[2]; return party && party->HandleCommand(mode, line.c_str(), injected); }
         if (_stricmp(words[1], "mirror") == 0) {
-            std::string line = _stricmp(words[2], "labels") == 0 ? "/uihook mirror labels" : "/uihook mirror";
-            if (_stricmp(words[2], "labels") == 0 && words[3][0]) line += std::string(" ") + words[3];
+            std::string line = "/uihook mirror";
+            if (_stricmp(words[2], "labels") == 0) { line += " labels"; if (words[3][0]) line += std::string(" ") + words[3]; }
+            else if (_stricmp(words[2], "watch") == 0) line += " watch";
+            else if (_stricmp(words[2], "mark") == 0) line += std::string(" mark ") + After(command, 3);
             return party && party->HandleCommand(mode, line.c_str(), injected);
         }
         if (_stricmp(words[1], "native") == 0) return party && party->HandleCommand(mode, command, injected);
         if (_stricmp(words[1], "menus") == 0) return party && party->HandleCommand(mode, "/uihook menus", injected);
         if (!words[1][0] || _stricmp(words[1], "addons") == 0) { Addons(); return true; }
-        Say("/uihook (or /uihook addons) lists addons handing it something now; /uihook hud reports clock hooks; /uihook chat reports chat replacement; /uihook chat history prints the game's newest chat lines as it keeps them; /uihook menus reports native action-menu and expanded-log placement; /uihook mirror reports the menus an addon mirrors; /uihook mirror labels [seconds] writes the art of the menus mirrored, letters and icons, to logs\\uihook-labels (after that many seconds, for the chat line to close); /uihook census on|off|dump|clear lists every window the game draws and the text it prints (off until asked; on writes logs\\uihook-census\\<date>_<time>.txt, dump logs\\uihook-census.txt); /uihook textures on|off|dump|clear counts every texture the game's screen-space drawing uses, by window and part, and writes each once as a picture with an index to logs\\uihook-textures\\NN when switched off or dumped (off until asked); /uihook skin <name>|reload|off|font <menu|title> <file|off> [regular|bold] [outline=<px>] draws the game's interface with the pictures in config\\uihook\\skins\\<name>\\ (tex-<hash>.png, named as the texture census names them) in place of its textures, every menu at once; /uihook native [group <x> <y> | group off | inset <pixels> | size <factor>] moves every window the game stacks over the chat log together, brings the sides in (the bar across the top shorter, the windows each side with it), or draws every framed window larger, the game's own menu and controller input left as they are.");
+        Say("/uihook (or /uihook addons): the addons handing uihook something now.");
+        Say("  /uihook hud | chat | chat history | menus: what the clock, chat and action-menu replacements found and drew; chat history prints the game's newest chat lines as it keeps them.");
+        Say("  /uihook skin <name> | reload | off: the game's interface drawn with the pictures in config\\uihook\\skins\\<name>\\ (tex-<hash>.png) in place of its textures, every menu at once.");
+        Say("  /uihook skin font <menu|title> <file|off> [regular|bold] [outline=<px>]: the skin's fonts drawn in a font of C:\\Windows\\Fonts.");
+        Say("  /uihook native [group <x> <y> | group off | inset <pixels> | size <factor>]: the windows the game stacks over the chat log moved together, the sides brought in, or every framed window drawn larger; the game's menus and controller input left as they are.");
+        Say("  /uihook mirror: the menus an addon mirrors, and what was published from the last frame.");
+#if UIHOOK_DIAGNOSTICS
+        Say("Diagnostics, in this build:");
+        Say("  /uihook census on|off|dump|clear: every window the game draws and the text it prints, to logs\\uihook-census (off until asked).");
+        Say("  /uihook textures on|off|dump|clear: every texture the screen-space drawing uses, by window and part, to logs\\uihook-textures\\NN (off until asked).");
+        Say("  /uihook mirror labels [seconds]: the art of the menus mirrored, letters and icons, to logs\\uihook-labels, after that many seconds.");
+        Say("  /uihook mirror watch | mark <words>: each window drawn and what was published, as it changes, to logs\\uihook-mirror-watch.txt.");
+#else
+        Say("The diagnostics (census, textures, mirror labels and watch) are left out of this build: plugins/uihook/build.sh --diagnostics.");
+#endif
         return true;
     }
     void Say(const std::string& text) const { m_Core->GetChatManager()->Write(0, false, ("[uihook] " + text).c_str()); }
