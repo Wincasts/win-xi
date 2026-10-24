@@ -9,6 +9,10 @@
   native look (`native/nativemodule.h`) and the diagnostics (`mirror/diagnostics.h`) are modules of their own, each
   with its state and commands, sharing a `DrawContext` (`drawcontext.h`); `partyhook.cpp` keeps the capture and
   replay and calls each in turn. Nothing it draws or publishes changes.
+- The diagnostics (`/uihook census`, `/uihook textures`, `/uihook mirror labels`, `/uihook mirror watch` and
+  `mark`, and the watch block exported as `UihookWatch` for tools/uihook_live.py) are built only by
+  `./build.sh --diagnostics`. Without them the watch is no longer kept every frame, nor the census and texture
+  census looked at for each draw, and their commands say how to build them. 75 KB smaller.
 
 ## 1.57
 

@@ -5,7 +5,13 @@
 //   /uihook mirror watch | mark <words>     each window drawn and what was published, as it changes (watch.h)
 // and the watch kept in memory for tools/uihook_live.py (UihookWatch). One of the party module's parts: it hears
 // the text routes, the windows and the draws the mirror and the native look hear.
+//
+// Built only with ./build.sh --diagnostics (UIHOOK_DIAGNOSTICS=1). Without, DiagnosticsModule is the stand-in at the
+// end of this file: every call made of it does nothing, its commands say how to build them, and no watch is exported.
 #pragma once
+#ifndef UIHOOK_DIAGNOSTICS
+#define UIHOOK_DIAGNOSTICS 0
+#endif
 #include <windows.h>
 #include <stdio.h>
 #include <string>
@@ -20,6 +26,7 @@
 #include "textures.h"
 #include "watch.h"
 
+#if UIHOOK_DIAGNOSTICS
 // exported, as nothing in the DLL reads it back: a block private to it would have every write to it optimized away
 extern "C" __declspec(dllexport) MirrorWatchShared UihookWatch{};
 
@@ -307,3 +314,30 @@ public:
         ctx->core->GetChatManager()->Write(0,false,line);
     }
 };
+#else
+// The stand-in: the calls the party module makes, each nothing
+class DiagnosticsModule {
+public:
+    DrawContext* ctx=nullptr;
+    void Init(DrawContext* context,MirrorShared*,Mirror*,const NativeLook*) { ctx=context; }
+    void Start(uintptr_t) {}
+    void Stop() {}
+    void Unload() {}
+    void Present() {}
+    void Counted() {}
+    void BufferDraw() {}
+    void MemoryDraw(const void*,unsigned,unsigned,unsigned) {}
+    void TextBegin(CensusRoute,int32_t,int32_t,const char*,uint32_t) {}
+    void TextEnd() {}
+    struct Window { Window(DiagnosticsModule&,void*,bool) {} };
+    void Absent(const char* tool) const {
+        char line[160];
+        snprintf(line,sizeof(line),"[uihook] %s is one of the diagnostics, left out of this build: plugins/uihook/build.sh --diagnostics builds them in.",tool);
+        ctx->core->GetChatManager()->Write(0,false,line);
+    }
+    void LabelsLater(int) { Absent("/uihook mirror labels"); }
+    void CensusCommand(const char*) { Absent("/uihook census"); }
+    void TexturesCommand(const char*) { Absent("/uihook textures"); }
+    void WatchCommand(const char*) { Absent("/uihook mirror watch"); }
+};
+#endif
