@@ -171,19 +171,13 @@ H.print('a click on Haste removes it', #H.sent == sent + 1)
 H.ret.GetMousePos = { -1000, -1000 }; H.ret.IsItemHovered = { false }; H.ret.IsItemClicked = { false }
 menu = ''
 
--- The controller's A in the selector removes the status the cursor is on, taken from the game only then
+-- The controller is the game's: A in the selector is left to it, whose confirm removes the status
 o.anchorToDefault[1] = true
 local function frame(n) block.Frame = n; block.DrawnFrame = n; H.frames(1) end
 menu = 'menu    buff    '; block.CursorStatus = 33; frame(40)
 local sent = #H.sent
-H.print('A on Haste in the selector: taken from the game, and removes it', H.tap(H.Button.A) == true, #H.sent == sent + 1)
-block.CursorStatus = 40; frame(41); sent = #H.sent
-H.print('A on Protect, which cannot be removed: the game\'s', H.tap(H.Button.A) == false, #H.sent == sent)
-menu = ''; block.CursorStatus = 33; frame(42); sent = #H.sent
-H.print('A with the selector shut: the game\'s', H.tap(H.Button.A) == false, #H.sent == sent)
-menu = 'menu    buff    '; o.controller[1] = false; frame(43); sent = #H.sent
-H.print('A with Controller Navigation off: the game\'s', H.tap(H.Button.A) == false, #H.sent == sent)
-o.controller[1] = true; menu = ''; frame(44)
+H.print('A on Haste in the selector: the game\'s, nothing sent', H.tap(H.Button.A) == false, #H.sent == sent)
+menu = ''; frame(44)
 
 -- The bar is written only when something of it changes, and handed over again as it was otherwise;
 -- a plugin loaded again has nothing of it, and it is written afresh
