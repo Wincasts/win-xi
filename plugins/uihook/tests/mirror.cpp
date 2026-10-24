@@ -35,10 +35,10 @@ struct FakeTexture : IDirect3DBaseTexture8 {
 struct FakeWindow {
     uint8_t window[0xa0]={}; uint8_t header[0x60]={};
     FakeWindow(const char* name,bool cursor,bool focus) {
-        uint8_t* at=header; memcpy(window+CENSUS_HEADER,&at,4);
-        memcpy(header+CENSUS_NAME,name,16);
-        window[CENSUS_CURSOR]=cursor; window[CENSUS_FOCUS]=focus;
-        const int16_t target[4]={200,48,182,190}; memcpy(window+CENSUS_TARGET,target,8);
+        uint8_t* at=header; memcpy(window+WINDOW_HEADER,&at,4);
+        memcpy(header+WINDOW_NAME,name,16);
+        window[WINDOW_CURSOR]=cursor; window[WINDOW_FOCUS]=focus;
+        const int16_t target[4]={200,48,182,190}; memcpy(window+WINDOW_TARGET,target,8);
     }
 };
 // XYZRHW, diffuse, one texture: 28 bytes a vertex
@@ -77,9 +77,9 @@ int main() {
     Check(mirror.Begin(inventor.window,nullptr,saved) && mirror.Active(),"a window asked for and hidden: left undrawn, and mirrored");
     Vertex v[6];
     Quad(v,100,100,300,300,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6);
-    mirror.Phase(MIRROR_CONTENT);
-    mirror.TextBegin(CENSUS_FONT,221,72,"Automat. Oil +1\nthe next line",0x80509050);
-    mirror.TextBegin(CENSUS_BITMAP,0,0,"nested",0x80808080); // a text call within one: part of it, no run of its own
+    mirror.Phase(PHASE_CONTENT);
+    mirror.TextBegin(TEXT_FONT,221,72,"Automat. Oil +1\nthe next line",0x80509050);
+    mirror.TextBegin(TEXT_BITMAP,0,0,"nested",0x80808080); // a text call within one: part of it, no run of its own
     Quad(v,120,150,180,160,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6);
     mirror.TextEnd();
     Quad(v,181,150,200,162,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6);
@@ -88,8 +88,8 @@ int main() {
     icons.AddRef(); Quad(v,100,148,116,164,0x80404040,0.25f,0.5f,0.375f,0.625f); mirror.Record(FVF,&icons,v,sizeof(Vertex),6);
     icons.AddRef(); Quad(v,100,166,116,182,0x80808080); mirror.Record(FVF,&icons,v,sizeof(Vertex),6);
     Check(icons.refs==2,"a texture held once however many of its quads there are");
-    mirror.Phase(MIRROR_AFTER);
-    mirror.Phase(MIRROR_CURSOR); Quad(v,80,150,98,162,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6); mirror.Phase(MIRROR_AFTER);
+    mirror.Phase(PHASE_AFTER);
+    mirror.Phase(PHASE_CURSOR); Quad(v,80,150,98,162,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6); mirror.Phase(PHASE_AFTER);
     mirror.Scrollbar(ChatScrollInfo{10,30,5});
     Quad(v,0,0,999,499,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6); // after the controls: neither the frame nor contents
     mirror.End(saved);
@@ -118,7 +118,7 @@ int main() {
     Check(w.Runs==1 && f.RunCount==1,"one run: the nested call is part of it");
     const MirrorRun& r=f.Runs[0];
     Check(r.Length==15 && !memcmp(f.Text+r.Offset,"Automat. Oil +1",15),"its text to the line's end");
-    Check(r.Route==CENSUS_FONT && r.Colour==0x80509050 && r.X==221 && r.Y==72 && r.Phase==MIRROR_CONTENT,"its route, colour and place as asked");
+    Check(r.Route==TEXT_FONT && r.Colour==0x80509050 && r.X==221 && r.Y==72 && r.Phase==PHASE_CONTENT,"its route, colour and place as asked");
     Check(Near(r.Rect[0],0.1205f) && Near(r.Rect[2],0.2005f) && Near(r.Rect[3],0.325f),"its place measured from both its glyph draws");
     Check(w.Quads==2 && f.Quads[0].Texture==static_cast<uint32_t>(reinterpret_cast<uintptr_t>(static_cast<IDirect3DBaseTexture8*>(&icons))),"two quads, the icons' texture");
     Check(Near(f.Quads[0].UV[0],0.25f) && Near(f.Quads[0].UV[3],0.625f) && f.Quads[0].Colour==0x80404040,"a quad's corners in its texture and its colour");
@@ -147,8 +147,8 @@ int main() {
 
     // too much text: the runs past the room dropped, the window kept
     mirror.Viewport(view);
-    mirror.Begin(inventor.window,nullptr,saved); mirror.Phase(MIRROR_CONTENT);
-    for (unsigned i=0;i<MIRROR_RUNS+3;i++) { mirror.TextBegin(CENSUS_FONT,0,0,"x",0); mirror.TextEnd(); }
+    mirror.Begin(inventor.window,nullptr,saved); mirror.Phase(PHASE_CONTENT);
+    for (unsigned i=0;i<MIRROR_RUNS+3;i++) { mirror.TextBegin(TEXT_FONT,0,0,"x",0); mirror.TextEnd(); }
     mirror.End(saved); mirror.Publish(12);
     Check(f.RunCount==MIRROR_RUNS && block.Dropped==4,"runs past the room dropped and counted");
 
@@ -160,7 +160,7 @@ int main() {
     memcpy(block.Requests[2],"menu    menuwind",16);
     FakeWindow menu("menu    menuwind",true,true);
     mirror.Begin(menu.window,nullptr,saved);
-    MirrorPhase was=mirror.Element(0x80808080);
+    WindowPhase was=mirror.Element(0x80808080);
     icons.AddRef(); Quad(v,100,100,180,116,0x80808080,0,0,0.5f,0.0625f); mirror.Record(FVF,&icons,v,sizeof(Vertex),6);
     mirror.Phase(was);
     was=mirror.Element(0x80805020);
@@ -172,7 +172,7 @@ int main() {
     Quad(v,90,90,200,170,0x80808080); mirror.Record(FVF,nullptr,v,sizeof(Vertex),6); // after: the frame
     mirror.End(saved); mirror.Publish(12);
     const MirrorWindow& m=f.Windows[0];
-    Check(m.Quads==3 && f.Quads[0].Phase==MIRROR_ELEMENT && f.Quads[1].Phase==MIRROR_ELEMENT,"three elements, each a quad");
+    Check(m.Quads==3 && f.Quads[0].Phase==PHASE_ELEMENT && f.Quads[1].Phase==PHASE_ELEMENT,"three elements, each a quad");
     Check(Near(f.Quads[1].UV[1],0.0625f) && f.Quads[1].Colour==0x80805020,"the cursor's element: its corners and tint");
     Check(m.SelectionFrame==block.Frame && Near(m.Selection[1],0.237f) && Near(m.Selection[3],0.269f),"the selection the tinted element's, not the window's");
     Check(Near(m.Rect[1],0.181f) && Near(m.Rect[3],0.341f),"the frame the frame's, the elements apart from it");
@@ -182,7 +182,7 @@ int main() {
 
     // given back on release
     mirror.Viewport(view);
-    mirror.Begin(inventor.window,nullptr,saved); mirror.Phase(MIRROR_CONTENT);
+    mirror.Begin(inventor.window,nullptr,saved); mirror.Phase(PHASE_CONTENT);
     icons.AddRef(); mirror.Record(FVF,&icons,v,sizeof(Vertex),6);
     mirror.End(saved); mirror.Publish(12);
     Check(icons.refs==2,"held");
@@ -191,7 +191,7 @@ int main() {
     mirror.Clear();
     Check(icons.refs==1 && f.WindowCount==0,"released and nothing published");
     // a draw that is not screen space is nothing of the window's
-    mirror.Viewport(view); mirror.Begin(inventor.window,nullptr,saved); mirror.Phase(MIRROR_CONTENT);
+    mirror.Viewport(view); mirror.Begin(inventor.window,nullptr,saved); mirror.Phase(PHASE_CONTENT);
     icons.AddRef(); mirror.Record(D3DFVF_XYZ|D3DFVF_TEX1,&icons,v,sizeof(Vertex),6);
     mirror.End(saved); mirror.Publish(12); mirror.Publish(12);
     Check(f.QuadCount==0 && icons.refs==1,"a world-space draw: no quad, its texture given back");

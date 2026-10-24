@@ -36,6 +36,7 @@ public:
     TextureCensus textures;  // /uihook textures
     MirrorWatch watch;       // every window drawn, kept in UihookWatch; with /uihook mirror watch, to logs\uihook-mirror-watch.txt
     bool watchFile=false;
+    bool hooked=false;       // the window hooks taken: the text routes heard
     DrawContext* ctx=nullptr;
     MirrorShared* block=nullptr;      // the mirror's block and the mirror: what was asked for, mirrored and published
     Mirror* mirror=nullptr;
@@ -43,14 +44,14 @@ public:
     void Init(DrawContext* context,MirrorShared* mirrorBlock,Mirror* menuMirror,const NativeLook* nativeLook) {
         ctx=context; block=mirrorBlock; mirror=menuMirror; native=nativeLook;
     }
-    // The text routes and the contents' call taken (the mirror's): the census told where the game's code is, the watch begun
+    // The window hooks taken: the census told where the game's code is, the watch begun
     void Start(uintptr_t base) {
-        census.base=base;
+        census.base=base; hooked=true;
         memcpy(UihookWatch.Magic,"UIHOOK-WATCH",13); UihookWatch.Version=1; UihookWatch.Size=sizeof(UihookWatch);
         watch.Start();
     }
     // and given back
-    void Stop() { census.on=false; census.current=nullptr; watch.Stop(); watchFile=false; UihookWatch.Count=0; }
+    void Stop() { hooked=false; census.on=false; census.current=nullptr; watch.Stop(); watchFile=false; UihookWatch.Count=0; }
     // uihook unloaded: the census's file written a last time, the textures let go
     void Unload() { AutoCensus(true); textures.on=false; textures.Clear(); textures.window[0]=0; }
     // Each Present, before the frame is counted: the watch shared, the art written where it was asked for later, the
@@ -74,7 +75,7 @@ public:
         if (watch.Inside()) WatchUp();
     }
     // Each print of the three text routes heard, and its text read for the texture census's glyphs; then ended
-    void TextBegin(CensusRoute route,int32_t x,int32_t y,const char* text,uint32_t colour) {
+    void TextBegin(TextRoute route,int32_t x,int32_t y,const char* text,uint32_t colour) {
         census.Text(route,x,y,text,colour); census.depth++; PrintBegin(text);
     }
     void TextEnd() { census.depth--; textures.PrintEnd(); }
@@ -192,7 +193,7 @@ public:
         if (census.Write(censusAuto.c_str(),"heard")) { censusWritten=census.windows.size(); censusFrame=last; }
         censusWrittenAt=tick; censusNewAt=0;
     }
-    bool StartCensus() { if (!block->Supported) return false; census.on=true; return true; }
+    bool StartCensus() { if (!hooked) return false; census.on=true; return true; }
     void StopCensus() { census.on=false; census.current=nullptr; }
     void CensusCommand(const char* word) {
         char line[256];
@@ -208,7 +209,6 @@ public:
         } else if (!_stricmp(word,"clear")) {
             census.Clear(); snprintf(line,sizeof(line),"[uihook:census] cleared.");
         } else if (!_stricmp(word,"dump")) {
-            const bool hooked=block->Supported!=0;
             if (census.Write(path.c_str(),hooked ? "heard" : "not found in this client"))
                 snprintf(line,sizeof(line),"[uihook:census] %zu windows written to %s.",census.windows.size(),path.c_str());
             else snprintf(line,sizeof(line),"[uihook:census] could not write %s.",path.c_str());
@@ -222,7 +222,7 @@ public:
         char line[512];
         const MirrorFrameData& last=block->Published;
         uint32_t elements=0;
-        for (uint32_t i=0;i<last.QuadCount;i++) if (last.Quads[i].Phase==MIRROR_ELEMENT || last.Quads[i].Phase==MIRROR_CONTENT) elements++;
+        for (uint32_t i=0;i<last.QuadCount;i++) if (last.Quads[i].Phase==PHASE_ELEMENT || last.Quads[i].Phase==PHASE_CONTENT) elements++;
         if (!elements) {
             ctx->core->GetChatManager()->Write(0,false,"[uihook:mirror] no elements or art in the last frame mirrored: open a menu the menus addon mirrors first; nothing written.");
             return;
@@ -243,7 +243,7 @@ public:
         unsigned written=0,skipped=0;
         for (uint32_t i=0;i<last.QuadCount;i++) {
             const MirrorQuad& q=last.Quads[i];
-            if ((q.Phase!=MIRROR_ELEMENT && q.Phase!=MIRROR_CONTENT) || q.Window>=last.WindowCount) continue;
+            if ((q.Phase!=PHASE_ELEMENT && q.Phase!=PHASE_CONTENT) || q.Window>=last.WindowCount) continue;
             const char* name=last.Windows[q.Window].Name;
             LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]={}; const char* why="not held";
             const bool cut=q.Texture && mirror->Holds(q.Texture)
@@ -275,7 +275,7 @@ public:
     int WatchEnter(void* window,bool hidden) {
         char name[16]; uint8_t* header=nullptr; bool hide=false;
         auto* w=static_cast<uint8_t*>(window);
-        const bool wanted=w && ChatRead(w+CENSUS_HEADER,&header,4) && header && ChatRead(header+CENSUS_NAME,name,16) && mirror->Wanted(name,hide);
+        const bool wanted=w && ChatRead(w+WINDOW_HEADER,&header,4) && header && ChatRead(header+WINDOW_NAME,name,16) && mirror->Wanted(name,hide);
         return watch.Enter(window,wanted,hidden,mirror->Active());
     }
     void WatchUp() {
@@ -327,7 +327,7 @@ public:
     void Counted() {}
     void BufferDraw() {}
     void MemoryDraw(const void*,unsigned,unsigned,unsigned) {}
-    void TextBegin(CensusRoute,int32_t,int32_t,const char*,uint32_t) {}
+    void TextBegin(TextRoute,int32_t,int32_t,const char*,uint32_t) {}
     void TextEnd() {}
     struct Window { Window(DiagnosticsModule&,void*,bool) {} };
     void Absent(const char* tool) const {

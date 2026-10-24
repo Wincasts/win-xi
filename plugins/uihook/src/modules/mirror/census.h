@@ -1,10 +1,7 @@
 // The menu census: every window Window::Render draws, by name, with what it prints and how it draws,
-// written to a file for reading. The first step of mirroring the game's menus: the real menu stays open
-// and keeps its input, and an addon draws its own from what the real one would have drawn. This finds
-// how many ways the menus draw their contents, so the mirror is built for those.
+// written to a file for reading. Built to find how many ways the menus draw their contents (window.h).
 //
-// Read only, and off until /uihook census on. While on, the game's three text routines are taken
-// over to be heard, each passing straight on to the game's own; /uihook census off gives them back.
+// Read only, and off until /uihook census on. It hears the text routines the window hooks take.
 #pragma once
 #include <stdint.h>
 #include <stdio.h>
@@ -12,35 +9,11 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include "../window/window.h"
 
-// The bitmap-font text routine: cdecl (x, y, text, colour, scale x, scale y, centred), the x it ends
-// at returned. x and y are shorts (movsx), the rest of their stack words whatever the caller left. Each glyph is a Sprite::Draw. Its first eight bytes are whole instructions.
-#define CENSUS_TEXT_PATTERN "83 EC 08 53 8B 5C 24 18 55 56 85 DB 75 0C 0F BF 44 24 18 5E 5D 5B 83 C4 08 C3"
-#define CENSUS_TEXT_STOLEN 8
-// Its scaled sibling: cdecl (x, y, text, colour, flag, scale x, scale y). Six bytes whole.
-#define CENSUS_SCALED_PATTERN "51 56 8B 74 24 14 85 F6 75 08 0F BF 44 24 0C 5E 59 C3 53 57 6A 00 E8"
-#define CENSUS_SCALED_STOLEN 6
-// The rendered-font routine: thiscall on the font object (x, y, text, ?, colour, flags, scale x,
-// scale y), ret 20. Seven bytes whole.
-#define CENSUS_FONT_PATTERN "83 EC 08 53 55 56 57 8B 7C 24 30 8B E9 8B C7 8B CF C1 F8 06 C1 F9 02 83 E0 03"
-#define CENSUS_FONT_STOLEN 7
-
-// Window fields, from Window::Render: its content owner, whose vtable +10 draws the contents, drawn
-// while +6A is set and +10 is not E; cursor enabled +62, focused +63; its name at +46; the layout
-// target's origin and size at +8C (four shorts, the game's units). Its name is its header's (+4), at +46.
-#define CENSUS_OWNER 0x0c
-#define CENSUS_KIND 0x10
-#define CENSUS_DRAWS 0x6a
-#define CENSUS_CURSOR 0x62
-#define CENSUS_FOCUS 0x63
-#define CENSUS_HEADER 0x04
-#define CENSUS_NAME 0x46
-#define CENSUS_TARGET 0x8c
 #define CENSUS_WINDOWS 512
 #define CENSUS_SAMPLES 24
 
-enum CensusRoute { CENSUS_BITMAP, CENSUS_SCALED, CENSUS_FONT, CENSUS_ROUTES };
-static const char* const CensusRouteNames[CENSUS_ROUTES] = { "bitmap", "scaled", "font" };
 
 struct CensusSample { uint8_t route; int32_t x, y; uint32_t colour; char text[48]; };
 struct CensusWindow {
@@ -50,7 +23,7 @@ struct CensusWindow {
     uint32_t vtable = 0, kind = 0;
     bool content = false, cursor = false, focus = false;
     int16_t target[4] = {};
-    uint32_t texts[CENSUS_ROUTES] = {};                         // text calls on each route
+    uint32_t texts[TEXT_ROUTES] = {};                         // text calls on each route
     uint32_t draws = 0, textDraws = 0;                          // draw calls in the window, and of those made in text calls
     uint32_t nested = 0;                                        // text calls made from text calls (one route over another)
     std::vector<CensusSample> samples;                          // distinct texts, at most CENSUS_SAMPLES
@@ -61,7 +34,7 @@ public:
     std::vector<CensusWindow> windows;
     CensusWindow* current = nullptr;
     unsigned depth = 0;                                         // text calls under way
-    uint32_t frame = 0, outside[CENSUS_ROUTES] = {};            // text calls made outside any window
+    uint32_t frame = 0, outside[TEXT_ROUTES] = {};            // text calls made outside any window
     uintptr_t base = 0;
     bool on = false;
 
@@ -77,24 +50,24 @@ public:
         if (!on || !window) return nullptr;
         auto* w=static_cast<uint8_t*>(window);
         char name[16]; uint8_t* header=nullptr;
-        if (!ChatRead(w+CENSUS_HEADER,&header,4) || !header || !ChatRead(header+CENSUS_NAME,name,16)) return nullptr;
+        if (!ChatRead(w+WINDOW_HEADER,&header,4) || !header || !ChatRead(header+WINDOW_NAME,name,16)) return nullptr;
         for (char& c:name) if (c && (c<0x20 || c>0x7e)) c='?';
         CensusWindow* entry=Find(name);
         if (!entry) return nullptr;
         if (entry->lastSeen!=frame) { entry->frames++; entry->lastSeen=frame; }
         entry->last=frame;
         void* owner=nullptr; uint32_t vtable=0,draw=0,kind=0; uint8_t flags[2]={},draws=0;
-        if (ChatRead(w+CENSUS_OWNER,&owner,4) && owner && ChatRead(owner,&vtable,4) && vtable)
+        if (ChatRead(w+WINDOW_OWNER,&owner,4) && owner && ChatRead(owner,&vtable,4) && vtable)
             ChatRead(reinterpret_cast<void*>(static_cast<uintptr_t>(vtable)+0x10),&draw,4);
-        ChatRead(w+CENSUS_KIND,&kind,4); ChatRead(w+CENSUS_DRAWS,&draws,1); ChatRead(w+CENSUS_CURSOR,flags,2);
-        ChatRead(w+CENSUS_TARGET,entry->target,8);
+        ChatRead(w+WINDOW_KIND,&kind,4); ChatRead(w+WINDOW_DRAWS,&draws,1); ChatRead(w+WINDOW_CURSOR,flags,2);
+        ChatRead(w+WINDOW_TARGET,entry->target,8);
         entry->vtable=vtable ? vtable-static_cast<uint32_t>(base) : 0;
         entry->owners=draw ? draw-static_cast<uint32_t>(base) : 0;
         entry->kind=kind; entry->content=owner && draws && kind!=0xe;
         entry->cursor|=flags[0]!=0; entry->focus|=flags[1]!=0;
         return entry;
     }
-    void Text(CensusRoute route,int32_t x,int32_t y,const char* text,uint32_t colour) {
+    void Text(TextRoute route,int32_t x,int32_t y,const char* text,uint32_t colour) {
         if (!on) return;
         if (!current) { outside[route]++; return; }
         current->texts[route]++;
@@ -140,7 +113,7 @@ public:
         for (auto* w:sorted) {
             if (w->samples.empty()) continue;
             fprintf(file,"%s\n",w->name);
-            for (auto& s:w->samples) fprintf(file,"  %-6s %5d %5d %08X %s\n",CensusRouteNames[s.route],s.x,s.y,s.colour,s.text);
+            for (auto& s:w->samples) fprintf(file,"  %-6s %5d %5d %08X %s\n",TextRouteNames[s.route],s.x,s.y,s.colour,s.text);
         }
         fclose(file);
         return true;

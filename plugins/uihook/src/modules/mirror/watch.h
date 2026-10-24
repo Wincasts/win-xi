@@ -48,14 +48,14 @@ public:
         if (!on || !window) { current=-1; return was; }
         auto* w=static_cast<uint8_t*>(window);
         char name[16]; uint8_t* header=nullptr;
-        if (!ChatRead(w+CENSUS_HEADER,&header,4) || !header || !ChatRead(header+CENSUS_NAME,name,16)) { current=-1; return was; }
+        if (!ChatRead(w+WINDOW_HEADER,&header,4) || !header || !ChatRead(header+WINDOW_NAME,name,16)) { current=-1; return was; }
         for (char& c:name) if (c && (c<0x20 || c>0x7e)) c='?';
         int at=-1;
         for (size_t i=0;i<drawn.size();i++) if (!memcmp(drawn[i].name,name,16)) { at=int(i); break; }
         if (at<0) {
             if (drawn.size()>=MIRROR_WATCH_WINDOWS) { current=-1; return was; }
             MirrorWatchWindow entry{}; memcpy(entry.name,name,16);
-            ChatRead(w+CENSUS_KIND,&entry.kind,4); ChatRead(w+CENSUS_DRAWS,&entry.draws,1);
+            ChatRead(w+WINDOW_KIND,&entry.kind,4); ChatRead(w+WINDOW_DRAWS,&entry.draws,1);
             entry.depth=uint8_t(depth-1);
             drawn.push_back(entry); at=int(drawn.size()-1);
         }
