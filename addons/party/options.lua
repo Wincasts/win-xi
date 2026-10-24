@@ -73,7 +73,7 @@ options.Tabs = {
         { kind = 'check', section = 'style', key = 'showTp', label = 'Show TP Values', default = true,
           tooltip = 'Writes each member\'s TP on their line. TP has no bar, so off leaves TP out altogether.' },
         { kind = 'check', section = 'style', key = 'tpFlash', label = 'Flash TP When Ready', default = true,
-          tooltip = 'TP at or above TP Ready Threshold pulses between a light blue and a deeper one. Off, ready TP is simply blue.' },
+          tooltip = 'TP of 1000 or more pulses between a light blue and a deeper one. Off, ready TP is simply blue.' },
         { kind = 'check', section = 'style', key = 'zoneAbbr', label = 'Short Zone Names', default = true,
           tooltip = 'A member in another area has that area written where their bars would be, in the game\'s own short form for it\n(as its search list writes it). Off, the area\'s whole name, cut short where it does not fit.' },
     } },
@@ -141,10 +141,11 @@ local extra = {
         { kind = 'slider', key = 'farOpacity', label = 'Beyond Far Range Opacity (%)', default = 45, min = 0, max = 100 },
         { kind = 'slider', key = 'lowHp', label = 'Low HP Warning (%)', default = 0, min = 0, max = 100,
           tooltip = 'Adds a ! before names at or below this HP percentage. Zero disables it.' },
-        { kind = 'slider', key = 'tpReady', label = 'TP Ready Threshold', default = 1000, min = 1000, max = 3000 },
         { kind = 'check', key = 'hoverDetails', label = 'Hover Details', default = false,
           when = function() return false end, -- drawn beside Clickthrough in Behavior; storage stays compatible
           tooltip = 'Full names, jobs, owners and status names. Enemy durations are estimates.' },
+        { kind = 'check', key = 'showStatuses', label = 'Show Statuses', default = true,
+          tooltip = 'The buff and debuff icons beside your party and alliance. Off, the settings for them are kept, greyed.\nA target\'s debuffs follow the Target tab.' },
         { kind = 'check', key = 'debuffsFirst', label = 'Debuffs First', default = false,
           tooltip = 'Debuffs are drawn nearest the frame, before every buff, in the Status Growth direction. Priority Effects order the debuffs among themselves, and the buffs.' },
         { kind = 'statuslist', key = 'priorityStatuses', label = 'Priority Effects', default = '', ordered = true,
@@ -178,12 +179,12 @@ local groups = {
         { 'Appearance', 'scale', 'barShadows' },
         { 'Names', 'nameFont', 'nameSize', 'zoneAbbr' },
         { 'Values', 'valueFont', 'valueSize', 'showMp', 'showTp' },
-        { 'Status Display', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow' },
-        { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses' },
-        { 'Warnings', 'lowHp', 'tpReady', 'tpFlash' },
+        { 'Status Display', 'showStatuses', 'buffSize', 'buffSpacing', 'buffDistance', 'buffLimit', 'buffRows', 'buffDirection', 'buffFitScreen', 'buffOverflow', statuses = true },
+        { 'Status Filtering', 'debuffsFirst', 'priorityStatuses', 'hiddenStatuses', statuses = true },
+        { 'Warnings', 'lowHp', 'tpFlash' },
         { 'Advanced: Value Positioning', 'hpOffset', 'mpOffset', 'tpOffset', collapsed = true },
         { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
-        { 'Advanced: Status IDs', collapsed = true },
+        { 'Advanced: Status IDs', collapsed = true, statuses = true },
         -- Retained in the schema for existing settings, presented in Behavior instead.
         { 'hoverDetails', hiddenGroup = true },
     },
@@ -210,13 +211,15 @@ for _, tab in ipairs(options.Tabs) do
     end
     for _, group in ipairs(groups[tab.name]) do
         if not group.hiddenGroup then
-            entries[#entries + 1] = { kind = 'header', label = group[1], defaultCollapsed = group.collapsed }
+            entries[#entries + 1] = { kind = 'header', label = group[1], defaultCollapsed = group.collapsed, statuses = group.statuses }
         end
         for index = group.hiddenGroup and 1 or 2, #group do
             local key = group[index]
             local entry = assert(byKey[key], 'Unknown setting: ' .. key)
             if tab.name == 'Target' and (key == 'showMain' or key == 'showSub' or key == 'showTot'
                 or key == 'mainDebuffs' or key == 'subDebuffs' or key == 'totDebuffs') then entry.targetRow = true end
+            -- greyed while Show Statuses is off; the toggle itself never is
+            entry.statuses = group.statuses and key ~= 'showStatuses' or nil
             entries[#entries + 1] = entry
             byKey[key] = nil
         end
@@ -478,6 +481,7 @@ function options.Complete(saved)
     for key, default in pairs({ nativePositioning=false, nativeBehavior=false, nativeAlliance2=true, nativeAlliance3=true }) do
         if type(saved[key]) ~= 'table' or type(saved[key][1]) ~= 'boolean' then saved[key]=T{ default } end
     end
+    if type(saved.style) == 'table' then saved.style.tpReady = nil end -- TP is ready at 1000, as in the game
     saved.nativePositioning[1]=false -- paused for testing, including previously enabled settings
     if type(saved.automaticPositioning) ~= 'table' or type(saved.automaticPositioning[1]) ~= 'boolean' then
         saved.automaticPositioning = T{ false }
@@ -521,7 +525,7 @@ function options.Style(saved)
     style.barShadows = kept.barShadows
     style.castRange, style.targetRange = kept.castRange[1] / 100, kept.targetRange[1]
     style.nearOpacity, style.farOpacity = kept.nearOpacity[1] / 100, kept.farOpacity[1] / 100
-    style.lowHp, style.tpReady = kept.lowHp[1], kept.tpReady[1]
+    style.lowHp = kept.lowHp[1]
     style.hoverDetails = kept.hoverDetails[1] and not saved.clickThrough[1]
     style.debuffsFirst = kept.debuffsFirst[1]
     style.priorityStatuses, style.hiddenStatuses = kept.priorityStatuses[1], kept.hiddenStatuses[1]

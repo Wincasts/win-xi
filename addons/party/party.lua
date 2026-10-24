@@ -96,7 +96,7 @@ local function DrawPartyContent()
     if not own then
         style.scale = style.scale * (tonumber(saved.party.allianceScale[1]) or 100) / 100
     end
-    frames.Draw(members, own and 'party' or 'alliance', roster.StatusTexture, style)
+    frames.Draw(members, own and 'party' or 'alliance', saved.style.showStatuses[1] and roster.StatusTexture or nil, style)
 
     -- the pets, under a line, with as much room above the line and below it as there is between the
     -- window's edge and its first member: the window's padding

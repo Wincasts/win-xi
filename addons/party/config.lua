@@ -217,9 +217,12 @@ local function DrawEntries(tab, saved)
     widgets.BeginLabels(tab.labels)
     local open, first = true, true
     for _, entry in ipairs(tab.entries) do
+        -- with Show Statuses off, every status setting is drawn greyed and cannot be changed
+        local greyed = entry.statuses and not saved.style.showStatuses[1] and imgui.BeginDisabled ~= nil
         if entry.kind == 'header' then
             open = widgets.Header(entry.label, first, entry.defaultCollapsed)
             first = false
+            if greyed and open then imgui.BeginDisabled(true) end
             if open and tab.name == 'Style' and entry.label == 'Appearance' then
                 imgui.TextWrapped('Shared colors, borders, backgrounds, bar textures and status icon artwork are configured in winxisettings (/wxi).')
             elseif open and tab.name == 'Style' and entry.label == 'Advanced: Status IDs' then
@@ -229,12 +232,15 @@ local function DrawEntries(tab, saved)
                 imgui.InputText('##party.hiddenStatusIds', saved.style.hiddenStatuses, 8192)
                 imgui.TextDisabled('Comma-separated IDs. Priority order follows the list; hidden IDs take precedence.')
             end
+            if greyed and open then imgui.EndDisabled() end
         elseif entry.kind == 'gap' then
             if open then widgets.Gap() end
         elseif open and not entry.targetRow and (entry.when == nil or entry.when(saved)) then
             local section = saved[entry.section]
+            if greyed then imgui.BeginDisabled(true) end
             widgets.Label(entry.label, entry.experimental)
             controls[entry.kind](entry, section[entry.key], section, saved)
+            if greyed then imgui.EndDisabled() end
             if tab.name == 'Target' and entry.key == 'enabled' then DrawTargetRows(saved) end
         end
     end
@@ -257,6 +263,30 @@ local function DrawGlobal(saved)
         Tooltip('Main party: 15px from the right and bottom. Target: 5px above the main party.\nAlliance 2: right edge, with room reserved for full parties and a 35px gap above the fully expanded Target. Alliance 3 stays linked 5px below Alliance 2.\nSub-target and target of target are unchanged. Manual positions are preserved; disable to use them.\nDoes not resize frames. If the full layout cannot fit, windows are clamped to the screen and gaps may be smaller.')
     end
 
+    if widgets.Header('Visibility') then
+        widgets.Hide(saved.hide, Save)
+    end
+
+    if widgets.Header('Fading') then
+        imgui.Indent()
+        widgets.PushControlWidth()
+        local fade = saved.fade
+        widgets.Fade(fade, Save, true)
+
+        -- A chosen window fades out while idle, and fades in and out as it appears and goes (the target
+        -- window as a target is taken and dropped)
+        if fade.Enabled and widgets.Header('Affected Windows') then
+            for _, group in ipairs(windows.Groups) do
+                widgets.Label(group.label)
+                group.id = group.id or ('##xiframes.fade.%s'):format(group.key)
+                if imgui.Checkbox(group.id, fade.windows[group.key]) then Save() end
+                Tooltip('Fades out while you are idle, and fades in and out as it appears and goes.')
+            end
+        end
+        widgets.PopControlWidth()
+        imgui.Unindent()
+    end
+
     -- Only with uihook (or the older partyhook) loaded: the windows can be drawn in the game's own place
     -- among its menus. Its choices are kept while it is not loaded, and come back with it.
     local manager = AshitaCore:GetPluginManager()
@@ -277,29 +307,6 @@ local function DrawGlobal(saved)
             if saved.nativeParty[1] or saved.nativeTarget[1] then imgui.TextWrapped(require('hook').Status()) end
         end
     end
-
-    if widgets.Header('Visibility') then
-        widgets.Hide(saved.hide, Save)
-    end
-
-    if not widgets.Header('Fading') then return end
-    imgui.Indent()
-    widgets.PushControlWidth()
-    local fade = saved.fade
-    widgets.Fade(fade, Save, true)
-
-    -- A chosen window fades out while idle, and fades in and out as it appears and goes (the target
-    -- window as a target is taken and dropped)
-    if fade.Enabled and widgets.Header('Affected Windows') then
-        for _, group in ipairs(windows.Groups) do
-            widgets.Label(group.label)
-            group.id = group.id or ('##xiframes.fade.%s'):format(group.key)
-            if imgui.Checkbox(group.id, fade.windows[group.key]) then Save() end
-            Tooltip('Fades out while you are idle, and fades in and out as it appears and goes.')
-        end
-    end
-    widgets.PopControlWidth()
-    imgui.Unindent()
 end
 
 config.Tabs = {

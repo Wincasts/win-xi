@@ -492,7 +492,7 @@ local function DrawFigure(place, member, kept, fontSize, figure)
             elseif percent < 75 then
                 color = hpYellow
             end
-        elseif kind == 'tp' and amount >= (activeStyle.tpReady or 1000) and not member.tpText then
+        elseif kind == 'tp' and amount >= 1000 and not member.tpText then
             color = tpPulse
         end
     end
