@@ -125,3 +125,28 @@ Applied to all 78 maps with reviewed names:
 
 Refinements may now add an area (`"add": true` with a name) as well as reshape
 one. None of this has been walked in game.
+
+## Third pass: cities after Southern San d'Oria (2026-10-24)
+
+The player relaid Southern San d'Oria (8 records) and asked for it to be the
+pattern for cities. Against the shapes they replaced, the edits:
+
+1. **Cover the whole place.** Each street runs its full length and width,
+   corner to corner (Pikeman's Way 131 × 121 yalms from 91 × 75); a square
+   takes in its edges and the mouths of the streets into it.
+2. **Follow the walkable outline**, not a box: a wedge for an alley, a
+   bent strip for a way, a triangle at a gate opening out from it.
+3. **Neighbours meet.** Areas sit side by side with little or no gap, so
+   walking the city goes from one name to the next; buildings inside them
+   are still named first, being smaller and exact.
+4. **Gates reach out of the city** a little, along the road beyond.
+
+Applied to the present-day maps of Northern and Port San d'Oria, Bastok
+Markets, Bastok Mines, Port Bastok, Port Windurst, Windurst Woods, Windurst
+Waters (north and south), Upper and Port Jeuno: 27 areas as
+`city_layout_after_player_example`, one of them added (Gingerberry Grove, the
+south map's only name). Bastok Markets [S], Windurst Waters [S] and Southern San
+d'Oria [S] take the new shapes as before. Aht Urhgan Whitegate and Al Zahbi
+already had one area per district and were left; so were Adoulin, Lower Jeuno
+(the player's own) and Ru'Lude Gardens. The town approach distance is 10
+yalms, and these shapes are drawn for it. None has been walked in game.
