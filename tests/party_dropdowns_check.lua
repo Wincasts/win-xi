@@ -90,7 +90,7 @@ look.BorderStyle, look.BarTexture, look.BookendStyle, look.BackgroundStyle = 'ro
 local begin, selectable, finish = imgui.BeginCombo, imgui.Selectable, imgui.EndCombo
 local current, opened, ended = nil, 0, 0
 local previews, selected = {}, {}
-local picks = { BorderStyle = 'Crystal', BarTexture = 'Satin', BookendStyle = 'Royal Silver', BackgroundStyle = 'FFXI-inspired', TabStyle = 'Brushed Metal', TitleStyle = 'Plate' }
+local picks = { BorderStyle = 'Crystal', BarTexture = 'Satin', BarFrame = 'Capsule Outline', BookendStyle = 'Royal Silver', BackgroundStyle = 'FFXI-inspired', TabStyle = 'Brushed Metal', TitleStyle = 'Plate' }
 imgui.BeginCombo = function(id, preview)
     current = id:match('^##winxi%.(.+)$')
     if current == 'FontFile' or current == 'TitleFontFile' or current == 'StatusIconSet' then return false end -- the fonts' (winxi_fonts_check) and the icons' (winxisettings_check)
@@ -105,20 +105,21 @@ imgui.Selectable = function(label, on)
 end
 imgui.EndCombo = function() ended = ended + 1 end
 last.draw(saved)
-assert(opened == 6 and ended == 6)
+assert(opened == 7 and ended == 7)
 assert(previews.BorderStyle == 'Royal Platinum' and previews.BarTexture == 'Radiant (Bright)' and previews.BookendStyle == 'Match Border' and previews.BackgroundStyle == 'Gradient' and previews.TabStyle == 'Sheen')
 assert(selected.BorderStyle == previews.BorderStyle and selected.BarTexture == previews.BarTexture and selected.BookendStyle == previews.BookendStyle)
 assert(look.BorderStyle == 'crystal' and look.BarTexture == 'satin' and look.BookendStyle == 'royal_silver' and look.BackgroundStyle == 'ffxi' and look.TabStyle == 'brushed' and look.TitleStyle == 'plate')
 assert(previews.TitleStyle == 'Outlined Text')
+assert(previews.BarFrame == 'Bar Texture' and look.BarFrame == 'capsule', 'Bar Frame: the texture\'s own to begin with, chosen like the rest')
 -- Bookend Style is only offered with bookends on
 look.Bookends, opened = false, 0
 last.draw(saved)
-assert(opened == 5)
+assert(opened == 6)
 look.Bookends = true
 -- Title Style is only offered with frame titles on
 look.FrameTitles, opened = false, 0
 last.draw(saved)
-assert(opened == 5)
+assert(opened == 6)
 look.FrameTitles = true
 -- Closed combos should not draw selectable items or rewrite settings.
 imgui.BeginCombo = function() return false end

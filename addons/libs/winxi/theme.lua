@@ -47,6 +47,7 @@ theme.Defaults = {
     BackgroundStyle = 'ffxi',     -- one of theme.BackgroundStyles: 'plain' is the flat BackgroundColor
     TabStyle        = 'glass',    -- one of theme.TabStyles, over the tabs of a window (winxi.tabs): 'plain' is imgui's own
     BarTexture      = 'chrome',   -- one of theme.BarTextures, for an addon that draws HP and MP bars
+    BarFrame        = 'texture',  -- one of theme.BarFrames: the frame round those bars, or the Bar Texture's own
     Bookends        = true,       -- a small cap at each end of those bars
     BookendStyle    = 'texture',  -- one of theme.BookendStyles
     BookendOpacity  = 65,         -- percent: how solid those caps are
@@ -157,6 +158,12 @@ theme.BarTextures = {
     { key = 'enamel_gradient', label = 'Enamel (Gradient)' }, { key = 'tube', label = 'Glass Tube' },
     { key = 'tube_deep', label = 'Glass Tube (Deep)' }, { key = 'glass_enamel', label = 'Glass Enamel' },
 };
+-- a frame of its own in place of the Bar Texture's: a thin rim in the colour of the rounded bookends,
+-- so that the bar and its caps are one capsule being filled
+theme.BarFrames = {
+    { key = 'texture', label = 'Bar Texture' }, { key = 'capsule', label = 'Capsule Outline' },
+    { key = 'capsule_silver', label = 'Capsule Outline (Silver)' },
+};
 theme.TitleStyles = {
     { key = 'outline', label = 'Outlined Text' }, { key = 'break', label = 'Break In Border' },
     { key = 'breakshadow', label = 'Break With Shadow' }, { key = 'plate', label = 'Plate' },
@@ -190,7 +197,7 @@ local numberKeys = { FontSize = { 0, theme.MaxFontSize }, TextOutline = { 0, the
     TooltipDelay = { 0, theme.MaxTooltipDelay }, TooltipMaxWidth = { theme.MinTooltipWidth, theme.MaxTooltipWidth },
     TooltipPadding = { 0, theme.MaxTooltipPadding }, TooltipFontSize = { 0, theme.MaxFontSize } };
 local booleanKeys = { 'ShadowEnabled', 'Bookends', 'BarBackdrop', 'StatusIcons', 'FrameTitles', 'TitleShadow', 'TitleAllCaps', 'TooltipsEnabled' };
-local choiceKeys = { BorderStyle = theme.BorderStyles, BackgroundStyle = theme.BackgroundStyles, TabStyle = theme.TabStyles, BarTexture = theme.BarTextures, BookendStyle = theme.BookendStyles, TitleStyle = theme.TitleStyles };
+local choiceKeys = { BorderStyle = theme.BorderStyles, BackgroundStyle = theme.BackgroundStyles, TabStyle = theme.TabStyles, BarTexture = theme.BarTextures, BarFrame = theme.BarFrames, BookendStyle = theme.BookendStyles, TitleStyle = theme.TitleStyles };
 
 -- Whether a value is one of a style's choices
 local function IsChoice(choices, value)
@@ -420,7 +427,7 @@ function theme.Save()
     for _, key in ipairs(booleanKeys) do
         file:write(string.format('    %s = %s,\n', key, tostring(current[key])));
     end
-    for _, key in ipairs({ 'FontFile', 'SettingsFontFile', 'TitleFontFile', 'BorderStyle', 'BackgroundStyle', 'TabStyle', 'BarTexture', 'BookendStyle', 'TitleStyle', 'StatusIconSet' }) do
+    for _, key in ipairs({ 'FontFile', 'SettingsFontFile', 'TitleFontFile', 'BorderStyle', 'BackgroundStyle', 'TabStyle', 'BarTexture', 'BarFrame', 'BookendStyle', 'TitleStyle', 'StatusIconSet' }) do
         file:write(string.format('    %s = %q,\n', key, current[key]));
     end
     file:write('};\n');

@@ -352,6 +352,12 @@ These are original procedural designs, not extracted or reproduced game assets.
 The choice applies to HP and MP across party, target and pet frames.
 Colours, range fading, bar sizes and the optional bookends still work as before.
 
+**Bar Frame** draws a frame of its own in place of the texture's: **Capsule Outline** is a thin
+rim in the cyan of the Rounded bookends, **Capsule Outline (Silver)** in Rounded Silver's, along the
+bar above and below. It is not tinted by the HP/MP colour. With those bookends the bar and its caps
+are one capsule being filled; with others, or none, its ends are closed square. **Bar Texture** keeps
+the texture's own frame.
+
 **Fill End Glow (%)** puts a soft white light at the end of each fill, where it stops, as on the
 game's own gauges: 0 is none, 100 the brightest. It dims with the bar's range fading.
 **Custom Bar Backdrop** colours the empty part of the bars with **Bar Backdrop Color** in place
