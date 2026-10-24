@@ -57,6 +57,7 @@ run clock      tests/clock_stand_in.lua clock_check.lua
 luajit tests/clock_panel_check.lua || exit 1
 luajit tests/infopanel_source_check.lua || exit 1
 luajit tests/infopanel_tooltips_check.lua || exit 1
+luajit tests/infopanel_subzone_check.lua || exit 1
 luajit tests/winxi_frame_check.lua || exit 1
 luajit tests/winxi_layouts_check.lua || exit 1
 luajit tests/harness.lua zone tests/zoneinfo_fixture.lua tests/winxi_assets_check.lua || exit 1
