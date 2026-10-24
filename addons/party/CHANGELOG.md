@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Debuffs First puts every debuff before every buff, nearest the frame in the Status Growth direction. Defense Down, Evasion Down, Magic Defense/Accuracy/Attack Down, Max TP Down, Threnody, Nocturne, Magic Evasion Down, the Geo downs, dazes and others were counted as buffs; the debuffs are now those Erase or a waltz removes in Phoenix's status data, and the harmful ones that cannot be cancelled. A Priority Effect that is a buff no longer goes ahead of the debuffs; the priorities order each kind.
+
 - Profiles are gone: the Profiles [Experimental] tab, its four presets and the named profiles. Profiles saved by earlier versions are dropped from the settings.
 
 - Hover Details no longer list a member's statuses: the tooltip has their name, job and pet owner, and each status icon keeps its own tooltip. The +N badge of statuses that did not fit no longer has one. The uihook section of Behavior is shown only while uihook (or partyhook) is loaded.

@@ -2,9 +2,16 @@
 -- Weak input keys release departed rosters; value snapshots detect in-place game-data updates.
 local statuses = {}
 local harmful = {}
--- Common negative statuses; custom/unknown effects can be explicitly prioritized by ID.
-for id = 0, 31 do harmful[id] = true end
-for _, id in ipairs({ 134, 135, 136, 137, 138, 139, 140, 141, 142, 144, 146, 147, 156, 168, 177, 192, 193, 194 }) do harmful[id] = true end
+-- The debuffs, from Phoenix's data/status_effects.yaml: every effect Erase or a waltz removes, and those
+-- that cannot be cancelled and do harm (sleep, petrification, charm, doom, helix, the songs on enemies,
+-- the dazes, the Geo downs and the like). Others can be put first by ID with Priority Status IDs.
+for _, id in ipairs({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+    28, 29, 30, 31, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 144, 145,
+    146, 147, 148, 149, 156, 167, 168, 174, 175, 177, 186, 189, 192, 193, 194, 217, 223, 259, 260, 261,
+    262, 263, 264, 291, 298, 309, 404, 473, 536, 540, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566,
+    567, 571, 572, 576, 630, 631, 802 }) do harmful[id] = true end
+for id = 386, 400 do harmful[id] = true end -- lethargic, sluggish and weakened daze
+for id = 448, 452 do harmful[id] = true end -- bewildered daze
 local hiddenText, priorityText, hidden, priority = nil, nil, {}, {}
 local cache = setmetatable({}, { __mode = 'k' })
 local ranks = {}
@@ -51,7 +58,8 @@ function statuses.Select(ids, style)
         input[index] = id
         if not hidden[id] then
             count = count + 1
-            local rank = priority[id] or (style.debuffsFirst and harmful[id] and 2048 or 4096)
+            -- Debuffs First puts every debuff before every buff; Priority Status IDs order each kind
+            local rank = (priority[id] or 4096) + (style.debuffsFirst and not harmful[id] and 8192 or 0)
             local at = count
             while at > 1 and ranks[at - 1] > rank do
                 selected[at], ranks[at] = selected[at - 1], ranks[at - 1]; at = at - 1
