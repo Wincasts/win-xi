@@ -48,7 +48,7 @@ occlusionfix needs the `winxi` library. Copy into your Ashita folder, merging fo
 - for `name`, also `plugins/namehook.dll` (see [plugins/namehook](plugins/namehook))
 - for `buff`, `clock`, `chatbox` or native `party` replacement, also `plugins/uihook.dll` (build/install:
   [plugins/uihook](plugins/uihook))
-- `plugins/lens.dll`, the world through a Panini or cylindrical projection for wide screens, and anti-aliasing for the world (experimental, see
+- `plugins/lens.dll`, the world through a Panini or cylindrical projection for wide screens, anti-aliasing for the world, and the field of view and true proportions it is drawn with (experimental, see
   [plugins/lens](plugins/lens))
 
 Then, in game: `/addon load <the addon>`. For `name`, `/load namehook` first; for `buff` or native

@@ -3,7 +3,9 @@
 // captures, 2026-10-21); lens draws a warped grid in that quad's place (warp.h) and blocks the quad, so
 // the UI is drawn over it as ever. The grid averages four taps over each pixel's patch of the world
 // (warp.h Taps, shaders.h), for edges smoother than the game's own copy gives, with or without the
-// warp. /lens capture [frames] still records every draw over a few frames.
+// warp. lens also sets the field of view and the aspect constant the game builds its projection with
+// (projection.h; /lens fov, middle and square, drawscale's until its 2.0). /lens capture [frames] still records
+// every draw over a few frames.
 #include "Ashita.h"
 #include <intrin.h>
 #include <psapi.h>
@@ -16,6 +18,7 @@
 #include "shared.h"
 #include "mousescan.h"
 #include "shaders.h"
+#include "projection.h"
 
 // Exported, so that the compiler keeps it although nothing here reads it, and so that another plugin
 // (namehook) can find it by name
@@ -58,6 +61,22 @@ class Lens : public IPlugin {
     bool m_Written = false;     // the buffers hold the grid as built
     static const int Cols = 128, Rows = 64;
 
+    // the projection: what is asked for, where it is built, and what is in play
+    int m_Fov = 0;              // the vertical field of view in degrees; 0 for the game's own
+    int m_Middle = 0;           // degrees to keep up the middle through the warp; 0 for none. One of the two at most
+    bool m_Square = false;      // the world at the window's true proportions
+    uint32_t m_CAddr = 0;       // the game's constant C (192), 0 when not found
+    double m_C = 0;
+    std::vector<uintptr_t> m_FovSites;  // its loads that a projection's field of view is made from
+    uintptr_t m_GameGlobal = 0; // the global holding the game object, 0 when not found
+    double* m_CMem = nullptr;   // lens's own C; kept allocated at release, for a thread still reading it
+    bool m_FovPatched = false;  // the loads point at m_CMem
+    bool m_FovForeign = false;  // something else points them elsewhere (drawscale 1.9's fov)
+    double m_FovInPlay = 0;     // the vertical field of view lens has set, 0 for the game's own
+    bool m_Capped = false;      // the middle asked for is beyond the widest field of view
+    bool m_Squared = false;     // k was last set by lens for square
+    struct { int middle = -1, mode = -1; double strength = -1, aspect = -1, fov = 0; bool capped = false; } m_MiddleCache;
+
     std::vector<lens::Candidate> m_Mouse;   // where the cursor's place may be kept, from /lens mouse
     uint32_t m_MouseLooks = 0;
 
@@ -66,7 +85,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.7; }
+    double GetVersion() const override { return 0.8; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -78,9 +97,11 @@ public:
             m_Size = info.SizeOfImage;
         }
         Load();
+        FindProjection();
         return true;
     }
     void Release() override {
+        RestoreProjection();
         m_Capture.reset();
         ReleaseBuffers();
         ReleaseShaders();
@@ -98,15 +119,20 @@ public:
             if (sscanf_s(line, "strength=%d", &v) == 1 && v >= 0 && v <= 100) m_Strength = v;
             if (sscanf_s(line, "mode=%d", &v) == 1 && (v == 0 || v == 1)) m_Mode = static_cast<lens::Mode>(v);
             if (sscanf_s(line, "aa=%d", &v) == 1) m_Aa = v != 0;
+            if (sscanf_s(line, "fov=%d", &v) == 1 && (v == 0 || (v >= lens::FovMin && v <= lens::FovMax))) m_Fov = v;
+            if (sscanf_s(line, "middle=%d", &v) == 1 && (v == 0 || (v >= lens::FovMin && v <= lens::FovMax))) m_Middle = v;
+            if (sscanf_s(line, "square=%d", &v) == 1) m_Square = v != 0;
         }
         fclose(f);
+        if (m_Fov) m_Middle = 0;
     }
     void Save() const {
         CreateDirectoryA((std::string(m_Core->GetInstallPath()) + "\\config").c_str(), nullptr);
         CreateDirectoryA((std::string(m_Core->GetInstallPath()) + "\\config\\lens").c_str(), nullptr);
         FILE* f = nullptr;
         if (fopen_s(&f, SettingsPath().c_str(), "wb") != 0 || !f) return;
-        fprintf(f, "on=%d\nstrength=%d\nmode=%d\naa=%d\n", m_On ? 1 : 0, m_Strength, static_cast<int>(m_Mode), m_Aa ? 1 : 0);
+        fprintf(f, "on=%d\nstrength=%d\nmode=%d\naa=%d\nfov=%d\nmiddle=%d\nsquare=%d\n", m_On ? 1 : 0, m_Strength, static_cast<int>(m_Mode), m_Aa ? 1 : 0,
+            m_Fov, m_Middle, m_Square ? 1 : 0);
         fclose(f);
     }
     void Status() const {
@@ -123,7 +149,25 @@ public:
         }
         text += m_On || m_Aa ? (m_Warped ? "." : "; the game's copy of the world to the screen has not been seen yet.") : ".";
         Say(text);
+        Say(ProjectionText());
         Say(Smoothing());
+    }
+    // The field of view and square as they are.
+    std::string ProjectionText() const {
+        char text[240];
+        std::string fov;
+        if (!m_CAddr || m_FovSites.empty()) fov = "fov unavailable: the projection's field of view was not found";
+        else if (m_FovForeign) fov = "fov left alone: something else has set it (drawscale's fov before 2.0? /drawscale fov 0)";
+        else if (m_FovInPlay > 0 && m_Fov) { snprintf(text, sizeof(text), "fov %d up", m_Fov); fov = text; }
+        else if (m_FovInPlay > 0) {
+            snprintf(text, sizeof(text), "fov %.1f up, for %d up the middle%s", m_FovInPlay, m_Middle, m_Capped ? " (as near as the widest, 140, gets)" : "");
+            fov = text;
+        }
+        else if (m_Middle) { snprintf(text, sizeof(text), "middle %d: waiting for the game's copy of the world, to know its proportions", m_Middle); fov = text; }
+        else { snprintf(text, sizeof(text), "fov the game's own, %.0f up", lens::FovOf(m_C)); fov = text; }
+        if (m_CAddr && !m_FovForeign) { snprintf(text, sizeof(text), " (%u places)", static_cast<unsigned>(m_FovSites.size())); fov += text; }
+        fov += std::string("; square ") + (m_Square ? "on" : "off") + (m_GameGlobal ? "" : " (the game object was not found)");
+        return fov + ".";
     }
     std::string Smoothing() const {
         std::string text = std::string("aa ") + (m_Aa ? "on" : "off");
@@ -179,6 +223,31 @@ public:
             Status();
             return true;
         }
+        if (_stricmp(words[1], "fov") == 0 || _stricmp(words[1], "middle") == 0) {
+            bool middle = _stricmp(words[1], "middle") == 0;
+            char* end = nullptr;
+            long v = strtol(words[2], &end, 10);
+            if (!words[2][0] || *end || (v != 0 && (v < lens::FovMin || v > lens::FovMax))) {
+                Say(middle ? "Usage: /lens middle <n>, the degrees up the middle of the screen to keep whatever the warp, 20 to 140, or 0 for none."
+                           : "Usage: /lens fov <n>, the vertical field of view the world is drawn with, 20 to 140 (the game's is about 77), or 0 for the game's own.");
+                return true;
+            }
+            (middle ? m_Middle : m_Fov) = static_cast<int>(v);
+            if (v) (middle ? m_Fov : m_Middle) = 0;
+            Save();
+            ApplyProjection();
+            Status();
+            return true;
+        }
+        if (_stricmp(words[1], "square") == 0) {
+            if (_stricmp(words[2], "on") == 0) m_Square = true;
+            else if (_stricmp(words[2], "off") == 0) m_Square = false;
+            else { Say("Usage: /lens square on|off."); return true; }
+            Save();
+            ApplyProjection();
+            Say(ProjectionText());
+            return true;
+        }
         if (_stricmp(words[1], "mouse") == 0) {
             if (_stricmp(words[2], "reset") == 0) { m_Mouse.clear(); m_MouseLooks = 0; Say("Forgot the mouse's places; /lens mouse looks afresh."); return true; }
             MouseScan();
@@ -196,7 +265,9 @@ public:
         }
         Say("/lens - what the warp is doing. /lens on|off - the warp. /lens mode panini|cylindrical. /lens strength <n> - 0 (flat, as the game) to 100 (the classic Panini, or fully cylindrical), 50 to start.");
         Say("/lens aa on|off - each pixel the average of four reads over the patch of the world it covers, with the warp or without (on to start).");
-        Say("A stronger warp shows less up and down in the middle; drawscale's fov above the game's 77 puts it back. /lens capture [frames] - records every draw over the next frames to config/lens/.");
+        Say("/lens middle <n> - keep n degrees up the middle of the screen (77 is the game's): lens draws the world taller to give back what the warp takes. 0 for none.");
+        Say("/lens fov <n> - draw the world n degrees up instead, 20 to 140; 0 is the game's own. /lens square on|off - the world at the window's true proportions (off to start).");
+        Say("/lens capture [frames] - records every draw over the next frames to config/lens/.");
         return true;
     }
 
@@ -204,6 +275,7 @@ public:
     void Direct3DEndScene(bool back) override { if (m_Want && m_Started) m_Capture->Mark(lens::Capture::Event::EndScene, back); }
     void Direct3DPresent(const RECT*, const RECT*, HWND, const RGNDATA*) override {
         ++Shared.Frame;
+        ApplyProjection();
         if (!m_Want) return;
         if (!m_Started) { m_Started = true; return; }
         m_Capture->Mark(lens::Capture::Event::Present, true);
@@ -223,8 +295,115 @@ public:
     }
 
 private:
+    // Where the projection is built: C from the build function, its loads, and the game object's global, all
+    // in FFXiMain.dll. Under SEH, as the module is read whole.
+    static bool SafeFind(const uint8_t* bytes, size_t size, const lens::Pattern& p, ptrdiff_t& at) {
+        __try { at = lens::Find(bytes, size, p); return true; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+    static bool SafeSites(const uint8_t* bytes, size_t size, uintptr_t base, uint32_t c, std::vector<uintptr_t>& out) {
+        __try { lens::FovSites(bytes, size, base, c, out); return true; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { out.clear(); return false; }
+    }
+    void FindProjection() {
+        if (!m_Base) return;
+        const auto* module = reinterpret_cast<const uint8_t*>(m_Base);
+        ptrdiff_t build = -1, game = -1;
+        const lens::Pattern buildPattern(lens::BuildPattern), gamePattern(lens::GamePattern);
+        uint32_t cAddr = 0, global = 0;
+        double c = 0;
+        if (SafeFind(module, m_Size, buildPattern, build) && build >= 0 && SafeRead(m_Base + build + lens::CAt, &cAddr, 4)
+            && SafeRead(cAddr, &c, 8) && c > 1 && c < 10000 && SafeSites(module, m_Size, m_Base, cAddr, m_FovSites) && !m_FovSites.empty()) {
+            m_CAddr = cAddr;
+            m_C = c;
+        }
+        if (SafeFind(module, m_Size, gamePattern, game) && game >= 0 && SafeRead(m_Base + game + 1, &global, 4)) m_GameGlobal = global;
+    }
+    // Four bytes of the game's code.
+    static void WriteCode(uintptr_t at, uint32_t value) {
+        DWORD old = 0;
+        if (!VirtualProtect(reinterpret_cast<void*>(at), 4, PAGE_EXECUTE_READWRITE, &old)) return;
+        memcpy(reinterpret_cast<void*>(at), &value, 4);
+        VirtualProtect(reinterpret_cast<void*>(at), 4, old, &old);
+        FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(at), 4);
+    }
+    // The field of view asked for, in degrees, 0 for the game's own: fov as set, or the one keeping middle up
+    // the middle through the warp as it is (worked out again only when something it rests on changes).
+    double WantedFov() {
+        if (m_Fov) { m_Capped = false; return m_Fov; }
+        if (!m_Middle) { m_Capped = false; return 0; }
+        const double strength = m_On ? m_Strength / 100.0 : 0;
+        if (strength == 0) { m_Capped = false; return m_Middle; }
+        if (m_TanH <= 0 || m_TanV <= 0) return 0;
+        const double aspect = m_TanH / m_TanV;
+        auto& k = m_MiddleCache;
+        if (k.middle != m_Middle || k.mode != m_Mode || k.strength != strength || fabs(k.aspect - aspect) > 1e-4) {
+            k.middle = m_Middle; k.mode = m_Mode; k.strength = strength; k.aspect = aspect;
+            k.fov = lens::MiddleFov(m_Middle, aspect, m_Mode, strength, k.capped);
+        }
+        m_Capped = k.capped;
+        return k.fov;
+    }
+    // Into the game, each Present and after a command: the loads of C at lens's own C for a field of view, back
+    // at the game's for its own, and k for square. Only what differs is written; loads something else has
+    // pointed elsewhere are left to it.
+    void ApplyProjection() {
+        if (m_CAddr && !m_FovSites.empty()) {
+            const double fov = WantedFov();
+            if (fov > 0) {
+                if (!m_CMem) m_CMem = static_cast<double*>(VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+                if (m_CMem) {
+                    const double c = lens::CFor(fov);
+                    if (*m_CMem != c) *m_CMem = c;
+                    if (!m_FovPatched) {
+                        const uint32_t ours = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(m_CMem));
+                        m_FovForeign = false;
+                        for (uintptr_t site : m_FovSites) {
+                            uint32_t now = 0;
+                            if (!SafeRead(site + 2, &now, 4) || (now != m_CAddr && now != ours)) m_FovForeign = true;
+                        }
+                        if (!m_FovForeign) {
+                            for (uintptr_t site : m_FovSites) WriteCode(site + 2, ours);
+                            m_FovPatched = true;
+                        }
+                    }
+                }
+            } else if (m_FovPatched) {
+                for (uintptr_t site : m_FovSites) WriteCode(site + 2, m_CAddr);
+                m_FovPatched = false;
+            } else {
+                m_FovForeign = false;
+            }
+            m_FovInPlay = m_FovPatched ? fov : 0;
+        }
+        if (m_GameGlobal && (m_Square || m_Squared)) {
+            uint32_t object = 0, k = 0;
+            if (SafeRead(m_GameGlobal, &object, 4) && object && SafeRead(object + lens::KOffset, &k, 4)) {
+                const uint32_t want = m_Square ? lens::KSquare : lens::KStock;
+                // a k that is neither constant was set by something else, and is left to it
+                if (k != want && (k == lens::KStock || k == lens::KSquare)) SafeWrite(object + lens::KOffset, &want, 4);
+            }
+            m_Squared = m_Square;
+        }
+    }
+    // The game's own projection back, at release; lens's C stays allocated.
+    void RestoreProjection() {
+        if (m_FovPatched) for (uintptr_t site : m_FovSites) WriteCode(site + 2, m_CAddr);
+        m_FovPatched = false;
+        if (m_Squared && m_GameGlobal) {
+            uint32_t object = 0, k = 0;
+            if (SafeRead(m_GameGlobal, &object, 4) && object && SafeRead(object + lens::KOffset, &k, 4) && k == lens::KSquare)
+                SafeWrite(object + lens::KOffset, &lens::KStock, 4);
+        }
+        m_Squared = false;
+    }
+
     static bool SafeRead(uintptr_t address, void* buffer, size_t size) {
         __try { memcpy(buffer, reinterpret_cast<const void*>(address), size); return true; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+    static bool SafeWrite(uintptr_t address, const void* buffer, size_t size) {
+        __try { memcpy(reinterpret_cast<void*>(address), buffer, size); return true; }
         __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
     }
     static bool SafeScan(const MEMORY_BASIC_INFORMATION& m, int x, int y, int w, int h, std::vector<lens::Candidate>& out, size_t cap) {

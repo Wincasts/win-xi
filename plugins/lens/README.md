@@ -1,11 +1,13 @@
-# lens — experimental 0.7
+# lens — experimental 0.8
 
 FFXI's world through a Panini or cylindrical projection, either of which keeps a wide view without
 the stretching a flat projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
 its world to a texture of its own (at its 3D resolution) and copies it onto the screen with one quad
 before drawing the menus and HUD over it. lens draws a warped grid in that quad's place, so the world
 is bent and the UI is not. That copy is also where the world's edges are smoothed or not, so lens
-draws it with anti-aliasing (`/lens aa`), with the warp on or off.
+draws it with anti-aliasing (`/lens aa`), with the warp on or off. lens also sets the field of view
+and proportions the world is drawn with (`/lens middle`, `/lens fov`, `/lens square`), which were
+drawscale's until its 2.0.
 
 ```text
 /load lens
@@ -14,6 +16,9 @@ draws it with anti-aliasing (`/lens aa`), with the warp on or off.
 /lens mode panini|cylindrical   (panini to start)
 /lens strength <n>    0 (flat, as the game) to 100; 50 to start
 /lens aa on|off       each pixel the average of four reads over the world (on to start)
+/lens middle <n>      keep n degrees up the middle of the screen whatever the warp (0, none, to start)
+/lens fov <n>         draw the world n degrees up instead, 20 to 140 (0, the game's own, to start)
+/lens square on|off   the world at the window's true proportions (off to start)
 ```
 
 - **Panini** keeps lines running toward the middle of the view straight (a road or corridor ahead,
@@ -32,20 +37,37 @@ The settings are kept in `config/lens/lens.ini` under the Ashita folder.
 The warp keeps the whole width the game draws: its left and right edges stay at the screen's, and
 the screen's corners show the picture's corners. Everything between is squeezed toward the edges by
 the strength, so the middle is enlarged and shows less up and down than the world is drawn with;
-`/lens` says how much. Draw the world taller to give that back, with drawscale's `fov` above the
-game's 77 (it goes to 140). Past about 110 the flat picture the warp starts from spends most of its
-pixels on the edges, though the game's 3D resolution being above the screen's helps.
+`/lens` says how much. Drawing the world taller gives that back:
 
-Settings to try at 3440x1440 (21:9, drawscale square off), each keeping about the game's 77 up the
-middle of the screen unless it says otherwise:
+- `/lens middle <n>` keeps `n` degrees up the middle of the screen, the game's own being 77: lens
+  works out the field of view that gives it back for the mode, the strength and the screen's
+  proportions, and works it out again whenever one of them changes. With the warp off it is the
+  field of view itself. Past what 140 can give, it draws at the field of view showing the most, and
+  `/lens` says so.
+- `/lens fov <n>` draws the world `n` degrees up, 20 to 140, whatever the warp; `0` is the game's
+  own, about 77. Without the warp, a narrower one stretches the edges of a wide screen less and shows
+  less of the world: about 60 at 21:9 sees as far across as the game does at 16:9.
 
-| | `/lens mode` | `/lens strength` | `/drawscale fov` | across the screen |
-|---|---|---|---|---|
-| Gentle | panini | 25 | 93 | 134 |
-| Balanced | panini | 50 | 110 | 146 |
-| Panoramic, cheap | cylindrical | 50 | 96 | 132 |
-| Panoramic, strong | cylindrical | 75 | 115 | 142 |
-| The game's view, less stretch (70 up the middle) | cylindrical | 25 | 0 (the game's 77) | 120 |
+Setting one clears the other. The game keeps the height of the view fixed and widens it to the
+window, so at 21:9 it is over 120 degrees across; its own closer views stay closer by the same
+proportion. Past about 110 the flat picture the warp starts from spends most of its pixels on the
+edges, though the game's 3D resolution being above the screen's helps.
+
+`/lens square on` draws the world at the window's true proportions. The client builds its projection
+with a fixed constant that stretches the 3D view about 5.5% wider than the window, so people look
+broad and round things oval; on fixes the constant, and the view shows a little more at the sides.
+The menus and HUD do not change.
+
+Settings to try at 3440x1440 (21:9), each keeping the game's 77 up the middle of the screen unless
+it says otherwise:
+
+| | `/lens mode` | `/lens strength` | `/lens middle` | the world drawn up | across the screen |
+|---|---|---|---|---|---|
+| Gentle | panini | 25 | 77 | 93 | 134 |
+| Balanced | panini | 50 | 77 | 110 | 146 |
+| Panoramic, cheap | cylindrical | 50 | 77 | 96 | 132 |
+| Panoramic, strong | cylindrical | 75 | 77 | 115 | 142 |
+| The game's view, less stretch (70 up the middle) | cylindrical | 25 | 0 | 77 (the game's) | 120 |
 
 The game's own is 122 across. At 16:9 the flat view is 106 across and stretches less, so less
 strength does.
@@ -99,6 +121,25 @@ again only when the strength, the picture's fields of view or the rectangle chan
 card between, so a frame draws it without sending it (2026-10-21: some 330 KB a frame before). The
 game draws hundreds of other screen quads a frame for its UI; while the warp is live they are told
 from the copy by their size alone, before anything is asked of the device.
+
+### The projection
+
+Every world projection is built from the game object's fields: the aspect as 1 / (a * k), a from the
+window (+0x2F0) and k the constant square changes (+0x2E8, 0.791, or 0.75 for true proportions), and
+the vertical field of view as 2 atan(C / f), C a constant of 192 and f a focal length at +0x2F4 the
+game sets (242 in play, more for a closer view). Four places build one, each pass of the frame, each
+loading C just before f. lens points those four loads at a value of its own, 242 tan(fov / 2), so the
+usual view has the field of view asked for and the game's closer views are closer by as much, whatever
+the game does with f; the loads are pointed once and only the value changes after. C is found where
+the projection's build function loads it, and the four by their shape (C, then f from the game object
+or the stack, then the arctangent) over the whole client, at load; a fixed view the game makes with a
+constant in place of f is left alone (`src/projection.h`, found 2026-10-21 for drawscale 1.7). The
+game object is reached through the global its accessor reads, and k is set at each Present once the
+object exists, only when it holds one of the two constants.
+
+If the four loads already point somewhere else, drawscale before 2.0 has its own fov set: lens leaves
+them to it and `/lens` says so (`/drawscale fov 0`, or update drawscale). Unloading lens points them
+back at C and puts k back; lens's value stays allocated, for a frame still being built.
 
 ### For addons
 
