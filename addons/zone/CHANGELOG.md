@@ -6,6 +6,7 @@
 - Dungeon entrances are announced as you come to them, with the number the zone's map gives them: `Quicksand Caves Entrance 7`. 184 entrances in 55 zones, from the Phoenix server's zone lines; Announce Dungeon Entrances and Entrance Distance (20 yalms) set them.
 - Town entrances are announced as you come up to a town's gates from the field or a dungeon: `Southern San d'Oria Entrance`. 38 of them, with Announce Town Entrances and Town Entrance Distance (40 yalms); Jeuno's bridges already name its three.
 - Cities are laid out as Southern San d'Oria now is: each street, square, bridge and gate covers the whole place it names, in 11 more cities (27 areas, Gingerberry Grove new), and the [S] cities that copy them.
+- Re-announce After (10 seconds): an area you come back to is announced again only if you were away from it that long, so leaving a shop does not name its square again.
 - Tenshodo H.Q. under Lower Jeuno is announced, as a building and only below the street.
 - `/zone approach town 8` and `/zone approach dungeon 12` set the town and dungeon distances; `/zone approach <yalms>` alone is open country's.
 - The map browser draws the entrances in blue, and the approach outline at the viewed zone's own distance.

@@ -5,6 +5,9 @@ local kinds = require('data.zone_kinds');
 local entrances = require('data.entrances');
 local M = {};
 local EXACT_DELAY = 0.3;
+-- An area come back to within this many seconds of leaving it is not announced again: out of a shop
+-- into the square it stands in, or back over a boundary just crossed. 0 announces every return.
+M.REANNOUNCE = 10;
 -- How near a feature is announced, by the zone's kind: open country's features are wide, a city's
 -- squares and a dungeon's rooms close together. A zone of no known kind is open country.
 M.APPROACH = { outdoors = 50, city = 10, dungeon = 15 };
@@ -95,7 +98,8 @@ function M.new(reader)
         state = { enabled = false, debug = false, zone = 0, approach_yalms = M.APPROACH.outdoors, approach_pixels = 0,
             approach = { outdoors = M.APPROACH.outdoors, city = M.APPROACH.city, dungeon = M.APPROACH.dungeon },
             entrances = { enabled = M.ENTRANCE.enabled, yalms = M.ENTRANCE.yalms, towns = M.ENTRANCE.towns,
-                town_yalms = M.ENTRANCE.town_yalms } },
+                town_yalms = M.ENTRANCE.town_yalms }, reannounce = M.REANNOUNCE },
+        left = {}, -- '<map key>:<area id>' -> when it was last left, for this zone
         quiet_until = 0, announce_after = 0, queued = nil, next_map_retry = 0,
     };
 
@@ -111,6 +115,7 @@ function M.new(reader)
 
     function controller:set_zone(zone, now, settle)
         self.state.zone = zone;
+        self.left = {}; -- Arriving in a zone, its first area is always announced.
         self:reset(now);
         self.quiet_until = now + (settle or 1.0);
         self.announce_after = now + 6.0; -- Let the zone banner finish first.
@@ -187,6 +192,7 @@ function M.new(reader)
         local candidate = geometry.classify(areas, x, y, self.tracker.current, 3.0, s.approach_pixels, position.z);
         -- A doorway is walked through in a moment: a building is taken on the next sample but one,
         -- where open country waits a full second for the player to settle.
+        local previous = self.tracker.initialized and self.tracker.current or nil;
         local changed, stable_id = geometry.update(self.tracker, candidate and candidate.id or nil, now,
             candidate and candidate.exact and EXACT_DELAY or nil);
         s.area = nil;
@@ -195,6 +201,10 @@ function M.new(reader)
         end
         if (changed) then
             self.queued = s.enabled and s.area or nil; -- A stable exit clears without inventing an area name.
+            -- Time away: an area is named again only once it has been left for long enough.
+            if (previous ~= nil) then self.left[s.map_key .. ':' .. previous] = now; end
+            local left = stable_id ~= nil and self.left[s.map_key .. ':' .. stable_id] or nil;
+            if (left ~= nil and now - left < (s.reannounce or M.REANNOUNCE)) then self.queued = nil; end
         end
         if (self.queued and s.enabled and now >= self.announce_after) then
             local area = self.queued;

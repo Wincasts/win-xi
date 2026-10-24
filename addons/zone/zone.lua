@@ -227,6 +227,11 @@ local function sync_approach()
     if (state.banner_is_area) then state.visible_until = 0; end
 end
 
+-- Re-announce After changes nothing about where you are, so membership is kept.
+local function sync_reannounce()
+    tracking.state.reannounce = presentation.display().reannounceSeconds[1];
+end
+
 local function check_zone_changed(force)
     local zone = get_zone_id();
     if (zone <= 0) then
@@ -377,6 +382,7 @@ ashita.events.register('load', 'zone_load', function()
     state.last_zone = get_zone_id();
     tracking:set_zone(state.last_zone, os.clock(), 0);
     sync_approach();
+    sync_reannounce();
     apply_live_map(state.last_zone);
     message('Use /zone for sub-zone popups and display settings, or /zone debug on to check alignment.');
 end);
@@ -401,6 +407,7 @@ ashita.events.register('d3d_present', 'zone_present', function()
     presentation.begin_frame();
     check_zone_changed(false);
     sync_approach();
+    sync_reannounce();
     poll_weather(os.clock());
     poll_areas(false);
     debug_view.draw(tracking.state, editor);

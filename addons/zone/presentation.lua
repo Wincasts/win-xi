@@ -37,6 +37,7 @@ local function defaults()
         weatherEnabled = T{ true },
         fieldApproach = T{ 50 }, townApproach = T{ 10 }, dungeonApproach = T{ 15 },
         entrancesEnabled = T{ true }, entranceYalms = T{ 20 }, townEntrancesEnabled = T{ true }, townEntranceYalms = T{ 40 },
+        reannounceSeconds = T{ 10 },
         liveMaps = T{ },
         locationEnabled = T{ false }, locationLocked = T{ false }, locationPosition = T{ 20, 300 }, locationSize = T{ 16 },
         backgroundEnabled = T{ false }, backgroundFile = T{ '' }, backgroundFlags = T{ true },
@@ -66,7 +67,7 @@ local ranges = { titleSize = { 14, 96 }, detailSize = { 10, 40 }, zoneTitleSize 
     zoneDetailSize = { 10, 40 }, areaTitleSize = { 14, 96 }, areaDetailSize = { 10, 40 },
     spacing = { 0, 30 }, hold = { .1, 60 }, fadeIn = { 0, 3 }, fadeOut = { 0, 10 },
     opacity = { 0, 1 }, fieldApproach = { 0, 100 }, townApproach = { 0, 100 }, dungeonApproach = { 0, 100 },
-    entranceYalms = { 5, 50 }, townEntranceYalms = { 5, 100 }, locationSize = { 10, 40 },
+    entranceYalms = { 5, 50 }, townEntranceYalms = { 5, 100 }, reannounceSeconds = { 0, 60 }, locationSize = { 10, 40 },
     styleTitleSize = { 16, 120 }, styleDetailSize = { 10, 48 },
     pennantWidth = { 40, 240 }, pennantLength = { 120, 1200 }, pennantLetterSize = { 10, 80 },
     kanjiSize = { 32, 320 }, kanjiOpacity = { 0, 1 }, backdropOpacity = { 0, 1 }, backdropSoftness = { 0, 120 } };
@@ -94,7 +95,7 @@ function M.complete(options)
     -- SliderFloat's %.0f label does not round its value. Fractional sizes otherwise
     -- create new baked fonts continuously while dragging, churning the shared atlas.
     for _, key in ipairs({ 'titleSize', 'detailSize', 'zoneTitleSize', 'zoneDetailSize', 'areaTitleSize', 'areaDetailSize',
-        'locationSize', 'fieldApproach', 'townApproach', 'dungeonApproach', 'entranceYalms', 'townEntranceYalms', 'styleTitleSize', 'styleDetailSize', 'pennantWidth', 'pennantLength',
+        'locationSize', 'fieldApproach', 'townApproach', 'dungeonApproach', 'entranceYalms', 'townEntranceYalms', 'reannounceSeconds', 'styleTitleSize', 'styleDetailSize', 'pennantWidth', 'pennantLength',
         'pennantLetterSize', 'kanjiSize', 'backdropSoftness' }) do
         d[key][1] = math.floor(d[key][1] + .5);
     end
@@ -226,6 +227,8 @@ local function draw_settings(options)
         tips.Hover('The Vana\'diel day and time you came to it, such as Firesday 14:20.');
         checkbox(d, 'Show Experimental Label', 'areaExperimental');
         widgets.PushControlWidth();
+        slider(d, 'Re-announce After', 'reannounceSeconds', '%.0f seconds');
+        tips.Hover('An area you come back to is announced again only if you were away this long: out of a shop into its square, say. 0 announces every return.');
         slider(d, 'Field Approach Distance', 'fieldApproach', '%.0f yalms');
         tips.Hover('How near a feature in open country is announced, measured from its outline. 0 announces only inside it.');
         slider(d, 'Town Approach Distance', 'townApproach', '%.0f yalms');

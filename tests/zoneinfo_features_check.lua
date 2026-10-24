@@ -85,6 +85,7 @@ check('open country is announced from further off than a dungeon, a dungeon than
     d.fieldApproach[1] == 50 and d.dungeonApproach[1] == 15 and d.townApproach[1] == 10);
 check('dungeon entrances are announced to begin with, closer in than open country',
     d.entrancesEnabled[1] == true and d.entranceYalms[1] < d.fieldApproach[1]);
+check('a return is announced again only after ten seconds away, to begin with', d.reannounceSeconds[1] == 10);
 check('town entrances too, from further off than a dungeon\'s', d.townEntrancesEnabled[1] == true
     and d.townEntranceYalms[1] > d.entranceYalms[1]);
 H.command('/zone approach 45');
@@ -105,14 +106,15 @@ check('it is used again on return', count('zone=100 | map=' .. primary) == 1);
 H.command('/zone livemap auto');
 check('automatic selection clears the saved map', d.liveMaps.z100 == nil);
 d.liveMaps.z100, d.liveMaps.bad, d.liveMaps.z7 = 'no_such_map', 'x', 5; d.fieldApproach[1] = 500;
-d.entranceYalms[1], d.approachYalms = 0, T{ 30 };
+d.entranceYalms[1], d.approachYalms, d.reannounceSeconds[1] = 0, T{ 30 }, 400;
 p.complete(p.app.options); H.resettle(); H.frames(2);
 check('saved values are validated', d.liveMaps.bad == nil and d.liveMaps.z7 == nil and d.fieldApproach[1] == 100
-    and d.entranceYalms[1] == 5);
+    and d.entranceYalms[1] == 5 and d.reannounceSeconds[1] == 60);
 check('the one distance of before is dropped', d.approachYalms == nil);
 H.command('/zone sample');
 check('an unknown saved map is ignored', count('map=no_such_map') == 0);
 d.fieldApproach[1], d.townApproach[1], d.dungeonApproach[1], d.entranceYalms[1] = 30, 10, 15, 20;
+d.reannounceSeconds[1] = 10;
 
 -- Location line
 check('the location line is off by default', not d.locationEnabled[1] and begun['##zone_location'] == nil);
