@@ -6,7 +6,7 @@ that holds against any background, a body lit from the left, and one bright gem 
 centre. No game artwork is used. Includes a preview of each on Radiant HP/MP bars.
 """
 from pathlib import Path
-from PIL import Image, ImageChops, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1] / 'addons/party/assets'
 W, H, S = 16, 40, 4
@@ -135,6 +135,48 @@ def generate(name, style):
     return im
 
 
+# Rounded caps, after the game's own on its gauges: a half capsule that carries the bar on past its end,
+# its round side outward and its flat side against the bar, the bar's height and about half as wide. The
+# image is the left cap; party draws it turned about for the right. Colours, top to foot: the light at
+# its top, its middle, its foot, and its rim.
+ROUNDED = {
+    'rounded':        ((168, 255, 255), (40, 214, 255), (14, 84, 214), (10, 52, 150)),
+    'rounded_silver': ((252, 254, 255), (184, 194, 210), (88, 98, 118), (40, 46, 60)),
+}
+RW, RH = 22, 40
+
+
+def rounded(name, colours):
+    light, middle, foot, rim = colours
+    w, h = RW * S, RH * S
+    radius = 15 * S
+
+    def capsule(inset):
+        im = Image.new('L', (w, h))
+        # a rounded box running on past the image's right edge, so that only its left side is round
+        ImageDraw.Draw(im).rounded_rectangle((inset, inset, w + radius, h - 1 - inset), radius=radius - inset, fill=255)
+        return im
+
+    outer, inner = capsule(0), capsule(round(1.6 * S))
+    body = Image.new('RGBA', (w, h))
+    d = ImageDraw.Draw(body)
+    for y in range(h):
+        t = y / (h - 1)
+        a, b, u = (light, middle, t / .45) if t < .45 else (middle, foot, (t - .45) / .55)
+        d.line((0, y, w, y), fill=tuple(round(a[i] + (b[i] - a[i]) * u) for i in range(3)) + (255,))
+    im = Image.new('RGBA', (w, h))
+    im.paste((*rim, 255), mask=outer)
+    im.paste(body, mask=inner)
+    # a soft shine up and to the left, inside the rim
+    shine = Image.new('L', (w, h))
+    ImageDraw.Draw(shine).ellipse((3 * S, 4 * S, 15 * S, 15 * S), fill=150)
+    shine = ImageChops.multiply(shine.filter(ImageFilter.GaussianBlur(2.5 * S)), inner)
+    im.paste((255, 255, 255, 255), mask=shine)
+    im = im.resize((RW, RH), Image.Resampling.LANCZOS)
+    im.save(ROOT / 'bookends' / f'{name}.png')
+    return im
+
+
 def preview(textures):
     columns = 4
     rows = (len(textures) + columns - 1) // columns
@@ -153,16 +195,29 @@ def preview(textures):
                 r, g, b, a = im.split()
                 rgb = [channel.point(lambda value, tint=tint: round(value * tint / 255)) for channel, tint in zip((r, g, b), color)]
                 out.alpha_composite(Image.merge('RGBA', (*rgb, a)), (x + (7 if layer == 'fill' else 0), yy))
+            if name in ROUNDED:
+                # outside the bar's ends, the frame's height, about half as wide
+                shown = cap.resize((round((h - 12) * .55), h - 12), Image.Resampling.LANCZOS)
+                out.alpha_composite(shown, (x + 7 - shown.width, yy + 6))
+                out.alpha_composite(shown.transpose(Image.Transpose.FLIP_LEFT_RIGHT), (x + w - 7, yy + 6))
+                continue
             # about as it is drawn in game at a scale of 100: 4 wide, the frame's height and a little over
             shown = cap.resize((4, h - 9), Image.Resampling.LANCZOS)
             for cx in (x + 6, x + w - 6):
                 out.alpha_composite(shown, (cx - 2, yy + 4))
         # enlarged, to show the ornament; not its size in game
-        out.alpha_composite(cap.resize((32, 80), Image.Resampling.NEAREST), (x + 80, y + 80))
+        out.alpha_composite(cap.resize((cap.width * 2, 80), Image.Resampling.NEAREST), (x + 80, y + 80))
     out.convert('RGB').save(ROOT / 'bookends/preview.png')
 
 
 if __name__ == '__main__':
     (ROOT / 'bookends').mkdir(parents=True, exist_ok=True)
-    preview({name: generate(name, style) for name, style in STYLES.items()})
-    print(f'Generated {len(STYLES)} bookends and preview in {ROOT / "bookends"}')
+    import sys
+    # --rounded makes only the rounded caps again, leaving the others' images as they are
+    if '--rounded' in sys.argv:
+        caps = {name: Image.open(ROOT / 'bookends' / f'{name}.png').convert('RGBA') for name in STYLES}
+    else:
+        caps = {name: generate(name, style) for name, style in STYLES.items()}
+    caps.update({name: rounded(name, colours) for name, colours in ROUNDED.items()})
+    preview(caps)
+    print(f'Generated {len(STYLES) + len(ROUNDED)} bookends and preview in {ROOT / "bookends"}')

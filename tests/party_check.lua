@@ -123,7 +123,8 @@ do
     end
     draw.Image = function(handle, x1, y1, x2, y2, tint, u1, v1, u2, v2)
         if handle == 123 then
-            assert(u1 == 0 and v1 == 0 and u2 == 1 and v2 == 1)
+            -- the whole image; a rounded cap's right one turned about
+            assert(v1 == 0 and v2 == 1 and ((u1 == 0 and u2 == 1) or (u1 == 1 and u2 == 0)))
             capCount = capCount + 1
         elseif handle == 124 and u1 > 0 then
             atlasCount = atlasCount + 1
@@ -138,7 +139,7 @@ do
         assert(image, 'no bookend for ' .. choice)
         image:close()
     end
-    assert(#styles == 17) -- the border styles but the first, and kingdom, magitek, aether, elven and gothic
+    assert(#styles == 19) -- the border styles but the first, kingdom, magitek, aether, elven and gothic, and the two rounded
     for _, choice in ipairs(styles) do
         look.BookendStyle = choice
         capCount, requested = 0, nil

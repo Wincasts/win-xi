@@ -338,14 +338,30 @@ In **winxisettings → Styles → Bar Texture**, choose:
 - **Elven** — soft satin light, curved filigree rails and flowing leaf-like reflections; high-fantasy metalwork.
 - **Gothic** — dark iron edging with pointed tracery and a luminous interior; dark-fantasy ornament.
 
+The smooth sets are shaded from top to foot only, with no pattern along the bar. The fill image is
+stretched to the HP left, so a pattern squeezes as the bar empties; these look the same at any HP.
+- **Enamel** — a bright upper half over a deeper lower one, softly parted, as the game's own bars are.
+- **Enamel (Lit Rim)** — the same, with a thin light along the top.
+- **Enamel (Gradient)** — each half a gradient of its own.
+- **Glass Tube** — round like a tube: dark edges, a highlight a quarter of the way down, light along the foot.
+- **Glass Tube (Deep)** — darker edges and a sharper highlight.
+- **Glass Enamel** — the enamel's two halves with the tube's highlight.
+
 These are original procedural designs, not extracted or reproduced game assets.
 
 The choice applies to HP and MP across party, target and pet frames.
 Colours, range fading, bar sizes and the optional bookends still work as before.
 
+**Fill End Glow (%)** puts a soft white light at the end of each fill, where it stops, as on the
+game's own gauges: 0 is none, 100 the brightest. It dims with the bar's range fading.
+**Custom Bar Backdrop** colours the empty part of the bars with **Bar Backdrop Color** in place
+of the bar's own colour darkened; its alpha lets the dark trough show through.
+
 Preview: [`assets/bars/preview.png`](assets/bars/preview.png).
 The generated textures live in their named subfolders under `assets/bars`; regenerate them
-with `python3 tools/generate_party_bars.py` (requires Pillow). The preview is illustrative,
+with `python3 tools/generate_party_bars.py` (requires Pillow), or only the sets named after it
+(`python3 tools/generate_party_bars.py enamel tube`). It copies each set's HP art, and the glow,
+into `libs/winxi/assets/bars` for `winxi.bars`. The preview is illustrative,
 not an in-game screenshot.
 
 ## matching bookends
@@ -359,6 +375,9 @@ Enable **winxisettings → Styles → Bar Bookends**, then select **Bookend Styl
 - Five additional independent ornaments: **Kingdom** (gold crown and blue jewel), **Magitek**
   (steel coupling and cyan core), **Aether** (violet floating shards), **Elven** (gilt green leaf),
   and **Gothic** (dark lance and ruby). Pair with their namesake bars or mix freely.
+- **Rounded** and **Rounded Silver**: round ends after the game's own gauges, in cyan or silver.
+  Unlike the others they sit beyond the bar's ends, the frame's height and about half as wide,
+  so the bar carries on into them.
 
 The slim ornaments are not tinted by HP/MP, so silver stays silver and gold stays gold.
 **Bookend Opacity** (under Bookend Style) makes them see-through: 100 is solid, 0 hides them.

@@ -10,8 +10,37 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1] / 'addons/party/assets/bars'
 S = 4
-STYLES = ('glass', 'detailed', 'crystal', 'satin', 'runic', 'classic', 'radiant', 'chrome', 'flat', 'segmented', 'ember', 'kingdom', 'magitek', 'aether', 'elven', 'gothic')
-LABELS = {'classic': 'CLASSIC FF'}
+WINXI = Path(__file__).resolve().parents[1] / 'addons/libs/winxi/assets/bars'
+STYLES = ('glass', 'detailed', 'crystal', 'satin', 'runic', 'classic', 'radiant', 'chrome', 'flat', 'segmented', 'ember', 'kingdom', 'magitek', 'aether', 'elven', 'gothic',
+          'enamel', 'enamel_rim', 'enamel_gradient', 'tube', 'tube_deep', 'glass_enamel')
+LABELS = {'classic': 'CLASSIC FF', 'enamel_rim': 'ENAMEL (LIT RIM)', 'enamel_gradient': 'ENAMEL (GRADIENT)', 'tube': 'GLASS TUBE',
+          'tube_deep': 'GLASS TUBE (DEEP)', 'glass_enamel': 'GLASS ENAMEL'}
+# Smooth sets: shaded from top to bottom only, with nothing along the bar, so that the fill looks the same
+# however far it is stretched. Their frames are the quiet thin ones of satin and the rest.
+SMOOTH = ('enamel', 'enamel_rim', 'enamel_gradient', 'tube', 'tube_deep', 'glass_enamel')
+
+
+def bump(t, centre, width):
+    return math.exp(-((t - centre) / width) ** 2)
+
+
+def smooth(style, t):
+    """How light a smooth set's fill is at t, 0 at its top to 1 at its foot, from 0 to 1."""
+    if style == 'enamel':
+        # a bright upper half and a deeper lower one, softly parted, as the game's own bars are
+        v = (0.97 - 0.12 * t if t < 0.5 else 0.70 - 0.12 * (t - 0.5)) * (1 - 0.25 * bump(t, 1, 0.08))
+    elif style == 'enamel_rim':
+        v = (0.90 - 0.10 * t if t < 0.48 else 0.64 + 0.10 * (t - 0.5)) + 0.12 * bump(t, 0.04, 0.05) - 0.18 * bump(t, 1, 0.07)
+    elif style == 'enamel_gradient':
+        v = (1.0 - 0.35 * t if t < 0.5 else 0.60 + 0.30 * (t - 0.5) ** 1.5) * (1 - 0.2 * bump(t, 1, 0.07))
+    elif style == 'tube':
+        # round like a tube: dark at its edges, a highlight a quarter of the way down, light along the foot
+        v = 0.42 + 0.40 * math.sin(math.pi * t) ** 0.5 + 0.30 * bump(t, 0.26, 0.11) + 0.12 * bump(t, 0.88, 0.08)
+    elif style == 'tube_deep':
+        v = 0.30 + 0.45 * math.sin(math.pi * t) ** 0.8 + 0.45 * bump(t, 0.22, 0.08) + 0.18 * bump(t, 0.86, 0.07)
+    else:  # glass_enamel: the enamel's two halves with the tube's highlight
+        v = (0.84 if t < 0.5 else 0.64) + 0.25 * bump(t, 0.2, 0.07) + 0.12 * bump(t, 0.9, 0.07) - 0.15 * bump(t, 1, 0.05) - 0.06 * bump(t, 0.5, 0.04)
+    return max(0.0, min(1.0, v))
 
 
 def canvas(w, h):
@@ -57,7 +86,9 @@ def generate(style, kind, width, height, cap_height):
     d = ImageDraw.Draw(fill)
     for y in range(top * S, bottom * S):
         t = (y / S - top) / (bottom - top)
-        if style == 'glass':
+        if style in SMOOTH:
+            v = 255 * smooth(style, t)
+        elif style == 'glass':
             v = 105 + 105 * math.exp(-((t - .14) / .23) ** 2) + 65 * t ** 3
         elif style == 'crystal':
             # A hard central facet and reflected lower edge, rather than a glass gloss.
@@ -159,7 +190,7 @@ def generate(style, kind, width, height, cap_height):
             x = 7 + inner * cell / 10
             box(d, (x - .45, top + 1, x + .45, bottom - 1), (20, 20, 20, 200))
             box(d, (x + .45, top + 1, x + .8, bottom - 1), (255, 255, 255, 40))
-    elif style in ('satin', 'classic', 'radiant', 'flat', 'ember'):
+    elif style in ('satin', 'classic', 'radiant', 'flat', 'ember') + SMOOTH:
         # Quiet, thin framing; classic has square corners and a sharp bright top bevel.
         front = canvas(width + 6, height)
         d = ImageDraw.Draw(front)
@@ -226,6 +257,27 @@ def generate(style, kind, width, height, cap_height):
     box(d, (width + 2.7, .5, width + 4.8, cap_height - .75), (155, 155, 155, 255), .4)
     box(d, (width + 3, 1, width + 3.6, cap_height - 1), (245, 245, 245, 255))
     save(front, folder / f'{kind}_front.png')
+    if kind == 'hp':
+        # winxi.bars draws a bar of any size with the HP art of each set
+        shared = WINXI / style
+        shared.mkdir(parents=True, exist_ok=True)
+        for layer in ('back', 'fill', 'front'):
+            (shared / f'{layer}.png').write_bytes((folder / f'hp_{layer}.png').read_bytes())
+
+
+def glow():
+    """The light at the end of a fill: white, as tall as a fill image, brightest at its right edge and fading
+    out leftwards. One for every set, drawn over the fill's end and made more or less solid by the theme."""
+    width, height = 32, 28
+    top, bottom = 6, height - 6
+    im = Image.new('RGBA', (width * S, height * S))
+    d = ImageDraw.Draw(im)
+    for x in range(width * S):
+        u = 1 - (x + .5) / (width * S)  # 0 at the right edge
+        a = math.exp(-(u / .38) ** 2)
+        d.line((x, top * S, x, bottom * S - 1), fill=(255, 255, 255, round(255 * a)))
+    save(im, ROOT / 'glow.png')
+    (WINXI / 'glow.png').write_bytes((ROOT / 'glow.png').read_bytes())
 
 
 def preview():
@@ -260,8 +312,11 @@ def preview():
 
 
 if __name__ == '__main__':
-    for style in STYLES:
+    import sys
+    # with sets named, only those are made again, and the others' images are left as they are
+    for style in sys.argv[1:] or STYLES:
         generate(style, 'hp', 220, 28, 14)
         generate(style, 'mp', 164, 24, 11)
+    glow()
     preview()
-    print(f'Generated {len(STYLES)} texture sets and preview in {ROOT}')
+    print(f'Generated {len(sys.argv[1:] or STYLES)} texture sets and preview in {ROOT}')

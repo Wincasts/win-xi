@@ -81,6 +81,8 @@
 -- 43: winxi.nativemirror retired with the menus addon and uihook 1.58's mirror (kept in archive/)
 -- 44: controller.Heard and LayoutMismatch, the kind of controller pressing buttons; the Controller settings
 --     say when Controller Type is the other kind
+-- 45: the theme's BarGlow, BarBackdrop and BarBackdropColor (Fill End Glow, Custom Bar Backdrop), drawn by
+--     winxi.bars; six smooth Bar Textures and the Rounded and Rounded Silver bookends
 return {
-    Number = 44,
+    Number = 45,
 };

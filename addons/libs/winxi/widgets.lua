@@ -584,10 +584,15 @@ function widgets.Appearance(appearanceHooks, parts)
             end
         end
         widgets.Gap();
-        Choice('Bar Texture', 'BarTexture', theme.BarTextures, 'Matching HP and MP textures, for addons that draw HP and MP bars (the party addon): original, glossy glass, detailed metal, faceted crystal, soft satin, runic markings, a classic FF-style bevel, a brighter Radiant fill, polished chrome, plain flat, ten-cell segmented, a glowing ember, Kingdom console-menu bevels, Magitek machinery, Aether shards, Elven curved rails, or Gothic ironwork. Keeps HP/MP colour tinting.');
+        Choice('Bar Texture', 'BarTexture', theme.BarTextures, 'Matching HP and MP textures, for addons that draw HP and MP bars (the party addon): original, glossy glass, detailed metal, faceted crystal, soft satin, runic markings, a classic FF-style bevel, a brighter Radiant fill, polished chrome, plain flat, ten-cell segmented, a glowing ember, Kingdom console-menu bevels, Magitek machinery, Aether shards, Elven curved rails, Gothic ironwork, or the smooth ones, shaded from top to foot with nothing along the bar so that they look the same at any HP: Enamel (a bright upper half over a deeper one, as the game\'s own bars), Enamel (Lit Rim), Enamel (Gradient), Glass Tube, Glass Tube (Deep) and Glass Enamel. Keeps HP/MP colour tinting.');
+        Slider('Fill End Glow (%)', 'BarGlow', 0, 100, 'A soft light at the end of the HP and MP fills, where each stops, as on the game\'s own gauges: 0 is none, 100 the brightest.');
+        Check('Custom Bar Backdrop', 'BarBackdrop', 'The empty part of the HP and MP bars in a colour of your own. Off, it is the bar\'s own colour, darkened.');
+        if current.BarBackdrop then
+            Color('Bar Backdrop Color', 'BarBackdropColor', 'The colour of the empty part of the HP and MP bars. Its alpha lets the dark trough under it show through.');
+        end
         Check('Bar Bookends', 'Bookends', 'Puts a small cap at each end of the HP and MP bars.');
         if current.Bookends then
-            Choice('Bookend Style', 'BookendStyle', theme.BookendStyles, 'Separate coloured ornaments for HP and MP: matching window borders, or Kingdom crowns, Magitek couplings, Aether shards, Elven leaves, and Gothic lances. Match Border follows the Window Border; with the Theme border it uses the bar texture cap.');
+            Choice('Bookend Style', 'BookendStyle', theme.BookendStyles, 'Separate coloured ornaments for HP and MP: matching window borders, Kingdom crowns, Magitek couplings, Aether shards, Elven leaves, and Gothic lances, or Rounded and Rounded Silver, round ends after the game\'s own that carry the bar on past each end. Match Border follows the Window Border; with the Theme border it uses the bar texture cap.');
             Slider('Bookend Opacity (%)', 'BookendOpacity', 0, 100, 'How solid the bookends are: 100 is solid, 0 is none.');
         end
         if withIcons then

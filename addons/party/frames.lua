@@ -36,6 +36,8 @@
 --     bookends, tpFlash                        false to leave each out
 --     nameFont, valueFont      a font file of C:\Windows\Fonts for the names or the values; nil or '' for the theme's
 --     bookendOpacity                           0 to 100: how solid the bookends are (100 unless given)
+--     barGlow                  0 to 100: how bright the light at the end of each fill is (none unless given)
+--     barBackdrop              a colour for the empty part of the bars, over their back; nil for none
 --     showMp, showTp           false to leave the MP or the TP figure out; the MP bar is drawn either way
 --     nameChars                at most this many characters of a name, as well as what fits (nil: no limit)
 --     trimLast                 true for a list that is the last thing in its window: its last line is
@@ -90,6 +92,16 @@ local hpColor, mpColor = Hex('FF9597'), Hex('FFFF9C') -- what the bars' images, 
 -- standing half on it, after the ones the bars of the game's own party list have. A cap is an image:
 -- it shares the bar's front image, to the right of the front, so that the two are drawn as one batch.
 local bookend = { width = 3.6, over = 1.8 } -- how wide a cap is, and how far past the bar's inside its frame goes, above and below
+-- Rounded caps (after the game's own) are not on the bar's ends but beyond them, carrying the bar on: as
+-- tall as its frame, which is edge past its inside above and below, and width times as wide as that. The
+-- image is the left one; the right is the same turned about.
+local rounded = { edge = 1.2, width = 0.55 }
+local roundedStyles = { rounded = true, rounded_silver = true }
+
+-- The light at the end of a fill: an image as tall as the fill's, brightest at its right edge, glow
+-- times the frame's height long, drawn over the fill's end in white
+local glowFile = 'bars/glow.png'
+local glow = 0.55
 
 -- The layout: where everything on a line is, from the line's top left, and how big, in pixels at a
 -- scale of 100. It began as XivParty's own numbers, a fifth larger, without the job icon and cursor
@@ -104,10 +116,11 @@ local bookend = { width = 3.6, over = 1.8 } -- how wide a cap is, and how far pa
 -- left, top, right and bottom, each from 0 to 1.
 local barTextureSets = { glass = true, detailed = true, crystal = true, satin = true, runic = true, classic = true, radiant = true,
     chrome = true, flat = true, segmented = true, ember = true,
-    kingdom = true, magitek = true, aether = true, elven = true, gothic = true }
+    kingdom = true, magitek = true, aether = true, elven = true, gothic = true,
+    enamel = true, enamel_rim = true, enamel_gradient = true, tube = true, tube_deep = true, glass_enamel = true }
 local bookendFiles = {}  -- one to match each of winxi's window borders, by its name
 for _, style in ipairs({ 'silver', 'bronze', 'ffxi', 'crystal', 'royal', 'obsidian', 'royal_silver', 'royal_platinum',
-    'mythril', 'adaman', 'jade', 'amethyst', 'kingdom', 'magitek', 'aether', 'elven', 'gothic' }) do
+    'mythril', 'adaman', 'jade', 'amethyst', 'kingdom', 'magitek', 'aether', 'elven', 'gothic', 'rounded', 'rounded_silver' }) do
     bookendFiles[style] = 'bookends/' .. style .. '.png'
 end
 bookendFiles.obsidian_plain = bookendFiles.obsidian -- Plain Obsidian's border matches Obsidian's bookends
@@ -156,6 +169,9 @@ local ownIcons = true     -- winxi's status icons, where it has one, in place of
 local bookends = true     -- whether the bars have caps
 local bookendFile = nil   -- separate ornamental cap, or the selected bar's atlas
 local bookendAlpha = 1    -- how solid the caps are, 0 to 1
+local roundedCaps = false -- whether the caps are rounded, beyond the bar's ends
+local glowAlpha = 0       -- how bright the light at a fill's end is, 0 to 1
+local backdropColor = nil -- the empty part of a bar's colour, or nil to leave its back as it is
 local valueOffsets = { }  -- hp, mp, tp -> { x, y }: how far that figure is moved from its place, if at all
 local outlined = true     -- whether the names and figures have winxi's dark edge
 local nameChars = nil     -- how much of a name is written, where it is not the layout's own
@@ -343,6 +359,26 @@ local function Fill(place, bar, opacity)
     Image(place.fillImage, fill.x, frame.y, fill.width * bar.fraction, frame.height, bar.color or place.color, opacity)
 end
 
+-- The empty part of a bar, in a colour of its own: over the back and under the fill, on the bar's inside
+local function Backdrop(place)
+    local body = place.body
+    draw.Rect(math.floor(itemX + body.left * scale + 0.5), math.floor(itemY + body.top * scale + 0.5),
+        math.floor(itemX + body.right * scale + 0.5), math.floor(itemY + body.bottom * scale + 0.5), draw.Packed(backdropColor, 1))
+end
+
+-- The light at the end of a fill, over its last part: all of the image where the fill is longer than
+-- it, and as much of its right end as fits where it is not
+local function Glow(place, bar, opacity)
+    local length = place.fill.width * bar.fraction
+    if length <= 0 then
+        return
+    end
+    local frame = place.frame
+    local full = frame.height * glow
+    local width = math.min(length, full)
+    Image(glowFile, place.fill.x + length - width, frame.y, width, frame.height, white, glowAlpha * opacity, 1, 1 - width / full)
+end
+
 local function Front(place, bar)
     local frame = place.frame
     Image(place.front, frame.x, frame.y, frame.width, frame.height, bar.color or place.color, 1, place.frontPart)
@@ -358,9 +394,27 @@ local function Cap(texture, part, centre, top, bottom)
     draw.Image(texture, left, top, left + width, bottom, draw.Packed(white, bookendAlpha), part[1], part[2], part[3], part[4])
 end
 
+-- A rounded cap at each end, beyond it: the left one with its flat side on the bar's left end, the right
+-- turned about with its flat side on the right end. Both on whole pixels, of one width.
+local function RoundedCaps(place, texture)
+    local body = place.body
+    local top = math.floor(itemY + (body.top - rounded.edge) * scale + 0.5)
+    local bottom = math.floor(itemY + (body.bottom + rounded.edge) * scale + 0.5)
+    local width = math.max(2, math.floor((bottom - top) * rounded.width + 0.5))
+    local packed = draw.Packed(white, bookendAlpha)
+    local left = math.floor(itemX + body.left * scale + 0.5)
+    draw.Image(texture, left - width, top, left, bottom, packed, 0, 0, 1, 1)
+    local right = math.floor(itemX + body.right * scale + 0.5)
+    draw.Image(texture, right, top, right + width, bottom, packed, 1, 0, 0, 1)
+end
+
 -- the top and bottom of a cap are those of the bar's frame
 local function Bookends(place)
     local texture = bookendFile and draw.Texture(bookendFile)
+    if texture and roundedCaps then
+        RoundedCaps(place, texture)
+        return
+    end
     local part = texture and wholeCap or place.cap
     texture = texture or draw.Texture(place.front)
     if not texture then
@@ -388,7 +442,9 @@ local function DrawBars(count, kind, place)
     if activeStyle.barShadows ~= 'off' then Layer(count, kind, place, ShadowNear) end
     if activeStyle.barShadows == nil or activeStyle.barShadows == 'full' then Layer(count, kind, place, ShadowFar) end
     Layer(count, kind, place, Back)
+    if backdropColor then Layer(count, kind, place, Backdrop) end
     Layer(count, kind, place, Fill)
+    if glowAlpha > 0 then Layer(count, kind, place, Glow) end
     Layer(count, kind, place, Front)
     if bookends then
         Layer(count, kind, place, Bookends)
@@ -666,6 +722,31 @@ local function ConfigureExtras(style, kind)
     beyondCastOpacity, beyondTargetOpacity = style.nearOpacity or 0.7, style.farOpacity or 0.45
 end
 
+-- The bars' look: their texture, the caps at their ends, the light at a fill's end and the backdrop
+local function ConfigureBars(style)
+    bookendAlpha = math.max(0, math.min(100, tonumber(style.bookendOpacity) or 100)) / 100
+    bookends = style.bookends ~= false and bookendAlpha > 0
+    local capStyle = style.bookendStyle == 'match' and style.borderStyle or style.bookendStyle
+    bookendFile = bookendFiles[capStyle]
+    roundedCaps = roundedStyles[capStyle] == true
+    glowAlpha = math.max(0, math.min(100, tonumber(style.barGlow) or 0)) / 100
+    backdropColor = style.barBackdrop
+    -- Only known sets can select asset paths; the original remains the fallback. The paths are made
+    -- again only when the set changes.
+    local textureSet = style.barTexture
+    if textureSet ~= barTextureSet then
+        barTextureSet = textureSet
+        local textureRoot = barTextureSets[textureSet]
+            and ('bars/' .. textureSet .. '/') or 'bars/'
+        for _, kind in ipairs(barKinds) do
+            local place = layout[kind]
+            place.back = textureRoot .. kind .. '_back.png'
+            place.fillImage = textureRoot .. kind .. '_fill.png'
+            place.front = textureRoot .. kind .. '_front.png'
+        end
+    end
+end
+
 local function HoverMembers(members)
     for index, member in ipairs(members) do
         if details.Hover(itemX, lineY[index], itemX + room[1], lineY[index] + rowHeight * scale) then
@@ -693,24 +774,7 @@ function frames.Draw(members, kind, StatusTexture, style)
     buffScale = Percent(style.buffSize)
     buffSpacing = tonumber(style.buffSpacing) or 0
     ownIcons = style.ffxivIcons ~= false
-    bookendAlpha = math.max(0, math.min(100, tonumber(style.bookendOpacity) or 100)) / 100
-    bookends = style.bookends ~= false and bookendAlpha > 0
-    local capStyle = style.bookendStyle == 'match' and style.borderStyle or style.bookendStyle
-    bookendFile = bookendFiles[capStyle]
-    -- Only known sets can select asset paths; the original remains the fallback. The paths are made
-    -- again only when the set changes.
-    local textureSet = style.barTexture
-    if textureSet ~= barTextureSet then
-        barTextureSet = textureSet
-        local textureRoot = barTextureSets[textureSet]
-            and ('bars/' .. textureSet .. '/') or 'bars/'
-        for _, kind in ipairs(barKinds) do
-            local place = layout[kind]
-            place.back = textureRoot .. kind .. '_back.png'
-            place.fillImage = textureRoot .. kind .. '_fill.png'
-            place.front = textureRoot .. kind .. '_front.png'
-        end
-    end
+    ConfigureBars(style)
     valueOffsets.hp, valueOffsets.mp, valueOffsets.tp = style.hpOffset, style.mpOffset, style.tpOffset
     outlined = outlinedText.Edge() > 0 -- the theme's Text Outline
     nameChars = style.nameChars
