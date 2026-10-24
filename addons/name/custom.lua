@@ -113,6 +113,11 @@ local settings = {
     castBarAutoWidth = function () return T{ false }; end,
     castNameScale = function () return T{ 75 }; end,
     castTimerScale = function () return T{ 75 }; end,
+    castBarSkillTextOnly = function () return T{ true }; end, -- weaponskills and TP moves as words, no bar
+    castShowName = function () return T{ true }; end,
+    castShowTimer = function () return T{ true }; end,
+    castTextColour = function () return T{ 'white' }; end, -- custom.CastTextColours
+    castTextColor = function () return T{ 1, 1, 1, 1 }; end, -- for custom
     showHealthBar = function () return T{ false }; end, -- shared by every entity type
     healthBarsCombatOnly = function () return T{ false }; end,
     healthBarWidth = function () return T{ 60 }; end,
@@ -142,9 +147,18 @@ local settled = {
     { 'huntScale', 'number', 100, 200 }, { 'subtargetScale', 'number', 50, 200 },
     { 'showCastBar', 'boolean' }, { 'castBarWeaponskills', 'boolean' }, { 'castBarAutoWidth', 'boolean' },
     { 'castNameScale', 'number', 25, 200 }, { 'castTimerScale', 'number', 25, 200 },
+    { 'castBarSkillTextOnly', 'boolean' }, { 'castShowName', 'boolean' }, { 'castShowTimer', 'boolean' },
+    { 'castTextColour', 'string' },
     { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' }, { 'showVendorIcons', 'boolean' }, { 'partyIcons', 'string' }, { 'playerIconSource', 'string' },
     { 'abbreviateDifficulty', 'boolean' }, { 'fontBold', 'boolean' }, { 'fontSmooth', 'boolean' },
     { 'trackedNm', 'string' }, { 'nameFormat', 'string' }, { 'monsterFormat', 'string' }, { 'npcFormat', 'string' },
+};
+
+-- What a cast's words are written in
+custom.CastTextColours = {
+    { key = 'white', label = 'White' },
+    { key = 'name', label = 'Name Colour' },
+    { key = 'custom', label = 'Custom' },
 };
 
 function custom.Defaults(defaults)
@@ -228,6 +242,15 @@ function custom.Settle(options)
     local known = false;
     for _, choice in ipairs(roles.Modes) do known = known or choice.key == mode; end
     if (not known) then options.partyIcons[1] = settings.partyIcons()[1]; end
+    local castColour = false;
+    for _, choice in ipairs(custom.CastTextColours) do castColour = castColour or choice.key == options.castTextColour[1]; end
+    if (not castColour) then options.castTextColour[1] = settings.castTextColour()[1]; end
+    if (type(options.castTextColor) ~= 'table') then options.castTextColor = settings.castTextColor(); end
+    for i = 1, 3 do
+        local n = options.castTextColor[i];
+        options.castTextColor[i] = (type(n) == 'number' and n == n) and math.max(0, math.min(1, n)) or 1;
+    end
+    options.castTextColor[4] = 1;
     if not icons.ValidSource(options.playerIconSource[1]) then
         options.playerIconSource[1] = settings.playerIconSource()[1];
     end
@@ -1060,7 +1083,7 @@ end
 
 -- Both rows use the same geometry. Cast labels and timer are below the bar;
 -- include their foot in the layout so below-name statuses cannot overlap them.
-function fontPipeline.CastCaption(set, words, left, right, under, fit, nominal, gap, opacity)
+function fontPipeline.CastCaption(set, words, left, right, under, fit, nominal, gap, opacity, color)
     local low, high = 0, nominal;
     for _, glyph in ipairs(textRun(set, words).glyphs) do
         if glyph[10] then
@@ -1071,20 +1094,36 @@ function fontPipeline.CastCaption(set, words, left, right, under, fit, nominal, 
     end
     local top = math.ceil(under + gap - low);
     writeWords(set, words, math.floor((left + right - wordsWidth(set, words, fit)) * 0.5),
-        top, fit, WHITE, nil, opacity);
+        top, fit, color or WHITE, nil, opacity);
     return math.ceil(top + high);
 end
-function fontPipeline.WriteCast(entry, set, left, right, under, scale, fit, height, width, barHeight, opacity, nameScale, timerScale, color)
-    local bottom = healthbar.Bar(left, right, under, scale, entry.progress,
-        fadedColor(color, opacity), width, barHeight, 0xFF203048);
-    if bottom == under then return under; end
-    nameScale, timerScale = nameScale / 100, timerScale / 100;
-    bottom = fontPipeline.CastCaption(set, entry.name, left, right, bottom, fit * nameScale,
-        math.max(1, math.ceil(height * nameScale)),
-        math.max(1, math.floor(2 * scale + 0.5)), opacity);
-    bottom = fontPipeline.CastCaption(set, entry.timer, left, right, bottom, fit * timerScale,
-        math.max(1, math.ceil(height * timerScale)),
-        math.max(1, math.floor(scale + 0.5)), opacity);
+-- Weaponskills and TP moves can be words alone (castBarSkillTextOnly), written where the bar would be.
+function fontPipeline.WriteCast(entry, set, left, right, under, scale, fit, height, width, barHeight, opacity, options, color)
+    local bottom = under;
+    if not (entry.kind == 'skill' and options.castBarSkillTextOnly[1]) then
+        bottom = healthbar.Bar(left, right, under, scale, entry.progress,
+            fadedColor(color, opacity), width, barHeight, 0xFF203048);
+        if bottom == under then return under; end
+    end
+    local showName, showTimer = options.castShowName[1], options.castShowTimer[1];
+    if not (showName or showTimer) then return bottom; end
+    local mode, textColor = options.castTextColour[1], WHITE;
+    if (mode == 'name') then textColor = color;
+    elseif (mode == 'custom') then
+        local c = options.castTextColor;
+        textColor = 0xFF000000 + math.floor(c[1] * 255 + 0.5) * 0x10000 + math.floor(c[2] * 255 + 0.5) * 0x100 + math.floor(c[3] * 255 + 0.5);
+    end
+    local nameScale, timerScale = options.castNameScale[1] / 100, options.castTimerScale[1] / 100;
+    if showName then
+        bottom = fontPipeline.CastCaption(set, entry.name, left, right, bottom, fit * nameScale,
+            math.max(1, math.ceil(height * nameScale)),
+            math.max(1, math.floor(2 * scale + 0.5)), opacity, textColor);
+    end
+    if showTimer then
+        bottom = fontPipeline.CastCaption(set, entry.timer, left, right, bottom, fit * timerScale,
+            math.max(1, math.ceil(height * timerScale)),
+            math.max(1, math.floor((showName and 1 or 2) * scale + 0.5)), opacity, textColor);
+    end
     return bottom + math.max(1, math.floor(scale + 0.5));
 end
 
@@ -1585,7 +1624,7 @@ function custom.Frame(options, hook, formats)
                     if written.cast then
                         under = fontPipeline.WriteCast(written.cast, set, written.barLeft, written.barRight, under,
                             written.barScale, fit, height, written.barWidth, options.healthBarHeight[1], textOpacity,
-                            options.castNameScale[1], options.castTimerScale[1], nameTint);
+                            options, nameTint);
                     end
 
                     -- the row of statuses over all of it, or under it

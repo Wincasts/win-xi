@@ -93,7 +93,7 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   badges are unaffected. Width follows the existing resolution/distance scaling;
   small names may use a thinner edge. Aggro/passive and tracked-monster glyphs
   remain shadow-free, but now follow your chosen width rather than a fixed cap.
-  Name 1.63 requires **namehook 1.35** and **WinXI 47**. A capability check prevents
+  Name 1.64 requires **namehook 1.35** and **WinXI 47**. A capability check prevents
   older ABI-compatible plugins from silently ignoring independent width. Unsupported
   plugins retain stock names and visibility controls, with an update warning.
   `./deploy.sh push name` includes changed WinXI and the built DLL before Name;
@@ -212,10 +212,16 @@ rebuilds promptly release replaced badge atlases rather than waiting for Lua GC.
 
 In **Health Bars → Cast Bars**, enable cast bars (off by default). When enabled,
 **Show Weaponskills** also enables readied monster TP moves and weaponskill names;
-that option starts off too. **Cast Name Size (%)** and **Timer Size (%)** independently
-scale the two text rows relative to the nameplate font (25–200%, default **75%** for
-the existing appearance). Bar dimensions and nameplate text are unchanged; the status
-anchor follows the resized captions. Upscaled text can look softer.
+that option starts off too. With it, **Text Only for Weaponskills** (on by default)
+shows weaponskills and TP moves as their name and timer alone, with no bar; spells
+keep theirs.
+
+**Health Bars → Cast Text** holds the text under the bar: **Show Action Name** and
+**Show Timer** (both on), **Text Colour** (White by default, Name Colour, or Custom
+with a colour picker), and **Cast Name Size (%)** and **Timer Size (%)**, which
+independently scale the two text rows relative to the nameplate font (25–200%,
+default **75%** for the existing appearance). Bar dimensions and nameplate text are
+unchanged; the status anchor follows the resized captions. Upscaled text can look softer.
 
 **Preview** is a session-only, clearly labelled animated sample under visible names.
 It uses the actual bar/caption layout and your real HP row when enabled, and alternates

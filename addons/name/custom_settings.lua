@@ -94,16 +94,36 @@ function settings.DrawHealthBars(options, save)
         if options.showCastBar[1] then
             controls.Checkbox('Show Weaponskills', '##name.castBarWeaponskills', options.castBarWeaponskills,
                 tips.Get('name.cast_bars.weaponskills'));
+            imgui.BeginDisabled(not options.castBarWeaponskills[1]);
+            controls.Checkbox('Text Only for Weaponskills', '##name.castBarSkillTextOnly', options.castBarSkillTextOnly,
+                tips.Get('name.cast_bars.skill_text_only'));
+            imgui.EndDisabled();
             controls.Checkbox('Auto-scale to Name', '##name.castBarAutoWidth', options.castBarAutoWidth,
                 tips.Get('name.cast_bars.auto_width'));
-            controls.Slider('Cast Name Size (%)', '##name.castNameScale', options.castNameScale, 25, 200, '%d%%',
-                tips.Get('name.cast_bars.name_scale'));
-            controls.Slider('Timer Size (%)', '##name.castTimerScale', options.castTimerScale, 25, 200, '%d%%',
-                tips.Get('name.cast_bars.timer_scale'));
             local casts = require('castbar');
             controls.Checkbox('Preview', '##name.castBarPreview', casts.Preview, tips.Get('name.cast_bars.preview'));
             casts.PreviewVisible(os.clock());
         end
+    end
+    controls.EndSection();
+    if options.showCastBar[1] and controls.Section('Cast Text', '##name.castTextOptions') then
+        controls.Checkbox('Show Action Name', '##name.castShowName', options.castShowName, tips.Get('name.cast_text.show_name'));
+        controls.Checkbox('Show Timer', '##name.castShowTimer', options.castShowTimer, tips.Get('name.cast_text.show_timer'));
+        controls.Choice('Text Colour', '##name.castTextColour', options.castTextColour, require('custom').CastTextColours,
+            tips.Get('name.cast_text.colour'));
+        if options.castTextColour[1] == 'custom' then
+            widgets.Label('Custom Colour'); controls.Width();
+            imgui.ColorEdit4('##name.castTextColor', options.castTextColor, ImGuiColorEditFlags_NoAlpha or 0);
+            controls.Mark(tips.Get('name.cast_text.custom_colour'));
+        end
+        imgui.BeginDisabled(not options.castShowName[1]);
+        controls.Slider('Cast Name Size (%)', '##name.castNameScale', options.castNameScale, 25, 200, '%d%%',
+            tips.Get('name.cast_bars.name_scale'));
+        imgui.EndDisabled();
+        imgui.BeginDisabled(not options.castShowTimer[1]);
+        controls.Slider('Timer Size (%)', '##name.castTimerScale', options.castTimerScale, 25, 200, '%d%%',
+            tips.Get('name.cast_bars.timer_scale'));
+        imgui.EndDisabled();
     end
     controls.EndSection();
     if controls.Section('Shared Bar Size', '##name.barSize') then

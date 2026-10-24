@@ -508,6 +508,12 @@ Location: Health Bars → Cast Bars
 
 Also show readied weaponskills and monster TP moves, using estimated base preparation times where known. Completed/instant weaponskills briefly show their name and Used with a full bar; no fake charge-up is invented when there is no ready packet. Disabled by default. Spell and weaponskill bars stop on interrupts, death, despawn, zone change or a safety timeout. These are observations, not predictions of an enemy's next move.
 
+## name.cast_bars.skill_text_only
+Label: Text Only for Weaponskills
+Location: Health Bars → Cast Bars
+
+Show weaponskills and monster TP moves as their name and timer alone, with no bar, in the place the bar would start. On by default. Spells keep their bar. Needs Show Weaponskills.
+
 ## name.cast_bars.auto_width
 Label: Auto-scale to Name
 Location: Health Bars → Cast Bars
@@ -516,13 +522,13 @@ Extend the cast bar to fit the visible entity name, counting visible letter badg
 
 ## name.cast_bars.name_scale
 Label: Cast Name Size (%)
-Location: Health Bars → Cast Bars
+Location: Health Bars → Cast Text
 
 Size of the action-name text relative to the nameplate font, independent of the timer. Default 75% preserves the original appearance; 25–200% is available. Does not change the bar dimensions or nameplate text. Large percentages upscale the existing font and may look softer. Status rows are moved down to clear the resized captions.
 
 ## name.cast_bars.timer_scale
 Label: Timer Size (%)
-Location: Health Bars → Cast Bars
+Location: Health Bars → Cast Text
 
 Size of the remaining/elapsed timer text relative to the nameplate font, independent of the action name. Default 75% preserves the original appearance; 25–200% is available. Used and Waiting use this size too. Does not change the bar dimensions; normal fading still applies.
 
@@ -531,3 +537,27 @@ Label: Preview
 Location: Health Bars → Cast Bars
 
 Session-only animated preview under visible names, clearly labelled Preview. Tune shared bar dimensions, cast-name size and timer size without waiting for a cast. Uses the actual cast-bar layout, name colour, auto-width and your real HP row when enabled. With Show Weaponskills on, the sample alternates spell and TP-move styles. Real casts take precedence. No packets, actor records or saved preview setting are created. Stops shortly after leaving this settings section/window, and resets when Name/cast bars are disabled or settings reloaded.
+
+## name.cast_text.show_name
+Label: Show Action Name
+Location: Health Bars → Cast Text
+
+Write the spell, weaponskill or TP move's name under the cast bar. On by default.
+
+## name.cast_text.show_timer
+Label: Show Timer
+Location: Health Bars → Cast Text
+
+Write the time left (~), the time so far (+), Waiting or Used under the action's name. On by default.
+
+## name.cast_text.colour
+Label: Text Colour
+Location: Health Bars → Cast Text
+
+What the action name and timer are written in: White (the default), Name Colour (the same colour as the name and its cast bar) or Custom. Normal fading still applies.
+
+## name.cast_text.custom_colour
+Label: Custom Colour
+Location: Health Bars → Cast Text
+
+The colour of the action name and timer when Text Colour is Custom.
