@@ -169,6 +169,8 @@ run zoneinfo-styles tests/zoneinfo_fixture.lua zoneinfo_styles_check.lua
 luajit tests/zoneinfo_gdi_families_check.lua
 luajit tests/zoneinfo_height_check.lua
 luajit tests/zoneinfo_exact_check.lua
+luajit tests/zoneinfo_entrances_check.lua
+python3 tools/test_build_zone_entrances.py
 run zoneinfo-features tests/zoneinfo_background_fixture.lua zoneinfo_features_check.lua
 echo
 run name addons/name/name.lua name_check.lua

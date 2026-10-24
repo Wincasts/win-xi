@@ -172,10 +172,38 @@ Vana'diel day and time the popup came up at, such as `Firesday 14:20`: a line
 of its own in Classic Text, the last line in the other styles. It starts on for
 zone entry and off for sub-zones; weather popups follow the sub-zone's.
 
-**Approach Distance** (under Sub-zone Popup) is how near a feature is announced,
-0 to 100 yalms from its outline. It is saved per character, as is the map chosen
-for live detection in each zone; `/zone approach` and `/zone livemap`
-change the same settings.
+How near a feature is announced, from 0 to 100 yalms from its outline, depends
+on the kind of zone it is in (the kinds of Kind Frames, below): **Field Approach
+Distance** for open country (50 to start), where features are wide and far
+apart; **Town Approach Distance** (10) in a city, where squares and streets lie
+a few yalms from each other; **Dungeon Approach Distance** (15) in a dungeon or
+a beastmen stronghold. Shops and guilds are exact whatever these are. They are
+under Sub-zone Popup, saved per character as is the map chosen for live
+detection in each zone; `/zone approach` and `/zone livemap` change the same
+settings.
+
+### Dungeon entrances
+
+**Announce Dungeon Entrances** (on to start) names a dungeon's entrance as you
+come to it, as a sub-zone: `Quicksand Caves Entrance 7`. The number is the one
+the zone's map writes beside it, and a name the map gives the place is added:
+`Outer Horutoto Ruins Entrance 6 (Lilac Tower)`. **Entrance Distance** (20
+yalms to start, 5 to 50) is how near: closer in than open country's features,
+so it is the entrance you are told of and not the hills round it. An entrance is
+only announced within 15 yalms of its height, so a path above or below it is
+not taken for it; inside a feature, the entrance is named, and stepping away
+names the feature again.
+
+There are 184 entrances into dungeons from open country and cities in 55 zones,
+from the Phoenix server's zone lines (where each way into a dungeon is). Lines
+into the same dungeon within 30 yalms of each other are one entrance. 123 have
+their map's number. The others' maps mark none there (King Ranperre's Tomb,
+Ghelsba Outpost, Davoi and most of the original dungeons have a label and an
+arrow, not a number), or the map's picture is too coarse to read one (Cape
+Teriggan, Eastern Altepa Desert and most [S] maps). Dungeon-to-dungeon passages
+are not included. The entrances are drawn in blue in the map browser and are
+not edited there; `tools/build_zone_entrances.py` makes them, with the numbers
+from `research/dungeon_entrances.json`.
 
 ### Weather popup
 
@@ -345,7 +373,7 @@ name. Preview never enables area detection or changes map selection.
 
 Display settings are saved by Ashita's per-character `settings` library under
 `config/addons/zone/`, separately from polygon overrides. Display changes
-save on completed interaction/config close/unload. Approach distance and each
+save on completed interaction/config close/unload. Approach distances and each
 zone's live map are saved with them. The debug toggle, manual transforms and
 editor browsing remain session-only. The map editor window also
 follows the selected winxi theme; map overlays keep their diagnostic colors.
@@ -451,7 +479,7 @@ new raster detail.
 ### Feature boundary versus approach boundary
 
 The yellow handles edit the **feature polygon**. The approach buffer is added
-outside it, by default **30 yalms**. Gray outlines mark the feature; orange/green
+outside it: the zone's kind's distance, **50 yalms** in open country to start. Gray outlines mark the feature; orange/green
 outlines show the approach envelope; purple marks disabled drafts. Cyan marks
 the player **only on the live map**.
 
@@ -460,9 +488,10 @@ the player **only on the live map**.
 /zone approach 0
 ```
 
-The first widens the buffer; the second makes the draggable polygon the exact
-detection boundary. Approach distance is saved per character (default 30) and
-is also a slider in the settings. It is straight-line horizontal proximity, not walking-path length or
+The first widens open country's buffer; the second makes the draggable polygon
+the exact detection boundary there. `/zone approach town 8` and `/zone approach
+dungeon 12` set the others. The distances are saved per character and are
+sliders in the settings. It is straight-line horizontal proximity, not walking-path length or
 line of sight. Terrain barriers and elevation-specific sub-area volumes are
 not modelled.
 
@@ -553,7 +582,7 @@ applied to position before testing polygons.
 | `/zone reload` or `rl` | Reload character display settings and show current zone |
 | `/zone poc [on\|off]` | Toggle experimental area announcements |
 | `/zone debug [on\|off]` | Open/close the all-map browser/editor |
-| `/zone approach <0..100>` | Approach buffer in yalms (default 30), saved |
+| `/zone approach [field\|town\|dungeon] <0..100>` | Approach buffer in yalms for that kind of zone (open country without one), saved |
 | `/zone sample` or `status` | Print live coordinate/map report |
 | `/zone livemap auto` | Remove this zone's saved live-map choice |
 | `/zone livemap <map-key>` | Use a raster in the current zone, saved for that zone |

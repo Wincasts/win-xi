@@ -61,6 +61,9 @@ check('reset seeds current silently', not g.update(t, 'a', 6) and t.current == '
 local calls = 0;
 local reader = { get_entry = function() calls = calls + 1; return entry; end };
 local c = tracking.new(reader);
+check('open country is announced from further off than a dungeon, a dungeon than a town',
+    c.state.approach.outdoors == 50 and c.state.approach.dungeon == 15 and c.state.approach.city == 10);
+c.state.approach.outdoors = 30; -- The places below were laid out for a 30-yalm buffer.
 c.state.enabled = true;
 local function sample(map_x, map_y, at, zone)
     local px, py = g.map_to_world(entry, map_x, map_y);
@@ -73,7 +76,7 @@ sample(238, 337, 2);
 check('area transition waits behind zone banner', sample(238, 337, 3.1) == nil and c.state.area.id == 'knightwell');
 check('queued stable area announces after zone banner', sample(238, 337, 6.1).id == 'knightwell');
 check('controller does not spam', sample(238, 337, 7) == nil);
-check('default approach buffer is thirty world yalms', c.state.approach_yalms == 30 and c.state.approach_pixels == 30);
+check('the zone\'s kind sets the buffer, in world yalms', c.state.approach_yalms == 30 and c.state.approach_pixels == 30);
 sample(200, 300, 8); sample(200, 300, 9.1);
 check('stable exit does not invent a name', c.state.area == nil);
 sample(238, 337, 10);
@@ -97,6 +100,7 @@ check('release reseeds without editing-induced announcement', sample(238, 337, 1
 local small_entry = { scale = 2, offset_x = -256, offset_y = -256, floor_id = 0 };
 local small = tracking.new({ get_entry = function() return small_entry; end });
 small.state.debug = true;
+small.state.approach.outdoors = 30;
 small:set_zone(100, 0, 0);
 local sx, sy = g.map_to_world(small_entry, 260, 337);
 small:sample(100, { x = sx, y = sy, z = 0 }, 0);

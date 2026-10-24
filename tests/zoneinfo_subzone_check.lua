@@ -11,7 +11,9 @@ local function count()
     return total;
 end
 local function move(x, y) game.x, game.y = x - 256, 256 - y; end
-H.load(); H.frames(230);
+H.load();
+p.app.options.display.fieldApproach[1] = 30; -- The places below were laid out for a 30-yalm buffer.
+H.frames(230);
 check('sub-zone popups enabled by default', p.area_enabled());
 check('load seeds silently', count() == 0);
 move(238, 337); H.frames(70);

@@ -35,7 +35,8 @@ local function defaults()
         areaTitleSize = T{ 32 }, areaDetailSize = T{ 16 }, spacing = T{ 4 },
         renderer = 'imgui',
         weatherEnabled = T{ true },
-        approachYalms = T{ 30 }, liveMaps = T{ },
+        fieldApproach = T{ 50 }, townApproach = T{ 10 }, dungeonApproach = T{ 15 },
+        entrancesEnabled = T{ true }, entranceYalms = T{ 20 }, liveMaps = T{ },
         locationEnabled = T{ false }, locationLocked = T{ false }, locationPosition = T{ 20, 300 }, locationSize = T{ 16 },
         backgroundEnabled = T{ false }, backgroundFile = T{ '' }, backgroundFlags = T{ true },
         backgroundSize = T{ 640, 140 }, backgroundOffset = T{ 0, -16 }, backgroundOpacity = T{ .6 },
@@ -63,7 +64,8 @@ end
 local ranges = { titleSize = { 14, 96 }, detailSize = { 10, 40 }, zoneTitleSize = { 14, 96 },
     zoneDetailSize = { 10, 40 }, areaTitleSize = { 14, 96 }, areaDetailSize = { 10, 40 },
     spacing = { 0, 30 }, hold = { .1, 60 }, fadeIn = { 0, 3 }, fadeOut = { 0, 10 },
-    opacity = { 0, 1 }, approachYalms = { 0, 100 }, locationSize = { 10, 40 },
+    opacity = { 0, 1 }, fieldApproach = { 0, 100 }, townApproach = { 0, 100 }, dungeonApproach = { 0, 100 },
+    entranceYalms = { 5, 50 }, locationSize = { 10, 40 },
     styleTitleSize = { 16, 120 }, styleDetailSize = { 10, 48 },
     pennantWidth = { 40, 240 }, pennantLength = { 120, 1200 }, pennantLetterSize = { 10, 80 },
     kanjiSize = { 32, 320 }, kanjiOpacity = { 0, 1 }, backdropOpacity = { 0, 1 }, backdropSoftness = { 0, 120 } };
@@ -78,6 +80,7 @@ function M.complete(options)
     local fallback = defaults().display;
     if type(options.display) ~= 'table' then options.display = fallback; end
     local d = options.display;
+    d.approachYalms = nil; -- One distance for every zone, before field, town and dungeon had their own.
     for key, value in pairs(fallback) do
         if type(value) == 'table' then
             if type(d[key]) ~= 'table' then d[key] = value; end
@@ -90,7 +93,7 @@ function M.complete(options)
     -- SliderFloat's %.0f label does not round its value. Fractional sizes otherwise
     -- create new baked fonts continuously while dragging, churning the shared atlas.
     for _, key in ipairs({ 'titleSize', 'detailSize', 'zoneTitleSize', 'zoneDetailSize', 'areaTitleSize', 'areaDetailSize',
-        'locationSize', 'approachYalms', 'styleTitleSize', 'styleDetailSize', 'pennantWidth', 'pennantLength',
+        'locationSize', 'fieldApproach', 'townApproach', 'dungeonApproach', 'entranceYalms', 'styleTitleSize', 'styleDetailSize', 'pennantWidth', 'pennantLength',
         'pennantLetterSize', 'kanjiSize', 'backdropSoftness' }) do
         d[key][1] = math.floor(d[key][1] + .5);
     end
@@ -222,9 +225,19 @@ local function draw_settings(options)
         tips.Hover('The Vana\'diel day and time you came to it, such as Firesday 14:20.');
         checkbox(d, 'Show Experimental Label', 'areaExperimental');
         widgets.PushControlWidth();
-        slider(d, 'Approach Distance', 'approachYalms', '%.0f yalms');
+        slider(d, 'Field Approach Distance', 'fieldApproach', '%.0f yalms');
+        tips.Hover('How near a feature in open country is announced, measured from its outline. 0 announces only inside it.');
+        slider(d, 'Town Approach Distance', 'townApproach', '%.0f yalms');
+        tips.Hover('The same in a city, where squares and streets lie close together. Shops and guilds are announced only inside.');
+        slider(d, 'Dungeon Approach Distance', 'dungeonApproach', '%.0f yalms');
+        tips.Hover('The same in a dungeon or a beastmen stronghold.');
         widgets.PopControlWidth();
-        tips.Hover('How near a feature is announced, measured from its outline. 0 announces only inside it.');
+        checkbox(d, 'Announce Dungeon Entrances', 'entrancesEnabled');
+        tips.Hover('Names a dungeon\'s entrance as you come to it, with the number the map gives it: Quicksand Caves Entrance 7.');
+        widgets.PushControlWidth();
+        slider(d, 'Entrance Distance', 'entranceYalms', '%.0f yalms');
+        widgets.PopControlWidth();
+        tips.Hover('How near an entrance is announced, from where it leads into the dungeon.');
     end
     widgets.Gap();
     if widgets.Header('Weather Popup') then

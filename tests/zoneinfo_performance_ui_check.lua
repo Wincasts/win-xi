@@ -19,7 +19,7 @@ local function check(label, ok) H.print(label, ok); assert(ok, label); end
 view.clear(); view.browser.follow[1] = true;
 local colors = H.calls.GetColorU32 or 0;
 view.draw(s, e);
-check('draw colors converted once per palette, not per edge', H.calls.GetColorU32 - colors == 9);
+check('draw colors converted once per palette, not per edge', H.calls.GetColorU32 - colors == 10);
 check('initial visible geometry computed once per area', built == #map.areas);
 for _ = 1, 10 do view.draw(s, e); end
 check('idle frames do not rebuild outlines', built == #map.areas);

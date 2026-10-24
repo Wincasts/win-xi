@@ -115,7 +115,8 @@ function M.size(polygon)
 end
 
 -- An exact area (a building) is entered by stepping inside it: it has no approach distance, and
--- only a sliver of slack on the way out.
+-- only a sliver of slack on the way out. An area with its own approach (a dungeon entrance) uses it,
+-- and its own margin, in place of the ones given.
 local EXACT_MARGIN = 0.5;
 function M.classify(areas, x, y, current_id, margin, approach, z)
     if (not M.finite(x) or not M.finite(y)) then return nil; end
@@ -132,7 +133,8 @@ function M.classify(areas, x, y, current_id, margin, approach, z)
     if inside then return inside; end
     -- Retain the current approach area through small boundary excursions.
     for _, area in ipairs(areas) do
-        local exit_radius = area.exact and math.min(margin or 0, EXACT_MARGIN) or (approach + (margin or 0));
+        local exit_radius = area.exact and math.min(margin or 0, EXACT_MARGIN)
+            or ((area.approach or approach) + math.min(margin or 0, area.margin or math.huge));
         if (area.enabled ~= false and area.id == current_id and exit_radius >= 0
             and M.in_height(area, z, HEIGHT_SLACK)
             and near_bounds(area.polygon, x, y, exit_radius)
@@ -143,9 +145,10 @@ function M.classify(areas, x, y, current_id, margin, approach, z)
     -- In overlapping buffers choose the nearest feature, not the first table entry.
     local nearest, distance = nil, math.huge;
     for _, area in ipairs(areas) do
-        if area.enabled ~= false and not area.exact and M.in_height(area, z) and near_bounds(area.polygon, x, y, approach) then
+        local reach = area.approach or approach;
+        if area.enabled ~= false and not area.exact and reach > 0 and M.in_height(area, z) and near_bounds(area.polygon, x, y, reach) then
             local d = edge_distance_squared(area.polygon, x, y);
-            if d <= approach * approach and d < distance then nearest, distance = area, d; end
+            if d <= reach * reach and d < distance then nearest, distance = area, d; end
         end
     end
     return nearest; -- Beyond the finite approach distance, terrain stays unlabelled.

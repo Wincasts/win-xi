@@ -1,13 +1,87 @@
 -- Throttled polling is owned by zone.lua; this controller tracks one valid sample at a time.
 local geometry = require('area_geometry');
 local definitions = require('map_catalog');
+local kinds = require('data.zone_kinds');
+local entrances = require('data.entrances');
 local M = {};
 local EXACT_DELAY = 0.3;
+-- How near a feature is announced, by the zone's kind: open country's features are wide, a city's
+-- squares and a dungeon's rooms close together. A zone of no known kind is open country.
+M.APPROACH = { outdoors = 50, city = 10, dungeon = 15 };
+-- A dungeon entrance is a circle round the server's zone line, tighter than open country's
+-- features, and only at about its height, so a path above or below it is not taken for it.
+M.ENTRANCE = { enabled = true, yalms = 20 };
+local ENTRANCE_HEIGHT = 15;
+local ENTRANCE_SLACK = 3; -- yalms kept on the way out
+local ENTRANCE_SIDES = 16;
+
+function M.kind(zone)
+    local kind = kinds[zone or 0];
+    return (kind == 'city' or kind == 'dungeon') and kind or 'outdoors';
+end
+
+function M.approach_yalms(state, zone)
+    local by_kind = state.approach or M.APPROACH;
+    return by_kind[M.kind(zone)] or M.APPROACH[M.kind(zone)];
+end
+
+-- 'Quicksand Caves Entrance 7', 'Outer Horutoto Ruins Entrance 6 (Lilac Tower)'.
+function M.entrance_name(entrance)
+    local name = entrance.to_name .. ' Entrance';
+    if entrance.label then name = name .. ' ' .. entrance.label; end
+    if entrance.place then name = name .. ' (' .. entrance.place .. ')'; end
+    return name;
+end
+
+-- A zone's entrances as areas on one map, made again only when the map's transform or the distance
+-- changes. They are kept apart from the map's own areas, which the editor saves.
+local entrance_cache = setmetatable({}, { __mode = 'k' });
+function M.entrance_areas(zone, entry, yalms)
+    local list = entrances[zone or 0];
+    if not list or not entry or not geometry.finite(entry.scale) or entry.scale == 0 then return nil; end
+    local cached = entrance_cache[entry];
+    if cached and cached.zone == zone and cached.yalms == yalms then return cached.areas; end
+    local factor = math.abs(entry.scale) / 5.0;
+    local radius = yalms * factor;
+    local areas = {};
+    for _, entrance in ipairs(list) do
+        local x, y = geometry.world_to_map(entry, entrance.x, entrance.y);
+        local polygon = {};
+        for i = 0, ENTRANCE_SIDES - 1 do
+            local a = i * 2 * math.pi / ENTRANCE_SIDES;
+            polygon[#polygon + 1] = { x + radius * math.cos(a), y + radius * math.sin(a) };
+        end
+        areas[#areas + 1] = { id = 'entrance_' .. entrance.id, name = M.entrance_name(entrance), enabled = true,
+            entrance = true, approach = 0, margin = ENTRANCE_SLACK * factor, polygon = polygon,
+            z_min = entrance.z - ENTRANCE_HEIGHT, z_max = entrance.z + ENTRANCE_HEIGHT,
+            provenance = "Phoenix server zone line" };
+    end
+    entrance_cache[entry] = { zone = zone, yalms = yalms, areas = areas };
+    return areas;
+end
+
+-- The map's areas and, when they are wanted, the zone's entrances: one list, kept while neither changes.
+local function with_entrances(state, definition, zone, entry)
+    local wanted = state.entrances or M.ENTRANCE;
+    local extra = wanted.enabled and M.entrance_areas(zone, entry, wanted.yalms) or nil;
+    if not extra then return definition.areas; end
+    local merged = state.merged;
+    if merged and merged.areas == definition.areas and merged.count == #definition.areas and merged.extra == extra then
+        return merged.list;
+    end
+    local list = {};
+    for _, area in ipairs(definition.areas) do list[#list + 1] = area; end
+    for _, area in ipairs(extra) do list[#list + 1] = area; end
+    state.merged = { areas = definition.areas, count = #definition.areas, extra = extra, list = list };
+    return list;
+end
 
 function M.new(reader)
     local controller = {
         reader = reader, tracker = geometry.new_tracker(1.0),
-        state = { enabled = false, debug = false, zone = 0, approach_yalms = 30, approach_pixels = 0 },
+        state = { enabled = false, debug = false, zone = 0, approach_yalms = M.APPROACH.outdoors, approach_pixels = 0,
+            approach = { outdoors = M.APPROACH.outdoors, city = M.APPROACH.city, dungeon = M.APPROACH.dungeon },
+            entrances = { enabled = M.ENTRANCE.enabled, yalms = M.ENTRANCE.yalms } },
         quiet_until = 0, announce_after = 0, queued = nil, next_map_retry = 0,
     };
 
@@ -16,6 +90,7 @@ function M.new(reader)
         self.state.position, self.state.entry, self.state.map_x, self.state.map_y = nil, nil, nil, nil;
         self.state.raw_area, self.state.area, self.state.error = nil, nil, nil;
         self.state.approach_pixels, self.state.map_key, self.state.definition = 0, nil, nil;
+        self.state.merged = nil;
         self.queued, self.next_map_retry = nil, 0;
         self.quiet_until = now or 0;
     end
@@ -37,6 +112,7 @@ function M.new(reader)
         if (zone ~= self.state.zone) then self:set_zone(zone, now); end
         local s = self.state;
         s.position = position;
+        s.approach_yalms = M.approach_yalms(s, zone);
         if (not s.enabled and not s.debug) then return nil; end
         local definition = definitions[zone];
         if (not definition) then
@@ -92,14 +168,15 @@ function M.new(reader)
             s.error = 'Dragging boundary: announcements paused until release.';
             return nil;
         end
-        s.raw_area = geometry.classify(definition.areas, x, y, nil, 0, s.approach_pixels, position.z);
-        local candidate = geometry.classify(definition.areas, x, y, self.tracker.current, 3.0, s.approach_pixels, position.z);
+        local areas = with_entrances(s, definition, zone, s.entry);
+        s.raw_area = geometry.classify(areas, x, y, nil, 0, s.approach_pixels, position.z);
+        local candidate = geometry.classify(areas, x, y, self.tracker.current, 3.0, s.approach_pixels, position.z);
         -- A doorway is walked through in a moment: a building is taken on the next sample but one,
         -- where open country waits a full second for the player to settle.
         local changed, stable_id = geometry.update(self.tracker, candidate and candidate.id or nil, now,
             candidate and candidate.exact and EXACT_DELAY or nil);
         s.area = nil;
-        for _, area in ipairs(definition.areas) do
+        for _, area in ipairs(areas) do
             if (area.id == stable_id) then s.area = area; break; end
         end
         if (changed) then

@@ -27,6 +27,7 @@ local function move(map_x, map_y)
 end
 H.load();
 local display = H.options().display;
+display.fieldApproach[1] = 30; -- The places below were laid out for a 30-yalm buffer.
 H.frames(50);
 check('addon load does not pop a zone banner', zones(100) == 0);
 check('sub-zone popups and chat lines on to begin with', display.areaEnabled[1] == true and display.chat[1] == true);
@@ -99,7 +100,7 @@ check('zero approach restores feature-only entry', areas('Knightwell') == before
 H.command('/zone approach 101');
 check('out-of-range approach distance refused', count('Usage: /zone approach') > 0);
 H.command('/zone approach 30');
-check('approach distance adjustable in session', count('Approach buffer: 30 yalms around each feature') == 1);
+check('approach distance adjustable in session', count('Approach buffer in open country: 30 yalms around each feature') == 1);
 H.command('/zone debug on'); H.frames(10);
 H.command('/zone debug off');
 local drawn = H.calls['draw.AddLine'] or 0;

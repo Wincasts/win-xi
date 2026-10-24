@@ -2,6 +2,7 @@
 local imgui = require('imgui');
 local catalog = require('map_catalog');
 local geometry = require('area_geometry');
+local tracking = require('area_tracking');
 local winxi_style = require('winxi.style');
 local mapdat = require('winxi.mapdat');
 local browser = require('map_browser').new(catalog);
@@ -92,7 +93,9 @@ function M.draw(state, editor)
             imgui.Text(('Live world X/Y: %.2f, %.2f | Z: %.2f'):format(state.position.x, state.position.y, state.position.z));
         end
         local entry = definition and preview_transform(definition, state, editor, live);
-        local radius = entry and state.approach_yalms * math.abs(entry.scale) / 5 or 0;
+        -- The viewed map's own zone sets the distance: a city's is not open country's.
+        local approach = definition and tracking.approach_yalms(state, definition.zone_id) or state.approach_yalms;
+        local radius = entry and approach * math.abs(entry.scale) / 5 or 0;
         if entry then
             imgui.Text(('Viewed floor %d | scale %.2f | offsets %.2f, %.2f'):format(entry.floor_id, entry.scale, entry.offset_x, entry.offset_y));
         elseif definition then
@@ -100,7 +103,7 @@ function M.draw(state, editor)
             if imgui.Button('Retry viewed transform') then preview = {}; end
         end
         if live and state.map_x then imgui.Text(('Live map (512): %.2f, %.2f'):format(state.map_x, state.map_y)); end
-        imgui.Text(('Approach: %.0f yalms (viewed map: %.2f pixels)'):format(state.approach_yalms, radius));
+        imgui.Text(('Approach: %.0f yalms (viewed map: %.2f pixels)'):format(approach, radius));
         if state.error then imgui.Text('Live status: ' .. state.error); end
         if editor and editor.view_key ~= (definition and definition.key) then
             editor.view_key = definition and definition.key;
@@ -211,7 +214,7 @@ function M.draw(state, editor)
             local palette = {
                 white = color(1, 1, 1), background = color(.12, .12, .12), black = color(0, 0, 0),
                 gray = color(.7, .7, .7), selected = color(.2, 1, .2), disabled = color(.65, .45, .8),
-                normal = color(1, .65, .1), vertex = color(1, 1, .2), player = color(0, 1, 1),
+                normal = color(1, .65, .1), vertex = color(1, 1, .2), player = color(0, 1, 1), entrance = color(.35, .6, 1),
             };
             local function draw_line(a, b, tint, width)
                 local ax, ay, bx, by = ox + a[1] * scale, oy + a[2] * scale, ox + b[1] * scale, oy + b[2] * scale;
@@ -264,6 +267,17 @@ function M.draw(state, editor)
                 end
                 end -- Feature/approach envelope intersects the viewport.
             end
+            -- Dungeon entrances: not edited here, drawn so they can be seen against the map's own areas.
+            local wanted = state.entrances or tracking.ENTRANCE;
+            local entrances = entry and wanted.enabled and tracking.entrance_areas(definition.zone_id, entry, wanted.yalms);
+            for _, area in ipairs(entrances or {}) do
+                local selected = live and state.area and state.area.id == area.id;
+                local previous = area.polygon[#area.polygon];
+                for _, point in ipairs(area.polygon) do
+                    draw_line(previous, point, selected and palette.selected or palette.entrance, 2);
+                    previous = point;
+                end
+            end
             if editor and editor.edit_mode[1] and editor.selected then
                 for i, point in ipairs(editor.selected.polygon) do
                     local position = screen(point[1], point[2]);
@@ -278,7 +292,7 @@ function M.draw(state, editor)
             if not handle then imgui.Text('Map preview unavailable; showing polygons only.'); end
             elseif editor then editor:cancel(); end -- EndChild is required even when clipped.
             imgui.EndChild();
-            imgui.Text('Yellow: vertices | Cyan: live player | Purple: disabled draft | Orange/green: approach');
+            imgui.Text('Yellow: vertices | Cyan: live player | Purple: disabled draft | Orange/green: approach | Blue: dungeon entrance');
         end
         imgui.Text('/zone sample prints live coordinates; /zone debug off closes this window.');
     elseif editor then editor:cancel(); end
