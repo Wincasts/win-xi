@@ -16,16 +16,27 @@ The game's `/map` is left to the game: this is `/atlas`.
   the controller, as `/atlas browse`) and **passthrough** (shown, with the controller left to the
   game, fading to **Passthrough Opacity** while you move), then hidden again. A map shown by `/atlas` goes to open next. With
   Controller Navigation off, open is just shown. Put it in a game macro for one button that does all three.
+  With **Fade In And Out** enabled in the Winxi Theme tab, opening and hiding fade smoothly; hiding
+  preserves passthrough's opacity and frame until it disappears. Returning from faded passthrough
+  to browsing eases back to full opacity. Controller handoff is immediate.
 
 ## The map
 
+The zone name is the window's frame title (shown when **Frame Titles** is enabled in the theme).
+
 - **Mouse wheel** zooms, 1x to 8x, round the place under the mouse; **−** and **+** zoom round the middle.
+  The last zoom is saved per zone, including across addon reloads, and restored when you return.
+  Floors in the same zone share a zoom level; panning is not remembered, so returning follows you again.
 - **Drag** pans, and stops following you. **Follow** keeps you in the middle again; **Whole Map**
   shows all of it.
 - In a zone of several maps, the floor buttons over the map show another; **Auto** goes back to
   the one you are on.
 - Over the map, the tooltip gives the grid square, the place in the zone and who is under the mouse.
 - The grid square you are in is under the map.
+- When zooming or a narrow frame crops out the map's printed grid legend, an overlay replaces the
+  missing edge labels: column letters along the top/bottom and row numbers along the sides. They
+  line up with the visible grid cells, move as you pan, and follow rounded map edges. Edges whose
+  original legend is still visible are left alone.
 
 ## With a controller
 
@@ -34,8 +45,9 @@ map takes it while open:
 
 | Button | Does |
 | --- | --- |
-| Right stick | scrolls, faster the further it is pushed |
-| Left stick, D-pad | the game's, as ever: walk and work the game with the map open |
+| Left stick | scrolls, faster the further it is pushed (with **Analog Stick Control** on) |
+| D-pad | scrolls, repeating while held, with **Analog Stick Control** off; otherwise left to the game |
+| Right stick | always left to the game |
 | RB / LB | zooms in / out a step: 1x, 1.5x, 2x, 3x, 4x, 6x, 8x |
 | Y | puts a waypoint under the cursor (moving the one there was); on the waypoint, takes it away |
 | A | locks the map to you: back to your floor, following you, the cursor on you |
@@ -43,11 +55,12 @@ map takes it while open:
 | B | gives the controller back, and hides the map again if browsing opened it |
 
 The buttons go through winxi's controller handling: they are kept from the game while the map has
-them, and **Controller Type** picks XInput or a DirectInput layout. The right stick is kept from the game
-while the map has the controller, so the camera doesn't turn, and as browsing begins the game is told
-it is centred. The left stick and the d-pad are left to the game. The stick is read from the kind of
-controller **Controller Type** names: an XInput controller's right stick as Ashita's buttons 20 and
-21, a DirectInput one's as its axes 8 and 20 (Z and RZ).
+them, and **Controller Type** picks XInput or a DirectInput layout. Only the selected scrolling control is kept from the game while browsing. With **Analog Stick
+Control** on, the left stick pans the map rather than moving your character; as browsing begins,
+the game is told the left stick is centred. With it off, the D-pad pans and both sticks stay the
+game's. The right stick is always free for the camera. The stick is read from the kind of controller
+**Controller Type** names: an XInput controller's left stick as Ashita's buttons 18 and 19, a
+DirectInput one's as its axes 0 and 4 (X and Y).
 
 While the map has the controller a cursor, a plain +, sits in the middle of it, or on you while the map is
 locked to you (near the map's edge, where the view cannot centre on you). Scrolling stops the lock
@@ -61,9 +74,10 @@ the triggers to the game.)
 
 ## Markers
 
-- **You**: an arrow the way you face.
-- **Party** and **Alliance**: a dot each. A member the game is showing is where it has them. One further
-  off is drawn hollow where the server last said, for ten seconds.
+- **You**: an arrow the way you face by default, with other styles selectable below.
+- **Party** and **Alliance**: dots by default, with independent selectable styles. A member the game
+  is showing is where it has them. One further off is drawn hollow where the server last said, for
+  ten seconds. Unknown facing is never displayed as a directional triangle.
 - **Target**: a diamond.
 
 ## Settings
@@ -85,17 +99,30 @@ Passthrough also has:
 
 - **Passthrough Opacity**: the map fades to this while your character moves and comes back about
   half a second after you stop, 0% to 100% (30% to start). At 0% it is gone until you stop. The mouse
-  over the map shows it whole. Open, or shown by `/atlas`, it never fades.
+  over the map shows it whole. Open, or shown by `/atlas`, movement does not dim it.
 
 **Markers**
 
 - **Show Player**, **Show Party**, **Show Alliance** and **Show Target**, each with its colour.
-- **Show Names**: names beside the party, the alliance and the target.
-- **Marker Size**: 4 to 24 pixels.
+- **Player Style**: **Arrow**, **Chevron**, **Dot + facing line**, or **Ring + arrow**.
+- **Party Style** and **Alliance Style**, independently: **Dot**, **Directional triangle**,
+  **Hollow circle**, or **Numbered dot**. Numbers use member slots 1–18 (your slot is 1); numbered
+  dots grow as needed to fit the number.
+- **Player Size**, **Party Size**, and **Alliance Size**: separate sizes, or **0** to inherit the
+  shared **Marker Size**. Use these to make alliance markers smaller, for example.
+- **Player Outline**, **Party Outline**, and **Alliance Outline**: toggle the dark edge independently.
+- **Names**: **Always**, **On Hover**, or **Hidden** for labels beside party, alliance and target
+  markers. Map hover tooltips still identify nearby markers.
+- **Marker Size**: shared size, 4 to 24 pixels; also controls the target, waypoint and browsing cursor.
+
+The original arrow/dot styles, sizes, outlines and always-visible names remain the defaults.
+Selections are saved with your Atlas settings.
 
 **Controller**
 
 - **Controller Navigation** (on): whether `/atlas browse` can give the map the controller.
+- **Analog Stick Control** (on): pan with the left stick. Turn off to pan with the D-pad instead;
+  holding a direction repeats. The unused control stays with the game.
 - **Controller Sounds** and **Controller Type**, as in winxi's other addons.
 
 **Party**

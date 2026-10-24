@@ -72,7 +72,8 @@ local time = { get_game_day = function() return 30 end }
 local context = { weatherId = 7, weekday = 3, raw = 3456 * 2 + 100, time = time }
 local text = fields.IconTooltip('weather', context)
 p('the weather, its element and strength, then the forecast', text:find('^Weather: Squalls\nElement: Water\nStrength: Double\n\nForecast for Testing Grounds:\nToday, Windsday 30: 50%% Clear skies') ~= nil,
-    text:find('Darksday 4: 50%% Clear skies, 35%% Sunshine, 15%% Clouds$') ~= nil)
+    text:find('Lightningday 2: 85%% Rain, 15%% Squalls$') ~= nil,
+    text:find('Lightsday', 1, true) == nil)
 p('a clear sky too', fields.IconTooltip('weather', { weatherId = 0, raw = 0, time = time }):find('No elemental weather\n\nForecast for Testing Grounds:\nToday: 85%% Rain', 1) ~= nil)
 p('the same text again for the context, the zone read once', fields.Tooltip('weather', context) == fields.Tooltip('weather', context), lookups == 2)
 p('no timestamp: no forecast', fields.IconTooltip('weather', { weatherId = 6 }) == 'Weather: Rain\nElement: Water\nStrength: Single')
@@ -339,6 +340,9 @@ AshitaCore = {
     GetMemoryManager = function() return { GetParty = function() return { GetMemberZone = function() return 236 end } end } end,
     GetResourceManager = function() return { GetString = function() return 'Port Bastok' end } end,
 }
+local subzone = require('winxi.infopanel.subzone')
+local originalRead = subzone.Read
+subzone.Read = function(zone) assert(zone == 236); return 'Air Travel Agency' end
 ctx = { time = time, raw = raw, weekday = game.weekday }
 ctx.timetable = { bastok_jeuno = { true } }
 for _, line in ipairs(schedule.Lines()) do if line.key ~= 'bastok_jeuno' then ctx.timetable[line.key] = { false } end end
@@ -346,7 +350,11 @@ segments = fields.Segments(ctx, '{zone} {time}')
 p('the zone\'s words stand alone with the timetable of the lines the context shows, Port Bastok\'s airship marked', segments[1] == 'Port Bastok', segments.tooltips[1] and segments.tooltips[1].schedule ~= nil,
     segments.tooltips[1].schedule.here == true, #segments.tooltips[1].schedule.rows == 1, segments.tooltips[1].schedule.rows[1].here and segments.tooltips[1].schedule.rows[1].cells[1] == 'Bastok',
     segments.tooltips[3].calendar ~= nil)
+p('zone and sub-zone above the timetable', segments.tooltips[1].location == 'Zone: Port Bastok\nSub-zone: Air Travel Agency')
 p('the same timetable again for the context', fields.Tooltip('schedule', ctx) == segments.tooltips[1])
+subzone.Read = function() return nil end
+p('outside named areas: zone alone', fields.Tooltip('schedule', { raw = raw }).location == 'Zone: Port Bastok')
+subzone.Read = originalRead
 p('without a whitelist in the context: four rows', #fields.Tooltip('schedule', { time = time, raw = raw }).schedule.rows == 4)
 p('without a timestamp: no tooltip, the words still', fields.Segments({ time = time }, '{zone}')[1] == 'Port Bastok', fields.Tooltip('schedule', { time = time }) == nil)
 AshitaCore = core

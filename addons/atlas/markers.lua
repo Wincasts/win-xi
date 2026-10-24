@@ -33,7 +33,7 @@ local function Finite(n)
     return type(n) == 'number' and n == n and n ~= math.huge and n ~= -math.huge;
 end
 
-local function Add(count, kind, x, y, z, heading, name, near)
+local function Add(count, kind, x, y, z, heading, name, near, slot)
     count = count + 1;
     local marker = list[count];
     if marker == nil then
@@ -41,6 +41,7 @@ local function Add(count, kind, x, y, z, heading, name, near)
         list[count] = marker;
     end
     marker.kind, marker.x, marker.y, marker.z, marker.heading, marker.name, marker.near = kind, x, y, z, heading, name, near;
+    marker.slot = slot; -- party/alliance slot, 1 through 18; nil for the target
     return count;
 end
 
@@ -73,12 +74,12 @@ function markers.Refresh(zone)
                 local name = party:GetMemberName(i);
                 local x, y, z, heading = Seen(entities, party:GetMemberTargetIndex(i));
                 if x ~= nil then
-                    count = Add(count, kind, x, y, z, heading, name, true);
+                    count = Add(count, kind, x, y, z, heading, name, true, i + 1);
                 elseif i > 0 then
                     unseen = true;
                     local word = told[party:GetMemberServerId(i)];
                     if word ~= nil and word.zone == zone and now - word.at <= FRESH then
-                        count = Add(count, kind, word.x, word.y, word.z, nil, name, false);
+                        count = Add(count, kind, word.x, word.y, word.z, nil, name, false, i + 1);
                     end
                 end
             end

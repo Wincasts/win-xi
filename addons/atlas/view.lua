@@ -160,6 +160,57 @@ local function Diamond(drawList, x, y, size, fill, edge)
     drawList:AddQuadFilled(p1, p2, p3, p4, fill);
 end
 
+local CLEAR = { 0, 0, 0, 0 };
+local NUMBER = { 1, 1, 1, 1 };
+local NUMBER_EDGE = { 0, 0, 0, 0.85 };
+
+local function Ring(list, x, y, size, fill, edge)
+    p1[1], p1[2] = x, y;
+    list:AddCircle(p1, size / 2, edge, 20, 4);
+    list:AddCircle(p1, size / 2, fill, 20, 2);
+end
+
+local function Chevron(list, x, y, heading, size, fill, edge)
+    Point(p1, x, y, heading, size * 0.8);
+    Point(p2, x, y, heading + 2.4, size * 0.65);
+    Point(p3, x, y, heading - 2.4, size * 0.65);
+    list:AddLine(p2, p1, edge, 4); list:AddLine(p1, p3, edge, 4);
+    list:AddLine(p2, p1, fill, 2); list:AddLine(p1, p3, fill, 2);
+end
+
+local function Player(list, marker, x, y, size, style, fill, edge)
+    local heading = marker.heading or 0;
+    if style == 'chevron' then
+        Chevron(list, x, y, heading, size, fill, edge);
+    elseif style == 'dotFacing' then
+        Point(p1, x, y, heading, size / 2);
+        Point(p2, x, y, heading, size * 1.4);
+        list:AddLine(p1, p2, edge, 4); list:AddLine(p1, p2, fill, 2);
+        Dot(list, x, y, size, fill, edge, false);
+    else
+        if style == 'ringArrow' then Ring(list, x, y, size * 1.8, fill, edge); end
+        Arrow(list, x, y, heading, size * 1.6, fill, edge);
+    end
+end
+
+local function Member(list, marker, x, y, size, style, fill, edge, alpha)
+    if style == 'numbered' and marker.slot ~= nil then
+        local words = tostring(marker.slot);
+        local tw, th = imgui.CalcTextSize(words);
+        size = math.max(size, math.sqrt(tw * tw + th * th) + 3);
+        Dot(list, x, y, size, fill, edge, not marker.near);
+        text.Packed(list, x - tw / 2, y - th / 2, Packed(NUMBER, alpha), words, 1, Packed(NUMBER_EDGE, alpha));
+    elseif style == 'hollow' then
+        Ring(list, x, y, size, fill, edge);
+    elseif style == 'triangle' and marker.near and marker.heading ~= nil then
+        Arrow(list, x, y, marker.heading, size * 1.6, fill, edge);
+    else
+        -- No known facing for a distant member: don't invent a directional arrow.
+        Dot(list, x, y, size, fill, edge, not marker.near);
+    end
+    return size;
+end
+
 local WAYPOINT = { 0.95, 0.45, 0.95, 1 };
 local CURSOR = { 1, 1, 1, 0.9 };
 
@@ -203,6 +254,52 @@ local function Inside(px, py, x, y, w, h, r)
     return px >= x and py >= y and px < x + w and py < y + h and not Cut(px, py, x, y, w, h, r);
 end
 
+-- The game's grid: fifteen 32-unit cells, starting 16 units into the 512-unit picture.
+-- Replace only the legends whose 16-unit border has been cropped out of this view.
+local LEGEND = { 0, 0, 0, 0.95 };
+local LEGEND_SHADOW = { 0, 0, 0, 0.30 };
+local function Legend(list, x, y, w, h, r, left, top, spanX, spanY, unit, alpha)
+    local showTop, showBottom = top >= 16, top + spanY <= 496;
+    local showLeft, showRight = left >= 16, left + spanX <= 496;
+    if not (showTop or showBottom or showLeft or showRight) then return; end
+    local fill, shadow = Packed(LEGEND, alpha), Packed(LEGEND_SHADOW, alpha);
+    -- Follow the rounded edge instead of putting labels into corners outside the map.
+    local function Inset(position, length)
+        local d = math.max(0, r - math.min(position, length - position));
+        return r - math.sqrt(math.max(0, r * r - d * d));
+    end
+    local function Label(words, sx, sy, tw, th)
+        local pad = 2;
+        if sx - pad < x or sy - pad < y or sx + tw + pad > x + w or sy + th + pad > y + h then return; end
+        if Cut(sx - pad, sy - pad, x, y, w, h, r)
+            or Cut(sx + tw + pad, sy - pad, x, y, w, h, r)
+            or Cut(sx - pad, sy + th + pad, x, y, w, h, r)
+            or Cut(sx + tw + pad, sy + th + pad, x, y, w, h, r) then return; end
+        p1[1], p1[2] = sx + 1, sy + 1;
+        list:AddText(p1, shadow, words);
+        p1[1], p1[2] = sx, sy;
+        list:AddText(p1, fill, words);
+    end
+    for cell = 0, 14 do
+        local centre = 32 + cell * 32;
+        local sx, sy = (centre - left) * unit, (centre - top) * unit;
+        if (showTop or showBottom) and sx >= 0 and sx <= w then
+            local words = string.char(65 + cell);
+            local tw, th = imgui.CalcTextSize(words);
+            local inset = Inset(math.min(sx - tw / 2 - 2, w - sx - tw / 2 - 2), w);
+            if showTop then Label(words, x + sx - tw / 2, y + inset + 4, tw, th); end
+            if showBottom then Label(words, x + sx - tw / 2, y + h - inset - th - 4, tw, th); end
+        end
+        if (showLeft or showRight) and sy >= 0 and sy <= h then
+            local words = tostring(cell + 1);
+            local tw, th = imgui.CalcTextSize(words);
+            local inset = Inset(math.min(sy - th / 2 - 2, h - sy - th / 2 - 2), h);
+            if showLeft then Label(words, x + inset + 4, y + sy - th / 2, tw, th); end
+            if showRight then Label(words, x + w - inset - tw - 4, y + sy - th / 2, tw, th); end
+        end
+    end
+end
+
 local colourOf = { player = 'playerColor', party = 'partyColor', alliance = 'allianceColor', target = 'targetColor' };
 local shownOf = { player = 'showPlayer', party = 'showParty', alliance = 'showAlliance', target = 'showTarget' };
 -- drawn in this order, so the player is on top of the rest
@@ -232,26 +329,34 @@ function view.Draw(drawList, state, x, y, scene, options, shape, alpha)
     local edge = imgui.GetColorU32(shade);
     local markerSize = options.markerSize[1];
     local showNames = options.showNames[1];
+    local hoverNames = options.namesOnHover and options.namesOnHover[1];
+    local mouseX, mouseY = imgui.GetMousePos();
+    local mouseInside = mouseX ~= nil and mouseY ~= nil and Inside(mouseX, mouseY, x, y, w, h, r);
     local dark = Packed(text.EdgeColor(), alpha);
     for _, kind in ipairs(order) do
         if options[shownOf[kind]][1] then
             local fill = Packed(options[colourOf[kind]], alpha);
+            local sizeOption, outline = options[kind .. 'Size'], options[kind .. 'Outline'];
+            local size = sizeOption and sizeOption[1] > 0 and sizeOption[1] or markerSize;
+            local markerEdge = outline and not outline[1] and Packed(CLEAR, alpha) or edge;
+            local style = options[kind .. 'Style'];
             for _, marker in ipairs(scene.markers) do
                 if marker.kind == kind then
                     local sx, sy = x + (marker.mx - left) * unit, y + (marker.my - top) * unit;
                     -- one in a corner the shape cuts away is not drawn
                     local cut = Cut(sx, sy, x, y, w, h, r);
                     if not cut and kind == 'player' then
-                        Arrow(drawList, sx, sy, marker.heading or 0, markerSize * 1.6, fill, edge);
+                        Player(drawList, marker, sx, sy, size, style, fill, markerEdge);
                     elseif not cut then
+                        local drawnSize = size;
                         if kind == 'target' then
-                            Diamond(drawList, sx, sy, markerSize, fill, edge);
+                            Diamond(drawList, sx, sy, size, fill, markerEdge);
                         else
-                            -- a member placed by the server's word alone is drawn hollow
-                            Dot(drawList, sx, sy, markerSize, fill, edge, not marker.near);
+                            drawnSize = Member(drawList, marker, sx, sy, size, style, fill, markerEdge, alpha);
                         end
-                        if showNames and marker.name ~= nil and marker.name ~= '' then
-                            text.Packed(drawList, sx + markerSize / 2 + 4, sy - imgui.GetFontSize() / 2, fill, marker.name, nil, dark);
+                        local nearMouse = mouseInside and (mouseX - sx)^2 + (mouseY - sy)^2 <= math.max(12, drawnSize)^2;
+                        if showNames and (not hoverNames or nearMouse) and marker.name ~= nil and marker.name ~= '' then
+                            text.Packed(drawList, sx + drawnSize / 2 + 4, sy - imgui.GetFontSize() / 2, fill, marker.name, nil, dark);
                         end
                     end
                 end
@@ -267,6 +372,9 @@ function view.Draw(drawList, state, x, y, scene, options, shape, alpha)
     if scene.cursor ~= nil then
         local c = scene.cursor;
         Cursor(drawList, x + (c.mx - left) * unit, y + (c.my - top) * unit, markerSize, Packed(CURSOR, alpha), edge);
+    end
+    if scene.picture ~= nil then
+        Legend(drawList, x, y, w, h, r, left, top, spanX, spanY, unit, alpha);
     end
     drawList:PopClipRect();
 

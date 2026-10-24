@@ -2,9 +2,10 @@
 -- Opacity as the player starts off, and back up as they stop. The mouse over the map has all of it
 -- again.
 --
---   moving.Update(on, opacity, held)   once a frame: on whether the map fades while moving (in
---                                      passthrough), opacity how far, 0 to 100, held whether the map
---                                      is wanted whole (the mouse over it); returns 0 to 1
+--   moving.Update(on, opacity, held, hidden)   once a frame: on whether the map fades while moving
+--                                      (in passthrough), opacity how far, 0 to 100, held whether the
+--                                      map is wanted whole; hidden holds its opacity during the
+--                                      window's fade-out. Returns 0 to 1.
 local moving = {};
 
 local STEP = 0.05;     -- a change in position smaller than this is not movement
@@ -36,17 +37,23 @@ local function Moved(now)
     end
 end
 
-function moving.Update(on, opacity, held)
+function moving.Update(on, opacity, held, hidden)
     local now = os.clock();
     local elapsed = lastFrame and math.min(now - lastFrame, 0.1) or 0;
     lastFrame = now;
-    if not on then
-        alpha, lastX = 1, nil;
-        return 1;
+    -- The shell fades visibility itself. Keep the movement multiplier steady while it closes,
+    -- rather than flashing back to full opacity just as passthrough is switched off.
+    if hidden then
+        lastX, movedAt = nil, -math.huge;
+        return alpha;
     end
-    Moved(now);
+    if on then
+        Moved(now);
+    else
+        lastX, movedAt = nil, -math.huge;
+    end
     local low = math.max(0, math.min(1, opacity / 100));
-    local wanted = (held or now - movedAt >= STILL) and 1 or low;
+    local wanted = (not on or held or now - movedAt >= STILL) and 1 or low;
     local step = elapsed / TRANSITION;
     if alpha < wanted then
         alpha = math.min(wanted, alpha + step);

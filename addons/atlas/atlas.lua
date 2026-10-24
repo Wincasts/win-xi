@@ -1,6 +1,6 @@
 addon.name    = 'atlas';
 addon.author  = 'win';
-addon.version = '0.11';
+addon.version = '0.12';
 addon.desc    = 'The zone\'s map in a window: who is where, panned and zoomed.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -55,6 +55,7 @@ local defaults = T{
     passthroughHeight = T{ 512 },
     passthroughShape = 'square',
     passthroughOpacity = T{ 30 },
+    zoneZoom = T{}, -- zone id (as a string) -> last zoom, shared by that zone's floors
     showPlayer = T{ true },
     playerColor = T{ 1.00, 0.85, 0.20, 1.00 },
     showParty = T{ true },
@@ -64,9 +65,20 @@ local defaults = T{
     showTarget = T{ true },
     targetColor = T{ 1.00, 0.35, 0.30, 1.00 },
     markerSize = T{ 9 },
+    playerStyle = 'arrow',
+    partyStyle = 'dot',
+    allianceStyle = 'dot',
+    playerSize = T{ 0 }, -- 0 inherits Marker Size, preserving existing settings
+    partySize = T{ 0 },
+    allianceSize = T{ 0 },
+    playerOutline = T{ true },
+    partyOutline = T{ true },
+    allianceOutline = T{ true },
     showNames = T{ true },
+    namesOnHover = T{ false },
     askServer = T{ true },
     controller = T{ true },
+    analogStick = T{ true }, -- off: use the d-pad to pan instead of the left stick
     controllerSounds = T{ false },
     controllerType = 'xinput', -- which kind: a key of winxi.controller's Layouts
 };
@@ -76,6 +88,8 @@ local state = view.New();
 
 -- Whether the map is in passthrough, as /atlas cycle leaves it: shown, with the controller the game's
 local passing = false;
+-- Keep the last visible frame's shape/size while the shell fades the window out.
+local drawnPassing = false;
 
 -- The waypoint put down under the controller's cursor (Y while browsing): its zone, floor and place
 -- on that floor's map, or nil. Forgotten as the zone changes.
@@ -146,6 +160,7 @@ local function Place()
             local p = placed[count] or {};
             placed[count] = p;
             p.kind, p.mx, p.my, p.heading, p.name, p.near = marker.kind, mx, my, marker.heading, marker.name, marker.near;
+            p.slot = marker.slot;
             if marker.kind == 'player' then
                 playerAt.mx, playerAt.my = mx, my;
             end
@@ -163,6 +178,8 @@ local function Look()
         waypoint = nil;
         markers.Forget();
         view.Reset(state);
+        local zoom = tonumber(app.options.zoneZoom[tostring(zone)]);
+        if zoom ~= nil and zoom > 0 then view.Zoom(state, zoom); end
     end
     if zone == nil or zone == 0 then
         current.why = 'no zone';
@@ -198,7 +215,9 @@ end
 -- The floor picked: one of the zone's, or nil to follow the player's again
 local function Choose(floor)
     current.chosen = floor;
+    local zoom = state.zoom;
     view.Reset(state);
+    view.Zoom(state, zoom); -- floors share the zone's zoom; only the pan/follow choice is reset
     if floor ~= nil then view.Follow(state, false); end
     Place();
 end
@@ -282,13 +301,11 @@ local function Draw()
     end
     local floors = maps.Floors(zone);
     local shown = Shown();
-    imgui.Text(ZoneName(zone));
     if floors ~= nil and #floors > 1 then
-        imgui.SameLine();
         Floors(floors, shown);
     end
 
-    local mode = passing and 'passthrough' or 'open';
+    local mode = drawnPassing and 'passthrough' or 'open';
     local w, h = options[mode .. 'Width'][1], options[mode .. 'Height'][1];
     view.Frame(state, w, h);
     local x, y = imgui.GetCursorScreenPos();
@@ -315,6 +332,7 @@ local function Draw()
         Hovered(mx, my, maps.Entry(shown, zone));
     end
 
+    widgets.Gap(); -- breathing room between the map and its controls
     if imgui.SmallButton('-##atlas.zoomOut') then view.Zoom(state, state.zoom / 1.25, state.cx, state.cy); end
     imgui.SameLine();
     imgui.Text(('%.1fx'):format(state.zoom));
@@ -354,6 +372,41 @@ local function Show(label, key, colourKey, tip)
     imgui.ColorEdit4('##atlas.' .. colourKey, options[colourKey], ImGuiColorEditFlags_NoInputs);
 end
 
+local playerStyles = {
+    { key = 'arrow', label = 'Arrow' }, { key = 'chevron', label = 'Chevron' },
+    { key = 'dotFacing', label = 'Dot + facing line' }, { key = 'ringArrow', label = 'Ring + arrow' },
+};
+local memberStyles = {
+    { key = 'dot', label = 'Dot' }, { key = 'triangle', label = 'Directional triangle' },
+    { key = 'hollow', label = 'Hollow circle' }, { key = 'numbered', label = 'Numbered dot' },
+};
+
+local function MarkerSettings(kind, label, styles)
+    local options = app.options;
+    local key = kind .. 'Style';
+    local selected = styles[1].label;
+    for _, style in ipairs(styles) do if options[key] == style.key then selected = style.label; end end
+    widgets.PushControlWidth();
+    widgets.Label(label .. ' Style');
+    if imgui.BeginCombo('##atlas.' .. key, selected) then
+        for _, style in ipairs(styles) do
+            if imgui.Selectable(style.label .. '##atlas.' .. key .. '.' .. style.key, options[key] == style.key) then
+                options[key] = style.key;
+            end
+        end
+        imgui.EndCombo();
+    end
+    tips.Hover(kind == 'player' and 'Each player style shows your facing direction.'
+        or 'Numbered dots use member slots 1–18 and grow to fit the number.\nDirectional triangles need a known facing; distant members fall back to hollow dots.');
+    widgets.Label(label .. ' Size');
+    imgui.SliderInt('##atlas.' .. kind .. 'Size', options[kind .. 'Size'], 0, 24, '%d px');
+    tips.Hover('0 uses the shared Marker Size below. Set a separate size for ' .. label:lower() .. ' markers.');
+    widgets.PopControlWidth();
+    widgets.Label(label .. ' Outline');
+    imgui.Checkbox('##atlas.' .. kind .. 'Outline', options[kind .. 'Outline']);
+    tips.Hover('A dark outline around these markers. Out-of-range members remain hollow.');
+end
+
 local shapes = { { key = 'square', label = 'Square' }, { key = 'rounded', label = 'Rounded' }, { key = 'round', label = 'Round' } };
 
 -- A mode's frame: its width, height and shape
@@ -379,8 +432,9 @@ local function Frame(mode, said)
 end
 
 local controllerTip = '/atlas browse (from a macro) gives the map the controller, as the game\'s own map has it:\n'
-    .. 'the right stick scrolls, RB zooms in a step and LB out, Y puts a waypoint under the cursor in the middle,\n'
-    .. 'A locks the map to you, X shows the next floor, and B gives it back. The left stick and the d-pad stay the game\'s, to walk with the map open.';
+    .. 'the left stick scrolls (or the d-pad with Analog Stick Control off), RB zooms in a step and LB out,\n'
+    .. 'Y puts a waypoint under the cursor, A locks the map to you, X shows the next floor, and B gives it back.\n'
+    .. 'The right stick and the unused scrolling control stay the game\'s.';
 
 local function DrawSettings(options)
     if widgets.Header('Window') then
@@ -404,13 +458,29 @@ local function DrawSettings(options)
     end
 
     if widgets.Header('Markers') then
-        Show('Show Player', 'showPlayer', 'playerColor', 'You, as an arrow the way you face.');
+        Show('Show Player', 'showPlayer', 'playerColor', 'You, with your selected marker and facing direction.');
+        MarkerSettings('player', 'Player', playerStyles);
+        widgets.Gap();
         Show('Show Party', 'showParty', 'partyColor', 'Your party. One out of sight, placed by the server, is drawn hollow.');
+        MarkerSettings('party', 'Party', memberStyles);
+        widgets.Gap();
         Show('Show Alliance', 'showAlliance', 'allianceColor', 'The alliance\'s other parties.');
+        MarkerSettings('alliance', 'Alliance', memberStyles);
+        widgets.Gap();
         Show('Show Target', 'showTarget', 'targetColor', 'What you have targeted.');
-        widgets.Label('Show Names');
-        imgui.Checkbox('##atlas.showNames', options.showNames);
-        tips.Hover('Names beside the party, the alliance and the target.');
+        widgets.Label('Names');
+        if imgui.RadioButton('Always##atlas.namesAlways', options.showNames[1] and not options.namesOnHover[1]) then
+            options.showNames[1], options.namesOnHover[1] = true, false;
+        end
+        imgui.SameLine();
+        if imgui.RadioButton('On Hover##atlas.namesHover', options.showNames[1] and options.namesOnHover[1]) then
+            options.showNames[1], options.namesOnHover[1] = true, true;
+        end
+        imgui.SameLine();
+        if imgui.RadioButton('Hidden##atlas.namesHidden', not options.showNames[1]) then
+            options.showNames[1] = false;
+        end
+        tips.Hover('Names beside party, alliance and target markers: always, near the mouse, or hidden.');
         widgets.PushControlWidth();
         widgets.Label('Marker Size');
         imgui.SliderInt('##atlas.markerSize', options.markerSize, 4, 24, '%d px');
@@ -425,6 +495,9 @@ local function DrawSettings(options)
 
     if widgets.Header('Controller') then
         shell.ControllerSettings(options, controllerTip);
+        widgets.Label('Analog Stick Control');
+        imgui.Checkbox('##atlas.analogStick', options.analogStick);
+        tips.Hover('Use the left stick to scroll the map while browsing. Turn off to use the D-pad instead.\nThe right stick and the unused scrolling control are left to the game.');
     end
 
     imgui.TextWrapped(Status());
@@ -496,6 +569,22 @@ pad.Attach({
 });
 
 local extra = { locked = false };
+local zoomSaveAt = nil;
+
+local function RememberZoom()
+    local zone = current.zone;
+    if zone ~= nil and zone ~= 0 then
+        local key = tostring(zone);
+        if app.options.zoneZoom[key] ~= state.zoom then
+            app.options.zoneZoom[key] = state.zoom;
+            zoomSaveAt = os.clock() + 0.75; -- debounce wheel/stick-button changes, not a disk write each frame
+        end
+    end
+    if zoomSaveAt ~= nil and os.clock() >= zoomSaveAt then
+        app:Save();
+        zoomSaveAt = nil;
+    end
+end
 
 ashita.events.register('d3d_present', 'atlas_present', function()
     -- hidden with the controller in hand: given back
@@ -505,8 +594,13 @@ ashita.events.register('d3d_present', 'atlas_present', function()
     if not app:BeginFrame() then return; end
     extra.locked = app.options.locked[1];
     local over = MouseOverWindow();
-    extra.alpha = moving.Update(passing, app.options.passthroughOpacity[1], over);
+    local hidden = not app.options.isVisible[1];
+    if not hidden then drawnPassing = passing; end
+    extra.alpha = moving.Update(passing, app.options.passthroughOpacity[1], over, hidden);
+    local zone = Zone();
+    app.windowStyle.title = zone ~= nil and zone ~= 0 and ZoneName(zone) or 'Atlas';
     app:Window(app.options.isVisible, Draw, extra);
+    RememberZoom();
 end);
 
 ashita.events.register('packet_in', 'atlas_packet', function(e)
