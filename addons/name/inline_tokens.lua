@@ -1,7 +1,15 @@
 -- Non-text format tokens. Keep measurement and drawing on exactly the same geometry.
 local nameplates = require('winxi.nameplates');
 local icons = require('icons');
+local roles = require('roles');
+local special = require('special');
 local tokens = {};
+
+-- the game's icons, and a party or alliance member's sign (roles.lua) before them or in their place
+local function count(written)
+    if (written.role == nil) then return #written.icons; end
+    return roles.Replace() and 1 or #written.icons + 1;
+end
 
 local function geometry(part, count, height, scale, defaultSize, defaultSpace)
     if (count == 0) then return 0, 0, 0; end
@@ -12,12 +20,18 @@ local function geometry(part, count, height, scale, defaultSize, defaultSpace)
 end
 
 function tokens.IconWidth(part, written, height, scale, defaultSize, defaultSpace)
-    return geometry(part, #written.icons, height, scale, defaultSize, defaultSpace);
+    return geometry(part, count(written), height, scale, defaultSize, defaultSpace);
 end
 
 function tokens.WriteIcons(part, written, x, top, height, scale, defaultSize, defaultSpace, pearlColor)
-    local width, size, gap = geometry(part, #written.icons, height, scale, defaultSize, defaultSpace);
+    local width, size, gap = geometry(part, count(written), height, scale, defaultSize, defaultSpace);
     local y = top + math.floor((height - size) * 0.5);
+    if (written.role ~= nil) then
+        local u0, v0, u1, v1 = special.UV(written.role);
+        nameplates.Quad(x, y, x + size, y + size, u0, v0, u1, v1, part.color or 0xFFFFFFFF, special.Slot, true, 0.75);
+        x = x + size + gap;
+        if (roles.Replace()) then return width; end
+    end
     for index = 1, #written.icons do
         local byte = written.icons[index];
         local color = part.color or (byte == 0x92 and pearlColor or 0xFFFFFFFF);

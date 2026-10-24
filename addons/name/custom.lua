@@ -31,6 +31,8 @@ local letterBadges = require('letter_badges');
 local statuses = require('statuses');
 local healthbar = require('healthbar');
 local vendors = require('vendors');
+local roles = require('roles');
+local special = require('special');
 local nameColours = require('name_colours');
 local inline = require('inline_tokens');
 local nameTypes = require('name_types');
@@ -48,11 +50,10 @@ local SPAWNED      = 0x200; -- GetRenderFlags0: the client is showing this entit
 -- function can name sixty things from outside itself and no more, and the frame's is near that.
 local SLOT = { Font = 0, Icon = 1, Sense = 2, Temper = 3, Sign = 4 };
 local ICON_EDGE_OPACITY = 0.75; -- soften small inline/detail icons without fading their fill
--- A tracked notorious monster: the plugin's number for its sign's texture (letter_badges has 5), the
--- sign it has in place of [aggro]'s, and what is written for the name of a monster it is drawn by lot
--- from. A vendor's coin is the sheet's other half (assets/make_special_sheet.py): every texture the
--- plugin has is taken. One table: the frame's function has no room for more names than it has.
-local HUNT = { Slot = 6, Sheet = 'special.png', Placeholder = 'Placeholder', Coin = 0.5 };
+-- What is written for the name of a monster a tracked notorious monster is drawn by lot from. Its
+-- sign, a vendor's coin and the party roles are special.lua's sheet. In a table: the frame's function
+-- has no room for more names than it has.
+local HUNT = { Placeholder = 'Placeholder' };
 -- statuses.lua has 7, the last, for the sheet of status icons.
 
 -- What is written under the name of a monster its player has checked: see the frame, below
@@ -101,6 +102,7 @@ local settings = {
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
     showVendorIcons = function () return T{ true }; end, -- the coin before the names of NPCs that sell
+    partyIcons = function () return T{ 'beside' }; end, -- a party or alliance member's sign in [icons]: roles.Modes
     showHealthBar = function () return T{ false }; end, -- shared by every entity type
     healthBarsCombatOnly = function () return T{ false }; end,
     healthBarWidth = function () return T{ 60 }; end,
@@ -127,7 +129,7 @@ local settings = {
 local settled = {
     { 'checkSize', 'number', 50, 125 }, { 'healthBarWidth', 'number', 12, 300 }, { 'healthBarHeight', 'number', 3, 40 },
     { 'huntScale', 'number', 100, 200 }, { 'subtargetScale', 'number', 50, 200 },
-    { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' }, { 'showVendorIcons', 'boolean' },
+    { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' }, { 'showVendorIcons', 'boolean' }, { 'partyIcons', 'string' },
     { 'abbreviateDifficulty', 'boolean' }, { 'fontBold', 'boolean' },
     { 'trackedNm', 'string' }, { 'nameFormat', 'string' }, { 'monsterFormat', 'string' }, { 'npcFormat', 'string' },
 };
@@ -207,6 +209,10 @@ function custom.Settle(options)
         end
         options.showDistance, options.distanceTargetOnly = nil, nil;
     end
+    local mode = options.partyIcons[1];
+    local known = false;
+    for _, choice in ipairs(roles.Modes) do known = known or choice.key == mode; end
+    if (not known) then options.partyIcons[1] = settings.partyIcons()[1]; end
     nameTypes.Settle(options);
     options.healthBarCategories = entityTypes.Settle(options.healthBarCategories);
     options.statusCategories = entityTypes.Settle(options.statusCategories);
@@ -470,7 +476,7 @@ end
 function custom.SetSheets(senses, tempers, hunt)
     sheets['senses.png'] = { at = senses };
     sheets['aggro.png'] = { at = tempers };
-    if (hunt ~= nil) then sheets[HUNT.Sheet] = { at = hunt }; end
+    if (hunt ~= nil) then sheets[special.Sheet] = { at = hunt }; end
 end
 
 -- Which sign of the aggro sheet is a monster's: by whether it is aggressive, and how strong. found is
@@ -970,10 +976,11 @@ function custom.Frame(options, hook, formats)
     local trackedName = options.trackedNm ~= nil and options.trackedNm[1] or '';
     local labelPlaceholders = options.labelPlaceholders ~= nil and options.labelPlaceholders[1];
     local coins = vendors.Begin(options);
-    local huntTexture = (trackedName ~= '' or coins) and sheet(HUNT.Sheet) or 0;
-    coins = coins and huntTexture ~= 0;
+    local ranks = roles.Begin(options, AshitaCore:GetMemoryManager());
+    local huntTexture = (trackedName ~= '' or coins or ranks) and sheet(special.Sheet) or 0;
+    coins, ranks = coins and huntTexture ~= 0, ranks and huntTexture ~= 0;
     local huntScale = options.huntScale ~= nil and math.max(100, math.min(200, options.huntScale[1])) / 100 or 1;
-    nameplates.SetTexture(HUNT.Slot, huntTexture);
+    nameplates.SetTexture(special.Slot, huntTexture);
     -- the character under the sub-target cursor while one is being chosen. It is the first of the game's two targets either way: with a
     -- target already, that moves to the second and IsSubTargetActive is set; with none, nothing
     -- moves and only the sub-target flags (the kinds that may be chosen, all set when none is
@@ -1108,7 +1115,8 @@ function custom.Frame(options, hook, formats)
         if (bit.band(name.Flags, WANTED) ~= 0) then
             local maximumSize, minimumSize = fullSize, leastSize;
             local written = parse(name);
-            local iconCount = #written.icons;
+            written.role = ranks and roles.Of(name.ServerId) or nil;
+            local iconCount = #written.icons + (written.role and 1 or 0);
 
             -- The game draws a name at one size out to a distance, then smaller and smaller until at
             -- its furthest it is nothing: Scale is 1 and then falls to 0. Here it shrinks over the
@@ -1320,7 +1328,8 @@ function custom.Frame(options, hook, formats)
                     local pen = left;
                     if (coin) then
                         local coinTop = top + math.floor((height - coin) * 0.5);
-                        nameplates.Quad(pen, coinTop, pen + coin, coinTop + coin, HUNT.Coin, 0, 1, 1, WHITE, HUNT.Slot, true, ICON_EDGE_OPACITY);
+                        local u0, v0, u1, v1 = special.UV(special.Vendor);
+                        nameplates.Quad(pen, coinTop, pen + coin, coinTop + coin, u0, v0, u1, v1, WHITE, special.Slot, true, ICON_EDGE_OPACITY);
                         pen = pen + coin + math.floor(options.iconSpacing[1] * scale + 0.5);
                     end
                     for index = 1, #parts do
@@ -1341,7 +1350,8 @@ function custom.Frame(options, hook, formats)
                                 -- with the dark edge they have
                                 local temperTop = top + math.floor((height - temperSize) * 0.5);
                                 if (huntSign) then
-                                    nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, 0, 0, HUNT.Coin, 1, part.color or WHITE, HUNT.Slot, true, ICON_EDGE_OPACITY);
+                                    local u0, v0, u1, v1 = special.UV(special.Hunt);
+                                    nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u0, v0, u1, v1, part.color or WHITE, special.Slot, true, ICON_EDGE_OPACITY);
                                 else
                                     nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, TEMPER_SLOT, true, ICON_EDGE_OPACITY);
                                 end

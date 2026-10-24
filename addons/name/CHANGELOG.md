@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.58
+
+- **Party Icons**, under Player Names: a sign of each party and alliance member's place, drawn where `[icons]` is in Player Format: Alliance Leader, Party Leader, another party's leader, Alliance Member and Party Member. **Beside Game Icons** (to begin with) puts it before the game's icons, **Replace Game Icons** in their place, and **Off** leaves the game's alone. The game writes nothing of it over a name: it is read each frame from the party's memory, its 18 members' server ids and the leaders' (`roles.lua`). Players outside the party and alliance keep the game's icons; alone, there is none.
+- The tracked notorious monster's sign, the vendor coin and the five party signs are one sheet, `assets/special.png`, four to a row (`special.lua`, `assets/make_special_sheet.py`), loaded while any is wanted.
+
 ## 1.57
 
 - **Vendor Icons**, under NPC Names and on to begin with: a coin before the name of every NPC that sells, as large as a player's icons and Icon Spacing from the name. Which do is `vendor_list.lua`, 325 names in 62 areas, made by `tools/build_name_vendors.py` from the Phoenix server's live branch: every NPC whose script opens a gil shop, a guild shop or a conquest outpost's, or whose era override does. The plugin's eight textures are all taken, so the coin and the tracked notorious monster's sign share one sheet, `assets/special.png` (`assets/make_special_sheet.py`), loaded while either is wanted.
