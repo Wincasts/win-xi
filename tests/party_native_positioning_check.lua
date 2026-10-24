@@ -13,6 +13,9 @@ assert(options.party.pos1[1]==x and options.party.pos1[2]==y
     and options.party.corner1[1]==cx and options.party.corner1[2]==cy and options.links==links,
     'disabling the feature must preserve manual positions/corner/links')
 options.nativeParty[1],options.nativeTarget[1],options.nativePositioning[1]=true,true,true
+options.nativeHook=nil
+require('options').Complete(options)
+options.nativePositioning[1]=true
 options.party.enabled[1],options.target.enabled[1]=true,true
 options.nativeAlliance2[1],options.nativeAlliance3[1]=false,false
 for _,key in ipairs({'party1','party2','party3','main','sub','tot'}) do
@@ -45,7 +48,22 @@ imgui.Checkbox=function(id)
     return false
 end
 package.loaded.hook={Status=function() return 'Native replacement ready.' end}
-require('config').Tabs[1].draw(options)
-assert(checks['##party.nativeParty'] and checks['##party.nativeTarget'] and checks['##party.nativeBehavior'],
-    'replacement and independent behavior controls remain available')
+local saidLoaded
+imgui.TextWrapped=function(text) if text=='uihook is loaded.' then saidLoaded=true end end
+local behavior=require('config').Tabs[1].draw
+assert(options.nativeHook[1],'settings from before the toggle keep their hooked windows hooked')
+H.loaded('uihook',true)
+options.nativeHook[1]=false
+behavior(options)
+assert(saidLoaded and checks['##party.nativeHook'] and not checks['##party.nativeParty'],
+    'uihook found: the toggle alone until it is on')
+options.nativeHook[1]=true
+checks={}
+behavior(options)
+assert(checks['##party.nativeHook'] and checks['##party.nativeParty'] and checks['##party.nativeTarget'] and checks['##party.nativeBehavior'],
+    'hooking on: which windows it hooks')
+H.loaded('uihook',false)
+saidLoaded=false
+behavior(options)
+assert(not saidLoaded,'uihook not loaded is said')
 H.print('Native positioning parked: saved opt-in cleared, runtime gating enforced, controls hidden, manual/automatic layout preserved')

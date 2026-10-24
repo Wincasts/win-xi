@@ -258,17 +258,31 @@ local function DrawGlobal(saved)
         Tooltip('Main party: 15px from the right and bottom. Target: 5px above the main party.\nAlliance 2: right edge, with room reserved for full parties and a 35px gap above the fully expanded Target. Alliance 3 stays linked 5px below Alliance 2.\nSub-target and target of target are unchanged. Manual positions are preserved; disable to use them.\nDoes not resize frames. If the full layout cannot fit, windows are clamped to the screen and gaps may be smaller.')
     end
 
-    if widgets.Header('Native HUD Replacement (Experimental)') then
-        widgets.Label('Replace Native Lists')
-        if imgui.Checkbox('##party.nativeParty', saved.nativeParty) then Save() end
-        Tooltip('Requires /load uihook (legacy partyhook also supported). Unload hideparty first. Replays the three Party lists in the native UI render order, keeping native selection logic. Organize mode uses ordinary windows. /pt native status shows diagnostics.')
-        widgets.Label('Replace Native Target')
-        if imgui.Checkbox('##party.nativeTarget', saved.nativeTarget) then Save() end
-        Tooltip('Requires uihook (or legacy partyhook 0.3 / ABI 3). Main, sub-target and target-of-target windows replace the stock target box together. The client still draws its own overhead target/subtarget arrows, with native positions and range colours. /pt native target on|off. Independent of the party-list option.')
-        widgets.Label('Follow Default UI Behavior')
-        if imgui.Checkbox('##party.nativeBehavior',saved.nativeBehavior) then Save() end
-        Tooltip('For native-rendered groups only: follow whether the client draws the HUD instead of Party hide rules, use native party order, show the solo member when the client does, and skip addon idle/presence fading. Native menus still cover the frames and the original target arrows are preserved. Zoning, interface hiding and cutscenes are always guarded. Other windows keep their normal options. Styles, pet/buff choices and frame sizes are unchanged.')
-        if saved.nativeParty[1] or saved.nativeTarget[1] then imgui.TextWrapped(require('hook').Status()) end
+    if widgets.Header('uihook') then
+        -- uihook (or the older partyhook) loaded: the windows can be drawn in the game's own place
+        -- among its menus. Its choices are kept while it is not loaded, and come back with it.
+        local manager = AshitaCore:GetPluginManager()
+        local loaded = manager:IsLoaded('uihook') or manager:IsLoaded('partyhook')
+        if loaded then
+            imgui.TextWrapped('uihook is loaded.')
+        else
+            imgui.TextDisabled('uihook is not loaded. /load uihook to use it.')
+        end
+        widgets.Label('Hook Into uihook', true)
+        if Checkbox('##party.nativeHook', saved.nativeHook, not loaded) then Save() end
+        Tooltip('The chosen windows take the place of the game\'s own, drawn among its menus. Unload hideparty first. Organize mode uses ordinary windows. /pt native status shows diagnostics.')
+        if saved.nativeHook[1] then
+            widgets.Label('Party')
+            if Checkbox('##party.nativeParty', saved.nativeParty, not loaded) then Save() end
+            Tooltip('The three Party lists replace the game\'s, keeping its selection. Pets are drawn in the Party windows and go with them.')
+            widgets.Label('Target')
+            if Checkbox('##party.nativeTarget', saved.nativeTarget, not loaded) then Save() end
+            Tooltip('Main, sub-target and target-of-target windows replace the stock target box together. The client still draws its own overhead target/subtarget arrows, with native positions and range colours. /pt native target on|off.')
+            widgets.Label('Follow Default UI Behavior')
+            if Checkbox('##party.nativeBehavior', saved.nativeBehavior, not loaded) then Save() end
+            Tooltip('For hooked windows only: follow whether the client draws the HUD instead of Party hide rules, use native party order, show the solo member when the client does, and skip addon idle/presence fading. Native menus still cover the frames and the original target arrows are preserved. Zoning, interface hiding and cutscenes are always guarded. Other windows keep their normal options. Styles, pet/buff choices and frame sizes are unchanged.')
+            if loaded and (saved.nativeParty[1] or saved.nativeTarget[1]) then imgui.TextWrapped(require('hook').Status()) end
+        end
     end
 
     if widgets.Header('Visibility') then

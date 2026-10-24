@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Behavior's Native HUD Replacement section is now **uihook**: it says whether uihook (or the older partyhook) is loaded, and **Hook Into uihook** turns the hooking on or off as a whole. While it is on, **Party** and **Target** choose which windows it draws in the game's place, with Follow Default UI Behavior beside them; pets are rows of the Party windows and go with them. Greyed while the plugin is not loaded, the choices kept. Settings that had Party or Target hooked begin with Hook Into uihook on; `/pt native on` turns it on.
+
 - Sleep on an enemy, or on a player the target window shows, is taken off when they are hit, hurt by a spell, weapon skill, ability or additional effect, or cured, as the server wakes them then and tells only the one who put the sleep there. One with Poison, Dia, Bio, an elemental debuff or Requiem on them is woken by the server's next regen tick, so their sleep is given three seconds at most (winxi.debuffs).
 
 - Short Zone Names (Style → Names, on to begin with): a member in another zone has the game's own short form of the zone's name where their bars would be, as Ashita's `zones.names_abbr` reads it from the game, or the whole name where there is none. Off, the whole name as before, cut short where it does not fit.

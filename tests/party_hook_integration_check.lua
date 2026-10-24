@@ -3,7 +3,7 @@ H.load()
 local options, windows = H.options(), require('windows')
 local imgui, roster = require('imgui'), require('roster')
 local game, organize = require('winxi.game'), require('winxi.organize')
-assert(options.nativeParty[1] == false and options.nativeTarget[1] == false, 'existing installs must not opt in automatically')
+assert(options.nativeParty[1] == false and options.nativeTarget[1] == false and options.nativeHook[1] == false, 'existing installs must not opt in automatically')
 local begin, finish = imgui.Begin, imgui.End
 local stack, captured, stopped, emptyFrames = {}, {}, 0, 0
 local begun={}
@@ -55,7 +55,7 @@ options.pets.enabled[1]=false
 options.party.hideWhenSolo[1]=false
 options.party.showInvites[1]=false; options.party.showTreasure[1]=false
 options.fade.Enabled=false
-options.nativeParty[1]=true
+options.nativeHook[1],options.nativeParty[1]=true,true
 options.showConfig[1]=false
 game.IsHidden=function() return false end
 organize.IsActive=function() return false end
@@ -181,4 +181,9 @@ assert(captured['xiframes.us.1']==priorParty and begun['xiframes.tgt.main']>main
 game.IsInterfaceHidden=function() return false end
 H.command('/pt native target off')
 assert(not options.nativeTarget[1] and options.nativeParty[1],'target-off preserves party setting')
+priorParty=captured['xiframes.us.1']
+options.nativeHook[1]=false
+H.frames(1)
+assert(captured['xiframes.us.1']==priorParty,'Hook Into uihook off: Party ticked, but nothing hooked')
+options.nativeHook[1]=true
 H.print('Party native integration: six HUD windows, independent target opt-in, empty hidden frames, native behavior/loading guards, resume, organize and command routing passed')
