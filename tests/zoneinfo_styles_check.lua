@@ -369,11 +369,12 @@ local function appearance(zone_style, area_style)
 end
 local shown = appearance('classic', 'classic');
 check('Classic Text only: no Pennant or Kanji Watermark sections', shown['Classic Text'] and not shown['Pennant'] and not shown['Kanji Watermark']);
-check('every style has Banner Style, Position and Colors', shown['Banner Style'] and shown['Position'] and shown['Colors'] and shown['Fonts']);
+check('every style has Banner Style, Text and Position', shown['Banner Style'] and shown['Text'] and shown['Position']
+    and not shown['Colors'] and not shown['Fonts']);
 shown = appearance('pennant', 'classic');
 check('a pennant in use shows its section', shown['Pennant'] and shown['Classic Text'] and not shown['Kanji Watermark']);
 shown = appearance('kanji', 'titlecard');
-check('no Classic Text in use: no Classic Text or Background Image sections', shown['Kanji Watermark'] and not shown['Classic Text'] and not shown['Background Image']);
+check('no Classic Text in use: no Classic Text or Background Image sections', shown['Kanji Watermark'] and not shown['Classic Text'] and not shown['Flag And Background Image']);
 H.command('/zone'); H.tab(1);
 imgui.TextColored = realcolored;
 d.zoneStyle, d.areaStyle = 'classic', 'classic';

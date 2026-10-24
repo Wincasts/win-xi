@@ -149,7 +149,7 @@ In Ashita:
 
 ```text
 /addon load zone
-/zone debug on
+/zone map
 ```
 
 Use `/addon reload zone` if already loaded. This update includes about 41 MB
@@ -170,13 +170,19 @@ The `/zone test` command shows the current zone immediately;
 reloads character settings and shows the current zone again.
 
 **Appearance** is the first tab of the settings window and **Behaviour** the
-second. **Behaviour** controls banner/chat visibility, the zone-entry and **Sub-zone**
-popup content, opacity, timing, and winxi's game-UI hiding rules. **Appearance**
-holds how the banner looks: its style, fonts, position and colours. There is no
-Winxi Theme tab: the theme, window and style settings zone follows are set in
-**winxisettings**. Zone-entry popups never include a sub-zone line. Sub-zone
-popups show the area's name as the title, without a separate category label.
-**Show Sub-zone Popups** is enabled by default; no POC command is needed.
+second. **Behaviour** is, in order: **Preview** (the preview buttons and **Open
+Map Browser**), **Announcements** (Show Banner, Show Sub-zone Popups, Show
+Weather Popups, Chat Announcements: every on and off in one place), **Zone
+Entry Popup** and **Sub-zone Popup** (the lines each shows, and Re-announce
+After), **Detection** (the three approach distances), **Entrances** (dungeon and
+town, each distance greyed while its switch is off), **Location Line**,
+**Timing** and **Hide Banner** (winxi's game-UI hiding rules). **Appearance**
+holds how the banner looks: its style and opacity, text, position and backdrop.
+There is no Winxi Theme tab: the theme, window and style settings zone follows
+are set in **winxisettings**. Zone-entry popups never include a sub-zone line.
+Sub-zone popups show the area's name as the title, without a separate category
+label, and the zone's name under it with **Show Zone Name**.
+**Show Sub-zone Popups** is on by default; `/zone subzones` turns it off and on.
 
 **Show Day And Time**, under Zone Entry Popup and under Sub-zone Popup, adds the
 Vana'diel day and time the popup came up at, such as `Firesday 14:20`: a line
@@ -239,7 +245,7 @@ Qufim Island's is kept. Towns carry no map number.
 
 **Show Weather Popups** (on by default) shows a popup when the weather changes
 while you are in a zone: `Weather: Rain` as the title, with the zone under it
-when **Show Zone Context** is on. It uses the sub-zone popup's fonts, sizes and
+when **Show Zone Name** is on. It uses the sub-zone popup's fonts, sizes and
 per-line timing, and writes a line to the chat log if **Chat Announcements** is
 on. The weather is read once a second. A change while another banner is up
 updates that banner's weather line and the popup follows once it has gone. A
@@ -267,9 +273,11 @@ Timing is captured when a popup starts; changes apply to the next popup.
 
 **Appearance** has a section for each part, and shows only those for the styles
 in use: **Banner Style**, **Pennant** and **Kanji Watermark** (when chosen),
-**Classic Text** (renderer, display style, sizes and line spacing), **Fonts**,
-**Position**, **Colors**, **Backdrop** and **Background Image** (Classic Text
-only; it starts collapsed). Classic Text offers:
+**Classic Text** (renderer and display style), **Text** (the sizes and fonts
+for the styles in use, and the colours), **Position**, **Backdrop** and **Flag
+And Background Image** (Classic Text only; it starts collapsed). **Use
+Per-Line Timing**, under Timing, is offered only while Classic Text is in use.
+Classic Text offers:
 
 - **Floating Text** (default): large outlined title, smaller region above and
   optional context/weather below; no background and no interception of clicks.
@@ -340,7 +348,7 @@ its second frame.
 sub-zone title and detail fonts (the theme's font when those are Default).
 They follow the
 banner's position, alignment, hold, fades and opacity, and **Show Region**,
-**Show Weather**, **Show Zone Context** and **Show Day And Time**; per-line
+**Show Weather**, **Show Zone Name** and **Show Day And Time**; per-line
 timing is not used. Each
 entrance plays over the first second or two. `/zone test titlecard`, `pennant`,
 `kanji`, `reveal`, `window`, `element`, `kind` or `classic` shows the zone once in that style without changing the
@@ -371,7 +379,7 @@ is hard to read over one. The PNGs were made from the `.webp` files in
 ### Optional background image
 
 Place a PNG, JPG/JPEG or BMP in `addons/zone/assets/backgrounds/` (or the
-same folder in the deployed addon). Open **Appearance → Background Image**,
+same folder in the deployed addon). Open **Appearance → Flag And Background Image**,
 enable **Show Background Image** and enter its filename, such as `banner.png`.
 Absolute paths and subdirectories are not accepted. Only the flags above are bundled.
 
@@ -414,8 +422,8 @@ offline tests only exercise mocked renderer behavior.
 
 ## Experimental GDI banner renderer
 
-Open `/zone`, select **Appearance → Text Renderer → GDI Fonts
-(Experimental)**, then use **Preview Zone Once** or **Preview Sub-zone Once**.
+Open `/zone`, select **Appearance → Classic Text → Text Renderer → GDI Fonts**
+(marked [Experimental] once chosen), then use **Preview Zone Once** or **Preview Sub-zone Once**.
 ImGui remains the default; select **ImGui (Default)** to switch back.
 
 This uses Thorny's `gdifonts` full-string textures and Direct3D sprite rendering,
@@ -610,8 +618,8 @@ applied to position before testing polygons.
 | `/zone` | Open/close display settings and Appearance tab |
 | `/zone test [style]` | Show zone/region/weather now, once in a style if one is named |
 | `/zone reload` or `rl` | Reload character display settings and show current zone |
-| `/zone poc [on\|off]` | Toggle experimental area announcements |
-| `/zone debug [on\|off]` | Open/close the all-map browser/editor |
+| `/zone subzones [on\|off]` | Show Sub-zone Popups, saved (`poc`, its old name, still works) |
+| `/zone map [on\|off]` | Open/close the all-map browser/editor (also `debug`, and Open Map Browser in Preview) |
 | `/zone approach [field\|town\|dungeon] <0..100>` | Approach buffer in yalms for that kind of zone (open country without one), saved |
 | `/zone sample` or `status` | Print live coordinate/map report |
 | `/zone livemap auto` | Remove this zone's saved live-map choice |

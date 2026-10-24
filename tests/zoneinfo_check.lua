@@ -1,7 +1,7 @@
 -- Integration check: synthetic coordinate movement, commands and banners, not real alignment.
 -- Sub-zone popups are a display setting (Show Sub-zone Popups, on to begin with), and each banner
 -- is written to chat as well while Chat is on: a sub-zone's as "Sub-zone: <area> - <zone> - ...",
--- a zone's as "<region> - <zone> - <weather>". /zone poc and /zone debug are the experiment's own
+-- a zone's as "<region> - <zone> - <weather>". /zone subzones is Show Sub-zone Popups and /zone map (or debug) the browser's own
 -- switches: debug samples and draws the map without announcing anything.
 local game = H.zoneinfo_game;
 local function check(label, value)
@@ -32,10 +32,11 @@ display.reannounceSeconds[1] = 0; -- Returns below come quickly; each is to be a
 H.frames(50);
 check('addon load does not pop a zone banner', zones(100) == 0);
 check('sub-zone popups and chat lines on to begin with', display.areaEnabled[1] == true and display.chat[1] == true);
--- /zone poc alone turns it the other way: from off, on; then off again for what follows
-H.command('/zone poc');
-check('area POC starts off', count('poc: ON') == 1);
-H.command('/zone poc off');
+-- /zone subzones alone turns Show Sub-zone Popups the other way; poc, its old name, still works
+H.command('/zone subzones');
+check('subzones turns the popups off, and saves it', count('Sub-zone popups: OFF (saved)') == 1 and display.areaEnabled[1] == false);
+H.command('/zone poc on');
+check('poc is the same command', count('Sub-zone popups: ON (saved)') == 1 and display.areaEnabled[1] == true);
 check('unrelated command not blocked', not H.command('/somethingelse'));
 
 -- with popups off, debug samples and draws, and announces nothing

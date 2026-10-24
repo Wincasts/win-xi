@@ -7,6 +7,9 @@
 - Town entrances are announced as you come up to a town's gates from the field or a dungeon: `Southern San d'Oria Entrance`. 38 of them, with Announce Town Entrances and Town Entrance Distance (40 yalms); Jeuno's bridges already name its three.
 - Cities are laid out as Southern San d'Oria now is: each street, square, bridge and gate covers the whole place it names, in 11 more cities (27 areas, Gingerberry Grove new), and the [S] cities that copy them.
 - Re-announce After (10 seconds): an area you come back to is announced again only if you were away from it that long, so leaving a shop does not name its square again.
+- The settings are tidied: every on and off in Announcements, Sub-zone Popup split into Sub-zone Popup, Detection and Entrances (a distance greyed while its switch is off), Preview first with Open Map Browser; on Appearance one Text section for sizes, fonts and colours, Opacity under Banner Style, Flag And Background Image, and GDI Fonts marked [Experimental]. Show Zone Context is Show Zone Name; Use Per-Line Timing shows only with Classic Text.
+- Sub-zone banners no longer say "(Experimental Area)", and Show Experimental Label is gone, with the settings of earlier versions it and others left behind.
+- `/zone subzones` turns sub-zone popups off and on, saved (`/zone poc` still works); `/zone map` opens the map browser, now called Zone - Map Browser (`/zone debug` still works).
 - Tenshodo H.Q. under Lower Jeuno is announced, as a building and only below the street.
 - `/zone approach town 8` and `/zone approach dungeon 12` set the town and dungeon distances; `/zone approach <yalms>` alone is open country's.
 - The map browser draws the entrances in blue, and the approach outline at the viewed zone's own distance.

@@ -4,7 +4,7 @@ local checks = 0;
 local function check(label, ok) assert(ok, label); checks = checks + 1; end
 local function near(a, b) return math.abs(a - b) < .000001; end
 local d = { hold = { 5 }, fadeIn = { .2 }, fadeOut = { 1 }, opacity = { .8 },
-    region = { true }, weather = { true }, zoneContext = { true }, experimental = { true } };
+    zoneRegion = { true }, zoneWeather = { true }, areaWeather = { true }, areaZoneContext = { true } };
 check('no timer means hidden', model.alpha(nil, 0, d) == 0);
 check('fade starts transparent', model.alpha(0, 0, d) == 0);
 check('fade in midpoint', near(model.alpha(0, .1, d), .4));
@@ -21,12 +21,12 @@ state.title, state.banner_is_area = 'Knightwell', true;
 rows = model.rows(state, nil, d);
 check('sub-zone popup has no extra label', rows[1].words == 'Knightwell' and rows[1].title);
 check('sub-zone title has timing identity', rows[1].key == 'areaTitle');
-check('area retains zone and experimental context', rows[2].words == 'West Ronfaure (Experimental Area)' and rows[2].key == 'areaContext');
-d.zoneContext[1] = false;
-check('experimental context survives hidden zone name', model.rows(state, nil, d)[2].words == 'Experimental Area');
-d.region[1], d.weather[1], d.experimental[1] = false, false, false;
+check('area names its zone, with no experimental label', rows[2].words == 'West Ronfaure' and rows[2].key == 'areaContext');
+d.areaZoneContext[1] = false;
+check('Show Zone Name off leaves it out', model.rows(state, nil, d)[2].words == 'Weather: Clear');
+d.zoneRegion[1], d.zoneWeather[1], d.areaWeather[1] = false, false, false;
 check('visibility switches keep only sub-zone title', #model.rows(state, nil, d) == 1);
-state.banner_is_area, state.title = false, 'West Ronfaure'; d.zoneContext[1] = true;
+state.banner_is_area, state.title = false, 'West Ronfaure'; d.areaZoneContext[1] = true;
 rows = model.rows(state, { enabled = true, area = { name = 'Knightwell' } }, d);
 check('zone entry does not include stable subzone', #rows == 1 and rows[1].words == 'West Ronfaure');
 state.entry_subzone = 'Knightwell';
