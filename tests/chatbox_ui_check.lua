@@ -1891,7 +1891,8 @@ local zoneLabel
 for _,label in ipairs(labels) do if label.text=='Port Jeuno' then zoneLabel=label end end
 assert(zoneLabel,'the zone drawn in the panel')
 mouseAt={zoneLabel.x+4,zoneLabel.y+4}; PanelSmartFrame()
-assert(begun==1 and ended==1 and #drawnSchedules==1 and #shownTips==2,'over the zone: a timetable tooltip, no words')
+assert(begun==1 and ended==1 and #drawnSchedules==1 and #shownTips==3,'over the zone: a timetable tooltip')
+assert(shownTips[3]=='Zone: Port Jeuno','the zone named above the timetable, no sub-zone outside one')
 assert(#wraps==1 and wraps[1]==-1,'the timetable too with wrapping off')
 local drawn=drawnSchedules[1]
 assert(drawn.data.title=='Ships and airships' and drawn.data.here==true and #drawn.data.rows==4,'the timetable: the next four of the lines ticked')
