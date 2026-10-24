@@ -61,19 +61,13 @@ calls per category; averages and maxima cover the full interval.
   form of its name where their bars would be (`zones.names_abbr`), or the whole name where
   the game has none. Off, the whole name, cut short where it does not fit.
 - **Pets → Layout → Pet Names**: `Pet`, `Owner: Pet` (default), or `Pet (Owner)`.
-- **Profiles [Experimental]** offers Compact, Healer, Pet job, and Minimal presets plus up to 20 named profiles.
-  Profiles and presets are still being tested.
-  Presets change only their relevant controls; named profiles save Style, Party, Target and Pets
-  display settings. Neither changes positions, corners, links, Behavior settings or the shared theme.
-  Overwriting/deleting a profile requires the explicit permission checkbox.
-  The settings window has no section-reset buttons.
+- The settings window has no section-reset buttons.
 
 Layout reservation is cached until relevant values change. Hidden frames and frames with both groups
 disabled or fully faded skip layout and pet polling. A visible target with its party hidden retains
 the configured minimum pet reservation without polling live pets. Status filtering is cached per input
 list, with value comparisons detecting in-place updates; caches release discarded lists. Hover details
-read mouse coordinates once per enabled frame. Profile names are sorted only when membership changes
-and requested only while the dropdown is open. Automatic windows reuse their positioning vector.
+read mouse coordinates once per enabled frame. Automatic windows reuse their positioning vector.
 Theme-font changes invalidate cached text measurements. Debuff tracking clears on disable,
 settings/character switches and zone-in/out, including while frames are disabled; re-enabling begins
 with only newly observed effects, never a reconstructed complete enemy status list.
@@ -108,7 +102,6 @@ place (and change `xiframes` to `party` in any script that loads it).
 | `perf.lua` | `/pt perf`: render/packet CPU statistics and optional operation counters |
 | `geometry.lua` | cached automatic-layout reservations |
 | `statuses.lua`, `details.lua` | status filtering, screen capacity and hover details |
-| `profiles.lua` | presets, independent named snapshots and position-preserving resets |
 
 `tests/run.sh` loads the addon against a stand-in for Ashita, and compares what it draws, call for
 call, with a kept copy.
@@ -127,12 +120,12 @@ done
 immediate pet-setting changes, zone resets, invitations while disabled, and entity-index reuse
 during target fade-out. `party_performance_check.lua` isolates geometry and letter-debuff
 allocation budgets from the harness's allocating stubs, with JIT disabled for reproducibility.
-`party_customization_check.lua` covers profile isolation/resets, status sorting and fitting, shadows,
+`party_customization_check.lua` covers settings validation, status sorting and fitting, shadows,
 font invalidation, warning/overflow rendering, cached reservations, six pets, hidden-frame work
 and the effect picker.
 `party_tracking_check.lua` covers debuff lifecycle, tooltip semantics and profiling statistics.
 `party_optimization_check.lua` verifies disabled/faded early exits, target-only reservations,
-once-per-frame mouse sampling, status-cache invalidation and lazy profile-name sorting.
+once-per-frame mouse sampling, and status-cache invalidation.
 The lifecycle check also verifies that empty status IDs 0 and 255 never enter the player's buff list.
 The existing resolution, cursor, rearrangement, border and dropdown checks cover presentation
 and input paths. The full runner also compares the plain and bare draw snapshots.

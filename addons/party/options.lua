@@ -183,7 +183,7 @@ local groups = {
         { 'Advanced: Value Positioning', 'hpOffset', 'mpOffset', 'tpOffset', collapsed = true },
         { 'Advanced: Range Indicators', 'castRange', 'targetRange', 'nearOpacity', 'farOpacity', collapsed = true },
         { 'Advanced: Status IDs', collapsed = true },
-        -- Retained in the schema for existing settings and profiles, presented in Behavior instead.
+        -- Retained in the schema for existing settings, presented in Behavior instead.
         { 'hoverDetails', hiddenGroup = true },
     },
     Party = {
@@ -448,7 +448,7 @@ end
 
 function options.Complete(saved)
     FromXiframes(saved)
-    if type(saved.profiles) ~= 'table' then saved.profiles = T{} end
+    saved.profiles = nil -- the profiles of earlier versions, gone with them
     for _, section in ipairs(sections) do
         if type(saved[section]) ~= 'table' then
             saved[section] = T{ }

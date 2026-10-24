@@ -1,26 +1,10 @@
 H.load()
 local o = H.options()
-local options, profiles = require('options'), require('profiles')
-local snapshot = profiles.Capture(o)
-local position, corner, links = o.party.pos1, o.party.corner1, o.links
-assert(profiles.Preset(o, 'Healer'))
-assert(o.style.debuffsFirst[1] and o.style.buffRows[1] == 2)
-assert(profiles.Save(o, 'My healer'))
-assert(not profiles.Save(o, 'My healer'))
-assert(not profiles.Save(o, ''))
-o.style.buffRows[1] = 1
-assert(o.profiles['My healer'].style.buffRows[1] == 2, 'profile must own its tables')
-assert(profiles.Apply(o, o.profiles['My healer']))
-assert(o.style.buffRows[1] == 2)
-profiles.Reset(o, 'style')
-assert(o.style.buffRows[1] == 1 and o.profiles['My healer'])
-assert(o.party.pos1 == position and o.party.corner1 == corner and o.links == links)
-profiles.Apply(o, snapshot)
+local options = require('options')
 -- Malformed edited settings cannot select invalid enums or unbounded sliders.
 o.style.buffLimit[1], o.style.barShadows = 900, 'invalid'
 options.Complete(o)
 assert(o.style.buffLimit[1] == 32 and o.style.barShadows == 'full')
-profiles.Apply(o, snapshot)
 local exposed = {}
 for _, tab in ipairs(options.Tabs) do
     for _, entry in ipairs(tab.entries) do
@@ -31,15 +15,10 @@ for _, tab in ipairs(options.Tabs) do
 end
 assert(exposed.scale and exposed.sortByRole == false, 'scale visible, role-sort toggle hidden')
 local config, imgui = require('config'), require('imgui')
-local profileTab = config.Tabs[#config.Tabs]
-assert(profileTab.name == 'Profiles [Experimental]')
-local colored, notice = imgui.TextColored, false
-imgui.TextColored = function(color, text)
-    if color == require('winxi.widgets').ExperimentalColor and text:find('[Experimental]', 1, true) then notice = true end
-end
-profileTab.draw(o)
-imgui.TextColored = colored
-assert(notice, 'profiles must display an experimental warning')
+for _, tab in ipairs(config.Tabs) do assert(not tab.name:find('Profiles', 1, true), 'no Profiles tab') end
+o.profiles = { Old = {} }
+options.Complete(o)
+assert(o.profiles == nil, 'profiles of earlier versions are dropped')
 local button = imgui.Button
 imgui.Button = function(label, ...)
     assert(not label:find('##party.reset', 1, true) and not label:match('^Reset .+ Settings'),
@@ -48,7 +27,7 @@ imgui.Button = function(label, ...)
 end
 for _, tab in ipairs(config.Tabs) do tab.draw(o) end
 imgui.Button = button
-H.print('profiles: presets, independent saves, overwrite protection, reset and position preservation', true)
+H.print('settings: malformed values bounded, no Profiles tab, old profiles dropped, no reset buttons', true)
 
 local statuses = require('statuses')
 local style = { debuffsFirst = true, priorityStatuses = '40,4', hiddenStatuses = '7' }
