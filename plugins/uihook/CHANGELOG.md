@@ -13,6 +13,10 @@
   `mark`, and the watch block exported as `UihookWatch` for tools/uihook_live.py) are built only by
   `./build.sh --diagnostics`. Without them the watch is no longer kept every frame, nor the census and texture
   census looked at for each draw, and their commands say how to build them. 75 KB smaller.
+- `/uihook mirror watch` and `/uihook mirror mark <words>` reach the watch: uihook gave every `/uihook mirror` but
+  `labels` on as plain `/uihook mirror`, so since 1.21 they printed the mirror's report instead.
+- `/uihook` lists its commands a line each, the diagnostics only where they are built in. The plugin's description
+  and its DLL's version (it said 0.3 and 0.4) say what it is now; the README no longer says it is experimental or untested.
 
 ## 1.57
 

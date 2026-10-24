@@ -347,7 +347,7 @@ public:
     static PartyHook* Instance;
     const char* GetName() const override { return "partyhook"; }
     const char* GetAuthor() const override { return "win"; }
-    const char* GetDescription() const override { return "Experimental Party/target HUD replacement with native target arrows preserved."; }
+    const char* GetDescription() const override { return "uihook's drawing: party, target, clock and chat replacement, the skin, the native look and the menu mirror."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
     double GetVersion() const override { return 0.3; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseDirect3D); }
