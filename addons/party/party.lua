@@ -305,12 +305,13 @@ local function Present()
     nativeBehaviorGroups.party,nativeBehaviorGroups.target=false,false
     windows.NativeBehaviorGroups=nativeBehaviorGroups
     local organizing = winxiOrganize.IsActive()
-    if (saved.nativeParty[1] or saved.nativeTarget[1]) and not nativeHook then nativeHook = require('hook') end
+    local hooking = saved.nativeHook[1]
+    if hooking and (saved.nativeParty[1] or saved.nativeTarget[1]) and not nativeHook then nativeHook = require('hook') end
     -- Renew empty replacements BEFORE the hiding rules, for each independently enabled group.
     -- Expanded chat/maps hide the replacement too, rather than allowing stock HUD frames back.
     local native = nativeHook and nativeHook.Begin(
-        saved.nativeParty[1] and saved.party.enabled[1] and not organizing,
-        saved.nativeTarget[1] and saved.target.enabled[1] and not organizing)
+        hooking and saved.nativeParty[1] and saved.party.enabled[1] and not organizing,
+        hooking and saved.nativeTarget[1] and saved.target.enabled[1] and not organizing)
     local hidden=winxiGame.IsHidden(saved.hide)
     if native then
         nativeBehaviorGroups.party=saved.nativeBehavior[1] and nativeHook.Uses(windows.List.party1)
@@ -405,6 +406,7 @@ ashita.events.register('command', 'command_handler', function(e)
         if isTarget then choice = (e.command:match('^%s*%S+%s+%S+%s+%S+%s+(%S+)') or 'status'):lower() end
         if choice == 'on' or choice == 'off' then
             saved[isTarget and 'nativeTarget' or 'nativeParty'][1] = choice == 'on'
+            if choice == 'on' then saved.nativeHook[1] = true end
             if nativeHook and choice == 'off' then nativeHook.Disable(isTarget) end
             settings.save()
             print(('[party] Native %s replacement %s. Unload hideparty before enabling; /pt native status for diagnostics.'):format(isTarget and 'target' or 'party', choice))

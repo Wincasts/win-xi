@@ -302,6 +302,7 @@ function options.Defaults()
         hide = T{ DuringEvent = true, UnderChat = true, UnderMap = true, WhileLoading = true, WithInterface = true },
         clickThrough = T{ true },
         automaticPositioning = T{ false },
+        nativeHook = T{ false }, -- uihook used at all; Party and Target below choose what it draws
         nativeParty = T{ false }, -- experimental partyhook rendering; never enabled by migration
         nativeTarget = T{ false }, -- independent opt-in
         nativePositioning = T{ false }, -- parked/hidden; forcibly disabled during settings completion
@@ -468,6 +469,10 @@ function options.Complete(saved)
     end
     if type(saved.nativeTarget) ~= 'table' or type(saved.nativeTarget[1]) ~= 'boolean' then
         saved.nativeTarget = T{ false }
+    end
+    -- Settings from before the toggle keep their hooked windows hooked
+    if type(saved.nativeHook) ~= 'table' or type(saved.nativeHook[1]) ~= 'boolean' then
+        saved.nativeHook = T{ saved.nativeParty[1] or saved.nativeTarget[1] }
     end
     for key, default in pairs({ nativePositioning=false, nativeBehavior=false, nativeAlliance2=true, nativeAlliance3=true }) do
         if type(saved[key]) ~= 'table' or type(saved[key][1]) ~= 'boolean' then saved[key]=T{ default } end

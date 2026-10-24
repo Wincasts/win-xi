@@ -211,7 +211,11 @@ Unload Party and partyhook before replacing the DLL; keep hideparty unloaded.
 - `/pt native target on|off`: independent target replacement. Captures main, sub-target and target-of-target
   windows together at the native target-box stage; normal Target settings still select which are shown.
 - `/pt native status`: concise mode/readiness status; cumulative debug counters are hidden.
-- **Behavior → Native HUD Replacement (Experimental)** exposes both saved opt-ins.
+- **Behavior → uihook** says whether uihook (or partyhook) is loaded. **Hook Into uihook** turns the
+  hooking on or off as a whole; while it is on, **Party** and **Target** choose which windows the plugin
+  draws in the game's place, and **Follow Default UI Behavior** sits with them. Pets are rows of the
+  Party windows and go with Party. The controls are greyed while the plugin is not loaded, their
+  choices kept. `/pt native on` turns Hook Into uihook on too.
 
 Target mode preserves the **game's own overhead main/subtarget arrows**, including placement, animation
 and range tints, by allowing their two verified native draw calls through HUD suppression. No Lua
