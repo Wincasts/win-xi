@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3
 
 - Six smooth bar textures (winxisettings → Styles → Bar Texture), shaded from top to foot with nothing along the bar, so the fill looks the same at any HP: Enamel, Enamel (Lit Rim), Enamel (Gradient), Glass Tube, Glass Tube (Deep) and Glass Enamel.
 - Fill End Glow (%): a soft light at the end of each HP and MP fill, 35 to begin with; 0 for none.
