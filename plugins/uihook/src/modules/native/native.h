@@ -227,7 +227,10 @@ public:
     // The window being drawn: its entry, if it is one named. Its draws' bounds from the frame before become the ones
     // it is placed by. Returns what to give back after it.
     struct Saved { NativeEntry* current; MirrorPhase phase; unsigned text; };
-    Saved Enter(const char* name,uint32_t frame) {
+    // drawn: where the game draws the window this frame (+3A, in pixels: left, top, right, bottom), or null. A window
+    // drawn for the first time (or the first since its entry was given to another) is placed by it at once: placed
+    // by its draws of the frame before alone, it showed for a frame where the game put it, then moved.
+    Saved Enter(const char* name,uint32_t frame,const float* drawn=nullptr) {
         Saved saved={current,phase,text};
         current=nullptr; phase=MIRROR_FRAME; text=0;
         NativeEntry* e=name ? Find(name,false) : nullptr;
@@ -235,8 +238,14 @@ public:
         if (e) {
             e->seen=frame;
             if (e->gatherFrame!=frame) {
-                if (e->gathered) { memcpy(e->bounds,e->gather,sizeof(e->bounds)); e->known=true; }
+                // drawn the frame before: its frame is what it drew as one, none where it drew none (a guess from
+                // the game's place, below, is not kept for a window with no frame of its own)
+                if (e->gathered) { memcpy(e->bounds,e->gather,sizeof(e->bounds)); e->known=true; e->frameKnown=false; }
                 if (e->frameGathered) { memcpy(e->frame,e->frameGather,sizeof(e->frame)); e->frameKnown=true; }
+                if (!e->known && drawn && drawn[2]>drawn[0] && drawn[3]>drawn[1]) {
+                    memcpy(e->bounds,drawn,sizeof(e->bounds)); memcpy(e->frame,drawn,sizeof(e->frame));
+                    e->known=e->frameKnown=true;
+                }
                 e->gathered=e->frameGathered=false; e->gatherFrame=frame;
                 e->barCentred=e->barSpanning; e->barSpanning=false;
             }

@@ -203,6 +203,17 @@ int main() {
     saved=sides.Enter("menu    logwindo",2);
     Check(!sides.Transform(3440,1440,mt),"the chat log: as chatbox places it");
     sides.Leave(saved);
+    // a window drawn the first time: placed at once by where the game draws it, not a frame late
+    {
+        const float place[4]={3311,47,3423,249};
+        NativeLook::Saved was=sides.Enter("menu    newmenu ",7,place);
+        float p[4]={};
+        Check(sides.Placing(3440,1440,p) && Near(p[2],-100),"drawn the first time: moved with its side at once");
+        V nf[2]={{3311,47,0,1,0,0,0},{3423,249,0,1,0,0,0}}; sides.Phase(MIRROR_CONTENT); sides.Gather(nf,2,sizeof(V)); sides.Leave(was);
+        was=sides.Enter("menu    newmenu ",8,place);
+        Check(!sides.Placing(3440,1440,p),"drawing no frame of its own the frame before: the guess not kept");
+        sides.Leave(was);
+    }
     sides.MenuScale(1);
     sides.Inset(0);
     saved=sides.Enter("menu    titlewin",3);

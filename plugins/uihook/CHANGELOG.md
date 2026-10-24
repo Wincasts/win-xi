@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.57
+
+- A window drawn for the first time (or the first since its entry went to another) is placed at once, by where the
+  game draws it (+3A, in pixels): placed only by its draws of the frame before, it showed for a frame where the game
+  put it, then moved. A window that drew no frame of its own the frame before is taken for one without, so the
+  guess does not move the target's arrow and the like for longer than its first frame.
+
 ## 1.56
 
 - Faster. The skin's fonts are drawn a size at a time, the first time a draw is made with that size, not all at

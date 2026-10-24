@@ -307,11 +307,20 @@ class PartyHook : public IPlugin {
         // where the game draws it (+3A: left, top, right, bottom), not its layout target (+8C), which for some is over the
         // chat log while they are drawn elsewhere (the Master and Automaton menu, beside the main menu)
         int16_t drawn[4];
-        if (NativeMenus.groupOn && ChatRead(static_cast<uint8_t*>(window)+0x3a,drawn,sizeof(drawn)) && drawn[2]>drawn[0] && drawn[3]>drawn[1]) {
+        const bool placed=ChatRead(static_cast<uint8_t*>(window)+0x3a,drawn,sizeof(drawn)) && drawn[2]>drawn[0] && drawn[3]>drawn[1];
+        if (NativeMenus.groupOn && placed) {
             const int16_t place[4]={drawn[0],drawn[1],int16_t(drawn[2]-drawn[0]),int16_t(drawn[3]-drawn[1])};
             NativeMenus.Note(name,place,Shared.Frame);
         }
-        return NativeMenus.Enter(name,Shared.Frame);
+        // the same in pixels, for one drawn the first time to be placed at once
+        float pixels[4]; uint8_t scaled=0; int16_t dims[2]={640,480};
+        const bool hint=placed && ChatRead(static_cast<uint8_t*>(window)+0x99,&scaled,1)
+            && (!scaled || (menuManager && ChatRead(menuManager+0x80,dims,sizeof(dims)) && dims[0]>0 && dims[1]>0));
+        if (hint) {
+            const float sx=scaled ? dims[0]/640.0f : 1.0f,sy=scaled ? dims[1]/480.0f : 1.0f;
+            pixels[0]=drawn[0]*sx; pixels[1]=drawn[1]*sy; pixels[2]=drawn[2]*sx; pixels[3]=drawn[3]*sy;
+        }
+        return NativeMenus.Enter(name,Shared.Frame,hint ? pixels : nullptr);
     }
     // A screen-space draw of a window named: counted into its bounds; then, where it is moved or its frame tinted,
     // drawn so in its place (its vertices copied and moved; a second texture stage multiplying the game's own result by
