@@ -173,6 +173,7 @@ luajit tests/zoneinfo_entrances_check.lua
 python3 tools/test_build_zone_entrances.py
 python3 -m unittest discover -s tools -p test_refine_zoneinfo_boundaries.py
 run zoneinfo-features tests/zoneinfo_background_fixture.lua zoneinfo_features_check.lua
+run zoneinfo-settings tests/zoneinfo_fixture.lua zoneinfo_settings_ui_check.lua
 echo
 run name addons/name/name.lua name_check.lua
 run name addons/name/name.lua name_token_options_check.lua

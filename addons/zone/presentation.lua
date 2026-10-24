@@ -26,12 +26,11 @@ local lines = { { 'zoneRegion', 'Zone: Region' }, { 'zoneTitle', 'Zone: Title' }
     { 'areaWeather', 'Sub-zone: Weather' }, { 'areaDayTime', 'Sub-zone: Day And Time' } };
 local function defaults()
     local result = T{ display = T{
-        enabled = T{ true }, chat = T{ true }, region = T{ true }, weather = T{ true },
-        zoneContext = T{ true }, experimental = T{ true },
+        enabled = T{ true }, chat = T{ true },
         zoneRegion = T{ true }, zoneWeather = T{ true },
-        areaEnabled = T{ true }, areaZoneContext = T{ true }, areaWeather = T{ true }, areaExperimental = T{ true },
+        areaEnabled = T{ true }, areaZoneContext = T{ true }, areaWeather = T{ true },
         centered = T{ true }, position = T{ 0, 110 }, alignment = 'center', mode = 'floating',
-        titleSize = T{ 32 }, detailSize = T{ 16 }, zoneTitleSize = T{ 32 }, zoneDetailSize = T{ 16 },
+        zoneTitleSize = T{ 32 }, zoneDetailSize = T{ 16 },
         areaTitleSize = T{ 32 }, areaDetailSize = T{ 16 }, spacing = T{ 4 },
         renderer = 'imgui',
         weatherEnabled = T{ true },
@@ -63,7 +62,7 @@ local function defaults()
     end
     return result;
 end
-local ranges = { titleSize = { 14, 96 }, detailSize = { 10, 40 }, zoneTitleSize = { 14, 96 },
+local ranges = { zoneTitleSize = { 14, 96 },
     zoneDetailSize = { 10, 40 }, areaTitleSize = { 14, 96 }, areaDetailSize = { 10, 40 },
     spacing = { 0, 30 }, hold = { .1, 60 }, fadeIn = { 0, 3 }, fadeOut = { 0, 10 },
     opacity = { 0, 1 }, fieldApproach = { 0, 100 }, townApproach = { 0, 100 }, dungeonApproach = { 0, 100 },
@@ -82,7 +81,10 @@ function M.complete(options)
     local fallback = defaults().display;
     if type(options.display) ~= 'table' then options.display = fallback; end
     local d = options.display;
-    d.approachYalms = nil; -- One distance for every zone, before field, town and dungeon had their own.
+    -- Settings of earlier versions: one approach distance for every zone, the experimental label, and
+    -- one region, weather, context and size for both popups.
+    for _, key in ipairs({ 'approachYalms', 'areaExperimental', 'experimental', 'region', 'weather', 'zoneContext',
+        'titleSize', 'detailSize' }) do d[key] = nil; end
     for key, value in pairs(fallback) do
         if type(value) == 'table' then
             if type(d[key]) ~= 'table' then d[key] = value; end
@@ -94,7 +96,7 @@ function M.complete(options)
     for key, range in pairs(ranges) do d[key][1] = math.max(range[1], math.min(range[2], d[key][1])); end
     -- SliderFloat's %.0f label does not round its value. Fractional sizes otherwise
     -- create new baked fonts continuously while dragging, churning the shared atlas.
-    for _, key in ipairs({ 'titleSize', 'detailSize', 'zoneTitleSize', 'zoneDetailSize', 'areaTitleSize', 'areaDetailSize',
+    for _, key in ipairs({ 'zoneTitleSize', 'zoneDetailSize', 'areaTitleSize', 'areaDetailSize',
         'locationSize', 'fieldApproach', 'townApproach', 'dungeonApproach', 'entranceYalms', 'townEntranceYalms', 'reannounceSeconds', 'styleTitleSize', 'styleDetailSize', 'pennantWidth', 'pennantLength',
         'pennantLetterSize', 'kanjiSize', 'backdropSoftness' }) do
         d[key][1] = math.floor(d[key][1] + .5);
@@ -208,10 +210,34 @@ local function commit(options)
     if dirty then M.complete(options); end
     if dirty and not imgui.IsMouseDown(0) then dirty = false; M.app:Save(); end
 end
+-- A control that does nothing while its switch is off is greyed, kept where it is.
+local function greyed(off, draw)
+    if off then imgui.BeginDisabled(true); end
+    draw();
+    if off then imgui.EndDisabled(); end
+end
+local function uses(d, id) return d.zoneStyle == id or d.areaStyle == id; end
 local function draw_settings(options)
     local d = options.display;
-    if widgets.Header('Announcements', true) then
-        checkbox(d, 'Show Banner', 'enabled'); checkbox(d, 'Chat Announcements', 'chat');
+    if widgets.Header('Preview', true) then
+        checkbox({ preview = M.preview }, 'Preview While Configuring', 'preview');
+        tips.Hover('Keeps a banner up while these settings are open, to see each change.');
+        if imgui.Button('Preview Zone Once') and M.on_preview then M.on_preview(); end
+        if imgui.Button('Preview Sub-zone Once') and M.on_area_preview then M.on_area_preview(); end
+        if imgui.Button('Preview Weather Once') and M.on_weather_preview then M.on_weather_preview(); end
+        if imgui.Button('Open Map Browser') and M.on_open_browser then M.on_open_browser(); end
+        tips.Hover('Every map and the areas it announces, to look at or edit. /zone debug does the same.');
+    end
+    widgets.Gap();
+    if widgets.Header('Announcements') then
+        checkbox(d, 'Show Banner', 'enabled');
+        tips.Hover('Off, no banner is drawn: not for zones, sub-zones or weather.');
+        checkbox(d, 'Show Sub-zone Popups', 'areaEnabled');
+        tips.Hover('A smaller banner as you come to a named part of a zone: a square, a shop, an entrance.');
+        checkbox(d, 'Show Weather Popups', 'weatherEnabled');
+        tips.Hover('A popup when the weather changes. It looks like a sub-zone popup and has its Zone Name and Day And Time.');
+        checkbox(d, 'Chat Announcements', 'chat');
+        tips.Hover('Each banner is written to the chat log too.');
     end
     widgets.Gap();
     if widgets.Header('Zone Entry Popup') then
@@ -221,14 +247,19 @@ local function draw_settings(options)
     end
     widgets.Gap();
     if widgets.Header('Sub-zone Popup') then
-        checkbox(d, 'Show Sub-zone Popups', 'areaEnabled');
-        checkbox(d, 'Show Zone Context', 'areaZoneContext'); checkbox(d, 'Show Weather', 'areaWeather');
+        checkbox(d, 'Show Zone Name', 'areaZoneContext');
+        tips.Hover('The zone under the sub-zone\'s name.');
+        checkbox(d, 'Show Weather', 'areaWeather');
         checkbox(d, 'Show Day And Time', 'areaDayTime');
         tips.Hover('The Vana\'diel day and time you came to it, such as Firesday 14:20.');
-        checkbox(d, 'Show Experimental Label', 'areaExperimental');
         widgets.PushControlWidth();
         slider(d, 'Re-announce After', 'reannounceSeconds', '%.0f seconds');
         tips.Hover('An area you come back to is announced again only if you were away this long: out of a shop into its square, say. 0 announces every return.');
+        widgets.PopControlWidth();
+    end
+    widgets.Gap();
+    if widgets.Header('Detection') then
+        widgets.PushControlWidth();
         slider(d, 'Field Approach Distance', 'fieldApproach', '%.0f yalms');
         tips.Hover('How near a feature in open country is announced, measured from its outline. 0 announces only inside it.');
         slider(d, 'Town Approach Distance', 'townApproach', '%.0f yalms');
@@ -236,23 +267,21 @@ local function draw_settings(options)
         slider(d, 'Dungeon Approach Distance', 'dungeonApproach', '%.0f yalms');
         tips.Hover('The same in a dungeon or a beastmen stronghold.');
         widgets.PopControlWidth();
+    end
+    widgets.Gap();
+    if widgets.Header('Entrances') then
         checkbox(d, 'Announce Dungeon Entrances', 'entrancesEnabled');
         tips.Hover('Names a dungeon\'s entrance as you come to it, with the number the map gives it: Quicksand Caves Entrance 7.');
         widgets.PushControlWidth();
-        slider(d, 'Entrance Distance', 'entranceYalms', '%.0f yalms');
+        greyed(not d.entrancesEnabled[1], function() slider(d, 'Dungeon Entrance Distance', 'entranceYalms', '%.0f yalms'); end);
         widgets.PopControlWidth();
-        tips.Hover('How near an entrance is announced, from where it leads into the dungeon.');
+        tips.Hover('How near a dungeon\'s entrance is announced, from where it leads into the dungeon.');
         checkbox(d, 'Announce Town Entrances', 'townEntrancesEnabled');
         tips.Hover('Names a town as you come up to its gates from the field or a dungeon: Southern San d\'Oria Entrance. Jeuno\'s bridges are named already.');
         widgets.PushControlWidth();
-        slider(d, 'Town Entrance Distance', 'townEntranceYalms', '%.0f yalms');
+        greyed(not d.townEntrancesEnabled[1], function() slider(d, 'Town Entrance Distance', 'townEntranceYalms', '%.0f yalms'); end);
         widgets.PopControlWidth();
         tips.Hover('How near a town\'s entrance is announced, from where it leads into the town.');
-    end
-    widgets.Gap();
-    if widgets.Header('Weather Popup') then
-        checkbox(d, 'Show Weather Popups', 'weatherEnabled');
-        tips.Hover('A popup when the weather changes. It looks like a sub-zone popup and has its Zone Context and Day And Time.');
     end
     widgets.Gap();
     if widgets.Header('Location Line') then
@@ -270,48 +299,40 @@ local function draw_settings(options)
     if widgets.Header('Timing') then
         widgets.PushControlWidth();
         slider(d, 'Hold Seconds', 'hold'); slider(d, 'Fade In Seconds', 'fadeIn'); slider(d, 'Fade Out Seconds', 'fadeOut');
-        slider(d, 'Opacity', 'opacity', '%.2f');
-        checkbox(d, 'Use Per-Line Timing', 'perLineTiming');
-        tips.Hover('Classic Text only: each line its own delay, hold and fades. The other styles use the timing above.');
-        if d.perLineTiming[1] then
-            for _, line in ipairs(lines) do
-                widgets.Gap();
-                if widgets.Header(line[2]) then
-                    slider(d, 'Start Delay', line[1] .. 'Delay');
-                    slider(d, 'Hold Seconds', line[1] .. 'Hold');
-                    slider(d, 'Fade In Seconds', line[1] .. 'FadeIn');
-                    slider(d, 'Fade Out Seconds', line[1] .. 'FadeOut');
+        -- Each line its own timing is Classic Text's alone.
+        if uses(d, 'classic') then
+            checkbox(d, 'Use Per-Line Timing', 'perLineTiming');
+            tips.Hover('Classic Text only: each line its own delay, hold and fades. The other styles use the timing above.');
+            if d.perLineTiming[1] then
+                for _, line in ipairs(lines) do
+                    widgets.Gap();
+                    if widgets.Header(line[2]) then
+                        slider(d, 'Start Delay', line[1] .. 'Delay');
+                        slider(d, 'Hold Seconds', line[1] .. 'Hold');
+                        slider(d, 'Fade In Seconds', line[1] .. 'FadeIn');
+                        slider(d, 'Fade Out Seconds', line[1] .. 'FadeOut');
+                    end
                 end
             end
         end
         widgets.PopControlWidth();
     end
     widgets.Gap();
-    if widgets.Header('Preview') then
-        widgets.Label('Preview While Configuring'); imgui.Checkbox('##zone.preview', M.preview);
-        if imgui.Button('Preview Zone Once') and M.on_preview then M.on_preview(); end
-        if imgui.Button('Preview Sub-zone Once') and M.on_area_preview then M.on_area_preview(); end
-        if imgui.Button('Preview Weather Once') and M.on_weather_preview then M.on_weather_preview(); end
-    end
-    widgets.Gap();
     if widgets.Header('Hide Banner') then widgets.Hide(options.hide, M.app.save); end
     commit(options);
 end
-local function uses(d, id) return d.zoneStyle == id or d.areaStyle == id; end
 local function draw_appearance(options)
     local d = options.display;
     local styled = d.zoneStyle ~= 'classic' or d.areaStyle ~= 'classic';
+    local classic = uses(d, 'classic');
     widgets.PushControlWidth();
     if widgets.Header('Banner Style', true) then
         choice(d, 'Zone Entry Style', 'zoneStyle', styles.ids);
         tips.Hover('/zone test and a style (' .. table.concat(styles.ids, ', ') .. ') shows the zone once in that style.');
         choice(d, 'Sub-zone Style', 'areaStyle', styles.ids);
         tips.Hover('Weather popups use this style too.');
-        if styled then
-            slider(d, 'Style Title Size', 'styleTitleSize', '%.0f px');
-            slider(d, 'Style Detail Size', 'styleDetailSize', '%.0f px');
-            tips.Hover('Sizes for every style but Classic Text, which has its own below.');
-        end
+        slider(d, 'Opacity', 'opacity', '%.2f');
+        tips.Hover('The whole banner, text and all.');
     end
     if uses(d, 'pennant') then
         widgets.Gap();
@@ -336,35 +357,57 @@ local function draw_appearance(options)
             tips.Hover('Names with Latin letters, digits or brackets, such as the [S] zones, are written across.');
         end
     end
-    if uses(d, 'classic') then
+    if classic then
         widgets.Gap();
         if widgets.Header('Classic Text') then
-            choice(d, 'Text Renderer', 'renderer', { 'imgui', 'gdi' });
+            widgets.Label('Text Renderer', d.renderer == 'gdi');
+            if imgui.BeginCombo('##zone.renderer', d.renderer == 'gdi' and 'GDI Fonts' or 'ImGui (Default)') then
+                if imgui.Selectable('ImGui (Default)', d.renderer == 'imgui') then d.renderer = 'imgui'; changed(true); end
+                if imgui.Selectable('GDI Fonts', d.renderer == 'gdi') then d.renderer = 'gdi'; changed(true); end
+                imgui.EndCombo();
+            end
             tips.Hover('GDI draws the text with a native DLL, outside the ImGui font atlas. A failure in it can crash the client.');
             if d.renderer == 'gdi' then
-                for _, field in ipairs({ { 'zoneTitleGdiFamily', 'Zone Title Family' }, { 'zoneDetailGdiFamily', 'Zone Detail Family' },
-                    { 'areaTitleGdiFamily', 'Sub-zone Title Family' }, { 'areaDetailGdiFamily', 'Sub-zone Detail Family' } }) do
-                    gdi_family_choice(d, field[2], field[1]);
-                end
-                local families, problem = require('gdi_families').List();
-                if #families == 0 then imgui.Text('Windows font families could not be listed; saved selections are kept.'); end
-                if problem then imgui.Text('Font enumeration error: ' .. problem); end
-                checkbox(d, 'Bold Titles', 'gdiTitleBold'); checkbox(d, 'Bold Details', 'gdiDetailBold');
+                imgui.TextDisabled('GDI Fonts is experimental: a failure in its DLL can crash the client.');
             else
                 choice(d, 'Display Style', 'mode', { 'floating', 'panel' });
                 tips.Hover('Themed Panel puts the theme\'s background, border and shadow behind the text.');
             end
-            slider(d, 'Zone Title Size', 'zoneTitleSize', '%.0f px'); slider(d, 'Zone Detail Size', 'zoneDetailSize', '%.0f px');
-            slider(d, 'Sub-zone Title Size', 'areaTitleSize', '%.0f px'); slider(d, 'Sub-zone Detail Size', 'areaDetailSize', '%.0f px');
-            slider(d, 'Line Spacing', 'spacing', '%.0f px');
         end
     end
-    if styled or d.renderer == 'imgui' then
-        widgets.Gap();
-        if widgets.Header('Fonts') then
+    widgets.Gap();
+    if widgets.Header('Text') then
+        if styled then
+            slider(d, 'Style Title Size', 'styleTitleSize', '%.0f px');
+            slider(d, 'Style Detail Size', 'styleDetailSize', '%.0f px');
+            tips.Hover('Sizes for every style but Classic Text, which has its own below.');
+        end
+        if classic then
+            slider(d, 'Zone Title Size', 'zoneTitleSize', '%.0f px'); slider(d, 'Zone Detail Size', 'zoneDetailSize', '%.0f px');
+            slider(d, 'Sub-zone Title Size', 'areaTitleSize', '%.0f px'); slider(d, 'Sub-zone Detail Size', 'areaDetailSize', '%.0f px');
+            tips.Hover('Classic Text\'s sizes.');
+            slider(d, 'Line Spacing', 'spacing', '%.0f px');
+        end
+        if classic and d.renderer == 'gdi' then
+            for _, field in ipairs({ { 'zoneTitleGdiFamily', 'Zone Title Family' }, { 'zoneDetailGdiFamily', 'Zone Detail Family' },
+                { 'areaTitleGdiFamily', 'Sub-zone Title Family' }, { 'areaDetailGdiFamily', 'Sub-zone Detail Family' } }) do
+                gdi_family_choice(d, field[2], field[1]);
+            end
+            local families, problem = require('gdi_families').List();
+            if #families == 0 then imgui.Text('Windows font families could not be listed; saved selections are kept.'); end
+            if problem then imgui.Text('Font enumeration error: ' .. problem); end
+            checkbox(d, 'Bold Titles', 'gdiTitleBold'); checkbox(d, 'Bold Details', 'gdiDetailBold');
+        end
+        if styled or d.renderer == 'imgui' then
             font_choice(d, 'Zone Title Font', 'zoneTitleFont'); font_choice(d, 'Zone Detail Font', 'zoneDetailFont');
             font_choice(d, 'Sub-zone Title Font', 'areaTitleFont'); font_choice(d, 'Sub-zone Detail Font', 'areaDetailFont');
             tips.Hover('From C:\\Windows\\Fonts. Default is the theme\'s font.');
+        end
+        checkbox(d, 'Use Theme Text Color', 'themeText');
+        tips.Hover('The dark edge round the text is Winxi Theme\'s Text Outline and Outline Color, in winxisettings.');
+        if not d.themeText[1] then
+            widgets.Label('Title Color'); changed(imgui.ColorEdit4('##zone.titleColor', d.titleColor));
+            widgets.Label('Detail Color'); changed(imgui.ColorEdit4('##zone.detailColor', d.detailColor));
         end
     end
     widgets.Gap();
@@ -375,27 +418,18 @@ local function draw_appearance(options)
         choice(d, 'Text Alignment', 'alignment', { 'left', 'center', 'right' });
     end
     widgets.Gap();
-    if widgets.Header('Colors') then
-        checkbox(d, 'Use Theme Text Color', 'themeText');
-        tips.Hover('The dark edge round the text is Winxi Theme\'s Text Outline and Outline Color, in winxisettings.');
-        if not d.themeText[1] then
-            widgets.Label('Title Color'); changed(imgui.ColorEdit4('##zone.titleColor', d.titleColor));
-            widgets.Label('Detail Color'); changed(imgui.ColorEdit4('##zone.detailColor', d.detailColor));
-        end
-    end
-    widgets.Gap();
     if widgets.Header('Backdrop') then
         checkbox(d, 'Show Backdrop', 'backdrop');
         tips.Hover('A soft shadow behind the banner, so it stands out from a bright scene. Every style, and Classic Text\'s Floating Text.');
-        if d.backdrop[1] then
+        greyed(not d.backdrop[1], function()
             slider(d, 'Backdrop Opacity', 'backdropOpacity', '%.2f');
             slider(d, 'Backdrop Softness', 'backdropSoftness', '%.0f px');
-            tips.Hover('How far it fades out round the words.');
-        end
+        end);
+        tips.Hover('How far it fades out round the words.');
     end
-    if uses(d, 'classic') then
+    if classic then
         widgets.Gap();
-        if widgets.Header('Background Image', false, true) then
+        if widgets.Header('Flag And Background Image', false, true) then
             checkbox(d, 'Use Region Flags', 'backgroundFlags');
             tips.Hover('A nation\'s own regions show its flag, fitted inside Image Size, in place of the image.');
             checkbox(d, 'Show Background Image', 'backgroundEnabled');
@@ -497,21 +531,19 @@ local pivot, position = { .5, 0 }, { 0, 0 };
 local row_cache = {};
 local function cached_rows(content, tracking, d)
     local c = row_cache;
-    local region = (d.zoneRegion or d.region)[1];
-    local weather = (content.banner_is_area and (d.areaWeather or d.weather)
-        or (d.zoneWeather or d.weather))[1];
-    local context = (d.areaZoneContext or d.zoneContext)[1];
-    local experimental = (d.areaExperimental or d.experimental)[1];
+    local region = d.zoneRegion[1];
+    local weather = (content.banner_is_area and d.areaWeather or d.zoneWeather)[1];
+    local context = d.areaZoneContext[1];
     if not c.rows or c.title ~= content.title or c.zone ~= content.zone_title
         or c.region ~= content.region or c.weather ~= content.weather or c.area ~= content.banner_is_area
         or c.is_weather ~= (content.banner_is_weather or false)
-        or c.show_region ~= region or c.show_weather ~= weather or c.context ~= context or c.experimental ~= experimental
+        or c.show_region ~= region or c.show_weather ~= weather or c.context ~= context
         or c.vana ~= content.vana or c.zone_day ~= d.zoneDayTime[1] or c.area_day ~= d.areaDayTime[1] then
         c.rows = layout.rows(content, tracking, d);
         c.title, c.zone = content.title, content.zone_title;
         c.region, c.weather, c.area = content.region, content.weather, content.banner_is_area;
         c.is_weather = content.banner_is_weather or false;
-        c.show_region, c.show_weather, c.context, c.experimental = region, weather, context, experimental;
+        c.show_region, c.show_weather, c.context = region, weather, context;
         c.vana, c.zone_day, c.area_day = content.vana, d.zoneDayTime[1], d.areaDayTime[1];
     end
     return c.rows;

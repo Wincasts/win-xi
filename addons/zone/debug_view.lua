@@ -56,10 +56,10 @@ function M.draw(state, editor)
     if not state.debug then if editor then editor:cancel(); end; state.editing = false; return; end
     imgui.SetNextWindowSize({ 570, 900 }, rawget(_G, 'ImGuiCond_FirstUseEver') or 0);
     winxi_style.PushFull();
-    local visible = imgui.Begin('Zone - experimental area debug');
+    local visible = imgui.Begin('Zone - Map Browser');
     if visible then
         browser:sync(state.zone, state.map_key);
-        imgui.Text('EXPERIMENTAL: boundaries include generated guesses; verify them manually.');
+        imgui.Text('Areas are drawn from the map art, not walked in game: check them where you stand.');
         imgui.Checkbox('Follow player zone/map', browser.follow);
         browser:sync(state.zone, state.map_key);
         local zone = catalog[browser.zone_id or 0];
@@ -294,7 +294,7 @@ function M.draw(state, editor)
             imgui.EndChild();
             imgui.Text('Yellow: vertices | Cyan: live player | Purple: disabled draft | Orange/green: approach | Blue: entrance');
         end
-        imgui.Text('/zone sample prints live coordinates; /zone debug off closes this window.');
+        imgui.Text('/zone sample prints live coordinates; /zone map closes this window.');
     elseif editor then editor:cancel(); end
     state.editing = editor and editor.dragging ~= nil and browser:is_live(state) or false;
     imgui.End();

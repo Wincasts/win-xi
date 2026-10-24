@@ -21,12 +21,8 @@ function M.rows(state, tracking, options)
         end
     end
 
-    -- Retain legacy option fallbacks for callers with pre-per-popup settings.
-    local zone_region = options.zoneRegion or options.region;
-    local zone_weather = options.zoneWeather or options.weather;
-    local area_context = options.areaZoneContext or options.zoneContext;
-    local area_weather = options.areaWeather or options.weather;
-    local area_experimental = options.areaExperimental or options.experimental;
+    local zone_region, zone_weather = options.zoneRegion, options.zoneWeather;
+    local area_context, area_weather = options.areaZoneContext, options.areaWeather;
     -- The Vana'diel day and time the popup started at, where it is wanted: 'Firesday 14:20'.
     local function day_time(key)
         if options[key] and options[key][1] and state.vana then add(state.vana, false, key); end
@@ -43,11 +39,7 @@ function M.rows(state, tracking, options)
     if (not state.banner_is_area and zone_region[1]) then add(state.region, false, 'zoneRegion'); end
     add(state.title, true, state.banner_is_area and 'areaTitle' or 'zoneTitle');
     if state.banner_is_area then
-        local context = area_context[1] and state.zone_title or '';
-        if area_experimental[1] then
-            context = context ~= '' and (context .. ' (Experimental Area)') or 'Experimental Area';
-        end
-        add(context, false, 'areaContext');
+        if area_context[1] then add(state.zone_title, false, 'areaContext'); end
     end
     if ((state.banner_is_area and area_weather[1]) or (not state.banner_is_area and zone_weather[1])) then
         add('Weather: ' .. state.weather, false, state.banner_is_area and 'areaWeather' or 'zoneWeather');
