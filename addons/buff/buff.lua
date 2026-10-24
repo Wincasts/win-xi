@@ -23,7 +23,7 @@ addon.link    = 'https://github.com/Wincasts/win-xi';
 
 -- The winxi this addon was made with, or a newer one: each addon is released with its own copy, so an
 -- older one may have been put over it (winxi.version)
-local winxiNeeded = 25; -- widgets.FontFile, FontSize
+local winxiNeeded = 44; -- controller.LayoutMismatch
 do
     local ok, found = pcall(require, 'winxi.version');
     local number = ok and type(found) == 'table' and found.Number or 0;
@@ -185,6 +185,19 @@ controller.Bind({
         end
     end,
 });
+
+-- In the selector, with the cursor on a status, a Controller Type of the other kind than the one
+-- pressing buttons takes no A: said once, as the settings say it
+local mismatchSaid = false;
+local function SayMismatch()
+    if mismatchSaid or not controller.LayoutMismatch() or CursorStatus() == nil then
+        return;
+    end
+    mismatchSaid = true;
+    app:Say(controller.Heard() == 'xinput'
+        and 'Your controller is an XInput one, and Controller Type is DirectInput: A cannot remove a status until it is set to XInput (/buff config, Controller).'
+        or 'Your controller is a DirectInput one, and Controller Type is XInput: A cannot remove a status until it is set to the DirectInput make that matches it (/buff config, Controller).');
+end
 
 -- A status is removed with a right click, or in the selector with any click
 local function ClickedToRemove()
@@ -588,6 +601,7 @@ local function DrawHooked(options, found)
     end
     selecting = anchoring.SelectorOpen();
     FindCursor(found);
+    SayMismatch();
 
     -- the window's font: the theme's, then the one chosen for the bar
     local pushedTheme = fonts.Push();
@@ -746,6 +760,7 @@ ashita.events.register('d3d_present', 'buff_present', function()
     end
     selecting = anchoring.SelectorOpen();
     FindCursor(found);
+    SayMismatch();
     if anchored then
         anchoring.Draw(anchoredName, options, DrawStatuses);
     else
