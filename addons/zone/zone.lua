@@ -267,14 +267,6 @@ local function message(text, is_error)
     print(chat.header(addon.name):append(is_error and chat.error(text) or chat.message(text)));
 end
 
--- The map browser, from /zone map (or debug) and the settings' Open Map Browser.
-local function set_browser(open)
-    tracking.state.debug = open;
-    state.next_sample = 0;
-    message(('Map browser: %s.'):format(open and 'open' or 'closed'));
-end
-presentation.on_open_browser = function() set_browser(true); end;
-
 -- An area come to for the first time on this character: kept, and how many of the map's areas are
 -- found, for Discovery. Entrances are not counted; a preview finds nothing.
 local discovery = { count = 0, total = 0 };
@@ -426,7 +418,7 @@ ashita.events.register('load', 'zone_load', function()
     sync_approach();
     sync_reannounce();
     apply_live_map(state.last_zone);
-    message('/zone opens the settings; /zone map the map browser.');
+    message('/zone opens the settings; /zone debug the map browser and editor.');
 end);
 
 ashita.events.register('packet_in', 'zone_packet_in', function(e)
@@ -493,9 +485,9 @@ ashita.events.register('command', 'zone_command', function(e)
         if (presentation.reload()) then
             message('Display settings reloaded.'); check_zone_changed(true);
         else message('Settings reload is unavailable in this environment.', true); end
-    elseif (command == 'subzones' or command == 'poc' or command == 'debug' or command == 'map') then
-        -- /zone subzones is Show Sub-zone Popups (poc, its old name, still works); /zone map, or debug,
-        -- opens and closes the map browser.
+    elseif (command == 'subzones' or command == 'poc' or command == 'debug') then
+        -- /zone subzones is Show Sub-zone Popups (poc, its old name, still works); /zone debug opens and
+        -- closes the debug window, the map browser and editor.
         local mode = args[3] and args[3]:lower();
         if (mode and mode ~= 'on' and mode ~= 'off') then
             message(('Usage: /zone %s [on|off]'):format(command), true);
@@ -508,7 +500,9 @@ ashita.events.register('command', 'zone_command', function(e)
             if (not shown[1] and state.banner_is_area) then state.visible_until = 0; end
             message(('Sub-zone popups: %s (saved).'):format(shown[1] and 'ON' or 'OFF'));
         else
-            set_browser(mode == 'on' or (not mode and not tracking.state.debug));
+            tracking.state.debug = mode == 'on' or (not mode and not tracking.state.debug);
+            state.next_sample = 0;
+            message(('Debug: %s.'):format(tracking.state.debug and 'ON' or 'OFF'));
         end
     elseif (command == 'approach') then
         -- /zone approach <yalms> is open country's; /zone approach town|dungeon|field <yalms> any kind's.
@@ -563,7 +557,7 @@ ashita.events.register('command', 'zone_command', function(e)
             message('Session-only manual transform set; verify alignment at several separated landmarks.');
         end
     else
-        message('/zone [test [style]|reload] | subzones [on|off] | map [on|off] | approach [field|town|dungeon] <0..100 yalms> | sample | livemap auto | transform <scale> <offset_x> <offset_y> | transform reset');
+        message('/zone [test [style]|reload] | subzones [on|off] | debug [on|off] | approach [field|town|dungeon] <0..100 yalms> | sample | livemap auto | transform <scale> <offset_x> <offset_y> | transform reset');
     end
 end);
 

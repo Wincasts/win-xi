@@ -3,7 +3,7 @@ local imgui = require('imgui');
 local catalog = require('map_catalog');
 local geometry = require('area_geometry');
 local tracking = require('area_tracking');
-local winxi_style = require('winxi.style');
+local window = require('winxi.window');
 local mapdat = require('winxi.mapdat');
 local browser = require('map_browser').new(catalog);
 local zoom = { 1.0 };
@@ -52,12 +52,12 @@ local function preview_transform(map, state, editor, live)
     end
     return preview.entry;
 end
-function M.draw(state, editor)
-    if not state.debug then if editor then editor:cancel(); end; state.editing = false; return; end
-    imgui.SetNextWindowSize({ 570, 900 }, rawget(_G, 'ImGuiCond_FirstUseEver') or 0);
-    winxi_style.PushFull();
-    local visible = imgui.Begin('Zone - Map Browser');
-    if visible then
+-- The window's content, drawn inside winxi's settings window (which gives it the theme's background);
+-- what it draws from is put in `current`, so no function is made a frame.
+local current = {};
+local function body()
+    local state, editor = current.state, current.editor;
+    do
         browser:sync(state.zone, state.map_key);
         imgui.Text('Areas are drawn from the map art, not walked in game: check them where you stand.');
         imgui.Checkbox('Follow player zone/map', browser.follow);
@@ -294,10 +294,17 @@ function M.draw(state, editor)
             imgui.EndChild();
             imgui.Text('Yellow: vertices | Cyan: live player | Purple: disabled draft | Orange/green: approach | Blue: entrance');
         end
-        imgui.Text('/zone sample prints live coordinates; /zone map closes this window.');
-    elseif editor then editor:cancel(); end
+        imgui.Text('/zone sample prints live coordinates; /zone debug off closes this window.');
+    end
+end
+local open = { true };
+local options = { kind = window.Settings };
+function M.draw(state, editor)
+    if not state.debug then if editor then editor:cancel(); end; state.editing = false; return; end
+    current.state, current.editor = state, editor;
+    local drawn = window.Full('Zone - Debug', open, 0, body, options);
+    current.state, current.editor = nil, nil;
+    if not drawn and editor then editor:cancel(); end
     state.editing = editor and editor.dragging ~= nil and browser:is_live(state) or false;
-    imgui.End();
-    winxi_style.Pop();
 end
 return M;

@@ -152,7 +152,7 @@ In Ashita:
 
 ```text
 /addon load zone
-/zone map
+/zone debug on
 ```
 
 Use `/addon reload zone` if already loaded. This update includes about 41 MB
@@ -173,8 +173,7 @@ The `/zone test` command shows the current zone immediately;
 reloads character settings and shows the current zone again.
 
 The settings window has three tabs: **Appearance**, **Behaviour** and
-**Visibility**. **Appearance** begins with **Preview** (the preview buttons and
-**Open Map Browser**). **Behaviour** is, in order: **Announcements** (Show Banner, Show Sub-zone Popups, Show
+**Visibility**. **Appearance** begins with **Preview** (the preview buttons). **Behaviour** is, in order: **Announcements** (Show Banner, Show Sub-zone Popups, Show
 Weather Popups, Chat Announcements: every on and off in one place), **Zone
 Entry Popup** and **Sub-zone Popup** (the lines each shows, and Re-announce
 After), **Detection** (the three approach distances), **Entrances** (dungeon and
@@ -655,7 +654,7 @@ applied to position before testing polygons.
 | `/zone test [style]` | Show zone/region/weather now, once in a style if one is named |
 | `/zone reload` or `rl` | Reload character display settings and show current zone |
 | `/zone subzones [on\|off]` | Show Sub-zone Popups, saved (`poc`, its old name, still works) |
-| `/zone map [on\|off]` | Open/close the all-map browser/editor (also `debug`, and Open Map Browser in Preview) |
+| `/zone debug [on\|off]` | Open/close the debug window: the all-map browser/editor |
 | `/zone approach [field\|town\|dungeon] <0..100>` | Approach buffer in yalms for that kind of zone (open country without one), saved |
 | `/zone sample` or `status` | Print live coordinate/map report |
 | `/zone livemap auto` | Remove this zone's saved live-map choice |

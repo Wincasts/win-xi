@@ -344,8 +344,6 @@ local function draw_appearance(options)
         if imgui.Button('Preview Zone Once') and M.on_preview then M.on_preview(); end
         if imgui.Button('Preview Sub-zone Once') and M.on_area_preview then M.on_area_preview(); end
         if imgui.Button('Preview Weather Once') and M.on_weather_preview then M.on_weather_preview(); end
-        if imgui.Button('Open Map Browser') and M.on_open_browser then M.on_open_browser(); end
-        tips.Hover('Every map and the areas it announces, to look at or edit. /zone map does the same.');
     end
     widgets.Gap();
     widgets.PushControlWidth();
