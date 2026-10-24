@@ -176,8 +176,11 @@ local function set_banner_names(zone)
     state.style_override = nil;
 end
 
-local function show_zone(zone)
+-- previous: the zone just left, which the Edge Toast names.
+local function show_zone(zone, previous)
     state.last_zone = zone;
+    state.left_title = (previous and previous > 0 and previous ~= zone) and get_zone_name(previous) or nil;
+    state.discovery = nil;
     state.title = get_zone_name(zone);
     state.zone_title = state.title;
     state.banner_is_area, state.banner_is_weather, state.area_preview = false, false, false;
@@ -243,10 +246,11 @@ local function check_zone_changed(force)
     end
 
     if (zone ~= state.last_zone) then
+        local previous = state.last_zone;
         tracking:set_zone(zone, os.clock());
         apply_live_map(zone);
         state.next_sample = 0;
-        show_zone(zone);
+        show_zone(zone, previous);
     elseif (force) then
         show_zone(zone);
     end
@@ -271,8 +275,31 @@ local function set_browser(open)
 end
 presentation.on_open_browser = function() set_browser(true); end;
 
-local function show_area(area)
+-- An area come to for the first time on this character: kept, and how many of the map's areas are
+-- found, for Discovery. Entrances are not counted; a preview finds nothing.
+local discovery = { count = 0, total = 0 };
+local function discover(area)
+    local map, key = tracking.state.definition, tracking.state.map_key;
+    if (area.entrance or not map or not key or not area.id) then return nil; end
+    local found = presentation.display().discovered;
+    local id = key .. ':' .. area.id;
+    if (found[id]) then return nil; end
+    found[id] = true;
+    presentation.save();
+    discovery.count, discovery.total = 0, 0;
+    for _, each in ipairs(map.areas) do
+        if (each.enabled ~= false and each.id ~= 'draft_area') then
+            discovery.total = discovery.total + 1;
+            if (found[key .. ':' .. each.id]) then discovery.count = discovery.count + 1; end
+        end
+    end
+    return discovery;
+end
+
+local function show_area(area, preview)
     state.title = area.name;
+    state.left_title = (not preview and tracking.state.left) and tracking.state.left.name or nil;
+    state.discovery = (not preview) and discover(area) or nil;
     state.zone_title = get_zone_name(state.last_zone);
     state.banner_is_area, state.banner_is_weather, state.area_preview = true, false, false;
     state.region, state.weather = get_region_name(state.last_zone), get_weather_name();
@@ -286,12 +313,13 @@ end
 
 presentation.on_area_preview = function()
     state.last_zone = get_zone_id();
-    show_area(tracking.state.area or { name = 'Example Sub-zone' });
+    show_area(tracking.state.area or { name = 'Example Sub-zone' }, true);
     state.area_preview = true;
 end;
 
 local function show_weather()
     state.title = 'Weather: ' .. state.weather;
+    state.left_title, state.discovery = nil, nil;
     state.zone_title = get_zone_name(state.last_zone);
     state.banner_is_area, state.banner_is_weather, state.area_preview = false, true, false;
     state.region = get_region_name(state.last_zone);
@@ -348,15 +376,20 @@ local function poll_areas(force)
     if (state.banner_is_area and not state.area_preview and not tracking.state.area) then state.visible_until = 0; end
 end
 
--- 'Zone - Sub-zone' for the location line, made again only when either changes.
-local location = { zone = nil, area = nil, words = '' };
+-- 'Zone - Sub-zone' for the location line, made again only when either changes; and for its
+-- Breadcrumb look the region, zone, sub-zone, kind of zone and weather apart.
+local location = { zone = nil, area = nil, words = '', info = {} };
 local function location_words()
     local zone, area = state.last_zone, tracking.state.area and tracking.state.area.name or nil;
     if (zone == nil or zone <= 0) then return nil; end
     if (location.zone ~= zone or location.area ~= area) then
         location.zone, location.area = zone, area;
         location.words = area and ('%s - %s'):format(get_zone_name(zone), area) or get_zone_name(zone);
+        local info = location.info;
+        info.zone, info.area, info.region = get_zone_name(zone), area, get_region_name(zone);
+        info.kind = zone_kinds[zone];
     end
+    location.info.weather, location.info.weather_id = state.weather ~= '' and state.weather or nil, state.weather_id;
     return location.words;
 end
 
@@ -409,7 +442,8 @@ end);
 -- The banner and the location line, drawn each frame inside xpcall: made once.
 local function draw_banners()
     presentation.draw(state, tracking.state, os.clock());
-    presentation.draw_location(location_words());
+    local words = location_words();
+    presentation.draw_location(words, location.info, os.clock());
 end
 
 ashita.events.register('d3d_present', 'zone_present', function()

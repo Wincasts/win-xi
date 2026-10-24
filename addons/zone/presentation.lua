@@ -15,7 +15,9 @@ local layout = require('banner_layout');
 local background = require('banner_background');
 local styles = require('banner_styles');
 local background_cache = background.new();
-local flag_cache; -- the pennant's flag, whether or not flags are shown behind Classic Text: made when first wanted
+local flag_cache; -- the pennant's and the seal's flag, whether or not flags are shown behind Classic Text: made when first wanted
+local mapdat = require('winxi.mapdat');
+local atlas_picture = { dat = nil, handle = nil, kept = nil, retry = 0 }; -- the Atlas Cartouche's map, one at a time
 local M = { preview = { false } };
 local dirty = false;
 local gdi_backend;
@@ -36,7 +38,7 @@ local function defaults()
         weatherEnabled = T{ true },
         fieldApproach = T{ 50 }, townApproach = T{ 10 }, dungeonApproach = T{ 15 },
         entrancesEnabled = T{ true }, entranceYalms = T{ 20 }, townEntrancesEnabled = T{ true }, townEntranceYalms = T{ 40 },
-        reannounceSeconds = T{ 10 },
+        reannounceSeconds = T{ 10 }, areaDiscovery = T{ true }, discovered = T{ }, locationStyle = 'plain',
         liveMaps = T{ },
         locationEnabled = T{ false }, locationLocked = T{ false }, locationPosition = T{ 20, 300 }, locationSize = T{ 16 },
         backgroundEnabled = T{ false }, backgroundFile = T{ '' }, backgroundFlags = T{ true },
@@ -114,6 +116,11 @@ function M.complete(options)
         if type(key) ~= 'string' or not key:match('^z%d+$') or type(value) ~= 'string' or #value > 128 then d.liveMaps[key] = nil; end
     end
     if d.alignment ~= 'left' and d.alignment ~= 'center' and d.alignment ~= 'right' then d.alignment = 'center'; end
+    if d.locationStyle ~= 'plain' and d.locationStyle ~= 'breadcrumb' then d.locationStyle = 'plain'; end
+    -- The areas come to, each '<map key>:<area id>' = true; anything else is let go.
+    for key, value in pairs(d.discovered) do
+        if type(key) ~= 'string' or #key > 160 or value ~= true then d.discovered[key] = nil; end
+    end
     if d.mode ~= 'floating' and d.mode ~= 'panel' then d.mode = 'floating'; end
     if d.renderer ~= 'imgui' and d.renderer ~= 'gdi' then d.renderer = 'imgui'; end
     if not styles.valid(d.zoneStyle) then d.zoneStyle = 'classic'; end
@@ -142,7 +149,7 @@ end
 local function choice(d, label, key, values)
     widgets.Label(label);
     local labels = { floating = 'Floating Text', panel = 'Themed Panel', left = 'Left', center = 'Center', right = 'Right',
-        imgui = 'ImGui (Default)', gdi = 'GDI Fonts (Experimental)' };
+        imgui = 'ImGui (Default)', gdi = 'GDI Fonts (Experimental)', plain = 'Plain', breadcrumb = 'Breadcrumb' };
     for id, name in pairs(styles.labels) do labels[id] = name; end
     if imgui.BeginCombo('##zone.' .. key, labels[d[key]] or d[key]) then
         for _, value in ipairs(values) do
@@ -252,6 +259,16 @@ local function draw_settings(options)
         checkbox(d, 'Show Weather', 'areaWeather');
         checkbox(d, 'Show Day And Time', 'areaDayTime');
         tips.Hover('The Vana\'diel day and time you came to it, such as Firesday 14:20.');
+        checkbox(d, 'Celebrate New Areas', 'areaDiscovery');
+        tips.Hover('The first time you come to an area it gets a bigger moment, whatever the style: New Area Discovered, and how many of the zone\'s areas you have found.');
+        local found = 0;
+        for _ in pairs(d.discovered) do found = found + 1; end
+        imgui.TextDisabled(('%d area%s discovered on this character.'):format(found, found == 1 and '' or 's'));
+        if found > 0 and imgui.Button('Forget Discovered Areas') then
+            for key in pairs(d.discovered) do d.discovered[key] = nil; end
+            changed(true);
+        end
+        tips.Hover('Every area is new again.');
         widgets.PushControlWidth();
         slider(d, 'Re-announce After', 'reannounceSeconds', '%.0f seconds');
         tips.Hover('An area you come back to is announced again only if you were away this long: out of a shop into its square, say. 0 announces every return.');
@@ -292,6 +309,8 @@ local function draw_settings(options)
         widgets.Label('Position (X, Y)');
         if imgui.InputInt2('##zone.locationPosition', d.locationPosition) then changed(true); location_place = true; end
         widgets.PushControlWidth();
+        choice(d, 'Line Style', 'locationStyle', { 'plain', 'breadcrumb' });
+        tips.Hover('Breadcrumb: region › zone › sub-zone on a dark chip, a picture of the kind of zone before them, and under them the weather, the moon and the time.');
         slider(d, 'Text Size', 'locationSize', '%.0f px');
         widgets.PopControlWidth();
     end
@@ -511,6 +530,7 @@ end
 function M.shutdown()
     background_cache:clear();
     if flag_cache then flag_cache:clear(); end
+    atlas_picture.dat, atlas_picture.handle, atlas_picture.kept = nil, nil, nil;
     if gdi_backend then gdi_backend:shutdown(); gdi_backend = nil; end
 end
 function M.reload()
@@ -561,7 +581,44 @@ local function meta_words(vana, weather)
     end
     return m.words;
 end
-local function draw_style(id, state, content, area_style, d, now, preview, timing)
+-- The Atlas Cartouche's inset: the map the player is on, the part of it round the area come to (or
+-- round the player, on zone entry), and the area's outline. Its picture is kept, one at a time.
+local atlas_view = {};
+local function atlas_of(tracking, area_style, title, now)
+    local map, entry = tracking and tracking.definition, tracking and tracking.entry;
+    if not map or not entry or not map.dat then return nil; end
+    local picture = atlas_picture;
+    if picture.dat ~= map.dat or (picture.handle == nil and now >= picture.retry) then
+        picture.dat, picture.handle, picture.kept = map.dat, nil, nil;
+        local ok, kept, handle = pcall(mapdat.Load, map.dat);
+        if ok and handle then picture.kept, picture.handle = kept, handle; else picture.retry = now + 5; end
+    end
+    if not picture.handle then return nil; end
+    local v = atlas_view;
+    v.handle, v.px, v.py, v.polygon = picture.handle, tracking.map_x, tracking.map_y, nil;
+    local area = area_style and tracking.area or nil;
+    local cx, cy, span;
+    if area and area.name == title and area.polygon then
+        local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge;
+        for _, point in ipairs(area.polygon) do
+            x0, y0 = math.min(x0, point[1]), math.min(y0, point[2]);
+            x1, y1 = math.max(x1, point[1]), math.max(y1, point[2]);
+        end
+        cx, cy, span = (x0 + x1) / 2, (y0 + y1) / 2, math.max(x1 - x0, y1 - y0) * 1.6;
+        v.polygon = area.polygon;
+    elseif v.px then
+        cx, cy, span = v.px, v.py, 128;
+    else
+        return nil;
+    end
+    span = math.max(48, math.min(256, span));
+    v.span = span;
+    v.left = math.max(0, math.min(512 - span, cx - span / 2));
+    v.top = math.max(0, math.min(512 - span, cy - span / 2));
+    v.u0, v.v0, v.u1, v.v1 = v.left / 512, v.top / 512, (v.left + span) / 512, (v.top + span) / 512;
+    return v;
+end
+local function draw_style(id, state, content, area_style, d, now, preview, timing, tracking)
     local alpha = preview and d.opacity[1] or layout.alpha(state.started_at, now, timing);
     if alpha <= .01 then return false; end
     local c = style_context;
@@ -591,8 +648,14 @@ local function draw_style(id, state, content, area_style, d, now, preview, timin
     c.weather_id = (weather or content.banner_is_weather) and content.weather_id or nil;
     c.kind = content.kind;
     c.zone_ja, c.flag = content.zone_ja, content.flag;
-    if id == 'pennant' and content.flag then flag_cache = flag_cache or background.new(); end
-    c.flag_image = (id == 'pennant' and content.flag) and flag_cache:get(flag_only, now, content.flag) or nil;
+    local flagged = (id == 'pennant' or id == 'seal') and content.flag;
+    if flagged then flag_cache = flag_cache or background.new(); end
+    c.flag_image = flagged and flag_cache:get(flag_only, now, content.flag) or nil;
+    c.screen_w = io.DisplaySize.x or io.DisplaySize[1] or 0;
+    c.toast_label = content.banner_is_weather and 'Weather' or 'Entering';
+    c.left = (not content.banner_is_weather) and content.left_title or nil;
+    c.atlas = id == 'atlas' and atlas_of(tracking, area_style, c.title, now) or nil;
+    c.discovery = content.discovery;
     local kind = area_style and 'area' or 'zone';
     local theme_font = fonts_lib.Get(theme.Get().FontFile);
     c.title_font = get_font(d[kind .. 'TitleFont']) or theme_font;
@@ -713,9 +776,14 @@ function M.draw(state, tracking, now)
     -- A weather popup is styled as a sub-zone popup is.
     local area_style = content.banner_is_area or content.banner_is_weather or false;
     local style_id = state.style_override or (area_style and d.areaStyle or d.zoneStyle);
+    -- An area come to for the first time is Discovery's, whatever the sub-zone style.
+    if content.banner_is_area and content.discovery and d.areaDiscovery[1] and not state.style_override then
+        if gdi_backend then M.shutdown(); end
+        return draw_style('discovery', state, content, area_style, d, now, preview, timing, tracking);
+    end
     if style_id ~= 'classic' and styles.valid(style_id) then
         if gdi_backend then M.shutdown(); end
-        return draw_style(style_id, state, content, area_style, d, now, preview, timing);
+        return draw_style(style_id, state, content, area_style, d, now, preview, timing, tracking);
     end
     local rows = cached_rows(content, tracking, d);
     local alpha = 0;
@@ -791,7 +859,153 @@ local function location_window()
     imgui.PopFont();
     if not ok then error(err, 0); end
 end
-function M.draw_location(words)
+-- Breadcrumb: a dark chip with a picture of the kind of zone, region › zone › sub-zone (the sub-zone
+-- in gold, sliding in as it changes), and under them the weather's crystal and name, the moon and the
+-- Vana'diel day and time. The moon and the time are read once a second.
+local crumb = { area = nil, since = 0, next_read = 0, moon = nil, vana = nil };
+local crumb_colors = { chip = { .04, .05, .08, .78 }, dim = { .62, .64, .70, 1 }, sep = { .42, .44, .53, 1 },
+    here = { 1, .89, .63, 1 }, outdoors = { .62, .82, .65, 1 }, city = { .85, .78, .62, 1 }, dungeon = { .72, .62, .52, 1 } };
+local function read_sky(now)
+    if now < crumb.next_read then return; end
+    crumb.next_read = now + 1;
+    local ok = pcall(function()
+        local time = require('ffxi.time');
+        local raw = time.get_game_time_raw();
+        local moon = tonumber(time.get_game_moon_percent(raw)) or 0;
+        local tomorrow = tonumber(time.get_game_moon_percent(raw + 3456)) or moon;
+        local calendar = require('winxi.infopanel.calendar');
+        crumb.moon = ('%s %d%%'):format(calendar.Phase(moon, tomorrow > moon or (tomorrow == moon and moon < 50)), moon);
+    end);
+    if not ok then crumb.moon = nil; end
+    crumb.vana = vana_words();
+end
+local cp1, cp2, cp3, cp4 = { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 };
+local function pt(p, x, y) p[1], p[2] = x, y; return p; end
+local crumb_scratch = { 0, 0, 0, 0 };
+local function crumb_color(color, alpha)
+    crumb_scratch[1], crumb_scratch[2], crumb_scratch[3], crumb_scratch[4] = color[1], color[2], color[3], (color[4] or 1) * alpha;
+    return imgui.GetColorU32(crumb_scratch);
+end
+-- The picture of the kind of zone: hills for open country, towers for a city, an arch for a dungeon.
+local function kind_icon(list, kind, x, y, s)
+    local color = crumb_color(crumb_colors[kind] or crumb_colors.outdoors, 1);
+    if kind == 'city' then
+        list:AddRectFilled(pt(cp1, x + s * .1, y + s * .35), pt(cp2, x + s * .4, y + s), color);
+        list:AddRectFilled(pt(cp1, x + s * .45, y + s * .1), pt(cp2, x + s * .75, y + s), color);
+        list:AddTriangleFilled(pt(cp1, x + s * .45, y + s * .1), pt(cp2, x + s * .6, y - s * .1), pt(cp3, x + s * .75, y + s * .1), color);
+        list:AddRectFilled(pt(cp1, x + s * .8, y + s * .5), pt(cp2, x + s, y + s), color);
+    elseif kind == 'dungeon' then
+        list:AddCircleFilled(pt(cp1, x + s / 2, y + s * .45), s * .45, color, 16);
+        list:AddRectFilled(pt(cp1, x + s * .05, y + s * .45), pt(cp2, x + s * .95, y + s), color);
+        local hole = crumb_color(crumb_colors.chip, 1);
+        list:AddCircleFilled(pt(cp1, x + s / 2, y + s * .55), s * .22, hole, 12);
+        list:AddRectFilled(pt(cp1, x + s * .28, y + s * .55), pt(cp2, x + s * .72, y + s), hole);
+    else
+        list:AddTriangleFilled(pt(cp1, x, y + s), pt(cp2, x + s * .4, y + s * .15), pt(cp3, x + s * .75, y + s), color);
+        list:AddTriangleFilled(pt(cp1, x + s * .45, y + s), pt(cp2, x + s * .72, y + s * .4), pt(cp3, x + s, y + s), color);
+    end
+end
+local crumb_parts = {};
+local function breadcrumb_body()
+    local info, d, now = location.info, location.d, location.now;
+    local list = imgui.GetWindowDrawList();
+    local x, y = imgui.GetCursorScreenPos();
+    local size = d.locationSize[1];
+    local small = math.floor(size * .8 + .5);
+    local edge = text.Edge();
+    local outline = text.EdgeColor();
+    local pad, gap = size * .45, size * .45;
+    local text_color = theme.Get().TextColor;
+    -- The first row's parts, the sub-zone last.
+    local parts = crumb_parts;
+    for i = #parts, 1, -1 do parts[i] = nil; end
+    if info.region and info.region ~= '' then parts[#parts + 1] = info.region; end
+    parts[#parts + 1] = info.zone or '';
+    if info.area then parts[#parts + 1] = info.area; end
+    if info.area ~= crumb.area then crumb.area, crumb.since = info.area, now; end
+    local sep = ' › ';
+    local sep_w = imgui.CalcTextSize(sep);
+    local w1, h1 = size * 1.2, 0;
+    for i, part in ipairs(parts) do
+        local w, h = imgui.CalcTextSize(part);
+        w1, h1 = w1 + w + (i > 1 and sep_w or 0), math.max(h1, h);
+    end
+    -- The second row: weather, moon and time, at four fifths the size.
+    read_sky(now);
+    imgui.PushFont(nil, small);
+    -- Made again only when one of its parts changes.
+    if crumb.weather ~= info.weather or crumb.moon_was ~= crumb.moon or crumb.vana_was ~= crumb.vana then
+        crumb.weather, crumb.moon_was, crumb.vana_was = info.weather, crumb.moon, crumb.vana;
+        local second = info.weather or '';
+        if crumb.moon then second = second ~= '' and (second .. '  ·  ' .. crumb.moon) or crumb.moon; end
+        if crumb.vana then second = second ~= '' and (second .. '  ·  ' .. crumb.vana) or crumb.vana; end
+        crumb.second = second;
+    end
+    local second = crumb.second;
+    local element, count = styles.weather_element(info.weather_id);
+    local gem = small * .3;
+    local gems_w = element and (count * gem * 2.4 + small * .3) or 0;
+    local w2, h2 = imgui.CalcTextSize(second);
+    imgui.PopFont();
+    w2 = w2 + gems_w;
+    local width = math.max(w1, w2) + pad * 2 + edge * 2;
+    local height = pad * 1.4 + h1 + (second ~= '' and (h2 + size * .2) or 0) + edge * 2;
+
+    -- The chip: dark at the left, clear by the right.
+    local dark, clear = crumb_color(crumb_colors.chip, 1), crumb_color(crumb_colors.chip, 0);
+    local mid = x + width * .75;
+    list:AddRectFilled(pt(cp1, x, y), pt(cp2, mid, y + height), dark, size * .25);
+    list:AddRectFilledMultiColor(pt(cp1, mid, y), pt(cp2, x + width + pad * 2, y + height), dark, clear, clear, dark);
+
+    local tx, ty = x + pad, y + pad * .7;
+    kind_icon(list, info.kind, tx, ty + h1 * .15, h1 * .75);
+    tx = tx + size * 1.2;
+    local dim, sep_color = crumb_color(crumb_colors.dim, 1), crumb_color(crumb_colors.sep, 1);
+    local plain, gold, black = crumb_color(text_color, 1), crumb_color(crumb_colors.here, 1), crumb_color(outline, 1);
+    for i, part in ipairs(parts) do
+        if i > 1 then
+            text.Packed(list, tx, ty, sep_color, sep, edge, black);
+            tx = tx + sep_w;
+        end
+        local last = i == #parts and info.area ~= nil;
+        if last then
+            -- The newest part slides in from the left as it changes.
+            local t = math.min(1, math.max(0, (now - crumb.since) / .6));
+            local shown = 1 - (1 - t) ^ 3;
+            text.Packed(list, tx - size * (1 - shown), ty, crumb_color(crumb_colors.here, shown), part, edge, crumb_color(outline, shown));
+        else
+            text.Packed(list, tx, ty, i == 1 and #parts > 2 and dim or plain, part, edge, black);
+        end
+        tx = tx + imgui.CalcTextSize(part);
+    end
+    if second ~= '' then
+        local sy = ty + h1 + size * .2;
+        local sx = x + pad + edge;
+        if element then
+            for j = 1, count do
+                styles.crystal(list, sx + gem, sy + h2 / 2, gem * .8, gem * 1.2, 0, styles.elements[element], 1, outline);
+                sx = sx + gem * 2.4;
+            end
+            sx = sx + small * .3;
+        end
+        imgui.PushFont(nil, small);
+        text.Packed(list, sx, sy, dim, second, edge, black);
+        imgui.PopFont();
+    end
+    room[1], room[2] = width + pad * 2, height;
+    imgui.Dummy(room);
+    if not location.locked then
+        local wx, wy = imgui.GetWindowPos();
+        d.locationPosition[1], d.locationPosition[2] = math.floor(wx + .5), math.floor(wy + .5);
+    end
+end
+local function breadcrumb_window()
+    imgui.PushFont(nil, location.d.locationSize[1]);
+    local ok, err = pcall(breadcrumb_body);
+    imgui.PopFont();
+    if not ok then error(err, 0); end
+end
+function M.draw_location(words, info, now)
     local options, d = M.app.options, M.app.options.display;
     if not d.locationEnabled[1] or not words or words == '' or game.IsHidden(options.hide) then return false; end
     local locked = d.locationLocked[1];
@@ -801,6 +1015,8 @@ function M.draw_location(words)
     imgui.SetNextWindowPos(d.locationPosition, (locked or location_place) and ImGuiCond_Always or ImGuiCond_FirstUseEver);
     location_place = false;
     location.words, location.d, location.locked = words, d, locked;
-    return window.Plain('##zone_location', location_open, flags, location_window, location_options);
+    location.info, location.now = info, now or os.clock();
+    local body = (d.locationStyle == 'breadcrumb' and info) and breadcrumb_window or location_window;
+    return window.Plain('##zone_location', location_open, flags, body, location_options);
 end
 return M;
