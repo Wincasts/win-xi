@@ -192,7 +192,11 @@ The plugin itself does not collect chat messages or own keyboard input.
 
 ### Chat ABI 13
 
-Independent `UIHOOK-CHAT` marker padded to 16 bytes, **71684 bytes** total (update DLL and bridge together):
+Independent `UIHOOK-CHAT` marker padded to 16 bytes, **71684 bytes** total (update DLL and bridge together).
+From 1.58 the chat's state, the two windows' routing and lines, and the colours are read only while an addon is
+asking: a chat submission (chatbox's `Begin`, each frame it draws) in the last 8 frames; the first submission after
+a while reads them all at once, so that frame's reads find them fresh. With only party (or nothing) handing uihook
+something, nothing of the chat is read each frame.
 
 ```text
 char Magic[16]
