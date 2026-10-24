@@ -1,5 +1,5 @@
--- The Behaviour tab's layout: its sections in order, Open Map Browser, and the entrance distances
--- greyed while their switch is off.
+-- The settings' tabs: Appearance (Preview first, with Open Map Browser), Behaviour (its sections in
+-- order, the entrance distances greyed while their switch is off) and Visibility (Timing, Hide Banner).
 local imgui = require('imgui');
 local p = require('presentation');
 local checks = 0;
@@ -19,18 +19,28 @@ imgui.BeginDisabled = function() disabled = disabled + 1; end;
 imgui.EndDisabled = function() disabled = disabled - 1; end;
 imgui.SliderFloat = function(id, ...) if disabled > 0 then greyed[id] = true; end return real.SliderFloat(id, ...); end;
 
-local function behaviour()
+local function show(tab)
     headers, labels, greyed = {}, {}, {};
     if not p.app.showConfig[1] then H.command('/zone'); end
-    H.tab(2); H.frames(1); -- Behaviour, after Appearance
+    H.tab(tab); H.frames(1);
 end
-behaviour();
+local function behaviour() show(2); end -- after Appearance
+show(1);
 local order = table.concat(headers, ', ');
-check('the sections, Preview first, switches in Announcements', order:find(
-    'Preview, Announcements, Zone Entry Popup, Sub-zone Popup, Detection, Entrances, Location Line, Timing, Hide Banner', 1, true) == 1);
-check('no Weather Popup section of one checkbox', not order:find('Weather Popup', 1, true));
+check('Appearance begins with Preview, then the banner\'s look', order:find('Preview, Banner Style', 1, true) == 1);
 local buttons = table.concat(labels, ', ');
-check('Open Map Browser is a button', buttons:find('Open Map Browser', 1, true) ~= nil);
+check('Open Map Browser and the previews are there', buttons:find('Open Map Browser', 1, true) ~= nil
+    and buttons:find('Preview Zone Once', 1, true) ~= nil);
+behaviour();
+order = table.concat(headers, ', ');
+check('Behaviour: switches in Announcements, then what the popups say and where', order:find(
+    'Announcements, Zone Entry Popup, Sub-zone Popup, Detection, Entrances, Location Line', 1, true) == 1);
+check('no Weather Popup section of one checkbox', not order:find('Weather Popup', 1, true));
+check('no preview, timing or hiding there', not order:find('Preview', 1, true) and not order:find('Timing', 1, true)
+    and not order:find('Hide Banner', 1, true));
+show(3);
+order = table.concat(headers, ', ');
+check('Visibility: Timing and Hide Banner', order:find('Timing, Hide Banner', 1, true) == 1);
 check('distances usable while their entrances are announced', not greyed['##zone.entranceYalms'] and not greyed['##zone.townEntranceYalms']);
 d.entrancesEnabled[1] = false; behaviour();
 check('a dungeon entrance\'s distance greyed while off', greyed['##zone.entranceYalms'] and not greyed['##zone.townEntranceYalms']);
@@ -45,7 +55,7 @@ end
 local windows = {};
 local begin = imgui.Begin;
 imgui.Begin = function(name, ...) windows[name] = true; return begin(name, ...); end;
-presses['Open Map Browser'] = true; behaviour(); presses['Open Map Browser'] = nil;
+presses['Open Map Browser'] = true; show(1); presses['Open Map Browser'] = nil;
 H.frames(1);
 check('Open Map Browser opens it', said('Map browser: open.') and windows['Zone - Map Browser']);
 H.command('/zone map');
@@ -55,9 +65,9 @@ imgui.Begin = begin;
 local boxes = {};
 local checkbox = imgui.Checkbox;
 imgui.Checkbox = function(id, ...) boxes[id] = true; return checkbox(id, ...); end;
-behaviour();
+show(3);
 check('per-line timing offered with Classic Text in use', boxes['##zone.perLineTiming']);
-boxes = {}; d.zoneStyle, d.areaStyle = 'titlecard', 'kind'; behaviour();
+boxes = {}; d.zoneStyle, d.areaStyle = 'titlecard', 'kind'; show(3);
 check('and not without it', not boxes['##zone.perLineTiming']);
 imgui.Checkbox = checkbox;
 

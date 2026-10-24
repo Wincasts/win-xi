@@ -27,13 +27,14 @@ they share (set with winxisettings and `/winxi`) is zone's too.
 
 ## Using it
 
-- `/zone` opens the settings. **Appearance** is how the banner looks (its style for
-  zone entry and for sub-zones, sizes, fonts, position, colours, backdrop);
-  **Behaviour** is what it says and when (each popup's lines, the location line,
-  timing, and when to hide it).
+- `/zone` opens the settings. **Appearance** is how the banner looks (the previews,
+  its style for zone entry and for sub-zones, sizes, fonts, position, colours,
+  backdrop); **Behaviour** is what it says and when (each popup's lines, detection,
+  entrances, the location line); **Visibility** is how long it stays and when it
+  is hidden.
 - `/zone test` shows the zone now; `/zone test titlecard` (or `pennant`, `kanji`,
   `reveal`, `window`, `element`, `kind`, `classic`) shows it once in that style.
-- **Preview While Configuring** (Behaviour → Preview) keeps a banner up while you
+- **Preview While Configuring** (Appearance → Preview) keeps a banner up while you
   change things.
 
 The rest of this file is the detail: how the areas were made, every setting, the
@@ -171,15 +172,16 @@ The `/zone test` command shows the current zone immediately;
 `config` / `settings` opens or closes the settings window, and `reload` / `rl`
 reloads character settings and shows the current zone again.
 
-**Appearance** is the first tab of the settings window and **Behaviour** the
-second. **Behaviour** is, in order: **Preview** (the preview buttons and **Open
-Map Browser**), **Announcements** (Show Banner, Show Sub-zone Popups, Show
+The settings window has three tabs: **Appearance**, **Behaviour** and
+**Visibility**. **Appearance** begins with **Preview** (the preview buttons and
+**Open Map Browser**). **Behaviour** is, in order: **Announcements** (Show Banner, Show Sub-zone Popups, Show
 Weather Popups, Chat Announcements: every on and off in one place), **Zone
 Entry Popup** and **Sub-zone Popup** (the lines each shows, and Re-announce
 After), **Detection** (the three approach distances), **Entrances** (dungeon and
-town, each distance greyed while its switch is off), **Location Line**,
-**Timing** and **Hide Banner** (winxi's game-UI hiding rules). **Appearance**
-holds how the banner looks: its style and opacity, text, position and backdrop.
+town, each distance greyed while its switch is off) and **Location Line**.
+**Visibility** has **Timing** and **Hide Banner** (winxi's game-UI hiding
+rules). **Appearance** holds how the banner looks: its style and opacity, text,
+position and backdrop.
 There is no Winxi Theme tab: the theme, window and style settings zone follows
 are set in **winxisettings**. Zone-entry popups never include a sub-zone line.
 Sub-zone popups show the area's name as the title, without a separate category
