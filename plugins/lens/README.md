@@ -1,4 +1,4 @@
-# lens — experimental 0.9
+# lens — experimental 0.91
 
 FFXI's world through a Panini or cylindrical projection, either of which keeps a wide view without
 the stretching a flat projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
@@ -19,6 +19,7 @@ drawscale's (now [vis](../../addons/vis)) until its 2.0.
 /lens middle <n>      keep n degrees up the middle of the screen whatever the warp (0, none, to start)
 /lens fov <n>         draw the world n degrees up instead, 20 to 140 (0, the game's own, to start)
 /lens square on|off   the world at the window's true proportions (off to start)
+/lens battle same|<n>|0   the camera's distance when you engage: same keeps it, n how far (0, the game's, to start)
 ```
 
 `/lens off` puts the game's own view back: flat, without aa, at the game's field of view and
@@ -75,6 +76,19 @@ it says otherwise:
 
 The game's own is 122 across. At 16:9 the flat view is 106 across and stretches less, so less
 strength does.
+
+### The camera in battle
+
+When you engage, the game moves the camera out from you, from its usual 3 to 6 to 7.2 to 8.6.
+`/lens battle same` keeps it where it is: in battle the camera uses the usual distance. `/lens battle
+<n>` moves it to `n` instead (1 to 50; the game's is 8.6), and `/lens battle 0` is the game's own.
+
+The two distances are pairs of constants the game's camera reads (found by the patterns of Hokuten's
+xicamera addon, `src/camera.h`). Each battle constant has exactly one reader, the battle camera, so
+lens points those two reads at values of its own, as it does C for the field of view; the usual
+pair is read only, since it is read in dozens of other places across the client and changing it in
+place would change them too. `same` follows the usual pair as it stands, so another addon that
+changes it in place (xicamera) still gets its own distance in battle as out of it.
 
 Over the world: the game's own target and subtarget arrows (through uihook 0.93), targetlines,
 hideparty's target cursor and anything placed by winxi's

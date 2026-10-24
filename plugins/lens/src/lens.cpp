@@ -4,7 +4,8 @@
 // the UI is drawn over it as ever. The grid averages four taps over each pixel's patch of the world
 // (warp.h Taps, shaders.h), for edges smoother than the game's own copy gives, with or without the
 // warp. lens also sets the field of view and the aspect constant the game builds its projection with
-// (projection.h; /lens fov, middle and square, drawscale's until its 2.0). /lens capture [frames] still records
+// (projection.h; /lens fov, middle and square, drawscale's until its 2.0), and the camera's distance in battle
+// (camera.h; /lens battle). /lens capture [frames] still records
 // every draw over a few frames.
 #include "Ashita.h"
 #include <intrin.h>
@@ -19,6 +20,7 @@
 #include "mousescan.h"
 #include "shaders.h"
 #include "projection.h"
+#include "camera.h"
 
 // Exported, so that the compiler keeps it although nothing here reads it, and so that another plugin
 // (namehook) can find it by name
@@ -69,12 +71,21 @@ class Lens : public IPlugin {
     double m_C = 0;
     std::vector<uintptr_t> m_FovSites;  // its loads that a projection's field of view is made from
     uintptr_t m_GameGlobal = 0; // the global holding the game object, 0 when not found
-    double* m_CMem = nullptr;   // lens's own C; kept allocated at release, for a thread still reading it
+    uint8_t* m_Page = nullptr;  // lens's own values the game's code reads: C at 0, the battle pair at 16 and 20;
+                                // kept allocated at release, for a thread still reading them
+    double* m_CMem = nullptr;   // lens's own C, in m_Page
     bool m_FovPatched = false;  // the loads point at m_CMem
     bool m_FovForeign = false;  // something else points them elsewhere (drawscale 1.9's fov)
     double m_FovInPlay = 0;     // the vertical field of view lens has set, 0 for the game's own
     bool m_Capped = false;      // the middle asked for is beyond the widest field of view
     bool m_Squared = false;     // k was last set by lens for square
+    // the camera in battle: what is asked for, its two loads and the constants they read, and the usual pair's
+    lens::Battle m_Battle = lens::Battle::Game;
+    double m_BattleDistance = 0;    // for Battle::Distance
+    uintptr_t m_BattleSite[2] = {}; // the fld and fadd of the battle min and max, 0 when not found
+    uint32_t m_BattleConst[2] = {}, m_NormalConst[2] = {};
+    bool m_BattlePatched = false, m_BattleForeign = false;
+    double m_BattleInPlay[2] = {};  // the pair lens has set, for the status
     struct { int middle = -1, mode = -1; double strength = -1, aspect = -1, fov = 0; bool capped = false; } m_MiddleCache;
 
     std::vector<lens::Candidate> m_Mouse;   // where the cursor's place may be kept, from /lens mouse
@@ -85,7 +96,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.9; }
+    double GetVersion() const override { return 0.91; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -122,6 +133,13 @@ public:
             if (sscanf_s(line, "fov=%d", &v) == 1 && (v == 0 || (v >= lens::FovMin && v <= lens::FovMax))) m_Fov = v;
             if (sscanf_s(line, "middle=%d", &v) == 1 && (v == 0 || (v >= lens::FovMin && v <= lens::FovMax))) m_Middle = v;
             if (sscanf_s(line, "square=%d", &v) == 1) m_Square = v != 0;
+            char word[16] = {};
+            double d = 0;
+            if (sscanf_s(line, "battle=%15s", word, 16u) == 1) {
+                if (_stricmp(word, "same") == 0) m_Battle = lens::Battle::Same;
+                else if (sscanf_s(word, "%lf", &d) == 1 && d >= lens::BattleLeast && d <= lens::BattleMost) { m_Battle = lens::Battle::Distance; m_BattleDistance = d; }
+                else m_Battle = lens::Battle::Game;
+            }
         }
         fclose(f);
         if (m_Fov) m_Middle = 0;
@@ -131,8 +149,8 @@ public:
         CreateDirectoryA((std::string(m_Core->GetInstallPath()) + "\\config\\lens").c_str(), nullptr);
         FILE* f = nullptr;
         if (fopen_s(&f, SettingsPath().c_str(), "wb") != 0 || !f) return;
-        fprintf(f, "on=%d\nstrength=%d\nmode=%d\naa=%d\nfov=%d\nmiddle=%d\nsquare=%d\n", m_On ? 1 : 0, m_Strength, static_cast<int>(m_Mode), m_Aa ? 1 : 0,
-            m_Fov, m_Middle, m_Square ? 1 : 0);
+        fprintf(f, "on=%d\nstrength=%d\nmode=%d\naa=%d\nfov=%d\nmiddle=%d\nsquare=%d\nbattle=%s\n", m_On ? 1 : 0, m_Strength, static_cast<int>(m_Mode), m_Aa ? 1 : 0,
+            m_Fov, m_Middle, m_Square ? 1 : 0, BattleWord().c_str());
         fclose(f);
     }
     void Status() const {
@@ -153,14 +171,42 @@ public:
         text += m_Warped ? "." : "; the game's copy of the world to the screen has not been seen yet.";
         Say(text);
         Say(ProjectionText());
+        Say(CameraText());
         Say(Smoothing());
+    }
+    // battle as the ini and the status have it: game, same or the distance
+    std::string BattleWord() const {
+        if (m_Battle == lens::Battle::Same) return "same";
+        if (m_Battle == lens::Battle::Game) return "game";
+        char text[32];
+        snprintf(text, sizeof(text), "%g", m_BattleDistance);
+        return text;
+    }
+    // The camera's distance in battle as it is.
+    std::string CameraText() const {
+        char text[200];
+        if (!m_BattleSite[0] || !m_BattleSite[1]) return "battle unavailable: the battle camera's distance was not found.";
+        if (m_BattleForeign) return "battle left alone: something else has pointed the battle camera's distance elsewhere.";
+        if (m_BattlePatched) {
+            snprintf(text, sizeof(text), "battle %s: the camera %.1f to %.1f from you engaged%s.", m_Battle == lens::Battle::Same ? "same" : BattleWord().c_str(),
+                m_BattleInPlay[0], m_BattleInPlay[1], m_Battle == lens::Battle::Same ? ", as when not" : "");
+            return text;
+        }
+        float min = 0, max = 0;
+        SafeRead(m_BattleConst[0], &min, 4);
+        SafeRead(m_BattleConst[1], &max, 4);
+        snprintf(text, sizeof(text), "battle %s: the game's own, the camera %.1f to %.1f from you engaged%s.", BattleWord().c_str(), min, max,
+            m_On ? "" : " (lens is off)");
+        return text;
     }
     // The settings /lens on puts in force, as words.
     std::string Settings() const {
         std::string text = std::string(m_Mode == lens::Panini ? "panini" : "cylindrical") + " at strength " + std::to_string(m_Strength) + ", aa " + (m_Aa ? "on" : "off");
         if (m_Fov) text += ", fov " + std::to_string(m_Fov);
         else if (m_Middle) text += ", middle " + std::to_string(m_Middle);
-        return text + ", square " + (m_Square ? "on" : "off");
+        text += std::string(", square ") + (m_Square ? "on" : "off");
+        if (m_Battle != lens::Battle::Game) text += ", battle " + BattleWord();
+        return text;
     }
     // The field of view and square as they are.
     std::string ProjectionText() const {
@@ -261,6 +307,18 @@ public:
             Say(ProjectionText());
             return true;
         }
+        if (_stricmp(words[1], "battle") == 0) {
+            char* end = nullptr;
+            double v = strtod(words[2], &end);
+            if (_stricmp(words[2], "same") == 0) m_Battle = lens::Battle::Same;
+            else if (words[2][0] && !*end && v == 0) m_Battle = lens::Battle::Game;
+            else if (words[2][0] && !*end && v >= lens::BattleLeast && v <= lens::BattleMost) { m_Battle = lens::Battle::Distance; m_BattleDistance = v; }
+            else { Say("Usage: /lens battle same|<n>|0: same keeps the camera where it is when you engage; n sets how far it moves out, 1 to 50 (the game's is 8.6); 0 is the game's own."); return true; }
+            Save();
+            ApplyProjection();
+            Say(CameraText());
+            return true;
+        }
         if (_stricmp(words[1], "mouse") == 0) {
             if (_stricmp(words[2], "reset") == 0) { m_Mouse.clear(); m_MouseLooks = 0; Say("Forgot the mouse's places; /lens mouse looks afresh."); return true; }
             MouseScan();
@@ -280,6 +338,7 @@ public:
         Say("/lens strength <n> - 0 (flat, as the game) to 100 (the classic Panini, or fully cylindrical), 50 to start. /lens aa on|off - each pixel the average of four reads over the patch of the world it covers (on to start; at strength 0 for aa alone).");
         Say("/lens middle <n> - keep n degrees up the middle of the screen (77 is the game's): lens draws the world taller to give back what the warp takes. 0 for none.");
         Say("/lens fov <n> - draw the world n degrees up instead, 20 to 140; 0 is the game's own. /lens square on|off - the world at the window's true proportions (off to start).");
+        Say("/lens battle same|<n>|0 - the camera's distance when you engage: same keeps it where it was, n how far out (the game's is 8.6), 0 the game's own.");
         Say("/lens capture [frames] - records every draw over the next frames to config/lens/.");
         return true;
     }
@@ -331,6 +390,32 @@ private:
             m_C = c;
         }
         if (SafeFind(module, m_Size, gamePattern, game) && game >= 0 && SafeRead(m_Base + game + 1, &global, 4)) m_GameGlobal = global;
+
+        // the battle camera's two loads and the usual pair's constants, each found once
+        const lens::Pattern battle[2] = { lens::Pattern(lens::BattleMinPattern), lens::Pattern(lens::BattleMaxPattern) };
+        const size_t battleAt[2] = { lens::BattleMinAt, lens::BattleMaxAt };
+        const lens::Pattern normal[2] = { lens::Pattern(lens::NormalMinPattern), lens::Pattern(lens::NormalMaxPattern) };
+        const size_t normalAt[2] = { lens::NormalMinAt, lens::NormalMaxAt };
+        uintptr_t sites[2] = {};
+        uint32_t consts[2] = {}, normals[2] = {};
+        bool found = true;
+        for (int i = 0; i < 2 && found; ++i) {
+            ptrdiff_t at = -1, n = -1;
+            found = SafeFind(module, m_Size, battle[i], at) && at >= 0 && SafeRead(m_Base + at + battleAt[i] + 2, &consts[i], 4)
+                && SafeFind(module, m_Size, normal[i], n) && n >= 0 && SafeRead(m_Base + n + normalAt[i], &normals[i], 4);
+            sites[i] = found ? m_Base + at + battleAt[i] : 0;
+        }
+        if (found) {
+            for (int i = 0; i < 2; ++i) { m_BattleSite[i] = sites[i]; m_BattleConst[i] = consts[i]; m_NormalConst[i] = normals[i]; }
+        }
+    }
+    // lens's own page of values for the game's code to read, made once.
+    uint8_t* Page() {
+        if (!m_Page) {
+            m_Page = static_cast<uint8_t*>(VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+            m_CMem = m_Page ? reinterpret_cast<double*>(m_Page) : nullptr;
+        }
+        return m_Page;
     }
     // Four bytes of the game's code.
     static void WriteCode(uintptr_t at, uint32_t value) {
@@ -366,8 +451,7 @@ private:
         if (m_CAddr && !m_FovSites.empty()) {
             const double fov = WantedFov();
             if (fov > 0) {
-                if (!m_CMem) m_CMem = static_cast<double*>(VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
-                if (m_CMem) {
+                if (Page()) {
                     const double c = lens::CFor(fov);
                     if (*m_CMem != c) *m_CMem = c;
                     if (!m_FovPatched) {
@@ -391,6 +475,7 @@ private:
             }
             m_FovInPlay = m_FovPatched ? fov : 0;
         }
+        ApplyCamera();
         const bool square = m_On && m_Square;
         if (m_GameGlobal && (square || m_Squared)) {
             uint32_t object = 0, k = 0;
@@ -402,8 +487,44 @@ private:
             m_Squared = square;
         }
     }
-    // The game's own projection back, at release; lens's C stays allocated.
+    // The battle camera's loads at lens's own pair for battle same or a distance, back at the game's constants
+    // for its own or with lens off. The pair follows the game's constants (the usual pair for same), read each
+    // time, so another addon's change to them is kept.
+    void ApplyCamera() {
+        if (!m_BattleSite[0] || !m_BattleSite[1]) return;
+        if (m_On && m_Battle != lens::Battle::Game && Page()) {
+            float normalMin = 0, normalMax = 0, battleMin = 0, battleMax = 0;
+            if (!SafeRead(m_NormalConst[0], &normalMin, 4) || !SafeRead(m_NormalConst[1], &normalMax, 4)
+                || !SafeRead(m_BattleConst[0], &battleMin, 4) || !SafeRead(m_BattleConst[1], &battleMax, 4)) return;
+            double min = 0, max = 0;
+            lens::BattleRange(m_Battle, m_BattleDistance, normalMin, normalMax, battleMin, battleMax, min, max);
+            float* ours = reinterpret_cast<float*>(m_Page + 16);
+            if (ours[0] != static_cast<float>(min)) ours[0] = static_cast<float>(min);
+            if (ours[1] != static_cast<float>(max)) ours[1] = static_cast<float>(max);
+            m_BattleInPlay[0] = min; m_BattleInPlay[1] = max;
+            if (!m_BattlePatched) {
+                m_BattleForeign = false;
+                for (int i = 0; i < 2; ++i) {
+                    uint32_t now = 0;
+                    const uint32_t mine = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ours + i));
+                    if (!SafeRead(m_BattleSite[i] + 2, &now, 4) || (now != m_BattleConst[i] && now != mine)) m_BattleForeign = true;
+                }
+                if (!m_BattleForeign) {
+                    for (int i = 0; i < 2; ++i) WriteCode(m_BattleSite[i] + 2, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ours + i)));
+                    m_BattlePatched = true;
+                }
+            }
+        } else if (m_BattlePatched) {
+            for (int i = 0; i < 2; ++i) WriteCode(m_BattleSite[i] + 2, m_BattleConst[i]);
+            m_BattlePatched = false;
+        } else {
+            m_BattleForeign = false;
+        }
+    }
+    // The game's own projection and camera back, at release; lens's page stays allocated.
     void RestoreProjection() {
+        if (m_BattlePatched) for (int i = 0; i < 2; ++i) WriteCode(m_BattleSite[i] + 2, m_BattleConst[i]);
+        m_BattlePatched = false;
         if (m_FovPatched) for (uintptr_t site : m_FovSites) WriteCode(site + 2, m_CAddr);
         m_FovPatched = false;
         if (m_Squared && m_GameGlobal) {
