@@ -21,6 +21,7 @@
 #include "shaders.h"
 #include "projection.h"
 #include "camera.h"
+#include "settings.h"
 
 // Exported, so that the compiler keeps it although nothing here reads it, and so that another plugin
 // (namehook) can find it by name
@@ -36,6 +37,8 @@ class Lens : public IPlugin {
     size_t m_Size = 0;
 
     bool m_On = true;           // everything below; off is the game's own view, the settings kept for on
+    bool m_Ultrawide = false;   // the ultrawide preset is the set in force below, rather than your own
+    lens::Settings m_Other = lens::Ultrawide();  // the set not in force: the preset, or your own while ultrawide
     int m_Strength = 50;        // the Panini distance, or for cylindrical how far from flat, in hundredths
     lens::Mode m_Mode = lens::Panini;
     bool m_Aa = true;           // four taps a pixel
@@ -96,7 +99,7 @@ public:
     const char* GetAuthor() const override { return "win"; }
     const char* GetDescription() const override { return "The world through a Panini or cylindrical projection, for wide screens without stretched edges."; }
     const char* GetLink() const override { return "https://github.com/Wincasts/win-xi"; }
-    double GetVersion() const override { return 0.91; }
+    double GetVersion() const override { return 0.92; }
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands | Ashita::PluginFlags::UseDirect3D); }
 
     bool Initialize(IAshitaCore* core, ILogManager*, uint32_t) override {
@@ -121,36 +124,39 @@ public:
 
     std::string SettingsPath() const { return std::string(m_Core->GetInstallPath()) + "\\config\\lens\\lens.ini"; }
     void Load() {
+        lens::Settings own = Current(), ultrawide = m_Other;
         FILE* f = nullptr;
         if (fopen_s(&f, SettingsPath().c_str(), "rb") != 0 || !f) return;
         char line[64];
         while (fgets(line, sizeof(line), f)) {
             int v = 0;
             if (sscanf_s(line, "on=%d", &v) == 1) m_On = v != 0;
-            if (sscanf_s(line, "strength=%d", &v) == 1 && v >= 0 && v <= 100) m_Strength = v;
-            if (sscanf_s(line, "mode=%d", &v) == 1 && (v == 0 || v == 1)) m_Mode = static_cast<lens::Mode>(v);
-            if (sscanf_s(line, "aa=%d", &v) == 1) m_Aa = v != 0;
-            if (sscanf_s(line, "fov=%d", &v) == 1 && (v == 0 || (v >= lens::FovMin && v <= lens::FovMax))) m_Fov = v;
-            if (sscanf_s(line, "middle=%d", &v) == 1 && (v == 0 || (v >= lens::FovMin && v <= lens::FovMax))) m_Middle = v;
-            if (sscanf_s(line, "square=%d", &v) == 1) m_Square = v != 0;
-            char word[16] = {};
-            double d = 0;
-            if (sscanf_s(line, "battle=%15s", word, 16u) == 1) {
-                if (_stricmp(word, "same") == 0) m_Battle = lens::Battle::Same;
-                else if (sscanf_s(word, "%lf", &d) == 1 && d >= lens::BattleLeast && d <= lens::BattleMost) { m_Battle = lens::Battle::Distance; m_BattleDistance = d; }
-                else m_Battle = lens::Battle::Game;
-            }
+            if (sscanf_s(line, "ultrawide=%d", &v) == 1) m_Ultrawide = v != 0;
+            lens::ReadSetting(line, "", own);
+            lens::ReadSetting(line, "ultrawide.", ultrawide);
         }
         fclose(f);
-        if (m_Fov) m_Middle = 0;
+        Use(m_Ultrawide ? ultrawide : own);
+        m_Other = m_Ultrawide ? own : ultrawide;
+        if (m_Other.fov) m_Other.middle = 0;
+    }
+    lens::Settings Current() const {
+        lens::Settings s;
+        s.strength = m_Strength; s.mode = m_Mode; s.aa = m_Aa; s.fov = m_Fov; s.middle = m_Middle; s.square = m_Square;
+        s.battle = m_Battle; s.battleDistance = m_BattleDistance;
+        return s;
+    }
+    void Use(const lens::Settings& s) {
+        m_Strength = s.strength; m_Mode = s.mode; m_Aa = s.aa; m_Fov = s.fov; m_Middle = s.fov ? 0 : s.middle; m_Square = s.square;
+        m_Battle = s.battle; m_BattleDistance = s.battleDistance;
     }
     void Save() const {
         CreateDirectoryA((std::string(m_Core->GetInstallPath()) + "\\config").c_str(), nullptr);
         CreateDirectoryA((std::string(m_Core->GetInstallPath()) + "\\config\\lens").c_str(), nullptr);
         FILE* f = nullptr;
         if (fopen_s(&f, SettingsPath().c_str(), "wb") != 0 || !f) return;
-        fprintf(f, "on=%d\nstrength=%d\nmode=%d\naa=%d\nfov=%d\nmiddle=%d\nsquare=%d\nbattle=%s\n", m_On ? 1 : 0, m_Strength, static_cast<int>(m_Mode), m_Aa ? 1 : 0,
-            m_Fov, m_Middle, m_Square ? 1 : 0, BattleWord().c_str());
+        fprintf(f, "on=%d\nultrawide=%d\n%s%s", m_On ? 1 : 0, m_Ultrawide ? 1 : 0, lens::WriteSettings(m_Ultrawide ? m_Other : Current(), "").c_str(),
+            lens::WriteSettings(m_Ultrawide ? Current() : m_Other, "ultrawide.").c_str());
         fclose(f);
     }
     void Status() const {
@@ -158,7 +164,7 @@ public:
             Say("off: the game's own view, flat, without aa, at its own field of view and proportions. /lens on puts back " + Settings() + ".");
             return;
         }
-        std::string text = std::string("on, ") + (m_Mode == lens::Panini ? "panini" : "cylindrical") + ", strength " + std::to_string(m_Strength);
+        std::string text = std::string(m_Ultrawide ? "on, ultrawide, " : "on, ") + (m_Mode == lens::Panini ? "panini" : "cylindrical") + ", strength " + std::to_string(m_Strength);
         if (m_TanH > 0) {
             char more[200];
             const double deg = 180.0 / 3.14159265358979323846;
@@ -175,13 +181,7 @@ public:
         Say(Smoothing());
     }
     // battle as the ini and the status have it: game, same or the distance
-    std::string BattleWord() const {
-        if (m_Battle == lens::Battle::Same) return "same";
-        if (m_Battle == lens::Battle::Game) return "game";
-        char text[32];
-        snprintf(text, sizeof(text), "%g", m_BattleDistance);
-        return text;
-    }
+    std::string BattleWord() const { return lens::BattleWord(m_Battle, m_BattleDistance); }
     // The camera's distance in battle as it is.
     std::string CameraText() const {
         char text[200];
@@ -201,7 +201,7 @@ public:
     }
     // The settings /lens on puts in force, as words.
     std::string Settings() const {
-        std::string text = std::string(m_Mode == lens::Panini ? "panini" : "cylindrical") + " at strength " + std::to_string(m_Strength) + ", aa " + (m_Aa ? "on" : "off");
+        std::string text = std::string(m_Ultrawide ? "ultrawide: " : "") + (m_Mode == lens::Panini ? "panini" : "cylindrical") + " at strength " + std::to_string(m_Strength) + ", aa " + (m_Aa ? "on" : "off");
         if (m_Fov) text += ", fov " + std::to_string(m_Fov);
         else if (m_Middle) text += ", middle " + std::to_string(m_Middle);
         text += std::string(", square ") + (m_Square ? "on" : "off");
@@ -255,6 +255,20 @@ public:
             Save();
             ApplyProjection();
             Status();
+            return true;
+        }
+        if (_stricmp(words[1], "ultrawide") == 0) {
+            bool on = _stricmp(words[2], "on") == 0;
+            if (!on && _stricmp(words[2], "off") != 0) { Say("Usage: /lens ultrawide on|off."); return true; }
+            if (on == m_Ultrawide) { Say(std::string("ultrawide is already ") + (on ? "on: " : "off: ") + Settings() + "."); return true; }
+            lens::Settings was = Current();
+            Use(m_Other);
+            m_Other = was;
+            m_Ultrawide = on;
+            Save();
+            ApplyProjection();
+            if (m_On) Status();
+            else Say(std::string("ultrawide ") + (on ? "on" : "off") + ": " + Settings() + ", from /lens on.");
             return true;
         }
         if (_stricmp(words[1], "aa") == 0) {
@@ -339,6 +353,7 @@ public:
         Say("/lens middle <n> - keep n degrees up the middle of the screen (77 is the game's): lens draws the world taller to give back what the warp takes. 0 for none.");
         Say("/lens fov <n> - draw the world n degrees up instead, 20 to 140; 0 is the game's own. /lens square on|off - the world at the window's true proportions (off to start).");
         Say("/lens battle same|<n>|0 - the camera's distance when you engage: same keeps it where it was, n how far out (the game's is 8.6), 0 the game's own.");
+        Say("/lens ultrawide on|off - the ultrawide preset (panini 25, aa, fov 68, square, battle 15) in place of your own settings, and back; changes while on go into the preset.");
         Say("/lens capture [frames] - records every draw over the next frames to config/lens/.");
         return true;
     }

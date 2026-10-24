@@ -1,4 +1,4 @@
-# lens — experimental 0.91
+# lens — experimental 0.92
 
 FFXI's world through a Panini or cylindrical projection, either of which keeps a wide view without
 the stretching a flat projection gives at the edges of a wide screen. No projection matrix can do that, but the game draws
@@ -20,11 +20,17 @@ drawscale's (now [vis](../../addons/vis)) until its 2.0.
 /lens fov <n>         draw the world n degrees up instead, 20 to 140 (0, the game's own, to start)
 /lens square on|off   the world at the window's true proportions (off to start)
 /lens battle same|<n>|0   the camera's distance when you engage: same keeps it, n how far (0, the game's, to start)
+/lens ultrawide on|off    the ultrawide preset in place of your own settings, and back (off to start)
 ```
 
 `/lens off` puts the game's own view back: flat, without aa, at the game's field of view and
 proportions. Your settings are kept, and `/lens on` puts them all back. For aa without the warp, use
 `/lens strength 0`.
+
+`/lens ultrawide on` swaps your own settings for the ultrawide preset: panini at strength 25, aa on,
+fov 68, square on and battle 15, made for 3440x1440. `/lens ultrawide off` swaps your own back. While
+it is on, a change (`/lens strength 30`, say) goes into the preset, so the preset is yours to tune;
+lens.ini keeps both, the preset's lines starting `ultrawide.`.
 
 - **Panini** keeps lines running toward the middle of the view straight (a road or corridor ahead,
   the edges of what you face) and squeezes the edges somewhat. The strength is its distance: 100 is
