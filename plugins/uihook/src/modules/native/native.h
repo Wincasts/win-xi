@@ -41,6 +41,7 @@
 #define NATIVE_GROUP_STALE 600   // frames an entry of the group goes undrawn before its place is given to another
 #define NATIVE_SCALE_LOW 0.5f
 #define NATIVE_SCALE_HIGH 3.0f
+#define NATIVE_MOUSE_FRAMES 2    // a window drawn this many frames ago or since is under the mouse where it was drawn
 
 // Where a window's draws go: grown by scale about the corner of the display its bounds are nearest, then moved by
 // dx, dy, kept on the display. out: the corner (ax, ay) and the move kept (dx, dy). False with no bounds.
@@ -67,7 +68,16 @@ struct NativeTransform {
         else x=ax+(x-ax)*k+dx;
         y=ay+(y-ay)*k+dy;
     }
+    // A place as drawn given back as the game's own: Apply undone (for the bar, by the side of the middle it is drawn on)
+    void Invert(float& x,float& y) const {
+        if (k<=0) return;
+        if (pinch) { const bool left=x<middle; const float a=left ? 0 : width; x=a+(x-(left ? inset : -inset)-a)/k; }
+        else x=ax+(x-dx-ax)/k;
+        y=ay+(y-dy-ay)/k;
+    }
 };
+// Where a mouse message goes (NativeLook::MapPoint)
+enum NativeMouse { NATIVE_MOUSE_AS_IS, NATIVE_MOUSE_MOVED, NATIVE_MOUSE_KEPT };
 static void NativeTransformVertices(void* data,unsigned count,unsigned stride,const NativeTransform& t) {
     auto* bytes=static_cast<uint8_t*>(data);
     for (unsigned i=0;i<count;i++) {
@@ -92,6 +102,7 @@ struct NativeEntry {
     // the same of its frame's draws alone: what it is placed by, and what a draw must touch to be moved
     float frameGather[4]={}; bool frameGathered=false;
     float frame[4]={}; bool frameKnown=false;
+    uint32_t order=0;  // its place among the windows drawn in the frame it was last drawn, for the mouse: the last on top
     // for /uihook native
     uint32_t seen=0,moved=0,unmoved=0,kept=0;
 };
@@ -109,6 +120,7 @@ public:
     float inset=0;   // the sides brought in by this many pixels, 0 not
     float menuScale=1;   // every framed window drawn this much larger, from its quarter's corner of the screen
     int16_t logLeft=0,logTop=0; uint32_t logFrame=0;
+    uint32_t orderFrame=0,orderNext=0;  // the windows drawn so far this frame, for each one's order
 
     // The chat log's windows: never of the group, never brought in (chatbox places the log)
     static bool LogWindow(const char* name) {
@@ -181,6 +193,8 @@ public:
         if (!e && name && (inset>0 || menuScale!=1)) e=Make(name,frame);
         if (e) {
             e->seen=frame;
+            if (orderFrame!=frame) { orderFrame=frame; orderNext=0; }
+            e->order=++orderNext;
             if (e->gatherFrame!=frame) {
                 // drawn the frame before: its frame is what it drew as one, none where it drew none (a guess from
                 // the game's place, below, is not kept for a window with no frame of its own)
@@ -244,8 +258,13 @@ public:
     bool Transform(float width,float height,NativeTransform& t,bool* whole=nullptr) const {
         t=NativeTransform();
         if (whole) *whole=false;
-        if (!current || !current->known) return false;
-        const NativeEntry& e=*current;
+        return current && TransformOf(*current,width,height,t,whole);
+    }
+    // The same for any window's entry
+    bool TransformOf(const NativeEntry& e,float width,float height,NativeTransform& t,bool* whole=nullptr) const {
+        t=NativeTransform();
+        if (whole) *whole=false;
+        if (!e.known) return false;
         const float* bounds=e.frameKnown ? e.frame : e.bounds;
         // one made for the group, placed elsewhere this frame: as any other
         const bool grouped=e.group && e.member,away=e.group && !e.member;
@@ -308,6 +327,32 @@ public:
         place[0]=t.ax; place[1]=t.ay; place[2]=t.dx; place[3]=t.dy;
         if (pinch && t.pinch) *pinch=t.middle;
         return true;
+    }
+    // A place on the screen (in pixels, as the draws are) for the game's mouse. On a window drawn in the last few
+    // frames (the last drawn on top) that is drawn moved: moved to the same place on the game's own (MOVED). On none
+    // drawn there but where the game puts one drawn moved: kept from the game, which would work that window where it
+    // is not seen (KEPT). Otherwise left as it is (AS_IS).
+    NativeMouse MapPoint(float width,float height,uint32_t frame,float& x,float& y) const {
+        const NativeEntry* top=nullptr; NativeTransform topMove; bool topMoved=false;
+        bool under=false;
+        for (auto& e:entries) {
+            if (!e.name[0] || !e.known || frame-e.seen>NATIVE_MOUSE_FRAMES) continue;
+            const float* f=e.frameKnown ? e.frame : e.bounds;
+            NativeTransform t;
+            const bool moved=TransformOf(e,width,height,t);
+            float drawn[4]={f[0],f[1],f[2],f[3]};
+            if (moved) { t.Apply(drawn[0],drawn[1]); t.Apply(drawn[2],drawn[3]); }
+            if (moved && x>=f[0] && x<f[2] && y>=f[1] && y<f[3]) under=true;
+            if (x<drawn[0] || x>=drawn[2] || y<drawn[1] || y>=drawn[3]) continue;
+            if (top && (e.seen<top->seen || (e.seen==top->seen && e.order<top->order))) continue;
+            top=&e; topMove=t; topMoved=moved;
+        }
+        if (top) {
+            if (!topMoved) return NATIVE_MOUSE_AS_IS;
+            topMove.Invert(x,y);
+            return NATIVE_MOUSE_MOVED;
+        }
+        return under ? NATIVE_MOUSE_KEPT : NATIVE_MOUSE_AS_IS;
     }
     // A draw of a window moved that could not be (from a vertex buffer)
     void Unmoved() { if (current) current->unmoved++; }

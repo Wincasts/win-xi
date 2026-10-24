@@ -596,6 +596,7 @@ controller input, cursor and text). `addons/nativeui` gives it its settings.
 /uihook native group off [quiet]       those as the game draws them again
 /uihook native inset <pixels> [quiet]  the top bar that much shorter at each end, every window either side moved in with it
 /uihook native size <factor> [quiet]   every framed window that much larger, from its corner of the screen
+/uihook native mouse on|off [quiet]    the game's mouse given each window where it is drawn (an experiment)
 ```
 
 The group (1.38) is told each frame by where the game draws each window (+3A; 1.38 read its layout target, +8C,
@@ -611,6 +612,15 @@ window's frame (the inventory's count, up in the menu name's bar) is left where 
 the window is grown from. Nothing of the game's is
 written: its mouse hit-tests stay where it put the menu, and the controller works it as ever. A draw from a
 vertex buffer cannot be moved, and is counted. Nothing is kept between loads.
+
+`mouse on` (1.58, an experiment) gives the game's mouse each window where it is drawn. The game reads each mouse
+message in its own message loop, before its window procedure (`window/mouse.h`); uihook takes that call, and a
+message on a window drawn moved, the topmost of those drawn in the last two frames, is given to the game with
+its place moved back by the window's own move, so its hover and clicks work the window where it is seen. One
+where the game puts a window drawn elsewhere, with nothing drawn there, is kept from the game (a button let go is
+always given, so nothing is left held). Ashita, imgui and every addon see each message as it was. The wheel is
+the game's: its place is the screen's, and the game scrolls where its own cursor is. Not yet tried in game: the
+game may set the cursor's place itself (SetCursorPos) in some flows, at the game's own place.
 
 The first experiment's commands for one window at a time (`move`, `scale` and `tint`, 1.25–1.27) were taken out
 in 1.58: nothing used them once the group, the inset and the size did it for every window.

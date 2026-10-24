@@ -4,8 +4,8 @@
 #include "../src/modules/party/detour.h"
 #include "../src/modules/party/target.h"
 #include "../src/modules/chat/controls.h"
-#include "../src/modules/mirror/census.h"
-#include "../src/modules/mirror/mirror.h"
+#include "../src/modules/window/window.h"
+#include "../src/modules/window/mouse.h"
 #include "../src/modules/native/native.h"
 static int failures=0;
 static void Check(bool ok,const char* text) { printf("%s %s\n",ok?"ok":"FAIL",text); if(!ok) ++failures; }
@@ -198,6 +198,51 @@ int main() {
     saved=sides.Enter("menu    titlewin",3);
     Check(!sides.Placing(3440,1440,place,&pinch),"no inset: as the game puts it");
     sides.Leave(saved);
+    // the mouse: a place as drawn given back as the game's own
+    {
+        NativeTransform t; t.ax=100; t.ay=50; t.k=2; t.dx=10; t.dy=-20;
+        float x=130,y=70; t.Apply(x,y); t.Invert(x,y);
+        Check(Near(x,130) && Near(y,70),"a place moved and scaled, given back");
+        NativeTransform b; b.pinch=true; b.middle=1720; b.width=3440; b.inset=100; b.k=1.25f;
+        float l=400,ly=20,r=3000,ry=20; b.Apply(l,ly); b.Apply(r,ry); b.Invert(l,ly); b.Invert(r,ry);
+        Check(Near(l,400) && Near(r,3000) && Near(ly,20),"on the bar, each side by its own end");
+    }
+    {
+        NativeLook m;
+        m.Group(0,-300);
+        const int16_t log[4]={16,1290,658,134},command[4]={16,1200,112,88};
+        m.Note("menu    logwindo",log,1);
+        m.Note("menu    menuwind",command,1);
+        NativeLook::Saved was=m.Enter("menu    menuwind",1);
+        V cf[2]={{16,1200,0,1,0,0,0},{128,1288,0,1,0,0,0}}; m.Gather(cf,2,sizeof(V)); m.Leave(was);
+        was=m.Enter("menu    menuwind",2); m.Gather(cf,2,sizeof(V)); m.Leave(was);
+        float x=50,y=950;
+        Check(m.MapPoint(3440,1440,3,x,y)==NATIVE_MOUSE_MOVED && Near(x,50) && Near(y,1250),"on the command menu drawn 300 up: the same place on the game's own");
+        x=50; y=1250;
+        Check(m.MapPoint(3440,1440,3,x,y)==NATIVE_MOUSE_KEPT && Near(y,1250),"where the game puts it, nothing drawn there: kept from the game");
+        x=1500; y=500;
+        Check(m.MapPoint(3440,1440,3,x,y)==NATIVE_MOUSE_AS_IS && Near(x,1500),"on no window: as it is");
+        x=50; y=950;
+        Check(m.MapPoint(3440,1440,9,x,y)==NATIVE_MOUSE_AS_IS && Near(y,950),"the menu not drawn for frames: as it is");
+        // a window over it drawn after it, moved its own way (the sides brought in): the mouse is the one drawn last's
+        m.Inset(100);
+        V bf[2]={{20,850,0,1,0,0,0},{300,1000,0,1,0,0,0}};
+        for (uint32_t f=3;f<=4;f++) {
+            was=m.Enter("menu    menuwind",f); m.Gather(cf,2,sizeof(V)); m.Leave(was);
+            was=m.Enter("menu    bazaar  ",f); m.Gather(bf,2,sizeof(V)); m.Leave(was);
+        }
+        x=125; y=950;
+        Check(m.MapPoint(3440,1440,5,x,y)==NATIVE_MOUSE_MOVED && Near(x,25) && Near(y,950),"on both as drawn: the one drawn last, given back by its own move");
+        x=60; y=930;
+        Check(m.MapPoint(3440,1440,5,x,y)==NATIVE_MOUSE_MOVED && Near(x,60) && Near(y,1230),"on the command menu alone: by the group's move");
+    }
+    Check(MouseMessage(WM_LBUTTONDOWN) && MouseMessage(WM_MOUSEMOVE) && !MouseMessage(WM_MOUSEWHEEL) && !MouseMessage(WM_KEYDOWN),"which messages carry a place");
+    Check(MouseRelease(WM_RBUTTONUP) && !MouseRelease(WM_RBUTTONDOWN),"a button let go");
+    {
+        MSG message={}; message.lParam=MAKELPARAM(100,200); message.pt.x=1100; message.pt.y=1200;
+        MouseMove(message,40,70);
+        Check(LOWORD(message.lParam)==40 && HIWORD(message.lParam)==70 && message.pt.x==1040 && message.pt.y==1070,"a message moved, its screen place as far");
+    }
     printf("%d failures\n",failures);
     return failures ? 1 : 0;
 }

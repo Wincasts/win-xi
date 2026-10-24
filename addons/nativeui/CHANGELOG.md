@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8
+
+- [Experimental] Mouse Follows Menus (Screen, off to begin with): the game's mouse given each window where it is
+  drawn, moved or larger, and kept from where the game puts one drawn elsewhere (uihook 1.58's
+  `/uihook native mouse`).
+
 ## 0.7
 
 - Looks at uihook, the theme's fonts and its own settings twice a second, not every frame: each frame it made its

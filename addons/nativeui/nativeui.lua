@@ -1,6 +1,6 @@
 addon.name    = 'nativeui'
 addon.author  = 'win'
-addon.version = '0.7'
+addon.version = '0.8'
 addon.desc    = 'The game\'s own interface in a uihook skin, and the menus it stacks over the chat log moved where you want them.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -23,8 +23,10 @@ addon.link    = 'https://github.com/Wincasts/win-xi'
 -- Sides: the bar across the top that many pixels shorter at each end, staying centred, and every window on either
 -- half of the screen moved in with it, keeping their size and their places to each other (/uihook native inset).
 -- The chat log and the menus stacked on it stay where they are.
+-- [Experimental] Mouse Follows Menus: the game's mouse given each window where it is drawn, moved or larger, and kept
+-- from where the game puts one drawn elsewhere (/uihook native mouse). Off: the mouse clicks where the game put them.
 --
--- Needs uihook 1.54 or newer.
+-- Needs uihook 1.58 or newer for Mouse Follows Menus, 1.54 for the rest.
 
 local winxiNeeded = 41
 do
@@ -67,12 +69,13 @@ local defaults = T{
     titleFont = THEME_FONT,  -- the skin's title font: the theme's Title Font, the skin's own, or a file
     menuWeight = 'Bold',     -- one of WEIGHTS: at a menu's size a regular font's strokes are a pixel, and faint
     titleWeight = 'As The Font',
+    mouse = false,           -- the game's mouse given each window where it is drawn (an experiment)
 }
 
 local app
 -- What uihook was last given: sent again only as it changes, and all of it once the game draws (uihook may load
 -- after this, and a skin needs the game's device)
-local sent = { skin = nil, offset = nil, inset = nil, scale = nil, menu = nil, title = nil }
+local sent = { skin = nil, offset = nil, inset = nil, scale = nil, menu = nil, title = nil, mouse = nil }
 
 local function Uihook()
     local ok, loaded = pcall(function() return AshitaCore:GetPluginManager():IsLoaded('uihook') end)
@@ -113,7 +116,7 @@ local uihookWas = false
 local function Apply(force)
     local options = app and app.options
     local loaded = Uihook()
-    if loaded and not uihookWas then sent.skin, sent.offset, sent.inset, sent.scale, sent.menu, sent.title = nil, nil, nil, nil, nil, nil end
+    if loaded and not uihookWas then sent.skin, sent.offset, sent.inset, sent.scale, sent.menu, sent.title, sent.mouse = nil, nil, nil, nil, nil, nil, nil end
     uihookWas = loaded
     if not options or not loaded then return end
     local skin = options.skin
@@ -152,6 +155,11 @@ local function Apply(force)
     if force or sent.inset ~= inset then
         Send(('/uihook native inset %d quiet'):format(inset))
         sent.inset = inset
+    end
+    local mouse = options.mouse == true
+    if force or sent.mouse ~= mouse then
+        Send(mouse and '/uihook native mouse on quiet' or '/uihook native mouse off quiet')
+        sent.mouse = mouse
     end
 end
 
@@ -219,12 +227,20 @@ local function DrawSettings(options)
         widgets.Label('Menu Scale')
         if imgui.SliderFloat('##nativeui.scale', options.scale, SCALE_LOW, SCALE_HIGH, '%.2fx') then Apply() end
         if imgui.IsItemDeactivatedAfterEdit() then app:Save() end
-        tooltip.Hover('Every window of the game\'s with a frame drawn this much larger, each from its corner of the screen so they keep their places to each other: the bar across the top from its ends, the menus over the chat log from its top left. The chat log stays as chatbox places it. Only the drawing grows: the mouse clicks where the game put them.')
+        tooltip.Hover('Every window of the game\'s with a frame drawn this much larger, each from its corner of the screen so they keep their places to each other: the bar across the top from its ends, the menus over the chat log from its top left. The chat log stays as chatbox places it. Only the drawing grows: the mouse clicks where the game put them, unless Mouse Follows Menus is on.')
         widgets.Label('Bring Sides In')
         if imgui.SliderInt('##nativeui.inset', options.inset, 0, INSET_LIMIT, '%d px') then Apply() end
         if imgui.IsItemDeactivatedAfterEdit() then app:Save() end
         widgets.PopControlWidth()
         tooltip.Hover('The bar across the top this many pixels shorter at each end, staying centred, and every window on either half of the screen moved in as far, keeping its size and its place next to the others. The chat log and the menus stacked on it stay where they are. 0: where the game puts them.')
+        widgets.Label('Mouse Follows Menus', true)
+        local mouse = { options.mouse == true }
+        if imgui.Checkbox('##nativeui.mouse', mouse) then
+            options.mouse = mouse[1]
+            app:Save()
+            Apply()
+        end
+        tooltip.Hover('The mouse works each window where it is drawn, moved or larger: pointing and clicking are given to the game at the same place on its own window. Where the game puts a window that is drawn elsewhere, with nothing drawn there, the game is given no mouse. Off: the mouse clicks where the game put them, as Menu Scale, Bring Sides In and Menus Over The Chat Log leave it.')
     end
     if widgets.Header('Menus Over The Chat Log') then
         local changed = false
@@ -247,7 +263,7 @@ local function DrawSettings(options)
             Apply()
         end
         tooltip.Hover('Back where the game puts them.')
-        imgui.TextWrapped('The command menu, a shop\'s buy and sell, a yes or no and an item\'s description, and every other window the game stacks there, move together. Only their drawing moves: the controller works them as ever, but the mouse clicks where the game put them.')
+        imgui.TextWrapped('The command menu, a shop\'s buy and sell, a yes or no and an item\'s description, and every other window the game stacks there, move together. Only their drawing moves: the controller works them as ever, but the mouse clicks where the game put them, unless Mouse Follows Menus (Screen) is on.')
     end
 end
 
@@ -263,6 +279,7 @@ local function Complete(options)
     options.scale[1] = math.max(SCALE_LOW, math.min(SCALE_HIGH, options.scale[1]))
     if type(options.inset) ~= 'table' then options.inset = T{ 0 } end
     options.inset[1] = math.max(0, math.min(INSET_LIMIT, math.floor((tonumber(options.inset[1]) or 0) + 0.5)))
+    options.mouse = options.mouse == true
     -- another character's settings: all of it given again
     for _, f in ipairs(FONT_KINDS) do
         if type(options[f.key]) ~= 'string' or options[f.key] == '' then options[f.key] = THEME_FONT end
@@ -270,7 +287,7 @@ local function Complete(options)
         for _, w in ipairs(WEIGHTS) do known = known or options[f.weightKey] == w end
         if not known then options[f.weightKey] = defaults[f.weightKey] end
     end
-    sent.skin, sent.offset, sent.inset, sent.scale, sent.menu, sent.title = nil, nil, nil, nil, nil, nil
+    sent.skin, sent.offset, sent.inset, sent.scale, sent.menu, sent.title, sent.mouse = nil, nil, nil, nil, nil, nil, nil
 end
 
 app = shell.New({
@@ -302,4 +319,5 @@ ashita.events.register('unload', 'nativeui_unload', function()
     if Uihook() and sent.offset and sent.offset ~= '0,0' then Send('/uihook native group off quiet') end
     if Uihook() and sent.inset and sent.inset ~= 0 then Send('/uihook native inset 0 quiet') end
     if Uihook() and sent.scale and sent.scale ~= '1.00' then Send('/uihook native size 1 quiet') end
+    if Uihook() and sent.mouse then Send('/uihook native mouse off quiet') end
 end)

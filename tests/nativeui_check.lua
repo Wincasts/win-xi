@@ -14,6 +14,7 @@ check('the skin given', Sent('/uihook skin winxi'))
 check('the menus where the game puts them', Sent('/uihook native group off quiet'))
 check('the sides where the game puts them', Sent('/uihook native inset 0 quiet'))
 check('the menus at their size', Sent('/uihook native size 1.00 quiet'))
+check('the mouse where the game puts them, to begin with', Sent('/uihook native mouse off quiet'))
 check('the fonts the theme\'s (here imgui\'s own: the skin\'s)', Sent('/uihook skin font menu off quiet') and Sent('/uihook skin font title off quiet'))
 local count = #queued
 H.frames(3)
@@ -29,6 +30,9 @@ H.wait(0.6); H.frames(1)
 check('the menu scale given as it changes', Sent('/uihook native size 1.25 quiet'))
 check('a font chosen given as it changes, bold, in the theme\'s outline', Sent('/uihook skin font menu verdana.ttf bold outline=1 outlinecolour=E6000000 quiet'))
 check('the sides brought in as it changes', Sent('/uihook native inset 100 quiet'))
+options.mouse = true
+H.wait(0.6); H.frames(1)
+check('Mouse Follows Menus given as it changes', Sent('/uihook native mouse on quiet'))
 options.skin = 'None'
 H.wait(0.6); H.frames(1)
 check('no skin: the game\'s own', Sent('/uihook skin off'))
@@ -37,10 +41,11 @@ H.loaded('uihook', false); H.wait(0.6); H.frames(1); H.loaded('uihook', true); H
 check('uihook loaded again: given it all again', Sent('/uihook skin off') and Sent('/uihook native inset 100 quiet'))
 check('the command opens the settings', H.command('/nativeui'))
 H.frames(2)
-check('the settings drawn', (H.calls['BeginCombo'] or 0) > 0 and (H.calls['DragInt'] or 0) > 0 and (H.calls['SliderInt'] or 0) > 0 and (H.calls['SliderFloat'] or 0) > 0)
+check('the settings drawn', (H.calls['BeginCombo'] or 0) > 0 and (H.calls['DragInt'] or 0) > 0 and (H.calls['SliderInt'] or 0) > 0 and (H.calls['SliderFloat'] or 0) > 0 and (H.calls['Checkbox'] or 0) > 0)
 queued = {}
 H.unload()
 check('unloaded: the menus given back', Sent('/uihook native group off quiet') and Sent('/uihook native inset 0 quiet') and Sent('/uihook native size 1 quiet'))
+check('unloaded: the mouse given back', Sent('/uihook native mouse off quiet'))
 check('nothing printed', #H.printed == 0)
 H.print(failures == 0 and 'nativeui: 0 failures' or ('nativeui: %d failures'):format(failures))
 if failures > 0 then os.exit(1) end

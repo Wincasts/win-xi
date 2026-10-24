@@ -42,4 +42,9 @@ keep their size and their places next to each other and to the bar. A window ove
 (a centred question) stays put, as do the chat log and the menus stacked on it. `/uihook native inset`; only
 the drawing moves, as above.
 
-Needs uihook 1.54 or newer and the `winxi` library.
+[Experimental] Mouse Follows Menus (off to begin with) gives the game's mouse each window where it is drawn,
+moved or larger: pointing and clicking go to the same place on the game's own window, and where the game puts a
+window drawn elsewhere, with nothing drawn there, the game is given no mouse (`/uihook native mouse`). The wheel
+is the game's, where its own cursor is.
+
+Needs uihook 1.58 or newer for Mouse Follows Menus, 1.54 for the rest, and the `winxi` library.
