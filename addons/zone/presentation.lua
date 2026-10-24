@@ -226,17 +226,7 @@ end
 local function uses(d, id) return d.zoneStyle == id or d.areaStyle == id; end
 local function draw_settings(options)
     local d = options.display;
-    if widgets.Header('Preview', true) then
-        checkbox({ preview = M.preview }, 'Preview While Configuring', 'preview');
-        tips.Hover('Keeps a banner up while these settings are open, to see each change.');
-        if imgui.Button('Preview Zone Once') and M.on_preview then M.on_preview(); end
-        if imgui.Button('Preview Sub-zone Once') and M.on_area_preview then M.on_area_preview(); end
-        if imgui.Button('Preview Weather Once') and M.on_weather_preview then M.on_weather_preview(); end
-        if imgui.Button('Open Map Browser') and M.on_open_browser then M.on_open_browser(); end
-        tips.Hover('Every map and the areas it announces, to look at or edit. /zone debug does the same.');
-    end
-    widgets.Gap();
-    if widgets.Header('Announcements') then
+    if widgets.Header('Announcements', true) then
         checkbox(d, 'Show Banner', 'enabled');
         tips.Hover('Off, no banner is drawn: not for zones, sub-zones or weather.');
         checkbox(d, 'Show Sub-zone Popups', 'areaEnabled');
@@ -314,8 +304,12 @@ local function draw_settings(options)
         slider(d, 'Text Size', 'locationSize', '%.0f px');
         widgets.PopControlWidth();
     end
-    widgets.Gap();
-    if widgets.Header('Timing') then
+    commit(options);
+end
+-- Visibility: how long a banner is up and how it fades, and when it is hidden.
+local function draw_visibility(options)
+    local d = options.display;
+    if widgets.Header('Timing', true) then
         widgets.PushControlWidth();
         slider(d, 'Hold Seconds', 'hold'); slider(d, 'Fade In Seconds', 'fadeIn'); slider(d, 'Fade Out Seconds', 'fadeOut');
         -- Each line its own timing is Classic Text's alone.
@@ -344,8 +338,18 @@ local function draw_appearance(options)
     local d = options.display;
     local styled = d.zoneStyle ~= 'classic' or d.areaStyle ~= 'classic';
     local classic = uses(d, 'classic');
+    if widgets.Header('Preview', true) then
+        checkbox({ preview = M.preview }, 'Preview While Configuring', 'preview');
+        tips.Hover('Keeps a banner up while these settings are open, to see each change.');
+        if imgui.Button('Preview Zone Once') and M.on_preview then M.on_preview(); end
+        if imgui.Button('Preview Sub-zone Once') and M.on_area_preview then M.on_area_preview(); end
+        if imgui.Button('Preview Weather Once') and M.on_weather_preview then M.on_weather_preview(); end
+        if imgui.Button('Open Map Browser') and M.on_open_browser then M.on_open_browser(); end
+        tips.Hover('Every map and the areas it announces, to look at or edit. /zone map does the same.');
+    end
+    widgets.Gap();
     widgets.PushControlWidth();
-    if widgets.Header('Banner Style', true) then
+    if widgets.Header('Banner Style') then
         choice(d, 'Zone Entry Style', 'zoneStyle', styles.ids);
         tips.Hover('/zone test and a style (' .. table.concat(styles.ids, ', ') .. ') shows the zone once in that style.');
         choice(d, 'Sub-zone Style', 'areaStyle', styles.ids);
@@ -471,6 +475,7 @@ end
 M.app = shell.New({
     defaults = defaults(), configTitle = 'Zone Settings', drawSettings = draw_settings, settingsLabel = 'Behaviour',
     leadingTabs = { { label = 'Appearance', draw = draw_appearance } }, hideAppearance = true,
+    tabs = { { label = 'Visibility', draw = draw_visibility } },
     onSettings = function(options)
         M.complete(options); dirty = false; M.preview[1] = false;
         background_cache:clear();
