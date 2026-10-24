@@ -304,7 +304,7 @@ class Builder:
             info.script_of[mob_id] = script
             if generator.content_enabled(template.get('content')):
                 info.spawns[mob_id] = spawn
-                info.shown[mob_id] = generator.client_name(zone_id, spawn.get('template'), template, spawn)[0]
+                info.shown[mob_id] = generator.client_name(zone_id, spawn.get('template'), template, spawn, int(mob_id) & 0xFFF)[0]
         regions = self.server / 'data/zones' / zone / 'regions.yaml'
         if regions.exists():
             for name, region in ((importer.load_yaml(str(regions)) or {}).get('regions') or {}).items():
