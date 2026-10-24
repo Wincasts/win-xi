@@ -4,7 +4,7 @@
 //
 // Window::Render draws a window in three parts: its frame, then its contents through its owner's
 // vtable +10, then the cursor, row highlight and scrollbar. The one call to the contents is taken
-// (MIRROR_CONTENT_PATTERN, five bytes, mov edx,[ecx]; call [edx+10], made a call to ours), so every draw
+// (WINDOW_CONTENT_PATTERN, five bytes, mov edx,[ecx]; call [edx+10], made a call to ours), so every draw
 // is known to be the frame's, the contents', or a control's. In the contents, the text routines say what
 // is printed and where (census.h), and every other draw is a quad of the game's art (an item's icon),
 // kept with its texture and its place in it. Each is measured from its screen-space vertices.
@@ -16,11 +16,8 @@
 #include <string.h>
 #include <vector>
 #include <algorithm>
+#include "../window/window.h"
 
-// Window::Render's call to the contents, +20 into this pattern, checked to lie in Window::Render
-#define MIRROR_CONTENT_PATTERN "8B 4D 0C 85 C9 74 ?? 8A 45 6A 84 C0 74 ?? 83 7D 10 0E 74 ?? 8B 11 FF 52 10"
-#define MIRROR_CONTENT_AT 20
-#define MIRROR_CONTENT_WITHIN 0x800
 #define MIRROR_REQUESTS 128 // windows an addon may name
 #define MIRROR_WINDOWS 16  // windows published a frame
 #define MIRROR_RUNS 512
@@ -30,10 +27,6 @@
 #define MIRROR_REQUEST_FRAMES 4 // a request holds this many frames after the addon last renewed it
 #define MIRROR_MOUSE 16    // menus an addon may say it draws somewhere else, for the mouse (mouse.h)
 
-// What a draw belonged to. An element is one of the window's own sprites, drawn by Window::Render before the
-// contents from its list of elements: the labels of a menu whose words are pictures (the main menu, the command
-// menu), its buttons and icons; the one the cursor is on drawn tinted, which makes the window's Selection.
-enum MirrorPhase : uint32_t { MIRROR_FRAME, MIRROR_CONTENT, MIRROR_CURSOR, MIRROR_ELEMENT, MIRROR_SCROLL, MIRROR_AFTER };
 // Window flags: its cursor shown (+62), it focused (+63), it left undrawn, its contents drawn this frame
 enum : uint32_t { MIRROR_HAS_CURSOR=1, MIRROR_FOCUSED=2, MIRROR_HIDDEN=4, MIRROR_DREW_CONTENT=8 };
 // Supported: the menus' drawing found and taken; the game's mouse handler too, so Mouse is heard
@@ -42,7 +35,7 @@ enum : uint32_t { MIRROR_SUPPORTED=1, MIRROR_SUPPORTED_MOUSE=2 };
 struct MirrorRun {      // a piece of text as the game printed it
     float Rect[4];      // measured from its glyphs, normalized; all zero where nothing was measured
     uint32_t Window;    // index in Windows
-    uint32_t Route;     // CensusRoute: 0 bitmap font, 1 scaled bitmap, 2 rendered font
+    uint32_t Route;     // TextRoute: 0 bitmap font, 1 scaled bitmap, 2 rendered font
     uint32_t Colour;    // the game's: components of 0x80 as one
     uint32_t Offset, Length; // its bytes in Text, as the game was given them
     uint32_t Phase;
@@ -102,7 +95,7 @@ class Mirror {
     ChatBounds frameBounds, allBounds, cursorBounds, selectionBounds, scrollBounds, runBounds;
     D3DVIEWPORT8 viewport{}; bool viewportKnown=false;
     int window=-1;            // the slot of the window being drawn, or -1
-    MirrorPhase phase=MIRROR_FRAME;
+    WindowPhase phase=PHASE_FRAME;
     unsigned depth=0;         // text calls under way
     bool elementLit=false;    // the element being drawn is tinted: the cursor is on it
     int run=-1;               // the run being measured
@@ -126,13 +119,13 @@ public:
     }
     // A window about to be drawn: mirrored if the addon asks for it. Returns whether the game's drawing
     // of it is to be left undrawn. The slot it had is given back by End.
-    struct Saved { int window; MirrorPhase phase; unsigned depth; int run; ChatBounds frame, all, cursor, selection, scroll; };
+    struct Saved { int window; WindowPhase phase; unsigned depth; int run; ChatBounds frame, all, cursor, selection, scroll; };
     bool Begin(void* object,IDirect3DDevice8* device,Saved& saved) {
         saved={window,phase,depth,run,frameBounds,allBounds,cursorBounds,selectionBounds,scrollBounds};
-        window=-1; phase=MIRROR_FRAME; depth=0; run=-1;
+        window=-1; phase=PHASE_FRAME; depth=0; run=-1;
         auto* w=static_cast<uint8_t*>(object);
         char name[16]; uint8_t* header=nullptr; bool hide=false;
-        if (!w || !ChatRead(w+CENSUS_HEADER,&header,4) || !header || !ChatRead(header+CENSUS_NAME,name,16) || !Wanted(name,hide)) return false;
+        if (!w || !ChatRead(w+WINDOW_HEADER,&header,4) || !header || !ChatRead(header+WINDOW_NAME,name,16) || !Wanted(name,hide)) return false;
         if (building.WindowCount>=MIRROR_WINDOWS) { dropped++; return false; }
         if (!viewportKnown && device) viewportKnown=SUCCEEDED(device->GetViewport(&viewport));
         if (!viewportKnown) { dropped++; return false; } // nothing could be placed: the game draws it
@@ -140,9 +133,9 @@ public:
         MirrorWindow& out=building.Windows[window];
         memset(&out,0,sizeof(out)); memcpy(out.Name,name,16);
         uint8_t flags[2]={};
-        if (ChatRead(w+CENSUS_CURSOR,flags,2)) out.Flags|=(flags[0] ? MIRROR_HAS_CURSOR : 0) | (flags[1] ? MIRROR_FOCUSED : 0);
+        if (ChatRead(w+WINDOW_CURSOR,flags,2)) out.Flags|=(flags[0] ? MIRROR_HAS_CURSOR : 0) | (flags[1] ? MIRROR_FOCUSED : 0);
         if (hide) out.Flags|=MIRROR_HIDDEN;
-        ChatRead(w+CENSUS_TARGET,out.Target,8);
+        ChatRead(w+WINDOW_TARGET,out.Target,8);
         out.FirstRun=building.RunCount; out.FirstQuad=building.QuadCount;
         frameBounds=allBounds=cursorBounds=selectionBounds=scrollBounds=ChatBounds();
         return hide;
@@ -162,16 +155,16 @@ public:
         frameBounds=saved.frame; allBounds=saved.all; cursorBounds=saved.cursor; selectionBounds=saved.selection; scrollBounds=saved.scroll;
     }
     // The part of the window being drawn: the contents (from the stub), a control (from its call site)
-    MirrorPhase Phase(MirrorPhase now) {
-        const MirrorPhase was=phase;
+    WindowPhase Phase(WindowPhase now) {
+        const WindowPhase was=phase;
         elementLit=false;
-        if (window>=0) { phase=now; if (now==MIRROR_CONTENT) building.Windows[window].Flags|=MIRROR_DREW_CONTENT; }
+        if (window>=0) { phase=now; if (now==PHASE_CONTENT) building.Windows[window].Flags|=MIRROR_DREW_CONTENT; }
         return was;
     }
     // One of the window's elements about to be drawn in the colour Window::Render gives it: 0x80808080 as it
     // is, 0x30808080 greyed, any other tint (0x80805020, 0x40402810) the one the cursor is on
-    MirrorPhase Element(uint32_t colour) {
-        const MirrorPhase was=Phase(MIRROR_ELEMENT);
+    WindowPhase Element(uint32_t colour) {
+        const WindowPhase was=Phase(PHASE_ELEMENT);
         elementLit=window>=0 && (colour & 0xffffff)!=0x808080;
         return was;
     }
@@ -215,7 +208,7 @@ public:
         DWORD fvf=0;
         if (FAILED(device->GetVertexShader(&fvf)) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return;
         IDirect3DBaseTexture8* bound=nullptr;
-        if ((phase==MIRROR_CONTENT || phase==MIRROR_ELEMENT) && !depth && FAILED(device->GetTexture(0,&bound))) bound=nullptr;
+        if ((phase==PHASE_CONTENT || phase==PHASE_ELEMENT) && !depth && FAILED(device->GetTexture(0,&bound))) bound=nullptr;
         Record(fvf,bound,data,stride,count);
     }
     // The draw's vertices, as the device has them: screen-space positions first, then the diffuse colour and
@@ -239,12 +232,12 @@ public:
         Merge(allBounds,bounds);
         if (depth) { Merge(runBounds,bounds); return; }
         switch (phase) {
-        case MIRROR_FRAME: Merge(frameBounds,bounds); return;
-        case MIRROR_CURSOR: Merge(cursorBounds,bounds); return;
-        case MIRROR_ELEMENT: if (elementLit) Merge(selectionBounds,bounds); break;
-        case MIRROR_SCROLL: Merge(scrollBounds,bounds); return;
-        case MIRROR_AFTER: return;
-        case MIRROR_CONTENT: break;
+        case PHASE_FRAME: Merge(frameBounds,bounds); return;
+        case PHASE_CURSOR: Merge(cursorBounds,bounds); return;
+        case PHASE_ELEMENT: if (elementLit) Merge(selectionBounds,bounds); break;
+        case PHASE_SCROLL: Merge(scrollBounds,bounds); return;
+        case PHASE_AFTER: return;
+        case PHASE_CONTENT: break;
         }
         // the contents' own art, or an element: a quad of a texture
         if (building.QuadCount>=MIRROR_QUADS) { dropped++; return; }
@@ -281,7 +274,7 @@ public:
         for (auto* texture:heldBefore) texture->Release();
         heldBefore.swap(held); held.swap(heldBuilding); heldBuilding.clear();
         building.WindowCount=building.RunCount=building.QuadCount=building.TextUsed=0;
-        dropped=0; viewportKnown=false; window=-1; depth=0; run=-1; phase=MIRROR_FRAME;
+        dropped=0; viewportKnown=false; window=-1; depth=0; run=-1; phase=PHASE_FRAME;
     }
     // Every texture given back and nothing published: on release, or a device going away
     void Clear() {

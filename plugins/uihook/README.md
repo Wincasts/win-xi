@@ -461,7 +461,7 @@ calls made inside others, draw calls and those made inside text calls; then the 
 content draw they share; then up to 24 distinct texts for each, with route, place and colour. Off until
 asked, nothing written to the game, released with the plugin. The census shares the one Window::Render
 detour, taking it only if nothing else has.
-`python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt`
+`python3 plugins/uihook/tests/check_window_client.py /path/to/ffximain.bin /path/to/ffximain.txt`
 checks the routines against a private dump.
 
 ## Texture census (1.32)
@@ -664,7 +664,7 @@ luajit tests/nativehud_check.lua
 luajit tests/nativechat_check.lua
 luajit tests/harness.lua clock tests/clock_stand_in.lua tests/clock_check.lua
 python3 plugins/uihook/tests/check_hud_client.py /path/to/ffximain.bin /path/to/ffximain.txt
-python3 plugins/uihook/tests/check_census_client.py /path/to/ffximain.bin /path/to/ffximain.txt
+python3 plugins/uihook/tests/check_window_client.py /path/to/ffximain.bin /path/to/ffximain.txt
 luajit tests/party_hook_performance_check.lua
 luajit tests/harness.lua party addons/party/party.lua tests/party_hook_integration_check.lua
 luajit tests/harness.lua party addons/party/party.lua tests/party_native_positioning_check.lua

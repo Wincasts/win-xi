@@ -15,6 +15,10 @@
   census looked at for each draw, and their commands say how to build them. 75 KB smaller.
 - `/uihook mirror watch` and `/uihook mirror mark <words>` reach the watch: uihook gave every `/uihook mirror` but
   `labels` on as plain `/uihook mirror`, so since 1.21 they printed the mirror's report instead.
+- The window hooks (the three text routes and the contents' call in Window::Render) are uihook's own, not the
+  mirror's and the census's: `src/modules/window/window.h` holds their patterns, the window's fields and the phase
+  of a draw (`WindowPhase`, was `MirrorPhase`), which the native look tells a window's frame by.
+  tests/check_census_client.py is check_window_client.py.
 - `/uihook` lists its commands a line each, the diagnostics only where they are built in. The plugin's description
   and its DLL's version (it said 0.3 and 0.4) say what it is now; the README no longer says it is experimental or untested.
 

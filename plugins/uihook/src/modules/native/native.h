@@ -31,7 +31,7 @@
 #include <string.h>
 #include <cmath>
 #include <algorithm>
-#include "../mirror/mirror.h"
+#include "../window/window.h"
 
 #define NATIVE_ENTRIES 128
 #define NATIVE_GROUP_REACH 150   // how far right of the log's left a window of the group may start, in its units
@@ -102,7 +102,7 @@ public:
     // the window being drawn, where it is one named: its entry, its part (frame, contents...), whether a text
     // routine is under way
     NativeEntry* current=nullptr;
-    MirrorPhase phase=MIRROR_FRAME;
+    WindowPhase phase=PHASE_FRAME;
     unsigned text=0;
     // the group above the chat log, and the log's layout target as last drawn (its left and top), 0 frame unknown
     bool groupOn=false; float groupX=0,groupY=0;
@@ -170,13 +170,13 @@ public:
 
     // The window being drawn: its entry, if it is one named. Its draws' bounds from the frame before become the ones
     // it is placed by. Returns what to give back after it.
-    struct Saved { NativeEntry* current; MirrorPhase phase; unsigned text; };
+    struct Saved { NativeEntry* current; WindowPhase phase; unsigned text; };
     // drawn: where the game draws the window this frame (+3A, in pixels: left, top, right, bottom), or null. A window
     // drawn for the first time (or the first since its entry was given to another) is placed by it at once: placed
     // by its draws of the frame before alone, it showed for a frame where the game put it, then moved.
     Saved Enter(const char* name,uint32_t frame,const float* drawn=nullptr) {
         Saved saved={current,phase,text};
-        current=nullptr; phase=MIRROR_FRAME; text=0;
+        current=nullptr; phase=PHASE_FRAME; text=0;
         NativeEntry* e=name ? Find(name,false) : nullptr;
         if (!e && name && (inset>0 || menuScale!=1)) e=Make(name,frame);
         if (e) {
@@ -198,7 +198,7 @@ public:
         return saved;
     }
     void Leave(const Saved& saved) { current=saved.current; phase=saved.phase; text=saved.text; }
-    MirrorPhase Phase(MirrorPhase now) { const MirrorPhase was=phase; phase=now; return was; }
+    WindowPhase Phase(WindowPhase now) { const WindowPhase was=phase; phase=now; return was; }
     // A draw's vertices' places as bounds; false where none is finite
     static bool Bounds(const void* data,unsigned count,unsigned stride,float* out) {
         if (!data || stride<8) return false;
@@ -223,7 +223,7 @@ public:
         float b[4];
         if (!current || !Bounds(data,count,stride,b)) return;
         Grow(current->gather,current->gathered,b);
-        if (phase==MIRROR_FRAME && !text) Grow(current->frameGather,current->frameGathered,b);
+        if (phase==PHASE_FRAME && !text) Grow(current->frameGather,current->frameGathered,b);
     }
     // Whether a draw touches the window's frame (as last drawn), so moves with it; every draw does until it is known
     bool Within(const void* data,unsigned count,unsigned stride) const {
@@ -279,7 +279,7 @@ public:
     // the bar shows something over its middle (the frame before: the loading screen's progress line, with
     // "Downloading data..." centred by it) it stays in the middle with the bar, but what is near the left end.
     bool OnBar(const void* data,unsigned count,unsigned stride,NativeTransform& t) {
-        if (!t.pinch || !current || (phase==MIRROR_FRAME && !text) || !current->frameKnown) return false;
+        if (!t.pinch || !current || (phase==PHASE_FRAME && !text) || !current->frameKnown) return false;
         float b[4];
         if (!Bounds(data,count,stride,b)) return false;
         const float* f=current->frame;

@@ -24,6 +24,7 @@
 #include "../chat/menus.h"
 #include "../chat/history.h"
 #include "../chat/texttap.h"
+#include "../window/window.h"
 #include "../mirror/census.h"
 #include "../mirror/mirror.h"
 #include "../mirror/mouse.h"
@@ -78,25 +79,25 @@ static ChatControlCalls ChatControls;
 // The one call in the log drawer that draws a row of text, aimed at DrawChatRow while uihook is loaded
 static void __cdecl DrawChatRow(const uint16_t*,ChatRowHeader,int32_t,int32_t,uint32_t,uint32_t,void*,uint32_t);
 static ChatTextSite ChatText;
-// The three text routes: the mirror's, the native look's and the census's
-static int32_t __cdecl CensusBitmap(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
-static int32_t __cdecl CensusScaled(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
-static uint32_t __fastcall CensusFont(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
-static Detour CensusBitmapDetour = { CENSUS_TEXT_PATTERN, CENSUS_TEXT_STOLEN, -1, reinterpret_cast<void*>(&CensusBitmap), nullptr, nullptr, {} };
-static Detour CensusScaledDetour = { CENSUS_SCALED_PATTERN, CENSUS_SCALED_STOLEN, -1, reinterpret_cast<void*>(&CensusScaled), nullptr, nullptr, {} };
-static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, reinterpret_cast<void*>(&CensusFont), nullptr, nullptr, {} };
-// The menu mirror (mirror ABI 5): zero in the DLL's file, its magic written as the module initializes. Its
-// text is heard through the census's three routes, taken with Window::Render; the contents' call in
-// Window::Render aimed at MirrorContent.
+// The window hooks (window.h): the three text routes and the contents' call in Window::Render, heard by the native
+// look, the mirror and the census, each passing straight on to the game's own
+static int32_t __cdecl TextBitmap(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
+static int32_t __cdecl TextScaled(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
+static uint32_t __fastcall TextFont(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
+static Detour TextBitmapDetour = { TEXT_BITMAP_PATTERN, TEXT_BITMAP_STOLEN, -1, reinterpret_cast<void*>(&TextBitmap), nullptr, nullptr, {} };
+static Detour TextScaledDetour = { TEXT_SCALED_PATTERN, TEXT_SCALED_STOLEN, -1, reinterpret_cast<void*>(&TextScaled), nullptr, nullptr, {} };
+static Detour TextFontDetour = { TEXT_FONT_PATTERN, TEXT_FONT_STOLEN, -1, reinterpret_cast<void*>(&TextFont), nullptr, nullptr, {} };
+static void __fastcall DrawContent(void*,void*);
+struct ContentCallSite { uint8_t* call=nullptr; uint8_t saved[5]={}; };
+static ContentCallSite ContentCall;
+// The menu mirror (mirror ABI 5): zero in the DLL's file, its magic written as the module initializes; supported
+// where the window hooks are taken
 static MirrorShared MirrorBlock;
 static Mirror MenuMirror;
 static DrawContext Draws;       // what the parts share for each draw (drawcontext.h)
 static SkinModule Skins;        // /uihook skin: the game's textures drawn with pictures of a skin's in their place
 static NativeModule Native;     // /uihook native: windows' draws moved and scaled
 static DiagnosticsModule Diag;  // /uihook census, textures, mirror labels and mirror watch
-static void __fastcall MirrorContent(void*,void*);
-struct MirrorContentCall { uint8_t* call=nullptr; uint8_t saved[5]={}; };
-static MirrorContentCall ContentCall;
 // The game's mouse handler in its message loop, taken so a message on a menu drawn elsewhere is given to it at the
 // same place on the game's own (mouse.h)
 static void __cdecl MirrorInput(MSG);
@@ -104,21 +105,21 @@ static uint32_t MirrorMapped=0; // mouse messages given to the game at the place
 static Detour InputDetour = { MIRROR_INPUT_PATTERN, MIRROR_INPUT_STOLEN, -1, reinterpret_cast<void*>(&MirrorInput), nullptr, nullptr, {} };
 // The five bytes mov edx,[ecx]; call [edx+10] made a call to ours, which makes the same call: the
 // return address the game's own, the owner still in ecx
-static bool TakeMirrorContent(uint8_t* begin,size_t size,uint8_t* render) {
-    auto* site=UniquePattern(begin,size,MIRROR_CONTENT_PATTERN);
-    if (!site || !render || site<render || size_t(site-render)>MIRROR_CONTENT_WITHIN) return false;
-    uint8_t* call=site+MIRROR_CONTENT_AT;
+static bool TakeContentCall(uint8_t* begin,size_t size,uint8_t* render) {
+    auto* site=UniquePattern(begin,size,WINDOW_CONTENT_PATTERN);
+    if (!site || !render || site<render || size_t(site-render)>WINDOW_CONTENT_WITHIN) return false;
+    uint8_t* call=site+WINDOW_CONTENT_AT;
     static const uint8_t expected[5]={0x8b,0x11,0xff,0x52,0x10};
     if (memcmp(call,expected,5)) return false;
     ContentCall.call=call; memcpy(ContentCall.saved,call,5);
     uint8_t jump[5]={0xe8,0,0,0,0};
-    const int32_t distance=Distance(call+5,reinterpret_cast<void*>(&MirrorContent)); memcpy(jump+1,&distance,4);
+    const int32_t distance=Distance(call+5,reinterpret_cast<void*>(&DrawContent)); memcpy(jump+1,&distance,4);
     WriteCode(call,jump,5);
     return true;
 }
-static void GiveMirrorContent() {
+static void GiveContentCall() {
     if (ContentCall.call) WriteCode(ContentCall.call,ContentCall.saved,5);
-    ContentCall=MirrorContentCall();
+    ContentCall=ContentCallSite();
 }
 
 using Run = TextureRun<IDirect3DBaseTexture8>;
@@ -426,10 +427,10 @@ public:
                 } else globals[3]=nullptr; // party mode still works if target discovery fails
             }
         }
-        // The menu mirror: zero in the file, its magic written now; supported where its four sites are found
+        // The window hooks; the menu mirror, zero in the file, its magic written now, supported where they are taken
         memcpy(MirrorBlock.Magic,"UIHOOK-MIRROR",14); MirrorBlock.Version=5; MirrorBlock.Size=sizeof(MirrorShared);
         MenuMirror.shared=&MirrorBlock;
-        if (module.lpBaseOfDll && TakeMirror(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) {
+        if (module.lpBaseOfDll && TakeWindowHooks(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) {
             MirrorBlock.Supported=MIRROR_SUPPORTED;
             if (Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) MirrorBlock.Supported|=MIRROR_SUPPORTED_MOUSE;
         }
@@ -475,7 +476,7 @@ public:
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
         Diag.Unload();
         Skins.Unload();
-        GiveMirror();
+        GiveWindowHooks();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
@@ -567,21 +568,24 @@ public:
         ChatTapRecord(TextTap,mode,indent,message,modifiedMode,modifiedIndent,modifiedMessage,injected,blocked);
         return false;
     }
-    // The three text routes and the contents' call, all or none, with Window::Render if nothing else has
-    // taken it: the mirror's, and the census's. Each passes straight on to the game's own while no window
-    // is mirrored and the census is off.
-    bool TakeMirror(uint8_t* begin,size_t size) {
+    // The window hooks: the three text routes and the contents' call, all or none, with Window::Render if nothing
+    // else has taken it. Without them the native look cannot tell a window's frame, and the mirror and the census
+    // hear nothing.
+    bool windowHooks=false;
+    bool TakeWindowHooks(uint8_t* begin,size_t size) {
         if (!WindowDetour.trampoline && !Take(WindowDetour,begin,size)) return false;
-        if (!Take(CensusBitmapDetour,begin,size) || !Take(CensusScaledDetour,begin,size) || !Take(CensusFontDetour,begin,size)
-            || !TakeMirrorContent(begin,size,static_cast<uint8_t*>(WindowDetour.target))) { GiveMirror(); return false; }
+        if (!Take(TextBitmapDetour,begin,size) || !Take(TextScaledDetour,begin,size) || !Take(TextFontDetour,begin,size)
+            || !TakeContentCall(begin,size,static_cast<uint8_t*>(WindowDetour.target))) { GiveWindowHooks(); return false; }
+        windowHooks=true;
         Diag.Start(reinterpret_cast<uintptr_t>(begin));
         return true;
     }
-    void GiveMirror() {
+    void GiveWindowHooks() {
         MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; MirrorBlock.MouseFrame=0; MenuMirror.Clear();
         Give(InputDetour);
         Diag.Stop();
-        GiveMirrorContent(); Give(CensusBitmapDetour); Give(CensusScaledDetour); Give(CensusFontDetour);
+        GiveContentCall(); Give(TextBitmapDetour); Give(TextScaledDetour); Give(TextFontDetour);
+        windowHooks=false;
     }
     bool HandleCommand(int32_t,const char* command,bool) override {
         if (command && (!_stricmp(command,"/uihook native") || !_strnicmp(command,"/uihook native ",15))) { Native.Command(command); return true; }
@@ -1039,8 +1043,8 @@ public:
         // the selection art in a skinned full log measured (drawn or not), so its rows are published lit
         const bool measure=expandedSkin && !cursor && ChatSelectionColor(color) && !chatMeasure && selectionCount<8;
         if (measure) { selectionBounds[selectionCount]=ChatBounds(); chatMeasure=&selectionBounds[selectionCount]; }
-        const MirrorPhase mirrorWas=cursor ? MenuMirror.Phase(MIRROR_CURSOR) : MenuMirror.Element(color);
-        const MirrorPhase nativeWas=Native.look.Phase(cursor ? MIRROR_CURSOR : MIRROR_ELEMENT);
+        const WindowPhase mirrorWas=cursor ? MenuMirror.Phase(PHASE_CURSOR) : MenuMirror.Element(color);
+        const WindowPhase nativeWas=Native.look.Phase(cursor ? PHASE_CURSOR : PHASE_ELEMENT);
         ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
             expandedSkin && !Mirrored(),ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
         MenuMirror.Phase(mirrorWas); Native.look.Phase(nativeWas);
@@ -1057,7 +1061,7 @@ public:
         if (measure) { scrollBounds=ChatBounds(); chatMeasure=&scrollBounds; }
         ChatScrollInfo mirrorInfo;
         if (MenuMirror.Active() && ChatScrollRead(object,mirrorInfo)) MenuMirror.Scrollbar(mirrorInfo);
-        const MirrorPhase mirrorWas=MenuMirror.Phase(MIRROR_SCROLL),nativeWas=Native.look.Phase(MIRROR_SCROLL);
+        const WindowPhase mirrorWas=MenuMirror.Phase(PHASE_SCROLL),nativeWas=Native.look.Phase(PHASE_SCROLL);
         ForwardChatScroll(reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL]),ControlsActive(),controlStyle,object);
         MenuMirror.Phase(mirrorWas); Native.look.Phase(nativeWas);
         chatMeasure=nullptr; blocking=was;
@@ -1210,27 +1214,27 @@ static void __fastcall DrawExpandedChat(void* owner,void*) {
     else reinterpret_cast<void(__fastcall*)(void*,void*)>(ExpandedChatDetour.trampoline)(owner,nullptr);
 }
 // Each text route heard, then the game's own, unchanged; a text call within one counted as nested
-static int32_t __cdecl CensusBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
-    Diag.TextBegin(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
-    MenuMirror.TextBegin(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
+static int32_t __cdecl TextBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
+    Diag.TextBegin(TEXT_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
+    MenuMirror.TextBegin(TEXT_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     Native.look.text++;
-    const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
+    const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(TextBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
     Native.look.text--;
     Diag.TextEnd(); MenuMirror.TextEnd(); return end;
 }
-static int32_t __cdecl CensusScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
-    Diag.TextBegin(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
-    MenuMirror.TextBegin(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
+static int32_t __cdecl TextScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
+    Diag.TextBegin(TEXT_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
+    MenuMirror.TextBegin(TEXT_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     Native.look.text++;
-    const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
+    const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(TextScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
     Native.look.text--;
     Diag.TextEnd(); MenuMirror.TextEnd(); return end;
 }
-static uint32_t __fastcall CensusFont(void* font,void*,int32_t x,int32_t y,const char* text,uint32_t a,uint32_t colour,uint32_t flags,uint32_t sx,uint32_t sy) {
-    Diag.TextBegin(CENSUS_FONT,x,y,text,colour);
-    MenuMirror.TextBegin(CENSUS_FONT,x,y,text,colour);
+static uint32_t __fastcall TextFont(void* font,void*,int32_t x,int32_t y,const char* text,uint32_t a,uint32_t colour,uint32_t flags,uint32_t sx,uint32_t sy) {
+    Diag.TextBegin(TEXT_FONT,x,y,text,colour);
+    MenuMirror.TextBegin(TEXT_FONT,x,y,text,colour);
     Native.look.text++;
-    const uint32_t result=reinterpret_cast<uint32_t(__fastcall*)(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusFontDetour.trampoline)(font,nullptr,x,y,text,a,colour,flags,sx,sy);
+    const uint32_t result=reinterpret_cast<uint32_t(__fastcall*)(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t)>(TextFontDetour.trampoline)(font,nullptr,x,y,text,a,colour,flags,sx,sy);
     Native.look.text--;
     Diag.TextEnd(); MenuMirror.TextEnd(); return result;
 }
@@ -1243,11 +1247,11 @@ static void __cdecl MirrorInput(MSG message) {
     }
     reinterpret_cast<void(__cdecl*)(MSG)>(InputDetour.trampoline)(message);
 }
-static void __fastcall MirrorContent(void* owner,void*) {
+static void __fastcall DrawContent(void* owner,void*) {
     void* draw=(*static_cast<void***>(owner))[4];
-    MenuMirror.Phase(MIRROR_CONTENT); Native.look.Phase(MIRROR_CONTENT);
+    MenuMirror.Phase(PHASE_CONTENT); Native.look.Phase(PHASE_CONTENT);
     reinterpret_cast<void(__fastcall*)(void*,void*)>(draw)(owner,nullptr);
-    MenuMirror.Phase(MIRROR_AFTER); Native.look.Phase(MIRROR_AFTER);
+    MenuMirror.Phase(PHASE_AFTER); Native.look.Phase(PHASE_AFTER);
 }
 static void __fastcall RenderWindow(void* window,void*) {
     if (PartyHook::Instance) PartyHook::Instance->Render(window);

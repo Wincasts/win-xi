@@ -51,13 +51,13 @@ int main() {
     saved=framed.Enter("menu    inventor",1);
     V frameDraw[2]={{100,50,0,1,0,0,0},{300,250,0,1,0,0,0}};
     framed.Gather(frameDraw,2,sizeof(V));
-    framed.Phase(MIRROR_CONTENT);
+    framed.Phase(PHASE_CONTENT);
     V countDraw[2]={{90,10,0,1,0,0,0},{130,30,0,1,0,0,0}};
     framed.Gather(countDraw,2,sizeof(V));
     framed.Leave(saved);
     saved=framed.Enter("menu    inventor",2);
     Check(framed.Placing(1000,800,place) && Near(place[0],0) && Near(place[1],0),"grown from its frame's quarter of the screen, the top left");
-    framed.Phase(MIRROR_CONTENT);
+    framed.Phase(PHASE_CONTENT);
     Check(!framed.Within(countDraw,2,sizeof(V)),"the count, wholly outside its frame, kept back");
     V rowDraw[2]={{120,60,0,1,0,0,0},{200,72,0,1,0,0,0}};
     V edgeDraw[2]={{90,60,0,1,0,0,0},{104,72,0,1,0,0,0}};
@@ -123,7 +123,7 @@ int main() {
     // a window with no frame over the world (the target's arrow), and a tall one over the middle (the map): left
     {
         NativeLook::Saved was=sides.Enter("menu    cursor  ",5);
-        sides.Phase(MIRROR_CONTENT); V arrow[2]={{2400,300,0,1,0,0,0},{2416,316,0,1,0,0,0}}; sides.Gather(arrow,2,sizeof(V)); sides.Leave(was);
+        sides.Phase(PHASE_CONTENT); V arrow[2]={{2400,300,0,1,0,0,0},{2416,316,0,1,0,0,0}}; sides.Gather(arrow,2,sizeof(V)); sides.Leave(was);
         frameOf("menu    mapframe",400,3000,5);
         V tall[2]={{400,900,0,1,0,0,0},{3000,1200,0,1,0,0,0}};
         was=sides.Enter("menu    mapframe",5); sides.Gather(tall,2,sizeof(V)); sides.Leave(was);
@@ -161,19 +161,19 @@ int main() {
     sides.Leave(saved);
     // what the bar shows: by the end it is near, or left in the middle
     saved=sides.Enter("menu    helpwind",2);
-    sides.Phase(MIRROR_CONTENT);
+    sides.Phase(PHASE_CONTENT);
     {
         V help[2]={{145,20,0,1,0,0,0},{400,32,0,1,0,0,0}},loading[2]={{1300,20,0,1,0,0,0},{2100,32,0,1,0,0,0}},title[2]={{3236,12,0,1,0,0,0},{3262,21,0,1,0,0,0}};
         NativeTransform h; sides.Transform(3440,1440,h); Check(sides.OnBar(help,2,sizeof(V),h) && !h.pinch && Near(h.ax,0) && Near(h.dx,100),"its help text, by its left end: with that end");
         V word[2]={{1000,20,0,1,0,0,0},{1010,32,0,1,0,0,0}};
         NativeTransform w; sides.Transform(3440,1440,w); Check(sides.OnBar(word,2,sizeof(V),w) && Near(w.dx,100),"a letter of its help text further along: with the left end as the rest");
         NativeTransform l; sides.Transform(3440,1440,l); sides.OnBar(loading,2,sizeof(V),l);
-        sides.Leave(saved); saved=sides.Enter("menu    helpwind",3); sides.Phase(MIRROR_CONTENT);
+        sides.Leave(saved); saved=sides.Enter("menu    helpwind",3); sides.Phase(PHASE_CONTENT);
         V words[2]={{1300,20,0,1,0,0,0},{1500,32,0,1,0,0,0}};
         NativeTransform c; sides.Transform(3440,1440,c); Check(sides.OnBar(words,2,sizeof(V),c) && Near(c.ax,1720) && Near(c.dx,0),"while it shows something over its middle (loading): what is by it left in the middle");
         NativeTransform r; sides.Transform(3440,1440,r); Check(sides.OnBar(title,2,sizeof(V),r) && Near(r.ax,3440) && Near(r.dx,-100),"its title, by its right end: with that end");
     }
-    sides.Phase(MIRROR_FRAME);
+    sides.Phase(PHASE_FRAME);
     {
         V edge[2]={{129,15,0,1,0,0,0},{3309,20,0,1,0,0,0}};
         NativeTransform f; sides.Transform(3440,1440,f); Check(!sides.OnBar(edge,2,sizeof(V),f) && f.pinch,"its frame: pinched by each end");
@@ -188,7 +188,7 @@ int main() {
         NativeLook::Saved was=sides.Enter("menu    newmenu ",7,place);
         float p[4]={};
         Check(sides.Placing(3440,1440,p) && Near(p[2],-100),"drawn the first time: moved with its side at once");
-        V nf[2]={{3311,47,0,1,0,0,0},{3423,249,0,1,0,0,0}}; sides.Phase(MIRROR_CONTENT); sides.Gather(nf,2,sizeof(V)); sides.Leave(was);
+        V nf[2]={{3311,47,0,1,0,0,0},{3423,249,0,1,0,0,0}}; sides.Phase(PHASE_CONTENT); sides.Gather(nf,2,sizeof(V)); sides.Leave(was);
         was=sides.Enter("menu    newmenu ",8,place);
         Check(!sides.Placing(3440,1440,p),"drawing no frame of its own the frame before: the guess not kept");
         sides.Leave(was);
