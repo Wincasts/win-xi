@@ -94,6 +94,26 @@ menu = 'menu    mcr1pall'; begins = H.calls.Begin; block.Frame = 15; block.Drawn
 H.frames(1)
 H.print('not while a menu of the game\'s is open, as it may be over the bar', H.calls.Begin == begins)
 menu = ''
+
+-- dragged with the left button: the adjustment follows the mouse, and is saved as it is let go;
+-- not with Lock Position on, nor in the selector, where a click removes a status
+local function drag(n, dx, dy)
+    H.ret.GetMousePos = { 202, 102 }; H.ret.IsMouseClicked = { true }; H.ret.IsMouseDown = { true }
+    block.Frame, block.DrawnFrame = n, n; H.frames(1)
+    H.ret.IsMouseClicked = { false }; H.ret.GetMousePos = { 202 + dx, 102 + dy }
+    block.Frame, block.DrawnFrame = n + 1, n + 1; H.frames(1)
+end
+local saves = H.saves()
+drag(16, 30, 12)
+H.print('dragged: the adjustment follows the mouse', o.anchorAdjustment[1] == 30 and o.anchorAdjustment[2] == 12, '| the bar with it', block.Quads[0].X0 == 15 and block.Quads[0].Y0 == 6)
+H.ret.IsMouseDown = { false }; block.Frame, block.DrawnFrame = 18, 18; H.frames(1)
+H.print('let go: saved', H.saves() > saves)
+o.anchorAdjustment[1], o.anchorAdjustment[2] = 0, 0
+o.lockPosition[1] = true; drag(19, 30, 12)
+H.print('Lock Position: not moved', o.anchorAdjustment[1] == 0 and o.anchorAdjustment[2] == 0)
+o.lockPosition[1] = false; menu = 'menu    buff    '; drag(21, 30, 12)
+H.print('the selector: not moved', o.anchorAdjustment[1] == 0 and o.anchorAdjustment[2] == 0)
+menu = ''; H.ret.IsMouseDown = { false }; block.Frame, block.DrawnFrame = 23, 23; H.frames(1)
 H.ret.GetMousePos = { 0, 0 }; H.ret.IsItemHovered = { false }
 
 -- without the plugin, or with one that took nothing: a window, and the game's row hidden again

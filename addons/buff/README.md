@@ -32,14 +32,18 @@ without it, the bar goes at the screenshot-calibrated default buff location: app
 resolution; the current display size determines the menu-to-screen scale independently on each
 axis. If the helper is unavailable or its dimensions are invalid, placement falls back to 1:1.
 
-**Anchor Adjustment** is an optional screen-pixel nudge (default: `0, 0`). Old absolute
+**Anchor Adjustment** is an optional screen-pixel nudge (default: `0, 0`), set with its X and Y
+sliders (Ctrl+click one to type a number) or by dragging the bar with the left button. The bar
+stays anchored as it is dragged, under the game's menus with the plugin; in the game's buff
+selector a click removes a status instead. **Lock Position** stops the dragging. Old absolute
 `anchorOffset` settings are no longer used, so the previous `(6, 6)` default does not shift this
 anchor. Icon size, timers and wrapping still use the normal settings; this change only positions
 the bar, not its individual icons. Theme padding, backgrounds, borders and shadows do not move
 or decorate the anchored bar.
 
-Disable anchoring to return to the draggable window. Its saved **Position** is kept separately,
-so adjusting the anchor does not overwrite your free-window placement.
+Disable anchoring to return to the draggable window. Its saved **Position** (X and Y sliders, or
+drag the window; Lock Position holds it) is kept separately, so adjusting the anchor does not
+overwrite your free-window placement.
 
 Anchored buffs disappear immediately while the native interface is hidden, zoning, and during
 events. The configurable addon hiding rules still apply in both positioning modes (including

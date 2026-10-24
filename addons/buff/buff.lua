@@ -67,6 +67,7 @@ local defaults = T{
     hide = T{ UnderMap = true },
     -- Separate from obsolete anchorOffset: old absolute (6,6) must not shift this anchor.
     anchorAdjustment = T{ 0, 0 },
+    lockPosition = T{ false }, -- off, the bar is dragged: anchored, its adjustment; else the window
     iconSize = T{ 40 },       -- an icon's height
     perRow = T{ 16 },         -- how many icons before a new row
     showTimers = T{ true },
@@ -199,6 +200,36 @@ local function SayMismatch()
         or 'Your controller is a DirectInput one, and Controller Type is XInput: A cannot remove a status until it is set to the DirectInput make that matches it (/buff config, Controller).');
 end
 
+-- Anchored, the bar is dragged with the left button to move it from where the game puts its icons:
+-- its Anchor Adjustment. Not in the selector, where a click removes a status, nor with Lock Position.
+local dragFrom = nil; -- the mouse and the adjustment as the drag began, while one is going on
+local dragStart = { 0, 0, 0, 0 };
+
+local function StartDrag(options)
+    if dragFrom ~= nil or selecting or options.lockPosition[1] or not options.anchorToDefault[1]
+        or not imgui.IsMouseClicked(ImGuiMouseButton_Left) then
+        return;
+    end
+    dragStart[1], dragStart[2] = imgui.GetMousePos();
+    dragStart[3], dragStart[4] = options.anchorAdjustment[1], options.anchorAdjustment[2];
+    dragFrom = dragStart;
+end
+
+-- Once a frame: the adjustment follows the mouse until the button is let go, and is then saved
+local function FollowDrag(options)
+    if dragFrom == nil then
+        return;
+    end
+    if not imgui.IsMouseDown(ImGuiMouseButton_Left) or not options.anchorToDefault[1] then
+        dragFrom = nil;
+        app:Save();
+        return;
+    end
+    local mx, my = imgui.GetMousePos();
+    options.anchorAdjustment[1] = math.floor(dragFrom[3] + mx - dragFrom[1] + 0.5);
+    options.anchorAdjustment[2] = math.floor(dragFrom[4] + my - dragFrom[2] + 0.5);
+end
+
 -- A status is removed with a right click, or in the selector with any click
 local function ClickedToRemove()
     return imgui.IsItemClicked(ImGuiMouseButton_Right) or (selecting and imgui.IsItemClicked(ImGuiMouseButton_Left));
@@ -270,6 +301,7 @@ local function DrawStatusesContent(options)
         local x, y = imgui.GetCursorScreenPos();
         imgui.Dummy(cell);
         if imgui.IsItemHovered() then
+            StartDrag(options);
             local canCancel = Tooltip(status.id);
             if canCancel and ClickedToRemove() then
                 statuses.Cancel(status.id);
@@ -581,6 +613,7 @@ local function Interact(options, found)
     if imgui.Begin(hoverName, nil, hoverFlags) then
         imgui.Dummy(hoverCell);
         if imgui.IsItemHovered() then
+            StartDrag(options);
             local canCancel = Tooltip(status.id);
             if canCancel and ClickedToRemove() then
                 statuses.Cancel(status.id);
@@ -657,6 +690,36 @@ end
 
 local controllerTip = 'In the game\'s buff selector, A (confirm) removes the status its cursor is on, as a click does. Needs the uihook plugin (or legacy buffhook), which says which one that is.\nThe game keeps the rest of the controller: A is taken only while the cursor is on a status that can be removed.';
 
+-- A position as two sliders, X and Y, across the screen: from 0, or from as far the other way for a
+-- nudge. Returns whether either was changed.
+local sliderIds = {};
+local sliderBox = { 0 };
+
+local function AxisSlider(values, axis, label, id, low, high, tooltip)
+    widgets.Label(label);
+    sliderBox[1] = values[axis];
+    local changed = imgui.SliderInt(id, sliderBox, low, high);
+    if changed then values[axis] = sliderBox[1]; end
+    tips.Hover(tooltip);
+    return changed;
+end
+
+local function PositionSliders(values, label, id, signed, tooltip)
+    local display = imgui.GetIO().DisplaySize;
+    local width = math.floor(display.x or display[1] or 1920);
+    local height = math.floor(display.y or display[2] or 1080);
+    local ids = sliderIds[id];
+    if ids == nil then
+        ids = { label .. ' X', label .. ' Y', id .. 'X', id .. 'Y' };
+        sliderIds[id] = ids;
+    end
+    widgets.PushControlWidth();
+    local changedX = AxisSlider(values, 1, ids[1], ids[3], signed and -width or 0, width, tooltip);
+    local changedY = AxisSlider(values, 2, ids[2], ids[4], signed and -height or 0, height, tooltip);
+    widgets.PopControlWidth();
+    return changedX or changedY;
+end
+
 local function DrawSettings(options)
     widgets.Label('Visible');
     imgui.Checkbox('##buff.visible', options.isVisible);
@@ -671,15 +734,15 @@ local function DrawSettings(options)
             imgui.TextDisabled(problem);
             imgui.PopTextWrapPos();
         end
-        widgets.Label('Anchor Adjustment');
-        imgui.InputInt2('##buff.anchorAdjustment', options.anchorAdjustment);
-        tips.Hover('Optional pixel nudge from where the game puts its first icon. Zero puts the bar there.\nThe nudge is in screen pixels, independent of native UI scaling.');
+        PositionSliders(options.anchorAdjustment, 'Anchor Adjustment', '##buff.anchorAdjustment', true,
+            'How far the bar is moved from where the game puts its first icon, in screen pixels, independent of native UI scaling. Zero puts it there.\nDragging the bar sets it too. Ctrl+click to type a number.');
     else
-        widgets.Label('Position');
-        if imgui.InputInt2('##buff.position', options.pos) then
+        if PositionSliders(options.pos, 'Position', '##buff.position', false, 'Where the window\'s corner is, in screen pixels. Dragging the window sets it too. Ctrl+click to type a number.') then
             imgui.SetWindowPos(windowName, options.pos);
         end
     end
+    widgets.Lock(options.lockPosition, '##buff.lockPosition', { label = 'Lock Position',
+        tooltip = 'Keeps the bar where it is. Off, drag it with the left button to move it.\nAnchored, dragging sets the Anchor Adjustment; in the game\'s buff selector a click removes a status instead.' });
 
     widgets.Gap();
     widgets.Label('Icon Size');
@@ -723,6 +786,8 @@ ashita.events.register('unload', 'buff_unload', function()
     native.Set(false, false);
 end);
 
+local windowExtra = {}; -- for the dragged window: whether it is locked
+
 ashita.events.register('d3d_present', 'buff_present', function()
     local options = app.options;
     -- With the plugin, the game's icons are its to stand in for: anchored, it draws the bar in their
@@ -746,6 +811,7 @@ ashita.events.register('d3d_present', 'buff_present', function()
         end
         return;
     end
+    FollowDrag(options);
     if found ~= nil and anchored then
         DrawHooked(options, found);
         return;
@@ -764,6 +830,7 @@ ashita.events.register('d3d_present', 'buff_present', function()
     if anchored then
         anchoring.Draw(anchoredName, options, DrawStatuses);
     else
-        app:Window(options.isVisible, DrawStatuses);
+        windowExtra.locked = options.lockPosition[1] or nil;
+        app:Window(options.isVisible, DrawStatuses, windowExtra);
     end
 end);
