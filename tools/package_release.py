@@ -62,7 +62,7 @@ RELEASES = {
 MIT = {'addons/clock', 'addons/libs/winxi', 'addons/winxisettings', 'addons/buff', 'addons/name', 'addons/occlusionfix',
        'addons/trigger', 'addons/zone', 'addons/zone/winxi'}
 # The art a winxi module draws, which goes with it into an addon's own copy
-WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders'}
+WINXI_ART = {'backgrounds': 'assets/backgrounds', 'borders': 'assets/borders', 'bars': 'assets/bars'}
 # The terms each plugin is under: namehook is a fork of GPL code, buffhook this repository's own
 PLUGIN_LICENSES = {'namehook': 'the GNU GPL v3.0', 'buffhook': 'the MIT License', 'uihook': 'the MIT License'}
 # Kept with the addons to make their art and sounds, and of no use in the game
