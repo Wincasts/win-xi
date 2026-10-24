@@ -9,7 +9,7 @@ H.load()
 H.frames(1)
 check('without uihook: nothing sent', #queued == 0)
 H.loaded('uihook', true)
-H.frames(1)
+H.wait(0.6); H.frames(1)
 check('the skin given', Sent('/uihook skin winxi'))
 check('the menus where the game puts them', Sent('/uihook native group off quiet'))
 check('the sides where the game puts them', Sent('/uihook native inset 0 quiet'))
@@ -20,20 +20,20 @@ H.frames(3)
 check('nothing again while nothing changes', #queued == count)
 local options = H.options()
 options.offset[1], options.offset[2] = 40, -260
-H.frames(1)
+H.wait(0.6); H.frames(1)
 check('an offset given as it changes', Sent('/uihook native group 40 -260 quiet'))
 options.inset[1] = 100
 options.scale[1] = 1.25
 options.menuFont = 'verdana.ttf'
-H.frames(1)
+H.wait(0.6); H.frames(1)
 check('the menu scale given as it changes', Sent('/uihook native size 1.25 quiet'))
 check('a font chosen given as it changes, bold, in the theme\'s outline', Sent('/uihook skin font menu verdana.ttf bold outline=1 outlinecolour=E6000000 quiet'))
 check('the sides brought in as it changes', Sent('/uihook native inset 100 quiet'))
 options.skin = 'None'
-H.frames(1)
+H.wait(0.6); H.frames(1)
 check('no skin: the game\'s own', Sent('/uihook skin off'))
 queued = {}
-H.loaded('uihook', false); H.frames(1); H.loaded('uihook', true); H.frames(1)
+H.loaded('uihook', false); H.wait(0.6); H.frames(1); H.loaded('uihook', true); H.wait(0.6); H.frames(1)
 check('uihook loaded again: given it all again', Sent('/uihook skin off') and Sent('/uihook native inset 100 quiet'))
 check('the command opens the settings', H.command('/nativeui'))
 H.frames(2)

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.56
+
+- Faster. The skin's fonts are drawn a size at a time, the first time a draw is made with that size, not all at
+  once: both fonts at every size took 583 ms each time a skin loaded or a font was chosen (nativeui chose two as the
+  game started), and at one Menu Scale most sizes are never drawn with. A font's drawing keeps one device context,
+  one bitmap and its fonts by size for all its glyphs (each glyph made and let go all three), and a letter's height
+  is measured without the averaging: both fonts at every size, were they all drawn, 342 ms.
+- A font command as it was (nativeui gives each again as it looks at the theme) draws nothing again; one that
+  changes a kind draws only that kind's texture again.
+- Each draw asks the device its vertex format once for all that want it (the census, the watch, the native look and
+  the skin each asked), the native look reads the screen's size once a frame (three calls of the device's for each
+  draw moved), and the skin remembers the last texture it looked up (draws one after another are mostly of one).
+
 ## 1.55
 
 - What the bar across the top shows is moved for the whole bar alike: its help text is drawn a letter or a few at a

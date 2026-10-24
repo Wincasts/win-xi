@@ -183,7 +183,7 @@ public:
         added=AddFontResourceExW(path.c_str(),FR_PRIVATE,nullptr)>0;
         return added;
     }
-    void Close() { if (added) RemoveFontResourceExW(path.c_str(),FR_PRIVATE,nullptr); added=false; family.clear(); }
+    void Close() { Release(); if (added) RemoveFontResourceExW(path.c_str(),FR_PRIVATE,nullptr); added=false; family.clear(); }
     ~SkinFontFace() { Close(); }
     // text drawn px high (the em), its coverage and its baseline's row in it; false where nothing was drawn. Drawn
     // SKIN_SUPERSAMPLE times as large and each square of texels averaged: small, a font's own hints (its gasp table)
@@ -202,35 +202,63 @@ public:
         baseline=bigBase/n;
         return true;
     }
+    // Drawn with one device context, one bitmap grown as needed and the fonts made kept by size, for all a face's
+    // glyphs: made and let go for each (1.52-1.54), 1932 glyphs (both fonts at every size) took 583 ms
     bool DrawAt(const std::wstring& text,int px,SkinCoverage& out,int& baseline) const {
         if (px<2 || px>8000) return false;
         const int w=px*int(text.size()+2),h=px*3;
-        HDC dc=CreateCompatibleDC(nullptr);
+        if (!dc) dc=CreateCompatibleDC(nullptr);
         if (!dc) return false;
-        BITMAPINFO info={}; info.bmiHeader.biSize=sizeof(info.bmiHeader); info.bmiHeader.biWidth=w; info.bmiHeader.biHeight=-h;
-        info.bmiHeader.biPlanes=1; info.bmiHeader.biBitCount=32; info.bmiHeader.biCompression=BI_RGB;
-        void* bits=nullptr;
-        HBITMAP bitmap=CreateDIBSection(dc,&info,DIB_RGB_COLORS,&bits,nullptr,0);
-        HFONT font=CreateFontW(-px,0,0,0,weight ? weight : bold ? FW_BOLD : FW_NORMAL,italic,0,0,DEFAULT_CHARSET,OUT_TT_ONLY_PRECIS,CLIP_DEFAULT_PRECIS,
-            ANTIALIASED_QUALITY,DEFAULT_PITCH,family.c_str());
-        bool ok=false;
-        if (bitmap && font && bits) {
-            HGDIOBJ oldBitmap=SelectObject(dc,bitmap),oldFont=SelectObject(dc,font);
-            memset(bits,0,size_t(w)*h*4);
+        if (w>dibWidth || h>dibHeight) {
+            if (dib) { SelectObject(dc,oldBitmap); DeleteObject(dib); dib=nullptr; }
+            const int nw=(std::max)(w,dibWidth),nh=(std::max)(h,dibHeight);
+            BITMAPINFO info={}; info.bmiHeader.biSize=sizeof(info.bmiHeader); info.bmiHeader.biWidth=nw; info.bmiHeader.biHeight=-nh;
+            info.bmiHeader.biPlanes=1; info.bmiHeader.biBitCount=32; info.bmiHeader.biCompression=BI_RGB;
+            dib=CreateDIBSection(dc,&info,DIB_RGB_COLORS,&bits,nullptr,0);
+            if (!dib || !bits) { dib=nullptr; dibWidth=dibHeight=0; return false; }
+            dibWidth=nw; dibHeight=nh;
+            oldBitmap=SelectObject(dc,dib);
             SetBkMode(dc,TRANSPARENT); SetTextColor(dc,RGB(255,255,255)); SetTextAlign(dc,TA_BASELINE | TA_LEFT);
-            baseline=px*2;
-            ok=TextOutW(dc,px,baseline,text.c_str(),int(text.size()))!=0;
-            GdiFlush();
-            out.width=w; out.height=h; out.v.resize(size_t(w)*h);
-            const auto* p=static_cast<const uint8_t*>(bits);
-            for (size_t i=0;i<out.v.size();i++) out.v[i]=(std::max)((std::max)(p[i*4],p[i*4+1]),p[i*4+2]);
-            SelectObject(dc,oldFont); SelectObject(dc,oldBitmap);
         }
-        if (font) DeleteObject(font);
-        if (bitmap) DeleteObject(bitmap);
-        DeleteDC(dc);
+        HFONT font=nullptr;
+        for (auto& f:fonts) if (f.px==px) { font=f.font; break; }
+        if (!font) {
+            font=CreateFontW(-px,0,0,0,weight ? weight : bold ? FW_BOLD : FW_NORMAL,italic,0,0,DEFAULT_CHARSET,OUT_TT_ONLY_PRECIS,CLIP_DEFAULT_PRECIS,
+                ANTIALIASED_QUALITY,DEFAULT_PITCH,family.c_str());
+            if (!font) return false;
+            fonts.push_back({px,font});
+        }
+        SelectObject(dc,font);
+        auto* p=static_cast<uint8_t*>(bits);
+        for (int y=0;y<h;y++) memset(p+size_t(y)*dibWidth*4,0,size_t(w)*4);
+        baseline=px*2;
+        const bool ok=TextOutW(dc,px,baseline,text.c_str(),int(text.size()))!=0;
+        GdiFlush();
+        out.width=w; out.height=h; out.v.resize(size_t(w)*h);
+        for (int y=0;y<h;y++) {
+            const uint8_t* row=p+size_t(y)*dibWidth*4;
+            for (int x=0;x<w;x++) out.v[size_t(y)*w+x]=(std::max)((std::max)(row[x*4],row[x*4+1]),row[x*4+2]);
+        }
         return ok;
     }
+    // what DrawAt keeps between glyphs; let go when the face is closed, or its weight changed
+    struct Font { int px; HFONT font; };
+    mutable std::vector<Font> fonts;
+    mutable HDC dc=nullptr; mutable HBITMAP dib=nullptr; mutable HGDIOBJ oldBitmap=nullptr; mutable void* bits=nullptr;
+    mutable int dibWidth=0, dibHeight=0;
+    void Forget() const {
+        if (dc) SelectObject(dc,GetStockObject(SYSTEM_FONT));
+        for (auto& f:fonts) DeleteObject(f.font);
+        fonts.clear();
+    }
+    void Release() const {
+        Forget();
+        if (dc && dib) SelectObject(dc,oldBitmap);
+        if (dib) DeleteObject(dib);
+        if (dc) DeleteDC(dc);
+        dc=nullptr; dib=nullptr; bits=nullptr; dibWidth=dibHeight=0;
+    }
+    void Weight(int w) { if (w!=weight) { Forget(); weight=w; } }
 };
 
 // A coverage picture's ink: x0, y0, x1, y1; false where there is none
@@ -281,7 +309,8 @@ public:
         int px=0;
         SkinCoverage c; int base=0,box[4];
         const std::wstring one(1,ref);
-        if (face->Draw(one,100,c,base) && SkinInk(c,box) && box[3]>box[1]) {
+        // a first guess from the letter drawn large without the averaging (its height is all that is wanted)
+        if (face->DrawAt(one,100,c,base) && SkinInk(c,box) && box[3]>box[1]) {
             px=(std::max)(2,int(std::ceil(100.0f*height/float(box[3]-box[1]))));
             // as near as can be: the measured height no less than asked, at the least em
             for (int tries=0;tries<6;tries++) {

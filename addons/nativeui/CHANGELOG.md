@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7
+
+- Looks at uihook, the theme's fonts and its own settings twice a second, not every frame: each frame it made its
+  commands again to compare them. A setting changed in the window is given at once.
+
 ## 0.6
 
 - Menu Weight and Title Weight (As The Font, Regular, Bold; the menu font Bold to begin with, as a regular one's

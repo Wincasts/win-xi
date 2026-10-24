@@ -216,7 +216,7 @@ class PartyHook : public IPlugin {
         if (!inClock) return;
         auto* device=core->GetDirect3DDevice();
         DWORD shader=0;
-        if (device) device->GetVertexShader(&shader);
+        DrawFvf(shader);
         if (!probe.nativeCalls++) probe.nativeShader=shader;
         if (!up || !data || stride<8 || !(shader & D3DFVF_XYZRHW)) return;
         if (!clockViewportKnown && device) clockViewportKnown=SUCCEEDED(device->GetViewport(&clockViewport));
@@ -237,7 +237,7 @@ class PartyHook : public IPlugin {
     void MeasureChat(bool up,const void* data,UINT stride,UINT count) {
         auto* device=core->GetDirect3DDevice();
         DWORD shader=0;
-        if (!up || !data || stride<8 || !device || FAILED(device->GetVertexShader(&shader)) || !(shader & D3DFVF_XYZRHW)) return;
+        if (!up || !data || stride<8 || !device || !DrawFvf(shader) || !(shader & D3DFVF_XYZRHW)) return;
         if (!chatViewportKnown) chatViewportKnown=SUCCEEDED(device->GetViewport(&chatViewport));
         auto* bytes=static_cast<const uint8_t*>(data);
         for (UINT i=0;i<count && i<4096;i++) {
@@ -281,7 +281,7 @@ class PartyHook : public IPlugin {
         const UINT vertices=t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0;
         auto* device=core->GetDirect3DDevice();
         DWORD shader=0;
-        if (!vertices || vertices>4096 || !device || FAILED(device->GetVertexShader(&shader)) || !(shader & D3DFVF_XYZRHW)) return false;
+        if (!vertices || vertices>4096 || !device || !DrawFvf(shader) || !(shader & D3DFVF_XYZRHW)) return false;
         scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(vertices)*stride);
         float cx=0,cy=0;
         // a double weather's two grow about the first's middle, so that the second moves out as they grow
@@ -316,15 +316,33 @@ class PartyHook : public IPlugin {
     // A screen-space draw of a window named: counted into its bounds; then, where it is moved or its frame tinted,
     // drawn so in its place (its vertices copied and moved; a second texture stage multiplying the game's own result by
     // the tint, put back after). vertices: from min, as an indexed draw's are.
+    // The draw under way's vertex format (its FVF), asked of the device once a draw for all that want it (the census,
+    // the watch, the native look, the skin each asked for every draw); false where it cannot be told
+    DWORD drawFvf=0; bool drawFvfKnown=false, drawFvfOk=false;
+    bool DrawFvf(DWORD& fvf) {
+        if (!drawFvfKnown) {
+            drawFvfKnown=true;
+            auto* device=core->GetDirect3DDevice();
+            drawFvfOk=device && SUCCEEDED(device->GetVertexShader(&drawFvf));
+        }
+        fvf=drawFvf;
+        return drawFvfOk;
+    }
     // The screen's size: the render target's the draw is made to (read each draw: the scene may be drawn to a larger
     // one first), the viewport's where it cannot be read
+    // Read once a frame, at the first window's draw that wants it (the windows draw to the screen's own target, after
+    // the scene): asked for each draw moved it was three calls of the device's a draw.
+    float screenSize[2]={}; uint32_t screenFrame=0;
     bool ScreenSize(IDirect3DDevice8* device,const D3DVIEWPORT8& viewport,float* out) {
-        out[0]=out[1]=0;
-        IDirect3DSurface8* target=nullptr; D3DSURFACE_DESC desc{};
-        if (SUCCEEDED(device->GetRenderTarget(&target)) && target) {
-            if (SUCCEEDED(target->GetDesc(&desc))) { out[0]=float(desc.Width); out[1]=float(desc.Height); }
-            target->Release();
+        if (screenFrame!=Shared.Frame || !screenSize[0]) {
+            screenFrame=Shared.Frame; screenSize[0]=screenSize[1]=0;
+            IDirect3DSurface8* target=nullptr; D3DSURFACE_DESC desc{};
+            if (SUCCEEDED(device->GetRenderTarget(&target)) && target) {
+                if (SUCCEEDED(target->GetDesc(&desc))) { screenSize[0]=float(desc.Width); screenSize[1]=float(desc.Height); }
+                target->Release();
+            }
         }
+        out[0]=screenSize[0]; out[1]=screenSize[1];
         if (!out[0] || !out[1]) { out[0]=float(viewport.X+viewport.Width); out[1]=float(viewport.Y+viewport.Height); }
         return out[0]>0 && out[1]>0;
     }
@@ -333,7 +351,7 @@ class PartyHook : public IPlugin {
         if (!e || !data || !vertices || stride<8) return false;
         const UINT used=min+vertices;
         auto* device=core->GetDirect3DDevice(); DWORD shader=0,pixel=0;
-        if (!device || FAILED(device->GetVertexShader(&shader)) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) { NativeMenus.Unmoved(); return false; }
+        if (!device || !DrawFvf(shader) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) { NativeMenus.Unmoved(); return false; }
         NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
         // the screen's size, not the viewport's: the game clips some text to its window with a viewport (the title
         // box's), which taken for the screen made its middle the box's and its words pinched there
@@ -424,7 +442,7 @@ class PartyHook : public IPlugin {
         SkinSwap swap;
         if (!Skin.On()) return swap;
         auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
-        if (!device || FAILED(device->GetVertexShader(&fvf)) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return swap;
+        if (!device || !DrawFvf(fvf) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return swap;
         if (FAILED(device->GetTexture(0,&swap.was)) || !swap.was) { swap.was=nullptr; return swap; }
         IDirect3DBaseTexture8* game=swap.was;
         swap.index=Skin.Lookup(reinterpret_cast<uintptr_t>(game),Shared.Frame,[&](uint32_t& hash) {
@@ -437,6 +455,7 @@ class PartyHook : public IPlugin {
         const SkinTexture& t=Skin.textures[size_t(swap.index)];
         bool exact=false,levels=false;
         const SkinSize* size=SkinLook::Choose(t,SkinPixels(t,data,count,stride,fvf),exact,&levels);
+        if (size && size->stale) SkinDrawSize(t.hash,const_cast<SkinSize&>(*size));
         device->SetTexture(0,static_cast<IDirect3DBaseTexture8*>(size ? size->texture : t.texture));
         // a texel to a pixel: unfiltered, crisp; any other: filtered, with the levels between only where much smaller
         const DWORD filter=exact ? DWORD(D3DTEXF_POINT) : DWORD(D3DTEXF_LINEAR);
@@ -488,7 +507,7 @@ class PartyHook : public IPlugin {
     const void* SkinVertices(const SkinSwap& swap,const void* data,unsigned count,unsigned stride) {
         SkinTexture& t=Skin.textures[size_t(swap.index)];
         auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
-        if (t.colours.empty() || count>65536 || !device || FAILED(device->GetVertexShader(&fvf)) || !SkinRecolour(t,data,count,stride,fvf,skinVertices)) return data;
+        if (t.colours.empty() || count>65536 || !device || !DrawFvf(fvf) || !SkinRecolour(t,data,count,stride,fvf,skinVertices)) return data;
         t.recoloured++;
         return skinVertices.data();
     }
@@ -536,37 +555,45 @@ class PartyHook : public IPlugin {
         char windows[MAX_PATH]={}; GetWindowsDirectoryA(windows,MAX_PATH);
         return std::string(windows)+"\\Fonts\\"+file;
     }
-    // Each font texture of the skin drawn again: its glyphs in the font chosen for its kind, at each of its sizes, or
-    // the skin's own picture where none is chosen or it cannot be drawn. Returns the glyphs drawn.
-    unsigned SkinApplyFonts(std::string* why=nullptr) {
+    // Each font texture of the skin to be drawn again: its glyphs in the font chosen for its kind, or the skin's own
+    // picture where none is chosen or it cannot be drawn. Each size is drawn the first time a draw is made with it
+    // (SkinDrawSize, from SkinBegin), not here: both fonts at every size took 340 ms or more, and most sizes are not
+    // drawn with at all at one Menu Scale. Returns the sizes to draw. kinds: which kinds' textures (1 menu, 2 title).
+    unsigned SkinApplyFonts(std::string* why=nullptr,unsigned kinds=3) {
         unsigned drawn=0;
         for (int k=0;k<2;k++) {
             if (skinFontFile[k].empty()) { skinFace[k].Close(); continue; }
             const std::string path=SkinFontPath(skinFontFile[k]);
             if (skinFace[k].path!=SkinWide(path.c_str()) || !skinFace[k].added)
                 if (!skinFace[k].Open(path.c_str()) && why) *why+=(why->empty() ? "" : "; ")+path+" could not be opened";
-            skinFace[k].weight=skinFontWeight[k];
+            skinFace[k].Weight(skinFontWeight[k]);
         }
         // each texture holding fonts once (one may hold several: the menus' small font and a large one)
         std::vector<uint32_t> done;
         for (auto& style:skinFonts.styles) {
-            if (std::find(done.begin(),done.end(),style.hash)!=done.end()) continue;
+            const int kind=SkinFontKind(style.kind);
+            if (kind<0 || !(kinds & (1u<<kind)) || std::find(done.begin(),done.end(),style.hash)!=done.end()) continue;
             done.push_back(style.hash);
             const int32_t at=Skin.Find(style.hash);
             if (at<0) continue;
-            for (auto& z:Skin.textures[size_t(at)].sizes) {
-                if (z.base.empty() || !z.texture) continue;
-                std::vector<uint32_t> argb=z.base;
-                SkinFontDrawer drawer;
-                for (int k=0;k<2;k++) {
-                    drawer.faces[k]=!skinFontFile[k].empty() && skinFace[k].added ? &skinFace[k] : nullptr;
-                    drawer.outline[k]=skinOutline[k]; drawer.outlineColour[k]=skinOutlineColour[k];
-                }
-                drawn+=drawer.Draw(skinFonts,style.hash,z.factor,argb,int(z.width),int(z.height));
-                SkinUpload(static_cast<IDirect3DTexture8*>(z.texture),argb,z.width,z.height);
-            }
+            for (auto& z:Skin.textures[size_t(at)].sizes)
+                if (!z.base.empty() && z.texture) { z.stale=true; drawn++; }
         }
         return drawn;
+    }
+    // A font texture's size drawn again, as SkinApplyFonts asked: its own pixels, the glyphs of each font in it with a
+    // face chosen drawn on them, its levels made
+    void SkinDrawSize(uint32_t hash,SkinSize& z) {
+        z.stale=false;
+        if (z.base.empty() || !z.texture) return;
+        std::vector<uint32_t> argb=z.base;
+        SkinFontDrawer drawer;
+        for (int k=0;k<2;k++) {
+            drawer.faces[k]=!skinFontFile[k].empty() && skinFace[k].added ? &skinFace[k] : nullptr;
+            drawer.outline[k]=skinOutline[k]; drawer.outlineColour[k]=skinOutlineColour[k];
+        }
+        drawer.Draw(skinFonts,hash,z.factor,argb,int(z.width),int(z.height));
+        SkinUpload(static_cast<IDirect3DTexture8*>(z.texture),argb,z.width,z.height);
     }
     void SkinLoad(const char* name,char* line,size_t size) {
         for (const char* c=name;*c;c++) if (!isalnum(static_cast<unsigned char>(*c)) && *c!='_' && *c!='-') {
@@ -620,7 +647,7 @@ class PartyHook : public IPlugin {
         if (Skin.textures.empty()) snprintf(line,size,"[uihook:skin] no pictures read in %s (tex-<hash>.png or .bmp)%s.",folder.c_str(),failed ? ", some could not be read" : "");
         else snprintf(line,size,"[uihook:skin] %s: %zu pictures loaded%s%s%s%s%s; the game's textures are known as they are drawn.",name,Skin.textures.size(),
             failed ? ", some could not be read" : "",colours ? ", skin.txt read" : "",unread ? " (some of its lines not understood, or of no picture)" : "",
-            hasFonts ? (glyphs ? ", its fonts drawn in the fonts chosen" : ", fonts.txt read") : "",why.empty() ? "" : (" ("+why+")").c_str());
+            hasFonts ? (glyphs ? ", its fonts to be drawn in the fonts chosen as they are used" : ", fonts.txt read") : "",why.empty() ? "" : (" ("+why+")").c_str());
     }
     void SkinCommand(const char* word) {
         char line[512];
@@ -631,7 +658,9 @@ class PartyHook : public IPlugin {
             const int n=sscanf_s(word+4," %15s %259s %31s %31s %31s %31s",kind,16u,file,unsigned(MAX_PATH),more[0],32u,more[1],32u,more[2],32u,more[3],32u);
             const int k=n>=1 ? SkinFontKind(kind) : -1;
             bool quietly=false;
+            int weightWas=0,outlineWas=0; uint32_t colourWas=0;
             if (k>=0) {
+                weightWas=skinFontWeight[k]; outlineWas=skinOutline[k]; colourWas=skinOutlineColour[k];
                 skinFontWeight[k]=0;
                 for (int i=0;i<4 && i+2<n;i++) {
                     if (!_stricmp(more[i],"quiet")) quietly=true;
@@ -647,13 +676,17 @@ class PartyHook : public IPlugin {
                 core->GetChatManager()->Write(0,false,line);
                 return;
             }
-            skinFontFile[k]=_stricmp(file,"off") ? file : "";
+            const std::string chosen=_stricmp(file,"off") ? file : "";
+            // as it was (nativeui gives it again as the theme is looked at): nothing drawn again
+            const bool same=chosen==skinFontFile[k] && skinFontWeight[k]==weightWas && skinOutline[k]==outlineWas && skinOutlineColour[k]==colourWas;
+            skinFontFile[k]=chosen;
             std::string why;
-            const unsigned glyphs=SkinApplyFonts(&why);
+            const unsigned glyphs=same ? 0 : SkinApplyFonts(&why,1u<<k);
+            if (same && quietly) return;
             if (quietly && why.empty()) return;
             if (skinFontFile[k].empty()) snprintf(line,sizeof(line),"[uihook:skin] the %s font: the skin's own.",kind);
             else if (!skinFonts.styles.size()) snprintf(line,sizeof(line),"[uihook:skin] the %s font is %s, drawn once a skin with a fonts.txt is loaded.",kind,file);
-            else snprintf(line,sizeof(line),"[uihook:skin] the %s font: %s, %u glyphs drawn%s%s.",kind,file,glyphs,why.empty() ? "" : "; ",why.c_str());
+            else snprintf(line,sizeof(line),"[uihook:skin] the %s font: %s, drawn as each of %u sizes is used%s%s.",kind,file,glyphs,why.empty() ? "" : "; ",why.c_str());
             core->GetChatManager()->Write(0,false,line);
             return;
         }
@@ -683,7 +716,7 @@ class PartyHook : public IPlugin {
     void TextureDraw(const void* data,unsigned vertices,unsigned stride,bool buffered,unsigned group=0) {
         if (!Textures.on) return;
         auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
-        if (!device || FAILED(device->GetVertexShader(&fvf)) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return;
+        if (!device || !DrawFvf(fvf) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return;
         IDirect3DBaseTexture8* base=nullptr;
         if (FAILED(device->GetTexture(0,&base))) base=nullptr;
         const uintptr_t key=reinterpret_cast<uintptr_t>(base);
@@ -1027,18 +1060,21 @@ public:
     bool BufferDraw() { TextureDraw(nullptr,0,0,true); MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return false; }
     bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE t,UINT start,UINT count) override {
         if (scaling) return false;
+        drawFvfKnown=false;
         BufferDraw();
         const SkinSwap skin=SkinBegin();
         return SkinEnd(skin,Block(),[&](IDirect3DDevice8* d) { return d->DrawPrimitive(t,start,count); });
     }
     bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT start,UINT count) override {
         if (scaling) return false;
+        drawFvfKnown=false;
         BufferDraw();
         const SkinSwap skin=SkinBegin();
         return SkinEnd(skin,Block(),[&](IDirect3DDevice8* d) { return d->DrawIndexedPrimitive(t,min,vertices,start,count); });
     }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
         if (scaling) return false;
+        drawFvfKnown=false;
         TextureDraw(data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride,false,
             t==D3DPT_TRIANGLELIST ? 6 : t==D3DPT_TRIANGLESTRIP && count==2 ? 4 : 0);
         MenuCensus.Draw();
@@ -1054,6 +1090,7 @@ public:
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
         if (scaling) return false;
+        drawFvfKnown=false;
         TextureDraw(data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr,vertices,stride,false,4);
         MenuCensus.Draw();
         if (MenuWatch.Inside()) WatchUp();
@@ -1069,7 +1106,7 @@ public:
     bool ClockDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
         auto* device=core->GetDirect3DDevice(); DWORD shader=0;
         if (!inClock || min!=0 || (clockShiftX==0 && clockShiftY==0) || !data || stride<8 || !vertices || vertices>4096
-            || !device || FAILED(device->GetVertexShader(&shader)) || !(shader & D3DFVF_XYZRHW)) return false;
+            || !device || !DrawFvf(shader) || !(shader & D3DFVF_XYZRHW)) return false;
         scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(vertices)*stride);
         if (!ChatTranslateVertices(scaledVertices.data(),vertices,stride,clockShiftX,clockShiftY)) return false;
         scaling=true;
@@ -1211,7 +1248,7 @@ public:
     }
     void WatchUp() {
         DWORD fvf=0; auto* device=core->GetDirect3DDevice();
-        const bool screen=device && SUCCEEDED(device->GetVertexShader(&fvf)) && (fvf & D3DFVF_POSITION_MASK)==D3DFVF_XYZRHW;
+        const bool screen=device && DrawFvf(fvf) && (fvf & D3DFVF_POSITION_MASK)==D3DFVF_XYZRHW;
         MenuWatch.Draw(screen ? MirrorWatch::UP : MirrorWatch::OTHER);
     }
     void WatchWrite(const std::string& text) {

@@ -1,6 +1,6 @@
 addon.name    = 'nativeui'
 addon.author  = 'win'
-addon.version = '0.6'
+addon.version = '0.7'
 addon.desc    = 'The game\'s own interface in a uihook skin, and the menus it stacks over the chat log moved where you want them.'
 addon.link    = 'https://github.com/Wincasts/win-xi'
 
@@ -283,8 +283,17 @@ app = shell.New({
     onSettings = Complete,
 })
 
+-- Looked at twice a second, not each frame (the commands were made again each frame to be compared, and the theme
+-- and plugins asked for): a setting changed is given at once, by its own control; the theme's fonts and outline,
+-- and uihook loaded again, within half a second
+local LOOK_EVERY = 0.5
+local nextLook = 0
 ashita.events.register('d3d_present', 'nativeui_present', function()
-    Apply()
+    local now = os.clock()
+    if now >= nextLook then
+        nextLook = now + LOOK_EVERY
+        Apply()
+    end
     app:BeginFrame()
 end)
 
