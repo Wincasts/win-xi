@@ -27,19 +27,11 @@ It needs nothing else.
   from your area. Zones carry precomputed lists of what is visible from where, and terrain off the
   list is never drawn however far the draw distance goes, popping in as you cross into the next area.
   On costs some frames in big zones. `/drawscale vis` alone toggles it.
-- `/drawscale square on|off` (default off) draws the world at the window's true proportions. The
-  client builds its projection with a fixed constant that stretches the 3D view about 5.5% wider
-  than the window, so people look broad and round things oval; on fixes the constant, and the view
-  shows a little more at the sides. The menus and HUD do not change.
-- `/drawscale fov <n>` sets the vertical field of view, in degrees, from 20 to 140. `0`, the
-  default, keeps the game's own, about 77 degrees. The game keeps the height of the view fixed and
-  widens it to the window, so at 21:9 the view is over 120 degrees across, and the flat projection
-  stretches whatever is near the edges. A narrower field of view stretches the edges less and shows
-  less of the world; about 60 at 21:9 sees as far across as the game does at 16:9. The game's own
-  closer views stay closer by the same proportion. `/drawscale` shows the field of view in play, vertical
-  and horizontal. Above 77 is for the [lens](../../plugins/lens) plugin: its warp keeps the edges from
-  stretching but shows less up and down in the middle than the world is drawn with, and a wider fov
-  here gives that back.
+
+The field of view and the world's true proportions were drawscale's `fov` and `square` until 2.0 and
+are the [lens](../../plugins/lens) plugin's now: `/lens fov`, `/lens middle` and `/lens square`, with
+lens's warp or without it. A character's saved fov and square are said once at load as the lens
+commands that set them, and a zone's or preset's own are gone.
 
 ## Per kind of zone, and per zone
 
@@ -73,18 +65,7 @@ world and entity; every distance asks one small function for the scale. drawscal
 floats and sends particular calls to that function through stubs of its own: the fog's two calls
 (its start and end) multiply their answer by fog / world, and the zone-object range's call multiplies
 by objects² / world. The mesh-detail comparisons go through four more stubs that scale the squared
-distance by 1 / detail². The visibility-list read is replaced by a read of nothing, and the
-projection constant is swapped in the game object once it exists.
-
-Every world projection is built from the game object's fields: the aspect from the window (+0x2F0)
-and the constant square changes (+0x2E8), and the vertical field of view as 2 atan(C / f), C a
-constant of 192 and f a focal length at +0x2F4 that the game sets (242 in play, more for a closer
-view). Four places build one, each pass of the frame, each loading C just before f. fov points those
-four loads at a value of its own, 242 tan(fov / 2), so the usual view has the field of view asked for
-and the game's closer views are closer by as much, whatever the game does with f. C is found where
-one of the four loads it, and the four by their shape (C, then f from the game object or the stack,
-then the arctangent) over the whole client; a fixed view the game makes with a constant in place of
-f is left alone.
+distance by 1 / detail². The visibility-list read is replaced by a read of nothing.
 
 The client DLL is packed on disk, so everything is found in the running game, by byte patterns. The
 scale function is found by the bytes drawdistance looks for; its entry by the calls to it (92 bytes
@@ -102,13 +83,6 @@ For the record, and for the next time the client changes:
   `config/addons/drawscale/callers.txt`.
 - `/drawscale patch <n> <mult>` sends caller `n` through a stub by hand, `/drawscale unpatch [n]`
   puts it (or all of them) back, and `/drawscale scan` finds everything afresh.
-- `/drawscale fovscan [label]` is how the field of view was found, kept for the next client change. It appends to
-  `config/addons/drawscale/fov.txt` the projection the device holds (and the horizontal and vertical
-  field of view in it), the game object's fields from +0x200 to +0x3FF as floats, the function the
-  aspect addon patches with the constants it reads, and every instruction in the client addressing
-  the fields from +0x2D0 to +0x300, with the code around those reading k (+0x2E8) and a (+0x2F0).
-  Run it with the camera zoomed all the way in and all the way out, each with a label, to see which
-  values change with the view.
 
 An error in any of drawscale's events is said once in the chat and drawscale keeps going, since
 Ashita unloads an addon whose event errors without letting it put the game back; a game left patched

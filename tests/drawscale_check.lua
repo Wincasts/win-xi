@@ -118,7 +118,7 @@ H.print('load without the client: says the function was not found', said:find('n
 H.print('/drawscale help is taken', H.command('/drawscale help') == true, '| and lists the commands', table.concat(H.printed, '\n'):find('/drawscale patch <n> <mult>', 1, true) ~= nil)
 H.print('/drawscale patch without a number complains', H.command('/drawscale patch') == true, table.concat(H.printed, '\n'):find('Usage: /drawscale patch', 1, true) ~= nil)
 H.print('/drawscale unpatch 3 with nothing patched', H.command('/drawscale unpatch 3') == true, table.concat(H.printed, '\n'):find('#3 was not patched', 1, true) ~= nil)
-H.print('/drawscale fov without the client says so', H.command('/drawscale fovscan zoomed') == true, table.concat(H.printed, '\n'):find('nothing to write to fov.txt', 1, true) ~= nil)
+H.print('/drawscale fovscan is gone', H.command('/drawscale fovscan zoomed') == true, table.concat(H.printed, '\n'):find('fovscan', 1, true) == nil)
 H.print('another command is left alone', H.command('/other') == false)
 -- an event that errors is caught and said once, and the addon keeps going: Ashita would unload it
 -- without its unload event, leaving the game patched
@@ -172,21 +172,18 @@ H.print('a bad value is refused', H.command('/drawscale fog x') == true, H.optio
     '| so is zero', H.command('/drawscale world 0') == true, H.options().world == 2)
 H.print('/drawscale fog alone shows the values', H.command('/drawscale fog') == true, lastSaid():find('fog x1.50', 1, true) ~= nil)
 
--- the extras: objects and detail (0 = the same as world), vis and square (toggles), saved and said
+-- the extras: objects and detail (0 = the same as world), vis (a toggle), saved and said; fov and square are lens's
 H.print('/drawscale objects 3', H.command('/drawscale objects 3') == true, H.options().objects == 3, lastSaid():find('objects x3.00', 1, true) ~= nil)
 H.print('/drawscale objects 0 is the same as world', H.command('/drawscale objects 0') == true, H.options().objects == 0, lastSaid():find('objects x2.00 (same as world)', 1, true) ~= nil)
 H.print('/drawscale detail 4', H.command('/drawscale detail 4') == true, H.options().detail == 4, lastSaid():find('detail x4.00', 1, true) ~= nil,
     '| too much refused', H.command('/drawscale detail 101') == true, H.options().detail == 4)
 H.print('/drawscale vis off', H.command('/drawscale vis off') == true, H.options().vis == false, lastSaid():find('vis off', 1, true) ~= nil,
     '| vis alone toggles', H.command('/drawscale vis') == true, H.options().vis == true, '| a bad word refused', H.command('/drawscale vis maybe') == true, H.options().vis == true)
-H.print('/drawscale square on', H.command('/drawscale square on') == true, H.options().square == true, lastSaid():find('square on', 1, true) ~= nil)
-H.print('/drawscale fov 60', H.command('/drawscale fov 60') == true, H.options().fov == 60, lastSaid():find('fov unavailable', 1, true) ~= nil,
-    '| outside 20 to 140 refused', H.command('/drawscale fov 10') == true, H.options().fov == 60, lastSaid():find('n from 20 to 140, or 0 for the game\'s own.', 1, true) ~= nil,
-    H.command('/drawscale fov 141') == true, H.options().fov == 60, '| 120 taken', H.command('/drawscale fov 120') == true, H.options().fov == 120, H.command('/drawscale fov 60') == true,
-    '| 0 is the game\'s own', H.command('/drawscale fov 0') == true, H.options().fov == 0)
-H.print('a preset\'s fov said', H.command('/drawscale dungeon fov 50') == true, table.concat(H.printed, '\n'):find('fov 50 degrees', 1, true) ~= nil)
-H.command('/drawscale dungeon fov clear')
-H.print('help lists the extras', H.command('/drawscale help') == true, table.concat(H.printed, '\n'):find('/drawscale square on|off', 1, true) ~= nil, table.concat(H.printed, '\n'):find('/drawscale fov <n>', 1, true) ~= nil)
+H.print('/drawscale fov points to lens', H.command('/drawscale fov 60') == true, H.options().fov == nil, lastSaid():find('fov is the lens plugin\'s now: /lens fov <n>', 1, true) ~= nil,
+    '| and square', H.command('/drawscale square on') == true, H.options().square == nil, lastSaid():find('/lens square on|off', 1, true) ~= nil,
+    '| a preset takes neither', H.command('/drawscale dungeon fov 50') == true, H.options().kinds.dungeon.fov == nil)
+H.print('help says where they went', H.command('/drawscale help') == true, table.concat(H.printed, '\n'):find('/lens fov, /lens middle and /lens square', 1, true) ~= nil,
+    table.concat(H.printed, '\n'):find('/drawscale fov <n>', 1, true) == nil)
 
 -- the real bytes, from the game's report of 2026-10-20 (drawscale 0.3): the fog's calls and the object
 -- range's, recognised as they lie, the fog end's push 0 four instructions before its call
@@ -224,8 +221,7 @@ H.command('/drawscale')
 H.print('status before a zone: no zone known', said():find('No zone known yet', 1, true) ~= nil, said():find('All from the general values', 1, true) ~= nil)
 H.print('/drawscale zone world 2 before a zone is refused', H.command('/drawscale zone world 2') == true, said():find('No zone known yet; try once', 1, true) ~= nil)
 H.command('/drawscale world 3')
-H.command('/drawscale square off')
-H.print('the general values', store.world == 3, store.square == false)
+H.print('the general values', store.world == 3)
 zoneIn(100)
 H.command('/drawscale')
 H.print('in 100, outdoors: the general values', said():find('In zone 100 (100), outdoors', 1, true) ~= nil, said():find('world x3.00', 1, true) ~= nil,
@@ -282,11 +278,14 @@ H.print('help names the layers', H.command('/drawscale help') == true, said():fi
 -- a saved file: a zone's set with a value out of range and one that is not a table, a preset
 -- with a bad value, and seeded already so the presets are left as they are
 store.zones = { ['230'] = { world = 4, entity = 'x', vis = 'yes', square = true }, ['abc'] = { world = 2 }, ['5'] = 7 }
+store.fov, store.square = 93, true
 store.kinds = { city = {}, dungeon = { world = 300, fog = 0.5 }, outdoors = 'no' }
 store.world = 1.5
 H.resettle()
+H.print('settled: fov and square said as lens commands', said():find('to keep yours: /lens fov 93, /lens square on. A zone\'s or preset\'s own fov or square is no more.', 1, true) ~= nil,
+    '| and dropped', store.fov == nil, store.square == nil, store.zones['230'].square == nil)
 H.print('settled: the zone\'s set kept', store.zones['230'] ~= nil and store.zones['230'].world == 4, '| bad values dropped', store.zones['230'].entity == nil, store.zones['230'].vis == nil,
-    '| kept booleans', store.zones['230'].square == true, '| not a zone', store.zones['abc'] == nil, '| not a table', store.zones['5'] == nil,
+    '| not a zone', store.zones['abc'] == nil, '| not a table', store.zones['5'] == nil,
     '| presets: the bad value dropped', store.kinds.dungeon.world == nil, store.kinds.dungeon.fog == 0.5, '| not reseeded', next(store.kinds.city) == nil, '| a preset that was not a table', type(store.kinds.outdoors) == 'table')
 H.command('/drawscale')
-H.print('after settling, in 230, its own apply', said():find('In zone 230 (230), a city', 1, true) ~= nil, said():find('world x4.00', 1, true) ~= nil, said():find('square on', 1, true) ~= nil)
+H.print('after settling, in 230, its own apply', said():find('In zone 230 (230), a city', 1, true) ~= nil, said():find('world x4.00', 1, true) ~= nil)
