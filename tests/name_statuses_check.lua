@@ -42,7 +42,11 @@ block.Width, block.Height, block.TargetWidth, block.TargetHeight = 960, 540, 960
 local plugins = AshitaCore.GetPluginManager()
 plugins.IsLoaded = function(_, name) return name == 'namehook' end
 AshitaCore.GetPluginManager = function() return plugins end
-ashita.memory.find = function(module) return module == 'namehook.dll' and tonumber(ffi.cast('uintptr_t', ffi.cast('void*', block))) or 0 end
+local capabilities = dofile('tests/fixtures/namehook_capabilities.lua')
+ashita.memory.find = function(module, _, signature)
+    local data = signature == '4E414D45484F4F4B4341505300000000' and capabilities or block
+    return module == 'namehook.dll' and tonumber(ffi.cast('uintptr_t', ffi.cast('void*', data))) or 0
+end
 ffi.cdef('void* mmap(void*, size_t, int, int, int, long);')
 local low = ffi.C.mmap(nil, ffi.sizeof('namehook_draw_t'), 3, 0x62, -1, 0)
 local draw = ffi.cast('namehook_draw_t*', low)

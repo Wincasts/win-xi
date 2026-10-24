@@ -2,6 +2,7 @@
 -- once, and the per-type tables they were kept in let go of.
 local plates = require('winxi.nameplates');
 local controls = require('controls');
+local tips = require('winxi.tips');
 local imgui = require('imgui');
 local types = {};
 types.List = { 'playerNames', 'enemyNames', 'npcNames' };
@@ -55,14 +56,19 @@ end
 
 function types.Draw(options)
     controls.Checkbox('Enabled', '##name.showHealthBar', options.showHealthBar,
-        'One shared health-bar setting for every entity, including pets/trusts and NPCs. Requires valid HP data; full-health entities have no bar.');
+        tips.Get('name.health_bars.enabled'));
     imgui.BeginDisabled(not options.showHealthBar[1]);
     controls.Checkbox('Combat Only', '##name.healthBarsCombatOnly', options.healthBarsCombatOnly,
-        'Show bars only for the entity whose status is Engaged (1) and HP is above zero. Being targeted or claimed alone is not combat. Missing status data hides the bar. Applies to every type.');
-    controls.Input('Health Bar Width (px)', '##name.healthBarWidth', options.healthBarWidth, 12, 300,
-        'Shared width including the border, under a name at its largest size; it shrinks with the name as it goes further away.');
-    controls.Input('Health Bar Height (px)', '##name.healthBarHeight', options.healthBarHeight, 3, 40,
-        'Shared height including the border, under a name at its largest size; it shrinks with the name as it goes further away.');
+        tips.Get('name.health_bars.combat_only'));
+    imgui.EndDisabled();
+end
+
+function types.DrawSize(options)
+    imgui.BeginDisabled(not options.showHealthBar[1] and not options.showCastBar[1]);
+    controls.Input('Bar Width (px)', '##name.healthBarWidth', options.healthBarWidth, 12, 300,
+        tips.Get('name.health_bars.width'));
+    controls.Input('Bar Height (px)', '##name.healthBarHeight', options.healthBarHeight, 3, 40,
+        tips.Get('name.health_bars.height'));
     imgui.EndDisabled();
 end
 

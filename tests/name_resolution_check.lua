@@ -74,6 +74,29 @@ assert(nameplates.BeginDrawing(hook) == 2 and draw.Reserved == 0)
 nameplates.BeginName(5, 1, 0, 0)
 nameplates.Quad(1, 2, 3, 4, 0, 0, 1, 1, 0xFFFFFFFF)
 assert(draw.Quads[0].X0 == 1 and draw.Quads[0].X1 == 3)
+-- Optional AA changes flags only, and cannot accidentally feather a textured glyph.
+nameplates.Quad(1, 2, 3, 4, 0.5, 0.5, 0.5, 0.5, 0xFFFFFFFF, 0, false, nil, true)
+assert(draw.Quads[1].Flags == 4 and draw.Quads[1].X0 == 1 and draw.Quads[1].X1 == 3)
+nameplates.Quad(1, 2, 3, 4, 0, 0, 1, 1, 0xFFFFFFFF, 0, false, nil, true)
+assert(draw.Quads[2].Flags == 0, 'textured quads cannot request solid-rectangle AA')
+nameplates.Quad(1, 2, 3, 4, 0.5, 0.5, 0.5, 0.5, 0xFFFFFFFF, 0, true, 0.75, true)
+assert(draw.Quads[3].Flags == 3 and draw.Quads[3].Reserved == 191, 'outlined quads retain existing edge flags')
+nameplates.Quad(1, 2, 3, 4, 0, 0, 1, 1, 0xFFFFFFFF, 3, true, 1, nil, true)
+assert(draw.Quads[4].Flags == 11 and draw.Quads[4].Reserved == 255, 'aggro glyphs can request a full-strength tight edge')
+nameplates.Quad(1, 2, 3, 4, 0, 0, 1, 1, 0xFFFFFFFF, 3, false, nil, nil, true)
+assert(draw.Quads[5].Flags == 0, 'tight style has no effect without an outline')
+nameplates.Quad(1, 2, 3, 4, 0, 0, 1, 1, 0xFFFFFFFF, 3, true, .5, nil, true, 2.5)
+assert(draw.Quads[6].Flags == 27 and draw.Quads[6].Reserved == 640 * 256 + 128,
+    'independent fractional radius preserves explicit opacity and tight style')
+nameplates.EndName()
+for slot=0,7 do nameplates.SetTexture(slot,0x12340000+slot) end
+hook.Frame=0
+nameplates.ClearDrawing(hook)
+assert(draw.QuadCount==0 and draw.Frame==4294967287, 'deactivation invalidates the batch across frame wrap')
+for slot=0,7 do assert(draw.Textures[slot]==0, 'unpublish pointers before releasing GPU owners') end
+nameplates.SetTexture(0,0x9999)
+assert(draw.Textures[0]==0, 'no cached writer survives ClearDrawing')
+nameplates.ClearDrawing() -- no plugin: never dereference the previous DLL/draw pointer
 imgui.GetIO = oldGetIO
 ffi.C.munmap(low, ffi.sizeof('namehook_draw_t'))
 H.print(('name resolution correction: %d combinations passed'):format(cases), true)

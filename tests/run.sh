@@ -2,6 +2,11 @@
 # Runs the checks: each loads an addon (or a part of winxi) against a stand-in for Ashita and prints
 # what it finds. Read the output: a line ending in false, or an error, is something to look at.
 cd "$(dirname "$0")/.." || exit 1
+python3 tools/build_tooltips.py --check || exit 1
+python3 -m unittest discover -s tools -p test_build_tooltips.py || exit 1
+python3 -m unittest discover -s tools -p test_build_name_cast_times.py || exit 1
+python3 -m unittest discover -s tools -p test_deploy.py || exit 1
+luajit tests/winxi_tips_check.lua || exit 1
 run() { echo "== $1"; luajit tests/harness.lua "$1" "$2" "tests/$3" 2>&1; echo; }
 run inventory  addons/inventory/inventory.lua inventory_check.lua
 run inventory  addons/inventory/inventory.lua inventory_grid_check.lua
@@ -184,6 +189,7 @@ run name addons/name/name.lua name_colours_check.lua
 run name-extensions addons/name/name.lua name_extensions_check.lua
 run name addons/name/name.lua name_healthbar_check.lua
 run name addons/name/name.lua name_healthbar_render_check.lua
+run name-smooth-font addons/name/name.lua name_smooth_font_check.lua
 run name-resolution addons/name/name.lua name_resolution_check.lua
 run name-performance addons/name/name.lua name_performance_check.lua
 run name-menus addons/name/name.lua name_menu_check.lua
@@ -192,7 +198,15 @@ run name-statuses addons/name/name.lua name_statuses_check.lua
 run name-diag  addons/name/name.lua name_diag_check.lua
 echo '== name bundled player icons'
 luajit tests/name_icons_check.lua
+luajit tests/name_playerdat_check.lua
+luajit tests/namehook_capabilities_check.lua
+luajit tests/harness.lua name addons/name/name.lua tests/name_lifecycle_check.lua
+luajit tests/harness.lua name addons/name/name.lua tests/name_readability_check.lua || exit 1
+luajit tests/harness.lua name addons/name/name.lua tests/name_report_check.lua || exit 1
+luajit tests/harness.lua name addons/name/name.lua tests/name_castbar_check.lua || exit 1
+luajit tests/harness.lua name addons/name/name.lua tests/name_castbar_render_check.lua || exit 1
 luajit tests/name_format_check.lua
+luajit tests/name_filtered_text_check.lua || exit 1
 luajit tests/name_letters_check.lua
 luajit tests/name_badges_check.lua
 echo '== name badge atlas'

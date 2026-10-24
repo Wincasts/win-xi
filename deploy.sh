@@ -15,10 +15,12 @@
 #
 # A shared library under addons/libs is named with its folder: ./deploy.sh push libs/winxi
 # A plugin is named plugins/<name>: its build, plugins/<name>/build/<name>.dll, to the live plugins/<name>.dll
-# (./deploy.sh push plugins/uihook). With -a, only the plugins live already has: a new one is pushed by name.
+# (./deploy.sh push plugins/uihook). With -a, plugins live already has are included, plus namehook even
+# on a fresh install. push name also includes changed WinXI and namehook, before the Lua addon.
 # A uihook skin is named skins/<name>: plugins/uihook/build/skins/<name>/ (as tools/uihook_skin.py makes it) to the
 # live config/uihook/skins/<name>/ (./deploy.sh push skins/winxi).
-# With -a, libraries are pushed first, then plugins and skins, then the addons.
+# With -a, libraries are pushed first, then plugins and skins, then the addons. Plugins are not built
+# by this script: push name requires plugins/namehook/build/namehook.dll (run its build.sh first).
 #
 # Addons are looked for in addons/, then in forks/addons/ (other people's addons with changes of ours).
 #
@@ -153,11 +155,12 @@ all_names() {
     for dir in "$PROJECT"/addons/libs/*/; do
         [[ -d "$dir" ]] && echo "libs/$(basename "$dir")"
     done
-    # the plugins built here that live has (a new one only by name), then the skins made
+    # Built plugins already installed in live, plus Name's required namehook on
+    # fresh installs too; other new plugins still need an explicit push by name.
     for dir in "$PROJECT"/plugins/*/; do
         local plugin; plugin="$(basename "$dir")"
         [[ "$plugin" == exclude ]] && continue
-        [[ -f "$dir/build/$plugin.dll" && -f "$LIVE/plugins/$plugin.dll" ]] && echo "plugins/$plugin"
+        [[ -f "$dir/build/$plugin.dll" && ( -f "$LIVE/plugins/$plugin.dll" || "$plugin" == namehook ) ]] && echo "plugins/$plugin"
     done
     for dir in "$PROJECT"/plugins/uihook/build/skins/*/; do
         [[ -d "$dir" ]] && echo "skins/$(basename "$dir")"
@@ -266,23 +269,46 @@ do_push() {
     echo "Pushed $name. Replaced files are kept in deploy-backups/$name/$stamp"
 }
 
+# Runtime dependencies that must travel with a named addon push. Keep libraries
+# and plugins independently addressable for diff/rollback, with separate backups.
+push_dependencies() {
+    case "$1" in
+        name) printf '%s\n' "libs/winxi" "plugins/namehook" ;;
+    esac
+    return 0
+}
+
 cmd_push() {
     need_addon "$@"
     [[ -d "$LIVE/addons" ]] || die "live install not found at $LIVE (set ASHITA_LIVE to change it)"
 
-    local list
-    list="$(pending "$SRC" "$DST" "$1")"
-    if [[ -z "$list" ]]; then
-        echo "$1: nothing to push, live already matches."
+    local requested="$1" name list
+    local targets=() lists=()
+    # Validate and collect every target BEFORE confirmation or any live writes.
+    while read -r name; do
+        need_addon "$name"
+        list="$(pending "$SRC" "$DST" "$name")"
+        if [[ -n "$list" ]]; then
+            targets+=("$name")
+            lists+=("$list")
+        fi
+    done < <(push_dependencies "$requested"; echo "$requested")
+    if [[ ${#targets[@]} -eq 0 ]]; then
+        echo "$requested: nothing to push, live already matches (including dependencies)."
         return
     fi
 
-    echo "$1: about to copy into $DST"
-    echo "$list" | sed 's/^/  /'
+    local i
+    for i in "${!targets[@]}"; do
+        echo "${targets[$i]}: about to copy into $(live_dir "${targets[$i]}")"
+        echo "${lists[$i]}" | sed 's/^/  /'
+    done
     confirm "Push these to live?" || { echo "Nothing was changed."; return; }
 
-    do_push "$1" "$list"
-    reload_hint "$1"
+    for i in "${!targets[@]}"; do
+        do_push "${targets[$i]}" "${lists[$i]}"
+        reload_hint "${targets[$i]}"
+    done
 }
 
 # push for everything that differs from live: all of it shown, then pushed, with no question
@@ -297,7 +323,12 @@ cmd_push_all() {
         return
     fi
 
+    # Fail before copying anything if a changed addon lacks a required build.
+    local dependency
     while read -r name; do
+        while read -r dependency; do
+            need_addon "$dependency"
+        done < <(push_dependencies "$name")
         echo "$name: about to copy into $(live_dir "$name")"
         pending "$(source_dir "$name")" "$(live_dir "$name")" "$name" | sed 's/^/  /'
     done <<< "$names"
@@ -332,7 +363,9 @@ cmd_rollback() {
     fi
     confirm "Restore these in live?" || { echo "Nothing was changed."; return; }
 
-    rsync -r --times --exclude=.added "$latest/" "$DST/"
+    # A rebuild can have the same size/timestamp as its backup; compare contents
+    # just as push does so rollback cannot silently skip the previous DLL.
+    rsync -rc --times --exclude=.added "$latest/" "$DST/"
     mv "$latest" "$latest.restored"
     echo "Restored."
     reload_hint "$1"
@@ -367,7 +400,7 @@ cmd_pull() {
     echo "Pulled."
 }
 
-usage() { sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"; }
 
 # Flags come first, before the command: ./deploy.sh -y -a push
 ASSUME_YES=0

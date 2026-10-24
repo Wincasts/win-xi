@@ -43,7 +43,7 @@ for source in src/Nameplate.cpp src/Ashita/Ashita.cpp; do
     objects+=("$object")
 done
 
-llvm-rc /nologo /I "$MSVC/sdk/include/um" /I "$MSVC/sdk/include/shared" \
+llvm-rc /nologo /I "$HERE/src" /I "$MSVC/sdk/include/um" /I "$MSVC/sdk/include/shared" \
     /fo "$OUT/versioninfo.res" "$HERE/src/versioninfo.rc.in"
 
 # The Ashita SDK asks for Psapi.lib by a spelling the Windows SDK does not have on a

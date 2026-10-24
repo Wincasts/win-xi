@@ -67,6 +67,15 @@ The `name` addon, in `addons/name` of this project, is a settings window for the
 
 ## For addons
 
+Since 1.35, `NamehookCapabilities` is a separately exported 32-byte sidecar:
+`char Magic[16] = "NAMEHOOKCAPS"`, followed by four uint32 fields: Size (32),
+Version (1), Features (mask values 1: explicit edge radius, 2: soft rectangles, 4:
+tight edges), and Build (major × 100 + minor). It does not change ABI 3. WinXI 46
+provides `nameplates.Supports(mask, hook)` and optional `nameplates.Problem(mask)`;
+older consumers can ignore it. WinXI 47 also provides `nameplates.Capabilities(hook)`,
+a copied `{version, features, build}` table for support reports (nil when unavailable).
+Missing/unsupported sidecars never imply support.
+
 The plugin keeps one block in its own memory, `HookShared` in `src/Nameplate.h`. An addon finds it in `namehook.dll` by its first 16 bytes, reads the names in it, and writes the settings in it.
 
 In this project that is done by `addons/libs/winxi/nameplates.lua`, which needs nothing else of winxi:
@@ -193,7 +202,7 @@ pass even when the name is hidden by category/override, provided the client
 supplies that entity's name draw. Server IDs must match the current entity.
 The layer has independent retained textures, aspect correction and bounds
 caches. It is depth-tested and writes solid pixels to depth like custom names.
-`HookShared` v2 and the normal custom-name buffer are unchanged, so existing
+`HookShared` v3 and the normal custom-name buffer are unchanged, so existing
 addons do not need to change. Only one producer should own the bubble buffer.
 
 The game's `/names off` and other client name-pass culling still apply. Bubbles
@@ -216,6 +225,8 @@ On Windows, `CMakeLists.txt` builds it with Visual Studio 2022 and CMake 3.28 or
 cmake -S . -B build -G "Visual Studio 17 2022" -A Win32 -DASHITA_SDK_PATH="C:\Games\Ashita\plugins\sdk"
 cmake --build build --config Release
 ```
+
+Runtime/help, CMake and Windows resource versions come from `src/Version.h`.
 
 Copy `namehook.dll` to `<Ashita>\plugins`.
 

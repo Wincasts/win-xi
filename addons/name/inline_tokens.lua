@@ -1,5 +1,4 @@
 -- Non-text format tokens. Keep measurement and drawing on exactly the same geometry.
-local nameplates = require('winxi.nameplates');
 local icons = require('icons');
 local roles = require('roles');
 local special = require('special');
@@ -28,7 +27,7 @@ function tokens.WriteIcons(part, written, x, top, height, scale, defaultSize, de
     local y = top + math.floor((height - size) * 0.5);
     if (written.role ~= nil) then
         local u0, v0, u1, v1 = special.UV(written.role);
-        nameplates.Quad(x, y, x + size, y + size, u0, v0, u1, v1, part.color or 0xFFFFFFFF, special.Slot, true, 0.75);
+        icons.Quad(x, y, x + size, y + size, u0, v0, u1, v1, part.color or 0xFFFFFFFF, special.Slot);
         x = x + size + gap;
         if (roles.Replace()) then return width; end
     end
@@ -37,14 +36,14 @@ function tokens.WriteIcons(part, written, x, top, height, scale, defaultSize, de
         local color = part.color or (byte == 0x92 and pearlColor or 0xFFFFFFFF);
         local at = icons.Place(byte);
         if (at) then
-            nameplates.Quad(x, y, x + size, y + size, at[1], at[2], at[3], at[4], color, 1, true, 0.75);
+            icons.Quad(x, y, x + size, y + size, at[1], at[2], at[3], at[4], color, 1);
         end
         local layers = at and icons.Overlays(byte);
         if (layers) then
             for _, layer in ipairs(layers) do
-                nameplates.Quad(x + layer[1]*size, y + layer[2]*size,
+                icons.Quad(x + layer[1]*size, y + layer[2]*size,
                     x + layer[3]*size, y + layer[4]*size,
-                    layer[5], layer[6], layer[7], layer[8], color, 1, true, 0.75);
+                    layer[5], layer[6], layer[7], layer[8], color, 1);
             end
         end
         x = x + size + gap;

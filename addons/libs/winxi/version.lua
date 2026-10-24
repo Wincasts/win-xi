@@ -84,6 +84,8 @@
 -- 45: the theme's BarGlow, BarBackdrop and BarBackdropColor (Fill End Glow, Custom Bar Backdrop), drawn by
 --     winxi.bars; six smooth Bar Textures and the Rounded and Rounded Silver bookends; BarFrame (theme.BarFrames),
 --     a capsule's rim round party's bars, and BarFrameOpacity
+-- 46: namehook capability checks, independent icon outlines, ClearDrawing and editable tooltip catalogues
+-- 47: nameplates.Capabilities, copied public sidecar metadata for privacy-safe support reports
 return {
-    Number = 45,
+    Number = 47,
 };

@@ -124,7 +124,16 @@ function atlas.upload(sheet)
     return tex;
 end
 
----reads an A8R8G8B8 texture back into an image (for debug dumps).
+---releases an owned, gc_safe_release-wrapped texture deterministically.
+---The caller must drop all of its references and must not use the texture again.
+---A renderer that retained its own COM reference remains safe until its frame ends.
+function atlas.release(texture)
+    if texture == nil then return end
+    ffi.gc(texture, nil); -- prevent a second Release from the Lua finalizer
+    texture:Release();
+end
+
+---reads an A8R8G8B8 texture into a CPU image for badge/text mask generation.
 ---@return table|nil image
 ---@return string|nil error
 function atlas.read(tex, maxSize)

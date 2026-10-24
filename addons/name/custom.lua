@@ -28,6 +28,7 @@ local icons = require('icons');
 local format = require('format');
 local levels = require('levels');
 local letterBadges = require('letter_badges');
+local filteredText = require('filtered_text');
 local statuses = require('statuses');
 local healthbar = require('healthbar');
 local vendors = require('vendors');
@@ -41,6 +42,7 @@ local rules = require('block_rules');
 local diag = require('diag');
 
 local custom = {};
+local fontPipeline = { Readability = require('readability'), Castbar = require('castbar') };
 
 local STAR          = 0xAD; -- the star of the Job Mastery stars: a small one, a large one, a small one
 local FADE_SHRUNK   = 0.15; -- the last part of a name's distance over which it fades out
@@ -49,7 +51,6 @@ local SPAWNED      = 0x200; -- GetRenderFlags0: the client is showing this entit
 -- The plugin's numbers for the textures the names are drawn from. In tables, here and below: a
 -- function can name sixty things from outside itself and no more, and the frame's is near that.
 local SLOT = { Font = 0, Icon = 1, Sense = 2, Temper = 3, Sign = 4 };
-local ICON_EDGE_OPACITY = 0.75; -- soften small inline/detail icons without fading their fill
 -- What is written for the name of a monster a tracked notorious monster is drawn by lot from. Its
 -- sign, a vendor's coin and the party roles are special.lua's sheet. In a table: the frame's function
 -- has no room for more names than it has.
@@ -68,7 +69,7 @@ local DETAIL = {
 -- The signs for what a monster does, in assets/senses.png: mobdb's own icons, sixteen to a sheet in
 -- four rows, each a quarter of it across and down. The first four, for whether it is aggressive, are
 -- no longer drawn from: assets/aggro.png has taken their place.
-local SENSES = { AggroNQ = 0, AggroHQ = 1, PassiveNQ = 2, PassiveHQ = 3, Sight = 4, TrueSight = 5, Sound = 6, Blood = 7, Magic = 8, JA = 9, Scent = 10, Link = 11 };
+local SENSES = { Sight = 4, TrueSight = 5, Sound = 6, Blood = 7, Magic = 8, JA = 9, Scent = 10, Link = 11 };
 -- what an aggressive monster notices its prey by, in the order they are drawn
 local NOTICES = { 'Sight', 'TrueSight', 'Sound', 'Blood', 'Magic', 'JA', 'Scent' };
 
@@ -93,8 +94,11 @@ local FONT_FOLDER   = 'C:\\Windows\\Fonts\\';
 -- What can be set. A setting changed by a control is a table of one, as imgui wants.
 local settings = {
     fontBold    = function () return T{ false }; end, -- simulated: each letter drawn twice, a pixel apart
+    fontSmooth  = function () return T{ false }; end, -- optional prefiltered glyph atlas; native layout metrics
     fontSize    = function () return T{ 15 }; end,    -- shared nearby name size for every entity category
     minSize     = function () return T{ 10 }; end,    -- shared distant name size for every entity category
+    iconOutline = function () return T{ 1 }; end,
+    iconOutlineOpacity = function () return T{ 100 }; end,
     outline     = function () return T{ 1 }; end,     -- how thick the dark edge round them is, in pixels
     font        = function () return ''; end,         -- a file of FONT_FOLDER, or nothing for the font everything else is in
     iconFormatVersion = function () return 0; end,
@@ -102,7 +106,13 @@ local settings = {
     iconSpacing = function () return T{ 2 }; end,     -- pixels between the last icon and the name
     showStars   = function () return T{ true }; end,
     showVendorIcons = function () return T{ true }; end, -- the coin before the names of NPCs that sell
+    playerIconSource = function () return T{ 'game' }; end, -- icons.Sources; unavailable sources use bundled artwork
     partyIcons = function () return T{ 'beside' }; end, -- a party or alliance member's sign in [icons]: roles.Modes
+    showCastBar = function () return T{ false }; end,
+    castBarWeaponskills = function () return T{ false }; end,
+    castBarAutoWidth = function () return T{ false }; end,
+    castNameScale = function () return T{ 75 }; end,
+    castTimerScale = function () return T{ 75 }; end,
     showHealthBar = function () return T{ false }; end, -- shared by every entity type
     healthBarsCombatOnly = function () return T{ false }; end,
     healthBarWidth = function () return T{ 60 }; end,
@@ -127,14 +137,18 @@ local settings = {
 
 -- What Settle makes good: the setting, the kind of value it holds, and for a number its bounds
 local settled = {
+    { 'iconOutline', 'number', 0, 3 }, { 'iconOutlineOpacity', 'number', 0, 100 },
     { 'checkSize', 'number', 50, 125 }, { 'healthBarWidth', 'number', 12, 300 }, { 'healthBarHeight', 'number', 3, 40 },
     { 'huntScale', 'number', 100, 200 }, { 'subtargetScale', 'number', 50, 200 },
-    { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' }, { 'showVendorIcons', 'boolean' }, { 'partyIcons', 'string' },
-    { 'abbreviateDifficulty', 'boolean' }, { 'fontBold', 'boolean' },
+    { 'showCastBar', 'boolean' }, { 'castBarWeaponskills', 'boolean' }, { 'castBarAutoWidth', 'boolean' },
+    { 'castNameScale', 'number', 25, 200 }, { 'castTimerScale', 'number', 25, 200 },
+    { 'showHealthBar', 'boolean' }, { 'healthBarsCombatOnly', 'boolean' }, { 'labelPlaceholders', 'boolean' }, { 'showVendorIcons', 'boolean' }, { 'partyIcons', 'string' }, { 'playerIconSource', 'string' },
+    { 'abbreviateDifficulty', 'boolean' }, { 'fontBold', 'boolean' }, { 'fontSmooth', 'boolean' },
     { 'trackedNm', 'string' }, { 'nameFormat', 'string' }, { 'monsterFormat', 'string' }, { 'npcFormat', 'string' },
 };
 
 function custom.Defaults(defaults)
+    fontPipeline.Readability.Defaults(defaults);
     nameTypes.Defaults(defaults);
     nameColours.Defaults(defaults);
     for key, make in pairs(settings) do
@@ -146,6 +160,7 @@ end
 -- Up to 1.10 a monster's distance was a setting of its own, and another said whether only the
 -- target's was written: they are made the lines that say the same, once.
 function custom.Settle(options)
+    fontPipeline.Readability.Settle(options);
     -- settings of earlier versions that are no longer kept
     options.customNames, options.shrink, options.gdiFonts, options.gdiFamily = nil, nil, nil, nil;
     options.targetFormat, options.checkedFormat, options.statusTimers = nil, nil, nil;
@@ -213,6 +228,9 @@ function custom.Settle(options)
     local known = false;
     for _, choice in ipairs(roles.Modes) do known = known or choice.key == mode; end
     if (not known) then options.partyIcons[1] = settings.partyIcons()[1]; end
+    if not icons.ValidSource(options.playerIconSource[1]) then
+        options.playerIconSource[1] = settings.playerIconSource()[1];
+    end
     nameTypes.Settle(options);
     options.healthBarCategories = entityTypes.Settle(options.healthBarCategories);
     options.statusCategories = entityTypes.Settle(options.statusCategories);
@@ -317,6 +335,7 @@ local glyphSets = {};   -- height -> { checked = the frame it was last looked at
 local glyphFont = nil;  -- the font they are of
 local glyphTexture = nil; -- imgui's unique id for the font's texture they are in
 local frame = 0;
+local smoothFont = false; -- the current frame's text mode; signs/badges use native glyphs
 
 -- Every size's letters let go of, to be read again as they are asked for: the texture has been made
 -- again or the letters moved in it, the font or the largest size has changed
@@ -324,13 +343,17 @@ local function forgetGlyphs()
     glyphSets = {};
 end
 
-local function readGlyph(baked, byte)
+local function readGlyph(baked, byte, raster)
     local glyph = baked:FindGlyph(byte);
     if (glyph == nil) then
         return false;
     end
-    return { glyph.X0, glyph.Y0, glyph.X1, glyph.Y1, glyph.U0, glyph.V0, glyph.U1, glyph.V1, glyph.AdvanceX,
-        glyph.Visible ~= 0 and glyph.Visible ~= false };
+    -- Pin bearings, advance and baseline to the native hinted font. Only the
+    -- sampled mask comes from the larger raster: quality must not move the nameplate.
+    local ink = raster and raster:FindGlyph(byte) or glyph;
+    if ink == nil or ink.Visible == 0 or ink.Visible == false then ink = glyph; end
+    return { glyph.X0, glyph.Y0, glyph.X1, glyph.Y1, ink.U0, ink.V0, ink.U1, ink.V1, glyph.AdvanceX,
+        glyph.Visible ~= 0 and glyph.Visible ~= false, byte = byte };
 end
 
 -- Glyph runs belong to their set, so replacing a font/atlas also invalidates
@@ -351,7 +374,7 @@ local function textRun(set, words)
         local byte = words:byte(at);
         local glyph = glyphs[byte];
         if (glyph == nil) then
-            glyph = readGlyph(set.baked, byte);
+            glyph = readGlyph(set.baked, byte, set.smoothBaked);
             glyphs[byte] = glyph;
         end
         if (glyph) then
@@ -377,7 +400,7 @@ end
 function letterBadges.Width(set, letter, fit)
     fit = fit * (set.badgeFit or 1);
     local badge = set.badges and set.badges[letter:upper()];
-    return badge and badge.uv.w * fit or wordsWidth(set.badgeFont or set, letter:upper(), fit * letterBadges.Scale);
+    return badge and (badge.width or badge.uv.w) * fit or wordsWidth(set.badgeFont or set, letter:upper(), fit * letterBadges.Scale);
 end
 
 function letterBadges.Write(set, letter, pen, top, fit, color)
@@ -386,15 +409,17 @@ function letterBadges.Write(set, letter, pen, top, fit, color)
     local badge = set.badges and set.badges[letter:upper()];
     if not badge then return nil end
     local uv = badge.uv;
-    -- Anchor to the name font's lowercase baseline, not the indicator font's
-    -- vertical centre. 'x' excludes descenders and works with ImGui and GDI sets.
+    local width, height = badge.width or uv.w, badge.height or uv.h;
+    local padding = (badge.padding or 0) * fit;
+    -- Anchor the visible box, not its transparent filtering guard, to the name
+    -- font's lowercase baseline. Layout/advance exclude that guard as well.
     local reference = textRun(set, 'x').glyphs[1];
-    local y = reference and (top + reference[4] * textFit - uv.h * fit)
+    local y = reference and (top + reference[4] * textFit - height * fit)
         or (top + badge.top * fit);
     -- Use the same outline thickness, colour and distance fade as the nameplate.
-    nameplates.Quad(pen, y, pen + uv.w * fit, y + uv.h * fit,
+    nameplates.Quad(pen - padding, y - padding, pen + width * fit + padding, y + height * fit + padding,
         uv.u0, uv.v0, uv.u1, uv.v1, color, letterBadges.Slot, true);
-    return pen + uv.w * fit;
+    return pen + width * fit;
 end
 
 local function writeWords(set, words, pen, top, fit, color, slot, opacity)
@@ -403,17 +428,26 @@ local function writeWords(set, words, pen, top, fit, color, slot, opacity)
     -- namehook already multiplies outline opacity by the glyph colour's alpha.
     local run = textRun(set, words);
     local quad = nameplates.Quad;
-    slot = slot or SLOT.Font;
+    local masks = slot == nil and set.filtered or nil;
+    slot = slot or set.textSlot or SLOT.Font;
     for index = 1, #run.glyphs do
         local glyph = run.glyphs[index];
         if (glyph[10]) then
             local at = pen + run.offsets[index] * fit;
             local x0, y0 = at + glyph[1] * fit, top + glyph[2] * fit;
             local x1, y1 = at + glyph[3] * fit, top + glyph[4] * fit;
-            quad(x0, y0, x1, y1, glyph[5], glyph[6], glyph[7], glyph[8], color, slot, true);
+            local mask = masks and masks[glyph.byte];
+            local u0, v0, u1, v1, atSlot = glyph[5], glyph[6], glyph[7], glyph[8], slot;
+            if mask then
+                local uv = mask.uv;
+                x0, y0 = x0 - mask.padX * fit, y0 - mask.padY * fit;
+                x1, y1 = x1 + mask.padX * fit, y1 + mask.padY * fit;
+                u0, v0, u1, v1, atSlot = uv.u0, uv.v0, uv.u1, uv.v1, SLOT.Font;
+            end
+            quad(x0, y0, x1, y1, u0, v0, u1, v1, color, atSlot, true);
             if (run.stroke > 0) then
                 local shift = run.stroke * fit;
-                quad(x0 + shift, y0, x1 + shift, y1, glyph[5], glyph[6], glyph[7], glyph[8], color, slot, true);
+                quad(x0 + shift, y0, x1 + shift, y1, u0, v0, u1, v1, color, atSlot, true);
             end
         end
     end
@@ -573,7 +607,7 @@ end
 -- The letters of the font at this height, or nil if imgui has none. key is what they are kept under:
 -- the height, or for the font everything else is written in, kept beside a font of the player's
 -- choosing for the signs that one does not have, the height below nothing.
-local function glyphSet(font, height, key)
+local function glyphSet(font, height, key, smooth)
     key = key or height;
     local set = glyphSets[key];
     if (set ~= nil and set.checked == frame) then
@@ -587,12 +621,19 @@ local function glyphSet(font, height, key)
         return nil;
     end
 
+    local raster;
+    if smooth then
+        imgui.PushFont(font, height * filteredText.SourceScale);
+        raster = imgui.GetFontBaked();
+        imgui.PopFont();
+    end
+
     if (set == nil) then
         set = { glyphs = {} };
         glyphSets[key] = set;
     end
 
-    local now = readGlyph(baked, PROBE);
+    local now = readGlyph(baked, PROBE, raster);
     local was = set.glyphs[PROBE];
     if (was and now and (was[5] ~= now[5] or was[6] ~= now[6] or was[7] ~= now[7] or was[8] ~= now[8])) then
         -- the letters have been moved: every size's are read again
@@ -601,7 +642,7 @@ local function glyphSet(font, height, key)
         glyphSets[key] = set;
     end
     set.glyphs[PROBE] = now;
-    set.baked = baked;
+    set.baked, set.smoothBaked = baked, raster;
     set.checked = frame;
 
     imgui.PopFont();
@@ -733,7 +774,7 @@ end
 -- size setting, or the window's. The letters kept for the heights before are let go then, so that
 -- dragging a window's edge does not leave a set behind for every height it passed through.
 local cachedRungs;
-local function fontRungs(height)
+function fontPipeline.Rungs(height)
     if (cachedRungs == nil or cachedRungs.height ~= height) then
         cachedRungs = { height = height, badge = 'badge:' .. height };
         for rung = 1, #RUNGS do
@@ -746,9 +787,56 @@ end
 
 -- A name's letters at a rung's height: the set, with whether it is to be drawn bold
 local function nameSet(font, height, bold)
-    local set = glyphSet(font, height);
-    if (set ~= nil) then set.syntheticBold = bold; end
+    local set = glyphSet(font, height, smoothFont and ('smooth:' .. height) or height, smoothFont);
+    if (set ~= nil) then
+        set.syntheticBold = bold;
+        if smoothFont then textRun(set, filteredText.Characters); end
+    end
     return set;
+end
+
+function fontPipeline.DiscardIfDisabled(options, hook)
+    if options.fontSmooth and options.fontSmooth[1] then return end
+    if smoothFont then nameplates.ClearDrawing(hook); end
+    filteredText.Release();
+    if cachedRungs then cachedRungs.filteredDefinitions = nil; end
+    if smoothFont then
+        forgetGlyphs(); -- drop the cached high-resolution baked-font handles too
+        smoothFont = false;
+    end
+end
+
+-- Build only when immutable glyph sets change, not for each entity or frame.
+function fontPipeline.Filtered(font, heights, bold, fontAddress)
+    if not smoothFont then return nil end
+    local definitions, rungs = heights.filteredDefinitions, #heights;
+    local valid, complete = definitions ~= nil and #definitions == rungs, true;
+    for rung = 1, rungs do
+        local set = nameSet(font, heights[rung], bold);
+        if set then
+            set.filtered, set.textSlot = nil, nil;
+            if not definitions or not definitions[rung] or definitions[rung].glyphs ~= set.glyphs then valid = false; end
+        else
+            complete = false;
+        end
+    end
+    if not complete then return nil end
+    if not valid then
+        definitions = {};
+        for rung = 1, rungs do
+            definitions[rung] = { height = heights[rung], glyphs = nameSet(font, heights[rung], bold).glyphs };
+        end
+        heights.filteredDefinitions = definitions;
+    end
+    local ready = filteredText.Prepare(fontAddress, definitions);
+    if ready then
+        nameplates.SetTexture(SLOT.Font, ready.address);
+        for rung = 1, rungs do
+            local set = nameSet(font, heights[rung], bold);
+            set.filtered, set.textSlot = ready.regions[heights[rung]], SLOT.Sign;
+        end
+    end
+    return ready;
 end
 
 -- Under the name of a monster its player has checked, and with its middle under
@@ -839,9 +927,9 @@ local function writeDetails(options, written, set, sign, own, fit, height, rungH
     if (glassWidth > 0) then
         local middle = rungHeight * 0.5;
         local glassTop = below + middle * detail;
-        nameplates.Quad(at + sign[1] * glassFit, glassTop + (sign[2] - middle) * glassFit,
+        icons.Quad(at + sign[1] * glassFit, glassTop + (sign[2] - middle) * glassFit,
             at + sign[3] * glassFit, glassTop + (sign[4] - middle) * glassFit,
-            sign[5], sign[6], sign[7], sign[8], WHITE, SLOT.Sign, true, ICON_EDGE_OPACITY);
+            sign[5], sign[6], sign[7], sign[8], WHITE, SLOT.Sign);
         at = at + glassWidth + gap;
     end
     if (hardWidth > 0) then
@@ -851,14 +939,14 @@ local function writeDetails(options, written, set, sign, own, fit, height, rungH
         for index = 1, (signs ~= nil and #signs or 0) do
             local sign = signs[index];
             local u, v = (sign % 4) * 0.25, math.floor(sign / 4) * 0.25;
-            nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SLOT.Sense, true, ICON_EDGE_OPACITY);
+            icons.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SLOT.Sense);
             at = at + detailHeight;
         end
         at = at + gap;
     end
     if (linkWidth > 0) then
         local u, v = (SENSES.Link % 4) * 0.25, math.floor(SENSES.Link / 4) * 0.25;
-        nameplates.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SLOT.Sense, true, ICON_EDGE_OPACITY);
+        icons.Quad(at, below, at + detailHeight, below + detailHeight, u, v, u + 0.25, v + 0.25, WHITE, SLOT.Sense);
         at = at + linkWidth + (linkedWidth > 0 and math.floor(gap * 0.5) or 0);
     end
     if (linkedWidth > 0) then
@@ -934,8 +1022,77 @@ local function partColor(part, kind, override, dead, own)
     return kind == 'name' and (override or (dead and own) or part.color or own) or part.color or own;
 end
 
+-- Idempotent: settings/profile changes, plugin loss and Enable Name off all
+-- reach this path, even when Frame will no longer be called. ImGui owns fonts.
+function custom.Deactivate()
+    fontPipeline.Castbar.Reset();
+    if not fontPipeline.active then return end
+    fontPipeline.active = false;
+    nameplates.ClearDrawing();
+    fontPipeline.Readability.Reset();
+    filteredText.Release();
+    letterBadges.Release();
+    icons.Release();
+    local atlas = require('gdi.atlas');
+    for _, known in pairs(sheets) do
+        if known.texture then
+            local texture = known.texture;
+            known.texture, known.at, known.nextRetry = nil, 0, 0;
+            atlas.release(texture);
+        end
+    end
+    forgetGlyphs();
+    cachedRungs, smoothFont = nil, false;
+    parsed, steady, answers = {}, {}, {};
+end
+
+function custom.ResetReadability() fontPipeline.Readability.Reset(); end
+-- Queried only on demand; no addresses, names, paths or user-entered formats.
+function custom.Diagnostics()
+    return {
+        { 'Filtered font', filteredText.Diagnostics() },
+        { 'Letter badge atlas', letterBadges.Diagnostics() },
+        { 'Player artwork', icons.Diagnostics() },
+        { 'Crowd policy', fontPipeline.Readability.Diagnostics() },
+        { 'Cast bars', fontPipeline.Castbar.Diagnostics() },
+    };
+end
+
+-- Both rows use the same geometry. Cast labels and timer are below the bar;
+-- include their foot in the layout so below-name statuses cannot overlap them.
+function fontPipeline.CastCaption(set, words, left, right, under, fit, nominal, gap, opacity)
+    local low, high = 0, nominal;
+    for _, glyph in ipairs(textRun(set, words).glyphs) do
+        if glyph[10] then
+            local mask = set.filtered and set.filtered[glyph.byte];
+            local pad = mask and mask.padY or 0;
+            low, high = math.min(low, (glyph[2] - pad) * fit), math.max(high, (glyph[4] + pad) * fit);
+        end
+    end
+    local top = math.ceil(under + gap - low);
+    writeWords(set, words, math.floor((left + right - wordsWidth(set, words, fit)) * 0.5),
+        top, fit, WHITE, nil, opacity);
+    return math.ceil(top + high);
+end
+function fontPipeline.WriteCast(entry, set, left, right, under, scale, fit, height, width, barHeight, opacity, nameScale, timerScale, color)
+    local bottom = healthbar.Bar(left, right, under, scale, entry.progress,
+        fadedColor(color, opacity), width, barHeight, 0xFF203048);
+    if bottom == under then return under; end
+    nameScale, timerScale = nameScale / 100, timerScale / 100;
+    bottom = fontPipeline.CastCaption(set, entry.name, left, right, bottom, fit * nameScale,
+        math.max(1, math.ceil(height * nameScale)),
+        math.max(1, math.floor(2 * scale + 0.5)), opacity);
+    bottom = fontPipeline.CastCaption(set, entry.timer, left, right, bottom, fit * timerScale,
+        math.max(1, math.ceil(height * timerScale)),
+        math.max(1, math.floor(scale + 0.5)), opacity);
+    return bottom + math.max(1, math.floor(scale + 0.5));
+end
+
 function custom.Frame(options, hook, formats)
+    fontPipeline.active = true;
     formats = formats or options; -- optional format overrides for rendering fixtures
+    fontPipeline.DiscardIfDisabled(options, hook);
+    fontPipeline.Castbar.Configure(options); -- disable cleanup also runs before font/draw early returns
     local FONT_SLOT, ICON_SLOT, SENSE_SLOT, TEMPER_SLOT, SIGN_SLOT = SLOT.Font, SLOT.Icon, SLOT.Sense, SLOT.Temper, SLOT.Sign;
     -- without the plugin's list there is nothing to draw from, and the game draws the names
     if (hook == nil or hook.Hooked == 0) then
@@ -967,7 +1124,12 @@ function custom.Frame(options, hook, formats)
     -- every frame: the game draws none of the names while this does
     nameplates.Claim(nameplates.Category.All, hook);
 
-    icons.Begin(sheet);
+    local monsterFormat = format.Compile(options.monsterFormat[1]);
+    local nameFormat = format.Compile(formats.nameFormat[1]);
+    local npcFormat = format.Compile(formats.npcFormat and formats.npcFormat[1] or options.npcFormat and options.npcFormat[1] or '[name]');
+    local wantsIcons = nameFormat.icons or monsterFormat.icons or npcFormat.icons or false;
+    nameplates.SetTexture(ICON_SLOT, 0); -- unpublish an old DAT pointer before a source switch releases it
+    icons.Begin(sheet, options.playerIconSource and options.playerIconSource[1], wantsIcons or options.showStars[1]);
     local iconTexture = icons.Texture() or 0;
     nameplates.SetTexture(FONT_SLOT, texture);
     nameplates.SetTexture(ICON_SLOT, iconTexture);
@@ -976,7 +1138,7 @@ function custom.Frame(options, hook, formats)
     local trackedName = options.trackedNm ~= nil and options.trackedNm[1] or '';
     local labelPlaceholders = options.labelPlaceholders ~= nil and options.labelPlaceholders[1];
     local coins = vendors.Begin(options);
-    local ranks = roles.Begin(options, AshitaCore:GetMemoryManager());
+    local ranks = roles.Begin(options, AshitaCore:GetMemoryManager(), wantsIcons);
     local huntTexture = (trackedName ~= '' or coins or ranks) and sheet(special.Sheet) or 0;
     coins, ranks = coins and huntTexture ~= 0, ranks and huntTexture ~= 0;
     local huntScale = options.huntScale ~= nil and math.max(100, math.min(200, options.huntScale[1])) / 100 or 1;
@@ -997,7 +1159,6 @@ function custom.Frame(options, hook, formats)
     frame = frame + 1;
 
     local font = getFont(options.font);
-    local monsterFormat = format.Compile(options.monsterFormat[1]);
     local badgeFont = monsterFormat.letter and getFont(letterBadges.Font) or nil;
     levels.DoubleLetters(monsterFormat.doubleLetters == true);
     local fullSize, leastSize = nameTypes.Bounds(options);
@@ -1011,19 +1172,23 @@ function custom.Frame(options, hook, formats)
     -- rung is asked after every frame, in use or not, which keeps imgui from letting it go; and all
     -- of them before any name is set out, so that if the letters have been moved it is known first.
     local fullHeight = math.max(1, math.floor(fullSize * scale + 0.5));
-    local heights = fontRungs(fullHeight);
+    local heights = fontPipeline.Rungs(fullHeight);
     local rungs = #heights;
     local bold = options.fontBold[1];
+    smoothFont = options.fontSmooth ~= nil and options.fontSmooth[1] == true;
     nameplates.SetTexture(SIGN_SLOT, texture);
 
     -- the magnifying glass is in the font everything else is written in: with a font of the player's
     -- choosing for the names, that one's letters are kept as well, for it
-    local nameFormat = format.Compile(formats.nameFormat[1]);
-    local npcFormat = format.Compile(formats.npcFormat and formats.npcFormat[1] or options.npcFormat and options.npcFormat[1] or '[name]');
+    nameplates.SetTexture(letterBadges.Slot, 0); -- before any badge release/replacement
+    if not monsterFormat.letter then
+        letterBadges.Release();
+        glyphSets[heights.badge] = nil;
+    end
     -- the sheet of aggro signs, asked for once a frame and only if some line draws from it
     local temperSheet = monsterFormat.aggro and sheet('aggro.png') or 0;
-    -- One editable format for every mob, regardless of target/check state. Legacy
-    -- targetFormat/checkedFormat values are retained on disk but never used here.
+    -- One editable format for every mob, regardless of target/check state.
+    -- Legacy targetFormat/checkedFormat settings are removed by Settle.
     local wantsSign = options.showCheckDetails[1] and not options.checkDetailsInWords[1]
         or (not options.showCheckDetails[1] and (nameFormat.checked or monsterFormat.checked or npcFormat.checked));
     local signsApart = font ~= nil and wantsSign;
@@ -1086,11 +1251,14 @@ function custom.Frame(options, hook, formats)
             if set then set.badges = badgeAtlas.regions[fullHeight]; end
         end
     end
+    local filteredAtlas = fontPipeline.Filtered(font, heights, bold, fontAddress);
     local edge = math.max(0, math.min(4, options.outline[1]));
     local showStars = options.showStars[1];
     local showDetails = options.showCheckDetails[1];
     local detailsInWords = options.checkDetailsInWords[1];
     local now = os.clock();
+    fontPipeline.Readability.Begin(options, hook, now);
+    fontPipeline.Castbar.Begin(options, now);
     local iconScale = options.iconSize[1] / 100;
     local dark = darkColor();
 
@@ -1101,7 +1269,7 @@ function custom.Frame(options, hook, formats)
     local memory = AshitaCore:GetMemoryManager();
     local entities = askedOnce(memory.GetEntity ~= nil and memory:GetEntity() or nil);
     local colourContext = nameColours.Context(options, memory);
-    healthbar.Begin();
+    healthbar.Begin(filteredAtlas and filteredAtlas.white);
 
     -- a monster that was checked and has died is forgotten before any level is written; what is
     -- written of a level is kept until what is known of levels changes
@@ -1149,8 +1317,9 @@ function custom.Frame(options, hook, formats)
             if (isSubtarget) then
                 size = size * subtargetScale;
             end
-
             local displayColor, dead, solid, despawn = steadyColor(name, entities, now);
+            written.cast = fontPipeline.Castbar.Of(name, entities, now, dead);
+            written.simplified = fontPipeline.Readability.Simplify(name, isSubtarget, hunted or lot or written.cast ~= nil);
             local near = nearness / FADE_SHRUNK;
             local alpha = math.max(0, math.min(1, solid, near)) * despawn;
             -- Glyph fill and outline take the name's opacity (the target's held steady), not shared opacity.
@@ -1180,13 +1349,14 @@ function custom.Frame(options, hook, formats)
                 local outlineFit = size / maximumSize;
                 local nameEdge = edge > 0 and math.max(1, math.floor(math.min(edge, math.max(1, math.floor(size / 8 + 0.5))) * scale)) or 0;
                 local nameDark = dark;
-                if (nameEdge > 0 and outlineFit < 1) then
-                    nameEdge = math.max(1, math.floor(nameEdge * outlineFit + 0.5));
-                    -- At one pixel it cannot get thinner, but a slightly less
-                    -- opaque border keeps it from swallowing small letters.
-                    local edgeAlpha = math.floor(bit.rshift(dark, 24) * (0.5 + 0.5 * outlineFit) + 0.5);
+                if (outlineFit < 1) then
+                    if nameEdge > 0 then nameEdge = math.max(1, math.floor(nameEdge * outlineFit + 0.5)); end
+                    -- Keep small names separated from bright scenery: only soften
+                    -- the halo slightly, rather than losing half its contrast.
+                    local edgeAlpha = math.floor(bit.rshift(dark, 24) * (0.85 + 0.15 * outlineFit) + 0.5);
                     nameDark = dark % 0x1000000 + edgeAlpha * 0x1000000;
                 end
+                icons.ConfigureOutline(options, size, scale, outlineFit);
                 if (set ~= nil and nameplates.BeginName(name.EntityIndex, alpha, nameEdge, nameDark)) then
                     -- what is written, part by part, as its line has it
                     local parts = nameFormat;
@@ -1195,6 +1365,9 @@ function custom.Frame(options, hook, formats)
                     elseif (name.Category == nameplates.Category.Npc) then
                         parts = npcFormat;
                     end
+
+                    if written.simplified then parts = fontPipeline.Readability.Compact(parts); end
+                    local showDetails = showDetails and not written.simplified;
 
                     -- its level if its player has checked it, or the levels it can be: looked for once
                     -- for each character there is, and again when what is known of levels changes
@@ -1211,7 +1384,7 @@ function custom.Frame(options, hook, formats)
                     -- how far off it is, to a tenth: written afresh only as that changes
                     written.ruleTarget = bit.band(name.Flags, TARGET) ~= 0;
                     written.ruleChecked = written.isChecked == true;
-                    written.ruleDistance = nil;
+                    written.ruleDistance, written.distanceValue = nil, nil;
                     if ((parts.distance or parts.ruleDistance) and entities ~= nil) then
                         -- the game keeps the distance squared
                         local squared = entities:GetDistance(name.EntityIndex);
@@ -1225,6 +1398,9 @@ function custom.Frame(options, hook, formats)
                             end
                         end
                     end
+
+                    if written.distanceValue == nil then written.far, written.tenths = '', nil; end
+                    written.distanceColor = parts.distance and fontPipeline.Readability.Distance(options, written, name.ServerId) or nil;
 
                     -- the magnifying glass for one that has been checked, if the font has it
                     local sign = false;
@@ -1267,8 +1443,9 @@ function custom.Frame(options, hook, formats)
                     local own = override or nameColor(displayColor);
                     local nameTint = own;
                     local width, iconsHeight = 0, 0;
+                    written.barNameLeft, written.barNameRight = nil, nil;
                     -- a vendor's coin, before all of it, as large as a player's icons and as far from what follows
-                    local coin = coins and name.Category == nameplates.Category.Npc and vendors.Of(written, name)
+                    local coin = not written.simplified and coins and name.Category == nameplates.Category.Npc and vendors.Of(written, name)
                         and math.floor(height * iconScale + 0.5) or nil;
                     if (coin) then
                         width = coin + math.floor(options.iconSpacing[1] * scale + 0.5);
@@ -1293,6 +1470,10 @@ function custom.Frame(options, hook, formats)
                             if (kind == 'name' and words ~= '') then nameTint = partColor(part, kind, override, dead, own); end
                             width = width + (kind == 'letter' and letterBadges.Width(set, words, fit)
                                 or wordsWidth(set, words, fit));
+                            if (kind == 'name' or kind == 'letter') and words ~= '' and width > start then
+                                written.barNameLeft = math.min(written.barNameLeft or start, start);
+                                written.barNameRight = math.max(written.barNameRight or width, width);
+                            end
                             if (kind ~= 'icons' and width > start) then width = width + math.floor((part.space or 0) * scale + 0.5); end
                         end
                     end
@@ -1312,7 +1493,7 @@ function custom.Frame(options, hook, formats)
                     local iconTop = math.floor((height - iconSize) * 0.5);
 
                     -- the stars over the middle of it: a small one, a large one, a small one
-                    local star = showStars and bit.band(name.Flags, STARS) ~= 0 and icons.Place(STAR);
+                    local star = not written.simplified and showStars and bit.band(name.Flags, STARS) ~= 0 and icons.Place(STAR);
                     local clear = math.min(top, math.floor((height - iconsHeight) * 0.5));
                     if (star) then
                         local starsLeft = math.floor(-(smallStar * 2 + iconSize) * 0.5);
@@ -1329,7 +1510,7 @@ function custom.Frame(options, hook, formats)
                     if (coin) then
                         local coinTop = top + math.floor((height - coin) * 0.5);
                         local u0, v0, u1, v1 = special.UV(special.Vendor);
-                        nameplates.Quad(pen, coinTop, pen + coin, coinTop + coin, u0, v0, u1, v1, WHITE, special.Slot, true, ICON_EDGE_OPACITY);
+                        icons.Quad(pen, coinTop, pen + coin, coinTop + coin, u0, v0, u1, v1, WHITE, special.Slot);
                         pen = pen + coin + math.floor(options.iconSpacing[1] * scale + 0.5);
                     end
                     for index = 1, #parts do
@@ -1338,7 +1519,8 @@ function custom.Frame(options, hook, formats)
                             local kind = part.kind;
                             local start = pen;
                             local words = partWords(part, kind, written, nameWords, letter);
-                            local color = partColor(part, kind, override, dead, own);
+                            local color = (kind == 'distance' and not part.color and written.distanceColor)
+                                or partColor(part, kind, override, dead, own);
                             if (kind == 'name') then fill = color; end
                             if (kind == 'icons') then
                                 pen = pen + inline.WriteIcons(part, written, pen, top, height, scale,
@@ -1351,9 +1533,9 @@ function custom.Frame(options, hook, formats)
                                 local temperTop = top + math.floor((height - temperSize) * 0.5);
                                 if (huntSign) then
                                     local u0, v0, u1, v1 = special.UV(special.Hunt);
-                                    nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u0, v0, u1, v1, part.color or WHITE, special.Slot, true, ICON_EDGE_OPACITY);
+                                    icons.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u0, v0, u1, v1, part.color or WHITE, special.Slot, true);
                                 else
-                                    nameplates.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, TEMPER_SLOT, true, ICON_EDGE_OPACITY);
+                                    icons.Quad(pen, temperTop, pen + temperSize, temperTop + temperSize, u, v, u + 0.25, v + 0.25, part.color or WHITE, TEMPER_SLOT, true);
                                 end
                                 pen = pen + temperSize;
                             end
@@ -1362,9 +1544,9 @@ function custom.Frame(options, hook, formats)
                                 -- made smaller about the middle of the line so that it stays level with them
                                 local small = fit * SIGN_SIZE;
                                 local middle = rungHeight * 0.5;
-                                nameplates.Quad(pen + sign[1] * small, top + (middle + (sign[2] - middle) * SIGN_SIZE) * fit,
+                                icons.Quad(pen + sign[1] * small, top + (middle + (sign[2] - middle) * SIGN_SIZE) * fit,
                                     pen + sign[3] * small, top + (middle + (sign[4] - middle) * SIGN_SIZE) * fit,
-                                    sign[5], sign[6], sign[7], sign[8], part.color or WHITE, SIGN_SLOT, true, ICON_EDGE_OPACITY);
+                                    sign[5], sign[6], sign[7], sign[8], part.color or WHITE, SIGN_SLOT);
                                 pen = pen + sign[9] * small;
                             end
                             -- Letters are part of the name, not independent status icons.
@@ -1387,16 +1569,27 @@ function custom.Frame(options, hook, formats)
                             top + math.max(0, under - top - height), scale, now) or under);
                     end
 
-                    if (options.showHealthBar[1] and bit.band(options.healthBarCategories[1], name.Category) ~= 0
+                    written.barScale = scale * height / fullHeight;
+                    written.barLeft, written.barRight, written.barWidth = nameLeft, nameLeft + width, options.healthBarWidth[1];
+                    if written.cast and options.castBarAutoWidth[1] and written.barNameLeft ~= nil then
+                        written.barLeft, written.barRight = nameLeft + written.barNameLeft, nameLeft + written.barNameRight;
+                        written.barWidth = math.max(written.barWidth, (written.barRight - written.barLeft) / written.barScale);
+                    end
+                    if (not written.simplified and options.showHealthBar[1] and bit.band(options.healthBarCategories[1], name.Category) ~= 0
                             and (not options.healthBarsCombatOnly[1] or nameColours.InCombat(name, entities))) then
                         -- the bar is its saved size under a name at its largest, and shrinks with the name
                         -- as it goes further away (or grows with it, hunted or under the sub-target cursor)
-                        under = healthbar.Write(name, entities, nameLeft, nameLeft + width,
-                            under, scale * height / fullHeight, fill, options.healthBarWidth[1], options.healthBarHeight[1]);
+                        under = healthbar.Write(name, entities, written.barLeft, written.barRight,
+                            under, written.barScale, fill, written.barWidth, options.healthBarHeight[1], written.cast ~= nil);
+                    end
+                    if written.cast then
+                        under = fontPipeline.WriteCast(written.cast, set, written.barLeft, written.barRight, under,
+                            written.barScale, fit, height, written.barWidth, options.healthBarHeight[1], textOpacity,
+                            options.castNameScale[1], options.castTimerScale[1], nameTint);
                     end
 
                     -- the row of statuses over all of it, or under it
-                    if (statusRows) then
+                    if (statusRows and not written.simplified) then
                         statuses.Write(name, nameLeft, nameLeft + width, clear, under, height, scale);
                     end
 

@@ -24,8 +24,9 @@ local function id(party, read)
     return type(value) == 'number' and value or 0;
 end
 
-function roles.Begin(options, memory)
+function roles.Begin(options, memory, needed)
     for key in pairs(signs) do signs[key] = nil; end
+    if needed == false then replace = false; return false; end
     local mode = options.partyIcons ~= nil and options.partyIcons[1] or 'off';
     replace = mode == 'replace';
     local party = mode ~= 'off' and memory ~= nil and memory.GetParty ~= nil and memory:GetParty() or nil;

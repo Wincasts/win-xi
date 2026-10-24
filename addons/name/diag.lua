@@ -1,6 +1,6 @@
 -- What name has been doing, kept for testers to send in: why the names it draws stopped, if they
 -- did, and a short history of what happened around it. Off unless turned on, with /name diag:
--- while off, nothing is kept, said or written but what diag.Write is asked for.
+-- while off, no diagnostic history is collected; Write and Report work on demand.
 --
 --   diag.Enabled(), diag.Enable(on)
 --   diag.Frame(reason, detail)  each frame: nil while the names are drawn, or why they were not, a
@@ -12,7 +12,9 @@
 --   diag.HandlePacket(e)      every packet in goes by this: the area entered is noted
 --   diag.Status()             a sentence for the settings: drawing, or paused and why
 --   diag.Write(why)           writes a log file, and returns its path or nil and why not
---   diag.LastPath()           the last file written, or nil
+--   diag.LastPath()           the last detailed log written, or nil
+--   diag.ReportText(), Report() privacy-safe summary text / explicitly requested file
+--   diag.LastReportPath()     the last shareable report, separate from detailed logs
 --
 -- The plugin draws the game's names again when a claim is not made for HOOK_CLAIM_TIME (half a
 -- second). A pause shorter than that is not seen and is only counted; a longer one is put in the
@@ -29,6 +31,7 @@ local diag = {};
 diag.Reasons = {
     unloaded = 'the namehook plugin is not loaded',
     old      = 'the namehook plugin has no block this addon can read',
+    features = 'namehook 1.35 or newer is required for independent icon outlines',
     mismatch = 'the namehook plugin and this addon are of different versions',
     unhooked = 'the namehook plugin did not recognise this client\'s name drawing',
     texture  = 'imgui\'s font texture was not ready, or could not be read',
@@ -332,4 +335,90 @@ function diag.Write(why)
     return path;
 end
 
+-- Shareable report is an allowlist, deliberately separate from the detailed log.
+-- Never include character/entity names, paths, formats, raw errors or history.
+local lastReportPath, reportNumber = nil, 0;
+function diag.LastReportPath() return lastReportPath; end
+function diag.ReportText()
+    local lines = { ('Name %s support report'):format(addon.version),
+        'Privacy: no character names, chat, paths, formats, raw errors or history.', '' };
+    local function safe(label, read)
+        local ok,value=pcall(read);
+        lines[#lines+1]=('%-22s %s'):format(label,ok and tostring(value) or 'unavailable');
+    end
+    safe('WinXI',function() return require('winxi.version').Number; end);
+    local ok,hook=pcall(nameplates.Hook);
+    if not ok then hook=nil; end
+    safe('namehook',function()
+        local caps=nameplates.Capabilities(hook);
+        return caps and ('%d.%02d (capability build %d)'):format(math.floor(caps.build/100),caps.build%100,caps.build)
+            or 'version unavailable; plugin absent or no capability sidecar';
+    end);
+    safe('Capabilities',function()
+        local caps=nameplates.Capabilities(hook);
+        return caps and ('API %d; mask 0x%X'):format(caps.version,caps.features) or 'unavailable';
+    end);
+    safe('Custom rendering',function()
+        if not (diag.Options and diag.Options.drawNames and diag.Options.drawNames[1]) then return 'disabled'; end
+        if hook==nil then return 'plugin unavailable'; end
+        if hook.Hooked==0 then return 'client hook unavailable'; end
+        if not nameplates.Supports(nameplates.Feature.IconOutline,hook) then return 'unsupported plugin capabilities'; end
+        return reason and (diag.Reasons[reason] or 'unknown pause') or 'enabled (recent failures recorded only with diagnostics on)';
+    end);
+    safe('Display',function() local d=imgui.GetIO().DisplaySize;return ('%.0fx%.0f'):format(d.x,d.y);end);
+    safe('Game picture',function() return ('%.0fx%.0f'):format(hook.TargetWidth,hook.TargetHeight); end);
+    safe('Visible candidates',function() return tonumber(hook.Count); end);
+    safe('Drawing buffer',function()
+        if hook.Draw==nil or hook.Draw==0 then return 'unavailable'; end
+        local drawing=ffi.cast('namehook_draw_t*',hook.Draw);
+        return ('%d / %d quads'):format(drawing.QuadCount,drawing.QuadsMax);
+    end);
+    safe('ImGui font texture',function() return fonts.Texture()~=nil and 'ready' or 'not ready'; end);
+    safe('Native font readback',function() return hook.FontTexture~=0 and 'available' or 'not ready'; end);
+    safe('Smooth Font requested',function() return diag.Options.fontSmooth[1] and 'yes' or 'no'; end);
+    if diag.Runtime then
+        local read,rows=pcall(diag.Runtime);
+        if read and type(rows)=='table' then
+            for _,row in ipairs(rows) do lines[#lines+1]=('%-22s %s'):format(row[1],row[2]); end
+        else lines[#lines+1]='Runtime resource summary unavailable'; end
+    end
+    lines[#lines+1]='';
+    lines[#lines+1]='Recent rendering failures (counts only; recording must be enabled):';
+    local any=false;
+    for _,key in ipairs({'unloaded','old','features','mismatch','unhooked','texture','draw','error'}) do
+        local known=counts[key];
+        if known then
+            any=true;
+            lines[#lines+1]=('%s: %d brief, %d sustained, %d frames'):format(key,known.blips,known.seen,known.frames);
+        end
+    end
+    local total=0;
+    for _,known in pairs(errors) do total=total+known.count; end
+    lines[#lines+1]=('Lua errors recorded: %d (%d distinct; contents omitted)'):format(total,#errorOrder);
+    if not any then lines[#lines+1]='No completed pauses recorded.'; end
+    lines[#lines+1]=enabled and 'Diagnostics recording: on' or 'Diagnostics recording: off (no recent history collected)';
+    return table.concat(lines,'\n')..'\n';
+end
+function diag.Report()
+    local ok,result=pcall(function()
+        local install=tostring(AshitaCore:GetInstallPath()):gsub('[\\/]$','');
+        local folder=('%s\\config\\addons\\%s\\logs\\'):format(install,addon.name);
+        reportNumber=reportNumber+1;
+        local path=folder..('name-report-%s-%03d.txt'):format(os.date('%Y%m%d-%H%M%S'),reportNumber);
+        local text=diag.ReportText();
+        makeFolder(folder);
+        local file,problem=io.open(path,'w');
+        if not file then error(problem); end
+        local wrote,written,why=pcall(file.write,file,text);
+        local closed,done,closeWhy=pcall(file.close,file);
+        if not wrote then error(written); end
+        if not written then error(why or 'write failed'); end
+        if not closed then error(done); end
+        if not done then error(closeWhy or 'close failed'); end
+        return path;
+    end);
+    if not ok then return nil,tostring(result); end
+    lastReportPath=result;
+    return result;
+end
 return diag;

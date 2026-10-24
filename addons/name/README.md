@@ -16,6 +16,10 @@ Shows and hides the names over characters' heads, by what they are over. A setti
 
 ## Settings
 
+Settings tooltip wording is editable in [`tooltips/name.md`](../../tooltips/name.md).
+See the [editing and build instructions](../../tooltips/README.md). The catalogue
+changes wording only, not controls, saved settings, or tooltip appearance.
+
 The preferred baseline is in `name_defaults.lua`, taken from the author's own settings.
 It uses **trebucbi.ttf**, not bold, maximum/minimum font sizes **30/10**, the sub-target's
 name at **125%**, **90% check size**, **90% icon size**, **4 px icon spacing**, **1 px outline**,
@@ -34,7 +38,8 @@ The menus follow Trigger's layout: named sections, aligned controls, and visible
 
 The tabs are **General → Names → Health Bars → Statuses → Visibility**, and **NM Tracking** after `/name dev`.
 
-- **General:** **Preset**, a premade look to start from, and the switches for what Name draws.
+- **General:** **Enable Name** first, then **Preset**, a premade look to start from,
+  and the Health Bars / Status Icons switches.
   A preset sets the three formats, the check line, Health Bars and Combat Only, Status Icons and
   Check Details; font, sizes, colours, visibility and the chosen statuses are left as they are. The
   list says **Custom** when the settings are none of them.
@@ -46,13 +51,56 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   | Robust | `[icons: space=4][name]` | `[aggro: space=4]Lv [level]. [name] [letters] ([distance: decimals=1]y)` | Always | On | On |
   | Immersive | `[icons: space=4][name]` | `[name]` | In combat | Off | Off |
 
-  NPCs are `[name]` in each. **Custom Nameplates**, on to begin with, is Name drawing the names; off,
+  NPCs are `[name]` in each. **Enable Name**, at the top of General and on to begin with, is Name drawing the names; off,
   Name lets them go at once and the game draws its own as namehook sizes them (`/namehook fontsize`),
   unstretched, Visibility still saying which are shown. Name's health bars and status icons are not
-  drawn while it is off. **Health Bars** and **Status Icons** are the same switches as in their own tabs.
+  drawn while it is off. All other Name settings are greyed out across the tabs until enabled again;
+  saved values are kept. **Health Bars** and **Status Icons** are the same switches as in their own tabs.
 
+- **Rendering readability:** namehook **1.32** adds a smoother eight-direction text
+  halo with a subtle downward shadow, and antialiased HP-bar edges that stay smooth
+  under Lens counter-transformation. Nearby font size, name placement, colours and
+  format strings are unchanged. Small names retain more outline contrast. Install
+  the updated `namehook.dll` as well as Name and WinXI; older plugins still draw
+  bars, but with their previous hard edges. Outline 0 still disables the halo/shadow.
+  Letter badges additionally use a 4×4 area-sampled box/cutout mask and a transparent
+  texture guard, so filtering can smooth their straight sides as well as rounded
+  corners. The guard is excluded from visible size, text advance and baseline;
+  single/double badge spacing, tint and nameplate centring are unchanged. This
+  badge pass is built once per cached atlas, not every frame, and needs no further
+  plugin update beyond the halo changes above. Name text still uses its existing
+  glyph atlas by default. Optional **Smooth Font**, beside **Bold**, builds a cached
+  atlas by area-averaging a 4× glyph raster down to native drawing pixels at each
+  existing distance-size rung. Transparent guards allow edge filtering without
+  changing the normal font's bearings, advances or baseline. Bold remains independent;
+  icons/badges keep their existing rendering. Text uses the existing font texture
+  slot, with its own white tile for HP bars; source-font icons and missing glyphs
+  keep the original texture in the sign slot, so no extra texture slot is needed.
+  Off by default for comparison; smooth mode uses more atlas memory and can soften
+  very small text. Builds wait one stable frame for the source upload and are cached
+  until the font, size, source texture or glyph UVs change. While preparing, or after
+  a build failure, direct glyph rendering is used instead; failures report once and
+  retry at most once a second for an unchanged source. Switching Smooth Font off
+  releases Name's generated texture and high-resolution glyph-cache handles;
+  switching it back on builds a fresh atlas. ImGui owns the shared source atlas
+  and may retain that allocation until it reclaims/rebuilds it. No further plugin
+  update is required for filtered text.
+  **Icon outlines** have independent **Icon Outline (px)** (0–3) and
+  **Icon Outline Opacity (%)** (0–100) controls. Defaults are 1 px and 100%, applied
+  uniformly to player, party-role, vendor, aggro/passive, sense and check icons.
+  Text Outline 0 no longer disables icon outlines; either icon control at zero
+  disables only icon edges. Fills, layout, colours, mastery stars and letter
+  badges are unaffected. Width follows the existing resolution/distance scaling;
+  small names may use a thinner edge. Aggro/passive and tracked-monster glyphs
+  remain shadow-free, but now follow your chosen width rather than a fixed cap.
+  Name 1.63 requires **namehook 1.35** and **WinXI 47**. A capability check prevents
+  older ABI-compatible plugins from silently ignoring independent width. Unsupported
+  plugins retain stock names and visibility controls, with an update warning.
+  `./deploy.sh push name` includes changed WinXI and the built DLL before Name;
+  reload every addon using WinXI, plus namehook. Deployment still requires confirmation
+  and backups; no automatic compilation or live writes happen while developing.
 - **General Name Appearance:** common Font, Bold, Maximum/Minimum Name Size,
-  Subtarget Size and Outline. One maximum/minimum pair applies to every entity type,
+  Subtarget Size, Text Outline, Icon Outline and Icon Outline Opacity. One maximum/minimum pair applies to every entity type,
   including players, pets, enemies and NPCs.
 - **Player Names:** a directly editable **Player Format**, including inline player
   icons through `[icons]` instead of a separate checkbox. The format applies to your
@@ -79,9 +127,10 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   `[distance]`, `[icons]`, literal text and colours; enemies additionally support
   `[level]`, `[aggro]`, `[checked]`, `[letters]`.
 - **Health Bars**, a tab of its own, has one shared **Enabled** toggle,
-  **Combat Only**, and **Health Bar Width/Height** for every entity, including pets,
+  **Combat Only**, and shared **Bar Width/Height** for HP and cast rows, including pets,
   trusts and NPCs. Dimensions and Combat Only stay visible but disabled while bars
-  are off. Bars require valid live HP/server-ID data; full-health entities have none.
+  are off. HP bars require valid live HP/server-ID data; full-health entities have none
+  unless an active cast needs the enabled HP row above it.
   Combat Only requires that particular entity to be alive and Engaged (status 1).
   Targeting/claiming alone is not combat; missing status data hides the bar.
   **Entity Types** under it says which kinds of name have a bar: Yourself, Party
@@ -125,17 +174,23 @@ Diagnostics is collapsed by default and includes an Enable Diagnostics checkbox.
 
 ## Custom names
 
-Rendering is always enabled while Name and its compatible plugin are loaded.
-In the first tab, Names, configure how the names are drawn in winxi's
-outlined text and not by the game: each in the colour the game gives it, with icons wherever
-`[icons]` appears in its format. Which names are shown is still set in the Visibility tab; only how they look changes. It needs
-namehook 1.10 or later.
+Enable Name in General chooses custom rendering versus the game's own names.
+The Names tab configures WinXI text, in the game's colours, with icons wherever
+`[icons]` appears in its format. Visibility still decides which names are shown.
+Custom rendering requires namehook 1.35 or newer and WinXI 47 or newer.
+Turning Name off, losing the plugin or reloading settings/changing profile releases Name's
+owned generated atlases and file textures; cleanup is idempotent. ImGui still owns
+its shared font atlas. The draw buffer is invalidated before freeing GPU owners,
+so a texture released before the plugin's first scene cannot leave a stale pointer.
+Removing `[letters]` releases the cached badge texture, and
+rebuilds promptly release replaced badge atlases rather than waiting for Lua GC.
 
 | Setting | What it does |
 |---|---|
 | Health Bars → Enabled (shared) | Off by default. Shows a bar matching the name's colour for damaged names of every type when HP is available. Full-health names have no bar. Bars follow visibility/fading and leave room for check details and statuses |
-| Health Bar Width / Height (px, Health Bars, shared) | One pair for all types, the bar's size under a name at its largest; it shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
+| Bar Width / Height (px, Health Bars → Shared Bar Size) | One pair for HP and cast rows of all types, the bar's size under a name at its largest; it shrinks with the name as it goes further away, and grows with a hunted or sub-targeted one. Defaults to **60 × 6 px**, including border. Width: 12–300; height: 3–40. Saved per character |
 | Bold | Makes names and check-detail text heavier. Each letter is drawn twice, a pixel apart. On in the preferred defaults; icons and stars are unchanged |
+| Smooth Font (beside Bold) | Off by default. Uses a cached, area-filtered text atlas generated from 4× rasterised glyphs, with transparent edge guards. Native layout metrics and Bold's one-pixel stroke are retained; icons and badges are unchanged. More atlas memory and a one-time build cost; direct rendering is used while preparing or unavailable |
 | Combat Only (Health Bars) | Off by default. Requires each entity's own Engaged status (1) and HP above zero. Missing/invalid data hides the bar; applies to players, enemies, pets/trusts and NPCs |
 | Maximum Name Size (px, General) | Shared nearby text height, 6–48 pixels, for every entity type; independent of bar dimensions |
 | Minimum Name Size (px, General) | Shared distant text height for every type, never more than the maximum |
@@ -152,6 +207,98 @@ namehook 1.10 or later.
 | Abbreviate Difficulty | On by default: TW, IEP, EP, DC, EM, T, VT and IT alongside aggro/link information. Difficulty alone uses full words; Impossible to Gauge stays ???. Off restores full difficulty names in either layout |
 | Display Style → Text Only | A sentence without icons, such as `TW, Sight Aggro, Link: Goblin (Sight)`. Available while Check Details is enabled |
 | Show Mastery Stars | The three stars over the name of a player with a job mastered |
+
+### Cast bars and shared bar layout
+
+In **Health Bars → Cast Bars**, enable cast bars (off by default). When enabled,
+**Show Weaponskills** also enables readied monster TP moves and weaponskill names;
+that option starts off too. **Cast Name Size (%)** and **Timer Size (%)** independently
+scale the two text rows relative to the nameplate font (25–200%, default **75%** for
+the existing appearance). Bar dimensions and nameplate text are unchanged; the status
+anchor follows the resized captions. Upscaled text can look softer.
+
+**Preview** is a session-only, clearly labelled animated sample under visible names.
+It uses the actual bar/caption layout and your real HP row when enabled, and alternates
+spell/TP styles with Show Weaponskills. Real actions take precedence; samples create
+no packets or observed actor records. It stops shortly after leaving the visible Cast
+Bars settings section/window, and resets on disable/profile reload. The preview switch
+is never saved. Enable Cast Bars first to access these controls.
+
+Cast bars apply to visible names with a matching live
+entity identity; the existing Entity Types and Combat Only controls still filter
+HP bars only.
+
+**Health Bars → Shared Bar Size** contains one **Bar Width / Bar Height** pair for
+both kinds of bar. These reuse the saved `healthBarWidth` / `healthBarHeight` values;
+there is no separate cast-bar size to drift out of alignment. **Auto-scale to Name**
+(off by default) extends the bar to fit the visible **entity name plus visible letter
+badges**, in either token order. The saved width remains a minimum. It measures the
+name/letter span, including spaces between them, not the action caption, surrounding
+icons or distance/check details. Both bar rows are centred under that span and grow
+together while a cast/preview is shown; ordinary HP-only layout stays unchanged.
+Hidden tokens do not count, and formats with neither name nor letters keep the saved
+width. Text-scale controls and bar height are independent of auto-width.
+
+With auto-width off, cast-only starts at
+exactly the existing HP-bar origin. If an eligible HP row is enabled, HP is above
+cast, with matching left edges, widths and heights. While casting, the HP row remains
+visible even at full health so taking damage does not move the cast row. Away from
+casts, the existing hide-at-full-HP behaviour is unchanged.
+
+The cast-bar fill inherits the **resolved entity-name colour**, including explicit
+name-token colour and fading, for spells, weaponskills and previews alike. It fills
+forward, with the **action name** and a **timer** on two centered
+lines below it. Labels may extend past a narrow bar rather than shrinking to unreadable
+text. Below-name status rows start below these labels. Bars and labels inherit the
+nameplate's scaling/fading, use the existing font atlas, and need no new texture slot.
+Active casters remain fully detailed in crowd mode.
+
+Start packets do **not** include effective cast duration. Timers marked **~** use
+estimated base spell/monster-preparation timings; Fast Cast, mob modifiers, scripts
+and network timing can change reality. Finish/interrupt packets take precedence.
+When the estimate runs out first, a full bar says **Waiting** until the result or a
+bounded safety timeout. Unknown timings show **+elapsed seconds** with an empty bar,
+not an invented percentage. Completed/instant weaponskills briefly show a full bar,
+the observed name and **Used**, never a fabricated ready phase. Completed spells
+clear immediately. Death, despawn, zone/profile changes, disabling Name/cast bars and
+plugin loss clear tracked actions; actors are keyed by server ID, checked against
+live entity identity, and bounded to 256 records. Already-running casts cannot be
+recovered if their start packet was missed.
+
+Base mob ready times are generated from Phoenix SQL (estimates, not runtime overrides):
+
+```sh
+python3 tools/build_name_cast_times.py --server references/Phoenix
+```
+
+### Optional readability policies
+
+Both additions are **off by default**, under Names. They do not move plate anchors,
+change font size or affect saved formats, and disabling them restores normal presentation.
+
+**Crowd Decluttering** counts wanted, positive-scale, nontransparent anchors projected
+inside the output window (including Lens projection). Default entry threshold is **20 names**,
+with **750 ms** of stable crowding before simplifying. Exit requires three fewer names,
+held for the same duration. This estimates crowding; it does not detect occlusion or
+individual rectangle overlaps.
+
+Ordinary plates keep their name, aggro cue and monster letters, including explicit colours
+and token conditions. Secondary text/punctuation, player/vendor icons, stars, check lines,
+HP bars and status rows are omitted. A deliberately name-less format stays name-less.
+Your target/subtarget, yourself, party/alliance, own pet, whitelisted/charmed players,
+tracked NM/placeholders and observed active casters (with Cast Bars enabled) remain
+fully detailed, immediately. No overlap-driven
+plate repositioning or hiding of core names is performed. Font warming is unchanged.
+
+**Distance Thresholds** colour existing `[distance]` tokens: warning at **20 y**, danger
+at **25 y**, with editable colours and a default **1 y** exit margin. Entry happens at the
+threshold; a warning clears only below its threshold minus the margin. The margin is limited
+to less than Warning Distance so clearing remains reachable. Danger wins equal thresholds.
+Explicit token/block colours take precedence, and ordinary nameplate fading still applies.
+Other text and artwork keep their colours. Comparisons use full measured distance, not
+rounded display text. Invalid/unavailable distances display no stale digits or highlights.
+State resets on identity, settings/enable and zone changes. These are **distance thresholds,
+not guaranteed spell/ability range checks**. Formats and presets are not rewritten.
 
 ### Rendering optimizations
 
@@ -593,11 +740,27 @@ not start just because HP reaches zero while the corpse is still visible. Late n
 not restart it, respawning releases it, and an index reused by a different entity immediately
 suppresses the stale label. Missing render-flag data alone does not trigger a disappearance.
 
-Player icons and mastery stars use the bundled `assets/player-icons.png`, loaded through the same
-owned Direct3D file-texture cache as the mob icon sheets. `assets/player-icons.lua` contains the fixed
-character-to-pixel mapping; `icons.lua` no longer scans or reads the game's font memory. The linkshell
-pearl retains its linkshell's colour, and two-part icons retain their overlay. Failed sheet loads retry
-once per second; successful textures remain cached for the addon lifetime.
+**Names → Player Names → Player Icon Source** chooses the artwork for player icons and mastery stars:
+
+- **Game DATs** (default): reads the client's menu DAT, including its icon UV mapping and composite
+  overlays, through the Pivot-aware file reader. XIPivot's `redirect_fopens` must be enabled to see its
+  replacements. The menu resource's file-table path is honoured, with `ROM/119/51.DAT` as the fallback.
+  Supported artwork is a DXT3 `ustatshd` atlas with `fontshp` shapes; non-stock atlas dimensions and
+  rearranged rectangles are supported. Alpha is doubled to match the game. A missing, malformed or
+  unsupported DAT falls back to the bundled icons without changing the saved selection.
+- **Bundled**: uses `assets/player-icons.png` and the included mapping, independent of installed DATs.
+- **Custom**: loads `addons/name/assets/player-icons-custom.png`. Copy `player-icons.png` as a template:
+  preserve its proportional atlas layout, including composite pieces. Higher-resolution versions of
+  the same layout work too. Custom PNGs use normal PNG alpha, not DAT's doubled alpha. If the file
+  cannot load, Name falls back to Bundled. Different custom layouts/mappings are not yet supported.
+
+The linkshell pearl retains its linkshell's colour, and two-part icons retain their overlay. The
+selection does not change party/alliance role icons, vendor icons, or monster aggro/sense icons.
+The UI reports a fallback and offers its reason on hover. Successful DAT reads/uploads are cached,
+not repeated per frame; failures retry at most every ten seconds. Switching sources releases the
+owned DAT texture and retries on returning to Game DATs. PNG failures retry once a second through the
+shared image loader. Reload Name after modifying an already-loaded image or changing Pivot packs.
+No signatures, game font-memory scans, borrowed textures or Python are needed at runtime.
 
 The atlas and mapping were exported from the installed client's high-resolution `ustatshd` and
 `fontshp` resources in `ROM/119/51.DAT`, with icon alpha doubled to match the game's rendering.
@@ -607,8 +770,9 @@ To regenerate from a local install (Python with Pillow):
 python tools/export_name_icons.py '/path/to/FINAL FANTASY XI/ROM/119/51.DAT'
 ```
 
-The addon needs only the bundled PNG and mapping at runtime. Custom game icon/font DAT replacements
-are not automatically reflected; replace/regenerate the bundled atlas if desired.
+This export remains the independent fallback and Custom PNG template; Game DATs mode reads active
+artwork directly without regenerating these files. Source decoding lives in `playerdat.lua`; selection,
+fallback and per-source mapping changes live in `icons.lua`.
 
 With the addon unloaded, or the plugin not recognising the client, the game draws
 the names as before.
@@ -626,7 +790,17 @@ so, and what is set is given to the plugin when it is.
 
 ## Diagnostics
 
-Off unless turned on, for testers:
+**Write Report** in Names → Diagnostics produces a shareable support summary with one
+click, without enabling diagnostic recording. `/name report` also works with Enable Name
+off. Files are `config\\addons\\name\\logs\\name-report-<date>-<time>-<sequence>.txt`.
+Nothing is uploaded. Reports include addon/library/capability-build versions, capability
+flags, display/draw counts, generated font/badge atlas dimensions, active artwork source
+and fallback state, observed cast counts, and recorded rendering failure counts. They omit character/entity
+names, chat, paths, user-entered formats, raw errors and history. Reader failures are redacted.
+Recent failure counts are available only when diagnostic recording was enabled; a report
+still captures current state when it was off.
+
+Detailed diagnostic recording is off unless turned on, for testers:
 
 ```
 /name diag          turns diagnostics on or off; kept with the character's settings
@@ -642,14 +816,16 @@ The reasons:
 | Reason | What it means |
 |---|---|
 | `unloaded`, `old`, `mismatch` | The namehook plugin is not loaded, or is not the version this addon reads. No log is written for `unloaded` |
+| `features` | The ABI is readable but independent icon outlines are unsupported; stock names remain |
 | `unhooked` | The plugin did not recognise this client's name drawing |
 | `texture` | imgui's font texture was not ready, or could not be read |
 | `draw` | The plugin had no drawing buffer |
 | `error` | A Lua error in the frame. It is still raised as before, and kept once in the log with its traceback and a count |
 
-With diagnostics off, nothing is kept or said, and the frame is drawn exactly as without them.
+With diagnostic recording off, no diagnostic history/errors are retained. The on-demand
+support report and normal compatibility/fallback warnings remain available.
 
-**Write Log** in the Status section, while diagnostics are on, writes a log as `/name diag log` does. Logs are small text files in
+**Write Log** in Names → Diagnostics, while diagnostics are on, writes a log as `/name diag log` does. Logs are small text files in
 `config\addons\name\logs`, named `name-<date>-<time>.txt`. Each holds:
 
 - The plugin's state: whether it is hooked, the frame and the last claim, what is claimed and
@@ -661,4 +837,5 @@ With diagnostics off, nothing is kept or said, and the frame is drawn exactly as
   fonts or letter badges that would not load, and each time imgui makes the font texture again.
 - The settings.
 
-Testers can send the file with a report.
+Detailed logs can contain character names, local paths, format strings and raw errors.
+Prefer **Write Report** for sharing; inspect detailed logs before sending them.

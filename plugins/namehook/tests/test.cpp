@@ -9,6 +9,8 @@
 
 #include "../src/Nameplate.cpp"
 #include "../src/NameBounds.h"
+#include "../src/NameSubmission.h"
+#include "../../lens/src/warp.h"
 
 #include <string>
 #include <vector>
@@ -139,6 +141,48 @@ static uint32_t CategoryOf(const XiModel* model) {
 }
 
 int main() {
+    CHECK(sizeof(HookCapabilities) == 32);
+    CHECK(NamehookCapabilities.Size == sizeof(HookCapabilities) && NamehookCapabilities.Version == 1);
+    CHECK((NamehookCapabilities.Features & FEATURE_EDGE_RADIUS) != 0 && NamehookCapabilities.Build == 135);
+    {
+        const NameBounds bounds{ -50, -10, 50, 10 };
+        CHECK(!bounds.Intersects(-60, 540, 0, 0, 1920, 1080));
+        for (auto mode : { lens::Panini, lens::Cylindrical }) {
+            double counter[4];
+            lens::Counter(-60.0 / 1920, .5, 1920, 1080, 1.8, 1.0125, mode, 1, counter);
+            const auto warped = bounds.Transformed(counter[0], counter[1], counter[2], counter[3]);
+            CHECK(warped.Intersects(-60, 540, 0, 0, 1920, 1080));
+            CHECK(!warped.Intersects(-1000, 540, 0, 0, 1920, 1080));
+        }
+        const auto shear = bounds.Transformed(.5f, .3f, -.2f, 2);
+        CHECK(shear.Left < -29 && shear.Right > 29 && shear.Top < -31 && shear.Bottom > 31);
+        const auto contracted = bounds.Transformed(.01f, 0, 0, .01f);
+        CHECK(contracted.Left < -1 && contracted.Top < -1); // retain the screen-space AA fringe
+        const auto extreme = bounds.Transformed(.1f, 100, 0, .001f);
+        NameGeometry::SoftRectangle rectangle;
+        CHECK(rectangle.Make({ -1005, -.01f }, { -995, -.01f }, { 995, .01f }));
+        for (const auto& point : rectangle.Outer) {
+            CHECK(point.x >= extreme.Left && point.x <= extreme.Right);
+            CHECK(point.y >= extreme.Top && point.y <= extreme.Bottom);
+        }
+    }
+    {
+        int first = 1, second = 2;
+        int* textures[8] = { &first, &second, nullptr, nullptr, &first };
+        NameRun runs[16]{};
+        uint32_t count = 0;
+        CHECK(!NameSubmission::Visible(0x00FFFFFF) && NameSubmission::Visible(0x01000000));
+        NameSubmission::Append(runs, count, 0, 0, 6, 0x40000000, textures);
+        CHECK(count == 1 && !runs[0].WritesDepth(128));
+        NameSubmission::Append(runs, count, 4, 6, 6, 0xFFFFFFFF, textures);
+        CHECK(count == 1 && runs[0].first == 0 && runs[0].count == 12 && runs[0].WritesDepth(128));
+        NameSubmission::Append(runs, count, 1, 12, 6, 0x7FFFFFFF, textures);
+        CHECK(count == 2 && !runs[1].WritesDepth(128));
+        NameSubmission::Append(runs, count, 1, 18, 6, 0x80FFFFFF, textures);
+        CHECK(count == 2 && runs[1].count == 12 && runs[1].WritesDepth(128));
+        NameSubmission::Append(runs, count, 0, 24, 6, 0xFFFFFFFF, textures);
+        CHECK(count == 3 && runs[2].first == 24); // no reordering across a different texture
+    }
 	Clock = FakeClock;
 	static_assert(offsetof(Entity, Name) == 0x7C);
 	static_assert(offsetof(Entity, Flags0) == 0x120);
@@ -189,6 +233,38 @@ int main() {
 		Globals.pWindowWidth = Globals.pWindowHeight = nullptr;
 	}
 
+	// Soft rectangle ramps stay one render-target pixel wide AFTER a Lens-style
+	// affine transform, including rotated, sheared and nonuniformly scaled bars.
+	{
+		static_assert(NameGeometry::CopiesPerQuad >= 10);
+		for (const auto& offset : NameGeometry::Halo) {
+			CHECK(std::fabs(offset.x * offset.x + offset.y * offset.y - 1) < 0.00001f);
+		}
+		const NameGeometry::Point transforms[][3] = {
+			{ { 10, 20 }, { 110, 20 }, { 10, 28 } },
+			{ { 10, 20 }, { 110, 22 }, { 12, 28 } },
+			{ { 10, 20 }, { 110, 70 }, { 6, 28 } },
+			{ { 10, 20 }, { 210, 20 }, { 10, 24 } },
+		};
+		for (const auto& points : transforms) {
+			NameGeometry::SoftRectangle rect;
+			CHECK(rect.Make(points[0], points[1], points[2]));
+			CHECK(rect.Coverage == 1);
+			const float ax = points[1].x - points[0].x, ay = points[1].y - points[0].y;
+			const float length = std::sqrt(ax * ax + ay * ay);
+			auto distance = [&](NameGeometry::Point p) {
+				return (ax * (p.y - points[0].y) - ay * (p.x - points[0].x)) / length;
+			};
+			CHECK(std::fabs(distance(rect.Inner[0]) - 0.5f) < 0.00001f);
+			CHECK(std::fabs(distance(rect.Outer[0]) + 0.5f) < 0.00001f);
+		}
+		NameGeometry::SoftRectangle tiny;
+		CHECK(tiny.Make({ 0, 0 }, { 0.25f, 0 }, { 0, 4 }));
+		CHECK(tiny.Coverage == 0.25f && tiny.Inner[0].x == tiny.Inner[1].x);
+		CHECK(!tiny.Make({ 0, 0 }, { 0, 0 }, { 0, 4 }));
+		CHECK(!tiny.Make({ 0, 0 }, { 4, 0 }, { 8, 0 }));
+	}
+
 	// Whole-drawing culling is conservative: visible text with an off-screen
 	// anchor, outlines, stars and checked detail lines must all survive.
 	{
@@ -202,6 +278,20 @@ int main() {
 		CHECK(quad.EdgeOpacity() == 0.0f);
 		quad.Reserved = 255;
 		CHECK(quad.EdgeOpacity() == 1.0f);
+		CHECK(quad.EdgeRadius(3) == 3 && quad.EdgeRadius(20) == 8 && quad.EdgeShadow());
+		quad.Flags |= QUAD_TIGHT_EDGE;
+		CHECK(quad.EdgeRadius(3) == 1 && quad.EdgeRadius(20) == 1 && !quad.EdgeShadow());
+		CHECK(quad.EdgeRadius(0) == 0 && quad.EdgeRadius(0.5f) == 0.5f);
+		quad.Flags = QUAD_EDGED | QUAD_EDGE_OPACITY | QUAD_TIGHT_EDGE | QUAD_EDGE_RADIUS;
+		quad.Reserved = (640 << 8) | 128;
+		CHECK(quad.EdgeRadius(0) == 2.5f && quad.EdgeRadius(8) == 2.5f && !quad.EdgeShadow());
+		CHECK(quad.EdgeOpacity() == 128.0f / 255.0f);
+		quad.Reserved = (0xFFFF << 8) | 255;
+		CHECK(quad.EdgeRadius(0) == 8);
+		quad.Reserved = 640 << 8;
+		CHECK(quad.EdgeRadius(3) == 0); // zero opacity skips invisible halo passes
+		quad.Flags = QUAD_TIGHT_EDGE;
+		CHECK(quad.EdgeRadius(3) == 0 && !quad.EdgeShadow());
 	}
 	{
 		HookDrawing drawing{};
@@ -217,7 +307,7 @@ int main() {
 		quads[2].Y0 = 16; quads[2].Y1 = 28; quads[2].Flags = 1; // detail line
 		NameBoundsCache cache;
 		const NameBounds first = cache.Get(drawing, quads);
-		CHECK(first.Left == -52 && first.Right == 52 && first.Top == -20 && first.Bottom == 30);
+		CHECK(first.Left == -52 && first.Right == 52 && first.Top == -20 && first.Bottom == 30 + NameGeometry::ShadowDrop);
 		CHECK(first.Intersects(-10, 10, 0, 0, 100, 100)); // anchor off screen, letters visible
 		CHECK(first.Intersects(-40, 10, 0, 0, 100, 100)); // only the detail line reaches in
 		CHECK(first.Intersects(50, 115, 0, 0, 100, 100)); // only the stars reach in
@@ -243,6 +333,26 @@ int main() {
 		CHECK(cache.Get(drawing, quads, 0.5f).Right == 44);
 		CHECK(cache.Get(drawing, quads, 0.5f).Top == -8);
 		CHECK(cache.Get(drawing, quads, 1.0f).Right == 48);
+		quads[0].Flags = QUAD_SOFT_RECT;
+		drawing.Frame++;
+		const auto soft = cache.Get(drawing, quads);
+		CHECK(soft.Left == -31 && soft.Right == 41 && soft.Top == -1 && soft.Bottom == 13);
+		quads[0].Flags = QUAD_EDGED | QUAD_TIGHT_EDGE;
+		drawing.Frame++;
+		const auto tight = cache.Get(drawing, quads);
+		CHECK(tight.Left == -31 && tight.Right == 41 && tight.Top == -1 && tight.Bottom == 13);
+		quads[0].Flags |= QUAD_EDGE_RADIUS | QUAD_EDGE_OPACITY;
+		quads[0].Reserved = (768 << 8) | 255;
+		drawing.Edge = 0;
+		drawing.Frame++;
+		const auto independent = cache.Get(drawing, quads);
+		CHECK(independent.Left == -33 && independent.Right == 43 && independent.Top == -3 && independent.Bottom == 15);
+		quads[0].Flags &= ~QUAD_TIGHT_EDGE;
+		drawing.Frame++;
+		CHECK(cache.Get(drawing, quads).Bottom == 15 + NameGeometry::ShadowDrop);
+		quads[0].Reserved &= ~255;
+		drawing.Frame++;
+		CHECK(cache.Get(drawing, quads).Bottom == 12);
 		static HookDraw aspectDraw{};
 		CHECK(aspectDraw.HorizontalFit() == 1.0f);
 		aspectDraw.Reserved = 2 * 65536;

@@ -9,11 +9,13 @@ local widgets    = require('winxi.widgets');
 local nameplates = require('winxi.nameplates');
 local controls   = require('controls');
 local format     = require('format');
+local tips       = require('winxi.tips');
 local levels     = require('levels');
 local nameColours = require('name_colours');
 local nameTypes  = require('name_types');
 local entityTypes = require('entity_types');
 local roles      = require('roles');
+local icons      = require('icons');
 
 local settings = {};
 
@@ -64,17 +66,17 @@ function settings.DrawTracking(options, save)
             end
             imgui.EndCombo();
         end
-        controls.Mark('Track a notorious monster in this area. Requires [aggro] in Mob Format and Show Aggro Icons. The choice is saved when you leave.');
+        controls.Mark(tips.Get('name.tracking.monster'));
         if (options.trackedNm[1] ~= '') then
             controls.Slider('Target Size (%)', '##name.huntScale', options.huntScale, 100, 200, '%d%%',
-                'Enlarge the tracked monster\'s whole nameplate. Placeholders keep their normal size.');
+                tips.Get('name.tracking.size'));
         end
     end
     controls.EndSection();
     if (options.trackedNm[1] ~= '' and levels.Placeholders(options.trackedNm[1]) ~= nil
             and controls.Section('Placeholder Options', '##name.placeholderOptions')) then
             controls.Checkbox('Label Placeholders', '##name.labelPlaceholders', options.labelPlaceholders,
-                'Replace placeholder names with "Placeholder". The rest of each nameplate is unchanged.');
+                tips.Get('name.tracking.placeholders'));
     end
     controls.EndSection();
     controls.EndLayout();
@@ -87,9 +89,30 @@ function settings.DrawHealthBars(options, save)
         nameTypes.Draw(options);
     end
     controls.EndSection();
+    if controls.Section('Cast Bars', '##name.castBarOptions') then
+        controls.Checkbox('Enabled', '##name.showCastBar', options.showCastBar, tips.Get('name.cast_bars.enabled'));
+        if options.showCastBar[1] then
+            controls.Checkbox('Show Weaponskills', '##name.castBarWeaponskills', options.castBarWeaponskills,
+                tips.Get('name.cast_bars.weaponskills'));
+            controls.Checkbox('Auto-scale to Name', '##name.castBarAutoWidth', options.castBarAutoWidth,
+                tips.Get('name.cast_bars.auto_width'));
+            controls.Slider('Cast Name Size (%)', '##name.castNameScale', options.castNameScale, 25, 200, '%d%%',
+                tips.Get('name.cast_bars.name_scale'));
+            controls.Slider('Timer Size (%)', '##name.castTimerScale', options.castTimerScale, 25, 200, '%d%%',
+                tips.Get('name.cast_bars.timer_scale'));
+            local casts = require('castbar');
+            controls.Checkbox('Preview', '##name.castBarPreview', casts.Preview, tips.Get('name.cast_bars.preview'));
+            casts.PreviewVisible(os.clock());
+        end
+    end
+    controls.EndSection();
+    if controls.Section('Shared Bar Size', '##name.barSize') then
+        nameTypes.DrawSize(options);
+    end
+    controls.EndSection();
     if (controls.Section('Entity Types', '##name.healthBarTypes')) then
         imgui.BeginDisabled(not options.showHealthBar[1]);
-        if (entityTypes.Draw('healthBarTypes', options.healthBarCategories, 'Whether names of this kind have a health bar.') and save ~= nil) then
+        if (entityTypes.Draw('healthBarTypes', options.healthBarCategories, tips.Get('name.health_bars.entity_types')) and save ~= nil) then
             save();
         end
         imgui.EndDisabled();
@@ -100,28 +123,27 @@ end
 
 -- Keep format reference/examples on the editor's (?) rather than separate dropdowns.
 local formatHelp = {
-    nameFormat = 'Format for player names. Tokens:\n[name] - player name.\n[icons] - available game status icons.\n[distance] - distance in yalms.\n\nExample format:\n[icons: space=4][name] ([distance: decimals=1, color=yellow]y)\nExample result: [status icons] Player Name (12.4y)',
-    monsterFormat = 'Format for all enemy names, including targeted and checked enemies. Tokens:\n[name] - enemy name.\n[distance] - distance in yalms.\n[level] - database level range, or exact level after /check. [level: exact] - only the exact level, once checked.\n[aggro] - aggression/difficulty icon when known.\n[checked] - magnifying glass when the exact level is known from /check.\n[letters] - stable spawn-slot letter; [letter] is an alias.\nUse type=double for AA, AB after Z, or type=single to repeat A-Z.\n\nExample format:\n[aggro: space=4]Lv [level]. [name] [letters: type=double] ([distance: decimals=1]y)\nExample result: [aggro icon] Lv 80-82. Goblin Butcher AA (12.4y)\nRemove a token to hide its information; unknown values are omitted.',
-    npcFormat = 'Format for NPC names. Tokens:\n[name] - NPC name.\n[distance] - distance in yalms.\n[icons] - game-supplied icons, when present.\n\nExample format:\n[name: color=cyan] ([distance: decimals=1]y)\nExample result: Mog House (4.2y)',
+    nameFormat = tips.Get('name.format.player'),
+    monsterFormat = tips.Get('name.format.enemy'),
+    npcFormat = tips.Get('name.format.npc'),
 };
-local formatOptions = '\n\nOptions: color=yellow (or #RRGGBB), space=0-64 pixels after non-empty tokens.\n[distance]: decimals=0-2. [icons]: size=25-300 (% of name height), gap=0-24 pixels.\nSeparate options with commas, spaces or semicolons. Literal text stays where you type it.\nEnabled state colour overrides take precedence over name/spawn-letter token colours; other explicit token colours are unchanged.\nLegacy [name:yellow] and [#FF8000]text[/] still work.';
 local function DrawFormat(label, key, options, save)
     local enemy = key == 'monsterFormat';
     local baseline = enemy and '[aggro] [name] [letters]' or (key == 'nameFormat' and '[icons: space=4][name]' or '[name]');
     widgets.Label(label);
     controls.Width();
     imgui.InputText('##name.' .. key, options[key], math.max(1024, #options[key][1]+256));
-    controls.Mark(formatHelp[key] .. formatOptions .. '\nDefault: ' .. baseline);
+    controls.Mark(formatHelp[key] .. '\n\n' .. tips.Get('name.format.options', { default_format = baseline }));
     widgets.Label('Reset Format');
     if (imgui.Button('Reset##name.' .. (enemy and 'resetFormat' or ('reset.' .. key)))) then
         options[key][1] = baseline;
         if (save ~= nil) then save(); end
     end
-    controls.Mark('Restore this category\'s default format without changing other settings.');
+    controls.Mark(tips.Get('name.format.reset'));
 end
 
 function settings.DrawSettings(options, save)
-    local problem = nameplates.Problem();
+    local problem = nameplates.Problem(nameplates.Feature.IconOutline);
     if (problem ~= nil) then
         imgui.TextColored(warning, problem);
         widgets.Gap();
@@ -144,27 +166,41 @@ function settings.DrawSettings(options, save)
             end
             imgui.EndCombo();
         end
-        controls.Mark('A font of Windows\' own, by its file in C:\\Windows\\Fonts. Default is the font everything else is written in.');
-        controls.Checkbox('Bold', '##name.fontBold', options.fontBold,
-            'Makes names and check-detail text heavier, by drawing each letter twice, a pixel apart. Icons, stars and outline thickness are unchanged.');
+        controls.Mark(tips.Get('name.appearance.font'));
+        controls.Checkbox('Bold', '##name.fontBold', options.fontBold);
+        imgui.SameLine();
+        imgui.Checkbox('Smooth Font##name.fontSmooth', options.fontSmooth);
+        controls.Mark(tips.Get('name.appearance.bold') .. '\n\n' .. tips.Get('name.appearance.smooth_font'));
         if (controls.Input('Maximum Name Size (px)', '##name.fontSize', options.fontSize, SMALLEST, LARGEST,
-                'Nearby name size shared by players, enemies and NPCs. Independent of health-bar dimensions.') and options.minSize[1] > options.fontSize[1]) then
+                tips.Get('name.appearance.maximum_size')) and options.minSize[1] > options.fontSize[1]) then
             options.minSize[1] = options.fontSize[1];
         end
         if (controls.Input('Minimum Name Size (px)', '##name.minSize', options.minSize, SMALLEST, LARGEST,
-                'Smallest distant name size shared by every entity type.') and options.fontSize[1] < options.minSize[1]) then
+                tips.Get('name.appearance.minimum_size')) and options.fontSize[1] < options.minSize[1]) then
             options.fontSize[1] = options.minSize[1];
         end
         controls.Slider('Subtarget Size (%)', '##name.subtargetScale', options.subtargetScale, 50, 200, '%d%%',
-            'Size of the name under the subtarget cursor while choosing a target. 100% is normal size.');
-        controls.Outline(options.outline);
+            tips.Get('name.appearance.subtarget_size'));
+        controls.Outline(options.outline, 'Text Outline (px)');
+        controls.Outline(options.iconOutline, 'Icon Outline (px)', 'iconOutline', tips.Get('name.appearance.icon_outline'));
+        controls.Slider('Icon Outline Opacity (%)', '##name.iconOutlineOpacity', options.iconOutlineOpacity, 0, 100, '%d%%',
+            tips.Get('name.appearance.icon_outline_opacity'));
     end
     controls.EndSection();
 
+    require('readability').DrawSettings(options);
+
     if (controls.Section('Player Names', '##name.playerOptions')) then
         DrawFormat('Player Format', 'nameFormat', options, save);
+        controls.Choice('Player Icon Source', '##name.playerIconSource', options.playerIconSource, icons.Sources,
+            tips.Get('name.players.icon_source'));
+        local iconProblem = icons.Problem(options.playerIconSource[1]);
+        if iconProblem then
+            imgui.TextColored(warning, icons.Texture() and 'Player icons: bundled fallback.' or 'Player icons unavailable.');
+            controls.Mark(tips.Get('name.players.icon_source_fallback', { reason = iconProblem }));
+        end
         controls.Choice('Party Icons', '##name.partyIcons', options.partyIcons, roles.Modes,
-            'A sign of each party and alliance member\'s place: Alliance Leader, Party Leader, another party\'s leader, Alliance Member or Party Member. Drawn where [icons] is in Player Format, before the game\'s icons or in their place; players outside your party and alliance keep the game\'s icons. None while you are alone.');
+            tips.Get('name.players.party_icons'));
         nameColours.Draw(options, 'playerNames');
     end
     controls.EndSection();
@@ -176,20 +212,20 @@ function settings.DrawSettings(options, save)
             imgui.TextColored(warning, rosterProblem);
         end
         controls.Help('Help / Examples', '##name.letterHelp',
-            'Mob Letters use stable entity-index order, not encounter order. Unknown or renamed slots are not labelled.\nAdd [letters] to Enemy Format for single letters, or [letters: type=double] for AA, AB, etc. after Z. No token means no letters. Users comparing letters need matching game files, zone tables and token type.');
+            tips.Get('name.enemies.letters_help'));
         if (controls.More('Check Details', '##name.checkOptions')) then
             controls.Checkbox('Enabled', '##name.showCheckDetails', options.showCheckDetails,
-                'Show difficulty, detection and linking information for five seconds after checking a monster.');
+                tips.Get('name.enemies.check_enabled'));
             if (options.showCheckDetails[1]) then
                 controls.Slider('Size (%)', '##name.checkSize', options.checkSize, 50, 125, '%d%%',
-                    'Size of check text and icons relative to the name. Applies to both display styles.');
+                    tips.Get('name.enemies.check_size'));
                 controls.Checkbox('Abbreviate Difficulty', '##name.abbreviateDifficulty', options.abbreviateDifficulty,
-                    'Use short difficulty labels beside detection/link details. Impossible to Gauge stays ???.');
+                    tips.Get('name.enemies.check_abbreviate'));
                 controls.Choice('Display Style', '##name.checkDetailsInWords', options.checkDetailsInWords,
                     { { key = false, label = 'Icons & Text' }, { key = true, label = 'Text Only' } },
-                    'Choose icons with text, or a text-only description.');
+                    tips.Get('name.enemies.check_style'));
                 controls.Help('Help / Examples', '##name.checkHelp',
-                    'Text-only example: TW, Sight Aggro, Link: Goblin (Sight).\nAbbreviations: TW, IEP, EP, DC, EM, T, VT and IT. When difficulty is shown alone, full words are used.\nDetection can include Sight, Sound, Blood, Magic, JA, Scent and true senses. Multiple senses are separated by a slash. Link names the monster family and its known Sight/Hearing detection.');
+                    tips.Get('name.enemies.check_help'));
             end
             imgui.TreePop();
         end
@@ -198,7 +234,7 @@ function settings.DrawSettings(options, save)
     if (controls.Section('NPC Names', '##name.npcOptions')) then
         DrawFormat('NPC Format', 'npcFormat', options, save);
         controls.Checkbox('Vendor Icons', '##name.showVendorIcons', options.showVendorIcons,
-            'A coin before the name of every NPC that sells: shops, guild merchants and outpost vendors, as the Phoenix server\'s scripts have them.');
+            tips.Get('name.npcs.vendor_icons'));
         nameColours.Draw(options, 'npcNames');
     end
     controls.EndSection();

@@ -75,7 +75,12 @@ See the uihook README for migration and testing steps.
 - `plugins/exclude` is retired work, kept to look back on.
 - `tests/` runs addons against a stand-in for Ashita: `tests/run.sh`.
 - `tools/` builds data and art the addons use.
-- `deploy.sh` copies addons between this folder and a live install, for development.
+- `deploy.sh` copies addons and built plugins between this folder and a live install,
+  for development. `./deploy.sh push name` includes changed WinXI and namehook before
+  the addon, even when only a dependency changed. Build it first with
+  `bash plugins/namehook/build.sh`. `./deploy.sh -a push` includes built namehook
+  even on a fresh install. Both retain terminal safeguards and per-target backups;
+  reload namehook in game after deploying its DLL.
 
 ## License
 

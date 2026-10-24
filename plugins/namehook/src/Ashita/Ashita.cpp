@@ -20,6 +20,7 @@ If not, see <https://www.gnu.org/licenses/>.
 
 #include "../Nameplate.h"
 #include "../NameBounds.h"
+#include "../NameSubmission.h"
 
 #include "exports.h"
 // the lens plugin's warp, which bends the world picture names are drawn into (plugins/lens)
@@ -47,27 +48,22 @@ struct NameVertex {
 // How solid a name has to be, of 255, to be written to the picture's depth
 #define NAME_SOLID 0x80
 
-// One name's quads, each with its four dark copies for the edge
-#define NAME_VERTICES (HOOK_QUADS_PER_NAME * 5 * 6)
+// Worst case: eight halo copies, a shadow and a fill per glyph. Soft solid
+// rectangles use 30 vertices, and are never expanded as outlined glyphs.
+#define NAME_VERTICES (HOOK_QUADS_PER_NAME * NameGeometry::CopiesPerQuad * 6)
 static NameVertex Vertices[NAME_VERTICES];
 
-// Vertices that follow one another and are drawn from the same texture
-struct NameRun {
-    uint32_t texture;
-    uint32_t first;
-    uint32_t count;
-};
-// Every expanded quad can start another texture run, including four outline
+// Every expanded quad can start another texture run, including halo/shadow
 // copies. Capacity must match the worst case, not just the foreground quads.
 static NameRun Runs[NAME_VERTICES / 6];
 static DWORD EdgeColors[HOOK_QUADS_PER_NAME];
+static float EdgeRadii[HOOK_QUADS_PER_NAME];
 
 
 class AshitaNameplate : public IPlugin, private Nameplate {
 private:
     IAshitaCore* m_AshitaCore;
     ILogManager* m_LogManager;
-    uint32_t m_PluginId;
 
     // For drawing names an addon has drawn. All of it is the frame's: made as the first name of a
     // frame is drawn, and the state blocks let go as the frame is presented.
@@ -158,7 +154,7 @@ public:
     virtual void CommandError(const char* command) override;
 };
 
-AshitaNameplate::AshitaNameplate() : m_AshitaCore(nullptr), m_LogManager(nullptr), m_PluginId(0),
+AshitaNameplate::AshitaNameplate() : m_AshitaCore(nullptr), m_LogManager(nullptr),
         m_Textures{}, m_Device(nullptr), m_NameStates(0), m_SavedStates(0), m_StatesCaptured(false), m_Viewport{}, m_ViewProjection{}, m_CanDraw(false) {
 }
 
@@ -194,10 +190,9 @@ uint32_t AshitaNameplate::GetFlags(void) const {
     return static_cast<uint32_t>(Ashita::PluginFlags::UseCommands) | static_cast<uint32_t>(Ashita::PluginFlags::UseDirect3D);
 }
 
-bool AshitaNameplate::Initialize(IAshitaCore* core, ILogManager* log, uint32_t id) {
+bool AshitaNameplate::Initialize(IAshitaCore* core, ILogManager* log, [[maybe_unused]] uint32_t id) {
     m_AshitaCore = core;
     m_LogManager = log;
-    m_PluginId = id;
 
     // These plugins patch the same instructions. Check before Init writes anything.
     for (const char* conflict : { "nameplate", "nameplatew", "nameplatehook" }) {
@@ -603,7 +598,7 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
     }
 
     const NameBounds& bounds = boundsCache[entityIndex].Get(drawing, quads, horizontalFit);
-    if (!bounds.Intersects(left, top, static_cast<float>(m_Viewport.X), static_cast<float>(m_Viewport.Y),
+    if (!m_Lens && !bounds.Intersects(left, top, static_cast<float>(m_Viewport.X), static_cast<float>(m_Viewport.Y),
             static_cast<float>(m_Viewport.Width), static_cast<float>(m_Viewport.Height))) {
         return; // no vertex expansion, state capture or draw submission for invisible names
     }
@@ -618,23 +613,25 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
     }
     const float c0 = static_cast<float>(counter[0]), c1 = static_cast<float>(counter[1]);
     const float c2 = static_cast<float>(counter[2]), c3 = static_cast<float>(counter[3]);
+    if (m_Lens && !bounds.Transformed(c0, c1, c2, c3).Intersects(left, top,
+            static_cast<float>(m_Viewport.X), static_cast<float>(m_Viewport.Y),
+            static_cast<float>(m_Viewport.Width), static_cast<float>(m_Viewport.Height))) {
+        return;
+    }
 
     uint32_t vertexCount = 0;
     uint32_t runCount = 0;
     DWORD mostSolid = 0; // of the colours of what is drawn
 
     auto add = [&](const HookQuad& quad, float dx, float dy, DWORD color) {
-        if (quad.Texture >= HOOK_TEXTURES || textures[quad.Texture] == nullptr || vertexCount + 6 > NAME_VERTICES) {
+        const bool soft = (quad.Flags & QUAD_SOFT_RECT) != 0 && (quad.Flags & QUAD_EDGED) == 0
+            && quad.U0 == quad.U1 && quad.V0 == quad.V1;
+        const uint32_t needed = soft ? 30 : 6;
+        if (!NameSubmission::Visible(color) || quad.Texture >= HOOK_TEXTURES || textures[quad.Texture] == nullptr || vertexCount + needed > NAME_VERTICES) {
             return;
         }
 
-        if (runCount == 0 || Runs[runCount - 1].texture != quad.Texture) {
-            Runs[runCount].texture = quad.Texture;
-            Runs[runCount].first = vertexCount;
-            Runs[runCount].count = 0;
-            runCount++;
-        }
-        Runs[runCount - 1].count += 6;
+        NameSubmission::Append(Runs, runCount, quad.Texture, vertexCount, needed, color, textures);
         if ((color >> 24) > mostSolid) {
             mostSolid = color >> 24;
         }
@@ -646,6 +643,39 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
         };
 
         NameVertex* v = &Vertices[vertexCount];
+        if (soft) {
+            const NameVertex p0 = at(ox0, oy0, quad.U0, quad.V0);
+            const NameVertex p1 = at(ox1, oy0, quad.U0, quad.V0);
+            const NameVertex p3 = at(ox0, oy1, quad.U0, quad.V0);
+            NameGeometry::SoftRectangle rect;
+            if (!rect.Make({ p0.x, p0.y }, { p1.x, p1.y }, { p3.x, p3.y })) {
+                Runs[runCount - 1].count -= needed;
+                if (Runs[runCount - 1].count == 0) { runCount--; }
+                return;
+            }
+            const DWORD inside = FadeColor(color, rect.Coverage);
+            const DWORD outside = color & 0x00FFFFFF;
+            auto point = [&](NameGeometry::Point p, DWORD tint) -> NameVertex {
+                return { p.x, p.y, deep, rhw, tint, quad.U0, quad.V0 };
+            };
+            auto triangle = [&](NameVertex a, NameVertex b, NameVertex c) {
+                *v++ = a; *v++ = b; *v++ = c;
+            };
+            NameVertex inner[4], outer[4];
+            for (int i = 0; i < 4; i++) {
+                inner[i] = point(rect.Inner[i], inside);
+                outer[i] = point(rect.Outer[i], outside);
+            }
+            triangle(inner[0], inner[1], inner[3]);
+            triangle(inner[1], inner[2], inner[3]);
+            for (int i = 0; i < 4; i++) {
+                const int next = (i + 1) % 4;
+                triangle(outer[i], outer[next], inner[i]);
+                triangle(outer[next], inner[next], inner[i]);
+            }
+            vertexCount += needed;
+            return;
+        }
         v[0] = at(ox0, oy0, quad.U0, quad.V0);
         v[1] = at(ox1, oy0, quad.U1, quad.V0);
         v[2] = at(ox0, oy1, quad.U0, quad.V1);
@@ -655,19 +685,28 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
         vertexCount += 6;
     };
 
-    // the edge is the quads again in the dark, behind themselves, towards each corner
-    if (drawing.Edge > 0.0f) {
-        const float edge = (drawing.Edge > 8.0f) ? 8.0f : drawing.Edge;
-        for (int corner = 0; corner < 4; corner++) {
-            const float dx = ((corner & 1) ? edge : -edge) * horizontalFit;
-            const float dy = (corner & 2) ? edge : -edge;
+    // A round eight-direction halo closes the gaps left by four diagonal copies.
+    // Keep the antialiased glyph masks, and add a restrained shadow below the halo
+    // for contrast on bright terrain. Icon-specific edge opacity is still honoured.
+    // Explicit icon radii work even when the name's text outline is disabled.
+    bool hasEdges = false;
+    for (uint32_t i = 0; i < drawing.Count; i++) {
+        const float radius = EdgeRadii[i] = quads[i].EdgeRadius(drawing.Edge);
+        if (radius > 0) {
+            hasEdges = true;
+            EdgeColors[i] = FadeColor(drawing.EdgeColor, alpha * (static_cast<float>(quads[i].Color >> 24) / 255.0f) * quads[i].EdgeOpacity());
+            if (quads[i].EdgeShadow()) {
+                add(quads[i], 0, radius + NameGeometry::ShadowDrop,
+                    FadeColor(EdgeColors[i], NameGeometry::ShadowOpacity));
+            }
+        }
+    }
+    if (hasEdges) {
+        for (const auto& offset : NameGeometry::Halo) {
             for (uint32_t i = 0; i < drawing.Count; i++) {
-                if ((quads[i].Flags & QUAD_EDGED) != 0) {
-                    // Fade with the fill, then apply an optional weaker edge (e.g. small icons).
-                    if (corner == 0) {
-                        EdgeColors[i] = FadeColor(drawing.EdgeColor, alpha * (static_cast<float>(quads[i].Color >> 24) / 255.0f) * quads[i].EdgeOpacity());
-                    }
-                    add(quads[i], dx, dy, EdgeColors[i]);
+                const float radius = EdgeRadii[i];
+                if (radius > 0) {
+                    add(quads[i], offset.x * radius * horizontalFit, offset.y * radius, EdgeColors[i]);
                 }
             }
         }
@@ -693,9 +732,7 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
 
     // most names are letters alone, from the one texture, which is then set once for both passes
     for (uint32_t i = 0; i < runCount; i++) {
-        if (i == 0 || runCount > 1) {
-            device->SetTexture(0, textures[Runs[i].texture]);
-        }
+        device->SetTexture(0, textures[Runs[i].texture]);
         device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, Runs[i].count / 3, &Vertices[Runs[i].first], sizeof(NameVertex));
     }
 
@@ -707,6 +744,7 @@ void AshitaNameplate::RenderCustom(uint32_t entityIndex, const HookDrawing& draw
         device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
         device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
         for (uint32_t i = 0; i < runCount; i++) {
+            if (!Runs[i].WritesDepth(NAME_SOLID)) continue;
             if (runCount > 1) {
                 device->SetTexture(0, textures[Runs[i].texture]);
             }

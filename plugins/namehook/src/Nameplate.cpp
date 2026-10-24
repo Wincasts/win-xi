@@ -257,6 +257,14 @@ static Nameplate* Instance = nullptr;
 
 // What addons read and write. The names in it are those of the last frame, whole: the frame being
 // drawn is gathered apart, in Filling, and copied here by Publish.
+extern "C" {
+__declspec(dllexport) HookCapabilities NamehookCapabilities = {
+    "NAMEHOOKCAPS", sizeof(HookCapabilities), 1,
+    FEATURE_EDGE_RADIUS | FEATURE_SOFT_RECT | FEATURE_TIGHT_EDGE,
+    NAMEHOOK_VERSION_MAJOR * 100 + NAMEHOOK_VERSION_MINOR
+};
+}
+
 static HookShared Shared = { "NAMEHOOK", HOOK_VERSION, sizeof(HookShared), sizeof(HookName), 0, 0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0, 0, 0.0f, 0.0f, 0, {}, {} };
 
 static struct {

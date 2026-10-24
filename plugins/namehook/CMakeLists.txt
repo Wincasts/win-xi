@@ -1,7 +1,16 @@
 cmake_minimum_required(VERSION 3.28)
 
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/src/Version.h" NAMEHOOK_VERSION_LINES
+    REGEX "^#define NAMEHOOK_VERSION_(MAJOR|MINOR|PATCH) [0-9]+$")
+foreach(line IN LISTS NAMEHOOK_VERSION_LINES)
+    string(REGEX REPLACE "^#define NAMEHOOK_VERSION_([A-Z]+) ([0-9]+)$" "\\1;\\2" parts "${line}")
+    list(GET parts 0 part)
+    list(GET parts 1 value)
+    set(NAMEHOOK_${part} "${value}")
+endforeach()
+
 project(Nameplate
-    VERSION 1.31
+    VERSION ${NAMEHOOK_MAJOR}.${NAMEHOOK_MINOR}.${NAMEHOOK_PATCH}
     LANGUAGES CXX
     DESCRIPTION "Corrects defects in Final Fantasy XI nameplate rendering, and lists the names drawn for addons."
     HOMEPAGE_URL "https://www.github.com/Shirk/Nameplate"
@@ -50,7 +59,7 @@ target_sources(namehook PRIVATE
     src/findsignature.h
 )
 
-target_include_directories(namehook PRIVATE ${ASHITA_SDK_PATH})
+target_include_directories(namehook PRIVATE ${ASHITA_SDK_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_definitions(namehook PRIVATE WIN32_LEAN_AND_MEAN)
 
 # Interprocedural optimization is nice, but keep it opt-in friendly on older

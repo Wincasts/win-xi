@@ -4,9 +4,49 @@ local ffi = require('ffi');
 local image = require('gdi.image');
 local atlas = require('gdi.atlas');
 local diag = require('diag');
-local badges = { Slot = 5, Font = 'arialbd.ttf', Scale = 0.68, Pair = 1.5 }; -- Pair: a double letter's box, in sides
+local badges = { Slot = 5, Font = 'arialbd.ttf', Scale = 0.68, Pair = 1.5, Padding = 1 }; -- Pair: a double letter's box, in sides
+local SAMPLES = 4; -- 4x4 area samples, at atlas-build time only
 local cached, pendingKey, failedKey, nextRetry, warned = nil, nil, nil, 0, false;
 local identity;
+
+local function dispose(owned)
+    if owned and owned.texture then
+        local texture = owned.texture;
+        owned.texture = nil;
+        atlas.release(texture);
+    end
+end
+
+function badges.Release()
+    dispose(cached);
+    cached, pendingKey, failedKey, nextRetry, warned, identity = nil, nil, nil, 0, false, nil;
+end
+
+-- Bilinear glyph coverage with transparent samples outside its atlas rectangle.
+-- Copying alpha once per glyph avoids repeatedly reading the source for every
+-- supersample; these helpers and the raster loops can be compiled by LuaJIT.
+local function pixel(cell, x, y)
+    if x < 0 or y < 0 or x >= cell.sw or y >= cell.sh then return 0 end
+    return cell.pixels[y * cell.sw + x + 1];
+end
+
+local function alpha(cell, x, y)
+    if x <= -1 or y <= -1 or x >= cell.sw or y >= cell.sh then return 0 end
+    local x0, y0 = math.floor(x), math.floor(y);
+    local fx, fy = x - x0, y - y0;
+    return (pixel(cell, x0, y0) * (1 - fx) + pixel(cell, x0 + 1, y0) * fx) * (1 - fy)
+        + (pixel(cell, x0, y0 + 1) * (1 - fx) + pixel(cell, x0 + 1, y0 + 1) * fx) * fy;
+end
+
+-- A transparent-white guard is part of the texture, NOT the badge's layout.
+-- Atlas extrusion then repeats transparent pixels instead of an opaque straight
+-- edge, allowing bilinear filtering to soften the entire rotated box silhouette.
+function badges.Padded(badge)
+    local pad = badges.Padding;
+    local padded = image.new(badge.w + pad * 2, badge.h + pad * 2);
+    padded:blit(badge, pad, pad);
+    return padded;
+end
 
 -- Glyph layout is the same ten-element array used by custom.lua.
 -- Sample just inside UV boundaries so adjacent atlas glyphs cannot bleed in.
@@ -18,7 +58,7 @@ function badges.Raster(source, glyph, height, bold)
     local side = math.max(3, math.floor(height * badges.Scale + 0.5));
     local wide = #glyphs == 1 and side or math.max(side + 1, math.floor(side * badges.Pair + 0.5));
     local radius = math.max(0.75, side * 0.08);
-    local out = image.new(wide, side):fill(function() return 1 end);
+    local out = image.new(wide, side);
     local stroke = bold and 1 or 0;
     local gap = (#glyphs - 1) * math.max(1, math.floor(height * 0.04 + 0.5));
     local cells, across, tallest = {}, 0, 0;
@@ -29,7 +69,13 @@ function badges.Raster(source, glyph, height, bold)
         local sh = math.floor(one[8] * source.h + 0.5) - sy;
         assert(sw > 0 and sh > 0 and sx >= 0 and sy >= 0
             and sx + sw <= source.w and sy + sh <= source.h, 'invalid badge glyph UVs');
-        cells[at] = { sx = sx, sy = sy, sw = sw, sh = sh };
+        local pixels = {};
+        for y = 0, sh - 1 do
+            for x = 0, sw - 1 do
+                pixels[#pixels + 1] = math.floor(source:get(sx + x, sy + y) / 0x1000000);
+            end
+        end
+        cells[at] = { pixels = pixels, sw = sw, sh = sh };
         across, tallest = across + sw + stroke, math.max(tallest, sh);
     end
     local scale = math.min(1, math.max(1, wide - 2 * pad - gap) / across,
@@ -40,33 +86,30 @@ function badges.Raster(source, glyph, height, bold)
         cell.left, cell.top = left, (side - cell.sh * scale) / 2;
         left = left + (cell.sw + stroke) * scale + gap / math.max(1, #cells - 1);
     end
-    local function alpha(cell, x, y)
-        local sw, sh = cell.sw, cell.sh;
-        if x < 0 or y < 0 or x >= sw or y >= sh then return 0 end
-        local x0, y0 = math.floor(x), math.floor(y);
-        local x1, y1 = math.min(sw - 1, x0 + 1), math.min(sh - 1, y0 + 1);
-        local fx, fy = x - x0, y - y0;
-        local function at(a, b) return math.floor(source:get(cell.sx + a, cell.sy + b) / 0x1000000) end
-        return (at(x0, y0) * (1 - fx) + at(x1, y0) * fx) * (1 - fy)
-            + (at(x0, y1) * (1 - fx) + at(x1, y1) * fx) * fy;
-    end
     for y = 0, side - 1 do
         for x = 0, wide - 1 do
-            local coverage = 0;
-            for _, cell in ipairs(cells) do
-                local gx, gy = (x + 0.5 - cell.left) / scale - 0.5, (y + 0.5 - cell.top) / scale - 0.5;
-                local one = alpha(cell, gx, gy);
-                if bold then
-                    local shifted = alpha(cell, gx - 1, gy);
-                    one = 255 - (255 - one) * (255 - shifted) / 255;
+            local filled = 0;
+            for sampleY = 0, SAMPLES - 1 do
+                for sampleX = 0, SAMPLES - 1 do
+                    local px, py = x + (sampleX + 0.5) / SAMPLES, y + (sampleY + 0.5) / SAMPLES;
+                    local dx = math.max(0, math.abs(px - wide / 2) - (wide / 2 - radius));
+                    local dy = math.max(0, math.abs(py - side / 2) - (side / 2 - radius));
+                    if dx * dx + dy * dy <= radius * radius then
+                        local coverage = 0;
+                        for _, cell in ipairs(cells) do
+                            local gx, gy = (px - cell.left) / scale - 0.5, (py - cell.top) / scale - 0.5;
+                            local one = alpha(cell, gx, gy);
+                            if bold then
+                                local shifted = alpha(cell, gx - 1, gy);
+                                one = 255 - (255 - one) * (255 - shifted) / 255;
+                            end
+                            coverage = math.max(coverage, one);
+                        end
+                        filled = filled + 1 - coverage / 255;
+                    end
                 end
-                coverage = math.max(coverage, one);
             end
-            -- Signed distance to a rounded rectangle, antialiased over one pixel.
-            local dx = math.max(0, math.abs(x + 0.5 - wide / 2) - (wide / 2 - radius));
-            local dy = math.max(0, math.abs(y + 0.5 - side / 2) - (side / 2 - radius));
-            local corner = math.max(0, math.min(1, radius + 0.5 - math.sqrt(dx * dx + dy * dy)));
-            out:set_alpha(x, y, corner * (1 - coverage / 255));
+            out:set_alpha(x, y, filled / (SAMPLES * SAMPLES));
         end
     end
     return out;
@@ -94,8 +137,9 @@ local function build(texture, definitions, key)
             if glyph and glyph[10] then
                 local entry = #entries + 1;
                 local badge = badges.Raster(source, glyph, definition.height, definition.bold);
-                entries[entry] = { name = entry, img = badge };
+                entries[entry] = { name = entry, img = badges.Padded(badge) };
                 offsets[definition.height][letter] = { entry = entry,
+                    width = badge.w, height = badge.h, padding = badges.Padding,
                     top = (glyph[2] + glyph[4] - badge.h) * 0.5 };
             end
         end
@@ -105,8 +149,9 @@ local function build(texture, definitions, key)
             if first and second and first[10] and second[10] then
                 local entry = #entries + 1;
                 local badge = badges.Raster(source, { first, second }, definition.height, definition.bold);
-                entries[entry] = { name = entry, img = badge };
+                entries[entry] = { name = entry, img = badges.Padded(badge) };
                 offsets[definition.height][pair] = { entry = entry,
+                    width = badge.w, height = badge.h, padding = badges.Padding,
                     top = (first[2] + first[4] - badge.h) * 0.5 };
             end
         end
@@ -119,7 +164,8 @@ local function build(texture, definitions, key)
             region.uv = regions[region.entry];
         end
     end
-    return { key = key, texture = owned, address = tonumber(ffi.cast('uint32_t', owned)), regions = offsets };
+    return { key = key, texture = owned, width = sheet.w, height = sheet.h,
+        address = tonumber(ffi.cast('uint32_t', owned)), regions = offsets };
 end
 
 -- Definitions contain { height, glyphs = { A = glyph, ... }, bold, pairs }: pairs is how
@@ -172,8 +218,13 @@ function badges.Prepare(texture, definitions, fontKey, immutable)
         end
         return nil;
     end
+    dispose(cached);
     cached, failedKey, warned = result, nil, false;
     return cached;
 end
 
+function badges.Diagnostics()
+    return (cached and ('%dx%d cached'):format(cached.width,cached.height) or 'no atlas')
+        .. (failedKey and '; build failed, plain-letter fallback' or (cached and '; ready' or (pendingKey and '; preparing' or '; inactive')));
+end
 return badges;

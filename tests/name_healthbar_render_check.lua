@@ -88,6 +88,10 @@ assert(live == baseline + 256 * 3, 'live HP rendering adds three quads per damag
 local first = draw.Entities[1]
 assert(draw.Quads[first.First + first.Count - 1].Color == draw.Quads[first.First].Color,
     'renderer gives bar fill the same converted colour as name text')
+for i = first.First + first.Count - 3, first.First + first.Count - 1 do
+    assert(draw.Quads[i].Flags == 4, 'bar layers opt into plugin screen-space antialiasing')
+end
+assert(draw.Quads[first.First].Flags == 1, 'glyph outline flags are unchanged')
 options.nameFormat[1] = '[name: color=cyan]'
 assert(render() == live)
 local tinted = draw.Entities[1]
