@@ -5,6 +5,10 @@
 - `/uihook native move`, `scale` and `tint`, the first experiment's commands for one window at a time, are taken
   out, and `clear` with them: nothing used them once `group`, `inset` and `size` (nativeui's settings) did it for
   every window. Every entry the native look keeps is now one made as a window is drawn.
+- The party module's one file (`partyhook.cpp`, 2,000 lines) is split: the skin (`native/skinmodule.h`), the
+  native look (`native/nativemodule.h`) and the diagnostics (`mirror/diagnostics.h`) are modules of their own, each
+  with its state and commands, sharing a `DrawContext` (`drawcontext.h`); `partyhook.cpp` keeps the capture and
+  replay and calls each in turn. Nothing it draws or publishes changes.
 
 ## 1.57
 

@@ -1,5 +1,9 @@
-// Experimental native Party replacement. Capture the addon's existing ImGui geometry in C++;
-// replay it at Window::Render, executing native window logic with only its GPU submissions blocked.
+// The party module: what uihook does with the game's own drawing, behind one set of Direct3D callbacks and one
+// detour of Window::Render. Its own part: addons' imgui drawing captured and replayed in place of the game's party
+// and alliance lists, target window, clock and compass, and chat logs (their game logic run, only its GPU
+// submissions blocked), and the chat's state read for them. Its other parts, each a module of its own it calls in
+// turn: the skin (native/skinmodule.h), the native look (native/nativemodule.h), the menu mirror (mirror/mirror.h)
+// and the diagnostics (mirror/diagnostics.h).
 #include <windows.h>
 #include <psapi.h>
 #include <stdint.h>
@@ -22,14 +26,11 @@
 #include "../chat/texttap.h"
 #include "../mirror/census.h"
 #include "../mirror/mirror.h"
-#include "../native/native.h"
-#include "../mirror/labels.h"
-#include "../mirror/textures.h"
-#include "../native/skin.h"
-#include "../native/skinfile.h"
-#include "../native/skinfont.h"
 #include "../mirror/mouse.h"
-#include "../mirror/watch.h"
+#include "../mirror/diagnostics.h"
+#include "../native/skinmodule.h"
+#include "../native/nativemodule.h"
+#include "../../drawcontext.h"
 #include "../../slots.h"
 #include "clip.h"
 #include "runs.h"
@@ -77,8 +78,7 @@ static ChatControlCalls ChatControls;
 // The one call in the log drawer that draws a row of text, aimed at DrawChatRow while uihook is loaded
 static void __cdecl DrawChatRow(const uint16_t*,ChatRowHeader,int32_t,int32_t,uint32_t,uint32_t,void*,uint32_t);
 static ChatTextSite ChatText;
-// The menu census (/uihook census): the windows drawn and the text they print, heard while it is on
-static Census MenuCensus;
+// The three text routes: the mirror's, the native look's and the census's
 static int32_t __cdecl CensusBitmap(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
 static int32_t __cdecl CensusScaled(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t);
 static uint32_t __fastcall CensusFont(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t);
@@ -90,14 +90,10 @@ static Detour CensusFontDetour = { CENSUS_FONT_PATTERN, CENSUS_FONT_STOLEN, -1, 
 // Window::Render aimed at MirrorContent.
 static MirrorShared MirrorBlock;
 static Mirror MenuMirror;
-static NativeLook NativeMenus; // /uihook native: windows' draws moved and scaled (native.h)
-static TextureCensus Textures; // /uihook textures: every texture the screen-space drawing uses, by window and part (textures.h)
-static SkinLook Skin; // /uihook skin: the game's textures drawn with pictures of a skin's in their place (skin.h)
-static MirrorWatch MenuWatch; // every window drawn, kept in WatchBlock; with /uihook mirror watch, to logs\uihook-mirror-watch.txt
-// exported, as nothing in the DLL reads it back: a block private to it would have every write to it optimized away
-extern "C" __declspec(dllexport) MirrorWatchShared UihookWatch{};
-static MirrorWatchShared& WatchBlock=UihookWatch;
-static bool WatchFile=false;
+static DrawContext Draws;       // what the parts share for each draw (drawcontext.h)
+static SkinModule Skins;        // /uihook skin: the game's textures drawn with pictures of a skin's in their place
+static NativeModule Native;     // /uihook native: windows' draws moved and scaled
+static DiagnosticsModule Diag;  // /uihook census, textures, mirror labels and mirror watch
 static void __fastcall MirrorContent(void*,void*);
 struct MirrorContentCall { uint8_t* call=nullptr; uint8_t saved[5]={}; };
 static MirrorContentCall ContentCall;
@@ -196,7 +192,6 @@ class PartyHook : public IPlugin {
     uint32_t preview = 0;     // and which of its weather icons to draw all of, beside each other
     float weatherScale = 1;   // and how large its weather icons are drawn
     bool previewing = false;  // while the preview's icons are drawn
-    bool scaling = false;     // while a scaled copy is drawn: not measured, not scaled again
     float weatherMiddle[2][2] = {}; bool weatherMiddleKnown[2] = {}; // each weather icon's middle, as last drawn unscaled
     void* (__cdecl* bank)(int32_t) = nullptr;
     // The game's own clock draws in one Clock::Draw call: their screen bounds, and the viewport
@@ -211,12 +206,13 @@ class PartyHook : public IPlugin {
         }
     } bounds, iconBounds[3];
     D3DVIEWPORT8 clockViewport={}; bool clockViewportKnown=false;
-    void Native(bool up, const void* data, UINT stride, UINT count) {
+    // A draw's screen-space vertices measured: the clock's, or a chat control's
+    void Measure(bool up, const void* data, UINT stride, UINT count) {
         if (chatMeasure && !inClock) { MeasureChat(up,data,stride,count); return; }
         if (!inClock) return;
         auto* device=core->GetDirect3DDevice();
         DWORD shader=0;
-        DrawFvf(shader);
+        Draws.DrawFvf(shader);
         if (!probe.nativeCalls++) probe.nativeShader=shader;
         if (!up || !data || stride<8 || !(shader & D3DFVF_XYZRHW)) return;
         if (!clockViewportKnown && device) clockViewportKnown=SUCCEEDED(device->GetViewport(&clockViewport));
@@ -237,7 +233,7 @@ class PartyHook : public IPlugin {
     void MeasureChat(bool up,const void* data,UINT stride,UINT count) {
         auto* device=core->GetDirect3DDevice();
         DWORD shader=0;
-        if (!up || !data || stride<8 || !device || !DrawFvf(shader) || !(shader & D3DFVF_XYZRHW)) return;
+        if (!up || !data || stride<8 || !device || !Draws.DrawFvf(shader) || !(shader & D3DFVF_XYZRHW)) return;
         if (!chatViewportKnown) chatViewportKnown=SUCCEEDED(device->GetViewport(&chatViewport));
         auto* bytes=static_cast<const uint8_t*>(data);
         for (UINT i=0;i<count && i<4096;i++) {
@@ -281,7 +277,7 @@ class PartyHook : public IPlugin {
         const UINT vertices=t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0;
         auto* device=core->GetDirect3DDevice();
         DWORD shader=0;
-        if (!vertices || vertices>4096 || !device || !DrawFvf(shader) || !(shader & D3DFVF_XYZRHW)) return false;
+        if (!vertices || vertices>4096 || !device || !Draws.DrawFvf(shader) || !(shader & D3DFVF_XYZRHW)) return false;
         scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(vertices)*stride);
         float cx=0,cy=0;
         // a double weather's two grow about the first's middle, so that the second moves out as they grow
@@ -293,511 +289,10 @@ class PartyHook : public IPlugin {
         }
         if (resize) ScaleScreenVertices(scaledVertices.data(),vertices,stride,cx,cy,weatherScale);
         if (translate && !ChatTranslateVertices(scaledVertices.data(),vertices,stride,clockShiftX,clockShiftY)) return false;
-        scaling=true;
+        Draws.scaling=true;
         const bool ok=SUCCEEDED(device->DrawPrimitiveUP(t,count,scaledVertices.data(),stride));
-        scaling=false;
+        Draws.scaling=false;
         return ok;
-    }
-    // /uihook native: the window being drawn taken, where it is one named, for its draws to be moved and tinted
-    NativeLook::Saved NativeEnter(void* window) {
-        if (!NativeMenus.Any()) return NativeMenus.Enter(nullptr,Shared.Frame);
-        void* header=nullptr; char name[16];
-        if (!window || !ChatRead(static_cast<uint8_t*>(window)+4,&header,4) || !header
-            || !ChatRead(static_cast<uint8_t*>(header)+0x46,name,16)) return NativeMenus.Enter(nullptr,Shared.Frame);
-        // where the game draws it (+3A: left, top, right, bottom), not its layout target (+8C), which for some is over the
-        // chat log while they are drawn elsewhere (the Master and Automaton menu, beside the main menu)
-        int16_t drawn[4];
-        const bool placed=ChatRead(static_cast<uint8_t*>(window)+0x3a,drawn,sizeof(drawn)) && drawn[2]>drawn[0] && drawn[3]>drawn[1];
-        if (NativeMenus.groupOn && placed) {
-            const int16_t place[4]={drawn[0],drawn[1],int16_t(drawn[2]-drawn[0]),int16_t(drawn[3]-drawn[1])};
-            NativeMenus.Note(name,place,Shared.Frame);
-        }
-        // the same in pixels, for one drawn the first time to be placed at once
-        float pixels[4]; uint8_t scaled=0; int16_t dims[2]={640,480};
-        const bool hint=placed && ChatRead(static_cast<uint8_t*>(window)+0x99,&scaled,1)
-            && (!scaled || (menuManager && ChatRead(menuManager+0x80,dims,sizeof(dims)) && dims[0]>0 && dims[1]>0));
-        if (hint) {
-            const float sx=scaled ? dims[0]/640.0f : 1.0f,sy=scaled ? dims[1]/480.0f : 1.0f;
-            pixels[0]=drawn[0]*sx; pixels[1]=drawn[1]*sy; pixels[2]=drawn[2]*sx; pixels[3]=drawn[3]*sy;
-        }
-        return NativeMenus.Enter(name,Shared.Frame,hint ? pixels : nullptr);
-    }
-    // The draw under way's vertex format (its FVF), asked of the device once a draw for all that want it (the census,
-    // the watch, the native look, the skin each asked for every draw); false where it cannot be told
-    DWORD drawFvf=0; bool drawFvfKnown=false, drawFvfOk=false;
-    bool DrawFvf(DWORD& fvf) {
-        if (!drawFvfKnown) {
-            drawFvfKnown=true;
-            auto* device=core->GetDirect3DDevice();
-            drawFvfOk=device && SUCCEEDED(device->GetVertexShader(&drawFvf));
-        }
-        fvf=drawFvf;
-        return drawFvfOk;
-    }
-    // The screen's size: the render target's the draw is made to (read each draw: the scene may be drawn to a larger
-    // one first), the viewport's where it cannot be read
-    // Read once a frame, at the first window's draw that wants it (the windows draw to the screen's own target, after
-    // the scene): asked for each draw moved it was three calls of the device's a draw.
-    float screenSize[2]={}; uint32_t screenFrame=0;
-    bool ScreenSize(IDirect3DDevice8* device,const D3DVIEWPORT8& viewport,float* out) {
-        if (screenFrame!=Shared.Frame || !screenSize[0]) {
-            screenFrame=Shared.Frame; screenSize[0]=screenSize[1]=0;
-            IDirect3DSurface8* target=nullptr; D3DSURFACE_DESC desc{};
-            if (SUCCEEDED(device->GetRenderTarget(&target)) && target) {
-                if (SUCCEEDED(target->GetDesc(&desc))) { screenSize[0]=float(desc.Width); screenSize[1]=float(desc.Height); }
-                target->Release();
-            }
-        }
-        out[0]=screenSize[0]; out[1]=screenSize[1];
-        if (!out[0] || !out[1]) { out[0]=float(viewport.X+viewport.Width); out[1]=float(viewport.Y+viewport.Height); }
-        return out[0]>0 && out[1]>0;
-    }
-    // A screen-space draw of a window with an entry: counted into its bounds; then, where it is moved, drawn so in its
-    // place (its vertices copied and moved). vertices: from min, as an indexed draw's are.
-    bool NativeDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
-        NativeEntry* e=NativeMenus.current;
-        if (!e || !data || !vertices || stride<8) return false;
-        const UINT used=min+vertices;
-        auto* device=core->GetDirect3DDevice(); DWORD shader=0;
-        if (!device || !DrawFvf(shader) || (shader & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) { NativeMenus.Unmoved(); return false; }
-        NativeMenus.Gather(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride);
-        // the screen's size, not the viewport's: the game clips some text to its window with a viewport (the title
-        // box's), which taken for the screen made its middle the box's and its words pinched there
-        D3DVIEWPORT8 viewport={};
-        float screen[2]={};
-        NativeTransform move; bool whole=false;
-        bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport)) && ScreenSize(device,viewport,screen)
-            && NativeMenus.Transform(screen[0],screen[1],move,&whole);
-        if (placing) NativeMenus.OnBar(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride,move);
-        // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it, but
-        // where the whole side is moved
-        if (placing && !move.pinch && !whole && !NativeMenus.Within(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride)) { e->kept++; placing=false; }
-        if (!placing) return false;
-        scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(used)*stride);
-        NativeTransformVertices(scaledVertices.data()+size_t(min)*stride,vertices,stride,move);
-        // the skin's colours for its picture, as SkinEnd would have given them had it drawn it: the moved windows
-        // had the game's (the bottom-left buttons blue-grey and orange, the frame faded at the sides)
-        if (skinActive>=0 && SkinRecolour(Skin.textures[size_t(skinActive)],scaledVertices.data(),used,stride,shader,skinVertices)) {
-            scaledVertices.swap(skinVertices); Skin.textures[size_t(skinActive)].recoloured++;
-        }
-        const void* drawn=scaledVertices.data();
-        // a viewport clipping the draw to its window moved with it, so what is moved is not clipped away
-        const bool clipped=(viewport.X>0 || viewport.Y>0 || float(viewport.Width)<screen[0] || float(viewport.Height)<screen[1]);
-        D3DVIEWPORT8 moved=viewport;
-        if (clipped) {
-            float corners[4]={float(viewport.X),float(viewport.Y),float(viewport.X+viewport.Width),float(viewport.Y+viewport.Height)};
-            move.Apply(corners[0],corners[1]); move.Apply(corners[2],corners[3]);
-            const float x0=(std::max)(0.0f,corners[0]),y0=(std::max)(0.0f,corners[1]);
-            const float x1=(std::min)(screen[0],corners[2]),y1=(std::min)(screen[1],corners[3]);
-            if (x1>x0 && y1>y0) {
-                moved.X=DWORD(x0+0.5f); moved.Y=DWORD(y0+0.5f); moved.Width=DWORD(x1-x0+0.5f); moved.Height=DWORD(y1-y0+0.5f);
-                device->SetViewport(&moved);
-            }
-        }
-        scaling=true;
-        const bool ok=indices ? SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,drawn,stride))
-            : SUCCEEDED(device->DrawPrimitiveUP(t,count,drawn,stride));
-        scaling=false;
-        if (clipped) device->SetViewport(&viewport);
-        if (ok) e->moved++;
-        return ok;
-    }
-    // /uihook skin: a screen-space draw whose texture (stage 0) the skin has a picture for is given it; what was there
-    // comes back to be put back by SkinEnd. Nothing where no skin is loaded.
-    struct SkinSwap { int32_t index=-1; IDirect3DBaseTexture8* was=nullptr; DWORD filters[3]={}; bool clamped=false; DWORD address[2]={}; };
-    // stage 0's filters while a skin's picture is in it: linear, with its levels, so one made larger than it is
-    // drawn shrinks smoothly and one drawn larger is not blocky
-    static constexpr D3DTEXTURESTAGESTATETYPE SkinFilters[3]={D3DTSS_MAGFILTER,D3DTSS_MINFILTER,D3DTSS_MIPFILTER};
-    int32_t skinActive=-1;   // the skin's picture in stage 0 for the draw under way, for NativeDraw's colours, or -1
-    // data, count, stride: the draw's vertices (from memory), to tell how large its texels are drawn; none from a
-    // vertex buffer, drawn with the size suiting the window's scale
-    SkinSwap SkinBegin(const void* data=nullptr,unsigned count=0,unsigned stride=0) {
-        SkinSwap swap;
-        if (!Skin.On()) return swap;
-        auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
-        if (!device || !DrawFvf(fvf) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return swap;
-        if (FAILED(device->GetTexture(0,&swap.was)) || !swap.was) { swap.was=nullptr; return swap; }
-        IDirect3DBaseTexture8* game=swap.was;
-        swap.index=Skin.Lookup(reinterpret_cast<uintptr_t>(game),Shared.Frame,[&](uint32_t& hash) {
-            LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]; const char* why="";
-            static const float whole[4]={0,0,1,1};
-            if (!LabelCut(game,whole,pixels,desc,texels,why)) return false;
-            hash=TextureHash(pixels,desc.Width,desc.Height); return true;
-        });
-        if (swap.index<0) { swap.was->Release(); swap.was=nullptr; return swap; }
-        const SkinTexture& t=Skin.textures[size_t(swap.index)];
-        bool exact=false,levels=false;
-        const SkinSize* size=SkinLook::Choose(t,SkinPixels(t,data,count,stride,fvf),exact,&levels);
-        if (size && size->stale) SkinDrawSize(t.hash,const_cast<SkinSize&>(*size));
-        device->SetTexture(0,static_cast<IDirect3DBaseTexture8*>(size ? size->texture : t.texture));
-        // a texel to a pixel: unfiltered, crisp; any other: filtered, with the levels between only where much smaller
-        const DWORD filter=exact ? DWORD(D3DTEXF_POINT) : DWORD(D3DTEXF_LINEAR);
-        const DWORD filters[3]={filter,filter,levels ? DWORD(D3DTEXF_LINEAR) : DWORD(D3DTEXF_NONE)};
-        for (int i=0;i<3;i++) { device->GetTextureStageState(0,SkinFilters[i],&swap.filters[i]); device->SetTextureStageState(0,SkinFilters[i],filters[i]); }
-        // a draw within its texture (not tiled across it, as the frame's edges are) clamped at the texture's edges:
-        // filtered, a piece at its edge took in the far side wrapped round (a clear column where two button bars meet)
-        if (SkinWithin(data,count,stride,fvf)) {
-            swap.clamped=true;
-            device->GetTextureStageState(0,D3DTSS_ADDRESSU,&swap.address[0]); device->GetTextureStageState(0,D3DTSS_ADDRESSV,&swap.address[1]);
-            device->SetTextureStageState(0,D3DTSS_ADDRESSU,D3DTADDRESS_CLAMP); device->SetTextureStageState(0,D3DTSS_ADDRESSV,D3DTADDRESS_CLAMP);
-        }
-        skinActive=swap.index;
-        return swap;
-    }
-    // Whether every texture place of a draw lies within its texture (0 to 1 each way); false where they are not to hand
-    static bool SkinWithin(const void* data,unsigned count,unsigned stride,DWORD fvf) {
-        if (!data || !count || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return false;
-        unsigned at=16; if (fvf & D3DFVF_DIFFUSE) at+=4; if (fvf & D3DFVF_SPECULAR) at+=4;
-        if (((fvf & D3DFVF_TEXCOUNT_MASK)>>D3DFVF_TEXCOUNT_SHIFT)<1 || stride<at+8) return false;
-        const auto* bytes=static_cast<const uint8_t*>(data);
-        for (unsigned i=0;i<count;i++) {
-            float t[2]; memcpy(t,bytes+size_t(i)*stride+at,8);
-            if (!(t[0]>=-0.001f && t[0]<=1.001f && t[1]>=-0.001f && t[1]<=1.001f)) return false;
-        }
-        return true;
-    }
-    // How many pixels a texel of a picture's first size covers in this draw: along its first triangle's longer side
-    // on the screen, as the window is drawn (its scale); the window's scale alone where the vertices are not to hand
-    float SkinPixels(const SkinTexture& t,const void* data,unsigned count,unsigned stride,DWORD fvf) const {
-        const float k=NativeMenus.ScaleNow();
-        if (!data || count<3 || t.sizes.empty() || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return k;
-        unsigned at=16; if (fvf & D3DFVF_DIFFUSE) at+=4; if (fvf & D3DFVF_SPECULAR) at+=4;
-        if (((fvf & D3DFVF_TEXCOUNT_MASK)>>D3DFVF_TEXCOUNT_SHIFT)<1 || stride<at+8) return k;
-        const auto* bytes=static_cast<const uint8_t*>(data);
-        float lo[4]={1e9f,1e9f,1e9f,1e9f},hi[4]={-1e9f,-1e9f,-1e9f,-1e9f};
-        for (unsigned i=0;i<3;i++) {
-            float v[4]; memcpy(v,bytes+size_t(i)*stride,8); memcpy(v+2,bytes+size_t(i)*stride+at,8);
-            for (int j=0;j<4;j++) { lo[j]=(std::min)(lo[j],v[j]); hi[j]=(std::max)(hi[j],v[j]); }
-        }
-        const SkinSize& first=t.sizes.front();
-        const float dx=hi[0]-lo[0],dy=hi[1]-lo[1],du=(hi[2]-lo[2])*float(first.width),dv=(hi[3]-lo[3])*float(first.height);
-        if (dx>=dy && du>0.5f) return dx*k/du;
-        if (dv>0.5f) return dy*k/dv;
-        return k;
-    }
-    // A draw's vertices from memory with the colours the skin's skin.txt gives its picture, or as they were
-    std::vector<uint8_t> skinVertices;
-    const void* SkinVertices(const SkinSwap& swap,const void* data,unsigned count,unsigned stride) {
-        SkinTexture& t=Skin.textures[size_t(swap.index)];
-        auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
-        if (t.colours.empty() || count>65536 || !device || !DrawFvf(fvf) || !SkinRecolour(t,data,count,stride,fvf,skinVertices)) return data;
-        t.recoloured++;
-        return skinVertices.data();
-    }
-    // The draw made with the skin's picture, unless done already (blocked, or drawn moved), and the game's texture
-    // put back. True where it was drawn here; false (the game's own then drawn by Ashita) where the draw failed.
-    template<class Draw> bool SkinEnd(const SkinSwap& swap,bool done,Draw draw) {
-        skinActive=-1;
-        if (swap.index<0) return done;
-        auto* device=core->GetDirect3DDevice();
-        bool ok=done;
-        if (!done) {
-            scaling=true; ok=SUCCEEDED(draw(device)); scaling=false;
-            if (ok) Skin.textures[size_t(swap.index)].drawn++;
-        }
-        for (int i=0;i<3;i++) device->SetTextureStageState(0,SkinFilters[i],swap.filters[i]);
-        if (swap.clamped) { device->SetTextureStageState(0,D3DTSS_ADDRESSU,swap.address[0]); device->SetTextureStageState(0,D3DTSS_ADDRESSV,swap.address[1]); }
-        device->SetTexture(0,swap.was); swap.was->Release();
-        return ok;
-    }
-    // config\uihook\skins\<name>\tex-<hash>.png or .bmp, each made a texture of its own
-    void SkinRelease() { for (void* t:Skin.Clear()) static_cast<IDirect3DTexture8*>(t)->Release(); skinFonts.Clear(); }
-    // A picture written to its texture, every level down to a texel, each the one above halved (SkinHalve): a picture
-    // larger than it is drawn shrinks smoothly, drawn with the levels between
-    static bool SkinUpload(IDirect3DTexture8* texture,std::vector<uint32_t> argb,uint32_t width,uint32_t height) {
-        uint32_t w=width,h=height;
-        for (DWORD level=0;level<texture->GetLevelCount();level++) {
-            D3DLOCKED_RECT locked;
-            if (FAILED(texture->LockRect(level,&locked,nullptr,0))) return false;
-            for (uint32_t y=0;y<h;y++) memcpy(static_cast<uint8_t*>(locked.pBits)+size_t(y)*locked.Pitch,argb.data()+size_t(y)*w,size_t(w)*4);
-            texture->UnlockRect(level);
-            if (w>1 || h>1) SkinHalve(argb,w,h);
-        }
-        return true;
-    }
-    // The skin's fonts (fonts.txt), and the font file chosen for each kind (menu, title), "" for the skin's own
-    SkinFonts skinFonts;
-    std::string skinFontFile[2];
-    SkinFontFace skinFace[2];
-    int skinFontWeight[2]={0,0};                       // FW_* or 0 for the file's own
-    int skinOutline[2]={1,1};                          // pixels of winxi's outline about a chosen font's letters
-    uint32_t skinOutlineColour[2]={0xE6000000,0xE6000000};
-    // A font file's path: as given where it is one, else in Windows' Fonts folder
-    static std::string SkinFontPath(const std::string& file) {
-        if (file.find('\\')!=std::string::npos || file.find(':')!=std::string::npos) return file;
-        char windows[MAX_PATH]={}; GetWindowsDirectoryA(windows,MAX_PATH);
-        return std::string(windows)+"\\Fonts\\"+file;
-    }
-    // Each font texture of the skin to be drawn again: its glyphs in the font chosen for its kind, or the skin's own
-    // picture where none is chosen or it cannot be drawn. Each size is drawn the first time a draw is made with it
-    // (SkinDrawSize, from SkinBegin), not here: both fonts at every size took 340 ms or more, and most sizes are not
-    // drawn with at all at one Menu Scale. Returns the sizes to draw. kinds: which kinds' textures (1 menu, 2 title).
-    unsigned SkinApplyFonts(std::string* why=nullptr,unsigned kinds=3) {
-        unsigned drawn=0;
-        for (int k=0;k<2;k++) {
-            if (skinFontFile[k].empty()) { skinFace[k].Close(); continue; }
-            const std::string path=SkinFontPath(skinFontFile[k]);
-            if (skinFace[k].path!=SkinWide(path.c_str()) || !skinFace[k].added)
-                if (!skinFace[k].Open(path.c_str()) && why) *why+=(why->empty() ? "" : "; ")+path+" could not be opened";
-            skinFace[k].Weight(skinFontWeight[k]);
-        }
-        // each texture holding fonts once (one may hold several: the menus' small font and a large one)
-        std::vector<uint32_t> done;
-        for (auto& style:skinFonts.styles) {
-            const int kind=SkinFontKind(style.kind);
-            if (kind<0 || !(kinds & (1u<<kind)) || std::find(done.begin(),done.end(),style.hash)!=done.end()) continue;
-            done.push_back(style.hash);
-            const int32_t at=Skin.Find(style.hash);
-            if (at<0) continue;
-            for (auto& z:Skin.textures[size_t(at)].sizes)
-                if (!z.base.empty() && z.texture) { z.stale=true; drawn++; }
-        }
-        return drawn;
-    }
-    // A font texture's size drawn again, as SkinApplyFonts asked: its own pixels, the glyphs of each font in it with a
-    // face chosen drawn on them, its levels made
-    void SkinDrawSize(uint32_t hash,SkinSize& z) {
-        z.stale=false;
-        if (z.base.empty() || !z.texture) return;
-        std::vector<uint32_t> argb=z.base;
-        SkinFontDrawer drawer;
-        for (int k=0;k<2;k++) {
-            drawer.faces[k]=!skinFontFile[k].empty() && skinFace[k].added ? &skinFace[k] : nullptr;
-            drawer.outline[k]=skinOutline[k]; drawer.outlineColour[k]=skinOutlineColour[k];
-        }
-        drawer.Draw(skinFonts,hash,z.factor,argb,int(z.width),int(z.height));
-        SkinUpload(static_cast<IDirect3DTexture8*>(z.texture),argb,z.width,z.height);
-    }
-    void SkinLoad(const char* name,char* line,size_t size) {
-        for (const char* c=name;*c;c++) if (!isalnum(static_cast<unsigned char>(*c)) && *c!='_' && *c!='-') {
-            snprintf(line,size,"[uihook:skin] a skin's name is letters, digits, - and _."); return;
-        }
-        auto* device=core->GetDirect3DDevice();
-        if (!device) { snprintf(line,size,"[uihook:skin] no device yet."); return; }
-        const std::string folder=std::string(core->GetInstallPath())+"\\config\\uihook\\skins\\"+name;
-        SkinRelease();
-        // the glyph map first, so the font pictures' own pixels are kept to draw the glyphs on again
-        bool hasFonts=false;
-        if (FILE* f=fopen((folder+"\\fonts.txt").c_str(),"rb")) {
-            std::string text; char chunk[4096]; size_t n;
-            while ((n=fread(chunk,1,sizeof(chunk),f))>0 && text.size()<(1u<<20)) text.append(chunk,n);
-            fclose(f);
-            skinFonts.Parse(text.c_str()); hasFonts=!skinFonts.styles.empty();
-        }
-        WIN32_FIND_DATAA found; unsigned failed=0;
-        HANDLE find=FindFirstFileA((folder+"\\tex-*").c_str(),&found);
-        if (find!=INVALID_HANDLE_VALUE) {
-            do {
-                uint32_t hash=0; float factor=1;
-                if ((found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || !SkinLook::FileHash(found.cFileName,hash,&factor)) continue;
-                const int32_t had=Skin.Find(hash);
-                bool same=false;
-                if (had>=0) for (auto& z:Skin.textures[size_t(had)].sizes) same|=fabsf(z.factor-factor)<0.001f;
-                if (same) continue;
-                uint32_t width=0,height=0; std::vector<uint32_t> argb;
-                IDirect3DTexture8* texture=nullptr;
-                if (!SkinReadPicture((folder+"\\"+found.cFileName).c_str(),width,height,argb)
-                    || FAILED(device->CreateTexture(width,height,0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,&texture))) { failed++; continue; }
-                if (!SkinUpload(texture,argb,width,height)) { texture->Release(); failed++; continue; }
-                SkinSize size; size.factor=factor; size.width=width; size.height=height; size.texture=texture;
-                if (hasFonts && skinFonts.Has(hash)) size.base=std::move(argb);
-                if (had>=0) SkinLook::AddSize(Skin.textures[size_t(had)],size);
-                else { SkinTexture t; t.hash=hash; SkinLook::AddSize(t,size); Skin.textures.push_back(t); }
-            } while (FindNextFileA(find,&found));
-            FindClose(find);
-        }
-        snprintf(Skin.name,sizeof(Skin.name),"%s",name);
-        unsigned unread=0; bool colours=false;
-        if (FILE* f=fopen((folder+"\\skin.txt").c_str(),"rb")) {
-            std::string text; char chunk[4096]; size_t n;
-            while ((n=fread(chunk,1,sizeof(chunk),f))>0 && text.size()<65536) text.append(chunk,n);
-            fclose(f); colours=true;
-            unread=SkinColours(Skin.textures,text.c_str());
-        }
-        // a font chosen before (by nativeui, or by hand) drawn into the skin's font pictures
-        std::string why;
-        const unsigned glyphs=hasFonts ? SkinApplyFonts(&why) : 0;
-        if (Skin.textures.empty()) snprintf(line,size,"[uihook:skin] no pictures read in %s (tex-<hash>.png or .bmp)%s.",folder.c_str(),failed ? ", some could not be read" : "");
-        else snprintf(line,size,"[uihook:skin] %s: %zu pictures loaded%s%s%s%s%s; the game's textures are known as they are drawn.",name,Skin.textures.size(),
-            failed ? ", some could not be read" : "",colours ? ", skin.txt read" : "",unread ? " (some of its lines not understood, or of no picture)" : "",
-            hasFonts ? (glyphs ? ", its fonts to be drawn in the fonts chosen as they are used" : ", fonts.txt read") : "",why.empty() ? "" : (" ("+why+")").c_str());
-    }
-    void SkinCommand(const char* word) {
-        char line[512];
-        // font <menu|title> <file|off> [regular|bold] [outline=<pixels>] [outlinecolour=<AARRGGBB>] [quiet]: the font a
-        // kind of the skin's fonts is drawn in (in winxi's look, its weight and outline as given), off its own
-        if (!_strnicmp(word,"font ",5) || !_stricmp(word,"font")) {
-            char kind[16]={},file[MAX_PATH]={},more[4][32]={};
-            const int n=sscanf_s(word+4," %15s %259s %31s %31s %31s %31s",kind,16u,file,unsigned(MAX_PATH),more[0],32u,more[1],32u,more[2],32u,more[3],32u);
-            const int k=n>=1 ? SkinFontKind(kind) : -1;
-            bool quietly=false;
-            int weightWas=0,outlineWas=0; uint32_t colourWas=0;
-            if (k>=0) {
-                weightWas=skinFontWeight[k]; outlineWas=skinOutline[k]; colourWas=skinOutlineColour[k];
-                skinFontWeight[k]=0;
-                for (int i=0;i<4 && i+2<n;i++) {
-                    if (!_stricmp(more[i],"quiet")) quietly=true;
-                    else if (!_stricmp(more[i],"bold")) skinFontWeight[k]=FW_BOLD;
-                    else if (!_stricmp(more[i],"regular")) skinFontWeight[k]=FW_NORMAL;
-                    else if (!_strnicmp(more[i],"outline=",8)) skinOutline[k]=(std::max)(0,(std::min)(4,atoi(more[i]+8)));
-                    else if (!_strnicmp(more[i],"outlinecolour=",14)) skinOutlineColour[k]=static_cast<uint32_t>(strtoul(more[i]+14,nullptr,16));
-                }
-            }
-            if (k<0 || n<2) {
-                snprintf(line,sizeof(line),"[uihook:skin] fonts: menu %s, title %s. /uihook skin font <menu|title> <file in C:\\Windows\\Fonts, or off>.",
-                    skinFontFile[0].empty() ? "the skin's own" : skinFontFile[0].c_str(),skinFontFile[1].empty() ? "the skin's own" : skinFontFile[1].c_str());
-                core->GetChatManager()->Write(0,false,line);
-                return;
-            }
-            const std::string chosen=_stricmp(file,"off") ? file : "";
-            // as it was (nativeui gives it again as the theme is looked at): nothing drawn again
-            const bool same=chosen==skinFontFile[k] && skinFontWeight[k]==weightWas && skinOutline[k]==outlineWas && skinOutlineColour[k]==colourWas;
-            skinFontFile[k]=chosen;
-            std::string why;
-            const unsigned glyphs=same ? 0 : SkinApplyFonts(&why,1u<<k);
-            if (same && quietly) return;
-            if (quietly && why.empty()) return;
-            if (skinFontFile[k].empty()) snprintf(line,sizeof(line),"[uihook:skin] the %s font: the skin's own.",kind);
-            else if (!skinFonts.styles.size()) snprintf(line,sizeof(line),"[uihook:skin] the %s font is %s, drawn once a skin with a fonts.txt is loaded.",kind,file);
-            else snprintf(line,sizeof(line),"[uihook:skin] the %s font: %s, drawn as each of %u sizes is used%s%s.",kind,file,glyphs,why.empty() ? "" : "; ",why.c_str());
-            core->GetChatManager()->Write(0,false,line);
-            return;
-        }
-        if (!_stricmp(word,"off")) {
-            const size_t n=Skin.textures.size(); SkinRelease(); Skin.name[0]=0;
-            snprintf(line,sizeof(line),n ? "[uihook:skin] off; the game's own textures." : "[uihook:skin] no skin loaded.");
-        } else if (!_stricmp(word,"reload")) {
-            if (!Skin.name[0]) snprintf(line,sizeof(line),"[uihook:skin] no skin to reload: /uihook skin <name>.");
-            else { char name[64]; snprintf(name,sizeof(name),"%s",Skin.name); SkinLoad(name,line,sizeof(line)); }
-        } else if (word[0]) SkinLoad(word,line,sizeof(line));
-        else if (!Skin.On()) snprintf(line,sizeof(line),"[uihook:skin] none loaded. /uihook skin <name> loads config\\uihook\\skins\\<name>\\; reload, off.");
-        else {
-            unsigned matched=0; uint32_t drawn=0,recoloured=0;
-            for (auto& t:Skin.textures) { if (t.matched) matched++; drawn+=t.drawn; recoloured+=t.recoloured; }
-            snprintf(line,sizeof(line),"[uihook:skin] %s: %zu pictures, %u found in the game's textures (%u read), %u draws made with them, %u of them recoloured.",
-                Skin.name,Skin.textures.size(),matched,Skin.read,drawn,recoloured);
-            core->GetChatManager()->Write(0,false,line);
-            std::string unseen;
-            for (auto& t:Skin.textures) if (!t.matched) { char h[12]; snprintf(h,sizeof(h)," %08X",t.hash); unseen+=h; }
-            if (unseen.empty()) return;
-            snprintf(line,sizeof(line),"[uihook:skin] not drawn by the game yet:%s",unseen.substr(0,400).c_str());
-        }
-        core->GetChatManager()->Write(0,false,line);
-    }
-    // /uihook textures: a screen-space draw's texture (stage 0), read the first time it is seen, counted with the
-    // window and part drawing it. data: its vertices, from min; none from a vertex buffer.
-    void TextureDraw(const void* data,unsigned vertices,unsigned stride,bool buffered,unsigned group=0) {
-        if (!Textures.on) return;
-        auto* device=core->GetDirect3DDevice(); DWORD fvf=0;
-        if (!device || !DrawFvf(fvf) || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return;
-        IDirect3DBaseTexture8* base=nullptr;
-        if (FAILED(device->GetTexture(0,&base))) base=nullptr;
-        const uintptr_t key=reinterpret_cast<uintptr_t>(base);
-        size_t at=Textures.Known(key,Shared.Frame);
-        if (at==SIZE_MAX) {
-            LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]={}; const char* why="";
-            static const float whole[4]={0,0,1,1};
-            const bool read=base && LabelCut(base,whole,pixels,desc,texels,why);
-            at=Textures.Add(key,Shared.Frame,desc.Width,desc.Height,uint32_t(desc.Format),uint32_t(desc.Pool),read ? &pixels : nullptr,read || !base ? "" : why);
-        }
-        if (base) base->Release();
-        float uv[4]; uint32_t colour=0; bool hasColour=false;
-        const bool hasUV=!buffered && TextureVertices(data,vertices,stride,fvf,uv,&colour,hasColour);
-        const TexturePart part=!Textures.window[0] ? TEXTURE_OUTSIDE : NativeMenus.text ? TEXTURE_TEXT : TexturePart(NativeMenus.phase);
-        Textures.Count(at,part,hasUV ? uv : nullptr,hasColour ? &colour : nullptr,buffered);
-        if (hasUV) TexturePieces(data,vertices,stride,fvf,group,[&](const float* rect,const float* piece,uint32_t c) {
-            Textures.Sample(at,part,rect,piece,c);
-            if (part==TEXTURE_TEXT || NativeMenus.text) Textures.PrintPiece(at,rect,piece);
-        });
-    }
-    void TexturesWrite(char* line,size_t size) {
-        const std::string base=std::string(core->GetInstallPath())+"\\logs\\uihook-textures";
-        CreateDirectoryA(base.c_str(),nullptr);
-        std::string folder;
-        for (unsigned n=1;n<1000 && folder.empty();n++) {
-            char sub[8]; snprintf(sub,sizeof(sub),"\\%02u",n);
-            if (CreateDirectoryA((base+sub).c_str(),nullptr)) folder=base+sub;
-        }
-        unsigned images=0;
-        if (folder.empty() || !Textures.Write(folder,images)) snprintf(line,size,"[uihook:textures] could not write to %s.",base.c_str());
-        else {
-            Textures.WriteGlyphs(folder+"\\glyphs.txt");
-            snprintf(line,size,"[uihook:textures] %zu textures (%u as pictures) written to %s\\index.txt, glyphs of %u prints to glyphs.txt.",
-                Textures.entries.size(),images,folder.c_str(),Textures.matched);
-        }
-    }
-    void TexturesCommand(const char* word) {
-        char line[512];
-        if (!_stricmp(word,"on")) {
-            snprintf(line,sizeof(line),Textures.on ? "[uihook:textures] already on."
-                : "[uihook:textures] on: open the menus you want counted, then /uihook textures off to write them to logs\\uihook-textures.");
-            Textures.on=true;
-        } else if (!_stricmp(word,"off")) {
-            Textures.on=false;
-            if (Textures.entries.empty()) snprintf(line,sizeof(line),"[uihook:textures] off; nothing seen.");
-            else TexturesWrite(line,sizeof(line));
-        } else if (!_stricmp(word,"dump")) {
-            if (Textures.entries.empty()) snprintf(line,sizeof(line),"[uihook:textures] nothing seen yet: /uihook textures on, then open some menus.");
-            else TexturesWrite(line,sizeof(line));
-        } else if (!_stricmp(word,"clear")) {
-            Textures.Clear(); snprintf(line,sizeof(line),"[uihook:textures] cleared.");
-        } else snprintf(line,sizeof(line),"[uihook:textures] %s, %zu textures seen (%zu bytes of pixels kept). /uihook textures on|off|dump|clear.",
-            Textures.on ? "on" : "off",Textures.entries.size(),Textures.memory);
-        core->GetChatManager()->Write(0,false,line);
-    }
-    void NativeCommand(const char* command) {
-        char verb[16]={},name[16]={},a[16]={},b[16]={}; char line[256];
-        const int words=sscanf_s(command,"/uihook native %15s %15s %15s %15s",verb,16u,name,16u,a,16u,b,16u);
-        auto* chat=core->GetChatManager();
-        if (words>=2 && !_stricmp(verb,"group") && !_stricmp(name,"off")) {
-            // quiet: as an addon sends it, said nowhere
-            snprintf(line,sizeof(line),"[uihook:native] the windows over the chat log as the game draws them again (%u).",NativeMenus.GroupOff());
-            if (words>=3 && !_stricmp(a,"quiet")) return;
-        } else if (words>=3 && !_stricmp(verb,"group")) {
-            NativeMenus.Group(float(atof(name)),float(atof(a)));
-            snprintf(line,sizeof(line),"[uihook:native] the windows the game stacks over the chat log drawn %s, %s from where it puts them.",name,a);
-            if (words>=4 && !_stricmp(b,"quiet")) return;
-        } else if (words>=2 && !_stricmp(verb,"size")) {
-            const bool ok=NativeMenus.MenuScale(float(atof(name)));
-            snprintf(line,sizeof(line),ok ? "[uihook:native] every framed window drawn %.2f times its size, from its corner of the screen."
-                : "[uihook:native] a size from 0.5 to 3.",NativeMenus.menuScale);
-            if (words>=3 && !_stricmp(a,"quiet")) return;
-        } else if (words>=2 && !_stricmp(verb,"inset")) {
-            NativeMenus.Inset(float(atof(name)));
-            snprintf(line,sizeof(line),NativeMenus.inset>0 ? "[uihook:native] the sides brought in %.0f pixels: the bar across the top that much shorter at each end, the windows each side with it."
-                : "[uihook:native] the sides where the game puts them.",NativeMenus.inset);
-            if (words>=3 && !_stricmp(a,"quiet")) return;
-        } else if (words<1) {
-            unsigned n=0; for (auto& e:NativeMenus.entries) if (e.name[0]) n++;
-            snprintf(line,sizeof(line),"[uihook:native] %u windows looked at; the game's mouse hit-tests stay where it puts them.",n);
-            chat->Write(0,false,line);
-            if (NativeMenus.menuScale!=1) {
-                snprintf(line,sizeof(line),"  every framed window drawn %.2f times its size",NativeMenus.menuScale);
-                chat->Write(0,false,line);
-            }
-            if (NativeMenus.inset>0) {
-                snprintf(line,sizeof(line),"  the sides brought in %.0f pixels",NativeMenus.inset);
-                chat->Write(0,false,line);
-            }
-            if (NativeMenus.groupOn) {
-                snprintf(line,sizeof(line),"  group over the chat log: %.0f, %.0f; the log's top %d at its left %d (%s)",NativeMenus.groupX,NativeMenus.groupY,
-                    NativeMenus.logTop,NativeMenus.logLeft,NativeMenus.logFrame ? "seen" : "not drawn yet");
-                chat->Write(0,false,line);
-            }
-            for (auto& e:NativeMenus.entries) {
-                if (!e.name[0]) continue;
-                char seen[48];
-                if (!e.seen) snprintf(seen,sizeof(seen),"not drawn since asked");
-                else snprintf(seen,sizeof(seen),"drawn %u frames ago",Shared.Frame-e.seen);
-                snprintf(line,sizeof(line),"  %.8s%s: %s; move %.0f,%.0f (%u draws moved, %u outside its frame kept, %u could not be)",
-                    e.name+8,e.group ? (e.member ? " (group)" : " (group, not now)") : "",seen,e.dx,e.dy,e.moved,e.kept,e.unmoved);
-                chat->Write(0,false,line);
-            }
-            return;
-        } else {
-            snprintf(line,sizeof(line),"[uihook:native] /uihook native [group <x> <y> | group off | inset <pixels> | size <factor>]");
-        }
-        chat->Write(0,false,line);
     }
     void ProbeDevice(IDirect3DDevice8* device, const D3DVIEWPORT8& viewport, const Drawing& drawing) {
         probe.replayFrame=Shared.Frame; probe.viewport=viewport; probe.scene=inScene;
@@ -858,6 +353,10 @@ public:
     uint32_t GetFlags() const override { return static_cast<uint32_t>(Ashita::PluginFlags::UseDirect3D); }
     bool Initialize(IAshitaCore* c, ILogManager* l, uint32_t) override {
         core=c; log=l; Instance=this;
+        Draws.core=c; Draws.frame=&Shared.Frame;
+        Skins.Init(&Draws,&Native.look);
+        Native.Init(&Draws,&Skins,nullptr);
+        Diag.Init(&Draws,&MirrorBlock,&MenuMirror,&Native.look);
         memcpy(TextTap.Magic,"UIHOOK-TEXT",12); TextTap.Version=1; TextTap.Size=sizeof(TextTapShared);
         Shared.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&Submit));
         Hud.Submit = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&SubmitHud));
@@ -871,6 +370,7 @@ public:
                 uintptr_t low=reinterpret_cast<uintptr_t>(begin);
                 if (manager>=low && manager<=low+module.SizeOfImage-0x84) {
                     menuManager=reinterpret_cast<uint8_t*>(manager); Shared.GeometryReady=1;
+                    Native.menuManager=menuManager;
                 }
             }
             // HUD discovery is independent of party/window recognition. Compass replacement needs
@@ -973,23 +473,17 @@ public:
         Hud.SupportedMask=0; Hud.Submit=0;
         Chat.SupportedMask=0; Chat.Submit=0; Chat.InputRectFrame=Chat.PrimaryRectFrame=Chat.ExpandedRectFrame=Chat.SplitRectFrame=Chat.WindowFrame=Chat.LinesFrame=Chat.ColorFrame=Chat.StateFrame=Chat.StateFlags=0; chat.Clear(); windowRoutes.Clear(); colorTables.Clear(); StopChat(); ChatReadReset();
         GiveClockText(TextCall); GiveClockIcons(IconCalls); Hud.HideIcons=0; Hud.WeatherShift=0; Hud.PreviewWeather=0; Hud.WeatherScale=0; bank=nullptr; Give(CompassDetour); Give(ClockDetour); compassGlobal=nullptr;
-        AutoCensus(true);
-        Textures.on=false; Textures.Clear(); Textures.window[0]=0;
-        SkinRelease(); Skin.name[0]=0; skinFace[0].Close(); skinFace[1].Close();
+        Diag.Unload();
+        Skins.Unload();
         GiveMirror();
         GiveArrows(Arrows); GiveChatText(ChatText); GiveChatControls(ChatControls); Give(ExpandedChatDetour); Give(WindowDetour); blocking=targetScope=expandedSkin=false; ReleaseStates(); Stop(); StopHud(); Instance=nullptr;
     }
     bool Direct3DInitialize(IDirect3DDevice8*) override { return true; }
     void Direct3DPresent(const RECT*,const RECT*,HWND,const RGNDATA*) override {
         MenuMirror.Publish(Shared.Frame);
-        if (MenuWatch.on) {
-            MenuWatch.Share(WatchBlock,Shared.Frame);
-            if (WatchFile) WatchPresent(); else MenuWatch.Next();
-        }
-        if (labelsAt && int32_t(GetTickCount()-labelsAt)>=0) { labelsAt=0; LabelsCommand(); }
-        AutoCensus(false);
+        Diag.Present();
         ++Shared.Frame;
-        MenuCensus.frame=Shared.Frame; MirrorBlock.Frame=Shared.Frame;
+        Diag.Counted(); MirrorBlock.Frame=Shared.Frame;
         Hud.Frame=Chat.Frame=Menus.Frame=Shared.Frame;
         ChatReadReset(); // the regions found readable last frame are asked about again
         chat.Sample(Chat,Shared.Frame);
@@ -1017,61 +511,55 @@ public:
     void Direct3DEndScene(bool) override { inScene=false; }
     // Each draw: counted and heard as it is (the skin's picture not yet in place, so what is counted and mirrored
     // is the game's own); then, where the skin has a picture for its texture, drawn with it here, the game's put back
-    bool BufferDraw() { TextureDraw(nullptr,0,0,true); MenuCensus.Draw(); MenuWatch.Draw(MirrorWatch::BUFFER); Native(false,nullptr,0,0); NativeMenus.Unmoved(); return false; }
+    bool BufferDraw() { Diag.BufferDraw(); Measure(false,nullptr,0,0); Native.look.Unmoved(); return false; }
     bool Direct3DDrawPrimitive(D3DPRIMITIVETYPE t,UINT start,UINT count) override {
-        if (scaling) return false;
-        drawFvfKnown=false;
+        if (Draws.scaling) return false;
+        Draws.NewDraw();
         BufferDraw();
-        const SkinSwap skin=SkinBegin();
-        return SkinEnd(skin,Block(),[&](IDirect3DDevice8* d) { return d->DrawPrimitive(t,start,count); });
+        const SkinModule::SkinSwap skin=Skins.Begin();
+        return Skins.End(skin,Block(),[&](IDirect3DDevice8* d) { return d->DrawPrimitive(t,start,count); });
     }
     bool Direct3DDrawIndexedPrimitive(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT start,UINT count) override {
-        if (scaling) return false;
-        drawFvfKnown=false;
+        if (Draws.scaling) return false;
+        Draws.NewDraw();
         BufferDraw();
-        const SkinSwap skin=SkinBegin();
-        return SkinEnd(skin,Block(),[&](IDirect3DDevice8* d) { return d->DrawIndexedPrimitive(t,min,vertices,start,count); });
+        const SkinModule::SkinSwap skin=Skins.Begin();
+        return Skins.End(skin,Block(),[&](IDirect3DDevice8* d) { return d->DrawIndexedPrimitive(t,min,vertices,start,count); });
     }
     bool Direct3DDrawPrimitiveUP(D3DPRIMITIVETYPE t,UINT count,const void* data,UINT stride) override {
-        if (scaling) return false;
-        drawFvfKnown=false;
-        TextureDraw(data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride,false,
-            t==D3DPT_TRIANGLELIST ? 6 : t==D3DPT_TRIANGLESTRIP && count==2 ? 4 : 0);
-        MenuCensus.Draw();
-        if (MenuWatch.Inside()) WatchUp();
-        if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0); // our own scaled copy, on its way to the device
-        Native(true,data,stride,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0);
-        const SkinSwap skin=SkinBegin(data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride);
-        const bool done=Block() || NativeDraw(t,0,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,count,nullptr,D3DFMT_UNKNOWN,data,stride)
-            || ScaleIcon(t,count,data,stride);
-        return SkinEnd(skin,done,[&](IDirect3DDevice8* d) {
-            return d->DrawPrimitiveUP(t,count,SkinVertices(skin,data,t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0,stride),stride);
-        });
+        if (Draws.scaling) return false;
+        Draws.NewDraw();
+        const UINT n=t==D3DPT_TRIANGLELIST ? count*3 : t==D3DPT_TRIANGLESTRIP || t==D3DPT_TRIANGLEFAN ? count+2 : 0;
+        Diag.MemoryDraw(data,n,stride,t==D3DPT_TRIANGLELIST ? 6 : t==D3DPT_TRIANGLESTRIP && count==2 ? 4 : 0);
+        if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,n); // our own scaled copy, on its way to the device
+        Measure(true,data,stride,n);
+        const SkinModule::SkinSwap skin=Skins.Begin(data,n,stride);
+        const bool done=Block() || Native.Draw(t,0,n,count,nullptr,D3DFMT_UNKNOWN,data,stride) || ScaleIcon(t,count,data,stride);
+        return Skins.End(skin,done,[&](IDirect3DDevice8* d) { return d->DrawPrimitiveUP(t,count,Skins.Vertices(skin,data,n,stride),stride); });
     }
     bool Direct3DDrawIndexedPrimitiveUP(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) override {
-        if (scaling) return false;
-        drawFvfKnown=false;
-        TextureDraw(data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr,vertices,stride,false,4);
-        MenuCensus.Draw();
-        if (MenuWatch.Inside()) WatchUp();
+        if (Draws.scaling) return false;
+        Draws.NewDraw();
+        const void* first=data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr;
+        Diag.MemoryDraw(first,vertices,stride,4);
         if (MenuMirror.Active()) MenuMirror.Draw(core->GetDirect3DDevice(),true,data,stride,vertices);
-        Native(true,data,stride,vertices);
-        const SkinSwap skin=SkinBegin(data ? static_cast<const uint8_t*>(data)+size_t(min)*stride : nullptr,vertices,stride);
-        const bool done=Block() || NativeDraw(t,min,vertices,count,indices,format,data,stride) || ClockDraw(t,min,vertices,count,indices,format,data,stride);
-        return SkinEnd(skin,done,[&](IDirect3DDevice8* d) {
-            return d->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,SkinVertices(skin,data,min+vertices,stride),stride);
+        Measure(true,data,stride,vertices);
+        const SkinModule::SkinSwap skin=Skins.Begin(first,vertices,stride);
+        const bool done=Block() || Native.Draw(t,min,vertices,count,indices,format,data,stride) || ClockDraw(t,min,vertices,count,indices,format,data,stride);
+        return Skins.End(skin,done,[&](IDirect3DDevice8* d) {
+            return d->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,Skins.Vertices(skin,data,min+vertices,stride),stride);
         });
     }
     // The clock's draws moved by its shift
     bool ClockDraw(D3DPRIMITIVETYPE t,UINT min,UINT vertices,UINT count,const void* indices,D3DFORMAT format,const void* data,UINT stride) {
         auto* device=core->GetDirect3DDevice(); DWORD shader=0;
         if (!inClock || min!=0 || (clockShiftX==0 && clockShiftY==0) || !data || stride<8 || !vertices || vertices>4096
-            || !device || !DrawFvf(shader) || !(shader & D3DFVF_XYZRHW)) return false;
+            || !device || !Draws.DrawFvf(shader) || !(shader & D3DFVF_XYZRHW)) return false;
         scaledVertices.assign(static_cast<const uint8_t*>(data),static_cast<const uint8_t*>(data)+size_t(vertices)*stride);
         if (!ChatTranslateVertices(scaledVertices.data(),vertices,stride,clockShiftX,clockShiftY)) return false;
-        scaling=true;
+        Draws.scaling=true;
         const bool ok=SUCCEEDED(device->DrawIndexedPrimitiveUP(t,min,vertices,count,indices,format,scaledVertices.data(),stride));
-        scaling=false;
+        Draws.scaling=false;
         return ok;
     }
     // Each line given to the game's chat log, recorded as it stands at uihook's turn; never changed or blocked
@@ -1086,178 +574,23 @@ public:
         if (!WindowDetour.trampoline && !Take(WindowDetour,begin,size)) return false;
         if (!Take(CensusBitmapDetour,begin,size) || !Take(CensusScaledDetour,begin,size) || !Take(CensusFontDetour,begin,size)
             || !TakeMirrorContent(begin,size,static_cast<uint8_t*>(WindowDetour.target))) { GiveMirror(); return false; }
-        MenuCensus.base=reinterpret_cast<uintptr_t>(begin);
-        memcpy(WatchBlock.Magic,"UIHOOK-WATCH",13); WatchBlock.Version=1; WatchBlock.Size=sizeof(WatchBlock);
-        MenuWatch.Start();
+        Diag.Start(reinterpret_cast<uintptr_t>(begin));
         return true;
     }
     void GiveMirror() {
         MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; MirrorBlock.MouseFrame=0; MenuMirror.Clear();
         Give(InputDetour);
-        MenuCensus.on=false; MenuCensus.current=nullptr; MenuWatch.Stop(); WatchFile=false; WatchBlock.Count=0;
+        Diag.Stop();
         GiveMirrorContent(); Give(CensusBitmapDetour); Give(CensusScaledDetour); Give(CensusFontDetour);
     }
-    // The census, from /uihook census on: each time it is switched on a file of its own in logs\uihook-census (named
-    // for when it began), written a few seconds after a window is first seen, each minute while windows are drawn,
-    // and as it is switched off or uihook is unloaded. Off from load.
-    std::string censusAuto; DWORD censusWrittenAt=0, censusNewAt=0; size_t censusWritten=0; uint32_t censusFrame=0;
-    void StartAutoCensus() {
-        if (!StartCensus()) return;
-        const std::string folder=std::string(core->GetInstallPath())+"\\logs\\uihook-census";
-        CreateDirectoryA(folder.c_str(),nullptr);
-        SYSTEMTIME t; GetLocalTime(&t); char name[48];
-        snprintf(name,sizeof(name),"\\%04u-%02u-%02u_%02u%02u%02u.txt",t.wYear,t.wMonth,t.wDay,t.wHour,t.wMinute,t.wSecond);
-        censusAuto=folder+name; censusWrittenAt=GetTickCount(); censusNewAt=0; censusWritten=0; censusFrame=0;
-    }
-    void AutoCensus(bool now) {
-        if (censusAuto.empty() || !MenuCensus.on || MenuCensus.windows.empty()) return;
-        const DWORD tick=GetTickCount();
-        if (MenuCensus.windows.size()!=censusWritten && !censusNewAt) censusNewAt=tick ? tick : 1;
-        uint32_t last=0; for (auto& w:MenuCensus.windows) last=(std::max)(last,w.last);
-        const bool fresh=censusNewAt && tick-censusNewAt>=5000;
-        const bool minute=tick-censusWrittenAt>=60000 && last!=censusFrame;
-        if (!now && !fresh && !minute) return;
-        if (MenuCensus.Write(censusAuto.c_str(),"heard")) { censusWritten=MenuCensus.windows.size(); censusFrame=last; }
-        censusWrittenAt=tick; censusNewAt=0;
-    }
-    bool StartCensus() { if (!MirrorBlock.Supported) return false; MenuCensus.on=true; return true; }
-    void StopCensus() { MenuCensus.on=false; MenuCensus.current=nullptr; }
-    void CensusCommand(const char* word) {
-        char line[256];
-        const std::string path=std::string(core->GetInstallPath())+"\\logs\\uihook-census.txt";
-        if (!_stricmp(word,"on")) {
-            const bool was=MenuCensus.on;
-            if (!was) StartAutoCensus();
-            snprintf(line,sizeof(line),was ? "[uihook:census] already on." : MenuCensus.on
-                ? "[uihook:census] on, written to logs\\uihook-census as you open menus; /uihook census off to stop." : "[uihook:census] the text routines were not found in this client.");
-        } else if (!_stricmp(word,"off")) {
-            AutoCensus(true); censusAuto.clear();
-            StopCensus(); snprintf(line,sizeof(line),"[uihook:census] off; %zu windows kept until /uihook census clear.",MenuCensus.windows.size());
-        } else if (!_stricmp(word,"clear")) {
-            MenuCensus.Clear(); snprintf(line,sizeof(line),"[uihook:census] cleared.");
-        } else if (!_stricmp(word,"dump")) {
-            const bool hooked=MirrorBlock.Supported!=0;
-            if (MenuCensus.Write(path.c_str(),hooked ? "heard" : "not found in this client"))
-                snprintf(line,sizeof(line),"[uihook:census] %zu windows written to %s.",MenuCensus.windows.size(),path.c_str());
-            else snprintf(line,sizeof(line),"[uihook:census] could not write %s.",path.c_str());
-        } else snprintf(line,sizeof(line),"[uihook:census] %s, %zu windows seen. /uihook census on|off|dump|clear.",MenuCensus.on ? "on" : "off",MenuCensus.windows.size());
-        core->GetChatManager()->Write(0,false,line);
-    }
-    // Every element and content quad (an icon, a letter) of the last frame published, cut from its texture to logs\uihook-labels\N.bmp, with
-    // labels.txt naming each one's window, texture, place in it and the hash of its pixels
-    DWORD labelsAt=0; // when a /uihook mirror labels asked for later is to be written, or 0
-    void LabelsCommand() {
-        char line[512];
-        const MirrorFrameData& last=MirrorBlock.Published;
-        uint32_t elements=0;
-        for (uint32_t i=0;i<last.QuadCount;i++) if (last.Quads[i].Phase==MIRROR_ELEMENT || last.Quads[i].Phase==MIRROR_CONTENT) elements++;
-        if (!elements) {
-            core->GetChatManager()->Write(0,false,"[uihook:mirror] no elements or art in the last frame mirrored: open a menu the menus addon mirrors first; nothing written.");
-            return;
-        }
-        // each run in a folder of its own, 01, 02 and on, so none is written over
-        const std::string base=std::string(core->GetInstallPath())+"\\logs\\uihook-labels";
-        CreateDirectoryA(base.c_str(),nullptr);
-        std::string folder;
-        for (unsigned n=1;n<1000 && folder.empty();n++) {
-            char sub[8]; snprintf(sub,sizeof(sub),"\\%02u",n);
-            if (CreateDirectoryA((base+sub).c_str(),nullptr)) folder=base+sub;
-        }
-        if (folder.empty()) { snprintf(line,sizeof(line),"[uihook:mirror] could not make a folder in %s.",base.c_str()); core->GetChatManager()->Write(0,false,line); return; }
-        std::vector<uint32_t> sheets; // each texture once whole, as sheet-XXXXXXXX.bmp
-        FILE* list=fopen((folder+"\\labels.txt").c_str(),"w");
-        if (!list) { snprintf(line,sizeof(line),"[uihook:mirror] could not write %s.",folder.c_str()); core->GetChatManager()->Write(0,false,line); return; }
-        fprintf(list,"# n window texture WxH format uv(left top right bottom) texels(x0 y0 x1 y1) hash colour rect(normalized) phase(1 content, 3 element)\n");
-        unsigned written=0,skipped=0;
-        for (uint32_t i=0;i<last.QuadCount;i++) {
-            const MirrorQuad& q=last.Quads[i];
-            if ((q.Phase!=MIRROR_ELEMENT && q.Phase!=MIRROR_CONTENT) || q.Window>=last.WindowCount) continue;
-            const char* name=last.Windows[q.Window].Name;
-            LabelPixels pixels; D3DSURFACE_DESC desc{}; uint32_t texels[4]={}; const char* why="not held";
-            const bool cut=q.Texture && MenuMirror.Holds(q.Texture)
-                && LabelCut(reinterpret_cast<IDirect3DBaseTexture8*>(uintptr_t(q.Texture)),q.UV,pixels,desc,texels,why);
-            if (cut && std::find(sheets.begin(),sheets.end(),q.Texture)==sheets.end()) {
-                sheets.push_back(q.Texture);
-                const float whole[4]={0,0,1,1}; LabelPixels sheet; D3DSURFACE_DESC d{}; uint32_t t[4]; const char* w;
-                char name[40]; snprintf(name,sizeof(name),"\\sheet-%08X.bmp",q.Texture);
-                if (LabelCut(reinterpret_cast<IDirect3DBaseTexture8*>(uintptr_t(q.Texture)),whole,sheet,d,t,w)) LabelWrite((folder+name).c_str(),sheet);
-            }
-            char file[32]="-";
-            if (cut) {
-                snprintf(file,sizeof(file),"%03u.bmp",i);
-                if (!LabelWrite((folder+"\\"+file).c_str(),pixels)) { snprintf(file,sizeof(file),"-"); why="not written"; }
-            }
-            fprintf(list,"%s %.16s %08X %ux%u %08X %.5f %.5f %.5f %.5f %u %u %u %u %08X %08X %.4f %.4f %.4f %.4f %u%s%s\n",
-                file,name,q.Texture,desc.Width,desc.Height,uint32_t(desc.Format),q.UV[0],q.UV[1],q.UV[2],q.UV[3],
-                texels[0],texels[1],texels[2],texels[3],file[0]!='-' ? LabelHash(pixels) : 0u,q.Colour,
-                q.Rect[0],q.Rect[1],q.Rect[2],q.Rect[3],q.Phase,file[0]!='-' ? "" : " # ",file[0]!='-' ? "" : why);
-            (file[0]!='-' ? written : skipped)++;
-        }
-        fclose(list);
-        snprintf(line,sizeof(line),"[uihook:mirror] %u pieces and %zu textures written, %u not, to %s (from %u windows mirrored last frame).",
-            written,sheets.size(),skipped,folder.c_str(),last.WindowCount);
-        core->GetChatManager()->Write(0,false,line);
-    }
-    // /uihook mirror watch: each window drawn, whether asked for and mirrored, and how it drew, written as it changes
-    std::string WatchPath() const { return std::string(core->GetInstallPath())+"\\logs\\uihook-mirror-watch.txt"; }
-    int WatchEnter(void* window,bool hidden) {
-        char name[16]; uint8_t* header=nullptr; bool hide=false;
-        auto* w=static_cast<uint8_t*>(window);
-        const bool wanted=w && ChatRead(w+CENSUS_HEADER,&header,4) && header && ChatRead(header+CENSUS_NAME,name,16) && MenuMirror.Wanted(name,hide);
-        return MenuWatch.Enter(window,wanted,hidden,MenuMirror.Active());
-    }
-    void WatchUp() {
-        DWORD fvf=0; auto* device=core->GetDirect3DDevice();
-        const bool screen=device && DrawFvf(fvf) && (fvf & D3DFVF_POSITION_MASK)==D3DFVF_XYZRHW;
-        MenuWatch.Draw(screen ? MirrorWatch::UP : MirrorWatch::OTHER);
-    }
-    void WatchWrite(const std::string& text) {
-        if (text.empty()) return;
-        if (FILE* file=fopen(WatchPath().c_str(),"a")) { fputs(text.c_str(),file); fclose(file); }
-    }
-    static std::string WatchClock() {
-        SYSTEMTIME t; GetLocalTime(&t); char clock[16];
-        snprintf(clock,sizeof(clock),"%02u:%02u:%02u.%03u",t.wHour,t.wMinute,t.wSecond,t.wMilliseconds);
-        return clock;
-    }
-    void WatchPresent() {
-        WatchWrite(MenuWatch.Present(MirrorBlock.Published,MirrorBlock.Dropped,Shared.Frame,GetTickCount(),WatchClock().c_str()));
-    }
-    void WatchCommand(const char* word) {
-        char line[320]; const std::string path=WatchPath();
-        if (word[0]) {
-            // a line of the player's own in the file, where they are and what they see, and the next frame written
-            if (!WatchFile) { core->GetChatManager()->Write(0,false,"[uihook:mirror] the watch is off: /uihook mirror watch first."); return; }
-            WatchWrite("-- "+WatchClock()+" mark: "+word+"\n"); MenuWatch.Renew();
-            snprintf(line,sizeof(line),"[uihook:mirror] marked: %s",word);
-        } else if (WatchFile) {
-            WatchFile=false; snprintf(line,sizeof(line),"[uihook:mirror] watch off; %s kept.",path.c_str());
-        } else if (!MirrorBlock.Supported) {
-            snprintf(line,sizeof(line),"[uihook:mirror] the menus' drawing was not found in this client; nothing to watch.");
-        } else if (FILE* file=fopen(path.c_str(),"w")) {
-            fprintf(file,"uihook mirror watch, started %s: each window drawn (asked for by an addon, hidden, mirrored), its draws, and what was published\n",WatchClock().c_str());
-            fclose(file); WatchFile=true; MenuWatch.Renew();
-            snprintf(line,sizeof(line),"[uihook:mirror] watching to %s; /uihook mirror mark <words> to note a moment, /uihook mirror watch again to stop.",path.c_str());
-        } else snprintf(line,sizeof(line),"[uihook:mirror] could not write %s.",path.c_str());
-        core->GetChatManager()->Write(0,false,line);
-    }
     bool HandleCommand(int32_t,const char* command,bool) override {
-        if (command && (!_stricmp(command,"/uihook native") || !_strnicmp(command,"/uihook native ",15))) { NativeCommand(command); return true; }
+        if (command && (!_stricmp(command,"/uihook native") || !_strnicmp(command,"/uihook native ",15))) { Native.Command(command); return true; }
         if (command && (!_stricmp(command,"/uihook mirror watch") || !_strnicmp(command,"/uihook mirror mark ",20))) {
             const bool mark=command[15]=='m' || command[15]=='M';
             if (mark && !command[20]) return true;
-            WatchCommand(mark ? command+20 : ""); return true;
+            Diag.WatchCommand(mark ? command+20 : ""); return true;
         }
-        if (command && !_strnicmp(command,"/uihook mirror labels",21)) {
-            // at once, or after the seconds given, so the chat line the command was typed in has closed and the
-            // menus are drawn as they are while played
-            const int seconds=command[21]==' ' ? atoi(command+22) : 0;
-            if (seconds<=0) { LabelsCommand(); return true; }
-            labelsAt=GetTickCount()+DWORD((std::min)(seconds,60))*1000;
-            char line[96]; snprintf(line,sizeof(line),"[uihook:mirror] writing the menus' art in %d seconds.",(std::min)(seconds,60));
-            core->GetChatManager()->Write(0,false,line);
-            return true;
-        }
+        if (command && !_strnicmp(command,"/uihook mirror labels",21)) { Diag.LabelsLater(command[21]==' ' ? atoi(command+22) : 0); return true; }
         if (command && _stricmp(command,"/uihook mirror")==0) {
             // what the mirror was asked for, and what it published from the last frame
             char line[256]; const MirrorFrameData& last=MirrorBlock.Published;
@@ -1286,9 +619,9 @@ public:
             }
             return true;
         }
-        if (command && !_strnicmp(command,"/uihook census",14)) { CensusCommand(command[14]==' ' ? command+15 : ""); return true; }
-        if (command && (!_stricmp(command,"/uihook skin") || !_strnicmp(command,"/uihook skin ",13))) { SkinCommand(command[12]==' ' ? command+13 : ""); return true; }
-        if (command && !_strnicmp(command,"/uihook textures",16)) { TexturesCommand(command[16]==' ' ? command+17 : ""); return true; }
+        if (command && !_strnicmp(command,"/uihook census",14)) { Diag.CensusCommand(command[14]==' ' ? command+15 : ""); return true; }
+        if (command && (!_stricmp(command,"/uihook skin") || !_strnicmp(command,"/uihook skin ",13))) { Skins.Command(command[12]==' ' ? command+13 : ""); return true; }
+        if (command && !_strnicmp(command,"/uihook textures",16)) { Diag.TexturesCommand(command[16]==' ' ? command+17 : ""); return true; }
         if (command && _stricmp(command,"/uihook menus")==0) {
             char line[256];
             snprintf(line,sizeof(line),"[uihook:menus] supported %u; frame/request %u/%u, host %u; applied/restored %u/%u; last %.16s at %u.",
@@ -1707,10 +1040,10 @@ public:
         const bool measure=expandedSkin && !cursor && ChatSelectionColor(color) && !chatMeasure && selectionCount<8;
         if (measure) { selectionBounds[selectionCount]=ChatBounds(); chatMeasure=&selectionBounds[selectionCount]; }
         const MirrorPhase mirrorWas=cursor ? MenuMirror.Phase(MIRROR_CURSOR) : MenuMirror.Element(color);
-        const MirrorPhase nativeWas=NativeMenus.Phase(cursor ? MIRROR_CURSOR : MIRROR_ELEMENT);
+        const MirrorPhase nativeWas=Native.look.Phase(cursor ? MIRROR_CURSOR : MIRROR_ELEMENT);
         ForwardChatWindowArt(reinterpret_cast<ChatWindowSprite>(ChatControls.targets[cursor ? CHAT_ART_CURSOR : CHAT_ART_SELECTION]),
             expandedSkin && !Mirrored(),ControlsActive(),controlStyle,cursor,blocking,sprite,x,y,sx,sy,color,a,b,c);
-        MenuMirror.Phase(mirrorWas); NativeMenus.Phase(nativeWas);
+        MenuMirror.Phase(mirrorWas); Native.look.Phase(nativeWas);
         if (measure) { if (chatMeasure->vertices) selectionCount++; chatMeasure=nullptr; }
     }
     // The scrollbar: its page, count and rows above the view read and its bounds measured in a skinned full
@@ -1724,9 +1057,9 @@ public:
         if (measure) { scrollBounds=ChatBounds(); chatMeasure=&scrollBounds; }
         ChatScrollInfo mirrorInfo;
         if (MenuMirror.Active() && ChatScrollRead(object,mirrorInfo)) MenuMirror.Scrollbar(mirrorInfo);
-        const MirrorPhase mirrorWas=MenuMirror.Phase(MIRROR_SCROLL),nativeWas=NativeMenus.Phase(MIRROR_SCROLL);
+        const MirrorPhase mirrorWas=MenuMirror.Phase(MIRROR_SCROLL),nativeWas=Native.look.Phase(MIRROR_SCROLL);
         ForwardChatScroll(reinterpret_cast<ChatScrollDraw>(ChatControls.targets[CHAT_ART_SCROLL]),ControlsActive(),controlStyle,object);
-        MenuMirror.Phase(mirrorWas); NativeMenus.Phase(nativeWas);
+        MenuMirror.Phase(mirrorWas); Native.look.Phase(nativeWas);
         chatMeasure=nullptr; blocking=was;
         if (!measure) return;
         Chat.ScrollFrame=0;
@@ -1789,18 +1122,10 @@ public:
         if (expandedSkin) PublishChatText();
     }
     void Render(void* window) {
-        CensusScope censusScope(MenuCensus,window);
         Mirror::Saved mirrorSaved;
         const bool mirrorHidden=MenuMirror.Begin(window,core->GetDirect3DDevice(),mirrorSaved);
-        struct NativeScope { NativeLook::Saved was; ~NativeScope() { NativeMenus.Leave(was); } } nativeScope{NativeEnter(window)};
-        struct TextureScope { char was[17]; ~TextureScope() { memcpy(Textures.window,was,sizeof(was)); } } textureScope;
-        memcpy(textureScope.was,Textures.window,sizeof(textureScope.was));
-        if (Textures.on) {
-            void* header=nullptr; char name[16];
-            const bool named=window && ChatRead(static_cast<uint8_t*>(window)+4,&header,4) && header && ChatRead(static_cast<uint8_t*>(header)+0x46,name,16);
-            Textures.Window(named ? name : "?");
-        }
-        struct WatchScope { int was; ~WatchScope() { MenuWatch.Leave(was); } } watchScope{MenuWatch.on ? WatchEnter(window,mirrorHidden) : -1};
+        struct NativeScope { NativeLook::Saved was; ~NativeScope() { Native.look.Leave(was); } } nativeScope{Native.Enter(window)};
+        DiagnosticsModule::Window diagnosed(Diag,window,mirrorHidden);
         int index=-1;
         for (int i=0;i<4;i++) {
             void* object=globals[i] ? *globals[i] : nullptr;
@@ -1884,37 +1209,30 @@ static void __fastcall DrawExpandedChat(void* owner,void*) {
     if (PartyHook::Instance) PartyHook::Instance->ExpandedContent(owner);
     else reinterpret_cast<void(__fastcall*)(void*,void*)>(ExpandedChatDetour.trampoline)(owner,nullptr);
 }
-// A print's text read for the texture census's glyphs, as far as its end or 255 bytes
-static void PrintBegin(const char* text) {
-    if (!Textures.on || !text) { Textures.PrintBegin(nullptr,0); return; }
-    uint8_t bytes[256]; size_t n=0;
-    while (n<sizeof(bytes)-1 && ChatRead(text+n,bytes+n,1) && bytes[n]) n++;
-    Textures.PrintBegin(bytes,n);
-}
 // Each text route heard, then the game's own, unchanged; a text call within one counted as nested
 static int32_t __cdecl CensusBitmap(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t sx,uint32_t sy,uint32_t centred) {
-    MenuCensus.Text(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++; PrintBegin(text);
+    Diag.TextBegin(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     MenuMirror.TextBegin(CENSUS_BITMAP,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
-    NativeMenus.text++;
+    Native.look.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusBitmapDetour.trampoline)(x,y,text,colour,sx,sy,centred);
-    NativeMenus.text--;
-    MenuCensus.depth--; MenuMirror.TextEnd(); Textures.PrintEnd(); return end;
+    Native.look.text--;
+    Diag.TextEnd(); MenuMirror.TextEnd(); return end;
 }
 static int32_t __cdecl CensusScaled(int32_t x,int32_t y,const char* text,uint32_t colour,uint32_t flag,uint32_t sx,uint32_t sy) {
-    MenuCensus.Text(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour); MenuCensus.depth++; PrintBegin(text);
+    Diag.TextBegin(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
     MenuMirror.TextBegin(CENSUS_SCALED,static_cast<int16_t>(x),static_cast<int16_t>(y),text,colour);
-    NativeMenus.text++;
+    Native.look.text++;
     const int32_t end=reinterpret_cast<int32_t(__cdecl*)(int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusScaledDetour.trampoline)(x,y,text,colour,flag,sx,sy);
-    NativeMenus.text--;
-    MenuCensus.depth--; MenuMirror.TextEnd(); Textures.PrintEnd(); return end;
+    Native.look.text--;
+    Diag.TextEnd(); MenuMirror.TextEnd(); return end;
 }
 static uint32_t __fastcall CensusFont(void* font,void*,int32_t x,int32_t y,const char* text,uint32_t a,uint32_t colour,uint32_t flags,uint32_t sx,uint32_t sy) {
-    MenuCensus.Text(CENSUS_FONT,x,y,text,colour); MenuCensus.depth++; PrintBegin(text);
+    Diag.TextBegin(CENSUS_FONT,x,y,text,colour);
     MenuMirror.TextBegin(CENSUS_FONT,x,y,text,colour);
-    NativeMenus.text++;
+    Native.look.text++;
     const uint32_t result=reinterpret_cast<uint32_t(__fastcall*)(void*,void*,int32_t,int32_t,const char*,uint32_t,uint32_t,uint32_t,uint32_t,uint32_t)>(CensusFontDetour.trampoline)(font,nullptr,x,y,text,a,colour,flags,sx,sy);
-    NativeMenus.text--;
-    MenuCensus.depth--; MenuMirror.TextEnd(); Textures.PrintEnd(); return result;
+    Native.look.text--;
+    Diag.TextEnd(); MenuMirror.TextEnd(); return result;
 }
 // A window's contents drawn, as Window::Render would, with the mirror told they are being drawn
 static void __cdecl MirrorInput(MSG message) {
@@ -1927,9 +1245,9 @@ static void __cdecl MirrorInput(MSG message) {
 }
 static void __fastcall MirrorContent(void* owner,void*) {
     void* draw=(*static_cast<void***>(owner))[4];
-    MenuMirror.Phase(MIRROR_CONTENT); NativeMenus.Phase(MIRROR_CONTENT);
+    MenuMirror.Phase(MIRROR_CONTENT); Native.look.Phase(MIRROR_CONTENT);
     reinterpret_cast<void(__fastcall*)(void*,void*)>(draw)(owner,nullptr);
-    MenuMirror.Phase(MIRROR_AFTER); NativeMenus.Phase(MIRROR_AFTER);
+    MenuMirror.Phase(MIRROR_AFTER); Native.look.Phase(MIRROR_AFTER);
 }
 static void __fastcall RenderWindow(void* window,void*) {
     if (PartyHook::Instance) PartyHook::Instance->Render(window);
