@@ -1,4 +1,4 @@
--- The settings' tabs: Appearance (Preview first, with Open Map Browser), Behaviour (its sections in
+-- The settings' tabs: Appearance (Preview first), Behaviour (its sections in
 -- order, the entrance distances greyed while their switch is off) and Visibility (Timing, Hide Banner).
 local imgui = require('imgui');
 local p = require('presentation');
@@ -29,8 +29,8 @@ show(1);
 local order = table.concat(headers, ', ');
 check('Appearance begins with Preview, then the banner\'s look', order:find('Preview, Banner Style', 1, true) == 1);
 local buttons = table.concat(labels, ', ');
-check('Open Map Browser and the previews are there', buttons:find('Open Map Browser', 1, true) ~= nil
-    and buttons:find('Preview Zone Once', 1, true) ~= nil);
+check('the previews are there, and no map button', buttons:find('Preview Zone Once', 1, true) ~= nil
+    and not buttons:find('Map', 1, true));
 behaviour();
 order = table.concat(headers, ', ');
 check('Behaviour: switches in Announcements, then what the popups say and where', order:find(
@@ -55,11 +55,21 @@ end
 local windows = {};
 local begin = imgui.Begin;
 imgui.Begin = function(name, ...) windows[name] = true; return begin(name, ...); end;
-presses['Open Map Browser'] = true; show(1); presses['Open Map Browser'] = nil;
+local backgrounds = require('winxi.backgrounds');
+local real_background, painted = backgrounds.Draw, 0;
+backgrounds.Draw = function(...) painted = painted + 1; return real_background(...); end;
 H.frames(1);
-check('Open Map Browser opens it', said('Map browser: open.') and windows['Zone - Map Browser']);
+local without = painted;
+painted = 0;
+H.command('/zone debug on'); H.frames(1);
+check('/zone debug opens the debug window', said('Debug: ON.') and windows['Zone - Debug']);
+painted = 0; H.frames(1);
+check('with the theme\'s background behind it', painted == without + 1);
+backgrounds.Draw = real_background;
+H.command('/zone debug');
+check('and closes it', said('Debug: OFF.'));
 H.command('/zone map');
-check('/zone map closes it again', said('Map browser: closed.'));
+check('/zone map is gone', not said('Map browser'));
 imgui.Begin = begin;
 
 local boxes = {};
