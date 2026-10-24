@@ -27,30 +27,27 @@ int main() {
     Check(Near(vertices[0].x,110) && Near(vertices[0].y,70) && Near(vertices[1].x,510) && Near(vertices[1].y,470),"vertices grown about the corner and moved");
     Check(vertices[0].colour==0x80808080 && Near(vertices[1].u,1),"their colours and texture places kept");
 
-    char name[16]; Check(NativeName("iuse",name) && !memcmp(name,"menu    iuse    ",16),"a name padded as the game keeps it");
-    Check(!NativeName("toolongname",name) && !NativeName("",name),"too long or empty refused");
-
-    // a window named: its draws' bounds gathered each frame, placed by the frame before's
+    // a window's draws' bounds gathered each frame, placed by the frame before's (the sides brought in)
     NativeLook look;
-    Check(look.Move("inventor",50,-20),"asked to move");
-    Check(!look.Scale("inventor",5) && look.Scale("inventor",1.5f),"a scale from 0.5 to 3");
+    look.Inset(50);
     NativeLook::Saved saved=look.Enter("menu    inventor",1);
     Check(!look.Placing(1000,800,place),"the first frame: no bounds yet, drawn as the game does");
     V drawn[2]={{100,50,0,1,0,0,0},{300,250,0,1,0,0,0}};
     look.Gather(drawn,2,sizeof(V));
     look.Leave(saved);
     saved=look.Enter("menu    inventor",2);
-    Check(look.Placing(1000,800,place) && Near(place[0],100) && Near(place[2],50) && Near(place[3],-20),"the next: placed by the frame before's bounds");
+    Check(look.Placing(1000,800,place) && Near(place[2],50) && Near(place[3],0),"the next: placed by the frame before's bounds");
     NativeLook::Saved inner=look.Enter("menu    equip   ",2);
-    Check(!look.Placing(1000,800,place),"a window inside it not named: drawn as the game does");
+    Check(!look.Placing(1000,800,place),"a window inside it not yet drawn whole: drawn as the game does");
     look.Unmoved(); look.Leave(inner);
-    look.Unmoved(); Check(look.entries[0].unmoved==1,"a vertex buffer draw in it counted, the other window's not");
+    look.Unmoved();
+    Check(look.Find("menu    inventor",false)->unmoved==1 && look.Find("menu    equip   ",false)->unmoved==1,"a vertex buffer draw counted to the window it is in");
     look.Leave(saved);
     Check(!look.Placing(1000,800,place),"outside any window: nothing placed");
 
     // its frame's draws: what it is placed by; a draw wholly outside it (the inventory's count) kept back
     NativeLook framed;
-    framed.Move("inventor",10,10); framed.Scale("inventor",2);
+    framed.MenuScale(2);
     saved=framed.Enter("menu    inventor",1);
     V frameDraw[2]={{100,50,0,1,0,0,0},{300,250,0,1,0,0,0}};
     framed.Gather(frameDraw,2,sizeof(V));
@@ -59,7 +56,7 @@ int main() {
     framed.Gather(countDraw,2,sizeof(V));
     framed.Leave(saved);
     saved=framed.Enter("menu    inventor",2);
-    Check(framed.Placing(1000,800,place) && Near(place[0],100) && Near(place[1],50),"grown from its frame's corner, not the count's");
+    Check(framed.Placing(1000,800,place) && Near(place[0],0) && Near(place[1],0),"grown from its frame's quarter of the screen, the top left");
     framed.Phase(MIRROR_CONTENT);
     Check(!framed.Within(countDraw,2,sizeof(V)),"the count, wholly outside its frame, kept back");
     V rowDraw[2]={{120,60,0,1,0,0,0},{200,72,0,1,0,0,0}};
@@ -67,16 +64,6 @@ int main() {
     Check(framed.Within(rowDraw,2,sizeof(V)) && framed.Within(edgeDraw,2,sizeof(V)),"a row, and the hand over its edge, moved");
     framed.Leave(saved);
 
-    // the tint: only the frame of the window named, not its contents, elements or text
-    Check(look.Tint("inventor",0xffff4040),"asked to tint");
-    uint32_t colour=0;
-    saved=look.Enter("menu    inventor",3);
-    Check(look.Tinting(colour) && colour==0xffff4040,"its frame tinted");
-    MirrorPhase was=look.Phase(MIRROR_CONTENT); Check(!look.Tinting(colour) && look.Placing(1000,800,place),"its contents not tinted, but moved");
-    look.Phase(MIRROR_ELEMENT); Check(!look.Tinting(colour),"not its elements"); look.Phase(was);
-    look.text++; Check(!look.Tinting(colour) && look.Placing(1000,800,place),"text in its frame moved, not tinted"); look.text--;
-    look.Leave(saved);
-    Check(look.Clear("inventor")==1 && !look.Any(),"cleared");
     // the group over the chat log
     NativeLook group;
     group.Group(0,-300);
@@ -155,21 +142,13 @@ int main() {
     sides.Group(30,-200);
     saved=sides.Enter("menu    shopmain",3); sides.Leave(saved);
     NativeEntry* shop=sides.Find("menu    shopmain",false);
-    Check(shop && shop->automatic && !shop->group,"drawn before the log was seen: an entry for the inset");
+    Check(shop && !shop->group,"drawn before the log was seen: an entry for the inset");
     sides.Note("menu    logwindo",log,4);
     const int16_t buysell[4]={16,1248,112,40};
     sides.Note("menu    shopmain",buysell,4);
     Check(shop->group && shop->member && shop->dx==30 && shop->dy==-200,"then over the log: the group's, its offset given");
     sides.GroupOff();
-    // scaled by name while the sides are in: brought in and scaled, kept as asked
-    Check(sides.Scale("titlewin",2),"the title box scaled");
-    saved=sides.Enter("menu    titlewin",2);
-    Check(sides.Placing(3440,1440,place,&pinch) && pinch<0 && Near(place[2],100) && Near(place[0],15),"brought in and grown from its corner");
-    sides.Leave(saved);
-    Check(!sides.Find("menu    titlewin",false)->automatic,"asked for by name: kept, never given up");
-    sides.Scale("titlewin",1);
     // the menu scale: each framed window from its quarter's corner, the bar from its ends, the log left
-    sides.Scale("titlewin",1);
     Check(!sides.MenuScale(4) && sides.MenuScale(1.25f),"a menu scale from 0.5 to 3");
     NativeTransform mt;
     saved=sides.Enter("menu    netstat ",2);
