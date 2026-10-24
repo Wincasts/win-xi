@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The anchored bar is dragged with the left button to move it, still anchored: dragging sets Anchor Adjustment (not in the buff selector, where a click removes a status). Lock Position stops it, for the dragged window too. Anchor Adjustment and Position are X and Y sliders across the screen in place of number boxes.
 - In the selector, the game's hand no longer comes back beside the highlight now and then (uihook 1.58).
 - With a Controller Type of the other kind than the controller pressing buttons (a DualSense on DirectInput, XInput chosen), A could not remove a status: the Controller settings now say so, and buff says it once in the chat the first time it happens in the selector. Needs winxi 44.
 - Font and Font Size are winxi's own controls (widgets.FontFile, FontSize), as every addon's; every tooltip, the statuses' included, is drawn by winxi.tooltip, so winxisettings' Tooltips tab applies to them.
