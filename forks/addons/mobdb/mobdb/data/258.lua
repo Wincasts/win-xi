@@ -23,6 +23,5 @@ return {
         ['Weatherworn Leech'] = { Name='Weatherworn Leech', Notorious=false, Aggro=false, Link=false, TrueSight=false, Family='Leech', Job=0, MinLevel=99, MaxLevel=107, Immunities=0, Respawn=960, Sight=false, Sound=true, Blood=false, Magic=false, JA=false, Scent=false, Drops={}, Spells={}, Modifiers={Slashing=1, Piercing=1, H2H=0.75, Impact=0.75, Fire=1.3, Ice=1.3, Wind=1, Earth=1, Lightning=1, Water=0.5, Light=1.5, Dark=0.7} },
     },
     Indices = {
-        [153] = { Name='Awoken Hakenmann', Notorious=true, Aggro=false, Link=true, TrueSight=true, Family='Orobon', Job=0, MinLevel=119, MaxLevel=119, Immunities=0, Respawn=0, Sight=false, Sound=true, Blood=false, Magic=false, JA=false, Scent=false, Drops={}, Spells={389}, Modifiers={Slashing=0.875, Piercing=0.875, H2H=1, Impact=0.875, Fire=1.0062, Ice=0.7438, Wind=1.0062, Earth=1.0062, Lightning=1.1375, Water=0.2625, Light=1.1375, Dark=0.525} },
     },
 };

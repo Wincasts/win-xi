@@ -82,5 +82,6 @@ return {
         ['Zagan\'s Wyvern'] = { Name='Zagan\'s Wyvern', Notorious=true, Aggro=true, Link=true, TrueSight=false, Family='Wyvern Pet', Job=0, MinLevel=82, MaxLevel=82, Immunities=0, Respawn=0, Sight=true, Sound=false, Blood=false, Magic=false, JA=false, Scent=false, Drops={}, Spells={}, Modifiers={Slashing=1, Piercing=1, H2H=1, Impact=1, Fire=1.3, Ice=1.3, Wind=1.3, Earth=1.3, Lightning=1.3, Water=1.3, Light=1.3, Dark=1.3} },
     },
     Indices = {
+        [659] = { Name='Ying', Notorious=true, Aggro=true, Link=true, TrueSight=true, Family='Shadow Lord', Job=8, MinLevel=90, MaxLevel=90, Immunities=0, Respawn=0, Sight=true, Sound=false, Blood=false, Magic=false, JA=false, Scent=false, Drops={1450,1453,1456,13658,14646}, Spells={176,181,186,191,196,201,273,357,359,360,362,365,367}, Modifiers={Slashing=1, Piercing=1, H2H=1, Impact=1, Fire=0.85, Ice=0.85, Wind=0.85, Earth=0.85, Lightning=0.85, Water=0.85, Light=0.85, Dark=0.85} },
     },
 };

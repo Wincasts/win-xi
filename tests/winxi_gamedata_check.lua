@@ -22,6 +22,9 @@ local index, indexed = next(ronfaure.Indices)
 check('by index first', mobs.Find(ronfaure, index, 'Bomb') == indexed)
 check('neither', mobs.Find(ronfaure, 99999, 'Nobody') == nil and mobs.Find(nil, 1, 'Bomb') == nil)
 check('a part of an area without tables of its own: the area\'s', mobs.Zone(100, 1100) == nil or mobs.Zone(100, 1100).Names ~= nil)
+-- named as the Era DATs name them, not as the server does: Ranguemont Pass's Floating Eyes are Bat Eyes to it
+local floatingEye = mobs.Find(mobs.Zone(166), 129, 'Floating Eye')
+check('by the client\'s name: Floating Eye', floatingEye ~= nil and floatingEye.Name == 'Floating Eye' and floatingEye.Aggro == true)
 check('no area', mobs.Zone(0) == nil and mobs.Zone(nil) == nil and mobs.Zone(9999) == nil)
 
 local lots = mobs.Placeholders(100)

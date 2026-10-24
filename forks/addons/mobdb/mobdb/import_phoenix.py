@@ -40,6 +40,10 @@ RANK_MULTIPLIER = {
     5: 0.40, 6: 0.30, 7: 0.25, 8: 0.20, 9: 0.15, 10: 0.10, 11: 0.05,
 }
 
+# Of a zone's spawns named by name, how many must have that name at their index in the name DATs for the
+# zone's DAT names to be used. The Era zones agree at 0.83 and above; the Adoulin areas, at 0.77 and below.
+DAT_AGREEMENT = 0.8
+
 PHYSICAL = (('Slashing', 'slashing'), ('Piercing', 'piercing'), ('H2H', 'h2h'), ('Impact', 'blunt'))
 ELEMENTS = (('Fire', 'fire'), ('Ice', 'ice'), ('Wind', 'wind'), ('Earth', 'earth'),
             ('Lightning', 'thunder'), ('Water', 'water'), ('Light', 'light'), ('Dark', 'dark'))
@@ -237,6 +241,57 @@ def build_client_names(stock_dir):
     return {'zones': zones, 'all': everywhere}
 
 
+def dat_tables(ffxi_dir):
+    """file id -> (rom folder, path inside it), from FTABLE/VTABLE of the base ROM and each expansion ROM."""
+    files = {}
+    for rom in range(1, 10):
+        folder = 'ROM' if rom == 1 else 'ROM%d' % rom
+        table = '' if rom == 1 else str(rom)
+        ftable = os.path.join(ffxi_dir, '' if rom == 1 else folder, 'FTABLE%s.DAT' % table)
+        vtable = os.path.join(ffxi_dir, '' if rom == 1 else folder, 'VTABLE%s.DAT' % table)
+        if not os.path.exists(ftable) or not os.path.exists(vtable):
+            continue
+        with open(ftable, 'rb') as handle:
+            locations = handle.read()
+        with open(vtable, 'rb') as handle:
+            present = handle.read()
+        for file_id, flag in enumerate(present):
+            if flag:
+                value = int.from_bytes(locations[file_id * 2:file_id * 2 + 2], 'little')
+                files[file_id] = (folder, os.path.join(str(value >> 7), '%d.DAT' % (value & 0x7F)))
+    return files
+
+
+def build_dat_names(ffxi_dir, overlays):
+    """zone id -> {entity index -> name}, from the client's entity name DATs, an overlay folder's copy
+    of a file taking the place of the game's own as the launcher's DAT overlays do (the Era DATs)."""
+    files = dat_tables(ffxi_dir)
+    zones = {}
+    for zone_id in range(0, 1024):
+        # zones below 256 have their name lists from file 6720, the rest from 86235 + id
+        location = files.get(6720 + zone_id if zone_id < 256 else 86235 + zone_id)
+        if location is None:
+            continue
+        path = os.path.join(ffxi_dir, *location)
+        for overlay_dir in overlays:
+            candidate = os.path.join(overlay_dir, *location)
+            if os.path.exists(candidate):
+                path = candidate
+        if not os.path.exists(path):
+            continue
+        with open(path, 'rb') as handle:
+            data = handle.read()
+        names = {}
+        for offset in range(0, len(data) - 31, 32):
+            entity = int.from_bytes(data[offset + 28:offset + 32], 'little')
+            name = data[offset:offset + 28].split(b'\0', 1)[0].decode('cp1252', errors='replace')
+            if (entity >> 12) & 0xFFF == (zone_id & 0xFFF) and name:
+                names[str(entity & 0xFFF)] = name
+        if names:
+            zones[str(zone_id)] = names
+    return zones
+
+
 def lua_string(text):
     return "'" + text.replace('\\', '\\\\').replace("'", "\\'") + "'"
 
@@ -287,6 +342,8 @@ class Generator:
         with open(args.names, encoding='utf-8') as handle:
             self.client_names = json.load(handle)
 
+        self.shown_by_index = {}  # zone id -> the trusted DAT names of the last load_zone of it
+
         self.restrict_content = bool(self.setting('RESTRICT_CONTENT'))
         self.level_cap_min = self.setting('NORMAL_MOB_MAX_LEVEL_RANGE_MIN')
         self.level_cap_max = self.setting('NORMAL_MOB_MAX_LEVEL_RANGE_MAX')
@@ -303,10 +360,41 @@ class Generator:
             if os.path.exists(path):
                 document = merge_patch(document, load_yaml(path))
                 self.stats['module overlay files applied'] += 1
+        zone_id = self.zone_ids.get(zone)
+        if zone_id is not None:
+            self.shown_by_index[zone_id] = self.trusted_dat_names(zone_id, document)
         return document
 
-    def client_name(self, zone_id, template_name, template, spawn):
+    def trusted_dat_names(self, zone_id, document):
+        """The zone's entity names by index from the name DATs, if they hold the server's layout: most spawns
+        whose name is known by name must have it at their index too. Where the client's DATs are newer than
+        the server's layout (the Adoulin areas), the names are shuffled among the zone's mobs and not used."""
+        names = self.client_names.get('indices', {}).get(str(zone_id), {})
+        if not names:
+            return {}
+        templates = document.get('templates') or {}
+        agree = total = 0
+        for mob_id, spawn in (document.get('spawns') or {}).items():
+            spawn = spawn or {}
+            template = templates.get(spawn.get('template'))
+            shown = names.get(str(int(mob_id) & 0xFFF))
+            if template is None or shown is None:
+                continue
+            name, verified = self.client_name(zone_id, spawn.get('template'), template, spawn)
+            if verified:
+                total += 1
+                agree += name == shown
+        if total and agree < total * DAT_AGREEMENT:
+            self.stats['zones whose name DATs do not match the server (names by name alone)'] += 1
+            return {}
+        return names
+
+    def client_name(self, zone_id, template_name, template, spawn, index=None):
         """Resolve the name the client shows. Returns (name, verified against client data)."""
+        # the client's own name for the entity at this index, where the name DATs were read and hold
+        shown = self.shown_by_index.get(zone_id, {}).get(str(index)) if index is not None else None
+        if shown:
+            return shown, True
         candidates = [template.get('display_name'), spawn.get('script'), template_name]
         zone_names = self.client_names['zones'].get(str(zone_id), {})
         for known in (zone_names, self.client_names['all']):
@@ -478,7 +566,7 @@ class Generator:
                 continue
 
             entry = self.build_entry(template, spawn)
-            name, verified = self.client_name(zone_id, template_name, template, spawn)
+            name, verified = self.client_name(zone_id, template_name, template, spawn, int(mob_id) & 0xFFF)
             key = json.dumps(entry, sort_keys=True)
             by_name[name].append((int(mob_id) & 0xFFF, key, entry, verified))
             self.stats['spawns written'] += 1
@@ -547,6 +635,12 @@ def main():
                         help='Client name dictionary. Defaults to client_names.json beside this script.')
     parser.add_argument('--build-names', metavar='STOCK_DATA_DIR',
                         help='Rebuild the client name dictionary from a folder of stock MobDB data files, then exit.')
+    parser.add_argument('--build-dat-names', metavar='FFXI_DIR',
+                        help="Add each entity's name by index to the client name dictionary, from the name DATs of "
+                             "the game folder (the one holding FTABLE.DAT), then exit.")
+    parser.add_argument('--dat-overlay', action='append', default=[], metavar='DIR',
+                        help='A DAT overlay folder (ROM/...) whose files take the place of the game\'s own, e.g. '
+                             'polplugins/DATs/EraDATs. Repeatable; a later one wins.')
     parser.add_argument('--zone', action='append', help='Only generate this zone folder name. Repeatable.')
     parser.add_argument('--set', action='append', default=[], metavar='KEY=VALUE',
                         help='Override a settings/main.lua value, e.g. --set RESTRICT_CONTENT=1 --set ENABLE_SOA=0. Repeatable.')
@@ -560,10 +654,29 @@ def main():
                              '(Steal and Despoil) beside Drops. Accepted so that older command lines still run.')
     args = parser.parse_args()
 
+    if args.build_dat_names:
+        if not os.path.exists(args.names):
+            sys.exit('%s is missing. Build it once with --build-names <stock MobDB data folder>.' % args.names)
+        with open(args.names, encoding='utf-8') as handle:
+            names = json.load(handle)
+        names['indices'] = build_dat_names(args.build_dat_names, args.dat_overlay)
+        if not names['indices']:
+            sys.exit('No entity name DATs found under %s.' % args.build_dat_names)
+        with open(args.names, 'w', encoding='utf-8', newline='\n') as handle:
+            json.dump(names, handle, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        print('Wrote entity names for %d zones to %s' % (len(names['indices']), args.names))
+        return
+
     if args.build_names:
         names = build_client_names(args.build_names)
         if not names['zones']:
             sys.exit('No stock MobDB data files found in %s (generated files are ignored).' % args.build_names)
+        indices = {}
+        if os.path.exists(args.names):
+            with open(args.names, encoding='utf-8') as handle:
+                indices = json.load(handle).get('indices', {})
+        if indices:
+            names['indices'] = indices
         with open(args.names, 'w', encoding='utf-8', newline='\n') as handle:
             json.dump(names, handle, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
         print('Wrote %d names across %d zones to %s' % (len(names['all']), len(names['zones']), args.names))

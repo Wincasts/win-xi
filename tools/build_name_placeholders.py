@@ -113,7 +113,7 @@ def build(server, output=OUTPUT, settings=()):
                 # the server's lookups are by script name, which is the template's unless the spawn has its own
                 by_template.setdefault(spawn.get('script') or template.get('script') or template_name, []).append(int(mob_id))
                 if generator.content_enabled(template.get('content')):
-                    shown[int(mob_id)] = generator.client_name(zone_id, template_name, template, spawn)[0]
+                    shown[int(mob_id)] = generator.client_name(zone_id, template_name, template, spawn, int(mob_id) & 0xFFF)[0]
             pairs = list(lotteries)
             if files:
                 npcs = server / 'data/zones' / zone / 'npcs.yaml'

@@ -11,7 +11,5 @@ return {
         ['Zeid'] = { Name='Zeid', Notorious=false, Aggro=false, Link=false, TrueSight=false, Family='Galka', Job=0, MinLevel=139, MaxLevel=139, Immunities=0, Respawn=0, Sight=true, Sound=false, Blood=false, Magic=false, JA=false, Scent=false, Drops={}, Spells={}, Modifiers={Slashing=1, Piercing=1, H2H=1, Impact=1, Fire=1, Ice=1, Wind=1, Earth=1, Lightning=1, Water=1, Light=1, Dark=1} },
     },
     Indices = {
-        [2] = { Name='Oshasha', Notorious=true, Aggro=true, Link=true, TrueSight=true, Family='Tarutaru', Job=0, MinLevel=139, MaxLevel=139, Immunities=0, Respawn=0, Sight=true, Sound=false, Blood=false, Magic=false, JA=false, Scent=false, Drops={}, Spells={}, Modifiers={Slashing=1, Piercing=1, H2H=1, Impact=1, Fire=1, Ice=1, Wind=1, Earth=1, Lightning=1, Water=1, Light=1, Dark=1} },
-        [3] = { Name='Valli', Notorious=false, Aggro=false, Link=false, TrueSight=false, Family='Elvaan', Job=0, MinLevel=139, MaxLevel=139, Immunities=0, Respawn=0, Sight=true, Sound=false, Blood=false, Magic=false, JA=false, Scent=false, Drops={}, Spells={}, Modifiers={Slashing=1, Piercing=1, H2H=1, Impact=1, Fire=1, Ice=1, Wind=1, Earth=1, Lightning=1, Water=1, Light=1, Dark=1} },
     },
 };
