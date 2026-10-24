@@ -52,8 +52,8 @@ H.print('none tracked: the aggro sign and the name', quads(1) == 5, first(1).Tex
 
 options.trackedNm[1] = 'Jack'; render()
 local sign = first(1)
-H.print('tracked: the hunt sign, the sheet\'s first half, in place of the aggro sign', quads(1) == 5, sign.Texture == 6,
-    sign.U0 == 0 and sign.V0 == 0 and sign.U1 == 0.5 and sign.V1 == 1, draw.Textures[6] == 0x9999)
+H.print('tracked: the hunt sign, the sheet\'s first sign, in place of the aggro sign', quads(1) == 5, sign.Texture == 6,
+    sign.U0 == 0 and sign.V0 == 0 and sign.U1 == 0.25 and sign.V1 == 0.5, draw.Textures[6] == 0x9999)
 H.print('its placeholder is named Placeholder and has the hunt sign too; another of the name is as it was',
     quads(2) == 1 + #'Placeholder', first(2).Texture == 6, quads(3) == 5, first(3).Texture == 3)
 H.print('a player of the name is no monster', quads(0x401) == 4)
@@ -109,7 +109,7 @@ hook.Count = 5; render()
 local coin = first(0x402)
 H.print('bundled Port Windurst: Babubu sells, Kohlo-Lakolo does not', vendorList[240]['Babubu'] == true, vendorList[240]['Kohlo-Lakolo'] == nil)
 H.print('Vendor Icons: the coin before a vendor\'s name, none for another NPC or a monster of the name',
-    quads(0x402) == 1 + #'Babubu', coin.Texture == 6, coin.U0 == 0.5 and coin.U1 == 1, draw.Textures[6] == 0x9999,
+    quads(0x402) == 1 + #'Babubu', coin.Texture == 6, coin.U0 == 0.25 and coin.U1 == 0.5 and coin.V1 == 0.5, draw.Textures[6] == 0x9999,
     quads(0x403) == #'Kohlo-Lakolo', first(1).Texture ~= 6 or options.trackedNm[1] ~= '')
 local after = draw.Quads[draw.Entities[0x402].First + 1]
 H.print('the name follows it, the whole of it centred', after.X0 > coin.X1, math.abs(coin.X0 + draw.Quads[draw.Entities[0x402].First + quads(0x402) - 1].X1) <= 1)
@@ -119,6 +119,63 @@ zoneOf = 240; options.showVendorIcons[1] = false; render()
 H.print('Vendor Icons off: no coin, and the sheet not asked for', quads(0x402) == #'Babubu', draw.Textures[6] == 0)
 options.showVendorIcons[1] = true
 AshitaCore.GetMemoryManager = managerOf
+hook.Count = 4
+
+-- party and alliance signs in [icons]: a party of three and another party of two in an alliance
+local special = require('special')
+local members = { [0] = 0x1501, 0x1502, 0x1503, [6] = 0x1506, [7] = 0x1507 }
+local leaders = { 0x1502, 0x1506, 0, alliance = 0x1501 }
+AshitaCore.GetMemoryManager = function(...)
+    local memory = managerOf(...)
+    memory.GetParty = function() return {
+        GetMemberIsActive = function(_, slot) return members[slot] and 1 or 0 end,
+        GetMemberServerId = function(_, slot) return members[slot] or 0 end,
+        GetAlliancePartyLeaderServerId1 = function() return leaders[1] end,
+        GetAlliancePartyLeaderServerId2 = function() return leaders[2] end,
+        GetAlliancePartyLeaderServerId3 = function() return leaders[3] end,
+        GetAllianceLeaderServerId = function() return leaders.alliance end,
+    } end
+    return memory
+end
+local function player(i, index, label, category, icon)
+    put(i, index, label, category)
+    hook.Names[i].ServerId = 0x1100 + index
+    if icon then ffi.fill(hook.Names[i].Text, 48); ffi.copy(hook.Names[i].Text, string.char(icon) .. ' ' .. label) end
+end
+player(0, 0x401, 'Ann', plates.Category.Self); player(1, 0x402, 'Ben', plates.Category.Party)
+player(2, 0x403, 'Cat', plates.Category.Party, 0x91); player(3, 0x406, 'Dan', plates.Category.Alliance)
+player(4, 0x407, 'Eve', plates.Category.Alliance); player(5, 0x408, 'Fay', plates.Category.Player, 0x91)
+hook.Count = 6
+-- the player icons' sheet, which the tests cannot load
+local iconSheet = require('icons'); local realBegin = iconSheet.Begin
+iconSheet.Begin = function() return realBegin(function() return 0x5555 end) end
+local function uv(sign) local u0, v0, u1, v1 = special.UV(sign); return { u0, v0, u1, v1 } end
+local function signed(index, sign)
+    local q, want = first(index), uv(sign)
+    return q.Texture == 6 and q.U0 == want[1] and q.V0 == want[2] and q.U1 == want[3] and q.V1 == want[4]
+end
+H.print('Party Icons default: Beside Game Icons', options.partyIcons[1] == 'beside')
+render()
+H.print('alliance leader, party leader, party member, the other party\'s leader, alliance member',
+    signed(0x401, special.AllianceLeader), signed(0x402, special.PartyLeader), signed(0x403, special.PartyMember),
+    signed(0x406, special.AlliancePartyLeader), signed(0x407, special.AllianceMember), draw.Textures[6] == 0x9999)
+H.print('beside: the sign, then the game\'s icon, then the name; an outsider keeps only the game\'s',
+    quads(0x403) == 2 + #'Cat', draw.Quads[draw.Entities[0x403].First + 1].Texture == 1, quads(0x402) == 1 + #'Ben',
+    quads(0x408) == 1 + #'Fay', first(0x408).Texture == 1)
+options.partyIcons[1] = 'replace'; render()
+H.print('replace: the sign in place of the game\'s icon; an outsider keeps the game\'s',
+    quads(0x403) == 1 + #'Cat', signed(0x403, special.PartyMember), quads(0x408) == 1 + #'Fay', first(0x408).Texture == 1)
+options.partyIcons[1] = 'beside'; leaders = { 0x1502, 0, 0, alliance = 0x1502 }; members = { [0] = 0x1501, 0x1502, 0x1503 }; render()
+H.print('no alliance: its leader is the party\'s, and the others are party members', signed(0x402, special.PartyLeader), signed(0x401, special.PartyMember), quads(0x406) == #'Dan')
+members = { [0] = 0x1501 }; leaders = { 0x1501, 0, 0, alliance = 0x1501 }; render()
+H.print('alone: no sign, nor the sheet', quads(0x401) == #'Ann', quads(0x403) == 1 + #'Cat', draw.Textures[6] == 0)
+members = { [0] = 0x1501, 0x1502 }; options.partyIcons[1] = 'off'; render()
+H.print('Party Icons Off: none', quads(0x401) == #'Ann', quads(0x402) == #'Ben', draw.Textures[6] == 0)
+options.partyIcons[1] = 'sideways'; custom.Settle(options)
+H.print('an unknown mode is made Beside', options.partyIcons[1] == 'beside')
+AshitaCore.GetMemoryManager = managerOf
+iconSheet.Begin = realBegin; realBegin(function() return 0 end)
+put(0, 1, 'Jack'); put(1, 2, 'Hare'); put(2, 3, 'Hare'); put(3, 0x401, 'Jack', plates.Category.Player)
 hook.Count = 4
 
 options.trackedNm, options.labelPlaceholders = 'Jack', nil

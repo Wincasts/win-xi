@@ -59,6 +59,11 @@ The tabs are **General → Names → Health Bars → Statuses → Visibility**, 
   own name, other players and player-style pets/trusts.
   Default: `[icons: space=4][name]`. Omit `[icons]` to hide icons or move it anywhere
   in the string. Existing icon visibility, size and spacing are migrated once.
+  **Party Icons** (Beside Game Icons, Replace Game Icons or Off) adds a sign of each party and
+  alliance member's place where `[icons]` is: Alliance Leader, Party Leader, another party's leader
+  (Alliance Party Leader), Alliance Member or Party Member, from `assets/special/`. Beside, it comes
+  before the game's icons; Replace, it takes their place. Players outside your party and alliance keep
+  the game's icons, and there is none while you are alone. Who leads is read from the party's memory.
 - **Enemy Names:** a directly editable **Enemy Format** and expandable Check Details (Enabled, Size, Abbreviate Difficulty and
   Display Style: Icons & Text / Text Only). Existing enemy strings are preserved;
   Reset Format restores `[aggro] [name] [letters]` for ordinary, targeted and
@@ -224,7 +229,7 @@ as well if you do not want that label. Check-detail icons are separate (Check De
 
 This feature is experimental and has a tab of its own, **NM Tracking**, shown after `/name dev`. **Tracked NM** there lists
 the notorious monsters of the area you are in
-(and None). The one chosen, and each of its placeholders, has `assets/special/hunt.png` (half of `assets/special.png`, which it shares with the vendor coin) drawn in place
+(and None). The one chosen, and each of its placeholders, has `assets/special/hunt.png` (one of `assets/special.png`'s signs, with the vendor coin and the party icons) drawn in place
 of its `[aggro]` icon, so it needs `[aggro]` in Enemy Format. The choice is kept by name when you leave the
 area and does nothing elsewhere.
 

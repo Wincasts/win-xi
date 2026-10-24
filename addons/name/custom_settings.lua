@@ -13,6 +13,7 @@ local levels     = require('levels');
 local nameColours = require('name_colours');
 local nameTypes  = require('name_types');
 local entityTypes = require('entity_types');
+local roles      = require('roles');
 
 local settings = {};
 
@@ -162,6 +163,8 @@ function settings.DrawSettings(options, save)
 
     if (controls.Section('Player Names', '##name.playerOptions')) then
         DrawFormat('Player Format', 'nameFormat', options, save);
+        controls.Choice('Party Icons', '##name.partyIcons', options.partyIcons, roles.Modes,
+            'A sign of each party and alliance member\'s place: Alliance Leader, Party Leader, another party\'s leader, Alliance Member or Party Member. Drawn where [icons] is in Player Format, before the game\'s icons or in their place; players outside your party and alliance keep the game\'s icons. None while you are alone.');
         nameColours.Draw(options, 'playerNames');
     end
     controls.EndSection();
