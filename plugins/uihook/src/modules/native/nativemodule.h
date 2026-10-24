@@ -1,4 +1,5 @@
-// /uihook native as it draws: the game's own windows drawn moved and scaled (native.h), the game's own menu kept whole.
+// /uihook native as it draws: the game's own windows drawn moved and scaled (native.h), the game's own menu kept whole,
+// and, with /uihook native mouse on, the game's mouse given each where it is drawn (Mouse).
 // One of the party module's parts: Enter about each window Window::Render draws, Draw for each screen-space draw in
 // it. nativeui gives it its settings.
 #pragma once
@@ -7,6 +8,8 @@
 #include "../../drawcontext.h"
 #include "native.h"
 #include "skinmodule.h"
+#include "../chat/chat.h"
+#include "../window/mouse.h"
 
 class NativeModule {
 public:
@@ -15,7 +18,35 @@ public:
     SkinModule* skin=nullptr;       // a moved draw given the skin's colours
     uint8_t* menuManager=nullptr;   // the game's menu manager: the screen's size in the game's units at +80
     std::vector<uint8_t> scaledVertices;  // a draw's vertices, moved
+    // /uihook native mouse: the game's mouse given each window where it is drawn (off to begin with). inputHooked: the
+    // game's mouse handler taken (window/mouse.h); screen: its size as the windows were last placed, in pixels
+    bool mouse=false,inputHooked=false;
+    float screen[2]={};
+    uint32_t mouseMoved=0,mouseKept=0;  // messages given to the game elsewhere, and kept from it, since loading
     void Init(DrawContext* context,SkinModule* skinModule,uint8_t* manager) { ctx=context; skin=skinModule; menuManager=manager; }
+    // A mouse message on its way to the game: on a window drawn moved, given at the same place on the game's own; on
+    // where the game puts one drawn moved, with none drawn there, kept from it (false), but a button let go, given as
+    // it is so that nothing is left held. The wheel's, whose place is the screen's, as it is.
+    bool Mouse(MSG& message) {
+        if (!mouse || !MouseMessage(message.message) || !(screen[0]>0 && screen[1]>0)) return true;
+        RECT client;
+        if (!GetClientRect(message.hwnd,&client) || client.right<=client.left || client.bottom<=client.top) return true;
+        const float width=float(client.right-client.left),height=float(client.bottom-client.top);
+        const int cx=static_cast<short>(LOWORD(message.lParam)),cy=static_cast<short>(HIWORD(message.lParam));
+        float x=(float(cx)+0.5f)*screen[0]/width,y=(float(cy)+0.5f)*screen[1]/height;
+        switch (look.MapPoint(screen[0],screen[1],ctx->Frame(),x,y)) {
+        case NATIVE_MOUSE_MOVED:
+            MouseMove(message,int(floorf(x*width/screen[0])),int(floorf(y*height/screen[1])));
+            mouseMoved++;
+            return true;
+        case NATIVE_MOUSE_KEPT:
+            if (MouseRelease(message.message)) return true;
+            mouseKept++;
+            return false;
+        default:
+            return true;
+        }
+    }
     // /uihook native: the window being drawn taken, where it is one named, for its draws to be moved and tinted
     NativeLook::Saved Enter(void* window) {
         if (!look.Any()) return look.Enter(nullptr,ctx->Frame());
@@ -56,6 +87,7 @@ public:
         NativeTransform move; bool whole=false;
         bool placing=used<=8192 && SUCCEEDED(device->GetViewport(&viewport)) && ctx->ScreenSize(device,viewport,screen)
             && look.Transform(screen[0],screen[1],move,&whole);
+        if (screen[0]>0) { this->screen[0]=screen[0]; this->screen[1]=screen[1]; }
         if (placing) look.OnBar(static_cast<const uint8_t*>(data)+size_t(min)*stride,vertices,stride,move);
         // wholly outside its frame (the inventory's count, up in the menu name's bar): left where the game put it, but
         // where the whole side is moved
@@ -110,9 +142,21 @@ public:
             snprintf(line,sizeof(line),look.inset>0 ? "[uihook:native] the sides brought in %.0f pixels: the bar across the top that much shorter at each end, the windows each side with it."
                 : "[uihook:native] the sides where the game puts them.",look.inset);
             if (words>=3 && !_stricmp(a,"quiet")) return;
+        } else if (words>=2 && !_stricmp(verb,"mouse")) {
+            const bool on=!_stricmp(name,"on");
+            if (!on && _stricmp(name,"off")) snprintf(line,sizeof(line),"[uihook:native] /uihook native mouse on|off.");
+            else {
+                mouse=on;
+                snprintf(line,sizeof(line),!on ? "[uihook:native] the mouse where the game puts its windows."
+                    : inputHooked ? "[uihook:native] the mouse works each window where it is drawn, moved or larger (an experiment)."
+                    : "[uihook:native] the game's mouse handler was not found in this client: the mouse stays where the game puts its windows.");
+                if (words>=3 && !_stricmp(a,"quiet")) return;
+            }
         } else if (words<1) {
             unsigned n=0; for (auto& e:look.entries) if (e.name[0]) n++;
-            snprintf(line,sizeof(line),"[uihook:native] %u windows looked at; the game's mouse hit-tests stay where it puts them.",n);
+            snprintf(line,sizeof(line),"[uihook:native] %u windows looked at; the mouse %s (%u messages moved, %u kept from the game since loading).",n,
+                !inputHooked ? "where the game puts them: its handler was not found" : mouse ? "works each where it is drawn" : "where the game puts them",
+                mouseMoved,mouseKept);
             chat->Write(0,false,line);
             if (look.menuScale!=1) {
                 snprintf(line,sizeof(line),"  every framed window drawn %.2f times its size",look.menuScale);
@@ -138,7 +182,7 @@ public:
             }
             return;
         } else {
-            snprintf(line,sizeof(line),"[uihook:native] /uihook native [group <x> <y> | group off | inset <pixels> | size <factor>]");
+            snprintf(line,sizeof(line),"[uihook:native] /uihook native [group <x> <y> | group off | inset <pixels> | size <factor> | mouse on|off]");
         }
         chat->Write(0,false,line);
     }

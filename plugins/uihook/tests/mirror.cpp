@@ -235,12 +235,12 @@ int main() {
         message.message=WM_MOUSEWHEEL; message.lParam=MAKELPARAM(700,300);
         Check(!MirrorMapMessage(m,message,1000,500) && LOWORD(message.lParam)==700,"the wheel's place (the screen's) left alone");
         message.message=WM_KEYDOWN;
-        Check(!MirrorMouseMessage(WM_KEYDOWN) && MirrorMouseMessage(WM_MOUSEMOVE) && MirrorMouseMessage(WM_XBUTTONUP),"which messages carry a place");
+        Check(!MouseMessage(WM_KEYDOWN) && MouseMessage(WM_MOUSEMOVE) && MouseMessage(WM_XBUTTONUP),"which messages carry a place");
         message.message=WM_MOUSEMOVE; message.lParam=MAKELPARAM(static_cast<WORD>(-5),10);
         Check(!MirrorMapMessage(m,message,1000,500),"a place left of the client area: on no menu");
         // the game's handler, its first bytes as the client has them: the pattern fits, and only what is stolen is whole instructions
         uint8_t handler[40]={0x83,0xEC,0x2C,0x53,0x8B,0x5C,0x24,0x38,0x55,0x56,0x8B,0x74,0x24,0x44,0x57,0x8B,0x7C,0x24,0x4C,0x81,0xFB,0x0F,0x01,0x00,0x00};
-        Check(FindPattern(handler,sizeof(handler),MIRROR_INPUT_PATTERN)==handler && MIRROR_INPUT_STOLEN==8,"the mouse handler's pattern");
+        Check(FindPattern(handler,sizeof(handler),GAME_INPUT_PATTERN)==handler && GAME_INPUT_STOLEN==8,"the mouse handler's pattern");
     }
     {
         // the watch: each window drawn, asked for or not, mirrored or not, and how it drew; written as it changes

@@ -98,11 +98,11 @@ static DrawContext Draws;       // what the parts share for each draw (drawconte
 static SkinModule Skins;        // /uihook skin: the game's textures drawn with pictures of a skin's in their place
 static NativeModule Native;     // /uihook native: windows' draws moved and scaled
 static DiagnosticsModule Diag;  // /uihook census, textures, mirror labels and mirror watch
-// The game's mouse handler in its message loop, taken so a message on a menu drawn elsewhere is given to it at the
-// same place on the game's own (mouse.h)
-static void __cdecl MirrorInput(MSG);
+// The game's mouse handler in its message loop (window/mouse.h), taken so a message on a window drawn elsewhere is
+// given to it at the same place on the game's own: by the native look, else the mirror
+static void __cdecl GameInput(MSG);
 static uint32_t MirrorMapped=0; // mouse messages given to the game at the place on its own menu, since loading
-static Detour InputDetour = { MIRROR_INPUT_PATTERN, MIRROR_INPUT_STOLEN, -1, reinterpret_cast<void*>(&MirrorInput), nullptr, nullptr, {} };
+static Detour InputDetour = { GAME_INPUT_PATTERN, GAME_INPUT_STOLEN, -1, reinterpret_cast<void*>(&GameInput), nullptr, nullptr, {} };
 // The five bytes mov edx,[ecx]; call [edx+10] made a call to ours, which makes the same call: the
 // return address the game's own, the owner still in ecx
 static bool TakeContentCall(uint8_t* begin,size_t size,uint8_t* render) {
@@ -432,7 +432,7 @@ public:
         MenuMirror.shared=&MirrorBlock;
         if (module.lpBaseOfDll && TakeWindowHooks(static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) {
             MirrorBlock.Supported=MIRROR_SUPPORTED;
-            if (Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) MirrorBlock.Supported|=MIRROR_SUPPORTED_MOUSE;
+            if (Take(InputDetour,static_cast<uint8_t*>(module.lpBaseOfDll),module.SizeOfImage)) { MirrorBlock.Supported|=MIRROR_SUPPORTED_MOUSE; Native.inputHooked=true; }
         }
         core->GetChatManager()->Write(0,false, Shared.Hooked ?
             (Shared.SupportedMask & 8 ? "[uihook:party] Party/target hooks ready (native arrows preserved). /pt native [target] on; unload hideparty first." :
@@ -582,7 +582,7 @@ public:
     }
     void GiveWindowHooks() {
         MirrorBlock.Supported=0; MirrorBlock.RequestFrame=0; MirrorBlock.MouseFrame=0; MenuMirror.Clear();
-        Give(InputDetour);
+        Give(InputDetour); Native.inputHooked=false;
         Diag.Stop();
         GiveContentCall(); Give(TextBitmapDetour); Give(TextScaledDetour); Give(TextFontDetour);
         windowHooks=false;
@@ -1239,10 +1239,11 @@ static uint32_t __fastcall TextFont(void* font,void*,int32_t x,int32_t y,const c
     Diag.TextEnd(); MenuMirror.TextEnd(); return result;
 }
 // A window's contents drawn, as Window::Render would, with the mirror told they are being drawn
-static void __cdecl MirrorInput(MSG message) {
-    if (MirrorBlock.Supported & MIRROR_SUPPORTED_MOUSE) {
+static void __cdecl GameInput(MSG message) {
+    if (!Native.Mouse(message)) return; // kept from the game
+    if (!Native.mouse && (MirrorBlock.Supported & MIRROR_SUPPORTED_MOUSE)) {
         RECT client;
-        if (MirrorMouseMessage(message.message) && GetClientRect(message.hwnd,&client))
+        if (MouseMessage(message.message) && GetClientRect(message.hwnd,&client))
             if (MirrorMapMessage(MirrorBlock,message,client.right-client.left,client.bottom-client.top)) MirrorMapped++;
     }
     reinterpret_cast<void(__cdecl*)(MSG)>(InputDetour.trampoline)(message);

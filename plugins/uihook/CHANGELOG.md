@@ -19,6 +19,12 @@
   mirror's and the census's: `src/modules/window/window.h` holds their patterns, the window's fields and the phase
   of a draw (`WindowPhase`, was `MirrorPhase`), which the native look tells a window's frame by.
   tests/check_census_client.py is check_window_client.py.
+- `/uihook native mouse on|off` (an experiment, off to begin with; nativeui 0.8's Mouse Follows Menus): the game's
+  mouse given each window where the native look draws it. A message on a window drawn moved (the one drawn last on
+  top, of those drawn in the last two frames) is given to the game at the same place on its own window, the move
+  undone; one where the game puts a window drawn elsewhere, with none drawn there, is kept from the game (a button
+  let go always given). The mirror's taking of the game's mouse handler (1.2) is the game's own now
+  (`window/mouse.h`), shared by the two; the native look's comes first while it is on.
 - `/uihook` lists its commands a line each, the diagnostics only where they are built in. The plugin's description
   and its DLL's version (it said 0.3 and 0.4) say what it is now; the README no longer says it is experimental or untested.
 
