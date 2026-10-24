@@ -422,6 +422,14 @@ a reader keeps the last serial it read and takes the ones after, at most a ring'
 zero in the DLL's file, its magic written as the plugin initializes, so the half-megabyte ring costs
 the file nothing. Nothing is read from the game or written to it, and no line is changed or blocked.
 
+## Diagnostics: built with `--diagnostics` (1.58)
+
+The menu census, the texture census, `/uihook mirror labels` and `/uihook mirror watch`, and the watch block
+`tools/uihook_live.py` reads, are the tools the mirror and the skin were found with. They are built in only by
+`./build.sh --diagnostics` (`src/modules/mirror/diagnostics.h`); the plugin as built by `./build.sh` answers
+their commands with how to build them, and exports no watch. A skin is made from a texture census, so
+`tools/uihook_skin.py`'s input needs a diagnostics build to take; the skin it makes loads in either.
+
 ## Menu census (0.95)
 
 The first step toward mirroring the game's menus. The game registers about 370 menus, all drawn by
@@ -646,6 +654,7 @@ Future UI modules should own their recognition and native semantics; any additio
 
 ```sh
 plugins/uihook/build.sh
+plugins/uihook/build.sh --diagnostics   # the diagnostics built in as well; both must build
 plugins/uihook/tests/run.sh
 luajit tests/nativehud_check.lua
 luajit tests/nativechat_check.lua

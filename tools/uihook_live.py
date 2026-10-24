@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Reads uihook's blocks from the running game (Proton, the phoenix-loader.exe process), read only, through
-# /proc/<pid>/mem: the menu mirror (ABI 5) and the watch (uihook 1.23+: every window drawn each frame).
+# /proc/<pid>/mem: the menu mirror (ABI 5) and the watch (uihook 1.23+: every window drawn each frame; from 1.58
+# only in a build made with plugins/uihook/build.sh --diagnostics).
 #
 #   python3 tools/uihook_live.py            what is asked, drawn and published now
 #   python3 tools/uihook_live.py follow DIR a line each time that changes, to DIR/follow.log, and every
@@ -127,7 +128,7 @@ def follow(out):
         key = (asked, tuple(drawn), tuple(wins))
         if key != last:
             if last is None or asked != last[0]: log.write(f'{stamp()} asked: {asked}\n')
-            if last is None or tuple(drawn) != last[1]: log.write(f'{stamp()} drawn: {" ".join(drawn) if wbase else "(no watch block: uihook before 1.22)"}\n')
+            if last is None or tuple(drawn) != last[1]: log.write(f'{stamp()} drawn: {" ".join(drawn) if wbase else "(no watch block: uihook before 1.22, or built without --diagnostics)"}\n')
             log.write(f'{stamp()} published: {" ".join(wins) or "none"}\n')
             last = key
             names = tuple(w['name'] for w in s['windows'])
@@ -152,4 +153,4 @@ if __name__ == '__main__':
             for name, kind, draws, depth, flags, up, other, buf in ws:
                 print(f"  {name:9} kind {kind:X} depth {depth} {'asked' if flags & 1 else '-'}{' hidden' if flags & 2 else ''}{' mirrored' if flags & 4 else ''}; draws {up} measured, {other} not screen space, {buf} buffers")
         else:
-            print('no watch block (uihook before 1.23)')
+            print('no watch block (uihook before 1.23, or built without --diagnostics: plugins/uihook/build.sh --diagnostics)')

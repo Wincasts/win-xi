@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # Makes a uihook skin (uihook 1.33+, /uihook skin <name>) for the game's own interface, from a texture census
-# (/uihook textures, logs\uihook-textures\NN\tex-<hash>.bmp). Read from the census folder and the winxi theme;
-# written only to the output folder, to be copied to <Ashita>\config\uihook\skins\<name>\.
+# (/uihook textures, in a uihook built with --diagnostics; logs\uihook-textures\NN\tex-<hash>.bmp). Read from the
+# census folder and the winxi theme; written only to the output folder, to be copied to
+# <Ashita>\config\uihook\skins\<name>\.
 #
 #   python3 tools/uihook_skin.py CENSUS_DIR [OUT_DIR] [--style test|winxi] [--theme THEME_LUA] [--scale N]
 #

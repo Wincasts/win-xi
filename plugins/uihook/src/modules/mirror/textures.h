@@ -272,7 +272,7 @@ public:
 
 // A screen-space draw's first vertex's colour and the texture places of all its vertices, by its FVF; false where it
 // has no texture places
-static bool TextureVertices(const void* data,unsigned count,unsigned stride,uint32_t fvf,float* uv,uint32_t* colour,bool& hasColour) {
+static inline bool TextureVertices(const void* data,unsigned count,unsigned stride,uint32_t fvf,float* uv,uint32_t* colour,bool& hasColour) {
     hasColour=false;
     if (!data || !count || (fvf & D3DFVF_POSITION_MASK)!=D3DFVF_XYZRHW) return false;
     unsigned at=16;
