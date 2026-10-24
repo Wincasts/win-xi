@@ -86,5 +86,5 @@ for _, map in ipairs(catalog.list) do
     end
 end
 local count = 0; for _ in pairs(cities) do count = count + 1; end
-check('163 buildings in 24 cities and towns', buildings == 163 and count == 24);
+check('163 buildings from the maps and the Tenshodo, in 24 cities and towns', buildings == 164 and count == 24);
 print(('zoneinfo exact areas and buildings: %d assertions passed'):format(checks));

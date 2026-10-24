@@ -36,6 +36,9 @@ zonelines:
   d1:
     from: [1.0, 2.0, 3.0]
     to: west_ronfaure
+  d2:
+    from: [5.0, 2.0, 9.0]
+    to: southern_san_doria
 """,
     'southern_san_doria': 'type: [city]\nzonelines: {}\n',
     'horlais_peak': 'zonelines: {}\n',
@@ -63,25 +66,32 @@ class EntranceTests(unittest.TestCase):
         result = build(self.server, self.review, {167: 'Bostaunieux Oubliette', 100: 'West Ronfaure'}, self.output)
         return result, self.output.read_text()
 
-    def test_only_lines_into_dungeons(self):
-        (total, _, zones, _), text = self.run_build()
-        self.assertEqual(zones, 1)
-        self.assertNotIn('Southern', text)
+    def test_lines_into_dungeons_and_towns(self):
+        (total, _, zones, _, towns), text = self.run_build()
+        self.assertEqual((zones, towns), (2, 2))
+        self.assertIn("id = 'b1', to = 230, kind = 'town'", text)
         self.assertNotIn('Horlais', text)  # a battlefield has no type: not an entrance to announce
-        self.assertNotIn('[167]', text)  # nor are a dungeon's ways out
+        self.assertNotIn("id = 'd1'", text)  # a dungeon's way out into the field is no entrance
+        self.assertIn("id = 'd2', to = 230, kind = 'town'", text)  # its way into a town is
+
+    def test_a_covered_town_entrance_is_left_out(self):
+        self.review.write_text(json.dumps({'100:b1': {'covered': 'Ronfaure Bridge'}}))
+        (_, _, _, _, towns), text = self.run_build()
+        self.assertEqual(towns, 1)
+        self.assertNotIn("id = 'b1'", text)
 
     def test_near_lines_are_one_entrance_and_a_level_apart_are_not(self):
-        (total, _, _, _), text = self.run_build()
-        self.assertEqual(total, 2)
+        (total, _, _, _, _), text = self.run_build()
+        self.assertEqual(total, 4)
         self.assertIn("id = 'a1'", text)
         self.assertIn("id = 'a3'", text)
         self.assertNotIn("id = 'a2'", text)
 
     def test_review_number_and_place_and_ashita_axes(self):
-        (_, numbered, _, unreviewed), text = self.run_build()
+        (_, numbered, _, unreviewed, _), text = self.run_build()
         self.assertEqual(numbered, 1)
         self.assertIn("label = 'A', place = 'Jack\\'s Door', x = -708.0, y = 24.0, z = -41.0", text)
-        self.assertEqual(unreviewed, ['100:a3 West_Ronfaure -> Bostaunieux_Oubliette'])
+        self.assertIn('100:a3 West_Ronfaure -> Bostaunieux_Oubliette', unreviewed)
 
     def test_the_output_loads_as_lua_text(self):
         _, text = self.run_build()

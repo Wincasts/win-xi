@@ -207,16 +207,19 @@ local function save_live_map(zone)
     presentation.save();
 end
 
--- The approach distances (field, town, dungeon) and the entrances are settings: the sliders, the
+-- The approach distances (field, town, dungeon) and the entrances (dungeons', towns') are settings: the sliders, the
 -- command and another character's settings all arrive here, and membership starts afresh with them.
 local APPROACH_KEYS = { outdoors = 'fieldApproach', city = 'townApproach', dungeon = 'dungeonApproach' };
 local function sync_approach()
     local d, s = presentation.display(), tracking.state;
-    local same = s.entrances.enabled == d.entrancesEnabled[1] and s.entrances.yalms == d.entranceYalms[1];
+    local e = s.entrances;
+    local same = e.enabled == d.entrancesEnabled[1] and e.yalms == d.entranceYalms[1]
+        and e.towns == d.townEntrancesEnabled[1] and e.town_yalms == d.townEntranceYalms[1];
     for kind, key in pairs(APPROACH_KEYS) do same = same and s.approach[kind] == d[key][1]; end
     if (same) then return; end
     for kind, key in pairs(APPROACH_KEYS) do s.approach[kind] = d[key][1]; end
-    s.entrances.enabled, s.entrances.yalms = d.entrancesEnabled[1], d.entranceYalms[1];
+    e.enabled, e.yalms = d.entrancesEnabled[1], d.entranceYalms[1];
+    e.towns, e.town_yalms = d.townEntrancesEnabled[1], d.townEntranceYalms[1];
     local quiet_until = tracking.quiet_until;
     tracking:reset(os.clock());
     tracking.quiet_until = math.max(tracking.quiet_until, quiet_until);

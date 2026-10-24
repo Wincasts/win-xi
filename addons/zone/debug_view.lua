@@ -267,9 +267,9 @@ function M.draw(state, editor)
                 end
                 end -- Feature/approach envelope intersects the viewport.
             end
-            -- Dungeon entrances: not edited here, drawn so they can be seen against the map's own areas.
+            -- Dungeon and town entrances: not edited here, drawn so they can be seen against the map's own areas.
             local wanted = state.entrances or tracking.ENTRANCE;
-            local entrances = entry and wanted.enabled and tracking.entrance_areas(definition.zone_id, entry, wanted.yalms);
+            local entrances = entry and tracking.entrance_areas(definition.zone_id, entry, wanted);
             for _, area in ipairs(entrances or {}) do
                 local selected = live and state.area and state.area.id == area.id;
                 local previous = area.polygon[#area.polygon];
@@ -292,7 +292,7 @@ function M.draw(state, editor)
             if not handle then imgui.Text('Map preview unavailable; showing polygons only.'); end
             elseif editor then editor:cancel(); end -- EndChild is required even when clipped.
             imgui.EndChild();
-            imgui.Text('Yellow: vertices | Cyan: live player | Purple: disabled draft | Orange/green: approach | Blue: dungeon entrance');
+            imgui.Text('Yellow: vertices | Cyan: live player | Purple: disabled draft | Orange/green: approach | Blue: entrance');
         end
         imgui.Text('/zone sample prints live coordinates; /zone debug off closes this window.');
     elseif editor then editor:cancel(); end

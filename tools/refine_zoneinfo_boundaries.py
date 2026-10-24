@@ -62,6 +62,15 @@ def apply_refinements(maps, source):
             area['exact'] = True  # A building: entered by stepping inside, with no approach distance.
         else:
             area.pop('exact', None)
+        # A place above or below another (one underground): announced only between these heights,
+        # the Z Ashita gives, which grows going down.
+        for side in ('z_min', 'z_max'):
+            if side in patch:
+                if type(patch[side]) not in (int, float) or not math.isfinite(patch[side]):
+                    raise ValueError(f"Refinement {side} must be a number: {patch['area_id']}")
+                area[side] = patch[side]
+            else:
+                area.pop(side, None)
     return maps
 
 

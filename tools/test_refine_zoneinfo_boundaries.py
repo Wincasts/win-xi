@@ -48,6 +48,17 @@ class RefinementTests(unittest.TestCase):
         del patch['exact']
         self.assertNotIn('exact', apply_refinements(maps, {'areas': [patch]})[0]['areas'][0])
 
+    def test_height_limits_are_set_cleared_and_checked(self):
+        patch = self.patch(); patch['z_min'] = 1.0
+        maps = self.setup_maps()
+        area = apply_refinements(maps, {'areas': [patch]})[0]['areas'][0]
+        self.assertEqual((area['z_min'], area.get('z_max')), (1.0, None))
+        del patch['z_min']
+        self.assertNotIn('z_min', apply_refinements(maps, {'areas': [patch]})[0]['areas'][0])
+        patch['z_max'] = 'low'
+        with self.assertRaises(ValueError):
+            apply_refinements(self.setup_maps(), {'areas': [patch]})
+
     def test_invalid_geometry_rejected(self):
         for polygon in [[], [[0, 0], [10, 10], [0, 10], [10, 0]],
                         [[0, 0], [10, 0], [513, 10]], [[True, 0], [10, 0], [10, 10]],
@@ -65,9 +76,10 @@ class RefinementTests(unittest.TestCase):
         self.assertTrue(all(a.get('exact') is True for a in source['areas'] if a['method'] == 'building_footprint_traced_from_map_fill'))
         self.assertEqual(sum(a['method'] == 'inherited_from_identical_raster' for a in source['areas']), 13)
         self.assertEqual(sum(a['method'] == 'inherited_from_present_day_raster' for a in source['areas']), 55)
-        self.assertEqual(sum(a.get('add') is True for a in source['areas']), 144)
+        self.assertEqual(sum(a['method'] == 'placed_from_phoenix_npc_and_door_positions' for a in source['areas']), 1)
+        self.assertEqual(sum(a.get('add') is True for a in source['areas']), 145)
         self.assertTrue(all(valid_polygon(a['polygon']) for a in source['areas']))
-        self.assertEqual(len({(a['map_key'], a['area_id']) for a in source['areas']}), 410)
+        self.assertEqual(len({(a['map_key'], a['area_id']) for a in source['areas']}), 411)
 
 
 if __name__ == '__main__':

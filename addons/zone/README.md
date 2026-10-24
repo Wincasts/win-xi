@@ -57,10 +57,11 @@ the way pivot turns towards its overlays: with XICombinedMaps-2048 installed as
 an overlay they are its pictures, and without it the game's own. 22 of the 494
 are other pictures of a map that only the pack has; without it they are blank.
 
-The dataset contains **833 polygons**:
+The dataset contains **834 polygons**:
 
-- **417 named features** on 81 maps. Every one has been placed by eye on its
-  map's artwork, traced from it, or is a player's own edit:
+- **418 named features** on 81 maps. Every one has been placed by eye on its
+  map's artwork, traced from it, placed from the server's own positions, or is
+  a player's own edit:
   - 163 are **buildings** in 24 cities and towns: shops, guilds, auction
     houses, consulates, manors and rooms. See "City buildings" below.
   - 27 are the player's saved edits, kept exactly.
@@ -73,7 +74,11 @@ The dataset contains **833 polygons**:
   - 7 are unchanged: the four original POC shapes, Lake Mechieume, and two
     (Colkhab's Hive, Hurkan's Roost) whose first placement already sat on
     the feature.
-  - 408 are announced. The 9 that are off are city moats and rivers that
+  - 1, **Tenshodo H.Q.** under Lower Jeuno, is placed from the Phoenix
+    server's positions of its doors, merchants and coffer: the map draws only
+    the streets above it. It is a building announced only below street level
+    (a minimum height of 1, the street being at about 0 and the H.Q. at 4).
+  - 409 are announced. The 9 that are off are city moats and rivers that
     cannot be walked into.
 - **416 unnamed editor-only drafts**, one for each raster without reviewed
   names. These do not announce invented sub-zone names. Rename/reposition them
@@ -182,7 +187,7 @@ under Sub-zone Popup, saved per character as is the map chosen for live
 detection in each zone; `/zone approach` and `/zone livemap` change the same
 settings.
 
-### Dungeon entrances
+### Dungeon and town entrances
 
 **Announce Dungeon Entrances** (on to start) names a dungeon's entrance as you
 come to it, as a sub-zone: `Quicksand Caves Entrance 7`. The number is the one
@@ -204,6 +209,16 @@ Teriggan, Eastern Altepa Desert and most [S] maps). Dungeon-to-dungeon passages
 are not included. The entrances are drawn in blue in the map browser and are
 not edited there; `tools/build_zone_entrances.py` makes them, with the numbers
 from `research/dungeon_entrances.json`.
+
+**Announce Town Entrances** (on to start) names a town as you come up to its
+gates from the field or from a dungeon: `Southern San d'Oria Entrance`,
+`Norg Entrance` in Sea Serpent Grotto. **Town Entrance Distance** (40 yalms to
+start, 5 to 100) is wider than a dungeon's, to be told of the town before you
+reach the gate. There are 38, from the same zone lines, into the cities and
+Nashmau; a town's lines within 60 yalms of each other are one. Jeuno's three
+ways in from Batallia Downs, Rolanberry Fields and Sauromugue Champaign are left
+out, since Artisan Bridge, Market Bridge and Harbor Bridge already name them;
+Qufim Island's is kept. Towns carry no map number.
 
 ### Weather popup
 

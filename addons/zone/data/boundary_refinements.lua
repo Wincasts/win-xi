@@ -410,4 +410,5 @@ return {
     {map_key = "050_m_050_00_0e5d018d9155", area_id = "auction_house", name = "Auction House", enabled = true, polygon = {{158.0, 196.5}, {175.0, 196.5}, {175.0, 222.0}, {158.0, 222.0}}, method = "building_footprint_traced_from_map_fill", exact = true, add = true},
     {map_key = "050_m_050_00_0e5d018d9155", area_id = "alchemists_guild", name = "Alchemists' Guild", enabled = true, polygon = {{196.5, 158.0}, {222.0, 158.0}, {222.0, 175.0}, {196.5, 175.0}}, method = "building_footprint_traced_from_map_fill", exact = true, add = true},
     {map_key = "050_m_050_00_0e5d018d9155", area_id = "shararat_teahouse", name = "Shararat Teahouse", enabled = true, polygon = {{325.0, 371.0}, {350.0, 371.0}, {350.0, 387.0}, {325.0, 387.0}}, method = "building_footprint_traced_from_map_fill", exact = true, add = true},
+    {map_key = "245_m_245_00_7f38def02d48", area_id = "tenshodo_hq", name = "Tenshodo H.Q.", add = true, enabled = true, polygon = {{298.4, 232.0}, {326.4, 232.0}, {326.4, 259.2}, {298.4, 259.2}}, method = "placed_from_phoenix_npc_and_door_positions", exact = true, z_min = 1.0},
 };
