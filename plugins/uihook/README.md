@@ -614,6 +614,16 @@ in 1.58: nothing used them once the group, the inset and the size did it for eve
   Under the [lens](../lens) plugin's warp (0.93), each native target/subtarget arrow's tip is moved
   to where the warp shows the target (`WarpArrow` in `target.h`, from the block lens.dll exports as
   `LensWarp`, in menu-layer pixels); without lens, or with its warp off, the arrows are untouched.
+  `partyhook.cpp` is the one place the game's draws and `Window::Render` come in: it does the capture and replay
+  itself and calls each of the parts below in turn.
+- `src/modules/native/`: the game's own menus changed as they are drawn. `skinmodule.h` (`/uihook skin`) swaps
+  their textures and fonts for a skin's; `nativemodule.h` (`/uihook native`) draws them moved and scaled. Their
+  logic, checked offline, is in `skin.h`, `skinfile.h`, `skinfont.h` and `native.h`.
+- `src/modules/mirror/`: the menu mirror (`mirror.h`, `mouse.h`), which leaves a menu undrawn and publishes what
+  it would have drawn for `addons/menus`, and `diagnostics.h`: the menu and texture censuses, the label dumps and
+  the watch, the tools the mirror and the skin were found with.
+- `src/drawcontext.h`: what those parts share for each draw (the device, the frame, the draw's vertex format, the
+  screen's size, and whether a draw of uihook's own is under way).
 
 This is a behavior-preserving consolidation, not a rewrite of both renderers into one abstraction.
 Each module retains its own frame clock, D3D state/texture ownership, signature validation and cleanup.
