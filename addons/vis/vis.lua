@@ -1,6 +1,6 @@
-addon.name    = 'drawscale';
+addon.name    = 'vis';
 addon.author  = 'win';
-addon.version = '2.0';
+addon.version = '2.1';
 addon.desc    = 'World and entity draw distance with the fog kept where you want it: general values, a preset for cities, the outdoors and dungeons, and a zone\'s own, saved per character.';
 addon.link    = 'https://github.com/Wincasts/win-xi';
 
@@ -12,22 +12,25 @@ sets the two floats and sends the fog's two calls through a stub that multiplies
 fog / world, so the fog sits at fog times stock whatever the world multiplier is. A fog of 1 with a
 world of 2 is stock fog in front of twice the terrain.
 
-The values in force are resolved in three layers: the zone's own (/drawscale zone world 3), then
-the preset for the zone's kind (/drawscale dungeon world 2; every zone is a city, outdoors or a
+The values in force are resolved in three layers: the zone's own (/vis zone world 3), then
+the preset for the zone's kind (/vis dungeon world 2; every zone is a city, outdoors or a
 dungeon by zones.lua, built from the Phoenix server's zone data), then the general values
-(/drawscale world 2). A layer holds only what was set in it, and each value comes from the most
+(/vis world 2). A layer holds only what was set in it, and each value comes from the most
 particular layer that has it. The zone is read from the game at load and from the zone-in packet
 after, and the values for it go into the game as it arrives, so a town can draw everything and a
 big field keep its frames. Cities and dungeons begin with world x2 in their presets, once.
 
 The finding is done in the running game: the client DLL is packed on disk. The scale function is
 found by drawdistance's bytes, its entry by the calls to it, and the fog's calls by their shape: in
-the function before, pushing the world selector, multiplying by the answer. /drawscale callers lists
-every call for the record, and /drawscale patch <n> <mult> still re-scales any one of them by number.
+the function before, pushing the world selector, multiplying by the answer. /vis callers lists
+every call for the record, and /vis patch <n> <mult> still re-scales any one of them by number.
 
 The field of view and the projection's aspect constant (fov and square) were here until 2.0 and are the
 lens plugin's now (/lens fov, /lens middle, /lens square); a character's saved ones are said once at load
 as the lens commands that set them, and dropped.
+
+This addon was drawscale until 2.1, and its terrain setting vis. A character's drawscale settings are
+copied to vis's the first time vis loads for them (adoptDrawscale), and a saved vis is read as terrain.
 --]]
 
 require 'common';
@@ -50,12 +53,13 @@ local defaults = T{
     fog     = 1.0,
     objects = 0,      -- zone-object ranges: n times stock; 0 = the same as world
     detail  = 0,      -- how much further objects keep their detailed mesh; 0 = the same as world
-    vis     = true,   -- draw distant terrain the zone's visibility lists would hide
+    terrain = true,   -- draw distant terrain the zone's visibility lists would hide
     zones   = T{},    -- zone id (as a string) -> the values set for that zone alone
     kinds   = T{ city = T{}, outdoors = T{}, dungeon = T{} }, -- the values set for every zone of a kind
     seeded  = false,  -- whether the city and dungeon presets were given their starting world x2
+    adopted = false,  -- whether this character's drawscale settings were looked for, to copy
 };
-local VALUES = { 'world', 'entity', 'fog', 'objects', 'detail', 'vis' };
+local VALUES = { 'world', 'entity', 'fog', 'objects', 'detail', 'terrain' };
 local KINDS = { city = 'a city', outdoors = 'outdoors', dungeon = 'a dungeon' };
 local KIND_PRESET = { city = 'the city preset', outdoors = 'the outdoors preset', dungeon = 'the dungeon preset' };
 local SEED = { city = { world = 2 }, dungeon = { world = 2 } };
@@ -85,6 +89,7 @@ local state = T{
     detailMem = 0,     -- their stubs
     view     = nil,    -- the visibility-list site, from view.find
     moved    = nil,    -- what to say of fov and square saved before 2.0, said once at load
+    adopted  = nil,    -- drawscale's settings were copied to vis's, to say once
 };
 
 -- The client's memory, as the detail and view modules see it.
@@ -100,10 +105,10 @@ local mem = {
 };
 
 local function say(s)
-    if (chat) then print(chat.header(addon.name):append(chat.message(s))); else print('[drawscale] ' .. s); end
+    if (chat) then print(chat.header(addon.name):append(chat.message(s))); else print('[vis] ' .. s); end
 end
 local function fail(s)
-    if (chat) then print(chat.header(addon.name):append(chat.error(s))); else print('[drawscale] error: ' .. s); end
+    if (chat) then print(chat.header(addon.name):append(chat.error(s))); else print('[vis] error: ' .. s); end
 end
 
 -- The game's name for a zone, where it has one.
@@ -143,7 +148,7 @@ end
 local function active() return state.active or resolve(); end
 
 local function reportPath(name)
-    local dir = ('%s\\config\\addons\\drawscale\\'):format(AshitaCore:GetInstallPath());
+    local dir = ('%s\\config\\addons\\vis\\'):format(AshitaCore:GetInstallPath());
     if (ashita.fs and ashita.fs.create_directory) then ashita.fs.create_directory(dir); end
     return dir .. (name or 'callers.txt');
 end
@@ -324,11 +329,11 @@ local function report(toChat)
         say(lines[5]);
         say(lines[6]);
         for n, c in ipairs(state.callers) do say(lineFor(n, c)); end
-        say('Details are in config/addons/drawscale/callers.txt.');
+        say('Details are in config/addons/vis/callers.txt.');
     end
     local f = io.open(reportPath(), 'w');
     if (f) then
-        f:write(('drawscale %s, %s\n'):format(addon.version, os.date('%Y-%m-%d %H:%M:%S')));
+        f:write(('vis %s, %s\n'):format(addon.version, os.date('%Y-%m-%d %H:%M:%S')));
         f:write(table.concat(lines, '\n'), '\n');
         f:close();
     end
@@ -435,7 +440,7 @@ local function apply()
         end
         if (state.detailMem ~= 0) then detail.set(mem, state.detail, detailValue()); end
     end
-    if (state.view ~= nil) then view.setVis(mem, state.view, s.vis ~= false); end
+    if (state.view ~= nil) then view.setVis(mem, state.view, s.terrain ~= false); end
 end
 
 local function rescan()
@@ -451,7 +456,7 @@ local function rescan()
     state.callers = findCallers();
     describeCallers();
     if (not findFog()) then
-        fail('The fog\'s two calls were not recognised; world and entity work, the fog setting does not. /drawscale callers shows what was found.');
+        fail('The fog\'s two calls were not recognised; world and entity work, the fog setting does not. /vis callers shows what was found.');
     end
     if (not findObjects()) then
         fail('The zone-object range call was not recognised; objects will pop in as with drawdistance.');
@@ -466,12 +471,12 @@ local function rescan()
 end
 
 local function valueText(k, v)
-    if (k == 'vis') then return ('vis %s'):format(v and 'on' or 'off'); end
+    if (k == 'terrain') then return ('terrain %s'):format(v and 'on' or 'off'); end
     if ((k == 'objects' or k == 'detail') and v <= 0) then return ('%s as world'):format(k); end
     return ('%s x%.2f'):format(k, v);
 end
 
--- "world x2.00, vis off" for what a layer holds, or nil for nothing.
+-- "world x2.00, terrain off" for what a layer holds, or nil for nothing.
 local function layerText(t)
     local parts = T{};
     for _, k in ipairs(VALUES) do if (t ~= nil and t[k] ~= nil) then parts:append(valueText(k, t[k])); end end
@@ -488,10 +493,10 @@ local function status()
     local fogState = #state.fogSites == 2 and '' or ' (fog calls not found)';
     local objectsState = state.objectSite and '' or ' (range call not found)';
     say(('world x%.2f, entity x%.2f, fog x%.2f%s of stock.'):format(s.world, s.entity, s.fog, fogState));
-    say(('objects x%.2f%s%s, detail x%.2f%s, vis %s.'):format(
+    say(('objects x%.2f%s%s, detail x%.2f%s, terrain %s.'):format(
         objectsValue(), (s.objects == nil or s.objects <= 0) and ' (same as world)' or '', objectsState,
         detailValue(), (s.detail == nil or s.detail <= 0) and ' (same as world)' or '',
-        s.vis ~= false and 'on' or 'off'));
+        s.terrain ~= false and 'on' or 'off'));
     local own, kind = layerText(ownValues()), layerText(kindValues());
     if (own == nil and kind == nil) then
         say('All from the general values.');
@@ -501,19 +506,19 @@ local function status()
 end
 
 local function help()
-    say('/drawscale - the values in force, and where each comes from.');
-    say('/drawscale world <n> - terrain, objects and far clip: n times stock (1 = stock).');
-    say('/drawscale entity <n> - players, NPCs and mobs: n times stock. The server sends entities within about 50 yalms.');
-    say('/drawscale fog <n> - the fog: n times stock, whatever world is. 1 keeps the stock fog.');
-    say('/drawscale objects <n> - buildings, trees and props: n times stock. 0 = the same as world.');
-    say('/drawscale detail <n> - how much further objects keep their detailed mesh. 0 = the same as world.');
-    say('/drawscale vis on|off - on: draw distant terrain the zone would hide from your area. off: stock.');
+    say('/vis - the values in force, and where each comes from.');
+    say('/vis world <n> - terrain, objects and far clip: n times stock (1 = stock).');
+    say('/vis entity <n> - players, NPCs and mobs: n times stock. The server sends entities within about 50 yalms.');
+    say('/vis fog <n> - the fog: n times stock, whatever world is. 1 keeps the stock fog.');
+    say('/vis objects <n> - buildings, trees and props: n times stock. 0 = the same as world.');
+    say('/vis detail <n> - how much further objects keep their detailed mesh. 0 = the same as world.');
+    say('/vis terrain on|off - on: draw distant terrain the zone would hide from your area. off: stock.');
     say('The field of view and true proportions are the lens plugin\'s: /lens fov, /lens middle and /lens square.');
     say('Those set the general values. Over them, for every zone of a kind, and over those, for one zone:');
-    say('/drawscale city|outdoors|dungeon <setting> <value> - the kind\'s preset; <setting> clear takes it out again, clear alone the whole preset.');
-    say('/drawscale zone <setting> <value> - this zone\'s own; <setting> clear takes it out, clear alone all of them; zone list is every zone with its own.');
-    say('/drawscale callers - every call to the scale function, for the record (also in config/addons/drawscale/callers.txt).');
-    say('/drawscale patch <n> <mult> - re-scale caller n by hand; /drawscale unpatch [n] puts it (or all) back.');
+    say('/vis city|outdoors|dungeon <setting> <value> - the kind\'s preset; <setting> clear takes it out again, clear alone the whole preset.');
+    say('/vis zone <setting> <value> - this zone\'s own; <setting> clear takes it out, clear alone all of them; zone list is every zone with its own.');
+    say('/vis callers - every call to the scale function, for the record (also in config/addons/vis/callers.txt).');
+    say('/vis patch <n> <mult> - re-scale caller n by hand; /vis unpatch [n] puts it (or all) back.');
 end
 
 local numeric = { world = true, entity = true, fog = true, objects = true, detail = true };
@@ -523,7 +528,7 @@ local function limits(k)
     if (k == 'objects' or k == 'detail') then return 0, 100; end
     return 0.1, 100;
 end
-local toggles = { vis = true };
+local toggles = { terrain = true };
 
 local function inRange(k, v)
     if (numeric[k]) then
@@ -568,11 +573,53 @@ local function moveToLens(s)
     return had;
 end
 
+-- vis, the terrain setting's name before 2.1, as terrain, in every layer; true when one was there.
+local function renameVis(s)
+    local had = false;
+    local function rename(t)
+        if (type(t) ~= 'table' or t.vis == nil) then return; end
+        if (t.terrain == nil) then t.terrain = t.vis; end
+        t.vis, had = nil, true;
+    end
+    rename(s);
+    for _, own in pairs(type(s.zones) == 'table' and s.zones or {}) do rename(own); end
+    for _, preset in pairs(type(s.kinds) == 'table' and s.kinds or {}) do rename(preset); end
+    return had;
+end
+
+-- This character's drawscale settings (or drawscale's defaults when no one is logged in), copied over
+-- vis's own file for them: the addon was drawscale until 2.1. Each file is looked for once a session, so
+-- the reload that follows a copy does not copy again. True when copied.
+local adopting = {};
+local function adoptDrawscale()
+    local ok, dir = pcall(settings.settings_path);
+    if (not ok or type(dir) ~= 'string') then return false; end
+    local new = dir .. 'settings.lua';
+    if (adopting[new]) then return false; end
+    adopting[new] = true;
+    local old = (dir:gsub('\\addons\\vis\\', '\\addons\\drawscale\\', 1)) .. 'settings.lua';
+    if (old == new) then return false; end
+    local f = io.open(old, 'rb');
+    if (f == nil) then return false; end
+    local text = f:read('*a');
+    f:close();
+    if (ashita.fs.create_dir) then ashita.fs.create_dir(dir); end
+    local out = io.open(new, 'wb');
+    if (out == nil) then return false; end
+    out:write(text);
+    out:close();
+    state.adopted = true;
+    return true;
+end
+
 local function settle(s)
     if (s ~= nil) then state.settings = s; end
     if (state.settings == nil) then state.settings = T{}; end
     s = state.settings;
-    if (moveToLens(s)) then settings.save(); end
+    local changed = moveToLens(s);
+    if (renameVis(s)) then changed = true; end
+    if (s.adopted ~= true) then s.adopted, changed = true, true; end
+    if (changed) then settings.save(); end
     settleGeneral(s);
     if (type(s.zones) ~= 'table') then s.zones = T{}; end
     for id, own in pairs(s.zones) do
@@ -602,7 +649,7 @@ local function setIn(layer, name, key, text)
         v = tonumber(text);
         if (not inRange(key, v)) then
             local min, max = limits(key);
-            fail(('Usage: /drawscale %s%s <n>, n from %s to %g%s.'):format(name, key, min == 0 and '0 (same as world)' or ('%g'):format(min), max,
+            fail(('Usage: /vis %s%s <n>, n from %s to %g%s.'):format(name, key, min == 0 and '0 (same as world)' or ('%g'):format(min), max,
                 layer ~= state.settings and ', or clear' or ''));
             return false;
         end
@@ -610,7 +657,7 @@ local function setIn(layer, name, key, text)
         if (text == nil) then v = not (active()[key] == true);
         elseif (text:lower() == 'on') then v = true;
         elseif (text:lower() == 'off') then v = false;
-        else fail(('Usage: /drawscale %s%s on|off%s'):format(name, key, layer ~= state.settings and '|clear' or '')); return false; end
+        else fail(('Usage: /vis %s%s on|off%s'):format(name, key, layer ~= state.settings and '|clear' or '')); return false; end
     end
     layer[key] = v;
     settings.save();
@@ -630,7 +677,7 @@ local function enterZone(id)
     end
 end
 
--- /drawscale zone [<setting> <value>|<setting> clear|clear|list]
+-- /vis zone [<setting> <value>|<setting> clear|clear|list]
 local function zoneCommand(what, value)
     what = (what or ''):lower();
     local s = state.settings;
@@ -656,7 +703,7 @@ local function zoneCommand(what, value)
         status();
         return;
     end
-    if (not numeric[what] and not toggles[what]) then fail('Usage: /drawscale zone <setting> <value>|clear, /drawscale zone clear, or /drawscale zone list.'); return; end
+    if (not numeric[what] and not toggles[what]) then fail('Usage: /vis zone <setting> <value>|clear, /vis zone clear, or /vis zone list.'); return; end
     if (s.zones[key] == nil) then s.zones[key] = T{}; end
     if (setIn(s.zones[key], 'zone ', what, value)) then
         if (layerText(s.zones[key]) == nil) then s.zones[key] = nil; end
@@ -664,7 +711,7 @@ local function zoneCommand(what, value)
     end
 end
 
--- /drawscale city|outdoors|dungeon [<setting> <value>|<setting> clear|clear]
+-- /vis city|outdoors|dungeon [<setting> <value>|<setting> clear|clear]
 local function kindCommand(kind, what, value)
     what = (what or ''):lower();
     local preset = state.settings.kinds[kind];
@@ -681,7 +728,7 @@ local function kindCommand(kind, what, value)
         show();
         return;
     end
-    if (not numeric[what] and not toggles[what]) then fail(('Usage: /drawscale %s <setting> <value>|clear, or /drawscale %s clear.'):format(kind, kind)); return; end
+    if (not numeric[what] and not toggles[what]) then fail(('Usage: /vis %s <setting> <value>|clear, or /vis %s clear.'):format(kind, kind)); return; end
     if (setIn(preset, kind .. ' ', what, value)) then
         show();
         if (state.kind == kind) then status(); end
@@ -698,18 +745,33 @@ local function guarded(name, fn)
         local ok, err = pcall(fn, ...);
         if (not ok and not said) then
             said = true;
-            fail(('The %s event failed (said once; drawscale keeps going): %s'):format(name, tostring(err)));
+            fail(('The %s event failed (said once; vis keeps going): %s'):format(name, tostring(err)));
         end
     end
 end
 
+-- What a load or a change of character found to say: drawscale's settings brought over, and fov and
+-- square gone to lens. Each said once.
+local function sayNotes()
+    if (state.adopted) then
+        say('Your drawscale settings are vis\'s now. vis replaces drawscale: take /addon load drawscale out of your startup script.');
+        state.adopted = nil;
+    end
+    if (state.moved) then say(state.moved); state.moved = nil; end
+end
+
 settings.register('settings', 'settings_update', guarded('settings', function (s)
+    -- a character new to vis: their drawscale settings copied over and read again, which comes back here
+    if (type(s) == 'table' and s.adopted ~= true and settings.reload ~= nil and adoptDrawscale()) then settings.reload(); return; end
     settle(s);
     apply();
-    if (state.moved) then say(state.moved); state.moved = nil; end
+    sayNotes();
 end));
 
 ashita.events.register('load', 'load_cb', guarded('load', function ()
+    -- the first load for this character: drawscale's settings in place before vis's are read
+    local okPath, dir = pcall(settings.settings_path);
+    if (okPath and type(dir) == 'string' and not ashita.fs.exists(dir .. 'settings.lua')) then adoptDrawscale(); end
     settle(settings.load(defaults));
     state.zone = zoneFromGame() or 0;
     state.kind = state.zone ~= 0 and zoneKinds[state.zone] or nil;
@@ -718,7 +780,7 @@ ashita.events.register('load', 'load_cb', guarded('load', function ()
         apply();
         status();
     end
-    if (state.moved) then say(state.moved); state.moved = nil; end
+    sayNotes();
 end));
 
 ashita.events.register('unload', 'unload_cb', guarded('unload', function ()
@@ -750,7 +812,7 @@ end));
 
 ashita.events.register('command', 'command_cb', guarded('command', function (e)
     local args = e.command:args();
-    if (#args == 0 or args[1] ~= '/drawscale') then return; end
+    if (#args == 0 or args[1] ~= '/vis') then return; end
     e.blocked = true;
     local verb = (args[2] or ''):lower();
     if (verb == '') then
@@ -775,7 +837,7 @@ ashita.events.register('command', 'command_cb', guarded('command', function (e)
         say(('%s is the lens plugin\'s now: /lens %s%s.'):format(verb, verb, verb == 'fov' and ' <n>, or /lens middle <n> to keep the middle as the warp changes' or ' on|off'));
     elseif (verb == 'patch') then
         local n, mult = tonumber(args[3]), tonumber(args[4]);
-        if (n == nil or mult == nil or mult <= 0) then fail('Usage: /drawscale patch <n> <mult>'); return; end
+        if (n == nil or mult == nil or mult <= 0) then fail('Usage: /vis patch <n> <mult>'); return; end
         if (patchCaller(n, mult)) then say(('#%d goes through a stub now: x%.2f of stock, whatever the world multiplier.'):format(n, mult)); end
     elseif (verb == 'unpatch') then
         local n = tonumber(args[3]);

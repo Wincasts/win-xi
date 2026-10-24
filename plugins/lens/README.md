@@ -7,7 +7,7 @@ before drawing the menus and HUD over it. lens draws a warped grid in that quad'
 is bent and the UI is not. That copy is also where the world's edges are smoothed or not, so lens
 draws it with anti-aliasing (`/lens aa`), with the warp on or off. lens also sets the field of view
 and proportions the world is drawn with (`/lens middle`, `/lens fov`, `/lens square`), which were
-drawscale's until its 2.0.
+drawscale's (now [vis](../../addons/vis)) until its 2.0.
 
 ```text
 /load lens
@@ -138,7 +138,7 @@ game object is reached through the global its accessor reads, and k is set at ea
 object exists, only when it holds one of the two constants.
 
 If the four loads already point somewhere else, drawscale before 2.0 has its own fov set: lens leaves
-them to it and `/lens` says so (`/drawscale fov 0`, or update drawscale). Unloading lens points them
+them to it and `/lens` says so (`/drawscale fov 0`, or move to vis). Unloading lens points them
 back at C and puts k back; lens's value stays allocated, for a frame still being built.
 
 ### For addons

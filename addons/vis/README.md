@@ -1,4 +1,4 @@
-# drawscale
+# vis
 
 Draw distance for the world and for entities, with the fog kept where you want it and the zone
 drawn to match: objects that do not pop in, that keep their detail, and distant terrain the zone
@@ -9,26 +9,31 @@ script.
 
 It needs nothing else.
 
+vis was called drawscale until 2.1, and its `terrain` setting `vis`. The first time vis loads for a
+character it copies their drawscale settings, says so, and reads a saved `vis` as `terrain`. Take
+`/addon load drawscale` out of your startup script for `/addon load vis`, and don't load both: they
+patch the same places in the game.
+
 ## Settings
 
-- `/drawscale` says the current values.
-- `/drawscale world <n>` is terrain, objects and far clip at `n` times stock. `1` is stock.
-- `/drawscale entity <n>` is players, NPCs and mobs at `n` times stock. The server only sends
+- `/vis` says the current values.
+- `/vis world <n>` is terrain, objects and far clip at `n` times stock. `1` is stock.
+- `/vis entity <n>` is players, NPCs and mobs at `n` times stock. The server only sends
   entities within about 50 yalms, so more than that changes little.
-- `/drawscale fog <n>` is the fog at `n` times stock, whatever world is. `1` keeps the stock fog in
+- `/vis fog <n>` is the fog at `n` times stock, whatever world is. `1` keeps the stock fog in
   front of however much terrain world draws.
-- `/drawscale objects <n>` is how far buildings, trees and props are drawn, `n` times stock. `0`,
+- `/vis objects <n>` is how far buildings, trees and props are drawn, `n` times stock. `0`,
   the default, follows world. Without this, a world of 2 only pushes objects out about 1.4 times,
   because the client compares squared distances, and they pop in well inside the visible range.
-- `/drawscale detail <n>` is how much further objects keep their detailed mesh. Objects swap between
+- `/vis detail <n>` is how much further objects keep their detailed mesh. Objects swap between
   three meshes at two fixed distances; this moves both switch points out by `n`. `0`, the default,
   follows world.
-- `/drawscale vis on|off` (default on) draws distant terrain the zone's visibility lists would hide
+- `/vis terrain on|off` (default on) draws distant terrain the zone's visibility lists would hide
   from your area. Zones carry precomputed lists of what is visible from where, and terrain off the
   list is never drawn however far the draw distance goes, popping in as you cross into the next area.
-  On costs some frames in big zones. `/drawscale vis` alone toggles it.
+  On costs some frames in big zones. `/vis terrain` alone toggles it.
 
-The field of view and the world's true proportions were drawscale's `fov` and `square` until 2.0 and
+The field of view and the world's true proportions were `fov` and `square` until 2.0 and
 are the [lens](../../plugins/lens) plugin's now: `/lens fov`, `/lens middle` and `/lens square`, with
 lens's warp or without it. A character's saved fov and square are said once at load as the lens
 commands that set them, and a zone's or preset's own are gone.
@@ -40,28 +45,28 @@ set in it, and every value in force comes from the most particular layer that ha
 
 - A preset for each kind of zone. Every zone the server has is a city, outdoors or a dungeon
   (its dungeons, instanced areas, Dynamis and battlefields), by `zones.lua`, built from the
-  Phoenix server's zone data with `tools/build_zone_kinds.py`. `/drawscale dungeon world 2` sets
-  the world for every dungeon; `/drawscale city vis off`, `/drawscale outdoors fog 1.5` and the
-  rest likewise. `/drawscale dungeon` alone shows the preset, `/drawscale dungeon world clear`
-  takes one value out of it, and `/drawscale dungeon clear` empties it. To begin with, cities and
+  Phoenix server's zone data with `tools/build_zone_kinds.py`. `/vis dungeon world 2` sets
+  the world for every dungeon; `/vis city terrain off`, `/vis outdoors fog 1.5` and the
+  rest likewise. `/vis dungeon` alone shows the preset, `/vis dungeon world clear`
+  takes one value out of it, and `/vis dungeon clear` empties it. To begin with, cities and
   dungeons have world x2 in their presets and the outdoors preset is empty, so the outdoors draw
   with the general values.
-- A zone's own values. `/drawscale zone world 3` sets the world for the zone you stand in alone;
-  `/drawscale zone world clear` takes it out, `/drawscale zone clear` takes out all of them, and
-  `/drawscale zone list` lists every zone with values of its own.
+- A zone's own values. `/vis zone world 3` sets the world for the zone you stand in alone;
+  `/vis zone world clear` takes it out, `/vis zone clear` takes out all of them, and
+  `/vis zone list` lists every zone with values of its own.
 
 So in a dungeon with the presets as they start, world is 2 from the dungeon preset and everything
 else is the general value, and a dungeon given its own world of 3 draws with that. The zone is
 read from the game at load and from the zone-in packet after, so the values change as the new
 zone loads; a line in the chat says what the zone gets from its own values and from its kind's
-preset. `/drawscale` says which zone you are in, its kind, the values in force and where each
+preset. `/vis` says which zone you are in, its kind, the values in force and where each
 override comes from. A zone the server has no data for is of no known kind and draws with the
 general values, plus its own if it has any.
 
 ## How it works
 
 The client multiplies its far clip, fog, zone-object ranges and entity cull distance by two floats,
-world and entity; every distance asks one small function for the scale. drawscale sets the two
+world and entity; every distance asks one small function for the scale. vis sets the two
 floats and sends particular calls to that function through stubs of its own: the fog's two calls
 (its start and end) multiply their answer by fog / world, and the zone-object range's call multiplies
 by objects² / world. The mesh-detail comparisons go through four more stubs that scale the squared
@@ -76,15 +81,15 @@ the others keep working.
 
 For the record, and for the next time the client changes:
 
-- `/drawscale callers` lists every call to the scale function: a number, the address, which
+- `/vis callers` lists every call to the scale function: a number, the address, which
   multiplier it selects, what it pushes, and the first thing done with the answer; the fog's two and
   the zone-object range are marked, and the detail and vis sites are counted. The full report, with
   the module scanned and the bytes around each call decoded, is written to
-  `config/addons/drawscale/callers.txt`.
-- `/drawscale patch <n> <mult>` sends caller `n` through a stub by hand, `/drawscale unpatch [n]`
-  puts it (or all of them) back, and `/drawscale scan` finds everything afresh.
+  `config/addons/vis/callers.txt`.
+- `/vis patch <n> <mult>` sends caller `n` through a stub by hand, `/vis unpatch [n]`
+  puts it (or all of them) back, and `/vis scan` finds everything afresh.
 
-An error in any of drawscale's events is said once in the chat and drawscale keeps going, since
+An error in any of vis's events is said once in the chat and vis keeps going, since
 Ashita unloads an addon whose event errors without letting it put the game back; a game left patched
 that way (drawscale 1.6 could, 2026-10-21) shows as the fog, range and detail sites not found at load,
 and a restart of the game clears it.
