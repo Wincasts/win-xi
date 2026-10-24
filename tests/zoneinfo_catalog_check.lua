@@ -22,7 +22,7 @@ for _, map in ipairs(catalog.list) do
 end
 for _ in pairs(catalog.by_zone) do zones = zones + 1; end
 check('all unique supplied maps covered', maps == 494 and zones == 204);
-check('all reviewed names, the Tenshodo, and unnamed editor drafts', areas == 834 and named == 418 and disabled == 425);
+check('all reviewed names, the Tenshodo, Gingerberry Grove and unnamed editor drafts', areas == 835 and named == 419 and disabled == 425);
 check('only matched client indices used', indexed == 469);
 check('untouched POC primary shapes retained', catalog[100].poc and catalog[100].areas[1].polygon[1][1] == 226);
 local patches = require('data.boundary_refinements');
@@ -39,7 +39,7 @@ for _, patch in ipairs(patches) do
     end
     if patch.method == 'player_authored_example' then examples = examples + 1; else inferred = inferred + 1; end
 end
-check('27 player examples and 384 drawn, traced, placed or inherited shapes', examples == 27 and inferred == 384);
+check('28 player examples and 384 drawn, traced, placed or inherited shapes', examples == 28 and inferred == 384);
 local north = catalog[106]; local creek;
 for _, area in ipairs(north.areas) do if area.id == 'zeikt_creek' then creek = area; end end
 check('traced creek follows bend instead of label oval', geometry.contains(creek.polygon, 150, 247)

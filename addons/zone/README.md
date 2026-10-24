@@ -57,19 +57,25 @@ the way pivot turns towards its overlays: with XICombinedMaps-2048 installed as
 an overlay they are its pictures, and without it the game's own. 22 of the 494
 are other pictures of a map that only the pack has; without it they are blank.
 
-The dataset contains **834 polygons**:
+The dataset contains **835 polygons**:
 
-- **418 named features** on 81 maps. Every one has been placed by eye on its
+- **419 named features** on 82 maps. Every one has been placed by eye on its
   map's artwork, traced from it, placed from the server's own positions, or is
   a player's own edit:
-  - 163 are **buildings** in 24 cities and towns: shops, guilds, auction
+  - 162 are **buildings** in 24 cities and towns (and Count Caffaule's
+    Manor, the player's own): shops, guilds, auction
     houses, consulates, manors and rooms. See "City buildings" below.
-  - 27 are the player's saved edits, kept exactly.
-  - 152 were drawn on the feature the map names: the square, bridge, pond or
+  - 28 are the player's saved edits, kept exactly, among them Southern San
+    d'Oria laid out street by street (2026-10-24).
+  - 27 in 11 other cities were redrawn after Southern San d'Oria: each street,
+    square, bridge and gate covers the whole of the walkable place it names,
+    end to end, not a mark beside its label. Gingerberry Grove (Windurst
+    Waters south) is new. See `research/boundary_authoring_style.md`.
+  - 128 were drawn on the feature the map names: the square, bridge, pond or
     stretch of river its label or leader line points at.
   - 55 on past-era and Abyssea maps take the present-day map's shape, where the
     two maps' artwork was compared and found to be the same layout.
-  - 13 are copied between two rasters that are the same picture (Windurst
+  - 11 are copied between two rasters that are the same picture (Windurst
     Waters North, Aht Urhgan Whitegate), so the one the client uses has them.
   - 7 are unchanged: the four original POC shapes, Lake Mechieume, and two
     (Colkhab's Hive, Hurkan's Roost) whose first placement already sat on

@@ -70,16 +70,17 @@ class RefinementTests(unittest.TestCase):
 
     def test_checked_source_counts_by_method(self):
         source = load_refinements(Path(__file__).resolve().parent.parent / 'addons/zone/research/boundary_refinements.json')
-        self.assertEqual(sum(a['method'] == 'player_authored_example' for a in source['areas']), 27)
-        self.assertEqual(sum(a['method'] == 'visually_traced_player_style_draft' for a in source['areas']), 152)
-        self.assertEqual(sum(a['method'] == 'building_footprint_traced_from_map_fill' for a in source['areas']), 163)
+        self.assertEqual(sum(a['method'] == 'player_authored_example' for a in source['areas']), 28)
+        self.assertEqual(sum(a['method'] == 'visually_traced_player_style_draft' for a in source['areas']), 128)
+        self.assertEqual(sum(a['method'] == 'city_layout_after_player_example' for a in source['areas']), 27)
+        self.assertEqual(sum(a['method'] == 'building_footprint_traced_from_map_fill' for a in source['areas']), 162)
         self.assertTrue(all(a.get('exact') is True for a in source['areas'] if a['method'] == 'building_footprint_traced_from_map_fill'))
-        self.assertEqual(sum(a['method'] == 'inherited_from_identical_raster' for a in source['areas']), 13)
+        self.assertEqual(sum(a['method'] == 'inherited_from_identical_raster' for a in source['areas']), 11)
         self.assertEqual(sum(a['method'] == 'inherited_from_present_day_raster' for a in source['areas']), 55)
         self.assertEqual(sum(a['method'] == 'placed_from_phoenix_npc_and_door_positions' for a in source['areas']), 1)
-        self.assertEqual(sum(a.get('add') is True for a in source['areas']), 145)
+        self.assertEqual(sum(a.get('add') is True for a in source['areas']), 146)
         self.assertTrue(all(valid_polygon(a['polygon']) for a in source['areas']))
-        self.assertEqual(len({(a['map_key'], a['area_id']) for a in source['areas']}), 411)
+        self.assertEqual(len({(a['map_key'], a['area_id']) for a in source['areas']}), 412)
 
 
 if __name__ == '__main__':
