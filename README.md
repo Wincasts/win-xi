@@ -19,6 +19,7 @@ with `winxi`, a shared library that gives every addon the same look, set once in
 | [occlusionfix](addons/occlusionfix) | Stops characters near walls, door frames and counters blinking out of view; needs nothing else | `/occlusionfix` |
 | [parse](addons/parse) | Experimental packet-based damage, observed hit rates and manual encounter DPS, with capture/replay diagnostics | `/parse` |
 | [puppet](addons/puppet) | The next enfeebles and weapon skill an automaton will use | `/puppet` |
+| [tempo](addons/tempo) | Bars for when your next auto attack comes and when your next resting tick lands, with about what it restores and when HP and MP are full; a basic take on cadence | `/tempo` |
 | [trigger](addons/trigger) | Plays a sound when something happens: a tell, an invite, a trade, an item dropping, low HP and the like | `/trigger` |
 | [winxisettings](addons/winxisettings) | The look shared by every winxi addon, in one settings window | `/winxi` |
 | [zone](addons/zone) | Zone, region and weather banners, and a location line | `/zone` |
